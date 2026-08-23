@@ -1,0 +1,84 @@
+## 1. Flag declaration
+
+- [ ] 1.1 `backend/feature-flags/src/registry.rs`: declare the drum key, app `music`, type bool, code default **off**, with a doc line naming the intended `beta:midi-drums` scope
+- [ ] 1.2 Confirm the registry's existing "declared defaults match declared type" and "every declared category is owned by a feature" tests still pass
+- [ ] 1.3 Do NOT create a stored override yet — it goes on only after the campaign exists (task 9.2)
+
+## 2. Schema — additive first
+
+- [ ] 2.1 Migration: add nullable `instrument TEXT` to `music.catalog_scores` and `music.user_scores`, with a CHECK constraining it to `keyboard` | `percussion` | `unknown`
+- [ ] 2.2 Backfill by **re-deriving** the instrument from each row's stored bytes — NOT by translating `is_piano`. Verified on prod 2026-08-23: the corpus already holds ~252 scores containing unpitched notes, ~51 of them percussion-first and ~29 pure drum parts (`Drumset`, `Snare Drum`, `Schlagzeug`), so a flag translation would record real percussion rows as `unknown`. A row whose bytes cannot be read or parsed stays `unknown`
+- [ ] 2.3 Index `instrument` on `catalog_scores` if the search predicate needs it (check the existing search index shape first — do not add a redundant one)
+- [ ] 2.4 Do NOT drop `is_piano` in this migration; it goes in 7.1 once no reader remains
+
+## 3. Backend — instrument replaces the proxy
+
+- [ ] 3.1 `repo.rs` / `ScoreMeta`: replace `is_piano: bool` with the instrument, sourced from the parser's classification
+- [ ] 3.2 `pg.rs`: update `META_COLS`, `bind_meta` and `meta_from_row` (the canonical bind order — all three must move together)
+- [ ] 3.3 `pg.rs:387`: replace the `is_piano` search predicate with the instrument predicate
+- [ ] 3.4 `catalog_search.rs`: replace `is_piano` across its 7 sites (params, row, builder helpers, the in-memory filter)
+- [ ] 3.5 `grpc.rs:1001` and `module.rs:457`: carry the instrument through to the wire types
+- [ ] 3.6 `meta.rs` in `musicxml-core`: `note_count` counts unpitched notes, and `validate()` therefore accepts a percussion score — this is the gate opening
+- [ ] 3.7 Confirm the crawler now ingests a percussion score end to end, with **no** instrument condition added: its admission rule stays the redistributable-licence whitelist alone, and a crawled drum score is classified, stored and withheld by the same enforcement as any other
+
+## 4. Backend — enforcement (the part that must not have a hole)
+
+- [ ] 4.1 Wire `FlagService` into `MusicModule`, following `notifications/src/dispatch.rs:38`; read from the hot in-memory store, default every unreadable value to disabled
+- [ ] 4.2 Build the `EvalContext` from `AuthIdentity.roles` (staff) and the existing `PlanSource` snapshot's `beta_keys()` (memberships); never from any request field
+- [ ] 4.3 One shared predicate `caller_may_see_percussion`, failing closed on an unreadable flag store, an unwired `PlanSource`, or unresolvable memberships
+- [ ] 4.4 Gate `SearchCatalog` — as a `WHERE` predicate, not a post-filter, so paging counts stay correct
+- [ ] 4.5 Gate `GetCatalogScoreBytes` and `GetScoreBytes` — answer as for an unknown id, never a distinguishable "forbidden"
+- [ ] 4.6 Gate `ListSavedCatalogScores` and `ListMyScores`
+- [ ] 4.7 Gate `UploadScore` — refuse a percussion upload from an ineligible caller
+- [ ] 4.8 `pg.rs:796`: the rating-deck predicate follows the same rule, so drum scores are ratable by the drum audience instead of being silently unratable forever
+- [ ] 4.9 A test per gated path for the ineligible case — six paths, six tests; a predicate tested once in isolation does not prove the call sites use it
+- [ ] 4.10 Test that an `unknown`-instrument score is still served to an ineligible caller (the no-regression invariant), and that a `percussion` one is not. Note the ordering constraint: the gate is only a boundary once the re-derivation (2.2) has run — before it, real percussion rows are still recorded `unknown`
+
+## 5. Wire protocol
+
+- [ ] 5.1 `score.proto`: replace `SearchCatalogRequest.is_piano` with the instrument filter; add the instrument to `CatalogHit` and `ScoreRecord`
+- [ ] 5.2 Regenerate the app client (`melos run gen-grpc`) and the console client (`yarn gen`)
+
+## 6. Front ends
+
+- [ ] 6.1 App — `catalog_search_notifier.dart:270`: stop pinning `isPiano: true`; carry the instrument filter instead
+- [ ] 6.2 App — `catalog_service.dart:131`: replace `isPiano` with the instrument in the filter model and the request mapping
+- [ ] 6.3 App — Score Hub filter UI: offer the instrument, listing the drum option only when the drum feature is visible
+- [ ] 6.4 App — upload: show the detected instrument in the read-only Verify summary (`score_upload_notifier.dart:73` already carries the bridged summary); add no control to change it
+- [ ] 6.5 App — upload: refuse a percussion file when the feature is not visible, with a localised reason (fr/en), read through the notifier and surfaced via state — never a raw technical string
+- [ ] 6.6 App — score card / library: show the instrument
+- [ ] 6.7 BO — `FiltersBar.vue:55`: replace the piano checkbox with an instrument filter
+- [ ] 6.8 BO — `stores/catalog.ts:26` and `CatalogView.vue:50`: carry the instrument through; keep async state as the existing `Async<T>` union
+- [ ] 6.9 BO — confirm moderators see percussion scores by construction (they are staff), in both the catalog and the review queue
+- [ ] 6.10 BO — badge the instrument on the review-queue row (`ReviewView.vue`): a percussion proposal must be identifiable as such before it is opened, since a moderator judging it needs to know why the preview is unavailable
+- [ ] 6.11 BO — `lib/notation/painter.ts` (the console's own TypeScript painter, independent of the app's Dart one): detect a percussion score and return an explicit "not previewable yet" state instead of drawing it with treble/bass assumptions
+- [ ] 6.12 BO — `ScorePreview.vue`: render that state as its own case in the existing `Async<T>` match, visually distinct from undecodable/unparseable so a moderator does not read a fine file as corrupt; localise the copy (fr/en)
+- [ ] 6.13 BO — same guard on the Play control: a percussion score must not be auditioned through the piano-channel renderer (`audio-wasm` still hardcodes `PIANO_CHANNEL = 0`), so it would play silence or nonsense
+
+## 7. Retire the proxy
+
+- [ ] 7.1 Migration: drop `is_piano` from both tables, once 3.x and 6.x leave no reader
+- [ ] 7.2 Grep the whole repo for `is_piano` / `isPiano` and confirm only generated files remain
+
+## 8. Gates
+
+- [ ] 8.1 `cargo fmt --all --check` and `cargo clippy --workspace --all-targets -- -D warnings`
+- [ ] 8.2 `cargo llvm-cov --workspace --fail-under-lines 80` with the repo's usual ignore regex
+- [ ] 8.3 `melos run analyze`, `dart format`, `dart run custom_lint` clean
+- [ ] 8.4 `cd apps/music && flutter test --coverage --exclude-tags golden`, coverage ≥ 80%
+- [ ] 8.5 BO — `yarn test` and the Playwright e2e (pass `BO_E2E_PORT` to avoid colliding with another worktree's dev server)
+- [ ] 8.6 `openspec validate add-drums-access --strict`
+
+## 9. Operations and manual verification
+
+- [ ] 9.1 Apply the migration on staging and confirm the re-derivation: two-staff keyboard rows read `keyboard`, unreadable rows read `unknown`, and the known percussion rows read `percussion` — spot-check against the ~29 pure drum scores identified on prod (all `pending`, all `PublicDomain`)
+- [ ] 9.2 Create the `midi-drums` beta campaign (`CreateCampaign`, kind `feature`) in the admin plan console, then get testers into it — either `EnrolHandle` per account, or `MintCodes` and have each tester redeem — and confirm with `ListMembers` that they are actually members
+- [ ] 9.3 Set the flag override to `beta:midi-drums` from the back-office flags panel, spelling the key **exactly** as the campaign's: nothing validates that a `beta:<key>` scope names an existing campaign (`RolloutScope::parse` checks the shape only, and the flags service has no knowledge of plans), so a typo stores cleanly and matches nobody, forever, silently
+- [ ] 9.4 Verify the wiring from a **non-staff** tester account. An admin or moderator session proves nothing: `Beta(key) => self.staff || self.betas.contains(key)`, so staff match every beta scope whether the campaign exists, is empty, or is misspelled
+- [ ] 9.5 As a **non**-member on a premium plan: confirm no drum option in the hub, no percussion score in search, a direct fetch by id answers as unknown, and a drum upload is refused
+- [ ] 9.6 As a campaign member: confirm the drum option appears, a drum score uploads, and it is found in search
+- [ ] 9.7 As a moderator: confirm the console shows percussion scores, the instrument filter works, and opening one shows the "not previewable yet" state rather than a broken rendering or a silent Play
+- [ ] 9.8 Confirm withdrawal works: close the campaign and check its members lose access at the next evaluation, with no flag edit — then re-open/re-enrol for the rest of the beta
+- [ ] 9.9 Record the general-availability sequence where the operator will read it (runbook or the flag's doc line): **widen the scope to `global` FIRST, close the campaign SECOND**. `beta:<key>` matches staff *or* member, so closing the campaign while the scope is still `beta:` drops every tester at once and leaves only staff seeing the feature — a broken rollout produced by an action that looks correct
+- [ ] 9.10 **Prerequisite for general availability, not for the beta:** bundle drum scores in `assets/scores/` so the core loop is playable without an account, as `welcome-onboarding` requires for keyboard today. **Author them** rather than source them — that is what the existing bundled scores are (`assets/scores/CREDITS.md`: "authored for this project and released under the repository's licence"), and a basic groove is an idiom, not a copyrightable work, so the licence question that dogs the drum repertoire does not arise. Do **not** promote the ~29 public-domain drum scores found in the catalog: they are crawler-classified and `pending`, never human-reviewed, and the bar for shipping bytes inside the binary is higher than for holding them in a moderated catalog ("drop anything whose licence cannot be confirmed"). Cover the beginner/intermediate/advanced tiers by authoring at each level, which also sidesteps the unresolved drum-difficulty question. Between them they should exercise unpitched notes, the part-list instrument table, the percussion clef, two voices on one staff, and open/closed hi-hat; record each in `CREDITS.md`. Lands with `add-instrument-context`, which is what makes the drum path reachable from a first launch
+- [ ] 9.11 Confirm a keyboard score is unaffected throughout — upload, search, hub and console behave exactly as before

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Cymbra — cascade batterie, état arrêté</title>
+<style>
+  :root{--bg:#060E20;--surf:#131B2E;--ink:#DAE2FD;--hands:#7FB2FF;--feet:#FFB454;
+    --accent:#44E2CD;--ok:#4EDEA3;--primary:#D2BBFF;--muted:#8A93AD}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.55 -apple-system,BlinkMacSystemFont,"SF Pro Text",Inter,system-ui,sans-serif;padding:36px 28px 80px}
+  h1{font-size:24px;font-weight:650;letter-spacing:-.02em;margin:0 0 4px}
+  .sub{color:var(--muted);margin:0 0 28px;font-size:13.5px;max-width:940px}
+  h2{font-size:16px;font-weight:600;margin:0 0 3px}
+  .cap{color:var(--muted);font-size:12.5px;margin:0 0 14px;max-width:900px}
+  .card{background:var(--surf);border:1px solid #2c5c4a;border-radius:13px;overflow:hidden;max-width:1000px}
+  .card.bad{border-color:#5a3340}
+  .note{background:#0d1526;border-left:3px solid var(--accent);padding:12px 16px;
+    border-radius:0 8px 8px 0;margin:22px 0 8px;font-size:13.5px;color:#b9c4e0;max-width:1000px}
+  .note b{color:var(--accent);font-weight:600}
+  .warn{border-left-color:#FFB454}.warn b{color:#FFB454}
+  svg{display:block;width:100%;height:auto}
+  section{margin-bottom:38px}
+  ol{font-size:14px;color:#cfd8ee;max-width:900px;padding-left:22px}
+  ol li{margin-bottom:6px}
+  .legend{display:flex;gap:20px;flex-wrap:wrap;margin-top:14px;font-size:12px;color:var(--muted);max-width:1000px}
+  .legend b{color:var(--ink);font-weight:550}
+  .sw{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+  .ring{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px;
+    border:2px solid var(--primary);background:none}
+  .tag{font-size:10.5px;font-weight:700;letter-spacing:.05em;padding:3px 9px;border-radius:20px;display:inline-block;margin-bottom:8px}
+  .tag.b{background:#4a2733;color:#ff9db0}.tag.g{background:#1d4c3c;color:#6ff0b6}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:22px;max-width:1000px}
+  @media(max-width:900px){.two{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<h1>Cascade batterie — état arrêté</h1>
+<p class="sub">Charley à gauche, grosse caisse en barre pleine largeur, ouvert/fermé en variante de note, pas de « chick ». <b>Corrigé :</b> la barre passe sous les notes, plus au-dessus.</p>
+
+<!-- ===== LE BUG ET SA CORRECTION ===== -->
+<section>
+<h2>Le défaut corrigé : ordre de dessin</h2>
+<p class="cap">La barre traverse toute la largeur. Dessinée au-dessus, elle masque la note de main pile au moment où elles coïncident — c'est-à-dire l'information que la barre existe pour rendre lisible.</p>
+
+<div class="two">
+  <div class="card bad">
+    <div style="padding:14px 16px 0"><span class="tag b">AVANT</span><h2 style="font-size:14px">Barre au-dessus</h2><p class="cap">La note de charley disparaît sous la barre.</p></div>
+    <svg viewBox="0 0 460 170">
+      <rect width="460" height="170" fill="#0d1526"/>
+      <rect x="14" y="10" width="140" height="110" fill="#fff" opacity=".055"/>
+      <rect x="160" y="10" width="140" height="110" fill="#fff" opacity=".03"/>
+      <rect x="306" y="10" width="140" height="110" fill="#fff" opacity=".055"/>
+      <!-- notes -->
+      <rect x="20" y="80" width="128" height="14" rx="5" fill="#D2BBFF"/>
+      <rect x="20" y="34" width="128" height="14" rx="5" fill="#D2BBFF" opacity=".8"/>
+      <rect x="166" y="56" width="128" height="18" rx="6" fill="#7FB2FF"/>
+      <!-- barre PAR-DESSUS -->
+      <rect x="14" y="78" width="432" height="18" rx="5" fill="#FFB454"/>
+      <rect x="14" y="118" width="432" height="2.5" fill="#44E2CD"/>
+      <g><path d="M84 140 L84 100" stroke="#ff8fa3" stroke-width="1.5" stroke-dasharray="4 3"/>
+        <rect x="24" y="142" width="120" height="19" rx="5" fill="#4a2733"/>
+        <text x="84" y="155" fill="#ff9db0" font-size="10" text-anchor="middle" font-weight="600">charley masqué</text></g>
+      <g fill="#8A93AD" font-size="9" text-anchor="middle"><text x="84" y="112">Charley</text><text x="230" y="112">Caisse cl.</text></g>
+    </svg>
+  </div>
+
+  <div class="card">
+    <div style="padding:14px 16px 0"><span class="tag g">APRÈS</span><h2 style="font-size:14px">Barre dessous, atténuée</h2><p class="cap">La note repose <i>sur</i> la barre — la coïncidence se voit.</p></div>
+    <svg viewBox="0 0 460 170">
+      <rect width="460" height="170" fill="#0d1526"/>
+      <rect x="14" y="10" width="140" height="110" fill="#fff" opacity=".055"/>
+      <rect x="160" y="10" width="140" height="110" fill="#fff" opacity=".03"/>
+      <rect x="306" y="10" width="140" height="110" fill="#fff" opacity=".055"/>
+      <!-- barre EN DESSOUS, plus fine et atténuée -->
+      <rect x="14" y="81" width="432" height="11" rx="4" fill="#FFB454" opacity=".62"/>
+      <!-- notes par-dessus -->
+      <rect x="20" y="80" width="128" height="14" rx="5" fill="#D2BBFF"/>
+      <rect x="20" y="34" width="128" height="14" rx="5" fill="#D2BBFF" opacity=".8"/>
+      <rect x="166" y="56" width="128" height="18" rx="6" fill="#7FB2FF"/>
+      <rect x="14" y="118" width="432" height="2.5" fill="#44E2CD"/>
+      <g><path d="M84 140 L84 100" stroke="#6ff0b6" stroke-width="1.5" stroke-dasharray="4 3"/>
+        <rect x="18" y="142" width="132" height="19" rx="5" fill="#1d4c3c"/>
+        <text x="84" y="155" fill="#6ff0b6" font-size="10" text-anchor="middle" font-weight="600">les deux lisibles</text></g>
+      <g fill="#8A93AD" font-size="9" text-anchor="middle"><text x="84" y="112">Charley</text><text x="230" y="112">Caisse cl.</text></g>
+    </svg>
+  </div>
+</div>
+
+<div class="note"><b>Trois réglages, pas un :</b> la barre passe <b>sous</b> la couche des notes ; elle est <b>plus fine</b> qu'une note (11 px contre 14–18) ; et elle est <b>atténuée</b> (~60 %) dans les lanes qu'elle traverse. Le fade seul n'aurait pas suffi — une barre assez pâle pour laisser voir la note dessous serait devenue invisible sur le reste de la largeur, là où elle n'a rien derrière elle.</div>
+</section>
+
+<!-- ===== CASCADE COMPLÈTE CORRIGÉE ===== -->
+<section>
+<h2>La cascade complète</h2>
+<div class="card">
+  <svg viewBox="0 0 1000 500">
+    <rect width="1000" height="500" fill="#0d1526"/>
+
+    <g>
+      <rect x="24"  y="10" width="186" height="360" fill="#fff" opacity=".055"/>
+      <rect x="216" y="10" width="186" height="360" fill="#fff" opacity=".03"/>
+      <rect x="408" y="10" width="186" height="360" fill="#fff" opacity=".055"/>
+      <rect x="600" y="10" width="186" height="360" fill="#fff" opacity=".03"/>
+      <rect x="792" y="10" width="184" height="360" fill="#fff" opacity=".055"/>
+    </g>
+
+    <!-- ===== COUCHE 1 : GROSSE CAISSE (sous les notes) ===== -->
+    <g fill="#FFB454" opacity=".62">
+      <rect x="24" y="345" width="952" height="11" rx="4"/>
+      <rect x="24" y="213" width="952" height="11" rx="4"/>
+      <rect x="24" y="169" width="952" height="11" rx="4"/>
+      <rect x="24" y="37"  width="952" height="11" rx="4"/>
+    </g>
+
+    <!-- ===== COUCHE 2 : NOTES ===== -->
+    <!-- CHARLEY -->
+    <g>
+      <rect x="32" y="344" width="170" height="13" rx="5" fill="#D2BBFF"/>
+      <rect x="32" y="300" width="170" height="13" rx="5" fill="#D2BBFF" opacity=".93"/>
+      <rect x="32" y="256" width="170" height="13" rx="5" fill="none" stroke="#D2BBFF" stroke-width="2.6" opacity=".9"/>
+      <circle cx="117" cy="262" r="3.4" fill="#D2BBFF" opacity=".9"/>
+      <rect x="32" y="212" width="170" height="13" rx="5" fill="#D2BBFF" opacity=".85"/>
+      <rect x="32" y="168" width="170" height="13" rx="5" fill="#D2BBFF" opacity=".78"/>
+      <rect x="32" y="124" width="170" height="13" rx="5" fill="#D2BBFF" opacity=".62"/>
+      <rect x="32" y="80"  width="170" height="13" rx="5" fill="none" stroke="#D2BBFF" stroke-width="2.6" opacity=".55"/>
+      <circle cx="117" cy="86" r="3.4" fill="#D2BBFF" opacity=".55"/>
+      <rect x="32" y="36"  width="170" height="13" rx="5" fill="#D2BBFF" opacity=".5"/>
+    </g>
+    <!-- CAISSE CLAIRE -->
+    <g fill="#7FB2FF">
+      <rect x="224" y="296" width="170" height="18" rx="6"/>
+      <rect x="224" y="164" width="170" height="18" rx="6" opacity=".72"/>
+    </g>
+    <!-- TOMS + CRASH -->
+    <g fill="#7FB2FF" opacity=".5"><rect x="416" y="56" width="170" height="18" rx="6"/></g>
+    <g fill="#7FB2FF" opacity=".45"><rect x="608" y="34" width="170" height="18" rx="6"/></g>
+    <g fill="#D2BBFF" opacity=".85"><rect x="800" y="344" width="168" height="13" rx="5"/></g>
+
+    <!-- ligne de frappe -->
+    <rect x="24" y="366" width="952" height="3.5" fill="#44E2CD"/>
+    <rect x="24" y="369.5" width="952" height="16" fill="#44E2CD" opacity=".1"/>
+    <circle cx="117" cy="368" r="21" fill="#4EDEA3" opacity=".28"/>
+    <circle cx="884" cy="368" r="21" fill="#4EDEA3" opacity=".28"/>
+
+    <g>
+      <path d="M206 262 L262 262" stroke="#6ff0b6" stroke-width="1.4" stroke-dasharray="4 3"/>
+      <rect x="264" y="252" width="112" height="20" rx="5" fill="#1d4c3c"/>
+      <text x="320" y="266" fill="#6ff0b6" font-size="10.5" text-anchor="middle" font-weight="600">charley ouvert</text>
+    </g>
+    <g>
+      <rect x="440" y="332" width="176" height="20" rx="5" fill="#1d4c3c"/>
+      <text x="528" y="346" fill="#6ff0b6" font-size="10.5" text-anchor="middle" font-weight="600">pied + charley ensemble</text>
+    </g>
+    <g>
+      <rect x="440" y="118" width="176" height="20" rx="5" fill="#4a3320"/>
+      <text x="528" y="132" fill="#ffc98a" font-size="10.5" text-anchor="middle" font-weight="600">charley seul, sans pied</text>
+    </g>
+
+    <g fill="#8A93AD" font-size="10.5" text-anchor="middle">
+      <text x="117" y="398">Charley</text>
+      <text x="309" y="398">Caisse claire</text>
+      <text x="501" y="398">Tom</text>
+      <text x="693" y="398">Tom basse</text>
+      <text x="884" y="398">Crash</text>
+    </g>
+
+    <rect x="0" y="410" width="1000" height="90" fill="#151E33"/>
+    <g>
+      <rect x="24"  y="420" width="186" height="36" rx="8" fill="#D2BBFF" opacity=".85"/>
+      <text x="117" y="443" fill="#1a1030" font-size="11" text-anchor="middle" font-weight="700">CHARLEY</text>
+      <rect x="216" y="420" width="186" height="36" rx="8" fill="#7FB2FF" opacity=".3" stroke="#7FB2FF"/>
+      <text x="309" y="443" fill="#7FB2FF" font-size="11" text-anchor="middle" font-weight="600">CAISSE CLAIRE</text>
+      <rect x="408" y="420" width="186" height="36" rx="8" fill="#7FB2FF" opacity=".3" stroke="#7FB2FF"/>
+      <text x="501" y="443" fill="#7FB2FF" font-size="11" text-anchor="middle" font-weight="600">TOM</text>
+      <rect x="600" y="420" width="186" height="36" rx="8" fill="#7FB2FF" opacity=".3" stroke="#7FB2FF"/>
+      <text x="693" y="443" fill="#7FB2FF" font-size="11" text-anchor="middle" font-weight="600">TOM BASSE</text>
+      <rect x="792" y="420" width="184" height="36" rx="8" fill="#D2BBFF" opacity=".85"/>
+      <text x="884" y="443" fill="#1a1030" font-size="11" text-anchor="middle" font-weight="700">CRASH</text>
+      <rect x="24" y="464" width="952" height="26" rx="8" fill="#FFB454" opacity=".85"/>
+      <text x="500" y="482" fill="#20160a" font-size="11.5" text-anchor="middle" font-weight="700">PÉDALE — GROSSE CAISSE</text>
+    </g>
+  </svg>
+</div>
+
+<div class="legend">
+  <span><i class="sw" style="background:#D2BBFF"></i><b>Charley fermé</b></span>
+  <span><i class="ring"></i><b>Charley ouvert</b></span>
+  <span><i class="sw" style="background:#7FB2FF"></i><b>Peaux</b> (mains)</span>
+  <span><i class="sw" style="background:#FFB454"></i><b>Grosse caisse</b> — barre sous les notes</span>
+  <span><i class="sw" style="background:#4EDEA3"></i><b>Frappe validée</b></span>
+</div>
+</section>
+
+<section>
+  <h2>La règle de tri</h2>
+  <ol>
+    <li><b>Charley</b> — ou la <b>ride</b> à défaut : position 1 = « ce qu'on frappe en continu »</li>
+    <li><b>Caisse claire</b></li>
+    <li><b>Toms</b>, du plus aigu au plus grave</li>
+    <li><b>Ride</b> (si le charley l'a précédée), <b>crash</b> et cymbales d'accent</li>
+  </ol>
+  <p class="cap">La <b>grosse caisse</b> n'est jamais une lane. Le <b>charley au pied</b> n'existe pas comme événement : ouvert/fermé est une variante de la note de main. Le <b>mode kit inversé</b> renverse l'ordre des lanes et de la bande de pads, jamais la notation.</p>
+
+  <div class="note warn"><b>Règle de rendu à ne pas perdre :</b> la couche des barres de pied se dessine <b>avant</b> celle des notes de main. Inversé, l'affichage cache exactement l'information que la barre existe pour porter — et le bug est d'autant plus vicieux qu'il n'apparaît <i>que</i> sur les coïncidences, donc jamais sur un morceau de test où le pied et les mains ne tombent pas ensemble.</div>
+</section>
+
+</body>
+</html>
