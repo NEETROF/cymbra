@@ -44,6 +44,13 @@ export const stemThickness = 0.12;
 export const beamThickness = 0.5;
 export const legerLineThickness = 0.16;
 export const legerLineExtension = 0.4;
+// Repeat notation (change: add-repeat-unrolling).
+export const segno = "\u{E047}";
+export const coda = "\u{E048}";
+export const repeat1Bar = "\u{E500}";
+export const repeat2Bars = "\u{E501}";
+export const thickBarlineThickness = 0.5;
+
 export const thinBarlineThickness = 0.16;
 
 // noteheadBlack bbox width + stem-attachment anchors (staff spaces).

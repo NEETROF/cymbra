@@ -48,6 +48,7 @@ Future<void> _flush() => Future<void>.delayed(Duration.zero);
 ScoreDocument _untitled() {
   final titled = sampleFourMeasureDocument();
   return ScoreDocument(
+    playOrder: const [],
     meta: const ScoreMeta(composer: 'Christian Petzold'),
     staves: titled.staves,
     attributes: titled.attributes,
@@ -242,6 +243,23 @@ void main() {
       expect(read().gateSatisfied, isEmpty);
     });
 
+    test('changing hands mid-run restarts scoring from the top', () async {
+      await build();
+      // Synthesia (default) + play from the top opens a scored run.
+      notifier().togglePlay();
+      notifier().toggleWaitMode(); // free run so the playhead advances
+      notifier().advance(200);
+      expect(read().elapsedMs, greaterThan(0));
+      expect(container.read(performanceScorerProvider).active, isTrue);
+      // A hand switch restarts the piece with a fresh, still-active run for the
+      // new selection (demo notes are right-hand, so a run opens).
+      notifier().setSelectedHands(Hand.right);
+      expect(read().elapsedMs, 0);
+      expect(container.read(performanceScorerProvider).active, isTrue);
+    });
+  });
+
+  group('pre-start countdown', () {
     test(
       'startPlayback arms a countdown from the top, freezing the playhead',
       () async {
@@ -259,6 +277,45 @@ void main() {
         expect(read().countdownMs, 0);
         notifier().advance(200);
         expect(read().elapsedMs, greaterThan(0));
+      },
+    );
+
+    test(
+      'the countdown runs on wall-clock time, not on the transport speed',
+      () async {
+        await build();
+        notifier().toggleWaitMode(); // countdown is a free-run feature
+
+        // A quarter-speed run: the playhead crawls, but the get-ready beat is a
+        // real-world beat — 3…2…1…GO must still last kCountdownStartMs of real
+        // time, not 4x that (bug: the countdown consumed the speed-scaled delta).
+        notifier().setSpeed(0.25);
+        notifier().startPlayback();
+        expect(read().countdownMs, kCountdownStartMs);
+
+        // Feed exactly the countdown's worth of REAL frame time.
+        notifier().advance(kCountdownStartMs);
+        expect(read().countdownMs, 0);
+        expect(read().elapsedMs, 0); // frozen for the whole countdown
+
+        // ...and the same at double speed: the countdown is never shortened.
+        notifier().restartFromTop();
+        notifier().setSpeed(2);
+        expect(read().countdownMs, kCountdownStartMs);
+        notifier().advance(kCountdownStartMs - 1);
+        expect(read().countdownMs, 1);
+      },
+    );
+
+    test(
+      'past the countdown, the playhead advances at the transport speed',
+      () async {
+        await build();
+        notifier().toggleWaitMode(); // free run
+        notifier().setSpeed(0.5);
+        notifier().setPlaying(true); // no countdown via setPlaying
+        notifier().advance(400); // 400ms of real time at 0.5x
+        expect(read().elapsedMs, 200);
       },
     );
 
@@ -304,21 +361,6 @@ void main() {
       expect(scoring.active, isTrue); // the run is armed
       expect(scoring.recentHits, isEmpty); // but the press was not scored
       expect(scoring.combo, 0);
-    });
-
-    test('changing hands mid-run restarts scoring from the top', () async {
-      await build();
-      // Synthesia (default) + play from the top opens a scored run.
-      notifier().togglePlay();
-      notifier().toggleWaitMode(); // free run so the playhead advances
-      notifier().advance(200);
-      expect(read().elapsedMs, greaterThan(0));
-      expect(container.read(performanceScorerProvider).active, isTrue);
-      // A hand switch restarts the piece with a fresh, still-active run for the
-      // new selection (demo notes are right-hand, so a run opens).
-      notifier().setSelectedHands(Hand.right);
-      expect(read().elapsedMs, 0);
-      expect(container.read(performanceScorerProvider).active, isTrue);
     });
   });
 
@@ -652,6 +694,7 @@ void main() {
         // score demands) while attacking E5 must open the gate — the tie is a
         // single attack, never a re-press.
         final doc = ScoreDocument(
+          playOrder: const [],
           meta: const ScoreMeta(title: 'Tied', composer: 'T'),
           staves: 1,
           attributes: const Attributes(
@@ -662,6 +705,7 @@ void main() {
           ),
           measures: [
             NotationMeasure(
+              repeats: noRepeats,
               index: 0,
               clefs: const [],
               keyFifths: 0,
@@ -1103,6 +1147,7 @@ void main() {
     // resolves well before songEndMs (which the rest inflates). endMs is the
     // note's resolution; songEndMs runs on to the end of the rest.
     ScoreDocument trailingRestDoc() => ScoreDocument(
+      playOrder: const [],
       meta: const ScoreMeta(title: 'Trail', composer: 'T'),
       staves: 1,
       attributes: const Attributes(
@@ -1113,6 +1158,7 @@ void main() {
       ),
       measures: [
         NotationMeasure(
+          repeats: noRepeats,
           index: 0,
           clefs: const [],
           keyFifths: 0,
@@ -1143,6 +1189,7 @@ void main() {
     // measure while the left hand (staff 2) stops in the 1st — so each hand
     // has a different last-note resolution.
     ScoreDocument grandStaffDoc() => ScoreDocument(
+      playOrder: const [],
       meta: const ScoreMeta(title: 'Grand', composer: 'T'),
       staves: 2,
       attributes: const Attributes(
@@ -1156,6 +1203,7 @@ void main() {
       ),
       measures: [
         NotationMeasure(
+          repeats: noRepeats,
           index: 0,
           clefs: const [],
           keyFifths: 0,
@@ -1177,6 +1225,7 @@ void main() {
           ],
         ),
         NotationMeasure(
+          repeats: noRepeats,
           index: 1,
           clefs: const [],
           keyFifths: 0,

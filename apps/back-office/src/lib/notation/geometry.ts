@@ -49,6 +49,9 @@ export interface NoteEvent {
   pitch?: Pitch | null;
   is_rest: boolean;
   is_chord: boolean;
+  /** Grace note (`<grace/>`): ornamental, occupies no musical time (duration 0
+   * at its principal's position); engraved offset left of the principal. */
+  is_grace: boolean;
   duration_divisions: number;
   note_type?: string | null;
   dots: number;
@@ -63,9 +66,30 @@ export interface NoteEvent {
   lyric?: Lyric | null;
 }
 
+/** Repeat notation engraved on one measure (serde snake_case), mirroring
+ *  `cymbra-musicxml-core::RepeatMarks`. Absent on pre-repeat wasm builds. */
+export interface RepeatMarks {
+  forward: boolean;
+  backward_times: number;
+  ending_start: number[];
+  ending_stop: boolean;
+  ending_discontinue: boolean;
+  measure_repeat_of?: number | null;
+  measure_repeat_slashes: number;
+  segno: boolean;
+  coda: boolean;
+  sound_dacapo: boolean;
+  sound_dalsegno: boolean;
+  sound_tocoda: boolean;
+  sound_fine: boolean;
+  sound_forward_repeat: boolean;
+}
+
 export interface NotationMeasure {
   index: number;
   notes: NoteEvent[];
+  /** Repeat notation on this measure; absent on pre-repeat wasm builds. */
+  repeats?: RepeatMarks;
   // directions are present in the model but not drawn by the v1 painter.
   clefs: Clef[];
   // Key signature (fifths) in force during this measure, carried from the last

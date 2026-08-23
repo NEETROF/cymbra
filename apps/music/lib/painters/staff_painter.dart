@@ -37,6 +37,14 @@ class StaffPainter extends CustomPainter {
   /// by time like the notes, routed to their staff.
   final List<TimedRest> rests;
 
+  /// Tie continuations to engrave on the staff (render-only; never played or
+  /// scored): the `tie stop` notes whose durations were merged into their
+  /// chain's first note in [notes]. Drawn exactly like notes — head, stem/beam,
+  /// dots — plus the tie arc back to the engraved note each one prolongs
+  /// ([TimedNote.tieFromMs]), so the notation stays as written instead of
+  /// leaving the prolonged measures empty.
+  final List<TimedNote> tieContinuations;
+
   final double elapsedMs;
   final Set<int> activeNotes;
 
@@ -59,8 +67,19 @@ class StaffPainter extends CustomPainter {
   /// Absolute start time (ms) of each measure, in order — the same table that
   /// places the notes, so the bar lines land exactly on the real measure
   /// boundaries (any time signature). Empty for the demo score, which falls back
-  /// to a meter-derived spacing.
+  /// to a meter-derived spacing. With repeats these are **played slots** (a
+  /// repeated written measure appears once per pass).
   final List<int> measureStartMs;
+
+  /// Repeat notation per played slot (repeat barlines, volta label, `%`,
+  /// segno/coda), aligned with [measureStartMs]. Empty = nothing to decorate.
+  final List<MeasureDecor> measureDecors;
+
+  /// The written measure each played slot performs, aligned with
+  /// [measureStartMs]; empty = identity. Taps on the measure band (the range
+  /// picker) resolve **written** measures through it, so picking bars works on
+  /// an unrolled timeline.
+  final List<int> writtenMeasureOf;
 
   /// Optional replay overlay: a ring colour per note **index** (into [notes]) to
   /// mark where the player made a mistake, drawn in place on the staff. Empty in
@@ -101,11 +120,14 @@ class StaffPainter extends CustomPainter {
     required this.bpm,
     required this.songEndMs,
     this.rests = const [],
+    this.tieContinuations = const [],
     this.keyFifths = 0,
     this.measureKeyFifths = const [],
     this.beats = 4,
     this.beatType = 4,
     this.measureStartMs = const [],
+    this.measureDecors = const [],
+    this.writtenMeasureOf = const [],
     this.mistakeColors = const {},
     this.lookAheadMs = defaultLookAheadMs,
     this.onsetGapMs,
@@ -500,9 +522,12 @@ class StaffPainter extends CustomPainter {
         final r = math.min(endX, size.width - margin);
         if (r <= l) continue;
         final bounds = Rect.fromLTRB(l, systemTop, r, systemBottom);
-        measureHits?.add((measure: i, rect: bounds));
+        // Taps and the range tint live in WRITTEN measures: on an unrolled
+        // timeline each played slot maps back to the bar it performs.
+        final written = i < writtenMeasureOf.length ? writtenMeasureOf[i] : i;
+        measureHits?.add((measure: written, rect: bounds));
         final range = practiceRange;
-        if (range != null && i >= range.start && i <= range.end) {
+        if (range != null && written >= range.start && written <= range.end) {
           canvas.drawRect(bounds, tint);
         }
       }
@@ -513,6 +538,19 @@ class StaffPainter extends CustomPainter {
         drawBar(t.toDouble());
       }
       drawBar(songEndMs, beforeDownbeat: false); // closing bar line
+      _drawRepeatDecors(
+        canvas,
+        record,
+        xForTime: xForTime,
+        barGap: barGap,
+        headEnd: headEnd,
+        rightEdge: size.width - margin,
+        systemTop: systemTop,
+        systemBottom: systemBottom,
+        lineGap: lineGap,
+        trebleBottom: trebleBottom,
+        bassBottom: bassBottom,
+      );
     } else {
       final bt = beatType == 0 ? 4 : beatType;
       final measureMs = (60000.0 / bpm) * beats * 4 / bt;
@@ -562,16 +600,35 @@ class StaffPainter extends CustomPainter {
     }
 
     final quarterMs = bpm > 0 ? 60000.0 / bpm : 500.0;
+    // Flags from the engraved note type when known — a duration ratio lies for
+    // notes whose played duration differs from their figure (a merged tie
+    // chain's eighth lasting a whole, a grace note's nominal sliver) — with the
+    // ratio as the MIDI-only fallback.
     int flagsOf(TimedNote n) {
+      switch (n.noteType) {
+        case 'whole' || 'half' || 'quarter':
+          return 0;
+        case 'eighth':
+          return 1;
+        case '16th' || '32nd' || '64th':
+          return 2; // two-flag glyph is the smallest we draw
+      }
       final ratio = n.durationMs / quarterMs;
       return ratio <= 0.32 ? 2 : (ratio <= 0.62 ? 1 : 0);
     }
+
+    // Everything engraved as a note: the playable notes plus the render-only
+    // tie continuations, merged by onset (both lists arrive start-sorted) so
+    // beam groups keep their engraved member order — a continuation can open a
+    // beam group whose remaining members are playable (e.g. an eighth tied from
+    // the previous measure beamed with the sixteenths that follow it).
+    final drawNotes = _mergedByStart(notes, tieContinuations);
 
     // Beam groups carried from the notation (per staff). Members get a beam
     // instead of individual flags.
     final beamGroups = <List<TimedNote>>[];
     final openGroups = <int, List<TimedNote>>{};
-    for (final n in notes) {
+    for (final n in drawNotes) {
       if (n.beams.isEmpty) continue;
       final g = openGroups.putIfAbsent(n.staff, () => <TimedNote>[]);
       g.add(n);
@@ -605,18 +662,18 @@ class StaffPainter extends CustomPainter {
     canvas.save();
     canvas.clipRect(Rect.fromLTRB(headEnd, 0, size.width, size.height));
 
-    // 4) Scrolling notes, routed to their staff.
-    for (var i = 0; i < notes.length; i++) {
-      final n = notes[i];
+    // 4) Scrolling notes, routed to their staff. One body for both channels:
+    // playable notes (which can carry a replay mistake ring) and the render-only
+    // tie continuations (which cannot — the mistake overlay indexes [notes]).
+    void drawNoteGlyphs(TimedNote n, {Color? mistake}) {
       final x = xForTime(n.startMs.toDouble());
-      if (!visible(x)) continue;
+      if (!visible(x)) return;
       final y = noteY(n);
       final atPlayhead =
           n.startMs <= elapsedMs && elapsedMs < n.startMs + n.durationMs;
       final color = colorFor(n);
 
       // Replay: ring the note in its mistake colour, in place on the staff.
-      final mistake = mistakeColors[i];
       if (mistake != null) {
         canvas.drawCircle(
           Offset(x, y),
@@ -628,8 +685,10 @@ class StaffPainter extends CustomPainter {
         );
       }
 
+      // Grace notes engrave smaller (head, stem and flag), like the Partition.
+      final glyphGap = n.isGrace ? lineGap * 0.7 : lineGap;
       final head = _headGlyph(n, quarterMs);
-      _drawHead(canvas, Offset(x, y), lineGap, atPlayhead, color, head);
+      _drawHead(canvas, Offset(x, y), glyphGap, atPlayhead, color, head);
       record(
         Rect.fromCenter(
           center: Offset(x, y),
@@ -643,6 +702,7 @@ class StaffPainter extends CustomPainter {
           staff: n.staff,
           noteType: n.noteType,
           dots: n.dots,
+          isGrace: n.isGrace,
         ),
       );
       // Accidental engraved on this note (sharp/flat/natural…), left of the
@@ -663,12 +723,15 @@ class StaffPainter extends CustomPainter {
         }
       }
       // Whole notes carry no stem; others do. Beamed notes get their stem/beam
-      // from the group pass, so only unbeamed non-whole notes stem here.
-      if (!beamed.contains(n) && head != Smufl.noteheadWhole) {
+      // from the group pass, and a chord member shares its principal's stem
+      // (drawing its own put a spurious flag next to the principal's beam), so
+      // only unbeamed, non-whole, non-chord notes stem here — the same rule the
+      // engraved Partition applies.
+      if (!beamed.contains(n) && head != Smufl.noteheadWhole && !n.isChord) {
         _drawStemFlag(
           canvas,
           Offset(x, y),
-          lineGap,
+          glyphGap,
           color,
           flagsOf(n),
           stemUpOf(n),
@@ -712,6 +775,15 @@ class StaffPainter extends CustomPainter {
           const SymbolDescriptor.ledgerLine(),
         );
       }
+    }
+
+    for (var i = 0; i < notes.length; i++) {
+      drawNoteGlyphs(notes[i], mistake: mistakeColors[i]);
+    }
+    // 4a) The engraved tie continuations, drawn identically (their beamed
+    // members share the group pass below like everyone else's).
+    for (final n in tieContinuations) {
+      drawNoteGlyphs(n);
     }
 
     // 4b) Scrolling rests, routed to their staff and centred on its middle line
@@ -794,7 +866,250 @@ class StaffPainter extends CustomPainter {
       );
     }
 
+    // 5b) Tie arcs: each continuation is joined to the engraved note it
+    // prolongs, on the head side (away from the stem), like the Partition view.
+    final headHalf = Smufl.noteheadWidth * lineGap / 2;
+    for (final n in tieContinuations) {
+      final from = n.tieFromMs;
+      if (from == null) continue;
+      final x1 = xForTime(from.toDouble()) + headHalf;
+      final x2 = xForTime(n.startMs.toDouble()) - headHalf;
+      // Cull only when the whole span is off-screen: a chain crossing the edge
+      // still shows its arc up to the clip.
+      if (x2 < margin - lineGap || x1 > size.width - margin + lineGap) continue;
+      final y = noteY(n);
+      final bowUp = !stemUpOf(n);
+      _drawTieArc(canvas, x1, x2, y, lineGap, bowUp);
+      record(
+        Rect.fromLTRB(
+          math.min(x1, x2),
+          y - lineGap * (bowUp ? 1.6 : 0.4),
+          math.max(x1, x2),
+          y + lineGap * (bowUp ? 0.4 : 1.6),
+        ),
+        const SymbolDescriptor.tie(),
+      );
+    }
+
     canvas.restore(); // end the scrolling-glyph clip
+  }
+
+  /// Playable notes and tie continuations interleaved by onset — a stable merge
+  /// of two start-sorted lists, so beam groups see the engraved member order.
+  static List<TimedNote> _mergedByStart(List<TimedNote> a, List<TimedNote> b) {
+    if (b.isEmpty) return a;
+    if (a.isEmpty) return b;
+    final merged = <TimedNote>[];
+    var i = 0, j = 0;
+    while (i < a.length && j < b.length) {
+      merged.add(a[i].startMs <= b[j].startMs ? a[i++] : b[j++]);
+    }
+    merged
+      ..addAll(a.sublist(i))
+      ..addAll(b.sublist(j));
+    return merged;
+  }
+
+  /// A tie between two same-pitch heads: an arc from the previous head's
+  /// right edge to the continuation's left edge, bowed on the head side. The
+  /// bow grows with the span (clamped) so a tie crossing a whole measure
+  /// arches over the glyphs between the heads instead of slicing through
+  /// them as a near-horizontal line; it is also drawn lighter than the
+  /// notation it crosses.
+  void _drawTieArc(
+    Canvas canvas,
+    double x1,
+    double x2,
+    double y,
+    double lineGap,
+    bool bowUp,
+  ) {
+    final dir = bowUp ? -1.0 : 1.0;
+    final yEdge = y + dir * lineGap * 0.55;
+    final bow = ((x2 - x1).abs() * 0.12).clamp(lineGap, lineGap * 2.6);
+    canvas.drawPath(
+      Path()
+        ..moveTo(x1, yEdge)
+        ..quadraticBezierTo((x1 + x2) / 2, yEdge + dir * bow, x2, yEdge),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = Smufl.stemThickness * lineGap
+        ..color = palette.staffLine.withValues(alpha: 0.55),
+    );
+  }
+
+  /// Repeat notation over the scrolling staff (change: add-repeat-unrolling):
+  /// per played slot, the repeat barlines (thick line + dots on the repeated
+  /// side), the volta bracket + label above the system, the measure-repeat `%`
+  /// sign and segno/coda signs — each recorded for the long-press help. A
+  /// repeated written measure scrolls past once per pass, its marks each time.
+  void _drawRepeatDecors(
+    Canvas canvas,
+    void Function(Rect, SymbolDescriptor) record, {
+    required double Function(double) xForTime,
+    required double barGap,
+    required double headEnd,
+    required double rightEdge,
+    required double systemTop,
+    required double systemBottom,
+    required double lineGap,
+    required double trebleBottom,
+    required double? bassBottom,
+  }) {
+    if (measureDecors.isEmpty) return;
+    bool visible(double x) => x >= headEnd && x <= rightEdge;
+    final ink = palette.staffLine;
+    final thick = Paint()
+      ..color = ink
+      ..strokeWidth = Smufl.thickBarlineThickness * lineGap;
+    final thin = Paint()
+      ..color = ink
+      ..strokeWidth = Smufl.thinBarlineThickness * lineGap * 1.4;
+
+    // Repeat dots: one pair per drawn staff, in the middle two gaps.
+    void dots(double x) {
+      for (final base in [trebleBottom, ?bassBottom]) {
+        for (final dy in const [1.5, 2.5]) {
+          canvas.drawCircle(
+            Offset(x, base - dy * lineGap),
+            lineGap * 0.22,
+            Paint()..color = ink,
+          );
+        }
+      }
+    }
+
+    for (
+      var i = 0;
+      i < measureDecors.length && i < measureStartMs.length;
+      i++
+    ) {
+      final d = measureDecors[i];
+      if (d.isNone) continue;
+      final startT = measureStartMs[i].toDouble();
+      final endT = i + 1 < measureStartMs.length
+          ? measureStartMs[i + 1].toDouble()
+          : songEndMs;
+      // The slot's opening bar sits [barGap] left of its downbeat; its closing
+      // bar is the next slot's opening bar (the final bar at songEnd is not
+      // shifted).
+      final openX = math.max(xForTime(startT) - barGap, headEnd);
+      final closeX = i + 1 < measureStartMs.length
+          ? xForTime(endT) - barGap
+          : xForTime(endT);
+
+      if (d.repeatForward && visible(openX)) {
+        // ‖: — thick line on the bar, dots to its right (section starts).
+        canvas.drawLine(
+          Offset(openX - lineGap * 0.35, systemTop),
+          Offset(openX - lineGap * 0.35, systemBottom),
+          thick,
+        );
+        dots(openX + lineGap * 0.55);
+        record(
+          Rect.fromLTRB(
+            openX - lineGap,
+            systemTop,
+            openX + lineGap,
+            systemBottom,
+          ),
+          const SymbolDescriptor.repeatBarline(forward: true),
+        );
+      }
+      if (d.repeatBackward && visible(closeX)) {
+        // :‖ — dots left of the bar, thick line on it (section ends).
+        canvas.drawLine(
+          Offset(closeX + lineGap * 0.35, systemTop),
+          Offset(closeX + lineGap * 0.35, systemBottom),
+          thick,
+        );
+        dots(closeX - lineGap * 0.55);
+        record(
+          Rect.fromLTRB(
+            closeX - lineGap,
+            systemTop,
+            closeX + lineGap,
+            systemBottom,
+          ),
+          const SymbolDescriptor.repeatBarline(forward: false),
+        );
+      }
+      final volta = d.voltaLabel;
+      if (volta != null) {
+        // Bracket above the system spanning the slot, label at its start.
+        final l = openX;
+        final r = math.min(closeX, rightEdge);
+        if (r > l) {
+          final y = systemTop - lineGap * 0.8;
+          canvas.drawLine(Offset(l, y), Offset(r, y), thin);
+          canvas.drawLine(Offset(l, y), Offset(l, y + lineGap * 0.9), thin);
+          final tp = TextPainter(
+            text: TextSpan(
+              text: volta,
+              style: TextStyle(
+                color: ink,
+                fontSize: lineGap * 1.3,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            textDirection: TextDirection.ltr,
+          )..layout();
+          tp.paint(canvas, Offset(l + lineGap * 0.4, y + lineGap * 0.15));
+          record(
+            Rect.fromLTRB(l, y - lineGap, r, y + lineGap * 1.4),
+            SymbolDescriptor.volta(label: volta),
+          );
+        }
+      }
+      if (d.measureRepeat) {
+        final cx = (openX + math.min(closeX, rightEdge)) / 2;
+        if (visible(cx)) {
+          final y = trebleBottom - 2 * lineGap;
+          Smufl.draw(
+            canvas,
+            Smufl.repeat1Bar,
+            cx,
+            y,
+            lineGap,
+            ink,
+            centerX: true,
+          );
+          record(
+            Rect.fromCenter(
+              center: Offset(cx, y),
+              width: lineGap * 2.4,
+              height: lineGap * 2.4,
+            ),
+            const SymbolDescriptor.measureRepeat(),
+          );
+        }
+      }
+      if (d.segno || d.coda) {
+        final x = openX + lineGap * 1.2;
+        if (visible(x)) {
+          final y = systemTop - lineGap * 1.2;
+          Smufl.draw(
+            canvas,
+            d.segno ? Smufl.segno : Smufl.coda,
+            x,
+            y,
+            lineGap * 1.2,
+            ink,
+            centerX: true,
+          );
+          record(
+            Rect.fromCenter(
+              center: Offset(x, y - lineGap * 0.8),
+              width: lineGap * 2.2,
+              height: lineGap * 2.6,
+            ),
+            d.segno
+                ? const SymbolDescriptor.segno()
+                : const SymbolDescriptor.coda(),
+          );
+        }
+      }
+    }
   }
 
   void _drawStaffLines(
@@ -1094,7 +1409,10 @@ class StaffPainter extends CustomPainter {
       old.activeNotes != activeNotes ||
       old.notes != notes ||
       old.rests != rests ||
+      old.tieContinuations != tieContinuations ||
       old.measureStartMs != measureStartMs ||
+      old.measureDecors != measureDecors ||
+      old.writtenMeasureOf != writtenMeasureOf ||
       old.measureKeyFifths != measureKeyFifths ||
       old.mistakeColors != mistakeColors ||
       old.lookAheadMs != lookAheadMs ||

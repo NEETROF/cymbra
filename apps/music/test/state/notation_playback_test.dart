@@ -25,6 +25,7 @@ ScoreDocument _docWith({
   int beatType = 4,
   List<Direction> directions = const [],
 }) => ScoreDocument(
+  playOrder: const [],
   meta: const ScoreMeta(title: 'T', composer: 'C'),
   staves: 1,
   attributes: Attributes(
@@ -35,6 +36,7 @@ ScoreDocument _docWith({
   ),
   measures: [
     NotationMeasure(
+      repeats: noRepeats,
       index: 0,
       clefs: const [],
       keyFifths: 0,
@@ -43,6 +45,38 @@ ScoreDocument _docWith({
       notes: notes,
     ),
   ],
+);
+
+/// A multi-measure document with an explicit engine-resolved [playOrder].
+ScoreDocument _docWithMeasures(
+  List<NotationMeasure> measures, {
+  List<PlayedMeasure> playOrder = const [],
+}) => ScoreDocument(
+  playOrder: playOrder,
+  meta: const ScoreMeta(title: 'T', composer: 'C'),
+  staves: 1,
+  attributes: const Attributes(
+    divisions: 4,
+    clefs: [],
+    keyFifths: 0,
+    time: TimeSignature(beats: 4, beatType: 4),
+  ),
+  measures: measures,
+);
+
+NotationMeasure _measure(
+  int index,
+  List<NoteEvent> notes, {
+  RepeatMarks? repeats,
+  int keyFifths = 0,
+}) => NotationMeasure(
+  repeats: repeats ?? noRepeats,
+  index: index,
+  clefs: const [],
+  keyFifths: keyFifths,
+  minWidth: 100,
+  directions: const [],
+  notes: notes,
 );
 
 void main() {
@@ -210,6 +244,9 @@ void main() {
       final d = notationToTimedNotes(doc);
       expect(d.notes, hasLength(2));
       expect(d.notes[0].startMs, d.notes[1].startMs);
+      // The chord flag survives the flattening: the Staff painter needs it so a
+      // member never grows a stem/flag of its own next to the principal's.
+      expect(d.notes.map((n) => n.isChord), [false, true]);
     });
 
     test('songEndMs reaches the end of the last note', () {
@@ -231,6 +268,7 @@ void main() {
       'measures accumulate so the second measure starts after the first',
       () {
         final doc = ScoreDocument(
+          playOrder: const [],
           meta: const ScoreMeta(title: 'T', composer: 'C'),
           staves: 1,
           attributes: const Attributes(
@@ -241,6 +279,7 @@ void main() {
           ),
           measures: [
             NotationMeasure(
+              repeats: noRepeats,
               index: 0,
               clefs: const [],
               keyFifths: 0,
@@ -255,6 +294,7 @@ void main() {
               ],
             ),
             NotationMeasure(
+              repeats: noRepeats,
               index: 1,
               clefs: const [],
               keyFifths: 0,
@@ -280,6 +320,7 @@ void main() {
 
     test('exposes the per-measure key signature for a modulating piece', () {
       NotationMeasure measure(int index, int keyFifths) => NotationMeasure(
+        repeats: noRepeats,
         index: index,
         clefs: const [],
         keyFifths: keyFifths,
@@ -294,6 +335,7 @@ void main() {
         ],
       );
       final doc = ScoreDocument(
+        playOrder: const [],
         meta: const ScoreMeta(title: 'T', composer: 'C'),
         staves: 1,
         attributes: const Attributes(
@@ -368,6 +410,7 @@ void main() {
 
       test('a tie across the barline merges', () {
         final doc = ScoreDocument(
+          playOrder: const [],
           meta: const ScoreMeta(title: 'T', composer: 'C'),
           staves: 1,
           attributes: const Attributes(
@@ -378,6 +421,7 @@ void main() {
           ),
           measures: [
             NotationMeasure(
+              repeats: noRepeats,
               index: 0,
               clefs: const [],
               keyFifths: 0,
@@ -394,6 +438,7 @@ void main() {
               ],
             ),
             NotationMeasure(
+              repeats: noRepeats,
               index: 1,
               clefs: const [],
               keyFifths: 0,
@@ -499,6 +544,183 @@ void main() {
         );
         expect(notationToTimedNotes(doc).notes, hasLength(2));
       });
+
+      // The merged continuations must NOT vanish from the notation: dropping
+      // them left the prolonged measures looking empty (an eighth "stretching"
+      // over the next bar — the River Flows In You report). They come back on a
+      // render-only channel, engraved as written and anchored for the tie arc.
+      test(
+        'continuations surface on the render-only channel with arc anchors',
+        () {
+          final doc = _docWith(
+            notes: [
+              // River-like chain: eighth (tie start) → dotted half (stop+start)
+              // → eighth (stop). One attack, three engraved notes.
+              noteEvent(
+                positionDivisions: 0,
+                durationDivisions: 2,
+                noteType: 'eighth',
+                pitch: const Pitch(step: 'D', octave: 5, alter: 0),
+                tieStart: true,
+              ),
+              noteEvent(
+                positionDivisions: 2,
+                durationDivisions: 12,
+                noteType: 'half',
+                dots: 1,
+                pitch: const Pitch(step: 'D', octave: 5, alter: 0),
+                tieStop: true,
+                tieStart: true,
+              ),
+              noteEvent(
+                positionDivisions: 14,
+                durationDivisions: 2,
+                noteType: 'eighth',
+                pitch: const Pitch(step: 'D', octave: 5, alter: 0),
+                tieStop: true,
+              ),
+            ],
+          );
+          final d = notationToTimedNotes(doc);
+          // Playback: one merged attack spanning the whole chain, keeping the
+          // first note's engraved figure.
+          expect(d.notes, hasLength(1));
+          expect(d.notes.single.noteType, 'eighth');
+          expect(d.notes.single.durationMs, (quarterMs * 4).round());
+          // The waterfall's attack/sustain split: the sustain starts where the
+          // FIRST continuation begins, and later links never move it.
+          expect(d.notes.single.sustainFromMs, (quarterMs / 2).round());
+          // Notation: both continuations kept, as written, each anchored to the
+          // engraved note it prolongs (a chain arcs link-to-link, not all-to-first).
+          expect(d.tieContinuations, hasLength(2));
+          final half = d.tieContinuations[0];
+          expect(half.noteType, 'half');
+          expect(half.dots, 1);
+          expect(half.startMs, (quarterMs / 2).round());
+          expect(half.tieFromMs, 0);
+          final eighth = d.tieContinuations[1];
+          expect(eighth.noteType, 'eighth');
+          expect(eighth.startMs, (quarterMs * 3.5).round());
+          expect(eighth.tieFromMs, half.startMs);
+        },
+      );
+
+      test('a plain playable note carries no arc anchor', () {
+        final doc = _docWith(
+          notes: [
+            noteEvent(
+              positionDivisions: 0,
+              pitch: const Pitch(step: 'C', octave: 4, alter: 0),
+            ),
+          ],
+        );
+        final d = notationToTimedNotes(doc);
+        expect(d.notes.single.tieFromMs, isNull);
+        expect(d.tieContinuations, isEmpty);
+      });
+    });
+
+    // A grace note parses with duration 0 at its principal's position (the
+    // cursor does not advance). Scheduling it verbatim made a zero-length note
+    // glued onto the principal — inaudible, invisible on the waterfall, and
+    // engraved on top of it (the River Flows In You measure-6 report). It gets
+    // a short nominal duration just before the principal instead — the same
+    // rule as the Rust schedule (grace_ms = quarter/8), so app and back-office
+    // previews agree.
+    group('grace notes', () {
+      const quarterMs = 60000 / kDefaultBpm;
+      const graceMs = quarterMs / 8;
+
+      test(
+        'a grace plays briefly before its principal, which is unchanged',
+        () {
+          final doc = _docWith(
+            notes: [
+              noteEvent(
+                positionDivisions: 0,
+                durationDivisions: 8,
+                noteType: 'half',
+                pitch: const Pitch(step: 'C', octave: 4, alter: 0),
+              ),
+              noteEvent(
+                positionDivisions: 8,
+                durationDivisions: 0,
+                isGrace: true,
+                noteType: 'eighth',
+                pitch: const Pitch(step: 'B', octave: 4, alter: 0),
+              ),
+              noteEvent(
+                positionDivisions: 8,
+                durationDivisions: 4,
+                noteType: 'eighth',
+                pitch: const Pitch(step: 'C', octave: 5, alter: 1),
+              ),
+            ],
+          );
+          final d = notationToTimedNotes(doc);
+          final grace = d.notes.singleWhere((n) => n.pitch == 71);
+          final principal = d.notes.singleWhere((n) => n.pitch == 73);
+          expect(grace.isGrace, isTrue);
+          expect(grace.startMs, (quarterMs * 2 - graceMs).round());
+          expect(grace.durationMs, graceMs.round());
+          expect(principal.isGrace, isFalse);
+          expect(principal.startMs, (quarterMs * 2).round());
+          expect(principal.durationMs, quarterMs.round());
+        },
+      );
+
+      test('consecutive graces stack backwards in document order', () {
+        final doc = _docWith(
+          notes: [
+            noteEvent(
+              positionDivisions: 8,
+              durationDivisions: 0,
+              isGrace: true,
+              pitch: const Pitch(step: 'A', octave: 4, alter: 0),
+            ),
+            noteEvent(
+              positionDivisions: 8,
+              durationDivisions: 0,
+              isGrace: true,
+              pitch: const Pitch(step: 'B', octave: 4, alter: 0),
+            ),
+            noteEvent(
+              positionDivisions: 8,
+              durationDivisions: 4,
+              pitch: const Pitch(step: 'C', octave: 5, alter: 0),
+            ),
+          ],
+        );
+        final d = notationToTimedNotes(doc);
+        final a = d.notes.singleWhere((n) => n.pitch == 69);
+        final b = d.notes.singleWhere((n) => n.pitch == 71);
+        final c = d.notes.singleWhere((n) => n.pitch == 72);
+        expect(a.startMs, (quarterMs * 2 - 2 * graceMs).round());
+        expect(b.startMs, (quarterMs * 2 - graceMs).round());
+        expect(c.startMs, (quarterMs * 2).round());
+      });
+
+      test('a grace opening the piece is clamped at time zero', () {
+        final doc = _docWith(
+          notes: [
+            noteEvent(
+              positionDivisions: 0,
+              durationDivisions: 0,
+              isGrace: true,
+              pitch: const Pitch(step: 'B', octave: 4, alter: 0),
+            ),
+            noteEvent(
+              positionDivisions: 0,
+              durationDivisions: 4,
+              pitch: const Pitch(step: 'C', octave: 5, alter: 0),
+            ),
+          ],
+        );
+        final d = notationToTimedNotes(doc);
+        final grace = d.notes.singleWhere((n) => n.pitch == 71);
+        expect(grace.startMs, 0);
+        expect(grace.durationMs, graceMs.round());
+      });
     });
 
     test('carries the written diatonic step, not the MIDI collapse', () {
@@ -517,6 +739,121 @@ void main() {
       expect(aFlat.diatonic, 4 * 7 + 5, reason: 'written A4 position');
       // A G4 would be one diatonic step lower — the two must not coincide.
       expect(aFlat.diatonic, isNot(4 * 7 + 4));
+    });
+  });
+
+  // The engine resolves the playback order at parse time; the derivation must
+  // follow it — repeated sections once per pass, `%` slots replaying their
+  // source, the played tables carrying the written-measure mapping — and a
+  // selective practice run must be able to opt back into the written order.
+  group('repeat unrolling', () {
+    const quarterMs = 60000 / kDefaultBpm;
+    const wholeMs = quarterMs * 4;
+
+    NoteEvent whole(String step) => noteEvent(
+      positionDivisions: 0,
+      durationDivisions: 16,
+      noteType: 'whole',
+      pitch: Pitch(step: step, octave: 4, alter: 0),
+    );
+
+    test('a repeated measure sounds once per played slot', () {
+      final doc = _docWithMeasures(
+        [
+          _measure(0, [whole('C')], repeats: repeatMarks(backwardTimes: 2)),
+          _measure(1, [whole('D')]),
+        ],
+        playOrder: const [
+          PlayedMeasure(writtenIndex: 0, pass: 1),
+          PlayedMeasure(writtenIndex: 0, pass: 2),
+          PlayedMeasure(writtenIndex: 1, pass: 1),
+        ],
+      );
+      final d = notationToTimedNotes(doc);
+      expect(d.notes.map((n) => (n.pitch, n.startMs)), [
+        (60, 0),
+        (60, wholeMs.round()),
+        (62, (wholeMs * 2).round()),
+      ]);
+      expect(d.measureStartMs, [0, wholeMs.round(), (wholeMs * 2).round()]);
+      expect(d.writtenMeasureOf, [0, 0, 1]);
+      expect(d.songEndMs, closeTo(wholeMs * 3, 1));
+      // The scrolling staff's decorations follow the written marks per slot.
+      expect(d.measureDecors.map((m) => m.repeatBackward), [true, true, false]);
+    });
+
+    test('a measure-repeat slot replays its source content', () {
+      final doc = _docWithMeasures(
+        [
+          _measure(0, [whole('C')]),
+          _measure(1, const [], repeats: repeatMarks(measureRepeatOf: 0)),
+        ],
+        playOrder: const [
+          PlayedMeasure(writtenIndex: 0, pass: 1),
+          PlayedMeasure(writtenIndex: 1, pass: 1),
+        ],
+      );
+      final d = notationToTimedNotes(doc);
+      // The `%` slot sounds the source measure instead of a bar of silence.
+      expect(d.notes.map((n) => (n.pitch, n.startMs)), [
+        (60, 0),
+        (60, wholeMs.round()),
+      ]);
+      expect(d.writtenMeasureOf, [0, 1]);
+      expect(d.measureDecors[1].measureRepeat, isTrue);
+    });
+
+    test('unroll: false plays the written order once (practice)', () {
+      final doc = _docWithMeasures(
+        [
+          _measure(0, [whole('C')], repeats: repeatMarks(backwardTimes: 2)),
+          _measure(1, [whole('D')]),
+        ],
+        playOrder: const [
+          PlayedMeasure(writtenIndex: 0, pass: 1),
+          PlayedMeasure(writtenIndex: 0, pass: 2),
+          PlayedMeasure(writtenIndex: 1, pass: 1),
+        ],
+      );
+      final d = notationToTimedNotes(doc, unroll: false);
+      expect(d.notes.map((n) => (n.pitch, n.startMs)), [
+        (60, 0),
+        (62, wholeMs.round()),
+      ]);
+      expect(d.measureStartMs, [0, wholeMs.round()]);
+    });
+
+    test('ties merge across played slots, not written adjacency', () {
+      // C4 whole tied forward in a repeated measure: on each pass the chain
+      // re-attacks (the continuation only abuts within the same pass).
+      final first = noteEvent(
+        positionDivisions: 0,
+        durationDivisions: 16,
+        noteType: 'whole',
+        pitch: const Pitch(step: 'C', octave: 4, alter: 0),
+        tieStart: true,
+      );
+      final cont = noteEvent(
+        positionDivisions: 0,
+        durationDivisions: 16,
+        noteType: 'whole',
+        pitch: const Pitch(step: 'C', octave: 4, alter: 0),
+        tieStop: true,
+      );
+      final doc = _docWithMeasures(
+        [
+          _measure(0, [first]),
+          _measure(1, [cont]),
+        ],
+        playOrder: const [
+          PlayedMeasure(writtenIndex: 0, pass: 1),
+          PlayedMeasure(writtenIndex: 1, pass: 1),
+        ],
+      );
+      final d = notationToTimedNotes(doc);
+      // Played adjacency holds here: one merged attack spanning both slots.
+      expect(d.notes, hasLength(1));
+      expect(d.notes.single.durationMs, (wholeMs * 2).round());
     });
   });
 }

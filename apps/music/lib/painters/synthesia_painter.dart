@@ -62,27 +62,63 @@ class SynthesiaPainter extends CustomPainter {
         ..strokeWidth = 1,
     );
 
+    // Same-key successions: a bar whose end abuts the next attack on the same
+    // key gets a wider separation notch carved from its release edge, so a
+    // repeated note reads as distinct strikes instead of one fused column.
+    // (Carved from the END of the earlier bar — the bottom edge is the attack
+    // instant and must never move.) [notes] is start-sorted.
+    final abuttedRelease = <TimedNote>{};
+    final startsByPitch = <int, List<int>>{};
+    for (final n in notes) {
+      startsByPitch.putIfAbsent(n.pitch, () => <int>[]).add(n.startMs);
+    }
+    for (final n in notes) {
+      final end = n.startMs + n.durationMs;
+      final starts = startsByPitch[n.pitch]!;
+      if (starts.any((s) => s > n.startMs && (s - end).abs() <= 40)) {
+        abuttedRelease.add(n);
+      }
+    }
+
+    // Resolve every visible bar's geometry first, then paint in two passes —
+    // all sustain tails underneath, all attack bodies on top — so an attack
+    // overlapping another note's tail (e.g. the other hand striking a key the
+    // first hand holds) always reads as the event, never as buried paint.
+    final bars =
+        <
+          ({
+            TimedNote n,
+            double left,
+            double right,
+            double topY,
+            double attackTopY,
+            double bottomY,
+            Color base,
+          })
+        >[];
     for (final n in notes) {
       if (!layout.contains(n.pitch)) continue;
 
       // The bottom (head) of the note reaches the hit line at t = startMs.
       final bottomY = hitLineY - (n.startMs - elapsedMs) * pxPerMs;
       final height = n.durationMs * pxPerMs;
-      final topY = bottomY - height;
+      final rawTopY = bottomY - height;
 
       // Off screen: skip.
-      if (bottomY < 0 || topY > hitLineY) continue;
+      if (bottomY < 0 || rawTopY > hitLineY) continue;
+
+      // Separation notch at the release edge: every bar keeps a little air
+      // before whatever follows on the same key; an abutting repeat gets a
+      // clearly wider one so the re-strike is unmissable.
+      final sep = (abuttedRelease.contains(n) ? 9.0 : 3.0).clamp(
+        0.0,
+        height * 0.35,
+      );
+      final topY = rawTopY + sep;
 
       final r = layout.keyRect(n.pitch);
       // Slight inset to give breathing room between columns.
       final inset = r.width * 0.12;
-      final rect = Rect.fromLTRB(
-        r.left + inset,
-        topY,
-        r.left + r.width - inset,
-        bottomY,
-      );
-      final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(4));
 
       // Falling notes are coloured by hand (right = blue, left = amber): a
       // brighter tint in the hit zone ("play now"), success green once held.
@@ -100,21 +136,119 @@ class SynthesiaPainter extends CustomPainter {
         base = handColor; // upcoming, by hand
       }
 
-      // Halo.
+      // A merged tie chain splits into the written ATTACK (full-strength bar,
+      // up to the first continuation) and the tied SUSTAIN above it (slimmer,
+      // quieter, no halo): "strike here, then keep the finger down". Ordinary
+      // notes are all attack.
+      final sustainFrom = n.sustainFromMs;
+      var attackTopY = topY;
+      if (sustainFrom != null && sustainFrom > n.startMs) {
+        attackTopY = (hitLineY - (sustainFrom - elapsedMs) * pxPerMs).clamp(
+          topY,
+          bottomY,
+        );
+      }
+
+      bars.add((
+        n: n,
+        left: r.left + inset,
+        right: r.left + r.width - inset,
+        topY: topY,
+        attackTopY: attackTopY,
+        bottomY: bottomY,
+        base: base,
+      ));
+    }
+
+    // Pass 1 — sustain tails, with the stretch under any same-key attack
+    // carved out: another strike on a held key interrupts the hold (the
+    // player must release and re-strike), so the tail yields around it
+    // instead of running underneath as ambiguous paint.
+    for (final b in bars) {
+      final tailBottom = b.attackTopY;
+      if (tailBottom <= b.topY) continue; // no sustain segment
+      final tailInset = (b.right - b.left) * 0.22;
+
+      // Blocked y-ranges: other bars' attack segments on the same key, padded
+      // so a clear seam separates tail and strike.
+      final blocked = <(double, double)>[
+        for (final o in bars)
+          if (!identical(o, b) && o.n.pitch == b.n.pitch)
+            (o.attackTopY - 3, o.bottomY + 3),
+      ]..sort((a, c) => a.$1.compareTo(c.$1));
+
+      var segStart = b.topY;
+      void drawSeg(double from, double to) {
+        if (to - from < 2) return;
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromLTRB(b.left + tailInset, from, b.right - tailInset, to),
+            const Radius.circular(4),
+          ),
+          Paint()..color = b.base.withValues(alpha: 0.38),
+        );
+      }
+
+      for (final (from, to) in blocked) {
+        if (to <= segStart || from >= tailBottom) continue;
+        drawSeg(segStart, from.clamp(segStart, tailBottom));
+        segStart = to.clamp(segStart, tailBottom);
+      }
+      drawSeg(segStart, tailBottom);
+    }
+
+    // Pass 2 — attack bodies (halo, gradient, strike cap), always on top.
+    for (final b in bars) {
+      final rect = Rect.fromLTRB(b.left, b.attackTopY, b.right, b.bottomY);
+      if (rect.height <= 0) continue;
+      final hasTail = b.attackTopY > b.topY;
+      final rrect = RRect.fromRectAndCorners(
+        rect,
+        topLeft: Radius.circular(hasTail ? 0 : 4),
+        topRight: Radius.circular(hasTail ? 0 : 4),
+        bottomLeft: const Radius.circular(4),
+        bottomRight: const Radius.circular(4),
+      );
+
+      // Halo (attack segment only — a haloed sustain bled into neighbours).
       canvas.drawRRect(
         rrect,
         Paint()
-          ..color = base.withValues(alpha: 0.55)
+          ..color = b.base.withValues(alpha: 0.55)
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
+      );
+
+      // A hairline of background around the body keeps its edge crisp over
+      // whatever sits underneath (a sustain tail, a neighbour's halo).
+      canvas.drawRRect(
+        rrect.inflate(0.75),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5
+          ..color = CymbraColors.background,
       );
 
       // Vertical gradient for volume.
       final gradient = LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [base.withValues(alpha: 0.85), base],
+        colors: [b.base.withValues(alpha: 0.85), b.base],
       ).createShader(rect);
       canvas.drawRRect(rrect, Paint()..shader = gradient);
+
+      // Bright strike cap on the attack edge: every strike — a repeat above
+      // all — pops as its own event.
+      final capH = (4.0).clamp(0.0, rect.height * 0.3);
+      if (capH > 0) {
+        canvas.drawRRect(
+          RRect.fromRectAndCorners(
+            Rect.fromLTRB(b.left, b.bottomY - capH, b.right, b.bottomY),
+            bottomLeft: const Radius.circular(4),
+            bottomRight: const Radius.circular(4),
+          ),
+          Paint()..color = Color.lerp(b.base, const Color(0xFFFFFFFF), 0.45)!,
+        );
+      }
     }
   }
 

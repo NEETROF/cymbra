@@ -26,11 +26,15 @@ pub mod model;
 pub mod mxl;
 mod pitch_alter;
 pub mod playback;
+pub mod repeats;
 pub mod validate;
 
 pub use meta::{ScoreFacets, ScoreSummary, normalize_text};
 pub use model::*;
-pub use playback::{DEFAULT_VELOCITY, PlaybackSchedule, TimedNote, midi_of_pitch, schedule};
+pub use playback::{
+    DEFAULT_VELOCITY, PlaybackSchedule, TimedNote, grace_ms_of, midi_of_pitch, schedule,
+};
+pub use repeats::play_order;
 pub use validate::{RejectReason, decode_and_parse, validate};
 
 use std::collections::BTreeMap;
@@ -218,6 +222,13 @@ struct Parser {
     in_dynamics: bool,
     in_backup: bool,
     in_forward: bool,
+    /// Repeat notation collected for the current measure (taken per measure).
+    repeat_marks: RepeatMarks,
+    /// Active `<measure-repeat>` run: (group length in measures, slashes).
+    /// Persists across measures until the `stop` attribute clears it.
+    measure_repeat: Option<(u32, u32)>,
+    /// A `<measure-repeat type="start">` is open — its text is the length.
+    in_measure_repeat_start: bool,
 }
 
 impl Parser {
@@ -258,6 +269,9 @@ impl Parser {
             lyric_text: String::new(),
             in_lyric: false,
             in_dynamics: false,
+            repeat_marks: RepeatMarks::default(),
+            measure_repeat: None,
+            in_measure_repeat_start: false,
             in_backup: false,
             in_forward: false,
         }
@@ -284,6 +298,7 @@ impl Parser {
                     pitch: None,
                     is_rest: false,
                     is_chord: false,
+                    is_grace: false,
                     duration_divisions: 0,
                     note_type: None,
                     dots: 0,
@@ -301,6 +316,11 @@ impl Parser {
             b"chord" => {
                 if let Some(n) = self.note.as_mut() {
                     n.is_chord = true;
+                }
+            }
+            b"grace" => {
+                if let Some(n) = self.note.as_mut() {
+                    n.is_grace = true;
                 }
             }
             b"rest" => {
@@ -397,6 +417,67 @@ impl Parser {
             }
             b"backup" => self.in_backup = true,
             b"forward" => self.in_forward = true,
+            b"repeat" => match attr(e, b"direction").as_deref() {
+                Some("forward") => self.repeat_marks.forward = true,
+                Some("backward") => {
+                    self.repeat_marks.backward_times = attr(e, b"times")
+                        .and_then(|s| s.parse().ok())
+                        .unwrap_or(2)
+                        .max(1);
+                }
+                _ => {}
+            },
+            b"ending" => {
+                let numbers: Vec<u32> = attr(e, b"number")
+                    .map(|s| {
+                        s.split(',')
+                            .filter_map(|part| part.trim().parse().ok())
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                match attr(e, b"type").as_deref() {
+                    Some("start") if !numbers.is_empty() => {
+                        self.repeat_marks.ending_start = numbers;
+                    }
+                    Some("stop") => self.repeat_marks.ending_stop = true,
+                    Some("discontinue") => self.repeat_marks.ending_discontinue = true,
+                    _ => {}
+                }
+            }
+            b"measure-repeat" if self.current_part <= 1 => {
+                match attr(e, b"type").as_deref() {
+                    Some("start") => {
+                        self.in_measure_repeat_start = true;
+                        let slashes = attr(e, b"slashes")
+                            .and_then(|s| s.parse().ok())
+                            .unwrap_or(1);
+                        // Length (element text, 1 or 2 measures) lands on close;
+                        // an empty element keeps the default of 1.
+                        self.measure_repeat = Some((1, slashes));
+                    }
+                    Some("stop") => self.measure_repeat = None,
+                    _ => {}
+                }
+            }
+            b"segno" => self.repeat_marks.segno = true,
+            b"coda" => self.repeat_marks.coda = true,
+            b"sound" => {
+                if attr(e, b"dacapo").as_deref() == Some("yes") {
+                    self.repeat_marks.sound_dacapo = true;
+                }
+                if attr(e, b"dalsegno").is_some() {
+                    self.repeat_marks.sound_dalsegno = true;
+                }
+                if attr(e, b"tocoda").is_some() {
+                    self.repeat_marks.sound_tocoda = true;
+                }
+                if attr(e, b"fine").is_some() {
+                    self.repeat_marks.sound_fine = true;
+                }
+                if attr(e, b"forward-repeat").as_deref() == Some("yes") {
+                    self.repeat_marks.sound_forward_repeat = true;
+                }
+            }
             b"creator" => {
                 self.creator_is_composer = attr(e, b"type").as_deref() == Some("composer");
             }
@@ -631,6 +712,17 @@ impl Parser {
                 }
                 self.direction_has_kind = false;
             }
+            b"measure-repeat" => {
+                if self.in_measure_repeat_start {
+                    self.in_measure_repeat_start = false;
+                    if let (Some((_, slashes)), Ok(len)) =
+                        (self.measure_repeat, text.parse::<u32>())
+                    {
+                        // Each active measure replays the one `len` back.
+                        self.measure_repeat = Some((len.clamp(1, 8), slashes));
+                    }
+                }
+            }
             b"measure" => self.finish_measure(),
             _ => {}
         }
@@ -659,6 +751,22 @@ impl Parser {
         let notes = std::mem::take(&mut self.notes);
         let directions = std::mem::take(&mut self.directions);
         let clefs = std::mem::take(&mut self.measure_clefs);
+        let mut repeats = std::mem::take(&mut self.repeat_marks);
+        if let Some((len, slashes)) = self.measure_repeat
+            && self.current_part <= 1
+        {
+            // A measure inside an active measure-repeat run replays the
+            // measure `len` back; the reference resolves transitively (the
+            // referenced measure is already resolved by induction), so every
+            // `%` points at real content.
+            repeats.measure_repeat_of = self.measure_index.checked_sub(len).map(|i| {
+                self.measures
+                    .get(i as usize)
+                    .and_then(|m| m.repeats.measure_repeat_of)
+                    .unwrap_or(i)
+            });
+            repeats.measure_repeat_slashes = slashes;
+        }
         // Only the first part contributes to the (single-part) document.
         if self.current_part <= 1 {
             let width = min_width(&notes, self.divisions);
@@ -669,6 +777,7 @@ impl Parser {
                 clefs,
                 key_fifths: self.key_fifths,
                 min_width: width,
+                repeats,
             });
             self.measure_index += 1;
         }
@@ -698,6 +807,7 @@ impl Parser {
                 }
             }
         }
+        let play_order = repeats::play_order(&self.measures);
         ScoreDocument {
             meta: ScoreMeta {
                 title: self.title,
@@ -714,6 +824,7 @@ impl Parser {
                 },
             },
             measures: self.measures,
+            play_order,
         }
     }
 }
@@ -1333,6 +1444,7 @@ mod tests {
             pitch: None,
             is_rest: false,
             is_chord: false,
+            is_grace: false,
             duration_divisions: 1,
             note_type: None,
             dots: 0,
@@ -1361,6 +1473,7 @@ mod tests {
             pitch: None,
             is_rest: false,
             is_chord: false,
+            is_grace: false,
             duration_divisions: 4,
             note_type: None,
             dots: 0,
@@ -1390,6 +1503,7 @@ mod tests {
             pitch: None,
             is_rest: true,
             is_chord: false,
+            is_grace: false,
             duration_divisions: 1,
             note_type: None,
             dots: 0,
@@ -1434,6 +1548,13 @@ mod tests {
                     clefs: Vec::new(),
                     key_fifths: 0,
                     min_width: w,
+                    repeats: RepeatMarks::default(),
+                })
+                .collect(),
+            play_order: (0..widths.len())
+                .map(|i| PlayedMeasure {
+                    written_index: i as u32,
+                    pass: 1,
                 })
                 .collect(),
         }

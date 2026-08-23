@@ -9,6 +9,7 @@ const note = (over: Partial<NoteEvent>): NoteEvent => ({
   pitch: { step: "C", octave: 5, alter: 0 },
   is_rest: false,
   is_chord: false,
+  is_grace: false,
   duration_divisions: 4,
   note_type: "quarter",
   dots: 0,

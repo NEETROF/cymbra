@@ -34,7 +34,8 @@ use flutter_rust_bridge::frb;
 // bridge functions below) refer to them by these names.
 pub use cymbra_musicxml_core::{
     Attributes, BeamState, Clef, Direction, DirectionKind, Lyric, NotationMeasure, NoteEvent,
-    Pitch, ScoreDocument, ScoreMeta, ScoreSummary, StemDir, System, TimeSignature, Tuplet,
+    Pitch, PlayedMeasure, RepeatMarks, ScoreDocument, ScoreMeta, ScoreSummary, StemDir, System,
+    TimeSignature, Tuplet,
 };
 
 // --- frb mirrors of the shared model -------------------------------------
@@ -53,6 +54,21 @@ pub struct _ScoreDocument {
     pub staves: u32,
     pub attributes: Attributes,
     pub measures: Vec<NotationMeasure>,
+    /// The **playback order**: the sequence of written-measure passes a
+    /// performer would play, resolved from the repeat structure (repeat
+    /// barlines, voltas, D.C./D.S. jumps) with safety caps — the written order
+    /// one-to-one when the piece has no repeats or the structure is malformed.
+    /// Computed once at parse time; every derivation (app timeline, browser
+    /// preview, server audio render) consumes it instead of re-resolving.
+    pub play_order: Vec<PlayedMeasure>,
+}
+
+/// One slot of the playback order: which written measure plays, and which pass
+/// through it this is (1-based — a repeated measure has one slot per pass).
+#[frb(mirror(PlayedMeasure))]
+pub struct _PlayedMeasure {
+    pub written_index: u32,
+    pub pass: u32,
 }
 
 /// Score metadata; fields are absent (`None`) rather than failing when missing.
@@ -108,6 +124,48 @@ pub struct _NotationMeasure {
     pub key_fifths: i32,
     /// Minimum engraving width (pixels) from the non-linear spacing function.
     pub min_width: f64,
+    /// Repeat notation engraved on this measure (barline repeats, voltas,
+    /// measure-repeat `%`, segno/coda and jump semantics). All defaults when
+    /// the measure carries none — the overwhelmingly common case.
+    pub repeats: RepeatMarks,
+}
+
+/// The repeat structure engraved on one measure, in written order — everything
+/// the unroll and the renderers need. Defaults mean "no repeat notation".
+#[frb(mirror(RepeatMarks))]
+pub struct _RepeatMarks {
+    /// A forward repeat (`‖:`) opens this measure.
+    pub forward: bool,
+    /// A backward repeat (`:‖`) closes this measure: the `times` attribute
+    /// (how many times the section is played in total; MusicXML default 2).
+    /// 0 = no backward repeat.
+    pub backward_times: u32,
+    /// Volta numbers of an ending bracket **starting** at this measure
+    /// (e.g. `[1]`, `[1, 2]`). Empty when none starts here.
+    pub ending_start: Vec<u32>,
+    /// An ending bracket **stops** (downward hook) at this measure.
+    pub ending_stop: bool,
+    /// An ending bracket ends open (discontinue) at this measure — the usual
+    /// engraving of a final volta.
+    pub ending_discontinue: bool,
+    /// This is a measure-repeat (`%`) measure: the written measure whose
+    /// content it replays (already resolved transitively for chained `%`
+    /// runs). The measure's own note list stays empty — the sign is engraved,
+    /// the referenced content is played.
+    pub measure_repeat_of: Option<u32>,
+    /// Slash count of the measure-repeat sign (1 = `%`).
+    pub measure_repeat_slashes: u32,
+    /// A segno sign is placed at this measure.
+    pub segno: bool,
+    /// A coda sign is placed at this measure.
+    pub coda: bool,
+    /// `<sound>` jump semantics attached to this measure's directions.
+    pub sound_dacapo: bool,
+    pub sound_dalsegno: bool,
+    pub sound_tocoda: bool,
+    pub sound_fine: bool,
+    /// `<sound forward-repeat="yes">` — repeats are re-taken after the jump.
+    pub sound_forward_repeat: bool,
 }
 
 /// A single note (or rest) event.
@@ -123,6 +181,11 @@ pub struct _NoteEvent {
     pub is_rest: bool,
     /// True when this note carries `<chord/>` (sounds with the preceding note).
     pub is_chord: bool,
+    /// True when this note carries `<grace/>` — an ornamental small note that
+    /// occupies no musical time (`duration_divisions` stays 0 and the cursor
+    /// does not advance); playback gives it a short nominal duration stolen
+    /// from just before its position.
+    pub is_grace: bool,
     pub duration_divisions: u32,
     /// Note-type token when present (e.g. "quarter", "eighth").
     pub note_type: Option<String>,

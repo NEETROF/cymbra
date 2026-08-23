@@ -67,6 +67,13 @@ class Smufl {
   static const String augmentationDot = '\u{E1E7}';
   static const String brace = '\u{E000}';
 
+  // Repeat notation (change: add-repeat-unrolling).
+  static const String segno = '\u{E047}';
+  static const String coda = '\u{E048}';
+  static const String repeatDots = '\u{E043}';
+  static const String repeat1Bar = '\u{E500}';
+  static const String repeat2Bars = '\u{E501}';
+
   /// Time-signature digit glyph for 0–9 (timeSig0 = U+E080).
   static String timeSigDigit(int d) => String.fromCharCode(0xE080 + d);
 
@@ -206,6 +213,7 @@ class Smufl {
   static const double legerLineThickness = 0.16;
   static const double legerLineExtension = 0.4;
   static const double thinBarlineThickness = 0.16;
+  static const double thickBarlineThickness = 0.5;
 
   // noteheadBlack: bbox width and stem-attachment anchors (staff spaces).
   static const double noteheadWidth = 1.18;

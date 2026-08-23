@@ -185,12 +185,20 @@ NotationHelp notationHelpFor(
   required bool frenchRe,
 }) {
   switch (symbol) {
-    case NoteSymbol(:final pitch, :final noteType, :final dots):
+    case NoteSymbol(:final pitch, :final noteType, :final dots, :final isGrace):
       final name = notationPitchName(
         pitch,
         solfege: solfege,
         frenchRe: frenchRe,
       );
+      // A grace note is an ornament, not a held value: explain the gesture
+      // instead of quoting a hold duration its figure does not have.
+      if (isGrace) {
+        return (
+          title: l10n.notationHelpGraceTitle(name),
+          body: l10n.notationHelpGraceBody,
+        );
+      }
       final beats = notationDurationBeats(l10n, noteType, dots);
       final body = beats == null
           ? l10n.notationHelpNoteBody
@@ -305,6 +313,41 @@ NotationHelp notationHelpFor(
         title: l10n.notationHelpBraceTitle,
         body: l10n.notationHelpBraceBody,
       );
+    case RepeatBarlineSymbol(:final forward):
+      return forward
+          ? (
+              title: l10n.notationHelpRepeatStartTitle,
+              body: l10n.notationHelpRepeatStartBody,
+            )
+          : (
+              title: l10n.notationHelpRepeatEndTitle,
+              body: l10n.notationHelpRepeatEndBody,
+            );
+    case VoltaSymbol(:final label):
+      return (
+        title: l10n.notationHelpVoltaTitle(label),
+        body: l10n.notationHelpVoltaBody,
+      );
+    case MeasureRepeatSymbol():
+      return (
+        title: l10n.notationHelpMeasureRepeatTitle,
+        body: l10n.notationHelpMeasureRepeatBody,
+      );
+    case SegnoSymbol():
+      return (
+        title: l10n.notationHelpSegnoTitle,
+        body: l10n.notationHelpSegnoBody,
+      );
+    case CodaSymbol():
+      return (
+        title: l10n.notationHelpCodaTitle,
+        body: l10n.notationHelpCodaBody,
+      );
+    case JumpSymbol(:final words):
+      return (
+        title: l10n.notationHelpJumpTitle(words),
+        body: l10n.notationHelpJumpBody,
+      );
     case DynamicsSymbol():
       return (
         title: l10n.notationHelpDynamicsTitle,
@@ -321,6 +364,7 @@ typedef GlossaryEntry = ({SymbolDescriptor sample, NotationHelp help});
 /// glossary so it covers exactly the same symbols as the on-staff bubbles.
 const List<SymbolDescriptor> notationGlossarySamples = <SymbolDescriptor>[
   SymbolDescriptor.note(pitch: 60),
+  SymbolDescriptor.note(pitch: 71, noteType: 'eighth', isGrace: true),
   SymbolDescriptor.rest(),
   SymbolDescriptor.accidental(token: 'sharp'),
   SymbolDescriptor.accidental(token: 'flat'),
@@ -336,6 +380,13 @@ const List<SymbolDescriptor> notationGlossarySamples = <SymbolDescriptor>[
   SymbolDescriptor.ledgerLine(),
   SymbolDescriptor.barLine(),
   SymbolDescriptor.tie(),
+  SymbolDescriptor.repeatBarline(forward: true),
+  SymbolDescriptor.repeatBarline(forward: false),
+  SymbolDescriptor.volta(label: '1.'),
+  SymbolDescriptor.measureRepeat(),
+  SymbolDescriptor.segno(),
+  SymbolDescriptor.coda(),
+  SymbolDescriptor.jump(words: 'D.C. al Fine'),
   SymbolDescriptor.slur(),
   SymbolDescriptor.tuplet(actual: 3),
   SymbolDescriptor.brace(),

@@ -41,6 +41,12 @@ enum SymbolKind {
   tuplet,
   brace,
   dynamics,
+  repeatBarline,
+  volta,
+  measureRepeat,
+  segno,
+  coda,
+  jump,
 }
 
 /// A single staff symbol resolved under a long-press: its [kind] plus the
@@ -55,6 +61,8 @@ sealed class SymbolDescriptor with _$SymbolDescriptor {
   /// A note head. [pitch] is MIDI; [diatonic] is the spelled staff step
   /// (`octave*7 + step`) when the source carries it, else null (demo/replay),
   /// and [clefSign] positions the register. These let the help name the pitch.
+  /// [isGrace] marks a grace note (petite note), whose help explains the
+  /// ornament instead of quoting a misleading hold duration.
   const factory SymbolDescriptor.note({
     required int pitch,
     int? diatonic,
@@ -62,6 +70,7 @@ sealed class SymbolDescriptor with _$SymbolDescriptor {
     @Default(1) int staff,
     String? noteType,
     @Default(0) int dots,
+    @Default(false) bool isGrace,
   }) = NoteSymbol;
 
   /// A rest, with its note-value type when known (`whole`/`half`/`quarter`/
@@ -116,6 +125,26 @@ sealed class SymbolDescriptor with _$SymbolDescriptor {
   /// The brace/bracket joining the grand staff.
   const factory SymbolDescriptor.brace() = BraceSymbol;
 
+  /// A repeat barline: [forward] true = the start of a repeated section
+  /// (`‖:`), false = its end (`:‖`).
+  const factory SymbolDescriptor.repeatBarline({required bool forward}) =
+      RepeatBarlineSymbol;
+
+  /// A volta (ending) bracket, with its engraved label ("1.", "1.2.").
+  const factory SymbolDescriptor.volta({required String label}) = VoltaSymbol;
+
+  /// A measure-repeat (`%`) sign: play the previous measure again.
+  const factory SymbolDescriptor.measureRepeat() = MeasureRepeatSymbol;
+
+  /// A segno sign (jump target of D.S.).
+  const factory SymbolDescriptor.segno() = SegnoSymbol;
+
+  /// A coda sign (where an "al Coda" jump lands).
+  const factory SymbolDescriptor.coda() = CodaSymbol;
+
+  /// A jump instruction engraved as words (D.C./D.S./Fine/To Coda).
+  const factory SymbolDescriptor.jump({required String words}) = JumpSymbol;
+
   /// A dynamics marking (e.g. `p`, `mf`).
   const factory SymbolDescriptor.dynamics({required String token}) =
       DynamicsSymbol;
@@ -135,6 +164,12 @@ sealed class SymbolDescriptor with _$SymbolDescriptor {
     LedgerLineSymbol() => SymbolKind.ledgerLine,
     BarLineSymbol() => SymbolKind.barLine,
     TieSymbol() => SymbolKind.tie,
+    RepeatBarlineSymbol() => SymbolKind.repeatBarline,
+    VoltaSymbol() => SymbolKind.volta,
+    MeasureRepeatSymbol() => SymbolKind.measureRepeat,
+    SegnoSymbol() => SymbolKind.segno,
+    CodaSymbol() => SymbolKind.coda,
+    JumpSymbol() => SymbolKind.jump,
     SlurSymbol() => SymbolKind.slur,
     TupletSymbol() => SymbolKind.tuplet,
     BraceSymbol() => SymbolKind.brace,

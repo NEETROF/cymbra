@@ -209,9 +209,37 @@ mod tests {
         PlaybackSchedule {
             notes,
             measure_start_ms: vec![0],
+            written_measure: vec![0],
             song_end_ms,
             bpm: 90,
         }
+    }
+
+    /// The preview follows the engine's unrolled playback order: a repeated
+    /// section is audible once per pass in the rendered clip's source
+    /// timeline (spec: music-score-audio-preview delta).
+    #[test]
+    fn preview_covers_the_unrolled_timeline_of_a_repeat() {
+        let xml = r#"<?xml version="1.0"?><score-partwise version="3.1">
+<part-list><score-part id="P1"/></part-list><part id="P1">
+<measure number="1">
+  <attributes><divisions>4</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+  <direction><direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>120</per-minute></metronome></direction-type></direction>
+  <barline location="left"><repeat direction="forward"/></barline>
+  <note><pitch><step>C</step><octave>4</octave></pitch><duration>16</duration><voice>1</voice><type>whole</type></note>
+  <barline location="right"><repeat direction="backward"/></barline>
+</measure>
+<measure number="2">
+  <note><pitch><step>D</step><octave>4</octave></pitch><duration>16</duration><voice>1</voice><type>whole</type></note>
+</measure>
+</part></score-partwise>"#;
+        let doc = cymbra_musicxml_core::decode_and_parse(xml.as_bytes()).unwrap();
+        let schedule = cymbra_musicxml_core::schedule(&doc);
+        // ‖: whole :‖ + whole at 120 bpm → three played bars, 6 s.
+        assert_eq!(schedule.song_end_ms, 6000);
+        assert_eq!(schedule.written_measure, vec![0, 0, 1]);
+        let seq = preview_sequence(&schedule, 30_000);
+        assert_eq!(seq.notes.len(), 3);
     }
 
     #[test]

@@ -18,6 +18,7 @@ import '../painters/keyboard_range.dart';
 import '../src/rust/api/musicxml.dart' show BeamState;
 import '../src/rust/api/score.dart';
 import 'note_density_core.dart';
+import 'performance_scoring_core.dart' show ScoreClocks, judgmentClock;
 
 export '../painters/keyboard_range.dart'
     show KeyboardRangeMode, KeyboardRangeModeLabel;
@@ -108,6 +109,29 @@ class TimedNote {
   /// painter then derives it from the head's position on the staff.
   final bool? stemUp;
 
+  /// Set only on a **render-only tie continuation** (an engraved `tie stop` note
+  /// whose duration was merged into its chain's first note for playback): the
+  /// start (ms) of the engraved note this one prolongs, so the Staff painter can
+  /// draw the tie arc between the two heads. Null on every playable note.
+  final int? tieFromMs;
+
+  /// True for a grace note (ornamental small note, `<grace/>`): played with a
+  /// short nominal duration just before its principal, and engraved smaller by
+  /// the Staff painter.
+  final bool isGrace;
+
+  /// True for a chord member (`<chord/>`): it sounds with the preceding
+  /// principal note and shares its stem — the Staff painter draws its head but
+  /// never a stem or flag of its own, matching the engraved Partition.
+  final bool isChord;
+
+  /// Set only on a **merged tie chain's first note**: the start (ms) of the
+  /// chain's first continuation — where the written attack ends and the tied
+  /// sustain begins. The waterfall renders the bar's attack segment (up to
+  /// here) full-strength and the sustain tail slimmer/quieter, so "strike now"
+  /// and "keep holding" read differently. Null on ordinary notes.
+  final int? sustainFromMs;
+
   const TimedNote({
     required this.pitch,
     required this.startMs,
@@ -121,6 +145,10 @@ class TimedNote {
     this.diatonic,
     this.accidental,
     this.stemUp,
+    this.tieFromMs,
+    this.isGrace = false,
+    this.isChord = false,
+    this.sustainFromMs,
   });
 }
 
@@ -151,6 +179,47 @@ class TimedRest {
     this.noteType,
     this.dots = 0,
   });
+}
+
+/// Repeat notation to draw at one played slot of the scrolling staff, aligned
+/// with [PlayerData.measureStartMs]. Render-only — playback already follows
+/// the unrolled order; these are the glyphs that tell the reader why.
+class MeasureDecor {
+  /// A forward repeat (`‖:`) opens this slot's written measure.
+  final bool repeatForward;
+
+  /// A backward repeat (`:‖`) closes it.
+  final bool repeatBackward;
+
+  /// Volta label ("1." / "1.2.") when an ending bracket starts here.
+  final String? voltaLabel;
+
+  /// The written measure is a measure-repeat (`%`) sign.
+  final bool measureRepeat;
+
+  /// Segno / coda signs placed at this measure.
+  final bool segno;
+  final bool coda;
+
+  const MeasureDecor({
+    this.repeatForward = false,
+    this.repeatBackward = false,
+    this.voltaLabel,
+    this.measureRepeat = false,
+    this.segno = false,
+    this.coda = false,
+  });
+
+  static const none = MeasureDecor();
+
+  /// Whether anything is drawn for this slot at all.
+  bool get isNone =>
+      !repeatForward &&
+      !repeatBackward &&
+      voltaLabel == null &&
+      !measureRepeat &&
+      !segno &&
+      !coda;
 }
 
 /// Lead-in (ms) kept before the first note when trimming leading silence, so the
@@ -297,6 +366,14 @@ abstract class PlayerData with _$PlayerData {
     /// awaited by the Wait-Mode gate nor scored.
     @Default(<TimedRest>[]) List<TimedRest> rests,
 
+    /// Engraved tie continuations, sorted by start — a render-only channel like
+    /// [rests]. Each is a `tie stop` note whose duration was merged into its
+    /// chain's first note in [notes] (a tie is a single attack), kept here so
+    /// the Staff painter still engraves the written note and its tie arc.
+    /// Deliberately separate from [notes] so continuations are never awaited by
+    /// the Wait-Mode gate nor scored.
+    @Default(<TimedNote>[]) List<TimedNote> tieContinuations,
+
     /// End of the song (ms).
     @Default(0.0) double songEndMs,
 
@@ -309,14 +386,29 @@ abstract class PlayerData with _$PlayerData {
     /// and a mid-piece modulation is reflected. Empty for the demo score.
     @Default(<int>[]) List<int> measureKeyFifths,
 
+    /// The written measure each played slot performs, aligned with
+    /// [measureStartMs] — a repeated written measure appears once per pass.
+    /// Empty means identity (no repeats or linear practice run).
+    @Default(<int>[]) List<int> writtenMeasureOf,
+
+    /// Repeat notation to draw per played slot on the scrolling staff,
+    /// aligned with [measureStartMs]. Render-only.
+    @Default(<MeasureDecor>[]) List<MeasureDecor> measureDecors,
+
+    /// Number of **written** measures of the loaded piece (0 for the demo).
+    /// The practice range and Partition taps live in written measures; with
+    /// repeats the played tables above are longer than this.
+    @Default(0) int writtenMeasureCount,
+
     @Default(RenderMode.synthesia) RenderMode mode,
     @Default(true) bool waitMode,
     @Default(false) bool isPlaying,
 
     /// Remaining pre-start countdown in ms (0 = none). While > 0, playback is
     /// "armed" ([isPlaying] is true) but the playhead is frozen so the player has
-    /// time to get ready; the screen shows a 5…1…GO countdown. Counts down in
-    /// [advance] using real frame time, then playback proceeds normally.
+    /// time to get ready; the screen shows a 3…2…1…GO countdown. Counts down on
+    /// **real** frame time — never scaled by [speed], so a slow-tempo practice
+    /// run does not stretch the wait — then playback proceeds normally.
     @Default(0.0) double countdownMs,
 
     /// Playback position (playhead), in milliseconds.
@@ -392,12 +484,14 @@ abstract class PlayerData with _$PlayerData {
     /// either way.
     @Default(false) bool instrumentSoundsItself,
 
-    /// Output latency compensation in milliseconds (change:
+    /// Output latency compensation in **wall-clock** milliseconds (change:
     /// add-audio-output-routing), seeded from the persisted play preferences.
     /// The audio the user hears at any instant is what the engine emitted this
-    /// many milliseconds ago, so [referenceMs] — the position they are actually
-    /// hearing — is what the playhead is drawn at and what attacks are judged
-    /// against. 0 (the default) makes it a no-op.
+    /// many real milliseconds ago, so [referenceMs] — the position they are
+    /// actually hearing — is what the playhead is drawn at and what a free-run
+    /// attack is judged against. 0 (the default) makes it a no-op, at every
+    /// transport speed and in both modes. See [referenceMs] for the known
+    /// wall-clock/score-clock unit defect at speeds other than 1x.
     @Default(0) int outputOffsetMs,
 
     /// First measure of the **active practice range** (index into
@@ -425,10 +519,68 @@ abstract class PlayerData with _$PlayerData {
   ///
   /// [elapsedMs] is the emission clock: it is what decides when a note is handed
   /// to the audio engine. On a delayed route that sound only reaches the ear
-  /// [outputOffsetMs] later, so this is the position the highlight must show and
-  /// the reference an attack must be judged against — one number, so the two can
-  /// never drift apart. With the default offset of 0 it *is* [elapsedMs].
+  /// [outputOffsetMs] later, so this is the position the highlight must show —
+  /// and, in free run, the reference an attack is judged against. With the
+  /// default offset of 0 it *is* [elapsedMs].
+  ///
+  /// **Known defect, deliberately not fixed here** (see the
+  /// `fix-output-offset-units` change): [outputOffsetMs] is a *wall-clock*
+  /// latency while this is a *score* clock, so at a transport speed other than
+  /// 1x the shift is off by a factor of `speed`. Rescaling it instantly
+  /// (`outputOffsetMs * speed`) is NOT the fix — it makes this clock a function
+  /// of a value the user can change mid-run, and a tempo tap then teleports it
+  /// by `outputOffsetMs * Δspeed`, sweeping pending onsets into `missed` and
+  /// truncating sustains. The lag has to *drain* like the audio it models, i.e.
+  /// this has to become a delayed copy of the playhead rather than a rescale.
   double get referenceMs => elapsedMs - outputOffsetMs;
+
+  /// Both score clocks for a playhead at [playheadMs]: the emission clock (the
+  /// playhead itself) and the heard clock (shifted back by [outputOffsetMs] —
+  /// [referenceMs] for the current playhead). The single place the pair is
+  /// assembled; the scorer receives both and picks per call — and, for
+  /// sustains, per note (see `judgmentClock` / `sustainClock` in
+  /// `performance_scoring_core.dart`).
+  ScoreClocks clocksAt(double playheadMs) =>
+      (emission: playheadMs, heard: playheadMs - outputOffsetMs);
+
+  /// [clocksAt] for the current playhead.
+  ScoreClocks get clocks => clocksAt(elapsedMs);
+
+  /// The score clock the scorer is driven on, for a playhead at [playheadMs].
+  ///
+  /// **Free run** judges an attack by its distance from the onset, and the
+  /// player is reacting to what they *hear*, so the heard position is the fair
+  /// reference — that is the whole point of the output offset.
+  ///
+  /// **Wait Mode** is different, and must use the emission clock. There the
+  /// judgment is a reaction time measured on the wall clock; the score clock is
+  /// used only to identify *which* onset is gating, by matching the frozen
+  /// playhead to within a millisecond. Nothing has sounded yet during a freeze —
+  /// the player is waiting to play the note, not to hear it — so shifting that
+  /// clock buys nothing and makes the frozen playhead miss its own onset, which
+  /// silently drops every press on the floor.
+  ///
+  /// Toggling Wait Mode mid-run switches this clock by [outputOffsetMs]. The
+  /// verdict model changes with it anyway (reaction time vs timing offset) —
+  /// but a *sustain* must never straddle the switch, which is why the scorer
+  /// measures each note's hold on the clock that bound it, not on this one
+  /// (see `sustainClock` in `performance_scoring_core.dart`).
+  double judgmentClockAt(double playheadMs) =>
+      judgmentClock(clocksAt(playheadMs), waitMode: waitMode);
+
+  /// [judgmentClockAt] for the current playhead.
+  double get judgmentClockMs => judgmentClockAt(elapsedMs);
+
+  /// The emission-clock position a scored run finishes at: the first playhead
+  /// whose *judgment* clock has reached [endMs]. In Wait Mode — and always at
+  /// the default offset of 0 — that is [endMs] itself. In free run under an
+  /// output offset the judgment clock trails the playhead by [outputOffsetMs],
+  /// so the run keeps judging through that drain tail: finalizing at [endMs]
+  /// would resolve every onset in the piece's last [outputOffsetMs] as
+  /// `missed` before the player has even heard it, and truncate the final
+  /// sustains by the same amount — the tail of the piece would be unreachable
+  /// on a delayed route.
+  double get scoredRunEndMs => waitMode ? endMs : endMs + outputOffsetMs;
 
   /// Whether the instrument-sounds-itself setting can do anything right now: it
   /// only ever suppresses notes arriving from an instrument, so with no MIDI
@@ -463,6 +615,14 @@ abstract class PlayerData with _$PlayerData {
       .where((r) => showsStaff(r.staff) && _withinRun(r.startMs.toDouble()))
       .toList();
 
+  /// Tie continuations belonging to the selected hand(s) — the render-only
+  /// companion to [visibleNotes] (same filter), so a muted hand's tied notation
+  /// hides with its notes (and, in a selective run, everything outside the
+  /// passage).
+  List<TimedNote> get visibleTieContinuations => tieContinuations
+      .where((n) => showsStaff(n.staff) && _withinRun(n.startMs.toDouble()))
+      .toList();
+
   /// Whether onset [t] falls inside the run. Always true for a full run; for a
   /// selective one, the half-open span of the chosen measures. Deliberately keyed
   /// on the ONSET: a note is in the passage if it starts there.
@@ -473,8 +633,22 @@ abstract class PlayerData with _$PlayerData {
   }
 
   /// Number of engraved measures with known timing (0 for the demo score, which
-  /// carries no measure table).
+  /// carries no measure table). With repeats unrolled this counts **played
+  /// slots**; the range pickers use [practiceMeasureCount] instead.
   int get measureCount => measureStartMs.length;
+
+  /// Number of **written** measures — the domain of the practice range and of
+  /// Partition taps, independent of repeat unrolling. Falls back to the played
+  /// table for pieces loaded before the written count existed (demo: 0).
+  int get practiceMeasureCount =>
+      writtenMeasureCount > 0 ? writtenMeasureCount : measureCount;
+
+  /// The written measure performed at played slot [slot] (identity when the
+  /// piece has no repeats or the run is linear).
+  int writtenMeasureAt(int slot) =>
+      (slot >= 0 && slot < writtenMeasureOf.length)
+      ? writtenMeasureOf[slot]
+      : slot;
 
   /// Index of the piece's last measure, or null when there is no measure table.
   int? get lastMeasureIndex => measureStartMs.isEmpty ? null : measureCount - 1;

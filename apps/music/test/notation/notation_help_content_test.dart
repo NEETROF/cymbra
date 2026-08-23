@@ -22,6 +22,7 @@ import 'package:music/painters/staff_hit_index.dart';
 /// painter can record.
 const _oneOfEachKind = <SymbolDescriptor>[
   SymbolDescriptor.note(pitch: 60),
+  SymbolDescriptor.note(pitch: 71, noteType: 'eighth', isGrace: true),
   SymbolDescriptor.rest(),
   SymbolDescriptor.accidental(token: 'sharp'),
   SymbolDescriptor.clef(sign: 'G'),
@@ -38,6 +39,12 @@ const _oneOfEachKind = <SymbolDescriptor>[
   SymbolDescriptor.tuplet(actual: 3),
   SymbolDescriptor.brace(),
   SymbolDescriptor.dynamics(token: 'mf'),
+  SymbolDescriptor.repeatBarline(forward: true),
+  SymbolDescriptor.volta(label: '1.'),
+  SymbolDescriptor.measureRepeat(),
+  SymbolDescriptor.segno(),
+  SymbolDescriptor.coda(),
+  SymbolDescriptor.jump(words: 'D.C. al Fine'),
 ];
 
 void main() {
@@ -102,6 +109,29 @@ void main() {
           frenchRe: frenchRe,
         ).body;
         expect(body(0), isNot(equals(body(3))));
+      });
+
+      test('a grace note reads as an ornament, not as a held note', () {
+        NotationHelp helpOf(SymbolDescriptor d) =>
+            notationHelpFor(l10n, d, solfege: solfege, frenchRe: frenchRe);
+        final grace = helpOf(
+          const SymbolDescriptor.note(
+            pitch: 71,
+            noteType: 'eighth',
+            isGrace: true,
+          ),
+        );
+        final plain = helpOf(
+          const SymbolDescriptor.note(pitch: 71, noteType: 'eighth'),
+        );
+        // Dedicated copy, and it never quotes the eighth's hold duration.
+        expect(grace.title, isNot(equals(plain.title)));
+        expect(grace.body, isNot(equals(plain.body)));
+        // The grace symbol is browsable from the glossary too.
+        expect(
+          notationGlossarySamples.any((d) => d is NoteSymbol && d.isGrace),
+          isTrue,
+        );
       });
 
       test('the glossary shares the on-staff help for the same symbol', () {

@@ -181,6 +181,11 @@ class NotationMeasure {
   /// Minimum engraving width (pixels) from the non-linear spacing function.
   final double minWidth;
 
+  /// Repeat notation engraved on this measure (barline repeats, voltas,
+  /// measure-repeat `%`, segno/coda and jump semantics). All defaults when
+  /// the measure carries none — the overwhelmingly common case.
+  final RepeatMarks repeats;
+
   const NotationMeasure({
     required this.index,
     required this.notes,
@@ -188,6 +193,7 @@ class NotationMeasure {
     required this.clefs,
     required this.keyFifths,
     required this.minWidth,
+    required this.repeats,
   });
 
   @override
@@ -197,7 +203,8 @@ class NotationMeasure {
       directions.hashCode ^
       clefs.hashCode ^
       keyFifths.hashCode ^
-      minWidth.hashCode;
+      minWidth.hashCode ^
+      repeats.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -209,7 +216,8 @@ class NotationMeasure {
           directions == other.directions &&
           clefs == other.clefs &&
           keyFifths == other.keyFifths &&
-          minWidth == other.minWidth;
+          minWidth == other.minWidth &&
+          repeats == other.repeats;
 }
 
 /// A single note (or rest) event.
@@ -227,6 +235,12 @@ class NoteEvent {
 
   /// True when this note carries `<chord/>` (sounds with the preceding note).
   final bool isChord;
+
+  /// True when this note carries `<grace/>` — an ornamental small note that
+  /// occupies no musical time (`duration_divisions` stays 0 and the cursor
+  /// does not advance); playback gives it a short nominal duration stolen
+  /// from just before its position.
+  final bool isGrace;
   final int durationDivisions;
 
   /// Note-type token when present (e.g. "quarter", "eighth").
@@ -253,6 +267,7 @@ class NoteEvent {
     this.pitch,
     required this.isRest,
     required this.isChord,
+    required this.isGrace,
     required this.durationDivisions,
     this.noteType,
     required this.dots,
@@ -275,6 +290,7 @@ class NoteEvent {
       pitch.hashCode ^
       isRest.hashCode ^
       isChord.hashCode ^
+      isGrace.hashCode ^
       durationDivisions.hashCode ^
       noteType.hashCode ^
       dots.hashCode ^
@@ -299,6 +315,7 @@ class NoteEvent {
           pitch == other.pitch &&
           isRest == other.isRest &&
           isChord == other.isChord &&
+          isGrace == other.isGrace &&
           durationDivisions == other.durationDivisions &&
           noteType == other.noteType &&
           dots == other.dots &&
@@ -334,6 +351,127 @@ class Pitch {
           alter == other.alter;
 }
 
+/// One slot of the playback order: which written measure plays, and which pass
+/// through it this is (1-based — a repeated measure has one slot per pass).
+class PlayedMeasure {
+  final int writtenIndex;
+  final int pass;
+
+  const PlayedMeasure({required this.writtenIndex, required this.pass});
+
+  @override
+  int get hashCode => writtenIndex.hashCode ^ pass.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PlayedMeasure &&
+          runtimeType == other.runtimeType &&
+          writtenIndex == other.writtenIndex &&
+          pass == other.pass;
+}
+
+/// The repeat structure engraved on one measure, in written order — everything
+/// the unroll and the renderers need. Defaults mean "no repeat notation".
+class RepeatMarks {
+  /// A forward repeat (`‖:`) opens this measure.
+  final bool forward;
+
+  /// A backward repeat (`:‖`) closes this measure: the `times` attribute
+  /// (how many times the section is played in total; MusicXML default 2).
+  /// 0 = no backward repeat.
+  final int backwardTimes;
+
+  /// Volta numbers of an ending bracket **starting** at this measure
+  /// (e.g. `[1]`, `[1, 2]`). Empty when none starts here.
+  final Uint32List endingStart;
+
+  /// An ending bracket **stops** (downward hook) at this measure.
+  final bool endingStop;
+
+  /// An ending bracket ends open (discontinue) at this measure — the usual
+  /// engraving of a final volta.
+  final bool endingDiscontinue;
+
+  /// This is a measure-repeat (`%`) measure: the written measure whose
+  /// content it replays (already resolved transitively for chained `%`
+  /// runs). The measure's own note list stays empty — the sign is engraved,
+  /// the referenced content is played.
+  final int? measureRepeatOf;
+
+  /// Slash count of the measure-repeat sign (1 = `%`).
+  final int measureRepeatSlashes;
+
+  /// A segno sign is placed at this measure.
+  final bool segno;
+
+  /// A coda sign is placed at this measure.
+  final bool coda;
+
+  /// `<sound>` jump semantics attached to this measure's directions.
+  final bool soundDacapo;
+  final bool soundDalsegno;
+  final bool soundTocoda;
+  final bool soundFine;
+
+  /// `<sound forward-repeat="yes">` — repeats are re-taken after the jump.
+  final bool soundForwardRepeat;
+
+  const RepeatMarks({
+    required this.forward,
+    required this.backwardTimes,
+    required this.endingStart,
+    required this.endingStop,
+    required this.endingDiscontinue,
+    this.measureRepeatOf,
+    required this.measureRepeatSlashes,
+    required this.segno,
+    required this.coda,
+    required this.soundDacapo,
+    required this.soundDalsegno,
+    required this.soundTocoda,
+    required this.soundFine,
+    required this.soundForwardRepeat,
+  });
+
+  @override
+  int get hashCode =>
+      forward.hashCode ^
+      backwardTimes.hashCode ^
+      endingStart.hashCode ^
+      endingStop.hashCode ^
+      endingDiscontinue.hashCode ^
+      measureRepeatOf.hashCode ^
+      measureRepeatSlashes.hashCode ^
+      segno.hashCode ^
+      coda.hashCode ^
+      soundDacapo.hashCode ^
+      soundDalsegno.hashCode ^
+      soundTocoda.hashCode ^
+      soundFine.hashCode ^
+      soundForwardRepeat.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RepeatMarks &&
+          runtimeType == other.runtimeType &&
+          forward == other.forward &&
+          backwardTimes == other.backwardTimes &&
+          endingStart == other.endingStart &&
+          endingStop == other.endingStop &&
+          endingDiscontinue == other.endingDiscontinue &&
+          measureRepeatOf == other.measureRepeatOf &&
+          measureRepeatSlashes == other.measureRepeatSlashes &&
+          segno == other.segno &&
+          coda == other.coda &&
+          soundDacapo == other.soundDacapo &&
+          soundDalsegno == other.soundDalsegno &&
+          soundTocoda == other.soundTocoda &&
+          soundFine == other.soundFine &&
+          soundForwardRepeat == other.soundForwardRepeat;
+}
+
 /// A parsed MusicXML document: metadata, staff count, starting attributes, and
 /// the ordered measures with their notes, directions, and computed geometry.
 class ScoreDocument {
@@ -344,16 +482,29 @@ class ScoreDocument {
   final Attributes attributes;
   final List<NotationMeasure> measures;
 
+  /// The **playback order**: the sequence of written-measure passes a
+  /// performer would play, resolved from the repeat structure (repeat
+  /// barlines, voltas, D.C./D.S. jumps) with safety caps — the written order
+  /// one-to-one when the piece has no repeats or the structure is malformed.
+  /// Computed once at parse time; every derivation (app timeline, browser
+  /// preview, server audio render) consumes it instead of re-resolving.
+  final List<PlayedMeasure> playOrder;
+
   const ScoreDocument({
     required this.meta,
     required this.staves,
     required this.attributes,
     required this.measures,
+    required this.playOrder,
   });
 
   @override
   int get hashCode =>
-      meta.hashCode ^ staves.hashCode ^ attributes.hashCode ^ measures.hashCode;
+      meta.hashCode ^
+      staves.hashCode ^
+      attributes.hashCode ^
+      measures.hashCode ^
+      playOrder.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -363,7 +514,8 @@ class ScoreDocument {
           meta == other.meta &&
           staves == other.staves &&
           attributes == other.attributes &&
-          measures == other.measures;
+          measures == other.measures &&
+          playOrder == other.playOrder;
 }
 
 /// Score metadata; fields are absent (`None`) rather than failing when missing.

@@ -86,6 +86,57 @@ class FakeNotationEngine implements NotationEngine {
   }
 }
 
+/// No repeat notation — the fixture default for [NotationMeasure.repeats].
+final RepeatMarks noRepeats = RepeatMarks(
+  forward: false,
+  backwardTimes: 0,
+  endingStart: Uint32List(0),
+  endingStop: false,
+  endingDiscontinue: false,
+  measureRepeatOf: null,
+  measureRepeatSlashes: 0,
+  segno: false,
+  coda: false,
+  soundDacapo: false,
+  soundDalsegno: false,
+  soundTocoda: false,
+  soundFine: false,
+  soundForwardRepeat: false,
+);
+
+/// [RepeatMarks] with fixture defaults — name only what the test needs.
+RepeatMarks repeatMarks({
+  bool forward = false,
+  int backwardTimes = 0,
+  List<int> endingStart = const [],
+  bool endingStop = false,
+  bool endingDiscontinue = false,
+  int? measureRepeatOf,
+  int measureRepeatSlashes = 0,
+  bool segno = false,
+  bool coda = false,
+  bool soundDacapo = false,
+  bool soundDalsegno = false,
+  bool soundTocoda = false,
+  bool soundFine = false,
+  bool soundForwardRepeat = false,
+}) => RepeatMarks(
+  forward: forward,
+  backwardTimes: backwardTimes,
+  endingStart: Uint32List.fromList(endingStart),
+  endingStop: endingStop,
+  endingDiscontinue: endingDiscontinue,
+  measureRepeatOf: measureRepeatOf,
+  measureRepeatSlashes: measureRepeatSlashes,
+  segno: segno,
+  coda: coda,
+  soundDacapo: soundDacapo,
+  soundDalsegno: soundDalsegno,
+  soundTocoda: soundTocoda,
+  soundFine: soundFine,
+  soundForwardRepeat: soundForwardRepeat,
+);
+
 /// A fully-populated [NoteEvent] with sensible defaults for tests.
 NoteEvent noteEvent({
   int staff = 1,
@@ -94,6 +145,7 @@ NoteEvent noteEvent({
   Pitch? pitch,
   bool isRest = false,
   bool isChord = false,
+  bool isGrace = false,
   int durationDivisions = 4,
   String? noteType = 'quarter',
   int dots = 0,
@@ -104,6 +156,7 @@ NoteEvent noteEvent({
   bool tieStop = false,
   bool slurStart = false,
   bool slurStop = false,
+  List<BeamState> beams = const [],
 }) => NoteEvent(
   staff: staff,
   voice: voice,
@@ -111,6 +164,7 @@ NoteEvent noteEvent({
   pitch: pitch,
   isRest: isRest,
   isChord: isChord,
+  isGrace: isGrace,
   durationDivisions: durationDivisions,
   noteType: noteType,
   dots: dots,
@@ -121,13 +175,14 @@ NoteEvent noteEvent({
   slurStop: slurStop,
   tuplet: null,
   stem: stem,
-  beams: const [],
+  beams: beams,
   lyric: lyric,
 );
 
 /// A treble document with a phrase slur over four notes and a tie between the
 /// last two (same pitch) — to eyeball tie/slur arcs.
 ScoreDocument sampleTieSlurDocument() => ScoreDocument(
+  playOrder: const [],
   meta: const ScoreMeta(title: 'TieSlur', composer: 'Tester'),
   staves: 1,
   attributes: const Attributes(
@@ -138,6 +193,7 @@ ScoreDocument sampleTieSlurDocument() => ScoreDocument(
   ),
   measures: [
     NotationMeasure(
+      repeats: noRepeats,
       index: 0,
       clefs: const [],
       keyFifths: 0,
@@ -189,6 +245,7 @@ ScoreDocument sampleBeamedDocument() {
     pitch: Pitch(step: step, octave: octave, alter: 0),
     isRest: false,
     isChord: false,
+    isGrace: false,
     durationDivisions: 2,
     noteType: 'eighth',
     dots: 0,
@@ -203,6 +260,7 @@ ScoreDocument sampleBeamedDocument() {
     lyric: null,
   );
   return ScoreDocument(
+    playOrder: const [],
     meta: const ScoreMeta(title: 'Beamed', composer: 'Tester'),
     staves: 1,
     attributes: const Attributes(
@@ -213,6 +271,7 @@ ScoreDocument sampleBeamedDocument() {
     ),
     measures: [
       NotationMeasure(
+        repeats: noRepeats,
         index: 0,
         clefs: const [],
         keyFifths: 0,
@@ -236,6 +295,7 @@ ScoreDocument sampleBeamedDocument() {
 /// plus two overlapping word directions at the same beat — to eyeball the clef
 /// change and the word de-overlap.
 ScoreDocument sampleClefChangeDocument() => ScoreDocument(
+  playOrder: const [],
   meta: const ScoreMeta(title: 'ClefChange', composer: 'Tester'),
   staves: 2,
   attributes: const Attributes(
@@ -249,6 +309,7 @@ ScoreDocument sampleClefChangeDocument() => ScoreDocument(
   ),
   measures: [
     NotationMeasure(
+      repeats: noRepeats,
       index: 0,
       clefs: const [],
       keyFifths: 0,
@@ -271,6 +332,7 @@ ScoreDocument sampleClefChangeDocument() => ScoreDocument(
       ],
     ),
     NotationMeasure(
+      repeats: noRepeats,
       index: 1,
       clefs: const [Clef(staff: 2, sign: 'F', line: 4)], // → bass clef
       keyFifths: 0,
@@ -287,6 +349,7 @@ ScoreDocument sampleClefChangeDocument() => ScoreDocument(
 /// A treble document with [count] one-note 4/4 measures, so the fake layout
 /// (one system per measure) produces many systems — tall enough to scroll.
 ScoreDocument tallDocument(int count) => ScoreDocument(
+  playOrder: const [],
   meta: const ScoreMeta(title: 'Tall', composer: 'Tester'),
   staves: 1,
   attributes: const Attributes(
@@ -298,6 +361,7 @@ ScoreDocument tallDocument(int count) => ScoreDocument(
   measures: [
     for (var i = 0; i < count; i++)
       NotationMeasure(
+        repeats: noRepeats,
         index: i,
         clefs: const [],
         keyFifths: 0,
@@ -318,6 +382,7 @@ ScoreDocument tallDocument(int count) => ScoreDocument(
 /// A small two-staff (grand-staff) document: one 4/4 measure with a treble note,
 /// a bass note, a `words` direction, and a `dynamics` direction.
 ScoreDocument sampleGrandStaffDocument() => ScoreDocument(
+  playOrder: const [],
   meta: const ScoreMeta(title: 'Sample', composer: 'Tester'),
   staves: 2,
   attributes: const Attributes(
@@ -331,6 +396,7 @@ ScoreDocument sampleGrandStaffDocument() => ScoreDocument(
   ),
   measures: [
     NotationMeasure(
+      repeats: noRepeats,
       index: 0,
       clefs: const [],
       // The parser carries the key in force into every measure, opening one
@@ -377,6 +443,7 @@ ScoreDocument sampleGrandStaffDocument() => ScoreDocument(
 /// 12000]` and `songEndMs` is 16000. Each measure holds one whole note, so every
 /// measure has an onset the Wait-Mode gate and the scorer can see.
 ScoreDocument sampleFourMeasureDocument() => ScoreDocument(
+  playOrder: const [],
   meta: const ScoreMeta(title: 'FourBars', composer: 'Tester'),
   staves: 1,
   attributes: const Attributes(
@@ -388,6 +455,7 @@ ScoreDocument sampleFourMeasureDocument() => ScoreDocument(
   measures: [
     for (var i = 0; i < 4; i++)
       NotationMeasure(
+        repeats: noRepeats,
         index: i,
         clefs: const [],
         keyFifths: 0,
@@ -417,10 +485,70 @@ ScoreDocument sampleFourMeasureDocument() => ScoreDocument(
   ],
 );
 
+/// Two whole-note bars at 60 bpm with the first repeated (engine-resolved
+/// playOrder [0, 0, 1]) — the smallest repeat-carrying piece: unrolled tables
+/// have three 4000ms slots, the written-linear (practice) ones two.
+ScoreDocument sampleRepeatDocument() => ScoreDocument(
+  playOrder: const [
+    PlayedMeasure(writtenIndex: 0, pass: 1),
+    PlayedMeasure(writtenIndex: 0, pass: 2),
+    PlayedMeasure(writtenIndex: 1, pass: 1),
+  ],
+  meta: const ScoreMeta(title: 'RepeatBars', composer: 'Tester'),
+  staves: 1,
+  attributes: const Attributes(
+    divisions: 4,
+    clefs: [Clef(staff: 1, sign: 'G', line: 2)],
+    keyFifths: 0,
+    time: TimeSignature(beats: 4, beatType: 4),
+  ),
+  measures: [
+    NotationMeasure(
+      repeats: repeatMarks(backwardTimes: 2),
+      index: 0,
+      clefs: const [],
+      keyFifths: 0,
+      minWidth: 120,
+      directions: const [
+        Direction(
+          staff: 1,
+          positionDivisions: 0,
+          kind: DirectionKind.metronome(beatUnit: 'quarter', perMinute: 60),
+        ),
+      ],
+      notes: [
+        noteEvent(
+          positionDivisions: 0,
+          durationDivisions: 16,
+          noteType: 'whole',
+          pitch: const Pitch(step: 'C', octave: 4, alter: 0),
+        ),
+      ],
+    ),
+    NotationMeasure(
+      repeats: noRepeats,
+      index: 1,
+      clefs: const [],
+      keyFifths: 0,
+      minWidth: 120,
+      directions: const [],
+      notes: [
+        noteEvent(
+          positionDivisions: 0,
+          durationDivisions: 16,
+          noteType: 'whole',
+          pitch: const Pitch(step: 'D', octave: 4, alter: 0),
+        ),
+      ],
+    ),
+  ],
+);
+
 /// Like [sampleFourMeasureDocument] but with [bars] measures, so a test can make
 /// the practice ribbon genuinely scrollable (four bars fit without scrolling,
 /// which hid the auto-scroll bug).
 ScoreDocument sampleManyMeasureDocument({int bars = 24}) => ScoreDocument(
+  playOrder: const [],
   meta: const ScoreMeta(title: 'ManyBars', composer: 'Tester'),
   staves: 1,
   attributes: const Attributes(
@@ -432,6 +560,7 @@ ScoreDocument sampleManyMeasureDocument({int bars = 24}) => ScoreDocument(
   measures: [
     for (var i = 0; i < bars; i++)
       NotationMeasure(
+        repeats: noRepeats,
         index: i,
         clefs: const [],
         keyFifths: 0,

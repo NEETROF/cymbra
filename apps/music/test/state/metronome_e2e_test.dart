@@ -43,6 +43,7 @@ ScoreDocument _threeFour() {
     pitch: Pitch(step: 'C', octave: staff == 1 ? 5 : 3, alter: 0),
   );
   NotationMeasure measure(int index, List<NoteEvent> notes) => NotationMeasure(
+    repeats: noRepeats,
     index: index,
     clefs: const [],
     keyFifths: 0,
@@ -51,6 +52,7 @@ ScoreDocument _threeFour() {
     notes: notes,
   );
   return ScoreDocument(
+    playOrder: const [],
     meta: const ScoreMeta(title: 'Minuet', composer: 'Bach'),
     staves: 2,
     attributes: const Attributes(

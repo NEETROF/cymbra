@@ -26,6 +26,10 @@ class FakeClock implements Clock {
   int nowMs() => now;
 }
 
+/// Both score clocks at [ms] — the offset-0 case, where they coincide. Tests
+/// that exercise a real offset build the pair explicitly.
+ScoreClocks c(double ms) => (emission: ms, heard: ms);
+
 void main() {
   late FakeClock clock;
   late ProviderContainer container;
@@ -63,7 +67,7 @@ void main() {
 
   group('activation / gating', () {
     test('events are no-ops before a run starts', () {
-      scorer().noteOn(60, 0, waitMode: false);
+      scorer().noteOn(60, c(0), waitMode: false);
       expect(read().active, isFalse);
       expect(read().lastResult, isNull);
     });
@@ -86,7 +90,7 @@ void main() {
   group('free-run judging', () {
     test('on-time press binds as perfect and grows the combo', () {
       start();
-      scorer().noteOn(60, 0, waitMode: false);
+      scorer().noteOn(60, c(0), waitMode: false);
       expect(read().combo, 1);
       expect(read().syncPercent, 100);
       expect(read().recentHits.last.verdict, TimingVerdict.perfect);
@@ -94,11 +98,11 @@ void main() {
 
     test('unplayed onset is missed once its window passes', () {
       start();
-      scorer().noteOn(60, 0, waitMode: false); // play C4 on time
-      scorer().noteOff(60, 500);
+      scorer().noteOn(60, c(0), waitMode: false); // play C4 on time
+      scorer().noteOff(60, c(500));
       // Push the playhead well past D4's bind window without playing it.
-      scorer().tick(700, waitMode: false);
-      scorer().finishRun(1000, waitMode: false);
+      scorer().tick(c(700), waitMode: false);
+      scorer().finishRun(c(1000), waitMode: false);
       final r = read().lastResult!;
       expect(r.verdictCounts[TimingVerdict.missed], 1);
       final d4 = r.notes.firstWhere((n) => n.pitch == 62);
@@ -107,18 +111,18 @@ void main() {
 
     test('a wrong note is recorded and resets the combo', () {
       start();
-      scorer().noteOn(60, 0, waitMode: false); // good, combo 1
-      scorer().noteOn(99, 10, waitMode: false); // no such onset → wrong
+      scorer().noteOn(60, c(0), waitMode: false); // good, combo 1
+      scorer().noteOn(99, c(10), waitMode: false); // no such onset → wrong
       expect(read().combo, 0);
-      scorer().finishRun(1000, waitMode: false);
+      scorer().finishRun(c(1000), waitMode: false);
       expect(read().lastResult!.wrongNotes, 1);
     });
 
     test('sustain is finalized from the release position', () {
       start();
-      scorer().noteOn(60, 0, waitMode: false);
-      scorer().noteOff(60, 60); // released after ~12% of the 500ms note
-      scorer().finishRun(1000, waitMode: false);
+      scorer().noteOn(60, c(0), waitMode: false);
+      scorer().noteOff(60, c(60)); // released after ~12% of the 500ms note
+      scorer().finishRun(c(1000), waitMode: false);
       final hit = read().lastResult!.notes.firstWhere((n) => n.noteIndex == 0);
       expect(hit.sustainRatio, lessThan(0.5));
     });
@@ -128,9 +132,9 @@ void main() {
     test('reaction time is measured from gate-open to attack', () {
       start();
       clock.now = 1000;
-      scorer().tick(0, waitMode: true); // gate opens on C4 @ 0
+      scorer().tick(c(0), waitMode: true); // gate opens on C4 @ 0
       clock.now = 1080; // 80ms reaction → perfect
-      scorer().noteOn(60, 0, waitMode: true);
+      scorer().noteOn(60, c(0), waitMode: true);
       final hit = read().recentHits.last;
       expect(hit.verdict, TimingVerdict.perfect);
     });
@@ -138,17 +142,17 @@ void main() {
     test('slow reaction scores lower', () {
       start();
       clock.now = 1000;
-      scorer().tick(0, waitMode: true);
+      scorer().tick(c(0), waitMode: true);
       clock.now = 1400; // 400ms → late
-      scorer().noteOn(60, 0, waitMode: true);
+      scorer().noteOn(60, c(0), waitMode: true);
       expect(read().recentHits.last.verdict, TimingVerdict.late);
     });
 
     test('exploratory press away from a gate is ignored, not wrong', () {
       start();
       // No gate open at playhead 250 (between onsets); a stray press is ignored.
-      scorer().noteOn(64, 250, waitMode: true);
-      scorer().finishRun(1000, waitMode: true);
+      scorer().noteOn(64, c(250), waitMode: true);
+      scorer().finishRun(c(1000), waitMode: true);
       expect(read().lastResult!.wrongNotes, 0);
     });
   });
@@ -157,14 +161,14 @@ void main() {
     test('run mixes free and wait onsets and yields both sub-scores', () {
       start();
       // C4 played in free run.
-      scorer().noteOn(60, 0, waitMode: false);
-      scorer().noteOff(60, 500);
+      scorer().noteOn(60, c(0), waitMode: false);
+      scorer().noteOff(60, c(500));
       // D4 played under Wait Mode (toggled on mid-run).
       clock.now = 2000;
-      scorer().tick(500, waitMode: true); // gate opens on D4 @ 500
+      scorer().tick(c(500), waitMode: true); // gate opens on D4 @ 500
       clock.now = 2050;
-      scorer().noteOn(62, 500, waitMode: true);
-      scorer().finishRun(1000, waitMode: true);
+      scorer().noteOn(62, c(500), waitMode: true);
+      scorer().finishRun(c(1000), waitMode: true);
 
       final r = read().lastResult!;
       expect(r.runMode, RunMode.mixed);
@@ -181,20 +185,53 @@ void main() {
 
     test('pure free run classifies free with no wait sub-score', () {
       start();
-      scorer().noteOn(60, 0, waitMode: false);
-      scorer().noteOn(62, 500, waitMode: false);
-      scorer().finishRun(1000, waitMode: false);
+      scorer().noteOn(60, c(0), waitMode: false);
+      scorer().noteOn(62, c(500), waitMode: false);
+      scorer().finishRun(c(1000), waitMode: false);
       final r = read().lastResult!;
       expect(r.runMode, RunMode.free);
       expect(r.waitSyncPct, isNull);
     });
   });
 
+  group('sustain clock follows the binding mode', () {
+    // Clocks 200ms apart, as under a 200ms output offset.
+    ScoreClocks split(double emission) =>
+        (emission: emission, heard: emission - 200);
+
+    test('a Wait-bound hold released in free run keeps the emission clock', () {
+      start();
+      clock.now = 1000;
+      scorer().tick(split(0), waitMode: true); // gate opens on C4 @ 0
+      scorer().noteOn(60, split(0), waitMode: true);
+      // Toggled to free run mid-hold; released when the EMISSION clock — the
+      // one that bound the note — has run its full 500ms. Measured on the
+      // heard clock this would be 300ms and cut the sustain to 0.6.
+      scorer().noteOff(60, split(500));
+      scorer().finishRun(split(1200), waitMode: false);
+      final c4 = read().lastResult!.notes.firstWhere((n) => n.pitch == 60);
+      expect(c4.sustainRatio, 1.0);
+    });
+
+    test('a free-bound hold is not stretched by a toggle to Wait Mode', () {
+      start();
+      // C4 bound in free run: heard 0 is the onset, dead on time.
+      scorer().noteOn(60, split(200), waitMode: false);
+      // Released under Wait Mode having held 250ms on its (heard) clock;
+      // measuring on the emission clock would claim 450ms of the 500ms note
+      // and vault the hold over the full-credit floor.
+      scorer().noteOff(60, split(450));
+      scorer().finishRun(split(1200), waitMode: true);
+      final c4 = read().lastResult!.notes.firstWhere((n) => n.pitch == 60);
+      expect(c4.sustainRatio, 0.5);
+    });
+  });
+
   group('finish', () {
     test('finishRun produces a result and deactivates', () {
       start();
-      scorer().noteOn(60, 0, waitMode: false);
-      scorer().finishRun(1000, waitMode: false);
+      scorer().noteOn(60, c(0), waitMode: false);
+      scorer().finishRun(c(1000), waitMode: false);
       expect(read().active, isFalse);
       expect(read().lastResult, isNotNull);
       expect(read().bestCombo, greaterThanOrEqualTo(1));
@@ -202,7 +239,7 @@ void main() {
 
     test('clearLastResult drops the stored result', () {
       start();
-      scorer().finishRun(1000, waitMode: false);
+      scorer().finishRun(c(1000), waitMode: false);
       expect(read().lastResult, isNotNull);
       scorer().clearLastResult();
       expect(read().lastResult, isNull);

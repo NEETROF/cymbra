@@ -143,8 +143,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     final dt = (elapsed - _lastTick).inMicroseconds / 1000.0; // ms
     _lastTick = elapsed;
     if (dt > 0 && dt < 100) {
-      final speed = ref.read(playerProvider).speed;
-      ref.read(playerProvider.notifier).advance(dt * speed);
+      // Real frame time: the notifier applies the transport speed itself, so the
+      // pre-start countdown keeps ticking in wall-clock seconds at any tempo.
+      ref.read(playerProvider.notifier).advance(dt);
     }
   }
 
@@ -605,6 +606,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                 painter: StaffPainter(
                   notes: data.visibleNotes,
                   rests: data.visibleRests,
+                  tieContinuations: data.visibleTieContinuations,
+                  measureDecors: data.measureDecors,
+                  writtenMeasureOf: data.writtenMeasureOf,
                   elapsedMs: data.referenceMs,
                   activeNotes: data.activeNotes,
                   bpm: data.bpm,
@@ -1341,7 +1345,9 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
     if (!data.isPlaying) return;
     final cursor = data.measureAt(data.referenceMs);
     if (cursor == null) return;
-    final sysIndex = _systemOf(cursor.index, systems);
+    // The cursor index is a played slot; the engraved systems hold WRITTEN
+    // measures — map through so a repeat pass scrolls back to its line.
+    final sysIndex = _systemOf(data.writtenMeasureAt(cursor.index), systems);
     if (sysIndex == null) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scroll.hasClients) return;
@@ -1438,6 +1444,7 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
             systems: notation.systems,
             elapsedMs: data.referenceMs,
             measureStartMs: data.measureStartMs,
+            writtenMeasureOf: data.writtenMeasureOf,
             songEndMs: data.songEndMs,
             activeNotes: data.activeNotes,
             selectedHands: data.selectedHands,
@@ -1493,6 +1500,7 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
                             systems: notation.systems,
                             elapsedMs: data.referenceMs,
                             measureStartMs: data.measureStartMs,
+                            writtenMeasureOf: data.writtenMeasureOf,
                             songEndMs: data.songEndMs,
                             activeNotes: data.activeNotes,
                             selectedHands: data.selectedHands,

@@ -8,7 +8,7 @@
 // contract): expression/dynamics directions, lyrics, ties, slurs, tuplet
 // numbers/brackets, and the playback cursor (playback is out of scope here).
 
-import type { Clef, NoteEvent, RenderedScore, ScoreDocument, System } from "./geometry";
+import type { Clef, NoteEvent, RenderedScore, RepeatMarks, ScoreDocument, System } from "./geometry";
 import * as S from "./smufl";
 
 // Staff space (px): every dimension derives from it, matching partition_painter.dart.
@@ -28,6 +28,16 @@ class Svg {
 
   line(x1: number, y1: number, x2: number, y2: number, cls: string, extra = ""): void {
     this.parts.push(`<line x1="${r(x1)}" y1="${r(y1)}" x2="${r(x2)}" y2="${r(y2)}" class="${cls}"${extra}/>`);
+  }
+
+  circle(cx: number, cy: number, radius: number): void {
+    this.parts.push(`<circle cx="${r(cx)}" cy="${r(cy)}" r="${r(radius)}" fill="currentColor"/>`);
+  }
+
+  label(text: string, x: number, y: number, size: number): void {
+    this.parts.push(
+      `<text x="${r(x)}" y="${r(y)}" class="ink" font-size="${r(size)}" font-weight="600">${escapeText(text)}</text>`,
+    );
   }
 
   glyph(g: string, x: number, y: number, size: number, cls = "ink", center = false, extra = ""): void {
@@ -200,10 +210,75 @@ function paintSystem(ctx: Ctx, system: System, yTop: number, isFirst: boolean): 
     const idx = system.measures[k];
     const mWidth = doc.measures[idx].min_width * scale;
     svg.line(x + mWidth, systemTop, x + mWidth, systemBottom, "bar");
+    drawRepeatMarks(
+      ctx.svg,
+      doc.measures[idx].repeats,
+      x,
+      mWidth,
+      systemTop,
+      systemBottom,
+      trebleBottom,
+      bassBottom,
+      doc.staves >= 2,
+    );
     ctx.measures.push({ index: idx, x, width: mWidth, top: systemTop, bottom: systemBottom });
     const previousKeyFifths = k > 0 ? doc.measures[system.measures[k - 1]].key_fifths : null;
     paintMeasure(ctx, idx, x, mWidth, trebleBottom, bassBottom, previousKeyFifths);
     x += mWidth;
+  }
+}
+
+// Repeat notation on one measure (change: add-repeat-unrolling): repeat
+// barlines (thick line + dots on the repeated side), the volta bracket +
+// number, the measure-repeat % sign and segno/coda signs — so a moderator sees
+// the same notation the app's Partition engraves.
+function drawRepeatMarks(
+  svg: Svg,
+  marks: RepeatMarks | undefined,
+  x: number,
+  mWidth: number,
+  systemTop: number,
+  systemBottom: number,
+  trebleBottom: number,
+  bassBottom: number,
+  twoStaff: boolean,
+): void {
+  if (!marks) return;
+  const dots = (dx: number): void => {
+    for (const base of twoStaff ? [trebleBottom, bassBottom] : [trebleBottom]) {
+      for (const dy of [1.5, 2.5]) svg.circle(dx, base - dy * s, s * 0.22);
+    }
+  };
+  const thick = ` style="stroke-width:${r(S.thickBarlineThickness * s)}"`;
+  if (marks.forward) {
+    svg.line(x + s * 0.18, systemTop, x + s * 0.18, systemBottom, "bar", thick);
+    dots(x + s * 0.95);
+  }
+  if (marks.backward_times > 0) {
+    svg.line(x + mWidth - s * 0.18, systemTop, x + mWidth - s * 0.18, systemBottom, "bar", thick);
+    dots(x + mWidth - s * 0.95);
+  }
+  if (marks.ending_start.length > 0 || marks.ending_stop || marks.ending_discontinue) {
+    const y = systemTop - s * 1.6;
+    svg.line(x, y, x + mWidth, y, "bar");
+    if (marks.ending_start.length > 0) {
+      svg.line(x, y, x, y + s * 1.1, "bar");
+      svg.label(`${marks.ending_start.join(".")}.`, x + s * 0.4, y + s * 1.1, s * 1.1);
+    }
+    if (marks.ending_stop) svg.line(x + mWidth, y, x + mWidth, y + s * 1.1, "bar");
+  }
+  if (marks.measure_repeat_of != null) {
+    svg.glyph(
+      marks.measure_repeat_slashes >= 2 ? S.repeat2Bars : S.repeat1Bar,
+      x + mWidth / 2,
+      trebleBottom - 2 * s,
+      s,
+      "ink",
+      true,
+    );
+  }
+  if (marks.segno || marks.coda) {
+    svg.glyph(marks.segno ? S.segno : S.coda, x + s * 1.2, systemTop - s * 1.8, s * 1.1, "ink", true);
   }
 }
 
@@ -309,11 +384,14 @@ function paintMeasure(
 
   for (let ni = 0; ni < measure.notes.length; ni++) {
     const note = measure.notes[ni];
+    // A grace note shares its principal's position (duration 0): offset it left
+    // of the principal's column so the two heads don't engrave on top of each
+    // other.
     paintNote(ctx, {
       note,
       ni,
       measureIdx,
-      x: xForPosition(note.position_divisions),
+      x: xForPosition(note.position_divisions) - (note.is_grace ? S.noteheadWidth * s * 1.4 : 0),
       trebleBottom,
       bassBottom,
       clefs,

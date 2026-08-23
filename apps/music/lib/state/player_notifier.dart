@@ -275,9 +275,13 @@ class Player extends _$Player {
       beatType: document.attributes.time.beatType,
       notes: derived.notes,
       rests: derived.rests,
+      tieContinuations: derived.tieContinuations,
       songEndMs: derived.songEndMs,
       measureStartMs: derived.measureStartMs,
       measureKeyFifths: derived.measureKeyFifths,
+      writtenMeasureOf: derived.writtenMeasureOf,
+      measureDecors: derived.measureDecors,
+      writtenMeasureCount: document.measures.length,
       isPlaying: false,
       // A range chosen for the previous score means nothing here (and its indices
       // may not even exist in this one): a freshly-loaded document always starts
@@ -321,6 +325,10 @@ class Player extends _$Player {
       bpm: score.bpm,
       notes: all,
       rests: const [], // the demo score has no rests; clear any prior score's
+      tieContinuations: const [], // nor ties
+      writtenMeasureOf: const [],
+      measureDecors: const [],
+      writtenMeasureCount: 0,
       songEndMs: end,
     );
     // Seed the playhead at the effective start (0 for the demo, which opens on a
@@ -427,7 +435,7 @@ class Player extends _$Player {
     // onset or records an extra note (a no-op when no run is active). Presses
     // made during the pre-start countdown are warm-ups and are not scored.
     if (state.countdownMs <= 0) {
-      _scorer.noteOn(pitch, state.referenceMs, waitMode: state.waitMode);
+      _scorer.noteOn(pitch, state.clocks, waitMode: state.waitMode);
     }
   }
 
@@ -444,7 +452,7 @@ class Player extends _$Player {
         consumedHeld: {...state.consumedHeld}..remove(pitch),
       );
     }
-    _scorer.noteOff(pitch, state.referenceMs);
+    _scorer.noteOff(pitch, state.clocks);
   }
 
   // --- Playback controls ------------------------------------------------
@@ -483,7 +491,7 @@ class Player extends _$Player {
 
   String? get _currentScoreId => ref.read(selectedScoreProvider)?.id;
 
-  /// Starts playback from the transport, arming a get-ready countdown (5…1…GO)
+  /// Starts playback from the transport, arming a get-ready countdown (3…2…1…GO)
   /// when starting a **free-run** piece from the top, so the player has time to
   /// ready their hands before the notes start moving. In Wait Mode the cascade
   /// already freezes at the first onset (unlimited ready time), so no countdown
@@ -596,7 +604,7 @@ class Player extends _$Player {
     final range = normalizePracticeRange(
       start: start,
       end: end,
-      measureCount: state.measureCount,
+      measureCount: state.practiceMeasureCount,
     );
     if (range == null) return;
     // A new range is a new practice session: close the previous one first, so it
@@ -604,6 +612,11 @@ class Player extends _$Player {
     _endPracticeSession();
     _silenceAll();
     _scorer.cancelRun();
+    // A selective run is deliberately **linear over the written measures** —
+    // the player chose bars to drill, not a performance route — so on a piece
+    // with repeats the timeline is re-derived without unrolling. (Identical
+    // tables on a piece without repeats: no-op.)
+    _applyTimeline(unroll: false);
     final updated = state.copyWith(
       practiceStartMeasure: range.start,
       practiceEndMeasure: range.end,
@@ -622,6 +635,8 @@ class Player extends _$Player {
     _endPracticeSession();
     _silenceAll();
     _scorer.cancelRun();
+    // A full run follows the performance route again (repeats unrolled).
+    _applyTimeline(unroll: true);
     final updated = state.copyWith(
       practiceStartMeasure: null,
       practiceEndMeasure: null,
@@ -631,6 +646,29 @@ class Player extends _$Player {
     );
     state = updated.copyWith(elapsedMs: updated.startMs);
     _persistPracticeSettings();
+  }
+
+  /// Re-derives the playback timeline of the loaded document — unrolled for a
+  /// full run, written-linear for a selective practice run — leaving every
+  /// other field untouched. A no-op for the demo score (no document) and
+  /// whenever the tables are already in the requested shape.
+  void _applyTimeline({required bool unroll}) {
+    final document = _loadedDocument;
+    if (document == null) return;
+    final derived = notationToTimedNotes(document, unroll: unroll);
+    if (state.measureStartMs.length == derived.measureStartMs.length) {
+      return; // same shape — the piece has no repeats (or already linear)
+    }
+    state = state.copyWith(
+      notes: derived.notes,
+      rests: derived.rests,
+      tieContinuations: derived.tieContinuations,
+      songEndMs: derived.songEndMs,
+      measureStartMs: derived.measureStartMs,
+      measureKeyFifths: derived.measureKeyFifths,
+      writtenMeasureOf: derived.writtenMeasureOf,
+      measureDecors: derived.measureDecors,
+    );
   }
 
   void restart() {
@@ -684,7 +722,13 @@ class Player extends _$Player {
 
   // --- Time advance (called by the screen's Ticker) ---------------------
 
-  /// Advances the playhead by [dtMs] ms (already multiplied by the speed).
+  /// Advances the transport by [dtMs] ms of **real** (wall-clock) frame time.
+  ///
+  /// The playhead moves by `dtMs * speed` — the transport speed is applied here,
+  /// not by the caller, so that the parts of the frame that are *not* musical
+  /// time keep running at wall-clock rate. The pre-start countdown is one such
+  /// part: a get-ready beat is a real-world beat, so 3…2…1…GO always lasts
+  /// [kCountdownStartMs] whether the piece is played at 0.25× or 2×.
   ///
   /// Wait Mode gates on note *onsets*: the cascade freezes at each onset until
   /// every note starting there has been pressed (latched in [PlayerData.gateSatisfied]),
@@ -695,12 +739,17 @@ class Player extends _$Player {
     if (!s.isPlaying || s.notes.isEmpty) return;
 
     // Pre-start countdown: freeze the playhead (and audio/scoring) while the
-    // 5…1…GO ticks down in real time, then playback proceeds normally.
+    // 3…2…1…GO ticks down in REAL time — deliberately on [dtMs] and not on the
+    // speed-scaled delta below, so slowing the tempo down does not stretch the
+    // wait before the first note. Then playback proceeds normally.
     if (s.countdownMs > 0) {
       final remaining = s.countdownMs - dtMs;
       state = s.copyWith(countdownMs: remaining > 0 ? remaining : 0);
       return;
     }
+
+    // Past the countdown, everything below is musical time: scale by the speed.
+    final musicalDtMs = dtMs * s.speed;
 
     final onset = s.onsetPitchesAt(s.elapsedMs);
 
@@ -709,12 +758,14 @@ class Player extends _$Player {
     // Mode blocked early-return below so the gate-open time is stamped even while
     // the cascade is frozen. A no-op when no run is active.
     //
-    // The scorer is driven on the **heard** clock throughout (change:
-    // add-audio-output-routing): gate-open stamps, attacks and miss windows all
-    // read [PlayerData.referenceMs], so the whole judgment timeline is one
-    // uniform translation of the playhead — identical to today whenever the
-    // output offset is 0.
-    _scorer.tick(s.referenceMs, waitMode: s.waitMode);
+    // The scorer receives BOTH clocks ([PlayerData.clocks]) and picks per call:
+    // gate-open stamps, attacks and miss windows read the mode's judgment clock
+    // — the heard clock in free run (change: add-audio-output-routing), the
+    // emission clock in Wait Mode, where the frozen playhead has to match its
+    // own onset to the millisecond — while each sustain is measured on the
+    // clock that bound its note, so a hold straddling a Wait Mode toggle never
+    // switches clocks. Identical to a bare playhead whenever the offset is 0.
+    _scorer.tick(s.clocks, waitMode: s.waitMode);
 
     // Wait Mode tolerance: a key already held (and not already consumed by an
     // earlier onset) when the playhead reaches this onset counts as attacked —
@@ -734,7 +785,7 @@ class Player extends _$Player {
         // no fresh attack — credit the scorer for it (reaction ≈ 0) so it is not
         // later marked missed.
         for (final p in heldDue) {
-          _scorer.noteOn(p, s.referenceMs, waitMode: true);
+          _scorer.noteOn(p, s.clocks, waitMode: true);
         }
       }
     }
@@ -747,7 +798,7 @@ class Player extends _$Player {
       return;
     }
 
-    var next = s.elapsedMs + dtMs;
+    var next = s.elapsedMs + musicalDtMs;
 
     // In Wait Mode, don't go past the next onset until it's validated.
     if (s.waitMode) {
@@ -769,9 +820,18 @@ class Player extends _$Player {
     final endMs = s.endMs;
     if (endMs > 0 && next >= endMs) {
       if (ref.read(performanceScorerProvider).active) {
-        // A scored run ends the piece (produces the summary) instead of looping.
-        next = endMs;
-        finishScoredRun = true;
+        // A scored run ends the piece (produces the summary) instead of looping
+        // — once the JUDGMENT clock reaches the end, not the emission clock. On
+        // a delayed route the player is still hearing (and being judged on) the
+        // last [outputOffsetMs] of the piece when the playhead reaches endMs,
+        // so the run keeps judging through that drain tail; finalizing at endMs
+        // would sweep the piece's unheard tail into `missed` (see
+        // [PlayerData.scoredRunEndMs]). No-op in Wait Mode and at offset 0.
+        final finishAt = s.scoredRunEndMs;
+        if (next >= finishAt) {
+          next = finishAt;
+          finishScoredRun = true;
+        }
       } else {
         // Simple loop — wrap to the effective start (the range's first measure
         // for a selective run), not 0.
@@ -873,7 +933,7 @@ class Player extends _$Player {
     // pause at the last position rather than looping.
     if (finishScoredRun) {
       _silenceAll();
-      _scorer.finishRun(next - s.outputOffsetMs, waitMode: s.waitMode);
+      _scorer.finishRun(s.clocksAt(next), waitMode: s.waitMode);
       state = state.copyWith(isPlaying: false);
     }
   }

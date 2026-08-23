@@ -40,6 +40,13 @@ ReplayMark markFor(NoteJudgment j) {
   return ReplayMark.correct;
 }
 
+/// Geometry of a mistake chip in the bottom bar. The list is a fixed-extent
+/// row, so the replay can compute where a chip sits without measuring it.
+const double _kChipWidth = 150;
+const double _kChipGap = 8;
+const double _kChipPadding = 12;
+const double _kChipStride = _kChipWidth + _kChipGap;
+
 /// The mistake colours, matching the summary/replay legend.
 Color colorForMark(ReplayMark m) => switch (m) {
   ReplayMark.correct => CymbraColors.tertiary,
@@ -53,6 +60,11 @@ Color colorForMark(ReplayMark m) => switch (m) {
 /// captured from the player when the run finished.
 class ReplayScore {
   final List<TimedNote> notes;
+
+  /// Render-only tie continuations of the piece (`PlayerData.tieContinuations`
+  /// hand-filtered), so the replay staff engraves tied notation the same way
+  /// the live one does.
+  final List<TimedNote> tieContinuations;
   final int bpm;
   final double songEndMs;
   final int keyFifths;
@@ -63,6 +75,7 @@ class ReplayScore {
 
   const ReplayScore({
     required this.notes,
+    this.tieContinuations = const [],
     required this.bpm,
     required this.songEndMs,
     required this.keyFifths,
@@ -75,6 +88,7 @@ class ReplayScore {
   /// Builds the replay context from the current player state (same piece).
   factory ReplayScore.fromPlayer(PlayerData d) => ReplayScore(
     notes: d.visibleNotes,
+    tieContinuations: d.visibleTieContinuations,
     bpm: d.bpm,
     songEndMs: d.songEndMs,
     keyFifths: d.keyFifths,
@@ -122,6 +136,9 @@ class _ReplayDialogState extends ConsumerState<_ReplayDialog>
   late final Ticker _ticker;
   Duration _lastTick = Duration.zero;
   final Set<int> _sounding = {};
+
+  /// Scrolls the bottom mistake bar so it tracks the staff.
+  final ScrollController _mistakeScroll = ScrollController();
 
   double _elapsed = 0;
   bool _playing = false;
@@ -193,6 +210,7 @@ class _ReplayDialogState extends ConsumerState<_ReplayDialog>
   @override
   void dispose() {
     _ticker.dispose();
+    _mistakeScroll.dispose();
     _audio.allNotesOff();
     super.dispose();
   }
@@ -205,14 +223,88 @@ class _ReplayDialogState extends ConsumerState<_ReplayDialog>
     _applyAudio(_elapsed, next);
     if (next >= _score.songEndMs) {
       _stopAudio();
-      setState(() {
-        _elapsed = _score.songEndMs;
-        _playing = false;
-      });
+      _setElapsed(_score.songEndMs, playing: false);
       _ticker.stop();
     } else {
-      setState(() => _elapsed = next);
+      _setElapsed(next);
     }
+  }
+
+  /// Moves the playhead and keeps the bottom mistake bar aligned with it.
+  /// [animate] is for a discrete jump (tapping a mistake chip); the ticker and
+  /// the slider follow continuously instead, so the bar glides rather than
+  /// snapping from one chip to the next.
+  void _setElapsed(double ms, {bool? playing, bool animate = false}) {
+    setState(() {
+      _elapsed = ms;
+      if (playing != null) _playing = playing;
+    });
+    _followMistakes(animate: animate);
+  }
+
+  /// Index of the mistake sitting closest to the playhead — the one the staff
+  /// is showing right now. Ties (and the stretch before the first mistake)
+  /// resolve to the earlier mistake, so the bar never jumps ahead of the staff.
+  int _nearestMistake() {
+    var best = 0;
+    var bestGap = double.infinity;
+    for (var i = 0; i < _mistakes.length; i++) {
+      final gap = (_mistakes[i].startMs - _elapsed).abs();
+      if (gap < bestGap) {
+        bestGap = gap;
+        best = i;
+      }
+    }
+    return best;
+  }
+
+  /// Centre of the chip for mistake [i] in scroll coordinates.
+  double _chipCenter(int i) =>
+      _kChipPadding + i * _kChipStride + _kChipWidth / 2;
+
+  /// Where the bar should sit for the current playhead, in scroll coordinates:
+  /// the chip centres interpolated *between* consecutive mistakes, so the bar
+  /// creeps forward with the run at the same pace the staff scrolls instead of
+  /// jumping a whole chip at a time. Before the first mistake and after the
+  /// last one it simply rests on that chip.
+  double _followCenter() {
+    if (_elapsed <= _mistakes.first.startMs) return _chipCenter(0);
+    final last = _mistakes.length - 1;
+    if (_elapsed >= _mistakes[last].startMs) return _chipCenter(last);
+    for (var i = 0; i < last; i++) {
+      final from = _mistakes[i].startMs.toDouble();
+      final to = _mistakes[i + 1].startMs.toDouble();
+      if (_elapsed < to) {
+        final span = to - from;
+        final t = span <= 0 ? 0.0 : (_elapsed - from) / span;
+        return _chipCenter(i) + (_chipCenter(i + 1) - _chipCenter(i)) * t;
+      }
+    }
+    return _chipCenter(last);
+  }
+
+  /// Scrolls the mistake bar so the run's position is centred, mirroring the
+  /// staff scrolling underneath it. Driven every tick, which is what makes the
+  /// motion continuous; only an explicit jump (tapping a chip) animates.
+  void _followMistakes({bool animate = false}) {
+    if (_mistakes.isEmpty || !_mistakeScroll.hasClients) return;
+    final position = _mistakeScroll.position;
+    final target = (_followCenter() - position.viewportDimension / 2).clamp(
+      position.minScrollExtent,
+      position.maxScrollExtent,
+    );
+    if ((target - position.pixels).abs() < 0.5) return;
+    if (animate) {
+      _mistakeScroll.animateTo(
+        target,
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeOutCubic,
+      );
+      return;
+    }
+    // A drag of the bar itself owns the scroll while it lasts — don't fight it.
+    if (position.isScrollingNotifier.value) return;
+    _mistakeScroll.jumpTo(target);
   }
 
   void _applyAudio(double from, double to) {
@@ -251,9 +343,9 @@ class _ReplayDialogState extends ConsumerState<_ReplayDialog>
     _ticker.start();
   }
 
-  void _seek(double ms) {
+  void _seek(double ms, {bool animate = false}) {
     _stopAudio();
-    setState(() => _elapsed = ms.clamp(0, _score.songEndMs));
+    _setElapsed(ms.clamp(0, _score.songEndMs), animate: animate);
   }
 
   @override
@@ -269,6 +361,7 @@ class _ReplayDialogState extends ConsumerState<_ReplayDialog>
               size: Size.infinite,
               painter: StaffPainter(
                 notes: _score.notes,
+                tieContinuations: _score.tieContinuations,
                 elapsedMs: _elapsed,
                 activeNotes: _sounding,
                 bpm: _score.bpm,
@@ -355,27 +448,56 @@ class _ReplayDialogState extends ConsumerState<_ReplayDialog>
         ),
       );
     }
+    final current = _nearestMistake();
     return SizedBox(
       height: 96,
       child: ListView.separated(
+        key: const ValueKey('replay-mistake-list'),
+        controller: _mistakeScroll,
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(
+          horizontal: _kChipPadding,
+          vertical: 8,
+        ),
         itemCount: _mistakes.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        separatorBuilder: (_, _) => const SizedBox(width: _kChipGap),
         itemBuilder: (context, i) {
           final j = _mistakes[i];
           final mark = markFor(j);
           final color = colorForMark(mark);
+          // The chip under the playhead is ringed thick, tinted in its own
+          // mistake colour and haloed, so the bar reads at a glance as "here is
+          // where you are" while the staff scrolls. The others stay muted.
+          final active = i == current;
           return InkWell(
-            onTap: () => _seek(j.startMs.toDouble()),
+            onTap: () => _seek(j.startMs.toDouble(), animate: true),
             borderRadius: BorderRadius.circular(10),
-            child: Container(
-              width: 150,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOut,
+              width: _kChipWidth,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(
-                color: CymbraColors.surfaceContainerLow,
+                color: active
+                    ? Color.alphaBlend(
+                        color.withValues(alpha: 0.22),
+                        CymbraColors.surfaceContainerHigh,
+                      )
+                    : CymbraColors.surfaceContainerLow,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: color, width: 1),
+                border: Border.all(
+                  color: active ? color : color.withValues(alpha: 0.45),
+                  width: active ? 3 : 1,
+                ),
+                boxShadow: active
+                    ? [
+                        BoxShadow(
+                          color: color.withValues(alpha: 0.45),
+                          blurRadius: 12,
+                          spreadRadius: 1,
+                        ),
+                      ]
+                    : null,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
