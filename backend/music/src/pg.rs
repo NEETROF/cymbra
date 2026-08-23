@@ -408,6 +408,7 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
                         AND moderation_status = COALESCE($13::text, 'accepted'))) \
                AND ($18::text IS NULL OR source = $18) \
                AND ($19::bool IS NULL OR (preview_rendered_at IS NOT NULL) = $19) \
+               AND (instrument <> 'percussion' OR $20::bool) \
              ORDER BY {order_clause} \
              LIMIT $14 OFFSET $15"
         ))
@@ -430,6 +431,7 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
         .bind(p.all_statuses)
         .bind(&p.source)
         .bind(p.has_preview)
+        .bind(p.eligible_for_percussion)
         .fetch_all(&self.pool)
         .await
         .map_err(search_internal)?;
@@ -520,7 +522,8 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
         // byte fetch can expose the ETag and answer a conditional request without
         // reading the blob (change: add-offline-score-cache).
         let row = sqlx::query(
-            "SELECT object_key, sha256, proposed_by::text AS proposed_by, preview_rendered_at \
+            "SELECT object_key, sha256, proposed_by::text AS proposed_by, preview_rendered_at, \
+                    instrument \
              FROM music.catalog_scores \
              WHERE id = $1 AND ($2 OR moderation_status = 'accepted')",
         )
@@ -535,6 +538,7 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
             proposed_by: r.get::<Option<String>, _>("proposed_by"),
             preview_rendered_at: r
                 .get::<Option<chrono::DateTime<chrono::Utc>>, _>("preview_rendered_at"),
+            instrument: crate::repo::Instrument::parse(r.get::<String, _>("instrument").as_str()),
         }))
     }
 
@@ -565,21 +569,30 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
         // acceptance still commits, since accepting is never blocked on the teaser
         // and the backfill covers any gap.
         let mut tx = self.pool.begin().await.map_err(search_internal)?;
-        let result = sqlx::query(
+        let row = sqlx::query(
             "UPDATE music.catalog_scores \
              SET moderation_status = $2, reviewed_by = $3, reviewed_at = now(), review_reason = $4 \
-             WHERE id = $1",
+             WHERE id = $1 RETURNING instrument",
         )
         .bind(id)
         .bind(status)
         .bind(reviewer)
         .bind(reason)
-        .execute(&mut *tx)
+        .fetch_optional(&mut *tx)
         .await
         .map_err(search_internal)?;
-        let updated = result.rows_affected() > 0;
+        let updated = row.is_some();
+        // A percussion acceptance enqueues NO render (change: add-drums-access):
+        // the renderer would bake a piano-font clip of a drum part — a confident
+        // wrong preview. The piece simply has no teaser until
+        // `add-drum-audio-channel` lifts the skip.
+        let percussion = row
+            .as_ref()
+            .map(|r| r.get::<String, _>("instrument") == "percussion")
+            .unwrap_or(false);
         if updated
             && status == "accepted"
+            && !percussion
             && let Err(e) = enqueue_preview_render(&mut tx, score_id).await
         {
             tracing::warn!(
@@ -614,6 +627,7 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
         let rows = sqlx::query(
             "SELECT id FROM music.catalog_scores \
              WHERE moderation_status = 'accepted' AND preview_rendered_at IS NULL \
+               AND instrument <> 'percussion' \
              ORDER BY id LIMIT $1",
         )
         .bind(limit.max(0))

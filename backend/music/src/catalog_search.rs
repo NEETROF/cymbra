@@ -156,6 +156,10 @@ pub struct CatalogSearchParams {
     pub level: Option<String>,
     /// Musical facet filters (each `None` = unconstrained).
     pub facets: FacetFilters,
+    /// The caller's drum eligibility (change: add-drums-access): `false`
+    /// withholds every percussion row, as a WHERE predicate so paging counts
+    /// stay correct.
+    pub eligible_for_percussion: bool,
     /// Moderation-status gate (change: add-score-moderation-gating). `None` = the
     /// normal-caller default of accepted-only; `Some(status)` filters to exactly
     /// that status (a privileged, back-office-only path — the gRPC layer authorises
@@ -213,6 +217,12 @@ pub struct CatalogQuery {
     pub sort: Vec<SortKey>,
     pub limit: i64,
     pub offset: i64,
+    /// Whether the drum feature is in effect for the caller (change:
+    /// add-drums-access), resolved at the gRPC layer from the caller's own
+    /// identity and memberships — NEVER from a request field. When `false`,
+    /// percussion rows are absent from the results whatever filter was asked:
+    /// the filter narrows, the eligibility constrains.
+    pub eligible_for_percussion: bool,
 }
 
 /// The catalog read port: search, resolve saved ids to hits, and resolve bytes.
@@ -224,6 +234,9 @@ pub struct CatalogQuery {
 pub struct CatalogObjectRef {
     pub object_key: String,
     pub sha256: String,
+    /// The score's instrument family (change: add-drums-access): the HTTP
+    /// preview route and the render job gate percussion on it.
+    pub instrument: crate::repo::Instrument,
     /// The proposer's user id on a user-proposed row (change: add-score-catalog-
     /// proposal), `None` for a crawler row. The daily-access gate reads it to let a
     /// contributor open their own accepted piece free (change:
@@ -654,12 +667,18 @@ impl CatalogSearchRepo for FakeCatalogSearchRepo {
                 let preview_ok = p
                     .has_preview
                     .is_none_or(|want| r.preview_rendered_at.is_some() == want);
+                // The drum gate (change: add-drums-access): an ineligible caller
+                // never receives a percussion row, whatever filters they asked
+                // for (mirrors the Pg WHERE predicate).
+                let drums_ok = r.instrument != Some(crate::repo::Instrument::Percussion)
+                    || p.eligible_for_percussion;
                 text_ok
                     && author_ok
                     && level_ok
                     && status_ok
                     && source_ok
                     && preview_ok
+                    && drums_ok
                     && facets_match(r, p)
             })
             .collect();
@@ -729,6 +748,7 @@ impl CatalogSearchRepo for FakeCatalogSearchRepo {
                 sha256: r.sha256.clone(),
                 proposed_by: r.proposed_by.clone(),
                 preview_rendered_at: r.preview_rendered_at,
+                instrument: r.instrument.unwrap_or_default(),
             }))
     }
 
@@ -856,7 +876,13 @@ impl CatalogSearchRepo for FakeCatalogSearchRepo {
         let rows = self.rows.lock().expect("catalog search fake lock");
         Ok(rows
             .iter()
-            .filter(|r| r.moderation_status == "accepted" && r.preview_rendered_at.is_none())
+            // A percussion piece gets no piano-font teaser (change:
+            // add-drums-access); add-drum-audio-channel lifts the skip.
+            .filter(|r| {
+                r.moderation_status == "accepted"
+                    && r.preview_rendered_at.is_none()
+                    && r.instrument != Some(crate::repo::Instrument::Percussion)
+            })
             .map(|r| r.id.clone())
             .take(limit.max(0) as usize)
             .collect())

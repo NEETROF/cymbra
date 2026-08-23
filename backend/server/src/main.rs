@@ -512,6 +512,10 @@ async fn main() -> anyhow::Result<()> {
                     ));
                     // Premium gets the extended score quotas (change:
                     // add-premium-subscription).
+                    // The shared flag service also powers the drum-audience
+                    // gate (change: add-drums-access) — without it the gate
+                    // fails closed for everyone, staff included.
+                    let module = module.with_flags(flag_service.clone());
                     let module = Arc::new(match &plan_source {
                         Some(p) => module.with_plans(p.clone()),
                         None => module,
@@ -536,7 +540,7 @@ async fn main() -> anyhow::Result<()> {
                         )),
                     );
                     let score_svc = Some(ScoreServiceServer::with_interceptor(
-                        ScoreGrpc::new(module)
+                        ScoreGrpc::new(module.clone())
                             .with_limiter(limiter)
                             .with_soundfonts(soundfont_repo.clone())
                             .with_soundfont_store_opt(soundfont_store.clone())
@@ -566,7 +570,7 @@ async fn main() -> anyhow::Result<()> {
                     });
                     (
                         score_svc,
-                        Some((storage.clone(), catalog_repo.clone(), renderer)),
+                        Some((storage.clone(), catalog_repo.clone(), renderer, module)),
                     )
                 }
                 None => {
@@ -613,15 +617,21 @@ async fn main() -> anyhow::Result<()> {
     let web_plans_auth = soundfont_auth.clone();
     // Score audio-teaser routes (change: add-score-daily-access-rewards); the same
     // auth seam as the SoundFont routes.
-    let (sp_store, sp_catalog, sp_renderer) = match score_preview_parts {
-        Some((store, catalog, renderer)) => (Some(store), Some(catalog), renderer),
-        None => (None, None, None),
+    let (sp_store, sp_catalog, sp_renderer, sp_drums) = match score_preview_parts {
+        Some((store, catalog, renderer, module)) => {
+            // The preview route resolves drum eligibility through the SAME
+            // module predicate the RPCs use (change: add-drums-access).
+            let drums: Arc<dyn cymbra_music::DrumsEligibility> = module;
+            (Some(store), Some(catalog), renderer, Some(drums))
+        }
+        None => (None, None, None, None),
     };
     let score_preview_state = cymbra_server::ScorePreviewState {
         store: sp_store,
         catalog: sp_catalog,
         renderer: sp_renderer,
         auth: soundfont_auth.clone(),
+        drums: sp_drums,
     };
     let soundfont_state = cymbra_server::SoundfontState {
         store: soundfont_store,

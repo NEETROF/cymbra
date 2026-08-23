@@ -52,6 +52,10 @@ pub struct ScorePreviewState {
     pub catalog: Option<Arc<dyn CatalogSearchRepo>>,
     pub renderer: Option<Arc<ScorePreviewRenderer>>,
     pub auth: Arc<dyn SoundfontAuth>,
+    /// The drum-audience seam (change: add-drums-access): the module predicate
+    /// behind the same gate every RPC uses. `None` fails closed — a percussion
+    /// piece's preview then answers not-found for everyone.
+    pub drums: Option<Arc<dyn cymbra_music::DrumsEligibility>>,
 }
 
 /// The score-preview router, ready to `.merge()` into the HTTP server. Same CORS
@@ -102,10 +106,27 @@ async fn serve_preview(
     // what a locked piece offers. The clip's key is derived from the row's render
     // marker (a re-render is a new key), which doubles as a cheap validator.
     let rendered_at = match catalog.object_ref(&id, can_view_unvalidated).await {
-        Ok(Some(obj)) => match obj.preview_rendered_at {
-            Some(at) => at,
-            None => return status(StatusCode::NOT_FOUND),
-        },
+        Ok(Some(obj)) => {
+            // The drum gate (change: add-drums-access): a percussion piece's
+            // 200-vs-404 is an existence oracle and its body an audible clip,
+            // so an ineligible caller gets exactly the absent-preview answer.
+            // (No clip is baked for percussion anyway; this also covers any
+            // stale clip rendered before the row was classified.)
+            if obj.instrument == cymbra_music::Instrument::Percussion {
+                let user = s.auth.identify(&headers).unwrap_or_default();
+                let eligible = match s.drums.as_ref() {
+                    Some(d) => d.eligible_for_percussion(&user, can_view_unvalidated).await,
+                    None => false,
+                };
+                if !eligible {
+                    return status(StatusCode::NOT_FOUND);
+                }
+            }
+            match obj.preview_rendered_at {
+                Some(at) => at,
+                None => return status(StatusCode::NOT_FOUND),
+            }
+        }
         Ok(None) => return status(StatusCode::NOT_FOUND),
         Err(_) => return status(StatusCode::INTERNAL_SERVER_ERROR),
     };
@@ -247,6 +268,9 @@ mod tests {
                 catalog: Some(catalog),
                 renderer,
                 auth: Arc::new(HeaderAuth),
+                // Tests run without the seam: the gate fails closed, which the
+                // percussion test asserts.
+                drums: None,
             },
             vec![],
         )

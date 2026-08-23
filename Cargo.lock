@@ -1063,6 +1063,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "chrono-tz",
+ "cymbra-feature-flags",
  "cymbra-jobs",
  "cymbra-musicxml-core",
  "cymbra-plans",

@@ -222,6 +222,20 @@ impl ScoreGrpc {
 
     /// Enforce the download guardrail (burst + play-aware volume) when a limiter is
     /// wired; a breach surfaces as `RESOURCE_EXHAUSTED` before any storage read.
+    /// Whether the caller holds a staff role — the same rule
+    /// `EvalContext::authenticated` applies (admin or moderator).
+    fn is_staff(id: &AuthIdentity) -> bool {
+        id.roles.iter().any(|r| r == "admin" || r == "moderator")
+    }
+
+    /// The caller's drum eligibility (change: add-drums-access), resolved once
+    /// per RPC from their own identity and memberships — never from the request.
+    async fn drums_eligible(&self, id: &AuthIdentity) -> bool {
+        self.module
+            .caller_may_see_percussion(&id.user_id, Self::is_staff(id))
+            .await
+    }
+
     async fn guard_download(&self, id: &AuthIdentity) -> Result<(), Status> {
         if let Some(l) = &self.limiter {
             l.check_download(id).await?;
@@ -338,6 +352,9 @@ fn player_caller(id: &AuthIdentity) -> PlayerCaller {
         allow_unvalidated: staff,
         exempt_from_quota,
         staff,
+        // Stamped by each handler from the async flag read (the helper stays
+        // sync); the default fails closed.
+        eligible_for_percussion: false,
     }
 }
 
@@ -453,6 +470,8 @@ impl ScoreService for ScoreGrpc {
         req: Request<UploadScoreRequest>,
     ) -> Result<Response<ScoreRecord>, Status> {
         let owner_id = owner(&req)?;
+        let caller = identity(&req)?;
+        let eligible = self.drums_eligible(&caller).await;
         let r = req.into_inner();
         let rec = self
             .module
@@ -467,6 +486,7 @@ impl ScoreService for ScoreGrpc {
                     fallback_title: r.fallback_title,
                     fallback_composer: r.fallback_composer,
                 },
+                eligible,
             )
             .await?;
         Ok(Response::new(to_record(rec)))
@@ -495,6 +515,7 @@ impl ScoreService for ScoreGrpc {
         // The initial catalog status branches on the caller's role, never the body: a
         // music-scope admin proposal is auto-accepted, everyone else is pending.
         let is_admin = id.has_role_in_scope("music", "admin");
+        let eligible = self.drums_eligible(&id).await;
         let r = req.into_inner();
         self.module
             .propose(
@@ -504,6 +525,7 @@ impl ScoreService for ScoreGrpc {
                 r.rights_ack,
                 r.resubmission_note.as_deref(),
                 is_admin,
+                eligible,
             )
             .await?;
         Ok(Response::new(ProposeScoreResponse {}))
@@ -993,12 +1015,14 @@ impl ScoreService for ScoreGrpc {
         if uses_moderation {
             cymbra_platform::guard::require_moderator_or_admin(&id)?;
         }
+        let eligible_for_percussion = self.drums_eligible(&id).await;
         let r = req.into_inner();
         let offset = r.offset;
         let query = CatalogQuery {
             query: r.query,
             author: r.author,
             level: r.level,
+            eligible_for_percussion,
             facets: crate::catalog_search::FacetFilters {
                 instrument: r.instrument.as_deref().map(crate::repo::Instrument::parse),
                 max_note_value: r.max_note_value.map(|v| v.clamp(0, i16::MAX as i32) as i16),
@@ -1053,9 +1077,10 @@ impl ScoreService for ScoreGrpc {
         req: Request<SaveCatalogScoreRequest>,
     ) -> Result<Response<SaveCatalogScoreResponse>, Status> {
         let owner_id = owner(&req)?;
+        let eligible = self.drums_eligible(&identity(&req)?).await;
         let catalog_id = req.into_inner().catalog_id;
         self.module
-            .save_catalog_score(&owner_id, &catalog_id)
+            .save_catalog_score(&owner_id, &catalog_id, eligible)
             .await?;
         Ok(Response::new(SaveCatalogScoreResponse {}))
     }
@@ -1077,7 +1102,11 @@ impl ScoreService for ScoreGrpc {
         req: Request<ListSavedCatalogScoresRequest>,
     ) -> Result<Response<ListSavedCatalogScoresResponse>, Status> {
         let owner_id = owner(&req)?;
-        let mut hits = self.module.list_saved_catalog_scores(&owner_id).await?;
+        let eligible = self.drums_eligible(&identity(&req)?).await;
+        let mut hits = self
+            .module
+            .list_saved_catalog_scores(&owner_id, eligible)
+            .await?;
         // Public read: sanitise privileged proposer fields, add any opt-in credit.
         self.module
             .attach_public_credit(&mut hits, today_utc())
@@ -1097,7 +1126,8 @@ impl ScoreService for ScoreGrpc {
         // moderator by add-moderation-back-office).
         let id = identity(&req)?;
         self.guard_download(&id).await?; // per-user download guardrail (scrape guard) — abuse cap FIRST
-        let caller = player_caller(&id);
+        let mut caller = player_caller(&id);
+        caller.eligible_for_percussion = self.drums_eligible(&id).await;
         let r = req.into_inner();
         // Opening a score in the player runs the freemium daily-access gate (change:
         // add-score-daily-access-rewards): a locked piece answers with empty data and
@@ -1141,7 +1171,8 @@ impl ScoreService for ScoreGrpc {
         // design D4): not-found for a piece the caller may not see, a typed
         // precondition failure (nothing written) when the balance is short.
         let id = identity(&req)?;
-        let caller = player_caller(&id);
+        let mut caller = player_caller(&id);
+        caller.eligible_for_percussion = self.drums_eligible(&id).await;
         let catalog_id = req.into_inner().catalog_id;
         let state = self
             .module
@@ -1162,10 +1193,11 @@ impl ScoreService for ScoreGrpc {
         // (change: rate-pending-scores).
         let id = identity(&req)?;
         self.guard_download(&id).await?; // shares the per-user download guardrail
+        let eligible = self.drums_eligible(&id).await;
         let catalog_id = req.into_inner().catalog_id;
         let data = self
             .module
-            .rating_preview_bytes(&id.user_id, &catalog_id)
+            .rating_preview_bytes(&id.user_id, &catalog_id, eligible)
             .await?;
         Ok(Response::new(GetRatingPreviewBytesResponse { data }))
     }
@@ -1243,8 +1275,12 @@ impl ScoreService for ScoreGrpc {
         let id = identity(&req)?;
         self.guard_enumeration(&id).await?; // per-user browse cap (scrape guard)
         let privileged = id.is_admin() || id.has_role("moderator");
+        let eligible = self.drums_eligible(&id).await;
         let catalog_id = req.into_inner().catalog_id;
-        let hit = self.module.get_catalog_hit(&catalog_id, privileged).await?;
+        let hit = self
+            .module
+            .get_catalog_hit(&catalog_id, privileged, eligible)
+            .await?;
         let mut hits = vec![hit];
         if privileged {
             self.module.attach_review_attribution(&mut hits).await;
@@ -1302,10 +1338,11 @@ impl ScoreService for ScoreGrpc {
         // the authenticated caller — never the body. The module validates the
         // verdict/stars and rejects a non-`accepted`/unknown target.
         let user_id = owner(&req)?;
+        let eligible = self.drums_eligible(&identity(&req)?).await;
         let r = req.into_inner();
         let (agg, points) = self
             .module
-            .submit_rating(&user_id, &r.catalog_id, &r.verdict, r.stars)
+            .submit_rating(&user_id, &r.catalog_id, &r.verdict, r.stars, eligible)
             .await?;
         Ok(Response::new(SubmitScoreRatingResponse {
             rating_avg: agg.avg_effective,
@@ -1343,14 +1380,13 @@ impl ScoreService for ScoreGrpc {
         // improve-rating-deck-sourcing).
         let id = identity(&req)?;
         self.guard_enumeration(&id).await?; // per-user browse cap (scrape guard)
+        let eligible = self.drums_eligible(&id).await;
         let user_id = id.user_id;
         let r = req.into_inner();
         let offset = r.offset;
         let mut hits = self
             .module
-            // Percussion eligibility is wired by the enforcement pass; until the
-            // flag predicate lands the deck fails closed for everyone.
-            .list_rating_deck(&user_id, r.limit as i64, r.offset as i64, false)
+            .list_rating_deck(&user_id, r.limit as i64, r.offset as i64, eligible)
             .await?;
         // Deck is a normal-caller read: sanitise privileged proposer fields.
         self.module

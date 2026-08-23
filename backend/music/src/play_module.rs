@@ -48,6 +48,13 @@ pub struct RecordInput {
     pub tz_offset_minutes: i32,
     pub overall_sync_pct: f32,
     pub session_result_json: String,
+    /// The played piece is percussion (change: add-drums-access), resolved by
+    /// the gRPC layer from the catalog row — never the request. Until
+    /// `add-drum-scoring` exists, such a session is stored (the ack the client
+    /// waits for) but SHALL NOT reach the leaderboard sink: bests are monotone
+    /// and keyboard-shaped scoring of a drum part would bake wrong, permanent
+    /// rankings.
+    pub percussion: bool,
 }
 
 /// The caller-supplied fields of a **practice** session to record (change:
@@ -107,6 +114,7 @@ impl PlayModule {
                 "implausible timezone offset".into(),
             ));
         }
+        let input_percussion = input.percussion;
         let session = PlaySession {
             session_id: input.session_id,
             user_id: owner_id.to_string(),
@@ -119,8 +127,11 @@ impl PlayModule {
         self.repo.record(&session).await?;
         // Maintain the leaderboard bests from this session (monotonic + integrity-
         // gated). Idempotent, so a retried delivery is safe; runs after the durable
-        // record so the client ack still reflects the persisted session.
-        if let Some(sink) = &self.leaderboard {
+        // record so the client ack still reflects the persisted session. A
+        // percussion session never reaches the sink (change: add-drums-access):
+        // interim keyboard-shaped scoring of a drum part must not bake permanent
+        // bests before `add-drum-scoring` defines the real semantics.
+        if !input_percussion && let Some(sink) = &self.leaderboard {
             sink.ingest_session(&session).await?;
         }
         Ok(())
@@ -192,6 +203,7 @@ mod tests {
             tz_offset_minutes: 0,
             overall_sync_pct: sync,
             session_result_json: "{}".into(),
+            percussion: false,
         }
     }
 

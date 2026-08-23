@@ -286,10 +286,30 @@ impl PlayService for PlayGrpc {
     ) -> Result<Response<RecordPlaySessionResponse>, Status> {
         let owner = caller(&req)?;
         let r = req.into_inner();
+        // Interim drum rule (change: add-drums-access): until `add-drum-scoring`
+        // exists, a percussion session is stored for the player's own history —
+        // the ack the client waits for — but engages NO permanent artifact:
+        // no engagement/coverage points, no performance award, no leaderboard
+        // best, no streak day. Resolved from the catalog row, never the request.
+        let percussion = match r.score_id.as_deref() {
+            Some(id) => match &self.catalog {
+                Some(c) => c
+                    .hit_by_id(id, true)
+                    .await
+                    .ok()
+                    .flatten()
+                    .map(|h| h.instrument == crate::repo::Instrument::Percussion)
+                    .unwrap_or(false),
+                None => false,
+            },
+            None => false,
+        };
         // Playing a catalog score is genuine engagement for coverage points (change:
         // add-post-play-rating-prompt) — recorded before the ingest so it is not lost
         // if the ingest fails, and idempotent per (user, score) at the repo.
-        self.record_engagement(&owner, r.score_id.as_deref()).await;
+        if !percussion {
+            self.record_engagement(&owner, r.score_id.as_deref()).await;
+        }
         let session_id = r.session_id.clone();
         let score_id = r.score_id.clone();
         let accuracy = r.overall_sync_pct;
@@ -306,20 +326,29 @@ impl PlayService for PlayGrpc {
                     tz_offset_minutes: r.tz_offset_minutes,
                     overall_sync_pct: r.overall_sync_pct,
                     session_result_json: r.session_result_json,
+                    percussion,
                 },
             )
             .await?;
         // The run is stored; now pay for it (change: add-play-rewards). Keyed on the
         // session id, so this is exactly-once even though the ingest is
         // at-least-once — and best-effort, so a failure to pay never fails the ack.
-        let points_awarded = self
-            .award_performance(&owner, score_id.as_deref(), accuracy, &session_id)
-            .await;
+        // A percussion session pays nothing and secures no streak day (change:
+        // add-drums-access): points and streaks are permanent artifacts, and the
+        // keyboard scorer's read of a drum part is not a performance.
+        let points_awarded = if percussion {
+            0
+        } else {
+            self.award_performance(&owner, score_id.as_deref(), accuracy, &session_id)
+                .await
+        };
         // Playing on a day keeps the practice streak alive (change:
         // add-practice-streak). After the durable record, so the ack the client
         // waits for still means "your session is stored".
-        self.advance_streak(&owner, played_at_ms, tz_offset_minutes)
-            .await;
+        if !percussion {
+            self.advance_streak(&owner, played_at_ms, tz_offset_minutes)
+                .await;
+        }
         Ok(Response::new(RecordPlaySessionResponse { points_awarded }))
     }
 
@@ -1087,5 +1116,66 @@ mod tests {
             .await
             .unwrap_err();
         assert_eq!(err.code(), tonic::Code::Unauthenticated);
+    }
+
+    // --- the interim drum rule (change: add-drums-access) ------------------
+
+    /// A leaderboard sink that records every ingested session id, so the test
+    /// can assert a percussion session never reaches the boards.
+    #[derive(Default)]
+    struct RecordingSink(std::sync::Mutex<Vec<String>>);
+
+    #[async_trait::async_trait]
+    impl crate::leaderboard::LeaderboardSink for RecordingSink {
+        async fn ingest_session(
+            &self,
+            session: &crate::play::PlaySession,
+        ) -> cymbra_platform::error::Result<()> {
+            self.0.lock().unwrap().push(session.session_id.clone());
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn a_percussion_session_is_stored_but_engages_no_artifact() {
+        // A catalog holding one percussion piece; the sink records ingests.
+        let sink = Arc::new(RecordingSink::default());
+        let rewards_repo = Arc::new(FakeCurationRewardsRepo::default());
+        let rewards = Arc::new(CurationRewardsModule::new(rewards_repo.clone()));
+        let catalog = Arc::new(FakeCatalogSearchRepo::with(vec![
+            FakeCatalogRow::new(CATALOG_ID, "Groove", "Anon", Some("beginner")).percussion(),
+        ]));
+        let mut user = MockUserPort::new();
+        user.expect_activity_visible_to()
+            .returning(move |_, _, _| Ok(true));
+        let module = Arc::new(
+            PlayModule::new(Arc::new(FakePlayRepo::default()), Arc::new(user))
+                .with_leaderboard(sink.clone()),
+        );
+        let g = PlayGrpc::new(module).with_rewards(rewards, catalog);
+
+        let resp = g
+            .record_play_session(authed(session(Some(CATALOG_ID)), "u1"))
+            .await
+            .unwrap()
+            .into_inner();
+        // The ack is the stored session — the client's outbox contract holds —
+        // but no permanent artifact was written: zero points, no leaderboard
+        // ingest, no engagement row. (`add-drum-scoring` owns the real rules.)
+        assert_eq!(resp.points_awarded, 0);
+        assert!(sink.0.lock().unwrap().is_empty());
+        assert!(!rewards_repo.has_engagement("u1", CATALOG_ID).await.unwrap());
+        // The session itself IS readable back (own history).
+        let acts = g
+            .get_play_activity(authed(
+                GetPlayActivityRequest {
+                    user_id: String::new(),
+                },
+                "u1",
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(acts.total_sessions, 1);
     }
 }

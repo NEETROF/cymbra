@@ -100,6 +100,16 @@ impl ScorePreviewRenderer {
             .object_ref(catalog_id, true)
             .await?
             .ok_or_else(|| AppError::NotFound("catalog score not found".into()))?;
+        // No piano-font clip of a drum part is ever baked (change:
+        // add-drums-access): the synthesizer still renders on the piano
+        // channel, so a percussion render would be a confident wrong preview.
+        // One skip here covers the acceptance job, the backfill and the
+        // console's manual regenerate alike; `add-drum-audio-channel` lifts it.
+        if obj.instrument == crate::repo::Instrument::Percussion {
+            return Ok(RenderOutcome::Dormant(
+                "percussion piece: no preview until drum audio exists".into(),
+            ));
+        }
         let font_bytes = self
             .soundfont_store
             .get(&font.object_key)

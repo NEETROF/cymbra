@@ -117,7 +117,8 @@ pub use leaderboard::{
 pub use leaderboard_grpc::LeaderboardGrpc;
 pub use leaderboard_module::{Board, BoardEntry, LeaderboardModule, MyStanding};
 pub use module::{
-    FixedScoreQuotas, ScoreBytes, ScoreModule, ScoreQuotaSource, ScoreQuotas, UploadInput,
+    DrumsEligibility, FixedScoreQuotas, ScoreBytes, ScoreModule, ScoreQuotaSource, ScoreQuotas,
+    UploadInput,
 };
 pub use offline_secret::{
     FakeOfflineSecretRepo, OFFLINE_SECRET_LEN, OfflineSecretRepo, generate_offline_secret,
