@@ -1500,6 +1500,7 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
                             systems: notation.systems,
                             elapsedMs: data.referenceMs,
                             measureStartMs: data.measureStartMs,
+                            writtenMeasureOf: data.writtenMeasureOf,
                             songEndMs: data.songEndMs,
                             activeNotes: data.activeNotes,
                             selectedHands: data.selectedHands,

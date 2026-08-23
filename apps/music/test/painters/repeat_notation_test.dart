@@ -152,4 +152,83 @@ void main() {
         .single;
     expect(volta.label, '1.');
   });
+
+  test(
+    'the Partition renders a repeat pass exactly like the first pass',
+    () async {
+      // Playhead in the SECOND pass of a repeated bar must produce the same
+      // engraving as the first pass at the same fraction: cursor on the same
+      // written measure, same current-measure wash, same played-line dimming.
+      // (The regression: the painting instance missing writtenMeasureOf dimmed
+      // the score and drew the cursor a section ahead after the jump.)
+      NotationMeasure m(int i) => NotationMeasure(
+        repeats: i == 0 ? repeatMarks(backwardTimes: 2) : noRepeats,
+        index: i,
+        clefs: const [],
+        keyFifths: 0,
+        minWidth: 200,
+        directions: const [],
+        notes: [
+          noteEvent(
+            positionDivisions: 0,
+            durationDivisions: 16,
+            noteType: 'whole',
+            pitch: const Pitch(step: 'C', octave: 5, alter: 0),
+          ),
+        ],
+      );
+      final doc = ScoreDocument(
+        playOrder: const [
+          PlayedMeasure(writtenIndex: 0, pass: 1),
+          PlayedMeasure(writtenIndex: 0, pass: 2),
+          PlayedMeasure(writtenIndex: 1, pass: 1),
+        ],
+        meta: const ScoreMeta(title: 'R', composer: 'T'),
+        staves: 1,
+        attributes: const Attributes(
+          divisions: 4,
+          clefs: [Clef(staff: 1, sign: 'G', line: 2)],
+          keyFifths: 0,
+          time: TimeSignature(beats: 4, beatType: 4),
+        ),
+        measures: [m(0), m(1)],
+      );
+      final systems = [
+        System(measures: Uint32List.fromList(const [0]), staves: 1),
+        System(measures: Uint32List.fromList(const [1]), staves: 1),
+      ];
+
+      Future<ByteData> render(double elapsedMs) async {
+        final recorder = ui.PictureRecorder();
+        PartitionPainter(
+          document: doc,
+          systems: systems,
+          elapsedMs: elapsedMs,
+          measureStartMs: const [0, 1000, 2000],
+          writtenMeasureOf: const [0, 0, 1],
+          songEndMs: 3000,
+        ).paint(Canvas(recorder), const Size(700, 500));
+        final img = await recorder.endRecording().toImage(700, 500);
+        final bytes = await img.toByteData(format: ui.ImageByteFormat.rawRgba);
+        img.dispose();
+        return bytes!;
+      }
+
+      final pass1 = await render(500); // slot 0, halfway
+      final pass2 = await render(1500); // slot 1 — the repeat pass, halfway
+      expect(pass1.lengthInBytes, pass2.lengthInBytes);
+      var identical = true;
+      for (var i = 0; i < pass1.lengthInBytes; i++) {
+        if (pass1.getUint8(i) != pass2.getUint8(i)) {
+          identical = false;
+          break;
+        }
+      }
+      expect(
+        identical,
+        isTrue,
+        reason: 'the repeat pass must not dim the line nor move the cursor',
+      );
+    },
+  );
 }
