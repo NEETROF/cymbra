@@ -179,7 +179,7 @@ void main() {
         ],
       );
       final doc = ScoreDocument(
-      instruments: const [],
+        instruments: const [],
         playOrder: const [
           PlayedMeasure(writtenIndex: 0, pass: 1),
           PlayedMeasure(writtenIndex: 0, pass: 2),

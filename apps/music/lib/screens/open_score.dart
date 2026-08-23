@@ -25,7 +25,6 @@ import '../state/score_preview_playback.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/app_snackbar.dart';
 import '../widgets/catalog_unlock_sheet.dart';
-import 'drums_not_playable_screen.dart';
 import 'player_screen.dart';
 import 'score_load_message.dart';
 
@@ -54,19 +53,6 @@ Future<void> openScore(
   final messenger = ScaffoldMessenger.of(context);
   final navigator = Navigator.of(context);
   final rootNavigator = Navigator.of(context, rootNavigator: true);
-
-  // INTERIM guard (change: add-drums-access, removed by `add-drum-kit-view`):
-  // a percussion score has no presentation yet — show the localized "drums not
-  // playable yet" state instead of entering the player, which would render the
-  // GM key numbers as falling piano notes and sound them on the piano synth.
-  if (entry.instrument == ScoreInstrument.percussion) {
-    await navigator.push(
-      MaterialPageRoute<void>(
-        builder: (_) => DrumsNotPlayableScreen(title: entry.title),
-      ),
-    );
-    return;
-  }
 
   // Opening a piece silences any teaser audition (change:
   // add-score-daily-access-rewards): the clip and the synth share the engine.

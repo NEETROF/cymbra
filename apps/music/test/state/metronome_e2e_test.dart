@@ -52,7 +52,7 @@ ScoreDocument _threeFour() {
     notes: notes,
   );
   return ScoreDocument(
-      instruments: const [],
+    instruments: const [],
     playOrder: const [],
     meta: const ScoreMeta(title: 'Minuet', composer: 'Bach'),
     staves: 2,

@@ -389,6 +389,96 @@ ScoreDocument tallDocument(int count) => ScoreDocument(
 
 /// A small two-staff (grand-staff) document: one 4/4 measure with a treble note,
 /// a bass note, a `words` direction, and a `dynamics` direction.
+
+/// A minimal percussion document (change: add-drum-kit-view): closed hi-hat
+/// eighths + a snare on beat 2 in voice 1 (hands, stems up), the kick on
+/// beats 1 and 3 in voice 2 (feet) — under a percussion clef, with the
+/// part-list instrument table resolved (GM numbers already 0-based).
+ScoreDocument sampleDrumDocument() => ScoreDocument(
+  instruments: const [
+    InstrumentDecl(id: 'P1-I36', name: 'Bass Drum 1', gmNumber: 36),
+    InstrumentDecl(id: 'P1-I38', name: 'Snare Drum', gmNumber: 38),
+    InstrumentDecl(id: 'P1-I42', name: 'Closed Hi-hat', gmNumber: 42),
+  ],
+  playOrder: const [],
+  meta: const ScoreMeta(title: 'Groove', composer: 'Tester'),
+  staves: 1,
+  attributes: const Attributes(
+    divisions: 2,
+    clefs: [Clef(staff: 1, sign: ClefSign.percussion, line: 2)],
+    keyFifths: 0,
+    time: TimeSignature(beats: 4, beatType: 4),
+  ),
+  measures: [
+    NotationMeasure(
+      repeats: noRepeats,
+      index: 0,
+      clefs: const [],
+      keyFifths: 0,
+      minWidth: 120,
+      directions: const [
+        Direction(
+          staff: 1,
+          positionDivisions: 0,
+          kind: DirectionKind.metronome(beatUnit: 'quarter', perMinute: 120),
+        ),
+      ],
+      notes: [
+        for (var i = 0; i < 8; i++)
+          noteEvent(
+            positionDivisions: i,
+            durationDivisions: 1,
+            noteType: 'eighth',
+            unpitched: const Unpitched(
+              displayStep: 'G',
+              displayOctave: 5,
+              gmNumber: 42,
+            ),
+            instrumentId: 'P1-I42',
+          ),
+        noteEvent(
+          positionDivisions: 2,
+          durationDivisions: 1,
+          isChord: true,
+          noteType: 'eighth',
+          unpitched: const Unpitched(
+            displayStep: 'C',
+            displayOctave: 5,
+            gmNumber: 38,
+          ),
+          instrumentId: 'P1-I38',
+        ),
+        noteEvent(
+          positionDivisions: 0,
+          voice: 2,
+          durationDivisions: 2,
+          noteType: 'quarter',
+          stem: StemDir.down,
+          unpitched: const Unpitched(
+            displayStep: 'F',
+            displayOctave: 4,
+            gmNumber: 36,
+          ),
+          instrumentId: 'P1-I36',
+        ),
+        noteEvent(
+          positionDivisions: 4,
+          voice: 2,
+          durationDivisions: 2,
+          noteType: 'quarter',
+          stem: StemDir.down,
+          unpitched: const Unpitched(
+            displayStep: 'F',
+            displayOctave: 4,
+            gmNumber: 36,
+          ),
+          instrumentId: 'P1-I36',
+        ),
+      ],
+    ),
+  ],
+);
+
 ScoreDocument sampleGrandStaffDocument() => ScoreDocument(
   instruments: const [],
   playOrder: const [],

@@ -94,6 +94,12 @@ abstract class PlayerPrefs with _$PlayerPrefs {
     /// playhead back by the delay a route adds, so a player following delayed
     /// audio is not judged late. 0 = today's behaviour.
     @Default(0) int outputOffsetMs,
+
+    /// The inverted-kit layout (change: add-drum-kit-view): reverses the
+    /// percussion cascade's lane order and the pad strip together. Describes
+    /// the KIT's setup, never the player's handedness — many left-handed
+    /// drummers play a standard kit. Never inferred; off by default.
+    @Default(false) bool invertedKit,
   }) = _PlayerPrefs;
 }
 
@@ -160,6 +166,9 @@ class PlayerPreferences extends _$PlayerPreferences {
   void setOutputOffsetMs(int ms) =>
       _update(state.copyWith(outputOffsetMs: ms.clamp(0, 2000)));
 
+  void setInvertedKit({required bool enabled}) =>
+      _update(state.copyWith(invertedKit: enabled));
+
   void _update(PlayerPrefs next) {
     if (next == state) return;
     state = next;
@@ -188,6 +197,7 @@ class PlayerPreferences extends _$PlayerPreferences {
     'instrumentSoundsItself': p.instrumentSoundsItself,
     'audioOutput': p.audioOutput,
     'outputOffsetMs': p.outputOffsetMs,
+    'invertedKit': p.invertedKit,
   });
 
   static PlayerPrefs? _decode(String raw) {
@@ -219,6 +229,7 @@ class PlayerPreferences extends _$PlayerPreferences {
           0,
           2000,
         ),
+        invertedKit: m['invertedKit'] as bool? ?? false,
       );
     } catch (_) {
       return null; // corrupt value → keep defaults

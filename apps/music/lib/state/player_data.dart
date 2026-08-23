@@ -17,6 +17,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import '../painters/keyboard_range.dart';
 import '../src/rust/api/musicxml.dart' show BeamState;
 import '../src/rust/api/score.dart';
+import 'drum_kit.dart';
 import 'note_density_core.dart';
 import 'performance_scoring_core.dart' show ScoreClocks, judgmentClock;
 
@@ -68,6 +69,12 @@ class TimedNote {
   /// Staff the note belongs to (1 = treble/right hand, 2 = bass/left hand).
   /// Lets the Staff painter lay out a real grand staff.
   final int staff;
+
+  /// Voice the note belongs to (change: add-drum-kit-view). A drum part is
+  /// written on a single staff in two voices — hands with stems up (voice 1),
+  /// feet with stems down (voice 2) — so the hands/feet split keys on this,
+  /// never on staff and never on the stem-direction proxy next to it.
+  final int voice;
 
   /// Beam states carried from the parsed notation (begin/continue/end), so the
   /// Staff painter can beam eighth/sixteenth runs instead of drawing flags.
@@ -137,6 +144,7 @@ class TimedNote {
     required this.startMs,
     required this.durationMs,
     this.staff = 1,
+    this.voice = 1,
     this.beams = const [],
     this.clefSign = 'G',
     this.clefLine = 2,
@@ -453,8 +461,28 @@ abstract class PlayerData with _$PlayerData {
 
     /// Which hand(s) the player shows and awaits. Session-only (resets to
     /// [Hand.both] on launch); drives [showsStaff]/[visibleNotes] so every mode
-    /// and the gate filter out the unselected hand together.
+    /// and the gate filter out the unselected hand together. For a percussion
+    /// score the same state reads hands / feet / both — [Hand.right] selects
+    /// the hands and [Hand.left] the feet, keyed to the voice convention
+    /// (change: add-drum-kit-view).
     @Default(Hand.both) Hand selectedHands,
+
+    /// The loaded score is percussion (change: add-drum-kit-view): the player
+    /// renders the drum cascade + pad strip, offers no notation mode, no Wait
+    /// Mode and no keyboard-range apparatus until the follow-up changes land.
+    @Default(false) bool isPercussion,
+
+    /// The ordered lane layout derived ONCE from the loaded percussion score
+    /// (one lane per kit piece present, kick excluded by construction) —
+    /// consumed by BOTH the cascade and the pad strip via
+    /// [presentedDrumLanes], never derived twice.
+    @Default(<DrumLane>[]) List<DrumLane> drumLanes,
+
+    /// The inverted-kit setting (change: add-drum-kit-view): reverses the
+    /// PRESENTED lane order and the pad strip together — never the notation,
+    /// never how incoming notes are interpreted. Persisted; defaults to the
+    /// standard layout and is never inferred.
+    @Default(false) bool invertedKit,
 
     /// Whether the metronome is enabled. A single app-wide preference (kept across
     /// pause and across score changes) toggled from the header Tempo chip. When on
@@ -596,6 +624,44 @@ abstract class PlayerData with _$PlayerData {
     Hand.left => staff >= 2,
   };
 
+  /// The lanes in PRESENTATION order: the derived layout, reversed when the
+  /// inverted-kit setting is on. The one point the cascade and the pad strip
+  /// both read, so the two surfaces can never disagree — and the only place
+  /// the inversion applies: notation and note interpretation never see it.
+  List<DrumLane> get presentedDrumLanes =>
+      invertedKit ? drumLanes.reversed.toList() : drumLanes;
+
+  /// Whether the loaded percussion score spans both hand and foot events —
+  /// the precondition for offering the hands/feet selector (a feet-less
+  /// groove has nothing to isolate).
+  bool get hasHandsAndFeet {
+    if (!isPercussion) return false;
+    final multiVoice = spansMultipleVoices(notes);
+    var hands = false;
+    var feet = false;
+    for (final n in notes) {
+      if (isFootNote(n, multiVoice: multiVoice)) {
+        feet = true;
+      } else {
+        hands = true;
+      }
+      if (hands && feet) return true;
+    }
+    return false;
+  }
+
+  /// Whether [selectedHands] shows this note. Keyboard scores split by staff
+  /// (right = staff 1); a percussion score splits by hands/feet, keyed to the
+  /// voice convention with the single-voice GM fallback (change:
+  /// add-drum-kit-view) — [Hand.right] is the hands, [Hand.left] the feet.
+  bool _showsNote(TimedNote n, {required bool multiVoice}) => isPercussion
+      ? switch (selectedHands) {
+          Hand.both => true,
+          Hand.right => !isFootNote(n, multiVoice: multiVoice),
+          Hand.left => isFootNote(n, multiVoice: multiVoice),
+        }
+      : showsStaff(n.staff);
+
   /// Notes belonging to the selected hand(s) — the input every render mode and
   /// the gate derive from, so display and Wait Mode stay consistent.
   ///
@@ -604,9 +670,16 @@ abstract class PlayerData with _$PlayerData {
   /// see where the passage ends, and the Wait-Mode gate would otherwise hold at
   /// an onset outside the loop. Restricting at this single source keeps the
   /// display, the gate and the score audio in agreement by construction.
-  List<TimedNote> get visibleNotes => notes
-      .where((n) => showsStaff(n.staff) && _withinRun(n.startMs.toDouble()))
-      .toList();
+  List<TimedNote> get visibleNotes {
+    final multiVoice = isPercussion && spansMultipleVoices(notes);
+    return notes
+        .where(
+          (n) =>
+              _showsNote(n, multiVoice: multiVoice) &&
+              _withinRun(n.startMs.toDouble()),
+        )
+        .toList();
+  }
 
   /// Rests belonging to the selected hand(s) — the render-only companion to
   /// [visibleNotes], so the Staff painter hides a muted hand's rests with its

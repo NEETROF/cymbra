@@ -142,6 +142,7 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
   late NoteReadingAid _readingAid;
   ScoreSize? _scoreSizeDraft;
   late NotationTheme _notationTheme;
+  late bool _invertedKit;
 
   /// When true, the modal body shows this piece's leaderboard in place of the
   /// setup controls (a toggle via the trophy in the header) — so the board is
@@ -176,6 +177,7 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     _range = data.keyboardRange;
     _keyboardVisible = data.keyboardVisible;
     _readingAid = data.readingAid;
+    _invertedKit = data.invertedKit;
     // Resolved lazily on first build: the phone/tablet default needs the
     // inherited layout context, unavailable in initState.
     _notationTheme = ref.read(playerPreferencesProvider).notationTheme;
@@ -211,6 +213,9 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
       notifier.setKeyboardVisible(_keyboardVisible);
     }
     if (_readingAid != current.readingAid) notifier.setReadingAid(_readingAid);
+    if (_invertedKit != current.invertedKit) {
+      notifier.setInvertedKit(enabled: _invertedKit);
+    }
     if (_soundId != ref.read(selectedPianoProvider)) {
       ref.read(selectedPianoProvider.notifier).select(_soundId);
     }
@@ -241,7 +246,13 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
 
     final facts = _facts(l10n, data, entry);
     final sound = _soundSection(l10n);
-    final hands = data.hasMultipleStaves ? _handsSection(l10n) : null;
+    // For percussion the selector reads hands / feet, offered despite the
+    // single staff whenever the score has both — the split a drummer actually
+    // practises (change: add-drum-kit-view).
+    final hands =
+        (data.isPercussion ? data.hasHandsAndFeet : data.hasMultipleStaves)
+        ? _handsSection(l10n, percussion: data.isPercussion)
+        : null;
     final metronome = _metronomeTile(l10n);
     final tempo = _tempoTile(l10n, data);
     final midi = _midiSection(l10n, data);
@@ -249,8 +260,20 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     // drafted settings around it, this one applies immediately: the point of
     // picking an output is hearing the change.
     final soundOutput = SoundOutputSection(title: _sectionTitle);
-    final keyboardSize = _keyboardSizeSection(l10n);
-    final readingAid = _readingAidSection(l10n);
+    // The range apparatus does not apply to a drum kit (an unordered set of
+    // pieces, not an interval): the chooser is not offered and the stored mode
+    // stays untouched for the next keyboard score. The inverted-kit layout
+    // takes its place; the reading aid rides the Wait-Mode gate, absent for
+    // percussion until add-drum-scoring.
+    final Widget? keyboardSize = data.isPercussion
+        ? null
+        : _keyboardSizeSection(l10n);
+    final Widget? invertedKit = data.isPercussion
+        ? _invertedKitSection(l10n)
+        : null;
+    final Widget? readingAid = data.isPercussion
+        ? null
+        : _readingAidSection(l10n);
     _scoreSizeDraft ??= resolveScoreSize(
       ref.read(playerPreferencesProvider).scoreSize,
       isPhone: phone,
@@ -292,7 +315,8 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
                     child: col([
                       ?hands,
                       metronome,
-                      keyboardSize,
+                      ?keyboardSize,
+                      ?invertedKit,
                       scoreSize,
                       scoreTheme,
                     ]),
@@ -301,8 +325,10 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
                   Expanded(child: col([midi, tempo, ?keyboardVisibility])),
                 ],
               ),
-              const SizedBox(height: 8),
-              readingAid,
+              if (readingAid != null) ...[
+                const SizedBox(height: 8),
+                readingAid,
+              ],
               const SizedBox(height: 8),
               sound,
               soundOutput,
@@ -313,8 +339,9 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
             ?hands,
             metronome,
             tempo,
-            readingAid,
-            keyboardSize,
+            ?readingAid,
+            ?keyboardSize,
+            ?invertedKit,
             scoreSize,
             scoreTheme,
             ?keyboardVisibility,
@@ -483,7 +510,9 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
       frenchRe: lang == 'fr',
     );
     final chips = <Widget>[
-      _chip(Icons.piano, '${l10n.prePlayKey} · $key'),
+      // A key signature names pitches; a drum part has none (change:
+      // add-drum-kit-view) — the chip would read "Key · C" on every groove.
+      if (!data.isPercussion) _chip(Icons.piano, '${l10n.prePlayKey} · $key'),
       _chip(
         Icons.timer_outlined,
         '${l10n.prePlayMeter} · ${data.beats}/${data.beatType}',
@@ -526,7 +555,7 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     ),
   );
 
-  Widget _handsSection(AppLocalizations l10n) {
+  Widget _handsSection(AppLocalizations l10n, {bool percussion = false}) {
     const hands = Hand.values;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -551,7 +580,10 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
                 selectedColor: CymbraColors.onSurface,
                 fillColor: CymbraColors.tertiary.withValues(alpha: 0.22),
                 constraints: BoxConstraints(minHeight: 44, minWidth: segment),
-                children: [for (final h in hands) Text(handLabel(l10n, h))],
+                children: [
+                  for (final h in hands)
+                    Text(handLabel(l10n, h, percussion: percussion)),
+                ],
               );
             },
           ),
@@ -572,6 +604,34 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
           value: _soundId,
           onChanged: (id) => setState(() => _soundId = id),
         ),
+      ),
+    ],
+  );
+
+  /// The inverted-kit layout (change: add-drum-kit-view): reverses the lane
+  /// order and the pad strip together. Labelled by the KIT's setup, never the
+  /// player — many left-handed drummers play a standard kit.
+  Widget _invertedKitSection(AppLocalizations l10n) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      _sectionTitle(l10n.invertedKitTitle),
+      SwitchListTile(
+        key: const Key('inverted-kit-switch'),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+        title: Text(
+          l10n.invertedKitLabel,
+          style: const TextStyle(color: CymbraColors.onSurface, fontSize: 14),
+        ),
+        subtitle: Text(
+          l10n.invertedKitHint,
+          style: const TextStyle(
+            color: CymbraColors.onSurfaceVariant,
+            fontSize: 12,
+          ),
+        ),
+        value: _invertedKit,
+        activeThumbColor: CymbraColors.tertiary,
+        onChanged: (v) => setState(() => _invertedKit = v),
       ),
     ],
   );

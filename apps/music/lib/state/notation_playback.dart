@@ -36,6 +36,11 @@ class DerivedPlayback {
   final double songEndMs;
   final int bpm;
 
+  /// Whether the source document classified as percussion (every non-rest
+  /// note unpitched) — the player routes to the drum cascade + pad strip on
+  /// it (change: add-drum-kit-view).
+  final bool isPercussion;
+
   /// Start time (ms) of each measure, in document order; the first is 0. Lets the
   /// Partition cursor map a playhead position to a measure and a fraction within
   /// it.
@@ -62,6 +67,7 @@ class DerivedPlayback {
     this.tieContinuations = const [],
     required this.songEndMs,
     required this.bpm,
+    this.isPercussion = false,
     this.measureStartMs = const [],
     this.measureKeyFifths = const [],
     this.writtenMeasureOf = const [],
@@ -293,6 +299,7 @@ DerivedPlayback notationToTimedNotes(
           startMs: startMs.round(),
           durationMs: durationMs.round(),
           staff: note.staff,
+          voice: note.voice,
           beams: note.beams,
           clefSign: c != null
               ? clefSignLetter(c.sign)
@@ -369,6 +376,7 @@ DerivedPlayback notationToTimedNotes(
     tieContinuations: tieContinuations,
     songEndMs: songEndMs,
     bpm: bpm,
+    isPercussion: percussion,
     measureStartMs: measureStartMs,
     measureKeyFifths: measureKeyFifths,
     writtenMeasureOf: writtenMeasureOf,
@@ -384,6 +392,7 @@ TimedNote _withDuration(TimedNote n, int durationMs, {int? sustainFromMs}) =>
       startMs: n.startMs,
       durationMs: durationMs,
       staff: n.staff,
+      voice: n.voice,
       beams: n.beams,
       clefSign: n.clefSign,
       clefLine: n.clefLine,

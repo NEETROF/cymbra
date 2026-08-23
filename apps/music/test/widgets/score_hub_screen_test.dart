@@ -17,17 +17,22 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:music/screens/drums_not_playable_screen.dart';
 import 'package:music/screens/player_screen.dart';
 import 'package:music/screens/score_hub_screen.dart';
+import 'package:music/src/rust/api/musicxml.dart' show ScoreDocument;
 import 'package:music/services/auth_service.dart';
 import 'package:music/services/catalog_service.dart';
+import 'package:music/services/audio_service.dart';
+import 'package:music/services/midi_service.dart';
+import 'package:music/services/notation_engine.dart';
 import 'package:music/services/score_upload_service.dart';
 import 'package:music/state/drums_access.dart';
 import 'package:music/state/score_catalog.dart';
 import 'package:music/state/session_notifier.dart';
 
+import '../support/fakes.dart';
 import '../support/localized.dart';
+import '../support/notation_fakes.dart';
 
 class _FakeCatalog implements CatalogService {
   @override
@@ -160,6 +165,7 @@ ProviderContainer _container(
   List<ContributedScore> uploads = const [],
   _FakeUpload? uploadFake,
   bool drumsEnabled = false,
+  ScoreDocument? document,
 }) {
   final c = ProviderContainer(
     overrides: [
@@ -169,6 +175,15 @@ ProviderContainer _container(
       ),
       canUseOnlineServicesProvider.overrideWithValue(true),
       drumsEnabledProvider.overrideWithValue(drumsEnabled),
+      // A scripted parse result (no native library in widget tests) — needed
+      // by any test that OPENS a score into the player, along with the
+      // player's own native-backed seams.
+      notationEngineProvider.overrideWithValue(
+        FakeNotationEngine(document: document),
+      ),
+      midiServiceProvider.overrideWithValue(FakeMidiService()),
+      audioServiceProvider.overrideWithValue(RecordingAudioService()),
+      scoreSourceProvider.overrideWithValue(FakeScoreSource()),
     ],
   );
   addTearDown(c.dispose);
@@ -533,29 +548,44 @@ void main() {
     },
   );
 
-  testWidgets(
-    'opening a percussion score shows the not-playable state, never the player',
-    (tester) async {
-      // INTERIM guard (change: add-drums-access, removed by add-drum-kit-view).
-      final c = _container(
-        _FakeCatalog([
-          _hit('d1', 'Basic Groove', instrument: ScoreInstrument.percussion),
-        ]),
-        drumsEnabled: true,
-      );
-      await _pump(tester, c);
+  testWidgets('opening a percussion score routes into the player (kit view)', (
+    tester,
+  ) async {
+    // The interim add-drums-access guard is gone: add-drum-kit-view gives a
+    // percussion score a real presentation, so opening one enters the
+    // player like any other score.
+    // A locally-managed container (no addTearDown): mounting the player
+    // starts its MIDI poll timer, which must be cancelled by disposing the
+    // container BEFORE the end-of-test timer invariant runs.
+    final c = ProviderContainer(
+      overrides: [
+        catalogServiceProvider.overrideWithValue(
+          _FakeCatalog([
+            _hit('d1', 'Basic Groove', instrument: ScoreInstrument.percussion),
+          ]),
+        ),
+        scoreUploadServiceProvider.overrideWithValue(_FakeUpload(const [])),
+        canUseOnlineServicesProvider.overrideWithValue(true),
+        drumsEnabledProvider.overrideWithValue(true),
+        notationEngineProvider.overrideWithValue(
+          FakeNotationEngine(document: sampleDrumDocument()),
+        ),
+        midiServiceProvider.overrideWithValue(FakeMidiService()),
+        audioServiceProvider.overrideWithValue(RecordingAudioService()),
+        scoreSourceProvider.overrideWithValue(FakeScoreSource()),
+      ],
+    );
+    await _pump(tester, c);
 
-      await tester.tap(find.text('Basic Groove'));
-      await tester.pumpAndSettle();
-
-      // The localized interim state is shown instead of the player — and it is
-      // not styled as an error.
-      expect(find.byType(DrumsNotPlayableScreen), findsOneWidget);
-      expect(find.text("Drums aren't playable yet"), findsOneWidget);
-      expect(find.byType(PlayerScreen), findsNothing);
-      await _teardown(tester, c);
-    },
-  );
+    await tester.tap(find.text('Basic Groove'));
+    // Fixed pumps, not pumpAndSettle: the player's ticker never settles.
+    for (var i = 0; i < 14; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(find.byType(PlayerScreen), findsOneWidget);
+    await _teardown(tester, c);
+    c.dispose();
+  });
 
   testWidgets('a percussion catalog card names its instrument', (tester) async {
     final c = _container(

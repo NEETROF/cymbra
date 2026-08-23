@@ -22,6 +22,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
 import '../layout/device_class.dart';
+import '../painters/drum_cascade_painter.dart';
+import '../painters/drum_pad_strip_painter.dart';
 import '../painters/notation_palette.dart';
 import '../painters/partition_painter.dart';
 import '../painters/piano_keyboard_painter.dart';
@@ -29,6 +31,7 @@ import '../painters/piano_layout.dart';
 import '../painters/staff_painter.dart';
 import '../painters/synthesia_painter.dart';
 import '../src/rust/api/musicxml.dart' show System;
+import '../state/drum_kit.dart';
 import '../state/notation_data.dart';
 import '../state/notation_notifier.dart';
 import '../state/score_catalog.dart';
@@ -42,6 +45,7 @@ import '../state/session_summary.dart';
 import '../state/session_summary_store.dart';
 import '../theme/cymbra_theme.dart';
 import '../state/coaching_notifier.dart';
+import '../widgets/kit_piece_labels.dart';
 import '../widgets/coach_mark.dart';
 import '../widgets/countdown_overlay.dart';
 import '../widgets/mistake_replay.dart';
@@ -416,7 +420,41 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                             // the keyboard is hidden). Hides itself when the
                             // loaded score has no timing.
                             const PlaybackProgressBar(),
-                            if (showKeyboard)
+                            if (data.isPercussion)
+                              SizedBox(
+                                height: keyboardHeight,
+                                child: CustomPaint(
+                                  key: const Key('pad-strip'),
+                                  size: Size(
+                                    constraints.maxWidth,
+                                    keyboardHeight,
+                                  ),
+                                  // Display-only until add-drum-input-mapping:
+                                  // no Listener, so a tap produces no note and
+                                  // no visual state, by construction.
+                                  painter: DrumPadStripPainter(
+                                    lanes: data.presentedDrumLanes,
+                                    labels: [
+                                      for (final lane
+                                          in data.presentedDrumLanes)
+                                        kitPieceLabel(
+                                          AppLocalizations.of(context),
+                                          lane,
+                                        ),
+                                    ],
+                                    kickLabel: AppLocalizations.of(
+                                      context,
+                                    ).kitPieceKick,
+                                    hasKick: data.notes.any(
+                                      (n) => kKickGmNumbers.contains(n.pitch),
+                                    ),
+                                    labelFontFamily: DefaultTextStyle.of(
+                                      context,
+                                    ).style.fontFamily,
+                                  ),
+                                ),
+                              )
+                            else if (showKeyboard)
                               SizedBox(
                                 height: keyboardHeight,
                                 child: Listener(
@@ -556,6 +594,31 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     // unavailable on phones and falls back to the staff view. The mode toggle
     // also hides the Partition segment on phones, so this is only reached if the
     // mode was set on a larger screen before switching to a phone layout.
+    if (data.isPercussion) {
+      // The percussion cascade (change: add-drum-kit-view): the only render
+      // mode for a drum score until add-drum-notation-render. No scoring
+      // overlay — nothing is scoreable until add-drum-input-mapping.
+      return Stack(
+        children: [
+          Positioned.fill(
+            child: CustomPaint(
+              painter: DrumCascadePainter(
+                lanes: data.presentedDrumLanes,
+                notes: data.visibleNotes,
+                multiVoice: spansMultipleVoices(data.notes),
+                elapsedMs: data.referenceMs,
+              ),
+            ),
+          ),
+          Positioned.fill(
+            child: _ScoreLoadOverlay(
+              notation: notation,
+              hasSelection: hasSelection,
+            ),
+          ),
+        ],
+      );
+    }
     if (data.mode == RenderMode.partition && !isPhone) {
       return const _PartitionView();
     }
@@ -841,6 +904,9 @@ class _ModeToggle extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final mode = ref.watch(playerProvider.select((d) => d.mode));
+    final isPercussion = ref.watch(
+      playerProvider.select((d) => d.isPercussion),
+    );
     final notifier = ref.read(playerProvider.notifier);
     final l10n = AppLocalizations.of(context);
     // On a phone the three labelled segments are too wide for the landscape top
@@ -871,14 +937,18 @@ class _ModeToggle extends ConsumerWidget {
       // viewport, so it's dropped from the toggle on phones. If the mode was set
       // to Partition on a larger screen, the selection falls back to Staff (what
       // the render area also shows) so the button keeps a valid selection.
+      // A percussion score offers only the cascade — Staff and Partition are
+      // omitted until add-drum-notation-render draws percussion notation
+      // (change: add-drum-kit-view). Keyboard scores keep all three modes.
       segments: [
         segment(
           RenderMode.synthesia,
           l10n.modeSynthesia,
           Icons.waterfall_chart,
         ),
-        segment(RenderMode.staff, l10n.modeStaff, Icons.music_note),
-        if (!isPhone)
+        if (!isPercussion)
+          segment(RenderMode.staff, l10n.modeStaff, Icons.music_note),
+        if (!isPercussion && !isPhone)
           segment(RenderMode.partition, l10n.modePartition, Icons.article),
       ],
       selected: {
@@ -1197,7 +1267,13 @@ class _TransportBar extends ConsumerWidget {
       data.waitMode ? Icons.hourglass_top : Icons.hourglass_disabled,
       color: waitColor,
     );
-    final wait = isPhone
+    // Wait Mode is not offered for a percussion score (change:
+    // add-drum-kit-view): the pads are inert until add-drum-input-mapping, so
+    // the gate could never be satisfied. Timed modes only until
+    // add-drum-scoring.
+    final Widget? wait = data.isPercussion
+        ? null
+        : isPhone
         ? IconButton(
             visualDensity: density,
             tooltip: 'Wait',
@@ -1247,8 +1323,7 @@ class _TransportBar extends ConsumerWidget {
                 speedUp,
                 speedLabel,
                 speedDown,
-                SizedBox(height: gapS),
-                wait,
+                if (wait != null) ...[SizedBox(height: gapS), wait],
               ],
             )
           : Row(
@@ -1263,8 +1338,7 @@ class _TransportBar extends ConsumerWidget {
                 speedDown,
                 speedLabel,
                 speedUp,
-                SizedBox(width: gapS),
-                wait,
+                if (wait != null) ...[SizedBox(width: gapS), wait],
               ],
             ),
     );

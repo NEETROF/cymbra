@@ -48,7 +48,7 @@ Future<void> _flush() => Future<void>.delayed(Duration.zero);
 ScoreDocument _untitled() {
   final titled = sampleFourMeasureDocument();
   return ScoreDocument(
-      instruments: const [],
+    instruments: const [],
     playOrder: const [],
     meta: const ScoreMeta(composer: 'Christian Petzold'),
     staves: titled.staves,
@@ -695,7 +695,7 @@ void main() {
         // score demands) while attacking E5 must open the gate — the tie is a
         // single attack, never a re-press.
         final doc = ScoreDocument(
-      instruments: const [],
+          instruments: const [],
           playOrder: const [],
           meta: const ScoreMeta(title: 'Tied', composer: 'T'),
           staves: 1,

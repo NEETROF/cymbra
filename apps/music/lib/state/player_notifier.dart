@@ -26,6 +26,7 @@ import 'notation_notifier.dart';
 import 'performance_scoring.dart';
 import 'play_sync_notifier.dart';
 import 'practice_settings_store.dart';
+import 'drum_kit.dart';
 import 'player_data.dart';
 import 'notation_playback.dart';
 import 'player_preferences.dart';
@@ -112,6 +113,7 @@ class Player extends _$Player {
       readingAid: prefs.readingAid,
       instrumentSoundsItself: prefs.instrumentSoundsItself,
       outputOffsetMs: prefs.outputOffsetMs,
+      invertedKit: prefs.invertedKit,
     );
   }
 
@@ -282,6 +284,18 @@ class Player extends _$Player {
       writtenMeasureOf: derived.writtenMeasureOf,
       measureDecors: derived.measureDecors,
       writtenMeasureCount: document.measures.length,
+      // Percussion routing (change: add-drum-kit-view): the lane layout is
+      // derived ONCE here and consumed by both the cascade and the pad strip.
+      // The cascade is the only mode and Wait Mode is not offered until
+      // add-drum-scoring (an inert pad strip cannot satisfy the gate); the
+      // stored mode/waitMode are left untouched for the next keyboard score
+      // by resetting them when a keyboard score loads.
+      isPercussion: derived.isPercussion,
+      drumLanes: derived.isPercussion
+          ? deriveDrumLanes(derived.notes)
+          : const <DrumLane>[],
+      mode: derived.isPercussion ? RenderMode.synthesia : state.mode,
+      waitMode: derived.isPercussion ? false : state.waitMode,
       isPlaying: false,
       // A range chosen for the previous score means nothing here (and its indices
       // may not even exist in this one): a freshly-loaded document always starts
@@ -552,6 +566,17 @@ class Player extends _$Player {
   void setKeyboardRange(KeyboardRangeMode m) {
     ref.read(playerPreferencesProvider.notifier).setKeyboardRange(m);
     state = state.copyWith(keyboardRange: m);
+  }
+
+  /// Toggles the inverted-kit layout (change: add-drum-kit-view) and remembers
+  /// it. Applies only to the PRESENTED lane order — the derived layout, the
+  /// notation and the note interpretation are untouched by construction
+  /// ([PlayerData.presentedDrumLanes] is the single application point).
+  void setInvertedKit({required bool enabled}) {
+    ref
+        .read(playerPreferencesProvider.notifier)
+        .setInvertedKit(enabled: enabled);
+    state = state.copyWith(invertedKit: enabled);
   }
 
   /// Sets how much reading help is shown at a held onset, and remembers it
