@@ -55,6 +55,8 @@ sealed class SymbolDescriptor with _$SymbolDescriptor {
   /// A note head. [pitch] is MIDI; [diatonic] is the spelled staff step
   /// (`octave*7 + step`) when the source carries it, else null (demo/replay),
   /// and [clefSign] positions the register. These let the help name the pitch.
+  /// [isGrace] marks a grace note (petite note), whose help explains the
+  /// ornament instead of quoting a misleading hold duration.
   const factory SymbolDescriptor.note({
     required int pitch,
     int? diatonic,
@@ -62,6 +64,7 @@ sealed class SymbolDescriptor with _$SymbolDescriptor {
     @Default(1) int staff,
     String? noteType,
     @Default(0) int dots,
+    @Default(false) bool isGrace,
   }) = NoteSymbol;
 
   /// A rest, with its note-value type when known (`whole`/`half`/`quarter`/

@@ -673,6 +673,7 @@ class StaffPainter extends CustomPainter {
           staff: n.staff,
           noteType: n.noteType,
           dots: n.dots,
+          isGrace: n.isGrace,
         ),
       );
       // Accidental engraved on this note (sharp/flat/natural…), left of the

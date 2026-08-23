@@ -590,6 +590,8 @@
   "notationBeatUnitSixteenth": "semicorchea",
   "notationBeatUnitOther": "esa figura",
   "notationHelpNoteDuration": "Aquí {name}: {beats}.",
+  "notationHelpGraceTitle": "Nota de adorno ({name})",
+  "notationHelpGraceBody": "Una peque\u00f1a nota ornamental que se toca muy r\u00e1pido, justo antes de la nota que decora. No ocupa tiempo propio: r\u00f3zala y encadena con la nota siguiente.",
   "notationHelpRestDuration": "Dura {beats}.",
   "notationRestWhole": "Silencio de redonda",
   "notationRestHalf": "Silencio de blanca",

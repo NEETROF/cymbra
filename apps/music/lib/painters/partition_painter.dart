@@ -766,6 +766,7 @@ class PartitionPainter extends CustomPainter {
           staff: note.staff,
           noteType: note.noteType,
           dots: note.dots,
+          isGrace: note.isGrace,
         ),
       );
 

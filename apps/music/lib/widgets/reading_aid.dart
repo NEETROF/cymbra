@@ -104,13 +104,18 @@ ReadingAidView readingAidViewOf(
     final beatMs = data.beatDurationMsAt(notes.first.startMs.toDouble());
     final tokens = [
       for (final n in notes)
-        figureFor(
-          noteType: n.noteType,
-          dots: n.dots,
-          beatType: data.beatType,
-          durationMs: n.durationMs.toDouble(),
-          beatMs: beatMs > 0 ? beatMs : null,
-        ),
+        // A grace note is an ornament, not a held figure: quoting its written
+        // type ("eighth — hold half a beat") would tell the player to hold a
+        // note the score says to flick. No figure is better than a wrong one.
+        n.isGrace
+            ? null
+            : figureFor(
+                noteType: n.noteType,
+                dots: n.dots,
+                beatType: data.beatType,
+                durationMs: n.durationMs.toDouble(),
+                beatMs: beatMs > 0 ? beatMs : null,
+              ),
     ];
     // One figure for the whole onset only when every note agrees on it; mixed
     // figures show none rather than implying a wrong one.

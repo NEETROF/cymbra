@@ -105,6 +105,7 @@ NoteEvent noteEvent({
   bool tieStop = false,
   bool slurStart = false,
   bool slurStop = false,
+  List<BeamState> beams = const [],
 }) => NoteEvent(
   staff: staff,
   voice: voice,
@@ -123,7 +124,7 @@ NoteEvent noteEvent({
   slurStop: slurStop,
   tuplet: null,
   stem: stem,
-  beams: const [],
+  beams: beams,
   lyric: lyric,
 );
 

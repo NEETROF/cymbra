@@ -590,6 +590,8 @@
   "notationBeatUnitSixteenth": "semicroma",
   "notationBeatUnitOther": "quella figura",
   "notationHelpNoteDuration": "Qui {name}: {beats}.",
+  "notationHelpGraceTitle": "Abbellimento ({name})",
+  "notationHelpGraceBody": "Una piccola nota ornamentale suonata molto in fretta, subito prima della nota che decora. Non occupa tempo proprio: sfiorala e passa alla nota successiva.",
   "notationHelpRestDuration": "Dura {beats}.",
   "notationRestWhole": "Pausa di semibreve",
   "notationRestHalf": "Pausa di minima",
