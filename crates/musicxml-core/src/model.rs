@@ -35,6 +35,22 @@ pub struct ScoreDocument {
     pub staves: u32,
     pub attributes: Attributes,
     pub measures: Vec<NotationMeasure>,
+    /// The **playback order**: the sequence of written-measure passes a
+    /// performer would play, resolved from the repeat structure (repeat
+    /// barlines, voltas, D.C./D.S. jumps) with safety caps — the written order
+    /// one-to-one when the piece has no repeats or the structure is malformed.
+    /// Computed once at parse time; every derivation (app timeline, browser
+    /// preview, server audio render) consumes it instead of re-resolving.
+    pub play_order: Vec<PlayedMeasure>,
+}
+
+/// One slot of the playback order: which written measure plays, and which pass
+/// through it this is (1-based — a repeated measure has one slot per pass).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct PlayedMeasure {
+    pub written_index: u32,
+    pub pass: u32,
 }
 
 /// Score metadata; fields are absent (`None`) rather than failing when missing.
@@ -95,6 +111,50 @@ pub struct NotationMeasure {
     pub key_fifths: i32,
     /// Minimum engraving width (pixels) from the non-linear spacing function.
     pub min_width: f64,
+    /// Repeat notation engraved on this measure (barline repeats, voltas,
+    /// measure-repeat `%`, segno/coda and jump semantics). All defaults when
+    /// the measure carries none — the overwhelmingly common case.
+    pub repeats: RepeatMarks,
+}
+
+/// The repeat structure engraved on one measure, in written order — everything
+/// the unroll ([`crate::play_order`]) and the renderers need. `Default` means
+/// "no repeat notation on this measure".
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct RepeatMarks {
+    /// A forward repeat (`‖:`) opens this measure.
+    pub forward: bool,
+    /// A backward repeat (`:‖`) closes this measure: the `times` attribute
+    /// (how many times the section is played in total; MusicXML default 2).
+    /// 0 = no backward repeat.
+    pub backward_times: u32,
+    /// Volta numbers of an ending bracket **starting** at this measure
+    /// (e.g. `[1]`, `[1, 2]`). Empty when none starts here.
+    pub ending_start: Vec<u32>,
+    /// An ending bracket **stops** (downward hook) at this measure.
+    pub ending_stop: bool,
+    /// An ending bracket ends open (discontinue) at this measure — the usual
+    /// engraving of a final volta.
+    pub ending_discontinue: bool,
+    /// This is a measure-repeat (`%`) measure: the written measure whose
+    /// content it replays (already resolved transitively for chained `%`
+    /// runs). The measure's own note list stays empty — the sign is engraved,
+    /// the referenced content is played.
+    pub measure_repeat_of: Option<u32>,
+    /// Slash count of the measure-repeat sign (1 = `%`).
+    pub measure_repeat_slashes: u32,
+    /// A segno sign is placed at this measure.
+    pub segno: bool,
+    /// A coda sign is placed at this measure.
+    pub coda: bool,
+    /// `<sound>` jump semantics attached to this measure's directions.
+    pub sound_dacapo: bool,
+    pub sound_dalsegno: bool,
+    pub sound_tocoda: bool,
+    pub sound_fine: bool,
+    /// `<sound forward-repeat="yes">` — repeats are re-taken after the jump.
+    pub sound_forward_repeat: bool,
 }
 
 /// A single note (or rest) event.

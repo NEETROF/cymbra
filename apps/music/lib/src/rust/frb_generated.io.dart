@@ -71,6 +71,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Tuplet dco_decode_box_autoadd_tuplet(dynamic raw);
 
   @protected
+  int dco_decode_box_autoadd_u_32(dynamic raw);
+
+  @protected
   Clef dco_decode_clef(dynamic raw);
 
   @protected
@@ -111,6 +114,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<NoteEvent> dco_decode_list_note_event(dynamic raw);
+
+  @protected
+  List<PlayedMeasure> dco_decode_list_played_measure(dynamic raw);
 
   @protected
   Uint32List dco_decode_list_prim_u_32_strict(dynamic raw);
@@ -167,7 +173,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Tuplet? dco_decode_opt_box_autoadd_tuplet(dynamic raw);
 
   @protected
+  int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
+
+  @protected
   Pitch dco_decode_pitch(dynamic raw);
+
+  @protected
+  PlayedMeasure dco_decode_played_measure(dynamic raw);
+
+  @protected
+  RepeatMarks dco_decode_repeat_marks(dynamic raw);
 
   @protected
   Score dco_decode_score(dynamic raw);
@@ -265,6 +280,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Tuplet sse_decode_box_autoadd_tuplet(SseDeserializer deserializer);
 
   @protected
+  int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
+
+  @protected
   Clef sse_decode_clef(SseDeserializer deserializer);
 
   @protected
@@ -309,6 +327,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<NoteEvent> sse_decode_list_note_event(SseDeserializer deserializer);
+
+  @protected
+  List<PlayedMeasure> sse_decode_list_played_measure(
+    SseDeserializer deserializer,
+  );
 
   @protected
   Uint32List sse_decode_list_prim_u_32_strict(SseDeserializer deserializer);
@@ -369,7 +392,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Tuplet? sse_decode_opt_box_autoadd_tuplet(SseDeserializer deserializer);
 
   @protected
+  int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
+
+  @protected
   Pitch sse_decode_pitch(SseDeserializer deserializer);
+
+  @protected
+  PlayedMeasure sse_decode_played_measure(SseDeserializer deserializer);
+
+  @protected
+  RepeatMarks sse_decode_repeat_marks(SseDeserializer deserializer);
 
   @protected
   Score sse_decode_score(SseDeserializer deserializer);
@@ -480,6 +512,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_tuplet(Tuplet self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
+
+  @protected
   void sse_encode_clef(Clef self, SseSerializer serializer);
 
   @protected
@@ -533,6 +568,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_note_event(
     List<NoteEvent> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_played_measure(
+    List<PlayedMeasure> self,
     SseSerializer serializer,
   );
 
@@ -612,7 +653,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
+
+  @protected
   void sse_encode_pitch(Pitch self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_played_measure(PlayedMeasure self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_repeat_marks(RepeatMarks self, SseSerializer serializer);
 
   @protected
   void sse_encode_score(Score self, SseSerializer serializer);

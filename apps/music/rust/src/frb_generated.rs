@@ -776,6 +776,7 @@ const _: fn() = || {
         let _: Vec<crate::api::musicxml::Clef> = NotationMeasure.clefs;
         let _: i32 = NotationMeasure.key_fifths;
         let _: f64 = NotationMeasure.min_width;
+        let _: crate::api::musicxml::RepeatMarks = NotationMeasure.repeats;
     }
     {
         let NoteEvent = None::<crate::api::musicxml::NoteEvent>.unwrap();
@@ -806,11 +807,34 @@ const _: fn() = || {
         let _: i32 = Pitch.alter;
     }
     {
+        let PlayedMeasure = None::<crate::api::musicxml::PlayedMeasure>.unwrap();
+        let _: u32 = PlayedMeasure.written_index;
+        let _: u32 = PlayedMeasure.pass;
+    }
+    {
+        let RepeatMarks = None::<crate::api::musicxml::RepeatMarks>.unwrap();
+        let _: bool = RepeatMarks.forward;
+        let _: u32 = RepeatMarks.backward_times;
+        let _: Vec<u32> = RepeatMarks.ending_start;
+        let _: bool = RepeatMarks.ending_stop;
+        let _: bool = RepeatMarks.ending_discontinue;
+        let _: Option<u32> = RepeatMarks.measure_repeat_of;
+        let _: u32 = RepeatMarks.measure_repeat_slashes;
+        let _: bool = RepeatMarks.segno;
+        let _: bool = RepeatMarks.coda;
+        let _: bool = RepeatMarks.sound_dacapo;
+        let _: bool = RepeatMarks.sound_dalsegno;
+        let _: bool = RepeatMarks.sound_tocoda;
+        let _: bool = RepeatMarks.sound_fine;
+        let _: bool = RepeatMarks.sound_forward_repeat;
+    }
+    {
         let ScoreDocument = None::<crate::api::musicxml::ScoreDocument>.unwrap();
         let _: crate::api::musicxml::ScoreMeta = ScoreDocument.meta;
         let _: u32 = ScoreDocument.staves;
         let _: crate::api::musicxml::Attributes = ScoreDocument.attributes;
         let _: Vec<crate::api::musicxml::NotationMeasure> = ScoreDocument.measures;
+        let _: Vec<crate::api::musicxml::PlayedMeasure> = ScoreDocument.play_order;
     }
     {
         let ScoreMeta = None::<crate::api::musicxml::ScoreMeta>.unwrap();
@@ -1136,6 +1160,20 @@ impl SseDecode for Vec<crate::api::musicxml::NoteEvent> {
     }
 }
 
+impl SseDecode for Vec<crate::api::musicxml::PlayedMeasure> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::musicxml::PlayedMeasure>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<u32> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1233,6 +1271,7 @@ impl SseDecode for crate::api::musicxml::NotationMeasure {
         let mut var_clefs = <Vec<crate::api::musicxml::Clef>>::sse_decode(deserializer);
         let mut var_keyFifths = <i32>::sse_decode(deserializer);
         let mut var_minWidth = <f64>::sse_decode(deserializer);
+        let mut var_repeats = <crate::api::musicxml::RepeatMarks>::sse_decode(deserializer);
         return crate::api::musicxml::NotationMeasure {
             index: var_index,
             notes: var_notes,
@@ -1240,6 +1279,7 @@ impl SseDecode for crate::api::musicxml::NotationMeasure {
             clefs: var_clefs,
             key_fifths: var_keyFifths,
             min_width: var_minWidth,
+            repeats: var_repeats,
         };
     }
 }
@@ -1385,6 +1425,17 @@ impl SseDecode for Option<crate::api::musicxml::Tuplet> {
     }
 }
 
+impl SseDecode for Option<u32> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<u32>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for crate::api::musicxml::Pitch {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1395,6 +1446,54 @@ impl SseDecode for crate::api::musicxml::Pitch {
             step: var_step,
             octave: var_octave,
             alter: var_alter,
+        };
+    }
+}
+
+impl SseDecode for crate::api::musicxml::PlayedMeasure {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_writtenIndex = <u32>::sse_decode(deserializer);
+        let mut var_pass = <u32>::sse_decode(deserializer);
+        return crate::api::musicxml::PlayedMeasure {
+            written_index: var_writtenIndex,
+            pass: var_pass,
+        };
+    }
+}
+
+impl SseDecode for crate::api::musicxml::RepeatMarks {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_forward = <bool>::sse_decode(deserializer);
+        let mut var_backwardTimes = <u32>::sse_decode(deserializer);
+        let mut var_endingStart = <Vec<u32>>::sse_decode(deserializer);
+        let mut var_endingStop = <bool>::sse_decode(deserializer);
+        let mut var_endingDiscontinue = <bool>::sse_decode(deserializer);
+        let mut var_measureRepeatOf = <Option<u32>>::sse_decode(deserializer);
+        let mut var_measureRepeatSlashes = <u32>::sse_decode(deserializer);
+        let mut var_segno = <bool>::sse_decode(deserializer);
+        let mut var_coda = <bool>::sse_decode(deserializer);
+        let mut var_soundDacapo = <bool>::sse_decode(deserializer);
+        let mut var_soundDalsegno = <bool>::sse_decode(deserializer);
+        let mut var_soundTocoda = <bool>::sse_decode(deserializer);
+        let mut var_soundFine = <bool>::sse_decode(deserializer);
+        let mut var_soundForwardRepeat = <bool>::sse_decode(deserializer);
+        return crate::api::musicxml::RepeatMarks {
+            forward: var_forward,
+            backward_times: var_backwardTimes,
+            ending_start: var_endingStart,
+            ending_stop: var_endingStop,
+            ending_discontinue: var_endingDiscontinue,
+            measure_repeat_of: var_measureRepeatOf,
+            measure_repeat_slashes: var_measureRepeatSlashes,
+            segno: var_segno,
+            coda: var_coda,
+            sound_dacapo: var_soundDacapo,
+            sound_dalsegno: var_soundDalsegno,
+            sound_tocoda: var_soundTocoda,
+            sound_fine: var_soundFine,
+            sound_forward_repeat: var_soundForwardRepeat,
         };
     }
 }
@@ -1419,11 +1518,14 @@ impl SseDecode for crate::api::musicxml::ScoreDocument {
         let mut var_attributes = <crate::api::musicxml::Attributes>::sse_decode(deserializer);
         let mut var_measures =
             <Vec<crate::api::musicxml::NotationMeasure>>::sse_decode(deserializer);
+        let mut var_playOrder =
+            <Vec<crate::api::musicxml::PlayedMeasure>>::sse_decode(deserializer);
         return crate::api::musicxml::ScoreDocument {
             meta: var_meta,
             staves: var_staves,
             attributes: var_attributes,
             measures: var_measures,
+            play_order: var_playOrder,
         };
     }
 }
@@ -1867,6 +1969,7 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::musicxml::Notation
             self.0.clefs.into_into_dart().into_dart(),
             self.0.key_fifths.into_into_dart().into_dart(),
             self.0.min_width.into_into_dart().into_dart(),
+            self.0.repeats.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -1960,6 +2063,60 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::musicxml::Pitch>>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::musicxml::PlayedMeasure> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.written_index.into_into_dart().into_dart(),
+            self.0.pass.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::musicxml::PlayedMeasure>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::musicxml::PlayedMeasure>>
+    for crate::api::musicxml::PlayedMeasure
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::musicxml::PlayedMeasure> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::musicxml::RepeatMarks> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.forward.into_into_dart().into_dart(),
+            self.0.backward_times.into_into_dart().into_dart(),
+            self.0.ending_start.into_into_dart().into_dart(),
+            self.0.ending_stop.into_into_dart().into_dart(),
+            self.0.ending_discontinue.into_into_dart().into_dart(),
+            self.0.measure_repeat_of.into_into_dart().into_dart(),
+            self.0.measure_repeat_slashes.into_into_dart().into_dart(),
+            self.0.segno.into_into_dart().into_dart(),
+            self.0.coda.into_into_dart().into_dart(),
+            self.0.sound_dacapo.into_into_dart().into_dart(),
+            self.0.sound_dalsegno.into_into_dart().into_dart(),
+            self.0.sound_tocoda.into_into_dart().into_dart(),
+            self.0.sound_fine.into_into_dart().into_dart(),
+            self.0.sound_forward_repeat.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::musicxml::RepeatMarks>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::musicxml::RepeatMarks>>
+    for crate::api::musicxml::RepeatMarks
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::musicxml::RepeatMarks> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::score::Score {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -1983,6 +2140,7 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::musicxml::ScoreDoc
             self.0.staves.into_into_dart().into_dart(),
             self.0.attributes.into_into_dart().into_dart(),
             self.0.measures.into_into_dart().into_dart(),
+            self.0.play_order.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -2399,6 +2557,16 @@ impl SseEncode for Vec<crate::api::musicxml::NoteEvent> {
     }
 }
 
+impl SseEncode for Vec<crate::api::musicxml::PlayedMeasure> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::musicxml::PlayedMeasure>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<u32> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -2480,6 +2648,7 @@ impl SseEncode for crate::api::musicxml::NotationMeasure {
         <Vec<crate::api::musicxml::Clef>>::sse_encode(self.clefs, serializer);
         <i32>::sse_encode(self.key_fifths, serializer);
         <f64>::sse_encode(self.min_width, serializer);
+        <crate::api::musicxml::RepeatMarks>::sse_encode(self.repeats, serializer);
     }
 }
 
@@ -2587,12 +2756,50 @@ impl SseEncode for Option<crate::api::musicxml::Tuplet> {
     }
 }
 
+impl SseEncode for Option<u32> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <u32>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for crate::api::musicxml::Pitch {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <char>::sse_encode(self.step, serializer);
         <i32>::sse_encode(self.octave, serializer);
         <i32>::sse_encode(self.alter, serializer);
+    }
+}
+
+impl SseEncode for crate::api::musicxml::PlayedMeasure {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u32>::sse_encode(self.written_index, serializer);
+        <u32>::sse_encode(self.pass, serializer);
+    }
+}
+
+impl SseEncode for crate::api::musicxml::RepeatMarks {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.forward, serializer);
+        <u32>::sse_encode(self.backward_times, serializer);
+        <Vec<u32>>::sse_encode(self.ending_start, serializer);
+        <bool>::sse_encode(self.ending_stop, serializer);
+        <bool>::sse_encode(self.ending_discontinue, serializer);
+        <Option<u32>>::sse_encode(self.measure_repeat_of, serializer);
+        <u32>::sse_encode(self.measure_repeat_slashes, serializer);
+        <bool>::sse_encode(self.segno, serializer);
+        <bool>::sse_encode(self.coda, serializer);
+        <bool>::sse_encode(self.sound_dacapo, serializer);
+        <bool>::sse_encode(self.sound_dalsegno, serializer);
+        <bool>::sse_encode(self.sound_tocoda, serializer);
+        <bool>::sse_encode(self.sound_fine, serializer);
+        <bool>::sse_encode(self.sound_forward_repeat, serializer);
     }
 }
 
@@ -2611,6 +2818,7 @@ impl SseEncode for crate::api::musicxml::ScoreDocument {
         <u32>::sse_encode(self.staves, serializer);
         <crate::api::musicxml::Attributes>::sse_encode(self.attributes, serializer);
         <Vec<crate::api::musicxml::NotationMeasure>>::sse_encode(self.measures, serializer);
+        <Vec<crate::api::musicxml::PlayedMeasure>>::sse_encode(self.play_order, serializer);
     }
 }
 

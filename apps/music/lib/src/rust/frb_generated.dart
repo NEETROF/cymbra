@@ -775,6 +775,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  int dco_decode_box_autoadd_u_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as int;
+  }
+
+  @protected
   Clef dco_decode_clef(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -890,6 +896,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<PlayedMeasure> dco_decode_list_played_measure(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_played_measure).toList();
+  }
+
+  @protected
   Uint32List dco_decode_list_prim_u_32_strict(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as Uint32List;
@@ -961,8 +973,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   NotationMeasure dco_decode_notation_measure(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 6)
-      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
     return NotationMeasure(
       index: dco_decode_u_32(arr[0]),
       notes: dco_decode_list_note_event(arr[1]),
@@ -970,6 +982,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       clefs: dco_decode_list_clef(arr[3]),
       keyFifths: dco_decode_i_32(arr[4]),
       minWidth: dco_decode_f_64(arr[5]),
+      repeats: dco_decode_repeat_marks(arr[6]),
     );
   }
 
@@ -1058,6 +1071,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  int? dco_decode_opt_box_autoadd_u_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_u_32(raw);
+  }
+
+  @protected
   Pitch dco_decode_pitch(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -1067,6 +1086,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       step: dco_decode_Char(arr[0]),
       octave: dco_decode_i_32(arr[1]),
       alter: dco_decode_i_32(arr[2]),
+    );
+  }
+
+  @protected
+  PlayedMeasure dco_decode_played_measure(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return PlayedMeasure(
+      writtenIndex: dco_decode_u_32(arr[0]),
+      pass: dco_decode_u_32(arr[1]),
+    );
+  }
+
+  @protected
+  RepeatMarks dco_decode_repeat_marks(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 14)
+      throw Exception('unexpected arr length: expect 14 but see ${arr.length}');
+    return RepeatMarks(
+      forward: dco_decode_bool(arr[0]),
+      backwardTimes: dco_decode_u_32(arr[1]),
+      endingStart: dco_decode_list_prim_u_32_strict(arr[2]),
+      endingStop: dco_decode_bool(arr[3]),
+      endingDiscontinue: dco_decode_bool(arr[4]),
+      measureRepeatOf: dco_decode_opt_box_autoadd_u_32(arr[5]),
+      measureRepeatSlashes: dco_decode_u_32(arr[6]),
+      segno: dco_decode_bool(arr[7]),
+      coda: dco_decode_bool(arr[8]),
+      soundDacapo: dco_decode_bool(arr[9]),
+      soundDalsegno: dco_decode_bool(arr[10]),
+      soundTocoda: dco_decode_bool(arr[11]),
+      soundFine: dco_decode_bool(arr[12]),
+      soundForwardRepeat: dco_decode_bool(arr[13]),
     );
   }
 
@@ -1086,13 +1141,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ScoreDocument dco_decode_score_document(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
     return ScoreDocument(
       meta: dco_decode_score_meta(arr[0]),
       staves: dco_decode_u_32(arr[1]),
       attributes: dco_decode_attributes(arr[2]),
       measures: dco_decode_list_notation_measure(arr[3]),
+      playOrder: dco_decode_list_played_measure(arr[4]),
     );
   }
 
@@ -1327,6 +1383,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  int sse_decode_box_autoadd_u_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_u_32(deserializer));
+  }
+
+  @protected
   Clef sse_decode_clef(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_staff = sse_decode_u_32(deserializer);
@@ -1501,6 +1563,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<PlayedMeasure> sse_decode_list_played_measure(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <PlayedMeasure>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_played_measure(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   Uint32List sse_decode_list_prim_u_32_strict(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var len_ = sse_decode_i_32(deserializer);
@@ -1580,6 +1656,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_clefs = sse_decode_list_clef(deserializer);
     var var_keyFifths = sse_decode_i_32(deserializer);
     var var_minWidth = sse_decode_f_64(deserializer);
+    var var_repeats = sse_decode_repeat_marks(deserializer);
     return NotationMeasure(
       index: var_index,
       notes: var_notes,
@@ -1587,6 +1664,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       clefs: var_clefs,
       keyFifths: var_keyFifths,
       minWidth: var_minWidth,
+      repeats: var_repeats,
     );
   }
 
@@ -1730,12 +1808,66 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_u_32(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   Pitch sse_decode_pitch(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_step = sse_decode_Char(deserializer);
     var var_octave = sse_decode_i_32(deserializer);
     var var_alter = sse_decode_i_32(deserializer);
     return Pitch(step: var_step, octave: var_octave, alter: var_alter);
+  }
+
+  @protected
+  PlayedMeasure sse_decode_played_measure(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_writtenIndex = sse_decode_u_32(deserializer);
+    var var_pass = sse_decode_u_32(deserializer);
+    return PlayedMeasure(writtenIndex: var_writtenIndex, pass: var_pass);
+  }
+
+  @protected
+  RepeatMarks sse_decode_repeat_marks(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_forward = sse_decode_bool(deserializer);
+    var var_backwardTimes = sse_decode_u_32(deserializer);
+    var var_endingStart = sse_decode_list_prim_u_32_strict(deserializer);
+    var var_endingStop = sse_decode_bool(deserializer);
+    var var_endingDiscontinue = sse_decode_bool(deserializer);
+    var var_measureRepeatOf = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_measureRepeatSlashes = sse_decode_u_32(deserializer);
+    var var_segno = sse_decode_bool(deserializer);
+    var var_coda = sse_decode_bool(deserializer);
+    var var_soundDacapo = sse_decode_bool(deserializer);
+    var var_soundDalsegno = sse_decode_bool(deserializer);
+    var var_soundTocoda = sse_decode_bool(deserializer);
+    var var_soundFine = sse_decode_bool(deserializer);
+    var var_soundForwardRepeat = sse_decode_bool(deserializer);
+    return RepeatMarks(
+      forward: var_forward,
+      backwardTimes: var_backwardTimes,
+      endingStart: var_endingStart,
+      endingStop: var_endingStop,
+      endingDiscontinue: var_endingDiscontinue,
+      measureRepeatOf: var_measureRepeatOf,
+      measureRepeatSlashes: var_measureRepeatSlashes,
+      segno: var_segno,
+      coda: var_coda,
+      soundDacapo: var_soundDacapo,
+      soundDalsegno: var_soundDalsegno,
+      soundTocoda: var_soundTocoda,
+      soundFine: var_soundFine,
+      soundForwardRepeat: var_soundForwardRepeat,
+    );
   }
 
   @protected
@@ -1753,11 +1885,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_staves = sse_decode_u_32(deserializer);
     var var_attributes = sse_decode_attributes(deserializer);
     var var_measures = sse_decode_list_notation_measure(deserializer);
+    var var_playOrder = sse_decode_list_played_measure(deserializer);
     return ScoreDocument(
       meta: var_meta,
       staves: var_staves,
       attributes: var_attributes,
       measures: var_measures,
+      playOrder: var_playOrder,
     );
   }
 
@@ -1990,6 +2124,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self, serializer);
+  }
+
+  @protected
   void sse_encode_clef(Clef self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_32(self.staff, serializer);
@@ -2138,6 +2278,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_played_measure(
+    List<PlayedMeasure> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_played_measure(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_prim_u_32_strict(
     Uint32List self,
     SseSerializer serializer,
@@ -2222,6 +2374,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_list_clef(self.clefs, serializer);
     sse_encode_i_32(self.keyFifths, serializer);
     sse_encode_f_64(self.minWidth, serializer);
+    sse_encode_repeat_marks(self.repeats, serializer);
   }
 
   @protected
@@ -2339,11 +2492,47 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_u_32(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_pitch(Pitch self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_Char(self.step, serializer);
     sse_encode_i_32(self.octave, serializer);
     sse_encode_i_32(self.alter, serializer);
+  }
+
+  @protected
+  void sse_encode_played_measure(PlayedMeasure self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.writtenIndex, serializer);
+    sse_encode_u_32(self.pass, serializer);
+  }
+
+  @protected
+  void sse_encode_repeat_marks(RepeatMarks self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bool(self.forward, serializer);
+    sse_encode_u_32(self.backwardTimes, serializer);
+    sse_encode_list_prim_u_32_strict(self.endingStart, serializer);
+    sse_encode_bool(self.endingStop, serializer);
+    sse_encode_bool(self.endingDiscontinue, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.measureRepeatOf, serializer);
+    sse_encode_u_32(self.measureRepeatSlashes, serializer);
+    sse_encode_bool(self.segno, serializer);
+    sse_encode_bool(self.coda, serializer);
+    sse_encode_bool(self.soundDacapo, serializer);
+    sse_encode_bool(self.soundDalsegno, serializer);
+    sse_encode_bool(self.soundTocoda, serializer);
+    sse_encode_bool(self.soundFine, serializer);
+    sse_encode_bool(self.soundForwardRepeat, serializer);
   }
 
   @protected
@@ -2360,6 +2549,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_u_32(self.staves, serializer);
     sse_encode_attributes(self.attributes, serializer);
     sse_encode_list_notation_measure(self.measures, serializer);
+    sse_encode_list_played_measure(self.playOrder, serializer);
   }
 
   @protected

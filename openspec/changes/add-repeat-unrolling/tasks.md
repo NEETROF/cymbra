@@ -2,34 +2,34 @@
 
 ## 1. Model + parser (crates/musicxml-core)
 
-- [ ] 1.1 Extend the model: `RepeatMark` (forward / backward+times) on the
+- [x] 1.1 Extend the model: `RepeatMark` (forward / backward+times) on the
       measure's left/right barline, `Volta { numbers, kind }`,
       `measure_repeat_of: Option<u32>` (+ slash count), and jump markers
       (segno/coda/to-coda, D.C./D.S./Fine words with their `<sound>`
       semantics) — written order untouched.
-- [ ] 1.2 Parse `<barline>`/`<repeat>`, `<ending>`,
+- [x] 1.2 Parse `<barline>`/`<repeat>`, `<ending>`,
       `<measure-style>/<measure-repeat>` (transitive `%` resolution with a
       depth cap), `<segno>`/`<coda>` and `<sound>` jump attributes.
-- [ ] 1.3 Unit tests: each construct extracted; chained/malformed `%` bounded;
+- [x] 1.3 Unit tests: each construct extracted; chained/malformed `%` bounded;
       scores without repeats parse byte-identically to today (model defaults).
 
 ## 2. Playback order (crates/musicxml-core)
 
-- [ ] 2.1 Implement `play_order(&ScoreDocument) -> Vec<PlayedMeasure>`
+- [x] 2.1 Implement `play_order(&ScoreDocument) -> Vec<PlayedMeasure>`
       (written_index + pass): repeats with `times`, volta selection per pass
       (passes beyond the listed brackets replay the last), one D.C./D.S. jump
       (repeats not re-taken unless `<sound>` says so, end at Fine/coda).
-- [ ] 2.2 Safety caps (≤ 8× written measures, absolute ceiling) and 1:1
+- [x] 2.2 Safety caps (≤ 8× written measures, absolute ceiling) and 1:1
       written-order fallback on any inconsistency.
-- [ ] 2.3 Unit + property tests: simple repeat, times=3, voltas (incl. 1.–3.
+- [x] 2.3 Unit + property tests: simple repeat, times=3, voltas (incl. 1.–3.
       lists and discontinue), D.C. al Fine, D.S. al Coda, mismatched repeats →
       fallback, cap enforcement; fuzz random repeat marks never loop or panic.
 
 ## 3. Rust derivation + server surfaces
 
-- [ ] 3.1 `playback::schedule()` iterates `play_order`, accumulates time per
+- [x] 3.1 `playback::schedule()` iterates `play_order`, accumulates time per
       played slot, replays `%` content, merges ties on played adjacency only.
-- [ ] 3.2 Expose the played-slot table + written-measure mapping in
+- [x] 3.2 Expose the played-slot table + written-measure mapping in
       `PlaybackSchedule`; keep the no-repeat path identical (regression tests).
 - [ ] 3.3 Verify the backend audio-preview render job picks up the unrolled
       schedule (render a repeat fixture; clip duration covers the unroll).
@@ -38,7 +38,7 @@
 
 ## 4. Bridge + app derivation (apps/music)
 
-- [ ] 4.1 Mirror the new model/play-order types in
+- [x] 4.1 Mirror the new model/play-order types in
       `apps/music/rust/src/api/musicxml.rs` and regenerate the bridge
       (`flutter_rust_bridge_codegen generate`).
 - [ ] 4.2 `notationToTimedNotes` walks the play order: repeated passes,
