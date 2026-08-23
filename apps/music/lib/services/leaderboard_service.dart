@@ -19,6 +19,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../src/grpc/leaderboard.pbgrpc.dart' as lb;
 import '../state/leaderboard.dart';
 import 'grpc_client.dart';
+import 'rpc_deadlines.dart';
 
 part 'leaderboard_service.g.dart';
 
@@ -51,7 +52,11 @@ class GrpcLeaderboardService implements LeaderboardService {
   GrpcLeaderboardService({
     required ClientChannel channel,
     required AuthedRunner authed,
-  }) : _client = lb.LeaderboardServiceClient(channel),
+    RpcDeadlines deadlines = const RpcDeadlines(),
+  }) : _client = lb.LeaderboardServiceClient(
+         channel,
+         interceptors: [deadlines],
+       ),
        _authed = authed;
 
   final lb.LeaderboardServiceClient _client;
@@ -120,4 +125,5 @@ class GrpcLeaderboardService implements LeaderboardService {
 LeaderboardService leaderboardService(Ref ref) => GrpcLeaderboardService(
   channel: ref.watch(cymbraChannelProvider),
   authed: ref.watch(authedRunnerProvider),
+  deadlines: ref.watch(rpcDeadlinesProvider),
 );

@@ -111,6 +111,11 @@ class SoundFontSourceImpl implements SoundFontSource {
     try {
       final tokens = await _ref.read(tokenStoreProvider).readTokens();
       final token = tokens?.accessToken;
+      // Deliberately NO wall-clock timeout (change:
+      // add-client-transport-deadlines, design D5): a full SoundFont is a
+      // multi-hundred-MiB transfer whose legitimate duration depends on the
+      // user's bandwidth — any cap safe on a slow link is useless, any useful
+      // cap truncates real downloads. Bounded at connection establishment.
       final resp = await _client.get(
         uri,
         headers: {

@@ -19,6 +19,7 @@ import 'package:http/http.dart' as http;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import 'grpc_client.dart';
+import 'rpc_deadlines.dart';
 import 'soundfont_source.dart' show soundFontDeliveryOrigin;
 import 'token_store.dart';
 
@@ -68,13 +69,16 @@ class ScorePreviewServiceImpl implements ScorePreviewService {
     try {
       final tokens = await _ref.read(tokenStoreProvider).readTokens();
       final token = tokens?.accessToken;
-      resp = await _client.get(
-        uri,
-        headers: {
-          if (token != null && token.isNotEmpty)
-            'authorization': 'Bearer $token',
-        },
-      );
+      // Bounded media fetch (change: add-client-transport-deadlines).
+      resp = await _client
+          .get(
+            uri,
+            headers: {
+              if (token != null && token.isNotEmpty)
+                'authorization': 'Bearer $token',
+            },
+          )
+          .timeout(kTransferDeadline);
     } catch (e) {
       throw ScorePreviewException('fetch $catalogId preview: $e');
     }

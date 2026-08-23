@@ -199,6 +199,12 @@ class ImportedSoundFonts extends _$ImportedSoundFonts {
   Future<PianoEntry?> importSoundFont() async {
     final entry = await ref.read(soundFontImporterProvider).importSoundFont();
     if (entry == null) return null;
+    // Persist the LOCAL entry before awaiting the server upload (change:
+    // add-client-transport-deadlines, design D5): the upload is deliberately
+    // uncapped (bulk), so a hung transfer never throws — awaited first, it
+    // could wedge an import that is documented as unable to fail on it. The
+    // sync on a later build reconciles the remoteId if none is won here.
+    await _append(entry);
     var synced = entry;
     try {
       // `existsSync` guard: only touch the filesystem for a real copied file, so a
@@ -209,6 +215,7 @@ class ImportedSoundFonts extends _$ImportedSoundFonts {
             .read(privateSoundFontServiceProvider)
             .import(bytes, entry.label);
         synced = entry.copyWith(remoteId: remote.id);
+        await _replace(entry.id, synced);
       }
     } on PrivateSoundFontException catch (e) {
       // A quota refusal (403) is surfaced as an upsell cue (change:
@@ -219,9 +226,6 @@ class ImportedSoundFonts extends _$ImportedSoundFonts {
     } catch (_) {
       // Offline / server error: keep the local import; it migrates on next sync.
     }
-    final next = <PianoEntry>[...?state.valueOrNull, synced];
-    state = AsyncData(next);
-    await _persist(next);
     unawaited(
       ref
           .read(usageTrackingNotifierProvider.notifier)
@@ -230,18 +234,39 @@ class ImportedSoundFonts extends _$ImportedSoundFonts {
     return synced;
   }
 
+  /// Appends [entry] to the registry and persists it.
+  Future<void> _append(PianoEntry entry) async {
+    final next = <PianoEntry>[...?state.valueOrNull, entry];
+    state = AsyncData(next);
+    await _persist(next);
+  }
+
+  /// Replaces the entry with [id] by [to] and persists the registry.
+  Future<void> _replace(String id, PianoEntry to) async {
+    final next = <PianoEntry>[
+      for (final e in state.valueOrNull ?? const <PianoEntry>[])
+        if (e.id == id) to else e,
+    ];
+    state = AsyncData(next);
+    await _persist(next);
+  }
+
   /// Saves a picked `.sf2` under [label] into the private library (copy locally +
   /// upload to the server) and appends it. Used by the dedicated management
   /// screen's add drawer, where the user sets the label before committing. A
   /// failed upload is non-fatal (kept local, syncs later).
   Future<PianoEntry> addImport(Uint8List bytes, String label) async {
     final entry = await ref.read(soundFontImporterProvider).save(bytes, label);
+    // Persist local first — same reasoning as [importSoundFont]: the uncapped
+    // bulk upload must not be able to wedge the import.
+    await _append(entry);
     var synced = entry;
     try {
       final remote = await ref
           .read(privateSoundFontServiceProvider)
           .import(bytes, entry.label);
       synced = entry.copyWith(remoteId: remote.id);
+      await _replace(entry.id, synced);
     } on PrivateSoundFontException catch (e) {
       if (e.statusCode == 403) {
         ref.read(libraryQuotaCueProvider.notifier).bump();
@@ -249,9 +274,6 @@ class ImportedSoundFonts extends _$ImportedSoundFonts {
     } catch (_) {
       // Offline / server error: keep the local import; it migrates on next sync.
     }
-    final next = <PianoEntry>[...?state.valueOrNull, synced];
-    state = AsyncData(next);
-    await _persist(next);
     return synced;
   }
 

@@ -53,6 +53,8 @@ class _SilentConnectivity implements ConnectivityService {
   Stream<bool> get onlineStatus => const Stream.empty();
   @override
   Future<bool> isOnline() async => true;
+  @override
+  Future<bool> isDefinitelyOffline() async => !(true);
 }
 
 /// No-op retry scheduler so a failed drain doesn't arm a real timer.

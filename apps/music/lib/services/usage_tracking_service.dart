@@ -20,6 +20,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../analytics/usage_event_record.dart';
 import '../src/grpc/usage.pbgrpc.dart' as usage;
 import 'grpc_client.dart';
+import 'rpc_deadlines.dart';
 
 part 'usage_tracking_service.g.dart';
 
@@ -41,7 +42,8 @@ class GrpcUsageTrackingService implements UsageTrackingService {
   GrpcUsageTrackingService({
     required ClientChannel channel,
     required AuthedRunner authed,
-  }) : _client = usage.UsageServiceClient(channel),
+    RpcDeadlines deadlines = const RpcDeadlines(),
+  }) : _client = usage.UsageServiceClient(channel, interceptors: [deadlines]),
        _authed = authed;
 
   final usage.UsageServiceClient _client;
@@ -74,4 +76,5 @@ class GrpcUsageTrackingService implements UsageTrackingService {
 UsageTrackingService usageTrackingService(Ref ref) => GrpcUsageTrackingService(
   channel: ref.watch(cymbraChannelProvider),
   authed: ref.watch(authedRunnerProvider),
+  deadlines: ref.watch(rpcDeadlinesProvider),
 );

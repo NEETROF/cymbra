@@ -18,6 +18,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../src/grpc/user.pbgrpc.dart' as user;
 import 'grpc_client.dart';
+import 'rpc_deadlines.dart';
 
 part 'profile_service.g.dart';
 
@@ -64,7 +65,8 @@ class GrpcProfileService implements ProfileService {
   GrpcProfileService({
     required ClientChannel channel,
     required AuthedRunner authed,
-  }) : _client = user.UserServiceClient(channel),
+    RpcDeadlines deadlines = const RpcDeadlines(),
+  }) : _client = user.UserServiceClient(channel, interceptors: [deadlines]),
        _authed = authed;
 
   final user.UserServiceClient _client;
@@ -113,4 +115,5 @@ class GrpcProfileService implements ProfileService {
 ProfileService profileService(Ref ref) => GrpcProfileService(
   channel: ref.watch(cymbraChannelProvider),
   authed: ref.watch(authedRunnerProvider),
+  deadlines: ref.watch(rpcDeadlinesProvider),
 );

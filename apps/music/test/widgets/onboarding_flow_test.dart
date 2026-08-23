@@ -31,6 +31,7 @@ import 'package:music/services/notation_engine.dart';
 import 'package:music/services/oidc_token_source.dart';
 import 'package:music/services/preferences_service.dart';
 import 'package:music/services/score_asset_source.dart';
+import 'package:music/services/soundfont_catalog_service.dart';
 import 'package:music/services/token_store.dart';
 import 'package:music/state/app_locale.dart';
 import 'package:music/state/onboarding_notifier.dart';
@@ -41,6 +42,7 @@ import 'package:music/state/session_notifier.dart';
 import 'package:music/state/session_state.dart';
 
 import '../support/auth_fakes.dart';
+import '../support/soundfont_fakes.dart';
 import '../support/auth_harness.dart';
 import '../support/fakes.dart';
 import '../support/notation_fakes.dart';
@@ -65,6 +67,12 @@ ProviderContainer _container({
       deviceLocaleProvider.overrideWithValue(device),
       tokenStoreProvider.overrideWithValue(store ?? FakeTokenStore()),
       authServiceProvider.overrideWithValue(FakeAuthService()),
+      // Keeps the sound-selection step off the real channel (change:
+      // add-client-transport-deadlines — a live call would arm a deadline
+      // timer the test binding flags as pending).
+      soundFontCatalogServiceProvider.overrideWithValue(
+        FakeSoundFontCatalogService(),
+      ),
       accountServiceProvider.overrideWithValue(FakeAccountService()),
       oidcTokenSourceProvider.overrideWithValue(FakeOidcTokenSource()),
       curatorRewardsServiceProvider.overrideWithValue(

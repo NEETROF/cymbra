@@ -21,6 +21,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../courses/course_manifest.dart';
 import '../src/grpc/score.pbgrpc.dart' as score;
 import 'grpc_client.dart';
+import 'rpc_deadlines.dart';
 import 'preferences_service.dart';
 
 part 'course_catalog_service.g.dart';
@@ -49,7 +50,8 @@ class GrpcCourseCatalogService implements CourseCatalogService {
   GrpcCourseCatalogService({
     required ClientChannel channel,
     required AuthedRunner authed,
-  }) : _client = score.ScoreServiceClient(channel),
+    RpcDeadlines deadlines = const RpcDeadlines(),
+  }) : _client = score.ScoreServiceClient(channel, interceptors: [deadlines]),
        _authed = authed;
 
   final score.ScoreServiceClient _client;
@@ -91,6 +93,7 @@ class GrpcCourseCatalogService implements CourseCatalogService {
 CourseCatalogService courseCatalogService(Ref ref) => GrpcCourseCatalogService(
   channel: ref.watch(cymbraChannelProvider),
   authed: ref.watch(authedRunnerProvider),
+  deadlines: ref.watch(rpcDeadlinesProvider),
 );
 
 /// Seam over the backend's cross-device course completion (change:
@@ -112,7 +115,8 @@ class GrpcCourseProgressService implements CourseProgressService {
   GrpcCourseProgressService({
     required ClientChannel channel,
     required AuthedRunner authed,
-  }) : _client = score.ScoreServiceClient(channel),
+    RpcDeadlines deadlines = const RpcDeadlines(),
+  }) : _client = score.ScoreServiceClient(channel, interceptors: [deadlines]),
        _authed = authed;
 
   final score.ScoreServiceClient _client;
@@ -145,6 +149,7 @@ CourseProgressService courseProgressService(Ref ref) =>
     GrpcCourseProgressService(
       channel: ref.watch(cymbraChannelProvider),
       authed: ref.watch(authedRunnerProvider),
+      deadlines: ref.watch(rpcDeadlinesProvider),
     );
 
 const String _kCoursesCacheKey = 'courses.listing.v1';

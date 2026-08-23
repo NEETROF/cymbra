@@ -183,6 +183,8 @@ class _FakeConnectivity extends Fake implements ConnectivityService {
   Stream<bool> get onlineStatus => _status.stream;
   @override
   Future<bool> isOnline() async => online;
+  @override
+  Future<bool> isDefinitelyOffline() async => !(online);
 
   /// Flip connectivity live (as `connectivity_plus` would on a Wi-Fi change).
   void setOnline(bool value) {

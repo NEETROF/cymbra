@@ -21,6 +21,7 @@ import 'package:http/http.dart' as http;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import 'grpc_client.dart';
+import 'rpc_deadlines.dart';
 import 'soundfont_source.dart' show soundFontDeliveryOrigin;
 import 'token_store.dart';
 
@@ -146,7 +147,9 @@ class HttpPrivateSoundFontService implements PrivateSoundFontService {
   Future<List<RemoteSoundFont>> list() async {
     final uri = Uri.parse('$_origin/me/soundfonts');
     try {
-      final resp = await _client.get(uri, headers: await _authHeaders());
+      final resp = await _client
+          .get(uri, headers: await _authHeaders())
+          .timeout(kInteractiveDeadline);
       if (resp.statusCode != 200) {
         throw PrivateSoundFontException('list: HTTP ${resp.statusCode}');
       }
@@ -168,6 +171,12 @@ class HttpPrivateSoundFontService implements PrivateSoundFontService {
       '$_origin/me/soundfonts?label=${Uri.encodeQueryComponent(label)}',
     );
     try {
+      // Deliberately NO wall-clock timeout (change:
+      // add-client-transport-deadlines, design D5): a 400 MiB import's
+      // legitimate duration is a function of the user's bandwidth. Any cap
+      // large enough to be safe on a slow link is useless, and any useful cap
+      // truncates real uploads. Bounded at connection establishment only; a
+      // half-open socket errors when the OS exhausts TCP retransmissions.
       final resp = await _client.post(
         uri,
         headers: await _authHeaders(),
@@ -194,6 +203,7 @@ class HttpPrivateSoundFontService implements PrivateSoundFontService {
   Future<Uint8List> download(String id) async {
     final uri = Uri.parse('$_origin/me/soundfonts/${Uri.encodeComponent(id)}');
     try {
+      // Deliberately NO wall-clock timeout — bulk transfer, see [import].
       final resp = await _client.get(uri, headers: await _authHeaders());
       if (resp.statusCode != 200) {
         throw PrivateSoundFontException('download: HTTP ${resp.statusCode}');
@@ -210,7 +220,9 @@ class HttpPrivateSoundFontService implements PrivateSoundFontService {
   Future<void> delete(String id) async {
     final uri = Uri.parse('$_origin/me/soundfonts/${Uri.encodeComponent(id)}');
     try {
-      final resp = await _client.delete(uri, headers: await _authHeaders());
+      final resp = await _client
+          .delete(uri, headers: await _authHeaders())
+          .timeout(kInteractiveDeadline);
       // 204/200 on success; 404 (already gone) is fine too.
       if (resp.statusCode != 200 &&
           resp.statusCode != 204 &&
@@ -243,7 +255,9 @@ class HttpPrivateSoundFontService implements PrivateSoundFontService {
       '$_origin/me/soundfonts/${Uri.encodeComponent(id)}/propose',
     ).replace(queryParameters: query);
     try {
-      final resp = await _client.post(uri, headers: await _authHeaders());
+      final resp = await _client
+          .post(uri, headers: await _authHeaders())
+          .timeout(kInteractiveDeadline);
       if (resp.statusCode != 201) {
         // 409 = the font is already in the catalog (already proposed, or identical
         // content) — surfaced distinctly by the caller.

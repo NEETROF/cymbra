@@ -19,6 +19,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../src/grpc/score.pbgrpc.dart' as score;
 import '../state/piano_catalog.dart';
 import 'grpc_client.dart';
+import 'rpc_deadlines.dart';
 
 part 'soundfont_catalog_service.g.dart';
 
@@ -44,7 +45,8 @@ class GrpcSoundFontCatalogService implements SoundFontCatalogService {
   GrpcSoundFontCatalogService({
     required ClientChannel channel,
     required AuthedRunner authed,
-  }) : _client = score.ScoreServiceClient(channel),
+    RpcDeadlines deadlines = const RpcDeadlines(),
+  }) : _client = score.ScoreServiceClient(channel, interceptors: [deadlines]),
        _authed = authed;
 
   final score.ScoreServiceClient _client;
@@ -97,6 +99,7 @@ SoundFontCatalogService soundFontCatalogService(Ref ref) =>
     GrpcSoundFontCatalogService(
       channel: ref.watch(cymbraChannelProvider),
       authed: ref.watch(authedRunnerProvider),
+      deadlines: ref.watch(rpcDeadlinesProvider),
     );
 
 /// The server's downloadable pianos, fetched once and cached by the provider.

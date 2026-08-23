@@ -66,6 +66,14 @@ AuthError authErrorFromCode(int grpcCode) {
   switch (grpcCode) {
     case 3:
       return AuthError.invalidArgument;
+    case 4:
+      // DEADLINE_EXCEEDED is deliberately indistinguishable from UNAVAILABLE
+      // (change: add-client-transport-deadlines): a deadline overrun means the
+      // backend is unreachable as far as every consumer is concerned. In
+      // particular `notation_notifier._classifyLoad` gates the offline-cache
+      // fallback on `AuthError.unavailable` — an unmapped code 4 would skip
+      // the cache exactly when it is needed.
+      return AuthError.unavailable;
     case 5:
       return AuthError.notFound;
     case 6:

@@ -217,4 +217,9 @@ class SelectedScore extends _$SelectedScore {
 
   /// Records [entry] as the active score (drives the partition screen).
   void select(CatalogEntry entry) => state = entry;
+
+  /// Clears the selection (change: add-client-transport-deadlines): cancelling
+  /// the score-open wait clears it so the notation load's stale-entry guards
+  /// discard the late result — no separate "cancelled" flag needed.
+  void clear() => state = null;
 }

@@ -137,6 +137,20 @@ void main() {
       expect(store.tokens?.refreshToken, 'r0', reason: 'never cleared offline');
     });
 
+    test('DEADLINE_EXCEEDED is transient: session kept intact', () async {
+      // A timed-out refresh (change: add-client-transport-deadlines) must be
+      // indistinguishable from UNAVAILABLE: the user stays signed in and the
+      // stored pair survives for a later retry.
+      final store = FakeTokenStore(tokens: _stored());
+      final refresher = CoordinatedTokenRefresher(
+        tokenStore: store,
+        refreshRpc: (_) async => throw GrpcError.deadlineExceeded('deadline'),
+      );
+
+      expect(await refresher.refresh(), isA<RefreshTransient>());
+      expect(store.tokens, isNotNull, reason: 'session must survive a timeout');
+    });
+
     test('a raw GrpcError is classified by its status code', () async {
       final terminalStore = FakeTokenStore(tokens: _stored());
       expect(
