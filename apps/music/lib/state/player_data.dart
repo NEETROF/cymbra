@@ -125,6 +125,13 @@ class TimedNote {
   /// never a stem or flag of its own, matching the engraved Partition.
   final bool isChord;
 
+  /// Set only on a **merged tie chain's first note**: the start (ms) of the
+  /// chain's first continuation — where the written attack ends and the tied
+  /// sustain begins. The waterfall renders the bar's attack segment (up to
+  /// here) full-strength and the sustain tail slimmer/quieter, so "strike now"
+  /// and "keep holding" read differently. Null on ordinary notes.
+  final int? sustainFromMs;
+
   const TimedNote({
     required this.pitch,
     required this.startMs,
@@ -141,6 +148,7 @@ class TimedNote {
     this.tieFromMs,
     this.isGrace = false,
     this.isChord = false,
+    this.sustainFromMs,
   });
 }
 

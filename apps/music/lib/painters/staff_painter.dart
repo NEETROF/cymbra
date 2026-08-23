@@ -881,8 +881,12 @@ class StaffPainter extends CustomPainter {
     return merged;
   }
 
-  /// A tie between two same-pitch heads: a shallow arc from the previous head's
-  /// right edge to the continuation's left edge, bowed on the head side.
+  /// A tie between two same-pitch heads: an arc from the previous head's
+  /// right edge to the continuation's left edge, bowed on the head side. The
+  /// bow grows with the span (clamped) so a tie crossing a whole measure
+  /// arches over the glyphs between the heads instead of slicing through
+  /// them as a near-horizontal line; it is also drawn lighter than the
+  /// notation it crosses.
   void _drawTieArc(
     Canvas canvas,
     double x1,
@@ -893,14 +897,15 @@ class StaffPainter extends CustomPainter {
   ) {
     final dir = bowUp ? -1.0 : 1.0;
     final yEdge = y + dir * lineGap * 0.55;
+    final bow = ((x2 - x1).abs() * 0.12).clamp(lineGap, lineGap * 2.6);
     canvas.drawPath(
       Path()
         ..moveTo(x1, yEdge)
-        ..quadraticBezierTo((x1 + x2) / 2, yEdge + dir * lineGap, x2, yEdge),
+        ..quadraticBezierTo((x1 + x2) / 2, yEdge + dir * bow, x2, yEdge),
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = Smufl.stemThickness * lineGap
-        ..color = palette.staffLine.withValues(alpha: 0.75),
+        ..color = palette.staffLine.withValues(alpha: 0.55),
     );
   }
 

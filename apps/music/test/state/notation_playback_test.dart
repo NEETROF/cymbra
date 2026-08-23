@@ -545,6 +545,9 @@ void main() {
           expect(d.notes, hasLength(1));
           expect(d.notes.single.noteType, 'eighth');
           expect(d.notes.single.durationMs, (quarterMs * 4).round());
+          // The waterfall's attack/sustain split: the sustain starts where the
+          // FIRST continuation begins, and later links never move it.
+          expect(d.notes.single.sustainFromMs, (quarterMs / 2).round());
           // Notation: both continuations kept, as written, each anchored to the
           // engraved note it prolongs (a chain arcs link-to-link, not all-to-first).
           expect(d.tieContinuations, hasLength(2));

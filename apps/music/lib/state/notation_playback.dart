@@ -236,6 +236,9 @@ DerivedPlayback notationToTimedNotes(ScoreDocument document) {
           notes[open.index] = _withDuration(
             first,
             endMs.round() - first.startMs,
+            // The first continuation marks where the written attack ends and
+            // the tied sustain begins (kept across later links of the chain).
+            sustainFromMs: first.sustainFromMs ?? startMs.round(),
           );
           // Keep the engraved figure for the notation painters, anchored to the
           // chain's previous engraved note so the tie arc can be drawn.
@@ -286,23 +289,25 @@ DerivedPlayback notationToTimedNotes(ScoreDocument document) {
 
 /// [n] with its duration replaced — how a tie chain's first note absorbs each
 /// continuation while keeping its own onset, spelling and rhythmic figure.
-TimedNote _withDuration(TimedNote n, int durationMs) => TimedNote(
-  pitch: n.pitch,
-  startMs: n.startMs,
-  durationMs: durationMs,
-  staff: n.staff,
-  beams: n.beams,
-  clefSign: n.clefSign,
-  clefLine: n.clefLine,
-  noteType: n.noteType,
-  dots: n.dots,
-  diatonic: n.diatonic,
-  accidental: n.accidental,
-  stemUp: n.stemUp,
-  tieFromMs: n.tieFromMs,
-  isGrace: n.isGrace,
-  isChord: n.isChord,
-);
+TimedNote _withDuration(TimedNote n, int durationMs, {int? sustainFromMs}) =>
+    TimedNote(
+      pitch: n.pitch,
+      startMs: n.startMs,
+      durationMs: durationMs,
+      staff: n.staff,
+      beams: n.beams,
+      clefSign: n.clefSign,
+      clefLine: n.clefLine,
+      noteType: n.noteType,
+      dots: n.dots,
+      diatonic: n.diatonic,
+      accidental: n.accidental,
+      stemUp: n.stemUp,
+      tieFromMs: n.tieFromMs,
+      isGrace: n.isGrace,
+      isChord: n.isChord,
+      sustainFromMs: sustainFromMs ?? n.sustainFromMs,
+    );
 
 /// For each note of a measure, how many grace slots *before its position* it
 /// occupies: 0 for ordinary notes; a run of consecutive pitched graces sharing
