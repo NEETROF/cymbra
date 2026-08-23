@@ -110,8 +110,9 @@ async fn serve_preview(
             // The drum gate (change: add-drums-access): a percussion piece's
             // 200-vs-404 is an existence oracle and its body an audible clip,
             // so an ineligible caller gets exactly the absent-preview answer.
-            // (No clip is baked for percussion anyway; this also covers any
-            // stale clip rendered before the row was classified.)
+            // Percussion previews DO render now (change: add-drum-audio-channel,
+            // kit font on the drum channel), so this audience gate is what keeps
+            // the clip from disclosing the piece to the ineligible.
             if obj.instrument == cymbra_music::Instrument::Percussion {
                 let user = s.auth.identify(&headers).unwrap_or_default();
                 let eligible = match s.drums.as_ref() {

@@ -28,6 +28,18 @@ pub const DEFAULT_BPM: u16 = 90;
 /// Note velocity used for playback (the app plays every note at a constant velocity).
 pub const DEFAULT_VELOCITY: u8 = 100;
 
+/// The synth channel melodic (keyboard) playback runs on (change:
+/// add-drum-audio-channel). Defined ONCE here for every synth site — the app
+/// engine, the console's wasm renderer and the backend preview renderer — so
+/// the sites cannot drift; the constants are wire-like: every stored kit font
+/// depends on them.
+pub const MELODIC_CHANNEL: i32 = 0;
+
+/// The synth channel percussion runs on: MIDI channel 10, index 9 as
+/// rustysynth counts channels — the SoundFont/General MIDI convention under
+/// which presets resolve in bank 128 (the drum kits).
+pub const DRUM_CHANNEL: i32 = 9;
+
 const SEMITONE_OF_STEP: [(char, i32); 7] = [
     ('C', 0),
     ('D', 2),
@@ -573,5 +585,19 @@ mod tests {
         let g = s.notes.iter().find(|n| n.midi == 71).unwrap();
         assert_eq!(g.onset_ms, 0);
         assert_eq!(g.duration_ms, grace_ms_of(120).round() as u32);
+    }
+}
+
+#[cfg(test)]
+mod channel_pin_tests {
+    use super::{DRUM_CHANNEL, MELODIC_CHANNEL};
+
+    /// Wire-like values (change: add-drum-audio-channel): three synth sites
+    /// and every stored kit font depend on them — a refactor must not move
+    /// them silently.
+    #[test]
+    fn the_channel_constants_are_pinned() {
+        assert_eq!(MELODIC_CHANNEL, 0);
+        assert_eq!(DRUM_CHANNEL, 9); // MIDI channel 10, bank-128 preset lookup
     }
 }

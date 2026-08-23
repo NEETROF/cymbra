@@ -70,6 +70,10 @@ class GrpcSoundFontCatalogService implements SoundFontCatalogService {
                 kind: PianoKind.download,
                 // The delivery-route font id (GET /soundfonts/{id}).
                 source: f.id,
+                // The wire instrument family (change: add-drum-audio-channel):
+                // `percussion` fonts feed the kit picker; `keyboard` — and the
+                // legacy `piano` spelling — stay the keyboard family.
+                family: soundFamilyFromWire(f.instrument),
                 license: f.license.isEmpty ? null : f.license,
                 attribution: f.attribution.isEmpty ? null : f.attribution,
                 // Opt-in public "proposé par" credit (change:

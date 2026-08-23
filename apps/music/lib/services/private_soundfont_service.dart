@@ -99,7 +99,15 @@ abstract class PrivateSoundFontService {
   /// Upload a `.sf2` into the private library. Idempotent server-side by content
   /// digest, so re-uploading identical bytes returns the existing entry. Returns
   /// the created/existing remote font.
-  Future<RemoteSoundFont> import(Uint8List bytes, String label);
+  /// [family], when known, is sent as the declared instrument family — the
+  /// server verifies the claim against the bytes' preset banks and refuses a
+  /// mismatch; absent, the server detects the family from the bytes itself
+  /// (change: add-drum-audio-channel).
+  Future<RemoteSoundFont> import(
+    Uint8List bytes,
+    String label, {
+    String? family,
+  });
 
   /// Download a private font's bytes (owner-only).
   Future<Uint8List> download(String id);
@@ -166,9 +174,16 @@ class HttpPrivateSoundFontService implements PrivateSoundFontService {
   }
 
   @override
-  Future<RemoteSoundFont> import(Uint8List bytes, String label) async {
+  Future<RemoteSoundFont> import(
+    Uint8List bytes,
+    String label, {
+    String? family,
+  }) async {
+    final instrument = family == null
+        ? ''
+        : '&instrument=${Uri.encodeQueryComponent(family)}';
     final uri = Uri.parse(
-      '$_origin/me/soundfonts?label=${Uri.encodeQueryComponent(label)}',
+      '$_origin/me/soundfonts?label=${Uri.encodeQueryComponent(label)}$instrument',
     );
     try {
       // Deliberately NO wall-clock timeout (change:

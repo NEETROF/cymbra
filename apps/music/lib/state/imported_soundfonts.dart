@@ -25,6 +25,7 @@ import '../services/preferences_service.dart';
 import '../services/private_soundfont_service.dart';
 import '../services/soundfont_importer.dart';
 import '../services/soundfont_storage.dart';
+import '../src/rust/api/audio.dart' show SoundFontFamilyEvidence;
 import 'piano_catalog.dart';
 import 'usage_tracking_notifier.dart';
 
@@ -158,11 +159,23 @@ class ImportedSoundFonts extends _$ImportedSoundFonts {
       if (!file.existsSync()) {
         await file.writeAsBytes(await service.download(r.id), flush: true);
       }
+      // The private-library listing does not carry the instrument family (the
+      // sync wire is still family-less — see [importSoundFont]), so a font
+      // imported on another device is re-detected from the cached bytes'
+      // preset banks here, with the same rule the local import uses (change:
+      // add-drum-audio-channel).
+      SoundFontFamilyEvidence? evidence;
+      try {
+        evidence = await ref.read(soundFontFamilyProbeProvider)(file.path);
+      } catch (_) {
+        evidence = null;
+      }
       return PianoEntry(
         id: r.id,
         label: r.label,
         kind: PianoKind.user,
         source: file.path,
+        family: familyFromEvidence(evidence),
         remoteId: r.id,
       );
     } catch (_) {
@@ -211,9 +224,12 @@ class ImportedSoundFonts extends _$ImportedSoundFonts {
       // fake importer (tests) doesn't spawn real I/O the widget harness can't drain.
       if (File(entry.source).existsSync()) {
         final bytes = await File(entry.source).readAsBytes();
+        // The detected family rides the sync as the declared claim — the
+        // server VERIFIES it against the bytes' preset banks (a mismatch is
+        // refused), where an absent claim would merely be re-detected.
         final remote = await ref
             .read(privateSoundFontServiceProvider)
-            .import(bytes, entry.label);
+            .import(bytes, entry.label, family: entry.family.name);
         synced = entry.copyWith(remoteId: remote.id);
         await _replace(entry.id, synced);
       }

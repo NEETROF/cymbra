@@ -65,6 +65,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ScoreSummary dco_decode_box_autoadd_score_summary(dynamic raw);
 
   @protected
+  SoundFontFamilyEvidence dco_decode_box_autoadd_sound_font_family_evidence(
+    dynamic raw,
+  );
+
+  @protected
   StemDir dco_decode_box_autoadd_stem_dir(dynamic raw);
 
   @protected
@@ -185,6 +190,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ScoreSummary? dco_decode_opt_box_autoadd_score_summary(dynamic raw);
 
   @protected
+  SoundFontFamilyEvidence?
+  dco_decode_opt_box_autoadd_sound_font_family_evidence(dynamic raw);
+
+  @protected
   StemDir? dco_decode_opt_box_autoadd_stem_dir(dynamic raw);
 
   @protected
@@ -216,6 +225,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ScoreSummary dco_decode_score_summary(dynamic raw);
+
+  @protected
+  SoundFontFamilyEvidence dco_decode_sound_font_family_evidence(dynamic raw);
 
   @protected
   StemDir dco_decode_stem_dir(dynamic raw);
@@ -294,6 +306,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ScoreSummary sse_decode_box_autoadd_score_summary(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SoundFontFamilyEvidence sse_decode_box_autoadd_sound_font_family_evidence(
     SseDeserializer deserializer,
   );
 
@@ -430,6 +447,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  SoundFontFamilyEvidence?
+  sse_decode_opt_box_autoadd_sound_font_family_evidence(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   StemDir? sse_decode_opt_box_autoadd_stem_dir(SseDeserializer deserializer);
 
   @protected
@@ -461,6 +484,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ScoreSummary sse_decode_score_summary(SseDeserializer deserializer);
+
+  @protected
+  SoundFontFamilyEvidence sse_decode_sound_font_family_evidence(
+    SseDeserializer deserializer,
+  );
 
   @protected
   StemDir sse_decode_stem_dir(SseDeserializer deserializer);
@@ -552,6 +580,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_score_summary(
     ScoreSummary self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_sound_font_family_evidence(
+    SoundFontFamilyEvidence self,
     SseSerializer serializer,
   );
 
@@ -721,6 +755,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_sound_font_family_evidence(
+    SoundFontFamilyEvidence? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_stem_dir(
     StemDir? self,
     SseSerializer serializer,
@@ -761,6 +801,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_score_summary(ScoreSummary self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_sound_font_family_evidence(
+    SoundFontFamilyEvidence self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_stem_dir(StemDir self, SseSerializer serializer);

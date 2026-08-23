@@ -33,11 +33,12 @@ const props = defineProps<{
   // an opt-out because Vue casts an absent boolean prop to `false`, so the default has
   // to be the "transport visible" case.
   hideTransport?: boolean;
-  // The Play guard's reason line (installed by add-drums-access, lifted by
-  // add-drum-audio-channel): the score is percussion, so Play stays refused with a
-  // localised "not auditionable yet" note — while the notation now renders
-  // normally (change: add-drum-notation-render lifted the preview guard).
-  percussionGuard?: boolean;
+  // The Play guard is lifted (change: add-drum-audio-channel) — a percussion
+  // score auditions on the drum channel with a kit font. What remains is the one
+  // honest degradation: the catalog holds no accepted percussion-family font, so
+  // Play shows a localised "no drum kit available" note — distinct from an
+  // error, since the score is fine.
+  noKitFont?: boolean;
 }>();
 const emit = defineEmits<{ toggle: []; seek: [ms: number] }>();
 const { t } = useI18n();
@@ -126,17 +127,15 @@ function meta(): { label: string; value: string }[] {
         </button>
         <output v-if="audioLoading" class="spinner" :aria-label="audioMsg ?? ''"></output>
         <span v-if="audioMsg" class="muted">{{ audioMsg }}</span>
-        <!-- Drum guard note (change: add-drums-access): explains the disabled Play —
+        <!-- No accepted kit font in the catalog: explains the disabled Play —
              deliberately NOT styled as an error; the notation above renders fine. -->
-        <span v-else-if="percussionGuard" class="muted" data-testid="drums-no-audition">{{
-          t("preview.percussionNotAuditionable")
-        }}</span>
+        <span v-else-if="noKitFont" class="muted" data-testid="no-drum-kit">{{ t("preview.noDrumKit") }}</span>
         <span v-else class="muted hint">{{ t("preview.seekHint") }}</span>
       </div>
       <!-- The transport moved out (review mode): keep the seek affordance visible —
-           unless the drum Play guard makes seeking inert (the host view shows its
-           own "not auditionable yet" note next to the hoisted transport). -->
-      <p v-else-if="!percussionGuard" class="muted hint transport-hint">{{ t("preview.seekHint") }}</p>
+           unless the missing kit font makes seeking inert (the host view shows its
+           own "no drum kit available" note next to the hoisted transport). -->
+      <p v-else-if="!noKitFont" class="muted hint transport-hint">{{ t("preview.seekHint") }}</p>
       <!-- eslint-disable-next-line vue/no-v-html -- SVG is painter-generated, not user input -->
       <div ref="wrapRef" class="svg-wrap" aria-label="score preview" v-html="notationView.svg"></div>
     </div>

@@ -43,6 +43,155 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
     s
 }
 
+/// The keyboard instrument family — the score vocabulary the soundfont column
+/// speaks since `add-drum-audio-channel` (its former `piano` spelling is
+/// normalised at every upload boundary).
+pub const KEYBOARD_FAMILY: &str = "keyboard";
+/// The percussion instrument family (drum kits: fonts with bank-128 presets).
+pub const PERCUSSION_FAMILY: &str = "percussion";
+
+/// Normalise a declared instrument family at an upload boundary (change:
+/// add-drum-audio-channel): the legacy `piano` spelling and an absent/empty
+/// declaration both mean [`KEYBOARD_FAMILY`] — permanently, so shipped app
+/// versions and old scripts keep working after the column migration. Any other
+/// value is passed through (trimmed) for [`verify_declared_family`] to judge.
+pub fn normalize_family(declared: &str) -> String {
+    let trimmed = declared.trim();
+    if trimmed.is_empty() || trimmed == "piano" {
+        KEYBOARD_FAMILY.to_string()
+    } else {
+        trimmed.to_string()
+    }
+}
+
+/// Why a declared family was refused at the door (change: add-drum-audio-channel).
+///
+/// A typed, localisable refusal: consumers match on [`FamilyRefusal::code`] (or
+/// the [`FamilyRefusal::message`] prefix, the repo's typed-refusal convention —
+/// like `drums_not_available`), never on prose.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FamilyRefusal {
+    /// The declared family names a bank the font does not hold: `percussion`
+    /// with no bank-128 preset, or `keyboard` with no melodic-bank preset.
+    Mismatch {
+        declared: String,
+        /// What the font is missing, for the message.
+        missing: &'static str,
+    },
+    /// The preset headers could not be read — never guessed as either family.
+    CannotVerify(String),
+    /// The declared value is not an instrument family at all.
+    UnknownFamily(String),
+}
+
+impl FamilyRefusal {
+    /// Stable machine-readable code (the HTTP refusal body's `code`).
+    pub fn code(&self) -> &'static str {
+        match self {
+            FamilyRefusal::Mismatch { .. } => "soundfont_family_mismatch",
+            FamilyRefusal::CannotVerify(_) => "soundfont_family_unverifiable",
+            FamilyRefusal::UnknownFamily(_) => "soundfont_family_unknown",
+        }
+    }
+
+    /// The typed refusal message; always starts with `{code}:`.
+    pub fn message(&self) -> String {
+        match self {
+            FamilyRefusal::Mismatch { declared, missing } => {
+                format!(
+                    "soundfont_family_mismatch: declared '{declared}' but the font has no {missing}"
+                )
+            }
+            FamilyRefusal::CannotVerify(why) => {
+                format!("soundfont_family_unverifiable: preset banks could not be read ({why})")
+            }
+            FamilyRefusal::UnknownFamily(declared) => {
+                format!(
+                    "soundfont_family_unknown: '{declared}' is not an instrument family (keyboard|percussion)"
+                )
+            }
+        }
+    }
+}
+
+/// Verify a declared (already [`normalize_family`]-normalised) family against the
+/// font bytes' preset banks (change: add-drum-audio-channel). Deliberately
+/// asymmetric, because fonts legitimately hold both banks (a full General MIDI
+/// bank is a piano *and* a kit):
+///
+/// - `percussion` requires at least one bank-128 preset — without one the drum
+///   channel finds nothing and the font is silent-by-construction;
+/// - `keyboard` requires at least one melodic-bank preset — the mirror failure;
+/// - a font holding both banks passes either declaration.
+///
+/// Unreadable preset headers are a refusal of their own
+/// ([`FamilyRefusal::CannotVerify`]) — never a guess at either family.
+pub fn verify_declared_family(declared: &str, bytes: &[u8]) -> Result<(), FamilyRefusal> {
+    let required: &'static str = match declared {
+        KEYBOARD_FAMILY => "melodic-bank preset",
+        PERCUSSION_FAMILY => "bank-128 (drum kit) preset",
+        other => return Err(FamilyRefusal::UnknownFamily(other.to_string())),
+    };
+    let evidence = cymbra_sf2_meta::family_evidence(bytes)
+        .map_err(|e| FamilyRefusal::CannotVerify(e.to_string()))?;
+    let holds = match declared {
+        PERCUSSION_FAMILY => evidence.has_percussion_presets,
+        _ => evidence.has_melodic_presets,
+    };
+    if holds {
+        Ok(())
+    } else {
+        Err(FamilyRefusal::Mismatch {
+            declared: declared.to_string(),
+            missing: required,
+        })
+    }
+}
+
+/// Detect a font's family from its preset banks with the import rule (change:
+/// add-drum-audio-channel): only bank-128 presets → [`PERCUSSION_FAMILY`],
+/// otherwise [`KEYBOARD_FAMILY`] (a both-banks font lands `keyboard`, the
+/// design's accepted trade-off). Used where no family was declared — the
+/// propose path derives the catalog row's family from the bytes it copies. A
+/// detected family passes [`verify_declared_family`] by construction.
+pub fn detect_family(bytes: &[u8]) -> Result<&'static str, FamilyRefusal> {
+    let evidence = cymbra_sf2_meta::family_evidence(bytes)
+        .map_err(|e| FamilyRefusal::CannotVerify(e.to_string()))?;
+    if evidence.has_percussion_presets && !evidence.has_melodic_presets {
+        Ok(PERCUSSION_FAMILY)
+    } else {
+        Ok(KEYBOARD_FAMILY)
+    }
+}
+
+/// Builds a minimal well-formed `.sf2` (RIFF/`sfbk` with a `pdta`/`phdr`) whose
+/// presets sit in `banks` — a **test fixture** for the family verification, kept
+/// non-`cfg(test)` like the `Fake*` doubles so the server's handler tests can
+/// build kit-shaped and piano-shaped uploads without a real font. Not a
+/// playable font (no samples); only the preset headers are real.
+pub fn fake_sf2_with_banks(banks: &[u16]) -> Vec<u8> {
+    let mut phdr = Vec::new();
+    for (i, bank) in banks.iter().enumerate() {
+        let mut rec = [0u8; 38];
+        rec[..4].copy_from_slice(b"Pst\0");
+        rec[20..22].copy_from_slice(&(i as u16).to_le_bytes());
+        rec[22..24].copy_from_slice(&bank.to_le_bytes());
+        phdr.extend_from_slice(&rec);
+    }
+    phdr.extend_from_slice(&[0u8; 38]); // EOP terminal record
+    let mut pdta = b"pdta".to_vec();
+    pdta.extend_from_slice(b"phdr");
+    pdta.extend_from_slice(&(phdr.len() as u32).to_le_bytes());
+    pdta.extend_from_slice(&phdr);
+    let mut out = b"RIFF".to_vec();
+    out.extend_from_slice(&((4 + 8 + pdta.len()) as u32).to_le_bytes());
+    out.extend_from_slice(b"sfbk");
+    out.extend_from_slice(b"LIST");
+    out.extend_from_slice(&(pdta.len() as u32).to_le_bytes());
+    out.extend_from_slice(&pdta);
+    out
+}
+
 /// A catalog entry: the client-facing id, the storage key inside the private
 /// SoundFont bucket, the instrument family, and the licence/attribution (recorded
 /// for CC-BY redistribution). Sourced from `music.soundfonts`.
@@ -968,5 +1117,108 @@ mod tests {
                 .await
                 .unwrap()
         );
+    }
+
+    // --- Family vocabulary + verification (change: add-drum-audio-channel) ---
+
+    #[test]
+    fn normalize_family_bridges_legacy_piano_and_empty_to_keyboard() {
+        assert_eq!(normalize_family("piano"), KEYBOARD_FAMILY);
+        assert_eq!(normalize_family(""), KEYBOARD_FAMILY);
+        assert_eq!(normalize_family("  "), KEYBOARD_FAMILY);
+        assert_eq!(normalize_family(" piano "), KEYBOARD_FAMILY);
+        // The two families pass through; anything else is left for verification
+        // to refuse (never silently mapped).
+        assert_eq!(normalize_family("keyboard"), KEYBOARD_FAMILY);
+        assert_eq!(normalize_family("percussion"), PERCUSSION_FAMILY);
+        assert_eq!(normalize_family("guitar"), "guitar");
+    }
+
+    #[test]
+    fn verify_declared_family_is_asymmetric_over_the_banks() {
+        let melodic = fake_sf2_with_banks(&[0, 8]);
+        let kit = fake_sf2_with_banks(&[128]);
+        let both = fake_sf2_with_banks(&[0, 128]);
+        // Each single-bank font supports exactly its own family.
+        assert!(verify_declared_family(KEYBOARD_FAMILY, &melodic).is_ok());
+        assert!(verify_declared_family(PERCUSSION_FAMILY, &kit).is_ok());
+        // A both-banks font passes either declaration.
+        assert!(verify_declared_family(KEYBOARD_FAMILY, &both).is_ok());
+        assert!(verify_declared_family(PERCUSSION_FAMILY, &both).is_ok());
+    }
+
+    #[test]
+    fn family_mismatch_is_a_typed_refusal_with_the_pinned_prefix() {
+        let melodic = fake_sf2_with_banks(&[0]);
+        let kit = fake_sf2_with_banks(&[128]);
+        let refusal = verify_declared_family(PERCUSSION_FAMILY, &melodic).unwrap_err();
+        assert_eq!(refusal.code(), "soundfont_family_mismatch");
+        assert!(
+            refusal.message().starts_with("soundfont_family_mismatch:"),
+            "{}",
+            refusal.message()
+        );
+        let refusal = verify_declared_family(KEYBOARD_FAMILY, &kit).unwrap_err();
+        assert!(
+            refusal.message().starts_with("soundfont_family_mismatch:"),
+            "{}",
+            refusal.message()
+        );
+    }
+
+    #[test]
+    fn unreadable_banks_are_cannot_verify_never_a_family() {
+        // A bare RIFF/sfbk preamble has no preset headers: distinct refusal
+        // wording, and neither declaration passes.
+        let mut preamble = b"RIFF".to_vec();
+        preamble.extend_from_slice(&0u32.to_le_bytes());
+        preamble.extend_from_slice(b"sfbk");
+        for family in [KEYBOARD_FAMILY, PERCUSSION_FAMILY] {
+            let refusal = verify_declared_family(family, &preamble).unwrap_err();
+            assert_eq!(refusal.code(), "soundfont_family_unverifiable");
+            assert!(
+                refusal
+                    .message()
+                    .starts_with("soundfont_family_unverifiable:"),
+                "{}",
+                refusal.message()
+            );
+        }
+        assert_eq!(
+            detect_family(&preamble).unwrap_err().code(),
+            "soundfont_family_unverifiable"
+        );
+    }
+
+    #[test]
+    fn unknown_family_is_refused_not_guessed() {
+        let refusal = verify_declared_family("guitar", &fake_sf2_with_banks(&[0])).unwrap_err();
+        assert_eq!(refusal.code(), "soundfont_family_unknown");
+        assert!(
+            refusal.message().starts_with("soundfont_family_unknown:"),
+            "{}",
+            refusal.message()
+        );
+    }
+
+    #[test]
+    fn detect_family_uses_the_import_rule() {
+        // Kit-only → percussion; melodic-only and both-banks → keyboard (the
+        // design's accepted trade-off for undeclared fonts).
+        assert_eq!(
+            detect_family(&fake_sf2_with_banks(&[128])).unwrap(),
+            PERCUSSION_FAMILY
+        );
+        assert_eq!(
+            detect_family(&fake_sf2_with_banks(&[0])).unwrap(),
+            KEYBOARD_FAMILY
+        );
+        assert_eq!(
+            detect_family(&fake_sf2_with_banks(&[0, 128])).unwrap(),
+            KEYBOARD_FAMILY
+        );
+        // A detected family always passes its own verification.
+        let kit = fake_sf2_with_banks(&[128]);
+        assert!(verify_declared_family(detect_family(&kit).unwrap(), &kit).is_ok());
     }
 }

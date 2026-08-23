@@ -27,7 +27,9 @@ import '../state/note_label.dart';
 import '../state/player_data.dart';
 import '../state/player_notifier.dart';
 import '../state/player_preferences.dart';
+import '../state/piano_catalog.dart' show SoundFamily;
 import '../state/score_catalog.dart';
+import '../state/selected_kit.dart';
 import '../state/selected_piano.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/coach_mark.dart';
@@ -173,7 +175,13 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     // port, which on Android leaks a MIDI port and eventually drops the whole USB
     // device (audio included).
     _port = ref.read(playerPreferencesProvider).midiPort;
-    _soundId = ref.read(selectedPianoProvider);
+    // The sound draft follows the loaded score's family (change:
+    // add-drum-audio-channel): a percussion score drafts the kit memory, every
+    // other score the piano memory — two selections that never disturb each
+    // other.
+    _soundId = data.isPercussion
+        ? ref.read(selectedKitProvider)
+        : ref.read(selectedPianoProvider);
     _range = data.keyboardRange;
     _keyboardVisible = data.keyboardVisible;
     _readingAid = data.readingAid;
@@ -216,7 +224,14 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     if (_invertedKit != current.invertedKit) {
       notifier.setInvertedKit(enabled: _invertedKit);
     }
-    if (_soundId != ref.read(selectedPianoProvider)) {
+    // Apply the sound draft to the loaded score's family memory (change:
+    // add-drum-audio-channel). The kit swap itself is the font-follows-score
+    // controller's reaction to the selection — never an imperative call here.
+    if (current.isPercussion) {
+      if (_soundId != ref.read(selectedKitProvider)) {
+        ref.read(selectedKitProvider.notifier).select(_soundId);
+      }
+    } else if (_soundId != ref.read(selectedPianoProvider)) {
       ref.read(selectedPianoProvider.notifier).select(_soundId);
     }
     final scoreSizeDraft = _scoreSizeDraft;
@@ -245,7 +260,7 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     final maxHeight = MediaQuery.of(context).size.height * 0.92;
 
     final facts = _facts(l10n, data, entry);
-    final sound = _soundSection(l10n);
+    final sound = _soundSection(l10n, percussion: data.isPercussion);
     // For percussion the selector reads hands / feet, offered despite the
     // single staff whenever the score has both — the split a drummer actually
     // practises (change: add-drum-kit-view).
@@ -592,21 +607,29 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     );
   }
 
-  /// Instrument sound picker (combobox), correlated to the score's instrument
-  /// (piano for now). A draft — applied on Validate like the other settings.
-  Widget _soundSection(AppLocalizations l10n) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      _sectionTitle(l10n.settingsCategoryPiano),
-      CoachTarget(
-        anchor: CoachAnchor.pianoSound,
-        child: SoundSelectorField(
-          value: _soundId,
-          onChanged: (id) => setState(() => _soundId = id),
-        ),
-      ),
-    ],
-  );
+  /// Instrument sound picker (combobox), scoped to the loaded score's family
+  /// (change: add-drum-audio-channel): a percussion score gets the **kit
+  /// picker** (kit fonts, kit label), everything else the piano picker. A
+  /// draft — applied on Validate like the other settings.
+  Widget _soundSection(AppLocalizations l10n, {required bool percussion}) =>
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _sectionTitle(
+            percussion ? l10n.settingsCategoryKit : l10n.settingsCategoryPiano,
+          ),
+          CoachTarget(
+            anchor: CoachAnchor.pianoSound,
+            child: SoundSelectorField(
+              value: _soundId,
+              family: percussion
+                  ? SoundFamily.percussion
+                  : SoundFamily.keyboard,
+              onChanged: (id) => setState(() => _soundId = id),
+            ),
+          ),
+        ],
+      );
 
   /// The inverted-kit layout (change: add-drum-kit-view): reverses the lane
   /// order and the pad strip together. Labelled by the KIT's setup, never the

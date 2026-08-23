@@ -66,6 +66,30 @@ pub mod maintenance {
             .context("building the score object store")?,
         ))
     }
+
+    /// The PRIVATE SoundFont object store the server itself uses (same keyspace
+    /// as the delivery/upload routes), for the `verify-soundfont-families`
+    /// one-shot ops pass (change: add-drum-audio-channel).
+    pub fn soundfont_object_store(cfg: &Config) -> anyhow::Result<Arc<dyn ObjectStorage>> {
+        use anyhow::Context;
+        let sf = cfg.soundfont_storage.as_ref().context(
+            "CYMBRA_SOUNDFONT_S3_BUCKET (+ credentials) is required to reach the SoundFont store",
+        )?;
+        Ok(Arc::new(
+            LocalFirstStore::from_config(
+                &sf.local_root,
+                &S3Params {
+                    bucket: sf.bucket.clone(),
+                    endpoint: sf.endpoint.clone(),
+                    region: sf.region.clone(),
+                    access_key: sf.access_key.clone(),
+                    secret_key: sf.secret_key.clone(),
+                    allow_http: sf.allow_http,
+                },
+            )
+            .context("building the SoundFont object store")?,
+        ))
+    }
 }
 
 /// Liveness/readiness logic (pure; the HTTP/gRPC surfaces apply it).

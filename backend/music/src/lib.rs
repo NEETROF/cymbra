@@ -153,12 +153,15 @@ pub use score_rating::{
     FakeScoreRatingRepo, RatingAggregate, RatingConfig, ScoreRatingRepo, Verdict,
 };
 pub use soundfont::{
-    FakeSoundFontRepo, FontEntry, PgSoundFontRepo, SoundFontRepo, SoundFontStatusCounts, sha256_hex,
+    FakeSoundFontRepo, FamilyRefusal, FontEntry, KEYBOARD_FAMILY, PERCUSSION_FAMILY,
+    PgSoundFontRepo, SoundFontRepo, SoundFontStatusCounts, detect_family, fake_sf2_with_banks,
+    normalize_family, sha256_hex, verify_declared_family,
 };
 pub use soundfont_access::{Access, entitlement};
 pub use soundfont_preview::{
-    Event, Note, PREVIEW_SAMPLE_RATE, SampleSequence, encode_preview, preview_object_key,
-    sample_sequence, scheduled_events, total_samples,
+    Event, Note, PREVIEW_SAMPLE_RATE, SampleSequence, drum_sample_sequence, encode_preview,
+    preview_object_key, sample_sequence, sample_sequence_for_family, scheduled_events,
+    total_samples,
 };
 pub use soundfont_pricing::decide as decide_soundfont_pricing;
 pub use soundfont_synth::{render_preview_pcm, render_preview_wav};

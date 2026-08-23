@@ -3,6 +3,7 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import SoundFontDrawer from "@/components/SoundFontDrawer.vue";
 import { setUploadForTest } from "@/stores/soundfonts";
+import { SoundFontUploadError } from "@/lib/errors";
 import { setClientsForTest } from "@/lib/api";
 import { i18n } from "@/i18n";
 import { makeFakeClients } from "./fakes";
@@ -83,10 +84,59 @@ describe("SoundFontDrawer", () => {
     await flushPromises();
 
     expect(uploaded).toHaveLength(1);
-    expect(uploaded[0]).toMatchObject({ label: "YDP Grand", instrument: "piano" });
+    expect(uploaded[0]).toMatchObject({ label: "YDP Grand", instrument: "keyboard" });
     // A generated uuidv7 (version nibble 7, RFC-4122 variant).
     expect(uploaded[0].id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
     expect(w.emitted("close")).toBeTruthy();
+  });
+
+  it("offers both instrument families with keyboard preselected and localized labels", async () => {
+    setup();
+    const w = mountDrawer({ mode: "create" });
+    await flushPromises();
+
+    const select = w.find('select[aria-label="instrument"]');
+    expect(select.findAll("option").map((o) => o.attributes("value"))).toEqual(["keyboard", "percussion"]);
+    expect((select.element as HTMLSelectElement).value).toBe("keyboard");
+    // Localized labels, never the raw vocabulary values.
+    expect(select.text()).toContain("Keyboard");
+    expect(select.text()).toContain("Drum kit");
+  });
+
+  it("surfaces the family-mismatch refusal as a localized reason, never the raw string", async () => {
+    setup();
+    // The backend verifies the declared family against the file's preset banks
+    // (change: add-drum-audio-channel) and refuses a mismatch with the typed
+    // `soundfont_family_mismatch` reason — the upload route answers 422 with a
+    // JSON refusal { code, message }.
+    setUploadForTest(async () => {
+      throw new SoundFontUploadError(
+        422,
+        JSON.stringify({
+          code: "soundfont_family_mismatch",
+          message: "soundfont_family_mismatch: declared 'percussion' but the font has no bank-128 (drum kit) presets",
+        }),
+      );
+    });
+    const w = mountDrawer({ mode: "create" });
+    await flushPromises();
+
+    await w.find('input[aria-label="label"]').setValue("Not A Kit");
+    await w.find('select[aria-label="instrument"]').setValue("percussion");
+    const fileInput = w.find('input[type="file"]');
+    Object.defineProperty(fileInput.element, "files", { value: [validSf2], configurable: true });
+    await fileInput.trigger("change");
+    await flushPromises();
+    await w.find("form").trigger("submit");
+    await flushPromises();
+
+    // The drawer stays open with a localized alert naming the declared family…
+    const alert = w.get('[role="alert"]');
+    expect(alert.text()).toContain("Drum kit");
+    expect(alert.text()).toContain("declared family");
+    // …and the raw server string never reaches the UI.
+    expect(alert.text()).not.toContain("soundfont_family_mismatch");
+    expect(w.emitted("close")).toBeFalsy();
   });
 
   it("shows a per-licence explanation for the selected licence", async () => {

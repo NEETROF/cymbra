@@ -132,7 +132,8 @@
     "priceNoSampleHint": "Cette sonorité n'a pas encore d'extrait : dès qu'elle coûte des points, l'app la verrouille et grise sa lecture tant qu'aucun extrait n'est généré.",
     "instrument": "Instrument",
     "instr": {
-      "piano": "Piano"
+      "keyboard": "Clavier",
+      "percussion": "Kit de batterie"
     },
     "licenseDesc": {
       "cc0": "CC0 1.0 — Domaine public : aucune attribution requise, réutilisation libre pour tout usage.",
@@ -149,6 +150,7 @@
     "generateSampleHint": "Génère le court extrait audio entendu lors de l’écoute de cette sonorité dans l’app.",
     "sampleGenerated": "Extrait généré.",
     "previewRequired": "Générez un extrait de preview avant d’accepter cette sonorité.",
+    "familyMismatch": "Ce fichier ne correspond pas à la famille déclarée « {family} » : il ne contient aucun preset pour cette famille.",
     "empty": "Aucune SoundFont pour l’instant.",
     "confirmRemove": "Supprimer cette SoundFont ? Sa ligne de catalogue et son fichier stocké sont supprimés.",
     "statusCol": "Statut",
@@ -364,7 +366,7 @@
     "loading": "Chargement de la partition…",
     "rendering": "Rendu de la notation…",
     "renderError": "Impossible de rendre la notation.",
-    "percussionNotAuditionable": "Partition de batterie — écoute pas encore disponible.",
+    "noDrumKit": "Aucun kit de batterie disponible — le catalogue ne contient pas encore de sonorité percussion acceptée.",
     "noBytes": "Aucun octet de partition.",
     "play": "▶ Lecture",
     "pause": "⏸ Pause",

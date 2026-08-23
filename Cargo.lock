@@ -1068,6 +1068,7 @@ dependencies = [
  "cymbra-musicxml-core",
  "cymbra-plans",
  "cymbra-platform",
+ "cymbra-sf2-meta",
  "cymbra-storage",
  "cymbra-user-port",
  "getrandom 0.2.17",
@@ -1229,6 +1230,13 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
+]
+
+[[package]]
+name = "cymbra-sf2-meta"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
 ]
 
 [[package]]
@@ -3914,6 +3922,7 @@ dependencies = [
  "anyhow",
  "cpal",
  "cymbra-musicxml-core",
+ "cymbra-sf2-meta",
  "flutter_rust_bridge",
  "jni 0.21.1",
  "midir",

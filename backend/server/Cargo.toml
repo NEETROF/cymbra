@@ -33,6 +33,12 @@ path = "src/bin/backfill_instruments.rs"
 name = "reconcile-corpus"
 path = "src/bin/reconcile_corpus.rs"
 
+# One-off ops verification: report soundfont rows whose recorded family their
+# preset banks cannot support (read-only; change: add-drum-audio-channel).
+[[bin]]
+name = "verify-soundfont-families"
+path = "src/bin/verify_soundfont_families.rs"
+
 [dependencies]
 cymbra-platform = { path = "../platform" }
 cymbra-auth = { path = "../auth" }

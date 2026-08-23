@@ -61,24 +61,33 @@ const bytesVm = computed(() =>
 );
 
 const { notation } = useScoreRenderer(bytesData);
-// Drum Play guard (change: add-drums-access): the console's audio path is
-// keyboard-shaped (`audio-wasm` renders through the hardcoded piano channel), so a
-// percussion score must never be auditioned — it would play silence or piano
-// nonsense. The notation itself now renders (add-drum-notation-render lifted the
-// preview guard). The recorded instrument gates immediately; the render result's
-// `percussion` flag covers a drum score still recorded `unknown`. Not an error: the
-// transport shows a quiet localised "not auditionable yet" note instead.
-// `add-drum-audio-channel` lifts this guard.
+// The score's instrument family (change: add-drum-audio-channel — the old Play
+// guard is lifted: `audio-wasm` now resolves the drum channel from the document
+// itself, so a percussion row auditions with a kit font). The recorded instrument
+// answers immediately; the render result's `percussion` flag covers a drum score
+// still recorded `unknown`.
 const isPercussion = computed(
   () =>
     session.current.value?.instrument === "percussion" ||
     (notation.value.status === "success" && notation.value.data.percussion),
 );
-// Gating the BYTES fed to the player silences every path at once: no schedule, so
-// canPlay stays false (disabled Play, inert spacebar) and auto-play never fires.
-const playerBytes = computed(() => (isPercussion.value ? null : bytesData.value));
-// Preview instrument sound: default piano, or a catalog font the moderator picks.
-const { fonts, selectedId, sf2Bytes, loading: soundLoading, error: soundError } = useSoundFontChoice();
+const scoreFamily = computed<"keyboard" | "percussion">(() => (isPercussion.value ? "percussion" : "keyboard"));
+// Preview instrument sound, filtered to the score's family: the default piano or a
+// picked keyboard font, the picked kit (first accepted one by default) for drums.
+const {
+  fonts,
+  selectedId,
+  sf2Bytes,
+  loading: soundLoading,
+  error: soundError,
+  familyEmpty: noKitFont,
+} = useSoundFontChoice(scoreFamily);
+// A percussion score's bytes reach the player only once the kit's bytes are in
+// hand: null `sf2Bytes` means "fall back to the default piano" in useScorePlayer,
+// which must never answer for a drum score. Gating the BYTES silences every path
+// at once — no schedule, so canPlay stays false (disabled Play, inert spacebar)
+// and auto-play waits for the kit (or stays off when the catalog has none).
+const playerBytes = computed(() => (isPercussion.value && sf2Bytes.value == null ? null : bytesData.value));
 const player = useScorePlayer(playerBytes, sf2Bytes);
 
 // Hands-free review: auto-play each score once, as soon as it's playable (a decided
@@ -261,11 +270,10 @@ const currentHit = computed(() => session.current.value as CatalogHit | null);
       </button>
       <output v-if="audioLoading" class="spinner" :aria-label="audioMsg ?? ''"></output>
       <span v-if="audioMsg" class="muted audio-msg">{{ audioMsg }}</span>
-      <!-- Quiet drum guard note (change: add-drums-access): explains the disabled
-           Play, deliberately NOT styled as an error. -->
-      <span v-if="isPercussion" class="muted audio-msg" data-testid="drums-no-audition">{{
-        t("preview.percussionNotAuditionable")
-      }}</span>
+      <!-- Quiet no-kit note (change: add-drum-audio-channel): the catalog holds no
+           accepted percussion-family font, so Play stays disabled — deliberately
+           NOT styled as an error; the score itself is fine. -->
+      <span v-if="noKitFont" class="muted audio-msg" data-testid="no-drum-kit">{{ t("preview.noDrumKit") }}</span>
       <button type="button" class="accept" :disabled="acting" @click="decide('accepted')">
         {{ $t("review.accept") }}
       </button>
@@ -297,8 +305,8 @@ const currentHit = computed(() => session.current.value as CatalogHit | null);
     <h2 class="score-title">
       {{ currentHit.title || $t("detail.score") }}
       <!-- Instrument badge (change: add-drums-access): a percussion proposal is
-           identified up front; since add-drum-notation-render the preview renders,
-           so the badge now explains why Play alone is unavailable. -->
+           identified before the row is opened — instrument information a
+           moderator uses up front, kept now that Play auditions drums too. -->
       <AppTag v-if="currentHit.instrument === 'percussion'" variant="accent" :title="$t('table.percussionHint')">{{
         $t("table.percussion")
       }}</AppTag>
@@ -332,7 +340,7 @@ const currentHit = computed(() => session.current.value as CatalogHit | null);
         :notation="notation"
         show-meta
         hide-transport
-        :percussion-guard="isPercussion"
+        :no-kit-font="noKitFont"
         :schedule="player.schedule.value"
         :audio="player.audio.value"
         :elapsed-ms="player.elapsedMs.value"

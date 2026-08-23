@@ -32,7 +32,8 @@ pub mod validate;
 pub use meta::{InstrumentKind, ScoreFacets, ScoreSummary, instrument_of, normalize_text};
 pub use model::*;
 pub use playback::{
-    DEFAULT_VELOCITY, PlaybackSchedule, TimedNote, grace_ms_of, midi_of_pitch, schedule,
+    DEFAULT_VELOCITY, DRUM_CHANNEL, MELODIC_CHANNEL, PlaybackSchedule, TimedNote, grace_ms_of,
+    midi_of_pitch, schedule,
 };
 pub use repeats::play_order;
 pub use validate::{RejectReason, decode_and_parse, validate};

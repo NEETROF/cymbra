@@ -572,7 +572,7 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
         let row = sqlx::query(
             "UPDATE music.catalog_scores \
              SET moderation_status = $2, reviewed_by = $3, reviewed_at = now(), review_reason = $4 \
-             WHERE id = $1 RETURNING instrument",
+             WHERE id = $1 RETURNING id",
         )
         .bind(id)
         .bind(status)
@@ -582,17 +582,13 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
         .await
         .map_err(search_internal)?;
         let updated = row.is_some();
-        // A percussion acceptance enqueues NO render (change: add-drums-access):
-        // the renderer would bake a piano-font clip of a drum part — a confident
-        // wrong preview. The piece simply has no teaser until
-        // `add-drum-audio-channel` lifts the skip.
-        let percussion = row
-            .as_ref()
-            .map(|r| r.get::<String, _>("instrument") == "percussion")
-            .unwrap_or(false);
+        // Every acceptance enqueues the render, percussion included (change:
+        // add-drum-audio-channel lifted the add-drums-access skip): the render
+        // module owns the font-availability decision and returns `Dormant`
+        // while a family's preview font is unusable, so a percussion job with
+        // no kit configured stores nothing and leaves the row unmarked.
         if updated
             && status == "accepted"
-            && !percussion
             && let Err(e) = enqueue_preview_render(&mut tx, score_id).await
         {
             tracing::warn!(
@@ -624,10 +620,13 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
 
     async fn accepted_ids_missing_preview(&self, limit: i64) -> PlatformResult<Vec<String>> {
         // Served by the partial index `catalog_scores_missing_preview_idx`.
+        // Percussion rows are included (change: add-drum-audio-channel lifted
+        // the add-drums-access exclusion): the render module returns `Dormant`
+        // while no kit font is configured, so the backfill is the catch-up for
+        // the formerly skipped percussion corpus once one is.
         let rows = sqlx::query(
             "SELECT id FROM music.catalog_scores \
              WHERE moderation_status = 'accepted' AND preview_rendered_at IS NULL \
-               AND instrument <> 'percussion' \
              ORDER BY id LIMIT $1",
         )
         .bind(limit.max(0))

@@ -665,9 +665,22 @@ class _SoundCard extends StatelessWidget {
               ? l10n.soundfontsPreviewUnavailable
               : (playing ? l10n.soundfontsStop : l10n.soundfontsPlay),
         ),
-        title: Text(
-          entry.label,
-          style: const TextStyle(color: CymbraColors.onSurface),
+        // The label plus the font's instrument-family badge (change:
+        // add-drum-audio-channel): the hub is not scoped to a score, so every
+        // font of both families is listed and the family is made visible
+        // instead of filtered on.
+        title: Row(
+          children: [
+            Flexible(
+              child: Text(
+                entry.label,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: CymbraColors.onSurface),
+              ),
+            ),
+            const SizedBox(width: 8),
+            _FamilyBadge(family: entry.family),
+          ],
         ),
         subtitle: subtitleLines.isEmpty
             ? null
@@ -779,6 +792,39 @@ class _RewardLock extends StatelessWidget {
 }
 
 /// A small pill showing a proposed sound's moderation status.
+/// The instrument-family badge on every sound card (change:
+/// add-drum-audio-channel), reusing the score vocabulary's family labels.
+class _FamilyBadge extends StatelessWidget {
+  const _FamilyBadge({required this.family});
+
+  final SoundFamily family;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final percussion = family == SoundFamily.percussion;
+    final label = percussion ? l10n.instrumentDrums : l10n.instrumentKeyboard;
+    final color = percussion
+        ? CymbraColors.tertiary
+        : CymbraColors.onSurfaceVariant;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
 class _ProposalTag extends StatelessWidget {
   const _ProposalTag({required this.status});
 

@@ -21,6 +21,8 @@
   "settingsCategoryLanguage": "Idioma",
   "usageAnalyticsSetting": "Compartir estadísticas de uso",
   "settingsCategoryPiano": "Sonido del piano",
+  "settingsCategoryKit": "Sonido de la batería",
+  "kitPickerEmpty": "Ningún kit de batería disponible",
   "pianoGroupBuiltIn": "Integrados",
   "pianoGroupImported": "Importados",
   "pianoAddSoundFont": "Añadir SoundFont…",

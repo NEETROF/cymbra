@@ -28,12 +28,32 @@ use flutter_rust_bridge::frb;
 
 use super::audio::AudioRouteKind;
 
-/// MIDI channel the piano plays on. A single-instrument synth only needs one.
-pub(crate) const PIANO_CHANNEL: i32 = 0;
-
 /// Velocity used when a source carries no pressure information (the on-screen
-/// keyboard, the computer-keyboard fallback). A musical mezzo-forte.
-pub(crate) const DEFAULT_VELOCITY: u8 = 100;
+/// keyboard, the computer-keyboard fallback). A musical mezzo-forte — unified
+/// onto the shared playback constant (change: add-drum-audio-channel) so every
+/// synth site reads the one definition.
+pub(crate) const DEFAULT_VELOCITY: u8 = cymbra_musicxml_core::DEFAULT_VELOCITY;
+
+/// Which synth channel an event addresses (change: add-drum-audio-channel).
+/// The indices come from the shared crate — melodic 0, drum 9 (MIDI channel
+/// 10, where a kit font's bank-128 presets resolve) — defined once for the
+/// app engine, the console wasm and the backend previews alike.
+#[frb(ignore)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Channel {
+    Melodic,
+    Drum,
+}
+
+impl Channel {
+    /// The rustysynth channel index this variant plays on.
+    pub(crate) fn index(self) -> i32 {
+        match self {
+            Channel::Melodic => cymbra_musicxml_core::MELODIC_CHANNEL,
+            Channel::Drum => cymbra_musicxml_core::DRUM_CHANNEL,
+        }
+    }
+}
 
 /// A control event handed from the UI/FFI thread to the audio thread.
 ///
@@ -43,10 +63,14 @@ pub(crate) const DEFAULT_VELOCITY: u8 = 100;
 #[frb(ignore)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum AudioEvent {
-    /// Begin sounding `pitch` at `velocity`.
-    NoteOn { pitch: u8, velocity: u8 },
-    /// Release `pitch` (enters the SoundFont's release stage).
-    NoteOff { pitch: u8 },
+    /// Begin sounding `pitch` at `velocity` on `channel`.
+    NoteOn {
+        channel: Channel,
+        pitch: u8,
+        velocity: u8,
+    },
+    /// Release `pitch` on `channel` (enters the SoundFont's release stage).
+    NoteOff { channel: Channel, pitch: u8 },
     /// Release every sounding voice (stop/restart/seek/loop).
     AllOff,
     /// Sound a one-shot metronome click. `accent` marks the downbeat (higher and
@@ -59,21 +83,42 @@ impl AudioEvent {
     /// clamped to `0..=127`; a zero velocity is treated as the default rather
     /// than an inaudible note (some sources send 0 for "no pressure").
     pub(crate) fn note_on(pitch: u8, velocity: u8) -> AudioEvent {
+        Self::on(Channel::Melodic, pitch, velocity)
+    }
+
+    /// Builds a note-off for `pitch` (clamped to the 7-bit MIDI range).
+    pub(crate) fn note_off(pitch: u8) -> AudioEvent {
+        AudioEvent::NoteOff {
+            channel: Channel::Melodic,
+            pitch: clamp7(pitch),
+        }
+    }
+
+    /// Builds a percussion stroke's note-on — the drum channel, where a kit
+    /// font's bank-128 presets sound (change: add-drum-audio-channel).
+    pub(crate) fn drum_on(key: u8, velocity: u8) -> AudioEvent {
+        Self::on(Channel::Drum, key, velocity)
+    }
+
+    /// Builds the matching drum-channel release. Drum voices are one-shots
+    /// that mostly self-terminate, but the release keeps the tracker exact.
+    pub(crate) fn drum_off(key: u8) -> AudioEvent {
+        AudioEvent::NoteOff {
+            channel: Channel::Drum,
+            pitch: clamp7(key),
+        }
+    }
+
+    fn on(channel: Channel, pitch: u8, velocity: u8) -> AudioEvent {
         let velocity = if velocity == 0 {
             DEFAULT_VELOCITY
         } else {
             clamp7(velocity)
         };
         AudioEvent::NoteOn {
+            channel,
             pitch: clamp7(pitch),
             velocity,
-        }
-    }
-
-    /// Builds a note-off for `pitch` (clamped to the 7-bit MIDI range).
-    pub(crate) fn note_off(pitch: u8) -> AudioEvent {
-        AudioEvent::NoteOff {
-            pitch: clamp7(pitch),
         }
     }
 }
@@ -98,11 +143,12 @@ pub(crate) fn is_valid_soundfont(bytes: &[u8]) -> bool {
 }
 
 impl VoiceTracker {
-    /// Clears the tracker for a SoundFont swap, returning every pitch that was
+    /// Clears the tracker for a SoundFont swap, returning every voice that was
     /// sounding so the audio thread can release them across the swap (an
-    /// all-notes-off) — otherwise a held voice on the outgoing synth would hang.
-    /// Semantically an [`AudioEvent::AllOff`]; named for the swap call site.
-    pub(crate) fn clear_for_swap(&mut self) -> Vec<u8> {
+    /// all-notes-off, both channels) — otherwise a held voice on the outgoing
+    /// synth would hang. Semantically an [`AudioEvent::AllOff`]; named for the
+    /// swap call site.
+    pub(crate) fn clear_for_swap(&mut self) -> Vec<(Channel, u8)> {
         self.apply(AudioEvent::AllOff)
     }
 }
@@ -188,17 +234,20 @@ pub(crate) fn route_kind_of(
     }
 }
 
-/// Tracks which pitches are currently sounding so the audio thread can release
-/// them precisely on an [`AudioEvent::AllOff`] and so the model is testable
-/// without a synthesizer.
+/// Tracks which (channel, key) voices are currently sounding so the audio
+/// thread can release them precisely on an [`AudioEvent::AllOff`] and so the
+/// model is testable without a synthesizer.
 ///
 /// rustysynth manages its own voices internally; this mirror lets `audio.rs`
-/// issue an exact note-off per held pitch (and lets tests assert the bookkeeping
-/// without a device).
+/// issue an exact note-off per held voice (and lets tests assert the
+/// bookkeeping without a device). Keyed on the channel too (change:
+/// add-drum-audio-channel): a release must land on the channel that started
+/// the voice — GM 60 as a drum stroke and middle C as a piano note share a
+/// key number and nothing else — and an all-off covers both channels.
 #[frb(ignore)]
 #[derive(Debug, Default, Clone)]
 pub(crate) struct VoiceTracker {
-    active: Vec<u8>,
+    active: Vec<(Channel, u8)>,
 }
 
 impl VoiceTracker {
@@ -207,27 +256,28 @@ impl VoiceTracker {
         VoiceTracker { active: Vec::new() }
     }
 
-    /// Applies an event to the bookkeeping. Returns the pitches that should be
-    /// released as a result — one pitch for a note-off, every held pitch for an
-    /// all-off, and none for a note-on (the caller starts that voice).
-    pub(crate) fn apply(&mut self, event: AudioEvent) -> Vec<u8> {
+    /// Applies an event to the bookkeeping. Returns the (channel, key) voices
+    /// that should be released as a result — one for a note-off, every held
+    /// voice on every channel for an all-off, and none for a note-on (the
+    /// caller starts that voice).
+    pub(crate) fn apply(&mut self, event: AudioEvent) -> Vec<(Channel, u8)> {
         match event {
-            AudioEvent::NoteOn { pitch, .. } => {
-                if !self.active.contains(&pitch) {
-                    self.active.push(pitch);
+            AudioEvent::NoteOn { channel, pitch, .. } => {
+                if !self.active.contains(&(channel, pitch)) {
+                    self.active.push((channel, pitch));
                 }
                 Vec::new()
             }
-            AudioEvent::NoteOff { pitch } => {
-                if let Some(i) = self.active.iter().position(|&p| p == pitch) {
+            AudioEvent::NoteOff { channel, pitch } => {
+                if let Some(i) = self.active.iter().position(|&v| v == (channel, pitch)) {
                     self.active.remove(i);
-                    vec![pitch]
+                    vec![(channel, pitch)]
                 } else {
                     Vec::new()
                 }
             }
             AudioEvent::AllOff => std::mem::take(&mut self.active),
-            // The metronome click is not a tracked piano voice (it is mixed in
+            // The metronome click is not a tracked synth voice (it is mixed in
             // separately and decays on its own), so it releases nothing here.
             AudioEvent::Click { .. } => Vec::new(),
         }
@@ -552,6 +602,7 @@ mod tests {
         assert_eq!(
             AudioEvent::note_on(200, 200),
             AudioEvent::NoteOn {
+                channel: Channel::Melodic,
                 pitch: 127,
                 velocity: 127
             }
@@ -563,6 +614,7 @@ mod tests {
         assert_eq!(
             AudioEvent::note_on(60, 0),
             AudioEvent::NoteOn {
+                channel: Channel::Melodic,
                 pitch: 60,
                 velocity: DEFAULT_VELOCITY
             }
@@ -573,16 +625,48 @@ mod tests {
     fn note_off_clamps_pitch() {
         assert_eq!(
             AudioEvent::note_off(200),
-            AudioEvent::NoteOff { pitch: 127 }
+            AudioEvent::NoteOff {
+                channel: Channel::Melodic,
+                pitch: 127
+            }
         );
+    }
+
+    #[test]
+    fn drum_events_carry_the_drum_channel_with_the_same_normalisation() {
+        // The drum constructors share the melodic pair's clamping/default
+        // rules — only the channel differs (change: add-drum-audio-channel).
+        assert_eq!(
+            AudioEvent::drum_on(200, 0),
+            AudioEvent::NoteOn {
+                channel: Channel::Drum,
+                pitch: 127,
+                velocity: DEFAULT_VELOCITY
+            }
+        );
+        assert_eq!(
+            AudioEvent::drum_off(38),
+            AudioEvent::NoteOff {
+                channel: Channel::Drum,
+                pitch: 38
+            }
+        );
+        // The indices come from the shared crate: melodic 0, drum 9.
+        assert_eq!(Channel::Melodic.index(), 0);
+        assert_eq!(Channel::Drum.index(), 9);
     }
 
     /// Sorted snapshot of the voices a tracker still holds — taken by releasing
     /// them all. Lets tests assert the bookkeeping through the public `apply`.
-    fn held(v: &mut VoiceTracker) -> Vec<u8> {
+    fn held(v: &mut VoiceTracker) -> Vec<(Channel, u8)> {
         let mut h = v.apply(AudioEvent::AllOff);
-        h.sort_unstable();
+        h.sort_unstable_by_key(|&(c, p)| (c != Channel::Melodic, p));
         h
+    }
+
+    /// Shorthand for the melodic voice tuple the legacy assertions read.
+    fn m(pitch: u8) -> (Channel, u8) {
+        (Channel::Melodic, pitch)
     }
 
     #[test]
@@ -590,7 +674,7 @@ mod tests {
         let mut v = VoiceTracker::new();
         let released = v.apply(AudioEvent::note_on(60, 100));
         assert!(released.is_empty());
-        assert_eq!(held(&mut v), vec![60]);
+        assert_eq!(held(&mut v), vec![m(60)]);
     }
 
     #[test]
@@ -598,7 +682,7 @@ mod tests {
         let mut v = VoiceTracker::new();
         v.apply(AudioEvent::note_on(60, 100));
         v.apply(AudioEvent::note_on(60, 100));
-        assert_eq!(held(&mut v), vec![60]);
+        assert_eq!(held(&mut v), vec![m(60)]);
     }
 
     #[test]
@@ -607,9 +691,9 @@ mod tests {
         v.apply(AudioEvent::note_on(60, 100));
         v.apply(AudioEvent::note_on(64, 100));
         let released = v.apply(AudioEvent::note_off(60));
-        assert_eq!(released, vec![60]);
+        assert_eq!(released, vec![m(60)]);
         // 64 is still sounding; 60 is gone.
-        assert_eq!(held(&mut v), vec![64]);
+        assert_eq!(held(&mut v), vec![m(64)]);
     }
 
     #[test]
@@ -624,7 +708,7 @@ mod tests {
         for p in [60, 64, 67] {
             v.apply(AudioEvent::note_on(p, 100));
         }
-        assert_eq!(held(&mut v), vec![60, 64, 67]);
+        assert_eq!(held(&mut v), vec![m(60), m(64), m(67)]);
     }
 
     #[test]
@@ -634,8 +718,8 @@ mod tests {
             v.apply(AudioEvent::note_on(p, 100));
         }
         let mut released = v.apply(AudioEvent::AllOff);
-        released.sort_unstable();
-        assert_eq!(released, vec![60, 64, 67]);
+        released.sort_unstable_by_key(|&(c, p)| (c != Channel::Melodic, p));
+        assert_eq!(released, vec![m(60), m(64), m(67)]);
         // The tracker is empty afterwards — a second all-off releases nothing.
         assert!(v.apply(AudioEvent::AllOff).is_empty());
     }
@@ -655,7 +739,7 @@ mod tests {
             v.apply(e);
         }
         // 60 was switched off; 64 and 67 remain.
-        assert_eq!(held(&mut v), vec![64, 67]);
+        assert_eq!(held(&mut v), vec![m(64), m(67)]);
     }
 
     #[test]
@@ -665,7 +749,30 @@ mod tests {
         let mut v = VoiceTracker::new();
         v.apply(AudioEvent::note_on(60, 100));
         assert!(v.apply(AudioEvent::Click { accent: true }).is_empty());
-        assert_eq!(held(&mut v), vec![60]);
+        assert_eq!(held(&mut v), vec![m(60)]);
+    }
+
+    #[test]
+    fn the_two_channels_hold_independent_voices_for_one_key_number() {
+        // GM 60 as a drum stroke and middle C as a piano note share a key
+        // number and nothing else: a release lands only on its channel.
+        let mut v = VoiceTracker::new();
+        v.apply(AudioEvent::note_on(60, 100));
+        v.apply(AudioEvent::drum_on(60, 100));
+        assert_eq!(v.apply(AudioEvent::drum_off(60)), vec![(Channel::Drum, 60)]);
+        // The melodic voice is untouched by the drum release.
+        assert_eq!(held(&mut v), vec![m(60)]);
+    }
+
+    #[test]
+    fn all_off_covers_both_channels() {
+        let mut v = VoiceTracker::new();
+        v.apply(AudioEvent::note_on(60, 100));
+        v.apply(AudioEvent::drum_on(38, 100));
+        let mut released = v.apply(AudioEvent::AllOff);
+        released.sort_unstable_by_key(|&(c, p)| (c != Channel::Melodic, p));
+        assert_eq!(released, vec![m(60), (Channel::Drum, 38)]);
+        assert!(v.apply(AudioEvent::AllOff).is_empty());
     }
 
     /// Total energy of a freshly built click, rendered to completion.
@@ -727,8 +834,8 @@ mod tests {
             v.apply(AudioEvent::note_on(p, 100));
         }
         let mut released = v.clear_for_swap();
-        released.sort_unstable();
-        assert_eq!(released, vec![60, 64, 67]);
+        released.sort_unstable_by_key(|&(c, p)| (c != Channel::Melodic, p));
+        assert_eq!(released, vec![m(60), m(64), m(67)]);
         // Nothing left to release after the swap cleared it.
         assert!(v.clear_for_swap().is_empty());
     }

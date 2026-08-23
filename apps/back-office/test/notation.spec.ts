@@ -435,9 +435,10 @@ describe("ScorePreview notation states", () => {
     expect(w.text()).toContain("Rendering notation…");
   });
 
-  // --- percussion (change: add-drum-notation-render lifts the preview guard) --
+  // --- percussion (change: add-drum-audio-channel lifted the Play guard; what
+  // remains is the honest "no accepted kit font in the catalog" degradation) --
 
-  it("renders a percussion score's SVG while the Play guard shows its localised note", () => {
+  it("renders a percussion score's SVG while the no-kit state explains the disabled Play", () => {
     const geo = makeGeometry();
     geo.document.attributes.clefs = [{ staff: 1, sign: "percussion", line: 2 }];
     geo.document.measures[0].notes = [
@@ -454,18 +455,18 @@ describe("ScorePreview notation states", () => {
         bytes: new Uint8Array([1]),
         loading: false,
         notation: success(paint(geo)),
-        // The Play guard (add-drum-audio-channel's to lift): no playable schedule…
+        // With no kit font there is no playable schedule…
         canPlay: false,
-        // …and the view flags the percussion reason for the transport note.
-        percussionGuard: true,
+        // …and the view flags the missing-kit reason for the transport note.
+        noKitFont: true,
       },
     });
-    // The notation IS drawn now — no unpreviewable panel, no failure wording.
+    // The notation IS drawn — no unpreviewable panel, no failure wording.
     expect(w.find(".svg-wrap svg").exists()).toBe(true);
     expect(w.text()).not.toContain("not previewable");
     expect(w.text()).not.toContain("Notation could not be rendered.");
-    // Play stays refused, as an explicit localised state distinct from an error.
+    // Play stays disabled, as an explicit localised state distinct from an error.
     expect(w.get("button.play").attributes("disabled")).toBeDefined();
-    expect(w.get('[data-testid="drums-no-audition"]').text()).toContain("not auditionable yet");
+    expect(w.get('[data-testid="no-drum-kit"]').text()).toContain("No drum kit available");
   });
 });

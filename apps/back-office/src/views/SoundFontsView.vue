@@ -10,6 +10,7 @@ import IdBadge from "@/components/IdBadge.vue";
 import SoundFontDrawer from "@/components/SoundFontDrawer.vue";
 import StatCards, { type StatItem } from "@/components/StatCards.vue";
 import { currentLocale } from "@/i18n";
+import { familyOf } from "@/lib/audio/family";
 
 const store = useSoundFontsStore();
 const toasts = useToastsStore();
@@ -296,7 +297,7 @@ function licenseDesc(license: string): string {
               <AppTag :variant="statusOf(row)">{{ t(`soundfonts.status.${statusOf(row)}`) }}</AppTag>
             </td>
             <td>
-              <AppTag variant="neutral">{{ t(`soundfonts.instr.${row.instrument || "piano"}`) }}</AppTag>
+              <AppTag variant="neutral">{{ t(`soundfonts.instr.${familyOf(row.instrument)}`) }}</AppTag>
             </td>
             <td>
               <span v-if="licenseDesc(row.license)" class="license-help" :title="licenseDesc(row.license)">{{

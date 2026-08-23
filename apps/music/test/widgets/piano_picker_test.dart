@@ -80,6 +80,7 @@ Future<void> _pumpField(
   WidgetTester tester,
   ProviderContainer container, {
   String value = defaultPianoId,
+  SoundFamily family = SoundFamily.keyboard,
   required ValueChanged<String> onChanged,
 }) async {
   await tester.pumpWidget(
@@ -88,7 +89,11 @@ Future<void> _pumpField(
       child: localizedApp(
         Scaffold(
           body: Center(
-            child: SoundSelectorField(value: value, onChanged: onChanged),
+            child: SoundSelectorField(
+              value: value,
+              family: family,
+              onChanged: onChanged,
+            ),
           ),
         ),
       ),
@@ -162,5 +167,73 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(picked, 'mine');
+  });
+
+  // Family scoping (change: add-drum-audio-channel): the picker offers only
+  // the LOADED SCORE's family — a percussion score lists kits, a keyboard
+  // score pianos — and an empty family shows the honest no-kit state.
+  group('family scoping', () {
+    testWidgets('a percussion score lists kit fonts only', (tester) async {
+      final container = _container(
+        serverFonts: [
+          fakeDownloadPiano(id: 'ydp-grand', label: 'YDP Grand Piano'),
+          fakeDownloadPiano(
+            id: 'street-kit',
+            label: 'Street Kit',
+            family: SoundFamily.percussion,
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      await _pumpField(
+        tester,
+        container,
+        value: 'street-kit',
+        family: SoundFamily.percussion,
+        onChanged: (_) {},
+      );
+
+      await _openDropdown(tester);
+
+      expect(find.text('Street Kit'), findsWidgets);
+      expect(find.text('YDP Grand Piano'), findsNothing);
+      expect(find.text('Upright Piano KW'), findsNothing);
+    });
+
+    testWidgets('a keyboard score never lists kit fonts', (tester) async {
+      final container = _container(
+        serverFonts: [
+          fakeDownloadPiano(id: 'ydp-grand', label: 'YDP Grand Piano'),
+          fakeDownloadPiano(
+            id: 'street-kit',
+            label: 'Street Kit',
+            family: SoundFamily.percussion,
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      await _pumpField(tester, container, onChanged: (_) {});
+
+      await _openDropdown(tester);
+
+      expect(find.text('Upright Piano KW'), findsWidgets);
+      expect(find.text('YDP Grand Piano'), findsOneWidget);
+      expect(find.text('Street Kit'), findsNothing);
+    });
+
+    testWidgets('an empty family shows the no-kit hint, not a crash', (
+      tester,
+    ) async {
+      final container = _container(serverFonts: const []);
+      addTearDown(container.dispose);
+      await _pumpField(
+        tester,
+        container,
+        family: SoundFamily.percussion,
+        onChanged: (_) {},
+      );
+
+      expect(find.text('No drum kit available'), findsOneWidget);
+    });
   });
 }

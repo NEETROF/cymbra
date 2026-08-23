@@ -876,13 +876,10 @@ impl CatalogSearchRepo for FakeCatalogSearchRepo {
         let rows = self.rows.lock().expect("catalog search fake lock");
         Ok(rows
             .iter()
-            // A percussion piece gets no piano-font teaser (change:
-            // add-drums-access); add-drum-audio-channel lifts the skip.
-            .filter(|r| {
-                r.moderation_status == "accepted"
-                    && r.preview_rendered_at.is_none()
-                    && r.instrument != Some(crate::repo::Instrument::Percussion)
-            })
+            // Percussion rows are included (change: add-drum-audio-channel
+            // lifted the add-drums-access skip): the render module decides
+            // dormancy, not the work list.
+            .filter(|r| r.moderation_status == "accepted" && r.preview_rendered_at.is_none())
             .map(|r| r.id.clone())
             .take(limit.max(0) as usize)
             .collect())

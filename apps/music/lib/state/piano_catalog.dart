@@ -21,6 +21,29 @@ import 'imported_soundfonts.dart';
 
 part 'piano_catalog.g.dart';
 
+/// Instrument family of a SoundFont, in the score vocabulary (change:
+/// add-drum-audio-channel): which scores a font can sound. Decides which synth
+/// channel its notes take and which picker offers it — a percussion score lists
+/// `percussion` fonts, everything else `keyboard`.
+enum SoundFamily {
+  /// Melodic fonts (pianos, harpsichords…) — the historical catalog.
+  keyboard,
+
+  /// Drum-kit fonts, whose presets live in bank 128 and sound on the drum
+  /// channel.
+  percussion,
+}
+
+/// Maps the wire `SoundFont.instrument` value onto [SoundFamily] (change:
+/// add-drum-audio-channel). `percussion` is the only value that selects the
+/// kit family; `keyboard` — and the legacy `piano` spelling still served by
+/// not-yet-migrated backends — map to [SoundFamily.keyboard], as does anything
+/// unknown (fail-open to the historical family, never to a silent kit).
+SoundFamily soundFamilyFromWire(String instrument) =>
+    instrument.trim().toLowerCase() == SoundFamily.percussion.name
+    ? SoundFamily.percussion
+    : SoundFamily.keyboard;
+
 /// Where a piano's SoundFont bytes come from — which decides how
 /// `SoundFontSource` resolves it to a local file.
 enum PianoKind {
@@ -46,6 +69,7 @@ class PianoEntry {
     required this.label,
     required this.kind,
     required this.source,
+    this.family = SoundFamily.keyboard,
     this.license,
     this.attribution,
     this.contributorCredit,
@@ -64,6 +88,11 @@ class PianoEntry {
     kind:
         PianoKind.values.asNameMap()[json['kind'] as String?] ?? PianoKind.user,
     source: json['source'] as String,
+    // Registries persisted before the family existed hold keyboard fonts only
+    // (imports were always pianos), so absence decodes to keyboard.
+    family:
+        SoundFamily.values.asNameMap()[json['family'] as String?] ??
+        SoundFamily.keyboard,
     license: json['license'] as String?,
     attribution: json['attribution'] as String?,
     contributorCredit: json['contributorCredit'] as String?,
@@ -77,6 +106,12 @@ class PianoEntry {
   final String label;
   final PianoKind kind;
   final String source;
+
+  /// Instrument family (change: add-drum-audio-channel): sourced from the
+  /// server listing for catalog fonts, detected from preset banks for imports.
+  /// Drives the family-scoped picker and the per-family selection memory.
+  final SoundFamily family;
+
   final String? license;
   final String? attribution;
 
@@ -124,6 +159,7 @@ class PianoEntry {
     label: label ?? this.label,
     kind: kind,
     source: source ?? this.source,
+    family: family,
     license: license,
     attribution: attribution,
     contributorCredit: contributorCredit,
@@ -142,6 +178,9 @@ class PianoEntry {
     'label': label,
     'kind': kind.name,
     'source': source,
+    // Keyboard is the implicit default (registries predating the family decode
+    // to it), so only the non-default family is written.
+    if (family != SoundFamily.keyboard) 'family': family.name,
     if (license != null) 'license': license,
     if (attribution != null) 'attribution': attribution,
     if (contributorCredit != null) 'contributorCredit': contributorCredit,
@@ -159,6 +198,7 @@ class PianoEntry {
       other.label == label &&
       other.kind == kind &&
       other.source == source &&
+      other.family == family &&
       other.license == license &&
       other.attribution == attribution &&
       other.contributorCredit == contributorCredit &&
@@ -173,6 +213,7 @@ class PianoEntry {
     label,
     kind,
     source,
+    family,
     license,
     attribution,
     contributorCredit,
@@ -210,6 +251,25 @@ const List<PianoEntry> builtInPianos = [
 /// The default piano entry — always the first built-in.
 PianoEntry get defaultPiano => builtInPianos.first;
 
+/// Stable id of the bundled drum kit (change: add-drum-audio-channel): the
+/// percussion family's default and fallback, and the id the same kit is seeded
+/// under in the server catalog — the FluidR3 GM percussion bank named in the
+/// change's design. The id is defined ahead of the asset: it is what the kit
+/// selection defaults and self-heals to, so it must be stable **before** the
+/// bytes land.
+const String defaultKitId = 'fluid-r3-drums';
+
+/// The built-in drum kits (change: add-drum-audio-channel). **Empty until the
+/// bundled kit's licence sign-off lands the asset** (tasks 6.1/6.2/9.1): a
+/// catalog must never point at bytes that do not exist, so with no entry here a
+/// percussion score with no other resolvable kit stays honestly visual-only
+/// (the readiness gate never resolves). When the asset lands, this becomes the
+/// one-line entry mirroring [builtInPianos]:
+/// `PianoEntry(id: defaultKitId, label: 'FluidR3 Drums', kind:
+/// PianoKind.bundled, source: 'assets/soundfonts/FILE.sf2', family:
+/// SoundFamily.percussion, license: 'MIT')`.
+const List<PianoEntry> builtInKits = [];
+
 /// The full catalog of selectable pianos: the bundled default, plus the server's
 /// downloadable fonts, plus the persisted user-imported registry. Synchronous and
 /// reactive — it rebuilds when the server list resolves or an import is
@@ -227,7 +287,8 @@ List<PianoEntry> pianoCatalog(Ref ref) {
       ref.watch(importedSoundFontsProvider).valueOrNull ?? const [];
   // A server entry that shares a built-in's id (e.g. the bundled default, also in
   // the server catalog) is dropped so it is never listed twice.
-  final builtInIds = builtInPianos.map((p) => p.id).toSet();
+  final builtIn = [...builtInPianos, ...builtInKits];
+  final builtInIds = builtIn.map((p) => p.id).toSet();
   final downloadOnly = download.where((p) => !builtInIds.contains(p.id));
-  return [...builtInPianos, ...downloadOnly, ...imported];
+  return [...builtIn, ...downloadOnly, ...imported];
 }

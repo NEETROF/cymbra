@@ -52,6 +52,7 @@ import '../widgets/mistake_replay.dart';
 import '../widgets/notation_help_area.dart';
 import '../widgets/play_reward_listeners.dart';
 import '../widgets/playback_progress_bar.dart';
+import '../widgets/score_font_listener.dart';
 import '../widgets/reading_aid.dart';
 import '../widgets/score_chip.dart';
 import '../widgets/scoring_overlay.dart';
@@ -305,10 +306,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         onPopInvokedWithResult: (didPop, _) {
           if (!didPop) unawaited(_requestExit());
         },
-        // Celebrates a level crossed by playing, through the same path a redeem
-        // uses (change: add-play-rewards). A listener widget rather than another
-        // `ref.listen` in this build method (architecture rule 4).
-        child: PlayRewardListeners(child: _buildPlayer(context)),
+        // Dedicated listener widgets rather than more `ref.listen` in this
+        // build method (architecture rule 4): the font-follows-score reaction
+        // (change: add-drum-audio-channel — a percussion score installs the
+        // remembered kit, leaving restores the piano) and the play-reward
+        // level celebration (change: add-play-rewards).
+        child: ScoreFontListener(
+          child: PlayRewardListeners(child: _buildPlayer(context)),
+        ),
       ),
     );
   }

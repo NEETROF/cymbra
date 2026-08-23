@@ -94,4 +94,50 @@ void main() {
       defaultPianoId,
     ]);
   });
+
+  group('instrument family (change: add-drum-audio-channel)', () {
+    test('the wire instrument maps onto the family, legacy piano included', () {
+      expect(soundFamilyFromWire('percussion'), SoundFamily.percussion);
+      expect(soundFamilyFromWire('keyboard'), SoundFamily.keyboard);
+      // The not-yet-migrated backend spelling stays the keyboard family.
+      expect(soundFamilyFromWire('piano'), SoundFamily.keyboard);
+      // Unknown/empty fail open to the historical family, never to a kit.
+      expect(soundFamilyFromWire(''), SoundFamily.keyboard);
+      expect(soundFamilyFromWire('theremin'), SoundFamily.keyboard);
+      expect(soundFamilyFromWire(' Percussion '), SoundFamily.percussion);
+    });
+
+    test('the family round-trips through the registry JSON', () {
+      final kit = PianoEntry(
+        id: 'k1',
+        label: 'Kit',
+        kind: PianoKind.user,
+        source: '/k1.sf2',
+        family: SoundFamily.percussion,
+      );
+      expect(PianoEntry.fromJson(kit.toJson()).family, SoundFamily.percussion);
+      // Keyboard is the implicit default: not written, decoded back.
+      final piano = fakeUserPiano();
+      expect(piano.toJson().containsKey('family'), isFalse);
+      expect(PianoEntry.fromJson(piano.toJson()).family, SoundFamily.keyboard);
+    });
+
+    test('a registry persisted before the family existed decodes keyboard', () {
+      final entry = PianoEntry.fromJson({
+        'id': 'old',
+        'label': 'Old Import',
+        'kind': 'user',
+        'source': '/old.sf2',
+      });
+      expect(entry.family, SoundFamily.keyboard);
+    });
+
+    test('the bundled-kit id is stable and its entry list is asset-gated', () {
+      // The stable id exists ahead of the asset (selection defaults to it)…
+      expect(defaultKitId, 'fluid-r3-drums');
+      // …but no built-in entry points at a nonexistent asset: the list stays
+      // empty until the licence sign-off lands the bytes (tasks 6.1/6.2/9.1).
+      expect(builtInKits, isEmpty);
+    });
+  });
 }

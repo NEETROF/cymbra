@@ -213,6 +213,11 @@ impl cymbra_music::ScorePreviewConfigSource for FlagScorePreviewConfig {
                 &defaults.soundfont_id,
                 &ctx,
             ),
+            drum_soundfont_id: self.flags.string(
+                registry::CATALOG_PREVIEW_DRUM_SOUNDFONT_ID,
+                &defaults.drum_soundfont_id,
+                &ctx,
+            ),
         }
     }
 }
@@ -660,6 +665,36 @@ mod tests {
     async fn unset_overrides_serve_the_env_baseline() {
         let src = FlagCatalogLimitsConfig::new(service(vec![]).await, base());
         assert_eq!(src.catalog_limits(), base());
+    }
+
+    fn string_override(key: &str, v: &str) -> StoredOverride {
+        StoredOverride {
+            value_type: cymbra_feature_flags::ValueType::String,
+            value: FlagValue::String(v.into()),
+            ..int_override(key, 0)
+        }
+    }
+
+    /// The two preview font keys are independent (change: add-drum-audio-channel):
+    /// each override lands on its own field, and both default empty (dormant).
+    #[tokio::test]
+    async fn score_preview_config_reads_both_font_keys() {
+        use cymbra_music::ScorePreviewConfigSource as _;
+        let src = FlagScorePreviewConfig::new(service(vec![]).await);
+        let cfg = src.score_preview_config();
+        assert!(cfg.soundfont_id.is_empty());
+        assert!(cfg.drum_soundfont_id.is_empty());
+
+        let src = FlagScorePreviewConfig::new(
+            service(vec![
+                string_override(registry::CATALOG_PREVIEW_SOUNDFONT_ID, "grand"),
+                string_override(registry::CATALOG_PREVIEW_DRUM_SOUNDFONT_ID, "kit"),
+            ])
+            .await,
+        );
+        let cfg = src.score_preview_config();
+        assert_eq!(cfg.soundfont_id, "grand");
+        assert_eq!(cfg.drum_soundfont_id, "kit");
     }
 
     /// Every knob is wired to its own key: a distinct override per key must land

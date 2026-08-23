@@ -36,8 +36,9 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use cymbra_music::{
-    Access, FontEntry, SoundFontRepo, UserFontEntry, UserSoundFontRepo, entitlement,
-    preview_object_key, render_preview_wav, sha256_hex,
+    Access, FamilyRefusal, FontEntry, SoundFontRepo, UserFontEntry, UserSoundFontRepo,
+    detect_family, entitlement, normalize_family, preview_object_key, render_preview_wav,
+    sha256_hex, verify_declared_family,
 };
 use cymbra_platform::{AuthIdentity, guard, token};
 use cymbra_storage::{ObjectStorage, StorageError};
@@ -294,9 +295,27 @@ pub struct UploadMeta {
     pub license: String,
     #[serde(default)]
     pub attribution: String,
-    /// Instrument family (e.g. "piano"); defaults to piano when absent.
+    /// Declared instrument family (`keyboard` | `percussion`). Absent/empty and
+    /// the legacy `piano` spelling normalise to `keyboard` permanently (change:
+    /// add-drum-audio-channel); the declaration is verified against the file's
+    /// preset banks before anything is stored.
     #[serde(default)]
     pub instrument: String,
+}
+
+/// The typed refusal of a declared instrument family (change:
+/// add-drum-audio-channel): `422` with a machine-readable `code` and a message
+/// starting with that code (`soundfont_family_mismatch: …`), mirroring the
+/// `library_quota` JSON-refusal shape. Nothing is stored before this fires.
+fn family_refusal_response(refusal: &FamilyRefusal) -> Response {
+    (
+        StatusCode::UNPROCESSABLE_ENTITY,
+        Json(serde_json::json!({
+            "code": refusal.code(),
+            "message": refusal.message(),
+        })),
+    )
+        .into_response()
 }
 
 /// The pure upload decision, before any store/DB access: authenticate, require a
@@ -343,6 +362,14 @@ async fn upload(
     if meta.label.trim().is_empty() || meta.license.trim().is_empty() {
         return status(StatusCode::BAD_REQUEST);
     }
+    // The declared family — legacy `piano`/empty normalised to `keyboard` — is
+    // verified against the file's preset banks BEFORE any store/DB access
+    // (change: add-drum-audio-channel): a mismatch is refused at the door,
+    // nothing stored, no row written.
+    let instrument = normalize_family(&meta.instrument);
+    if let Err(refusal) = verify_declared_family(&instrument, &body) {
+        return family_refusal_response(&refusal);
+    }
     let (Some(store), Some(repo)) = (s.store.as_ref(), s.repo.as_ref()) else {
         return status(StatusCode::SERVICE_UNAVAILABLE);
     };
@@ -380,11 +407,6 @@ async fn upload(
     // …then the row. If the row write fails, best-effort remove the just-stored object
     // so we don't leave a referenced-but-unlisted blob.
     let attribution = (!meta.attribution.trim().is_empty()).then(|| meta.attribution.clone());
-    let instrument = if meta.instrument.trim().is_empty() {
-        "piano".to_string()
-    } else {
-        meta.instrument.trim().to_string()
-    };
     let entry = FontEntry {
         id,
         label: meta.label,
@@ -413,15 +435,17 @@ async fn upload(
     // public audition clip from the just-uploaded bytes. A render/store failure logs and
     // leaves the preview absent (regenerable from the back office) — it never fails the
     // upload, so the catalog row is always consistent with the stored font.
-    store_preview(store.as_ref(), &entry.id, &body).await;
+    store_preview(store.as_ref(), &entry.id, &body, &entry.instrument).await;
     status(StatusCode::CREATED)
 }
 
-/// Render the fixed preview phrase from `font_bytes` and store it under the public
-/// preview key. Best-effort: any failure is logged, not returned (the upload/proposal
-/// still succeeds; the back-office "Generate sample" action is the recovery path).
-async fn store_preview(store: &dyn ObjectStorage, id: &str, font_bytes: &[u8]) {
-    match render_preview_wav(font_bytes) {
+/// Render the fixed preview sequence of the font's `family` (the melodic phrase,
+/// or the drum groove on the drum channel for a `percussion` font — change:
+/// add-drum-audio-channel) and store it under the public preview key.
+/// Best-effort: any failure is logged, not returned (the upload/proposal still
+/// succeeds; the back-office "Generate sample" action is the recovery path).
+async fn store_preview(store: &dyn ObjectStorage, id: &str, font_bytes: &[u8], family: &str) {
+    match render_preview_wav(font_bytes, family) {
         Ok(wav) => {
             if let Err(e) = store.put(&preview_object_key(id), wav).await {
                 tracing::warn!("soundfont preview object not stored for {id}: {e}");
@@ -431,12 +455,20 @@ async fn store_preview(store: &dyn ObjectStorage, id: &str, font_bytes: &[u8]) {
     }
 }
 
-/// Metadata for a private-library import — only a display label is needed (the bytes
-/// carry everything else). Carried in the query string.
+/// Metadata for a private-library import, carried in the query string: a display
+/// label, plus the family the importing app **detected** from the file's preset
+/// banks (change: add-drum-audio-channel). The server re-verifies the claim —
+/// the client is never trusted. Absent/empty (apps shipped before the field
+/// existed) means the server detects the family from the bytes itself, so a
+/// pre-change kit-only import keeps working; an explicit legacy `piano`
+/// declaration normalises to `keyboard`. The private library stores no family —
+/// the verification only guards the sync's claim.
 #[derive(Debug, Deserialize)]
 pub struct ImportMeta {
     #[serde(default)]
     pub label: String,
+    #[serde(default)]
+    pub instrument: String,
 }
 
 /// A private-library font as returned to its owner (no storage-facing fields).
@@ -473,6 +505,21 @@ async fn import_mine(
     }
     if meta.label.trim().is_empty() {
         return status(StatusCode::BAD_REQUEST);
+    }
+    // The family claim (change: add-drum-audio-channel): a new app sends the
+    // family it detected, which is re-verified — the client is never trusted,
+    // and a mismatch is refused before anything is stored. An ABSENT/empty
+    // declaration (apps shipped before the field existed) is instead DETECTED
+    // from the bytes with the same rule — never assumed `keyboard`, so a
+    // kit-only import that worked before this change keeps working. An explicit
+    // legacy `piano` declaration still normalises to `keyboard` and is verified.
+    let verification = if meta.instrument.trim().is_empty() {
+        detect_family(&body).map(|_| ())
+    } else {
+        verify_declared_family(&normalize_family(&meta.instrument), &body)
+    };
+    if let Err(refusal) = verification {
+        return family_refusal_response(&refusal);
     }
     let (Some(store), Some(repo)) = (s.store.as_ref(), s.user_repo.as_ref()) else {
         return status(StatusCode::SERVICE_UNAVAILABLE);
@@ -753,6 +800,14 @@ async fn propose_mine(
         Ok(b) => b,
         Err(_) => return status(StatusCode::INTERNAL_SERVER_ERROR),
     };
+    // The catalog row's family is DETECTED from the bytes' preset banks (change:
+    // add-drum-audio-channel; the private library records no family): kit-only →
+    // `percussion`, otherwise `keyboard`. Unreadable preset headers are a typed
+    // refusal — a family is never guessed, and nothing is stored.
+    let instrument = match detect_family(&bytes) {
+        Ok(family) => family.to_string(),
+        Err(refusal) => return family_refusal_response(&refusal),
+    };
     let object_key = format!("{id}.sf2");
     if store.put(&object_key, bytes).await.is_err() {
         return status(StatusCode::INTERNAL_SERVER_ERROR);
@@ -762,7 +817,7 @@ async fn propose_mine(
         id,
         label: private.label,
         object_key: object_key.clone(),
-        instrument: "piano".to_string(),
+        instrument,
         license: meta.license,
         attribution,
         size_bytes: Some(private.size_bytes),
@@ -941,7 +996,9 @@ async fn regenerate_preview(
         Err(StorageError::NotFound(_)) => return status(StatusCode::NOT_FOUND),
         Err(_) => return status(StatusCode::INTERNAL_SERVER_ERROR),
     };
-    let wav = match render_preview_wav(&bytes) {
+    // The row's family selects the fixed sequence + channel (change:
+    // add-drum-audio-channel): a kit font auditions as the drum groove.
+    let wav = match render_preview_wav(&bytes, &font.instrument) {
         Ok(w) => w,
         Err(e) => {
             tracing::warn!("soundfont preview render failed for {id}: {e}");
@@ -1682,8 +1739,21 @@ mod tests {
         )
     }
 
-    /// A minimal valid `.sf2` preamble: `RIFF <size> sfbk`.
+    /// A minimal well-formed `.sf2` with one melodic-bank preset — passes both
+    /// the preamble guard and the `keyboard` family verification (change:
+    /// add-drum-audio-channel).
     fn sf2_bytes() -> Vec<u8> {
+        cymbra_music::fake_sf2_with_banks(&[0])
+    }
+
+    /// A kit-only `.sf2` (every preset in bank 128) — the `percussion` family.
+    fn kit_sf2_bytes() -> Vec<u8> {
+        cymbra_music::fake_sf2_with_banks(&[128])
+    }
+
+    /// A bare `RIFF … sfbk` preamble: valid enough for the upload guard, but its
+    /// preset banks cannot be read (the pre-verification test fixture).
+    fn preamble_only_bytes() -> Vec<u8> {
         let mut b = b"RIFF".to_vec();
         b.extend_from_slice(&0u32.to_le_bytes());
         b.extend_from_slice(b"sfbk");
@@ -1760,8 +1830,9 @@ mod tests {
         assert_eq!(row.label, "YDP Grand");
         assert_eq!(row.object_key, "ydp-grand.sf2");
         assert_eq!(row.license, "CC-BY 3.0");
-        // Instrument defaults to piano when not supplied.
-        assert_eq!(row.instrument, "piano");
+        // An absent declared family normalises to keyboard (change:
+        // add-drum-audio-channel; the legacy default was `piano`).
+        assert_eq!(row.instrument, "keyboard");
         // An admin upload is auto-accepted, attributed to the uploader, with a digest.
         assert_eq!(row.moderation_status, "accepted");
         assert_eq!(row.uploaded_by.as_deref(), Some("a"));
@@ -1868,6 +1939,126 @@ mod tests {
         assert_eq!(resp.status(), StatusCode::CONFLICT);
     }
 
+    // --- Declared-family verification (change: add-drum-audio-channel) ----
+
+    /// Decode the typed family-refusal body: `(code, message)`.
+    async fn refusal_body(resp: Response) -> (String, String) {
+        let body = to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        (
+            v["code"].as_str().unwrap().to_string(),
+            v["message"].as_str().unwrap().to_string(),
+        )
+    }
+
+    /// The admin-upload refused case (task 4.4): declaring `percussion` on a
+    /// melodic-only font is a typed refusal — nothing stored, no row written.
+    #[tokio::test]
+    async fn upload_family_mismatch_is_refused_and_stores_nothing() {
+        let store = Arc::new(FakeStore::default());
+        let repo = Arc::new(cymbra_music::FakeSoundFontRepo::default());
+        let r = soundfont_router(
+            SoundfontState {
+                store: Some(store.clone()),
+                repo: Some(repo.clone()),
+                user_repo: None,
+                auth: Arc::new(FixedAdminAuth(Some(ident("a", &["admin"])))),
+                plans: None,
+                library_quota: None,
+            },
+            vec!["https://bo.cymbra.app".to_string()],
+        );
+        let resp = r
+            .oneshot(post(
+                "/soundfonts/fake-kit?label=Kit&license=CC0-1.0&instrument=percussion",
+                sf2_bytes(),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+        let (code, message) = refusal_body(resp).await;
+        assert_eq!(code, "soundfont_family_mismatch");
+        assert!(
+            message.starts_with("soundfont_family_mismatch:"),
+            "{message}"
+        );
+        // Nothing stored, no row written.
+        assert!(store.size("fake-kit.sf2").await.is_err());
+        assert!(repo.lookup("fake-kit").await.unwrap().is_none());
+    }
+
+    /// A kit-only font declared `percussion` is verified and stored with the
+    /// percussion family; the legacy `piano` declaration normalises to keyboard.
+    #[tokio::test]
+    async fn upload_records_the_verified_family_and_bridges_piano() {
+        let store = Arc::new(FakeStore::default());
+        let repo = Arc::new(cymbra_music::FakeSoundFontRepo::default());
+        let r = soundfont_router(
+            SoundfontState {
+                store: Some(store),
+                repo: Some(repo.clone()),
+                user_repo: None,
+                auth: Arc::new(FixedAdminAuth(Some(ident("a", &["admin"])))),
+                plans: None,
+                library_quota: None,
+            },
+            vec!["https://bo.cymbra.app".to_string()],
+        );
+        let resp = r
+            .clone()
+            .oneshot(post(
+                "/soundfonts/real-kit?label=Kit&license=MIT&instrument=percussion",
+                kit_sf2_bytes(),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::CREATED);
+        let row = repo.lookup("real-kit").await.unwrap().unwrap();
+        assert_eq!(row.instrument, "percussion");
+        // Legacy `piano` lands as keyboard, still verified against the banks.
+        let resp = r
+            .oneshot(post(
+                "/soundfonts/old-piano?label=Old&license=CC0-1.0&instrument=piano",
+                sf2_bytes(),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::CREATED);
+        let row = repo.lookup("old-piano").await.unwrap().unwrap();
+        assert_eq!(row.instrument, "keyboard");
+    }
+
+    /// Unreadable preset banks are the distinct cannot-verify refusal — never a
+    /// guessed family, nothing stored.
+    #[tokio::test]
+    async fn upload_of_unreadable_banks_is_refused_as_unverifiable() {
+        let store = Arc::new(FakeStore::default());
+        let repo = Arc::new(cymbra_music::FakeSoundFontRepo::default());
+        let r = soundfont_router(
+            SoundfontState {
+                store: Some(store),
+                repo: Some(repo.clone()),
+                user_repo: None,
+                auth: Arc::new(FixedAdminAuth(Some(ident("a", &["admin"])))),
+                plans: None,
+                library_quota: None,
+            },
+            vec!["https://bo.cymbra.app".to_string()],
+        );
+        let resp = r
+            .oneshot(post(UPLOAD_URI, preamble_only_bytes()))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+        let (code, message) = refusal_body(resp).await;
+        assert_eq!(code, "soundfont_family_unverifiable");
+        assert!(
+            message.starts_with("soundfont_family_unverifiable:"),
+            "{message}"
+        );
+        assert!(repo.lookup("ydp-grand").await.unwrap().is_none());
+    }
+
     // --- Private per-user library ----------------------------------------
 
     use cymbra_music::{FakeUserSoundFontRepo, UserFontEntry, UserSoundFontRepo};
@@ -1924,6 +2115,78 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(repo.count("u").await.unwrap(), 1);
+    }
+
+    /// The import-sync refused case (task 4.4): the app's detected-family claim
+    /// is re-verified server-side — a `percussion` claim on a melodic-only font
+    /// is a typed refusal and nothing is inserted.
+    #[tokio::test]
+    async fn import_mine_family_mismatch_is_refused_and_inserts_nothing() {
+        let repo = Arc::new(FakeUserSoundFontRepo::default());
+        let store = Arc::new(FakeStore::default());
+        let r = private_app(repo.clone(), store.clone(), ident("u", &["user"]));
+        let resp = r
+            .oneshot(post(
+                "/me/soundfonts?label=Mine&instrument=percussion",
+                sf2_bytes(),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+        let (code, message) = refusal_body(resp).await;
+        assert_eq!(code, "soundfont_family_mismatch");
+        assert!(
+            message.starts_with("soundfont_family_mismatch:"),
+            "{message}"
+        );
+        assert_eq!(repo.count("u").await.unwrap(), 0);
+    }
+
+    /// An old app (no family declaration) importing a kit-only font is accepted:
+    /// the server DETECTS the family from the bytes instead of assuming
+    /// `keyboard` — no regression on a path that worked before the change. The
+    /// private library records no family; what the sync claim resolves to is
+    /// the detected family, `percussion` for kit-only bytes.
+    #[tokio::test]
+    async fn import_mine_without_declaration_detects_a_kit_and_accepts_it() {
+        let repo = Arc::new(FakeUserSoundFontRepo::default());
+        let r = private_app(
+            repo.clone(),
+            Arc::new(FakeStore::default()),
+            ident("u", &["user"]),
+        );
+        let resp = r
+            .oneshot(post("/me/soundfonts?label=Kit", kit_sf2_bytes()))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::CREATED);
+        assert_eq!(repo.count("u").await.unwrap(), 1);
+        // The effective family of the undeclared sync is the detected one.
+        assert_eq!(
+            cymbra_music::detect_family(&kit_sf2_bytes()).unwrap(),
+            "percussion"
+        );
+    }
+
+    /// A truthful detected-family claim passes: a kit-only import declared
+    /// `percussion` lands in the library (verification is a gate, not a filter).
+    #[tokio::test]
+    async fn import_mine_verified_percussion_claim_is_accepted() {
+        let repo = Arc::new(FakeUserSoundFontRepo::default());
+        let r = private_app(
+            repo.clone(),
+            Arc::new(FakeStore::default()),
+            ident("u", &["user"]),
+        );
+        let resp = r
+            .oneshot(post(
+                "/me/soundfonts?label=Kit&instrument=percussion",
+                kit_sf2_bytes(),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::CREATED);
         assert_eq!(repo.count("u").await.unwrap(), 1);
     }
 
@@ -2111,7 +2374,7 @@ mod tests {
     #[tokio::test]
     async fn propose_creates_pending_catalog_row() {
         let store = Arc::new(FakeStore::default());
-        store.put("user/u/f1.sf2", b"BYTES".to_vec()).await.unwrap();
+        store.put("user/u/f1.sf2", sf2_bytes()).await.unwrap();
         let user_repo: Arc<dyn UserSoundFontRepo> =
             Arc::new(FakeUserSoundFontRepo::with(vec![user_entry(
                 "f1", "u", "shaX",
@@ -2137,9 +2400,76 @@ mod tests {
         assert_eq!(row.uploaded_by.as_deref(), Some("u"));
         assert_eq!(row.license, "CC-BY-3.0");
         assert_eq!(row.object_key, "f1.sf2");
+        // The family is detected from the melodic-only bytes (change:
+        // add-drum-audio-channel).
+        assert_eq!(row.instrument, "keyboard");
         assert!(store.size("f1.sf2").await.is_ok());
         // Not publicly visible until a moderator accepts it.
         assert!(catalog.list_accepted().await.unwrap().is_empty());
+    }
+
+    /// A kit-only private font proposes with the detected `percussion` family.
+    #[tokio::test]
+    async fn propose_detects_a_kit_as_percussion() {
+        let store = Arc::new(FakeStore::default());
+        store.put("user/u/f1.sf2", kit_sf2_bytes()).await.unwrap();
+        let user_repo: Arc<dyn UserSoundFontRepo> =
+            Arc::new(FakeUserSoundFontRepo::with(vec![user_entry(
+                "f1", "u", "shaK",
+            )]));
+        let catalog = Arc::new(cymbra_music::FakeSoundFontRepo::default());
+        let r = propose_app(user_repo, catalog.clone(), store, ident("u", &["user"]));
+        let resp = r
+            .oneshot(post(
+                "/me/soundfonts/f1/propose?license=MIT&attestation=true",
+                Vec::new(),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::CREATED);
+        let row = catalog.lookup("f1").await.unwrap().unwrap();
+        assert_eq!(row.instrument, "percussion");
+    }
+
+    /// The propose refused case (task 4.4): preset banks that cannot be read are
+    /// a typed refusal — a family is never guessed, and no catalog row or public
+    /// object is written.
+    #[tokio::test]
+    async fn propose_of_unreadable_banks_is_refused_and_stores_nothing() {
+        let store = Arc::new(FakeStore::default());
+        store
+            .put("user/u/f1.sf2", preamble_only_bytes())
+            .await
+            .unwrap();
+        let user_repo: Arc<dyn UserSoundFontRepo> =
+            Arc::new(FakeUserSoundFontRepo::with(vec![user_entry(
+                "f1", "u", "shaZ",
+            )]));
+        let catalog = Arc::new(cymbra_music::FakeSoundFontRepo::default());
+        let r = propose_app(
+            user_repo,
+            catalog.clone(),
+            store.clone(),
+            ident("u", &["user"]),
+        );
+        let resp = r
+            .oneshot(post(
+                "/me/soundfonts/f1/propose?license=CC0-1.0&attestation=true",
+                Vec::new(),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+        let (code, message) = refusal_body(resp).await;
+        assert_eq!(code, "soundfont_family_unverifiable");
+        assert!(
+            message.starts_with("soundfont_family_unverifiable:"),
+            "{message}"
+        );
+        // No catalog row, no public object; the private font is untouched.
+        assert!(catalog.lookup("f1").await.unwrap().is_none());
+        assert!(store.size("f1.sf2").await.is_err());
+        assert!(store.size("user/u/f1.sf2").await.is_ok());
     }
 
     #[tokio::test]

@@ -166,9 +166,13 @@ bank-derived answer to correct to.
 The app's import flow SHALL **detect** the family from the file's preset banks
 (only bank-128 presets → `percussion`; otherwise `keyboard`) rather than ask the
 user, and the server SHALL re-verify the synced declaration — the client is
-never trusted. Catalog rows recorded before verification existed SHALL be
-checked by a one-shot ops pass that re-reads each stored object and reports
-mismatches rather than rewriting them.
+never trusted. An import sync carrying **no** declaration (an app shipped before
+the field existed) SHALL have its family **detected server-side from the bytes**
+with the same rule, never assumed `keyboard` — otherwise a pre-change kit-only
+import would be refused, a regression on a path that worked. Catalog rows
+recorded before verification existed SHALL be checked by a one-shot ops pass
+that re-reads each stored object and reports mismatches rather than rewriting
+them.
 
 #### Scenario: A kit-less font cannot claim percussion
 

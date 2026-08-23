@@ -28,6 +28,7 @@ import 'play_sync_notifier.dart';
 import 'practice_settings_store.dart';
 import 'drum_kit.dart';
 import 'player_data.dart';
+import 'score_font.dart';
 import 'notation_playback.dart';
 import 'player_preferences.dart';
 import 'score_catalog.dart';
@@ -216,8 +217,34 @@ class Player extends _$Player {
     _sounding.clear();
   }
 
-  /// Sounds/releases score notes as the playhead travels from [from] to [to].
+  /// Sounds/releases score notes as the playhead travels from [from] to [to],
+  /// routed by the loaded score's family (change: add-drum-audio-channel): a
+  /// percussion score's General MIDI numbers go through the drum entry points,
+  /// a keyboard score's pitches through the melodic pair exactly as before.
   void _applyScoreAudio(PlayerData s, double from, double to) {
+    if (s.isPercussion) {
+      // Percussion readiness gate: until the kit font's awaited install has
+      // resolved (KitFontStatus.ready), playback is visual-only — the
+      // schedule advances but nothing reaches the synth, so a drum part is
+      // never sounded through the still-loaded keyboard font. `_sounding` is
+      // untouched here, so no phantom release accumulates either.
+      if (ref.read(scoreFontProvider) != KitFontStatus.ready) return;
+      final edges = scoreNoteEdges(
+        visible: s.visibleNotes,
+        from: from,
+        to: to,
+        sounding: _sounding,
+      );
+      for (final p in edges.stops) {
+        _audio.drumOff(p);
+        _sounding.remove(p);
+      }
+      for (final p in edges.starts) {
+        _audio.drumOn(p);
+        _sounding.add(p);
+      }
+      return;
+    }
     final edges = scoreNoteEdges(
       visible: s.visibleNotes,
       from: from,

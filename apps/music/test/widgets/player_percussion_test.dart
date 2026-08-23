@@ -250,6 +250,12 @@ void main() {
     final after = c.read(playerProvider);
     expect(after.activeNotes, isEmpty);
     expect(after.activeNotes, before.activeNotes);
+    // And nothing reached the synth either (change: add-drum-audio-channel):
+    // the one-shot drum verbs exist for scheduled playback, but the pads stay
+    // silent until add-drum-input-mapping wires input to them.
+    final audio = c.read(audioServiceProvider) as RecordingAudioService;
+    expect(audio.drumOns, isEmpty);
+    expect(audio.noteOns, isEmpty);
     await _teardown(tester, c);
   });
 

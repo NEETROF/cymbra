@@ -175,6 +175,49 @@ void main() {
     expect(find.text('My Grand'), findsOneWidget);
   });
 
+  testWidgets(
+    'every font carries a family badge — kits and pianos alike, unfiltered '
+    '(change: add-drum-audio-channel)',
+    (tester) async {
+      // The hub is not scoped to a score: both families are LISTED (never
+      // filtered) and the family is made visible as a badge instead.
+      final prefs = FakePreferencesService({
+        ImportedSoundFonts.prefsKey: _encode([
+          _synced('a', 'My Grand'),
+          const PianoEntry(
+            id: 'k',
+            label: 'My Kit',
+            kind: PianoKind.user,
+            source: '/copied/k.sf2',
+            family: SoundFamily.percussion,
+            remoteId: 'remote-k',
+          ),
+        ]),
+      });
+      await _pump(
+        tester,
+        _container(
+          prefs: prefs,
+          serverFonts: [
+            fakeDownloadPiano(
+              id: 'street-kit',
+              label: 'Street Kit',
+              family: SoundFamily.percussion,
+            ),
+          ],
+        ),
+      );
+
+      expect(find.text('My Grand'), findsOneWidget);
+      expect(find.text('My Kit'), findsOneWidget);
+      expect(find.text('Street Kit'), findsOneWidget);
+      // Localized family badges: the two kits read "Drums", the bundled
+      // default + the imported grand read "Keyboard".
+      expect(find.text('Drums'), findsNWidgets(2));
+      expect(find.text('Keyboard'), findsNWidgets(2));
+    },
+  );
+
   testWidgets('add drawer: choose a file, name it, and add', (tester) async {
     final importer = FakeSoundFontImporter(
       picked: PickedSoundFont(

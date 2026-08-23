@@ -136,6 +136,13 @@ class SelectedPiano extends _$SelectedPiano {
     );
   }
 
+  /// Re-applies the current selection to the synthesizer without changing or
+  /// re-persisting it — the same resolve+load+fallback path [select] uses.
+  /// Called by the font-follows-score controller when a keyboard surface
+  /// returns after a percussion score swapped the kit in (change:
+  /// add-drum-audio-channel); the keyboard memory itself is untouched.
+  Future<void> reapply() => _load(state);
+
   /// Sets the selection to [id], optionally persisting, and loads its SoundFont.
   Future<void> _apply(String id, {required bool persist}) async {
     state = id;

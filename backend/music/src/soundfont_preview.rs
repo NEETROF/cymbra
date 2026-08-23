@@ -60,8 +60,9 @@ pub struct SampleSequence {
     pub total_ms: u32,
 }
 
-/// The canonical preview phrase: a rising C-major arpeggio (C4·E4·G4·C5) followed by a
-/// sustained C-major triad — ~2.4 s, the same for every font.
+/// The canonical preview phrase for a **keyboard**-family font: a rising C-major
+/// arpeggio (C4·E4·G4·C5) followed by a sustained C-major triad — ~2.4 s, the
+/// same for every font.
 pub fn sample_sequence() -> SampleSequence {
     const V: u8 = 100;
     // Arpeggio: four notes, 300 ms apart, each sounding 400 ms.
@@ -85,6 +86,66 @@ pub fn sample_sequence() -> SampleSequence {
         notes: arpeggio.chain(chord).collect(),
         // Last note ends at 2200 ms; add a 200 ms release tail.
         total_ms: 2400,
+    }
+}
+
+/// The canonical preview groove for a **percussion**-family font (change:
+/// add-drum-audio-channel): one 4/4 bar of a basic rock pattern in General MIDI
+/// numbers — kick 36, snare 38, closed hi-hat 42 — at 120 bpm, synthesized on
+/// the drum channel. Fixed like the melodic phrase, so kit clips stay
+/// comparable and deterministic; the melodic phrase through a kit font would be
+/// silence or nonsense (a kit's presets live in bank 128).
+pub fn drum_sample_sequence() -> SampleSequence {
+    /// General MIDI percussion numbers of the groove.
+    const KICK: u8 = 36;
+    const SNARE: u8 = 38;
+    const CLOSED_HAT: u8 = 42;
+    let mut notes = Vec::new();
+    // Closed hi-hat on every eighth (120 bpm → 250 ms per eighth).
+    for i in 0..8u32 {
+        notes.push(Note {
+            pitch: CLOSED_HAT,
+            velocity: 80,
+            start_ms: 250 * i,
+            duration_ms: 60,
+        });
+    }
+    // Kick on beat 1, beat 3 and the "and" of 3 (0 / 1000 / 1250 ms).
+    for start_ms in [0u32, 1000, 1250] {
+        notes.push(Note {
+            pitch: KICK,
+            velocity: 110,
+            start_ms,
+            duration_ms: 150,
+        });
+    }
+    // Snare backbeat on 2 and 4 (500 / 1500 ms).
+    for start_ms in [500u32, 1500] {
+        notes.push(Note {
+            pitch: SNARE,
+            velocity: 100,
+            start_ms,
+            duration_ms: 150,
+        });
+    }
+    SampleSequence {
+        notes,
+        // The bar ends at 2000 ms; keep the melodic phrase's total so the two
+        // families' clips are the same length.
+        total_ms: 2400,
+    }
+}
+
+/// The fixed sample sequence and synthesis channel for a font's instrument
+/// family (change: add-drum-audio-channel): a `percussion`-family font plays
+/// [`drum_sample_sequence`] on the shared drum channel; **any** other value —
+/// `keyboard`, or a legacy row not yet migrated — keeps the existing melodic
+/// phrase on the melodic channel, byte-identically.
+pub fn sample_sequence_for_family(family: &str) -> (SampleSequence, i32) {
+    if family == crate::soundfont::PERCUSSION_FAMILY {
+        (drum_sample_sequence(), cymbra_musicxml_core::DRUM_CHANNEL)
+    } else {
+        (sample_sequence(), cymbra_musicxml_core::MELODIC_CHANNEL)
     }
 }
 
@@ -167,6 +228,52 @@ mod tests {
         assert_eq!(seq.total_ms, 2400);
         // The phrase is fixed — two calls yield the identical sequence.
         assert_eq!(seq, sample_sequence());
+    }
+
+    #[test]
+    fn drum_sequence_is_a_fixed_groove_of_kick_snare_hat() {
+        let seq = drum_sample_sequence();
+        assert!(!seq.notes.is_empty());
+        // The groove speaks General MIDI percussion numbers only.
+        for n in &seq.notes {
+            assert!(
+                [36, 38, 42].contains(&n.pitch),
+                "unexpected number {}",
+                n.pitch
+            );
+        }
+        // All three voices are present (kick, snare, hi-hat).
+        for pitch in [36u8, 38, 42] {
+            assert!(seq.notes.iter().any(|n| n.pitch == pitch));
+        }
+        // Same length as the melodic phrase, and fixed across calls.
+        assert_eq!(seq.total_ms, sample_sequence().total_ms);
+        assert_eq!(seq, drum_sample_sequence());
+        // Every note ends inside the clip.
+        assert!(
+            seq.notes
+                .iter()
+                .all(|n| n.start_ms + n.duration_ms <= seq.total_ms)
+        );
+    }
+
+    #[test]
+    fn family_selects_the_sequence_and_channel() {
+        // Percussion → the groove on the drum channel.
+        let (seq, channel) = sample_sequence_for_family("percussion");
+        assert_eq!(seq, drum_sample_sequence());
+        assert_eq!(channel, cymbra_musicxml_core::DRUM_CHANNEL);
+        // Keyboard keeps the existing phrase on the melodic channel,
+        // byte-identically (the pre-change hardcoded channel 0).
+        let (seq, channel) = sample_sequence_for_family("keyboard");
+        assert_eq!(seq, sample_sequence());
+        assert_eq!(channel, cymbra_musicxml_core::MELODIC_CHANNEL);
+        assert_eq!(channel, 0);
+        // A legacy not-yet-migrated spelling degrades to the melodic phrase —
+        // never a guess at percussion.
+        let (seq, channel) = sample_sequence_for_family("piano");
+        assert_eq!(seq, sample_sequence());
+        assert_eq!(channel, 0);
     }
 
     #[test]

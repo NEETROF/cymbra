@@ -1,0 +1,14 @@
+# Tiny shared SoundFont-metadata crate (change: add-drum-audio-channel): the
+# preset-bank family evidence both the app engine (import detection) and the
+# backend (upload verification) read — one parser, so the two sites cannot
+# disagree about what counts as a kit.
+[package]
+name = "cymbra-sf2-meta"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+anyhow = "1"

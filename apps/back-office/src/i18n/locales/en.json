@@ -132,7 +132,8 @@
     "priceNoSampleHint": "This font has no sample yet: once it costs points, the app locks it and greys its play control until you generate one.",
     "instrument": "Instrument",
     "instr": {
-      "piano": "Piano"
+      "keyboard": "Keyboard",
+      "percussion": "Drum kit"
     },
     "licenseDesc": {
       "cc0": "CC0 1.0 — Public domain: no attribution required, free to reuse for any purpose.",
@@ -149,6 +150,7 @@
     "generateSampleHint": "Render the short preview clip users hear when auditioning this font in the app.",
     "sampleGenerated": "Sample generated.",
     "previewRequired": "Generate a preview sample before accepting this font.",
+    "familyMismatch": "This file doesn’t match the declared family “{family}” — it holds no presets for that family.",
     "empty": "No SoundFonts yet.",
     "confirmRemove": "Remove this SoundFont? Its catalog row and stored file are both deleted.",
     "statusCol": "Status",
@@ -364,7 +366,7 @@
     "loading": "Loading score…",
     "rendering": "Rendering notation…",
     "renderError": "Notation could not be rendered.",
-    "percussionNotAuditionable": "Drum score — not auditionable yet.",
+    "noDrumKit": "No drum kit available — the catalog holds no accepted percussion SoundFont yet.",
     "noBytes": "No score bytes.",
     "play": "▶ Play",
     "pause": "⏸ Pause",

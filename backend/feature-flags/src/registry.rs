@@ -81,6 +81,11 @@ pub const CATALOG_PREVIEW_MAX_MS: &str = "catalog.preview.max_ms";
 /// Id of the ACCEPTED catalog SoundFont the score teasers are rendered with.
 /// Empty = previews are dormant (nothing rendered, nothing broken).
 pub const CATALOG_PREVIEW_SOUNDFONT_ID: &str = "catalog.preview.soundfont_id";
+/// Id of the ACCEPTED `percussion`-family catalog SoundFont (a drum kit) a
+/// percussion piece's teaser is rendered with, on the drum channel (change:
+/// add-drum-audio-channel). Empty = percussion previews are dormant,
+/// independently of the keyboard key above.
+pub const CATALOG_PREVIEW_DRUM_SOUNDFONT_ID: &str = "catalog.preview.drum_soundfont_id";
 
 // --- catalog access limits — the per-user scrape guardrail on catalog egress
 // (change: add-catalog-access-limits, task 1.3). Read per request by the score
@@ -482,6 +487,13 @@ pub fn builtin() -> Vec<KeyDef> {
             FlagValue::String(String::new()),
             false,
             "Id of the accepted catalog SoundFont score teasers are rendered with (empty = dormant).",
+        ),
+        cfg(
+            CATALOG_PREVIEW_DRUM_SOUNDFONT_ID,
+            APP_MUSIC,
+            FlagValue::String(String::new()),
+            false,
+            "Id of the accepted percussion-family SoundFont (drum kit) percussion teasers are rendered with (empty = percussion previews dormant).",
         ),
         // -- catalog access limits (per-user scrape guardrail on catalog egress).
         // Defaults ON and mirror the env baseline: unlimited egress is the unsafe

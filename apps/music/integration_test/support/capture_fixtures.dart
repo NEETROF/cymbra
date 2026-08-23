@@ -229,10 +229,18 @@ class CaptureAudioService implements AudioService {
   Future<void> init() async {}
   @override
   Future<void> loadSoundFont(String sf2Path) async {}
+  // "Installed" so a percussion capture is not blocked on readiness — captures
+  // are images, the sound itself is irrelevant.
+  @override
+  Future<bool> loadSoundFontAwaited(String sf2Path) async => true;
   @override
   void noteOn(int pitch, {int velocity = AudioService.defaultVelocity}) {}
   @override
   void noteOff(int pitch) {}
+  @override
+  void drumOn(int key, {int velocity = AudioService.defaultVelocity}) {}
+  @override
+  void drumOff(int key) {}
   @override
   void allNotesOff() {}
   @override

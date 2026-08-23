@@ -95,6 +95,14 @@
   "@settingsCategoryPiano": {
     "description": "Settings category: choose the piano SoundFont the synthesizer uses."
   },
+  "settingsCategoryKit": "Drum kit sound",
+  "@settingsCategoryKit": {
+    "description": "Settings category on a percussion score: choose the drum-kit SoundFont the synthesizer uses (the kit picker's label)."
+  },
+  "kitPickerEmpty": "No drum kit available",
+  "@kitPickerEmpty": {
+    "description": "Sound picker hint when the catalog holds no font of the loaded score's family (a percussion score before any kit font is available) — an honest empty state, not an error."
+  },
   "pianoGroupBuiltIn": "Built-in",
   "@pianoGroupBuiltIn": {
     "description": "Group header in the piano picker for the built-in (bundled and downloadable) pianos."

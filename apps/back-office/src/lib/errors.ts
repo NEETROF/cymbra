@@ -3,9 +3,14 @@ import { t } from "@/i18n";
 import { WebAuthError } from "@/lib/web-auth";
 
 /** A failed SoundFont HTTP upload, carrying the status so `humanError` can localize
- *  it (the upload route is HTTP, not gRPC — bytes don't fit gRPC-web). */
+ *  it (the upload route is HTTP, not gRPC — bytes don't fit gRPC-web), and the
+ *  response body so a typed refusal reason (e.g. the family-mismatch prefix —
+ *  change: add-drum-audio-channel) survives the transport. */
 export class SoundFontUploadError extends Error {
-  constructor(readonly status: number) {
+  constructor(
+    readonly status: number,
+    readonly body: string = "",
+  ) {
     super(`soundfont upload failed: HTTP ${status}`);
     this.name = "SoundFontUploadError";
   }

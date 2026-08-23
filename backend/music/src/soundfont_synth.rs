@@ -30,12 +30,9 @@ use anyhow::{Result, anyhow};
 use rustysynth::{SoundFont, Synthesizer, SynthesizerSettings};
 
 use crate::soundfont_preview::{
-    Event, PREVIEW_SAMPLE_RATE, SampleSequence, encode_preview, sample_sequence, scheduled_events,
-    total_samples,
+    Event, PREVIEW_SAMPLE_RATE, SampleSequence, encode_preview, sample_sequence_for_family,
+    scheduled_events, total_samples,
 };
-
-/// Synthesis channel for the single-instrument preview (channel 0).
-const PREVIEW_CHANNEL: i32 = 0;
 
 /// Convert a clamped `f32` sample in `[-1.0, 1.0]` to `i16` PCM.
 fn f32_to_i16(s: f32) -> i16 {
@@ -43,9 +40,17 @@ fn f32_to_i16(s: f32) -> i16 {
 }
 
 /// Render `seq` with the SoundFont in `font_bytes` to mono 16-bit PCM at
-/// [`PREVIEW_SAMPLE_RATE`], headlessly (no audio device). Deterministic: the same font
-/// + sequence yields an equivalent-length clip (length is `total_samples(seq, rate)`).
-pub fn render_preview_pcm(font_bytes: &[u8], seq: &SampleSequence) -> Result<Vec<i16>> {
+/// [`PREVIEW_SAMPLE_RATE`], headlessly (no audio device), on `channel` — the
+/// shared `cymbra_musicxml_core::MELODIC_CHANNEL` for keyboard material or
+/// `DRUM_CHANNEL` for percussion, where rustysynth resolves presets in bank 128
+/// (change: add-drum-audio-channel; formerly a hardcoded `PREVIEW_CHANNEL = 0`).
+/// Deterministic: the same font + sequence yields an equivalent-length clip
+/// (length is `total_samples(seq, rate)`).
+pub fn render_preview_pcm(
+    font_bytes: &[u8],
+    seq: &SampleSequence,
+    channel: i32,
+) -> Result<Vec<i16>> {
     let mut reader = Cursor::new(font_bytes);
     let sound_font =
         Arc::new(SoundFont::new(&mut reader).map_err(|e| anyhow!("invalid SoundFont: {e}"))?);
@@ -67,9 +72,9 @@ pub fn render_preview_pcm(font_bytes: &[u8], seq: &SampleSequence) -> Result<Vec
         while ei < events.len() && events[ei].0 <= cursor {
             match events[ei].1 {
                 Event::NoteOn { pitch, velocity } => {
-                    synth.note_on(PREVIEW_CHANNEL, pitch as i32, velocity as i32)
+                    synth.note_on(channel, pitch as i32, velocity as i32)
                 }
-                Event::NoteOff { pitch } => synth.note_off(PREVIEW_CHANNEL, pitch as i32),
+                Event::NoteOff { pitch } => synth.note_off(channel, pitch as i32),
             }
             ei += 1;
         }
@@ -95,9 +100,13 @@ pub fn render_preview_pcm(font_bytes: &[u8], seq: &SampleSequence) -> Result<Vec
     Ok(pcm)
 }
 
-/// Render the fixed preview phrase with `font_bytes` and encode it as a WAV clip — the
-/// one call the delivery/upload path uses to produce a font's preview object.
-pub fn render_preview_wav(font_bytes: &[u8]) -> Result<Vec<u8>> {
-    let pcm = render_preview_pcm(font_bytes, &sample_sequence())?;
+/// Render the fixed preview sequence of the font's instrument `family` (change:
+/// add-drum-audio-channel: a `percussion` font plays the drum groove on the drum
+/// channel; anything else keeps the melodic phrase on the melodic channel) and
+/// encode it as a WAV clip — the one call the delivery/upload path uses to
+/// produce a font's preview object.
+pub fn render_preview_wav(font_bytes: &[u8], family: &str) -> Result<Vec<u8>> {
+    let (seq, channel) = sample_sequence_for_family(family);
+    let pcm = render_preview_pcm(font_bytes, &seq, channel)?;
     Ok(encode_preview(&pcm, PREVIEW_SAMPLE_RATE))
 }
