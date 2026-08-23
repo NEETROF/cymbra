@@ -785,6 +785,7 @@ const _: fn() = || {
         let _: Option<crate::api::musicxml::Pitch> = NoteEvent.pitch;
         let _: bool = NoteEvent.is_rest;
         let _: bool = NoteEvent.is_chord;
+        let _: bool = NoteEvent.is_grace;
         let _: u32 = NoteEvent.duration_divisions;
         let _: Option<String> = NoteEvent.note_type;
         let _: u32 = NoteEvent.dots;
@@ -1266,6 +1267,7 @@ impl SseDecode for crate::api::musicxml::NoteEvent {
         let mut var_pitch = <Option<crate::api::musicxml::Pitch>>::sse_decode(deserializer);
         let mut var_isRest = <bool>::sse_decode(deserializer);
         let mut var_isChord = <bool>::sse_decode(deserializer);
+        let mut var_isGrace = <bool>::sse_decode(deserializer);
         let mut var_durationDivisions = <u32>::sse_decode(deserializer);
         let mut var_noteType = <Option<String>>::sse_decode(deserializer);
         let mut var_dots = <u32>::sse_decode(deserializer);
@@ -1285,6 +1287,7 @@ impl SseDecode for crate::api::musicxml::NoteEvent {
             pitch: var_pitch,
             is_rest: var_isRest,
             is_chord: var_isChord,
+            is_grace: var_isGrace,
             duration_divisions: var_durationDivisions,
             note_type: var_noteType,
             dots: var_dots,
@@ -1906,6 +1909,7 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::musicxml::NoteEven
             self.0.pitch.into_into_dart().into_dart(),
             self.0.is_rest.into_into_dart().into_dart(),
             self.0.is_chord.into_into_dart().into_dart(),
+            self.0.is_grace.into_into_dart().into_dart(),
             self.0.duration_divisions.into_into_dart().into_dart(),
             self.0.note_type.into_into_dart().into_dart(),
             self.0.dots.into_into_dart().into_dart(),
@@ -2497,6 +2501,7 @@ impl SseEncode for crate::api::musicxml::NoteEvent {
         <Option<crate::api::musicxml::Pitch>>::sse_encode(self.pitch, serializer);
         <bool>::sse_encode(self.is_rest, serializer);
         <bool>::sse_encode(self.is_chord, serializer);
+        <bool>::sse_encode(self.is_grace, serializer);
         <u32>::sse_encode(self.duration_divisions, serializer);
         <Option<String>>::sse_encode(self.note_type, serializer);
         <u32>::sse_encode(self.dots, serializer);

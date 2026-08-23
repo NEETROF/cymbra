@@ -990,8 +990,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   NoteEvent dco_decode_note_event(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 18)
-      throw Exception('unexpected arr length: expect 18 but see ${arr.length}');
+    if (arr.length != 19)
+      throw Exception('unexpected arr length: expect 19 but see ${arr.length}');
     return NoteEvent(
       staff: dco_decode_u_32(arr[0]),
       voice: dco_decode_u_32(arr[1]),
@@ -999,18 +999,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       pitch: dco_decode_opt_box_autoadd_pitch(arr[3]),
       isRest: dco_decode_bool(arr[4]),
       isChord: dco_decode_bool(arr[5]),
-      durationDivisions: dco_decode_u_32(arr[6]),
-      noteType: dco_decode_opt_String(arr[7]),
-      dots: dco_decode_u_32(arr[8]),
-      accidental: dco_decode_opt_String(arr[9]),
-      tieStart: dco_decode_bool(arr[10]),
-      tieStop: dco_decode_bool(arr[11]),
-      slurStart: dco_decode_bool(arr[12]),
-      slurStop: dco_decode_bool(arr[13]),
-      tuplet: dco_decode_opt_box_autoadd_tuplet(arr[14]),
-      stem: dco_decode_opt_box_autoadd_stem_dir(arr[15]),
-      beams: dco_decode_list_beam_state(arr[16]),
-      lyric: dco_decode_opt_box_autoadd_lyric(arr[17]),
+      isGrace: dco_decode_bool(arr[6]),
+      durationDivisions: dco_decode_u_32(arr[7]),
+      noteType: dco_decode_opt_String(arr[8]),
+      dots: dco_decode_u_32(arr[9]),
+      accidental: dco_decode_opt_String(arr[10]),
+      tieStart: dco_decode_bool(arr[11]),
+      tieStop: dco_decode_bool(arr[12]),
+      slurStart: dco_decode_bool(arr[13]),
+      slurStop: dco_decode_bool(arr[14]),
+      tuplet: dco_decode_opt_box_autoadd_tuplet(arr[15]),
+      stem: dco_decode_opt_box_autoadd_stem_dir(arr[16]),
+      beams: dco_decode_list_beam_state(arr[17]),
+      lyric: dco_decode_opt_box_autoadd_lyric(arr[18]),
     );
   }
 
@@ -1611,6 +1612,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_pitch = sse_decode_opt_box_autoadd_pitch(deserializer);
     var var_isRest = sse_decode_bool(deserializer);
     var var_isChord = sse_decode_bool(deserializer);
+    var var_isGrace = sse_decode_bool(deserializer);
     var var_durationDivisions = sse_decode_u_32(deserializer);
     var var_noteType = sse_decode_opt_String(deserializer);
     var var_dots = sse_decode_u_32(deserializer);
@@ -1630,6 +1632,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       pitch: var_pitch,
       isRest: var_isRest,
       isChord: var_isChord,
+      isGrace: var_isGrace,
       durationDivisions: var_durationDivisions,
       noteType: var_noteType,
       dots: var_dots,
@@ -2238,6 +2241,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_box_autoadd_pitch(self.pitch, serializer);
     sse_encode_bool(self.isRest, serializer);
     sse_encode_bool(self.isChord, serializer);
+    sse_encode_bool(self.isGrace, serializer);
     sse_encode_u_32(self.durationDivisions, serializer);
     sse_encode_opt_String(self.noteType, serializer);
     sse_encode_u_32(self.dots, serializer);

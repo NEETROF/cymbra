@@ -275,6 +275,7 @@ class Player extends _$Player {
       beatType: document.attributes.time.beatType,
       notes: derived.notes,
       rests: derived.rests,
+      tieContinuations: derived.tieContinuations,
       songEndMs: derived.songEndMs,
       measureStartMs: derived.measureStartMs,
       measureKeyFifths: derived.measureKeyFifths,
@@ -321,6 +322,7 @@ class Player extends _$Player {
       bpm: score.bpm,
       notes: all,
       rests: const [], // the demo score has no rests; clear any prior score's
+      tieContinuations: const [], // nor ties
       songEndMs: end,
     );
     // Seed the playhead at the effective start (0 for the demo, which opens on a

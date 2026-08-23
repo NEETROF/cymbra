@@ -210,6 +210,9 @@ void main() {
       final d = notationToTimedNotes(doc);
       expect(d.notes, hasLength(2));
       expect(d.notes[0].startMs, d.notes[1].startMs);
+      // The chord flag survives the flattening: the Staff painter needs it so a
+      // member never grows a stem/flag of its own next to the principal's.
+      expect(d.notes.map((n) => n.isChord), [false, true]);
     });
 
     test('songEndMs reaches the end of the last note', () {
@@ -498,6 +501,183 @@ void main() {
           ],
         );
         expect(notationToTimedNotes(doc).notes, hasLength(2));
+      });
+
+      // The merged continuations must NOT vanish from the notation: dropping
+      // them left the prolonged measures looking empty (an eighth "stretching"
+      // over the next bar — the River Flows In You report). They come back on a
+      // render-only channel, engraved as written and anchored for the tie arc.
+      test(
+        'continuations surface on the render-only channel with arc anchors',
+        () {
+          final doc = _docWith(
+            notes: [
+              // River-like chain: eighth (tie start) → dotted half (stop+start)
+              // → eighth (stop). One attack, three engraved notes.
+              noteEvent(
+                positionDivisions: 0,
+                durationDivisions: 2,
+                noteType: 'eighth',
+                pitch: const Pitch(step: 'D', octave: 5, alter: 0),
+                tieStart: true,
+              ),
+              noteEvent(
+                positionDivisions: 2,
+                durationDivisions: 12,
+                noteType: 'half',
+                dots: 1,
+                pitch: const Pitch(step: 'D', octave: 5, alter: 0),
+                tieStop: true,
+                tieStart: true,
+              ),
+              noteEvent(
+                positionDivisions: 14,
+                durationDivisions: 2,
+                noteType: 'eighth',
+                pitch: const Pitch(step: 'D', octave: 5, alter: 0),
+                tieStop: true,
+              ),
+            ],
+          );
+          final d = notationToTimedNotes(doc);
+          // Playback: one merged attack spanning the whole chain, keeping the
+          // first note's engraved figure.
+          expect(d.notes, hasLength(1));
+          expect(d.notes.single.noteType, 'eighth');
+          expect(d.notes.single.durationMs, (quarterMs * 4).round());
+          // The waterfall's attack/sustain split: the sustain starts where the
+          // FIRST continuation begins, and later links never move it.
+          expect(d.notes.single.sustainFromMs, (quarterMs / 2).round());
+          // Notation: both continuations kept, as written, each anchored to the
+          // engraved note it prolongs (a chain arcs link-to-link, not all-to-first).
+          expect(d.tieContinuations, hasLength(2));
+          final half = d.tieContinuations[0];
+          expect(half.noteType, 'half');
+          expect(half.dots, 1);
+          expect(half.startMs, (quarterMs / 2).round());
+          expect(half.tieFromMs, 0);
+          final eighth = d.tieContinuations[1];
+          expect(eighth.noteType, 'eighth');
+          expect(eighth.startMs, (quarterMs * 3.5).round());
+          expect(eighth.tieFromMs, half.startMs);
+        },
+      );
+
+      test('a plain playable note carries no arc anchor', () {
+        final doc = _docWith(
+          notes: [
+            noteEvent(
+              positionDivisions: 0,
+              pitch: const Pitch(step: 'C', octave: 4, alter: 0),
+            ),
+          ],
+        );
+        final d = notationToTimedNotes(doc);
+        expect(d.notes.single.tieFromMs, isNull);
+        expect(d.tieContinuations, isEmpty);
+      });
+    });
+
+    // A grace note parses with duration 0 at its principal's position (the
+    // cursor does not advance). Scheduling it verbatim made a zero-length note
+    // glued onto the principal — inaudible, invisible on the waterfall, and
+    // engraved on top of it (the River Flows In You measure-6 report). It gets
+    // a short nominal duration just before the principal instead — the same
+    // rule as the Rust schedule (grace_ms = quarter/8), so app and back-office
+    // previews agree.
+    group('grace notes', () {
+      const quarterMs = 60000 / kDefaultBpm;
+      const graceMs = quarterMs / 8;
+
+      test(
+        'a grace plays briefly before its principal, which is unchanged',
+        () {
+          final doc = _docWith(
+            notes: [
+              noteEvent(
+                positionDivisions: 0,
+                durationDivisions: 8,
+                noteType: 'half',
+                pitch: const Pitch(step: 'C', octave: 4, alter: 0),
+              ),
+              noteEvent(
+                positionDivisions: 8,
+                durationDivisions: 0,
+                isGrace: true,
+                noteType: 'eighth',
+                pitch: const Pitch(step: 'B', octave: 4, alter: 0),
+              ),
+              noteEvent(
+                positionDivisions: 8,
+                durationDivisions: 4,
+                noteType: 'eighth',
+                pitch: const Pitch(step: 'C', octave: 5, alter: 1),
+              ),
+            ],
+          );
+          final d = notationToTimedNotes(doc);
+          final grace = d.notes.singleWhere((n) => n.pitch == 71);
+          final principal = d.notes.singleWhere((n) => n.pitch == 73);
+          expect(grace.isGrace, isTrue);
+          expect(grace.startMs, (quarterMs * 2 - graceMs).round());
+          expect(grace.durationMs, graceMs.round());
+          expect(principal.isGrace, isFalse);
+          expect(principal.startMs, (quarterMs * 2).round());
+          expect(principal.durationMs, quarterMs.round());
+        },
+      );
+
+      test('consecutive graces stack backwards in document order', () {
+        final doc = _docWith(
+          notes: [
+            noteEvent(
+              positionDivisions: 8,
+              durationDivisions: 0,
+              isGrace: true,
+              pitch: const Pitch(step: 'A', octave: 4, alter: 0),
+            ),
+            noteEvent(
+              positionDivisions: 8,
+              durationDivisions: 0,
+              isGrace: true,
+              pitch: const Pitch(step: 'B', octave: 4, alter: 0),
+            ),
+            noteEvent(
+              positionDivisions: 8,
+              durationDivisions: 4,
+              pitch: const Pitch(step: 'C', octave: 5, alter: 0),
+            ),
+          ],
+        );
+        final d = notationToTimedNotes(doc);
+        final a = d.notes.singleWhere((n) => n.pitch == 69);
+        final b = d.notes.singleWhere((n) => n.pitch == 71);
+        final c = d.notes.singleWhere((n) => n.pitch == 72);
+        expect(a.startMs, (quarterMs * 2 - 2 * graceMs).round());
+        expect(b.startMs, (quarterMs * 2 - graceMs).round());
+        expect(c.startMs, (quarterMs * 2).round());
+      });
+
+      test('a grace opening the piece is clamped at time zero', () {
+        final doc = _docWith(
+          notes: [
+            noteEvent(
+              positionDivisions: 0,
+              durationDivisions: 0,
+              isGrace: true,
+              pitch: const Pitch(step: 'B', octave: 4, alter: 0),
+            ),
+            noteEvent(
+              positionDivisions: 0,
+              durationDivisions: 4,
+              pitch: const Pitch(step: 'C', octave: 5, alter: 0),
+            ),
+          ],
+        );
+        final d = notationToTimedNotes(doc);
+        final grace = d.notes.singleWhere((n) => n.pitch == 71);
+        expect(grace.startMs, 0);
+        expect(grace.durationMs, graceMs.round());
       });
     });
 

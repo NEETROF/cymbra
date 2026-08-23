@@ -1,6 +1,6 @@
 ---
 name: vue-frontend-architecture
-description: Architecture rules for Vue 3 + TypeScript front-ends in this repo (e.g. apps/back-office). Use when creating or editing any Vue screen/component, Pinia store, composable, gRPC-web/API client call, async/loading/error state, or Playwright e2e tests. Enforces two hard rules — components never call an API directly (only stores/composables do), and every async resource is one ts-pattern discriminated union (Async<T>), never scattered loading/error/data refs — plus the e2e pattern (a gated fake-client seam driven by Playwright, no backend).
+description: Architecture rules for Vue 3 + TypeScript front-ends in this repo (e.g. apps/back-office). Use when creating or editing any Vue screen/component, Pinia store, composable, gRPC-web/API client call, async/loading/error state, or Playwright e2e tests — and whenever adding or editing user-facing strings or locale files (en/fr must stay aligned). Enforces two hard rules — components never call an API directly (only stores/composables do), and every async resource is one ts-pattern discriminated union (Async<T>), never scattered loading/error/data refs — plus the e2e pattern (a gated fake-client seam driven by Playwright, no backend) and the no-translation-drift rule.
 metadata:
   author: cymbra
   version: "1.1"
@@ -158,6 +158,35 @@ Rules:
 - CI must generate the gitignored gRPC-web stubs (`yarn gen`, needs `protoc`) before
   typecheck/test, then `yarn playwright install --with-deps chromium` + `yarn e2e`.
 
+## i18n: locales never drift
+
+**Hard rule — no translation drift.** A key added, renamed or removed in one
+locale lands in every other **in the same change**, with a real translation.
+
+- **Back office** (`apps/back-office/src/i18n/locales/en.json` + `fr.json`):
+  the two files mirror each other key-for-key, nested keys included. vue-i18n
+  silently falls back on a missing key, so drift ships unnoticed — diff the
+  flattened key sets before pushing:
+
+  ```bash
+  python3 -c "
+  import json
+  def flat(d,p=''):
+      return {k2:v2 for k,v in d.items() for k2,v2 in
+              (flat(v,f'{p}.{k}' if p else k).items() if isinstance(v,dict)
+               else {(f'{p}.{k}' if p else k):v}.items())}
+  en=flat(json.load(open('src/i18n/locales/en.json')))
+  fr=flat(json.load(open('src/i18n/locales/fr.json')))
+  print('fr missing:',sorted(set(en)-set(fr)) or 'OK')
+  print('fr extra:',sorted(set(fr)-set(en)) or 'OK')
+  "
+  ```
+
+- **Site** (`apps/site/src/lib/i18n.ts`): `fr` is the source of truth and `en`
+  is declared `const en: typeof fr`, so the **compiler** enforces alignment.
+  Never loosen that annotation (no `Partial`, no `as`); add new locales the
+  same way (`const xx: typeof fr`).
+
 ## Checklist
 
 - [ ] No `api()` / client import in `src/views` or `src/components`.
@@ -167,4 +196,5 @@ Rules:
 - [ ] Store tests inject fakes via `setClientsForTest` and assert on `status`.
 - [ ] E2E seam is dynamically imported behind an env flag (absent from `dist/`).
 - [ ] E2E tests force the locale and assert no raw error code leaks into the DOM.
+- [ ] Locale files aligned: BO `en.json`/`fr.json` mirror key-for-key; site `en` stays typed `typeof fr`.
 - [ ] `yarn lint` + `yarn format:check` pass (ESLint flat config with skip-formatting; Prettier owns formatting; `src/gen/**` ignored).

@@ -109,6 +109,29 @@ class TimedNote {
   /// painter then derives it from the head's position on the staff.
   final bool? stemUp;
 
+  /// Set only on a **render-only tie continuation** (an engraved `tie stop` note
+  /// whose duration was merged into its chain's first note for playback): the
+  /// start (ms) of the engraved note this one prolongs, so the Staff painter can
+  /// draw the tie arc between the two heads. Null on every playable note.
+  final int? tieFromMs;
+
+  /// True for a grace note (ornamental small note, `<grace/>`): played with a
+  /// short nominal duration just before its principal, and engraved smaller by
+  /// the Staff painter.
+  final bool isGrace;
+
+  /// True for a chord member (`<chord/>`): it sounds with the preceding
+  /// principal note and shares its stem — the Staff painter draws its head but
+  /// never a stem or flag of its own, matching the engraved Partition.
+  final bool isChord;
+
+  /// Set only on a **merged tie chain's first note**: the start (ms) of the
+  /// chain's first continuation — where the written attack ends and the tied
+  /// sustain begins. The waterfall renders the bar's attack segment (up to
+  /// here) full-strength and the sustain tail slimmer/quieter, so "strike now"
+  /// and "keep holding" read differently. Null on ordinary notes.
+  final int? sustainFromMs;
+
   const TimedNote({
     required this.pitch,
     required this.startMs,
@@ -122,6 +145,10 @@ class TimedNote {
     this.diatonic,
     this.accidental,
     this.stemUp,
+    this.tieFromMs,
+    this.isGrace = false,
+    this.isChord = false,
+    this.sustainFromMs,
   });
 }
 
@@ -297,6 +324,14 @@ abstract class PlayerData with _$PlayerData {
     /// notation painters. Deliberately separate from [notes] so rests are never
     /// awaited by the Wait-Mode gate nor scored.
     @Default(<TimedRest>[]) List<TimedRest> rests,
+
+    /// Engraved tie continuations, sorted by start — a render-only channel like
+    /// [rests]. Each is a `tie stop` note whose duration was merged into its
+    /// chain's first note in [notes] (a tie is a single attack), kept here so
+    /// the Staff painter still engraves the written note and its tie arc.
+    /// Deliberately separate from [notes] so continuations are never awaited by
+    /// the Wait-Mode gate nor scored.
+    @Default(<TimedNote>[]) List<TimedNote> tieContinuations,
 
     /// End of the song (ms).
     @Default(0.0) double songEndMs,
@@ -523,6 +558,14 @@ abstract class PlayerData with _$PlayerData {
   /// notes (and, in a selective run, everything outside the passage).
   List<TimedRest> get visibleRests => rests
       .where((r) => showsStaff(r.staff) && _withinRun(r.startMs.toDouble()))
+      .toList();
+
+  /// Tie continuations belonging to the selected hand(s) — the render-only
+  /// companion to [visibleNotes] (same filter), so a muted hand's tied notation
+  /// hides with its notes (and, in a selective run, everything outside the
+  /// passage).
+  List<TimedNote> get visibleTieContinuations => tieContinuations
+      .where((n) => showsStaff(n.staff) && _withinRun(n.startMs.toDouble()))
       .toList();
 
   /// Whether onset [t] falls inside the run. Always true for a full run; for a

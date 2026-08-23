@@ -227,6 +227,12 @@ class NoteEvent {
 
   /// True when this note carries `<chord/>` (sounds with the preceding note).
   final bool isChord;
+
+  /// True when this note carries `<grace/>` — an ornamental small note that
+  /// occupies no musical time (`duration_divisions` stays 0 and the cursor
+  /// does not advance); playback gives it a short nominal duration stolen
+  /// from just before its position.
+  final bool isGrace;
   final int durationDivisions;
 
   /// Note-type token when present (e.g. "quarter", "eighth").
@@ -253,6 +259,7 @@ class NoteEvent {
     this.pitch,
     required this.isRest,
     required this.isChord,
+    required this.isGrace,
     required this.durationDivisions,
     this.noteType,
     required this.dots,
@@ -275,6 +282,7 @@ class NoteEvent {
       pitch.hashCode ^
       isRest.hashCode ^
       isChord.hashCode ^
+      isGrace.hashCode ^
       durationDivisions.hashCode ^
       noteType.hashCode ^
       dots.hashCode ^
@@ -299,6 +307,7 @@ class NoteEvent {
           pitch == other.pitch &&
           isRest == other.isRest &&
           isChord == other.isChord &&
+          isGrace == other.isGrace &&
           durationDivisions == other.durationDivisions &&
           noteType == other.noteType &&
           dots == other.dots &&

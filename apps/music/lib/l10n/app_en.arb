@@ -2183,6 +2183,15 @@
       }
     }
   },
+  "notationHelpGraceTitle": "Grace note ({name})",
+  "@notationHelpGraceTitle": {
+    "description": "Help title for a grace note (small ornamental note). {name} is the pitch name.",
+    "placeholders": {"name": {"type": "String"}}
+  },
+  "notationHelpGraceBody": "A small ornamental note played very quickly, just before the note it decorates. It takes no time of its own \u2014 brush it and land on the next note.",
+  "@notationHelpGraceBody": {
+    "description": "Help body for a grace note."
+  },
   "notationHelpRestTitle": "Rest",
   "@notationHelpRestTitle": {
     "description": "Bubble title for a rest of unknown duration (fallback)."
