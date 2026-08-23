@@ -284,6 +284,7 @@ fn to_record_with_proposal(
         favorite: s.favorite,
         proposal_status: status,
         rejection_reason: reason,
+        instrument: m.instrument.as_str().to_string(),
     }
 }
 
@@ -317,6 +318,7 @@ fn to_hit(h: CatalogHit) -> ProtoCatalogHit {
         review_reason: h.review_reason,
         resubmission_note: h.resubmission_note,
         has_preview: h.has_preview,
+        instrument: h.instrument.as_str().to_string(),
     }
 }
 
@@ -998,7 +1000,7 @@ impl ScoreService for ScoreGrpc {
             author: r.author,
             level: r.level,
             facets: crate::catalog_search::FacetFilters {
-                is_piano: r.is_piano,
+                instrument: r.instrument.as_deref().map(crate::repo::Instrument::parse),
                 max_note_value: r.max_note_value.map(|v| v.clamp(0, i16::MAX as i32) as i16),
                 has_chords: r.has_chords,
                 has_tuplets: r.has_tuplets,
@@ -1346,7 +1348,9 @@ impl ScoreService for ScoreGrpc {
         let offset = r.offset;
         let mut hits = self
             .module
-            .list_rating_deck(&user_id, r.limit as i64, r.offset as i64)
+            // Percussion eligibility is wired by the enforcement pass; until the
+            // flag predicate lands the deck fails closed for everyone.
+            .list_rating_deck(&user_id, r.limit as i64, r.offset as i64, false)
             .await?;
         // Deck is a normal-caller read: sanitise privileged proposer fields.
         self.module
@@ -3056,9 +3060,10 @@ mod tests {
             .await
             .unwrap_err();
         assert_eq!(err.code(), tonic::Code::Unauthenticated);
-        // A signed-in caller gets the un-rated piano scores. The pending/rejected rows
-        // in this fixture are non-piano, so they are excluded by the deck's piano gate
-        // regardless of status (pending sourcing is covered by the module test).
+        // A signed-in caller gets the un-rated scores. The deck deals keyboard
+        // AND unknown-instrument rows to every rater (the old piano proxy's
+        // exclusion of unclassified rows was its bug, not intent — change:
+        // add-drums-access); only percussion is withheld from the ineligible.
         let resp = g
             .list_rating_deck(authed(
                 ListRatingDeckRequest {
@@ -3072,7 +3077,7 @@ mod tests {
             .into_inner();
         let ids: Vec<&str> = resp.hits.iter().map(|h| h.id.as_str()).collect();
         assert!(ids.contains(&DEBUSSY) && ids.contains(&SATIE));
-        assert!(!ids.contains(&PENDING));
+        assert!(ids.contains(&PENDING));
     }
 
     // --- catalog daily access (change: add-score-daily-access-rewards) --------

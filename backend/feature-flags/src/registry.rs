@@ -28,6 +28,12 @@ pub const PROFILES_PUBLIC_ENABLED: &str = "profiles.public.enabled";
 pub const LEADERBOARD_PER_PIECE_ENABLED: &str = "leaderboard.per_piece.enabled";
 pub const LEADERBOARD_GLOBAL_ENABLED: &str = "leaderboard.global.enabled";
 pub const ONBOARDING_ENABLED: &str = "onboarding.enabled";
+/// The drum feature (change: add-drums-access). Intended rollout:
+/// `beta:midi-drums` during the beta, then `global` at general availability —
+/// widen the scope FIRST, close the campaign SECOND, and keep the flag as a
+/// kill-switch afterwards. The backend `music` module enforces it on every
+/// path that can disclose or accept a percussion score.
+pub const DRUMS_ENABLED: &str = "drums.enabled";
 
 /// Shared cross-app kill-switch: when on, apps show an "under maintenance" state.
 pub const PLATFORM_MAINTENANCE: &str = "platform.maintenance";
@@ -297,6 +303,13 @@ pub fn builtin() -> Vec<KeyDef> {
             false,
             false,
             "The global performance leaderboard.",
+        ),
+        flag(
+            DRUMS_ENABLED,
+            APP_MUSIC,
+            false,
+            false,
+            "MIDI drums: percussion scores are visible/acceptable for the caller.",
         ),
         flag(
             ONBOARDING_ENABLED,

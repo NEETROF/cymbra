@@ -454,7 +454,7 @@ impl ScoreModule {
                 key_fifths: summary.key_fifths,
                 time_sig: summary.time_sig,
                 measure_count: summary.measure_count as i32,
-                is_piano: summary.is_piano,
+                instrument: crate::repo::Instrument::from_core(summary.instrument),
                 facets,
             },
         };
@@ -1005,9 +1005,15 @@ impl ScoreModule {
         user_id: &str,
         limit: i64,
         offset: i64,
+        eligible_for_percussion: bool,
     ) -> Result<Vec<CatalogHit>> {
         self.catalog
-            .rating_deck(user_id, limit.clamp(1, SEARCH_MAX_LIMIT), offset.max(0))
+            .rating_deck(
+                user_id,
+                limit.clamp(1, SEARCH_MAX_LIMIT),
+                offset.max(0),
+                eligible_for_percussion,
+            )
             .await
     }
 
@@ -1549,7 +1555,7 @@ mod tests {
         assert_eq!(rec.meta.composer.as_deref(), Some("A. Composer"));
         assert_eq!(rec.meta.key_fifths, 2);
         assert_eq!(rec.meta.time_sig, "3/4");
-        assert!(rec.meta.is_piano);
+        assert_eq!(rec.meta.instrument, crate::repo::Instrument::Keyboard);
         assert_eq!(rec.level, "intermediate");
         assert_eq!(
             rec.object_key,
@@ -1914,13 +1920,13 @@ mod tests {
         let store = Arc::new(FakeStore::default());
         let catalog = Arc::new(FakeCatalogSearchRepo::with(vec![
             FakeCatalogRow::new(DEBUSSY_1, "Fast", "X", Some("advanced")).with_facets(
-                true,
+                crate::repo::Instrument::Keyboard,
                 16,
                 Some(140),
                 (48, 84),
             ), // sixteenths, 140bpm, 3 octaves
             FakeCatalogRow::new(SATIE, "Slow", "Y", Some("beginner")).with_facets(
-                true,
+                crate::repo::Instrument::Keyboard,
                 8,
                 Some(72),
                 (60, 72),
@@ -2644,7 +2650,7 @@ mod tests {
             .await
             .unwrap();
         // u1 rated nothing → all three, least-rated first (0, 1, 2 ratings).
-        let deck = m.list_rating_deck("u1", 50, 0).await.unwrap();
+        let deck = m.list_rating_deck("u1", 50, 0, false).await.unwrap();
         assert_eq!(
             deck.iter().map(|h| h.id.as_str()).collect::<Vec<_>>(),
             [DEBUSSY_1, DEBUSSY_2, SATIE]
@@ -2653,7 +2659,7 @@ mod tests {
         m.submit_rating("u1", DEBUSSY_1, "love", None)
             .await
             .unwrap();
-        let deck = m.list_rating_deck("u1", 50, 0).await.unwrap();
+        let deck = m.list_rating_deck("u1", 50, 0, false).await.unwrap();
         assert_eq!(deck.len(), 2);
         assert!(!deck.iter().any(|h| h.id == DEBUSSY_1));
         // u1 rates the rest → the deck empties (natural last-card state).
@@ -2661,7 +2667,12 @@ mod tests {
             .await
             .unwrap();
         m.submit_rating("u1", SATIE, "dislike", None).await.unwrap();
-        assert!(m.list_rating_deck("u1", 50, 0).await.unwrap().is_empty());
+        assert!(
+            m.list_rating_deck("u1", 50, 0, false)
+                .await
+                .unwrap()
+                .is_empty()
+        );
     }
 
     #[tokio::test]
@@ -2689,7 +2700,7 @@ mod tests {
             7,
             8 * 1024 * 1024,
         );
-        let deck = m.list_rating_deck("u1", 50, 0).await.unwrap();
+        let deck = m.list_rating_deck("u1", 50, 0, false).await.unwrap();
         let ids: Vec<&str> = deck.iter().map(|h| h.id.as_str()).collect();
         // Both the accepted and the pending score are offered; the rejected one never.
         assert!(ids.contains(&DEBUSSY_1));

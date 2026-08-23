@@ -57,7 +57,9 @@ pub struct ManifestEntry {
     // --- search / musical metadata ---
     pub work_key: String,
     pub title_norm: Option<String>,
-    pub is_piano: bool,
+    /// The score's instrument family (`keyboard` | `percussion` | `unknown`),
+    /// replacing the retired `is_piano` proxy (change: add-drums-access).
+    pub instrument: String,
     pub key_fifths: i32,
     pub time_sig: String,
     pub measure_count: u32,
@@ -141,7 +143,7 @@ mod tests {
             size_bytes: 2048,
             work_key: "claude debussy::clair de lune".into(),
             title_norm: Some("clair de lune".into()),
-            is_piano: true,
+            instrument: "keyboard".into(),
             key_fifths: -3,
             time_sig: "9/8".into(),
             measure_count: 72,

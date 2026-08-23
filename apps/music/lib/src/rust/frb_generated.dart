@@ -1214,20 +1214,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ScoreSummary dco_decode_score_summary(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 11)
-      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
     return ScoreSummary(
       title: dco_decode_opt_String(arr[0]),
       composer: dco_decode_opt_String(arr[1]),
       titleNorm: dco_decode_opt_String(arr[2]),
       workKey: dco_decode_String(arr[3]),
-      isPiano: dco_decode_bool(arr[4]),
-      staves: dco_decode_u_32(arr[5]),
-      keyFifths: dco_decode_i_32(arr[6]),
-      timeSig: dco_decode_String(arr[7]),
-      measureCount: dco_decode_u_32(arr[8]),
-      noteCount: dco_decode_u_32(arr[9]),
-      instrument: dco_decode_instrument_kind(arr[10]),
+      staves: dco_decode_u_32(arr[4]),
+      keyFifths: dco_decode_i_32(arr[5]),
+      timeSig: dco_decode_String(arr[6]),
+      measureCount: dco_decode_u_32(arr[7]),
+      noteCount: dco_decode_u_32(arr[8]),
+      instrument: dco_decode_instrument_kind(arr[9]),
     );
   }
 
@@ -2032,7 +2031,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_composer = sse_decode_opt_String(deserializer);
     var var_titleNorm = sse_decode_opt_String(deserializer);
     var var_workKey = sse_decode_String(deserializer);
-    var var_isPiano = sse_decode_bool(deserializer);
     var var_staves = sse_decode_u_32(deserializer);
     var var_keyFifths = sse_decode_i_32(deserializer);
     var var_timeSig = sse_decode_String(deserializer);
@@ -2044,7 +2042,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       composer: var_composer,
       titleNorm: var_titleNorm,
       workKey: var_workKey,
-      isPiano: var_isPiano,
       staves: var_staves,
       keyFifths: var_keyFifths,
       timeSig: var_timeSig,
@@ -2766,7 +2763,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_String(self.composer, serializer);
     sse_encode_opt_String(self.titleNorm, serializer);
     sse_encode_String(self.workKey, serializer);
-    sse_encode_bool(self.isPiano, serializer);
     sse_encode_u_32(self.staves, serializer);
     sse_encode_i_32(self.keyFifths, serializer);
     sse_encode_String(self.timeSig, serializer);

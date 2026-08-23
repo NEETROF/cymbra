@@ -24,6 +24,10 @@ path = "src/bin/backfill_titles.rs"
 name = "backfill-score-previews"
 path = "src/bin/backfill_score_previews.rs"
 
+[[bin]]
+name = "backfill-instruments"
+path = "src/bin/backfill_instruments.rs"
+
 # One-off maintenance: quarantine corpus objects no catalog row references.
 [[bin]]
 name = "reconcile-corpus"

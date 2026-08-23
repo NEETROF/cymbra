@@ -41,7 +41,7 @@ pub enum RejectReason {
     Undecodable,
     /// The MusicXML could not be parsed.
     Unparseable,
-    /// Parsed, but contains no playable (pitched, non-rest) notes.
+    /// Parsed, but contains no playable (pitched or unpitched, non-rest) notes.
     NoNotes,
 }
 
@@ -74,7 +74,9 @@ impl std::error::Error for RejectReason {}
 /// Validates raw bytes (plain MusicXML or `.mxl`) as a playable score.
 ///
 /// Decodes an `.mxl` container when detected, parses the MusicXML, and confirms
-/// at least one pitched note is present. Never panics.
+/// at least one playable (pitched or unpitched) note is present — a percussion
+/// score is admitted (change: add-drums-access), a rest-only one is not.
+/// Never panics.
 pub fn validate(bytes: &[u8]) -> Result<ScoreSummary, RejectReason> {
     if bytes.len() > MAX_INPUT {
         return Err(RejectReason::TooLarge);
@@ -203,20 +205,18 @@ mod tests {
         );
     }
 
-    /// The deliberate boundary of `add-unpitched-notation`: a percussion score
-    /// parses fully, but the admission gate still refuses it — opening the
-    /// gate belongs to `add-drums-access`, together with the access controls.
-    /// This test is the explicit tripwire a later change must consciously move.
+    /// The gate deliberately opened by `add-drums-access`: unpitched notes
+    /// count as playable, so a percussion score is admitted — behind the
+    /// server-side drum-audience enforcement the same change delivers. (The
+    /// former tripwire from `add-unpitched-notation` asserted refusal; this is
+    /// the one change allowed to move it.) A rest-only score is still refused
+    /// with the same reason as before.
     #[test]
-    fn percussion_score_is_still_refused_by_the_gate() {
-        assert_eq!(
-            validate(crate::fixtures::ROCK_GROOVE.as_bytes()),
-            Err(RejectReason::NoNotes)
-        );
-        // …while the parser, called directly, yields the full document.
-        let doc = crate::parse(crate::fixtures::ROCK_GROOVE.as_bytes()).unwrap();
-        assert!(!doc.instruments.is_empty());
-        assert!(doc.measures[0].notes.iter().any(|n| n.unpitched.is_some()));
+    fn percussion_score_passes_the_gate() {
+        let s = validate(crate::fixtures::ROCK_GROOVE.as_bytes()).unwrap();
+        assert_eq!(s.note_count, 13);
+        assert_eq!(s.instrument, crate::meta::InstrumentKind::Percussion);
+        assert_eq!(validate(RESTS_ONLY.as_bytes()), Err(RejectReason::NoNotes));
     }
 
     #[test]
@@ -225,6 +225,6 @@ mod tests {
         let s = validate(MINIMAL.as_bytes()).unwrap();
         assert_eq!(s.time_sig, "4/4");
         assert_eq!(s.key_fifths, 0);
-        assert!(!s.is_piano); // single staff
+        assert_eq!(s.instrument, crate::meta::InstrumentKind::Keyboard);
     }
 }

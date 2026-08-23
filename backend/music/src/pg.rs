@@ -18,7 +18,7 @@ use crate::repo::{CatalogEntry, CatalogRepo, ScoreFacets, ScoreMeta};
 /// `user_scores` expose these column names, so their INSERT/SELECT statements
 /// share this one fragment instead of repeating 18 columns each.
 pub(crate) const META_COLS: &str = "title, composer, title_norm, work_key, key_fifths, \
-     time_sig, measure_count, is_piano, min_note_value, has_tuplets, has_dotted, has_chords, \
+     time_sig, measure_count, instrument, min_note_value, has_tuplets, has_dotted, has_chords, \
      lowest_midi, highest_midi, staff_count, note_count, tempo_bpm, has_dynamics";
 
 /// Append the 18 [`ScoreMeta`] binds to `q`, in [`META_COLS`] order. The caller
@@ -34,7 +34,7 @@ pub(crate) fn bind_meta<'q>(
         .bind(m.key_fifths)
         .bind(&m.time_sig)
         .bind(m.measure_count)
-        .bind(m.is_piano)
+        .bind(m.instrument.as_str())
         .bind(m.facets.min_note_value.map(i16::from))
         .bind(m.facets.has_tuplets)
         .bind(m.facets.has_dotted)
@@ -58,7 +58,7 @@ pub(crate) fn meta_from_row(r: &PgRow) -> ScoreMeta {
         key_fifths: r.get("key_fifths"),
         time_sig: r.get("time_sig"),
         measure_count: r.get("measure_count"),
-        is_piano: r.get("is_piano"),
+        instrument: crate::repo::Instrument::parse(r.get::<String, _>("instrument").as_str()),
         facets: ScoreFacets {
             min_note_value: r.get::<Option<i16>, _>("min_note_value").map(|v| v as u8),
             has_tuplets: r.get::<Option<bool>, _>("has_tuplets").unwrap_or(false),
@@ -240,12 +240,20 @@ fn row_to_hit(r: &PgRow) -> CatalogHit {
             .ok()
             .flatten()
             .is_some(),
+        // Absent on a projection that does not select it → unknown (served, never
+        // treated as percussion).
+        instrument: crate::repo::Instrument::parse(
+            r.try_get::<String, _>("instrument")
+                .unwrap_or_default()
+                .as_str(),
+        ),
     }
 }
 
 const HIT_COLS: &str = "id, title, composer, level, license, source, arranger, \
      min_note_value, tempo_bpm, note_count, lowest_midi, highest_midi, time_sig, key_fifths, \
-     moderation_status, proposed_by, review_reason, resubmission_note, preview_rendered_at";
+     moderation_status, proposed_by, review_reason, resubmission_note, preview_rendered_at, \
+     instrument";
 
 /// The SQL ORDER BY expression for an allow-listed sort field, or `None` when the
 /// key is unknown (already rejected by the module — defence in depth) and so
@@ -384,7 +392,7 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
              WHERE ($1 = '' OR title_norm ILIKE '%'||$1||'%' OR composer_norm ILIKE '%'||$1||'%') \
                AND ($2::text IS NULL OR composer_norm ILIKE '%'||$2||'%') \
                AND ($3::text IS NULL OR level = $3) \
-               AND ($4::bool  IS NULL OR is_piano = $4) \
+               AND ($4::text  IS NULL OR instrument = $4) \
                AND ($5::int2  IS NULL OR min_note_value <= $5) \
                AND ($6::bool  IS NULL OR has_chords = $6) \
                AND ($7::bool  IS NULL OR has_tuplets = $7) \
@@ -406,7 +414,7 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
         .bind(&p.text_norm)
         .bind(&p.author_norm)
         .bind(&p.level)
-        .bind(p.facets.is_piano)
+        .bind(p.facets.instrument.map(|i| i.as_str()))
         .bind(p.facets.max_note_value)
         .bind(p.facets.has_chords)
         .bind(p.facets.has_tuplets)
@@ -779,6 +787,7 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
         user_id: &str,
         limit: i64,
         offset: i64,
+        eligible_for_percussion: bool,
     ) -> PlatformResult<Vec<CatalogHit>> {
         let Ok(user) = uuid::Uuid::parse_str(user_id) else {
             return Ok(Vec::new()); // malformed identity → nothing to rate
@@ -793,7 +802,8 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
             "SELECT {HIT_COLS} FROM music.catalog_scores cs \
              LEFT JOIN music.score_ratings r \
                ON r.catalog_score_id = cs.id AND r.user_id = $1 \
-             WHERE cs.moderation_status IN ('pending', 'accepted') AND cs.is_piano \
+             WHERE cs.moderation_status IN ('pending', 'accepted') \
+               AND (cs.instrument <> 'percussion' OR $4::bool) \
                AND r.user_id IS NULL \
              ORDER BY (SELECT COUNT(*) FROM music.score_ratings x \
                        WHERE x.catalog_score_id = cs.id) ASC, cs.id ASC \
@@ -802,6 +812,7 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
         .bind(user)
         .bind(limit)
         .bind(offset)
+        .bind(eligible_for_percussion)
         .fetch_all(&self.pool)
         .await
         .map_err(search_internal)?;
@@ -969,6 +980,79 @@ pub struct PgTitleBackfillRepo {
 impl PgTitleBackfillRepo {
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
+    }
+}
+
+use crate::backfill::{InstrumentBackfillRepo, InstrumentRow, ScoreTable};
+
+/// Postgres-backed [`InstrumentBackfillRepo`] (change: add-drums-access): the
+/// one-shot re-derivation pass over both score tables. Thin SQL glue
+/// (coverage-excluded); the orchestration logic is host-tested in
+/// [`crate::backfill`].
+pub struct PgInstrumentBackfillRepo {
+    pool: PgPool,
+}
+
+impl PgInstrumentBackfillRepo {
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
+    }
+}
+
+fn score_table_name(table: ScoreTable) -> &'static str {
+    match table {
+        ScoreTable::Catalog => "music.catalog_scores",
+        ScoreTable::User => "music.user_scores",
+    }
+}
+
+#[async_trait]
+impl InstrumentBackfillRepo for PgInstrumentBackfillRepo {
+    async fn page(&self, table: ScoreTable, after: &str, limit: i64) -> Result<Vec<InstrumentRow>> {
+        // Keyset paging on the UUID PK, same shape as the title backfill:
+        // stable and resumable. An unparseable `after` (including "") means
+        // "from the start".
+        let after_uuid = uuid::Uuid::parse_str(after).ok();
+        let rows = sqlx::query(&format!(
+            "SELECT id, object_key, instrument FROM {} \
+             WHERE ($1::uuid IS NULL OR id > $1) \
+             ORDER BY id ASC LIMIT $2",
+            score_table_name(table)
+        ))
+        .bind(after_uuid)
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await
+        .context("instrument backfill page")?;
+        Ok(rows
+            .iter()
+            .map(|r| InstrumentRow {
+                id: r.get::<uuid::Uuid, _>("id").to_string(),
+                object_key: r.get("object_key"),
+                instrument: crate::repo::Instrument::parse(
+                    r.get::<String, _>("instrument").as_str(),
+                ),
+            })
+            .collect())
+    }
+
+    async fn update_instrument(
+        &self,
+        table: ScoreTable,
+        id: &str,
+        instrument: crate::repo::Instrument,
+    ) -> Result<()> {
+        let uuid = uuid::Uuid::parse_str(id).context("instrument backfill: bad id")?;
+        sqlx::query(&format!(
+            "UPDATE {} SET instrument = $2 WHERE id = $1",
+            score_table_name(table)
+        ))
+        .bind(uuid)
+        .bind(instrument.as_str())
+        .execute(&self.pool)
+        .await
+        .context("instrument backfill update")?;
+        Ok(())
     }
 }
 

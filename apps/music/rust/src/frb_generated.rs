@@ -856,7 +856,6 @@ const _: fn() = || {
         let _: Option<String> = ScoreSummary.composer;
         let _: Option<String> = ScoreSummary.title_norm;
         let _: String = ScoreSummary.work_key;
-        let _: bool = ScoreSummary.is_piano;
         let _: u32 = ScoreSummary.staves;
         let _: i32 = ScoreSummary.key_fifths;
         let _: String = ScoreSummary.time_sig;
@@ -1638,7 +1637,6 @@ impl SseDecode for crate::api::musicxml::ScoreSummary {
         let mut var_composer = <Option<String>>::sse_decode(deserializer);
         let mut var_titleNorm = <Option<String>>::sse_decode(deserializer);
         let mut var_workKey = <String>::sse_decode(deserializer);
-        let mut var_isPiano = <bool>::sse_decode(deserializer);
         let mut var_staves = <u32>::sse_decode(deserializer);
         let mut var_keyFifths = <i32>::sse_decode(deserializer);
         let mut var_timeSig = <String>::sse_decode(deserializer);
@@ -1650,7 +1648,6 @@ impl SseDecode for crate::api::musicxml::ScoreSummary {
             composer: var_composer,
             title_norm: var_titleNorm,
             work_key: var_workKey,
-            is_piano: var_isPiano,
             staves: var_staves,
             key_fifths: var_keyFifths,
             time_sig: var_timeSig,
@@ -2360,7 +2357,6 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::musicxml::ScoreSum
             self.0.composer.into_into_dart().into_dart(),
             self.0.title_norm.into_into_dart().into_dart(),
             self.0.work_key.into_into_dart().into_dart(),
-            self.0.is_piano.into_into_dart().into_dart(),
             self.0.staves.into_into_dart().into_dart(),
             self.0.key_fifths.into_into_dart().into_dart(),
             self.0.time_sig.into_into_dart().into_dart(),
@@ -3102,7 +3098,6 @@ impl SseEncode for crate::api::musicxml::ScoreSummary {
         <Option<String>>::sse_encode(self.composer, serializer);
         <Option<String>>::sse_encode(self.title_norm, serializer);
         <String>::sse_encode(self.work_key, serializer);
-        <bool>::sse_encode(self.is_piano, serializer);
         <u32>::sse_encode(self.staves, serializer);
         <i32>::sse_encode(self.key_fifths, serializer);
         <String>::sse_encode(self.time_sig, serializer);

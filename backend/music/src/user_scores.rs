@@ -226,7 +226,7 @@ mod tests {
                 key_fifths: 0,
                 time_sig: "4/4".into(),
                 measure_count: 4,
-                is_piano: true,
+                instrument: crate::repo::Instrument::Keyboard,
                 facets: ScoreFacets::default(),
             },
         }

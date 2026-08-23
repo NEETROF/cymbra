@@ -74,6 +74,9 @@ pub struct CatalogHit {
     /// add-score-daily-access-rewards) — from the row's `preview_rendered_at`
     /// marker, never a storage probe.
     pub has_preview: bool,
+    /// The score's instrument family (change: add-drums-access), derived at
+    /// ingest. [`crate::repo::Instrument::Unknown`] for a not-yet-re-derived row.
+    pub instrument: crate::repo::Instrument,
 }
 
 /// One validated sort key (change: add-moderation-back-office): an allow-listed
@@ -125,8 +128,8 @@ pub fn is_moderation_sort_field(field: &str) -> bool {
 /// asserted to satisfy the filter). Mirrors the Flutter `CatalogFilters` bundle.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct FacetFilters {
-    /// Keyboard/grand-staff only.
-    pub is_piano: Option<bool>,
+    /// Constrain to one instrument family (`keyboard` | `percussion`).
+    pub instrument: Option<crate::repo::Instrument>,
     /// Fastest allowed note value (power-of-two denominator) → `min_note_value <= v`.
     pub max_note_value: Option<i16>,
     pub has_chords: Option<bool>,
@@ -332,7 +335,13 @@ pub trait CatalogSearchRepo: Send + Sync {
     /// backlog. A score `user_id` has already rated is excluded, so the deck reaches
     /// its empty state once everything is rated. Not owner-scoped data, but the
     /// exclusion is per caller.
-    async fn rating_deck(&self, user_id: &str, limit: i64, offset: i64) -> Result<Vec<CatalogHit>>;
+    async fn rating_deck(
+        &self,
+        user_id: &str,
+        limit: i64,
+        offset: i64,
+        eligible_for_percussion: bool,
+    ) -> Result<Vec<CatalogHit>>;
 
     /// Stamp the audio-teaser rendered marker of `id` at `rendered_at` (or clear it
     /// with `None`) (change: add-score-daily-access-rewards): `true` when a row was
@@ -362,7 +371,7 @@ pub struct FakeCatalogRow {
     pub object_key: String,
     // Facets (change: score-catalog-facets) — default None so text/author/level
     // tests are unaffected; set via `with_facets` for facet-filter tests.
-    pub is_piano: Option<bool>,
+    pub instrument: Option<crate::repo::Instrument>,
     pub min_note_value: Option<i16>,
     pub has_chords: Option<bool>,
     pub has_tuplets: Option<bool>,
@@ -430,9 +439,15 @@ impl FakeCatalogRow {
         self
     }
 
-    /// Mark the row as a piano score (the rating deck sources piano scores only).
+    /// Mark the row as a keyboard score.
     pub fn piano(mut self) -> Self {
-        self.is_piano = Some(true);
+        self.instrument = Some(crate::repo::Instrument::Keyboard);
+        self
+    }
+
+    /// Mark the row as a percussion score (change: add-drums-access).
+    pub fn percussion(mut self) -> Self {
+        self.instrument = Some(crate::repo::Instrument::Percussion);
         self
     }
 
@@ -460,12 +475,12 @@ impl FakeCatalogRow {
     /// value, tempo, ambitus).
     pub fn with_facets(
         mut self,
-        is_piano: bool,
+        instrument: crate::repo::Instrument,
         min_note_value: i16,
         tempo_bpm: Option<i32>,
         ambitus: (i16, i16),
     ) -> Self {
-        self.is_piano = Some(is_piano);
+        self.instrument = Some(instrument);
         self.min_note_value = Some(min_note_value);
         self.tempo_bpm = tempo_bpm;
         self.lowest_midi = Some(ambitus.0);
@@ -501,6 +516,7 @@ impl FakeCatalogRow {
             review_reason: self.review_reason.clone(),
             resubmission_note: self.resubmission_note.clone(),
             has_preview: self.preview_rendered_at.is_some(),
+            instrument: self.instrument.unwrap_or_default(),
         }
     }
 
@@ -773,7 +789,7 @@ impl CatalogSearchRepo for FakeCatalogSearchRepo {
         );
         row.source = entry.source.clone();
         row.object_key = entry.object_key.clone();
-        row.is_piano = Some(entry.meta.is_piano);
+        row.instrument = Some(entry.meta.instrument);
         row.time_sig = entry.meta.time_sig.clone();
         row.key_fifths = entry.meta.key_fifths;
         row.moderation_status = if accepted { "accepted" } else { "pending" }.to_string();
@@ -846,7 +862,13 @@ impl CatalogSearchRepo for FakeCatalogSearchRepo {
             .collect())
     }
 
-    async fn rating_deck(&self, user_id: &str, limit: i64, offset: i64) -> Result<Vec<CatalogHit>> {
+    async fn rating_deck(
+        &self,
+        user_id: &str,
+        limit: i64,
+        offset: i64,
+        eligible_for_percussion: bool,
+    ) -> Result<Vec<CatalogHit>> {
         let rows = self.rows.lock().expect("catalog search fake lock");
         let ratings = self.ratings.lock().expect("catalog search fake lock");
         // Exclude the caller's already-rated scores; order least-rated first
@@ -861,7 +883,8 @@ impl CatalogSearchRepo for FakeCatalogSearchRepo {
             .filter(|r| {
                 // `pending` + `accepted` (never `rejected`) — change: rate-pending-scores.
                 (r.moderation_status == "pending" || r.moderation_status == "accepted")
-                    && r.is_piano == Some(true)
+                    && (r.instrument != Some(crate::repo::Instrument::Percussion)
+                        || eligible_for_percussion)
                     && !rated.contains(&r.id)
             })
             .collect();
@@ -904,8 +927,8 @@ fn facets_match(r: &FakeCatalogRow, p: &CatalogSearchParams) -> bool {
         filter.is_none_or(|f| value == Some(f))
     }
     let facets = &p.facets;
-    if let Some(pi) = facets.is_piano
-        && r.is_piano != Some(pi)
+    if let Some(fi) = facets.instrument
+        && r.instrument != Some(fi)
     {
         return false;
     }

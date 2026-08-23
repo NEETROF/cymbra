@@ -34,8 +34,9 @@ pub struct ScoreMetadata {
     /// Normalised `composer::title` key for dedup / grouping the same work
     /// across sources.
     pub work_key: String,
-    /// Grand-staff heuristic (`staves >= 2`) — a keyboard/piano proxy.
-    pub is_piano: bool,
+    /// The score's instrument family, derived from the notation alone
+    /// (change: add-drums-access — replaces the `is_piano` staff proxy).
+    pub instrument: cymbra_musicxml_core::InstrumentKind,
     pub staves: u32,
     pub key_fifths: i32,
     /// `beats/beat_type`, e.g. `4/4`.
@@ -62,7 +63,7 @@ pub fn extract(doc: &ScoreDocument) -> ScoreMetadata {
         composer: s.composer,
         title_norm: s.title_norm,
         work_key: s.work_key,
-        is_piano: s.is_piano,
+        instrument: s.instrument,
         staves: s.staves,
         key_fifths: s.key_fifths,
         time_sig: s.time_sig,
@@ -112,7 +113,7 @@ mod tests {
         assert_eq!(m.key_fifths, -3);
         assert_eq!(m.time_sig, "9/8");
         assert_eq!(m.staves, 2);
-        assert!(m.is_piano);
+        assert_eq!(m.instrument, cymbra_musicxml_core::InstrumentKind::Keyboard);
         assert_eq!(m.measure_count, 2);
         assert_eq!(m.note_count, 2); // two pitched notes, the rest excluded
     }

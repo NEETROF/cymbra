@@ -168,7 +168,7 @@ mod tests {
             size_bytes: 3,
             work_key: "debussy::clair de lune".into(),
             title_norm: Some("clair de lune".into()),
-            is_piano: true,
+            instrument: "keyboard".into(),
             key_fifths: 0,
             time_sig: "4/4".into(),
             measure_count: 1,

@@ -331,15 +331,14 @@ pub struct _ScoreSummary {
     pub title_norm: Option<String>,
     /// Normalised `composer::title` key for dedup / grouping.
     pub work_key: String,
-    /// Grand-staff heuristic (`staves >= 2`) — a keyboard/piano proxy.
-    pub is_piano: bool,
     /// Number of staves (2 for a piano grand staff).
     pub staves: u32,
     pub key_fifths: i32,
     /// `beats/beat_type`, e.g. `4/4`.
     pub time_sig: String,
     pub measure_count: u32,
-    /// Count of pitched (non-rest) note events — the "playable notes" check.
+    /// Count of playable (pitched or unpitched, non-rest) note events — the
+    /// validation gate's check; a percussion score reports a non-zero count.
     pub note_count: u32,
     /// Which instrument family the score is written for, derived from the
     /// notation alone.

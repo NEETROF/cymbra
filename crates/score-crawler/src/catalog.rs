@@ -75,7 +75,7 @@ pub fn to_catalog_entry(e: &ManifestEntry) -> CatalogEntry {
             key_fifths: e.key_fifths,
             time_sig: e.time_sig.clone(),
             measure_count: e.measure_count as i32,
-            is_piano: e.is_piano,
+            instrument: cymbra_music::Instrument::parse(&e.instrument),
             facets: cymbra_music::ScoreFacets::from_core(&e.facets),
         },
     }
@@ -129,7 +129,7 @@ mod tests {
             size_bytes: 1234,
             work_key: "mozart::ave verum".into(),
             title_norm: Some("ave verum".into()),
-            is_piano: true,
+            instrument: "keyboard".into(),
             key_fifths: 1,
             time_sig: "4/4".into(),
             measure_count: 46,

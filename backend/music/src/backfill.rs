@@ -188,6 +188,138 @@ fn decode_summary(bytes: &[u8]) -> Result<ScoreSummary> {
     Ok(ScoreSummary::from_document(&doc))
 }
 
+// ---------------------------------------------------------------------------
+// Instrument re-derivation (change: add-drums-access)
+//
+// The `instrument` column cannot be backfilled in SQL: the tables hold an
+// `object_key`, not the bytes, and translating the retired `is_piano` flag
+// would be WRONG — the corpus already contains percussion ingested despite the
+// old playable-notes gate, and a flag translation would record every one of
+// them `unknown`, which the drum gate serves to everyone. So each row's object
+// is streamed back, parsed with the shared classifier, and the derived family
+// persisted. Idempotent and resumable: a second run is all `unchanged`. The
+// drum gate is NOT a boundary until this pass has completed.
+
+/// A row of either score table for the instrument re-derivation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InstrumentRow {
+    pub id: String,
+    pub object_key: String,
+    /// The currently-stored family (post-migration default: `unknown`).
+    pub instrument: crate::repo::Instrument,
+}
+
+/// Which score table a page/update targets: both carry the column and both are
+/// re-derived, so the gate holds on catalog and user scores alike.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScoreTable {
+    Catalog,
+    User,
+}
+
+/// Data-access seam for the instrument pass. The Postgres impl lives in
+/// [`crate::pg::PgInstrumentBackfillRepo`]; a fake backs the orchestration tests.
+#[async_trait]
+pub trait InstrumentBackfillRepo: Send + Sync {
+    /// One page of `table` rows ordered by `id`, with `id > after` (keyset
+    /// paging; `after` empty → from the start), up to `limit`.
+    async fn page(&self, table: ScoreTable, after: &str, limit: i64) -> Result<Vec<InstrumentRow>>;
+
+    /// Persist the derived family for `id` in `table`.
+    async fn update_instrument(
+        &self,
+        table: ScoreTable,
+        id: &str,
+        instrument: crate::repo::Instrument,
+    ) -> Result<()>;
+}
+
+/// Tallies for one instrument re-derivation run (per table, summed by the bin).
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct InstrumentBackfillReport {
+    pub scanned: usize,
+    /// Rows whose stored family was (or would be) rewritten.
+    pub updated: usize,
+    /// Rows already carrying the derived family.
+    pub unchanged: usize,
+    /// Rows whose bytes could not be fetched or parsed — left untouched (they
+    /// stay `unknown`, never guessed), counted so the operator sees the tail.
+    pub unreadable: usize,
+    /// Update failures (logged, never fatal).
+    pub errors: usize,
+}
+
+/// Re-derive the instrument for every row of `table` from its stored bytes.
+/// `apply == false` is a dry run. One bad row never aborts the run.
+pub async fn run_instrument_backfill(
+    repo: &dyn InstrumentBackfillRepo,
+    storage: &dyn ObjectStorage,
+    table: ScoreTable,
+    apply: bool,
+    page_size: i64,
+) -> Result<InstrumentBackfillReport> {
+    let mut report = InstrumentBackfillReport::default();
+    let mut after = String::new();
+    loop {
+        let rows = repo
+            .page(table, &after, page_size)
+            .await
+            .context("paging scores for the instrument backfill")?;
+        let Some(last) = rows.last() else { break };
+        after = last.id.clone();
+
+        for row in rows {
+            report.scanned += 1;
+            let bytes = match storage.get(&row.object_key).await {
+                Ok(b) => b,
+                Err(e) => {
+                    tracing::warn!(id = %row.id, key = %row.object_key, error = %e,
+                        "instrument backfill: object fetch failed, row left as is");
+                    report.unreadable += 1;
+                    continue;
+                }
+            };
+            let derived = match derive_instrument(&bytes) {
+                Ok(i) => i,
+                Err(e) => {
+                    tracing::warn!(id = %row.id, error = %e,
+                        "instrument backfill: parse failed, row left as is");
+                    report.unreadable += 1;
+                    continue;
+                }
+            };
+            if derived == row.instrument {
+                report.unchanged += 1;
+                continue;
+            }
+            if apply && let Err(e) = repo.update_instrument(table, &row.id, derived).await {
+                tracing::warn!(id = %row.id, error = %e,
+                    "instrument backfill: update failed, skipping");
+                report.errors += 1;
+                continue;
+            }
+            tracing::info!(id = %row.id, from = row.instrument.as_str(),
+                to = derived.as_str(), applied = apply,
+                "instrument backfill: family re-derived");
+            report.updated += 1;
+        }
+    }
+    Ok(report)
+}
+
+/// Decode stored bytes → parse → derived instrument family.
+fn derive_instrument(bytes: &[u8]) -> Result<crate::repo::Instrument> {
+    let inner = if mxl::is_mxl(bytes) {
+        mxl::decode(bytes).context("decode mxl container")?
+    } else {
+        bytes.to_vec()
+    };
+    let doc = cymbra_musicxml_core::parse(&inner).context("parse musicxml")?;
+    Ok(crate::repo::Instrument::from_core(
+        cymbra_musicxml_core::instrument_of(&doc),
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -342,5 +474,131 @@ mod tests {
 
         assert_eq!(report.updated, 1); // would rewrite
         assert!(repo.applied.lock().unwrap().is_empty()); // but wrote nothing
+    }
+
+    // --- instrument re-derivation (change: add-drums-access) ---------------
+
+    /// A minimal drum score: one unpitched note referencing a declared snare
+    /// (1-based `midi-unpitched` 39 → GM 38), classifying `percussion`.
+    fn drum_xml() -> Vec<u8> {
+        br#"<?xml version="1.0"?>
+<score-partwise version="4.0">
+<part-list><score-part id="P1">
+<score-instrument id="P1-I38"><instrument-name>Snare Drum</instrument-name></score-instrument>
+<midi-instrument id="P1-I38"><midi-unpitched>39</midi-unpitched></midi-instrument>
+</score-part></part-list>
+<part id="P1"><measure number="1"><attributes><divisions>1</divisions>
+<clef><sign>percussion</sign><line>2</line></clef></attributes>
+<note><unpitched><display-step>C</display-step><display-octave>5</display-octave></unpitched><duration>4</duration><instrument id="P1-I38"/><voice>1</voice></note>
+</measure></part></score-partwise>"#
+            .to_vec()
+    }
+
+    struct FakeInstrumentRepo {
+        rows: Vec<InstrumentRow>,
+        applied: Mutex<Vec<(String, crate::repo::Instrument)>>,
+    }
+
+    #[async_trait]
+    impl InstrumentBackfillRepo for FakeInstrumentRepo {
+        async fn page(
+            &self,
+            _table: ScoreTable,
+            after: &str,
+            limit: i64,
+        ) -> Result<Vec<InstrumentRow>> {
+            Ok(self
+                .rows
+                .iter()
+                .filter(|r| r.id.as_str() > after)
+                .take(limit as usize)
+                .cloned()
+                .collect())
+        }
+
+        async fn update_instrument(
+            &self,
+            _table: ScoreTable,
+            id: &str,
+            instrument: crate::repo::Instrument,
+        ) -> Result<()> {
+            self.applied
+                .lock()
+                .unwrap()
+                .push((id.to_string(), instrument));
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn instrument_backfill_rederives_from_bytes_and_leaves_unreadable_rows() {
+        let store = FakeStore::default();
+        store.put("k/drums.xml", drum_xml()).await.unwrap();
+        store.put("k/piano.xml", score_xml("Sonata")).await.unwrap();
+        // "k/missing.xml" is never stored: that row must be left untouched.
+        let row = |id: &str, key: &str| InstrumentRow {
+            id: id.into(),
+            object_key: key.into(),
+            instrument: crate::repo::Instrument::Unknown,
+        };
+        let repo = FakeInstrumentRepo {
+            rows: vec![
+                row("a", "k/drums.xml"),
+                row("b", "k/piano.xml"),
+                row("c", "k/missing.xml"),
+            ],
+            applied: Mutex::new(Vec::new()),
+        };
+
+        let report = run_instrument_backfill(&repo, &store, ScoreTable::Catalog, true, 2)
+            .await
+            .unwrap();
+        assert_eq!(report.scanned, 3);
+        assert_eq!(report.updated, 2);
+        assert_eq!(report.unreadable, 1); // the missing object, left as is
+        assert_eq!(report.errors, 0);
+        let applied = repo.applied.lock().unwrap().clone();
+        assert_eq!(
+            applied,
+            vec![
+                ("a".to_string(), crate::repo::Instrument::Percussion),
+                ("b".to_string(), crate::repo::Instrument::Keyboard),
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn instrument_backfill_is_idempotent_and_dry_run_writes_nothing() {
+        let store = FakeStore::default();
+        store.put("k/drums.xml", drum_xml()).await.unwrap();
+        let repo = FakeInstrumentRepo {
+            rows: vec![InstrumentRow {
+                id: "a".into(),
+                object_key: "k/drums.xml".into(),
+                // Already re-derived: a second run must change nothing.
+                instrument: crate::repo::Instrument::Percussion,
+            }],
+            applied: Mutex::new(Vec::new()),
+        };
+        let report = run_instrument_backfill(&repo, &store, ScoreTable::Catalog, true, 100)
+            .await
+            .unwrap();
+        assert_eq!(report.unchanged, 1);
+        assert!(repo.applied.lock().unwrap().is_empty());
+
+        // Dry run over a row that WOULD change: counted, not written.
+        let repo = FakeInstrumentRepo {
+            rows: vec![InstrumentRow {
+                id: "a".into(),
+                object_key: "k/drums.xml".into(),
+                instrument: crate::repo::Instrument::Unknown,
+            }],
+            applied: Mutex::new(Vec::new()),
+        };
+        let report = run_instrument_backfill(&repo, &store, ScoreTable::Catalog, false, 100)
+            .await
+            .unwrap();
+        assert_eq!(report.updated, 1);
+        assert!(repo.applied.lock().unwrap().is_empty());
     }
 }

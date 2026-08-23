@@ -620,9 +620,6 @@ class ScoreSummary {
   /// Normalised `composer::title` key for dedup / grouping.
   final String workKey;
 
-  /// Grand-staff heuristic (`staves >= 2`) — a keyboard/piano proxy.
-  final bool isPiano;
-
   /// Number of staves (2 for a piano grand staff).
   final int staves;
   final int keyFifths;
@@ -631,7 +628,8 @@ class ScoreSummary {
   final String timeSig;
   final int measureCount;
 
-  /// Count of pitched (non-rest) note events — the "playable notes" check.
+  /// Count of playable (pitched or unpitched, non-rest) note events — the
+  /// validation gate's check; a percussion score reports a non-zero count.
   final int noteCount;
 
   /// Which instrument family the score is written for, derived from the
@@ -643,7 +641,6 @@ class ScoreSummary {
     this.composer,
     this.titleNorm,
     required this.workKey,
-    required this.isPiano,
     required this.staves,
     required this.keyFifths,
     required this.timeSig,
@@ -658,7 +655,6 @@ class ScoreSummary {
       composer.hashCode ^
       titleNorm.hashCode ^
       workKey.hashCode ^
-      isPiano.hashCode ^
       staves.hashCode ^
       keyFifths.hashCode ^
       timeSig.hashCode ^
@@ -675,7 +671,6 @@ class ScoreSummary {
           composer == other.composer &&
           titleNorm == other.titleNorm &&
           workKey == other.workKey &&
-          isPiano == other.isPiano &&
           staves == other.staves &&
           keyFifths == other.keyFifths &&
           timeSig == other.timeSig &&

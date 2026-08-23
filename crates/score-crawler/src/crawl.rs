@@ -262,7 +262,11 @@ impl Orchestrator {
             size_bytes: converted.mxl.len() as u64,
             work_key: meta.work_key,
             title_norm: meta.title_norm,
-            is_piano: meta.is_piano,
+            instrument: match meta.instrument {
+                cymbra_musicxml_core::InstrumentKind::Keyboard => "keyboard".into(),
+                cymbra_musicxml_core::InstrumentKind::Percussion => "percussion".into(),
+                cymbra_musicxml_core::InstrumentKind::Unknown => "unknown".into(),
+            },
             key_fifths: meta.key_fifths,
             time_sig: meta.time_sig,
             measure_count: meta.measure_count,
