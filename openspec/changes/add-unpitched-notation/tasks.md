@@ -54,6 +54,6 @@
 
 ## 8. Manual verification
 
-- [ ] 8.1 Confirm the app is behaviourally unchanged: a piano score opens, plays and renders exactly as before in all three modes
-- [ ] 8.2 Confirm a drum MusicXML file is still refused by the upload preview (the gate has not moved in this change)
-- [ ] 8.3 Confirm the back-office notation preview still renders a piano score correctly after the wasm rebuild (guards against 6.6 being skipped)
+- [x] 8.1 Confirm the app is behaviourally unchanged: a piano score opens, plays and renders exactly as before in all three modes
+- [x] 8.2 Confirm a drum MusicXML file is still refused by the upload preview (the gate has not moved in this change)
+- [x] 8.3 Confirm the back-office notation preview still renders a piano score correctly after the wasm rebuild (guards against 6.6 being skipped)
