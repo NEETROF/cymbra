@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.26.0](https://github.com/NEETROF/cymbra/compare/music-v1.25.1...music-v1.26.0) (2026-08-23)
+
+
+### Features
+
+* **music:** per-category client transport deadlines with offline detection ([#275](https://github.com/NEETROF/cymbra/issues/275)) ([81d04d4](https://github.com/NEETROF/cymbra/commit/81d04d40ca777e865c0f82feca1f235bff34b80e))
+* **music:** unroll repeats across the engine, app and back office ([#274](https://github.com/NEETROF/cymbra/issues/274)) ([b06c960](https://github.com/NEETROF/cymbra/commit/b06c960aad0798ab13d014df6e2b18b0179807b8))
+
+
+### Bug Fixes
+
+* **music:** engrave tie continuations on the staff views ([#272](https://github.com/NEETROF/cymbra/issues/272)) ([29b0623](https://github.com/NEETROF/cymbra/commit/29b062380bf0fb219dacca52d5a3cdfa867e865c))
+* **music:** keep one clock per note and finish scored runs on the judgment clock ([#271](https://github.com/NEETROF/cymbra/issues/271)) ([2d18d7f](https://github.com/NEETROF/cymbra/commit/2d18d7fc8d48e842f807ff608d59d47054b3fa36))
+* **music:** keep the get-ready countdown on wall-clock time ([#268](https://github.com/NEETROF/cymbra/issues/268)) ([5900e31](https://github.com/NEETROF/cymbra/commit/5900e3115e89594eb0fb927461f74ce664af979c))
+* **music:** make the replay mistake bar follow the staff ([#273](https://github.com/NEETROF/cymbra/issues/273)) ([fe50690](https://github.com/NEETROF/cymbra/commit/fe50690af880deafe4a47d077ff3141a24bf32b0))
+
 ## [1.25.1](https://github.com/NEETROF/cymbra/compare/music-v1.25.0...music-v1.25.1) (2026-08-22)
 
 

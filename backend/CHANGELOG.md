@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.20.0](https://github.com/NEETROF/cymbra/compare/backend-v0.19.2...backend-v0.20.0) (2026-08-23)
+
+
+### Features
+
+* **music:** unroll repeats across the engine, app and back office ([#274](https://github.com/NEETROF/cymbra/issues/274)) ([b06c960](https://github.com/NEETROF/cymbra/commit/b06c960aad0798ab13d014df6e2b18b0179807b8))
+
+
+### Bug Fixes
+
+* **plans:** key store entitlements on the stable user:product ref ([#276](https://github.com/NEETROF/cymbra/issues/276)) ([14f1947](https://github.com/NEETROF/cymbra/commit/14f19470a57eb40bf0fa3131d9c42400b7b4ceef))
+
 ## [0.19.2](https://github.com/NEETROF/cymbra/compare/backend-v0.19.1...backend-v0.19.2) (2026-08-22)
 
 

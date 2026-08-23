@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.10.0](https://github.com/NEETROF/cymbra/compare/back-office-v0.9.0...back-office-v0.10.0) (2026-08-23)
+
+
+### Features
+
+* **music:** unroll repeats across the engine, app and back office ([#274](https://github.com/NEETROF/cymbra/issues/274)) ([b06c960](https://github.com/NEETROF/cymbra/commit/b06c960aad0798ab13d014df6e2b18b0179807b8))
+
+
+### Bug Fixes
+
+* **music:** engrave tie continuations on the staff views ([#272](https://github.com/NEETROF/cymbra/issues/272)) ([29b0623](https://github.com/NEETROF/cymbra/commit/29b062380bf0fb219dacca52d5a3cdfa867e865c))
+
 ## [0.9.0](https://github.com/NEETROF/cymbra/compare/back-office-v0.8.0...back-office-v0.9.0) (2026-08-22)
 
 
