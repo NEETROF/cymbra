@@ -179,6 +179,13 @@ impl StreakRepo for PgStreakRepo {
         // LEFT JOIN: an account with no stored timezone/locale still yields a row
         // (with empty strings), and the at-risk core falls back rather than
         // dropping the user from the sweep.
+        //
+        // The date bound is a coarse PRE-filter, not the decision: only a run
+        // whose last play was the player's own yesterday is at risk, and the core
+        // settles that per timezone. Two UTC days back covers every offset (a
+        // player at UTC-11 is a whole day behind the server's date), while
+        // keeping the sweep off the rows of everyone who stopped playing months
+        // ago — `current_streak` alone never stops being positive.
         let rows = sqlx::query(
             "SELECT s.user_id, s.current_streak, s.longest_streak, s.last_played_date, \
                     COALESCE(u.timezone, '') AS timezone, \
@@ -186,6 +193,7 @@ impl StreakRepo for PgStreakRepo {
              FROM music.practice_streaks s \
              LEFT JOIN user_account.users u ON u.id = s.user_id \
              WHERE s.current_streak > 0 \
+               AND s.last_played_date >= CURRENT_DATE - 2 \
              ORDER BY s.user_id",
         )
         .fetch_all(&self.pool)

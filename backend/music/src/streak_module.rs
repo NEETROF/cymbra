@@ -43,6 +43,9 @@ use crate::streak_core::{
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct StreakStanding {
     pub state: StreakState,
+    /// The local day this standing was read on — what makes the stored run
+    /// answerable as alive or broken.
+    pub today: NaiveDate,
     /// Whether the user has already played on their current local day.
     pub played_today: bool,
     /// The freeze decision as of today — `Allow` is the only variant the app
@@ -51,10 +54,19 @@ pub struct StreakStanding {
 }
 
 impl StreakStanding {
-    /// The streak the chip shows. A run broken but still recoverable keeps
-    /// displaying its pre-break value — it has not been lost yet.
+    /// The streak the chip shows: the **live** run, or zero once it is broken.
+    ///
+    /// Deliberately not `state.current`. That field is a stored number nothing
+    /// ever decays, so returning it raw kept the flame lit on a run that had been
+    /// over for weeks — and made the chip contradict the very dialog offering to
+    /// buy the streak back. A broken run reads as zero here and travels in
+    /// `recover.restored` instead, which is what a freeze would actually restore.
     pub fn display_streak(&self) -> i64 {
-        self.state.current
+        if self.state.is_live(self.today) {
+            self.state.current
+        } else {
+            0
+        }
     }
 }
 
@@ -130,14 +142,19 @@ impl StreakModule {
     pub async fn standing(&self, user_id: &str, today: NaiveDate) -> Result<StreakStanding> {
         let state = self.repo.get(user_id).await?;
         // The balance is only needed to decide affordability; skip the read when
-        // the streak is not broken at all (the overwhelmingly common case).
-        let balance = if state.at_risk(today) {
+        // the streak is not broken at all (the overwhelmingly common case). It
+        // must be `is_broken`, not `at_risk`: a run that is merely at risk has
+        // nothing to buy, and one broken past the grace window is refused on the
+        // date alone — but everything in between IS the offer, and reading zero
+        // there would price it as unaffordable.
+        let balance = if state.is_broken(today) {
             self.repo.spendable_points(user_id).await?
         } else {
             0
         };
         Ok(StreakStanding {
             state,
+            today,
             played_today: state.played_on(today),
             recover: recover_decision(&state, today, balance, &self.config()),
         })
@@ -191,6 +208,7 @@ impl StreakModule {
         }
         Ok(StreakStanding {
             state: restored,
+            today,
             played_today: true,
             recover: RecoverDecision::Intact,
         })
@@ -389,6 +407,43 @@ mod tests {
         // Reading the offer must NEVER move points (design: no silent debit).
         assert!(repo.debits().is_empty());
         assert_eq!(repo.spendable_points("u1").await.unwrap(), 100);
+    }
+
+    #[tokio::test]
+    async fn a_broken_streak_displays_zero_while_the_offer_stands() {
+        let repo = Arc::new(FakeStreakRepo::default());
+        broken_user(&repo);
+        let m = module(repo.clone());
+        let st = m.standing("u1", ymd(2026, 8, 14)).await.unwrap();
+        assert_eq!(st.display_streak(), 0, "the run is broken, not running");
+        assert_eq!(st.state.current, 7, "…but the row still knows what it was");
+        assert!(matches!(
+            st.recover,
+            RecoverDecision::Allow { restored: 7, .. }
+        ));
+    }
+
+    #[tokio::test]
+    async fn a_dead_streak_displays_zero_and_defends_nothing() {
+        let repo = Arc::new(FakeStreakRepo::default());
+        broken_user(&repo);
+        let m = module(repo.clone());
+        // A month later: nothing has written the row since, so `current` is still
+        // 7 — the read is what must stop calling it a live streak.
+        let st = m.standing("u1", ymd(2026, 9, 14)).await.unwrap();
+        assert_eq!(st.display_streak(), 0);
+        assert_eq!(st.recover, RecoverDecision::GraceElapsed);
+        assert!(!st.state.at_risk(ymd(2026, 9, 14)), "nothing left to lose");
+        assert_eq!(st.state.longest, 7, "the record survives");
+    }
+
+    #[tokio::test]
+    async fn a_recovered_streak_displays_again() {
+        let repo = Arc::new(FakeStreakRepo::default());
+        broken_user(&repo);
+        let m = module(repo.clone());
+        let st = m.recover("u1", ymd(2026, 8, 14)).await.unwrap();
+        assert_eq!(st.display_streak(), 7, "bought back and live again");
     }
 
     #[tokio::test]

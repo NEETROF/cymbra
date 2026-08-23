@@ -104,3 +104,32 @@ Two changes landed on main while this one was in flight and redefined what a
       clean ending, so an app killed mid-loop still delivers it. Still exactly one
       record per session (never per lap). This mattered before, but the streak makes
       it expensive: a dropped practice now costs a day the player actually earned.
+
+## 9. Manual validation fallout: the offer that would not go away
+
+Reported on-device (2026-08-23): the recovery confirmation re-opened on **every**
+app start after "Pas cette fois", and the flame stayed at 1. Three defects, all in
+the same seam — a stored count and a widget-local decision standing in for state
+nobody owned.
+
+- [x] 9.1 **The decline is persisted.** It lived in `_StreakListenerState._offered`,
+      so it survived neither a cold start nor a navigation between the two screens
+      that mount `StreakListener`. It is now `streakRecoveryDeclineProvider` — the
+      local day of the refusal, written through the `PreferencesService` seam — and
+      the offer decision moved wholesale into `streakRecoveryOfferedProvider`, which
+      yields nothing until that decline has been read (offering while it loads is
+      exactly how a refused question comes back). The at-risk nudge got the same
+      treatment via `streakNudgeShownProvider`.
+- [x] 9.2 **A broken run stops being displayed.** `StreakStanding::display_streak`
+      returned `state.current` raw, and nothing decays that column — so a run lost
+      weeks ago still lit the flame, while the dialog next to it announced the streak
+      was broken. Liveness is now `StreakState::is_live(today)` and the standing
+      carries the day it was read on; `recoverable_streak` still names what a freeze
+      would restore.
+- [x] 9.3 **A dead streak defends nothing.** `at_risk` matched every gap ≥ 1, so the
+      in-app cue and the reminder sweep both fired on long-dead rows ("keep your
+      1-day streak"). It is now exactly "played yesterday, not today", and
+      `live_streaks()` pre-filters on `last_played_date >= CURRENT_DATE - 2` (coarse:
+      the per-timezone decision stays in the core). `standing()` reads the balance on
+      `is_broken` rather than `at_risk`, which the narrowing would otherwise have
+      priced as unaffordable.
