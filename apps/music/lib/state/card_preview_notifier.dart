@@ -31,6 +31,7 @@ class CardPreviewScore {
   const CardPreviewScore({
     required this.notes,
     required this.rests,
+    this.tieContinuations = const [],
     required this.songEndMs,
     required this.bpm,
     required this.keyFifths,
@@ -43,6 +44,9 @@ class CardPreviewScore {
 
   final List<TimedNote> notes;
   final List<TimedRest> rests;
+
+  /// Render-only tie continuations (see [DerivedPlayback.tieContinuations]).
+  final List<TimedNote> tieContinuations;
   final double songEndMs;
   final int bpm;
   final int keyFifths;
@@ -74,6 +78,7 @@ Future<CardPreviewScore> cardPreviewScore(Ref ref, String catalogId) async {
   return CardPreviewScore(
     notes: derived.notes,
     rests: derived.rests,
+    tieContinuations: derived.tieContinuations,
     songEndMs: derived.songEndMs,
     bpm: derived.bpm,
     keyFifths: document.attributes.keyFifths,

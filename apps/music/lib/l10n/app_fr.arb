@@ -562,6 +562,8 @@
   "notationBeatUnitSixteenth": "double croche",
   "notationBeatUnitOther": "cette figure",
   "notationHelpNoteDuration": "Ici {name} : {beats}.",
+  "notationHelpGraceTitle": "Petite note ({name})",
+  "notationHelpGraceBody": "Une petite note d'ornement jouée tr\u00e8s vite, juste avant la note qu'elle d\u00e9core. Elle ne prend aucun temps \u2014 effleurez-la et encha\u00eenez sur la note suivante.",
   "notationHelpRestDuration": "Elle dure {beats}.",
   "notationRestWhole": "Pause",
   "notationRestHalf": "Demi-pause",

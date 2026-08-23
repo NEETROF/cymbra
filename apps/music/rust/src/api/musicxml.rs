@@ -123,6 +123,11 @@ pub struct _NoteEvent {
     pub is_rest: bool,
     /// True when this note carries `<chord/>` (sounds with the preceding note).
     pub is_chord: bool,
+    /// True when this note carries `<grace/>` — an ornamental small note that
+    /// occupies no musical time (`duration_divisions` stays 0 and the cursor
+    /// does not advance); playback gives it a short nominal duration stolen
+    /// from just before its position.
+    pub is_grace: bool,
     pub duration_divisions: u32,
     /// Note-type token when present (e.g. "quarter", "eighth").
     pub note_type: Option<String>,

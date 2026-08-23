@@ -606,6 +606,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                 painter: StaffPainter(
                   notes: data.visibleNotes,
                   rests: data.visibleRests,
+                  tieContinuations: data.visibleTieContinuations,
                   elapsedMs: data.referenceMs,
                   activeNotes: data.activeNotes,
                   bpm: data.bpm,

@@ -383,6 +383,31 @@ void main() {
       });
     });
 
+    test('a grace onset shows the key name but no rhythm figure', () {
+      // A grace note is an ornament: quoting its written figure ("eighth —
+      // hold half a beat") would tell the player to hold a note the score
+      // says to flick, so the rhythm card stays away while the name shows.
+      const grace = TimedNote(
+        pitch: 71,
+        startMs: 500,
+        durationMs: 100,
+        diatonic: 34,
+        noteType: 'eighth',
+        isGrace: true,
+      );
+      final view = readingAidViewOf(
+        _data(
+          aid: NoteReadingAid.nameAndRhythm,
+          blocked: true,
+          notes: const [grace],
+        ),
+        solfege: false,
+        frenchRe: false,
+      );
+      expect(view.names, {71: 'B'});
+      expect(view.figure, isNull);
+    });
+
     test('is hidden when there is nothing to await', () {
       const empty = PlayerData(
         blocked: true,

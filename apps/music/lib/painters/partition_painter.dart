@@ -681,7 +681,12 @@ class PartitionPainter extends CustomPainter {
       if (!_showsStaff(note.staff)) continue;
       final isBass = note.staff >= 2 && _twoStaff;
       final staffBottom = isBass ? bassBottom : trebleBottom;
-      final x = xForPosition(note.positionDivisions);
+      // A grace note shares its principal's position (it occupies no musical
+      // time): engrave it smaller, offset left of the principal's column,
+      // instead of drawing both full-size on the same spot.
+      final glyphScale = note.isGrace ? 0.7 : 1.0;
+      var x = xForPosition(note.positionDivisions);
+      if (note.isGrace) x -= Smufl.noteheadWidth * _s * 1.4;
 
       if (note.isRest) {
         Smufl.draw(
@@ -739,8 +744,15 @@ class PartitionPainter extends CustomPainter {
           : handColor;
 
       // Note head, centred on x.
-      final headLeft = x - Smufl.noteheadWidth * _s / 2;
-      Smufl.draw(canvas, _headGlyph(note), headLeft, y, _s, headColor);
+      final headLeft = x - Smufl.noteheadWidth * _s * glyphScale / 2;
+      Smufl.draw(
+        canvas,
+        _headGlyph(note),
+        headLeft,
+        y,
+        _s * glyphScale,
+        headColor,
+      );
       _record(
         Rect.fromCenter(
           center: Offset(x, y),
@@ -754,6 +766,7 @@ class PartitionPainter extends CustomPainter {
           staff: note.staff,
           noteType: note.noteType,
           dots: note.dots,
+          isGrace: note.isGrace,
         ),
       );
 
@@ -808,7 +821,7 @@ class PartitionPainter extends CustomPainter {
       if (_headGlyph(note) != Smufl.noteheadWhole && !note.isChord) {
         final midY = staffBottom - 2 * _s;
         final up = note.stem != null ? note.stem == StemDir.up : y >= midY;
-        final n = _Note(x, y, up, note);
+        final n = _Note(x, y, up, note, glyphScale);
         if (note.beams.isEmpty) {
           _drawStemAndFlag(canvas, n);
         } else {
@@ -979,23 +992,27 @@ class PartitionPainter extends CustomPainter {
     ..strokeCap = StrokeCap.round;
 
   /// Stem-attachment point on the note head for the given direction.
-  Offset _stemAnchor(_Note n) => n.up
-      ? Offset(
-          n.x - Smufl.noteheadWidth * _s / 2 + Smufl.stemUpAnchorX * _s,
-          n.y - Smufl.stemUpAnchorY * _s,
-        )
-      : Offset(
-          n.x - Smufl.noteheadWidth * _s / 2 + Smufl.stemDownAnchorX * _s,
-          n.y - Smufl.stemDownAnchorY * _s,
-        );
+  Offset _stemAnchor(_Note n) {
+    final s = _s * n.scale;
+    return n.up
+        ? Offset(
+            n.x - Smufl.noteheadWidth * s / 2 + Smufl.stemUpAnchorX * s,
+            n.y - Smufl.stemUpAnchorY * s,
+          )
+        : Offset(
+            n.x - Smufl.noteheadWidth * s / 2 + Smufl.stemDownAnchorX * s,
+            n.y - Smufl.stemDownAnchorY * s,
+          );
+  }
 
   void _drawStemAndFlag(Canvas canvas, _Note n) {
+    final s = _s * n.scale;
     final anchor = _stemAnchor(n);
-    final tipY = n.up ? anchor.dy - _stemLen * _s : anchor.dy + _stemLen * _s;
+    final tipY = n.up ? anchor.dy - _stemLen * s : anchor.dy + _stemLen * s;
     canvas.drawLine(anchor, Offset(anchor.dx, tipY), _stemPaint);
     final flag = _flagGlyph(n.note, n.up);
     if (flag != null) {
-      Smufl.draw(canvas, flag, anchor.dx, tipY, _s, _ink);
+      Smufl.draw(canvas, flag, anchor.dx, tipY, s, _ink);
     }
   }
 
@@ -1188,7 +1205,10 @@ class _Note {
   final double y;
   final bool up;
   final NoteEvent note;
-  const _Note(this.x, this.y, this.up, this.note);
+
+  /// Glyph scale — 1.0 for ordinary notes, smaller for grace notes.
+  final double scale;
+  const _Note(this.x, this.y, this.up, this.note, [this.scale = 1.0]);
 }
 
 /// Tracks open tie/slur starts within a system so the arc can be drawn when the

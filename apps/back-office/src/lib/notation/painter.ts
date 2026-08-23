@@ -309,11 +309,14 @@ function paintMeasure(
 
   for (let ni = 0; ni < measure.notes.length; ni++) {
     const note = measure.notes[ni];
+    // A grace note shares its principal's position (duration 0): offset it left
+    // of the principal's column so the two heads don't engrave on top of each
+    // other.
     paintNote(ctx, {
       note,
       ni,
       measureIdx,
-      x: xForPosition(note.position_divisions),
+      x: xForPosition(note.position_divisions) - (note.is_grace ? S.noteheadWidth * s * 1.4 : 0),
       trebleBottom,
       bassBottom,
       clefs,

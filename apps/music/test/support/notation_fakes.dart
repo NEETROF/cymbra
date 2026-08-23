@@ -94,6 +94,7 @@ NoteEvent noteEvent({
   Pitch? pitch,
   bool isRest = false,
   bool isChord = false,
+  bool isGrace = false,
   int durationDivisions = 4,
   String? noteType = 'quarter',
   int dots = 0,
@@ -104,6 +105,7 @@ NoteEvent noteEvent({
   bool tieStop = false,
   bool slurStart = false,
   bool slurStop = false,
+  List<BeamState> beams = const [],
 }) => NoteEvent(
   staff: staff,
   voice: voice,
@@ -111,6 +113,7 @@ NoteEvent noteEvent({
   pitch: pitch,
   isRest: isRest,
   isChord: isChord,
+  isGrace: isGrace,
   durationDivisions: durationDivisions,
   noteType: noteType,
   dots: dots,
@@ -121,7 +124,7 @@ NoteEvent noteEvent({
   slurStop: slurStop,
   tuplet: null,
   stem: stem,
-  beams: const [],
+  beams: beams,
   lyric: lyric,
 );
 
@@ -189,6 +192,7 @@ ScoreDocument sampleBeamedDocument() {
     pitch: Pitch(step: step, octave: octave, alter: 0),
     isRest: false,
     isChord: false,
+    isGrace: false,
     durationDivisions: 2,
     noteType: 'eighth',
     dots: 0,

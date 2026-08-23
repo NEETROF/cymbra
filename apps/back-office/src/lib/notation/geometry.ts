@@ -49,6 +49,9 @@ export interface NoteEvent {
   pitch?: Pitch | null;
   is_rest: boolean;
   is_chord: boolean;
+  /** Grace note (`<grace/>`): ornamental, occupies no musical time (duration 0
+   * at its principal's position); engraved offset left of the principal. */
+  is_grace: boolean;
   duration_divisions: number;
   note_type?: string | null;
   dots: number;
