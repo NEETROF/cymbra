@@ -39,6 +39,12 @@ const _oneOfEachKind = <SymbolDescriptor>[
   SymbolDescriptor.tuplet(actual: 3),
   SymbolDescriptor.brace(),
   SymbolDescriptor.dynamics(token: 'mf'),
+  SymbolDescriptor.repeatBarline(forward: true),
+  SymbolDescriptor.volta(label: '1.'),
+  SymbolDescriptor.measureRepeat(),
+  SymbolDescriptor.segno(),
+  SymbolDescriptor.coda(),
+  SymbolDescriptor.jump(words: 'D.C. al Fine'),
 ];
 
 void main() {

@@ -8,7 +8,7 @@
 // of the viewport. Clicking a measure seeks playback to that measure's start.
 
 import { nextTick, watch, type Ref } from "vue";
-import { type PlaybackSchedule, measureAt, playingNoteIds } from "@/lib/notation/schedule";
+import { type PlaybackSchedule, measureAt, playingNoteIds, writtenMeasureAt } from "@/lib/notation/schedule";
 import type { MeasureRect } from "@/lib/notation/painter";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -89,7 +89,10 @@ export function usePlayhead(opts: Options): void {
     const schedule = opts.schedule.value;
     const measures = opts.layout.value?.measures ?? [];
     const at = schedule ? measureAt(schedule, opts.elapsedMs.value) : null;
-    const rect = at ? measures.find((m) => m.index === at.index) : undefined;
+    // The playhead lives in PLAYED slots; the engraved boxes are WRITTEN
+    // measures — map through so a repeat pass lights the bar it performs.
+    const written = at && schedule ? writtenMeasureAt(schedule, at.index) : null;
+    const rect = written != null ? measures.find((m) => m.index === written) : undefined;
 
     if (!rect || !at) {
       cursor.style.display = "none";

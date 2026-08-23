@@ -46,6 +46,16 @@ class DerivedPlayback {
   /// so a mid-piece modulation is reflected as you scroll past it.
   final List<int> measureKeyFifths;
 
+  /// The written measure each played slot performs, aligned with
+  /// [measureStartMs] — a repeated written measure appears once per pass.
+  /// Empty means identity (no repeats): slot i plays written measure i.
+  final List<int> writtenMeasureOf;
+
+  /// Repeat notation to draw at each played slot of the scrolling staff
+  /// (repeat barlines, volta label, `%`, segno/coda), aligned with
+  /// [measureStartMs]. Render-only.
+  final List<MeasureDecor> measureDecors;
+
   const DerivedPlayback({
     required this.notes,
     this.rests = const [],
@@ -54,6 +64,8 @@ class DerivedPlayback {
     required this.bpm,
     this.measureStartMs = const [],
     this.measureKeyFifths = const [],
+    this.writtenMeasureOf = const [],
+    this.measureDecors = const [],
   });
 }
 
@@ -109,7 +121,10 @@ int midiOfPitch(Pitch pitch) {
 /// [TimedNote.tieFromMs] pointing at the engraved note it prolongs), so the
 /// staff view still shows the notation as written — dropping them left the
 /// prolonged measures looking empty, as if the first note stretched over them.
-DerivedPlayback notationToTimedNotes(ScoreDocument document) {
+DerivedPlayback notationToTimedNotes(
+  ScoreDocument document, {
+  bool unroll = true,
+}) {
   final divisions = document.attributes.divisions < 1
       ? 1
       : document.attributes.divisions;
@@ -129,8 +144,21 @@ DerivedPlayback notationToTimedNotes(ScoreDocument document) {
   final tieContinuations = <TimedNote>[];
   final measureStartMs = <int>[];
   final measureKeyFifths = <int>[];
+  final writtenMeasureOf = <int>[];
+  final measureDecors = <MeasureDecor>[];
   var songEndMs = 0.0;
   var measureStartDiv = 0;
+
+  // The playback order resolved by the engine at parse time (repeats per
+  // pass, voltas selected, jumps followed). Fixtures may carry none, and a
+  // selective practice run deliberately stays linear ([unroll] false): the
+  // written order one-to-one then.
+  final order = unroll && document.playOrder.isNotEmpty
+      ? document.playOrder
+      : [
+          for (var i = 0; i < document.measures.length; i++)
+            PlayedMeasure(writtenIndex: i, pass: 1),
+        ];
 
   // Open tie chains, keyed by staff/voice/MIDI pitch: the index (into [notes])
   // of the chain's first note, where the chain currently ends (in absolute
@@ -146,10 +174,18 @@ DerivedPlayback notationToTimedNotes(ScoreDocument document) {
     clef[c.staff] = c;
   }
 
-  for (final measure in document.measures) {
+  for (final slot in order) {
+    if (slot.writtenIndex >= document.measures.length) continue;
+    final written = document.measures[slot.writtenIndex];
+    // A measure-repeat (`%`) slot replays its referenced measure's content.
+    final measure =
+        document.measures[(written.repeats.measureRepeatOf ?? slot.writtenIndex)
+            .clamp(0, document.measures.length - 1)];
     measureStartMs.add((measureStartDiv * msPerDivision).round());
-    measureKeyFifths.add(measure.keyFifths);
-    for (final c in measure.clefs) {
+    measureKeyFifths.add(written.keyFifths);
+    writtenMeasureOf.add(slot.writtenIndex);
+    measureDecors.add(_decorOf(written.repeats));
+    for (final c in written.clefs) {
       clef[c.staff] = c;
     }
     var measureSpan = divisionsPerMeasure > 0 ? divisionsPerMeasure : 0;
@@ -284,6 +320,8 @@ DerivedPlayback notationToTimedNotes(ScoreDocument document) {
     bpm: bpm,
     measureStartMs: measureStartMs,
     measureKeyFifths: measureKeyFifths,
+    writtenMeasureOf: writtenMeasureOf,
+    measureDecors: measureDecors,
   );
 }
 
@@ -314,6 +352,26 @@ TimedNote _withDuration(TimedNote n, int durationMs, {int? sustainFromMs}) =>
 /// staff/voice/position stacks backwards (the first of the run is furthest
 /// back), so they play in document order and resolve onto the principal's
 /// beat. Mirrors the Rust `grace_back_offsets` in `musicxml-core/playback.rs`.
+/// The scrolling staff's repeat decorations for one written measure's marks.
+MeasureDecor _decorOf(RepeatMarks r) {
+  final hasAny =
+      r.forward ||
+      r.backwardTimes > 0 ||
+      r.endingStart.isNotEmpty ||
+      r.measureRepeatOf != null ||
+      r.segno ||
+      r.coda;
+  if (!hasAny) return MeasureDecor.none;
+  return MeasureDecor(
+    repeatForward: r.forward,
+    repeatBackward: r.backwardTimes > 0,
+    voltaLabel: r.endingStart.isEmpty ? null : '${r.endingStart.join('.')}.',
+    measureRepeat: r.measureRepeatOf != null,
+    segno: r.segno,
+    coda: r.coda,
+  );
+}
+
 List<int> _graceBackOffsets(List<NoteEvent> notes) {
   final back = List<int>.filled(notes.length, 0);
   final run = <int>[];

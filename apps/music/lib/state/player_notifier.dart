@@ -279,6 +279,9 @@ class Player extends _$Player {
       songEndMs: derived.songEndMs,
       measureStartMs: derived.measureStartMs,
       measureKeyFifths: derived.measureKeyFifths,
+      writtenMeasureOf: derived.writtenMeasureOf,
+      measureDecors: derived.measureDecors,
+      writtenMeasureCount: document.measures.length,
       isPlaying: false,
       // A range chosen for the previous score means nothing here (and its indices
       // may not even exist in this one): a freshly-loaded document always starts
@@ -323,6 +326,9 @@ class Player extends _$Player {
       notes: all,
       rests: const [], // the demo score has no rests; clear any prior score's
       tieContinuations: const [], // nor ties
+      writtenMeasureOf: const [],
+      measureDecors: const [],
+      writtenMeasureCount: 0,
       songEndMs: end,
     );
     // Seed the playhead at the effective start (0 for the demo, which opens on a
@@ -598,7 +604,7 @@ class Player extends _$Player {
     final range = normalizePracticeRange(
       start: start,
       end: end,
-      measureCount: state.measureCount,
+      measureCount: state.practiceMeasureCount,
     );
     if (range == null) return;
     // A new range is a new practice session: close the previous one first, so it
@@ -606,6 +612,11 @@ class Player extends _$Player {
     _endPracticeSession();
     _silenceAll();
     _scorer.cancelRun();
+    // A selective run is deliberately **linear over the written measures** —
+    // the player chose bars to drill, not a performance route — so on a piece
+    // with repeats the timeline is re-derived without unrolling. (Identical
+    // tables on a piece without repeats: no-op.)
+    _applyTimeline(unroll: false);
     final updated = state.copyWith(
       practiceStartMeasure: range.start,
       practiceEndMeasure: range.end,
@@ -624,6 +635,8 @@ class Player extends _$Player {
     _endPracticeSession();
     _silenceAll();
     _scorer.cancelRun();
+    // A full run follows the performance route again (repeats unrolled).
+    _applyTimeline(unroll: true);
     final updated = state.copyWith(
       practiceStartMeasure: null,
       practiceEndMeasure: null,
@@ -633,6 +646,29 @@ class Player extends _$Player {
     );
     state = updated.copyWith(elapsedMs: updated.startMs);
     _persistPracticeSettings();
+  }
+
+  /// Re-derives the playback timeline of the loaded document — unrolled for a
+  /// full run, written-linear for a selective practice run — leaving every
+  /// other field untouched. A no-op for the demo score (no document) and
+  /// whenever the tables are already in the requested shape.
+  void _applyTimeline({required bool unroll}) {
+    final document = _loadedDocument;
+    if (document == null) return;
+    final derived = notationToTimedNotes(document, unroll: unroll);
+    if (state.measureStartMs.length == derived.measureStartMs.length) {
+      return; // same shape — the piece has no repeats (or already linear)
+    }
+    state = state.copyWith(
+      notes: derived.notes,
+      rests: derived.rests,
+      tieContinuations: derived.tieContinuations,
+      songEndMs: derived.songEndMs,
+      measureStartMs: derived.measureStartMs,
+      measureKeyFifths: derived.measureKeyFifths,
+      writtenMeasureOf: derived.writtenMeasureOf,
+      measureDecors: derived.measureDecors,
+    );
   }
 
   void restart() {

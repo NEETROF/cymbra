@@ -26,6 +26,7 @@ import 'package:music/services/play_sync_service.dart';
 import 'package:music/painters/partition_painter.dart';
 import 'package:music/services/preferences_service.dart';
 import 'package:music/state/countdown.dart';
+import 'package:music/src/rust/api/musicxml.dart' show ScoreDocument;
 import 'package:music/state/notation_data.dart';
 import 'package:music/state/notation_notifier.dart';
 import 'package:music/state/performance_scoring.dart';
@@ -82,13 +83,18 @@ const double _bar = 4000;
 /// A container running the player over the four-measure fixture, with the
 /// activity-sync seam faked (a selective run reaches it, so it must be
 /// overridden even where the test does not assert on it).
-ProviderContainer _playerContainer(PlaySyncService sync) => ProviderContainer(
+ProviderContainer _playerContainer(
+  PlaySyncService sync, {
+  ScoreDocument? document,
+}) => ProviderContainer(
   overrides: [
     midiServiceProvider.overrideWithValue(FakeMidiService()),
     scoreSourceProvider.overrideWithValue(FakeScoreSource(null)),
     audioServiceProvider.overrideWithValue(RecordingAudioService()),
     notationProvider.overrideWith(
-      () => _FixedNotation(NotationData(document: sampleFourMeasureDocument())),
+      () => _FixedNotation(
+        NotationData(document: document ?? sampleFourMeasureDocument()),
+      ),
     ),
     preferencesServiceProvider.overrideWithValue(FakePreferencesService()),
     playSyncServiceProvider.overrideWithValue(sync),
@@ -808,5 +814,49 @@ void main() {
       notifier().rewindOneMeasure();
       expect(read().elapsedMs, before);
     });
+  });
+
+  // With repeats, a full run follows the unrolled playback order while a
+  // selective practice run deliberately stays linear over the WRITTEN
+  // measures (spec: measure-range-practice delta) — the notifier swaps the
+  // timeline on range set/clear.
+  group('practice on a repeat-carrying piece', () {
+    late ProviderContainer container;
+
+    Player notifier() => container.read(playerProvider.notifier);
+    PlayerData read() => container.read(playerProvider);
+
+    Future<void> build() async {
+      container = _playerContainer(_sync(), document: sampleRepeatDocument());
+      addTearDown(container.dispose);
+      container.listen(playerProvider, (_, _) {}, fireImmediately: true);
+      await _flush();
+    }
+
+    test(
+      'a full run is unrolled; a range swaps to the written order',
+      () async {
+        await build();
+        // Unrolled: the repeated bar has two played slots.
+        expect(read().measureStartMs, [0, 4000, 8000]);
+        expect(read().writtenMeasureOf, [0, 0, 1]);
+        expect(read().writtenMeasureCount, 2);
+        expect(read().songEndMs, 12000);
+
+        // The range is picked in written measures (2 of them) and the timeline
+        // becomes linear so the loop means "these bars, once".
+        notifier().setPracticeRange(1, 1);
+        expect(read().practiceStartMeasure, 1);
+        expect(read().measureStartMs, [0, 4000]);
+        expect(read().songEndMs, 8000);
+        expect(read().startMs, 4000);
+        expect(read().endMs, 8000);
+
+        // Clearing returns to the unrolled performance route.
+        notifier().clearPracticeRange();
+        expect(read().measureStartMs, [0, 4000, 8000]);
+        expect(read().songEndMs, 12000);
+      },
+    );
   });
 }

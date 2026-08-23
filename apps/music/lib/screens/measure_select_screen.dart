@@ -106,7 +106,9 @@ class _MeasureSelectScreenState extends ConsumerState<MeasureSelectScreen> {
     );
     final saved = await ref.read(practiceSettingsStoreProvider).load(scoreKey);
     if (!mounted || _touched) return;
-    final applied = saved?.clampedTo(ref.read(playerProvider).measureCount);
+    final applied = saved?.clampedTo(
+      ref.read(playerProvider).practiceMeasureCount,
+    );
     if (applied == null) return;
     setState(() {
       _start = applied.startMeasure;

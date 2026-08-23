@@ -199,6 +199,7 @@ void main() {
     // lyric-less variant reserves less room under the bass staff, so more of
     // the next line fits the viewport.
     ScoreDocument doc({required bool lyric}) => ScoreDocument(
+      playOrder: const [],
       meta: const ScoreMeta(title: 'T', composer: null),
       staves: 1,
       attributes: const Attributes(
@@ -209,6 +210,7 @@ void main() {
       ),
       measures: [
         NotationMeasure(
+          repeats: noRepeats,
           index: 0,
           clefs: const [],
           keyFifths: 0,

@@ -48,8 +48,13 @@ class PartitionPainter extends CustomPainter {
   /// Playback playhead (ms) and per-measure start times, so the cursor and note
   /// highlighting track the current position. [activeNotes] are the held MIDI
   /// pitches (a highlighted note reads "correct" when held, else "expected").
+  /// With repeats, [measureStartMs] holds **played slots**; [writtenMeasureOf]
+  /// (aligned, empty = identity) maps each slot back to the written measure so
+  /// the cursor lands on the engraved bar being performed — jumping backward
+  /// when a repeat returns.
   final double elapsedMs;
   final List<int> measureStartMs;
+  final List<int> writtenMeasureOf;
   final double songEndMs;
   final Set<int> activeNotes;
 
@@ -95,6 +100,7 @@ class PartitionPainter extends CustomPainter {
     required this.systems,
     this.elapsedMs = 0,
     this.measureStartMs = const [],
+    this.writtenMeasureOf = const [],
     this.songEndMs = 0,
     this.activeNotes = const {},
     this.selectedHands = Hand.both,
@@ -146,7 +152,10 @@ class PartitionPainter extends CustomPainter {
         final frac = span > 0
             ? ((elapsedMs - start) / span).clamp(0.0, 1.0)
             : 0.0;
-        return (index: i, fraction: frac);
+        // Map the played slot to the written measure it performs, so the
+        // cursor (and the current-measure wash) land on the engraved bar.
+        final written = i < writtenMeasureOf.length ? writtenMeasureOf[i] : i;
+        return (index: written, fraction: frac);
       }
     }
     return null;
@@ -487,6 +496,16 @@ class PartitionPainter extends CustomPainter {
         ),
         const SymbolDescriptor.barLine(),
       );
+      _drawMeasureRepeats(
+        canvas,
+        measure,
+        x,
+        mWidth,
+        systemTop,
+        systemBottom,
+        trebleBottom,
+        bassBottom,
+      );
       final isCursorMeasure = cursor != null && cursor.index == idx;
       // Subtle wash behind the active measure (current-measure highlight): over
       // the staff lines but under the glyphs, and only while a playhead exists.
@@ -528,6 +547,141 @@ class PartitionPainter extends CustomPainter {
           ..color = palette.accent
           ..strokeWidth = _s * 0.18
           ..strokeCap = StrokeCap.round,
+      );
+    }
+  }
+
+  /// Jump instructions engraved as words (D.C./D.S./Fine/To Coda), matched
+  /// case-insensitively so the long-press help can explain them.
+  static final RegExp _jumpWords = RegExp(
+    r'\b(d\.?\s?c\.?|d\.?\s?s\.?|da capo|dal segno|fine|to coda|al coda)\b',
+    caseSensitive: false,
+  );
+
+  /// Engraves the repeat notation of one measure (change: add-repeat-unrolling):
+  /// repeat barlines (thick line + dots on the repeated side), the volta
+  /// bracket + number, the measure-repeat `%` sign, and segno/coda signs —
+  /// each recorded for the long-press help.
+  void _drawMeasureRepeats(
+    Canvas canvas,
+    NotationMeasure measure,
+    double x,
+    double mWidth,
+    double systemTop,
+    double systemBottom,
+    double trebleBottom,
+    double bassBottom,
+  ) {
+    final r = measure.repeats;
+    final thick = Paint()
+      ..color = _ink
+      ..strokeWidth = Smufl.thickBarlineThickness * _s;
+    final thin = Paint()
+      ..color = _ink.withValues(alpha: 0.85)
+      ..strokeWidth = Smufl.thinBarlineThickness * _s * 1.3;
+
+    void dots(double dx) {
+      for (final base in [trebleBottom, if (_twoStaff) bassBottom]) {
+        for (final dy in const [1.5, 2.5]) {
+          canvas.drawCircle(
+            Offset(dx, base - dy * _s),
+            _s * 0.22,
+            Paint()..color = _ink,
+          );
+        }
+      }
+    }
+
+    if (r.forward) {
+      // ‖: at the measure's left edge.
+      canvas.drawLine(
+        Offset(x + _s * 0.18, systemTop),
+        Offset(x + _s * 0.18, systemBottom),
+        thick,
+      );
+      dots(x + _s * 0.95);
+      _record(
+        Rect.fromLTRB(x - _s * 0.4, systemTop, x + _s * 1.4, systemBottom),
+        const SymbolDescriptor.repeatBarline(forward: true),
+      );
+    }
+    if (r.backwardTimes > 0) {
+      // :‖ at the measure's right edge.
+      final bx = x + mWidth;
+      canvas.drawLine(
+        Offset(bx - _s * 0.18, systemTop),
+        Offset(bx - _s * 0.18, systemBottom),
+        thick,
+      );
+      dots(bx - _s * 0.95);
+      _record(
+        Rect.fromLTRB(bx - _s * 1.4, systemTop, bx + _s * 0.4, systemBottom),
+        const SymbolDescriptor.repeatBarline(forward: false),
+      );
+    }
+    if (r.endingStart.isNotEmpty || r.endingStop || r.endingDiscontinue) {
+      // Volta bracket segment over this measure; label on the start measure.
+      final y = systemTop - _s * 1.6;
+      canvas.drawLine(Offset(x, y), Offset(x + mWidth, y), thin);
+      if (r.endingStart.isNotEmpty) {
+        canvas.drawLine(Offset(x, y), Offset(x, y + _s * 1.1), thin);
+        final label = '${r.endingStart.join('.')}.';
+        _text(canvas, label, x + _s * 0.4, y + _s * 0.2, color: _ink);
+        _record(
+          Rect.fromLTRB(x, y - _s, x + mWidth, y + _s * 1.4),
+          SymbolDescriptor.volta(label: label),
+        );
+      }
+      if (r.endingStop) {
+        canvas.drawLine(
+          Offset(x + mWidth, y),
+          Offset(x + mWidth, y + _s * 1.1),
+          thin,
+        );
+      }
+    }
+    if (r.measureRepeatOf != null) {
+      final cx = x + mWidth / 2;
+      final cy = trebleBottom - 2 * _s;
+      Smufl.draw(
+        canvas,
+        r.measureRepeatSlashes >= 2 ? Smufl.repeat2Bars : Smufl.repeat1Bar,
+        cx,
+        cy,
+        _s,
+        _ink,
+        centerX: true,
+      );
+      _record(
+        Rect.fromCenter(
+          center: Offset(cx, cy),
+          width: _s * 2.6,
+          height: _s * 2.6,
+        ),
+        const SymbolDescriptor.measureRepeat(),
+      );
+    }
+    if (r.segno || r.coda) {
+      final gx = x + _s * 1.2;
+      final gy = systemTop - _s * 1.8;
+      Smufl.draw(
+        canvas,
+        r.segno ? Smufl.segno : Smufl.coda,
+        gx,
+        gy,
+        _s * 1.1,
+        _ink,
+        centerX: true,
+      );
+      _record(
+        Rect.fromCenter(
+          center: Offset(gx, gy - _s * 0.7),
+          width: _s * 2.2,
+          height: _s * 2.6,
+        ),
+        r.segno
+            ? const SymbolDescriptor.segno()
+            : const SymbolDescriptor.coda(),
       );
     }
   }
@@ -648,6 +802,14 @@ class PartitionPainter extends CustomPainter {
           final baseY = trebleBottom - _staffHeight - _s * 1.8;
           final y = words.yFor(x, w + _s * 0.6, baseY);
           _text(canvas, field0, x, y, italic: true, color: palette.staffLine);
+          // Jump instructions (D.C./D.S./Fine/To Coda) get a help entry: a
+          // beginner meeting "D.C. al Fine" deserves an explanation.
+          if (_jumpWords.hasMatch(field0)) {
+            _record(
+              Rect.fromLTWH(x, y - _s * 1.2, w + _s * 0.6, _s * 2.0),
+              SymbolDescriptor.jump(words: field0),
+            );
+          }
         case DirectionKind_Dynamics(:final field0):
           // Dynamics sit a little below note-head size (≈ 0.78 staff spaces).
           Smufl.draw(

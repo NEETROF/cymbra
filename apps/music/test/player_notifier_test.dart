@@ -48,6 +48,7 @@ Future<void> _flush() => Future<void>.delayed(Duration.zero);
 ScoreDocument _untitled() {
   final titled = sampleFourMeasureDocument();
   return ScoreDocument(
+    playOrder: const [],
     meta: const ScoreMeta(composer: 'Christian Petzold'),
     staves: titled.staves,
     attributes: titled.attributes,
@@ -693,6 +694,7 @@ void main() {
         // score demands) while attacking E5 must open the gate — the tie is a
         // single attack, never a re-press.
         final doc = ScoreDocument(
+          playOrder: const [],
           meta: const ScoreMeta(title: 'Tied', composer: 'T'),
           staves: 1,
           attributes: const Attributes(
@@ -703,6 +705,7 @@ void main() {
           ),
           measures: [
             NotationMeasure(
+              repeats: noRepeats,
               index: 0,
               clefs: const [],
               keyFifths: 0,
@@ -1144,6 +1147,7 @@ void main() {
     // resolves well before songEndMs (which the rest inflates). endMs is the
     // note's resolution; songEndMs runs on to the end of the rest.
     ScoreDocument trailingRestDoc() => ScoreDocument(
+      playOrder: const [],
       meta: const ScoreMeta(title: 'Trail', composer: 'T'),
       staves: 1,
       attributes: const Attributes(
@@ -1154,6 +1158,7 @@ void main() {
       ),
       measures: [
         NotationMeasure(
+          repeats: noRepeats,
           index: 0,
           clefs: const [],
           keyFifths: 0,
@@ -1184,6 +1189,7 @@ void main() {
     // measure while the left hand (staff 2) stops in the 1st — so each hand
     // has a different last-note resolution.
     ScoreDocument grandStaffDoc() => ScoreDocument(
+      playOrder: const [],
       meta: const ScoreMeta(title: 'Grand', composer: 'T'),
       staves: 2,
       attributes: const Attributes(
@@ -1197,6 +1203,7 @@ void main() {
       ),
       measures: [
         NotationMeasure(
+          repeats: noRepeats,
           index: 0,
           clefs: const [],
           keyFifths: 0,
@@ -1218,6 +1225,7 @@ void main() {
           ],
         ),
         NotationMeasure(
+          repeats: noRepeats,
           index: 1,
           clefs: const [],
           keyFifths: 0,

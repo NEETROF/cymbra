@@ -68,7 +68,13 @@ pub struct TimedNote {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PlaybackSchedule {
     pub notes: Vec<TimedNote>,
+    /// Start time of each **played slot** of the playback order (the written
+    /// measure table one-to-one when the piece has no repeats).
     pub measure_start_ms: Vec<u32>,
+    /// The written measure each played slot performs, aligned with
+    /// [`Self::measure_start_ms`] — a repeated written measure appears once
+    /// per pass.
+    pub written_measure: Vec<u32>,
     pub song_end_ms: u32,
     pub bpm: u16,
 }
@@ -153,11 +159,37 @@ pub fn schedule(document: &ScoreDocument) -> PlaybackSchedule {
 
     let mut notes: Vec<TimedNote> = Vec::new();
     let mut measure_start_ms: Vec<u32> = Vec::new();
+    let mut written_measure: Vec<u32> = Vec::new();
     let mut song_end_ms = 0.0_f64;
     let mut measure_start_div: u32 = 0;
 
-    for (mi, measure) in document.measures.iter().enumerate() {
+    // The playback order resolved at parse time: repeated sections once per
+    // pass, voltas selected, jumps followed. Documents built by hand (tests)
+    // may carry no order — written order one-to-one then, as before repeats.
+    let order: Vec<crate::model::PlayedMeasure> = if document.play_order.is_empty() {
+        (0..document.measures.len())
+            .map(|i| crate::model::PlayedMeasure {
+                written_index: i as u32,
+                pass: 1,
+            })
+            .collect()
+    } else {
+        document.play_order.clone()
+    };
+
+    for slot in &order {
+        let wi = slot.written_index as usize;
+        let Some(written) = document.measures.get(wi) else {
+            continue;
+        };
+        // A measure-repeat (`%`) slot replays its referenced measure's notes;
+        // the correlation ids stay on the sounding (source) measure.
+        let mi = written.repeats.measure_repeat_of.unwrap_or(wi as u32) as usize;
+        let Some(measure) = document.measures.get(mi) else {
+            continue;
+        };
         measure_start_ms.push((f64::from(measure_start_div) * ms_per_division).round() as u32);
+        written_measure.push(wi as u32);
         let grace_back = grace_back_offsets(&measure.notes);
         let mut measure_span = divisions_per_measure;
         for (ni, note) in measure.notes.iter().enumerate() {
@@ -198,6 +230,7 @@ pub fn schedule(document: &ScoreDocument) -> PlaybackSchedule {
     PlaybackSchedule {
         notes,
         measure_start_ms,
+        written_measure,
         song_end_ms: song_end_ms.round() as u32,
         bpm,
     }
@@ -330,6 +363,58 @@ mod tests {
         assert_eq!(g.duration_ms, grace_ms_of(120).round() as u32);
         // The schedule is onset-sorted, so the grace precedes its principal.
         assert!(g.onset_ms < p.onset_ms);
+    }
+
+    #[test]
+    fn schedule_unrolls_a_repeat_and_maps_written_measures() {
+        // ‖: C4 whole :‖ then D4 whole — the section sounds twice.
+        let xml = r#"<?xml version="1.0"?><score-partwise version="3.1">
+<part-list><score-part id="P1"/></part-list><part id="P1">
+<measure number="1">
+  <attributes><divisions>4</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+  <direction><direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>120</per-minute></metronome></direction-type></direction>
+  <barline location="left"><repeat direction="forward"/></barline>
+  <note><pitch><step>C</step><octave>4</octave></pitch><duration>16</duration><voice>1</voice><type>whole</type></note>
+  <barline location="right"><repeat direction="backward"/></barline>
+</measure>
+<measure number="2">
+  <note><pitch><step>D</step><octave>4</octave></pitch><duration>16</duration><voice>1</voice><type>whole</type></note>
+</measure>
+</part></score-partwise>"#;
+        let doc = parse(xml.as_bytes()).unwrap();
+        let s = schedule(&doc);
+        // 120 bpm → whole = 2000ms. Three played slots: m1, m1 again, m2.
+        assert_eq!(s.measure_start_ms, vec![0, 2000, 4000]);
+        assert_eq!(s.written_measure, vec![0, 0, 1]);
+        assert_eq!(s.song_end_ms, 6000);
+        let onsets: Vec<(i32, u32)> = s.notes.iter().map(|n| (n.midi, n.onset_ms)).collect();
+        assert_eq!(onsets, vec![(60, 0), (60, 2000), (62, 4000)]);
+    }
+
+    #[test]
+    fn schedule_replays_measure_repeat_content() {
+        // m1: C4 whole; m2: a `%` measure (no notes) replaying m1.
+        let xml = r#"<?xml version="1.0"?><score-partwise version="3.1">
+<part-list><score-part id="P1"/></part-list><part id="P1">
+<measure number="1">
+  <attributes><divisions>4</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+  <direction><direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>120</per-minute></metronome></direction-type></direction>
+  <note><pitch><step>C</step><octave>4</octave></pitch><duration>16</duration><voice>1</voice><type>whole</type></note>
+</measure>
+<measure number="2">
+  <attributes><measure-style><measure-repeat type="start">1</measure-repeat></measure-style></attributes>
+</measure>
+</part></score-partwise>"#;
+        let doc = parse(xml.as_bytes()).unwrap();
+        assert_eq!(doc.measures[1].repeats.measure_repeat_of, Some(0));
+        let s = schedule(&doc);
+        // The `%` slot sounds m1's content instead of a bar of silence.
+        let onsets: Vec<(i32, u32)> = s.notes.iter().map(|n| (n.midi, n.onset_ms)).collect();
+        assert_eq!(onsets, vec![(60, 0), (60, 2000)]);
+        // Correlation ids point at the sounding (source) measure's glyphs.
+        assert_eq!(s.notes[1].measure_index, 0);
+        assert_eq!(s.written_measure, vec![0, 1]);
+        assert_eq!(s.song_end_ms, 4000);
     }
 
     #[test]

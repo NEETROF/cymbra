@@ -28,6 +28,7 @@ import '../support/notation_fakes.dart';
 /// Staff painter exercises its written-diatonic placement (A♭ on the A line, not
 /// collapsed onto G via the MIDI number).
 ScoreDocument _modulatingDoc() => ScoreDocument(
+  playOrder: const [],
   meta: const ScoreMeta(title: 'Mod', composer: null),
   staves: 1,
   attributes: const Attributes(
@@ -38,6 +39,7 @@ ScoreDocument _modulatingDoc() => ScoreDocument(
   ),
   measures: [
     NotationMeasure(
+      repeats: noRepeats,
       index: 0,
       clefs: const [],
       keyFifths: -4,
@@ -51,6 +53,7 @@ ScoreDocument _modulatingDoc() => ScoreDocument(
       ],
     ),
     NotationMeasure(
+      repeats: noRepeats,
       index: 1,
       clefs: const [],
       keyFifths: -4,
@@ -64,6 +67,7 @@ ScoreDocument _modulatingDoc() => ScoreDocument(
       ],
     ),
     NotationMeasure(
+      repeats: noRepeats,
       index: 2,
       clefs: const [],
       keyFifths: -1,

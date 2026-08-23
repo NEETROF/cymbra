@@ -14,9 +14,32 @@ export interface TimedNote {
 
 export interface PlaybackSchedule {
   notes: TimedNote[];
+  /** Start of each PLAYED slot of the playback order (the written measure
+   *  table one-to-one when the piece has no repeats). */
   measure_start_ms: number[];
+  /** The written measure each played slot performs, aligned with
+   *  `measure_start_ms`. Absent on schedules from a pre-repeat wasm build. */
+  written_measure?: number[];
   song_end_ms: number;
   bpm: number;
+}
+
+/** The written measure performed at played slot `slot` (identity without the
+ *  mapping — pieces with no repeats, or an older wasm build). */
+export function writtenMeasureAt(schedule: PlaybackSchedule, slot: number): number {
+  const map = schedule.written_measure;
+  return map && slot >= 0 && slot < map.length ? map[slot] : slot;
+}
+
+/** Playback start (ms) of a WRITTEN measure: its first played slot (a repeated
+ *  bar seeks to its first pass), or null when it is never played. */
+export function startOfWrittenMeasure(schedule: PlaybackSchedule, written: number): number | null {
+  const map = schedule.written_measure;
+  if (!map || map.length === 0) return schedule.measure_start_ms[written] ?? null;
+  for (let i = 0; i < map.length; i++) {
+    if (map[i] === written) return schedule.measure_start_ms[i] ?? null;
+  }
+  return null;
 }
 
 /** The measure containing `elapsedMs` and the fraction through it, or null when the
