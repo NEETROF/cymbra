@@ -16,7 +16,8 @@
 //!
 //! Ledger rows keep the **store** as `source` (`APP_STORE`/`MAC_APP_STORE` →
 //! `apple`, `PLAY_STORE` → `google`, `PADDLE` → `web`); `provider_ref` is the
-//! store's original transaction id as RevenueCat reports it. Only products in the
+//! stable `{app_user_id}:{product}` key (see [`stable_ref`] — store transaction
+//! ids proved unstable across RevenueCat's surfaces). Only products in the
 //! premium set grant; other stores/products, sandbox events in production and
 //! informational event types are acknowledged as counted no-ops. Nothing about
 //! amounts is stored (D5). The HTTP client lives in `rc_client.rs` (thin glue,
@@ -74,37 +75,36 @@ fn ms(v: i64) -> Option<DateTime<Utc>> {
     DateTime::<Utc>::from_timestamp_millis(v)
 }
 
+/// Play subscriptions under the base-plans model are reported as
+/// `subscription_id:base_plan_id` (e.g. `premium_monthly:monthly`): the part
+/// before `:` is the store product id (`:` is not a legal store id character,
+/// the split is unambiguous). Apple ids pass through unchanged.
+fn base_product(product: &str) -> &str {
+    product.split(':').next().unwrap_or(product)
+}
+
 fn is_premium_product(products: &[String], product: &str) -> bool {
     // An empty product set would grant nothing; treat it as "any" and let the
-    // paywall config own the list. Play subscriptions under the base-plans model
-    // are reported as `subscription_id:base_plan_id` (e.g.
-    // `premium_monthly:monthly`): the part before `:` is the store product id,
-    // so both spellings match the configured set (`:` is not a legal store id
-    // character, the split is unambiguous).
-    let base = product.split(':').next().unwrap_or(product);
+    // paywall config own the list. Both product spellings match the configured
+    // set (see `base_product`).
+    let base = base_product(product);
     products.is_empty() || products.iter().any(|p| p == product || p == base)
 }
 
-/// Google order ids gain a `..N` suffix on every renewal (`GPA.x-x-x-x..0`,
-/// `..1`, …) while the base id names the subscription for its whole life.
-/// RevenueCat is not consistent about which spelling an event carries (observed
-/// in 7.4: `INITIAL_PURCHASE`/`RENEWAL` carry the base id, `CANCELLATION` the
-/// suffixed one), and a ledger keyed on the raw value splits one subscription
-/// across `(source, provider_ref)` rows. Strip the suffix for `google` refs;
-/// Apple/web ids never use this spelling.
-fn normalize_provider_ref(source: Source, provider_ref: String) -> String {
-    if source != Source::Google {
-        return provider_ref;
-    }
-    match provider_ref.rfind("..") {
-        Some(i)
-            if i + 2 < provider_ref.len()
-                && provider_ref[i + 2..].bytes().all(|b| b.is_ascii_digit()) =>
-        {
-            provider_ref[..i].to_string()
-        }
-        _ => provider_ref,
-    }
+/// The store-row key: `{app_user_id}:{base product}` — the design's D1 fallback
+/// key, promoted to THE key after the sandbox runs (7.2–7.4, 7.3) showed the
+/// store transaction ids are not stable across RevenueCat's surfaces: a Play
+/// `CANCELLATION` carries the renewal-suffixed order id where
+/// `INITIAL_PURCHASE`/`RENEWAL` carry the base one, and an Apple resubscription
+/// after a lapse re-keys the events onto fresh transaction ids — each variant
+/// splitting one subscription across `(source, provider_ref)` rows. The user id
+/// and the product id are present in every webhook event and every REST
+/// subscriber entry, so this key is consistent by construction: one row per
+/// (user, store, product) for the subscription's whole life; resubscriptions
+/// land on the same row (forward-only merge). Store transaction ids are no
+/// longer persisted anywhere (identifiers-only, D5/D6).
+fn stable_ref(user_id: &str, product: &str) -> String {
+    format!("{user_id}:{}", base_product(product))
 }
 
 // ------------------------------------------------------------- event shape
@@ -231,14 +231,7 @@ pub fn map_event(
     if !is_premium_product(premium_products, product) {
         return Mapped::Skip(SkipReason::ProductNotPremium(product.to_string()));
     }
-    let Some(provider_ref) = ev
-        .original_transaction_id
-        .clone()
-        .or_else(|| ev.transaction_id.clone())
-        .map(|r| normalize_provider_ref(source, r))
-    else {
-        return Mapped::Skip(SkipReason::MissingFields("original_transaction_id"));
-    };
+    let provider_ref = stable_ref(&ev.app_user_id, product);
     let expires = ev.expiration_at_ms.and_then(ms);
     let starts_at = ev.purchased_at_ms.and_then(ms).unwrap_or(now);
     let (status, ends_at) = match kind {
@@ -298,9 +291,7 @@ pub fn map_customer(
         let Some(source) = store_to_source(&s.store) else {
             continue;
         };
-        if (s.is_sandbox && !allow_sandbox)
-            || !is_premium_product(premium_products, &s.product_id)
-            || s.provider_ref.is_empty()
+        if (s.is_sandbox && !allow_sandbox) || !is_premium_product(premium_products, &s.product_id)
         {
             continue;
         }
@@ -321,7 +312,7 @@ pub fn map_customer(
         out.push(EntitlementWrite {
             user_id: user_id.to_string(),
             source,
-            provider_ref: normalize_provider_ref(source, s.provider_ref.clone()),
+            provider_ref: stable_ref(user_id, &s.product_id),
             campaign_id: None,
             starts_at: s.purchase_at.unwrap_or(now),
             ends_at: Some(ends_at),
@@ -624,27 +615,22 @@ mod tests {
     }
 
     #[test]
-    fn google_provider_refs_are_normalized_to_the_base_order_id() {
-        for (raw, want) in [
-            ("GPA.3390-0929-2914-92454..0", "GPA.3390-0929-2914-92454"),
-            ("GPA.3390-0929-2914-92454..12", "GPA.3390-0929-2914-92454"),
-            ("GPA.3390-0929-2914-92454", "GPA.3390-0929-2914-92454"),
-            ("GPA.3390..", "GPA.3390.."), // nothing after `..` — untouched
-            ("GPA.3390..x1", "GPA.3390..x1"), // non-numeric suffix — untouched
-        ] {
-            assert_eq!(
-                normalize_provider_ref(Source::Google, raw.into()),
-                want,
-                "{raw}"
-            );
-        }
-        // Only google refs are rewritten.
+    fn store_rows_key_on_the_stable_user_product_ref() {
+        // The D1 fallback key: transaction ids proved unstable across
+        // RevenueCat's surfaces (7.4: Play CANCELLATION carries the
+        // renewal-suffixed order id; 7.3: an Apple resubscription re-keys the
+        // events onto fresh transaction ids). Base-plan suffixes are stripped
+        // so the Play spelling and the plain product id key the same row.
         assert_eq!(
-            normalize_provider_ref(Source::Apple, "otx..0".into()),
-            "otx..0"
+            stable_ref(U1, "premium_monthly:monthly"),
+            format!("{U1}:premium_monthly")
         );
-        // End to end: a Play CANCELLATION carrying the renewal-suffixed order id
-        // (observed live in 7.4) keys the same row as the INITIAL_PURCHASE did.
+        assert_eq!(
+            stable_ref(U1, "premium_monthly"),
+            format!("{U1}:premium_monthly")
+        );
+        // End to end: a Play CANCELLATION with a transaction id the ledger has
+        // never seen still keys the same row as the INITIAL_PURCHASE did.
         let ev = RcEvent {
             id: "e-cancel-google".into(),
             kind: "CANCELLATION".into(),
@@ -659,8 +645,25 @@ mod tests {
         let Mapped::Writes(ws) = map_event(&ev, &products(), now(), true) else {
             panic!("expected writes");
         };
-        assert_eq!(ws[0].provider_ref, "GPA.3390-0929-2914-92454");
+        assert_eq!(ws[0].provider_ref, format!("{U1}:premium_monthly"));
         assert_eq!(ws[0].status, S::Cancelled);
+        // An event that omits the transaction ids entirely (observed on Apple
+        // RENEWALs) maps all the same — the key does not depend on them.
+        let ev = RcEvent {
+            id: "e-renew-apple".into(),
+            kind: "RENEWAL".into(),
+            app_user_id: U1.into(),
+            store: Some("APP_STORE".into()),
+            product_id: Some("premium_monthly".into()),
+            purchased_at_ms: Some(1_700_000_000_000),
+            expiration_at_ms: Some(1_700_000_300_000),
+            ..Default::default()
+        };
+        let Mapped::Writes(ws) = map_event(&ev, &products(), now(), true) else {
+            panic!("expected writes");
+        };
+        assert_eq!(ws[0].provider_ref, format!("{U1}:premium_monthly"));
+        assert_eq!(ws[0].status, S::Active);
     }
 
     #[test]
@@ -691,11 +694,11 @@ mod tests {
                         ev.expiration_at_ms.and_then(ms),
                         "{name}: ends_at = expiration"
                     );
-                    assert_eq!(
-                        w.provider_ref,
-                        ev.original_transaction_id.clone().unwrap(),
-                        "{name}"
-                    );
+                    let product = match ev.kind.as_str() {
+                        "PRODUCT_CHANGE" => ev.new_product_id.as_deref().unwrap(),
+                        _ => ev.product_id.as_deref().unwrap(),
+                    };
+                    assert_eq!(w.provider_ref, stable_ref(U1, product), "{name}");
                 }
                 other => panic!("{name}: expected writes, got {other:?}"),
             }
@@ -905,7 +908,7 @@ mod tests {
         });
         assert_eq!(grace[0].status, S::BillingRetry);
         assert_eq!(grace[0].ends_at, Some(n + Duration::days(15)));
-        // sandbox in production, unmapped store, missing ref ⇒ dropped
+        // sandbox in production, unmapped store ⇒ dropped
         assert!(
             one(StoreSubscription {
                 is_sandbox: true,
@@ -920,13 +923,13 @@ mod tests {
             })
             .is_empty()
         );
-        assert!(
-            one(StoreSubscription {
-                provider_ref: String::new(),
-                ..base
-            })
-            .is_empty()
-        );
+        // A missing store transaction id no longer matters: the row keys on
+        // (user, product), which the subscriber entry always carries.
+        let no_ref = one(StoreSubscription {
+            provider_ref: String::new(),
+            ..base
+        });
+        assert_eq!(no_ref[0].provider_ref, stable_ref(U1, "premium_monthly"));
     }
 
     #[test]
