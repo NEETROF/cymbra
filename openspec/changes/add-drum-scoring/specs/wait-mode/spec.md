@@ -29,8 +29,12 @@ Three properties bound it, and SHALL hold together:
 1. it is **one number**, shared by the gate and by every surface that lights a
    stroke, so what is accepted and what is shown cannot drift apart;
 2. it is measured on the **playhead's** clock, not the wall clock — a musical
-   window has to be measured where the onset lives, and a frozen or
-   speed-scaled playhead would otherwise skew it;
+   window has to be measured where the onset lives, and a frozen playhead
+   would otherwise skew it — but it SHALL have a **floor in real time**: the
+   window is never shorter, in wall-clock terms, than it is at normal speed.
+   A player's jitter does not shrink because the transport is set to 200 %, so
+   a flat musical window would halve exactly where the exercise is already
+   hardest. Slowing down still widens it, which is what a learner wants;
 3. a stroke is **spent** when credited, so one stroke never satisfies two
    onsets — the percussion counterpart of the keyboard's "each press counts
    toward at most one onset".
@@ -54,6 +58,13 @@ Three properties bound it, and SHALL hold together:
   than the tolerance window
 - **THEN** the gate is not satisfied; when the playhead arrives it still waits
   for a fresh strike
+
+#### Scenario: Speeding up does not tighten the window
+
+- **WHEN** the transport is set to double speed and the player strikes the
+  upcoming onset's piece the same number of wall-clock milliseconds early as
+  would be accepted at normal speed
+- **THEN** the stroke is credited exactly as it would be at normal speed
 
 #### Scenario: One stroke never validates two onsets
 

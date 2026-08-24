@@ -68,6 +68,7 @@ class DrumCascadePainter extends CustomPainter {
     this.waitPulse = 0,
     this.hasKick = true,
     this.writtenMeasureOf = const [],
+    this.speed = 1,
     this.laneLabels = const [],
     this.kickLabel = '',
     this.labelStyle,
@@ -98,6 +99,10 @@ class DrumCascadePainter extends CustomPainter {
   /// [measureStartMs] — so an unrolled repeat numbers its bars the way the
   /// paper does (bar 5 played twice is bar 5 both times). Empty = identity.
   final List<int> writtenMeasureOf;
+
+  /// Transport speed, only ever used to size the stroke tolerance window — the
+  /// surface must light a stroke on exactly the window the gate accepts.
+  final double speed;
   final List<String> laneLabels;
   final String kickLabel;
   final TextStyle? labelStyle;
@@ -300,7 +305,7 @@ class DrumCascadePainter extends CustomPainter {
         // teaches the surface instead of the beat, and makes a good hit look
         // like a lucky one.
         final struck =
-            (elapsedMs - n.startMs).abs() <= kStrokeToleranceMs &&
+            (elapsedMs - n.startMs).abs() <= strokeToleranceMsAt(speed) &&
             _recentlyStruck(lane);
         final base = struck
             ? Color.lerp(limb, const Color(0xFFFFFFFF), 0.75)!

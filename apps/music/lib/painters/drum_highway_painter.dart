@@ -49,6 +49,7 @@ class DrumHighwayPainter extends CustomPainter {
     this.waitPulse = 0,
     this.hasKick = true,
     this.writtenMeasureOf = const [],
+    this.speed = 1,
     this.labelStyle,
   });
 
@@ -94,6 +95,10 @@ class DrumHighwayPainter extends CustomPainter {
   /// [measureStartMs] — an unrolled repeat numbers its bars the way the paper
   /// does. Empty = identity.
   final List<int> writtenMeasureOf;
+
+  /// Transport speed, only ever used to size the stroke tolerance window — the
+  /// surface must light a stroke on exactly the window the gate accepts.
+  final double speed;
 
   /// Style for [laneLabels]; the caller passes the app's own text style.
   final TextStyle? labelStyle;
@@ -362,7 +367,8 @@ class DrumHighwayPainter extends CustomPainter {
     // Past the hit line the puck KEEPS GOING — it slides under the kit and
     // fades over the tolerance window instead of parking on the line. A note
     // that stops where it landed reads as still owed.
-    final tail = lookAheadMs > 0 ? kStrokeToleranceMs / lookAheadMs : 0.0;
+    final tolerance = strokeToleranceMsAt(speed);
+    final tail = lookAheadMs > 0 ? tolerance / lookAheadMs : 0.0;
     // Far first, so nearer (bigger) notes overlap them.
     final visible =
         notes
@@ -383,7 +389,7 @@ class DrumHighwayPainter extends CustomPainter {
       // instead of the beat to be felt, and it makes a good hit and a lucky
       // one look the same.
       final struck =
-          (note.startMs - elapsedMs).abs() <= kStrokeToleranceMs &&
+          (note.startMs - elapsedMs).abs() <= tolerance &&
           _recentlyStruck(lane);
       _paintPuck(
         canvas,

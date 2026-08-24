@@ -277,6 +277,45 @@ void main() {
     await _teardown(tester, c);
   });
 
+  testWidgets('the tolerance never shrinks in real time: at double speed the '
+      'window widens in musical time to hold still', (tester) async {
+    final c = await _pump(tester);
+    final player = c.read(playerProvider.notifier)..setSpeed(2);
+    player.startPlayback();
+    await _frames(tester, count: 3);
+
+    // Clear onset 1 (0 ms) and run toward onset 2 (600 ms).
+    player
+      ..noteOn(42)
+      ..noteOn(49)
+      ..noteOn(36);
+    await _frames(tester, count: 2);
+    expect(c.read(playerProvider).blocked, isFalse);
+
+    // Land the playhead further from the onset than the FLAT window — this
+    // stroke would be discarded if the window did not widen with the speed.
+    while (c.read(playerProvider).elapsedMs < 600 - kStrokeToleranceMs - 50) {
+      await _frames(tester);
+    }
+    final early = c.read(playerProvider).elapsedMs;
+    expect(600 - early, greaterThan(kStrokeToleranceMs));
+    expect(600 - early, lessThanOrEqualTo(strokeToleranceMsAt(2)));
+
+    player
+      ..noteOn(42)
+      ..noteOn(38);
+    // Three frames at double speed: 500, then the onset at 600, then past it.
+    // Not more — the NEXT onset (900 ms) legitimately blocks, and blocking
+    // there says nothing about this window.
+    await _frames(tester, count: 3);
+
+    // Both strokes were credited: at double speed they were played the same
+    // number of WALL-CLOCK milliseconds early as they would be at 100 %.
+    expect(c.read(playerProvider).blocked, isFalse);
+    expect(c.read(playerProvider).elapsedMs, greaterThan(600));
+    await _teardown(tester, c);
+  });
+
   testWidgets('with the hands selected a kick-only onset has an empty required '
       'set and the gate advances', (tester) async {
     final c = await _pump(tester);

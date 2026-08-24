@@ -743,6 +743,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         hasKick: data.hasKickPedal,
         measureStartMs: data.measureStartMs,
         writtenMeasureOf: data.writtenMeasureOf,
+        speed: data.speed,
         beatMs: data.bpm > 0
             ? (60000 / data.bpm) *
                   (4 / (data.beatType == 0 ? 4 : data.beatType))
@@ -815,6 +816,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         // the cascade, so it reads on the beat and lands on the drums.
         measureStartMs: data.measureStartMs,
         writtenMeasureOf: data.writtenMeasureOf,
+        speed: data.speed,
         beatMs: data.bpm > 0
             ? (60000 / data.bpm) *
                   (4 / (data.beatType == 0 ? 4 : data.beatType))

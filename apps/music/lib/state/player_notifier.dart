@@ -999,8 +999,11 @@ class Player extends _$Player {
         if (surface == null) continue;
         final at = strokes[surface];
         // Measured on the playhead: the window is a musical one, and it is
-        // the SAME number the surfaces light a stroke with.
-        if (at == null || s.elapsedMs - at > kStrokeToleranceMs) continue;
+        // the SAME number the surfaces light a stroke with — including its
+        // real-time floor at speeds above normal.
+        if (at == null || s.elapsedMs - at > strokeToleranceMsAt(s.speed)) {
+          continue;
+        }
         earlyDue.add(required);
         strokes.remove(surface); // spent — never credited twice
       }

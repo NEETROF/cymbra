@@ -83,4 +83,5 @@
 - [x] A.1 `kStrokeToleranceMs`, one number in `drum_kit.dart`, shared by the Wait Mode gate and by every surface that lights a stroke
 - [x] A.2 The gate credits a stroke played within the window before the onset, stamped on the **playhead's** clock, and spends it so one stroke never validates two onsets
 - [x] A.3 Tests: a stroke a hair early walks the playhead through the onset; a stroke earlier than the window still does not; a credited stroke is spent
-- [ ] A.4 Feel pass: is 150 ms the right window on a real kit at tempo, and does it need to scale with the transport speed?
+- [x] A.4 The window has a floor in real time — `strokeToleranceMsAt(speed)` widens it in musical time above 100 % so it never tightens in wall-clock terms; the surfaces size their lighting window with the same function, and a test pins double speed
+- [ ] A.5 Feel pass: is 150 ms the right size on a real kit at tempo? (the speed question is settled — a floor, not a scaling)

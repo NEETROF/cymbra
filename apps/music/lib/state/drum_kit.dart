@@ -46,6 +46,21 @@ enum KitPieceRole { hiHat, snare, tom, ride, crash, other }
 /// accepted and what is shown can never drift apart.
 const double kStrokeToleranceMs = 150;
 
+/// The window at transport [speed], in the PLAYHEAD's milliseconds.
+///
+/// The window is measured musically — that is where the onset lives, and it is
+/// what makes it deterministic — but a player's jitter is a wall-clock
+/// phenomenon: the hand does not steady itself because the transport is set to
+/// 200 %. A flat musical window would therefore halve in real terms exactly
+/// where the exercise is already hardest.
+///
+/// So the window has a **floor in real time**: it is never shorter, in
+/// wall-clock terms, than it is at normal speed. Slowing down still widens it
+/// (a musical window stretches with the music, which is what a learner wants);
+/// speeding up leaves it alone.
+double strokeToleranceMsAt(double speed) =>
+    kStrokeToleranceMs * (speed > 1 ? speed : 1);
+
 /// How long a struck surface stays lit, in milliseconds.
 const int kStruckFlashMs = 180;
 
