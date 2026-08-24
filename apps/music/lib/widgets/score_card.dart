@@ -190,6 +190,35 @@ class ScoreCard extends StatelessWidget {
                         ),
                       ),
                     ],
+                    // The score's instrument (change: add-drums-access) — a
+                    // mixed listing stays legible at a glance. An unknown
+                    // instrument shows nothing (no placeholder).
+                    if (entry.instrument case final instrument?) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(
+                            instrument == ScoreInstrument.percussion
+                                ? Icons.music_note
+                                : Icons.piano,
+                            size: 12,
+                            color: CymbraColors.outline,
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              instrument.localizedLabel(l10n),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: CymbraColors.outline,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     if (_attributionLine(entry, l10n)
                         case final attribution?) ...[
                       const SizedBox(height: 4),

@@ -256,6 +256,90 @@ describe("soundfonts store", () => {
     expect(store.op.status === "error" && /exist/i.test(store.op.error)).toBe(true);
   });
 
+  // The typed family-mismatch refusal (change: add-drum-audio-channel): the server
+  // verifies the declared family against the file's preset banks and refuses with
+  // a typed reason. The store maps it — by code + message prefix, the flags
+  // store's idiom — to a localized reason naming the declared family, on both
+  // shapes the refusal can travel in.
+  it("maps a family-mismatch refusal from the HTTP upload route to a localized reason", async () => {
+    const { clients } = makeFakeClients();
+    withSoundfonts(clients);
+    setClientsForTest(clients);
+    setUploadForTest(async () => {
+      // The upload route's actual shape: 422 with a JSON refusal { code, message }.
+      throw new SoundFontUploadError(
+        422,
+        JSON.stringify({
+          code: "soundfont_family_mismatch",
+          message: "soundfont_family_mismatch: declared 'percussion' but the font has no bank-128 (drum kit) presets",
+        }),
+      );
+    });
+    const store = useSoundFontsStore();
+
+    const outcome = await store.add({
+      id: "not-a-kit",
+      label: "Not A Kit",
+      license: "CC0-1.0",
+      attribution: "",
+      instrument: "percussion",
+      file,
+    });
+
+    expect(outcome.status).toBe("error");
+    // The reason names the DECLARED family, localized — never the raw string.
+    expect(store.op.status === "error" && store.op.error).toContain("Drum kit");
+    expect(store.op.status === "error" && store.op.error).not.toContain("soundfont_family_mismatch");
+  });
+
+  it("maps a family-mismatch refusal from a gRPC transport by code + message prefix", async () => {
+    const { clients } = makeFakeClients();
+    withSoundfonts(clients);
+    setClientsForTest(clients);
+    setUploadForTest(async () => {
+      throw new ConnectError(
+        "soundfont_family_mismatch: declared keyboard but no melodic presets",
+        Code.FailedPrecondition,
+      );
+    });
+    const store = useSoundFontsStore();
+
+    const outcome = await store.add({
+      id: "kit-only",
+      label: "Kit Only",
+      license: "CC0-1.0",
+      attribution: "",
+      instrument: "keyboard",
+      file,
+    });
+
+    expect(outcome.status).toBe("error");
+    expect(store.op.status === "error" && store.op.error).toContain("Keyboard");
+    expect(store.op.status === "error" && store.op.error).not.toContain("soundfont_family_mismatch");
+  });
+
+  it("keeps mapping an ordinary 422 (no mismatch prefix) to the invalid-font message", async () => {
+    const { clients } = makeFakeClients();
+    withSoundfonts(clients);
+    setClientsForTest(clients);
+    setUploadForTest(async () => {
+      throw new SoundFontUploadError(422, "not a soundfont");
+    });
+    const store = useSoundFontsStore();
+
+    const outcome = await store.add({
+      id: "junk",
+      label: "Junk",
+      license: "CC0-1.0",
+      attribution: "",
+      instrument: "keyboard",
+      file,
+    });
+
+    expect(outcome.status).toBe("error");
+    expect(store.op.status === "error" && /valid/i.test(store.op.error)).toBe(true);
+  });
+
   it("captures a denied edit in op instead of throwing", async () => {
     const { clients } = makeFakeClients();
     withSoundfonts(clients, [row("ydp-grand")]);

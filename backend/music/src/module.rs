@@ -165,6 +165,31 @@ pub struct ScoreModule {
     /// Per-plan quotas; defaults to the constructor's values for free and the
     /// design defaults for premium; the server overrides with the flag-backed source.
     score_quotas: Arc<dyn ScoreQuotaSource>,
+    /// The shared flag service (change: add-drums-access), read from the hot
+    /// in-memory store like `notifications/src/dispatch.rs`. `None` = unwired ⇒
+    /// the drum gate fails closed for everyone.
+    flags: Option<Arc<cymbra_feature_flags::FlagService>>,
+}
+
+/// The drum-eligibility seam for surfaces that do not hold the score module
+/// (change: add-drums-access): the HTTP preview route and the leaderboard RPCs
+/// (change: add-drum-scoring) resolve the caller's drum audience through the same
+/// module predicate the score RPCs use, so no second implementation can drift.
+///
+/// `#[automock]`ed (the rust-testing default) so a call site can be proved to
+/// consult it — a predicate tested in isolation proves nothing about its callers.
+#[cfg_attr(test, mockall::automock)]
+#[async_trait::async_trait]
+pub trait DrumsEligibility: Send + Sync {
+    /// Whether the drum feature is in effect for this caller.
+    async fn eligible_for_percussion(&self, user_id: &str, staff: bool) -> bool;
+}
+
+#[async_trait::async_trait]
+impl DrumsEligibility for ScoreModule {
+    async fn eligible_for_percussion(&self, user_id: &str, staff: bool) -> bool {
+        self.caller_may_see_percussion(user_id, staff).await
+    }
 }
 
 /// Who is opening a catalog piece in the player (change: add-score-daily-access-
@@ -178,6 +203,9 @@ pub struct PlayerCaller {
     pub exempt_from_quota: bool,
     /// Holds a staff role (a `staff_only` rollout of the gate reaches them first).
     pub staff: bool,
+    /// The drum feature is in effect for this caller (change: add-drums-access),
+    /// resolved by the gRPC layer from identity + memberships, never the request.
+    pub eligible_for_percussion: bool,
 }
 
 impl PlayerCaller {
@@ -188,6 +216,7 @@ impl PlayerCaller {
             allow_unvalidated: false,
             exempt_from_quota: false,
             staff: false,
+            eligible_for_percussion: false,
         }
     }
 
@@ -198,6 +227,10 @@ impl PlayerCaller {
             allow_unvalidated: true,
             exempt_from_quota: true,
             staff: true,
+            // Tests construct staff directly; the real path resolves this
+            // through the flag, so a privileged test caller is NOT eligible
+            // unless the test says so.
+            eligible_for_percussion: false,
         }
     }
 }
@@ -243,6 +276,7 @@ impl ScoreModule {
             offline_secrets: Arc::new(FakeOfflineSecretRepo::default()),
             daily_access: None,
             plans: None,
+            flags: None,
             score_quotas: Arc::new(FixedScoreQuotas {
                 free: ScoreQuotas {
                     upload_max: quota_max,
@@ -262,6 +296,50 @@ impl ScoreModule {
     pub fn with_plans(mut self, plans: Arc<dyn cymbra_plans::PlanSource>) -> Self {
         self.plans = Some(plans);
         self
+    }
+
+    /// Wire the shared flag service (change: add-drums-access) — the drum gate
+    /// stays closed for everyone until it is.
+    pub fn with_flags(mut self, flags: Arc<cymbra_feature_flags::FlagService>) -> Self {
+        self.flags = Some(flags);
+        self
+    }
+
+    /// The drum-audience predicate (change: add-drums-access): whether the drum
+    /// feature is in effect for this caller — staff, or an active `midi-drums`
+    /// campaign member, resolved through the declared `drums.enabled` flag with
+    /// its `beta:midi-drums` rollout. **Fails closed on every uncertainty about
+    /// the caller**: an unwired flag service, an unwired plan seam, or an
+    /// unresolvable membership snapshot each mean "not eligible" (staff keep the
+    /// feature through the staff match whenever the flag service is present).
+    /// Never influenced by any request field.
+    ///
+    /// Mirrors `notifications/src/dispatch.rs`: the flag read hits the hot
+    /// in-memory store, and every unreadable value resolves to disabled.
+    pub async fn caller_may_see_percussion(&self, user_id: &str, staff: bool) -> bool {
+        let Some(flags) = self.flags.as_ref() else {
+            return false; // unwired ⇒ closed, for staff too
+        };
+        let mut ctx = cymbra_feature_flags::EvalContext {
+            app: "music".to_string(),
+            staff,
+            premium: false,
+            betas: Default::default(),
+        };
+        if let Some(plans) = self.plans.as_ref() {
+            match plans.snapshot(user_id).await {
+                Ok(s) => {
+                    ctx = ctx.with_plan(s.plan == cymbra_plans::Plan::Premium, s.beta_keys());
+                }
+                Err(e) => {
+                    // Unresolvable memberships: treated as none — only staff
+                    // retain the feature.
+                    tracing::warn!(error = %e,
+                        "drum gate: plan snapshot failed; caller treated as holding no memberships");
+                }
+            }
+        }
+        flags.bool(cymbra_feature_flags::registry::DRUMS_ENABLED, false, &ctx)
     }
 
     /// Override the per-plan quota source (the server's flag-backed one; tests).
@@ -325,7 +403,12 @@ impl ScoreModule {
 
     /// Validate, re-derive, enforce the quota, store, and persist. Returns the
     /// stored record. `owner_id` is the authenticated caller.
-    pub async fn upload(&self, owner_id: &str, input: UploadInput) -> Result<UserScore> {
+    pub async fn upload(
+        &self,
+        owner_id: &str,
+        input: UploadInput,
+        eligible_for_percussion: bool,
+    ) -> Result<UserScore> {
         // 1. Client inputs the server owns the truth of (design 2b).
         if !input.rights_ack {
             return Err(AppError::InvalidArgument(
@@ -379,6 +462,17 @@ impl ScoreModule {
         let summary: ScoreSummary = validate(&input.data).map_err(|r| {
             AppError::InvalidArgument(format!("invalid score ({}): {}", r.code(), r))
         })?;
+        // A percussion upload requires the drum audience (change:
+        // add-drums-access). This is an ACCEPT path — the caller holds the
+        // file, so a not-found would be incoherent: a typed refusal the app
+        // maps to a localised reason. The stable code is the message prefix.
+        if summary.instrument == cymbra_musicxml_core::InstrumentKind::Percussion
+            && !eligible_for_percussion
+        {
+            return Err(AppError::PermissionDenied(
+                "drums_not_available: percussion uploads require the drum feature".into(),
+            ));
+        }
 
         // 3b. Fallback title/composer: fill only what the file itself lacks; a
         //     parsed value always wins (design 2b). Re-derive the search keys from
@@ -454,7 +548,7 @@ impl ScoreModule {
                 key_fifths: summary.key_fifths,
                 time_sig: summary.time_sig,
                 measure_count: summary.measure_count as i32,
-                is_piano: summary.is_piano,
+                instrument: crate::repo::Instrument::from_core(summary.instrument),
                 facets,
             },
         };
@@ -618,6 +712,7 @@ impl ScoreModule {
             author_norm,
             level: q.level,
             facets: q.facets,
+            eligible_for_percussion: q.eligible_for_percussion,
             moderation_status: q.moderation_status,
             review_queue: q.review_queue,
             all_statuses: q.all_statuses,
@@ -699,6 +794,7 @@ impl ScoreModule {
         rights_ack: bool,
         resubmission_note: Option<&str>,
         proposer_is_admin: bool,
+        eligible_for_percussion: bool,
     ) -> Result<()> {
         if !rights_ack {
             return Err(AppError::InvalidArgument(
@@ -716,6 +812,17 @@ impl ScoreModule {
             .get_owned(score_id, owner_id)
             .await?
             .ok_or_else(|| AppError::NotFound("score not found".into()))?;
+
+        // Proposing a percussion score requires the drum audience (change:
+        // add-drums-access): the own-uploads carve-out covers listing, fetching
+        // and deleting one's own files — never publishing one.
+        if score.meta.instrument == crate::repo::Instrument::Percussion && !eligible_for_percussion
+        {
+            return Err(AppError::PermissionDenied(
+                "drums_not_available: proposing a percussion score requires the drum feature"
+                    .into(),
+            ));
+        }
 
         match self.catalog.find_by_sha(&score.sha256).await? {
             Some((catalog_id, status)) if status == "rejected" => {
@@ -904,7 +1011,16 @@ impl ScoreModule {
 
     /// Save a public catalog score to the caller's library. Validates the catalog
     /// id exists first, then records an idempotent owner-scoped save.
-    pub async fn save_catalog_score(&self, owner_id: &str, catalog_id: &str) -> Result<()> {
+    pub async fn save_catalog_score(
+        &self,
+        owner_id: &str,
+        catalog_id: &str,
+        eligible_for_percussion: bool,
+    ) -> Result<()> {
+        // The drum gate first (change: add-drums-access): saving is an
+        // existence oracle, so an ineligible caller gets the unknown-id answer.
+        self.guard_catalog_drums(catalog_id, eligible_for_percussion)
+            .await?;
         // A normal caller can only save a validated (`accepted`) score — an
         // unvalidated id resolves as absent, matching what search exposes.
         if self.catalog.object_key(catalog_id, false).await?.is_none() {
@@ -933,7 +1049,12 @@ impl ScoreModule {
         catalog_id: &str,
         verdict: &str,
         stars: Option<i32>,
+        eligible_for_percussion: bool,
     ) -> Result<(RatingAggregate, i64)> {
+        // The drum gate first (change: add-drums-access): rating is an
+        // existence oracle too.
+        self.guard_catalog_drums(catalog_id, eligible_for_percussion)
+            .await?;
         let verdict = Verdict::parse(verdict)?;
         let stars = match stars {
             None => None,
@@ -1005,9 +1126,17 @@ impl ScoreModule {
         user_id: &str,
         limit: i64,
         offset: i64,
+        eligible_for_percussion: bool,
+        instrument: Option<crate::repo::Instrument>,
     ) -> Result<Vec<CatalogHit>> {
         self.catalog
-            .rating_deck(user_id, limit.clamp(1, SEARCH_MAX_LIMIT), offset.max(0))
+            .rating_deck(
+                user_id,
+                limit.clamp(1, SEARCH_MAX_LIMIT),
+                offset.max(0),
+                eligible_for_percussion,
+                instrument,
+            )
             .await
     }
 
@@ -1030,26 +1159,66 @@ impl ScoreModule {
         &self,
         catalog_id: &str,
         allow_unvalidated: bool,
+        eligible_for_percussion: bool,
     ) -> Result<CatalogHit> {
-        self.catalog
+        let hit = self
+            .catalog
             .hit_by_id(catalog_id, allow_unvalidated)
             .await?
-            .ok_or_else(|| AppError::NotFound("catalog score not found".into()))
+            .ok_or_else(|| AppError::NotFound("catalog score not found".into()))?;
+        if hit.instrument == crate::repo::Instrument::Percussion && !eligible_for_percussion {
+            // The drum gate (change: add-drums-access): same answer as an
+            // unknown id, never a distinguishable refusal.
+            return Err(AppError::NotFound("catalog score not found".into()));
+        }
+        Ok(hit)
+    }
+
+    /// The drum gate on one catalog target (change: add-drums-access): a
+    /// percussion score is withheld from an ineligible caller with the SAME
+    /// answer as an unknown id — success-versus-not-found is itself a
+    /// disclosure. An `unknown`-instrument row passes: uncertainty about a
+    /// score serves it (fail open about the score, closed about the caller).
+    /// Resolved in any moderation status — the guard only ever narrows.
+    async fn guard_catalog_drums(&self, catalog_id: &str, eligible: bool) -> Result<()> {
+        if eligible {
+            return Ok(());
+        }
+        match self.catalog.hit_by_id(catalog_id, true).await? {
+            Some(h) if h.instrument == crate::repo::Instrument::Percussion => {
+                Err(AppError::NotFound("catalog score not found".into()))
+            }
+            _ => Ok(()),
+        }
     }
 
     /// The caller's saved catalog scores, newest-saved first. Joins the saved ids
     /// to the catalog and omits any whose entry is gone (e.g. after a re-ingest),
     /// so a stale save is never surfaced as a broken row.
-    pub async fn list_saved_catalog_scores(&self, owner_id: &str) -> Result<Vec<CatalogHit>> {
+    pub async fn list_saved_catalog_scores(
+        &self,
+        owner_id: &str,
+        eligible_for_percussion: bool,
+    ) -> Result<Vec<CatalogHit>> {
         let ids = self.library.list_ids(owner_id).await?;
         if ids.is_empty() {
             return Ok(Vec::new());
         }
         let hits = self.catalog.hits_by_ids(&ids).await?;
-        // Preserve the saved (newest-first) order and drop missing entries.
+        // Preserve the saved (newest-first) order and drop missing entries. A
+        // percussion save is withheld from a caller who lost the drum feature
+        // (change: add-drums-access) — absent from the list, exactly like a
+        // row whose entry is gone; the save itself is kept, so regaining the
+        // feature restores it.
         let mut by_id: std::collections::HashMap<String, CatalogHit> =
             hits.into_iter().map(|h| (h.id.clone(), h)).collect();
-        Ok(ids.iter().filter_map(|id| by_id.remove(id)).collect())
+        Ok(ids
+            .iter()
+            .filter_map(|id| by_id.remove(id))
+            .filter(|h| {
+                h.instrument != crate::repo::Instrument::Percussion || eligible_for_percussion
+            })
+            .collect())
     }
 
     /// Fetch the canonical bytes of a public catalog score by id, from the object
@@ -1141,7 +1310,17 @@ impl ScoreModule {
     /// serves a `pending` score too so a signed-in rater can hear a candidate before
     /// rating it; a `rejected`/unknown id is a typed not-found. It is NOT a player
     /// open and does not affect library save — both stay `accepted`-only.
-    pub async fn rating_preview_bytes(&self, user_id: &str, catalog_id: &str) -> Result<Vec<u8>> {
+    pub async fn rating_preview_bytes(
+        &self,
+        user_id: &str,
+        catalog_id: &str,
+        eligible_for_percussion: bool,
+    ) -> Result<Vec<u8>> {
+        // The drum gate first (change: add-drums-access): this path serves a
+        // pending/accepted score's full bytes to any signed-in rater, bypassing
+        // the deck listing — it must hold the same line the deck does.
+        self.guard_catalog_drums(catalog_id, eligible_for_percussion)
+            .await?;
         if !self.is_pending_or_accepted(catalog_id).await? {
             return Err(AppError::NotFound("catalog score not found".into()));
         }
@@ -1178,9 +1357,17 @@ impl ScoreModule {
         catalog_id: &str,
         if_none_match: Option<&str>,
     ) -> Result<PlayerOpen> {
+        // The drum gate (change: add-drums-access): an ineligible caller gets
+        // the unknown-id answer before anything else is looked at.
+        self.guard_catalog_drums(catalog_id, caller.eligible_for_percussion)
+            .await?;
         let obj = self
             .catalog_object(catalog_id, caller.allow_unvalidated)
             .await?;
+        // A percussion open consumes a day slot like any other (change:
+        // add-drum-scoring): the interim exemption existed only because charging
+        // quota for a piece that could not yet be honestly played would have been
+        // wrong, and that premise is gone — so the gate is instrument-agnostic.
         let access = match &self.daily_access {
             None => None,
             Some(gate) => {
@@ -1242,9 +1429,16 @@ impl ScoreModule {
         caller: &PlayerCaller,
         catalog_id: &str,
     ) -> Result<Option<AccessState>> {
+        // The drum gate (change: add-drums-access): the unlock is an existence
+        // oracle (not-found for a piece the caller may not see).
+        self.guard_catalog_drums(catalog_id, caller.eligible_for_percussion)
+            .await?;
         let obj = self
             .catalog_object(catalog_id, caller.allow_unvalidated)
             .await?;
+        // A percussion piece can be day-locked since its opens consume slots
+        // (change: add-drum-scoring), so it buys back exactly like any other —
+        // no instrument carve-out on this path either.
         let Some(gate) = &self.daily_access else {
             return Ok(None);
         };
@@ -1324,6 +1518,8 @@ mod tests {
     use super::*;
     use cymbra_storage::FakeStore;
 
+    use crate::catalog_daily_access::FakeCatalogDayAccessRepo;
+    use crate::catalog_daily_access_core::DailyAccessConfig;
     use crate::catalog_search::{FacetFilters, FakeCatalogRow, FakeCatalogSearchRepo};
     use crate::curation_rewards::{CurationRewardsRepo, FakeCurationRewardsRepo};
     use crate::curation_rewards_module::CurationRewardsModule;
@@ -1509,7 +1705,7 @@ mod tests {
         let mut i = input(NO_META, "beginner", "own_work", true);
         i.fallback_title = Some("  My Untitled Piece  ".into());
         i.fallback_composer = Some("Me".into());
-        let rec = m.upload("u1", i).await.unwrap();
+        let rec = m.upload("u1", i, false).await.unwrap();
         assert_eq!(rec.meta.title.as_deref(), Some("My Untitled Piece")); // trimmed
         assert_eq!(rec.meta.composer.as_deref(), Some("Me"));
         assert_eq!(rec.meta.work_key, "me::my untitled piece"); // normalized keys
@@ -1518,7 +1714,7 @@ mod tests {
         // A file WITH a title: the fallback is ignored (parsed wins — design 2b).
         let mut i2 = input(VALID, "beginner", "own_work", true);
         i2.fallback_title = Some("Spoofed Title".into());
-        let rec2 = m.upload("u1", i2).await.unwrap();
+        let rec2 = m.upload("u1", i2, false).await.unwrap();
         assert_eq!(rec2.meta.title.as_deref(), Some("Test Piece"));
         assert_eq!(repo.rows().len(), 2);
     }
@@ -1528,7 +1724,7 @@ mod tests {
         let (m, repo, store) = module(5, 7);
         // File carries no <work-title> and the user typed no fallback title.
         assert!(matches!(
-            m.upload("u1", input(NO_META, "beginner", "own_work", true))
+            m.upload("u1", input(NO_META, "beginner", "own_work", true), false)
                 .await,
             Err(AppError::InvalidArgument(_))
         ));
@@ -1541,7 +1737,7 @@ mod tests {
     async fn upload_validates_derives_stores_and_persists() {
         let (m, repo, store) = module(5, 7);
         let rec = m
-            .upload("u1", input(VALID, "intermediate", "own_work", true))
+            .upload("u1", input(VALID, "intermediate", "own_work", true), false)
             .await
             .unwrap();
         // Server-derived metadata (client sent none).
@@ -1549,7 +1745,7 @@ mod tests {
         assert_eq!(rec.meta.composer.as_deref(), Some("A. Composer"));
         assert_eq!(rec.meta.key_fifths, 2);
         assert_eq!(rec.meta.time_sig, "3/4");
-        assert!(rec.meta.is_piano);
+        assert_eq!(rec.meta.instrument, crate::repo::Instrument::Keyboard);
         assert_eq!(rec.level, "intermediate");
         assert_eq!(
             rec.object_key,
@@ -1565,23 +1761,27 @@ mod tests {
         let (m, repo, store) = module(5, 7);
         // Missing ack, bad level, bad basis, unparseable bytes.
         assert!(matches!(
-            m.upload("u1", input(VALID, "intermediate", "own_work", false))
+            m.upload("u1", input(VALID, "intermediate", "own_work", false), false)
                 .await,
             Err(AppError::InvalidArgument(_))
         ));
         assert!(matches!(
-            m.upload("u1", input(VALID, "expert", "own_work", true))
+            m.upload("u1", input(VALID, "expert", "own_work", true), false)
                 .await,
             Err(AppError::InvalidArgument(_))
         ));
         assert!(matches!(
-            m.upload("u1", input(VALID, "beginner", "stolen", true))
+            m.upload("u1", input(VALID, "beginner", "stolen", true), false)
                 .await,
             Err(AppError::InvalidArgument(_))
         ));
         assert!(matches!(
-            m.upload("u1", input("<not-a-score/>", "beginner", "own_work", true))
-                .await,
+            m.upload(
+                "u1",
+                input("<not-a-score/>", "beginner", "own_work", true),
+                false
+            )
+            .await,
             Err(AppError::InvalidArgument(_))
         ));
         assert!(store.is_empty());
@@ -1594,13 +1794,13 @@ mod tests {
         for i in 0..2 {
             // Distinct content so per-owner sha dedup doesn't interfere.
             let xml = VALID.replace("Test Piece", &format!("Piece {i}"));
-            m.upload("u1", input(&xml, "beginner", "own_work", true))
+            m.upload("u1", input(&xml, "beginner", "own_work", true), false)
                 .await
                 .unwrap();
         }
         let third = VALID.replace("Test Piece", "Piece 3");
         assert!(matches!(
-            m.upload("u1", input(&third, "beginner", "own_work", true))
+            m.upload("u1", input(&third, "beginner", "own_work", true), false)
                 .await,
             Err(AppError::ResourceExhausted(_))
         ));
@@ -1649,6 +1849,7 @@ mod tests {
                 "own_work",
                 true,
             ),
+            false,
         )
         .await
         .unwrap();
@@ -1661,6 +1862,7 @@ mod tests {
                     "own_work",
                     true,
                 ),
+                false,
             )
             .await
         {
@@ -1680,6 +1882,7 @@ mod tests {
                     "own_work",
                     true,
                 ),
+                false,
             )
             .await
             .unwrap();
@@ -1693,6 +1896,7 @@ mod tests {
                     "own_work",
                     true,
                 ),
+                false,
             )
             .await
         {
@@ -1711,7 +1915,7 @@ mod tests {
         let mut m2 = m;
         m2.max_bytes = 10;
         assert!(matches!(
-            m2.upload("u1", input(VALID, "beginner", "own_work", true))
+            m2.upload("u1", input(VALID, "beginner", "own_work", true), false)
                 .await,
             Err(AppError::InvalidArgument(_))
         ));
@@ -1722,7 +1926,7 @@ mod tests {
     async fn list_delete_and_get_bytes_are_owner_scoped() {
         let (m, _repo, store) = module(5, 7);
         let rec = m
-            .upload("u1", input(VALID, "beginner", "own_work", true))
+            .upload("u1", input(VALID, "beginner", "own_work", true), false)
             .await
             .unwrap();
         assert_eq!(m.list("u1").await.unwrap().len(), 1);
@@ -1797,7 +2001,7 @@ mod tests {
         );
 
         let rec = m
-            .upload("u1", input(VALID, "beginner", "own_work", true))
+            .upload("u1", input(VALID, "beginner", "own_work", true), false)
             .await
             .unwrap();
         assert_eq!(repo.rows().len(), 1);
@@ -1812,13 +2016,13 @@ mod tests {
     #[tokio::test]
     async fn duplicate_upload_is_rejected_and_leaves_no_orphan() {
         let (m, _repo, store) = module(5, 7);
-        m.upload("u1", input(VALID, "beginner", "own_work", true))
+        m.upload("u1", input(VALID, "beginner", "own_work", true), false)
             .await
             .unwrap();
         // Same bytes again → per-owner sha conflict; the just-written object is
         // reclaimed, so exactly one object remains.
         assert!(matches!(
-            m.upload("u1", input(VALID, "beginner", "own_work", true))
+            m.upload("u1", input(VALID, "beginner", "own_work", true), false)
                 .await,
             Err(AppError::AlreadyExists(_))
         ));
@@ -1914,13 +2118,13 @@ mod tests {
         let store = Arc::new(FakeStore::default());
         let catalog = Arc::new(FakeCatalogSearchRepo::with(vec![
             FakeCatalogRow::new(DEBUSSY_1, "Fast", "X", Some("advanced")).with_facets(
-                true,
+                crate::repo::Instrument::Keyboard,
                 16,
                 Some(140),
                 (48, 84),
             ), // sixteenths, 140bpm, 3 octaves
             FakeCatalogRow::new(SATIE, "Slow", "Y", Some("beginner")).with_facets(
-                true,
+                crate::repo::Instrument::Keyboard,
                 8,
                 Some(72),
                 (60, 72),
@@ -1976,19 +2180,19 @@ mod tests {
         let (m, _cat, lib) = catalog_module();
         // Unknown catalog id is rejected and nothing is saved.
         assert!(matches!(
-            m.save_catalog_score("u1", "99999999-9999-7999-8999-999999999999")
+            m.save_catalog_score("u1", "99999999-9999-7999-8999-999999999999", false)
                 .await,
             Err(AppError::NotFound(_))
         ));
         assert_eq!(lib.count("u1"), 0);
 
-        m.save_catalog_score("u1", SATIE).await.unwrap();
-        m.save_catalog_score("u1", DEBUSSY_1).await.unwrap();
-        m.save_catalog_score("u1", DEBUSSY_1).await.unwrap(); // idempotent
+        m.save_catalog_score("u1", SATIE, false).await.unwrap();
+        m.save_catalog_score("u1", DEBUSSY_1, false).await.unwrap();
+        m.save_catalog_score("u1", DEBUSSY_1, false).await.unwrap(); // idempotent
         assert_eq!(lib.count("u1"), 2);
 
         // Saved list is newest-first and joined to the catalog.
-        let saved = m.list_saved_catalog_scores("u1").await.unwrap();
+        let saved = m.list_saved_catalog_scores("u1", false).await.unwrap();
         assert_eq!(
             saved.iter().map(|h| h.id.as_str()).collect::<Vec<_>>(),
             [DEBUSSY_1, SATIE]
@@ -1999,20 +2203,31 @@ mod tests {
     #[tokio::test]
     async fn remove_is_a_no_op_when_not_saved_and_owner_scoped() {
         let (m, _cat, _lib) = catalog_module();
-        m.save_catalog_score("u1", SATIE).await.unwrap();
+        m.save_catalog_score("u1", SATIE, false).await.unwrap();
         // Removing a not-saved score succeeds and changes nothing.
         m.remove_saved_catalog_score("u1", DEBUSSY_1).await.unwrap();
-        assert_eq!(m.list_saved_catalog_scores("u1").await.unwrap().len(), 1);
+        assert_eq!(
+            m.list_saved_catalog_scores("u1", false)
+                .await
+                .unwrap()
+                .len(),
+            1
+        );
         // Removing the saved one drops it; a re-list reflects that (sync source).
         m.remove_saved_catalog_score("u1", SATIE).await.unwrap();
-        assert!(m.list_saved_catalog_scores("u1").await.unwrap().is_empty());
+        assert!(
+            m.list_saved_catalog_scores("u1", false)
+                .await
+                .unwrap()
+                .is_empty()
+        );
     }
 
     #[tokio::test]
     async fn list_saved_omits_entries_whose_catalog_row_is_gone() {
         let (m, cat, _lib) = catalog_module();
-        m.save_catalog_score("u1", SATIE).await.unwrap();
-        m.save_catalog_score("u1", DEBUSSY_1).await.unwrap();
+        m.save_catalog_score("u1", SATIE, false).await.unwrap();
+        m.save_catalog_score("u1", DEBUSSY_1, false).await.unwrap();
         // Simulate a re-ingest that dropped the Satie row: the library still has
         // the save, but the join omits it rather than surfacing a broken entry.
         cat.set_rows(vec![FakeCatalogRow::new(
@@ -2021,7 +2236,7 @@ mod tests {
             "Claude Debussy",
             Some("intermediate"),
         )]);
-        let saved = m.list_saved_catalog_scores("u1").await.unwrap();
+        let saved = m.list_saved_catalog_scores("u1", false).await.unwrap();
         assert_eq!(
             saved.iter().map(|h| h.id.as_str()).collect::<Vec<_>>(),
             [DEBUSSY_1]
@@ -2183,7 +2398,9 @@ mod tests {
         m.catalog_bytes_for_player(&PlayerCaller::regular("u1"), DEBUSSY_1, None)
             .await
             .unwrap();
-        m.rating_preview_bytes("u1", DEBUSSY_1).await.unwrap();
+        m.rating_preview_bytes("u1", DEBUSSY_1, false)
+            .await
+            .unwrap();
         assert!(rewards.has_engagement("u1", DEBUSSY_1).await.unwrap());
         // Another user's open is their own signal, not u1's.
         assert!(!rewards.has_engagement("u2", DEBUSSY_1).await.unwrap());
@@ -2235,7 +2452,7 @@ mod tests {
         let (m, _rewards) = module_with_rewards().await;
         // Rating without any engagement earns nothing…
         let (_, points) = m
-            .submit_rating("u1", DEBUSSY_1, "love", Some(5))
+            .submit_rating("u1", DEBUSSY_1, "love", Some(5), false)
             .await
             .unwrap();
         assert_eq!(points, 0);
@@ -2244,7 +2461,7 @@ mod tests {
             .await
             .unwrap();
         let (_, points) = m
-            .submit_rating("u1", PENDING_ID, "love", Some(5))
+            .submit_rating("u1", PENDING_ID, "love", Some(5), false)
             .await
             .unwrap();
         assert!(points > 0, "a played score's rating must earn coverage");
@@ -2333,21 +2550,21 @@ mod tests {
         let m = moderated_module().await;
         // Accepted metadata resolves for a normal caller.
         assert_eq!(
-            m.get_catalog_hit(DEBUSSY_1, false).await.unwrap().id,
+            m.get_catalog_hit(DEBUSSY_1, false, false).await.unwrap().id,
             DEBUSSY_1
         );
         for id in [PENDING_ID, REJECTED_ID] {
             // Pending/rejected are not-found for a normal caller…
             assert!(matches!(
-                m.get_catalog_hit(id, false).await,
+                m.get_catalog_hit(id, false, false).await,
                 Err(AppError::NotFound(_))
             ));
             // …but resolve for an authorised reviewer.
-            assert_eq!(m.get_catalog_hit(id, true).await.unwrap().id, id);
+            assert_eq!(m.get_catalog_hit(id, true, false).await.unwrap().id, id);
         }
         // Unknown id → not-found even for a reviewer.
         assert!(matches!(
-            m.get_catalog_hit("99999999-9999-7999-8999-999999999999", true)
+            m.get_catalog_hit("99999999-9999-7999-8999-999999999999", true, false)
                 .await,
             Err(AppError::NotFound(_))
         ));
@@ -2360,12 +2577,12 @@ mod tests {
         // them, exactly as search hides it).
         for id in [PENDING_ID, REJECTED_ID] {
             assert!(matches!(
-                m.save_catalog_score("u1", id).await,
+                m.save_catalog_score("u1", id, false).await,
                 Err(AppError::NotFound(_))
             ));
         }
         // The accepted one saves fine.
-        m.save_catalog_score("u1", DEBUSSY_1).await.unwrap();
+        m.save_catalog_score("u1", DEBUSSY_1, false).await.unwrap();
     }
 
     // --- evaluate + sort (change: add-moderation-back-office) ----------------
@@ -2463,7 +2680,7 @@ mod tests {
         let (m, ratings) = rating_module();
         // First rating: a verdict-only like (implied 3.5).
         let (agg, _points) = m
-            .submit_rating("u1", DEBUSSY_1, "like", None)
+            .submit_rating("u1", DEBUSSY_1, "like", None, false)
             .await
             .unwrap();
         assert_eq!(agg.count, 1);
@@ -2472,7 +2689,7 @@ mod tests {
         // The SAME user re-rates with explicit stars → the row is updated, not
         // duplicated, and the aggregate reflects the new value (5.0), not 3.5.
         let (agg, _points) = m
-            .submit_rating("u1", DEBUSSY_1, "love", Some(5))
+            .submit_rating("u1", DEBUSSY_1, "love", Some(5), false)
             .await
             .unwrap();
         assert_eq!(ratings.len(), 1); // one row per (user, score)
@@ -2487,16 +2704,18 @@ mod tests {
         let (m, ratings) = rating_module();
         // Unknown verdict → InvalidArgument, nothing recorded.
         assert!(matches!(
-            m.submit_rating("u1", DEBUSSY_1, "meh", None).await,
+            m.submit_rating("u1", DEBUSSY_1, "meh", None, false).await,
             Err(AppError::InvalidArgument(_))
         ));
         // Stars out of range → InvalidArgument.
         assert!(matches!(
-            m.submit_rating("u1", DEBUSSY_1, "like", Some(6)).await,
+            m.submit_rating("u1", DEBUSSY_1, "like", Some(6), false)
+                .await,
             Err(AppError::InvalidArgument(_))
         ));
         assert!(matches!(
-            m.submit_rating("u1", DEBUSSY_1, "like", Some(0)).await,
+            m.submit_rating("u1", DEBUSSY_1, "like", Some(0), false)
+                .await,
             Err(AppError::InvalidArgument(_))
         ));
         assert!(ratings.is_empty());
@@ -2534,18 +2753,18 @@ mod tests {
         // Rejected / unknown ids are not rateable (not-found) and nothing is written.
         for id in [REJECTED_ID, "99999999-9999-7999-8999-999999999999"] {
             assert!(matches!(
-                m.submit_rating("u1", id, "like", None).await,
+                m.submit_rating("u1", id, "like", None, false).await,
                 Err(AppError::NotFound(_))
             ));
         }
         assert!(ratings.is_empty());
         // A pending candidate rates fine (feeds the moderation backlog)…
-        m.submit_rating("u1", PENDING_ID, "like", None)
+        m.submit_rating("u1", PENDING_ID, "like", None, false)
             .await
             .unwrap();
         assert_eq!(ratings.len(), 1);
         // …and so does an accepted score.
-        m.submit_rating("u1", DEBUSSY_1, "love", None)
+        m.submit_rating("u1", DEBUSSY_1, "love", None, false)
             .await
             .unwrap();
         assert_eq!(ratings.len(), 2);
@@ -2559,7 +2778,7 @@ mod tests {
         // Never rated → None (the player prompts).
         assert_eq!(m.my_score_rating("u1", DEBUSSY_1).await.unwrap(), None);
         // After rating, the caller reads their own verdict + stars back.
-        m.submit_rating("u1", DEBUSSY_1, "love", Some(5))
+        m.submit_rating("u1", DEBUSSY_1, "love", Some(5), false)
             .await
             .unwrap();
         assert_eq!(
@@ -2570,7 +2789,9 @@ mod tests {
             })
         );
         // A swipe-only rating reads back with no stars.
-        m.submit_rating("u1", SATIE, "dislike", None).await.unwrap();
+        m.submit_rating("u1", SATIE, "dislike", None, false)
+            .await
+            .unwrap();
         assert_eq!(
             m.my_score_rating("u1", SATIE).await.unwrap(),
             Some(UserRating {
@@ -2634,34 +2855,41 @@ mod tests {
             8 * 1024 * 1024,
         );
         // Other users rate SATIE twice and DEBUSSY_2 once; DEBUSSY_1 has none.
-        m.submit_rating("other1", SATIE, "like", None)
+        m.submit_rating("other1", SATIE, "like", None, false)
             .await
             .unwrap();
-        m.submit_rating("other2", SATIE, "like", None)
+        m.submit_rating("other2", SATIE, "like", None, false)
             .await
             .unwrap();
-        m.submit_rating("other1", DEBUSSY_2, "like", None)
+        m.submit_rating("other1", DEBUSSY_2, "like", None, false)
             .await
             .unwrap();
         // u1 rated nothing → all three, least-rated first (0, 1, 2 ratings).
-        let deck = m.list_rating_deck("u1", 50, 0).await.unwrap();
+        let deck = m.list_rating_deck("u1", 50, 0, false, None).await.unwrap();
         assert_eq!(
             deck.iter().map(|h| h.id.as_str()).collect::<Vec<_>>(),
             [DEBUSSY_1, DEBUSSY_2, SATIE]
         );
         // u1 rates DEBUSSY_1 → it's excluded next time.
-        m.submit_rating("u1", DEBUSSY_1, "love", None)
+        m.submit_rating("u1", DEBUSSY_1, "love", None, false)
             .await
             .unwrap();
-        let deck = m.list_rating_deck("u1", 50, 0).await.unwrap();
+        let deck = m.list_rating_deck("u1", 50, 0, false, None).await.unwrap();
         assert_eq!(deck.len(), 2);
         assert!(!deck.iter().any(|h| h.id == DEBUSSY_1));
         // u1 rates the rest → the deck empties (natural last-card state).
-        m.submit_rating("u1", DEBUSSY_2, "like", None)
+        m.submit_rating("u1", DEBUSSY_2, "like", None, false)
             .await
             .unwrap();
-        m.submit_rating("u1", SATIE, "dislike", None).await.unwrap();
-        assert!(m.list_rating_deck("u1", 50, 0).await.unwrap().is_empty());
+        m.submit_rating("u1", SATIE, "dislike", None, false)
+            .await
+            .unwrap();
+        assert!(
+            m.list_rating_deck("u1", 50, 0, false, None)
+                .await
+                .unwrap()
+                .is_empty()
+        );
     }
 
     #[tokio::test]
@@ -2689,7 +2917,7 @@ mod tests {
             7,
             8 * 1024 * 1024,
         );
-        let deck = m.list_rating_deck("u1", 50, 0).await.unwrap();
+        let deck = m.list_rating_deck("u1", 50, 0, false, None).await.unwrap();
         let ids: Vec<&str> = deck.iter().map(|h| h.id.as_str()).collect();
         // Both the accepted and the pending score are offered; the rejected one never.
         assert!(ids.contains(&DEBUSSY_1));
@@ -2699,21 +2927,83 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn rating_deck_deals_the_family_the_rater_asked_for() {
+        // The rater chooses what to be dealt (all / piano / drums). Filtering
+        // client-side would empty the pages instead — the deck is sourced
+        // least-rated-first and paginated, so a page of 20 could yield 2.
+        let ratings = Arc::new(FakeScoreRatingRepo::default());
+        let catalog = Arc::new(FakeCatalogSearchRepo::with(vec![
+            FakeCatalogRow::new(DEBUSSY_1, "A", "X", Some("beginner")).piano(),
+            FakeCatalogRow::new(SATIE, "B", "Y", Some("beginner")).percussion(),
+            // Never classified: matches no set filter, dealt only to "all".
+            FakeCatalogRow::new(PENDING_ID, "C", "Z", Some("beginner")),
+        ]));
+        catalog.set_rating_view(ratings.clone());
+        let m = ScoreModule::new(
+            Arc::new(FakeUserScoreRepo::default()),
+            catalog,
+            Arc::new(FakeUserLibraryRepo::default()),
+            ratings,
+            Arc::new(FakeStore::default()),
+            5,
+            7,
+            8 * 1024 * 1024,
+        );
+        let ids =
+            |deck: Vec<CatalogHit>| -> Vec<String> { deck.into_iter().map(|h| h.id).collect() };
+
+        // No filter: everything the caller may see.
+        let all = ids(m.list_rating_deck("u1", 50, 0, true, None).await.unwrap());
+        assert_eq!(all.len(), 3);
+
+        let piano = ids(m
+            .list_rating_deck("u1", 50, 0, true, Some(crate::repo::Instrument::Keyboard))
+            .await
+            .unwrap());
+        assert_eq!(piano, vec![DEBUSSY_1.to_string()]);
+
+        let drums = ids(m
+            .list_rating_deck("u1", 50, 0, true, Some(crate::repo::Instrument::Percussion))
+            .await
+            .unwrap());
+        assert_eq!(drums, vec![SATIE.to_string()]);
+
+        // Eligibility still bounds the choice: an ineligible rater asking for
+        // drums is dealt nothing, not a different answer.
+        assert!(
+            m.list_rating_deck(
+                "u1",
+                50,
+                0,
+                false,
+                Some(crate::repo::Instrument::Percussion)
+            )
+            .await
+            .unwrap()
+            .is_empty()
+        );
+    }
+
+    #[tokio::test]
     async fn needs_review_flags_only_at_min_count_and_low_average() {
         let (m, _ratings) = rating_module(); // N = 2, T = 2.0
         // One dislike (1.5): below threshold, but only one vote → not flagged.
-        m.submit_rating("u1", DEBUSSY_1, "dislike", None)
+        m.submit_rating("u1", DEBUSSY_1, "dislike", None, false)
             .await
             .unwrap();
         assert!(!m.needs_review(DEBUSSY_1).await.unwrap());
         // A second dislike reaches the count with a low average → flagged now.
-        m.submit_rating("u2", DEBUSSY_1, "dislike", None)
+        m.submit_rating("u2", DEBUSSY_1, "dislike", None, false)
             .await
             .unwrap();
         assert!(m.needs_review(DEBUSSY_1).await.unwrap());
         // A separate score rated highly is never flagged.
-        m.submit_rating("u1", SATIE, "love", None).await.unwrap();
-        m.submit_rating("u2", SATIE, "love", None).await.unwrap();
+        m.submit_rating("u1", SATIE, "love", None, false)
+            .await
+            .unwrap();
+        m.submit_rating("u2", SATIE, "love", None, false)
+            .await
+            .unwrap();
         assert!(!m.needs_review(SATIE).await.unwrap());
         // …and its aggregate reads back for hub ranking.
         let agg = m.rating_aggregate(SATIE).await.unwrap();
@@ -2751,7 +3041,7 @@ mod tests {
         // dislikes on DEBUSSY_1 reach the quorum with a low average → flagged. SATIE
         // stays unrated (healthy) so it must not enter the queue.
         for u in ["u1", "u2", "u3", "u4", "u5"] {
-            m.submit_rating(u, DEBUSSY_1, "dislike", None)
+            m.submit_rating(u, DEBUSSY_1, "dislike", None, false)
                 .await
                 .unwrap();
         }
@@ -2819,7 +3109,7 @@ mod tests {
     }
 
     async fn upload_one(m: &ScoreModule, owner: &str) -> UserScore {
-        m.upload(owner, input(VALID, "beginner", "own_work", true))
+        m.upload(owner, input(VALID, "beginner", "own_work", true), false)
             .await
             .unwrap()
     }
@@ -2828,7 +3118,7 @@ mod tests {
     async fn propose_fresh_creates_pending_row_attributed_and_linked() {
         let (m, repo, catalog, _s) = propose_module();
         let rec = upload_one(&m, "u1").await;
-        m.propose("u1", &rec.id, "CC-BY-4.0", true, None, false)
+        m.propose("u1", &rec.id, "CC-BY-4.0", true, None, false, false)
             .await
             .unwrap();
         // A catalog row now exists for this content, pending, attributed to u1.
@@ -2851,7 +3141,7 @@ mod tests {
     async fn propose_by_admin_is_auto_accepted() {
         let (m, _repo, catalog, _s) = propose_module();
         let rec = upload_one(&m, "u1").await;
-        m.propose("u1", &rec.id, "CC-BY-4.0", true, None, true)
+        m.propose("u1", &rec.id, "CC-BY-4.0", true, None, true, false)
             .await
             .unwrap();
         let (_, status) = catalog.find_by_sha(&rec.sha256).await.unwrap().unwrap();
@@ -2864,18 +3154,19 @@ mod tests {
         let rec = upload_one(&m, "u1").await;
         // Missing attestation.
         assert!(matches!(
-            m.propose("u1", &rec.id, "CC-BY-4.0", false, None, false)
+            m.propose("u1", &rec.id, "CC-BY-4.0", false, None, false, false)
                 .await,
             Err(AppError::InvalidArgument(_))
         ));
         // Empty licence declaration.
         assert!(matches!(
-            m.propose("u1", &rec.id, "  ", true, None, false).await,
+            m.propose("u1", &rec.id, "  ", true, None, false, false)
+                .await,
             Err(AppError::InvalidArgument(_))
         ));
         // Not the owner / unknown score.
         assert!(matches!(
-            m.propose("u2", &rec.id, "CC-BY-4.0", true, None, false)
+            m.propose("u2", &rec.id, "CC-BY-4.0", true, None, false, false)
                 .await,
             Err(AppError::NotFound(_))
         ));
@@ -2945,7 +3236,7 @@ mod tests {
                 .with_moderation_status("accepted"),
         ]);
         let err = m
-            .propose("u1", &rec.id, "CC-BY-4.0", true, None, false)
+            .propose("u1", &rec.id, "CC-BY-4.0", true, None, false, false)
             .await
             .unwrap_err();
         assert!(matches!(err, AppError::AlreadyExists(_)));
@@ -2963,7 +3254,7 @@ mod tests {
         ]);
         // Without a justification → refused, still rejected.
         assert!(matches!(
-            m.propose("u1", &rec.id, "CC-BY-4.0", true, None, false)
+            m.propose("u1", &rec.id, "CC-BY-4.0", true, None, false, false)
                 .await,
             Err(AppError::InvalidArgument(_))
         ));
@@ -2978,6 +3269,7 @@ mod tests {
             "CC-BY-4.0",
             true,
             Some("fixed the wrong key signature"),
+            false,
             false,
         )
         .await
@@ -2995,7 +3287,7 @@ mod tests {
     async fn list_contributions_reports_status_and_rejection_reason() {
         let (m, _repo, catalog, _s) = propose_module();
         let rec = upload_one(&m, "u1").await;
-        m.propose("u1", &rec.id, "CC-BY-4.0", true, None, false)
+        m.propose("u1", &rec.id, "CC-BY-4.0", true, None, false, false)
             .await
             .unwrap();
         let (cid, _) = catalog.find_by_sha(&rec.sha256).await.unwrap().unwrap();
@@ -3017,7 +3309,7 @@ mod tests {
         use cymbra_user_port::{Account, MockUserPort, PlayerProfile, Visibility};
         let (base, _repo, catalog, _s) = propose_module();
         let rec = upload_one(&base, "u1").await;
-        base.propose("u1", &rec.id, "CC-BY-4.0", true, None, true) // admin → accepted
+        base.propose("u1", &rec.id, "CC-BY-4.0", true, None, true, false) // admin → accepted
             .await
             .unwrap();
         let (cid, _) = catalog.find_by_sha(&rec.sha256).await.unwrap().unwrap();
@@ -3132,5 +3424,370 @@ mod tests {
             8 * 1024 * 1024,
         )
         .with_user(user)
+    }
+
+    // --- the drum gate (change: add-drums-access) --------------------------
+    //
+    // One test per gated path for the ineligible case: a predicate tested once
+    // in isolation does not prove the call sites use it. Plus the carve-outs
+    // (own uploads) and the no-regression invariant (`unknown` stays served).
+
+    /// A minimal percussion score (valid once the gate counts unpitched notes):
+    /// a declared snare (1-based `midi-unpitched` 39 → GM 38) and one note.
+    const DRUM_XML: &str = r#"<?xml version="1.0"?>
+<score-partwise version="4.0">
+  <work><work-title>Basic Groove</work-title></work>
+  <part-list><score-part id="P1">
+    <score-instrument id="P1-I38"><instrument-name>Snare Drum</instrument-name></score-instrument>
+    <midi-instrument id="P1-I38"><midi-unpitched>39</midi-unpitched></midi-instrument>
+  </score-part></part-list>
+  <part id="P1"><measure number="1">
+    <attributes><divisions>1</divisions><clef><sign>percussion</sign><line>2</line></clef></attributes>
+    <note><unpitched><display-step>C</display-step><display-octave>5</display-octave></unpitched><duration>4</duration><instrument id="P1-I38"/><voice>1</voice></note>
+  </measure></part></score-partwise>"#;
+
+    const DRUM_ID: &str = "99999999-9999-7999-8999-999999999999";
+    const KEY_ID: &str = "88888888-8888-7888-8888-888888888888";
+    const UNK_ID: &str = "77777777-7777-7777-8777-777777777777";
+
+    /// A module over a catalog holding one percussion, one keyboard and one
+    /// unclassified row, with each row's bytes in the store.
+    async fn drum_module() -> (ScoreModule, Arc<FakeCatalogSearchRepo>) {
+        let repo = Arc::new(FakeUserScoreRepo::default());
+        let store = Arc::new(FakeStore::default());
+        let drum = FakeCatalogRow::new(DRUM_ID, "Groove", "Anon", Some("beginner")).percussion();
+        let key = FakeCatalogRow::new(KEY_ID, "Sonata", "Anon", Some("beginner")).piano();
+        let unk = FakeCatalogRow::new(UNK_ID, "Mystery", "Anon", Some("beginner"));
+        for r in [&drum, &key, &unk] {
+            store
+                .put(&r.object_key, DRUM_XML.as_bytes().to_vec())
+                .await
+                .unwrap();
+        }
+        let catalog = Arc::new(FakeCatalogSearchRepo::with(vec![drum, key, unk]));
+        let m = ScoreModule::new(
+            repo,
+            catalog.clone(),
+            Arc::new(FakeUserLibraryRepo::default()),
+            Arc::new(FakeScoreRatingRepo::default()),
+            store,
+            5,
+            7,
+            8 * 1024 * 1024,
+        );
+        (m, catalog)
+    }
+
+    fn not_found(e: AppError) -> bool {
+        matches!(e, AppError::NotFound(_))
+    }
+
+    #[tokio::test]
+    async fn drum_gate_search_withholds_percussion_from_the_ineligible() {
+        let (m, _c) = drum_module().await;
+        let mut query = q("", None, None, 50);
+        query.eligible_for_percussion = false;
+        let (hits, total) = m.search_catalog(query).await.unwrap();
+        let ids: Vec<&str> = hits.iter().map(|h| h.id.as_str()).collect();
+        // The keyboard AND the unclassified row are served — withholding
+        // `unknown` would hide the existing corpus (the no-regression
+        // invariant) — the percussion one is not, and the paging total agrees.
+        assert!(ids.contains(&KEY_ID) && ids.contains(&UNK_ID));
+        assert!(!ids.contains(&DRUM_ID));
+        assert_eq!(total, 2);
+
+        let mut query = q("", None, None, 50);
+        query.eligible_for_percussion = true;
+        let (hits, _) = m.search_catalog(query).await.unwrap();
+        assert!(hits.iter().any(|h| h.id == DRUM_ID));
+    }
+
+    #[tokio::test]
+    async fn drum_gate_metadata_and_bytes_by_id_answer_as_unknown() {
+        let (m, _c) = drum_module().await;
+        // Full metadata by id (GetCatalogScore).
+        assert!(not_found(
+            m.get_catalog_hit(DRUM_ID, false, false).await.unwrap_err()
+        ));
+        assert!(m.get_catalog_hit(DRUM_ID, false, true).await.is_ok());
+        assert!(m.get_catalog_hit(UNK_ID, false, false).await.is_ok());
+        // Player bytes: same unknown-id answer for the ineligible…
+        let ineligible = PlayerCaller::regular("u1");
+        assert!(not_found(
+            m.catalog_bytes_for_player(&ineligible, DRUM_ID, None)
+                .await
+                .unwrap_err()
+        ));
+        // …and a served open for the eligible. No daily-access state here because
+        // no gate is wired in this module, NOT because the piece is percussion:
+        // what a percussion open now costs is pinned with a wired gate by
+        // `drum_open_consumes_a_day_slot_and_can_be_day_locked`.
+        let mut eligible = PlayerCaller::regular("u2");
+        eligible.eligible_for_percussion = true;
+        let open = m
+            .catalog_bytes_for_player(&eligible, DRUM_ID, None)
+            .await
+            .unwrap();
+        assert!(!open.bytes.data.is_empty());
+        assert!(open.access.is_none());
+    }
+
+    #[tokio::test]
+    async fn drum_gate_saved_listing_hides_percussion_but_keeps_the_save() {
+        let (m, _c) = drum_module().await;
+        m.save_catalog_score("u1", DRUM_ID, true).await.unwrap();
+        m.save_catalog_score("u1", KEY_ID, true).await.unwrap();
+        // Eligibility lost (campaign closed): the percussion save is absent…
+        let hits = m.list_saved_catalog_scores("u1", false).await.unwrap();
+        assert!(hits.iter().all(|h| h.id != DRUM_ID));
+        assert!(hits.iter().any(|h| h.id == KEY_ID));
+        // …and comes back with the feature, because the save itself was kept.
+        let hits = m.list_saved_catalog_scores("u1", true).await.unwrap();
+        assert!(hits.iter().any(|h| h.id == DRUM_ID));
+    }
+
+    #[tokio::test]
+    async fn drum_gate_oracles_answer_as_unknown() {
+        let (m, _c) = drum_module().await;
+        // Save, rate, unlock and the rating-preview bytes are existence
+        // oracles: each answers exactly as for an unknown id.
+        assert!(not_found(
+            m.save_catalog_score("u1", DRUM_ID, false)
+                .await
+                .unwrap_err()
+        ));
+        assert!(not_found(
+            m.submit_rating("u1", DRUM_ID, "like", None, false)
+                .await
+                .unwrap_err()
+        ));
+        assert!(not_found(
+            m.rating_preview_bytes("u1", DRUM_ID, false)
+                .await
+                .unwrap_err()
+        ));
+        let ineligible = PlayerCaller::regular("u1");
+        assert!(not_found(
+            m.unlock_catalog_for_today(&ineligible, DRUM_ID)
+                .await
+                .unwrap_err()
+        ));
+        // Eligible: "nothing to unlock" because no gate is wired here — the
+        // unlock of a percussion piece behind a WIRED gate is pinned by
+        // `drum_open_consumes_a_day_slot_and_can_be_day_locked`.
+        let mut eligible = PlayerCaller::regular("u2");
+        eligible.eligible_for_percussion = true;
+        assert_eq!(
+            m.unlock_catalog_for_today(&eligible, DRUM_ID)
+                .await
+                .unwrap(),
+            None
+        );
+    }
+
+    /// The same catalog behind a module whose freemium daily-access gate is ON.
+    /// The wiring matters: an unwired gate answers `None` whatever the
+    /// instrument, so only this module can tell the lift from the interim.
+    async fn drum_module_gated(
+        free_quota: u32,
+        day_slot_cost: i64,
+    ) -> (ScoreModule, Arc<FakeCatalogDayAccessRepo>) {
+        let (m, _c) = drum_module().await;
+        let day_repo = Arc::new(FakeCatalogDayAccessRepo::default());
+        let gate = CatalogDailyAccess::new(day_repo.clone()).with_config(DailyAccessConfig {
+            enabled: true,
+            free_quota,
+            day_slot_cost,
+        });
+        (m.with_daily_access(Arc::new(gate)), day_repo)
+    }
+
+    #[tokio::test]
+    async fn drum_open_consumes_a_day_slot_and_can_be_day_locked() {
+        // The lift (change: add-drum-scoring): the freemium meter no longer
+        // exempts percussion — an open consumes a slot, an over-quota percussion
+        // piece is presented as locked (with the upsell state), and it buys back
+        // like any other piece.
+        let (m, day_repo) = drum_module_gated(1, 20).await;
+        let mut player = PlayerCaller::regular("u1");
+        player.eligible_for_percussion = true;
+
+        // The drum open consumes the day's only free slot.
+        let open = m
+            .catalog_bytes_for_player(&player, DRUM_ID, None)
+            .await
+            .unwrap();
+        assert!(!open.bytes.data.is_empty());
+        let state = open.access.expect("the gate is wired and on");
+        assert!(state.enabled);
+        assert_eq!(state.free_used, 1);
+        assert_eq!(state.opened_today, vec![DRUM_ID.to_string()]);
+
+        // …so the next distinct piece is locked for the day, percussion or not.
+        let locked = m
+            .catalog_bytes_for_player(&player, KEY_ID, None)
+            .await
+            .unwrap();
+        assert!(locked.locked());
+        assert!(locked.bytes.data.is_empty());
+
+        // And a percussion piece is itself day-lockable: a fresh player who spent
+        // their slot elsewhere is refused the drum score.
+        let mut other = PlayerCaller::regular("u2");
+        other.eligible_for_percussion = true;
+        m.catalog_bytes_for_player(&other, KEY_ID, None)
+            .await
+            .unwrap();
+        let drum_locked = m
+            .catalog_bytes_for_player(&other, DRUM_ID, None)
+            .await
+            .unwrap();
+        assert!(drum_locked.locked(), "a percussion piece CAN be day-locked");
+        let state = drum_locked.access.expect("locked pieces carry the state");
+        assert!(state.upsell, "the upsell state travels with the lock");
+        assert_eq!(state.day_slot_cost, 20);
+
+        // Buying the day slot for the percussion piece works like any other.
+        day_repo.seed_balance("u2", 100);
+        let bought = m
+            .unlock_catalog_for_today(&other, DRUM_ID)
+            .await
+            .unwrap()
+            .expect("a wired gate answers with the post-purchase state");
+        assert!(bought.paid_today.contains(&DRUM_ID.to_string()));
+        assert_eq!(day_repo.debits().len(), 1);
+        let served = m
+            .catalog_bytes_for_player(&other, DRUM_ID, None)
+            .await
+            .unwrap();
+        assert!(!served.locked());
+        assert!(!served.bytes.data.is_empty());
+    }
+
+    #[tokio::test]
+    async fn an_ineligible_caller_still_gets_the_unknown_id_answer_under_the_gate() {
+        // The audience gate runs BEFORE the quota: an ineligible caller never
+        // learns a percussion piece exists, and burns no slot finding out.
+        let (m, day_repo) = drum_module_gated(1, 20).await;
+        let ineligible = PlayerCaller::regular("u1");
+        assert!(not_found(
+            m.catalog_bytes_for_player(&ineligible, DRUM_ID, None)
+                .await
+                .unwrap_err()
+        ));
+        assert!(not_found(
+            m.unlock_catalog_for_today(&ineligible, DRUM_ID)
+                .await
+                .unwrap_err()
+        ));
+        // Nothing was spent, and the keyboard piece still has its free slot.
+        assert!(day_repo.debits().is_empty());
+        let open = m
+            .catalog_bytes_for_player(&ineligible, KEY_ID, None)
+            .await
+            .unwrap();
+        assert!(!open.locked());
+        assert_eq!(open.access.expect("gate wired").free_used, 1);
+    }
+
+    #[tokio::test]
+    async fn drum_gate_upload_is_a_typed_refusal_and_own_uploads_are_exempt() {
+        let (m, _c) = drum_module().await;
+        // An ineligible percussion upload is a TYPED refusal (the caller holds
+        // the file — not-found would be incoherent), with the stable code.
+        let err = m
+            .upload("u1", input(DRUM_XML, "beginner", "own_work", true), false)
+            .await
+            .unwrap_err();
+        match err {
+            AppError::PermissionDenied(msg) => {
+                assert!(msg.starts_with("drums_not_available"), "{msg}")
+            }
+            other => panic!("expected PermissionDenied, got {other:?}"),
+        }
+        // An eligible upload stores the derived instrument…
+        let rec = m
+            .upload("u1", input(DRUM_XML, "beginner", "own_work", true), true)
+            .await
+            .unwrap();
+        assert_eq!(rec.meta.instrument, crate::repo::Instrument::Percussion);
+        // …and the own-uploads carve-out holds for a caller who later loses
+        // the feature: listing, fetching and deleting their own drum score
+        // all work (none of these paths takes an eligibility), while
+        // proposing it is refused.
+        let listed = m.list("u1").await.unwrap();
+        assert!(listed.iter().any(|s| s.id == rec.id));
+        assert!(m.get_bytes("u1", &rec.id, None).await.is_ok());
+        let err = m
+            .propose("u1", &rec.id, "CC-BY-4.0", true, None, false, false)
+            .await
+            .unwrap_err();
+        match err {
+            AppError::PermissionDenied(msg) => {
+                assert!(msg.starts_with("drums_not_available"), "{msg}")
+            }
+            other => panic!("expected PermissionDenied, got {other:?}"),
+        }
+        m.delete("u1", &rec.id).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn drum_gate_predicate_fails_closed_and_resolves_the_beta_scope() {
+        use cymbra_feature_flags::resolver::MockAdminScopeResolver;
+        use cymbra_feature_flags::store::MockFlagStore;
+        use cymbra_feature_flags::{
+            FlagService, FlagValue, NoopBus, Registry, RolloutScope, StoredOverride, ValueType,
+        };
+        // Unwired flag service ⇒ closed for everyone, staff included.
+        let (m, _c) = drum_module().await;
+        assert!(!m.caller_may_see_percussion("u1", true).await);
+
+        // Wired, with the drums flag ON under its `beta:midi-drums` rollout.
+        let overrides = vec![StoredOverride {
+            app: "music".into(),
+            key: "drums.enabled".into(),
+            value_type: ValueType::Bool,
+            value: FlagValue::Bool(true),
+            rollout: RolloutScope::Beta("midi-drums".into()),
+            sensitive: false,
+            updated_by: "test".into(),
+            updated_at: chrono::Utc::now(),
+        }];
+        let mut store = MockFlagStore::new();
+        store
+            .expect_load_all()
+            .returning(move || Ok(overrides.clone()));
+        let flags = FlagService::new(
+            Registry::default(),
+            Some(Arc::new(store)),
+            Arc::new(NoopBus),
+            Arc::new(MockAdminScopeResolver::new()),
+        );
+        flags.refresh().await.unwrap();
+        let flags = Arc::new(flags);
+
+        let (m, _c) = drum_module().await;
+        let m = m.with_flags(flags.clone());
+        // Staff match every beta scope (no plan seam needed).
+        assert!(m.caller_may_see_percussion("staff-1", true).await);
+        // A non-member non-staff caller does not.
+        assert!(!m.caller_may_see_percussion("u1", false).await);
+
+        // An active `midi-drums` member reaches it, whatever their plan.
+        let mut plans = cymbra_plans::ports::MockPlanSource::new();
+        plans.expect_snapshot().returning(|_| {
+            let mut snap = cymbra_plans::PlanSnapshot::free();
+            snap.betas.push(cymbra_plans::BetaInfo {
+                campaign_key: "midi-drums".into(),
+                campaign_name: "MIDI drums".into(),
+                kind: cymbra_plans::CampaignKind::Feature,
+                joined_at: chrono::Utc::now(),
+                ends_at: None,
+            });
+            Ok(snap)
+        });
+        let (m, _c) = drum_module().await;
+        let m = m.with_flags(flags).with_plans(Arc::new(plans));
+        assert!(m.caller_may_see_percussion("member-1", false).await);
     }
 }

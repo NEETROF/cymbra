@@ -20,10 +20,38 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:uuid/uuid.dart';
 
+import '../src/rust/api/audio.dart' as audio_api;
+import '../src/rust/api/audio.dart' show SoundFontFamilyEvidence;
 import '../state/piano_catalog.dart';
 import 'soundfont_storage.dart';
 
 part 'soundfont_importer.g.dart';
+
+/// Reads a local `.sf2`'s preset-bank family evidence — whether it holds
+/// bank-128 (kit) presets and/or melodic presets. `null` means the file could
+/// not be verified (unreadable / malformed), never a family.
+typedef SoundFontFamilyProbe =
+    Future<SoundFontFamilyEvidence?> Function(String sf2Path);
+
+/// Production probe over the engine helper (change: add-drum-audio-channel).
+/// Behind a provider so tests — which run on the Dart VM with no native
+/// library — inject a fake returning canned evidence.
+@riverpod
+SoundFontFamilyProbe soundFontFamilyProbe(Ref ref) =>
+    (sf2Path) => audio_api.soundfontFamilyEvidence(sf2Path: sf2Path);
+
+/// Maps preset-bank [evidence] onto the recorded family, per the spec's
+/// detection rule (change: add-drum-audio-channel): only bank-128 presets →
+/// `percussion`; **otherwise `keyboard`** — which deliberately covers a
+/// both-banks font (single-valued family, the keyboard half serves) and `null`
+/// evidence (cannot verify: local imports were always keyboard before this
+/// change, and the server re-verifies the declaration on sync anyway).
+SoundFamily familyFromEvidence(SoundFontFamilyEvidence? evidence) =>
+    evidence != null &&
+        evidence.hasPercussionPresets &&
+        !evidence.hasMelodicPresets
+    ? SoundFamily.percussion
+    : SoundFamily.keyboard;
 
 /// Thrown when the file the user picked is not a loadable SoundFont, so the
 /// import flow can reject it non-fatally (a message, no crash, catalog
@@ -119,11 +147,21 @@ class SoundFontImporterImpl implements SoundFontImporter {
     final dir = await _ref.read(soundFontStorageDirProvider.future);
     final dest = File('${dir.path}/$id.sf2');
     await dest.writeAsBytes(bytes, flush: true);
+    // Detect the family from the copied file's preset banks (change:
+    // add-drum-audio-channel) — never asked of the user. A probe failure is
+    // `null` evidence, which the mapper records as keyboard.
+    SoundFontFamilyEvidence? evidence;
+    try {
+      evidence = await _ref.read(soundFontFamilyProbeProvider)(dest.path);
+    } catch (_) {
+      evidence = null;
+    }
     return PianoEntry(
       id: id,
       label: label.trim().isEmpty ? id : label.trim(),
       kind: PianoKind.user,
       source: dest.path,
+      family: familyFromEvidence(evidence),
     );
   }
 

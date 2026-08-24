@@ -26,5 +26,9 @@ unicode-normalization = "0.1"
 # FFI engine and backend never enable it, so their builds are unchanged.
 serde = { version = "1", features = ["derive"], optional = true }
 
+[dev-dependencies]
+# The wasm JSON contract test (head_class wire names) under the serde feature.
+serde_json = "1"
+
 [features]
 serde = ["dep:serde"]

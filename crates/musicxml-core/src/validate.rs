@@ -41,7 +41,7 @@ pub enum RejectReason {
     Undecodable,
     /// The MusicXML could not be parsed.
     Unparseable,
-    /// Parsed, but contains no playable (pitched, non-rest) notes.
+    /// Parsed, but contains no playable (pitched or unpitched, non-rest) notes.
     NoNotes,
 }
 
@@ -74,7 +74,9 @@ impl std::error::Error for RejectReason {}
 /// Validates raw bytes (plain MusicXML or `.mxl`) as a playable score.
 ///
 /// Decodes an `.mxl` container when detected, parses the MusicXML, and confirms
-/// at least one pitched note is present. Never panics.
+/// at least one playable (pitched or unpitched) note is present — a percussion
+/// score is admitted (change: add-drums-access), a rest-only one is not.
+/// Never panics.
 pub fn validate(bytes: &[u8]) -> Result<ScoreSummary, RejectReason> {
     if bytes.len() > MAX_INPUT {
         return Err(RejectReason::TooLarge);
@@ -203,12 +205,26 @@ mod tests {
         );
     }
 
+    /// The gate deliberately opened by `add-drums-access`: unpitched notes
+    /// count as playable, so a percussion score is admitted — behind the
+    /// server-side drum-audience enforcement the same change delivers. (The
+    /// former tripwire from `add-unpitched-notation` asserted refusal; this is
+    /// the one change allowed to move it.) A rest-only score is still refused
+    /// with the same reason as before.
+    #[test]
+    fn percussion_score_passes_the_gate() {
+        let s = validate(crate::fixtures::ROCK_GROOVE.as_bytes()).unwrap();
+        assert_eq!(s.note_count, 13);
+        assert_eq!(s.instrument, crate::meta::InstrumentKind::Percussion);
+        assert_eq!(validate(RESTS_ONLY.as_bytes()), Err(RejectReason::NoNotes));
+    }
+
     #[test]
     fn summary_carries_derived_facets() {
         // The gate returns the shared summary — musical facets included.
         let s = validate(MINIMAL.as_bytes()).unwrap();
         assert_eq!(s.time_sig, "4/4");
         assert_eq!(s.key_fifths, 0);
-        assert!(!s.is_piano); // single staff
+        assert_eq!(s.instrument, crate::meta::InstrumentKind::Keyboard);
     }
 }

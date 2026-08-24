@@ -45,6 +45,52 @@ impl ScoreFacets {
     }
 }
 
+/// The score's instrument family, derived from the notation alone by the
+/// shared parser (change: add-drums-access — replaces the `is_piano`
+/// staff-count proxy). Stored as a snake_case string matching the table
+/// CHECK, like the other enum-like columns.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum Instrument {
+    Keyboard,
+    Percussion,
+    /// Mixed or undeterminable content — the honest value, never a family.
+    /// The drum gate withholds only `Percussion`; `Unknown` stays served.
+    #[default]
+    Unknown,
+}
+
+impl Instrument {
+    /// The stored column value (matches the table CHECK and the wire filter).
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Instrument::Keyboard => "keyboard",
+            Instrument::Percussion => "percussion",
+            Instrument::Unknown => "unknown",
+        }
+    }
+
+    /// Parse a stored or wire value; anything unrecognised reads as
+    /// [`Instrument::Unknown`] rather than failing — the column CHECK makes
+    /// that unreachable for stored rows, and an unknown wire value must not
+    /// widen a filter.
+    pub fn parse(s: &str) -> Self {
+        match s {
+            "keyboard" => Instrument::Keyboard,
+            "percussion" => Instrument::Percussion,
+            _ => Instrument::Unknown,
+        }
+    }
+
+    /// From the engine's derived classification.
+    pub fn from_core(k: cymbra_musicxml_core::InstrumentKind) -> Self {
+        match k {
+            cymbra_musicxml_core::InstrumentKind::Keyboard => Instrument::Keyboard,
+            cymbra_musicxml_core::InstrumentKind::Percussion => Instrument::Percussion,
+            cymbra_musicxml_core::InstrumentKind::Unknown => Instrument::Unknown,
+        }
+    }
+}
+
 /// The descriptive + facet metadata derived from a parsed score. The public
 /// catalog ([`CatalogEntry`]) and user uploads ([`crate::user_scores::UserScore`])
 /// carry the *same* block, so it lives here once instead of being repeated on both
@@ -60,7 +106,7 @@ pub struct ScoreMeta {
     pub key_fifths: i32,
     pub time_sig: String,
     pub measure_count: i32,
-    pub is_piano: bool,
+    pub instrument: Instrument,
     pub facets: ScoreFacets,
 }
 
@@ -185,7 +231,7 @@ mod tests {
                 key_fifths: 0,
                 time_sig: "4/4".into(),
                 measure_count: 1,
-                is_piano: true,
+                instrument: Instrument::Keyboard,
                 facets: ScoreFacets::default(),
             },
         }

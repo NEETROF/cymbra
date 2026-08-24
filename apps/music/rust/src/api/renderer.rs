@@ -31,7 +31,7 @@ use flutter_rust_bridge::frb;
 use rustysynth::{SoundFont, Synthesizer, SynthesizerSettings};
 use std::sync::Arc;
 
-use super::audio_core::{AudioEvent, ClickVoice, ClipVoice, PIANO_CHANNEL, VoiceTracker};
+use super::audio_core::{AudioEvent, ClickVoice, ClipVoice, VoiceTracker};
 use super::platform_log;
 
 /// A command handed to the mixer. Mirrors what the FFI entry points push.
@@ -40,7 +40,10 @@ pub(crate) enum RenderCommand {
     /// A note/all-off/click control event.
     Control(AudioEvent),
     /// Replace the active synthesizer, silencing every voice across the swap.
-    ReplaceSynth(Arc<SoundFont>),
+    /// The optional ack resolves the awaitable swap (change:
+    /// add-drum-audio-channel): `true` once the incoming font is installed,
+    /// `false` when the build failed and the previous font was kept.
+    ReplaceSynth(Arc<SoundFont>, Option<std::sync::mpsc::Sender<bool>>),
     /// Start (or replace) a looping preview clip mixed on top of the synth.
     PlayClip { pcm: Vec<i16>, sample_rate: u32 },
     /// Stop any preview clip currently playing.
@@ -96,14 +99,18 @@ impl Renderer {
     fn apply(&mut self, command: RenderCommand) {
         match command {
             RenderCommand::Control(event) => match event {
-                AudioEvent::NoteOn { pitch, velocity } => {
+                AudioEvent::NoteOn {
+                    channel,
+                    pitch,
+                    velocity,
+                } => {
                     self.tracker.apply(event);
                     self.synth
-                        .note_on(PIANO_CHANNEL, pitch as i32, velocity as i32);
+                        .note_on(channel.index(), pitch as i32, velocity as i32);
                 }
                 AudioEvent::NoteOff { .. } => {
-                    for pitch in self.tracker.apply(event) {
-                        self.synth.note_off(PIANO_CHANNEL, pitch as i32);
+                    for (channel, pitch) in self.tracker.apply(event) {
+                        self.synth.note_off(channel.index(), pitch as i32);
                     }
                 }
                 AudioEvent::AllOff => {
@@ -117,16 +124,26 @@ impl Renderer {
             // Silence every voice across the swap (the tracker mirror and the
             // outgoing synth), then install the new instrument. A failed build
             // keeps the current one so audio never drops out.
-            RenderCommand::ReplaceSynth(sound_font) => {
+            RenderCommand::ReplaceSynth(sound_font, ack) => {
                 self.tracker.clear_for_swap();
                 self.synth.note_off_all(true);
                 let settings = SynthesizerSettings::new(self.sample_rate);
                 match Synthesizer::new(&sound_font, &settings) {
-                    Ok(next) => self.synth = next,
-                    Err(e) => platform_log::log_line(
-                        "cymbra-audio",
-                        &format!("swap synth build failed, keeping current: {e}"),
-                    ),
+                    Ok(next) => {
+                        self.synth = next;
+                        if let Some(ack) = &ack {
+                            let _ = ack.send(true);
+                        }
+                    }
+                    Err(e) => {
+                        if let Some(ack) = &ack {
+                            let _ = ack.send(false);
+                        }
+                        platform_log::log_line(
+                            "cymbra-audio",
+                            &format!("swap synth build failed, keeping current: {e}"),
+                        )
+                    }
                 }
             }
             RenderCommand::PlayClip { pcm, sample_rate } => {

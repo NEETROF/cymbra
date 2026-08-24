@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Code, ConnectError } from "@connectrpc/connect";
-import { humanError } from "@/lib/errors";
+import { humanError, ScorePreviewError } from "@/lib/errors";
 import { WebAuthError } from "@/lib/web-auth";
 import { i18n } from "@/i18n";
 
@@ -20,6 +20,26 @@ describe("humanError", () => {
     expect(humanError(new ConnectError("x", Code.PermissionDenied))).toBe(t("errors.permissionDenied"));
     expect(humanError(new ConnectError("x", Code.NotFound))).toBe(t("errors.notFound"));
     expect(humanError(new ConnectError("x", Code.Unavailable))).toBe(t("errors.unavailable"));
+  });
+
+  it("a score preview refusal says WHICH font is missing — the only actionable part", () => {
+    // The defect: a percussion piece whose kit font is unconfigured answered
+    // 412 with the exact reason, and the console showed "something went wrong",
+    // so the one thing an admin could fix was the one thing hidden.
+    const drums = humanError(
+      new ScorePreviewError(412, "catalog.preview.drum_soundfont_id is unset (percussion previews dormant)"),
+    );
+    expect(drums).toBe(t("errors.previewDrumFontMissing"));
+    expect(drums).not.toBe(t("errors.generic"));
+    // …and still never the raw body.
+    expect(drums).not.toContain("dormant");
+
+    expect(humanError(new ScorePreviewError(412, "catalog.preview.soundfont_id is unset"))).toBe(
+      t("errors.previewFontMissing"),
+    );
+    expect(humanError(new ScorePreviewError(412, "preview font kit not found"))).toBe(t("errors.previewFontUnusable"));
+    expect(humanError(new ScorePreviewError(422, "the piece sounds nothing"))).toBe(t("errors.previewSilent"));
+    expect(humanError(new ScorePreviewError(403, "x"))).toBe(t("errors.permissionDenied"));
   });
 
   it("falls back to the generic message for non-Connect errors", () => {

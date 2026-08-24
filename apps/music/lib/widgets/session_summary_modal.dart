@@ -130,11 +130,17 @@ class _SummaryDialog extends StatelessWidget {
                         result.correctness,
                         CymbraColors.tertiary,
                       ),
-                      _dimensionBar(
-                        l10n.summarySustain,
-                        result.sustain,
-                        CymbraColors.handLeft,
-                      ),
+                      // The sustain row is **absent** for a percussion run,
+                      // not rendered empty or at zero (change:
+                      // add-drum-scoring): a stroke has no sustain dimension,
+                      // so an empty bar would report a failure that never
+                      // happened. Two dimensions is the honest breakdown.
+                      if (result.sustain case final sustain?)
+                        _dimensionBar(
+                          l10n.summarySustain,
+                          sustain,
+                          CymbraColors.handLeft,
+                        ),
                       const SizedBox(height: 12),
                       _verdictRow(l10n),
                       // Post-session standing on this piece for the run's mode(s),

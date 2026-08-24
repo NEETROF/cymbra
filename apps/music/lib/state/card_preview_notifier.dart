@@ -40,6 +40,7 @@ class CardPreviewScore {
     required this.beatType,
     required this.measureStartMs,
     required this.startMs,
+    this.isPercussion = false,
   });
 
   final List<TimedNote> notes;
@@ -57,6 +58,11 @@ class CardPreviewScore {
 
   /// Playhead start (leading silence trimmed) — the preview loops back here.
   final double startMs;
+
+  /// Whether the previewed score is percussion (change:
+  /// add-drum-audio-channel): the card sounds it on the drum channel with a
+  /// kit font, never as piano pitches.
+  final bool isPercussion;
 
   bool get isEmpty => notes.isEmpty;
 }
@@ -87,5 +93,6 @@ Future<CardPreviewScore> cardPreviewScore(Ref ref, String catalogId) async {
     beatType: document.attributes.time.beatType,
     measureStartMs: derived.measureStartMs,
     startMs: effectiveStartMs(derived.notes),
+    isPercussion: derived.isPercussion,
   );
 }

@@ -15,6 +15,8 @@
 import 'package:flutter/material.dart';
 
 import '../src/rust/api/musicxml.dart';
+import '../state/drum_kit.dart' show isFootEvent;
+import '../state/notation_playback.dart' show clefSignLetter;
 import '../state/player_data.dart' show Hand;
 import '../theme/cymbra_theme.dart';
 import 'notation_palette.dart';
@@ -178,6 +180,63 @@ class PartitionPainter extends CustomPainter {
     (m) => m.notes.any((n) => n.lyric != null),
   );
 
+  /// The clef a staff carries when the score declares none: a percussion part
+  /// is always on the percussion clef, a second staff on F, the first on G.
+  Clef _defaultClefFor(int staff) {
+    if (_isPercussion) {
+      return const Clef(staff: 1, sign: ClefSign.percussion, line: 2);
+    }
+    if (staff >= 2) return const Clef(staff: 2, sign: ClefSign.f, line: 4);
+    return const Clef(staff: 1, sign: ClefSign.g, line: 2);
+  }
+
+  /// Vertical nudge of a rest on a two-voice percussion staff: the feet's
+  /// rests sit below the middle line, the hands' above, so the two voices stay
+  /// readable apart. Zero everywhere else.
+  double _percRestOffset(bool percTwoVoice, int voice) {
+    if (!percTwoVoice) return 0;
+    return voice >= 2 ? _s : -_s;
+  }
+
+  /// The head colour of a note the playhead sits on: the success colour while
+  /// it is actually held, the hand's own colour lifted toward the emphasis
+  /// tint otherwise.
+  Color _playheadHeadColor(int soundId, Color handColor) =>
+      activeNotes.contains(soundId)
+      ? palette.correct
+      : Color.lerp(handColor, palette.emphasisTint, 0.55)!;
+
+  /// Stem direction: the score's own when it declares one; otherwise the voice
+  /// on a percussion staff (hands up, feet down) and the head's side of the
+  /// middle line anywhere else.
+  bool _stemUp(NoteEvent note, double y, double midY) {
+    if (note.stem != null) return note.stem == StemDir.up;
+    return _isPercussion ? note.voice < 2 : y >= midY;
+  }
+
+  /// Whether the document is a percussion score — every non-rest note
+  /// unpitched, and at least one (change: add-drum-notation-render). Mirrors
+  /// the crate's classification, so the painter routes to the percussion
+  /// engraving rules exactly when the schedule and the player do.
+  late final bool _isPercussion =
+      document.measures.any((m) => m.notes.any((n) => n.unpitched != null)) &&
+      !document.measures.any((m) => m.notes.any((n) => n.pitch != null));
+
+  /// Whether the percussion part spans more than one voice — the hands/feet
+  /// split then keys on the voice; a single-voice export falls back to the
+  /// General MIDI numbers (see `isFootEvent`).
+  late final bool _percMultiVoice = () {
+    int? seen;
+    for (final m in document.measures) {
+      for (final n in m.notes) {
+        if (n.isRest) continue;
+        seen ??= n.voice;
+        if (n.voice != seen) return true;
+      }
+    }
+    return false;
+  }();
+
   static const Map<String, int> _stepOrder = {
     'C': 0,
     'D': 1,
@@ -192,19 +251,49 @@ class PartitionPainter extends CustomPainter {
 
   /// Whether [staff]'s glyphs are drawn for the current [selectedHands]
   /// (staff 1 = right hand, staff 2+ = left hand) — the visibility predicate.
-  bool _showsStaff(int staff) => switch (selectedHands) {
-    Hand.both => true,
-    Hand.right => staff == 1,
-    Hand.left => staff >= 2,
-  };
+  ///
+  /// The staff-collapse rule is **scoped to keyboard scores**: a percussion
+  /// part has exactly one staff, so its lines, clef and time signature are
+  /// always drawn and the hand filter hides **events** instead (see
+  /// [_showsPercussionEvent]) — collapsing "the unselected hand's staff"
+  /// would erase the only staff there is.
+  bool _showsStaff(int staff) =>
+      _isPercussion ||
+      switch (selectedHands) {
+        Hand.both => true,
+        Hand.right => staff == 1,
+        Hand.left => staff >= 2,
+      };
+
+  /// Whether the hand filter shows this percussion event (change:
+  /// add-drum-notation-render): notes split hands/feet by the voice
+  /// convention with the single-voice GM fallback; a multi-voice part's rests
+  /// follow their voice, while a single-voice part's rests belong to the
+  /// shared groove and stay visible either way.
+  bool _showsPercussionEvent(NoteEvent note) {
+    if (selectedHands == Hand.both) return true;
+    if (note.isRest) {
+      return !_percMultiVoice ||
+          (selectedHands == Hand.right ? note.voice < 2 : note.voice >= 2);
+    }
+    final foot = isFootEvent(
+      voice: note.voice,
+      gmNumber: note.unpitched?.gmNumber,
+      multiVoice: _percMultiVoice,
+    );
+    return selectedHands == Hand.right ? !foot : foot;
+  }
 
   /// A grand staff is drawn only when both hands are shown; selecting a single
-  /// hand collapses the other staff and lays out one staff per system.
-  bool get _twoStaff => document.staves >= 2 && selectedHands == Hand.both;
+  /// hand collapses the other staff and lays out one staff per system. A
+  /// percussion score always lays out its single staff.
+  bool get _twoStaff =>
+      !_isPercussion && document.staves >= 2 && selectedHands == Hand.both;
 
   /// The kept staff when a single hand is shown — its clef/armature/time sit on
-  /// the lone staff (bass for the left hand, treble otherwise).
-  int get _soloStaff => selectedHands == Hand.left ? 2 : 1;
+  /// the lone staff (bass for the left hand, treble otherwise; always the one
+  /// percussion staff on a drum part).
+  int get _soloStaff => !_isPercussion && selectedHands == Hand.left ? 2 : 1;
 
   double get _systemHeight =>
       _topPad +
@@ -317,9 +406,9 @@ class PartitionPainter extends CustomPainter {
 
   Clef _clefFor(Map<int, Clef> clefs, int staff) =>
       clefs[staff] ??
-      (staff >= 2
-          ? const Clef(staff: 2, sign: 'F', line: 4)
-          : const Clef(staff: 1, sign: 'G', line: 2));
+      // A clef-less percussion export still gets the percussion clef — the
+      // treble default below would silently draw a G clef on a drum staff.
+      _defaultClefFor(staff);
 
   void _paintSystem(
     Canvas canvas,
@@ -391,7 +480,12 @@ class PartitionPainter extends CustomPainter {
         ? document.measures[firstIdx - 1].keyFifths
         : null;
     final headerKeyChanged = prevKey != null && prevKey != systemKey;
-    double drawHeaderKey(double staffBottom, bool bass) => headerKeyChanged
+    // No armature on a percussion staff — nor key-change naturals (change:
+    // add-drum-notation-render): a declared `fifths` is an exporter leftover,
+    // and engraving sharps or flats on a drum staff is wrong music.
+    double drawHeaderKey(double staffBottom, bool bass) => _isPercussion
+        ? 0.0
+        : headerKeyChanged
         ? Smufl.drawKeyChange(
             canvas,
             hx,
@@ -695,11 +789,23 @@ class PartitionPainter extends CustomPainter {
     double staffBottom,
     double size,
   ) {
-    final baselineY = staffBottom - (clef.line - 1) * size;
-    Smufl.draw(canvas, Smufl.clef(clef.sign), x, baselineY, size, _ink);
+    // G/F/C clefs sit on their declared `line`; the percussion clef is centred
+    // on the middle line whatever line the file declares (its SMuFL origin is
+    // the glyph's vertical centre).
+    final baselineY = clef.sign == ClefSign.percussion
+        ? staffBottom - 2 * size
+        : staffBottom - (clef.line - 1) * size;
+    Smufl.draw(
+      canvas,
+      Smufl.clef(clefSignLetter(clef.sign)),
+      x,
+      baselineY,
+      size,
+      _ink,
+    );
     _record(
       Rect.fromLTWH(x - 2, staffBottom - 4 * size - size, size * 3.2, size * 6),
-      SymbolDescriptor.clef(sign: clef.sign),
+      SymbolDescriptor.clef(sign: clefSignLetter(clef.sign)),
     );
   }
 
@@ -749,7 +855,10 @@ class PartitionPainter extends CustomPainter {
 
     // A mid-system key change (modulation): cancelling naturals + the new
     // signature, after any clef change, reserving space before the first note.
+    // Never on a percussion staff — no armature means no key-change naturals
+    // either, even when the file declares a `fifths` change.
     final keyChanged =
+        !_isPercussion &&
         !isSystemFirst &&
         previousKeyFifths != null &&
         measure.keyFifths != previousKeyFifths;
@@ -838,9 +947,20 @@ class PartitionPainter extends CustomPainter {
     final beamGroups = <String, List<_Note>>{};
     final openTuplets = <String, _TupletAcc>{};
 
+    // Percussion (change: add-drum-notation-render): whether this measure
+    // engraves both voices — the per-voice rest displacement applies only
+    // then — and the head columns already engraved, for the shared-onset
+    // offsetting rule.
+    final percTwoVoice =
+        _isPercussion && {for (final n in measure.notes) n.voice}.length > 1;
+    final drawnHeads = <(num, int)>{};
+
     for (final note in measure.notes) {
       // Collapse the unselected hand: skip every glyph on a hidden staff.
       if (!_showsStaff(note.staff)) continue;
+      // A percussion score never collapses its lone staff — the hand filter
+      // hides events by the hands/feet voice convention instead.
+      if (_isPercussion && !_showsPercussionEvent(note)) continue;
       final isBass = note.staff >= 2 && _twoStaff;
       final staffBottom = isBass ? bassBottom : trebleBottom;
       // A grace note shares its principal's position (it occupies no musical
@@ -851,18 +971,15 @@ class PartitionPainter extends CustomPainter {
       if (note.isGrace) x -= Smufl.noteheadWidth * _s * 1.4;
 
       if (note.isRest) {
-        Smufl.draw(
-          canvas,
-          _restGlyph(note),
-          x,
-          staffBottom - 2 * _s,
-          _s,
-          _ink,
-          centerX: true,
-        );
+        // In a two-voice percussion measure a rest is displaced by voice —
+        // voice 1 above the middle line, voice 2 below — clear of the other
+        // voice's material; single-voice measures keep the midline.
+        final restY =
+            staffBottom - 2 * _s + _percRestOffset(percTwoVoice, note.voice);
+        Smufl.draw(canvas, _restGlyph(note), x, restY, _s, _ink, centerX: true);
         _record(
           Rect.fromCenter(
-            center: Offset(x, staffBottom - 2.5 * _s),
+            center: Offset(x, restY - 0.5 * _s),
             width: _s * 1.6,
             height: _s * 2.4,
           ),
@@ -871,10 +988,25 @@ class PartitionPainter extends CustomPainter {
         continue;
       }
       final pitch = note.pitch;
-      if (pitch == null) continue;
+      final unpitched = note.unpitched;
+      if (pitch == null && unpitched == null) continue;
 
       final clef = _clefFor(clefs, note.staff);
-      final y = _yForPitch(pitch, staffBottom, clef);
+      // An unpitched note is placed by its WRITTEN position — display step and
+      // octave under the treble mapping — never by the General MIDI number
+      // (a sound identity, not a position); a note whose number is unresolved
+      // still engraves at its written position.
+      final diatonic = pitch != null
+          ? pitch.octave * 7 + (_stepOrder[pitch.step] ?? 0)
+          : unpitched!.displayOctave * 7 +
+                (_stepOrder[unpitched.displayStep] ?? 0);
+      final y = staffBottom - (diatonic - _clefBottomDiatonic(clef)) * (_s / 2);
+      // Shared onsets: when two voices strike the same instant on the same
+      // staff position, the second head steps right so neither is hidden.
+      if (_isPercussion &&
+          !drawnHeads.add((note.positionDivisions, diatonic))) {
+        x += Smufl.noteheadWidth * _s * 1.1;
+      }
       _drawLedgerLines(canvas, x, y, staffBottom);
       // Ledger lines are drawn when the head sits off the staff; record the gap
       // so a press on one is explained rather than swallowed.
@@ -891,18 +1023,29 @@ class PartitionPainter extends CustomPainter {
         );
       }
 
-      // Note heads are coloured by hand (right = blue, left = amber). The note
-      // at the playhead is emphasised: green once its pitch is held ("correct"),
+      // Note heads are coloured by hand (right = blue, left = amber); on a
+      // percussion score by hands/feet — split by the voice convention with
+      // the single-voice GM fallback (`hand-color-coding`) — so a kick at F4
+      // carries the same amber its bar carries in the cascade. The note at
+      // the playhead is emphasised: green once its pitch is held ("correct"),
       // otherwise a brighter tint of its hand colour.
-      final handColor = note.staff >= 2 ? palette.handLeft : palette.handRight;
+      final isLeft = _isPercussion
+          ? isFootEvent(
+              voice: note.voice,
+              gmNumber: unpitched?.gmNumber,
+              multiVoice: _percMultiVoice,
+            )
+          : note.staff >= 2;
+      final handColor = isLeft ? palette.handLeft : palette.handRight;
+      final soundId = pitch != null
+          ? _midiOf(pitch)
+          : (unpitched!.gmNumber ?? -1);
       final isAtPlayhead =
           cursorDiv != null &&
           note.positionDivisions <= cursorDiv &&
           cursorDiv < note.positionDivisions + note.durationDivisions;
       final headColor = isAtPlayhead
-          ? (activeNotes.contains(_midiOf(pitch))
-                ? palette.correct
-                : Color.lerp(handColor, palette.emphasisTint, 0.55)!)
+          ? _playheadHeadColor(soundId, handColor)
           : handColor;
 
       // Note head, centred on x.
@@ -915,6 +1058,19 @@ class PartitionPainter extends CustomPainter {
         _s * glyphScale,
         headColor,
       );
+      // The conventional open mark on an open hi-hat stroke (GM 46, the
+      // bridged xOpen class): a small circle above the x head, keeping the
+      // open/closed distinction readable as it is in the cascade.
+      if (unpitched?.headClass == HeadClass.xOpen) {
+        canvas.drawCircle(
+          Offset(x, y - _s * 1.6),
+          _s * 0.32,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = Smufl.stemThickness * _s * 1.4
+            ..color = headColor,
+        );
+      }
       _record(
         Rect.fromCenter(
           center: Offset(x, y),
@@ -922,9 +1078,9 @@ class PartitionPainter extends CustomPainter {
           height: _s * 1.7,
         ),
         SymbolDescriptor.note(
-          pitch: _midiOf(pitch),
-          diatonic: pitch.octave * 7 + (_stepOrder[pitch.step] ?? 0),
-          clefSign: clef.sign,
+          pitch: soundId,
+          diatonic: diatonic,
+          clefSign: clefSignLetter(clef.sign),
           staff: note.staff,
           noteType: note.noteType,
           dots: note.dots,
@@ -961,10 +1117,13 @@ class PartitionPainter extends CustomPainter {
       }
 
       // Ties (same-pitch) and slurs (phrase), connecting to a stored start.
+      // An unpitched tie keys on the resolved sound + written position — the
+      // distinct key space keeps it from ever pairing with a pitched chain.
       final headR = Smufl.noteheadWidth * _s / 2;
-      final tieKey =
-          '${note.staff}_${note.voice}_${pitch.step}'
-          '${pitch.octave}_${pitch.alter}';
+      final tieKey = pitch != null
+          ? '${note.staff}_${note.voice}_${pitch.step}'
+                '${pitch.octave}_${pitch.alter}'
+          : '${note.staff}_${note.voice}_u${unpitched!.gmNumber}_$diatonic';
       if (note.tieStop) {
         final start = arcs.takeTie(tieKey);
         if (start != null) _drawTie(canvas, start, Offset(x - headR, y));
@@ -980,9 +1139,15 @@ class PartitionPainter extends CustomPainter {
       if (note.slurStart) arcs.pushSlur(slurKey, Offset(x, y));
 
       // Stem + beam grouping (chord members share the principal note's stem).
-      if (_headGlyph(note) != Smufl.noteheadWhole && !note.isChord) {
+      // Whole-figure heads (oval or x form) carry no stem. Stems follow the
+      // file's explicit <stem> first; a bare percussion note defaults to the
+      // voice convention — voice 1 (hands) up, voice 2 (feet) down.
+      final headGlyph = _headGlyph(note);
+      if (headGlyph != Smufl.noteheadWhole &&
+          headGlyph != Smufl.noteheadXWhole &&
+          !note.isChord) {
         final midY = staffBottom - 2 * _s;
-        final up = note.stem != null ? note.stem == StemDir.up : y >= midY;
+        final up = _stemUp(note, y, midY);
         final n = _Note(x, y, up, note, glyphScale);
         if (note.beams.isEmpty) {
           _drawStemAndFlag(canvas, n);
@@ -1131,18 +1296,16 @@ class PartitionPainter extends CustomPainter {
     );
   }
 
-  /// Y of a pitch's note head for the clef in effect on its staff.
-  double _yForPitch(Pitch pitch, double bottomLineY, Clef clef) {
-    final diatonic = pitch.octave * 7 + (_stepOrder[pitch.step] ?? 0);
-    return bottomLineY - (diatonic - _clefBottomDiatonic(clef)) * (_s / 2);
-  }
-
   /// Diatonic value of a clef's bottom staff line. The clef sign sits on its
   /// `line` (G→G4, F→F3, C→C4); each staff line is two diatonic steps apart.
+  /// The percussion staff maps written positions exactly as a treble
+  /// (G, line 2) staff — the MusicXML convention for unpitched display
+  /// placement — regardless of the file's declared clef line.
   int _clefBottomDiatonic(Clef clef) {
+    if (clef.sign == ClefSign.percussion) return 4 * 7 + 2; // E4, as treble
     final refOnLine = switch (clef.sign) {
-      'F' => 3 * 7 + 3, // F3
-      'C' => 4 * 7 + 0, // C4
+      ClefSign.f => 3 * 7 + 3, // F3
+      ClefSign.c => 4 * 7 + 0, // C4
       _ => 4 * 7 + 4, // G4
     };
     return refOnLine - (clef.line - 1) * 2;
@@ -1268,6 +1431,22 @@ class PartitionPainter extends CustomPainter {
 
   String _headGlyph(NoteEvent note) {
     final div = document.attributes.divisions;
+    // A cymbal (the bridged x / xOpen head class, derived once in the shared
+    // crate — never re-derived from GM ranges here) takes the x form
+    // following the same duration class as ordinary heads: filled x for
+    // quarter and shorter, the open x forms for half and whole.
+    final headClass = note.unpitched?.headClass;
+    if (headClass == HeadClass.x || headClass == HeadClass.xOpen) {
+      if (note.noteType == 'whole' ||
+          (note.noteType == null && note.durationDivisions >= 4 * div)) {
+        return Smufl.noteheadXWhole;
+      }
+      if (note.noteType == 'half' ||
+          (note.noteType == null && note.durationDivisions >= 2 * div)) {
+        return Smufl.noteheadXHalf;
+      }
+      return Smufl.noteheadXBlack;
+    }
     switch (note.noteType) {
       case 'whole':
         return Smufl.noteheadWhole;

@@ -34,7 +34,19 @@ const visibleRows = computed(() =>
 );
 
 const acting = computed(() => store.op.status === "loading");
-const opError = computed(() => (store.op.status === "error" ? store.op.error : null));
+// Fold the write outcome's error union into the drawer's message. The two
+// campaign-integrity refusals read differently on purpose (change:
+// add-flag-campaign-integrity): a scope naming no campaign says fix the scope,
+// an unverifiable check says retry later — never that the campaign is missing.
+const opError = computed(() =>
+  store.op.status === "error"
+    ? match(store.op.error)
+        .with({ kind: "unknownCampaign" }, () => t("flags.scopeNoCampaign"))
+        .with({ kind: "campaignUnverifiable" }, () => t("flags.scopeUnverifiable"))
+        .with({ kind: "other" }, ({ message }) => message)
+        .exhaustive()
+    : null,
+);
 
 const desc = (r: FlagRow) => flagDescription(r.key, r.doc, locale.value);
 // Plan-/beta-scoped rollouts are marked in the row so an operator sees at a glance

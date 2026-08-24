@@ -90,6 +90,11 @@ impl cymbra_music::ScorePreviewConfigSource for WorkerScorePreviewConfig {
                 &defaults.soundfont_id,
                 &ctx,
             ),
+            drum_soundfont_id: self.flags.string(
+                registry::CATALOG_PREVIEW_DRUM_SOUNDFONT_ID,
+                &defaults.drum_soundfont_id,
+                &ctx,
+            ),
         }
     }
 }

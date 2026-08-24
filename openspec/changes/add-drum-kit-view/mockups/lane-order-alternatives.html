@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Cymbra — ordre des lanes</title>
+<style>
+  :root{--bg:#060E20;--surf:#131B2E;--ink:#DAE2FD;--hands:#7FB2FF;--feet:#FFB454;
+    --accent:#44E2CD;--ok:#4EDEA3;--primary:#D2BBFF;--muted:#8A93AD;--snare:#7FB2FF;--hat:#D2BBFF}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.55 -apple-system,BlinkMacSystemFont,"SF Pro Text",Inter,system-ui,sans-serif;padding:36px 28px 80px}
+  h1{font-size:24px;font-weight:650;letter-spacing:-.02em;margin:0 0 4px}
+  .sub{color:var(--muted);margin:0 0 30px;font-size:13.5px;max-width:940px}
+  h2{font-size:16px;font-weight:600;margin:0 0 3px}
+  .cap{color:var(--muted);font-size:12.5px;margin:0 0 14px}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:24px;max-width:1180px}
+  .three{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:1180px;margin-top:8px}
+  @media(max-width:1000px){.two,.three{grid-template-columns:1fr}}
+  .card{background:var(--surf);border:1px solid #26314f;border-radius:12px;overflow:hidden}
+  .bad{border-color:#5a3340}.good{border-color:#2c5c4a}
+  .tag{font-size:10.5px;font-weight:700;letter-spacing:.05em;padding:3px 9px;border-radius:20px;display:inline-block;margin-bottom:8px}
+  .tag.b{background:#4a2733;color:#ff9db0}.tag.g{background:#1d4c3c;color:#6ff0b6}
+  .note{background:#0d1526;border-left:3px solid var(--accent);padding:12px 16px;
+    border-radius:0 8px 8px 0;margin:24px 0 8px;font-size:13.5px;color:#b9c4e0;max-width:1180px}
+  .note b{color:var(--accent);font-weight:600}
+  .warn{border-left-color:#FFB454}.warn b{color:#FFB454}
+  svg{display:block;width:100%;height:auto}
+  section{margin-bottom:40px}
+  ol{font-size:14px;color:#cfd8ee;max-width:900px;padding-left:22px}
+  ol li{margin-bottom:6px}
+  code{background:#1b2540;padding:1px 5px;border-radius:4px;font-size:12.5px}
+</style>
+</head>
+<body>
+
+<div style="background:#7a1f1f;color:#fff;border:3px solid #ffb454;border-radius:8px;padding:14px 18px;margin:0 0 20px;font-weight:700;font-size:15px;line-height:1.5">
+SUPERSEDED — the settled reference is <code style="color:#ffd9a0">cascade.html</code> and the delta spec; this file records an earlier iteration (the snare-first order shown here as the winner was later revised to hi-hat-first, and the settled rule ends with a terminal bucket for auxiliary percussion).
+</div>
+
+<h1>Ordre des lanes — pourquoi le tien gagne</h1>
+<p class="sub">Même groove, mêmes pièces, seul l'ordre des colonnes change. La caisse claire et le charley portent à eux deux l'écrasante majorité des notes d'un groove : la question est de savoir s'ils sont <b>voisins</b> ou <b>séparés</b>.</p>
+
+<section>
+<div class="two">
+
+  <div class="card bad">
+    <div style="padding:16px 18px 0">
+      <span class="tag b">MON ORDRE — par hauteur, grave → aigu</span>
+      <h2>Tom basse · Caisse claire · Tom · Charley · Crash</h2>
+      <p class="cap">Logique de notation. Les deux lanes denses sont séparées par un tom.</p>
+    </div>
+    <svg viewBox="0 0 560 400">
+      <rect width="560" height="400" fill="#0d1526"/>
+      <g>
+        <rect x="20"  y="10" width="104" height="300" fill="#fff" opacity=".03"/>
+        <rect x="130" y="10" width="104" height="300" fill="#fff" opacity=".055"/>
+        <rect x="240" y="10" width="104" height="300" fill="#fff" opacity=".03"/>
+        <rect x="350" y="10" width="104" height="300" fill="#fff" opacity=".055"/>
+        <rect x="460" y="10" width="80"  height="300" fill="#fff" opacity=".03"/>
+      </g>
+      <!-- caisse claire lane 2 -->
+      <g fill="#7FB2FF">
+        <rect x="136" y="240" width="92" height="17" rx="5" opacity=".95"/>
+        <rect x="136" y="120" width="92" height="17" rx="5" opacity=".7"/>
+      </g>
+      <!-- charley lane 4 -->
+      <g fill="#D2BBFF">
+        <rect x="356" y="284" width="92" height="12" rx="5"/>
+        <rect x="356" y="244" width="92" height="12" rx="5" opacity=".92"/>
+        <rect x="356" y="204" width="92" height="12" rx="5" opacity=".84"/>
+        <rect x="356" y="164" width="92" height="12" rx="5" opacity=".76"/>
+        <rect x="356" y="124" width="92" height="12" rx="5" opacity=".66"/>
+        <rect x="356" y="84"  width="92" height="12" rx="5" opacity=".56"/>
+        <rect x="356" y="44"  width="92" height="12" rx="5" opacity=".46"/>
+      </g>
+      <!-- GC barre -->
+      <g fill="#FFB454">
+        <rect x="20" y="284" width="520" height="12" rx="4"/>
+        <rect x="20" y="164" width="520" height="12" rx="4" opacity=".75"/>
+        <rect x="20" y="44"  width="520" height="12" rx="4" opacity=".5"/>
+      </g>
+      <rect x="20" y="306" width="520" height="3" fill="#44E2CD"/>
+
+      <!-- zone de balayage oculaire -->
+      <rect x="130" y="26" width="324" height="272" fill="#ff8fa3" opacity=".07" rx="6"/>
+      <rect x="130" y="26" width="324" height="272" fill="none" stroke="#ff8fa3" stroke-width="1.3" stroke-dasharray="6 5" rx="6"/>
+      <rect x="228" y="14" width="128" height="20" rx="5" fill="#4a2733"/>
+      <text x="292" y="28" fill="#ff9db0" font-size="10.5" text-anchor="middle" font-weight="600">balayage : 324 px</text>
+
+      <g fill="#8A93AD" font-size="9.5" text-anchor="middle">
+        <text x="72"  y="330">Tom</text><text x="72" y="342">basse</text>
+        <text x="182" y="330">Caisse</text><text x="182" y="342">claire</text>
+        <text x="292" y="330">Tom</text>
+        <text x="402" y="330">Charley</text>
+        <text x="500" y="330">Crash</text>
+      </g>
+      <text x="280" y="372" fill="#ff9db0" font-size="11.5" text-anchor="middle">Les deux lanes les plus chargées sont aux</text>
+      <text x="280" y="388" fill="#ff9db0" font-size="11.5" text-anchor="middle">extrémités. Un tom quasi vide les sépare.</text>
+    </svg>
+  </div>
+
+  <div class="card good">
+    <div style="padding:16px 18px 0">
+      <span class="tag g">TON ORDRE — par densité d'usage</span>
+      <h2>Caisse claire · Charley · Tom · Tom basse · Crash</h2>
+      <p class="cap">Logique de jeu. Les deux lanes denses sont collées, à gauche.</p>
+    </div>
+    <svg viewBox="0 0 560 400">
+      <rect width="560" height="400" fill="#0d1526"/>
+      <g>
+        <rect x="20"  y="10" width="104" height="300" fill="#fff" opacity=".055"/>
+        <rect x="130" y="10" width="104" height="300" fill="#fff" opacity=".03"/>
+        <rect x="240" y="10" width="104" height="300" fill="#fff" opacity=".055"/>
+        <rect x="350" y="10" width="104" height="300" fill="#fff" opacity=".03"/>
+        <rect x="460" y="10" width="80"  height="300" fill="#fff" opacity=".055"/>
+      </g>
+      <!-- caisse claire lane 1 -->
+      <g fill="#7FB2FF">
+        <rect x="26" y="240" width="92" height="17" rx="5" opacity=".95"/>
+        <rect x="26" y="120" width="92" height="17" rx="5" opacity=".7"/>
+      </g>
+      <!-- charley lane 2 -->
+      <g fill="#D2BBFF">
+        <rect x="136" y="284" width="92" height="12" rx="5"/>
+        <rect x="136" y="244" width="92" height="12" rx="5" opacity=".92"/>
+        <rect x="136" y="204" width="92" height="12" rx="5" opacity=".84"/>
+        <rect x="136" y="164" width="92" height="12" rx="5" opacity=".76"/>
+        <rect x="136" y="124" width="92" height="12" rx="5" opacity=".66"/>
+        <rect x="136" y="84"  width="92" height="12" rx="5" opacity=".56"/>
+        <rect x="136" y="44"  width="92" height="12" rx="5" opacity=".46"/>
+      </g>
+      <g fill="#FFB454">
+        <rect x="20" y="284" width="520" height="12" rx="4"/>
+        <rect x="20" y="164" width="520" height="12" rx="4" opacity=".75"/>
+        <rect x="20" y="44"  width="520" height="12" rx="4" opacity=".5"/>
+      </g>
+      <rect x="20" y="306" width="520" height="3" fill="#44E2CD"/>
+
+      <rect x="20" y="26" width="214" height="272" fill="#6ff0b6" opacity=".07" rx="6"/>
+      <rect x="20" y="26" width="214" height="272" fill="none" stroke="#6ff0b6" stroke-width="1.3" stroke-dasharray="6 5" rx="6"/>
+      <rect x="63" y="14" width="128" height="20" rx="5" fill="#1d4c3c"/>
+      <text x="127" y="28" fill="#6ff0b6" font-size="10.5" text-anchor="middle" font-weight="600">balayage : 214 px</text>
+
+      <g fill="#8A93AD" font-size="9.5" text-anchor="middle">
+        <text x="72"  y="330">Caisse</text><text x="72" y="342">claire</text>
+        <text x="182" y="330">Charley</text>
+        <text x="292" y="330">Tom</text>
+        <text x="402" y="330">Tom</text><text x="402" y="342">basse</text>
+        <text x="500" y="330">Crash</text>
+      </g>
+      <text x="280" y="372" fill="#6ff0b6" font-size="11.5" text-anchor="middle">Le groove tient dans une seule fixation.</text>
+      <text x="280" y="388" fill="#6ff0b6" font-size="11.5" text-anchor="middle">Toms et crash n'entrent que sur les breaks.</text>
+    </svg>
+  </div>
+
+</div>
+
+<div class="note"><b>Le fond de l'affaire :</b> j'avais ordonné par <b>hauteur</b>, ce qui est une convention de <i>notation</i>. Toi tu ordonnes par <b>densité d'usage</b>, ce qui est une logique de <i>jeu</i>. Dans une cascade, c'est la seconde qui compte : 90 % des notes d'un groove sont caisse claire + charley, et il faut qu'elles tombent dans une seule fixation oculaire. Un tom qui les sépare force un aller-retour du regard pendant toute la durée du morceau, pour desservir une lane qui ne s'allume qu'aux breaks. Et ce n'est pas un hasard si c'est l'ordre de Rock Band — c'est le layout physique de leur contrôleur, éprouvé par des millions de joueurs.</div>
+</section>
+
+<section>
+  <h2 style="margin-bottom:8px">La règle qui généralise ton ordre</h2>
+  <p class="cap" style="max-width:900px">Une liste figée ne suffit pas : les lanes sont dérivées des pièces réellement présentes dans le morceau. Il faut donc une règle de tri, appliquée aux pièces trouvées.</p>
+
+  <ol>
+    <li><b>Caisse claire</b></li>
+    <li><b>Charley</b>, puis <b>ride</b> — les tenues de temps, qui se substituent l'une à l'autre</li>
+    <li><b>Toms</b>, du plus aigu au plus grave</li>
+    <li><b>Crash</b> et autres cymbales d'accent</li>
+  </ol>
+  <p class="cap" style="max-width:900px">La <b>grosse caisse</b> n'est jamais une lane : c'est la barre pleine largeur. Les pièces absentes du morceau ne prennent pas de colonne.</p>
+
+  <div class="three">
+    <div class="card">
+      <div style="padding:14px 16px 0"><h2 style="font-size:14px">Groove à 3 éléments</h2><p class="cap">Lanes larges, lecture facile</p></div>
+      <svg viewBox="0 0 340 200">
+        <rect width="340" height="200" fill="#0d1526"/>
+        <rect x="14" y="8" width="152" height="130" fill="#fff" opacity=".055"/>
+        <rect x="172" y="8" width="154" height="130" fill="#fff" opacity=".03"/>
+        <g fill="#7FB2FF"><rect x="22" y="96" width="136" height="14" rx="5"/><rect x="22" y="36" width="136" height="14" rx="5" opacity=".7"/></g>
+        <g fill="#D2BBFF"><rect x="180" y="120" width="138" height="10" rx="4"/><rect x="180" y="92" width="138" height="10" rx="4" opacity=".85"/><rect x="180" y="64" width="138" height="10" rx="4" opacity=".7"/><rect x="180" y="36" width="138" height="10" rx="4" opacity=".55"/></g>
+        <g fill="#FFB454"><rect x="14" y="120" width="312" height="10" rx="4"/><rect x="14" y="64" width="312" height="10" rx="4" opacity=".7"/></g>
+        <rect x="14" y="136" width="312" height="2.5" fill="#44E2CD"/>
+        <g fill="#8A93AD" font-size="9" text-anchor="middle"><text x="90" y="156">Caisse claire</text><text x="249" y="156">Charley</text></g>
+        <rect x="14" y="168" width="312" height="18" rx="6" fill="#FFB454" opacity=".8"/>
+        <text x="170" y="181" fill="#20160a" font-size="9.5" text-anchor="middle" font-weight="700">PÉDALE</text>
+      </svg>
+    </div>
+
+    <div class="card">
+      <div style="padding:14px 16px 0"><h2 style="font-size:14px">Ton ordre — 5 éléments</h2><p class="cap">Le cas courant</p></div>
+      <svg viewBox="0 0 340 200">
+        <rect width="340" height="200" fill="#0d1526"/>
+        <g>
+          <rect x="14" y="8" width="61" height="130" fill="#fff" opacity=".055"/>
+          <rect x="79" y="8" width="61" height="130" fill="#fff" opacity=".03"/>
+          <rect x="144" y="8" width="61" height="130" fill="#fff" opacity=".055"/>
+          <rect x="209" y="8" width="61" height="130" fill="#fff" opacity=".03"/>
+          <rect x="274" y="8" width="52" height="130" fill="#fff" opacity=".055"/>
+        </g>
+        <g fill="#7FB2FF"><rect x="18" y="96" width="53" height="13" rx="4"/><rect x="18" y="36" width="53" height="13" rx="4" opacity=".7"/></g>
+        <g fill="#D2BBFF"><rect x="83" y="120" width="53" height="9" rx="4"/><rect x="83" y="92" width="53" height="9" rx="4" opacity=".85"/><rect x="83" y="64" width="53" height="9" rx="4" opacity=".7"/><rect x="83" y="36" width="53" height="9" rx="4" opacity=".55"/></g>
+        <g fill="#7FB2FF" opacity=".5"><rect x="148" y="20" width="53" height="13" rx="4"/></g>
+        <g fill="#7FB2FF" opacity=".45"><rect x="213" y="20" width="53" height="13" rx="4"/></g>
+        <g fill="#D2BBFF" opacity=".5"><rect x="278" y="120" width="44" height="9" rx="4"/></g>
+        <g fill="#FFB454"><rect x="14" y="120" width="312" height="9" rx="4"/><rect x="14" y="64" width="312" height="9" rx="4" opacity=".7"/></g>
+        <rect x="14" y="136" width="312" height="2.5" fill="#44E2CD"/>
+        <g fill="#8A93AD" font-size="8" text-anchor="middle"><text x="44" y="153">Caisse</text><text x="44" y="162">claire</text><text x="109" y="153">Charley</text><text x="174" y="153">Tom</text><text x="239" y="153">Tom b.</text><text x="300" y="153">Crash</text></g>
+        <rect x="14" y="168" width="312" height="18" rx="6" fill="#FFB454" opacity=".8"/>
+        <text x="170" y="181" fill="#20160a" font-size="9.5" text-anchor="middle" font-weight="700">PÉDALE</text>
+      </svg>
+    </div>
+
+    <div class="card">
+      <div style="padding:14px 16px 0"><h2 style="font-size:14px">Kit à 7 éléments</h2><p class="cap">Le groove reste à gauche</p></div>
+      <svg viewBox="0 0 340 200">
+        <rect width="340" height="200" fill="#0d1526"/>
+        <g>
+          <rect x="14" y="8" width="45" height="130" fill="#fff" opacity=".055"/>
+          <rect x="63" y="8" width="45" height="130" fill="#fff" opacity=".03"/>
+          <rect x="112" y="8" width="45" height="130" fill="#fff" opacity=".055"/>
+          <rect x="161" y="8" width="45" height="130" fill="#fff" opacity=".03"/>
+          <rect x="210" y="8" width="45" height="130" fill="#fff" opacity=".055"/>
+          <rect x="259" y="8" width="45" height="130" fill="#fff" opacity=".03"/>
+          <rect x="308" y="8" width="18" height="130" fill="#fff" opacity=".055"/>
+        </g>
+        <g fill="#7FB2FF"><rect x="17" y="96" width="39" height="12" rx="4"/><rect x="17" y="36" width="39" height="12" rx="4" opacity=".7"/></g>
+        <g fill="#D2BBFF"><rect x="66" y="120" width="39" height="8" rx="3"/><rect x="66" y="92" width="39" height="8" rx="3" opacity=".85"/><rect x="66" y="64" width="39" height="8" rx="3" opacity=".7"/><rect x="66" y="36" width="39" height="8" rx="3" opacity=".55"/></g>
+        <g fill="#D2BBFF" opacity=".4"><rect x="115" y="20" width="39" height="8" rx="3"/></g>
+        <g fill="#7FB2FF" opacity=".45"><rect x="164" y="20" width="39" height="12" rx="4"/><rect x="213" y="20" width="39" height="12" rx="4"/><rect x="262" y="20" width="39" height="12" rx="4"/></g>
+        <g fill="#FFB454"><rect x="14" y="120" width="312" height="8" rx="3"/><rect x="14" y="64" width="312" height="8" rx="3" opacity=".7"/></g>
+        <rect x="14" y="136" width="312" height="2.5" fill="#44E2CD"/>
+        <g fill="#8A93AD" font-size="7" text-anchor="middle"><text x="36" y="153">Caisse</text><text x="85" y="153">Charley</text><text x="134" y="153">Ride</text><text x="183" y="153">Tom 1</text><text x="232" y="153">Tom 2</text><text x="281" y="153">Tom b.</text><text x="317" y="153">Crash</text></g>
+        <rect x="14" y="168" width="312" height="18" rx="6" fill="#FFB454" opacity=".8"/>
+        <text x="170" y="181" fill="#20160a" font-size="9.5" text-anchor="middle" font-weight="700">PÉDALE</text>
+      </svg>
+    </div>
+  </div>
+
+  <div class="note"><b>La propriété qui compte :</b> quel que soit le nombre de pièces, la caisse claire et le charley restent en positions 1 et 2. Un joueur qui passe d'un morceau à 3 éléments à un morceau à 7 <b>ne réapprend pas où regarder</b> — les colonnes s'ajoutent à droite, jamais au milieu du groove.</div>
+
+  <div class="note warn"><b>Le seul point dont je ne suis pas sûr : le ride.</b> Je l'ai mis en 3ᵉ position, collé au charley, parce qu'il tient le temps de la même façon et qu'on joue en général l'un <i>ou</i> l'autre — couplets aux charleys, refrains à la ride. Le mettre là garde la lane de tenue de temps toujours au même endroit. La convention Rock Band le range plutôt avec les cymbales, tout à droite. À trancher avec ton batteur sur un morceau qui alterne les deux.</div>
+</section>
+
+</body>
+</html>

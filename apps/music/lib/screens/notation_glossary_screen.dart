@@ -13,9 +13,11 @@
 // limitations under the License.
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
 import '../notation/notation_help_content.dart';
+import '../state/instrument_context.dart';
 import '../theme/cymbra_theme.dart';
 
 /// Opens the browsable notation glossary from a stable entry point (the help/tips
@@ -29,13 +31,18 @@ void openNotationGlossary(BuildContext context) => Navigator.of(
 /// look a symbol up away from a score, or re-read a bubble they already
 /// dismissed. It is fed by [notationGlossarySamples] through the very same
 /// [notationHelpFor] lookup the bubbles use, so the two can never diverge.
-class NotationGlossaryScreen extends StatelessWidget {
+class NotationGlossaryScreen extends ConsumerWidget {
   const NotationGlossaryScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final style = notationNameStyle(Localizations.localeOf(context));
+    // The glossary is opened away from any score, so it follows the instrument
+    // the app is CURRENTLY presenting — the same context the hub's filter is
+    // seeded from. A drummer looking a symbol up gets the drum staff's list.
+    final percussion =
+        ref.watch(effectiveInstrumentContextProvider) == AppInstrument.drums;
 
     return Scaffold(
       backgroundColor: CymbraColors.background,
@@ -56,13 +63,20 @@ class NotationGlossaryScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 18),
-            for (final sample in notationGlossarySamples)
+            for (final sample in notationGlossarySamplesFor(
+              percussion: percussion,
+            ))
               _GlossaryRow(
                 help: notationHelpFor(
                   l10n,
                   sample,
                   solfege: style.solfege,
                   frenchRe: style.frenchRe,
+                  // No kit is loaded here, so a stroke is named generically —
+                  // the glossary explains the SYMBOL, not this score's piece.
+                  drumPieceName: percussion
+                      ? (_) => l10n.notationHelpGlossaryStroke
+                      : null,
                 ),
               ),
           ],

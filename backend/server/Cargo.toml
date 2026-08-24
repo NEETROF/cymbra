@@ -24,10 +24,20 @@ path = "src/bin/backfill_titles.rs"
 name = "backfill-score-previews"
 path = "src/bin/backfill_score_previews.rs"
 
+[[bin]]
+name = "backfill-instruments"
+path = "src/bin/backfill_instruments.rs"
+
 # One-off maintenance: quarantine corpus objects no catalog row references.
 [[bin]]
 name = "reconcile-corpus"
 path = "src/bin/reconcile_corpus.rs"
+
+# One-off ops verification: report soundfont rows whose recorded family their
+# preset banks cannot support (read-only; change: add-drum-audio-channel).
+[[bin]]
+name = "verify-soundfont-families"
+path = "src/bin/verify_soundfont_families.rs"
 
 [dependencies]
 cymbra-platform = { path = "../platform" }

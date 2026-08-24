@@ -12,8 +12,10 @@ export type Async<T, E = string> =
   | { readonly status: "success"; readonly data: T }
   | { readonly status: "error"; readonly error: E };
 
-export const idle: Async<never> = { status: "idle" };
-export const loading: Async<never> = { status: "loading" };
+// `never` on both parameters so the constants fit ANY `Async<T, E>`, including
+// unions with a typed (non-string) error.
+export const idle: Async<never, never> = { status: "idle" };
+export const loading: Async<never, never> = { status: "loading" };
 export const success = <T>(data: T): Async<T, never> => ({ status: "success", data });
 export const failure = <E = string>(error: E): Async<never, E> => ({ status: "error", error });
 

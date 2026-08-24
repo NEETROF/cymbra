@@ -26,7 +26,9 @@ import 'notation_notifier.dart';
 import 'performance_scoring.dart';
 import 'play_sync_notifier.dart';
 import 'practice_settings_store.dart';
+import 'drum_kit.dart';
 import 'player_data.dart';
+import 'score_font.dart';
 import 'notation_playback.dart';
 import 'player_preferences.dart';
 import 'score_catalog.dart';
@@ -112,6 +114,7 @@ class Player extends _$Player {
       readingAid: prefs.readingAid,
       instrumentSoundsItself: prefs.instrumentSoundsItself,
       outputOffsetMs: prefs.outputOffsetMs,
+      invertedKit: prefs.invertedKit,
     );
   }
 
@@ -133,6 +136,16 @@ class Player extends _$Player {
   /// A **selective run** (a practice range narrower than the whole piece) is
   /// never scored (change: add-measure-range-practice, D2): the scorer simply
   /// never arms, so no partial `SessionResult` exists to suppress downstream.
+  /// The rule is instrument-agnostic and covers a percussion practice run with
+  /// no carve-out.
+  ///
+  /// A **percussion** full run arms it like any other (change:
+  /// add-drum-scoring): the scorer now judges strokes at the kit piece's grain
+  /// over a two-dimension blend, so the run produces an honest session result.
+  /// The interim that kept it disarmed existed only because the judge was
+  /// keyboard-shaped — exact-pitch matching against numbers a drum lane
+  /// deliberately collapses, sustain judgment against one-shots that have
+  /// none.
   void _maybeStartRun() {
     final s = state;
     if (s.visibleNotes.isEmpty || !_atStart(s) || s.isSelectiveRun) return;
@@ -140,9 +153,12 @@ class Player extends _$Player {
     _scorer.startRun(
       pieceId: _pieceIdentity(),
       title: entry?.title ?? s.title ?? 'Demo',
-      hands: s.selectedHands.name,
+      // hands / feet / both on a drum score — the selection the run was
+      // actually judged over (change: add-drum-scoring).
+      hands: s.handsSelectionName,
       speed: s.speed,
       notes: s.visibleNotes,
+      percussion: s.isPercussion,
     );
   }
 
@@ -214,8 +230,34 @@ class Player extends _$Player {
     _sounding.clear();
   }
 
-  /// Sounds/releases score notes as the playhead travels from [from] to [to].
+  /// Sounds/releases score notes as the playhead travels from [from] to [to],
+  /// routed by the loaded score's family (change: add-drum-audio-channel): a
+  /// percussion score's General MIDI numbers go through the drum entry points,
+  /// a keyboard score's pitches through the melodic pair exactly as before.
   void _applyScoreAudio(PlayerData s, double from, double to) {
+    if (s.isPercussion) {
+      // Percussion readiness gate: until the kit font's awaited install has
+      // resolved (KitFontStatus.ready), playback is visual-only — the
+      // schedule advances but nothing reaches the synth, so a drum part is
+      // never sounded through the still-loaded keyboard font. `_sounding` is
+      // untouched here, so no phantom release accumulates either.
+      if (ref.read(scoreFontProvider) != KitFontStatus.ready) return;
+      final edges = scoreNoteEdges(
+        visible: s.visibleNotes,
+        from: from,
+        to: to,
+        sounding: _sounding,
+      );
+      for (final p in edges.stops) {
+        _audio.drumOff(p);
+        _sounding.remove(p);
+      }
+      for (final p in edges.starts) {
+        _audio.drumOn(p);
+        _sounding.add(p);
+      }
+      return;
+    }
     final edges = scoreNoteEdges(
       visible: s.visibleNotes,
       from: from,
@@ -282,6 +324,24 @@ class Player extends _$Player {
       writtenMeasureOf: derived.writtenMeasureOf,
       measureDecors: derived.measureDecors,
       writtenMeasureCount: document.measures.length,
+      // Percussion routing (change: add-drum-kit-view): the lane layout is
+      // derived ONCE here and consumed by both the cascade and the pad strip.
+      // The cascade stays the DEFAULT presentation on load — the notation
+      // modes are offered but entered only by the player's choice (change:
+      // add-drum-notation-render). Wait Mode is left exactly as the player set
+      // it: the pads satisfy the gate now (change: add-drum-input-mapping) and
+      // the matcher judges what they satisfy (change: add-drum-scoring), so a
+      // drum score no longer forces it off.
+      isPercussion: derived.isPercussion,
+      drumLanes: derived.isPercussion
+          ? deriveDrumLanes(derived.notes)
+          : const <DrumLane>[],
+      mode: _modeForLoadedScore(percussion: derived.isPercussion),
+      // The struck-flash table is keyed by controller POSITION, so another
+      // score's stamps would land on this one's pads (change:
+      // add-drum-input-mapping).
+      struckSurfacesMs: const {},
+      strokeAtMs: const {},
       isPlaying: false,
       // A range chosen for the previous score means nothing here (and its indices
       // may not even exist in this one): a freshly-loaded document always starts
@@ -408,8 +468,20 @@ class Player extends _$Player {
   /// add-audio-output-routing): a note the connected instrument already played
   /// itself is not synthesized a second time. Everything below the audio call
   /// runs identically for every source.
+  ///
+  /// On a **percussion** score the pitch is a General MIDI percussion number
+  /// and the note is a *stroke* (change: add-drum-input-mapping): it sounds
+  /// through the seam's one-shot rather than the pitched piano voice, and
+  /// flashes the controller surface it resolves to. Everything else — the held
+  /// set, the gate bookkeeping, the scorer feed — is the shared path, with the
+  /// one substitution `add-drum-scoring` makes: what counts as "this note" is
+  /// the kit-piece equivalence, not the raw number.
   void noteOn(int pitch, {NoteSource source = NoteSource.onScreen}) {
-    if (state.synthesizes(source)) _audio.noteOn(pitch);
+    if (state.isPercussion) {
+      _soundStroke(pitch, source);
+    } else if (state.synthesizes(source)) {
+      _audio.noteOn(pitch);
+    }
     // A fresh attack starts a new, uncounted hold: drop any prior "consumed"
     // mark so this press can satisfy the onset it lands on (and only that one).
     final active = state.activeNotes.contains(pitch)
@@ -418,18 +490,37 @@ class Player extends _$Player {
     final consumed = state.consumedHeld.contains(pitch)
         ? ({...state.consumedHeld}..remove(pitch))
         : state.consumedHeld;
-    // Wait Mode validates by attack: if this note is part of the onset the
+    // Wait Mode validates by attack: if this note answers the onset the
     // playhead is sitting on, latch it so it still counts once released, and
     // consume the hold so a later repeat of this pitch needs a fresh attack.
-    final atOnset =
-        state.onsetPitchesAt(state.elapsedMs).contains(pitch) &&
-        !state.gateSatisfied.contains(pitch);
+    //
+    // What "answers" means goes through the shared stroke identity
+    // ([PlayerData.strokeSatisfies]) rather than raw equality, so on a drum
+    // score an incoming 40 latches the written 38 the gate is waiting for —
+    // the same resolution the scorer binds with, never a second one. The
+    // *required* numbers are latched, so the release check keeps comparing
+    // against the score's own vocabulary.
+    final satisfied = <int>{
+      for (final required in state.onsetPitchesSatisfiedBy(
+        pitch,
+        state.elapsedMs,
+      ))
+        if (!state.gateSatisfied.contains(required)) required,
+    };
+    final atOnset = satisfied.isNotEmpty;
+    final struck = _struckSurfacesAfter(pitch);
     state = state.copyWith(
       activeNotes: active,
       gateSatisfied: atOnset
-          ? {...state.gateSatisfied, pitch}
+          ? {...state.gateSatisfied, ...satisfied}
           : state.gateSatisfied,
       consumedHeld: atOnset ? {...consumed, pitch} : consumed,
+      struckSurfacesMs: struck,
+      // A stroke that answered the gate right here is SPENT: it is not left
+      // in the table where the early-stroke tolerance could credit it to the
+      // next onset as well. Any other stroke is remembered, on the playhead's
+      // clock, in case the onset it was aimed at is a few milliseconds away.
+      strokeAtMs: _strokeAtAfter(pitch, spent: atOnset),
     );
     // Feed the scorer the attack at the current playhead; it binds to a pending
     // onset or records an extra note (a no-op when no run is active). Presses
@@ -439,10 +530,99 @@ class Player extends _$Player {
     }
   }
 
+  /// Sounds a live percussion stroke as a **one-shot** (change:
+  /// add-drum-input-mapping): `drumOn`, never the pitched `noteOn` a live
+  /// stroke wrongly got before this change — the drum channel is where the kit
+  /// font's bank-128 presets resolve, so a snare number sent to the melodic
+  /// pair comes out as a piano note.
+  ///
+  /// Two guards, both borrowed unchanged rather than re-decided here:
+  /// * [PlayerData.synthesizes] — the instrument-sounds-itself rule (change:
+  ///   add-audio-output-routing): a module that sounds its own strokes is not
+  ///   doubled, while on-screen taps always sound.
+  /// * the kit-readiness gate the scheduled path already applies (change:
+  ///   add-drum-audio-channel): until the kit font's awaited install resolves,
+  ///   percussion is visual-only — a stroke must not come out through the
+  ///   still-loaded piano font. The stroke still registers and still flashes;
+  ///   it is *sounding* that is unavailable, and only that.
+  ///
+  /// Velocity is deliberately not consumed: the one-shot is filled with the
+  /// schedule's own default loudness, exactly like the pitched path, which has
+  /// never consumed velocity either (change: add-drum-input-mapping — dynamics
+  /// is one future decision for both instruments and both directions, not a
+  /// percussion side-door).
+  void _soundStroke(int pitch, NoteSource source) {
+    if (!state.synthesizes(source)) return;
+    if (ref.read(scoreFontProvider) != KitFontStatus.ready) return;
+    _audio.drumOn(pitch, velocity: AudioService.defaultVelocity);
+  }
+
+  /// The mode a freshly loaded score opens in: the one last chosen for ITS
+  /// family, or the family default when the player has never chosen — the
+  /// cascade, which is the designed reading surface for playing.
+  ///
+  /// A stored mode is still checked against the family: the stage exists only
+  /// for percussion, and a record from another build could name it.
+  RenderMode _modeForLoadedScore({required bool percussion}) {
+    final prefs = ref.read(playerPreferencesProvider);
+    if (percussion) return prefs.percussionMode ?? RenderMode.synthesia;
+    final stored = prefs.keyboardMode;
+    return stored == null || stored == RenderMode.stage ? state.mode : stored;
+  }
+
+  /// The struck-surface table after a stroke on [gm] (change:
+  /// add-drum-input-mapping): the surface it resolves to, stamped with the
+  /// wall clock. A number resolving to no surface — a piece this score does
+  /// not use, a kick on a kickless score — leaves the table untouched: free
+  /// play sounds, flashes nothing, and raises nothing.
+  ///
+  /// Keyed on the surface, so any source (pad tap, pedal tap, external kit)
+  /// produces the same entry, and a lane collapsing several numbers flashes
+  /// once wherever the stroke came from.
+  Map<int, double> _struckSurfacesAfter(int gm) {
+    if (!state.isPercussion) return state.struckSurfacesMs;
+    final surface = state.struckSurfaceFor(gm);
+    if (surface == null) return state.struckSurfacesMs;
+    return {
+      ...state.struckSurfacesMs,
+      surface: DateTime.now().millisecondsSinceEpoch.toDouble(),
+    };
+  }
+
+  /// [PlayerData.strokeAtMs] after a stroke on [gm]: stamped at the playhead
+  /// for a stroke that answered nothing yet, dropped when it was [spent] on
+  /// the onset it just satisfied.
+  Map<int, double> _strokeAtAfter(int gm, {required bool spent}) {
+    if (!state.isPercussion) return state.strokeAtMs;
+    final surface = state.struckSurfaceFor(gm);
+    if (surface == null) return state.strokeAtMs;
+    final next = {...state.strokeAtMs};
+    if (spent) {
+      next.remove(surface);
+    } else {
+      next[surface] = state.elapsedMs;
+    }
+    return next;
+  }
+
   /// Releases a live note from [source]. Mirrors [noteOn]: the release is only
   /// sent to the synth when the attack was, so the two stay paired.
+  ///
+  /// On a **percussion** score a release is *bookkeeping, never meaning*
+  /// (change: add-drum-input-mapping): it clears the held entry its attack
+  /// created and nothing else — no audible effect, no feedback effect (the
+  /// flash runs on its own clock). It is deliberately **not** forwarded to the
+  /// seam's paired `drum_off`: that release reaches the engine as a NoteOff on
+  /// the drum channel (`api/audio_core.rs`), which puts the voice into the
+  /// preset's release stage — with the SoundFont default release that *clips*
+  /// the one-shot. E-kits send their note-off within milliseconds of the
+  /// attack, so forwarding it would cut every cymbal off the moment the stick
+  /// left it. The binding scenario ("an immediate release leaves the sound to
+  /// its natural end"), not the pairing, is the contract; a kit voice
+  /// self-terminates, so nothing hangs when the release is dropped — and a kit
+  /// that never sends one costs nothing either.
   void noteOff(int pitch, {NoteSource source = NoteSource.onScreen}) {
-    if (state.synthesizes(source)) _audio.noteOff(pitch);
+    if (!state.isPercussion && state.synthesizes(source)) _audio.noteOff(pitch);
     // The hold ended: drop it from the held set and clear its consumed mark so a
     // re-press starts fresh.
     if (state.activeNotes.contains(pitch) ||
@@ -515,6 +695,11 @@ class Player extends _$Player {
   void setMode(RenderMode m) {
     if (m == state.mode) return;
     state = state.copyWith(mode: m);
+    // Remembered per instrument family, so the next score of THAT family opens
+    // the way this one was being read.
+    ref
+        .read(playerPreferencesProvider.notifier)
+        .setLastMode(m, percussion: state.isPercussion);
     _track(UsageActions.playModeSwitch, variant: m.name);
   }
 
@@ -552,6 +737,24 @@ class Player extends _$Player {
   void setKeyboardRange(KeyboardRangeMode m) {
     ref.read(playerPreferencesProvider.notifier).setKeyboardRange(m);
     state = state.copyWith(keyboardRange: m);
+  }
+
+  /// Toggles the inverted-kit layout (change: add-drum-kit-view) and remembers
+  /// it. Applies only to the PRESENTED lane order — the derived layout, the
+  /// notation and the note interpretation are untouched by construction
+  /// ([PlayerData.presentedDrumLanes] is the single application point).
+  void setInvertedKit({required bool enabled}) {
+    ref
+        .read(playerPreferencesProvider.notifier)
+        .setInvertedKit(enabled: enabled);
+    // Mirroring the layout mirrors the surface indices, so any in-flight
+    // struck flash would jump to the pad opposite the one actually struck
+    // (change: add-drum-input-mapping). Dropping it is the honest answer.
+    state = state.copyWith(
+      invertedKit: enabled,
+      struckSurfacesMs: const {},
+      strokeAtMs: const {},
+    );
   }
 
   /// Sets how much reading help is shown at a held onset, and remembers it
@@ -771,7 +974,14 @@ class Player extends _$Player {
     // earlier onset) when the playhead reaches this onset counts as attacked —
     // a sustained/tied note need not be re-pressed. Consuming the hold keeps a
     // repeated pitch honest: it must be re-attacked to satisfy the next onset.
-    if (s.waitMode && onset.isNotEmpty) {
+    //
+    // **Keyboard only** (change: add-drum-scoring). The carve-out exists to
+    // tolerate sustained and tied notes carried into the onset where they
+    // first sound — a situation a kit cannot produce. A stroke is an attack;
+    // "already holding it" is meaningless, so a percussion onset requires its
+    // own strokes, struck while the gate is active, and an early stroke never
+    // pre-satisfies it.
+    if (s.waitMode && !s.isPercussion && onset.isNotEmpty) {
       final heldDue = <int>{
         for (final p in onset)
           if (s.activeNotes.contains(p) && !s.consumedHeld.contains(p)) p,
@@ -785,6 +995,44 @@ class Player extends _$Player {
         // no fresh attack — credit the scorer for it (reaction ≈ 0) so it is not
         // later marked missed.
         for (final p in heldDue) {
+          _scorer.noteOn(p, s.clocks, waitMode: true);
+        }
+      }
+    }
+
+    // Wait Mode tolerance, the percussion half (this experiment): a stroke
+    // played slightly EARLY still answers the onset it was aimed at, instead
+    // of being dropped and demanded again. A kit is played by feel — the hand
+    // leaves before the ear checks — and a gate that only accepts a stroke
+    // arriving after the playhead does turns a groove into a typing test.
+    //
+    // The stroke is spent when credited, so one hit never validates two
+    // onsets, and only strokes inside [kStrokeToleranceMs] count.
+    if (s.waitMode && s.isPercussion && onset.isNotEmpty) {
+      final earlyDue = <int>{};
+      final strokes = {...s.strokeAtMs};
+      for (final required in onset) {
+        if (s.gateSatisfied.contains(required)) continue;
+        final surface = s.struckSurfaceFor(required);
+        if (surface == null) continue;
+        final at = strokes[surface];
+        // Measured on the playhead: the window is a musical one, and it is
+        // the SAME number the surfaces light a stroke with — including its
+        // real-time floor at speeds above normal.
+        if (at == null || s.elapsedMs - at > strokeToleranceMsAt(s.speed)) {
+          continue;
+        }
+        earlyDue.add(required);
+        strokes.remove(surface); // spent — never credited twice
+      }
+      if (earlyDue.isNotEmpty) {
+        s = s.copyWith(
+          gateSatisfied: {...s.gateSatisfied, ...earlyDue},
+          strokeAtMs: strokes,
+        );
+        // Credit the scorer for the stroke it already saw as an extra note's
+        // worth of nothing: it answered this onset, just before it opened.
+        for (final p in earlyDue) {
           _scorer.noteOn(p, s.clocks, waitMode: true);
         }
       }

@@ -33,6 +33,12 @@ const props = defineProps<{
   // an opt-out because Vue casts an absent boolean prop to `false`, so the default has
   // to be the "transport visible" case.
   hideTransport?: boolean;
+  // The Play guard is lifted (change: add-drum-audio-channel) — a percussion
+  // score auditions on the drum channel with a kit font. What remains is the one
+  // honest degradation: the catalog holds no accepted percussion-family font, so
+  // Play shows a localised "no drum kit available" note — distinct from an
+  // error, since the score is fine.
+  noKitFont?: boolean;
 }>();
 const emit = defineEmits<{ toggle: []; seek: [ms: number] }>();
 const { t } = useI18n();
@@ -50,7 +56,7 @@ function idleMessage(): string {
 
 const notationView = computed(() =>
   match(props.notation ?? idle)
-    .with({ status: "success" }, ({ data }) => ({ kind: "svg" as const, svg: data.svg }))
+    .with({ status: "success", data: { kind: "notation" } }, ({ data }) => ({ kind: "svg" as const, svg: data.svg }))
     .with({ status: "loading" }, () => ({ kind: "msg" as const, msg: t("preview.rendering") }))
     .with({ status: "error" }, () => ({ kind: "msg" as const, msg: t("preview.renderError") }))
     .otherwise(() => ({ kind: "msg" as const, msg: idleMessage() })),
@@ -69,7 +75,9 @@ const audioLoading = computed(() => (props.audio ?? idle).status === "loading");
 
 const wrapRef = ref<HTMLElement | null>(null);
 const svgString = computed(() => (notationView.value.kind === "svg" ? notationView.value.svg : null));
-const layout = computed(() => (props.notation?.status === "success" ? props.notation.data.layout : null));
+const layout = computed(() =>
+  props.notation?.status === "success" && props.notation.data.kind === "notation" ? props.notation.data.layout : null,
+);
 const scheduleData = computed(() => (props.schedule?.status === "success" ? props.schedule.data : null));
 usePlayhead({
   container: wrapRef,
@@ -119,10 +127,15 @@ function meta(): { label: string; value: string }[] {
         </button>
         <output v-if="audioLoading" class="spinner" :aria-label="audioMsg ?? ''"></output>
         <span v-if="audioMsg" class="muted">{{ audioMsg }}</span>
+        <!-- No accepted kit font in the catalog: explains the disabled Play —
+             deliberately NOT styled as an error; the notation above renders fine. -->
+        <span v-else-if="noKitFont" class="muted" data-testid="no-drum-kit">{{ t("preview.noDrumKit") }}</span>
         <span v-else class="muted hint">{{ t("preview.seekHint") }}</span>
       </div>
-      <!-- The transport moved out (review mode): keep the seek affordance visible. -->
-      <p v-else class="muted hint transport-hint">{{ t("preview.seekHint") }}</p>
+      <!-- The transport moved out (review mode): keep the seek affordance visible —
+           unless the missing kit font makes seeking inert (the host view shows its
+           own "no drum kit available" note next to the hoisted transport). -->
+      <p v-else-if="!noKitFont" class="muted hint transport-hint">{{ t("preview.seekHint") }}</p>
       <!-- eslint-disable-next-line vue/no-v-html -- SVG is painter-generated, not user input -->
       <div ref="wrapRef" class="svg-wrap" aria-label="score preview" v-html="notationView.svg"></div>
     </div>

@@ -41,6 +41,20 @@ describe("catalog store", () => {
     expect(state.searchCalls[1].source).toBeUndefined();
   });
 
+  it("forwards the instrument filter to the search RPC (undefined = all — change: add-drums-access)", async () => {
+    const { clients, state } = makeFakeClients({ hits: [{ id: "a" }], total: 1 });
+    setClientsForTest(clients);
+    const store = useCatalogStore();
+
+    await store.search({ instrument: "percussion" });
+    expect(state.searchCalls[0].instrument).toBe("percussion");
+    await store.search({ instrument: "keyboard" });
+    expect(state.searchCalls[1].instrument).toBe("keyboard");
+    // No filter → the request field stays unset (all instruments).
+    await store.search({});
+    expect(state.searchCalls[2].instrument).toBeUndefined();
+  });
+
   it("forwards review-queue mode to the search RPC (pending + flagged accepted)", async () => {
     const { clients, state } = makeFakeClients();
     setClientsForTest(clients);

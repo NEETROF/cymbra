@@ -23,6 +23,8 @@ import 'package:music/services/notation_engine.dart';
 import 'package:music/services/preferences_service.dart';
 import 'package:music/services/score_asset_source.dart';
 import 'package:music/state/coaching_notifier.dart';
+import 'package:music/src/rust/api/musicxml.dart' show ScoreDocument;
+import 'package:music/state/player_notifier.dart';
 import 'package:music/state/score_catalog.dart';
 import 'package:music/widgets/coach_layer.dart';
 import 'package:music/widgets/coach_mark.dart';
@@ -58,6 +60,7 @@ class _CoachedApp extends StatelessWidget {
 Future<ProviderContainer> _pumpPlayer(
   WidgetTester tester, {
   required FakePreferencesService prefs,
+  ScoreDocument? document,
 }) async {
   await tester.binding.setSurfaceSize(const Size(1400, 900));
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -66,7 +69,9 @@ Future<ProviderContainer> _pumpPlayer(
       preferencesServiceProvider.overrideWithValue(prefs),
       scoreCatalogProvider.overrideWithValue(const [_entry]),
       scoreAssetSourceProvider.overrideWithValue(FakeScoreAssetSource()),
-      notationEngineProvider.overrideWithValue(FakeNotationEngine()),
+      notationEngineProvider.overrideWithValue(
+        FakeNotationEngine(document: document),
+      ),
       midiServiceProvider.overrideWithValue(FakeMidiService()),
       scoreSourceProvider.overrideWithValue(FakeScoreSource()),
       audioServiceProvider.overrideWithValue(RecordingAudioService()),
@@ -155,6 +160,37 @@ void main() {
     await _frames(tester);
     expect(find.byType(CoachMarkOverlay), findsNothing);
     expect(prefs.store[CoachHint.playerTour.prefsKey], 'true');
+    await _teardown(tester, container);
+  });
+
+  testWidgets('on a drum score the tour speaks the kit, not the piano', (
+    tester,
+  ) async {
+    // The tour points at the SAME controls, but three of them mean something
+    // else here: the sound is a kit, the device is an e-kit, and the selector
+    // splits hands from FEET. A first-time drummer was reading "right hand,
+    // left hand" over a control labelled "Feet / Hands / Both".
+    final prefs = FakePreferencesService();
+    final container = await _pumpPlayer(
+      tester,
+      prefs: prefs,
+      document: sampleDrumDocument(),
+    );
+    expect(container.read(playerProvider).isPercussion, isTrue);
+
+    expect(find.text('Choose your drum kit'), findsOneWidget);
+    expect(find.text('Choose your piano sound'), findsNothing);
+    await tester.tap(find.text('Next'));
+    await _frames(tester);
+    expect(find.text('Your connected instrument'), findsOneWidget);
+    await tester.tap(find.text('Next'));
+    await _frames(tester);
+    expect(find.text('Hands, feet, or both'), findsOneWidget);
+    expect(find.text('Right hand, left hand, or both'), findsNothing);
+    await tester.tap(find.text('Next'));
+    await _frames(tester);
+    // The rewind step is instrument-neutral and is shared as is.
+    expect(find.text('Rewind and pick a passage'), findsOneWidget);
     await _teardown(tester, container);
   });
 

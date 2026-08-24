@@ -99,6 +99,11 @@ const List<String> kCaptureSurfaces = [
   'staff',
   'courses',
   'measures',
+  // The drum surfaces (changes: add-drum-kit-view … add-drum-scoring), appended
+  // rather than interleaved so the existing images keep their numbers: the kit
+  // cascade mid-run, then the same groove read as engraved percussion.
+  'drums',
+  'drums_staff',
 ];
 
 /// The targets a full pass regenerates.

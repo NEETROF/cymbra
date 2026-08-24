@@ -22,6 +22,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
 import '../layout/device_class.dart';
+import '../painters/drum_cascade_painter.dart';
+import '../painters/drum_highway_painter.dart';
+import '../painters/drum_kit_art.dart';
 import '../painters/notation_palette.dart';
 import '../painters/partition_painter.dart';
 import '../painters/piano_keyboard_painter.dart';
@@ -29,6 +32,7 @@ import '../painters/piano_layout.dart';
 import '../painters/staff_painter.dart';
 import '../painters/synthesia_painter.dart';
 import '../src/rust/api/musicxml.dart' show System;
+import '../state/drum_kit.dart';
 import '../state/notation_data.dart';
 import '../state/notation_notifier.dart';
 import '../state/score_catalog.dart';
@@ -42,12 +46,14 @@ import '../state/session_summary.dart';
 import '../state/session_summary_store.dart';
 import '../theme/cymbra_theme.dart';
 import '../state/coaching_notifier.dart';
+import '../widgets/kit_piece_labels.dart';
 import '../widgets/coach_mark.dart';
 import '../widgets/countdown_overlay.dart';
 import '../widgets/mistake_replay.dart';
 import '../widgets/notation_help_area.dart';
 import '../widgets/play_reward_listeners.dart';
 import '../widgets/playback_progress_bar.dart';
+import '../widgets/score_font_listener.dart';
 import '../widgets/reading_aid.dart';
 import '../widgets/score_chip.dart';
 import '../widgets/scoring_overlay.dart';
@@ -59,6 +65,11 @@ import 'score_load_message.dart';
 
 /// Main screen of the Cymbra player: top bar, rendering area
 /// (Synthesia or Staff), keyboard, and transport bar.
+/// The pointer surface a percussion score is struck on — the drawn kit. One
+/// constant because three surfaces mount it (the two play modes and the
+/// staff), and a typo in one of them would silently stop being findable.
+const Key kDrumKitSurfaceKey = Key('drum-kit-surface');
+
 class PlayerScreen extends ConsumerStatefulWidget {
   const PlayerScreen({super.key});
 
@@ -87,6 +98,23 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   /// shared [PlayerData.activeNotes] entry even if another still holds it — an
   /// accepted v1 simplification (chords use distinct pitches).
   final Map<int, int> _keyboardPointers = {};
+
+  /// Active pad-strip pointers → the General MIDI number each struck (change:
+  /// add-drum-input-mapping), so a finger lifting releases only its own
+  /// stroke. Deliberately **no** retrigger exclusivity: a second pointer-down
+  /// on a pad another finger still rests on is a fresh stroke, because
+  /// alternating two fingers on one pad is how a roll is played (and a
+  /// one-shot has no sustained voice an extra attack could steal).
+  final Map<int, int> _padPointers = {};
+
+  /// Repaint clock for the pad strip's struck flash. The flash decays on its
+  /// own short duration, so it has to animate while playback is **stopped**,
+  /// where no playhead frame rebuilds anything. `forward(from: 0)` on each
+  /// stroke means the clock runs for exactly one flash and then stops itself.
+  ///
+  /// Built eagerly here, like [_waitPulse] — never lazily on first percussion
+  /// build — so `dispose` always has a controller to dispose.
+  late final AnimationController _padFlash;
 
   /// Keyboard height is derived from the available render height (not fixed) so
   /// it shrinks on short phone-landscape viewports and stays proportionate on
@@ -122,6 +150,29 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     return (availableHeight * fraction).clamp(min, max);
   }
 
+  /// A percussion score's drawn kit takes a taller band than the keyboard it
+  /// replaces, in the notation modes that show one. The keyboard's height is
+  /// sized for a strip of thin keys; a kit is a picture — cymbals above,
+  /// drums below, a bass drum under them, each with its name — and squeezed
+  /// into the keyboard's band it reads as a row of tokens rather than as an
+  /// instrument. The play surfaces already give it a third of their height;
+  /// the staff, which needs far less room than a keyboard score's does, can
+  /// afford the same.
+  static const double _kitBandFraction = 0.42;
+  static const double _kitBandFractionPhone = 0.34;
+  static const double _maxKitBandHeight = 280;
+  static const double _maxKitBandHeightPhone = 170;
+
+  double _kitBandHeightFor(double availableHeight, {required bool isPhone}) {
+    final fraction = isPhone ? _kitBandFractionPhone : _kitBandFraction;
+    final min = math.min(
+      isPhone ? _minKeyboardHeightPhone : _minKeyboardHeight,
+      availableHeight * 0.20,
+    );
+    final max = isPhone ? _maxKitBandHeightPhone : _maxKitBandHeight;
+    return (availableHeight * fraction).clamp(min, max);
+  }
+
   /// Random source for the near-miss assist keys (q/s).
   final math.Random _rng = math.Random();
 
@@ -137,6 +188,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1100),
     );
+    _padFlash = AnimationController(vsync: this, duration: kStruckFlash);
   }
 
   void _onTick(Duration elapsed) {
@@ -204,6 +256,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   /// equals an expected note. Empty when nothing is expected for that hand.
   Set<int> _assistPitches({required bool rightHand, required bool nearMiss}) {
     final data = ref.read(playerProvider);
+    // Still not offered on a percussion score. The percussion gate exists now
+    // (change: add-drum-scoring), but these four keys are keyed to the
+    // STAFF-based hand split, and a drum part is one staff: `a` and `z` would
+    // both fire the whole kit at every onset — a one-key auto-play, not a
+    // practice assist. The pad strip is the drum score's on-screen controller,
+    // and it aims.
+    if (data.isPercussion) return const {};
     final expected = data.expectedNotesForHand(
       data.elapsedMs,
       rightHand: rightHand,
@@ -248,11 +307,40 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         .noteOff(pitch, source: NoteSource.onScreen);
   }
 
+  // --- The drawn kit (mouse / touch) ------------------------------------
+  // The percussion controller, through the very same note-on/off path (change:
+  // add-drum-input-mapping): a pointer-down strikes the piece (or the pedal)
+  // under it and emits its General MIDI number, so a stroke drives sounding
+  // and feedback exactly like a key press — during playback and while stopped.
+
+  /// EXPERIMENT (drum-highway): the same strike, aimed at the DRAWN kit
+  /// instead of the strip of rectangles — the hit areas come from the very
+  /// object that painted the drums, so what is struck is what is seen.
+  void _onKitPointerDown(
+    PointerDownEvent event,
+    PlayerData data,
+    DrumKitArt art,
+  ) {
+    final surface = art.hitTest(event.localPosition);
+    if (surface == null) return;
+    final gm = data.emissionGmForSurface(surface);
+    if (gm == null) return;
+    _padPointers[event.pointer] = gm;
+    ref.read(playerProvider.notifier).noteOn(gm, source: NoteSource.onScreen);
+  }
+
+  void _onPadPointerUp(PointerEvent event) {
+    final gm = _padPointers.remove(event.pointer);
+    if (gm == null) return;
+    ref.read(playerProvider.notifier).noteOff(gm, source: NoteSource.onScreen);
+  }
+
   @override
   void dispose() {
     _ticker.dispose();
     _focusNode.dispose();
     _waitPulse.dispose();
+    _padFlash.dispose();
     super.dispose();
   }
 
@@ -285,6 +373,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
           ..value = 0;
       }
     });
+    // Restart the pad strip's repaint clock on every stroke, whatever its
+    // source (change: add-drum-input-mapping), so the struck flash decays
+    // smoothly even while playback is stopped — no playhead frame drives it
+    // there. Fires on a new struck table, which only a resolved stroke builds.
+    ref.listen(playerProvider.select((d) => d.struckSurfacesMs), (_, _) {
+      _padFlash.forward(from: 0);
+    });
     _maybeShowSetup();
     return Focus(
       focusNode: _focusNode,
@@ -301,10 +396,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         onPopInvokedWithResult: (didPop, _) {
           if (!didPop) unawaited(_requestExit());
         },
-        // Celebrates a level crossed by playing, through the same path a redeem
-        // uses (change: add-play-rewards). A listener widget rather than another
-        // `ref.listen` in this build method (architecture rule 4).
-        child: PlayRewardListeners(child: _buildPlayer(context)),
+        // Dedicated listener widgets rather than more `ref.listen` in this
+        // build method (architecture rule 4): the font-follows-score reaction
+        // (change: add-drum-audio-channel — a percussion score installs the
+        // remembered kit, leaving restores the piano) and the play-reward
+        // level celebration (change: add-play-rewards).
+        child: ScoreFontListener(
+          percussion: ref.watch(
+            playerProvider.select((PlayerData d) => d.isPercussion),
+          ),
+          child: PlayRewardListeners(child: _buildPlayer(context)),
+        ),
       ),
     );
   }
@@ -368,6 +470,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                           constraints.maxHeight,
                           isPhone: context.isPhoneLayout,
                         );
+                        final kitBandHeight = _kitBandHeightFor(
+                          constraints.maxHeight,
+                          isPhone: context.isPhoneLayout,
+                        );
                         // Synthesia always shows the keyboard (its cascade
                         // aligns to the keys); the Portée honours the user's
                         // hide-keyboard setting; the engraved Partition never
@@ -416,7 +522,98 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                             // the keyboard is hidden). Hides itself when the
                             // loaded score has no timing.
                             const PlaybackProgressBar(),
-                            if (showKeyboard)
+                            // EXPERIMENT (drum-highway): the strip of
+                            // labelled rectangles is gone everywhere. The two
+                            // play surfaces DRAW the kit inside themselves;
+                            // the staff — which engraves notes but offers
+                            // nothing to aim at — gets the SAME drawn kit
+                            // under it, so one score never teaches two
+                            // pictures of the same instrument.
+                            if (data.isPercussion &&
+                                data.mode == RenderMode.staff)
+                              SizedBox(
+                                height: kitBandHeight,
+                                child: Builder(
+                                  builder: (context) {
+                                    DrumKitPainter kit(double nowMs) =>
+                                        DrumKitPainter(
+                                          lanes: data.presentedDrumLanes,
+                                          hasKick: data.hasKickPedal,
+                                          struckMs: data.struckSurfacesMs,
+                                          nowMs: nowMs,
+                                          expectedSurfaces:
+                                              data.expectedDrumSurfaces,
+                                          playable: data.playableDrumSurfaces,
+                                          waitPulse: data.blocked
+                                              ? 0.5 -
+                                                    0.5 *
+                                                        math.cos(
+                                                          2 *
+                                                              math.pi *
+                                                              _waitPulse.value,
+                                                        )
+                                              : 0,
+                                          labels: [
+                                            for (final lane
+                                                in data.presentedDrumLanes)
+                                              kitPieceLabel(
+                                                AppLocalizations.of(context),
+                                                lane,
+                                              ),
+                                          ],
+                                          kickLabel: AppLocalizations.of(
+                                            context,
+                                          ).kitPieceKick,
+                                          labelStyle: const TextStyle(
+                                            fontSize: 13,
+                                          ),
+                                        );
+                                    final size = Size(
+                                      constraints.maxWidth,
+                                      kitBandHeight,
+                                    );
+                                    return Listener(
+                                      key: kDrumKitSurfaceKey,
+                                      onPointerDown: (e) => _onKitPointerDown(
+                                        e,
+                                        data,
+                                        kit(0).artFor(size),
+                                      ),
+                                      onPointerUp: _onPadPointerUp,
+                                      onPointerCancel: _onPadPointerUp,
+                                      // Two clocks of its own, both
+                                      // independent of the playhead: the
+                                      // struck flash's decay and the expected
+                                      // pieces' breathing while the gate
+                                      // holds. Isolate those frames.
+                                      child: RepaintBoundary(
+                                        child: AnimatedBuilder(
+                                          animation: Listenable.merge([
+                                            _padFlash,
+                                            _waitPulse,
+                                          ]),
+                                          builder: (context, _) => CustomPaint(
+                                            key: const Key('drum-kit'),
+                                            size: size,
+                                            painter: kit(
+                                              DateTime.now()
+                                                  .millisecondsSinceEpoch
+                                                  .toDouble(),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              )
+                            // Every other percussion mode draws its own kit
+                            // (or, on the Partition, deliberately draws none:
+                            // a printed page is read, not aimed at) — and must
+                            // never fall through to the piano keyboard below.
+                            else if (data.isPercussion)
+                              const SizedBox.shrink()
+                            else if (showKeyboard)
                               SizedBox(
                                 height: keyboardHeight,
                                 child: Listener(
@@ -556,6 +753,153 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     // unavailable on phones and falls back to the staff view. The mode toggle
     // also hides the Partition segment on phones, so this is only reached if the
     // mode was set on a larger screen before switching to a phone layout.
+    // EXPERIMENT (drum-highway): the perspective reading of the same cascade —
+    // percussion only, and never a fallback: an unavailable stage falls back to
+    // the flat cascade below rather than drawing 88 keyboard lanes into a
+    // vanishing point.
+    if (data.isPercussion && data.mode == RenderMode.stage) {
+      final l10n = AppLocalizations.of(context);
+      DrumHighwayPainter stage(double nowMs) => DrumHighwayPainter(
+        lanes: data.presentedDrumLanes,
+        notes: data.visibleNotes,
+        multiVoice: spansMultipleVoices(data.notes),
+        elapsedMs: data.referenceMs,
+        struckMs: data.struckSurfacesMs,
+        nowMs: nowMs,
+        laneLabels: [
+          for (final lane in data.presentedDrumLanes) kitPieceLabel(l10n, lane),
+        ],
+        kickLabel: l10n.kitPieceKick,
+        labelStyle: const TextStyle(fontSize: 13),
+        expectedSurfaces: data.expectedDrumSurfaces,
+        waitPulse: data.blocked ? _waitPulse.value : 0,
+        hasKick: data.hasKickPedal,
+        measureStartMs: data.measureStartMs,
+        writtenMeasureOf: data.writtenMeasureOf,
+        speed: data.speed,
+        playableSurfaces: data.playableDrumSurfaces,
+        beatMs: data.beatMs,
+      );
+      return Stack(
+        children: [
+          Positioned.fill(
+            child: LayoutBuilder(
+              builder: (context, c) {
+                final size = Size(c.maxWidth, c.maxHeight);
+                return Listener(
+                  key: kDrumKitSurfaceKey,
+                  behavior: HitTestBehavior.opaque,
+                  onPointerDown: (e) =>
+                      _onKitPointerDown(e, data, stage(0).kitArtFor(size)),
+                  onPointerUp: _onPadPointerUp,
+                  onPointerCancel: _onPadPointerUp,
+                  // The kit lives here now, so its clocks do too: the struck
+                  // flash decays and the awaited pieces breathe even while
+                  // playback is stopped, which no playhead frame would drive.
+                  child: AnimatedBuilder(
+                    animation: Listenable.merge([_padFlash, _waitPulse]),
+                    // The painter is rebuilt HERE, not captured from the
+                    // enclosing build: it carries a wall-clock stamp, and a
+                    // painter created once would freeze the flash's decay at
+                    // whatever instant the surface last laid out.
+                    builder: (context, _) => CustomPaint(
+                      painter: stage(
+                        DateTime.now().millisecondsSinceEpoch.toDouble(),
+                      ),
+                      size: size,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          Positioned.fill(
+            child: IgnorePointer(
+              child: _ScoreLoadOverlay(
+                notation: notation,
+                hasSelection: hasSelection,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+    if (data.isPercussion && data.mode == RenderMode.synthesia) {
+      // The percussion cascade (change: add-drum-kit-view): the drum score's
+      // default reading surface, in Synthesia's slot. The notation modes are
+      // offered alongside it (change: add-drum-notation-render) and drawn by
+      // the shared Staff/Partition paths below, which engrave the percussion
+      // rules. Since add-drum-scoring the cascade also carries the hit
+      // sparks — on the lanes and on the kick bar — while the live score
+      // itself stays in the top-bar chip, off the play surface.
+      final l10n = AppLocalizations.of(context);
+      DrumCascadePainter cascade(double nowMs) => DrumCascadePainter(
+        lanes: data.presentedDrumLanes,
+        notes: data.visibleNotes,
+        multiVoice: spansMultipleVoices(data.notes),
+        elapsedMs: data.referenceMs,
+        // EXPERIMENT (drum-highway): the metre and the drawn kit moved into
+        // the cascade, so it reads on the beat and lands on the drums.
+        measureStartMs: data.measureStartMs,
+        writtenMeasureOf: data.writtenMeasureOf,
+        speed: data.speed,
+        playableSurfaces: data.playableDrumSurfaces,
+        beatMs: data.beatMs,
+        struckMs: data.struckSurfacesMs,
+        nowMs: nowMs,
+        expectedSurfaces: data.expectedDrumSurfaces,
+        waitPulse: data.blocked ? _waitPulse.value : 0,
+        hasKick: data.hasKickPedal,
+        laneLabels: [
+          for (final lane in data.presentedDrumLanes) kitPieceLabel(l10n, lane),
+        ],
+        kickLabel: l10n.kitPieceKick,
+        labelStyle: const TextStyle(fontSize: 13),
+      );
+      return Stack(
+        children: [
+          Positioned.fill(
+            child: LayoutBuilder(
+              builder: (context, c) {
+                final size = Size(c.maxWidth, c.maxHeight);
+                return Listener(
+                  key: kDrumKitSurfaceKey,
+                  behavior: HitTestBehavior.opaque,
+                  onPointerDown: (e) =>
+                      _onKitPointerDown(e, data, cascade(0).kitArtFor(size)),
+                  onPointerUp: _onPadPointerUp,
+                  onPointerCancel: _onPadPointerUp,
+                  // The kit lives here now, so its clocks do too: the struck
+                  // flash decays and the awaited pieces breathe even while
+                  // playback is stopped, which no playhead frame would drive.
+                  child: AnimatedBuilder(
+                    animation: Listenable.merge([_padFlash, _waitPulse]),
+                    // The painter is rebuilt HERE, not captured from the
+                    // enclosing build: it carries a wall-clock stamp, and a
+                    // painter created once would freeze the flash's decay at
+                    // whatever instant the surface last laid out.
+                    builder: (context, _) => CustomPaint(
+                      painter: cascade(
+                        DateTime.now().millisecondsSinceEpoch.toDouble(),
+                      ),
+                      size: size,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          Positioned.fill(
+            child: IgnorePointer(
+              child: _ScoreLoadOverlay(
+                notation: notation,
+                hasSelection: hasSelection,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
     if (data.mode == RenderMode.partition && !isPhone) {
       return const _PartitionView();
     }
@@ -602,6 +946,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
           child: Container(
             color: palette.background,
             child: NotationHelpArea(
+              drumLanes: data.isPercussion ? data.presentedDrumLanes : null,
               builder: (context, hitIndex) => CustomPaint(
                 painter: StaffPainter(
                   notes: data.visibleNotes,
@@ -631,11 +976,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
           ),
         ),
         // In the staff view the sparks anchor to the keyboard line, so hide them
-        // when the keyboard is hidden (the gauge still shows).
+        // when the keyboard is hidden (the gauge still shows). A percussion
+        // score shows the pad strip here, not a keyboard, so the keyboard-keyed
+        // sparks have nothing to anchor to and are suppressed — the cascade is
+        // where a percussion run's sparks live (change: add-drum-scoring).
         Positioned.fill(
           child: ScoringOverlay(
             layout: layout,
-            showEffects: data.keyboardVisible,
+            showEffects: data.keyboardVisible && !data.isPercussion,
           ),
         ),
         Positioned.fill(
@@ -841,6 +1189,7 @@ class _ModeToggle extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final mode = ref.watch(playerProvider.select((d) => d.mode));
+    final percussion = ref.watch(playerProvider.select((d) => d.isPercussion));
     final notifier = ref.read(playerProvider.notifier);
     final l10n = AppLocalizations.of(context);
     // On a phone the three labelled segments are too wide for the landscape top
@@ -871,7 +1220,21 @@ class _ModeToggle extends ConsumerWidget {
       // viewport, so it's dropped from the toggle on phones. If the mode was set
       // to Partition on a larger screen, the selection falls back to Staff (what
       // the render area also shows) so the button keeps a valid selection.
+      // A percussion score offers the same mode set a keyboard score gets on
+      // the same device — the cascade in Synthesia's slot, plus Staff and
+      // Partition drawn per music-percussion-engraving (change:
+      // add-drum-notation-render, lifting add-drum-kit-view's interim); the
+      // cascade stays the default on load (see the notifier's document-load
+      // reset). Wait Mode remains not offered for percussion — that interim
+      // belongs to add-drum-scoring, not this change.
       segments: [
+        // EXPERIMENT (drum-highway): the perspective stage leads the row on a
+        // percussion score — it is the reading a beginner is drawn to, and the
+        // first segment is what a beginner tries. It is offered ONLY there:
+        // the mode does not exist for a keyboard score, so it is absent rather
+        // than disabled.
+        if (percussion)
+          segment(RenderMode.stage, l10n.modeStage, Icons.view_in_ar),
         segment(
           RenderMode.synthesia,
           l10n.modeSynthesia,
@@ -882,7 +1245,15 @@ class _ModeToggle extends ConsumerWidget {
           segment(RenderMode.partition, l10n.modePartition, Icons.article),
       ],
       selected: {
-        (isPhone && mode == RenderMode.partition) ? RenderMode.staff : mode,
+        if (isPhone && mode == RenderMode.partition)
+          RenderMode.staff
+        // A keyboard score can hold `stage` only by having been switched away
+        // from a drum score; the toggle then shows the cascade, which is what
+        // the render area draws.
+        else if (!percussion && mode == RenderMode.stage)
+          RenderMode.synthesia
+        else
+          mode,
       },
       onSelectionChanged: (s) => notifier.setMode(s.first),
       showSelectedIcon: false,
@@ -1197,7 +1568,11 @@ class _TransportBar extends ConsumerWidget {
       data.waitMode ? Icons.hourglass_top : Icons.hourglass_disabled,
       color: waitColor,
     );
-    final wait = isPhone
+    // Offered for every score, percussion included (change: add-drum-scoring):
+    // the pads satisfy the gate (change: add-drum-input-mapping) and the
+    // matcher judges what they satisfy, which is exactly the condition
+    // add-drum-kit-view's interim named for lifting itself.
+    final Widget wait = isPhone
         ? IconButton(
             visualDensity: density,
             tooltip: 'Wait',
@@ -1489,6 +1864,9 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
                     // detector wraps the canvas itself. Tap and long-press are
                     // distinct gestures, so the arena resolves them apart.
                     return NotationHelpArea(
+                      drumLanes: data.isPercussion
+                          ? data.presentedDrumLanes
+                          : null,
                       builder: (context, hitIndex) => GestureDetector(
                         // Tap-to-select the practice range directly on the score.
                         behavior: HitTestBehavior.opaque,

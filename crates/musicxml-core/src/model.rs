@@ -34,6 +34,13 @@ pub struct ScoreDocument {
     /// Number of staves in the (single) part — e.g. 2 for a piano grand staff.
     pub staves: u32,
     pub attributes: Attributes,
+    /// The part-list instrument table: one entry per declared
+    /// `<score-instrument>`, carrying the General MIDI percussion number its
+    /// `<midi-instrument>/<midi-unpitched>` denotes. The only authoritative
+    /// link between a written percussion note and the sound it denotes; empty
+    /// for a score declaring no instruments (the overwhelmingly common
+    /// keyboard case).
+    pub instruments: Vec<InstrumentDecl>,
     pub measures: Vec<NotationMeasure>,
     /// The **playback order**: the sequence of written-measure passes a
     /// performer would play, resolved from the repeat structure (repeat
@@ -79,8 +86,26 @@ pub struct Attributes {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Clef {
     pub staff: u32,
-    pub sign: char,
+    pub sign: ClefSign,
     pub line: i32,
+}
+
+/// A clef sign the renderers act on. MusicXML defines seven signs; `TAB`,
+/// `jianpu` and `none` are out of scope for a keyboard-and-drums product, and an
+/// unrecognised sign leaves the staff at its default clef rather than failing
+/// the parse — so this enum never needs a catch-all variant.
+///
+/// The single-letter variants serialize as `"G"`/`"F"`/`"C"`, exactly what the
+/// former `char` field produced, so the wasm consumer's JSON is unchanged;
+/// `Percussion` serializes as the MusicXML token `"percussion"`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum ClefSign {
+    G,
+    F,
+    C,
+    #[cfg_attr(feature = "serde", serde(rename = "percussion"))]
+    Percussion,
 }
 
 /// A time signature, e.g. 3/4 → `beats = 3`, `beat_type = 4`.
@@ -191,6 +216,94 @@ pub struct NoteEvent {
     pub stem: Option<StemDir>,
     pub beams: Vec<BeamState>,
     pub lyric: Option<Lyric>,
+    /// Written staff position of a percussion note (`<unpitched>`), with its
+    /// resolved General MIDI number. Held in a channel **distinct** from
+    /// [`Self::pitch`]: the written position is a staff placement, not a
+    /// sounding pitch, and exposing it as a `Pitch` would let a consumer
+    /// compute a meaningless frequency from it. A note is exactly one of
+    /// pitched, unpitched, or a rest.
+    pub unpitched: Option<Unpitched>,
+    /// The note's `<instrument id>` reference when present, kept so a consumer
+    /// can reach the part-list declaration (e.g. for the instrument's name).
+    pub instrument_id: Option<String>,
+}
+
+/// How an unpitched note's head is engraved (change: add-drum-notation-render).
+///
+/// Derived once here, beside the resolved General MIDI number, and carried to
+/// both painters (serde → console wasm, frb → app) so neither re-derives head
+/// classes from GM ranges of its own — two hand-maintained tables of the same
+/// knowledge is exactly how independent painters drift. The app's kit-view
+/// table stays the separate authority for the *gameplay* question (lanes and
+/// pads); the cymbal overlap between the two is pinned by an app test.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum HeadClass {
+    /// Ordinary oval head — the drums, and any unresolved note (the written
+    /// position is authoritative even when the sound is not).
+    Oval,
+    /// X-form head — the cymbals, following the duration class like ordinary
+    /// heads (filled x for quarter and shorter, open x forms above).
+    X,
+    /// X-form head carrying the conventional open mark (a small circle above
+    /// the head) — the open hi-hat stroke, GM 46, so the open/closed
+    /// distinction the file encodes as two GM numbers stays readable.
+    XOpen,
+}
+
+/// The cymbal sounds of the standard kit (0-based General MIDI): hi-hats
+/// (42/44/46 — 44, the pedal "chick", is a cymbal *sound* and engraves as x
+/// by convention even though the kit view lanes it generically), crashes
+/// (49/52/55/57), rides (51/53/59). Everything else — and every unresolved
+/// note — takes the ordinary oval head.
+const CYMBAL_GM: [u32; 10] = [42, 44, 46, 49, 51, 52, 53, 55, 57, 59];
+
+/// GM 46, the open hi-hat — the one stroke that carries the open mark.
+const OPEN_HI_HAT_GM: u32 = 46;
+
+impl HeadClass {
+    /// Classify a resolved General MIDI number (0-based) into its engraved
+    /// head class; `None` (unresolved) takes the ordinary oval.
+    pub fn of(gm_number: Option<u32>) -> Self {
+        match gm_number {
+            Some(OPEN_HI_HAT_GM) => HeadClass::XOpen,
+            Some(gm) if CYMBAL_GM.contains(&gm) => HeadClass::X,
+            _ => HeadClass::Oval,
+        }
+    }
+}
+
+/// A percussion note's written staff position and resolved sound.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Unpitched {
+    /// `display-step`: the written staff placement's diatonic step (A–G).
+    pub display_step: char,
+    /// `display-octave`: the written staff placement's octave.
+    pub display_octave: i32,
+    /// The General MIDI percussion number (0-based, 35–81 for the standard
+    /// kit) resolved from the part-list instrument table at parse time — the
+    /// element value **minus one**, since MusicXML's `<midi-unpitched>` is
+    /// 1-based. `None` when the note's instrument could not be resolved; a
+    /// consumer must omit such a note rather than fabricate a number.
+    pub gm_number: Option<u32>,
+    /// The engraved head class ([`HeadClass::of`] the resolved number) — the
+    /// painters consume this verbatim and never own GM ranges.
+    pub head_class: HeadClass,
+}
+
+/// One `<score-instrument>` declaration from the part list.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct InstrumentDecl {
+    /// The declaration's `id`, referenced by a note's `<instrument id>`.
+    pub id: String,
+    /// `<instrument-name>` when declared (e.g. "Snare Drum").
+    pub name: Option<String>,
+    /// General MIDI percussion number (0-based) from `<midi-unpitched>`,
+    /// already converted from the element's 1-based value. `None` when the
+    /// declaration carries no `<midi-unpitched>`.
+    pub gm_number: Option<u32>,
 }
 
 /// A pitch: diatonic step, octave, and chromatic alteration (semitones).

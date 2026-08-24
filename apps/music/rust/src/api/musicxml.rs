@@ -33,9 +33,9 @@ use flutter_rust_bridge::frb;
 // The real types live in the shared crate; re-export so downstream Rust (and the
 // bridge functions below) refer to them by these names.
 pub use cymbra_musicxml_core::{
-    Attributes, BeamState, Clef, Direction, DirectionKind, Lyric, NotationMeasure, NoteEvent,
-    Pitch, PlayedMeasure, RepeatMarks, ScoreDocument, ScoreMeta, ScoreSummary, StemDir, System,
-    TimeSignature, Tuplet,
+    Attributes, BeamState, Clef, ClefSign, Direction, DirectionKind, HeadClass, InstrumentDecl,
+    InstrumentKind, Lyric, NotationMeasure, NoteEvent, Pitch, PlayedMeasure, RepeatMarks,
+    ScoreDocument, ScoreMeta, ScoreSummary, StemDir, System, TimeSignature, Tuplet, Unpitched,
 };
 
 // --- frb mirrors of the shared model -------------------------------------
@@ -53,6 +53,11 @@ pub struct _ScoreDocument {
     /// Number of staves in the (single) part — e.g. 2 for a piano grand staff.
     pub staves: u32,
     pub attributes: Attributes,
+    /// The part-list instrument table: one entry per declared
+    /// `<score-instrument>`, carrying the General MIDI percussion number its
+    /// `<midi-instrument>/<midi-unpitched>` denotes. Empty for a score
+    /// declaring no instruments (the overwhelmingly common keyboard case).
+    pub instruments: Vec<InstrumentDecl>,
     pub measures: Vec<NotationMeasure>,
     /// The **playback order**: the sequence of written-measure passes a
     /// performer would play, resolved from the repeat structure (repeat
@@ -94,8 +99,20 @@ pub struct _Attributes {
 #[frb(mirror(Clef))]
 pub struct _Clef {
     pub staff: u32,
-    pub sign: char,
+    pub sign: ClefSign,
     pub line: i32,
+}
+
+/// A clef sign the renderers act on. MusicXML defines seven signs; `TAB`,
+/// `jianpu` and `none` are out of scope for a keyboard-and-drums product, and
+/// an unrecognised sign leaves the staff at its default clef rather than
+/// failing the parse.
+#[frb(mirror(ClefSign))]
+pub enum _ClefSign {
+    G,
+    F,
+    C,
+    Percussion,
 }
 
 /// A time signature, e.g. 3/4 → `beats = 3`, `beat_type = 4`.
@@ -201,6 +218,53 @@ pub struct _NoteEvent {
     pub stem: Option<StemDir>,
     pub beams: Vec<BeamState>,
     pub lyric: Option<Lyric>,
+    /// Written staff position of a percussion note (`<unpitched>`), with its
+    /// resolved General MIDI number — a channel **distinct** from `pitch`: the
+    /// written position is a staff placement, not a sounding pitch. A note is
+    /// exactly one of pitched, unpitched, or a rest.
+    pub unpitched: Option<Unpitched>,
+    /// The note's `<instrument id>` reference when present.
+    pub instrument_id: Option<String>,
+}
+
+/// A percussion note's written staff position and resolved sound.
+#[frb(mirror(Unpitched))]
+pub struct _Unpitched {
+    /// `display-step`: the written staff placement's diatonic step (A–G).
+    pub display_step: char,
+    /// `display-octave`: the written staff placement's octave.
+    pub display_octave: i32,
+    /// The General MIDI percussion number (0-based, 35–81 for the standard
+    /// kit) resolved from the part-list instrument table at parse time.
+    /// `None` when the note's instrument could not be resolved; a consumer
+    /// must omit such a note rather than fabricate a number.
+    pub gm_number: Option<u32>,
+    /// The engraved head class derived beside the number (change:
+    /// add-drum-notation-render) — the painters consume it verbatim.
+    pub head_class: HeadClass,
+}
+
+/// How an unpitched note's head is engraved (change: add-drum-notation-render).
+#[frb(mirror(HeadClass))]
+pub enum _HeadClass {
+    /// Ordinary oval head — drums, and any unresolved note.
+    Oval,
+    /// X-form head — cymbals, following the duration class.
+    X,
+    /// X head carrying the open mark — the open hi-hat (GM 46).
+    XOpen,
+}
+
+/// One `<score-instrument>` declaration from the part list.
+#[frb(mirror(InstrumentDecl))]
+pub struct _InstrumentDecl {
+    /// The declaration's `id`, referenced by a note's `<instrument id>`.
+    pub id: String,
+    /// `<instrument-name>` when declared (e.g. "Snare Drum").
+    pub name: Option<String>,
+    /// General MIDI percussion number (0-based) from `<midi-unpitched>`,
+    /// already converted from the element's 1-based value.
+    pub gm_number: Option<u32>,
 }
 
 /// A pitch: diatonic step, octave, and chromatic alteration (semitones).
@@ -281,16 +345,30 @@ pub struct _ScoreSummary {
     pub title_norm: Option<String>,
     /// Normalised `composer::title` key for dedup / grouping.
     pub work_key: String,
-    /// Grand-staff heuristic (`staves >= 2`) — a keyboard/piano proxy.
-    pub is_piano: bool,
     /// Number of staves (2 for a piano grand staff).
     pub staves: u32,
     pub key_fifths: i32,
     /// `beats/beat_type`, e.g. `4/4`.
     pub time_sig: String,
     pub measure_count: u32,
-    /// Count of pitched (non-rest) note events — the "playable notes" check.
+    /// Count of playable (pitched or unpitched, non-rest) note events — the
+    /// validation gate's check; a percussion score reports a non-zero count.
     pub note_count: u32,
+    /// Which instrument family the score is written for, derived from the
+    /// notation alone.
+    pub instrument: InstrumentKind,
+}
+
+/// Which instrument family a score is written for, derived from its notation
+/// alone — never from a filename, a part name, or any other external claim.
+#[frb(mirror(InstrumentKind))]
+pub enum _InstrumentKind {
+    /// Every non-rest note is pitched.
+    Keyboard,
+    /// Every non-rest note is unpitched.
+    Percussion,
+    /// Mixed pitched and unpitched content, or no notes at all.
+    Unknown,
 }
 
 /// Client-side validation outcome: on success the parsed [`ScoreSummary`]; on

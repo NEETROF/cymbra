@@ -19,6 +19,7 @@ anyhow = "1"
 # + .mxl decode + validate(). The app's musicxml.rs re-exports its model and
 # delegates the frb wrappers here (single source of truth across app/backend/crawler).
 cymbra-musicxml-core = { path = "../../../crates/musicxml-core" }
+cymbra-sf2-meta = { path = "../../../crates/sf2-meta" }
 # Raw USB-MIDI port listening: CoreMIDI (macOS/iOS), ALSA (Linux),
 # WinMM (Windows), AMidi via NDK (Android). 0.11 adds the Android backend.
 midir = "0.11"

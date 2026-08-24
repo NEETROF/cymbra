@@ -1063,10 +1063,12 @@ dependencies = [
  "async-trait",
  "chrono",
  "chrono-tz",
+ "cymbra-feature-flags",
  "cymbra-jobs",
  "cymbra-musicxml-core",
  "cymbra-plans",
  "cymbra-platform",
+ "cymbra-sf2-meta",
  "cymbra-storage",
  "cymbra-user-port",
  "getrandom 0.2.17",
@@ -1091,6 +1093,7 @@ dependencies = [
  "anyhow",
  "quick-xml 0.36.2",
  "serde",
+ "serde_json",
  "unicode-normalization",
  "zip",
 ]
@@ -1227,6 +1230,13 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
+]
+
+[[package]]
+name = "cymbra-sf2-meta"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
 ]
 
 [[package]]
@@ -3912,6 +3922,7 @@ dependencies = [
  "anyhow",
  "cpal",
  "cymbra-musicxml-core",
+ "cymbra-sf2-meta",
  "flutter_rust_bridge",
  "jni 0.21.1",
  "midir",
@@ -4066,8 +4077,12 @@ dependencies = [
  "csv",
  "cymbra-music",
  "cymbra-musicxml-core",
+ "cymbra-platform",
+ "cymbra-storage",
+ "dotenvy",
  "flate2",
  "futures-util",
+ "mockall",
  "reqwest 0.12.23",
  "serde",
  "serde_json",

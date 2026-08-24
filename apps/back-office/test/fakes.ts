@@ -8,6 +8,7 @@ export function makeJwt(payload: Record<string, unknown>): string {
 
 export interface SearchCall {
   query: string;
+  instrument?: string;
   moderationStatus?: string;
   reviewQueue?: boolean;
   allStatuses?: boolean;
@@ -54,6 +55,9 @@ export interface FakeState {
   flagChanges: unknown[];
   /** Make `listFlagDefinitions` reject, so a caller's error branch is exercised. */
   failFlags?: boolean;
+  /** Make `setFlag`/`setConfig` reject with this error (e.g. a ConnectError), so
+   *  the store's refusal mapping is exercised (change: add-flag-campaign-integrity). */
+  failFlagWrite?: unknown;
   // plans console (change: add-premium-subscription)
   lookupCalls: { userId: string; handle: string }[];
   /** What `lookupAccountPlan` returns (a LookupAccountPlanResponse-shaped object). */
@@ -108,6 +112,7 @@ export function makeFakeClients(state: Partial<FakeState> = {}): { clients: Clie
     flagDefs: state.flagDefs ?? [],
     flagChanges: state.flagChanges ?? [],
     failFlags: state.failFlags,
+    failFlagWrite: state.failFlagWrite,
     lookupCalls: [],
     lookup: state.lookup,
     campaigns: state.campaigns ?? [],
@@ -199,10 +204,12 @@ export function makeFakeClients(state: Partial<FakeState> = {}): { clients: Clie
       },
       setFlag: async (req: { key: string; app: string; enabled: boolean; rolloutScope: string; confirm: boolean }) => {
         s.setFlagCalls.push(req);
+        if (s.failFlagWrite) throw s.failFlagWrite;
         return {};
       },
       setConfig: async (req: { key: string; app: string; rolloutScope: string; confirm: boolean; value: unknown }) => {
         s.setConfigCalls.push(req);
+        if (s.failFlagWrite) throw s.failFlagWrite;
         return {};
       },
       clearOverride: async (req: { key: string; app: string; confirm: boolean }) => {

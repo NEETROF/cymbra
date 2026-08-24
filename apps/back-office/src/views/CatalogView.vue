@@ -47,7 +47,8 @@ function run() {
     query: view.filters.query || undefined,
     author: view.filters.author || undefined,
     level: view.filters.level || undefined,
-    isPiano: view.filters.isPiano,
+    // Instrument family (change: add-drums-access): "" = all → unset request field.
+    instrument: view.filters.instrument === "" ? undefined : view.filters.instrument,
     moderationStatus: specific,
     allStatuses: specific === undefined || undefined,
     source: view.filters.source || undefined,

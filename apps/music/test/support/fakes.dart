@@ -61,6 +61,11 @@ class FakeMidiService implements MidiService {
 class RecordingAudioService implements AudioService {
   final List<({int pitch, int velocity})> noteOns = [];
   final List<int> noteOffs = [];
+
+  /// Percussion strokes (change: add-drum-audio-channel), recorded separately
+  /// from the melodic pair so routing tests can assert the channel split.
+  final List<({int key, int velocity})> drumOns = [];
+  final List<int> drumOffs = [];
   int allNotesOffCount = 0;
   int initCount = 0;
 
@@ -90,6 +95,27 @@ class RecordingAudioService implements AudioService {
     calls.add('load:$sf2Path');
   }
 
+  /// Every path handed to the **awaited** swap, in order (change:
+  /// add-drum-audio-channel) — the percussion-readiness seam.
+  final List<String> awaitedLoads = [];
+
+  /// The awaited swap's outcome when [pendingAwaitedLoad] is not set.
+  bool awaitedLoadResult = true;
+
+  /// When set, [loadSoundFontAwaited] resolves with this completer's future,
+  /// so a test can hold the swap in flight and observe the visual-only window
+  /// before completing it.
+  Completer<bool>? pendingAwaitedLoad;
+
+  @override
+  Future<bool> loadSoundFontAwaited(String sf2Path) async {
+    awaitedLoads.add(sf2Path);
+    calls.add('loadAwaited:$sf2Path');
+    final pending = pendingAwaitedLoad;
+    if (pending != null) return pending.future;
+    return awaitedLoadResult;
+  }
+
   @override
   void noteOn(int pitch, {int velocity = AudioService.defaultVelocity}) {
     noteOns.add((pitch: pitch, velocity: velocity));
@@ -100,6 +126,18 @@ class RecordingAudioService implements AudioService {
   void noteOff(int pitch) {
     noteOffs.add(pitch);
     calls.add('off:$pitch');
+  }
+
+  @override
+  void drumOn(int key, {int velocity = AudioService.defaultVelocity}) {
+    drumOns.add((key: key, velocity: velocity));
+    calls.add('drumOn:$key');
+  }
+
+  @override
+  void drumOff(int key) {
+    drumOffs.add(key);
+    calls.add('drumOff:$key');
   }
 
   @override

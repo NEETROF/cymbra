@@ -56,6 +56,11 @@ abstract class RatingDeckState with _$RatingDeckState {
     @Default(0) int nextOffset,
     String? error,
 
+    /// The instrument family the rater asked to be dealt; null = whatever the
+    /// deck has. Session-scoped, like the hub's own filter: it says what you
+    /// feel like rating right now, not who you are.
+    ScoreInstrument? instrument,
+
     /// Curator coverage points earned by the most recent rating (change:
     /// add-curation-rewards), for the transient "+N" cue. `null` when the last
     /// rating awarded nothing.
@@ -131,7 +136,11 @@ class RatingDeck extends _$RatingDeck {
     try {
       final page = await ref
           .read(catalogServiceProvider)
-          .ratingDeck(limit: _pageSize, offset: 0);
+          .ratingDeck(
+            limit: _pageSize,
+            offset: 0,
+            instrument: state.instrument,
+          );
       final fresh = _newCards(page.hits, const <String>{});
       state = state.copyWith(
         loading: false,
@@ -152,7 +161,11 @@ class RatingDeck extends _$RatingDeck {
     try {
       final page = await ref
           .read(catalogServiceProvider)
-          .ratingDeck(limit: _pageSize, offset: state.nextOffset);
+          .ratingDeck(
+            limit: _pageSize,
+            offset: state.nextOffset,
+            instrument: state.instrument,
+          );
       state = state.copyWith(
         loadingMore: false,
         cards: [...state.cards, ..._newCards(page.hits, state.seenIds)],
@@ -273,6 +286,18 @@ class RatingDeck extends _$RatingDeck {
   /// error), clearing the judged set so the full accepted corpus is offered again.
   Future<void> refresh() {
     state = state.copyWith(seenIds: const <String>{});
+    return _loadFirstPage();
+  }
+
+  /// Deal only [instrument] from now on (null = whatever the deck has), and
+  /// re-source immediately: the cards already in hand were dealt under the old
+  /// choice, and a filter that only applies to the NEXT page reads as broken.
+  ///
+  /// The judged set is kept — a score rated under one filter must not come
+  /// back under another.
+  Future<void> setInstrument(ScoreInstrument? instrument) {
+    if (instrument == state.instrument) return Future.value();
+    state = state.copyWith(instrument: instrument);
     return _loadFirstPage();
   }
 }

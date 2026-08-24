@@ -34,6 +34,7 @@ import 'state/language_sync_listener.dart';
 import 'state/push_registration_listener.dart';
 import 'state/score_preview_playback.dart';
 import 'state/selected_piano.dart';
+import 'state/drums_access.dart';
 import 'state/plan_notifier.dart';
 import 'state/usage_tracking_notifier.dart';
 import 'theme/cymbra_theme.dart';
@@ -72,6 +73,11 @@ Future<void> main() async {
       // `false` in tests, the remote `plans.enabled` flag in the app.
       plansEnabledProvider.overrideWith(
         (ref) => ref.watch(flagsProvider).getBool('plans.enabled', or: false),
+      ),
+      // Drum-feature visibility (change: add-drums-access): plain `false` in
+      // tests, the remote server-evaluated `drums.enabled` flag in the app.
+      drumsEnabledProvider.overrideWith(
+        (ref) => ref.watch(flagsProvider).getBool(kDrumsEnabledFlag, or: false),
       ),
     ],
   );

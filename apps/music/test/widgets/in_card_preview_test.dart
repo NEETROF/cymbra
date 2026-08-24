@@ -12,12 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:music/painters/staff_painter.dart';
 import 'package:music/services/audio_service.dart';
 import 'package:music/services/catalog_service.dart';
 import 'package:music/services/notation_engine.dart';
+import 'package:music/src/rust/api/musicxml.dart' show HeadClass;
 import 'package:music/state/card_preview_notifier.dart';
 import 'package:music/state/performance_scoring.dart';
 import 'package:music/widgets/in_card_preview.dart';
@@ -111,6 +115,54 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
     }
     expect(maxFraction, greaterThan(0));
+  });
+
+  testWidgets('the in-card rating preview inherits the percussion staff path '
+      'at its smaller noteScale (StaffPainter reuse surface)', (tester) async {
+    final audio = RecordingAudioService();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          catalogServiceProvider.overrideWithValue(
+            FakeDeckCatalogService(deckCorpus(1)),
+          ),
+          notationEngineProvider.overrideWithValue(
+            FakeNotationEngine(document: sampleOpenGrooveDocument()),
+          ),
+          audioServiceProvider.overrideWithValue(audio),
+        ],
+        child: localizedApp(
+          Center(
+            child: SizedBox(
+              width: 320,
+              height: 200,
+              child: InCardPreview(catalogId: 'c0'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    final paint = tester.widget<CustomPaint>(
+      find.byWidgetPredicate(
+        (w) => w is CustomPaint && w.painter is StaffPainter,
+      ),
+    );
+    final painter = paint.painter! as StaffPainter;
+    // The preview's own reduced scale…
+    expect(painter.noteScale, lessThan(1.0));
+    // …fed with the percussion schedule: every note carries the percussion
+    // clef and the bridged head classes, which is exactly what routes the
+    // shared painter down the percussion path pinned by the paint tests.
+    expect(painter.notes, isNotEmpty);
+    expect(painter.notes.every((n) => n.clefSign == 'percussion'), isTrue);
+    expect(painter.notes.any((n) => n.headClass == HeadClass.xOpen), isTrue);
+    // And the painter instance the card built renders without error.
+    final recorder = ui.PictureRecorder();
+    painter.paint(Canvas(recorder), const Size(320, 200));
+    recorder.endRecording();
   });
 
   testWidgets('a failed preview unlocks rating (reports full progress)', (

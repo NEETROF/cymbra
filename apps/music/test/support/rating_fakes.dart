@@ -72,7 +72,16 @@ class FakeDeckCatalogService implements CatalogService {
   FakeDeckCatalogService(this.rows);
   final List<CatalogHit> rows;
 
-  CatalogSearchPage _page(int limit, int offset) {
+  CatalogSearchPage _page(
+    int limit,
+    int offset, [
+    ScoreInstrument? instrument,
+  ]) {
+    // The real deck filters server-side; the fake mirrors it so a test that
+    // sets the filter sees what the app would.
+    final rows = instrument == null
+        ? this.rows
+        : this.rows.where((h) => h.instrument == instrument).toList();
     final page = rows.skip(offset).take(limit).toList();
     return CatalogSearchPage(
       hits: page,
@@ -95,7 +104,8 @@ class FakeDeckCatalogService implements CatalogService {
   Future<CatalogSearchPage> ratingDeck({
     int limit = 20,
     int offset = 0,
-  }) async => _page(limit, offset);
+    ScoreInstrument? instrument,
+  }) async => _page(limit, offset, instrument);
 
   @override
   Future<void> save(String catalogId) async {}
@@ -115,16 +125,20 @@ class FakeDeckCatalogService implements CatalogService {
 /// A minimal catalog hit for the deck tests. Defaults to `accepted`; pass
 /// `moderationStatus: 'pending'` to model a not-yet-validated candidate (change:
 /// rate-pending-scores).
-CatalogHit deckHit(String id, {String moderationStatus = 'accepted'}) =>
-    CatalogHit(
-      id: id,
-      title: 'Piece $id',
-      composer: 'Composer',
-      level: PracticeLevel.beginner,
-      license: 'CC-BY-4.0',
-      source: 'pdmx',
-      moderationStatus: moderationStatus,
-    );
+CatalogHit deckHit(
+  String id, {
+  String moderationStatus = 'accepted',
+  ScoreInstrument? instrument,
+}) => CatalogHit(
+  id: id,
+  title: 'Piece $id',
+  composer: 'Composer',
+  level: PracticeLevel.beginner,
+  license: 'CC-BY-4.0',
+  source: 'pdmx',
+  moderationStatus: moderationStatus,
+  instrument: instrument,
+);
 
 /// `n` accepted hits (`c0`, `c1`, …).
 List<CatalogHit> deckCorpus([int n = 3]) => [

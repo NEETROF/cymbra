@@ -16,7 +16,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../src/rust/api/musicxml.dart' show BeamState;
+import '../src/rust/api/musicxml.dart' show BeamState, HeadClass;
+import '../state/drum_kit.dart' show isFootNote, spansMultipleVoices;
 import '../state/note_density_core.dart';
 import '../state/player_data.dart';
 import '../theme/cymbra_theme.dart';
@@ -268,6 +269,14 @@ class StaffPainter extends CustomPainter {
     // The kept staff when a single hand is shown: its clef/armature are drawn on
     // the lone staff (bass when only staff 2+ remains, else treble).
     final soloStaff = !twoStaff && hasBass ? 2 : 1;
+    // Percussion routing (change: add-drum-notation-render): a percussion
+    // document's derived notes all carry the percussion clef, so the staff
+    // engraves the percussion rules — no armature, written positions, x-form
+    // cymbal heads, voice-keyed stems/rests and hands/feet colours.
+    final isPercussion =
+        notes.any((n) => n.clefSign == 'percussion') ||
+        tieContinuations.any((n) => n.clefSign == 'percussion');
+    final percMultiVoice = isPercussion && spansMultipleVoices(notes);
     // The staff line gap sizes ALL notation (notes, stems, glyphs, armature).
     final lineGap = staffLineGap(
       height: size.height,
@@ -365,7 +374,7 @@ class StaffPainter extends CustomPainter {
       canvas,
       Smufl.clef(trebleClef.$1),
       6,
-      trebleBottom - (trebleClef.$2 - 1) * lineGap,
+      _clefBaselineY(trebleClef.$1, trebleClef.$2, trebleBottom, lineGap),
       lineGap,
       palette.staffLine,
     );
@@ -384,7 +393,7 @@ class StaffPainter extends CustomPainter {
         canvas,
         Smufl.clef(bassClef.$1),
         6,
-        bassBottom - (bassClef.$2 - 1) * lineGap,
+        _clefBaselineY(bassClef.$1, bassClef.$2, bassBottom, lineGap),
         lineGap,
         palette.staffLine,
       );
@@ -403,7 +412,10 @@ class StaffPainter extends CustomPainter {
     // armure reflects the key at the playhead, so a mid-piece modulation appears
     // as you scroll past it (like the clef above).
     final headColor = palette.staffLine;
-    final headKey = _keyFifthsAtPlayhead();
+    // No armature on a percussion staff — and no modulation redraw either
+    // (change: add-drum-notation-render): an unpitched part has no tonality,
+    // so a declared `fifths` value is an exporter leftover, never engraved.
+    final headKey = isPercussion ? 0 : _keyFifthsAtPlayhead();
     var hx = 6 + lineGap * 2.8;
     final keyW = Smufl.drawKeySignature(
       canvas,
@@ -582,9 +594,15 @@ class StaffPainter extends CustomPainter {
       // Position by the clef in effect for this note (not its staff index), and
       // by the note's *written* staff step when known (so an A♭ sits on the A
       // line like the engraved Partition), falling back to the MIDI number for
-      // MIDI-only sources (demo/replay).
+      // MIDI-only sources (demo/replay). A percussion note NEVER falls back to
+      // the MIDI slot: its number is a General MIDI sound identity, not a
+      // position — the written placement is always present (an empty
+      // <unpitched/> resolved to the middle line at parse time), and the
+      // middle line stands in should it ever be missing.
       final bottom = _clefBottomDiatonic(n.clefSign, n.clefLine);
-      final dia = n.diatonic ?? _diatonic(n.pitch);
+      final dia = n.clefSign == 'percussion'
+          ? (n.diatonic ?? _midlineDiatonic)
+          : (n.diatonic ?? _diatonic(n.pitch));
       return base - (dia - bottom) * stepGap;
     }
 
@@ -594,6 +612,9 @@ class StaffPainter extends CustomPainter {
     bool stemUpOf(TimedNote n) {
       final carried = n.stemUp;
       if (carried != null) return carried;
+      // Percussion default: voice 1 (hands) stems up, voice 2 (feet) down —
+      // the drum-notation convention the hands/feet split is keyed to.
+      if (n.clefSign == 'percussion') return n.voice < 2;
       final isBass = bassBottom != null && n.staff >= 2;
       final base = isBass ? bassBottom : trebleBottom;
       return noteY(n) >= base - 2 * lineGap;
@@ -644,9 +665,15 @@ class StaffPainter extends CustomPainter {
         x >= margin - lineGap && x <= size.width - margin + lineGap;
 
     // Notes are coloured by hand (right = blue, left = amber): brighter at the
-    // playhead ("play now"), success green once correctly held.
+    // playhead ("play now"), success green once correctly held. On percussion
+    // the same rule reads hands/feet — split by the voice convention with the
+    // single-voice GM fallback (`hand-color-coding`) — so a kick at F4 carries
+    // the same amber its bar carries in the cascade.
     Color colorFor(TimedNote n) {
-      final handColor = n.staff >= 2 ? palette.handLeft : palette.handRight;
+      final isLeft = isPercussion
+          ? isFootNote(n, multiVoice: percMultiVoice)
+          : n.staff >= 2;
+      final handColor = isLeft ? palette.handLeft : palette.handRight;
       final atPlayhead =
           n.startMs <= elapsedMs && elapsedMs < n.startMs + n.durationMs;
       if (atPlayhead && activeNotes.contains(n.pitch)) {
@@ -689,6 +716,19 @@ class StaffPainter extends CustomPainter {
       final glyphGap = n.isGrace ? lineGap * 0.7 : lineGap;
       final head = _headGlyph(n, quarterMs);
       _drawHead(canvas, Offset(x, y), glyphGap, atPlayhead, color, head);
+      // The conventional open mark on an open hi-hat stroke (GM 46, the
+      // bridged xOpen class): a small circle above the x head, keeping the
+      // open/closed distinction readable as it is in the cascade.
+      if (n.headClass == HeadClass.xOpen) {
+        canvas.drawCircle(
+          Offset(x, y - lineGap * 1.6),
+          lineGap * 0.32,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = Smufl.stemThickness * lineGap * 1.4
+            ..color = color,
+        );
+      }
       record(
         Rect.fromCenter(
           center: Offset(x, y),
@@ -727,7 +767,10 @@ class StaffPainter extends CustomPainter {
       // (drawing its own put a spurious flag next to the principal's beam), so
       // only unbeamed, non-whole, non-chord notes stem here — the same rule the
       // engraved Partition applies.
-      if (!beamed.contains(n) && head != Smufl.noteheadWhole && !n.isChord) {
+      if (!beamed.contains(n) &&
+          head != Smufl.noteheadWhole &&
+          head != Smufl.noteheadXWhole &&
+          !n.isChord) {
         _drawStemFlag(
           canvas,
           Offset(x, y),
@@ -788,13 +831,22 @@ class StaffPainter extends CustomPainter {
 
     // 4b) Scrolling rests, routed to their staff and centred on its middle line
     // (two spaces above the bottom line), like the engraved Partition view.
+    // In a two-voice percussion slot rests are displaced by voice — voice 1
+    // above the middle line, voice 2 below — clear of the other voice's
+    // material; single-voice slots keep the midline.
+    final multiVoiceSlots = isPercussion
+        ? _multiVoiceSlots(drawNotes)
+        : const <int>{};
     final restColor = palette.staffLine;
     for (final r in rests) {
       final x = xForTime(r.startMs.toDouble());
       if (!visible(x)) continue;
       final isBass = bassBottom != null && r.staff >= 2;
       final base = isBass ? bassBottom : trebleBottom;
-      final y = base - 2 * lineGap;
+      var y = base - 2 * lineGap;
+      if (isPercussion && multiVoiceSlots.contains(_slotOf(r.startMs))) {
+        y += r.voice >= 2 ? lineGap : -lineGap;
+      }
       Smufl.draw(
         canvas,
         _restGlyph(r, quarterMs),
@@ -1126,16 +1178,67 @@ class StaffPainter extends CustomPainter {
     }
   }
 
+  /// Written diatonic step of the middle staff line under the treble mapping
+  /// (B4) — where an empty `<unpitched/>` resolves, and the never-fall-back-
+  /// to-MIDI stand-in for a percussion note missing its written position.
+  static const int _midlineDiatonic = 4 * 7 + 6; // B4
+
+  /// Baseline y for a clef glyph on the staff whose bottom line is at
+  /// [bottom]: G/F/C sit on their declared `line`; the percussion clef is
+  /// centred on the middle line whatever line the file declares (its SMuFL
+  /// origin is the glyph's vertical centre).
+  double _clefBaselineY(String sign, int line, double bottom, double gap) =>
+      sign == 'percussion' ? bottom - 2 * gap : bottom - (line - 1) * gap;
+
   /// Diatonic value of the bottom staff line for a clef (sign on its `line`).
   /// Uses MIDI reference pitches through [_diatonic], so it shares the same
   /// written-diatonic scale as both [_diatonic] and [TimedNote.diatonic].
+  /// The percussion staff maps written positions exactly as a treble
+  /// (G, line 2) staff — the MusicXML convention for unpitched display
+  /// placement — regardless of the file's declared clef line.
   int _clefBottomDiatonic(String sign, int line) {
+    if (sign == 'percussion') return _diatonic(67) - 2; // E4, as treble
     final refMidi = switch (sign) {
       'F' => 53, // F3
       'C' => 60, // C4
       _ => 67, // G4
     };
     return _diatonic(refMidi) - (line - 1) * 2;
+  }
+
+  /// Index of the played slot ([measureStartMs]) containing instant [t] (ms),
+  /// by binary search; -1 when there is no measure table.
+  int _slotOf(num t) {
+    if (measureStartMs.isEmpty) return -1;
+    var lo = 0, hi = measureStartMs.length - 1;
+    while (lo < hi) {
+      final mid = (lo + hi + 1) >> 1;
+      if (measureStartMs[mid] <= t) {
+        lo = mid;
+      } else {
+        hi = mid - 1;
+      }
+    }
+    return lo;
+  }
+
+  /// The played slots where more than one voice is engraved (notes, tie
+  /// continuations or rests together) — where the two-voice percussion rest
+  /// displacement applies.
+  Set<int> _multiVoiceSlots(List<TimedNote> drawNotes) {
+    final voices = <int, Set<int>>{};
+    void add(num startMs, int voice) =>
+        voices.putIfAbsent(_slotOf(startMs), () => <int>{}).add(voice);
+    for (final n in drawNotes) {
+      add(n.startMs, n.voice);
+    }
+    for (final r in rests) {
+      add(r.startMs, r.voice);
+    }
+    return {
+      for (final e in voices.entries)
+        if (e.value.length > 1) e.key,
+    };
   }
 
   /// Key signature (fifths) in force at the playhead: the armure of the measure
@@ -1217,7 +1320,19 @@ class StaffPainter extends CustomPainter {
   /// Notehead glyph for a note: open for half/whole, filled otherwise. Uses the
   /// parsed [TimedNote.noteType] when present, else infers from the duration
   /// (in [quarterMs] units) — matching the engraved Partition view.
+  ///
+  /// A cymbal (the bridged x / xOpen head class, derived once in the shared
+  /// crate — never re-derived from GM ranges here) takes the x form following
+  /// the same duration class: filled x for quarter and shorter, the open x
+  /// forms for half and whole.
   String _headGlyph(TimedNote n, double quarterMs) {
+    if (n.headClass == HeadClass.x || n.headClass == HeadClass.xOpen) {
+      return switch (n.noteType) {
+        'whole' => Smufl.noteheadXWhole,
+        'half' => Smufl.noteheadXHalf,
+        _ => Smufl.noteheadXBlack,
+      };
+    }
     switch (n.noteType) {
       case 'whole':
         return Smufl.noteheadWhole;

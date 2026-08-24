@@ -5,6 +5,7 @@ import { api } from "@/lib/api";
 import { type Async, failure, idle, loading, run, success } from "@/lib/async";
 import { humanError, SoundFontUploadError } from "@/lib/errors";
 import { evictSoundFont, loadSoundFontById } from "@/lib/audio/soundfont";
+import { familyOf } from "@/lib/audio/family";
 import { t } from "@/i18n";
 import type { AdminSoundFont, CatalogHit, SoundFont } from "@/gen/score_pb";
 import { useAuthStore } from "./auth";
@@ -58,8 +59,11 @@ async function httpUpload(font: NewSoundFont, token: string | null): Promise<voi
     body: font.file,
   });
   if (!resp.ok) {
-    // Typed so humanError can map the status (e.g. 409 → "already exists").
-    throw new SoundFontUploadError(resp.status);
+    // Typed so humanError can map the status (e.g. 409 → "already exists"); the
+    // body rides along so a typed refusal reason (the family-mismatch prefix)
+    // is detectable by the caller.
+    const body = await resp.text().catch(() => "");
+    throw new SoundFontUploadError(resp.status, body);
   }
 }
 
@@ -91,6 +95,32 @@ export function setRegeneratePreviewForTest(fn: RegeneratePreviewFn): void {
 
 /** Admin listing page size. */
 export const SOUNDFONTS_PAGE_SIZE = 25;
+
+// The typed family-mismatch refusal (change: add-drum-audio-channel): the server
+// verifies a declared family against the file's actual preset banks and refuses a
+// mismatch with a typed reason — never stored, never trusted. Detected by code +
+// message prefix (the flags store's `toOpError` idiom). The upload route answers
+// `422` with a JSON refusal `{ code, message }` whose message starts with the
+// prefix; a gRPC surface would carry the prefix in the raw message
+// (InvalidArgument/FailedPrecondition) — both shapes are recognised.
+const FAMILY_MISMATCH_CODE = "soundfont_family_mismatch";
+const FAMILY_MISMATCH_PREFIX = `${FAMILY_MISMATCH_CODE}:`;
+
+function isFamilyMismatch(e: unknown): boolean {
+  if (e instanceof ConnectError) {
+    return (
+      (e.code === Code.InvalidArgument || e.code === Code.FailedPrecondition) &&
+      e.rawMessage.startsWith(FAMILY_MISMATCH_PREFIX)
+    );
+  }
+  if (!(e instanceof SoundFontUploadError)) return false;
+  if (e.body.startsWith(FAMILY_MISMATCH_PREFIX)) return true; // bare-text body
+  try {
+    return (JSON.parse(e.body) as { code?: string }).code === FAMILY_MISMATCH_CODE;
+  } catch {
+    return false;
+  }
+}
 
 export const useSoundFontsStore = defineStore("soundfonts", () => {
   const catalog = ref<Async<AdminSoundFont[]>>(idle);
@@ -130,13 +160,25 @@ export const useSoundFontsStore = defineStore("soundfonts", () => {
     });
   }
 
-  /** Add a font: upload its bytes + metadata, then re-list. */
+  /** Add a font: upload its bytes + metadata, then re-list. A family-mismatch
+   *  refusal (the file's preset banks cannot support the declared family) maps to
+   *  a localized reason naming the declared family — never the raw server string. */
   async function add(font: NewSoundFont) {
-    const outcome = await run(op, async () => {
+    op.value = loading;
+    try {
       await uploadImpl(font, useAuthStore().accessToken);
-    });
-    if (outcome.status === "success") await list();
-    return outcome;
+      op.value = success(undefined);
+      await list();
+    } catch (e) {
+      if (isFamilyMismatch(e)) {
+        console.error("soundfont upload refused:", e); // cause logged; the UI shows a localized reason
+        const family = t(`soundfonts.instr.${familyOf(font.instrument)}`);
+        op.value = failure(t("soundfonts.familyMismatch", { family }));
+      } else {
+        op.value = failure(humanError(e)); // humanError logs the cause
+      }
+    }
+    return op.value;
   }
 
   /** Edit a font's metadata, then re-list. */

@@ -34,8 +34,9 @@ pub struct ScoreMetadata {
     /// Normalised `composer::title` key for dedup / grouping the same work
     /// across sources.
     pub work_key: String,
-    /// Grand-staff heuristic (`staves >= 2`) — a keyboard/piano proxy.
-    pub is_piano: bool,
+    /// The score's instrument family, derived from the notation alone
+    /// (change: add-drums-access — replaces the `is_piano` staff proxy).
+    pub instrument: cymbra_musicxml_core::InstrumentKind,
     pub staves: u32,
     pub key_fifths: i32,
     /// `beats/beat_type`, e.g. `4/4`.
@@ -62,7 +63,7 @@ pub fn extract(doc: &ScoreDocument) -> ScoreMetadata {
         composer: s.composer,
         title_norm: s.title_norm,
         work_key: s.work_key,
-        is_piano: s.is_piano,
+        instrument: s.instrument,
         staves: s.staves,
         key_fifths: s.key_fifths,
         time_sig: s.time_sig,
@@ -112,7 +113,7 @@ mod tests {
         assert_eq!(m.key_fifths, -3);
         assert_eq!(m.time_sig, "9/8");
         assert_eq!(m.staves, 2);
-        assert!(m.is_piano);
+        assert_eq!(m.instrument, cymbra_musicxml_core::InstrumentKind::Keyboard);
         assert_eq!(m.measure_count, 2);
         assert_eq!(m.note_count, 2); // two pitched notes, the rest excluded
     }
@@ -130,5 +131,35 @@ mod tests {
         let m = meta();
         assert_eq!(m.language, None);
         assert_eq!(m.voicing, None);
+    }
+
+    /// Task 3.9 of add-drums-access: a percussion score flows through the
+    /// crawler's shared validate + extract path — no instrument condition is
+    /// added to admission (the whitelist stays the only gate), and the derived
+    /// metadata records the family the backend's enforcement keys on.
+    #[test]
+    fn a_percussion_score_is_ingestable_and_classified() {
+        const DRUMS: &str = r#"<?xml version="1.0"?>
+<score-partwise version="4.0">
+  <work><work-title>Basic Groove</work-title></work>
+  <part-list><score-part id="P1">
+    <score-instrument id="P1-I38"><instrument-name>Snare Drum</instrument-name></score-instrument>
+    <midi-instrument id="P1-I38"><midi-unpitched>39</midi-unpitched></midi-instrument>
+  </score-part></part-list>
+  <part id="P1"><measure number="1">
+    <attributes><divisions>1</divisions><clef><sign>percussion</sign><line>2</line></clef></attributes>
+    <note><unpitched><display-step>C</display-step><display-octave>5</display-octave></unpitched><duration>4</duration><instrument id="P1-I38"/><voice>1</voice></note>
+  </measure></part></score-partwise>"#;
+        // The shared admission gate accepts it (unpitched notes are playable)…
+        let summary = cymbra_musicxml_core::validate(DRUMS.as_bytes()).unwrap();
+        assert!(summary.note_count > 0);
+        // …and the crawler's derivation records the percussion family.
+        let doc = cymbra_musicxml_core::parse(DRUMS.as_bytes()).unwrap();
+        let m = extract(&doc);
+        assert_eq!(
+            m.instrument,
+            cymbra_musicxml_core::InstrumentKind::Percussion
+        );
+        assert_eq!(m.title.as_deref(), Some("Basic Groove"));
     }
 }

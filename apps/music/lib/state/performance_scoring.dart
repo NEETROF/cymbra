@@ -15,6 +15,7 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../services/clock_service.dart';
+import 'drum_kit.dart';
 import 'performance_scoring_core.dart';
 import 'player_data.dart';
 import 'session_summary.dart';
@@ -124,6 +125,12 @@ class PerformanceScorer extends _$PerformanceScorer {
   String _hands = 'both';
   double _speed = 1;
 
+  /// Whether the run being judged is a **percussion** one (change:
+  /// add-drum-scoring): attacks then bind at the kit piece's grain rather than
+  /// by pitch equality, the hi-hat articulation shades the verdict, and the
+  /// sustain dimension does not exist.
+  bool _percussion = false;
+
   int _combo = 0;
   int _bestCombo = 0;
   final List<HitEffect> _recent = [];
@@ -134,12 +141,17 @@ class PerformanceScorer extends _$PerformanceScorer {
   Clock get _clock => ref.read(clockProvider);
 
   /// Begins a scored run over [notes] (the visible scored notes at start).
+  ///
+  /// [percussion] switches the judgment to the drum model (change:
+  /// add-drum-scoring) — one flag, read by every branch below, so the two
+  /// instruments cannot end up with two independent matchers.
   void startRun({
     required String pieceId,
     required String title,
     required String hands,
     required double speed,
     required List<TimedNote> notes,
+    bool percussion = false,
   }) {
     _tracked
       ..clear()
@@ -153,6 +165,7 @@ class PerformanceScorer extends _$PerformanceScorer {
     _title = title;
     _hands = hands;
     _speed = speed;
+    _percussion = percussion;
     state = const ScoringData(active: true, syncPercent: 100);
   }
 
@@ -185,6 +198,7 @@ class PerformanceScorer extends _$PerformanceScorer {
           startMs: playheadMs.round(),
           waitMode: waitMode,
           verdict: TimingVerdict.missed,
+          sustainRatio: _percussion ? null : 0,
           wrong: true,
         ),
       );
@@ -206,6 +220,13 @@ class PerformanceScorer extends _$PerformanceScorer {
       t.timingOffsetMs = offset;
       t.verdict = verdictForOffsetMs(offset);
     }
+    // Open versus closed hi-hat: the stroke bound (and released the gate) on
+    // the piece, but the wrong articulation never earns `perfect` — the run
+    // completes on hardware with no hi-hat controller, and the difference
+    // still costs something (change: add-drum-scoring).
+    if (_percussion && !sameStrokeArticulation(t.note.pitch, pitch)) {
+      t.verdict = capBelowPerfect(t.verdict!);
+    }
     t.resolved = true;
     _heldBound[pitch] = t.index;
     _combo++;
@@ -222,6 +243,10 @@ class PerformanceScorer extends _$PerformanceScorer {
     if (!state.active) return;
     final idx = _heldBound.remove(pitch);
     if (idx == null) return;
+    // A percussion release is bookkeeping, never meaning: a stroke's note-off
+    // is a property of the module's firmware, so nothing is derived from it —
+    // no ratio, no penalty, ever (change: add-drum-scoring).
+    if (_percussion) return;
     final t = _tracked[idx];
     if (t.sustainFinal) return;
     final releasedAt = sustainClock(clocks, boundInWaitMode: t.waitMode);
@@ -257,7 +282,10 @@ class PerformanceScorer extends _$PerformanceScorer {
         _pushEffect(t.note.pitch, TimingVerdict.missed, wrong: false);
         changed = true;
       }
-      if (t.isHit && !t.sustainFinal && !_heldBound.containsValue(t.index)) {
+      if (!_percussion &&
+          t.isHit &&
+          !t.sustainFinal &&
+          !_heldBound.containsValue(t.index)) {
         final noteClock = sustainClock(clocks, boundInWaitMode: t.waitMode);
         if (noteClock >= t.note.startMs + t.note.durationMs) {
           t.sustainRatio = sustainRatioFor(
@@ -283,7 +311,7 @@ class PerformanceScorer extends _$PerformanceScorer {
         t.waitMode = waitMode;
         t.resolved = true;
       }
-      if (t.isHit && !t.sustainFinal) {
+      if (!_percussion && t.isHit && !t.sustainFinal) {
         final noteClock = sustainClock(clocks, boundInWaitMode: t.waitMode);
         t.sustainRatio = sustainRatioFor(
           (noteClock - t.note.startMs).clamp(0.0, double.infinity),
@@ -301,6 +329,7 @@ class PerformanceScorer extends _$PerformanceScorer {
       bestCombo: _bestCombo,
       playedAtMs: _clock.nowMs(),
       speed: _speed,
+      percussion: _percussion,
     );
     state = state.copyWith(
       active: false,
@@ -322,6 +351,17 @@ class PerformanceScorer extends _$PerformanceScorer {
     (t) => !t.resolved && (t.note.startMs - playheadMs).abs() <= 1,
   );
 
+  /// Whether an attack of [pitch] is an attack **of** the written [note] — the
+  /// single question that separates a bind from an extra/wrong note.
+  ///
+  /// Pitch equality for a keyboard score; for a percussion one the shared
+  /// stroke identity of `drum_kit.dart` (change: add-drum-scoring), so the
+  /// scorer, the Wait Mode gate and the pad feedback all read one table. Note
+  /// it deliberately does NOT consult the hi-hat articulation: that shades the
+  /// verdict once bound, and never decides binding.
+  bool _satisfies(TimedNote note, int pitch) =>
+      _percussion ? samePiece(note.pitch, pitch) : note.pitch == pitch;
+
   _Tracked? _matchOnset(
     int pitch,
     double playheadMs, {
@@ -330,7 +370,7 @@ class PerformanceScorer extends _$PerformanceScorer {
     _Tracked? best;
     var bestDelta = double.infinity;
     for (final t in _tracked) {
-      if (t.resolved || t.note.pitch != pitch) continue;
+      if (t.resolved || !_satisfies(t.note, pitch)) continue;
       final delta = (t.note.startMs - playheadMs).abs();
       if (waitMode) {
         // The active gate sits exactly at the frozen playhead.
@@ -360,11 +400,21 @@ class PerformanceScorer extends _$PerformanceScorer {
             verdict: t.verdict!,
             timingOffsetMs: t.timingOffsetMs,
             reactionMs: t.reactionMs,
-            sustainRatio: t.isHit ? t.sustainRatio : 0,
+            // Absent, not zero, on a percussion stroke — the record carries no
+            // sustain at all for a run that has no sustain dimension.
+            sustainRatio: _sustainRatioOf(t),
           ),
       ..._wrong,
     ]..sort((a, b) => a.startMs.compareTo(b.startMs));
     return list;
+  }
+
+  /// The sustain a judgment records: **absent** on a percussion stroke — the
+  /// run has no sustain dimension at all, and 0 would read as "held nothing" —
+  /// and 0 on a keyboard note that was never hit.
+  double? _sustainRatioOf(_Tracked t) {
+    if (_percussion) return null;
+    return t.isHit ? t.sustainRatio : 0;
   }
 
   /// Recomputes the live synchronization percentage from resolved onsets, using
@@ -376,11 +426,18 @@ class PerformanceScorer extends _$PerformanceScorer {
     final sustains = resolved
         .where((t) => t.isHit)
         .map((t) => t.sustainFinal ? t.sustainRatio : 1.0);
-    final pct = syncPercent(
-      onsetVerdicts: verdicts,
-      sustainRatios: sustains,
-      wrongNotes: _wrong.length,
-    );
+    // Percussion blends two dimensions, renormalized (change:
+    // add-drum-scoring); the keyboard blend below is untouched.
+    final pct = _percussion
+        ? percussionSyncPercent(
+            onsetVerdicts: verdicts,
+            wrongNotes: _wrong.length,
+          )
+        : syncPercent(
+            onsetVerdicts: verdicts,
+            sustainRatios: sustains,
+            wrongNotes: _wrong.length,
+          );
     state = state.copyWith(
       syncPercent: pct,
       combo: _combo,

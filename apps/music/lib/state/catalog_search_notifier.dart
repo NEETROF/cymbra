@@ -21,6 +21,7 @@ import '../analytics/usage_actions.dart';
 import '../services/catalog_service.dart';
 import 'contributed_scores.dart';
 import 'saved_catalog_scores.dart';
+import 'instrument_context.dart';
 import 'score_catalog.dart';
 import 'usage_tracking_notifier.dart';
 
@@ -45,6 +46,9 @@ abstract class CatalogSearchState with _$CatalogSearchState {
     // Advanced musical-facet filters (change: score-catalog-facets). Each null =
     // no constraint. Applied to the catalog source only (uploads carry no facet
     // data in the app).
+    /// Instrument-family filter (change: add-drums-access): null = no
+    /// constraint (the backend already withholds what the caller may not see).
+    ScoreInstrument? instrument,
     int? maxNoteValue,
     bool? hasChords,
     bool? hasTuplets,
@@ -92,6 +96,7 @@ abstract class CatalogSearchState with _$CatalogSearchState {
 
   /// Whether any advanced facet filter is active.
   bool get hasAdvancedFilters =>
+      instrument != null ||
       maxNoteValue != null ||
       hasChords != null ||
       hasTuplets != null ||
@@ -118,9 +123,30 @@ class CatalogSearch extends _$CatalogSearch {
     // Re-run the current query whenever the user's uploads change (e.g. a new
     // contribution) so the hub reflects it immediately without a manual reload.
     ref.listen(myContributedScoresProvider, (_, _) => unawaited(_reload()));
+    // The instrument filter is SEEDED from the context and then independently
+    // adjustable, retained for the session (change: add-instrument-context):
+    // an explicit context switch re-seeds it — the durable act outranks the
+    // session's working state — while adjusting the filter never writes back
+    // (this notifier has no path into the context). Reacting via listen keeps
+    // the layering rule: no provider imperatively invalidates a sibling.
+    ref.listen(effectiveInstrumentContextProvider, (previous, next) {
+      if (previous == next) return;
+      // The same mapping as the seed: keyboard's starting value is the
+      // unconstrained browse, drums starts on the percussion filter.
+      setInstrument(
+        next == AppInstrument.drums ? ScoreInstrument.percussion : null,
+      );
+    });
+    // Seed the initial value: only under the drums context does the filter
+    // start constrained — the keyboard default keeps today's unconstrained
+    // browse (the backend already withholds what the caller may not see).
+    final seed =
+        ref.read(effectiveInstrumentContextProvider) == AppInstrument.drums
+        ? ScoreInstrument.percussion
+        : null;
     // Kick off the initial browse after build returns (never touch state here).
     Future.microtask(_reload);
-    return const CatalogSearchState();
+    return CatalogSearchState(instrument: seed);
   }
 
   /// Update the text query and reload (debounced for search-as-you-type).
@@ -151,6 +177,12 @@ class CatalogSearch extends _$CatalogSearch {
 
   // --- advanced facet filters (change: score-catalog-facets) --------------
   // Applied to the catalog source; each reloads immediately.
+
+  /// Instrument-family filter (change: add-drums-access), or null for "tout".
+  void setInstrument(ScoreInstrument? instrument) {
+    state = state.copyWith(instrument: instrument);
+    unawaited(_reload());
+  }
 
   /// Fastest allowed note value (power-of-two denominator), or null for "tout".
   void setMaxNoteValue(int? denominator) {
@@ -189,6 +221,7 @@ class CatalogSearch extends _$CatalogSearch {
   /// Clear every advanced facet filter (keeps text/author/level/source).
   void clearAdvancedFilters() {
     state = state.copyWith(
+      instrument: null,
       maxNoteValue: null,
       hasChords: null,
       hasTuplets: null,
@@ -264,10 +297,12 @@ class CatalogSearch extends _$CatalogSearch {
     return uploads.where(_matchesFilters).toList();
   }
 
-  /// The current musical-facet filters for the catalog query. The corpus is
-  /// piano-only for now, so `isPiano` is always constrained to true.
+  /// The current musical-facet filters for the catalog query. No instrument is
+  /// pinned (change: add-drums-access): the corpus is no longer keyboard-only,
+  /// and the backend already withholds what the caller may not see — the
+  /// user's optional instrument filter only narrows.
   CatalogFilters get _filters => CatalogFilters(
-    isPiano: true,
+    instrument: state.instrument,
     maxNoteValue: state.maxNoteValue,
     hasChords: state.hasChords,
     hasTuplets: state.hasTuplets,
@@ -368,8 +403,21 @@ class CatalogSearch extends _$CatalogSearch {
     return true;
   }
 
-  /// Fastest-note / ambitus / tempo match (the facet side of [_matchesFilters]).
+  /// Instrument / fastest-note / ambitus / tempo match (the facet side of
+  /// [_matchesFilters]).
+  ///
+  /// The user's own uploads are filtered HERE, in the client, because they are
+  /// not part of the catalog query — the server never sees them. Every facet
+  /// the query sends must therefore have a local twin, or the filter silently
+  /// stops applying to half the list: picking "Batterie" kept showing a piano
+  /// upload, which reads as a broken filter rather than as two sources.
   bool _matchesFacets(CatalogEntry e) {
+    if (state.instrument case final want?) {
+      // An upload whose instrument was never recorded cannot claim to be the
+      // one asked for: an unknown family fails a set filter, exactly as an
+      // unknown tempo fails a set band.
+      if (e.instrument != want) return false;
+    }
     if (state.maxNoteValue case final max?) {
       if (e.minNoteValue == null || e.minNoteValue! > max) return false;
     }

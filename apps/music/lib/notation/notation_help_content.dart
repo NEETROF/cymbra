@@ -183,8 +183,31 @@ NotationHelp notationHelpFor(
   SymbolDescriptor symbol, {
   required bool solfege,
   required bool frenchRe,
+
+  /// Names the kit piece a percussion note stands for. Passing it is what
+  /// makes the help PERCUSSION help: on a drum staff a note's position is not
+  /// a pitch, so "which key to play, how high it sounds" is not a simplified
+  /// explanation of the symbol — it is a false one, and the clef it hangs
+  /// under is not a treble clef either.
+  String Function(int gm)? drumPieceName,
 }) {
   switch (symbol) {
+    case NoteSymbol(:final pitch, :final noteType, :final dots, :final isGrace)
+        when drumPieceName != null && !isGrace:
+      final piece = drumPieceName(pitch);
+      final beats = notationDurationBeats(l10n, noteType, dots);
+      return (
+        title: l10n.notationHelpDrumNoteTitle(piece),
+        body: beats == null
+            ? l10n.notationHelpDrumNoteBody
+            : '${l10n.notationHelpDrumNoteBody} '
+                  '${l10n.notationHelpNoteDuration(piece, beats)}',
+      );
+    case ClefSymbol(:final sign) when sign == 'percussion':
+      return (
+        title: l10n.notationHelpPercussionClefTitle,
+        body: l10n.notationHelpPercussionClefBody,
+      );
     case NoteSymbol(:final pitch, :final noteType, :final dots, :final isGrace):
       final name = notationPitchName(
         pitch,
@@ -360,6 +383,32 @@ NotationHelp notationHelpFor(
 /// to render an example.
 typedef GlossaryEntry = ({SymbolDescriptor sample, NotationHelp help});
 
+/// The glossary for the family being read: the keyboard list, or the drum
+/// staff's own.
+///
+/// A drum staff carries no pitch, so the symbols that only exist to alter or
+/// fix one — the sharps, flats and naturals, the key signature, the ledger
+/// lines that place a note above or below the staff, the brace that ties two
+/// staves into one keyboard — are not "advanced" there, they are absent. And
+/// its clef is the percussion sign, not a G or an F. Listing the piano's
+/// vocabulary to a drummer teaches symbols their score will never show, and
+/// hides the one it opens with.
+List<SymbolDescriptor> notationGlossarySamplesFor({required bool percussion}) =>
+    percussion
+    ? [
+        for (final s in notationGlossarySamples)
+          if (!_pitchOnly(s)) s,
+      ]
+    : notationGlossarySamples;
+
+/// Whether a symbol only means something on a PITCHED staff.
+bool _pitchOnly(SymbolDescriptor s) => switch (s) {
+  AccidentalSymbol() || KeySignatureSymbol() || LedgerLineSymbol() => true,
+  BraceSymbol() => true,
+  ClefSymbol(:final sign) => sign != 'percussion',
+  _ => false,
+};
+
 /// A representative descriptor per [SymbolKind], used to build the browsable
 /// glossary so it covers exactly the same symbols as the on-staff bubbles.
 const List<SymbolDescriptor> notationGlossarySamples = <SymbolDescriptor>[
@@ -371,6 +420,7 @@ const List<SymbolDescriptor> notationGlossarySamples = <SymbolDescriptor>[
   SymbolDescriptor.accidental(token: 'natural'),
   SymbolDescriptor.clef(sign: 'G'),
   SymbolDescriptor.clef(sign: 'F'),
+  SymbolDescriptor.clef(sign: 'percussion'),
   SymbolDescriptor.keySignature(fifths: 1),
   SymbolDescriptor.timeSignature(beats: 4, beatType: 4),
   SymbolDescriptor.augmentationDot(),

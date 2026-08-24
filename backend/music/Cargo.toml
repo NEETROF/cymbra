@@ -37,6 +37,10 @@ prost.workspace = true
 cymbra-platform = { path = "../platform" }
 cymbra-storage = { path = "../storage" }
 cymbra-musicxml-core = { path = "../../crates/musicxml-core" }
+# Preset-bank family evidence (change: add-drum-audio-channel): the upload-time
+# verification that a declared soundfont family is one the font's banks can
+# actually sound — the same parser the app's import detection reads.
+cymbra-sf2-meta = { path = "../../crates/sf2-meta" }
 # Play-activity visibility gate (change: add-play-activity-profile): the music
 # PlayService checks a target's profile visibility in-process via the user PORT
 # (contract crate — an impl→port dependency, like cymbra-auth uses it), never
@@ -46,6 +50,7 @@ cymbra-jobs = { path = "../jobs" }
 # Plan seams (change: add-premium-subscription): the daily-access `SubscriptionSource`,
 # the shop `owned` input and the per-plan quotas consume `PlanSource`/`Unlock` from the
 # plans crate — a port dependency; `plans` never depends on `music`.
+cymbra-feature-flags = { path = "../feature-flags" }
 cymbra-plans = { path = "../plans" }
 
 [build-dependencies]
@@ -58,4 +63,5 @@ cymbra-user-port = { path = "../user-port", features = ["mock"] }
 # `MockBadgeRepo` for the badge awarding module (rust-testing default).
 mockall = { workspace = true }
 # `MockPlanSource` for the plan-aware gates (rust-testing default).
+cymbra-feature-flags = { path = "../feature-flags", features = ["mock"] }
 cymbra-plans = { path = "../plans", features = ["mock"] }

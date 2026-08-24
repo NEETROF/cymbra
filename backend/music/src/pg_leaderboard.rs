@@ -18,6 +18,8 @@
 //! SQL: the upsert raises a best only via a `WHERE` that encodes the ranking order,
 //! and the board read returns bests already ordered by it.
 
+use std::collections::HashSet;
+
 use async_trait::async_trait;
 use cymbra_platform::{AppError, Result};
 use sqlx::{PgPool, Row};
@@ -61,6 +63,27 @@ impl LeaderboardRepo for PgLeaderboardRepo {
         .await
         .map_err(internal)?;
         Ok(exists)
+    }
+
+    async fn percussion_pieces(&self, score_ids: &[String]) -> Result<HashSet<String>> {
+        // Non-UUID ids (bundled slugs, upload ids) are not catalog pieces: no
+        // instrument, no board, nothing to withhold.
+        let ids: Vec<uuid::Uuid> = score_ids
+            .iter()
+            .filter_map(|s| uuid::Uuid::parse_str(s).ok())
+            .collect();
+        if ids.is_empty() {
+            return Ok(HashSet::new());
+        }
+        let rows = sqlx::query(
+            "SELECT id::text AS id FROM music.catalog_scores \
+             WHERE id = ANY($1) AND instrument = 'percussion'",
+        )
+        .bind(&ids)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(internal)?;
+        Ok(rows.into_iter().map(|r| r.get::<String, _>("id")).collect())
     }
 
     async fn upsert_best(&self, best: &LeaderboardBest) -> Result<()> {

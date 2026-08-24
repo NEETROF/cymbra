@@ -21,8 +21,10 @@ import '../services/clock_service.dart';
 import '../state/performance_scoring.dart';
 import '../state/player_notifier.dart';
 
-/// The gamified-feedback layer stacked over a scored render area: the transient
-/// hit sparks along the note-hit line. The live score itself is the [ScoreChip]
+/// The gamified-feedback layer stacked over a scored **keyboard** render area:
+/// the transient hit sparks along the note-hit line. A percussion score has no
+/// layer of its own — its surfaces light the answered note and flash the struck
+/// piece from inside the painter that drew them. The live score itself is the [ScoreChip]
 /// in the player top bar — nothing floats over the play surface. Renders
 /// nothing when no scored run is active, and is wrapped in an [IgnorePointer]
 /// so it never intercepts keyboard/gesture input — the play surface underneath

@@ -118,6 +118,44 @@ void main() {
     expect(saved['notationTheme'], 'paper');
   });
 
+  test('the last render mode is remembered PER instrument family', () async {
+    final fake = FakePreferencesService();
+    final c = _container(fake);
+    final notifier = c.read(playerPreferencesProvider.notifier);
+
+    // Two families, two memories: reading drums on the stage must not move
+    // where the next piano score opens.
+    notifier.setLastMode(RenderMode.stage, percussion: true);
+    notifier.setLastMode(RenderMode.staff, percussion: false);
+    await Future<void>.delayed(Duration.zero);
+    expect(c.read(playerPreferencesProvider).percussionMode, RenderMode.stage);
+    expect(c.read(playerPreferencesProvider).keyboardMode, RenderMode.staff);
+
+    final saved =
+        jsonDecode(fake.store[PlayerPreferences.prefsKey]!)
+            as Map<String, dynamic>;
+    expect(saved['percussionMode'], 'stage');
+    expect(saved['keyboardMode'], 'staff');
+
+    // The stage is percussion-only, so it can never be stored against the
+    // keyboard — a record holding it would hand a piano score a mode it
+    // cannot render.
+    notifier.setLastMode(RenderMode.stage, percussion: false);
+    expect(c.read(playerPreferencesProvider).keyboardMode, RenderMode.staff);
+  });
+
+  test(
+    'a record written before the modes were remembered stays unchosen',
+    () async {
+      final fake = FakePreferencesService()
+        ..store[PlayerPreferences.prefsKey] = jsonEncode({'hands': 'both'});
+      final c = _container(fake);
+      await c.read(playerPreferencesProvider.notifier).restored;
+      expect(c.read(playerPreferencesProvider).keyboardMode, isNull);
+      expect(c.read(playerPreferencesProvider).percussionMode, isNull);
+    },
+  );
+
   test('score sizes map to their notation scale factors', () {
     expect(ScoreSize.small.factor, 0.85);
     expect(ScoreSize.medium.factor, 1.0);

@@ -4,7 +4,7 @@
 // `4 * staffSpace` with the alphabetic baseline at the SMuFL origin (y = 0) renders
 // at the right size — which is exactly SVG <text>'s default baseline behaviour.
 
-import type { NoteEvent } from "./geometry";
+import type { HeadClass, NoteEvent } from "./geometry";
 
 export const FONT_FAMILY = "Bravura";
 
@@ -13,9 +13,16 @@ export const noteheadBlack = "\u{E0A4}";
 export const noteheadHalf = "\u{E0A3}";
 export const noteheadWhole = "\u{E0A2}";
 
+// X-form heads for cymbal pieces (change: add-drum-notation-render), following the
+// duration class exactly as the ordinary oval series does.
+export const noteheadXWhole = "\u{E0A7}";
+export const noteheadXHalf = "\u{E0A8}";
+export const noteheadXBlack = "\u{E0A9}";
+
 export const gClef = "\u{E050}";
 export const fClef = "\u{E062}";
 export const cClef = "\u{E05C}";
+export const unpitchedPercussionClef1 = "\u{E069}";
 
 export const flag8thUp = "\u{E240}";
 export const flag8thDown = "\u{E241}";
@@ -81,13 +88,18 @@ export function tupletNumber(n: number): string {
 export const sharpSteps = [8, 5, 9, 6, 3, 7, 4]; // F C G D A E B
 export const flatSteps = [4, 7, 3, 6, 2, 5, 1]; // B E A D G C F
 
-/** Clef glyph for a MusicXML clef sign (G/F/C), defaulting to treble. */
+/** Clef glyph for a MusicXML clef sign (G/F/C/percussion), defaulting to treble.
+ * The percussion sign is mapped EXPLICITLY: the default-to-treble fallback would
+ * otherwise silently draw a G clef on a drum staff, and no "a clef is drawn"
+ * assertion would catch it (change: add-drum-notation-render). */
 export function clefGlyph(sign: string): string {
   switch (sign) {
     case "F":
       return fClef;
     case "C":
       return cClef;
+    case "percussion":
+      return unpitchedPercussionClef1;
     default:
       return gClef;
   }
@@ -127,6 +139,19 @@ export function headGlyph(note: NoteEvent, divisions: number): string {
     default:
       return noteheadBlack;
   }
+}
+
+/** Note-head glyph for an unpitched note (change: add-drum-notation-render): the
+ * crate's head class picks the x form for cymbals — never re-derived from General
+ * MIDI ranges here — and the duration class picks filled/half/whole exactly as
+ * `headGlyph` does for ordinary heads. `XOpen` shares the x forms; its open mark
+ * is drawn by the painter, not the glyph. */
+export function unpitchedHeadGlyph(note: NoteEvent, headClass: HeadClass, divisions: number): string {
+  const oval = headGlyph(note, divisions);
+  if (headClass !== "X" && headClass !== "XOpen") return oval;
+  if (oval === noteheadWhole) return noteheadXWhole;
+  if (oval === noteheadHalf) return noteheadXHalf;
+  return noteheadXBlack;
 }
 
 /** Flag glyph for an unbeamed eighth-or-shorter note, or null. */

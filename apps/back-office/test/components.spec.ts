@@ -146,6 +146,22 @@ describe("CatalogTable", () => {
     expect(reviewBadges).toHaveLength(1);
     expect(reviewBadges[0].text()).toBe("Re-review");
   });
+
+  it("badges only percussion rows with a Drums tag (change: add-drums-access)", () => {
+    const mixed = [
+      { id: "d", title: "Groove", source: "pdmx", instrument: "percussion" },
+      { id: "k", title: "Nocturne", source: "pdmx", instrument: "keyboard" },
+      { id: "u", title: "Mystery", source: "pdmx", instrument: "unknown" },
+    ];
+    const w = mount(CatalogTable, { global: withI18n, props: { hits: mixed as never, status: "pending", sort: [] } });
+    // One badge, on the percussion row only — keyboard and unknown show nothing.
+    const badges = w.findAll(".perc-tag");
+    expect(badges).toHaveLength(1);
+    expect(badges[0].text()).toBe("Drums");
+    const drumRow = w.findAll("tbody tr")[0];
+    expect(drumRow.text()).toContain("Groove");
+    expect(drumRow.find(".perc-tag").exists()).toBe(true);
+  });
 });
 
 describe("FiltersBar", () => {
@@ -163,6 +179,19 @@ describe("FiltersBar", () => {
     await w.get('[aria-label="search"]').setValue("chopin");
     const last = w.emitted("change")!.at(-1)![0] as { query: string };
     expect(last.query).toBe("chopin");
+  });
+
+  it("emits the instrument family from the select — '' back to all (change: add-drums-access)", async () => {
+    const w = mount(FiltersBar, { global: withI18n, props: { status: "pending" } });
+    const select = w.get('[aria-label="instrument"]');
+    // The three options: all / keyboard / drums.
+    expect(select.findAll("option").map((o) => o.attributes("value"))).toEqual(["", "keyboard", "percussion"]);
+    await select.setValue("percussion");
+    expect((w.emitted("change")!.at(-1)![0] as { instrument: string }).instrument).toBe("percussion");
+    await select.setValue("keyboard");
+    expect((w.emitted("change")!.at(-1)![0] as { instrument: string }).instrument).toBe("keyboard");
+    await select.setValue("");
+    expect((w.emitted("change")!.at(-1)![0] as { instrument: string }).instrument).toBe("");
   });
 });
 

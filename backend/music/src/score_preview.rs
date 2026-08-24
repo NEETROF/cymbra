@@ -55,9 +55,15 @@ pub const RELEASE_MS: u32 = 300;
 pub struct ScorePreviewConfig {
     /// Maximum clip length in milliseconds (release tail included).
     pub max_ms: u32,
-    /// The ACCEPTED catalog SoundFont the clip is rendered with. Empty = the
-    /// teasers are dormant: nothing is rendered, nothing is broken.
+    /// The ACCEPTED catalog SoundFont a **keyboard** piece's clip is rendered
+    /// with. Empty = the keyboard teasers are dormant: nothing is rendered,
+    /// nothing is broken.
     pub soundfont_id: String,
+    /// The ACCEPTED `percussion`-family catalog SoundFont (a drum kit) a
+    /// **percussion** piece's clip is rendered with, on the drum channel
+    /// (change: add-drum-audio-channel). Empty = percussion previews are
+    /// dormant, independently of the keyboard key.
+    pub drum_soundfont_id: String,
 }
 
 impl Default for ScorePreviewConfig {
@@ -65,6 +71,7 @@ impl Default for ScorePreviewConfig {
         Self {
             max_ms: 30_000,
             soundfont_id: String::new(),
+            drum_soundfont_id: String::new(),
         }
     }
 }
@@ -165,13 +172,17 @@ pub fn preview_sequence(schedule: &PlaybackSchedule, max_ms: u32) -> SampleSeque
 }
 
 /// Render the teaser of `score_bytes` (MusicXML or `.mxl`) with `font_bytes` to a
-/// WAV clip bounded to `max_ms`. `Ok(None)` when the piece sounds nothing within
-/// the bound (no clip is stored). Coverage-excluded glue: parse → schedule →
-/// [`preview_sequence`] → `rustysynth` → [`encode_preview`].
+/// WAV clip bounded to `max_ms`, on `channel` — the shared
+/// `cymbra_musicxml_core::MELODIC_CHANNEL` for a keyboard piece, `DRUM_CHANNEL`
+/// for a percussion piece with a kit font (change: add-drum-audio-channel).
+/// `Ok(None)` when the piece sounds nothing within the bound (no clip is
+/// stored). Coverage-excluded glue: parse → schedule → [`preview_sequence`] →
+/// `rustysynth` → [`encode_preview`].
 pub fn render_score_preview_wav(
     font_bytes: &[u8],
     score_bytes: &[u8],
     max_ms: u32,
+    channel: i32,
 ) -> anyhow::Result<Option<Vec<u8>>> {
     let doc = cymbra_musicxml_core::decode_and_parse(score_bytes)
         .map_err(|r| anyhow::anyhow!("score not renderable: {r:?}"))?;
@@ -180,7 +191,7 @@ pub fn render_score_preview_wav(
     if seq.notes.is_empty() {
         return Ok(None);
     }
-    let pcm = render_preview_pcm(font_bytes, &seq)?;
+    let pcm = render_preview_pcm(font_bytes, &seq, channel)?;
     Ok(Some(encode_preview(&pcm, PREVIEW_SAMPLE_RATE)))
 }
 
@@ -332,11 +343,22 @@ mod tests {
         let c = ScorePreviewConfig::default();
         assert_eq!(c.max_ms, 30_000);
         assert!(c.soundfont_id.is_empty());
+        // The kit key defaults empty too: percussion previews are dormant until
+        // an operator configures one (change: add-drum-audio-channel).
+        assert!(c.drum_soundfont_id.is_empty());
         assert_eq!(FixedScorePreviewConfig(c.clone()).score_preview_config(), c);
     }
 
     #[test]
     fn unparseable_score_is_an_error_not_a_panic() {
-        assert!(render_score_preview_wav(b"not a font", b"<nope>", 1000).is_err());
+        assert!(
+            render_score_preview_wav(
+                b"not a font",
+                b"<nope>",
+                1000,
+                cymbra_musicxml_core::MELODIC_CHANNEL
+            )
+            .is_err()
+        );
     }
 }

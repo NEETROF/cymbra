@@ -23,6 +23,7 @@ import 'package:music/services/file_picker_service.dart';
 import 'package:music/services/notation_engine.dart';
 import 'package:music/services/score_upload_service.dart';
 import 'package:music/src/rust/api/musicxml.dart';
+import 'package:music/state/drums_access.dart';
 import 'package:music/state/score_catalog.dart';
 import 'package:music/state/score_upload_notifier.dart';
 
@@ -103,17 +104,35 @@ ProviderContainer _make({
   PickedScoreFile? pick,
   NotationEngine? engine,
   MockScoreUploadService? upload,
+  bool drumsEnabled = false,
 }) {
   final c = ProviderContainer(
     overrides: [
       filePickerProvider.overrideWithValue(_picker(pick)),
       notationEngineProvider.overrideWithValue(engine ?? FakeNotationEngine()),
       scoreUploadServiceProvider.overrideWithValue(upload ?? _upload()),
+      drumsEnabledProvider.overrideWithValue(drumsEnabled),
     ],
   );
   addTearDown(c.dispose);
   return c;
 }
+
+/// A validation outcome whose summary is a valid percussion (drum) score.
+ValidationOutcome _percussionOutcome() => const ValidationOutcome(
+  summary: ScoreSummary(
+    title: 'Groove',
+    composer: 'A. Drummer',
+    titleNorm: 'groove',
+    workKey: 'a. drummer::groove',
+    instrument: InstrumentKind.percussion,
+    staves: 1,
+    keyFifths: 0,
+    timeSig: '4/4',
+    measureCount: 4,
+    noteCount: 8,
+  ),
+);
 
 void main() {
   test(
@@ -197,7 +216,7 @@ void main() {
             composer: null,
             titleNorm: null,
             workKey: '::',
-            isPiano: true,
+            instrument: InstrumentKind.keyboard,
             staves: 2,
             keyFifths: 0,
             timeSig: '4/4',
@@ -259,6 +278,90 @@ void main() {
       expect(s.submitError, isNot(contains('AuthException')));
       expect(s.isDone, isFalse);
       expect(s.level, PracticeLevel.beginner);
+    },
+  );
+
+  test(
+    'a percussion file is refused locally when the drum feature is invisible',
+    () async {
+      final engine = FakeNotationEngine(validateOutcome: _percussionOutcome());
+      final c = _make(pick: _file(), engine: engine); // drumsEnabled: false
+      final n = c.read(scoreUploadNotifierProvider.notifier);
+      await n.pickAndValidate();
+      final s = c.read(scoreUploadNotifierProvider);
+      // Refused like any other validation refusal: typed code, flow blocked.
+      expect(s.isValidated, isFalse);
+      expect(s.rejectCode, 'drums_not_available');
+      n.setRightsBasis(RightsBasis.author);
+      n.setRightsAck(true);
+      n.goToVerify();
+      expect(c.read(scoreUploadNotifierProvider).step, UploadStep.upload);
+    },
+  );
+
+  test(
+    'a percussion file validates normally when the drum feature is visible',
+    () async {
+      final engine = FakeNotationEngine(validateOutcome: _percussionOutcome());
+      final c = _make(pick: _file(), engine: engine, drumsEnabled: true);
+      final n = c.read(scoreUploadNotifierProvider.notifier);
+      await n.pickAndValidate();
+      final s = c.read(scoreUploadNotifierProvider);
+      expect(s.isValidated, isTrue);
+      expect(s.rejectCode, isNull);
+      expect(s.summary?.instrument, InstrumentKind.percussion);
+    },
+  );
+
+  test(
+    "the backend's drums_not_available refusal maps to the typed code",
+    () async {
+      // The server refuses independently of the client (defence in depth): a
+      // PERMISSION_DENIED whose message starts with `drums_not_available` must
+      // surface as the same typed refusal — never a raw gRPC string.
+      final upload = _upload(
+        error: const AuthException(
+          AuthError.permissionDenied,
+          'drums_not_available: drum scores need the drums beta',
+        ),
+      );
+      final engine = FakeNotationEngine(validateOutcome: _percussionOutcome());
+      final c = _make(
+        pick: _file(),
+        engine: engine,
+        upload: upload,
+        drumsEnabled: true,
+      );
+      final n = c.read(scoreUploadNotifierProvider.notifier);
+      await n.pickAndValidate();
+      n.setRightsBasis(RightsBasis.author);
+      n.setRightsAck(true);
+      n.setLevel(PracticeLevel.beginner);
+      await n.submit();
+      final s = c.read(scoreUploadNotifierProvider);
+      expect(s.submitErrorCode, 'drums_not_available');
+      expect(s.submitError, isNull);
+      expect(s.isDone, isFalse);
+    },
+  );
+
+  test(
+    'an unrelated PERMISSION_DENIED still gets the generic message, not the drum one',
+    () async {
+      final upload = _upload(
+        error: const AuthException(AuthError.permissionDenied, 'nope'),
+      );
+      final c = _make(pick: _file(), upload: upload);
+      final n = c.read(scoreUploadNotifierProvider.notifier);
+      await n.pickAndValidate();
+      n.setRightsBasis(RightsBasis.author);
+      n.setRightsAck(true);
+      n.setLevel(PracticeLevel.beginner);
+      await n.submit();
+      final s = c.read(scoreUploadNotifierProvider);
+      expect(s.submitErrorCode, isNull);
+      expect(s.submitError, isNotNull);
+      expect(s.submitError, isNot(contains('nope')));
     },
   );
 }

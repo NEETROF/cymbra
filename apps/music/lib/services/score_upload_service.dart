@@ -19,7 +19,8 @@ import 'package:grpc/grpc.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../src/grpc/score.pbgrpc.dart' as score;
-import '../state/score_catalog.dart' show PracticeLevel;
+import '../state/score_catalog.dart'
+    show PracticeLevel, ScoreInstrument, scoreInstrumentFromWire;
 import 'grpc_client.dart';
 import 'rpc_deadlines.dart';
 import 'score_bytes_result.dart';
@@ -69,6 +70,10 @@ class ContributedScore {
   /// [proposalStatus] is `rejected` (null otherwise).
   final String? rejectionReason;
 
+  /// The upload's stored instrument family (change: add-drums-access); `null`
+  /// when recorded as `unknown` (no indication is shown).
+  final ScoreInstrument? instrument;
+
   const ContributedScore({
     required this.id,
     required this.level,
@@ -86,6 +91,7 @@ class ContributedScore {
     this.favorite = true,
     this.proposalStatus,
     this.rejectionReason,
+    this.instrument,
   });
 
   /// Whether this contribution has been proposed to the public catalog.
@@ -182,6 +188,9 @@ class GrpcScoreUploadService implements ScoreUploadService {
     favorite: r.favorite,
     proposalStatus: r.hasProposalStatus() ? r.proposalStatus : null,
     rejectionReason: r.hasRejectionReason() ? r.rejectionReason : null,
+    instrument: scoreInstrumentFromWire(
+      r.hasInstrument() ? r.instrument : null,
+    ),
   );
 
   @override

@@ -134,8 +134,16 @@ class FakePrivateSoundFontService implements PrivateSoundFontService {
   @override
   Future<List<RemoteSoundFont>> list() async => List.of(library);
 
+  /// Families declared by sync calls, in order (assertable by tests).
+  final List<String?> importedFamilies = [];
+
   @override
-  Future<RemoteSoundFont> import(Uint8List bytes, String label) async {
+  Future<RemoteSoundFont> import(
+    Uint8List bytes,
+    String label, {
+    String? family,
+  }) async {
+    importedFamilies.add(family);
     if (failImport) {
       throw const PrivateSoundFontException('forced import failure');
     }
@@ -228,6 +236,7 @@ class FakeSoundClipPlayer implements SoundClipPlayer {
 PianoEntry fakeDownloadPiano({
   required String id,
   required String label,
+  SoundFamily family = SoundFamily.keyboard,
   String license = 'CC-BY 3.0',
   String? attribution,
   String? contributorCredit,
@@ -237,6 +246,7 @@ PianoEntry fakeDownloadPiano({
   label: label,
   kind: PianoKind.download,
   source: id,
+  family: family,
   license: license,
   attribution: attribution,
   contributorCredit: contributorCredit,

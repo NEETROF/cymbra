@@ -53,6 +53,10 @@ enum AuthError {
   /// Resource missing (gRPC `NOT_FOUND`).
   notFound,
 
+  /// The caller may not perform this action (gRPC `PERMISSION_DENIED`), e.g.
+  /// a percussion upload without the drum feature (change: add-drums-access).
+  permissionDenied,
+
   /// Backend unreachable / offline (gRPC `UNAVAILABLE`).
   unavailable,
 
@@ -78,6 +82,8 @@ AuthError authErrorFromCode(int grpcCode) {
       return AuthError.notFound;
     case 6:
       return AuthError.alreadyExists;
+    case 7:
+      return AuthError.permissionDenied;
     case 8:
       return AuthError.rateLimited;
     case 9:

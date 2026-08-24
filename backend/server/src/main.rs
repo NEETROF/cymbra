@@ -175,6 +175,13 @@ async fn main() -> anyhow::Result<()> {
         Some(url) => {
             let plans_pool = cymbra_plans::pg::connect(url, 5).await?;
             cymbra_plans::MIGRATOR.run(&plans_pool).await?;
+            // With plans deployed, the flag service can verify that a `beta:`
+            // rollout scope names a real campaign (change:
+            // add-flag-campaign-integrity). Wired here — the plans pool does
+            // not exist when the flag service is built.
+            flag_service.set_campaign_directory(Arc::new(cymbra_server::CampaignExistence::new(
+                Arc::new(cymbra_plans::pg::PgCampaignRepo::new(plans_pool.clone())),
+            )));
             let rotator: Option<Arc<dyn cymbra_plans::CacheSecretRotator>> =
                 match cfg.music_database_url.as_deref() {
                     Some(music_url) => {
@@ -213,6 +220,15 @@ async fn main() -> anyhow::Result<()> {
     let plan_source: Option<Arc<dyn cymbra_plans::PlanSource>> = plan_service
         .clone()
         .map(|p| p as Arc<dyn cymbra_plans::PlanSource>);
+    // Composition-root assertion (change: add-flag-campaign-integrity): with
+    // plans deployed, an unwired campaign directory would refuse every
+    // beta-scoped flag write — fail loudly here instead.
+    if plan_service.is_some() {
+        anyhow::ensure!(
+            flag_service.has_campaign_directory(),
+            "campaign directory not wired into the flag service"
+        );
+    }
 
     let flag_grpc = match &plan_source {
         Some(p) => cymbra_feature_flags::grpc::FlagGrpc::new(flag_service.clone())
@@ -428,12 +444,6 @@ async fn main() -> anyhow::Result<()> {
                     strict.clone(),
                 ),
             );
-            let leaderboard_svc = Some(
-                    cymbra_music::proto::leaderboard_service_server::LeaderboardServiceServer::with_interceptor(
-                        cymbra_music::LeaderboardGrpc::new(leaderboard_module),
-                        strict.clone(),
-                    ),
-                );
             let global_leaderboard_svc = Some(
                     cymbra_music::proto::global_leaderboard_service_server::GlobalLeaderboardServiceServer::with_interceptor(
                         cymbra_music::GlobalLeaderboardGrpc::new(global_leaderboard_module),
@@ -512,6 +522,10 @@ async fn main() -> anyhow::Result<()> {
                     ));
                     // Premium gets the extended score quotas (change:
                     // add-premium-subscription).
+                    // The shared flag service also powers the drum-audience
+                    // gate (change: add-drums-access) — without it the gate
+                    // fails closed for everyone, staff included.
+                    let module = module.with_flags(flag_service.clone());
                     let module = Arc::new(match &plan_source {
                         Some(p) => module.with_plans(p.clone()),
                         None => module,
@@ -536,7 +550,7 @@ async fn main() -> anyhow::Result<()> {
                         )),
                     );
                     let score_svc = Some(ScoreServiceServer::with_interceptor(
-                        ScoreGrpc::new(module)
+                        ScoreGrpc::new(module.clone())
                             .with_limiter(limiter)
                             .with_soundfonts(soundfont_repo.clone())
                             .with_soundfont_store_opt(soundfont_store.clone())
@@ -566,7 +580,7 @@ async fn main() -> anyhow::Result<()> {
                     });
                     (
                         score_svc,
-                        Some((storage.clone(), catalog_repo.clone(), renderer)),
+                        Some((storage.clone(), catalog_repo.clone(), renderer, module)),
                     )
                 }
                 None => {
@@ -574,6 +588,26 @@ async fn main() -> anyhow::Result<()> {
                     (None, None)
                 }
             };
+            // The per-piece boards join the drum-audience enforcement (change:
+            // add-drum-scoring): a percussion piece's board existing is itself an
+            // existence oracle, so the read resolves eligibility through the SAME
+            // score-module predicate every other surface uses — which is why this
+            // service is built after the module exists. No module (no S3) ⇒ the
+            // seam is unwired ⇒ the gate is closed for everyone, exactly as an
+            // unwired flag service leaves it.
+            let drums: Option<Arc<dyn cymbra_music::DrumsEligibility>> = score_preview_parts
+                .as_ref()
+                .map(|(_, _, _, module)| module.clone() as Arc<dyn cymbra_music::DrumsEligibility>);
+            let leaderboard_grpc = cymbra_music::LeaderboardGrpc::new(leaderboard_module);
+            let leaderboard_svc = Some(
+                    cymbra_music::proto::leaderboard_service_server::LeaderboardServiceServer::with_interceptor(
+                        match drums {
+                            Some(d) => leaderboard_grpc.with_drums(d),
+                            None => leaderboard_grpc,
+                        },
+                        strict.clone(),
+                    ),
+                );
             (
                 play_svc,
                 score_svc,
@@ -613,15 +647,21 @@ async fn main() -> anyhow::Result<()> {
     let web_plans_auth = soundfont_auth.clone();
     // Score audio-teaser routes (change: add-score-daily-access-rewards); the same
     // auth seam as the SoundFont routes.
-    let (sp_store, sp_catalog, sp_renderer) = match score_preview_parts {
-        Some((store, catalog, renderer)) => (Some(store), Some(catalog), renderer),
-        None => (None, None, None),
+    let (sp_store, sp_catalog, sp_renderer, sp_drums) = match score_preview_parts {
+        Some((store, catalog, renderer, module)) => {
+            // The preview route resolves drum eligibility through the SAME
+            // module predicate the RPCs use (change: add-drums-access).
+            let drums: Arc<dyn cymbra_music::DrumsEligibility> = module;
+            (Some(store), Some(catalog), renderer, Some(drums))
+        }
+        None => (None, None, None, None),
     };
     let score_preview_state = cymbra_server::ScorePreviewState {
         store: sp_store,
         catalog: sp_catalog,
         renderer: sp_renderer,
         auth: soundfont_auth.clone(),
+        drums: sp_drums,
     };
     let soundfont_state = cymbra_server::SoundfontState {
         store: soundfont_store,

@@ -95,6 +95,14 @@
   "@settingsCategoryPiano": {
     "description": "Settings category: choose the piano SoundFont the synthesizer uses."
   },
+  "settingsCategoryKit": "Drum kit sound",
+  "@settingsCategoryKit": {
+    "description": "Settings category on a percussion score: choose the drum-kit SoundFont the synthesizer uses (the kit picker's label)."
+  },
+  "kitPickerEmpty": "No drum kit available",
+  "@kitPickerEmpty": {
+    "description": "Sound picker hint when the catalog holds no font of the loaded score's family (a percussion score before any kit font is available) — an honest empty state, not an error."
+  },
   "pianoGroupBuiltIn": "Built-in",
   "@pianoGroupBuiltIn": {
     "description": "Group header in the piano picker for the built-in (bundled and downloadable) pianos."
@@ -413,9 +421,13 @@
   "@midiStatusNone": {
     "description": "Top-bar MIDI status: no device present."
   },
-  "modeSynthesia": "Synthesia",
+  "modeSynthesia": "Cascade",
+  "modeStage": "Stage",
+  "@modeStage": {
+    "description": "Render-mode toggle: the perspective reading of the cascade, offered for percussion scores only (experiment: drum-highway)."
+  },
   "@modeSynthesia": {
-    "description": "Render-mode toggle: falling-notes (Synthesia-style) view. Kept as the recognised term across languages."
+    "description": "Render-mode toggle: the falling-notes view. Named Cascade rather than after the third-party piano app whose trademark it would borrow; localised natively in each language."
   },
   "modeStaff": "Staff",
   "@modeStaff": {
@@ -691,14 +703,14 @@
   "@summaryRetry": {
     "description": "Summary: retry button."
   },
-  "summaryHands": "{hands, select, left{Left hand} right{Right hand} both{Both hands} other{Both hands}}",
+  "summaryHands": "{hands, select, left{Left hand} right{Right hand} both{Both hands} hands{Hands} feet{Feet} handsAndFeet{Hands and feet} other{Both hands}}",
   "@summaryHands": {
     "placeholders": {
       "hands": {
         "type": "String"
       }
     },
-    "description": "Summary: which hand(s) were played."
+    "description": "Summary: which hand(s) were played. The hands/feet/handsAndFeet cases are a percussion run's reading of the same selection (add-drum-scoring)."
   },
   "replayTitle": "Replay",
   "@replayTitle": {
@@ -930,6 +942,18 @@
   "scoreHubTempoFast": "Fast",
   "@scoreHubTempoFast": {
     "description": "Tempo band: fast (> 120 BPM)."
+  },
+  "scoreHubInstrument": "Instrument",
+  "@scoreHubInstrument": {
+    "description": "Drawer section header for the instrument-family filter (shown only to the drum audience)."
+  },
+  "instrumentKeyboard": "Piano",
+  "@instrumentKeyboard": {
+    "description": "Instrument-family label: keyboard scores (hub filter chip, score cards, upload summary)."
+  },
+  "instrumentDrums": "Drums",
+  "@instrumentDrums": {
+    "description": "Instrument-family label: drum/percussion scores (hub filter chip, score cards, upload summary)."
   },
   "scoreHubDifficulty": "Difficulty",
   "@scoreHubDifficulty": {
@@ -1165,6 +1189,10 @@
   "@uploadRejectNoNotes": {
     "description": "Rejection banner: the parsed score has no playable notes."
   },
+  "uploadRejectDrumsNotAvailable": "Drum scores are not available on your account yet.",
+  "@uploadRejectDrumsNotAvailable": {
+    "description": "Refusal banner: uploading a drum (percussion) score requires the drum feature, which is not visible to this account. Shown for the local refusal and the backend's typed refusal alike."
+  },
   "uploadRejectGeneric": "Invalid file.",
   "@uploadRejectGeneric": {
     "description": "Rejection banner: generic fallback for an invalid file."
@@ -1260,6 +1288,10 @@
   "uploadFieldComposer": "Composer",
   "@uploadFieldComposer": {
     "description": "Metadata card row label: composer."
+  },
+  "uploadFieldInstrument": "Instrument",
+  "@uploadFieldInstrument": {
+    "description": "Metadata card row label: the instrument detected by the parse (display only, never a control; omitted when unknown)."
   },
   "uploadFieldKey": "Key",
   "@uploadFieldKey": {
@@ -2186,40 +2218,82 @@
   "notationHelpGraceTitle": "Grace note ({name})",
   "@notationHelpGraceTitle": {
     "description": "Help title for a grace note (small ornamental note). {name} is the pitch name.",
-    "placeholders": {"name": {"type": "String"}}
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
-  "notationHelpGraceBody": "A small ornamental note played very quickly, just before the note it decorates. It takes no time of its own \u2014 brush it and land on the next note.",
+  "notationHelpGraceBody": "A small ornamental note played very quickly, just before the note it decorates. It takes no time of its own — brush it and land on the next note.",
   "@notationHelpGraceBody": {
     "description": "Help body for a grace note."
   },
-  "notationHelpRepeatStartTitle": "Repeat \u2014 start",
-  "@notationHelpRepeatStartTitle": {"description": "Help title for a forward repeat barline."},
+  "notationHelpRepeatStartTitle": "Repeat — start",
+  "@notationHelpRepeatStartTitle": {
+    "description": "Help title for a forward repeat barline."
+  },
   "notationHelpRepeatStartBody": "The section between the repeat signs is played again. This sign marks where the repeated passage begins.",
-  "@notationHelpRepeatStartBody": {"description": "Help body for a forward repeat barline."},
-  "notationHelpRepeatEndTitle": "Repeat \u2014 end",
-  "@notationHelpRepeatEndTitle": {"description": "Help title for a backward repeat barline."},
+  "@notationHelpRepeatStartBody": {
+    "description": "Help body for a forward repeat barline."
+  },
+  "notationHelpRepeatEndTitle": "Repeat — end",
+  "@notationHelpRepeatEndTitle": {
+    "description": "Help title for a backward repeat barline."
+  },
   "notationHelpRepeatEndBody": "Go back to the matching start sign (or the beginning of the piece) and play the section again. With numbered brackets above the staff, each pass takes its own ending.",
-  "@notationHelpRepeatEndBody": {"description": "Help body for a backward repeat barline."},
+  "@notationHelpRepeatEndBody": {
+    "description": "Help body for a backward repeat barline."
+  },
   "notationHelpVoltaTitle": "Ending {label}",
-  "@notationHelpVoltaTitle": {"description": "Help title for a volta bracket. {label} is its engraved number, e.g. \"1.\".", "placeholders": {"label": {"type": "String"}}},
-  "notationHelpVoltaBody": "A numbered ending: these measures are played only on the pass their number says \u2014 bracket 1 the first time through, bracket 2 the second.",
-  "@notationHelpVoltaBody": {"description": "Help body for a volta bracket."},
+  "@notationHelpVoltaTitle": {
+    "description": "Help title for a volta bracket. {label} is its engraved number, e.g. \"1.\".",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "notationHelpVoltaBody": "A numbered ending: these measures are played only on the pass their number says — bracket 1 the first time through, bracket 2 the second.",
+  "@notationHelpVoltaBody": {
+    "description": "Help body for a volta bracket."
+  },
   "notationHelpMeasureRepeatTitle": "Repeat the previous measure",
-  "@notationHelpMeasureRepeatTitle": {"description": "Help title for a measure-repeat (%) sign."},
+  "@notationHelpMeasureRepeatTitle": {
+    "description": "Help title for a measure-repeat (%) sign."
+  },
   "notationHelpMeasureRepeatBody": "The % sign means: play the previous measure again, note for note.",
-  "@notationHelpMeasureRepeatBody": {"description": "Help body for a measure-repeat (%) sign."},
+  "@notationHelpMeasureRepeatBody": {
+    "description": "Help body for a measure-repeat (%) sign."
+  },
   "notationHelpSegnoTitle": "Segno",
-  "@notationHelpSegnoTitle": {"description": "Help title for a segno sign."},
+  "@notationHelpSegnoTitle": {
+    "description": "Help title for a segno sign."
+  },
   "notationHelpSegnoBody": "A jump mark. When the score says D.S. (dal segno), continue from this sign.",
-  "@notationHelpSegnoBody": {"description": "Help body for a segno sign."},
+  "@notationHelpSegnoBody": {
+    "description": "Help body for a segno sign."
+  },
   "notationHelpCodaTitle": "Coda",
-  "@notationHelpCodaTitle": {"description": "Help title for a coda sign."},
+  "@notationHelpCodaTitle": {
+    "description": "Help title for a coda sign."
+  },
   "notationHelpCodaBody": "The closing section. An \"al Coda\" instruction jumps from the middle of the piece to this sign.",
-  "@notationHelpCodaBody": {"description": "Help body for a coda sign."},
+  "@notationHelpCodaBody": {
+    "description": "Help body for a coda sign."
+  },
   "notationHelpJumpTitle": "{words}",
-  "@notationHelpJumpTitle": {"description": "Help title for jump words \u2014 the engraved instruction itself (e.g. \"D.C. al Fine\").", "placeholders": {"words": {"type": "String"}}},
+  "@notationHelpJumpTitle": {
+    "description": "Help title for jump words — the engraved instruction itself (e.g. \"D.C. al Fine\").",
+    "placeholders": {
+      "words": {
+        "type": "String"
+      }
+    }
+  },
   "notationHelpJumpBody": "A navigation instruction: D.C. means back to the top, D.S. back to the segno sign; \"al Fine\" plays until the Fine mark, \"al Coda\" jumps to the coda.",
-  "@notationHelpJumpBody": {"description": "Help body for jump words (D.C./D.S./Fine/To Coda)."},
+  "@notationHelpJumpBody": {
+    "description": "Help body for jump words (D.C./D.S./Fine/To Coda)."
+  },
   "notationHelpRestTitle": "Rest",
   "@notationHelpRestTitle": {
     "description": "Bubble title for a rest of unknown duration (fallback)."
@@ -2788,157 +2862,525 @@
     }
   },
   "streakChipDays": "{days}",
-  "@streakChipDays": {"description": "Day count next to the flame in the standing chip.", "placeholders": {"days": {"type": "int"}}},
+  "@streakChipDays": {
+    "description": "Day count next to the flame in the standing chip.",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
   "streakChipTooltip": "{days, plural, =0{No practice streak yet — play or practise today to start one} =1{1-day practice streak} other{{days}-day practice streak}}",
-  "@streakChipTooltip": {"description": "Tooltip/semantics for the flame segment of the standing chip.", "placeholders": {"days": {"type": "int"}}},
+  "@streakChipTooltip": {
+    "description": "Tooltip/semantics for the flame segment of the standing chip.",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
   "streakAtRiskNudge": "{days, plural, =1{Your 1-day streak ends tonight — play or practise to keep it} other{Your {days}-day streak ends tonight — play or practise to keep it}}",
-  "@streakAtRiskNudge": {"description": "In-app cue at launch for a live streak with no play today (the only reminder on platforms without push).", "placeholders": {"days": {"type": "int"}}},
+  "@streakAtRiskNudge": {
+    "description": "In-app cue at launch for a live streak with no play today (the only reminder on platforms without push).",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
   "streakRecoverTitle": "Get your streak back?",
-  "@streakRecoverTitle": {"description": "Title of the confirmation offering to spend points to restore a broken streak."},
+  "@streakRecoverTitle": {
+    "description": "Title of the confirmation offering to spend points to restore a broken streak."
+  },
   "streakRecoverBody": "{days, plural, =1{Your 1-day streak broke. Spend {cost} points to restore it?} other{Your {days}-day streak broke. Spend {cost} points to restore it?}}",
-  "@streakRecoverBody": {"description": "Body of the streak-recovery confirmation: what is restored and what it costs.", "placeholders": {"days": {"type": "int"}, "cost": {"type": "int"}}},
+  "@streakRecoverBody": {
+    "description": "Body of the streak-recovery confirmation: what is restored and what it costs.",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      },
+      "cost": {
+        "type": "int"
+      }
+    }
+  },
   "streakRecoverConfirm": "Spend {cost} points",
-  "@streakRecoverConfirm": {"description": "Confirm action of the streak-recovery dialog. Names the cost so no spend is ambiguous.", "placeholders": {"cost": {"type": "int"}}},
+  "@streakRecoverConfirm": {
+    "description": "Confirm action of the streak-recovery dialog. Names the cost so no spend is ambiguous.",
+    "placeholders": {
+      "cost": {
+        "type": "int"
+      }
+    }
+  },
   "streakRecoverDismiss": "Not this time",
-  "@streakRecoverDismiss": {"description": "Dismiss action of the streak-recovery dialog. Nothing is spent."},
+  "@streakRecoverDismiss": {
+    "description": "Dismiss action of the streak-recovery dialog. Nothing is spent."
+  },
   "streakRecovered": "{days, plural, =1{Your 1-day streak is back} other{Your {days}-day streak is back}}",
-  "@streakRecovered": {"description": "Confirmation shown after a successful streak recovery.", "placeholders": {"days": {"type": "int"}}},
+  "@streakRecovered": {
+    "description": "Confirmation shown after a successful streak recovery.",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
   "streakRecoverFailed": "Your streak could not be restored",
-  "@streakRecoverFailed": {"description": "Shown when the recovery is refused (grace window passed, or not enough points). Never shows the raw server error."},
+  "@streakRecoverFailed": {
+    "description": "Shown when the recovery is refused (grace window passed, or not enough points). Never shows the raw server error."
+  },
   "catalogAccessLockedMessage": "This piece is locked for today. Unlock it with points or come back tomorrow.",
-  "@catalogAccessLockedMessage": {"description": "Fallback message when a catalog piece is refused by the daily quota and no unlock sheet is shown (change: add-score-daily-access-rewards)."},
+  "@catalogAccessLockedMessage": {
+    "description": "Fallback message when a catalog piece is refused by the daily quota and no unlock sheet is shown (change: add-score-daily-access-rewards)."
+  },
   "catalogAccessChip": "{count, plural, =0{No free opens left} =1{1 free open left} other{{count} free opens left}}",
-  "@catalogAccessChip": {"description": "Hub/library chip: free catalog opens left today.", "placeholders": {"count": {"type": "int"}}},
+  "@catalogAccessChip": {
+    "description": "Hub/library chip: free catalog opens left today.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "catalogAccessResetsIn": "resets in {hours}h {minutes}min",
-  "@catalogAccessResetsIn": {"description": "Suffix of the chip: time until the daily quota resets.", "placeholders": {"hours": {"type": "int"}, "minutes": {"type": "int"}}},
+  "@catalogAccessResetsIn": {
+    "description": "Suffix of the chip: time until the daily quota resets.",
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
   "catalogAccessOpenedToday": "Open today",
-  "@catalogAccessOpenedToday": {"description": "Mark on a catalog card already open for the user today (re-opening is free)."},
+  "@catalogAccessOpenedToday": {
+    "description": "Mark on a catalog card already open for the user today (re-opening is free)."
+  },
   "catalogUnlockTitle": "Locked for today",
-  "@catalogUnlockTitle": {"description": "Title of the unlock sheet shown when the daily quota refused a piece."},
+  "@catalogUnlockTitle": {
+    "description": "Title of the unlock sheet shown when the daily quota refused a piece."
+  },
   "catalogUnlockBody": "You've used your {quota} free opens today. Unlock this piece for the rest of the day, or listen to a short excerpt.",
-  "@catalogUnlockBody": {"description": "Body of the unlock sheet.", "placeholders": {"quota": {"type": "int"}}},
+  "@catalogUnlockBody": {
+    "description": "Body of the unlock sheet.",
+    "placeholders": {
+      "quota": {
+        "type": "int"
+      }
+    }
+  },
   "catalogUnlockListen": "Listen to an excerpt",
-  "@catalogUnlockListen": {"description": "Unlock sheet: audition the server-rendered audio excerpt."},
+  "@catalogUnlockListen": {
+    "description": "Unlock sheet: audition the server-rendered audio excerpt."
+  },
   "catalogUnlockListenUnavailable": "No excerpt available",
-  "@catalogUnlockListenUnavailable": {"description": "Unlock sheet: the piece has no excerpt (control greyed)."},
+  "@catalogUnlockListenUnavailable": {
+    "description": "Unlock sheet: the piece has no excerpt (control greyed)."
+  },
   "catalogUnlockStop": "Stop",
-  "@catalogUnlockStop": {"description": "Unlock sheet: stop the excerpt playback."},
+  "@catalogUnlockStop": {
+    "description": "Unlock sheet: stop the excerpt playback."
+  },
   "catalogUnlockConfirm": "Unlock for {cost} pts today",
-  "@catalogUnlockConfirm": {"description": "Unlock sheet confirm action — names the cost so no spend is ambiguous.", "placeholders": {"cost": {"type": "int"}}},
+  "@catalogUnlockConfirm": {
+    "description": "Unlock sheet confirm action — names the cost so no spend is ambiguous.",
+    "placeholders": {
+      "cost": {
+        "type": "int"
+      }
+    }
+  },
   "catalogUnlockBalance": "Your balance: {balance} pts",
-  "@catalogUnlockBalance": {"description": "Unlock sheet: the caller's spendable balance.", "placeholders": {"balance": {"type": "int"}}},
+  "@catalogUnlockBalance": {
+    "description": "Unlock sheet: the caller's spendable balance.",
+    "placeholders": {
+      "balance": {
+        "type": "int"
+      }
+    }
+  },
   "catalogUnlockShort": "You need {missing} more points",
-  "@catalogUnlockShort": {"description": "Unlock sheet: how many points are missing to afford the day-slot.", "placeholders": {"missing": {"type": "int"}}},
+  "@catalogUnlockShort": {
+    "description": "Unlock sheet: how many points are missing to afford the day-slot.",
+    "placeholders": {
+      "missing": {
+        "type": "int"
+      }
+    }
+  },
   "catalogUnlockUpsell": "Unlimited access with Premium",
-  "@catalogUnlockUpsell": {"description": "Unlock sheet: the subscription upsell line."},
+  "@catalogUnlockUpsell": {
+    "description": "Unlock sheet: the subscription upsell line."
+  },
   "catalogUnlockDismiss": "Not now",
-  "@catalogUnlockDismiss": {"description": "Unlock sheet dismiss action. Nothing is spent."},
+  "@catalogUnlockDismiss": {
+    "description": "Unlock sheet dismiss action. Nothing is spent."
+  },
   "catalogUnlocked": "Unlocked for today!",
-  "@catalogUnlocked": {"description": "Snackbar after a successful day-slot unlock."},
+  "@catalogUnlocked": {
+    "description": "Snackbar after a successful day-slot unlock."
+  },
   "catalogUnlockInsufficient": "Not enough points to unlock this piece",
-  "@catalogUnlockInsufficient": {"description": "Snackbar when the unlock is refused for lack of points."},
+  "@catalogUnlockInsufficient": {
+    "description": "Snackbar when the unlock is refused for lack of points."
+  },
   "catalogUnlockFailed": "This piece could not be unlocked",
-  "@catalogUnlockFailed": {"description": "Snackbar when the unlock fails for any other reason. Never the raw server error."},
+  "@catalogUnlockFailed": {
+    "description": "Snackbar when the unlock fails for any other reason. Never the raw server error."
+  },
   "catalogPreviewFailed": "The excerpt could not be played",
-  "@catalogPreviewFailed": {"description": "Snackbar when the audio excerpt could not be fetched/played."},
+  "@catalogPreviewFailed": {
+    "description": "Snackbar when the audio excerpt could not be fetched/played."
+  },
   "rewardActivityDaySlot": "Piece unlocked for a day",
-  "@rewardActivityDaySlot": {"description": "Activity-feed label of a points spend on a one-day catalog piece unlock (ledger reward key score_day_slot)."},
+  "@rewardActivityDaySlot": {
+    "description": "Activity-feed label of a points spend on a one-day catalog piece unlock (ledger reward key score_day_slot)."
+  },
   "catalogPreviewPlay": "Excerpt",
-  "@catalogPreviewPlay": {"description": "Card pill: play the piece's server-rendered audio excerpt (never consumes a free open)."},
+  "@catalogPreviewPlay": {
+    "description": "Card pill: play the piece's server-rendered audio excerpt (never consumes a free open)."
+  },
   "catalogPreviewStop": "Stop",
-  "@catalogPreviewStop": {"description": "Card pill while the excerpt plays: stop it."},
+  "@catalogPreviewStop": {
+    "description": "Card pill while the excerpt plays: stop it."
+  },
   "planTitle": "Subscription",
-  "@planTitle": {"description": "Plan screen title (account menu entry)."},
+  "@planTitle": {
+    "description": "Plan screen title (account menu entry)."
+  },
   "planFree": "Free plan",
-  "@planFree": {"description": "Plan status: the free plan."},
+  "@planFree": {
+    "description": "Plan status: the free plan."
+  },
   "planFreeBody": "The whole player, your own scores, 3 catalog pieces a day and every free piano.",
-  "@planFreeBody": {"description": "Plan status: what free includes."},
+  "@planFreeBody": {
+    "description": "Plan status: what free includes."
+  },
   "planPremium": "Premium",
-  "@planPremium": {"description": "Plan status: the premium plan."},
+  "@planPremium": {
+    "description": "Plan status: the premium plan."
+  },
   "planPremiumTrial": "Premium trial",
-  "@planPremiumTrial": {"description": "Plan status: premium through a beta trial."},
+  "@planPremiumTrial": {
+    "description": "Plan status: premium through a beta trial."
+  },
   "planTrialUntil": "Trial until {date} — subscribe to keep Premium.",
-  "@planTrialUntil": {"description": "Plan status line for a running trial. {date} formatted.", "placeholders": {"date": {"type": "String"}}},
+  "@planTrialUntil": {
+    "description": "Plan status line for a running trial. {date} formatted.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "planSource": "Subscribed via {source}",
-  "@planSource": {"description": "Plan status: where the subscription comes from.", "placeholders": {"source": {"type": "String"}}},
+  "@planSource": {
+    "description": "Plan status: where the subscription comes from.",
+    "placeholders": {
+      "source": {
+        "type": "String"
+      }
+    }
+  },
   "planRenewsOn": "Renews on {date}",
-  "@planRenewsOn": {"description": "Plan status: next renewal date.", "placeholders": {"date": {"type": "String"}}},
+  "@planRenewsOn": {
+    "description": "Plan status: next renewal date.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "planRightsEndOn": "Rights end on {date}",
-  "@planRightsEndOn": {"description": "Plan status: the plan will not renew; access ends on that date.", "placeholders": {"date": {"type": "String"}}},
+  "@planRightsEndOn": {
+    "description": "Plan status: the plan will not renew; access ends on that date.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "planWithdrawalWarning": "After that date, your offline library and Premium pianos are removed from this device. Your own scores, imports and points stay.",
-  "@planWithdrawalWarning": {"description": "Plan status: what is withdrawn when the plan ends."},
+  "@planWithdrawalWarning": {
+    "description": "Plan status: what is withdrawn when the plan ends."
+  },
   "planManageOn": "Manage on {channel}",
-  "@planManageOn": {"description": "Button opening the store / web portal where the subscription is managed.", "placeholders": {"channel": {"type": "String"}}},
+  "@planManageOn": {
+    "description": "Button opening the store / web portal where the subscription is managed.",
+    "placeholders": {
+      "channel": {
+        "type": "String"
+      }
+    }
+  },
   "planChannelApple": "the App Store",
-  "@planChannelApple": {"description": "Channel name."},
+  "@planChannelApple": {
+    "description": "Channel name."
+  },
   "planChannelGoogle": "Google Play",
-  "@planChannelGoogle": {"description": "Channel name."},
+  "@planChannelGoogle": {
+    "description": "Channel name."
+  },
   "planChannelWeb": "the web",
-  "@planChannelWeb": {"description": "Channel name."},
+  "@planChannelWeb": {
+    "description": "Channel name."
+  },
   "planSourceCode": "an access code",
-  "@planSourceCode": {"description": "Plan source: a redeemed code."},
+  "@planSourceCode": {
+    "description": "Plan source: a redeemed code."
+  },
   "planSourceAdmin": "Cymbra",
-  "@planSourceAdmin": {"description": "Plan source: a grant by the Cymbra team."},
+  "@planSourceAdmin": {
+    "description": "Plan source: a grant by the Cymbra team."
+  },
   "planBetasTitle": "Betas",
-  "@planBetasTitle": {"description": "Section title: the user's beta memberships."},
+  "@planBetasTitle": {
+    "description": "Section title: the user's beta memberships."
+  },
   "planBetaJoined": "Joined {date}",
-  "@planBetaJoined": {"description": "Beta row: join date.", "placeholders": {"date": {"type": "String"}}},
+  "@planBetaJoined": {
+    "description": "Beta row: join date.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "planBetaJoinedUntil": "Joined {date} — until {until}",
-  "@planBetaJoinedUntil": {"description": "Beta row: join date and end date.", "placeholders": {"date": {"type": "String"}, "until": {"type": "String"}}},
+  "@planBetaJoinedUntil": {
+    "description": "Beta row: join date and end date.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "until": {
+        "type": "String"
+      }
+    }
+  },
   "planBenefitsTitle": "Premium includes",
-  "@planBenefitsTitle": {"description": "Section title: premium benefits."},
+  "@planBenefitsTitle": {
+    "description": "Section title: premium benefits."
+  },
   "planBenefitCatalog": "Unlimited catalog pieces every day",
-  "@planBenefitCatalog": {"description": "Premium benefit."},
+  "@planBenefitCatalog": {
+    "description": "Premium benefit."
+  },
   "planBenefitSoundfonts": "Every piano in the sound library",
-  "@planBenefitSoundfonts": {"description": "Premium benefit."},
+  "@planBenefitSoundfonts": {
+    "description": "Premium benefit."
+  },
   "planBenefitOffline": "Offline play of your favorite catalog pieces",
-  "@planBenefitOffline": {"description": "Premium benefit."},
+  "@planBenefitOffline": {
+    "description": "Premium benefit."
+  },
   "planBenefitQuotas": "More private scores and imported pianos",
-  "@planBenefitQuotas": {"description": "Premium benefit."},
+  "@planBenefitQuotas": {
+    "description": "Premium benefit."
+  },
   "planSubscribeTitle": "Go Premium",
-  "@planSubscribeTitle": {"description": "Purchase card title."},
+  "@planSubscribeTitle": {
+    "description": "Purchase card title."
+  },
   "planKeepPremiumTitle": "Keep Premium after your trial",
-  "@planKeepPremiumTitle": {"description": "Purchase card title for a trial tester."},
+  "@planKeepPremiumTitle": {
+    "description": "Purchase card title for a trial tester."
+  },
   "planSubscribeWeb": "Subscribe ({product}) — opens in your browser",
-  "@planSubscribeWeb": {"description": "Desktop purchase button (web checkout). {product} = Monthly/Yearly.", "placeholders": {"product": {"type": "String"}}},
+  "@planSubscribeWeb": {
+    "description": "Desktop purchase button (web checkout). {product} = Monthly/Yearly.",
+    "placeholders": {
+      "product": {
+        "type": "String"
+      }
+    }
+  },
   "planIvePaidRefresh": "I've paid — refresh",
-  "@planIvePaidRefresh": {"description": "Desktop: refresh the plan after the web checkout."},
+  "@planIvePaidRefresh": {
+    "description": "Desktop: refresh the plan after the web checkout."
+  },
   "planProductMonthly": "Monthly",
-  "@planProductMonthly": {"description": "Product label."},
+  "@planProductMonthly": {
+    "description": "Product label."
+  },
   "planProductYearly": "Yearly",
-  "@planProductYearly": {"description": "Product label."},
+  "@planProductYearly": {
+    "description": "Product label."
+  },
   "planStoreUnavailable": "The store is not available right now. Please try again later.",
-  "@planStoreUnavailable": {"description": "Store products could not be loaded."},
+  "@planStoreUnavailable": {
+    "description": "Store products could not be loaded."
+  },
   "planManagedElsewhere": "Your subscription is managed on {channel}.",
-  "@planManagedElsewhere": {"description": "Shown instead of a purchase button when already subscribed via another channel.", "placeholders": {"channel": {"type": "String"}}},
+  "@planManagedElsewhere": {
+    "description": "Shown instead of a purchase button when already subscribed via another channel.",
+    "placeholders": {
+      "channel": {
+        "type": "String"
+      }
+    }
+  },
   "planRestore": "Restore purchases",
-  "@planRestore": {"description": "Store builds: re-assert the account's transactions."},
+  "@planRestore": {
+    "description": "Store builds: re-assert the account's transactions."
+  },
   "planPurchaseDone": "Welcome to Premium!",
-  "@planPurchaseDone": {"description": "Snackbar after a verified purchase."},
+  "@planPurchaseDone": {
+    "description": "Snackbar after a verified purchase."
+  },
   "planRestoreDone": "Purchases restored",
-  "@planRestoreDone": {"description": "Snackbar after a successful restore."},
+  "@planRestoreDone": {
+    "description": "Snackbar after a successful restore."
+  },
   "planPurchasePending": "Purchase pending approval",
-  "@planPurchasePending": {"description": "Snackbar: the store reports a pending (deferred) purchase."},
+  "@planPurchasePending": {
+    "description": "Snackbar: the store reports a pending (deferred) purchase."
+  },
   "planCheckoutOpened": "Checkout opened in your browser. Come back and refresh once you're done.",
-  "@planCheckoutOpened": {"description": "Snackbar after opening the web checkout."},
+  "@planCheckoutOpened": {
+    "description": "Snackbar after opening the web checkout."
+  },
   "planRestoreNothing": "No purchase to restore on this account",
-  "@planRestoreNothing": {"description": "Snackbar: restore found nothing."},
+  "@planRestoreNothing": {
+    "description": "Snackbar: restore found nothing."
+  },
   "planPurchaseOtherAccount": "This purchase is linked to another Cymbra account. Sign in with that account to use it.",
-  "@planPurchaseOtherAccount": {"description": "Snackbar: the store transaction is bound to a different Cymbra account (purchase / restore refused)."},
+  "@planPurchaseOtherAccount": {
+    "description": "Snackbar: the store transaction is bound to a different Cymbra account (purchase / restore refused)."
+  },
   "planSyncPending": "Purchase confirmed by the store — your plan will update in a moment.",
-  "@planSyncPending": {"description": "Snackbar: the store purchase / restore succeeded but the server plan sync failed (offline, aggregator lag); the plan refreshes on resume."},
+  "@planSyncPending": {
+    "description": "Snackbar: the store purchase / restore succeeded but the server plan sync failed (offline, aggregator lag); the plan refreshes on resume."
+  },
   "planPurchaseFailed": "The purchase could not be completed. Nothing was charged by Cymbra.",
-  "@planPurchaseFailed": {"description": "Snackbar: purchase / restore failed (cause logged, never shown)."},
+  "@planPurchaseFailed": {
+    "description": "Snackbar: purchase / restore failed (cause logged, never shown)."
+  },
   "planWithdrawnNotice": "Your Premium access ended: offline catalog pieces and Premium pianos were removed from this device.",
-  "@planWithdrawnNotice": {"description": "Snackbar shown when plan-only downloads are withdrawn after a lapse."},
+  "@planWithdrawnNotice": {
+    "description": "Snackbar shown when plan-only downloads are withdrawn after a lapse."
+  },
   "accountPlanMenu": "Subscription",
-  "@accountPlanMenu": {"description": "Account menu entry opening the plan screen."},
+  "@accountPlanMenu": {
+    "description": "Account menu entry opening the plan screen."
+  },
   "catalogUnlockUpsellCta": "Unlimited access with Premium",
-  "@catalogUnlockUpsellCta": {"description": "Unlock sheet: button leading to the plan screen."},
+  "@catalogUnlockUpsellCta": {
+    "description": "Unlock sheet: button leading to the plan screen."
+  },
   "soundfontIncludedInPremium": "Included in Premium",
-  "@soundfontIncludedInPremium": {"description": "Piano picker: a font available with the premium plan (not redeemable with points)."},
+  "@soundfontIncludedInPremium": {
+    "description": "Piano picker: a font available with the premium plan (not redeemable with points)."
+  },
   "soundfontUpsell": "Premium unlocks every piano",
-  "@soundfontUpsell": {"description": "Piano picker upsell button leading to the plan screen."},
+  "@soundfontUpsell": {
+    "description": "Piano picker upsell button leading to the plan screen."
+  },
   "libraryQuotaUpsell": "Your library is full. Premium raises the limit.",
-  "@libraryQuotaUpsell": {"description": "Refusal when a private library / upload quota is reached and a higher plan raises it."}
+  "@libraryQuotaUpsell": {
+    "description": "Refusal when a private library / upload quota is reached and a higher plan raises it."
+  },
+  "handHands": "Hands",
+  "@handHands": {
+    "description": "Percussion hand selector: the hand-struck events (add-drum-kit-view)."
+  },
+  "handFeet": "Feet",
+  "@handFeet": {
+    "description": "Percussion hand selector: the foot-struck events (add-drum-kit-view)."
+  },
+  "invertedKitTitle": "Kit layout",
+  "@invertedKitTitle": {
+    "description": "Settings section title for the inverted-kit layout (add-drum-kit-view)."
+  },
+  "invertedKitLabel": "Inverted kit",
+  "@invertedKitLabel": {
+    "description": "Switch label: reverses the cascade lanes and the pad strip together. Describes the kit's layout, never handedness."
+  },
+  "invertedKitHint": "Hi-hat on the right, as on a mirrored kit. Notation is unaffected.",
+  "@invertedKitHint": {
+    "description": "One-line explanation under the inverted-kit switch."
+  },
+  "kitPieceHiHat": "Hi-hat",
+  "kitPieceSnare": "Snare",
+  "kitPieceTomHigh": "High tom",
+  "kitPieceTomHiMid": "Hi-mid tom",
+  "kitPieceTomLowMid": "Low-mid tom",
+  "kitPieceTomLow": "Low tom",
+  "kitPieceTomFloorHigh": "Floor tom",
+  "kitPieceTomFloorLow": "Low floor tom",
+  "kitPieceRide": "Ride",
+  "kitPieceCrash": "Crash",
+  "kitPieceCrash2": "Crash 2",
+  "kitPieceSplash": "Splash",
+  "kitPieceChina": "China",
+  "kitPieceKick": "Kick",
+  "instrumentChoiceTitle": "What would you like to start with?",
+  "@instrumentChoiceTitle": {
+    "description": "One-time instrument choice modal title (add-instrument-context). A CHOICE, never an unlock."
+  },
+  "instrumentChoiceBody": "Your home will show that instrument first. You can change it anytime from the switcher at the top.",
+  "@instrumentChoiceBody": {
+    "description": "Modal body: states the choice seeds the home and can be changed anytime."
+  },
+  "drumsEmptyTitle": "No drum scores here yet",
+  "@drumsEmptyTitle": {
+    "description": "Drums-context empty state title."
+  },
+  "drumsEmptyBody": "Nothing to show for drums right now — explore the catalog from the search icon, or switch back to keyboard.",
+  "@drumsEmptyBody": {
+    "description": "Drums-context empty state body, naming the cause and the ways out."
+  },
+  "drumsEmptySwitch": "Switch to keyboard",
+  "@drumsEmptySwitch": {
+    "description": "Button switching the context back to keyboard."
+  },
+  "notationHelpPercussionClefTitle": "Percussion clef",
+  "@notationHelpPercussionClefTitle": {
+    "description": "Bubble title for the percussion clef."
+  },
+  "notationHelpPercussionClefBody": "This double bar replaces the treble clef on a drum staff. A note's position no longer means a pitch — it names the kit piece to strike.",
+  "@notationHelpPercussionClefBody": {
+    "description": "Bubble body for the percussion clef."
+  },
+  "notationHelpDrumNoteTitle": "Stroke ({piece})",
+  "@notationHelpDrumNoteTitle": {
+    "description": "Bubble title for a drum note, with its kit piece name.",
+    "placeholders": {
+      "piece": {
+        "type": "String",
+        "example": "Hi-hat"
+      }
+    }
+  },
+  "notationHelpDrumNoteBody": "This note says which kit piece to strike. Its position on the staff names the piece, not a pitch, and its value is the room it takes before the next stroke.",
+  "@notationHelpDrumNoteBody": {
+    "description": "Bubble body for a drum note."
+  },
+  "notationHelpGlossaryStroke": "a kit piece",
+  "@notationHelpGlossaryStroke": {
+    "description": "Generic kit-piece name used by the glossary, which has no score loaded."
+  },
+  "coachPlayerSoundDrumsTitle": "Choose your drum kit",
+  "@coachPlayerSoundDrumsTitle": {
+    "description": "Guided step 1 title on a percussion score (the kit, not a piano)."
+  },
+  "coachPlayerSoundDrumsBody": "Pick the kit you hear while playing. You can import your own SoundFonts, and unlock more with your points.",
+  "@coachPlayerSoundDrumsBody": {
+    "description": "Guided step 1 body on a percussion score."
+  },
+  "coachPlayerMidiDrumsBody": "This is where your connected electronic kit appears. Leave it on automatic, or pick the device yourself if several are plugged in.",
+  "@coachPlayerMidiDrumsBody": {
+    "description": "Guided step 2 body on a percussion score (an e-kit, not a MIDI keyboard)."
+  },
+  "coachPlayerLimbsTitle": "Hands, feet, or both",
+  "@coachPlayerLimbsTitle": {
+    "description": "Guided step 3 title on a percussion score: the hands/feet selector."
+  },
+  "coachPlayerLimbsBody": "Work the hands alone, then the feet, then put them together. Only the limbs you choose are asked of you.",
+  "@coachPlayerLimbsBody": {
+    "description": "Guided step 3 body on a percussion score."
+  }
 }

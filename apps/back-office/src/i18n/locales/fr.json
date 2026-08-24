@@ -132,7 +132,8 @@
     "priceNoSampleHint": "Cette sonorité n'a pas encore d'extrait : dès qu'elle coûte des points, l'app la verrouille et grise sa lecture tant qu'aucun extrait n'est généré.",
     "instrument": "Instrument",
     "instr": {
-      "piano": "Piano"
+      "keyboard": "Clavier",
+      "percussion": "Kit de batterie"
     },
     "licenseDesc": {
       "cc0": "CC0 1.0 — Domaine public : aucune attribution requise, réutilisation libre pour tout usage.",
@@ -149,6 +150,7 @@
     "generateSampleHint": "Génère le court extrait audio entendu lors de l’écoute de cette sonorité dans l’app.",
     "sampleGenerated": "Extrait généré.",
     "previewRequired": "Générez un extrait de preview avant d’accepter cette sonorité.",
+    "familyMismatch": "Ce fichier ne correspond pas à la famille déclarée « {family} » : il ne contient aucun preset pour cette famille.",
     "empty": "Aucune SoundFont pour l’instant.",
     "confirmRemove": "Supprimer cette SoundFont ? Sa ligne de catalogue et son fichier stocké sont supprimés.",
     "statusCol": "Statut",
@@ -240,6 +242,11 @@
     "noAudit": "Aucun changement pour l’instant.",
     "premiumOnly": "Premium uniquement",
     "beta": "bêta : {name}",
+    "betaClosed": "bêta : {name} (fermée)",
+    "betaDangling": "{scope} — ne nomme aucune campagne existante",
+    "scopeDanglingHint": "Cette portée ne nomme aucune campagne existante : le flag n’atteint que le staff. Choisissez une campagne ouverte ou une autre portée.",
+    "scopeNoCampaign": "La portée bêta choisie ne nomme aucune campagne existante — corrigez la portée, puis réenregistrez.",
+    "scopeUnverifiable": "L’annuaire des campagnes est injoignable : la portée n’a pas pu être vérifiée. Rien n’a été enregistré — réessayez plus tard.",
     "planTag": "plan",
     "betaTag": "bêta",
     "staffTag": "staff"
@@ -295,12 +302,17 @@
     "download": "Télécharger le MusicXML",
     "downloading": "Téléchargement…",
     "resubmitted": "Re-soumise",
-    "resubmittedHint": "Re-proposée après un refus — {note}"
+    "resubmittedHint": "Re-proposée après un refus — {note}",
+    "percussion": "Batterie",
+    "percussionHint": "Partition de percussion — son écoute audio n'est pas encore disponible dans la console."
   },
   "filters": {
     "query": "titre ou compositeur",
     "composer": "compositeur",
-    "pianoOnly": "piano uniquement",
+    "instrumentLabel": "instrument",
+    "instrumentAny": "Tous les instruments",
+    "instrumentKeyboard": "Clavier",
+    "instrumentPercussion": "Batterie",
     "searchLabel": "recherche",
     "composerLabel": "compositeur",
     "levelLabel": "niveau",
@@ -354,6 +366,7 @@
     "loading": "Chargement de la partition…",
     "rendering": "Rendu de la notation…",
     "renderError": "Impossible de rendre la notation.",
+    "noDrumKit": "Aucun kit de batterie disponible — le catalogue ne contient pas encore de sonorité percussion acceptée.",
     "noBytes": "Aucun octet de partition.",
     "play": "▶ Lecture",
     "pause": "⏸ Pause",
@@ -508,7 +521,11 @@
     "generic": "Une erreur est survenue. Réessaie.",
     "soundfontExists": "Cette SoundFont existe déjà (même id, ou un fichier identique est déjà au catalogue).",
     "soundfontInvalid": "Ce fichier n’est pas une SoundFont (.sf2) valide.",
-    "soundfontTooLarge": "Ce fichier SoundFont est trop volumineux."
+    "soundfontTooLarge": "Ce fichier SoundFont est trop volumineux.",
+    "previewDrumFontMissing": "Aucune sonorité de batterie n'est configurée pour les extraits : choisis une SoundFont de percussion acceptée dans le drapeau catalog.preview.drum_soundfont_id.",
+    "previewFontMissing": "Aucune sonorité n'est configurée pour les extraits : renseigne le drapeau catalog.preview.soundfont_id.",
+    "previewFontUnusable": "La sonorité configurée pour les extraits est inutilisable (introuvable, non acceptée, ou de la mauvaise famille).",
+    "previewSilent": "Ce morceau ne joue rien dans la durée de l'extrait — il n'y a rien à rendre."
   },
   "id": {
     "reveal": "Afficher l'ID complet",

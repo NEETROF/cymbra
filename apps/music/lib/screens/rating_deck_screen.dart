@@ -21,8 +21,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../l10n/gen/app_localizations.dart';
 import '../services/rating_service.dart';
 import '../state/coaching_notifier.dart';
+import '../state/drums_access.dart';
+import '../state/piano_catalog.dart';
 import '../state/rating_deck_notifier.dart';
 import '../state/score_catalog.dart';
+import '../state/selected_kit.dart';
 import '../state/selected_piano.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/app_snackbar.dart';
@@ -50,6 +53,13 @@ class RatingDeckScreen extends ConsumerWidget {
         backgroundColor: CymbraColors.surfaceContainerLowest,
         // Swap the instrument sound the card auto-preview plays with — a compact
         // combobox so the moderator can audition scores with any catalog sound.
+        //
+        // It follows the family of the card ON SCREEN (change:
+        // add-drum-audio-channel): a drum card is auditioned through the kit
+        // memory, everything else through the piano memory. Bound to the piano
+        // alone, the control offered a knob that changes nothing about what is
+        // being heard — and would have silently retuned the piano while the
+        // moderator was listening to a groove.
         actions: [
           // The account control is the curator standing pill (change: add-
           // curation-rewards) — it replaces the plain person icon; opens the
@@ -61,11 +71,26 @@ class RatingDeckScreen extends ConsumerWidget {
               // Wide enough that the "Add a SoundFont…" item fits the dropdown
               // menu (its width follows the field) without truncating.
               width: 260,
-              child: SoundSelectorField(
-                dense: true,
-                value: ref.watch(selectedPianoProvider),
-                onChanged: (id) =>
-                    ref.read(selectedPianoProvider.notifier).select(id),
+              child: Builder(
+                builder: (context) {
+                  final percussion =
+                      ref.watch(
+                        ratingDeckProvider.select((s) => s.topCard?.instrument),
+                      ) ==
+                      ScoreInstrument.percussion;
+                  return SoundSelectorField(
+                    dense: true,
+                    family: percussion
+                        ? SoundFamily.percussion
+                        : SoundFamily.keyboard,
+                    value: percussion
+                        ? ref.watch(selectedKitProvider)
+                        : ref.watch(selectedPianoProvider),
+                    onChanged: (id) => percussion
+                        ? ref.read(selectedKitProvider.notifier).select(id)
+                        : ref.read(selectedPianoProvider.notifier).select(id),
+                  );
+                },
               ),
             ),
           ),
@@ -75,6 +100,60 @@ class RatingDeckScreen extends ConsumerWidget {
       // listener widget near the top of the subtree (architecture rule 4).
       body: const _RatingDeckListeners(
         child: SafeArea(child: _RatingDeckBody()),
+      ),
+    );
+  }
+}
+
+/// The rater's own choice of what to be dealt: everything, piano, or drums.
+///
+/// Offered only to the drum audience — with a single family in the corpus the
+/// control would be three ways of saying the same thing (change:
+/// add-drums-access, which is also what makes the drum option meaningful: the
+/// backend serves percussion rows to that audience only).
+class _DeckInstrumentFilter extends ConsumerWidget {
+  const _DeckInstrumentFilter();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (!ref.watch(drumsEnabledProvider)) return const SizedBox.shrink();
+    final l10n = AppLocalizations.of(context);
+    final selected = ref.watch(ratingDeckProvider.select((s) => s.instrument));
+    final notifier = ref.read(ratingDeckProvider.notifier);
+
+    Widget choice(String label, ScoreInstrument? value) => Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: ChoiceChip(
+        label: Text(label),
+        selected: selected == value,
+        onSelected: (_) => notifier.setInstrument(value),
+        showCheckmark: false,
+        labelStyle: TextStyle(
+          color: selected == value
+              ? CymbraColors.background
+              : CymbraColors.onSurfaceVariant,
+          fontWeight: FontWeight.w600,
+        ),
+        backgroundColor: CymbraColors.surfaceContainerLowest,
+        selectedColor: CymbraColors.secondary,
+        side: BorderSide(
+          color: selected == value
+              ? CymbraColors.secondary
+              : CymbraColors.outlineVariant,
+        ),
+      ),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          choice(l10n.scoreHubAny, null),
+          choice(l10n.instrumentKeyboard, ScoreInstrument.keyboard),
+          choice(l10n.instrumentDrums, ScoreInstrument.percussion),
+        ],
       ),
     );
   }
@@ -119,27 +198,42 @@ class _RatingDeckBody extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final deck = ref.watch(ratingDeckProvider);
 
+    // The instrument chooser sits ABOVE whatever the body shows — including
+    // the empty and error states. A filter that disappears the moment it
+    // empties the deck is a trap: the way out of "nothing to rate" is the
+    // control that got you there.
+    Widget framed(Widget content) => Column(
+      children: [
+        const _DeckInstrumentFilter(),
+        Expanded(child: content),
+      ],
+    );
+
     // First load in flight (and nothing to show yet).
     if (deck.loading && deck.topCard == null) {
-      return const Center(child: CircularProgressIndicator());
+      return framed(const Center(child: CircularProgressIndicator()));
     }
     // Load failed before any card arrived — offer a retry.
     if (deck.error != null && deck.topCard == null) {
-      return _DeckMessage(
-        icon: Icons.cloud_off,
-        title: l10n.ratingDeckLoadError,
-        action: FilledButton(
-          onPressed: () => ref.read(ratingDeckProvider.notifier).refresh(),
-          child: Text(l10n.ratingDeckRetry),
+      return framed(
+        _DeckMessage(
+          icon: Icons.cloud_off,
+          title: l10n.ratingDeckLoadError,
+          action: FilledButton(
+            onPressed: () => ref.read(ratingDeckProvider.notifier).refresh(),
+            child: Text(l10n.ratingDeckRetry),
+          ),
         ),
       );
     }
     // Every sourced card has been judged.
     if (deck.isExhausted) {
-      return _DeckMessage(
-        icon: Icons.done_all,
-        title: l10n.ratingDeckEmptyTitle,
-        body: l10n.ratingDeckEmptyBody,
+      return framed(
+        _DeckMessage(
+          icon: Icons.done_all,
+          title: l10n.ratingDeckEmptyTitle,
+          body: l10n.ratingDeckEmptyBody,
+        ),
       );
     }
 
@@ -176,19 +270,21 @@ class _RatingDeckBody extends ConsumerWidget {
     return LayoutBuilder(
       builder: (context, c) {
         final sideRail = c.maxWidth > c.maxHeight && c.maxHeight < 460;
-        return sideRail
-            ? Row(
-                children: [
-                  Expanded(child: cardArea),
-                  controls(Axis.vertical),
-                ],
-              )
-            : Column(
-                children: [
-                  Expanded(child: cardArea),
-                  controls(Axis.horizontal),
-                ],
-              );
+        return framed(
+          sideRail
+              ? Row(
+                  children: [
+                    Expanded(child: cardArea),
+                    controls(Axis.vertical),
+                  ],
+                )
+              : Column(
+                  children: [
+                    Expanded(child: cardArea),
+                    controls(Axis.horizontal),
+                  ],
+                ),
+        );
       },
     );
   }

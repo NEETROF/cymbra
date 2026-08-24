@@ -36,16 +36,56 @@ pub struct ScoreSummary {
     /// Normalised `composer::title` key for dedup / grouping the same work
     /// across sources.
     pub work_key: String,
-    /// Grand-staff heuristic (`staves >= 2`) — a keyboard/piano proxy.
-    pub is_piano: bool,
     /// Number of staves (2 for a piano grand staff).
     pub staves: u32,
     pub key_fifths: i32,
     /// `beats/beat_type`, e.g. `4/4`.
     pub time_sig: String,
     pub measure_count: u32,
-    /// Count of pitched (non-rest) note events — the "playable notes" check.
+    /// Count of playable (pitched **or unpitched**, non-rest) note events — the
+    /// validation gate's check. Counting unpitched notes is what admits a
+    /// percussion score (change: add-drums-access); a rest-only score still
+    /// counts zero.
     pub note_count: u32,
+    /// Which instrument family the score is written for, derived from the
+    /// notation alone (see [`instrument_of`]).
+    pub instrument: InstrumentKind,
+}
+
+/// Which instrument family a score is written for, derived from its notation
+/// alone — never from a filename, a part name, or any other external claim.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InstrumentKind {
+    /// Every non-rest note is pitched.
+    Keyboard,
+    /// Every non-rest note is unpitched.
+    Percussion,
+    /// Mixed pitched and unpitched content, or no notes at all: the family
+    /// cannot be determined and is reported as such rather than defaulted.
+    Unknown,
+}
+
+/// Derives the score's instrument classification from the parsed (first) part:
+/// [`InstrumentKind::Percussion`] when every non-rest note is unpitched,
+/// [`InstrumentKind::Keyboard`] when every non-rest note is pitched, and
+/// [`InstrumentKind::Unknown`] for mixed content or a score with no notes.
+/// The product premise is that a score is one instrument — a file violating it
+/// is reported unknown, not forced into a family.
+pub fn instrument_of(doc: &ScoreDocument) -> InstrumentKind {
+    let mut pitched = false;
+    let mut unpitched = false;
+    for note in doc.measures.iter().flat_map(|m| &m.notes) {
+        if note.is_rest {
+            continue;
+        }
+        pitched |= note.pitch.is_some();
+        unpitched |= note.unpitched.is_some();
+    }
+    match (pitched, unpitched) {
+        (true, false) => InstrumentKind::Keyboard,
+        (false, true) => InstrumentKind::Percussion,
+        _ => InstrumentKind::Unknown,
+    }
 }
 
 /// Musical facets derived from a parsed score for catalog search filters
@@ -71,7 +111,7 @@ pub struct ScoreFacets {
     pub highest_midi: Option<u8>,
     /// Number of staves (1, or 2 for a grand staff).
     pub staff_count: u8,
-    /// Count of pitched (non-rest) note events.
+    /// Count of playable (pitched or unpitched, non-rest) note events.
     pub note_count: u32,
     /// The score's marked tempo (the first metronome mark's per-minute value),
     /// or `None` when the file carries no tempo marking (never the playback default).
@@ -97,7 +137,7 @@ impl ScoreSummary {
             .measures
             .iter()
             .flat_map(|m| &m.notes)
-            .filter(|n| n.pitch.is_some() && !n.is_rest)
+            .filter(|n| !n.is_rest && (n.pitch.is_some() || n.unpitched.is_some()))
             .count() as u32;
 
         ScoreSummary {
@@ -105,7 +145,6 @@ impl ScoreSummary {
             composer,
             title_norm,
             work_key,
-            is_piano: doc.staves >= 2,
             staves: doc.staves,
             key_fifths: doc.attributes.key_fifths,
             time_sig: format!(
@@ -114,6 +153,7 @@ impl ScoreSummary {
             ),
             measure_count: doc.measures.len() as u32,
             note_count,
+            instrument: instrument_of(doc),
         }
     }
 }
@@ -159,14 +199,17 @@ impl NoteScan {
             s.has_chords |= note.is_chord;
             s.has_dotted |= note.dots > 0;
             s.has_tuplets |= note.tuplet.is_some();
-            // Only sounding (pitched, non-rest) notes drive counts, ambitus, and
-            // the fastest-value derivation — rests and grace notes are ignored.
-            let Some(pitch) = &note.pitch else { continue };
-            if note.is_rest {
+            // Only sounding (pitched or unpitched, non-rest) notes drive the
+            // count and the fastest-value derivation; the ambitus is pitched
+            // only — an unpitched note's written position is a staff placement,
+            // not a sounding pitch, so it never enters the range.
+            if note.is_rest || (note.pitch.is_none() && note.unpitched.is_none()) {
                 continue;
             }
             s.note_count += 1;
-            if let Some(midi) = pitch_to_midi(pitch) {
+            if let Some(pitch) = &note.pitch
+                && let Some(midi) = pitch_to_midi(pitch)
+            {
                 s.lowest = Some(s.lowest.map_or(midi, |l| l.min(midi)));
                 s.highest = Some(s.highest.map_or(midi, |h| h.max(midi)));
             }
@@ -311,7 +354,7 @@ mod tests {
         assert_eq!(s.key_fifths, -3);
         assert_eq!(s.time_sig, "9/8");
         assert_eq!(s.staves, 2);
-        assert!(s.is_piano);
+        assert_eq!(s.instrument, InstrumentKind::Keyboard);
         assert_eq!(s.measure_count, 2);
         assert_eq!(s.note_count, 2); // two pitched notes, the rest excluded
     }
@@ -326,13 +369,16 @@ mod tests {
     }
 
     #[test]
-    fn single_staff_is_not_piano() {
+    fn single_staff_summary_keeps_staves_and_classifies_keyboard() {
         let xml = r#"<score-partwise><part-list><score-part id="P1"/></part-list>
         <part id="P1"><measure number="1">
           <note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration></note>
         </measure></part></score-partwise>"#;
         let s = ScoreSummary::from_document(&parse(xml.as_bytes()).unwrap());
-        assert!(!s.is_piano);
+        // The staff-count `is_piano` proxy is retired (add-drums-access): the
+        // summary carries the real classification, and a single-staff keyboard
+        // piece — which the proxy misread as not-piano — reads keyboard.
+        assert_eq!(s.instrument, InstrumentKind::Keyboard);
         assert_eq!(s.staves, 1);
         assert_eq!(s.work_key, "::"); // no title, no composer
     }
@@ -416,6 +462,60 @@ mod tests {
         assert_eq!(s.lowest_midi, None);
         assert_eq!(s.highest_midi, None);
         assert_eq!(s.note_count, 0);
+    }
+
+    // --- Instrument classification (change: add-unpitched-notation) -------
+
+    #[test]
+    fn classification_covers_all_four_input_shapes() {
+        // Every non-rest note unpitched → percussion.
+        let drums = parse(crate::fixtures::ROCK_GROOVE.as_bytes()).unwrap();
+        assert_eq!(instrument_of(&drums), InstrumentKind::Percussion);
+        // Every non-rest note pitched → keyboard.
+        let piano = parse(SCORE.as_bytes()).unwrap();
+        assert_eq!(instrument_of(&piano), InstrumentKind::Keyboard);
+        // Mixed pitched and unpitched → unknown, never forced into a family.
+        let mixed = parse(crate::fixtures::MIXED.as_bytes()).unwrap();
+        assert_eq!(instrument_of(&mixed), InstrumentKind::Unknown);
+        // No notes at all → unknown.
+        let rests = r#"<score-partwise><part-list><score-part id="P1"/></part-list>
+        <part id="P1"><measure number="1">
+          <attributes><divisions>1</divisions></attributes>
+          <note><rest/><duration>4</duration></note>
+        </measure></part></score-partwise>"#;
+        let rests = parse(rests.as_bytes()).unwrap();
+        assert_eq!(instrument_of(&rests), InstrumentKind::Unknown);
+    }
+
+    #[test]
+    fn summary_carries_the_classification_and_counts_playable_notes() {
+        let drums = parse(crate::fixtures::ROCK_GROOVE.as_bytes()).unwrap();
+        let s = ScoreSummary::from_document(&drums);
+        assert_eq!(s.instrument, InstrumentKind::Percussion);
+        // `note_count` counts playable notes — pitched OR unpitched — so a
+        // percussion score reports a non-zero count and passes the gate
+        // (add-drums-access opens it; the rests stay excluded).
+        assert_eq!(s.note_count, 13);
+        let piano = parse(SCORE.as_bytes()).unwrap();
+        assert_eq!(
+            ScoreSummary::from_document(&piano).instrument,
+            InstrumentKind::Keyboard
+        );
+    }
+
+    #[test]
+    fn percussion_score_has_no_ambitus() {
+        // Written staff positions are placements, not pitches: the ambitus is
+        // left unknown rather than derived from them.
+        let drums = parse(crate::fixtures::ROCK_GROOVE.as_bytes()).unwrap();
+        let f = ScoreFacets::from_document(&drums);
+        assert_eq!(f.lowest_midi, None);
+        assert_eq!(f.highest_midi, None);
+        // The playable count includes the unpitched notes (10 hand strokes in
+        // measure 1, 2 kicks, 1 kick in measure 2), and the fastest value is
+        // derivable from them (the hat eighths).
+        assert_eq!(f.note_count, 13);
+        assert_eq!(f.min_note_value, Some(8));
     }
 
     #[test]

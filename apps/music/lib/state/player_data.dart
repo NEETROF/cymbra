@@ -15,8 +15,9 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '../painters/keyboard_range.dart';
-import '../src/rust/api/musicxml.dart' show BeamState;
+import '../src/rust/api/musicxml.dart' show BeamState, HeadClass;
 import '../src/rust/api/score.dart';
+import 'drum_kit.dart';
 import 'note_density_core.dart';
 import 'performance_scoring_core.dart' show ScoreClocks, judgmentClock;
 
@@ -27,7 +28,10 @@ part 'player_data.freezed.dart';
 
 /// The score rendering modes: scrolling staff, Synthesia waterfall, and the
 /// engraved Partition (sheet-music) view of a loaded MusicXML score.
-enum RenderMode { staff, synthesia, partition }
+/// The play surfaces. `stage` is the perspective reading of the cascade and is
+/// offered for PERCUSSION ONLY (experiment: drum-highway): a keyboard score has
+/// 88 lanes, which no vanishing point survives.
+enum RenderMode { staff, synthesia, partition, stage }
 
 /// Which hand(s) the player shows and awaits. Follows the engine's MusicXML
 /// convention: staff 1 is the right hand, staff 2 (and above) the left hand.
@@ -68,6 +72,12 @@ class TimedNote {
   /// Staff the note belongs to (1 = treble/right hand, 2 = bass/left hand).
   /// Lets the Staff painter lay out a real grand staff.
   final int staff;
+
+  /// Voice the note belongs to (change: add-drum-kit-view). A drum part is
+  /// written on a single staff in two voices — hands with stems up (voice 1),
+  /// feet with stems down (voice 2) — so the hands/feet split keys on this,
+  /// never on staff and never on the stem-direction proxy next to it.
+  final int voice;
 
   /// Beam states carried from the parsed notation (begin/continue/end), so the
   /// Staff painter can beam eighth/sixteenth runs instead of drawing flags.
@@ -132,11 +142,20 @@ class TimedNote {
   /// and "keep holding" read differently. Null on ordinary notes.
   final int? sustainFromMs;
 
+  /// Engraved head class of an **unpitched** (percussion) note, carried
+  /// verbatim from the bridged `Unpitched.headClass` (change:
+  /// add-drum-notation-render): the shared crate classifies cymbals as x
+  /// heads (the open hi-hat additionally marked), drums as ovals — the
+  /// painters consume it and never re-derive GM ranges of their own. Null for
+  /// pitched notes and MIDI-only sources.
+  final HeadClass? headClass;
+
   const TimedNote({
     required this.pitch,
     required this.startMs,
     required this.durationMs,
     this.staff = 1,
+    this.voice = 1,
     this.beams = const [],
     this.clefSign = 'G',
     this.clefLine = 2,
@@ -149,6 +168,7 @@ class TimedNote {
     this.isGrace = false,
     this.isChord = false,
     this.sustainFromMs,
+    this.headClass,
   });
 }
 
@@ -172,12 +192,19 @@ class TimedRest {
   /// Number of augmentation dots (0 when none).
   final int dots;
 
+  /// Voice the rest belongs to (change: add-drum-notation-render). On a
+  /// two-voice percussion measure the painters displace rests by voice —
+  /// voice 1 above the middle line, voice 2 below — so a rest never sits on
+  /// the midline where the other voice's material runs.
+  final int voice;
+
   const TimedRest({
     required this.startMs,
     required this.durationMs,
     this.staff = 1,
     this.noteType,
     this.dots = 0,
+    this.voice = 1,
   });
 }
 
@@ -377,6 +404,14 @@ abstract class PlayerData with _$PlayerData {
     /// End of the song (ms).
     @Default(0.0) double songEndMs,
 
+    /// The last UNSPENT stroke per surface, stamped on the **playhead's**
+    /// clock (not the wall clock [struckSurfacesMs] uses for its flash): the
+    /// early-stroke tolerance is a musical window, so it has to be measured
+    /// where the onset lives. An entry is removed the moment its stroke is
+    /// credited to an onset, which is what stops one stroke from validating
+    /// two. Percussion only; cleared with [struckSurfacesMs].
+    @Default(<int, double>{}) Map<int, double> strokeAtMs,
+
     /// Start time (ms) of each measure, in order (Partition cursor placement).
     /// Empty for the demo score; populated from a parsed MusicXML document.
     @Default(<int>[]) List<int> measureStartMs,
@@ -453,8 +488,48 @@ abstract class PlayerData with _$PlayerData {
 
     /// Which hand(s) the player shows and awaits. Session-only (resets to
     /// [Hand.both] on launch); drives [showsStaff]/[visibleNotes] so every mode
-    /// and the gate filter out the unselected hand together.
+    /// and the gate filter out the unselected hand together. For a percussion
+    /// score the same state reads hands / feet / both — [Hand.right] selects
+    /// the hands and [Hand.left] the feet, keyed to the voice convention
+    /// (change: add-drum-kit-view).
     @Default(Hand.both) Hand selectedHands,
+
+    /// The loaded score is percussion (change: add-drum-kit-view): the player
+    /// renders the drum cascade + pad strip and no keyboard-range apparatus.
+    /// The notation modes are offered alongside the cascade (change:
+    /// add-drum-notation-render), and Wait Mode + scoring since the matcher
+    /// exists (change: add-drum-scoring).
+    @Default(false) bool isPercussion,
+
+    /// The ordered lane layout derived ONCE from the loaded percussion score
+    /// (one lane per kit piece present, kick excluded by construction) —
+    /// consumed by BOTH the cascade and the pad strip via
+    /// [presentedDrumLanes], never derived twice.
+    @Default(<DrumLane>[]) List<DrumLane> drumLanes,
+
+    /// The inverted-kit setting (change: add-drum-kit-view): reverses the
+    /// PRESENTED lane order and the pad strip together — never the notation,
+    /// never how incoming notes are interpreted. Persisted; defaults to the
+    /// standard layout and is never inferred.
+    @Default(false) bool invertedKit,
+
+    /// When each controller surface was last struck — wall-clock milliseconds,
+    /// keyed by PRESENTED surface (a pad by its lane index, the kick pedal
+    /// under [kPedalSurface]); change: add-drum-input-mapping.
+    ///
+    /// The one honest feedback state percussion has: **struck**. It claims
+    /// nothing about correctness — there is no matcher until
+    /// `add-drum-scoring` — and it decays on its own short duration rather
+    /// than tracking the hold, because percussion releases arrive within
+    /// milliseconds (a hold-driven highlight would be an invisible flicker).
+    /// Wall clock, not the playhead: the flash must animate while playback is
+    /// stopped, where no score time passes at all.
+    ///
+    /// Bounded by the surface count (one entry per pad, one for the pedal), so
+    /// nothing accumulates; expired entries are simply painted at zero
+    /// intensity. Cleared whenever the surfaces themselves change (another
+    /// score, an inverted layout), since the keys are positions.
+    @Default(<int, double>{}) Map<int, double> struckSurfacesMs,
 
     /// Whether the metronome is enabled. A single app-wide preference (kept across
     /// pause and across score changes) toggled from the header Tempo chip. When on
@@ -596,6 +671,105 @@ abstract class PlayerData with _$PlayerData {
     Hand.left => staff >= 2,
   };
 
+  /// The lanes in PRESENTATION order: the derived layout, reversed when the
+  /// inverted-kit setting is on. The one point the cascade and the pad strip
+  /// both read, so the two surfaces can never disagree — and the only place
+  /// the inversion applies: notation and note interpretation never see it.
+  List<DrumLane> get presentedDrumLanes =>
+      invertedKit ? drumLanes.reversed.toList() : drumLanes;
+
+  /// The General MIDI number the **kick pedal** emits for the loaded score, or
+  /// null when the score writes no kick — in which case the strip draws no
+  /// pedal at all (change: add-drum-input-mapping). Read from [notes], never
+  /// [visibleNotes]: the pedal is a controller surface, and hand selection
+  /// filters what is *shown and judged*, never what the player may strike.
+  int? get kickEmissionGm => emittedKickGm({
+    for (final n in notes)
+      if (kKickGmNumbers.contains(n.pitch)) n.pitch,
+  });
+
+  /// Whether the pad strip draws the kick pedal (the score's foot bar exists).
+  bool get hasKickPedal => kickEmissionGm != null;
+
+  /// The General MIDI number a tap on controller [surface] emits — a pad by
+  /// its presented lane index, [kPedalSurface] for the pedal — or null when
+  /// the surface does not exist on this score (change: add-drum-input-mapping).
+  int? emissionGmForSurface(int surface) {
+    if (surface == kPedalSurface) return kickEmissionGm;
+    final lanes = presentedDrumLanes;
+    if (surface < 0 || surface >= lanes.length) return null;
+    return emittedGmOfLane(lanes[surface]);
+  }
+
+  /// The controller surface a struck [gm] flashes, or null for a number the
+  /// strip does not present (free play — audible, nothing to flash).
+  int? struckSurfaceFor(int gm) =>
+      struckSurfaceOf(presentedDrumLanes, gm, hasPedal: hasKickPedal);
+
+  /// Milliseconds per beat as the score writes it, or 0 when the tempo is
+  /// unknown. The bpm is the QUARTER rate, so a 6/8 beat is not 60000/bpm —
+  /// the time signature's lower number scales it, and a missing one reads as
+  /// a quarter.
+  ///
+  /// Derived here rather than at each surface: the two drum surfaces and the
+  /// staff all draw the same grid, and three copies of this arithmetic would
+  /// drift.
+  double get beatMs {
+    if (bpm <= 0) return 0;
+    final unit = beatType == 0 ? 4 : beatType;
+    return (60000 / bpm) * (4 / unit);
+  }
+
+  /// The controller surfaces the current hands/feet selection can play at all.
+  ///
+  /// Derived from the whole score rather than from [visibleNotes] on purpose:
+  /// it answers "does this limb ever touch this piece", not "in this passage",
+  /// so a measure-range practice does not grey out most of the kit. Empty
+  /// outside a percussion score, and empty when nothing is filtered — both
+  /// mean "everything is live", which is what the surfaces draw by default.
+  Set<int> get playableDrumSurfaces {
+    if (!isPercussion || selectedHands == Hand.both) return const {};
+    final multiVoice = spansMultipleVoices(notes);
+    final result = <int>{};
+    for (final n in notes) {
+      if (!_showsNote(n, multiVoice: multiVoice)) continue;
+      final surface = struckSurfaceFor(n.pitch);
+      if (surface != null) result.add(surface);
+    }
+    return result;
+  }
+
+  /// Whether the loaded percussion score spans both hand and foot events —
+  /// the precondition for offering the hands/feet selector (a feet-less
+  /// groove has nothing to isolate).
+  bool get hasHandsAndFeet {
+    if (!isPercussion) return false;
+    final multiVoice = spansMultipleVoices(notes);
+    var hands = false;
+    var feet = false;
+    for (final n in notes) {
+      if (isFootNote(n, multiVoice: multiVoice)) {
+        feet = true;
+      } else {
+        hands = true;
+      }
+      if (hands && feet) return true;
+    }
+    return false;
+  }
+
+  /// Whether [selectedHands] shows this note. Keyboard scores split by staff
+  /// (right = staff 1); a percussion score splits by hands/feet, keyed to the
+  /// voice convention with the single-voice GM fallback (change:
+  /// add-drum-kit-view) — [Hand.right] is the hands, [Hand.left] the feet.
+  bool _showsNote(TimedNote n, {required bool multiVoice}) => isPercussion
+      ? switch (selectedHands) {
+          Hand.both => true,
+          Hand.right => !isFootNote(n, multiVoice: multiVoice),
+          Hand.left => isFootNote(n, multiVoice: multiVoice),
+        }
+      : showsStaff(n.staff);
+
   /// Notes belonging to the selected hand(s) — the input every render mode and
   /// the gate derive from, so display and Wait Mode stay consistent.
   ///
@@ -604,24 +778,59 @@ abstract class PlayerData with _$PlayerData {
   /// see where the passage ends, and the Wait-Mode gate would otherwise hold at
   /// an onset outside the loop. Restricting at this single source keeps the
   /// display, the gate and the score audio in agreement by construction.
-  List<TimedNote> get visibleNotes => notes
-      .where((n) => showsStaff(n.staff) && _withinRun(n.startMs.toDouble()))
-      .toList();
+  List<TimedNote> get visibleNotes {
+    final multiVoice = isPercussion && spansMultipleVoices(notes);
+    return notes
+        .where(
+          (n) =>
+              _showsNote(n, multiVoice: multiVoice) &&
+              _withinRun(n.startMs.toDouble()),
+        )
+        .toList();
+  }
+
+  /// Whether [selectedHands] shows this rest. Keyboard scores split by staff;
+  /// a percussion score splits by the hands/feet **voice** convention (change:
+  /// add-drum-notation-render): on a multi-voice drum part voice 1's rests
+  /// belong to the hands and voice 2's to the feet, while a single-voice
+  /// part's rests are the shared groove's and stay visible either way (a rest
+  /// carries no GM number for the fallback to key on).
+  bool _showsRest(TimedRest r, {required bool multiVoice}) => isPercussion
+      ? switch (selectedHands) {
+          Hand.both => true,
+          Hand.right => !multiVoice || r.voice < 2,
+          Hand.left => !multiVoice || r.voice >= 2,
+        }
+      : showsStaff(r.staff);
 
   /// Rests belonging to the selected hand(s) — the render-only companion to
   /// [visibleNotes], so the Staff painter hides a muted hand's rests with its
   /// notes (and, in a selective run, everything outside the passage).
-  List<TimedRest> get visibleRests => rests
-      .where((r) => showsStaff(r.staff) && _withinRun(r.startMs.toDouble()))
-      .toList();
+  List<TimedRest> get visibleRests {
+    final multiVoice = isPercussion && spansMultipleVoices(notes);
+    return rests
+        .where(
+          (r) =>
+              _showsRest(r, multiVoice: multiVoice) &&
+              _withinRun(r.startMs.toDouble()),
+        )
+        .toList();
+  }
 
   /// Tie continuations belonging to the selected hand(s) — the render-only
-  /// companion to [visibleNotes] (same filter), so a muted hand's tied notation
-  /// hides with its notes (and, in a selective run, everything outside the
-  /// passage).
-  List<TimedNote> get visibleTieContinuations => tieContinuations
-      .where((n) => showsStaff(n.staff) && _withinRun(n.startMs.toDouble()))
-      .toList();
+  /// companion to [visibleNotes] (same filter, hands/feet on percussion), so a
+  /// muted hand's tied notation hides with its notes (and, in a selective run,
+  /// everything outside the passage).
+  List<TimedNote> get visibleTieContinuations {
+    final multiVoice = isPercussion && spansMultipleVoices(notes);
+    return tieContinuations
+        .where(
+          (n) =>
+              _showsNote(n, multiVoice: multiVoice) &&
+              _withinRun(n.startMs.toDouble()),
+        )
+        .toList();
+  }
 
   /// Whether onset [t] falls inside the run. Always true for a full run; for a
   /// selective one, the half-open span of the chosen measures. Deliberately keyed
@@ -750,6 +959,71 @@ abstract class PlayerData with _$PlayerData {
     }
     return result;
   }
+
+  /// Whether an attack of [incoming] satisfies a note the gate requires as
+  /// [required] — the gate's half of the **one stroke identity** (change:
+  /// add-drum-scoring).
+  ///
+  /// Pitch equality for a keyboard score; the shared kit-piece equivalence of
+  /// `drum_kit.dart` for a percussion one, which is the same predicate the
+  /// scorer binds with. A stroke that releases the gate is therefore exactly a
+  /// stroke the scorer binds — the drift two independent tables would allow is
+  /// inexpressible.
+  ///
+  /// The hi-hat articulation is deliberately not consulted: it shades a bound
+  /// stroke's verdict and never gates, so a kit with no hi-hat controller can
+  /// still complete a run written with open hi-hats.
+  bool strokeSatisfies(int required, int incoming) =>
+      isPercussion ? samePiece(required, incoming) : required == incoming;
+
+  /// The onset numbers at instant [t] that an attack of [gm] satisfies — the
+  /// set to latch into `gateSatisfied`, empty when the attack answers nothing
+  /// the onset asks for.
+  ///
+  /// Returns the **required** numbers, not the incoming one, so the gate's
+  /// `containsAll(onset)` release check keeps reading the score's own
+  /// vocabulary: a written 38 satisfied by an incoming 40 latches 38.
+  Set<int> onsetPitchesSatisfiedBy(int gm, double t) {
+    final result = <int>{};
+    for (final required in onsetPitchesAt(t)) {
+      if (strokeSatisfies(required, gm)) result.add(required);
+    }
+    return result;
+  }
+
+  /// The controller surfaces the pad strip should show as **expected** — the
+  /// pads of the pieces the gate is waiting for, plus [kPedalSurface] when a
+  /// kick is required (change: add-drum-scoring). Empty outside a percussion
+  /// score, and empty when nothing is expected.
+  ///
+  /// Derived from [expectedKeys], so the strip, the gate and the judgment
+  /// always name the same onset; resolved through [struckSurfaceFor], so an
+  /// expected pad and a struck one are the same surface.
+  Set<int> get expectedDrumSurfaces {
+    if (!isPercussion) return const {};
+    final result = <int>{};
+    for (final gm in expectedKeys) {
+      final surface = struckSurfaceFor(gm);
+      if (surface != null) result.add(surface);
+    }
+    return result;
+  }
+
+  /// The selection as the session result records it: the hands/feet reading on
+  /// a percussion score (change: add-drum-scoring — `hand-selection` gives
+  /// [Hand.right] the hands and [Hand.left] the feet there), else the
+  /// keyboard's own `left` / `right` / `both`.
+  ///
+  /// Distinct tokens for the percussion readings rather than reusing the
+  /// keyboard's, so the summary can say "Feet" where a keyboard run says "Left
+  /// hand" — and so the keyboard labels stay exactly what they were.
+  String get handsSelectionName => isPercussion
+      ? switch (selectedHands) {
+          Hand.both => 'handsAndFeet',
+          Hand.right => 'hands',
+          Hand.left => 'feet',
+        }
+      : selectedHands.name;
 
   /// The next note onset strictly after [t] (ms), or null if there are none.
   /// Restricted to [visibleNotes] so the playhead does not pause at a hidden

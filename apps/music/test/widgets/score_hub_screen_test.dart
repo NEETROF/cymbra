@@ -17,14 +17,22 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:music/screens/player_screen.dart';
 import 'package:music/screens/score_hub_screen.dart';
+import 'package:music/src/rust/api/musicxml.dart' show ScoreDocument;
 import 'package:music/services/auth_service.dart';
 import 'package:music/services/catalog_service.dart';
+import 'package:music/services/audio_service.dart';
+import 'package:music/services/midi_service.dart';
+import 'package:music/services/notation_engine.dart';
 import 'package:music/services/score_upload_service.dart';
+import 'package:music/state/drums_access.dart';
 import 'package:music/state/score_catalog.dart';
 import 'package:music/state/session_notifier.dart';
 
+import '../support/fakes.dart';
 import '../support/localized.dart';
+import '../support/notation_fakes.dart';
 
 class _FakeCatalog implements CatalogService {
   @override
@@ -42,6 +50,7 @@ class _FakeCatalog implements CatalogService {
   final Set<String> saved = {};
   final List<String> saveCalls = [];
   int? lastMaxNoteValue;
+  ScoreInstrument? lastInstrument;
 
   @override
   Future<CatalogSearchPage> search({
@@ -53,6 +62,7 @@ class _FakeCatalog implements CatalogService {
     int offset = 0,
   }) async {
     lastMaxNoteValue = filters.maxNoteValue;
+    lastInstrument = filters.instrument;
     final page = rows.skip(offset).take(limit).toList();
     return CatalogSearchPage(
       hits: page,
@@ -91,6 +101,7 @@ class _FakeCatalog implements CatalogService {
   Future<CatalogSearchPage> ratingDeck({
     int limit = 20,
     int offset = 0,
+    ScoreInstrument? instrument,
   }) async => const CatalogSearchPage(hits: [], nextOffset: 0, total: 0);
 }
 
@@ -139,19 +150,23 @@ class _FakeUpload implements ScoreUploadService {
   }) async => throw UnimplementedError();
 }
 
-CatalogHit _hit(String id, String title) => CatalogHit(
-  id: id,
-  title: title,
-  composer: 'Composer',
-  level: PracticeLevel.beginner,
-  license: 'CC-BY-4.0',
-  source: 'pdmx',
-);
+CatalogHit _hit(String id, String title, {ScoreInstrument? instrument}) =>
+    CatalogHit(
+      id: id,
+      title: title,
+      composer: 'Composer',
+      level: PracticeLevel.beginner,
+      license: 'CC-BY-4.0',
+      source: 'pdmx',
+      instrument: instrument,
+    );
 
 ProviderContainer _container(
   _FakeCatalog catalog, {
   List<ContributedScore> uploads = const [],
   _FakeUpload? uploadFake,
+  bool drumsEnabled = false,
+  ScoreDocument? document,
 }) {
   final c = ProviderContainer(
     overrides: [
@@ -160,6 +175,16 @@ ProviderContainer _container(
         uploadFake ?? _FakeUpload(uploads),
       ),
       canUseOnlineServicesProvider.overrideWithValue(true),
+      drumsEnabledProvider.overrideWithValue(drumsEnabled),
+      // A scripted parse result (no native library in widget tests) — needed
+      // by any test that OPENS a score into the player, along with the
+      // player's own native-backed seams.
+      notationEngineProvider.overrideWithValue(
+        FakeNotationEngine(document: document),
+      ),
+      midiServiceProvider.overrideWithValue(FakeMidiService()),
+      audioServiceProvider.overrideWithValue(RecordingAudioService()),
+      scoreSourceProvider.overrideWithValue(FakeScoreSource()),
     ],
   );
   addTearDown(c.dispose);
@@ -480,6 +505,102 @@ void main() {
     expect(find.text('Could not load this score.'), findsNothing);
 
     await tester.pump(const Duration(seconds: 5));
+    await _teardown(tester, c);
+  });
+
+  testWidgets(
+    'the filter drawer offers no instrument section when drums are invisible',
+    (tester) async {
+      final c = _container(_FakeCatalog([_hit('c1', 'Clair de Lune')]));
+      await _pump(tester, c);
+
+      await tester.tap(find.byIcon(Icons.tune));
+      await tester.pumpAndSettle();
+      // Exactly today's drawer: no instrument section, no drum option.
+      // (Section headers render uppercased.)
+      expect(find.text('INSTRUMENT'), findsNothing);
+      expect(find.text('Drums'), findsNothing);
+      expect(find.text('Piano'), findsNothing);
+      await _teardown(tester, c);
+    },
+  );
+
+  testWidgets(
+    'the drum audience gets the instrument filter, and it maps through',
+    (tester) async {
+      final catalog = _FakeCatalog([_hit('c1', 'Clair de Lune')]);
+      final c = _container(catalog, drumsEnabled: true);
+      await _pump(tester, c);
+
+      await tester.tap(find.byIcon(Icons.tune));
+      await tester.pumpAndSettle();
+      // Section headers render uppercased; the option chips do not.
+      expect(find.text('INSTRUMENT'), findsOneWidget);
+      expect(find.text('Piano'), findsOneWidget);
+      expect(find.text('Drums'), findsOneWidget);
+
+      // Picking the drum option re-queries with the percussion filter.
+      await tester.tap(find.text('Drums'));
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 40));
+      }
+      expect(catalog.lastInstrument, ScoreInstrument.percussion);
+      await _teardown(tester, c);
+    },
+  );
+
+  testWidgets('opening a percussion score routes into the player (kit view)', (
+    tester,
+  ) async {
+    // The interim add-drums-access guard is gone: add-drum-kit-view gives a
+    // percussion score a real presentation, so opening one enters the
+    // player like any other score.
+    // A locally-managed container (no addTearDown): mounting the player
+    // starts its MIDI poll timer, which must be cancelled by disposing the
+    // container BEFORE the end-of-test timer invariant runs.
+    final c = ProviderContainer(
+      overrides: [
+        catalogServiceProvider.overrideWithValue(
+          _FakeCatalog([
+            _hit('d1', 'Basic Groove', instrument: ScoreInstrument.percussion),
+          ]),
+        ),
+        scoreUploadServiceProvider.overrideWithValue(_FakeUpload(const [])),
+        canUseOnlineServicesProvider.overrideWithValue(true),
+        drumsEnabledProvider.overrideWithValue(true),
+        notationEngineProvider.overrideWithValue(
+          FakeNotationEngine(document: sampleDrumDocument()),
+        ),
+        midiServiceProvider.overrideWithValue(FakeMidiService()),
+        audioServiceProvider.overrideWithValue(RecordingAudioService()),
+        scoreSourceProvider.overrideWithValue(FakeScoreSource()),
+      ],
+    );
+    await _pump(tester, c);
+
+    await tester.tap(find.text('Basic Groove'));
+    // Fixed pumps, not pumpAndSettle: the player's ticker never settles.
+    for (var i = 0; i < 14; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(find.byType(PlayerScreen), findsOneWidget);
+    await _teardown(tester, c);
+    c.dispose();
+  });
+
+  testWidgets('a percussion catalog card names its instrument', (tester) async {
+    final c = _container(
+      _FakeCatalog([
+        _hit('d1', 'Basic Groove', instrument: ScoreInstrument.percussion),
+        _hit('c1', 'Clair de Lune'), // unknown instrument → nothing shown
+      ]),
+      drumsEnabled: true,
+    );
+    await _pump(tester, c);
+
+    // The drum card names its instrument; the unknown one shows no label.
+    expect(find.text('Drums'), findsOneWidget);
+    expect(find.text('Unknown'), findsNothing);
     await _teardown(tester, c);
   });
 }

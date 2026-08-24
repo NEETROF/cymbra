@@ -68,8 +68,9 @@ pub mod user_scores;
 pub mod user_soundfont;
 
 pub use backfill::{
-    BackfillReport, BackfillRow, TitleBackfillRepo, TitleUpdate, plan_title_update,
-    run_title_backfill,
+    BackfillReport, BackfillRow, DifficultyBackfillRepo, DifficultyBackfillReport, DifficultyRow,
+    InstrumentBackfillRepo, InstrumentBackfillReport, InstrumentRow, ScoreTable, TitleBackfillRepo,
+    TitleUpdate, plan_title_update, run_instrument_backfill, run_title_backfill,
 };
 pub use badges::{BadgeRepo, RawBadgeCounters};
 pub use badges_core::{
@@ -114,14 +115,18 @@ pub use leaderboard::{
     StoredBest,
 };
 pub use leaderboard_grpc::LeaderboardGrpc;
-pub use leaderboard_module::{Board, BoardEntry, LeaderboardModule, MyStanding};
+pub use leaderboard_module::{Board, BoardEntry, BoardViewer, LeaderboardModule, MyStanding};
 pub use module::{
-    FixedScoreQuotas, ScoreBytes, ScoreModule, ScoreQuotaSource, ScoreQuotas, UploadInput,
+    DrumsEligibility, FixedScoreQuotas, ScoreBytes, ScoreModule, ScoreQuotaSource, ScoreQuotas,
+    UploadInput,
 };
 pub use offline_secret::{
     FakeOfflineSecretRepo, OFFLINE_SECRET_LEN, OfflineSecretRepo, generate_offline_secret,
 };
-pub use pg::{PgCatalogRepo, PgCatalogSearchRepo, PgScoreRatingRepo, PgTitleBackfillRepo};
+pub use pg::{
+    PgCatalogRepo, PgCatalogSearchRepo, PgDifficultyBackfillRepo, PgInstrumentBackfillRepo,
+    PgScoreRatingRepo, PgTitleBackfillRepo,
+};
 pub use pg_badges::PgBadgeRepo;
 pub use pg_catalog_daily_access::PgCatalogDayAccessRepo;
 pub use pg_curation_rewards::PgCurationRewardsRepo;
@@ -136,7 +141,7 @@ pub use play::{
 };
 pub use play_grpc::PlayGrpc;
 pub use play_module::{PlayModule, RecordInput, RecordPracticeInput};
-pub use repo::{CatalogEntry, CatalogRepo, FakeCatalogRepo, ScoreFacets, ScoreMeta};
+pub use repo::{CatalogEntry, CatalogRepo, FakeCatalogRepo, Instrument, ScoreFacets, ScoreMeta};
 pub use score_preview::{
     FixedScorePreviewConfig, RELEASE_MS, ScorePreviewConfig, ScorePreviewConfigSource,
     preview_sequence, render_score_preview_wav, score_preview_object_key,
@@ -148,12 +153,15 @@ pub use score_rating::{
     FakeScoreRatingRepo, RatingAggregate, RatingConfig, ScoreRatingRepo, Verdict,
 };
 pub use soundfont::{
-    FakeSoundFontRepo, FontEntry, PgSoundFontRepo, SoundFontRepo, SoundFontStatusCounts, sha256_hex,
+    FakeSoundFontRepo, FamilyRefusal, FontEntry, KEYBOARD_FAMILY, PERCUSSION_FAMILY,
+    PgSoundFontRepo, SoundFontRepo, SoundFontStatusCounts, detect_family, fake_sf2_with_banks,
+    normalize_family, sha256_hex, verify_declared_family,
 };
 pub use soundfont_access::{Access, entitlement};
 pub use soundfont_preview::{
-    Event, Note, PREVIEW_SAMPLE_RATE, SampleSequence, encode_preview, preview_object_key,
-    sample_sequence, scheduled_events, total_samples,
+    Event, Note, PREVIEW_SAMPLE_RATE, SampleSequence, drum_sample_sequence, encode_preview,
+    preview_object_key, sample_sequence, sample_sequence_for_family, scheduled_events,
+    total_samples,
 };
 pub use soundfont_pricing::decide as decide_soundfont_pricing;
 pub use soundfont_synth::{render_preview_pcm, render_preview_wav};

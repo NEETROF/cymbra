@@ -57,8 +57,20 @@ void noteOn({required int pitch, required int velocity}) =>
 void noteOff({required int pitch}) =>
     RustLib.instance.api.crateApiAudioNoteOff(pitch: pitch);
 
-/// Releases every sounding voice (stop / restart / seek / loop).
+/// Releases every sounding voice on every channel (stop / restart / seek /
+/// loop) — melodic and drum alike.
 void allNotesOff() => RustLib.instance.api.crateApiAudioAllNotesOff();
+
+/// Sounds a percussion stroke for General MIDI `key` at `velocity` on the drum
+/// channel, where the active kit font's bank-128 presets resolve (change:
+/// add-drum-audio-channel). The melodic pair is byte-for-byte untouched.
+void drumOn({required int key, required int velocity}) =>
+    RustLib.instance.api.crateApiAudioDrumOn(key: key, velocity: velocity);
+
+/// Releases the drum voice for `key`. Kit voices are mostly self-terminating
+/// one-shots; the release keeps the voice bookkeeping exact.
+void drumOff({required int key}) =>
+    RustLib.instance.api.crateApiAudioDrumOff(key: key);
 
 /// Swaps the synthesizer's active SoundFont at runtime from a `.sf2` file path,
 /// so a newly chosen piano sounds for every later note **without** tearing down
@@ -73,6 +85,29 @@ void allNotesOff() => RustLib.instance.api.crateApiAudioAllNotesOff();
 /// piano is kept (graceful fallback); the queued note stream is undisturbed.
 void audioLoadSoundfont({required String sf2Path}) =>
     RustLib.instance.api.crateApiAudioAudioLoadSoundfont(sf2Path: sf2Path);
+
+/// Swaps the SoundFont like [`audio_load_soundfont`], but resolves only once
+/// the outcome is KNOWN (change: add-drum-audio-channel): `true` when the
+/// incoming font is installed on the audio thread, `false` when the swap
+/// failed (unreadable/invalid file, build failure, engine not running, or the
+/// audio thread unresponsive) and the previous font was kept. The player's
+/// percussion-readiness gate awaits this so a drum score never sounds through
+/// the still-loaded piano font. Runs on a worker (not `#[frb(sync)]`), so the
+/// Dart side gets a Future without blocking the UI isolate.
+Future<bool> audioLoadSoundfontAwaited({required String sf2Path}) => RustLib
+    .instance
+    .api
+    .crateApiAudioAudioLoadSoundfontAwaited(sf2Path: sf2Path);
+
+/// Reads a local `.sf2`'s preset-bank family evidence (change:
+/// add-drum-audio-channel): whether it declares bank-128 (kit) presets and/or
+/// melodic presets — the app's import detection. `None` when the file cannot
+/// be read or is not a well-formed SoundFont ("cannot verify", never a
+/// family).
+Future<SoundFontFamilyEvidence?> soundfontFamilyEvidence({
+  required String sf2Path,
+}) =>
+    RustLib.instance.api.crateApiAudioSoundfontFamilyEvidence(sf2Path: sf2Path);
 
 /// Sounds a short metronome click — a synthesized tick mixed into the output
 /// independently of the piano SoundFont. `accent` marks the downbeat (higher and
@@ -135,4 +170,30 @@ enum AudioRouteKind {
 
   /// Anything the host does not describe well enough to classify.
   other,
+}
+
+/// A `.sf2`'s preset-bank evidence, bridged (change: add-drum-audio-channel).
+class SoundFontFamilyEvidence {
+  /// At least one bank-128 (drum kit) preset.
+  final bool hasPercussionPresets;
+
+  /// At least one melodic-bank preset.
+  final bool hasMelodicPresets;
+
+  const SoundFontFamilyEvidence({
+    required this.hasPercussionPresets,
+    required this.hasMelodicPresets,
+  });
+
+  @override
+  int get hashCode =>
+      hasPercussionPresets.hashCode ^ hasMelodicPresets.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SoundFontFamilyEvidence &&
+          runtimeType == other.runtimeType &&
+          hasPercussionPresets == other.hasPercussionPresets &&
+          hasMelodicPresets == other.hasMelodicPresets;
 }

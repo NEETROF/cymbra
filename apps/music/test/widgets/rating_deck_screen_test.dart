@@ -22,8 +22,14 @@ import 'package:music/services/notation_engine.dart';
 import 'package:music/services/preferences_service.dart';
 import 'package:music/services/rating_service.dart';
 import 'package:music/state/coaching_notifier.dart';
+import 'package:music/state/drums_access.dart';
+import 'package:music/state/piano_catalog.dart';
+import 'package:music/state/score_catalog.dart';
+import 'package:music/state/selected_kit.dart';
+import 'package:music/state/selected_piano.dart';
 import 'package:music/state/rating_deck_notifier.dart';
 import 'package:music/widgets/swipe_card.dart';
+import 'package:music/widgets/sound_selector_field.dart';
 
 import '../support/fakes.dart';
 import '../support/localized.dart';
@@ -43,6 +49,8 @@ Future<FakeRatingService> _pumpDeck(
   WidgetTester tester, {
   int rows = 3,
   bool coachSeen = true,
+  List<CatalogHit>? corpus,
+  bool drums = false,
 }) async {
   await tester.binding.setSurfaceSize(const Size(900, 1400));
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -50,8 +58,9 @@ Future<FakeRatingService> _pumpDeck(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        drumsEnabledProvider.overrideWithValue(drums),
         catalogServiceProvider.overrideWithValue(
-          FakeDeckCatalogService(deckCorpus(rows)),
+          FakeDeckCatalogService(corpus ?? deckCorpus(rows)),
         ),
         ratingServiceProvider.overrideWithValue(rating),
         // The card auto-plays its preview: load it through the fake notation +
@@ -83,6 +92,85 @@ Future<void> _unlockTop(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets('the rater chooses which instrument to be dealt', (tester) async {
+    await _pumpDeck(
+      tester,
+      drums: true,
+      corpus: [
+        deckHit('k0', instrument: ScoreInstrument.keyboard),
+        deckHit('d0', instrument: ScoreInstrument.percussion),
+        deckHit('d1', instrument: ScoreInstrument.percussion),
+      ],
+    );
+    final c = _container(tester);
+    expect(c.read(ratingDeckProvider).cards, hasLength(3));
+
+    // Picking a family re-sources the deck at once: the cards already in hand
+    // were dealt under the old choice.
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Drums'));
+    await _settle(tester);
+    expect(c.read(ratingDeckProvider).instrument, ScoreInstrument.percussion);
+    expect(c.read(ratingDeckProvider).cards.map((e) => e.catalogId), [
+      'd0',
+      'd1',
+    ]);
+
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Piano'));
+    await _settle(tester);
+    expect(c.read(ratingDeckProvider).cards.map((e) => e.catalogId), ['k0']);
+
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Any'));
+    await _settle(tester);
+    expect(c.read(ratingDeckProvider).instrument, isNull);
+    expect(c.read(ratingDeckProvider).cards, hasLength(3));
+  });
+
+  testWidgets('no instrument chooser without the drum audience', (
+    tester,
+  ) async {
+    await _pumpDeck(tester);
+    expect(find.byType(ChoiceChip), findsNothing);
+  });
+
+  testWidgets('the sound selector follows the card being auditioned', (
+    tester,
+  ) async {
+    // The deck is drum-compatible end to end — the backend serves percussion
+    // cards to eligible callers, the card engraves them, the preview sounds
+    // them on the drum channel — but its sound control was bound to the piano
+    // memory alone: on a drum card it offered a knob that changes nothing you
+    // are hearing, and moved the piano while you listened to a groove.
+    await _pumpDeck(
+      tester,
+      corpus: [
+        deckHit('d0', instrument: ScoreInstrument.percussion),
+        deckHit('c1'),
+      ],
+    );
+    final c = _container(tester);
+    expect(
+      tester.widget<SoundSelectorField>(find.byType(SoundSelectorField)).family,
+      SoundFamily.percussion,
+    );
+    expect(
+      tester.widget<SoundSelectorField>(find.byType(SoundSelectorField)).value,
+      c.read(selectedKitProvider),
+    );
+
+    // Past the drum card, the control goes back to the piano memory.
+    await _unlockTop(tester);
+    c.read(ratingDeckProvider.notifier).skip();
+    await _settle(tester);
+    expect(
+      tester.widget<SoundSelectorField>(find.byType(SoundSelectorField)).family,
+      SoundFamily.keyboard,
+    );
+    expect(
+      tester.widget<SoundSelectorField>(find.byType(SoundSelectorField)).value,
+      c.read(selectedPianoProvider),
+    );
+  });
+
   testWidgets('tapping Like records a rating and advances the deck', (
     tester,
   ) async {

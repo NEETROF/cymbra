@@ -46,25 +46,40 @@ CoachCopy coachHintCopy(AppLocalizations l10n, CoachHint hint) =>
     };
 
 /// The copy for one step of the guided player sequence.
-CoachCopy playerCoachCopy(AppLocalizations l10n, PlayerCoachStep step) =>
-    switch (step) {
-      PlayerCoachStep.pianoSound => (
-        title: l10n.coachPlayerSoundTitle,
-        body: l10n.coachPlayerSoundBody,
-      ),
-      PlayerCoachStep.midiDevice => (
-        title: l10n.coachPlayerMidiTitle,
-        body: l10n.coachPlayerMidiBody,
-      ),
-      PlayerCoachStep.hands => (
-        title: l10n.coachPlayerHandsTitle,
-        body: l10n.coachPlayerHandsBody,
-      ),
-      PlayerCoachStep.measureRewind => (
-        title: l10n.coachPlayerRewindTitle,
-        body: l10n.coachPlayerRewindBody,
-      ),
-    };
+///
+/// The tour points at the SAME controls on a percussion score, but three of
+/// them mean something else there: the sound is a kit, the connected device is
+/// an e-kit rather than a MIDI keyboard, and the selector splits hands from
+/// FEET, not right hand from left. A first-time drummer was being taught the
+/// piano's vocabulary while looking at "Pieds / Mains / Les deux" — the tour
+/// contradicted the control it was pointing at. The rewind step is
+/// instrument-neutral and is shared.
+CoachCopy playerCoachCopy(
+  AppLocalizations l10n,
+  PlayerCoachStep step, {
+  bool percussion = false,
+}) => switch (step) {
+  PlayerCoachStep.pianoSound => (
+    title: percussion
+        ? l10n.coachPlayerSoundDrumsTitle
+        : l10n.coachPlayerSoundTitle,
+    body: percussion
+        ? l10n.coachPlayerSoundDrumsBody
+        : l10n.coachPlayerSoundBody,
+  ),
+  PlayerCoachStep.midiDevice => (
+    title: l10n.coachPlayerMidiTitle,
+    body: percussion ? l10n.coachPlayerMidiDrumsBody : l10n.coachPlayerMidiBody,
+  ),
+  PlayerCoachStep.hands => (
+    title: percussion ? l10n.coachPlayerLimbsTitle : l10n.coachPlayerHandsTitle,
+    body: percussion ? l10n.coachPlayerLimbsBody : l10n.coachPlayerHandsBody,
+  ),
+  PlayerCoachStep.measureRewind => (
+    title: l10n.coachPlayerRewindTitle,
+    body: l10n.coachPlayerRewindBody,
+  ),
+};
 
 /// The control each guided step points at.
 extension PlayerCoachStepAnchor on PlayerCoachStep {

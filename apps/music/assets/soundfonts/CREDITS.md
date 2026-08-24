@@ -1,9 +1,10 @@
 # SoundFont credits
 
-The app renders piano sound from **SoundFonts** (`.sf2`) via the Rust audio
-synthesizer. One CC0 piano is **bundled** (below); two CC-BY grands are offered
-as **download-on-first-use** (change `piano-sound-selection`). Users may also
-import their own `.sf2`, which stays on the device and is never redistributed.
+The app renders piano and **drum** sound from **SoundFonts** (`.sf2`) via the
+Rust audio synthesizer. One CC0 piano and one MIT drum kit are **bundled**
+(below); two CC-BY grands are offered as **download-on-first-use** (change
+`piano-sound-selection`). Users may also import their own `.sf2`, which stays on
+the device and is never redistributed.
 
 Each font is **vendored / self-hosted** — copied once under our control; the
 original source is provenance, not a runtime dependency. The licenses (CC0 /
@@ -19,6 +20,24 @@ Public domain (CC0) — no attribution requirement, always present, no network.
 
 The full CC0 dedication and the upstream readme are preserved alongside the
 font as `UprightPianoKW-LICENSE-CC0.txt` and `UprightPianoKW-README.txt`.
+
+### Drum kit (change `add-drum-audio-channel`)
+
+The percussion channel needs a **bank-128** font: General MIDI resolves drum
+kits there, which is what makes a kick a kick rather than a piano note. The
+bundled kit is the **"Standard" kit (preset 0) extracted from FluidR3 GM's bank
+128** — the upstream font is ~142 MiB of full General MIDI, so shipping it whole
+to play drums would be indefensible; the extraction keeps only the presets,
+instruments and samples that one kit reaches (10.6 MiB, 105 samples).
+
+The MIT license explicitly permits modification and redistribution; its notice is
+preserved verbatim beside the font as `FluidR3Drums-LICENSE-MIT.txt` (Debian's
+vetted `copyright` file for `fluid-soundfont-gm`, which is also where the font
+was obtained — upstream musescore.org no longer hosts it).
+
+| File | Instrument | Source | Author | License |
+|------|------------|--------|--------|---------|
+| `FluidR3Drums-bank128.sf2` | GM "Standard" drum kit (FluidR3 GM, bank 128 preset 0) | [Debian `fluid-soundfont-gm` 3.1-6](https://packages.debian.org/source/stable/fluid-soundfont) | Frank Wen (2000–2002, 2008), Toby Smithe (2008) | [MIT](https://opensource.org/licenses/MIT) |
 
 ## Download-on-first-use (CC-BY — attribution required)
 

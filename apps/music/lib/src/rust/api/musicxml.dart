@@ -72,7 +72,7 @@ enum BeamState { begin, continue_, end }
 /// A clef on one staff: e.g. treble = `G`/2 on staff 1, bass = `F`/4 on staff 2.
 class Clef {
   final int staff;
-  final String sign;
+  final ClefSign sign;
   final int line;
 
   const Clef({required this.staff, required this.sign, required this.line});
@@ -89,6 +89,12 @@ class Clef {
           sign == other.sign &&
           line == other.line;
 }
+
+/// A clef sign the renderers act on. MusicXML defines seven signs; `TAB`,
+/// `jianpu` and `none` are out of scope for a keyboard-and-drums product, and
+/// an unrecognised sign leaves the staff at its default clef rather than
+/// failing the parse.
+enum ClefSign { g, f, c, percussion }
 
 /// A measure direction (expression/tempo) anchored at a staff and time position.
 class Direction {
@@ -138,6 +144,58 @@ sealed class DirectionKind with _$DirectionKind {
     required String beatUnit,
     required int perMinute,
   }) = DirectionKind_Metronome;
+}
+
+/// How an unpitched note's head is engraved (change: add-drum-notation-render).
+enum HeadClass {
+  /// Ordinary oval head — drums, and any unresolved note.
+  oval,
+
+  /// X-form head — cymbals, following the duration class.
+  x,
+
+  /// X head carrying the open mark — the open hi-hat (GM 46).
+  xOpen,
+}
+
+/// One `<score-instrument>` declaration from the part list.
+class InstrumentDecl {
+  /// The declaration's `id`, referenced by a note's `<instrument id>`.
+  final String id;
+
+  /// `<instrument-name>` when declared (e.g. "Snare Drum").
+  final String? name;
+
+  /// General MIDI percussion number (0-based) from `<midi-unpitched>`,
+  /// already converted from the element's 1-based value.
+  final int? gmNumber;
+
+  const InstrumentDecl({required this.id, this.name, this.gmNumber});
+
+  @override
+  int get hashCode => id.hashCode ^ name.hashCode ^ gmNumber.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is InstrumentDecl &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          name == other.name &&
+          gmNumber == other.gmNumber;
+}
+
+/// Which instrument family a score is written for, derived from its notation
+/// alone — never from a filename, a part name, or any other external claim.
+enum InstrumentKind {
+  /// Every non-rest note is pitched.
+  keyboard,
+
+  /// Every non-rest note is unpitched.
+  percussion,
+
+  /// Mixed pitched and unpitched content, or no notes at all.
+  unknown,
 }
 
 /// A lyric syllable attached to a note.
@@ -260,6 +318,15 @@ class NoteEvent {
   final List<BeamState> beams;
   final Lyric? lyric;
 
+  /// Written staff position of a percussion note (`<unpitched>`), with its
+  /// resolved General MIDI number — a channel **distinct** from `pitch`: the
+  /// written position is a staff placement, not a sounding pitch. A note is
+  /// exactly one of pitched, unpitched, or a rest.
+  final Unpitched? unpitched;
+
+  /// The note's `<instrument id>` reference when present.
+  final String? instrumentId;
+
   const NoteEvent({
     required this.staff,
     required this.voice,
@@ -280,6 +347,8 @@ class NoteEvent {
     this.stem,
     required this.beams,
     this.lyric,
+    this.unpitched,
+    this.instrumentId,
   });
 
   @override
@@ -302,7 +371,9 @@ class NoteEvent {
       tuplet.hashCode ^
       stem.hashCode ^
       beams.hashCode ^
-      lyric.hashCode;
+      lyric.hashCode ^
+      unpitched.hashCode ^
+      instrumentId.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -327,7 +398,9 @@ class NoteEvent {
           tuplet == other.tuplet &&
           stem == other.stem &&
           beams == other.beams &&
-          lyric == other.lyric;
+          lyric == other.lyric &&
+          unpitched == other.unpitched &&
+          instrumentId == other.instrumentId;
 }
 
 /// A pitch: diatonic step, octave, and chromatic alteration (semitones).
@@ -480,6 +553,12 @@ class ScoreDocument {
   /// Number of staves in the (single) part — e.g. 2 for a piano grand staff.
   final int staves;
   final Attributes attributes;
+
+  /// The part-list instrument table: one entry per declared
+  /// `<score-instrument>`, carrying the General MIDI percussion number its
+  /// `<midi-instrument>/<midi-unpitched>` denotes. Empty for a score
+  /// declaring no instruments (the overwhelmingly common keyboard case).
+  final List<InstrumentDecl> instruments;
   final List<NotationMeasure> measures;
 
   /// The **playback order**: the sequence of written-measure passes a
@@ -494,6 +573,7 @@ class ScoreDocument {
     required this.meta,
     required this.staves,
     required this.attributes,
+    required this.instruments,
     required this.measures,
     required this.playOrder,
   });
@@ -503,6 +583,7 @@ class ScoreDocument {
       meta.hashCode ^
       staves.hashCode ^
       attributes.hashCode ^
+      instruments.hashCode ^
       measures.hashCode ^
       playOrder.hashCode;
 
@@ -514,6 +595,7 @@ class ScoreDocument {
           meta == other.meta &&
           staves == other.staves &&
           attributes == other.attributes &&
+          instruments == other.instruments &&
           measures == other.measures &&
           playOrder == other.playOrder;
 }
@@ -550,9 +632,6 @@ class ScoreSummary {
   /// Normalised `composer::title` key for dedup / grouping.
   final String workKey;
 
-  /// Grand-staff heuristic (`staves >= 2`) — a keyboard/piano proxy.
-  final bool isPiano;
-
   /// Number of staves (2 for a piano grand staff).
   final int staves;
   final int keyFifths;
@@ -561,20 +640,25 @@ class ScoreSummary {
   final String timeSig;
   final int measureCount;
 
-  /// Count of pitched (non-rest) note events — the "playable notes" check.
+  /// Count of playable (pitched or unpitched, non-rest) note events — the
+  /// validation gate's check; a percussion score reports a non-zero count.
   final int noteCount;
+
+  /// Which instrument family the score is written for, derived from the
+  /// notation alone.
+  final InstrumentKind instrument;
 
   const ScoreSummary({
     this.title,
     this.composer,
     this.titleNorm,
     required this.workKey,
-    required this.isPiano,
     required this.staves,
     required this.keyFifths,
     required this.timeSig,
     required this.measureCount,
     required this.noteCount,
+    required this.instrument,
   });
 
   @override
@@ -583,12 +667,12 @@ class ScoreSummary {
       composer.hashCode ^
       titleNorm.hashCode ^
       workKey.hashCode ^
-      isPiano.hashCode ^
       staves.hashCode ^
       keyFifths.hashCode ^
       timeSig.hashCode ^
       measureCount.hashCode ^
-      noteCount.hashCode;
+      noteCount.hashCode ^
+      instrument.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -599,12 +683,12 @@ class ScoreSummary {
           composer == other.composer &&
           titleNorm == other.titleNorm &&
           workKey == other.workKey &&
-          isPiano == other.isPiano &&
           staves == other.staves &&
           keyFifths == other.keyFifths &&
           timeSig == other.timeSig &&
           measureCount == other.measureCount &&
-          noteCount == other.noteCount;
+          noteCount == other.noteCount &&
+          instrument == other.instrument;
 }
 
 /// Stem direction.
@@ -666,6 +750,49 @@ class Tuplet {
           runtimeType == other.runtimeType &&
           actual == other.actual &&
           normal == other.normal;
+}
+
+/// A percussion note's written staff position and resolved sound.
+class Unpitched {
+  /// `display-step`: the written staff placement's diatonic step (A–G).
+  final String displayStep;
+
+  /// `display-octave`: the written staff placement's octave.
+  final int displayOctave;
+
+  /// The General MIDI percussion number (0-based, 35–81 for the standard
+  /// kit) resolved from the part-list instrument table at parse time.
+  /// `None` when the note's instrument could not be resolved; a consumer
+  /// must omit such a note rather than fabricate a number.
+  final int? gmNumber;
+
+  /// The engraved head class derived beside the number (change:
+  /// add-drum-notation-render) — the painters consume it verbatim.
+  final HeadClass headClass;
+
+  const Unpitched({
+    required this.displayStep,
+    required this.displayOctave,
+    this.gmNumber,
+    required this.headClass,
+  });
+
+  @override
+  int get hashCode =>
+      displayStep.hashCode ^
+      displayOctave.hashCode ^
+      gmNumber.hashCode ^
+      headClass.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Unpitched &&
+          runtimeType == other.runtimeType &&
+          displayStep == other.displayStep &&
+          displayOctave == other.displayOctave &&
+          gmNumber == other.gmNumber &&
+          headClass == other.headClass;
 }
 
 /// Client-side validation outcome: on success the parsed [`ScoreSummary`]; on

@@ -15,6 +15,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../l10n/gen/app_localizations.dart';
 import '../services/soundfont_catalog_service.dart'
     show serverSoundFontsProvider;
 import '../state/piano_catalog.dart';
@@ -26,18 +27,18 @@ import '../theme/cymbra_theme.dart';
 /// the dedicated management screen (change: add-soundfont-moderation), reached
 /// from the home top bar — not here.
 ///
-/// Controlled: the parent owns [value] (a piano id) and reacts to [onChanged], so
+/// Controlled: the parent owns [value] (a font id) and reacts to [onChanged], so
 /// it can be a draft (applied on Validate in the popup) or immediate (live in the
-/// deck). [instrument] is the score's instrument family — the catalog is filtered
-/// to matching sounds (every sound is a piano today, so it's a no-op until scores
-/// carry an instrument). [dense] drops the caption for a compact form that fits an
-/// app bar.
+/// deck). [family] is the **loaded score's** instrument family (change:
+/// add-drum-audio-channel): only that family's fonts are offered — a percussion
+/// score lists kits, everything else pianos, whatever the home context says.
+/// [dense] drops the caption for a compact form that fits an app bar.
 class SoundSelectorField extends ConsumerStatefulWidget {
   const SoundSelectorField({
     super.key,
     required this.value,
     required this.onChanged,
-    this.instrument = 'piano',
+    this.family = SoundFamily.keyboard,
     this.dense = false,
   });
 
@@ -47,8 +48,8 @@ class SoundSelectorField extends ConsumerStatefulWidget {
   /// Called with the newly chosen sound id.
   final ValueChanged<String> onChanged;
 
-  /// The score's instrument family; the catalog is filtered to it.
-  final String instrument;
+  /// The loaded score's instrument family; the catalog is filtered to it.
+  final SoundFamily family;
 
   /// Compact form (dropdown only) for tight spots like an app bar.
   final bool dense;
@@ -69,28 +70,26 @@ class _SoundSelectorFieldState extends ConsumerState<SoundSelectorField> {
     });
   }
 
-  /// Whether [p] belongs to [instrument]. `PianoEntry` has no instrument field
-  /// yet and every catalog sound is a piano, so this is a no-op today; filter on
-  /// the entry's instrument here once scores/sounds are typed.
-  bool _matches(PianoEntry p, String instrument) => true;
-
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final catalog = ref.watch(pianoCatalogProvider);
-    final sounds = catalog
-        .where((p) => _matches(p, widget.instrument))
-        .toList();
+    // Family scoping (change: add-drum-audio-channel): only the loaded score's
+    // family is offered — the picker never proposes a font whose bank the
+    // score's channel could not resolve.
+    final sounds = catalog.where((p) => p.family == widget.family).toList();
 
-    // The dropdown value must match an item; fall back to the default if the
-    // current selection isn't in the (filtered) catalog.
-    final selectedId = sounds.any((p) => p.id == widget.value)
+    // The dropdown value must match an item; fall back to the first offered
+    // font when the current selection isn't in the (filtered) catalog. `null`
+    // — the family has no font at all (a percussion score before any kit is
+    // available) — shows the honest empty hint instead.
+    final String? selectedId = sounds.any((p) => p.id == widget.value)
         ? widget.value
-        : (sounds.isNotEmpty ? sounds.first.id : defaultPianoId);
-    final selected = sounds.firstWhere(
-      (p) => p.id == selectedId,
-      orElse: () => defaultPiano,
-    );
-    final subtitle = _licenseLabel(selected);
+        : (sounds.isNotEmpty ? sounds.first.id : null);
+    final selected = selectedId == null
+        ? null
+        : sounds.firstWhere((p) => p.id == selectedId);
+    final subtitle = selected == null ? null : _licenseLabel(selected);
 
     final dropdown = Container(
       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -103,6 +102,13 @@ class _SoundSelectorFieldState extends ConsumerState<SoundSelectorField> {
           isExpanded: true,
           isDense: widget.dense,
           value: selectedId,
+          hint: Text(
+            // Shown only with no selectable font of the family (null value):
+            // the "no drum kit available" state, distinct from an error.
+            l10n.kitPickerEmpty,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: CymbraColors.onSurfaceVariant),
+          ),
           dropdownColor: CymbraColors.surfaceContainerHigh,
           iconEnabledColor: CymbraColors.onSurfaceVariant,
           style: const TextStyle(color: CymbraColors.onSurface),

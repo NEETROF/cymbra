@@ -18,9 +18,9 @@ import 'performance_scoring_core.dart';
 ///
 /// Two shapes share this record (see design D6/D10):
 /// - an **onset judgment** ([wrong] == false): an expected score note, carrying
-///   its [verdict], [sustainRatio], and — depending on the mode active when it
-///   was judged — a [timingOffsetMs] (Wait Mode off) or a [reactionMs] (Wait
-///   Mode on).
+///   its [verdict], its [sustainRatio] (absent on a percussion stroke), and —
+///   depending on the mode active when it was judged — a [timingOffsetMs]
+///   (Wait Mode off) or a [reactionMs] (Wait Mode on).
 /// - an **extra/wrong note** ([wrong] == true): a press that bound to no open
 ///   onset. [noteIndex] is -1, [verdict] is [TimingVerdict.missed], and the
 ///   timing/sustain fields are unused.
@@ -46,7 +46,12 @@ class NoteJudgment {
   final double? reactionMs;
 
   /// Sustain ratio in [0, 1] for a landed onset; 0 for a miss/wrong note.
-  final double sustainRatio;
+  ///
+  /// **Absent (null), never zero, on a percussion stroke** (change:
+  /// add-drum-scoring): a stroke's release is an artefact of the hardware, not
+  /// of the player, so no ratio is derived at all — the same absence an
+  /// unplayed mode's sub-score carries, and the serialization preserves it.
+  final double? sustainRatio;
 
   /// True for an extra/wrong note that bound to no onset.
   final bool wrong;
@@ -74,7 +79,9 @@ class NoteJudgment {
     'verdict': verdict.name,
     if (timingOffsetMs != null) 'timingOffsetMs': timingOffsetMs,
     if (reactionMs != null) 'reactionMs': reactionMs,
-    'sustainRatio': sustainRatio,
+    // Omitted — not zeroed — for a percussion stroke, so the absence survives
+    // the round trip exactly as an absent mode sub-score does.
+    if (sustainRatio != null) 'sustainRatio': sustainRatio,
     'wrong': wrong,
   };
 
@@ -86,7 +93,9 @@ class NoteJudgment {
     verdict: TimingVerdict.values.byName(json['verdict'] as String),
     timingOffsetMs: (json['timingOffsetMs'] as num?)?.toDouble(),
     reactionMs: (json['reactionMs'] as num?)?.toDouble(),
-    sustainRatio: (json['sustainRatio'] as num?)?.toDouble() ?? 0,
+    // Absent ⇒ absent: a percussion stroke never carried one, and every
+    // keyboard record ever written carries it.
+    sustainRatio: (json['sustainRatio'] as num?)?.toDouble(),
     wrong: json['wrong'] as bool? ?? false,
   );
 }
@@ -130,7 +139,12 @@ class SessionResult {
   /// Per-dimension aggregates in [0, 1] for the summary breakdown.
   final double timing;
   final double correctness;
-  final double sustain;
+
+  /// The sustain aggregate — **absent (null) for a percussion run** (change:
+  /// add-drum-scoring), which has no sustain dimension at all. Absent like a
+  /// mode sub-score with no onsets: never zero, never a constant full credit,
+  /// and the summary drops the row rather than rendering it empty.
+  final double? sustain;
 
   /// Count of judged onsets by verdict (excludes extra/wrong notes).
   final Map<TimingVerdict, int> verdictCounts;
@@ -173,6 +187,10 @@ class SessionResult {
   /// Derives a full result from the per-note [judgments] and run metadata,
   /// computing the overall and per-mode sub-scores via the scoring core so all
   /// derivation lives in one tested place.
+  ///
+  /// [percussion] selects the two-dimension blend (change: add-drum-scoring):
+  /// the sustain aggregate is then absent and every sub-score is renormalized
+  /// over timing and correctness alone. The keyboard default is untouched.
   factory SessionResult.fromJudgments({
     required String pieceId,
     required String title,
@@ -181,6 +199,7 @@ class SessionResult {
     required int bestCombo,
     required int playedAtMs,
     required double speed,
+    bool percussion = false,
   }) {
     double? subScore(bool waitMode) {
       final onsets = judgments
@@ -190,9 +209,15 @@ class SessionResult {
       final wrong = judgments
           .where((j) => j.wrong && j.waitMode == waitMode)
           .length;
+      if (percussion) {
+        return percussionSyncPercent(
+          onsetVerdicts: onsets.map((j) => j.verdict),
+          wrongNotes: wrong,
+        );
+      }
       return syncPercent(
         onsetVerdicts: onsets.map((j) => j.verdict),
-        sustainRatios: onsets.where((j) => j.isHit).map((j) => j.sustainRatio),
+        sustainRatios: onsets.where((j) => j.isHit).map((j) => j.sustainRatio!),
         wrongNotes: wrong,
       );
     }
@@ -203,7 +228,11 @@ class SessionResult {
     final waitCount = onsets.where((j) => j.waitMode).length;
 
     final verdicts = onsets.map((j) => j.verdict).toList(growable: false);
-    final ratios = onsets.where((j) => j.isHit).map((j) => j.sustainRatio);
+    // Empty and unread on the percussion path — every branch that consumes it
+    // is guarded by [percussion] below.
+    final ratios = onsets
+        .where((j) => j.isHit && j.sustainRatio != null)
+        .map((j) => j.sustainRatio!);
 
     double? mean(Iterable<double> xs) {
       var sum = 0.0;
@@ -235,11 +264,13 @@ class SessionResult {
       pieceId: pieceId,
       title: title,
       hands: hands,
-      overallSyncPct: syncPercent(
-        onsetVerdicts: verdicts,
-        sustainRatios: ratios,
-        wrongNotes: wrong,
-      ),
+      overallSyncPct: percussion
+          ? percussionSyncPercent(onsetVerdicts: verdicts, wrongNotes: wrong)
+          : syncPercent(
+              onsetVerdicts: verdicts,
+              sustainRatios: ratios,
+              wrongNotes: wrong,
+            ),
       runMode: classifyRun(freeOnsets: freeCount, waitOnsets: waitCount),
       freeSyncPct: subScore(false),
       waitSyncPct: subScore(true),
@@ -249,7 +280,9 @@ class SessionResult {
       avgReactionMs: avgReaction,
       timing: timingScore(verdicts),
       correctness: correctnessScore(verdicts, wrong),
-      sustain: sustainScore(ratios, anyOnsetJudged: verdicts.isNotEmpty),
+      sustain: percussion
+          ? null
+          : sustainScore(ratios, anyOnsetJudged: verdicts.isNotEmpty),
       verdictCounts: counts,
       wrongNotes: wrong,
       bestCombo: bestCombo,
@@ -273,7 +306,9 @@ class SessionResult {
     if (avgReactionMs != null) 'avgReactionMs': avgReactionMs,
     'timing': timing,
     'correctness': correctness,
-    'sustain': sustain,
+    // Omitted for a percussion run: the dimension does not exist there, and an
+    // absent key restores as an absent aggregate.
+    if (sustain != null) 'sustain': sustain,
     'verdictCounts': {
       for (final e in verdictCounts.entries) e.key.name: e.value,
     },
@@ -298,7 +333,7 @@ class SessionResult {
     avgReactionMs: (json['avgReactionMs'] as num?)?.toDouble(),
     timing: (json['timing'] as num).toDouble(),
     correctness: (json['correctness'] as num).toDouble(),
-    sustain: (json['sustain'] as num).toDouble(),
+    sustain: (json['sustain'] as num?)?.toDouble(),
     verdictCounts: {
       for (final e in (json['verdictCounts'] as Map<String, dynamic>).entries)
         TimingVerdict.values.byName(e.key): (e.value as num).toInt(),

@@ -28,6 +28,12 @@ pub const PROFILES_PUBLIC_ENABLED: &str = "profiles.public.enabled";
 pub const LEADERBOARD_PER_PIECE_ENABLED: &str = "leaderboard.per_piece.enabled";
 pub const LEADERBOARD_GLOBAL_ENABLED: &str = "leaderboard.global.enabled";
 pub const ONBOARDING_ENABLED: &str = "onboarding.enabled";
+/// The drum feature (change: add-drums-access). Intended rollout:
+/// `beta:midi-drums` during the beta, then `global` at general availability —
+/// widen the scope FIRST, close the campaign SECOND, and keep the flag as a
+/// kill-switch afterwards. The backend `music` module enforces it on every
+/// path that can disclose or accept a percussion score.
+pub const DRUMS_ENABLED: &str = "drums.enabled";
 
 /// Shared cross-app kill-switch: when on, apps show an "under maintenance" state.
 pub const PLATFORM_MAINTENANCE: &str = "platform.maintenance";
@@ -75,6 +81,11 @@ pub const CATALOG_PREVIEW_MAX_MS: &str = "catalog.preview.max_ms";
 /// Id of the ACCEPTED catalog SoundFont the score teasers are rendered with.
 /// Empty = previews are dormant (nothing rendered, nothing broken).
 pub const CATALOG_PREVIEW_SOUNDFONT_ID: &str = "catalog.preview.soundfont_id";
+/// Id of the ACCEPTED `percussion`-family catalog SoundFont (a drum kit) a
+/// percussion piece's teaser is rendered with, on the drum channel (change:
+/// add-drum-audio-channel). Empty = percussion previews are dormant,
+/// independently of the keyboard key above.
+pub const CATALOG_PREVIEW_DRUM_SOUNDFONT_ID: &str = "catalog.preview.drum_soundfont_id";
 
 // --- catalog access limits — the per-user scrape guardrail on catalog egress
 // (change: add-catalog-access-limits, task 1.3). Read per request by the score
@@ -299,6 +310,13 @@ pub fn builtin() -> Vec<KeyDef> {
             "The global performance leaderboard.",
         ),
         flag(
+            DRUMS_ENABLED,
+            APP_MUSIC,
+            false,
+            false,
+            "MIDI drums: percussion scores are visible/acceptable for the caller.",
+        ),
+        flag(
             ONBOARDING_ENABLED,
             APP_MUSIC,
             false,
@@ -469,6 +487,13 @@ pub fn builtin() -> Vec<KeyDef> {
             FlagValue::String(String::new()),
             false,
             "Id of the accepted catalog SoundFont score teasers are rendered with (empty = dormant).",
+        ),
+        cfg(
+            CATALOG_PREVIEW_DRUM_SOUNDFONT_ID,
+            APP_MUSIC,
+            FlagValue::String(String::new()),
+            false,
+            "Id of the accepted percussion-family SoundFont (drum kit) percussion teasers are rendered with (empty = percussion previews dormant).",
         ),
         // -- catalog access limits (per-user scrape guardrail on catalog egress).
         // Defaults ON and mirror the env baseline: unlimited egress is the unsafe

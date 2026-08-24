@@ -38,7 +38,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1248007384;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -960104550;
 
 // Section: executor
 
@@ -170,6 +170,41 @@ fn wire__crate__api__audio__audio_load_soundfont_impl(
         },
     )
 }
+fn wire__crate__api__audio__audio_load_soundfont_awaited_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "audio_load_soundfont_awaited",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_sf2_path = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok = Result::<_, ()>::Ok(
+                        crate::api::audio::audio_load_soundfont_awaited(api_sf2_path),
+                    )?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__midi__connected_port_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -228,6 +263,71 @@ fn wire__crate__api__score__demo_score_impl(
                     Ok(output_ok)
                 })())
             }
+        },
+    )
+}
+fn wire__crate__api__audio__drum_off_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "drum_off",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_key = <u8>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok({
+                    crate::api::audio::drum_off(api_key);
+                })?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__audio__drum_on_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "drum_on",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_key = <u8>::sse_decode(&mut deserializer);
+            let api_velocity = <u8>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok({
+                    crate::api::audio::drum_on(api_key, api_velocity);
+                })?;
+                Ok(output_ok)
+            })())
         },
     )
 }
@@ -655,6 +755,41 @@ fn wire__crate__api__midi__set_midi_port_impl(
         },
     )
 }
+fn wire__crate__api__audio__soundfont_family_evidence_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "soundfont_family_evidence",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_sf2_path = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok = Result::<_, ()>::Ok(
+                        crate::api::audio::soundfont_family_evidence(api_sf2_path),
+                    )?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__audio__stop_preview_clip_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -735,7 +870,7 @@ const _: fn() = || {
     {
         let Clef = None::<crate::api::musicxml::Clef>.unwrap();
         let _: u32 = Clef.staff;
-        let _: char = Clef.sign;
+        let _: crate::api::musicxml::ClefSign = Clef.sign;
         let _: i32 = Clef.line;
     }
     {
@@ -762,6 +897,12 @@ const _: fn() = || {
             let _: String = beat_unit;
             let _: u32 = per_minute;
         }
+    }
+    {
+        let InstrumentDecl = None::<crate::api::musicxml::InstrumentDecl>.unwrap();
+        let _: String = InstrumentDecl.id;
+        let _: Option<String> = InstrumentDecl.name;
+        let _: Option<u32> = InstrumentDecl.gm_number;
     }
     {
         let Lyric = None::<crate::api::musicxml::Lyric>.unwrap();
@@ -799,6 +940,8 @@ const _: fn() = || {
         let _: Option<crate::api::musicxml::StemDir> = NoteEvent.stem;
         let _: Vec<crate::api::musicxml::BeamState> = NoteEvent.beams;
         let _: Option<crate::api::musicxml::Lyric> = NoteEvent.lyric;
+        let _: Option<crate::api::musicxml::Unpitched> = NoteEvent.unpitched;
+        let _: Option<String> = NoteEvent.instrument_id;
     }
     {
         let Pitch = None::<crate::api::musicxml::Pitch>.unwrap();
@@ -833,6 +976,7 @@ const _: fn() = || {
         let _: crate::api::musicxml::ScoreMeta = ScoreDocument.meta;
         let _: u32 = ScoreDocument.staves;
         let _: crate::api::musicxml::Attributes = ScoreDocument.attributes;
+        let _: Vec<crate::api::musicxml::InstrumentDecl> = ScoreDocument.instruments;
         let _: Vec<crate::api::musicxml::NotationMeasure> = ScoreDocument.measures;
         let _: Vec<crate::api::musicxml::PlayedMeasure> = ScoreDocument.play_order;
     }
@@ -847,12 +991,12 @@ const _: fn() = || {
         let _: Option<String> = ScoreSummary.composer;
         let _: Option<String> = ScoreSummary.title_norm;
         let _: String = ScoreSummary.work_key;
-        let _: bool = ScoreSummary.is_piano;
         let _: u32 = ScoreSummary.staves;
         let _: i32 = ScoreSummary.key_fifths;
         let _: String = ScoreSummary.time_sig;
         let _: u32 = ScoreSummary.measure_count;
         let _: u32 = ScoreSummary.note_count;
+        let _: crate::api::musicxml::InstrumentKind = ScoreSummary.instrument;
     }
     {
         let System = None::<crate::api::musicxml::System>.unwrap();
@@ -868,6 +1012,13 @@ const _: fn() = || {
         let Tuplet = None::<crate::api::musicxml::Tuplet>.unwrap();
         let _: u32 = Tuplet.actual;
         let _: u32 = Tuplet.normal;
+    }
+    {
+        let Unpitched = None::<crate::api::musicxml::Unpitched>.unwrap();
+        let _: char = Unpitched.display_step;
+        let _: i32 = Unpitched.display_octave;
+        let _: Option<u32> = Unpitched.gm_number;
+        let _: crate::api::musicxml::HeadClass = Unpitched.head_class;
     }
 };
 
@@ -974,12 +1125,26 @@ impl SseDecode for crate::api::musicxml::Clef {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_staff = <u32>::sse_decode(deserializer);
-        let mut var_sign = <char>::sse_decode(deserializer);
+        let mut var_sign = <crate::api::musicxml::ClefSign>::sse_decode(deserializer);
         let mut var_line = <i32>::sse_decode(deserializer);
         return crate::api::musicxml::Clef {
             staff: var_staff,
             sign: var_sign,
             line: var_line,
+        };
+    }
+}
+
+impl SseDecode for crate::api::musicxml::ClefSign {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::musicxml::ClefSign::G,
+            1 => crate::api::musicxml::ClefSign::F,
+            2 => crate::api::musicxml::ClefSign::C,
+            3 => crate::api::musicxml::ClefSign::Percussion,
+            _ => unreachable!("Invalid variant for ClefSign: {}", inner),
         };
     }
 }
@@ -1041,10 +1206,50 @@ impl SseDecode for f64 {
     }
 }
 
+impl SseDecode for crate::api::musicxml::HeadClass {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::musicxml::HeadClass::Oval,
+            1 => crate::api::musicxml::HeadClass::X,
+            2 => crate::api::musicxml::HeadClass::XOpen,
+            _ => unreachable!("Invalid variant for HeadClass: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for i32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         deserializer.cursor.read_i32::<NativeEndian>().unwrap()
+    }
+}
+
+impl SseDecode for crate::api::musicxml::InstrumentDecl {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_name = <Option<String>>::sse_decode(deserializer);
+        let mut var_gmNumber = <Option<u32>>::sse_decode(deserializer);
+        return crate::api::musicxml::InstrumentDecl {
+            id: var_id,
+            name: var_name,
+            gm_number: var_gmNumber,
+        };
+    }
+}
+
+impl SseDecode for crate::api::musicxml::InstrumentKind {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::musicxml::InstrumentKind::Keyboard,
+            1 => crate::api::musicxml::InstrumentKind::Percussion,
+            2 => crate::api::musicxml::InstrumentKind::Unknown,
+            _ => unreachable!("Invalid variant for InstrumentKind: {}", inner),
+        };
     }
 }
 
@@ -1105,6 +1310,20 @@ impl SseDecode for Vec<crate::api::musicxml::Direction> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::musicxml::Direction>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::musicxml::InstrumentDecl> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::musicxml::InstrumentDecl>::sse_decode(
+                deserializer,
+            ));
         }
         return ans_;
     }
@@ -1320,6 +1539,8 @@ impl SseDecode for crate::api::musicxml::NoteEvent {
         let mut var_stem = <Option<crate::api::musicxml::StemDir>>::sse_decode(deserializer);
         let mut var_beams = <Vec<crate::api::musicxml::BeamState>>::sse_decode(deserializer);
         let mut var_lyric = <Option<crate::api::musicxml::Lyric>>::sse_decode(deserializer);
+        let mut var_unpitched = <Option<crate::api::musicxml::Unpitched>>::sse_decode(deserializer);
+        let mut var_instrumentId = <Option<String>>::sse_decode(deserializer);
         return crate::api::musicxml::NoteEvent {
             staff: var_staff,
             voice: var_voice,
@@ -1340,6 +1561,8 @@ impl SseDecode for crate::api::musicxml::NoteEvent {
             stem: var_stem,
             beams: var_beams,
             lyric: var_lyric,
+            unpitched: var_unpitched,
+            instrument_id: var_instrumentId,
         };
     }
 }
@@ -1403,6 +1626,19 @@ impl SseDecode for Option<crate::api::musicxml::ScoreSummary> {
     }
 }
 
+impl SseDecode for Option<crate::api::audio::SoundFontFamilyEvidence> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::audio::SoundFontFamilyEvidence>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<crate::api::musicxml::StemDir> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1430,6 +1666,17 @@ impl SseDecode for Option<u32> {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<u32>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::musicxml::Unpitched> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::musicxml::Unpitched>::sse_decode(deserializer));
         } else {
             return None;
         }
@@ -1516,6 +1763,8 @@ impl SseDecode for crate::api::musicxml::ScoreDocument {
         let mut var_meta = <crate::api::musicxml::ScoreMeta>::sse_decode(deserializer);
         let mut var_staves = <u32>::sse_decode(deserializer);
         let mut var_attributes = <crate::api::musicxml::Attributes>::sse_decode(deserializer);
+        let mut var_instruments =
+            <Vec<crate::api::musicxml::InstrumentDecl>>::sse_decode(deserializer);
         let mut var_measures =
             <Vec<crate::api::musicxml::NotationMeasure>>::sse_decode(deserializer);
         let mut var_playOrder =
@@ -1524,6 +1773,7 @@ impl SseDecode for crate::api::musicxml::ScoreDocument {
             meta: var_meta,
             staves: var_staves,
             attributes: var_attributes,
+            instruments: var_instruments,
             measures: var_measures,
             play_order: var_playOrder,
         };
@@ -1549,23 +1799,35 @@ impl SseDecode for crate::api::musicxml::ScoreSummary {
         let mut var_composer = <Option<String>>::sse_decode(deserializer);
         let mut var_titleNorm = <Option<String>>::sse_decode(deserializer);
         let mut var_workKey = <String>::sse_decode(deserializer);
-        let mut var_isPiano = <bool>::sse_decode(deserializer);
         let mut var_staves = <u32>::sse_decode(deserializer);
         let mut var_keyFifths = <i32>::sse_decode(deserializer);
         let mut var_timeSig = <String>::sse_decode(deserializer);
         let mut var_measureCount = <u32>::sse_decode(deserializer);
         let mut var_noteCount = <u32>::sse_decode(deserializer);
+        let mut var_instrument = <crate::api::musicxml::InstrumentKind>::sse_decode(deserializer);
         return crate::api::musicxml::ScoreSummary {
             title: var_title,
             composer: var_composer,
             title_norm: var_titleNorm,
             work_key: var_workKey,
-            is_piano: var_isPiano,
             staves: var_staves,
             key_fifths: var_keyFifths,
             time_sig: var_timeSig,
             measure_count: var_measureCount,
             note_count: var_noteCount,
+            instrument: var_instrument,
+        };
+    }
+}
+
+impl SseDecode for crate::api::audio::SoundFontFamilyEvidence {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_hasPercussionPresets = <bool>::sse_decode(deserializer);
+        let mut var_hasMelodicPresets = <bool>::sse_decode(deserializer);
+        return crate::api::audio::SoundFontFamilyEvidence {
+            has_percussion_presets: var_hasPercussionPresets,
+            has_melodic_presets: var_hasMelodicPresets,
         };
     }
 }
@@ -1644,6 +1906,22 @@ impl SseDecode for () {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {}
 }
 
+impl SseDecode for crate::api::musicxml::Unpitched {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_displayStep = <char>::sse_decode(deserializer);
+        let mut var_displayOctave = <i32>::sse_decode(deserializer);
+        let mut var_gmNumber = <Option<u32>>::sse_decode(deserializer);
+        let mut var_headClass = <crate::api::musicxml::HeadClass>::sse_decode(deserializer);
+        return crate::api::musicxml::Unpitched {
+            display_step: var_displayStep,
+            display_octave: var_displayOctave,
+            gm_number: var_gmNumber,
+            head_class: var_headClass,
+        };
+    }
+}
+
 impl SseDecode for crate::api::musicxml::ValidationOutcome {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1666,11 +1944,23 @@ fn pde_ffi_dispatcher_primary_impl(
 ) {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        6 => wire__crate__api__score__demo_score_impl(port, ptr, rust_vec_len, data_len),
-        8 => wire__crate__api__simple__init_app_impl(port, ptr, rust_vec_len, data_len),
-        13 => wire__crate__api__midi__midi_event_stream_impl(port, ptr, rust_vec_len, data_len),
-        16 => wire__crate__api__musicxml__parse_musicxml_impl(port, ptr, rust_vec_len, data_len),
-        21 => wire__crate__api__musicxml__validate_musicxml_impl(port, ptr, rust_vec_len, data_len),
+        5 => wire__crate__api__audio__audio_load_soundfont_awaited_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        7 => wire__crate__api__score__demo_score_impl(port, ptr, rust_vec_len, data_len),
+        11 => wire__crate__api__simple__init_app_impl(port, ptr, rust_vec_len, data_len),
+        16 => wire__crate__api__midi__midi_event_stream_impl(port, ptr, rust_vec_len, data_len),
+        19 => wire__crate__api__musicxml__parse_musicxml_impl(port, ptr, rust_vec_len, data_len),
+        23 => wire__crate__api__audio__soundfont_family_evidence_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        25 => wire__crate__api__musicxml__validate_musicxml_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1687,18 +1977,20 @@ fn pde_ffi_dispatcher_sync_impl(
         2 => wire__crate__api__audio__all_notes_off_impl(ptr, rust_vec_len, data_len),
         3 => wire__crate__api__audio__audio_init_impl(ptr, rust_vec_len, data_len),
         4 => wire__crate__api__audio__audio_load_soundfont_impl(ptr, rust_vec_len, data_len),
-        5 => wire__crate__api__midi__connected_port_impl(ptr, rust_vec_len, data_len),
-        7 => wire__crate__api__simple__greet_impl(ptr, rust_vec_len, data_len),
-        9 => wire__crate__api__musicxml__layout_systems_impl(ptr, rust_vec_len, data_len),
-        10 => wire__crate__api__audio__list_audio_outputs_impl(ptr, rust_vec_len, data_len),
-        11 => wire__crate__api__midi__list_midi_ports_impl(ptr, rust_vec_len, data_len),
-        12 => wire__crate__api__audio__metronome_click_impl(ptr, rust_vec_len, data_len),
-        14 => wire__crate__api__audio__note_off_impl(ptr, rust_vec_len, data_len),
-        15 => wire__crate__api__audio__note_on_impl(ptr, rust_vec_len, data_len),
-        17 => wire__crate__api__audio__play_preview_clip_impl(ptr, rust_vec_len, data_len),
-        18 => wire__crate__api__audio__set_audio_output_impl(ptr, rust_vec_len, data_len),
-        19 => wire__crate__api__midi__set_midi_port_impl(ptr, rust_vec_len, data_len),
-        20 => wire__crate__api__audio__stop_preview_clip_impl(ptr, rust_vec_len, data_len),
+        6 => wire__crate__api__midi__connected_port_impl(ptr, rust_vec_len, data_len),
+        8 => wire__crate__api__audio__drum_off_impl(ptr, rust_vec_len, data_len),
+        9 => wire__crate__api__audio__drum_on_impl(ptr, rust_vec_len, data_len),
+        10 => wire__crate__api__simple__greet_impl(ptr, rust_vec_len, data_len),
+        12 => wire__crate__api__musicxml__layout_systems_impl(ptr, rust_vec_len, data_len),
+        13 => wire__crate__api__audio__list_audio_outputs_impl(ptr, rust_vec_len, data_len),
+        14 => wire__crate__api__midi__list_midi_ports_impl(ptr, rust_vec_len, data_len),
+        15 => wire__crate__api__audio__metronome_click_impl(ptr, rust_vec_len, data_len),
+        17 => wire__crate__api__audio__note_off_impl(ptr, rust_vec_len, data_len),
+        18 => wire__crate__api__audio__note_on_impl(ptr, rust_vec_len, data_len),
+        20 => wire__crate__api__audio__play_preview_clip_impl(ptr, rust_vec_len, data_len),
+        21 => wire__crate__api__audio__set_audio_output_impl(ptr, rust_vec_len, data_len),
+        22 => wire__crate__api__midi__set_midi_port_impl(ptr, rust_vec_len, data_len),
+        24 => wire__crate__api__audio__stop_preview_clip_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1818,6 +2110,29 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::musicxml::Clef>>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::musicxml::ClefSign> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self.0 {
+            crate::api::musicxml::ClefSign::G => 0.into_dart(),
+            crate::api::musicxml::ClefSign::F => 1.into_dart(),
+            crate::api::musicxml::ClefSign::C => 2.into_dart(),
+            crate::api::musicxml::ClefSign::Percussion => 3.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::musicxml::ClefSign>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::musicxml::ClefSign>>
+    for crate::api::musicxml::ClefSign
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::musicxml::ClefSign> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::musicxml::Direction> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -1878,6 +2193,72 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::musicxml::Directio
     for crate::api::musicxml::DirectionKind
 {
     fn into_into_dart(self) -> FrbWrapper<crate::api::musicxml::DirectionKind> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::musicxml::HeadClass> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self.0 {
+            crate::api::musicxml::HeadClass::Oval => 0.into_dart(),
+            crate::api::musicxml::HeadClass::X => 1.into_dart(),
+            crate::api::musicxml::HeadClass::XOpen => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::musicxml::HeadClass>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::musicxml::HeadClass>>
+    for crate::api::musicxml::HeadClass
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::musicxml::HeadClass> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::musicxml::InstrumentDecl> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.id.into_into_dart().into_dart(),
+            self.0.name.into_into_dart().into_dart(),
+            self.0.gm_number.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::musicxml::InstrumentDecl>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::musicxml::InstrumentDecl>>
+    for crate::api::musicxml::InstrumentDecl
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::musicxml::InstrumentDecl> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::musicxml::InstrumentKind> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self.0 {
+            crate::api::musicxml::InstrumentKind::Keyboard => 0.into_dart(),
+            crate::api::musicxml::InstrumentKind::Percussion => 1.into_dart(),
+            crate::api::musicxml::InstrumentKind::Unknown => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::musicxml::InstrumentKind>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::musicxml::InstrumentKind>>
+    for crate::api::musicxml::InstrumentKind
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::musicxml::InstrumentKind> {
         self.into()
     }
 }
@@ -2025,6 +2406,8 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::musicxml::NoteEven
             self.0.stem.into_into_dart().into_dart(),
             self.0.beams.into_into_dart().into_dart(),
             self.0.lyric.into_into_dart().into_dart(),
+            self.0.unpitched.into_into_dart().into_dart(),
+            self.0.instrument_id.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -2139,6 +2522,7 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::musicxml::ScoreDoc
             self.0.meta.into_into_dart().into_dart(),
             self.0.staves.into_into_dart().into_dart(),
             self.0.attributes.into_into_dart().into_dart(),
+            self.0.instruments.into_into_dart().into_dart(),
             self.0.measures.into_into_dart().into_dart(),
             self.0.play_order.into_into_dart().into_dart(),
         ]
@@ -2185,12 +2569,12 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::musicxml::ScoreSum
             self.0.composer.into_into_dart().into_dart(),
             self.0.title_norm.into_into_dart().into_dart(),
             self.0.work_key.into_into_dart().into_dart(),
-            self.0.is_piano.into_into_dart().into_dart(),
             self.0.staves.into_into_dart().into_dart(),
             self.0.key_fifths.into_into_dart().into_dart(),
             self.0.time_sig.into_into_dart().into_dart(),
             self.0.measure_count.into_into_dart().into_dart(),
             self.0.note_count.into_into_dart().into_dart(),
+            self.0.instrument.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -2204,6 +2588,27 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::musicxml::ScoreSum
 {
     fn into_into_dart(self) -> FrbWrapper<crate::api::musicxml::ScoreSummary> {
         self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::audio::SoundFontFamilyEvidence {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.has_percussion_presets.into_into_dart().into_dart(),
+            self.has_melodic_presets.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::audio::SoundFontFamilyEvidence
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::audio::SoundFontFamilyEvidence>
+    for crate::api::audio::SoundFontFamilyEvidence
+{
+    fn into_into_dart(self) -> crate::api::audio::SoundFontFamilyEvidence {
+        self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -2287,6 +2692,29 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::musicxml::Tuplet>>
     for crate::api::musicxml::Tuplet
 {
     fn into_into_dart(self) -> FrbWrapper<crate::api::musicxml::Tuplet> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::musicxml::Unpitched> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.display_step.into_into_dart().into_dart(),
+            self.0.display_octave.into_into_dart().into_dart(),
+            self.0.gm_number.into_into_dart().into_dart(),
+            self.0.head_class.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::musicxml::Unpitched>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::musicxml::Unpitched>>
+    for crate::api::musicxml::Unpitched
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::musicxml::Unpitched> {
         self.into()
     }
 }
@@ -2407,8 +2835,26 @@ impl SseEncode for crate::api::musicxml::Clef {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <u32>::sse_encode(self.staff, serializer);
-        <char>::sse_encode(self.sign, serializer);
+        <crate::api::musicxml::ClefSign>::sse_encode(self.sign, serializer);
         <i32>::sse_encode(self.line, serializer);
+    }
+}
+
+impl SseEncode for crate::api::musicxml::ClefSign {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::musicxml::ClefSign::G => 0,
+                crate::api::musicxml::ClefSign::F => 1,
+                crate::api::musicxml::ClefSign::C => 2,
+                crate::api::musicxml::ClefSign::Percussion => 3,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 
@@ -2460,10 +2906,53 @@ impl SseEncode for f64 {
     }
 }
 
+impl SseEncode for crate::api::musicxml::HeadClass {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::musicxml::HeadClass::Oval => 0,
+                crate::api::musicxml::HeadClass::X => 1,
+                crate::api::musicxml::HeadClass::XOpen => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
 impl SseEncode for i32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         serializer.cursor.write_i32::<NativeEndian>(self).unwrap();
+    }
+}
+
+impl SseEncode for crate::api::musicxml::InstrumentDecl {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <Option<String>>::sse_encode(self.name, serializer);
+        <Option<u32>>::sse_encode(self.gm_number, serializer);
+    }
+}
+
+impl SseEncode for crate::api::musicxml::InstrumentKind {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::musicxml::InstrumentKind::Keyboard => 0,
+                crate::api::musicxml::InstrumentKind::Percussion => 1,
+                crate::api::musicxml::InstrumentKind::Unknown => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 
@@ -2513,6 +3002,16 @@ impl SseEncode for Vec<crate::api::musicxml::Direction> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::musicxml::Direction>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::musicxml::InstrumentDecl> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::musicxml::InstrumentDecl>::sse_encode(item, serializer);
         }
     }
 }
@@ -2683,6 +3182,8 @@ impl SseEncode for crate::api::musicxml::NoteEvent {
         <Option<crate::api::musicxml::StemDir>>::sse_encode(self.stem, serializer);
         <Vec<crate::api::musicxml::BeamState>>::sse_encode(self.beams, serializer);
         <Option<crate::api::musicxml::Lyric>>::sse_encode(self.lyric, serializer);
+        <Option<crate::api::musicxml::Unpitched>>::sse_encode(self.unpitched, serializer);
+        <Option<String>>::sse_encode(self.instrument_id, serializer);
     }
 }
 
@@ -2736,6 +3237,16 @@ impl SseEncode for Option<crate::api::musicxml::ScoreSummary> {
     }
 }
 
+impl SseEncode for Option<crate::api::audio::SoundFontFamilyEvidence> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::audio::SoundFontFamilyEvidence>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<crate::api::musicxml::StemDir> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -2762,6 +3273,16 @@ impl SseEncode for Option<u32> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <u32>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::musicxml::Unpitched> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::musicxml::Unpitched>::sse_encode(value, serializer);
         }
     }
 }
@@ -2817,6 +3338,7 @@ impl SseEncode for crate::api::musicxml::ScoreDocument {
         <crate::api::musicxml::ScoreMeta>::sse_encode(self.meta, serializer);
         <u32>::sse_encode(self.staves, serializer);
         <crate::api::musicxml::Attributes>::sse_encode(self.attributes, serializer);
+        <Vec<crate::api::musicxml::InstrumentDecl>>::sse_encode(self.instruments, serializer);
         <Vec<crate::api::musicxml::NotationMeasure>>::sse_encode(self.measures, serializer);
         <Vec<crate::api::musicxml::PlayedMeasure>>::sse_encode(self.play_order, serializer);
     }
@@ -2837,12 +3359,20 @@ impl SseEncode for crate::api::musicxml::ScoreSummary {
         <Option<String>>::sse_encode(self.composer, serializer);
         <Option<String>>::sse_encode(self.title_norm, serializer);
         <String>::sse_encode(self.work_key, serializer);
-        <bool>::sse_encode(self.is_piano, serializer);
         <u32>::sse_encode(self.staves, serializer);
         <i32>::sse_encode(self.key_fifths, serializer);
         <String>::sse_encode(self.time_sig, serializer);
         <u32>::sse_encode(self.measure_count, serializer);
         <u32>::sse_encode(self.note_count, serializer);
+        <crate::api::musicxml::InstrumentKind>::sse_encode(self.instrument, serializer);
+    }
+}
+
+impl SseEncode for crate::api::audio::SoundFontFamilyEvidence {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.has_percussion_presets, serializer);
+        <bool>::sse_encode(self.has_melodic_presets, serializer);
     }
 }
 
@@ -2910,6 +3440,16 @@ impl SseEncode for u8 {
 impl SseEncode for () {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {}
+}
+
+impl SseEncode for crate::api::musicxml::Unpitched {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <char>::sse_encode(self.display_step, serializer);
+        <i32>::sse_encode(self.display_octave, serializer);
+        <Option<u32>>::sse_encode(self.gm_number, serializer);
+        <crate::api::musicxml::HeadClass>::sse_encode(self.head_class, serializer);
+    }
 }
 
 impl SseEncode for crate::api::musicxml::ValidationOutcome {

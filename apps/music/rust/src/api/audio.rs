@@ -270,10 +270,26 @@ pub fn note_off(pitch: u8) {
     send(AudioEvent::note_off(pitch));
 }
 
-/// Releases every sounding voice (stop / restart / seek / loop).
+/// Releases every sounding voice on every channel (stop / restart / seek /
+/// loop) — melodic and drum alike.
 #[frb(sync)]
 pub fn all_notes_off() {
     send(AudioEvent::AllOff);
+}
+
+/// Sounds a percussion stroke for General MIDI `key` at `velocity` on the drum
+/// channel, where the active kit font's bank-128 presets resolve (change:
+/// add-drum-audio-channel). The melodic pair is byte-for-byte untouched.
+#[frb(sync)]
+pub fn drum_on(key: u8, velocity: u8) {
+    send(AudioEvent::drum_on(key, velocity));
+}
+
+/// Releases the drum voice for `key`. Kit voices are mostly self-terminating
+/// one-shots; the release keeps the voice bookkeeping exact.
+#[frb(sync)]
+pub fn drum_off(key: u8) {
+    send(AudioEvent::drum_off(key));
 }
 
 /// Swaps the synthesizer's active SoundFont at runtime from a `.sf2` file path,
@@ -296,13 +312,80 @@ pub fn audio_load_soundfont(sf2_path: String) {
     };
     thread::spawn(move || match load_sound_font(&sf2_path) {
         Ok(sound_font) => {
-            let _ = tx.send(RenderCommand::ReplaceSynth(sound_font));
+            let _ = tx.send(RenderCommand::ReplaceSynth(sound_font, None));
         }
         Err(e) => platform_log::log_line(
             "cymbra-audio",
             &format!("soundfont swap skipped, keeping current: {e}"),
         ),
     });
+}
+
+/// Swaps the SoundFont like [`audio_load_soundfont`], but resolves only once
+/// the outcome is KNOWN (change: add-drum-audio-channel): `true` when the
+/// incoming font is installed on the audio thread, `false` when the swap
+/// failed (unreadable/invalid file, build failure, engine not running, or the
+/// audio thread unresponsive) and the previous font was kept. The player's
+/// percussion-readiness gate awaits this so a drum score never sounds through
+/// the still-loaded piano font. Runs on a worker (not `#[frb(sync)]`), so the
+/// Dart side gets a Future without blocking the UI isolate.
+pub fn audio_load_soundfont_awaited(sf2_path: String) -> bool {
+    let tx = match EVENT_TX.lock().unwrap().as_ref() {
+        Some(tx) => tx.clone(),
+        None => return false,
+    };
+    let sound_font = match load_sound_font(&sf2_path) {
+        Ok(f) => f,
+        Err(e) => {
+            platform_log::log_line(
+                "cymbra-audio",
+                &format!("soundfont swap skipped, keeping current: {e}"),
+            );
+            return false;
+        }
+    };
+    let (ack_tx, ack_rx) = std::sync::mpsc::channel();
+    if tx
+        .send(RenderCommand::ReplaceSynth(sound_font, Some(ack_tx)))
+        .is_err()
+    {
+        return false;
+    }
+    // The audio callback drains the queue once per block (~10 ms); a few
+    // seconds means the thread is gone — report not-installed rather than
+    // hang the caller.
+    match ack_rx.recv_timeout(std::time::Duration::from_secs(3)) {
+        Ok(installed) => installed,
+        Err(_) => {
+            platform_log::log_line(
+                "cymbra-audio",
+                "soundfont swap ack timed out; treating as not installed",
+            );
+            false
+        }
+    }
+}
+
+/// Reads a local `.sf2`'s preset-bank family evidence (change:
+/// add-drum-audio-channel): whether it declares bank-128 (kit) presets and/or
+/// melodic presets — the app's import detection. `None` when the file cannot
+/// be read or is not a well-formed SoundFont ("cannot verify", never a
+/// family).
+pub fn soundfont_family_evidence(sf2_path: String) -> Option<SoundFontFamilyEvidence> {
+    let bytes = std::fs::read(&sf2_path).ok()?;
+    let e = cymbra_sf2_meta::family_evidence(&bytes).ok()?;
+    Some(SoundFontFamilyEvidence {
+        has_percussion_presets: e.has_percussion_presets,
+        has_melodic_presets: e.has_melodic_presets,
+    })
+}
+
+/// A `.sf2`'s preset-bank evidence, bridged (change: add-drum-audio-channel).
+pub struct SoundFontFamilyEvidence {
+    /// At least one bank-128 (drum kit) preset.
+    pub has_percussion_presets: bool,
+    /// At least one melodic-bank preset.
+    pub has_melodic_presets: bool,
 }
 
 /// Sounds a short metronome click — a synthesized tick mixed into the output

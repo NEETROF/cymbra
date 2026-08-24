@@ -32,6 +32,9 @@ message ScoreRecord {
   // moderator's motive when the proposal was rejected, so the owner knows why.
   optional string proposal_status = 15;
   optional string rejection_reason = 16;
+  // The score's instrument family (change: add-drums-access): `keyboard` |
+  // `percussion` | `unknown`, derived from the notation at upload.
+  string instrument = 17;
 }
 
 message SetScoreFavoriteRequest {
@@ -135,6 +138,10 @@ message CatalogHit {
   // locked piece and the back-office "Generate sample" / "no sample" filter.
   // Derived from the row's rendered marker, never from a storage probe.
   bool has_preview = 22;
+  // The score's instrument family (change: add-drums-access): `keyboard` |
+  // `percussion` | `unknown`, derived from the notation at ingest. Replaces the
+  // retired `is_piano` proxy.
+  string instrument = 23;
 }
 
 // Full-text search over title+composer, with optional author/difficulty filters.
@@ -146,7 +153,17 @@ message SearchCatalogRequest {
   int32 offset = 5;           // page offset
   // Musical facet filters (change: score-catalog-facets). Each optional; unset =
   // no constraint. A set filter excludes rows whose facet is unknown.
-  optional bool is_piano = 6;              // keyboard/grand-staff only
+  //
+  // Field 6 was `optional bool is_piano` (the staff-count proxy), retired by
+  // add-drums-access. Never reuse the number: a shipped client's boolean varint
+  // would misdecode under a new field. Old clients that still send it lose
+  // their pinned filter silently and see unfiltered results — accepted.
+  reserved 6;
+  reserved "is_piano";
+  // Instrument family filter (change: add-drums-access): `keyboard` |
+  // `percussion`. Narrows only — results are always constrained by the
+  // caller's drum eligibility server-side, whatever filter is supplied.
+  optional string instrument = 21;
   optional int32 max_note_value = 7;       // fastest allowed value (4=quarter,8=eighth,16=…)
   optional bool has_chords = 8;
   optional bool has_tuplets = 9;
@@ -372,6 +389,11 @@ message GetMyScoreRatingResponse {
 message ListRatingDeckRequest {
   int32 limit = 1;  // page size; clamped to a server maximum
   int32 offset = 2; // page offset
+  // Instrument family the rater wants to be dealt: `keyboard` | `percussion`;
+  // absent = whatever the deck has. Narrows only — the caller's own drum
+  // eligibility still constrains the result, so asking for `percussion`
+  // without it deals nothing rather than disclosing anything.
+  optional string instrument = 3;
 }
 message ListRatingDeckResponse {
   repeated CatalogHit hits = 1;

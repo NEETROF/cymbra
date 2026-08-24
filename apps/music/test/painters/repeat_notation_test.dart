@@ -92,12 +92,13 @@ void main() {
       ],
     );
     final doc = ScoreDocument(
+      instruments: const [],
       playOrder: const [],
       meta: const ScoreMeta(title: 'R', composer: 'T'),
       staves: 1,
       attributes: const Attributes(
         divisions: 4,
-        clefs: [Clef(staff: 1, sign: 'G', line: 2)],
+        clefs: [Clef(staff: 1, sign: ClefSign.g, line: 2)],
         keyFifths: 0,
         time: TimeSignature(beats: 4, beatType: 4),
       ),
@@ -178,6 +179,7 @@ void main() {
         ],
       );
       final doc = ScoreDocument(
+        instruments: const [],
         playOrder: const [
           PlayedMeasure(writtenIndex: 0, pass: 1),
           PlayedMeasure(writtenIndex: 0, pass: 2),
@@ -187,7 +189,7 @@ void main() {
         staves: 1,
         attributes: const Attributes(
           divisions: 4,
-          clefs: [Clef(staff: 1, sign: 'G', line: 2)],
+          clefs: [Clef(staff: 1, sign: ClefSign.g, line: 2)],
           keyFifths: 0,
           time: TimeSignature(beats: 4, beatType: 4),
         ),

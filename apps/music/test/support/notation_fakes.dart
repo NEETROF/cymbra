@@ -65,7 +65,7 @@ class FakeNotationEngine implements NotationEngine {
             composer: 'A. Composer',
             titleNorm: 'sample',
             workKey: 'a. composer::sample',
-            isPiano: true,
+            instrument: InstrumentKind.keyboard,
             staves: 2,
             keyFifths: 0,
             timeSig: '4/4',
@@ -157,6 +157,8 @@ NoteEvent noteEvent({
   bool slurStart = false,
   bool slurStop = false,
   List<BeamState> beams = const [],
+  Unpitched? unpitched,
+  String? instrumentId,
 }) => NoteEvent(
   staff: staff,
   voice: voice,
@@ -177,17 +179,20 @@ NoteEvent noteEvent({
   stem: stem,
   beams: beams,
   lyric: lyric,
+  unpitched: unpitched,
+  instrumentId: instrumentId,
 );
 
 /// A treble document with a phrase slur over four notes and a tie between the
 /// last two (same pitch) — to eyeball tie/slur arcs.
 ScoreDocument sampleTieSlurDocument() => ScoreDocument(
+  instruments: const [],
   playOrder: const [],
   meta: const ScoreMeta(title: 'TieSlur', composer: 'Tester'),
   staves: 1,
   attributes: const Attributes(
     divisions: 4,
-    clefs: [Clef(staff: 1, sign: 'G', line: 2)],
+    clefs: [Clef(staff: 1, sign: ClefSign.g, line: 2)],
     keyFifths: 0,
     time: TimeSignature(beats: 4, beatType: 4),
   ),
@@ -260,12 +265,13 @@ ScoreDocument sampleBeamedDocument() {
     lyric: null,
   );
   return ScoreDocument(
+    instruments: const [],
     playOrder: const [],
     meta: const ScoreMeta(title: 'Beamed', composer: 'Tester'),
     staves: 1,
     attributes: const Attributes(
       divisions: 4,
-      clefs: [Clef(staff: 1, sign: 'G', line: 2)],
+      clefs: [Clef(staff: 1, sign: ClefSign.g, line: 2)],
       keyFifths: 0,
       time: TimeSignature(beats: 4, beatType: 4),
     ),
@@ -295,14 +301,15 @@ ScoreDocument sampleBeamedDocument() {
 /// plus two overlapping word directions at the same beat — to eyeball the clef
 /// change and the word de-overlap.
 ScoreDocument sampleClefChangeDocument() => ScoreDocument(
+  instruments: const [],
   playOrder: const [],
   meta: const ScoreMeta(title: 'ClefChange', composer: 'Tester'),
   staves: 2,
   attributes: const Attributes(
     divisions: 4,
     clefs: [
-      Clef(staff: 1, sign: 'G', line: 2),
-      Clef(staff: 2, sign: 'G', line: 2), // left hand starts in treble
+      Clef(staff: 1, sign: ClefSign.g, line: 2),
+      Clef(staff: 2, sign: ClefSign.g, line: 2), // left hand starts in treble
     ],
     keyFifths: 0,
     time: TimeSignature(beats: 4, beatType: 4),
@@ -334,7 +341,7 @@ ScoreDocument sampleClefChangeDocument() => ScoreDocument(
     NotationMeasure(
       repeats: noRepeats,
       index: 1,
-      clefs: const [Clef(staff: 2, sign: 'F', line: 4)], // → bass clef
+      clefs: const [Clef(staff: 2, sign: ClefSign.f, line: 4)], // → bass clef
       keyFifths: 0,
       minWidth: 140,
       directions: const [],
@@ -349,12 +356,13 @@ ScoreDocument sampleClefChangeDocument() => ScoreDocument(
 /// A treble document with [count] one-note 4/4 measures, so the fake layout
 /// (one system per measure) produces many systems — tall enough to scroll.
 ScoreDocument tallDocument(int count) => ScoreDocument(
+  instruments: const [],
   playOrder: const [],
   meta: const ScoreMeta(title: 'Tall', composer: 'Tester'),
   staves: 1,
   attributes: const Attributes(
     divisions: 4,
-    clefs: [Clef(staff: 1, sign: 'G', line: 2)],
+    clefs: [Clef(staff: 1, sign: ClefSign.g, line: 2)],
     keyFifths: 0,
     time: TimeSignature(beats: 4, beatType: 4),
   ),
@@ -381,15 +389,343 @@ ScoreDocument tallDocument(int count) => ScoreDocument(
 
 /// A small two-staff (grand-staff) document: one 4/4 measure with a treble note,
 /// a bass note, a `words` direction, and a `dynamics` direction.
+
+/// A minimal percussion document (change: add-drum-kit-view): closed hi-hat
+/// eighths + a snare on beat 2 in voice 1 (hands, stems up), the kick on
+/// beats 1 and 3 in voice 2 (feet) — under a percussion clef, with the
+/// part-list instrument table resolved (GM numbers already 0-based).
+ScoreDocument sampleDrumDocument() => ScoreDocument(
+  instruments: const [
+    InstrumentDecl(id: 'P1-I36', name: 'Bass Drum 1', gmNumber: 36),
+    InstrumentDecl(id: 'P1-I38', name: 'Snare Drum', gmNumber: 38),
+    InstrumentDecl(id: 'P1-I42', name: 'Closed Hi-hat', gmNumber: 42),
+  ],
+  playOrder: const [],
+  meta: const ScoreMeta(title: 'Groove', composer: 'Tester'),
+  staves: 1,
+  attributes: const Attributes(
+    divisions: 2,
+    clefs: [Clef(staff: 1, sign: ClefSign.percussion, line: 2)],
+    keyFifths: 0,
+    time: TimeSignature(beats: 4, beatType: 4),
+  ),
+  measures: [
+    NotationMeasure(
+      repeats: noRepeats,
+      index: 0,
+      clefs: const [],
+      keyFifths: 0,
+      minWidth: 120,
+      directions: const [
+        Direction(
+          staff: 1,
+          positionDivisions: 0,
+          kind: DirectionKind.metronome(beatUnit: 'quarter', perMinute: 120),
+        ),
+      ],
+      notes: [
+        for (var i = 0; i < 8; i++)
+          noteEvent(
+            positionDivisions: i,
+            durationDivisions: 1,
+            noteType: 'eighth',
+            unpitched: const Unpitched(
+              displayStep: 'G',
+              displayOctave: 5,
+              gmNumber: 42,
+              headClass: HeadClass.x,
+            ),
+            instrumentId: 'P1-I42',
+          ),
+        noteEvent(
+          positionDivisions: 2,
+          durationDivisions: 1,
+          isChord: true,
+          noteType: 'eighth',
+          unpitched: const Unpitched(
+            displayStep: 'C',
+            displayOctave: 5,
+            gmNumber: 38,
+            headClass: HeadClass.oval,
+          ),
+          instrumentId: 'P1-I38',
+        ),
+        noteEvent(
+          positionDivisions: 0,
+          voice: 2,
+          durationDivisions: 2,
+          noteType: 'quarter',
+          stem: StemDir.down,
+          unpitched: const Unpitched(
+            displayStep: 'F',
+            displayOctave: 4,
+            gmNumber: 36,
+            headClass: HeadClass.oval,
+          ),
+          instrumentId: 'P1-I36',
+        ),
+        noteEvent(
+          positionDivisions: 4,
+          voice: 2,
+          durationDivisions: 2,
+          noteType: 'quarter',
+          stem: StemDir.down,
+          unpitched: const Unpitched(
+            displayStep: 'F',
+            displayOctave: 4,
+            gmNumber: 36,
+            headClass: HeadClass.oval,
+          ),
+          instrumentId: 'P1-I36',
+        ),
+      ],
+    ),
+  ],
+);
+
+/// A percussion document mirroring the first bar of the real
+/// `assets/scores/intermediate/groove_ouvert.musicxml` fixture (change:
+/// add-drum-notation-render) — widget tests cannot run the native parser, so
+/// the fake reproduces the shipped file's content: voice 1 (hands, stems up)
+/// opens with a crash (A5, GM 49) + closed hi-hat (G5, GM 42) quarter chord,
+/// runs hi-hat eighths with snare (C5, GM 38) chords on beats 2 and 4, and
+/// closes on an **open** hi-hat (GM 46); voice 2 (feet, stems down) plays
+/// kick (F4, GM 36) eighths with eighth/quarter rests between them. The
+/// `headClass` values are set explicitly to mirror the crate's table
+/// (cymbals → x, GM 46 → xOpen, drums → oval) — production code always takes
+/// the class from the bridge, and the drift test pins this mirror.
+///
+/// [keyFifths] builds the synthetic `fifths ≠ 2` variant of the engraving
+/// spec: a percussion staff must never draw an armature even then.
+ScoreDocument sampleOpenGrooveDocument({int keyFifths = 0}) {
+  const closedHat = Unpitched(
+    displayStep: 'G',
+    displayOctave: 5,
+    gmNumber: 42,
+    headClass: HeadClass.x,
+  );
+  const openHat = Unpitched(
+    displayStep: 'G',
+    displayOctave: 5,
+    gmNumber: 46,
+    headClass: HeadClass.xOpen,
+  );
+  const crash = Unpitched(
+    displayStep: 'A',
+    displayOctave: 5,
+    gmNumber: 49,
+    headClass: HeadClass.x,
+  );
+  const snare = Unpitched(
+    displayStep: 'C',
+    displayOctave: 5,
+    gmNumber: 38,
+    headClass: HeadClass.oval,
+  );
+  const kick = Unpitched(
+    displayStep: 'F',
+    displayOctave: 4,
+    gmNumber: 36,
+    headClass: HeadClass.oval,
+  );
+  NoteEvent hat(int pos, {Unpitched piece = closedHat}) => noteEvent(
+    positionDivisions: pos,
+    durationDivisions: 2,
+    noteType: 'eighth',
+    stem: StemDir.up,
+    unpitched: piece,
+    instrumentId: 'P1-I${piece.gmNumber}',
+  );
+  NoteEvent snareChord(int pos) => noteEvent(
+    positionDivisions: pos,
+    durationDivisions: 2,
+    isChord: true,
+    noteType: 'eighth',
+    stem: StemDir.up,
+    unpitched: snare,
+    instrumentId: 'P1-I38',
+  );
+  NoteEvent kickAt(int pos) => noteEvent(
+    positionDivisions: pos,
+    voice: 2,
+    durationDivisions: 2,
+    noteType: 'eighth',
+    stem: StemDir.down,
+    unpitched: kick,
+    instrumentId: 'P1-I36',
+  );
+  NoteEvent restAt(int pos, int duration, String type) => noteEvent(
+    positionDivisions: pos,
+    voice: 2,
+    isRest: true,
+    durationDivisions: duration,
+    noteType: type,
+  );
+  return ScoreDocument(
+    instruments: const [
+      InstrumentDecl(id: 'P1-I36', name: 'Bass Drum 1', gmNumber: 36),
+      InstrumentDecl(id: 'P1-I38', name: 'Snare Drum', gmNumber: 38),
+      InstrumentDecl(id: 'P1-I42', name: 'Closed Hi-Hat', gmNumber: 42),
+      InstrumentDecl(id: 'P1-I46', name: 'Open Hi-Hat', gmNumber: 46),
+      InstrumentDecl(id: 'P1-I49', name: 'Crash Cymbal 1', gmNumber: 49),
+    ],
+    playOrder: const [],
+    meta: const ScoreMeta(title: 'Groove ouvert', composer: 'Cymbra'),
+    staves: 1,
+    attributes: Attributes(
+      divisions: 4,
+      clefs: const [Clef(staff: 1, sign: ClefSign.percussion, line: 2)],
+      keyFifths: keyFifths,
+      time: const TimeSignature(beats: 4, beatType: 4),
+    ),
+    measures: [
+      NotationMeasure(
+        repeats: noRepeats,
+        index: 0,
+        clefs: const [],
+        keyFifths: keyFifths,
+        minWidth: 200,
+        directions: const [
+          Direction(
+            staff: 1,
+            positionDivisions: 0,
+            kind: DirectionKind.metronome(beatUnit: 'quarter', perMinute: 100),
+          ),
+        ],
+        notes: [
+          // Voice 1 — hands: crash + closed hat chord on beat 1…
+          noteEvent(
+            positionDivisions: 0,
+            durationDivisions: 4,
+            noteType: 'quarter',
+            stem: StemDir.up,
+            unpitched: crash,
+            instrumentId: 'P1-I49',
+          ),
+          noteEvent(
+            positionDivisions: 0,
+            durationDivisions: 4,
+            isChord: true,
+            noteType: 'quarter',
+            stem: StemDir.up,
+            unpitched: closedHat,
+            instrumentId: 'P1-I42',
+          ),
+          // …hat eighths with snare chords on beats 2 and 4…
+          hat(4),
+          snareChord(4),
+          hat(6),
+          hat(8),
+          hat(10),
+          hat(12),
+          snareChord(12),
+          // …and the closing OPEN hi-hat stroke.
+          hat(14, piece: openHat),
+          // Voice 2 — feet: kick eighths with the groove's rests between.
+          kickAt(0),
+          restAt(2, 2, 'eighth'),
+          restAt(4, 4, 'quarter'),
+          kickAt(8),
+          kickAt(10),
+          restAt(12, 4, 'quarter'),
+        ],
+      ),
+      // A second bar — the straight version of the groove — so range pickers
+      // (measure select) have more than one written measure to resolve.
+      NotationMeasure(
+        repeats: noRepeats,
+        index: 1,
+        clefs: const [],
+        keyFifths: keyFifths,
+        minWidth: 200,
+        directions: const [],
+        notes: [
+          for (var i = 0; i < 8; i++) hat(i * 2),
+          snareChord(4),
+          snareChord(12),
+          for (var beat = 0; beat < 4; beat++)
+            noteEvent(
+              positionDivisions: beat * 4,
+              voice: 2,
+              durationDivisions: 4,
+              noteType: 'quarter',
+              stem: StemDir.down,
+              unpitched: kick,
+              instrumentId: 'P1-I36',
+            ),
+        ],
+      ),
+    ],
+  );
+}
+
+/// A percussion measure where both voices strike the SAME written position at
+/// the same instant — a low floor tom (F4, voice 1) over the kick (F4,
+/// voice 2) — so the shared-onset offsetting rule is observable: without it
+/// one head hides the other completely.
+ScoreDocument samplePercussionSharedPositionDocument() => ScoreDocument(
+  instruments: const [
+    InstrumentDecl(id: 'P1-I36', name: 'Bass Drum 1', gmNumber: 36),
+    InstrumentDecl(id: 'P1-I41', name: 'Low Floor Tom', gmNumber: 41),
+  ],
+  playOrder: const [],
+  meta: const ScoreMeta(title: 'SharedOnset', composer: 'Tester'),
+  staves: 1,
+  attributes: const Attributes(
+    divisions: 4,
+    clefs: [Clef(staff: 1, sign: ClefSign.percussion, line: 2)],
+    keyFifths: 0,
+    time: TimeSignature(beats: 4, beatType: 4),
+  ),
+  measures: [
+    NotationMeasure(
+      repeats: noRepeats,
+      index: 0,
+      clefs: const [],
+      keyFifths: 0,
+      minWidth: 160,
+      directions: const [],
+      notes: [
+        noteEvent(
+          positionDivisions: 0,
+          durationDivisions: 4,
+          noteType: 'quarter',
+          unpitched: const Unpitched(
+            displayStep: 'F',
+            displayOctave: 4,
+            gmNumber: 41,
+            headClass: HeadClass.oval,
+          ),
+          instrumentId: 'P1-I41',
+        ),
+        noteEvent(
+          positionDivisions: 0,
+          voice: 2,
+          durationDivisions: 4,
+          noteType: 'quarter',
+          unpitched: const Unpitched(
+            displayStep: 'F',
+            displayOctave: 4,
+            gmNumber: 36,
+            headClass: HeadClass.oval,
+          ),
+          instrumentId: 'P1-I36',
+        ),
+      ],
+    ),
+  ],
+);
+
 ScoreDocument sampleGrandStaffDocument() => ScoreDocument(
+  instruments: const [],
   playOrder: const [],
   meta: const ScoreMeta(title: 'Sample', composer: 'Tester'),
   staves: 2,
   attributes: const Attributes(
     divisions: 4,
     clefs: [
-      Clef(staff: 1, sign: 'G', line: 2),
-      Clef(staff: 2, sign: 'F', line: 4),
+      Clef(staff: 1, sign: ClefSign.g, line: 2),
+      Clef(staff: 2, sign: ClefSign.f, line: 4),
     ],
     keyFifths: 3, // 3 sharps → shows the key signature (armature)
     time: TimeSignature(beats: 4, beatType: 4),
@@ -443,12 +779,13 @@ ScoreDocument sampleGrandStaffDocument() => ScoreDocument(
 /// 12000]` and `songEndMs` is 16000. Each measure holds one whole note, so every
 /// measure has an onset the Wait-Mode gate and the scorer can see.
 ScoreDocument sampleFourMeasureDocument() => ScoreDocument(
+  instruments: const [],
   playOrder: const [],
   meta: const ScoreMeta(title: 'FourBars', composer: 'Tester'),
   staves: 1,
   attributes: const Attributes(
     divisions: 4,
-    clefs: [Clef(staff: 1, sign: 'G', line: 2)],
+    clefs: [Clef(staff: 1, sign: ClefSign.g, line: 2)],
     keyFifths: 0,
     time: TimeSignature(beats: 4, beatType: 4),
   ),
@@ -489,6 +826,7 @@ ScoreDocument sampleFourMeasureDocument() => ScoreDocument(
 /// playOrder [0, 0, 1]) — the smallest repeat-carrying piece: unrolled tables
 /// have three 4000ms slots, the written-linear (practice) ones two.
 ScoreDocument sampleRepeatDocument() => ScoreDocument(
+  instruments: const [],
   playOrder: const [
     PlayedMeasure(writtenIndex: 0, pass: 1),
     PlayedMeasure(writtenIndex: 0, pass: 2),
@@ -498,7 +836,7 @@ ScoreDocument sampleRepeatDocument() => ScoreDocument(
   staves: 1,
   attributes: const Attributes(
     divisions: 4,
-    clefs: [Clef(staff: 1, sign: 'G', line: 2)],
+    clefs: [Clef(staff: 1, sign: ClefSign.g, line: 2)],
     keyFifths: 0,
     time: TimeSignature(beats: 4, beatType: 4),
   ),
@@ -548,12 +886,13 @@ ScoreDocument sampleRepeatDocument() => ScoreDocument(
 /// the practice ribbon genuinely scrollable (four bars fit without scrolling,
 /// which hid the auto-scroll bug).
 ScoreDocument sampleManyMeasureDocument({int bars = 24}) => ScoreDocument(
+  instruments: const [],
   playOrder: const [],
   meta: const ScoreMeta(title: 'ManyBars', composer: 'Tester'),
   staves: 1,
   attributes: const Attributes(
     divisions: 4,
-    clefs: [Clef(staff: 1, sign: 'G', line: 2)],
+    clefs: [Clef(staff: 1, sign: ClefSign.g, line: 2)],
     keyFifths: 0,
     time: TimeSignature(beats: 4, beatType: 4),
   ),

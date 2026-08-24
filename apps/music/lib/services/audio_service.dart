@@ -59,13 +59,31 @@ abstract class AudioService {
   /// voice does not hang.
   Future<void> loadSoundFont(String sf2Path);
 
+  /// Swaps the SoundFont like [loadSoundFont] but resolves only once the
+  /// outcome is known (change: add-drum-audio-channel): `true` when the
+  /// incoming font is installed and sounding, `false` when the swap failed and
+  /// the previous font was kept (or audio is unavailable). The player's
+  /// percussion-readiness gate awaits this so a drum score never sounds
+  /// through the still-loaded piano font. Non-throwing, like every entry here.
+  Future<bool> loadSoundFontAwaited(String sf2Path);
+
   /// Sounds a piano voice for [pitch] (7-bit MIDI) at [velocity].
   void noteOn(int pitch, {int velocity = defaultVelocity});
 
   /// Releases the voice for [pitch].
   void noteOff(int pitch);
 
-  /// Releases every sounding voice (stop / restart / seek / loop).
+  /// Sounds a percussion stroke for General MIDI [key] at [velocity] on the
+  /// drum channel, where the active kit font's bank-128 presets resolve
+  /// (change: add-drum-audio-channel). The melodic pair above is untouched.
+  void drumOn(int key, {int velocity = defaultVelocity});
+
+  /// Releases the drum voice for [key]. Kit voices mostly self-terminate; the
+  /// paired release keeps the engine's voice bookkeeping exact.
+  void drumOff(int key);
+
+  /// Releases every sounding voice on every channel — melodic and drum alike
+  /// (stop / restart / seek / loop).
   void allNotesOff();
 
   /// Sounds a one-shot metronome click, independent of the piano voices. When
@@ -163,6 +181,18 @@ class FrbAudioService implements AudioService {
   }
 
   @override
+  Future<bool> loadSoundFontAwaited(String sf2Path) async {
+    // Same guard as [loadSoundFont]; a known-dead audio session resolves false
+    // immediately — the honest "the kit is not sounding" answer.
+    if (_failed) return false;
+    try {
+      return await audio_api.audioLoadSoundfontAwaited(sf2Path: sf2Path);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  @override
   void noteOn(int pitch, {int velocity = AudioService.defaultVelocity}) {
     if (_failed) return;
     try {
@@ -175,6 +205,22 @@ class FrbAudioService implements AudioService {
     if (_failed) return;
     try {
       audio_api.noteOff(pitch: pitch);
+    } catch (_) {}
+  }
+
+  @override
+  void drumOn(int key, {int velocity = AudioService.defaultVelocity}) {
+    if (_failed) return;
+    try {
+      audio_api.drumOn(key: key, velocity: velocity);
+    } catch (_) {}
+  }
+
+  @override
+  void drumOff(int key) {
+    if (_failed) return;
+    try {
+      audio_api.drumOff(key: key);
     } catch (_) {}
   }
 

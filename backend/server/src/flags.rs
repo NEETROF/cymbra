@@ -213,6 +213,11 @@ impl cymbra_music::ScorePreviewConfigSource for FlagScorePreviewConfig {
                 &defaults.soundfont_id,
                 &ctx,
             ),
+            drum_soundfont_id: self.flags.string(
+                registry::CATALOG_PREVIEW_DRUM_SOUNDFONT_ID,
+                &defaults.drum_soundfont_id,
+                &ctx,
+            ),
         }
     }
 }
@@ -483,6 +488,30 @@ impl cymbra_feature_flags::PlanContextSource for PlanContext {
     }
 }
 
+/// The plans → flags campaign-existence bridge (change:
+/// add-flag-campaign-integrity), beside [`PlanContext`] — same seam, same
+/// direction, opposite error posture: unlike `plan_context`, this one
+/// PROPAGATES errors, because swallowing one would tell the operator a
+/// campaign does not exist when the truth is that nobody could ask.
+pub struct CampaignExistence {
+    campaigns: Arc<dyn cymbra_plans::CampaignRepo>,
+}
+
+impl CampaignExistence {
+    pub fn new(campaigns: Arc<dyn cymbra_plans::CampaignRepo>) -> Self {
+        Self { campaigns }
+    }
+}
+
+#[async_trait]
+impl cymbra_feature_flags::CampaignDirectory for CampaignExistence {
+    async fn campaign_exists(&self, key: &str) -> Result<bool> {
+        // `get_by_key` does not filter on `closed_at`: existence includes
+        // closed campaigns, which is exactly the contract.
+        Ok(self.campaigns.get_by_key(key).await?.is_some())
+    }
+}
+
 /// The plans → music bridge for withdrawal on lapse (design D13): rotating the
 /// user's offline cache secret makes every cached catalog score unreadable.
 pub struct OfflineSecretRotator {
@@ -636,6 +665,36 @@ mod tests {
     async fn unset_overrides_serve_the_env_baseline() {
         let src = FlagCatalogLimitsConfig::new(service(vec![]).await, base());
         assert_eq!(src.catalog_limits(), base());
+    }
+
+    fn string_override(key: &str, v: &str) -> StoredOverride {
+        StoredOverride {
+            value_type: cymbra_feature_flags::ValueType::String,
+            value: FlagValue::String(v.into()),
+            ..int_override(key, 0)
+        }
+    }
+
+    /// The two preview font keys are independent (change: add-drum-audio-channel):
+    /// each override lands on its own field, and both default empty (dormant).
+    #[tokio::test]
+    async fn score_preview_config_reads_both_font_keys() {
+        use cymbra_music::ScorePreviewConfigSource as _;
+        let src = FlagScorePreviewConfig::new(service(vec![]).await);
+        let cfg = src.score_preview_config();
+        assert!(cfg.soundfont_id.is_empty());
+        assert!(cfg.drum_soundfont_id.is_empty());
+
+        let src = FlagScorePreviewConfig::new(
+            service(vec![
+                string_override(registry::CATALOG_PREVIEW_SOUNDFONT_ID, "grand"),
+                string_override(registry::CATALOG_PREVIEW_DRUM_SOUNDFONT_ID, "kit"),
+            ])
+            .await,
+        );
+        let cfg = src.score_preview_config();
+        assert_eq!(cfg.soundfont_id, "grand");
+        assert_eq!(cfg.drum_soundfont_id, "kit");
     }
 
     /// Every knob is wired to its own key: a distinct override per key must land

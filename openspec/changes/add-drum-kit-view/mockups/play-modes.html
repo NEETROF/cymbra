@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Cymbra — batterie dans les 3 modes de jeu</title>
+<style>
+  :root{
+    --bg:#060E20; --surf:#131B2E; --surfHi:#1B2540; --ink:#DAE2FD; --line:#CCC3D8;
+    --hands:#7FB2FF; --feet:#FFB454; --accent:#44E2CD; --ok:#4EDEA3;
+    --primary:#D2BBFF; --primCont:#3B2A63; --muted:#8A93AD;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.55 -apple-system,BlinkMacSystemFont,"SF Pro Text",Inter,system-ui,sans-serif;
+    padding:36px 28px 80px}
+  h1{font-size:25px;font-weight:650;letter-spacing:-.02em;margin:0 0 4px}
+  .sub{color:var(--muted);margin:0 0 34px;font-size:13.5px;max-width:860px}
+  h2{font-size:17px;font-weight:600;margin:0 0 2px}
+  .cap{color:var(--muted);font-size:13px;margin:0 0 16px;max-width:900px}
+  section{margin-bottom:44px}
+  .phone{background:var(--surf);border:1px solid #26314f;border-radius:14px;
+    overflow:hidden;max-width:960px;box-shadow:0 8px 30px rgba(0,0,0,.35)}
+  .note{background:#0d1526;border-left:3px solid var(--accent);padding:11px 15px;
+    border-radius:0 8px 8px 0;margin-top:14px;font-size:13px;color:#b9c4e0;max-width:960px}
+  .note b{color:var(--accent);font-weight:600}
+  .legend{display:flex;gap:20px;flex-wrap:wrap;margin-top:12px;font-size:12px;color:var(--muted)}
+  .legend b{color:var(--ink);font-weight:550}
+  .sw{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+  svg{display:block;width:100%;height:auto}
+</style>
+</head>
+<body>
+
+<div style="background:#7a1f1f;color:#fff;border:3px solid #ffb454;border-radius:8px;padding:14px 18px;margin:0 0 20px;font-weight:700;font-size:15px;line-height:1.5">
+SUPERSEDED — the settled reference is <code style="color:#ffd9a0">cascade.html</code> and the delta spec; this file records an earlier iteration (kick as lane/pad instead of the full-width bar and pedal, non-settled lane order, and superseded notes about <code style="color:#ffd9a0">keyboard_range.dart</code>).
+</div>
+
+<h1>Batterie — les trois modes de jeu</h1>
+<p class="sub">Maquettes à la palette réelle de l'app. La barre du haut, le sélecteur de mode et la barre de transport sont <b>identiques à aujourd'hui</b> : seuls la zone de partition et le contrôleur du bas changent. Mains = bleu <code>handRight</code>, pieds = orange <code>handLeft</code> — le codage couleur existant se transpose sans rien inventer.</p>
+
+<!-- ══════════════ 1. SYNTHESIA ══════════════ -->
+<section>
+  <h2>① Synthesia — la cascade</h2>
+  <p class="cap">Une lane par pièce du kit au lieu d'une colonne par touche. Le clavier du bas devient une bande de pads, et la cascade s'aligne dessus exactement comme elle s'alignait sur les touches.</p>
+
+  <div class="phone">
+  <svg viewBox="0 0 960 560">
+    <rect width="960" height="560" fill="#131B2E"/>
+
+    <!-- ===== TOP BAR ===== -->
+    <rect x="0" y="0" width="960" height="48" fill="#1B2540"/>
+    <path d="M22 24 l9 -9 M22 24 l9 9 M22 24 h14" stroke="#DAE2FD" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <text x="56" y="29" fill="#DAE2FD" font-size="14" font-weight="600">Funk Groove n°3</text>
+    <!-- tempo chip -->
+    <rect x="600" y="12" width="96" height="24" rx="12" fill="#243050"/>
+    <text x="648" y="28" fill="#DAE2FD" font-size="11.5" text-anchor="middle">Tempo : 96</text>
+    <!-- midi chip -->
+    <rect x="706" y="12" width="86" height="24" rx="12" fill="#1E3A32"/>
+    <circle cx="720" cy="24" r="4" fill="#4EDEA3"/>
+    <text x="754" y="28" fill="#4EDEA3" font-size="11.5" text-anchor="middle">TD-17</text>
+    <circle cx="880" cy="24" r="2" fill="#CCC3D8"/><circle cx="880" cy="18" r="2" fill="#CCC3D8"/><circle cx="880" cy="30" r="2" fill="#CCC3D8"/>
+    <rect x="810" y="12" width="52" height="24" rx="12" fill="#243050"/>
+    <text x="836" y="28" fill="#CCC3D8" font-size="11.5" text-anchor="middle">⚙</text>
+
+    <!-- ===== MODE TOGGLE ===== -->
+    <g>
+      <rect x="286" y="58" width="128" height="28" rx="14" fill="#3B2A63" stroke="#D2BBFF" stroke-width="1"/>
+      <text x="350" y="76" fill="#D2BBFF" font-size="12" text-anchor="middle" font-weight="600">Synthesia</text>
+      <rect x="418" y="58" width="110" height="28" rx="14" fill="#1F2942"/>
+      <text x="473" y="76" fill="#8A93AD" font-size="12" text-anchor="middle">Portée</text>
+      <rect x="532" y="58" width="118" height="28" rx="14" fill="#1F2942"/>
+      <text x="591" y="76" fill="#8A93AD" font-size="12" text-anchor="middle">Partition</text>
+    </g>
+
+    <!-- ===== CASCADE ===== -->
+    <rect x="0" y="98" width="960" height="330" fill="#0d1526"/>
+    <!-- lanes -->
+    <g>
+      <rect x="60"  y="98" width="128" height="330" fill="#fff" opacity=".028"/>
+      <rect x="196" y="98" width="128" height="330" fill="#fff" opacity=".05"/>
+      <rect x="332" y="98" width="128" height="330" fill="#fff" opacity=".028"/>
+      <rect x="468" y="98" width="128" height="330" fill="#fff" opacity=".05"/>
+      <rect x="604" y="98" width="128" height="330" fill="#fff" opacity=".028"/>
+      <rect x="740" y="98" width="128" height="330" fill="#fff" opacity=".05"/>
+    </g>
+    <!-- séparateurs -->
+    <g stroke="#2a3category" opacity="0"></g>
+
+    <!-- notes qui tombent : GC(orange), toms/caisse(bleu), cymbales(violet) -->
+    <g fill="#FFB454">
+      <rect x="70" y="404" width="108" height="20" rx="6"/>
+      <rect x="70" y="316" width="108" height="20" rx="6" opacity=".9"/>
+      <rect x="70" y="228" width="108" height="20" rx="6" opacity=".72"/>
+      <rect x="70" y="184" width="108" height="20" rx="6" opacity=".6"/>
+      <rect x="70" y="118" width="108" height="20" rx="6" opacity=".45"/>
+    </g>
+    <g fill="#7FB2FF">
+      <rect x="342" y="360" width="108" height="20" rx="6"/>
+      <rect x="342" y="272" width="108" height="20" rx="6" opacity=".85"/>
+      <rect x="342" y="140" width="108" height="20" rx="6" opacity=".5"/>
+      <rect x="206" y="184" width="108" height="20" rx="6" opacity=".6"/>
+      <rect x="478" y="162" width="108" height="20" rx="6" opacity=".55"/>
+    </g>
+    <g fill="#D2BBFF">
+      <rect x="614" y="404" width="108" height="15" rx="6"/>
+      <rect x="614" y="360" width="108" height="15" rx="6" opacity=".92"/>
+      <rect x="614" y="316" width="108" height="15" rx="6" opacity=".84"/>
+      <rect x="614" y="272" width="108" height="15" rx="6" opacity=".76"/>
+      <rect x="614" y="228" width="108" height="15" rx="6" opacity=".66"/>
+      <rect x="614" y="184" width="108" height="15" rx="6" opacity=".56"/>
+      <rect x="614" y="140" width="108" height="15" rx="6" opacity=".46"/>
+      <rect x="750" y="404" width="108" height="15" rx="6" opacity=".95"/>
+    </g>
+    <!-- ligne de frappe -->
+    <rect x="0" y="426" width="960" height="3" fill="#44E2CD"/>
+    <rect x="0" y="429" width="960" height="14" fill="#44E2CD" opacity=".10"/>
+    <!-- impacts validés -->
+    <circle cx="124" cy="428" r="19" fill="#4EDEA3" opacity=".3"/>
+    <circle cx="668" cy="428" r="19" fill="#4EDEA3" opacity=".3"/>
+    <circle cx="804" cy="428" r="19" fill="#4EDEA3" opacity=".3"/>
+
+    <!-- ===== BANDE DE PADS (remplace le clavier) ===== -->
+    <rect x="0" y="443" width="960" height="72" fill="#151E33"/>
+    <g>
+      <rect x="64"  y="453" width="120" height="52" rx="9" fill="#FFB454" opacity=".85"/>
+      <text x="124" y="477" fill="#20160a" font-size="11.5" text-anchor="middle" font-weight="700">GROSSE</text>
+      <text x="124" y="491" fill="#20160a" font-size="11.5" text-anchor="middle" font-weight="700">CAISSE</text>
+
+      <rect x="200" y="453" width="120" height="52" rx="9" fill="#7FB2FF" opacity=".28" stroke="#7FB2FF"/>
+      <text x="260" y="477" fill="#7FB2FF" font-size="11.5" text-anchor="middle" font-weight="600">TOM</text>
+      <text x="260" y="491" fill="#7FB2FF" font-size="11.5" text-anchor="middle" font-weight="600">BASSE</text>
+
+      <rect x="336" y="453" width="120" height="52" rx="9" fill="#7FB2FF" opacity=".28" stroke="#7FB2FF"/>
+      <text x="396" y="477" fill="#7FB2FF" font-size="11.5" text-anchor="middle" font-weight="600">CAISSE</text>
+      <text x="396" y="491" fill="#7FB2FF" font-size="11.5" text-anchor="middle" font-weight="600">CLAIRE</text>
+
+      <rect x="472" y="453" width="120" height="52" rx="9" fill="#7FB2FF" opacity=".28" stroke="#7FB2FF"/>
+      <text x="532" y="477" fill="#7FB2FF" font-size="11.5" text-anchor="middle" font-weight="600">TOM</text>
+      <text x="532" y="491" fill="#7FB2FF" font-size="11.5" text-anchor="middle" font-weight="600">MÉDIUM</text>
+
+      <rect x="608" y="453" width="120" height="52" rx="9" fill="#D2BBFF" opacity=".85"/>
+      <text x="668" y="484" fill="#1a1030" font-size="11.5" text-anchor="middle" font-weight="700">CHARLEY</text>
+
+      <rect x="744" y="453" width="120" height="52" rx="9" fill="#D2BBFF" opacity=".85"/>
+      <text x="804" y="484" fill="#1a1030" font-size="11.5" text-anchor="middle" font-weight="700">CRASH</text>
+    </g>
+
+    <!-- ===== TRANSPORT ===== -->
+    <rect x="0" y="515" width="960" height="45" fill="#1B2540"/>
+    <circle cx="60" cy="537" r="15" fill="#44E2CD"/>
+    <rect x="55" y="531" width="4" height="12" fill="#0b1526"/><rect x="62" y="531" width="4" height="12" fill="#0b1526"/>
+    <text x="100" y="542" fill="#CCC3D8" font-size="12">↺</text>
+    <rect x="130" y="530" width="360" height="14" rx="7" fill="#243050"/>
+    <rect x="130" y="530" width="152" height="14" rx="7" fill="#44E2CD" opacity=".7"/>
+    <text x="512" y="542" fill="#8A93AD" font-size="11.5">0:24 / 1:38</text>
+    <rect x="600" y="526" width="92" height="22" rx="11" fill="#3B2A63" stroke="#D2BBFF" stroke-width="1"/>
+    <text x="646" y="541" fill="#D2BBFF" font-size="11" text-anchor="middle" font-weight="600">Attente ON</text>
+    <rect x="704" y="526" width="70" height="22" rx="11" fill="#243050"/>
+    <text x="739" y="541" fill="#CCC3D8" font-size="11" text-anchor="middle">100 %</text>
+    <rect x="786" y="526" width="104" height="22" rx="11" fill="#243050"/>
+    <text x="838" y="541" fill="#CCC3D8" font-size="11" text-anchor="middle">Mains + pieds</text>
+  </svg>
+  </div>
+
+  <div class="note"><b>Ce qui change vraiment :</b> <code>keyboard_range.dart</code> est contourné — le fichier reste, un score percussion ne le consulte simplement jamais. Plus de plage <code>21..108</code>, plus de préréglages 25/49/61/88, plus d'auto-fit par hauteur — un kit est un ensemble non ordonné de ~10 pièces. Le nouveau concept est un « layout de kit » dérivé des pièces <b>réellement présentes</b> dans le morceau : ici six lanes parce que le morceau n'utilise que six éléments.</div>
+</section>
+
+<!-- ══════════════ 2. PORTÉE ══════════════ -->
+<section>
+  <h2>② Portée — défilement horizontal</h2>
+  <p class="cap">Une seule portée en clé de percussion, deux voix. Le playhead reste au centre, la musique défile. L'aide à la lecture nomme la pièce du kit, plus jamais Do/Ré/Mi.</p>
+
+  <div class="phone">
+  <svg viewBox="0 0 960 560">
+    <rect width="960" height="560" fill="#131B2E"/>
+
+    <rect x="0" y="0" width="960" height="48" fill="#1B2540"/>
+    <path d="M22 24 l9 -9 M22 24 l9 9 M22 24 h14" stroke="#DAE2FD" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <text x="56" y="29" fill="#DAE2FD" font-size="14" font-weight="600">Funk Groove n°3</text>
+    <rect x="600" y="12" width="96" height="24" rx="12" fill="#243050"/>
+    <text x="648" y="28" fill="#DAE2FD" font-size="11.5" text-anchor="middle">Tempo : 96</text>
+    <rect x="706" y="12" width="86" height="24" rx="12" fill="#1E3A32"/>
+    <circle cx="720" cy="24" r="4" fill="#4EDEA3"/>
+    <text x="754" y="28" fill="#4EDEA3" font-size="11.5" text-anchor="middle">TD-17</text>
+
+    <g>
+      <rect x="286" y="58" width="128" height="28" rx="14" fill="#1F2942"/>
+      <text x="350" y="76" fill="#8A93AD" font-size="12" text-anchor="middle">Synthesia</text>
+      <rect x="418" y="58" width="110" height="28" rx="14" fill="#3B2A63" stroke="#D2BBFF" stroke-width="1"/>
+      <text x="473" y="76" fill="#D2BBFF" font-size="12" text-anchor="middle" font-weight="600">Portée</text>
+      <rect x="532" y="58" width="118" height="28" rx="14" fill="#1F2942"/>
+      <text x="591" y="76" fill="#8A93AD" font-size="12" text-anchor="middle">Partition</text>
+    </g>
+
+    <!-- zone portée -->
+    <rect x="0" y="98" width="960" height="330" fill="#0d1526"/>
+
+    <!-- portée 5 lignes, y 214..262 (esp.12) -->
+    <g stroke="#CCC3D8" stroke-width="1.1" opacity=".5">
+      <line x1="30" y1="214" x2="930" y2="214"/><line x1="30" y1="226" x2="930" y2="226"/>
+      <line x1="30" y1="238" x2="930" y2="238"/><line x1="30" y1="250" x2="930" y2="250"/>
+      <line x1="30" y1="262" x2="930" y2="262"/>
+    </g>
+    <!-- clé de percussion -->
+    <rect x="46" y="226" width="7" height="24" fill="#DAE2FD" rx="1"/>
+    <rect x="60" y="226" width="7" height="24" fill="#DAE2FD" rx="1"/>
+    <text x="88" y="238" fill="#DAE2FD" font-size="24" font-weight="600" text-anchor="middle" font-family="Georgia,serif">4</text>
+    <text x="88" y="262" fill="#DAE2FD" font-size="24" font-weight="600" text-anchor="middle" font-family="Georgia,serif">4</text>
+
+    <!-- barres de mesure -->
+    <g stroke="#CCC3D8" stroke-width="1.4" opacity=".7">
+      <line x1="120" y1="214" x2="120" y2="262"/>
+      <line x1="470" y1="214" x2="470" y2="262"/>
+      <line x1="820" y1="214" x2="820" y2="262"/>
+    </g>
+
+    <!-- === M1 : charley 8x + caisse 2&4 + GC === -->
+    <rect x="146" y="178" width="290" height="4.5" fill="#7FB2FF" rx="1"/>
+    <g stroke="#7FB2FF" stroke-width="1.7">
+      <line x1="147" y1="208" x2="147" y2="182"/><line x1="188" y1="208" x2="188" y2="182"/>
+      <line x1="229" y1="208" x2="229" y2="182"/><line x1="270" y1="208" x2="270" y2="182"/>
+      <line x1="311" y1="208" x2="311" y2="182"/><line x1="352" y1="208" x2="352" y2="182"/>
+      <line x1="393" y1="208" x2="393" y2="182"/><line x1="434" y1="208" x2="434" y2="182"/>
+    </g>
+    <g stroke="#7FB2FF" stroke-width="2.1" stroke-linecap="round">
+      <g><line x1="141" y1="202" x2="153" y2="214"/><line x1="141" y1="214" x2="153" y2="202"/></g>
+      <g><line x1="182" y1="202" x2="194" y2="214"/><line x1="182" y1="214" x2="194" y2="202"/></g>
+      <g><line x1="223" y1="202" x2="235" y2="214"/><line x1="223" y1="214" x2="235" y2="202"/></g>
+      <g><line x1="264" y1="202" x2="276" y2="214"/><line x1="264" y1="214" x2="276" y2="202"/></g>
+      <g><line x1="305" y1="202" x2="317" y2="214"/><line x1="305" y1="214" x2="317" y2="202"/></g>
+      <g><line x1="346" y1="202" x2="358" y2="214"/><line x1="346" y1="214" x2="358" y2="202"/></g>
+      <g><line x1="387" y1="202" x2="399" y2="214"/><line x1="387" y1="214" x2="399" y2="202"/></g>
+      <g><line x1="428" y1="202" x2="440" y2="214"/><line x1="428" y1="214" x2="440" y2="202"/></g>
+    </g>
+    <g stroke="#7FB2FF" stroke-width="1.7">
+      <line x1="229" y1="232" x2="229" y2="182"/><line x1="352" y1="232" x2="352" y2="182"/>
+    </g>
+    <ellipse cx="223" cy="232" rx="6.4" ry="4.7" fill="#7FB2FF" transform="rotate(-20 223 232)"/>
+    <ellipse cx="346" cy="232" rx="6.4" ry="4.7" fill="#7FB2FF" transform="rotate(-20 346 232)"/>
+    <g stroke="#FFB454" stroke-width="1.7">
+      <line x1="141" y1="256" x2="141" y2="296"/>
+      <line x1="305" y1="256" x2="305" y2="296"/><line x1="346" y1="256" x2="346" y2="296"/>
+    </g>
+    <rect x="305" y="292" width="42" height="4.5" fill="#FFB454" rx="1"/>
+    <ellipse cx="147" cy="256" rx="6.4" ry="4.7" fill="#FFB454" transform="rotate(-20 147 256)"/>
+    <ellipse cx="311" cy="256" rx="6.4" ry="4.7" fill="#FFB454" transform="rotate(-20 311 256)"/>
+    <ellipse cx="352" cy="256" rx="6.4" ry="4.7" fill="#FFB454" transform="rotate(-20 352 256)"/>
+
+    <!-- === M2 === -->
+    <rect x="496" y="178" width="290" height="4.5" fill="#7FB2FF" rx="1"/>
+    <g stroke="#7FB2FF" stroke-width="1.7">
+      <line x1="497" y1="208" x2="497" y2="182"/><line x1="538" y1="208" x2="538" y2="182"/>
+      <line x1="579" y1="208" x2="579" y2="182"/><line x1="620" y1="208" x2="620" y2="182"/>
+      <line x1="661" y1="208" x2="661" y2="182"/><line x1="702" y1="208" x2="702" y2="182"/>
+      <line x1="743" y1="208" x2="743" y2="182"/><line x1="784" y1="208" x2="784" y2="182"/>
+    </g>
+    <g stroke="#7FB2FF" stroke-width="2.1" stroke-linecap="round">
+      <g><line x1="491" y1="202" x2="503" y2="214"/><line x1="491" y1="214" x2="503" y2="202"/></g>
+      <g><line x1="532" y1="202" x2="544" y2="214"/><line x1="532" y1="214" x2="544" y2="202"/></g>
+      <g><line x1="573" y1="202" x2="585" y2="214"/><line x1="573" y1="214" x2="585" y2="202"/></g>
+      <g><line x1="614" y1="202" x2="626" y2="214"/><line x1="614" y1="214" x2="626" y2="202"/></g>
+      <g><line x1="655" y1="202" x2="667" y2="214"/><line x1="655" y1="214" x2="667" y2="202"/></g>
+      <g><line x1="696" y1="202" x2="708" y2="214"/><line x1="696" y1="214" x2="708" y2="202"/></g>
+      <g><line x1="737" y1="202" x2="749" y2="214"/><line x1="737" y1="214" x2="749" y2="202"/></g>
+      <g><line x1="778" y1="202" x2="790" y2="214"/><line x1="778" y1="214" x2="790" y2="202"/></g>
+    </g>
+    <g stroke="#7FB2FF" stroke-width="1.7">
+      <line x1="579" y1="232" x2="579" y2="182"/><line x1="702" y1="232" x2="702" y2="182"/>
+    </g>
+    <ellipse cx="573" cy="232" rx="6.4" ry="4.7" fill="#7FB2FF" transform="rotate(-20 573 232)"/>
+    <ellipse cx="696" cy="232" rx="6.4" ry="4.7" fill="#7FB2FF" transform="rotate(-20 696 232)"/>
+    <g stroke="#FFB454" stroke-width="1.7">
+      <line x1="491" y1="256" x2="491" y2="296"/><line x1="655" y1="256" x2="655" y2="296"/>
+    </g>
+    <ellipse cx="497" cy="256" rx="6.4" ry="4.7" fill="#FFB454" transform="rotate(-20 497 256)"/>
+    <ellipse cx="661" cy="256" rx="6.4" ry="4.7" fill="#FFB454" transform="rotate(-20 661 256)"/>
+
+    <!-- playhead au centre -->
+    <rect x="0" y="140" width="960" height="0" fill="none"/>
+    <line x1="480" y1="150" x2="480" y2="330" stroke="#44E2CD" stroke-width="2.5"/>
+    <circle cx="480" cy="150" r="5" fill="#44E2CD"/>
+
+    <!-- aide à la lecture (Wait Mode bloqué) -->
+    <rect x="360" y="346" width="240" height="46" rx="10" fill="#3B2A63" stroke="#D2BBFF" stroke-width="1"/>
+    <text x="480" y="366" fill="#D2BBFF" font-size="13" text-anchor="middle" font-weight="650">Caisse claire</text>
+    <text x="480" y="383" fill="#b9a8dd" font-size="11" text-anchor="middle">croche · main droite</text>
+
+    <!-- bande de pads compacte -->
+    <rect x="0" y="443" width="960" height="72" fill="#151E33"/>
+    <g>
+      <rect x="64"  y="459" width="120" height="40" rx="9" fill="#FFB454" opacity=".28" stroke="#FFB454"/>
+      <text x="124" y="484" fill="#FFB454" font-size="11" text-anchor="middle" font-weight="600">GROSSE C.</text>
+      <rect x="200" y="459" width="120" height="40" rx="9" fill="#7FB2FF" opacity=".28" stroke="#7FB2FF"/>
+      <text x="260" y="484" fill="#7FB2FF" font-size="11" text-anchor="middle" font-weight="600">TOM BASSE</text>
+      <rect x="336" y="459" width="120" height="40" rx="9" fill="#4EDEA3" opacity=".45" stroke="#4EDEA3" stroke-width="2"/>
+      <text x="396" y="484" fill="#eafff4" font-size="11" text-anchor="middle" font-weight="700">CAISSE CL.</text>
+      <rect x="472" y="459" width="120" height="40" rx="9" fill="#7FB2FF" opacity=".28" stroke="#7FB2FF"/>
+      <text x="532" y="484" fill="#7FB2FF" font-size="11" text-anchor="middle" font-weight="600">TOM MÉD.</text>
+      <rect x="608" y="459" width="120" height="40" rx="9" fill="#D2BBFF" opacity=".28" stroke="#D2BBFF"/>
+      <text x="668" y="484" fill="#D2BBFF" font-size="11" text-anchor="middle" font-weight="600">CHARLEY</text>
+      <rect x="744" y="459" width="120" height="40" rx="9" fill="#D2BBFF" opacity=".28" stroke="#D2BBFF"/>
+      <text x="804" y="484" fill="#D2BBFF" font-size="11" text-anchor="middle" font-weight="600">CRASH</text>
+    </g>
+
+    <rect x="0" y="515" width="960" height="45" fill="#1B2540"/>
+    <circle cx="60" cy="537" r="15" fill="#44E2CD"/>
+    <rect x="55" y="531" width="4" height="12" fill="#0b1526"/><rect x="62" y="531" width="4" height="12" fill="#0b1526"/>
+    <rect x="130" y="530" width="360" height="14" rx="7" fill="#243050"/>
+    <rect x="130" y="530" width="152" height="14" rx="7" fill="#44E2CD" opacity=".7"/>
+    <text x="512" y="542" fill="#8A93AD" font-size="11.5">0:24 / 1:38</text>
+    <rect x="600" y="526" width="92" height="22" rx="11" fill="#3B2A63" stroke="#D2BBFF" stroke-width="1"/>
+    <text x="646" y="541" fill="#D2BBFF" font-size="11" text-anchor="middle" font-weight="600">Attente ON</text>
+    <rect x="786" y="526" width="104" height="22" rx="11" fill="#243050"/>
+    <text x="838" y="541" fill="#CCC3D8" font-size="11" text-anchor="middle">Mains + pieds</text>
+  </svg>
+  </div>
+
+  <div class="note"><b>Le piège structurel :</b> tout est sur <b>une</b> portée en deux voix. Le filtre <code>Hand&nbsp;{left, right, both}</code>, aujourd'hui mappé sur <code>staff&nbsp;1/2</code>, doit passer par <code>voice</code> — sinon « masquer les pieds » ne masque rien. La puce du transport devient <b>Mains + pieds</b>, et la même bascule alimente <code>visibleNotes</code> et le filtre du gate Attente.</div>
+</section>
+
+<!-- ══════════════ 3. PARTITION ══════════════ -->
+<section>
+  <h2>③ Partition — la page gravée</h2>
+  <p class="cap">Systèmes empilés comme une vraie partition papier, curseur sur la mesure courante, systèmes joués estompés. Pas de bande de pads : la hauteur libérée va à la musique.</p>
+
+  <div class="phone">
+  <svg viewBox="0 0 960 560">
+    <rect width="960" height="560" fill="#131B2E"/>
+
+    <rect x="0" y="0" width="960" height="48" fill="#1B2540"/>
+    <path d="M22 24 l9 -9 M22 24 l9 9 M22 24 h14" stroke="#DAE2FD" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <text x="56" y="29" fill="#DAE2FD" font-size="14" font-weight="600">Funk Groove n°3</text>
+    <rect x="600" y="12" width="96" height="24" rx="12" fill="#243050"/>
+    <text x="648" y="28" fill="#DAE2FD" font-size="11.5" text-anchor="middle">Tempo : 96</text>
+    <rect x="706" y="12" width="86" height="24" rx="12" fill="#1E3A32"/>
+    <circle cx="720" cy="24" r="4" fill="#4EDEA3"/>
+    <text x="754" y="28" fill="#4EDEA3" font-size="11.5" text-anchor="middle">TD-17</text>
+
+    <g>
+      <rect x="286" y="58" width="128" height="28" rx="14" fill="#1F2942"/>
+      <text x="350" y="76" fill="#8A93AD" font-size="12" text-anchor="middle">Synthesia</text>
+      <rect x="418" y="58" width="110" height="28" rx="14" fill="#1F2942"/>
+      <text x="473" y="76" fill="#8A93AD" font-size="12" text-anchor="middle">Portée</text>
+      <rect x="532" y="58" width="118" height="28" rx="14" fill="#3B2A63" stroke="#D2BBFF" stroke-width="1"/>
+      <text x="591" y="76" fill="#D2BBFF" font-size="12" text-anchor="middle" font-weight="600">Partition</text>
+    </g>
+
+    <rect x="0" y="98" width="960" height="417" fill="#0d1526"/>
+    <text x="480" y="126" fill="#DAE2FD" font-size="15" text-anchor="middle" font-weight="600">Funk Groove n°3</text>
+    <text x="480" y="144" fill="#8A93AD" font-size="11">— trad. —</text>
+
+    <!-- SYSTEME 1 (joué, estompé) -->
+    <g opacity=".38">
+      <g stroke="#CCC3D8" stroke-width="1" opacity=".5">
+        <line x1="70" y1="182" x2="890" y2="182"/><line x1="70" y1="192" x2="890" y2="192"/>
+        <line x1="70" y1="202" x2="890" y2="202"/><line x1="70" y1="212" x2="890" y2="212"/>
+        <line x1="70" y1="222" x2="890" y2="222"/>
+      </g>
+      <rect x="82" y="192" width="6" height="20" fill="#DAE2FD" rx="1"/>
+      <rect x="93" y="192" width="6" height="20" fill="#DAE2FD" rx="1"/>
+      <g stroke="#CCC3D8" stroke-width="1.2" opacity=".7">
+        <line x1="70" y1="182" x2="70" y2="222"/><line x1="480" y1="182" x2="480" y2="222"/><line x1="890" y1="182" x2="890" y2="222"/>
+      </g>
+      <rect x="150" y="154" width="300" height="3.5" fill="#7FB2FF" rx="1"/>
+      <rect x="520" y="154" width="300" height="3.5" fill="#7FB2FF" rx="1"/>
+      <g stroke="#7FB2FF" stroke-width="1.4">
+        <line x1="151" y1="176" x2="151" y2="157"/><line x1="193" y1="176" x2="193" y2="157"/>
+        <line x1="235" y1="176" x2="235" y2="157"/><line x1="277" y1="176" x2="277" y2="157"/>
+        <line x1="319" y1="176" x2="319" y2="157"/><line x1="361" y1="176" x2="361" y2="157"/>
+        <line x1="403" y1="176" x2="403" y2="157"/><line x1="445" y1="176" x2="445" y2="157"/>
+        <line x1="521" y1="176" x2="521" y2="157"/><line x1="563" y1="176" x2="563" y2="157"/>
+        <line x1="605" y1="176" x2="605" y2="157"/><line x1="647" y1="176" x2="647" y2="157"/>
+        <line x1="689" y1="176" x2="689" y2="157"/><line x1="731" y1="176" x2="731" y2="157"/>
+        <line x1="773" y1="176" x2="773" y2="157"/><line x1="815" y1="176" x2="815" y2="157"/>
+      </g>
+      <g stroke="#7FB2FF" stroke-width="1.8" stroke-linecap="round">
+        <g><line x1="146" y1="171" x2="156" y2="181"/><line x1="146" y1="181" x2="156" y2="171"/></g>
+        <g><line x1="188" y1="171" x2="198" y2="181"/><line x1="188" y1="181" x2="198" y2="171"/></g>
+        <g><line x1="230" y1="171" x2="240" y2="181"/><line x1="230" y1="181" x2="240" y2="171"/></g>
+        <g><line x1="272" y1="171" x2="282" y2="181"/><line x1="272" y1="181" x2="282" y2="171"/></g>
+        <g><line x1="314" y1="171" x2="324" y2="181"/><line x1="314" y1="181" x2="324" y2="171"/></g>
+        <g><line x1="356" y1="171" x2="366" y2="181"/><line x1="356" y1="181" x2="366" y2="171"/></g>
+        <g><line x1="398" y1="171" x2="408" y2="181"/><line x1="398" y1="181" x2="408" y2="171"/></g>
+        <g><line x1="440" y1="171" x2="450" y2="181"/><line x1="440" y1="181" x2="450" y2="171"/></g>
+        <g><line x1="516" y1="171" x2="526" y2="181"/><line x1="516" y1="181" x2="526" y2="171"/></g>
+        <g><line x1="558" y1="171" x2="568" y2="181"/><line x1="558" y1="181" x2="568" y2="171"/></g>
+        <g><line x1="600" y1="171" x2="610" y2="181"/><line x1="600" y1="181" x2="610" y2="171"/></g>
+        <g><line x1="642" y1="171" x2="652" y2="181"/><line x1="642" y1="181" x2="652" y2="171"/></g>
+        <g><line x1="684" y1="171" x2="694" y2="181"/><line x1="684" y1="181" x2="694" y2="171"/></g>
+        <g><line x1="726" y1="171" x2="736" y2="181"/><line x1="726" y1="181" x2="736" y2="171"/></g>
+        <g><line x1="768" y1="171" x2="778" y2="181"/><line x1="768" y1="181" x2="778" y2="171"/></g>
+        <g><line x1="810" y1="171" x2="820" y2="181"/><line x1="810" y1="181" x2="820" y2="171"/></g>
+      </g>
+      <g stroke="#7FB2FF" stroke-width="1.4">
+        <line x1="235" y1="197" x2="235" y2="157"/><line x1="361" y1="197" x2="361" y2="157"/>
+        <line x1="605" y1="197" x2="605" y2="157"/><line x1="731" y1="197" x2="731" y2="157"/>
+      </g>
+      <ellipse cx="230" cy="197" rx="5.4" ry="4" fill="#7FB2FF" transform="rotate(-20 230 197)"/>
+      <ellipse cx="356" cy="197" rx="5.4" ry="4" fill="#7FB2FF" transform="rotate(-20 356 197)"/>
+      <ellipse cx="600" cy="197" rx="5.4" ry="4" fill="#7FB2FF" transform="rotate(-20 600 197)"/>
+      <ellipse cx="726" cy="197" rx="5.4" ry="4" fill="#7FB2FF" transform="rotate(-20 726 197)"/>
+      <g stroke="#FFB454" stroke-width="1.4">
+        <line x1="146" y1="217" x2="146" y2="250"/><line x1="314" y1="217" x2="314" y2="250"/>
+        <line x1="516" y1="217" x2="516" y2="250"/><line x1="684" y1="217" x2="684" y2="250"/>
+      </g>
+      <ellipse cx="151" cy="217" rx="5.4" ry="4" fill="#FFB454" transform="rotate(-20 151 217)"/>
+      <ellipse cx="319" cy="217" rx="5.4" ry="4" fill="#FFB454" transform="rotate(-20 319 217)"/>
+      <ellipse cx="521" cy="217" rx="5.4" ry="4" fill="#FFB454" transform="rotate(-20 521 217)"/>
+      <ellipse cx="689" cy="217" rx="5.4" ry="4" fill="#FFB454" transform="rotate(-20 689 217)"/>
+    </g>
+
+    <!-- SYSTEME 2 (courant) -->
+    <rect x="70" y="292" width="410" height="52" fill="#44E2CD" opacity=".07" rx="4"/>
+    <g stroke="#CCC3D8" stroke-width="1" opacity=".5">
+      <line x1="70" y1="300" x2="890" y2="300"/><line x1="70" y1="310" x2="890" y2="310"/>
+      <line x1="70" y1="320" x2="890" y2="320"/><line x1="70" y1="330" x2="890" y2="330"/>
+      <line x1="70" y1="340" x2="890" y2="340"/>
+    </g>
+    <rect x="82" y="310" width="6" height="20" fill="#DAE2FD" rx="1"/>
+    <rect x="93" y="310" width="6" height="20" fill="#DAE2FD" rx="1"/>
+    <g stroke="#CCC3D8" stroke-width="1.2" opacity=".7">
+      <line x1="70" y1="300" x2="70" y2="340"/><line x1="480" y1="300" x2="480" y2="340"/><line x1="890" y1="300" x2="890" y2="340"/>
+    </g>
+    <rect x="150" y="272" width="300" height="3.5" fill="#7FB2FF" rx="1"/>
+    <rect x="520" y="272" width="300" height="3.5" fill="#7FB2FF" rx="1"/>
+    <g stroke="#7FB2FF" stroke-width="1.4">
+      <line x1="151" y1="294" x2="151" y2="275"/><line x1="193" y1="294" x2="193" y2="275"/>
+      <line x1="235" y1="294" x2="235" y2="275"/><line x1="277" y1="294" x2="277" y2="275"/>
+      <line x1="319" y1="294" x2="319" y2="275"/><line x1="361" y1="294" x2="361" y2="275"/>
+      <line x1="403" y1="294" x2="403" y2="275"/><line x1="445" y1="294" x2="445" y2="275"/>
+      <line x1="521" y1="294" x2="521" y2="275"/><line x1="563" y1="294" x2="563" y2="275"/>
+      <line x1="605" y1="294" x2="605" y2="275"/><line x1="647" y1="294" x2="647" y2="275"/>
+      <line x1="689" y1="294" x2="689" y2="275"/><line x1="731" y1="294" x2="731" y2="275"/>
+      <line x1="773" y1="294" x2="773" y2="275"/><line x1="815" y1="294" x2="815" y2="275"/>
+    </g>
+    <g stroke="#7FB2FF" stroke-width="1.8" stroke-linecap="round">
+      <g><line x1="146" y1="289" x2="156" y2="299"/><line x1="146" y1="299" x2="156" y2="289"/></g>
+      <g><line x1="188" y1="289" x2="198" y2="299"/><line x1="188" y1="299" x2="198" y2="289"/></g>
+      <g><line x1="230" y1="289" x2="240" y2="299"/><line x1="230" y1="299" x2="240" y2="289"/></g>
+      <g><line x1="272" y1="289" x2="282" y2="299"/><line x1="272" y1="299" x2="282" y2="289"/></g>
+      <g><line x1="314" y1="289" x2="324" y2="299"/><line x1="314" y1="299" x2="324" y2="289"/></g>
+      <g><line x1="356" y1="289" x2="366" y2="299"/><line x1="356" y1="299" x2="366" y2="289"/></g>
+      <g><line x1="398" y1="289" x2="408" y2="299"/><line x1="398" y1="299" x2="408" y2="289"/></g>
+      <g><line x1="440" y1="289" x2="450" y2="299"/><line x1="440" y1="299" x2="450" y2="289"/></g>
+      <g opacity=".55"><line x1="516" y1="289" x2="526" y2="299"/><line x1="516" y1="299" x2="526" y2="289"/></g>
+      <g opacity=".55"><line x1="558" y1="289" x2="568" y2="299"/><line x1="558" y1="299" x2="568" y2="289"/></g>
+      <g opacity=".55"><line x1="600" y1="289" x2="610" y2="299"/><line x1="600" y1="299" x2="610" y2="289"/></g>
+      <g opacity=".55"><line x1="642" y1="289" x2="652" y2="299"/><line x1="642" y1="299" x2="652" y2="289"/></g>
+      <g opacity=".55"><line x1="684" y1="289" x2="694" y2="299"/><line x1="684" y1="299" x2="694" y2="289"/></g>
+      <g opacity=".55"><line x1="726" y1="289" x2="736" y2="299"/><line x1="726" y1="299" x2="736" y2="289"/></g>
+      <g opacity=".55"><line x1="768" y1="289" x2="778" y2="299"/><line x1="768" y1="299" x2="778" y2="289"/></g>
+      <g opacity=".55"><line x1="810" y1="289" x2="820" y2="299"/><line x1="810" y1="299" x2="820" y2="289"/></g>
+    </g>
+    <g stroke="#7FB2FF" stroke-width="1.4">
+      <line x1="235" y1="315" x2="235" y2="275"/><line x1="361" y1="315" x2="361" y2="275"/>
+      <line x1="605" y1="315" x2="605" y2="275" opacity=".55"/><line x1="731" y1="315" x2="731" y2="275" opacity=".55"/>
+    </g>
+    <ellipse cx="230" cy="315" rx="5.4" ry="4" fill="#7FB2FF" transform="rotate(-20 230 315)"/>
+    <ellipse cx="356" cy="315" rx="5.4" ry="4" fill="#4EDEA3" transform="rotate(-20 356 315)"/>
+    <ellipse cx="600" cy="315" rx="5.4" ry="4" fill="#7FB2FF" opacity=".55" transform="rotate(-20 600 315)"/>
+    <ellipse cx="726" cy="315" rx="5.4" ry="4" fill="#7FB2FF" opacity=".55" transform="rotate(-20 726 315)"/>
+    <g stroke="#FFB454" stroke-width="1.4">
+      <line x1="146" y1="335" x2="146" y2="368"/><line x1="314" y1="335" x2="314" y2="368"/>
+      <line x1="516" y1="335" x2="516" y2="368" opacity=".55"/><line x1="684" y1="335" x2="684" y2="368" opacity=".55"/>
+    </g>
+    <ellipse cx="151" cy="335" rx="5.4" ry="4" fill="#FFB454" transform="rotate(-20 151 335)"/>
+    <ellipse cx="319" cy="335" rx="5.4" ry="4" fill="#FFB454" transform="rotate(-20 319 335)"/>
+    <ellipse cx="521" cy="335" rx="5.4" ry="4" fill="#FFB454" opacity=".55" transform="rotate(-20 521 335)"/>
+    <ellipse cx="689" cy="335" rx="5.4" ry="4" fill="#FFB454" opacity=".55" transform="rotate(-20 689 335)"/>
+
+    <!-- curseur -->
+    <line x1="361" y1="266" x2="361" y2="374" stroke="#44E2CD" stroke-width="2.5"/>
+    <circle cx="361" cy="266" r="5" fill="#44E2CD"/>
+
+    <!-- SYSTEME 3 (à venir, léger) -->
+    <g opacity=".55">
+      <g stroke="#CCC3D8" stroke-width="1" opacity=".4">
+        <line x1="70" y1="418" x2="890" y2="418"/><line x1="70" y1="428" x2="890" y2="428"/>
+        <line x1="70" y1="438" x2="890" y2="438"/><line x1="70" y1="448" x2="890" y2="448"/>
+        <line x1="70" y1="458" x2="890" y2="458"/>
+      </g>
+      <rect x="82" y="428" width="6" height="20" fill="#DAE2FD" rx="1" opacity=".7"/>
+      <rect x="93" y="428" width="6" height="20" fill="#DAE2FD" rx="1" opacity=".7"/>
+      <g stroke="#CCC3D8" stroke-width="1.2" opacity=".6">
+        <line x1="70" y1="418" x2="70" y2="458"/><line x1="480" y1="418" x2="480" y2="458"/><line x1="890" y1="418" x2="890" y2="458"/>
+      </g>
+      <!-- roulement de toms -->
+      <rect x="150" y="390" width="300" height="3.5" fill="#7FB2FF" rx="1"/>
+      <g stroke="#7FB2FF" stroke-width="1.4">
+        <line x1="151" y1="428" x2="151" y2="393"/><line x1="172" y1="428" x2="172" y2="393"/>
+        <line x1="193" y1="433" x2="193" y2="393"/><line x1="214" y1="433" x2="214" y2="393"/>
+        <line x1="235" y1="438" x2="235" y2="393"/><line x1="256" y1="438" x2="256" y2="393"/>
+        <line x1="277" y1="443" x2="277" y2="393"/><line x1="298" y1="443" x2="298" y2="393"/>
+      </g>
+      <rect x="150" y="397" width="150" height="2.5" fill="#7FB2FF" rx="1"/>
+      <ellipse cx="146" cy="428" rx="5.4" ry="4" fill="#7FB2FF" transform="rotate(-20 146 428)"/>
+      <ellipse cx="167" cy="428" rx="5.4" ry="4" fill="#7FB2FF" transform="rotate(-20 167 428)"/>
+      <ellipse cx="188" cy="433" rx="5.4" ry="4" fill="#7FB2FF" transform="rotate(-20 188 433)"/>
+      <ellipse cx="209" cy="433" rx="5.4" ry="4" fill="#7FB2FF" transform="rotate(-20 209 433)"/>
+      <ellipse cx="230" cy="438" rx="5.4" ry="4" fill="#7FB2FF" transform="rotate(-20 230 438)"/>
+      <ellipse cx="251" cy="438" rx="5.4" ry="4" fill="#7FB2FF" transform="rotate(-20 251 438)"/>
+      <ellipse cx="272" cy="443" rx="5.4" ry="4" fill="#7FB2FF" transform="rotate(-20 272 443)"/>
+      <ellipse cx="293" cy="443" rx="5.4" ry="4" fill="#7FB2FF" transform="rotate(-20 293 443)"/>
+      <!-- crash final + GC -->
+      <line x1="330" y1="408" x2="352" y2="408" stroke="#CCC3D8" stroke-width="1" opacity=".4"/>
+      <g stroke="#7FB2FF" stroke-width="1.8" stroke-linecap="round">
+        <line x1="336" y1="403" x2="346" y2="413"/><line x1="336" y1="413" x2="346" y2="403"/>
+      </g>
+      <line x1="346" y1="408" x2="346" y2="393" stroke="#7FB2FF" stroke-width="1.4"/>
+      <g stroke="#FFB454" stroke-width="1.4"><line x1="336" y1="453" x2="336" y2="486"/></g>
+      <ellipse cx="341" cy="453" rx="5.4" ry="4" fill="#FFB454" transform="rotate(-20 341 453)"/>
+    </g>
+
+    <rect x="0" y="515" width="960" height="45" fill="#1B2540"/>
+    <circle cx="60" cy="537" r="15" fill="#44E2CD"/>
+    <rect x="55" y="531" width="4" height="12" fill="#0b1526"/><rect x="62" y="531" width="4" height="12" fill="#0b1526"/>
+    <rect x="130" y="530" width="360" height="14" rx="7" fill="#243050"/>
+    <rect x="130" y="530" width="152" height="14" rx="7" fill="#44E2CD" opacity=".7"/>
+    <text x="512" y="542" fill="#8A93AD" font-size="11.5">0:24 / 1:38</text>
+    <rect x="600" y="526" width="92" height="22" rx="11" fill="#3B2A63" stroke="#D2BBFF" stroke-width="1"/>
+    <text x="646" y="541" fill="#D2BBFF" font-size="11" text-anchor="middle" font-weight="600">Attente ON</text>
+    <rect x="786" y="526" width="104" height="22" rx="11" fill="#243050"/>
+    <text x="838" y="541" fill="#CCC3D8" font-size="11" text-anchor="middle">Mains + pieds</text>
+  </svg>
+  </div>
+
+  <div class="legend">
+    <span><i class="sw" style="background:#7FB2FF"></i><b>Voix 1 — mains</b> (hampes ↑)</span>
+    <span><i class="sw" style="background:#FFB454"></i><b>Voix 2 — pieds</b> (hampes ↓)</span>
+    <span><i class="sw" style="background:#4EDEA3"></i><b>Frappe validée</b></span>
+    <span><i class="sw" style="background:#44E2CD"></i><b>Curseur</b></span>
+  </div>
+
+  <div class="note"><b>Le 3ᵉ système montre un roulement de toms</b> — c'est là que le scoring casse : <code>freeBindMs&nbsp;=&nbsp;160</code> fusionnerait ces doubles-croches en une seule frappe. À traiter dans <code>add-drum-scoring</code>, pas dans le rendu.</div>
+</section>
+
+<p class="sub">Visible uniquement pour <b>admin</b>, <b>modérateur</b> et les membres de la campagne bêta <code>midi-drums</code> — via <code>rollout_scope = beta:midi-drums</code>, enforcé côté serveur.</p>
+
+</body>
+</html>

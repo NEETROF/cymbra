@@ -17,11 +17,16 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/services/catalog_service.dart';
+import 'package:music/services/preferences_service.dart';
 import 'package:music/services/score_upload_service.dart';
 import 'package:music/state/catalog_search_notifier.dart';
 import 'package:music/state/contributed_scores.dart';
+import 'package:music/state/drums_access.dart';
+import 'package:music/state/instrument_context.dart';
 import 'package:music/state/score_catalog.dart';
 import 'package:music/state/session_notifier.dart';
+
+import '../support/prefs_fakes.dart';
 
 /// In-memory [CatalogService] mirroring the backend's substring/filter search.
 class _FakeCatalog implements CatalogService {
@@ -37,7 +42,8 @@ class _FakeCatalog implements CatalogService {
   final List<String> saveCalls = [];
   final List<String> removeCalls = [];
   // Records the last call's facet arguments (for assertions).
-  bool? lastIsPiano;
+  ScoreInstrument? lastInstrument;
+  bool instrumentEverSet = false;
   int? lastMaxNoteValue;
 
   @override
@@ -49,7 +55,8 @@ class _FakeCatalog implements CatalogService {
     int limit = 20,
     int offset = 0,
   }) async {
-    lastIsPiano = filters.isPiano;
+    lastInstrument = filters.instrument;
+    instrumentEverSet = instrumentEverSet || filters.instrument != null;
     lastMaxNoteValue = filters.maxNoteValue;
     final q = query.toLowerCase();
     final a = author?.toLowerCase();
@@ -99,6 +106,7 @@ class _FakeCatalog implements CatalogService {
   Future<CatalogSearchPage> ratingDeck({
     int limit = 20,
     int offset = 0,
+    ScoreInstrument? instrument,
   }) async => const CatalogSearchPage(hits: [], nextOffset: 0, total: 0);
 }
 
@@ -159,17 +167,22 @@ List<CatalogHit> _corpus() => [
   _hit('c3', 'Prelude', 'Claude Debussy', PracticeLevel.advanced),
 ];
 
-ContributedScore _upload(String id, String title, String composer) =>
-    ContributedScore(
-      id: id,
-      level: PracticeLevel.beginner,
-      createdAt: DateTime.utc(2026, 5, 1),
-      measureCount: 4,
-      timeSig: '4/4',
-      keyFifths: 0,
-      title: title,
-      composer: composer,
-    );
+ContributedScore _upload(
+  String id,
+  String title,
+  String composer, {
+  ScoreInstrument? instrument,
+}) => ContributedScore(
+  id: id,
+  level: PracticeLevel.beginner,
+  createdAt: DateTime.utc(2026, 5, 1),
+  measureCount: 4,
+  timeSig: '4/4',
+  keyFifths: 0,
+  title: title,
+  composer: composer,
+  instrument: instrument,
+);
 
 ProviderContainer _container(
   _FakeCatalog catalog, {
@@ -261,6 +274,38 @@ void main() {
     expect(_ids(s2), ['u1']);
   });
 
+  test('the instrument filter narrows the user uploads too', () async {
+    // The defect: the uploads are filtered in the CLIENT (they are not part of
+    // the catalog query), and the instrument had no local twin — so picking
+    // "drums" kept a piano upload at the top of the list, which reads as a
+    // broken filter rather than as two sources.
+    final c = _container(
+      _FakeCatalog(_corpus()),
+      uploads: [
+        _upload(
+          'u1',
+          'My Groove',
+          'Me',
+          instrument: ScoreInstrument.percussion,
+        ),
+        _upload('u2', 'My Waltz', 'Me', instrument: ScoreInstrument.keyboard),
+        _upload('u3', 'Unknown', 'Me'),
+      ],
+    );
+    await _settled(c);
+    final notifier = c.read(catalogSearchProvider.notifier)
+      ..setMyScoresOnly(true)
+      ..setInstrument(ScoreInstrument.percussion);
+    expect(_ids(await _settled(c)), ['u1']);
+
+    notifier.setInstrument(ScoreInstrument.keyboard);
+    expect(_ids(await _settled(c)), ['u2']);
+
+    // No filter: everything comes back, unrecorded instrument included.
+    notifier.setInstrument(null);
+    expect(_ids(await _settled(c)), ['u1', 'u2', 'u3']);
+  });
+
   test('a new upload refreshes the hub without a manual reload', () async {
     // Mutable uploads list shared with the fake service; invalidating the
     // uploads provider (as the upload flow does) must re-run the search.
@@ -292,13 +337,15 @@ void main() {
   });
 
   test(
-    'catalog search pins is_piano and applies advanced facet filters',
+    'catalog search is NOT pinned to an instrument and applies facet filters',
     () async {
       final catalog = _FakeCatalog(_corpus());
       final c = _container(catalog);
       await _settled(c);
-      // The production catalog call always constrains to piano.
-      expect(catalog.lastIsPiano, isTrue);
+      // No instrument constraint of the hub's own (change: add-drums-access):
+      // the backend already withholds what the caller may not see.
+      expect(catalog.instrumentEverSet, isFalse);
+      expect(catalog.lastInstrument, isNull);
 
       // Applying a rhythmic-granularity filter re-queries with it.
       c.read(catalogSearchProvider.notifier).setMaxNoteValue(8);
@@ -314,4 +361,119 @@ void main() {
       expect(s2.entries, isNotEmpty);
     },
   );
+
+  test('the instrument filter maps into the catalog request', () async {
+    final catalog = _FakeCatalog(_corpus());
+    final c = _container(catalog);
+    await _settled(c);
+
+    c
+        .read(catalogSearchProvider.notifier)
+        .setInstrument(ScoreInstrument.percussion);
+    await _settled(c);
+    expect(catalog.lastInstrument, ScoreInstrument.percussion);
+    expect(c.read(catalogSearchProvider).hasAdvancedFilters, isTrue);
+
+    // Back to "any": the constraint is dropped, not sent as keyboard.
+    c.read(catalogSearchProvider.notifier).setInstrument(null);
+    await _settled(c);
+    expect(catalog.lastInstrument, isNull);
+
+    // Reset-all clears it too.
+    c
+        .read(catalogSearchProvider.notifier)
+        .setInstrument(ScoreInstrument.keyboard);
+    await _settled(c);
+    expect(catalog.lastInstrument, ScoreInstrument.keyboard);
+    c.read(catalogSearchProvider.notifier).clearAdvancedFilters();
+    await _settled(c);
+    expect(catalog.lastInstrument, isNull);
+    expect(c.read(catalogSearchProvider).hasAdvancedFilters, isFalse);
+  });
+
+  group('instrument-context seeding (change: add-instrument-context)', () {
+    // A container where the context apparatus is live: drums visible, a real
+    // context notifier over an in-memory store. The context is primed BEFORE
+    // the hub notifier first builds — modelling a stored choice.
+    ProviderContainer contextContainer(
+      _FakeCatalog catalog, {
+      AppInstrument context = AppInstrument.keyboard,
+    }) {
+      final c = ProviderContainer(
+        overrides: [
+          catalogServiceProvider.overrideWithValue(catalog),
+          scoreUploadServiceProvider.overrideWithValue(_FakeUpload(const [])),
+          canUseOnlineServicesProvider.overrideWithValue(true),
+          preferencesServiceProvider.overrideWithValue(
+            FakePreferencesService(),
+          ),
+          drumsEnabledProvider.overrideWithValue(true),
+        ],
+      );
+      addTearDown(c.dispose);
+      if (context != AppInstrument.keyboard) {
+        c.read(instrumentContextProvider.notifier).select(context);
+      }
+      final sub = c.listen(catalogSearchProvider, (_, _) {});
+      addTearDown(sub.close);
+      return c;
+    }
+
+    test('the drums context seeds the percussion filter', () async {
+      final catalog = _FakeCatalog(_corpus());
+      final c = contextContainer(catalog, context: AppInstrument.drums);
+      expect(
+        c.read(catalogSearchProvider).instrument,
+        ScoreInstrument.percussion,
+      );
+      await _settled(c);
+      expect(catalog.lastInstrument, ScoreInstrument.percussion);
+    });
+
+    test('the keyboard context seeds the unconstrained browse', () async {
+      final catalog = _FakeCatalog(_corpus());
+      final c = contextContainer(catalog);
+      expect(c.read(catalogSearchProvider).instrument, isNull);
+      await _settled(c);
+      expect(catalog.instrumentEverSet, isFalse);
+    });
+
+    test('adjusting the filter never writes back into the context', () async {
+      final c = contextContainer(
+        _FakeCatalog(_corpus()),
+        context: AppInstrument.drums,
+      );
+      await _settled(c);
+      // The drummer browses the whole catalog for a change…
+      c.read(catalogSearchProvider.notifier).setInstrument(null);
+      await _settled(c);
+      expect(c.read(catalogSearchProvider).instrument, isNull);
+      // …and the durable context is untouched: the filter is session state.
+      expect(c.read(instrumentContextProvider).context, AppInstrument.drums);
+    });
+
+    test('an explicit context switch re-seeds, overriding an adjusted '
+        'filter — in both directions', () async {
+      final catalog = _FakeCatalog(_corpus());
+      final c = contextContainer(catalog);
+      await _settled(c);
+      // The user adjusted the filter by hand…
+      c
+          .read(catalogSearchProvider.notifier)
+          .setInstrument(ScoreInstrument.keyboard);
+      await _settled(c);
+
+      // …then switches context: the durable act outranks the session state.
+      c.read(instrumentContextProvider.notifier).select(AppInstrument.drums);
+      final s = await _settled(c);
+      expect(s.instrument, ScoreInstrument.percussion);
+      expect(catalog.lastInstrument, ScoreInstrument.percussion);
+
+      // And back: keyboard's starting value is the unconstrained browse.
+      c.read(instrumentContextProvider.notifier).select(AppInstrument.keyboard);
+      final s2 = await _settled(c);
+      expect(s2.instrument, isNull);
+      expect(catalog.lastInstrument, isNull);
+    });
+  });
 }

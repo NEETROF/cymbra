@@ -124,7 +124,7 @@ void main() {
 
   testWidgets('all three render modes are offered', (tester) async {
     final container = await _pumpPlayer(tester);
-    expect(find.text('Synthesia'), findsOneWidget);
+    expect(find.text('Cascade'), findsOneWidget);
     expect(find.text('Staff'), findsOneWidget);
     expect(find.text('Partition'), findsOneWidget);
     await _teardown(tester, container);
@@ -214,7 +214,7 @@ void main() {
       await _teardown(tester, container);
     });
 
-    testWidgets('Staff and Synthesia exclude the unselected hand', (
+    testWidgets('Staff and Cascade exclude the unselected hand', (
       tester,
     ) async {
       final container = await _pumpPlayer(tester);

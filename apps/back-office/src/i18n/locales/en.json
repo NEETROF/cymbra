@@ -132,7 +132,8 @@
     "priceNoSampleHint": "This font has no sample yet: once it costs points, the app locks it and greys its play control until you generate one.",
     "instrument": "Instrument",
     "instr": {
-      "piano": "Piano"
+      "keyboard": "Keyboard",
+      "percussion": "Drum kit"
     },
     "licenseDesc": {
       "cc0": "CC0 1.0 — Public domain: no attribution required, free to reuse for any purpose.",
@@ -149,6 +150,7 @@
     "generateSampleHint": "Render the short preview clip users hear when auditioning this font in the app.",
     "sampleGenerated": "Sample generated.",
     "previewRequired": "Generate a preview sample before accepting this font.",
+    "familyMismatch": "This file doesn’t match the declared family “{family}” — it holds no presets for that family.",
     "empty": "No SoundFonts yet.",
     "confirmRemove": "Remove this SoundFont? Its catalog row and stored file are both deleted.",
     "statusCol": "Status",
@@ -240,6 +242,11 @@
     "noAudit": "No changes yet.",
     "premiumOnly": "Premium only",
     "beta": "beta: {name}",
+    "betaClosed": "beta: {name} (closed)",
+    "betaDangling": "{scope} — names no existing campaign",
+    "scopeDanglingHint": "This scope names no existing campaign, so the flag currently reaches staff only. Pick an open campaign or another scope.",
+    "scopeNoCampaign": "The selected beta scope names no existing campaign — fix the scope, then save again.",
+    "scopeUnverifiable": "The campaign directory can’t be reached, so the scope couldn’t be checked. Nothing was saved — try again later.",
     "planTag": "plan",
     "betaTag": "beta",
     "staffTag": "staff"
@@ -295,12 +302,17 @@
     "download": "Download MusicXML",
     "downloading": "Downloading…",
     "resubmitted": "Re-submitted",
-    "resubmittedHint": "Re-proposed after a rejection — {note}"
+    "resubmittedHint": "Re-proposed after a rejection — {note}",
+    "percussion": "Drums",
+    "percussionHint": "Percussion score — its audio audition is not available in the console yet."
   },
   "filters": {
     "query": "title or composer",
     "composer": "composer",
-    "pianoOnly": "piano only",
+    "instrumentLabel": "instrument",
+    "instrumentAny": "All instruments",
+    "instrumentKeyboard": "Keyboard",
+    "instrumentPercussion": "Drums",
     "searchLabel": "search",
     "composerLabel": "composer",
     "levelLabel": "level",
@@ -354,6 +366,7 @@
     "loading": "Loading score…",
     "rendering": "Rendering notation…",
     "renderError": "Notation could not be rendered.",
+    "noDrumKit": "No drum kit available — the catalog holds no accepted percussion SoundFont yet.",
     "noBytes": "No score bytes.",
     "play": "▶ Play",
     "pause": "⏸ Pause",
@@ -508,7 +521,11 @@
     "generic": "Something went wrong. Try again.",
     "soundfontExists": "This SoundFont already exists (same id, or an identical file is already in the catalog).",
     "soundfontInvalid": "That file isn't a valid SoundFont (.sf2).",
-    "soundfontTooLarge": "That SoundFont file is too large."
+    "soundfontTooLarge": "That SoundFont file is too large.",
+    "previewDrumFontMissing": "No drum sound is configured for previews: pick an accepted percussion SoundFont in the catalog.preview.drum_soundfont_id flag.",
+    "previewFontMissing": "No sound is configured for previews: set the catalog.preview.soundfont_id flag.",
+    "previewFontUnusable": "The SoundFont configured for previews is unusable (missing, not accepted, or the wrong family).",
+    "previewSilent": "This piece sounds nothing within the preview's length — there is nothing to render."
   },
   "id": {
     "reveal": "Show full ID",

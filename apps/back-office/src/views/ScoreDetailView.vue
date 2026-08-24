@@ -57,10 +57,34 @@ const bytesVm = computed(() =>
 // the bytes Async; failures degrade to a placeholder inside the preview.
 const scoreBytes = computed(() => bytesVm.value.bytes);
 const { notation } = useScoreRenderer(scoreBytes);
-// Preview instrument sound: default piano, or a catalog font the moderator picks.
-const { fonts, selectedId, sf2Bytes, loading: soundLoading, error: soundError } = useSoundFontChoice();
+// The score's instrument family (change: add-drum-audio-channel — the old Play
+// guard is lifted: `audio-wasm` now resolves the drum channel from the document
+// itself, so a percussion row auditions with a kit font). The recorded instrument
+// answers immediately; the render result's `percussion` flag covers a drum score
+// still recorded `unknown`.
+const isPercussion = computed(
+  () =>
+    hitVm.value.hit?.instrument === "percussion" ||
+    (notation.value.status === "success" && notation.value.data.percussion),
+);
+const scoreFamily = computed<"keyboard" | "percussion">(() => (isPercussion.value ? "percussion" : "keyboard"));
+// Preview instrument sound, filtered to the score's family: the default piano or a
+// picked keyboard font, the picked kit (first accepted one by default) for drums.
+const {
+  fonts,
+  selectedId,
+  sf2Bytes,
+  loading: soundLoading,
+  error: soundError,
+  familyEmpty: noKitFont,
+} = useSoundFontChoice(scoreFamily);
+// A percussion score's bytes reach the player only once the kit's bytes are in
+// hand: null `sf2Bytes` means "fall back to the default piano" in useScorePlayer,
+// which must never answer for a drum score — with no kit (or while it downloads)
+// there is no schedule, so Play stays disabled instead of sounding a piano.
+const playerBytes = computed(() => (isPercussion.value && sf2Bytes.value == null ? null : scoreBytes.value));
 // Audio playback + playhead clock (Play/Pause only), reusing the app's synth/schedule.
-const player = useScorePlayer(scoreBytes, sf2Bytes);
+const player = useScorePlayer(playerBytes, sf2Bytes);
 const acting = computed(() => decision.value.status === "loading");
 // A failed moderation decision (accept/reject/re-queue) surfaces as a toast; the
 // score LOAD error stays inline, and the edit-form error stays in the form.
@@ -250,6 +274,7 @@ async function saveEdit(edit: MetadataEdit) {
       :elapsed-ms="player.elapsedMs.value"
       :playing="player.playing.value"
       :can-play="player.canPlay.value"
+      :no-kit-font="noKitFont"
       show-meta
       @toggle="player.toggle"
       @seek="player.playFrom"

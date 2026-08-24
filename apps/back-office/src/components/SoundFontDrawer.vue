@@ -2,6 +2,7 @@
 import { computed, ref, shallowRef, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { type NewSoundFont, type SoundFontEdit, useSoundFontsStore } from "@/stores/soundfonts";
+import { familyOf } from "@/lib/audio/family";
 import { useAuthStore } from "@/stores/auth";
 import { useScorePlayer } from "@/composables/useScorePlayer";
 import { sampleScoreBytes } from "@/lib/sampleScore";
@@ -35,15 +36,17 @@ const form = ref({
   label: "",
   license: "CC0-1.0",
   attribution: "",
-  instrument: "piano",
+  instrument: "keyboard",
   pointCost: 0,
   redeemable: true,
 });
 
 // Selectable SoundFont licences (a fixed dropdown, not free text).
 const LICENSES = ["CC0-1.0", "CC-BY 3.0", "CC-BY 4.0", "CC-BY-SA 4.0"];
-// Instruments a font can be for. Only piano for now (mandatory); more added later.
-const INSTRUMENTS = ["piano"];
+// The two instrument families of the score vocabulary (change:
+// add-drum-audio-channel), keyboard first as the default. The server verifies the
+// declaration against the file's preset banks and refuses a mismatch.
+const FAMILIES = ["keyboard", "percussion"];
 
 // Options always include the current value (so an existing font's licence, even if not
 // in the predefined list, stays selectable in edit mode).
@@ -84,7 +87,9 @@ watch(
         label: e.label,
         license: e.license,
         attribution: e.attribution,
-        instrument: e.instrument || "piano",
+        // Legacy rows spoke `piano`; read them as `keyboard` (the family is
+        // immutable in edit mode, so this only affects the displayed label).
+        instrument: familyOf(e.instrument),
         ...currentPricing(e),
       };
     } else {
@@ -95,7 +100,7 @@ watch(
         label: "",
         license: "CC0-1.0",
         attribution: "",
-        instrument: "piano",
+        instrument: "keyboard",
         pointCost: 0,
         redeemable: true,
       };
@@ -224,9 +229,10 @@ const audioState = computed(() => player.audio.value.status);
           </label>
           <label>
             <span>{{ t("soundfonts.instrument") }}</span>
-            <!-- Only piano is offered for now (mandatory); the list grows later. -->
+            <!-- Both families are offered (keyboard is the default); the server
+                 checks the declaration against the file's preset banks. -->
             <select v-model="form.instrument" aria-label="instrument" :disabled="isEdit">
-              <option v-for="i in INSTRUMENTS" :key="i" :value="i">{{ t(`soundfonts.instr.${i}`) }}</option>
+              <option v-for="i in FAMILIES" :key="i" :value="i">{{ t(`soundfonts.instr.${i}`) }}</option>
             </select>
           </label>
           <label>

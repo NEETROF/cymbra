@@ -16,11 +16,33 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../l10n/gen/app_localizations.dart';
+import 'drums_access.dart';
 
 part 'score_catalog.g.dart';
 
 /// Practice difficulty of a bundled score.
 enum PracticeLevel { beginner, intermediate, advanced }
+
+/// Instrument family of a score (change: add-drums-access). Mirrors the wire
+/// values `keyboard` | `percussion`; an unrecorded/`unknown` instrument is
+/// represented as `null` on [CatalogEntry] and shows nothing in the UI.
+enum ScoreInstrument { keyboard, percussion }
+
+/// Maps a wire instrument (`keyboard` | `percussion` | `unknown`/absent) to
+/// [ScoreInstrument]; anything undeterminable maps to `null` (show nothing).
+ScoreInstrument? scoreInstrumentFromWire(String? s) => switch (s) {
+  'keyboard' => ScoreInstrument.keyboard,
+  'percussion' => ScoreInstrument.percussion,
+  _ => null,
+};
+
+/// Localized label for a [ScoreInstrument] ("Keyboard" / "Drums").
+extension ScoreInstrumentLabel on ScoreInstrument {
+  String localizedLabel(AppLocalizations l10n) => switch (this) {
+    ScoreInstrument.keyboard => l10n.instrumentKeyboard,
+    ScoreInstrument.percussion => l10n.instrumentDrums,
+  };
+}
 
 /// Human-readable label for a [PracticeLevel].
 extension PracticeLevelLabel on PracticeLevel {
@@ -82,6 +104,10 @@ class CatalogEntry {
   final String? timeSig;
   final int? keyFifths;
 
+  /// The score's instrument family (change: add-drums-access); `null` when
+  /// unknown/unrecorded — the card then shows no instrument indication.
+  final ScoreInstrument? instrument;
+
   /// For a contributed (upload) entry: whether it is in the user's favorites.
   /// Meaningless (and `true`) for bundled/catalog entries.
   final bool favorite;
@@ -135,6 +161,7 @@ class CatalogEntry {
     this.highestMidi,
     this.timeSig,
     this.keyFifths,
+    this.instrument,
     this.favorite = true,
     this.uploaderHandle,
     this.moderationStatus,
@@ -162,10 +189,24 @@ class CatalogEntry {
           id == other.id;
 }
 
-/// The curated catalog of bundled scores. Const for the POC; exposed through a
-/// provider so tests can override it with in-memory entries (no asset bundle).
+/// The curated catalog of bundled scores. Exposed through a provider so tests
+/// can override it with in-memory entries (no asset bundle).
+///
+/// The bundled DRUM scores are listed only while the drum feature is visible
+/// (change: add-instrument-context): their bytes ship in every binary, but
+/// while `drums.enabled` is off for this caller they appear in no listing —
+/// this provider is the single source every listing reads, so the gate holds
+/// everywhere at once.
 @riverpod
-List<CatalogEntry> scoreCatalog(Ref ref) => const [
+List<CatalogEntry> scoreCatalog(Ref ref) {
+  final drumsVisible = ref.watch(drumsEnabledProvider);
+  return [
+    for (final e in _bundledEntries)
+      if (e.instrument != ScoreInstrument.percussion || drumsVisible) e,
+  ];
+}
+
+const List<CatalogEntry> _bundledEntries = [
   CatalogEntry(
     id: 'ode-to-joy',
     title: 'Ode to Joy (theme)',
@@ -201,6 +242,41 @@ List<CatalogEntry> scoreCatalog(Ref ref) => const [
     composer: 'Frédéric Chopin',
     assetPath: 'assets/scores/advanced/prelude_e_minor.musicxml',
     level: PracticeLevel.advanced,
+  ),
+  // Bundled drum grooves (change: add-instrument-context) — authored for the
+  // project (see assets/scores/CREDITS.md), listed only while drums are
+  // visible.
+  CatalogEntry(
+    id: 'premiers-pas-batterie',
+    title: 'Premiers pas',
+    composer: 'Cymbra',
+    assetPath: 'assets/scores/beginner/premiers_pas_batterie.musicxml',
+    level: PracticeLevel.beginner,
+    instrument: ScoreInstrument.percussion,
+  ),
+  CatalogEntry(
+    id: 'rock-basique',
+    title: 'Rock basique',
+    composer: 'Cymbra',
+    assetPath: 'assets/scores/beginner/rock_basique.musicxml',
+    level: PracticeLevel.beginner,
+    instrument: ScoreInstrument.percussion,
+  ),
+  CatalogEntry(
+    id: 'groove-ouvert',
+    title: 'Groove ouvert',
+    composer: 'Cymbra',
+    assetPath: 'assets/scores/intermediate/groove_ouvert.musicxml',
+    level: PracticeLevel.intermediate,
+    instrument: ScoreInstrument.percussion,
+  ),
+  CatalogEntry(
+    id: 'autour-des-futs',
+    title: 'Autour des fûts',
+    composer: 'Cymbra',
+    assetPath: 'assets/scores/advanced/autour_des_futs.musicxml',
+    level: PracticeLevel.advanced,
+    instrument: ScoreInstrument.percussion,
   ),
 ];
 

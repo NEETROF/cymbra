@@ -23,11 +23,21 @@ import 'package:music/services/audio_service.dart';
 import 'package:music/services/file_picker_service.dart';
 import 'package:music/services/notation_engine.dart';
 import 'package:music/services/score_upload_service.dart';
-import 'package:music/src/rust/api/musicxml.dart' show ValidationOutcome;
+import 'package:music/src/rust/api/musicxml.dart'
+    show InstrumentKind, ScoreSummary, ValidationOutcome;
+import 'package:music/services/preferences_service.dart';
+import 'package:music/services/private_soundfont_service.dart';
+import 'package:music/services/soundfont_catalog_service.dart';
+import 'package:music/services/soundfont_importer.dart';
+import 'package:music/services/soundfont_source.dart';
+import 'package:music/state/drums_access.dart';
+import 'package:music/state/score_font.dart';
 import 'package:music/state/score_catalog.dart';
 
 import '../support/fakes.dart';
 import '../support/localized.dart';
+import '../support/prefs_fakes.dart';
+import '../support/soundfont_fakes.dart';
 import '../support/notation_fakes.dart';
 
 class _FakePicker implements FilePickerService {
@@ -99,18 +109,48 @@ ProviderContainer _container({
   PickedScoreFile? pick,
   _FakeUpload? upload,
   FakeNotationEngine? engine,
+  bool drumsEnabled = false,
+  RecordingAudioService? audio,
 }) {
   final c = ProviderContainer(
     overrides: [
       filePickerProvider.overrideWithValue(_FakePicker(pick)),
       notationEngineProvider.overrideWithValue(engine ?? FakeNotationEngine()),
       scoreUploadServiceProvider.overrideWithValue(upload ?? _FakeUpload()),
-      audioServiceProvider.overrideWithValue(RecordingAudioService()),
+      audioServiceProvider.overrideWithValue(audio ?? RecordingAudioService()),
+      drumsEnabledProvider.overrideWithValue(drumsEnabled),
+      // The preview installs the score's family font through the same
+      // controller the player uses, so its seams must be doubled here.
+      preferencesServiceProvider.overrideWithValue(FakePreferencesService()),
+      soundFontSourceProvider.overrideWithValue(FakeSoundFontSource()),
+      soundFontImporterProvider.overrideWithValue(FakeSoundFontImporter()),
+      privateSoundFontServiceProvider.overrideWithValue(
+        FakePrivateSoundFontService(),
+      ),
+      soundFontCatalogServiceProvider.overrideWithValue(
+        FakeSoundFontCatalogService(),
+      ),
     ],
   );
   addTearDown(c.dispose);
   return c;
 }
+
+/// A validation outcome whose summary is a valid percussion (drum) score.
+ValidationOutcome _percussionOutcome() => const ValidationOutcome(
+  summary: ScoreSummary(
+    title: 'Groove',
+    composer: 'A. Drummer',
+    titleNorm: 'groove',
+    workKey: 'a. drummer::groove',
+    instrument: InstrumentKind.percussion,
+    staves: 1,
+    keyFifths: 0,
+    timeSig: '4/4',
+    measureCount: 4,
+    noteCount: 8,
+  ),
+);
 
 Future<void> _pump(WidgetTester tester, ProviderContainer container) async {
   await tester.binding.setSurfaceSize(const Size(900, 1400));
@@ -394,4 +434,132 @@ void main() {
     expect(upload.proposed, ['new-id']);
     await _teardown(tester);
   });
+
+  testWidgets(
+    'the Verify summary shows the DETECTED instrument, with no control',
+    (tester) async {
+      // The default fake summary is a keyboard score.
+      final container = _container(pick: _validFile());
+      await _pump(tester, container);
+
+      await tester.tap(find.text('Choose a file'));
+      await _pumpFrames(tester);
+      await tester.tap(find.text('I am the author'));
+      await tester.pump();
+      await tester.tap(find.byType(CheckboxListTile));
+      await tester.pump();
+      await tester.tap(find.text('Verify'));
+      await _pumpFrames(tester);
+
+      // Read-only row naming the detected family — display only: no dropdown,
+      // switch or radio offers to change it.
+      expect(find.text('Instrument'), findsOneWidget);
+      expect(find.text('Piano'), findsOneWidget);
+      expect(find.byType(DropdownButton), findsNothing);
+      expect(find.byType(Switch), findsNothing);
+      await _teardown(tester);
+    },
+  );
+
+  testWidgets('a percussion upload shows Drums in the Verify summary', (
+    tester,
+  ) async {
+    final engine = FakeNotationEngine(validateOutcome: _percussionOutcome());
+    final container = _container(
+      pick: _validFile(),
+      engine: engine,
+      drumsEnabled: true,
+    );
+    await _pump(tester, container);
+
+    await tester.tap(find.text('Choose a file'));
+    await _pumpFrames(tester);
+    await tester.tap(find.text('I am the author'));
+    await tester.pump();
+    await tester.tap(find.byType(CheckboxListTile));
+    await tester.pump();
+    await tester.tap(find.text('Verify'));
+    await _pumpFrames(tester);
+
+    expect(find.text('Instrument'), findsOneWidget);
+    expect(find.text('Drums'), findsOneWidget);
+    await _teardown(tester);
+  });
+
+  testWidgets('the Verify preview of a drum upload asks for the kit and never '
+      'sounds a drum score through the piano', (tester) async {
+    // The defect this pins: the preview parsed the groove correctly and even
+    // labelled it "Batterie", then sounded its General MIDI numbers as PIANO
+    // pitches — the font-follows-the-score rule reached the player only.
+    final audio = RecordingAudioService();
+    final engine = FakeNotationEngine(
+      validateOutcome: _percussionOutcome(),
+      document: sampleDrumDocument(),
+    );
+    final container = _container(
+      pick: _validFile(),
+      engine: engine,
+      drumsEnabled: true,
+      audio: audio,
+    );
+    await _pump(tester, container);
+
+    await tester.tap(find.text('Choose a file'));
+    await _pumpFrames(tester);
+    await tester.tap(find.text('I am the author'));
+    await tester.pump();
+    await tester.tap(find.byType(CheckboxListTile));
+    await tester.pump();
+    await tester.tap(find.text('Verify'));
+    // The chain is longer than the player's: parse → rebuild with the family →
+    // awaited swap → ready.
+    await _pumpFrames(tester, 30);
+
+    // The preview asked for its family's font: it is no longer sitting on the
+    // piano (`inactive` is the keyboard state).
+    expect(
+      container.read(scoreFontProvider),
+      isNot(KitFontStatus.inactive),
+      reason: 'the preview never asked for the drum kit',
+    );
+
+    // Play the preview: a drum score must NEVER sound melodic notes — that is
+    // the defect (piano pitches for General MIDI drum numbers). Whether the
+    // kit has finished installing only decides between drum strokes and
+    // honest silence, never piano.
+    await tester.tap(find.byIcon(Icons.play_arrow));
+    await _pumpFrames(tester, 12);
+    expect(
+      audio.noteOns,
+      isEmpty,
+      reason: 'a drum score sounded melodic notes (the piano-font defect)',
+    );
+    expect(audio.noteOffs, isEmpty);
+    await _teardown(tester);
+  });
+
+  testWidgets(
+    'a percussion file is refused with a localized reason when drums are invisible',
+    (tester) async {
+      final engine = FakeNotationEngine(validateOutcome: _percussionOutcome());
+      // drumsEnabled defaults to false — the drum feature is not visible.
+      final container = _container(pick: _validFile(), engine: engine);
+      await _pump(tester, container);
+
+      await tester.tap(find.text('Choose a file'));
+      await _pumpFrames(tester);
+
+      // The localized refusal shows; the flow does not advance (no attestation
+      // controls, Verify stays disabled) — and never a raw technical string.
+      expect(
+        find.text('Drum scores are not available on your account yet.'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('is valid'), findsNothing);
+      expect(find.byType(CheckboxListTile), findsNothing);
+      expect(_enabled(tester, 'Verify'), isFalse);
+      expect(find.textContaining('drums_not_available'), findsNothing);
+      await _teardown(tester);
+    },
+  );
 }

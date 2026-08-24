@@ -35,11 +35,12 @@
 use std::io::Cursor;
 use std::sync::Arc;
 
-use cymbra_musicxml_core::{DEFAULT_VELOCITY, decode_and_parse, schedule};
+use cymbra_musicxml_core::{
+    DEFAULT_VELOCITY, DRUM_CHANNEL, InstrumentKind, MELODIC_CHANNEL, decode_and_parse,
+    instrument_of, schedule,
+};
 use rustysynth::{SoundFont, Synthesizer, SynthesizerSettings};
 
-/// MIDI channel the piano preset plays on (matches the app).
-const PIANO_CHANNEL: i32 = 0;
 /// Render quantum (frames). Note on/off are applied on block boundaries — 64 frames
 /// is ~1.5ms at 44.1kHz, inaudible.
 const BLOCK: usize = 64;
@@ -88,6 +89,20 @@ pub fn render_pcm_with(
     render_document(&document, sound_font, sample_rate)
 }
 
+/// The synth channel the whole render plays on, resolved from the document's own
+/// instrument classification (change: add-drum-audio-channel) — never from the
+/// caller's context: a percussion-classified score sounds on the shared drum
+/// channel (where rustysynth resolves presets in bank 128), everything else on
+/// the melodic channel exactly as before. The schedule emits unpitched notes only
+/// for percussion-classified scores, so a mixed (`Unknown`) score cannot reach
+/// the drum channel by construction.
+fn render_channel(document: &cymbra_musicxml_core::ScoreDocument) -> i32 {
+    match instrument_of(document) {
+        InstrumentKind::Percussion => DRUM_CHANNEL,
+        InstrumentKind::Keyboard | InstrumentKind::Unknown => MELODIC_CHANNEL,
+    }
+}
+
 /// Synthesise an already-parsed score with an already-parsed SoundFont.
 fn render_document(
     document: &cymbra_musicxml_core::ScoreDocument,
@@ -95,6 +110,7 @@ fn render_document(
     sample_rate: u32,
 ) -> Result<Vec<f32>, String> {
     let sched = schedule(document);
+    let channel = render_channel(document);
 
     let settings = SynthesizerSettings::new(sample_rate as i32);
     let mut synth =
@@ -136,9 +152,9 @@ fn render_document(
         while ei < events.len() && events[ei].frame < frame + block {
             let e = &events[ei];
             if e.on {
-                synth.note_on(PIANO_CHANNEL, e.key, i32::from(DEFAULT_VELOCITY));
+                synth.note_on(channel, e.key, i32::from(DEFAULT_VELOCITY));
             } else {
-                synth.note_off(PIANO_CHANNEL, e.key);
+                synth.note_off(channel, e.key);
             }
             ei += 1;
         }
@@ -224,6 +240,160 @@ mod tests {
   </part>
 </score-partwise>"#;
 
+    /// A one-note percussion score: a GM-38 snare (`<midi-unpitched>` is 1-based,
+    /// as conforming exporters write it) under a percussion clef.
+    const PERCUSSION: &str = r#"<?xml version="1.0"?>
+<score-partwise version="4.0">
+  <part-list>
+    <score-part id="P1">
+      <part-name>Drums</part-name>
+      <score-instrument id="P1-I39"><instrument-name>Snare</instrument-name></score-instrument>
+      <midi-instrument id="P1-I39"><midi-channel>10</midi-channel><midi-unpitched>39</midi-unpitched></midi-instrument>
+    </score-part>
+  </part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>1</divisions>
+        <time><beats>4</beats><beat-type>4</beat-type></time>
+        <clef><sign>percussion</sign><line>2</line></clef>
+      </attributes>
+      <note><unpitched><display-step>C</display-step><display-octave>5</display-octave></unpitched><duration>4</duration><instrument id="P1-I39"/><voice>1</voice><type>whole</type></note>
+    </measure>
+  </part>
+</score-partwise>"#;
+
+    // --- Minimal renderable SoundFont (change: add-drum-audio-channel) --------
+    //
+    // rustysynth degrades silently when a channel's bank holds no preset (design
+    // context), so the channel-routing tests need a real parseable font whose
+    // presets sit in chosen banks — the app's 57 MB piano can't provide a
+    // bank-128 kit and stays behind `--ignored`. This builder emits the smallest
+    // `.sf2` rustysynth accepts: one square-wave sample, one instrument, and one
+    // preset per requested `(bank, patch)`, all sharing the instrument.
+
+    /// One RIFF sub-chunk: fourcc + little-endian size + body.
+    fn chunk(id: &[u8; 4], body: &[u8]) -> Vec<u8> {
+        let mut out = id.to_vec();
+        out.extend_from_slice(&(body.len() as u32).to_le_bytes());
+        out.extend_from_slice(body);
+        out
+    }
+
+    /// A LIST chunk of `kind` wrapping already-encoded sub-chunks.
+    fn list(kind: &[u8; 4], body: &[u8]) -> Vec<u8> {
+        let mut inner = kind.to_vec();
+        inner.extend_from_slice(body);
+        chunk(b"LIST", &inner)
+    }
+
+    /// A fixed-length zero-padded name field.
+    fn name(n: &str, len: usize) -> Vec<u8> {
+        let mut out = vec![0u8; len];
+        out[..n.len()].copy_from_slice(n.as_bytes());
+        out
+    }
+
+    /// Instrument 0 of [`test_sf2`]: an audible square wave.
+    const AUDIBLE: u16 = 0;
+    /// Instrument 1 of [`test_sf2`]: all-zero samples — renders exact silence,
+    /// so a preset wired to it proves which preset a channel actually picked.
+    const SILENT: u16 = 1;
+
+    /// Builds a minimal, fully parseable `.sf2` holding one preset per
+    /// `(bank, patch, instrument)`. Bank 128 is where the drum channel resolves
+    /// presets; wiring the two banks to [`AUDIBLE`] vs [`SILENT`] makes the
+    /// channel routing observable in the PCM (rustysynth falls back to *some*
+    /// preset when a bank is empty, so bare non-silence alone would not
+    /// discriminate).
+    fn test_sf2(presets: &[(u16, u16, u16)]) -> Vec<u8> {
+        // 2000 frames of a period-100 square wave, then 2000 frames of silence.
+        let mut wave: Vec<u8> = (0..2000i32)
+            .flat_map(|i| {
+                let s: i16 = if (i / 50) % 2 == 0 { 12_000 } else { -12_000 };
+                s.to_le_bytes()
+            })
+            .collect();
+        wave.extend_from_slice(&[0u8; 4000]);
+
+        // phdr: one 38-byte record per preset, then the EOP terminal whose
+        // zone start closes the last preset's zone span.
+        let mut phdr = Vec::new();
+        for (i, (bank, patch, _)) in presets.iter().enumerate() {
+            phdr.extend_from_slice(&name("P", 20));
+            phdr.extend_from_slice(&patch.to_le_bytes());
+            phdr.extend_from_slice(&bank.to_le_bytes());
+            phdr.extend_from_slice(&(i as u16).to_le_bytes()); // zone start
+            phdr.extend_from_slice(&[0u8; 12]); // library/genre/morphology
+        }
+        phdr.extend_from_slice(&name("EOP", 20));
+        phdr.extend_from_slice(&[0u8; 2 + 2]);
+        phdr.extend_from_slice(&(presets.len() as u16).to_le_bytes());
+        phdr.extend_from_slice(&[0u8; 12]);
+
+        // pbag/pgen: each preset zone carries the single generator
+        // "instrument N" (41 = INSTRUMENT, which must come last in a zone).
+        let mut pbag = Vec::new();
+        for i in 0..=presets.len() as u16 {
+            pbag.extend_from_slice(&i.to_le_bytes()); // generator index
+            pbag.extend_from_slice(&0u16.to_le_bytes()); // modulator index
+        }
+        let mut pgen = Vec::new();
+        for (_, _, instrument) in presets {
+            pgen.extend_from_slice(&41u16.to_le_bytes());
+            pgen.extend_from_slice(&instrument.to_le_bytes());
+        }
+        pgen.extend_from_slice(&[0u8; 4]); // terminal
+
+        // Two instruments, each a single zone naming its sample (53 = SAMPLE_ID).
+        let mut inst = Vec::new();
+        for (i, n) in ["I0", "I1"].iter().enumerate() {
+            inst.extend_from_slice(&name(n, 20));
+            inst.extend_from_slice(&(i as u16).to_le_bytes());
+        }
+        inst.extend_from_slice(&name("EOI", 20));
+        inst.extend_from_slice(&2u16.to_le_bytes());
+        let ibag: Vec<u8> = [0u16, 0, 1, 0, 2, 0]
+            .iter()
+            .flat_map(|v| v.to_le_bytes())
+            .collect();
+        let mut igen = Vec::new();
+        for sample in [0u16, 1] {
+            igen.extend_from_slice(&53u16.to_le_bytes());
+            igen.extend_from_slice(&sample.to_le_bytes());
+        }
+        igen.extend_from_slice(&[0u8; 4]); // terminal
+
+        // shdr: the two samples (mono, root key 60) + the EOS terminal record.
+        let mut shdr = Vec::new();
+        for (n, start, end) in [("S0", 0i32, 1999i32), ("S1", 2000, 3999)] {
+            shdr.extend_from_slice(&name(n, 20));
+            for v in [start, end, start, end, 44_100] {
+                shdr.extend_from_slice(&v.to_le_bytes());
+            }
+            shdr.push(60); // original pitch
+            shdr.push(0); // pitch correction
+            shdr.extend_from_slice(&0u16.to_le_bytes()); // link
+            shdr.extend_from_slice(&1u16.to_le_bytes()); // type: mono
+        }
+        shdr.extend_from_slice(&[0u8; 46]); // EOS terminal
+
+        let mut pdta = chunk(b"phdr", &phdr);
+        pdta.extend(chunk(b"pbag", &pbag));
+        pdta.extend(chunk(b"pmod", &[0u8; 10]));
+        pdta.extend(chunk(b"pgen", &pgen));
+        pdta.extend(chunk(b"inst", &inst));
+        pdta.extend(chunk(b"ibag", &ibag));
+        pdta.extend(chunk(b"imod", &[0u8; 10]));
+        pdta.extend(chunk(b"igen", &igen));
+        pdta.extend(chunk(b"shdr", &shdr));
+
+        let mut body = b"sfbk".to_vec();
+        body.extend(list(b"INFO", &chunk(b"ifil", &[2, 0, 0, 0])));
+        body.extend(list(b"sdta", &chunk(b"smpl", &wave)));
+        body.extend(list(b"pdta", &pdta));
+        chunk(b"RIFF", &body)
+    }
+
     #[test]
     fn rejects_bad_score() {
         let err = render_pcm(b"<score-partwise><unclosed", b"not a soundfont", 44_100);
@@ -242,6 +412,65 @@ mod tests {
         assert_eq!(
             parse_soundfont(b"PK\x03\x04 not an sf2").unwrap_err(),
             "bad_soundfont"
+        );
+    }
+
+    // Pins the keyboard path to the exact behaviour it had before the channel
+    // became document-resolved: the retired local `PIANO_CHANNEL = 0` copy is
+    // replaced by a resolution that yields the same value for every
+    // non-percussion document, so the synth receives byte-identical calls (same
+    // font, same events, same channel value ⇒ identical PCM by construction).
+    #[test]
+    fn keyboard_document_resolves_the_melodic_channel() {
+        let doc = decode_and_parse(MINIMAL.as_bytes()).expect("parses");
+        assert_eq!(render_channel(&doc), MELODIC_CHANNEL);
+        assert_eq!(MELODIC_CHANNEL, 0); // the value the deleted local copy held
+    }
+
+    #[test]
+    fn percussion_document_resolves_the_drum_channel() {
+        let doc = decode_and_parse(PERCUSSION.as_bytes()).expect("parses");
+        assert_eq!(render_channel(&doc), DRUM_CHANNEL);
+    }
+
+    #[test]
+    fn percussion_fixture_renders_non_silence_through_a_kit_shaped_font() {
+        // The kit preset (bank 128) is audible and the melodic preset is silent:
+        // sound in the PCM proves the render reached the drum channel's bank —
+        // through the old hardcoded piano channel, bank 0's silent preset would
+        // have answered and the render would be all zeros.
+        let font = test_sf2(&[(0, 0, SILENT), (128, 0, AUDIBLE)]);
+        let pcm = render_pcm(PERCUSSION.as_bytes(), &font, 44_100).expect("renders");
+        assert!(pcm.iter().any(|&s| s != 0.0), "drum channel produces sound");
+    }
+
+    #[test]
+    fn keyboard_fixture_still_renders_non_silence_on_the_melodic_channel() {
+        // The mirror of the percussion test — only the melodic preset is
+        // audible, so sound proves the keyboard fixture stayed on channel 0.
+        let font = test_sf2(&[(0, 0, AUDIBLE), (128, 0, SILENT)]);
+        let pcm = render_pcm(MINIMAL.as_bytes(), &font, 44_100).expect("renders");
+        assert!(
+            pcm.iter().any(|&s| s != 0.0),
+            "melodic channel produces sound"
+        );
+        // The cached path stays byte-identical: same synth, same font, same
+        // resolved channel — only the parse is skipped.
+        let parsed = parse_soundfont(&font).expect("parses");
+        let again = render_pcm_with(MINIMAL.as_bytes(), &parsed, 44_100).expect("renders");
+        assert_eq!(pcm, again);
+    }
+
+    #[test]
+    fn the_channel_routing_is_observable_in_the_rendered_pcm() {
+        // Swap which bank holds the audible instrument: the percussion fixture
+        // goes silent, the keyboard fixture sounds — the two families provably
+        // resolve their presets in different banks, not through any fallback.
+        let font = test_sf2(&[(0, 0, AUDIBLE), (128, 0, SILENT)]);
+        let drums = render_pcm(PERCUSSION.as_bytes(), &font, 44_100).expect("renders");
+        assert!(
+            drums.iter().all(|&s| s == 0.0),
+            "kit-less bank 128 is silent"
         );
     }
 
