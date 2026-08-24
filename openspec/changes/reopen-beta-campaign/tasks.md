@@ -35,4 +35,4 @@
 
 ## 6. Ops
  — `openspec validate reopen-beta-campaign --strict`
-- [ ] 6.1 Once shipped, drop the manual `UPDATE plans.beta_campaigns SET closed_at = NULL` from the runbook, and finish `add-drums-access` task 9.8 with the real control
+- [ ] 6.1 Once deployed, close and reopen a real campaign from the console, so both controls are exercised on a shipped build rather than on a dev server. The manual `UPDATE plans.beta_campaigns SET closed_at = NULL` survives only in this change's own documents, where it explains why the change exists — there is no runbook to prune
