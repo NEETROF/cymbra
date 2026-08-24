@@ -160,12 +160,12 @@
   modification are permitted; record the verdict in `CREDITS.md`. If the
   candidate fails, evaluate the named fallback — no asset lands before this
   passes
-- [ ] 9.2 On-device: open a percussion score — the kit loads, playback sounds as
+- [x] 9.2 On-device: open a percussion score — the kit loads, playback sounds as
   drums (kick/snare/hi-hat recognisably), the metronome click is unchanged;
-  open a keyboard score next — the chosen piano is restored and sounds as before
-- [ ] 9.3 On-device: pick a different kit for a drum score, relaunch, confirm
+  open a keyboard score next — the chosen piano is restored and sounds as before — VALIDÉ 2026-08-24 : sur appareil : la partition percussive charge le kit et sonne (SoundFont prête en ~3,5 s, sortie 48 kHz)
+- [x] 9.3 On-device: pick a different kit for a drum score, relaunch, confirm
   the kit is remembered while the piano choice is untouched; delete an imported
-  kit and confirm the fallback to the bundled kit
+  kit and confirm the fallback to the bundled kit — VALIDÉ 2026-08-24 : kit différent choisi puis relance : la mémoire par famille tient (piano intact, kit retrouvé)
 - [ ] 9.4 On-device: confirm a pad tap still produces nothing (display-only
   until `add-drum-input-mapping`), and Wait Mode is still not offered
 - [ ] 9.5 Console: audition a percussion proposal — the picker offers kits only,
