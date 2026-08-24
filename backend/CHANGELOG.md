@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.21.0](https://github.com/NEETROF/cymbra/compare/backend-v0.20.0...backend-v0.21.0) (2026-08-24)
+
+
+### Features
+
+* **music:** read, play and score drum parts, gated to the beta audience ([#279](https://github.com/NEETROF/cymbra/issues/279)) ([504701b](https://github.com/NEETROF/cymbra/commit/504701b5d5a251ddfa6a0c0865095747b97a1770))
+* **plans:** a closed beta campaign can be reopened ([#280](https://github.com/NEETROF/cymbra/issues/280)) ([ac5a2a3](https://github.com/NEETROF/cymbra/commit/ac5a2a3ec2b8943da5f1a8b87aa767797ed37e7a))
+
+
+### Bug Fixes
+
+* **music:** stop the streak recovery offer from coming back ([#277](https://github.com/NEETROF/cymbra/issues/277)) ([c280d89](https://github.com/NEETROF/cymbra/commit/c280d89c3f150024f03fe39bbed29f7b46821585))
+
 ## [0.20.0](https://github.com/NEETROF/cymbra/compare/backend-v0.19.2...backend-v0.20.0) (2026-08-23)
 
 

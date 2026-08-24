@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.0](https://github.com/NEETROF/cymbra/compare/back-office-v0.10.0...back-office-v0.11.0) (2026-08-24)
+
+
+### Features
+
+* **music:** read, play and score drum parts, gated to the beta audience ([#279](https://github.com/NEETROF/cymbra/issues/279)) ([504701b](https://github.com/NEETROF/cymbra/commit/504701b5d5a251ddfa6a0c0865095747b97a1770))
+* **plans:** a closed beta campaign can be reopened ([#280](https://github.com/NEETROF/cymbra/issues/280)) ([ac5a2a3](https://github.com/NEETROF/cymbra/commit/ac5a2a3ec2b8943da5f1a8b87aa767797ed37e7a))
+
 ## [0.10.0](https://github.com/NEETROF/cymbra/compare/back-office-v0.9.0...back-office-v0.10.0) (2026-08-23)
 
 

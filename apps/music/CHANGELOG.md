@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.27.0](https://github.com/NEETROF/cymbra/compare/music-v1.26.0...music-v1.27.0) (2026-08-24)
+
+
+### Features
+
+* **music:** read, play and score drum parts, gated to the beta audience ([#279](https://github.com/NEETROF/cymbra/issues/279)) ([504701b](https://github.com/NEETROF/cymbra/commit/504701b5d5a251ddfa6a0c0865095747b97a1770))
+
+
+### Bug Fixes
+
+* **music:** stop the streak recovery offer from coming back ([#277](https://github.com/NEETROF/cymbra/issues/277)) ([c280d89](https://github.com/NEETROF/cymbra/commit/c280d89c3f150024f03fe39bbed29f7b46821585))
+
 ## [1.26.0](https://github.com/NEETROF/cymbra/compare/music-v1.25.1...music-v1.26.0) (2026-08-23)
 
 
