@@ -49,6 +49,62 @@ use quick_xml::reader::Reader;
 /// values are deliberately **1-based** (General MIDI number plus one), exactly
 /// as conforming exporters write them: MuseScore writes 39 for the GM-38
 /// snare, 43 for the GM-42 closed hi-hat, 37 for the GM-36 kick.
+/// Infer the key signature's alteration onto every pitch of `measures`.
+///
+/// Only for a score with NO alteration data anywhere: it drew an armure but
+/// never marked its notes. Conforming exporters always emit some alteration
+/// (MuseScore writes an explicit `<alter>` on every sounding-altered note), so
+/// this never runs for them and their pitches are left exactly as authored.
+/// Mid-piece key changes are honoured through each measure's own key.
+fn infer_key_alterations(measures: &mut [NotationMeasure]) {
+    for measure in measures {
+        let fifths = measure.key_fifths;
+        if fifths == 0 {
+            continue;
+        }
+        for note in &mut measure.notes {
+            if let Some(pitch) = note.pitch.as_mut() {
+                pitch.alter = pitch_alter::key_signature_alter(fifths, pitch.step);
+            }
+        }
+    }
+}
+
+/// Resolve each unpitched note's General MIDI number against the part-list
+/// instrument table — the ONE resolution site all four consumers share.
+///
+/// A note with no `<instrument>` reference in a part declaring exactly one
+/// sounding instrument resolves to that instrument (the MusicXML
+/// default-instrument convention, routine in single-line percussion exports);
+/// anything else unresolvable stays `None`, never inferred from the written
+/// position.
+fn resolve_unpitched(measures: &mut [NotationMeasure], instruments: &[InstrumentDecl]) {
+    let sole_gm = {
+        let mut gms = instruments.iter().filter_map(|d| d.gm_number);
+        match (gms.next(), gms.next()) {
+            (Some(gm), None) => Some(gm),
+            _ => None,
+        }
+    };
+    for measure in measures {
+        for note in &mut measure.notes {
+            let Some(u) = note.unpitched.as_mut() else {
+                continue;
+            };
+            u.gm_number = match note.instrument_id.as_deref() {
+                Some(id) => instruments
+                    .iter()
+                    .find(|d| d.id == id)
+                    .and_then(|d| d.gm_number),
+                None => sole_gm,
+            };
+            // The engraved head class rides beside the resolved number so the
+            // painters never own GM ranges (add-drum-notation-render).
+            u.head_class = HeadClass::of(u.gm_number);
+        }
+    }
+}
+
 #[cfg(test)]
 pub(crate) mod fixtures {
     /// Fixture 1.1: a two-measure rock groove in two voices — closed hi-hat
@@ -1062,17 +1118,7 @@ impl Parser {
         // because a same-pitch note in another voice carries the accidental — are
         // left exactly as authored.
         if !self.saw_alteration {
-            for measure in &mut self.measures {
-                let fifths = measure.key_fifths;
-                if fifths == 0 {
-                    continue;
-                }
-                for note in &mut measure.notes {
-                    if let Some(pitch) = note.pitch.as_mut() {
-                        pitch.alter = pitch_alter::key_signature_alter(fifths, pitch.step);
-                    }
-                }
-            }
+            infer_key_alterations(&mut self.measures);
         }
         // Resolve each unpitched note's General MIDI number against the
         // part-list instrument table — the ONE resolution site all four
@@ -1081,31 +1127,7 @@ impl Parser {
         // instrument (the MusicXML default-instrument convention, routine in
         // single-line percussion exports); anything else unresolvable stays
         // `None`, never inferred from the written position.
-        let sole_gm = {
-            let mut gms = self.instruments.iter().filter_map(|d| d.gm_number);
-            match (gms.next(), gms.next()) {
-                (Some(gm), None) => Some(gm),
-                _ => None,
-            }
-        };
-        for measure in &mut self.measures {
-            for note in &mut measure.notes {
-                let Some(u) = note.unpitched.as_mut() else {
-                    continue;
-                };
-                u.gm_number = match note.instrument_id.as_deref() {
-                    Some(id) => self
-                        .instruments
-                        .iter()
-                        .find(|d| d.id == id)
-                        .and_then(|d| d.gm_number),
-                    None => sole_gm,
-                };
-                // The engraved head class rides beside the resolved number so
-                // the painters never own GM ranges (add-drum-notation-render).
-                u.head_class = HeadClass::of(u.gm_number);
-            }
-        }
+        resolve_unpitched(&mut self.measures, &self.instruments);
         let play_order = repeats::play_order(&self.measures);
         ScoreDocument {
             meta: ScoreMeta {

@@ -117,6 +117,14 @@ String clefSignLetter(ClefSign sign) => switch (sign) {
   ClefSign.percussion => 'percussion',
 };
 
+/// The clef letter a note is engraved under: the measure's own clef when it
+/// declares one, else the staff's default (F below, G above) — a note never
+/// falls through to "no clef".
+String _clefLetterFor(Clef? clef, int staff) {
+  if (clef != null) return clefSignLetter(clef.sign);
+  return staff >= 2 ? 'F' : 'G';
+}
+
 /// Whether the score classifies as percussion: every non-rest note is
 /// unpitched (and there is at least one). Mirrors the crate's
 /// `instrument_of` — mixed content is NOT percussion, so a mixed score
@@ -305,9 +313,7 @@ DerivedPlayback notationToTimedNotes(
           staff: note.staff,
           voice: note.voice,
           beams: note.beams,
-          clefSign: c != null
-              ? clefSignLetter(c.sign)
-              : (note.staff >= 2 ? 'F' : 'G'),
+          clefSign: _clefLetterFor(c, note.staff),
           clefLine: c?.line ?? (note.staff >= 2 ? 4 : 2),
           noteType: note.noteType,
           dots: note.dots,

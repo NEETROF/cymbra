@@ -184,46 +184,61 @@ pub async fn run_percussion_regrade(
 
         for row in rows {
             report.scanned += 1;
-            let bytes = match storage.get(&row.object_key).await {
-                Ok(b) => b,
-                Err(e) => {
-                    tracing::warn!(id = %row.id, key = %row.object_key, error = %e,
-                        "regrade: object fetch failed, row left as is");
-                    report.unreadable += 1;
-                    continue;
-                }
-            };
-            let doc = match decode_document(&bytes) {
-                Ok(d) => d,
-                Err(e) => {
-                    tracing::warn!(id = %row.id, error = %e,
-                        "regrade: parse failed, row left as is");
-                    report.unreadable += 1;
-                    continue;
-                }
-            };
-            if instrument_of(&doc) != InstrumentKind::Percussion {
-                tracing::warn!(id = %row.id,
-                    "regrade: stored family says percussion but the bytes do not; left as is");
-                report.not_percussion += 1;
-                continue;
-            }
-            let level = crate::catalog::variant(&crate::difficulty::estimate(&doc));
-            if Some(level.as_str()) == row.level.as_deref() {
-                report.unchanged += 1;
-                continue;
-            }
-            if apply && let Err(e) = repo.update_level(&row.id, &level).await {
-                tracing::warn!(id = %row.id, error = %e, "regrade: update failed, skipping");
-                report.errors += 1;
-                continue;
-            }
-            tracing::info!(id = %row.id, from = ?row.level, to = %level, applied = apply,
-                "regrade: percussion level re-estimated");
-            report.updated += 1;
+            regrade_one(repo, storage, apply, &row, &mut report).await;
         }
     }
     Ok(report)
+}
+
+/// One row's re-grade: fetch, parse, confirm the family, re-estimate, persist.
+///
+/// Every failure is a WARNING that leaves the row exactly as it was — the pass
+/// is resumable, so a transient fetch error must not stop the sweep or record
+/// a level derived from bytes that could not be read.
+async fn regrade_one(
+    repo: &dyn DifficultyBackfillRepo,
+    storage: &dyn ObjectStorage,
+    apply: bool,
+    row: &cymbra_music::backfill::DifficultyRow,
+    report: &mut DifficultyBackfillReport,
+) {
+    let bytes = match storage.get(&row.object_key).await {
+        Ok(b) => b,
+        Err(e) => {
+            tracing::warn!(id = %row.id, key = %row.object_key, error = %e,
+                "regrade: object fetch failed, row left as is");
+            report.unreadable += 1;
+            return;
+        }
+    };
+    let doc = match decode_document(&bytes) {
+        Ok(d) => d,
+        Err(e) => {
+            tracing::warn!(id = %row.id, error = %e,
+                "regrade: parse failed, row left as is");
+            report.unreadable += 1;
+            return;
+        }
+    };
+    if instrument_of(&doc) != InstrumentKind::Percussion {
+        tracing::warn!(id = %row.id,
+            "regrade: stored family says percussion but the bytes do not; left as is");
+        report.not_percussion += 1;
+        return;
+    }
+    let level = crate::catalog::variant(&crate::difficulty::estimate(&doc));
+    if Some(level.as_str()) == row.level.as_deref() {
+        report.unchanged += 1;
+        return;
+    }
+    if apply && let Err(e) = repo.update_level(&row.id, &level).await {
+        tracing::warn!(id = %row.id, error = %e, "regrade: update failed, skipping");
+        report.errors += 1;
+        return;
+    }
+    tracing::info!(id = %row.id, from = ?row.level, to = %level, applied = apply,
+        "regrade: percussion level re-estimated");
+    report.updated += 1;
 }
 
 /// Decode stored bytes → MusicXML → parsed document. The catalog stores

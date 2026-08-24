@@ -402,11 +402,19 @@ class PerformanceScorer extends _$PerformanceScorer {
             reactionMs: t.reactionMs,
             // Absent, not zero, on a percussion stroke — the record carries no
             // sustain at all for a run that has no sustain dimension.
-            sustainRatio: _percussion ? null : (t.isHit ? t.sustainRatio : 0),
+            sustainRatio: _sustainRatioOf(t),
           ),
       ..._wrong,
     ]..sort((a, b) => a.startMs.compareTo(b.startMs));
     return list;
+  }
+
+  /// The sustain a judgment records: **absent** on a percussion stroke — the
+  /// run has no sustain dimension at all, and 0 would read as "held nothing" —
+  /// and 0 on a keyboard note that was never hit.
+  double? _sustainRatioOf(_Tracked t) {
+    if (_percussion) return null;
+    return t.isHit ? t.sustainRatio : 0;
   }
 
   /// Recomputes the live synchronization percentage from resolved onsets, using

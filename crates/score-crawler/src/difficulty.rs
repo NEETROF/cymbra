@@ -127,72 +127,97 @@ pub fn difficulty_score(doc: &ScoreDocument) -> f64 {
 /// grades (and therefore the keyboard difficulty weights) must not move when
 /// percussion gains its own path.
 fn keyboard_score(doc: &ScoreDocument) -> f64 {
-    let divisions = doc.attributes.divisions.max(1) as f64;
+    let f = KeyboardFeatures::of(doc);
     let measures = doc.measures.len().max(1) as f64;
 
-    let mut pitched = 0u32;
-    let mut has_fast = false;
-    let mut has_tuplet = false;
-    let mut has_chord = false;
-    let mut min_midi = i32::MAX;
-    let mut max_midi = i32::MIN;
-    // Track the last pitch per staff to measure melodic leaps within a hand.
-    let mut last_by_staff: std::collections::BTreeMap<u32, i32> = std::collections::BTreeMap::new();
-    let mut max_leap = 0i32;
-
-    for m in &doc.measures {
-        for n in &m.notes {
-            if n.tuplet.is_some() {
-                has_tuplet = true;
-            }
-            if n.is_chord {
-                has_chord = true;
-            }
-            // A note at or below a sixteenth (duration*4 <= a quarter) is "fast".
-            if (n.duration_divisions as f64) * 4.0 <= divisions {
-                has_fast = true;
-            }
-            if let Some(p) = &n.pitch
-                && !n.is_rest
-            {
-                pitched += 1;
-                let midi = pitch_midi(p);
-                min_midi = min_midi.min(midi);
-                max_midi = max_midi.max(midi);
-                if let Some(prev) = last_by_staff.insert(n.staff, midi)
-                    && !n.is_chord
-                {
-                    max_leap = max_leap.max((midi - prev).abs());
-                }
-            }
-        }
-    }
-
-    let density = pitched as f64 / measures;
-    let range = if max_midi >= min_midi {
-        (max_midi - min_midi) as f64
-    } else {
-        0.0
-    };
-    let accidentals = doc.attributes.key_fifths.unsigned_abs() as f64;
-    let grand = doc.staves >= 2;
-    let tempo = max_tempo_bpm(doc);
-
     let mut score = 0.0;
-    score += density * 0.5;
-    score += if has_fast { 2.0 } else { 0.0 };
-    score += if has_tuplet { 1.0 } else { 0.0 };
-    score += if has_chord { 1.0 } else { 0.0 };
-    score += if grand { 1.5 } else { 0.0 };
-    score += accidentals * 0.4;
-    score += (range / 12.0) * 0.5;
-    score += (max_leap as f64 / 12.0) * 0.7;
-    score += match tempo {
+    score += (f.pitched as f64 / measures) * 0.5;
+    score += if f.has_fast { 2.0 } else { 0.0 };
+    score += if f.has_tuplet { 1.0 } else { 0.0 };
+    score += if f.has_chord { 1.0 } else { 0.0 };
+    score += if doc.staves >= 2 { 1.5 } else { 0.0 };
+    score += doc.attributes.key_fifths.unsigned_abs() as f64 * 0.4;
+    score += (f.range() / 12.0) * 0.5;
+    score += (f.max_leap as f64 / 12.0) * 0.7;
+    score += match max_tempo_bpm(doc) {
         Some(bpm) if bpm > 140 => 1.0,
         Some(bpm) if bpm > 90 => 0.5,
         _ => 0.0,
     };
     score
+}
+
+/// What a keyboard score's notes say about its difficulty, gathered in one
+/// pass. Separated from the weighting above so the sweep and the arithmetic
+/// can each be read on their own.
+struct KeyboardFeatures {
+    pitched: u32,
+    has_fast: bool,
+    has_tuplet: bool,
+    has_chord: bool,
+    min_midi: i32,
+    max_midi: i32,
+    max_leap: i32,
+}
+
+impl KeyboardFeatures {
+    fn of(doc: &ScoreDocument) -> Self {
+        let divisions = doc.attributes.divisions.max(1) as f64;
+        let mut f = Self {
+            pitched: 0,
+            has_fast: false,
+            has_tuplet: false,
+            has_chord: false,
+            min_midi: i32::MAX,
+            max_midi: i32::MIN,
+            max_leap: 0,
+        };
+        // The last pitch per staff, to measure melodic leaps within a hand.
+        let mut last_by_staff: std::collections::BTreeMap<u32, i32> =
+            std::collections::BTreeMap::new();
+        for m in &doc.measures {
+            for n in &m.notes {
+                f.has_tuplet |= n.tuplet.is_some();
+                f.has_chord |= n.is_chord;
+                // A note at or below a sixteenth (duration*4 <= a quarter) is
+                // "fast".
+                f.has_fast |= (n.duration_divisions as f64) * 4.0 <= divisions;
+                if let Some(p) = &n.pitch
+                    && !n.is_rest
+                {
+                    f.note(pitch_midi(p), n.staff, n.is_chord, &mut last_by_staff);
+                }
+            }
+        }
+        f
+    }
+
+    fn note(
+        &mut self,
+        midi: i32,
+        staff: u32,
+        is_chord: bool,
+        last_by_staff: &mut std::collections::BTreeMap<u32, i32>,
+    ) {
+        self.pitched += 1;
+        self.min_midi = self.min_midi.min(midi);
+        self.max_midi = self.max_midi.max(midi);
+        if let Some(prev) = last_by_staff.insert(staff, midi)
+            && !is_chord
+        {
+            self.max_leap = self.max_leap.max((midi - prev).abs());
+        }
+    }
+
+    /// Semitones between the lowest and highest sounding pitch; 0 when the
+    /// score has none.
+    fn range(&self) -> f64 {
+        if self.max_midi >= self.min_midi {
+            (self.max_midi - self.min_midi) as f64
+        } else {
+            0.0
+        }
+    }
 }
 
 /// The drum-shaped features a percussion score is graded from. Public so a
@@ -256,34 +281,34 @@ pub fn percussion_features(doc: &ScoreDocument) -> PercussionFeatures {
             if n.duration_divisions > 0 {
                 shortest = shortest.min(n.duration_divisions as f64);
             }
-            if let Some(gm) = u.gm_number {
-                kit_pieces.insert(gm);
-                onsets
-                    .entry((m.index, n.position_divisions))
-                    .or_default()
-                    .insert(gm);
-            }
+            let Some(gm) = u.gm_number else { continue };
+            kit_pieces.insert(gm);
+            onsets
+                .entry((m.index, n.position_divisions))
+                .or_default()
+                .insert(gm);
         }
     }
 
-    // Note value denominator: a quarter lasts `divisions`, so denominator =
-    // 4 * divisions / duration. Floored at a quarter — nothing slower than a
-    // quarter makes a groove easier than one written in quarters — and capped
-    // so a malformed duration cannot dominate the blend.
-    let subdivision = if shortest.is_finite() && shortest > 0.0 {
-        (4.0 * divisions / shortest).round().clamp(4.0, 64.0) as u32
-    } else {
-        4
-    };
-
     PercussionFeatures {
         density: strokes as f64 / measures,
-        subdivision,
+        subdivision: subdivision_of(shortest, divisions),
         max_simultaneous: onsets.values().map(|p| p.len() as u32).max().unwrap_or(0),
         voices: voices.len() as u32,
         kit_pieces: kit_pieces.len() as u32,
         tempo_bpm: max_tempo_bpm(doc),
     }
+}
+
+/// Note-value denominator of the shortest stroke: a quarter lasts `divisions`,
+/// so denominator = 4 * divisions / duration. Floored at a quarter — nothing
+/// slower than a quarter makes a groove easier than one written in quarters —
+/// and capped so a malformed duration cannot dominate the blend.
+fn subdivision_of(shortest: f64, divisions: f64) -> u32 {
+    if !shortest.is_finite() || shortest <= 0.0 {
+        return 4;
+    }
+    (4.0 * divisions / shortest).round().clamp(4.0, 64.0) as u32
 }
 
 /// The drum heuristic: the same 0-and-up scale the pitched path produces, so

@@ -65,6 +65,11 @@ import 'score_load_message.dart';
 
 /// Main screen of the Cymbra player: top bar, rendering area
 /// (Synthesia or Staff), keyboard, and transport bar.
+/// The pointer surface a percussion score is struck on — the drawn kit. One
+/// constant because three surfaces mount it (the two play modes and the
+/// staff), and a typo in one of them would silently stop being findable.
+const Key kDrumKitSurfaceKey = Key('drum-kit-surface');
+
 class PlayerScreen extends ConsumerStatefulWidget {
   const PlayerScreen({super.key});
 
@@ -568,7 +573,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                                       kitBandHeight,
                                     );
                                     return Listener(
-                                      key: const Key('drum-kit-surface'),
+                                      key: kDrumKitSurfaceKey,
                                       onPointerDown: (e) => _onKitPointerDown(
                                         e,
                                         data,
@@ -773,10 +778,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         writtenMeasureOf: data.writtenMeasureOf,
         speed: data.speed,
         playableSurfaces: data.playableDrumSurfaces,
-        beatMs: data.bpm > 0
-            ? (60000 / data.bpm) *
-                  (4 / (data.beatType == 0 ? 4 : data.beatType))
-            : 0,
+        beatMs: data.beatMs,
       );
       return Stack(
         children: [
@@ -785,7 +787,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
               builder: (context, c) {
                 final size = Size(c.maxWidth, c.maxHeight);
                 return Listener(
-                  key: const Key('drum-kit-surface'),
+                  key: kDrumKitSurfaceKey,
                   behavior: HitTestBehavior.opaque,
                   onPointerDown: (e) =>
                       _onKitPointerDown(e, data, stage(0).kitArtFor(size)),
@@ -842,10 +844,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         writtenMeasureOf: data.writtenMeasureOf,
         speed: data.speed,
         playableSurfaces: data.playableDrumSurfaces,
-        beatMs: data.bpm > 0
-            ? (60000 / data.bpm) *
-                  (4 / (data.beatType == 0 ? 4 : data.beatType))
-            : 0,
+        beatMs: data.beatMs,
         struckMs: data.struckSurfacesMs,
         nowMs: nowMs,
         expectedSurfaces: data.expectedDrumSurfaces,
@@ -864,7 +863,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
               builder: (context, c) {
                 final size = Size(c.maxWidth, c.maxHeight);
                 return Listener(
-                  key: const Key('drum-kit-surface'),
+                  key: kDrumKitSurfaceKey,
                   behavior: HitTestBehavior.opaque,
                   onPointerDown: (e) =>
                       _onKitPointerDown(e, data, cascade(0).kitArtFor(size)),

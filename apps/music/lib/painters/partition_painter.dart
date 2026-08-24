@@ -180,6 +180,40 @@ class PartitionPainter extends CustomPainter {
     (m) => m.notes.any((n) => n.lyric != null),
   );
 
+  /// The clef a staff carries when the score declares none: a percussion part
+  /// is always on the percussion clef, a second staff on F, the first on G.
+  Clef _defaultClefFor(int staff) {
+    if (_isPercussion) {
+      return const Clef(staff: 1, sign: ClefSign.percussion, line: 2);
+    }
+    if (staff >= 2) return const Clef(staff: 2, sign: ClefSign.f, line: 4);
+    return const Clef(staff: 1, sign: ClefSign.g, line: 2);
+  }
+
+  /// Vertical nudge of a rest on a two-voice percussion staff: the feet's
+  /// rests sit below the middle line, the hands' above, so the two voices stay
+  /// readable apart. Zero everywhere else.
+  double _percRestOffset(bool percTwoVoice, int voice) {
+    if (!percTwoVoice) return 0;
+    return voice >= 2 ? _s : -_s;
+  }
+
+  /// The head colour of a note the playhead sits on: the success colour while
+  /// it is actually held, the hand's own colour lifted toward the emphasis
+  /// tint otherwise.
+  Color _playheadHeadColor(int soundId, Color handColor) =>
+      activeNotes.contains(soundId)
+      ? palette.correct
+      : Color.lerp(handColor, palette.emphasisTint, 0.55)!;
+
+  /// Stem direction: the score's own when it declares one; otherwise the voice
+  /// on a percussion staff (hands up, feet down) and the head's side of the
+  /// middle line anywhere else.
+  bool _stemUp(NoteEvent note, double y, double midY) {
+    if (note.stem != null) return note.stem == StemDir.up;
+    return _isPercussion ? note.voice < 2 : y >= midY;
+  }
+
   /// Whether the document is a percussion score — every non-rest note
   /// unpitched, and at least one (change: add-drum-notation-render). Mirrors
   /// the crate's classification, so the painter routes to the percussion
@@ -374,11 +408,7 @@ class PartitionPainter extends CustomPainter {
       clefs[staff] ??
       // A clef-less percussion export still gets the percussion clef — the
       // treble default below would silently draw a G clef on a drum staff.
-      (_isPercussion
-          ? const Clef(staff: 1, sign: ClefSign.percussion, line: 2)
-          : staff >= 2
-          ? const Clef(staff: 2, sign: ClefSign.f, line: 4)
-          : const Clef(staff: 1, sign: ClefSign.g, line: 2));
+      _defaultClefFor(staff);
 
   void _paintSystem(
     Canvas canvas,
@@ -945,9 +975,7 @@ class PartitionPainter extends CustomPainter {
         // voice 1 above the middle line, voice 2 below — clear of the other
         // voice's material; single-voice measures keep the midline.
         final restY =
-            staffBottom -
-            2 * _s +
-            (percTwoVoice ? (note.voice >= 2 ? _s : -_s) : 0.0);
+            staffBottom - 2 * _s + _percRestOffset(percTwoVoice, note.voice);
         Smufl.draw(canvas, _restGlyph(note), x, restY, _s, _ink, centerX: true);
         _record(
           Rect.fromCenter(
@@ -1017,9 +1045,7 @@ class PartitionPainter extends CustomPainter {
           note.positionDivisions <= cursorDiv &&
           cursorDiv < note.positionDivisions + note.durationDivisions;
       final headColor = isAtPlayhead
-          ? (activeNotes.contains(soundId)
-                ? palette.correct
-                : Color.lerp(handColor, palette.emphasisTint, 0.55)!)
+          ? _playheadHeadColor(soundId, handColor)
           : handColor;
 
       // Note head, centred on x.
@@ -1121,9 +1147,7 @@ class PartitionPainter extends CustomPainter {
           headGlyph != Smufl.noteheadXWhole &&
           !note.isChord) {
         final midY = staffBottom - 2 * _s;
-        final up = note.stem != null
-            ? note.stem == StemDir.up
-            : (_isPercussion ? note.voice < 2 : y >= midY);
+        final up = _stemUp(note, y, midY);
         final n = _Note(x, y, up, note, glyphScale);
         if (note.beams.isEmpty) {
           _drawStemAndFlag(canvas, n);

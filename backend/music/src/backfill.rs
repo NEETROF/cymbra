@@ -270,41 +270,57 @@ pub async fn run_instrument_backfill(
 
         for row in rows {
             report.scanned += 1;
-            let bytes = match storage.get(&row.object_key).await {
-                Ok(b) => b,
-                Err(e) => {
-                    tracing::warn!(id = %row.id, key = %row.object_key, error = %e,
-                        "instrument backfill: object fetch failed, row left as is");
-                    report.unreadable += 1;
-                    continue;
-                }
-            };
-            let derived = match derive_instrument(&bytes) {
-                Ok(i) => i,
-                Err(e) => {
-                    tracing::warn!(id = %row.id, error = %e,
-                        "instrument backfill: parse failed, row left as is");
-                    report.unreadable += 1;
-                    continue;
-                }
-            };
-            if derived == row.instrument {
-                report.unchanged += 1;
-                continue;
-            }
-            if apply && let Err(e) = repo.update_instrument(table, &row.id, derived).await {
-                tracing::warn!(id = %row.id, error = %e,
-                    "instrument backfill: update failed, skipping");
-                report.errors += 1;
-                continue;
-            }
-            tracing::info!(id = %row.id, from = row.instrument.as_str(),
-                to = derived.as_str(), applied = apply,
-                "instrument backfill: family re-derived");
-            report.updated += 1;
+            backfill_one(repo, storage, table, apply, &row, &mut report).await;
         }
     }
     Ok(report)
+}
+
+/// One row's pass: fetch, classify, and persist when the family moved.
+///
+/// Every failure is a WARNING that leaves the row exactly as it was — the pass
+/// is resumable and re-runnable, so a transient fetch error must not be a
+/// reason to stop the sweep or to record a wrong family.
+async fn backfill_one(
+    repo: &dyn InstrumentBackfillRepo,
+    storage: &dyn ObjectStorage,
+    table: ScoreTable,
+    apply: bool,
+    row: &InstrumentRow,
+    report: &mut InstrumentBackfillReport,
+) {
+    let bytes = match storage.get(&row.object_key).await {
+        Ok(b) => b,
+        Err(e) => {
+            tracing::warn!(id = %row.id, key = %row.object_key, error = %e,
+                "instrument backfill: object fetch failed, row left as is");
+            report.unreadable += 1;
+            return;
+        }
+    };
+    let derived = match derive_instrument(&bytes) {
+        Ok(i) => i,
+        Err(e) => {
+            tracing::warn!(id = %row.id, error = %e,
+                "instrument backfill: parse failed, row left as is");
+            report.unreadable += 1;
+            return;
+        }
+    };
+    if derived == row.instrument {
+        report.unchanged += 1;
+        return;
+    }
+    if apply && let Err(e) = repo.update_instrument(table, &row.id, derived).await {
+        tracing::warn!(id = %row.id, error = %e,
+            "instrument backfill: update failed, skipping");
+        report.errors += 1;
+        return;
+    }
+    tracing::info!(id = %row.id, from = row.instrument.as_str(),
+        to = derived.as_str(), applied = apply,
+        "instrument backfill: family re-derived");
+    report.updated += 1;
 }
 
 /// Decode stored bytes → parse → derived instrument family.

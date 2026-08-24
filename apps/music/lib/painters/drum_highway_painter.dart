@@ -203,57 +203,66 @@ class DrumHighwayPainter extends CustomPainter {
   /// derived from round millisecond values — that was the bug that made every
   /// note look off the beat.
   void _paintMetre(Canvas canvas, Size size) {
-    // Bar and beat are told apart the way a staff tells them apart: the bar
-    // line spans the full width of the highway and glows, the beat is a
-    // shorter, dimmer stroke inside it. Both thin with distance, like every
-    // other object on the floor.
-    void rule(double t, {required bool bar, int? number}) {
-      final d = (t - elapsedMs) / lookAheadMs;
-      if (d < 0 || d > 1) return;
-      final y = _depthToY(d, size.height);
-      final fade = 1.0 - d * 0.55;
-      final left = _laneEdge(-1, d, size);
-      final right = _laneEdge(1, d, size);
-      final near = 0.45 + 0.55 * _scaleAt(d);
-      if (bar) {
-        canvas.drawLine(
-          Offset(left, y),
-          Offset(right, y),
-          Paint()
-            ..color = Colors.white.withValues(alpha: 0.13 * fade)
-            ..strokeWidth = 6 * near
-            ..maskFilter = MaskFilter.blur(BlurStyle.normal, 3 * near),
-        );
-      }
-      final inset = bar ? 0.0 : (right - left) * 0.14;
-      canvas.drawLine(
-        Offset(left + inset, y),
-        Offset(right - inset, y),
-        Paint()
-          ..color = Colors.white.withValues(alpha: (bar ? 0.62 : 0.26) * fade)
-          ..strokeWidth = (bar ? 2.6 : 1.3) * near,
-      );
-      // The bar's number rides the line INTO the distance with it, so a bar
-      // line never reads as one more rule — and it says where in the piece
-      // the run is.
-      if (bar && number != null) {
-        _measureNumber(canvas, number, left - 6, y, near, fade);
-      }
-    }
-
     final horizonMs = elapsedMs + lookAheadMs;
     for (var m = 0; m < measureStartMs.length; m++) {
       final start = measureStartMs[m].toDouble();
       if (start > horizonMs) break;
-      final end = m + 1 < measureStartMs.length
-          ? measureStartMs[m + 1].toDouble()
-          : start + (beatMs > 0 ? beatMs * 4 : lookAheadMs);
+      final end = measureEndOf(
+        measureStartMs,
+        m,
+        beatMs: beatMs,
+        fallbackMs: lookAheadMs,
+      );
       if (end < elapsedMs) continue;
-      rule(start, bar: true, number: measureNumberAt(m));
+      _rule(canvas, size, start, bar: true, number: measureNumberAt(m));
       if (beatMs <= 0) continue;
       for (var t = start + beatMs; t < end - 1; t += beatMs) {
-        rule(t, bar: false);
+        _rule(canvas, size, t, bar: false);
       }
+    }
+  }
+
+  /// One reference line. Bar and beat are told apart the way a staff tells
+  /// them apart: the bar line spans the full width of the highway and glows,
+  /// the beat is a shorter, dimmer stroke inside it. Both thin with distance,
+  /// like every other object on the floor.
+  void _rule(
+    Canvas canvas,
+    Size size,
+    double t, {
+    required bool bar,
+    int? number,
+  }) {
+    final d = (t - elapsedMs) / lookAheadMs;
+    if (d < 0 || d > 1) return;
+    final y = _depthToY(d, size.height);
+    final fade = 1.0 - d * 0.55;
+    final left = _laneEdge(-1, d, size);
+    final right = _laneEdge(1, d, size);
+    final near = 0.45 + 0.55 * _scaleAt(d);
+    if (bar) {
+      canvas.drawLine(
+        Offset(left, y),
+        Offset(right, y),
+        Paint()
+          ..color = Colors.white.withValues(alpha: 0.13 * fade)
+          ..strokeWidth = 6 * near
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, 3 * near),
+      );
+    }
+    final inset = bar ? 0.0 : (right - left) * 0.14;
+    canvas.drawLine(
+      Offset(left + inset, y),
+      Offset(right - inset, y),
+      Paint()
+        ..color = Colors.white.withValues(alpha: (bar ? 0.62 : 0.26) * fade)
+        ..strokeWidth = (bar ? 2.6 : 1.3) * near,
+    );
+    // The bar's number rides the line INTO the distance with it, so a bar
+    // line never reads as one more rule — and it says where in the piece
+    // the run is.
+    if (bar && number != null) {
+      _measureNumber(canvas, number, left - 6, y, near, fade);
     }
   }
 
@@ -395,15 +404,20 @@ class DrumHighwayPainter extends CustomPainter {
       final struck =
           (note.startMs - elapsedMs).abs() <= tolerance &&
           _recentlyStruck(lane);
+      // Past the hit line the puck fades out over the tolerance window; in
+      // front of it, nothing is faded.
+      final leaving = d < 0 && tail > 0;
       _paintPuck(
         canvas,
         size,
-        lane: lane,
-        depth: d,
-        color: foot ? kKickHue : hue,
-        open: isOpenHiHat(note.pitch),
-        struck: struck,
-        fade: d < 0 && tail > 0 ? (1 + d / tail).clamp(0.0, 1.0) : 1.0,
+        _Puck(
+          lane: lane,
+          depth: d,
+          color: foot ? kKickHue : hue,
+          open: isOpenHiHat(note.pitch),
+          struck: struck,
+          fade: leaving ? (1 + d / tail).clamp(0.0, 1.0) : 1.0,
+        ),
       );
     }
   }
@@ -416,16 +430,15 @@ class DrumHighwayPainter extends CustomPainter {
   /// One note as a 3D-ish puck: an elliptical top face and a short body, so a
   /// stack of them reads as objects sliding toward the player rather than
   /// rectangles scrolling.
-  void _paintPuck(
-    Canvas canvas,
-    Size size, {
-    required int lane,
-    required double depth,
-    required Color color,
-    required bool open,
-    bool struck = false,
-    double fade = 1.0,
-  }) {
+  void _paintPuck(Canvas canvas, Size size, _Puck puck) {
+    final (lane, depth, color, open, struck, fade) = (
+      puck.lane,
+      puck.depth,
+      puck.color,
+      puck.open,
+      puck.struck,
+      puck.fade,
+    );
     final s = _scaleAt(depth);
     final x = _laneX(lane, depth, size);
     final y = _depthToY(depth, size.height);
@@ -475,20 +488,23 @@ class DrumHighwayPainter extends CustomPainter {
 
     // Top face — hollow for an open hi-hat, exactly as the flat cascade marks
     // it, so the one musical distinction survives the restyle.
-    canvas.drawOval(
-      top,
-      open
-          ? (Paint()
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = math.max(1.4, w * 0.06)
-              ..color = Colors.white.withValues(alpha: 0.92 * fade))
-          : (Paint()
-              ..color = Color.lerp(
-                color,
-                Colors.white,
-                struck ? 0.85 : 0.45,
-              )!.withValues(alpha: fade)),
-    );
+    final Paint face;
+    if (open) {
+      face = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = math.max(1.4, w * 0.06)
+        ..color = Colors.white.withValues(alpha: 0.92 * fade);
+    } else {
+      // A struck puck whitens; nothing else does.
+      final lift = struck ? 0.85 : 0.45;
+      face = Paint()
+        ..color = Color.lerp(
+          color,
+          Colors.white,
+          lift,
+        )!.withValues(alpha: fade);
+    }
+    canvas.drawOval(top, face);
   }
 
   // --- the kick, as a full-width event -------------------------------------
@@ -518,14 +534,16 @@ class DrumHighwayPainter extends CustomPainter {
   void _paintKit(Canvas canvas, Size size) {
     kitArtFor(size).paint(
       canvas,
-      struck: struckMs,
-      nowMs: nowMs,
-      expected: expectedSurfaces,
-      waitPulse: waitPulse,
-      playable: playableSurfaces,
-      labels: laneLabels,
-      kickLabel: kickLabel,
-      labelStyle: labelStyle,
+      DrumKitPaint(
+        struck: struckMs,
+        nowMs: nowMs,
+        expected: expectedSurfaces,
+        waitPulse: waitPulse,
+        playable: playableSurfaces,
+        labels: laneLabels,
+        kickLabel: kickLabel,
+        labelStyle: labelStyle,
+      ),
     );
   }
 
@@ -547,4 +565,34 @@ class DrumHighwayPainter extends CustomPainter {
       old.lanes != lanes ||
       old.struckMs != struckMs ||
       old.nowMs != nowMs;
+}
+
+/// One falling note, as the stage draws it: where it is, what colour it wears,
+/// and the two states it can be in. Bundled rather than passed as six
+/// arguments — a positional drift between them would be silent.
+class _Puck {
+  const _Puck({
+    required this.lane,
+    required this.depth,
+    required this.color,
+    required this.open,
+    this.struck = false,
+    this.fade = 1.0,
+  });
+
+  final int lane;
+
+  /// 0 at the hit line, 1 at the horizon; negative once it has gone past.
+  final double depth;
+  final Color color;
+
+  /// An open hi-hat, drawn hollow — the one musical distinction the restyle
+  /// had to keep.
+  final bool open;
+
+  /// Whether the player struck this note's piece inside the tolerance window.
+  final bool struck;
+
+  /// 0..1, for the fade-out past the hit line.
+  final double fade;
 }

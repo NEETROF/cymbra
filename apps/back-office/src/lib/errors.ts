@@ -36,103 +36,95 @@ export class ScorePreviewError extends Error {
 // Map any thrown error to a short, user-facing (localized) message. Raw gRPC/Connect
 // codes and messages (e.g. "[unauthenticated] invalid credentials") must NEVER reach
 // the UI — the technical cause is logged to the console instead.
+/** Status → message for the SoundFont upload route, with a clear "already
+ *  exists" for the dedup conflict (same id or identical content). */
+function soundFontUploadMessage(status: number): string {
+  switch (status) {
+    case 409:
+      return t("errors.soundfontExists");
+    case 422:
+      return t("errors.soundfontInvalid");
+    case 413:
+      return t("errors.soundfontTooLarge");
+    default:
+      return httpStatusMessage(status);
+  }
+}
+
+/** Status → message for a score-preview refusal. The 412 reasons are
+ *  preconditions an admin can act on, so they earn their own messages instead
+ *  of the generic "not available yet"; the body selects between them and is
+ *  never shown as is. */
+function scorePreviewMessage(status: number, body: string): string {
+  const b = body.toLowerCase();
+  if (status === 412 && b.includes("drum_soundfont_id")) {
+    return t("errors.previewDrumFontMissing");
+  }
+  if (status === 412 && b.includes("soundfont_id is unset")) {
+    return t("errors.previewFontMissing");
+  }
+  if (status === 412) return t("errors.previewFontUnusable");
+  if (status === 422) return t("errors.previewSilent");
+  return httpStatusMessage(status);
+}
+
+/** The shared HTTP status → message table every browser-facing route falls
+ *  back to, so a 401 reads the same whichever surface produced it. */
+function httpStatusMessage(status: number): string {
+  switch (status) {
+    case 400:
+      return t("errors.invalidArgument");
+    case 401:
+      return t("errors.unauthenticated");
+    case 403:
+      return t("errors.permissionDenied");
+    case 404:
+      return t("errors.notFound");
+    case 412:
+      return t("errors.notAvailable");
+    case 429:
+      return t("errors.resourceExhausted");
+    case 503:
+      return t("errors.unavailable");
+    default:
+      return t("errors.generic");
+  }
+}
+
+// Map any thrown error to a short, user-facing (localized) message. Raw gRPC/Connect
+// codes and messages (e.g. "[unauthenticated] invalid credentials") must NEVER reach
+// the UI — the technical cause is logged to the console instead.
 export function humanError(e: unknown): string {
   // Log the real cause for debugging; never shown to the user.
   console.error("action failed:", e);
 
-  // SoundFont upload (HTTP route) failures map by status, with a clear
-  // "already exists" for the dedup conflict (same id or identical content).
-  if (e instanceof SoundFontUploadError) {
-    switch (e.status) {
-      case 409:
-        return t("errors.soundfontExists");
-      case 422:
-        return t("errors.soundfontInvalid");
-      case 413:
-        return t("errors.soundfontTooLarge");
-      case 401:
-        return t("errors.unauthenticated");
-      case 403:
-        return t("errors.permissionDenied");
-      case 400:
-        return t("errors.invalidArgument");
-      case 503:
-        return t("errors.unavailable");
-      default:
-        return t("errors.generic");
-    }
-  }
-
-  // A score preview refusal: the reason is a precondition the admin can fix
-  // (configure a preview font), so it earns its own messages instead of the
-  // generic "not available yet".
-  if (e instanceof ScorePreviewError) {
-    const body = e.body.toLowerCase();
-    if (e.status === 412 && body.includes("drum_soundfont_id")) {
-      return t("errors.previewDrumFontMissing");
-    }
-    if (e.status === 412 && body.includes("soundfont_id is unset")) {
-      return t("errors.previewFontMissing");
-    }
-    switch (e.status) {
-      case 412:
-        return t("errors.previewFontUnusable");
-      case 422:
-        return t("errors.previewSilent");
-      case 401:
-        return t("errors.unauthenticated");
-      case 403:
-        return t("errors.permissionDenied");
-      case 404:
-        return t("errors.notFound");
-      case 503:
-        return t("errors.unavailable");
-      default:
-        return t("errors.generic");
-    }
-  }
-
+  if (e instanceof SoundFontUploadError) return soundFontUploadMessage(e.status);
+  if (e instanceof ScorePreviewError) return scorePreviewMessage(e.status, e.body);
   // Web-auth (cookie) HTTP failures map by status to the same messages as gRPC.
-  if (e instanceof WebAuthError) {
-    switch (e.status) {
-      case 401:
-        return t("errors.unauthenticated");
-      case 403:
-        return t("errors.permissionDenied");
-      case 404:
-        return t("errors.notFound");
-      case 412:
-        return t("errors.notAvailable");
-      case 400:
-        return t("errors.invalidArgument");
-      case 429:
-        return t("errors.resourceExhausted");
-      case 503:
-        return t("errors.unavailable");
-      default:
-        return t("errors.generic");
-    }
-  }
+  if (e instanceof WebAuthError) return httpStatusMessage(e.status);
 
-  if (e instanceof ConnectError) {
-    switch (e.code) {
-      case Code.Unauthenticated:
-        return t("errors.unauthenticated");
-      case Code.PermissionDenied:
-        return t("errors.permissionDenied");
-      case Code.NotFound:
-        return t("errors.notFound");
-      case Code.FailedPrecondition:
-        return t("errors.notAvailable");
-      case Code.InvalidArgument:
-        return t("errors.invalidArgument");
-      case Code.ResourceExhausted:
-        return t("errors.resourceExhausted");
-      case Code.Unavailable:
-        return t("errors.unavailable");
-      default:
-        return t("errors.generic");
-    }
-  }
+  if (e instanceof ConnectError) return connectMessage(e.code);
   return t("errors.generic");
+}
+
+/** gRPC/Connect code → the same localized messages the HTTP surfaces use. */
+function connectMessage(code: Code): string {
+  switch (code) {
+    case Code.Unauthenticated:
+      return t("errors.unauthenticated");
+    case Code.PermissionDenied:
+      return t("errors.permissionDenied");
+    case Code.NotFound:
+      return t("errors.notFound");
+    case Code.FailedPrecondition:
+      return t("errors.notAvailable");
+    case Code.InvalidArgument:
+      return t("errors.invalidArgument");
+    case Code.ResourceExhausted:
+      return t("errors.resourceExhausted");
+    case Code.Unavailable:
+      return t("errors.unavailable");
+    default:
+      return t("errors.generic");
+  }
 }

@@ -185,6 +185,15 @@ export function renderNotation(rendered: RenderedScore, width: number): RenderRe
   return { kind: "notation", svg: svg.toString(width, height), layout: { width, height, measures }, percussion };
 }
 
+/** Vertical position of a rest on a two-voice percussion staff: voice 1 sits
+ *  above the middle line, voice 2 below, so a rest never lands on the midline
+ *  where the other voice's material runs. A single-voice measure keeps the
+ *  midline. */
+function percussionRestY(twoVoice: boolean, voice: number, midY: number, s: number): number {
+  if (!twoVoice) return midY;
+  return voice <= 1 ? midY - s : midY + s;
+}
+
 function divisionsPerMeasure(doc: ScoreDocument): number {
   const a = doc.attributes;
   const beatType = a.time.beat_type === 0 ? 4 : a.time.beat_type;
@@ -514,7 +523,7 @@ function paintNote(ctx: Ctx, o: PaintNoteOpts): void {
     // On a two-voice percussion measure rests displace by voice — voice 1 above
     // the middle line, voice 2 below — so a rest never sits on the midline where
     // the other voice's material runs; single-voice measures keep the midline.
-    const restY = ctx.percussion && o.multiVoice ? (note.voice <= 1 ? midY - s : midY + s) : midY;
+    const restY = percussionRestY(ctx.percussion && o.multiVoice, note.voice, midY, s);
     svg.glyph(S.restGlyph(note), x, restY, s, "ink", true);
     return;
   }

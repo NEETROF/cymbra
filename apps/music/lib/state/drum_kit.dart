@@ -85,6 +85,23 @@ double struckFlashIntensity({required double struckMs, required double nowMs}) {
   return 1 - age / kStruckFlashMs;
 }
 
+/// End of the played measure at index [m] in [measureStartMs]: the next
+/// measure's start, or — for the last one, which has no successor — a bar's
+/// worth of beats past its own start ([fallbackMs] when the beat is unknown).
+///
+/// Shared by both drum surfaces: they draw the same grid from the same table,
+/// and two copies of this arithmetic would drift the day one of them changed.
+double measureEndOf(
+  List<int> measureStartMs,
+  int m, {
+  required double beatMs,
+  required double fallbackMs,
+}) {
+  if (m + 1 < measureStartMs.length) return measureStartMs[m + 1].toDouble();
+  final start = measureStartMs[m].toDouble();
+  return start + (beatMs > 0 ? beatMs * 4 : fallbackMs);
+}
+
 /// The kick's General MIDI numbers — 35 (acoustic) and 36 (bass drum 1) both
 /// drive the full-width bar and never occupy a lane: a lane encodes *where to
 /// aim*, and the foot does not aim.

@@ -46,6 +46,60 @@ const List<Color> kLaneHues = [
 /// The feet's hue — the amber both drum surfaces already use.
 const Color kKickHue = Color(0xFFFFA742);
 
+/// Everything the kit needs to paint beyond its own geometry — the state of
+/// the moment, in one value.
+///
+/// Bundled rather than passed as eight arguments: three surfaces build exactly
+/// the same set (the two play surfaces and the staff), and a positional drift
+/// between them would be silent.
+class DrumKitPaint {
+  const DrumKitPaint({
+    required this.struck,
+    required this.nowMs,
+    this.expected = const {},
+    this.waitPulse = 0,
+    this.playable = const {},
+    this.labels = const [],
+    this.kickLabel = '',
+    this.labelStyle,
+  });
+
+  /// Wall-clock stamps per surface (lane index or [kPedalSurface]).
+  final Map<int, double> struck;
+  final double nowMs;
+
+  /// The surfaces Wait Mode is waiting for.
+  final Set<int> expected;
+
+  /// 0..1 breathing amplitude for the awaited pieces while the gate holds — a
+  /// static outline would read as decoration rather than a demand.
+  final double waitPulse;
+
+  /// The surfaces the current hands/feet selection can actually play. A
+  /// surface outside it is drawn faded: with the feet selected, the hands'
+  /// drums have nothing to do, and a kit that still presents them as live
+  /// targets is lying about the exercise. Faded rather than removed — the row
+  /// keeps its order and its widths, so a player switching selection finds
+  /// every piece where they left it. An empty set means "no selection in
+  /// force": everything is live.
+  final Set<int> playable;
+
+  final List<String> labels;
+  final String kickLabel;
+  final TextStyle? labelStyle;
+
+  /// Flash intensity of [surface], 0 when it was not struck recently.
+  double litOf(int surface) {
+    final at = struck[surface];
+    return at == null ? 0 : struckFlashIntensity(struckMs: at, nowMs: nowMs);
+  }
+
+  /// Opacity of [surface]: full when the selection can play it, faded when it
+  /// has nothing to do in this exercise.
+  double alphaOf(int surface) =>
+      playable.isEmpty || playable.contains(surface) ? 1.0 : 0.28;
+}
+
 /// Paints a [DrumKitArt] filling its own band — the kit as a STANDALONE
 /// surface, for a mode that draws no highway of its own (the staff).
 ///
@@ -79,6 +133,18 @@ class DrumKitPainter extends CustomPainter {
   DrumKitArt artFor(Size size) =>
       DrumKitArt(lanes: lanes, size: size, top: 0, hasKick: hasKick);
 
+  /// The state the kit is painted in, gathered once.
+  DrumKitPaint get _paint => DrumKitPaint(
+    struck: struckMs,
+    nowMs: nowMs,
+    expected: expectedSurfaces,
+    waitPulse: waitPulse,
+    playable: playable,
+    labels: labels,
+    kickLabel: kickLabel,
+    labelStyle: labelStyle,
+  );
+
   @override
   void paint(Canvas canvas, Size size) {
     // Its own dark ground: the kit is a neon drawing, and the app's light
@@ -87,17 +153,7 @@ class DrumKitPainter extends CustomPainter {
       Offset.zero & size,
       Paint()..color = CymbraColors.background,
     );
-    artFor(size).paint(
-      canvas,
-      struck: struckMs,
-      nowMs: nowMs,
-      expected: expectedSurfaces,
-      waitPulse: waitPulse,
-      playable: playable,
-      labels: labels,
-      kickLabel: kickLabel,
-      labelStyle: labelStyle,
-    );
+    artFor(size).paint(canvas, _paint);
   }
 
   @override
@@ -236,116 +292,81 @@ class DrumKitArt {
         best = i;
       }
     }
-    return lanes.isEmpty ? null : (bestDx <= _step * 0.75 ? best : null);
+    if (lanes.isEmpty) return null;
+    return bestDx <= _step * 0.75 ? best : null;
   }
 
-  /// Paints the kit. [struck] holds wall-clock stamps per surface (lane index
-  /// or [kPedalSurface]) and [expected] the surfaces Wait Mode is waiting for.
-  void paint(
-    Canvas canvas, {
-    required Map<int, double> struck,
-    required double nowMs,
-    Set<int> expected = const {},
-
-    /// 0..1 breathing amplitude for the awaited pieces while the gate holds —
-    /// a static outline would read as decoration rather than a demand.
-    double waitPulse = 0,
-
-    /// The surfaces the current hands/feet selection can actually play. A
-    /// surface outside it is drawn faded: with the feet selected, the hands'
-    /// drums have nothing to do, and a kit that still presents them as live
-    /// targets is lying about the exercise. Faded rather than removed — the
-    /// row keeps its order and its widths, so a player switching selection
-    /// finds every piece where they left it. An empty set means "no selection
-    /// in force": everything is live.
-    Set<int> playable = const {},
-    List<String> labels = const [],
-    String kickLabel = '',
-    TextStyle? labelStyle,
-  }) {
+  /// Paints the kit in the state [p] describes.
+  void paint(Canvas canvas, DrumKitPaint p) {
     if (_free <= 24) return;
+    _paintPieces(canvas, p);
+    _paintNames(canvas, p);
+  }
 
-    double lit(int surface) {
-      final at = struck[surface];
-      return at == null ? 0 : struckFlashIntensity(struckMs: at, nowMs: nowMs);
-    }
-
-    double alpha(int surface) =>
-        playable.isEmpty || playable.contains(surface) ? 1.0 : 0.28;
-
+  /// The bass drum, then the drums, then the cymbals over them — how a kit
+  /// stacks seen from the stool.
+  void _paintPieces(Canvas canvas, DrumKitPaint p) {
     if (hasKick) {
       _drum(
         canvas,
         kickRect,
         kKickHue,
-        lit(kPedalSurface),
-        awaited: expected.contains(kPedalSurface),
-        pulse: waitPulse,
-        fade: alpha(kPedalSurface),
+        p.litOf(kPedalSurface),
+        awaited: p.expected.contains(kPedalSurface),
+        pulse: p.waitPulse,
+        fade: p.alphaOf(kPedalSurface),
       );
     }
-    // Drums first, cymbals over them — how a kit stacks seen from the stool.
+    // Drums first, cymbals over them.
     for (var pass = 0; pass < 2; pass++) {
       for (var i = 0; i < lanes.length; i++) {
         final cymbal = _isCymbal(lanes[i]);
         if ((pass == 0) == cymbal) continue;
-        final hue = kLaneHues[i % kLaneHues.length];
-        final r = pieceRect(i);
-        if (cymbal) {
-          _cymbal(
-            canvas,
-            r,
-            hue,
-            lit(i),
-            awaited: expected.contains(i),
-            pulse: waitPulse,
-            fade: alpha(i),
-          );
-        } else {
-          _drum(
-            canvas,
-            r,
-            hue,
-            lit(i),
-            awaited: expected.contains(i),
-            pulse: waitPulse,
-            fade: alpha(i),
-          );
-        }
+        final draw = cymbal ? _cymbal : _drum;
+        draw(
+          canvas,
+          pieceRect(i),
+          kLaneHues[i % kLaneHues.length],
+          p.litOf(i),
+          awaited: p.expected.contains(i),
+          pulse: p.waitPulse,
+          fade: p.alphaOf(i),
+        );
       }
     }
+  }
 
-    // Names last, each one hung on its OWN piece — a few pixels from the
-    // shape it names, not on a shared baseline at the bottom of the band. A
-    // row of names lined up under drums of different heights makes the reader
-    // match them by column; on the drum, there is nothing to match.
-    //
-    // When the names are too long for the columns they sit in — "Tom médium
-    // grave" under a seven-piece kit — they are STAGGERED instead of being
-    // ellipsised into stumps: one row above its piece, one below, so each name
-    // has twice the room before it can touch its neighbour. Truncating is the
-    // worse answer, because two toms whose names differ only in their last
-    // word both end up as "Tom médium…".
-    final stagger = _labelsCollide(labels, labelStyle);
-    for (var i = 0; i < lanes.length && i < labels.length; i++) {
-      final room = _nameRoom(i) * (stagger ? 2 : 1);
+  /// The names, each hung on its OWN piece — a few pixels from the shape it
+  /// names, not on a shared baseline at the bottom of the band. A row of names
+  /// lined up under drums of different heights makes the reader match them by
+  /// column; on the drum, there is nothing to match.
+  ///
+  /// When the names are too long for the columns they sit in — "Tom médium
+  /// grave" under a seven-piece kit — they are STAGGERED instead of being
+  /// ellipsised into stumps: one row above its piece, one below, so each name
+  /// has twice the room before it can touch its neighbour. Truncating is the
+  /// worse answer, because two toms whose names differ only in their last word
+  /// both end up as "Tom médium…".
+  void _paintNames(Canvas canvas, DrumKitPaint p) {
+    final stagger = _labelsCollide(p.labels, p.labelStyle);
+    for (var i = 0; i < lanes.length && i < p.labels.length; i++) {
       _label(
         canvas,
-        labels[i],
+        p.labels[i],
         Offset(centreXOf(i), _labelYOf(i, row: stagger && i.isOdd ? 1 : 0)),
-        room,
-        kLaneHues[i % kLaneHues.length].withValues(alpha: alpha(i)),
-        labelStyle,
+        _nameRoom(i) * (stagger ? 2 : 1),
+        kLaneHues[i % kLaneHues.length].withValues(alpha: p.alphaOf(i)),
+        p.labelStyle,
       );
     }
-    if (hasKick && kickLabel.isNotEmpty) {
+    if (hasKick && p.kickLabel.isNotEmpty) {
       _label(
         canvas,
-        kickLabel,
+        p.kickLabel,
         Offset(size.width / 2, kickRect.bottom + 4),
         _kickWidth * 1.6,
-        kKickHue.withValues(alpha: alpha(kPedalSurface)),
-        labelStyle,
+        kKickHue.withValues(alpha: p.alphaOf(kPedalSurface)),
+        p.labelStyle,
       );
     }
   }

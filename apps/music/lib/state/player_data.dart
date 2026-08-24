@@ -706,6 +706,20 @@ abstract class PlayerData with _$PlayerData {
   int? struckSurfaceFor(int gm) =>
       struckSurfaceOf(presentedDrumLanes, gm, hasPedal: hasKickPedal);
 
+  /// Milliseconds per beat as the score writes it, or 0 when the tempo is
+  /// unknown. The bpm is the QUARTER rate, so a 6/8 beat is not 60000/bpm —
+  /// the time signature's lower number scales it, and a missing one reads as
+  /// a quarter.
+  ///
+  /// Derived here rather than at each surface: the two drum surfaces and the
+  /// staff all draw the same grid, and three copies of this arithmetic would
+  /// drift.
+  double get beatMs {
+    if (bpm <= 0) return 0;
+    final unit = beatType == 0 ? 4 : beatType;
+    return (60000 / bpm) * (4 / unit);
+  }
+
   /// The controller surfaces the current hands/feet selection can play at all.
   ///
   /// Derived from the whole score rather than from [visibleNotes] on purpose:
