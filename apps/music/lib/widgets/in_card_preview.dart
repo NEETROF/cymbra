@@ -22,6 +22,8 @@ import '../l10n/gen/app_localizations.dart';
 import '../painters/staff_painter.dart';
 import '../services/audio_service.dart';
 import '../state/card_preview_notifier.dart';
+import '../state/score_font.dart';
+import 'score_font_listener.dart';
 import '../state/player_data.dart' show scoreNoteEdges;
 import '../theme/cymbra_theme.dart';
 
@@ -135,13 +137,23 @@ class _InCardPreviewState extends ConsumerState<InCardPreview>
         to: next,
         sounding: _sounding,
       );
+      // A percussion card sounds through the drum verbs, on the channel where
+      // a kit font's presets live (change: add-drum-audio-channel) — and only
+      // once the kit is installed, so it is silent rather than wrong.
+      final percussion = score.isPercussion;
+      final ready =
+          !percussion || ref.read(scoreFontProvider) == KitFontStatus.ready;
       for (final p in edges.stops) {
-        _audio.noteOff(p);
+        if (ready) {
+          percussion ? _audio.drumOff(p) : _audio.noteOff(p);
+        }
         _sounding.remove(p);
       }
       for (final p in edges.starts) {
-        _audio.noteOn(p);
-        _sounding.add(p);
+        if (ready) {
+          percussion ? _audio.drumOn(p) : _audio.noteOn(p);
+          _sounding.add(p);
+        }
       }
       _notesPlayed += edges.starts.length;
     }
@@ -177,41 +189,46 @@ class _InCardPreviewState extends ConsumerState<InCardPreview>
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final async = ref.watch(cardPreviewScoreProvider(widget.catalogId));
-    return ColoredBox(
-      color: CymbraColors.surfaceContainerLow,
-      child: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, _) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Text(
-              l10n.ratingPreviewError,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: CymbraColors.error),
+    // The card sounds its own parsed score, so it owns the font swap for its
+    // family the way the player does (change: add-drum-audio-channel).
+    return ScoreFontListener(
+      percussion: async.valueOrNull?.isPercussion ?? false,
+      child: ColoredBox(
+        color: CymbraColors.surfaceContainerLow,
+        child: async.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (_, _) => Center(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                l10n.ratingPreviewError,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: CymbraColors.error),
+              ),
             ),
           ),
-        ),
-        data: (score) => score.isEmpty
-            ? const SizedBox.shrink()
-            : CustomPaint(
-                painter: StaffPainter(
-                  notes: score.notes,
-                  rests: score.rests,
-                  tieContinuations: score.tieContinuations,
-                  elapsedMs: _elapsedMs,
-                  activeNotes: const <int>{}, // read-only: nothing pressed
-                  bpm: score.bpm,
-                  songEndMs: score.songEndMs,
-                  keyFifths: score.keyFifths,
-                  measureKeyFifths: score.measureKeyFifths,
-                  beats: score.beats,
-                  beatType: score.beatType,
-                  measureStartMs: score.measureStartMs,
-                  lookAheadMs: _lookAheadFor(score),
-                  noteScale: _noteScale,
+          data: (score) => score.isEmpty
+              ? const SizedBox.shrink()
+              : CustomPaint(
+                  painter: StaffPainter(
+                    notes: score.notes,
+                    rests: score.rests,
+                    tieContinuations: score.tieContinuations,
+                    elapsedMs: _elapsedMs,
+                    activeNotes: const <int>{}, // read-only: nothing pressed
+                    bpm: score.bpm,
+                    songEndMs: score.songEndMs,
+                    keyFifths: score.keyFifths,
+                    measureKeyFifths: score.measureKeyFifths,
+                    beats: score.beats,
+                    beatType: score.beatType,
+                    measureStartMs: score.measureStartMs,
+                    lookAheadMs: _lookAheadFor(score),
+                    noteScale: _noteScale,
+                  ),
+                  size: Size.infinite,
                 ),
-                size: Size.infinite,
-              ),
+        ),
       ),
     );
   }

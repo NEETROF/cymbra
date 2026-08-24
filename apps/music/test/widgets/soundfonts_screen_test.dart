@@ -211,10 +211,12 @@ void main() {
       expect(find.text('My Grand'), findsOneWidget);
       expect(find.text('My Kit'), findsOneWidget);
       expect(find.text('Street Kit'), findsOneWidget);
-      // Localized family badges: the two kits read "Drums", the bundled
-      // default + the imported grand read "Keyboard".
-      expect(find.text('Drums'), findsNWidgets(2));
-      expect(find.text('Keyboard'), findsNWidgets(2));
+      // Localized family badges: the three kits (the bundled Standard Kit,
+      // the import and the server one) read "Drums"; the bundled piano and
+      // the imported grand read "Piano".
+      expect(find.text('Standard Kit'), findsOneWidget);
+      expect(find.text('Drums'), findsNWidgets(3));
+      expect(find.text('Piano'), findsNWidgets(2));
     },
   );
 

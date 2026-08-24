@@ -25,6 +25,8 @@ import '../src/rust/api/musicxml.dart'
     show InstrumentKind, ScoreDocument, ScoreSummary;
 import '../state/drums_access.dart';
 import '../state/notation_playback.dart';
+import '../state/score_font.dart';
+import '../widgets/score_font_listener.dart';
 import '../state/note_density_core.dart';
 import '../state/contributed_scores.dart';
 import '../state/player_data.dart' show TimedNote;
@@ -414,21 +416,45 @@ class _VerifyStepViewState extends ConsumerState<_VerifyStepView>
   }
 
   /// Trigger note-ons/offs for the window crossed up to [nowMs] (drives sound).
+  ///
+  /// A percussion score sounds through the **drum** verbs, on the drum channel
+  /// where a kit font's bank-128 presets live (change: add-drum-audio-channel).
+  /// Sounding them melodically is what made an uploaded groove audition as
+  /// piano pitches. It waits for the kit to be installed, exactly as the
+  /// player does — before that the preview is honestly visual-only.
   void _fireAudio(double nowMs) {
+    final percussion = _playback?.isPercussion ?? false;
+    // A kit that has not finished installing means SILENT, never melodic and
+    // never permanently muted: the playhead still consumes onsets (so the
+    // notes already gone by do not burst out when the kit lands), and every
+    // onset after it sounds normally.
+    final ready =
+        !percussion || ref.read(scoreFontProvider) == KitFontStatus.ready;
     _sounding.removeWhere((s) {
       if (s.endMs <= nowMs) {
-        _audio.noteOff(s.pitch);
+        if (percussion) {
+          _audio.drumOff(s.pitch);
+        } else {
+          _audio.noteOff(s.pitch);
+        }
         return true;
       }
+      // (a sounding entry only exists when it was actually sounded)
       return false;
     });
     while (_nextNote < _sorted.length && _sorted[_nextNote].startMs <= nowMs) {
       final n = _sorted[_nextNote];
-      _audio.noteOn(n.pitch);
-      _sounding.add((
-        pitch: n.pitch,
-        endMs: (n.startMs + n.durationMs).toDouble(),
-      ));
+      if (ready) {
+        if (percussion) {
+          _audio.drumOn(n.pitch);
+        } else {
+          _audio.noteOn(n.pitch);
+        }
+        _sounding.add((
+          pitch: n.pitch,
+          endMs: (n.startMs + n.durationMs).toDouble(),
+        ));
+      }
       _nextNote++;
     }
   }
@@ -489,85 +515,92 @@ class _VerifyStepViewState extends ConsumerState<_VerifyStepView>
     final summary = ref.read(scoreUploadNotifierProvider).summary;
     final playback = _playback;
 
-    return Column(
-      children: [
-        // Scrollable content: on a short screen the metadata + preview scroll
-        // instead of squeezing the preview to zero height (bottom overflow).
-        Expanded(
-          child: SingleChildScrollView(
-            child: Column(
-              children: [
-                if (summary != null) _MetadataCard(summary: summary),
-                // Fixed-height preview so it is always visible. StaffPainter is a
-                // scrolling synchronized view (playhead at 25%; notes scroll past
-                // as elapsedMs advances) — it just needs a normal viewport.
-                Container(
-                  height: 220,
-                  margin: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-                  clipBehavior: Clip.hardEdge,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    color: Colors.black.withValues(alpha: 0.15),
-                  ),
-                  child: _error != null
-                      ? Center(
-                          child: Text(l10n.uploadPreviewUnavailable(_error!)),
-                        )
-                      : playback == null
-                      ? const Center(child: CircularProgressIndicator())
-                      : CustomPaint(
-                          size: Size.infinite,
-                          painter: StaffPainter(
-                            notes: playback.notes,
-                            rests: playback.rests,
-                            tieContinuations: playback.tieContinuations,
-                            elapsedMs: _elapsedMs,
-                            activeNotes: const <int>{},
-                            bpm: playback.bpm,
-                            songEndMs: playback.songEndMs,
-                            keyFifths: _doc?.attributes.keyFifths ?? 0,
-                            measureKeyFifths: playback.measureKeyFifths,
-                            beats: _doc?.attributes.time.beats ?? 4,
-                            beatType: _doc?.attributes.time.beatType ?? 4,
-                            measureStartMs: playback.measureStartMs,
-                            // Same readability cap as the player: this preview
-                            // is how the uploader checks their score parsed
-                            // right, so a dense one must not arrive cramped.
-                            onsetGapMs: cachedOnsetGapMs(playback.notes),
-                            measureMs: medianMeasureMs(
-                              playback.measureStartMs,
+    // The preview sounds the score it just parsed, so it owns the font swap
+    // for its own family — the player is not mounted here (change:
+    // add-drum-audio-channel): an uploaded drum groove installs the kit and is
+    // restored to the piano when this step is left.
+    return ScoreFontListener(
+      percussion: playback?.isPercussion ?? false,
+      child: Column(
+        children: [
+          // Scrollable content: on a short screen the metadata + preview scroll
+          // instead of squeezing the preview to zero height (bottom overflow).
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  if (summary != null) _MetadataCard(summary: summary),
+                  // Fixed-height preview so it is always visible. StaffPainter is a
+                  // scrolling synchronized view (playhead at 25%; notes scroll past
+                  // as elapsedMs advances) — it just needs a normal viewport.
+                  Container(
+                    height: 220,
+                    margin: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                    clipBehavior: Clip.hardEdge,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      color: Colors.black.withValues(alpha: 0.15),
+                    ),
+                    child: _error != null
+                        ? Center(
+                            child: Text(l10n.uploadPreviewUnavailable(_error!)),
+                          )
+                        : playback == null
+                        ? const Center(child: CircularProgressIndicator())
+                        : CustomPaint(
+                            size: Size.infinite,
+                            painter: StaffPainter(
+                              notes: playback.notes,
+                              rests: playback.rests,
+                              tieContinuations: playback.tieContinuations,
+                              elapsedMs: _elapsedMs,
+                              activeNotes: const <int>{},
+                              bpm: playback.bpm,
                               songEndMs: playback.songEndMs,
+                              keyFifths: _doc?.attributes.keyFifths ?? 0,
+                              measureKeyFifths: playback.measureKeyFifths,
+                              beats: _doc?.attributes.time.beats ?? 4,
+                              beatType: _doc?.attributes.time.beatType ?? 4,
+                              measureStartMs: playback.measureStartMs,
+                              // Same readability cap as the player: this preview
+                              // is how the uploader checks their score parsed
+                              // right, so a dense one must not arrive cramped.
+                              onsetGapMs: cachedOnsetGapMs(playback.notes),
+                              measureMs: medianMeasureMs(
+                                playback.measureStartMs,
+                                songEndMs: playback.songEndMs,
+                              ),
                             ),
                           ),
-                        ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Play controls pinned below the scroll area.
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                IconButton.filled(
+                  onPressed: playback == null ? null : _togglePlay,
+                  icon: Icon(_playing ? Icons.pause : Icons.play_arrow),
+                  tooltip: _playing
+                      ? l10n.uploadPauseTooltip
+                      : l10n.uploadPlayTooltip,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    l10n.uploadPlaybackHint,
+                    style: const TextStyle(fontSize: 12),
+                  ),
                 ),
               ],
             ),
           ),
-        ),
-        // Play controls pinned below the scroll area.
-        Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              IconButton.filled(
-                onPressed: playback == null ? null : _togglePlay,
-                icon: Icon(_playing ? Icons.pause : Icons.play_arrow),
-                tooltip: _playing
-                    ? l10n.uploadPauseTooltip
-                    : l10n.uploadPlayTooltip,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  l10n.uploadPlaybackHint,
-                  style: const TextStyle(fontSize: 12),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

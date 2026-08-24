@@ -41,8 +41,14 @@ ProviderContainer _container({
   FakePreferencesService? prefs,
   FakeSoundFontImporter? importer,
   List<PianoEntry>? serverFonts,
+
+  /// Replaces the whole resolved catalog — the way to model a build where a
+  /// family has no font at all, now that the kit is bundled in every build.
+  List<PianoEntry>? catalogOverride,
 }) => ProviderContainer(
   overrides: [
+    if (catalogOverride != null)
+      pianoCatalogProvider.overrideWith((ref) => catalogOverride),
     preferencesServiceProvider.overrideWithValue(
       prefs ?? FakePreferencesService(),
     ),
@@ -224,7 +230,13 @@ void main() {
     testWidgets('an empty family shows the no-kit hint, not a crash', (
       tester,
     ) async {
-      final container = _container(serverFonts: const []);
+      // The bundled kit ships in every build, so an EMPTY percussion family
+      // has to be forced: narrowing the catalog to the keyboard fonts models
+      // a build (or a device) where no kit resolves.
+      final container = _container(
+        serverFonts: const [],
+        catalogOverride: builtInPianos,
+      );
       addTearDown(container.dispose);
       await _pumpField(
         tester,

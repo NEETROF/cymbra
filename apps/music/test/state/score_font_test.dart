@@ -42,9 +42,18 @@ ProviderContainer _container({
   FakePreferencesService? prefs,
   FakeSoundFontSource? source,
   List<PianoEntry> serverFonts = const [],
+
+  /// Models a catalog carrying NO percussion font at all — the bundled kit
+  /// ships today, so the degradation path has to be forced rather than
+  /// inherited from a missing asset.
+  bool withoutAnyKit = false,
 }) {
   final container = ProviderContainer(
     overrides: [
+      if (withoutAnyKit)
+        pianoCatalogProvider.overrideWith(
+          (ref) => builtInPianos, // keyboard fonts only
+        ),
       preferencesServiceProvider.overrideWithValue(
         prefs ?? FakePreferencesService(),
       ),
@@ -88,6 +97,25 @@ void main() {
     },
   );
 
+  test(
+    'the bundled kit alone makes a percussion score ready to sound',
+    () async {
+      // The licence sign-off landed the asset: with nothing else configured, a
+      // drum score resolves the bundled kit and opens the readiness gate.
+      final audio = RecordingAudioService();
+      final c = _container(audio: audio);
+      await pumpEventQueue();
+
+      await c.read(scoreFontProvider.notifier).setScoreFamily(percussion: true);
+
+      expect(c.read(scoreFontProvider), KitFontStatus.ready);
+      // The source seam resolves to a fake path, so the id is what this
+      // layer can honestly assert; the real asset path is pinned by the
+      // catalog/pubspec test in piano_catalog_test.dart.
+      expect(audio.awaitedLoads.single, contains(defaultKitId));
+    },
+  );
+
   test('a failed awaited install lands in unavailable (visual-only)', () async {
     final audio = RecordingAudioService()..awaitedLoadResult = false;
     final c = _container(audio: audio, serverFonts: [_kit(defaultKitId)]);
@@ -98,21 +126,18 @@ void main() {
     expect(c.read(scoreFontProvider), KitFontStatus.unavailable);
   });
 
-  test(
-    'with no resolvable kit anywhere (bundled asset not landed), the state is '
-    'unavailable and nothing is swapped',
-    () async {
-      final audio = RecordingAudioService();
-      final c = _container(audio: audio); // empty catalog: bundled piano only
-      await pumpEventQueue();
+  test('with no resolvable kit anywhere, the state is unavailable and nothing '
+      'is swapped', () async {
+    final audio = RecordingAudioService();
+    final c = _container(audio: audio, withoutAnyKit: true);
+    await pumpEventQueue();
 
-      await c.read(scoreFontProvider.notifier).setScoreFamily(percussion: true);
+    await c.read(scoreFontProvider.notifier).setScoreFamily(percussion: true);
 
-      expect(c.read(scoreFontProvider), KitFontStatus.unavailable);
-      expect(audio.awaitedLoads, isEmpty);
-      expect(audio.loadedSoundFonts, isEmpty);
-    },
-  );
+    expect(c.read(scoreFontProvider), KitFontStatus.unavailable);
+    expect(audio.awaitedLoads, isEmpty);
+    expect(audio.loadedSoundFonts, isEmpty);
+  });
 
   test('an unresolvable chosen kit falls back to the bundled kit', () async {
     final audio = RecordingAudioService();

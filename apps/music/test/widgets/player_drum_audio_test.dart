@@ -77,6 +77,12 @@ Future<ProviderContainer> _pump(
       privateSoundFontServiceProvider.overrideWithValue(
         FakePrivateSoundFontService(),
       ),
+      // The BUNDLED kit ships in every build, so "no kit anywhere" has to be
+      // forced rather than inherited from an empty server listing: narrowing
+      // the catalog to the keyboard fonts is what models a build (or a device)
+      // where no percussion font resolves.
+      if (!kitInCatalog)
+        pianoCatalogProvider.overrideWith((ref) => builtInPianos),
       // With the kit "in the catalog" the bundled-kit id resolves (models the
       // asset having landed / being served); without it, the honest no-kit
       // visual-only outcome is exercised.
@@ -254,10 +260,12 @@ void main() {
     final c = await _pump(tester, audio: audio, dismissModal: false);
 
     // The kit picker label replaces the piano one (fr/en/es/it keys; the
-    // harness runs in English), and the offered font is the kit.
+    // harness runs in English), and the offered font is the kit — the BUNDLED
+    // one: the fake server listing carries the same stable id, which the
+    // catalog deduplicates in the bundled entry's favour.
     expect(find.text('Drum kit sound'), findsOneWidget);
     expect(find.text('Piano sound'), findsNothing);
-    expect(find.text('FluidR3 Drums'), findsOneWidget);
+    expect(find.text('Standard Kit'), findsOneWidget);
     expect(find.text('Upright Piano KW'), findsNothing);
     await _teardown(tester, c);
   });

@@ -377,6 +377,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         // remembered kit, leaving restores the piano) and the play-reward
         // level celebration (change: add-play-rewards).
         child: ScoreFontListener(
+          percussion: ref.watch(
+            playerProvider.select((PlayerData d) => d.isPercussion),
+          ),
           child: PlayRewardListeners(child: _buildPlayer(context)),
         ),
       ),

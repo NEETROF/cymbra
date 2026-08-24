@@ -13,6 +13,8 @@
 // limitations under the License.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/services/preferences_service.dart';
 import 'package:music/services/soundfont_catalog_service.dart';
@@ -36,9 +38,11 @@ ProviderContainer _container(FakeSoundFontCatalogService catalog) {
 void main() {
   test('before the server list resolves the catalog is just the default', () {
     final container = _container(FakeSoundFontCatalogService());
-    // Synchronous read: the async listing has not resolved yet.
+    // Synchronous read: the async listing has not resolved yet — the two
+    // bundled fonts (the piano and the drum kit) are what ships offline.
     expect(container.read(pianoCatalogProvider).map((e) => e.id), [
       defaultPianoId,
+      defaultKitId,
     ]);
   });
 
@@ -56,6 +60,7 @@ void main() {
     final catalog = container.read(pianoCatalogProvider);
     expect(catalog.map((e) => e.id), [
       defaultPianoId,
+      defaultKitId,
       'ydp-grand',
       'salamander-grand',
     ]);
@@ -84,14 +89,19 @@ void main() {
       catalog.firstWhere((e) => e.id == defaultPianoId).kind,
       PianoKind.bundled,
     );
-    expect(catalog.map((e) => e.id), [defaultPianoId, 'ydp-grand']);
+    expect(catalog.map((e) => e.id), [
+      defaultPianoId,
+      defaultKitId,
+      'ydp-grand',
+    ]);
   });
 
-  test('an empty listing leaves only the bundled default', () async {
+  test('an empty listing leaves only the bundled fonts', () async {
     final container = _container(FakeSoundFontCatalogService());
     await pumpEventQueue();
     expect(container.read(pianoCatalogProvider).map((e) => e.id), [
       defaultPianoId,
+      defaultKitId,
     ]);
   });
 
@@ -132,12 +142,26 @@ void main() {
       expect(entry.family, SoundFamily.keyboard);
     });
 
-    test('the bundled-kit id is stable and its entry list is asset-gated', () {
-      // The stable id exists ahead of the asset (selection defaults to it)…
+    test('the bundled kit is the percussion default, and every built-in entry '
+        'points at a declared asset', () {
+      // The licence sign-off landed the bytes (tasks 6.1/6.2/9.1): the stable
+      // id the selection defaults to now resolves to a real bundled entry.
       expect(defaultKitId, 'fluid-r3-drums');
-      // …but no built-in entry points at a nonexistent asset: the list stays
-      // empty until the licence sign-off lands the bytes (tasks 6.1/6.2/9.1).
-      expect(builtInKits, isEmpty);
+      final kit = builtInKits.single;
+      expect(kit.id, defaultKitId);
+      expect(kit.family, SoundFamily.percussion);
+      expect(kit.kind, PianoKind.bundled);
+      // The asset path must be one pubspec declares — a catalog pointing at
+      // bytes that do not ship is the failure this test exists to prevent.
+      expect(kit.source, startsWith('assets/soundfonts/'));
+      final pubspec = File('pubspec.yaml').readAsStringSync();
+      for (final entry in [...builtInPianos, ...builtInKits]) {
+        expect(
+          pubspec,
+          contains(entry.source),
+          reason: '${entry.id} points at an undeclared asset',
+        );
+      }
     });
   });
 }

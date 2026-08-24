@@ -17,8 +17,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../state/player_data.dart';
-import '../state/player_notifier.dart';
 import '../state/score_font.dart';
 
 /// Dedicated listener widget for the font-follows-score reaction (change:
@@ -29,7 +27,17 @@ import '../state/score_font.dart';
 /// remembered kit, and leaving the player (or loading a keyboard score)
 /// restores the remembered piano. The widget never touches a service.
 class ScoreFontListener extends ConsumerStatefulWidget {
-  const ScoreFontListener({required this.child, super.key});
+  const ScoreFontListener({
+    required this.percussion,
+    required this.child,
+    super.key,
+  });
+
+  /// Whether the score this subtree is sounding is percussion. Passed in
+  /// rather than read from the player: the upload and rating previews sound
+  /// their own locally-parsed score, and a listener that could only read the
+  /// player left them playing drum numbers through the piano font.
+  final bool percussion;
 
   final Widget child;
 
@@ -50,11 +58,7 @@ class _ScoreFontListenerState extends ConsumerState<ScoreFontListener> {
     // already-loaded family once, after the first frame.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      unawaited(
-        _scoreFont.setScoreFamily(
-          percussion: ref.read(playerProvider).isPercussion,
-        ),
-      );
+      unawaited(_scoreFont.setScoreFamily(percussion: widget.percussion));
     });
   }
 
@@ -72,15 +76,22 @@ class _ScoreFontListenerState extends ConsumerState<ScoreFontListener> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    ref.listen(playerProvider.select((PlayerData d) => d.isPercussion), (
-      previous,
-      next,
-    ) {
-      if (previous != next) {
-        unawaited(_scoreFont.setScoreFamily(percussion: next));
-      }
-    });
-    return widget.child;
+  void didUpdateWidget(ScoreFontListener old) {
+    super.didUpdateWidget(old);
+    // The family changes when a different score loads under the same subtree
+    // (the player keeps its route across score changes).
+    if (old.percussion != widget.percussion) {
+      // Deferred to after the frame, like the initial report: the swap awaits
+      // provider futures, and starting that chain inside the build phase
+      // leaves it hanging when those providers are themselves initialising.
+      final wanted = widget.percussion;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        unawaited(_scoreFont.setScoreFamily(percussion: wanted));
+      });
+    }
   }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

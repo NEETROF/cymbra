@@ -268,7 +268,16 @@ const String defaultKitId = 'fluid-r3-drums';
 /// `PianoEntry(id: defaultKitId, label: 'FluidR3 Drums', kind:
 /// PianoKind.bundled, source: 'assets/soundfonts/FILE.sf2', family:
 /// SoundFamily.percussion, license: 'MIT')`.
-const List<PianoEntry> builtInKits = [];
+const List<PianoEntry> builtInKits = [
+  PianoEntry(
+    id: defaultKitId,
+    label: 'Standard Kit',
+    kind: PianoKind.bundled,
+    source: 'assets/soundfonts/FluidR3Drums-bank128.sf2',
+    family: SoundFamily.percussion,
+    license: 'MIT',
+  ),
+];
 
 /// The full catalog of selectable pianos: the bundled default, plus the server's
 /// downloadable fonts, plus the persisted user-imported registry. Synchronous and
