@@ -11,12 +11,29 @@ full-width bar is a note in a different shape: a kick required at the onset
 gates like any stroke.
 
 A stroke is an attack with no hold, so the keyboard gate's held-pitch
-satisfaction has no percussion counterpart and none SHALL be invented: a stroke
-that lands **before** the playhead reaches the onset does not pre-satisfy it,
-and each onset requires its own strokes. The keyboard carve-out exists to
-tolerate sustained and tied notes carried into the onset where they first
-sound — a situation a kit cannot produce — and an early-stroke grace window
-would blur the exercise the gate is.
+satisfaction has no percussion counterpart and none SHALL be invented: nothing
+a drummer does is "still holding it" at the onset. What the kit needs instead
+is a **tolerance window**: a stroke that lands within a bounded interval
+**before** the onset SHALL satisfy it when the playhead arrives, rather than
+being discarded and demanded again.
+
+Without it the gate accepts only a stroke landing after the playhead does,
+which is not a timing exercise but a reaction test: a kit is played by feel,
+the hand leaves before the ear checks, and a window narrower than the player's
+own anticipation makes a correct groove read as a failure. The window is the
+percussion half of the same tolerance the keyboard has always had, stated in
+the terms a kit can express.
+
+Three properties bound it, and SHALL hold together:
+
+1. it is **one number**, shared by the gate and by every surface that lights a
+   stroke, so what is accepted and what is shown cannot drift apart;
+2. it is measured on the **playhead's** clock, not the wall clock — a musical
+   window has to be measured where the onset lives, and a frozen or
+   speed-scaled playhead would otherwise skew it;
+3. a stroke is **spent** when credited, so one stroke never satisfies two
+   onsets — the percussion counterpart of the keyboard's "each press counts
+   toward at most one onset".
 
 #### Scenario: A strike releases the gate
 
@@ -24,12 +41,26 @@ would blur the exercise the gate is.
   the player strikes the required piece
 - **THEN** the gate releases and the playhead advances to the next onset
 
-#### Scenario: An early strike does not pre-satisfy
+#### Scenario: A stroke a hair early satisfies the onset
 
-- **WHEN** the player strikes the upcoming onset's piece before the playhead
-  reaches that onset
+- **WHEN** the player strikes the upcoming onset's piece within the tolerance
+  window before the playhead reaches that onset
+- **THEN** the playhead crosses the onset without freezing — the stroke is
+  credited to it, and nothing is demanded a second time
+
+#### Scenario: A stroke long before the onset does not
+
+- **WHEN** the player strikes the upcoming onset's piece further ahead of it
+  than the tolerance window
 - **THEN** the gate is not satisfied; when the playhead arrives it still waits
   for a fresh strike
+
+#### Scenario: One stroke never validates two onsets
+
+- **WHEN** the same piece is required at two onsets close enough together that
+  a single stroke falls inside both tolerance windows
+- **THEN** the stroke is credited to the first onset only, and the second waits
+  for its own
 
 #### Scenario: A multi-piece onset requires every stroke
 
@@ -70,7 +101,8 @@ auto-advance through repeated notes.
 For a **percussion** score, onset satisfaction is defined by the
 percussion-gate requirement ("Percussion onsets gate on expected strokes"): a
 stroke is an attack with no hold, so the held-pitch branch above has no
-percussion counterpart.
+percussion counterpart — its role is played by the tolerance window stated
+there, under the same "at most one onset" rule.
 
 #### Scenario: Early press-and-release does not pre-satisfy
 - **WHEN** the player presses the upcoming note's key and releases it before the
@@ -136,11 +168,11 @@ releases (the highlight returns to its steady state). When the on-screen
 keyboard is hidden, the existing expected-note emphasis in the notation views
 remains the indicator; no overlay SHALL be added.
 
-For a **percussion** score the same contract holds on the pad strip: while the
-gate is blocked, the expected pads — and the kick pedal when a kick is
-required — SHALL pulse gently, and no overlay SHALL be added. The strip is
-always shown in the cascade (`keyboard-display`), so the indicator is always
-available there; in a percussion notation mode with the strip hidden, the
+For a **percussion** score the same contract holds on the drawn kit: while the
+gate is blocked, the expected pieces — and the bass drum when a kick is
+required — SHALL pulse gently, and no overlay SHALL be added. The kit is always
+drawn on a play surface (`keyboard-display`), so the indicator is always
+available there; in a percussion notation mode with no kit drawn, the
 notation's expected-note emphasis is the indicator, exactly as for keyboard.
 
 #### Scenario: Blocked gate pulses the expected keys
@@ -149,11 +181,10 @@ notation's expected-note emphasis is the indicator, exactly as for keyboard.
 - **THEN** the expected keys' highlight pulses gently and no text banner is
   shown over the play surface
 
-#### Scenario: Blocked gate pulses the expected pads
+#### Scenario: Blocked gate pulses the expected pieces
 
-- **WHEN** Wait Mode freezes playback at a percussion onset with the pad strip
-  shown
-- **THEN** the expected pads (and the kick pedal, when a kick is required)
+- **WHEN** Wait Mode freezes playback at a percussion onset with the kit drawn
+- **THEN** the expected pieces (and the bass drum, when a kick is required)
   pulse gently and no text banner is shown over the play surface
 
 #### Scenario: Release restores the steady highlight

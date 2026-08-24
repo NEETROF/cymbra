@@ -100,7 +100,7 @@ bridge). A painter SHALL NOT re-derive head classes from General MIDI ranges
 of its own: the app and the console are independent implementations, and two
 hand-maintained tables of the same knowledge is exactly how they drift. The
 app's kit-view table (`drum_kit.dart`) remains the separate authority for the
-**gameplay** question (lanes and pads — where to aim); the overlap between the
+**gameplay** question (lanes and drawn pieces — where to aim); the overlap between the
 two tables — which pieces are cymbals — SHALL be pinned by a test so they
 cannot disagree silently.
 

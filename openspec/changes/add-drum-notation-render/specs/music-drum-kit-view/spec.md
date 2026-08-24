@@ -17,15 +17,24 @@ existing device rules (a phone that remaps Partition to Staff for keyboard
 scores does the same for percussion) instead of pinning an absolute list that
 would contradict them.
 
-The **cascade SHALL remain the default** presentation when a percussion score
-is loaded: it is the designed reading surface for playing (`add-drum-kit-view`
-settled it against a drummer), and re-offering notation must not change what a
-returning tester sees on load. The notation modes are an explicit choice, and
-switching between modes SHALL behave as it does for a keyboard score.
+A **play surface SHALL remain the default** presentation when a percussion
+score is loaded: they are the designed reading surfaces for playing
+(`add-drum-kit-view` settled them against a drummer), and re-offering notation
+must not change what a returning tester sees on load. The notation modes are an
+explicit choice, and switching between modes SHALL behave as it does for a
+keyboard score.
+
+The **scrolling Staff SHALL carry the drawn kit** under it, the same one the
+play surfaces draw: it engraves notes but offers nothing to aim at, and a second
+different picture of the same instrument under the same score is exactly what
+`add-drum-kit-view` removed. The **engraved Partition SHALL carry none** — it is
+the mode that already refuses the on-screen keyboard, for the same reason: a
+printed page is read, not aimed at, and the freed height is what keeps the
+current and next systems on screen together.
 
 The inverted-kit setting keeps its existing contract untouched: it reaches the
-cascade and the pad strip only, and has no effect on the notation modes now
-that they exist — drum notation is a fixed convention.
+falling notes and the drawn kit only, and has no effect on the notation modes
+now that they exist — drum notation is a fixed convention.
 
 #### Scenario: The mode toggle offers the full set
 
@@ -46,6 +55,13 @@ that they exist — drum notation is a fixed convention.
 - **THEN** the score is drawn per `music-percussion-engraving` — percussion
   clef, written positions, x-form cymbal heads, two voices — not with
   keyboard-staff assumptions
+
+#### Scenario: The Staff carries the kit, the Partition does not
+
+- **WHEN** a percussion score is shown in the scrolling Staff, then in the
+  engraved Partition
+- **THEN** the Staff draws the same kit the play surfaces draw, struck the same
+  way, and the Partition draws no kit at all
 
 #### Scenario: Keyboard scores keep the three modes
 

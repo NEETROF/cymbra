@@ -216,3 +216,41 @@ Rollback is a revert.
   requires equivalent numbers to share a lane; the equivalence table itself
   (acoustic versus electric snare, the several crashes) is a judgement call best made
   against real files rather than from the General MIDI list.
+
+## Reversal, 2026-08-24: the pad strip is gone, and there are two play surfaces
+
+Everything above is the record of the decision as it was taken. Playing the
+result changed three of its conclusions, and the requirements now state the new
+ones. Kept here rather than rewritten, because a design document is a record of
+what was decided and why — including what was wrong.
+
+**1. The strip said the same thing twice.** A row of labelled rectangles under a
+row of labelled lanes made the player read two pictures of one instrument, and
+it put the thing you strike somewhere other than the thing you read. The
+surfaces now *draw the kit* and you strike the drawing. Geometry, painting and
+hit areas became a single object (`drum_kit_art.dart`): an input surface
+computed anywhere but where the drawing happens is a hit area that drifts from
+what the eye sees, and the drift is invisible until a player aims at a drum and
+misses. That reversal reaches the staff too — it engraves notes and offers
+nothing to aim at, so it carries the same kit — and stops at the Partition,
+which draws none.
+
+**2. A flat scroll is not the only way to read a groove.** The stage — the same
+notes in perspective, sliding down their rail onto the drum they name — is now
+the first mode a percussion score offers, because it is the reading a beginner
+is drawn to. Its projection is a true `1/z`; the first attempt used a power
+curve, which bunches the arrivals near the hit line, so an evenly played run
+read as rushed. Both surfaces derive everything from the same objects, so they
+cannot teach two instruments or two moments.
+
+**3. A note that lights itself plays the piece for you.** The first version lit
+each note as its instant arrived. It reads well and teaches nothing: the player
+follows the surface instead of hearing the beat, and a good hit and a lucky one
+look identical. Only the player's stroke lights a note now — inside the
+tolerance window `add-drum-scoring` defines, which is also what releases the
+Wait Mode gate, so what is shown and what is accepted are one number.
+
+The grid moved with them: it is drawn from the score's measure table and beat
+length, never from round millisecond intervals. Arbitrary spacing lands on no
+real tempo, so a correctly-placed note reads as displaced — the surface teaches
+an error the score does not contain.

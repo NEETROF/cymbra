@@ -77,3 +77,10 @@
 - [ ] 9.8 Percussion sessions recorded before the lift (staging holds some from the interim): confirm they engaged nothing and still engage nothing after the lift
 - [ ] 9.9 Difficulty spot-check: the authored bundled scores grade at their tiers; the re-graded catalog percussion rows hold plausible levels and every `source`/`manual` grade is untouched
 - [ ] 9.10 Keyboard regression: a keyboard run's gauge, summary, awards, boards, streak and daily access behave exactly as before, and the keyboard sync% of a reference run is unchanged
+
+## Addendum — the stroke tolerance window (2026-08-24)
+
+- [x] A.1 `kStrokeToleranceMs`, one number in `drum_kit.dart`, shared by the Wait Mode gate and by every surface that lights a stroke
+- [x] A.2 The gate credits a stroke played within the window before the onset, stamped on the **playhead's** clock, and spends it so one stroke never validates two onsets
+- [x] A.3 Tests: a stroke a hair early walks the playhead through the onset; a stroke earlier than the window still does not; a credited stroke is spent
+- [ ] A.4 Feel pass: is 150 ms the right window on a real kit at tempo, and does it need to scale with the transport speed?

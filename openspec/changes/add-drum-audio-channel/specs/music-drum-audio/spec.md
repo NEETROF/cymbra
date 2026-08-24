@@ -141,7 +141,7 @@ bundled piano is also served.
 The engine SHALL expose, through the injectable audio seam, an entry point that
 sounds a single General MIDI percussion number on the drum channel now
 (`drum_on`, with its paired `drum_off`), independent of any loaded score's
-schedule. Wiring pad taps and MIDI drum-pad input to it is
+schedule. Wiring kit taps and MIDI drum-pad input to it is
 `add-drum-input-mapping`'s, which SHALL NOT need to modify the engine to do so.
 
 #### Scenario: The verb is callable without a schedule

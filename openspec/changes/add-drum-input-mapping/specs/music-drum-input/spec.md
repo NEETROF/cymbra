@@ -2,7 +2,8 @@
 
 ### Requirement: Percussion strokes converge on the player's note entry points
 
-The player SHALL route every percussion stroke — an on-screen pad tap, a
+The player SHALL route every percussion stroke — an on-screen tap on the
+drawn kit, a
 kick-pedal tap, and every note event arriving from an external MIDI device —
 through the same note-on/note-off entry points that keyboard input already
 uses, carrying the stroke's General MIDI percussion number as the pitch.
@@ -16,10 +17,10 @@ the scorer against strokes without re-plumbing input, exactly as
 is reachable only by the drum audience of `music-drums-visibility`; this
 capability adds no gating of its own.
 
-#### Scenario: A pad tap reaches the entry points
+#### Scenario: A tap on the kit reaches the entry points
 
-- **WHEN** the user taps a pad on the strip
-- **THEN** a note-on for the pad's General MIDI number enters the player
+- **WHEN** the user taps a piece of the drawn kit
+- **THEN** a note-on for that piece's General MIDI number enters the player
   through the same entry point a key press uses
 
 #### Scenario: An e-kit stroke reaches the same entry points
@@ -31,7 +32,7 @@ capability adds no gating of its own.
 
 #### Scenario: Sources are identical below the sounding decision
 
-- **WHEN** the same General MIDI number arrives once from a pad tap and once
+- **WHEN** the same General MIDI number arrives once from a tap and once
   from an external device
 - **THEN** held-state bookkeeping and feedback behave identically for both;
   only the sounding decision may differ, per the instrument-sounds-itself rule
@@ -77,9 +78,9 @@ This change consumes the hook; the synth path itself — the drum channel, the
 kit SoundFont, the hook's contract — is `add-drum-audio-channel`'s and is not
 restated here.
 
-#### Scenario: A pad tap is audible while stopped
+#### Scenario: A tap on the kit is audible while stopped
 
-- **WHEN** playback is stopped and the user taps a pad
+- **WHEN** playback is stopped and the user taps a drawn piece
 - **THEN** the struck piece sounds immediately as a one-shot
 
 #### Scenario: An e-kit stroke is audible during playback
@@ -98,7 +99,7 @@ restated here.
 
 #### Scenario: On-screen strokes still sound when the module sounds itself
 
-- **WHEN** the instrument-sounds-itself rule is on and the user taps a pad
+- **WHEN** the instrument-sounds-itself rule is on and the user taps a piece
 - **THEN** the tap synthesizes normally — the rule exempts only the
   instrument's own strokes
 
@@ -153,7 +154,7 @@ The player SHALL accept and sound every percussion stroke, and flash the
 controller surface it resolves to, regardless of the hand selection or any
 visibility filter: during hands-only practice a foot stroke (pedal tap or
 e-kit kick) still sounds and still flashes the pedal, and during feet-only
-practice a hand stroke still sounds and still flashes its pad. Hand selection filters what is drawn and what will one day be
+practice a hand stroke still sounds and still flashes its piece. Hand selection filters what is drawn and what will one day be
 judged (`hand-selection`, `performance-scoring`) — never what the player may
 do.
 
@@ -171,7 +172,7 @@ because of a display filter reads as broken, not filtered.
 #### Scenario: A hand stroke during feet-only practice
 
 - **WHEN** the hand selection is feet-only and a snare stroke arrives
-- **THEN** the stroke sounds and the snare pad flashes, even though hand
+- **THEN** the stroke sounds and the drawn snare flashes, even though hand
   events are hidden from the cascade
 
 ### Requirement: A stroke outside the score's kit is audible, not an error
@@ -186,7 +187,7 @@ never uses sounds without any expected-state involvement.
 
 - **WHEN** the loaded score uses only hi-hat, snare and kick, and a crash
   stroke arrives from an external kit
-- **THEN** the crash sounds, no pad flashes, and no error state is raised
+- **THEN** the crash sounds, no piece flashes, and no error state is raised
 
 #### Scenario: A kick on a kickless score
 

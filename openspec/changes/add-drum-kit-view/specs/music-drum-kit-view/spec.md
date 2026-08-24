@@ -171,25 +171,45 @@ coinciding onset explicitly.
 - **WHEN** a kick falls where no lane has a note
 - **THEN** the bar is clearly legible across the full width
 
-### Requirement: The pad strip replaces the on-screen keyboard
+### Requirement: The drawn kit replaces the on-screen keyboard
 
-For a percussion score the on-screen controller SHALL be a strip of pads, one per
-lane, **in the same order as the lanes**, with the kick as a single wide pedal
-beneath the pads rather than one pad among them.
+For a percussion score the on-screen controller SHALL be a **drawing of the kit
+itself** — one shape per lane, in the same order as the lanes, with the bass drum
+front and centre rather than one piece among them — and the player SHALL strike
+that drawing.
+
+The drawing, its layout and its hit areas SHALL be **one object**. An input
+surface computed anywhere but where the drawing happens is a hit area that drifts
+from what the eye sees, and the drift is invisible until a player aims at a drum
+and misses it.
+
+A row of labelled rectangles under the falling notes said the same thing twice —
+a row of names under a row of names — and it put the thing you strike somewhere
+other than the thing you read. One drawing, struck directly, removes both.
 
 Sharing the order is what makes the two surfaces one mapping: a player who learns
-where a piece is in the cascade finds it in the same place on the strip, and never
-translates between two layouts.
+where a piece is among the falling notes finds it in the same place on the kit,
+and never translates between two layouts.
 
-#### Scenario: Pads and lanes share one order
+While the row is sparse the pieces SHALL straddle a central gap the bass drum's
+width, so no piece is drawn over it — which is also where a real kit puts it.
 
-- **WHEN** the cascade lanes are derived for a score
-- **THEN** the pad strip presents the same pieces in the same left-to-right order
+#### Scenario: The drawn pieces and the lanes share one order
 
-#### Scenario: The kick sits apart, as a pedal
+- **WHEN** the lanes are derived for a score
+- **THEN** the drawn kit presents the same pieces in the same left-to-right order
 
-- **WHEN** the pad strip is drawn
-- **THEN** the kick is a wide pedal beneath the pads, not one of them
+#### Scenario: The bass drum is not one of the row
+
+- **WHEN** the kit is drawn
+- **THEN** the bass drum sits centred and full-width under the pieces, and the
+  pieces straddle it rather than overlapping it
+
+#### Scenario: What is struck is what is drawn
+
+- **WHEN** the player taps a drawn piece
+- **THEN** the surface struck is the one whose shape contains the tap, resolved
+  from the very geometry that painted it
 
 ### Requirement: Open and closed hi-hat are note variants
 
@@ -253,7 +273,7 @@ score keeps all three modes.
 
 Until `add-drum-scoring` lands, a percussion score SHALL be playable in the
 timed modes only, and Wait Mode SHALL NOT be offered for it. This change ships
-the pads display-only (see `keyboard-display`) and no percussion input path
+the kit display-only (see `keyboard-display`) and no percussion input path
 exists yet, so a Wait Mode gate would block forever on input that cannot
 arrive. The restriction SHALL apply to percussion scores only.
 
@@ -267,24 +287,111 @@ arrive. The restriction SHALL apply to percussion scores only.
 - **WHEN** a keyboard score is loaded
 - **THEN** Wait Mode is offered exactly as before
 
-### Requirement: Lanes and pads carry the kit-piece names
+### Requirement: Every drawn piece carries its name, on itself
 
-Each lane and its pad SHALL carry the localized name of its kit piece (fr/en) —
-charley/hi-hat, caisse claire/snare, and so on — so a player who does not yet
-map positions to pieces can read the strip like a legend. A generic piece from
-the sort rule's terminal bucket SHALL carry its General MIDI name.
+Each drawn piece SHALL carry the localized name of its kit piece (fr/en) —
+charley/hi-hat, caisse claire/snare, and so on — so a player who does not yet map
+positions to pieces can read the kit like a legend. A generic piece from the sort
+rule's terminal bucket SHALL carry its General MIDI name.
 
-#### Scenario: Labels name the pieces
+A name SHALL be hung on **its own piece**, not on a baseline shared by the row: a
+kit draws cymbals high and drums low, and a row of names lined up under shapes of
+different heights makes the reader match them by column. The name SHALL be
+clipped to its piece's width rather than allowed to run into its neighbour's.
 
-- **WHEN** the cascade and the pad strip are shown for a score using hi-hat and
-  snare
-- **THEN** the hi-hat lane and pad, and the snare lane and pad, each carry the
-  piece's localized name
+#### Scenario: Names sit on the pieces they name
+
+- **WHEN** the kit is drawn for a score using a hi-hat and a snare
+- **THEN** each piece carries its localized name directly under its own shape,
+  and neither name overruns the other's column
+
+### Requirement: A groove can be read as a stage as well as a cascade
+
+A percussion score SHALL offer a second play surface, the **stage**: the same
+notes seen in perspective, sliding down their rail toward a hit line with the
+drawn kit under it. It SHALL be offered for percussion scores only, and SHALL be
+the **first** mode presented for one — it is the reading a beginner is drawn to,
+and the first segment is what a beginner tries.
+
+The projection SHALL be a true `1/z`: an object twice as far SHALL be half the
+size. This is not a styling choice — it is what spaces the arrivals correctly.
+A power curve bunches them near the hit line, so a run that is evenly played
+reads as rushed, which is the giveaway of a fake perspective.
+
+The stage SHALL derive everything it shows from the same objects the cascade
+does — the same lanes, the same kick-as-a-bar rule, the same drawn kit, the same
+open/closed variant — so the two surfaces cannot teach two different instruments
+or two different moments.
+
+#### Scenario: The stage is offered first, and only for percussion
+
+- **WHEN** a percussion score is loaded
+- **THEN** the stage is the first mode in the row; a keyboard score is offered
+  no stage at all
+
+#### Scenario: Distance halves the size
+
+- **WHEN** two notes are shown, one twice as far from the hit line as the other
+- **THEN** the nearer is drawn twice the size of the farther
+
+#### Scenario: A note lands on the drum it names
+
+- **WHEN** a note reaches the hit line
+- **THEN** its rail ends on the drawn piece that note belongs to, wherever the
+  layout put that piece
+
+### Requirement: The grid is the score's own metre
+
+Both play surfaces SHALL draw their reference lines from the score's **measure
+table and beat length**, never from round millisecond intervals. A grid on
+arbitrary spacing lands on no real tempo, so a correctly-placed note reads as
+displaced against it — the surface then teaches an error the score does not
+contain.
+
+A bar line and a beat line SHALL be distinguishable by **length first** — the bar
+line spanning the surface, the beat a shorter stroke inside it — and only then by
+brightness, which is the hierarchy an engraved staff already uses. Each bar line
+SHALL carry its **written** measure number, so an unrolled repeat numbers its bars
+the way the paper does.
+
+The metre SHALL be drawn **after** the full-width kick bars: a downbeat almost
+always carries a kick, and a reference line hidden under a note is not a
+reference.
+
+#### Scenario: The grid falls on the beats
+
+- **WHEN** a score at any tempo is played on either surface
+- **THEN** the reference lines fall on that score's bars and beats, and a
+  correctly-placed note sits on the line it belongs to
+
+#### Scenario: A downbeat carrying a kick still shows its bar line
+
+- **WHEN** a measure begins on a kick
+- **THEN** the bar line is visible across the kick's bar, and both remain legible
+
+#### Scenario: Bars are numbered as written
+
+- **WHEN** a repeated passage is played a second time
+- **THEN** its bar lines carry the same numbers they carried the first time
+
+### Requirement: A passed note leaves the surface
+
+A note whose instant has gone by SHALL leave the surface rather than come to rest
+on the hit line. A note parked where it landed reads as still owed, and on a
+perspective surface it also stops moving while everything behind it keeps
+coming — the one object on screen that contradicts the motion of all the others.
+
+#### Scenario: A passed note leaves
+
+- **WHEN** the playhead has crossed a note's instant
+- **THEN** the note keeps travelling out of the surface and stops being drawn,
+  rather than resting on the hit line
 
 ### Requirement: The inverted-kit setting mirrors the controller only
 
 The player SHALL be able to enable an **inverted kit** layout, which reverses the
-lane order and the pad strip **together**. The setting's contract stops there, as
+lane order and the drawn kit **together** — they are one object, so the reversal
+cannot reach one without the other. The setting's contract stops there, as
 a property of the setting itself: it SHALL NOT alter notation — drum notation is
 a fixed convention, and a player whose kit is mirrored reads the same score as
 anyone else, on whatever notation surfaces exist now or later — and it SHALL NOT
@@ -299,17 +406,17 @@ Its label SHALL describe the **kit's layout**, not the player: a left-handed dru
 may well play a standard kit, and a label naming handedness would invite them to
 enable a setting that does not apply to them.
 
-#### Scenario: Both controller surfaces mirror together
+#### Scenario: The falling notes and the kit mirror together
 
 - **WHEN** the inverted-kit setting is enabled
-- **THEN** the lane order and the pad strip are both reversed, and they still match
-  each other
+- **THEN** the lane order and the drawn kit are both reversed, and they still
+  match each other
 
 #### Scenario: The setting never alters notation
 
 - **WHEN** the setting is enabled
 - **THEN** it has no effect on how the score is engraved — the setting reaches
-  the cascade and the pad strip, and nothing else
+  the falling notes and the drawn kit, and nothing else
 
 #### Scenario: The setting performs no input remapping
 

@@ -57,3 +57,13 @@
 - [ ] 7.4 Confirm the open-hi-hat variant is distinguishable from a closed one at speed, not merely side by side
 - [ ] 7.5 With the drummer tester: validate the tom ordering and the ride's placement on a score that alternates hi-hat and ride between sections — the one case the reasoning could not settle
 - [ ] 7.6 Record what the feel pass changed, in `design.md`, so the next person knows which values were measured and which were guessed
+
+## 8. Reversal — the drawn kit, the stage, the metre (2026-08-24)
+
+- [x] 8.1 One kit object owning layout, painting and hit areas (`drum_kit_art.dart`); both play surfaces and the staff build their strike surface from it, and the Partition draws none
+- [x] 8.2 The pieces straddle a central gap the bass drum's width while the row is sparse, and every name hangs under its own piece, clipped to its width
+- [x] 8.3 The stage: a fourth render mode, percussion only, first in the row; true `1/z` projection; rails ending on the drawn piece they name
+- [x] 8.4 The metre grid on both surfaces comes from `measureStartMs`/beat length, bar lines carry their written measure number, and it is painted after the kick bars
+- [x] 8.5 Nothing lights on arrival: a note lights only when its piece is struck inside the tolerance window, and a passed note leaves the surface
+- [x] 8.6 `flutter analyze`, `dart format`, `dart run custom_lint`, `flutter test --exclude-tags golden` clean; `openspec validate add-drum-kit-view --strict`
+- [ ] 8.7 Feel pass on the two surfaces at real tempo, on a phone and a tablet — is the stage readable enough to be the first mode a beginner meets?

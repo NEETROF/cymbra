@@ -10,7 +10,7 @@ piano, and be changeable at runtime through a notifier method.
 For a **percussion** score the range apparatus SHALL NOT apply and SHALL NOT be
 offered: a drum kit is an unordered set of pieces rather than an interval of
 pitches, so there is no window to size and nothing to fit. The controller is the
-pad strip instead (see `music-drum-kit-view`), and the range mode retains its value
+drawn kit instead (see `music-drum-kit-view`), and the range mode retains its value
 untouched for the next keyboard score.
 
 #### Scenario: Default mode is the full 88-key piano
@@ -34,8 +34,8 @@ range so note columns stay aligned to their keys. Changing the range mode SHALL
 update both together.
 
 For a **percussion** score the same contract holds over a different quantity: the
-pad strip and the cascade SHALL render against the same **lane order**, so a piece
-sits in the same horizontal position in both. Any change to that order — including
+drawn kit and the falling notes SHALL render against the same **lane order**, so a
+piece sits in the same horizontal position in both. Any change to that order — including
 the inverted-kit setting — SHALL update both together. The requirement is
 unchanged in substance: the controller and the falling notes are one mapping, never
 two.
@@ -45,9 +45,9 @@ two.
 - **THEN** the falling-note columns and the keyboard keys use the same horizontal
   mapping
 
-#### Scenario: Cascade stays aligned to pads
+#### Scenario: The falling notes stay aligned to the drawn kit
 - **WHEN** the lane order changes for a percussion score
-- **THEN** the cascade lanes and the pad strip use the same horizontal mapping
+- **THEN** the lanes and the drawn pieces use the same horizontal mapping
 
 ### Requirement: Adaptive Keyboard Height
 
@@ -61,10 +61,10 @@ for the fixed minimum (e.g. a shrunken desktop window), the minimum SHALL yield
 proportionally so the notation above keeps the large majority of the height —
 the keyboard never dominates a crushed render area.
 
-The pad strip SHALL follow the same height policy, for the same reasons. Its height
-SHALL NOT be derived from the number of pieces: unlike keys, pads keep a usable
-touch target however few or many there are, and letting a sparse kit inflate the
-strip would take height from the cascade for no gain.
+The band the kit is drawn in SHALL follow the same height policy, for the same
+reasons. Its height SHALL NOT be derived from the number of pieces: unlike keys,
+drawn pieces keep a usable touch target however few or many there are, and letting
+a sparse kit inflate the band would take height from the falling notes for no gain.
 
 #### Scenario: Keyboard shrinks on small phone viewports
 - **WHEN** the player renders on a phone-class landscape viewport shorter than a
@@ -86,9 +86,9 @@ strip would take height from the cascade for no gain.
 - **THEN** the keyboard shrinks below it proportionally and the notation keeps
   the majority of the height
 
-#### Scenario: Pad strip height ignores the piece count
+#### Scenario: The kit's band ignores the piece count
 - **WHEN** a percussion score uses three pieces and another uses seven
-- **THEN** the pad strip has the same height in both, governed by the viewport
+- **THEN** the kit's band has the same height in both, governed by the viewport
 
 ### Requirement: On-Screen Key Input
 
@@ -101,9 +101,9 @@ internally it reuses the player's note-on/note-off entry points — so it drives
 the pressed-key feedback and the Wait Mode gate the same way, including while
 Wait Mode is blocking.
 
-For a **percussion** score the pad strip SHALL be display-only in this change: a
-tap on a pad SHALL produce no note, no feedback, and no gate effect. Pad input —
-a tap emitting the pad's General MIDI note through the same note-on/off entry
+For a **percussion** score the drawn kit SHALL be display-only in this change: a
+tap on a piece SHALL produce no note, no feedback, and no gate effect. Kit input —
+a tap emitting the piece's General MIDI note through the same note-on/off entry
 points — arrives with `add-drum-input-mapping`. The interim is stated here
 deliberately, so the archived spec never claims an input path the code does not
 have; it is also why Wait Mode is not offered for a percussion score in the
@@ -133,9 +133,9 @@ meantime (see `music-drum-kit-view`).
 - **THEN** pressing on-screen keys still emits note-on/note-off and shows the
   pressed state, so the user can play freely
 
-#### Scenario: A pad tap does nothing yet
-- **WHEN** a percussion score is shown and the user taps a pad
-- **THEN** no note is emitted and no visual state changes — the strip is
+#### Scenario: A tap on a drum does nothing yet
+- **WHEN** a percussion score is shown and the user taps a drawn piece
+- **THEN** no note is emitted and no visual state changes — the kit is
   display-only until `add-drum-input-mapping`
 
 ### Requirement: Three-State Key Feedback
@@ -150,9 +150,9 @@ notes belonging to the selected hand(s): when a single hand is selected, notes o
 the unselected hand SHALL NOT appear in the required set and SHALL NOT be shown in
 the expected or correct state.
 
-For a **percussion** score the pads SHALL carry none of these states in this
-change: the strip is display-only, so there is nothing held to reflect. Pad
-feedback — including the "validated pad" the exploration mockups sketch —
+For a **percussion** score the drawn pieces SHALL carry none of these states in
+this change: the kit is display-only, so there is nothing held to reflect. Piece
+feedback — including the "validated piece" the exploration mockups sketch —
 arrives with `add-drum-input-mapping`, together with the input it reflects.
 
 #### Scenario: Expected key highlighted
@@ -177,9 +177,9 @@ arrives with `add-drum-input-mapping`, together with the input it reflects.
 - **THEN** that note's key is not shown in the expected or correct state and is
   absent from the required set
 
-#### Scenario: Pads carry no feedback states yet
+#### Scenario: The drawn pieces carry no feedback states yet
 - **WHEN** a percussion score is shown
-- **THEN** the pads render without expected, correct or pressed states — pad
+- **THEN** the pieces render without expected, correct or pressed states — their
   feedback arrives with `add-drum-input-mapping`
 
 ### Requirement: Multi-Touch Polyphony
@@ -189,9 +189,9 @@ chords can be played where the platform reports multi-touch. Each pointer SHALL
 track its own pressed pitch independently, so releasing one finger SHALL note-off
 only that finger's pitch and leave the others sounding.
 
-The requirement binds the **keyboard**; the pad strip, display-only in this
-change, has no pointer behaviour to make polyphonic. Multi-touch pad play — two
-hands striking two pads at once — arrives with `add-drum-input-mapping` and will
+The requirement binds the **keyboard**; the drawn kit, display-only in this
+change, has no pointer behaviour to make polyphonic. Multi-touch kit play — two
+hands striking two pieces at once — arrives with `add-drum-input-mapping` and will
 be specified there.
 
 #### Scenario: Two keys held at once
@@ -254,12 +254,12 @@ the player what to play, and the freed height is what keeps the current and
 next staff lines on screen together. The setting SHALL default to visible and
 be session-scoped.
 
-The same policy SHALL govern the **pad strip**: in the percussion cascade —
-which, like Synthesia, aligns its falling notes to its controller — the strip
+The same policy SHALL govern the **drawn kit**: in a percussion play surface —
+which, like Synthesia, aligns its falling notes to its controller — the kit
 SHALL always be shown and the hide option SHALL NOT be offered. Since the
 notation modes are not offered for a percussion score in the interim (see
 `music-drum-kit-view`), the hide setting is simply absent for percussion until
-`add-drum-notation-render` lands, at which point the strip SHALL follow the
+`add-drum-notation-render` lands, at which point the kit SHALL follow the
 same per-mode rules as the keyboard.
 
 #### Scenario: Hide the keyboard in the scrolling staff
@@ -281,6 +281,6 @@ same per-mode rules as the keyboard.
 - **WHEN** a session starts
 - **THEN** the on-screen keyboard is visible (in the modes that show it)
 
-#### Scenario: The cascade always keeps the pad strip
+#### Scenario: A play surface always keeps its drawn kit
 - **WHEN** a percussion score is shown in the cascade
-- **THEN** the pad strip is shown and no hide option is offered
+- **THEN** the kit is drawn and no hide option is offered

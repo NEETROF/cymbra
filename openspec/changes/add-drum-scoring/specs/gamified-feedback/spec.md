@@ -84,5 +84,5 @@ and SHALL NOT leave persistent clutter over the play surface.
 
 - **WHEN** a kick onset is judged in the cascade
 - **THEN** its hit effect is shown on the full-width bar at the hit line, and a
-  hand stroke's on its lane — the cascade always shows the pad strip, so the
-  sparks are always drawn there
+  hand stroke's on its lane — a percussion play surface always draws its own
+  kit under the hit line, so the sparks are always drawn there

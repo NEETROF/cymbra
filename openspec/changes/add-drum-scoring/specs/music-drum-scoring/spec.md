@@ -151,7 +151,7 @@ not of the player.
 
 The system SHALL route every stroke-identity decision — the Wait Mode gate's
 required set, the scorer's binding decision, the extra-stroke detection and the
-pad feedback — through **one shared stroke-identity function**, sourced from the
+kit feedback — through **one shared stroke-identity function**, sourced from the
 kit-piece table — never a second, locally re-derived equivalence. A stroke that releases the gate SHALL be a
 stroke the scorer binds, and a stroke the scorer rejects SHALL never release
 the gate.
@@ -163,7 +163,7 @@ the gate.
   onset, and stays blocked exactly when the scorer would record it as an extra
   note
 
-#### Scenario: Pad feedback agrees with the judgment
+#### Scenario: The kit's feedback agrees with the judgment
 
 - **WHEN** a stroke is judged
-- **THEN** the pad feedback reflects the same piece resolution the scorer used
+- **THEN** the kit's feedback reflects the same piece resolution the scorer used

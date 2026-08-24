@@ -12,7 +12,7 @@ gate would block forever — is no longer true: strokes now reach the player,
 and a blocked gate could technically be satisfied. What remains missing is
 honest judgment. The gate's exact-pitch test is wrong for percussion: one
 lane deliberately collapses several General MIDI numbers (acoustic 38 /
-electric 40 snare, closed 42 / open 46 hi-hat), the on-screen pad emits one
+electric 40 snare, closed 42 / open 46 hi-hat), the drawn piece emits one
 canonical member of that set, and a stroke a drummer correctly aims would
 still be refused whenever the file's number differs from the struck one — the
 gate would hold on spelling, not on playing. Deciding which numbers satisfy
