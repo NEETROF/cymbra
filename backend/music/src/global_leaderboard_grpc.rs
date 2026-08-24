@@ -269,6 +269,48 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn global_boards_stay_open_to_an_ineligible_caller_and_name_no_piece() {
+        // The global reads are deliberately OUTSIDE the drum-audience gate
+        // (change: add-drum-scoring): their entries disclose players, scores and a
+        // contributing-piece COUNT — never a piece identity — so gating them would
+        // protect nothing and break a community surface. This service holds no
+        // eligibility seam at all, which is the point: there is nothing to gate.
+        const DRUM_PIECE: &str = "44444444-4444-7444-8444-444444444444";
+        let repo = Arc::new(FakeGlobalLeaderboardRepo::default());
+        let g = grpc(repo.clone(), &["drummer"]);
+        // A season standing fed entirely by a percussion piece…
+        play(&g, "drummer", DRUM_PIECE, 95.0).await;
+        // …read by a caller outside the drum audience.
+        let resp = g
+            .get_global_leaderboard(authed(
+                GetGlobalLeaderboardRequest {
+                    mode: "tempo".into(),
+                    season_id: String::new(),
+                    offset: 0,
+                    limit: 50,
+                },
+                "keyboardist",
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(resp.total, 1, "the standing is still readable");
+        assert_eq!(resp.entries[0].user_id, "drummer");
+        assert_eq!(resp.entries[0].contributing_pieces, 1);
+        assert!(
+            !format!("{resp:?}").contains(DRUM_PIECE),
+            "no piece identity leaves the global board"
+        );
+        // The season history is equally open.
+        let seasons = g
+            .list_global_seasons(authed(ListGlobalSeasonsRequest {}, "keyboardist"))
+            .await
+            .unwrap()
+            .into_inner();
+        assert!(!seasons.current_season_id.is_empty());
+    }
+
+    #[tokio::test]
     async fn list_global_seasons_returns_the_current_season() {
         let repo = Arc::new(FakeGlobalLeaderboardRepo::default());
         let g = grpc(repo, &[]);

@@ -154,4 +154,115 @@ void main() {
     final lanes = deriveDrumLanes([n(42), n(46)]);
     expect(lanes, hasLength(1)); // one hi-hat lane holds both strokes
   });
+
+  group('emission — the number a pad strikes (add-drum-input-mapping)', () {
+    /// The emitted number of the lane holding [gm] on a score made of [score].
+    int emitted(List<int> score, int gm) {
+      final lanes = deriveDrumLanes([for (final p in score) n(p)]);
+      return emittedGmOfLane(lanes[laneIndexOf(lanes, gm)!]);
+    }
+
+    test('a pad emits its piece\'s first canonical member', () {
+      // Hi-hat: closed before open. Snare: acoustic, then electric, then side
+      // stick. Ride: the ride itself before the second ride and the bell.
+      expect(emitted([42, 46, 38, 40, 37, 51, 59, 53], 42), 42);
+      expect(emitted([42, 46, 38, 40, 37, 51, 59, 53], 38), 38);
+      expect(emitted([42, 46, 38, 40, 37, 51, 59, 53], 51), 51);
+    });
+
+    test('the canonical member the score does NOT use is skipped', () {
+      // A score written with the electric snare only emits 40, never the
+      // absent canonical 38 — the stroke stays inside the file's vocabulary.
+      expect(emitted([42, 40], 40), 40);
+      // The side stick alone: the last canonical member, still emitted.
+      expect(emitted([42, 37], 37), 37);
+      // An open-only hi-hat emits 46 — the one case the strip emits the open
+      // stroke, because it is the only hi-hat number the score has.
+      expect(emitted([46, 38], 46), 46);
+      // The bell alone speaks for the ride lane.
+      expect(emitted([53, 38], 53), 53);
+    });
+
+    test('a generic (terminal-bucket) piece emits its single number', () {
+      expect(emitted([42, 38, 56], 56), 56); // cowbell
+      expect(emitted([42, 38, 44], 44), 44); // pedal hi-hat
+    });
+
+    test('every emitted number is a member of the lane it came from', () {
+      // The property the struck-flash lookup and the future matcher both rest
+      // on: emission can never leave the lane that produced it.
+      final score = [42, 46, 37, 40, 41, 45, 50, 53, 59, 49, 52, 55, 57, 54];
+      final lanes = deriveDrumLanes([for (final p in score) n(p)]);
+      expect(lanes, isNotEmpty);
+      for (final lane in lanes) {
+        final gm = emittedGmOfLane(lane);
+        expect(lane.gmNumbers, contains(gm));
+        expect(laneIndexOf(lanes, gm), lanes.indexOf(lane));
+      }
+    });
+
+    test('emission is deterministic for a given score', () {
+      final score = [40, 38, 46, 42, 53, 51];
+      final first = [
+        for (final l in deriveDrumLanes([for (final p in score) n(p)]))
+          emittedGmOfLane(l),
+      ];
+      // Same score, notes in another order: the same numbers, no runtime
+      // cleverness and no dependence on how the set was built.
+      final shuffled = [42, 51, 38, 53, 46, 40];
+      final second = [
+        for (final l in deriveDrumLanes([for (final p in shuffled) n(p)]))
+          emittedGmOfLane(l),
+      ];
+      expect(first, [42, 38, 51]);
+      expect(second, first);
+      // A hand-built lane (not derived) emits by the table too, never by set
+      // iteration order.
+      expect(
+        emittedGmOfLane(
+          const DrumLane(
+            role: KitPieceRole.snare,
+            gmNumbers: {37, 40, 38},
+            labelKey: 'kitPieceSnare',
+          ),
+        ),
+        38,
+      );
+    });
+
+    test('the kick pedal emits 36, or 35 for a score that only writes 35', () {
+      expect(emittedKickGm({35, 36}), 36);
+      expect(emittedKickGm({36}), 36);
+      expect(emittedKickGm({35}), 35);
+      // No kick at all: nothing to emit (and no pedal is drawn).
+      expect(emittedKickGm(const {}), isNull);
+      // The ordered list and the classification set agree on membership.
+      expect(kKickEmissionOrder.toSet(), kKickGmNumbers);
+    });
+  });
+
+  group('struck-surface resolution (add-drum-input-mapping)', () {
+    final lanes = deriveDrumLanes([n(42), n(46), n(38), n(36)]);
+
+    test('a number resolves to the pad of the lane that collapses it', () {
+      expect(struckSurfaceOf(lanes, 42, hasPedal: true), 0);
+      // The open stroke lights the SAME pad as the closed one — one lane.
+      expect(struckSurfaceOf(lanes, 46, hasPedal: true), 0);
+      expect(struckSurfaceOf(lanes, 38, hasPedal: true), 1);
+    });
+
+    test('either kick number resolves to the pedal', () {
+      expect(struckSurfaceOf(lanes, 36, hasPedal: true), kPedalSurface);
+      expect(struckSurfaceOf(lanes, 35, hasPedal: true), kPedalSurface);
+      // The pedal sentinel can never collide with a pad index.
+      expect(kPedalSurface, lessThan(0));
+    });
+
+    test('a number outside the score\'s kit resolves to nothing', () {
+      // A crash over a crash-less groove: free play, no pad to flash, no
+      // error — and a kick on a kickless score has no pedal to flash either.
+      expect(struckSurfaceOf(lanes, 49, hasPedal: true), isNull);
+      expect(struckSurfaceOf(lanes, 36, hasPedal: false), isNull);
+    });
+  });
 }

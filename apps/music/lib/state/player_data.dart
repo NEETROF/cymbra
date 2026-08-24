@@ -500,6 +500,24 @@ abstract class PlayerData with _$PlayerData {
     /// standard layout and is never inferred.
     @Default(false) bool invertedKit,
 
+    /// When each controller surface was last struck — wall-clock milliseconds,
+    /// keyed by PRESENTED surface (a pad by its lane index, the kick pedal
+    /// under [kPedalSurface]); change: add-drum-input-mapping.
+    ///
+    /// The one honest feedback state percussion has: **struck**. It claims
+    /// nothing about correctness — there is no matcher until
+    /// `add-drum-scoring` — and it decays on its own short duration rather
+    /// than tracking the hold, because percussion releases arrive within
+    /// milliseconds (a hold-driven highlight would be an invisible flicker).
+    /// Wall clock, not the playhead: the flash must animate while playback is
+    /// stopped, where no score time passes at all.
+    ///
+    /// Bounded by the surface count (one entry per pad, one for the pedal), so
+    /// nothing accumulates; expired entries are simply painted at zero
+    /// intensity. Cleared whenever the surfaces themselves change (another
+    /// score, an inverted layout), since the keys are positions.
+    @Default(<int, double>{}) Map<int, double> struckSurfacesMs,
+
     /// Whether the metronome is enabled. A single app-wide preference (kept across
     /// pause and across score changes) toggled from the header Tempo chip. When on
     /// *and* [isPlaying], [advance] sounds a click and pulses the chip on each beat
@@ -646,6 +664,34 @@ abstract class PlayerData with _$PlayerData {
   /// the inversion applies: notation and note interpretation never see it.
   List<DrumLane> get presentedDrumLanes =>
       invertedKit ? drumLanes.reversed.toList() : drumLanes;
+
+  /// The General MIDI number the **kick pedal** emits for the loaded score, or
+  /// null when the score writes no kick — in which case the strip draws no
+  /// pedal at all (change: add-drum-input-mapping). Read from [notes], never
+  /// [visibleNotes]: the pedal is a controller surface, and hand selection
+  /// filters what is *shown and judged*, never what the player may strike.
+  int? get kickEmissionGm => emittedKickGm({
+    for (final n in notes)
+      if (kKickGmNumbers.contains(n.pitch)) n.pitch,
+  });
+
+  /// Whether the pad strip draws the kick pedal (the score's foot bar exists).
+  bool get hasKickPedal => kickEmissionGm != null;
+
+  /// The General MIDI number a tap on controller [surface] emits — a pad by
+  /// its presented lane index, [kPedalSurface] for the pedal — or null when
+  /// the surface does not exist on this score (change: add-drum-input-mapping).
+  int? emissionGmForSurface(int surface) {
+    if (surface == kPedalSurface) return kickEmissionGm;
+    final lanes = presentedDrumLanes;
+    if (surface < 0 || surface >= lanes.length) return null;
+    return emittedGmOfLane(lanes[surface]);
+  }
+
+  /// The controller surface a struck [gm] flashes, or null for a number the
+  /// strip does not present (free play — audible, nothing to flash).
+  int? struckSurfaceFor(int gm) =>
+      struckSurfaceOf(presentedDrumLanes, gm, hasPedal: hasKickPedal);
 
   /// Whether the loaded percussion score spans both hand and foot events —
   /// the precondition for offering the hands/feet selector (a feet-less

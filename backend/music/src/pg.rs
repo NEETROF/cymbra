@@ -1069,6 +1069,80 @@ impl InstrumentBackfillRepo for PgInstrumentBackfillRepo {
     }
 }
 
+use crate::backfill::{DifficultyBackfillRepo, DifficultyRow};
+
+/// Postgres-backed [`DifficultyBackfillRepo`] (change: add-drum-scoring): the
+/// percussion re-grade pass. Thin SQL glue (coverage-excluded); the
+/// orchestration is host-tested in `score_crawler::backfill`.
+pub struct PgDifficultyBackfillRepo {
+    pool: PgPool,
+}
+
+impl PgDifficultyBackfillRepo {
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
+    }
+}
+
+#[async_trait]
+impl DifficultyBackfillRepo for PgDifficultyBackfillRepo {
+    async fn page_percussion_heuristic(
+        &self,
+        after: &str,
+        limit: i64,
+    ) -> Result<Vec<DifficultyRow>> {
+        // Keyset paging on the UUID PK, same shape as the other backfills:
+        // stable and resumable. An unparseable `after` (including "") means
+        // "from the start".
+        //
+        // The two filters ARE the safety property. `level_source = 'heuristic'`
+        // is the anti-clobber (a curator's `manual` grade and a library's
+        // `source` grade never enter the page), and `instrument = 'percussion'`
+        // keeps the sweep off the keyboard corpus — the stored family is only as
+        // fresh as the last `backfill-instruments` run, so the caller re-checks
+        // it against the bytes before grading.
+        let after_uuid = uuid::Uuid::parse_str(after).ok();
+        let rows = sqlx::query(
+            "SELECT id, object_key, level FROM music.catalog_scores \
+             WHERE ($1::uuid IS NULL OR id > $1) \
+               AND instrument = 'percussion' \
+               AND level_source = 'heuristic' \
+             ORDER BY id ASC LIMIT $2",
+        )
+        .bind(after_uuid)
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await
+        .context("difficulty backfill page")?;
+        Ok(rows
+            .iter()
+            .map(|r| DifficultyRow {
+                id: r.get::<uuid::Uuid, _>("id").to_string(),
+                object_key: r.get("object_key"),
+                level: r.get("level"),
+            })
+            .collect())
+    }
+
+    async fn update_level(&self, id: &str, level: &str) -> Result<()> {
+        let uuid = uuid::Uuid::parse_str(id).context("difficulty backfill: bad id")?;
+        // `level_source` is repeated in the WHERE (not just the page query) so a
+        // curator who grades the row between the page read and this write wins:
+        // the update finds no row rather than overwriting a real grade. It stays
+        // 'heuristic' — a better guess is still a guess.
+        sqlx::query(
+            "UPDATE music.catalog_scores SET level = $2 \
+             WHERE id = $1 AND level_source = 'heuristic'",
+        )
+        .bind(uuid)
+        .bind(level)
+        .execute(&self.pool)
+        .await
+        .context("difficulty backfill update")?;
+        Ok(())
+    }
+}
+
 use crate::reconcile::ReconcileRepo;
 
 /// Postgres-backed [`ReconcileRepo`] over an ingestion/admin pool.

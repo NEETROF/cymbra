@@ -48,13 +48,6 @@ pub struct RecordInput {
     pub tz_offset_minutes: i32,
     pub overall_sync_pct: f32,
     pub session_result_json: String,
-    /// The played piece is percussion (change: add-drums-access), resolved by
-    /// the gRPC layer from the catalog row — never the request. Until
-    /// `add-drum-scoring` exists, such a session is stored (the ack the client
-    /// waits for) but SHALL NOT reach the leaderboard sink: bests are monotone
-    /// and keyboard-shaped scoring of a drum part would bake wrong, permanent
-    /// rankings.
-    pub percussion: bool,
 }
 
 /// The caller-supplied fields of a **practice** session to record (change:
@@ -114,7 +107,6 @@ impl PlayModule {
                 "implausible timezone offset".into(),
             ));
         }
-        let input_percussion = input.percussion;
         let session = PlaySession {
             session_id: input.session_id,
             user_id: owner_id.to_string(),
@@ -127,11 +119,12 @@ impl PlayModule {
         self.repo.record(&session).await?;
         // Maintain the leaderboard bests from this session (monotonic + integrity-
         // gated). Idempotent, so a retried delivery is safe; runs after the durable
-        // record so the client ack still reflects the persisted session. A
-        // percussion session never reaches the sink (change: add-drums-access):
-        // interim keyboard-shaped scoring of a drum part must not bake permanent
-        // bests before `add-drum-scoring` defines the real semantics.
-        if !input_percussion && let Some(sink) = &self.leaderboard {
+        // record so the client ack still reflects the persisted session. Every
+        // session reaches the sink whatever its instrument (change:
+        // add-drum-scoring): the drum matcher produces the same sub-scores the
+        // boards rank, and boards are per-piece, so a drum board ranks drum plays
+        // against drum plays by construction.
+        if let Some(sink) = &self.leaderboard {
             sink.ingest_session(&session).await?;
         }
         Ok(())
@@ -203,7 +196,6 @@ mod tests {
             tz_offset_minutes: 0,
             overall_sync_pct: sync,
             session_result_json: "{}".into(),
-            percussion: false,
         }
     }
 
@@ -224,6 +216,34 @@ mod tests {
         // Same id again → no-op (no double-count).
         m.record_session("u1", input(&sid, 80.0)).await.unwrap();
         assert_eq!(repo.count_for("u1"), 1);
+    }
+
+    /// Records every session id handed to the leaderboard sink.
+    #[derive(Default)]
+    struct RecordingSink(std::sync::Mutex<Vec<String>>);
+
+    #[async_trait::async_trait]
+    impl LeaderboardSink for RecordingSink {
+        async fn ingest_session(&self, session: &crate::play::PlaySession) -> Result<()> {
+            self.0.lock().unwrap().push(session.session_id.clone());
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn every_ingested_session_reaches_the_leaderboard_sink() {
+        // The ingest is instrument-agnostic again (change: add-drum-scoring): the
+        // interim's percussion carve-out is gone, so the sink sees every session.
+        // A retried delivery is handed the SAME session again — idempotence lives
+        // in the sink's monotone upsert, not in a second gate here.
+        let repo = Arc::new(FakePlayRepo::default());
+        let sink = Arc::new(RecordingSink::default());
+        let m = module(repo.clone(), true).with_leaderboard(sink.clone());
+        let sid = uuid::Uuid::now_v7().to_string();
+        m.record_session("u1", input(&sid, 80.0)).await.unwrap();
+        m.record_session("u1", input(&sid, 80.0)).await.unwrap();
+        assert_eq!(repo.count_for("u1"), 1, "no double record");
+        assert_eq!(*sink.0.lock().unwrap(), vec![sid.clone(), sid]);
     }
 
     #[tokio::test]

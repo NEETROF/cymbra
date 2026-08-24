@@ -320,6 +320,77 @@ fn derive_instrument(bytes: &[u8]) -> Result<crate::repo::Instrument> {
     ))
 }
 
+// ---------------------------------------------------------------------------
+// Percussion difficulty re-grade (change: add-drum-scoring)
+//
+// The crawler's difficulty heuristic used to read pitched features only —
+// density, ambitus, melodic leap, key accidentals, grand staff. On a drum part
+// every one of them counts zero notes, so every percussion row it graded came
+// out Beginner *by degeneracy*, not by judgment. Now that the heuristic is
+// instrument-aware, those rows have to be re-graded: the catalog `level` feeds
+// one shared difficulty weight (play rewards and the global season score), so
+// leaving them would underpay honest drum play and — worse — make the drum
+// corpus the cheapest farming target the moment percussion becomes scorable.
+//
+// Only `level_source = 'heuristic'` rows are touched. Overwriting a heuristic
+// value while leaving `source` and `manual` grades alone is exactly the
+// overwrite the provenance rule exists to permit, and the re-graded row stays
+// `heuristic` — a better guess is still a guess.
+//
+// The *estimate* is deliberately not here: difficulty policy belongs to the
+// crawler (`score_crawler::difficulty`), which already depends on this crate,
+// so only the data-access seam and the report live in `music`. The
+// orchestration is `score_crawler::backfill::run_percussion_regrade`.
+
+/// A catalog row eligible for the percussion re-grade.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DifficultyRow {
+    pub id: String,
+    pub object_key: String,
+    /// The currently-stored level (`beginner` | `intermediate` | `advanced`),
+    /// or `None` for a row that carries none.
+    pub level: Option<String>,
+}
+
+/// Data-access seam for the re-grade. The Postgres impl lives in
+/// [`crate::pg::PgDifficultyBackfillRepo`]; the orchestration is host-tested
+/// against a mock.
+#[async_trait]
+pub trait DifficultyBackfillRepo: Send + Sync {
+    /// One page of **catalog** rows classified `percussion` and graded
+    /// `level_source = 'heuristic'`, ordered by `id`, with `id > after` (keyset
+    /// paging; `after` empty → from the start), up to `limit`.
+    ///
+    /// User scores are out of scope: only the crawler writes heuristic grades,
+    /// and it only writes them to the catalog.
+    async fn page_percussion_heuristic(
+        &self,
+        after: &str,
+        limit: i64,
+    ) -> Result<Vec<DifficultyRow>>;
+
+    /// Persist a re-graded `level` for `id`. `level_source` stays `heuristic`.
+    async fn update_level(&self, id: &str, level: &str) -> Result<()>;
+}
+
+/// Tallies for one re-grade run.
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct DifficultyBackfillReport {
+    pub scanned: usize,
+    /// Rows whose level was (or would be) re-graded.
+    pub updated: usize,
+    /// Rows the instrument-aware heuristic puts back where they already are.
+    pub unchanged: usize,
+    /// Rows whose stored family says percussion but whose bytes do not — left
+    /// untouched rather than graded on a drum scale (the stored family is only
+    /// as fresh as the last `backfill-instruments` run).
+    pub not_percussion: usize,
+    /// Rows whose bytes could not be fetched or parsed — left untouched.
+    pub unreadable: usize,
+    /// Update failures (logged, never fatal).
+    pub errors: usize,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

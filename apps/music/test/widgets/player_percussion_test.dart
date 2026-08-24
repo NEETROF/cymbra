@@ -15,18 +15,26 @@
 import 'package:flutter/foundation.dart'
     show debugDefaultTargetPlatformOverride;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/painters/drum_cascade_painter.dart';
 import 'package:music/painters/partition_painter.dart';
 import 'package:music/painters/staff_painter.dart';
+import 'package:music/painters/drum_pad_strip_painter.dart';
 import 'package:music/screens/player_screen.dart';
 import 'package:music/services/audio_service.dart';
 import 'package:music/services/midi_service.dart';
 import 'package:music/services/notation_engine.dart';
+import 'package:music/services/preferences_service.dart';
+import 'package:music/services/private_soundfont_service.dart';
 import 'package:music/services/score_asset_source.dart';
+import 'package:music/services/soundfont_catalog_service.dart';
+import 'package:music/services/soundfont_importer.dart';
+import 'package:music/services/soundfont_source.dart';
 import 'package:music/src/rust/api/musicxml.dart' show ScoreDocument;
 import 'package:music/state/drum_kit.dart';
+import 'package:music/state/piano_catalog.dart';
 import 'package:music/state/player_data.dart';
 import 'package:music/state/player_notifier.dart';
 import 'package:music/state/player_preferences.dart';
@@ -35,6 +43,8 @@ import 'package:music/state/score_catalog.dart';
 import '../support/fakes.dart';
 import '../support/localized.dart';
 import '../support/notation_fakes.dart';
+import '../support/prefs_fakes.dart';
+import '../support/soundfont_fakes.dart';
 
 const _entry = CatalogEntry(
   id: 'drums-1',
@@ -48,6 +58,7 @@ Future<ProviderContainer> _pumpPercussion(
   WidgetTester tester, {
   Size size = const Size(1400, 900),
   bool dismissModal = true,
+  bool kitReady = false,
   ScoreDocument? document,
 }) async {
   await tester.binding.setSurfaceSize(size);
@@ -61,6 +72,28 @@ Future<ProviderContainer> _pumpPercussion(
       midiServiceProvider.overrideWithValue(FakeMidiService()),
       scoreSourceProvider.overrideWithValue(FakeScoreSource()),
       audioServiceProvider.overrideWithValue(RecordingAudioService()),
+      // A resolvable kit, so the readiness gate the screen's ScoreFontListener
+      // opens lets strokes actually sound (change: add-drum-audio-channel).
+      // Off by default: the display-side tests do not need the synth.
+      if (kitReady) ...[
+        preferencesServiceProvider.overrideWithValue(FakePreferencesService()),
+        soundFontSourceProvider.overrideWithValue(FakeSoundFontSource()),
+        soundFontImporterProvider.overrideWithValue(FakeSoundFontImporter()),
+        privateSoundFontServiceProvider.overrideWithValue(
+          FakePrivateSoundFontService(),
+        ),
+        soundFontCatalogServiceProvider.overrideWithValue(
+          FakeSoundFontCatalogService(
+            downloadable: [
+              fakeDownloadPiano(
+                id: defaultKitId,
+                label: 'Kit',
+                family: SoundFamily.percussion,
+              ),
+            ],
+          ),
+        ),
+      ],
     ],
   );
   container.read(selectedScoreProvider.notifier).select(_entry);
@@ -240,22 +273,207 @@ void main() {
     await _teardown(tester, c);
   });
 
-  testWidgets('pads are display-only: a tap produces no note, no state', (
+  // --- The pads as a controller (change: add-drum-input-mapping) ---------
+
+  testWidgets('a pad tap emits its lane\'s stroke: it sounds as a one-shot '
+      'and the pad flashes', (tester) async {
+    final c = await _pumpPercussion(tester, kitReady: true);
+    final audio = c.read(audioServiceProvider) as RecordingAudioService;
+    final strip = tester.getRect(find.byKey(const Key('pad-strip')));
+    // The groove's lanes are hi-hat then snare: tap the middle of the snare.
+    await tester.tapAt(
+      strip.topLeft + Offset(strip.width * 0.75, strip.height * 0.3),
+    );
+    await tester.pump(const Duration(milliseconds: 16));
+
+    final data = c.read(playerProvider);
+    // The score writes its snare as the acoustic 38, so that is what the pad
+    // emits — through the very entry point a key press uses.
+    expect(audio.drumOns.map((e) => e.key), [38]);
+    expect(audio.noteOns, isEmpty); // never the pitched piano voice
+    expect(data.struckSurfacesMs.keys, [1]); // the snare pad flashes
+    // …and the painter is actually handed the flash.
+    final painter =
+        tester.widget<CustomPaint>(find.byKey(const Key('pad-strip'))).painter
+            as DrumPadStripPainter;
+    expect(painter.struckMs.keys, [1]);
+    expect(
+      DrumPadStripPainter.flashIntensity(
+        struckMs: painter.struckMs[1]!,
+        nowMs: painter.nowMs,
+      ),
+      greaterThan(0),
+    );
+    await _teardown(tester, c);
+  });
+
+  testWidgets('the whole strip is live: a tap in the gutter between two pads '
+      'still strikes, and the pedal band is all kick', (tester) async {
+    final c = await _pumpPercussion(tester, kitReady: true);
+    final audio = c.read(audioServiceProvider) as RecordingAudioService;
+    final strip = tester.getRect(find.byKey(const Key('pad-strip')));
+    // Exactly on the boundary between the two drawn pads — the 3 px inset is
+    // styling, not a hit boundary. A swallowed tap here is a ghost stroke.
+    await tester.tapAt(
+      strip.topLeft + Offset(strip.width / 2 - 1, strip.height * 0.2),
+    );
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(audio.drumOns.map((e) => e.key), [42]); // the hi-hat's span
+
+    // The pedal band: kick from edge to edge, whatever the horizontal aim.
+    await tester.tapAt(strip.topLeft + Offset(4, strip.height * 0.95));
+    await tester.pump(const Duration(milliseconds: 16));
+    await tester.tapAt(
+      strip.topLeft + Offset(strip.width - 4, strip.height * 0.85),
+    );
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(audio.drumOns.map((e) => e.key), [42, 36, 36]);
+    expect(
+      c.read(playerProvider).struckSurfacesMs.keys,
+      contains(kPedalSurface),
+    );
+    await _teardown(tester, c);
+  });
+
+  testWidgets('multi-touch: two pads struck together both emit, and a '
+      'two-finger roll on ONE pad emits every stroke', (tester) async {
+    final c = await _pumpPercussion(tester, kitReady: true);
+    final audio = c.read(audioServiceProvider) as RecordingAudioService;
+    final strip = tester.getRect(find.byKey(const Key('pad-strip')));
+    Offset pad(double fraction) =>
+        strip.topLeft + Offset(strip.width * fraction, strip.height * 0.3);
+
+    // Two different pads at once.
+    final hat = await tester.startGesture(pad(0.25));
+    final snare = await tester.startGesture(pad(0.75));
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(audio.drumOns.map((e) => e.key), [42, 38]);
+    await hat.up();
+    await snare.up();
+    await tester.pump(const Duration(milliseconds: 16));
+
+    // A roll: alternating fingers on the SAME pad, each pressing while the
+    // other is still down. Every pointer-down is a fresh stroke — no
+    // keyboard-style retrigger exclusivity, because one-shots have no
+    // sustained voice an extra attack could steal.
+    audio.drumOns.clear();
+    final left = await tester.startGesture(pad(0.7));
+    await tester.pump(const Duration(milliseconds: 16));
+    final right = await tester.startGesture(pad(0.8));
+    await tester.pump(const Duration(milliseconds: 16));
+    await left.up();
+    final again = await tester.startGesture(pad(0.7));
+    await tester.pump(const Duration(milliseconds: 16));
+    await right.up();
+    await again.up();
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(audio.drumOns.map((e) => e.key), [38, 38, 38]);
+    await _teardown(tester, c);
+  });
+
+  testWidgets('pads play while stopped and during playback alike', (
     tester,
   ) async {
-    final c = await _pumpPercussion(tester);
-    final before = c.read(playerProvider);
-    await tester.tap(find.byKey(const Key('pad-strip')), warnIfMissed: false);
-    await tester.pump(const Duration(milliseconds: 50));
-    final after = c.read(playerProvider);
-    expect(after.activeNotes, isEmpty);
-    expect(after.activeNotes, before.activeNotes);
-    // And nothing reached the synth either (change: add-drum-audio-channel):
-    // the one-shot drum verbs exist for scheduled playback, but the pads stay
-    // silent until add-drum-input-mapping wires input to them.
+    final c = await _pumpPercussion(tester, kitReady: true);
     final audio = c.read(audioServiceProvider) as RecordingAudioService;
+    final strip = tester.getRect(find.byKey(const Key('pad-strip')));
+    final snare =
+        strip.topLeft + Offset(strip.width * 0.75, strip.height * 0.3);
+
+    expect(c.read(playerProvider).isPlaying, isFalse);
+    await tester.tapAt(snare);
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(audio.drumOns, hasLength(1));
+
+    c.read(playerProvider.notifier).setPlaying(true);
+    for (var i = 0; i < 3; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    audio.drumOns.clear();
+    await tester.tapAt(snare);
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(audio.drumOns.map((e) => e.key), contains(38));
+    await _teardown(tester, c);
+  });
+
+  testWidgets('the struck flash animates on its own clock while playback is '
+      'stopped', (tester) async {
+    final c = await _pumpPercussion(tester);
+    final strip = tester.getRect(find.byKey(const Key('pad-strip')));
+    DrumPadStripPainter painter() =>
+        tester.widget<CustomPaint>(find.byKey(const Key('pad-strip'))).painter
+            as DrumPadStripPainter;
+
+    await tester.tapAt(
+      strip.topLeft + Offset(strip.width * 0.75, strip.height * 0.3),
+    );
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(c.read(playerProvider).isPlaying, isFalse);
+    final first = painter();
+    await tester.pump(const Duration(milliseconds: 16));
+    final second = painter();
+    // A fresh painter on the next frame with no playhead moving at all: the
+    // strip repaints on the flash's clock, not on playback frames.
+    expect(identical(first, second), isFalse);
+    expect(second.struckMs.keys, [1]);
+    await _teardown(tester, c);
+  });
+
+  testWidgets('feedback lives on the controller: the cascade receives no '
+      'stroke state at all', (tester) async {
+    final c = await _pumpPercussion(tester);
+    final strip = tester.getRect(find.byKey(const Key('pad-strip')));
+    DrumCascadePainter cascade() =>
+        tester
+                .widgetList<CustomPaint>(
+                  find.byWidgetPredicate(
+                    (w) => w is CustomPaint && w.painter is DrumCascadePainter,
+                  ),
+                )
+                .first
+                .painter
+            as DrumCascadePainter;
+
+    final before = cascade();
+    await tester.tapAt(
+      strip.topLeft + Offset(strip.width * 0.75, strip.height * 0.3),
+    );
+    await tester.pump(const Duration(milliseconds: 16));
+    // The pad flashed…
+    expect(c.read(playerProvider).struckSurfacesMs.keys, [1]);
+    // …and every input the cascade paints from is byte-identical across the
+    // stroke — it is handed no stroke state at all, so it cannot react to
+    // one. The same division the keyboard makes between its keys and the
+    // waterfall.
+    final after = cascade();
+    expect(after.elapsedMs, before.elapsedMs);
+    expect(after.lanes, before.lanes);
+    expect(after.multiVoice, before.multiVoice);
+    expect(after.lookAheadMs, before.lookAheadMs);
+    expect(
+      [for (final n in after.notes) (n.pitch, n.startMs, n.durationMs)],
+      [for (final n in before.notes) (n.pitch, n.startMs, n.durationMs)],
+    );
+    await _teardown(tester, c);
+  });
+
+  testWidgets('the assist keys stay silent on a percussion score', (
+    tester,
+  ) async {
+    final c = await _pumpPercussion(tester, kitReady: true);
+    final audio = c.read(audioServiceProvider) as RecordingAudioService;
+    // The keys shortcut the gate Wait Mode uses, and no percussion gate
+    // exists until add-drum-scoring: the input path is real now, the
+    // judgment they satisfy is not.
+    for (final key in [LogicalKeyboardKey.keyA, LogicalKeyboardKey.keyZ]) {
+      await tester.sendKeyDownEvent(key);
+      await tester.pump(const Duration(milliseconds: 16));
+      await tester.sendKeyUpEvent(key);
+      await tester.pump(const Duration(milliseconds: 16));
+    }
     expect(audio.drumOns, isEmpty);
     expect(audio.noteOns, isEmpty);
+    expect(c.read(playerProvider).activeNotes, isEmpty);
     await _teardown(tester, c);
   });
 

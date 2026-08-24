@@ -171,9 +171,14 @@ pub struct ScoreModule {
     flags: Option<Arc<cymbra_feature_flags::FlagService>>,
 }
 
-/// The drum-eligibility seam for non-gRPC surfaces (change: add-drums-access):
-/// the HTTP preview route resolves the caller's drum audience through the same
-/// module predicate the RPCs use, so no second implementation can drift.
+/// The drum-eligibility seam for surfaces that do not hold the score module
+/// (change: add-drums-access): the HTTP preview route and the leaderboard RPCs
+/// (change: add-drum-scoring) resolve the caller's drum audience through the same
+/// module predicate the score RPCs use, so no second implementation can drift.
+///
+/// `#[automock]`ed (the rust-testing default) so a call site can be proved to
+/// consult it — a predicate tested in isolation proves nothing about its callers.
+#[cfg_attr(test, mockall::automock)]
 #[async_trait::async_trait]
 pub trait DrumsEligibility: Send + Sync {
     /// Whether the drum feature is in effect for this caller.
@@ -1357,13 +1362,11 @@ impl ScoreModule {
         let obj = self
             .catalog_object(catalog_id, caller.allow_unvalidated)
             .await?;
-        // A percussion open consumes NO daily-access slot (change:
-        // add-drums-access): the freemium meter is a permanent artifact of the
-        // keyboard loop, and burning a slot on a piece that cannot yet be
-        // played would charge the tester for nothing. `add-drum-scoring`
-        // revisits the whole interim.
+        // A percussion open consumes a day slot like any other (change:
+        // add-drum-scoring): the interim exemption existed only because charging
+        // quota for a piece that could not yet be honestly played would have been
+        // wrong, and that premise is gone — so the gate is instrument-agnostic.
         let access = match &self.daily_access {
-            _ if obj.instrument == crate::repo::Instrument::Percussion => None,
             None => None,
             Some(gate) => {
                 let kind = gate
@@ -1431,11 +1434,9 @@ impl ScoreModule {
         let obj = self
             .catalog_object(catalog_id, caller.allow_unvalidated)
             .await?;
-        // A percussion piece is never day-locked (its opens consume no slot),
-        // so there is nothing to unlock — same answer as an unwired gate.
-        if obj.instrument == crate::repo::Instrument::Percussion {
-            return Ok(None);
-        }
+        // A percussion piece can be day-locked since its opens consume slots
+        // (change: add-drum-scoring), so it buys back exactly like any other —
+        // no instrument carve-out on this path either.
         let Some(gate) = &self.daily_access else {
             return Ok(None);
         };
@@ -1515,6 +1516,8 @@ mod tests {
     use super::*;
     use cymbra_storage::FakeStore;
 
+    use crate::catalog_daily_access::FakeCatalogDayAccessRepo;
+    use crate::catalog_daily_access_core::DailyAccessConfig;
     use crate::catalog_search::{FacetFilters, FakeCatalogRow, FakeCatalogSearchRepo};
     use crate::curation_rewards::{CurationRewardsRepo, FakeCurationRewardsRepo};
     use crate::curation_rewards_module::CurationRewardsModule;
@@ -3455,8 +3458,10 @@ mod tests {
                 .await
                 .unwrap_err()
         ));
-        // …and a served open for the eligible, consuming NO daily-access slot
-        // (the interim: percussion is never day-locked).
+        // …and a served open for the eligible. No daily-access state here because
+        // no gate is wired in this module, NOT because the piece is percussion:
+        // what a percussion open now costs is pinned with a wired gate by
+        // `drum_open_consumes_a_day_slot_and_can_be_day_locked`.
         let mut eligible = PlayerCaller::regular("u2");
         eligible.eligible_for_percussion = true;
         let open = m
@@ -3507,8 +3512,9 @@ mod tests {
                 .await
                 .unwrap_err()
         ));
-        // Eligible: the unlock reports "nothing to unlock" — a percussion
-        // piece is never day-locked in the interim.
+        // Eligible: "nothing to unlock" because no gate is wired here — the
+        // unlock of a percussion piece behind a WIRED gate is pinned by
+        // `drum_open_consumes_a_day_slot_and_can_be_day_locked`.
         let mut eligible = PlayerCaller::regular("u2");
         eligible.eligible_for_percussion = true;
         assert_eq!(
@@ -3517,6 +3523,111 @@ mod tests {
                 .unwrap(),
             None
         );
+    }
+
+    /// The same catalog behind a module whose freemium daily-access gate is ON.
+    /// The wiring matters: an unwired gate answers `None` whatever the
+    /// instrument, so only this module can tell the lift from the interim.
+    async fn drum_module_gated(
+        free_quota: u32,
+        day_slot_cost: i64,
+    ) -> (ScoreModule, Arc<FakeCatalogDayAccessRepo>) {
+        let (m, _c) = drum_module().await;
+        let day_repo = Arc::new(FakeCatalogDayAccessRepo::default());
+        let gate = CatalogDailyAccess::new(day_repo.clone()).with_config(DailyAccessConfig {
+            enabled: true,
+            free_quota,
+            day_slot_cost,
+        });
+        (m.with_daily_access(Arc::new(gate)), day_repo)
+    }
+
+    #[tokio::test]
+    async fn drum_open_consumes_a_day_slot_and_can_be_day_locked() {
+        // The lift (change: add-drum-scoring): the freemium meter no longer
+        // exempts percussion — an open consumes a slot, an over-quota percussion
+        // piece is presented as locked (with the upsell state), and it buys back
+        // like any other piece.
+        let (m, day_repo) = drum_module_gated(1, 20).await;
+        let mut player = PlayerCaller::regular("u1");
+        player.eligible_for_percussion = true;
+
+        // The drum open consumes the day's only free slot.
+        let open = m
+            .catalog_bytes_for_player(&player, DRUM_ID, None)
+            .await
+            .unwrap();
+        assert!(!open.bytes.data.is_empty());
+        let state = open.access.expect("the gate is wired and on");
+        assert!(state.enabled);
+        assert_eq!(state.free_used, 1);
+        assert_eq!(state.opened_today, vec![DRUM_ID.to_string()]);
+
+        // …so the next distinct piece is locked for the day, percussion or not.
+        let locked = m
+            .catalog_bytes_for_player(&player, KEY_ID, None)
+            .await
+            .unwrap();
+        assert!(locked.locked());
+        assert!(locked.bytes.data.is_empty());
+
+        // And a percussion piece is itself day-lockable: a fresh player who spent
+        // their slot elsewhere is refused the drum score.
+        let mut other = PlayerCaller::regular("u2");
+        other.eligible_for_percussion = true;
+        m.catalog_bytes_for_player(&other, KEY_ID, None)
+            .await
+            .unwrap();
+        let drum_locked = m
+            .catalog_bytes_for_player(&other, DRUM_ID, None)
+            .await
+            .unwrap();
+        assert!(drum_locked.locked(), "a percussion piece CAN be day-locked");
+        let state = drum_locked.access.expect("locked pieces carry the state");
+        assert!(state.upsell, "the upsell state travels with the lock");
+        assert_eq!(state.day_slot_cost, 20);
+
+        // Buying the day slot for the percussion piece works like any other.
+        day_repo.seed_balance("u2", 100);
+        let bought = m
+            .unlock_catalog_for_today(&other, DRUM_ID)
+            .await
+            .unwrap()
+            .expect("a wired gate answers with the post-purchase state");
+        assert!(bought.paid_today.contains(&DRUM_ID.to_string()));
+        assert_eq!(day_repo.debits().len(), 1);
+        let served = m
+            .catalog_bytes_for_player(&other, DRUM_ID, None)
+            .await
+            .unwrap();
+        assert!(!served.locked());
+        assert!(!served.bytes.data.is_empty());
+    }
+
+    #[tokio::test]
+    async fn an_ineligible_caller_still_gets_the_unknown_id_answer_under_the_gate() {
+        // The audience gate runs BEFORE the quota: an ineligible caller never
+        // learns a percussion piece exists, and burns no slot finding out.
+        let (m, day_repo) = drum_module_gated(1, 20).await;
+        let ineligible = PlayerCaller::regular("u1");
+        assert!(not_found(
+            m.catalog_bytes_for_player(&ineligible, DRUM_ID, None)
+                .await
+                .unwrap_err()
+        ));
+        assert!(not_found(
+            m.unlock_catalog_for_today(&ineligible, DRUM_ID)
+                .await
+                .unwrap_err()
+        ));
+        // Nothing was spent, and the keyboard piece still has its free slot.
+        assert!(day_repo.debits().is_empty());
+        let open = m
+            .catalog_bytes_for_player(&ineligible, KEY_ID, None)
+            .await
+            .unwrap();
+        assert!(!open.locked());
+        assert_eq!(open.access.expect("gate wired").free_used, 1);
     }
 
     #[tokio::test]

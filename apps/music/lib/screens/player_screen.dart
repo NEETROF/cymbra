@@ -93,6 +93,23 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   /// accepted v1 simplification (chords use distinct pitches).
   final Map<int, int> _keyboardPointers = {};
 
+  /// Active pad-strip pointers → the General MIDI number each struck (change:
+  /// add-drum-input-mapping), so a finger lifting releases only its own
+  /// stroke. Deliberately **no** retrigger exclusivity: a second pointer-down
+  /// on a pad another finger still rests on is a fresh stroke, because
+  /// alternating two fingers on one pad is how a roll is played (and a
+  /// one-shot has no sustained voice an extra attack could steal).
+  final Map<int, int> _padPointers = {};
+
+  /// Repaint clock for the pad strip's struck flash. The flash decays on its
+  /// own short duration, so it has to animate while playback is **stopped**,
+  /// where no playhead frame rebuilds anything. `forward(from: 0)` on each
+  /// stroke means the clock runs for exactly one flash and then stops itself.
+  ///
+  /// Built eagerly here, like [_waitPulse] — never lazily on first percussion
+  /// build — so `dispose` always has a controller to dispose.
+  late final AnimationController _padFlash;
+
   /// Keyboard height is derived from the available render height (not fixed) so
   /// it shrinks on short phone-landscape viewports and stays proportionate on
   /// larger screens. Tablet/desktop keep the prior band ([_maxKeyboardHeight]
@@ -141,6 +158,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     _waitPulse = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1100),
+    );
+    _padFlash = AnimationController(
+      vsync: this,
+      duration: DrumPadStripPainter.flashDuration,
     );
   }
 
@@ -209,6 +230,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   /// equals an expected note. Empty when nothing is expected for that hand.
   Set<int> _assistPitches({required bool rightHand, required bool nearMiss}) {
     final data = ref.read(playerProvider);
+    // Not offered on a percussion score (change: add-drum-input-mapping): the
+    // assist keys shortcut the same gate Wait Mode uses, and no percussion
+    // gate exists until add-drum-scoring. The input path is now real — the
+    // pads and an e-kit both play — but the judgment these keys satisfy is
+    // not, and a key that plays "the expected notes" would be inventing one.
+    if (data.isPercussion) return const {};
     final expected = data.expectedNotesForHand(
       data.elapsedMs,
       rightHand: rightHand,
@@ -253,11 +280,41 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         .noteOff(pitch, source: NoteSource.onScreen);
   }
 
+  // --- Pad strip (mouse / touch) ----------------------------------------
+  // The percussion controller, through the very same note-on/off path (change:
+  // add-drum-input-mapping): a pointer-down strikes the pad (or the pedal)
+  // under it and emits its General MIDI number, so a stroke drives sounding
+  // and feedback exactly like a key press — during playback and while stopped.
+
+  void _onPadPointerDown(PointerDownEvent event, PlayerData data, Size strip) {
+    final surface = DrumPadStripPainter.surfaceAt(
+      event.localPosition,
+      strip,
+      laneCount: data.presentedDrumLanes.length,
+      hasKick: data.hasKickPedal,
+    );
+    if (surface == null) return;
+    // The number the surface emits on THIS score: its piece's first canonical
+    // member the file actually uses, so the stroke stays inside the score's
+    // own vocabulary.
+    final gm = data.emissionGmForSurface(surface);
+    if (gm == null) return;
+    _padPointers[event.pointer] = gm;
+    ref.read(playerProvider.notifier).noteOn(gm, source: NoteSource.onScreen);
+  }
+
+  void _onPadPointerUp(PointerEvent event) {
+    final gm = _padPointers.remove(event.pointer);
+    if (gm == null) return;
+    ref.read(playerProvider.notifier).noteOff(gm, source: NoteSource.onScreen);
+  }
+
   @override
   void dispose() {
     _ticker.dispose();
     _focusNode.dispose();
     _waitPulse.dispose();
+    _padFlash.dispose();
     super.dispose();
   }
 
@@ -289,6 +346,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
           ..stop()
           ..value = 0;
       }
+    });
+    // Restart the pad strip's repaint clock on every stroke, whatever its
+    // source (change: add-drum-input-mapping), so the struck flash decays
+    // smoothly even while playback is stopped — no playhead frame drives it
+    // there. Fires on a new struck table, which only a resolved stroke builds.
+    ref.listen(playerProvider.select((d) => d.struckSurfacesMs), (_, _) {
+      _padFlash.forward(from: 0);
     });
     _maybeShowSetup();
     return Focus(
@@ -428,34 +492,54 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                             if (data.isPercussion)
                               SizedBox(
                                 height: keyboardHeight,
-                                child: CustomPaint(
-                                  key: const Key('pad-strip'),
-                                  size: Size(
-                                    constraints.maxWidth,
-                                    keyboardHeight,
+                                child: Listener(
+                                  // Playable since add-drum-input-mapping —
+                                  // the same pointer contract the keyboard
+                                  // has, with per-pointer tracking for
+                                  // multi-touch (and same-pad rolls).
+                                  onPointerDown: (e) => _onPadPointerDown(
+                                    e,
+                                    data,
+                                    Size(constraints.maxWidth, keyboardHeight),
                                   ),
-                                  // Display-only until add-drum-input-mapping:
-                                  // no Listener, so a tap produces no note and
-                                  // no visual state, by construction.
-                                  painter: DrumPadStripPainter(
-                                    lanes: data.presentedDrumLanes,
-                                    labels: [
-                                      for (final lane
-                                          in data.presentedDrumLanes)
-                                        kitPieceLabel(
-                                          AppLocalizations.of(context),
-                                          lane,
+                                  onPointerUp: _onPadPointerUp,
+                                  onPointerCancel: _onPadPointerUp,
+                                  // The strip repaints on the flash's own
+                                  // clock, independently of the playhead:
+                                  // isolate those frames in their own layer.
+                                  child: RepaintBoundary(
+                                    child: AnimatedBuilder(
+                                      animation: _padFlash,
+                                      builder: (context, _) => CustomPaint(
+                                        key: const Key('pad-strip'),
+                                        size: Size(
+                                          constraints.maxWidth,
+                                          keyboardHeight,
                                         ),
-                                    ],
-                                    kickLabel: AppLocalizations.of(
-                                      context,
-                                    ).kitPieceKick,
-                                    hasKick: data.notes.any(
-                                      (n) => kKickGmNumbers.contains(n.pitch),
+                                        painter: DrumPadStripPainter(
+                                          lanes: data.presentedDrumLanes,
+                                          labels: [
+                                            for (final lane
+                                                in data.presentedDrumLanes)
+                                              kitPieceLabel(
+                                                AppLocalizations.of(context),
+                                                lane,
+                                              ),
+                                          ],
+                                          kickLabel: AppLocalizations.of(
+                                            context,
+                                          ).kitPieceKick,
+                                          hasKick: data.hasKickPedal,
+                                          struckMs: data.struckSurfacesMs,
+                                          nowMs: DateTime.now()
+                                              .millisecondsSinceEpoch
+                                              .toDouble(),
+                                          labelFontFamily: DefaultTextStyle.of(
+                                            context,
+                                          ).style.fontFamily,
+                                        ),
+                                      ),
                                     ),
-                                    labelFontFamily: DefaultTextStyle.of(
-                                      context,
-                                    ).style.fontFamily,
                                   ),
                                 ),
                               )

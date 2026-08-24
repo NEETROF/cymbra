@@ -68,9 +68,9 @@ pub mod user_scores;
 pub mod user_soundfont;
 
 pub use backfill::{
-    BackfillReport, BackfillRow, InstrumentBackfillRepo, InstrumentBackfillReport, InstrumentRow,
-    ScoreTable, TitleBackfillRepo, TitleUpdate, plan_title_update, run_instrument_backfill,
-    run_title_backfill,
+    BackfillReport, BackfillRow, DifficultyBackfillRepo, DifficultyBackfillReport, DifficultyRow,
+    InstrumentBackfillRepo, InstrumentBackfillReport, InstrumentRow, ScoreTable, TitleBackfillRepo,
+    TitleUpdate, plan_title_update, run_instrument_backfill, run_title_backfill,
 };
 pub use badges::{BadgeRepo, RawBadgeCounters};
 pub use badges_core::{
@@ -115,7 +115,7 @@ pub use leaderboard::{
     StoredBest,
 };
 pub use leaderboard_grpc::LeaderboardGrpc;
-pub use leaderboard_module::{Board, BoardEntry, LeaderboardModule, MyStanding};
+pub use leaderboard_module::{Board, BoardEntry, BoardViewer, LeaderboardModule, MyStanding};
 pub use module::{
     DrumsEligibility, FixedScoreQuotas, ScoreBytes, ScoreModule, ScoreQuotaSource, ScoreQuotas,
     UploadInput,
@@ -124,8 +124,8 @@ pub use offline_secret::{
     FakeOfflineSecretRepo, OFFLINE_SECRET_LEN, OfflineSecretRepo, generate_offline_secret,
 };
 pub use pg::{
-    PgCatalogRepo, PgCatalogSearchRepo, PgInstrumentBackfillRepo, PgScoreRatingRepo,
-    PgTitleBackfillRepo,
+    PgCatalogRepo, PgCatalogSearchRepo, PgDifficultyBackfillRepo, PgInstrumentBackfillRepo,
+    PgScoreRatingRepo, PgTitleBackfillRepo,
 };
 pub use pg_badges::PgBadgeRepo;
 pub use pg_catalog_daily_access::PgCatalogDayAccessRepo;

@@ -317,6 +317,27 @@ mod tests {
     }
 
     #[test]
+    fn an_e_kit_stroke_on_channel_10_is_an_ordinary_note_on() {
+        // 0x99 = NoteOn on channel 10 — the channel most electronic drum kits
+        // transmit on, carrying a General MIDI percussion number (38 = acoustic
+        // snare). The decode is channel-AGNOSTIC by construction (only the
+        // status high nibble matters), and this pins that for percussion
+        // specifically (change: add-drum-input-mapping): a future "route
+        // channel 10 specially" change would break exactly this case, where the
+        // channel-6 pin above would keep passing.
+        let ev = parse_midi(&[0x99, 38, 96], 11).expect("note on ch10");
+        assert!(matches!(ev.kind, MidiEventKind::NoteOn));
+        assert_eq!(ev.pitch, 38);
+        assert_eq!(ev.velocity, 96);
+        assert_eq!(ev.timestamp_ms, 11);
+        // The same stroke from a kit configured on another channel decodes
+        // identically — the property the hardware misconfiguration relies on.
+        let other = parse_midi(&[0x93, 38, 96], 11).expect("note on ch4");
+        assert_eq!((other.pitch, other.velocity), (ev.pitch, ev.velocity));
+        assert!(matches!(other.kind, MidiEventKind::NoteOn));
+    }
+
+    #[test]
     fn explicit_note_off_is_parsed() {
         let ev = parse_midi(&[0x80, 60, 64], 7).expect("note off");
         assert!(matches!(ev.kind, MidiEventKind::NoteOff));

@@ -36,6 +36,13 @@ enum KitPieceRole { hiHat, snare, tom, ride, crash, other }
 /// aim*, and the foot does not aim.
 const Set<int> kKickGmNumbers = {35, 36};
 
+/// The kick's numbers in **emission** order (change: add-drum-input-mapping):
+/// Bass Drum 1 (36) first — the number virtually every notation export and
+/// e-kit default map uses for *the* kick — then the Acoustic Bass Drum (35),
+/// which a file may use instead. Same membership as [kKickGmNumbers], stated
+/// as a list because emission needs an order a set cannot promise.
+const List<int> kKickEmissionOrder = [36, 35];
+
 /// Foot-struck General MIDI numbers: the two kicks and the pedal hi-hat
 /// "chick" (44 — the foot closing the cymbals, no hand involved). The
 /// single-voice hands/feet fallback keys on this set.
@@ -87,29 +94,43 @@ class DrumLane {
 /// against real exports (MuseScore/Finale drum maps), not the GM list alone:
 /// numbers that denote one physical aim point collapse onto one lane.
 ///
+/// The members are listed in **canonical emission order** (change:
+/// add-drum-input-mapping): collapse-equal for the lane — one aim point, one
+/// pad — but not for emission, where a tap must pick exactly one number. The
+/// order is pinned here rather than left to set iteration so a pad's stroke is
+/// reproducible; [emittedGmOfLane] applies it. Lane derivation is unchanged:
+/// the same members, in the same lanes.
+///
 /// The toms are each their own piece — different drums, different aim — kept
 /// here highest to lowest, the order the sort rule wants.
-const List<({KitPieceRole role, Set<int> gm, String key})> _namedPieces = [
+const List<({KitPieceRole role, List<int> gm, String key})> _namedPieces = [
   // Closed (42) and open (46) hi-hat are hand strokes on ONE instrument: a
   // variant of the note inside the lane, never a second lane. The pedal 44 is
   // a FOOT event and deliberately not part of it (it lands in the terminal
-  // bucket until its bar encoding exists — see design.md).
-  (role: KitPieceRole.hiHat, gm: {42, 46}, key: 'kitPieceHiHat'),
-  (role: KitPieceRole.snare, gm: {37, 38, 40}, key: 'kitPieceSnare'),
-  (role: KitPieceRole.tom, gm: {50}, key: 'kitPieceTomHigh'),
-  (role: KitPieceRole.tom, gm: {48}, key: 'kitPieceTomHiMid'),
-  (role: KitPieceRole.tom, gm: {47}, key: 'kitPieceTomLowMid'),
-  (role: KitPieceRole.tom, gm: {45}, key: 'kitPieceTomLow'),
-  (role: KitPieceRole.tom, gm: {43}, key: 'kitPieceTomFloorHigh'),
-  (role: KitPieceRole.tom, gm: {41}, key: 'kitPieceTomFloorLow'),
-  // The ride family (ride 1/2 and the bell) is one time-keeping cymbal.
-  (role: KitPieceRole.ride, gm: {51, 53, 59}, key: 'kitPieceRide'),
+  // bucket until its bar encoding exists — see design.md). Closed first: it is
+  // the stroke a groove is written with, and the strip offers no gesture that
+  // distinguishes open from closed (open/closed is the FOOT on the instrument,
+  // not a second aim point).
+  (role: KitPieceRole.hiHat, gm: [42, 46], key: 'kitPieceHiHat'),
+  // Snare: the acoustic 38 first, then the electric 40, then the side stick 37
+  // — the sound a drummer means by "the snare", in decreasing ordinariness.
+  (role: KitPieceRole.snare, gm: [38, 40, 37], key: 'kitPieceSnare'),
+  (role: KitPieceRole.tom, gm: [50], key: 'kitPieceTomHigh'),
+  (role: KitPieceRole.tom, gm: [48], key: 'kitPieceTomHiMid'),
+  (role: KitPieceRole.tom, gm: [47], key: 'kitPieceTomLowMid'),
+  (role: KitPieceRole.tom, gm: [45], key: 'kitPieceTomLow'),
+  (role: KitPieceRole.tom, gm: [43], key: 'kitPieceTomFloorHigh'),
+  (role: KitPieceRole.tom, gm: [41], key: 'kitPieceTomFloorLow'),
+  // The ride family (ride 1/2 and the bell) is one time-keeping cymbal: the
+  // ride 51 first, then the second ride 59, the bell 53 last (a bell stroke is
+  // a deliberate accent, never the default aim).
+  (role: KitPieceRole.ride, gm: [51, 59, 53], key: 'kitPieceRide'),
   // Accent cymbals are DIFFERENT physical cymbals (different aim): one lane
   // each, ordered stably among the cymbals by their lowest GM number.
-  (role: KitPieceRole.crash, gm: {49}, key: 'kitPieceCrash'),
-  (role: KitPieceRole.crash, gm: {52}, key: 'kitPieceChina'),
-  (role: KitPieceRole.crash, gm: {55}, key: 'kitPieceSplash'),
-  (role: KitPieceRole.crash, gm: {57}, key: 'kitPieceCrash2'),
+  (role: KitPieceRole.crash, gm: [49], key: 'kitPieceCrash'),
+  (role: KitPieceRole.crash, gm: [52], key: 'kitPieceChina'),
+  (role: KitPieceRole.crash, gm: [55], key: 'kitPieceSplash'),
+  (role: KitPieceRole.crash, gm: [57], key: 'kitPieceCrash2'),
 ];
 
 /// General MIDI percussion names for the generic (terminal-bucket) pieces.
@@ -159,10 +180,15 @@ List<DrumLane> deriveDrumLanes(Iterable<TimedNote> notes) {
   if (present.isEmpty) return const [];
 
   final lanes = <DrumLane>[];
-  DrumLane? named(({KitPieceRole role, Set<int> gm, String key}) piece) {
-    final members = piece.gm.intersection(present);
+  DrumLane? named(({KitPieceRole role, List<int> gm, String key}) piece) {
+    // Filter-and-consume in one pass, walking the piece's canonical order so
+    // the lane's member set carries it too (membership is identical to the
+    // former set intersection — only the iteration order is now pinned).
+    final members = <int>{
+      for (final gm in piece.gm)
+        if (present.remove(gm)) gm,
+    };
     if (members.isEmpty) return null;
-    present.removeAll(members);
     return DrumLane(role: piece.role, gmNumbers: members, labelKey: piece.key);
   }
 
@@ -219,6 +245,77 @@ int? laneIndexOf(List<DrumLane> lanes, int gm) {
     if (lanes[i].gmNumbers.contains(gm)) return i;
   }
   return null;
+}
+
+/// The [struckSurfaceOf] index standing for the **kick pedal** — the one
+/// controller surface that is not a lane (change: add-drum-input-mapping). The
+/// pads take the lane indices `0..n-1`, so a negative sentinel cannot collide
+/// with one, and pads and pedal share a single struck-flash table.
+const int kPedalSurface = -1;
+
+/// The General MIDI number a tap on [lane]'s pad emits: the **first member of
+/// the piece's canonical order that the loaded score actually uses** (change:
+/// add-drum-input-mapping). A lane holds exactly the members the score writes
+/// (they are derived from the notes present), so "first canonical member of
+/// the lane" *is* "first the score uses": a score writing its snare only as
+/// the electric 40 emits 40, never the absent canonical 38, and an open-only
+/// hi-hat emits 46.
+///
+/// Emitting inside the score's own vocabulary keeps the stroke audible with
+/// the score's own piece and spares the future matcher (`add-drum-scoring`)
+/// avoidable same-piece mismatches. It also keeps the struck-flash lookup
+/// trivially correct: the emitted number is always a member of the lane it
+/// came from.
+///
+/// The canonical order is read from the piece table rather than from the
+/// lane's set iteration order: a [DrumLane] built by hand elsewhere must emit
+/// the same number as a derived one, so emission must not depend on how the
+/// set happened to be constructed. A generic (terminal-bucket) lane has no
+/// table entry and exactly one number — it emits that one.
+int emittedGmOfLane(DrumLane lane) {
+  final key = lane.labelKey;
+  if (key != null) {
+    for (final piece in _namedPieces) {
+      if (piece.key != key) continue;
+      for (final gm in piece.gm) {
+        if (lane.gmNumbers.contains(gm)) return gm;
+      }
+      break;
+    }
+  }
+  // Generic piece (one number), or a hand-built lane holding none of its
+  // piece's canonical members: the lowest number, so the answer is still
+  // deterministic rather than set-iteration-dependent.
+  return lane.gmNumbers.reduce((a, b) => a < b ? a : b);
+}
+
+/// The General MIDI number the **kick pedal** emits for a score whose kick is
+/// written with [present] (change: add-drum-input-mapping): Bass Drum 1 (36)
+/// whenever the file uses it, 35 for a score writing its kick only as the
+/// Acoustic Bass Drum — the same present-member rule the pads follow, so the
+/// pedal's stroke also stays inside the score's vocabulary.
+///
+/// Null when the score has no kick at all: there is no pedal on the strip to
+/// tap, and nothing to emit.
+int? emittedKickGm(Set<int> present) {
+  for (final gm in kKickEmissionOrder) {
+    if (present.contains(gm)) return gm;
+  }
+  return null;
+}
+
+/// The controller surface a struck General MIDI number lights up: the index of
+/// the pad whose lane collapses [gm] — in the order [lanes] is given, so the
+/// caller passes PRESENTED lanes for the strip — or [kPedalSurface] for a kick
+/// when the strip draws a pedal ([hasPedal]).
+///
+/// Null when the number belongs to no surface the controller presents: a piece
+/// the score does not use, or a kick on a kickless score. That stroke is free
+/// play — it sounds and simply has nothing to flash, which is not an error
+/// (change: add-drum-input-mapping).
+int? struckSurfaceOf(List<DrumLane> lanes, int gm, {required bool hasPedal}) {
+  if (kKickGmNumbers.contains(gm)) return hasPedal ? kPedalSurface : null;
+  return laneIndexOf(lanes, gm);
 }
 
 /// Whether a percussion note is FOOT-struck, per the convention stated in

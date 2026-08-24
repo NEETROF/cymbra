@@ -286,30 +286,21 @@ impl PlayService for PlayGrpc {
     ) -> Result<Response<RecordPlaySessionResponse>, Status> {
         let owner = caller(&req)?;
         let r = req.into_inner();
-        // Interim drum rule (change: add-drums-access): until `add-drum-scoring`
-        // exists, a percussion session is stored for the player's own history —
-        // the ack the client waits for — but engages NO permanent artifact:
-        // no engagement/coverage points, no performance award, no leaderboard
-        // best, no streak day. Resolved from the catalog row, never the request.
-        let percussion = match r.score_id.as_deref() {
-            Some(id) => match &self.catalog {
-                Some(c) => c
-                    .hit_by_id(id, true)
-                    .await
-                    .ok()
-                    .flatten()
-                    .map(|h| h.instrument == crate::repo::Instrument::Percussion)
-                    .unwrap_or(false),
-                None => false,
-            },
-            None => false,
-        };
+        // A percussion session engages every artifact exactly like a keyboard one
+        // (change: add-drum-scoring): instrument-aware scoring now exists, so the
+        // interim's three fail-closed branches here (engagement, award, streak)
+        // are lifted and this handler is instrument-agnostic again — it no longer
+        // resolves the played piece's instrument at all.
+        //
+        // Nothing is retroactive: every effect below is keyed to THIS ingest event
+        // (the session id for the award, the player's local day for the streak),
+        // applied at ingest time only, so the sessions stored during the interim
+        // stay inert — no pass re-scans them.
+        //
         // Playing a catalog score is genuine engagement for coverage points (change:
         // add-post-play-rating-prompt) — recorded before the ingest so it is not lost
         // if the ingest fails, and idempotent per (user, score) at the repo.
-        if !percussion {
-            self.record_engagement(&owner, r.score_id.as_deref()).await;
-        }
+        self.record_engagement(&owner, r.score_id.as_deref()).await;
         let session_id = r.session_id.clone();
         let score_id = r.score_id.clone();
         let accuracy = r.overall_sync_pct;
@@ -326,29 +317,25 @@ impl PlayService for PlayGrpc {
                     tz_offset_minutes: r.tz_offset_minutes,
                     overall_sync_pct: r.overall_sync_pct,
                     session_result_json: r.session_result_json,
-                    percussion,
                 },
             )
             .await?;
         // The run is stored; now pay for it (change: add-play-rewards). Keyed on the
         // session id, so this is exactly-once even though the ingest is
         // at-least-once — and best-effort, so a failure to pay never fails the ack.
-        // A percussion session pays nothing and secures no streak day (change:
-        // add-drums-access): points and streaks are permanent artifacts, and the
-        // keyboard scorer's read of a drum part is not a performance.
-        let points_awarded = if percussion {
-            0
-        } else {
-            self.award_performance(&owner, score_id.as_deref(), accuracy, &session_id)
-                .await
-        };
+        // A percussion session pays through this same floor/curve/weight/cap
+        // (change: add-drum-scoring): the floor reads the percussion blend and the
+        // weight the piece's (now honestly graded) catalog level, so the anti-
+        // farming configuration is one, not two.
+        let points_awarded = self
+            .award_performance(&owner, score_id.as_deref(), accuracy, &session_id)
+            .await;
         // Playing on a day keeps the practice streak alive (change:
         // add-practice-streak). After the durable record, so the ack the client
-        // waits for still means "your session is stored".
-        if !percussion {
-            self.advance_streak(&owner, played_at_ms, tz_offset_minutes)
-                .await;
-        }
+        // waits for still means "your session is stored". The streak measures
+        // showing up, which is instrument-agnostic.
+        self.advance_streak(&owner, played_at_ms, tz_offset_minutes)
+            .await;
         Ok(Response::new(RecordPlaySessionResponse { points_awarded }))
     }
 
@@ -463,7 +450,7 @@ mod tests {
         CurationRewardsRepo, FakeCurationRewardsRepo, MockCurationRewardsSink,
     };
     use crate::curation_rewards_module::CurationRewardsModule;
-    use crate::play::FakePlayRepo;
+    use crate::play::{FakePlayRepo, PlayRepo, PlaySession};
     use crate::play_module::PlayModule;
     use cymbra_platform::AppError;
     use cymbra_user_port::MockUserPort;
@@ -1118,64 +1105,301 @@ mod tests {
         assert_eq!(err.code(), tonic::Code::Unauthenticated);
     }
 
-    // --- the interim drum rule (change: add-drums-access) ------------------
+    // --- the drum ingest lift (change: add-drum-scoring) -------------------
+    //
+    // The interim (`add-drums-access`) stored a percussion session and engaged
+    // NOTHING; these tests are that requirement inverted, site by site, plus the
+    // three properties the lift must not break: nothing retroactive, idempotence
+    // per artifact, and the integrity checks.
 
-    /// A leaderboard sink that records every ingested session id, so the test
-    /// can assert a percussion session never reaches the boards.
-    #[derive(Default)]
-    struct RecordingSink(std::sync::Mutex<Vec<String>>);
+    /// Every artifact a scored ingest can mint, wired over in-memory stores so a
+    /// test can assert what a percussion run actually produced. The leaderboard
+    /// sink is the REAL [`crate::leaderboard_module::LeaderboardModule`], not a
+    /// spy: "the bests are maintained" is a claim about bests, and the monotone
+    /// upsert is exactly what idempotence rests on.
+    struct DrumIngest {
+        grpc: PlayGrpc,
+        plays: Arc<FakePlayRepo>,
+        rewards: Arc<FakeCurationRewardsRepo>,
+        boards: Arc<crate::leaderboard::FakeLeaderboardRepo>,
+    }
 
-    #[async_trait::async_trait]
-    impl crate::leaderboard::LeaderboardSink for RecordingSink {
-        async fn ingest_session(
-            &self,
-            session: &crate::play::PlaySession,
-        ) -> cymbra_platform::error::Result<()> {
-            self.0.lock().unwrap().push(session.session_id.clone());
-            Ok(())
+    /// The harness over a catalog holding ONE percussion piece, graded `advanced`
+    /// like the keyboard piece of `the_ack_carries_what_the_session_earned` — so
+    /// an equal run pays the same 16 points and the "unchanged floor/curve/weight/
+    /// cap" claim is visible in the number.
+    fn drum_ingest() -> DrumIngest {
+        let plays = Arc::new(FakePlayRepo::default());
+        let rewards = Arc::new(FakeCurationRewardsRepo::default());
+        let catalog = Arc::new(FakeCatalogSearchRepo::with(vec![
+            FakeCatalogRow::new(CATALOG_ID, "Groove", "Anon", Some("advanced")).percussion(),
+        ]));
+        let boards = Arc::new(crate::leaderboard::FakeLeaderboardRepo::default());
+        boards.accept(CATALOG_ID);
+        // The board maintenance path never reads the user port (only board READS
+        // do), so a bare mock proves no read sneaked into the ingest.
+        let leaderboard: Arc<dyn crate::leaderboard::LeaderboardSink> =
+            Arc::new(crate::leaderboard_module::LeaderboardModule::new(
+                boards.clone(),
+                Arc::new(MockUserPort::new()),
+            ));
+        let mut user = MockUserPort::new();
+        user.expect_activity_visible_to()
+            .returning(|_, _, _| Ok(true));
+        let module =
+            Arc::new(PlayModule::new(plays.clone(), Arc::new(user)).with_leaderboard(leaderboard));
+        let grpc = PlayGrpc::new(module)
+            .with_rewards(
+                Arc::new(CurationRewardsModule::new(rewards.clone())),
+                catalog,
+            )
+            .with_streak(Arc::new(crate::streak_module::StreakModule::new(Arc::new(
+                crate::streak::FakeStreakRepo::default(),
+            ))));
+        DrumIngest {
+            grpc,
+            plays,
+            rewards,
+            boards,
         }
     }
 
-    #[tokio::test]
-    async fn a_percussion_session_is_stored_but_engages_no_artifact() {
-        // A catalog holding one percussion piece; the sink records ingests.
-        let sink = Arc::new(RecordingSink::default());
-        let rewards_repo = Arc::new(FakeCurationRewardsRepo::default());
-        let rewards = Arc::new(CurationRewardsModule::new(rewards_repo.clone()));
-        let catalog = Arc::new(FakeCatalogSearchRepo::with(vec![
-            FakeCatalogRow::new(CATALOG_ID, "Groove", "Anon", Some("beginner")).percussion(),
-        ]));
-        let mut user = MockUserPort::new();
-        user.expect_activity_visible_to()
-            .returning(move |_, _, _| Ok(true));
-        let module = Arc::new(
-            PlayModule::new(Arc::new(FakePlayRepo::default()), Arc::new(user))
-                .with_leaderboard(sink.clone()),
-        );
-        let g = PlayGrpc::new(module).with_rewards(rewards, catalog);
+    /// The caller's live streak run, read back through the RPC.
+    async fn streak_of(g: &PlayGrpc, user: &str) -> ProtoStreakStanding {
+        g.get_streak(authed(
+            GetStreakRequest {
+                tz_offset_minutes: 0,
+            },
+            user,
+        ))
+        .await
+        .unwrap()
+        .into_inner()
+        .standing
+        .unwrap()
+    }
 
-        let resp = g
-            .record_play_session(authed(session(Some(CATALOG_ID)), "u1"))
+    /// A percussion run's session-result record: timing + correctness only. There
+    /// is deliberately no sustain aggregate in it (absent, not zero) — the boards
+    /// read the same per-mode fields either way.
+    fn drum_result(sync: f64, onsets: i64) -> String {
+        format!(r#"{{"freeSyncPct": {sync}, "freeOnsetCount": {onsets}, "avgFreeOffsetMs": 12.0}}"#)
+    }
+
+    /// A scored percussion session on the catalog piece, ended "now" so its local
+    /// day is the streak's today.
+    fn drum_session(sync: f32, result: String) -> RecordPlaySessionRequest {
+        RecordPlaySessionRequest {
+            session_id: uuid::Uuid::now_v7().to_string(),
+            score_id: Some(CATALOG_ID.into()),
+            played_at_ms: chrono::Utc::now().timestamp_millis(),
+            tz_offset_minutes: 0,
+            overall_sync_pct: sync,
+            session_result_json: result,
+        }
+    }
+
+    async fn total_sessions(g: &PlayGrpc, user: &str) -> i32 {
+        g.get_play_activity(authed(
+            GetPlayActivityRequest {
+                user_id: String::new(),
+            },
+            user,
+        ))
+        .await
+        .unwrap()
+        .into_inner()
+        .total_sessions
+    }
+
+    #[tokio::test]
+    async fn a_percussion_session_engages_every_artifact() {
+        // The inverted interim: a scored percussion run records engagement, pays
+        // through the unchanged curve, maintains the per-piece best and credits
+        // the streak day — the four sites lifted in one ingest.
+        let h = drum_ingest();
+        let resp = h
+            .grpc
+            .record_play_session(authed(drum_session(80.0, drum_result(82.0, 12)), "u1"))
             .await
             .unwrap()
             .into_inner();
-        // The ack is the stored session — the client's outbox contract holds —
-        // but no permanent artifact was written: zero points, no leaderboard
-        // ingest, no engagement row. (`add-drum-scoring` owns the real rules.)
+        // Award: the same 16 an equal run on an `advanced` KEYBOARD piece pays.
+        assert_eq!(resp.points_awarded, 16);
+        // Engagement (coverage): recorded for the played piece.
+        assert!(h.rewards.has_engagement("u1", CATALOG_ID).await.unwrap());
+        // Per-piece best: the drum matcher's free-run sub-score.
+        let best = h
+            .boards
+            .best_for("u1", CATALOG_ID, crate::leaderboard::Mode::Tempo)
+            .expect("a percussion session maintains its board");
+        assert_eq!(best.subscore, 82.0);
+        // Streak: the day is credited.
+        let s = streak_of(&h.grpc, "u1").await;
+        assert_eq!(s.current, 1);
+        assert!(s.played_today);
+        // …and the session is still the player's own history, as in the interim.
+        assert_eq!(total_sessions(&h.grpc, "u1").await, 1);
+    }
+
+    #[tokio::test]
+    async fn a_below_floor_percussion_run_is_stored_and_pays_nothing() {
+        // The floor is the same one, read from the percussion blend: a mashed or
+        // abandoned drum run is activity, not a performance.
+        let h = drum_ingest();
+        let resp = h
+            .grpc
+            .record_play_session(authed(drum_session(20.0, drum_result(20.0, 12)), "u1"))
+            .await
+            .unwrap()
+            .into_inner();
         assert_eq!(resp.points_awarded, 0);
-        assert!(sink.0.lock().unwrap().is_empty());
-        assert!(!rewards_repo.has_engagement("u1", CATALOG_ID).await.unwrap());
-        // The session itself IS readable back (own history).
-        let acts = g
-            .get_play_activity(authed(
-                GetPlayActivityRequest {
-                    user_id: String::new(),
+        assert_eq!(h.rewards.ledger_len(), 0);
+        assert_eq!(total_sessions(&h.grpc, "u1").await, 1);
+    }
+
+    #[tokio::test]
+    async fn a_resent_percussion_session_mints_each_artifact_once() {
+        // Idempotence per site under the at-least-once outbox: one stored row, one
+        // ledger entry, one (monotone) best, one streak day, one engagement row.
+        let h = drum_ingest();
+        let req = drum_session(80.0, drum_result(82.0, 12));
+        let first = h
+            .grpc
+            .record_play_session(authed(req.clone(), "u1"))
+            .await
+            .unwrap()
+            .into_inner();
+        let second = h
+            .grpc
+            .record_play_session(authed(req, "u1"))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!((first.points_awarded, second.points_awarded), (16, 0));
+        assert_eq!(h.rewards.ledger_len(), 1, "the award key paid once");
+        assert_eq!(h.plays.count_for("u1"), 1, "no double record");
+        let best = h
+            .boards
+            .best_for("u1", CATALOG_ID, crate::leaderboard::Mode::Tempo)
+            .unwrap();
+        assert_eq!(best.subscore, 82.0, "the replay never raised or duplicated");
+        assert_eq!(total_sessions(&h.grpc, "u1").await, 1);
+        assert_eq!(
+            streak_of(&h.grpc, "u1").await.current,
+            1,
+            "one day, not two"
+        );
+    }
+
+    #[tokio::test]
+    async fn interim_percussion_sessions_stay_inert_after_the_lift() {
+        // Nothing is retroactive. A session the interim stored engages nothing
+        // once the lift lands, because every effect is keyed to its own INGEST
+        // event and no pass re-scans stored sessions.
+        let h = drum_ingest();
+        let stored_id = uuid::Uuid::now_v7().to_string();
+        // What the interim left behind: a stored row, and nothing else. The app
+        // never armed the scorer on a drum score then, so the record carries no
+        // sub-scores and no accuracy either.
+        h.plays
+            .record(&PlaySession {
+                session_id: stored_id.clone(),
+                user_id: "u1".into(),
+                score_id: Some(CATALOG_ID.into()),
+                played_at_ms: chrono::Utc::now().timestamp_millis() - 86_400_000,
+                tz_offset_minutes: 0,
+                overall_sync_pct: 0.0,
+                session_result_json: "{}".into(),
+            })
+            .await
+            .unwrap();
+        // The lift runs; nothing looks at history.
+        assert_eq!(h.rewards.ledger_len(), 0);
+        assert!(!h.rewards.has_engagement("u1", CATALOG_ID).await.unwrap());
+        assert!(
+            h.boards
+                .best_for("u1", CATALOG_ID, crate::leaderboard::Mode::Tempo)
+                .is_none()
+        );
+        let s = streak_of(&h.grpc, "u1").await;
+        assert_eq!((s.current, s.played_today), (0, false), "no day credited");
+        // …and it is still readable as the player's own history.
+        assert_eq!(total_sessions(&h.grpc, "u1").await, 1);
+
+        // Re-delivering that interim session is the no-op it always was: the row
+        // is already stored (no double record), and the payload itself is what
+        // keeps it from paying — no accuracy to clear the floor, no sub-score for
+        // a board. A late award would have to be invented, not merely allowed.
+        let resp = h
+            .grpc
+            .record_play_session(authed(
+                RecordPlaySessionRequest {
+                    session_id: stored_id,
+                    score_id: Some(CATALOG_ID.into()),
+                    played_at_ms: chrono::Utc::now().timestamp_millis() - 86_400_000,
+                    tz_offset_minutes: 0,
+                    overall_sync_pct: 0.0,
+                    session_result_json: "{}".into(),
                 },
                 "u1",
             ))
             .await
             .unwrap()
             .into_inner();
-        assert_eq!(acts.total_sessions, 1);
+        assert_eq!(resp.points_awarded, 0, "no late award");
+        assert_eq!(h.rewards.ledger_len(), 0);
+        assert_eq!(h.plays.count_for("u1"), 1, "no double record");
+        assert!(
+            h.boards
+                .best_for("u1", CATALOG_ID, crate::leaderboard::Mode::Tempo)
+                .is_none(),
+            "no late best"
+        );
+    }
+
+    #[tokio::test]
+    async fn an_implausible_percussion_result_is_kept_off_the_boards() {
+        // The ingest invariants are instrument-agnostic and keep holding over a
+        // percussion result: a sub-score outside [0,100], a mode claiming a score
+        // with no onsets, and an implausible timing metric are each excluded from
+        // the boards while the session itself is still stored. The onset count is
+        // the drum matcher's own — of the piece's notes, which have counted
+        // unpitched ones since `add-drums-access`, so a drum part is not the empty
+        // score the keyboard-era checks would have seen.
+        for (why, result) in [
+            (
+                "sub-score out of range",
+                r#"{"freeSyncPct": 150.0, "freeOnsetCount": 12, "avgFreeOffsetMs": 12.0}"#,
+            ),
+            (
+                "a score with no onsets",
+                r#"{"freeSyncPct": 99.0, "freeOnsetCount": 0, "avgFreeOffsetMs": 12.0}"#,
+            ),
+            (
+                "an implausible reaction time",
+                r#"{"waitSyncPct": 99.0, "waitOnsetCount": 8, "avgReactionMs": 99999.0}"#,
+            ),
+        ] {
+            let h = drum_ingest();
+            h.grpc
+                .record_play_session(authed(drum_session(80.0, result.into()), "u1"))
+                .await
+                .unwrap();
+            for mode in [
+                crate::leaderboard::Mode::Tempo,
+                crate::leaderboard::Mode::Reaction,
+            ] {
+                assert!(
+                    h.boards.best_for("u1", CATALOG_ID, mode).is_none(),
+                    "{why} must not reach a board"
+                );
+            }
+            assert_eq!(
+                total_sessions(&h.grpc, "u1").await,
+                1,
+                "{why}: still stored"
+            );
+        }
     }
 }

@@ -20,6 +20,13 @@ path = "src/main.rs"
 name = "backfill-mutopia-titles"
 path = "src/bin/backfill_mutopia_titles.rs"
 
+# One-off maintenance bin: re-grade catalog percussion rows the keyboard-shaped
+# difficulty heuristic mis-graded (change: add-drum-scoring). Lives here because
+# the heuristic does — `cymbra-music` owns the seam, not the policy.
+[[bin]]
+name = "regrade-percussion-difficulty"
+path = "src/bin/regrade_percussion_difficulty.rs"
+
 [dependencies]
 # Shared notation engine: validation + .mxl re-parse + the parsed model that
 # metadata/difficulty read. Single source of truth across app/backend/crawler.
@@ -27,6 +34,13 @@ cymbra-musicxml-core = { path = "../musicxml-core" }
 # The shared music module: the crawler ingests directly through its CatalogRepo
 # into the `music` schema's catalog_scores (the same store the app reads).
 cymbra-music = { path = "../../backend/music" }
+# Corpus object store: the percussion difficulty re-grade reads each catalog
+# row's stored `.mxl` back through the same seam the backend's backfills use.
+cymbra-storage = { path = "../../backend/storage" }
+# Deployment config (bucket, credentials, local cache root, music DB URL) for the
+# maintenance bins — the same `CYMBRA_*` contract the server's backfills read.
+cymbra-platform = { path = "../../backend/platform" }
+dotenvy.workspace = true
 uuid = { version = "1", features = ["v7"] }
 
 anyhow = "1"
@@ -61,3 +75,9 @@ futures-util = "0.3"
 # PDMX dataset: gunzip + untar the mxl archive.
 flate2 = "1"
 tar = "0.4"
+
+[dev-dependencies]
+# `MockDifficultyBackfillRepo` for the re-grade orchestration (rust-testing
+# default). The trait is `cymbra-music`'s, so it is mocked with `mock!` here
+# rather than annotated at its definition.
+mockall.workspace = true

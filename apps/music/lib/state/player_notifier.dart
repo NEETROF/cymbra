@@ -136,9 +136,24 @@ class Player extends _$Player {
   /// A **selective run** (a practice range narrower than the whole piece) is
   /// never scored (change: add-measure-range-practice, D2): the scorer simply
   /// never arms, so no partial `SessionResult` exists to suppress downstream.
+  ///
+  /// A **percussion** score never arms it either (change:
+  /// add-drum-input-mapping), by the same mechanism: the judge is
+  /// keyboard-shaped — exact-pitch matching against numbers a drum lane
+  /// deliberately collapses, sustain judgment against one-shots that have no
+  /// sustain — so a percussion "score" would be confidently wrong. With no run
+  /// open, every scorer feed below is a no-op by construction and no
+  /// `SessionResult` exists for the summary, the history or the backend
+  /// ingest. Strokes stay audible and visible; they are not judged until
+  /// `add-drum-scoring` brings the matcher.
   void _maybeStartRun() {
     final s = state;
-    if (s.visibleNotes.isEmpty || !_atStart(s) || s.isSelectiveRun) return;
+    if (s.visibleNotes.isEmpty ||
+        !_atStart(s) ||
+        s.isSelectiveRun ||
+        s.isPercussion) {
+      return;
+    }
     final entry = ref.read(selectedScoreProvider);
     _scorer.startRun(
       pieceId: _pieceIdentity(),
@@ -323,6 +338,10 @@ class Player extends _$Player {
           : const <DrumLane>[],
       mode: derived.isPercussion ? RenderMode.synthesia : state.mode,
       waitMode: derived.isPercussion ? false : state.waitMode,
+      // The struck-flash table is keyed by controller POSITION, so another
+      // score's stamps would land on this one's pads (change:
+      // add-drum-input-mapping).
+      struckSurfacesMs: const {},
       isPlaying: false,
       // A range chosen for the previous score means nothing here (and its indices
       // may not even exist in this one): a freshly-loaded document always starts
@@ -449,8 +468,19 @@ class Player extends _$Player {
   /// add-audio-output-routing): a note the connected instrument already played
   /// itself is not synthesized a second time. Everything below the audio call
   /// runs identically for every source.
+  ///
+  /// On a **percussion** score the pitch is a General MIDI percussion number
+  /// and the note is a *stroke* (change: add-drum-input-mapping): it sounds
+  /// through the seam's one-shot rather than the pitched piano voice, and
+  /// flashes the controller surface it resolves to. Everything else — the held
+  /// set, the gate bookkeeping, the scorer feed (inert: no run ever arms for
+  /// percussion) — is the shared path, unchanged.
   void noteOn(int pitch, {NoteSource source = NoteSource.onScreen}) {
-    if (state.synthesizes(source)) _audio.noteOn(pitch);
+    if (state.isPercussion) {
+      _soundStroke(pitch, source);
+    } else if (state.synthesizes(source)) {
+      _audio.noteOn(pitch);
+    }
     // A fresh attack starts a new, uncounted hold: drop any prior "consumed"
     // mark so this press can satisfy the onset it lands on (and only that one).
     final active = state.activeNotes.contains(pitch)
@@ -471,6 +501,7 @@ class Player extends _$Player {
           ? {...state.gateSatisfied, pitch}
           : state.gateSatisfied,
       consumedHeld: atOnset ? {...consumed, pitch} : consumed,
+      struckSurfacesMs: _struckSurfacesAfter(pitch),
     );
     // Feed the scorer the attack at the current playhead; it binds to a pending
     // onset or records an extra note (a no-op when no run is active). Presses
@@ -480,10 +511,70 @@ class Player extends _$Player {
     }
   }
 
+  /// Sounds a live percussion stroke as a **one-shot** (change:
+  /// add-drum-input-mapping): `drumOn`, never the pitched `noteOn` a live
+  /// stroke wrongly got before this change — the drum channel is where the kit
+  /// font's bank-128 presets resolve, so a snare number sent to the melodic
+  /// pair comes out as a piano note.
+  ///
+  /// Two guards, both borrowed unchanged rather than re-decided here:
+  /// * [PlayerData.synthesizes] — the instrument-sounds-itself rule (change:
+  ///   add-audio-output-routing): a module that sounds its own strokes is not
+  ///   doubled, while on-screen taps always sound.
+  /// * the kit-readiness gate the scheduled path already applies (change:
+  ///   add-drum-audio-channel): until the kit font's awaited install resolves,
+  ///   percussion is visual-only — a stroke must not come out through the
+  ///   still-loaded piano font. The stroke still registers and still flashes;
+  ///   it is *sounding* that is unavailable, and only that.
+  ///
+  /// Velocity is deliberately not consumed: the one-shot is filled with the
+  /// schedule's own default loudness, exactly like the pitched path, which has
+  /// never consumed velocity either (change: add-drum-input-mapping — dynamics
+  /// is one future decision for both instruments and both directions, not a
+  /// percussion side-door).
+  void _soundStroke(int pitch, NoteSource source) {
+    if (!state.synthesizes(source)) return;
+    if (ref.read(scoreFontProvider) != KitFontStatus.ready) return;
+    _audio.drumOn(pitch, velocity: AudioService.defaultVelocity);
+  }
+
+  /// The struck-surface table after a stroke on [gm] (change:
+  /// add-drum-input-mapping): the surface it resolves to, stamped with the
+  /// wall clock. A number resolving to no surface — a piece this score does
+  /// not use, a kick on a kickless score — leaves the table untouched: free
+  /// play sounds, flashes nothing, and raises nothing.
+  ///
+  /// Keyed on the surface, so any source (pad tap, pedal tap, external kit)
+  /// produces the same entry, and a lane collapsing several numbers flashes
+  /// once wherever the stroke came from.
+  Map<int, double> _struckSurfacesAfter(int gm) {
+    if (!state.isPercussion) return state.struckSurfacesMs;
+    final surface = state.struckSurfaceFor(gm);
+    if (surface == null) return state.struckSurfacesMs;
+    return {
+      ...state.struckSurfacesMs,
+      surface: DateTime.now().millisecondsSinceEpoch.toDouble(),
+    };
+  }
+
   /// Releases a live note from [source]. Mirrors [noteOn]: the release is only
   /// sent to the synth when the attack was, so the two stay paired.
+  ///
+  /// On a **percussion** score a release is *bookkeeping, never meaning*
+  /// (change: add-drum-input-mapping): it clears the held entry its attack
+  /// created and nothing else — no audible effect, no feedback effect (the
+  /// flash runs on its own clock). It is deliberately **not** forwarded to the
+  /// seam's paired `drum_off`: that release reaches the engine as a NoteOff on
+  /// the drum channel (`api/audio_core.rs`), which puts the voice into the
+  /// preset's release stage — with the SoundFont default release that *clips*
+  /// the one-shot. E-kits send their note-off within milliseconds of the
+  /// attack, so forwarding it would cut every cymbal off the moment the stick
+  /// left it. The binding scenario ("an immediate release leaves the sound to
+  /// its natural end"), not the pairing, is the contract; a kit voice
+  /// self-terminates, so nothing hangs when the release is dropped — and a kit
+  /// that never sends one costs nothing either.
   void noteOff(int pitch, {NoteSource source = NoteSource.onScreen}) {
-    if (state.synthesizes(source)) _audio.noteOff(pitch);
+    if (!state.isPercussion && state.synthesizes(source)) _audio.noteOff(pitch);
     // The hold ended: drop it from the held set and clear its consumed mark so a
     // re-press starts fresh.
     if (state.activeNotes.contains(pitch) ||
@@ -603,7 +694,10 @@ class Player extends _$Player {
     ref
         .read(playerPreferencesProvider.notifier)
         .setInvertedKit(enabled: enabled);
-    state = state.copyWith(invertedKit: enabled);
+    // Mirroring the layout mirrors the surface indices, so any in-flight
+    // struck flash would jump to the pad opposite the one actually struck
+    // (change: add-drum-input-mapping). Dropping it is the honest answer.
+    state = state.copyWith(invertedKit: enabled, struckSurfacesMs: const {});
   }
 
   /// Sets how much reading help is shown at a held onset, and remembers it

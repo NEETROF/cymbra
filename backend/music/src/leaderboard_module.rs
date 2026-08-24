@@ -26,8 +26,15 @@
 //!   entries, even when the caller is private/ineligible. No sensitive fields
 //!   leave here — entries carry only the public handle/display name resolved
 //!   through the user port.
+//!
+//! Both reads sit behind the **drum audience** (change: add-drum-scoring): boards
+//! are keyed by catalog piece, so a percussion piece's board existing is an
+//! existence oracle. For a caller outside the audience a percussion piece answers
+//! exactly as a piece with no board. The GLOBAL boards
+//! ([`crate::global_leaderboard_module`]) stay ungated: their entries name
+//! players, scores and a contributing-piece count — never a piece.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -69,6 +76,36 @@ pub struct Board {
     /// The caller's own best + rank among the public entries, present whenever the
     /// caller has scored on this board — even if the caller is private/ineligible.
     pub own: Option<BoardEntry>,
+}
+
+/// Who is reading a board (change: add-drum-scoring). The drum audience is
+/// resolved by the gRPC adapter from the caller's **own identity and
+/// memberships** — never from a request field — exactly like every other gated
+/// read on this surface (`music-drums-visibility`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BoardViewer {
+    pub user_id: String,
+    /// The drum feature is in effect for this caller.
+    pub eligible_for_percussion: bool,
+}
+
+impl BoardViewer {
+    /// A signed-in reader outside the drum audience — what every caller is until
+    /// the feature reaches them (and what tests should default to).
+    pub fn regular(user_id: &str) -> Self {
+        Self {
+            user_id: user_id.to_string(),
+            eligible_for_percussion: false,
+        }
+    }
+
+    /// A reader holding the drum feature.
+    pub fn with_drums(user_id: &str) -> Self {
+        Self {
+            user_id: user_id.to_string(),
+            eligible_for_percussion: true,
+        }
+    }
 }
 
 /// A piece's score-card standing (change: add-play-leaderboards). `rank > 0` is the
@@ -170,18 +207,47 @@ impl LeaderboardModule {
         Ok(())
     }
 
-    /// Read one board `(score_id, mode)` as seen by `viewer_id`: the requested page
+    /// The subset of `score_ids` this viewer may not be told about: percussion
+    /// pieces read by a caller outside the drum audience (change:
+    /// add-drum-scoring). Empty — and the lookup skipped entirely — for an
+    /// eligible caller, so the gate costs nothing once the feature is general.
+    async fn withheld_percussion(
+        &self,
+        viewer: &BoardViewer,
+        score_ids: &[String],
+    ) -> Result<HashSet<String>> {
+        if viewer.eligible_for_percussion {
+            return Ok(HashSet::new());
+        }
+        self.repo.percussion_pieces(score_ids).await
+    }
+
+    /// Read one board `(score_id, mode)` as seen by `viewer`: the requested page
     /// of public entries (private/ineligible players are never listed), plus the
     /// caller's own standing. `today` (UTC) drives the eligibility gate.
     pub async fn get_board(
         &self,
-        viewer_id: &str,
+        viewer: &BoardViewer,
         score_id: &str,
         mode: Mode,
         offset: i64,
         limit: i64,
         today: NaiveDate,
     ) -> Result<Board> {
+        // The drum gate on the read (change: add-drum-scoring): boards are keyed
+        // by catalog piece, so a percussion piece's board *existing* discloses the
+        // piece. An ineligible caller gets exactly the answer a piece with no
+        // board gives — an empty board, never a distinguishable refusal — even
+        // when eligible players are ranked on it.
+        let asked = [score_id.to_string()];
+        if !self.withheld_percussion(viewer, &asked).await?.is_empty() {
+            return Ok(Board {
+                entries: Vec::new(),
+                total: 0,
+                own: None,
+            });
+        }
+        let viewer_id = viewer.user_id.as_str();
         // All stored bests for the board, already in ranking order.
         let all = self.repo.board_bests(score_id, mode).await?;
         let ids: Vec<String> = all.iter().map(|b| b.user_id.clone()).collect();
@@ -265,17 +331,28 @@ impl LeaderboardModule {
     /// nothing"). `today` (UTC) drives the eligibility gate, like `get_board`.
     pub async fn my_standings(
         &self,
-        viewer_id: &str,
+        viewer: &BoardViewer,
         score_ids: &[String],
         today: NaiveDate,
     ) -> Result<Vec<MyStanding>> {
-        use std::collections::HashSet;
         const MODES: [Mode; 2] = [Mode::Tempo, Mode::Reaction];
+
+        // The drum gate on the batched read (change: add-drum-scoring): a
+        // percussion piece contributes no standing and no board signal to an
+        // ineligible caller — dropped before the boards are even fetched, so it is
+        // indistinguishable from a boardless piece in the same batch.
+        let withheld = self.withheld_percussion(viewer, score_ids).await?;
+        let score_ids: Vec<String> = score_ids
+            .iter()
+            .filter(|id| !withheld.contains(*id))
+            .cloned()
+            .collect();
+        let viewer_id = viewer.user_id.as_str();
 
         // Fetch each (piece, mode) board once; gather every owner id for one gate.
         let mut boards: HashMap<(String, Mode), Vec<StoredBest>> = HashMap::new();
         let mut all_ids: HashSet<String> = HashSet::new();
-        for score_id in score_ids {
+        for score_id in &score_ids {
             for mode in MODES {
                 let bests = self.repo.board_bests(score_id, mode).await?;
                 for b in &bests {
@@ -294,7 +371,7 @@ impl LeaderboardModule {
             .collect();
 
         let mut out = Vec::new();
-        for score_id in score_ids {
+        for score_id in &score_ids {
             let mut best: Option<MyStanding> = None;
             // The first mode whose PUBLIC listing is non-empty — so a not-ranked
             // caller still gets a bare-trophy badge that opens a real board.
@@ -546,7 +623,14 @@ mod tests {
         }
         // A public viewer sees only the two public players, ranked by sub-score.
         let board = m
-            .get_board("a1", "p", Mode::Tempo, 0, 50, today())
+            .get_board(
+                &BoardViewer::regular("a1"),
+                "p",
+                Mode::Tempo,
+                0,
+                50,
+                today(),
+            )
             .await
             .unwrap();
         assert_eq!(board.total, 2);
@@ -572,7 +656,14 @@ mod tests {
         // The private caller: not in the listing, but sees their own standing —
         // 88 slots between a1 (95) and a2 (70) → rank 2 among the public players.
         let board = m
-            .get_board("priv", "p", Mode::Tempo, 0, 50, today())
+            .get_board(
+                &BoardViewer::regular("priv"),
+                "p",
+                Mode::Tempo,
+                0,
+                50,
+                today(),
+            )
             .await
             .unwrap();
         assert!(board.entries.iter().all(|e| e.user_id != "priv"));
@@ -590,7 +681,14 @@ mod tests {
             .await
             .unwrap();
         let board = m
-            .get_board("newcomer", "p", Mode::Tempo, 0, 50, today())
+            .get_board(
+                &BoardViewer::regular("newcomer"),
+                "p",
+                Mode::Tempo,
+                0,
+                50,
+                today(),
+            )
             .await
             .unwrap();
         assert!(board.own.is_none());
@@ -607,7 +705,7 @@ mod tests {
                 .unwrap();
         }
         let page = m
-            .get_board("a", "p", Mode::Tempo, 1, 1, today())
+            .get_board(&BoardViewer::regular("a"), "p", Mode::Tempo, 1, 1, today())
             .await
             .unwrap();
         assert_eq!(page.total, 3);
@@ -645,7 +743,10 @@ mod tests {
         seed(&repo, "a", "p", Mode::Tempo, 95.0, 1).await;
         seed(&repo, "me", "p", Mode::Tempo, 80.0, 1).await;
         seed(&repo, "me", "p", Mode::Reaction, 99.0, 1).await;
-        let out = m.my_standings("me", &["p".into()], today()).await.unwrap();
+        let out = m
+            .my_standings(&BoardViewer::regular("me"), &["p".into()], today())
+            .await
+            .unwrap();
         assert_eq!(out.len(), 1);
         assert_eq!(out[0].score_id, "p");
         // The reaction #1 beats the tempo #2.
@@ -660,11 +761,100 @@ mod tests {
         let m = module(repo.clone(), &["a"]);
         seed(&repo, "a", "p", Mode::Tempo, 95.0, 1).await;
         seed(&repo, "me", "p", Mode::Tempo, 88.0, 1).await;
-        let out = m.my_standings("me", &["p".into()], today()).await.unwrap();
+        let out = m
+            .my_standings(&BoardViewer::regular("me"), &["p".into()], today())
+            .await
+            .unwrap();
         // Ranked #2 behind the public player, even though not listed to others.
         assert_eq!(out.len(), 1);
         assert_eq!(out[0].rank, 2);
         assert_eq!(out[0].mode, Mode::Tempo);
+    }
+
+    // --- the drum audience on the read surface (change: add-drum-scoring) ---
+    //
+    // One ineligible case per gated read plus the eligible counterpart: the
+    // predicate proved in isolation says nothing about the call sites.
+
+    #[tokio::test]
+    async fn a_percussion_board_answers_an_ineligible_caller_as_boardless() {
+        let repo = Arc::new(FakeLeaderboardRepo::default());
+        repo.accept("drum");
+        repo.mark_percussion("drum");
+        let m = module(repo.clone(), &["a1"]);
+        for (u, sub) in [("a1", 95.0), ("me", 88.0)] {
+            m.maintain_from_session(&session(u, "drum", &tempo_json(sub, 5.0), 1))
+                .await
+                .unwrap();
+        }
+        // Ineligible: byte-for-byte the answer a piece with NO board gives — no
+        // entries, no total, and not even the caller's own standing, which would
+        // otherwise confirm the piece exists and is playable.
+        let ineligible = BoardViewer::regular("me");
+        let hidden = m
+            .get_board(&ineligible, "drum", Mode::Tempo, 0, 50, today())
+            .await
+            .unwrap();
+        let boardless = m
+            .get_board(&ineligible, "never-played", Mode::Tempo, 0, 50, today())
+            .await
+            .unwrap();
+        assert_eq!(hidden, boardless);
+        assert!(hidden.own.is_none());
+        // Eligible: the same board reads normally, ranked players and own standing.
+        let seen = m
+            .get_board(
+                &BoardViewer::with_drums("me"),
+                "drum",
+                Mode::Tempo,
+                0,
+                50,
+                today(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(seen.total, 1);
+        assert_eq!(seen.entries[0].user_id, "a1");
+        assert_eq!(seen.own.expect("own standing").subscore, 88.0);
+    }
+
+    #[tokio::test]
+    async fn a_percussion_piece_contributes_nothing_to_an_ineligible_batch() {
+        use std::collections::HashMap;
+        let repo = Arc::new(FakeLeaderboardRepo::default());
+        repo.mark_percussion("drum");
+        let m = module(repo.clone(), &["a"]);
+        seed(&repo, "me", "key", Mode::Tempo, 70.0, 1).await; // keyboard, ranked
+        seed(&repo, "me", "drum", Mode::Tempo, 90.0, 1).await; // percussion, ranked
+        seed(&repo, "a", "drum", Mode::Tempo, 95.0, 1).await; // …with a public board
+        // "empty" has no bests at all — the shape a withheld piece must copy.
+        let ids = vec!["key".to_string(), "drum".to_string(), "empty".to_string()];
+
+        let out = m
+            .my_standings(&BoardViewer::regular("me"), &ids, today())
+            .await
+            .unwrap();
+        let by_id: HashMap<&str, &MyStanding> =
+            out.iter().map(|s| (s.score_id.as_str(), s)).collect();
+        assert!(by_id.contains_key("key"), "keyboard pieces are unaffected");
+        assert!(
+            !by_id.contains_key("drum"),
+            "no standing and no board signal — same as the boardless piece"
+        );
+        assert!(!by_id.contains_key("empty"));
+        assert_eq!(out.len(), 1);
+
+        // Eligible: the percussion piece contributes its standing like any other.
+        let out = m
+            .my_standings(&BoardViewer::with_drums("me"), &ids, today())
+            .await
+            .unwrap();
+        let drum = out
+            .iter()
+            .find(|s| s.score_id == "drum")
+            .expect("the drum standing is back");
+        assert_eq!(drum.rank, 2, "behind the public 95");
+        assert_eq!(drum.subscore, 90.0);
     }
 
     #[tokio::test]
@@ -676,7 +866,11 @@ mod tests {
         seed(&repo, "me", "p2", Mode::Tempo, 70.0, 1).await; // caller ranked
         // p3: no bests at all (empty board).
         let out = m
-            .my_standings("me", &["p1".into(), "p2".into(), "p3".into()], today())
+            .my_standings(
+                &BoardViewer::regular("me"),
+                &["p1".into(), "p2".into(), "p3".into()],
+                today(),
+            )
             .await
             .unwrap();
         let by_id: HashMap<&str, &MyStanding> =

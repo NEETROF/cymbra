@@ -23,11 +23,17 @@ import '../theme/cymbra_theme.dart';
 /// where a piece falls learns it once), with the kick as a single wide pedal
 /// beneath the pads, never one pad among them.
 ///
-/// Display-only in this change: pads produce no note and no feedback until
-/// `add-drum-input-mapping`. The strip's height follows the keyboard's
-/// viewport policy and is independent of the piece count — pads keep a usable
-/// touch target however few there are, and a sparse kit must not steal height
-/// from the cascade.
+/// Playable since `add-drum-input-mapping`: a pointer-down anywhere in a
+/// pad's horizontal span strikes it ([surfaceAt]), and the struck surface
+/// shows the one feedback state percussion honestly has — a brief **struck**
+/// flash, decaying over [flashDurationMs] on its own clock. There is no
+/// expected / correct / incorrect state anywhere in this painter, and there
+/// cannot be one until `add-drum-scoring` brings the matcher whose verdicts
+/// they would reflect.
+///
+/// The strip's height follows the keyboard's viewport policy and is
+/// independent of the piece count — pads keep a usable touch target however
+/// few there are, and a sparse kit must not steal height from the cascade.
 class DrumPadStripPainter extends CustomPainter {
   /// The lanes in presentation order ([PlayerData.presentedDrumLanes]).
   final List<DrumLane> lanes;
@@ -43,6 +49,16 @@ class DrumPadStripPainter extends CustomPainter {
   /// actually plays).
   final bool hasKick;
 
+  /// When each surface was last struck (the player's `struckSurfacesMs`, in
+  /// wall-clock ms): pads by their index in [lanes], the pedal under
+  /// [kPedalSurface].
+  final Map<int, double> struckMs;
+
+  /// The wall-clock instant this frame paints — the flash's age is measured
+  /// against it, so the decay runs on real time even while playback is
+  /// stopped (percussion strokes exist outside the playhead).
+  final double nowMs;
+
   final String? labelFontFamily;
 
   const DrumPadStripPainter({
@@ -50,11 +66,71 @@ class DrumPadStripPainter extends CustomPainter {
     required this.labels,
     required this.kickLabel,
     required this.hasKick,
+    this.struckMs = const {},
+    this.nowMs = 0,
     this.labelFontFamily,
   });
 
   /// The pedal band's share of the strip height when present.
   static const double pedalFraction = 0.30;
+
+  /// How long a struck flash lasts, in milliseconds — one constant, the feel
+  /// pass's value (change: add-drum-input-mapping, task 7.3). Short enough
+  /// that a two-finger roll stays a sequence of distinct flashes rather than
+  /// smearing into a solid glow, long enough to be seen under a fast groove.
+  static const int flashDurationMs = 180;
+
+  /// [flashDurationMs] as a [Duration], for the repaint clock the strip runs
+  /// on while playback is stopped.
+  static const Duration flashDuration = Duration(milliseconds: flashDurationMs);
+
+  /// The flash intensity of a surface struck at [struckMs] as seen at
+  /// [nowMs]: 1 at the attack, decaying linearly to 0 over
+  /// [flashDurationMs]. Pure, so the decay is testable without a clock.
+  ///
+  /// Time-based, never hold-based: a percussion release arrives within
+  /// milliseconds of its attack, so a highlight that lasted the hold would be
+  /// an invisible flicker. Nothing here depends on the note-off, on the
+  /// playhead, or on whether the stroke landed on an onset — one state,
+  /// claiming nothing.
+  static double flashIntensity({
+    required double struckMs,
+    required double nowMs,
+  }) {
+    final age = nowMs - struckMs;
+    if (age < 0 || age >= flashDurationMs) return 0;
+    return 1 - age / flashDurationMs;
+  }
+
+  /// The controller surface under a pointer at [local] on a strip of [size]:
+  /// the index of the pad whose horizontal span contains it, [kPedalSurface]
+  /// in the pedal band, or null where the strip presents nothing.
+  ///
+  /// **The whole strip is live** (change: add-drum-input-mapping): the insets
+  /// between the drawn pads are styling, not hit boundaries, and the pedal
+  /// band is kick from edge to edge. A drummer at tempo aims at a region, not
+  /// a rounded rectangle; a tap swallowed by a decorative gutter is a ghost
+  /// stroke, and a ghost stroke reads as broken input.
+  static int? surfaceAt(
+    Offset local,
+    Size size, {
+    required int laneCount,
+    required bool hasKick,
+  }) {
+    if (size.width <= 0 || size.height <= 0) return null;
+    if (local.dx < 0 ||
+        local.dy < 0 ||
+        local.dx >= size.width ||
+        local.dy >= size.height) {
+      return null;
+    }
+    final pedalHeight = hasKick ? size.height * pedalFraction : 0.0;
+    final padsHeight = size.height - pedalHeight;
+    if (hasKick && local.dy >= padsHeight) return kPedalSurface;
+    if (laneCount <= 0) return null;
+    final index = (local.dx / (size.width / laneCount)).floor();
+    return index.clamp(0, laneCount - 1);
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -76,16 +152,26 @@ class DrumPadStripPainter extends CustomPainter {
           padsHeight - 8,
         );
         final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(8));
+        final flash = _intensityOf(i);
         canvas.drawRRect(
           rrect,
-          Paint()..color = CymbraColors.surfaceContainerHigh,
+          Paint()
+            ..color = Color.lerp(
+              CymbraColors.surfaceContainerHigh,
+              CymbraColors.primary,
+              flash * 0.75,
+            )!,
         );
         canvas.drawRRect(
           rrect,
           Paint()
             ..style = PaintingStyle.stroke
-            ..strokeWidth = 1
-            ..color = CymbraColors.outlineVariant.withValues(alpha: 0.7),
+            ..strokeWidth = 1 + 1.5 * flash
+            ..color = Color.lerp(
+              CymbraColors.outlineVariant.withValues(alpha: 0.7),
+              CymbraColors.primary,
+              flash,
+            )!,
         );
         _label(
           canvas,
@@ -98,7 +184,8 @@ class DrumPadStripPainter extends CustomPainter {
 
     if (hasKick) {
       // The kick pedal: one wide band beneath the pads — the controller's
-      // mirror of the cascade's full-width bar, in the foot colour.
+      // mirror of the cascade's full-width bar, in the foot colour. It flashes
+      // exactly like a pad (same state, same decay): a foot stroke is a stroke.
       final rect = Rect.fromLTWH(
         3,
         padsHeight + 2,
@@ -106,20 +193,37 @@ class DrumPadStripPainter extends CustomPainter {
         pedalHeight - 6,
       );
       final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(8));
+      final flash = _intensityOf(kPedalSurface);
       canvas.drawRRect(
         rrect,
-        Paint()..color = CymbraColors.handLeft.withValues(alpha: 0.28),
+        Paint()
+          ..color = CymbraColors.handLeft.withValues(
+            alpha: 0.28 + 0.52 * flash,
+          ),
       );
       canvas.drawRRect(
         rrect,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 1
-          ..color = CymbraColors.handLeft.withValues(alpha: 0.7),
+          ..strokeWidth = 1 + 1.5 * flash
+          ..color = CymbraColors.handLeft.withValues(alpha: 0.7 + 0.3 * flash),
       );
       _label(canvas, kickLabel, rect, CymbraColors.onSurface);
     }
   }
+
+  /// The struck-flash intensity of [surface] on this frame (0 when it was
+  /// never struck, or its flash has decayed).
+  double _intensityOf(int surface) {
+    final struck = struckMs[surface];
+    if (struck == null) return 0;
+    return flashIntensity(struckMs: struck, nowMs: nowMs);
+  }
+
+  /// Whether any surface is mid-flash — the strip must keep repainting while
+  /// one is, and may stop once none is.
+  bool get _flashing =>
+      struckMs.values.any((t) => nowMs - t >= 0 && nowMs - t < flashDurationMs);
 
   void _label(Canvas canvas, String text, Rect within, Color color) {
     if (text.isEmpty) return;
@@ -151,5 +255,10 @@ class DrumPadStripPainter extends CustomPainter {
       old.lanes != lanes ||
       old.labels != labels ||
       old.hasKick != hasKick ||
-      old.kickLabel != kickLabel;
+      old.kickLabel != kickLabel ||
+      // A flash in flight on either frame: the decay is time-based, so a new
+      // `nowMs` alone changes the picture — but only while something is
+      // actually flashing, so a still strip does not repaint on every frame.
+      old._flashing ||
+      _flashing;
 }

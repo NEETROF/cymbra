@@ -444,12 +444,6 @@ async fn main() -> anyhow::Result<()> {
                     strict.clone(),
                 ),
             );
-            let leaderboard_svc = Some(
-                    cymbra_music::proto::leaderboard_service_server::LeaderboardServiceServer::with_interceptor(
-                        cymbra_music::LeaderboardGrpc::new(leaderboard_module),
-                        strict.clone(),
-                    ),
-                );
             let global_leaderboard_svc = Some(
                     cymbra_music::proto::global_leaderboard_service_server::GlobalLeaderboardServiceServer::with_interceptor(
                         cymbra_music::GlobalLeaderboardGrpc::new(global_leaderboard_module),
@@ -594,6 +588,26 @@ async fn main() -> anyhow::Result<()> {
                     (None, None)
                 }
             };
+            // The per-piece boards join the drum-audience enforcement (change:
+            // add-drum-scoring): a percussion piece's board existing is itself an
+            // existence oracle, so the read resolves eligibility through the SAME
+            // score-module predicate every other surface uses — which is why this
+            // service is built after the module exists. No module (no S3) ⇒ the
+            // seam is unwired ⇒ the gate is closed for everyone, exactly as an
+            // unwired flag service leaves it.
+            let drums: Option<Arc<dyn cymbra_music::DrumsEligibility>> = score_preview_parts
+                .as_ref()
+                .map(|(_, _, _, module)| module.clone() as Arc<dyn cymbra_music::DrumsEligibility>);
+            let leaderboard_grpc = cymbra_music::LeaderboardGrpc::new(leaderboard_module);
+            let leaderboard_svc = Some(
+                    cymbra_music::proto::leaderboard_service_server::LeaderboardServiceServer::with_interceptor(
+                        match drums {
+                            Some(d) => leaderboard_grpc.with_drums(d),
+                            None => leaderboard_grpc,
+                        },
+                        strict.clone(),
+                    ),
+                );
             (
                 play_svc,
                 score_svc,

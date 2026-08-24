@@ -23,7 +23,7 @@
 //! here: it lives in the `user_account` schema and is delegated to the
 //! [`cymbra_user_port::UserPort`] (as the play-activity read already does).
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
 
 use async_trait::async_trait;
@@ -97,6 +97,16 @@ pub trait LeaderboardRepo: Send + Sync {
     /// boards (user uploads / pending / rejected pieces do not).
     async fn is_accepted_catalog(&self, score_id: &str) -> Result<bool>;
 
+    /// Which of `score_ids` are **percussion** pieces (change: add-drum-scoring).
+    ///
+    /// The instrument lookup lives here, on the boards' own store, because a board
+    /// is keyed by catalog piece: answering "this piece has a board" is itself an
+    /// existence oracle, so the read gate needs the instrument of the very ids it
+    /// was asked about — batched, since the card read asks about many at once. Ids
+    /// that are not catalog pieces (bundled slugs, uploads) are simply absent from
+    /// the answer: they have no instrument and no board.
+    async fn percussion_pieces(&self, score_ids: &[String]) -> Result<HashSet<String>>;
+
     /// **Monotonic** upsert: raise the stored best for `(user, piece, mode)` only
     /// when `best` is strictly better under the ranking order (higher sub-score;
     /// ties by smaller tie-break metric, then earlier `achieved_at`). A worse or
@@ -133,12 +143,20 @@ pub struct FakeLeaderboardRepo {
     bests: Mutex<HashMap<(String, String, String), LeaderboardBest>>,
     /// score_ids that count as accepted catalog scores.
     accepted: Mutex<Vec<String>>,
+    /// score_ids that are percussion pieces (change: add-drum-scoring).
+    percussion: Mutex<HashSet<String>>,
 }
 
 impl FakeLeaderboardRepo {
     /// Mark `score_id` as an accepted catalog score (so ingest admits it).
     pub fn accept(&self, score_id: &str) {
         self.accepted.lock().unwrap().push(score_id.to_string());
+    }
+
+    /// Mark `score_id` as a percussion piece (so the read gate withholds it from
+    /// a caller outside the drum audience).
+    pub fn mark_percussion(&self, score_id: &str) {
+        self.percussion.lock().unwrap().insert(score_id.to_string());
     }
 
     /// Test helper: the stored best for `(user, piece, mode)`, if any.
@@ -159,6 +177,15 @@ impl FakeLeaderboardRepo {
 impl LeaderboardRepo for FakeLeaderboardRepo {
     async fn is_accepted_catalog(&self, score_id: &str) -> Result<bool> {
         Ok(self.accepted.lock().unwrap().iter().any(|s| s == score_id))
+    }
+
+    async fn percussion_pieces(&self, score_ids: &[String]) -> Result<HashSet<String>> {
+        let drums = self.percussion.lock().unwrap();
+        Ok(score_ids
+            .iter()
+            .filter(|id| drums.contains(*id))
+            .cloned()
+            .collect())
     }
 
     async fn upsert_best(&self, best: &LeaderboardBest) -> Result<()> {

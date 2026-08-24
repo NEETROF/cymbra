@@ -26,8 +26,10 @@ use serde::Serialize;
 use crate::manifest::ManifestEntry;
 
 /// Serialises a `#[serde(rename_all = "snake_case")]` enum to its string form,
-/// matching the `catalog_scores` CHECK vocabulary.
-fn variant<T: Serialize>(v: &T) -> String {
+/// matching the `catalog_scores` CHECK vocabulary. Shared with the difficulty
+/// re-grade so a re-graded `level` is spelt exactly like an ingested one — two
+/// stringifications of the same enum is how a CHECK violation gets written.
+pub(crate) fn variant<T: Serialize>(v: &T) -> String {
     serde_json::to_value(v)
         .ok()
         .and_then(|j| j.as_str().map(String::from))
