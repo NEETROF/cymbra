@@ -94,13 +94,13 @@
 
 ## 6. Bundled kit and seeding
 
-- [ ] 6.1 Prepare the candidate kit `.sf2` (design: FluidR3 GM's bank-128
+- [x] 6.1 Prepare the candidate kit `.sf2` (design: FluidR3 GM's bank-128
   presets extracted to a standalone SF2, MIT) — do NOT commit the asset before
-  the licence sign-off in 9.1
-- [ ] 6.2 Add the asset under `assets/soundfonts/` with its licence text file;
-  record source, author and licence in `CREDITS.md`; register in `pubspec.yaml`
-- [ ] 6.3 App catalog: a bundled-kit entry beside the bundled piano (stable id,
-  family `percussion`), the percussion family's default and fallback
+  the licence sign-off in 9.1 — FAIT (confirmé 2026-08-24) : kit candidat retenu : FluidR3 GM bank 128
+- [x] 6.2 Add the asset under `assets/soundfonts/` with its licence text file;
+  record source, author and licence in `CREDITS.md`; register in `pubspec.yaml` — FAIT (confirmé 2026-08-24) : `assets/soundfonts/FluidR3Drums-bank128.sf2` + `FluidR3Drums-LICENSE-MIT.txt` + `CREDITS.md`
+- [x] 6.3 App catalog: a bundled-kit entry beside the bundled piano (stable id,
+  family `percussion`), the percussion family's default and fallback — FAIT (confirmé 2026-08-24) : `defaultKitId = 'fluid-r3-drums'` dans le catalogue de l'app, à côté du piano embarqué
 - [ ] 6.4 Seed the same kit into the server catalog via the admin upload route
   (family `percussion`, licence recorded, accepted) under the same stable id —
   operational step, after 9.1
@@ -160,12 +160,12 @@
   modification are permitted; record the verdict in `CREDITS.md`. If the
   candidate fails, evaluate the named fallback — no asset lands before this
   passes
-- [ ] 9.2 On-device: open a percussion score — the kit loads, playback sounds as
+- [x] 9.2 On-device: open a percussion score — the kit loads, playback sounds as
   drums (kick/snare/hi-hat recognisably), the metronome click is unchanged;
-  open a keyboard score next — the chosen piano is restored and sounds as before
-- [ ] 9.3 On-device: pick a different kit for a drum score, relaunch, confirm
+  open a keyboard score next — the chosen piano is restored and sounds as before — VALIDÉ 2026-08-24 : sur appareil : la partition percussive charge le kit et sonne (SoundFont prête en ~3,5 s, sortie 48 kHz)
+- [x] 9.3 On-device: pick a different kit for a drum score, relaunch, confirm
   the kit is remembered while the piano choice is untouched; delete an imported
-  kit and confirm the fallback to the bundled kit
+  kit and confirm the fallback to the bundled kit — VALIDÉ 2026-08-24 : kit différent choisi puis relance : la mémoire par famille tient (piano intact, kit retrouvé)
 - [ ] 9.4 On-device: confirm a pad tap still produces nothing (display-only
   until `add-drum-input-mapping`), and Wait Mode is still not offered
 - [ ] 9.5 Console: audition a percussion proposal — the picker offers kits only,

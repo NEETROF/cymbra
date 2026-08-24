@@ -148,9 +148,9 @@
       side-by-side with the app's Partition: same content and layout (the
       `web-notation-render` faithfulness contract), no unpreviewable state
       anywhere, Play still refusing with its localised state
-- [ ] 8.3 Paper theme: x heads, the open mark and the hands/feet colours hold
+- [x] 8.3 Paper theme: x heads, the open mark and the hands/feet colours hold
       their contrast on ivory (the amber-on-ivory risk flagged by
-      `add-drum-kit-view` applies to engraved heads too)
+      `add-drum-kit-view` applies to engraved heads too) — VALIDÉ 2026-08-24 : thème Papier validé sur appareil : têtes en croix, marque d'ouvert et couleurs mains/pieds tiennent
 - [ ] 8.4 Legibility judgement calls recorded back into `design.md`: the open
       mark at in-card preview scale, and the open-x half/whole forms at staff
       scale (fallbacks are recorded in Open Questions)

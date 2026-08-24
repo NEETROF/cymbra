@@ -437,6 +437,43 @@ impl PlanService {
             .await
     }
 
+    /// Reopen a closed campaign: every member who was not individually revoked
+    /// is active again (change: reopen-beta-campaign).
+    ///
+    /// Closing is a PAUSE — it writes `closed_at` and touches no membership —
+    /// so this restores people rather than re-enrolling them. It deliberately
+    /// leaves the enrolment deadline alone: a campaign may be live for its
+    /// members and closed to newcomers, and [`Self::reopen_enrollment`] is the
+    /// other half.
+    pub async fn reopen_campaign(&self, key: &str, actor: &str) -> Result<()> {
+        let c = self.campaign_by_key(key).await?;
+        self.d.campaigns.reopen(c.id).await?;
+        self.audit(actor, "reopen_campaign", None, Some(key), "")
+            .await
+    }
+
+    /// Reopen a campaign's enrolment, so its codes are redeemable again.
+    pub async fn reopen_enrollment(&self, key: &str, actor: &str) -> Result<()> {
+        let c = self.campaign_by_key(key).await?;
+        self.d.campaigns.reopen_enrollment(c.id).await?;
+        self.audit(actor, "reopen_enrollment", None, Some(key), "")
+            .await
+    }
+
+    /// How many memberships a reopening would bring back: the unrevoked,
+    /// unexpired ones. The console states this BEFORE reopening — the operation
+    /// restores people, and an admin reopening a campaign for a new wave must
+    /// not discover the previous cohort afterwards.
+    pub async fn reactivatable_members(&self, key: &str) -> Result<u32> {
+        let c = self.campaign_by_key(key).await?;
+        let now = self.now();
+        let rows = self.d.memberships.list_members(c.id).await?;
+        Ok(rows
+            .iter()
+            .filter(|m| m.revoked_at.is_none() && m.ends_at.is_none_or(|e| now < e))
+            .count() as u32)
+    }
+
     pub async fn list_members(&self, key: &str) -> Result<Vec<MembershipRow>> {
         let c = self.campaign_by_key(key).await?;
         self.d.memberships.list_members(c.id).await
@@ -788,6 +825,142 @@ mod tests {
             created_by: "admin".into(),
             created_at: t(1),
         }
+    }
+
+    /// A closed FEATURE campaign, the shape the drums beta was in.
+    fn closed_feature_campaign() -> Campaign {
+        Campaign {
+            id: Uuid::new_v4(),
+            key: "midi-drums".into(),
+            name: "Drums beta".into(),
+            kind: CampaignKind::Feature,
+            // Closing a campaign closes its enrolment too — that is why the
+            // inverse is two operations, not one.
+            enrollment_closes_at: Some(t(4)),
+            closed_at: Some(t(4)),
+            created_by: "admin".into(),
+            created_at: t(1),
+        }
+    }
+
+    fn membership(
+        campaign_id: Uuid,
+        user: &str,
+        revoked: Option<DateTime<Utc>>,
+        ends: Option<DateTime<Utc>>,
+    ) -> MembershipRow {
+        MembershipRow {
+            campaign_id,
+            user_id: user.into(),
+            enrolled_at: t(2),
+            ends_at: ends,
+            revoked_at: revoked,
+            source: MembershipSource::Code,
+        }
+    }
+
+    #[tokio::test]
+    async fn reopening_a_campaign_clears_only_its_closed_state() {
+        // The enrolment deadline is a separate decision with its own inverse:
+        // a campaign may be live for its members and closed to newcomers.
+        let c = closed_feature_campaign();
+        let id = c.id;
+        let mut m = mocks(true, t(5));
+        m.campaigns
+            .expect_get_by_key()
+            .returning(move |_| Ok(Some(c.clone())));
+        m.campaigns
+            .expect_reopen()
+            .withf(move |got| *got == id)
+            .times(1)
+            .returning(|_| Ok(()));
+        // Never the other one.
+        m.campaigns.expect_reopen_enrollment().never();
+        service(m)
+            .reopen_campaign("midi-drums", "admin")
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn reopening_enrolment_is_its_own_act() {
+        let mut m = mocks(true, t(5));
+        m.campaigns
+            .expect_get_by_key()
+            .returning(|_| Ok(Some(closed_feature_campaign())));
+        m.campaigns
+            .expect_reopen_enrollment()
+            .times(1)
+            .returning(|_| Ok(()));
+        m.campaigns.expect_reopen().never();
+        service(m)
+            .reopen_enrollment("midi-drums", "admin")
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn reactivatable_counts_the_members_a_reopen_would_restore() {
+        // Reopening restores people, so the console states how many BEFORE it
+        // acts. Revoked and expired memberships are not among them: a
+        // per-person revocation outlives the campaign's state.
+        let c = closed_feature_campaign();
+        let id = c.id;
+        let mut m = mocks(true, t(5));
+        m.campaigns
+            .expect_get_by_key()
+            .returning(move |_| Ok(Some(closed_feature_campaign())));
+        m.memberships.expect_list_members().returning(move |_| {
+            Ok(vec![
+                membership(id, "live-1", None, None),
+                membership(id, "live-2", None, Some(t(9))),
+                membership(id, "revoked", Some(t(3)), None),
+                membership(id, "expired", None, Some(t(4))),
+            ])
+        });
+        assert_eq!(
+            service(m)
+                .reactivatable_members("midi-drums")
+                .await
+                .unwrap(),
+            2
+        );
+    }
+
+    #[tokio::test]
+    async fn closing_a_trial_campaign_leaves_its_granted_premium_running() {
+        // The asymmetry this change writes down: a feature beta ends the moment
+        // its campaign closes, but a trial's entitlement is a right acquired for
+        // its term — it lives on its own `ends_at`, which `close_campaign` never
+        // touches. Reopening therefore gives a trial nothing back.
+        let mut m = mocks(true, t(5));
+        m.entitlements
+            .expect_list_for_user()
+            .returning(|_| Ok(vec![row(Source::Code, Some(t(20)))]));
+        // The campaign is closed, so the MEMBERSHIP is inactive…
+        m.memberships.expect_list_for_user().returning(|_| {
+            Ok(vec![Membership {
+                row: MembershipRow {
+                    campaign_id: Uuid::new_v4(),
+                    user_id: "u1".into(),
+                    enrolled_at: t(2),
+                    ends_at: Some(t(20)),
+                    revoked_at: None,
+                    source: MembershipSource::Code,
+                },
+                campaign: Campaign {
+                    closed_at: Some(t(4)),
+                    ..trial_campaign()
+                },
+            }])
+        });
+        let snap = service(m).snapshot("u1").await.unwrap();
+        // …while the premium it granted still governs the plan.
+        assert_eq!(snap.plan, crate::model::Plan::Premium);
+        assert!(
+            snap.betas.is_empty(),
+            "a closed campaign grants no beta key"
+        );
     }
 
     #[tokio::test]

@@ -388,6 +388,26 @@ impl CampaignRepo for PgCampaignRepo {
         Ok(())
     }
 
+    async fn reopen(&self, id: Uuid) -> Result<()> {
+        // Only `closed_at`: the enrolment deadline is its own decision, and its
+        // own inverse below.
+        sqlx::query("UPDATE beta_campaigns SET closed_at = NULL WHERE id = $1")
+            .bind(id)
+            .execute(&self.pool)
+            .await
+            .map_err(|e| internal("reopen campaign", e))?;
+        Ok(())
+    }
+
+    async fn reopen_enrollment(&self, id: Uuid) -> Result<()> {
+        sqlx::query("UPDATE beta_campaigns SET enrollment_closes_at = NULL WHERE id = $1")
+            .bind(id)
+            .execute(&self.pool)
+            .await
+            .map_err(|e| internal("reopen enrollment", e))?;
+        Ok(())
+    }
+
     async fn close(&self, id: Uuid, at: DateTime<Utc>) -> Result<()> {
         sqlx::query(
             "UPDATE beta_campaigns SET closed_at = $2, \

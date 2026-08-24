@@ -174,17 +174,53 @@ async function submitCreate() {
   );
   if (ok) modal.value = null;
 }
+/** On a TRIAL campaign, closing enrolment is the only lever the console offers
+ *  (a trial campaign has no close-campaign button), and it means less than it
+ *  looks: it stops new trials, it takes back none of the ones already granted —
+ *  those run to their own end date, and reopening returns nothing either. An
+ *  admin must not believe they stopped something they did not. */
 async function closeEnrolment(c: CampaignMsg) {
-  if (!ask(t("plans.closeEnrolmentConfirm", { key: c.key }))) return;
+  const key = c.kind === "premium_trial" ? "plans.closeTrialEnrolmentConfirm" : "plans.closeEnrolmentConfirm";
+  if (!ask(t(key, { key: c.key }))) return;
   report(await store.closeEnrollment(c.key), t("plans.enrolmentClosed"));
 }
+/** Feature betas only — a trial campaign has no close button (see
+ *  `closeEnrolment`, which carries the trial's own warning). */
 async function closeCampaign(c: CampaignMsg) {
   if (!ask(t("plans.closeCampaignConfirm", { key: c.key }))) return;
   report(await store.closeCampaign(c.key), t("plans.campaignClosed"));
 }
+/** Reopening restores people, so say how many BEFORE acting: an admin reopening
+ *  a campaign for a new wave must not discover the previous cohort afterwards.
+ *  The count comes from the server — the "active membership" rule lives there. */
+async function reopenCampaign(c: CampaignMsg) {
+  const n = await store.reactivatableMembers(c.key);
+  if (!ask(t("plans.reopenCampaignConfirm", { key: c.key, n }))) return;
+  report(await store.reopenCampaign(c.key), t("plans.campaignReopened", { n }));
+}
+/** Enrolment is its own act: closing a campaign closed it as a side effect, and
+ *  a campaign can legitimately be live for its members and shut to newcomers. */
+async function reopenEnrolment(c: CampaignMsg) {
+  if (!ask(t("plans.reopenEnrolmentConfirm", { key: c.key }))) return;
+  report(await store.reopenEnrollment(c.key), t("plans.enrolmentReopened"));
+}
 async function revokeCodes(c: CampaignMsg) {
   if (!ask(t("plans.revokeCodesConfirm", { key: c.key }))) return;
   report(await store.revokeCodes({ campaignKey: c.key }), t("plans.codesRevoked"));
+}
+
+/** Whether the campaign whose members are listed is closed — its rows are then
+ *  shown as inactive rather than as live memberships, so an operator never has
+ *  to remember the campaign's state to read them correctly. */
+const membersCampaignClosed = computed(() =>
+  campaignsVm.value.rows.some((c) => c.key === store.membersKey && !!c.closedAt),
+);
+/** What a member's end column says: revoked wins, then a closed campaign
+ *  (paused, restorable), then the trial's own end date. */
+function memberState(m: MembershipMsg): string {
+  if (m.revokedAt) return t("plans.revoked");
+  if (membersCampaignClosed.value) return t("plans.pausedByClosure");
+  return fmt(m.endsAt);
 }
 
 // ---- codes: minted once ----
@@ -404,7 +440,7 @@ onMounted(() => void store.loadCampaigns(true));
               </td>
               <td>{{ t(`plans.kind.${m.kind}`) }}</td>
               <td>{{ fmt(m.enrolledAt) }}</td>
-              <td>{{ m.revokedAt ? t("plans.revoked") : fmt(m.endsAt) }}</td>
+              <td>{{ memberState(m) }}</td>
               <td class="mono">{{ m.source }}</td>
               <td class="row-actions">
                 <button
@@ -481,6 +517,18 @@ onMounted(() => void store.loadCampaigns(true));
               >
                 {{ t("plans.closeCampaign") }}
               </button>
+              <button v-if="c.closedAt" type="button" class="btn-sm" :disabled="acting" @click="reopenCampaign(c)">
+                {{ t("plans.reopenCampaign") }}
+              </button>
+              <button
+                v-if="!c.closedAt && !c.acceptsEnrolment"
+                type="button"
+                class="btn-sm"
+                :disabled="acting"
+                @click="reopenEnrolment(c)"
+              >
+                {{ t("plans.reopenEnrolment") }}
+              </button>
               <button v-if="!c.closedAt" type="button" class="btn-sm" :disabled="acting" @click="openMint(c)">
                 {{ t("plans.mint") }}
               </button>
@@ -517,13 +565,13 @@ onMounted(() => void store.loadCampaigns(true));
           </tr>
         </thead>
         <tbody>
-          <tr v-for="m in membersVm.rows" :key="m.userId" :class="{ inactive: !!m.revokedAt }">
+          <tr v-for="m in membersVm.rows" :key="m.userId" :class="{ inactive: !!m.revokedAt || membersCampaignClosed }">
             <td>
               <span v-if="handleFor(m.userId)" class="handle">{{ handleFor(m.userId) }}</span>
               <IdBadge v-else :id="m.userId" />
             </td>
             <td>{{ fmt(m.enrolledAt) }}</td>
-            <td>{{ m.revokedAt ? t("plans.revoked") : fmt(m.endsAt) }}</td>
+            <td>{{ memberState(m) }}</td>
             <td class="mono">{{ m.source }}</td>
           </tr>
           <tr v-if="membersVm.rows.length === 0">
@@ -731,6 +779,13 @@ onMounted(() => void store.loadCampaigns(true));
 }
 tr.inactive td {
   opacity: 0.55;
+}
+/* …except the actions. A closed campaign's row is dimmed to say the campaign is
+   over, but its controls are the one thing on that row that still works — and
+   the reopen button IS the row's reason to exist. Dimmed, they read as disabled
+   while remaining clickable, which is worse than not dimming them at all. */
+tr.inactive td.row-actions {
+  opacity: 1;
 }
 .empty {
   color: var(--muted);

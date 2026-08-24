@@ -586,6 +586,55 @@ impl PlanServiceTrait for PlanGrpc {
         Ok(Response::new(proto::CloseEnrollmentResponse {}))
     }
 
+    async fn reopen_campaign(
+        &self,
+        req: Request<proto::ReopenCampaignRequest>,
+    ) -> Result<Response<proto::ReopenCampaignResponse>, Status> {
+        let admin = self.admin(&req)?;
+        let key = req.into_inner().campaign_key;
+        // Counted BEFORE the reopen so the number describes what the action
+        // did, not what a concurrent enrolment made of it afterwards.
+        let reactivated = self
+            .svc
+            .reactivatable_members(&key)
+            .await
+            .map_err(|e| e.to_status())?;
+        self.svc
+            .reopen_campaign(&key, &admin.user_id)
+            .await
+            .map_err(|e| e.to_status())?;
+        Ok(Response::new(proto::ReopenCampaignResponse { reactivated }))
+    }
+
+    async fn preview_reopen_campaign(
+        &self,
+        req: Request<proto::PreviewReopenCampaignRequest>,
+    ) -> Result<Response<proto::PreviewReopenCampaignResponse>, Status> {
+        self.admin(&req)?;
+        let key = req.into_inner().campaign_key;
+        let reactivated = self
+            .svc
+            .reactivatable_members(&key)
+            .await
+            .map_err(|e| e.to_status())?;
+        Ok(Response::new(proto::PreviewReopenCampaignResponse {
+            reactivated,
+        }))
+    }
+
+    async fn reopen_enrollment(
+        &self,
+        req: Request<proto::ReopenEnrollmentRequest>,
+    ) -> Result<Response<proto::ReopenEnrollmentResponse>, Status> {
+        let admin = self.admin(&req)?;
+        let key = req.into_inner().campaign_key;
+        self.svc
+            .reopen_enrollment(&key, &admin.user_id)
+            .await
+            .map_err(|e| e.to_status())?;
+        Ok(Response::new(proto::ReopenEnrollmentResponse {}))
+    }
+
     async fn close_campaign(
         &self,
         req: Request<proto::CloseCampaignRequest>,

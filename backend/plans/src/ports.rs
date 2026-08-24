@@ -131,6 +131,16 @@ pub trait CampaignRepo: Send + Sync {
     async fn list(&self, include_closed: bool) -> Result<Vec<Campaign>>;
     async fn close_enrollment(&self, id: Uuid, at: DateTime<Utc>) -> Result<()>;
     async fn close(&self, id: Uuid, at: DateTime<Utc>) -> Result<()>;
+
+    /// Clear the campaign's closed state. Memberships are untouched by closing,
+    /// so this alone brings every unrevoked member back (change:
+    /// reopen-beta-campaign).
+    async fn reopen(&self, id: Uuid) -> Result<()>;
+
+    /// Clear the enrolment deadline. Separate from [`Self::reopen`] because
+    /// closing a campaign closes its enrolment as a side effect: without this,
+    /// a reopened beta could be restored but never grown.
+    async fn reopen_enrollment(&self, id: Uuid) -> Result<()>;
 }
 
 /// One enrolment, applied in a single transaction by the repo: membership

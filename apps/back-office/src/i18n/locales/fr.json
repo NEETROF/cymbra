@@ -490,7 +490,7 @@
     "closeEnrolmentConfirm": "Fermer les inscriptions de {key} ? Plus personne ne pourra rejoindre.",
     "enrolmentClosed": "Inscriptions fermées.",
     "closeCampaign": "Fermer la campagne",
-    "closeCampaignConfirm": "Fermer la campagne {key} ? Ses membres perdent la bêta et elle disparaît du sélecteur de flags.",
+    "closeCampaignConfirm": "Fermer la campagne {key} ? Ses membres perdent la bêta et elle disparaît du sélecteur de flags. La fermeture est une MISE EN PAUSE : les adhésions sont conservées et une réouverture les rétablira.",
     "campaignClosed": "Campagne fermée.",
     "mint": "Frapper des codes",
     "mintTitle": "Frapper des codes pour {key}",
@@ -508,7 +508,15 @@
     "noMembers": "Aucun membre.",
     "colAccount": "Compte",
     "colSource": "Source",
-    "exportCsv": "Exporter CSV"
+    "exportCsv": "Exporter CSV",
+    "reopenCampaign": "Rouvrir la campagne",
+    "reopenCampaignConfirm": "Rouvrir « {key} » ? {n} adhésion(s) vont être réactivées — les membres révoqués individuellement restent dehors. Les inscriptions, elles, restent fermées.",
+    "campaignReopened": "Campagne rouverte, {n} adhésion(s) réactivée(s).",
+    "reopenEnrolment": "Rouvrir les inscriptions",
+    "reopenEnrolmentConfirm": "Rouvrir les inscriptions de « {key} » ? Ses codes redeviennent rachetables.",
+    "enrolmentReopened": "Inscriptions rouvertes.",
+    "pausedByClosure": "en pause (campagne fermée)",
+    "closeTrialEnrolmentConfirm": "Fermer les inscriptions de l'essai {key} ? Plus personne ne pourra le rejoindre, mais les essais DÉJÀ accordés courent jusqu'à leur terme — les fermer ne les retire pas. Pour retirer un premium accordé, révoque l'entitlement du compte."
   },
   "errors": {
     "unauthenticated": "Identifiants invalides ou session expirée.",

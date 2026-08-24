@@ -490,7 +490,7 @@
     "closeEnrolmentConfirm": "Close enrolment for {key}? No one else can join.",
     "enrolmentClosed": "Enrolment closed.",
     "closeCampaign": "Close campaign",
-    "closeCampaignConfirm": "Close the {key} campaign? Its members lose the beta and it leaves the flags selector.",
+    "closeCampaignConfirm": "Close the {key} campaign? Its members lose the beta and it leaves the flags selector. Closing is a PAUSE: memberships are kept, and reopening restores them.",
     "campaignClosed": "Campaign closed.",
     "mint": "Mint codes",
     "mintTitle": "Mint codes for {key}",
@@ -508,7 +508,15 @@
     "noMembers": "No members.",
     "colAccount": "Account",
     "colSource": "Source",
-    "exportCsv": "Export CSV"
+    "exportCsv": "Export CSV",
+    "reopenCampaign": "Reopen campaign",
+    "reopenCampaignConfirm": "Reopen “{key}”? {n} membership(s) will be reactivated — individually revoked members stay out. Enrolment remains closed.",
+    "campaignReopened": "Campaign reopened, {n} membership(s) reactivated.",
+    "reopenEnrolment": "Reopen enrolment",
+    "reopenEnrolmentConfirm": "Reopen enrolment for “{key}”? Its codes become redeemable again.",
+    "enrolmentReopened": "Enrolment reopened.",
+    "pausedByClosure": "paused (campaign closed)",
+    "closeTrialEnrolmentConfirm": "Close enrolment for the {key} trial? No one else can join, but the trials ALREADY granted run to their own end date — closing does not take them back. To withdraw a granted premium, revoke the account's entitlement."
   },
   "errors": {
     "unauthenticated": "Invalid credentials or expired session.",
