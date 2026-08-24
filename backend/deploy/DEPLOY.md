@@ -498,26 +498,35 @@ ssh cymbra-prod docker exec cymbra-prod-caddy-1 caddy reload --config /etc/caddy
 Off by default — the server logs `plans disabled (CYMBRA_PLANS_DATABASE_URL unset)`
 and behaves exactly as before. The dark deploy (change: add-premium-subscription):
 
-0. **Prerequisite — a real flag store.** The whole module is driven by runtime flags
-   (`plans.enabled`, `billing.*.enabled`, quotas). If the server logs
-   `feature flags in defaults-only mode` (no `CYMBRA_FLAGS_DATABASE_URL`), provision
-   `flags_svc` first with `provision-flags-role.sql` (same pattern as below, variable
-   `flags_pw`), set `CYMBRA_FLAGS_DB_PASSWORD` + `CYMBRA_FLAGS_DATABASE_URL`, roll — the
-   back office Flags screen becomes writable. Check with `\du` whether `flags_svc` exists.
-1. **Choose the `plans_svc` password** (`openssl rand -base64 24`) and **provision the
-   role + schema** on the live box (idempotent, targeted; does NOT reset other roles):
+0. **Provision the roles and wire the `.env` — one command.** This module and its
+   prerequisite together: the plan module is driven by runtime flags, so without a
+   flag store (`feature flags in defaults-only mode` in the log) `plans.enabled` can
+   never be turned on and the module stays dark forever.
+   ```bash
+   cd /opt/cymbra/backend/deploy && ./provision-optional-modules.sh flags plans
+   ```
+   Per module it mints a password on the box, applies `provision-<module>-role.sql`
+   (idempotent and targeted — it never resets another role's password), writes BOTH
+   `CYMBRA_*_DB_PASSWORD` and `CYMBRA_*_DATABASE_URL`, and proves the role can log in
+   over the compose network before it touches `.env`. A module already wired is
+   skipped; the password is never printed. Check what exists first with `\du` if you
+   like — you don't have to, re-running is safe.
+
+   By hand instead, per module (the one thing to get right is that the SAME value
+   lands in both vars — a divergence fails at the next boot, not here):
    ```bash
    docker exec -e PPW='<plans pw>' -i <postgres-container> \
      psql -U <superuser> -d cymbra -v plans_pw="$PPW" -f - < provision-plans-role.sql
    ```
-2. **Fill the `.env` block** (see `.env.prod.example` → "Premium plan / beta module"):
-   `CYMBRA_PLANS_DB_PASSWORD` + `CYMBRA_PLANS_DATABASE_URL` (same password), add `web`
-   to `CYMBRA_ALLOWED_AUDIENCES` and set `CYMBRA_WEB_ORIGINS` (site + back office).
-   Leave every purchase-channel block unset for now.
-3. Roll: `./deploy.sh <version>` — the server's MIGRATOR creates the `plans` tables,
+1. **Finish the `.env` block** (see `.env.prod.example` → "Premium plan / beta module"):
+   add `web` to `CYMBRA_ALLOWED_AUDIENCES` and set `CYMBRA_WEB_ORIGINS` (site + back
+   office) — code redemption is web-audience only, and the site's sign-in fails with a
+   flat "an error occurred" when either is missing. Leave every purchase-channel block
+   unset for now.
+2. Roll: `./deploy.sh <version>` — the server's MIGRATOR creates the `plans` tables,
    the log shows `PlanService` mounted; the worker picks up `plans_reconcile` /
    `plans_withdraw` (inert while `plans.enabled` is off).
-4. Check: the app is unchanged, `GetMyPlan` answers `free`, the back office shows the
+3. Check: the app is unchanged, `GetMyPlan` answers `free`, the back office shows the
    **Plans** screen. Then follow the rollout order in
    `apps/music/store/SUBSCRIPTIONS.md` (flags on, channels one by one).
 
@@ -607,3 +616,16 @@ re-run the psql above. New or fixed lessons ship without an app release.
 `db/init` only runs on the FIRST Postgres init. To change a role password afterwards,
 re-run the bootstrap against the live DB (see `backend/README.md` §Database roles) and
 update the matching `*_DATABASE_URL`, then `up -d` to roll the services.
+
+Careful with that bootstrap: `00-roles.sh` rewrites **all eight** role passwords, and
+the optional modules fall back to the dev defaults committed in
+`docker-compose.prod.yml` (`flags_dev_pw` and friends) for any var you have not set.
+Running it wholesale on a live box to fix one role resets the other seven.
+
+For the four optional modules there is a rotation that moves the role and the URL
+together, one module at a time:
+
+```bash
+cd /opt/cymbra/backend/deploy && ./provision-optional-modules.sh --rotate plans
+./deploy.sh <version>   # the services reconnect with the new password
+```
