@@ -72,7 +72,16 @@ class FakeDeckCatalogService implements CatalogService {
   FakeDeckCatalogService(this.rows);
   final List<CatalogHit> rows;
 
-  CatalogSearchPage _page(int limit, int offset) {
+  CatalogSearchPage _page(
+    int limit,
+    int offset, [
+    ScoreInstrument? instrument,
+  ]) {
+    // The real deck filters server-side; the fake mirrors it so a test that
+    // sets the filter sees what the app would.
+    final rows = instrument == null
+        ? this.rows
+        : this.rows.where((h) => h.instrument == instrument).toList();
     final page = rows.skip(offset).take(limit).toList();
     return CatalogSearchPage(
       hits: page,
@@ -95,7 +104,8 @@ class FakeDeckCatalogService implements CatalogService {
   Future<CatalogSearchPage> ratingDeck({
     int limit = 20,
     int offset = 0,
-  }) async => _page(limit, offset);
+    ScoreInstrument? instrument,
+  }) async => _page(limit, offset, instrument);
 
   @override
   Future<void> save(String catalogId) async {}

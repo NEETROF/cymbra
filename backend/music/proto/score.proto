@@ -389,6 +389,11 @@ message GetMyScoreRatingResponse {
 message ListRatingDeckRequest {
   int32 limit = 1;  // page size; clamped to a server maximum
   int32 offset = 2; // page offset
+  // Instrument family the rater wants to be dealt: `keyboard` | `percussion`;
+  // absent = whatever the deck has. Narrows only — the caller's own drum
+  // eligibility still constrains the result, so asking for `percussion`
+  // without it deals nothing rather than disclosing anything.
+  optional string instrument = 3;
 }
 message ListRatingDeckResponse {
   repeated CatalogHit hits = 1;

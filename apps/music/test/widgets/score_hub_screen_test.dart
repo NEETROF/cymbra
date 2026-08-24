@@ -101,6 +101,7 @@ class _FakeCatalog implements CatalogService {
   Future<CatalogSearchPage> ratingDeck({
     int limit = 20,
     int offset = 0,
+    ScoreInstrument? instrument,
   }) async => const CatalogSearchPage(hits: [], nextOffset: 0, total: 0);
 }
 

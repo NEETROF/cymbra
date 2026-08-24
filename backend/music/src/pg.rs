@@ -801,6 +801,7 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
         limit: i64,
         offset: i64,
         eligible_for_percussion: bool,
+        instrument: Option<crate::repo::Instrument>,
     ) -> PlatformResult<Vec<CatalogHit>> {
         let Ok(user) = uuid::Uuid::parse_str(user_id) else {
             return Ok(Vec::new()); // malformed identity → nothing to rate
@@ -817,6 +818,7 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
                ON r.catalog_score_id = cs.id AND r.user_id = $1 \
              WHERE cs.moderation_status IN ('pending', 'accepted') \
                AND (cs.instrument <> 'percussion' OR $4::bool) \
+               AND ($5::text IS NULL OR cs.instrument = $5::text) \
                AND r.user_id IS NULL \
              ORDER BY (SELECT COUNT(*) FROM music.score_ratings x \
                        WHERE x.catalog_score_id = cs.id) ASC, cs.id ASC \
@@ -826,6 +828,8 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
         .bind(limit)
         .bind(offset)
         .bind(eligible_for_percussion)
+        // The rater's chosen family, as the stored text; NULL = deal anything.
+        .bind(instrument.map(|i| i.as_str().to_string()))
         .fetch_all(&self.pool)
         .await
         .map_err(search_internal)?;

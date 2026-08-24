@@ -1127,6 +1127,7 @@ impl ScoreModule {
         limit: i64,
         offset: i64,
         eligible_for_percussion: bool,
+        instrument: Option<crate::repo::Instrument>,
     ) -> Result<Vec<CatalogHit>> {
         self.catalog
             .rating_deck(
@@ -1134,6 +1135,7 @@ impl ScoreModule {
                 limit.clamp(1, SEARCH_MAX_LIMIT),
                 offset.max(0),
                 eligible_for_percussion,
+                instrument,
             )
             .await
     }
@@ -2863,7 +2865,7 @@ mod tests {
             .await
             .unwrap();
         // u1 rated nothing → all three, least-rated first (0, 1, 2 ratings).
-        let deck = m.list_rating_deck("u1", 50, 0, false).await.unwrap();
+        let deck = m.list_rating_deck("u1", 50, 0, false, None).await.unwrap();
         assert_eq!(
             deck.iter().map(|h| h.id.as_str()).collect::<Vec<_>>(),
             [DEBUSSY_1, DEBUSSY_2, SATIE]
@@ -2872,7 +2874,7 @@ mod tests {
         m.submit_rating("u1", DEBUSSY_1, "love", None, false)
             .await
             .unwrap();
-        let deck = m.list_rating_deck("u1", 50, 0, false).await.unwrap();
+        let deck = m.list_rating_deck("u1", 50, 0, false, None).await.unwrap();
         assert_eq!(deck.len(), 2);
         assert!(!deck.iter().any(|h| h.id == DEBUSSY_1));
         // u1 rates the rest → the deck empties (natural last-card state).
@@ -2883,7 +2885,7 @@ mod tests {
             .await
             .unwrap();
         assert!(
-            m.list_rating_deck("u1", 50, 0, false)
+            m.list_rating_deck("u1", 50, 0, false, None)
                 .await
                 .unwrap()
                 .is_empty()
@@ -2915,13 +2917,71 @@ mod tests {
             7,
             8 * 1024 * 1024,
         );
-        let deck = m.list_rating_deck("u1", 50, 0, false).await.unwrap();
+        let deck = m.list_rating_deck("u1", 50, 0, false, None).await.unwrap();
         let ids: Vec<&str> = deck.iter().map(|h| h.id.as_str()).collect();
         // Both the accepted and the pending score are offered; the rejected one never.
         assert!(ids.contains(&DEBUSSY_1));
         assert!(ids.contains(&PENDING_ID));
         assert!(!ids.contains(&REJECTED_ID));
         assert_eq!(ids.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn rating_deck_deals_the_family_the_rater_asked_for() {
+        // The rater chooses what to be dealt (all / piano / drums). Filtering
+        // client-side would empty the pages instead — the deck is sourced
+        // least-rated-first and paginated, so a page of 20 could yield 2.
+        let ratings = Arc::new(FakeScoreRatingRepo::default());
+        let catalog = Arc::new(FakeCatalogSearchRepo::with(vec![
+            FakeCatalogRow::new(DEBUSSY_1, "A", "X", Some("beginner")).piano(),
+            FakeCatalogRow::new(SATIE, "B", "Y", Some("beginner")).percussion(),
+            // Never classified: matches no set filter, dealt only to "all".
+            FakeCatalogRow::new(PENDING_ID, "C", "Z", Some("beginner")),
+        ]));
+        catalog.set_rating_view(ratings.clone());
+        let m = ScoreModule::new(
+            Arc::new(FakeUserScoreRepo::default()),
+            catalog,
+            Arc::new(FakeUserLibraryRepo::default()),
+            ratings,
+            Arc::new(FakeStore::default()),
+            5,
+            7,
+            8 * 1024 * 1024,
+        );
+        let ids =
+            |deck: Vec<CatalogHit>| -> Vec<String> { deck.into_iter().map(|h| h.id).collect() };
+
+        // No filter: everything the caller may see.
+        let all = ids(m.list_rating_deck("u1", 50, 0, true, None).await.unwrap());
+        assert_eq!(all.len(), 3);
+
+        let piano = ids(m
+            .list_rating_deck("u1", 50, 0, true, Some(crate::repo::Instrument::Keyboard))
+            .await
+            .unwrap());
+        assert_eq!(piano, vec![DEBUSSY_1.to_string()]);
+
+        let drums = ids(m
+            .list_rating_deck("u1", 50, 0, true, Some(crate::repo::Instrument::Percussion))
+            .await
+            .unwrap());
+        assert_eq!(drums, vec![SATIE.to_string()]);
+
+        // Eligibility still bounds the choice: an ineligible rater asking for
+        // drums is dealt nothing, not a different answer.
+        assert!(
+            m.list_rating_deck(
+                "u1",
+                50,
+                0,
+                false,
+                Some(crate::repo::Instrument::Percussion)
+            )
+            .await
+            .unwrap()
+            .is_empty()
+        );
     }
 
     #[tokio::test]

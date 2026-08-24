@@ -1384,9 +1384,13 @@ impl ScoreService for ScoreGrpc {
         let user_id = id.user_id;
         let r = req.into_inner();
         let offset = r.offset;
+        // The rater's chosen family narrows the deal; eligibility still bounds
+        // it, so asking for percussion without the feature deals nothing rather
+        // than answering differently (change: add-drums-access).
+        let want = r.instrument.as_deref().map(crate::repo::Instrument::parse);
         let mut hits = self
             .module
-            .list_rating_deck(&user_id, r.limit as i64, r.offset as i64, eligible)
+            .list_rating_deck(&user_id, r.limit as i64, r.offset as i64, eligible, want)
             .await?;
         // Deck is a normal-caller read: sanitise privileged proposer fields.
         self.module
@@ -3092,6 +3096,7 @@ mod tests {
             .list_rating_deck(Request::new(ListRatingDeckRequest {
                 limit: 50,
                 offset: 0,
+                instrument: None,
             }))
             .await
             .unwrap_err();
@@ -3105,6 +3110,7 @@ mod tests {
                 ListRatingDeckRequest {
                     limit: 50,
                     offset: 0,
+                    instrument: None,
                 },
                 RATER,
             ))

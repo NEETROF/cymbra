@@ -354,6 +354,7 @@ pub trait CatalogSearchRepo: Send + Sync {
         limit: i64,
         offset: i64,
         eligible_for_percussion: bool,
+        instrument: Option<crate::repo::Instrument>,
     ) -> Result<Vec<CatalogHit>>;
 
     /// Stamp the audio-teaser rendered marker of `id` at `rendered_at` (or clear it
@@ -891,6 +892,7 @@ impl CatalogSearchRepo for FakeCatalogSearchRepo {
         limit: i64,
         offset: i64,
         eligible_for_percussion: bool,
+        instrument: Option<crate::repo::Instrument>,
     ) -> Result<Vec<CatalogHit>> {
         let rows = self.rows.lock().expect("catalog search fake lock");
         let ratings = self.ratings.lock().expect("catalog search fake lock");
@@ -908,6 +910,10 @@ impl CatalogSearchRepo for FakeCatalogSearchRepo {
                 (r.moderation_status == "pending" || r.moderation_status == "accepted")
                     && (r.instrument != Some(crate::repo::Instrument::Percussion)
                         || eligible_for_percussion)
+                    // The rater's own choice of family narrows further. A row
+                    // whose instrument was never recorded matches no set
+                    // filter — the same rule the facet filters follow.
+                    && instrument.is_none_or(|want| r.instrument == Some(want))
                     && !rated.contains(&r.id)
             })
             .collect();

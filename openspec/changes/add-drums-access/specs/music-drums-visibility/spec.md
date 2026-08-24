@@ -89,11 +89,34 @@ drum scores and a pianist is never handed one, while the deck no longer inherits
 the old grand-staff proxy's silent exclusion of single-staff and unclassified
 scores.
 
+A rater in the drum audience SHALL be able to choose which family they are
+dealt — everything, keyboard, or percussion. The choice SHALL narrow the deck's
+own query rather than filter the cards it returned: the deck is sourced
+least-rated-first and paginated, so keeping only the matching rows of a fetched
+page empties the pages instead of the queue. Eligibility still bounds the
+choice, so asking for percussion without the feature deals nothing rather than
+answering differently. The control SHALL remain reachable when the choice
+empties the deck — the way out of "nothing left to rate" is the control that
+got you there — and is not offered at all outside the drum audience, where
+three ways of saying "keyboard" would be noise.
+
 The audio-preview **render** job is the server-side twin of the console's Play
 guard and SHALL NOT bake a piano-font clip of a percussion score: an accepted
 percussion score is simply left without a preview until `add-drum-audio-channel`
 can render it with a drum kit, so the gated route above has nothing wrong to
 serve to anyone — eligible callers included.
+
+#### Scenario: The rater is dealt the family they asked for
+
+- **WHEN** an eligible rater picks the drum filter in the deck
+- **THEN** the deck re-sources at once and deals only percussion rows; picking
+  "everything" deals the whole eligible corpus again
+
+#### Scenario: The filter cannot deal what eligibility withholds
+
+- **WHEN** an ineligible caller asks the deck for percussion rows
+- **THEN** nothing is dealt — the same answer as a deck with no percussion in
+  it, not a distinguishable refusal
 
 #### Scenario: Search withholds percussion scores
 
