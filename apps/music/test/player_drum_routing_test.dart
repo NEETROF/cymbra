@@ -106,6 +106,10 @@ void main() {
       expect(container.read(scoreFontProvider), KitFontStatus.ready);
 
       final notifier = container.read(playerProvider.notifier)
+        // Free run: a drum score is offered Wait Mode like any other since
+        // add-drum-scoring, and the gate would freeze the playhead at the
+        // first onset. Routing is what this test is about.
+        ..toggleWaitMode()
         ..setPlaying(true)
         // Cross the first onsets: hi-hat (42) + kick (36) at 0ms, then the
         // next hi-hat eighth at 250ms.
@@ -133,6 +137,7 @@ void main() {
       // No setScoreFamily: the readiness gate stays inactive (same outcome as
       // a swap still in flight or an unavailable kit).
       final notifier = container.read(playerProvider.notifier)
+        ..toggleWaitMode() // free run — the gate is not what is under test
         ..setPlaying(true)
         ..advance(500);
 
@@ -156,6 +161,7 @@ void main() {
       expect(container.read(scoreFontProvider), KitFontStatus.unavailable);
 
       container.read(playerProvider.notifier)
+        ..toggleWaitMode() // free run — the gate is not what is under test
         ..setPlaying(true)
         ..advance(500)
         ..setPlaying(false);

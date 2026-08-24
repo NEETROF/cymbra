@@ -278,8 +278,10 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     // The range apparatus does not apply to a drum kit (an unordered set of
     // pieces, not an interval): the chooser is not offered and the stored mode
     // stays untouched for the next keyboard score. The inverted-kit layout
-    // takes its place; the reading aid rides the Wait-Mode gate, absent for
-    // percussion until add-drum-scoring.
+    // takes its place; the reading aid stays out even though the Wait-Mode
+    // gate now blocks on a drum score (change: add-drum-scoring), because it
+    // names a *pitch* and a kit piece has none — the pad strip's expected
+    // outline is what tells a drummer where to aim.
     final Widget? keyboardSize = data.isPercussion
         ? null
         : _keyboardSizeSection(l10n);

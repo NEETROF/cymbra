@@ -165,12 +165,16 @@ void main() {
     await _teardown(tester, c);
   });
 
-  testWidgets('Wait Mode stays NOT offered for percussion — the '
-      'add-drum-scoring interim is untouched by the mode re-offer', (
-    tester,
-  ) async {
+  testWidgets('Wait Mode is offered for percussion exactly as for a keyboard '
+      'score (the add-drum-kit-view interim, lifted)', (tester) async {
     final c = await _pumpPercussion(tester);
-    expect(find.text('Wait'), findsNothing);
+    // The transport's Wait toggle is present, and loading a drum score no
+    // longer forces the mode off: the pads satisfy the gate and the matcher
+    // judges what they satisfy (change: add-drum-scoring).
+    expect(find.text('Wait'), findsOneWidget);
+    expect(c.read(playerProvider).waitMode, isTrue);
+    c.read(playerProvider.notifier).toggleWaitMode();
+    await tester.pump(const Duration(milliseconds: 50));
     expect(c.read(playerProvider).waitMode, isFalse);
     await _teardown(tester, c);
   });

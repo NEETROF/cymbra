@@ -139,7 +139,12 @@ void main() {
       expect(audio.awaitedLoads, ['/fake/soundfonts/$defaultKitId.sf2']);
       expect(c.read(scoreFontProvider), KitFontStatus.ready);
 
-      c.read(playerProvider.notifier).setPlaying(true);
+      // Free run: a drum score is offered Wait Mode since
+      // add-drum-scoring, and the gate would freeze the playhead at the
+      // first onset. What the audio routing does is the subject here.
+      c.read(playerProvider.notifier)
+        ..toggleWaitMode()
+        ..setPlaying(true);
       for (var i = 0; i < 8; i++) {
         await tester.pump(const Duration(milliseconds: 50));
       }
@@ -167,7 +172,12 @@ void main() {
       // The swap is in flight: the player is NOT ready and playback advances
       // silently (visual-only) — nothing calls drumOn.
       expect(c.read(scoreFontProvider), KitFontStatus.loading);
-      c.read(playerProvider.notifier).setPlaying(true);
+      // Free run: a drum score is offered Wait Mode since
+      // add-drum-scoring, and the gate would freeze the playhead at the
+      // first onset. What the audio routing does is the subject here.
+      c.read(playerProvider.notifier)
+        ..toggleWaitMode()
+        ..setPlaying(true);
       for (var i = 0; i < 8; i++) {
         await tester.pump(const Duration(milliseconds: 50));
       }
@@ -198,7 +208,12 @@ void main() {
       expect(c.read(scoreFontProvider), KitFontStatus.unavailable);
       expect(audio.awaitedLoads, isEmpty);
 
-      c.read(playerProvider.notifier).setPlaying(true);
+      // Free run: a drum score is offered Wait Mode since
+      // add-drum-scoring, and the gate would freeze the playhead at the
+      // first onset. What the audio routing does is the subject here.
+      c.read(playerProvider.notifier)
+        ..toggleWaitMode()
+        ..setPlaying(true);
       for (var i = 0; i < 8; i++) {
         await tester.pump(const Duration(milliseconds: 50));
       }

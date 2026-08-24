@@ -136,31 +136,29 @@ class Player extends _$Player {
   /// A **selective run** (a practice range narrower than the whole piece) is
   /// never scored (change: add-measure-range-practice, D2): the scorer simply
   /// never arms, so no partial `SessionResult` exists to suppress downstream.
+  /// The rule is instrument-agnostic and covers a percussion practice run with
+  /// no carve-out.
   ///
-  /// A **percussion** score never arms it either (change:
-  /// add-drum-input-mapping), by the same mechanism: the judge is
+  /// A **percussion** full run arms it like any other (change:
+  /// add-drum-scoring): the scorer now judges strokes at the kit piece's grain
+  /// over a two-dimension blend, so the run produces an honest session result.
+  /// The interim that kept it disarmed existed only because the judge was
   /// keyboard-shaped — exact-pitch matching against numbers a drum lane
-  /// deliberately collapses, sustain judgment against one-shots that have no
-  /// sustain — so a percussion "score" would be confidently wrong. With no run
-  /// open, every scorer feed below is a no-op by construction and no
-  /// `SessionResult` exists for the summary, the history or the backend
-  /// ingest. Strokes stay audible and visible; they are not judged until
-  /// `add-drum-scoring` brings the matcher.
+  /// deliberately collapses, sustain judgment against one-shots that have
+  /// none.
   void _maybeStartRun() {
     final s = state;
-    if (s.visibleNotes.isEmpty ||
-        !_atStart(s) ||
-        s.isSelectiveRun ||
-        s.isPercussion) {
-      return;
-    }
+    if (s.visibleNotes.isEmpty || !_atStart(s) || s.isSelectiveRun) return;
     final entry = ref.read(selectedScoreProvider);
     _scorer.startRun(
       pieceId: _pieceIdentity(),
       title: entry?.title ?? s.title ?? 'Demo',
-      hands: s.selectedHands.name,
+      // hands / feet / both on a drum score — the selection the run was
+      // actually judged over (change: add-drum-scoring).
+      hands: s.handsSelectionName,
       speed: s.speed,
       notes: s.visibleNotes,
+      percussion: s.isPercussion,
     );
   }
 
@@ -330,14 +328,15 @@ class Player extends _$Player {
       // derived ONCE here and consumed by both the cascade and the pad strip.
       // The cascade stays the DEFAULT presentation on load — the notation
       // modes are offered but entered only by the player's choice (change:
-      // add-drum-notation-render) — and Wait Mode is not offered until
-      // add-drum-scoring (an inert pad strip cannot satisfy the gate).
+      // add-drum-notation-render). Wait Mode is left exactly as the player set
+      // it: the pads satisfy the gate now (change: add-drum-input-mapping) and
+      // the matcher judges what they satisfy (change: add-drum-scoring), so a
+      // drum score no longer forces it off.
       isPercussion: derived.isPercussion,
       drumLanes: derived.isPercussion
           ? deriveDrumLanes(derived.notes)
           : const <DrumLane>[],
       mode: derived.isPercussion ? RenderMode.synthesia : state.mode,
-      waitMode: derived.isPercussion ? false : state.waitMode,
       // The struck-flash table is keyed by controller POSITION, so another
       // score's stamps would land on this one's pads (change:
       // add-drum-input-mapping).
@@ -473,8 +472,9 @@ class Player extends _$Player {
   /// and the note is a *stroke* (change: add-drum-input-mapping): it sounds
   /// through the seam's one-shot rather than the pitched piano voice, and
   /// flashes the controller surface it resolves to. Everything else — the held
-  /// set, the gate bookkeeping, the scorer feed (inert: no run ever arms for
-  /// percussion) — is the shared path, unchanged.
+  /// set, the gate bookkeeping, the scorer feed — is the shared path, with the
+  /// one substitution `add-drum-scoring` makes: what counts as "this note" is
+  /// the kit-piece equivalence, not the raw number.
   void noteOn(int pitch, {NoteSource source = NoteSource.onScreen}) {
     if (state.isPercussion) {
       _soundStroke(pitch, source);
@@ -489,16 +489,28 @@ class Player extends _$Player {
     final consumed = state.consumedHeld.contains(pitch)
         ? ({...state.consumedHeld}..remove(pitch))
         : state.consumedHeld;
-    // Wait Mode validates by attack: if this note is part of the onset the
+    // Wait Mode validates by attack: if this note answers the onset the
     // playhead is sitting on, latch it so it still counts once released, and
     // consume the hold so a later repeat of this pitch needs a fresh attack.
-    final atOnset =
-        state.onsetPitchesAt(state.elapsedMs).contains(pitch) &&
-        !state.gateSatisfied.contains(pitch);
+    //
+    // What "answers" means goes through the shared stroke identity
+    // ([PlayerData.strokeSatisfies]) rather than raw equality, so on a drum
+    // score an incoming 40 latches the written 38 the gate is waiting for —
+    // the same resolution the scorer binds with, never a second one. The
+    // *required* numbers are latched, so the release check keeps comparing
+    // against the score's own vocabulary.
+    final satisfied = <int>{
+      for (final required in state.onsetPitchesSatisfiedBy(
+        pitch,
+        state.elapsedMs,
+      ))
+        if (!state.gateSatisfied.contains(required)) required,
+    };
+    final atOnset = satisfied.isNotEmpty;
     state = state.copyWith(
       activeNotes: active,
       gateSatisfied: atOnset
-          ? {...state.gateSatisfied, pitch}
+          ? {...state.gateSatisfied, ...satisfied}
           : state.gateSatisfied,
       consumedHeld: atOnset ? {...consumed, pitch} : consumed,
       struckSurfacesMs: _struckSurfacesAfter(pitch),
@@ -917,7 +929,14 @@ class Player extends _$Player {
     // earlier onset) when the playhead reaches this onset counts as attacked —
     // a sustained/tied note need not be re-pressed. Consuming the hold keeps a
     // repeated pitch honest: it must be re-attacked to satisfy the next onset.
-    if (s.waitMode && onset.isNotEmpty) {
+    //
+    // **Keyboard only** (change: add-drum-scoring). The carve-out exists to
+    // tolerate sustained and tied notes carried into the onset where they
+    // first sound — a situation a kit cannot produce. A stroke is an attack;
+    // "already holding it" is meaningless, so a percussion onset requires its
+    // own strokes, struck while the gate is active, and an early stroke never
+    // pre-satisfies it.
+    if (s.waitMode && !s.isPercussion && onset.isNotEmpty) {
       final heldDue = <int>{
         for (final p in onset)
           if (s.activeNotes.contains(p) && !s.consumedHeld.contains(p)) p,

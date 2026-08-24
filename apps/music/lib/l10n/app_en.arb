@@ -699,14 +699,14 @@
   "@summaryRetry": {
     "description": "Summary: retry button."
   },
-  "summaryHands": "{hands, select, left{Left hand} right{Right hand} both{Both hands} other{Both hands}}",
+  "summaryHands": "{hands, select, left{Left hand} right{Right hand} both{Both hands} hands{Hands} feet{Feet} handsAndFeet{Hands and feet} other{Both hands}}",
   "@summaryHands": {
     "placeholders": {
       "hands": {
         "type": "String"
       }
     },
-    "description": "Summary: which hand(s) were played."
+    "description": "Summary: which hand(s) were played. The hands/feet/handsAndFeet cases are a percussion run's reading of the same selection (add-drum-scoring)."
   },
   "replayTitle": "Replay",
   "@replayTitle": {

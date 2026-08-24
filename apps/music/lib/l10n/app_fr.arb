@@ -196,7 +196,7 @@
   "summaryBestCombo": "Record ×{count}",
   "summaryReplay": "Revoir les erreurs",
   "summaryRetry": "Réessayer",
-  "summaryHands": "{hands, select, left{Main gauche} right{Main droite} both{Deux mains} other{Deux mains}}",
+  "summaryHands": "{hands, select, left{Main gauche} right{Main droite} both{Deux mains} hands{Mains} feet{Pieds} handsAndFeet{Mains et pieds} other{Deux mains}}",
   "replayTitle": "Relecture",
   "replayMissed": "Manquée",
   "replayMistimed": "Décalée",

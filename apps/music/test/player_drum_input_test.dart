@@ -37,8 +37,9 @@ import 'support/soundfont_fakes.dart';
 
 // The percussion STROKE path (change: add-drum-input-mapping): every stroke —
 // pad, pedal, external kit — converges on the player's note entry points,
-// sounds as a one-shot, flashes the surface it resolves to, and is never
-// judged (the keyboard-shaped scorer does not arm for a drum score).
+// sounds as a one-shot and flashes the surface it resolves to. Since
+// add-drum-scoring those strokes are also judged; the judgment itself is
+// covered by `drum_scoring_test.dart`.
 
 /// A [Notation] fixed to a parsed document, so the player loads a percussion
 /// timeline without byte sources.
@@ -319,6 +320,7 @@ void main() {
       await build();
       await readyKit();
       player()
+        ..toggleWaitMode() // free run: the gate would freeze at the first onset
         ..setPlaying(true)
         ..advance(500); // the groove's snare onset
       expect(data().onsetPitchesAt(data().elapsedMs), contains(38));
@@ -331,8 +333,11 @@ void main() {
       final farFromAny = Map.of(data().struckSurfacesMs);
 
       // One state either way — same surface, same single entry, and the decay
-      // is a pure function of the stroke's age. There is no matcher, so there
-      // is no truthful second state to show.
+      // is a pure function of the stroke's age. The **struck** flash still
+      // claims nothing about correctness now that a matcher exists (change:
+      // add-drum-scoring): the verdict is the cascade's spark, and what the
+      // gate awaits is the pad's expected outline — three channels, each
+      // saying one thing.
       expect(onOnset.keys, [laneIndexOf(data().drumLanes, 38)]);
       expect(farFromAny.keys, onOnset.keys);
     });
@@ -354,29 +359,32 @@ void main() {
     });
   });
 
-  group('the scorer never arms for a percussion score', () {
-    test('a full percussion run opens no scored run, no session result and no '
-        'summary', () async {
-      await build();
-      await readyKit();
-      player().setPlaying(true);
-      expect(container.read(performanceScorerProvider).active, isFalse);
-      // Play the whole groove through, strokes and all.
-      for (var i = 0; i < 30; i++) {
+  // The interim this group used to pin ("the scorer never arms for a
+  // percussion score") is lifted by add-drum-scoring: the matcher exists, so a
+  // full percussion run is judged like any other. The successor assertions
+  // live in `drum_scoring_test.dart`; what stays here is the keyboard
+  // regression and the practice carve-out, which are the two things this file
+  // is positioned to catch.
+  group('run activation over the percussion path', () {
+    test(
+      'a full percussion run arms the scorer and accumulates judgments',
+      () async {
+        await build();
+        await readyKit();
         player()
-          ..advance(100)
+          ..toggleWaitMode() // free run
+          ..setPlaying(true);
+        expect(container.read(performanceScorerProvider).active, isTrue);
+        player()
+          ..advance(500) // the groove's snare onset
           ..noteOn(38)
           ..noteOff(38);
-      }
-      final scoring = container.read(performanceScorerProvider);
-      expect(scoring.active, isFalse);
-      expect(scoring.lastResult, isNull);
-      expect(scoring.recentHits, isEmpty);
-      expect(scoring.combo, 0);
-      // With no run to end the piece, it simply loops — the unscored behaviour
-      // a selective run already has.
-      expect(data().isPlaying, isTrue);
-    });
+        expect(
+          container.read(performanceScorerProvider).recentHits,
+          isNotEmpty,
+        );
+      },
+    );
 
     test('a keyboard run still scores exactly as before', () async {
       await build(percussion: false);

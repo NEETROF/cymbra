@@ -30,13 +30,19 @@ enum ReplayMark { correct, mistimed, shortSustain, missed, wrong }
 
 /// Classifies a [NoteJudgment]: correct notes are left un-marked, everything
 /// else is highlighted by the kind of mistake.
+///
+/// [ReplayMark.shortSustain] is a **keyboard-only** category: a percussion
+/// stroke carries no sustain ratio at all (change: add-drum-scoring), so no
+/// stroke is ever flagged for it — the absence decides, not a threshold on a
+/// zero.
 ReplayMark markFor(NoteJudgment j) {
   if (j.wrong) return ReplayMark.wrong;
   if (j.verdict == TimingVerdict.missed) return ReplayMark.missed;
   if (j.verdict == TimingVerdict.early || j.verdict == TimingVerdict.late) {
     return ReplayMark.mistimed;
   }
-  if (j.sustainRatio < 0.5) return ReplayMark.shortSustain;
+  final sustain = j.sustainRatio;
+  if (sustain != null && sustain < 0.5) return ReplayMark.shortSustain;
   return ReplayMark.correct;
 }
 
@@ -73,6 +79,12 @@ class ReplayScore {
   final int beatType;
   final List<int> measureStartMs;
 
+  /// Whether the replayed piece is percussion (change: add-drum-scoring). The
+  /// staff engraves itself from the notes' own percussion clef, so this decides
+  /// only what the transport **sounds**: a run's own strokes must come out of
+  /// the drum channel, never the piano preset.
+  final bool isPercussion;
+
   const ReplayScore({
     required this.notes,
     this.tieContinuations = const [],
@@ -83,6 +95,7 @@ class ReplayScore {
     required this.beats,
     required this.beatType,
     required this.measureStartMs,
+    this.isPercussion = false,
   });
 
   /// Builds the replay context from the current player state (same piece).
@@ -96,6 +109,7 @@ class ReplayScore {
     beats: d.beats,
     beatType: d.beatType,
     measureStartMs: d.measureStartMs,
+    isPercussion: d.isPercussion,
   );
 
   /// 1-based measure number containing [startMs].
@@ -183,7 +197,13 @@ class _ReplayDialogState extends ConsumerState<_ReplayDialog>
       final intended = (j.noteIndex >= 0 && j.noteIndex < _score.notes.length)
           ? _score.notes[j.noteIndex].durationMs
           : 300;
-      final held = (intended * j.sustainRatio).round().clamp(80, intended);
+      // A percussion stroke carries no sustain ratio: it is a one-shot, so it
+      // is replayed for the note's own written length and left to its natural
+      // end by the drum channel.
+      final held = (intended * (j.sustainRatio ?? 1)).round().clamp(
+        80,
+        intended,
+      );
       notes.add(
         TimedNote(
           pitch: j.pitch,
@@ -309,6 +329,9 @@ class _ReplayDialogState extends ConsumerState<_ReplayDialog>
 
   void _applyAudio(double from, double to) {
     // Sound the *player's* notes, not the score, so they hear their performance.
+    // A percussion run goes through the drum entry points (change:
+    // add-drum-audio-channel), never the melodic pair: a snare number sent to
+    // the piano preset comes out as a piano note.
     final edges = scoreNoteEdges(
       visible: _playedNotes,
       from: from,
@@ -316,11 +339,19 @@ class _ReplayDialogState extends ConsumerState<_ReplayDialog>
       sounding: _sounding,
     );
     for (final p in edges.stops) {
-      _audio.noteOff(p);
+      if (_score.isPercussion) {
+        _audio.drumOff(p);
+      } else {
+        _audio.noteOff(p);
+      }
       _sounding.remove(p);
     }
     for (final p in edges.starts) {
-      _audio.noteOn(p);
+      if (_score.isPercussion) {
+        _audio.drumOn(p);
+      } else {
+        _audio.noteOn(p);
+      }
       _sounding.add(p);
     }
   }

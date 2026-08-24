@@ -484,8 +484,10 @@ abstract class PlayerData with _$PlayerData {
     @Default(Hand.both) Hand selectedHands,
 
     /// The loaded score is percussion (change: add-drum-kit-view): the player
-    /// renders the drum cascade + pad strip, offers no notation mode, no Wait
-    /// Mode and no keyboard-range apparatus until the follow-up changes land.
+    /// renders the drum cascade + pad strip and no keyboard-range apparatus.
+    /// The notation modes are offered alongside the cascade (change:
+    /// add-drum-notation-render), and Wait Mode + scoring since the matcher
+    /// exists (change: add-drum-scoring).
     @Default(false) bool isPercussion,
 
     /// The ordered lane layout derived ONCE from the loaded percussion score
@@ -913,6 +915,71 @@ abstract class PlayerData with _$PlayerData {
     }
     return result;
   }
+
+  /// Whether an attack of [incoming] satisfies a note the gate requires as
+  /// [required] — the gate's half of the **one stroke identity** (change:
+  /// add-drum-scoring).
+  ///
+  /// Pitch equality for a keyboard score; the shared kit-piece equivalence of
+  /// `drum_kit.dart` for a percussion one, which is the same predicate the
+  /// scorer binds with. A stroke that releases the gate is therefore exactly a
+  /// stroke the scorer binds — the drift two independent tables would allow is
+  /// inexpressible.
+  ///
+  /// The hi-hat articulation is deliberately not consulted: it shades a bound
+  /// stroke's verdict and never gates, so a kit with no hi-hat controller can
+  /// still complete a run written with open hi-hats.
+  bool strokeSatisfies(int required, int incoming) =>
+      isPercussion ? samePiece(required, incoming) : required == incoming;
+
+  /// The onset numbers at instant [t] that an attack of [gm] satisfies — the
+  /// set to latch into `gateSatisfied`, empty when the attack answers nothing
+  /// the onset asks for.
+  ///
+  /// Returns the **required** numbers, not the incoming one, so the gate's
+  /// `containsAll(onset)` release check keeps reading the score's own
+  /// vocabulary: a written 38 satisfied by an incoming 40 latches 38.
+  Set<int> onsetPitchesSatisfiedBy(int gm, double t) {
+    final result = <int>{};
+    for (final required in onsetPitchesAt(t)) {
+      if (strokeSatisfies(required, gm)) result.add(required);
+    }
+    return result;
+  }
+
+  /// The controller surfaces the pad strip should show as **expected** — the
+  /// pads of the pieces the gate is waiting for, plus [kPedalSurface] when a
+  /// kick is required (change: add-drum-scoring). Empty outside a percussion
+  /// score, and empty when nothing is expected.
+  ///
+  /// Derived from [expectedKeys], so the strip, the gate and the judgment
+  /// always name the same onset; resolved through [struckSurfaceFor], so an
+  /// expected pad and a struck one are the same surface.
+  Set<int> get expectedDrumSurfaces {
+    if (!isPercussion) return const {};
+    final result = <int>{};
+    for (final gm in expectedKeys) {
+      final surface = struckSurfaceFor(gm);
+      if (surface != null) result.add(surface);
+    }
+    return result;
+  }
+
+  /// The selection as the session result records it: the hands/feet reading on
+  /// a percussion score (change: add-drum-scoring — `hand-selection` gives
+  /// [Hand.right] the hands and [Hand.left] the feet there), else the
+  /// keyboard's own `left` / `right` / `both`.
+  ///
+  /// Distinct tokens for the percussion readings rather than reusing the
+  /// keyboard's, so the summary can say "Feet" where a keyboard run says "Left
+  /// hand" — and so the keyboard labels stay exactly what they were.
+  String get handsSelectionName => isPercussion
+      ? switch (selectedHands) {
+          Hand.both => 'handsAndFeet',
+          Hand.right => 'hands',
+          Hand.left => 'feet',
+        }
+      : selectedHands.name;
 
   /// The next note onset strictly after [t] (ms), or null if there are none.
   /// Restricted to [visibleNotes] so the playhead does not pause at a hidden

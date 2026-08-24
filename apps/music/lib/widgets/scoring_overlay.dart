@@ -15,9 +15,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../painters/drum_hit_effects_painter.dart';
 import '../painters/hit_effects_painter.dart';
 import '../painters/piano_layout.dart';
 import '../services/clock_service.dart';
+import '../state/drum_kit.dart';
 import '../state/performance_scoring.dart';
 import '../state/player_notifier.dart';
 
@@ -69,6 +71,49 @@ class _HitEffects extends ConsumerWidget {
     final nowMs = ref.read(clockProvider).nowMs();
     return CustomPaint(
       painter: HitEffectsPainter(layout: layout, hits: hits, nowMs: nowMs),
+    );
+  }
+}
+
+/// The gamified-feedback layer of the **percussion cascade** (change:
+/// add-drum-scoring): the same transient sparks, anchored on the cascade's own
+/// geometry — a hand stroke on its lane at the hit line, a kick on the
+/// full-width bar. The live score is still the [ScoreChip] in the top bar; the
+/// only thing drawn over the play surface here is the spark itself, which
+/// fades within a few hundred milliseconds and leaves no clutter.
+///
+/// Renders nothing when no scored run is active, and is wrapped in an
+/// [IgnorePointer] so it never steals a stroke from the surface underneath.
+class DrumScoringOverlay extends ConsumerWidget {
+  const DrumScoringOverlay({super.key, required this.lanes});
+
+  /// The lanes in presentation order — the very list the cascade painted.
+  final List<DrumLane> lanes;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final active = ref.watch(performanceScorerProvider.select((s) => s.active));
+    if (!active) return const SizedBox.shrink();
+    return IgnorePointer(child: _DrumHitEffects(lanes: lanes));
+  }
+}
+
+/// The percussion spark layer, split out for the same reason as [_HitEffects]:
+/// the per-frame playhead watch only runs while sparks are actually drawn.
+class _DrumHitEffects extends ConsumerWidget {
+  const _DrumHitEffects({required this.lanes});
+
+  final List<DrumLane> lanes;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(playerProvider.select((d) => d.elapsedMs));
+    final hits = ref.watch(
+      performanceScorerProvider.select((s) => s.recentHits),
+    );
+    final nowMs = ref.read(clockProvider).nowMs();
+    return CustomPaint(
+      painter: DrumHitEffectsPainter(lanes: lanes, hits: hits, nowMs: nowMs),
     );
   }
 }

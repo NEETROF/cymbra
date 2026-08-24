@@ -230,11 +230,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   /// equals an expected note. Empty when nothing is expected for that hand.
   Set<int> _assistPitches({required bool rightHand, required bool nearMiss}) {
     final data = ref.read(playerProvider);
-    // Not offered on a percussion score (change: add-drum-input-mapping): the
-    // assist keys shortcut the same gate Wait Mode uses, and no percussion
-    // gate exists until add-drum-scoring. The input path is now real — the
-    // pads and an e-kit both play — but the judgment these keys satisfy is
-    // not, and a key that plays "the expected notes" would be inventing one.
+    // Still not offered on a percussion score. The percussion gate exists now
+    // (change: add-drum-scoring), but these four keys are keyed to the
+    // STAFF-based hand split, and a drum part is one staff: `a` and `z` would
+    // both fire the whole kit at every onset — a one-key auto-play, not a
+    // practice assist. The pad strip is the drum score's on-screen controller,
+    // and it aims.
     if (data.isPercussion) return const {};
     final expected = data.expectedNotesForHand(
       data.elapsedMs,
@@ -504,12 +505,18 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                                   ),
                                   onPointerUp: _onPadPointerUp,
                                   onPointerCancel: _onPadPointerUp,
-                                  // The strip repaints on the flash's own
-                                  // clock, independently of the playhead:
-                                  // isolate those frames in their own layer.
+                                  // The strip repaints on two clocks of its
+                                  // own, both independent of the playhead: the
+                                  // struck flash's decay and — since
+                                  // add-drum-scoring — the expected pads'
+                                  // breathing while the gate holds. Isolate
+                                  // those frames in their own layer.
                                   child: RepaintBoundary(
                                     child: AnimatedBuilder(
-                                      animation: _padFlash,
+                                      animation: Listenable.merge([
+                                        _padFlash,
+                                        _waitPulse,
+                                      ]),
                                       builder: (context, _) => CustomPaint(
                                         key: const Key('pad-strip'),
                                         size: Size(
@@ -534,6 +541,25 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                                           nowMs: DateTime.now()
                                               .millisecondsSinceEpoch
                                               .toDouble(),
+                                          // The Wait Mode indicator lives on
+                                          // the strip, never as an overlay
+                                          // (change: add-drum-scoring): the
+                                          // expected pads — and the pedal when
+                                          // a kick is required — breathe while
+                                          // the gate holds.
+                                          expectedSurfaces:
+                                              data.expectedDrumSurfaces,
+                                          // 0→1→0 over each cycle, exactly the
+                                          // keyboard's breathing; 0 (steady)
+                                          // as soon as the gate releases.
+                                          waitPulse:
+                                              0.5 -
+                                              0.5 *
+                                                  math.cos(
+                                                    2 *
+                                                        math.pi *
+                                                        _waitPulse.value,
+                                                  ),
                                           labelFontFamily: DefaultTextStyle.of(
                                             context,
                                           ).style.fontFamily,
@@ -688,8 +714,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       // default reading surface, in Synthesia's slot. The notation modes are
       // offered alongside it (change: add-drum-notation-render) and drawn by
       // the shared Staff/Partition paths below, which engrave the percussion
-      // rules. No scoring overlay — nothing is scoreable until
-      // add-drum-input-mapping.
+      // rules. Since add-drum-scoring the cascade also carries the hit
+      // sparks — on the lanes and on the kick bar — while the live score
+      // itself stays in the top-bar chip, off the play surface.
       return Stack(
         children: [
           Positioned.fill(
@@ -701,6 +728,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                 elapsedMs: data.referenceMs,
               ),
             ),
+          ),
+          Positioned.fill(
+            child: DrumScoringOverlay(lanes: data.presentedDrumLanes),
           ),
           Positioned.fill(
             child: _ScoreLoadOverlay(
@@ -786,11 +816,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
           ),
         ),
         // In the staff view the sparks anchor to the keyboard line, so hide them
-        // when the keyboard is hidden (the gauge still shows).
+        // when the keyboard is hidden (the gauge still shows). A percussion
+        // score shows the pad strip here, not a keyboard, so the keyboard-keyed
+        // sparks have nothing to anchor to and are suppressed — the cascade is
+        // where a percussion run's sparks live (change: add-drum-scoring).
         Positioned.fill(
           child: ScoringOverlay(
             layout: layout,
-            showEffects: data.keyboardVisible,
+            showEffects: data.keyboardVisible && !data.isPercussion,
           ),
         ),
         Positioned.fill(
@@ -1359,14 +1392,11 @@ class _TransportBar extends ConsumerWidget {
       data.waitMode ? Icons.hourglass_top : Icons.hourglass_disabled,
       color: waitColor,
     );
-    // Wait Mode is not offered for a percussion score (change:
-    // add-drum-kit-view): the pads are inert until add-drum-input-mapping, so
-    // the gate could never be satisfied. Deliberately untouched by
-    // add-drum-notation-render (which re-offered the notation modes) and
-    // pinned by test — lifting this interim belongs to add-drum-scoring.
-    final Widget? wait = data.isPercussion
-        ? null
-        : isPhone
+    // Offered for every score, percussion included (change: add-drum-scoring):
+    // the pads satisfy the gate (change: add-drum-input-mapping) and the
+    // matcher judges what they satisfy, which is exactly the condition
+    // add-drum-kit-view's interim named for lifting itself.
+    final Widget wait = isPhone
         ? IconButton(
             visualDensity: density,
             tooltip: 'Wait',
@@ -1416,7 +1446,8 @@ class _TransportBar extends ConsumerWidget {
                 speedUp,
                 speedLabel,
                 speedDown,
-                if (wait != null) ...[SizedBox(height: gapS), wait],
+                SizedBox(height: gapS),
+                wait,
               ],
             )
           : Row(
@@ -1431,7 +1462,8 @@ class _TransportBar extends ConsumerWidget {
                 speedDown,
                 speedLabel,
                 speedUp,
-                if (wait != null) ...[SizedBox(width: gapS), wait],
+                SizedBox(width: gapS),
+                wait,
               ],
             ),
     );

@@ -247,6 +247,78 @@ int? laneIndexOf(List<DrumLane> lanes, int gm) {
   return null;
 }
 
+/// The piece identity standing for the kick pedal — the one named piece with
+/// no [_namedPieces] row, because it has no lane (it is the full-width bar).
+const String _kickPieceId = 'kick';
+
+/// The **kit piece** a General MIDI percussion number denotes (change:
+/// add-drum-scoring) — the grain at which strokes are matched.
+///
+/// Read from the STATIC named-piece table above, never from the score-derived
+/// [DrumLane] layout: the layout intersects each group with the numbers the
+/// score actually writes, so a number the file never uses has no lane — yet it
+/// still denotes the same physical piece and must still resolve to it. The
+/// table is the identity; the layout is a view of it.
+///
+/// The kick's two numbers share [_kickPieceId] (one pedal); every named group
+/// shares its l10n key (hi-hat {42, 46}, snare {37, 38, 40}, ride {51, 53, 59},
+/// each tom and each accent cymbal alone); anything else — the terminal
+/// bucket — is a piece of its own, keyed by its number, so it matches only
+/// itself.
+String drumPieceIdOf(int gm) {
+  if (kKickGmNumbers.contains(gm)) return _kickPieceId;
+  for (final piece in _namedPieces) {
+    if (piece.gm.contains(gm)) return piece.key;
+  }
+  return 'gm:$gm';
+}
+
+/// Whether an incoming stroke [incomingGm] is a stroke of the piece a written
+/// note [writtenGm] asks for — **the one stroke-identity function** every
+/// consumer routes through (change: add-drum-scoring): the Wait Mode gate's
+/// required set, the scorer's binding decision, extra-stroke detection and the
+/// pad feedback.
+///
+/// The governing principle is *never demand a distinction the cascade does not
+/// draw*: numbers the display collapses into one lane with one look — which
+/// zone of the snare, which flavour of kick, which ride surface — are
+/// hardware-mapping artefacts the player can neither see nor control, so they
+/// match; pieces with lanes of their own are separate aim points, so hitting
+/// the wrong one is exactly the error scoring exists to catch.
+bool samePiece(int writtenGm, int incomingGm) =>
+    drumPieceIdOf(writtenGm) == drumPieceIdOf(incomingGm);
+
+/// Whether [incomingGm] carries the **articulation** the written [writtenGm]
+/// asks for — the open/closed hi-hat, the one distinction the cascade draws
+/// *inside* a lane (the hollow variant).
+///
+/// Never a binding or gating question ([samePiece] answers those): the two
+/// numbers are one piece, because producing the open stroke needs a hi-hat
+/// controller many electronic kits lack and a practice gate must never block on
+/// a stroke the hardware cannot emit. It only *shades* the verdict — see
+/// `capBelowPerfect` in `performance_scoring_core.dart`. Trivially true for
+/// every other piece, which draws no in-lane variant.
+bool sameStrokeArticulation(int writtenGm, int incomingGm) =>
+    isOpenHiHat(writtenGm) == isOpenHiHat(incomingGm);
+
+/// Index of the lane whose **piece** [gm] belongs to, or null for the kick and
+/// for a piece the layout does not present.
+///
+/// The piece-grained counterpart of [laneIndexOf] (change: add-drum-scoring):
+/// a stroke of 40 lights the snare lane of a score written entirely in 38s,
+/// because it is a stroke of that lane's piece. [laneIndexOf] stays the exact
+/// lookup the painters place *written* notes with — a written note is always a
+/// member of its own derived lane, so the two agree there by construction.
+int? pieceLaneIndexOf(List<DrumLane> lanes, int gm) {
+  final id = drumPieceIdOf(gm);
+  for (var i = 0; i < lanes.length; i++) {
+    for (final member in lanes[i].gmNumbers) {
+      if (drumPieceIdOf(member) == id) return i;
+    }
+  }
+  return null;
+}
+
 /// The [struckSurfaceOf] index standing for the **kick pedal** — the one
 /// controller surface that is not a lane (change: add-drum-input-mapping). The
 /// pads take the lane indices `0..n-1`, so a negative sentinel cannot collide
@@ -313,9 +385,15 @@ int? emittedKickGm(Set<int> present) {
 /// the score does not use, or a kick on a kickless score. That stroke is free
 /// play — it sounds and simply has nothing to flash, which is not an error
 /// (change: add-drum-input-mapping).
+///
+/// Resolved at the **piece** grain (change: add-drum-scoring), so the flash
+/// reflects the same piece resolution the scorer judged the stroke with: an
+/// incoming 40 lights the snare pad of a score written only in 38s, exactly as
+/// it binds to that score's snare onsets. Two independent resolutions here
+/// would let the strip contradict the verdict.
 int? struckSurfaceOf(List<DrumLane> lanes, int gm, {required bool hasPedal}) {
   if (kKickGmNumbers.contains(gm)) return hasPedal ? kPedalSurface : null;
-  return laneIndexOf(lanes, gm);
+  return pieceLaneIndexOf(lanes, gm);
 }
 
 /// Whether a percussion note is FOOT-struck, per the convention stated in

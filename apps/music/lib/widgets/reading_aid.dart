@@ -77,6 +77,11 @@ ReadingAidView readingAidViewOf(
 }) {
   if (data.readingAid == NoteReadingAid.off) return ReadingAidView.hidden;
   if (!data.waitMode || !data.blocked) return ReadingAidView.hidden;
+  // Never on a percussion score, now that its gate can block at all (change:
+  // add-drum-scoring): the aid names a *pitch*, and a General MIDI percussion
+  // number has none — "D♯2" for a snare would be a wrong answer, not a hint.
+  // The pad strip's expected outline is the drum score's reading aid.
+  if (data.isPercussion) return ReadingAidView.hidden;
 
   final notes = data.expectedNotes;
   if (notes.isEmpty) return ReadingAidView.hidden;

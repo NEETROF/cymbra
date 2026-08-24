@@ -92,6 +92,25 @@ class ScoringWeights {
   static const double sustain = 0.2;
 }
 
+/// Dimension weights for a **percussion** run's blend (change:
+/// add-drum-scoring): timing and correctness only, sum to 1.
+///
+/// A stroke has no sustain dimension — its note-off timing is an artefact of
+/// the module's firmware, not of the player — so the third dimension is
+/// *absent*, and the two that remain are renormalized to preserve their
+/// keyboard ratio: 0.5 : 0.3 ⇒ 0.625 : 0.375 (`percussionWeightsPreserveRatio`
+/// pins it). Written as literals rather than derived at compile time so the
+/// values are exact doubles, and so the keyboard constants above stay
+/// byte-for-byte what they were — the brief's hard constraint.
+///
+/// Fixing sustain at a constant 1.0 instead would leak 20% of free credit into
+/// every percussion run (a do-nothing run would score 20, not 0) and make
+/// percussion percentages incomparable upward.
+class PercussionScoringWeights {
+  static const double timing = 0.625;
+  static const double correctness = 0.375;
+}
+
 /// Free-run timing verdict for a bound attack whose signed score-clock offset
 /// from the onset is [offsetMs] (negative = early, positive = late).
 ///
@@ -203,6 +222,37 @@ double syncPercent({
           sustainScore(sustainRatios, anyOnsetJudged: verdicts.isNotEmpty);
   return (blend * 100).clamp(0.0, 100.0).toDouble();
 }
+
+/// Rolling/overall synchronization percentage in [0, 100] for a **percussion**
+/// run (change: add-drum-scoring): the timing and correctness dimensions only,
+/// blended at [PercussionScoringWeights].
+///
+/// Defined before the first judgment (empty inputs ⇒ 100), like [syncPercent],
+/// so the gauge always renders — and 0 for a run whose every onset was missed
+/// with no stroke played, because no absent dimension leaks credit into the
+/// blend.
+double percussionSyncPercent({
+  required Iterable<TimingVerdict> onsetVerdicts,
+  required int wrongNotes,
+}) {
+  final verdicts = onsetVerdicts.toList(growable: false);
+  final blend =
+      PercussionScoringWeights.timing * timingScore(verdicts) +
+      PercussionScoringWeights.correctness *
+          correctnessScore(verdicts, wrongNotes);
+  return (blend * 100).clamp(0.0, 100.0).toDouble();
+}
+
+/// The verdict of a stroke that bound with the **wrong hi-hat articulation**
+/// (change: add-drum-scoring): capped below `perfect`, never below what its
+/// timing already earned.
+///
+/// Open versus closed is the one distinction the cascade draws inside a lane,
+/// so erasing it would void a drawn promise — but producing it needs hardware
+/// many kits lack, so it must never gate. Shading resolves both: the run always
+/// completes, the difference always costs.
+TimingVerdict capBelowPerfect(TimingVerdict v) =>
+    v == TimingVerdict.perfect ? TimingVerdict.good : v;
 
 /// Feedback tier 0–4 for a synchronization [percent], one per 20% band. Pure so
 /// the gauge/effects escalation is testable without rendering.

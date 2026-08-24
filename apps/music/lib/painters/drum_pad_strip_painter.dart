@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:flutter/foundation.dart' show setEquals;
 import 'package:flutter/material.dart';
 
 import '../state/drum_kit.dart';
@@ -25,11 +26,16 @@ import '../theme/cymbra_theme.dart';
 ///
 /// Playable since `add-drum-input-mapping`: a pointer-down anywhere in a
 /// pad's horizontal span strikes it ([surfaceAt]), and the struck surface
-/// shows the one feedback state percussion honestly has — a brief **struck**
-/// flash, decaying over [flashDurationMs] on its own clock. There is no
-/// expected / correct / incorrect state anywhere in this painter, and there
-/// cannot be one until `add-drum-scoring` brings the matcher whose verdicts
-/// they would reflect.
+/// shows a brief **struck** flash, decaying over [flashDurationMs] on its own
+/// clock.
+///
+/// Since `add-drum-scoring` the strip also carries the gate's own indicator:
+/// the [expectedSurfaces] the Wait Mode gate is waiting for are outlined, and
+/// [waitPulse] breathes that outline while the gate is blocked — the pad
+/// counterpart of the keyboard's pulsing expected keys, and the reason no
+/// overlay or banner is ever drawn over the play surface. The pulse stops the
+/// moment the gate releases (the controller is stopped at 0), leaving the
+/// steady expected outline.
 ///
 /// The strip's height follows the keyboard's viewport policy and is
 /// independent of the piece count — pads keep a usable touch target however
@@ -59,6 +65,15 @@ class DrumPadStripPainter extends CustomPainter {
   /// stopped (percussion strokes exist outside the playhead).
   final double nowMs;
 
+  /// The surfaces the Wait Mode gate is waiting for (pads by their index in
+  /// [lanes], the pedal under [kPedalSurface]) — `PlayerData.expectedDrumSurfaces`,
+  /// so the strip names exactly the onset the gate and the scorer name.
+  final Set<int> expectedSurfaces;
+
+  /// Breathing phase 0→1→0 of the expected outline while the gate is blocked;
+  /// 0 (steady) as soon as it releases.
+  final double waitPulse;
+
   final String? labelFontFamily;
 
   const DrumPadStripPainter({
@@ -68,6 +83,8 @@ class DrumPadStripPainter extends CustomPainter {
     required this.hasKick,
     this.struckMs = const {},
     this.nowMs = 0,
+    this.expectedSurfaces = const {},
+    this.waitPulse = 0,
     this.labelFontFamily,
   });
 
@@ -173,6 +190,7 @@ class DrumPadStripPainter extends CustomPainter {
               flash,
             )!,
         );
+        _expected(canvas, rrect, i);
         _label(
           canvas,
           labels.length > i ? labels[i] : '',
@@ -208,8 +226,26 @@ class DrumPadStripPainter extends CustomPainter {
           ..strokeWidth = 1 + 1.5 * flash
           ..color = CymbraColors.handLeft.withValues(alpha: 0.7 + 0.3 * flash),
       );
+      _expected(canvas, rrect, kPedalSurface);
       _label(canvas, kickLabel, rect, CymbraColors.onSurface);
     }
+  }
+
+  /// The "play this now" outline of an expected surface, breathing with
+  /// [waitPulse] while the gate holds. Drawn inside the pad's own rounded rect
+  /// so it never bleeds into a neighbour, and skipped entirely for a surface
+  /// the gate is not waiting for — the strip claims nothing about pieces the
+  /// onset does not ask for.
+  void _expected(Canvas canvas, RRect rrect, int surface) {
+    if (!expectedSurfaces.contains(surface)) return;
+    final pulse = waitPulse.clamp(0.0, 1.0);
+    canvas.drawRRect(
+      rrect.deflate(2),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2 + 1.5 * pulse
+        ..color = CymbraColors.secondary.withValues(alpha: 0.55 + 0.45 * pulse),
+    );
   }
 
   /// The struck-flash intensity of [surface] on this frame (0 when it was
@@ -256,6 +292,8 @@ class DrumPadStripPainter extends CustomPainter {
       old.labels != labels ||
       old.hasKick != hasKick ||
       old.kickLabel != kickLabel ||
+      old.waitPulse != waitPulse ||
+      !setEquals(old.expectedSurfaces, expectedSurfaces) ||
       // A flash in flight on either frame: the decay is time-based, so a new
       // `nowMs` alone changes the picture — but only while something is
       // actually flashing, so a still strip does not repaint on every frame.
