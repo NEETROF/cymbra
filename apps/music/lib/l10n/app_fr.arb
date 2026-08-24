@@ -97,7 +97,7 @@
   "midiConnected": "Connecté",
   "midiConnecting": "Connexion…",
   "midiStatusNone": "Aucun appareil MIDI",
-  "modeSynthesia": "Synthesia",
+  "modeSynthesia": "Cascade",
   "modeStaff": "Portée",
   "modePartition": "Partition",
   "tempo": "Tempo : {bpm}",

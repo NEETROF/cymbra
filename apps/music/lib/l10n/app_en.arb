@@ -421,9 +421,9 @@
   "@midiStatusNone": {
     "description": "Top-bar MIDI status: no device present."
   },
-  "modeSynthesia": "Synthesia",
+  "modeSynthesia": "Cascade",
   "@modeSynthesia": {
-    "description": "Render-mode toggle: falling-notes (Synthesia-style) view. Kept as the recognised term across languages."
+    "description": "Render-mode toggle: the falling-notes view. Named Cascade rather than after the third-party piano app whose trademark it would borrow; localised natively in each language."
   },
   "modeStaff": "Staff",
   "@modeStaff": {

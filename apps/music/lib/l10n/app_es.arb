@@ -97,7 +97,7 @@
   "midiConnected": "Conectado",
   "midiConnecting": "Conectando…",
   "midiStatusNone": "Sin dispositivo MIDI",
-  "modeSynthesia": "Synthesia",
+  "modeSynthesia": "Cascada",
   "modeStaff": "Pentagrama",
   "modePartition": "Partitura",
   "tempo": "Tempo: {bpm}",

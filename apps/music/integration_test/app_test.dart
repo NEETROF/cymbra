@@ -199,14 +199,14 @@ void main() {
     await tester.sendKeyUpEvent(LogicalKeyboardKey.keyA);
     await tester.pump();
 
-    // Cycle the three rendering modes: Synthesia → Staff → Partition → Synthesia.
+    // Cycle the three rendering modes: Cascade → Staff → Partition → Cascade.
     await tester.tap(find.text('Staff'));
     await tester.pump();
     await watch(tester);
     await tester.tap(find.text('Partition'));
     await tester.pump(const Duration(milliseconds: 100));
     await watch(tester);
-    await tester.tap(find.text('Synthesia'));
+    await tester.tap(find.text('Cascade'));
     await tester.pump();
     await watch(tester);
   });

@@ -153,8 +153,8 @@ void main() {
     // The same mode set a keyboard score gets on this device…
     expect(find.text('Staff'), findsOneWidget);
     expect(find.text('Partition'), findsOneWidget);
-    expect(find.text('Synthesia'), findsOneWidget);
-    // …with the cascade (Synthesia's slot) still the default presentation.
+    expect(find.text('Cascade'), findsOneWidget);
+    // …with the cascade still the default presentation.
     expect(c.read(playerProvider).mode, RenderMode.synthesia);
     expect(
       find.byWidgetPredicate(
@@ -221,7 +221,7 @@ void main() {
 
     // Back to the cascade: playback state survived the round trip like it
     // does for a keyboard score.
-    await tester.tap(find.text('Synthesia'));
+    await tester.tap(find.text('Cascade'));
     await tester.pump(const Duration(milliseconds: 50));
     expect(
       find.byWidgetPredicate(
