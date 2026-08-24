@@ -403,8 +403,21 @@ class CatalogSearch extends _$CatalogSearch {
     return true;
   }
 
-  /// Fastest-note / ambitus / tempo match (the facet side of [_matchesFilters]).
+  /// Instrument / fastest-note / ambitus / tempo match (the facet side of
+  /// [_matchesFilters]).
+  ///
+  /// The user's own uploads are filtered HERE, in the client, because they are
+  /// not part of the catalog query — the server never sees them. Every facet
+  /// the query sends must therefore have a local twin, or the filter silently
+  /// stops applying to half the list: picking "Batterie" kept showing a piano
+  /// upload, which reads as a broken filter rather than as two sources.
   bool _matchesFacets(CatalogEntry e) {
+    if (state.instrument case final want?) {
+      // An upload whose instrument was never recorded cannot claim to be the
+      // one asked for: an unknown family fails a set filter, exactly as an
+      // unknown tempo fails a set band.
+      if (e.instrument != want) return false;
+    }
     if (state.maxNoteValue case final max?) {
       if (e.minNoteValue == null || e.minNoteValue! > max) return false;
     }

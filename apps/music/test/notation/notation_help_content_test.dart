@@ -84,6 +84,74 @@ void main() {
         }
       });
 
+      test('a percussion staff is explained as a KIT, not as pitches', () {
+        // The defect this pins: the help was written for a piano staff, so a
+        // drum score explained its ‖ clef as a treble clef and its strokes as
+        // pitches ("C♯3: 1 beat"), which is not a simplification — it is
+        // false, and it teaches a beginner the wrong thing about the symbol
+        // they just asked about.
+        final clef = notationHelpFor(
+          l10n,
+          const SymbolDescriptor.clef(sign: 'percussion'),
+          solfege: solfege,
+          frenchRe: frenchRe,
+          drumPieceName: (_) => 'Hi-hat',
+        );
+        final treble = notationHelpFor(
+          l10n,
+          const SymbolDescriptor.clef(sign: 'G'),
+          solfege: solfege,
+          frenchRe: frenchRe,
+        );
+        expect(clef.title, isNot(treble.title));
+        expect(clef.body, isNot(treble.body));
+
+        const note = SymbolDescriptor.note(
+          pitch: 42,
+          noteType: 'quarter',
+          dots: 0,
+        );
+        final stroke = notationHelpFor(
+          l10n,
+          note,
+          solfege: solfege,
+          frenchRe: frenchRe,
+          drumPieceName: (_) => 'Hi-hat',
+        );
+        final pitched = notationHelpFor(
+          l10n,
+          note,
+          solfege: solfege,
+          frenchRe: frenchRe,
+        );
+        expect(stroke.title, contains('Hi-hat'));
+        expect(stroke.title, isNot(pitched.title));
+        expect(stroke.body, isNot(pitched.body));
+        // The piece names the note, so its own pitch name never appears.
+        expect(
+          stroke.title,
+          isNot(
+            contains(
+              notationPitchName(42, solfege: solfege, frenchRe: frenchRe),
+            ),
+          ),
+        );
+      });
+
+      test('the percussion clef needs no kit to be explained', () {
+        // A clef is a clef: the percussion sign is recognised from the symbol
+        // itself, so the Partition's preview (which has no kit to hand) still
+        // explains it correctly.
+        final help = notationHelpFor(
+          l10n,
+          const SymbolDescriptor.clef(sign: 'percussion'),
+          solfege: solfege,
+          frenchRe: frenchRe,
+        );
+        expect(help.title.trim(), isNotEmpty);
+        expect(help.title, l10n.notationHelpPercussionClefTitle);
+      });
+
       test('each accidental token has distinct help', () {
         String title(String token) => notationHelpFor(
           l10n,

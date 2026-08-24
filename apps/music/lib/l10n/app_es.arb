@@ -775,5 +775,9 @@
   "instrumentChoiceBody": "Tu inicio mostrará ese instrumento primero. Puedes cambiarlo en cualquier momento desde el selector de arriba.",
   "drumsEmptyTitle": "Aún no hay partituras de batería aquí",
   "drumsEmptyBody": "No hay nada que mostrar para batería por ahora: explora el catálogo desde la lupa o vuelve al teclado.",
-  "drumsEmptySwitch": "Volver al teclado"
+  "drumsEmptySwitch": "Volver al teclado",
+  "notationHelpPercussionClefTitle": "Clave de percusión",
+  "notationHelpPercussionClefBody": "Esta doble barra sustituye a la clave de sol en un pentagrama de batería. La posición de una nota ya no indica una altura: nombra la pieza del kit que hay que golpear.",
+  "notationHelpDrumNoteTitle": "Golpe ({piece})",
+  "notationHelpDrumNoteBody": "Esta nota dice qué pieza del kit golpear. Su posición en el pentagrama nombra la pieza, no una altura, y su duración es el espacio que ocupa antes del golpe siguiente."
 }

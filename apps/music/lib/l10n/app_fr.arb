@@ -775,5 +775,9 @@
   "instrumentChoiceBody": "Ton accueil montrera cet instrument en premier. Tu pourras changer à tout moment depuis le sélecteur en haut.",
   "drumsEmptyTitle": "Pas encore de partition batterie ici",
   "drumsEmptyBody": "Rien à afficher pour la batterie pour l'instant — explore le catalogue depuis la loupe, ou repasse au clavier.",
-  "drumsEmptySwitch": "Repasser au clavier"
+  "drumsEmptySwitch": "Repasser au clavier",
+  "notationHelpPercussionClefTitle": "Clé de percussion",
+  "notationHelpPercussionClefBody": "Ce double trait remplace la clé de sol sur une portée de batterie. La position d'une note n'y donne plus une hauteur : elle désigne la pièce du kit à frapper.",
+  "notationHelpDrumNoteTitle": "Frappe ({piece})",
+  "notationHelpDrumNoteBody": "Cette note dit quelle pièce du kit frapper. Sa position sur la portée désigne la pièce, pas une hauteur, et sa durée est la place qu'elle occupe avant la frappe suivante."
 }

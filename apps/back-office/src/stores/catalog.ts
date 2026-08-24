@@ -2,6 +2,7 @@ import { reactive, ref, toRef } from "vue";
 import { defineStore } from "pinia";
 import { api } from "@/lib/api";
 import { type Async, idle, run, success } from "@/lib/async";
+import { ScorePreviewError } from "@/lib/errors";
 import type { CatalogHit } from "@/gen/score_pb";
 import { useAuthStore } from "./auth";
 import { soundfontBaseUrl } from "./soundfonts";
@@ -172,7 +173,10 @@ async function httpRegenerateScorePreview(id: string, token: string | null): Pro
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!resp.ok) {
-    throw new Error(`score preview regeneration failed: HTTP ${resp.status}`);
+    // Keep the body: the route answers 412 with the precise reason (which font
+    // key is unset, which font is not accepted), and that is the only part an
+    // admin can act on. `humanError` turns it into a localized message.
+    throw new ScorePreviewError(resp.status, await resp.text().catch(() => ""));
   }
 }
 

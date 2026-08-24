@@ -20,7 +20,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../l10n/gen/app_localizations.dart';
 import '../notation/notation_help_content.dart';
 import '../painters/staff_hit_index.dart';
+import '../state/drum_kit.dart';
 import '../state/notation_help_notifier.dart';
+import 'kit_piece_labels.dart';
 import 'notation_help_bubble.dart';
 
 /// Wraps a staff renderer (the scrolling player staff or the engraved partition)
@@ -38,6 +40,7 @@ class NotationHelpArea extends ConsumerStatefulWidget {
     super.key,
     required this.builder,
     this.enabled = true,
+    this.drumLanes,
   });
 
   /// Builds the canvas child, receiving the hit index to give the painter.
@@ -46,6 +49,12 @@ class NotationHelpArea extends ConsumerStatefulWidget {
   /// Whether the long-press help is active. When false the child is returned as
   /// is (no gesture, no bubble).
   final bool enabled;
+
+  /// The kit layout when the staff being explained is a PERCUSSION one — non
+  /// null is what switches the help to the kit's vocabulary. Passed in by the
+  /// screen that knows the score rather than read from the player here: this
+  /// widget explains a staff, it does not follow playback.
+  final List<DrumLane>? drumLanes;
 
   @override
   ConsumerState<NotationHelpArea> createState() => _NotationHelpAreaState();
@@ -107,11 +116,21 @@ class _NotationHelpAreaState extends ConsumerState<NotationHelpArea> {
   Widget _positioned(BuildContext context, NotationHelpBubbleState bubble) {
     final l10n = AppLocalizations.of(context);
     final style = notationNameStyle(Localizations.localeOf(context));
+    // On a percussion score the help speaks the kit's vocabulary: the symbol
+    // index is the same, what a symbol MEANS is not.
+    final lanes = widget.drumLanes;
     final help = notationHelpFor(
       l10n,
       bubble.descriptor,
       solfege: style.solfege,
       frenchRe: style.frenchRe,
+      drumPieceName: lanes == null
+          ? null
+          : (gm) {
+              if (kKickGmNumbers.contains(gm)) return l10n.kitPieceKick;
+              final lane = laneIndexOf(lanes, gm);
+              return lane == null ? '' : kitPieceLabel(l10n, lanes[lane]);
+            },
     );
 
     final card = NotationHelpBubble(

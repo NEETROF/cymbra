@@ -50,6 +50,7 @@ class DrumHighwayPainter extends CustomPainter {
     this.hasKick = true,
     this.writtenMeasureOf = const [],
     this.speed = 1,
+    this.playableSurfaces = const {},
     this.labelStyle,
   });
 
@@ -99,6 +100,9 @@ class DrumHighwayPainter extends CustomPainter {
   /// Transport speed, only ever used to size the stroke tolerance window — the
   /// surface must light a stroke on exactly the window the gate accepts.
   final double speed;
+
+  /// The surfaces the hands/feet selection can play; the rest are drawn faded.
+  final Set<int> playableSurfaces;
 
   /// Style for [laneLabels]; the caller passes the app's own text style.
   final TextStyle? labelStyle;
@@ -518,6 +522,7 @@ class DrumHighwayPainter extends CustomPainter {
       nowMs: nowMs,
       expected: expectedSurfaces,
       waitPulse: waitPulse,
+      playable: playableSurfaces,
       labels: laneLabels,
       kickLabel: kickLabel,
       labelStyle: labelStyle,

@@ -145,6 +145,29 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     return (availableHeight * fraction).clamp(min, max);
   }
 
+  /// A percussion score's drawn kit takes a taller band than the keyboard it
+  /// replaces, in the notation modes that show one. The keyboard's height is
+  /// sized for a strip of thin keys; a kit is a picture — cymbals above,
+  /// drums below, a bass drum under them, each with its name — and squeezed
+  /// into the keyboard's band it reads as a row of tokens rather than as an
+  /// instrument. The play surfaces already give it a third of their height;
+  /// the staff, which needs far less room than a keyboard score's does, can
+  /// afford the same.
+  static const double _kitBandFraction = 0.42;
+  static const double _kitBandFractionPhone = 0.34;
+  static const double _maxKitBandHeight = 280;
+  static const double _maxKitBandHeightPhone = 170;
+
+  double _kitBandHeightFor(double availableHeight, {required bool isPhone}) {
+    final fraction = isPhone ? _kitBandFractionPhone : _kitBandFraction;
+    final min = math.min(
+      isPhone ? _minKeyboardHeightPhone : _minKeyboardHeight,
+      availableHeight * 0.20,
+    );
+    final max = isPhone ? _maxKitBandHeightPhone : _maxKitBandHeight;
+    return (availableHeight * fraction).clamp(min, max);
+  }
+
   /// Random source for the near-miss assist keys (q/s).
   final math.Random _rng = math.Random();
 
@@ -442,6 +465,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                           constraints.maxHeight,
                           isPhone: context.isPhoneLayout,
                         );
+                        final kitBandHeight = _kitBandHeightFor(
+                          constraints.maxHeight,
+                          isPhone: context.isPhoneLayout,
+                        );
                         // Synthesia always shows the keyboard (its cascade
                         // aligns to the keys); the Portée honours the user's
                         // hide-keyboard setting; the engraved Partition never
@@ -500,7 +527,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                             if (data.isPercussion &&
                                 data.mode == RenderMode.staff)
                               SizedBox(
-                                height: keyboardHeight,
+                                height: kitBandHeight,
                                 child: Builder(
                                   builder: (context) {
                                     DrumKitPainter kit(double nowMs) =>
@@ -511,6 +538,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                                           nowMs: nowMs,
                                           expectedSurfaces:
                                               data.expectedDrumSurfaces,
+                                          playable: data.playableDrumSurfaces,
                                           waitPulse: data.blocked
                                               ? 0.5 -
                                                     0.5 *
@@ -537,7 +565,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                                         );
                                     final size = Size(
                                       constraints.maxWidth,
-                                      keyboardHeight,
+                                      kitBandHeight,
                                     );
                                     return Listener(
                                       key: const Key('drum-kit-surface'),
@@ -744,6 +772,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         measureStartMs: data.measureStartMs,
         writtenMeasureOf: data.writtenMeasureOf,
         speed: data.speed,
+        playableSurfaces: data.playableDrumSurfaces,
         beatMs: data.bpm > 0
             ? (60000 / data.bpm) *
                   (4 / (data.beatType == 0 ? 4 : data.beatType))
@@ -817,6 +846,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         measureStartMs: data.measureStartMs,
         writtenMeasureOf: data.writtenMeasureOf,
         speed: data.speed,
+        playableSurfaces: data.playableDrumSurfaces,
         beatMs: data.bpm > 0
             ? (60000 / data.bpm) *
                   (4 / (data.beatType == 0 ? 4 : data.beatType))
@@ -927,6 +957,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
           child: Container(
             color: palette.background,
             child: NotationHelpArea(
+              drumLanes: data.isPercussion ? data.presentedDrumLanes : null,
               builder: (context, hitIndex) => CustomPaint(
                 painter: StaffPainter(
                   notes: data.visibleNotes,
@@ -1844,6 +1875,9 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
                     // detector wraps the canvas itself. Tap and long-press are
                     // distinct gestures, so the arena resolves them apart.
                     return NotationHelpArea(
+                      drumLanes: data.isPercussion
+                          ? data.presentedDrumLanes
+                          : null,
                       builder: (context, hitIndex) => GestureDetector(
                         // Tap-to-select the practice range directly on the score.
                         behavior: HitTestBehavior.opaque,

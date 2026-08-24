@@ -183,8 +183,31 @@ NotationHelp notationHelpFor(
   SymbolDescriptor symbol, {
   required bool solfege,
   required bool frenchRe,
+
+  /// Names the kit piece a percussion note stands for. Passing it is what
+  /// makes the help PERCUSSION help: on a drum staff a note's position is not
+  /// a pitch, so "which key to play, how high it sounds" is not a simplified
+  /// explanation of the symbol — it is a false one, and the clef it hangs
+  /// under is not a treble clef either.
+  String Function(int gm)? drumPieceName,
 }) {
   switch (symbol) {
+    case NoteSymbol(:final pitch, :final noteType, :final dots, :final isGrace)
+        when drumPieceName != null && !isGrace:
+      final piece = drumPieceName(pitch);
+      final beats = notationDurationBeats(l10n, noteType, dots);
+      return (
+        title: l10n.notationHelpDrumNoteTitle(piece),
+        body: beats == null
+            ? l10n.notationHelpDrumNoteBody
+            : '${l10n.notationHelpDrumNoteBody} '
+                  '${l10n.notationHelpNoteDuration(piece, beats)}',
+      );
+    case ClefSymbol(:final sign) when sign == 'percussion':
+      return (
+        title: l10n.notationHelpPercussionClefTitle,
+        body: l10n.notationHelpPercussionClefBody,
+      );
     case NoteSymbol(:final pitch, :final noteType, :final dots, :final isGrace):
       final name = notationPitchName(
         pitch,

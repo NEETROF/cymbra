@@ -59,6 +59,7 @@ class DrumKitPainter extends CustomPainter {
     this.hasKick = true,
     this.expectedSurfaces = const {},
     this.waitPulse = 0,
+    this.playable = const {},
     this.labels = const [],
     this.kickLabel = '',
     this.labelStyle,
@@ -70,6 +71,7 @@ class DrumKitPainter extends CustomPainter {
   final bool hasKick;
   final Set<int> expectedSurfaces;
   final double waitPulse;
+  final Set<int> playable;
   final List<String> labels;
   final String kickLabel;
   final TextStyle? labelStyle;
@@ -91,6 +93,7 @@ class DrumKitPainter extends CustomPainter {
       nowMs: nowMs,
       expected: expectedSurfaces,
       waitPulse: waitPulse,
+      playable: playable,
       labels: labels,
       kickLabel: kickLabel,
       labelStyle: labelStyle,
@@ -104,6 +107,7 @@ class DrumKitPainter extends CustomPainter {
       old.nowMs != nowMs ||
       old.expectedSurfaces != expectedSurfaces ||
       old.waitPulse != waitPulse ||
+      old.playable != playable ||
       old.hasKick != hasKick ||
       old.labels != labels;
 }
@@ -246,6 +250,15 @@ class DrumKitArt {
     /// 0..1 breathing amplitude for the awaited pieces while the gate holds —
     /// a static outline would read as decoration rather than a demand.
     double waitPulse = 0,
+
+    /// The surfaces the current hands/feet selection can actually play. A
+    /// surface outside it is drawn faded: with the feet selected, the hands'
+    /// drums have nothing to do, and a kit that still presents them as live
+    /// targets is lying about the exercise. Faded rather than removed — the
+    /// row keeps its order and its widths, so a player switching selection
+    /// finds every piece where they left it. An empty set means "no selection
+    /// in force": everything is live.
+    Set<int> playable = const {},
     List<String> labels = const [],
     String kickLabel = '',
     TextStyle? labelStyle,
@@ -257,6 +270,9 @@ class DrumKitArt {
       return at == null ? 0 : struckFlashIntensity(struckMs: at, nowMs: nowMs);
     }
 
+    double alpha(int surface) =>
+        playable.isEmpty || playable.contains(surface) ? 1.0 : 0.28;
+
     if (hasKick) {
       _drum(
         canvas,
@@ -265,6 +281,7 @@ class DrumKitArt {
         lit(kPedalSurface),
         awaited: expected.contains(kPedalSurface),
         pulse: waitPulse,
+        fade: alpha(kPedalSurface),
       );
     }
     // Drums first, cymbals over them — how a kit stacks seen from the stool.
@@ -282,6 +299,7 @@ class DrumKitArt {
             lit(i),
             awaited: expected.contains(i),
             pulse: waitPulse,
+            fade: alpha(i),
           );
         } else {
           _drum(
@@ -291,23 +309,32 @@ class DrumKitArt {
             lit(i),
             awaited: expected.contains(i),
             pulse: waitPulse,
+            fade: alpha(i),
           );
         }
       }
     }
 
-    // Names last, each one hung on its OWN piece — a few pixels under the
+    // Names last, each one hung on its OWN piece — a few pixels from the
     // shape it names, not on a shared baseline at the bottom of the band. A
-    // row of names lined up under a row of drums of different heights makes
-    // the reader match them by column; under the drum, there is nothing to
-    // match.
+    // row of names lined up under drums of different heights makes the reader
+    // match them by column; on the drum, there is nothing to match.
+    //
+    // When the names are too long for the columns they sit in — "Tom médium
+    // grave" under a seven-piece kit — they are STAGGERED instead of being
+    // ellipsised into stumps: one row above its piece, one below, so each name
+    // has twice the room before it can touch its neighbour. Truncating is the
+    // worse answer, because two toms whose names differ only in their last
+    // word both end up as "Tom médium…".
+    final stagger = _labelsCollide(labels, labelStyle);
     for (var i = 0; i < lanes.length && i < labels.length; i++) {
+      final room = _nameRoom(i) * (stagger ? 2 : 1);
       _label(
         canvas,
         labels[i],
-        Offset(centreXOf(i), _labelYOf(i)),
-        _step * 0.98,
-        kLaneHues[i % kLaneHues.length],
+        Offset(centreXOf(i), _labelYOf(i, row: stagger && i.isOdd ? 1 : 0)),
+        room,
+        kLaneHues[i % kLaneHues.length].withValues(alpha: alpha(i)),
         labelStyle,
       );
     }
@@ -317,22 +344,77 @@ class DrumKitArt {
         kickLabel,
         Offset(size.width / 2, kickRect.bottom + 4),
         _kickWidth * 1.6,
-        kKickHue,
+        kKickHue.withValues(alpha: alpha(kPedalSurface)),
         labelStyle,
       );
     }
   }
 
-  /// Baseline of the name for [lane]: just below the drawn shape, which for a
-  /// cymbal is the thin ellipse inside its (taller) hit area.
-  double _labelYOf(int lane) {
-    final r = pieceRect(lane);
-    final y = _isCymbal(lanes[lane])
-        ? r.center.dy + r.height / 6 + 5
-        : r.bottom + 4;
-    // Never past the band: a name pushed off the surface names nothing.
-    return math.min(y, size.height - 15);
+  /// Horizontal room a name has before it reaches its neighbour's column.
+  /// Derived from the ACTUAL centres — the row straddles the bass drum when it
+  /// is sparse, so a width computed from the even spread would overrun.
+  double _nameRoom(int lane) {
+    var room = double.infinity;
+    final x = centreXOf(lane);
+    if (lane > 0) room = math.min(room, (x - centreXOf(lane - 1)).abs());
+    if (lane < lanes.length - 1) {
+      room = math.min(room, (centreXOf(lane + 1) - x).abs());
+    }
+    if (room == double.infinity) room = size.width * 0.6;
+    return math.max(room - 8, 24); // a gutter, so two names never touch
   }
+
+  /// Whether any name is wider than the column it would sit in.
+  bool _labelsCollide(List<String> labels, TextStyle? style) {
+    for (var i = 0; i < lanes.length && i < labels.length; i++) {
+      if (_measure(labels[i], style) > _nameRoom(i)) return true;
+    }
+    return false;
+  }
+
+  double _measure(String text, TextStyle? style) {
+    if (text.isEmpty) return 0;
+    final tp = TextPainter(
+      text: TextSpan(text: text, style: _nameStyle(style, Colors.white)),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+    )..layout();
+    return tp.width;
+  }
+
+  TextStyle _nameStyle(TextStyle? style, Color color) =>
+      (style ?? const TextStyle()).copyWith(
+        color: color,
+        fontSize: (style?.fontSize ?? 13).clamp(9.0, 13.0).toDouble(),
+        fontWeight: FontWeight.w600,
+      );
+
+  /// Top of the name for [lane]: just outside the drawn shape, which for a
+  /// cymbal is the thin ellipse inside its (taller) hit area.
+  ///
+  /// The side is chosen per piece by what is free in ITS column: under the
+  /// piece unless the bass drum's band is there, over it otherwise — a name
+  /// written across the bass drum reads as the bass drum's. [row] then picks
+  /// one of two lines on that side, which is what makes a staggered row
+  /// legible: two neighbours never share a line, so each has twice the width.
+  double _labelYOf(int lane, {required int row}) {
+    final r = pieceRect(lane);
+    final cymbal = _isCymbal(lanes[lane]);
+    final shapeTop = cymbal ? r.center.dy - r.height / 6 : r.top;
+    final shapeBottom = cymbal ? r.center.dy + r.height / 6 : r.bottom;
+    const line = labelFontSize + 4;
+    final below = shapeBottom + 4;
+    final fitsBelow =
+        !hasKick || below + line <= kickRect.top || below >= kickRect.bottom;
+    if (fitsBelow) {
+      // Never past the band: a name pushed off the surface names nothing.
+      return math.min(below + row * line, size.height - 15);
+    }
+    return math.max(shapeTop - 3 - line * (row + 1), top + 1);
+  }
+
+  /// The size a name is drawn at, before the style's own clamp.
+  static const double labelFontSize = 13;
 
   void _label(
     Canvas canvas,
@@ -346,11 +428,7 @@ class DrumKitArt {
     final tp = TextPainter(
       text: TextSpan(
         text: text,
-        style: (style ?? const TextStyle()).copyWith(
-          color: color.withValues(alpha: 0.92),
-          fontSize: (style?.fontSize ?? 13).clamp(9.0, 13.0).toDouble(),
-          fontWeight: FontWeight.w600,
-        ),
+        style: _nameStyle(style, color.withValues(alpha: color.a * 0.92)),
       ),
       textDirection: TextDirection.ltr,
       maxLines: 1,
@@ -367,6 +445,7 @@ class DrumKitArt {
     double lit, {
     bool awaited = false,
     double pulse = 0,
+    double fade = 1,
   }) {
     final r = Rect.fromCenter(
       center: box.center,
@@ -376,7 +455,7 @@ class DrumKitArt {
     canvas.drawOval(
       r.inflate(box.width * 0.06),
       Paint()
-        ..color = color.withValues(alpha: 0.18 + 0.5 * lit)
+        ..color = color.withValues(alpha: (0.18 + 0.5 * lit) * fade)
         ..maskFilter = MaskFilter.blur(BlurStyle.normal, box.width * 0.10),
     );
     canvas.drawOval(
@@ -384,13 +463,13 @@ class DrumKitArt {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = (awaited ? 2.6 + 1.8 * pulse : 2.0) + 2 * lit
-        ..color = color.withValues(alpha: awaited ? 1.0 : 0.9),
+        ..color = color.withValues(alpha: (awaited ? 1.0 : 0.9) * fade),
     );
     canvas.drawLine(
       r.center,
       Offset(r.center.dx, box.bottom + box.height * 0.4),
       Paint()
-        ..color = color.withValues(alpha: 0.35)
+        ..color = color.withValues(alpha: 0.35 * fade)
         ..strokeWidth = 1.5,
     );
   }
@@ -402,6 +481,7 @@ class DrumKitArt {
     double lit, {
     bool awaited = false,
     double pulse = 0,
+    double fade = 1,
   }) {
     final w = box.width;
     // Ellipse depth follows the width, but never past the box: in a short
@@ -428,26 +508,38 @@ class DrumKitArt {
     canvas.drawPath(
       shell,
       Paint()
-        ..color = Color.lerp(const Color(0xFF0A0817), color, 0.16 + 0.3 * lit)!,
+        ..color = Color.lerp(
+          const Color(0xFF0A0817),
+          color,
+          (0.16 + 0.3 * lit) * fade,
+        )!,
     );
     canvas.drawPath(
       shell,
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = (awaited ? 2.6 + 1.8 * pulse : 2.0) + 2 * lit
-        ..color = color.withValues(alpha: awaited ? 1.0 : 0.85),
+        ..color = color.withValues(alpha: (awaited ? 1.0 : 0.85) * fade),
     );
     canvas.drawOval(
       head,
       Paint()
-        ..color = Color.lerp(const Color(0xFF0A0817), color, 0.30 + 0.5 * lit)!,
+        ..color = Color.lerp(
+          const Color(0xFF0A0817),
+          color,
+          (0.30 + 0.5 * lit) * fade,
+        )!,
     );
     canvas.drawOval(
       head,
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.6 + 2 * lit
-        ..color = Color.lerp(color, Colors.white, 0.25 + 0.5 * lit)!,
+        ..color = Color.lerp(
+          color,
+          Colors.white,
+          0.25 + 0.5 * lit,
+        )!.withValues(alpha: fade),
     );
   }
 }

@@ -706,6 +706,25 @@ abstract class PlayerData with _$PlayerData {
   int? struckSurfaceFor(int gm) =>
       struckSurfaceOf(presentedDrumLanes, gm, hasPedal: hasKickPedal);
 
+  /// The controller surfaces the current hands/feet selection can play at all.
+  ///
+  /// Derived from the whole score rather than from [visibleNotes] on purpose:
+  /// it answers "does this limb ever touch this piece", not "in this passage",
+  /// so a measure-range practice does not grey out most of the kit. Empty
+  /// outside a percussion score, and empty when nothing is filtered — both
+  /// mean "everything is live", which is what the surfaces draw by default.
+  Set<int> get playableDrumSurfaces {
+    if (!isPercussion || selectedHands == Hand.both) return const {};
+    final multiVoice = spansMultipleVoices(notes);
+    final result = <int>{};
+    for (final n in notes) {
+      if (!_showsNote(n, multiVoice: multiVoice)) continue;
+      final surface = struckSurfaceFor(n.pitch);
+      if (surface != null) result.add(surface);
+    }
+    return result;
+  }
+
   /// Whether the loaded percussion score spans both hand and foot events —
   /// the precondition for offering the hands/feet selector (a feet-less
   /// groove has nothing to isolate).

@@ -775,5 +775,9 @@
   "instrumentChoiceBody": "La tua home mostrerà prima quello strumento. Puoi cambiarlo in qualsiasi momento dal selettore in alto.",
   "drumsEmptyTitle": "Ancora nessuno spartito di batteria qui",
   "drumsEmptyBody": "Niente da mostrare per la batteria al momento: esplora il catalogo dalla lente o torna alla tastiera.",
-  "drumsEmptySwitch": "Torna alla tastiera"
+  "drumsEmptySwitch": "Torna alla tastiera",
+  "notationHelpPercussionClefTitle": "Chiave di percussione",
+  "notationHelpPercussionClefBody": "Questa doppia barra sostituisce la chiave di violino sul pentagramma della batteria. La posizione di una nota non indica più un'altezza: nomina il pezzo del kit da colpire.",
+  "notationHelpDrumNoteTitle": "Colpo ({piece})",
+  "notationHelpDrumNoteBody": "Questa nota dice quale pezzo del kit colpire. La sua posizione sul pentagramma nomina il pezzo, non un'altezza, e la sua durata è lo spazio che occupa prima del colpo successivo."
 }

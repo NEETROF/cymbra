@@ -521,7 +521,11 @@
     "generic": "Une erreur est survenue. Réessaie.",
     "soundfontExists": "Cette SoundFont existe déjà (même id, ou un fichier identique est déjà au catalogue).",
     "soundfontInvalid": "Ce fichier n’est pas une SoundFont (.sf2) valide.",
-    "soundfontTooLarge": "Ce fichier SoundFont est trop volumineux."
+    "soundfontTooLarge": "Ce fichier SoundFont est trop volumineux.",
+    "previewDrumFontMissing": "Aucune sonorité de batterie n'est configurée pour les extraits : choisis une SoundFont de percussion acceptée dans le drapeau catalog.preview.drum_soundfont_id.",
+    "previewFontMissing": "Aucune sonorité n'est configurée pour les extraits : renseigne le drapeau catalog.preview.soundfont_id.",
+    "previewFontUnusable": "La sonorité configurée pour les extraits est inutilisable (introuvable, non acceptée, ou de la mauvaise famille).",
+    "previewSilent": "Ce morceau ne joue rien dans la durée de l'extrait — il n'y a rien à rendre."
   },
   "id": {
     "reveal": "Afficher l'ID complet",

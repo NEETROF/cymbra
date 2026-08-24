@@ -166,17 +166,22 @@ List<CatalogHit> _corpus() => [
   _hit('c3', 'Prelude', 'Claude Debussy', PracticeLevel.advanced),
 ];
 
-ContributedScore _upload(String id, String title, String composer) =>
-    ContributedScore(
-      id: id,
-      level: PracticeLevel.beginner,
-      createdAt: DateTime.utc(2026, 5, 1),
-      measureCount: 4,
-      timeSig: '4/4',
-      keyFifths: 0,
-      title: title,
-      composer: composer,
-    );
+ContributedScore _upload(
+  String id,
+  String title,
+  String composer, {
+  ScoreInstrument? instrument,
+}) => ContributedScore(
+  id: id,
+  level: PracticeLevel.beginner,
+  createdAt: DateTime.utc(2026, 5, 1),
+  measureCount: 4,
+  timeSig: '4/4',
+  keyFifths: 0,
+  title: title,
+  composer: composer,
+  instrument: instrument,
+);
 
 ProviderContainer _container(
   _FakeCatalog catalog, {
@@ -266,6 +271,38 @@ void main() {
     c.read(catalogSearchProvider.notifier).setAuthor('Me');
     final s2 = await _settled(c);
     expect(_ids(s2), ['u1']);
+  });
+
+  test('the instrument filter narrows the user uploads too', () async {
+    // The defect: the uploads are filtered in the CLIENT (they are not part of
+    // the catalog query), and the instrument had no local twin — so picking
+    // "drums" kept a piano upload at the top of the list, which reads as a
+    // broken filter rather than as two sources.
+    final c = _container(
+      _FakeCatalog(_corpus()),
+      uploads: [
+        _upload(
+          'u1',
+          'My Groove',
+          'Me',
+          instrument: ScoreInstrument.percussion,
+        ),
+        _upload('u2', 'My Waltz', 'Me', instrument: ScoreInstrument.keyboard),
+        _upload('u3', 'Unknown', 'Me'),
+      ],
+    );
+    await _settled(c);
+    final notifier = c.read(catalogSearchProvider.notifier)
+      ..setMyScoresOnly(true)
+      ..setInstrument(ScoreInstrument.percussion);
+    expect(_ids(await _settled(c)), ['u1']);
+
+    notifier.setInstrument(ScoreInstrument.keyboard);
+    expect(_ids(await _settled(c)), ['u2']);
+
+    // No filter: everything comes back, unrecorded instrument included.
+    notifier.setInstrument(null);
+    expect(_ids(await _settled(c)), ['u1', 'u2', 'u3']);
   });
 
   test('a new upload refreshes the hub without a manual reload', () async {

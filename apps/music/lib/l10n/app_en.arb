@@ -3336,5 +3336,27 @@
   "drumsEmptySwitch": "Switch to keyboard",
   "@drumsEmptySwitch": {
     "description": "Button switching the context back to keyboard."
+  },
+  "notationHelpPercussionClefTitle": "Percussion clef",
+  "@notationHelpPercussionClefTitle": {
+    "description": "Bubble title for the percussion clef."
+  },
+  "notationHelpPercussionClefBody": "This double bar replaces the treble clef on a drum staff. A note's position no longer means a pitch — it names the kit piece to strike.",
+  "@notationHelpPercussionClefBody": {
+    "description": "Bubble body for the percussion clef."
+  },
+  "notationHelpDrumNoteTitle": "Stroke ({piece})",
+  "@notationHelpDrumNoteTitle": {
+    "description": "Bubble title for a drum note, with its kit piece name.",
+    "placeholders": {
+      "piece": {
+        "type": "String",
+        "example": "Hi-hat"
+      }
+    }
+  },
+  "notationHelpDrumNoteBody": "This note says which kit piece to strike. Its position on the staff names the piece, not a pitch, and its value is the room it takes before the next stroke.",
+  "@notationHelpDrumNoteBody": {
+    "description": "Bubble body for a drum note."
   }
 }
