@@ -98,6 +98,7 @@
   "midiConnecting": "Connessione…",
   "midiStatusNone": "Nessun dispositivo MIDI",
   "modeSynthesia": "Cascata",
+  "modeStage": "Palco",
   "modeStaff": "Pentagramma",
   "modePartition": "Spartito",
   "tempo": "Tempo: {bpm}",

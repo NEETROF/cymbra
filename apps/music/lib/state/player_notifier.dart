@@ -341,6 +341,7 @@ class Player extends _$Player {
       // score's stamps would land on this one's pads (change:
       // add-drum-input-mapping).
       struckSurfacesMs: const {},
+      strokeAtMs: const {},
       isPlaying: false,
       // A range chosen for the previous score means nothing here (and its indices
       // may not even exist in this one): a freshly-loaded document always starts
@@ -507,13 +508,19 @@ class Player extends _$Player {
         if (!state.gateSatisfied.contains(required)) required,
     };
     final atOnset = satisfied.isNotEmpty;
+    final struck = _struckSurfacesAfter(pitch);
     state = state.copyWith(
       activeNotes: active,
       gateSatisfied: atOnset
           ? {...state.gateSatisfied, ...satisfied}
           : state.gateSatisfied,
       consumedHeld: atOnset ? {...consumed, pitch} : consumed,
-      struckSurfacesMs: _struckSurfacesAfter(pitch),
+      struckSurfacesMs: struck,
+      // A stroke that answered the gate right here is SPENT: it is not left
+      // in the table where the early-stroke tolerance could credit it to the
+      // next onset as well. Any other stroke is remembered, on the playhead's
+      // clock, in case the onset it was aimed at is a few milliseconds away.
+      strokeAtMs: _strokeAtAfter(pitch, spent: atOnset),
     );
     // Feed the scorer the attack at the current playhead; it binds to a pending
     // onset or records an extra note (a no-op when no run is active). Presses
@@ -567,6 +574,22 @@ class Player extends _$Player {
       ...state.struckSurfacesMs,
       surface: DateTime.now().millisecondsSinceEpoch.toDouble(),
     };
+  }
+
+  /// [PlayerData.strokeAtMs] after a stroke on [gm]: stamped at the playhead
+  /// for a stroke that answered nothing yet, dropped when it was [spent] on
+  /// the onset it just satisfied.
+  Map<int, double> _strokeAtAfter(int gm, {required bool spent}) {
+    if (!state.isPercussion) return state.strokeAtMs;
+    final surface = state.struckSurfaceFor(gm);
+    if (surface == null) return state.strokeAtMs;
+    final next = {...state.strokeAtMs};
+    if (spent) {
+      next.remove(surface);
+    } else {
+      next[surface] = state.elapsedMs;
+    }
+    return next;
   }
 
   /// Releases a live note from [source]. Mirrors [noteOn]: the release is only
@@ -709,7 +732,11 @@ class Player extends _$Player {
     // Mirroring the layout mirrors the surface indices, so any in-flight
     // struck flash would jump to the pad opposite the one actually struck
     // (change: add-drum-input-mapping). Dropping it is the honest answer.
-    state = state.copyWith(invertedKit: enabled, struckSurfacesMs: const {});
+    state = state.copyWith(
+      invertedKit: enabled,
+      struckSurfacesMs: const {},
+      strokeAtMs: const {},
+    );
   }
 
   /// Sets how much reading help is shown at a held onset, and remembers it
@@ -950,6 +977,41 @@ class Player extends _$Player {
         // no fresh attack — credit the scorer for it (reaction ≈ 0) so it is not
         // later marked missed.
         for (final p in heldDue) {
+          _scorer.noteOn(p, s.clocks, waitMode: true);
+        }
+      }
+    }
+
+    // Wait Mode tolerance, the percussion half (this experiment): a stroke
+    // played slightly EARLY still answers the onset it was aimed at, instead
+    // of being dropped and demanded again. A kit is played by feel — the hand
+    // leaves before the ear checks — and a gate that only accepts a stroke
+    // arriving after the playhead does turns a groove into a typing test.
+    //
+    // The stroke is spent when credited, so one hit never validates two
+    // onsets, and only strokes inside [kStrokeToleranceMs] count.
+    if (s.waitMode && s.isPercussion && onset.isNotEmpty) {
+      final earlyDue = <int>{};
+      final strokes = {...s.strokeAtMs};
+      for (final required in onset) {
+        if (s.gateSatisfied.contains(required)) continue;
+        final surface = s.struckSurfaceFor(required);
+        if (surface == null) continue;
+        final at = strokes[surface];
+        // Measured on the playhead: the window is a musical one, and it is
+        // the SAME number the surfaces light a stroke with.
+        if (at == null || s.elapsedMs - at > kStrokeToleranceMs) continue;
+        earlyDue.add(required);
+        strokes.remove(surface); // spent — never credited twice
+      }
+      if (earlyDue.isNotEmpty) {
+        s = s.copyWith(
+          gateSatisfied: {...s.gateSatisfied, ...earlyDue},
+          strokeAtMs: strokes,
+        );
+        // Credit the scorer for the stroke it already saw as an extra note's
+        // worth of nothing: it answered this onset, just before it opened.
+        for (final p in earlyDue) {
           _scorer.noteOn(p, s.clocks, waitMode: true);
         }
       }

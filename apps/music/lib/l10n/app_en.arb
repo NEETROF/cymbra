@@ -422,6 +422,10 @@
     "description": "Top-bar MIDI status: no device present."
   },
   "modeSynthesia": "Cascade",
+  "modeStage": "Stage",
+  "@modeStage": {
+    "description": "Render-mode toggle: the perspective reading of the cascade, offered for percussion scores only (experiment: drum-highway)."
+  },
   "@modeSynthesia": {
     "description": "Render-mode toggle: the falling-notes view. Named Cascade rather than after the third-party piano app whose trademark it would borrow; localised natively in each language."
   },

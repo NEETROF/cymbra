@@ -95,7 +95,7 @@ class DrumPadStripPainter extends CustomPainter {
   /// pass's value (change: add-drum-input-mapping, task 7.3). Short enough
   /// that a two-finger roll stays a sequence of distinct flashes rather than
   /// smearing into a solid glow, long enough to be seen under a fast groove.
-  static const int flashDurationMs = 180;
+  static const int flashDurationMs = kStruckFlashMs;
 
   /// [flashDurationMs] as a [Duration], for the repaint clock the strip runs
   /// on while playback is stopped.
@@ -113,11 +113,7 @@ class DrumPadStripPainter extends CustomPainter {
   static double flashIntensity({
     required double struckMs,
     required double nowMs,
-  }) {
-    final age = nowMs - struckMs;
-    if (age < 0 || age >= flashDurationMs) return 0;
-    return 1 - age / flashDurationMs;
-  }
+  }) => struckFlashIntensity(struckMs: struckMs, nowMs: nowMs);
 
   /// The controller surface under a pointer at [local] on a strip of [size]:
   /// the index of the pad whose horizontal span contains it, [kPedalSurface]

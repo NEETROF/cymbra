@@ -17,9 +17,9 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/painters/drum_cascade_painter.dart';
+import 'package:music/painters/drum_kit_art.dart';
 import 'package:music/state/drum_kit.dart';
 import 'package:music/state/player_data.dart';
-import 'package:music/theme/cymbra_theme.dart';
 
 /// Pixel-probe proof of the cascade's paint order (change: add-drum-kit-view).
 ///
@@ -33,18 +33,28 @@ void main() {
   const width = 400;
   const height = 300;
 
-  Future<ui.Image> paintCascade(List<TimedNote> notes) async {
+  const size = Size(width * 1.0, height * 1.0);
+
+  /// Paints the surface AND hands back the painter, so every probe asks the
+  /// painter where it drew rather than re-deriving the layout — the probes
+  /// that re-derived it silently missed the notes the day the kit moved.
+  Future<(ui.Image, DrumCascadePainter)> paintCascade(
+    List<TimedNote> notes, {
+    bool hasKick = true,
+  }) async {
     final lanes = deriveDrumLanes(notes);
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
-    DrumCascadePainter(
+    final painter = DrumCascadePainter(
       lanes: lanes,
       notes: notes,
       multiVoice: spansMultipleVoices(notes),
       elapsedMs: 0,
       lookAheadMs: 3000,
-    ).paint(canvas, const Size(width * 1.0, height * 1.0));
-    return recorder.endRecording().toImage(width, height);
+      hasKick: hasKick,
+    );
+    painter.paint(canvas, size);
+    return (await recorder.endRecording().toImage(width, height), painter);
   }
 
   Future<Color> pixel(ui.Image image, int x, int y) async {
@@ -73,24 +83,29 @@ void main() {
       TimedNote(pitch: 38, startMs: 1500, durationMs: 300, voice: 1),
       TimedNote(pitch: 36, startMs: 1500, durationMs: 200, voice: 2),
     ];
-    final image = await paintCascade(notes);
+    final (image, painter) = await paintCascade(notes);
 
-    // The onset's hit-line y: bottom = height - (start/lookAhead)*height.
-    const onsetY = height - (1500 / 3000) * height; // 150
-    // Sample INSIDE the snare note's body, just above its attack edge.
-    final snareLaneCenterX = (width * 3 / 4).round(); // lane 2 of 2
-    final noteProbe = await pixel(image, snareLaneCenterX, onsetY.round() - 4);
+    // Sample INSIDE the snare stroke's disc, at the exact point the painter
+    // put it.
+    final snare = painter.strokeCentre(notes[1], size);
+    final noteProbe = await pixel(image, snare.dx.round(), snare.dy.round());
     // Sample the bar where nothing sits over it: the hi-hat lane's clear
-    // stretch at the same instant.
-    final hiHatLaneCenterX = (width * 1 / 4).round();
-    final barProbe = await pixel(image, hiHatLaneCenterX, onsetY.round() - 3);
-    final background = await pixel(image, hiHatLaneCenterX, 10);
+    // stretch at the same instant. The bar hangs just ABOVE the onset line
+    // (its bottom edge IS the instant), so probe inside that band.
+    final hiHatX = painter.kitArtFor(size).centreXOf(0).round();
+    final barProbe = await pixel(
+      image,
+      hiHatX,
+      (snare.dy - DrumCascadePainter.kickBarHeight / 2).round(),
+    );
+    final background = await pixel(image, hiHatX, 10);
 
-    // The note reads as the HAND colour — not the amber bar, not background:
-    // the note was painted over the bar, so blue dominates at its center.
+    // The note reads as its LANE's hue — not the amber bar, not background:
+    // the note was painted over the bar, so its colour dominates at its
+    // center.
+    final snareHue = kLaneHues[1];
     expect(
-      dist(noteProbe, CymbraColors.handRight) <
-          dist(noteProbe, CymbraColors.handLeft),
+      dist(noteProbe, snareHue) < dist(noteProbe, kKickHue),
       isTrue,
       reason:
           'the coinciding hand note must stay legible over the kick bar '
@@ -102,10 +117,9 @@ void main() {
       isTrue,
       reason: 'the kick bar must stay visible away from the notes',
     );
-    // And it reads amber-ish (the foot colour), not blue.
+    // And it reads amber-ish (the feet's colour), not the lane's.
     expect(
-      dist(barProbe, CymbraColors.handLeft) <
-          dist(barProbe, CymbraColors.handRight),
+      dist(barProbe, kKickHue) < dist(barProbe, snareHue),
       isTrue,
       reason: 'the bar carries the foot colour',
     );
@@ -118,25 +132,32 @@ void main() {
       TimedNote(pitch: 42, startMs: 1500, durationMs: 300, voice: 1),
       TimedNote(pitch: 46, startMs: 600, durationMs: 300, voice: 1),
     ];
-    final image = await paintCascade(notes);
-    const closedY = height - (1500 / 3000) * height - 8;
-    const openY = height - (600 / 3000) * height - 8;
-    final laneX = (width / 2).round(); // single lane spans the width
-    final closedProbe = await pixel(image, laneX, closedY.round());
-    final openProbe = await pixel(image, laneX, openY.round());
-    final background = await pixel(image, laneX, 5);
+    // No kick in this score, so the single lane keeps the middle of the row.
+    final (image, painter) = await paintCascade(notes, hasKick: false);
+    final closed = painter.strokeCentre(notes[0], size);
+    final open = painter.strokeCentre(notes[1], size);
+    final closedProbe = await pixel(
+      image,
+      closed.dx.round(),
+      closed.dy.round(),
+    );
+    final openProbe = await pixel(image, open.dx.round(), open.dy.round());
+    final background = await pixel(image, closed.dx.round(), 5);
 
     expect(
       dist(closedProbe, background) > 40,
       isTrue,
       reason: 'a closed stroke is a filled note',
     );
+    // Hollow is judged AGAINST the filled stroke, not against an absolute
+    // threshold: both discs carry the same soft glow, and only the fill
+    // separates them.
     expect(
-      dist(openProbe, background) < 40,
+      dist(openProbe, background) < dist(closedProbe, background) / 2,
       isTrue,
       reason:
           'an open stroke is hollow — its center shows the background '
-          'through the outline',
+          'through the outline (open $openProbe vs closed $closedProbe)',
     );
   });
 }

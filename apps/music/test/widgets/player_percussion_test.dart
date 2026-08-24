@@ -14,14 +14,18 @@
 
 import 'package:flutter/foundation.dart'
     show debugDefaultTargetPlatformOverride;
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/painters/drum_cascade_painter.dart';
+import 'package:music/painters/drum_kit_art.dart';
 import 'package:music/painters/partition_painter.dart';
 import 'package:music/painters/staff_painter.dart';
 import 'package:music/painters/drum_pad_strip_painter.dart';
+import 'package:music/painters/drum_highway_painter.dart';
 import 'package:music/screens/player_screen.dart';
 import 'package:music/services/audio_service.dart';
 import 'package:music/services/midi_service.dart';
@@ -125,10 +129,59 @@ Future<void> _teardown(WidgetTester tester, ProviderContainer container) async {
   container.dispose();
 }
 
+/// Where to tap to strike [surface] (a lane index, or [kPedalSurface] for the
+/// kick) on the drawn kit — computed with the SAME geometry the painter used,
+/// so these taps cannot drift from what is on screen.
+Offset _kitPoint(
+  WidgetTester tester,
+  List<DrumLane> lanes,
+  int surface, {
+  bool stage = false,
+}) {
+  final rect = tester.getRect(find.byKey(const Key('drum-kit-surface')));
+  final art = DrumKitArt(
+    lanes: lanes,
+    size: rect.size,
+    // The cascade reserves its bottom third for the kit; the stage's band
+    // starts at its hit line.
+    top: rect.height * (stage ? 0.62 : 0.66),
+  );
+  final local = surface == kPedalSurface
+      ? art.kickRect.center
+      : art.pieceRect(surface).center;
+  return rect.topLeft + local;
+}
+
 void main() {
-  testWidgets('a percussion score routes to the cascade and the pad strip', (
-    tester,
-  ) async {
+  testWidgets('EXPERIMENT (drum-highway): the stage is a fourth mode, offered '
+      'for a percussion score only', (tester) async {
+    final c = await _pumpPercussion(tester);
+
+    // Four segments on a drum score: cascade, stage, staff, partition.
+    expect(find.text('Stage'), findsOneWidget);
+    await tester.tap(find.text('Stage'));
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(c.read(playerProvider).mode, RenderMode.stage);
+    // It draws the highway, not the flat cascade.
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is CustomPaint && w.painter is DrumHighwayPainter,
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is CustomPaint && w.painter is DrumCascadePainter,
+      ),
+      findsNothing,
+    );
+    await _teardown(tester, c);
+  });
+
+  testWidgets('a percussion score routes to the cascade, which draws its own '
+      'kit instead of a strip', (tester) async {
     final c = await _pumpPercussion(tester);
     final data = c.read(playerProvider);
 
@@ -138,8 +191,11 @@ void main() {
       [for (final l in data.drumLanes) l.labelKey],
       ['kitPieceHiHat', 'kitPieceSnare'],
     );
-    // The pad strip replaces the on-screen keyboard…
-    expect(find.byKey(const Key('pad-strip')), findsOneWidget);
+    // EXPERIMENT (drum-highway): the kit is drawn INSIDE the play surface,
+    // and the strip of labelled rectangles under it is gone — it said the
+    // same thing twice and put what you strike away from what you read.
+    expect(find.byKey(const Key('drum-kit-surface')), findsOneWidget);
+    expect(find.byKey(const Key('pad-strip')), findsNothing);
     expect(find.byKey(const Key('onscreen-keyboard')), findsNothing);
     // …and the cascade is the mode in force.
     expect(data.mode, RenderMode.synthesia);
@@ -190,9 +246,13 @@ void main() {
     final wasPlaying = c.read(playerProvider).isPlaying;
     final elapsedBefore = c.read(playerProvider).elapsedMs;
 
-    // Staff mode: the scrolling staff replaces the cascade.
+    // Staff mode: the scrolling staff replaces the cascade, and the DRAWN
+    // KIT takes the band under it — the staff engraves notes but offers
+    // nothing to aim at, and one score must not teach two pictures of the
+    // same instrument.
     await tester.tap(find.text('Staff'));
     await tester.pump(const Duration(milliseconds: 50));
+    expect(find.byKey(const Key('drum-kit')), findsOneWidget);
     expect(
       find.byWidgetPredicate(
         (w) => w is CustomPaint && w.painter is StaffPainter,
@@ -212,6 +272,8 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
     }
     expect(find.byKey(const Key('partition-canvas')), findsOneWidget);
+    // …and the Partition draws NO kit: a printed page is read, not aimed at.
+    expect(find.byKey(const Key('drum-kit')), findsNothing);
     expect(
       find.byWidgetPredicate(
         (w) => w is CustomPaint && w.painter is PartitionPainter,
@@ -283,10 +345,9 @@ void main() {
       'and the pad flashes', (tester) async {
     final c = await _pumpPercussion(tester, kitReady: true);
     final audio = c.read(audioServiceProvider) as RecordingAudioService;
-    final strip = tester.getRect(find.byKey(const Key('pad-strip')));
-    // The groove's lanes are hi-hat then snare: tap the middle of the snare.
+    // The groove's lanes are hi-hat then snare: strike the drawn snare.
     await tester.tapAt(
-      strip.topLeft + Offset(strip.width * 0.75, strip.height * 0.3),
+      _kitPoint(tester, c.read(playerProvider).presentedDrumLanes, 1),
     );
     await tester.pump(const Duration(milliseconds: 16));
 
@@ -298,8 +359,16 @@ void main() {
     expect(data.struckSurfacesMs.keys, [1]); // the snare pad flashes
     // …and the painter is actually handed the flash.
     final painter =
-        tester.widget<CustomPaint>(find.byKey(const Key('pad-strip'))).painter
-            as DrumPadStripPainter;
+        tester
+                .widgetList<CustomPaint>(
+                  find.descendant(
+                    of: find.byKey(const Key('drum-kit-surface')),
+                    matching: find.byType(CustomPaint),
+                  ),
+                )
+                .first
+                .painter
+            as DrumCascadePainter;
     expect(painter.struckMs.keys, [1]);
     expect(
       DrumPadStripPainter.flashIntensity(
@@ -311,25 +380,29 @@ void main() {
     await _teardown(tester, c);
   });
 
-  testWidgets('the whole strip is live: a tap in the gutter between two pads '
-      'still strikes, and the pedal band is all kick', (tester) async {
+  testWidgets('the kit has no dead gaps: a tap between two drums still '
+      'strikes the nearer one, and the band under them is all kick', (
+    tester,
+  ) async {
     final c = await _pumpPercussion(tester, kitReady: true);
     final audio = c.read(audioServiceProvider) as RecordingAudioService;
-    final strip = tester.getRect(find.byKey(const Key('pad-strip')));
-    // Exactly on the boundary between the two drawn pads — the 3 px inset is
+    final lanes = c.read(playerProvider).presentedDrumLanes;
+    final surface = tester.getRect(find.byKey(const Key('drum-kit-surface')));
+    // Between the hi-hat and the snare, just above the kick band: the gap is
     // styling, not a hit boundary. A swallowed tap here is a ghost stroke.
+    final hat = _kitPoint(tester, lanes, 0);
+    final snare = _kitPoint(tester, lanes, 1);
     await tester.tapAt(
-      strip.topLeft + Offset(strip.width / 2 - 1, strip.height * 0.2),
+      Offset((hat.dx + snare.dx) / 2 - 1, math.min(hat.dy, snare.dy)),
     );
     await tester.pump(const Duration(milliseconds: 16));
-    expect(audio.drumOns.map((e) => e.key), [42]); // the hi-hat's span
+    expect(audio.drumOns.map((e) => e.key), [42]); // the nearer piece
 
-    // The pedal band: kick from edge to edge, whatever the horizontal aim.
-    await tester.tapAt(strip.topLeft + Offset(4, strip.height * 0.95));
+    // The kick's band runs edge to edge under the drums.
+    final kickY = _kitPoint(tester, lanes, kPedalSurface).dy;
+    await tester.tapAt(Offset(surface.left + 4, kickY));
     await tester.pump(const Duration(milliseconds: 16));
-    await tester.tapAt(
-      strip.topLeft + Offset(strip.width - 4, strip.height * 0.85),
-    );
+    await tester.tapAt(Offset(surface.right - 4, kickY));
     await tester.pump(const Duration(milliseconds: 16));
     expect(audio.drumOns.map((e) => e.key), [42, 36, 36]);
     expect(
@@ -339,17 +412,16 @@ void main() {
     await _teardown(tester, c);
   });
 
-  testWidgets('multi-touch: two pads struck together both emit, and a '
-      'two-finger roll on ONE pad emits every stroke', (tester) async {
+  testWidgets('multi-touch: two drums struck together both emit, and a '
+      'two-finger roll on ONE drum emits every stroke', (tester) async {
     final c = await _pumpPercussion(tester, kitReady: true);
     final audio = c.read(audioServiceProvider) as RecordingAudioService;
-    final strip = tester.getRect(find.byKey(const Key('pad-strip')));
-    Offset pad(double fraction) =>
-        strip.topLeft + Offset(strip.width * fraction, strip.height * 0.3);
+    final lanes = c.read(playerProvider).presentedDrumLanes;
+    Offset pad(int lane) => _kitPoint(tester, lanes, lane);
 
-    // Two different pads at once.
-    final hat = await tester.startGesture(pad(0.25));
-    final snare = await tester.startGesture(pad(0.75));
+    // Two different drums at once.
+    final hat = await tester.startGesture(pad(0));
+    final snare = await tester.startGesture(pad(1));
     await tester.pump(const Duration(milliseconds: 16));
     expect(audio.drumOns.map((e) => e.key), [42, 38]);
     await hat.up();
@@ -361,12 +433,12 @@ void main() {
     // keyboard-style retrigger exclusivity, because one-shots have no
     // sustained voice an extra attack could steal.
     audio.drumOns.clear();
-    final left = await tester.startGesture(pad(0.7));
+    final left = await tester.startGesture(pad(1));
     await tester.pump(const Duration(milliseconds: 16));
-    final right = await tester.startGesture(pad(0.8));
+    final right = await tester.startGesture(pad(1) + const Offset(6, 0));
     await tester.pump(const Duration(milliseconds: 16));
     await left.up();
-    final again = await tester.startGesture(pad(0.7));
+    final again = await tester.startGesture(pad(1));
     await tester.pump(const Duration(milliseconds: 16));
     await right.up();
     await again.up();
@@ -380,9 +452,11 @@ void main() {
   ) async {
     final c = await _pumpPercussion(tester, kitReady: true);
     final audio = c.read(audioServiceProvider) as RecordingAudioService;
-    final strip = tester.getRect(find.byKey(const Key('pad-strip')));
-    final snare =
-        strip.topLeft + Offset(strip.width * 0.75, strip.height * 0.3);
+    final snare = _kitPoint(
+      tester,
+      c.read(playerProvider).presentedDrumLanes,
+      1,
+    );
 
     expect(c.read(playerProvider).isPlaying, isFalse);
     await tester.tapAt(snare);
@@ -403,13 +477,19 @@ void main() {
   testWidgets('the struck flash animates on its own clock while playback is '
       'stopped', (tester) async {
     final c = await _pumpPercussion(tester);
-    final strip = tester.getRect(find.byKey(const Key('pad-strip')));
-    DrumPadStripPainter painter() =>
-        tester.widget<CustomPaint>(find.byKey(const Key('pad-strip'))).painter
-            as DrumPadStripPainter;
+    DrumCascadePainter painter() =>
+        tester
+                .widgetList<CustomPaint>(
+                  find.byWidgetPredicate(
+                    (w) => w is CustomPaint && w.painter is DrumCascadePainter,
+                  ),
+                )
+                .first
+                .painter
+            as DrumCascadePainter;
 
     await tester.tapAt(
-      strip.topLeft + Offset(strip.width * 0.75, strip.height * 0.3),
+      _kitPoint(tester, c.read(playerProvider).presentedDrumLanes, 1),
     );
     await tester.pump(const Duration(milliseconds: 16));
     expect(c.read(playerProvider).isPlaying, isFalse);
@@ -417,16 +497,20 @@ void main() {
     await tester.pump(const Duration(milliseconds: 16));
     final second = painter();
     // A fresh painter on the next frame with no playhead moving at all: the
-    // strip repaints on the flash's clock, not on playback frames.
+    // kit repaints on the flash's clock, not on playback frames.
     expect(identical(first, second), isFalse);
     expect(second.struckMs.keys, [1]);
     await _teardown(tester, c);
   });
 
-  testWidgets('feedback lives on the controller: the cascade receives no '
-      'stroke state at all', (tester) async {
+  testWidgets('a stroke lights the kit and changes nothing about what falls', (
+    tester,
+  ) async {
+    // EXPERIMENT (drum-highway): the kit moved INTO the cascade, so the
+    // painter does receive the stroke state — what must stay true is the
+    // division itself: striking a drum lights that drum and leaves the
+    // falling surface exactly as it was.
     final c = await _pumpPercussion(tester);
-    final strip = tester.getRect(find.byKey(const Key('pad-strip')));
     DrumCascadePainter cascade() =>
         tester
                 .widgetList<CustomPaint>(
@@ -440,16 +524,16 @@ void main() {
 
     final before = cascade();
     await tester.tapAt(
-      strip.topLeft + Offset(strip.width * 0.75, strip.height * 0.3),
+      _kitPoint(tester, c.read(playerProvider).presentedDrumLanes, 1),
     );
     await tester.pump(const Duration(milliseconds: 16));
-    // The pad flashed…
+    // The struck drum lights up…
     expect(c.read(playerProvider).struckSurfacesMs.keys, [1]);
-    // …and every input the cascade paints from is byte-identical across the
-    // stroke — it is handed no stroke state at all, so it cannot react to
-    // one. The same division the keyboard makes between its keys and the
-    // waterfall.
     final after = cascade();
+    expect(after.struckMs.keys, [1]);
+    // …and every input the FALLING surface is drawn from is unchanged across
+    // the stroke: the same division the keyboard makes between its keys and
+    // the waterfall, now inside one painter.
     expect(after.elapsedMs, before.elapsedMs);
     expect(after.lanes, before.lanes);
     expect(after.multiVoice, before.multiVoice);
@@ -533,7 +617,7 @@ void main() {
     await _teardown(tester, c);
   });
 
-  testWidgets('the phone layout keeps the strip and inherits the phone mode '
+  testWidgets('the phone layout draws the kit and inherits the phone mode '
       'set: cascade + Staff, Partition remapped away', (tester) async {
     // Phone landscape: the same routing holds on the small form factor — the
     // strip follows the phone keyboard-height policy and the toggle is
@@ -554,7 +638,10 @@ void main() {
       for (var i = 0; i < 4; i++) {
         await tester.pump(const Duration(milliseconds: 50));
       }
-      expect(find.byKey(const Key('pad-strip')), findsOneWidget);
+      // The kit is drawn in the play surface on a phone too; the strip is
+      // gone from the cascade there as everywhere else.
+      expect(find.byKey(const Key('drum-kit-surface')), findsOneWidget);
+      expect(find.byKey(const Key('pad-strip')), findsNothing);
       expect(find.byKey(const Key('onscreen-keyboard')), findsNothing);
       expect(find.byIcon(Icons.music_note), findsOneWidget); // Staff segment
       expect(find.byIcon(Icons.article), findsNothing); // no Partition here

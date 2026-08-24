@@ -31,6 +31,45 @@ import 'player_data.dart' show TimedNote;
 /// worse failure than an inelegant lane (no-silent-drop requirement).
 enum KitPieceRole { hiHat, snare, tom, ride, crash, other }
 
+/// How far from a written onset a stroke still counts as that stroke, in
+/// milliseconds either side.
+///
+/// A kit is played by feel, not by aim: the hand leaves before the ear checks,
+/// and a window narrower than the player's own jitter turns a groove into a
+/// typing test. The keyboard has always had its equivalent — a key held into
+/// its onset satisfies it with no fresh press — and this is the percussion
+/// half of the same tolerance: it releases the Wait Mode gate for a stroke
+/// played slightly EARLY, and it is the window in which a surface lights the
+/// note it answered.
+///
+/// One number, shared by the gate and by both drawn surfaces, so what is
+/// accepted and what is shown can never drift apart.
+const double kStrokeToleranceMs = 150;
+
+/// How long a struck surface stays lit, in milliseconds.
+const int kStruckFlashMs = 180;
+
+/// [kStruckFlashMs] as a [Duration], for the repaint clock a surface runs on
+/// while playback is stopped.
+const Duration kStruckFlash = Duration(milliseconds: kStruckFlashMs);
+
+/// The flash intensity of a surface struck at [struckMs] as seen at [nowMs]:
+/// 1 at the attack, decaying linearly to 0 over [kStruckFlashMs]. Pure, so
+/// the decay is testable without a clock.
+///
+/// Time-based, never hold-based: a percussion release arrives within
+/// milliseconds of its attack, so a highlight that lasted the hold would be an
+/// invisible flicker. Nothing here depends on the note-off, on the playhead,
+/// or on whether the stroke landed on an onset — one state, claiming nothing.
+///
+/// Lives with the kit model rather than with any one painter: every surface
+/// that draws a struck piece reads the same decay.
+double struckFlashIntensity({required double struckMs, required double nowMs}) {
+  final age = nowMs - struckMs;
+  if (age < 0 || age >= kStruckFlashMs) return 0;
+  return 1 - age / kStruckFlashMs;
+}
+
 /// The kick's General MIDI numbers — 35 (acoustic) and 36 (bass drum 1) both
 /// drive the full-width bar and never occupy a lane: a lane encodes *where to
 /// aim*, and the foot does not aim.

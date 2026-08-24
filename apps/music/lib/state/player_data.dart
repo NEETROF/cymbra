@@ -28,7 +28,10 @@ part 'player_data.freezed.dart';
 
 /// The score rendering modes: scrolling staff, Synthesia waterfall, and the
 /// engraved Partition (sheet-music) view of a loaded MusicXML score.
-enum RenderMode { staff, synthesia, partition }
+/// The play surfaces. `stage` is the perspective reading of the cascade and is
+/// offered for PERCUSSION ONLY (experiment: drum-highway): a keyboard score has
+/// 88 lanes, which no vanishing point survives.
+enum RenderMode { staff, synthesia, partition, stage }
 
 /// Which hand(s) the player shows and awaits. Follows the engine's MusicXML
 /// convention: staff 1 is the right hand, staff 2 (and above) the left hand.
@@ -400,6 +403,14 @@ abstract class PlayerData with _$PlayerData {
 
     /// End of the song (ms).
     @Default(0.0) double songEndMs,
+
+    /// The last UNSPENT stroke per surface, stamped on the **playhead's**
+    /// clock (not the wall clock [struckSurfacesMs] uses for its flash): the
+    /// early-stroke tolerance is a musical window, so it has to be measured
+    /// where the onset lives. An entry is removed the moment its stroke is
+    /// credited to an onset, which is what stops one stroke from validating
+    /// two. Percussion only; cleared with [struckSurfacesMs].
+    @Default(<int, double>{}) Map<int, double> strokeAtMs,
 
     /// Start time (ms) of each measure, in order (Partition cursor placement).
     /// Empty for the demo score; populated from a parsed MusicXML document.

@@ -98,6 +98,7 @@
   "midiConnecting": "Connexion…",
   "midiStatusNone": "Aucun appareil MIDI",
   "modeSynthesia": "Cascade",
+  "modeStage": "Scène",
   "modeStaff": "Portée",
   "modePartition": "Partition",
   "tempo": "Tempo : {bpm}",

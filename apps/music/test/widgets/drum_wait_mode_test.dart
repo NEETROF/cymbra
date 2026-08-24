@@ -15,7 +15,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:music/painters/drum_pad_strip_painter.dart';
+import 'package:music/painters/drum_kit_art.dart';
+import 'package:music/painters/drum_cascade_painter.dart';
 import 'package:music/screens/player_screen.dart';
 import 'package:music/services/audio_service.dart';
 import 'package:music/services/midi_service.dart';
@@ -97,9 +98,33 @@ Future<void> _teardown(WidgetTester tester, ProviderContainer container) async {
   container.dispose();
 }
 
-DrumPadStripPainter _strip(WidgetTester tester) =>
-    tester.widget<CustomPaint>(find.byKey(const Key('pad-strip'))).painter!
-        as DrumPadStripPainter;
+/// EXPERIMENT (drum-highway): the awaited pieces pulse on the DRAWN kit, so
+/// the assertion reads the cascade painter that draws it.
+DrumCascadePainter _strip(WidgetTester tester) =>
+    tester
+            .widgetList<CustomPaint>(
+              find.byWidgetPredicate(
+                (w) => w is CustomPaint && w.painter is DrumCascadePainter,
+              ),
+            )
+            .first
+            .painter!
+        as DrumCascadePainter;
+
+/// Where to tap to strike [surface] on the drawn kit, from the app's own
+/// geometry rather than a copy of the layout arithmetic.
+Offset _kitPoint(WidgetTester tester, List<DrumLane> lanes, int surface) {
+  final rect = tester.getRect(find.byKey(const Key('drum-kit-surface')));
+  final art = DrumKitArt(
+    lanes: lanes,
+    size: rect.size,
+    top: rect.height * 0.66,
+  );
+  return rect.topLeft +
+      (surface == kPedalSurface
+          ? art.kickRect.center
+          : art.pieceRect(surface).center);
+}
 
 void main() {
   testWidgets('the gate freezes at the first onset and releases only when '
@@ -168,8 +193,8 @@ void main() {
     await _teardown(tester, c);
   });
 
-  testWidgets('an early strike does not pre-satisfy the next onset — a stroke '
-      'is an attack, never a hold', (tester) async {
+  testWidgets('a strike EARLIER than the tolerance does not pre-satisfy the '
+      'next onset — a stroke is an attack, never a hold', (tester) async {
     final c = await _pump(tester);
     final player = c.read(playerProvider.notifier);
     player.startPlayback();
@@ -191,8 +216,9 @@ void main() {
     expect(c.read(playerProvider).activeNotes, contains(42));
     await _frames(tester, count: 16); // the playhead reaches 600 ms
 
-    // The gate is waiting all the same: the early stroke satisfied nothing,
-    // and the still-held pad does not walk it through.
+    // The gate is waiting all the same: the stroke was played hundreds of
+    // milliseconds before the onset — far outside [kStrokeToleranceMs] — so
+    // it satisfied nothing, and the still-held pad does not walk it through.
     expect(c.read(playerProvider).elapsedMs, 600);
     expect(c.read(playerProvider).blocked, isTrue);
     await _frames(tester, count: 4);
@@ -209,6 +235,45 @@ void main() {
     player.noteOn(42);
     await _frames(tester, count: 2);
     expect(c.read(playerProvider).blocked, isFalse);
+    await _teardown(tester, c);
+  });
+
+  testWidgets('a stroke a hair early still validates the onset, and is spent '
+      'doing it', (tester) async {
+    final c = await _pump(tester);
+    final player = c.read(playerProvider.notifier);
+    player.startPlayback();
+    await _frames(tester, count: 3);
+
+    // Clear onset 1 (0 ms) and run toward onset 2 (600 ms: hat 42 + snare 38).
+    player
+      ..noteOn(42)
+      ..noteOn(49)
+      ..noteOn(36);
+    await _frames(tester, count: 2);
+    expect(c.read(playerProvider).blocked, isFalse);
+
+    // Stop the playhead INSIDE the tolerance window, before the onset.
+    while (c.read(playerProvider).elapsedMs < 600 - kStrokeToleranceMs + 10) {
+      await _frames(tester);
+    }
+    final early = c.read(playerProvider).elapsedMs;
+    expect(early, lessThan(600));
+    expect(600 - early, lessThanOrEqualTo(kStrokeToleranceMs));
+
+    // Both strokes, played a hair before the beat — as a drummer plays.
+    player
+      ..noteOn(42)
+      ..noteOn(38);
+    await _frames(tester, count: 6);
+
+    // The playhead walked straight through the onset: nothing was demanded a
+    // second time.
+    expect(c.read(playerProvider).blocked, isFalse);
+    expect(c.read(playerProvider).elapsedMs, greaterThan(600));
+    // And both strokes were SPENT crossing it, so neither can be credited to
+    // a later onset as well.
+    expect(c.read(playerProvider).strokeAtMs, isEmpty);
     await _teardown(tester, c);
   });
 
@@ -316,18 +381,12 @@ void main() {
       await _frames(tester, count: 4);
       expect(c.read(playerProvider).blocked, isTrue);
 
-      final strip = find.byKey(const Key('pad-strip'));
-      final box = tester.getRect(strip);
       final lanes = c.read(playerProvider).presentedDrumLanes;
-      final padWidth = box.width / lanes.length;
       for (var i = 0; i < lanes.length; i++) {
-        await tester.tapAt(
-          Offset(box.left + padWidth * (i + 0.5), box.top + 8),
-        );
+        await tester.tapAt(_kitPoint(tester, lanes, i));
         await _frames(tester);
       }
-      // The pedal band sits at the bottom of the strip.
-      await tester.tapAt(Offset(box.center.dx, box.bottom - 6));
+      await tester.tapAt(_kitPoint(tester, lanes, kPedalSurface));
       await _frames(tester, count: 2);
       expect(c.read(playerProvider).blocked, isFalse);
       await _teardown(tester, c);

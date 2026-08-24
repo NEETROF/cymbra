@@ -282,7 +282,7 @@ void main() {
   });
 
   testWidgets('a bundled drum score opens from the home into the cascade '
-      'player with the pad strip', (tester) async {
+      'player with its drawn kit', (tester) async {
     final prefs = FakePreferencesService({
       InstrumentContext.prefsKey: _stored(AppInstrument.drums),
     });
@@ -300,7 +300,8 @@ void main() {
     await _pumpFrames(tester);
 
     expect(find.byType(PlayerScreen), findsOneWidget);
-    expect(find.byKey(const Key('pad-strip')), findsOneWidget);
+    // The cascade draws its own kit now; the strip is gone.
+    expect(find.byKey(const Key('drum-kit-surface')), findsOneWidget);
     expect(find.byKey(const Key('onscreen-keyboard')), findsNothing);
     await _teardown(tester, container);
   });
