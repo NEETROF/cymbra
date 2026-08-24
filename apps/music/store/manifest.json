@@ -11,7 +11,9 @@
     "synthesia",
     "staff",
     "courses",
-    "measures"
+    "measures",
+    "drums",
+    "drums_staff"
   ],
   "targets": [
     {
@@ -97,6 +99,22 @@
       "heightPx": 1320
     },
     {
+      "path": "store/ios/iphone_6.9/en/06_drums.png",
+      "target": "ios/iphone_6.9",
+      "locale": "en",
+      "surface": "drums",
+      "widthPx": 2868,
+      "heightPx": 1320
+    },
+    {
+      "path": "store/ios/iphone_6.9/en/07_drums_staff.png",
+      "target": "ios/iphone_6.9",
+      "locale": "en",
+      "surface": "drums_staff",
+      "widthPx": 2868,
+      "heightPx": 1320
+    },
+    {
       "path": "store/ios/iphone_6.9/fr/01_library.png",
       "target": "ios/iphone_6.9",
       "locale": "fr",
@@ -133,6 +151,22 @@
       "target": "ios/iphone_6.9",
       "locale": "fr",
       "surface": "measures",
+      "widthPx": 2868,
+      "heightPx": 1320
+    },
+    {
+      "path": "store/ios/iphone_6.9/fr/06_drums.png",
+      "target": "ios/iphone_6.9",
+      "locale": "fr",
+      "surface": "drums",
+      "widthPx": 2868,
+      "heightPx": 1320
+    },
+    {
+      "path": "store/ios/iphone_6.9/fr/07_drums_staff.png",
+      "target": "ios/iphone_6.9",
+      "locale": "fr",
+      "surface": "drums_staff",
       "widthPx": 2868,
       "heightPx": 1320
     },
@@ -177,6 +211,22 @@
       "heightPx": 1320
     },
     {
+      "path": "store/ios/iphone_6.9/it/06_drums.png",
+      "target": "ios/iphone_6.9",
+      "locale": "it",
+      "surface": "drums",
+      "widthPx": 2868,
+      "heightPx": 1320
+    },
+    {
+      "path": "store/ios/iphone_6.9/it/07_drums_staff.png",
+      "target": "ios/iphone_6.9",
+      "locale": "it",
+      "surface": "drums_staff",
+      "widthPx": 2868,
+      "heightPx": 1320
+    },
+    {
       "path": "store/ios/iphone_6.9/es/01_library.png",
       "target": "ios/iphone_6.9",
       "locale": "es",
@@ -213,6 +263,22 @@
       "target": "ios/iphone_6.9",
       "locale": "es",
       "surface": "measures",
+      "widthPx": 2868,
+      "heightPx": 1320
+    },
+    {
+      "path": "store/ios/iphone_6.9/es/06_drums.png",
+      "target": "ios/iphone_6.9",
+      "locale": "es",
+      "surface": "drums",
+      "widthPx": 2868,
+      "heightPx": 1320
+    },
+    {
+      "path": "store/ios/iphone_6.9/es/07_drums_staff.png",
+      "target": "ios/iphone_6.9",
+      "locale": "es",
+      "surface": "drums_staff",
       "widthPx": 2868,
       "heightPx": 1320
     },
@@ -257,6 +323,22 @@
       "heightPx": 2064
     },
     {
+      "path": "store/ios/ipad_13/en/06_drums.png",
+      "target": "ios/ipad_13",
+      "locale": "en",
+      "surface": "drums",
+      "widthPx": 2752,
+      "heightPx": 2064
+    },
+    {
+      "path": "store/ios/ipad_13/en/07_drums_staff.png",
+      "target": "ios/ipad_13",
+      "locale": "en",
+      "surface": "drums_staff",
+      "widthPx": 2752,
+      "heightPx": 2064
+    },
+    {
       "path": "store/ios/ipad_13/fr/01_library.png",
       "target": "ios/ipad_13",
       "locale": "fr",
@@ -293,6 +375,22 @@
       "target": "ios/ipad_13",
       "locale": "fr",
       "surface": "measures",
+      "widthPx": 2752,
+      "heightPx": 2064
+    },
+    {
+      "path": "store/ios/ipad_13/fr/06_drums.png",
+      "target": "ios/ipad_13",
+      "locale": "fr",
+      "surface": "drums",
+      "widthPx": 2752,
+      "heightPx": 2064
+    },
+    {
+      "path": "store/ios/ipad_13/fr/07_drums_staff.png",
+      "target": "ios/ipad_13",
+      "locale": "fr",
+      "surface": "drums_staff",
       "widthPx": 2752,
       "heightPx": 2064
     },
@@ -337,6 +435,22 @@
       "heightPx": 2064
     },
     {
+      "path": "store/ios/ipad_13/it/06_drums.png",
+      "target": "ios/ipad_13",
+      "locale": "it",
+      "surface": "drums",
+      "widthPx": 2752,
+      "heightPx": 2064
+    },
+    {
+      "path": "store/ios/ipad_13/it/07_drums_staff.png",
+      "target": "ios/ipad_13",
+      "locale": "it",
+      "surface": "drums_staff",
+      "widthPx": 2752,
+      "heightPx": 2064
+    },
+    {
       "path": "store/ios/ipad_13/es/01_library.png",
       "target": "ios/ipad_13",
       "locale": "es",
@@ -373,6 +487,22 @@
       "target": "ios/ipad_13",
       "locale": "es",
       "surface": "measures",
+      "widthPx": 2752,
+      "heightPx": 2064
+    },
+    {
+      "path": "store/ios/ipad_13/es/06_drums.png",
+      "target": "ios/ipad_13",
+      "locale": "es",
+      "surface": "drums",
+      "widthPx": 2752,
+      "heightPx": 2064
+    },
+    {
+      "path": "store/ios/ipad_13/es/07_drums_staff.png",
+      "target": "ios/ipad_13",
+      "locale": "es",
+      "surface": "drums_staff",
       "widthPx": 2752,
       "heightPx": 2064
     },
@@ -417,6 +547,22 @@
       "heightPx": 900
     },
     {
+      "path": "store/macos/desktop_1440x900/en/06_drums.png",
+      "target": "macos/desktop_1440x900",
+      "locale": "en",
+      "surface": "drums",
+      "widthPx": 1440,
+      "heightPx": 900
+    },
+    {
+      "path": "store/macos/desktop_1440x900/en/07_drums_staff.png",
+      "target": "macos/desktop_1440x900",
+      "locale": "en",
+      "surface": "drums_staff",
+      "widthPx": 1440,
+      "heightPx": 900
+    },
+    {
       "path": "store/macos/desktop_1440x900/fr/01_library.png",
       "target": "macos/desktop_1440x900",
       "locale": "fr",
@@ -453,6 +599,22 @@
       "target": "macos/desktop_1440x900",
       "locale": "fr",
       "surface": "measures",
+      "widthPx": 1440,
+      "heightPx": 900
+    },
+    {
+      "path": "store/macos/desktop_1440x900/fr/06_drums.png",
+      "target": "macos/desktop_1440x900",
+      "locale": "fr",
+      "surface": "drums",
+      "widthPx": 1440,
+      "heightPx": 900
+    },
+    {
+      "path": "store/macos/desktop_1440x900/fr/07_drums_staff.png",
+      "target": "macos/desktop_1440x900",
+      "locale": "fr",
+      "surface": "drums_staff",
       "widthPx": 1440,
       "heightPx": 900
     },
@@ -497,6 +659,22 @@
       "heightPx": 900
     },
     {
+      "path": "store/macos/desktop_1440x900/it/06_drums.png",
+      "target": "macos/desktop_1440x900",
+      "locale": "it",
+      "surface": "drums",
+      "widthPx": 1440,
+      "heightPx": 900
+    },
+    {
+      "path": "store/macos/desktop_1440x900/it/07_drums_staff.png",
+      "target": "macos/desktop_1440x900",
+      "locale": "it",
+      "surface": "drums_staff",
+      "widthPx": 1440,
+      "heightPx": 900
+    },
+    {
       "path": "store/macos/desktop_1440x900/es/01_library.png",
       "target": "macos/desktop_1440x900",
       "locale": "es",
@@ -533,6 +711,22 @@
       "target": "macos/desktop_1440x900",
       "locale": "es",
       "surface": "measures",
+      "widthPx": 1440,
+      "heightPx": 900
+    },
+    {
+      "path": "store/macos/desktop_1440x900/es/06_drums.png",
+      "target": "macos/desktop_1440x900",
+      "locale": "es",
+      "surface": "drums",
+      "widthPx": 1440,
+      "heightPx": 900
+    },
+    {
+      "path": "store/macos/desktop_1440x900/es/07_drums_staff.png",
+      "target": "macos/desktop_1440x900",
+      "locale": "es",
+      "surface": "drums_staff",
       "widthPx": 1440,
       "heightPx": 900
     },
@@ -577,6 +771,22 @@
       "heightPx": 1080
     },
     {
+      "path": "store/android/phone_16x9/en/06_drums.png",
+      "target": "android/phone_16x9",
+      "locale": "en",
+      "surface": "drums",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
+      "path": "store/android/phone_16x9/en/07_drums_staff.png",
+      "target": "android/phone_16x9",
+      "locale": "en",
+      "surface": "drums_staff",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
       "path": "store/android/phone_16x9/fr/01_library.png",
       "target": "android/phone_16x9",
       "locale": "fr",
@@ -613,6 +823,22 @@
       "target": "android/phone_16x9",
       "locale": "fr",
       "surface": "measures",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
+      "path": "store/android/phone_16x9/fr/06_drums.png",
+      "target": "android/phone_16x9",
+      "locale": "fr",
+      "surface": "drums",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
+      "path": "store/android/phone_16x9/fr/07_drums_staff.png",
+      "target": "android/phone_16x9",
+      "locale": "fr",
+      "surface": "drums_staff",
       "widthPx": 1920,
       "heightPx": 1080
     },
@@ -657,6 +883,22 @@
       "heightPx": 1080
     },
     {
+      "path": "store/android/phone_16x9/it/06_drums.png",
+      "target": "android/phone_16x9",
+      "locale": "it",
+      "surface": "drums",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
+      "path": "store/android/phone_16x9/it/07_drums_staff.png",
+      "target": "android/phone_16x9",
+      "locale": "it",
+      "surface": "drums_staff",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
       "path": "store/android/phone_16x9/es/01_library.png",
       "target": "android/phone_16x9",
       "locale": "es",
@@ -693,6 +935,22 @@
       "target": "android/phone_16x9",
       "locale": "es",
       "surface": "measures",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
+      "path": "store/android/phone_16x9/es/06_drums.png",
+      "target": "android/phone_16x9",
+      "locale": "es",
+      "surface": "drums",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
+      "path": "store/android/phone_16x9/es/07_drums_staff.png",
+      "target": "android/phone_16x9",
+      "locale": "es",
+      "surface": "drums_staff",
       "widthPx": 1920,
       "heightPx": 1080
     }

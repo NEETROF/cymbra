@@ -68,6 +68,11 @@ const String _locale = String.fromEnvironment(
   defaultValue: 'en',
 );
 
+/// The bundled drum groove the percussion surfaces are captured on: two voices,
+/// an open hi-hat and a crash, so the lanes, the kick bar and the engraved
+/// percussion all have something to show (change: add-instrument-context 6.1).
+const String _drumScoreId = 'groove-ouvert';
+
 /// The score the player surfaces are captured on: a visually dense bundled
 /// piece, so the falling notes and the staff have something to show.
 const String _scoreId = 'arabesque-l-66-no-1-in-e-major';
@@ -221,6 +226,67 @@ void main() {
       reason: 'the learning path did not open',
     );
     await _shot(tester, binding, target, 'courses');
+
+    // --- 06 drums / 07 drums_staff -----------------------------------------
+    // Back to the library, then switch the instrument context the way a user
+    // does — through the header switcher — which re-seeds the home on the
+    // bundled drum grooves (change: add-instrument-context).
+    navigator.pop();
+    await _settle(tester, frames: 15);
+    final switcher = find.byKey(const Key('instrument-switcher'));
+    await _bringIntoView(tester, switcher, delta: -200);
+    expect(
+      switcher,
+      findsOneWidget,
+      reason: 'the drum feature is not visible — the capture override is gone',
+    );
+    await tester.tap(
+      find.descendant(
+        of: switcher,
+        matching: find.byIcon(Icons.album_outlined),
+      ),
+    );
+    await _settle(tester, frames: 15);
+
+    final drumCard = find.byWidgetPredicate(
+      (w) => w is ScoreCard && w.entry.id == _drumScoreId,
+    );
+    await _bringIntoView(tester, drumCard, delta: 200);
+    expect(
+      drumCard,
+      findsOneWidget,
+      reason: 'the capture drum score left the bundled catalog',
+    );
+    await tester.tap(drumCard);
+    await _settle(tester, frames: 30);
+
+    await tester.tap(find.byKey(const Key('pre-play-primary')));
+    await _settle(tester, frames: 10);
+    expect(
+      container.read(playerProvider).isPercussion,
+      isTrue,
+      reason: 'the drum score did not route to the percussion presentation',
+    );
+
+    // Strokes arrive exactly as an electronic kit sends them — the same
+    // performed-not-raced approach as the piano leg (changes:
+    // add-drum-input-mapping, add-drum-scoring).
+    container.read(playerProvider.notifier).setPlaying(true);
+    await _settle(tester, frames: 10);
+    await _perform(tester, container, midi, onsets: 10);
+    expect(
+      container.read(performanceScorerProvider).syncPercent,
+      greaterThan(50),
+      reason: 'the drum gauge would advertise a failed performance',
+    );
+    await _shot(tester, binding, target, 'drums');
+
+    container.read(playerProvider.notifier).setMode(RenderMode.staff);
+    await _settle(tester, frames: 10);
+    await _perform(tester, container, midi, onsets: 4);
+    await _shot(tester, binding, target, 'drums_staff');
+    container.read(playerProvider.notifier).setPlaying(false);
+    await _settle(tester, frames: 6);
   });
 }
 

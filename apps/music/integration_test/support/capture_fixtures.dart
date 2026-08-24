@@ -40,7 +40,9 @@ import 'package:music/src/rust/api/midi.dart' show MidiEvent, MidiEventKind;
 import 'package:music/state/app_locale.dart';
 import 'package:music/state/coaching_notifier.dart';
 import 'package:music/state/contributed_scores.dart';
+import 'package:music/state/drums_access.dart';
 import 'package:music/state/favorite_scores.dart';
+import 'package:music/state/instrument_context.dart';
 import 'package:music/state/onboarding_notifier.dart';
 import 'package:music/state/saved_catalog_scores.dart';
 import 'package:music/state/score_catalog.dart';
@@ -99,6 +101,14 @@ List<Override> captureOverrides({
     const CaptureCourseProgress(),
   ),
 
+  // --- Drums (change: add-drum-notation-render … add-drum-scoring) ---------
+  // The drum feature is server-gated in production; the captures show it, so
+  // the visibility predicate is forced on here. Consequences handled above and
+  // below: the bundled drum grooves join the catalog (and therefore the seeded
+  // favorites), and the one-time instrument choice is pre-answered in
+  // [CapturePrefs] so its modal can never open over a capture.
+  drumsEnabledProvider.overrideWithValue(true),
+
   // --- Devices --------------------------------------------------------------
   midiServiceProvider.overrideWithValue(midi),
   // Silent audio: a capture needs no sound, and the real service extracts a
@@ -116,6 +126,12 @@ class CapturePrefs implements PreferencesService {
         Onboarding.languagePrefsKey: 'true',
         Onboarding.welcomePrefsKey: 'true',
         for (final hint in CoachHint.values) hint.prefsKey: 'true',
+        // The instrument choice is already answered (keyboard), so the home
+        // opens on the piano repertoire and the one-time modal can never cover
+        // a capture; the drum surfaces are reached through the switcher, the
+        // way a user reaches them (change: add-instrument-context).
+        InstrumentContext.prefsKey:
+            '{"context":"keyboard","choiceOffered":true}',
       };
 
   final Map<String, String> _store;
