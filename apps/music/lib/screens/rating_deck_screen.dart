@@ -21,8 +21,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../l10n/gen/app_localizations.dart';
 import '../services/rating_service.dart';
 import '../state/coaching_notifier.dart';
+import '../state/piano_catalog.dart';
 import '../state/rating_deck_notifier.dart';
 import '../state/score_catalog.dart';
+import '../state/selected_kit.dart';
 import '../state/selected_piano.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/app_snackbar.dart';
@@ -50,6 +52,13 @@ class RatingDeckScreen extends ConsumerWidget {
         backgroundColor: CymbraColors.surfaceContainerLowest,
         // Swap the instrument sound the card auto-preview plays with — a compact
         // combobox so the moderator can audition scores with any catalog sound.
+        //
+        // It follows the family of the card ON SCREEN (change:
+        // add-drum-audio-channel): a drum card is auditioned through the kit
+        // memory, everything else through the piano memory. Bound to the piano
+        // alone, the control offered a knob that changes nothing about what is
+        // being heard — and would have silently retuned the piano while the
+        // moderator was listening to a groove.
         actions: [
           // The account control is the curator standing pill (change: add-
           // curation-rewards) — it replaces the plain person icon; opens the
@@ -61,11 +70,26 @@ class RatingDeckScreen extends ConsumerWidget {
               // Wide enough that the "Add a SoundFont…" item fits the dropdown
               // menu (its width follows the field) without truncating.
               width: 260,
-              child: SoundSelectorField(
-                dense: true,
-                value: ref.watch(selectedPianoProvider),
-                onChanged: (id) =>
-                    ref.read(selectedPianoProvider.notifier).select(id),
+              child: Builder(
+                builder: (context) {
+                  final percussion =
+                      ref.watch(
+                        ratingDeckProvider.select((s) => s.topCard?.instrument),
+                      ) ==
+                      ScoreInstrument.percussion;
+                  return SoundSelectorField(
+                    dense: true,
+                    family: percussion
+                        ? SoundFamily.percussion
+                        : SoundFamily.keyboard,
+                    value: percussion
+                        ? ref.watch(selectedKitProvider)
+                        : ref.watch(selectedPianoProvider),
+                    onChanged: (id) => percussion
+                        ? ref.read(selectedKitProvider.notifier).select(id)
+                        : ref.read(selectedPianoProvider.notifier).select(id),
+                  );
+                },
               ),
             ),
           ),

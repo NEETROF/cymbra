@@ -68,6 +68,13 @@ instrument context SHALL never participate in this decision — the score carrie
 its own instrument (`music-instrument-context`), so a keyboard score opened
 under a drums context loads a keyboard font.
 
+The rule holds on every surface that AUDITIONS a score, not only the player:
+the rating deck's card preview and the upload preview sound through the same
+two memories, keyed the same way. A control that lets the listener change the
+sound SHALL change the one being heard — offering the piano picker over a drum
+card is a knob that does nothing, and moves the piano behind the listener's
+back.
+
 Because the font swap parses off-thread and keeps the outgoing font until the
 incoming one is ready, the player SHALL NOT sound a percussion score's notes
 before the kit font is installed: the swap SHALL expose a completion the player
@@ -91,6 +98,13 @@ silence without crashing, exactly as the keyboard path degrades today.
 
 - **WHEN** the home instrument context is drums and a keyboard score is opened
 - **THEN** a keyboard-family font is loaded, not a kit
+
+#### Scenario: An audition surface offers the sound it is playing
+
+- **WHEN** a percussion card is on top of the rating deck
+- **THEN** the deck's sound picker selects among percussion-family fonts and
+  writes the kit memory — and goes back to the keyboard memory on the next
+  keyboard card
 
 #### Scenario: A missing chosen kit falls back to the bundled kit
 

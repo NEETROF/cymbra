@@ -115,16 +115,20 @@ class FakeDeckCatalogService implements CatalogService {
 /// A minimal catalog hit for the deck tests. Defaults to `accepted`; pass
 /// `moderationStatus: 'pending'` to model a not-yet-validated candidate (change:
 /// rate-pending-scores).
-CatalogHit deckHit(String id, {String moderationStatus = 'accepted'}) =>
-    CatalogHit(
-      id: id,
-      title: 'Piece $id',
-      composer: 'Composer',
-      level: PracticeLevel.beginner,
-      license: 'CC-BY-4.0',
-      source: 'pdmx',
-      moderationStatus: moderationStatus,
-    );
+CatalogHit deckHit(
+  String id, {
+  String moderationStatus = 'accepted',
+  ScoreInstrument? instrument,
+}) => CatalogHit(
+  id: id,
+  title: 'Piece $id',
+  composer: 'Composer',
+  level: PracticeLevel.beginner,
+  license: 'CC-BY-4.0',
+  source: 'pdmx',
+  moderationStatus: moderationStatus,
+  instrument: instrument,
+);
 
 /// `n` accepted hits (`c0`, `c1`, …).
 List<CatalogHit> deckCorpus([int n = 3]) => [
