@@ -51,12 +51,18 @@ run is active the chip SHALL be hidden.
 On each judged onset the system SHALL show brief, Guitar-Hero–style visual feedback at
 the note's location (e.g. a spark/flash whose intensity tracks the timing verdict) and
 SHALL maintain and surface a combo/streak counter that increments on consecutive
-non-missed onsets and resets on a miss or wrong note. For a **percussion** score
-the feedback SHALL anchor to the note's **lane** at the hit line, and a kick's
-feedback to the **full-width bar** at the hit line — the bar is a note in a
-different shape, and a kick landed cleanly deserves the same spark as a snare.
-The feedback SHALL be transient
-and SHALL NOT leave persistent clutter over the play surface.
+non-missed onsets and resets on a miss or wrong note. The feedback SHALL be
+transient and SHALL NOT leave persistent clutter over the play surface.
+
+For a **percussion** score the feedback is the surface's own: the note the
+stroke answered LIGHTS, and the piece that was struck flashes
+(`music-drum-kit-view`, `keyboard-display`). No separate spark layer SHALL be
+drawn over the play surface. Two surfaces drawing the same event twice is the
+defect this replaces — the layer anchored its sparks to the bottom of the
+screen, which stopped being where anything happens the day the surfaces drew
+the kit there, so a clean hit lit the note in one place and threw a half-clipped
+circle in another. The timing VERDICT is carried by the sync gauge and the
+score, not by the kit: a stroke either answered its note or did not.
 
 #### Scenario: Perfect hit shows the strongest spark
 
@@ -80,9 +86,8 @@ and SHALL NOT leave persistent clutter over the play surface.
 - **THEN** the hit sparks — which anchor to the keyboard/note-hit line — are not drawn,
   while the sync gauge still shows
 
-#### Scenario: A kick's feedback lands on the bar
+#### Scenario: A percussion run draws no spark layer
 
-- **WHEN** a kick onset is judged in the cascade
-- **THEN** its hit effect is shown on the full-width bar at the hit line, and a
-  hand stroke's on its lane — a percussion play surface always draws its own
-  kit under the hit line, so the sparks are always drawn there
+- **WHEN** a scored percussion run is played on either play surface
+- **THEN** no spark overlay is drawn over it — the answered note lighting and
+  the struck piece's flash are the whole of the per-note feedback

@@ -16,7 +16,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/painters/drum_cascade_painter.dart';
-import 'package:music/painters/drum_hit_effects_painter.dart';
 import 'package:music/painters/hit_effects_painter.dart';
 import 'package:music/painters/staff_painter.dart';
 import 'package:music/screens/player_screen.dart';
@@ -243,21 +242,20 @@ void main() {
       await _teardown(tester, c);
     });
 
-    testWidgets('nothing floats over the lanes: the cascade carries only the '
-        'transient sparks', (tester) async {
+    testWidgets('nothing floats over the play surface: the feedback is IN it', (
+      tester,
+    ) async {
       final c = await _pumpPlayer(tester);
       c.read(playerProvider.notifier)
         ..toggleWaitMode()
         ..setPlaying(true);
       await _frames(tester, count: 3);
-      // The percussion spark layer is the cascade's only scoring overlay, and
-      // the keyboard-anchored one is nowhere near it.
-      expect(
-        find.byWidgetPredicate(
-          (w) => w is CustomPaint && w.painter is DrumHitEffectsPainter,
-        ),
-        findsOneWidget,
-      );
+      // A percussion run carries no spark layer at all: the surface lights the
+      // note the stroke answered and flashes the piece that was struck, both
+      // inside the painter that drew them. The separate layer that used to
+      // float over the lanes anchored its sparks to the bottom of the screen —
+      // under the drawn kit, where nothing happens — and the keyboard's own
+      // layer has never applied here.
       expect(
         find.byWidgetPredicate(
           (w) => w is CustomPaint && w.painter is HitEffectsPainter,

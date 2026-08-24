@@ -813,11 +813,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
           ),
           Positioned.fill(
             child: IgnorePointer(
-              child: DrumScoringOverlay(lanes: data.presentedDrumLanes),
-            ),
-          ),
-          Positioned.fill(
-            child: IgnorePointer(
               child: _ScoreLoadOverlay(
                 notation: notation,
                 hasSelection: hasSelection,
@@ -893,11 +888,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                   ),
                 );
               },
-            ),
-          ),
-          Positioned.fill(
-            child: IgnorePointer(
-              child: DrumScoringOverlay(lanes: data.presentedDrumLanes),
             ),
           ),
           Positioned.fill(
