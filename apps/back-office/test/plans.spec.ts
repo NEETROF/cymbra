@@ -1,5 +1,8 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
+import { flushPromises, mount } from "@vue/test-utils";
+import { i18n } from "@/i18n";
+import PlansView from "@/views/PlansView.vue";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { setClientsForTest } from "@/lib/api";
 import { accountRef, isRevocableSource, membersCsv, revenueCatCustomerUrl, usePlansStore } from "@/stores/plans";
@@ -304,5 +307,107 @@ describe("plans store", () => {
       expect(store.badges.data.u1).toMatchObject({ plan: "premium", trial: true });
       expect(store.badges.data.u2).toMatchObject({ plan: "free" });
     } else throw new Error("expected success");
+  });
+});
+
+describe("plans view — the reopen controls", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+  });
+
+  /** A campaign closed to newcomers but still live for its members. */
+  const enrolmentClosed = {
+    id: "c4",
+    key: "half-open",
+    name: "Half open",
+    kind: "feature",
+    acceptsEnrolment: false,
+  };
+
+  async function mountView(campaigns: unknown[], extra = {}) {
+    const { clients, state } = makeFakeClients({ campaigns, ...extra });
+    setClientsForTest(clients);
+    const pinia = createPinia();
+    setActivePinia(pinia);
+    const w = mount(PlansView, { global: { plugins: [i18n, pinia] } });
+    await flushPromises();
+    return { w, state };
+  }
+
+  const buttonsOf = (w: Awaited<ReturnType<typeof mountView>>["w"], key: string) => {
+    const row = w.findAll("tbody tr").find((r) => r.text().includes(key))!;
+    return row.findAll("button").map((b) => b.text());
+  };
+
+  it("offers each reopen only where it applies", async () => {
+    const { w } = await mountView([featureCampaign, closedCampaign, enrolmentClosed]);
+
+    // A live, joinable campaign: neither reopen makes sense.
+    expect(buttonsOf(w, "midi-drums")).not.toContain("Reopen campaign");
+    expect(buttonsOf(w, "midi-drums")).not.toContain("Reopen enrolment");
+    // A closed one: the campaign can come back. Its enrolment control waits
+    // until it is live again — one decision at a time.
+    expect(buttonsOf(w, "old-beta")).toContain("Reopen campaign");
+    expect(buttonsOf(w, "old-beta")).not.toContain("Reopen enrolment");
+    // Live but shut to newcomers: only the enrolment half is offered.
+    expect(buttonsOf(w, "half-open")).toContain("Reopen enrolment");
+    expect(buttonsOf(w, "half-open")).not.toContain("Reopen campaign");
+  });
+
+  it("states how many memberships a reopening will restore, before acting", async () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    const { w, state } = await mountView([closedCampaign], { reactivatable: 12 });
+
+    const row = w.findAll("tbody tr").find((r) => r.text().includes("old-beta"))!;
+    await row
+      .findAll("button")
+      .find((b) => b.text() === "Reopen campaign")!
+      .trigger("click");
+    await flushPromises();
+
+    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(confirm.mock.calls[0][0]).toContain("12");
+    expect(state.reopenCampaignCalls).toEqual(["old-beta"]);
+    confirm.mockRestore();
+  });
+
+  it("a refused confirmation reopens nothing", async () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const { w, state } = await mountView([closedCampaign], { reactivatable: 3 });
+
+    const row = w.findAll("tbody tr").find((r) => r.text().includes("old-beta"))!;
+    await row
+      .findAll("button")
+      .find((b) => b.text() === "Reopen campaign")!
+      .trigger("click");
+    await flushPromises();
+
+    expect(state.reopenCampaignCalls).toEqual([]);
+    confirm.mockRestore();
+  });
+
+  it("closing a TRIAL's enrolment warns that granted trials keep running", async () => {
+    // The asymmetry: a feature beta ends the moment its campaign closes, but a
+    // trial's premium was granted for a term. A trial campaign has no
+    // close-campaign button at all, so closing ENROLMENT is the only lever the
+    // console offers — and it is where the warning has to be.
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const { w } = await mountView([trialCampaign, featureCampaign]);
+
+    const trialRow = w.findAll("tbody tr").find((r) => r.text().includes("spring-trial"))!;
+    expect(trialRow.findAll("button").map((b) => b.text())).not.toContain("Close campaign");
+    const closeEnrolment = trialRow.findAll("button").find((b) => b.text() === "Close enrolment")!;
+    await closeEnrolment.trigger("click");
+    expect(confirm.mock.calls[0][0]).toContain("run to their own end date");
+
+    // A feature beta's own confirmation says the opposite half: closing is a
+    // pause, and reopening restores its members.
+    const featureRow = w.findAll("tbody tr").find((r) => r.text().includes("midi-drums"))!;
+    await featureRow
+      .findAll("button")
+      .find((b) => b.text() === "Close campaign")!
+      .trigger("click");
+    expect(confirm.mock.calls[1][0]).toContain("PAUSE");
+    confirm.mockRestore();
   });
 });

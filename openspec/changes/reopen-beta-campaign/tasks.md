@@ -16,7 +16,7 @@
 - [x] 3.1 The action on a closed campaign's row, where "Fermer la campagne" sits on an open one — actions sur la ligne : « Rouvrir la campagne » sur une fermée, « Rouvrir les inscriptions » sur une campagne vive aux inscriptions closes
 - [x] 3.2 Confirmation naming the count: "N adhésions vont être réactivées" — confirmation « N adhésions vont être réactivées », comptées côté serveur
 - [x] 3.3 A closed campaign's member list shows its rows as inactive — les membres d'une campagne fermée s'affichent « en pause (campagne fermée) » et grisés
-- [ ] 3.4 Where the two kinds are managed, make visible that closing a trial does not revoke the premium it granted
+- [x] 3.4 Where the two kinds are managed, make visible that closing a trial does not revoke the premium it granted — la console le dit là où le levier existe : une campagne d'ESSAI n'a pas de bouton « fermer la campagne », donc l'avertissement est sur la fermeture des INSCRIPTIONS (« les essais déjà accordés courent jusqu'à leur terme ») ; la confirmation d'une bêta fonctionnalité dit l'autre moitié (fermer = pause, rouvrir restaure)
 - [x] 3.5 fr/en strings
 
 ## 4. Tests
@@ -25,10 +25,10 @@
 - [x] 4.2 A membership revoked before the close stays out after the reopen — service : une adhésion révoquée n'est pas comptée dans les réactivables
 - [x] 4.3 Reopening a campaign whose enrolment is closed leaves redemptions refused — les deux réouvertures sont deux actes distincts (test store)
 - [x] 4.4 A closed trial campaign's entitlement runs to its own end; reopening grants nothing new — `closing_a_trial_campaign_leaves_its_granted_premium_running` : plan premium conservé, aucune clé bêta
-- [ ] 4.5 Back office: the action appears only on closed rows, and the confirmation carries the count
+- [x] 4.5 Back office: the action appears only on closed rows, and the confirmation carries the count
 
 ## 5. Gates
-
+ — test de vue : chaque réouverture n'apparaît que là où elle s'applique, la confirmation porte le compte, un refus ne rouvre rien, et les deux confirmations de fermeture disent chacune leur moitié
 - [x] 5.1 `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, workspace tests — `cargo fmt`/`clippy` clean, `cymbra-plans` 72 tests verts
 - [x] 5.2 Back office `typecheck`, `lint`, `vitest run` — typecheck, lint, prettier clean ; 281 tests back-office
 - [x] 5.3 `openspec validate reopen-beta-campaign --strict`

@@ -174,10 +174,18 @@ async function submitCreate() {
   );
   if (ok) modal.value = null;
 }
+/** On a TRIAL campaign, closing enrolment is the only lever the console offers
+ *  (a trial campaign has no close-campaign button), and it means less than it
+ *  looks: it stops new trials, it takes back none of the ones already granted —
+ *  those run to their own end date, and reopening returns nothing either. An
+ *  admin must not believe they stopped something they did not. */
 async function closeEnrolment(c: CampaignMsg) {
-  if (!ask(t("plans.closeEnrolmentConfirm", { key: c.key }))) return;
+  const key = c.kind === "premium_trial" ? "plans.closeTrialEnrolmentConfirm" : "plans.closeEnrolmentConfirm";
+  if (!ask(t(key, { key: c.key }))) return;
   report(await store.closeEnrollment(c.key), t("plans.enrolmentClosed"));
 }
+/** Feature betas only — a trial campaign has no close button (see
+ *  `closeEnrolment`, which carries the trial's own warning). */
 async function closeCampaign(c: CampaignMsg) {
   if (!ask(t("plans.closeCampaignConfirm", { key: c.key }))) return;
   report(await store.closeCampaign(c.key), t("plans.campaignClosed"));
@@ -771,6 +779,13 @@ onMounted(() => void store.loadCampaigns(true));
 }
 tr.inactive td {
   opacity: 0.55;
+}
+/* …except the actions. A closed campaign's row is dimmed to say the campaign is
+   over, but its controls are the one thing on that row that still works — and
+   the reopen button IS the row's reason to exist. Dimmed, they read as disabled
+   while remaining clickable, which is worse than not dimming them at all. */
+tr.inactive td.row-actions {
+  opacity: 1;
 }
 .empty {
   color: var(--muted);
