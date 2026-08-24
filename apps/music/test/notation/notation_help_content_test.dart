@@ -138,6 +138,34 @@ void main() {
         );
       });
 
+      test('the drum glossary drops what only a pitched staff has', () {
+        final keyboard = notationGlossarySamplesFor(percussion: false);
+        final drums = notationGlossarySamplesFor(percussion: true);
+        // A drum staff carries no pitch, so these are absent from it, not
+        // "advanced": listing them teaches symbols the score will never show.
+        expect(
+          drums.any(
+            (d) =>
+                d.kind == SymbolKind.accidental ||
+                d.kind == SymbolKind.keySignature ||
+                d.kind == SymbolKind.ledgerLine ||
+                d.kind == SymbolKind.brace,
+          ),
+          isFalse,
+        );
+        // …and it opens on its OWN clef, not on a G or an F.
+        final clefs = drums.whereType<ClefSymbol>().toList();
+        expect(clefs, hasLength(1));
+        expect(clefs.single.sign, 'percussion');
+        expect(
+          keyboard.whereType<ClefSymbol>().map((c) => c.sign),
+          containsAll(<String>['G', 'F']),
+        );
+        // Everything else — rests, beams, repeats, dynamics — is shared.
+        expect(drums.any((d) => d.kind == SymbolKind.rest), isTrue);
+        expect(drums.any((d) => d.kind == SymbolKind.repeatBarline), isTrue);
+      });
+
       test('the percussion clef needs no kit to be explained', () {
         // A clef is a clef: the percussion sign is recognised from the symbol
         // itself, so the Partition's preview (which has no kit to hand) still

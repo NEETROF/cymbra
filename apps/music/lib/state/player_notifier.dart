@@ -336,7 +336,7 @@ class Player extends _$Player {
       drumLanes: derived.isPercussion
           ? deriveDrumLanes(derived.notes)
           : const <DrumLane>[],
-      mode: derived.isPercussion ? RenderMode.synthesia : state.mode,
+      mode: _modeForLoadedScore(percussion: derived.isPercussion),
       // The struck-flash table is keyed by controller POSITION, so another
       // score's stamps would land on this one's pads (change:
       // add-drum-input-mapping).
@@ -557,6 +557,19 @@ class Player extends _$Player {
     _audio.drumOn(pitch, velocity: AudioService.defaultVelocity);
   }
 
+  /// The mode a freshly loaded score opens in: the one last chosen for ITS
+  /// family, or the family default when the player has never chosen — the
+  /// cascade, which is the designed reading surface for playing.
+  ///
+  /// A stored mode is still checked against the family: the stage exists only
+  /// for percussion, and a record from another build could name it.
+  RenderMode _modeForLoadedScore({required bool percussion}) {
+    final prefs = ref.read(playerPreferencesProvider);
+    if (percussion) return prefs.percussionMode ?? RenderMode.synthesia;
+    final stored = prefs.keyboardMode;
+    return stored == null || stored == RenderMode.stage ? state.mode : stored;
+  }
+
   /// The struck-surface table after a stroke on [gm] (change:
   /// add-drum-input-mapping): the surface it resolves to, stamped with the
   /// wall clock. A number resolving to no surface — a piece this score does
@@ -682,6 +695,11 @@ class Player extends _$Player {
   void setMode(RenderMode m) {
     if (m == state.mode) return;
     state = state.copyWith(mode: m);
+    // Remembered per instrument family, so the next score of THAT family opens
+    // the way this one was being read.
+    ref
+        .read(playerPreferencesProvider.notifier)
+        .setLastMode(m, percussion: state.isPercussion);
     _track(UsageActions.playModeSwitch, variant: m.name);
   }
 

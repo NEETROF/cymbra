@@ -20,7 +20,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../painters/keyboard_range.dart';
 import '../painters/notation_palette.dart';
 import '../services/preferences_service.dart';
-import 'player_data.dart' show Hand, NoteReadingAid;
+import 'player_data.dart' show Hand, NoteReadingAid, RenderMode;
 
 export '../painters/notation_palette.dart' show NotationTheme;
 
@@ -95,6 +95,17 @@ abstract class PlayerPrefs with _$PlayerPrefs {
     /// audio is not judged late. 0 = today's behaviour.
     @Default(0) int outputOffsetMs,
 
+    /// The render mode last chosen, remembered **per instrument family**: a
+    /// player who reads drums on the stage and piano on the staff finds each
+    /// where they left it, instead of one choice overwriting the other. Null
+    /// means "never chosen" — the family's own default then stands (the
+    /// cascade), which is what a first score must show.
+    ///
+    /// Stored, never inferred: nothing in a score says how its owner likes to
+    /// read it.
+    RenderMode? keyboardMode,
+    RenderMode? percussionMode,
+
     /// The inverted-kit layout (change: add-drum-kit-view): reverses the
     /// percussion cascade's lane order and the pad strip together. Describes
     /// the KIT's setup, never the player's handedness — many left-handed
@@ -166,6 +177,17 @@ class PlayerPreferences extends _$PlayerPreferences {
   void setOutputOffsetMs(int ms) =>
       _update(state.copyWith(outputOffsetMs: ms.clamp(0, 2000)));
 
+  /// Remembers the render mode for the family that is playing. The stage is
+  /// percussion-only, so it is never stored against the keyboard — a record
+  /// that could hold it would hand a keyboard score a mode it cannot render.
+  void setLastMode(RenderMode mode, {required bool percussion}) {
+    if (percussion) {
+      _update(state.copyWith(percussionMode: mode));
+    } else if (mode != RenderMode.stage) {
+      _update(state.copyWith(keyboardMode: mode));
+    }
+  }
+
   void setInvertedKit({required bool enabled}) =>
       _update(state.copyWith(invertedKit: enabled));
 
@@ -198,6 +220,8 @@ class PlayerPreferences extends _$PlayerPreferences {
     'audioOutput': p.audioOutput,
     'outputOffsetMs': p.outputOffsetMs,
     'invertedKit': p.invertedKit,
+    'keyboardMode': p.keyboardMode?.name,
+    'percussionMode': p.percussionMode?.name,
   });
 
   static PlayerPrefs? _decode(String raw) {
@@ -230,6 +254,13 @@ class PlayerPreferences extends _$PlayerPreferences {
           2000,
         ),
         invertedKit: m['invertedKit'] as bool? ?? false,
+        // An unknown mode name (a record written by a build that had one this
+        // one does not) falls back to "never chosen" rather than discarding
+        // the whole record.
+        keyboardMode: RenderMode.values
+            .asNameMap()[m['keyboardMode'] as String?],
+        percussionMode: RenderMode.values
+            .asNameMap()[m['percussionMode'] as String?],
       );
     } catch (_) {
       return null; // corrupt value → keep defaults

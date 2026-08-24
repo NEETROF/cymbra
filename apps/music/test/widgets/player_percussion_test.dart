@@ -16,6 +16,8 @@ import 'package:flutter/foundation.dart'
     show debugDefaultTargetPlatformOverride;
 import 'dart:math' as math;
 
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -64,10 +66,13 @@ Future<ProviderContainer> _pumpPercussion(
   bool dismissModal = true,
   bool kitReady = false,
   ScoreDocument? document,
+  FakePreferencesService? prefs,
 }) async {
   await tester.binding.setSurfaceSize(size);
   final container = ProviderContainer(
     overrides: [
+      if (prefs != null && !kitReady)
+        preferencesServiceProvider.overrideWithValue(prefs),
       scoreCatalogProvider.overrideWithValue(const [_entry]),
       scoreAssetSourceProvider.overrideWithValue(FakeScoreAssetSource()),
       notationEngineProvider.overrideWithValue(
@@ -652,6 +657,32 @@ void main() {
       tester.view.resetDevicePixelRatio();
     }
   });
+
+  testWidgets('a drum score opens in the mode the player last read drums in', (
+    tester,
+  ) async {
+    // The memory is per family (see player_preferences_test): here we only pin
+    // that a LOADED percussion score is seeded from it, rather than always
+    // opening on the cascade as it did before.
+    final prefs = FakePreferencesService()
+      ..store[PlayerPreferences.prefsKey] = jsonEncode({
+        'percussionMode': 'stage',
+        'keyboardMode': 'staff',
+      });
+    final c = await _pumpPercussion(tester, prefs: prefs);
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(c.read(playerProvider).mode, RenderMode.stage);
+    await _teardown(tester, c);
+  });
+
+  testWidgets(
+    'with nothing remembered a drum score still opens on the cascade',
+    (tester) async {
+      final c = await _pumpPercussion(tester);
+      expect(c.read(playerProvider).mode, RenderMode.synthesia);
+      await _teardown(tester, c);
+    },
+  );
 
   testWidgets('the setup modal swaps the range chooser for the kit layout '
       'and labels the selector hands / feet', (tester) async {

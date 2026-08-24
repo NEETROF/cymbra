@@ -3358,5 +3358,9 @@
   "notationHelpDrumNoteBody": "This note says which kit piece to strike. Its position on the staff names the piece, not a pitch, and its value is the room it takes before the next stroke.",
   "@notationHelpDrumNoteBody": {
     "description": "Bubble body for a drum note."
+  },
+  "notationHelpGlossaryStroke": "a kit piece",
+  "@notationHelpGlossaryStroke": {
+    "description": "Generic kit-piece name used by the glossary, which has no score loaded."
   }
 }

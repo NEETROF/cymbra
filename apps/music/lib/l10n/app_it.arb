@@ -779,5 +779,6 @@
   "notationHelpPercussionClefTitle": "Chiave di percussione",
   "notationHelpPercussionClefBody": "Questa doppia barra sostituisce la chiave di violino sul pentagramma della batteria. La posizione di una nota non indica più un'altezza: nomina il pezzo del kit da colpire.",
   "notationHelpDrumNoteTitle": "Colpo ({piece})",
-  "notationHelpDrumNoteBody": "Questa nota dice quale pezzo del kit colpire. La sua posizione sul pentagramma nomina il pezzo, non un'altezza, e la sua durata è lo spazio che occupa prima del colpo successivo."
+  "notationHelpDrumNoteBody": "Questa nota dice quale pezzo del kit colpire. La sua posizione sul pentagramma nomina il pezzo, non un'altezza, e la sua durata è lo spazio che occupa prima del colpo successivo.",
+  "notationHelpGlossaryStroke": "un pezzo del kit"
 }

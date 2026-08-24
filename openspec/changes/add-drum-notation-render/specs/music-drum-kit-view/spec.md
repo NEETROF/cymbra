@@ -18,11 +18,18 @@ scores does the same for percussion) instead of pinning an absolute list that
 would contradict them.
 
 A **play surface SHALL remain the default** presentation when a percussion
-score is loaded: they are the designed reading surfaces for playing
-(`add-drum-kit-view` settled them against a drummer), and re-offering notation
-must not change what a returning tester sees on load. The notation modes are an
-explicit choice, and switching between modes SHALL behave as it does for a
-keyboard score.
+score is loaded and the player has never chosen otherwise: they are the
+designed reading surfaces for playing (`add-drum-kit-view` settled them against
+a drummer), and re-offering notation must not change what a returning tester
+sees on load. The notation modes are an explicit choice, and switching between
+modes SHALL behave as it does for a keyboard score.
+
+That choice SHALL then be remembered **per instrument family** and re-applied
+when a score of that family opens. A player reads drums and piano differently —
+the stage for a groove, the staff for a piece — and one memory would make each
+score undo the other's setting. A remembered mode is checked against the family
+before it is applied: the stage exists only for percussion, so a record naming
+it can never reach a keyboard score.
 
 The **scrolling Staff SHALL carry the drawn kit** under it, the same one the
 play surfaces draw: it engraves notes but offers nothing to aim at, and a second
@@ -45,9 +52,17 @@ now that they exist — drum notation is a fixed convention.
 
 #### Scenario: The cascade is still the default
 
-- **WHEN** a percussion score is loaded
+- **WHEN** a percussion score is loaded and the player has never chosen a mode
+  for percussion
 - **THEN** the player opens in the cascade, and a notation mode is entered
   only by the player's choice
+
+#### Scenario: The last mode chosen for this family comes back
+
+- **WHEN** the player reads a drum score on the stage, then opens another drum
+  score
+- **THEN** it opens on the stage — and a piano score opened in between still
+  opens on the mode last chosen for the keyboard
 
 #### Scenario: The notation modes engrave the percussion rules
 

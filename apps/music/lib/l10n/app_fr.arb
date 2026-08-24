@@ -779,5 +779,6 @@
   "notationHelpPercussionClefTitle": "Clé de percussion",
   "notationHelpPercussionClefBody": "Ce double trait remplace la clé de sol sur une portée de batterie. La position d'une note n'y donne plus une hauteur : elle désigne la pièce du kit à frapper.",
   "notationHelpDrumNoteTitle": "Frappe ({piece})",
-  "notationHelpDrumNoteBody": "Cette note dit quelle pièce du kit frapper. Sa position sur la portée désigne la pièce, pas une hauteur, et sa durée est la place qu'elle occupe avant la frappe suivante."
+  "notationHelpDrumNoteBody": "Cette note dit quelle pièce du kit frapper. Sa position sur la portée désigne la pièce, pas une hauteur, et sa durée est la place qu'elle occupe avant la frappe suivante.",
+  "notationHelpGlossaryStroke": "une pièce du kit"
 }
