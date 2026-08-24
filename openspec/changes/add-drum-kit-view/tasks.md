@@ -66,4 +66,5 @@
 - [x] 8.4 The metre grid on both surfaces comes from `measureStartMs`/beat length, bar lines carry their written measure number, and it is painted after the kick bars
 - [x] 8.5 Nothing lights on arrival: a note lights only when its piece is struck inside the tolerance window, and a passed note leaves the surface
 - [x] 8.6 `flutter analyze`, `dart format`, `dart run custom_lint`, `flutter test --exclude-tags golden` clean; `openspec validate add-drum-kit-view --strict`
-- [ ] 8.7 Feel pass on the two surfaces at real tempo, on a phone and a tablet — is the stage readable enough to be the first mode a beginner meets?
+- [x] 8.7 Feel pass on the two surfaces at real tempo (iPhone, release build): stage-first, the tolerance window and the Paper theme all validated on device
+- [x] 8.8 The guided player tour speaks percussion on a drum score — the kit, the electronic kit, and hands/feet — instead of the piano's vocabulary over a "Feet / Hands / Both" control

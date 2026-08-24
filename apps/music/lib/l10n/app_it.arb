@@ -780,5 +780,10 @@
   "notationHelpPercussionClefBody": "Questa doppia barra sostituisce la chiave di violino sul pentagramma della batteria. La posizione di una nota non indica più un'altezza: nomina il pezzo del kit da colpire.",
   "notationHelpDrumNoteTitle": "Colpo ({piece})",
   "notationHelpDrumNoteBody": "Questa nota dice quale pezzo del kit colpire. La sua posizione sul pentagramma nomina il pezzo, non un'altezza, e la sua durata è lo spazio che occupa prima del colpo successivo.",
-  "notationHelpGlossaryStroke": "un pezzo del kit"
+  "notationHelpGlossaryStroke": "un pezzo del kit",
+  "coachPlayerSoundDrumsTitle": "Scegli la tua batteria",
+  "coachPlayerSoundDrumsBody": "Seleziona il kit che senti mentre suoni. Puoi aggiungere le tue SoundFont e sbloccarne altre con i tuoi punti.",
+  "coachPlayerMidiDrumsBody": "Qui compare la tua batteria elettronica collegata. Lascia la modalità automatica, oppure scegli tu il dispositivo se ne hai più di uno.",
+  "coachPlayerLimbsTitle": "Mani, piedi o entrambi",
+  "coachPlayerLimbsBody": "Lavora prima le mani, poi i piedi, poi uniscili. Ti vengono chiesti solo gli arti che scegli."
 }

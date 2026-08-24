@@ -780,5 +780,10 @@
   "notationHelpPercussionClefBody": "Esta doble barra sustituye a la clave de sol en un pentagrama de batería. La posición de una nota ya no indica una altura: nombra la pieza del kit que hay que golpear.",
   "notationHelpDrumNoteTitle": "Golpe ({piece})",
   "notationHelpDrumNoteBody": "Esta nota dice qué pieza del kit golpear. Su posición en el pentagrama nombra la pieza, no una altura, y su duración es el espacio que ocupa antes del golpe siguiente.",
-  "notationHelpGlossaryStroke": "una pieza del kit"
+  "notationHelpGlossaryStroke": "una pieza del kit",
+  "coachPlayerSoundDrumsTitle": "Elige tu batería",
+  "coachPlayerSoundDrumsBody": "Selecciona el kit que oyes al tocar. Puedes añadir tus propias SoundFonts y desbloquear más con tus puntos.",
+  "coachPlayerMidiDrumsBody": "Aquí aparece tu batería electrónica conectada. Déjalo en automático o elige tú mismo el dispositivo si hay varios conectados.",
+  "coachPlayerLimbsTitle": "Manos, pies o ambos",
+  "coachPlayerLimbsBody": "Trabaja primero las manos, luego los pies, y después júntalos. Solo se te piden los miembros que elijas."
 }

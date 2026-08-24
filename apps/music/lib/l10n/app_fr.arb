@@ -780,5 +780,10 @@
   "notationHelpPercussionClefBody": "Ce double trait remplace la clé de sol sur une portée de batterie. La position d'une note n'y donne plus une hauteur : elle désigne la pièce du kit à frapper.",
   "notationHelpDrumNoteTitle": "Frappe ({piece})",
   "notationHelpDrumNoteBody": "Cette note dit quelle pièce du kit frapper. Sa position sur la portée désigne la pièce, pas une hauteur, et sa durée est la place qu'elle occupe avant la frappe suivante.",
-  "notationHelpGlossaryStroke": "une pièce du kit"
+  "notationHelpGlossaryStroke": "une pièce du kit",
+  "coachPlayerSoundDrumsTitle": "Choisissez votre kit de batterie",
+  "coachPlayerSoundDrumsBody": "Sélectionnez le kit que vous entendez en jouant. Vous pouvez ajouter vos propres SoundFonts, et en débloquer d’autres avec vos points.",
+  "coachPlayerMidiDrumsBody": "C’est ici qu’apparaît votre kit électronique connecté. Laissez le mode automatique, ou choisissez vous-même l’appareil si plusieurs sont branchés.",
+  "coachPlayerLimbsTitle": "Les mains, les pieds ou les deux",
+  "coachPlayerLimbsBody": "Travaillez les mains seules, puis les pieds, puis réunissez-les. Seuls les membres choisis vous sont demandés."
 }

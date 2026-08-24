@@ -17,6 +17,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
 import '../state/coaching_notifier.dart';
+import '../state/player_data.dart';
+import '../state/player_notifier.dart';
 import 'coach_copy.dart';
 import 'coach_mark.dart';
 
@@ -82,7 +84,13 @@ class _CoachLayerState extends ConsumerState<CoachLayer> {
 
     final l10n = AppLocalizations.of(context);
     final coaching = ref.read(coachingProvider.notifier);
-    final copy = playerCoachCopy(l10n, step);
+    final copy = playerCoachCopy(
+      l10n,
+      step,
+      percussion: ref.watch(
+        playerProvider.select((PlayerData d) => d.isPercussion),
+      ),
+    );
     final last = step.next == null;
     return Positioned.fill(
       child: CoachMarkOverlay(

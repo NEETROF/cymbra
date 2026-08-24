@@ -3362,5 +3362,25 @@
   "notationHelpGlossaryStroke": "a kit piece",
   "@notationHelpGlossaryStroke": {
     "description": "Generic kit-piece name used by the glossary, which has no score loaded."
+  },
+  "coachPlayerSoundDrumsTitle": "Choose your drum kit",
+  "@coachPlayerSoundDrumsTitle": {
+    "description": "Guided step 1 title on a percussion score (the kit, not a piano)."
+  },
+  "coachPlayerSoundDrumsBody": "Pick the kit you hear while playing. You can import your own SoundFonts, and unlock more with your points.",
+  "@coachPlayerSoundDrumsBody": {
+    "description": "Guided step 1 body on a percussion score."
+  },
+  "coachPlayerMidiDrumsBody": "This is where your connected electronic kit appears. Leave it on automatic, or pick the device yourself if several are plugged in.",
+  "@coachPlayerMidiDrumsBody": {
+    "description": "Guided step 2 body on a percussion score (an e-kit, not a MIDI keyboard)."
+  },
+  "coachPlayerLimbsTitle": "Hands, feet, or both",
+  "@coachPlayerLimbsTitle": {
+    "description": "Guided step 3 title on a percussion score: the hands/feet selector."
+  },
+  "coachPlayerLimbsBody": "Work the hands alone, then the feet, then put them together. Only the limbs you choose are asked of you.",
+  "@coachPlayerLimbsBody": {
+    "description": "Guided step 3 body on a percussion score."
   }
 }
