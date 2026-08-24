@@ -519,7 +519,7 @@ void main() {
       // (Section headers render uppercased.)
       expect(find.text('INSTRUMENT'), findsNothing);
       expect(find.text('Drums'), findsNothing);
-      expect(find.text('Keyboard'), findsNothing);
+      expect(find.text('Piano'), findsNothing);
       await _teardown(tester, c);
     },
   );
@@ -535,7 +535,7 @@ void main() {
       await tester.pumpAndSettle();
       // Section headers render uppercased; the option chips do not.
       expect(find.text('INSTRUMENT'), findsOneWidget);
-      expect(find.text('Keyboard'), findsOneWidget);
+      expect(find.text('Piano'), findsOneWidget);
       expect(find.text('Drums'), findsOneWidget);
 
       // Picking the drum option re-queries with the percussion filter.

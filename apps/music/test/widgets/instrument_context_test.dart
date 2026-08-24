@@ -194,7 +194,7 @@ void main() {
 
     // → keyboard: the piano repertoire returns, grooves leave.
     await tester.tap(
-      find.descendant(of: _switcher, matching: find.text('Keyboard')),
+      find.descendant(of: _switcher, matching: find.text('Piano')),
     );
     await _pumpFrames(tester);
     expect(find.text('Ode to Joy (theme)'), findsOneWidget);

@@ -943,7 +943,7 @@
   "@scoreHubInstrument": {
     "description": "Drawer section header for the instrument-family filter (shown only to the drum audience)."
   },
-  "instrumentKeyboard": "Keyboard",
+  "instrumentKeyboard": "Piano",
   "@instrumentKeyboard": {
     "description": "Instrument-family label: keyboard scores (hub filter chip, score cards, upload summary)."
   },

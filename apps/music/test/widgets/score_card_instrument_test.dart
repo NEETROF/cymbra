@@ -82,13 +82,13 @@ void main() {
 
   testWidgets('a keyboard card names its instrument', (tester) async {
     await _pump(tester, _entry(instrument: ScoreInstrument.keyboard));
-    expect(find.text('Keyboard'), findsOneWidget);
+    expect(find.text('Piano'), findsOneWidget);
   });
 
   testWidgets('an unknown instrument shows no label at all', (tester) async {
     await _pump(tester, _entry());
     expect(find.text('Drums'), findsNothing);
-    expect(find.text('Keyboard'), findsNothing);
+    expect(find.text('Piano'), findsNothing);
     expect(find.textContaining('Unknown'), findsNothing);
   });
 }

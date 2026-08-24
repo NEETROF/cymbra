@@ -470,7 +470,7 @@ void main() {
     await tester.tap(
       find.descendant(
         of: find.byKey(const Key('instrument-switcher')),
-        matching: find.text('Keyboard'),
+        matching: find.text('Piano'),
       ),
     );
     for (var i = 0; i < 8; i++) {
