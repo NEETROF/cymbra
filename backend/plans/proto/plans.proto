@@ -45,6 +45,9 @@ service PlanService {
   rpc ListCampaigns(ListCampaignsRequest) returns (ListCampaignsResponse);
   rpc CloseEnrollment(CloseEnrollmentRequest) returns (CloseEnrollmentResponse);
   rpc CloseCampaign(CloseCampaignRequest) returns (CloseCampaignResponse);
+  rpc ReopenCampaign(ReopenCampaignRequest) returns (ReopenCampaignResponse);
+  rpc ReopenEnrollment(ReopenEnrollmentRequest) returns (ReopenEnrollmentResponse);
+  rpc PreviewReopenCampaign(PreviewReopenCampaignRequest) returns (PreviewReopenCampaignResponse);
   // Admin: codes — clear texts are returned ONCE.
   rpc MintCodes(MintCodesRequest) returns (MintCodesResponse);
   rpc RevokeCodes(RevokeCodesRequest) returns (RevokeCodesResponse);
@@ -268,6 +271,36 @@ message CloseCampaignRequest {
   string campaign_key = 1;
 }
 message CloseCampaignResponse {}
+
+// Reopen a closed campaign (change: reopen-beta-campaign). Closing is a PAUSE:
+// it touches no membership, so reopening brings back every member that was not
+// individually revoked. `reactivated` reports how many — the console states it
+// before acting, since an admin reopening a campaign for a new wave must not
+// discover the previous cohort afterwards.
+message ReopenCampaignRequest {
+  string campaign_key = 1;
+}
+message ReopenCampaignResponse {
+  uint32 reactivated = 1;
+}
+
+// Reopen a campaign's enrolment, so its codes are redeemable again. Separate
+// from ReopenCampaign because closing a campaign closes its enrolment as a side
+// effect — without this a reopened beta could be restored but never grown.
+message ReopenEnrollmentRequest {
+  string campaign_key = 1;
+}
+message ReopenEnrollmentResponse {}
+
+// How many memberships a reopening WOULD restore, read before acting so the
+// console can state it in the confirmation. The predicate (not revoked, not
+// expired) stays server-side: a copy of it in the console would drift.
+message PreviewReopenCampaignRequest {
+  string campaign_key = 1;
+}
+message PreviewReopenCampaignResponse {
+  uint32 reactivated = 1;
+}
 
 message MintCodesRequest {
   string campaign_key = 1;

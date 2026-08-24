@@ -23,10 +23,13 @@ exactly as they were.
 
 **The operation**
 
-- `ReopenCampaign(key)` on `PlanService`, admin-guarded and audited with a reason
-  like every other campaign mutation. It clears `closed_at`; it does NOT touch
-  `enrollment_closes_at`, which is a separate decision with its own control (a
-  campaign can legitimately be open to its members and closed to newcomers).
+- `ReopenCampaign(key)` and `ReopenEnrollment(key)` on `PlanService`,
+  admin-guarded and audited like every other campaign mutation. **Two** inverses,
+  because `close()` writes both dates: closing a campaign closes its enrolment as
+  a side effect, so a single reopen would restore a beta nobody new can join.
+  They stay separate acts — a campaign may legitimately be live for its members
+  and closed to newcomers — and reopening a campaign says when enrolment remains
+  closed instead of letting the admin discover it.
 - The console gets the action on a closed campaign's row, where "Fermer la
   campagne" sits on an open one.
 

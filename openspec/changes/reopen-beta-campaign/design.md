@@ -14,7 +14,12 @@ What the code already does, and what this change only has to expose:
   (`backend/plans/src/core.rs`). Clearing `closed_at` restores exactly the
   members whose other two conditions still hold.
 - `enrollment_closes_at` is a **different** column, tested on the redemption path
-  only.
+  only — but `close()` writes it too
+  (`enrollment_closes_at = COALESCE(enrollment_closes_at, $2)`), so closing a
+  campaign closes its enrolment as a side effect. That is why this change needs
+  **two** inverses, not one: reopening only the campaign would restore a beta
+  that nobody new can join, and the operator would be stuck at exactly the same
+  point as before.
 
 ## Goals / Non-Goals
 

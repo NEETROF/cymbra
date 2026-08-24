@@ -508,7 +508,14 @@
     "noMembers": "Aucun membre.",
     "colAccount": "Compte",
     "colSource": "Source",
-    "exportCsv": "Exporter CSV"
+    "exportCsv": "Exporter CSV",
+    "reopenCampaign": "Rouvrir la campagne",
+    "reopenCampaignConfirm": "Rouvrir « {key} » ? {n} adhésion(s) vont être réactivées — les membres révoqués individuellement restent dehors. Les inscriptions, elles, restent fermées.",
+    "campaignReopened": "Campagne rouverte, {n} adhésion(s) réactivée(s).",
+    "reopenEnrolment": "Rouvrir les inscriptions",
+    "reopenEnrolmentConfirm": "Rouvrir les inscriptions de « {key} » ? Ses codes redeviennent rachetables.",
+    "enrolmentReopened": "Inscriptions rouvertes.",
+    "pausedByClosure": "en pause (campagne fermée)"
   },
   "errors": {
     "unauthenticated": "Identifiants invalides ou session expirée.",

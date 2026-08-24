@@ -16,9 +16,15 @@ returns, whatever the campaign does — so the global control stays global. The 
 deleting or stamping memberships at close time, would destroy the record of who took part,
 which is precisely what the member list and the export exist to keep.
 
-Reopening SHALL clear only the campaign's closed state. It SHALL NOT reopen **enrolment**,
-which is a separate decision with its own control: a campaign may legitimately be live for its
-members and closed to newcomers.
+The console SHALL also let an admin **reopen enrolment**. Closing a campaign closes its
+enrolment as a side effect (the two dates are written together), so without this second inverse a
+reopened campaign would be live for its members and joinable by nobody — the operator could
+restore a beta but never grow it again, which is half of what "reopen" is asked for.
+
+The two remain **separate decisions with separate controls**: reopening the campaign SHALL NOT
+reopen enrolment on its own, because a campaign may legitimately be live for its members and
+closed to newcomers. Reopening a campaign whose enrolment is closed SHALL say so, rather than
+leaving the admin to discover that redemptions are still refused.
 
 Because reopening restores people, it SHALL say so before it acts: the console SHALL state how
 many memberships the reopening will reactivate. Symmetrically, a closed campaign's member list
@@ -68,8 +74,13 @@ discover it by surprise.
 #### Scenario: Reopening enrolment is a separate act
 
 - **WHEN** a campaign whose enrolment was closed is reopened
-- **THEN** its members are active again and new redemptions are still refused, until enrolment
-  is reopened in its own right
+- **THEN** its members are active again, new redemptions are still refused, and the console says
+  that enrolment remains closed — until it is reopened in its own right
+
+#### Scenario: Enrolment can be reopened
+
+- **WHEN** an admin reopens the enrolment of a live campaign
+- **THEN** a valid code for it is redeemable again
 
 #### Scenario: A closed trial keeps its granted premium
 

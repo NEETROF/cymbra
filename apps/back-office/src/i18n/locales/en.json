@@ -508,7 +508,14 @@
     "noMembers": "No members.",
     "colAccount": "Account",
     "colSource": "Source",
-    "exportCsv": "Export CSV"
+    "exportCsv": "Export CSV",
+    "reopenCampaign": "Reopen campaign",
+    "reopenCampaignConfirm": "Reopen “{key}”? {n} membership(s) will be reactivated — individually revoked members stay out. Enrolment remains closed.",
+    "campaignReopened": "Campaign reopened, {n} membership(s) reactivated.",
+    "reopenEnrolment": "Reopen enrolment",
+    "reopenEnrolmentConfirm": "Reopen enrolment for “{key}”? Its codes become redeemable again.",
+    "enrolmentReopened": "Enrolment reopened.",
+    "pausedByClosure": "paused (campaign closed)"
   },
   "errors": {
     "unauthenticated": "Invalid credentials or expired session.",

@@ -220,6 +220,25 @@ describe("plans store", () => {
     expect(store.campaigns.status).toBe("success");
   });
 
+  it("reopens a closed campaign and its enrolment as two separate acts", async () => {
+    // Closing is a pause — it touches no membership — so reopening restores
+    // people rather than re-enrolling them, and the count comes from the
+    // server: the "active membership" rule must not be copied into the console.
+    const { clients, state } = makeFakeClients({ campaigns: [featureCampaign], reactivatable: 12 });
+    setClientsForTest(clients);
+    const store = usePlansStore();
+
+    expect(await store.reactivatableMembers("midi-drums")).toBe(12);
+    await store.reopenCampaign("midi-drums");
+    expect(state.reopenCampaignCalls).toEqual(["midi-drums"]);
+    // Reopening the campaign leaves enrolment alone: closing a campaign closed
+    // it as a side effect, and reopening it is its own decision.
+    expect(state.reopenEnrollmentCalls).toEqual([]);
+
+    await store.reopenEnrollment("midi-drums");
+    expect(state.reopenEnrollmentCalls).toEqual(["midi-drums"]);
+  });
+
   it("mints codes: the clear text lands in `minted` once and can be cleared", async () => {
     const { clients, state } = makeFakeClients({ mintedCodes: ["AAAA-1111", "BBBB-2222", "CCCC-3333"] });
     setClientsForTest(clients);

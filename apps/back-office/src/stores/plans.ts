@@ -167,6 +167,31 @@ export const usePlansStore = defineStore("plans", () => {
     );
   }
 
+  /** Reopen a closed campaign. Closing is a PAUSE — it touches no membership —
+   *  so this brings back every member that was not individually revoked; the
+   *  RPC answers how many, and the caller states it. Enrolment stays closed:
+   *  that is [reopenEnrollment]'s job. */
+  function reopenCampaign(campaignKey: string) {
+    return mutate(
+      () => api().plans.reopenCampaign({ campaignKey }),
+      async () => {
+        await reloadCampaigns();
+        await reloadMembers();
+      },
+    );
+  }
+
+  /** Reopen a campaign's enrolment, so its codes are redeemable again. */
+  function reopenEnrollment(campaignKey: string) {
+    return mutate(() => api().plans.reopenEnrollment({ campaignKey }), reloadCampaigns);
+  }
+
+  /** How many memberships a reopening would restore — read BEFORE reopening, so
+   *  the confirmation says what the action will do rather than what it did. */
+  async function reactivatableMembers(campaignKey: string): Promise<number> {
+    return (await api().plans.previewReopenCampaign({ campaignKey })).reactivated;
+  }
+
   /** Mint N codes; the clear text lands in `minted` ONCE (never re-fetchable). */
   async function mintCodes(campaignKey: string, count: number, issuedToHint = "") {
     return run(minted, async () => (await api().plans.mintCodes({ campaignKey, count, issuedToHint })).codes);
@@ -223,6 +248,9 @@ export const usePlansStore = defineStore("plans", () => {
     createCampaign,
     closeEnrollment,
     closeCampaign,
+    reopenCampaign,
+    reopenEnrollment,
+    reactivatableMembers,
     mintCodes,
     clearMinted,
     revokeCodes,

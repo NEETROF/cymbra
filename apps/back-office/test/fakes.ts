@@ -71,6 +71,10 @@ export interface FakeState {
   createCampaignCalls: { key: string; name: string; kind: string; durationDays?: number }[];
   closeEnrollmentCalls: string[];
   closeCampaignCalls: string[];
+  reopenCampaignCalls: string[];
+  reopenEnrollmentCalls: string[];
+  /** How many memberships the fake says a reopening would restore. */
+  reactivatable: number;
   mintCalls: { campaignKey: string; count: number; issuedToHint: string }[];
   /** Codes `mintCodes` returns (deterministic). */
   mintedCodes: string[];
@@ -124,6 +128,9 @@ export function makeFakeClients(state: Partial<FakeState> = {}): { clients: Clie
     createCampaignCalls: [],
     closeEnrollmentCalls: [],
     closeCampaignCalls: [],
+    reopenCampaignCalls: [],
+    reopenEnrollmentCalls: [],
+    reactivatable: state.reactivatable ?? 0,
     mintCalls: [],
     mintedCodes: state.mintedCodes ?? ["CODE-1", "CODE-2"],
     revokeCodesCalls: [],
@@ -255,6 +262,17 @@ export function makeFakeClients(state: Partial<FakeState> = {}): { clients: Clie
         s.closeCampaignCalls.push(req.campaignKey);
         return {};
       },
+      reopenCampaign: async (req: { campaignKey: string }) => {
+        s.reopenCampaignCalls.push(req.campaignKey);
+        return { reactivated: s.reactivatable };
+      },
+      reopenEnrollment: async (req: { campaignKey: string }) => {
+        s.reopenEnrollmentCalls.push(req.campaignKey);
+        return {};
+      },
+      previewReopenCampaign: async () => ({
+        reactivated: s.reactivatable,
+      }),
       mintCodes: async (req: { campaignKey: string; count: number; issuedToHint: string }) => {
         s.mintCalls.push(req);
         return { codes: s.mintedCodes.slice(0, req.count) };

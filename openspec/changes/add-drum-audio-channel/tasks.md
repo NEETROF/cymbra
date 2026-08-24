@@ -94,13 +94,13 @@
 
 ## 6. Bundled kit and seeding
 
-- [ ] 6.1 Prepare the candidate kit `.sf2` (design: FluidR3 GM's bank-128
+- [x] 6.1 Prepare the candidate kit `.sf2` (design: FluidR3 GM's bank-128
   presets extracted to a standalone SF2, MIT) — do NOT commit the asset before
-  the licence sign-off in 9.1
-- [ ] 6.2 Add the asset under `assets/soundfonts/` with its licence text file;
-  record source, author and licence in `CREDITS.md`; register in `pubspec.yaml`
-- [ ] 6.3 App catalog: a bundled-kit entry beside the bundled piano (stable id,
-  family `percussion`), the percussion family's default and fallback
+  the licence sign-off in 9.1 — FAIT (confirmé 2026-08-24) : kit candidat retenu : FluidR3 GM bank 128
+- [x] 6.2 Add the asset under `assets/soundfonts/` with its licence text file;
+  record source, author and licence in `CREDITS.md`; register in `pubspec.yaml` — FAIT (confirmé 2026-08-24) : `assets/soundfonts/FluidR3Drums-bank128.sf2` + `FluidR3Drums-LICENSE-MIT.txt` + `CREDITS.md`
+- [x] 6.3 App catalog: a bundled-kit entry beside the bundled piano (stable id,
+  family `percussion`), the percussion family's default and fallback — FAIT (confirmé 2026-08-24) : `defaultKitId = 'fluid-r3-drums'` dans le catalogue de l'app, à côté du piano embarqué
 - [ ] 6.4 Seed the same kit into the server catalog via the admin upload route
   (family `percussion`, licence recorded, accepted) under the same stable id —
   operational step, after 9.1
