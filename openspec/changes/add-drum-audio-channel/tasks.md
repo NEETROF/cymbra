@@ -155,11 +155,17 @@
 
 ## 9. Manual verification and operations
 
-- [ ] 9.1 **Licence sign-off** for the bundled kit: fetch the candidate, read
+- [x] 9.1 **Licence sign-off** for the bundled kit: fetch the candidate, read
   its licence text against the actual files, confirm redistribution and
   modification are permitted; record the verdict in `CREDITS.md`. If the
   candidate fails, evaluate the named fallback — no asset lands before this
-  passes
+  passes — VALIDÉ 2026-08-25 : le candidat passe, aucun repli nécessaire. FluidR3
+  GM est MIT d'après le fichier `copyright` vetté de Debian pour
+  `fluid-soundfont-gm` 3.1-6 (la source dont le kit est extrait) ; la licence
+  permet explicitement redistribution et modification, et sa notice est conservée
+  verbatim à côté de l'asset en `FluidR3Drums-LICENSE-MIT.txt`. Verdict, source,
+  auteurs et périmètre consignés dans `apps/music/assets/soundfonts/CREDITS.md`
+  (kit « Standard », bank 128 preset 0, 10,6 Mio, 105 échantillons)
 - [x] 9.2 On-device: open a percussion score — the kit loads, playback sounds as
   drums (kick/snare/hi-hat recognisably), the metronome click is unchanged;
   open a keyboard score next — the chosen piano is restored and sounds as before — VALIDÉ 2026-08-24 : sur appareil : la partition percussive charge le kit et sonne (SoundFont prête en ~3,5 s, sortie 48 kHz)
