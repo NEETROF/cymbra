@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.21.1](https://github.com/NEETROF/cymbra/compare/backend-v0.21.0...backend-v0.21.1) (2026-08-25)
+
+
+### Bug Fixes
+
+* **deploy:** ship every maintenance bin in the backend image ([#283](https://github.com/NEETROF/cymbra/issues/283)) ([bb51834](https://github.com/NEETROF/cymbra/commit/bb51834ba5d38b29b50b0183edab256399366cbb))
+
 ## [0.21.0](https://github.com/NEETROF/cymbra/compare/backend-v0.20.0...backend-v0.21.0) (2026-08-24)
 
 
