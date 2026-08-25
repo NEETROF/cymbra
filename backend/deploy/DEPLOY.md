@@ -530,6 +530,32 @@ and behaves exactly as before. The dark deploy (change: add-premium-subscription
    **Plans** screen. Then follow the rollout order in
    `apps/music/store/SUBSCRIPTIONS.md` (flags on, channels one by one).
 
+### Taking a beta feature to general availability — the order matters
+
+A feature in beta is two things at once: a flag scoped `beta:<campaign-key>`, and an
+open campaign whose members that scope resolves against. Going GA means widening the
+flag to everyone and retiring the campaign, and **the order is not interchangeable**:
+
+> **Widen the scope to `global` FIRST. Close the campaign SECOND.**
+
+The reason is that `beta:<key>` matches **staff *or* member**. Close the campaign while
+the scope is still `beta:` and every membership becomes inactive at the same instant —
+the feature does not go GA, it goes *staff-only*, and it does so silently: no error, no
+log line, just testers who lose the feature while it still works perfectly for whoever
+is checking. The action looks like the last step of a successful rollout. Done in the
+right order, closing the campaign changes nothing for anyone, because by then the flag
+no longer consults it.
+
+Keep the flag afterwards. Once `global`, it is the feature's kill-switch, and turning it
+off is the one-move rollback that needs no client release.
+
+If you do get the order wrong, it is recoverable: reopen the campaign from the Plans
+screen (`ReopenCampaign`) and every non-revoked member is active again — closing writes
+`closed_at` and touches no membership. Revoked members stay revoked, which is the point.
+
+The live example is the drum beta: flag `drums.enabled` (app `music`), campaign
+`midi-drums`, opened in production on 2026-08-25.
+
 ## Enabling SoundFont delivery (`/soundfonts/*`)
 
 Turned on by the `CYMBRA_SOUNDFONT_S3_BUCKET` block in `.env` (see `.env.prod.example`
