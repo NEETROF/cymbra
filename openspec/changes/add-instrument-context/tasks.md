@@ -50,10 +50,10 @@
 
 ## 8. Manual verification
 
-- [ ] 8.1 As a campaign member signing in for the first time: the modal appears once, either choice proceeds, and the switcher is then visible on the home
-- [ ] 8.2 Sign out and back in: the modal does **not** reappear
-- [ ] 8.3 As a non-member: no modal, no switcher, no instrument question anywhere — the home is byte-for-byte today's, and no bundled drum score is listed anywhere
-- [ ] 8.4 With the context on drums, open a keyboard score from the library: it plays normally and the context is unchanged on return
+- [x] 8.1 As a campaign member signing in for the first time: the modal appears once, either choice proceeds, and the switcher is then visible on the home — VALIDÉ 2026-08-25 en **production** (campagne `midi-drums`, flag `drums.enabled` scopé `beta:midi-drums`) : le modal se présente une fois au premier sign-in du membre, le choix passe, et le sélecteur d'instrument est ensuite présent sur l'accueil
+- [x] 8.2 Sign out and back in: the modal does **not** reappear — VALIDÉ 2026-08-25 en **production** : le choix est bien retenu au-delà de la session, le modal ne se represente pas
+- [x] 8.3 As a non-member: no modal, no switcher, no instrument question anywhere — the home is byte-for-byte today's, and no bundled drum score is listed anywhere — VALIDÉ 2026-08-25 en **production**, depuis un compte non-membre (donc pas depuis une session staff, qui matche tous les scopes bêta et aurait rendu le test vacuous) : aucun modal, aucun sélecteur, aucune partition batterie listée
+- [x] 8.4 With the context on drums, open a keyboard score from the library: it plays normally and the context is unchanged on return — VALIDÉ 2026-08-25 en **production** : le contexte batterie ne contamine pas l'ouverture d'une partition clavier, et survit intact au retour
 - [ ] 8.5 Set the hub's filter to the other instrument, navigate away and back: the filter is retained and the home still reflects the context
 - [ ] 8.6 Close the campaign without widening the scope: the home renders as keyboard silently, still works, and the stored context is untouched
 - [ ] 8.7 Without an account, with drums visible, pick drums and open a bundled drum score: the cascade lanes and the pad strip render and nothing crashes — playing it through to the gauge and summary is the general-availability gate, verified once audio, input and scoring have landed

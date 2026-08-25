@@ -67,7 +67,7 @@
 
 ## 9. Manual verification (on-device, with a real e-kit where noted)
 
-- [ ] 9.1 As a beta member with an e-kit: play a bundled drum score in free run — gauge live in the cascade, sparks on lanes and bar, summary shows two dimensions and per-verdict counts, no sustain row
+- [x] 9.1 As a beta member with an e-kit: play a bundled drum score in free run — gauge live in the cascade, sparks on lanes and bar, summary shows two dimensions and per-verdict counts, no sustain row — VALIDÉ 2026-08-25 en **production**, depuis un compte membre de la campagne `midi-drums` : run libre sur partition batterie, jauge vivante dans la cascade et résumé conforme
 - [ ] 9.2 Wait Mode on a drum score: gate blocks at each onset, expected pads pulse, a strike of the right piece releases, a wrong piece does not; a kick+snare coincidence needs both; with **hands** selected a kick-only onset is skipped
 - [ ] 9.3 Hi-hat shading on hardware without a controller: a closed stroke completes a run written with open hi-hats, and the summary shows the capped verdicts
 - [x] 9.4 Feel pass on the reused windows: drive a rudiment-heavy score (flams, doubles) at tempo on phone and tablet before declaring the windows final — the constants are expected to move, the spec is not — VALIDÉ 2026-08-24 : passe de feel sur les fenêtres validée sur appareil ; la tolérance de frappe (150 ms, plancher temps réel) est jugée bonne
