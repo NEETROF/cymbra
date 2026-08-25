@@ -454,6 +454,46 @@ It only rewrites the `title` (the composer already came from the MusicXML) and i
 `title_norm`/`work_key`, never a curator-edited row. Idempotent — a second dry run
 reports `updated: 0`.
 
+### Maintenance: re-derive each score's instrument (before any drum rollout)
+
+`music.catalog_scores` and `music.user_scores` carry an `instrument` column
+(`keyboard` | `percussion` | `unknown`) that the drum gate reads. It cannot be filled
+in SQL — the tables hold an `object_key`, not the bytes — so a one-shot pass streams
+every score back from the store, classifies it with the shared parser, and persists
+the family. The migration that added the column defaults every existing row to
+`unknown`.
+
+> ⚠️ **Run this pass BEFORE switching a `drums.enabled` override on.** The gate serves
+> `unknown` to everyone: until the pass has completed, real percussion rows still read
+> `unknown` and the gate is not a boundary — the corpus already holds percussion that
+> was ingested despite the old keyboard-only gate (~29 pure drum parts on prod). The
+> flag looks like it is protecting something; it is not.
+
+```bash
+cd /opt/cymbra/backend/deploy
+./backup.sh                                                   # snapshot the DB first
+
+# dry run — writes nothing, prints what WOULD change, per table
+docker compose -f docker-compose.prod.yml run --rm server backfill-instruments
+
+# apply once the counts look right
+docker compose -f docker-compose.prod.yml run --rm server backfill-instruments --apply
+```
+
+Covers both tables in one run. Idempotent and resumable: a row whose bytes cannot be
+read or parsed is left `unknown` and logged, never fatal, and a second run reports
+everything `unchanged`. `--page-size <n>` (default 500) tunes the streaming batch.
+
+Verify:
+
+```sql
+select instrument, count(*) from music.catalog_scores group by 1 order by 2 desc;
+```
+
+All-`unknown` means the pass has not run. Spot-check that the known drum parts
+(`Drumset`, `Snare Drum`, `Schlagzeug`) read `percussion` and that two-staff keyboard
+rows read `keyboard` before turning the flag on.
+
 ### Enabling user score upload (the ScoreService)
 
 Off by default — the server logs `score-upload disabled` until `CYMBRA_SCORE_S3_BUCKET`

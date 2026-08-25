@@ -22,12 +22,16 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/src/target \
     cargo build --release --locked -p cymbra-server -p cymbra-worker \
     && cp target/release/cymbra-server target/release/cymbra-worker \
-          target/release/backfill-titles target/release/reconcile-corpus /usr/local/bin/ \
+          target/release/backfill-titles target/release/reconcile-corpus \
+          target/release/backfill-instruments target/release/backfill-score-previews \
+          target/release/verify-soundfont-families /usr/local/bin/ \
     # Strip debug symbols here (Dockerfile-scoped) rather than via a workspace-wide
     # [profile.release] strip=true, which would also touch the Flutter FFI crates'
     # release builds (apps/*/rust) — out of scope for this image.
     && strip --strip-all /usr/local/bin/cymbra-server /usr/local/bin/cymbra-worker \
-             /usr/local/bin/backfill-titles /usr/local/bin/reconcile-corpus
+             /usr/local/bin/backfill-titles /usr/local/bin/reconcile-corpus \
+             /usr/local/bin/backfill-instruments /usr/local/bin/backfill-score-previews \
+             /usr/local/bin/verify-soundfont-families
 
 # Distroless "cc" runtime: glibc + libgcc + libstdc++ + ca-certificates, no shell,
 # no package manager. `ldd` on the built binaries shows only libc/libgcc/libm (the
@@ -42,8 +46,15 @@ FROM gcr.io/distroless/cc-debian12@sha256:e8e7ee4b8b106d4c5fde9e422a321b2b8a2d5c
 COPY --from=builder /usr/local/bin/cymbra-server /usr/local/bin/cymbra-server
 COPY --from=builder /usr/local/bin/cymbra-worker /usr/local/bin/cymbra-worker
 # One-off maintenance bins, run via `docker compose run --rm server <bin> …`.
+# Every [[bin]] of cymbra-server belongs here: `cargo build -p cymbra-server` builds
+# them all, so one left out of this list is not a smaller image, it is a tool that
+# cannot be run on the box at all — which is how the instrument re-derivation came
+# to be missing when the drum gate needed it.
 COPY --from=builder /usr/local/bin/backfill-titles /usr/local/bin/backfill-titles
 COPY --from=builder /usr/local/bin/reconcile-corpus /usr/local/bin/reconcile-corpus
+COPY --from=builder /usr/local/bin/backfill-instruments /usr/local/bin/backfill-instruments
+COPY --from=builder /usr/local/bin/backfill-score-previews /usr/local/bin/backfill-score-previews
+COPY --from=builder /usr/local/bin/verify-soundfont-families /usr/local/bin/verify-soundfont-families
 USER 1000:1000
 # Overridden per service in docker-compose (server vs worker).
 CMD ["cymbra-server"]
