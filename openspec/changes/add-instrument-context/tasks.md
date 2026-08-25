@@ -50,7 +50,7 @@
 
 ## 8. Manual verification
 
-- [ ] 8.1 As a campaign member signing in for the first time: the modal appears once, either choice proceeds, and the switcher is then visible on the home
+- [x] 8.1 As a campaign member signing in for the first time: the modal appears once, either choice proceeds, and the switcher is then visible on the home — VALIDÉ 2026-08-25 en **production** (campagne `midi-drums`, flag `drums.enabled` scopé `beta:midi-drums`) : le modal se présente une fois au premier sign-in du membre, le choix passe, et le sélecteur d'instrument est ensuite présent sur l'accueil
 - [ ] 8.2 Sign out and back in: the modal does **not** reappear
 - [ ] 8.3 As a non-member: no modal, no switcher, no instrument question anywhere — the home is byte-for-byte today's, and no bundled drum score is listed anywhere
 - [ ] 8.4 With the context on drums, open a keyboard score from the library: it plays normally and the context is unchanged on return
