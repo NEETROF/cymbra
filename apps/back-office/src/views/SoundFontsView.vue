@@ -209,6 +209,7 @@ function licenseDesc(license: string): string {
   if (license.startsWith("CC0")) return t("soundfonts.licenseDesc.cc0");
   if (license.startsWith("CC-BY-SA")) return t("soundfonts.licenseDesc.ccbysa");
   if (license.startsWith("CC-BY")) return t("soundfonts.licenseDesc.ccby");
+  if (license === "MIT") return t("soundfonts.licenseDesc.mit");
   return "";
 }
 </script>
