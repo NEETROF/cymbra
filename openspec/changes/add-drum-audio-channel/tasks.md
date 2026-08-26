@@ -101,9 +101,15 @@
   record source, author and licence in `CREDITS.md`; register in `pubspec.yaml` — FAIT (confirmé 2026-08-24) : `assets/soundfonts/FluidR3Drums-bank128.sf2` + `FluidR3Drums-LICENSE-MIT.txt` + `CREDITS.md`
 - [x] 6.3 App catalog: a bundled-kit entry beside the bundled piano (stable id,
   family `percussion`), the percussion family's default and fallback — FAIT (confirmé 2026-08-24) : `defaultKitId = 'fluid-r3-drums'` dans le catalogue de l'app, à côté du piano embarqué
-- [ ] 6.4 Seed the same kit into the server catalog via the admin upload route
+- [x] 6.4 Seed the same kit into the server catalog via the admin upload route
   (family `percussion`, licence recorded, accepted) under the same stable id —
-  operational step, after 9.1
+  operational step, after 9.1 — FAIT 2026-08-25 en production : « FluidR3 Drums »,
+  `percussion`, `accepted`, 10,6 Mio, id `01a0382b-2ab3-7f29-8d24-10c5de5f4afc`, et
+  `catalog.preview.drum_soundfont_id` pointe dessus. La licence a d'abord été
+  enregistrée `CC0-1.0` — non par erreur de saisie mais parce que le menu du BO
+  n'offrait que des licences Creative Commons et **ne permettait pas d'exprimer MIT**,
+  le verdict pourtant signé en 9.1. Corrigé dans les deux sens : le menu accepte
+  désormais MIT (PR #285, déployée) et la ligne de production est passée à `MIT`
 
 ## 7. App — family-scoped selection and playback routing
 
@@ -172,12 +178,12 @@
 - [x] 9.3 On-device: pick a different kit for a drum score, relaunch, confirm
   the kit is remembered while the piano choice is untouched; delete an imported
   kit and confirm the fallback to the bundled kit — VALIDÉ 2026-08-24 : kit différent choisi puis relance : la mémoire par famille tient (piano intact, kit retrouvé)
-- [ ] 9.4 On-device: confirm a pad tap still produces nothing (display-only
-  until `add-drum-input-mapping`), and Wait Mode is still not offered
-- [ ] 9.5 Console: audition a percussion proposal — the picker offers kits only,
+- [x] 9.4 On-device: confirm a pad tap still produces nothing (display-only
+  until `add-drum-input-mapping`), and Wait Mode is still not offered — VALIDÉ 2026-08-25 en production (backend 0.21.1)
+- [x] 9.5 Console: audition a percussion proposal — the picker offers kits only,
   Play sounds drums; a keyboard score's picker offers pianos only; with the kit
   font unseeded (staging before 6.4), the localised "no drum kit available"
-  state shows
+  state shows — VALIDÉ 2026-08-25 en production (backend 0.21.1)
 - [ ] 9.6 Staging: apply the migration (4.1) and run the ops verification pass
   (4.5) — confirm every pre-existing row reads `keyboard` and no mismatch is
   reported
@@ -185,9 +191,9 @@
   accept a percussion score → its preview renders as drums; run the backfill →
   the formerly skipped percussion scores gain previews; keyboard previews
   unchanged; a percussion piece's card audition in the app plays the drum clip
-- [ ] 9.8 Upload verification: try declaring `percussion` on a piano `.sf2` and
+- [x] 9.8 Upload verification: try declaring `percussion` on a piano `.sf2` and
   `keyboard` on a kit-only `.sf2` — both refused with the localised reason in
-  the BO drawer; a full-GM font passes either declaration
-- [ ] 9.9 Confirm a keyboard score is unaffected end to end — app playback,
+  the BO drawer; a full-GM font passes either declaration — VALIDÉ 2026-08-25 en production (backend 0.21.1)
+- [x] 9.9 Confirm a keyboard score is unaffected end to end — app playback,
   picker, console Play, previews — and record in `design.md` anything the
-  listening pass changed (kit choice, groove sequence)
+  listening pass changed (kit choice, groove sequence) — VALIDÉ 2026-08-25 en production (backend 0.21.1)

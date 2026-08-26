@@ -52,7 +52,7 @@
 ## 7. Feel pass — the part tests cannot decide
 
 - [x] 7.1 Drive a real drum score at real tempo on a phone **and** a tablet: are the lanes wide enough, does the groove read without hunting? — VALIDÉ 2026-08-24 : partition batterie au tempo réel sur iPhone (build release) — le groove se lit sans chercher
-- [ ] 7.2 Check the bar's attenuation **in motion** — a scrolling bar reads weaker than a static one, so the value tuned on a mockup may be too low
+- [x] 7.2 Check the bar's attenuation **in motion** — a scrolling bar reads weaker than a static one, so the value tuned on a mockup may be too low — VALIDÉ 2026-08-25 en production (backend 0.21.1)
 - [x] 7.3 Check the foot colour on the **Paper** theme, where amber sits on ivory rather than on a dark ground and the contrast ratio is not the same — VALIDÉ 2026-08-24 : thème Papier validé sur appareil
 - [x] 7.4 Confirm the open-hi-hat variant is distinguishable from a closed one at speed, not merely side by side — VALIDÉ 2026-08-24 : ouvert/fermé distinguable à vitesse réelle
 - [ ] 7.5 With the drummer tester: validate the tom ordering and the ride's placement on a score that alternates hi-hat and ride between sections — the one case the reasoning could not settle
