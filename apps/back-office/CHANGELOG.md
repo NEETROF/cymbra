@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.1](https://github.com/NEETROF/cymbra/compare/back-office-v0.11.0...back-office-v0.11.1) (2026-08-26)
+
+
+### Bug Fixes
+
+* **back-office:** MIT is offerable as a SoundFont licence ([#285](https://github.com/NEETROF/cymbra/issues/285)) ([21e3685](https://github.com/NEETROF/cymbra/commit/21e368518cd6dec52e9af9479e78507128973f40))
+
 ## [0.11.0](https://github.com/NEETROF/cymbra/compare/back-office-v0.10.0...back-office-v0.11.0) (2026-08-24)
 
 
