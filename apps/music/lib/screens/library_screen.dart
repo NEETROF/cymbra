@@ -173,7 +173,12 @@ class LibraryScreen extends ConsumerWidget {
       for (final e in catalog)
         if ((e.instrument == ScoreInstrument.percussion) == wantsDrums) e,
     ];
-    if (shown.isEmpty && wantsDrums) return const DrumsEmptyInvitation();
+    if (shown.isEmpty && wantsDrums) {
+      return DrumsEmptyInvitation(
+        onBrowseCatalog: () =>
+            _openGated(context, ref, SignInBenefit.saveLibrary, _openHub),
+      );
+    }
     return ListView(
       padding: const EdgeInsets.only(bottom: 24),
       children: _levelSections(
@@ -324,7 +329,16 @@ class _SignedInBody extends ConsumerWidget {
         if (!wantsDrums) const SliverToBoxAdapter(child: CoursesSection()),
         switch (favorites) {
           AsyncData(:final value) when byContext(value).isEmpty => _fill(
-            wantsDrums ? const DrumsEmptyInvitation() : _Empty(l10n: l10n),
+            wantsDrums
+                ? DrumsEmptyInvitation(
+                    onBrowseCatalog: () => LibraryScreen._openGated(
+                      context,
+                      ref,
+                      SignInBenefit.saveLibrary,
+                      LibraryScreen._openHub,
+                    ),
+                  )
+                : _Empty(l10n: l10n),
           ),
           AsyncData(:final value) => SliverPadding(
             padding: const EdgeInsets.only(bottom: 24),
@@ -341,7 +355,16 @@ class _SignedInBody extends ConsumerWidget {
             ),
           ),
           AsyncError() => _fill(
-            wantsDrums ? const DrumsEmptyInvitation() : _Empty(l10n: l10n),
+            wantsDrums
+                ? DrumsEmptyInvitation(
+                    onBrowseCatalog: () => LibraryScreen._openGated(
+                      context,
+                      ref,
+                      SignInBenefit.saveLibrary,
+                      LibraryScreen._openHub,
+                    ),
+                  )
+                : _Empty(l10n: l10n),
           ),
           _ => _fill(const Center(child: CircularProgressIndicator())),
         },

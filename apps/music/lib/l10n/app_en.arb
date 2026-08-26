@@ -3329,13 +3329,17 @@
   "@drumsEmptyTitle": {
     "description": "Drums-context empty state title."
   },
-  "drumsEmptyBody": "Nothing to show for drums right now — explore the catalog from the search icon, or switch back to keyboard.",
+  "drumsEmptyBody": "Nothing to show for drums right now — start from the catalog, or switch back to keyboard.",
   "@drumsEmptyBody": {
     "description": "Drums-context empty state body, naming the cause and the ways out."
   },
   "drumsEmptySwitch": "Switch to keyboard",
   "@drumsEmptySwitch": {
     "description": "Button switching the context back to keyboard."
+  },
+  "drumsEmptyBrowse": "Browse the catalog",
+  "@drumsEmptyBrowse": {
+    "description": "Primary button of the drums-context empty state: opens the score hub."
   },
   "notationHelpPercussionClefTitle": "Percussion clef",
   "@notationHelpPercussionClefTitle": {

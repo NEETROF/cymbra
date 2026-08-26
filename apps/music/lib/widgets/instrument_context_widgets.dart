@@ -201,7 +201,14 @@ class _InstrumentChoiceListenerState
 /// invitation naming the cause and offering to switch, never a bare empty
 /// screen. The courses surface under drums reuses it too.
 class DrumsEmptyInvitation extends ConsumerWidget {
-  const DrumsEmptyInvitation({super.key});
+  const DrumsEmptyInvitation({super.key, required this.onBrowseCatalog});
+
+  /// Opens the score hub. Required rather than optional: this state is where a
+  /// drummer with nothing saved lands, so an invitation whose only action is
+  /// "give up on drums" would be the common case, not the edge one. The screen
+  /// owns the navigation (and the signed-out sign-in detour); the widget only
+  /// offers it.
+  final VoidCallback onBrowseCatalog;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -234,7 +241,16 @@ class DrumsEmptyInvitation extends ConsumerWidget {
               style: const TextStyle(color: CymbraColors.onSurfaceVariant),
             ),
             const SizedBox(height: 20),
+            // The catalog leads. Switching back to the keyboard stays offered
+            // but reads as the fallback it is.
             FilledButton.icon(
+              key: const Key('drums-empty-browse'),
+              icon: const Icon(Icons.search),
+              label: Text(l10n.drumsEmptyBrowse),
+              onPressed: onBrowseCatalog,
+            ),
+            const SizedBox(height: 4),
+            TextButton.icon(
               key: const Key('drums-empty-switch'),
               icon: const Icon(Icons.piano),
               label: Text(l10n.drumsEmptySwitch),

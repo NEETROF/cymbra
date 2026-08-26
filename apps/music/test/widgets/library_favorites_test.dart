@@ -31,6 +31,7 @@ import 'package:music/services/offline_score_cache.dart';
 import 'package:music/services/preferences_service.dart';
 import 'package:music/services/score_asset_source.dart';
 import 'package:music/services/score_upload_service.dart';
+import 'package:music/screens/score_hub_screen.dart';
 import 'package:music/state/drums_access.dart';
 import 'package:music/state/instrument_context.dart';
 import 'package:music/state/score_catalog.dart';
@@ -504,6 +505,35 @@ void main() {
 
     expect(find.byKey(const Key('drums-empty-switch')), findsOneWidget);
     expect(find.text('Piano Favorite'), findsNothing);
+    await _teardown(tester);
+  });
+
+  testWidgets('the drums invitation leads to the catalog, not only back to '
+      'the keyboard', (tester) async {
+    final prefs = FakePreferencesService({
+      InstrumentContext.prefsKey: jsonEncode({
+        'context': 'drums',
+        'choiceOffered': true,
+      }),
+    });
+    final c = _container(
+      _FakeCatalog([_saved('c1', 'Piano Favorite')]),
+      _FakeUpload(const []),
+      drumsVisible: true,
+      prefs: prefs,
+      bundled: _bundled, // no percussion anywhere
+    );
+    await _pump(tester, c);
+
+    // This state is where a signed-in drummer with nothing saved lands, so its
+    // primary action has to be a way forward. Tapping it opens the hub; the
+    // context is untouched, which is what separates it from the switch below.
+    await tester.tap(find.byKey(const Key('drums-empty-browse')));
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    expect(find.byType(ScoreHubScreen), findsOneWidget);
+    expect(prefs.store[InstrumentContext.prefsKey], contains('drums'));
     await _teardown(tester);
   });
 }
