@@ -76,3 +76,13 @@
   sound rather than a fiction
 - [ ] 8.5 On-device: strokes feel simultaneous with the kit's own sound; leaving
   the player stops the engine sounding what the instrument sends
+- [x] 8.6 `api/audio_core.rs` + `open_output`: ask the output device for a
+  **6 ms** buffer instead of taking the host's default. The callback runs once
+  per buffer, so it is the floor under everything the player hears — the echo
+  above included, which is otherwise the only part of the input path we do not
+  control. Measured on the tester's platform (macOS/CoreAudio): the default is
+  512 frames at 48 kHz (10.7 ms), the request is honoured at 288 (6.0 ms).
+  A **request**, never a demand: the size is clamped into the range the device
+  declares, a host that declares none is left alone, and a device that refuses
+  falls straight back to its default rather than leaving the app silent. Pure
+  part unit-tested; the log line reports what was actually opened

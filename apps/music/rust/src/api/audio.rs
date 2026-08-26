@@ -50,7 +50,7 @@ use rustysynth::SoundFont;
 
 use super::audio_core::{
     AudioEvent, OutputChoice, decode_wav_pcm, is_valid_soundfont, order_outputs,
-    resolve_output_device, route_kind_of,
+    preferred_buffer_frames, resolve_output_device, route_kind_of,
 };
 use super::platform_log;
 use super::renderer::{RenderCommand, Renderer};
@@ -772,14 +772,46 @@ fn open_output(
 
     let supported = device.default_output_config()?;
     let sample_format = supported.sample_format();
-    let config: cpal::StreamConfig = supported.config();
+    let mut config: cpal::StreamConfig = supported.config();
 
-    let stream = match sample_format {
-        cpal::SampleFormat::F32 => build_stream::<f32>(&device, &config, sound_font, events),
-        cpal::SampleFormat::I16 => build_stream::<i16>(&device, &config, sound_font, events),
-        cpal::SampleFormat::U16 => build_stream::<u16>(&device, &config, sound_font, events),
+    // Ask for a short buffer (change: add-drum-input-mapping — beta fix): the
+    // callback runs once per buffer, so this is the floor under everything the
+    // player hears — including the engine's echo of their own strokes, which is
+    // otherwise the only part of the input path we do not control.
+    //
+    // A **request**, never a demand: some devices refuse a fixed size outright
+    // and fail to open at all, so a refusal falls straight back to the host's
+    // default rather than leaving the app silent. The log line below reports
+    // what was actually opened, which is the only number worth trusting.
+    let preferred = preferred_buffer_frames(
+        match supported.buffer_size() {
+            cpal::SupportedBufferSize::Range { min, max } => Some((*min, *max)),
+            cpal::SupportedBufferSize::Unknown => None,
+        },
+        config.sample_rate,
+    );
+    if let Some(frames) = preferred {
+        config.buffer_size = cpal::BufferSize::Fixed(frames);
+    }
+
+    let build = |config: &cpal::StreamConfig| match sample_format {
+        cpal::SampleFormat::F32 => build_stream::<f32>(&device, config, sound_font, events.clone()),
+        cpal::SampleFormat::I16 => build_stream::<i16>(&device, config, sound_font, events.clone()),
+        cpal::SampleFormat::U16 => build_stream::<u16>(&device, config, sound_font, events.clone()),
         other => Err(anyhow!("unsupported sample format: {other:?}")),
-    }?;
+    };
+    let stream = match build(&config) {
+        Ok(stream) => stream,
+        Err(e) if preferred.is_some() => {
+            platform_log::log_line(
+                "cymbra-audio",
+                &format!("device refused a {preferred:?}-frame buffer ({e}); taking its default"),
+            );
+            config.buffer_size = cpal::BufferSize::Default;
+            build(&config)?
+        }
+        Err(e) => return Err(e),
+    };
 
     let active = device.description().ok().map(|d| AudioOutputInfo {
         name: d.name().to_string(),
