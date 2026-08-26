@@ -158,26 +158,6 @@ external claim.
   says another
 - **THEN** the classification follows the notation
 
-### Requirement: The validation gate stays closed in this change
-
-The shared validation gate SHALL continue to reject a score containing no **pitched**
-notes, exactly as before this change, so a percussion score still cannot enter the
-system through the upload or crawler paths. Parsing percussion notation and
-admitting it are deliberately separated: opening the gate discloses drum scores to
-every caller, which requires the access controls delivered by `add-drums-access`.
-Until then this capability is reachable only by a direct call to the parser.
-
-#### Scenario: A percussion score is still refused by the gate
-
-- **WHEN** a score whose only notes are unpitched is validated
-- **THEN** it is rejected for containing no playable notes, exactly as before
-
-#### Scenario: The parser still produces the percussion document
-
-- **WHEN** the same score is parsed directly rather than validated
-- **THEN** the full percussion document is produced, with its unpitched notes,
-  instrument table and classification
-
 ### Requirement: Unpitched notes reach the playback schedule
 
 The playback schedule SHALL include unpitched notes when, and only when, the score
@@ -240,4 +220,32 @@ same unpitched tie rule.
   scheduled by the shared crate and by the app's mirror implementation
 - **THEN** both produce the same notes with the same start times, durations and
   General MIDI numbers
+
+### Requirement: The validation gate admits percussion
+
+The shared validation gate SHALL count unpitched notes as playable notes, so a
+percussion score passes validation instead of being rejected as containing none.
+This opens the admission the companion change `add-unpitched-notation` deliberately
+left closed; it is safe to open here because this change also delivers the access
+controls that decide who may submit and read such a score (see
+`music-drums-visibility`).
+
+A score containing neither pitched nor unpitched notes SHALL still be rejected,
+with the same reason as before.
+
+#### Scenario: A percussion score passes the gate
+
+- **WHEN** a score whose only notes are unpitched is validated
+- **THEN** it passes, and its summary reports a non-zero playable-note count
+
+#### Scenario: A rest-only score is still rejected
+
+- **WHEN** a score containing only rests is validated
+- **THEN** it is rejected for containing no playable notes
+
+#### Scenario: Opening the gate does not itself grant access
+
+- **WHEN** the gate accepts a percussion score
+- **THEN** whether that score may be submitted or read is still decided by the drum
+  audience enforcement, not by the gate
 

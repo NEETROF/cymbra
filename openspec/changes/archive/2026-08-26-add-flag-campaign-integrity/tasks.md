@@ -46,8 +46,8 @@
 
 ## 7. Manual verification
 
-- [ ] 7.1 In the flags panel, scope a flag to an open campaign and save — accepted and audited as before
-- [ ] 7.2 Close that campaign, reopen the flag, and confirm its scope is still selectable, saveable, and not flagged as a defect
-- [ ] 7.3 Write a `beta:<key>` naming no campaign through a direct RPC call (bypassing the console, which cannot produce one) and confirm it is refused with an explicit reason and stores nothing
-- [ ] 7.4 Seed a dangling scope directly in the database, open its flag, and confirm the console marks it distinctly and names the cause
-- [ ] 7.5 Audit the existing beta-scoped flags once after deploying, and record whether any were already dangling — this decides the open question about a one-off report
+- [x] 7.1 In the flags panel, scope a flag to an open campaign and save — accepted and audited as before — VALIDÉ 2026-08-25 en production (backend 0.21.1)
+- [x] 7.2 Close that campaign, reopen the flag, and confirm its scope is still selectable, saveable, and not flagged as a defect — VALIDÉ 2026-08-25 en production (backend 0.21.1)
+- [x] 7.3 Write a `beta:<key>` naming no campaign through a direct RPC call (bypassing the console, which cannot produce one) and confirm it is refused with an explicit reason and stores nothing — VALIDÉ 2026-08-25 en production (backend 0.21.1)
+- [x] 7.4 Seed a dangling scope directly in the database, open its flag, and confirm the console marks it distinctly and names the cause — VALIDÉ 2026-08-25 en production (backend 0.21.1)
+- [x] 7.5 Audit the existing beta-scoped flags once after deploying, and record whether any were already dangling — this decides the open question about a one-off report — VALIDÉ 2026-08-25 en production (backend 0.21.1)
