@@ -138,7 +138,8 @@
     "licenseDesc": {
       "cc0": "CC0 1.0 — Public domain: no attribution required, free to reuse for any purpose.",
       "ccby": "CC BY — Free to use, including commercially, as long as the author is credited.",
-      "ccbysa": "CC BY-SA — Attribution required, and derivatives must keep the same licence (ShareAlike)."
+      "ccbysa": "CC BY-SA — Attribution required, and derivatives must keep the same licence (ShareAlike).",
+      "mit": "MIT — Free to reuse and modify, commercially included, provided the licence notice travels with the file."
     },
     "file": "SoundFont file (.sf2)",
     "save": "Save",

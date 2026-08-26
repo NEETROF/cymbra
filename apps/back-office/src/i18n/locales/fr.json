@@ -138,7 +138,8 @@
     "licenseDesc": {
       "cc0": "CC0 1.0 — Domaine public : aucune attribution requise, réutilisation libre pour tout usage.",
       "ccby": "CC BY — Utilisation libre, y compris commerciale, à condition de créditer l’auteur.",
-      "ccbysa": "CC BY-SA — Attribution requise et les œuvres dérivées doivent garder la même licence (partage à l’identique)."
+      "ccbysa": "CC BY-SA — Attribution requise et les œuvres dérivées doivent garder la même licence (partage à l’identique).",
+      "mit": "MIT — Réutilisation et modification libres, y compris commerciales, à condition de conserver la notice de licence avec le fichier."
     },
     "file": "Fichier SoundFont (.sf2)",
     "save": "Enregistrer",

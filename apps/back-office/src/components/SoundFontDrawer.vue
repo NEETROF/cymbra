@@ -42,7 +42,11 @@ const form = ref({
 });
 
 // Selectable SoundFont licences (a fixed dropdown, not free text).
-const LICENSES = ["CC0-1.0", "CC-BY 3.0", "CC-BY 4.0", "CC-BY-SA 4.0"];
+// SPDX identifiers. MIT is here because the bundled drum kit is MIT (FluidR3 GM,
+// per Debian's vetted copyright file) — without it the closest offer was CC0, which
+// UNDERSTATES the obligation: MIT requires the notice to travel with the bytes,
+// CC0 requires nothing, and this field is what the public attribution reads from.
+const LICENSES = ["CC0-1.0", "CC-BY 3.0", "CC-BY 4.0", "CC-BY-SA 4.0", "MIT"];
 // The two instrument families of the score vocabulary (change:
 // add-drum-audio-channel), keyboard first as the default. The server verifies the
 // declaration against the file's preset banks and refuses a mismatch.
@@ -63,6 +67,7 @@ const licenseHint = computed(() => {
   if (l.startsWith("CC0")) return t("soundfonts.licenseDesc.cc0");
   if (l.startsWith("CC-BY-SA")) return t("soundfonts.licenseDesc.ccbysa");
   if (l.startsWith("CC-BY")) return t("soundfonts.licenseDesc.ccby");
+  if (l === "MIT") return t("soundfonts.licenseDesc.mit");
   return "";
 });
 const file = ref<File | null>(null);
