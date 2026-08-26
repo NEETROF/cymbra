@@ -31,6 +31,7 @@ import 'package:music/services/offline_score_cache.dart';
 import 'package:music/services/preferences_service.dart';
 import 'package:music/services/score_asset_source.dart';
 import 'package:music/services/score_upload_service.dart';
+import 'package:music/screens/score_hub_screen.dart';
 import 'package:music/state/drums_access.dart';
 import 'package:music/state/instrument_context.dart';
 import 'package:music/state/score_catalog.dart';
@@ -49,13 +50,20 @@ class _FakeCatalog implements CatalogService {
   Future<CatalogAccessState?> dailyAccess() async => null;
   @override
   Future<CatalogAccessState?> unlockForToday(String catalogId) async => null;
-  _FakeCatalog(this.saved);
+  _FakeCatalog(this.saved, {this.failure});
   final List<CatalogHit> saved;
   final List<String> removed = [];
 
+  /// When set, `listSaved` throws it — the favorites list in error, which the
+  /// home has to render as something other than a bare failure.
+  final Object? failure;
+
   @override
-  Future<List<CatalogHit>> listSaved() async =>
-      saved.where((h) => !removed.contains(h.id)).toList();
+  Future<List<CatalogHit>> listSaved() async {
+    if (failure != null) throw failure!;
+    return saved.where((h) => !removed.contains(h.id)).toList();
+  }
+
   @override
   Future<void> remove(String catalogId) async => removed.add(catalogId);
   @override
@@ -429,7 +437,7 @@ void main() {
   });
 
   testWidgets('signed in under the drums context: favorites filter to '
-      'percussion, the bundled grooves offer a start, courses step aside', (
+      'percussion, the bundled grooves stay OUT, courses step aside', (
     tester,
   ) async {
     final prefs = FakePreferencesService({
@@ -459,10 +467,12 @@ void main() {
     );
     await _pump(tester, c);
 
-    // The drum favorite and the bundled groove; the piano favorite, the
-    // bundled piano piece and the (keyboard-only) courses card step aside.
+    // The drum favorite alone. The piano favorite, the bundled piano piece and
+    // the (keyboard-only) courses card step aside — and so does the bundled
+    // groove, which is in the catalog passed to this container: signed in, the
+    // home shows what the account holds, never a demo score.
     expect(find.text('Drum Favorite'), findsOneWidget);
-    expect(find.text('Bundled Groove'), findsOneWidget);
+    expect(find.text('Bundled Groove'), findsNothing);
     expect(find.text('Piano Favorite'), findsNothing);
     expect(find.text('Bundled Piece'), findsNothing);
     expect(find.byType(CoursesSection), findsNothing);
@@ -480,7 +490,6 @@ void main() {
     expect(find.text('Piano Favorite'), findsOneWidget);
     expect(find.byType(CoursesSection), findsOneWidget);
     expect(find.text('Drum Favorite'), findsNothing);
-    expect(find.text('Bundled Groove'), findsNothing);
     await _teardown(tester);
   });
 
@@ -503,6 +512,80 @@ void main() {
 
     expect(find.byKey(const Key('drums-empty-switch')), findsOneWidget);
     expect(find.text('Piano Favorite'), findsNothing);
+    await _teardown(tester);
+  });
+
+  testWidgets('the drums invitation leads to the catalog, not only back to '
+      'the keyboard', (tester) async {
+    final prefs = FakePreferencesService({
+      InstrumentContext.prefsKey: jsonEncode({
+        'context': 'drums',
+        'choiceOffered': true,
+      }),
+    });
+    final c = _container(
+      _FakeCatalog([_saved('c1', 'Piano Favorite')]),
+      _FakeUpload(const []),
+      drumsVisible: true,
+      prefs: prefs,
+      bundled: _bundled, // no percussion anywhere
+    );
+    await _pump(tester, c);
+
+    // This state is where a signed-in drummer with nothing saved lands, so its
+    // primary action has to be a way forward. Tapping it opens the hub; the
+    // context is untouched, which is what separates it from the switch below.
+    await tester.tap(find.byKey(const Key('drums-empty-browse')));
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    expect(find.byType(ScoreHubScreen), findsOneWidget);
+    expect(prefs.store[InstrumentContext.prefsKey], contains('drums'));
+    await _teardown(tester);
+  });
+
+  testWidgets('favorites failing under drums: the invitation stands in for the '
+      'error, and its way forward still works', (tester) async {
+    final c = _container(
+      _FakeCatalog(const [], failure: StateError('offline')),
+      _FakeUpload(const []),
+      drumsVisible: true,
+      prefs: FakePreferencesService({
+        InstrumentContext.prefsKey: jsonEncode({
+          'context': 'drums',
+          'choiceOffered': true,
+        }),
+      }),
+      bundled: _bundled,
+    );
+    await _pump(tester, c);
+
+    // The list could not be read at all, yet the drummer gets the same way
+    // forward as when it is merely empty — which is what makes the failure
+    // unremarkable rather than a wall.
+    expect(find.byKey(const Key('drums-empty-switch')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('drums-empty-browse')));
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    // A real destination, not a button drawn on an error: the catalog does not
+    // depend on the favorites read that just failed.
+    expect(find.byType(ScoreHubScreen), findsOneWidget);
+    await _teardown(tester);
+  });
+
+  testWidgets('favorites failing under the keyboard: that context keeps its '
+      'own empty state, never the drums invitation', (tester) async {
+    final c = _container(
+      _FakeCatalog(const [], failure: StateError('offline')),
+      _FakeUpload(const []),
+      drumsVisible: true,
+      bundled: _bundled,
+    );
+    await _pump(tester, c);
+
+    expect(find.byKey(const Key('drums-empty-browse')), findsNothing);
+    expect(find.byKey(const Key('drums-empty-switch')), findsNothing);
     await _teardown(tester);
   });
 }

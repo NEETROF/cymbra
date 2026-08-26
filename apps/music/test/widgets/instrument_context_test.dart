@@ -266,6 +266,43 @@ void main() {
     await _teardown(tester, container);
   });
 
+  testWidgets('the invitation also leads FORWARD, and signed out the catalog '
+      'is reached through the sign-in offer — never a dead end', (
+    tester,
+  ) async {
+    final prefs = FakePreferencesService({
+      InstrumentContext.prefsKey: _stored(AppInstrument.drums),
+    });
+    final container = _container(
+      prefs: prefs,
+      drumsVisible: true,
+      catalog: const [
+        CatalogEntry(
+          id: 'p1',
+          title: 'Piano Piece',
+          composer: 'X',
+          assetPath: 'assets/scores/beginner/p1.musicxml',
+          level: PracticeLevel.beginner,
+        ),
+      ],
+    );
+    await _pump(tester, container);
+
+    await tester.tap(find.byKey(const Key('drums-empty-browse')));
+    await _pumpFrames(tester);
+    // The catalog is account-gated, so signed out the button names the benefit
+    // instead of pushing a locked screen.
+    expect(find.byKey(const Key('sign-in-invitation')), findsOneWidget);
+
+    // Declining returns the reader to the drum home, still on drums: the way
+    // forward was offered, not forced, and refusing it costs nothing.
+    await tester.tap(find.byKey(const Key('sign-in-invitation-decline')));
+    await _pumpFrames(tester);
+    expect(find.text('No drum scores here yet'), findsOneWidget);
+    expect(prefs.store[InstrumentContext.prefsKey], contains('drums'));
+    await _teardown(tester, container);
+  });
+
   testWidgets('phone and tablet: the switcher, the modal and the drum home '
       'hold on small viewports', (tester) async {
     for (final size in const [Size(390, 844), Size(820, 1180)]) {
