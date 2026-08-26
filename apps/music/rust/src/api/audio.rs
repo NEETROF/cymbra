@@ -35,7 +35,7 @@
 //! (Android — using the NDK context initialized in `JNI_OnLoad`, see lib.rs).
 
 use std::fs::File;
-use std::io::{BufReader, Read};
+use std::io::{BufReader, Cursor, Read, Seek, SeekFrom};
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
@@ -503,7 +503,7 @@ fn spawn_drift_monitor() {
 
 /// Pushes a control event to the audio thread if the engine is running;
 /// otherwise a silent no-op.
-fn send(event: AudioEvent) {
+pub(crate) fn send(event: AudioEvent) {
     if let Some(tx) = EVENT_TX.lock().unwrap().as_ref() {
         let _ = tx.send(RenderCommand::Control(event));
     }
@@ -523,10 +523,80 @@ fn load_sound_font(path: &str) -> Result<Arc<SoundFont>> {
     if !is_valid_soundfont(&header[..read]) {
         return Err(anyhow!("not a SoundFont (bad RIFF/sfbk header): {path}"));
     }
-    let file = File::open(path).map_err(|e| anyhow!("open SoundFont {path}: {e}"))?;
-    let mut reader = BufReader::new(file);
-    let sound_font = SoundFont::new(&mut reader).map_err(|e| anyhow!("invalid SoundFont: {e}"))?;
+    // Choke groups a stereo pair shares are split on the way in (change:
+    // add-drum-audio-channel — beta fix): `rustysynth` reuses one voice slot for
+    // every region of a class, so an unsplit hi-hat loses the half its own
+    // note-on started and comes out hard right (silent on a mono output). The
+    // patch touches a few words of the `pdta` hydra, which is read into memory
+    // — a few hundred KB at most — while the sample data still streams.
+    let sound_font = match split_choke_groups(path) {
+        Some((pdta_at, pdta)) => {
+            let head = File::open(path)
+                .map_err(|e| anyhow!("open SoundFont {path}: {e}"))?
+                .take(pdta_at);
+            let mut tail = File::open(path).map_err(|e| anyhow!("open SoundFont {path}: {e}"))?;
+            tail.seek(SeekFrom::Start(pdta_at + pdta.len() as u64))
+                .map_err(|e| anyhow!("read SoundFont {path}: {e}"))?;
+            let mut reader = BufReader::new(head.chain(Cursor::new(pdta)).chain(tail));
+            SoundFont::new(&mut reader)
+        }
+        None => {
+            let file = File::open(path).map_err(|e| anyhow!("open SoundFont {path}: {e}"))?;
+            let mut reader = BufReader::new(file);
+            SoundFont::new(&mut reader)
+        }
+    }
+    .map_err(|e| anyhow!("invalid SoundFont: {e}"))?;
     Ok(Arc::new(sound_font))
+}
+
+/// The font's `pdta` LIST body with [`cymbra_sf2_meta::stereo_exclusive_class_patches`]
+/// applied, and the offset it starts at — the two things needed to stream the
+/// file with that one chunk replaced.
+///
+/// `None` whenever there is nothing to do: no shared choke group, no readable
+/// hydra, or a file that does not describe itself sanely. The font is then
+/// loaded exactly as it is on disk, so a font this cannot parse is never
+/// *worse* off than before.
+fn split_choke_groups(path: &str) -> Option<(u64, Vec<u8>)> {
+    let mut file = File::open(path).ok()?;
+    let len = file.metadata().ok()?.len();
+    // Past "RIFF<size>sfbk", already validated by the caller.
+    let mut pos = 12u64;
+    while pos + 8 <= len {
+        file.seek(SeekFrom::Start(pos)).ok()?;
+        let mut header = [0u8; 12];
+        file.read_exact(&mut header[..8]).ok()?;
+        let size = u64::from(u32::from_le_bytes(header[4..8].try_into().ok()?));
+        let body = pos + 8;
+        if &header[..4] == b"LIST" && size >= 4 {
+            file.read_exact(&mut header[8..12]).ok()?;
+            if &header[8..12] == b"pdta" {
+                // A chunk claiming more than the file holds is not a hydra.
+                let body_len = usize::try_from(size - 4)
+                    .ok()
+                    .filter(|n| body + 4 + *n as u64 <= len)?;
+                let mut pdta = vec![0u8; body_len];
+                file.read_exact(&mut pdta).ok()?; // already positioned at the body
+                let patches = cymbra_sf2_meta::stereo_exclusive_class_patches(&pdta);
+                if patches.is_empty() {
+                    return None;
+                }
+                for patch in &patches {
+                    pdta.get_mut(patch.offset..patch.offset + 2)?
+                        .copy_from_slice(&patch.value.to_le_bytes());
+                }
+                platform_log::log_line(
+                    "cymbra-audio",
+                    &format!("{} shared choke class(es) split in {path}", patches.len()),
+                );
+                return Some((body + 4, pdta));
+            }
+        }
+        // Chunks are word-aligned: an odd size carries a pad byte.
+        pos = body + size + (size & 1);
+    }
+    None
 }
 
 /// Reads and parses the SoundFont from `sf2_path`, opens an output device and
@@ -790,4 +860,61 @@ where
         None,
     )?;
     Ok(stream)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rustysynth::{Synthesizer, SynthesizerSettings};
+
+    /// The kit font the app ships, from the crate root.
+    fn kit_font() -> String {
+        format!(
+            "{}/../assets/soundfonts/FluidR3Drums-bank128.sf2",
+            env!("CARGO_MANIFEST_DIR")
+        )
+    }
+
+    /// Peak level of each channel over one second of key `key` on the drum
+    /// channel — the audibility question a player asks, answered in samples.
+    fn peaks(font: &Arc<SoundFont>, key: i32) -> (f32, f32) {
+        let mut synth = Synthesizer::new(font, &SynthesizerSettings::new(44_100)).expect("synth");
+        synth.note_on(9, key, 100);
+        let (mut left, mut right) = (vec![0f32; 44_100], vec![0f32; 44_100]);
+        synth.render(&mut left, &mut right);
+        let peak = |v: &[f32]| v.iter().fold(0f32, |a, b| a.max(b.abs()));
+        (peak(&left), peak(&right))
+    }
+
+    /// The beta report this fixes: the hi-hat lit its pad and made no sound.
+    /// Its two stereo halves shared a choke class, so `rustysynth` gave them one
+    /// voice and the hard-right half won — inaudible on a mono output, and half
+    /// the level of everything else on a stereo one.
+    #[test]
+    fn the_hi_hat_sounds_on_both_channels_like_every_other_piece() {
+        let font = load_sound_font(&kit_font()).expect("kit font loads");
+        for key in [42, 44, 46] {
+            let (left, right) = peaks(&font, key);
+            assert!(
+                left > 0.0,
+                "GM {key} must reach the left channel too (got {left} / {right})"
+            );
+        }
+        // The control: pieces that never shared a class are untouched.
+        let (left, right) = peaks(&font, 38);
+        assert!(left > 0.0 && right > 0.0);
+    }
+
+    #[test]
+    fn the_shipped_kit_font_declares_shared_choke_groups_to_split() {
+        // Guards the test above against becoming vacuous if the asset is ever
+        // repacked without exclusive classes.
+        let (at, pdta) = split_choke_groups(&kit_font()).expect("the kit font is patched");
+        assert!(at > 0 && !pdta.is_empty());
+    }
+
+    #[test]
+    fn a_file_that_is_not_a_font_is_simply_not_patched() {
+        assert!(split_choke_groups("/nonexistent/font.sf2").is_none());
+    }
 }

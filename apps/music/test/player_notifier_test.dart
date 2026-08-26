@@ -72,8 +72,12 @@ void main() {
     ScoreDocument? document,
     CatalogEntry? entry,
   }) async {
-    midi = service ?? FakeMidiService();
     audio = audioService ?? RecordingAudioService();
+    // The fake engine sounds live MIDI notes itself when the app arms the echo
+    // (change: add-drum-input-mapping, beta fix for input latency), exactly as
+    // the real one does in its MIDI callback.
+    midi = service ?? FakeMidiService();
+    midi.echoTo = audio;
     container = ProviderContainer(
       overrides: [
         midiServiceProvider.overrideWithValue(midi),

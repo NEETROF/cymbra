@@ -6,7 +6,16 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `current_port_names`, `open_connections`, `try_connect`
+// These functions are ignored because they are not marked as `pub`: `current_port_names`, `midi_echo`, `open_connections`, `try_connect`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `eq`, `fmt`
+
+/// Chooses what the engine sounds for live MIDI events from now on, and returns
+/// immediately (see [`MidiEcho`]). Pushed by the app whenever its own answer
+/// changes — the loaded score's family, the kit font becoming ready, the
+/// instrument-sounds-itself setting, leaving the player — and `Off` is always a
+/// safe value: it simply leaves the sounding to the app.
+void setMidiEcho({required MidiEcho mode}) =>
+    RustLib.instance.api.crateApiMidiSetMidiEcho(mode: mode);
 
 /// Lists the names of available MIDI input ports (UI selection).
 /// Virtual ports ("Midi Through", rtpmidi…) are placed last.
@@ -28,6 +37,35 @@ void setMidiPort({String? name}) =>
 /// and releases the connection on unplug.
 Stream<MidiEvent> midiEventStream() =>
     RustLib.instance.api.crateApiMidiMidiEventStream();
+
+/// What the **engine itself** sounds for a live MIDI event, straight from the
+/// MIDI callback (change: add-drum-input-mapping — beta fix "strong latency
+/// between the hit and the sound").
+///
+/// A live note used to be sounded by Dart: the engine forwarded the event over
+/// the bridge, the notifier handled it, and only then called back into the
+/// engine to play it. Everything in that round trip rides the UI isolate's
+/// event loop, so the delay a player hears is whatever the app happens to be
+/// doing that frame — on a kit, where the stick has already left the head, that
+/// is the difference between an instrument and a lag.
+///
+/// The app stays in charge of the *policy* — whether to sound at all
+/// (instrument-sounds-itself), and on which channel — by pushing the mode here
+/// ([`set_midi_echo`]); the engine only executes it, and the app then leaves
+/// the sounding of MIDI notes alone so nothing is played twice.
+enum MidiEcho {
+  /// The engine sounds nothing: the app plays live notes itself, or the
+  /// instrument already sounds them.
+  off,
+
+  /// Sound on the melodic channel, with the matching release — a keyboard.
+  melodic,
+
+  /// Sound on the drum channel as a one-shot, releases dropped, exactly as a
+  /// percussion stroke is played (a kit's note-off arrives milliseconds after
+  /// its attack and would cut the voice).
+  drum,
+}
 
 /// A normalized MIDI event, ready to be consumed by Flutter.
 class MidiEvent {

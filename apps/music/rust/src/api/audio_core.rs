@@ -27,6 +27,7 @@
 use flutter_rust_bridge::frb;
 
 use super::audio::AudioRouteKind;
+use super::midi::{MidiEcho, MidiEvent, MidiEventKind};
 
 /// Velocity used when a source carries no pressure information (the on-screen
 /// keyboard, the computer-keyboard fallback). A musical mezzo-forte — unified
@@ -126,6 +127,34 @@ impl AudioEvent {
 /// Clamps a value to the 7-bit MIDI range (`0..=127`).
 pub(crate) fn clamp7(v: u8) -> u8 {
     v.min(127)
+}
+
+/// What the engine sounds for a live MIDI `event` under echo `mode` (change:
+/// add-drum-input-mapping — beta fix), or `None` when it sounds nothing.
+///
+/// The rules are the app's own, restated here so the MIDI callback can apply
+/// them without a round trip through Dart — and they must stay identical, since
+/// whichever side sounds the note, the other one does not:
+/// * velocity is **not** consumed, on either channel: a live note has always
+///   been sounded at the schedule's own loudness, and dynamics is one decision
+///   for both instruments and both directions rather than a percussion
+///   side-door;
+/// * a melodic note is released by its note-off, because a piano voice is held;
+/// * a **stroke is not**: an e-kit sends its note-off within milliseconds of
+///   the attack, and forwarding that would cut every cymbal the instant the
+///   stick left it.
+pub(crate) fn echo_event(mode: MidiEcho, event: &MidiEvent) -> Option<AudioEvent> {
+    match (mode, &event.kind) {
+        (MidiEcho::Off, _) => None,
+        (MidiEcho::Melodic, MidiEventKind::NoteOn) => {
+            Some(AudioEvent::note_on(event.pitch, DEFAULT_VELOCITY))
+        }
+        (MidiEcho::Melodic, MidiEventKind::NoteOff) => Some(AudioEvent::note_off(event.pitch)),
+        (MidiEcho::Drum, MidiEventKind::NoteOn) => {
+            Some(AudioEvent::drum_on(event.pitch, DEFAULT_VELOCITY))
+        }
+        (MidiEcho::Drum, MidiEventKind::NoteOff) => None,
+    }
 }
 
 /// Whether `bytes` look like a loadable SoundFont (`.sf2`) — a RIFF container
@@ -629,6 +658,50 @@ mod tests {
                 channel: Channel::Melodic,
                 pitch: 127
             }
+        );
+    }
+
+    /// The engine's own echo of a live MIDI event (beta fix: input latency).
+    /// The rules below are the app's, so a change on one side that is not
+    /// mirrored on the other shows up as a note played twice or not at all.
+    #[test]
+    fn the_engine_echoes_a_live_note_exactly_as_the_app_would_have() {
+        fn event(kind: MidiEventKind, pitch: u8, velocity: u8) -> MidiEvent {
+            MidiEvent {
+                kind,
+                pitch,
+                velocity,
+                timestamp_ms: 0,
+            }
+        }
+        // Off: the app is sounding live notes itself (or the instrument is).
+        assert_eq!(
+            echo_event(MidiEcho::Off, &event(MidiEventKind::NoteOn, 60, 90)),
+            None
+        );
+        assert_eq!(
+            echo_event(MidiEcho::Off, &event(MidiEventKind::NoteOff, 60, 0)),
+            None
+        );
+        // Melodic: a held voice, so both edges are echoed — and the incoming
+        // velocity is deliberately NOT consumed.
+        assert_eq!(
+            echo_event(MidiEcho::Melodic, &event(MidiEventKind::NoteOn, 60, 90)),
+            Some(AudioEvent::note_on(60, DEFAULT_VELOCITY))
+        );
+        assert_eq!(
+            echo_event(MidiEcho::Melodic, &event(MidiEventKind::NoteOff, 60, 0)),
+            Some(AudioEvent::note_off(60))
+        );
+        // Drum: a one-shot on the drum channel, and the release is DROPPED —
+        // an e-kit sends it milliseconds after the attack.
+        assert_eq!(
+            echo_event(MidiEcho::Drum, &event(MidiEventKind::NoteOn, 42, 120)),
+            Some(AudioEvent::drum_on(42, DEFAULT_VELOCITY))
+        );
+        assert_eq!(
+            echo_event(MidiEcho::Drum, &event(MidiEventKind::NoteOff, 42, 0)),
+            None
         );
     }
 

@@ -29,9 +29,41 @@ class FakeMidiService implements MidiService {
   String? connected;
   final List<String?> selectPortCalls = <String?>[];
 
-  FakeMidiService({this.ports = const [], this.connected});
+  /// Every echo mode the app has pushed, in order (change:
+  /// add-drum-input-mapping — the engine sounds live notes itself).
+  final List<MidiEcho> echoModes = <MidiEcho>[];
 
-  void emit(MidiEvent event) => _controller.add(event);
+  /// What the engine is currently sounding on its own.
+  MidiEcho echo = MidiEcho.off;
+
+  /// The audio seam the *engine* plays through when the echo is armed. Set it
+  /// to the test's [RecordingAudioService] and this fake behaves like the real
+  /// engine: an emitted MIDI event is sounded in the callback, before it ever
+  /// reaches the app — which is precisely what the app then declines to do
+  /// again.
+  AudioService? echoTo;
+
+  FakeMidiService({this.ports = const [], this.connected, this.echoTo});
+
+  void emit(MidiEvent event) {
+    final sink = echoTo;
+    final on = event.kind == MidiEventKind.noteOn;
+    switch (echo) {
+      case MidiEcho.off:
+        break;
+      case MidiEcho.melodic:
+        on ? sink?.noteOn(event.pitch) : sink?.noteOff(event.pitch);
+      case MidiEcho.drum:
+        if (on) sink?.drumOn(event.pitch);
+    }
+    _controller.add(event);
+  }
+
+  @override
+  void setEcho(MidiEcho mode) {
+    echoModes.add(mode);
+    echo = mode;
+  }
 
   @override
   Stream<MidiEvent> events() => _controller.stream;

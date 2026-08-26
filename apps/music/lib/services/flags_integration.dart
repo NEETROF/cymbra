@@ -37,16 +37,21 @@ class AppFlagBearer implements FlagBearer {
 /// over the same channel as every other RPC.
 List<Override> cymbraFlagOverrides() => [
   flagChannelProvider.overrideWith((ref) => ref.watch(cymbraChannelProvider)),
-  // Identity + plan + betas (change: add-premium-subscription): a purchase, an
-  // enrolment, a lapse or a beta closing changes the key, so premium_only /
-  // beta:<key> rollouts refetch instead of serving a stale snapshot.
-  flagIdentityProvider.overrideWith((ref) {
-    final user = ref.watch(currentUserIdProvider);
-    if (user == null) return null;
+  // The account, and only the account: this is the key the snapshot is scoped
+  // and cached under, and changing it blanks every flag until the network
+  // answers. Sign-out and a user switch deserve that; nothing else does.
+  flagIdentityProvider.overrideWith((ref) => ref.watch(currentUserIdProvider)),
+  // Plan + betas (change: add-premium-subscription): a purchase, an enrolment,
+  // a lapse or a beta closing changes what the server evaluates for the SAME
+  // person, so it refetches — without the empty window that folding it into
+  // the identity used to open, where a beta-gated entry point (the drums home)
+  // disappeared for the length of a round trip. `planProvider` resolving at
+  // launch is the same transition, on every cold start.
+  flagAudienceProvider.overrideWith((ref) {
     final plan = ref.watch(planProvider).valueOrNull;
-    if (plan == null) return user;
+    if (plan == null) return '';
     final betas = plan.betas.map((b) => b.campaignKey).toList()..sort();
-    return '$user|${plan.plan}|${betas.join(',')}';
+    return '${plan.plan}|${betas.join(',')}';
   }),
   flagBearerProvider.overrideWith(
     (ref) => AppFlagBearer(ref.watch(tokenStoreProvider)),

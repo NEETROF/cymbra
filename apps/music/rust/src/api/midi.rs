@@ -21,7 +21,7 @@
 //! midir backends: CoreMIDI (macOS/iOS), ALSA (Linux), WinMM (Windows),
 //! AMidi via NDK (Android — the `JavaVM` is provided by `JNI_OnLoad`, see lib.rs).
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -30,6 +30,7 @@ use anyhow::Result;
 use flutter_rust_bridge::frb;
 use midir::{Ignore, MidiInput, MidiInputConnection};
 
+use super::audio_core::echo_event;
 use super::midi_core::{
     DuplicateGuard, MidiStreamParser, is_virtual_port, parse_midi, resolves_to_connected,
     sort_ports_virtual_last, stable_port_key,
@@ -40,6 +41,34 @@ use crate::frb_generated::StreamSink;
 pub enum MidiEventKind {
     NoteOn,
     NoteOff,
+}
+
+/// What the **engine itself** sounds for a live MIDI event, straight from the
+/// MIDI callback (change: add-drum-input-mapping — beta fix "strong latency
+/// between the hit and the sound").
+///
+/// A live note used to be sounded by Dart: the engine forwarded the event over
+/// the bridge, the notifier handled it, and only then called back into the
+/// engine to play it. Everything in that round trip rides the UI isolate's
+/// event loop, so the delay a player hears is whatever the app happens to be
+/// doing that frame — on a kit, where the stick has already left the head, that
+/// is the difference between an instrument and a lag.
+///
+/// The app stays in charge of the *policy* — whether to sound at all
+/// (instrument-sounds-itself), and on which channel — by pushing the mode here
+/// ([`set_midi_echo`]); the engine only executes it, and the app then leaves
+/// the sounding of MIDI notes alone so nothing is played twice.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MidiEcho {
+    /// The engine sounds nothing: the app plays live notes itself, or the
+    /// instrument already sounds them.
+    Off,
+    /// Sound on the melodic channel, with the matching release — a keyboard.
+    Melodic,
+    /// Sound on the drum channel as a one-shot, releases dropped, exactly as a
+    /// percussion stroke is played (a kit's note-off arrives milliseconds after
+    /// its attack and would cut the voice).
+    Drum,
 }
 
 /// A normalized MIDI event, ready to be consumed by Flutter.
@@ -73,6 +102,38 @@ static WATCHER_WAKE: AtomicBool = AtomicBool::new(false);
 // live listener instead of the first, now-dead, sink. Read by the input
 // callback on each MIDI message and by the watcher thread.
 static SINK: Mutex<Option<Arc<StreamSink<MidiEvent>>>> = Mutex::new(None);
+/// The engine's live-echo mode ([`MidiEcho`]), as a code the input callback can
+/// read without locking. Written only by [`set_midi_echo`].
+static ECHO: AtomicU8 = AtomicU8::new(ECHO_OFF);
+const ECHO_OFF: u8 = 0;
+const ECHO_MELODIC: u8 = 1;
+const ECHO_DRUM: u8 = 2;
+
+/// Chooses what the engine sounds for live MIDI events from now on, and returns
+/// immediately (see [`MidiEcho`]). Pushed by the app whenever its own answer
+/// changes — the loaded score's family, the kit font becoming ready, the
+/// instrument-sounds-itself setting, leaving the player — and `Off` is always a
+/// safe value: it simply leaves the sounding to the app.
+#[frb(sync)]
+pub fn set_midi_echo(mode: MidiEcho) {
+    ECHO.store(
+        match mode {
+            MidiEcho::Off => ECHO_OFF,
+            MidiEcho::Melodic => ECHO_MELODIC,
+            MidiEcho::Drum => ECHO_DRUM,
+        },
+        Ordering::Relaxed,
+    );
+}
+
+/// The mode the input callback is running under.
+pub(crate) fn midi_echo() -> MidiEcho {
+    match ECHO.load(Ordering::Relaxed) {
+        ECHO_MELODIC => MidiEcho::Melodic,
+        ECHO_DRUM => MidiEcho::Drum,
+        _ => MidiEcho::Off,
+    }
+}
 
 /// Lists the names of available MIDI input ports (UI selection).
 /// Virtual ports ("Midi Through", rtpmidi…) are placed last.
@@ -334,6 +395,15 @@ fn try_connect(start: Instant) -> Result<()> {
                     let Some(event) = parse_midi(message, timestamp_ms) else {
                         continue;
                     };
+                    // Sound it HERE, before the event goes anywhere near the
+                    // bridge: this is the whole point of the echo. The queue
+                    // hand-off is lock-free-ish and the audio callback picks it
+                    // up on its next block, so what the player hears is the
+                    // device plus the output buffer — not the UI isolate's
+                    // schedule.
+                    if let Some(sound) = echo_event(midi_echo(), &event) {
+                        super::audio::send(sound);
+                    }
                     // Read the current sink each message: it may have been
                     // swapped by a re-subscription since this port was opened.
                     if let Some(sink) = SINK.lock().unwrap().as_ref() {

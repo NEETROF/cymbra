@@ -78,6 +78,49 @@ fn infer_key_alterations(measures: &mut [NotationMeasure]) {
 /// default-instrument convention, routine in single-line percussion exports);
 /// anything else unresolvable stays `None`, never inferred from the written
 /// position.
+/// An `<unpitched>` element that stated no written position. Sentinels: they
+/// are settled in [`resolve_unpitched`], which every parse runs, so no note
+/// ever leaves the parser carrying one.
+const NO_DISPLAY_STEP: char = '\0';
+const NO_DISPLAY_OCTAVE: i32 = i32::MIN;
+
+/// Where a percussion sound sits on the staff when the file does not say — the
+/// drum-notation convention, read from the resolved General MIDI number.
+///
+/// MusicXML makes `<display-step>`/`<display-octave>` optional, and exports
+/// that leave them out are common; the middle line (B4) they used to default to
+/// is a legal answer for *one* note and an unreadable one for a groove, which
+/// stacks the kick, the snare and the hi-hat on top of each other. A number
+/// with no placement of its own — or none we could resolve — keeps that middle
+/// line: it is the honest "somewhere on the staff".
+///
+/// Positions are the treble-equivalent ones a percussion clef is read with:
+/// bottom line E4 … top line F5, hi-hat above, pedal below.
+fn default_placement(gm_number: Option<u32>) -> (char, i32) {
+    match gm_number {
+        // The feet: the kick in the bottom space, the hi-hat pedal below the
+        // staff (it is the other foot, and it never shares the kick's line).
+        Some(35 | 36) => ('F', 4),
+        Some(44) => ('D', 4),
+        // The snare — side stick and electric snare are struck on it too.
+        Some(37 | 38 | 40) => ('C', 5),
+        // The toms, high to low, each on its own line or space.
+        Some(50) => ('E', 5),
+        Some(48) => ('D', 5),
+        Some(47) => ('B', 4),
+        Some(45) => ('A', 4),
+        Some(43) => ('G', 4),
+        Some(41) => ('E', 4),
+        // The cymbals, above the staff — the hi-hat first, then the ride on
+        // the top line and the accent cymbals over it.
+        Some(42 | 46) => ('G', 5),
+        Some(51 | 53 | 59) => ('F', 5),
+        Some(49 | 55) => ('A', 5),
+        Some(52 | 57) => ('B', 5),
+        _ => ('B', 4),
+    }
+}
+
 fn resolve_unpitched(measures: &mut [NotationMeasure], instruments: &[InstrumentDecl]) {
     let sole_gm = {
         let mut gms = instruments.iter().filter_map(|d| d.gm_number);
@@ -101,6 +144,15 @@ fn resolve_unpitched(measures: &mut [NotationMeasure], instruments: &[Instrument
             // The engraved head class rides beside the resolved number so the
             // painters never own GM ranges (add-drum-notation-render).
             u.head_class = HeadClass::of(u.gm_number);
+            // A position the file did not state is settled here, now that the
+            // sound is known — never earlier, and never over a written one.
+            let (step, octave) = default_placement(u.gm_number);
+            if u.display_step == NO_DISPLAY_STEP {
+                u.display_step = step;
+            }
+            if u.display_octave == NO_DISPLAY_OCTAVE {
+                u.display_octave = octave;
+            }
         }
     }
 }
@@ -586,13 +638,17 @@ impl Parser {
                     alter: 0,
                 });
             }
-            // A percussion note's written position. `display-step`/`display-octave`
-            // are optional: an empty `<unpitched/>` denotes the middle staff line
-            // (B4 in treble-equivalent numbering), per the MusicXML default.
+            // A percussion note's written position. `display-step`/
+            // `display-octave` are **optional**, and plenty of real exports
+            // omit them, so the position opens as "not stated" and is settled
+            // in [`resolve_unpitched`] — where the note's General MIDI number
+            // is known and can place it on the kit's conventional line. Filling
+            // in the middle line here instead is what stacked a whole groove
+            // onto one line in the notation views.
             b"unpitched" => {
                 self.unpitched = Some(Unpitched {
-                    display_step: 'B',
-                    display_octave: 4,
+                    display_step: NO_DISPLAY_STEP,
+                    display_octave: NO_DISPLAY_OCTAVE,
                     gm_number: None,
                     head_class: HeadClass::Oval,
                 });
@@ -1042,8 +1098,8 @@ impl Parser {
             return;
         };
         // An empty `<unpitched/>` element produces no End event, so its builder
-        // is still pending here: attach it with its default (middle-line)
-        // position.
+        // is still pending here: attach it, position unstated (settled from the
+        // sound in [`resolve_unpitched`]).
         if n.unpitched.is_none() {
             n.unpitched = self.unpitched.take();
         }
@@ -2085,6 +2141,46 @@ mod tests {
         let u = notes[1].unpitched.as_ref().unwrap();
         assert_eq!((u.display_step, u.display_octave), ('B', 4));
         assert_eq!(u.gm_number, Some(54));
+    }
+
+    /// An export that states no written position at all — legal MusicXML, and
+    /// what a beta tester's notation view showed as every note stacked on one
+    /// line. Each sound now takes the line the drum convention gives it.
+    #[test]
+    fn a_groove_with_no_written_positions_is_placed_from_its_sounds() {
+        let xml = crate::fixtures::ROCK_GROOVE
+            .replace(
+                "<display-step>G</display-step><display-octave>5</display-octave>",
+                "",
+            )
+            .replace(
+                "<display-step>C</display-step><display-octave>5</display-octave>",
+                "",
+            )
+            .replace(
+                "<display-step>F</display-step><display-octave>4</display-octave>",
+                "",
+            );
+        let doc = parse(xml.as_bytes()).unwrap();
+        let placement = |gm: u32| {
+            doc.measures[0]
+                .notes
+                .iter()
+                .filter_map(|n| n.unpitched.as_ref())
+                .find(|u| u.gm_number == Some(gm))
+                .map(|u| (u.display_step, u.display_octave))
+                .expect("the sound is in the groove")
+        };
+        // Hi-hat above the staff, snare in the third space, kick in the first:
+        // three sounds, three positions, none of them the middle line.
+        assert_eq!(placement(42), ('G', 5));
+        assert_eq!(placement(38), ('C', 5));
+        assert_eq!(placement(36), ('F', 4));
+
+        // …while a file that DOES state a position keeps it, unchanged.
+        let written = parse(crate::fixtures::ROCK_GROOVE.as_bytes()).unwrap();
+        let hat = written.measures[0].notes[0].unpitched.as_ref().unwrap();
+        assert_eq!((hat.display_step, hat.display_octave), ('G', 5));
     }
 
     #[test]

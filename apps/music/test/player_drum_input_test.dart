@@ -28,6 +28,7 @@ import 'package:music/state/performance_scoring.dart';
 import 'package:music/state/piano_catalog.dart';
 import 'package:music/state/player_data.dart';
 import 'package:music/state/player_notifier.dart';
+import 'package:music/src/rust/api/midi.dart' show MidiEcho;
 import 'package:music/state/score_font.dart';
 
 import 'support/fakes.dart';
@@ -64,7 +65,15 @@ void main() {
 
   Future<void> build({bool percussion = true}) async {
     audio = RecordingAudioService();
-    midi = FakeMidiService(ports: const ['Kit'], connected: 'Kit');
+    // `echoTo` makes the fake behave like the engine: when the app arms the
+    // echo, a stroke emitted here is sounded in the MIDI callback — before it
+    // ever reaches the notifier, which is exactly why the notifier no longer
+    // sounds it (change: add-drum-input-mapping, beta fix for input latency).
+    midi = FakeMidiService(
+      ports: const ['Kit'],
+      connected: 'Kit',
+      echoTo: audio,
+    );
     container = ProviderContainer(
       overrides: [
         midiServiceProvider.overrideWithValue(midi),
@@ -120,6 +129,66 @@ void main() {
   ];
 
   tearDown(() async => midi.close());
+
+  // The beta report was "strong latency between the hit and the sound": a
+  // stroke used to be sounded only after crossing the bridge and going through
+  // the Dart event loop, so the delay a player heard was whatever the UI thread
+  // happened to be doing. The engine now sounds it in its own MIDI callback —
+  // the app keeps the policy and pushes it (`setEcho`), and stops sounding what
+  // the engine already did, so no stroke is ever played twice.
+  group('the engine sounds live strokes itself', () {
+    test('a ready kit arms the drum echo, and the app then leaves a device '
+        'stroke alone — exactly one sound per hit', () async {
+      await build();
+      await readyKit();
+      expect(midi.echo, MidiEcho.drum);
+
+      midi.emit(noteOnEvent(38));
+      await _flush();
+      // One sound, and it came from the engine (the fake sounded it in its
+      // callback, before the notifier ever saw the event).
+      expect(audio.drumOns.map((e) => e.key), [38]);
+      // …while everything the stroke drives still ran in the app.
+      expect(data().activeNotes, contains(38));
+      expect(data().struckSurfacesMs, isNotEmpty);
+    });
+
+    test(
+      'the echo follows the app\'s own two guards, and nothing else',
+      () async {
+        await build();
+        // Visual-only until the kit lands: the engine must not sound a stroke
+        // through the still-loaded piano font either.
+        expect(midi.echo, MidiEcho.off);
+        await readyKit();
+        expect(midi.echo, MidiEcho.drum);
+
+        // An instrument that sounds its own strokes is never doubled.
+        player().setInstrumentSoundsItself(enabled: true);
+        expect(midi.echo, MidiEcho.off);
+        player().setInstrumentSoundsItself(enabled: false);
+        expect(midi.echo, MidiEcho.drum);
+      },
+    );
+
+    test('a keyboard score echoes on the melodic channel', () async {
+      await build(percussion: false);
+      expect(midi.echo, MidiEcho.melodic);
+      midi.emit(noteOnEvent(60));
+      await _flush();
+      expect(audio.noteOns.map((e) => e.pitch), [60]);
+      expect(audio.drumOns, isEmpty);
+    });
+
+    test('leaving the player disarms it: no surface plays what the instrument '
+        'sends', () async {
+      await build();
+      await readyKit();
+      expect(midi.echo, MidiEcho.drum);
+      container.dispose();
+      expect(midi.echo, MidiEcho.off);
+    });
+  });
 
   group('sounding — one-shot, never the piano voice', () {
     test('an on-screen stroke sounds through drumOn, never noteOn', () async {

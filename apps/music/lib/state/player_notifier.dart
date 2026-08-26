@@ -79,9 +79,19 @@ class Player extends _$Player {
     // React to the selected score's notation loading / changing without
     // rebuilding (which would reset the playhead and pressed keys).
     ref.listen(notationProvider, (_, next) => _applyNotation(next));
+    // The kit font arriving changes what a live stroke may sound (change:
+    // add-drum-audio-channel), and the engine's echo has to learn it at the
+    // same instant the notifier would have.
+    ref.listen(scoreFontProvider, (_, _) => _applyEcho());
     ref.onDispose(() {
       _statusTimer?.cancel();
       _sub?.cancel();
+      // The player screen is gone: the engine must stop sounding live notes on
+      // its own behalf (see [_applyEcho]) — no other surface plays what the
+      // instrument sends. Never let a missing engine break a teardown.
+      try {
+        midi.setEcho(MidiEcho.off);
+      } catch (_) {}
       // Flush any held/sounding voices so leaving the screen doesn't leave a
       // note ringing in the audio pipeline. Use the captured reference (not
       // ref.read) since the container is disposing.
@@ -116,6 +126,53 @@ class Player extends _$Player {
       outputOffsetMs: prefs.outputOffsetMs,
       invertedKit: prefs.invertedKit,
     );
+  }
+
+  /// The echo mode last pushed to the engine (change: add-drum-input-mapping —
+  /// beta fix for input latency): what the engine is sounding on its own, and
+  /// therefore what this notifier must not sound a second time. Null until the
+  /// first push, so the engine is always told once.
+  MidiEcho? _echo;
+
+  /// Whether a MIDI-sourced note reaching [noteOn] has ALREADY been sounded by
+  /// the engine, in its own callback, before it ever crossed the bridge.
+  bool get _engineEchoes => _echo != null && _echo != MidiEcho.off;
+
+  /// Pushes the app's sounding policy to the engine so a live note is played
+  /// where it is heard soonest — in the MIDI callback rather than after a trip
+  /// through the Dart event loop, which is what a beta tester heard as "strong
+  /// latency between the hit and the sound".
+  ///
+  /// The policy itself is unchanged and still lives here; only the execution
+  /// moves. Both existing guards are honoured, so what sounds is exactly what
+  /// sounded before:
+  /// * [PlayerData.synthesizes] — an instrument that sounds its own notes is
+  ///   never doubled (change: add-audio-output-routing);
+  /// * the kit-readiness gate — until the kit font is installed a drum score is
+  ///   visual-only, and a stroke must not come out through the piano font
+  ///   (change: add-drum-audio-channel).
+  ///
+  /// Called on every input that can change the answer, and idempotent, so it is
+  /// safe to over-call.
+  void _applyEcho() {
+    final mode = _echoMode();
+    if (mode == _echo) return;
+    _echo = mode;
+    try {
+      _midi.setEcho(mode);
+    } catch (_) {
+      // No engine (tests, a failed native load): the notifier keeps sounding
+      // live notes itself, exactly as it did before this existed.
+      _echo = MidiEcho.off;
+    }
+  }
+
+  MidiEcho _echoMode() {
+    if (!state.synthesizes(NoteSource.midiDevice)) return MidiEcho.off;
+    if (!state.isPercussion) return MidiEcho.melodic;
+    return ref.read(scoreFontProvider) == KitFontStatus.ready
+        ? MidiEcho.drum
+        : MidiEcho.off;
   }
 
   MidiService get _midi => ref.read(midiServiceProvider);
@@ -234,7 +291,16 @@ class Player extends _$Player {
   /// routed by the loaded score's family (change: add-drum-audio-channel): a
   /// percussion score's General MIDI numbers go through the drum entry points,
   /// a keyboard score's pitches through the melodic pair exactly as before.
-  void _applyScoreAudio(PlayerData s, double from, double to) {
+  ///
+  /// [justPlayed] holds the numbers the player struck themselves at the onset
+  /// this span crosses — the schedule owes them no second attack (see the call
+  /// site in [advance]).
+  void _applyScoreAudio(
+    PlayerData s,
+    double from,
+    double to, {
+    Set<int> justPlayed = const {},
+  }) {
     if (s.isPercussion) {
       // Percussion readiness gate: until the kit font's awaited install has
       // resolved (KitFontStatus.ready), playback is visual-only — the
@@ -253,6 +319,11 @@ class Player extends _$Player {
         _sounding.remove(p);
       }
       for (final p in edges.starts) {
+        // The stroke the player just made IS this note: sounding it again puts
+        // a flam on every gated onset — one hit, two kicks — which is what the
+        // beta report heard on the bass drum. Skipped whole, `_sounding`
+        // included, so no release is owed for a voice never started.
+        if (justPlayed.contains(p)) continue;
         _audio.drumOn(p);
         _sounding.add(p);
       }
@@ -275,8 +346,10 @@ class Player extends _$Player {
   }
 
   /// Loads the initial content: the selected score's notation if it is already
-  /// available, otherwise the demo score (when nothing is selected).
+  /// available, otherwise the demo score (when nothing is selected). Also the
+  /// first push of the engine's echo mode, once `state` exists.
   Future<void> _loadInitial() async {
+    Future.microtask(_applyEcho);
     final notation = ref.read(notationProvider);
     if (notation.document != null) {
       // The score was pre-loaded before this screen mounted (the hub/library
@@ -356,6 +429,8 @@ class Player extends _$Player {
       elapsedMs: updated.startMs,
       furthestElapsedMs: updated.startMs,
     );
+    // A different family sounds a live note on a different channel.
+    _applyEcho();
   }
 
   Future<void> _loadDemo() async {
@@ -443,6 +518,8 @@ class Player extends _$Player {
     if (state.instrumentSoundsItself == enabled) return;
     _silenceAll();
     state = state.copyWith(instrumentSoundsItself: enabled);
+    // The engine echoes on the app's behalf, so it has to learn the rule too.
+    _applyEcho();
     ref
         .read(playerPreferencesProvider.notifier)
         .setInstrumentSoundsItself(enabled: enabled);
@@ -477,9 +554,14 @@ class Player extends _$Player {
   /// one substitution `add-drum-scoring` makes: what counts as "this note" is
   /// the kit-piece equivalence, not the raw number.
   void noteOn(int pitch, {NoteSource source = NoteSource.onScreen}) {
+    // A note from the instrument was already sounded by the engine, in its own
+    // MIDI callback, before it crossed the bridge (see [_applyEcho]) — sounding
+    // it here too would double every stroke. Every other source still sounds
+    // from here, and everything below this line is untouched by the echo.
+    final echoed = source == NoteSource.midiDevice && _engineEchoes;
     if (state.isPercussion) {
-      _soundStroke(pitch, source);
-    } else if (state.synthesizes(source)) {
+      if (!echoed) _soundStroke(pitch, source);
+    } else if (!echoed && state.synthesizes(source)) {
       _audio.noteOn(pitch);
     }
     // A fresh attack starts a new, uncounted hold: drop any prior "consumed"
@@ -622,7 +704,11 @@ class Player extends _$Player {
   /// self-terminates, so nothing hangs when the release is dropped — and a kit
   /// that never sends one costs nothing either.
   void noteOff(int pitch, {NoteSource source = NoteSource.onScreen}) {
-    if (!state.isPercussion && state.synthesizes(source)) _audio.noteOff(pitch);
+    // Paired with [noteOn]: the engine's melodic echo releases its own voice.
+    final echoed = source == NoteSource.midiDevice && _engineEchoes;
+    if (!state.isPercussion && !echoed && state.synthesizes(source)) {
+      _audio.noteOff(pitch);
+    }
     // The hold ended: drop it from the held set and clear its consumed mark so a
     // re-press starts fresh.
     if (state.activeNotes.contains(pitch) ||
@@ -711,6 +797,7 @@ class Player extends _$Player {
       waitMode: !state.waitMode,
       gateSatisfied: const {},
       consumedHeld: const {},
+      strokeAtMs: const {},
     );
   }
 
@@ -785,6 +872,7 @@ class Player extends _$Player {
       selectedHands: hand,
       gateSatisfied: const {},
       consumedHeld: const {},
+      strokeAtMs: const {},
     );
     // The effective start depends on the selection, so recompute it for the new
     // hand(s) — a hand that enters later starts trimmed to its own first note.
@@ -826,6 +914,7 @@ class Player extends _$Player {
       countdownMs: 0,
       gateSatisfied: const {},
       consumedHeld: const {},
+      strokeAtMs: const {},
     );
     state = updated.copyWith(elapsedMs: updated.startMs);
     _persistPracticeSettings();
@@ -846,6 +935,7 @@ class Player extends _$Player {
       countdownMs: 0,
       gateSatisfied: const {},
       consumedHeld: const {},
+      strokeAtMs: const {},
     );
     state = updated.copyWith(elapsedMs: updated.startMs);
     _persistPracticeSettings();
@@ -884,6 +974,7 @@ class Player extends _$Player {
       countdownMs: 0,
       gateSatisfied: const {},
       consumedHeld: const {},
+      strokeAtMs: const {},
     );
     if (state.isPlaying) _maybeStartRun();
   }
@@ -920,6 +1011,7 @@ class Player extends _$Player {
       countdownMs: 0,
       gateSatisfied: const {},
       consumedHeld: const {},
+      strokeAtMs: const {},
     );
   }
 
@@ -1018,8 +1110,14 @@ class Player extends _$Player {
         final at = strokes[surface];
         // Measured on the playhead: the window is a musical one, and it is
         // the SAME number the surfaces light a stroke with — including its
-        // real-time floor at speeds above normal.
-        if (at == null || s.elapsedMs - at > strokeToleranceMsAt(s.speed)) {
+        // real-time floor at speeds above normal, and its rejection of a
+        // stroke left over from before a transport reset.
+        if (at == null ||
+            !strokeAnswersOnset(
+              strokeMs: at,
+              nowMs: s.elapsedMs,
+              speed: s.speed,
+            )) {
           continue;
         }
         earlyDue.add(required);
@@ -1095,7 +1193,18 @@ class Player extends _$Player {
     if (loop) {
       _silenceAll();
     } else {
-      _applyScoreAudio(s, s.elapsedMs, next);
+      // A gated percussion onset was just played BY THE PLAYER — that is what
+      // released it — so the schedule does not strike it again: the two
+      // attacks land a frame apart and read as a flam (change:
+      // add-drum-input-mapping, beta fix). Keyboard playback is untouched: a
+      // held pitch re-sounding under the same finger is not a second attack in
+      // the same way, and nothing in the reports asks for it.
+      _applyScoreAudio(
+        s,
+        s.elapsedMs,
+        next,
+        justPlayed: s.waitMode && s.isPercussion ? onset : const {},
+      );
     }
 
     // A selective run that has actually got through at least one onset is a real
@@ -1167,6 +1276,11 @@ class Player extends _$Player {
       blocked: false,
       gateSatisfied: (leftOnset || loop) ? const {} : s.gateSatisfied,
       consumedHeld: loop ? const {} : s.consumedHeld,
+      // A pending stroke survives leaving an onset — it may have been aimed
+      // early at the NEXT one, which is the whole point of the tolerance — but
+      // never a wrap: the playhead has just jumped backwards, and every stamp
+      // on it now reads as impossibly early.
+      strokeAtMs: loop ? const {} : s.strokeAtMs,
       beatCount: beatCount,
       lastBeatAccent: lastBeatAccent,
       // Every lap of a practice loop opens with its own 3…2…1…GO, exactly like

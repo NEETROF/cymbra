@@ -51,3 +51,28 @@
 - [ ] 7.4 Aim deliberately at the gutters between pads at tempo: no ghost strokes
 - [ ] 7.5 Hands-only practice with feet strokes (and the reverse): input audibly never suppressed, cascade filtering unchanged
 - [ ] 7.6 Confirm a full percussion run ends with no score summary and no post-run judgment of any kind, and that a keyboard score's run, feedback and assist keys behave exactly as before
+
+## 8. Beta feedback (2026-08-26) — the engine sounds live strokes itself
+
+- [x] 8.1 `api/midi.rs`: `MidiEcho` (`Off` | `Melodic` | `Drum`) + `set_midi_echo`,
+  read by the input callback from an atomic. A live stroke used to be sounded
+  only after the event crossed the bridge and went through the Dart event loop,
+  so the delay a player heard was whatever the UI isolate happened to be doing
+  that frame — the tester's "strong latency between the hit and the sound". The
+  echo sounds it in the MIDI callback instead, so what is left is the device plus
+  the output buffer
+- [x] 8.2 `api/audio_core.rs`: `echo_event` — the pure decision, so the engine
+  applies the app's own rules rather than a second set (velocity unconsumed on
+  both channels; a melodic note released by its note-off, a stroke never, because
+  an e-kit sends its release within milliseconds of the attack). Unit-tested
+- [x] 8.3 `player_notifier.dart`: the app keeps the **policy** and pushes it
+  (`_applyEcho`) on every input that can change it — the score's family, the kit
+  font becoming ready, instrument-sounds-itself, leaving the player — and stops
+  sounding MIDI-sourced notes while the engine is armed, so no note is ever
+  played twice. Both existing guards are honoured unchanged
+- [x] 8.4 `test/support/fakes.dart`: `FakeMidiService.echoTo` — the fake sounds an
+  emitted event through the audio seam when the echo is armed, exactly as the
+  engine does, so every existing "a device note sounds" test still asserts a real
+  sound rather than a fiction
+- [ ] 8.5 On-device: strokes feel simultaneous with the kit's own sound; leaving
+  the player stops the engine sounding what the instrument sends

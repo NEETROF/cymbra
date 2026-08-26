@@ -265,4 +265,41 @@ void main() {
       expect(struckSurfaceOf(lanes, 36, hasPedal: false), isNull);
     });
   });
+
+  group('the early-stroke window (beta fix: the stale stroke)', () {
+    test(
+      'a stroke inside the window answers the onset, one outside does not',
+      () {
+        expect(strokeAnswersOnset(strokeMs: 590, nowMs: 600, speed: 1), isTrue);
+        expect(
+          strokeAnswersOnset(
+            strokeMs: 600 - kStrokeToleranceMs - 1,
+            nowMs: 600,
+            speed: 1,
+          ),
+          isFalse,
+        );
+      },
+    );
+
+    test('a stroke stamped AHEAD of the playhead is stale, never early', () {
+      // What a restart / loop wrap / rewind leaves behind: the stroke was
+      // made at 40 s, the playhead is back at the top. Its age is negative,
+      // so no upper bound alone would reject it — and the run would open
+      // with its first onset already satisfied by nobody.
+      expect(strokeAnswersOnset(strokeMs: 40000, nowMs: 0, speed: 1), isFalse);
+      // Even one millisecond ahead: the window has no left-hand slack.
+      expect(strokeAnswersOnset(strokeMs: 601, nowMs: 600, speed: 1), isFalse);
+      // The exact instant still counts (a stroke landing on the onset).
+      expect(strokeAnswersOnset(strokeMs: 600, nowMs: 600, speed: 1), isTrue);
+    });
+
+    test('the window widens with the transport, in both readings', () {
+      final wide = 600 - strokeToleranceMsAt(2) + 1;
+      expect(strokeAnswersOnset(strokeMs: wide, nowMs: 600, speed: 2), isTrue);
+      expect(strokeAnswersOnset(strokeMs: wide, nowMs: 600, speed: 1), isFalse);
+      // …and a stale stamp stays stale at any speed.
+      expect(strokeAnswersOnset(strokeMs: 40000, nowMs: 0, speed: 2), isFalse);
+    });
+  });
 }

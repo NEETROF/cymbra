@@ -168,6 +168,56 @@ void main() {
   );
 
   testWidgets(
+    'in Wait Mode the schedule does not strike the onset the player just '
+    'played — one hit is one sound, never a flam',
+    (tester) async {
+      final audio = RecordingAudioService();
+      final c = await _pump(tester, audio: audio);
+      expect(c.read(scoreFontProvider), KitFontStatus.ready);
+      final player = c.read(playerProvider.notifier);
+      expect(c.read(playerProvider).waitMode, isTrue);
+
+      player.startPlayback();
+      for (var i = 0; i < 3; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      // Frozen on the opening onset — hi-hat in the hands, kick in the feet.
+      expect(c.read(playerProvider).blocked, isTrue);
+      final onset = c.read(playerProvider).onsetPitchesAt(0);
+      expect(onset, isNotEmpty);
+
+      audio.drumOns.clear();
+      for (final gm in onset) {
+        player.noteOn(gm);
+      }
+      // Each stroke sounded once, as the player made it.
+      for (final gm in onset) {
+        expect(audio.drumOns.where((d) => d.key == gm), hasLength(1));
+      }
+
+      // Releasing the gate walks the playhead through the written onset —
+      // which the player has just played themselves. The bass drum sounding
+      // "several times for one hit" was this second, scheduled attack landing
+      // a frame behind the first.
+      for (var i = 0; i < 3; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(c.read(playerProvider).blocked, isFalse);
+      expect(c.read(playerProvider).elapsedMs, greaterThan(0));
+      for (final gm in onset) {
+        expect(
+          audio.drumOns.where((d) => d.key == gm),
+          hasLength(1),
+          reason:
+              'GM $gm was played by the player; the score must not repeat '
+              'it — got ${audio.drumOns.map((d) => d.key).toList()}',
+        );
+      }
+      await _teardown(tester, c);
+    },
+  );
+
+  testWidgets(
     'playback is visual-only while the kit install is in flight, and sounds '
     'only after the completion resolves',
     (tester) async {
