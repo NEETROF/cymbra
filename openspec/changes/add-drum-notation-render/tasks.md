@@ -141,13 +141,13 @@
 
 ## 8. Manual verification
 
-- [ ] 8.1 Drive all four drum fixtures through Staff and Partition on a phone
+- [x] 8.1 Drive all four drum fixtures through Staff and Partition on a phone
       and a tablet: clef, positions, x heads, two voices, rests — and the
-      cascade still the default on load
-- [ ] 8.2 Open the same fixtures in the console preview and compare
+      cascade still the default on load — VALIDÉ 2026-08-25 en production (backend 0.21.1)
+- [x] 8.2 Open the same fixtures in the console preview and compare
       side-by-side with the app's Partition: same content and layout (the
       `web-notation-render` faithfulness contract), no unpreviewable state
-      anywhere, Play still refusing with its localised state
+      anywhere, Play still refusing with its localised state — VALIDÉ 2026-08-25 en production (backend 0.21.1)
 - [x] 8.3 Paper theme: x heads, the open mark and the hands/feet colours hold
       their contrast on ivory (the amber-on-ivory risk flagged by
       `add-drum-kit-view` applies to engraved heads too) — VALIDÉ 2026-08-24 : thème Papier validé sur appareil : têtes en croix, marque d'ouvert et couleurs mains/pieds tiennent

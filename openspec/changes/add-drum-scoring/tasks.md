@@ -71,14 +71,14 @@
 - [ ] 9.2 Wait Mode on a drum score: gate blocks at each onset, expected pads pulse, a strike of the right piece releases, a wrong piece does not; a kick+snare coincidence needs both; with **hands** selected a kick-only onset is skipped
 - [ ] 9.3 Hi-hat shading on hardware without a controller: a closed stroke completes a run written with open hi-hats, and the summary shows the capped verdicts
 - [x] 9.4 Feel pass on the reused windows: drive a rudiment-heavy score (flams, doubles) at tempo on phone and tablet before declaring the windows final — the constants are expected to move, the spec is not — VALIDÉ 2026-08-24 : passe de feel sur les fenêtres validée sur appareil ; la tolérance de frappe (150 ms, plancher temps réel) est jugée bonne
-- [ ] 9.5 After the run: points awarded per the acknowledgement, the piece's board shows the best, streak day credited, day slot consumed (gate flag on in staging); repeat the run and confirm the diminishing award and the monotone best
-- [ ] 9.6 A selective (measure-range) drum run: plays with the gate, ends with no summary, no award beyond the daily practice acknowledgement — unscored by construction
-- [ ] 9.7 From a **non-staff, non-member** account (staff match every beta scope — prove nothing from an admin session): the percussion piece's board read answers as boardless, the batched card standings show nothing for it, and the global board still opens
+- [x] 9.5 After the run: points awarded per the acknowledgement, the piece's board shows the best, streak day credited, day slot consumed (gate flag on in staging); repeat the run and confirm the diminishing award and the monotone best — VALIDÉ 2026-08-25 en production (backend 0.21.1)
+- [x] 9.6 A selective (measure-range) drum run: plays with the gate, ends with no summary, no award beyond the daily practice acknowledgement — unscored by construction — VALIDÉ 2026-08-25 en production (backend 0.21.1)
+- [x] 9.7 From a **non-staff, non-member** account (staff match every beta scope — prove nothing from an admin session): the percussion piece's board read answers as boardless, the batched card standings show nothing for it, and the global board still opens — VALIDÉ 2026-08-25 en production (backend 0.21.1)
 - [ ] 9.8 Percussion sessions recorded before the lift (staging holds some from the interim): confirm they engaged nothing and still engage nothing after the lift
 - [ ] 9.9 Difficulty spot-check: the authored bundled scores grade at their tiers; the re-graded catalog percussion rows hold plausible levels and every `source`/`manual` grade is untouched
-- [ ] 9.10 Keyboard regression: a keyboard run's gauge, summary, awards, boards, streak and daily access behave exactly as before, and the keyboard sync% of a reference run is unchanged
+- [x] 9.10 Keyboard regression: a keyboard run's gauge, summary, awards, boards, streak and daily access behave exactly as before, and the keyboard sync% of a reference run is unchanged
 
-## Addendum — the stroke tolerance window (2026-08-24)
+## Addendum — the stroke tolerance window (2026-08-24) — VALIDÉ 2026-08-25 en production (backend 0.21.1)
 
 - [x] A.1 `kStrokeToleranceMs`, one number in `drum_kit.dart`, shared by the Wait Mode gate and by every surface that lights a stroke
 - [x] A.2 The gate credits a stroke played within the window before the onset, stamped on the **playhead's** clock, and spends it so one stroke never validates two onsets
