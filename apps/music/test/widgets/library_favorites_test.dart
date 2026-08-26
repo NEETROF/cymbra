@@ -50,13 +50,20 @@ class _FakeCatalog implements CatalogService {
   Future<CatalogAccessState?> dailyAccess() async => null;
   @override
   Future<CatalogAccessState?> unlockForToday(String catalogId) async => null;
-  _FakeCatalog(this.saved);
+  _FakeCatalog(this.saved, {this.failure});
   final List<CatalogHit> saved;
   final List<String> removed = [];
 
+  /// When set, `listSaved` throws it — the favorites list in error, which the
+  /// home has to render as something other than a bare failure.
+  final Object? failure;
+
   @override
-  Future<List<CatalogHit>> listSaved() async =>
-      saved.where((h) => !removed.contains(h.id)).toList();
+  Future<List<CatalogHit>> listSaved() async {
+    if (failure != null) throw failure!;
+    return saved.where((h) => !removed.contains(h.id)).toList();
+  }
+
   @override
   Future<void> remove(String catalogId) async => removed.add(catalogId);
   @override
@@ -534,6 +541,51 @@ void main() {
     }
     expect(find.byType(ScoreHubScreen), findsOneWidget);
     expect(prefs.store[InstrumentContext.prefsKey], contains('drums'));
+    await _teardown(tester);
+  });
+
+  testWidgets('favorites failing under drums: the invitation stands in for the '
+      'error, and its way forward still works', (tester) async {
+    final c = _container(
+      _FakeCatalog(const [], failure: StateError('offline')),
+      _FakeUpload(const []),
+      drumsVisible: true,
+      prefs: FakePreferencesService({
+        InstrumentContext.prefsKey: jsonEncode({
+          'context': 'drums',
+          'choiceOffered': true,
+        }),
+      }),
+      bundled: _bundled,
+    );
+    await _pump(tester, c);
+
+    // The list could not be read at all, yet the drummer gets the same way
+    // forward as when it is merely empty — which is what makes the failure
+    // unremarkable rather than a wall.
+    expect(find.byKey(const Key('drums-empty-switch')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('drums-empty-browse')));
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    // A real destination, not a button drawn on an error: the catalog does not
+    // depend on the favorites read that just failed.
+    expect(find.byType(ScoreHubScreen), findsOneWidget);
+    await _teardown(tester);
+  });
+
+  testWidgets('favorites failing under the keyboard: that context keeps its '
+      'own empty state, never the drums invitation', (tester) async {
+    final c = _container(
+      _FakeCatalog(const [], failure: StateError('offline')),
+      _FakeUpload(const []),
+      drumsVisible: true,
+      bundled: _bundled,
+    );
+    await _pump(tester, c);
+
+    expect(find.byKey(const Key('drums-empty-browse')), findsNothing);
+    expect(find.byKey(const Key('drums-empty-switch')), findsNothing);
     await _teardown(tester);
   });
 }
