@@ -429,7 +429,7 @@ void main() {
   });
 
   testWidgets('signed in under the drums context: favorites filter to '
-      'percussion, the bundled grooves offer a start, courses step aside', (
+      'percussion, the bundled grooves stay OUT, courses step aside', (
     tester,
   ) async {
     final prefs = FakePreferencesService({
@@ -459,10 +459,12 @@ void main() {
     );
     await _pump(tester, c);
 
-    // The drum favorite and the bundled groove; the piano favorite, the
-    // bundled piano piece and the (keyboard-only) courses card step aside.
+    // The drum favorite alone. The piano favorite, the bundled piano piece and
+    // the (keyboard-only) courses card step aside — and so does the bundled
+    // groove, which is in the catalog passed to this container: signed in, the
+    // home shows what the account holds, never a demo score.
     expect(find.text('Drum Favorite'), findsOneWidget);
-    expect(find.text('Bundled Groove'), findsOneWidget);
+    expect(find.text('Bundled Groove'), findsNothing);
     expect(find.text('Piano Favorite'), findsNothing);
     expect(find.text('Bundled Piece'), findsNothing);
     expect(find.byType(CoursesSection), findsNothing);
@@ -480,7 +482,6 @@ void main() {
     expect(find.text('Piano Favorite'), findsOneWidget);
     expect(find.byType(CoursesSection), findsOneWidget);
     expect(find.text('Drum Favorite'), findsNothing);
-    expect(find.text('Bundled Groove'), findsNothing);
     await _teardown(tester);
   });
 

@@ -285,18 +285,19 @@ class _SignedInBody extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final favorites = ref.watch(favoriteScoresProvider);
-    // Under the drums context (change: add-instrument-context) the home
-    // seeds drums: favorites filter to percussion, the bundled grooves offer
-    // a starting point, and the courses card — keyboard-only for now — makes
-    // way; the explicit invitation covers the nothing-to-show case.
+    // Under the drums context (change: add-instrument-context) the home seeds
+    // drums: favorites filter to percussion and the courses card — keyboard-only
+    // for now — makes way; the explicit invitation covers the nothing-to-show
+    // case.
+    //
+    // The bundled grooves are deliberately NOT listed here. They exist to make
+    // the core loop playable with no account at all, which is the signed-out
+    // body's job; once there is an account, the home is the catalog's — a
+    // demo score sitting among a signed-in user's own favorites reads as
+    // something they saved, and it cannot be favorited, rated or removed like
+    // everything else on this screen.
     final wantsDrums =
         ref.watch(effectiveInstrumentContextProvider) == AppInstrument.drums;
-    final bundledDrums = wantsDrums
-        ? [
-            for (final e in ref.watch(scoreCatalogProvider))
-              if (e.instrument == ScoreInstrument.percussion) e,
-          ]
-        : const <CatalogEntry>[];
     // Offline marking: a favorite with no cached bytes, while the device is
     // offline, is shown but flagged "not available offline". Both are read
     // non-blocking (default: online, everything playable) so they never gate the
@@ -321,21 +322,10 @@ class _SignedInBody extends ConsumerWidget {
         // favorites; omits itself when there are none. No drum course exists
         // yet, so the card steps aside under the drums context.
         if (!wantsDrums) const SliverToBoxAdapter(child: CoursesSection()),
-        if (bundledDrums.isNotEmpty)
-          SliverList.list(
-            children: _levelSections(
-              context,
-              bundledDrums,
-              onOpen: (entry) => LibraryScreen._open(context, ref, entry),
-              actionFor: (_) => null,
-            ),
-          ),
         switch (favorites) {
-          AsyncData(:final value)
-              when byContext(value).isEmpty && bundledDrums.isEmpty =>
-            _fill(
-              wantsDrums ? const DrumsEmptyInvitation() : _Empty(l10n: l10n),
-            ),
+          AsyncData(:final value) when byContext(value).isEmpty => _fill(
+            wantsDrums ? const DrumsEmptyInvitation() : _Empty(l10n: l10n),
+          ),
           AsyncData(:final value) => SliverPadding(
             padding: const EdgeInsets.only(bottom: 24),
             sliver: SliverList.list(
