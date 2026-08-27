@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.27.1](https://github.com/NEETROF/cymbra/compare/music-v1.27.0...music-v1.27.1) (2026-08-27)
+
+
+### Bug Fixes
+
+* **music:** the drum beta's audio, gate and visibility reports ([#290](https://github.com/NEETROF/cymbra/issues/290)) ([8a971fe](https://github.com/NEETROF/cymbra/commit/8a971fe701bdf8aecbbd0a4e1a82b3443499f576))
+* **music:** the signed-in home lists the catalog, not the bundled grooves ([#288](https://github.com/NEETROF/cymbra/issues/288)) ([fdcd191](https://github.com/NEETROF/cymbra/commit/fdcd191dc04e72e5a2640943aeeead565a963c85))
+
 ## [1.27.0](https://github.com/NEETROF/cymbra/compare/music-v1.26.0...music-v1.27.0) (2026-08-24)
 
 
