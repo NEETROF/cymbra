@@ -66,6 +66,7 @@ class SoundOutputSection extends ConsumerWidget {
           _OutputOffsetControl(offsetMs: data.outputOffsetMs),
         ],
         _InstrumentSoundsItselfTile(data: data),
+        _ScoreAudioMutedTile(data: data),
       ],
     );
   }
@@ -402,6 +403,43 @@ class _InstrumentSoundsItselfTile extends ConsumerWidget {
                 .read(playerProvider.notifier)
                 .setInstrumentSoundsItself(enabled: v)
           : null,
+    );
+  }
+}
+
+/// The written-score mute (change: add-practice-focus-controls) — the switch
+/// beside [_InstrumentSoundsItselfTile] and its exact counterpart: that one
+/// silences the notes the player *plays*, this one the notes the app *asks for*.
+///
+/// Always available, unlike its neighbour: it needs no instrument, because the
+/// thing it silences is the app's own playback. Nothing else about the session
+/// changes — the score is still drawn, still gated on, still judged, and the
+/// metronome still clicks.
+class _ScoreAudioMutedTile extends ConsumerWidget {
+  const _ScoreAudioMutedTile({required this.data});
+
+  final PlayerData data;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    return SwitchListTile(
+      key: const Key('score-audio-muted'),
+      contentPadding: EdgeInsets.zero,
+      title: Text(
+        l10n.scoreAudioMutedTitle,
+        style: const TextStyle(color: CymbraColors.onSurface),
+      ),
+      subtitle: Text(
+        l10n.scoreAudioMutedBody,
+        style: const TextStyle(
+          color: CymbraColors.onSurfaceVariant,
+          fontSize: 12,
+        ),
+      ),
+      value: data.scoreAudioMuted,
+      onChanged: (v) =>
+          ref.read(playerProvider.notifier).setScoreAudioMuted(muted: v),
     );
   }
 }

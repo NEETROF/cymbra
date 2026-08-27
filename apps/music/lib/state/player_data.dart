@@ -564,6 +564,19 @@ abstract class PlayerData with _$PlayerData {
     /// either way.
     @Default(false) bool instrumentSoundsItself,
 
+    /// Whether the app stops sounding the **written score** (change:
+    /// add-practice-focus-controls), seeded from the persisted play
+    /// preferences. The counterpart of [instrumentSoundsItself] on the other
+    /// side of the exercise: that one silences what the player *plays*, this
+    /// one what the app *asks for*.
+    ///
+    /// Presentation only, like every other audio rule here. The playhead still
+    /// advances, the score is still drawn, the Wait Mode gate still holds and
+    /// releases, the scorer still judges, and the metronome still clicks —
+    /// [PlayerData] cannot tell the difference anywhere except in what reaches
+    /// the synth.
+    @Default(false) bool scoreAudioMuted,
+
     /// Output latency compensation in **wall-clock** milliseconds (change:
     /// add-audio-output-routing), seeded from the persisted play preferences.
     /// The audio the user hears at any instant is what the engine emitted this

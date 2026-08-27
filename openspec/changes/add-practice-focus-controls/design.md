@@ -88,12 +88,26 @@ therefore release what is currently sounding and clear the set, and toggling it
 *Why not mute at the audio service:* it would silence the metronome and the
 player's own notes too, which are explicitly not what this control is about.
 
-### D5 — The mute gets a transport-rail toggle, the focus control does not
+### D5 — The mute gets a one-tap toggle in the top bar, the focus control does not
 
 The mute is reached for mid-exercise — "let me hear myself for this pass" — so it
-belongs beside Wait Mode in the rail the player is already using. The focus
-selection is a several-taps decision made between passes and belongs in the
-settings surface with the other multi-choice controls.
+needs to be one tap from where the player already is. The focus selection is a
+several-taps decision made between passes and belongs in the settings surface
+with the other multi-choice controls.
+
+*Revised during implementation.* The transport rail was the obvious home, beside
+Wait Mode. It does not fit: its seven controls fill a phone-landscape viewport to
+the pixel, and an eighth also overflowed a 820×460 desktop window by 34 px. The
+toggle sits in the **top-bar trailing cluster** instead, next to the metronome
+chip — which is arguably where it belonged anyway, since the two answer the same
+question ("what am I hearing while I play") and a drummer reaches for both in the
+same breath. That cluster is a scale-down `FittedBox`, so it absorbs a narrow
+window as one block rather than overflowing. It is still the right-hand bar the
+tester asked for.
+
+One detail worth pinning: the sounding-state icon is `audiotrack`, not
+`music_note`, because `music_note` is already the Staff mode's segment icon a few
+widgets away in the same bar.
 
 ### D6 — Deleting the limb selector rather than keeping it alongside
 

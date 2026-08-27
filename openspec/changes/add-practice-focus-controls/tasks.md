@@ -1,28 +1,34 @@
 ## 1. The expected-notes mute (independent — ships first)
 
-- [ ] 1.1 `player_preferences.dart`: a persisted `scoreAudioMuted` flag beside
+- [x] 1.1 `player_preferences.dart`: a persisted `scoreAudioMuted` flag beside
   `instrumentSoundsItself`, with its serialisation and default (off)
-- [ ] 1.2 `player_data.dart`: the flag in player state, hydrated from prefs on
+- [x] 1.2 `player_data.dart`: the flag in player state, hydrated from prefs on
   load like its neighbours
-- [ ] 1.3 `player_notifier.dart` `_applyScoreAudio` (`:299`): honour the mute on
+- [x] 1.3 `player_notifier.dart` `_applyScoreAudio` (`:299`): honour the mute on
   **both** branches. The `_sounding` bookkeeping is skipped with the attack, so
   no release is ever owed for a voice that was never started (the shape of the
   `add-drum-audio-channel` 10.3 bug)
-- [ ] 1.4 Toggling the mute **on** mid-playback releases what is currently
+- [x] 1.4 Toggling the mute **on** mid-playback releases what is currently
   sounding and clears `_sounding`; toggling it **off** starts sounding again from
   the next onset. Tested in both directions, including mid-sustain on a keyboard
   note where a missing release would hang a voice
-- [ ] 1.5 Assert the mute changes nothing else: with it on, the playhead, the
+- [x] 1.5 Assert the mute changes nothing else: with it on, the playhead, the
   drawing, the Wait Mode gate, the scorer and the metronome behave identically
   (notifier tests with a mocked `AudioService`, per the `flutter-testing` skill)
-- [ ] 1.6 All four combinations with `instrumentSoundsItself` behave as their two
+- [x] 1.6 All four combinations with `instrumentSoundsItself` behave as their two
   parts describe
-- [ ] 1.7 UI: a toggle in the settings modal beside "my instrument produces its
-  own sound", and a direct toggle in the transport rail (design D5) whose state
-  is visible, so a silent score is never mistaken for a broken one
-- [ ] 1.8 Localised fr/en/es/it — every locale aligned with the template (the
+- [x] 1.7 UI: a toggle in the settings modal beside "my instrument produces its
+  own sound", and a direct toggle whose state is visible, so a silent score is
+  never mistaken for a broken one. **Not the transport rail** as D5 assumed: its
+  seven controls already fill a phone-landscape viewport to the pixel, and an
+  eighth overflowed a short desktop window by 34 px too. It sits in the top-bar
+  trailing cluster instead, beside the metronome chip — they answer the same
+  question ("what am I hearing while I play"), the cluster scales down as one
+  block on a narrow window, and it is still the right-hand bar the tester asked
+  for. `design.md` D5 updated
+- [x] 1.8 Localised fr/en/es/it — every locale aligned with the template (the
   no-translation-drift rule)
-- [ ] 1.9 Widget test: toggling from the transport takes effect without pausing
+- [x] 1.9 Widget test: toggling from the transport takes effect without pausing
   or restarting the run
 
 ## 2. Focus state (spec: `music-kit-piece-focus`)

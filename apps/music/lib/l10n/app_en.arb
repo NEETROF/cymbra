@@ -2813,6 +2813,22 @@
   "@instrumentSoundsItselfUnavailable": {
     "description": "Reason shown while the instrument-sounds-itself toggle is disabled."
   },
+  "scoreAudioMutedTitle": "Mute the written part",
+  "@scoreAudioMutedTitle": {
+    "description": "Setting that stops the app sounding the written score."
+  },
+  "scoreAudioMutedBody": "The app stops playing the notes it is asking for. The score is still shown, still waited for and still scored, and the metronome still clicks.",
+  "@scoreAudioMutedBody": {
+    "description": "Explains the written-score mute: only the score audio stops."
+  },
+  "scoreAudioMuteTooltip": "Mute the written part",
+  "@scoreAudioMuteTooltip": {
+    "description": "Transport button that silences the written score."
+  },
+  "scoreAudioUnmuteTooltip": "Play the written part",
+  "@scoreAudioUnmuteTooltip": {
+    "description": "Transport button that restores the written score audio."
+  },
   "outputOffsetTitle": "Audio delay compensation",
   "@outputOffsetTitle": {
     "description": "Setting that shifts the playhead and scoring to match a delayed output."

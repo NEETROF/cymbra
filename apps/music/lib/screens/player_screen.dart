@@ -1142,6 +1142,15 @@ class _TopBar extends ConsumerWidget {
                   // Synthesia/Staff/Partition.
                   const _TempoChip(),
                   const SizedBox(width: 8),
+                  // Silences the written part (change:
+                  // add-practice-focus-controls) — beside the metronome because
+                  // they answer the same question, "what am I hearing while I
+                  // play", and a drummer reaches for both mid-pass. Here rather
+                  // than in the transport rail: that rail is already full to the
+                  // pixel on a phone and on a short desktop window, while this
+                  // cluster scales down as one block.
+                  const _ScoreMuteButton(),
+                  const SizedBox(width: 8),
                   // Consolidated music settings (MIDI device, keyboard size,
                   // hand). Lives in the mode-independent top bar, so it is
                   // reachable in Synthesia, Staff and Partition alike.
@@ -1154,6 +1163,40 @@ class _TopBar extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Toggles the written part's audio (change: add-practice-focus-controls).
+///
+/// The counterpart of the settings switch that stops the app doubling what the
+/// *player* plays: this one silences what the app *asks for*. Everything else
+/// about the session is untouched — the score is still drawn, still waited for,
+/// still judged, and the metronome beside it still clicks.
+///
+/// Lit when engaged, like the Wait Mode control, so a silent score is never
+/// mistaken for a broken one.
+class _ScoreMuteButton extends ConsumerWidget {
+  const _ScoreMuteButton();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final muted = ref.watch(playerProvider.select((d) => d.scoreAudioMuted));
+    final l10n = AppLocalizations.of(context);
+    return IconButton(
+      key: const Key('score-mute-button'),
+      tooltip: muted
+          ? l10n.scoreAudioUnmuteTooltip
+          : l10n.scoreAudioMuteTooltip,
+      onPressed: () =>
+          ref.read(playerProvider.notifier).setScoreAudioMuted(muted: !muted),
+      // `music_note` is the Staff mode's segment icon a few widgets away, so
+      // this pair uses `audiotrack` for the sounding state — same idea, its own
+      // glyph, and no two controls in one bar drawn identically.
+      icon: Icon(
+        muted ? Icons.music_off : Icons.audiotrack,
+        color: muted ? CymbraColors.secondary : CymbraColors.onSurface,
       ),
     );
   }

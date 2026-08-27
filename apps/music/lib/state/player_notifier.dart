@@ -123,6 +123,7 @@ class Player extends _$Player {
       keyboardRange: prefs.keyboardRange,
       readingAid: prefs.readingAid,
       instrumentSoundsItself: prefs.instrumentSoundsItself,
+      scoreAudioMuted: prefs.scoreAudioMuted,
       outputOffsetMs: prefs.outputOffsetMs,
       invertedKit: prefs.invertedKit,
     );
@@ -301,6 +302,12 @@ class Player extends _$Player {
     double to, {
     Set<int> justPlayed = const {},
   }) {
+    // The written part is muted (change: add-practice-focus-controls). Returning
+    // before the edges are computed skips the bookkeeping with the attack, so no
+    // release is ever owed for a voice that was never started — the shape of the
+    // double-strike bug `add-drum-audio-channel` 10.3 fixed. `_sounding` was
+    // emptied when the mute went on, so there is nothing left hanging either.
+    if (s.scoreAudioMuted) return;
     if (s.isPercussion) {
       // Percussion readiness gate: until the kit font's awaited install has
       // resolved (KitFontStatus.ready), playback is visual-only — the
@@ -523,6 +530,29 @@ class Player extends _$Player {
     ref
         .read(playerPreferencesProvider.notifier)
         .setInstrumentSoundsItself(enabled: enabled);
+  }
+
+  /// Silences (or restores) the app's playback of the **written score** (change:
+  /// add-practice-focus-controls) and remembers it across restarts.
+  ///
+  /// Nothing else about the session changes: the playhead keeps advancing, the
+  /// score keeps being drawn, the Wait Mode gate keeps holding and releasing, the
+  /// scorer keeps judging, and the metronome keeps clicking. It is the exercise's
+  /// own voice that stops — the thing that, on a kit, masks the player's strokes
+  /// and the click on the same percussion timbres.
+  ///
+  /// Silences every sounding voice across the change, for the same reason
+  /// [setInstrumentSoundsItself] does: a note the schedule started is owed a
+  /// release, and muting on the way out would suppress the one it is waiting
+  /// for. `_sounding` is cleared with it, so no release is ever owed for a voice
+  /// that is no longer playing.
+  void setScoreAudioMuted({required bool muted}) {
+    if (state.scoreAudioMuted == muted) return;
+    _silenceAll();
+    state = state.copyWith(scoreAudioMuted: muted);
+    ref
+        .read(playerPreferencesProvider.notifier)
+        .setScoreAudioMuted(muted: muted);
   }
 
   /// Sets the output latency compensation (change: add-audio-output-routing)
