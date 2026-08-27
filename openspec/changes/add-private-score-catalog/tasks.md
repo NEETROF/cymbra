@@ -2,7 +2,7 @@
 
 ## 1. Database & rights basis
 
-- [ ] 1.1 Migration `0023_private_score_catalog.sql` (idempotent): widen the
+- [ ] 1.1 Migration `0031_private_score_catalog.sql` (idempotent): widen the
   `user_scores.rights_basis` CHECK to include `'private_use'`; create
   `music.user_score_collections` + `music.user_score_collection_items` (FKs ON
   DELETE CASCADE, unique `(owner_id, lower(name))`, PK `(collection_id,
@@ -10,10 +10,11 @@
 - [ ] 1.2 Accept `private_use` in backend upload validation (basis whitelist) —
   persist unchanged otherwise; unit tests: accepted+persisted, unknown basis
   still rejected, missing confirmation still rejected
-- [ ] 1.3 Proposal guard: any propose path rejects when the **stored** row's
-  basis is `private_use` (read from DB, ignore client claims); tests both with
-  the in-flight ProposeScore handler present and as a repo-level guard so
-  deploy order doesn't matter
+- [ ] 1.3 Proposal guard in the live `ProposeScore` handler: reject when the
+  **stored** row's basis is `private_use`, read from the DB; tests must cover a
+  proposal that declares a permissive licence over a `private_use` score (the
+  declaration must not win) and confirm no catalog row, no bytes copy, no
+  moderation entry is created
 
 ## 2. Collections — backend
 
@@ -54,8 +55,11 @@
   the existing upload service; per-file outcome accumulation
   (imported / duplicate / invalid / quota); failure isolation (continue on
   error); notifier unit tests with mocked upload service
-- [ ] 5.3 Quota pre-check: fetch remaining quota, warn when selection exceeds
-  it before any upload starts; test the warning path
+- [ ] 5.3 Quota pre-check: resolve the caller's **plan-based** remaining
+  allowance, warn when the selection exceeds it before any upload starts, and
+  reuse the existing typed quota refusal (which already carries the upsell
+  signal) rather than inventing a new one; test the warning path and a batch
+  larger than the free allowance
 - [ ] 5.4 Result board UI with localized, non-technical outcome strings (FR/EN);
   widget tests incl. mixed-outcome batch
 

@@ -6,11 +6,16 @@
 rows, server-derived metadata, `rights_basis IN ('own_work','public_domain')` +
 `rights_ack`, per-owner SHA-256 dedup, objects under
 `user-scores/{owner_id}/{uuid}.mxl` in the private OVH bucket, streamed by the
-backend. The app's contribution wizard uploads exactly one file per pass
-(pick → validate → attest → difficulty → confirm) and the library shows a flat
-owner-scoped list with favorites. The in-flight `add-score-catalog-proposal`
-change adds the opt-in ProposeScore path from a private score to the public
-catalog.
+backend. Rows also carry an `instrument` family (`keyboard` / `percussion` /
+`unknown`) since the drums work. The app's contribution wizard uploads exactly
+one file per pass (pick → validate → attest → difficulty → confirm) and the
+library shows a flat owner-scoped list with favorites. The opt-in `ProposeScore`
+path to the public catalog is **live** (`score-catalog-proposal`), and it
+captures its own licence declaration and right-to-distribute attestation at
+proposal time. The rolling upload quota is **plan-resolved** at request time
+(`plans.scores.upload_quota.free` = 5 / 7 days; a plan unlocking
+`scores.extended_quotas` raises it) and its refusal is typed so the surface can
+upsell.
 
 Constraints: module isolation (no cross-schema FKs), UUID v7 app-side ids,
 idempotent DDL, mockall/mockito test doubles, Riverpod 2 + Freezed codegen,
@@ -66,11 +71,13 @@ editing is an explicit future change.
 
 - DB: the `rights_basis` CHECK gains `'private_use'` (drop + re-add, idempotent).
 - Upload: server accepts the new basis (same `rights_ack = true` requirement).
-- Propose: the ProposeScore path MUST reject a `private_use` score by reading
-  the stored row's basis server-side — never trusting the client — so the guard
-  holds regardless of whether `add-score-catalog-proposal` lands before or
-  after this change. Client-side, propose affordances are simply absent for
-  `private_use` rows.
+- Propose: the live `ProposeScore` path MUST reject a `private_use` score by
+  reading the **stored** row's basis server-side. This matters more than it
+  first appears: a proposal carries its *own* licence declaration and
+  right-to-distribute attestation, so a client could declare a permissive
+  licence for a score that was imported as personal-use. The stored basis wins;
+  the proposal payload is never the authority. Client-side, propose affordances
+  are simply absent for `private_use` rows.
 
 Existing rows are untouched (no backfill; both legacy bases remain proposable).
 
@@ -119,14 +126,17 @@ add ceremony without a credible rollback scenario the flag uniquely enables.
 
 ## Risks / Trade-offs
 
-- [Batch trips the upload quota mid-run] → the flow pre-checks remaining quota
-  and warns when the selection exceeds it; per-file quota errors still land as
-  per-file outcomes, never abort the whole batch.
+- [Batch trips the upload quota mid-run] → the flow pre-checks the
+  plan-resolved remaining quota and warns when the selection exceeds it;
+  per-file quota errors still land as per-file outcomes, never abort the whole
+  batch. On the free plan (5 / 7 days today) most batches will be partially
+  refused — that is the designed behavior, surfaced up front, not an error
+  path.
 - [One difficulty for heterogeneous batches] → accepted v1 limitation (D2);
   documented in the flow copy ("you can re-import a file to change its level").
-- [`private_use` guard races the in-flight propose change] → guard reads the
-  stored basis server-side and is specified defensively in
-  `backend-score-storage`, so ordering doesn't matter (D3).
+- [A proposal's own licence declaration contradicts the stored basis] → the
+  stored basis is the sole authority for the refusal; the declaration cannot
+  launder a personal-use score into the catalog (D3).
 - [Takedown deletes user property] → mandatory reason, explicit BO
   confirmation, audit row written before deletion.
 - [Collection name collisions/i18n] → uniqueness on `lower(name)` per owner;
@@ -134,7 +144,8 @@ add ceremony without a credible rollback scenario the flag uniquely enables.
 
 ## Migration Plan
 
-One idempotent migration (`0023_private_score_catalog.sql`): extend the
+One idempotent migration (`0031_private_score_catalog.sql` — 0030 is the last
+taken number): extend the
 `rights_basis` CHECK, create both collection tables + indexes, create the
 takedown audit table. Additive only — safe to deploy before the app ships;
 old clients keep uploading with the two legacy bases. Rollback = revert the

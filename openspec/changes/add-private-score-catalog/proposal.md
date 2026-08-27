@@ -23,6 +23,10 @@ Out of scope, deliberately: the public catalog (unchanged), organisations /
   validated and uploaded one by one over the existing single-upload backend
   operation, with a per-file result board (imported / duplicate / invalid) and a
   single attestation step covering the batch. No new backend upload endpoint.
+  The rolling upload quota is plan-resolved (`free` = 5 / 7 days today), so a
+  batch is bounded by the caller's plan: the flow surfaces the remaining
+  allowance up front and reuses the quota refusal's existing upsell signal
+  rather than inventing one. This change does **not** alter quota values.
 - **Collections**: users can create named collections in their private library,
   assign/remove scores, and filter the library by collection. Collections are
   server-persisted and sync across devices (same pattern as
@@ -44,8 +48,10 @@ platform is consumed as-is (auth, roles).
 
 Note on legacy names: this change touches `score-upload` and
 `backend-score-storage`, which would normally trigger their `music-*` rename,
-but the in-flight `add-score-catalog-proposal` change also deltas
-`score-upload`; renaming here would break its archive. Rename deferred.
+but the in-flight `add-offline-score-cache` change also deltas
+`backend-score-storage`; renaming it here would break that change. Renaming only
+`score-upload` would split a pair that belongs to the same domain and lands in
+the same change, so both renames are deferred together.
 
 ## Capabilities
 
@@ -66,6 +72,9 @@ but the in-flight `add-score-catalog-proposal` change also deltas
 - `backend-score-storage`: server accepts and persists the `private_use` basis;
   any proposal path MUST reject a `private_use` score regardless of client
   behavior.
+- `score-catalog-proposal`: `ProposeScore` refuses a score whose **stored** basis
+  is `private_use`, even when the proposal declares an otherwise-permissive
+  licence.
 
 ## Impact
 
@@ -82,6 +91,8 @@ but the in-flight `add-score-catalog-proposal` change also deltas
   action, music admin scope.
 - **External (manual)**: cymbra-site CGU + mentions légales additions
   (notice-and-takedown contact, private_use wording).
-- **Interaction with in-flight changes**: `add-score-catalog-proposal` (propose
-  flow) — the server-side guard here is specified defensively so both changes
-  can land in either order.
+- **Interaction with shipped work**: the propose flow (`score-catalog-proposal`)
+  is live, and it captures its **own** licence declaration at proposal time —
+  which is precisely why the guard reads the stored basis instead of trusting
+  the proposal payload. The plan layer (`music-plan-entitlements`) already
+  resolves the upload quota per plan and is consumed as-is.
