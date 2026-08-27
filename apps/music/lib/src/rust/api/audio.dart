@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `build_stream`, `describe_outputs`, `device_name`, `load_sound_font`, `open_output`, `run_audio_thread`, `send_event`, `send`, `spawn_drift_monitor`, `split_choke_groups`
+// These functions are ignored because they are not marked as `pub`: `build_stream`, `describe_outputs`, `device_name`, `load_sound_font`, `open_output`, `run_audio_thread`, `send`, `spawn_drift_monitor`, `split_choke_groups`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `DeviceCommand`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `eq`, `eq`, `fmt`, `fmt`
 
