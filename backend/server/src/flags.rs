@@ -477,14 +477,19 @@ impl PlanContext {
 
 #[async_trait]
 impl cymbra_feature_flags::PlanContextSource for PlanContext {
-    async fn plan_context(&self, user_id: &str) -> (bool, Vec<String>) {
-        match self.plans.snapshot(user_id).await {
-            Ok(s) => (s.plan == cymbra_plans::Plan::Premium, s.beta_keys()),
-            Err(e) => {
-                tracing::warn!(error = %e, "plan snapshot failed; flags evaluate caller as free");
-                (false, Vec::new())
-            }
-        }
+    async fn plan_context(
+        &self,
+        user_id: &str,
+    ) -> cymbra_platform::error::Result<(bool, Vec<String>)> {
+        // Propagated, never defaulted (change: add-drum-input-mapping — beta fix):
+        // answering "free, no betas" on a failed read is a silent entitlement
+        // downgrade the caller cannot detect and will cache. The plans kill-switch
+        // being off is a different thing entirely — that resolves successfully to
+        // an empty beta set, and still does.
+        let s = self.plans.snapshot(user_id).await.inspect_err(|e| {
+            tracing::warn!(error = %e, "plan snapshot failed; flag read refused rather than downgraded");
+        })?;
+        Ok((s.plan == cymbra_plans::Plan::Premium, s.beta_keys()))
     }
 }
 

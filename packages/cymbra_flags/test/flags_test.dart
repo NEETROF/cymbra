@@ -35,10 +35,22 @@ class FakePrefs implements FlagPreferences {
 }
 
 class FakeBearer implements FlagBearer {
-  FakeBearer(this._token);
+  FakeBearer(this._token, {String? renewsTo}) : _renewsTo = renewsTo;
   final String? _token;
+  final String? _renewsTo;
+
+  /// How many times the host was asked to renew — a refused bearer must cost
+  /// exactly one renewal, never a loop.
+  int renewals = 0;
+
   @override
   Future<String?> token() async => _token;
+
+  @override
+  Future<String?> renewed() async {
+    renewals++;
+    return _renewsTo;
+  }
 }
 
 FlagSnapshot _snap(
@@ -326,6 +338,7 @@ void main() {
           overrides: [
             flagPollIntervalProvider.overrideWithValue(null),
             flagIdentityProvider.overrideWithValue('u1'),
+            flagBearerProvider.overrideWithValue(FakeBearer('token-a')),
             flagAudienceProvider.overrideWith((ref) => ref.watch(audience)),
             flagServiceProvider.overrideWithValue(fake),
             flagPreferencesProvider.overrideWithValue(FakePrefs()),
@@ -399,5 +412,133 @@ void main() {
         expect(bFake.calls.single.bearer, 'token-b');
       },
     );
+
+    /// The drum beta's entry point vanishing at random came down to one shape:
+    /// an answer evaluated for a WEAKER caller than the snapshot belongs to.
+    /// The set carries no evidence of that — flags and a content hash, nothing
+    /// else — so once stored it is indistinguishable from a real one, and every
+    /// entitlement-gated key is simply gone.
+    group('never downgrades a signed-in snapshot', () {
+      test('a refused bearer is renewed once and the fetch retried', () async {
+        final bearer = FakeBearer('stale', renewsTo: 'fresh');
+        var attempts = 0;
+        final fake = FakeService((app, id, known, presented) {
+          attempts++;
+          if (presented == 'stale') throw const FlagAuthException();
+          return FlagFetch.changed(
+            _snap(app, id, 'v1', {
+              'drums.enabled': const FlagEntry(FlagKind.bool_, true),
+            }),
+          );
+        });
+        final c = _make(
+          identity: 'u1',
+          service: fake,
+          prefs: FakePrefs(),
+          bearer: bearer,
+        );
+        c.read(flagsProvider);
+        await _settle();
+        expect(attempts, 2, reason: 'refused, renewed, retried');
+        expect(bearer.renewals, 1, reason: 'exactly one renewal, never a loop');
+        expect(c.read(flagsProvider).getBool('drums.enabled'), isTrue);
+      });
+
+      test('a refusal that cannot be renewed keeps the last-good set', () async {
+        // First fetch lands; the token then goes stale with no way back. The
+        // member keeps what they had rather than being served a set for nobody.
+        var stale = false;
+        final fake = FakeService((app, id, known, presented) {
+          if (stale) throw const FlagAuthException();
+          return FlagFetch.changed(
+            _snap(app, id, 'v1', {
+              'drums.enabled': const FlagEntry(FlagKind.bool_, true),
+            }),
+          );
+        });
+        final c = _make(
+          identity: 'u1',
+          service: fake,
+          prefs: FakePrefs(),
+          bearer: FakeBearer('token'),
+        );
+        c.read(flagsProvider);
+        await _settle();
+        expect(c.read(flagsProvider).getBool('drums.enabled'), isTrue);
+
+        stale = true;
+        await c.read(flagsProvider.notifier).refresh();
+        await _settle();
+        expect(
+          c.read(flagsProvider).getBool('drums.enabled'),
+          isTrue,
+          reason: 'the last-good set stands; nothing weaker replaces it',
+        );
+        expect(c.read(flagsProvider).version, 'v1');
+      });
+
+      test('signed in with no token: renews rather than asking anonymously', () async {
+        final bearer = FakeBearer(null, renewsTo: 'fresh');
+        final fake = FakeService(
+          (app, id, known, presented) => FlagFetch.changed(
+            _snap(app, id, 'v1', {
+              'drums.enabled': const FlagEntry(FlagKind.bool_, true),
+            }),
+          ),
+        );
+        final c = _make(
+          identity: 'u1',
+          service: fake,
+          prefs: FakePrefs(),
+          bearer: bearer,
+        );
+        c.read(flagsProvider);
+        await _settle();
+        expect(bearer.renewals, 1);
+        expect(fake.calls.single.bearer, 'fresh');
+        expect(c.read(flagsProvider).getBool('drums.enabled'), isTrue);
+      });
+
+      test('signed in with nothing to present asks nothing at all', () async {
+        // No token and no renewal: the ONLY answer available is the anonymous
+        // set, so the read is not made and nothing is written to the cache.
+        final prefs = FakePrefs();
+        final fake = FakeService(
+          (app, id, known, presented) =>
+              FlagFetch.changed(_snap(app, id, 'anon', const {})),
+        );
+        final c = _make(
+          identity: 'u1',
+          service: fake,
+          prefs: prefs,
+          bearer: FakeBearer(null),
+        );
+        c.read(flagsProvider);
+        await _settle();
+        expect(fake.calls, isEmpty, reason: 'no anonymous question is asked');
+        expect(prefs.store, isEmpty, reason: 'and nothing is cached');
+      });
+
+      test('a signed-OUT snapshot still reads the anonymous set', () async {
+        // The guard is about identity, not about tokens: with no identity there
+        // is nothing to downgrade, and the pre-account UI must still resolve.
+        final fake = FakeService(
+          (app, id, known, presented) => FlagFetch.changed(
+            _snap(app, id, 'v1', {
+              'onboarding.enabled': const FlagEntry(FlagKind.bool_, true),
+            }),
+          ),
+        );
+        final c = _make(
+          service: fake,
+          prefs: FakePrefs(),
+          bearer: FakeBearer(null),
+        );
+        c.read(flagsProvider);
+        await _settle();
+        expect(fake.calls.single.bearer, isNull);
+        expect(c.read(flagsProvider).getBool('onboarding.enabled'), isTrue);
+      });
+    });
   });
 }

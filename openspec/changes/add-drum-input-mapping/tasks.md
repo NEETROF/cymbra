@@ -86,3 +86,52 @@
   declares, a host that declares none is left alone, and a device that refuses
   falls straight back to its default rather than leaving the app silent. Pure
   part unit-tested; the log line reports what was actually opened
+
+## 9. Beta feedback (2026-08-27) — the beta gate still came and went
+
+§8.4's audience seam fixed one way the drums home could vanish (the plan folded
+into the flag snapshot's identity). The tester reported it still happening at
+random on the build that carried it. Two further causes, independent of each
+other and of §8.4, both ending the same way: an effective flag set evaluated for
+a **weaker caller than the snapshot belongs to**, indistinguishable from a real
+one — the response carries flags and a content hash, nothing about how it was
+resolved — and therefore stored, taking every entitlement-gated key with it
+until some later poll happened to succeed (up to 10 minutes).
+
+- [x] 9.1 `backend/platform/src/interceptor.rs`: `OptionalAuthInterceptor`
+  rejects a **presented-but-invalid** bearer with `UNAUTHENTICATED` instead of
+  swallowing it. "Optional" is about the header, never its contents: a request
+  that presents a token is asserting an identity. The flag read is the one
+  authenticated call that cannot simply demand a token (a pre-account UI must
+  resolve kill-switches), so an expired access token used to come back as the
+  anonymous set — no error, and therefore no cue to refresh. Unit-tested for
+  each shape (absent / valid / expired / wrong audience / malformed), plus the
+  strict interceptor's unchanged behaviour
+- [x] 9.2 `backend/server/src/flags.rs` + `feature-flags/src/context.rs`:
+  `PlanContextSource::plan_context` is **fallible**, like its sibling
+  `CampaignDirectory` and for the same reason. It used to log a warning and
+  answer "free, no betas" when the plan snapshot failed — a silent entitlement
+  downgrade the caller cannot detect and will cache. `get_effective_flags` maps
+  the failure to a status; the plans kill-switch being off is unaffected, since
+  that resolves *successfully* to an empty beta set. Tested: a failed lookup
+  refuses the read, a definite "no plan" still evaluates, and the beta keys
+  reach the evaluation (asserted from a **non-staff** identity — staff match
+  every `beta:` scope, so an admin proves nothing about a campaign's audience)
+- [x] 9.3 `packages/cymbra_flags`: `FlagBearer.renewed()` — the seam for
+  renewing a refused bearer — and `FlagAuthException`, so the notifier reacts to
+  "your token is stale" without knowing what transport said so. `Flags.refresh`
+  gains two rules: a snapshot scoped to an identity is never fetched without a
+  bearer (it renews first, and asks nothing at all if it cannot), and a refused
+  bearer is renewed **once** and retried. A signed-out snapshot still reads the
+  anonymous set unchanged
+- [x] 9.4 `flags_integration.dart`: `AppFlagBearer` renews through the app's
+  coordinated `TokenRefresher` — the same single-flight refresher every other
+  adapter shares — so a refused flag read repairs itself in the same round trip
+  instead of waiting for the next poll
+- [x] 9.5 Gates: `cargo fmt --all --check`, `cargo clippy --workspace
+  --all-targets -- -D warnings`, `cargo test --workspace`, `dart analyze`,
+  `dart format`, `dart run custom_lint`, `flutter test --exclude-tags golden`
+  (app + `cymbra_flags` package)
+- [ ] 9.6 On-device with the tester: leave the app open past the access token's
+  lifetime and confirm the drums home is still there; sign out and back in and
+  confirm it returns without a relaunch

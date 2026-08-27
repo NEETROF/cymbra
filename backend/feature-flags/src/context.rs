@@ -68,20 +68,40 @@ impl RolloutScope {
 /// add-premium-subscription): the effective plan and the active beta campaign
 /// keys. Implemented by the server over the plans module; [`NoPlanContext`]
 /// answers "free, no betas" (plans not deployed).
+///
+/// **Fallible on purpose**, like its sibling [`CampaignDirectory`] (change:
+/// add-drum-input-mapping — beta fix). "This caller is in no beta" and "nobody
+/// could ask" produce the same *evaluated set*, and the client cannot tell them
+/// apart: the response carries flags and a content-derived version, nothing
+/// about how it was resolved. Defaulting a failed lookup to free therefore
+/// hands back a downgrade that looks exactly like a legitimate answer — the
+/// client stores it, and a beta-gated entry point disappears until some later
+/// poll succeeds. A caller whose plan cannot be read is told so instead, and
+/// keeps the last-good snapshot it already has.
 #[cfg_attr(any(test, feature = "mock"), mockall::automock)]
 #[async_trait::async_trait]
 pub trait PlanContextSource: Send + Sync {
-    /// `(premium, beta campaign keys)` for `user_id`; errors are treated as free.
-    async fn plan_context(&self, user_id: &str) -> (bool, Vec<String>);
+    /// `(premium, beta campaign keys)` for `user_id`.
+    ///
+    /// `Err`: the plan could not be determined — never defaulted, so an outage
+    /// is never presented to a member as "you are in no beta".
+    async fn plan_context(
+        &self,
+        user_id: &str,
+    ) -> cymbra_platform::error::Result<(bool, Vec<String>)>;
 }
 
-/// The inert plan-context source.
+/// The inert plan-context source: plans are not deployed, so *nobody* has one.
+/// A definite answer, not a failure — the distinction this seam exists to keep.
 pub struct NoPlanContext;
 
 #[async_trait::async_trait]
 impl PlanContextSource for NoPlanContext {
-    async fn plan_context(&self, _user_id: &str) -> (bool, Vec<String>) {
-        (false, Vec::new())
+    async fn plan_context(
+        &self,
+        _user_id: &str,
+    ) -> cymbra_platform::error::Result<(bool, Vec<String>)> {
+        Ok((false, Vec::new()))
     }
 }
 

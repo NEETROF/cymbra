@@ -83,8 +83,18 @@ impl FlagServiceTrait for FlagGrpc {
         // it can't widen the set); unauthenticated ⇒ the anonymous set for the app
         // the caller named.
         let ctx = match &identity {
+            // A member's plan is part of the answer, not a decoration on it: if it
+            // cannot be read, the honest response is an error the client can keep
+            // its last-good snapshot through — never a set evaluated as though the
+            // caller had no plan and no betas, which is indistinguishable from a
+            // real one and gets cached as such (change: add-drum-input-mapping —
+            // beta fix, the drums entry point vanishing at random).
             Some(id) => {
-                let (premium, betas) = self.plans.plan_context(&id.user_id).await;
+                let (premium, betas) = self
+                    .plans
+                    .plan_context(&id.user_id)
+                    .await
+                    .map_err(|e| e.to_status())?;
                 EvalContext::authenticated(&id.audience, &id.roles).with_plan(premium, betas)
             }
             None => EvalContext::anonymous(&r.app),
@@ -359,6 +369,20 @@ mod tests {
         req
     }
 
+    /// A signed-in **non-staff** caller. Staff match every `beta:` scope by
+    /// design, so a beta-gating assertion made from an admin identity proves
+    /// nothing about the audience the campaign actually reaches.
+    fn user_req<T>(msg: T, audience: &str) -> Request<T> {
+        let mut req = Request::new(msg);
+        req.extensions_mut().insert(AuthIdentity {
+            user_id: "00000000-0000-0000-0000-0000000000bb".into(),
+            audience: audience.into(),
+            roles: vec!["user".into()],
+            ..Default::default()
+        });
+        req
+    }
+
     /// A back-office console request whose caller holds the given per-scope roles.
     fn console_req<T>(msg: T, pairs: &[(&str, &[&str])]) -> Request<T> {
         let roles_by_scope: std::collections::BTreeMap<String, Vec<String>> = pairs
@@ -443,6 +467,120 @@ mod tests {
             .into_inner();
         assert!(again.unchanged);
         assert!(again.flags.is_empty());
+    }
+
+    /// A member whose plan cannot be read is told so, and keeps whatever snapshot
+    /// they already hold — the alternative is a set evaluated as "free, no betas"
+    /// that is byte-identical to a genuine one, which the client caches and which
+    /// silently removes every beta-gated entry point (change:
+    /// add-drum-input-mapping — beta fix).
+    #[tokio::test]
+    async fn a_plan_lookup_failure_refuses_the_read_rather_than_evaluating_as_free() {
+        let mut plans = crate::context::MockPlanContextSource::new();
+        plans.expect_plan_context().returning(|_| {
+            Err(cymbra_platform::error::AppError::Internal(anyhow::anyhow!(
+                "plan store unreachable"
+            )))
+        });
+        let g = grpc(false).with_plans(Arc::new(plans));
+        let status = g
+            .get_effective_flags(admin_req(
+                proto::GetEffectiveFlagsRequest {
+                    known_version: String::new(),
+                    app: APP_MUSIC.into(),
+                },
+                APP_MUSIC,
+            ))
+            .await
+            .expect_err("an unreadable plan is an error, not an empty beta set");
+        assert_ne!(status.code(), tonic::Code::Ok);
+    }
+
+    /// The other half of the same distinction: plans deployed and answering
+    /// "this caller has none" is a definite answer and still evaluates.
+    #[tokio::test]
+    async fn a_caller_with_no_plan_still_gets_their_set() {
+        let mut plans = crate::context::MockPlanContextSource::new();
+        plans
+            .expect_plan_context()
+            .returning(|_| Ok((false, Vec::new())));
+        let g = grpc(false).with_plans(Arc::new(plans));
+        let resp = g
+            .get_effective_flags(admin_req(
+                proto::GetEffectiveFlagsRequest {
+                    known_version: String::new(),
+                    app: APP_MUSIC.into(),
+                },
+                APP_MUSIC,
+            ))
+            .await
+            .expect("a definite 'no plan' is not a failure")
+            .into_inner();
+        assert!(!resp.flags.is_empty());
+    }
+
+    /// The beta keys a successful lookup reports reach the evaluation, so a
+    /// member's gated flag resolves differently from a non-member's — the whole
+    /// point of the seam, asserted end to end through the handler.
+    #[tokio::test]
+    async fn beta_membership_from_the_plan_source_reaches_the_evaluated_set() {
+        async fn drums_enabled_for(betas: Vec<String>) -> bool {
+            let mut store = MockFlagStore::new();
+            // A `beta:midi-drums` override: on for members, code default for
+            // everyone else.
+            store.expect_load_all().returning(|| {
+                Ok(vec![crate::store::StoredOverride {
+                    app: APP_MUSIC.into(),
+                    key: "drums.enabled".into(),
+                    value_type: crate::ValueType::Bool,
+                    value: FlagValue::Bool(true),
+                    rollout: crate::RolloutScope::Beta("midi-drums".into()),
+                    sensitive: false,
+                    updated_by: "test".into(),
+                    updated_at: chrono::Utc::now(),
+                }])
+            });
+            store.expect_upsert().returning(|_| Ok(()));
+            let mut resolver = MockAdminScopeResolver::new();
+            resolver.expect_is_platform_admin().returning(|_| Ok(false));
+            let mut plans = crate::context::MockPlanContextSource::new();
+            plans
+                .expect_plan_context()
+                .returning(move |_| Ok((false, betas.clone())));
+            let svc = Arc::new(FlagService::new(
+                Registry::default(),
+                Some(Arc::new(store)),
+                Arc::new(NoopBus),
+                Arc::new(resolver),
+            ));
+            svc.refresh().await.expect("overrides loaded");
+            let g = FlagGrpc::new(svc).with_plans(Arc::new(plans));
+            let resp = g
+                .get_effective_flags(user_req(
+                    proto::GetEffectiveFlagsRequest {
+                        known_version: String::new(),
+                        app: APP_MUSIC.into(),
+                    },
+                    APP_MUSIC,
+                ))
+                .await
+                .expect("evaluated")
+                .into_inner();
+            resp.flags
+                .iter()
+                .find(|f| f.key == "drums.enabled")
+                .and_then(|f| f.value.as_ref())
+                .map(|v| matches!(v.kind, Some(proto::flag_value::Kind::BoolValue(true))))
+                .unwrap_or(false)
+        }
+        assert!(
+            drums_enabled_for(vec!["midi-drums".to_string()]).await,
+            "an enrolled member sees the beta flag"
+        );
+        assert!(
+            !drums_enabled_for(vec![]).await,
+            "someone in no campaign does not"
+        );
     }
 
     #[tokio::test]
