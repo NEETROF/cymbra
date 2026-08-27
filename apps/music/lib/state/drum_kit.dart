@@ -61,6 +61,25 @@ const double kStrokeToleranceMs = 150;
 double strokeToleranceMsAt(double speed) =>
     kStrokeToleranceMs * (speed > 1 ? speed : 1);
 
+/// Whether a stroke stamped at [strokeMs] on the playhead still answers the
+/// onset the playhead has reached at [nowMs], at transport [speed].
+///
+/// Bounded on both sides, and that is the point. The window is measured on the
+/// playhead, so a stamp only means anything on the run that made it: the
+/// playhead runs backwards across a restart, a loop wrap or a rewind, and a
+/// stroke left over from before one of those lands *ahead* of it. Read as an
+/// age that would be a huge negative number — "played 40 seconds early" — which
+/// no upper bound alone rejects, so it would silently open the next run's very
+/// first onset with no stroke played at all.
+bool strokeAnswersOnset({
+  required double strokeMs,
+  required double nowMs,
+  required double speed,
+}) {
+  final age = nowMs - strokeMs;
+  return age >= 0 && age <= strokeToleranceMsAt(speed);
+}
+
 /// How long a struck surface stays lit, in milliseconds.
 const int kStruckFlashMs = 180;
 

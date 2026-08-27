@@ -197,3 +197,43 @@
 - [x] 9.9 Confirm a keyboard score is unaffected end to end — app playback,
   picker, console Play, previews — and record in `design.md` anything the
   listening pass changed (kit choice, groove sequence) — VALIDÉ 2026-08-25 en production (backend 0.21.1)
+
+## 10. Beta feedback (2026-08-26) — what a drummer actually heard
+
+Three reports from the first e-kit tester (macOS, USB kit) landed on this
+change's surface: the hi-hat made no sound at all, one hit on the bass drum
+sounded several times, and the drums home disappeared once mid-session.
+
+- [x] 10.1 `crates/sf2-meta/src/exclusive_class.rs` (new): the pure analysis that
+  splits the exclusive class a **stereo** region pair shares. `rustysynth`'s
+  `VoiceCollection::request_new` reuses the voice slot of any sounding voice
+  carrying the region's class — including the one the *same* note-on started a
+  microsecond earlier — so the hard-right half of every hi-hat took back the
+  hard-left half's voice: the piece came out at half level in one channel only,
+  and silent on a mono output. The k-th overlapping member of a class becomes
+  `c + k * stride`, `stride` past every class the file uses, which restores both
+  halves **and** keeps the choke (the next stroke's left half still lands on the
+  left half's class). Unit-tested against the stereo pair, the open/closed choke,
+  disjoint velocity layers, a global zone's inherited ranges and a font with no
+  choke groups at all
+- [x] 10.2 `api/audio.rs`: apply it on the way in — locate the `pdta` LIST by
+  seeking the RIFF tree, patch a few words of the hydra in memory, and stream the
+  file with that one chunk replaced (`Take` + `chain`), so the sample data still
+  never lands in memory. Any font we cannot analyse loads exactly as before.
+  Tested against the SHIPPED kit font: GM 42/44/46 reach both channels, and the
+  font still declares the shared classes the test depends on
+- [x] 10.3 `player_notifier.dart`: in Wait Mode a percussion onset the player
+  just struck is **not** sounded again by the schedule when the gate opens. One
+  hit was producing two attacks a frame apart — the stroke, then the written
+  note — which is the "bass drum sounds several times" report. Keyboard playback
+  is deliberately untouched. Widget-tested through the player screen
+- [x] 10.4 `packages/cymbra_flags`: `flagAudienceProvider` — the plan/betas move
+  OUT of `flagIdentityProvider`, which scraps the snapshot when it changes, and
+  into an audience seam that **refreshes** it. Folding the plan into the identity
+  meant a plan refetch (and the plan simply resolving at launch) rebuilt the
+  notifier onto an empty snapshot, so `drums.enabled` read `false` for the length
+  of a round trip and the drums home vanished. Tested: the last-good set is still
+  served across an audience change, and a real user switch still resets
+- [ ] 10.5 On-device with the tester's kit: the hi-hat sounds, centred and at the
+  kit's level; a single kick is a single sound in Wait Mode; the drums home
+  survives a sign-in, a plan refresh and an app resume

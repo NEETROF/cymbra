@@ -29,8 +29,27 @@ String flagApp(Ref ref) =>
 /// The current account id (or `null` when signed out). The host app overrides
 /// this with its session identity so the snapshot resets on sign-out / user
 /// switch and the persisted cache is keyed per identity.
+///
+/// **The account, and nothing else.** Changing it *scraps* the snapshot: every
+/// flag falls back to its code default until a network round trip lands, which
+/// is right for "this is a different person" and wrong for anything else. What
+/// merely changes the *answers* for the same person — a plan, an enrolment —
+/// belongs in [flagAudienceProvider], which re-evaluates without blanking.
 @Riverpod(keepAlive: true)
 String? flagIdentity(Ref ref) => null;
+
+/// Everything about the caller *other than who they are* that the server's
+/// evaluation depends on: the plan, the beta campaigns they are enrolled in…
+/// Overridden by the host app; the default `''` means "nothing else matters".
+///
+/// A change here **refreshes** the snapshot ([Flags.refresh]) — it never resets
+/// it. That distinction is the fix for a beta-only entry point vanishing
+/// mid-session: with the plan folded into the identity, a purchase, a plan
+/// refetch or a beta enrolment rebuilt the notifier, and every flag read
+/// `false` for as long as the refetch took — long enough for a whole home
+/// screen to lose its drums section and get it back.
+@Riverpod(keepAlive: true)
+String flagAudience(Ref ref) => '';
 
 /// Supplies the current bearer token (`null` ⇒ anonymous). The host app overrides
 /// this to read its token store.
@@ -84,6 +103,14 @@ class Flags extends _$Flags {
     // Watching the identity makes the notifier rebuild — and thus reset — on
     // sign-out / user switch, so the previous identity's snapshot is never reused.
     final identity = ref.watch(flagIdentityProvider);
+
+    // The audience is LISTENED to, never watched: a plan or beta change makes
+    // the server evaluate a different set for the same person, so the snapshot
+    // is refetched in place — stale-while-revalidate, exactly like the poll —
+    // rather than scrapped and rebuilt from empty.
+    ref.listen(flagAudienceProvider, (previous, next) {
+      if (previous != next) unawaited(refresh());
+    });
 
     final poll = ref.watch(flagPollIntervalProvider);
     if (poll != null) {

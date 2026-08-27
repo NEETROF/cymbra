@@ -38,7 +38,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -960104550;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1670896465;
 
 // Section: executor
 
@@ -717,6 +717,38 @@ fn wire__crate__api__audio__set_audio_output_impl(
             transform_result_sse::<_, ()>((move || {
                 let output_ok = Result::<_, ()>::Ok({
                     crate::api::audio::set_audio_output(api_name);
+                })?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__midi__set_midi_echo_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "set_midi_echo",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_mode = <crate::api::midi::MidiEcho>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok({
+                    crate::api::midi::set_midi_echo(api_mode);
                 })?;
                 Ok(output_ok)
             })())
@@ -1453,6 +1485,19 @@ impl SseDecode for crate::api::score::Measure {
     }
 }
 
+impl SseDecode for crate::api::midi::MidiEcho {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::midi::MidiEcho::Off,
+            1 => crate::api::midi::MidiEcho::Melodic,
+            2 => crate::api::midi::MidiEcho::Drum,
+            _ => unreachable!("Invalid variant for MidiEcho: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for crate::api::midi::MidiEvent {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1954,13 +1999,13 @@ fn pde_ffi_dispatcher_primary_impl(
         11 => wire__crate__api__simple__init_app_impl(port, ptr, rust_vec_len, data_len),
         16 => wire__crate__api__midi__midi_event_stream_impl(port, ptr, rust_vec_len, data_len),
         19 => wire__crate__api__musicxml__parse_musicxml_impl(port, ptr, rust_vec_len, data_len),
-        23 => wire__crate__api__audio__soundfont_family_evidence_impl(
+        24 => wire__crate__api__audio__soundfont_family_evidence_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        25 => wire__crate__api__musicxml__validate_musicxml_impl(port, ptr, rust_vec_len, data_len),
+        26 => wire__crate__api__musicxml__validate_musicxml_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1989,8 +2034,9 @@ fn pde_ffi_dispatcher_sync_impl(
         18 => wire__crate__api__audio__note_on_impl(ptr, rust_vec_len, data_len),
         20 => wire__crate__api__audio__play_preview_clip_impl(ptr, rust_vec_len, data_len),
         21 => wire__crate__api__audio__set_audio_output_impl(ptr, rust_vec_len, data_len),
-        22 => wire__crate__api__midi__set_midi_port_impl(ptr, rust_vec_len, data_len),
-        24 => wire__crate__api__audio__stop_preview_clip_impl(ptr, rust_vec_len, data_len),
+        22 => wire__crate__api__midi__set_midi_echo_impl(ptr, rust_vec_len, data_len),
+        23 => wire__crate__api__midi__set_midi_port_impl(ptr, rust_vec_len, data_len),
+        25 => wire__crate__api__audio__stop_preview_clip_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -2296,6 +2342,23 @@ impl flutter_rust_bridge::IntoDart for crate::api::score::Measure {
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::score::Measure {}
 impl flutter_rust_bridge::IntoIntoDart<crate::api::score::Measure> for crate::api::score::Measure {
     fn into_into_dart(self) -> crate::api::score::Measure {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::midi::MidiEcho {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Off => 0.into_dart(),
+            Self::Melodic => 1.into_dart(),
+            Self::Drum => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::midi::MidiEcho {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::midi::MidiEcho> for crate::api::midi::MidiEcho {
+    fn into_into_dart(self) -> crate::api::midi::MidiEcho {
         self
     }
 }
@@ -3109,6 +3172,23 @@ impl SseEncode for crate::api::score::Measure {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <u32>::sse_encode(self.index, serializer);
         <Vec<crate::api::score::Note>>::sse_encode(self.notes, serializer);
+    }
+}
+
+impl SseEncode for crate::api::midi::MidiEcho {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::midi::MidiEcho::Off => 0,
+                crate::api::midi::MidiEcho::Melodic => 1,
+                crate::api::midi::MidiEcho::Drum => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 

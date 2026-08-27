@@ -157,3 +157,26 @@
 - [ ] 8.5 With the drummer tester: read a two-voice groove from the Partition
       view and confirm the voices and the open/closed hi-hat marks read
       correctly at practice distance
+
+## 9. Beta feedback (2026-08-26) — exports that state no written position
+
+The tester reported the notation view showing "notes that are not the right
+ones — they are all on one line". `<display-step>`/`<display-octave>` are
+**optional** in MusicXML and plenty of drum exports omit them; the parser was
+filling in the middle line (B4) for every such note, which is a legal answer for
+one note and an unreadable one for a groove — while the cascade, which reads GM
+numbers rather than written positions, kept showing the same file correctly.
+
+- [x] 9.1 `crates/musicxml-core`: an `<unpitched>` with no stated position now
+  opens as *unstated* (sentinels that never leave the parser) and is settled in
+  `resolve_unpitched`, where the sound is known, by `default_placement` — the
+  drum-notation convention (kick in the bottom space, snare in the third, hi-hat
+  above the staff, the toms on their own lines, the cymbals over the top). A
+  number with no convention of its own, or one we could not resolve, keeps the
+  middle line
+- [x] 9.2 A written position is never overwritten; the empty-`<unpitched/>`
+  fixture still resolves as before. Tested both ways
+- [ ] 9.3 Confirm with the tester which score and which mode produced the report
+  (a screenshot) — the fix above addresses the only reproducible cause found, and
+  the bundled grooves, which DO state their positions, engrave correctly in both
+  notation views

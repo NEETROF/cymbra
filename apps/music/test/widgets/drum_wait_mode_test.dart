@@ -432,6 +432,53 @@ void main() {
     });
   });
 
+  testWidgets('a stroke left over from the previous session never opens the '
+      'next run — the first onset still waits (beta fix)', (tester) async {
+    final c = await _pump(tester);
+    final player = c.read(playerProvider.notifier);
+    player.startPlayback();
+    await _frames(tester, count: 3);
+
+    // Play through the opening onset and, while travelling, strike a piece the
+    // NEXT onset does not ask for: it stays pending on the playhead's clock.
+    player
+      ..noteOn(42)
+      ..noteOn(49)
+      ..noteOn(36);
+    await _frames(tester, count: 2);
+    expect(c.read(playerProvider).blocked, isFalse);
+    player.noteOn(49); // the crash: onset 2 (600 ms) is hat + snare
+    await _frames(tester);
+    expect(c.read(playerProvider).strokeAtMs, isNotEmpty);
+    final leftOver = c.read(playerProvider).elapsedMs;
+    expect(leftOver, greaterThan(0));
+
+    // Start again from the top, as the transport (or Retry) does.
+    player.restart();
+    await _frames(tester);
+    expect(c.read(playerProvider).elapsedMs, 0);
+    // Nothing is owed to the previous run: neither a pending stroke…
+    expect(c.read(playerProvider).strokeAtMs, isEmpty);
+
+    player.startPlayback();
+    await _frames(tester, count: 4);
+    // …nor a gate opened by one. The crash that was struck at `leftOver` is
+    // hundreds of milliseconds AHEAD of the playhead now, and an unbounded
+    // window would have read that as the earliest of early strokes.
+    expect(c.read(playerProvider).blocked, isTrue);
+    expect(c.read(playerProvider).elapsedMs, 0);
+    expect(c.read(playerProvider).gateSatisfied, isEmpty);
+
+    // The onset is released the ordinary way: by playing it.
+    player
+      ..noteOn(42)
+      ..noteOn(49)
+      ..noteOn(36);
+    await _frames(tester, count: 2);
+    expect(c.read(playerProvider).blocked, isFalse);
+    await _teardown(tester, c);
+  });
+
   testWidgets('the free-run countdown behaves for percussion exactly as for a '
       'keyboard score', (tester) async {
     final c = await _pump(tester);

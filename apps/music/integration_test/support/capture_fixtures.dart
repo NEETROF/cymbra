@@ -36,7 +36,8 @@ import 'package:music/services/midi_service.dart';
 import 'package:music/services/preferences_service.dart';
 import 'package:music/services/score_upload_service.dart';
 import 'package:music/services/token_store.dart';
-import 'package:music/src/rust/api/midi.dart' show MidiEvent, MidiEventKind;
+import 'package:music/src/rust/api/midi.dart'
+    show MidiEcho, MidiEvent, MidiEventKind;
 import 'package:music/state/app_locale.dart';
 import 'package:music/state/coaching_notifier.dart';
 import 'package:music/state/contributed_scores.dart';
@@ -284,6 +285,12 @@ class CaptureMidiService implements MidiService {
 
   @override
   void selectPort(String? name) {}
+
+  /// The harness drives a *simulated* instrument, so there is no engine
+  /// callback to echo from: the app keeps sounding these notes itself, which
+  /// is exactly what [MidiEcho.off] means (change: add-drum-input-mapping).
+  @override
+  void setEcho(MidiEcho mode) {}
 
   /// Plays [pitch], as the instrument would.
   void press(int pitch, {int velocity = 96}) => _events.add(

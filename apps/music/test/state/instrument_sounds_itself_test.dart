@@ -16,6 +16,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/services/audio_service.dart';
 import 'package:music/services/midi_service.dart';
+import 'package:music/src/rust/api/midi.dart' show MidiEcho;
 import 'package:music/state/player_data.dart';
 import 'package:music/state/player_notifier.dart';
 import 'package:music/state/performance_scoring.dart';
@@ -35,7 +36,11 @@ void main() {
 
   setUp(() async {
     audio = RecordingAudioService();
-    midi = FakeMidiService(ports: const ['Piano'], connected: 'Piano');
+    midi = FakeMidiService(
+      ports: const ['Piano'],
+      connected: 'Piano',
+      echoTo: audio,
+    );
     container = ProviderContainer(
       overrides: [
         midiServiceProvider.overrideWithValue(midi),
@@ -84,10 +89,21 @@ void main() {
       expect(audio.noteOns.map((n) => n.pitch), [64]);
     });
 
-    test('a MIDI note is synthesized while the setting is off', () {
-      notifier().noteOn(60, source: NoteSource.midiDevice);
+    test('a MIDI note is synthesized while the setting is off', () async {
+      // Driven through the ENGINE, which is where a live note is sounded since
+      // the echo (change: add-drum-input-mapping, beta fix for input latency):
+      // the rule under test is unchanged — the setting being off means the note
+      // comes out of the app's synth — but the side that plays it moved off the
+      // Dart event loop, so the test has to come in the same door a real
+      // instrument does.
+      midi.emit(noteOnEvent(60));
+      await Future<void>.delayed(Duration.zero);
 
       expect(audio.noteOns.map((n) => n.pitch), [60]);
+      expect(midi.echo, MidiEcho.melodic, reason: 'the engine was armed');
+      // Exactly once: whichever side sounds it, the other one does not.
+      expect(audio.noteOns, hasLength(1));
+      expect(state().activeNotes, contains(60));
     });
 
     test('MIDI events from the stream carry the instrument source', () async {

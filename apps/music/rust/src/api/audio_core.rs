@@ -27,6 +27,7 @@
 use flutter_rust_bridge::frb;
 
 use super::audio::AudioRouteKind;
+use super::midi::{MidiEcho, MidiEvent, MidiEventKind};
 
 /// Velocity used when a source carries no pressure information (the on-screen
 /// keyboard, the computer-keyboard fallback). A musical mezzo-forte — unified
@@ -126,6 +127,68 @@ impl AudioEvent {
 /// Clamps a value to the 7-bit MIDI range (`0..=127`).
 pub(crate) fn clamp7(v: u8) -> u8 {
     v.min(127)
+}
+
+/// What the engine sounds for a live MIDI `event` under echo `mode` (change:
+/// add-drum-input-mapping — beta fix), or `None` when it sounds nothing.
+///
+/// The rules are the app's own, restated here so the MIDI callback can apply
+/// them without a round trip through Dart — and they must stay identical, since
+/// whichever side sounds the note, the other one does not:
+/// * velocity is **not** consumed, on either channel: a live note has always
+///   been sounded at the schedule's own loudness, and dynamics is one decision
+///   for both instruments and both directions rather than a percussion
+///   side-door;
+/// * a melodic note is released by its note-off, because a piano voice is held;
+/// * a **stroke is not**: an e-kit sends its note-off within milliseconds of
+///   the attack, and forwarding that would cut every cymbal the instant the
+///   stick left it.
+pub(crate) fn echo_event(mode: MidiEcho, event: &MidiEvent) -> Option<AudioEvent> {
+    match (mode, &event.kind) {
+        (MidiEcho::Off, _) => None,
+        (MidiEcho::Melodic, MidiEventKind::NoteOn) => {
+            Some(AudioEvent::note_on(event.pitch, DEFAULT_VELOCITY))
+        }
+        (MidiEcho::Melodic, MidiEventKind::NoteOff) => Some(AudioEvent::note_off(event.pitch)),
+        (MidiEcho::Drum, MidiEventKind::NoteOn) => {
+            Some(AudioEvent::drum_on(event.pitch, DEFAULT_VELOCITY))
+        }
+        (MidiEcho::Drum, MidiEventKind::NoteOff) => None,
+    }
+}
+
+/// How much output buffering to ask a device for, as a **duration** (change:
+/// add-drum-input-mapping — beta fix): the callback runs once per buffer, so
+/// this is the floor under everything a player hears, the engine's own echo of
+/// their strokes included.
+///
+/// 6 ms is chosen to be short enough to disappear behind a kit's own acoustic
+/// sound and long enough that one synth block is never close to a deadline —
+/// rendering a block costs orders of magnitude less than playing it. It is a
+/// *request*: the device answers with what it can, and a host that cannot say
+/// what it supports keeps its own default (see [`preferred_buffer_frames`]).
+pub(crate) const TARGET_BUFFER_MS: u32 = 6;
+
+/// The buffer size to request from a device that supports `min..=max` frames at
+/// `sample_rate`, or `None` to take the host's default.
+///
+/// Three rules, all of them about not making things worse:
+/// * an **unknown** range (the host cannot say) asks for nothing — a fixed size
+///   a device turns out to refuse costs the whole stream, and the default is
+///   never wrong, only sometimes long;
+/// * the target is clamped into the range, so a device whose floor is already
+///   above it simply gets its floor;
+/// * a range that cannot be read as one (`min > max`) is treated as unknown.
+pub(crate) fn preferred_buffer_frames(
+    supported: Option<(u32, u32)>,
+    sample_rate: u32,
+) -> Option<u32> {
+    let (min, max) = supported?;
+    if min > max || sample_rate == 0 {
+        return None;
+    }
+    let target = sample_rate * TARGET_BUFFER_MS / 1000;
+    Some(target.clamp(min, max))
 }
 
 /// Whether `bytes` look like a loadable SoundFont (`.sf2`) — a RIFF container
@@ -632,6 +695,50 @@ mod tests {
         );
     }
 
+    /// The engine's own echo of a live MIDI event (beta fix: input latency).
+    /// The rules below are the app's, so a change on one side that is not
+    /// mirrored on the other shows up as a note played twice or not at all.
+    #[test]
+    fn the_engine_echoes_a_live_note_exactly_as_the_app_would_have() {
+        fn event(kind: MidiEventKind, pitch: u8, velocity: u8) -> MidiEvent {
+            MidiEvent {
+                kind,
+                pitch,
+                velocity,
+                timestamp_ms: 0,
+            }
+        }
+        // Off: the app is sounding live notes itself (or the instrument is).
+        assert_eq!(
+            echo_event(MidiEcho::Off, &event(MidiEventKind::NoteOn, 60, 90)),
+            None
+        );
+        assert_eq!(
+            echo_event(MidiEcho::Off, &event(MidiEventKind::NoteOff, 60, 0)),
+            None
+        );
+        // Melodic: a held voice, so both edges are echoed — and the incoming
+        // velocity is deliberately NOT consumed.
+        assert_eq!(
+            echo_event(MidiEcho::Melodic, &event(MidiEventKind::NoteOn, 60, 90)),
+            Some(AudioEvent::note_on(60, DEFAULT_VELOCITY))
+        );
+        assert_eq!(
+            echo_event(MidiEcho::Melodic, &event(MidiEventKind::NoteOff, 60, 0)),
+            Some(AudioEvent::note_off(60))
+        );
+        // Drum: a one-shot on the drum channel, and the release is DROPPED —
+        // an e-kit sends it milliseconds after the attack.
+        assert_eq!(
+            echo_event(MidiEcho::Drum, &event(MidiEventKind::NoteOn, 42, 120)),
+            Some(AudioEvent::drum_on(42, DEFAULT_VELOCITY))
+        );
+        assert_eq!(
+            echo_event(MidiEcho::Drum, &event(MidiEventKind::NoteOff, 42, 0)),
+            None
+        );
+    }
+
     #[test]
     fn drum_events_carry_the_drum_channel_with_the_same_normalisation() {
         // The drum constructors share the melodic pair's clamping/default
@@ -838,6 +945,50 @@ mod tests {
         assert_eq!(released, vec![m(60), m(64), m(67)]);
         // Nothing left to release after the swap cleared it.
         assert!(v.clear_for_swap().is_empty());
+    }
+
+    /// The output buffer request (beta fix: input latency). The callback runs
+    /// once per buffer, so this is the floor under the engine's echo of a live
+    /// stroke — and it is a request that must never cost us the stream.
+    #[test]
+    fn the_buffer_request_asks_short_but_never_out_of_range() {
+        // The common case: a device that supports a wide range gets the target.
+        assert_eq!(
+            preferred_buffer_frames(Some((16, 4096)), 48_000),
+            Some(48_000 * TARGET_BUFFER_MS / 1000)
+        );
+        // A device whose floor is already above the target gets its floor —
+        // never a size it cannot serve.
+        assert_eq!(
+            preferred_buffer_frames(Some((1024, 4096)), 48_000),
+            Some(1024)
+        );
+        // …and one whose ceiling is below it gets that ceiling.
+        assert_eq!(preferred_buffer_frames(Some((16, 64)), 48_000), Some(64));
+        // A host that cannot say asks for nothing: a fixed size a device turns
+        // out to refuse costs the whole stream, and the default is only long.
+        assert_eq!(preferred_buffer_frames(None, 48_000), None);
+        // Neither is a range that cannot be read as one, nor a rate of zero.
+        assert_eq!(preferred_buffer_frames(Some((4096, 16)), 48_000), None);
+        assert_eq!(preferred_buffer_frames(Some((16, 4096)), 0), None);
+        // The request is a DURATION, not a frame count: a device running at
+        // twice the rate is asked for twice the frames, for the same
+        // milliseconds of delay (within the truncation of integer division).
+        let ms_at = |rate: u32| {
+            f64::from(preferred_buffer_frames(Some((1, 8192)), rate).unwrap()) * 1000.0
+                / f64::from(rate)
+        };
+        for rate in [44_100, 48_000, 96_000] {
+            let ms = ms_at(rate);
+            assert!(
+                (ms - f64::from(TARGET_BUFFER_MS)).abs() < 0.1,
+                "{rate} Hz asked for {ms} ms"
+            );
+        }
+        assert!(
+            preferred_buffer_frames(Some((1, 8192)), 96_000)
+                > preferred_buffer_frames(Some((1, 8192)), 48_000)
+        );
     }
 
     #[test]

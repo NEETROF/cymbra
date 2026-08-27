@@ -306,6 +306,51 @@ void main() {
     });
 
     test(
+      'a plan / beta change re-evaluates the set without ever blanking it',
+      () async {
+        // The beta-gated entry point that disappeared mid-session: the plan was
+        // part of the identity, so enrolling (or the plan simply resolving at
+        // launch) rebuilt the notifier onto an EMPTY snapshot, and every flag
+        // read its code default until the round trip came back.
+        final audience = StateProvider<String>((ref) => 'free|');
+        var fetches = 0;
+        final fake = FakeService((app, id, known, bearer) {
+          fetches++;
+          return FlagFetch.changed(
+            _snap(app, id, 'v$fetches', {
+              'drums.enabled': FlagEntry(FlagKind.bool_, fetches > 1),
+            }),
+          );
+        });
+        final c = ProviderContainer(
+          overrides: [
+            flagPollIntervalProvider.overrideWithValue(null),
+            flagIdentityProvider.overrideWithValue('u1'),
+            flagAudienceProvider.overrideWith((ref) => ref.watch(audience)),
+            flagServiceProvider.overrideWithValue(fake),
+            flagPreferencesProvider.overrideWithValue(FakePrefs()),
+          ],
+        );
+        addTearDown(c.dispose);
+        c.read(flagsProvider);
+        await _settle();
+        expect(c.read(flagsProvider).getBool('drums.enabled'), isFalse);
+
+        // Enrolling changes what the server answers for the SAME person.
+        c.read(audience.notifier).state = 'free|beta:midi-drums';
+        // Before the round trip resolves, the last-good set is still being
+        // served — not an empty one.
+        expect(c.read(flagsProvider).version, 'v1');
+        expect(c.read(flagsProvider).entries, isNotEmpty);
+        expect(c.read(flagsProvider).identity, 'u1');
+
+        await _settle();
+        expect(fetches, 2, reason: 'the change re-evaluated the set');
+        expect(c.read(flagsProvider).getBool('drums.enabled'), isTrue);
+      },
+    );
+
+    test(
       'user switch refetches and never inherits the previous snapshot',
       () async {
         final prefs = FakePrefs(); // shared device

@@ -85,3 +85,22 @@
 - [x] A.3 Tests: a stroke a hair early walks the playhead through the onset; a stroke earlier than the window still does not; a credited stroke is spent
 - [x] A.4 The window has a floor in real time — `strokeToleranceMsAt(speed)` widens it in musical time above 100 % so it never tightens in wall-clock terms; the surfaces size their lighting window with the same function, and a test pins double speed
 - [ ] A.5 Feel pass: is 150 ms the right size on a real kit at tempo? (the speed question is settled — a floor, not a scaling)
+
+## Addendum — the stale stroke (beta feedback, 2026-08-26)
+
+The tester's first report: "after a Wait Mode session the first note plays
+without waiting". The early-stroke window (`Addendum` above) is measured on the
+**playhead**, so a stamp only means anything on the run that made it — and
+`strokeAtMs` was cleared on a new score and on a kit inversion, nowhere else.
+
+- [x] A.1 `drum_kit.dart`: `strokeAnswersOnset` — the window, bounded on BOTH
+  sides. The playhead runs backwards across a restart, a loop wrap or a rewind,
+  so a stroke from the previous lap lands *ahead* of it and reads as an
+  enormously negative age, which no upper bound alone rejects. Unit-tested,
+  including at speed
+- [x] A.2 `player_notifier.dart`: pending strokes are dropped wherever the gate is
+  re-armed — restart, rewind, Wait Mode toggle, hand switch, range set/clear —
+  and on a loop wrap, but deliberately NOT when merely leaving an onset, where a
+  stroke aimed early at the next one must survive
+- [x] A.3 Widget test through the player seam: a stroke made late in one session
+  never opens the next run's first onset, which still waits to be played

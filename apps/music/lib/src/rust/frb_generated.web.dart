@@ -162,6 +162,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Measure dco_decode_measure(dynamic raw);
 
   @protected
+  MidiEcho dco_decode_midi_echo(dynamic raw);
+
+  @protected
   MidiEvent dco_decode_midi_event(dynamic raw);
 
   @protected
@@ -413,6 +416,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Measure sse_decode_measure(SseDeserializer deserializer);
+
+  @protected
+  MidiEcho sse_decode_midi_echo(SseDeserializer deserializer);
 
   @protected
   MidiEvent sse_decode_midi_event(SseDeserializer deserializer);
@@ -716,6 +722,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_measure(Measure self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_midi_echo(MidiEcho self, SseSerializer serializer);
 
   @protected
   void sse_encode_midi_event(MidiEvent self, SseSerializer serializer);

@@ -17,7 +17,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../src/rust/api/midi.dart' as midi_api;
 import '../src/rust/api/score.dart' as score_api;
-import '../src/rust/api/midi.dart' show MidiEvent;
+import '../src/rust/api/midi.dart' show MidiEcho, MidiEvent;
 import '../src/rust/api/score.dart' show Score;
 
 part 'midi_service.g.dart';
@@ -48,6 +48,16 @@ abstract class MidiService {
 
   /// Choose the device to listen to (null = auto: first real port).
   void selectPort(String? name);
+
+  /// Chooses what the **engine** sounds for a live MIDI event, from its own
+  /// callback (change: add-drum-input-mapping — beta fix for input latency).
+  ///
+  /// The app keeps the policy and pushes the answer here; whenever this is not
+  /// [MidiEcho.off], the notifier stops synthesizing MIDI-sourced notes itself,
+  /// so a note is sounded by exactly one side. Everything else a live note
+  /// drives — the gate, the scorer, the surfaces — is unaffected: it still runs
+  /// on the event the engine also streams over the bridge.
+  void setEcho(MidiEcho mode);
 }
 
 /// Source of the score to play. Separated from [MidiService] because it has a
@@ -71,6 +81,9 @@ class FrbMidiService implements MidiService {
 
   @override
   void selectPort(String? name) => midi_api.setMidiPort(name: name);
+
+  @override
+  void setEcho(MidiEcho mode) => midi_api.setMidiEcho(mode: mode);
 }
 
 /// Production [ScoreSource] backed by the generated flutter_rust_bridge API.

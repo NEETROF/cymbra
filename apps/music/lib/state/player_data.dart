@@ -410,6 +410,11 @@ abstract class PlayerData with _$PlayerData {
     /// where the onset lives. An entry is removed the moment its stroke is
     /// credited to an onset, which is what stops one stroke from validating
     /// two. Percussion only; cleared with [struckSurfacesMs].
+    ///
+    /// Because the stamp is on the playhead, it is only meaningful **on the
+    /// run that made it**: every transport reset that re-arms [gateSatisfied]
+    /// drops these too, and a stamp that ends up ahead of the playhead anyway
+    /// is discarded rather than read as an enormously early stroke.
     @Default(<int, double>{}) Map<int, double> strokeAtMs,
 
     /// Start time (ms) of each measure, in order (Partition cursor placement).

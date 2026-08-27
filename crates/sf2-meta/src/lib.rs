@@ -24,6 +24,9 @@
 
 use anyhow::{Result, bail};
 
+mod exclusive_class;
+pub use exclusive_class::{GenPatch, stereo_exclusive_class_patches};
+
 /// The percussion preset bank of the SoundFont/General MIDI convention.
 pub const PERCUSSION_BANK: u16 = 128;
 
