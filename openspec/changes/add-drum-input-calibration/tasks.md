@@ -1,61 +1,63 @@
 ## 1. One MIDI stream, many readers (prerequisite — D1)
 
-- [ ] 1.1 `midi_service.dart` / a new keepAlive provider: one process-wide
-  **broadcast** stream wrapping a single `midi_event_stream()` subscription.
-  The `MidiService.events()` seam is unchanged for tests (a fake still returns a
-  stream); what changes is that production consumers read the shared stream
-  instead of each opening their own
-- [ ] 1.2 Convert every current consumer onto it: `player_notifier.dart:69`,
-  `midi_status_notifier.dart:35`, `rhythm_tap_view.dart:121`,
-  `play_key_view.dart:64`, `build_chord_view.dart:91`, `read_play_view.dart:101`.
-  Each keeps its existing tests passing unchanged
-- [ ] 1.3 Test the property the engine cannot provide: **two** listeners both
-  receive every event, one cancelling does not disturb the other, and a late
-  subscriber starts receiving without disturbing an early one. Assert the engine
-  stream is opened exactly **once** across all of them (a mock on the seam)
-- [ ] 1.4 Regression guard for the hazard this closes: mount the lesson chip and
-  an exercise view together and assert both still see events (today the body,
-  subscribing last, silently starves the chip)
+- [x] 1.1 The fan-out lives in **`FrbMidiService.events`**, not in a new
+  provider: one process-wide lazily-created broadcast stream over the single
+  `midi_event_stream()` subscription. Better than the planned provider — no
+  consumer changes at all, no provider-shape change, and the fix sits exactly
+  where the fault is (the adapter treating a single-sink engine as
+  multi-subscriber). Test fakes are unaffected; theirs is already broadcast
+- [x] 1.2 ~~Convert every consumer~~ — unnecessary under 1.1's shape: all six
+  keep calling `events()` and are simply no longer in competition
+- [ ] 1.3 Test the caching directly. `events()` reaches the bridge, so this needs
+  the opener behind a seam (a `@visibleForTesting` injection point) before it can
+  be asserted on the VM — currently covered only by 3.7 at the consumer level and
+  by the on-device pass
+- [x] 1.4 Regression guard at the consumer level: the monitor and the player both
+  receive the same event (`midi_monitor_screen_test.dart`, "observing does not
+  disturb the player") — the property that was impossible before
 
 ## 2. Channel on the wire (spec: `midi`)
 
-- [ ] 2.1 `api/midi.rs`: `MidiEvent` carries the transmitting `channel`.
+- [x] 2.1 `api/midi.rs`: `MidiEvent` carries the transmitting `channel`.
   Interpretation stays channel-agnostic — reported, never used to accept or
   reject (the property `midi_core.rs:312` already pins for channel 6 and
   `add-drum-input-mapping` 5.1 pins for channel 10)
-- [ ] 2.2 `midi_core.rs`: decode the channel from the status byte; unit-test it
+- [x] 2.2 `midi_core.rs`: decode the channel from the status byte; unit-test it
   across channels 1, 7 and 10, asserting the rest of the event is byte-identical
   to what it is today
-- [ ] 2.3 `flutter_rust_bridge_codegen generate` (public API change) and update
+- [x] 2.3 `flutter_rust_bridge_codegen generate` (public API change) and update
   the Dart-side `MidiEvent` construction in test fakes
 
 ## 3. The monitor (spec: `music-midi-input-monitor`)
 
-- [ ] 3.1 A monitor notifier over the shared stream: a bounded ring of the last N
+- [x] 3.1 A monitor notifier over the shared stream: a bounded ring of the last N
   events (fixed, small), each carrying the raw number, velocity, channel, kind
   and arrival time. Pure enough to unit-test without a screen
-- [ ] 3.2 Resolution, as a pure function beside the kit model: number → General
+- [x] 3.2 Resolution, as a pure function beside the kit model: number → General
   MIDI percussion name (or note name for a keyboard score) → the loaded score's
   kit piece, or explicitly nothing. Unit-tested including the "matches nothing"
   case, which is the one the beta report is about
 - [ ] 3.3 "Will not sound": the resolution reports when a number falls outside
-  the loaded SoundFont's sampled range. Measured for the shipped kit at 27–87 —
-  read the range from the font rather than hard-coding it, so an imported kit is
-  judged by its own contents
-- [ ] 3.4 The monitor screen: a live list, newest first, each row showing raw
+  the loaded SoundFont's **sampled range**. Deferred — it needs the range out of
+  the engine, and hard-coding the shipped kit's measured 27–87 is exactly the
+  guess this task exists to avoid. What shipped instead is a statement about the
+  **standard**: a number outside the General MIDI percussion map (35–81) is
+  reported as unknown to the app, which is true, useful, and the actual shape of
+  the beta report
+- [x] 3.4 The monitor screen: a live list, newest first, each row showing raw
   number / resolved piece / velocity / channel, with unmatched rows visually
   distinct. Reachable from the settings modal's MIDI section, as its **own
   screen** (the modal pauses playback, which is wrong for a surface whose point
   is watching live input — design open question, settle here)
-- [ ] 3.5 Empty and no-device states, localised (fr/en/es/it — every locale
+- [x] 3.5 Empty and no-device states, localised (fr/en/es/it — every locale
   aligned with the template, per the `flutter-riverpod-architecture` skill)
-- [ ] 3.6 Widget tests: an event appears; a stroke on an unmatched number is
+- [x] 3.6 Widget tests: an event appears; a stroke on an unmatched number is
   shown as unmatched; the ring drops the oldest; opening with no score works;
   opening with no device says so
-- [ ] 3.7 Assert the monitor changes nothing: with the monitor mounted, a stroke
+- [x] 3.7 Assert the monitor changes nothing: with the monitor mounted, a stroke
   still sounds, flashes and scores exactly as it does without it (the property
   §1 exists to make true)
-- [ ] 3.8 Riverpod layering: the screen reads notifier state only, no service
+- [x] 3.8 Riverpod layering: the screen reads notifier state only, no service
   call from a widget, no provider invalidating a sibling
 
 ## 4. The mapping model (spec: `music-drum-input-mapping`)

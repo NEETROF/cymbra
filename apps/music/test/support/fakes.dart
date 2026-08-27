@@ -213,17 +213,24 @@ class FakeScoreSource implements ScoreSource {
 }
 
 /// Convenience constructor for a NoteOn event.
-MidiEvent noteOnEvent(int pitch, {int velocity = 100}) => MidiEvent(
-  kind: MidiEventKind.noteOn,
-  pitch: pitch,
-  velocity: velocity,
-  timestampMs: BigInt.zero,
-);
+///
+/// [channel] defaults to 9 — channel 10, where a kit transmits. It is reported,
+/// never enforced (the app's interpretation is channel-agnostic), so the default
+/// changes nothing for the keyboard tests that ignore it.
+MidiEvent noteOnEvent(int pitch, {int velocity = 100, int channel = 9}) =>
+    MidiEvent(
+      kind: MidiEventKind.noteOn,
+      pitch: pitch,
+      velocity: velocity,
+      channel: channel,
+      timestampMs: BigInt.zero,
+    );
 
 /// Convenience constructor for a NoteOff event.
-MidiEvent noteOffEvent(int pitch) => MidiEvent(
+MidiEvent noteOffEvent(int pitch, {int channel = 9}) => MidiEvent(
   kind: MidiEventKind.noteOff,
   pitch: pitch,
   velocity: 0,
+  channel: channel,
   timestampMs: BigInt.zero,
 );

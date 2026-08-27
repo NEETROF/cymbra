@@ -225,6 +225,14 @@ pub(crate) fn parse_midi(message: &[u8], timestamp_ms: u64) -> Option<MidiEvent>
         return None;
     }
     let status = message[0] & 0xF0;
+    // The transmitting channel, 0-based as it travels on the wire (channel 10,
+    // the General MIDI percussion channel, is 9 here). **Reported, never
+    // enforced** (change: add-drum-input-calibration): interpretation stays
+    // channel-agnostic, exactly as it is today — a kit configured to transmit
+    // on any channel must behave identically. It is carried so a diagnostic
+    // surface can tell a player what their instrument is actually sending,
+    // which is the one thing they cannot find out from anywhere else.
+    let channel = message[0] & 0x0F;
     let pitch = message[1];
     let velocity = message[2];
 
@@ -233,12 +241,14 @@ pub(crate) fn parse_midi(message: &[u8], timestamp_ms: u64) -> Option<MidiEvent>
             kind: MidiEventKind::NoteOn,
             pitch,
             velocity,
+            channel,
             timestamp_ms,
         }),
         0x80 | 0x90 => Some(MidiEvent {
             kind: MidiEventKind::NoteOff,
             pitch,
             velocity: 0,
+            channel,
             timestamp_ms,
         }),
         _ => None,
@@ -339,6 +349,16 @@ mod tests {
 
     #[test]
     fn explicit_note_off_is_parsed() {
+        // The channel is carried, 0-based as it travels on the wire.
+        assert_eq!(
+            parse_midi(&[0x99, 38, 100], 0).expect("kit stroke").channel,
+            9,
+            "channel 10 — where a kit transmits — is index 9"
+        );
+        assert_eq!(parse_midi(&[0x90, 60, 100], 0).unwrap().channel, 0);
+        assert_eq!(parse_midi(&[0x95, 60, 100], 0).unwrap().channel, 5);
+        assert_eq!(parse_midi(&[0x8F, 60, 64], 0).unwrap().channel, 15);
+
         let ev = parse_midi(&[0x80, 60, 64], 7).expect("note off");
         assert!(matches!(ev.kind, MidiEventKind::NoteOff));
         assert_eq!(ev.pitch, 60);

@@ -223,10 +223,52 @@ const List<({KitPieceRole role, List<int> gm, String key})> _namedPieces = [
   (role: KitPieceRole.crash, gm: [57], key: 'kitPieceCrash2'),
 ];
 
-/// General MIDI percussion names for the generic (terminal-bucket) pieces.
+/// The lowest and highest numbers the General MIDI percussion map names
+/// (Acoustic Bass Drum 35 … Open Triangle 81). A stroke outside this window is
+/// not part of the standard map at all — which a diagnostic surface says out
+/// loud (change: add-drum-input-calibration), because it is the difference
+/// between "the app read your stroke as the wrong piece" and "the app has no
+/// name for what your kit sent", and only the second one explains silence.
+const int kGmPercussionLowest = 35;
+const int kGmPercussionHighest = 81;
+
+/// The General MIDI percussion name of [gm], or null when the number is outside
+/// the standard map.
+///
+/// The whole map, not just the terminal bucket: a diagnostic surface names what
+/// arrived before it says anything about the loaded score's kit, and the named
+/// pieces' *display* labels are localised l10n keys, which is the wrong
+/// vocabulary here — General MIDI instrument names are a notation-level
+/// standard and are not translated.
+String? gmPercussionName(int gm) => _gmNames[gm];
+
+/// General MIDI percussion names, 35–81 — the whole standard map. The named
+/// pieces (which carry localised labels for display) are here too, because a
+/// monitor reports what the *standard* calls a number, not what this app's kit
+/// view chose to label it.
 const Map<int, String> _gmNames = {
-  39: 'Hand Clap',
+  35: 'Acoustic Bass Drum',
+  36: 'Bass Drum 1',
+  37: 'Side Stick',
+  38: 'Acoustic Snare',
+  40: 'Electric Snare',
+  41: 'Low Floor Tom',
+  42: 'Closed Hi Hat',
+  43: 'High Floor Tom',
   44: 'Pedal Hi-Hat',
+  45: 'Low Tom',
+  46: 'Open Hi-Hat',
+  47: 'Low-Mid Tom',
+  48: 'Hi-Mid Tom',
+  49: 'Crash Cymbal 1',
+  50: 'High Tom',
+  51: 'Ride Cymbal 1',
+  52: 'Chinese Cymbal',
+  53: 'Ride Bell',
+  55: 'Splash Cymbal',
+  57: 'Crash Cymbal 2',
+  59: 'Ride Cymbal 2',
+  39: 'Hand Clap',
   54: 'Tambourine',
   56: 'Cowbell',
   58: 'Vibraslap',

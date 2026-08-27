@@ -36,6 +36,7 @@ import '../widgets/coach_mark.dart';
 import '../widgets/difficulty_badge.dart';
 import '../widgets/leaderboard_view.dart';
 import '../widgets/otg_guidance.dart';
+import 'midi_monitor_screen.dart';
 import '../widgets/setting_option_row.dart';
 import '../widgets/sound_output_section.dart';
 import '../widgets/sound_selector_field.dart';
@@ -947,6 +948,41 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
                 style: const TextStyle(color: CymbraColors.onSurfaceVariant),
               ),
             ),
+        // The live input read-out (change: add-drum-input-calibration). Offered
+        // whether or not a device is connected: "nothing is arriving at all" is
+        // one of the answers a player comes here for, and it is the answer they
+        // get.
+        //
+        // Its own route, not a section here: this modal pauses the session while
+        // it is open, which is exactly wrong for a surface whose purpose is
+        // watching live input.
+        Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: ListTile(
+            key: const Key('open-midi-monitor'),
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(
+              Icons.graphic_eq,
+              color: CymbraColors.onSurfaceVariant,
+            ),
+            title: Text(
+              l10n.midiMonitorOpen,
+              style: const TextStyle(color: CymbraColors.onSurface),
+            ),
+            subtitle: Text(
+              l10n.midiMonitorOpenHint,
+              style: const TextStyle(
+                color: CymbraColors.onSurfaceVariant,
+                fontSize: 12,
+              ),
+            ),
+            trailing: const Icon(
+              Icons.chevron_right,
+              color: CymbraColors.onSurfaceVariant,
+            ),
+            onTap: () => openMidiMonitor(context),
+          ),
+        ),
       ],
     );
   }

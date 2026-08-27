@@ -70,8 +70,34 @@ abstract class ScoreSource {
 class FrbMidiService implements MidiService {
   const FrbMidiService();
 
+  /// The one engine subscription this process opens, fanned out to every
+  /// listener (change: add-drum-input-calibration).
+  ///
+  /// The engine holds a **single** Flutter sink: `midi_event_stream` stores the
+  /// sink it is handed in a global, and the input callback reads that global —
+  /// so opening a second stream does not add a subscriber, it *replaces* the
+  /// first one, silently. Several places subscribe (the player, the MIDI status
+  /// notifier, four lesson views) and only the most recent was actually fed.
+  /// Nothing has been reported because which consumer loses is decided by build
+  /// order, and so far the loser has been the mildest one: the lesson chip's
+  /// event-driven refresh, which the exercise view below it subscribes after.
+  ///
+  /// It is a model nothing new can be added to — a diagnostic surface is a
+  /// second reader by definition, and in the player it would starve the player.
+  /// The fan-out belongs here, in the adapter, rather than in the engine: the
+  /// engine's single-sink design was never wrong, it was only ever being
+  /// treated as multi-subscriber. Callers keep calling [events] and are simply
+  /// no longer in competition.
+  ///
+  /// Process-wide and lazy, because the sink it wraps is: one static for one
+  /// global. `onListen`/`onCancel` are left alone — the engine's watcher thread
+  /// runs for the process lifetime either way, and tearing the sink down when
+  /// the last screen leaves would only mean re-registering it on the next one.
+  static Stream<MidiEvent>? _shared;
+
   @override
-  Stream<MidiEvent> events() => midi_api.midiEventStream();
+  Stream<MidiEvent> events() =>
+      _shared ??= midi_api.midiEventStream().asBroadcastStream();
 
   @override
   List<String> listPorts() => midi_api.listMidiPorts();

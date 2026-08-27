@@ -1161,13 +1161,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   MidiEvent dco_decode_midi_event(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
     return MidiEvent(
       kind: dco_decode_midi_event_kind(arr[0]),
       pitch: dco_decode_u_8(arr[1]),
       velocity: dco_decode_u_8(arr[2]),
-      timestampMs: dco_decode_u_64(arr[3]),
+      channel: dco_decode_u_8(arr[3]),
+      timestampMs: dco_decode_u_64(arr[4]),
     );
   }
 
@@ -1948,11 +1949,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_kind = sse_decode_midi_event_kind(deserializer);
     var var_pitch = sse_decode_u_8(deserializer);
     var var_velocity = sse_decode_u_8(deserializer);
+    var var_channel = sse_decode_u_8(deserializer);
     var var_timestampMs = sse_decode_u_64(deserializer);
     return MidiEvent(
       kind: var_kind,
       pitch: var_pitch,
       velocity: var_velocity,
+      channel: var_channel,
       timestampMs: var_timestampMs,
     );
   }
@@ -2796,6 +2799,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_midi_event_kind(self.kind, serializer);
     sse_encode_u_8(self.pitch, serializer);
     sse_encode_u_8(self.velocity, serializer);
+    sse_encode_u_8(self.channel, serializer);
     sse_encode_u_64(self.timestampMs, serializer);
   }
 

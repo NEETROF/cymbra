@@ -78,6 +78,11 @@ pub struct MidiEvent {
     pub pitch: u8,
     /// Velocity (0-127). 0 for a NoteOff.
     pub velocity: u8,
+    /// Transmitting MIDI channel, 0-based (channel 10 — General MIDI
+    /// percussion — is `9`). Reported so a diagnostic surface can show a player
+    /// what their instrument sends; **never** used to accept or reject an
+    /// event, which stays channel-agnostic (change: add-drum-input-calibration).
+    pub channel: u8,
     /// Timestamp since the stream was opened, in milliseconds.
     pub timestamp_ms: u64,
 }

@@ -1,5 +1,66 @@
 {
   "@@locale": "en",
+  "midiMonitorTitle": "MIDI monitor",
+  "@midiMonitorTitle": {
+      "description": "Title of the live MIDI input read-out."
+  },
+  "midiMonitorHint": "Play something. Each stroke shows the note number your instrument sent, and what the app made of it.",
+  "@midiMonitorHint": {
+      "description": "One line telling the player what the monitor shows."
+  },
+  "midiMonitorClear": "Clear",
+  "@midiMonitorClear": {
+      "description": "Empties the monitor so the next stroke is the only entry."
+  },
+  "midiMonitorWaiting": "Waiting for your first note…",
+  "@midiMonitorWaiting": {
+      "description": "Shown while a device is connected but nothing has been played."
+  },
+  "midiMonitorNoDevice": "No MIDI device is connected. Plug your instrument in and it will appear here.",
+  "@midiMonitorNoDevice": {
+      "description": "Shown when no MIDI device is connected."
+  },
+  "midiMonitorEventDetail": "Velocity {velocity} · Channel {channel}",
+  "@midiMonitorEventDetail": {
+      "description": "Secondary line of a monitor row: velocity and 1-based channel.",
+      "placeholders": {
+          "velocity": {
+              "type": "int"
+          },
+          "channel": {
+              "type": "int"
+          }
+      }
+  },
+  "midiMonitorOutsideKit": "{name} — not in this score",
+  "@midiMonitorOutsideKit": {
+      "description": "A known percussion instrument the loaded score does not use.",
+      "placeholders": {
+          "name": {
+              "type": "String"
+          }
+      }
+  },
+  "midiMonitorOutsideMap": "Unknown to the app (outside {low}–{high})",
+  "@midiMonitorOutsideMap": {
+      "description": "A number outside the General MIDI percussion map.",
+      "placeholders": {
+          "low": {
+              "type": "int"
+          },
+          "high": {
+              "type": "int"
+          }
+      }
+  },
+  "midiMonitorOpen": "Open the MIDI monitor",
+  "@midiMonitorOpen": {
+      "description": "Settings action that opens the MIDI monitor."
+  },
+  "midiMonitorOpenHint": "See the note numbers your instrument actually sends.",
+  "@midiMonitorOpenHint": {
+      "description": "Explains what the MIDI monitor is for."
+  },
   "nowPlaying": "Now Playing: {title}",
   "@nowPlaying": {
     "description": "Player top-bar subtitle showing the current score title.",

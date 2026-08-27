@@ -705,6 +705,9 @@ mod tests {
                 kind,
                 pitch,
                 velocity,
+                // Channel 10 (index 9), where a kit transmits — and irrelevant
+                // to the echo, which is channel-agnostic by construction.
+                channel: 9,
                 timestamp_ms: 0,
             }
         }

@@ -77,6 +77,12 @@ class MidiEvent {
   /// Velocity (0-127). 0 for a NoteOff.
   final int velocity;
 
+  /// Transmitting MIDI channel, 0-based (channel 10 — General MIDI
+  /// percussion — is `9`). Reported so a diagnostic surface can show a player
+  /// what their instrument sends; **never** used to accept or reject an
+  /// event, which stays channel-agnostic (change: add-drum-input-calibration).
+  final int channel;
+
   /// Timestamp since the stream was opened, in milliseconds.
   final BigInt timestampMs;
 
@@ -84,12 +90,17 @@ class MidiEvent {
     required this.kind,
     required this.pitch,
     required this.velocity,
+    required this.channel,
     required this.timestampMs,
   });
 
   @override
   int get hashCode =>
-      kind.hashCode ^ pitch.hashCode ^ velocity.hashCode ^ timestampMs.hashCode;
+      kind.hashCode ^
+      pitch.hashCode ^
+      velocity.hashCode ^
+      channel.hashCode ^
+      timestampMs.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -99,6 +110,7 @@ class MidiEvent {
           kind == other.kind &&
           pitch == other.pitch &&
           velocity == other.velocity &&
+          channel == other.channel &&
           timestampMs == other.timestampMs;
 }
 

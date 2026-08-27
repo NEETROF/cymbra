@@ -1504,11 +1504,13 @@ impl SseDecode for crate::api::midi::MidiEvent {
         let mut var_kind = <crate::api::midi::MidiEventKind>::sse_decode(deserializer);
         let mut var_pitch = <u8>::sse_decode(deserializer);
         let mut var_velocity = <u8>::sse_decode(deserializer);
+        let mut var_channel = <u8>::sse_decode(deserializer);
         let mut var_timestampMs = <u64>::sse_decode(deserializer);
         return crate::api::midi::MidiEvent {
             kind: var_kind,
             pitch: var_pitch,
             velocity: var_velocity,
+            channel: var_channel,
             timestamp_ms: var_timestampMs,
         };
     }
@@ -2369,6 +2371,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::midi::MidiEvent {
             self.kind.into_into_dart().into_dart(),
             self.pitch.into_into_dart().into_dart(),
             self.velocity.into_into_dart().into_dart(),
+            self.channel.into_into_dart().into_dart(),
             self.timestamp_ms.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -3198,6 +3201,7 @@ impl SseEncode for crate::api::midi::MidiEvent {
         <crate::api::midi::MidiEventKind>::sse_encode(self.kind, serializer);
         <u8>::sse_encode(self.pitch, serializer);
         <u8>::sse_encode(self.velocity, serializer);
+        <u8>::sse_encode(self.channel, serializer);
         <u64>::sse_encode(self.timestamp_ms, serializer);
     }
 }
