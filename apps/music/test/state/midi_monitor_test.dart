@@ -73,6 +73,11 @@ void main() {
       final e = read(36);
       expect(e.resolution, MidiResolution.matchedPiece);
       expect(e.isInert, isFalse);
+      expect(
+        e.pieceLabelKey,
+        'kitPieceKick',
+        reason: 'named in the player\'s language, like every other piece',
+      );
     });
 
     test('a different number for the same piece still lands', () {

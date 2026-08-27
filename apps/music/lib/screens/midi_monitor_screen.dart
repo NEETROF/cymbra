@@ -180,9 +180,14 @@ class _EntryRow extends StatelessWidget {
               width: 52,
               child: Text(
                 '${entry.pitch}',
+                // Tabular figures rather than a monospaced *family*: the app
+                // ships no monospaced face, and naming one leaves the number —
+                // the single most important thing on this screen — rendered as
+                // empty boxes. This keeps the column aligned using the face we
+                // actually have.
                 style: TextStyle(
-                  fontFamily: 'monospace',
-                  fontSize: 20,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                  fontSize: 22,
                   fontWeight: FontWeight.w700,
                   color: inert ? CymbraColors.error : CymbraColors.onSurface,
                 ),
@@ -261,6 +266,7 @@ class _EntryRow extends StatelessWidget {
         'kitPieceCrash2' => l10n.kitPieceCrash2,
         'kitPieceSplash' => l10n.kitPieceSplash,
         'kitPieceChina' => l10n.kitPieceChina,
+        'kitPieceKick' => l10n.kitPieceKick,
         _ => e.pieceGmName ?? (e.gmName ?? l10n.kitPieceKick),
       };
 }

@@ -144,7 +144,11 @@ MidiMonitorEntry readMidiEvent({
       isNoteOn: isNoteOn,
       resolution: MidiResolution.matchedPiece,
       gmName: gmName,
-      pieceLabelKey: matched?.labelKey,
+      // The kick has no lane — it is the full-width bar — so it carries no
+      // label from the layout. Naming it explicitly keeps every matched piece
+      // reading in the player's language; without it the one piece every groove
+      // has would be the one shown in English.
+      pieceLabelKey: matched?.labelKey ?? (matchesKick ? 'kitPieceKick' : null),
       pieceGmName: matched?.gmName,
     );
   }
