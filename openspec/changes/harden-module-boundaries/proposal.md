@@ -47,6 +47,17 @@ lands. It splits nothing, adds no deployable, and introduces no new transport.
 - Move the ~3 700 lines of purely-music code out of `backend/server` into
   `backend/music`, exposed as an `axum::Router` the server mounts.
 
+**Authorization is resolved in one place**
+- `PgAdminScopeResolver` answers "is this account a platform admin" with its own SQL, while
+  `UserPort::scoped_effective_roles` already answers exactly that and the composition root
+  already holds the port. This is not a privilege problem — the query runs on the user pool
+  as `user_svc`, against a table that role owns — but it is a **second implementation of a
+  role-resolution rule**, and it will silently diverge the day role resolution gains a
+  nuance every other authorization path picks up.
+- Record the two direct cross-schema reads as **named** exceptions rather than silent ones:
+  the worker's streak sweep (assumed — the worker is an ops actor) and `notifications` (a
+  schema-ownership debt, deliberately deferred to its own change).
+
 **External contract — a safety net**
 - Add a `buf breaking` CI job over the ten `backend/*/proto/*.proto`.
 

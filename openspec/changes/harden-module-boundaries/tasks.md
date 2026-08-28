@@ -64,11 +64,28 @@
 - [ ] 7.5 Name the worker among the permitted ops actors in `backend/db/init/roles.sql.tpl` (~:118-119), and state that module boundaries inside the worker are not database-enforced.
 - [ ] 7.6 Record the three-object boundary rule (internal boundary / internal transport / external contract) in `CLAUDE.md`, with the reference patterns `backend/plans/src/ports.rs` and `backend/feature-flags/src/context.rs`.
 
-## 8. Verification
+## 8. One implementation of role resolution
 
-- [ ] 8.1 `cargo fmt --all --check` and `cargo clippy --workspace --all-targets -- -D warnings` clean.
-- [ ] 8.2 `cargo llvm-cov --workspace --fail-under-lines 80` passes.
-- [ ] 8.3 `melos run analyze` and `dart format` clean; Flutter tests and `dart run custom_lint` pass (back-office and app touched only in 4.8).
-- [ ] 8.4 `openspec validate harden-module-boundaries --strict` passes.
-- [ ] 8.5 Manual: delete a test account holding a private SoundFont and confirm both the row and the `.sf2` object are gone from the private bucket.
-- [ ] 8.6 Manual: from a non-staff account holding a role in one product scope only, confirm the music moderation surfaces are refused.
+> Not a privilege defect: `PgAdminScopeResolver` runs on the **user pool** as `user_svc`
+> (`backend/server/src/main.rs` ~:56 `flags_resolver_pool = user_pool.clone()`), whose
+> `search_path` is `user_account` (`backend/db/init/roles.sql.tpl` ~:32), so its unqualified
+> `FROM user_roles` reads a table that role owns. `flags_svc` never touches `user_account`.
+> The defect is **duplication**: a second implementation of a role-resolution rule the user
+> module already owns, which will diverge silently the day that rule gains a nuance.
+
+- [ ] 8.1 Replace the SQL in `PgAdminScopeResolver` (`backend/server/src/flags.rs` ~:34-48) with `UserPort::scoped_effective_roles(user_id, &["global"])`, checking for `admin`. The composition root already holds `Arc<dyn UserPort>` (`backend/server/src/main.rs` ~:80).
+- [ ] 8.2 Change `build_flag_service` (`backend/server/src/flags.rs` ~:53) to take `Arc<dyn UserPort>` instead of a `PgPool`, and drop `flags_resolver_pool` (`backend/server/src/main.rs` ~:56, `:162`).
+- [ ] 8.3 Test: an account holding `global/admin` resolves as platform admin; one holding `music/admin` only does not. Double the port with `MockUserPort` rather than a database — the point of the change is that no database is needed here.
+- [ ] 8.4 Record the two direct cross-schema reads as **named exceptions**, not silent ones, where the ops role is defined (alongside task 7.5):
+  - `backend/music/src/pg_streak.rs:194` (`LEFT JOIN user_account.users`, two columns) — **assumed exception**: worker path only, on the ops connection, and the worker is an ops actor by decision. State that it is not reachable from the request path.
+  - `backend/notifications/src/pg.rs` (7 statements on `user_account.*`, including `UPDATE user_account.users SET timezone`) — **named debt, deliberately deferred**: a schema-ownership problem, not a request-path leak — `notifications` has no schema or migrations of its own, its tables being created by `backend/user/migrations/0008_push_notifications.sql`. Give it its own change rather than folding it in here.
+- [ ] 8.5 Verify no other request-path read of another module's schema remains: grep the module crates for another module's schema qualifier and confirm every hit is either fixed above or listed as an exception.
+
+## 9. Verification
+
+- [ ] 9.1 `cargo fmt --all --check` and `cargo clippy --workspace --all-targets -- -D warnings` clean.
+- [ ] 9.2 `cargo llvm-cov --workspace --fail-under-lines 80` passes.
+- [ ] 9.3 `melos run analyze` and `dart format` clean; Flutter tests and `dart run custom_lint` pass (back-office and app touched only in 4.8).
+- [ ] 9.4 `openspec validate harden-module-boundaries --strict` passes.
+- [ ] 9.5 Manual: delete a test account holding a private SoundFont and confirm both the row and the `.sf2` object are gone from the private bucket.
+- [ ] 9.6 Manual: from a non-staff account holding a role in one product scope only, confirm the music moderation surfaces are refused.
