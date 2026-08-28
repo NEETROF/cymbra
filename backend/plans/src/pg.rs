@@ -127,12 +127,15 @@ impl EntitlementRepo for PgEntitlementRepo {
         let terminal = w.status.is_terminal();
         // Forward-only `ends_at` unless the new status is terminal (refund /
         // revocation ends the row now). A NULL on either side means open-ended.
-        // A non-terminal write reactivates the row, so it also CLEARS
-        // `withdrawn_at`: the stamp means "this lapse has been withdrawn", and a
+        // `withdrawn_at` means "this lapse has already been withdrawn", and one
         // row is reused across subscribe → lapse → resubscribe (one row per
-        // `(source, provider_ref)`, and that key is stable per user+product).
-        // Keeping a stale stamp would make `withdrawal_pending` skip the row on
-        // the NEXT lapse, so the offline cache secret would never rotate again.
+        // `(source, provider_ref)`, a key that is stable per user+product). A
+        // write that leaves the row LIVE again therefore clears the stamp —
+        // keeping it would make `withdrawal_pending` skip the row on the next
+        // lapse, so the offline cache secret would never rotate again. Live =
+        // non-terminal ($9) and open-ended or ending in the future, on either
+        // the incoming ($10) or the stored side; a repeated `ended` write on an
+        // already-lapsed row keeps the stamp, so the sweep does not rotate twice.
         let row = sqlx::query(&format!(
             "INSERT INTO plan_entitlements \
                (id, user_id, source, provider_ref, campaign_id, starts_at, ends_at, status) \
@@ -144,7 +147,11 @@ impl EntitlementRepo for PgEntitlementRepo {
                  WHEN plan_entitlements.ends_at IS NULL OR EXCLUDED.ends_at IS NULL THEN NULL \
                  ELSE GREATEST(plan_entitlements.ends_at, EXCLUDED.ends_at) END, \
                campaign_id = COALESCE(EXCLUDED.campaign_id, plan_entitlements.campaign_id), \
-               withdrawn_at = CASE WHEN $9 THEN plan_entitlements.withdrawn_at ELSE NULL END, \
+               withdrawn_at = CASE \
+                 WHEN $9 THEN plan_entitlements.withdrawn_at \
+                 WHEN $10 OR plan_entitlements.ends_at IS NULL \
+                      OR plan_entitlements.ends_at > now() THEN NULL \
+                 ELSE plan_entitlements.withdrawn_at END, \
                updated_at = now() \
              RETURNING {ENTITLEMENT_COLS}"
         ))
@@ -157,6 +164,7 @@ impl EntitlementRepo for PgEntitlementRepo {
         .bind(w.ends_at)
         .bind(w.status.as_str())
         .bind(terminal)
+        .bind(w.ends_at.is_none_or(|e| e > Utc::now()))
         .fetch_one(&self.pool)
         .await
         .map_err(|e| internal("upsert entitlement", e))?;

@@ -107,9 +107,9 @@ async fn upsert_is_forward_only_unless_terminal_and_withdrawal_claims_once() {
     let candidates = repo.users_with_unwithdrawn_ended_rows(now).await.unwrap();
     assert!(!candidates.contains(&user.to_string()));
 
-    // Resubscribing reuses this row (the key is stable per user+product), so the
-    // reactivation must CLEAR the stamp — otherwise the next lapse is skipped and
-    // the offline cache secret never rotates again.
+    // Resubscribing reuses this row (the key is stable per user+product), so a
+    // write that leaves it LIVE must clear the stamp — otherwise the next lapse
+    // is skipped and the offline cache secret never rotates again.
     let back = repo
         .upsert(write(
             user,
@@ -122,29 +122,32 @@ async fn upsert_is_forward_only_unless_terminal_and_withdrawal_claims_once() {
         .unwrap();
     assert_eq!(back.id, r.id);
     assert!(back.withdrawn_at.is_none(), "reactivation clears the stamp");
-    // ... and once it lapses again it is a withdrawal candidate once more.
+    // Lapsing again (terminal, so `ends_at` moves back to now) makes the user a
+    // withdrawal candidate once more — the regression this guards against.
     repo.upsert(write(
         user,
         Source::Apple,
         "otx-1",
-        0,
-        EntitlementStatus::Ended,
+        -1,
+        EntitlementStatus::Refunded,
     ))
     .await
     .unwrap();
-    let candidates = repo
-        .users_with_unwithdrawn_ended_rows(Utc::now())
-        .await
-        .unwrap();
-    assert!(candidates.contains(&user.to_string()));
-    // A terminal write keeps an existing stamp (no pointless second rotation).
-    assert_eq!(repo.mark_withdrawn(&[r.id], now).await.unwrap(), 1);
+    assert!(
+        repo.users_with_unwithdrawn_ended_rows(Utc::now())
+            .await
+            .unwrap()
+            .contains(&user.to_string())
+    );
+    // Stamp that second lapse, then replay a non-terminal `ended` write on the
+    // already-lapsed row: it does NOT clear, so the sweep rotates only once.
+    assert_eq!(repo.mark_withdrawn(&[r.id], Utc::now()).await.unwrap(), 1);
     repo.upsert(write(
         user,
         Source::Apple,
         "otx-1",
-        0,
-        EntitlementStatus::Refunded,
+        -1,
+        EntitlementStatus::Ended,
     ))
     .await
     .unwrap();
