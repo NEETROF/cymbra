@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.22.0](https://github.com/NEETROF/cymbra/compare/backend-v0.21.1...backend-v0.22.0) (2026-08-28)
+
+
+### Features
+
+* **plans:** the server builds the console's aggregator deep link ([#291](https://github.com/NEETROF/cymbra/issues/291)) ([5d2f3e7](https://github.com/NEETROF/cymbra/commit/5d2f3e7fa5198dbcb72098a7b46e3904287daf9d))
+
 ## [0.21.1](https://github.com/NEETROF/cymbra/compare/backend-v0.21.0...backend-v0.21.1) (2026-08-25)
 
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.0](https://github.com/NEETROF/cymbra/compare/back-office-v0.11.1...back-office-v0.12.0) (2026-08-28)
+
+
+### Features
+
+* **plans:** the server builds the console's aggregator deep link ([#291](https://github.com/NEETROF/cymbra/issues/291)) ([5d2f3e7](https://github.com/NEETROF/cymbra/commit/5d2f3e7fa5198dbcb72098a7b46e3904287daf9d))
+
 ## [0.11.1](https://github.com/NEETROF/cymbra/compare/back-office-v0.11.0...back-office-v0.11.1) (2026-08-26)
 
 
