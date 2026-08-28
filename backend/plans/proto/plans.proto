@@ -173,6 +173,10 @@ message LookupAccountPlanResponse {
   GetMyPlanResponse snapshot = 2;
   repeated EntitlementRowMsg rows = 3;
   repeated MembershipMsg memberships = 4;
+  // The store aggregator's customer page for THIS account — where transactions,
+  // renewals, refunds and revenue live (change: swap-store-billing-to-revenuecat,
+  // D5). Empty when the aggregator is not configured; the console hides the link.
+  string aggregator_customer_url = 5;
 }
 
 message GetPlansForAccountsRequest {

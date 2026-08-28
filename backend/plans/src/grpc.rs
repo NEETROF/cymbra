@@ -33,6 +33,9 @@ pub struct PlanGrpc {
     /// The store aggregator's customer API + its sandbox rule; `None` ⇒
     /// `SyncStorePlan` answers `unimplemented`.
     store: Option<(Arc<dyn StoreCustomerSource>, bool)>,
+    /// The aggregator's project id, for the console's customer deep link (D5);
+    /// `None` ⇒ `LookupAccountPlan` returns no url and the console hides it.
+    aggregator_project: Option<String>,
     web: Option<Arc<dyn WebBillingProvider>>,
 }
 
@@ -53,6 +56,7 @@ impl PlanGrpc {
             cache,
             handles: None,
             store: None,
+            aggregator_project: None,
             web: None,
         }
     }
@@ -70,6 +74,13 @@ impl PlanGrpc {
         allow_sandbox: bool,
     ) -> Self {
         self.store = Some((customers, allow_sandbox));
+        self
+    }
+
+    /// The aggregator's project id (`CYMBRA_REVENUECAT_PROJECT_ID`) — the single
+    /// place it is configured; the console reads the built url off the lookup.
+    pub fn with_aggregator_project(mut self, project_id: Option<String>) -> Self {
+        self.aggregator_project = project_id;
         self
     }
 
@@ -406,11 +417,17 @@ impl PlanServiceTrait for PlanGrpc {
             .account_plan(&user_id)
             .await
             .map_err(|e| e.to_status())?;
+        let aggregator_customer_url = crate::billing::revenuecat::customer_dashboard_url(
+            self.aggregator_project.as_deref(),
+            &user_id,
+        )
+        .unwrap_or_default();
         Ok(Response::new(proto::LookupAccountPlanResponse {
             user_id,
             snapshot: Some(self.plan_response(&ap.snapshot, None)),
             rows: ap.rows.iter().map(row_msg).collect(),
             memberships: ap.memberships.iter().map(membership_msg).collect(),
+            aggregator_customer_url,
         }))
     }
 

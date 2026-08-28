@@ -26,7 +26,7 @@ pub struct RevenueCatEnv {
     pub api_key: String,
     /// The value RevenueCat sends in the webhook `Authorization` header.
     pub webhook_secret: String,
-    /// Project id (dashboard deep links only).
+    /// Project id — builds the console's customer deep link (D5); unset ⇒ no link.
     pub project_id: Option<String>,
     /// Apply `SANDBOX` events/subscriptions — staging only, never production.
     pub allow_sandbox: bool,

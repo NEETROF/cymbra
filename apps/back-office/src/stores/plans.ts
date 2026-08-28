@@ -25,15 +25,6 @@ const wireRef = (r: AccountRef) => ({ userId: r.userId ?? "", handle: r.handle ?
 export const REVOCABLE_SOURCES = ["code", "admin"] as const;
 export const isRevocableSource = (source: string): boolean => (REVOCABLE_SOURCES as readonly string[]).includes(source);
 
-/** The store aggregator's customer page for an account (change:
- *  swap-store-billing-to-revenuecat, D5) — where transactions, renewals, refunds
- *  and revenue live. `undefined` when the project id is not configured or there
- *  is no account. */
-export function revenueCatCustomerUrl(project: string | undefined, userId: string | undefined): string | undefined {
-  if (!project || !userId) return undefined;
-  return `https://app.revenuecat.com/customers/${encodeURIComponent(project)}/${encodeURIComponent(userId)}`;
-}
-
 /** CSV of a campaign's members (handle when the row carries one, else user id) —
  *  the export the console offers per campaign. Fields are quoted; RFC 4180. */
 export function membersCsv(members: MembershipMsg[], handleFor: (userId: string) => string | undefined): string {

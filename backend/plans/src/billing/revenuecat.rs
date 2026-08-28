@@ -91,6 +91,37 @@ fn is_premium_product(products: &[String], product: &str) -> bool {
     products.is_empty() || products.iter().any(|p| p == product || p == base)
 }
 
+/// The aggregator's dashboard page for one customer — the console's "open in
+/// RevenueCat" deep link (D5). Built here (not in the console) so the project id
+/// stays a single backend setting: `CYMBRA_REVENUECAT_PROJECT_ID`. `None` when
+/// the project id is unset, so the link is simply hidden. The `/customers/{project}/{id}`
+/// spelling is the stable entry point: it redirects to the current dashboard route.
+pub fn customer_dashboard_url(project_id: Option<&str>, user_id: &str) -> Option<String> {
+    let project = project_id.filter(|p| !p.is_empty())?;
+    if user_id.is_empty() {
+        return None;
+    }
+    Some(format!(
+        "https://app.revenuecat.com/customers/{}/{}",
+        path_segment(project),
+        path_segment(user_id)
+    ))
+}
+
+/// Percent-encode one URL path segment (RFC 3986 unreserved set kept).
+fn path_segment(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for b in s.bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(b as char)
+            }
+            _ => out.push_str(&format!("%{b:02X}")),
+        }
+    }
+    out
+}
+
 /// The store-row key: `{app_user_id}:{base product}` — the design's D1 fallback
 /// key, promoted to THE key after the sandbox runs (7.2–7.4, 7.3) showed the
 /// store transaction ids are not stable across RevenueCat's surfaces: a Play
@@ -612,6 +643,25 @@ mod tests {
         ] {
             assert_eq!(store_to_source(s), None, "{s}");
         }
+    }
+
+    #[test]
+    fn customer_dashboard_url_is_built_only_when_configured() {
+        assert_eq!(
+            customer_dashboard_url(Some("proj4adaf652"), U1),
+            Some(format!(
+                "https://app.revenuecat.com/customers/proj4adaf652/{U1}"
+            ))
+        );
+        // Unset / empty project id, or no account ⇒ no link (the console hides it).
+        assert_eq!(customer_dashboard_url(None, U1), None);
+        assert_eq!(customer_dashboard_url(Some(""), U1), None);
+        assert_eq!(customer_dashboard_url(Some("proj1"), ""), None);
+        // Path segments are percent-encoded.
+        assert_eq!(
+            customer_dashboard_url(Some("p/q"), "a b"),
+            Some("https://app.revenuecat.com/customers/p%2Fq/a%20b".to_string())
+        );
     }
 
     #[test]

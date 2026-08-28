@@ -21,7 +21,6 @@ interface ImportMetaEnv {
   /** Store aggregator project id (change: swap-store-billing-to-revenuecat):
    * builds the "open in RevenueCat" customer link on the plan console. Unset →
    * no link. */
-  readonly VITE_REVENUECAT_PROJECT_ID?: string;
 }
 interface ImportMeta {
   readonly env: ImportMetaEnv;

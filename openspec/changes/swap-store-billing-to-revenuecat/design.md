@@ -201,7 +201,10 @@ events carry `price` / `currency` / `commission_percentage`: keeping the identif
 avoids a second, drifting revenue store and a new privacy surface. The back-office plan console
 gets one **"open in RevenueCat"** link on the account lookup
 (`https://app.revenuecat.com/customers/<project>/<app_user_id>`) — support goes to the place
-that has the store facts.
+that has the store facts. The **server builds that url** and returns it in
+`LookupAccountPlanResponse.aggregator_customer_url` (empty ⇒ the console hides the link), so the
+project id stays one backend setting (`CYMBRA_REVENUECAT_PROJECT_ID`) instead of being duplicated
+as a console build-time variable.
 
 *Alternative*: store `price`/`currency` per event for a future BO chart — rejected for now
 (RevenueCat exports / Charts API cover it if ever needed).

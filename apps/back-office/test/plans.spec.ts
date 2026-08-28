@@ -5,7 +5,7 @@ import { i18n } from "@/i18n";
 import PlansView from "@/views/PlansView.vue";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { setClientsForTest } from "@/lib/api";
-import { accountRef, isRevocableSource, membersCsv, revenueCatCustomerUrl, usePlansStore } from "@/stores/plans";
+import { accountRef, isRevocableSource, membersCsv, usePlansStore } from "@/stores/plans";
 import { makeFakeClients } from "./fakes";
 
 const UUID = "019f60be-6cd9-74e2-a600-9893bd2aaa3a";
@@ -52,16 +52,6 @@ describe("plans helpers", () => {
     expect(isRevocableSource("code")).toBe(true);
     expect(isRevocableSource("admin")).toBe(true);
     for (const s of ["apple", "google", "web"]) expect(isRevocableSource(s)).toBe(false);
-  });
-
-  it("links an account to its aggregator customer page only when the project id is configured", () => {
-    expect(revenueCatCustomerUrl(undefined, "u1")).toBeUndefined();
-    expect(revenueCatCustomerUrl("proj1", undefined)).toBeUndefined();
-    expect(revenueCatCustomerUrl("proj1", "018f0000-0000-7000-8000-000000000001")).toBe(
-      "https://app.revenuecat.com/customers/proj1/018f0000-0000-7000-8000-000000000001",
-    );
-    // ids are path segments: escaped, never trusted
-    expect(revenueCatCustomerUrl("p/q", "a b")).toBe("https://app.revenuecat.com/customers/p%2Fq/a%20b");
   });
 
   it("exports members as CSV with the handle when known, else the user id", () => {
