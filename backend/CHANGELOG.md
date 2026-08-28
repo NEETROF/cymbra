@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.22.1](https://github.com/NEETROF/cymbra/compare/backend-v0.22.0...backend-v0.22.1) (2026-08-28)
+
+
+### Bug Fixes
+
+* **plans:** reactivating an entitlement clears its withdrawal stamp ([#293](https://github.com/NEETROF/cymbra/issues/293)) ([b5ac03a](https://github.com/NEETROF/cymbra/commit/b5ac03afe1d50af37c92f1c52a41273093e69c7d))
+
 ## [0.22.0](https://github.com/NEETROF/cymbra/compare/backend-v0.21.1...backend-v0.22.0) (2026-08-28)
 
 
