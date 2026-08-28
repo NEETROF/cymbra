@@ -127,6 +127,12 @@ impl EntitlementRepo for PgEntitlementRepo {
         let terminal = w.status.is_terminal();
         // Forward-only `ends_at` unless the new status is terminal (refund /
         // revocation ends the row now). A NULL on either side means open-ended.
+        // A non-terminal write reactivates the row, so it also CLEARS
+        // `withdrawn_at`: the stamp means "this lapse has been withdrawn", and a
+        // row is reused across subscribe → lapse → resubscribe (one row per
+        // `(source, provider_ref)`, and that key is stable per user+product).
+        // Keeping a stale stamp would make `withdrawal_pending` skip the row on
+        // the NEXT lapse, so the offline cache secret would never rotate again.
         let row = sqlx::query(&format!(
             "INSERT INTO plan_entitlements \
                (id, user_id, source, provider_ref, campaign_id, starts_at, ends_at, status) \
@@ -138,6 +144,7 @@ impl EntitlementRepo for PgEntitlementRepo {
                  WHEN plan_entitlements.ends_at IS NULL OR EXCLUDED.ends_at IS NULL THEN NULL \
                  ELSE GREATEST(plan_entitlements.ends_at, EXCLUDED.ends_at) END, \
                campaign_id = COALESCE(EXCLUDED.campaign_id, plan_entitlements.campaign_id), \
+               withdrawn_at = CASE WHEN $9 THEN plan_entitlements.withdrawn_at ELSE NULL END, \
                updated_at = now() \
              RETURNING {ENTITLEMENT_COLS}"
         ))
@@ -573,7 +580,8 @@ impl MembershipRepo for PgMembershipRepo {
                    (id, user_id, source, provider_ref, campaign_id, starts_at, ends_at, status) \
                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8) \
                  ON CONFLICT (source, provider_ref) DO UPDATE SET \
-                   ends_at = EXCLUDED.ends_at, status = EXCLUDED.status, updated_at = now()",
+                   ends_at = EXCLUDED.ends_at, status = EXCLUDED.status, \
+                   withdrawn_at = NULL, updated_at = now()",
             )
             .bind(Uuid::now_v7())
             .bind(uid)

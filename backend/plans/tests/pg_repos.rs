@@ -107,6 +107,55 @@ async fn upsert_is_forward_only_unless_terminal_and_withdrawal_claims_once() {
     let candidates = repo.users_with_unwithdrawn_ended_rows(now).await.unwrap();
     assert!(!candidates.contains(&user.to_string()));
 
+    // Resubscribing reuses this row (the key is stable per user+product), so the
+    // reactivation must CLEAR the stamp — otherwise the next lapse is skipped and
+    // the offline cache secret never rotates again.
+    let back = repo
+        .upsert(write(
+            user,
+            Source::Apple,
+            "otx-1",
+            30,
+            EntitlementStatus::Active,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(back.id, r.id);
+    assert!(back.withdrawn_at.is_none(), "reactivation clears the stamp");
+    // ... and once it lapses again it is a withdrawal candidate once more.
+    repo.upsert(write(
+        user,
+        Source::Apple,
+        "otx-1",
+        0,
+        EntitlementStatus::Ended,
+    ))
+    .await
+    .unwrap();
+    let candidates = repo
+        .users_with_unwithdrawn_ended_rows(Utc::now())
+        .await
+        .unwrap();
+    assert!(candidates.contains(&user.to_string()));
+    // A terminal write keeps an existing stamp (no pointless second rotation).
+    assert_eq!(repo.mark_withdrawn(&[r.id], now).await.unwrap(), 1);
+    repo.upsert(write(
+        user,
+        Source::Apple,
+        "otx-1",
+        0,
+        EntitlementStatus::Refunded,
+    ))
+    .await
+    .unwrap();
+    assert!(
+        !repo
+            .users_with_unwithdrawn_ended_rows(Utc::now())
+            .await
+            .unwrap()
+            .contains(&user.to_string())
+    );
+
     repo.purge_user(&user.to_string()).await.unwrap();
     assert!(
         repo.list_for_user(&user.to_string())
