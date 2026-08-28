@@ -599,26 +599,87 @@ void main() {
     await _teardown(tester, c);
   });
 
-  testWidgets('hands / feet selection splits by the voice convention', (
+  // The counterpart of the former "hands / feet selection splits by the voice
+  // convention" test, at the grain that replaced it (change:
+  // add-practice-focus-controls): the same two selections a drummer used to
+  // reach through the limb control are still expressible — "everything but the
+  // kick" and "the kick alone" — and now every other subset is too.
+  testWidgets('per-piece focus splits the kit at the piece grain', (
     tester,
   ) async {
     final c = await _pumpPercussion(tester);
     final notifier = c.read(playerProvider.notifier);
-    final data = c.read(playerProvider);
-    expect(data.hasHandsAndFeet, isTrue);
+    expect(c.read(playerProvider).hasDrumPiecesToFocus, isTrue);
 
-    // Hands (right): the kick disappears — no foot event survives the filter,
-    // so the cascade draws no bar.
-    notifier.setSelectedHands(Hand.right);
+    // Muting the kick: no bar survives the filter, so the cascade draws none —
+    // what "hands only" used to mean, said directly.
+    notifier.muteDrumPiece(kKickPieceId);
     final hands = c.read(playerProvider).visibleNotes;
     expect(hands, isNotEmpty);
     expect(hands.any((n) => kKickGmNumbers.contains(n.pitch)), isFalse);
 
-    // Feet (left): only the kick remains — the hand lanes empty out.
-    notifier.setSelectedHands(Hand.left);
+    // Soloing the kick from an existing selection ADDS it back rather than
+    // isolating it (design D2) — the additive rule, from the inside.
+    notifier.soloDrumPiece(kKickPieceId);
+    expect(c.read(playerProvider).mutedDrumPieces, isEmpty);
+
+    // Soloing from the full kit isolates: the former "feet only".
+    notifier.soloDrumPiece(kKickPieceId);
     final feet = c.read(playerProvider).visibleNotes;
     expect(feet, isNotEmpty);
     expect(feet.every((n) => kKickGmNumbers.contains(n.pitch)), isTrue);
+
+    // …and the whole kit comes back.
+    notifier.clearDrumFocus();
+    expect(c.read(playerProvider).mutedDrumPieces, isEmpty);
+    expect(
+      c.read(playerProvider).visibleNotes.length,
+      greaterThan(feet.length),
+    );
+    await _teardown(tester, c);
+  });
+
+  // The property the limb filter established and focus inherits: what is not
+  // drawn is not awaited and not judged, all three from `visibleNotes`.
+  testWidgets('a muted piece is not drawn, not awaited and not scored', (
+    tester,
+  ) async {
+    final c = await _pumpPercussion(tester);
+    final notifier = c.read(playerProvider.notifier);
+    notifier.muteDrumPiece(kKickPieceId);
+    final data = c.read(playerProvider);
+    expect(
+      data.visibleNotes.any((n) => kKickGmNumbers.contains(n.pitch)),
+      isFalse,
+    );
+    // The gate's required set is derived from the same source, so no onset can
+    // ever wait on a piece the session does not draw.
+    for (final gm in data.expectedKeys) {
+      expect(kKickGmNumbers.contains(gm), isFalse);
+    }
+    // …and a restricted run is marked as one, so it is never submitted.
+    expect(data.isFocusRestrictedRun, isTrue);
+    await _teardown(tester, c);
+  });
+
+  // Focus states what is ASKED of the player, never what they hear from their
+  // own kit (the `add-drum-input-mapping` 4.5 property, restated at the new
+  // grain).
+  testWidgets('a muted piece still sounds and still flashes when struck', (
+    tester,
+  ) async {
+    final c = await _pumpPercussion(tester);
+    final notifier = c.read(playerProvider.notifier);
+    notifier.muteDrumPiece(kKickPieceId);
+    final kick = c.read(playerProvider).kickEmissionGm!;
+    notifier.noteOn(kick, source: NoteSource.midiDevice);
+    // The pedal is still a controller surface (it is read from `notes`, never
+    // `visibleNotes`) and it still takes the stroke's flash stamp.
+    expect(c.read(playerProvider).hasKickPedal, isTrue);
+    expect(
+      c.read(playerProvider).struckSurfacesMs.containsKey(kPedalSurface),
+      isTrue,
+    );
     await _teardown(tester, c);
   });
 
@@ -685,7 +746,7 @@ void main() {
   );
 
   testWidgets('the setup modal swaps the range chooser for the kit layout '
-      'and labels the selector hands / feet', (tester) async {
+      'and the hand selector for per-piece focus', (tester) async {
     final c = await _pumpPercussion(tester, dismissModal: false);
     // The range apparatus does not apply to a drum kit: no keyboard-size
     // section; the inverted-kit switch takes its place, labelled by the
@@ -696,10 +757,29 @@ void main() {
       find.byWidgetPredicate((w) => w is DropdownButton<KeyboardRangeMode>),
       findsNothing,
     );
-    // The selector reads hands / feet despite the single staff.
-    expect(find.text('Hands'), findsOneWidget);
-    expect(find.text('Feet'), findsOneWidget);
+    // The hand selector is gone entirely (change:
+    // add-practice-focus-controls) — a drum part is written on one staff.
     expect(find.text('Right hand'), findsNothing);
+    expect(find.text('Hands'), findsNothing);
+    expect(find.text('Feet'), findsNothing);
+    // The focus control takes its place, one row per piece of THIS score's
+    // kit, in the pad strip's order.
+    final data = c.read(playerProvider);
+    expect(data.hasDrumPiecesToFocus, isTrue);
+    for (final id in data.kitPieceIds) {
+      expect(find.byKey(Key('drum-focus-$id')), findsOneWidget, reason: id);
+    }
+    // "Whole kit" is offered only once something is muted.
+    expect(find.byKey(const Key('drum-focus-all')), findsNothing);
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(Key('drum-focus-${data.kitPieceIds.first}')),
+        matching: find.byType(Checkbox),
+      ),
+    );
+    await tester.pump();
+    expect(c.read(playerProvider).mutedDrumPieces, {data.kitPieceIds.first});
+    expect(find.byKey(const Key('drum-focus-all')), findsOneWidget);
     await _teardown(tester, c);
   });
 }

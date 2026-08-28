@@ -207,7 +207,7 @@
   "summaryBestCombo": "Record ×{count}",
   "summaryReplay": "Revoir les erreurs",
   "summaryRetry": "Réessayer",
-  "summaryHands": "{hands, select, left{Main gauche} right{Main droite} both{Deux mains} hands{Mains} feet{Pieds} handsAndFeet{Mains et pieds} other{Deux mains}}",
+  "summaryHands": "{hands, select, left{Main gauche} right{Main droite} both{Deux mains} other{Deux mains}}",
   "replayTitle": "Relecture",
   "replayMissed": "Manquée",
   "replayMistimed": "Décalée",
@@ -766,8 +766,6 @@
   "soundfontIncludedInPremium": "Inclus dans Premium",
   "soundfontUpsell": "Premium débloque tous les pianos",
   "libraryQuotaUpsell": "Votre bibliothèque est pleine. Premium relève la limite.",
-  "handHands": "Mains",
-  "handFeet": "Pieds",
   "invertedKitTitle": "Disposition du kit",
   "invertedKitLabel": "Kit inversé",
   "invertedKitHint": "Charley à droite, comme sur un kit inversé. La notation n'est pas affectée.",
@@ -785,6 +783,10 @@
   "kitPieceSplash": "Splash",
   "kitPieceChina": "China",
   "kitPieceKick": "Grosse caisse",
+  "drumFocusTitle": "Pièces travaillées",
+  "drumFocusHint": "Les pièces décochées ne sont ni affichées, ni attendues, ni notées — tu peux toujours les frapper et les entendre.",
+  "drumFocusSolo": "Seule",
+  "drumFocusAll": "Kit entier",
   "instrumentChoiceTitle": "Par quoi veux-tu commencer ?",
   "instrumentChoiceBody": "Ton accueil montrera cet instrument en premier. Tu pourras changer à tout moment depuis le sélecteur en haut.",
   "drumsEmptyTitle": "Pas encore de partition batterie ici",
@@ -799,6 +801,6 @@
   "coachPlayerSoundDrumsTitle": "Choisissez votre kit de batterie",
   "coachPlayerSoundDrumsBody": "Sélectionnez le kit que vous entendez en jouant. Vous pouvez ajouter vos propres SoundFonts, et en débloquer d’autres avec vos points.",
   "coachPlayerMidiDrumsBody": "C’est ici qu’apparaît votre kit électronique connecté. Laissez le mode automatique, ou choisissez vous-même l’appareil si plusieurs sont branchés.",
-  "coachPlayerLimbsTitle": "Les mains, les pieds ou les deux",
-  "coachPlayerLimbsBody": "Travaillez les mains seules, puis les pieds, puis réunissez-les. Seuls les membres choisis vous sont demandés."
+  "coachPlayerFocusTitle": "Travaille pièce par pièce",
+  "coachPlayerFocusBody": "Décoche ce que tu ne travailles pas. Le kit affiche et demande le reste — et les pièces décochées sonnent toujours quand tu les frappes."
 }

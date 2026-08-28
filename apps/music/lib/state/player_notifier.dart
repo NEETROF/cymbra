@@ -14,6 +14,8 @@
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show setEquals;
+
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../services/audio_service.dart';
@@ -417,6 +419,11 @@ class Player extends _$Player {
           ? deriveDrumLanes(derived.notes)
           : const <DrumLane>[],
       mode: _modeForLoadedScore(percussion: derived.isPercussion),
+      // A focus selection describes the passage being worked on, not a
+      // preference (change: add-practice-focus-controls): another score's
+      // selection would hand this one a kit with holes in it, so every piece is
+      // in focus on load.
+      mutedDrumPieces: const {},
       // The struck-flash table is keyed by controller POSITION, so another
       // score's stamps would land on this one's pads (change:
       // add-drum-input-mapping).
@@ -909,6 +916,54 @@ class Player extends _$Player {
     state = updated.copyWith(elapsedMs: updated.startMs);
     if (state.isPlaying) _maybeStartRun();
   }
+
+  // --- Per-piece focus (change: add-practice-focus-controls) -------------
+
+  /// Applies a new muted-piece set — the one path every focus action goes
+  /// through, so mute, solo, unmute and clear all re-arm the session the same
+  /// way [setSelectedHands] does for the keyboard.
+  ///
+  /// Same reasoning, at the new grain: changing what the session asks for
+  /// changes what is scored, so any in-flight run is discarded and restarted
+  /// from the top for the new selection; the onset gate is cleared so it cannot
+  /// stay frozen on an onset that is now out of focus (or pre-satisfied by the
+  /// previous selection); and sounding voices are released so a piece that just
+  /// left the selection does not keep ringing.
+  void _applyDrumFocus(Set<String> muted) {
+    if (!state.isPercussion || setEquals(muted, state.mutedDrumPieces)) return;
+    _silenceAll();
+    _scorer.cancelRun();
+    final updated = state.copyWith(
+      mutedDrumPieces: muted,
+      gateSatisfied: const {},
+      consumedHeld: const {},
+      strokeAtMs: const {},
+    );
+    // The effective start depends on the selection: a piece that enters later
+    // starts the run trimmed to its own first note.
+    state = updated.copyWith(elapsedMs: updated.startMs);
+    if (state.isPlaying) _maybeStartRun();
+  }
+
+  /// Takes [pieceId] out of focus. Muting the last piece in focus restores the
+  /// whole kit rather than leaving a session that asks for nothing (design D2).
+  void muteDrumPiece(String pieceId) => _applyDrumFocus(
+    mutedAfterMuting(state.mutedDrumPieces, pieceId, state.kitPieceIds),
+  );
+
+  /// Puts [pieceId] back in focus.
+  void unmuteDrumPiece(String pieceId) =>
+      _applyDrumFocus({...state.mutedDrumPieces}..remove(pieceId));
+
+  /// Isolates [pieceId] — from the full kit it becomes the only piece asked
+  /// for; from an existing selection it is **added** to it (design D2), which
+  /// is what isolating a second piece means.
+  void soloDrumPiece(String pieceId) => _applyDrumFocus(
+    mutedAfterSoloing(state.mutedDrumPieces, pieceId, state.kitPieceIds),
+  );
+
+  /// Restores every piece of the kit.
+  void clearDrumFocus() => _applyDrumFocus(const {});
 
   // --- Practice range (change: add-measure-range-practice) ---------------
 

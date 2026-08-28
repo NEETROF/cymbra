@@ -71,9 +71,13 @@ CoachCopy playerCoachCopy(
     title: l10n.coachPlayerMidiTitle,
     body: percussion ? l10n.coachPlayerMidiDrumsBody : l10n.coachPlayerMidiBody,
   ),
+  // Step 3 points at whichever control isolates part of the piece: the hand
+  // selector on a keyboard, the per-piece focus list on a kit (change:
+  // add-practice-focus-controls). Same position, same anchor, same purpose —
+  // only the grain differs, which is exactly what the copy has to say.
   PlayerCoachStep.hands => (
-    title: percussion ? l10n.coachPlayerLimbsTitle : l10n.coachPlayerHandsTitle,
-    body: percussion ? l10n.coachPlayerLimbsBody : l10n.coachPlayerHandsBody,
+    title: percussion ? l10n.coachPlayerFocusTitle : l10n.coachPlayerHandsTitle,
+    body: percussion ? l10n.coachPlayerFocusBody : l10n.coachPlayerHandsBody,
   ),
   PlayerCoachStep.measureRewind => (
     title: l10n.coachPlayerRewindTitle,

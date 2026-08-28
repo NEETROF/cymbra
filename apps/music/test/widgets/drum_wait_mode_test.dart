@@ -25,7 +25,6 @@ import 'package:music/services/preferences_service.dart';
 import 'package:music/services/score_asset_source.dart';
 import 'package:music/state/drum_kit.dart';
 import 'package:music/state/performance_scoring.dart';
-import 'package:music/state/player_data.dart';
 import 'package:music/state/player_notifier.dart';
 import 'package:music/state/score_catalog.dart';
 
@@ -316,11 +315,10 @@ void main() {
     await _teardown(tester, c);
   });
 
-  testWidgets('with the hands selected a kick-only onset has an empty required '
+  testWidgets('with the kick muted a kick-only onset has an empty required '
       'set and the gate advances', (tester) async {
     final c = await _pump(tester);
-    final player = c.read(playerProvider.notifier)
-      ..setSelectedHands(Hand.right); // the hands
+    final player = c.read(playerProvider.notifier)..muteDrumPiece(kKickPieceId);
     await _frames(tester);
     player.startPlayback();
     await _frames(tester, count: 3);
@@ -343,17 +341,17 @@ void main() {
     await _teardown(tester, c);
   });
 
-  testWidgets('with the feet selected, hand onsets are skipped and only the '
-      'foot gates', (tester) async {
+  testWidgets('with the kick soloed, hand onsets are skipped and only the '
+      'kick gates', (tester) async {
     final c = await _pump(tester);
     final player = c.read(playerProvider.notifier)
-      ..setSelectedHands(Hand.left); // the feet
+      ..soloDrumPiece(kKickPieceId); // the kick alone
     await _frames(tester);
     player.startPlayback();
     await _frames(tester, count: 3);
 
     expect(c.read(playerProvider).onsetPitchesAt(0), {36});
-    // Onset 2 (600 ms) is a hand stroke: with the feet selected there is
+    // Onset 2 (600 ms) is a hand stroke: with only the kick in focus there is
     // nothing there to wait for, so the playhead runs straight past it and on
     // toward the next kick (1200 ms).
     player.noteOn(36);
@@ -401,10 +399,10 @@ void main() {
       await _teardown(tester, c);
     });
 
-    testWidgets('a hidden limb is never shown as expected', (tester) async {
+    testWidgets('a muted piece is never shown as expected', (tester) async {
       final c = await _pump(tester);
       final player = c.read(playerProvider.notifier)
-        ..setSelectedHands(Hand.right);
+        ..muteDrumPiece(kKickPieceId);
       await _frames(tester);
       player.startPlayback();
       await _frames(tester, count: 4);

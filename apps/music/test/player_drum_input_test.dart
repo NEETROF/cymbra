@@ -356,24 +356,28 @@ void main() {
       expect(data().activeNotes, contains(49));
     });
 
-    test('hand selection never suppresses input: a kick still sounds and '
-        'flashes the pedal during hands-only practice', () async {
+    test('focus never suppresses input: a muted piece still sounds and '
+        'flashes its surface', () async {
       await build();
       await readyKit();
-      player().setSelectedHands(Hand.right); // hands only
-      // The filter is presentation-only: the foot events are gone from the
-      // cascade…
+      player().muteDrumPiece(kKickPieceId);
+      // The filter is presentation-only: the kick is gone from the cascade…
       expect(
         data().visibleNotes.any((n) => kKickGmNumbers.contains(n.pitch)),
         isFalse,
       );
-      // …while the pedal is still there to play, and still answers.
+      // …while the pedal is still there to play, and still answers. The pedal
+      // is read from `notes`, never `visibleNotes`, precisely so that focus
+      // cannot take a controller surface away.
+      expect(data().hasKickPedal, isTrue);
       player().noteOn(36);
       expect(audio.drumOns.map((e) => e.key), [36]);
       expect(data().struckSurfacesMs.keys, [kPedalSurface]);
 
-      // And the reverse: a hand stroke during feet-only practice.
-      player().setSelectedHands(Hand.left);
+      // And the reverse: a hand stroke while only the kick is asked for.
+      player()
+        ..clearDrumFocus()
+        ..soloDrumPiece(kKickPieceId);
       player().noteOn(38);
       expect(audio.drumOns.map((e) => e.key), [36, 38]);
       expect(

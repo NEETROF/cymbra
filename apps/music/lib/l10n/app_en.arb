@@ -764,7 +764,7 @@
   "@summaryRetry": {
     "description": "Summary: retry button."
   },
-  "summaryHands": "{hands, select, left{Left hand} right{Right hand} both{Both hands} hands{Hands} feet{Feet} handsAndFeet{Hands and feet} other{Both hands}}",
+  "summaryHands": "{hands, select, left{Left hand} right{Right hand} both{Both hands} other{Both hands}}",
   "@summaryHands": {
     "placeholders": {
       "hands": {
@@ -3360,14 +3360,6 @@
   "@libraryQuotaUpsell": {
     "description": "Refusal when a private library / upload quota is reached and a higher plan raises it."
   },
-  "handHands": "Hands",
-  "@handHands": {
-    "description": "Percussion hand selector: the hand-struck events (add-drum-kit-view)."
-  },
-  "handFeet": "Feet",
-  "@handFeet": {
-    "description": "Percussion hand selector: the foot-struck events (add-drum-kit-view)."
-  },
   "invertedKitTitle": "Kit layout",
   "@invertedKitTitle": {
     "description": "Settings section title for the inverted-kit layout (add-drum-kit-view)."
@@ -3394,6 +3386,22 @@
   "kitPieceSplash": "Splash",
   "kitPieceChina": "China",
   "kitPieceKick": "Kick",
+  "drumFocusTitle": "Pieces practised",
+  "@drumFocusTitle": {
+    "description": "Per-piece practice focus section title (add-practice-focus-controls). Replaces the hands/feet selector on percussion."
+  },
+  "drumFocusHint": "Unchecked pieces are not drawn, not awaited and not scored — you can still hit them and hear them.",
+  "@drumFocusHint": {
+    "description": "Explains that focus states what is ASKED of the player, never what the player hears from their own kit."
+  },
+  "drumFocusSolo": "Solo",
+  "@drumFocusSolo": {
+    "description": "Row action isolating one kit piece; soloing a second piece adds it to the selection."
+  },
+  "drumFocusAll": "Whole kit",
+  "@drumFocusAll": {
+    "description": "Clears the focus selection and puts every piece back in focus."
+  },
   "instrumentChoiceTitle": "What would you like to start with?",
   "@instrumentChoiceTitle": {
     "description": "One-time instrument choice modal title (add-instrument-context). A CHOICE, never an unlock."
@@ -3456,12 +3464,12 @@
   "@coachPlayerMidiDrumsBody": {
     "description": "Guided step 2 body on a percussion score (an e-kit, not a MIDI keyboard)."
   },
-  "coachPlayerLimbsTitle": "Hands, feet, or both",
-  "@coachPlayerLimbsTitle": {
-    "description": "Guided step 3 title on a percussion score: the hands/feet selector."
+  "coachPlayerFocusTitle": "Practise piece by piece",
+  "@coachPlayerFocusTitle": {
+    "description": "Guided step 3 title on a percussion score: the per-piece focus control (add-practice-focus-controls)."
   },
-  "coachPlayerLimbsBody": "Work the hands alone, then the feet, then put them together. Only the limbs you choose are asked of you.",
-  "@coachPlayerLimbsBody": {
-    "description": "Guided step 3 body on a percussion score."
+  "coachPlayerFocusBody": "Uncheck what you are not working on. The kit shows and asks for the rest — and the pieces you unchecked still sound when you hit them.",
+  "@coachPlayerFocusBody": {
+    "description": "Guided step 3 body on a percussion score. States the input rule too: focus never filters what the player hears."
   }
 }

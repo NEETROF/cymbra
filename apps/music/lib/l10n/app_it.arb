@@ -207,7 +207,7 @@
   "summaryBestCombo": "Record ×{count}",
   "summaryReplay": "Rivedi gli errori",
   "summaryRetry": "Riprova",
-  "summaryHands": "{hands, select, left{Mano sinistra} right{Mano destra} both{Entrambe le mani} hands{Mani} feet{Piedi} handsAndFeet{Mani e piedi} other{Entrambe le mani}}",
+  "summaryHands": "{hands, select, left{Mano sinistra} right{Mano destra} both{Entrambe le mani} other{Entrambe le mani}}",
   "replayTitle": "Replay",
   "replayMissed": "Mancata",
   "replayMistimed": "Imprecisa",
@@ -766,8 +766,6 @@
   "soundfontIncludedInPremium": "Incluso in Premium",
   "soundfontUpsell": "Premium sblocca tutti i pianoforti",
   "libraryQuotaUpsell": "La tua libreria è piena. Premium alza il limite.",
-  "handHands": "Mani",
-  "handFeet": "Piedi",
   "invertedKitTitle": "Disposizione del kit",
   "invertedKitLabel": "Kit invertito",
   "invertedKitHint": "Hi-hat a destra, come su un kit invertito. La notazione non cambia.",
@@ -785,6 +783,10 @@
   "kitPieceSplash": "Splash",
   "kitPieceChina": "China",
   "kitPieceKick": "Cassa",
+  "drumFocusTitle": "Pezzi in studio",
+  "drumFocusHint": "I pezzi deselezionati non vengono disegnati, attesi né valutati: puoi comunque colpirli e sentirli.",
+  "drumFocusSolo": "Solo",
+  "drumFocusAll": "Kit intero",
   "instrumentChoiceTitle": "Con cosa vuoi iniziare?",
   "instrumentChoiceBody": "La tua home mostrerà prima quello strumento. Puoi cambiarlo in qualsiasi momento dal selettore in alto.",
   "drumsEmptyTitle": "Ancora nessuno spartito di batteria qui",
@@ -799,6 +801,6 @@
   "coachPlayerSoundDrumsTitle": "Scegli la tua batteria",
   "coachPlayerSoundDrumsBody": "Seleziona il kit che senti mentre suoni. Puoi aggiungere le tue SoundFont e sbloccarne altre con i tuoi punti.",
   "coachPlayerMidiDrumsBody": "Qui compare la tua batteria elettronica collegata. Lascia la modalità automatica, oppure scegli tu il dispositivo se ne hai più di uno.",
-  "coachPlayerLimbsTitle": "Mani, piedi o entrambi",
-  "coachPlayerLimbsBody": "Lavora prima le mani, poi i piedi, poi uniscili. Ti vengono chiesti solo gli arti che scegli."
+  "coachPlayerFocusTitle": "Studia pezzo per pezzo",
+  "coachPlayerFocusBody": "Deseleziona ciò che non stai studiando. Il kit mostra e chiede il resto, e i pezzi deselezionati suonano comunque quando li colpisci."
 }

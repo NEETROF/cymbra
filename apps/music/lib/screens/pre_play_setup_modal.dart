@@ -22,6 +22,7 @@ import '../layout/device_class.dart';
 import '../services/platform_info.dart';
 import '../state/audio_routing.dart';
 import '../state/coaching_notifier.dart';
+import '../state/drum_kit.dart';
 import '../state/notation_notifier.dart';
 import '../state/note_label.dart';
 import '../state/player_data.dart';
@@ -34,6 +35,7 @@ import '../state/selected_piano.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/coach_mark.dart';
 import '../widgets/difficulty_badge.dart';
+import '../widgets/kit_piece_labels.dart';
 import '../widgets/leaderboard_view.dart';
 import '../widgets/otg_guidance.dart';
 import 'midi_monitor_screen.dart';
@@ -262,12 +264,15 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
 
     final facts = _facts(l10n, data, entry);
     final sound = _soundSection(l10n, percussion: data.isPercussion);
-    // For percussion the selector reads hands / feet, offered despite the
-    // single staff whenever the score has both — the split a drummer actually
-    // practises (change: add-drum-kit-view).
-    final hands =
-        (data.isPercussion ? data.hasHandsAndFeet : data.hasMultipleStaves)
-        ? _handsSection(l10n, percussion: data.isPercussion)
+    // The hand selector is a KEYBOARD control (change:
+    // add-practice-focus-controls): a drum part is written on one staff, so the
+    // staff mapping never applied to it. Percussion isolates part of a groove
+    // through per-piece focus below, at the grain a drummer reasons in.
+    final hands = !data.isPercussion && data.hasMultipleStaves
+        ? _handsSection(l10n)
+        : null;
+    final drumFocus = data.hasDrumPiecesToFocus
+        ? _drumFocusSection(l10n, data)
         : null;
     final metronome = _metronomeTile(l10n);
     final tempo = _tempoTile(l10n, data);
@@ -332,6 +337,7 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
                   Expanded(
                     child: col([
                       ?hands,
+                      ?drumFocus,
                       metronome,
                       ?keyboardSize,
                       ?invertedKit,
@@ -355,6 +361,7 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
         : scrollCol([
             facts,
             ?hands,
+            ?drumFocus,
             metronome,
             tempo,
             ?readingAid,
@@ -573,7 +580,7 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     ),
   );
 
-  Widget _handsSection(AppLocalizations l10n, {bool percussion = false}) {
+  Widget _handsSection(AppLocalizations l10n) {
     const hands = Hand.values;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -598,12 +605,81 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
                 selectedColor: CymbraColors.onSurface,
                 fillColor: CymbraColors.tertiary.withValues(alpha: 0.22),
                 constraints: BoxConstraints(minHeight: 44, minWidth: segment),
-                children: [
-                  for (final h in hands)
-                    Text(handLabel(l10n, h, percussion: percussion)),
-                ],
+                children: [for (final h in hands) Text(handLabel(l10n, h))],
               );
             },
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Per-piece practice focus (change: add-practice-focus-controls) — the
+  /// percussion replacement for the hands/feet selector, at the grain a drummer
+  /// isolates a groove in.
+  ///
+  /// **Applies immediately**, unlike the drafted settings around it and like the
+  /// sound-output section: a focus change re-arms the run, so batching several
+  /// of them onto Validate would buy nothing, and the pad strip behind the modal
+  /// shows the new selection as it is made.
+  ///
+  /// Solo is a row action rather than a pad long-press (design D8): the pad
+  /// strip is an instrument, and a hold long enough to fire a gesture is an
+  /// ordinary thing to do while playing.
+  Widget _drumFocusSection(AppLocalizations l10n, PlayerData data) {
+    final notifier = ref.read(playerProvider.notifier);
+    final lanes = data.presentedDrumLanes;
+    // Built to mirror `kitPieceIdsOf` exactly — same pieces, same order (the
+    // pad strip's), so the control and the instrument read the same way.
+    final pieces = <({String id, String label})>[
+      for (final lane in lanes)
+        (id: drumPieceIdOfLane(lane), label: kitPieceLabel(l10n, lane)),
+      if (data.hasKickPedal) (id: kKickPieceId, label: l10n.kitPieceKick),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(child: _sectionTitle(l10n.drumFocusTitle)),
+            if (data.mutedDrumPieces.isNotEmpty)
+              TextButton(
+                key: const Key('drum-focus-all'),
+                onPressed: notifier.clearDrumFocus,
+                child: Text(l10n.drumFocusAll),
+              ),
+          ],
+        ),
+        // The guided sequence's step 3 anchor: on a kit this list is what the
+        // hand selector is on a keyboard, so it takes the same anchor rather
+        // than leaving the step pointing at a control that is not there.
+        CoachTarget(
+          anchor: CoachAnchor.hands,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final piece in pieces)
+                _DrumFocusRow(
+                  key: Key('drum-focus-${piece.id}'),
+                  label: piece.label,
+                  inFocus: !data.mutedDrumPieces.contains(piece.id),
+                  soloLabel: l10n.drumFocusSolo,
+                  onToggle: () => data.mutedDrumPieces.contains(piece.id)
+                      ? notifier.unmuteDrumPiece(piece.id)
+                      : notifier.muteDrumPiece(piece.id),
+                  onSolo: () => notifier.soloDrumPiece(piece.id),
+                ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 4, left: 4),
+          child: Text(
+            l10n.drumFocusHint,
+            style: const TextStyle(
+              color: CymbraColors.onSurfaceVariant,
+              fontSize: 12,
+            ),
           ),
         ),
       ],
@@ -986,4 +1062,53 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
       ],
     );
   }
+}
+
+/// One row of the per-piece focus control (change: add-practice-focus-controls):
+/// a checkbox for in/out of focus and a **Solo** action for "only this one".
+///
+/// The two gestures together give the spec's additive rule: solo the hi-hat,
+/// then check the snare, and exactly those two are asked for.
+class _DrumFocusRow extends StatelessWidget {
+  const _DrumFocusRow({
+    required this.label,
+    required this.inFocus,
+    required this.soloLabel,
+    required this.onToggle,
+    required this.onSolo,
+    super.key,
+  });
+
+  final String label;
+  final bool inFocus;
+  final String soloLabel;
+  final VoidCallback onToggle;
+  final VoidCallback onSolo;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Checkbox(
+        value: inFocus,
+        onChanged: (_) => onToggle(),
+        activeColor: CymbraColors.tertiary,
+      ),
+      Expanded(
+        child: GestureDetector(
+          onTap: onToggle,
+          behavior: HitTestBehavior.opaque,
+          child: Text(
+            label,
+            style: TextStyle(
+              color: inFocus
+                  ? CymbraColors.onSurface
+                  : CymbraColors.onSurfaceVariant,
+              fontSize: 14,
+            ),
+          ),
+        ),
+      ),
+      TextButton(onPressed: onSolo, child: Text(soloLabel)),
+    ],
+  );
 }

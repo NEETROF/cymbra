@@ -302,4 +302,111 @@ void main() {
       expect(strokeAnswersOnset(strokeMs: 40000, nowMs: 0, speed: 2), isFalse);
     });
   });
+
+  group('per-piece focus (change: add-practice-focus-controls)', () {
+    // A groove with a hi-hat written both closed and open, a snare written as
+    // the acoustic 38 AND the electric 40 plus a side stick, a crash and a
+    // kick — every collapsed case the kit model already decided.
+    final groove = [n(42), n(46), n(38), n(40), n(37), n(49), n(36)];
+
+    test('the piece list is the pad strip order, with the kick last', () {
+      final lanes = deriveDrumLanes(groove);
+      final ids = kitPieceIdsOf(lanes, hasKick: true);
+      expect(ids, [
+        'kitPieceHiHat',
+        'kitPieceSnare',
+        'kitPieceCrash',
+        kKickPieceId,
+      ]);
+      // Each lane's identity is the identity of its own members — no second
+      // notion of "one piece" was invented for focus.
+      for (final lane in lanes) {
+        for (final gm in lane.gmNumbers) {
+          expect(drumPieceIdOf(gm), drumPieceIdOfLane(lane));
+        }
+      }
+    });
+
+    test('a kickless score offers no kick piece', () {
+      final lanes = deriveDrumLanes([n(42), n(38)]);
+      expect(kitPieceIdsOf(lanes, hasKick: false), [
+        'kitPieceHiHat',
+        'kitPieceSnare',
+      ]);
+    });
+
+    test('muting a piece mutes every number that collapses onto it', () {
+      const muted = {'kitPieceHiHat'};
+      // One pad, one answer: closed and open hi-hat go together.
+      expect(isDrumPieceInFocus(42, muted), isFalse);
+      expect(isDrumPieceInFocus(46, muted), isFalse);
+      // …and nothing else moves.
+      expect(isDrumPieceInFocus(38, muted), isTrue);
+      expect(isDrumPieceInFocus(36, muted), isTrue);
+    });
+
+    test(
+      'the snare collapses its acoustic, electric and side-stick numbers',
+      () {
+        const muted = {'kitPieceSnare'};
+        for (final gm in [37, 38, 40]) {
+          expect(isDrumPieceInFocus(gm, muted), isFalse, reason: 'GM $gm');
+        }
+      },
+    );
+
+    test('the kick collapses both of its numbers', () {
+      const muted = {kKickPieceId};
+      expect(isDrumPieceInFocus(35, muted), isFalse);
+      expect(isDrumPieceInFocus(36, muted), isFalse);
+    });
+
+    test('an empty muted set puts everything in focus', () {
+      for (var gm = 27; gm <= 87; gm++) {
+        expect(isDrumPieceInFocus(gm, const {}), isTrue, reason: 'GM $gm');
+      }
+    });
+
+    test('a piece the kit model never enumerated reads as in focus', () {
+      // Free-play territory: a stroke on a number outside the score's kit must
+      // never be filtered out by a selection that says nothing about it.
+      expect(isDrumPieceInFocus(56, const {'kitPieceHiHat'}), isTrue);
+    });
+
+    test('muting the last piece in focus restores the whole kit', () {
+      final all = kitPieceIdsOf(deriveDrumLanes(groove), hasKick: true);
+      var muted = <String>{};
+      // Mute every piece but the last one…
+      for (final id in all.take(all.length - 1)) {
+        muted = mutedAfterMuting(muted, id, all);
+      }
+      expect(muted, hasLength(all.length - 1));
+      // …and the last mute empties the selection instead of the session.
+      expect(mutedAfterMuting(muted, all.last, all), isEmpty);
+    });
+
+    test('soloing from the full kit isolates one piece', () {
+      final all = kitPieceIdsOf(deriveDrumLanes(groove), hasKick: true);
+      final muted = mutedAfterSoloing(const {}, 'kitPieceSnare', all);
+      expect(
+        muted,
+        containsAll(['kitPieceHiHat', 'kitPieceCrash', kKickPieceId]),
+      );
+      expect(muted.contains('kitPieceSnare'), isFalse);
+    });
+
+    test('soloing a second piece adds it rather than replacing', () {
+      final all = kitPieceIdsOf(deriveDrumLanes(groove), hasKick: true);
+      var muted = mutedAfterSoloing(const {}, 'kitPieceHiHat', all);
+      muted = mutedAfterSoloing(muted, 'kitPieceSnare', all);
+      final focused = all.where((id) => !muted.contains(id)).toList();
+      expect(focused, ['kitPieceHiHat', 'kitPieceSnare']);
+    });
+
+    test('soloing a piece already in focus changes nothing', () {
+      final all = kitPieceIdsOf(deriveDrumLanes(groove), hasKick: true);
+      final muted = mutedAfterSoloing(const {}, 'kitPieceHiHat', all);
+      expect(mutedAfterSoloing(muted, 'kitPieceHiHat', all), muted);
+    });
+  });
 }

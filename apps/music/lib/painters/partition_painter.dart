@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:flutter/foundation.dart' show setEquals;
 import 'package:flutter/material.dart';
 
 import '../src/rust/api/musicxml.dart';
-import '../state/drum_kit.dart' show isFootEvent;
+import '../state/drum_kit.dart' show isDrumPieceInFocus, isFootEvent;
 import '../state/notation_playback.dart' show clefSignLetter;
 import '../state/player_data.dart' show Hand;
 import '../theme/cymbra_theme.dart';
@@ -62,7 +63,16 @@ class PartitionPainter extends CustomPainter {
 
   /// Which hand(s) to engrave. When a single hand is selected the unselected
   /// staff is collapsed entirely (lines, clef, signatures and notes).
+  ///
+  /// **Keyboard scores only** (change: add-practice-focus-controls): a drum
+  /// part has one staff, and isolates through [mutedDrumPieces] instead.
   final Hand selectedHands;
+
+  /// The kit pieces the session does not ask for (change:
+  /// add-practice-focus-controls) — `PlayerData.mutedDrumPieces`, passed in so
+  /// this painter applies the SAME rule as `visibleNotes` rather than a second
+  /// one of its own. Empty (the default) draws the whole kit.
+  final Set<String> mutedDrumPieces;
 
   /// Visible vertical window (content coordinates) for viewport culling: only
   /// systems intersecting `[viewTop, viewBottom]` (plus a small margin) are
@@ -106,6 +116,7 @@ class PartitionPainter extends CustomPainter {
     this.songEndMs = 0,
     this.activeNotes = const {},
     this.selectedHands = Hand.both,
+    this.mutedDrumPieces = const {},
     this.viewTop,
     this.viewBottom,
     this.textFontFamily,
@@ -265,23 +276,25 @@ class PartitionPainter extends CustomPainter {
         Hand.left => staff >= 2,
       };
 
-  /// Whether the hand filter shows this percussion event (change:
-  /// add-drum-notation-render): notes split hands/feet by the voice
-  /// convention with the single-voice GM fallback; a multi-voice part's rests
-  /// follow their voice, while a single-voice part's rests belong to the
-  /// shared groove and stay visible either way.
+  /// Whether the focus selection shows this percussion event (change:
+  /// add-practice-focus-controls).
+  ///
+  /// This painter engraves from the **document**, not from the player's
+  /// `visibleNotes`, so it is the one surface that has to apply the filter
+  /// itself — which is exactly why it takes the selection as data
+  /// ([mutedDrumPieces]) and re-applies the same rule, rather than reaching for
+  /// a second one. The rule it used to apply was the hands/feet reading, which
+  /// no longer exists.
+  ///
+  /// A **rest** carries no General MIDI number, so it belongs to no piece and
+  /// stays visible: the groove's silence is the whole part's. An unresolved
+  /// note (no number) is in focus for the same reason a piece the kit model
+  /// never enumerated is — a selection that says nothing about it must not
+  /// filter it out.
   bool _showsPercussionEvent(NoteEvent note) {
-    if (selectedHands == Hand.both) return true;
-    if (note.isRest) {
-      return !_percMultiVoice ||
-          (selectedHands == Hand.right ? note.voice < 2 : note.voice >= 2);
-    }
-    final foot = isFootEvent(
-      voice: note.voice,
-      gmNumber: note.unpitched?.gmNumber,
-      multiVoice: _percMultiVoice,
-    );
-    return selectedHands == Hand.right ? !foot : foot;
+    if (mutedDrumPieces.isEmpty || note.isRest) return true;
+    final gm = note.unpitched?.gmNumber;
+    return gm == null || isDrumPieceInFocus(gm, mutedDrumPieces);
   }
 
   /// A grand staff is drawn only when both hands are shown; selecting a single
@@ -1532,6 +1545,7 @@ class PartitionPainter extends CustomPainter {
       old.elapsedMs != elapsedMs ||
       old.activeNotes != activeNotes ||
       old.selectedHands != selectedHands ||
+      !setEquals(old.mutedDrumPieces, mutedDrumPieces) ||
       old.viewTop != viewTop ||
       old.viewBottom != viewBottom ||
       old.textFontFamily != textFontFamily ||

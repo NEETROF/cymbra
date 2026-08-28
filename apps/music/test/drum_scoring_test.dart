@@ -22,6 +22,7 @@ import 'package:music/state/notation_data.dart';
 import 'package:music/state/notation_notifier.dart';
 import 'package:music/state/performance_scoring.dart';
 import 'package:music/state/performance_scoring_core.dart';
+import 'package:music/state/drum_kit.dart';
 import 'package:music/state/player_data.dart';
 import 'package:music/state/player_notifier.dart';
 import 'package:music/state/session_summary.dart';
@@ -335,40 +336,52 @@ void main() {
     });
   });
 
-  group('hands / feet scoping', () {
-    test(
-      'a feet-only run judges only foot events and records the selection',
-      () async {
-        await build();
-        player()
-          ..toggleWaitMode()
-          ..setSelectedHands(Hand.left) // the feet
-          ..setPlaying(true);
-        expect(scoring().active, isTrue);
-        // Only the kick is in the judged set.
-        expect(data().visibleNotes.every((n) => n.pitch == 36), isTrue);
-        player().noteOn(36); // the kick at 0 ms
-        player().noteOn(38); // a hand stroke: nothing in this run asks for it
-        final result = finish();
-        expect(result.hands, 'feet');
-        expect(result.wrongNotes, 1);
-        expect(result.notes.every((j) => j.wrong || j.pitch == 36), isTrue);
-      },
-    );
-
-    test('a hands-only run records the hands reading', () async {
+  // The counterpart of the former "hands / feet scoping" group, at the grain
+  // that replaced it (change: add-practice-focus-controls). The behaviour under
+  // test is unchanged — the judged set follows the selection — only the way the
+  // selection is expressed moved from limbs to kit pieces.
+  group('per-piece focus scoping', () {
+    test('a kick-only run judges only the kick', () async {
       await build();
       player()
         ..toggleWaitMode()
-        ..setSelectedHands(Hand.right)
+        ..soloDrumPiece(kKickPieceId)
         ..setPlaying(true);
-      expect(data().visibleNotes.any((n) => n.pitch == 36), isFalse);
-      expect(finish().hands, 'hands');
+      expect(scoring().active, isTrue);
+      // Only the kick is in the judged set.
+      expect(data().visibleNotes.every((n) => n.pitch == 36), isTrue);
+      player().noteOn(36); // the kick at 0 ms
+      player().noteOn(38); // a hand stroke: nothing in this run asks for it
+      final result = finish();
+      expect(result.wrongNotes, 1);
+      expect(result.notes.every((j) => j.wrong || j.pitch == 36), isTrue);
     });
 
-    test('both records the hands-and-feet reading', () async {
+    test('a kickless run drops the kick from the judged set', () async {
+      await build();
+      player()
+        ..toggleWaitMode()
+        ..muteDrumPiece(kKickPieceId)
+        ..setPlaying(true);
+      expect(data().visibleNotes.any((n) => n.pitch == 36), isFalse);
+    });
+
+    // A percussion run always reports the keyboard's `both`: the hands/feet
+    // tokens went with the reading that produced them, and a restricted run is
+    // marked by NOT being submitted rather than by a label on a submitted one.
+    test('a percussion run records no limb reading', () async {
       await freeRun();
-      expect(finish().hands, 'handsAndFeet');
+      expect(finish().hands, 'both');
+    });
+
+    // Design D7, asserted on the state the submission seam branches on.
+    test('a restricted run is flagged, a full-kit run is not', () async {
+      await build();
+      expect(data().isFocusRestrictedRun, isFalse);
+      player().muteDrumPiece(kKickPieceId);
+      expect(data().isFocusRestrictedRun, isTrue);
+      player().clearDrumFocus();
+      expect(data().isFocusRestrictedRun, isFalse);
     });
   });
 

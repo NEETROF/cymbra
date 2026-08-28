@@ -293,21 +293,27 @@ class CaptureMidiService implements MidiService {
   void setEcho(MidiEcho mode) {}
 
   /// Plays [pitch], as the instrument would.
-  void press(int pitch, {int velocity = 96}) => _events.add(
+  ///
+  /// [channel] is reported, never enforced — the app's interpretation is
+  /// channel-agnostic (change: add-drum-input-calibration) — so the keyboard
+  /// default of 0 changes nothing about what these captures drive.
+  void press(int pitch, {int velocity = 96, int channel = 0}) => _events.add(
     MidiEvent(
       kind: MidiEventKind.noteOn,
       pitch: pitch,
       velocity: velocity,
+      channel: channel,
       timestampMs: BigInt.zero,
     ),
   );
 
   /// Releases [pitch].
-  void release(int pitch) => _events.add(
+  void release(int pitch, {int channel = 0}) => _events.add(
     MidiEvent(
       kind: MidiEventKind.noteOff,
       pitch: pitch,
       velocity: 0,
+      channel: channel,
       timestampMs: BigInt.zero,
     ),
   );

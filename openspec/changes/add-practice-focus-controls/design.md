@@ -116,6 +116,48 @@ and every use of the limb filter is expressible as a piece selection ("feet only
 is solo the kick and the pedal hi-hat). The strings and the coach step go with
 it.
 
+### D7 — A focus-restricted run is scored locally, submitted nowhere, and still counts as practice
+
+*Settled during implementation (task 5.1).* Three separate questions were folded
+into one in the Open Questions, and they get three different answers:
+
+- **Scored locally: yes.** The run covers the whole piece and produces an honest
+  verdict on what it asked for. A drummer working the hi-hat and snare wants to
+  know how that went; withholding the number would make the control feel like a
+  downgrade.
+- **Submitted: no.** No leaderboard entry, no play reward. A 100 % on a groove
+  with the crashes muted is not the same achievement as a 100 % on the groove,
+  and the boards have no way to say so — the piece id is the same either way.
+- **Practice: yes.** The session is captured as a practice record, so it holds
+  the streak. This is the half that must not be forgotten: the tester whose
+  feedback started this change was *also* being told he had not played. An
+  isolation drill is practice by any definition, and a control that silently
+  costs a player their streak would be worse than the control it replaces.
+
+*Why not the measure-range posture (never arm the scorer at all):* a selective
+run is unscored because it has no end — it stops mid-piece, so there is no
+comparable whole. A focus-restricted run reaches the last bar; only its *content*
+is narrower. Different defect, different remedy.
+
+The decision lands on the submission seam (`captureSession`), not on a hidden
+summary: the player still sees the result.
+
+### D8 — Solo is a control in the settings list, not a pad gesture
+
+*Settled during implementation (task 4.2).* The open question offered a pad
+long-press as the faster, more discoverable gesture. It is the wrong surface: the
+pad strip is an **instrument**, driven by a per-pointer `Listener` that treats
+every pointer-down as a stroke and supports two-finger rolls on one pad. A hold
+long enough to trigger a gesture is an ordinary thing to do while playing, and
+paying for it by silently reconfiguring the exercise is the worst kind of
+surprise. (The same collision bit the in-game measure selection, where an
+`IconButton` tooltip stole the long-press.)
+
+So the focus control is a list in the settings surface, one row per piece:
+a checkbox for in/out of focus, and a **Solo** action on the row for "only
+this one". The additive rule the spec pins then falls out of the two together —
+solo the hi-hat, then check the snare, and both are asked for.
+
 ## Risks / Trade-offs
 
 - **[Removing a shipped control]** → It shipped to a closed beta of one, who
@@ -129,22 +171,15 @@ it.
   including a toggle in the middle of a sustained keyboard note, where a missing
   release would leave a voice hanging.
 - **[A soloed kit and a scored run]** → A run with pieces muted is still scored
-  against the notes it actually asked for. That is consistent with how a selective
-  measure-range run behaves today (`add-measure-range-practice`) — except that one
-  is deliberately *not* scored. Whether a focus-restricted run should count toward
-  leaderboards needs deciding, not assuming; see Open Questions.
+  against the notes it actually asked for, shown to the player, and delivered to
+  nothing (D7). The streak is held through the practice record, so isolating part
+  of a groove never reads to the app as not having played.
 
 ## Open Questions
 
-- **Should a focus-restricted run be scored and ranked?** A measure-range
-  practice run is deliberately never scored (D2 of `add-measure-range-practice`),
-  on the grounds that a partial run is not comparable to a whole one. Muting the
-  crashes is arguably the same kind of partial. Leaning: score it locally, but
-  do not submit it to leaderboards or count it toward play rewards — the same
-  posture practice sessions already have. Settle before implementing §5.
-- Whether solo should be a distinct gesture (long-press a pad) or a second column
-  in the settings list. A pad long-press is faster and discoverable by drummers,
-  but the pad strip's long-press is currently unclaimed only by accident.
 - Whether the expected-notes mute should also silence a **preview** playback (the
   card audition), or only the player's own transport. Leaning: player only — the
   audition is a listening surface, not a practice one.
+
+*Settled:* whether a focus-restricted run is scored and ranked (D7) and whether
+solo is a pad gesture (D8).

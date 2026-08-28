@@ -713,12 +713,24 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   /// the player can still retry or close.
   Future<void> _onScoredRunFinished(SessionResult result) async {
     await ref.read(sessionSummaryStoreProvider).save(result);
-    // Capture the session into the durable play-activity outbox (change: add-play-
-    // activity-profile) — before any network attempt, so the stat is never lost;
-    // the sender delivers it reliably (retry-until-acked). A no-op for guests.
-    unawaited(
-      ref.read(playSyncNotifierProvider.notifier).captureSession(result),
-    );
+    final sync = ref.read(playSyncNotifierProvider.notifier);
+    if (ref.read(playerProvider).isFocusRestrictedRun) {
+      // A run with pieces muted is scored and shown, but never submitted
+      // (change: add-practice-focus-controls, design D7): a clean groove with
+      // the crashes muted is not the same achievement as a clean groove, and
+      // the boards carry the same piece id either way. It IS captured as
+      // practice, so isolating part of a groove never costs the player their
+      // streak — the failure the tester who asked for this control had already
+      // hit from the other direction.
+      unawaited(
+        sync.capturePractice(scoreId: result.pieceId).catchError((Object _) {}),
+      );
+    } else {
+      // Capture the session into the durable play-activity outbox (change: add-play-
+      // activity-profile) — before any network attempt, so the stat is never lost;
+      // the sender delivers it reliably (retry-until-acked). A no-op for guests.
+      unawaited(sync.captureSession(result));
+    }
     // Capture the score context now — the piece is unchanged after the run.
     final score = ReplayScore.fromPlayer(ref.read(playerProvider));
     while (true) {
@@ -1866,6 +1878,7 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
             songEndMs: data.songEndMs,
             activeNotes: data.activeNotes,
             selectedHands: data.selectedHands,
+            mutedDrumPieces: data.mutedDrumPieces,
             staffSpace: staffSpace,
             palette: palette,
           );
@@ -1925,6 +1938,7 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
                             songEndMs: data.songEndMs,
                             activeNotes: data.activeNotes,
                             selectedHands: data.selectedHands,
+                            mutedDrumPieces: data.mutedDrumPieces,
                             viewTop: viewTop,
                             viewBottom: viewTop + viewHeight,
                             staffSpace: staffSpace,

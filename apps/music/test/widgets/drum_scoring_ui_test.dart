@@ -26,7 +26,9 @@ import 'package:music/services/notation_engine.dart';
 import 'package:music/services/preferences_service.dart';
 import 'package:music/services/score_asset_source.dart';
 import 'package:music/state/leaderboard.dart';
+import 'package:music/state/drum_kit.dart';
 import 'package:music/state/performance_scoring.dart';
+import 'package:music/state/play_sync_notifier.dart';
 import 'package:music/state/performance_scoring_core.dart';
 import 'package:music/state/player_data.dart';
 import 'package:music/state/player_notifier.dart';
@@ -104,6 +106,80 @@ Future<ProviderContainer> _pumpPlayer(WidgetTester tester) async {
   return container;
 }
 
+/// Records which submission path a finished run took (change:
+/// add-practice-focus-controls, design D7), so the decision is asserted on the
+/// **seam** rather than on the absence of something in the UI.
+///
+/// A hand double rather than a mockito mock: `PlaySyncNotifier` is a Riverpod
+/// notifier, so the override has to construct the generated base class — one of
+/// the documented exceptions in the `flutter-testing` skill.
+class _RecordingPlaySync extends PlaySyncNotifier {
+  _RecordingPlaySync(this._calls);
+
+  /// The test's own sink. Held privately: a notifier exposes its API through
+  /// `state`, and a public field here trips `avoid_public_notifier_properties`.
+  final List<String> _calls;
+
+  @override
+  int build() => 0;
+
+  @override
+  Future<void> captureSession(SessionResult result) async {
+    _calls.add('session');
+  }
+
+  @override
+  Future<void> capturePractice({String? scoreId}) async {
+    _calls.add('practice');
+  }
+}
+
+Future<({ProviderContainer container, List<String> calls})> _pumpPlayerWithSync(
+  WidgetTester tester,
+) async {
+  await tester.binding.setSurfaceSize(const Size(1400, 900));
+  final calls = <String>[];
+  final container = ProviderContainer(
+    overrides: [
+      scoreCatalogProvider.overrideWithValue(const [_entry]),
+      scoreAssetSourceProvider.overrideWithValue(FakeScoreAssetSource()),
+      notationEngineProvider.overrideWithValue(
+        FakeNotationEngine(document: sampleOpenGrooveDocument()),
+      ),
+      midiServiceProvider.overrideWithValue(FakeMidiService()),
+      scoreSourceProvider.overrideWithValue(FakeScoreSource()),
+      audioServiceProvider.overrideWithValue(RecordingAudioService()),
+      preferencesServiceProvider.overrideWithValue(FakePreferencesService()),
+      playSyncNotifierProvider.overrideWith(() => _RecordingPlaySync(calls)),
+    ],
+  );
+  container.read(selectedScoreProvider.notifier).select(_entry);
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: localizedApp(const PlayerScreen()),
+    ),
+  );
+  await _frames(tester, count: 12);
+  final validate = find.widgetWithText(FilledButton, 'Play');
+  if (validate.evaluate().isNotEmpty) {
+    await tester.tap(validate);
+    await _frames(tester, count: 6);
+  }
+  return (container: container, calls: calls);
+}
+
+/// Runs the loaded percussion score from the top to past its end, free-run, so
+/// the scorer finalises and the screen routes the result.
+Future<void> _runToEnd(WidgetTester tester, ProviderContainer c) async {
+  final player = c.read(playerProvider.notifier);
+  if (c.read(playerProvider).waitMode) player.toggleWaitMode();
+  player.setPlaying(true);
+  await _frames(tester, count: 4);
+  player.advance(c.read(playerProvider).scoredRunEndMs + 1000);
+  await _frames(tester, count: 8);
+}
+
 Future<void> _teardown(WidgetTester tester, ProviderContainer container) async {
   await tester.pumpWidget(const SizedBox());
   await tester.pump();
@@ -132,7 +208,7 @@ NoteJudgment _stroke(
 SessionResult _drumResult() => SessionResult.fromJudgments(
   pieceId: 'drums-ui',
   title: 'Groove ouvert',
-  hands: 'handsAndFeet',
+  hands: 'both',
   judgments: [
     _stroke(0, TimingVerdict.perfect, pitch: 42),
     _stroke(1, TimingVerdict.late, pitch: 38, startMs: 600),
@@ -346,7 +422,9 @@ void main() {
       expect(find.text('Tempo'), findsOneWidget);
       expect(find.text('Reaction'), findsNothing);
       // The selection is reported in the drummer's own vocabulary.
-      expect(find.textContaining('Hands and feet'), findsOneWidget);
+      // A percussion run reports the keyboard's `both` since the hands/feet
+      // reading was removed (change: add-practice-focus-controls).
+      expect(find.textContaining('Both hands'), findsOneWidget);
       // The explicit-choice contract is unchanged.
       expect(find.text('Replay mistakes'), findsOneWidget);
       expect(find.text('Retry'), findsOneWidget);
@@ -430,7 +508,7 @@ void main() {
                     SessionResult.fromJudgments(
                       pieceId: 'drums-ui',
                       title: 'Groove ouvert',
-                      hands: 'handsAndFeet',
+                      hands: 'both',
                       judgments: [
                         _stroke(0, TimingVerdict.perfect, pitch: 42),
                         _stroke(1, TimingVerdict.late, pitch: 38, startMs: 600),
@@ -479,6 +557,31 @@ void main() {
 
       await tester.tap(find.byIcon(Icons.close));
       await tester.pumpAndSettle();
+    });
+  });
+
+  group('a focus-restricted run is scored but not submitted (design D7)', () {
+    testWidgets('a full-kit run is submitted as a session', (tester) async {
+      final r = await _pumpPlayerWithSync(tester);
+      expect(r.container.read(playerProvider).isFocusRestrictedRun, isFalse);
+      await _runToEnd(tester, r.container);
+      expect(r.calls, ['session']);
+      await _teardown(tester, r.container);
+    });
+
+    testWidgets('a run with a piece muted is captured as practice instead', (
+      tester,
+    ) async {
+      final r = await _pumpPlayerWithSync(tester);
+      r.container.read(playerProvider.notifier).muteDrumPiece(kKickPieceId);
+      expect(r.container.read(playerProvider).isFocusRestrictedRun, isTrue);
+      await _runToEnd(tester, r.container);
+      // Never ranked — a clean groove with a piece muted is not the same
+      // achievement, and the boards carry the same piece id either way…
+      expect(r.calls, isNot(contains('session')));
+      // …but it still holds the streak: an isolation drill is practice.
+      expect(r.calls, ['practice']);
+      await _teardown(tester, r.container);
     });
   });
 }

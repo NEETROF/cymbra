@@ -381,7 +381,7 @@ int? laneIndexOf(List<DrumLane> lanes, int gm) {
 
 /// The piece identity standing for the kick pedal — the one named piece with
 /// no [_namedPieces] row, because it has no lane (it is the full-width bar).
-const String _kickPieceId = 'kick';
+const String kKickPieceId = 'kick';
 
 /// The **kit piece** a General MIDI percussion number denotes (change:
 /// add-drum-scoring) — the grain at which strokes are matched.
@@ -392,13 +392,13 @@ const String _kickPieceId = 'kick';
 /// still denotes the same physical piece and must still resolve to it. The
 /// table is the identity; the layout is a view of it.
 ///
-/// The kick's two numbers share [_kickPieceId] (one pedal); every named group
+/// The kick's two numbers share [kKickPieceId] (one pedal); every named group
 /// shares its l10n key (hi-hat {42, 46}, snare {37, 38, 40}, ride {51, 53, 59},
 /// each tom and each accent cymbal alone); anything else — the terminal
 /// bucket — is a piece of its own, keyed by its number, so it matches only
 /// itself.
 String drumPieceIdOf(int gm) {
-  if (kKickGmNumbers.contains(gm)) return _kickPieceId;
+  if (kKickGmNumbers.contains(gm)) return kKickPieceId;
   for (final piece in _namedPieces) {
     if (piece.gm.contains(gm)) return piece.key;
   }
@@ -563,3 +563,77 @@ bool spansMultipleVoices(Iterable<TimedNote> notes) {
 /// hi-hat lane — never a bar, never a lane of its own (open-versus-closed is
 /// a different number on the HAND stroke; no foot note exists in the file).
 bool isOpenHiHat(int gm) => gm == 46;
+
+// --- Per-piece practice focus (change: add-practice-focus-controls) ---------
+
+/// The piece identity of [lane] — the same identity [drumPieceIdOf] gives its
+/// members, read through the lane's emitted number.
+///
+/// Deliberately NOT a second notion of "one piece": a lane already holds only
+/// numbers that collapse onto one aim point, so any member answers the same,
+/// and routing through [emittedGmOfLane] picks the one member the lane is
+/// guaranteed to have.
+String drumPieceIdOfLane(DrumLane lane) => drumPieceIdOf(emittedGmOfLane(lane));
+
+/// The pieces of a loaded kit, in the order the pad strip draws them: the
+/// [lanes] as presented, then the kick pedal when the score writes one — pads
+/// band first, pedal band beneath, exactly as
+/// the pad-strip and cascade painters lay the strip out.
+///
+/// This is the list the focus control lists and the list "every piece" means
+/// when a selection is cleared. It is derived from the score's own kit, so a
+/// piece the file never writes is never offered.
+List<String> kitPieceIdsOf(List<DrumLane> lanes, {required bool hasKick}) => [
+  for (final lane in lanes) drumPieceIdOfLane(lane),
+  if (hasKick) kKickPieceId,
+];
+
+/// Whether the piece a General MIDI number denotes is **in focus** — i.e. not
+/// among [mutedPieceIds] (change: add-practice-focus-controls).
+///
+/// Keyed on the piece, never on the number, so the distinctions the kit model
+/// already collapsed stay collapsed: muting the hi-hat mutes the closed 42 and
+/// the open 46 together, because they are one pad on the instrument, and
+/// muting the snare takes the acoustic 38, the electric 40 and the side stick
+/// 37 with it.
+///
+/// The **complement** is stored (what is muted) rather than the focus set, so
+/// an unknown piece — a number the score never writes, reached by a stroke on
+/// free-play territory — reads as in focus. The other direction would silently
+/// filter out anything the kit model had not enumerated.
+bool isDrumPieceInFocus(int gm, Set<String> mutedPieceIds) =>
+    mutedPieceIds.isEmpty || !mutedPieceIds.contains(drumPieceIdOf(gm));
+
+/// The muted set after muting [pieceId] out of [all], honouring the
+/// empty-focus rule (design D2): muting the last piece in focus restores every
+/// piece rather than leaving a session that draws nothing, gates on nothing and
+/// judges nothing — a state indistinguishable from a broken score.
+Set<String> mutedAfterMuting(
+  Set<String> muted,
+  String pieceId,
+  List<String> all,
+) {
+  final next = {...muted, pieceId};
+  // Every piece of the kit muted ⇒ nothing in focus ⇒ restore everything.
+  return all.every(next.contains) ? const {} : next;
+}
+
+/// The muted set after **soloing** [pieceId] out of [all] (design D2): solo is
+/// the same one set, edited from the other side.
+///
+/// From "everything in focus" it isolates [pieceId]; from an existing
+/// selection it **adds** — soloing the snare after the hi-hat asks for both,
+/// which is what a drummer building up a groove means by isolating a second
+/// piece.
+Set<String> mutedAfterSoloing(
+  Set<String> muted,
+  String pieceId,
+  List<String> all,
+) =>
+    muted.isEmpty
+          ? {
+              for (final id in all)
+                if (id != pieceId) id,
+            }
+          : {...muted}
+      ..remove(pieceId);
