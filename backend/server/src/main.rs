@@ -255,7 +255,9 @@ async fn main() -> anyhow::Result<()> {
         if let (Some(customers), Some(rc)) =
             (&billing_channels.rc_customers, &billing_channels.revenuecat)
         {
-            g = g.with_store(customers.clone(), rc.allow_sandbox);
+            g = g
+                .with_store(customers.clone(), rc.allow_sandbox)
+                .with_aggregator_project(rc.project_id.clone());
         }
         if let Some(w) = &billing_channels.web {
             g = g.with_web(w.clone());

@@ -508,6 +508,9 @@ export function installE2EClients(): void {
           snapshot: snapshotOf(uid),
           rows: p.rows.map((r) => ({ ...r })),
           memberships: [...p.memberships],
+          // The server builds this deep link from its own project id (D5); the
+          // fake mirrors a configured aggregator so the link renders in e2e.
+          aggregatorCustomerUrl: `https://app.revenuecat.com/customers/proj-e2e/${uid}`,
         };
       },
       getPlansForAccounts: async (req: { userIds: string[] }) => {

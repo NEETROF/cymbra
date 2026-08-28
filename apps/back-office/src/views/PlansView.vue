@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { match } from "ts-pattern";
-import { type CampaignKind, isRevocableSource, membersCsv, revenueCatCustomerUrl, usePlansStore } from "@/stores/plans";
+import { type CampaignKind, isRevocableSource, membersCsv, usePlansStore } from "@/stores/plans";
 import { useRolesStore } from "@/stores/roles";
 import { useToastsStore } from "@/stores/toasts";
 import { saveTextAsFile } from "@/lib/download";
@@ -255,11 +255,9 @@ const membersVm = computed(() =>
     .with({ status: "error" }, ({ error }) => ({ loading: false, error, rows: [] as MembershipMsg[] }))
     .otherwise(() => ({ loading: true, error: null as string | null, rows: [] as MembershipMsg[] })),
 );
-/** The aggregator's customer page for the looked-up account (D5); `undefined`
- *  when `VITE_REVENUECAT_PROJECT_ID` is unset or nothing is looked up. */
-const revenueCatUrl = computed(() =>
-  revenueCatCustomerUrl(import.meta.env.VITE_REVENUECAT_PROJECT_ID, lookupVm.value.data?.userId),
-);
+/** The aggregator's customer page for the looked-up account (D5) — built by the
+ *  server, which owns the project id; empty when the aggregator is unconfigured. */
+const revenueCatUrl = computed(() => lookupVm.value.data?.aggregatorCustomerUrl || undefined);
 
 /** Best-effort handle for a member: the directory page (if loaded) or the last lookup. */
 function handleFor(userId: string): string | undefined {
