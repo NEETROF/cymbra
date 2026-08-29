@@ -130,6 +130,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<Measure> dco_decode_list_measure(dynamic raw);
 
   @protected
+  List<MidiMappingEntry> dco_decode_list_midi_mapping_entry(dynamic raw);
+
+  @protected
   List<NotationMeasure> dco_decode_list_notation_measure(dynamic raw);
 
   @protected
@@ -167,6 +170,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   MidiEventKind dco_decode_midi_event_kind(dynamic raw);
+
+  @protected
+  MidiMappingEntry dco_decode_midi_mapping_entry(dynamic raw);
 
   @protected
   NotationMeasure dco_decode_notation_measure(dynamic raw);
@@ -382,6 +388,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<Measure> sse_decode_list_measure(SseDeserializer deserializer);
 
   @protected
+  List<MidiMappingEntry> sse_decode_list_midi_mapping_entry(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<NotationMeasure> sse_decode_list_notation_measure(
     SseDeserializer deserializer,
   );
@@ -423,6 +434,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   MidiEventKind sse_decode_midi_event_kind(SseDeserializer deserializer);
+
+  @protected
+  MidiMappingEntry sse_decode_midi_mapping_entry(SseDeserializer deserializer);
 
   @protected
   NotationMeasure sse_decode_notation_measure(SseDeserializer deserializer);
@@ -677,6 +691,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_list_measure(List<Measure> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_midi_mapping_entry(
+    List<MidiMappingEntry> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_notation_measure(
     List<NotationMeasure> self,
     SseSerializer serializer,
@@ -729,6 +749,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_midi_event_kind(MidiEventKind self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_midi_mapping_entry(
+    MidiMappingEntry self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_notation_measure(

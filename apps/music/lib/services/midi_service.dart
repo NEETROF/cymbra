@@ -17,7 +17,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../src/rust/api/midi.dart' as midi_api;
 import '../src/rust/api/score.dart' as score_api;
-import '../src/rust/api/midi.dart' show MidiEcho, MidiEvent;
+import '../src/rust/api/midi.dart' show MidiEcho, MidiEvent, MidiMappingEntry;
 import '../src/rust/api/score.dart' show Score;
 
 part 'midi_service.g.dart';
@@ -58,6 +58,20 @@ abstract class MidiService {
   /// drives — the gate, the scorer, the surfaces — is unaffected: it still runs
   /// on the event the engine also streams over the bridge.
   void setEcho(MidiEcho mode);
+
+  /// Pushes the connected device's input mapping to the **engine** (change:
+  /// add-drum-input-calibration), as incoming number → General MIDI number.
+  ///
+  /// The engine sounds a live stroke from its own MIDI callback, before the
+  /// event crosses the bridge, so it cannot be corrected on the Dart side: it
+  /// has to hold the table too. The app owns the policy and pushes it on every
+  /// input that can change the answer; pushing is idempotent, and an empty
+  /// table is always safe — it is the identity.
+  ///
+  /// The engine applies this to what it *sounds* only. The raw number still
+  /// reaches this stream, because the monitor exists to show what the
+  /// instrument actually sent.
+  void setMapping(Map<int, int> table);
 }
 
 /// Source of the score to play. Separated from [MidiService] because it has a
@@ -110,6 +124,13 @@ class FrbMidiService implements MidiService {
 
   @override
   void setEcho(MidiEcho mode) => midi_api.setMidiEcho(mode: mode);
+
+  @override
+  void setMapping(Map<int, int> table) => midi_api.setMidiMapping(
+    entries: [
+      for (final e in table.entries) MidiMappingEntry(from: e.key, to: e.value),
+    ],
+  );
 }
 
 /// Production [ScoreSource] backed by the generated flutter_rust_bridge API.

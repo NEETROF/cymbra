@@ -14,7 +14,7 @@
 
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show setEquals;
+import 'package:flutter/foundation.dart' show mapEquals, setEquals;
 
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -28,6 +28,8 @@ import 'notation_notifier.dart';
 import 'performance_scoring.dart';
 import 'play_sync_notifier.dart';
 import 'practice_settings_store.dart';
+import 'drum_input_mapping.dart';
+import 'drum_input_mapping_notifier.dart';
 import 'drum_kit.dart';
 import 'player_data.dart';
 import 'score_font.dart';
@@ -85,6 +87,11 @@ class Player extends _$Player {
     // add-drum-audio-channel), and the engine's echo has to learn it at the
     // same instant the notifier would have.
     ref.listen(scoreFontProvider, (_, _) => _applyEcho());
+    // A calibration completing, an edited entry or a cleared device all change
+    // what the engine must translate (change: add-drum-input-calibration).
+    // Listened, not watched: this notifier must not rebuild — and reset the
+    // playhead — because a mapping was saved.
+    ref.listen(drumInputMappingStoreProvider, (_, _) => _applyMapping());
     ref.onDispose(() {
       _statusTimer?.cancel();
       _sub?.cancel();
@@ -167,6 +174,36 @@ class Player extends _$Player {
       // No engine (tests, a failed native load): the notifier keeps sounding
       // live notes itself, exactly as it did before this existed.
       _echo = MidiEcho.off;
+    }
+  }
+
+  /// The translation table last pushed to the engine (change:
+  /// add-drum-input-calibration). Null until the first push, so the engine is
+  /// always told once — even when the answer is "no mapping".
+  Map<int, int>? _pushedMapping;
+
+  /// Pushes the connected device's mapping to the engine, which sounds a live
+  /// stroke from its own MIDI callback and therefore has to translate it there.
+  ///
+  /// The same shape as [_applyEcho], for the same reason: the app owns the
+  /// policy — which device is connected, what it was calibrated to — and the
+  /// engine only applies it. Called on every input that can change the answer
+  /// (device change, calibration completing, an edited entry, leaving the
+  /// player), and idempotent, so over-calling is safe.
+  void _applyMapping() {
+    // `_mappingForDevice` already answers "identity on a keyboard score", so
+    // the engine is pushed exactly what this side applies — the two cannot
+    // drift, which is the whole point of there being one policy.
+    final table = _mappingForDevice().translationTable;
+    if (_pushedMapping != null && mapEquals(_pushedMapping, table)) return;
+    _pushedMapping = table;
+    try {
+      _midi.setMapping(table);
+    } catch (_) {
+      // No engine (tests, a failed native load): the notifier still translates
+      // on its own side, so what is scored stays correct — only the engine's
+      // echo would sound the raw number, and without an engine there is none.
+      _pushedMapping = const {};
     }
   }
 
@@ -445,6 +482,10 @@ class Player extends _$Player {
     );
     // A different family sounds a live note on a different channel.
     _applyEcho();
+    // …and it changes whether the device's mapping applies at all: a kit table
+    // is a statement about pieces, so it is inert on a keyboard score. This is
+    // also the first push, once `state` exists to name a device.
+    _applyMapping();
   }
 
   Future<void> _loadDemo() async {
@@ -489,14 +530,51 @@ class Player extends _$Player {
     );
   }
 
+  /// The one point a live MIDI event enters the app — and therefore the one
+  /// point its number is translated (change: add-drum-input-calibration,
+  /// design D2).
+  ///
+  /// Everything downstream keeps its General MIDI vocabulary and never learns
+  /// that a mapping exists: `noteOn` sounds it, `laneIndexOf` flashes it, the
+  /// gate opens on it and the scorer credits it, all on the translated number.
+  /// Four translations would be four chances for those answers to disagree
+  /// about what was just played, which is the failure this seam exists to make
+  /// impossible.
+  ///
+  /// The mapping is read per event rather than cached: it is a map lookup on a
+  /// table with at most a dozen entries, and the alternative — a cached copy
+  /// invalidated on device change, on calibration completing and on an edit —
+  /// is three more chances to serve a stale table.
   void _onMidi(MidiEvent event) {
+    final pitch = _mappingForDevice().translate(event.pitch);
     switch (event.kind) {
       case MidiEventKind.noteOn:
-        noteOn(event.pitch, source: NoteSource.midiDevice);
+        noteOn(pitch, source: NoteSource.midiDevice);
       case MidiEventKind.noteOff:
-        noteOff(event.pitch, source: NoteSource.midiDevice);
+        noteOff(pitch, source: NoteSource.midiDevice);
     }
   }
+
+  /// The mapping to apply to a live event right now: the connected device's
+  /// learned table on a **percussion** score, the identity everywhere else.
+  ///
+  /// Scoped to percussion deliberately. The table says "this pad is the snare",
+  /// which is a statement about kit pieces; applying it to a keyboard score
+  /// would bend that score's *pitches* — a drummer who calibrated their kit to
+  /// send 31 for the snare would find middle D transposed on the piano, for a
+  /// mapping that was never about pitch. The device may well be the same one
+  /// (a module that also has keys), so "is a kit connected" cannot answer this;
+  /// what the score asks for can.
+  ///
+  /// Read from the store directly rather than through
+  /// `activeDrumMappingProvider`, which resolves the port from
+  /// `midiStatusProvider` — this notifier already knows its own connected
+  /// device, and depending on that provider from here would close a cycle.
+  DrumInputMapping _mappingForDevice() => state.isPercussion
+      ? ref
+            .read(drumInputMappingStoreProvider.notifier)
+            .forPort(state.connectedDevice)
+      : DrumInputMapping.empty;
 
   void _refreshMidiStatus() {
     try {
@@ -505,7 +583,12 @@ class Player extends _$Player {
       if (ports.length != state.midiPorts.length ||
           !ports.every(state.midiPorts.contains) ||
           device != state.connectedDevice) {
+        final deviceChanged = device != state.connectedDevice;
         state = state.copyWith(midiPorts: ports, connectedDevice: device);
+        // A different kit is a different table (change:
+        // add-drum-input-calibration) — including "no kit", which is the
+        // identity. Hot-plug reaches here, so this covers it too.
+        if (deviceChanged) _applyMapping();
       }
     } catch (_) {
       // MIDI status unavailable; keep the previous state.

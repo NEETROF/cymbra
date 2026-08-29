@@ -637,3 +637,48 @@ Set<String> mutedAfterSoloing(
             }
           : {...muted}
       ..remove(pieceId);
+
+// --- Per-device input mapping (change: add-drum-input-calibration) ----------
+
+/// The **canonical** General MIDI number for a piece identity — the number the
+/// app reasons in once an incoming stroke has been translated.
+///
+/// The first member of the piece's canonical order (36 for the kick, 38 for the
+/// snare, 42 for the hi-hat…), which is the number a notation export and a
+/// factory drum map overwhelmingly use. Null for an identity the table does not
+/// know, so a mapping stored by a later build cannot break this one.
+int? canonicalGmOfPiece(String pieceId) {
+  if (pieceId == kKickPieceId) return kKickEmissionOrder.first;
+  for (final piece in _namedPieces) {
+    if (piece.key == pieceId) return piece.gm.first;
+  }
+  // A generic (terminal-bucket) piece is keyed by its own number.
+  if (pieceId.startsWith('gm:')) return int.tryParse(pieceId.substring(3));
+  return null;
+}
+
+/// The pieces a calibration pass asks for, in the order it asks — round the
+/// kit as a drummer sits at it: the two hands and the foot first (the pieces
+/// every groove has), then the toms high to low, then the cymbals.
+///
+/// The **fixed standard kit**, deliberately not the loaded score's
+/// (change: add-drum-input-calibration, design D7): a mapping describes a piece
+/// of hardware, not a piece of music, and calibrating from a groove that has no
+/// toms would leave a kit unable to map its toms at all. Every step is
+/// skippable, so a kit that lacks a piece costs one tap.
+const List<String> kCalibrationPieceOrder = [
+  kKickPieceId,
+  'kitPieceSnare',
+  'kitPieceHiHat',
+  'kitPieceTomHigh',
+  'kitPieceTomHiMid',
+  'kitPieceTomLowMid',
+  'kitPieceTomLow',
+  'kitPieceTomFloorHigh',
+  'kitPieceTomFloorLow',
+  'kitPieceRide',
+  'kitPieceCrash',
+  'kitPieceCrash2',
+  'kitPieceSplash',
+  'kitPieceChina',
+];

@@ -113,6 +113,32 @@ is already the snare's, the pass says so — because on a real kit that means th
 player hit the wrong pad, and quietly reassigning it would produce a mapping that
 is wrong in two places at once.
 
+### D7 — The pass calibrates a fixed standard kit, not the loaded score's
+
+*Settled during implementation (task 6.7).* A mapping describes a piece of
+hardware, not a piece of music: calibrating from a groove that has no toms would
+leave that kit unable to map its toms at all, and the player would have to find a
+score that happens to use every piece they own. The pass therefore offers
+`kCalibrationPieceOrder` — the named kit, round the way a drummer sits at it
+(kick, snare, hi-hat, toms high to low, then the cymbals) — and is reached from
+the settings rather than from a score. Every step is skippable, so a kit that
+lacks a piece costs one tap.
+
+### D8 — The mapping applies to percussion scores only
+
+*Found during implementation (task 5.5), and not in the original design.* The
+first version translated every live event, which is wrong: the table says "this
+pad is the snare", a statement about **kit pieces**. Applied to a keyboard score
+it would bend that score's *pitches* — a drummer who calibrated their kit to send
+31 for the snare would find a note transposed on the piano, for a table that was
+never about pitch.
+
+"Is a kit connected" cannot answer this — a module with keys is one device — but
+what the score asks for can. So the seam is identity on anything that is not a
+percussion score, and the engine is pushed exactly what the app applies, so the
+two cannot drift. A keyboard score with a calibrated kit connected is byte-
+identical to today, which is now asserted rather than assumed.
+
 ### D5 — The monitor shows raw and resolved side by side, and stays honest about silence
 
 Three facts per event, in decreasing rawness: the number as received, the number
@@ -166,7 +192,4 @@ designed against a real observed kit rather than a guessed one.
   screen reachable from it. The modal pauses playback while open, which is
   wrong for a surface whose whole purpose is watching live input — likely its
   own screen.
-- Whether the calibration pass should offer the pieces of the **loaded score's**
-  kit or a fixed standard kit. The score's kit is shorter and more relevant; a
-  fixed kit is calibrated once and serves every score. Leaning fixed standard
-  kit, offered from the settings rather than from a score.
+*Settled:* which pieces the pass offers (D7).

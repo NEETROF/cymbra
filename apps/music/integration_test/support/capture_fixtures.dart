@@ -292,6 +292,12 @@ class CaptureMidiService implements MidiService {
   @override
   void setEcho(MidiEcho mode) {}
 
+  /// No mapping is ever pushed for these captures: they drive a keyboard, and
+  /// an uncalibrated device is the identity (change:
+  /// add-drum-input-calibration).
+  @override
+  void setMapping(Map<int, int> table) {}
+
   /// Plays [pitch], as the instrument would.
   ///
   /// [channel] is reported, never enforced — the app's interpretation is

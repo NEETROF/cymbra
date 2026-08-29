@@ -21,6 +21,7 @@
 //! midir backends: CoreMIDI (macOS/iOS), ALSA (Linux), WinMM (Windows),
 //! AMidi via NDK (Android — the `JavaVM` is provided by `JNI_OnLoad`, see lib.rs).
 
+use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -30,7 +31,7 @@ use anyhow::Result;
 use flutter_rust_bridge::frb;
 use midir::{Ignore, MidiInput, MidiInputConnection};
 
-use super::audio_core::echo_event;
+use super::audio_core::{echo_event, mapped_pitch};
 use super::midi_core::{
     DuplicateGuard, MidiStreamParser, is_virtual_port, parse_midi, resolves_to_connected,
     sort_ports_virtual_last, stable_port_key,
@@ -38,6 +39,11 @@ use super::midi_core::{
 use crate::frb_generated::StreamSink;
 
 /// MIDI event type forwarded to Flutter.
+///
+/// `Copy` so the input callback can name the kind of the event it is echoing
+/// without consuming the one it still has to report (change:
+/// add-drum-input-calibration) — a fieldless enum, so it costs nothing.
+#[derive(Clone, Copy)]
 pub enum MidiEventKind {
     NoteOn,
     NoteOff,
@@ -129,6 +135,44 @@ pub fn set_midi_echo(mode: MidiEcho) {
         },
         Ordering::Relaxed,
     );
+}
+
+/// The connected device's input mapping: **incoming number → the General MIDI
+/// number the app reasons in** (change: add-drum-input-calibration).
+///
+/// A `Mutex` rather than the lock-free atomic the echo mode uses, because a
+/// table cannot be packed into one word — and it costs nothing new in the
+/// callback, which already locks `SINK` once per message. Empty by default, so
+/// an uncalibrated device (and every app that never pushes a table) behaves
+/// exactly as it did before this existed.
+static MAPPING: Mutex<BTreeMap<u8, u8>> = Mutex::new(BTreeMap::new());
+
+/// One learned translation: the number the instrument sends, and what it means.
+#[derive(Debug, Clone, Copy)]
+pub struct MidiMappingEntry {
+    /// The number as the instrument transmits it.
+    pub from: u8,
+    /// The General MIDI number the app reasons in.
+    pub to: u8,
+}
+
+/// Replaces the input mapping the engine applies to its own echo, and returns
+/// immediately. An empty list clears it.
+///
+/// The same shape as [`set_midi_echo`]: the **app owns the policy** — which
+/// device is connected, what it was calibrated to — and pushes it on every
+/// input that can change the answer. Idempotent, so over-calling is safe.
+///
+/// The engine applies this to what it *sounds*, never to what it *reports*: the
+/// raw number still reaches the bridge, because the input monitor exists to
+/// show a player what their instrument actually sends.
+#[frb(sync)]
+pub fn set_midi_mapping(entries: Vec<MidiMappingEntry>) {
+    let mut table = MAPPING.lock().unwrap();
+    table.clear();
+    for entry in entries {
+        table.insert(entry.from, entry.to);
+    }
 }
 
 /// The mode the input callback is running under.
@@ -406,7 +450,23 @@ fn try_connect(start: Instant) -> Result<()> {
                     // up on its next block, so what the player hears is the
                     // device plus the output buffer — not the UI isolate's
                     // schedule.
-                    if let Some(sound) = echo_event(midi_echo(), &event) {
+                    // The echo sounds the *translated* number (change:
+                    // add-drum-input-calibration): the app scores what the
+                    // mapping says was played, and an engine sounding the raw
+                    // number would answer "what did I just play" differently
+                    // from the rest of the app. The event that goes to the
+                    // bridge below is deliberately left RAW — the monitor's job
+                    // is showing what the instrument actually sent.
+                    // Locked and read in place — no allocation and no clone
+                    // in the input path; the guard drops on the same line.
+                    let sounded = MidiEvent {
+                        kind: event.kind,
+                        pitch: mapped_pitch(&MAPPING.lock().unwrap(), event.pitch),
+                        velocity: event.velocity,
+                        channel: event.channel,
+                        timestamp_ms: event.timestamp_ms,
+                    };
+                    if let Some(sound) = echo_event(midi_echo(), &sounded) {
                         super::audio::send(sound);
                     }
                     // Read the current sink each message: it may have been

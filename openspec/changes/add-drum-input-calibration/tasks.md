@@ -62,35 +62,40 @@
 
 ## 4. The mapping model (spec: `music-drum-input-mapping`)
 
-- [ ] 4.1 A pure `DrumInputMapping` value: piece → number, with the identity
+- [x] 4.1 A pure `DrumInputMapping` value: piece → number, with the identity
   translation for anything unmapped. `translate(int) -> int`, total and
   order-independent. Unit-tested, including that an empty mapping is exactly the
   identity
-- [ ] 4.2 Conflict detection as a pure predicate: a number already claimed by
+- [x] 4.2 Conflict detection as a pure predicate: a number already claimed by
   another piece. Tested against the reassignment case (the same piece being
   re-recorded is not a conflict with itself)
-- [ ] 4.3 Serialisation to/from the preferences store, keyed by port name; an
+- [x] 4.3 Serialisation to/from the preferences store, keyed by port name; an
   unreadable or absent value is "no mapping", never an error and never another
   device's mapping (spec: `local-preferences`)
 
 ## 5. One translation seam (D2)
 
-- [ ] 5.1 `player_notifier.dart`: translate a live event **once**, where it
+- [x] 5.1 `player_notifier.dart`: translate a live event **once**, where it
   enters, before anything interprets it. Nothing downstream learns the mapping
   exists — assert that by leaving every existing input test unchanged
-- [ ] 5.2 `api/midi.rs` + `audio_core.rs`: the engine holds the table (behind
+- [x] 5.2 `api/midi.rs` + `audio_core.rs`: the engine holds the table (behind
   the lock the echo mode already uses) and the MIDI callback translates before
   it echoes. Pure decision unit-tested in `audio_core.rs` beside `echo_event`
-- [ ] 5.3 `set_midi_mapping` on the bridge, plus `flutter_rust_bridge_codegen
+- [x] 5.3 `set_midi_mapping` on the bridge, plus `flutter_rust_bridge_codegen
   generate`. The app owns the policy and **pushes** it on every input that can
   change it — device change, calibration completing, an edited entry, leaving
   the player — idempotent, so over-calling is safe (the `_applyEcho` shape)
-- [ ] 5.4 Test source convergence under a mapping: the same physical stroke
+- [x] 5.4 Test source convergence under a mapping: the same physical stroke
   produces one interpretation across sound, flash, gate and score. Specifically
   assert the echo sounds the *translated* number — the failure D2 exists to
   prevent
-- [ ] 5.5 Test the no-mapping path is byte-identical to today for a percussion
-  score AND a keyboard score
+- [x] 5.5 Test the no-mapping path is byte-identical to today for a percussion
+  score AND a keyboard score — the keyboard half **found a bug**: the first
+  version translated every live event, so a calibrated kit transposed a piano
+  score's pitches. The seam is percussion-only now (design D8), and the engine is
+  pushed the same answer so the two cannot drift. The percussion half is asserted
+  by the 2019 pre-existing tests continuing to pass unchanged, which is also what
+  5.1 asks for
 
 ## 6. The calibration pass (spec: `music-drum-input-mapping`)
 
@@ -109,9 +114,11 @@
   instrument reaches the app at all)
 - [ ] 6.6 The calibration screen: one piece at a time, named and illustrated,
   with skip / back / abandon. Localised fr/en/es/it
-- [ ] 6.7 Which pieces to offer: the fixed standard kit rather than the loaded
+- [x] 6.7 Which pieces to offer: the fixed standard kit rather than the loaded
   score's (design open question — a mapping calibrated once should serve every
-  score). Settle and record the decision in `design.md`
+  score). Settle and record the decision in `design.md` — **settled as design
+  D7**: `kCalibrationPieceOrder` in `drum_kit.dart`, round the kit as a drummer
+  sits at it, reached from the settings rather than from a score
 - [ ] 6.8 Widget tests for the flow end to end: calibrate three pieces, skip one,
   complete, and assert the stored mapping is exactly what was played
 
