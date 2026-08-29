@@ -37,16 +37,29 @@ List<String> lockedFontIds(Iterable<RewardShopItemView> shop) => [
 /// the next connection after the plan lapses"): delete the local copies of
 /// premium SoundFonts no longer owned and the offline cache of CATALOG scores;
 /// keep own uploads' cache, imported fonts, points-redeemed pianos. Driven by the
-/// server's plan answer (the listener), never by the device clock alone.
+/// server's plan answer (the listener), never by the device clock alone — on ANY
+/// answer that says free, not only on an observed premium→free transition, so a
+/// lapse that happened while the app was closed is still withdrawn at the next
+/// connection (spec `music-premium-paywall`); [_doneForThisLapse] keeps it to one
+/// pass per free period.
 @Riverpod(keepAlive: true)
 class PlanWithdrawal extends _$PlanWithdrawal {
   @override
   int build() => 0; // number of withdrawals performed this session
 
-  /// Perform the withdrawal once; returns `true` when anything was removed or
-  /// the shop confirmed locked items. Best-effort: a failure is logged, never
-  /// surfaced raw.
+  /// A withdrawal already ran for the CURRENT free period. Cleared by
+  /// [armForNextLapse] when the server says premium again, so a later lapse
+  /// withdraws once more — and only once, however often the plan is re-read.
+  bool _doneForThisLapse = false;
+
+  /// The plan is premium again: arm the next lapse.
+  void armForNextLapse() => _doneForThisLapse = false;
+
+  /// Perform the withdrawal once per free period; returns `true` when anything
+  /// was removed. Best-effort: a failure is logged, never surfaced raw, and
+  /// leaves the lapse armed so the next plan answer retries.
   Future<bool> withdraw() async {
+    if (_doneForThisLapse) return false;
     var didSomething = false;
     try {
       // 1. Premium SoundFont files not owned any more (the shop, re-read now that
@@ -74,6 +87,7 @@ class PlanWithdrawal extends _$PlanWithdrawal {
       }
       // The shop re-reads itself on the plan change (it watches the plan), so
       // the picker's lock mirror follows without a sibling invalidation.
+      _doneForThisLapse = true; // only on a clean pass: a failure retries
     } catch (e) {
       debugPrint('plan withdrawal failed: $e');
     }
