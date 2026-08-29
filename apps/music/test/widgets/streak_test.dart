@@ -105,6 +105,17 @@ Widget _hostPill(StreakService service) => ProviderScope(
   ),
 );
 
+/// The same scope with no [StreakListener] — used to tear the listener's subtree
+/// down while its dialog is still on screen.
+Widget _hostBare(
+  StreakService service, {
+  PreferencesService? prefs,
+  DateTime Function()? now,
+}) => ProviderScope(
+  overrides: _overrides(service, prefs: prefs, now: now),
+  child: localizedApp(const Scaffold(body: SizedBox.shrink())),
+);
+
 Widget _hostListener(
   StreakService service, {
   PreferencesService? prefs,
@@ -232,12 +243,16 @@ void main() {
       verifyNever(service.recover());
     });
 
-    testWidgets('a break on a later day is asked about again', (tester) async {
-      // The decline is filed under the day it was made: it silences THIS offer,
-      // not every future one. (The grace window is one local day, so a standing
-      // offer never outlives its decline.)
+    testWidgets('the same offer is not re-asked on a later day', (
+      tester,
+    ) async {
+      // The beta report ("the popup comes back at every launch"): the decline
+      // was filed under the calendar day, on the reasoning that the grace window
+      // is one day wide — but that window is a back-office value, and a wider
+      // one re-asked the identical question every morning. It is filed against
+      // the offer now, so the standing break stays answered.
       final prefs = FakePreferencesService({
-        StreakRecoveryDecline.prefsKey: '2026-08-20',
+        StreakRecoveryDecline.prefsKey: '7', // the run _broken() would restore
       });
       final service = MockStreakService();
       when(service.getStreak()).thenAnswer((_) async => _broken());
@@ -250,7 +265,61 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      expect(find.byKey(const Key('streak-recover-dialog')), findsNothing);
+    });
+
+    testWidgets('a genuinely new break is asked about', (tester) async {
+      // The other side of the same rule: refusing one offer must not silence
+      // every future one.
+      final prefs = FakePreferencesService({
+        StreakRecoveryDecline.prefsKey: '7',
+      });
+      final service = MockStreakService();
+      when(service.getStreak()).thenAnswer(
+        (_) async => _streak(
+          current: 3,
+          playedToday: false,
+          recoverable: true,
+          recoverCost: 30,
+          recoverableStreak: 3,
+        ),
+      );
+      await tester.pumpWidget(_hostListener(service, prefs: prefs));
+      await tester.pumpAndSettle();
+
       expect(find.byKey(const Key('streak-recover-dialog')), findsOneWidget);
+    });
+
+    testWidgets('the refusal is recorded even if the listener goes away', (
+      tester,
+    ) async {
+      // The dialog outlives its listener: a route change, a rebuild, or the app
+      // being backgrounded and killed all tear the subtree down while the
+      // question is on screen. The refusal used to be written *after* a
+      // `mounted` check, so it was simply lost and asked again next launch.
+      final prefs = FakePreferencesService();
+      final service = MockStreakService();
+      when(service.getStreak()).thenAnswer((_) async => _broken());
+      await tester.pumpWidget(_hostListener(service, prefs: prefs));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('streak-recover-dialog')), findsOneWidget);
+
+      // The listener is gone; the dialog's own route is what answers.
+      final dialogContext = tester.element(
+        find.byKey(const Key('streak-recover-dismiss')),
+      );
+      await tester.pumpWidget(
+        _hostBare(service, prefs: prefs),
+        duration: Duration.zero,
+      );
+      Navigator.of(dialogContext).pop(false);
+      await tester.pumpAndSettle();
+
+      expect(
+        prefs.store[StreakRecoveryDecline.prefsKey],
+        '7',
+        reason: 'the answer survives the widget that collected it',
+      );
     });
 
     testWidgets('a refused recovery is reported without a raw error', (
@@ -365,7 +434,7 @@ void main() {
       expect(container.read(streakRecoveryOfferedProvider), isFalse);
     });
 
-    test('a decline made today withdraws the offer', () async {
+    test('a declined offer is withdrawn', () async {
       final service = MockStreakService();
       when(service.getStreak()).thenAnswer((_) async => _broken());
       final container = ProviderContainer(
@@ -377,14 +446,76 @@ void main() {
       await container.read(streakRecoveryDeclineProvider.future);
       expect(container.read(streakRecoveryOfferedProvider), isTrue);
 
-      await container
-          .read(streakRecoveryDeclineProvider.notifier)
-          .declineToday();
+      await container.read(streakRecoveryDeclineProvider.notifier).decline(7);
 
       expect(container.read(streakRecoveryOfferedProvider), isFalse);
       // The standing itself is untouched — the server still says it is
       // recoverable; only this device stopped asking.
       expect(container.read(streakProvider).requireValue.recoverable, isTrue);
+    });
+
+    test('the refusal outlives the day it was made on', () async {
+      // The beta report: the question came back at every launch. The decline was
+      // filed under the calendar day, so a grace window wider than one day
+      // re-asked the very same question every morning.
+      final service = MockStreakService();
+      when(service.getStreak()).thenAnswer((_) async => _broken());
+      // One device: the same storage across both launches.
+      final prefs = FakePreferencesService();
+      final container = ProviderContainer(
+        overrides: _overrides(
+          service,
+          prefs: prefs,
+          now: () => DateTime(2026, 8, 23, 9),
+        ),
+      );
+      addTearDown(container.dispose);
+      await container.read(streakProvider.future);
+      await container.read(streakRecoveryDeclineProvider.future);
+      await container.read(streakRecoveryDeclineProvider.notifier).decline(7);
+      expect(container.read(streakRecoveryOfferedProvider), isFalse);
+
+      // A fresh launch, days later, on the SAME unresolved break: the recorded
+      // refusal is read back from storage and still stands.
+      final later = ProviderContainer(
+        overrides: _overrides(
+          service,
+          prefs: prefs,
+          now: () => DateTime(2026, 8, 26, 9),
+        ),
+      );
+      addTearDown(later.dispose);
+      await later.read(streakProvider.future);
+      await later.read(streakRecoveryDeclineProvider.future);
+      expect(
+        later.read(streakRecoveryOfferedProvider),
+        isFalse,
+        reason: 'saying no ends the question, not just today\'s instance',
+      );
+    });
+
+    test('a different break is a different question, and is asked', () async {
+      final service = MockStreakService();
+      when(service.getStreak()).thenAnswer(
+        (_) async => _streak(
+          current: 3,
+          playedToday: false,
+          recoverable: true,
+          recoverCost: 30,
+          recoverableStreak: 3,
+        ),
+      );
+      final container = ProviderContainer(overrides: _overrides(service));
+      addTearDown(container.dispose);
+      await container.read(streakProvider.future);
+      await container.read(streakRecoveryDeclineProvider.future);
+      // A refusal recorded against an earlier, longer run.
+      await container.read(streakRecoveryDeclineProvider.notifier).decline(7);
+      expect(
+        container.read(streakRecoveryOfferedProvider),
+        isTrue,
+        reason: 'a new break the user has not answered yet is offered',
+      );
     });
 
     test('no offer is derived before the decline has been read', () async {
@@ -399,7 +530,7 @@ void main() {
       await container.read(streakProvider.future);
       expect(
         container.read(streakRecoveryDeclineProvider),
-        isA<AsyncLoading<String?>>(),
+        isA<AsyncLoading<int?>>(),
       );
       expect(container.read(streakRecoveryOfferedProvider), isFalse);
     });

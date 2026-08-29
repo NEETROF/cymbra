@@ -167,9 +167,10 @@ void main() {
     tester,
   ) async {
     // The tour points at the SAME controls, but three of them mean something
-    // else here: the sound is a kit, the device is an e-kit, and the selector
-    // splits hands from FEET. A first-time drummer was reading "right hand,
-    // left hand" over a control labelled "Feet / Hands / Both".
+    // else here: the sound is a kit, the device is an e-kit, and step 3 is the
+    // per-piece focus list rather than the hand selector (change:
+    // add-practice-focus-controls). A first-time drummer was reading "right
+    // hand, left hand" over a control that is not there at all.
     final prefs = FakePreferencesService();
     final container = await _pumpPlayer(
       tester,
@@ -185,7 +186,7 @@ void main() {
     expect(find.text('Your connected instrument'), findsOneWidget);
     await tester.tap(find.text('Next'));
     await _frames(tester);
-    expect(find.text('Hands, feet, or both'), findsOneWidget);
+    expect(find.text('Practise piece by piece'), findsOneWidget);
     expect(find.text('Right hand, left hand, or both'), findsNothing);
     await tester.tap(find.text('Next'));
     await _frames(tester);

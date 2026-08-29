@@ -23,6 +23,7 @@ import 'package:music/painters/staff_hit_index.dart';
 import 'package:music/painters/staff_painter.dart';
 import 'package:music/src/rust/api/musicxml.dart' show HeadClass;
 import 'package:music/state/notation_playback.dart';
+import 'package:music/state/drum_kit.dart';
 import 'package:music/state/player_data.dart';
 
 import '../support/notation_fakes.dart';
@@ -276,17 +277,18 @@ void main() {
     );
   });
 
-  test('the hands filter hides foot events without touching the staff '
+  test('the focus filter hides a muted piece without touching the staff '
       'furniture', () async {
     final derived = notationToTimedNotes(sampleOpenGrooveDocument());
-    // The player's own filter model: hands (right) selected on a percussion
-    // score — the painter receives what the player would pass it.
+    // The player's own filter model: the kick muted on a percussion score —
+    // the painter receives what the player would pass it (change:
+    // add-practice-focus-controls).
     final player = PlayerData(
       notes: derived.notes,
       rests: derived.rests,
       tieContinuations: derived.tieContinuations,
       isPercussion: true,
-      selectedHands: Hand.right,
+      mutedDrumPieces: const {kKickPieceId},
     );
     final r = paintStaff(
       derived: derived,

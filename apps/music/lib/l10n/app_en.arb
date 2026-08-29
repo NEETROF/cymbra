@@ -1,5 +1,66 @@
 {
   "@@locale": "en",
+  "midiMonitorTitle": "MIDI monitor",
+  "@midiMonitorTitle": {
+      "description": "Title of the live MIDI input read-out."
+  },
+  "midiMonitorHint": "Play something. Each stroke shows the note number your instrument sent, and what the app made of it.",
+  "@midiMonitorHint": {
+      "description": "One line telling the player what the monitor shows."
+  },
+  "midiMonitorClear": "Clear",
+  "@midiMonitorClear": {
+      "description": "Empties the monitor so the next stroke is the only entry."
+  },
+  "midiMonitorWaiting": "Waiting for your first note…",
+  "@midiMonitorWaiting": {
+      "description": "Shown while a device is connected but nothing has been played."
+  },
+  "midiMonitorNoDevice": "No MIDI device is connected. Plug your instrument in and it will appear here.",
+  "@midiMonitorNoDevice": {
+      "description": "Shown when no MIDI device is connected."
+  },
+  "midiMonitorEventDetail": "Velocity {velocity} · Channel {channel}",
+  "@midiMonitorEventDetail": {
+      "description": "Secondary line of a monitor row: velocity and 1-based channel.",
+      "placeholders": {
+          "velocity": {
+              "type": "int"
+          },
+          "channel": {
+              "type": "int"
+          }
+      }
+  },
+  "midiMonitorOutsideKit": "{name} — not in this score",
+  "@midiMonitorOutsideKit": {
+      "description": "A known percussion instrument the loaded score does not use.",
+      "placeholders": {
+          "name": {
+              "type": "String"
+          }
+      }
+  },
+  "midiMonitorOutsideMap": "Unknown to the app (outside {low}–{high})",
+  "@midiMonitorOutsideMap": {
+      "description": "A number outside the General MIDI percussion map.",
+      "placeholders": {
+          "low": {
+              "type": "int"
+          },
+          "high": {
+              "type": "int"
+          }
+      }
+  },
+  "midiMonitorOpen": "Open the MIDI monitor",
+  "@midiMonitorOpen": {
+      "description": "Settings action that opens the MIDI monitor."
+  },
+  "midiMonitorOpenHint": "See the note numbers your instrument actually sends.",
+  "@midiMonitorOpenHint": {
+      "description": "Explains what the MIDI monitor is for."
+  },
   "nowPlaying": "Now Playing: {title}",
   "@nowPlaying": {
     "description": "Player top-bar subtitle showing the current score title.",
@@ -703,7 +764,7 @@
   "@summaryRetry": {
     "description": "Summary: retry button."
   },
-  "summaryHands": "{hands, select, left{Left hand} right{Right hand} both{Both hands} hands{Hands} feet{Feet} handsAndFeet{Hands and feet} other{Both hands}}",
+  "summaryHands": "{hands, select, left{Left hand} right{Right hand} both{Both hands} other{Both hands}}",
   "@summaryHands": {
     "placeholders": {
       "hands": {
@@ -2813,6 +2874,22 @@
   "@instrumentSoundsItselfUnavailable": {
     "description": "Reason shown while the instrument-sounds-itself toggle is disabled."
   },
+  "scoreAudioMutedTitle": "Mute the written part",
+  "@scoreAudioMutedTitle": {
+    "description": "Setting that stops the app sounding the written score."
+  },
+  "scoreAudioMutedBody": "The app stops playing the notes it is asking for. The score is still shown, still waited for and still scored, and the metronome still clicks.",
+  "@scoreAudioMutedBody": {
+    "description": "Explains the written-score mute: only the score audio stops."
+  },
+  "scoreAudioMuteTooltip": "Mute the written part",
+  "@scoreAudioMuteTooltip": {
+    "description": "Transport button that silences the written score."
+  },
+  "scoreAudioUnmuteTooltip": "Play the written part",
+  "@scoreAudioUnmuteTooltip": {
+    "description": "Transport button that restores the written score audio."
+  },
   "outputOffsetTitle": "Audio delay compensation",
   "@outputOffsetTitle": {
     "description": "Setting that shifts the playhead and scoring to match a delayed output."
@@ -3283,14 +3360,6 @@
   "@libraryQuotaUpsell": {
     "description": "Refusal when a private library / upload quota is reached and a higher plan raises it."
   },
-  "handHands": "Hands",
-  "@handHands": {
-    "description": "Percussion hand selector: the hand-struck events (add-drum-kit-view)."
-  },
-  "handFeet": "Feet",
-  "@handFeet": {
-    "description": "Percussion hand selector: the foot-struck events (add-drum-kit-view)."
-  },
   "invertedKitTitle": "Kit layout",
   "@invertedKitTitle": {
     "description": "Settings section title for the inverted-kit layout (add-drum-kit-view)."
@@ -3317,6 +3386,130 @@
   "kitPieceSplash": "Splash",
   "kitPieceChina": "China",
   "kitPieceKick": "Kick",
+  "drumFocusTitle": "Pieces practised",
+  "@drumFocusTitle": {
+    "description": "Per-piece practice focus section title (add-practice-focus-controls). Replaces the hands/feet selector on percussion."
+  },
+  "drumFocusHint": "Unchecked pieces are not drawn, not awaited and not scored — you can still hit them and hear them.",
+  "@drumFocusHint": {
+    "description": "Explains that focus states what is ASKED of the player, never what the player hears from their own kit."
+  },
+  "drumFocusSolo": "Solo",
+  "@drumFocusSolo": {
+    "description": "Row action isolating one kit piece; soloing a second piece adds it to the selection."
+  },
+  "drumFocusAll": "Whole kit",
+  "@drumFocusAll": {
+    "description": "Clears the focus selection and puts every piece back in focus."
+  },
+  "calibrationTitle": "Calibrate your kit",
+  "@calibrationTitle": {
+    "description": "Guided pass that learns which note number each pad of an electronic kit sends (add-drum-input-calibration)."
+  },
+  "calibrationOpen": "Calibrate this kit",
+  "@calibrationOpen": {
+    "description": "Entry point in the MIDI settings section."
+  },
+  "calibrationOpenHint": "Play each drum once so the app learns what your pads send.",
+  "@calibrationOpenHint": {
+    "description": "Sub-label under the entry point."
+  },
+  "calibrationPrompt": "Hit your {piece}",
+  "@calibrationPrompt": {
+    "description": "The instruction for the current step. {piece} is a localised kit piece name, capitalised as a standalone label — so languages whose possessive agrees in gender (fr, it) use a neutral construction rather than \"your\".",
+    "placeholders": { "piece": { "type": "String" } }
+  },
+  "calibrationStepOf": "Piece {step} of {total}",
+  "@calibrationStepOf": {
+    "description": "Progress within the pass.",
+    "placeholders": { "step": { "type": "int" }, "total": { "type": "int" } }
+  },
+  "calibrationWaiting": "Waiting for a stroke…",
+  "@calibrationWaiting": {
+    "description": "Shown while a step is armed and no fresh stroke has arrived."
+  },
+  "calibrationRecorded": "Recorded note {number}",
+  "@calibrationRecorded": {
+    "description": "Confirmation that the previous step learned a number.",
+    "placeholders": { "number": { "type": "int" } }
+  },
+  "calibrationSkip": "This kit has none",
+  "@calibrationSkip": {
+    "description": "Skips the current piece. A kit without that drum must be able to pass rather than invent one."
+  },
+  "calibrationBack": "Back",
+  "@calibrationBack": {
+    "description": "Returns to the previous piece and forgets what it had learned."
+  },
+  "calibrationAbandon": "Stop",
+  "@calibrationAbandon": {
+    "description": "Leaves the pass. Nothing is stored — the previous mapping stands."
+  },
+  "calibrationConflict": "That is already your {piece}",
+  "@calibrationConflict": {
+    "description": "A number the pass already recorded for another piece. Surfaced, never resolved silently: on a real kit it usually means the wrong pad was struck.",
+    "placeholders": { "piece": { "type": "String" } }
+  },
+  "calibrationStrikeAgain": "Hit again",
+  "@calibrationStrikeAgain": {
+    "description": "Dismisses a conflict and waits for another stroke — the common answer."
+  },
+  "calibrationReassign": "Use it here instead",
+  "@calibrationReassign": {
+    "description": "Resolves a conflict by moving the number to the current piece; the piece that held it loses its entry."
+  },
+  "calibrationDoneTitle": "Kit calibrated",
+  "@calibrationDoneTitle": {
+    "description": "Shown when the pass completes — the only outcome that is stored."
+  },
+  "calibrationDoneBody": "{count, plural, =0{No pads were recorded, so this kit is left uncalibrated.} =1{One pad learned. Your kit now sounds and scores the way you play it.} other{{count} pads learned. Your kit now sounds and scores the way you play it.}}",
+  "@calibrationDoneBody": {
+    "description": "Result summary.",
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "calibrationDoneClose": "Done",
+  "@calibrationDoneClose": {
+    "description": "Closes the finished pass."
+  },
+  "calibrationRestart": "Start over",
+  "@calibrationRestart": {
+    "description": "Runs the pass again from the first piece."
+  },
+  "calibrationNoDevice": "Connect your kit first — there is nothing to calibrate without it.",
+  "@calibrationNoDevice": {
+    "description": "The pass needs a connected device to store a mapping against."
+  },
+  "calibrationMappingTitle": "What your pads send",
+  "@calibrationMappingTitle": {
+    "description": "The review table of the stored mapping."
+  },
+  "calibrationMappingEmpty": "This kit is not calibrated. Every note is read exactly as it arrives.",
+  "@calibrationMappingEmpty": {
+    "description": "Empty state of the review table — which is also the uncalibrated behaviour."
+  },
+  "calibrationMappingRow": "sends {number}, read as {standard}",
+  "@calibrationMappingRow": {
+    "description": "One row of the review table: the number the device sends and the General MIDI number it is read as.",
+    "placeholders": { "number": { "type": "int" }, "standard": { "type": "int" } }
+  },
+  "calibrationMappingWouldMean": "{number} normally means {name}",
+  "@calibrationMappingWouldMean": {
+    "description": "What the sent number would have meant on the standard map, so a wrong entry is visible.",
+    "placeholders": { "number": { "type": "int" }, "name": { "type": "String" } }
+  },
+  "calibrationClearPiece": "Clear",
+  "@calibrationClearPiece": {
+    "description": "Removes one piece's entry without re-running the pass."
+  },
+  "calibrationClearAll": "Clear this kit's calibration",
+  "@calibrationClearAll": {
+    "description": "Returns the device to uncalibrated behaviour."
+  },
+  "midiMonitorTranslated": "your {raw} → read as {mapped}",
+  "@midiMonitorTranslated": {
+    "description": "Shown when this device's calibration changed a stroke's meaning, so a wrong mapping is as visible as a missing one (add-drum-input-calibration).",
+    "placeholders": { "raw": { "type": "int" }, "mapped": { "type": "int" } }
+  },
   "instrumentChoiceTitle": "What would you like to start with?",
   "@instrumentChoiceTitle": {
     "description": "One-time instrument choice modal title (add-instrument-context). A CHOICE, never an unlock."
@@ -3379,12 +3572,12 @@
   "@coachPlayerMidiDrumsBody": {
     "description": "Guided step 2 body on a percussion score (an e-kit, not a MIDI keyboard)."
   },
-  "coachPlayerLimbsTitle": "Hands, feet, or both",
-  "@coachPlayerLimbsTitle": {
-    "description": "Guided step 3 title on a percussion score: the hands/feet selector."
+  "coachPlayerFocusTitle": "Practise piece by piece",
+  "@coachPlayerFocusTitle": {
+    "description": "Guided step 3 title on a percussion score: the per-piece focus control (add-practice-focus-controls)."
   },
-  "coachPlayerLimbsBody": "Work the hands alone, then the feet, then put them together. Only the limbs you choose are asked of you.",
-  "@coachPlayerLimbsBody": {
-    "description": "Guided step 3 body on a percussion score."
+  "coachPlayerFocusBody": "Uncheck what you are not working on. The kit shows and asks for the rest — and the pieces you unchecked still sound when you hit them.",
+  "@coachPlayerFocusBody": {
+    "description": "Guided step 3 body on a percussion score. States the input rule too: focus never filters what the player hears."
   }
 }

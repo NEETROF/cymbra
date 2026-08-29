@@ -133,3 +133,36 @@ nobody owned.
       the per-timezone decision stays in the core). `standing()` reads the balance on
       `is_broken` rather than `at_risk`, which the narrowing would otherwise have
       priced as unaffordable.
+
+## 10. Beta feedback (2026-08-27): the offer that came back anyway
+
+The drum beta's tester reported the recovery question returning "at every
+launch" on a build that already carried §9. Two holes, both in *how long a "no"
+lasts* rather than in whether it is recorded at all.
+
+- [x] 10.1 `streak_listener.dart`: the refusal is recorded **before** the
+  `mounted` check, not after. `ref.read` of the decline notifier is hoisted above
+  the `showDialog` await, so backgrounding the app with the question on screen —
+  or any rebuild that takes the subtree down — no longer loses the answer. The
+  `mounted` guard stays where it is still needed (the confirm path, which
+  reads other providers). Widget-tested by tearing the listener's subtree down
+  while the dialog is up and popping the dialog's own route; the test fails
+  against the previous ordering
+- [x] 10.2 `streak_notifier.dart`: the decline is keyed to the **offer**
+  (`recoverableStreak`), not to the local calendar day. §9 filed it under the day
+  on the reasoning that the grace window is one day wide, so a second question
+  could only be a second break — but `streak.grace_days` is a back-office value,
+  and a wider one re-asks the identical question every morning. A recovery offer
+  only exists while the user has not played since the break, so the run it would
+  restore identifies it for its whole life. New prefs key
+  (`streak_recovery_declined_run`), so a stored day string is never read back as
+  a run count: an upgrading device has no recorded decline and is asked once
+- [x] 10.3 Tests both ways: the same standing break stays answered across a
+  later launch, and a genuinely different break is still asked about (notifier
+  and widget level)
+- [ ] 10.4 Back office: read `streak.grace_days` in production. If it is wider
+  than the default `1`, the daily re-ask was legitimate behaviour under the old
+  key and 10.2 is what fixes it; if it is `1`, 10.1 was the whole story. Record
+  the value here either way
+- [ ] 10.5 On-device with the tester: refuse the offer, force-quit, relaunch —
+  the question is gone and stays gone

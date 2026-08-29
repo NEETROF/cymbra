@@ -21,6 +21,8 @@ import 'package:music/services/private_soundfont_service.dart';
 import 'package:music/services/soundfont_catalog_service.dart';
 import 'package:music/services/soundfont_importer.dart';
 import 'package:music/services/soundfont_source.dart';
+import 'package:music/state/drum_input_mapping.dart';
+import 'package:music/state/drum_input_mapping_notifier.dart';
 import 'package:music/state/drum_kit.dart';
 import 'package:music/state/notation_data.dart';
 import 'package:music/state/notation_notifier.dart';
@@ -356,24 +358,28 @@ void main() {
       expect(data().activeNotes, contains(49));
     });
 
-    test('hand selection never suppresses input: a kick still sounds and '
-        'flashes the pedal during hands-only practice', () async {
+    test('focus never suppresses input: a muted piece still sounds and '
+        'flashes its surface', () async {
       await build();
       await readyKit();
-      player().setSelectedHands(Hand.right); // hands only
-      // The filter is presentation-only: the foot events are gone from the
-      // cascade…
+      player().muteDrumPiece(kKickPieceId);
+      // The filter is presentation-only: the kick is gone from the cascade…
       expect(
         data().visibleNotes.any((n) => kKickGmNumbers.contains(n.pitch)),
         isFalse,
       );
-      // …while the pedal is still there to play, and still answers.
+      // …while the pedal is still there to play, and still answers. The pedal
+      // is read from `notes`, never `visibleNotes`, precisely so that focus
+      // cannot take a controller surface away.
+      expect(data().hasKickPedal, isTrue);
       player().noteOn(36);
       expect(audio.drumOns.map((e) => e.key), [36]);
       expect(data().struckSurfacesMs.keys, [kPedalSurface]);
 
-      // And the reverse: a hand stroke during feet-only practice.
-      player().setSelectedHands(Hand.left);
+      // And the reverse: a hand stroke while only the kick is asked for.
+      player()
+        ..clearDrumFocus()
+        ..soloDrumPiece(kKickPieceId);
       player().noteOn(38);
       expect(audio.drumOns.map((e) => e.key), [36, 38]);
       expect(
@@ -464,6 +470,134 @@ void main() {
       player().noteOn(60);
       player().advance(100);
       expect(container.read(performanceScorerProvider).active, isTrue);
+    });
+  });
+
+  // The one translation seam (change: add-drum-input-calibration, design D2).
+  // The beta report's shape: a module sending 31 where the app expects a snare,
+  // so the stroke is inaudible AND invisible — no sound, no flash, no gate
+  // release, no credit. After calibrating, all four must answer together.
+  group('the input mapping translates once, on the way in', () {
+    /// Calibrates the connected kit so it sends 31 for the snare and 12 for the
+    /// kick — numbers outside the General MIDI percussion map, which is what a
+    /// reassigned pad actually looks like.
+    void calibrate() => container
+        .read(drumInputMappingStoreProvider.notifier)
+        .save(
+          'Kit',
+          DrumInputMapping(const {'kitPieceSnare': 31, kKickPieceId: 12}),
+        );
+
+    test('an uncalibrated device is byte-identical to today', () async {
+      await build();
+      await readyKit();
+      // The engine is told there is no table…
+      expect(midi.mapping, isEmpty);
+      // …and every number is interpreted exactly as it arrives.
+      midi.emit(noteOnEvent(38));
+      await _flush();
+      expect(audio.drumOns.map((e) => e.key), [38]);
+      expect(data().struckSurfacesMs.keys, [laneIndexOf(data().drumLanes, 38)]);
+    });
+
+    test('a keyboard score is untouched by a mapping', () async {
+      await build(percussion: false);
+      calibrate();
+      await _flush();
+      midi.emit(noteOnEvent(31));
+      await _flush();
+      // 31 is the snare on this KIT — but this is a piano, and the mapping is
+      // a statement about kit pieces. Applying it here would transpose the
+      // score's pitches for a table that was never about pitch.
+      expect(audio.calls.where((c) => c.startsWith('on:')), ['on:31']);
+      // …and the engine is told the same thing, so it cannot echo a
+      // transposed note while the app scores the written one.
+      expect(midi.mapping, isEmpty);
+    });
+
+    test('a mapped stroke sounds, flashes and gates as its piece', () async {
+      await build();
+      await readyKit();
+      calibrate();
+      await _flush();
+
+      midi.emit(noteOnEvent(31));
+      await _flush();
+      // Sound: the engine echoed the TRANSLATED number — the failure D2 exists
+      // to prevent is the engine sounding 31 while the app scores 38.
+      expect(audio.drumOns.map((e) => e.key), [38]);
+      // Flash: the snare's pad, resolved from the same translated number.
+      expect(data().struckSurfacesMs.keys, [laneIndexOf(data().drumLanes, 38)]);
+      // Gate: the stroke is stamped on the snare's surface, so the onset it
+      // can open is the snare's — the same resolution the flash used.
+      expect(data().strokeAtMs.keys, [laneIndexOf(data().drumLanes, 38)]);
+    });
+
+    test('the kick translates to the pedal, not to a pad', () async {
+      await build();
+      await readyKit();
+      calibrate();
+      await _flush();
+      midi.emit(noteOnEvent(12));
+      await _flush();
+      expect(audio.drumOns.map((e) => e.key), [36]);
+      expect(data().struckSurfacesMs.keys, [kPedalSurface]);
+    });
+
+    test('numbers the table does not cover still pass through', () async {
+      await build();
+      await readyKit();
+      calibrate();
+      await _flush();
+      // The hi-hat was never calibrated: it arrives on the standard 42 and is
+      // interpreted as 42, exactly as on an uncalibrated device.
+      midi.emit(noteOnEvent(42));
+      await _flush();
+      expect(audio.drumOns.map((e) => e.key), [42]);
+    });
+
+    test('the engine is pushed the table, and pushed it once', () async {
+      await build();
+      await readyKit();
+      final before = midi.mappings.length;
+      calibrate();
+      await _flush();
+      expect(midi.mapping, {31: 38, 12: 36});
+      // Idempotent: saving the same table again pushes nothing new.
+      final after = midi.mappings.length;
+      calibrate();
+      await _flush();
+      expect(midi.mappings.length, after);
+      expect(after, greaterThan(before));
+    });
+
+    test('clearing the device returns it to uncalibrated behaviour', () async {
+      await build();
+      await readyKit();
+      calibrate();
+      await _flush();
+      container.read(drumInputMappingStoreProvider.notifier).clear('Kit');
+      await _flush();
+      expect(midi.mapping, isEmpty);
+      midi.emit(noteOnEvent(31));
+      await _flush();
+      // 31 means 31 again — and 31 is outside the map, so it is inert, which
+      // is precisely the state the player was in before calibrating.
+      expect(audio.drumOns.map((e) => e.key), [31]);
+      expect(data().struckSurfacesMs, isEmpty);
+    });
+
+    test('another device\'s mapping is never applied', () async {
+      await build();
+      await readyKit();
+      container
+          .read(drumInputMappingStoreProvider.notifier)
+          .save('Other kit', DrumInputMapping(const {'kitPieceSnare': 31}));
+      await _flush();
+      expect(midi.mapping, isEmpty);
+      midi.emit(noteOnEvent(31));
+      await _flush();
+      expect(audio.drumOns.map((e) => e.key), [31]);
     });
   });
 }

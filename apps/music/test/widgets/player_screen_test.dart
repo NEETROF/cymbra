@@ -395,6 +395,49 @@ void main() {
     await teardownScreen(tester);
   });
 
+  group('written-part mute', () {
+    testWidgets('toggles from the top bar without stopping the run', (
+      tester,
+    ) async {
+      // The control a drummer reaches for mid-pass: it must take effect where
+      // the player already is, and must not pause or restart anything.
+      await pumpScreen(tester);
+      notifier().setPlaying(true);
+      await tester.pump();
+      expect(state().scoreAudioMuted, isFalse);
+      expect(state().isPlaying, isTrue);
+
+      await tester.tap(find.byKey(const Key('score-mute-button')));
+      await tester.pump();
+
+      expect(state().scoreAudioMuted, isTrue);
+      expect(
+        state().isPlaying,
+        isTrue,
+        reason: 'silencing the part is not pausing the session',
+      );
+      await teardownScreen(tester);
+    });
+
+    testWidgets('its state is visible, so silence never reads as broken', (
+      tester,
+    ) async {
+      await pumpScreen(tester);
+      Icon icon() => tester.widget<Icon>(
+        find.descendant(
+          of: find.byKey(const Key('score-mute-button')),
+          matching: find.byType(Icon),
+        ),
+      );
+      final sounding = icon().icon;
+      await tester.tap(find.byKey(const Key('score-mute-button')));
+      await tester.pump();
+      expect(icon().icon, isNot(sounding));
+      expect(icon().color, CymbraColors.secondary);
+      await teardownScreen(tester);
+    });
+  });
+
   testWidgets('a narrow, short desktop window lays out without overflow', (
     tester,
   ) async {
@@ -723,6 +766,21 @@ void main() {
         });
       },
     );
+
+    testWidgets('the written-part mute survives the narrowest phone', (
+      tester,
+    ) async {
+      // The transport rail already fills a phone-landscape viewport to the
+      // pixel — an eighth control overflows it — which is why this one lives in
+      // the top-bar cluster, where the whole trailing block scales down. Assert
+      // it is still reachable exactly where the room is scarcest.
+      await onMobile(tester, () async {
+        await pumpAt(tester, smallPhone);
+        expect(tester.takeException(), isNull);
+        expect(find.byKey(const Key('score-mute-button')), findsOneWidget);
+        await teardownScreen(tester);
+      });
+    });
 
     testWidgets(
       'the narrowest phone lays out without overflow and keeps a render area',

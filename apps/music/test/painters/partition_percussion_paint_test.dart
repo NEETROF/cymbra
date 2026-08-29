@@ -22,6 +22,7 @@ import 'package:music/painters/partition_painter.dart';
 import 'package:music/painters/smufl.dart';
 import 'package:music/painters/staff_hit_index.dart';
 import 'package:music/src/rust/api/musicxml.dart';
+import 'package:music/state/drum_kit.dart' show kKickPieceId;
 import 'package:music/state/player_data.dart' show Hand;
 
 import '../support/notation_fakes.dart';
@@ -45,6 +46,7 @@ void main() {
   paintPartition(
     ScoreDocument document, {
     Hand selectedHands = Hand.both,
+    Set<String> mutedDrumPieces = const {},
     NotationPalette palette = NotationPalette.dark,
     List<MeasureHit>? hitRects,
   }) {
@@ -53,6 +55,7 @@ void main() {
       document: document,
       systems: FakeNotationEngine().layout(document, width.toDouble()),
       selectedHands: selectedHands,
+      mutedDrumPieces: mutedDrumPieces,
       palette: palette,
       hitIndex: hits,
       hitRects: hitRects,
@@ -275,11 +278,15 @@ void main() {
     }
   });
 
-  test('selecting hands never blanks the canvas: the staff, clef and time '
-      'signature stay drawn while foot events hide', () async {
+  // The engraved Partition draws from the DOCUMENT, not from `visibleNotes`,
+  // so it is the one surface that re-applies the filter itself — and it takes
+  // the selection as data so it applies the same rule rather than a second one
+  // (change: add-practice-focus-controls, task 3.5).
+  test('muting a piece never blanks the canvas: the staff, clef and time '
+      'signature stay drawn while that piece hides', () async {
     final doc = sampleOpenGrooveDocument();
     final both = paintPartition(doc);
-    final hands = paintPartition(doc, selectedHands: Hand.right);
+    final hands = paintPartition(doc, mutedDrumPieces: const {kKickPieceId});
     // Foot events hidden…
     expect(headCenters(hands.hits, 36), isEmpty);
     expect(headCenters(hands.hits, 42), isNotEmpty);
@@ -325,6 +332,26 @@ void main() {
     final first = rects.firstWhere((h) => h.measure == 0);
     expect(measureAtPosition(rects, first.rect.center), 0);
   });
+
+  test(
+    'the engraved filter collapses a piece exactly as the kit model does',
+    () async {
+      final doc = sampleOpenGrooveDocument();
+      // Muting the hi-hat takes the closed AND the open stroke — one pad, one
+      // answer — while the snare and the kick stay engraved.
+      final noHat = paintPartition(
+        doc,
+        mutedDrumPieces: const {'kitPieceHiHat'},
+      );
+      expect(headCenters(noHat.hits, 42), isEmpty);
+      expect(headCenters(noHat.hits, 46), isEmpty);
+      expect(headCenters(noHat.hits, 36), isNotEmpty);
+      // An empty selection engraves the whole kit.
+      final all = paintPartition(doc);
+      expect(headCenters(all.hits, 42), isNotEmpty);
+      expect(headCenters(all.hits, 36), isNotEmpty);
+    },
+  );
 }
 
 /// A single-voice percussion measure with a rest, for the midline control:

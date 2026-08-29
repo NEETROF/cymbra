@@ -255,6 +255,7 @@ void main() {
           kind: MidiEventKind.noteOn,
           pitch: 60,
           velocity: 100,
+          channel: 0,
           timestampMs: BigInt.zero,
         ),
       );

@@ -78,7 +78,24 @@ FlagCache flagCache(Ref ref) => FlagCache(ref.watch(flagPreferencesProvider));
 
 /// A bearer-token source seam.
 abstract class FlagBearer {
+  /// The bearer to present, or `null` when the caller is genuinely signed out.
   Future<String?> token();
+
+  /// Ask the host app to renew the session after the server refused [token],
+  /// and return the fresh bearer — `null` when there is none to be had (signed
+  /// out, or the renewal failed).
+  ///
+  /// The flag read is **optional-auth**: a caller with no token is a legitimate
+  /// anonymous caller. That makes a *stale* token uniquely dangerous, because
+  /// it used to be answered the same way — with an anonymous set carrying a
+  /// perfectly valid version, which the client stored, losing every
+  /// entitlement-gated key until some later poll happened to run after another
+  /// RPC had refreshed the token. The server now refuses a stale bearer
+  /// outright, and this is the other half: the cue to renew and retry.
+  ///
+  /// Defaults to "no renewal available", which is correct for the anonymous
+  /// bearer and for any host that has no session to renew.
+  Future<String?> renewed() async => null;
 }
 
 /// The default anonymous bearer (no token).
@@ -86,6 +103,8 @@ class AnonymousFlagBearer implements FlagBearer {
   const AnonymousFlagBearer();
   @override
   Future<String?> token() async => null;
+  @override
+  Future<String?> renewed() async => null;
 }
 
 // --- the flag client notifier ----------------------------------------------
@@ -143,19 +162,38 @@ class Flags extends _$Flags {
   /// Fetch the latest set (stale-while-revalidate). On a changed set: swap
   /// atomically + persist. On "unchanged": keep. On any error: keep the last-good
   /// snapshot (the cache is presentation-only; the backend is authoritative).
+  ///
+  /// Two rules protect a signed-in caller's set from being replaced by a weaker
+  /// one (change: add-drum-input-mapping — beta fix). The snapshot carries no
+  /// evidence of *how* it was evaluated — flags and a content hash, nothing
+  /// else — so an anonymous answer is indistinguishable from a real one once it
+  /// is stored, and it silently removes every entitlement-gated key:
+  ///
+  /// * a snapshot scoped to an identity is **never fetched without a bearer**;
+  /// * a bearer the server refuses is **renewed once and retried**, rather than
+  ///   letting the read fall back to whatever the server evaluates without it.
   Future<void> refresh() async {
     final app = state.app;
     final identity = state.identity;
     try {
-      final bearer = await ref.read(flagBearerProvider).token();
-      final fetch = await ref
-          .read(flagServiceProvider)
-          .fetch(
-            app: app,
-            identity: identity,
-            knownVersion: state.version,
-            bearer: bearer,
-          );
+      var bearer = await ref.read(flagBearerProvider).token();
+      // Signed in with nothing to present — the token store has not caught up
+      // with the session yet, or the stored pair was cleared. Renew rather than
+      // ask anonymously: the answer to an anonymous question is a set for
+      // nobody, and this snapshot belongs to someone.
+      if (identity != null && (bearer == null || bearer.isEmpty)) {
+        bearer = await _renew();
+        if (bearer == null) return;
+      }
+      var fetch = await _fetch(app, identity, bearer);
+      if (fetch == null) {
+        // The bearer was refused. Renew ONCE and retry; a renewal that yields
+        // nothing leaves the snapshot untouched rather than asking anonymously.
+        final renewed = await _renew();
+        if (renewed == null) return;
+        fetch = await _fetch(app, identity, renewed);
+        if (fetch == null) return;
+      }
       // Never apply a fetch that resolved for a now-stale identity.
       if (!_isCurrent(app, identity)) return;
       final snap = fetch.snapshot;
@@ -164,6 +202,32 @@ class Flags extends _$Flags {
       await ref.read(flagCacheProvider).write(snap);
     } catch (_) {
       // Keep the last-good snapshot (never drop to an empty/gap state).
+    }
+  }
+
+  /// A renewed bearer, or `null` when there is none to be had.
+  Future<String?> _renew() async {
+    final renewed = await ref.read(flagBearerProvider).renewed();
+    return (renewed == null || renewed.isEmpty) ? null : renewed;
+  }
+
+  /// One fetch attempt: the result, or `null` when the bearer was refused.
+  Future<FlagFetch?> _fetch(
+    String app,
+    String? identity,
+    String? bearer,
+  ) async {
+    try {
+      return await ref
+          .read(flagServiceProvider)
+          .fetch(
+            app: app,
+            identity: identity,
+            knownVersion: state.version,
+            bearer: bearer,
+          );
+    } on FlagAuthException {
+      return null;
     }
   }
 

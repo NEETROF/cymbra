@@ -223,10 +223,52 @@ const List<({KitPieceRole role, List<int> gm, String key})> _namedPieces = [
   (role: KitPieceRole.crash, gm: [57], key: 'kitPieceCrash2'),
 ];
 
-/// General MIDI percussion names for the generic (terminal-bucket) pieces.
+/// The lowest and highest numbers the General MIDI percussion map names
+/// (Acoustic Bass Drum 35 … Open Triangle 81). A stroke outside this window is
+/// not part of the standard map at all — which a diagnostic surface says out
+/// loud (change: add-drum-input-calibration), because it is the difference
+/// between "the app read your stroke as the wrong piece" and "the app has no
+/// name for what your kit sent", and only the second one explains silence.
+const int kGmPercussionLowest = 35;
+const int kGmPercussionHighest = 81;
+
+/// The General MIDI percussion name of [gm], or null when the number is outside
+/// the standard map.
+///
+/// The whole map, not just the terminal bucket: a diagnostic surface names what
+/// arrived before it says anything about the loaded score's kit, and the named
+/// pieces' *display* labels are localised l10n keys, which is the wrong
+/// vocabulary here — General MIDI instrument names are a notation-level
+/// standard and are not translated.
+String? gmPercussionName(int gm) => _gmNames[gm];
+
+/// General MIDI percussion names, 35–81 — the whole standard map. The named
+/// pieces (which carry localised labels for display) are here too, because a
+/// monitor reports what the *standard* calls a number, not what this app's kit
+/// view chose to label it.
 const Map<int, String> _gmNames = {
-  39: 'Hand Clap',
+  35: 'Acoustic Bass Drum',
+  36: 'Bass Drum 1',
+  37: 'Side Stick',
+  38: 'Acoustic Snare',
+  40: 'Electric Snare',
+  41: 'Low Floor Tom',
+  42: 'Closed Hi Hat',
+  43: 'High Floor Tom',
   44: 'Pedal Hi-Hat',
+  45: 'Low Tom',
+  46: 'Open Hi-Hat',
+  47: 'Low-Mid Tom',
+  48: 'Hi-Mid Tom',
+  49: 'Crash Cymbal 1',
+  50: 'High Tom',
+  51: 'Ride Cymbal 1',
+  52: 'Chinese Cymbal',
+  53: 'Ride Bell',
+  55: 'Splash Cymbal',
+  57: 'Crash Cymbal 2',
+  59: 'Ride Cymbal 2',
+  39: 'Hand Clap',
   54: 'Tambourine',
   56: 'Cowbell',
   58: 'Vibraslap',
@@ -339,7 +381,7 @@ int? laneIndexOf(List<DrumLane> lanes, int gm) {
 
 /// The piece identity standing for the kick pedal — the one named piece with
 /// no [_namedPieces] row, because it has no lane (it is the full-width bar).
-const String _kickPieceId = 'kick';
+const String kKickPieceId = 'kick';
 
 /// The **kit piece** a General MIDI percussion number denotes (change:
 /// add-drum-scoring) — the grain at which strokes are matched.
@@ -350,13 +392,13 @@ const String _kickPieceId = 'kick';
 /// still denotes the same physical piece and must still resolve to it. The
 /// table is the identity; the layout is a view of it.
 ///
-/// The kick's two numbers share [_kickPieceId] (one pedal); every named group
+/// The kick's two numbers share [kKickPieceId] (one pedal); every named group
 /// shares its l10n key (hi-hat {42, 46}, snare {37, 38, 40}, ride {51, 53, 59},
 /// each tom and each accent cymbal alone); anything else — the terminal
 /// bucket — is a piece of its own, keyed by its number, so it matches only
 /// itself.
 String drumPieceIdOf(int gm) {
-  if (kKickGmNumbers.contains(gm)) return _kickPieceId;
+  if (kKickGmNumbers.contains(gm)) return kKickPieceId;
   for (final piece in _namedPieces) {
     if (piece.gm.contains(gm)) return piece.key;
   }
@@ -521,3 +563,122 @@ bool spansMultipleVoices(Iterable<TimedNote> notes) {
 /// hi-hat lane — never a bar, never a lane of its own (open-versus-closed is
 /// a different number on the HAND stroke; no foot note exists in the file).
 bool isOpenHiHat(int gm) => gm == 46;
+
+// --- Per-piece practice focus (change: add-practice-focus-controls) ---------
+
+/// The piece identity of [lane] — the same identity [drumPieceIdOf] gives its
+/// members, read through the lane's emitted number.
+///
+/// Deliberately NOT a second notion of "one piece": a lane already holds only
+/// numbers that collapse onto one aim point, so any member answers the same,
+/// and routing through [emittedGmOfLane] picks the one member the lane is
+/// guaranteed to have.
+String drumPieceIdOfLane(DrumLane lane) => drumPieceIdOf(emittedGmOfLane(lane));
+
+/// The pieces of a loaded kit, in the order the pad strip draws them: the
+/// [lanes] as presented, then the kick pedal when the score writes one — pads
+/// band first, pedal band beneath, exactly as
+/// the pad-strip and cascade painters lay the strip out.
+///
+/// This is the list the focus control lists and the list "every piece" means
+/// when a selection is cleared. It is derived from the score's own kit, so a
+/// piece the file never writes is never offered.
+List<String> kitPieceIdsOf(List<DrumLane> lanes, {required bool hasKick}) => [
+  for (final lane in lanes) drumPieceIdOfLane(lane),
+  if (hasKick) kKickPieceId,
+];
+
+/// Whether the piece a General MIDI number denotes is **in focus** — i.e. not
+/// among [mutedPieceIds] (change: add-practice-focus-controls).
+///
+/// Keyed on the piece, never on the number, so the distinctions the kit model
+/// already collapsed stay collapsed: muting the hi-hat mutes the closed 42 and
+/// the open 46 together, because they are one pad on the instrument, and
+/// muting the snare takes the acoustic 38, the electric 40 and the side stick
+/// 37 with it.
+///
+/// The **complement** is stored (what is muted) rather than the focus set, so
+/// an unknown piece — a number the score never writes, reached by a stroke on
+/// free-play territory — reads as in focus. The other direction would silently
+/// filter out anything the kit model had not enumerated.
+bool isDrumPieceInFocus(int gm, Set<String> mutedPieceIds) =>
+    mutedPieceIds.isEmpty || !mutedPieceIds.contains(drumPieceIdOf(gm));
+
+/// The muted set after muting [pieceId] out of [all], honouring the
+/// empty-focus rule (design D2): muting the last piece in focus restores every
+/// piece rather than leaving a session that draws nothing, gates on nothing and
+/// judges nothing — a state indistinguishable from a broken score.
+Set<String> mutedAfterMuting(
+  Set<String> muted,
+  String pieceId,
+  List<String> all,
+) {
+  final next = {...muted, pieceId};
+  // Every piece of the kit muted ⇒ nothing in focus ⇒ restore everything.
+  return all.every(next.contains) ? const {} : next;
+}
+
+/// The muted set after **soloing** [pieceId] out of [all] (design D2): solo is
+/// the same one set, edited from the other side.
+///
+/// From "everything in focus" it isolates [pieceId]; from an existing
+/// selection it **adds** — soloing the snare after the hi-hat asks for both,
+/// which is what a drummer building up a groove means by isolating a second
+/// piece.
+Set<String> mutedAfterSoloing(
+  Set<String> muted,
+  String pieceId,
+  List<String> all,
+) =>
+    muted.isEmpty
+          ? {
+              for (final id in all)
+                if (id != pieceId) id,
+            }
+          : {...muted}
+      ..remove(pieceId);
+
+// --- Per-device input mapping (change: add-drum-input-calibration) ----------
+
+/// The **canonical** General MIDI number for a piece identity — the number the
+/// app reasons in once an incoming stroke has been translated.
+///
+/// The first member of the piece's canonical order (36 for the kick, 38 for the
+/// snare, 42 for the hi-hat…), which is the number a notation export and a
+/// factory drum map overwhelmingly use. Null for an identity the table does not
+/// know, so a mapping stored by a later build cannot break this one.
+int? canonicalGmOfPiece(String pieceId) {
+  if (pieceId == kKickPieceId) return kKickEmissionOrder.first;
+  for (final piece in _namedPieces) {
+    if (piece.key == pieceId) return piece.gm.first;
+  }
+  // A generic (terminal-bucket) piece is keyed by its own number.
+  if (pieceId.startsWith('gm:')) return int.tryParse(pieceId.substring(3));
+  return null;
+}
+
+/// The pieces a calibration pass asks for, in the order it asks — round the
+/// kit as a drummer sits at it: the two hands and the foot first (the pieces
+/// every groove has), then the toms high to low, then the cymbals.
+///
+/// The **fixed standard kit**, deliberately not the loaded score's
+/// (change: add-drum-input-calibration, design D7): a mapping describes a piece
+/// of hardware, not a piece of music, and calibrating from a groove that has no
+/// toms would leave a kit unable to map its toms at all. Every step is
+/// skippable, so a kit that lacks a piece costs one tap.
+const List<String> kCalibrationPieceOrder = [
+  kKickPieceId,
+  'kitPieceSnare',
+  'kitPieceHiHat',
+  'kitPieceTomHigh',
+  'kitPieceTomHiMid',
+  'kitPieceTomLowMid',
+  'kitPieceTomLow',
+  'kitPieceTomFloorHigh',
+  'kitPieceTomFloorLow',
+  'kitPieceRide',
+  'kitPieceCrash',
+  'kitPieceCrash2',
+  'kitPieceSplash',
+  'kitPieceChina',
+];

@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `current_port_names`, `midi_echo`, `open_connections`, `try_connect`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `eq`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`
 
 /// Chooses what the engine sounds for live MIDI events from now on, and returns
 /// immediately (see [`MidiEcho`]). Pushed by the app whenever its own answer
@@ -16,6 +16,19 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 /// safe value: it simply leaves the sounding to the app.
 void setMidiEcho({required MidiEcho mode}) =>
     RustLib.instance.api.crateApiMidiSetMidiEcho(mode: mode);
+
+/// Replaces the input mapping the engine applies to its own echo, and returns
+/// immediately. An empty list clears it.
+///
+/// The same shape as [`set_midi_echo`]: the **app owns the policy** — which
+/// device is connected, what it was calibrated to — and pushes it on every
+/// input that can change the answer. Idempotent, so over-calling is safe.
+///
+/// The engine applies this to what it *sounds*, never to what it *reports*: the
+/// raw number still reaches the bridge, because the input monitor exists to
+/// show a player what their instrument actually sends.
+void setMidiMapping({required List<MidiMappingEntry> entries}) =>
+    RustLib.instance.api.crateApiMidiSetMidiMapping(entries: entries);
 
 /// Lists the names of available MIDI input ports (UI selection).
 /// Virtual ports ("Midi Through", rtpmidi…) are placed last.
@@ -77,6 +90,12 @@ class MidiEvent {
   /// Velocity (0-127). 0 for a NoteOff.
   final int velocity;
 
+  /// Transmitting MIDI channel, 0-based (channel 10 — General MIDI
+  /// percussion — is `9`). Reported so a diagnostic surface can show a player
+  /// what their instrument sends; **never** used to accept or reject an
+  /// event, which stays channel-agnostic (change: add-drum-input-calibration).
+  final int channel;
+
   /// Timestamp since the stream was opened, in milliseconds.
   final BigInt timestampMs;
 
@@ -84,12 +103,17 @@ class MidiEvent {
     required this.kind,
     required this.pitch,
     required this.velocity,
+    required this.channel,
     required this.timestampMs,
   });
 
   @override
   int get hashCode =>
-      kind.hashCode ^ pitch.hashCode ^ velocity.hashCode ^ timestampMs.hashCode;
+      kind.hashCode ^
+      pitch.hashCode ^
+      velocity.hashCode ^
+      channel.hashCode ^
+      timestampMs.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -99,8 +123,35 @@ class MidiEvent {
           kind == other.kind &&
           pitch == other.pitch &&
           velocity == other.velocity &&
+          channel == other.channel &&
           timestampMs == other.timestampMs;
 }
 
 /// MIDI event type forwarded to Flutter.
+///
+/// `Copy` so the input callback can name the kind of the event it is echoing
+/// without consuming the one it still has to report (change:
+/// add-drum-input-calibration) — a fieldless enum, so it costs nothing.
 enum MidiEventKind { noteOn, noteOff }
+
+/// One learned translation: the number the instrument sends, and what it means.
+class MidiMappingEntry {
+  /// The number as the instrument transmits it.
+  final int from;
+
+  /// The General MIDI number the app reasons in.
+  final int to;
+
+  const MidiMappingEntry({required this.from, required this.to});
+
+  @override
+  int get hashCode => from.hashCode ^ to.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MidiMappingEntry &&
+          runtimeType == other.runtimeType &&
+          from == other.from &&
+          to == other.to;
+}

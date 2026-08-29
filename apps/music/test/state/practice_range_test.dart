@@ -27,6 +27,7 @@ import 'package:music/painters/partition_painter.dart';
 import 'package:music/services/preferences_service.dart';
 import 'package:music/state/countdown.dart';
 import 'package:music/src/rust/api/musicxml.dart' show ScoreDocument;
+import 'package:music/state/drum_kit.dart';
 import 'package:music/state/notation_data.dart';
 import 'package:music/state/notation_notifier.dart';
 import 'package:music/state/performance_scoring.dart';
@@ -370,6 +371,72 @@ void main() {
       await _flush();
       expect(read().practiceStartMeasure, isNull);
       expect(read().isSelectiveRun, isFalse);
+    });
+  });
+
+  // Task 2.5 (change: add-practice-focus-controls): the focus selection is
+  // session-only for the same reason a range is — it describes the passage
+  // being worked on, not a preference. A selection carried into another score
+  // would hand it a kit with holes in it, and the ids need not even exist there.
+  group('per-piece focus is session-only', () {
+    late ProviderContainer container;
+    Player notifier() => container.read(playerProvider.notifier);
+    PlayerData read() => container.read(playerProvider);
+
+    late FakePreferencesService prefs;
+
+    Future<void> build() async {
+      prefs = FakePreferencesService();
+      container = ProviderContainer(
+        overrides: [
+          midiServiceProvider.overrideWithValue(FakeMidiService()),
+          scoreSourceProvider.overrideWithValue(FakeScoreSource(null)),
+          audioServiceProvider.overrideWithValue(RecordingAudioService()),
+          notationProvider.overrideWith(
+            () => _FixedNotation(
+              NotationData(document: sampleOpenGrooveDocument()),
+            ),
+          ),
+          preferencesServiceProvider.overrideWithValue(prefs),
+          playSyncServiceProvider.overrideWithValue(_sync()),
+          connectivityServiceProvider.overrideWithValue(_SilentConnectivity()),
+          playRetrySchedulerProvider.overrideWithValue(_NoopRetryScheduler()),
+          currentUserIdProvider.overrideWithValue('u1'),
+          canUseOnlineServicesProvider.overrideWithValue(true),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.listen(playerProvider, (_, _) {}, fireImmediately: true);
+      await _flush();
+    }
+
+    test('every piece is in focus on load', () async {
+      await build();
+      expect(read().isPercussion, isTrue);
+      expect(read().mutedDrumPieces, isEmpty);
+      expect(read().focusedDrumPieces, read().kitPieceIds.toSet());
+    });
+
+    test('loading a new document drops a stale selection', () async {
+      await build();
+      notifier().muteDrumPiece(kKickPieceId);
+      expect(read().mutedDrumPieces, isNotEmpty);
+      (container.read(notationProvider.notifier) as _FixedNotation).apply(
+        NotationData(document: sampleOpenGrooveDocument()),
+      );
+      await _flush();
+      expect(read().mutedDrumPieces, isEmpty);
+    });
+
+    test('nothing is written to the preferences seam', () async {
+      await build();
+      final before = {...prefs.store};
+      notifier()
+        ..muteDrumPiece(kKickPieceId)
+        ..soloDrumPiece('kitPieceSnare')
+        ..clearDrumFocus();
+      await _flush();
+      expect(prefs.store, before);
     });
   });
 

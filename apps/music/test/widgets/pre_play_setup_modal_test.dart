@@ -154,6 +154,24 @@ void main() {
     await _teardown(tester, container);
   });
 
+  // Task 4.3: the keyboard control this change deliberately does NOT touch,
+  // asserted rather than inspected (change: add-practice-focus-controls).
+  testWidgets('a keyboard score keeps the hand selector and is offered no '
+      'per-piece focus control', (tester) async {
+    final container = await _pumpWithModal(tester);
+    expect(find.text('Play with'), findsOneWidget);
+    expect(find.text('Left'), findsOneWidget);
+    expect(find.text('Right'), findsOneWidget);
+    expect(find.text('Both'), findsOneWidget);
+    // Nothing percussion-shaped reaches a keyboard score.
+    final data = container.read(playerProvider);
+    expect(data.hasDrumPiecesToFocus, isFalse);
+    expect(data.kitPieceIds, isEmpty);
+    expect(data.isFocusRestrictedRun, isFalse);
+    expect(find.byKey(const Key('drum-focus-all')), findsNothing);
+    await _teardown(tester, container);
+  });
+
   testWidgets('close (X) keeps the current settings', (tester) async {
     final container = await _pumpWithModal(tester);
     expect(container.read(playerProvider).selectedHands, Hand.both);

@@ -18,17 +18,39 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../state/plan_notifier.dart';
 import '../state/session_notifier.dart';
 import 'grpc_client.dart';
+import 'token_refresher.dart';
 import 'token_store.dart';
 
-/// Bearer that reads the app's stored access token (anonymous when signed out).
-/// An expired token is harmless: the backend's optional-auth read returns the
-/// anonymous set rather than erroring.
+/// Bearer that reads the app's stored access token (anonymous when signed out),
+/// and renews it through the app's coordinated refresher when the server refuses
+/// it (change: add-drum-input-mapping — beta fix).
+///
+/// The flag read is the one authenticated call that does NOT go through
+/// [AuthedRunner], because it is optional-auth: there is a legitimate anonymous
+/// caller, so the RPC cannot simply demand a token. That used to mean an expired
+/// access token was answered as *anonymous* — no error, no cue to refresh, and a
+/// downgraded set the client cached. A beta member lost the drums home at
+/// random, for as long as it took some other RPC to refresh the token and the
+/// next poll to run. The server now refuses a stale bearer, and this renews it
+/// through the same single-flight refresher every other adapter shares, so a
+/// refused flag read repairs itself in the same round trip.
 class AppFlagBearer implements FlagBearer {
-  AppFlagBearer(this._store);
+  AppFlagBearer(this._store, this._refresher);
   final TokenStore _store;
+  final TokenRefresher _refresher;
 
   @override
   Future<String?> token() async => (await _store.readTokens())?.accessToken;
+
+  @override
+  Future<String?> renewed() async => switch (await _refresher.refresh()) {
+    RefreshRefreshed(:final accessToken) => accessToken,
+    // Rejected: the session is gone and has been cleared — the identity is
+    // about to change, which resets the snapshot on its own.
+    // Transient: offline or a flaky hop; the last-good snapshot stands and the
+    // next poll retries.
+    RefreshRejected() || RefreshTransient() => null,
+  };
 }
 
 /// Wire the shared `cymbra_flags` client onto the app's gRPC channel, session
@@ -54,6 +76,9 @@ List<Override> cymbraFlagOverrides() => [
     return '${plan.plan}|${betas.join(',')}';
   }),
   flagBearerProvider.overrideWith(
-    (ref) => AppFlagBearer(ref.watch(tokenStoreProvider)),
+    (ref) => AppFlagBearer(
+      ref.watch(tokenStoreProvider),
+      ref.watch(tokenRefresherProvider),
+    ),
   ),
 ];

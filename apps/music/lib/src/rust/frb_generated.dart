@@ -70,7 +70,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => 1670896465;
+  int get rustContentHash => -2023330428;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -132,6 +132,8 @@ abstract class RustLibApi extends BaseApi {
   void crateApiAudioSetAudioOutput({String? name});
 
   void crateApiMidiSetMidiEcho({required MidiEcho mode});
+
+  void crateApiMidiSetMidiMapping({required List<MidiMappingEntry> entries});
 
   void crateApiMidiSetMidiPort({String? name});
 
@@ -707,13 +709,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "set_midi_echo", argNames: ["mode"]);
 
   @override
+  void crateApiMidiSetMidiMapping({required List<MidiMappingEntry> entries}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_list_midi_mapping_entry(entries, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 23)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiMidiSetMidiMappingConstMeta,
+        argValues: [entries],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiMidiSetMidiMappingConstMeta =>
+      const TaskConstMeta(debugName: "set_midi_mapping", argNames: ["entries"]);
+
+  @override
   void crateApiMidiSetMidiPort({String? name}) {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_opt_String(name, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 23)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 24)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -741,7 +766,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 24,
+            funcId: 25,
             port: port_,
           );
         },
@@ -769,7 +794,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 25)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 26)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -797,7 +822,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 26,
+            funcId: 27,
             port: port_,
           );
         },
@@ -1080,6 +1105,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<MidiMappingEntry> dco_decode_list_midi_mapping_entry(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_midi_mapping_entry).toList();
+  }
+
+  @protected
   List<NotationMeasure> dco_decode_list_notation_measure(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_notation_measure).toList();
@@ -1161,13 +1192,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   MidiEvent dco_decode_midi_event(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
     return MidiEvent(
       kind: dco_decode_midi_event_kind(arr[0]),
       pitch: dco_decode_u_8(arr[1]),
       velocity: dco_decode_u_8(arr[2]),
-      timestampMs: dco_decode_u_64(arr[3]),
+      channel: dco_decode_u_8(arr[3]),
+      timestampMs: dco_decode_u_64(arr[4]),
     );
   }
 
@@ -1175,6 +1207,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   MidiEventKind dco_decode_midi_event_kind(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return MidiEventKind.values[raw as int];
+  }
+
+  @protected
+  MidiMappingEntry dco_decode_midi_mapping_entry(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return MidiMappingEntry(
+      from: dco_decode_u_8(arr[0]),
+      to: dco_decode_u_8(arr[1]),
+    );
   }
 
   @protected
@@ -1835,6 +1879,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<MidiMappingEntry> sse_decode_list_midi_mapping_entry(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <MidiMappingEntry>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_midi_mapping_entry(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<NotationMeasure> sse_decode_list_notation_measure(
     SseDeserializer deserializer,
   ) {
@@ -1948,11 +2006,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_kind = sse_decode_midi_event_kind(deserializer);
     var var_pitch = sse_decode_u_8(deserializer);
     var var_velocity = sse_decode_u_8(deserializer);
+    var var_channel = sse_decode_u_8(deserializer);
     var var_timestampMs = sse_decode_u_64(deserializer);
     return MidiEvent(
       kind: var_kind,
       pitch: var_pitch,
       velocity: var_velocity,
+      channel: var_channel,
       timestampMs: var_timestampMs,
     );
   }
@@ -1962,6 +2022,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_i_32(deserializer);
     return MidiEventKind.values[inner];
+  }
+
+  @protected
+  MidiMappingEntry sse_decode_midi_mapping_entry(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_from = sse_decode_u_8(deserializer);
+    var var_to = sse_decode_u_8(deserializer);
+    return MidiMappingEntry(from: var_from, to: var_to);
   }
 
   @protected
@@ -2685,6 +2753,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_midi_mapping_entry(
+    List<MidiMappingEntry> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_midi_mapping_entry(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_notation_measure(
     List<NotationMeasure> self,
     SseSerializer serializer,
@@ -2796,6 +2876,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_midi_event_kind(self.kind, serializer);
     sse_encode_u_8(self.pitch, serializer);
     sse_encode_u_8(self.velocity, serializer);
+    sse_encode_u_8(self.channel, serializer);
     sse_encode_u_64(self.timestampMs, serializer);
   }
 
@@ -2806,6 +2887,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_midi_mapping_entry(
+    MidiMappingEntry self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_8(self.from, serializer);
+    sse_encode_u_8(self.to, serializer);
   }
 
   @protected

@@ -15,6 +15,7 @@ export 'src/flag_cache.dart'
     show FlagCache, FlagPreferences, SharedPreferencesFlagPreferences;
 export 'src/flag_service.dart'
     show
+        FlagAuthException,
         FlagFetch,
         FlagService,
         GrpcFlagService,

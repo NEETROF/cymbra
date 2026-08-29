@@ -45,16 +45,13 @@ class SettingOptionRow extends StatelessWidget {
 }
 
 /// The localized label for a [Hand] selection.
-String handLabel(
-  AppLocalizations l10n,
-  Hand hand, {
-  bool percussion = false,
-}) => switch (hand) {
-  // For a percussion score the same three-valued state reads hands / feet /
-  // both (change: add-drum-kit-view): the split a drummer practises is hands
-  // against feet, keyed to the voice convention — Hand.right selects the
-  // hands and Hand.left the feet.
-  Hand.left => percussion ? l10n.handFeet : l10n.handLeft,
-  Hand.right => percussion ? l10n.handHands : l10n.handRight,
+///
+/// Keyboard vocabulary only (change: add-practice-focus-controls): the
+/// percussion reading that made these read hands / feet / both is gone, along
+/// with the limb filter it labelled. A drum score isolates part of a groove
+/// through per-piece focus and never reaches this.
+String handLabel(AppLocalizations l10n, Hand hand) => switch (hand) {
+  Hand.left => l10n.handLeft,
+  Hand.right => l10n.handRight,
   Hand.both => l10n.handBoth,
 };

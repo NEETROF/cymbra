@@ -14,6 +14,8 @@
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show mapEquals, setEquals;
+
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../services/audio_service.dart';
@@ -26,6 +28,8 @@ import 'notation_notifier.dart';
 import 'performance_scoring.dart';
 import 'play_sync_notifier.dart';
 import 'practice_settings_store.dart';
+import 'drum_input_mapping.dart';
+import 'drum_input_mapping_notifier.dart';
 import 'drum_kit.dart';
 import 'player_data.dart';
 import 'score_font.dart';
@@ -83,6 +87,11 @@ class Player extends _$Player {
     // add-drum-audio-channel), and the engine's echo has to learn it at the
     // same instant the notifier would have.
     ref.listen(scoreFontProvider, (_, _) => _applyEcho());
+    // A calibration completing, an edited entry or a cleared device all change
+    // what the engine must translate (change: add-drum-input-calibration).
+    // Listened, not watched: this notifier must not rebuild — and reset the
+    // playhead — because a mapping was saved.
+    ref.listen(drumInputMappingStoreProvider, (_, _) => _applyMapping());
     ref.onDispose(() {
       _statusTimer?.cancel();
       _sub?.cancel();
@@ -123,6 +132,7 @@ class Player extends _$Player {
       keyboardRange: prefs.keyboardRange,
       readingAid: prefs.readingAid,
       instrumentSoundsItself: prefs.instrumentSoundsItself,
+      scoreAudioMuted: prefs.scoreAudioMuted,
       outputOffsetMs: prefs.outputOffsetMs,
       invertedKit: prefs.invertedKit,
     );
@@ -164,6 +174,36 @@ class Player extends _$Player {
       // No engine (tests, a failed native load): the notifier keeps sounding
       // live notes itself, exactly as it did before this existed.
       _echo = MidiEcho.off;
+    }
+  }
+
+  /// The translation table last pushed to the engine (change:
+  /// add-drum-input-calibration). Null until the first push, so the engine is
+  /// always told once — even when the answer is "no mapping".
+  Map<int, int>? _pushedMapping;
+
+  /// Pushes the connected device's mapping to the engine, which sounds a live
+  /// stroke from its own MIDI callback and therefore has to translate it there.
+  ///
+  /// The same shape as [_applyEcho], for the same reason: the app owns the
+  /// policy — which device is connected, what it was calibrated to — and the
+  /// engine only applies it. Called on every input that can change the answer
+  /// (device change, calibration completing, an edited entry, leaving the
+  /// player), and idempotent, so over-calling is safe.
+  void _applyMapping() {
+    // `_mappingForDevice` already answers "identity on a keyboard score", so
+    // the engine is pushed exactly what this side applies — the two cannot
+    // drift, which is the whole point of there being one policy.
+    final table = _mappingForDevice().translationTable;
+    if (_pushedMapping != null && mapEquals(_pushedMapping, table)) return;
+    _pushedMapping = table;
+    try {
+      _midi.setMapping(table);
+    } catch (_) {
+      // No engine (tests, a failed native load): the notifier still translates
+      // on its own side, so what is scored stays correct — only the engine's
+      // echo would sound the raw number, and without an engine there is none.
+      _pushedMapping = const {};
     }
   }
 
@@ -301,6 +341,12 @@ class Player extends _$Player {
     double to, {
     Set<int> justPlayed = const {},
   }) {
+    // The written part is muted (change: add-practice-focus-controls). Returning
+    // before the edges are computed skips the bookkeeping with the attack, so no
+    // release is ever owed for a voice that was never started — the shape of the
+    // double-strike bug `add-drum-audio-channel` 10.3 fixed. `_sounding` was
+    // emptied when the mute went on, so there is nothing left hanging either.
+    if (s.scoreAudioMuted) return;
     if (s.isPercussion) {
       // Percussion readiness gate: until the kit font's awaited install has
       // resolved (KitFontStatus.ready), playback is visual-only — the
@@ -410,6 +456,11 @@ class Player extends _$Player {
           ? deriveDrumLanes(derived.notes)
           : const <DrumLane>[],
       mode: _modeForLoadedScore(percussion: derived.isPercussion),
+      // A focus selection describes the passage being worked on, not a
+      // preference (change: add-practice-focus-controls): another score's
+      // selection would hand this one a kit with holes in it, so every piece is
+      // in focus on load.
+      mutedDrumPieces: const {},
       // The struck-flash table is keyed by controller POSITION, so another
       // score's stamps would land on this one's pads (change:
       // add-drum-input-mapping).
@@ -431,6 +482,10 @@ class Player extends _$Player {
     );
     // A different family sounds a live note on a different channel.
     _applyEcho();
+    // …and it changes whether the device's mapping applies at all: a kit table
+    // is a statement about pieces, so it is inert on a keyboard score. This is
+    // also the first push, once `state` exists to name a device.
+    _applyMapping();
   }
 
   Future<void> _loadDemo() async {
@@ -475,14 +530,51 @@ class Player extends _$Player {
     );
   }
 
+  /// The one point a live MIDI event enters the app — and therefore the one
+  /// point its number is translated (change: add-drum-input-calibration,
+  /// design D2).
+  ///
+  /// Everything downstream keeps its General MIDI vocabulary and never learns
+  /// that a mapping exists: `noteOn` sounds it, `laneIndexOf` flashes it, the
+  /// gate opens on it and the scorer credits it, all on the translated number.
+  /// Four translations would be four chances for those answers to disagree
+  /// about what was just played, which is the failure this seam exists to make
+  /// impossible.
+  ///
+  /// The mapping is read per event rather than cached: it is a map lookup on a
+  /// table with at most a dozen entries, and the alternative — a cached copy
+  /// invalidated on device change, on calibration completing and on an edit —
+  /// is three more chances to serve a stale table.
   void _onMidi(MidiEvent event) {
+    final pitch = _mappingForDevice().translate(event.pitch);
     switch (event.kind) {
       case MidiEventKind.noteOn:
-        noteOn(event.pitch, source: NoteSource.midiDevice);
+        noteOn(pitch, source: NoteSource.midiDevice);
       case MidiEventKind.noteOff:
-        noteOff(event.pitch, source: NoteSource.midiDevice);
+        noteOff(pitch, source: NoteSource.midiDevice);
     }
   }
+
+  /// The mapping to apply to a live event right now: the connected device's
+  /// learned table on a **percussion** score, the identity everywhere else.
+  ///
+  /// Scoped to percussion deliberately. The table says "this pad is the snare",
+  /// which is a statement about kit pieces; applying it to a keyboard score
+  /// would bend that score's *pitches* — a drummer who calibrated their kit to
+  /// send 31 for the snare would find middle D transposed on the piano, for a
+  /// mapping that was never about pitch. The device may well be the same one
+  /// (a module that also has keys), so "is a kit connected" cannot answer this;
+  /// what the score asks for can.
+  ///
+  /// Read from the store directly rather than through
+  /// `activeDrumMappingProvider`, which resolves the port from
+  /// `midiStatusProvider` — this notifier already knows its own connected
+  /// device, and depending on that provider from here would close a cycle.
+  DrumInputMapping _mappingForDevice() => state.isPercussion
+      ? ref
+            .read(drumInputMappingStoreProvider.notifier)
+            .forPort(state.connectedDevice)
+      : DrumInputMapping.empty;
 
   void _refreshMidiStatus() {
     try {
@@ -491,7 +583,12 @@ class Player extends _$Player {
       if (ports.length != state.midiPorts.length ||
           !ports.every(state.midiPorts.contains) ||
           device != state.connectedDevice) {
+        final deviceChanged = device != state.connectedDevice;
         state = state.copyWith(midiPorts: ports, connectedDevice: device);
+        // A different kit is a different table (change:
+        // add-drum-input-calibration) — including "no kit", which is the
+        // identity. Hot-plug reaches here, so this covers it too.
+        if (deviceChanged) _applyMapping();
       }
     } catch (_) {
       // MIDI status unavailable; keep the previous state.
@@ -523,6 +620,29 @@ class Player extends _$Player {
     ref
         .read(playerPreferencesProvider.notifier)
         .setInstrumentSoundsItself(enabled: enabled);
+  }
+
+  /// Silences (or restores) the app's playback of the **written score** (change:
+  /// add-practice-focus-controls) and remembers it across restarts.
+  ///
+  /// Nothing else about the session changes: the playhead keeps advancing, the
+  /// score keeps being drawn, the Wait Mode gate keeps holding and releasing, the
+  /// scorer keeps judging, and the metronome keeps clicking. It is the exercise's
+  /// own voice that stops — the thing that, on a kit, masks the player's strokes
+  /// and the click on the same percussion timbres.
+  ///
+  /// Silences every sounding voice across the change, for the same reason
+  /// [setInstrumentSoundsItself] does: a note the schedule started is owed a
+  /// release, and muting on the way out would suppress the one it is waiting
+  /// for. `_sounding` is cleared with it, so no release is ever owed for a voice
+  /// that is no longer playing.
+  void setScoreAudioMuted({required bool muted}) {
+    if (state.scoreAudioMuted == muted) return;
+    _silenceAll();
+    state = state.copyWith(scoreAudioMuted: muted);
+    ref
+        .read(playerPreferencesProvider.notifier)
+        .setScoreAudioMuted(muted: muted);
   }
 
   /// Sets the output latency compensation (change: add-audio-output-routing)
@@ -879,6 +999,54 @@ class Player extends _$Player {
     state = updated.copyWith(elapsedMs: updated.startMs);
     if (state.isPlaying) _maybeStartRun();
   }
+
+  // --- Per-piece focus (change: add-practice-focus-controls) -------------
+
+  /// Applies a new muted-piece set — the one path every focus action goes
+  /// through, so mute, solo, unmute and clear all re-arm the session the same
+  /// way [setSelectedHands] does for the keyboard.
+  ///
+  /// Same reasoning, at the new grain: changing what the session asks for
+  /// changes what is scored, so any in-flight run is discarded and restarted
+  /// from the top for the new selection; the onset gate is cleared so it cannot
+  /// stay frozen on an onset that is now out of focus (or pre-satisfied by the
+  /// previous selection); and sounding voices are released so a piece that just
+  /// left the selection does not keep ringing.
+  void _applyDrumFocus(Set<String> muted) {
+    if (!state.isPercussion || setEquals(muted, state.mutedDrumPieces)) return;
+    _silenceAll();
+    _scorer.cancelRun();
+    final updated = state.copyWith(
+      mutedDrumPieces: muted,
+      gateSatisfied: const {},
+      consumedHeld: const {},
+      strokeAtMs: const {},
+    );
+    // The effective start depends on the selection: a piece that enters later
+    // starts the run trimmed to its own first note.
+    state = updated.copyWith(elapsedMs: updated.startMs);
+    if (state.isPlaying) _maybeStartRun();
+  }
+
+  /// Takes [pieceId] out of focus. Muting the last piece in focus restores the
+  /// whole kit rather than leaving a session that asks for nothing (design D2).
+  void muteDrumPiece(String pieceId) => _applyDrumFocus(
+    mutedAfterMuting(state.mutedDrumPieces, pieceId, state.kitPieceIds),
+  );
+
+  /// Puts [pieceId] back in focus.
+  void unmuteDrumPiece(String pieceId) =>
+      _applyDrumFocus({...state.mutedDrumPieces}..remove(pieceId));
+
+  /// Isolates [pieceId] — from the full kit it becomes the only piece asked
+  /// for; from an existing selection it is **added** to it (design D2), which
+  /// is what isolating a second piece means.
+  void soloDrumPiece(String pieceId) => _applyDrumFocus(
+    mutedAfterSoloing(state.mutedDrumPieces, pieceId, state.kitPieceIds),
+  );
+
+  /// Restores every piece of the kit.
+  void clearDrumFocus() => _applyDrumFocus(const {});
 
   // --- Practice range (change: add-measure-range-practice) ---------------
 

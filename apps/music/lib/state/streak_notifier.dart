@@ -18,7 +18,6 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../services/preferences_service.dart';
 import '../services/streak_service.dart';
 import 'curator_profile_notifier.dart';
-import 'rating_activity_notifier.dart';
 import 'session_notifier.dart';
 
 part 'streak_notifier.g.dart';
@@ -86,31 +85,38 @@ class Streak extends _$Streak {
   }
 }
 
-/// The local calendar day of [now] as `yyyy-mm-dd` — the key a declined offer is
-/// filed under. Local, not UTC, because that is the day the *server* decided the
-/// offer on (the app sends its UTC offset with every streak read).
-String localDayKey(DateTime now) =>
-    '${now.year.toString().padLeft(4, '0')}-'
-    '${now.month.toString().padLeft(2, '0')}-'
-    '${now.day.toString().padLeft(2, '0')}';
-
-/// The local day on which the user last said "not this time" to a recovery offer
-/// (`null` = never), persisted through the injectable preferences seam.
+/// The recovery offer the user last said "not this time" to (`null` = never),
+/// persisted through the injectable preferences seam.
 ///
-/// A declined offer used to be remembered only in the listener widget's `State`,
-/// so it came back on the next cold start — and even on a plain navigation
-/// between the two screens that mount the listener. Since the grace window is one
-/// local day, "declined today" means declined for the entire life of *this*
-/// offer: a new break tomorrow is a new question, and gets asked.
+/// **Keyed to the break, not to the calendar day** (change:
+/// add-drum-input-mapping — beta fix). The decline used to be filed under the
+/// local day, on the reasoning that the grace window is one day wide and so a
+/// second question could only be a second break. Two things fall out of that
+/// which a beta tester met head on: the window is a back-office value
+/// (`streak.grace_days`) and a wider one re-asks the very same question every
+/// morning, and "the same offer, asked again" is exactly what saying no is
+/// supposed to end.
+///
+/// A recovery offer only exists while the user has NOT played since the break —
+/// once they play, the run is restarted and the offer is gone for good. So the
+/// run a recovery would restore ([StreakView.recoverableStreak]) identifies the
+/// offer for its whole life, and refusing it silences *that* offer until the
+/// standing genuinely changes. A later break presents a different run and is
+/// asked, once.
 @Riverpod(keepAlive: true)
 class StreakRecoveryDecline extends _$StreakRecoveryDecline {
-  /// Preferences key for the last declined day.
-  static const String prefsKey = 'streak_recovery_declined_day';
+  /// Preferences key for the declined offer. Distinct from the day-keyed key it
+  /// replaces, so a stored day string is never read back as a streak count — an
+  /// upgrading device simply has no recorded decline, and is asked once.
+  static const String prefsKey = 'streak_recovery_declined_run';
 
   @override
-  Future<String?> build() async {
+  Future<int?> build() async {
     try {
-      return await ref.read(preferencesServiceProvider).getString(prefsKey);
+      final raw = await ref
+          .read(preferencesServiceProvider)
+          .getString(prefsKey);
+      return raw == null ? null : int.tryParse(raw);
     } catch (_) {
       // Storage unavailable: no recorded decline. The offer still stands, which
       // is the harmless direction — nothing is ever debited without a yes.
@@ -118,13 +124,15 @@ class StreakRecoveryDecline extends _$StreakRecoveryDecline {
     }
   }
 
-  /// Record that today's offer was declined. The state moves first, so the offer
-  /// is gone the instant the dialog closes rather than one disk round-trip later.
-  Future<void> declineToday() async {
-    final day = localDayKey(ref.read(nowFnProvider)());
-    state = AsyncData(day);
+  /// Record that the offer to restore [run] days was declined. The state moves
+  /// first, so the offer is gone the instant the dialog closes rather than one
+  /// disk round-trip later.
+  Future<void> decline(int run) async {
+    state = AsyncData(run);
     try {
-      await ref.read(preferencesServiceProvider).setString(prefsKey, day);
+      await ref
+          .read(preferencesServiceProvider)
+          .setString(prefsKey, run.toString());
     } catch (_) {
       // The in-memory decline still holds for this session; only the next cold
       // start would ask again.
@@ -133,7 +141,7 @@ class StreakRecoveryDecline extends _$StreakRecoveryDecline {
 }
 
 /// Whether a recovery offer should be surfaced right now — a broken streak that
-/// is inside the grace window, affordable, AND not already declined today.
+/// is inside the grace window, affordable, AND not the offer already declined.
 ///
 /// Deliberately matches `AsyncData` only: while loading, and after a failure
 /// (which keeps the previous value around), this is false — so a transient error
@@ -146,8 +154,7 @@ bool streakRecoveryOffered(Ref ref) {
     :final value,
   ) when value.recoverable) {
     return switch (ref.watch(streakRecoveryDeclineProvider)) {
-      AsyncData(value: final declined) =>
-        declined != localDayKey(ref.read(nowFnProvider)()),
+      AsyncData(value: final declined) => declined != value.recoverableStreak,
       _ => false,
     };
   }

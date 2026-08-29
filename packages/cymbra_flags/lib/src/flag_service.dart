@@ -5,6 +5,18 @@ import 'package:grpc/grpc.dart';
 import 'flag_snapshot.dart';
 import 'grpc/flags.pbgrpc.dart' as pb;
 
+/// The server rejected the bearer the fetch presented (change:
+/// add-drum-input-mapping — beta fix).
+///
+/// A distinct type rather than a leaked `GrpcError`, so the notifier can react
+/// to "your token is stale" without knowing what transport said so — and so a
+/// fake service in a test can raise it as easily as the real one.
+class FlagAuthException implements Exception {
+  const FlagAuthException();
+  @override
+  String toString() => 'FlagAuthException: the flag read rejected the bearer';
+}
+
 /// Result of a fetch: either the new snapshot, or `unchanged` when the server
 /// matched the sent version (the caller keeps its last-good snapshot).
 class FlagFetch {
@@ -18,6 +30,10 @@ class FlagFetch {
 abstract class FlagService {
   /// Fetch the effective flags for [app]. [knownVersion] enables a cheap
   /// "unchanged" answer; [bearer] attaches the identity (`null` ⇒ anonymous set).
+  ///
+  /// Throws [FlagAuthException] when the presented bearer is refused, so the
+  /// caller can refresh it and retry rather than silently keeping whatever set
+  /// the server evaluated without it.
   Future<FlagFetch> fetch({
     required String app,
     required String? identity,
@@ -48,10 +64,16 @@ class GrpcFlagService implements FlagService {
     required String knownVersion,
     required String? bearer,
   }) async {
-    final resp = await _client.getEffectiveFlags(
-      pb.GetEffectiveFlagsRequest(app: app, knownVersion: knownVersion),
-      options: _bearer(bearer),
-    );
+    final pb.GetEffectiveFlagsResponse resp;
+    try {
+      resp = await _client.getEffectiveFlags(
+        pb.GetEffectiveFlagsRequest(app: app, knownVersion: knownVersion),
+        options: _bearer(bearer),
+      );
+    } on GrpcError catch (e) {
+      if (e.code == StatusCode.unauthenticated) throw const FlagAuthException();
+      rethrow;
+    }
     if (resp.unchanged) return const FlagFetch.unchanged();
     return FlagFetch.changed(
       snapshotFromResponse(resp, app: app, identity: identity),

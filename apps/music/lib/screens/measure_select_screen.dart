@@ -245,6 +245,7 @@ class _MeasureSelectScreenState extends ConsumerState<MeasureSelectScreen> {
             songEndMs: data.songEndMs,
             activeNotes: const {},
             selectedHands: data.selectedHands,
+            mutedDrumPieces: data.mutedDrumPieces,
             staffSpace: staffSpace,
             palette: palette,
           );
@@ -273,6 +274,7 @@ class _MeasureSelectScreenState extends ConsumerState<MeasureSelectScreen> {
                       songEndMs: data.songEndMs,
                       activeNotes: const {},
                       selectedHands: data.selectedHands,
+                      mutedDrumPieces: data.mutedDrumPieces,
                       viewTop: viewTop,
                       viewBottom: viewTop + viewHeight,
                       staffSpace: staffSpace,

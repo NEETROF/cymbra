@@ -17,7 +17,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../src/rust/api/midi.dart' as midi_api;
 import '../src/rust/api/score.dart' as score_api;
-import '../src/rust/api/midi.dart' show MidiEcho, MidiEvent;
+import '../src/rust/api/midi.dart' show MidiEcho, MidiEvent, MidiMappingEntry;
 import '../src/rust/api/score.dart' show Score;
 
 part 'midi_service.g.dart';
@@ -58,6 +58,20 @@ abstract class MidiService {
   /// drives — the gate, the scorer, the surfaces — is unaffected: it still runs
   /// on the event the engine also streams over the bridge.
   void setEcho(MidiEcho mode);
+
+  /// Pushes the connected device's input mapping to the **engine** (change:
+  /// add-drum-input-calibration), as incoming number → General MIDI number.
+  ///
+  /// The engine sounds a live stroke from its own MIDI callback, before the
+  /// event crosses the bridge, so it cannot be corrected on the Dart side: it
+  /// has to hold the table too. The app owns the policy and pushes it on every
+  /// input that can change the answer; pushing is idempotent, and an empty
+  /// table is always safe — it is the identity.
+  ///
+  /// The engine applies this to what it *sounds* only. The raw number still
+  /// reaches this stream, because the monitor exists to show what the
+  /// instrument actually sent.
+  void setMapping(Map<int, int> table);
 }
 
 /// Source of the score to play. Separated from [MidiService] because it has a
@@ -70,8 +84,34 @@ abstract class ScoreSource {
 class FrbMidiService implements MidiService {
   const FrbMidiService();
 
+  /// The one engine subscription this process opens, fanned out to every
+  /// listener (change: add-drum-input-calibration).
+  ///
+  /// The engine holds a **single** Flutter sink: `midi_event_stream` stores the
+  /// sink it is handed in a global, and the input callback reads that global —
+  /// so opening a second stream does not add a subscriber, it *replaces* the
+  /// first one, silently. Several places subscribe (the player, the MIDI status
+  /// notifier, four lesson views) and only the most recent was actually fed.
+  /// Nothing has been reported because which consumer loses is decided by build
+  /// order, and so far the loser has been the mildest one: the lesson chip's
+  /// event-driven refresh, which the exercise view below it subscribes after.
+  ///
+  /// It is a model nothing new can be added to — a diagnostic surface is a
+  /// second reader by definition, and in the player it would starve the player.
+  /// The fan-out belongs here, in the adapter, rather than in the engine: the
+  /// engine's single-sink design was never wrong, it was only ever being
+  /// treated as multi-subscriber. Callers keep calling [events] and are simply
+  /// no longer in competition.
+  ///
+  /// Process-wide and lazy, because the sink it wraps is: one static for one
+  /// global. `onListen`/`onCancel` are left alone — the engine's watcher thread
+  /// runs for the process lifetime either way, and tearing the sink down when
+  /// the last screen leaves would only mean re-registering it on the next one.
+  static Stream<MidiEvent>? _shared;
+
   @override
-  Stream<MidiEvent> events() => midi_api.midiEventStream();
+  Stream<MidiEvent> events() =>
+      _shared ??= midi_api.midiEventStream().asBroadcastStream();
 
   @override
   List<String> listPorts() => midi_api.listMidiPorts();
@@ -84,6 +124,13 @@ class FrbMidiService implements MidiService {
 
   @override
   void setEcho(MidiEcho mode) => midi_api.setMidiEcho(mode: mode);
+
+  @override
+  void setMapping(Map<int, int> table) => midi_api.setMidiMapping(
+    entries: [
+      for (final e in table.entries) MidiMappingEntry(from: e.key, to: e.value),
+    ],
+  );
 }
 
 /// Production [ScoreSource] backed by the generated flutter_rust_bridge API.

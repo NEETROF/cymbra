@@ -36,3 +36,22 @@ String kitPieceLabel(AppLocalizations l10n, DrumLane lane) =>
       'kitPieceChina' => l10n.kitPieceChina,
       _ => lane.gmName ?? '',
     };
+
+/// Localised label for a kit piece **identity** (change:
+/// add-drum-input-calibration) — the calibration pass and the mapping table
+/// name pieces without a score-derived [DrumLane] to read them from.
+///
+/// The kick is included here and not in [kitPieceLabel] because it has no lane
+/// (it is the full-width bar); a generic piece falls back to its General MIDI
+/// name, and an identity this build does not know to the raw id, so a table
+/// written by a later version is still readable rather than blank.
+String kitPieceLabelOf(AppLocalizations l10n, String pieceId) {
+  if (pieceId == kKickPieceId) return l10n.kitPieceKick;
+  final label = kitPieceLabel(
+    l10n,
+    DrumLane(role: KitPieceRole.other, gmNumbers: const {}, labelKey: pieceId),
+  );
+  if (label.isNotEmpty) return label;
+  final gm = canonicalGmOfPiece(pieceId);
+  return (gm == null ? null : gmPercussionName(gm)) ?? pieceId;
+}

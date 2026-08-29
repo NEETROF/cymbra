@@ -33,9 +33,10 @@ import 'app_snackbar.dart';
 /// * the **recovery offer** — when the server reports a broken-but-recoverable
 ///   streak, one confirmation asking whether to spend points. Nothing is ever
 ///   debited without that explicit yes (design D2), and a "not this time" is
-///   remembered for the day (`streakRecoveryDeclineProvider`) rather than for the
-///   life of this widget — two screens mount this listener, so a widget-local
-///   flag re-asked on every navigation and on every cold start;
+///   remembered against the offer itself (`streakRecoveryDeclineProvider`)
+///   rather than for the life of this widget — two screens mount this listener,
+///   so a widget-local flag re-asked on every navigation and on every cold
+///   start;
 /// * the **at-risk nudge** — a quiet in-app cue for a live streak with no play
 ///   today. This is the only reminder Windows/Linux get (they have no push
 ///   token), and it is harmless duplication elsewhere;
@@ -106,6 +107,13 @@ class _StreakListenerState extends ConsumerState<StreakListener> {
 
   Future<void> _confirmRecovery(StreakView streak) async {
     final l10n = AppLocalizations.of(context);
+    // Read the notifier BEFORE the dialog is awaited (change:
+    // add-drum-input-mapping — beta fix). Recording the refusal used to sit
+    // behind a `mounted` check, so backgrounding the app with the question open
+    // — or any rebuild that took this subtree down — lost the "no" entirely and
+    // asked again on the next launch. The refusal is the user's answer; it must
+    // survive the widget that collected it.
+    final decline = ref.read(streakRecoveryDeclineProvider.notifier);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -130,16 +138,16 @@ class _StreakListenerState extends ConsumerState<StreakListener> {
       ),
     );
     _asking = false;
-    if (!mounted) return;
     // Declining spends nothing and asks nothing further — the streak simply
-    // lapses at the end of the grace window. Recorded for the day so neither a
-    // relaunch nor the other screen re-opens the same question.
+    // lapses at the end of the grace window. Recorded against THIS offer, so
+    // neither a relaunch, nor the other screen, nor tomorrow morning re-opens
+    // the same question. Recorded before the `mounted` check, because a refusal
+    // that only counts while the widget survives is the bug this replaces.
     if (confirmed != true) {
-      unawaited(
-        ref.read(streakRecoveryDeclineProvider.notifier).declineToday(),
-      );
+      unawaited(decline.decline(streak.recoverableStreak));
       return;
     }
+    if (!mounted) return;
     // Fire the action; the outcome arrives as state, not as a return value.
     unawaited(ref.read(streakProvider.notifier).recover());
   }

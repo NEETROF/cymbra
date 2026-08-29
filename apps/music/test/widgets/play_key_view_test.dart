@@ -64,6 +64,7 @@ MidiEvent _noteOn(int pitch) => MidiEvent(
   kind: MidiEventKind.noteOn,
   pitch: pitch,
   velocity: 100,
+  channel: 0,
   timestampMs: BigInt.zero,
 );
 

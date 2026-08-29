@@ -493,11 +493,29 @@ abstract class PlayerData with _$PlayerData {
 
     /// Which hand(s) the player shows and awaits. Session-only (resets to
     /// [Hand.both] on launch); drives [showsStaff]/[visibleNotes] so every mode
-    /// and the gate filter out the unselected hand together. For a percussion
-    /// score the same state reads hands / feet / both — [Hand.right] selects
-    /// the hands and [Hand.left] the feet, keyed to the voice convention
-    /// (change: add-drum-kit-view).
+    /// and the gate filter out the unselected hand together.
+    ///
+    /// **Keyboard scores only** (change: add-practice-focus-controls). A drum
+    /// part is written on one staff, so the staff mapping never applied to it;
+    /// the hands/feet reading that stood in for it split a groove at the wrong
+    /// grain — it classified the kick as a foot event, so "hands only" removed
+    /// the one piece a drummer never stops playing. Percussion isolates through
+    /// [mutedDrumPieces] instead, and leaves this at [Hand.both].
     @Default(Hand.both) Hand selectedHands,
+
+    /// The kit pieces the session does **not** ask for (change:
+    /// add-practice-focus-controls) — identified by [drumPieceIdOf], so muting
+    /// the hi-hat takes its closed and open numbers together.
+    ///
+    /// Stored as the complement of the focus set ([focusedDrumPieces]) so that
+    /// "everything in focus" is the empty default, and so a number the kit
+    /// model never enumerated reads as in focus rather than being silently
+    /// filtered out.
+    ///
+    /// Session-only, like the hand selection it replaces on percussion: it
+    /// describes the passage being worked on, not a preference, and persisting
+    /// it would hand a later score a kit with holes in it. Reset on load.
+    @Default(<String>{}) Set<String> mutedDrumPieces,
 
     /// The loaded score is percussion (change: add-drum-kit-view): the player
     /// renders the drum cascade + pad strip and no keyboard-range apparatus.
@@ -563,6 +581,19 @@ abstract class PlayerData with _$PlayerData {
     /// clips are untouched. Scoring, key feedback and Wait Mode are identical
     /// either way.
     @Default(false) bool instrumentSoundsItself,
+
+    /// Whether the app stops sounding the **written score** (change:
+    /// add-practice-focus-controls), seeded from the persisted play
+    /// preferences. The counterpart of [instrumentSoundsItself] on the other
+    /// side of the exercise: that one silences what the player *plays*, this
+    /// one what the app *asks for*.
+    ///
+    /// Presentation only, like every other audio rule here. The playhead still
+    /// advances, the score is still drawn, the Wait Mode gate still holds and
+    /// releases, the scorer still judges, and the metronome still clicks —
+    /// [PlayerData] cannot tell the difference anywhere except in what reaches
+    /// the synth.
+    @Default(false) bool scoreAudioMuted,
 
     /// Output latency compensation in **wall-clock** milliseconds (change:
     /// add-audio-output-routing), seeded from the persisted play preferences.
@@ -725,57 +756,73 @@ abstract class PlayerData with _$PlayerData {
     return (60000 / bpm) * (4 / unit);
   }
 
-  /// The controller surfaces the current hands/feet selection can play at all.
+  /// The pieces of the loaded score's kit, in the order the pad strip draws
+  /// them (change: add-practice-focus-controls) — the list the focus control
+  /// lists, and what "every piece" means when a selection is cleared.
+  ///
+  /// Read from [presentedDrumLanes], so the inverted-kit layout reorders the
+  /// control with the instrument: the two read left to right the same way.
+  List<String> get kitPieceIds => isPercussion
+      ? kitPieceIdsOf(presentedDrumLanes, hasKick: hasKickPedal)
+      : const [];
+
+  /// The pieces the session asks for — [kitPieceIds] minus [mutedDrumPieces].
+  ///
+  /// The spec's own vocabulary, derived rather than stored: holding the
+  /// complement is what makes "everything" the default and makes a piece the
+  /// kit model never enumerated read as in focus (see [mutedDrumPieces]).
+  Set<String> get focusedDrumPieces => {
+    for (final id in kitPieceIds)
+      if (!mutedDrumPieces.contains(id)) id,
+  };
+
+  /// The controller surfaces the current focus selection asks for at all.
   ///
   /// Derived from the whole score rather than from [visibleNotes] on purpose:
-  /// it answers "does this limb ever touch this piece", not "in this passage",
-  /// so a measure-range practice does not grey out most of the kit. Empty
-  /// outside a percussion score, and empty when nothing is filtered — both
+  /// it answers "does this selection ever ask for this piece", not "in this
+  /// passage", so a measure-range practice does not grey out most of the kit.
+  /// Empty outside a percussion score, and empty when nothing is muted — both
   /// mean "everything is live", which is what the surfaces draw by default.
   Set<int> get playableDrumSurfaces {
-    if (!isPercussion || selectedHands == Hand.both) return const {};
-    final multiVoice = spansMultipleVoices(notes);
+    if (!isPercussion || mutedDrumPieces.isEmpty) return const {};
     final result = <int>{};
     for (final n in notes) {
-      if (!_showsNote(n, multiVoice: multiVoice)) continue;
+      if (!isDrumPieceInFocus(n.pitch, mutedDrumPieces)) continue;
       final surface = struckSurfaceFor(n.pitch);
       if (surface != null) result.add(surface);
     }
     return result;
   }
 
-  /// Whether the loaded percussion score spans both hand and foot events —
-  /// the precondition for offering the hands/feet selector (a feet-less
-  /// groove has nothing to isolate).
-  bool get hasHandsAndFeet {
-    if (!isPercussion) return false;
-    final multiVoice = spansMultipleVoices(notes);
-    var hands = false;
-    var feet = false;
-    for (final n in notes) {
-      if (isFootNote(n, multiVoice: multiVoice)) {
-        feet = true;
-      } else {
-        hands = true;
-      }
-      if (hands && feet) return true;
-    }
-    return false;
-  }
+  /// Whether there is more than one piece to choose between — the precondition
+  /// for offering the focus control at all (a one-piece kit has nothing to
+  /// isolate, and muting its only piece would restore it immediately anyway).
+  bool get hasDrumPiecesToFocus => isPercussion && kitPieceIds.length > 1;
 
-  /// Whether [selectedHands] shows this note. Keyboard scores split by staff
-  /// (right = staff 1); a percussion score splits by hands/feet, keyed to the
-  /// voice convention with the single-voice GM fallback (change:
-  /// add-drum-kit-view) — [Hand.right] is the hands, [Hand.left] the feet.
-  bool _showsNote(TimedNote n, {required bool multiVoice}) => isPercussion
-      ? switch (selectedHands) {
-          Hand.both => true,
-          Hand.right => !isFootNote(n, multiVoice: multiVoice),
-          Hand.left => isFootNote(n, multiVoice: multiVoice),
-        }
+  /// Whether this run asks for less than the whole kit (change:
+  /// add-practice-focus-controls, design D7).
+  ///
+  /// Such a run IS scored and IS shown to the player — it reaches the last bar
+  /// and its verdict on what it asked for is honest — but it is not submitted:
+  /// a clean groove with the crashes muted is not the same achievement as a
+  /// clean groove, and the boards carry the same piece id either way. It still
+  /// counts as a **practice** session, so isolating part of a groove never
+  /// costs the player their streak.
+  bool get isFocusRestrictedRun => isPercussion && mutedDrumPieces.isNotEmpty;
+
+  /// Whether the current selection shows this note — the ONE predicate every
+  /// render mode, the Wait Mode gate and the scorer reach through
+  /// [visibleNotes], so what is drawn, what is awaited and what is judged can
+  /// never disagree.
+  ///
+  /// A keyboard score splits by staff (right = staff 1); a percussion score
+  /// splits by **kit piece** (change: add-practice-focus-controls), at the
+  /// grain a drummer isolates a groove in.
+  bool _showsNote(TimedNote n) => isPercussion
+      ? isDrumPieceInFocus(n.pitch, mutedDrumPieces)
       : showsStaff(n.staff);
 
-  /// Notes belonging to the selected hand(s) — the input every render mode and
+  /// Notes the current selection asks for — the input every render mode and
   /// the gate derive from, so display and Wait Mode stay consistent.
   ///
   /// During a **selective run** this is the passage's notes only. The run cannot
@@ -783,59 +830,32 @@ abstract class PlayerData with _$PlayerData {
   /// see where the passage ends, and the Wait-Mode gate would otherwise hold at
   /// an onset outside the loop. Restricting at this single source keeps the
   /// display, the gate and the score audio in agreement by construction.
-  List<TimedNote> get visibleNotes {
-    final multiVoice = isPercussion && spansMultipleVoices(notes);
-    return notes
-        .where(
-          (n) =>
-              _showsNote(n, multiVoice: multiVoice) &&
-              _withinRun(n.startMs.toDouble()),
-        )
-        .toList();
-  }
+  List<TimedNote> get visibleNotes => notes
+      .where((n) => _showsNote(n) && _withinRun(n.startMs.toDouble()))
+      .toList();
 
-  /// Whether [selectedHands] shows this rest. Keyboard scores split by staff;
-  /// a percussion score splits by the hands/feet **voice** convention (change:
-  /// add-drum-notation-render): on a multi-voice drum part voice 1's rests
-  /// belong to the hands and voice 2's to the feet, while a single-voice
-  /// part's rests are the shared groove's and stay visible either way (a rest
-  /// carries no GM number for the fallback to key on).
-  bool _showsRest(TimedRest r, {required bool multiVoice}) => isPercussion
-      ? switch (selectedHands) {
-          Hand.both => true,
-          Hand.right => !multiVoice || r.voice < 2,
-          Hand.left => !multiVoice || r.voice >= 2,
-        }
-      : showsStaff(r.staff);
+  /// Whether the current selection shows this rest. Keyboard scores split by
+  /// staff; a **percussion** score never hides a rest (change:
+  /// add-practice-focus-controls): a rest carries no General MIDI number, so it
+  /// belongs to no kit piece, and the groove's silence is the whole part's
+  /// rather than any one piece's. The voice-keyed split that used to hide voice
+  /// 2's rests went with the hands/feet reading it served.
+  bool _showsRest(TimedRest r) => isPercussion || showsStaff(r.staff);
 
-  /// Rests belonging to the selected hand(s) — the render-only companion to
+  /// Rests the current selection asks for — the render-only companion to
   /// [visibleNotes], so the Staff painter hides a muted hand's rests with its
   /// notes (and, in a selective run, everything outside the passage).
-  List<TimedRest> get visibleRests {
-    final multiVoice = isPercussion && spansMultipleVoices(notes);
-    return rests
-        .where(
-          (r) =>
-              _showsRest(r, multiVoice: multiVoice) &&
-              _withinRun(r.startMs.toDouble()),
-        )
-        .toList();
-  }
+  List<TimedRest> get visibleRests => rests
+      .where((r) => _showsRest(r) && _withinRun(r.startMs.toDouble()))
+      .toList();
 
-  /// Tie continuations belonging to the selected hand(s) — the render-only
-  /// companion to [visibleNotes] (same filter, hands/feet on percussion), so a
-  /// muted hand's tied notation hides with its notes (and, in a selective run,
+  /// Tie continuations the current selection asks for — the render-only
+  /// companion to [visibleNotes] (same filter, per-piece on percussion), so a
+  /// muted piece's tied notation hides with its notes (and, in a selective run,
   /// everything outside the passage).
-  List<TimedNote> get visibleTieContinuations {
-    final multiVoice = isPercussion && spansMultipleVoices(notes);
-    return tieContinuations
-        .where(
-          (n) =>
-              _showsNote(n, multiVoice: multiVoice) &&
-              _withinRun(n.startMs.toDouble()),
-        )
-        .toList();
-  }
+  List<TimedNote> get visibleTieContinuations => tieContinuations
+      .where((n) => _showsNote(n) && _withinRun(n.startMs.toDouble()))
+      .toList();
 
   /// Whether onset [t] falls inside the run. Always true for a full run; for a
   /// selective one, the half-open span of the chosen measures. Deliberately keyed
@@ -1014,21 +1034,15 @@ abstract class PlayerData with _$PlayerData {
     return result;
   }
 
-  /// The selection as the session result records it: the hands/feet reading on
-  /// a percussion score (change: add-drum-scoring — `hand-selection` gives
-  /// [Hand.right] the hands and [Hand.left] the feet there), else the
-  /// keyboard's own `left` / `right` / `both`.
+  /// The selection as the session result records it: the keyboard's own
+  /// `left` / `right` / `both`.
   ///
-  /// Distinct tokens for the percussion readings rather than reusing the
-  /// keyboard's, so the summary can say "Feet" where a keyboard run says "Left
-  /// hand" — and so the keyboard labels stay exactly what they were.
-  String get handsSelectionName => isPercussion
-      ? switch (selectedHands) {
-          Hand.both => 'handsAndFeet',
-          Hand.right => 'hands',
-          Hand.left => 'feet',
-        }
-      : selectedHands.name;
+  /// A percussion run always reports `both` (change:
+  /// add-practice-focus-controls): the hands/feet reading that used to give it
+  /// its own tokens is gone, and a focus selection is not a hand selection —
+  /// a restricted drum run is marked as such by not being submitted at all
+  /// (see `isFocusRestrictedRun`), not by a label on a submitted result.
+  String get handsSelectionName => selectedHands.name;
 
   /// The next note onset strictly after [t] (ms), or null if there are none.
   /// Restricted to [visibleNotes] so the playhead does not pause at a hidden

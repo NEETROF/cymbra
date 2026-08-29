@@ -24,6 +24,8 @@
 //! exposes plain `u8`/`Vec<u8>`), so they are `#[frb(ignore)]`d to keep them out
 //! of the generated bridge.
 
+use std::collections::BTreeMap;
+
 use flutter_rust_bridge::frb;
 
 use super::audio::AudioRouteKind;
@@ -155,6 +157,24 @@ pub(crate) fn echo_event(mode: MidiEcho, event: &MidiEvent) -> Option<AudioEvent
         }
         (MidiEcho::Drum, MidiEventKind::NoteOff) => None,
     }
+}
+
+/// The General MIDI number an incoming `pitch` means on the connected device
+/// (change: add-drum-input-calibration).
+///
+/// The pure half of the engine's share of the translation seam. The app owns
+/// the table and pushes it ([`super::midi::set_midi_mapping`]); the engine only
+/// applies it, and applies it to **its own echo only** — the raw number still
+/// crosses the bridge, because the monitor's whole job is showing what the
+/// instrument actually sent.
+///
+/// Total and identity-by-default, exactly like the Dart side it mirrors: an
+/// unmapped number is itself, so an uncalibrated device sounds precisely as it
+/// did before any mapping existed. The two must stay identical — a stroke the
+/// engine echoed as one piece and the app scored as another is the failure
+/// design D2 exists to prevent.
+pub(crate) fn mapped_pitch(table: &BTreeMap<u8, u8>, pitch: u8) -> u8 {
+    table.get(&pitch).copied().unwrap_or(pitch)
 }
 
 /// How much output buffering to ask a device for, as a **duration** (change:
@@ -705,6 +725,9 @@ mod tests {
                 kind,
                 pitch,
                 velocity,
+                // Channel 10 (index 9), where a kit transmits — and irrelevant
+                // to the echo, which is channel-agnostic by construction.
+                channel: 9,
                 timestamp_ms: 0,
             }
         }
@@ -736,6 +759,70 @@ mod tests {
         assert_eq!(
             echo_event(MidiEcho::Drum, &event(MidiEventKind::NoteOff, 42, 0)),
             None
+        );
+    }
+
+    #[test]
+    fn an_unmapped_number_is_itself_and_a_mapped_one_is_its_piece() {
+        // The engine's half of the translation seam (change:
+        // add-drum-input-calibration). It must agree exactly with the Dart
+        // `DrumInputMapping.translate`, or a stroke is sounded as one piece and
+        // scored as another.
+        let empty = BTreeMap::new();
+        for pitch in 0..=127u8 {
+            assert_eq!(mapped_pitch(&empty, pitch), pitch, "pitch {pitch}");
+        }
+
+        // A module sending 31 where the app expects a snare — the beta report's
+        // shape: inaudible AND invisible until it is mapped.
+        let table: BTreeMap<u8, u8> = [(31, 38), (12, 36)].into_iter().collect();
+        assert_eq!(mapped_pitch(&table, 31), 38);
+        assert_eq!(mapped_pitch(&table, 12), 36);
+        // Everything the table does not cover still passes through untouched,
+        // so calibrating one pad cannot disturb the others.
+        for pitch in 0..=127u8 {
+            if pitch == 31 || pitch == 12 {
+                continue;
+            }
+            assert_eq!(mapped_pitch(&table, pitch), pitch, "pitch {pitch}");
+        }
+    }
+
+    #[test]
+    fn the_echo_sounds_the_translated_number() {
+        // The failure design D2 exists to prevent, at the one place the engine
+        // can cause it: a mapped stroke must reach the synth as the piece the
+        // rest of the app credits, never as the raw number.
+        let table: BTreeMap<u8, u8> = [(31, 38)].into_iter().collect();
+        let raw = MidiEvent {
+            kind: MidiEventKind::NoteOn,
+            pitch: 31,
+            velocity: 120,
+            channel: 9,
+            timestamp_ms: 0,
+        };
+        let sounded = MidiEvent {
+            kind: raw.kind,
+            pitch: mapped_pitch(&table, raw.pitch),
+            velocity: raw.velocity,
+            channel: raw.channel,
+            timestamp_ms: raw.timestamp_ms,
+        };
+        assert_eq!(
+            echo_event(MidiEcho::Drum, &sounded),
+            Some(AudioEvent::drum_on(38, DEFAULT_VELOCITY))
+        );
+        // …and the velocity stays unconsumed across the translation, so
+        // calibrating a pad does not smuggle dynamics in through a side door.
+        assert_eq!(
+            echo_event(MidiEcho::Drum, &sounded),
+            echo_event(
+                MidiEcho::Drum,
+                &MidiEvent {
+                    velocity: 1,
+                    ..sounded
+                }
+            )
         );
     }
 

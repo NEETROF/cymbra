@@ -45,16 +45,28 @@ class FakeMidiService implements MidiService {
 
   FakeMidiService({this.ports = const [], this.connected, this.echoTo});
 
+  /// Every mapping table the app has pushed, in order (change:
+  /// add-drum-input-calibration).
+  final List<Map<int, int>> mappings = <Map<int, int>>[];
+
+  /// What the engine would translate with right now.
+  Map<int, int> mapping = const {};
+
   void emit(MidiEvent event) {
     final sink = echoTo;
     final on = event.kind == MidiEventKind.noteOn;
+    // The engine translates before it echoes and reports the RAW number over
+    // the bridge (change: add-drum-input-calibration). Mirrored faithfully
+    // here, so a test asserting what a mapped stroke sounds like is asserting
+    // the real arrangement rather than a convenient one.
+    final sounded = mapping[event.pitch] ?? event.pitch;
     switch (echo) {
       case MidiEcho.off:
         break;
       case MidiEcho.melodic:
-        on ? sink?.noteOn(event.pitch) : sink?.noteOff(event.pitch);
+        on ? sink?.noteOn(sounded) : sink?.noteOff(sounded);
       case MidiEcho.drum:
-        if (on) sink?.drumOn(event.pitch);
+        if (on) sink?.drumOn(sounded);
     }
     _controller.add(event);
   }
@@ -63,6 +75,12 @@ class FakeMidiService implements MidiService {
   void setEcho(MidiEcho mode) {
     echoModes.add(mode);
     echo = mode;
+  }
+
+  @override
+  void setMapping(Map<int, int> table) {
+    mappings.add(table);
+    mapping = table;
   }
 
   @override
@@ -213,17 +231,24 @@ class FakeScoreSource implements ScoreSource {
 }
 
 /// Convenience constructor for a NoteOn event.
-MidiEvent noteOnEvent(int pitch, {int velocity = 100}) => MidiEvent(
-  kind: MidiEventKind.noteOn,
-  pitch: pitch,
-  velocity: velocity,
-  timestampMs: BigInt.zero,
-);
+///
+/// [channel] defaults to 9 — channel 10, where a kit transmits. It is reported,
+/// never enforced (the app's interpretation is channel-agnostic), so the default
+/// changes nothing for the keyboard tests that ignore it.
+MidiEvent noteOnEvent(int pitch, {int velocity = 100, int channel = 9}) =>
+    MidiEvent(
+      kind: MidiEventKind.noteOn,
+      pitch: pitch,
+      velocity: velocity,
+      channel: channel,
+      timestampMs: BigInt.zero,
+    );
 
 /// Convenience constructor for a NoteOff event.
-MidiEvent noteOffEvent(int pitch) => MidiEvent(
+MidiEvent noteOffEvent(int pitch, {int channel = 9}) => MidiEvent(
   kind: MidiEventKind.noteOff,
   pitch: pitch,
   velocity: 0,
+  channel: channel,
   timestampMs: BigInt.zero,
 );

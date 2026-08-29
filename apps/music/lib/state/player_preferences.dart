@@ -83,6 +83,19 @@ abstract class PlayerPrefs with _$PlayerPrefs {
     /// add-audio-output-routing). Off by default — today's behaviour.
     @Default(false) bool instrumentSoundsItself,
 
+    /// Whether the app stops sounding the **written score** (change:
+    /// add-practice-focus-controls). The exact counterpart of
+    /// [instrumentSoundsItself], on the other side of the exercise: that one
+    /// silences the notes the player *plays*, this one the notes the app
+    /// *asks for*. All four combinations are meaningful.
+    ///
+    /// Everything else about the session is untouched — the playhead, the
+    /// drawing, the Wait Mode gate, the scorer and the metronome. Only the
+    /// score's own audio stops. On a kit that is what makes an exercise
+    /// audible at all: the click, the written part and the player's strokes
+    /// otherwise mask each other on the same percussion timbres.
+    @Default(false) bool scoreAudioMuted,
+
     /// Preferred audio **output device name**; null = follow the system default.
     /// A name is the only stable-ish handle the audio host offers, so a
     /// remembered device that is absent at startup simply falls back to the
@@ -168,6 +181,8 @@ class PlayerPreferences extends _$PlayerPreferences {
       _update(state.copyWith(notationTheme: theme));
   void setInstrumentSoundsItself({required bool enabled}) =>
       _update(state.copyWith(instrumentSoundsItself: enabled));
+  void setScoreAudioMuted({required bool muted}) =>
+      _update(state.copyWith(scoreAudioMuted: muted));
   void setAudioOutput(String? name) =>
       _update(state.copyWith(audioOutput: name));
 
@@ -217,6 +232,7 @@ class PlayerPreferences extends _$PlayerPreferences {
     'notationTheme': p.notationTheme.name,
     'midiPort': p.midiPort,
     'instrumentSoundsItself': p.instrumentSoundsItself,
+    'scoreAudioMuted': p.scoreAudioMuted,
     'audioOutput': p.audioOutput,
     'outputOffsetMs': p.outputOffsetMs,
     'invertedKit': p.invertedKit,
@@ -248,6 +264,7 @@ class PlayerPreferences extends _$PlayerPreferences {
             NotationTheme.dark,
         midiPort: m['midiPort'] as String?,
         instrumentSoundsItself: m['instrumentSoundsItself'] as bool? ?? false,
+        scoreAudioMuted: m['scoreAudioMuted'] as bool? ?? false,
         audioOutput: m['audioOutput'] as String?,
         outputOffsetMs: ((m['outputOffsetMs'] as num?)?.toInt() ?? 0).clamp(
           0,
