@@ -65,10 +65,10 @@
 
 ## 6. App — collections
 
-- [ ] 6.1 Collections service (gRPC seam) + notifier: load, create, rename,
+- [x] 6.1 Collections service (gRPC seam) + notifier: load, create, rename,
   delete, assign/remove, filter state; mockito-tested (conflict error surfaced
   as localized message)
-- [ ] 6.2 Library UI: collection filter (all ↔ one collection), create/rename/
+- [x] 6.2 Library UI: collection filter (all ↔ one collection), create/rename/
   delete flows, add-to-collection action on a score; widget tests for
   filtering and the collision error path
 

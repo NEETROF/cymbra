@@ -24,6 +24,7 @@ import '../theme/cymbra_theme.dart';
 import '../widgets/catalog_access_widgets.dart';
 import '../widgets/library_listeners.dart';
 import '../widgets/score_card.dart';
+import '../widgets/collection_bar.dart';
 import '../widgets/score_propose_sheet.dart';
 import 'open_score.dart';
 import 'score_upload_screen.dart';
@@ -183,6 +184,12 @@ class _SearchBar extends StatelessWidget {
                 ),
             ],
           ),
+          // The private library's collection filter (change:
+          // add-private-score-catalog) — only meaningful on one's own uploads.
+          if (state.myScoresOnly) ...[
+            const SizedBox(height: 6),
+            const CollectionBar(),
+          ],
         ],
       ),
     );
@@ -381,6 +388,14 @@ class _HubCard extends ConsumerWidget {
               tooltip: l10n.scoreProposeAction,
               onPressed: () => _propose(context, ref),
             ),
+          // Put this upload in one of the caller's collections (change:
+          // add-private-score-catalog).
+          _overlayButton(
+            icon: Icons.playlist_add,
+            color: CymbraColors.onSurface,
+            tooltip: l10n.collectionsAddTo,
+            onPressed: () => showAddToCollection(context, entry.contributedId!),
+          ),
           _overlayButton(
             icon: entry.favorite ? Icons.favorite : Icons.favorite_border,
             color: entry.favorite ? CymbraColors.error : CymbraColors.onSurface,

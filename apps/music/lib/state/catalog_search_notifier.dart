@@ -20,6 +20,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../analytics/usage_actions.dart';
 import '../services/catalog_service.dart';
 import 'contributed_scores.dart';
+import 'score_collections.dart';
 import 'saved_catalog_scores.dart';
 import 'instrument_context.dart';
 import 'score_catalog.dart';
@@ -293,7 +294,15 @@ class CatalogSearch extends _$CatalogSearch {
 
   /// The user's uploads that match the current filters (leads the result list).
   Future<List<CatalogEntry>> _matchingUploads() async {
-    final uploads = await ref.read(myContributedScoresProvider.future);
+    // A collection filter narrows the private library to that collection, in the
+    // collection's own order (change: add-private-score-catalog); with none, the
+    // whole library is listed exactly as before.
+    final collectionId = ref.read(collectionFilterProvider);
+    final uploads = collectionId == null
+        ? await ref.read(myContributedScoresProvider.future)
+        : (await ref.read(scoresInCollectionProvider.future))
+              .map((s) => contributedEntry(s))
+              .toList();
     return uploads.where(_matchesFilters).toList();
   }
 

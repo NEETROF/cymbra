@@ -110,6 +110,29 @@ class _FakeUpload implements ScoreUploadService {
   Future<List<ContributedScore>> listMyScores() async => mine;
 
   @override
+  Future<List<ContributedScore>> listMyScoresInCollection(String collectionId) async =>
+      const [];
+
+  @override
+  Future<List<ScoreCollection>> listCollections() async => const [];
+
+  @override
+  Future<ScoreCollection> createCollection(String name) async =>
+      ScoreCollection(id: 'c1', name: name, createdAt: DateTime.utc(2026));
+
+  @override
+  Future<void> renameCollection(String id, String name) async {}
+
+  @override
+  Future<void> deleteCollection(String id) async {}
+
+  @override
+  Future<void> addToCollection(String collectionId, String scoreId) async {}
+
+  @override
+  Future<void> removeFromCollection(String collectionId, String scoreId) async {}
+
+  @override
   Future<UploadAllowance> uploadAllowance() async => const UploadAllowance(
     remaining: 100,
     max: 100,
