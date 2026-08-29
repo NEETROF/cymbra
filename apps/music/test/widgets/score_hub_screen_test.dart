@@ -116,6 +116,14 @@ class _FakeUpload implements ScoreUploadService {
 
   @override
   Future<List<ContributedScore>> listMyScores() async => mine;
+
+  @override
+  Future<UploadAllowance> uploadAllowance() async => const UploadAllowance(
+    remaining: 100,
+    max: 100,
+    windowDays: 7,
+    upgradeRaisesLimit: false,
+  );
   @override
   Future<void> deleteScore(String id) async {}
   @override
@@ -326,6 +334,37 @@ void main() {
       await tester.pump(const Duration(milliseconds: 40));
     }
     expect(upload.favoriteCalls, [('u1', false)]);
+    await _teardown(tester, c);
+  });
+
+  /// A personal-use import can never reach the public catalog (change:
+  /// add-private-score-catalog), so the card offers no propose affordance at all —
+  /// the other actions are untouched.
+  testWidgets('a personal-use upload offers no propose action', (tester) async {
+    final upload = _FakeUpload([
+      ContributedScore(
+        id: 'u1',
+        level: PracticeLevel.beginner,
+        createdAt: DateTime.utc(2026, 5, 1),
+        measureCount: 4,
+        timeSig: '4/4',
+        keyFifths: 0,
+        title: 'Private Upload',
+        composer: 'Me',
+        rightsBasis: privateUseWire,
+      ),
+    ]);
+    final c = _container(_FakeCatalog(const []), uploadFake: upload);
+    await _pump(tester, c);
+    await tester.tap(find.widgetWithText(FilterChip, 'My scores'));
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 40));
+    }
+    expect(find.text('Private Upload'), findsOneWidget);
+    // No globe action...
+    expect(find.byIcon(Icons.public), findsNothing);
+    // ...but the card is otherwise a normal upload (favorite + delete remain).
+    expect(find.byIcon(Icons.favorite), findsOneWidget);
     await _teardown(tester, c);
   });
 

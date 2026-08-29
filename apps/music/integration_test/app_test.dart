@@ -312,6 +312,9 @@ class _FixturePicker implements FilePickerService {
     name: 'ode-to-joy.musicxml',
     bytes: Uint8List.fromList(utf8.encode(kFixtureScoreXml)),
   );
+
+  @override
+  Future<List<PickedScoreFile>> pickScores() async => [(await pickScore())!];
 }
 
 /// A [ScoreUploadService] that records the submit inputs instead of hitting gRPC.
@@ -351,6 +354,14 @@ class _RecordingUpload implements ScoreUploadService {
 
   @override
   Future<List<ContributedScore>> listMyScores() async => const [];
+
+  @override
+  Future<UploadAllowance> uploadAllowance() async => const UploadAllowance(
+    remaining: 100,
+    max: 100,
+    windowDays: 7,
+    upgradeRaisesLimit: false,
+  );
   @override
   Future<void> deleteScore(String id) async {}
   @override

@@ -205,6 +205,29 @@ void main() {
     },
   );
 
+  /// The personal-use basis is a normal, submittable choice (change:
+  /// add-private-score-catalog) and travels to the server as `private_use` — that
+  /// stored value is what later refuses a proposal.
+  test('the personal-use basis submits and maps to its wire value', () async {
+    final upload = _upload();
+    final c = _make(pick: _file(), upload: upload);
+    final n = c.read(scoreUploadNotifierProvider.notifier);
+    await n.pickAndValidate();
+    n.setRightsBasis(RightsBasis.privateUse);
+    n.setRightsAck(true);
+    n.goToVerify();
+    n.goToConfirm();
+    n.setLevel(PracticeLevel.beginner);
+    await n.submit();
+    expect(_capturedInputs(upload), [
+      PracticeLevel.beginner,
+      RightsBasis.privateUse,
+      true,
+    ]);
+    expect(RightsBasis.privateUse.wire, 'private_use');
+    expect(c.read(scoreUploadNotifierProvider).isDone, isTrue);
+  });
+
   test(
     'finalize is blocked without a title until a fallback is typed',
     () async {

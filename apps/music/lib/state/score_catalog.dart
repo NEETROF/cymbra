@@ -133,6 +133,12 @@ class CatalogEntry {
   /// The moderator's rejection reason, shown when [proposalStatus] is `rejected`.
   final String? proposalRejectionReason;
 
+  /// For one of the caller's own uploads, the rights basis it was imported under
+  /// (change: add-private-score-catalog). `private_use` means the score can never
+  /// be shared or proposed, so no such affordance is offered. Null for catalog
+  /// entries, which are not the caller's private files.
+  final String? rightsBasis;
+
   /// For an `accepted` user-proposed catalog score: the proposer's public handle,
   /// shown as a "proposé par @pseudo" credit (change: add-score-catalog-proposal).
   /// `null` for a crawler-ingested score or when the proposer kept their profile
@@ -165,11 +171,17 @@ class CatalogEntry {
     this.favorite = true,
     this.uploaderHandle,
     this.moderationStatus,
+    this.rightsBasis,
     this.proposalStatus,
     this.proposalRejectionReason,
     this.contributorCredit,
     this.hasPreview = false,
   });
+
+  /// Whether this is one of the caller's own uploads imported for their strictly
+  /// personal use (change: add-private-score-catalog): it can never be shared or
+  /// proposed, so no such affordance is offered for it.
+  bool get isPrivateUse => rightsBasis == 'private_use';
 
   /// Whether this is a user upload (byte-sourced) rather than a bundled score.
   bool get isContributed => contributedId != null;

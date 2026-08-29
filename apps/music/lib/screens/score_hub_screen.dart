@@ -371,7 +371,10 @@ class _HubCard extends ConsumerWidget {
           // Public-catalog proposal (change: add-score-catalog-proposal): the status pill
           // is rendered by ScoreCard (bottom-left); here only the opt-in propose action
           // (shown when not yet proposed, or to re-propose a rejected score).
-          if (status == null || status == 'rejected')
+          // A personal-use import is never proposable (change:
+          // add-private-score-catalog), so the affordance is absent entirely — the
+          // server refuses it too, on the stored basis.
+          if (!entry.isPrivateUse && (status == null || status == 'rejected'))
             _overlayButton(
               icon: Icons.public,
               color: CymbraColors.onSurface,

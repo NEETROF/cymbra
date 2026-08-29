@@ -104,6 +104,12 @@ abstract class ScoreUploadState with _$ScoreUploadState {
     /// add-drums-access) — e.g. `drums_not_available`. Wins over [submitError]
     /// so no raw/pre-baked string is shown for a typed refusal.
     String? submitErrorCode,
+
+    /// A multi-file selection awaiting the batch flow (change:
+    /// add-private-score-catalog). Non-empty is the SIGNAL that the user picked
+    /// several files: a listener widget hands them to the batch notifier and
+    /// navigates. The wizard itself never processes them.
+    @Default(<PickedScoreFile>[]) List<PickedScoreFile> batchSelection,
   }) = _ScoreUploadState;
 
   /// A file passed client-side validation (has a summary, no reject).
@@ -152,10 +158,34 @@ class ScoreUploadNotifier extends _$ScoreUploadNotifier {
     return const ScoreUploadState();
   }
 
+  /// Pick one **or several** files (change: add-private-score-catalog). One file
+  /// runs the wizard exactly as before; several route to the batch flow by
+  /// publishing them in [ScoreUploadState.batchSelection] — the navigation itself
+  /// is a listener's job, not this notifier's.
+  Future<void> pickForImport() async {
+    final picked = await ref.read(filePickerProvider).pickScores();
+    if (picked.isEmpty) return;
+    if (picked.length == 1) {
+      await _validate(picked.first);
+      return;
+    }
+    state = state.copyWith(batchSelection: List.unmodifiable(picked));
+  }
+
+  /// Clear the batch signal once a listener has acted on it, so returning to the
+  /// wizard does not navigate again.
+  void clearBatchSelection() =>
+      state = state.copyWith(batchSelection: const []);
+
   /// Pick a file and validate it locally. A cancelled pick is a no-op.
   Future<void> pickAndValidate() async {
     final picked = await ref.read(filePickerProvider).pickScore();
     if (picked == null) return;
+    await _validate(picked);
+  }
+
+  /// Validate one picked file and seat it in the wizard.
+  Future<void> _validate(PickedScoreFile picked) async {
     // Reset any prior validation, keep the wizard on the Upload step.
     state = ScoreUploadState(file: picked, validating: true);
     final outcome = await ref

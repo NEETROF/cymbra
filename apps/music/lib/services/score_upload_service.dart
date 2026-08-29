@@ -31,14 +31,21 @@ part 'score_upload_service.g.dart';
 
 /// The basis on which a user may contribute a score (design 2b). The wire form
 /// matches the backend's `rights_basis` check.
-enum RightsBasis { author, publicDomain }
+enum RightsBasis { author, publicDomain, privateUse }
 
 extension RightsBasisWire on RightsBasis {
   String get wire => switch (this) {
     RightsBasis.author => 'own_work',
     RightsBasis.publicDomain => 'public_domain',
+    RightsBasis.privateUse => privateUseWire,
   };
 }
+
+/// The wire value of the personal-use basis (change: add-private-score-catalog).
+/// A score stored under it stays private forever: the app hides every propose
+/// affordance for it, and the server refuses such a proposal on the STORED basis
+/// regardless of what a client sends.
+const String privateUseWire = 'private_use';
 
 /// A score the signed-in user has contributed. All descriptive metadata is
 /// **server-derived** (design 2b) — the app never sends it.
@@ -74,6 +81,11 @@ class ContributedScore {
   /// when recorded as `unknown` (no indication is shown).
   final ScoreInstrument? instrument;
 
+  /// The rights basis this score was imported under (change:
+  /// add-private-score-catalog). Drives whether a propose affordance is offered
+  /// at all — see [isPrivateUse].
+  final String? rightsBasis;
+
   const ContributedScore({
     required this.id,
     required this.level,
@@ -92,10 +104,35 @@ class ContributedScore {
     this.proposalStatus,
     this.rejectionReason,
     this.instrument,
+    this.rightsBasis,
   });
 
   /// Whether this contribution has been proposed to the public catalog.
   bool get isProposed => proposalStatus != null;
+
+  /// Whether this score was imported for the owner's strictly personal use, and
+  /// so can never be shared or proposed (change: add-private-score-catalog).
+  bool get isPrivateUse => rightsBasis == privateUseWire;
+}
+
+/// The caller's remaining upload allowance in the current rolling window
+/// (change: add-private-score-catalog). Read before a batch import so the flow
+/// can say up front how many of the selected files can actually land.
+class UploadAllowance {
+  final int remaining;
+  final int max;
+  final int windowDays;
+
+  /// Whether a higher plan would raise [max] — the same signal the quota refusal
+  /// carries, so the surface upsells consistently.
+  final bool upgradeRaisesLimit;
+
+  const UploadAllowance({
+    required this.remaining,
+    required this.max,
+    required this.windowDays,
+    required this.upgradeRaisesLimit,
+  });
 }
 
 /// Seam over the backend `ScoreService` — the app's contribution surface. Every
@@ -119,6 +156,9 @@ abstract class ScoreUploadService {
 
   /// The caller's own contributed scores, newest first.
   Future<List<ContributedScore>> listMyScores();
+
+  /// The caller's remaining upload allowance (change: add-private-score-catalog).
+  Future<UploadAllowance> uploadAllowance();
 
   /// Propose one of the caller's private scores to the public catalog (change:
   /// add-score-catalog-proposal). Requires a licence declaration + right-to-distribute
@@ -191,6 +231,7 @@ class GrpcScoreUploadService implements ScoreUploadService {
     instrument: scoreInstrumentFromWire(
       r.hasInstrument() ? r.instrument : null,
     ),
+    rightsBasis: r.rightsBasis.isEmpty ? null : r.rightsBasis,
   );
 
   @override
@@ -226,6 +267,20 @@ class GrpcScoreUploadService implements ScoreUploadService {
       options: bearerOptions(bearer),
     );
     return resp.scores.map(_toScore).toList();
+  });
+
+  @override
+  Future<UploadAllowance> uploadAllowance() => _authed((bearer) async {
+    final resp = await _client.getUploadAllowance(
+      score.GetUploadAllowanceRequest(),
+      options: bearerOptions(bearer),
+    );
+    return UploadAllowance(
+      remaining: resp.remaining,
+      max: resp.max,
+      windowDays: resp.windowDays,
+      upgradeRaisesLimit: resp.upgradeRaisesLimit,
+    );
   });
 
   @override

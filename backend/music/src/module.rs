@@ -38,11 +38,28 @@ use crate::repo::{CatalogEntry, ScoreFacets, ScoreMeta};
 use crate::score_rating::{
     RatingAggregate, RatingConfig, ScoreRatingRepo, UserRating, Verdict, is_flagged_for_review,
 };
+use crate::user_collections::{Collection, UserCollectionRepo};
 use crate::user_library::UserLibraryRepo;
+use crate::user_score_admin::{Takedown, UserScoreAdminRepo};
 use crate::user_scores::{UserScore, UserScoreRepo};
 
 const LEVELS: [&str; 3] = ["beginner", "intermediate", "advanced"];
-const RIGHTS_BASES: [&str; 2] = ["own_work", "public_domain"];
+/// The rights basis under which a score is imported for the owner's own use only
+/// (change: add-private-score-catalog). Structurally unshareable: [`MusicModule::propose`]
+/// refuses a score stored under it, reading THIS stored value rather than the
+/// proposal's own licence declaration, so a permissive declaration cannot launder a
+/// personal-use import into the public catalog.
+pub const PRIVATE_USE_BASIS: &str = "private_use";
+
+/// Longest collection name accepted. Names are user data, but an unbounded one is
+/// abuse, not a name; refused in the module so the app gets a typed error.
+const COLLECTION_NAME_MAX: usize = 80;
+
+/// Server cap on one takedown-search page, so a privileged lookup cannot be turned
+/// into a bulk export of everyone's private library.
+const TAKEDOWN_SEARCH_MAX_LIMIT: i64 = 50;
+
+const RIGHTS_BASES: [&str; 3] = ["own_work", "public_domain", PRIVATE_USE_BASIS];
 
 /// The allowed moderation statuses for the privileged search filter (change:
 /// add-score-moderation-gating). A caller-supplied status outside this set is
@@ -158,6 +175,15 @@ pub struct ScoreModule {
     /// [`Self::with_daily_access`]; even when wired, the gate is OFF until its
     /// flag is on.
     daily_access: Option<Arc<CatalogDailyAccess>>,
+    /// Cross-owner admin surface over private scores — notice-and-takedown
+    /// (change: add-private-score-catalog). `None` ⇒ the takedown RPCs refuse; the
+    /// rest of the module is unaffected. Wired via [`Self::with_score_admin`].
+    score_admin: Option<Arc<dyn UserScoreAdminRepo>>,
+    /// Private-library collections (change: add-private-score-catalog). `None` ⇒ the
+    /// collection surface is inert: every method refuses with `Unavailable` and the
+    /// library lists unfiltered, exactly as before this change. Wired via
+    /// [`Self::with_collections`].
+    collections: Option<Arc<dyn UserCollectionRepo>>,
     /// Effective-plan source (change: add-premium-subscription): a plan granting
     /// `scores.extended_quotas` gets the premium upload quota / library cap. `None`
     /// ⇒ everyone is `free`.
@@ -275,6 +301,8 @@ impl ScoreModule {
             rewards: None,
             offline_secrets: Arc::new(FakeOfflineSecretRepo::default()),
             daily_access: None,
+            collections: None,
+            score_admin: None,
             plans: None,
             flags: None,
             score_quotas: Arc::new(FixedScoreQuotas {
@@ -293,6 +321,18 @@ impl ScoreModule {
     }
 
     /// Wire the plan seam (change: add-premium-subscription).
+    /// Wire the privileged takedown surface (change: add-private-score-catalog).
+    pub fn with_score_admin(mut self, admin: Arc<dyn UserScoreAdminRepo>) -> Self {
+        self.score_admin = Some(admin);
+        self
+    }
+
+    /// Wire the private-library collections store (change: add-private-score-catalog).
+    pub fn with_collections(mut self, collections: Arc<dyn UserCollectionRepo>) -> Self {
+        self.collections = Some(collections);
+        self
+    }
+
     pub fn with_plans(mut self, plans: Arc<dyn cymbra_plans::PlanSource>) -> Self {
         self.plans = Some(plans);
         self
@@ -567,6 +607,212 @@ impl ScoreModule {
         self.repo.list_by_owner(owner_id).await
     }
 
+    /// The caller's remaining upload allowance in the current rolling window
+    /// (change: add-private-score-catalog), resolved through the SAME plan-based
+    /// quota the upload path enforces — so a batch import can say up front how many
+    /// of the selected files can land, instead of discovering it file by file.
+    /// Returns `(remaining, max, window_days, upgrade_raises_limit)`.
+    pub async fn upload_allowance(&self, owner_id: &str) -> Result<(u32, u32, u32, bool)> {
+        let extended = self.plan_extends_quotas(owner_id).await;
+        let quotas = self.score_quotas.score_quotas(extended);
+        let used = self
+            .repo
+            .count_recent(owner_id, quotas.upload_window_days)
+            .await?;
+        let remaining = (quotas.upload_max as i64 - used).max(0) as u32;
+        Ok((
+            remaining,
+            quotas.upload_max,
+            quotas.upload_window_days,
+            !extended,
+        ))
+    }
+
+    // --- private-library collections (change: add-private-score-catalog) ------
+
+    /// The wired collections store, or a configuration error. Every collection
+    /// method goes through here so an unwired deployment refuses loudly instead of
+    /// silently pretending the caller has none.
+    fn collections(&self) -> Result<&Arc<dyn UserCollectionRepo>> {
+        self.collections
+            .as_ref()
+            .ok_or_else(|| AppError::Config("collections store not wired".into()))
+    }
+
+    /// Trim and validate a caller-supplied collection name. Names are user data —
+    /// never localised, never normalised beyond trimming — but an empty or absurdly
+    /// long one is refused here rather than at the DB constraint, so the app gets a
+    /// typed error it can localise.
+    fn collection_name(name: &str) -> Result<String> {
+        let name = name.trim();
+        if name.is_empty() {
+            return Err(AppError::InvalidArgument(
+                "a collection name is required".into(),
+            ));
+        }
+        if name.chars().count() > COLLECTION_NAME_MAX {
+            return Err(AppError::InvalidArgument(format!(
+                "a collection name is at most {COLLECTION_NAME_MAX} characters"
+            )));
+        }
+        Ok(name.to_string())
+    }
+
+    /// Create a collection for the caller. A case-insensitive name they already use
+    /// is an `AlreadyExists` the app localises ("you already have a collection
+    /// called…"), never a raw constraint violation.
+    pub async fn create_collection(&self, owner_id: &str, name: &str) -> Result<Collection> {
+        let c = Collection {
+            id: uuid::Uuid::now_v7().to_string(),
+            owner_id: owner_id.to_string(),
+            name: Self::collection_name(name)?,
+            created_at: now_unix(),
+        };
+        self.collections()?.create(&c).await?;
+        Ok(c)
+    }
+
+    /// Rename one of the caller's collections.
+    pub async fn rename_collection(&self, owner_id: &str, id: &str, name: &str) -> Result<()> {
+        let name = Self::collection_name(name)?;
+        self.collections()?.rename(id, owner_id, &name).await
+    }
+
+    /// Delete one of the caller's collections. Its memberships go with it; **no
+    /// score is deleted or altered**.
+    pub async fn delete_collection(&self, owner_id: &str, id: &str) -> Result<()> {
+        self.collections()?.delete(id, owner_id).await
+    }
+
+    /// The caller's collections, newest first.
+    pub async fn list_collections(&self, owner_id: &str) -> Result<Vec<Collection>> {
+        self.collections()?.list(owner_id).await
+    }
+
+    /// Add one of the caller's scores to one of their collections. Idempotent; the
+    /// repo refuses unless BOTH sides are theirs.
+    pub async fn add_to_collection(
+        &self,
+        owner_id: &str,
+        collection_id: &str,
+        score_id: &str,
+    ) -> Result<()> {
+        self.collections()?
+            .add_item(collection_id, score_id, owner_id)
+            .await
+    }
+
+    /// Remove a score from one of the caller's collections. Idempotent.
+    pub async fn remove_from_collection(
+        &self,
+        owner_id: &str,
+        collection_id: &str,
+        score_id: &str,
+    ) -> Result<()> {
+        self.collections()?
+            .remove_item(collection_id, score_id, owner_id)
+            .await
+    }
+
+    /// The caller's scores in one collection, in the collection's own
+    /// newest-added-first order. Built by intersecting the collection's ids with the
+    /// owner's own scores, so a membership that outlived its score (or was never
+    /// theirs) simply does not appear — the listing can never widen ownership.
+    pub async fn list_in_collection(
+        &self,
+        owner_id: &str,
+        collection_id: &str,
+    ) -> Result<Vec<UserScore>> {
+        let ids = self
+            .collections()?
+            .list_score_ids(collection_id, owner_id)
+            .await?;
+        let mut mine = self.repo.list_by_owner(owner_id).await?;
+        Ok(ids
+            .iter()
+            .filter_map(|id| {
+                mine.iter()
+                    .position(|s| &s.id == id)
+                    .map(|pos| mine.remove(pos))
+            })
+            .collect())
+    }
+
+    // --- private-score takedown (change: add-private-score-catalog) ----------
+
+    fn score_admin(&self) -> Result<&Arc<dyn UserScoreAdminRepo>> {
+        self.score_admin
+            .as_ref()
+            .ok_or_else(|| AppError::Config("score admin surface not wired".into()))
+    }
+
+    /// Find private scores for a takedown notice. At least one criterion is
+    /// required: this answers a notice, it is never a corpus browser — an
+    /// unfiltered call is refused rather than silently listing everyone's uploads.
+    /// The limit is clamped so one request cannot page the whole table.
+    pub async fn admin_search_user_scores(
+        &self,
+        owner_id: Option<&str>,
+        title: Option<&str>,
+        limit: i64,
+        offset: i64,
+    ) -> Result<Vec<UserScore>> {
+        let owner = owner_id.map(str::trim).filter(|s| !s.is_empty());
+        let title = title.map(str::trim).filter(|s| !s.is_empty());
+        if owner.is_none() && title.is_none() {
+            return Err(AppError::InvalidArgument(
+                "an owner id or a title fragment is required".into(),
+            ));
+        }
+        let limit = limit.clamp(1, TAKEDOWN_SEARCH_MAX_LIMIT);
+        self.score_admin()?
+            .search(owner, title, limit, offset.max(0))
+            .await
+    }
+
+    /// Remove a private score on an illicit-content notice. Irreversible.
+    ///
+    /// Order matters and is the point of the method: the audit row is written
+    /// **first**, so the record of what was removed and why cannot be lost by a
+    /// failure midway; only then does the row go, and last the object (best-effort,
+    /// like the owner's own delete — the row is the source of truth).
+    pub async fn admin_remove_user_score(
+        &self,
+        admin_id: &str,
+        score_id: &str,
+        reason: &str,
+    ) -> Result<()> {
+        let reason = reason.trim();
+        if reason.is_empty() {
+            return Err(AppError::InvalidArgument(
+                "a takedown reason is required".into(),
+            ));
+        }
+        let admin = self.score_admin()?;
+        let score = admin
+            .get_any(score_id)
+            .await?
+            .ok_or_else(|| AppError::NotFound("score not found".into()))?;
+
+        admin
+            .record_takedown(&Takedown {
+                id: uuid::Uuid::now_v7().to_string(),
+                user_score_id: score.id.clone(),
+                owner_id: score.owner_id.clone(),
+                admin_id: admin_id.to_string(),
+                sha256: score.sha256.clone(),
+                title: score.meta.title.clone(),
+                reason: reason.to_string(),
+                created_at: now_unix(),
+            })
+            .await?;
+
+        if let Some(removed) = admin.delete_any(score_id).await? {
+            let _ = self.storage.delete(&removed.object_key).await;
+        }
+        Ok(())
+    }
+
     /// Favorite / un-favorite one of the caller's own uploads (change:
     /// favorites-home). Un-favoriting hides it from the home but keeps the
     /// upload (still in the hub's "mes partitions").
@@ -813,6 +1059,18 @@ impl ScoreModule {
             .await?
             .ok_or_else(|| AppError::NotFound("score not found".into()))?;
 
+        // A personal-use import can never reach the public catalog (change:
+        // add-private-score-catalog). The decision reads the STORED basis, never the
+        // `license` argument above: a proposal carries its own licence declaration, so
+        // trusting the payload would let a permissive declaration launder a
+        // `private_use` score into the catalog. Refused before any catalog lookup, so
+        // no row, no bytes copy and no moderation entry can be created.
+        if score.rights_basis == PRIVATE_USE_BASIS {
+            return Err(AppError::FailedPrecondition(
+                "private_use: a score imported for personal use cannot be proposed".into(),
+            ));
+        }
+
         // Proposing a percussion score requires the drum audience (change:
         // add-drums-access): the own-uploads carve-out covers listing, fetching
         // and deleting one's own files — never publishing one.
@@ -921,6 +1179,27 @@ impl ScoreModule {
         owner_id: &str,
     ) -> Result<Vec<(UserScore, Option<String>, Option<String>)>> {
         let scores = self.repo.list_by_owner(owner_id).await?;
+        self.attach_proposal_state(scores).await
+    }
+
+    /// The caller's contributions in one of their collections, with the same
+    /// proposal-state join as [`Self::list_contributions`] (change:
+    /// add-private-score-catalog).
+    pub async fn list_contributions_in_collection(
+        &self,
+        owner_id: &str,
+        collection_id: &str,
+    ) -> Result<Vec<(UserScore, Option<String>, Option<String>)>> {
+        let scores = self.list_in_collection(owner_id, collection_id).await?;
+        self.attach_proposal_state(scores).await
+    }
+
+    /// Join each score to the moderation state of the catalog row it was proposed to
+    /// (`None` when it was never proposed, or its row is gone).
+    async fn attach_proposal_state(
+        &self,
+        scores: Vec<UserScore>,
+    ) -> Result<Vec<(UserScore, Option<String>, Option<String>)>> {
         let mut out = Vec::with_capacity(scores.len());
         for s in scores {
             let (status, reason) = match s.proposed_catalog_id.as_deref() {
@@ -1786,6 +2065,52 @@ mod tests {
         ));
         assert!(store.is_empty());
         assert!(repo.rows().is_empty());
+    }
+
+    /// The personal-use basis is a first-class import (change:
+    /// add-private-score-catalog): stored exactly like the other two, with the basis
+    /// persisted verbatim — that stored value is what `propose` later refuses on.
+    #[tokio::test]
+    async fn upload_accepts_and_persists_the_private_use_basis() {
+        let (m, repo, store) = module(5, 7);
+        let rec = m
+            .upload(
+                "u1",
+                input(VALID, "beginner", PRIVATE_USE_BASIS, true),
+                false,
+            )
+            .await
+            .unwrap();
+        assert_eq!(rec.rights_basis, PRIVATE_USE_BASIS);
+        assert!(store.contains(&rec.object_key));
+        let stored = repo.rows();
+        assert_eq!(stored.len(), 1);
+        assert_eq!(stored[0].rights_basis, PRIVATE_USE_BASIS);
+        assert!(stored[0].rights_ack);
+    }
+
+    /// The allowance read is the same plan-resolved quota the upload path enforces
+    /// (change: add-private-score-catalog) — it decreases as uploads land and floors
+    /// at zero rather than going negative.
+    #[tokio::test]
+    async fn upload_allowance_tracks_the_same_quota_the_upload_enforces() {
+        let (m, _repo, _store) = module(2, 7);
+        let (remaining, max, window, upgrade) = m.upload_allowance("u1").await.unwrap();
+        assert_eq!((remaining, max, window), (2, 2, 7));
+        assert!(upgrade, "the free plan can be raised by upgrading");
+
+        for i in 0..2 {
+            let xml = VALID.replace("Test Piece", &format!("Piece {i}"));
+            m.upload("u1", input(&xml, "beginner", "own_work", true), false)
+                .await
+                .unwrap();
+        }
+        let (remaining, _, _, _) = m.upload_allowance("u1").await.unwrap();
+        assert_eq!(remaining, 0);
+
+        // Another account is unaffected — the allowance is per owner.
+        let (other, _, _, _) = m.upload_allowance("u2").await.unwrap();
+        assert_eq!(other, 2);
     }
 
     #[tokio::test]
@@ -3082,6 +3407,373 @@ mod tests {
         assert!(!hub_flagged.needs_review);
     }
 
+    // --- private-library collections (change: add-private-score-catalog) -----
+
+    /// A module wired with collections + user scores, both fakes exposed.
+    fn collections_module() -> (
+        ScoreModule,
+        Arc<FakeUserScoreRepo>,
+        Arc<crate::user_collections::FakeUserCollectionRepo>,
+    ) {
+        let repo = Arc::new(FakeUserScoreRepo::default());
+        let cols = Arc::new(crate::user_collections::FakeUserCollectionRepo::default());
+        let m = ScoreModule::new(
+            repo.clone(),
+            Arc::new(FakeCatalogSearchRepo::default()),
+            Arc::new(FakeUserLibraryRepo::default()),
+            Arc::new(FakeScoreRatingRepo::default()),
+            Arc::new(FakeStore::default()),
+            5,
+            7,
+            8 * 1024 * 1024,
+        )
+        .with_collections(cols.clone());
+        (m, repo, cols)
+    }
+
+    #[tokio::test]
+    async fn collection_create_rename_delete_is_owner_scoped() {
+        let (m, _repo, _cols) = collections_module();
+        let c = m.create_collection("u1", "  Chopin  ").await.unwrap();
+        assert_eq!(
+            c.name, "Chopin",
+            "the name is trimmed, not otherwise touched"
+        );
+        assert_eq!(m.list_collections("u1").await.unwrap().len(), 1);
+        // Another account sees nothing of it.
+        assert!(m.list_collections("u2").await.unwrap().is_empty());
+
+        m.rename_collection("u1", &c.id, "Nocturnes").await.unwrap();
+        assert_eq!(m.list_collections("u1").await.unwrap()[0].name, "Nocturnes");
+
+        // Neither renaming nor deleting works from another account.
+        assert!(matches!(
+            m.rename_collection("u2", &c.id, "Stolen").await,
+            Err(AppError::NotFound(_))
+        ));
+        assert!(matches!(
+            m.delete_collection("u2", &c.id).await,
+            Err(AppError::NotFound(_))
+        ));
+
+        m.delete_collection("u1", &c.id).await.unwrap();
+        assert!(m.list_collections("u1").await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn collection_names_collide_case_insensitively() {
+        let (m, _repo, _cols) = collections_module();
+        m.create_collection("u1", "Chopin").await.unwrap();
+        assert!(matches!(
+            m.create_collection("u1", "chopin").await,
+            Err(AppError::AlreadyExists(_))
+        ));
+        // Another owner may hold the same name.
+        m.create_collection("u2", "Chopin").await.unwrap();
+        // Renaming onto a sibling's name collides too...
+        let other = m.create_collection("u1", "Etudes").await.unwrap();
+        assert!(matches!(
+            m.rename_collection("u1", &other.id, "CHOPIN").await,
+            Err(AppError::AlreadyExists(_))
+        ));
+        // ...but renaming a collection to its own current name is fine.
+        m.rename_collection("u1", &other.id, "Etudes")
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn collection_name_must_be_present_and_bounded() {
+        let (m, _repo, _cols) = collections_module();
+        assert!(matches!(
+            m.create_collection("u1", "   ").await,
+            Err(AppError::InvalidArgument(_))
+        ));
+        let too_long = "x".repeat(COLLECTION_NAME_MAX + 1);
+        assert!(matches!(
+            m.create_collection("u1", &too_long).await,
+            Err(AppError::InvalidArgument(_))
+        ));
+    }
+
+    #[tokio::test]
+    async fn a_score_lives_in_several_collections_and_membership_is_idempotent() {
+        let (m, _repo, cols) = collections_module();
+        let a = m.create_collection("u1", "A").await.unwrap();
+        let b = m.create_collection("u1", "B").await.unwrap();
+        cols.own_score("u1", "s1");
+
+        m.add_to_collection("u1", &a.id, "s1").await.unwrap();
+        m.add_to_collection("u1", &b.id, "s1").await.unwrap();
+        // Adding twice creates no duplicate.
+        m.add_to_collection("u1", &a.id, "s1").await.unwrap();
+        assert_eq!(cols.items().len(), 2);
+
+        // Removing from one leaves the other; removing twice is a no-op success.
+        m.remove_from_collection("u1", &a.id, "s1").await.unwrap();
+        m.remove_from_collection("u1", &a.id, "s1").await.unwrap();
+        assert_eq!(cols.items(), vec![(b.id.clone(), "s1".to_string())]);
+    }
+
+    #[tokio::test]
+    async fn membership_refuses_a_collection_or_score_that_is_not_the_callers() {
+        let (m, _repo, cols) = collections_module();
+        let mine = m.create_collection("u1", "Mine").await.unwrap();
+        let theirs = m.create_collection("u2", "Theirs").await.unwrap();
+        cols.own_score("u1", "s1");
+
+        // Someone else's collection.
+        assert!(matches!(
+            m.add_to_collection("u1", &theirs.id, "s1").await,
+            Err(AppError::NotFound(_))
+        ));
+        // My collection, but not my score.
+        assert!(matches!(
+            m.add_to_collection("u1", &mine.id, "not-mine").await,
+            Err(AppError::NotFound(_))
+        ));
+        assert!(cols.items().is_empty());
+    }
+
+    #[tokio::test]
+    async fn deleting_a_collection_keeps_every_score() {
+        let (m, repo, cols) = collections_module();
+        let rec = upload_one(&m, "u1").await;
+        let c = m.create_collection("u1", "A").await.unwrap();
+        cols.own_score("u1", &rec.id);
+        m.add_to_collection("u1", &c.id, &rec.id).await.unwrap();
+
+        m.delete_collection("u1", &c.id).await.unwrap();
+
+        assert_eq!(repo.rows().len(), 1, "the upload survives its collection");
+        assert!(cols.items().is_empty(), "memberships cascade");
+    }
+
+    #[tokio::test]
+    async fn listing_a_collection_returns_the_owners_scores_newest_added_first() {
+        let (m, _repo, cols) = collections_module();
+        let first = upload_one(&m, "u1").await;
+        let second_xml = VALID.replace("Test Piece", "Second");
+        let second = m
+            .upload(
+                "u1",
+                input(&second_xml, "beginner", "own_work", true),
+                false,
+            )
+            .await
+            .unwrap();
+        let c = m.create_collection("u1", "A").await.unwrap();
+        cols.own_score("u1", &first.id);
+        cols.own_score("u1", &second.id);
+        m.add_to_collection("u1", &c.id, &first.id).await.unwrap();
+        m.add_to_collection("u1", &c.id, &second.id).await.unwrap();
+
+        let listed = m.list_in_collection("u1", &c.id).await.unwrap();
+        assert_eq!(
+            listed.iter().map(|s| s.id.as_str()).collect::<Vec<_>>(),
+            vec![second.id.as_str(), first.id.as_str()]
+        );
+        // Reading another account's collection is a not-found, never a listing.
+        assert!(matches!(
+            m.list_in_collection("u2", &c.id).await,
+            Err(AppError::NotFound(_))
+        ));
+    }
+
+    /// A membership whose score is gone (deleted upload) must not surface as a
+    /// phantom entry: the listing intersects with what the owner actually has.
+    #[tokio::test]
+    async fn a_membership_without_a_score_is_skipped_by_the_listing() {
+        let (m, _repo, cols) = collections_module();
+        let rec = upload_one(&m, "u1").await;
+        let c = m.create_collection("u1", "A").await.unwrap();
+        cols.own_score("u1", &rec.id);
+        cols.own_score("u1", "ghost");
+        m.add_to_collection("u1", &c.id, "ghost").await.unwrap();
+        m.add_to_collection("u1", &c.id, &rec.id).await.unwrap();
+
+        let listed = m.list_in_collection("u1", &c.id).await.unwrap();
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].id, rec.id);
+    }
+
+    /// An unwired deployment refuses loudly rather than reporting "no collections".
+    #[tokio::test]
+    async fn collections_refuse_when_the_store_is_unwired() {
+        let (m, _repo, _store) = module(5, 7);
+        assert!(matches!(
+            m.list_collections("u1").await,
+            Err(AppError::Config(_))
+        ));
+        assert!(matches!(
+            m.create_collection("u1", "A").await,
+            Err(AppError::Config(_))
+        ));
+    }
+
+    // --- private-score takedown (change: add-private-score-catalog) ----------
+
+    /// A module wired with the admin surface; the store is shared so a test can
+    /// assert the object was cleaned up too.
+    fn takedown_module() -> (
+        ScoreModule,
+        Arc<crate::user_score_admin::FakeUserScoreAdminRepo>,
+        Arc<FakeStore>,
+    ) {
+        let store = Arc::new(FakeStore::default());
+        let admin = Arc::new(crate::user_score_admin::FakeUserScoreAdminRepo::default());
+        let m = ScoreModule::new(
+            Arc::new(FakeUserScoreRepo::default()),
+            Arc::new(FakeCatalogSearchRepo::default()),
+            Arc::new(FakeUserLibraryRepo::default()),
+            Arc::new(FakeScoreRatingRepo::default()),
+            store.clone(),
+            5,
+            7,
+            8 * 1024 * 1024,
+        )
+        .with_score_admin(admin.clone());
+        (m, admin, store)
+    }
+
+    /// Seed one score into the admin surface (and its object into the store).
+    async fn seed_admin_score(
+        admin: &crate::user_score_admin::FakeUserScoreAdminRepo,
+        store: &FakeStore,
+        id: &str,
+        owner: &str,
+        title: &str,
+    ) -> UserScore {
+        let mut meta = ScoreMeta::default();
+        meta.title = Some(title.into());
+        let s = UserScore {
+            id: id.into(),
+            owner_id: owner.into(),
+            level: "beginner".into(),
+            rights_basis: "own_work".into(),
+            rights_ack: true,
+            sha256: format!("sha-{id}"),
+            size_bytes: 10,
+            object_key: format!("user-scores/{owner}/{id}.mxl"),
+            created_at: 1,
+            favorite: false,
+            proposed_catalog_id: None,
+            meta,
+        };
+        store.put(&s.object_key, vec![1, 2, 3]).await.unwrap();
+        admin.seed(s.clone());
+        s
+    }
+
+    #[tokio::test]
+    async fn takedown_search_needs_a_criterion_and_matches_owner_or_title() {
+        let (m, admin, store) = takedown_module();
+        seed_admin_score(&admin, &store, "s1", "u1", "Clair de Lune").await;
+        seed_admin_score(&admin, &store, "s2", "u2", "Gymnopedie").await;
+
+        // A criterion-less lookup is refused: this answers a notice, it is not a
+        // browser over everyone's private library.
+        assert!(matches!(
+            m.admin_search_user_scores(None, None, 20, 0).await,
+            Err(AppError::InvalidArgument(_))
+        ));
+        assert!(matches!(
+            m.admin_search_user_scores(Some("  "), Some(""), 20, 0)
+                .await,
+            Err(AppError::InvalidArgument(_))
+        ));
+
+        // By owner.
+        let by_owner = m
+            .admin_search_user_scores(Some("u1"), None, 20, 0)
+            .await
+            .unwrap();
+        assert_eq!(by_owner.len(), 1);
+        assert_eq!(by_owner[0].id, "s1");
+
+        // By case-insensitive title fragment.
+        let by_title = m
+            .admin_search_user_scores(None, Some("gymno"), 20, 0)
+            .await
+            .unwrap();
+        assert_eq!(by_title.len(), 1);
+        assert_eq!(by_title[0].id, "s2");
+    }
+
+    #[tokio::test]
+    async fn takedown_search_limit_is_clamped() {
+        let (m, admin, store) = takedown_module();
+        for i in 0..60 {
+            seed_admin_score(&admin, &store, &format!("s{i}"), "u1", "T").await;
+        }
+        let hits = m
+            .admin_search_user_scores(Some("u1"), None, 10_000, 0)
+            .await
+            .unwrap();
+        assert_eq!(hits.len(), TAKEDOWN_SEARCH_MAX_LIMIT as usize);
+    }
+
+    /// The audit row is written BEFORE the deletion and carries what identifies the
+    /// content after it is gone — that ordering is the requirement, not a detail.
+    #[tokio::test]
+    async fn takedown_audits_then_removes_row_and_object() {
+        let (m, admin, store) = takedown_module();
+        let s = seed_admin_score(&admin, &store, "s1", "u1", "Clair de Lune").await;
+
+        m.admin_remove_user_score("admin-1", "s1", "  DMCA notice #42  ")
+            .await
+            .unwrap();
+
+        let audit = admin.takedowns();
+        assert_eq!(audit.len(), 1);
+        assert_eq!(audit[0].user_score_id, "s1");
+        assert_eq!(audit[0].owner_id, "u1");
+        assert_eq!(audit[0].admin_id, "admin-1");
+        assert_eq!(audit[0].sha256, s.sha256);
+        assert_eq!(audit[0].title.as_deref(), Some("Clair de Lune"));
+        assert_eq!(audit[0].reason, "DMCA notice #42", "the reason is trimmed");
+
+        assert!(admin.scores().is_empty(), "the row is gone");
+        assert!(!store.contains(&s.object_key), "the object is gone");
+    }
+
+    #[tokio::test]
+    async fn takedown_refuses_without_a_reason_and_deletes_nothing() {
+        let (m, admin, store) = takedown_module();
+        let s = seed_admin_score(&admin, &store, "s1", "u1", "T").await;
+
+        assert!(matches!(
+            m.admin_remove_user_score("admin-1", "s1", "   ").await,
+            Err(AppError::InvalidArgument(_))
+        ));
+        assert_eq!(admin.scores().len(), 1);
+        assert!(store.contains(&s.object_key));
+        assert!(
+            admin.takedowns().is_empty(),
+            "no audit for a refused removal"
+        );
+    }
+
+    #[tokio::test]
+    async fn takedown_of_an_unknown_score_is_not_found_and_writes_no_audit() {
+        let (m, admin, _store) = takedown_module();
+        assert!(matches!(
+            m.admin_remove_user_score("admin-1", "ghost", "notice")
+                .await,
+            Err(AppError::NotFound(_))
+        ));
+        assert!(admin.takedowns().is_empty());
+    }
+
+    #[tokio::test]
+    async fn takedown_refuses_when_the_admin_surface_is_unwired() {
+        let (m, _repo, _store) = module(5, 7);
+        assert!(matches!(
+            m.admin_remove_user_score("a", "s", "r").await,
+            Err(AppError::Config(_))
+        ));
+    }
+
     // --- catalog proposal (change: add-score-catalog-proposal) --------------
 
     /// A module with fresh user-scores + catalog + store fakes, all three exposed so a
@@ -3146,6 +3838,59 @@ mod tests {
             .unwrap();
         let (_, status) = catalog.find_by_sha(&rec.sha256).await.unwrap().unwrap();
         assert_eq!(status, "accepted");
+    }
+
+    /// The personal-use guard (change: add-private-score-catalog). The proposal
+    /// declares a permissive licence AND a valid attestation — everything the propose
+    /// path normally needs — but the STORED basis wins, so nothing reaches the catalog:
+    /// no row, no bytes copy, no moderation entry, no link back.
+    #[tokio::test]
+    async fn propose_refuses_a_private_use_score_despite_a_permissive_licence() {
+        let (m, repo, catalog, store) = propose_module();
+        let rec = m
+            .upload(
+                "u1",
+                input(VALID, "beginner", PRIVATE_USE_BASIS, true),
+                false,
+            )
+            .await
+            .unwrap();
+        let stored_objects = store.len();
+
+        let err = m
+            .propose("u1", &rec.id, "CC-BY-4.0", true, None, false, false)
+            .await
+            .unwrap_err();
+        assert!(matches!(err, AppError::FailedPrecondition(_)), "{err:?}");
+
+        // No catalog row for this content, and no second object written.
+        assert!(catalog.find_by_sha(&rec.sha256).await.unwrap().is_none());
+        assert_eq!(store.len(), stored_objects);
+        // The private row is untouched — still unlinked.
+        let row = repo.rows().into_iter().find(|r| r.id == rec.id).unwrap();
+        assert!(row.proposed_catalog_id.is_none());
+    }
+
+    /// The guard is about the basis, not the caller: an admin proposing their own
+    /// personal-use import is refused the same way (an admin proposal is
+    /// auto-accepted, so a leak here would land straight in the public catalog).
+    #[tokio::test]
+    async fn propose_refuses_a_private_use_score_even_for_an_admin() {
+        let (m, _repo, catalog, _store) = propose_module();
+        let rec = m
+            .upload(
+                "u1",
+                input(VALID, "beginner", PRIVATE_USE_BASIS, true),
+                false,
+            )
+            .await
+            .unwrap();
+        assert!(matches!(
+            m.propose("u1", &rec.id, "CC-BY-4.0", true, None, true, false)
+                .await,
+            Err(AppError::FailedPrecondition(_))
+        ));
+        assert!(catalog.find_by_sha(&rec.sha256).await.unwrap().is_none());
     }
 
     #[tokio::test]

@@ -28,6 +28,7 @@ use sqlx::{PgPool, Row, postgres::PgRow};
 use crate::offline_secret::OfflineSecretRepo;
 use crate::pg::{META_COLS, bind_meta, meta_from_row};
 use crate::user_library::UserLibraryRepo;
+use crate::user_score_admin::{Takedown, UserScoreAdminRepo};
 use crate::user_scores::{UserScore, UserScoreRepo};
 
 /// Maps a sqlx error to an internal `AppError` (no detail leaked to clients).
@@ -378,5 +379,110 @@ impl OfflineSecretRepo for PgOfflineSecretRepo {
         .await
         .map_err(internal)?;
         Ok(())
+    }
+}
+
+// --- privileged takedown surface (change: add-private-score-catalog) ---------
+
+/// Postgres [`UserScoreAdminRepo`] — the cross-owner surface takedown needs.
+///
+/// Kept apart from [`PgUserScoreRepo`] on purpose: that repo's every statement is
+/// owner-scoped, and this one's deliberately are not. Callers reach it only
+/// through handlers gated on a music-scope admin.
+pub struct PgUserScoreAdminRepo {
+    pool: PgPool,
+}
+
+impl PgUserScoreAdminRepo {
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
+    }
+}
+
+#[async_trait]
+impl UserScoreAdminRepo for PgUserScoreAdminRepo {
+    async fn search(
+        &self,
+        owner_id: Option<&str>,
+        title: Option<&str>,
+        limit: i64,
+        offset: i64,
+    ) -> Result<Vec<UserScore>> {
+        // Both criteria are optional in the port; the module refuses a call with
+        // neither, so a NULL/NULL scan is unreachable from a handler. `ILIKE` with an
+        // escaped fragment keeps a `%` in the needle from widening the match.
+        let owner = match owner_id {
+            Some(o) => Some(parse_uuid(o)?),
+            None => None,
+        };
+        let needle = title.map(|t| {
+            format!(
+                "%{}%",
+                t.replace('\\', "\\\\")
+                    .replace('%', "\\%")
+                    .replace('_', "\\_")
+            )
+        });
+        let rows = sqlx::query(&format!(
+            "SELECT {} FROM music.user_scores \
+             WHERE ($1::uuid IS NULL OR owner_id = $1) \
+               AND ($2::text IS NULL OR title ILIKE $2) \
+             ORDER BY created_at DESC, id DESC LIMIT $3 OFFSET $4",
+            user_cols()
+        ))
+        .bind(owner)
+        .bind(needle)
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(internal)?;
+        Ok(rows.iter().map(row_to_score).collect())
+    }
+
+    async fn get_any(&self, id: &str) -> Result<Option<UserScore>> {
+        let row = sqlx::query(&format!(
+            "SELECT {} FROM music.user_scores WHERE id = $1",
+            user_cols()
+        ))
+        .bind(parse_uuid(id)?)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(internal)?;
+        Ok(row.as_ref().map(row_to_score))
+    }
+
+    async fn record_takedown(&self, t: &Takedown) -> Result<()> {
+        let created: DateTime<Utc> =
+            DateTime::from_timestamp(t.created_at, 0).unwrap_or_else(Utc::now);
+        sqlx::query(
+            "INSERT INTO music.user_score_takedowns \
+             (id, user_score_id, owner_id, admin_id, sha256, title, reason, created_at) \
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+        )
+        .bind(parse_uuid(&t.id)?)
+        .bind(parse_uuid(&t.user_score_id)?)
+        .bind(parse_uuid(&t.owner_id)?)
+        .bind(parse_uuid(&t.admin_id)?)
+        .bind(&t.sha256)
+        .bind(&t.title)
+        .bind(&t.reason)
+        .bind(created)
+        .execute(&self.pool)
+        .await
+        .map_err(internal)?;
+        Ok(())
+    }
+
+    async fn delete_any(&self, id: &str) -> Result<Option<UserScore>> {
+        let row = sqlx::query(&format!(
+            "DELETE FROM music.user_scores WHERE id = $1 RETURNING {}",
+            user_cols()
+        ))
+        .bind(parse_uuid(id)?)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(internal)?;
+        Ok(row.as_ref().map(row_to_score))
     }
 }

@@ -31,7 +31,10 @@ import '../state/note_density_core.dart';
 import '../state/contributed_scores.dart';
 import '../state/player_data.dart' show TimedNote;
 import '../state/score_catalog.dart';
+import '../services/file_picker_service.dart';
+import '../state/batch_import_notifier.dart';
 import '../state/score_upload_notifier.dart';
+import 'batch_import_screen.dart';
 import '../widgets/score_propose_sheet.dart';
 
 /// The three-step contribution wizard (design 7). Reached via `Navigator.push`
@@ -59,7 +62,8 @@ class ScoreUploadScreen extends ConsumerWidget {
     // keeps working).
     final isPhone = MediaQuery.of(context).size.shortestSide < 600;
     final titleSize = isPhone ? 18.0 : 22.0;
-    return MediaQuery(
+    return _BatchSelectionListener(
+      child: MediaQuery(
       data: MediaQuery.of(context).copyWith(
         textScaler: TextScaler.linear(
           MediaQuery.textScalerOf(context).scale(1) * (isPhone ? 0.85 : 1.0),
@@ -119,7 +123,37 @@ class ScoreUploadScreen extends ConsumerWidget {
           ),
         ),
       ),
+      ),
     );
+  }
+}
+
+/// Owns the batch navigation side effect (change: add-private-score-catalog).
+///
+/// Picking several files publishes them in the wizard's state; this listener —
+/// and nothing else — reacts by seeding the batch notifier and pushing its
+/// screen, then clears the signal so coming back does not navigate again.
+/// Keeping it in one dedicated widget near the top of the subtree is why no
+/// build method has to carry navigation.
+class _BatchSelectionListener extends ConsumerWidget {
+  const _BatchSelectionListener({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.listen<List<PickedScoreFile>>(
+      scoreUploadNotifierProvider.select((s) => s.batchSelection),
+      (previous, next) {
+        if (next.isEmpty) return;
+        ref.read(batchImportNotifierProvider.notifier).setFiles(next);
+        ref.read(scoreUploadNotifierProvider.notifier).clearBatchSelection();
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const BatchImportScreen()),
+        );
+      },
+    );
+    return child;
   }
 }
 
@@ -298,7 +332,7 @@ class _UploadStepView extends ConsumerWidget {
       padding: const EdgeInsets.all(16),
       children: [
         FilledButton.icon(
-          onPressed: state.validating ? null : notifier.pickAndValidate,
+          onPressed: state.validating ? null : notifier.pickForImport,
           icon: const Icon(Icons.upload_file),
           label: Text(
             state.file == null
@@ -339,6 +373,17 @@ class _UploadStepView extends ConsumerWidget {
                   RadioListTile<RightsBasis>(
                     value: RightsBasis.publicDomain,
                     title: Text(l10n.uploadRightsPublicDomain),
+                  ),
+                  // Personal-use import (change: add-private-score-catalog): the
+                  // subtitle spells out the consequence, because it is permanent —
+                  // such a score can never be proposed to the public catalog.
+                  RadioListTile<RightsBasis>(
+                    value: RightsBasis.privateUse,
+                    title: Text(l10n.uploadRightsPrivateUse),
+                    subtitle: Text(
+                      l10n.uploadRightsPrivateUseHint,
+                      style: const TextStyle(fontSize: 12),
+                    ),
                   ),
                 ],
               ),

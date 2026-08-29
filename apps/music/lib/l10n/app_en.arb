@@ -1292,6 +1292,44 @@
   "@uploadRightsPublicDomain": {
     "description": "Rights-basis option: public domain or an open licence."
   },
+  "batchImportTitle": "Import several scores",
+  "@batchImportTitle": {"description": "Title of the batch import screen."},
+  "batchImportSelected": "{count} files selected",
+  "@batchImportSelected": {"description": "Number of files in the batch.", "placeholders": {"count": {"type": "int"}}},
+  "batchImportLevelQuestion": "Difficulty for every file in this batch",
+  "@batchImportLevelQuestion": {"description": "Batch-level difficulty prompt."},
+  "batchImportRightsNote": "This declaration applies to every file in the batch.",
+  "@batchImportRightsNote": {"description": "Explains the batch-wide attestation."},
+  "batchImportStart": "Import",
+  "@batchImportStart": {"description": "Starts the batch import."},
+  "batchImportRunning": "Importing {done} of {total}\u2026",
+  "@batchImportRunning": {"description": "Batch progress.", "placeholders": {"done": {"type": "int"}, "total": {"type": "int"}}},
+  "batchImportQuotaWarning": "Your plan allows {remaining} more imports: {over} of these files cannot be imported now.",
+  "@batchImportQuotaWarning": {"description": "Warns before the batch that the selection exceeds the remaining quota.", "placeholders": {"remaining": {"type": "int"}, "over": {"type": "int"}}},
+  "batchImportQuotaWarningUpgrade": "A higher plan raises this limit.",
+  "@batchImportQuotaWarningUpgrade": {"description": "Upsell line under the quota warning."},
+  "batchImportDone": "{imported} of {total} imported",
+  "@batchImportDone": {"description": "Batch result summary.", "placeholders": {"imported": {"type": "int"}, "total": {"type": "int"}}},
+  "batchImportOutcomeImported": "Imported",
+  "@batchImportOutcomeImported": {"description": "Per-file outcome: stored."},
+  "batchImportOutcomeDuplicate": "Already in your library",
+  "@batchImportOutcomeDuplicate": {"description": "Per-file outcome: duplicate content."},
+  "batchImportOutcomeInvalid": "Unreadable score file",
+  "@batchImportOutcomeInvalid": {"description": "Per-file outcome: refused by validation."},
+  "batchImportOutcomeQuota": "Import quota reached",
+  "@batchImportOutcomeQuota": {"description": "Per-file outcome: quota exhausted."},
+  "batchImportOutcomeFailed": "Could not be imported \u2014 try again",
+  "@batchImportOutcomeFailed": {"description": "Per-file outcome: retryable failure."},
+  "batchImportClose": "Close",
+  "@batchImportClose": {"description": "Closes the batch screen."},
+  "uploadRightsPrivateUse": "For my personal use only",
+  "@uploadRightsPrivateUse": {
+    "description": "Rights-basis option: the score is kept for the owner's strictly personal use."
+  },
+  "uploadRightsPrivateUseHint": "This score stays private forever: it can never be shared or proposed to the public catalogue.",
+  "@uploadRightsPrivateUseHint": {
+    "description": "Explains the consequence of the personal-use rights basis."
+  },
   "uploadRightsAck": "I certify that this declaration is accurate and that I hold the rights necessary to make this score available.",
   "@uploadRightsAck": {
     "description": "Legal (terms-of-use) attestation checkbox the user must tick to upload."

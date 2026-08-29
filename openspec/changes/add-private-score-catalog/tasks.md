@@ -2,15 +2,15 @@
 
 ## 1. Database & rights basis
 
-- [ ] 1.1 Migration `0031_private_score_catalog.sql` (idempotent): widen the
+- [x] 1.1 Migration `0031_private_score_catalog.sql` (idempotent): widen the
   `user_scores.rights_basis` CHECK to include `'private_use'`; create
   `music.user_score_collections` + `music.user_score_collection_items` (FKs ON
   DELETE CASCADE, unique `(owner_id, lower(name))`, PK `(collection_id,
   user_score_id)`); create `music.user_score_takedowns` audit table
-- [ ] 1.2 Accept `private_use` in backend upload validation (basis whitelist) —
+- [x] 1.2 Accept `private_use` in backend upload validation (basis whitelist) —
   persist unchanged otherwise; unit tests: accepted+persisted, unknown basis
   still rejected, missing confirmation still rejected
-- [ ] 1.3 Proposal guard in the live `ProposeScore` handler: reject when the
+- [x] 1.3 Proposal guard in the live `ProposeScore` handler: reject when the
   **stored** row's basis is `private_use`, read from the DB; tests must cover a
   proposal that declares a permissive licence over a `private_use` score (the
   declaration must not win) and confirm no catalog row, no bytes copy, no
@@ -18,49 +18,49 @@
 
 ## 2. Collections — backend
 
-- [ ] 2.1 Repository: create/rename/delete collection (case-insensitive name
+- [x] 2.1 Repository: create/rename/delete collection (case-insensitive name
   conflict → distinguishable error), add/remove membership (idempotent,
   owner-validated), list collections, list scores filtered by collection —
   owner-scoped everywhere; mockall-tested
-- [ ] 2.2 gRPC: proto messages + service methods for collection CRUD,
+- [x] 2.2 gRPC: proto messages + service methods for collection CRUD,
   membership, and filtered listing; auth = app audience, owner from
   AuthIdentity; handler tests (happy path, cross-owner rejected, name conflict)
-- [ ] 2.3 Regenerate clients (`melos run gen-grpc`) and Rust build green
+- [x] 2.3 Regenerate clients (`melos run gen-grpc`) and Rust build green
 
 ## 3. Takedown — backend
 
-- [ ] 3.1 Admin lookup RPC (music admin scope): paged search by owner id/handle
+- [x] 3.1 Admin lookup RPC (music admin scope): paged search by owner id/handle
   and/or title fragment, minimal metadata fields, no bytes; non-admin rejected;
   tests
-- [ ] 3.2 Admin remove RPC: mandatory non-empty reason; write audit row (admin,
+- [x] 3.2 Admin remove RPC: mandatory non-empty reason; write audit row (admin,
   owner, score id, sha256, title, reason, timestamp) **before** deleting DB row
   then S3 object; tests: audit-first ordering, missing reason rejected, owner
   list no longer returns the score
 
 ## 4. App — attestation & gating
 
-- [ ] 4.1 Add the `private_use` basis to the attestation step: FR/EN copy
+- [x] 4.1 Add the `private_use` basis to the attestation step: FR/EN copy
   stating the score stays private forever and can never be proposed; submit
   gating unchanged; widget tests
-- [ ] 4.2 Hide share/propose affordances on `private_use` rows in the owner's
+- [x] 4.2 Hide share/propose affordances on `private_use` rows in the owner's
   score list (basis exposed in list payload if not already); widget tests both
   bases
 
 ## 5. App — batch import
 
-- [ ] 5.1 Multi-select in the file picker seam; route: 1 file → existing
+- [x] 5.1 Multi-select in the file picker seam; route: 1 file → existing
   wizard, >1 → batch flow
-- [ ] 5.2 Batch flow (Riverpod notifier + Freezed state): one attestation + one
+- [x] 5.2 Batch flow (Riverpod notifier + Freezed state): one attestation + one
   difficulty up-front (start blocked until both), then sequential uploads via
   the existing upload service; per-file outcome accumulation
   (imported / duplicate / invalid / quota); failure isolation (continue on
   error); notifier unit tests with mocked upload service
-- [ ] 5.3 Quota pre-check: resolve the caller's **plan-based** remaining
+- [x] 5.3 Quota pre-check: resolve the caller's **plan-based** remaining
   allowance, warn when the selection exceeds it before any upload starts, and
   reuse the existing typed quota refusal (which already carries the upsell
   signal) rather than inventing a new one; test the warning path and a batch
   larger than the free allowance
-- [ ] 5.4 Result board UI with localized, non-technical outcome strings (FR/EN);
+- [x] 5.4 Result board UI with localized, non-technical outcome strings (FR/EN);
   widget tests incl. mixed-outcome batch
 
 ## 6. App — collections

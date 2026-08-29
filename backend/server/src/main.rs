@@ -494,6 +494,15 @@ async fn main() -> anyhow::Result<()> {
                     // Persist the per-user offline-cache secret (change:
                     // add-offline-score-cache); the default is an in-memory fake.
                     .with_offline_secrets(Arc::new(PgOfflineSecretRepo::new(music_pool.clone())))
+                    // Private-library collections + the audited takedown surface
+                    // (change: add-private-score-catalog). Unwired, both refuse; the
+                    // rest of the module is unaffected either way.
+                    .with_collections(Arc::new(cymbra_music::PgUserCollectionRepo::new(
+                        music_pool.clone(),
+                    )))
+                    .with_score_admin(Arc::new(cymbra_music::PgUserScoreAdminRepo::new(
+                        music_pool.clone(),
+                    )))
                     // Per-plan upload quota + library cap (change:
                     // add-premium-subscription), flag-backed with the env values
                     // as the free defaults.
