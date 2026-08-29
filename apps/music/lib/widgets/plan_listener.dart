@@ -31,11 +31,11 @@ import 'app_snackbar.dart';
 ///
 /// - purchase-flow outcomes → a localized snackbar (never a raw store / gRPC
 ///   string), claimed once across stacked screens;
-/// - the plan dropping from premium to free (trial ended, subscription lapsed,
+/// - the plan being free on a server answer (trial ended, subscription lapsed,
 ///   revocation — the server's answer, never the device clock alone) → the
 ///   **withdrawal** of plan-only downloads (premium SoundFonts not owned, the
 ///   offline cache of catalog scores; own uploads kept) plus a notice (design D13
-///   — never silent).
+///   — never silent), once per free period.
 class PlanListener extends ConsumerWidget {
   const PlanListener({required this.child, super.key});
 
@@ -80,17 +80,25 @@ class PlanListener extends ConsumerWidget {
       );
     });
 
-    // Premium → free on a SERVER answer: withdraw plan-only downloads once.
+    // A SERVER answer that says free withdraws plan-only downloads once per
+    // lapse. Deliberately NOT keyed on an observed premium→free transition: a
+    // subscription usually lapses while the app is closed, and the first answer
+    // of the next launch is then plain `free` with nothing to compare it to —
+    // the transition rule left premium SoundFonts on disk for good (the catalog
+    // cache was still safe, its secret having been rotated server-side).
     ref.listen<AsyncValue<PlanSnapshotView>>(planProvider, (previous, next) {
-      final before = previous?.valueOrNull;
       final after = next.valueOrNull;
-      if (before == null || after == null) return;
-      if (!before.isPremium || after.isPremium) return;
+      if (after == null) return;
       if (!ref.read(plansEnabledProvider)) return;
+      final withdrawal = ref.read(planWithdrawalProvider.notifier);
+      if (after.isPremium) {
+        withdrawal.armForNextLapse();
+        return;
+      }
       final l10n = AppLocalizations.of(context);
       final messenger = ScaffoldMessenger.of(context);
       unawaited(
-        ref.read(planWithdrawalProvider.notifier).withdraw().then((did) {
+        withdrawal.withdraw().then((did) {
           if (did) showAppSnackBar(messenger, l10n.planWithdrawnNotice);
         }),
       );
