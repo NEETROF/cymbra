@@ -157,15 +157,30 @@ impl KindStr for jsonwebtoken::errors::Error {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
 
     // Throwaway Ed25519 keypair for tests only.
     const PRIV: &str = "-----BEGIN PRIVATE KEY-----\nMC4CAQAwBQYDK2VwBCIEIPlT7JHCc7NTTIZVmlCgVeNNEkqsENhAZoscpnG+jSSw\n-----END PRIVATE KEY-----\n";
     const PUB: &str = "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAiCcon5VNqPUMVYki6MnxJdscxMozrXbjmdiLGUL8sqA=\n-----END PUBLIC KEY-----\n";
 
-    fn keys() -> HashMap<String, DecodingKey> {
+    /// The signing half of the throwaway pair, for tests in sibling modules.
+    ///
+    /// Exposed as a **function** rather than the PEM: one fixture, in one file.
+    /// A second copy of the literal elsewhere is a second thing to rotate if it
+    /// ever turned out to matter, and reads to any secret scanner as a fresh
+    /// private key committed to the repository.
+    pub(crate) fn signing_key() -> EncodingKey {
+        encoding_key(PRIV).unwrap()
+    }
+
+    /// The verifying half, keyed under `k1` as every test signs with.
+    pub(crate) fn verifying_keys() -> HashMap<String, DecodingKey> {
         HashMap::from([("k1".to_string(), decoding_key(PUB).unwrap())])
+    }
+
+    fn keys() -> HashMap<String, DecodingKey> {
+        verifying_keys()
     }
 
     #[test]

@@ -212,7 +212,11 @@ class Flags extends _$Flags {
   }
 
   /// One fetch attempt: the result, or `null` when the bearer was refused.
-  Future<FlagFetch?> _fetch(String app, String? identity, String? bearer) async {
+  Future<FlagFetch?> _fetch(
+    String app,
+    String? identity,
+    String? bearer,
+  ) async {
     try {
       return await ref
           .read(flagServiceProvider)

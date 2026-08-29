@@ -477,27 +477,30 @@ void main() {
         expect(c.read(flagsProvider).version, 'v1');
       });
 
-      test('signed in with no token: renews rather than asking anonymously', () async {
-        final bearer = FakeBearer(null, renewsTo: 'fresh');
-        final fake = FakeService(
-          (app, id, known, presented) => FlagFetch.changed(
-            _snap(app, id, 'v1', {
-              'drums.enabled': const FlagEntry(FlagKind.bool_, true),
-            }),
-          ),
-        );
-        final c = _make(
-          identity: 'u1',
-          service: fake,
-          prefs: FakePrefs(),
-          bearer: bearer,
-        );
-        c.read(flagsProvider);
-        await _settle();
-        expect(bearer.renewals, 1);
-        expect(fake.calls.single.bearer, 'fresh');
-        expect(c.read(flagsProvider).getBool('drums.enabled'), isTrue);
-      });
+      test(
+        'signed in with no token: renews rather than asking anonymously',
+        () async {
+          final bearer = FakeBearer(null, renewsTo: 'fresh');
+          final fake = FakeService(
+            (app, id, known, presented) => FlagFetch.changed(
+              _snap(app, id, 'v1', {
+                'drums.enabled': const FlagEntry(FlagKind.bool_, true),
+              }),
+            ),
+          );
+          final c = _make(
+            identity: 'u1',
+            service: fake,
+            prefs: FakePrefs(),
+            bearer: bearer,
+          );
+          c.read(flagsProvider);
+          await _settle();
+          expect(bearer.renewals, 1);
+          expect(fake.calls.single.bearer, 'fresh');
+          expect(c.read(flagsProvider).getBool('drums.enabled'), isTrue);
+        },
+      );
 
       test('signed in with nothing to present asks nothing at all', () async {
         // No token and no renewal: the ONLY answer available is the anonymous

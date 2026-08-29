@@ -110,21 +110,24 @@ impl Interceptor for OptionalAuthInterceptor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::token::{Claims, encoding_key, new_claims, sign};
+    use crate::token::{Claims, new_claims, sign};
     use std::collections::BTreeMap;
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-    // Throwaway Ed25519 keypair for tests only (same pair as `token`'s own).
-    const PRIV: &str = "-----BEGIN PRIVATE KEY-----\nMC4CAQAwBQYDK2VwBCIEIPlT7JHCc7NTTIZVmlCgVeNNEkqsENhAZoscpnG+jSSw\n-----END PRIVATE KEY-----\n";
-    const PUB: &str = "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAiCcon5VNqPUMVYki6MnxJdscxMozrXbjmdiLGUL8sqA=\n-----END PUBLIC KEY-----\n";
+    // The throwaway test keypair lives in `token`, which owns the key handling
+    // these tests exercise. Borrowed rather than copied: a duplicated PEM is a
+    // second fixture to keep in step, and a private-key literal in a diff is
+    // indistinguishable — to a scanner and to a reviewer — from a real one
+    // being committed.
+    use crate::token::tests::{signing_key, verifying_keys};
 
     fn keys() -> HashMap<String, DecodingKey> {
-        HashMap::from([("k1".to_string(), crate::token::decoding_key(PUB).unwrap())])
+        verifying_keys()
     }
 
     fn valid_token() -> String {
         let claims = new_claims("u1", "music", vec!["user".into()], Duration::from_secs(900));
-        sign(&claims, "k1", &encoding_key(PRIV).unwrap()).unwrap()
+        sign(&claims, "k1", &signing_key()).unwrap()
     }
 
     fn expired_token() -> String {
@@ -141,7 +144,7 @@ mod tests {
             exp: now - 600, // past, beyond the default leeway
             jti: "j".into(),
         };
-        sign(&claims, "k1", &encoding_key(PRIV).unwrap()).unwrap()
+        sign(&claims, "k1", &signing_key()).unwrap()
     }
 
     fn request_with(bearer: Option<&str>) -> Request<()> {
