@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.23.0](https://github.com/NEETROF/cymbra/compare/backend-v0.22.1...backend-v0.23.0) (2026-08-29)
+
+
+### Features
+
+* **music:** act on the drum beta's first six reports ([#296](https://github.com/NEETROF/cymbra/issues/296)) ([0de4b53](https://github.com/NEETROF/cymbra/commit/0de4b5385f2d98af9b837531e68d8f223f9f2129))
+
 ## [0.22.1](https://github.com/NEETROF/cymbra/compare/backend-v0.22.0...backend-v0.22.1) (2026-08-28)
 
 

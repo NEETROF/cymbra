@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.28.0](https://github.com/NEETROF/cymbra/compare/music-v1.27.1...music-v1.28.0) (2026-08-29)
+
+
+### Features
+
+* **music:** act on the drum beta's first six reports ([#296](https://github.com/NEETROF/cymbra/issues/296)) ([0de4b53](https://github.com/NEETROF/cymbra/commit/0de4b5385f2d98af9b837531e68d8f223f9f2129))
+
+
+### Bug Fixes
+
+* **music:** withdraw plan-only downloads on any free answer, not on a transition ([#295](https://github.com/NEETROF/cymbra/issues/295)) ([055c1f3](https://github.com/NEETROF/cymbra/commit/055c1f3f53279d292ad5a097bc5635eb3deea51e))
+
 ## [1.27.1](https://github.com/NEETROF/cymbra/compare/music-v1.27.0...music-v1.27.1) (2026-08-27)
 
 
