@@ -147,11 +147,7 @@ class BatchImportNotifier extends _$BatchImportNotifier {
     if (!state.canStart) return;
     final basis = state.rightsBasis!;
     final level = state.level!;
-    state = state.copyWith(
-      running: true,
-      results: const [],
-      currentIndex: 0,
-    );
+    state = state.copyWith(running: true, results: const [], currentIndex: 0);
     final service = ref.read(scoreUploadServiceProvider);
     final results = <BatchFileResult>[];
     for (var i = 0; i < state.files.length; i++) {

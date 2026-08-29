@@ -64,65 +64,69 @@ class ScoreUploadScreen extends ConsumerWidget {
     final titleSize = isPhone ? 18.0 : 22.0;
     return _BatchSelectionListener(
       child: MediaQuery(
-      data: MediaQuery.of(context).copyWith(
-        textScaler: TextScaler.linear(
-          MediaQuery.textScalerOf(context).scale(1) * (isPhone ? 0.85 : 1.0),
+        data: MediaQuery.of(context).copyWith(
+          textScaler: TextScaler.linear(
+            MediaQuery.textScalerOf(context).scale(1) * (isPhone ? 0.85 : 1.0),
+          ),
         ),
-      ),
-      child: Scaffold(
-        appBar: AppBar(
-          // Back = previous step (or quit at the first step / after success). Reset
-          // on quit so the next visit starts clean (user action → mutation allowed).
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            tooltip: step == UploadStep.upload || state.isDone
-                ? l10n.uploadCloseTooltip
-                : l10n.uploadPreviousStepTooltip,
-            onPressed: () {
-              if (state.isDone) {
-                quit();
-              } else {
-                switch (step) {
-                  case UploadStep.upload:
-                    quit();
-                  case UploadStep.verify:
-                    notifier.backToUpload();
-                  case UploadStep.confirm:
-                    notifier.backToVerify();
+        child: Scaffold(
+          appBar: AppBar(
+            // Back = previous step (or quit at the first step / after success). Reset
+            // on quit so the next visit starts clean (user action → mutation allowed).
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              tooltip: step == UploadStep.upload || state.isDone
+                  ? l10n.uploadCloseTooltip
+                  : l10n.uploadPreviousStepTooltip,
+              onPressed: () {
+                if (state.isDone) {
+                  quit();
+                } else {
+                  switch (step) {
+                    case UploadStep.upload:
+                      quit();
+                    case UploadStep.verify:
+                      notifier.backToUpload();
+                    case UploadStep.confirm:
+                      notifier.backToVerify();
+                  }
                 }
-              }
-            },
-          ),
-          // Style on the Text (not AppBar.titleTextStyle) so it merges with — and
-          // keeps — the theme's title colour, only overriding the size.
-          title: Text(
-            l10n.uploadTitle,
-            style: TextStyle(fontSize: titleSize, fontWeight: FontWeight.w600),
-          ),
-          actions: [
-            if (!state.isDone) _ForwardAction(state: state, notifier: notifier),
-            const SizedBox(width: 8),
-          ],
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(58),
-            child: _WizardStepper(current: step, done: state.isDone),
-          ),
-        ),
-        // Centre + plafonne la largeur : carte centrée sur desktop, plein écran
-        // sur mobile (le contenu est plus lisible qu'étiré sur toute la largeur).
-        body: SafeArea(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 746),
-              child: switch (step) {
-                UploadStep.upload => const _UploadStepView(),
-                UploadStep.verify => const _VerifyStepView(),
-                UploadStep.confirm => const _ConfirmStepView(),
               },
+            ),
+            // Style on the Text (not AppBar.titleTextStyle) so it merges with — and
+            // keeps — the theme's title colour, only overriding the size.
+            title: Text(
+              l10n.uploadTitle,
+              style: TextStyle(
+                fontSize: titleSize,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            actions: [
+              if (!state.isDone)
+                _ForwardAction(state: state, notifier: notifier),
+              const SizedBox(width: 8),
+            ],
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(58),
+              child: _WizardStepper(current: step, done: state.isDone),
+            ),
+          ),
+          // Centre + plafonne la largeur : carte centrée sur desktop, plein écran
+          // sur mobile (le contenu est plus lisible qu'étiré sur toute la largeur).
+          body: SafeArea(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 746),
+                child: switch (step) {
+                  UploadStep.upload => const _UploadStepView(),
+                  UploadStep.verify => const _VerifyStepView(),
+                  UploadStep.confirm => const _ConfirmStepView(),
+                },
+              ),
             ),
           ),
         ),
-      ),
       ),
     );
   }

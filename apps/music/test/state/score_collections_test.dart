@@ -46,56 +46,69 @@ ProviderContainer _make(MockScoreUploadService service) {
 }
 
 void main() {
-  test('the list is read from the server and re-read after a mutation', () async {
-    final service = MockScoreUploadService();
-    var listCalls = 0;
-    when(service.listCollections()).thenAnswer((_) async {
-      listCalls++;
-      return [_collection('c1', 'Chopin')];
-    });
-    when(service.createCollection(any)).thenAnswer(
-      (_) async => _collection('c2', 'Etudes'),
-    );
-    final c = _make(service);
+  test(
+    'the list is read from the server and re-read after a mutation',
+    () async {
+      final service = MockScoreUploadService();
+      var listCalls = 0;
+      when(service.listCollections()).thenAnswer((_) async {
+        listCalls++;
+        return [_collection('c1', 'Chopin')];
+      });
+      when(
+        service.createCollection(any),
+      ).thenAnswer((_) async => _collection('c2', 'Etudes'));
+      final c = _make(service);
 
-    expect(await c.read(scoreCollectionsProvider.future), hasLength(1));
-    expect(listCalls, 1);
+      expect(await c.read(scoreCollectionsProvider.future), hasLength(1));
+      expect(listCalls, 1);
 
-    final err = await c.read(scoreCollectionsProvider.notifier).create('Etudes');
-    expect(err, isNull);
-    // The server is the source of truth, so the list is read again — that is
-    // what makes another device's change show up here.
-    await c.read(scoreCollectionsProvider.future);
-    expect(listCalls, 2);
-  });
+      final err = await c
+          .read(scoreCollectionsProvider.notifier)
+          .create('Etudes');
+      expect(err, isNull);
+      // The server is the source of truth, so the list is read again — that is
+      // what makes another device's change show up here.
+      await c.read(scoreCollectionsProvider.future);
+      expect(listCalls, 2);
+    },
+  );
 
-  test('a name collision surfaces as a typed reason, not an exception', () async {
-    final service = MockScoreUploadService();
-    when(service.listCollections()).thenAnswer((_) async => const []);
-    when(
-      service.createCollection(any),
-    ).thenThrow(AuthException(AuthError.alreadyExists));
-    final c = _make(service);
-    await c.read(scoreCollectionsProvider.future);
+  test(
+    'a name collision surfaces as a typed reason, not an exception',
+    () async {
+      final service = MockScoreUploadService();
+      when(service.listCollections()).thenAnswer((_) async => const []);
+      when(
+        service.createCollection(any),
+      ).thenThrow(AuthException(AuthError.alreadyExists));
+      final c = _make(service);
+      await c.read(scoreCollectionsProvider.future);
 
-    final err = await c.read(scoreCollectionsProvider.notifier).create('Chopin');
-    expect(err, CollectionError.nameTaken);
-  });
+      final err = await c
+          .read(scoreCollectionsProvider.notifier)
+          .create('Chopin');
+      expect(err, CollectionError.nameTaken);
+    },
+  );
 
-  test('an empty name surfaces as invalidName, anything else as failed', () async {
-    final service = MockScoreUploadService();
-    when(service.listCollections()).thenAnswer((_) async => const []);
-    when(
-      service.createCollection('  '),
-    ).thenThrow(AuthException(AuthError.invalidArgument));
-    when(service.createCollection('boom')).thenThrow(StateError('offline'));
-    final c = _make(service);
-    await c.read(scoreCollectionsProvider.future);
-    final n = c.read(scoreCollectionsProvider.notifier);
+  test(
+    'an empty name surfaces as invalidName, anything else as failed',
+    () async {
+      final service = MockScoreUploadService();
+      when(service.listCollections()).thenAnswer((_) async => const []);
+      when(
+        service.createCollection('  '),
+      ).thenThrow(AuthException(AuthError.invalidArgument));
+      when(service.createCollection('boom')).thenThrow(StateError('offline'));
+      final c = _make(service);
+      await c.read(scoreCollectionsProvider.future);
+      final n = c.read(scoreCollectionsProvider.notifier);
 
-    expect(await n.create('  '), CollectionError.invalidName);
-    expect(await n.create('boom'), CollectionError.failed);
-  });
+      expect(await n.create('  '), CollectionError.invalidName);
+      expect(await n.create('boom'), CollectionError.failed);
+    },
+  );
 
   test('membership changes go through and refresh the list', () async {
     final service = MockScoreUploadService();
@@ -113,24 +126,26 @@ void main() {
   });
 
   group('the filter', () {
-    test('no filter fetches nothing; selecting one fetches that collection',
-        () async {
-      final service = MockScoreUploadService();
-      when(service.listCollections()).thenAnswer((_) async => const []);
-      when(
-        service.listMyScoresInCollection('c1'),
-      ).thenAnswer((_) async => [_score('s1')]);
-      final c = _make(service);
+    test(
+      'no filter fetches nothing; selecting one fetches that collection',
+      () async {
+        final service = MockScoreUploadService();
+        when(service.listCollections()).thenAnswer((_) async => const []);
+        when(
+          service.listMyScoresInCollection('c1'),
+        ).thenAnswer((_) async => [_score('s1')]);
+        final c = _make(service);
 
-      expect(await c.read(scoresInCollectionProvider.future), isEmpty);
-      verifyNever(service.listMyScoresInCollection(any));
+        expect(await c.read(scoresInCollectionProvider.future), isEmpty);
+        verifyNever(service.listMyScoresInCollection(any));
 
-      c.read(collectionFilterProvider.notifier).select('c1');
-      expect(
-        (await c.read(scoresInCollectionProvider.future)).map((s) => s.id),
-        ['s1'],
-      );
-    });
+        c.read(collectionFilterProvider.notifier).select('c1');
+        expect(
+          (await c.read(scoresInCollectionProvider.future)).map((s) => s.id),
+          ['s1'],
+        );
+      },
+    );
 
     test('clearing the filter returns to the whole library', () async {
       final service = MockScoreUploadService();

@@ -300,9 +300,9 @@ class CatalogSearch extends _$CatalogSearch {
     final collectionId = ref.read(collectionFilterProvider);
     final uploads = collectionId == null
         ? await ref.read(myContributedScoresProvider.future)
-        : (await ref.read(scoresInCollectionProvider.future))
-              .map((s) => contributedEntry(s))
-              .toList();
+        : (await ref.read(
+            scoresInCollectionProvider.future,
+          )).map((s) => contributedEntry(s)).toList();
     return uploads.where(_matchesFilters).toList();
   }
 

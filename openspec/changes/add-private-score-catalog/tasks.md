@@ -83,9 +83,9 @@
 
 ## 8. Quality gates & external follow-ups
 
-- [ ] 8.1 `build_runner`, `melos run analyze`, `dart run custom_lint`,
+- [x] 8.1 `build_runner`, `melos run analyze`, `dart run custom_lint`,
   `cargo fmt --check` + `clippy -D warnings`, coverage ≥ 80 % (Rust + Flutter)
-- [ ] 8.2 `openspec validate add-private-score-catalog --strict` passes
+- [x] 8.2 `openspec validate add-private-score-catalog --strict` passes
 - [ ] 8.3 MANUAL (cymbra-site repo): CGU additions — `private_use` wording,
   illicit-content reporting clause, notice-and-takedown contact in the mentions
   légales; verify the app's legal links still resolve

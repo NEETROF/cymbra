@@ -97,25 +97,36 @@ Future<BatchImportState> _run(
 }
 
 void main() {
-  test('the batch cannot start until attestation and difficulty are set', () async {
-    final service = _service();
-    final c = _make(service);
-    final n = c.read(batchImportNotifierProvider.notifier);
-    n.setFiles([_file('a.musicxml')]);
-    expect(c.read(batchImportNotifierProvider).canStart, isFalse);
+  test(
+    'the batch cannot start until attestation and difficulty are set',
+    () async {
+      final service = _service();
+      final c = _make(service);
+      final n = c.read(batchImportNotifierProvider.notifier);
+      n.setFiles([_file('a.musicxml')]);
+      expect(c.read(batchImportNotifierProvider).canStart, isFalse);
 
-    n.setRightsBasis(RightsBasis.author);
-    expect(c.read(batchImportNotifierProvider).canStart, isFalse, reason: 'no ack');
-    n.setRightsAck(true);
-    expect(c.read(batchImportNotifierProvider).canStart, isFalse, reason: 'no level');
-    n.setLevel(PracticeLevel.beginner);
-    expect(c.read(batchImportNotifierProvider).canStart, isTrue);
+      n.setRightsBasis(RightsBasis.author);
+      expect(
+        c.read(batchImportNotifierProvider).canStart,
+        isFalse,
+        reason: 'no ack',
+      );
+      n.setRightsAck(true);
+      expect(
+        c.read(batchImportNotifierProvider).canStart,
+        isFalse,
+        reason: 'no level',
+      );
+      n.setLevel(PracticeLevel.beginner);
+      expect(c.read(batchImportNotifierProvider).canStart, isTrue);
 
-    // Running before it is startable uploads nothing.
-    final blocked = _make(_service());
-    await blocked.read(batchImportNotifierProvider.notifier).run();
-    expect(blocked.read(batchImportNotifierProvider).results, isEmpty);
-  });
+      // Running before it is startable uploads nothing.
+      final blocked = _make(_service());
+      await blocked.read(batchImportNotifierProvider.notifier).run();
+      expect(blocked.read(batchImportNotifierProvider).results, isEmpty);
+    },
+  );
 
   test('the batch choices are applied to every file', () async {
     final service = _service();
@@ -169,17 +180,14 @@ void main() {
 
     expect(state.done, isTrue);
     expect(state.running, isFalse);
-    expect(
-      state.results.map((r) => r.outcome).toList(),
-      const [
-        BatchOutcome.imported,
-        BatchOutcome.duplicate,
-        BatchOutcome.invalid,
-        BatchOutcome.quotaExceeded,
-        BatchOutcome.failed,
-        BatchOutcome.imported,
-      ],
-    );
+    expect(state.results.map((r) => r.outcome).toList(), const [
+      BatchOutcome.imported,
+      BatchOutcome.duplicate,
+      BatchOutcome.invalid,
+      BatchOutcome.quotaExceeded,
+      BatchOutcome.failed,
+      BatchOutcome.imported,
+    ]);
     // Every file was attempted — the last one especially, after four failures.
     expect(state.results.length, 6);
     expect(state.importedCount, 2);
@@ -203,42 +211,44 @@ void main() {
   });
 
   group('quota pre-check', () {
-    test('a selection larger than the allowance is flagged before any upload',
-        () async {
-      final service = _service(
-        allowance: const UploadAllowance(
-          remaining: 2,
-          max: 5,
-          windowDays: 7,
-          upgradeRaisesLimit: true,
-        ),
-      );
-      final c = _make(service);
-      final n = c.read(batchImportNotifierProvider.notifier);
-      n.setFiles([
-        _file('a.musicxml'),
-        _file('b.musicxml'),
-        _file('c.musicxml'),
-      ]);
-      await n.loadAllowance();
+    test(
+      'a selection larger than the allowance is flagged before any upload',
+      () async {
+        final service = _service(
+          allowance: const UploadAllowance(
+            remaining: 2,
+            max: 5,
+            windowDays: 7,
+            upgradeRaisesLimit: true,
+          ),
+        );
+        final c = _make(service);
+        final n = c.read(batchImportNotifierProvider.notifier);
+        n.setFiles([
+          _file('a.musicxml'),
+          _file('b.musicxml'),
+          _file('c.musicxml'),
+        ]);
+        await n.loadAllowance();
 
-      final state = c.read(batchImportNotifierProvider);
-      expect(state.exceedsAllowance, isTrue);
-      expect(state.overAllowanceCount, 1);
-      expect(state.allowance!.upgradeRaisesLimit, isTrue);
-      // Nothing has been uploaded to discover this.
-      verifyNever(
-        service.upload(
-          data: anyNamed('data'),
-          filename: anyNamed('filename'),
-          level: anyNamed('level'),
-          rightsBasis: anyNamed('rightsBasis'),
-          rightsAck: anyNamed('rightsAck'),
-          fallbackTitle: anyNamed('fallbackTitle'),
-          fallbackComposer: anyNamed('fallbackComposer'),
-        ),
-      );
-    });
+        final state = c.read(batchImportNotifierProvider);
+        expect(state.exceedsAllowance, isTrue);
+        expect(state.overAllowanceCount, 1);
+        expect(state.allowance!.upgradeRaisesLimit, isTrue);
+        // Nothing has been uploaded to discover this.
+        verifyNever(
+          service.upload(
+            data: anyNamed('data'),
+            filename: anyNamed('filename'),
+            level: anyNamed('level'),
+            rightsBasis: anyNamed('rightsBasis'),
+            rightsAck: anyNamed('rightsAck'),
+            fallbackTitle: anyNamed('fallbackTitle'),
+            fallbackComposer: anyNamed('fallbackComposer'),
+          ),
+        );
+      },
+    );
 
     test('a selection that fits raises no warning', () async {
       final service = _service(

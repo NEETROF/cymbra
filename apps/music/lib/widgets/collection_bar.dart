@@ -79,11 +79,12 @@ class CollectionBar extends ConsumerWidget {
 
 /// Manage collections: create, rename, delete. Deleting says plainly that the
 /// scores are kept — the destructive-sounding action is not destructive.
-Future<void> showCollectionManager(BuildContext context) => showModalBottomSheet(
-  context: context,
-  isScrollControlled: true,
-  builder: (_) => const _CollectionManagerSheet(),
-);
+Future<void> showCollectionManager(BuildContext context) =>
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => const _CollectionManagerSheet(),
+    );
 
 class _CollectionManagerSheet extends ConsumerWidget {
   const _CollectionManagerSheet();

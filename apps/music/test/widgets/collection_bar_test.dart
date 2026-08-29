@@ -58,7 +58,49 @@ Future<ProviderContainer> _pump(
   return container;
 }
 
+/// Opens the "add to a collection" sheet over a trivial host screen.
+Future<void> _pumpAddSheet(
+  WidgetTester tester,
+  MockScoreUploadService service,
+) async {
+  final container = ProviderContainer(
+    overrides: [scoreUploadServiceProvider.overrideWithValue(service)],
+  );
+  addTearDown(container.dispose);
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => showAddToCollection(context, 's1'),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.tap(find.text('open'));
+  await tester.pumpAndSettle();
+}
+
+late final AppLocalizations _enStrings;
+
 void main() {
+  setUpAll(() async {
+    _enStrings = await AppLocalizations.delegate.load(const Locale('en'));
+  });
+
   testWidgets('selecting a collection filters, clearing it restores all', (
     tester,
   ) async {
@@ -96,7 +138,9 @@ void main() {
     tester,
   ) async {
     final service = MockScoreUploadService();
-    when(service.listCollections()).thenAnswer((_) async => [_c('c1', 'Chopin')]);
+    when(
+      service.listCollections(),
+    ).thenAnswer((_) async => [_c('c1', 'Chopin')]);
     when(
       service.createCollection(any),
     ).thenThrow(AuthException(AuthError.alreadyExists));
@@ -117,11 +161,103 @@ void main() {
     expect(find.textContaining('AuthException'), findsNothing);
   });
 
+  test('every failure reason has its own localized wording', () {
+    // Guards the mapping itself: a new CollectionError must get a message.
+    final messages = {
+      for (final e in CollectionError.values)
+        e: collectionErrorMessage(_enStrings, e),
+    };
+    expect(messages.values.toSet(), hasLength(CollectionError.values.length));
+    expect(messages[CollectionError.nameTaken], contains('already have'));
+    expect(messages[CollectionError.invalidName], contains('name'));
+  });
+
+  testWidgets('renaming goes through the store with the typed name', (
+    tester,
+  ) async {
+    final service = MockScoreUploadService();
+    when(
+      service.listCollections(),
+    ).thenAnswer((_) async => [_c('c1', 'Chopin')]);
+    await _pump(tester, service);
+
+    await tester.tap(find.widgetWithText(ActionChip, 'Manage collections'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.edit_outlined));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Nocturnes');
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    await tester.pumpAndSettle();
+
+    verify(service.renameCollection('c1', 'Nocturnes')).called(1);
+  });
+
+  testWidgets('cancelling the name dialog changes nothing', (tester) async {
+    final service = MockScoreUploadService();
+    when(service.listCollections()).thenAnswer((_) async => const []);
+    await _pump(tester, service);
+
+    await tester.tap(find.widgetWithText(ActionChip, 'Manage collections'));
+    await tester.pumpAndSettle();
+    expect(find.text('No collections yet.'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'New collection'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Discarded');
+    await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+    await tester.pumpAndSettle();
+
+    verifyNever(service.createCollection(any));
+  });
+
+  group('add to a collection', () {
+    testWidgets('picking one adds the score and confirms it', (tester) async {
+      final service = MockScoreUploadService();
+      when(
+        service.listCollections(),
+      ).thenAnswer((_) async => [_c('c1', 'Chopin')]);
+      await _pumpAddSheet(tester, service);
+
+      await tester.tap(find.text('Chopin'));
+      await tester.pumpAndSettle();
+
+      verify(service.addToCollection('c1', 's1')).called(1);
+      expect(find.text('Added to Chopin'), findsOneWidget);
+    });
+
+    testWidgets('a failure shows a localized message, not an exception', (
+      tester,
+    ) async {
+      final service = MockScoreUploadService();
+      when(
+        service.listCollections(),
+      ).thenAnswer((_) async => [_c('c1', 'Chopin')]);
+      when(service.addToCollection(any, any)).thenThrow(StateError('offline'));
+      await _pumpAddSheet(tester, service);
+
+      await tester.tap(find.text('Chopin'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Something went wrong. Try again.'), findsOneWidget);
+      expect(find.textContaining('StateError'), findsNothing);
+    });
+
+    testWidgets('with no collections it says so instead of an empty sheet', (
+      tester,
+    ) async {
+      final service = MockScoreUploadService();
+      when(service.listCollections()).thenAnswer((_) async => const []);
+      await _pumpAddSheet(tester, service);
+      expect(find.text('No collections yet.'), findsOneWidget);
+    });
+  });
+
   testWidgets('deleting a collection asks first and says scores are kept', (
     tester,
   ) async {
     final service = MockScoreUploadService();
-    when(service.listCollections()).thenAnswer((_) async => [_c('c1', 'Chopin')]);
+    when(
+      service.listCollections(),
+    ).thenAnswer((_) async => [_c('c1', 'Chopin')]);
     await _pump(tester, service);
 
     await tester.tap(find.widgetWithText(ActionChip, 'Manage collections'));

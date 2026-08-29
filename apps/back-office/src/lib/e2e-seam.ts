@@ -325,7 +325,10 @@ export function installE2EClients(): void {
           scores: userScores.filter(
             (s) =>
               (!req.ownerId || s.ownerId === req.ownerId) &&
-              (!needle || String(s.title ?? "").toLowerCase().includes(needle)),
+              (!needle ||
+                String(s.title ?? "")
+                  .toLowerCase()
+                  .includes(needle)),
           ),
         };
       },

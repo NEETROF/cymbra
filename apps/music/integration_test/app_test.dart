@@ -356,8 +356,9 @@ class _RecordingUpload implements ScoreUploadService {
   Future<List<ContributedScore>> listMyScores() async => const [];
 
   @override
-  Future<List<ContributedScore>> listMyScoresInCollection(String collectionId) async =>
-      const [];
+  Future<List<ContributedScore>> listMyScoresInCollection(
+    String collectionId,
+  ) async => const [];
 
   @override
   Future<List<ScoreCollection>> listCollections() async => const [];
@@ -376,7 +377,10 @@ class _RecordingUpload implements ScoreUploadService {
   Future<void> addToCollection(String collectionId, String scoreId) async {}
 
   @override
-  Future<void> removeFromCollection(String collectionId, String scoreId) async {}
+  Future<void> removeFromCollection(
+    String collectionId,
+    String scoreId,
+  ) async {}
 
   @override
   Future<UploadAllowance> uploadAllowance() async => const UploadAllowance(

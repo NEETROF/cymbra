@@ -37,7 +37,11 @@ function formatDate(seconds: bigint): string {
 // cannot silently render as "nothing".
 const resultsVm = computed(() =>
   match(store.results)
-    .with({ status: "idle" }, () => ({ loading: false, error: null as string | null, rows: null as AdminUserScore[] | null }))
+    .with({ status: "idle" }, () => ({
+      loading: false,
+      error: null as string | null,
+      rows: null as AdminUserScore[] | null,
+    }))
     .with({ status: "loading" }, () => ({ loading: true, error: null, rows: null as AdminUserScore[] | null }))
     .with({ status: "error" }, ({ error }) => ({ loading: false, error, rows: null as AdminUserScore[] | null }))
     .with({ status: "success" }, ({ data }) => ({ loading: false, error: null, rows: data }))

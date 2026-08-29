@@ -86,7 +86,8 @@ class FilePickerServiceImpl implements FilePickerService {
     // failing the whole selection: the batch reports per file, not all-or-nothing.
     return [
       for (final f in result.files)
-        if (f.bytes case final bytes?) PickedScoreFile(name: f.name, bytes: bytes),
+        if (f.bytes case final bytes?)
+          PickedScoreFile(name: f.name, bytes: bytes),
     ];
   }
 }
