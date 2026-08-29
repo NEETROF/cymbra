@@ -44,6 +44,10 @@ export interface E2EData {
   /** The account's stored language returned by `getAccount` (change: sync-account-
    * language-preference); `setLocale` writes it here so a re-read reflects it. */
   accountLocale?: string;
+  /** Private user scores the takedown lookup returns (change:
+   * add-private-score-catalog); a removal deletes from this list in place so a
+   * re-search reflects it. */
+  userScores?: Record<string, unknown>[];
   /** Accounts for the admin directory (`listAccounts`); roles are mutated in place
    * by grant/revoke so the UI reflects the change on re-list. */
   accounts?: DirectoryAccount[];
@@ -145,6 +149,9 @@ export function installE2EClients(): void {
   const tokens = data.tokens ?? { accessToken: "", refreshToken: "r" };
   // Mutable copy so add/edit/delete change the catalog the next list reflects.
   const soundfonts: Record<string, unknown>[] = (data.soundfonts ?? []).map((f) => ({ ...f }));
+  // Takedown lookup rows (change: add-private-score-catalog). Mutable: a removal
+  // splices the row out, so the view's re-search shows what is actually left.
+  const userScores: Record<string, unknown>[] = (data.userScores ?? []).map((s) => ({ ...s }));
   // Mutable copy so a flag/config write changes what the next list returns.
   const flags: E2EFlag[] = (data.flags ?? []).map((f) => ({ ...f }));
   const findFlag = (key: string) => flags.find((f) => f.key === key);
@@ -311,6 +318,23 @@ export function installE2EClients(): void {
       // Public catalog listing (preview font picker on review/detail).
       listSoundFonts: async () => ({ soundfonts: soundfonts.map(({ id, label }) => ({ id, label })) }),
       // SoundFont catalog admin (change: add-soundfont-back-office-management).
+      adminSearchUserScores: async (req: { ownerId?: string; title?: string }) => {
+        failIfSet("adminSearchUserScores");
+        const needle = req.title?.toLowerCase();
+        return {
+          scores: userScores.filter(
+            (s) =>
+              (!req.ownerId || s.ownerId === req.ownerId) &&
+              (!needle || String(s.title ?? "").toLowerCase().includes(needle)),
+          ),
+        };
+      },
+      adminRemoveUserScore: async (req: { id: string; reason: string }) => {
+        failIfSet("adminRemoveUserScore");
+        const i = userScores.findIndex((s) => s.id === req.id);
+        if (i >= 0) userScores.splice(i, 1);
+        return {};
+      },
       adminListSoundFonts: async () => {
         failIfSet("adminListSoundFonts");
         return { soundfonts: soundfonts.map((f) => ({ hasObject: true, ...f })) };

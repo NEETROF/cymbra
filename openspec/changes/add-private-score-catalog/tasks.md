@@ -74,9 +74,9 @@
 
 ## 7. Back-office — takedown surface
 
-- [ ] 7.1 Store (Pinia) with `Async<T>` unions for lookup + removal behind the
+- [x] 7.1 Store (Pinia) with `Async<T>` unions for lookup + removal behind the
   injectable client seam; unit tests
-- [ ] 7.2 Screen gated to music-scope admins: search form, results table,
+- [x] 7.2 Screen gated to music-scope admins: search form, results table,
   removal dialog with mandatory reason + explicit irreversible confirmation;
   Playwright e2e on the fake-client seam (lookup, refusal without reason,
   successful removal)
