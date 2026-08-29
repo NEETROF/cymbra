@@ -57,6 +57,18 @@ class SelectedPiano extends _$SelectedPiano {
         _apply(defaultPianoId, persist: true);
       }
     });
+    // React to the shop the same way: a costed font the account no longer owns
+    // is locked again (the plan lapsed and the withdrawal took its file back),
+    // and [select] would refuse it from now on. Keeping it as the active
+    // instrument would claim a sound the app cannot load, so fall back to the
+    // default — the same self-heal as a removed font, on the other axis.
+    ref.listen(rewardShopItemsByKeyProvider, (previous, next) {
+      if (!_ready) return;
+      final item = next[state];
+      if (item != null && item.pointCost > 0 && !item.owned) {
+        _apply(defaultPianoId, persist: true);
+      }
+    });
     return defaultPianoId;
   }
 

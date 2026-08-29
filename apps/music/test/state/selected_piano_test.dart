@@ -33,8 +33,10 @@ import '../support/soundfont_fakes.dart';
 /// A curator-rewards seam returning a fixed reward-shop list, so the selection
 /// gate for locked reward fonts is exercisable.
 class _ShopFake implements CuratorRewardsService {
-  const _ShopFake(this.items);
-  final List<RewardShopItemView> items;
+  _ShopFake(this.items);
+
+  /// Mutable: a lapse re-locks a font the account owned a moment ago.
+  List<RewardShopItemView> items;
 
   @override
   Future<List<RewardShopItemView>> listShop() async => items;
@@ -81,12 +83,15 @@ ProviderContainer _container({
   FakeSoundFontImporter? importer,
   List<PianoEntry>? serverFonts,
   List<RewardShopItemView> shop = const [],
+  _ShopFake? shopFake,
 }) {
   final container = ProviderContainer(
     overrides: [
       preferencesServiceProvider.overrideWithValue(prefs),
       audioServiceProvider.overrideWithValue(audio),
-      curatorRewardsServiceProvider.overrideWithValue(_ShopFake(shop)),
+      curatorRewardsServiceProvider.overrideWithValue(
+        shopFake ?? _ShopFake(shop),
+      ),
       soundFontSourceProvider.overrideWithValue(
         source ?? FakeSoundFontSource(),
       ),
@@ -299,6 +304,38 @@ void main() {
 
       await container.read(selectedPianoProvider.notifier).select('soon-grand');
       expect(container.read(selectedPianoProvider), defaultPianoId);
+    },
+  );
+
+  test(
+    'a font that becomes locked again is dropped as the active instrument',
+    () async {
+      // The lapse case: premium (or a redemption) let the font be selected, the
+      // plan ended, the withdrawal took its file back and the shop offers it
+      // again. Keeping it selected would claim a sound the app cannot load.
+      final shop = _ShopFake([_reward('reward-grand', owned: true)]);
+      final prefs = FakePreferencesService();
+      final container = _container(
+        prefs: prefs,
+        audio: RecordingAudioService(),
+        serverFonts: [fakeDownloadPiano(id: 'reward-grand', label: 'Reward')],
+        shopFake: shop,
+      );
+      await container.read(rewardShopProvider.future);
+      await pumpEventQueue();
+      await container
+          .read(selectedPianoProvider.notifier)
+          .select('reward-grand');
+      expect(container.read(selectedPianoProvider), 'reward-grand');
+
+      // Re-locked: the shop now says costed and unowned.
+      shop.items = [_reward('reward-grand', owned: false)];
+      container.invalidate(rewardShopProvider);
+      await container.read(rewardShopProvider.future);
+      await pumpEventQueue();
+
+      expect(container.read(selectedPianoProvider), defaultPianoId);
+      expect(prefs.store[SelectedPiano.prefsKey], defaultPianoId);
     },
   );
 

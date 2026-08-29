@@ -19,6 +19,7 @@ import '../l10n/gen/app_localizations.dart';
 import '../services/soundfont_catalog_service.dart'
     show serverSoundFontsProvider;
 import '../state/piano_catalog.dart';
+import '../state/reward_shop_notifier.dart';
 import '../theme/cymbra_theme.dart';
 
 /// A **combobox** to choose the instrument sound (SoundFont) the synth plays with
@@ -74,6 +75,16 @@ class _SoundSelectorFieldState extends ConsumerState<SoundSelectorField> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final catalog = ref.watch(pianoCatalogProvider);
+    // Lock state (change: add-curation-rewards): a costed catalog font the
+    // account does not own cannot be made the active instrument — `select`
+    // refuses it. Say so in the list rather than accepting a tap that silently
+    // does nothing; the hub is where it gets unlocked.
+    final shop = ref.watch(rewardShopItemsByKeyProvider);
+    bool isLocked(PianoEntry p) {
+      final item = shop[p.id];
+      return item != null && item.pointCost > 0 && !item.owned;
+    }
+
     // Family scoping (change: add-drum-audio-channel): only the loaded score's
     // family is offered — the picker never proposes a font whose bank the
     // score's channel could not resolve.
@@ -85,7 +96,8 @@ class _SoundSelectorFieldState extends ConsumerState<SoundSelectorField> {
     // available) — shows the honest empty hint instead.
     final String? selectedId = sounds.any((p) => p.id == widget.value)
         ? widget.value
-        : (sounds.isNotEmpty ? sounds.first.id : null);
+        : (sounds.where((p) => !isLocked(p)).firstOrNull?.id ??
+              sounds.firstOrNull?.id);
     final selected = selectedId == null
         ? null
         : sounds.firstWhere((p) => p.id == selectedId);
@@ -116,11 +128,36 @@ class _SoundSelectorFieldState extends ConsumerState<SoundSelectorField> {
             for (final p in sounds)
               DropdownMenuItem<String>(
                 value: p.id,
-                child: Text(p.label, overflow: TextOverflow.ellipsis),
+                enabled: !isLocked(p),
+                child: isLocked(p)
+                    ? Row(
+                        children: [
+                          const Icon(
+                            Icons.lock_outline,
+                            size: 16,
+                            color: CymbraColors.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              p.label,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: CymbraColors.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    : Text(p.label, overflow: TextOverflow.ellipsis),
               ),
           ],
           onChanged: (v) {
-            if (v != null) widget.onChanged(v);
+            if (v == null) return;
+            // A disabled item cannot be tapped, so this is belt-and-braces for
+            // a lock that appeared between build and tap.
+            if (sounds.any((p) => p.id == v && isLocked(p))) return;
+            widget.onChanged(v);
           },
         ),
       ),
