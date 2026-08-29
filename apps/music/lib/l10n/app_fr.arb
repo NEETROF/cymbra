@@ -790,7 +790,7 @@
   "calibrationTitle": "Calibrer ta batterie",
   "calibrationOpen": "Calibrer cette batterie",
   "calibrationOpenHint": "Joue chaque fût une fois pour que l'app apprenne ce que tes pads envoient.",
-  "calibrationPrompt": "Frappe ta {piece}",
+  "calibrationPrompt": "Frappe : {piece}",
   "calibrationStepOf": "Élément {step} sur {total}",
   "calibrationWaiting": "En attente d'une frappe…",
   "calibrationRecorded": "Note {number} enregistrée",

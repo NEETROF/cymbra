@@ -37,13 +37,16 @@
   MIDI percussion name (or note name for a keyboard score) → the loaded score's
   kit piece, or explicitly nothing. Unit-tested including the "matches nothing"
   case, which is the one the beta report is about
-- [ ] 3.3 "Will not sound": the resolution reports when a number falls outside
-  the loaded SoundFont's **sampled range**. Deferred — it needs the range out of
-  the engine, and hard-coding the shipped kit's measured 27–87 is exactly the
-  guess this task exists to avoid. What shipped instead is a statement about the
-  **standard**: a number outside the General MIDI percussion map (35–81) is
-  reported as unknown to the app, which is true, useful, and the actual shape of
-  the beta report
+- [x] 3.3 "Will not sound": the resolution reports when a number falls outside
+  the loaded SoundFont's **sampled range**. **Closed as design D9, not built.**
+  It needs the range out of the engine (a bridge API), and hard-coding the
+  shipped kit's measured 27–87 is exactly the guess this task exists to avoid —
+  the kit font is swappable. What shipped is the narrower true statement: a
+  number outside the General MIDI percussion map (35–81) is unknown to the app.
+  The gap is a refinement rather than a hole, and now provably so: every
+  canonical number a calibration translates into sits inside 35–81, pinned by a
+  test, so a silent pad cannot survive calibration — only *not* being
+  calibrated, which the two markers the monitor has are there to reveal
 - [x] 3.4 The monitor screen: a live list, newest first, each row showing raw
   number / resolved piece / velocity / channel, with unmatched rows visually
   distinct. Reachable from the settings modal's MIDI section, as its **own

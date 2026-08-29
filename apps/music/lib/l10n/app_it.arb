@@ -790,7 +790,7 @@
   "calibrationTitle": "Calibra la tua batteria",
   "calibrationOpen": "Calibra questa batteria",
   "calibrationOpenHint": "Suona ogni tamburo una volta perché l'app impari cosa inviano i tuoi pad.",
-  "calibrationPrompt": "Colpisci il tuo {piece}",
+  "calibrationPrompt": "Colpisci: {piece}",
   "calibrationStepOf": "Pezzo {step} di {total}",
   "calibrationWaiting": "In attesa di un colpo…",
   "calibrationRecorded": "Nota {number} registrata",

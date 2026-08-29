@@ -149,6 +149,36 @@ report and the one thing the player cannot deduce from anything else on screen.
 
 Bounded history (a fixed ring), so a session left open overnight cannot grow.
 
+### D9 — The monitor states what the *standard* covers, not what the font samples
+
+*Settled during implementation (task 3.3).* D5 promised a "will not sound"
+marker: a number the loaded SoundFont has no sample for. What shipped is a
+narrower, true statement — a number outside the General MIDI percussion map
+(35–81) is reported as unknown to the app.
+
+The two are not the same, and for the shipped kit they differ in both
+directions. Measured through rustysynth, `FluidR3Drums-bank128.sf2` sounds every
+number from **27 to 87**, so 27–34 and 82–87 are reported as unknown while in
+fact sounding — pessimistic, but never misleading in the dangerous direction. A
+*narrower* font would open the other case: a number inside 35–81 that the font
+does not sample, silent with nothing on screen saying so.
+
+*Why not read the font's real range:* it lives in the engine, so it needs a
+bridge API. *Why not hard-code 27–87:* the kit font is swappable — bundled,
+catalogue, imported (`selected_kit.dart`) — so a constant would be a guess about
+the one thing that varies, which is precisely what this task exists to avoid.
+
+*Why the gap is a diagnostic refinement rather than a hole:* a calibration
+translates whatever a pad sends into its piece's **canonical** number, and every
+canonical number this app can produce sits inside 35–81 — pinned by a test, so
+adding a piece outside the map cannot silently reintroduce a pad that calibrates
+and still makes no sound. Any GM-compliant drum font samples that range by
+definition, and the shipped kit contains it whole. So a silent pad cannot
+survive calibration; it can only survive **not being calibrated** — which is
+exactly what the two markers the monitor does have are there to reveal.
+
+Worth revisiting if imported fonts with exotic ranges become common.
+
 ### D6 — Ship the monitor first
 
 The monitor stands alone: it is a diagnostic, it needs no mapping, and it answers

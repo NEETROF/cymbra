@@ -3416,7 +3416,7 @@
   },
   "calibrationPrompt": "Hit your {piece}",
   "@calibrationPrompt": {
-    "description": "The instruction for the current step. {piece} is a localised kit piece name.",
+    "description": "The instruction for the current step. {piece} is a localised kit piece name, capitalised as a standalone label — so languages whose possessive agrees in gender (fr, it) use a neutral construction rather than \"your\".",
     "placeholders": { "piece": { "type": "String" } }
   },
   "calibrationStepOf": "Piece {step} of {total}",

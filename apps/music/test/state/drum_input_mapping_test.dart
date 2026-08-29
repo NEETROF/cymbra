@@ -42,6 +42,39 @@ void main() {
       expect(canonicalGmOfPiece('kitPieceFromALaterBuild'), isNull);
     });
 
+    test(
+      'every canonical number is inside the General MIDI percussion map',
+      () {
+        // The invariant that makes a calibrated pad safe from silence, and the
+        // reason the monitor's missing "will not sound" marker (task 3.3) is a
+        // diagnostic refinement rather than a hole.
+        //
+        // A calibration translates whatever a pad sends into its piece's
+        // canonical number. If every canonical number sits inside 35–81, then
+        // after calibrating, every stroke lands on a number that ANY
+        // General-MIDI-compliant drum font samples by definition — the shipped
+        // kit included, whose measured range (27–87) contains the map whole. A
+        // silent pad then cannot survive calibration; it can only survive NOT
+        // being calibrated.
+        //
+        // Pinned rather than observed: add a piece tomorrow whose canonical
+        // number falls outside the map — a generic `gm:` identity, say — and it
+        // would silently reintroduce a pad that calibrates and still makes no
+        // sound. This test is what stops that being discovered on a kit.
+        for (final id in kCalibrationPieceOrder) {
+          final gm = canonicalGmOfPiece(id)!;
+          expect(
+            gm,
+            inInclusiveRange(kGmPercussionLowest, kGmPercussionHighest),
+            reason: '$id translates to $gm, outside the standard map',
+          );
+          // …and the map names it, which is the same statement read from the
+          // table the monitor reports through.
+          expect(gmPercussionName(gm), isNotNull, reason: id);
+        }
+      },
+    );
+
     test('a canonical number round-trips through the piece identity', () {
       for (final id in kCalibrationPieceOrder) {
         expect(drumPieceIdOf(canonicalGmOfPiece(id)!), id, reason: id);
