@@ -1,0 +1,30 @@
+name: discord-release
+
+# Announces the releases that have NO build artifacts to wait for — backend and
+# back-office. The music app is announced by release-build.yml instead, as a
+# final job that waits for the five platform builds to attach their files; doing
+# it here as well would post a link to a release page whose downloads are still
+# being uploaded.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  announce:
+    # release-please tags every component (music-v*, backend-v*, back-office-v*).
+    # Skip music: release-build.yml owns that announcement.
+    if: ${{ !startsWith(github.event.release.tag_name, 'music-v') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Post the release to Discord
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Infrastructure releases go to #dev: they interest maintainers, not
+          # players. Absent ⇒ the script warns and skips.
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_DEV }}
+        run: bash scripts/discord/release_announce.sh

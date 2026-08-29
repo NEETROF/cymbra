@@ -653,3 +653,24 @@ jobs:
           xcrun altool --upload-app --type ios \
             --file "cymbra-${TAG}.ipa" \
             --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
+
+  # Announce the release on Discord — LAST, once every platform job has attached
+  # its artifacts. Announcing on the release event itself would link a release
+  # page with no downloads on it, and people who click an empty page do not come
+  # back. Deliberately no `if: always()`: when a platform build fails, the
+  # announcement simply does not go out, so a half-built release is never
+  # trumpeted. Re-run the failed job and this one follows.
+  announce:
+    needs: [linux, macos, windows, android, ios]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Post the release to Discord
+        env:
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Absent ⇒ the script warns and skips, like the optional signing steps.
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_ANNOUNCEMENTS }}
+        run: bash scripts/discord/release_announce.sh
