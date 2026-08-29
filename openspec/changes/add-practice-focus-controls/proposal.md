@@ -62,6 +62,12 @@ mask each other, and the exercise becomes harder to hear than to play.
 - `hand-selection`: the percussion reading of the three-valued state (hands /
   feet / both) is removed; the capability returns to the keyboard staff mapping
   it started as.
+- `feature-discovery`: the guided player sequence's third step is the practice-
+  **scope** control rather than the limb selector — the hand selector on a
+  keyboard, the per-piece focus control on a kit. Added during implementation:
+  the coach copy is part of what the removed control took with it, so leaving it
+  out would have archived a spec that still teaches "hands / feet / both" for a
+  control the app no longer has.
 
 **Ordering constraint:** the percussion branch of `hand-selection` is introduced
 by the in-flight `add-drum-kit-view` delta and is not yet in

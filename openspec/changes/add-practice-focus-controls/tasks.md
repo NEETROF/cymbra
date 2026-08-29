@@ -113,7 +113,13 @@
 - [x] 6.2 `setting_option_row.dart`: drop the `percussion` branch
 - [x] 6.3 `coach_copy.dart` + the coaching sequence: the limb step is replaced by
   the focus step, or removed if the control is self-evident — decide by looking
-  at the finished control, not before
+  at the finished control, not before. **Replaced, not removed**: the step keeps
+  its position and its `CoachAnchor.hands` anchor (on a kit that anchor now wraps
+  the focus list), so a drum score's tour still has four steps pointing at four
+  real controls. `coachPlayerLimbs*` → `coachPlayerFocus*` in all four locales.
+  A `feature-discovery` delta was added to this change to match — the coach copy
+  is normative there, and without it the archive would have left the spec
+  teaching "hands / feet / both" for a control the app no longer has
 - [x] 6.4 Update the tests that assert the hands/feet behaviour: they become the
   focus tests, not deletions — each existing assertion has a counterpart at the
   new grain, and any that does not is a behaviour being dropped on purpose and
