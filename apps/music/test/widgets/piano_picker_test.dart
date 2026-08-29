@@ -23,7 +23,9 @@ import 'package:music/services/soundfont_catalog_service.dart';
 import 'package:music/services/soundfont_importer.dart';
 import 'package:music/services/soundfont_source.dart';
 import 'package:music/state/imported_soundfonts.dart';
+import 'package:music/services/curator_rewards_service.dart';
 import 'package:music/state/piano_catalog.dart';
+import 'package:music/state/reward_shop_notifier.dart';
 import 'package:music/widgets/sound_selector_field.dart';
 
 import '../support/localized.dart';
@@ -37,10 +39,37 @@ import '../support/soundfont_fakes.dart';
 String _encodeRegistry(List<PianoEntry> entries) =>
     jsonEncode([for (final e in entries) e.toJson()]);
 
+class _ShopFake implements CuratorRewardsService {
+  const _ShopFake(this.items);
+  final List<RewardShopItemView> items;
+
+  @override
+  Future<List<RewardShopItemView>> listShop() async => items;
+
+  @override
+  Future<CuratorRewardsView> getRewards() async => const CuratorRewardsView(
+    lifetimePoints: 0,
+    spendableBalance: 0,
+    level: 0,
+    levelFloor: 0,
+    nextLevelAt: 50,
+    totalRatings: 0,
+    coverageContribution: 0,
+    alignmentRate: 0,
+    badges: [],
+    recent: [],
+  );
+
+  @override
+  Future<RedeemResultView> redeem(String rewardKey) async =>
+      const RedeemResultView(owned: true, newBalance: 0);
+}
+
 ProviderContainer _container({
   FakePreferencesService? prefs,
   FakeSoundFontImporter? importer,
   List<PianoEntry>? serverFonts,
+  List<RewardShopItemView> shop = const [],
 
   /// Replaces the whole resolved catalog — the way to model a build where a
   /// family has no font at all, now that the kit is bundled in every build.
@@ -52,6 +81,7 @@ ProviderContainer _container({
     preferencesServiceProvider.overrideWithValue(
       prefs ?? FakePreferencesService(),
     ),
+    curatorRewardsServiceProvider.overrideWithValue(_ShopFake(shop)),
     soundFontSourceProvider.overrideWithValue(FakeSoundFontSource()),
     soundFontImporterProvider.overrideWithValue(
       importer ?? FakeSoundFontImporter(),
@@ -247,5 +277,47 @@ void main() {
 
       expect(find.text('No drum kit available'), findsOneWidget);
     });
+  });
+
+  testWidgets('a locked reward font is shown locked and cannot be picked', (
+    tester,
+  ) async {
+    // After a lapse the font is costed and unowned again: `select` refuses it,
+    // so the list must say so instead of swallowing the tap in silence.
+    final container = _container(
+      serverFonts: [fakeDownloadPiano(id: 'reward-grand', label: 'Reward')],
+      shop: const [
+        RewardShopItemView(
+          key: 'reward-grand',
+          label: 'Reward',
+          instrument: 'piano',
+          license: 'CC0-1.0',
+          attribution: '',
+          pointCost: 50,
+          redeemable: true,
+          owned: false,
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    await container.read(rewardShopProvider.future);
+
+    String? picked;
+    await _pumpField(tester, container, onChanged: (id) => picked = id);
+    await tester.tap(find.byType(DropdownButton<String>));
+    await tester.pumpAndSettle();
+
+    // Listed, but marked with a lock and disabled — a tap must not read as a
+    // choice the app then silently drops.
+    expect(find.byIcon(Icons.lock_outline), findsWidgets);
+    final locked = tester
+        .widgetList<DropdownMenuItem<String>>(
+          find.byType(DropdownMenuItem<String>),
+        )
+        .firstWhere((i) => i.value == 'reward-grand');
+    expect(locked.enabled, isFalse);
+    await tester.tap(find.text('Reward').last);
+    await tester.pumpAndSettle();
+    expect(picked, isNull);
   });
 }
