@@ -56,6 +56,7 @@ class MidiMonitorEntry {
   const MidiMonitorEntry({
     required this.seq,
     required this.pitch,
+    required this.mappedPitch,
     required this.velocity,
     required this.channel,
     required this.isNoteOn,
@@ -71,6 +72,19 @@ class MidiMonitorEntry {
 
   /// The number as received, before anything interprets it.
   final int pitch;
+
+  /// The number after this device's calibrated mapping (change:
+  /// add-drum-input-calibration) — equal to [pitch] on an uncalibrated device
+  /// and for every number the table does not cover.
+  ///
+  /// Shown beside the raw one when they differ, so a **wrong** mapping is as
+  /// visible as a missing one: the monitor's job is to show what happened, and
+  /// after calibration what happened includes a translation.
+  final int mappedPitch;
+
+  /// Whether the mapping changed this stroke's meaning.
+  bool get wasTranslated => mappedPitch != pitch;
+
   final int velocity;
 
   /// Transmitting channel, 0-based (channel 10 is `9`). Reported only — the
@@ -105,6 +119,11 @@ class MidiMonitorEntry {
 /// score with an empty layout and no kick (nothing loaded yet) still resolves
 /// against the General MIDI map, so the monitor is useful before a score is
 /// open, which is exactly when a player goes looking for it.
+/// [mapped] is the number after the connected device's calibration; it
+/// defaults to [pitch], which is the uncalibrated case. **Everything downstream
+/// resolves on the mapped number**, because that is what the rest of the app
+/// does with the stroke — a monitor still reporting the raw number as unknown
+/// after the player calibrated it would contradict the sound they just heard.
 MidiMonitorEntry readMidiEvent({
   required int seq,
   required int pitch,
@@ -112,13 +131,18 @@ MidiMonitorEntry readMidiEvent({
   required int channel,
   required bool isNoteOn,
   required bool percussion,
+  int? mapped,
   List<DrumLane> lanes = const [],
   bool hasKick = false,
 }) {
+  final effective = mapped ?? pitch;
   if (!percussion) {
     return MidiMonitorEntry(
       seq: seq,
       pitch: pitch,
+      // A keyboard score is never translated (design D8), so the two numbers
+      // are the same by construction here.
+      mappedPitch: pitch,
       velocity: velocity,
       channel: channel,
       isNoteOn: isNoteOn,
@@ -126,19 +150,20 @@ MidiMonitorEntry readMidiEvent({
     );
   }
 
-  final gmName = gmPercussionName(pitch);
+  final gmName = gmPercussionName(effective);
   // The lane lookup is piece-grained, not number-grained: a score written
   // entirely in 38s is still answered by a stroke on 40, because they are one
   // snare. Resolving on the raw number would report a false miss for exactly
   // the players this surface is for.
-  final lane = pieceLaneIndexOf(lanes, pitch);
-  final matchesKick = hasKick && kKickGmNumbers.contains(pitch);
+  final lane = pieceLaneIndexOf(lanes, effective);
+  final matchesKick = hasKick && kKickGmNumbers.contains(effective);
 
   if (lane != null || matchesKick) {
     final matched = lane != null ? lanes[lane] : null;
     return MidiMonitorEntry(
       seq: seq,
       pitch: pitch,
+      mappedPitch: effective,
       velocity: velocity,
       channel: channel,
       isNoteOn: isNoteOn,
@@ -156,6 +181,7 @@ MidiMonitorEntry readMidiEvent({
   return MidiMonitorEntry(
     seq: seq,
     pitch: pitch,
+    mappedPitch: effective,
     velocity: velocity,
     channel: channel,
     isNoteOn: isNoteOn,

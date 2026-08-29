@@ -38,6 +38,7 @@ import '../widgets/difficulty_badge.dart';
 import '../widgets/kit_piece_labels.dart';
 import '../widgets/leaderboard_view.dart';
 import '../widgets/otg_guidance.dart';
+import 'drum_calibration_screen.dart';
 import 'midi_monitor_screen.dart';
 import '../widgets/setting_option_row.dart';
 import '../widgets/sound_output_section.dart';
@@ -1057,6 +1058,37 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
               color: CymbraColors.onSurfaceVariant,
             ),
             onTap: () => openMidiMonitor(context),
+          ),
+        ),
+        // The calibration pass and the mapping it produces (change:
+        // add-drum-input-calibration). Beside the monitor because they answer
+        // the same question in sequence: the monitor shows what the kit sends,
+        // this tells the app what it means.
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: ListTile(
+            key: const Key('open-drum-calibration'),
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(
+              Icons.tune,
+              color: CymbraColors.onSurfaceVariant,
+            ),
+            title: Text(
+              l10n.calibrationOpen,
+              style: const TextStyle(color: CymbraColors.onSurface),
+            ),
+            subtitle: Text(
+              l10n.calibrationOpenHint,
+              style: const TextStyle(
+                color: CymbraColors.onSurfaceVariant,
+                fontSize: 12,
+              ),
+            ),
+            trailing: const Icon(
+              Icons.chevron_right,
+              color: CymbraColors.onSurfaceVariant,
+            ),
+            onTap: () => openDrumCalibration(context),
           ),
         ),
       ],

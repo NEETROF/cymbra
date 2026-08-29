@@ -207,6 +207,22 @@ class _EntryRow extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
+                  // Only when the calibration changed the meaning: one number
+                  // where nothing was translated keeps the row quiet, and the
+                  // arrow appears exactly where a player needs to check what
+                  // their mapping is doing (change: add-drum-input-calibration).
+                  if (entry.wasTranslated)
+                    Text(
+                      key: const Key('midi-monitor-translated'),
+                      l10n.midiMonitorTranslated(
+                        entry.pitch,
+                        entry.mappedPitch,
+                      ),
+                      style: const TextStyle(
+                        color: CymbraColors.tertiary,
+                        fontSize: 12,
+                      ),
+                    ),
                   const SizedBox(height: 2),
                   Text(
                     l10n.midiMonitorEventDetail(

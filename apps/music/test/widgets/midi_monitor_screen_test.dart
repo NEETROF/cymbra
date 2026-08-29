@@ -18,13 +18,26 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:music/screens/midi_monitor_screen.dart';
 import 'package:music/services/audio_service.dart';
 import 'package:music/services/midi_service.dart';
+import 'package:music/state/drum_input_mapping_notifier.dart';
 import 'package:music/state/midi_monitor.dart';
+import 'package:music/state/notation_data.dart';
+import 'package:music/state/notation_notifier.dart';
 import 'package:music/state/midi_monitor_notifier.dart';
 import 'package:music/src/rust/api/midi.dart' show MidiEvent;
 import 'package:music/state/player_notifier.dart';
 
 import '../support/fakes.dart';
 import '../support/localized.dart';
+import '../support/notation_fakes.dart';
+
+/// A [Notation] fixed to a parsed document, so the monitor sees a percussion
+/// score's kit without byte sources.
+class _FixedNotation extends Notation {
+  _FixedNotation(this._value);
+  final NotationData _value;
+  @override
+  NotationData build() => _value;
+}
 
 void main() {
   late FakeMidiService midi;
@@ -35,6 +48,7 @@ void main() {
     WidgetTester tester, {
     List<String> ports = const ['Drum kit'],
     String? connected = 'Drum kit',
+    bool percussion = false,
   }) async {
     midi = FakeMidiService(ports: ports, connected: connected);
     audio = RecordingAudioService();
@@ -43,6 +57,12 @@ void main() {
         midiServiceProvider.overrideWithValue(midi),
         scoreSourceProvider.overrideWithValue(FakeScoreSource()),
         audioServiceProvider.overrideWithValue(audio),
+        // The default demo score is a KEYBOARD one, where the kit vocabulary —
+        // and the input mapping with it (design D8) — does not apply.
+        if (percussion)
+          notationProvider.overrideWith(
+            () => _FixedNotation(NotationData(document: sampleDrumDocument())),
+          ),
       ],
     );
     // The monitor reads the loaded score's kit off the player, so the player has
@@ -174,5 +194,57 @@ void main() {
     );
     expect(container.read(midiMonitorProvider), isNotEmpty);
     await teardown(tester);
+  });
+
+  // Task 7.4: a wrong mapping must be as visible as a missing one, so the
+  // monitor reports the translation it applied.
+  group('the applied translation', () {
+    testWidgets('an uncalibrated device shows one number, no arrow', (
+      tester,
+    ) async {
+      await pump(tester, percussion: true);
+      await emit(tester, noteOnEvent(31));
+      expect(container.read(midiMonitorProvider).first.wasTranslated, isFalse);
+      expect(find.byKey(const Key('midi-monitor-translated')), findsNothing);
+      await teardown(tester);
+    });
+
+    testWidgets('a calibrated device shows raw and mapped', (tester) async {
+      await pump(tester, percussion: true);
+      container
+          .read(drumInputMappingStoreProvider.notifier)
+          .setPiece('Drum kit', 'kitPieceSnare', 31);
+      await tester.pump();
+
+      await emit(tester, noteOnEvent(31));
+      final entry = container.read(midiMonitorProvider).first;
+      expect(entry.pitch, 31, reason: 'the raw number is never hidden');
+      expect(entry.mappedPitch, 38);
+      expect(entry.wasTranslated, isTrue);
+      expect(find.byKey(const Key('midi-monitor-translated')), findsOneWidget);
+      await teardown(tester);
+    });
+
+    testWidgets('the reading follows the translated number', (tester) async {
+      // The monitor must not still call 31 unknown after the player calibrated
+      // it — that would contradict the sound they just heard.
+      await pump(tester, percussion: true);
+      await emit(tester, noteOnEvent(31));
+      expect(
+        container.read(midiMonitorProvider).first.resolution,
+        MidiResolution.outsideTheMap,
+      );
+
+      container
+          .read(drumInputMappingStoreProvider.notifier)
+          .setPiece('Drum kit', 'kitPieceSnare', 31);
+      await tester.pump();
+      await emit(tester, noteOnEvent(31));
+      final entry = container.read(midiMonitorProvider).first;
+      expect(entry.resolution, isNot(MidiResolution.outsideTheMap));
+      expect(entry.gmName, 'Acoustic Snare');
+      expect(entry.isInert, isFalse);
+      await teardown(tester);
+    });
   });
 }

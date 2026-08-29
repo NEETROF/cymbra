@@ -99,53 +99,57 @@
 
 ## 6. The calibration pass (spec: `music-drum-input-mapping`)
 
-- [ ] 6.1 A calibration notifier: an ordered list of pieces to learn, the current
+- [x] 6.1 A calibration notifier: an ordered list of pieces to learn, the current
   step, the recorded numbers so far, and terminal states (completed / abandoned).
   Pure state machine, unit-tested
-- [ ] 6.2 Each step records the **next** stroke: a stroke stamped before the step
+- [x] 6.2 Each step records the **next** stroke: a stroke stamped before the step
   armed is discarded (D4 — the same stale-stamp lesson as the Wait-Mode fix).
   Test explicitly with a stroke delivered before the step begins
-- [ ] 6.3 A conflict is surfaced, not silently resolved: the step reports it and
+- [x] 6.3 A conflict is surfaced, not silently resolved: the step reports it and
   offers strike-again or reassign. Tested both ways
-- [ ] 6.4 Skipping a step records nothing and moves on; abandoning the pass
+- [x] 6.4 Skipping a step records nothing and moves on; abandoning the pass
   leaves the stored mapping exactly as it was (tested — nothing is written until
   the pass completes)
-- [ ] 6.5 Strokes stay audible throughout the pass (the player must hear that the
-  instrument reaches the app at all)
-- [ ] 6.6 The calibration screen: one piece at a time, named and illustrated,
+- [x] 6.5 Strokes stay audible throughout the pass (the player must hear that the
+  instrument reaches the app at all) — made **explicit** rather than inherited:
+  the pass keeps the player alive for its duration (`ref.listen(playerProvider)`,
+  a dependency without a rebuild), so audibility does not depend on which route
+  happens to be underneath. Writing the test is what exposed the difference
+- [x] 6.6 The calibration screen: one piece at a time, named and illustrated,
   with skip / back / abandon. Localised fr/en/es/it
 - [x] 6.7 Which pieces to offer: the fixed standard kit rather than the loaded
   score's (design open question — a mapping calibrated once should serve every
   score). Settle and record the decision in `design.md` — **settled as design
   D7**: `kCalibrationPieceOrder` in `drum_kit.dart`, round the kit as a drummer
   sits at it, reached from the settings rather than from a score
-- [ ] 6.8 Widget tests for the flow end to end: calibrate three pieces, skip one,
+- [x] 6.8 Widget tests for the flow end to end: calibrate three pieces, skip one,
   complete, and assert the stored mapping is exactly what was played
 
 ## 7. Reviewing and editing the mapping
 
-- [ ] 7.1 A table view of the current device's mapping: piece → number, with the
+- [x] 7.1 A table view of the current device's mapping: piece → number, with the
   General MIDI name of what that number would otherwise have meant
-- [ ] 7.2 Edit one entry (pick a piece, strike a pad or type a number) and clear
+- [x] 7.2 Edit one entry (pick a piece, strike a pad or type a number) and clear
   one entry, without re-running the pass
-- [ ] 7.3 Clear the whole mapping — the device returns to uncalibrated behaviour,
+- [x] 7.3 Clear the whole mapping — the device returns to uncalibrated behaviour,
   asserted by an input test rather than by the absence of a row
-- [ ] 7.4 The monitor shows the applied translation: raw → mapped when they
+- [x] 7.4 The monitor shows the applied translation: raw → mapped when they
   differ, one number when they do not (spec requirement, widget-tested)
 
 ## 8. Gates
 
-- [ ] 8.1 `melos run analyze`, `dart format`, `dart run custom_lint` clean
-- [ ] 8.2 `cd apps/music && flutter test --coverage --exclude-tags golden`,
-  coverage ≥ 80%
-- [ ] 8.3 `cargo fmt --all --check` and `cargo clippy --workspace --all-targets
+- [x] 8.1 `melos run analyze`, `dart format`, `dart run custom_lint` clean
+- [x] 8.2 `cd apps/music && flutter test --coverage --exclude-tags golden`,
+  coverage ≥ 80% — 2061 tests green; the new files are 94–100 %
+  (`drum_input_mapping` 95.8, its store 93.9, `drum_calibration` 96.5, its
+  notifier 95.8, the screen 96.2, `midi_monitor` 100, `player_notifier` 99.2).
+  The 80 % gate itself is CI's merged unit+integration lcov
+- [x] 8.3 `cargo fmt --all --check` and `cargo clippy --workspace --all-targets
   -- -D warnings`
-- [ ] 8.4 `cargo llvm-cov --workspace --fail-under-lines 80` with the repo's
-  usual ignore regex (the channel decode and the translation decision live in
-  host-testable `midi_core.rs` / `audio_core.rs`; the callback glue stays in the
-  excluded files)
-- [ ] 8.5 `flutter_rust_bridge_codegen generate` ran and the bridge is in sync
-- [ ] 8.6 `openspec validate add-drum-input-calibration --strict`
+- [x] 8.4 `cargo llvm-cov --workspace --fail-under-lines 80` with the repo's
+  usual ignore regex — **88.70 %** overall, 79 engine tests green
+- [x] 8.5 `flutter_rust_bridge_codegen generate` ran and the bridge is in sync
+- [x] 8.6 `openspec validate add-drum-input-calibration --strict`
 
 ## 9. Manual verification — on the tester's kit
 

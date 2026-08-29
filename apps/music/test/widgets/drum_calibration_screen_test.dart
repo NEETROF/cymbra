@@ -1,0 +1,314 @@
+// Copyright 2026 NEETROF
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:music/screens/drum_calibration_screen.dart';
+import 'package:music/services/audio_service.dart';
+import 'package:music/services/midi_service.dart';
+import 'package:music/services/preferences_service.dart';
+import 'package:music/state/drum_calibration_notifier.dart';
+import 'package:music/state/drum_input_mapping_notifier.dart';
+import 'package:music/state/drum_kit.dart';
+import 'package:music/src/rust/api/midi.dart' show MidiEvent, MidiEventKind;
+
+import '../support/fakes.dart';
+import '../support/localized.dart';
+import '../support/prefs_fakes.dart';
+
+// The calibration flow end to end (change: add-drum-input-calibration,
+// tasks 6.5–6.8 and 7.1–7.3).
+
+void main() {
+  late FakeMidiService midi;
+  late RecordingAudioService audio;
+  late FakePreferencesService prefs;
+  late ProviderContainer container;
+  var stamp = 0;
+
+  Future<void> pump(
+    WidgetTester tester, {
+    String? connected = 'Drum kit',
+    Map<String, String>? storedPrefs,
+  }) async {
+    stamp = 0;
+    audio = RecordingAudioService();
+    // `echoTo` makes the fake behave like the engine, which sounds a live
+    // stroke from its own MIDI callback (change: add-drum-input-mapping §8).
+    // Without it the "strokes stay audible" assertion would be checking a
+    // fiction rather than the arrangement the app actually ships.
+    midi = FakeMidiService(
+      ports: connected == null ? const [] : [connected],
+      connected: connected,
+      echoTo: audio,
+    );
+    prefs = FakePreferencesService(storedPrefs);
+    container = ProviderContainer(
+      overrides: [
+        midiServiceProvider.overrideWithValue(midi),
+        scoreSourceProvider.overrideWithValue(FakeScoreSource()),
+        audioServiceProvider.overrideWithValue(audio),
+        preferencesServiceProvider.overrideWithValue(prefs),
+      ],
+    );
+    // The store restores from preferences on a future; the pass reads it.
+    await container.read(drumInputMappingStoreProvider.notifier).restored;
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: localizedApp(const DrumCalibrationScreen()),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+  }
+
+  /// A stroke on [pitch], stamped later than every stroke before it — the
+  /// engine's own monotonic clock, which is what the stale-stroke rule reads.
+  Future<void> strike(WidgetTester tester, int pitch) async {
+    midi.emit(
+      MidiEvent(
+        kind: MidiEventKind.noteOn,
+        pitch: pitch,
+        velocity: 100,
+        channel: 9,
+        timestampMs: BigInt.from(stamp += 100),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+  }
+
+  Future<void> tap(WidgetTester tester, String key) async {
+    await tester.tap(find.byKey(Key(key)));
+    await tester.pump();
+    await tester.pump();
+  }
+
+  Future<void> teardown(WidgetTester tester) async {
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+    container.dispose();
+  }
+
+  testWidgets('with no device there is nothing to calibrate', (tester) async {
+    await pump(tester, connected: null);
+    expect(find.byKey(const Key('calibration-no-device')), findsOneWidget);
+    await teardown(tester);
+  });
+
+  testWidgets('an uncalibrated kit opens on the empty table', (tester) async {
+    await pump(tester);
+    expect(find.byKey(const Key('calibration-mapping-empty')), findsOneWidget);
+    expect(find.byKey(const Key('calibration-start')), findsOneWidget);
+    // Nothing to clear when there is nothing stored.
+    expect(find.byKey(const Key('calibration-clear-all')), findsNothing);
+    await teardown(tester);
+  });
+
+  testWidgets('calibrate three pieces, skip one, complete — and the stored '
+      'mapping is exactly what was played', (tester) async {
+    await pump(tester);
+    await tap(tester, 'calibration-start');
+    expect(find.byKey(const Key('calibration-prompt')), findsOneWidget);
+
+    // The pass asks for the kick, the snare, then the hi-hat (design D7).
+    await strike(tester, 12); // kick
+    await strike(tester, 31); // snare
+    await tap(tester, 'calibration-skip'); // this kit has no hi-hat pad
+    // …then every remaining piece is skipped to reach the end.
+    for (var i = 3; i < kCalibrationPieceOrder.length; i++) {
+      await tap(tester, 'calibration-skip');
+    }
+
+    // Completed: the table is shown, and it holds exactly the two strokes.
+    final stored = container
+        .read(drumInputMappingStoreProvider.notifier)
+        .forPort('Drum kit');
+    expect(stored.byPiece, {kKickPieceId: 12, 'kitPieceSnare': 31});
+    expect(find.byKey(const Key('calibration-finished')), findsOneWidget);
+    expect(find.byKey(Key('calibration-row-$kKickPieceId')), findsOneWidget);
+    expect(
+      find.byKey(const Key('calibration-row-kitPieceSnare')),
+      findsOneWidget,
+    );
+    // The skipped piece has no row — nothing was invented for it.
+    expect(
+      find.byKey(const Key('calibration-row-kitPieceHiHat')),
+      findsNothing,
+    );
+    await teardown(tester);
+  });
+
+  testWidgets('abandoning leaves the stored mapping exactly as it was', (
+    tester,
+  ) async {
+    await pump(tester);
+    // A kit calibrated earlier.
+    container
+        .read(drumInputMappingStoreProvider.notifier)
+        .setPiece('Drum kit', 'kitPieceSnare', 40);
+    await tester.pump();
+
+    await tap(tester, 'calibration-start');
+    await strike(tester, 12);
+    await strike(tester, 99);
+    // Leaving mid-pass writes nothing.
+    container.read(drumCalibrationProvider.notifier).abandon();
+    await tester.pump();
+
+    final stored = container
+        .read(drumInputMappingStoreProvider.notifier)
+        .forPort('Drum kit');
+    expect(stored.byPiece, {'kitPieceSnare': 40});
+    await teardown(tester);
+  });
+
+  testWidgets('a number another piece holds is reported, not overwritten', (
+    tester,
+  ) async {
+    await pump(tester);
+    await tap(tester, 'calibration-start');
+    await strike(tester, 12); // the kick
+    await strike(tester, 12); // …offered again for the snare
+
+    expect(find.byKey(const Key('calibration-conflict')), findsOneWidget);
+    // The step has not moved on, so nothing was silently reassigned.
+    final state = container.read(drumCalibrationProvider);
+    expect(state.currentPiece, 'kitPieceSnare');
+    expect(state.recorded, {kKickPieceId: 12});
+
+    // Striking again clears it and takes the next stroke.
+    await tap(tester, 'calibration-strike-again');
+    expect(find.byKey(const Key('calibration-conflict')), findsNothing);
+    await strike(tester, 31);
+    expect(container.read(drumCalibrationProvider).recorded, {
+      kKickPieceId: 12,
+      'kitPieceSnare': 31,
+    });
+    await teardown(tester);
+  });
+
+  testWidgets('reassigning moves the number off the piece that held it', (
+    tester,
+  ) async {
+    await pump(tester);
+    await tap(tester, 'calibration-start');
+    await strike(tester, 12);
+    await strike(tester, 12);
+    await tap(tester, 'calibration-reassign');
+    // One number is never claimed twice.
+    expect(container.read(drumCalibrationProvider).recorded, {
+      'kitPieceSnare': 12,
+    });
+    await teardown(tester);
+  });
+
+  testWidgets('strokes stay audible throughout the pass', (tester) async {
+    // A player who hears nothing while calibrating cannot tell a mis-mapped pad
+    // from a disconnected kit. The player notifier is alive underneath (the
+    // pass is a route pushed over it) and keeps sounding what arrives.
+    await pump(tester);
+    await tap(tester, 'calibration-start');
+    final before = audio.calls.length;
+    await strike(tester, 12);
+    expect(
+      audio.calls.length,
+      greaterThan(before),
+      reason: 'a stroke during the pass must still reach the audio seam',
+    );
+    await teardown(tester);
+  });
+
+  testWidgets('one entry is cleared without re-running the pass', (
+    tester,
+  ) async {
+    await pump(tester);
+    final store = container.read(drumInputMappingStoreProvider.notifier)
+      ..setPiece('Drum kit', 'kitPieceSnare', 31)
+      ..setPiece('Drum kit', kKickPieceId, 12);
+    await tester.pump();
+    expect(
+      find.byKey(const Key('calibration-row-kitPieceSnare')),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const Key('calibration-row-kitPieceSnare')),
+        matching: find.byType(TextButton),
+      ),
+    );
+    await tester.pump();
+    // Only that entry went.
+    expect(store.forPort('Drum kit').byPiece, {kKickPieceId: 12});
+    expect(
+      find.byKey(const Key('calibration-row-kitPieceSnare')),
+      findsNothing,
+    );
+    expect(find.byKey(Key('calibration-row-$kKickPieceId')), findsOneWidget);
+    await teardown(tester);
+  });
+
+  testWidgets('clearing the kit returns it to uncalibrated behaviour', (
+    tester,
+  ) async {
+    await pump(tester);
+    final store = container.read(drumInputMappingStoreProvider.notifier)
+      ..setPiece('Drum kit', 'kitPieceSnare', 31);
+    await tester.pump();
+
+    await tap(tester, 'calibration-clear-all');
+    expect(store.forPort('Drum kit').isEmpty, isTrue);
+    // Uncalibrated means the identity — asserted on the translation, not on the
+    // absence of a row.
+    expect(store.forPort('Drum kit').translate(31), 31);
+    expect(find.byKey(const Key('calibration-mapping-empty')), findsOneWidget);
+    await teardown(tester);
+  });
+
+  testWidgets('a stored mapping survives a restart', (tester) async {
+    // The store is seeded from what a previous session persisted, exactly as it
+    // is on a cold start with the kit plugged in.
+    await pump(tester);
+    container
+        .read(drumInputMappingStoreProvider.notifier)
+        .setPiece('Drum kit', 'kitPieceSnare', 31);
+    await tester.pump();
+    final persisted = {...prefs.store};
+    await teardown(tester);
+
+    await pump(tester, storedPrefs: persisted);
+    final store = container.read(drumInputMappingStoreProvider.notifier);
+    expect(store.forPort('Drum kit').byPiece, {'kitPieceSnare': 31});
+    expect(
+      find.byKey(const Key('calibration-row-kitPieceSnare')),
+      findsOneWidget,
+    );
+    await teardown(tester);
+  });
+
+  testWidgets('another device is remembered independently', (tester) async {
+    await pump(tester);
+    final store = container.read(drumInputMappingStoreProvider.notifier)
+      ..setPiece('Drum kit', 'kitPieceSnare', 31)
+      ..setPiece('Practice pad', 'kitPieceSnare', 40);
+    await tester.pump();
+    expect(store.forPort('Drum kit').translate(31), 38);
+    expect(store.forPort('Drum kit').translate(40), 40);
+    expect(store.forPort('Practice pad').translate(40), 38);
+    await teardown(tester);
+  });
+}

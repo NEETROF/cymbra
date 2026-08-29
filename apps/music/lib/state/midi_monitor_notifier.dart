@@ -16,6 +16,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../services/midi_service.dart';
 import '../src/rust/api/midi.dart' show MidiEvent, MidiEventKind;
+import 'drum_input_mapping_notifier.dart';
 import 'drum_kit.dart';
 import 'midi_monitor.dart';
 import 'player_data.dart';
@@ -57,6 +58,11 @@ class MidiMonitor extends _$MidiMonitor {
       velocity: event.velocity,
       channel: event.channel,
       isNoteOn: event.kind == MidiEventKind.noteOn,
+      // What the app will actually make of this stroke (change:
+      // add-drum-input-calibration): the raw number stays on the left of the
+      // row, the translation on the right, so a wrong mapping is as visible as
+      // a missing one.
+      mapped: ref.read(activeDrumMappingProvider).translate(event.pitch),
       percussion: player.isPercussion,
       lanes: player.drumLanes,
       hasKick: _scoreWritesKick(player),

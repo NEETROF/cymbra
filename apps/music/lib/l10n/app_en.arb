@@ -3402,6 +3402,114 @@
   "@drumFocusAll": {
     "description": "Clears the focus selection and puts every piece back in focus."
   },
+  "calibrationTitle": "Calibrate your kit",
+  "@calibrationTitle": {
+    "description": "Guided pass that learns which note number each pad of an electronic kit sends (add-drum-input-calibration)."
+  },
+  "calibrationOpen": "Calibrate this kit",
+  "@calibrationOpen": {
+    "description": "Entry point in the MIDI settings section."
+  },
+  "calibrationOpenHint": "Play each drum once so the app learns what your pads send.",
+  "@calibrationOpenHint": {
+    "description": "Sub-label under the entry point."
+  },
+  "calibrationPrompt": "Hit your {piece}",
+  "@calibrationPrompt": {
+    "description": "The instruction for the current step. {piece} is a localised kit piece name.",
+    "placeholders": { "piece": { "type": "String" } }
+  },
+  "calibrationStepOf": "Piece {step} of {total}",
+  "@calibrationStepOf": {
+    "description": "Progress within the pass.",
+    "placeholders": { "step": { "type": "int" }, "total": { "type": "int" } }
+  },
+  "calibrationWaiting": "Waiting for a stroke…",
+  "@calibrationWaiting": {
+    "description": "Shown while a step is armed and no fresh stroke has arrived."
+  },
+  "calibrationRecorded": "Recorded note {number}",
+  "@calibrationRecorded": {
+    "description": "Confirmation that the previous step learned a number.",
+    "placeholders": { "number": { "type": "int" } }
+  },
+  "calibrationSkip": "This kit has none",
+  "@calibrationSkip": {
+    "description": "Skips the current piece. A kit without that drum must be able to pass rather than invent one."
+  },
+  "calibrationBack": "Back",
+  "@calibrationBack": {
+    "description": "Returns to the previous piece and forgets what it had learned."
+  },
+  "calibrationAbandon": "Stop",
+  "@calibrationAbandon": {
+    "description": "Leaves the pass. Nothing is stored — the previous mapping stands."
+  },
+  "calibrationConflict": "That is already your {piece}",
+  "@calibrationConflict": {
+    "description": "A number the pass already recorded for another piece. Surfaced, never resolved silently: on a real kit it usually means the wrong pad was struck.",
+    "placeholders": { "piece": { "type": "String" } }
+  },
+  "calibrationStrikeAgain": "Hit again",
+  "@calibrationStrikeAgain": {
+    "description": "Dismisses a conflict and waits for another stroke — the common answer."
+  },
+  "calibrationReassign": "Use it here instead",
+  "@calibrationReassign": {
+    "description": "Resolves a conflict by moving the number to the current piece; the piece that held it loses its entry."
+  },
+  "calibrationDoneTitle": "Kit calibrated",
+  "@calibrationDoneTitle": {
+    "description": "Shown when the pass completes — the only outcome that is stored."
+  },
+  "calibrationDoneBody": "{count, plural, =0{No pads were recorded, so this kit is left uncalibrated.} =1{One pad learned. Your kit now sounds and scores the way you play it.} other{{count} pads learned. Your kit now sounds and scores the way you play it.}}",
+  "@calibrationDoneBody": {
+    "description": "Result summary.",
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "calibrationDoneClose": "Done",
+  "@calibrationDoneClose": {
+    "description": "Closes the finished pass."
+  },
+  "calibrationRestart": "Start over",
+  "@calibrationRestart": {
+    "description": "Runs the pass again from the first piece."
+  },
+  "calibrationNoDevice": "Connect your kit first — there is nothing to calibrate without it.",
+  "@calibrationNoDevice": {
+    "description": "The pass needs a connected device to store a mapping against."
+  },
+  "calibrationMappingTitle": "What your pads send",
+  "@calibrationMappingTitle": {
+    "description": "The review table of the stored mapping."
+  },
+  "calibrationMappingEmpty": "This kit is not calibrated. Every note is read exactly as it arrives.",
+  "@calibrationMappingEmpty": {
+    "description": "Empty state of the review table — which is also the uncalibrated behaviour."
+  },
+  "calibrationMappingRow": "sends {number}, read as {standard}",
+  "@calibrationMappingRow": {
+    "description": "One row of the review table: the number the device sends and the General MIDI number it is read as.",
+    "placeholders": { "number": { "type": "int" }, "standard": { "type": "int" } }
+  },
+  "calibrationMappingWouldMean": "{number} normally means {name}",
+  "@calibrationMappingWouldMean": {
+    "description": "What the sent number would have meant on the standard map, so a wrong entry is visible.",
+    "placeholders": { "number": { "type": "int" }, "name": { "type": "String" } }
+  },
+  "calibrationClearPiece": "Clear",
+  "@calibrationClearPiece": {
+    "description": "Removes one piece's entry without re-running the pass."
+  },
+  "calibrationClearAll": "Clear this kit's calibration",
+  "@calibrationClearAll": {
+    "description": "Returns the device to uncalibrated behaviour."
+  },
+  "midiMonitorTranslated": "your {raw} → read as {mapped}",
+  "@midiMonitorTranslated": {
+    "description": "Shown when this device's calibration changed a stroke's meaning, so a wrong mapping is as visible as a missing one (add-drum-input-calibration).",
+    "placeholders": { "raw": { "type": "int" }, "mapped": { "type": "int" } }
+  },
   "instrumentChoiceTitle": "What would you like to start with?",
   "@instrumentChoiceTitle": {
     "description": "One-time instrument choice modal title (add-instrument-context). A CHOICE, never an unlock."
