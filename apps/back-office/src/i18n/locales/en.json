@@ -2,7 +2,10 @@
   "common": {
     "signOut": "Sign out",
     "back": "← Back",
-    "loading": "Loading…"
+    "loading": "Loading…",
+    "confirmTitle": "Confirmation",
+    "confirm": "Confirm",
+    "cancel": "Cancel"
   },
   "toast": {
     "region": "Notifications",
@@ -517,7 +520,8 @@
     "reopenEnrolmentConfirm": "Reopen enrolment for “{key}”? Its codes become redeemable again.",
     "enrolmentReopened": "Enrolment reopened.",
     "pausedByClosure": "paused (campaign closed)",
-    "closeTrialEnrolmentConfirm": "Close enrolment for the {key} trial? No one else can join, but the trials ALREADY granted run to their own end date — closing does not take them back. To withdraw a granted premium, revoke the account's entitlement."
+    "closeTrialEnrolmentConfirm": "Close enrolment for the {key} trial? No one else can join, but the trials ALREADY granted run to their own end date — closing does not take them back. To withdraw a granted premium, revoke the account's entitlement.",
+    "confirmTitle": "Confirmation"
   },
   "errors": {
     "unauthenticated": "Invalid credentials or expired session.",

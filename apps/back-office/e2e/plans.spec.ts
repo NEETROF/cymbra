@@ -78,6 +78,27 @@ test.describe("plans console (music admin only)", () => {
     await expect(page.getByTestId("entitlements").getByRole("button", { name: "Revoke" })).toBeVisible();
   });
 
+  test("revoking an entitlement asks for an audited reason in-app, then ends the row", async ({ page }) => {
+    // This flow used to ask through `window.prompt`, which blocks the renderer:
+    // unreachable from Playwright, and it froze browser automation in a
+    // production session. It is an in-app dialog now, hence this coverage.
+    await seed(page, { loginAs: "admin", data });
+    await page.goto("/plans");
+    await page.getByPlaceholder("handle or account id").fill("ada");
+    await page.getByRole("button", { name: "Look up" }).click();
+
+    await page.getByTestId("entitlements").getByRole("button", { name: "Revoke" }).click();
+    const dialog = page.getByRole("dialog").filter({ hasText: "Confirmation" });
+    await expect(dialog).toBeVisible();
+    // No reason typed ⇒ the console will not send it (the reason is audited).
+    await expect(dialog.getByRole("button", { name: "Confirm" })).toBeDisabled();
+    await dialog.getByLabel("Reason").fill("granted by mistake");
+    await dialog.getByRole("button", { name: "Confirm" }).click();
+
+    await expect(page.getByText("Entitlement revoked.")).toBeVisible();
+    await expect(page.getByTestId("entitlements")).toContainText("revoked");
+  });
+
   test("granting premium with an end date and a reason adds an admin row and re-looks up", async ({ page }) => {
     await seed(page, { loginAs: "admin", data });
     await page.goto("/plans");
@@ -134,7 +155,6 @@ test.describe("plans console (music admin only)", () => {
 
   test("closing a feature campaign marks it closed and lists its members as revoked", async ({ page }) => {
     await seed(page, { loginAs: "admin", data });
-    page.on("dialog", (d) => d.accept());
     await page.goto("/plans");
 
     const row = page.getByTestId("campaigns").getByRole("row", { name: /midi-drums/ });
@@ -143,6 +163,10 @@ test.describe("plans console (music admin only)", () => {
     await expect(page.getByTestId("members").getByRole("row")).toHaveCount(3); // header + ada + cleo
 
     await row.getByRole("button", { name: "Close campaign" }).click();
+    // In-app confirmation, so the flow stays drivable from Playwright.
+    const confirmClose = page.getByRole("dialog").filter({ hasText: "Confirmation" });
+    await expect(confirmClose).toContainText("PAUSE");
+    await confirmClose.getByRole("button", { name: "Confirm" }).click();
     await expect(page.getByText("Campaign closed.")).toBeVisible();
     await expect(row.getByRole("button", { name: "Close campaign" })).toHaveCount(0);
     await expect(row.getByRole("button", { name: "Mint codes" })).toHaveCount(0);

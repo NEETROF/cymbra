@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, shallowRef } from "vue";
 import { useI18n } from "vue-i18n";
+import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import { match } from "ts-pattern";
 import { type FlagRow, useFlagsStore } from "@/stores/flags";
 import { flagDescription } from "@/i18n/flag-descriptions";
@@ -82,10 +83,23 @@ function closeDrawer() {
   activeRow.value = null;
 }
 
-function confirmSensitive(r: FlagRow): boolean | null {
-  if (!r.sensitive) return false;
-  if (globalThis.confirm && !globalThis.confirm(t("flags.sensitiveConfirm", { key: r.key }))) return null;
-  return true;
+/** A sensitive flag needs an explicit yes before it is written. The question is
+ *  asked in-app (never `window.confirm`, which blocks the renderer and is out of
+ *  reach of e2e/automation), so the work waits here until the operator answers. */
+const pendingSensitive = shallowRef<{ message: string; run: () => Promise<void> } | null>(null);
+/** Run `work(confirmed)` — straight away for an ordinary flag, after the dialog
+ *  for a sensitive one. */
+function withSensitiveConfirm(r: FlagRow, work: (confirmed: boolean) => Promise<void>) {
+  if (!r.sensitive) return work(false);
+  pendingSensitive.value = {
+    message: t("flags.sensitiveConfirm", { key: r.key }),
+    run: () => work(true),
+  };
+}
+async function confirmSensitive() {
+  const pending = pendingSensitive.value;
+  pendingSensitive.value = null;
+  await pending?.run();
 }
 
 // Re-point activeRow at the freshly-loaded row so the drawer shows the new state.
@@ -96,31 +110,31 @@ function syncActive() {
   activeRow.value = rows.find((r) => r.app === cur.app && r.key === cur.key) ?? cur;
 }
 
-async function onSave(payload: { input: string; rolloutScope: string }) {
+function onSave(payload: { input: string; rolloutScope: string }) {
   const r = activeRow.value;
   if (!r) return;
-  const confirm = confirmSensitive(r);
-  if (confirm === null) return;
-  const outcome =
-    r.valueType === "bool"
-      ? await store.setFlag(r.key, r.app, payload.input === "true", payload.rolloutScope, confirm)
-      : await store.setConfig(r.key, r.app, r.valueType, payload.input, payload.rolloutScope, confirm);
-  if (outcome.status === "success") {
-    syncActive();
-    void store.loadKeyAudit(r.app, r.key);
-  }
+  void withSensitiveConfirm(r, async (confirmed) => {
+    const outcome =
+      r.valueType === "bool"
+        ? await store.setFlag(r.key, r.app, payload.input === "true", payload.rolloutScope, confirmed)
+        : await store.setConfig(r.key, r.app, r.valueType, payload.input, payload.rolloutScope, confirmed);
+    if (outcome.status === "success") {
+      syncActive();
+      void store.loadKeyAudit(r.app, r.key);
+    }
+  });
 }
 
-async function onClear() {
+function onClear() {
   const r = activeRow.value;
   if (!r) return;
-  const confirm = confirmSensitive(r);
-  if (confirm === null) return;
-  const outcome = await store.clearOverride(r.key, r.app, confirm);
-  if (outcome.status === "success") {
-    syncActive();
-    void store.loadKeyAudit(r.app, r.key);
-  }
+  void withSensitiveConfirm(r, async (confirmed) => {
+    const outcome = await store.clearOverride(r.key, r.app, confirmed);
+    if (outcome.status === "success") {
+      syncActive();
+      void store.loadKeyAudit(r.app, r.key);
+    }
+  });
 }
 
 // --- global audit drawer ---
@@ -249,6 +263,11 @@ function openGlobal() {
       @close="globalOpen = false"
     />
   </section>
+  <ConfirmDialog
+    :message="pendingSensitive?.message ?? null"
+    @confirm="confirmSensitive"
+    @cancel="pendingSensitive = null"
+  />
 </template>
 
 <style scoped>
