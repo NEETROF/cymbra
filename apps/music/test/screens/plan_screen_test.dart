@@ -216,6 +216,10 @@ void main() {
     expect(find.text('Premium trial'), findsOneWidget);
     expect(find.textContaining('Trial until'), findsOneWidget);
     expect(find.textContaining('Rights end on'), findsOneWidget);
+    // Plan dates carry their YEAR: a renewal or expiry routinely sits months —
+    // or more than a year — ahead, and a year-less "Fri, May 30" reads as the
+    // coming May whatever the actual year.
+    expect(find.textContaining('2026'), findsWidgets);
     expect(find.textContaining('removed from this device'), findsOneWidget);
     expect(find.byKey(const Key('plan-betas')), findsOneWidget);
     expect(find.text('Beta premium'), findsWidgets);

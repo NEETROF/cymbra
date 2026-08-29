@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
@@ -136,8 +137,13 @@ class PlanScreen extends ConsumerWidget {
   }
 }
 
-String _fmtDate(BuildContext context, DateTime d) =>
-    MaterialLocalizations.of(context).formatMediumDate(d.toLocal());
+/// A plan date always carries its **year**: these are renewal / expiry dates
+/// that routinely sit months — or, for a yearly plan or a long grant, more than
+/// a year — ahead, and `formatMediumDate` drops the year ("ven. 1 janv"), which
+/// reads as the coming January whatever the actual year.
+String _fmtDate(BuildContext context, DateTime d) => DateFormat.yMMMd(
+  Localizations.localeOf(context).toLanguageTag(),
+).format(d.toLocal());
 
 String _channelLabel(AppLocalizations l10n, PlanChannel c) => switch (c) {
   PlanChannel.apple => l10n.planChannelApple,
