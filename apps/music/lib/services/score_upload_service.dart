@@ -31,14 +31,21 @@ part 'score_upload_service.g.dart';
 
 /// The basis on which a user may contribute a score (design 2b). The wire form
 /// matches the backend's `rights_basis` check.
-enum RightsBasis { author, publicDomain }
+enum RightsBasis { author, publicDomain, privateUse }
 
 extension RightsBasisWire on RightsBasis {
   String get wire => switch (this) {
     RightsBasis.author => 'own_work',
     RightsBasis.publicDomain => 'public_domain',
+    RightsBasis.privateUse => privateUseWire,
   };
 }
+
+/// The wire value of the personal-use basis (change: add-private-score-catalog).
+/// A score stored under it stays private forever: the app hides every propose
+/// affordance for it, and the server refuses such a proposal on the STORED basis
+/// regardless of what a client sends.
+const String privateUseWire = 'private_use';
 
 /// A score the signed-in user has contributed. All descriptive metadata is
 /// **server-derived** (design 2b) — the app never sends it.
@@ -74,6 +81,11 @@ class ContributedScore {
   /// when recorded as `unknown` (no indication is shown).
   final ScoreInstrument? instrument;
 
+  /// The rights basis this score was imported under (change:
+  /// add-private-score-catalog). Drives whether a propose affordance is offered
+  /// at all — see [isPrivateUse].
+  final String? rightsBasis;
+
   const ContributedScore({
     required this.id,
     required this.level,
@@ -92,10 +104,49 @@ class ContributedScore {
     this.proposalStatus,
     this.rejectionReason,
     this.instrument,
+    this.rightsBasis,
   });
 
   /// Whether this contribution has been proposed to the public catalog.
   bool get isProposed => proposalStatus != null;
+
+  /// Whether this score was imported for the owner's strictly personal use, and
+  /// so can never be shared or proposed (change: add-private-score-catalog).
+  bool get isPrivateUse => rightsBasis == privateUseWire;
+}
+
+/// A named grouping of the caller's own uploads (change:
+/// add-private-score-catalog). Tag-like: a score may sit in several collections.
+class ScoreCollection {
+  final String id;
+  final String name;
+  final DateTime createdAt;
+
+  const ScoreCollection({
+    required this.id,
+    required this.name,
+    required this.createdAt,
+  });
+}
+
+/// The caller's remaining upload allowance in the current rolling window
+/// (change: add-private-score-catalog). Read before a batch import so the flow
+/// can say up front how many of the selected files can actually land.
+class UploadAllowance {
+  final int remaining;
+  final int max;
+  final int windowDays;
+
+  /// Whether a higher plan would raise [max] — the same signal the quota refusal
+  /// carries, so the surface upsells consistently.
+  final bool upgradeRaisesLimit;
+
+  const UploadAllowance({
+    required this.remaining,
+    required this.max,
+    required this.windowDays,
+    required this.upgradeRaisesLimit,
+  });
 }
 
 /// Seam over the backend `ScoreService` — the app's contribution surface. Every
@@ -119,6 +170,33 @@ abstract class ScoreUploadService {
 
   /// The caller's own contributed scores, newest first.
   Future<List<ContributedScore>> listMyScores();
+
+  /// The caller's remaining upload allowance (change: add-private-score-catalog).
+  Future<UploadAllowance> uploadAllowance();
+
+  /// The caller's own uploads inside one of their collections, in the
+  /// collection's own newest-added-first order (change:
+  /// add-private-score-catalog).
+  Future<List<ContributedScore>> listMyScoresInCollection(String collectionId);
+
+  /// The caller's collections, newest first.
+  Future<List<ScoreCollection>> listCollections();
+
+  /// Create a collection. A name the caller already uses (case-insensitively)
+  /// throws `AuthException(AuthError.alreadyExists)`.
+  Future<ScoreCollection> createCollection(String name);
+
+  /// Rename one of the caller's collections.
+  Future<void> renameCollection(String id, String name);
+
+  /// Delete one of the caller's collections. No score is ever deleted with it.
+  Future<void> deleteCollection(String id);
+
+  /// Put one of the caller's scores in one of their collections. Idempotent.
+  Future<void> addToCollection(String collectionId, String scoreId);
+
+  /// Take a score out of a collection. Idempotent.
+  Future<void> removeFromCollection(String collectionId, String scoreId);
 
   /// Propose one of the caller's private scores to the public catalog (change:
   /// add-score-catalog-proposal). Requires a licence declaration + right-to-distribute
@@ -168,6 +246,15 @@ class GrpcScoreUploadService implements ScoreUploadService {
   final score.ScoreServiceClient _client;
   final AuthedRunner _authed;
 
+  ScoreCollection _toCollection(score.ScoreCollection c) => ScoreCollection(
+    id: c.id,
+    name: c.name,
+    createdAt: DateTime.fromMillisecondsSinceEpoch(
+      c.createdAt.toInt() * 1000,
+      isUtc: true,
+    ),
+  );
+
   ContributedScore _toScore(score.ScoreRecord r) => ContributedScore(
     id: r.id,
     title: r.hasTitle() ? r.title : null,
@@ -191,6 +278,7 @@ class GrpcScoreUploadService implements ScoreUploadService {
     instrument: scoreInstrumentFromWire(
       r.hasInstrument() ? r.instrument : null,
     ),
+    rightsBasis: r.rightsBasis.isEmpty ? null : r.rightsBasis,
   );
 
   @override
@@ -227,6 +315,91 @@ class GrpcScoreUploadService implements ScoreUploadService {
     );
     return resp.scores.map(_toScore).toList();
   });
+
+  @override
+  Future<UploadAllowance> uploadAllowance() => _authed((bearer) async {
+    final resp = await _client.getUploadAllowance(
+      score.GetUploadAllowanceRequest(),
+      options: bearerOptions(bearer),
+    );
+    return UploadAllowance(
+      remaining: resp.remaining,
+      max: resp.max,
+      windowDays: resp.windowDays,
+      upgradeRaisesLimit: resp.upgradeRaisesLimit,
+    );
+  });
+
+  @override
+  Future<List<ContributedScore>> listMyScoresInCollection(
+    String collectionId,
+  ) => _authed((bearer) async {
+    final resp = await _client.listMyScores(
+      score.ListMyScoresRequest(collectionId: collectionId),
+      options: bearerOptions(bearer),
+    );
+    return resp.scores.map(_toScore).toList();
+  });
+
+  @override
+  Future<List<ScoreCollection>> listCollections() => _authed((bearer) async {
+    final resp = await _client.listScoreCollections(
+      score.ListScoreCollectionsRequest(),
+      options: bearerOptions(bearer),
+    );
+    return resp.collections.map(_toCollection).toList();
+  });
+
+  @override
+  Future<ScoreCollection> createCollection(String name) =>
+      _authed((bearer) async {
+        final resp = await _client.createScoreCollection(
+          score.CreateScoreCollectionRequest(name: name),
+          options: bearerOptions(bearer),
+        );
+        return _toCollection(resp.collection);
+      });
+
+  @override
+  Future<void> renameCollection(String id, String name) =>
+      _authed<void>((bearer) async {
+        await _client.renameScoreCollection(
+          score.RenameScoreCollectionRequest(id: id, name: name),
+          options: bearerOptions(bearer),
+        );
+      });
+
+  @override
+  Future<void> deleteCollection(String id) => _authed<void>((bearer) async {
+    await _client.deleteScoreCollection(
+      score.DeleteScoreCollectionRequest(id: id),
+      options: bearerOptions(bearer),
+    );
+  });
+
+  @override
+  Future<void> addToCollection(String collectionId, String scoreId) =>
+      _authed<void>((bearer) async {
+        await _client.addScoreToCollection(
+          score.AddScoreToCollectionRequest(
+            collectionId: collectionId,
+            scoreId: scoreId,
+          ),
+          options: bearerOptions(bearer),
+        );
+      });
+
+  @override
+  Future<void> removeFromCollection(String collectionId, String scoreId) =>
+      _authed<void>((bearer) async {
+        await _client.removeScoreFromCollection(
+          score.RemoveScoreFromCollectionRequest(
+            collectionId: collectionId,
+            scoreId: scoreId,
+          ),
+          options: bearerOptions(bearer),
+        );
+      });
 
   @override
   Future<void> propose({

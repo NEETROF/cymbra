@@ -26,6 +26,14 @@ const routes: RouteRecordRaw[] = [
     component: () => import("@/views/SoundFontsView.vue"),
     meta: { admin: true },
   },
+  {
+    // Private-score takedown (change: add-private-score-catalog): music-scope
+    // admins only — the guard checks the scope, not just "some admin".
+    path: "/takedowns",
+    name: "takedowns",
+    component: () => import("@/views/TakedownsView.vue"),
+    meta: { admin: true, adminScope: "music" },
+  },
   { path: "/usage", name: "usage", component: () => import("@/views/UsageView.vue"), meta: { admin: true } },
   {
     path: "/notifications",
@@ -57,6 +65,12 @@ export function createAppRouter() {
     if (!auth.isAuthenticated) return { name: "signin" };
     if (!auth.isModerator) return { name: "denied" };
     if (to.meta.admin && !auth.isAdmin) return { name: "music-catalog" };
+    // A scope-gated page needs admin IN that scope (change:
+    // add-private-score-catalog) — a `live`-only admin is not a music admin.
+    const scope = to.meta.adminScope as string | undefined;
+    if (scope && !auth.adminScopes.includes(scope as never)) {
+      return { name: "music-catalog" };
+    }
     return true;
   });
 

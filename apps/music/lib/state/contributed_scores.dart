@@ -236,6 +236,7 @@ CatalogEntry contributedEntry(ContributedScore s, {String? uploaderHandle}) {
     keyFifths: s.keyFifths,
     favorite: s.favorite,
     uploaderHandle: uploaderHandle,
+    rightsBasis: s.rightsBasis,
     proposalStatus: s.proposalStatus,
     proposalRejectionReason: s.rejectionReason,
     instrument: s.instrument,

@@ -36,6 +36,12 @@ abstract class FilePickerService {
   /// Prompt the user to pick a single MusicXML file (`.musicxml` / `.xml` /
   /// `.mxl`). Resolves to `null` when the user cancels or picks nothing.
   Future<PickedScoreFile?> pickScore();
+
+  /// Prompt the user to pick one **or several** MusicXML files (change:
+  /// add-private-score-catalog). Resolves to an empty list when the user cancels
+  /// or picks nothing; a single-file selection yields a one-element list, and the
+  /// caller decides whether that means the wizard or the batch flow.
+  Future<List<PickedScoreFile>> pickScores();
 }
 
 /// Production [FilePickerService] over the `file_picker` package.
@@ -63,6 +69,26 @@ class FilePickerServiceImpl implements FilePickerService {
     final bytes = file.bytes;
     if (bytes == null) return null;
     return PickedScoreFile(name: file.name, bytes: bytes);
+  }
+
+  @override
+  Future<List<PickedScoreFile>> pickScores() async {
+    // Same platform reasoning as `pickScore` (see above), with multi-selection on.
+    final filtered = !Platform.isIOS && !Platform.isAndroid;
+    final result = await FilePicker.platform.pickFiles(
+      type: filtered ? FileType.custom : FileType.any,
+      allowedExtensions: filtered ? const ['musicxml', 'xml', 'mxl'] : null,
+      withData: true,
+      allowMultiple: true,
+    );
+    if (result == null) return const [];
+    // A file whose bytes the platform could not read is dropped here rather than
+    // failing the whole selection: the batch reports per file, not all-or-nothing.
+    return [
+      for (final f in result.files)
+        if (f.bytes case final bytes?)
+          PickedScoreFile(name: f.name, bytes: bytes),
+    ];
   }
 }
 

@@ -39,24 +39,32 @@ use crate::curation_rewards_module::{CurationRewardsModule, CuratorRewards};
 use crate::module::{PlayerCaller, PlayerOpen};
 use crate::module::{ScoreModule, UploadInput};
 use crate::proto::{
-    AchievementBadge, AdminListSoundFontsRequest, AdminListSoundFontsResponse, AdminSoundFont,
-    CatalogAccessState as ProtoAccessState, CatalogHit as ProtoCatalogHit, Course as ProtoCourse,
-    CourseProgress as ProtoCourseProgress, CourseSummary as ProtoCourseSummary, CuratorBadge,
-    CuratorReliability, CuratorRewards as ProtoRewards, DeleteScoreRequest, DeleteScoreResponse,
-    DeleteSoundFontRequest, DeleteSoundFontResponse, GetAchievementsRequest,
-    GetAchievementsResponse, GetCatalogDailyAccessRequest, GetCatalogDailyAccessResponse,
-    GetCatalogScoreBytesRequest, GetCatalogScoreBytesResponse, GetCatalogScoreRequest,
-    GetCourseProgressRequest, GetCourseProgressResponse, GetCourseRequest, GetCourseResponse,
-    GetCuratorReliabilityRequest, GetCuratorRewardsRequest, GetMyScoreRatingRequest,
-    GetMyScoreRatingResponse, GetOfflineCacheKeyRequest, GetOfflineCacheKeyResponse,
-    GetRatingPreviewBytesRequest, GetRatingPreviewBytesResponse, GetScoreBytesRequest,
-    GetScoreBytesResponse, ListCoursesRequest, ListCoursesResponse, ListMyScoresRequest,
+    AchievementBadge, AddScoreToCollectionRequest, AddScoreToCollectionResponse,
+    AdminListSoundFontsRequest, AdminListSoundFontsResponse, AdminRemoveUserScoreRequest,
+    AdminRemoveUserScoreResponse, AdminSearchUserScoresRequest, AdminSearchUserScoresResponse,
+    AdminSoundFont, AdminUserScore, CatalogAccessState as ProtoAccessState,
+    CatalogHit as ProtoCatalogHit, Course as ProtoCourse, CourseProgress as ProtoCourseProgress,
+    CourseSummary as ProtoCourseSummary, CreateScoreCollectionRequest,
+    CreateScoreCollectionResponse, CuratorBadge, CuratorReliability,
+    CuratorRewards as ProtoRewards, DeleteScoreCollectionRequest, DeleteScoreCollectionResponse,
+    DeleteScoreRequest, DeleteScoreResponse, DeleteSoundFontRequest, DeleteSoundFontResponse,
+    GetAchievementsRequest, GetAchievementsResponse, GetCatalogDailyAccessRequest,
+    GetCatalogDailyAccessResponse, GetCatalogScoreBytesRequest, GetCatalogScoreBytesResponse,
+    GetCatalogScoreRequest, GetCourseProgressRequest, GetCourseProgressResponse, GetCourseRequest,
+    GetCourseResponse, GetCuratorReliabilityRequest, GetCuratorRewardsRequest,
+    GetMyScoreRatingRequest, GetMyScoreRatingResponse, GetOfflineCacheKeyRequest,
+    GetOfflineCacheKeyResponse, GetRatingPreviewBytesRequest, GetRatingPreviewBytesResponse,
+    GetScoreBytesRequest, GetScoreBytesResponse, GetUploadAllowanceRequest,
+    GetUploadAllowanceResponse, ListCoursesRequest, ListCoursesResponse, ListMyScoresRequest,
     ListMyScoresResponse, ListRatingDeckRequest, ListRatingDeckResponse, ListRewardShopRequest,
     ListRewardShopResponse, ListSavedCatalogScoresRequest, ListSavedCatalogScoresResponse,
-    ListSoundFontsRequest, ListSoundFontsResponse, ProposeScoreRequest, ProposeScoreResponse,
+    ListScoreCollectionsRequest, ListScoreCollectionsResponse, ListSoundFontsRequest,
+    ListSoundFontsResponse, ProposeScoreRequest, ProposeScoreResponse,
     RecordCourseCompletionRequest, RecordCourseCompletionResponse, RedeemRewardRequest,
     RedeemRewardResponse, RemoveSavedCatalogScoreRequest, RemoveSavedCatalogScoreResponse,
-    RewardActivity, RewardShopItem, SaveCatalogScoreRequest, SaveCatalogScoreResponse, ScoreRecord,
+    RemoveScoreFromCollectionRequest, RemoveScoreFromCollectionResponse,
+    RenameScoreCollectionRequest, RenameScoreCollectionResponse, RewardActivity, RewardShopItem,
+    SaveCatalogScoreRequest, SaveCatalogScoreResponse, ScoreCollection, ScoreRecord,
     SearchCatalogRequest, SearchCatalogResponse, SetModerationStatusRequest,
     SetModerationStatusResponse, SetScoreFavoriteRequest, SetScoreFavoriteResponse,
     SetSoundFontModerationStatusRequest, SetSoundFontModerationStatusResponse,
@@ -299,6 +307,31 @@ fn to_record_with_proposal(
         proposal_status: status,
         rejection_reason: reason,
         instrument: m.instrument.as_str().to_string(),
+        rights_basis: s.rights_basis,
+    }
+}
+
+/// Wire shape of a private-library collection (change: add-private-score-catalog).
+fn to_collection(c: crate::user_collections::Collection) -> ScoreCollection {
+    ScoreCollection {
+        id: c.id,
+        name: c.name,
+        created_at: c.created_at,
+    }
+}
+
+/// Wire shape of a private score on the admin takedown surface (change:
+/// add-private-score-catalog). Identifying metadata only — never the bytes, and
+/// never the object key.
+fn to_admin_user_score(s: UserScore) -> AdminUserScore {
+    AdminUserScore {
+        id: s.id,
+        owner_id: s.owner_id,
+        title: s.meta.title,
+        composer: s.meta.composer,
+        size_bytes: s.size_bytes,
+        created_at: s.created_at,
+        rights_basis: s.rights_basis,
     }
 }
 
@@ -497,7 +530,17 @@ impl ScoreService for ScoreGrpc {
         req: Request<ListMyScoresRequest>,
     ) -> Result<Response<ListMyScoresResponse>, Status> {
         let owner_id = owner(&req)?;
-        let scores = self.module.list_contributions(&owner_id).await?;
+        // A collection filter narrows the listing to that collection, in its own
+        // newest-added-first order (change: add-private-score-catalog); unset lists
+        // the whole private library exactly as before.
+        let scores = match req.into_inner().collection_id {
+            Some(cid) => {
+                self.module
+                    .list_contributions_in_collection(&owner_id, &cid)
+                    .await?
+            }
+            None => self.module.list_contributions(&owner_id).await?,
+        };
         Ok(Response::new(ListMyScoresResponse {
             scores: scores
                 .into_iter()
@@ -984,6 +1027,135 @@ impl ScoreService for ScoreGrpc {
             .set_favorite(&owner_id, &r.id, r.favorite)
             .await?;
         Ok(Response::new(SetScoreFavoriteResponse {}))
+    }
+
+    async fn get_upload_allowance(
+        &self,
+        req: Request<GetUploadAllowanceRequest>,
+    ) -> Result<Response<GetUploadAllowanceResponse>, Status> {
+        let owner_id = owner(&req)?;
+        let (remaining, max, window_days, upgrade_raises_limit) =
+            self.module.upload_allowance(&owner_id).await?;
+        Ok(Response::new(GetUploadAllowanceResponse {
+            remaining: remaining as i32,
+            max: max as i32,
+            window_days: window_days as i32,
+            upgrade_raises_limit,
+        }))
+    }
+
+    // --- private-library collections (change: add-private-score-catalog) -----
+    // Owner-scoped throughout: the owner comes from the token via `owner()`, never
+    // from the request, so there is no cross-owner path to express.
+
+    async fn create_score_collection(
+        &self,
+        req: Request<CreateScoreCollectionRequest>,
+    ) -> Result<Response<CreateScoreCollectionResponse>, Status> {
+        let owner_id = owner(&req)?;
+        let c = self
+            .module
+            .create_collection(&owner_id, &req.into_inner().name)
+            .await?;
+        Ok(Response::new(CreateScoreCollectionResponse {
+            collection: Some(to_collection(c)),
+        }))
+    }
+
+    async fn rename_score_collection(
+        &self,
+        req: Request<RenameScoreCollectionRequest>,
+    ) -> Result<Response<RenameScoreCollectionResponse>, Status> {
+        let owner_id = owner(&req)?;
+        let r = req.into_inner();
+        self.module
+            .rename_collection(&owner_id, &r.id, &r.name)
+            .await?;
+        Ok(Response::new(RenameScoreCollectionResponse {}))
+    }
+
+    async fn delete_score_collection(
+        &self,
+        req: Request<DeleteScoreCollectionRequest>,
+    ) -> Result<Response<DeleteScoreCollectionResponse>, Status> {
+        let owner_id = owner(&req)?;
+        self.module
+            .delete_collection(&owner_id, &req.into_inner().id)
+            .await?;
+        Ok(Response::new(DeleteScoreCollectionResponse {}))
+    }
+
+    async fn list_score_collections(
+        &self,
+        req: Request<ListScoreCollectionsRequest>,
+    ) -> Result<Response<ListScoreCollectionsResponse>, Status> {
+        let owner_id = owner(&req)?;
+        let cols = self.module.list_collections(&owner_id).await?;
+        Ok(Response::new(ListScoreCollectionsResponse {
+            collections: cols.into_iter().map(to_collection).collect(),
+        }))
+    }
+
+    async fn add_score_to_collection(
+        &self,
+        req: Request<AddScoreToCollectionRequest>,
+    ) -> Result<Response<AddScoreToCollectionResponse>, Status> {
+        let owner_id = owner(&req)?;
+        let r = req.into_inner();
+        self.module
+            .add_to_collection(&owner_id, &r.collection_id, &r.score_id)
+            .await?;
+        Ok(Response::new(AddScoreToCollectionResponse {}))
+    }
+
+    async fn remove_score_from_collection(
+        &self,
+        req: Request<RemoveScoreFromCollectionRequest>,
+    ) -> Result<Response<RemoveScoreFromCollectionResponse>, Status> {
+        let owner_id = owner(&req)?;
+        let r = req.into_inner();
+        self.module
+            .remove_from_collection(&owner_id, &r.collection_id, &r.score_id)
+            .await?;
+        Ok(Response::new(RemoveScoreFromCollectionResponse {}))
+    }
+
+    // --- private-score takedown (change: add-private-score-catalog) ----------
+    // Music-scope admin only, on BOTH handlers. Never serves bytes.
+
+    async fn admin_search_user_scores(
+        &self,
+        req: Request<AdminSearchUserScoresRequest>,
+    ) -> Result<Response<AdminSearchUserScoresResponse>, Status> {
+        let id = identity(&req)?;
+        cymbra_platform::guard::require_admin_in_scope(&id, "music")?;
+        let r = req.into_inner();
+        let hits = self
+            .module
+            .admin_search_user_scores(
+                r.owner_id.as_deref(),
+                r.title.as_deref(),
+                i64::from(r.limit),
+                i64::from(r.offset),
+            )
+            .await?;
+        Ok(Response::new(AdminSearchUserScoresResponse {
+            scores: hits.into_iter().map(to_admin_user_score).collect(),
+        }))
+    }
+
+    async fn admin_remove_user_score(
+        &self,
+        req: Request<AdminRemoveUserScoreRequest>,
+    ) -> Result<Response<AdminRemoveUserScoreResponse>, Status> {
+        let id = identity(&req)?;
+        cymbra_platform::guard::require_admin_in_scope(&id, "music")?;
+        let r = req.into_inner();
+        // The acting admin is the authenticated caller, never the body.
+        self.module
+            .admin_remove_user_score(&id.user_id, &r.id, &r.reason)
+            .await?;
+        Ok(Response::new(AdminRemoveUserScoreResponse {}))
     }
 
     // --- Score Hub (change: score-hub-search) -------------------------------
@@ -3197,6 +3369,278 @@ mod tests {
                 .collect(),
         });
         req
+    }
+
+    /// A music-scope ADMIN token (`roles_by_scope`), as the auth module issues.
+    fn authed_music_admin<T>(msg: T, user_id: &str) -> Request<T> {
+        let mut req = Request::new(msg);
+        req.extensions_mut().insert(AuthIdentity {
+            user_id: user_id.into(),
+            audience: "music".into(),
+            roles: vec!["user".into(), "admin".into()],
+            roles_by_scope: [("music".to_string(), vec!["admin".to_string()])]
+                .into_iter()
+                .collect(),
+        });
+        req
+    }
+
+    // --- private-library collections (change: add-private-score-catalog) -----
+
+    /// A `ScoreGrpc` with collections + the admin takedown surface wired, both
+    /// fakes returned so tests can assert the stored side.
+    fn grpc_with_collections() -> (
+        ScoreGrpc,
+        Arc<crate::user_collections::FakeUserCollectionRepo>,
+        Arc<crate::user_score_admin::FakeUserScoreAdminRepo>,
+        Arc<FakeStore>,
+    ) {
+        let store = Arc::new(FakeStore::default());
+        let cols = Arc::new(crate::user_collections::FakeUserCollectionRepo::default());
+        let admin = Arc::new(crate::user_score_admin::FakeUserScoreAdminRepo::default());
+        let module = Arc::new(
+            ScoreModule::new(
+                Arc::new(FakeUserScoreRepo::default()),
+                Arc::new(FakeCatalogSearchRepo::default()),
+                Arc::new(FakeUserLibraryRepo::default()),
+                Arc::new(FakeScoreRatingRepo::default()),
+                store.clone(),
+                5,
+                7,
+                8 * 1024 * 1024,
+            )
+            .with_collections(cols.clone())
+            .with_score_admin(admin.clone()),
+        );
+        (ScoreGrpc::new(module), cols, admin, store)
+    }
+
+    #[tokio::test]
+    async fn collection_handlers_are_owner_scoped_end_to_end() {
+        let (g, cols, _admin, _store) = grpc_with_collections();
+        let created = g
+            .create_score_collection(authed(
+                CreateScoreCollectionRequest {
+                    name: "Chopin".into(),
+                },
+                "u1",
+            ))
+            .await
+            .unwrap()
+            .into_inner()
+            .collection
+            .unwrap();
+        assert_eq!(created.name, "Chopin");
+
+        // u1 sees it; u2 does not.
+        let mine = g
+            .list_score_collections(authed(ListScoreCollectionsRequest {}, "u1"))
+            .await
+            .unwrap()
+            .into_inner()
+            .collections;
+        assert_eq!(mine.len(), 1);
+        let theirs = g
+            .list_score_collections(authed(ListScoreCollectionsRequest {}, "u2"))
+            .await
+            .unwrap()
+            .into_inner()
+            .collections;
+        assert!(theirs.is_empty());
+
+        // Membership, then the filtered listing.
+        cols.own_score("u1", "score-1");
+        g.add_score_to_collection(authed(
+            AddScoreToCollectionRequest {
+                collection_id: created.id.clone(),
+                score_id: "score-1".into(),
+            },
+            "u1",
+        ))
+        .await
+        .unwrap();
+        assert_eq!(cols.items().len(), 1);
+
+        // Another account cannot touch that collection.
+        let err = g
+            .add_score_to_collection(authed(
+                AddScoreToCollectionRequest {
+                    collection_id: created.id.clone(),
+                    score_id: "score-1".into(),
+                },
+                "u2",
+            ))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::NotFound);
+
+        // Deleting the collection is owner-scoped too.
+        let err = g
+            .delete_score_collection(authed(
+                DeleteScoreCollectionRequest {
+                    id: created.id.clone(),
+                },
+                "u2",
+            ))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::NotFound);
+        g.delete_score_collection(authed(
+            DeleteScoreCollectionRequest { id: created.id },
+            "u1",
+        ))
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn creating_a_colliding_collection_name_is_already_exists() {
+        let (g, _cols, _admin, _store) = grpc_with_collections();
+        let req = |n: &str| CreateScoreCollectionRequest { name: n.into() };
+        g.create_score_collection(authed(req("Chopin"), "u1"))
+            .await
+            .unwrap();
+        let err = g
+            .create_score_collection(authed(req("chopin"), "u1"))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::AlreadyExists);
+    }
+
+    #[tokio::test]
+    async fn renaming_a_collection_to_a_blank_name_is_invalid_argument() {
+        let (g, _cols, _admin, _store) = grpc_with_collections();
+        let created = g
+            .create_score_collection(authed(
+                CreateScoreCollectionRequest { name: "A".into() },
+                "u1",
+            ))
+            .await
+            .unwrap()
+            .into_inner()
+            .collection
+            .unwrap();
+        let err = g
+            .rename_score_collection(authed(
+                RenameScoreCollectionRequest {
+                    id: created.id,
+                    name: "   ".into(),
+                },
+                "u1",
+            ))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::InvalidArgument);
+    }
+
+    // --- private-score takedown (change: add-private-score-catalog) ----------
+
+    #[tokio::test]
+    async fn takedown_handlers_require_a_music_scope_admin() {
+        let (g, _cols, admin, store) = grpc_with_collections();
+        let meta = crate::repo::ScoreMeta {
+            title: Some("Reported".into()),
+            ..Default::default()
+        };
+        let seeded = UserScore {
+            id: "s1".into(),
+            owner_id: "u1".into(),
+            level: "beginner".into(),
+            rights_basis: "own_work".into(),
+            rights_ack: true,
+            sha256: "sha-s1".into(),
+            size_bytes: 3,
+            object_key: "user-scores/u1/s1.mxl".into(),
+            created_at: 1,
+            favorite: false,
+            proposed_catalog_id: None,
+            meta,
+        };
+        store.put(&seeded.object_key, vec![1]).await.unwrap();
+        admin.seed(seeded);
+
+        let search = || AdminSearchUserScoresRequest {
+            owner_id: Some("u1".into()),
+            title: None,
+            limit: 20,
+            offset: 0,
+        };
+        // A plain user is denied...
+        let err = g
+            .admin_search_user_scores(authed(search(), "u9"))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::PermissionDenied);
+        // ...and so is a music MODERATOR: takedown is an admin power.
+        let err = g
+            .admin_search_user_scores(authed_music_moderator(search(), "u9"))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::PermissionDenied);
+
+        // A music-scope admin gets the identifying metadata — and no bytes.
+        let hits = g
+            .admin_search_user_scores(authed_music_admin(search(), "admin-1"))
+            .await
+            .unwrap()
+            .into_inner()
+            .scores;
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].id, "s1");
+        assert_eq!(hits[0].title.as_deref(), Some("Reported"));
+    }
+
+    #[tokio::test]
+    async fn takedown_removal_is_admin_only_needs_a_reason_and_audits_the_caller() {
+        let (g, _cols, admin, store) = grpc_with_collections();
+        let meta = crate::repo::ScoreMeta {
+            title: Some("Reported".into()),
+            ..Default::default()
+        };
+        let seeded = UserScore {
+            id: "s1".into(),
+            owner_id: "u1".into(),
+            level: "beginner".into(),
+            rights_basis: "own_work".into(),
+            rights_ack: true,
+            sha256: "sha-s1".into(),
+            size_bytes: 3,
+            object_key: "user-scores/u1/s1.mxl".into(),
+            created_at: 1,
+            favorite: false,
+            proposed_catalog_id: None,
+            meta,
+        };
+        store.put(&seeded.object_key, vec![1]).await.unwrap();
+        admin.seed(seeded);
+
+        let remove = |reason: &str| AdminRemoveUserScoreRequest {
+            id: "s1".into(),
+            reason: reason.into(),
+        };
+        // Not an admin.
+        let err = g
+            .admin_remove_user_score(authed(remove("notice"), "u9"))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::PermissionDenied);
+        // Admin, but no reason.
+        let err = g
+            .admin_remove_user_score(authed_music_admin(remove("  "), "admin-1"))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::InvalidArgument);
+        assert_eq!(admin.scores().len(), 1, "nothing removed by a refused call");
+
+        // Admin with a reason: removed, audited against the AUTHENTICATED admin.
+        g.admin_remove_user_score(authed_music_admin(remove("DMCA #42"), "admin-1"))
+            .await
+            .unwrap();
+        let audit = admin.takedowns();
+        assert_eq!(audit.len(), 1);
+        assert_eq!(audit[0].admin_id, "admin-1");
+        assert_eq!(audit[0].reason, "DMCA #42");
+        assert!(admin.scores().is_empty());
     }
 
     /// A back-office audience token (no privileged role).

@@ -35,6 +35,11 @@ message ScoreRecord {
   // The score's instrument family (change: add-drums-access): `keyboard` |
   // `percussion` | `unknown`, derived from the notation at upload.
   string instrument = 17;
+  // The rights basis declared at import (change: add-private-score-catalog):
+  // `own_work` | `public_domain` | `private_use`. Sent so the owner's list can hide
+  // the propose affordance on a personal-use score; the server refuses such a
+  // proposal regardless of what the client shows.
+  string rights_basis = 18;
 }
 
 message SetScoreFavoriteRequest {
@@ -47,7 +52,7 @@ message UploadScoreRequest {
   bytes data = 1; // raw .musicxml/.xml or zipped .mxl
   string filename = 2; // display/logging only — not trusted as metadata
   string level = 3; // beginner | intermediate | advanced
-  string rights_basis = 4; // own_work | public_domain
+  string rights_basis = 4; // own_work | public_domain | private_use
   bool rights_ack = 5; // the CGU confirmation; must be true
   // FALLBACK title/composer, used by the server ONLY when the parsed file
   // carries none (design 2b): a present parsed value always wins, so these can
@@ -56,7 +61,11 @@ message UploadScoreRequest {
   optional string fallback_composer = 7;
 }
 
-message ListMyScoresRequest {}
+message ListMyScoresRequest {
+  // Restrict the listing to one of the caller's collections (change:
+  // add-private-score-catalog). Unset = the whole private library, as before.
+  optional string collection_id = 1;
+}
 message ListMyScoresResponse { repeated ScoreRecord scores = 1; }
 
 message DeleteScoreRequest { string id = 1; }
@@ -719,6 +728,87 @@ message CuratorReliability {
   int64 aligned_count = 5;
 }
 
+// The caller's remaining upload allowance (change: add-private-score-catalog).
+// A batch import needs to say up front how many of the selected files can land,
+// so the same plan-resolved quota the upload path enforces is readable here.
+message GetUploadAllowanceRequest {}
+message GetUploadAllowanceResponse {
+  int32 remaining = 1;     // uploads still available in the current window
+  int32 max = 2;           // the plan-resolved maximum per window
+  int32 window_days = 3;
+  bool upgrade_raises_limit = 4; // whether a higher plan would raise `max`
+}
+
+// --- private-library collections (change: add-private-score-catalog) ---------
+// A named, owner-scoped grouping of one's own uploads. Tag-like: a score may sit
+// in several collections, and a collection holds no bytes.
+
+message ScoreCollection {
+  string id = 1;
+  string name = 2;
+  int64 created_at = 3; // unix seconds
+}
+
+message CreateScoreCollectionRequest { string name = 1; }
+message CreateScoreCollectionResponse { ScoreCollection collection = 1; }
+
+message RenameScoreCollectionRequest {
+  string id = 1;
+  string name = 2;
+}
+message RenameScoreCollectionResponse {}
+
+// Deleting a collection never deletes a score — only the groupings.
+message DeleteScoreCollectionRequest { string id = 1; }
+message DeleteScoreCollectionResponse {}
+
+message ListScoreCollectionsRequest {}
+message ListScoreCollectionsResponse { repeated ScoreCollection collections = 1; }
+
+message AddScoreToCollectionRequest {
+  string collection_id = 1;
+  string score_id = 2;
+}
+message AddScoreToCollectionResponse {}
+
+message RemoveScoreFromCollectionRequest {
+  string collection_id = 1;
+  string score_id = 2;
+}
+message RemoveScoreFromCollectionResponse {}
+
+// --- private-score takedown (change: add-private-score-catalog) -------------
+// The in-repo half of notice-and-takedown: a music-scope admin finds a reported
+// private score and removes it with a mandatory reason, leaving an audit trail.
+// Never exposes score bytes.
+
+message AdminUserScore {
+  string id = 1;
+  string owner_id = 2;
+  optional string title = 3;
+  optional string composer = 4;
+  int64 size_bytes = 5;
+  int64 created_at = 6; // unix seconds
+  string rights_basis = 7;
+}
+
+// At least one of `owner_id` / `title` must be present: the lookup answers a
+// notice, it is not a corpus browser.
+message AdminSearchUserScoresRequest {
+  optional string owner_id = 1;
+  optional string title = 2; // case-insensitive fragment
+  int32 limit = 3;           // clamped server-side
+  int32 offset = 4;
+}
+message AdminSearchUserScoresResponse { repeated AdminUserScore scores = 1; }
+
+// Irreversible. The audit row is written BEFORE the row and object are deleted.
+message AdminRemoveUserScoreRequest {
+  string id = 1;
+  string reason = 2; // mandatory, non-empty
+}
+message AdminRemoveUserScoreResponse {}
+
 service ScoreService {
   rpc UploadScore(UploadScoreRequest) returns (ScoreRecord);
 
@@ -757,6 +847,18 @@ service ScoreService {
   rpc GetScoreBytes(GetScoreBytesRequest) returns (GetScoreBytesResponse);
   rpc SetScoreFavorite(SetScoreFavoriteRequest) returns (SetScoreFavoriteResponse);
 
+  // Private-library collections (change: add-private-score-catalog). Owner-scoped:
+  // the owner comes from the token, never from the request.
+  // Remaining upload allowance, for the batch import's up-front warning.
+  rpc GetUploadAllowance(GetUploadAllowanceRequest) returns (GetUploadAllowanceResponse);
+
+  rpc CreateScoreCollection(CreateScoreCollectionRequest) returns (CreateScoreCollectionResponse);
+  rpc RenameScoreCollection(RenameScoreCollectionRequest) returns (RenameScoreCollectionResponse);
+  rpc DeleteScoreCollection(DeleteScoreCollectionRequest) returns (DeleteScoreCollectionResponse);
+  rpc ListScoreCollections(ListScoreCollectionsRequest) returns (ListScoreCollectionsResponse);
+  rpc AddScoreToCollection(AddScoreToCollectionRequest) returns (AddScoreToCollectionResponse);
+  rpc RemoveScoreFromCollection(RemoveScoreFromCollectionRequest) returns (RemoveScoreFromCollectionResponse);
+
   // Offline cache secret (change: add-offline-score-cache). Owner-scoped: issues
   // (create-on-first, stable thereafter) the caller's per-user offline-cache secret.
   rpc GetOfflineCacheKey(GetOfflineCacheKeyRequest) returns (GetOfflineCacheKeyResponse);
@@ -780,6 +882,11 @@ service ScoreService {
   // only; corpus scores only. Edits title/composer/arranger/level, recomputes the search
   // keys, and audits the change.
   rpc UpdateCatalogScore(UpdateCatalogScoreRequest) returns (UpdateCatalogScoreResponse);
+
+  // Private-score takedown (change: add-private-score-catalog). Music-scope admin
+  // only; never serves bytes. The removal is irreversible and audited.
+  rpc AdminSearchUserScores(AdminSearchUserScoresRequest) returns (AdminSearchUserScoresResponse);
+  rpc AdminRemoveUserScore(AdminRemoveUserScoreRequest) returns (AdminRemoveUserScoreResponse);
 
   // Score rating (change: add-app-score-rating). Any signed-in user rates an
   // `accepted` catalog score; one updatable rating per user per score.

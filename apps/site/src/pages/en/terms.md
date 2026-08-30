@@ -2,7 +2,7 @@
 layout: ../../layouts/Legal.astro
 title: Terms of Service
 lang: en
-updated: 30/07/2026
+updated: 30/08/2026
 ---
 
 By creating an account or using the **Cymbra services** (published by **NEETROF**),
@@ -74,11 +74,32 @@ instruments (keyboard / MIDI).
 Cymbra Music lets you upload your own content, in particular **scores** and **piano
 sounds** (*soundfonts*).
 
-- By making content available, you **certify either that you are its author, or that
+- By making content available, you **certify either that you are its author, that
   it is in the public domain** (or under a free licence permitting its use and
-  availability). You indicate this basis and confirm it via a **dedicated checkbox at
-  each file upload**.
+  availability), **or that you are importing it for your own personal use only**. You
+  indicate this basis and confirm it via a **dedicated checkbox at each file upload**.
+- Content imported **for your personal use only** stays **strictly private**: it is
+  visible to you alone, is never shared, and cannot be proposed to the public
+  catalogue. This restriction is **permanent** and cannot be lifted after the import.
 - You are **solely responsible** for the copyright and distribution rights attached to
   that content.
 - You indemnify NEETROF against any third-party claim regarding those rights.
 - You may **delete your content at any time**; deletion removes the file and its record.
+
+### A.3 Reporting illegal content, and removal
+
+NEETROF **stores** the content users import, without selecting or vetting it
+beforehand. We carry out no general monitoring of that content, but we do act on
+reports.
+
+- **Reporting content**: write to **contact@cymbra.app**, identifying the content as
+  precisely as you can (title, composer, anything that helps locate it), stating why
+  it is unlawful and, for a copyright claim, the capacity in which you are acting.
+- **Handling**: any sufficiently precise report is reviewed, and manifestly unlawful
+  content is **removed promptly**.
+- **Record**: every removal is recorded with its reason and date, and that record
+  outlives the deleted file.
+- Removing content **does not relieve** the person who imported it of the
+  responsibilities set out in A.2.
+
+The publisher's details are in section 8.

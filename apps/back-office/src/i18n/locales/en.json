@@ -71,7 +71,8 @@
     "soundfonts": "Sound fonts",
     "usage": "Usage",
     "menu": "Menu",
-    "notifications": "Notifications"
+    "notifications": "Notifications",
+    "takedowns": "Takedowns"
   },
   "usage": {
     "title": "Feature usage",
@@ -545,5 +546,26 @@
     "full": "Full identifier",
     "copy": "Copy",
     "copied": "Copied"
+  },
+  "takedowns": {
+    "title": "Private-score takedown",
+    "intro": "Find a reported private score and remove it. Removal is irreversible and audited.",
+    "ownerId": "Owner id",
+    "titleFragment": "Title contains",
+    "search": "Search",
+    "criterionRequired": "Enter an owner id or a title fragment.",
+    "reasonRequired": "A reason is required.",
+    "noResults": "No matching private score.",
+    "colTitle": "Title",
+    "colComposer": "Composer",
+    "colOwner": "Owner",
+    "colCreated": "Imported",
+    "colBasis": "Rights basis",
+    "remove": "Remove",
+    "confirmTitle": "Remove this score?",
+    "confirmBody": "This permanently deletes the score and its file. The owner loses it. An audit record is kept.",
+    "reason": "Reason (recorded in the audit trail)",
+    "confirm": "Remove permanently",
+    "removed": "Score removed."
   }
 }

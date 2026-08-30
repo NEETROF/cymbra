@@ -45,6 +45,10 @@ class _FakePicker implements FilePickerService {
   final PickedScoreFile? next;
   @override
   Future<PickedScoreFile?> pickScore() async => next;
+
+  @override
+  Future<List<PickedScoreFile>> pickScores() async =>
+      next == null ? const [] : [next!];
 }
 
 class _FakeUpload implements ScoreUploadService {
@@ -78,6 +82,41 @@ class _FakeUpload implements ScoreUploadService {
 
   @override
   Future<List<ContributedScore>> listMyScores() async => const [];
+
+  @override
+  Future<List<ContributedScore>> listMyScoresInCollection(
+    String collectionId,
+  ) async => const [];
+
+  @override
+  Future<List<ScoreCollection>> listCollections() async => const [];
+
+  @override
+  Future<ScoreCollection> createCollection(String name) async =>
+      ScoreCollection(id: 'c1', name: name, createdAt: DateTime.utc(2026));
+
+  @override
+  Future<void> renameCollection(String id, String name) async {}
+
+  @override
+  Future<void> deleteCollection(String id) async {}
+
+  @override
+  Future<void> addToCollection(String collectionId, String scoreId) async {}
+
+  @override
+  Future<void> removeFromCollection(
+    String collectionId,
+    String scoreId,
+  ) async {}
+
+  @override
+  Future<UploadAllowance> uploadAllowance() async => const UploadAllowance(
+    remaining: 100,
+    max: 100,
+    windowDays: 7,
+    upgradeRaisesLimit: false,
+  );
   @override
   Future<void> deleteScore(String id) async {}
   @override

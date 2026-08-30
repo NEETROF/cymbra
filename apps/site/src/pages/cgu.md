@@ -2,7 +2,7 @@
 layout: ../layouts/Legal.astro
 title: Conditions d'utilisation
 lang: fr
-updated: 30/07/2026
+updated: 30/08/2026
 ---
 
 En créant un compte ou en utilisant les **services Cymbra** (édités par
@@ -77,10 +77,34 @@ Cymbra Music vous permet de téléverser vos propres contenus, notamment des
 
 - En mettant un contenu à disposition, vous **certifiez soit en être l'auteur, soit
   qu'il relève du domaine public** (ou d'une licence libre en autorisant l'usage et
-  la mise à disposition). Vous indiquez ce motif et le confirmez par une **case à
-  cocher dédiée lors de chaque téléversement de fichier**.
+  la mise à disposition), **soit que vous l'importez pour votre seul usage
+  personnel**. Vous indiquez ce motif et le confirmez par une **case à cocher dédiée
+  lors de chaque téléversement de fichier**.
+- Un contenu importé **pour votre seul usage personnel** demeure **strictement
+  privé** : il n'est visible que de vous, n'est jamais partagé, et ne peut pas être
+  proposé au catalogue public. Cette restriction est **permanente** et ne peut pas
+  être levée après l'import.
 - Vous êtes **seul responsable** du respect des droits d'auteur et des droits de
   diffusion attachés à ce contenu.
 - Vous garantissez NEETROF contre toute réclamation de tiers relative à ces droits.
 - Vous pouvez **supprimer vos contenus à tout moment** ; la suppression retire le
   fichier et son enregistrement.
+
+### A.3 Signalement d'un contenu illicite et retrait
+
+NEETROF **stocke** les contenus que les utilisateurs importent, sans les
+sélectionner ni les contrôler a priori. Nous n'exerçons aucune surveillance
+générale sur ces contenus, mais nous agissons sur signalement.
+
+- **Signaler un contenu** : écrivez à **contact@cymbra.app** en identifiant le
+  contenu aussi précisément que possible (titre, compositeur, tout élément
+  permettant de le retrouver), en indiquant le motif de l'illicéité et, s'il s'agit
+  d'une atteinte au droit d'auteur, la qualité qui vous permet d'agir.
+- **Traitement** : tout signalement suffisamment précis est examiné, et un contenu
+  manifestement illicite est **retiré promptement**.
+- **Traçabilité** : chaque retrait est consigné avec son motif et la date, y compris
+  après la suppression du fichier.
+- Le retrait d'un contenu **ne dispense pas** la personne qui l'avait importé des
+  responsabilités décrites en A.2.
+
+Les coordonnées de l'éditeur figurent à l'article 8.

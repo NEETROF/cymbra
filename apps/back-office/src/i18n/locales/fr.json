@@ -71,7 +71,8 @@
     "soundfonts": "Sons d’instruments",
     "usage": "Usage",
     "menu": "Menu",
-    "notifications": "Notifications"
+    "notifications": "Notifications",
+    "takedowns": "Retraits"
   },
   "usage": {
     "title": "Usage des fonctionnalités",
@@ -545,5 +546,26 @@
     "full": "Identifiant complet",
     "copy": "Copier",
     "copied": "Copié"
+  },
+  "takedowns": {
+    "title": "Retrait d'une partition privée",
+    "intro": "Recherchez une partition privée signalée et retirez-la. Le retrait est irréversible et audité.",
+    "ownerId": "Identifiant du propriétaire",
+    "titleFragment": "Le titre contient",
+    "search": "Rechercher",
+    "criterionRequired": "Saisissez un identifiant de propriétaire ou un fragment de titre.",
+    "reasonRequired": "Un motif est obligatoire.",
+    "noResults": "Aucune partition privée correspondante.",
+    "colTitle": "Titre",
+    "colComposer": "Compositeur",
+    "colOwner": "Propriétaire",
+    "colCreated": "Importée",
+    "colBasis": "Base de droits",
+    "remove": "Retirer",
+    "confirmTitle": "Retirer cette partition ?",
+    "confirmBody": "Cela supprime définitivement la partition et son fichier. Le propriétaire la perd. Un enregistrement d'audit est conservé.",
+    "reason": "Motif (consigné dans l'audit)",
+    "confirm": "Retirer définitivement",
+    "removed": "Partition retirée."
   }
 }

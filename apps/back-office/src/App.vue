@@ -57,6 +57,10 @@ const nav = computed(() => {
       { to: "/usage", key: "nav.usage", icon: "usage" },
       { to: "/notifications", key: "nav.notifications", icon: "notifications" },
     );
+    // Music-scope only (change: add-private-score-catalog).
+    if (auth.adminScopes.includes("music")) {
+      items.push({ to: "/takedowns", key: "nav.takedowns", icon: "soundfonts" });
+    }
   }
   return items;
 });
