@@ -38,9 +38,8 @@ Out of scope, deliberately: the public catalog (unchanged), organisations /
 - **Minimal takedown**: an admin (music scope) can look up a user's private
   scores and remove one with a mandatory reason, leaving an audit trail — the
   in-repo half of a notice-and-takedown procedure. The intake side (contact
-  point in the site's mentions légales, CGU clause for illicit-content reports,
-  CGU wording for the new basis) lives in the cymbra-site repo and is tracked as
-  manual tasks.
+  point, CGU clause for illicit-content reports, CGU wording for the new basis)
+  lands in `apps/site`, in the same repo.
 
 Impacted products: **Music** (Flutter app + backend `music` module) and
 **back-office** (takedown lookup/removal). No Cymbra ID or Live changes;
@@ -89,8 +88,8 @@ the same change, so both renames are deferred together.
   `private_use`; propose affordance gated by basis. New strings FR/EN.
 - **Back-office** (`apps/back-office`): user-score lookup + remove-with-reason
   action, music admin scope.
-- **External (manual)**: cymbra-site CGU + mentions légales additions
-  (notice-and-takedown contact, private_use wording).
+- **Site** (`apps/site`): CGU/Terms additions in both languages — the personal-use
+  basis in Annex A.2 and a new A.3 on reporting illegal content and removal.
 - **Interaction with shipped work**: the propose flow (`score-catalog-proposal`)
   is live, and it captures its **own** licence declaration at proposal time —
   which is precisely why the guard reads the stored basis instead of trusting

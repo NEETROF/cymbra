@@ -114,9 +114,9 @@ music admin operations):
   reason, created_at). Audit survives the deletion (that's its point);
   the removal is irreversible and the BO confirms it explicitly.
 
-The intake (contact address in mentions légales, CGU illicit-content clause,
-`private_use` CGU wording) is manual work in the cymbra-site repo, tracked in
-tasks but not spec'd here.
+The intake side (reporting address, CGU illicit-content clause, `private_use`
+CGU wording) is prose in `apps/site` — same repo, tracked in tasks but not
+spec'd here, since legal copy is not a testable requirement.
 
 ### D6 — No feature flag
 

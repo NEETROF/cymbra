@@ -86,6 +86,8 @@
 - [x] 8.1 `build_runner`, `melos run analyze`, `dart run custom_lint`,
   `cargo fmt --check` + `clippy -D warnings`, coverage ≥ 80 % (Rust + Flutter)
 - [x] 8.2 `openspec validate add-private-score-catalog --strict` passes
-- [ ] 8.3 MANUAL (cymbra-site repo): CGU additions — `private_use` wording,
-  illicit-content reporting clause, notice-and-takedown contact in the mentions
-  légales; verify the app's legal links still resolve
+- [x] 8.3 CGU additions in `apps/site` (fr + en): the personal-use basis and its
+  permanence in A.2, and a new A.3 "reporting illegal content, and removal" —
+  reporting address, prompt removal on a precise report, the removal record that
+  outlives the file. The publisher's contact already sits in section 8, which the
+  app's existing legal links point at
