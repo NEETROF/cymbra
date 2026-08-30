@@ -61,6 +61,26 @@ void audioInputStopDetection() =>
 void setExpectedPitches({required List<int> pitches}) =>
     RustLib.instance.api.crateApiAudioInputSetExpectedPitches(pitches: pitches);
 
+/// Chooses the capture device (`None` = follow the system default) and
+/// applies it to a capture already running by rebuilding the stream (spec:
+/// Desktop Capture Device Selection). An absent name degrades to the default
+/// at open time rather than failing.
+void setAudioInput({String? name}) =>
+    RustLib.instance.api.crateApiAudioInputSetAudioInput(name: name);
+
+/// The device the running capture is actually acquiring from, or `None` when
+/// idle. Reality, not the request: a fallback shows the default's name.
+String? activeAudioInput() =>
+    RustLib.instance.api.crateApiAudioInputActiveAudioInput();
+
+/// The device a capture is acquiring from right now — or, when idle, the one
+/// a capture WOULD open (the pinned selection resolved against what is
+/// present, falling back to the system default). The calibration store keys
+/// measurements by this name, so it must always describe the device that
+/// actually answers.
+String? resolvedAudioInput() =>
+    RustLib.instance.api.crateApiAudioInputResolvedAudioInput();
+
 /// Runs one input-offset calibration: captures, observes the noise floor,
 /// emits the reference click through the existing output path, and measures
 /// when it arrives back at the microphone. Blocking — the bridge runs it off

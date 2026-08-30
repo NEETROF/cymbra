@@ -94,6 +94,20 @@
 - [x] 7.5 Wait Mode path end-to-end with the mocked capture seam: gate
   satisfaction from detected events, uncalibrated route allowed
 
+## 9. Desktop input-device selection (added after review)
+
+- [x] 9.1 Engine: selected-input static + `set_audio_input(name?)` restarting
+  a running capture, active-input reporting, and a pure device-resolution
+  helper in the core (exact-name match, absent → system default) with unit
+  tests
+- [x] 9.2 Seam: `supportsDeviceSelection` / `listInputs` / `selectInput` on
+  `AudioCaptureService` (desktop-only; mobile and web are empty/no-op)
+- [x] 9.3 Persisted selection notifier (restore on launch, apply via the
+  seam) + the calibration route refreshing on selection change; unit tests
+- [x] 9.4 Input-device dropdown in the calibration section on desktop
+  (system-default entry + enumerated devices, mirroring the output picker);
+  localized fr/en/es/it; widget tests
+
 ## 8. Verification
 
 - [x] 8.1 `melos run analyze`, `dart run custom_lint`, `dart format` (repo

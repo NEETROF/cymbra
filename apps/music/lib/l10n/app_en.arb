@@ -3706,5 +3706,9 @@
   "micFreeRunLatencyTooHigh": "This microphone's delay is too high for scored free play — Wait Mode is on for this run.",
   "@micFreeRunLatencyTooHigh": {
     "description": "Shown when the measured microphone latency exceeds what free-run scoring tolerates."
+  },
+  "inputDeviceSystemDefault": "System default",
+  "@inputDeviceSystemDefault": {
+    "description": "Input-device picker entry that follows the operating system's default microphone."
   }
 }

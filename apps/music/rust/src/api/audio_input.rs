@@ -38,7 +38,7 @@ use flutter_rust_bridge::frb;
 use super::audio_input_core::{
     CALIB_BASELINE_MS, CALIB_LISTEN_TIMEOUT_MS, CalibOutcome, CalibPhase, CalibrationDetector,
     CaptureLifecycle, CaptureTransition, DetectedNote, NoteDetector, classify_input_route,
-    input_route_verdict,
+    input_route_verdict, resolve_input_device,
 };
 use super::midi::{MidiEvent, MidiEventKind};
 use super::platform_log;
@@ -120,6 +120,22 @@ static DETECT_REQUESTED: AtomicBool = AtomicBool::new(false);
 /// later starts with the live set.
 static EXPECTED: Mutex<Vec<u8>> = Mutex::new(Vec::new());
 
+/// The input device the user pinned (spec: Desktop Capture Device Selection);
+/// `None` follows the system default. Resolved at open time with a fallback
+/// to the default when absent.
+static SELECTED_INPUT: Mutex<Option<String>> = Mutex::new(None);
+
+/// The device the running capture actually opened, published by the capture
+/// thread — reported instead of the requested name so the UI shows reality
+/// after a fallback (the output side's exact convention).
+static ACTIVE_INPUT: Mutex<Option<String>> = Mutex::new(None);
+
+/// Capture-thread generation. A device swap (stop + start) can leave the OLD
+/// thread still unwinding while the NEW one is already publishing state; the
+/// exit cleanup only applies when its generation is still the current one, so
+/// a stale thread can never idle the fresh lifecycle or clear its device.
+static CAPTURE_GEN: AtomicU32 = AtomicU32::new(0);
+
 /// Starts microphone capture, returning whether capture is running afterwards.
 /// Idempotent: calling while already capturing changes nothing. Failure to
 /// open a device (no input hardware, permission denied at the OS layer) leaves
@@ -131,6 +147,7 @@ pub fn audio_input_start_capture() -> bool {
         CaptureTransition::Open => {
             let (tx, rx) = channel::<()>();
             *CAPTURE_STOP.lock().unwrap() = Some(tx);
+            let generation = CAPTURE_GEN.fetch_add(1, Ordering::SeqCst) + 1;
             thread::Builder::new()
                 .name("audio-input".into())
                 .spawn(move || {
@@ -138,9 +155,14 @@ pub fn audio_input_start_capture() -> bool {
                         platform_log::log_line("cymbra-audio-in", &format!("capture failed: {e}"));
                     }
                     // Honest state whichever way the thread ended: device
-                    // gone, open failure, or a regular stop.
-                    INPUT_SAMPLE_RATE.store(0, Ordering::Relaxed);
-                    let _ = LIFECYCLE.lock().unwrap().request_stop();
+                    // gone, open failure, or a regular stop — but only while
+                    // this thread is still the current generation (a device
+                    // swap may already be running its replacement).
+                    if CAPTURE_GEN.load(Ordering::SeqCst) == generation {
+                        INPUT_SAMPLE_RATE.store(0, Ordering::Relaxed);
+                        *ACTIVE_INPUT.lock().unwrap() = None;
+                        let _ = LIFECYCLE.lock().unwrap().request_stop();
+                    }
                 })
                 .expect("spawn audio-input thread");
         }
@@ -251,6 +273,56 @@ fn install_detector(rate: u32) {
     *DETECT.lock().unwrap() = Some(detector);
 }
 
+/// Chooses the capture device (`None` = follow the system default) and
+/// applies it to a capture already running by rebuilding the stream (spec:
+/// Desktop Capture Device Selection). An absent name degrades to the default
+/// at open time rather than failing.
+#[frb(sync)]
+pub fn set_audio_input(name: Option<String>) {
+    *SELECTED_INPUT.lock().unwrap() = name;
+    // Rebuild a running capture on the new device: the lifecycle stays open
+    // from the caller's point of view — stop + start swaps the stream, and
+    // the capture thread reinstalls the detector at the new device's rate.
+    if audio_input_is_capturing() {
+        audio_input_stop_capture();
+        audio_input_start_capture();
+    }
+}
+
+/// The device the running capture is actually acquiring from, or `None` when
+/// idle. Reality, not the request: a fallback shows the default's name.
+#[frb(sync)]
+pub fn active_audio_input() -> Option<String> {
+    ACTIVE_INPUT.lock().unwrap().clone()
+}
+
+/// The device a capture is acquiring from right now — or, when idle, the one
+/// a capture WOULD open (the pinned selection resolved against what is
+/// present, falling back to the system default). The calibration store keys
+/// measurements by this name, so it must always describe the device that
+/// actually answers.
+#[frb(sync)]
+pub fn resolved_audio_input() -> Option<String> {
+    if let Some(active) = ACTIVE_INPUT.lock().unwrap().clone() {
+        return Some(active);
+    }
+    let host = cpal::default_host();
+    let available: Vec<String> = host
+        .input_devices()
+        .map(|devices| {
+            devices
+                .filter_map(|d| d.description().ok().map(|desc| desc.name().to_string()))
+                .collect()
+        })
+        .unwrap_or_default();
+    let requested = SELECTED_INPUT.lock().unwrap().clone();
+    if let Some(name) = resolve_input_device(requested.as_deref(), &available) {
+        return Some(name.to_string());
+    }
+    host.default_input_device()
+        .and_then(|d| d.description().ok().map(|desc| desc.name().to_string()))
+}
+
 /// Runs one input-offset calibration: captures, observes the noise floor,
 /// emits the reference click through the existing output path, and measures
 /// when it arrives back at the microphone. Blocking — the bridge runs it off
@@ -338,9 +410,27 @@ fn wait_until(timeout: Duration, mut cond: impl FnMut() -> bool) -> bool {
 /// rate, then parks until the stop signal (or sender drop) ends it.
 fn capture_thread(rx: std::sync::mpsc::Receiver<()>) -> anyhow::Result<()> {
     let host = cpal::default_host();
-    let device = host
-        .default_input_device()
-        .ok_or_else(|| anyhow::anyhow!("no input device"))?;
+    // Resolve the pinned device against what is present right now; anything
+    // absent (or no pin) opens the system default — never a failure.
+    let requested = SELECTED_INPUT.lock().unwrap().clone();
+    let available: Vec<String> = host
+        .input_devices()
+        .map(|devices| {
+            devices
+                .filter_map(|d| d.description().ok().map(|desc| desc.name().to_string()))
+                .collect()
+        })
+        .unwrap_or_default();
+    let resolved = resolve_input_device(requested.as_deref(), &available).map(str::to_string);
+    let device = match resolved {
+        Some(name) => host
+            .input_devices()?
+            .find(|d| d.description().ok().is_some_and(|desc| desc.name() == name))
+            .ok_or_else(|| anyhow::anyhow!("selected input disappeared"))?,
+        None => host
+            .default_input_device()
+            .ok_or_else(|| anyhow::anyhow!("no input device"))?,
+    };
     let supported = device.default_input_config()?;
     let config: cpal::StreamConfig = supported.config();
     let channels = config.channels as usize;
@@ -353,11 +443,14 @@ fn capture_thread(rx: std::sync::mpsc::Receiver<()>) -> anyhow::Result<()> {
     };
     stream.play()?;
     INPUT_SAMPLE_RATE.store(config.sample_rate, Ordering::Relaxed);
+    *ACTIVE_INPUT.lock().unwrap() = device.description().ok().map(|d| d.name().to_string());
     if DETECT_REQUESTED.load(Ordering::Relaxed) {
         install_detector(config.sample_rate);
     }
 
     // Any message or a dropped sender means stop; the stream drops with us.
+    // The generation-guarded exit cleanup (in the spawn wrapper) clears the
+    // published state.
     let _ = rx.recv();
     Ok(())
 }

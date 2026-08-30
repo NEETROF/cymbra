@@ -856,5 +856,6 @@
   "inputSourceMidi": "Instrumento MIDI",
   "inputSourceMicrophone": "Micrófono (instrumento acústico)",
   "micFreeRunNeedsCalibration": "Tocar libre con puntuación requiere calibrar antes el micrófono: el Wait Mode está activado para esta sesión.",
-  "micFreeRunLatencyTooHigh": "El retardo de este micrófono es demasiado alto para tocar libre con puntuación: el Wait Mode está activado para esta sesión."
+  "micFreeRunLatencyTooHigh": "El retardo de este micrófono es demasiado alto para tocar libre con puntuación: el Wait Mode está activado para esta sesión.",
+  "inputDeviceSystemDefault": "Predeterminado del sistema"
 }

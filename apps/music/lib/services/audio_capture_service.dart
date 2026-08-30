@@ -153,6 +153,20 @@ abstract class AudioCaptureService {
   /// evaluates (spec: Score-Informed Presence Detection). Empty idles it.
   void setExpectedPitches(List<int> pitches);
 
+  /// Whether the app can pick a capture device itself (desktop, where the
+  /// engine owns it) as opposed to only reporting the OS-resolved route
+  /// (mobile) — the output seam's exact convention.
+  bool get supportsDeviceSelection;
+
+  /// Inputs the user may choose from. Empty where selection is unsupported.
+  Future<List<CaptureRoute>> listInputs();
+
+  /// Captures from [name], or follows the system default when null; applies
+  /// to a running capture. A no-op where selection is unsupported. An absent
+  /// device degrades to the default at open time (spec: Desktop Capture
+  /// Device Selection).
+  Future<void> selectInput(String? name);
+
   /// Releases any platform subscription. Idempotent.
   void dispose();
 }
@@ -196,6 +210,15 @@ class UnavailableAudioCaptureService implements AudioCaptureService {
   void setExpectedPitches(List<int> pitches) {}
 
   @override
+  bool get supportsDeviceSelection => false;
+
+  @override
+  Future<List<CaptureRoute>> listInputs() async => const [];
+
+  @override
+  Future<void> selectInput(String? name) async {}
+
+  @override
   void dispose() {}
 }
 
@@ -216,13 +239,16 @@ class EngineAudioCaptureService implements AudioCaptureService {
   @override
   Future<CaptureRoute?> activeRoute() async {
     try {
-      final inputs = input_api.listAudioInputs();
-      if (inputs.isEmpty) return null;
-      // Desktop hosts expose no transport type: kind degrades to `other` and
-      // stays usable (spec: unknown route degrades safely).
+      // Selection-aware: the device a capture is using, or the one it WOULD
+      // open (pinned selection resolved, absent → system default). The
+      // calibration store keys measurements by this name, so it must always
+      // describe the device that actually answers. Desktop hosts expose no
+      // transport type: the kind degrades to `other` and stays usable.
+      final name = input_api.resolvedAudioInput();
+      if (name == null) return null;
       return CaptureRoute(
-        name: inputs.first.name,
-        kind: inputs.first.kind,
+        name: name,
+        kind: InputRouteKind.other,
         refusedBluetooth: false,
       );
     } catch (_) {
@@ -272,6 +298,32 @@ class EngineAudioCaptureService implements AudioCaptureService {
 
   @override
   void setExpectedPitches(List<int> pitches) => _setExpectedPitches(pitches);
+
+  @override
+  bool get supportsDeviceSelection => true;
+
+  @override
+  Future<List<CaptureRoute>> listInputs() async {
+    try {
+      return [
+        for (final info in input_api.listAudioInputs())
+          CaptureRoute(
+            name: info.name,
+            kind: info.kind,
+            refusedBluetooth: false,
+          ),
+      ];
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  @override
+  Future<void> selectInput(String? name) async {
+    try {
+      input_api.setAudioInput(name: name);
+    } catch (_) {}
+  }
 
   @override
   void dispose() {}
@@ -396,6 +448,18 @@ class PlatformAudioCaptureService implements AudioCaptureService {
 
   @override
   void setExpectedPitches(List<int> pitches) => _setExpectedPitches(pitches);
+
+  /// The OS owns the input route on mobile: no per-device list to offer, and
+  /// showing one the app cannot honor would be a lie (the output seam's
+  /// wording, verbatim, because it is the same reality).
+  @override
+  bool get supportsDeviceSelection => false;
+
+  @override
+  Future<List<CaptureRoute>> listInputs() async => const [];
+
+  @override
+  Future<void> selectInput(String? name) async {}
 
   @override
   void dispose() {

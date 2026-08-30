@@ -70,6 +70,21 @@ pub(crate) fn input_route_verdict(kind: InputRouteKind) -> InputRouteVerdict {
     }
 }
 
+/// Resolves the device a capture should open (spec: Desktop Capture Device
+/// Selection): an exact match on the requested name, or the system default —
+/// never a failure — when nothing (or something absent) was requested. Pure,
+/// so the fallback rule is host-testable.
+pub(crate) fn resolve_input_device<'a>(
+    requested: Option<&str>,
+    available: &'a [String],
+) -> Option<&'a str> {
+    let name = requested?;
+    available
+        .iter()
+        .find(|d| d.as_str() == name)
+        .map(String::as_str)
+}
+
 /// The capture lifecycle as the engine reasons about it. The glue owns the
 /// actual cpal stream; this state machine owns the *decisions* — whether a
 /// start/stop request changes anything — so double-starts and stray stops are
@@ -858,6 +873,27 @@ mod tests {
             off.at_sample - on.at_sample,
             SYNTHETIC_OFF_MS * u64::from(RATE) / 1000
         );
+    }
+
+    #[test]
+    fn selection_resolves_exact_name_or_falls_back() {
+        let available = vec![
+            "Scarlett 2i2".to_string(),
+            "MacBook Pro Microphone".to_string(),
+        ];
+        assert_eq!(
+            resolve_input_device(Some("Scarlett 2i2"), &available),
+            Some("Scarlett 2i2")
+        );
+        // Absent device → None = system default, never a failure.
+        assert_eq!(
+            resolve_input_device(Some("Unplugged Mic"), &available),
+            None
+        );
+        // No request → system default.
+        assert_eq!(resolve_input_device(None, &available), None);
+        // Display names must match exactly, never fuzzily.
+        assert_eq!(resolve_input_device(Some("Scarlett"), &available), None);
     }
 
     #[test]

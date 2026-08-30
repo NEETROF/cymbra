@@ -856,5 +856,6 @@
   "inputSourceMidi": "Strumento MIDI",
   "inputSourceMicrophone": "Microfono (strumento acustico)",
   "micFreeRunNeedsCalibration": "Il gioco libero con punteggio richiede prima la calibrazione del microfono: il Wait Mode è attivo per questa sessione.",
-  "micFreeRunLatencyTooHigh": "Il ritardo di questo microfono è troppo alto per il gioco libero con punteggio: il Wait Mode è attivo per questa sessione."
+  "micFreeRunLatencyTooHigh": "Il ritardo di questo microfono è troppo alto per il gioco libero con punteggio: il Wait Mode è attivo per questa sessione.",
+  "inputDeviceSystemDefault": "Predefinito di sistema"
 }

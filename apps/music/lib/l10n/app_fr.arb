@@ -856,5 +856,6 @@
   "inputSourceMidi": "Instrument MIDI",
   "inputSourceMicrophone": "Micro (instrument acoustique)",
   "micFreeRunNeedsCalibration": "Le jeu libre noté demande d'abord une calibration du micro — le Wait Mode est activé pour cette session.",
-  "micFreeRunLatencyTooHigh": "Le délai de ce micro est trop élevé pour le jeu libre noté — le Wait Mode est activé pour cette session."
+  "micFreeRunLatencyTooHigh": "Le délai de ce micro est trop élevé pour le jeu libre noté — le Wait Mode est activé pour cette session.",
+  "inputDeviceSystemDefault": "Défaut du système"
 }
