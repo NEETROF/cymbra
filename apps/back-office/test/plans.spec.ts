@@ -364,6 +364,37 @@ describe("plans view — the reopen controls", () => {
     await flushPromises();
   };
 
+  it("revoking an entitlement asks in-app and will not send without a reason", async () => {
+    // The reason is audited, so the console must not let it through empty — and
+    // the question is asked in a modal, never `window.prompt`, which blocks the
+    // renderer and is unreachable from e2e / automation.
+    const { w, state } = await mountView([], { lookup });
+    await w.get('input[type="search"]').setValue("ada");
+    await w
+      .findAll("button")
+      .find((b) => b.text() === "Look up")!
+      .trigger("click");
+    await flushPromises();
+
+    await w
+      .findAll("button")
+      .find((b) => b.text() === "Revoke")!
+      .trigger("click");
+    await flushPromises();
+
+    const dialog = w.find("dialog");
+    expect(dialog.exists()).toBe(true);
+    const confirm = () => dialog.findAll("button").find((b) => b.text() === "Confirm")!;
+    expect(confirm().attributes("disabled")).toBeDefined();
+    expect(state.revokeEntitlementCalls).toEqual([]);
+
+    await dialog.get("input").setValue("granted by mistake");
+    await confirm().trigger("click");
+    await flushPromises();
+
+    expect(state.revokeEntitlementCalls).toEqual([{ entitlementId: "e1", reason: "granted by mistake" }]);
+  });
+
   it("states how many memberships a reopening will restore, before acting", async () => {
     const { w, state } = await mountView([closedCampaign], { reactivatable: 12 });
 

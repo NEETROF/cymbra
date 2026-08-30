@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { mount } from "@vue/test-utils";
 import CatalogTable from "@/components/CatalogTable.vue";
+import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import FiltersBar from "@/components/FiltersBar.vue";
 import StatCards, { type StatItem } from "@/components/StatCards.vue";
 import TablePager from "@/components/TablePager.vue";
@@ -224,5 +225,45 @@ describe("TablePager", () => {
     expect(next.attributes("disabled")).toBeDefined();
     await prev.trigger("click");
     expect(w.emitted("page")?.[0]).toEqual([50]);
+  });
+});
+
+describe("ConfirmDialog", () => {
+  // The console asks destructive questions in-app, never through
+  // `window.confirm`: a native dialog blocks the renderer, so the flow is out of
+  // reach of Playwright and of browser automation.
+  it("renders nothing until a question is pending", () => {
+    const w = mount(ConfirmDialog, { props: { message: null }, global: withI18n });
+    expect(w.find("dialog").exists()).toBe(false);
+  });
+
+  it("shows the question and emits the operator's answer", async () => {
+    const w = mount(ConfirmDialog, {
+      props: { message: "Revoke this admin row?" },
+      global: withI18n,
+    });
+    const dialog = w.get("dialog");
+    expect(dialog.text()).toContain("Revoke this admin row?");
+
+    const button = (label: string) => dialog.findAll("button").find((b) => b.text() === label)!;
+    await button("Cancel").trigger("click");
+    expect(w.emitted("cancel")).toHaveLength(1);
+    expect(w.emitted("confirm")).toBeUndefined();
+
+    await button("Confirm").trigger("click");
+    expect(w.emitted("confirm")).toHaveLength(1);
+  });
+
+  it("goes inert while the action it triggered is in flight", () => {
+    const w = mount(ConfirmDialog, {
+      props: { message: "Close this campaign?", busy: true },
+      global: withI18n,
+    });
+    expect(
+      w
+        .get("dialog")
+        .findAll("button")
+        .every((b) => b.attributes("disabled") !== undefined),
+    ).toBe(true);
   });
 });
