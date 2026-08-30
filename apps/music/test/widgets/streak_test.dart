@@ -378,10 +378,11 @@ void main() {
     testWidgets('the same break is not cued again on a later day', (
       tester,
     ) async {
-      // The beta report ("the popup comes back at every launch"): it was filed
-      // under the calendar day, on the reasoning that the grace window is one
-      // day wide — but that window is a back-office value, and a wider one
-      // re-raised the identical question every morning.
+      // Guards a widening of `streak.grace_days`, which is a back-office flag:
+      // a window wider than a day would re-raise the identical question every
+      // morning under the old day-keyed record. Production reads `1` (checked
+      // 2026-08-30), so this is protection rather than a fix for anything seen
+      // — the beta report was a refusal lost to a `mounted` check.
       final prefs = FakePreferencesService({StreakRecoveryCue.prefsKey: '7'});
       final service = MockStreakService();
       when(service.getStreak()).thenAnswer((_) async => _broken());
@@ -558,9 +559,9 @@ void main() {
     });
 
     test('the refusal outlives the day it was made on', () async {
-      // The beta report: the question came back at every launch. The decline was
-      // filed under the calendar day, so a grace window wider than one day
-      // re-asked the very same question every morning.
+      // The record must outlive the day it was made on, so that widening
+      // `streak.grace_days` — a back-office flag, currently `1` — cannot bring
+      // the same question back every morning.
       final service = MockStreakService();
       when(service.getStreak()).thenAnswer((_) async => _broken());
       // One device: the same storage across both launches.
