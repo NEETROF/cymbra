@@ -20,7 +20,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../l10n/gen/app_localizations.dart';
 import '../services/streak_service.dart';
 import '../state/streak_notifier.dart';
-import '../theme/cymbra_theme.dart';
 import 'app_snackbar.dart';
 
 /// Dedicated listener widget for the practice streak (change: add-practice-
@@ -55,15 +54,13 @@ class StreakListener extends ConsumerStatefulWidget {
 }
 
 class _StreakListenerState extends ConsumerState<StreakListener> {
-  /// Whether the confirmation is on screen right now. Purely a re-entrancy guard:
-  /// the offer provider can emit again (a refresh, a delivered play) before the
-  /// user has answered, and that must not stack a second dialog. Whether the
-  /// question should be asked at all is the provider's call, not this flag's.
-  bool _asking = false;
-
-  /// The streak we asked the user to confirm, so the success message can name it
-  /// after the state has already moved on.
-  int _pendingRestore = 0;
+  /// Whether the recovery cue has already been raised by THIS listener instance.
+  /// Purely a re-entrancy guard: the offer provider can emit again (a refresh, a
+  /// delivered play) within one mount, and that must not stack a second
+  /// snackbar. Whether the cue should be raised at all is the provider's call —
+  /// and across mounts and launches it is the recorded refusal that answers,
+  /// not this flag.
+  bool _cued = false;
 
   @override
   void initState() {
@@ -72,11 +69,11 @@ class _StreakListenerState extends ConsumerState<StreakListener> {
     // by the time this subtree is (re-)entered the standing may already be
     // loaded. A plain `ref.listen` in build only sees CHANGES, so a recovery
     // offer would appear on the very first load and never again.
-    ref.listenManual(streakRecoveryOfferedProvider, fireImmediately: true, (
+    ref.listenManual(streakRecoveryCueDueProvider, fireImmediately: true, (
       _,
-      offered,
+      due,
     ) {
-      if (offered) _maybeOfferRecovery();
+      if (due) _cueRecovery();
     });
     ref.listenManual(streakProvider, fireImmediately: true, (previous, next) {
       final streak = next.valueOrNull;
@@ -97,63 +94,39 @@ class _StreakListenerState extends ConsumerState<StreakListener> {
     });
   }
 
-  void _maybeOfferRecovery() {
+  /// Says, unprompted, that a recovery is on the table — and stops there.
+  ///
+  /// It used to open a confirmation (change: make-streak-recovery-reachable).
+  /// The deadline is real and invisible: resuming restarts the run, so the offer
+  /// dies on the next play, and something has to say so or it passes unseen.
+  /// But a modal fires the instant the standing resolves — it interrupts someone
+  /// who came to practise, and closing it to go and play recorded a refusal that
+  /// then destroyed the offer. So it is a cue now, in the same register as the
+  /// at-risk nudge below, pointing at the chip that can actually take the spend.
+  ///
+  /// Nothing here can debit anything. The confirmation lives with the money, in
+  /// the sheet.
+  void _cueRecovery() {
     final streak = ref.read(streakProvider).valueOrNull;
-    if (_asking || streak == null || !streak.recoverable) return;
-    _asking = true;
-    _pendingRestore = streak.recoverableStreak;
-    _afterFrame(() => unawaited(_confirmRecovery(streak)));
-  }
-
-  Future<void> _confirmRecovery(StreakView streak) async {
-    final l10n = AppLocalizations.of(context);
-    // Read the notifier BEFORE the dialog is awaited (change:
-    // add-drum-input-mapping — beta fix). Recording the refusal used to sit
-    // behind a `mounted` check, so backgrounding the app with the question open
-    // — or any rebuild that took this subtree down — lost the "no" entirely and
-    // asked again on the next launch. The refusal is the user's answer; it must
-    // survive the widget that collected it.
-    final decline = ref.read(streakRecoveryDeclineProvider.notifier);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        key: const Key('streak-recover-dialog'),
-        backgroundColor: CymbraColors.surfaceContainerHigh,
-        title: Text(l10n.streakRecoverTitle),
-        content: Text(
-          l10n.streakRecoverBody(streak.recoverableStreak, streak.recoverCost),
-        ),
-        actions: [
-          TextButton(
-            key: const Key('streak-recover-dismiss'),
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(l10n.streakRecoverDismiss),
-          ),
-          FilledButton(
-            key: const Key('streak-recover-confirm'),
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text(l10n.streakRecoverConfirm(streak.recoverCost)),
-          ),
-        ],
+    if (_cued || streak == null || !streak.recoverable) return;
+    // Recorded against THIS offer, not this session: the two screens that mount
+    // this listener must not each raise it, and a relaunch inside the same
+    // break must not either.
+    _cued = true;
+    final cue = ref.read(streakRecoveryCueProvider.notifier);
+    unawaited(cue.silence(streak.recoverableStreak));
+    _afterFrame(
+      () => showAppSnackBar(
+        ScaffoldMessenger.of(context),
+        AppLocalizations.of(
+          context,
+        ).streakCueRecoverable(streak.recoverableStreak),
       ),
     );
-    _asking = false;
-    // Declining spends nothing and asks nothing further — the streak simply
-    // lapses at the end of the grace window. Recorded against THIS offer, so
-    // neither a relaunch, nor the other screen, nor tomorrow morning re-opens
-    // the same question. Recorded before the `mounted` check, because a refusal
-    // that only counts while the widget survives is the bug this replaces.
-    if (confirmed != true) {
-      unawaited(decline.decline(streak.recoverableStreak));
-      return;
-    }
-    if (!mounted) return;
-    // Fire the action; the outcome arrives as state, not as a return value.
-    unawaited(ref.read(streakProvider.notifier).recover());
   }
 
   void _maybeNudge(StreakView streak) {
-    if (ref.read(streakNudgeShownProvider) || _asking || !streak.atRisk) return;
+    if (ref.read(streakNudgeShownProvider) || !streak.atRisk) return;
     ref.read(streakNudgeShownProvider.notifier).mark();
     _afterFrame(
       () => showAppSnackBar(
@@ -164,17 +137,23 @@ class _StreakListenerState extends ConsumerState<StreakListener> {
   }
 
   /// Surface the result of a recovery the user confirmed. Only reacts to a
-  /// transition out of `loading` on a spend we started, so an ordinary reload
-  /// never reports anything.
+  /// transition out of `loading` on a spend that was actually started, so an
+  /// ordinary reload — which also passes through `loading` — never reports
+  /// anything.
+  ///
+  /// The marker is armed by [Streak.recover] itself rather than by whoever
+  /// called it: the spend starts in the streak sheet now, and this listener is
+  /// what says how it went (change: make-streak-recovery-reachable).
   void _reportOutcome(
     AsyncValue<StreakView>? previous,
     AsyncValue<StreakView> next,
   ) {
-    if (_pendingRestore == 0 || previous is! AsyncLoading) return;
-    final restored = _pendingRestore;
+    final pending = ref.read(streakRecoveryPendingProvider.notifier);
+    final restored = ref.read(streakRecoveryPendingProvider);
+    if (restored == 0 || previous is! AsyncLoading) return;
     switch (next) {
       case AsyncData(:final value) when value.playedToday:
-        _pendingRestore = 0;
+        pending.clear();
         _afterFrame(
           () => showAppSnackBar(
             ScaffoldMessenger.of(context),
@@ -185,7 +164,7 @@ class _StreakListenerState extends ConsumerState<StreakListener> {
         // Refused (grace window elapsed, balance moved, offline). The cause is
         // logged; the user sees a localized message, never a gRPC string.
         debugPrint('streak recovery failed: $error');
-        _pendingRestore = 0;
+        pending.clear();
         _afterFrame(
           () => showAppSnackBar(
             ScaffoldMessenger.of(context),

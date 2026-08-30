@@ -2938,6 +2938,51 @@
       }
     }
   },
+  "streakSheetTitle": "Your practice streak",
+  "@streakSheetTitle": {
+    "description": "Title of the streak sheet, opened from the standing chip (make-streak-recovery-reachable)."
+  },
+  "streakSheetCurrent": "{days, plural, =0{No streak running} =1{1 day in a row} other{{days} days in a row}}",
+  "@streakSheetCurrent": {
+    "description": "The live run.",
+    "placeholders": { "days": { "type": "int" } }
+  },
+  "streakSheetLongest": "{days, plural, =0{No best run yet} =1{Best: 1 day} other{Best: {days} days}}",
+  "@streakSheetLongest": {
+    "description": "The all-time best run — the badge metric.",
+    "placeholders": { "days": { "type": "int" } }
+  },
+  "streakSheetSecured": "Today is secured",
+  "@streakSheetSecured": {
+    "description": "Shown when a play or practice already landed on the local day."
+  },
+  "streakSheetAtRisk": "Play or practise today to keep it",
+  "@streakSheetAtRisk": {
+    "description": "Shown for a live streak with nothing played yet today."
+  },
+  "streakSheetRecoverBody": "{days, plural, =1{Your 1-day streak broke. You can still get it back — until you play again.} other{Your {days}-day streak broke. You can still get it back — until you play again.}}",
+  "@streakSheetRecoverBody": {
+    "description": "States the offer AND its real deadline: resuming restarts the run, so playing forfeits the buy-back.",
+    "placeholders": { "days": { "type": "int" } }
+  },
+  "streakSheetShort": "{missing, plural, =1{1 point short} other{{missing} points short}}",
+  "@streakSheetShort": {
+    "description": "Shown when the break is inside the grace window but the balance will not cover it. Actionable where silence is not.",
+    "placeholders": { "missing": { "type": "int" } }
+  },
+  "streakSheetGuest": "Sign in to start a practice streak.",
+  "@streakSheetGuest": {
+    "description": "A guest has no server-owned standing — said plainly rather than rendering a zero that reads like a lost run."
+  },
+  "streakSheetClose": "Close",
+  "@streakSheetClose": {
+    "description": "Dismisses the sheet."
+  },
+  "streakCueRecoverable": "{days, plural, =1{Your 1-day streak broke — tap the flame to get it back} other{Your {days}-day streak broke — tap the flame to get it back}}",
+  "@streakCueRecoverable": {
+    "description": "The unprompted launch cue. Points at the chip instead of blocking the way to the instrument; the spend still happens behind a confirmation in the sheet.",
+    "placeholders": { "days": { "type": "int" } }
+  },
   "streakChipDays": "{days}",
   "@streakChipDays": {
     "description": "Day count next to the flame in the standing chip.",

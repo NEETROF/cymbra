@@ -99,6 +99,38 @@ No behaviour changes for this half. The delta restates the requirement and
 records the reason, so the next reader does not re-derive the same wrong
 inference from the same flag.
 
+### D5 — An unaffordable break is shown disabled, not hidden
+
+*Settled during implementation (task 2.3).* The open question assumed the client
+might not be able to tell "too poor" from "too late". Checking the wire settles
+it without a proto change: `to_proto_standing` flattens the server's decision
+into one bool, but maps `InsufficientPoints` to `recoverable: false` **with
+`recover_cost` set to what is needed**, while an intact or lapsed streak reports
+a cost of zero. A cost with no offer therefore means exactly one thing.
+
+So the sheet shows the recovery disabled with "you are N points short", because
+that is actionable where silence is not — and a player who cannot tell the two
+apart has no way to know whether earning points would help.
+
+The discriminator is not guessable from the field names, so it is named once as
+`StreakView.unaffordable` rather than re-derived at each call site.
+
+### D6 — The cue's record silences the cue, and the names say so
+
+*Settled during implementation (task 4.3).* The cue is raised once per break,
+reusing the record that already ships — so the second screen mounting the
+listener and the next launch both stay quiet.
+
+That widened what the record means, and two names became lies:
+`StreakRecoveryDecline` / `decline()` said the player forfeited something, and
+`streakRecoveryOffered` said whether an offer existed. Neither is true any more —
+the offer is reachable from the chip regardless. They are now
+`StreakRecoveryCue` / `silence()` and `streakRecoveryCueDue`. The prefs key is
+untouched, so there is no migration.
+
+Worth the churn: "the offer is gone because the player was asked once" is exactly
+the misreading that produced the original bug.
+
 ## Risks / Trade-offs
 
 - **[A cue is easier to ignore than a modal]** → Intended. The cost of ignoring
@@ -119,10 +151,5 @@ inference from the same flag.
 
 ## Open Questions
 
-- Should the sheet also offer the recovery when the player **cannot afford** it,
-  showing the shortfall, or stay silent? Leaning: show it disabled with the
-  cost, because "you are 12 points short" is actionable and silence is not — but
-  it is the kind of thing that reads differently on a device.
-- Whether the cue should reappear once per session or once per break. Leaning:
-  once per break, consistent with the refusal's grain, so a player who dismisses
-  it on the home screen is not asked again on the library screen.
+*Both settled during implementation:* the unaffordable case (D5) and the cue's
+grain (D6).

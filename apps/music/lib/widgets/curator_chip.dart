@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -20,6 +22,7 @@ import '../services/streak_service.dart';
 import '../state/curator_profile_notifier.dart';
 import '../state/streak_notifier.dart';
 import '../theme/cymbra_theme.dart';
+import 'streak_sheet.dart';
 
 /// The compact curator standing pill for the app bar (change: add-curation-
 /// rewards): the level + lifetime points, plus the practice-streak flame
@@ -113,36 +116,47 @@ class _StreakSegment extends ConsumerWidget {
     final active = days > 0;
     return Semantics(
       label: l10n.streakChipTooltip(days),
+      button: true,
       child: Tooltip(
         message: l10n.streakChipTooltip(days),
-        child: Row(
-          key: const Key('curator-chip-streak'),
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(width: 8),
-            Icon(
-              Icons.local_fire_department,
-              size: 16,
-              // Muted at zero; lit — and warmer still once today is secured —
-              // when there is a run to protect.
-              color: active
-                  ? (streak.playedToday
-                        ? CymbraColors.primary
-                        : CymbraColors.onSurface)
-                  : CymbraColors.onSurfaceVariant,
-            ),
-            const SizedBox(width: 3),
-            Text(
-              l10n.streakChipDays(days),
-              style: TextStyle(
+        // The way in to the streak (change: make-streak-recovery-reachable).
+        // It was a label; the recovery offer had no home, so it had to open
+        // itself at launch. Tapping opens the sheet **whether or not** a
+        // recovery is available (design D1): a control that only sometimes
+        // responds teaches players not to try it.
+        child: InkWell(
+          key: const Key('curator-chip-streak-tap'),
+          onTap: () => unawaited(showStreakSheet(context)),
+          borderRadius: BorderRadius.circular(12),
+          child: Row(
+            key: const Key('curator-chip-streak'),
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(width: 8),
+              Icon(
+                Icons.local_fire_department,
+                size: 16,
+                // Muted at zero; lit — and warmer still once today is secured —
+                // when there is a run to protect.
                 color: active
-                    ? CymbraColors.onSurface
+                    ? (streak.playedToday
+                          ? CymbraColors.primary
+                          : CymbraColors.onSurface)
                     : CymbraColors.onSurfaceVariant,
-                fontSize: 12.5,
-                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
               ),
-            ),
-          ],
+              const SizedBox(width: 3),
+              Text(
+                l10n.streakChipDays(days),
+                style: TextStyle(
+                  color: active
+                      ? CymbraColors.onSurface
+                      : CymbraColors.onSurfaceVariant,
+                  fontSize: 12.5,
+                  fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
