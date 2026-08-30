@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { nextTick, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 
 /** In-app confirmation for a destructive action.
@@ -20,11 +21,26 @@ const props = defineProps<{
 
 const emit = defineEmits<{ confirm: []; cancel: [] }>();
 const { t } = useI18n();
+
+/** Focus moves INTO the dialog when it opens. Two reasons, both load-bearing:
+ *  `aria-modal` requires it, and the Escape handler below lives on the dialog —
+ *  with focus left on the trigger button the keydown never reaches it, so Escape
+ *  silently did nothing. The container takes the focus rather than the confirm
+ *  button, so Enter cannot fire a destructive action the operator never aimed at. */
+const dialogEl = ref<HTMLDialogElement | null>(null);
+watch(
+  () => props.message,
+  async (message) => {
+    if (!message) return;
+    await nextTick();
+    dialogEl.value?.focus();
+  },
+);
 </script>
 
 <template>
   <div v-if="props.message" class="overlay" @click.self="emit('cancel')">
-    <dialog class="modal" open aria-modal="true" @keydown.esc="emit('cancel')">
+    <dialog ref="dialogEl" class="modal" open aria-modal="true" tabindex="-1" @keydown.esc="emit('cancel')">
       <h2>{{ t("common.confirmTitle") }}</h2>
       <p>{{ props.message }}</p>
       <div class="modal-actions">
@@ -58,6 +74,9 @@ const { t } = useI18n();
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
+}
+.modal:focus {
+  outline: none;
 }
 .modal h2 {
   font-size: 1.05rem;

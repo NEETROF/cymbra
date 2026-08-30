@@ -65,6 +65,37 @@ test.describe("sound fonts admin", () => {
     await expect(page.getByText("Upright Piano KW")).toBeVisible();
   });
 
+  // The shared ConfirmDialog opens with focus inside it — otherwise its Escape
+  // handler never receives the keydown and the key does nothing at all.
+  test("escape backs out of the removal confirmation without removing", async ({ page }) => {
+    await seed(page, {
+      loginAs: "admin",
+      data: {
+        soundfonts: [
+          {
+            id: "upright-piano-kw",
+            label: "Upright Piano KW",
+            instrument: "piano",
+            license: "CC0-1.0",
+            attribution: "",
+          },
+        ],
+      },
+    });
+    await page.goto("/soundfonts");
+
+    await page
+      .getByRole("row", { name: /Upright Piano KW/ })
+      .getByRole("button", { name: "Remove" })
+      .click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press("Escape");
+
+    await expect(dialog).toBeHidden();
+    await expect(page.getByText("Upright Piano KW")).toBeVisible();
+  });
+
   // Change: add-soundfont-uploader-attribution — the review queue names the
   // contributor, surfaces a reopened font's justification, and rejecting captures
   // a reason (sent with the evaluate call; the seam stores it on the row).

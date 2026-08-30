@@ -99,6 +99,23 @@ test.describe("plans console (music admin only)", () => {
     await expect(page.getByTestId("entitlements")).toContainText("revoked");
   });
 
+  // The dialog opens with focus inside it — otherwise the Escape handler on the
+  // dialog element never receives the keydown and the key does nothing at all.
+  test("escape backs out of the revoke dialog without revoking", async ({ page }) => {
+    await seed(page, { loginAs: "admin", data });
+    await page.goto("/plans");
+    await page.getByPlaceholder("handle or account id").fill("ada");
+    await page.getByRole("button", { name: "Look up" }).click();
+
+    await page.getByTestId("entitlements").getByRole("button", { name: "Revoke" }).click();
+    const dialog = page.getByRole("dialog").filter({ hasText: "Confirmation" });
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press("Escape");
+
+    await expect(dialog).toBeHidden();
+    await expect(page.getByTestId("entitlements")).not.toContainText("revoked");
+  });
+
   test("granting premium with an end date and a reason adds an admin row and re-looks up", async ({ page }) => {
     await seed(page, { loginAs: "admin", data });
     await page.goto("/plans");
