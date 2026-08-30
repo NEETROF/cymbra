@@ -44,6 +44,7 @@ services:
       CYMBRA_FLAGS_DB_PASSWORD: ${CYMBRA_FLAGS_DB_PASSWORD:-flags_dev_pw}
       CYMBRA_ANALYTICS_DB_PASSWORD: ${CYMBRA_ANALYTICS_DB_PASSWORD:-analytics_dev_pw}
       CYMBRA_PLANS_DB_PASSWORD: ${CYMBRA_PLANS_DB_PASSWORD:-plans_dev_pw}
+      CYMBRA_UPDATES_DB_PASSWORD: ${CYMBRA_UPDATES_DB_PASSWORD:-updates_dev_pw}
     volumes:
       - ../db/init:/docker-entrypoint-initdb.d:ro
       - pg:/var/lib/postgresql/data

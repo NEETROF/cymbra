@@ -74,6 +74,10 @@ jsonwebtoken = { version = "10", features = ["rust_crypto"] }
 argon2 = "0.5"
 # SHA-256 for hashing refresh tokens at rest (durable sessions).
 sha2 = "0.10"
+# Ed25519 for the CI-signed desktop update manifest (change:
+# add-desktop-auto-update). The signing key lives only in CI; the backend and the
+# app only ever verify.
+ed25519-dalek = { version = "2", features = ["rand_core"] }
 # HMAC-SHA256 for the period-salted pseudonymous analytics `user_bucket`
 # (change: add-feature-usage-analytics) — salt = HMAC(master_secret, "YYYY-MM").
 hmac = "0.12"

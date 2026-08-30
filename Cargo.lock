@@ -1202,6 +1202,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "axum",
+ "base64 0.22.1",
  "chrono",
  "cymbra-analytics",
  "cymbra-auth",
@@ -1213,9 +1214,12 @@ dependencies = [
  "cymbra-plans",
  "cymbra-platform",
  "cymbra-storage",
+ "cymbra-update-manifest",
+ "cymbra-updates",
  "cymbra-user",
  "cymbra-user-port",
  "dotenvy",
+ "ed25519-dalek",
  "http",
  "jsonwebtoken",
  "mockall",
@@ -1250,6 +1254,34 @@ dependencies = [
  "object_store",
  "thiserror 2.0.18",
  "tokio",
+]
+
+[[package]]
+name = "cymbra-update-manifest"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "ed25519-dalek",
+ "rand_core 0.6.4",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "cymbra-updates"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "cymbra-update-manifest",
+ "mockall",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -1466,6 +1498,7 @@ checksum = "70e796c081cee67dc755e1a36a0a172b897fab85fc3f6bc48307991f64e4eca9"
 dependencies = [
  "curve25519-dalek",
  "ed25519",
+ "rand_core 0.6.4",
  "serde",
  "sha2",
  "subtle",

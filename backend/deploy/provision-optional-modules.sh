@@ -5,7 +5,7 @@
 #
 # A module is one role (`<module>_svc`), one schema and one password, described
 # by the neighbouring `provision-<module>-role.sql` (flags, plans, music,
-# analytics). Those files are already idempotent and targeted — they never touch
+# analytics, updates). Those files are already idempotent and targeted — they never touch
 # another role's password. What this adds is the part that actually breaks: the
 # password lives in TWO places, the role AND the URL in .env, and a divergence
 # between them is not caught here, it is caught at the next boot.
@@ -34,7 +34,7 @@ PG_DB="${PG_DB:-cymbra}"
 PG_NET_HOST="${PG_NET_HOST:-postgres}"
 
 usage() {
-  echo "usage: $(basename "$0") [--rotate] [flags|plans|music|analytics …]" >&2
+  echo "usage: $(basename "$0") [--rotate] [flags|plans|music|analytics|updates …]" >&2
   exit 2
 }
 
@@ -57,13 +57,13 @@ done
 # Canonical order, whatever order they were asked in: flags first (the plan
 # module reads its own kill-switch from the flag store).
 MODULES=()
-for known in flags plans music analytics; do
+for known in flags plans music analytics updates; do
   for want in "${REQUESTED[@]}"; do
     if [[ "$want" == "$known" ]]; then MODULES+=("$known"); break; fi
   done
 done
 for want in "${REQUESTED[@]}"; do
-  case "$want" in flags|plans|music|analytics) ;; *) MODULES+=("$want") ;; esac
+  case "$want" in flags|plans|music|analytics|updates) ;; *) MODULES+=("$want") ;; esac
 done
 
 [[ -f "$ENV_FILE" ]] || { echo "[provision] refused: no .env in $DIR" >&2; exit 1; }
