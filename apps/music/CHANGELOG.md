@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.29.0](https://github.com/NEETROF/cymbra/compare/music-v1.28.0...music-v1.29.0) (2026-08-30)
+
+
+### Features
+
+* **music:** give the streak recovery a home instead of a modal ([#304](https://github.com/NEETROF/cymbra/issues/304)) ([242906a](https://github.com/NEETROF/cymbra/commit/242906ae4eefc091e825298adf23d3ef4d8345e3))
+
+
+### Bug Fixes
+
+* **music:** a re-locked sound leaves the picker instead of failing silently ([#300](https://github.com/NEETROF/cymbra/issues/300)) ([29f33e1](https://github.com/NEETROF/cymbra/commit/29f33e1c3f06e81e18e268cefcdda00c1412f5c1))
+* **music:** plan dates show their year ([#302](https://github.com/NEETROF/cymbra/issues/302)) ([5449743](https://github.com/NEETROF/cymbra/commit/5449743aefd1f00ba4cb8b5ca3aae0b6216bf3b2))
+
 ## [1.28.0](https://github.com/NEETROF/cymbra/compare/music-v1.27.1...music-v1.28.0) (2026-08-29)
 
 

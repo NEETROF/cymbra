@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.1](https://github.com/NEETROF/cymbra/compare/back-office-v0.12.0...back-office-v0.12.1) (2026-08-30)
+
+
+### Bug Fixes
+
+* **bo:** ask destructive-action questions in-app, never window.confirm/prompt ([#303](https://github.com/NEETROF/cymbra/issues/303)) ([44361ce](https://github.com/NEETROF/cymbra/commit/44361ceddbb7d555f29c0de175fb7e54bef6dc29))
+
 ## [0.12.0](https://github.com/NEETROF/cymbra/compare/back-office-v0.11.1...back-office-v0.12.0) (2026-08-28)
 
 
