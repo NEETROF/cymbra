@@ -105,13 +105,17 @@ class StreakRecoveryPending extends _$StreakRecoveryPending {
 /// persisted through the injectable preferences seam.
 ///
 /// **Keyed to the break, not to the calendar day** (change:
-/// add-drum-input-mapping — beta fix). The decline used to be filed under the
-/// local day, on the reasoning that the grace window is one day wide and so a
-/// second question could only be a second break. Two things fall out of that
-/// which a beta tester met head on: the window is a back-office value
-/// (`streak.grace_days`) and a wider one re-asks the very same question every
-/// morning, and "the same offer, asked again" is exactly what saying no is
-/// supposed to end.
+/// add-drum-input-mapping — beta fix). It used to be filed under the local day,
+/// on the reasoning that the grace window is one day wide and so a second
+/// question could only be a second break. That reasoning infers a constant from
+/// a **back-office value**: `streak.grace_days` is a flag, and a window wider
+/// than a day re-raises the identical question every morning.
+///
+/// Production reads `1` (checked 2026-08-30), so that widening never happened
+/// and this key fixed nothing anyone had met — the beta report was the refusal
+/// being written after a `mounted` check and lost when the app was killed with
+/// the dialog open. It is kept as what it is: protection against the flag being
+/// widened, and a record whose grain matches the thing it answers.
 ///
 /// A recovery offer only exists while the user has NOT played since the break —
 /// once they play, the run is restarted and the offer is gone for good. So the

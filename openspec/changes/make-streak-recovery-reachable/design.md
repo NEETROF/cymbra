@@ -91,9 +91,15 @@ The base text still reasons "since the grace window is one local day, declining
 silences that offer for its whole life". That reasoning is wrong in a way worth
 recording rather than quietly deleting: `streak.grace_days` is a **back-office
 flag**, so the window is not one day by construction — it is one day by current
-configuration. Widening it re-opened the same question every morning, which is
-what the beta tester reported, and what #296 fixed by keying the refusal to the
-break instead of the calendar.
+configuration, which production confirms (read `1` on 2026-08-30). Widening it
+would re-open the same question every morning under a day-keyed record.
+
+That widening has not happened, so keying the refusal to the break (#296) fixed
+nothing the beta tester actually met — his repeated question was a refusal
+written after a `mounted` check and lost when the app was killed with the dialog
+open. The per-break key is kept as protection against the flag moving, and
+because it names what the record answers; the causal story is corrected here so
+it is not repeated.
 
 No behaviour changes for this half. The delta restates the requirement and
 records the reason, so the next reader does not re-derive the same wrong
