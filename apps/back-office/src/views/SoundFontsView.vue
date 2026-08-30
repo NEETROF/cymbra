@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
+import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import { match } from "ts-pattern";
 import { SOUNDFONTS_PAGE_SIZE, useSoundFontsStore } from "@/stores/soundfonts";
 import { useToastsStore } from "@/stores/toasts";
@@ -197,8 +198,16 @@ function closeDrawer() {
   drawerMode.value = null;
 }
 
-async function remove(id: string) {
-  if (!window.confirm(t("soundfonts.confirmRemove"))) return;
+/** The removal waiting for a yes — an in-app dialog, never `window.confirm`
+ *  (a native dialog blocks the renderer, so e2e and automation cannot reach it). */
+const pendingRemoval = ref<string | null>(null);
+function remove(id: string) {
+  pendingRemoval.value = id;
+}
+async function confirmRemoval() {
+  const id = pendingRemoval.value;
+  pendingRemoval.value = null;
+  if (!id) return;
   const outcome = await store.remove(id);
   if (outcome.status === "error") toasts.error(outcome.error);
 }
@@ -451,6 +460,11 @@ function licenseDesc(license: string): string {
 
     <SoundFontDrawer :mode="drawerMode" :entry="drawerEntry" @close="closeDrawer" />
   </section>
+  <ConfirmDialog
+    :message="pendingRemoval ? t('soundfonts.confirmRemove') : null"
+    @confirm="confirmRemoval"
+    @cancel="pendingRemoval = null"
+  />
 </template>
 
 <style scoped>

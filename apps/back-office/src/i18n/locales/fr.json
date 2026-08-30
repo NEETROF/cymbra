@@ -2,7 +2,10 @@
   "common": {
     "signOut": "Se déconnecter",
     "back": "← Retour",
-    "loading": "Chargement…"
+    "loading": "Chargement…",
+    "confirmTitle": "Confirmation",
+    "confirm": "Confirmer",
+    "cancel": "Annuler"
   },
   "toast": {
     "region": "Notifications",
@@ -517,7 +520,8 @@
     "reopenEnrolmentConfirm": "Rouvrir les inscriptions de « {key} » ? Ses codes redeviennent rachetables.",
     "enrolmentReopened": "Inscriptions rouvertes.",
     "pausedByClosure": "en pause (campagne fermée)",
-    "closeTrialEnrolmentConfirm": "Fermer les inscriptions de l'essai {key} ? Plus personne ne pourra le rejoindre, mais les essais DÉJÀ accordés courent jusqu'à leur terme — les fermer ne les retire pas. Pour retirer un premium accordé, révoque l'entitlement du compte."
+    "closeTrialEnrolmentConfirm": "Fermer les inscriptions de l'essai {key} ? Plus personne ne pourra le rejoindre, mais les essais DÉJÀ accordés courent jusqu'à leur terme — les fermer ne les retire pas. Pour retirer un premium accordé, révoque l'entitlement du compte.",
+    "confirmTitle": "Confirmation"
   },
   "errors": {
     "unauthenticated": "Identifiants invalides ou session expirée.",

@@ -55,12 +55,12 @@ test.describe("sound fonts admin", () => {
     await editDrawer.getByRole("button", { name: "Save" }).click();
     await expect(page.getByText("YDP Grand (edited)")).toBeVisible();
 
-    // Remove it (confirm dialog auto-accepted).
-    page.on("dialog", (d) => d.accept());
+    // Remove it, answering the in-app confirmation.
     await page
       .getByRole("row", { name: /YDP Grand \(edited\)/ })
       .getByRole("button", { name: "Remove" })
       .click();
+    await page.getByRole("dialog").getByRole("button", { name: "Confirm" }).click();
     await expect(page.getByText("YDP Grand (edited)")).toHaveCount(0);
     await expect(page.getByText("Upright Piano KW")).toBeVisible();
   });

@@ -94,10 +94,11 @@ test.describe("roles directory (admin only)", () => {
         fail: { revokeAccountSessions: { code: 14, message: "[unavailable] backend down" } },
       },
     });
-    page.on("dialog", (d) => d.accept()); // confirm the destructive action
     await page.goto("/roles");
 
     await page.getByRole("button", { name: "Revoke sessions" }).click();
+    // In-app confirmation (never window.confirm — a native dialog blocks the renderer).
+    await page.getByRole("dialog").getByRole("button", { name: "Confirm" }).click();
 
     // The failure is shown (not swallowed into the sessions store), and no raw code leaks.
     await expect(page.getByRole("alert")).toHaveText("Service unavailable. Try again.");

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import { match } from "ts-pattern";
 import { PAGE_SIZE, useRolesStore } from "@/stores/roles";
 import { type PlanFilter, usePlansStore } from "@/stores/plans";
@@ -164,8 +165,14 @@ function closeReliability() {
 }
 /** Admin: cut off every session of a compromised account (server-gated by require_admin).
  * Confirm first — it's destructive — and let the outcome surface via `error`. */
-async function revokeSessions(userId: string) {
-  if (globalThis.confirm && !globalThis.confirm(t("sessions.revokeAccountConfirm"))) return;
+const pendingSessionRevoke = ref<string | null>(null);
+function revokeSessions(userId: string) {
+  pendingSessionRevoke.value = userId;
+}
+async function confirmSessionRevoke() {
+  const userId = pendingSessionRevoke.value;
+  pendingSessionRevoke.value = null;
+  if (!userId) return;
   await sessions.revokeAccount(userId);
 }
 function when(atSeconds: bigint | number): string {
@@ -332,6 +339,11 @@ onMounted(() => {
       </table>
     </div>
   </section>
+  <ConfirmDialog
+    :message="pendingSessionRevoke ? t('sessions.revokeAccountConfirm') : null"
+    @confirm="confirmSessionRevoke"
+    @cancel="pendingSessionRevoke = null"
+  />
 </template>
 
 <style scoped>

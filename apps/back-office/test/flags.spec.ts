@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 import { flushPromises, mount } from "@vue/test-utils";
+import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { setClientsForTest } from "@/lib/api";
 import { i18n } from "@/i18n";
@@ -262,18 +263,33 @@ describe("FlagsView", () => {
     await openEdit(w);
     await w.get(".drawer .scalar").setValue("18");
 
-    const confirmSpy = vi.spyOn(globalThis, "confirm").mockReturnValue(false);
+    // The question is asked in an in-app dialog (never `window.confirm`, which
+    // blocks the renderer and is unreachable from e2e / automation).
     await clickSave(w);
+    // Target the component, not `dialog`/`.overlay`: the editor drawer is an
+    // overlaid <dialog> as well, so a looser selector would drive the drawer.
+    const confirmDialog = () => w.findComponent(ConfirmDialog);
+    expect(confirmDialog().exists()).toBe(true);
+    expect(confirmDialog().text()).toContain("account.min_public_sharing_age");
+    expect(state.setConfigCalls).toHaveLength(0); // nothing written yet
+
+    const answer = async (label: string) => {
+      await confirmDialog()
+        .findAll("button")
+        .find((b) => b.text() === label)!
+        .trigger("click");
+      await flushPromises();
+    };
+    await answer("Cancel");
     expect(state.setConfigCalls).toHaveLength(0);
 
-    confirmSpy.mockReturnValue(true);
     await clickSave(w);
+    await answer("Confirm");
     expect(state.setConfigCalls[0]).toMatchObject({
       key: "account.min_public_sharing_age",
       confirm: true,
       value: { kind: { case: "intValue", value: 18n } },
     });
-    confirmSpy.mockRestore();
   });
 
   it("resolves the last-editor uuid to a name from the directory", async () => {

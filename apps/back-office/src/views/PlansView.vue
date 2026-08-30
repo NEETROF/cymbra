@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, shallowRef } from "vue";
 import { useI18n } from "vue-i18n";
 import { match } from "ts-pattern";
 import { type CampaignKind, isRevocableSource, membersCsv, usePlansStore } from "@/stores/plans";
@@ -65,13 +65,39 @@ async function copyRef(r: EntitlementRowMsg) {
   }
 }
 
-/** Ask a free-text reason (audited); null = cancelled. */
-function askReason(message: string): string | null {
-  const r = globalThis.prompt ? globalThis.prompt(message, "") : "";
-  return r === null ? null : r;
+/** A destructive action waiting for the operator: the localized question and
+ *  what to run once confirmed. In-app dialogs, never `window.prompt/confirm` —
+ *  a native dialog blocks the renderer, which puts the action out of reach of
+ *  the e2e suite and of browser automation. */
+const pendingReason = shallowRef<{ message: string; run: (reason: string) => Promise<void> } | null>(null);
+const pendingConfirm = shallowRef<{ message: string; run: () => Promise<void> } | null>(null);
+const reasonForm = ref({ reason: "" });
+const reasonValid = computed(() => reasonForm.value.reason.trim() !== "");
+
+/** Ask a free-text reason (audited), then run the action. */
+function askReason(message: string, run: (reason: string) => Promise<void>) {
+  reasonForm.value = { reason: "" };
+  pendingReason.value = { message, run };
+  modal.value = "reason";
 }
-function ask(message: string): boolean {
-  return !globalThis.confirm || globalThis.confirm(message);
+/** Ask a plain yes/no, then run the action. */
+function askConfirm(message: string, run: () => Promise<void>) {
+  pendingConfirm.value = { message, run };
+  modal.value = "confirm";
+}
+async function submitReason() {
+  const pending = pendingReason.value;
+  if (!pending) return;
+  await pending.run(reasonForm.value.reason);
+  pendingReason.value = null;
+  modal.value = null;
+}
+async function submitConfirm() {
+  const pending = pendingConfirm.value;
+  if (!pending) return;
+  await pending.run();
+  pendingConfirm.value = null;
+  modal.value = null;
 }
 /** Toast a mutation outcome (localized), returning whether it succeeded. */
 function report(outcome: Async<void>, okMsg: string): boolean {
@@ -80,22 +106,22 @@ function report(outcome: Async<void>, okMsg: string): boolean {
   return outcome.status === "success";
 }
 
-async function revokeRow(r: EntitlementRowMsg) {
-  const reason = askReason(t("plans.revokeRowConfirm", { source: r.source }));
-  if (reason === null) return;
-  report(await store.revokeEntitlement(r.id, reason), t("plans.revokedRow"));
+function revokeRow(r: EntitlementRowMsg) {
+  askReason(t("plans.revokeRowConfirm", { source: r.source }), async (reason) => {
+    report(await store.revokeEntitlement(r.id, reason), t("plans.revokedRow"));
+  });
 }
-async function revokeMembership(m: MembershipMsg) {
-  const reason = askReason(t("plans.revokeMembershipConfirm", { campaign: m.campaignKey }));
-  if (reason === null) return;
-  report(
-    await store.revokeMembership({ target: { userId: m.userId }, campaignKey: m.campaignKey, reason }),
-    t("plans.membershipRevoked"),
-  );
+function revokeMembership(m: MembershipMsg) {
+  askReason(t("plans.revokeMembershipConfirm", { campaign: m.campaignKey }), async (reason) => {
+    report(
+      await store.revokeMembership({ target: { userId: m.userId }, campaignKey: m.campaignKey, reason }),
+      t("plans.membershipRevoked"),
+    );
+  });
 }
 
 // ---- dialogs (grant / enrol / mint / minted) ----
-type Modal = "grant" | "enrol" | "mint" | "minted" | "create" | null;
+type Modal = "grant" | "enrol" | "mint" | "minted" | "create" | "reason" | "confirm" | null;
 const modal = ref<Modal>(null);
 const grantForm = ref({ endDate: "", confirmOpenEnded: false, reason: "" });
 const enrolForm = ref({ campaignKey: "", reason: "" });
@@ -179,34 +205,39 @@ async function submitCreate() {
  *  looks: it stops new trials, it takes back none of the ones already granted —
  *  those run to their own end date, and reopening returns nothing either. An
  *  admin must not believe they stopped something they did not. */
-async function closeEnrolment(c: CampaignMsg) {
+function closeEnrolment(c: CampaignMsg) {
   const key = c.kind === "premium_trial" ? "plans.closeTrialEnrolmentConfirm" : "plans.closeEnrolmentConfirm";
-  if (!ask(t(key, { key: c.key }))) return;
-  report(await store.closeEnrollment(c.key), t("plans.enrolmentClosed"));
+  askConfirm(t(key, { key: c.key }), async () => {
+    report(await store.closeEnrollment(c.key), t("plans.enrolmentClosed"));
+  });
 }
 /** Feature betas only — a trial campaign has no close button (see
  *  `closeEnrolment`, which carries the trial's own warning). */
-async function closeCampaign(c: CampaignMsg) {
-  if (!ask(t("plans.closeCampaignConfirm", { key: c.key }))) return;
-  report(await store.closeCampaign(c.key), t("plans.campaignClosed"));
+function closeCampaign(c: CampaignMsg) {
+  askConfirm(t("plans.closeCampaignConfirm", { key: c.key }), async () => {
+    report(await store.closeCampaign(c.key), t("plans.campaignClosed"));
+  });
 }
 /** Reopening restores people, so say how many BEFORE acting: an admin reopening
  *  a campaign for a new wave must not discover the previous cohort afterwards.
  *  The count comes from the server — the "active membership" rule lives there. */
 async function reopenCampaign(c: CampaignMsg) {
   const n = await store.reactivatableMembers(c.key);
-  if (!ask(t("plans.reopenCampaignConfirm", { key: c.key, n }))) return;
-  report(await store.reopenCampaign(c.key), t("plans.campaignReopened", { n }));
+  askConfirm(t("plans.reopenCampaignConfirm", { key: c.key, n }), async () => {
+    report(await store.reopenCampaign(c.key), t("plans.campaignReopened", { n }));
+  });
 }
 /** Enrolment is its own act: closing a campaign closed it as a side effect, and
  *  a campaign can legitimately be live for its members and shut to newcomers. */
-async function reopenEnrolment(c: CampaignMsg) {
-  if (!ask(t("plans.reopenEnrolmentConfirm", { key: c.key }))) return;
-  report(await store.reopenEnrollment(c.key), t("plans.enrolmentReopened"));
+function reopenEnrolment(c: CampaignMsg) {
+  askConfirm(t("plans.reopenEnrolmentConfirm", { key: c.key }), async () => {
+    report(await store.reopenEnrollment(c.key), t("plans.enrolmentReopened"));
+  });
 }
-async function revokeCodes(c: CampaignMsg) {
-  if (!ask(t("plans.revokeCodesConfirm", { key: c.key }))) return;
-  report(await store.revokeCodes({ campaignKey: c.key }), t("plans.codesRevoked"));
+function revokeCodes(c: CampaignMsg) {
+  askConfirm(t("plans.revokeCodesConfirm", { key: c.key }), async () => {
+    report(await store.revokeCodes({ campaignKey: c.key }), t("plans.codesRevoked"));
+  });
 }
 
 /** Whether the campaign whose members are listed is closed — its rows are then
@@ -583,8 +614,41 @@ onMounted(() => void store.loadCampaigns(true));
   <!-- dialogs -->
   <div v-if="modal" class="overlay" @click.self="modal = null">
     <dialog class="modal" open aria-modal="true" @keydown.esc="modal = null">
+      <!-- a destructive action that needs an audited reason -->
+      <template v-if="modal === 'reason'">
+        <h2>{{ t("plans.confirmTitle") }}</h2>
+        <p>{{ pendingReason?.message }}</p>
+        <label>
+          {{ t("plans.reason") }}
+          <input
+            v-model="reasonForm.reason"
+            :placeholder="t('plans.reasonPlaceholder')"
+            :aria-label="t('plans.reason')"
+            :disabled="acting"
+          />
+        </label>
+        <div class="modal-actions">
+          <button type="button" class="btn-primary" :disabled="acting || !reasonValid" @click="submitReason">
+            {{ t("plans.confirm") }}
+          </button>
+          <button type="button" :disabled="acting" @click="modal = null">{{ t("plans.cancel") }}</button>
+        </div>
+      </template>
+
+      <!-- a destructive action that only needs a yes -->
+      <template v-else-if="modal === 'confirm'">
+        <h2>{{ t("plans.confirmTitle") }}</h2>
+        <p>{{ pendingConfirm?.message }}</p>
+        <div class="modal-actions">
+          <button type="button" class="btn-primary" :disabled="acting" @click="submitConfirm">
+            {{ t("plans.confirm") }}
+          </button>
+          <button type="button" :disabled="acting" @click="modal = null">{{ t("plans.cancel") }}</button>
+        </div>
+      </template>
+
       <!-- grant premium -->
-      <template v-if="modal === 'grant'">
+      <template v-else-if="modal === 'grant'">
         <h2>{{ t("plans.grantTitle", { handle: targetLabel }) }}</h2>
         <label>
           {{ t("plans.endDate") }}
