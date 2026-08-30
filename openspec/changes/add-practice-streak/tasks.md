@@ -160,9 +160,16 @@ lasts* rather than in whether it is recorded at all.
 - [x] 10.3 Tests both ways: the same standing break stays answered across a
   later launch, and a genuinely different break is still asked about (notifier
   and widget level)
-- [ ] 10.4 Back office: read `streak.grace_days` in production. If it is wider
-  than the default `1`, the daily re-ask was legitimate behaviour under the old
-  key and 10.2 is what fixes it; if it is `1`, 10.1 was the whole story. Record
-  the value here either way
+- [x] 10.4 Back office: read `streak.grace_days` in production — **it is `1`,
+  the default** (read 2026-08-30). So the offer only ever existed on one calendar
+  day, the old day-keyed refusal could not have re-asked legitimately, and
+  **10.1 was the whole story**: the refusal was written after a `mounted` check
+  and was simply lost when the app was killed with the dialog open.
+
+  10.2 (keying the refusal to the break) therefore fixed nothing the tester saw.
+  It is worth keeping as what it actually is — protection against a future
+  widening of a back-office value, and an honest name for what the record means —
+  but the causal claim that a wider window is what he met is **wrong** and has
+  been corrected wherever it was written
 - [ ] 10.5 On-device with the tester: refuse the offer, force-quit, relaunch —
   the question is gone and stays gone

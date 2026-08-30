@@ -20,9 +20,11 @@ what ships. It still says a refusal is remembered "on the device for the local
 day it was declined on", reasoning that the grace window is one local day. PR
 [#296](https://github.com/NEETROF/cymbra/pull/296) changed the code to remember
 it **per break** (`streak_recovery_declined_run`, keyed on the run a recovery
-would restore) precisely because `streak.grace_days` is a back-office flag and a
-wider window re-asked the same question every morning. The behaviour is right;
-the spec was not updated with it.
+would restore), because `streak.grace_days` is a back-office flag and a window
+wider than a day would re-ask the same question every morning. Production reads
+`1` (checked 2026-08-30), so that widening has not happened — the rule is
+protection against the flag moving, not a fix for anything observed. The
+behaviour is right either way; the spec was not updated with it.
 
 ## What Changes
 

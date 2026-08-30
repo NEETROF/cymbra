@@ -23,7 +23,8 @@ would restore, so the same question is not re-opened on the next launch, nor whe
 the user reaches another screen that hosts the streak listener. It SHALL NOT be
 keyed to the local day: the grace window is a back-office flag
 (`streak.grace_days`), so a window wider than one day would re-ask the same
-question every morning.
+question every morning — a configuration change must not be able to turn a
+refusal into a daily prompt.
 
 Declining SHALL silence the prompt for that break and SHALL NOT withdraw the
 offer: the user is answering "stop asking", not "forfeit the streak", and the
