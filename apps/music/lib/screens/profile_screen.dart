@@ -27,6 +27,7 @@ import '../state/push_categories.dart';
 import '../state/session_notifier.dart';
 import '../state/usage_consent.dart';
 import '../state/usage_tracking_notifier.dart';
+import '../widgets/desktop_update_tile.dart';
 import '../widgets/coach_mark.dart';
 import '../widgets/achievements_section.dart';
 import '../widgets/curator_rewards_section.dart';
@@ -114,6 +115,10 @@ class _ProfileBody extends ConsumerWidget {
             // grouped with the other profile-level preferences. Renders nothing
             // until a feature declares its notification type.
             const _NotificationCategoryToggles(),
+            // Manual "check for updates" (change: add-desktop-auto-update).
+            // Renders nothing outside Windows/Linux — everywhere else the store
+            // owns updates.
+            const DesktopUpdateTile(),
           ],
           const SizedBox(height: 24),
           _ActivitySection(targetId: targetId),

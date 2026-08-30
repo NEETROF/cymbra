@@ -35,6 +35,9 @@ pub use soundfont::{JwtAuth, SoundfontAuth, SoundfontState, soundfont_router};
 pub mod score_preview;
 pub use score_preview::{ScorePreviewState, score_preview_router};
 
+pub mod updates;
+pub use updates::{UpdatesState, updates_router};
+
 /// Shared wiring for the one-off maintenance binaries (`backfill-titles`,
 /// `reconcile-corpus`). They must read exactly the keyspace the server reads, so
 /// the store is built here once rather than copied into each `bin`.

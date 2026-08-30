@@ -1,0 +1,9 @@
+{
+  "_comment": "Desktop update-manifest policy (change: add-desktop-auto-update). Read by the release workflow's `manifest` job, NOT by the app.",
+  "_min_supported_version": "Clients strictly below this are shown a BLOCKING forced-update screen. Raise it only when an older client genuinely cannot talk to the backend any more — it is a one-way door for everyone below it. Empty string = no floor.",
+  "min_supported_version": "",
+  "_channel": "Release channel the manifest is published under.",
+  "channel": "stable",
+  "_key_id": "Which trusted key CI signs with. Must be present in the app's compiled-in key set AND in the backend's CYMBRA_UPDATE_TRUSTED_KEYS.",
+  "key_id": "2026-08-a"
+}

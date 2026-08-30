@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Cymbra Music
+GenericName=Music practice
+Comment=Learn and practise music with your MIDI instrument
+Exec=music
+Icon=cymbra-music
+Terminal=false
+Categories=Audio;Education;Music;AudioVideo;
+Keywords=music;midi;piano;drums;practice;score;
+StartupWMClass=music

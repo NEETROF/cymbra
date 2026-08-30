@@ -58,6 +58,21 @@ pub struct Config {
     /// add-feature-usage-analytics). `None` leaves the `UsageService` unwired (the
     /// telemetry ingestion + reporting feature stays inert until configured).
     pub analytics_database_url: Option<String>,
+    /// Postgres URL for the `app_updates` schema (role `updates_svc`; change:
+    /// add-desktop-auto-update). `None` leaves the desktop update feed unwired —
+    /// `/updates/desktop` then answers `204` for every caller, which is exactly
+    /// the pre-feature behaviour (no update is ever offered).
+    pub updates_database_url: Option<String>,
+    /// Trusted desktop-update signing keys, `key_id=<base64 32-byte public key>`
+    /// separated by commas (change: add-desktop-auto-update). A **set**, so a key
+    /// rotation can overlap. Empty ⇒ every ingest fails closed; the backend only
+    /// ever verifies, it never signs.
+    pub update_trusted_keys: Option<String>,
+    /// Shared secret the CI release job presents to `POST /updates/desktop`
+    /// (change: add-desktop-auto-update). `None` leaves ingest closed. It carries
+    /// little authority on its own: ingest re-verifies the CI signature, so a
+    /// stolen credential still cannot inject a manifest.
+    pub update_ingest_secret: Option<String>,
     /// Postgres URL for the `plans` schema (role `plans_svc`; change:
     /// add-premium-subscription). `None` leaves `PlanService` unwired: every
     /// plan-aware seam answers `free`, exactly the pre-plan behaviour.
@@ -254,6 +269,18 @@ pub mod config_core {
                 .cloned(),
             plans_database_url: m
                 .get("CYMBRA_PLANS_DATABASE_URL")
+                .filter(|v| !v.is_empty())
+                .cloned(),
+            updates_database_url: m
+                .get("CYMBRA_UPDATES_DATABASE_URL")
+                .filter(|v| !v.is_empty())
+                .cloned(),
+            update_trusted_keys: m
+                .get("CYMBRA_UPDATE_TRUSTED_KEYS")
+                .filter(|v| !v.is_empty())
+                .cloned(),
+            update_ingest_secret: m
+                .get("CYMBRA_UPDATE_INGEST_SECRET")
                 .filter(|v| !v.is_empty())
                 .cloned(),
             analytics_bucket_secret: m

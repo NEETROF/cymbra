@@ -35,8 +35,13 @@
 	#                    add-premium-subscription). MUST reach Axum: routed to tonic
 	#                    a webhook gets a 200 with grpc-status 12 and the provider
 	#                    believes it was delivered.
+	#   /updates/*       desktop update feed (/updates/desktop — change:
+	#                    add-desktop-auto-update). MUST reach Axum for the same
+	#                    reason: routed to tonic the update check gets a 200 with an
+	#                    empty grpc-status 12, which the client reads as a malformed
+	#                    manifest and swallows — the feature then fails invisibly.
 	# All disjoint from the gRPC service paths (`/<package>.<Service>/<Method>`).
-	@http path /.well-known/* /healthz /readyz /web/* /soundfonts/* /me/* /scores/* /billing/*
+	@http path /.well-known/* /healthz /readyz /web/* /soundfonts/* /me/* /scores/* /billing/* /updates/*
 	reverse_proxy @http server:8081
 
 	# gRPC + gRPC-web (incl. the CORS preflight) over cleartext HTTP/2 (h2c) on the

@@ -3694,5 +3694,115 @@
   "coachPlayerFocusBody": "Uncheck what you are not working on. The kit shows and asks for the rest — and the pieces you unchecked still sound when you hit them.",
   "@coachPlayerFocusBody": {
     "description": "Guided step 3 body on a percussion score. States the input rule too: focus never filters what the player hears."
+  },
+  "updateAvailableTitle": "Update available",
+  "@updateAvailableTitle": {
+    "description": "Title of the non-blocking prompt offering a new desktop version."
+  },
+  "updateAvailableBody": "Cymbra Music {version} is ready to install ({size}).",
+  "@updateAvailableBody": {
+    "description": "Body of the update prompt: the offered version and the download size.",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      },
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "updateActionUpdate": "Update now",
+  "@updateActionUpdate": {
+    "description": "Accepts the update: download, verify and install."
+  },
+  "updateActionLater": "Later",
+  "@updateActionLater": {
+    "description": "Dismisses the update prompt; it comes back at the next check."
+  },
+  "updateActionSkip": "Skip this version",
+  "@updateActionSkip": {
+    "description": "Remembers this version so it is not offered again; a newer one still is."
+  },
+  "updateActionDownloadPage": "Open the download page",
+  "@updateActionDownloadPage": {
+    "description": "Opens the release page, for installs that cannot update themselves."
+  },
+  "updateReleaseNotes": "What’s new",
+  "@updateReleaseNotes": {
+    "description": "Link to the release notes for the offered version."
+  },
+  "updateNotSelfInstallableBody": "This copy of Cymbra Music cannot update itself. Download the new version and replace it yourself.",
+  "@updateNotSelfInstallableBody": {
+    "description": "Shown for a portable zip / tarball / read-only install: a new version exists but this copy cannot replace itself."
+  },
+  "updateDownloadingTitle": "Downloading the update",
+  "@updateDownloadingTitle": {
+    "description": "Title of the download-progress surface."
+  },
+  "updateDownloadingProgress": "{received} of {total}",
+  "@updateDownloadingProgress": {
+    "description": "Download progress, already-formatted byte amounts.",
+    "placeholders": {
+      "received": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "updateInstallingBody": "Installing. Cymbra Music will restart on its own.",
+  "@updateInstallingBody": {
+    "description": "Shown once the installer has been handed the job and the app is about to exit."
+  },
+  "updateRequiredTitle": "Update required",
+  "@updateRequiredTitle": {
+    "description": "Title of the BLOCKING screen shown when the build is below min_supported_version."
+  },
+  "updateRequiredBody": "This version of Cymbra Music is too old to connect to the service. Install {version} to carry on.",
+  "@updateRequiredBody": {
+    "description": "Body of the blocking forced-update screen. Says why, in terms the user can act on — never a transport error.",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "updateCheckAction": "Check for updates",
+  "@updateCheckAction": {
+    "description": "The manual \"check for updates\" entry in the account area (desktop only)."
+  },
+  "updateCurrentVersion": "Version {version}",
+  "@updateCurrentVersion": {
+    "description": "The running build, shown next to the manual check entry.",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "updateCheckingStatus": "Checking…",
+  "@updateCheckingStatus": {
+    "description": "Status while a manual check is running."
+  },
+  "updateUpToDateStatus": "Cymbra Music is up to date.",
+  "@updateUpToDateStatus": {
+    "description": "Result of a manual check that found nothing newer."
+  },
+  "updateErrorNetwork": "The update service is unreachable. Try again later.",
+  "@updateErrorNetwork": {
+    "description": "Update check/download failure: the service could not be reached. Never shows a status code or a transport string."
+  },
+  "updateErrorVerification": "This update could not be verified, so nothing was installed.",
+  "@updateErrorVerification": {
+    "description": "The manifest failed verification. Deliberately says nothing about WHICH step failed."
+  },
+  "updateErrorIntegrity": "The downloaded file did not match the release and was discarded.",
+  "@updateErrorIntegrity": {
+    "description": "The downloaded artifact did not match the signed manifest and was deleted."
+  },
+  "updateErrorStorage": "The update could not be saved to this device.",
+  "@updateErrorStorage": {
+    "description": "The update could not be written to disk or the installer could not be started."
   }
 }

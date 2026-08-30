@@ -1,0 +1,13 @@
+#!/bin/sh
+# Cymbra Music AppImage entrypoint (change: add-desktop-auto-update, design D5).
+#
+# The Flutter Linux bundle resolves `data/` and `lib/` RELATIVE TO THE EXECUTABLE,
+# so the bundle is kept intact under usr/bin and the binary is launched from
+# there. `HERE` is resolved from $0 rather than from $APPIMAGE, so the AppDir also
+# runs unpacked (`--appimage-extract-and-run`, which is how CI smoke-tests it —
+# GitHub runners have no reliable FUSE).
+set -e
+HERE="$(dirname "$(readlink -f "$0")")"
+export LD_LIBRARY_PATH="${HERE}/usr/bin/lib:${HERE}/usr/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+export XDG_DATA_DIRS="${HERE}/usr/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+exec "${HERE}/usr/bin/music" "$@"

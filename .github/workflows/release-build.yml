@@ -23,6 +23,26 @@ name: release-build
 #                                   PKCE. Absent ⇒ desktop Google sign-in fails
 #                                   the exchange (the button still shows if the
 #                                   client id is set).
+#   Desktop auto-update (change: add-desktop-auto-update):
+#     DESKTOP_UPDATE_SIGNING_KEY    base64 Ed25519 SECRET key that signs the
+#                                   release manifest. Generated once by
+#                                   `cargo run -p cymbra-update-manifest --bin
+#                                   update-keygen`; it exists ONLY here and in an
+#                                   out-of-band backup — the backend never holds
+#                                   it, which is what makes a backend compromise
+#                                   unable to forge a release. Absent ⇒ the
+#                                   `manifest` job FAILS rather than publishing
+#                                   an unsigned release. Losing it means clients
+#                                   stop accepting new releases until a build
+#                                   ships trusting a new key.
+#     DESKTOP_UPDATE_INGEST_SECRET  shared secret for POST /updates/desktop.
+#                                   Absent ⇒ the envelope is still attached to the
+#                                   Release, just not ingested (warning, not a
+#                                   failure). Carries little authority on its own:
+#                                   the backend re-verifies the signature.
+#   Repository VARIABLE (not a secret):
+#     DESKTOP_UPDATE_INGEST_URL     the ingest endpoint; defaults to
+#                                   https://api.cymbra.app/updates/desktop
 #   Android (Play upload key):
 #     ANDROID_KEYSTORE_BASE64      base64 of the upload keystore (.jks)
 #     ANDROID_KEYSTORE_PASSWORD    store password
@@ -142,9 +162,47 @@ jobs:
           --dart-define-from-file=config/prod.json
           --dart-define=DESKTOP_GOOGLE_CLIENT_ID=${{ secrets.DESKTOP_GOOGLE_CLIENT_ID }}
           --dart-define=DESKTOP_GOOGLE_CLIENT_SECRET=${{ secrets.DESKTOP_GOOGLE_CLIENT_SECRET }}
-      - name: Package
+      - name: Package (portable tarball)
         working-directory: apps/music/build/linux/x64/release/bundle
         run: tar czf "$GITHUB_WORKSPACE/cymbra-${TAG}-linux-x64.tar.gz" .
+      # The self-updating artifact (change: add-desktop-auto-update, design D5):
+      # a single file that can replace itself in place. The tarball above stays
+      # published — it takes the notify-only update path.
+      - name: Package (AppImage)
+        run: |
+          set -euo pipefail
+          bash apps/music/linux/appimage/build_appdir.sh \
+            apps/music/build/linux/x64/release/bundle \
+            "$RUNNER_TEMP/Cymbra.AppDir"
+          curl -fsSL -o "$RUNNER_TEMP/appimagetool" \
+            https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x "$RUNNER_TEMP/appimagetool"
+          # GitHub runners have no reliable FUSE, so appimagetool must unpack
+          # itself instead of mounting (design: Risks).
+          ARCH=x86_64 "$RUNNER_TEMP/appimagetool" --appimage-extract-and-run \
+            "$RUNNER_TEMP/Cymbra.AppDir" \
+            "$GITHUB_WORKSPACE/cymbra-${TAG}-linux-x86_64.AppImage"
+      # A packaging regression must fail the job here, not on a user's desktop.
+      - name: Smoke-check the AppImage
+        run: |
+          set -euo pipefail
+          APP="cymbra-${TAG}-linux-x86_64.AppImage"
+          test -x "$APP" || { echo "AppImage is not executable"; exit 1; }
+          # Unpack rather than mount (no FUSE) and assert the recipe is intact.
+          "./$APP" --appimage-extract >/dev/null
+          test -x squashfs-root/AppRun
+          test -f squashfs-root/cymbra-music.desktop
+          test -f squashfs-root/cymbra-music.png
+          test -x squashfs-root/usr/bin/music
+          test -d squashfs-root/usr/bin/data/flutter_assets
+          echo "AppImage version: $(sed -n 's/^version: //p' apps/music/pubspec.yaml)"
+          rm -rf squashfs-root
+      - name: Upload the desktop artifact for the manifest job
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-linux
+          path: cymbra-${{ env.TAG }}-linux-x86_64.AppImage
+          retention-days: 1
       # Release assets only for a real tag. A branch dry-run (empty `tag`
       # input) must not create a release named after the branch.
       - name: Attach to the GitHub Release
@@ -152,7 +210,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG }}
-          files: cymbra-${{ env.TAG }}-linux-x64.tar.gz
+          files: |
+            cymbra-${{ env.TAG }}-linux-x64.tar.gz
+            cymbra-${{ env.TAG }}-linux-x86_64.AppImage
 
   macos:
     runs-on: macos-latest
@@ -410,9 +470,43 @@ jobs:
           --dart-define-from-file=config/prod.json
           --dart-define=DESKTOP_GOOGLE_CLIENT_ID=${{ secrets.DESKTOP_GOOGLE_CLIENT_ID }}
           --dart-define=DESKTOP_GOOGLE_CLIENT_SECRET=${{ secrets.DESKTOP_GOOGLE_CLIENT_SECRET }}
-      - name: Package
+      - name: Package (portable zip)
         shell: pwsh
         run: Compress-Archive -Path apps/music/build/windows/x64/runner/Release/* -DestinationPath "cymbra-$env:TAG-windows-x64.zip"
+      # The self-updating artifact (change: add-desktop-auto-update, design D4):
+      # a PER-USER installer, which is the entire reason an update can be applied
+      # silently with no UAC prompt. The portable zip above stays published — it
+      # has no install marker and therefore takes the notify-only update path.
+      - name: Package (per-user installer)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # Inno is preinstalled on windows-latest; install it only if it is not.
+          $iscc = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup -y --no-progress
+          }
+          if (-not (Test-Path $iscc)) { throw "ISCC.exe not found after install" }
+          # Inno's VersionInfoVersion wants the numeric triple only, not `+build`.
+          $pubspec = Select-String -Path apps/music/pubspec.yaml -Pattern '^version:\s*(.+)$'
+          $full = $pubspec.Matches[0].Groups[1].Value.Trim()
+          $numeric = $full.Split('+')[0]
+          Write-Host "installer version: $numeric (pubspec $full)"
+          & $iscc `
+            "/DAppVersion=$numeric" `
+            "/DBuildDir=$PWD\apps\music\build\windows\x64\runner\Release" `
+            "/DOutputDir=$PWD" `
+            "/DOutputBaseFilename=cymbra-$env:TAG-windows-x64-setup" `
+            apps\music\windows\installer\cymbra.iss
+          if (-not (Test-Path "cymbra-$env:TAG-windows-x64-setup.exe")) {
+            throw "the installer was not produced"
+          }
+      - name: Upload the desktop artifact for the manifest job
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-windows
+          path: cymbra-${{ env.TAG }}-windows-x64-setup.exe
+          retention-days: 1
       # Release assets only for a real tag. A branch dry-run (empty `tag`
       # input) must not create a release named after the branch.
       - name: Attach to the GitHub Release
@@ -420,7 +514,122 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG }}
-          files: cymbra-${{ env.TAG }}-windows-x64.zip
+          files: |
+            cymbra-${{ env.TAG }}-windows-x64.zip
+            cymbra-${{ env.TAG }}-windows-x64-setup.exe
+
+  # --- signed update manifest (change: add-desktop-auto-update, group 6) -------
+  # Produces the release identity that the desktop updater trusts. Deliberately
+  # separate from the backend: the Ed25519 key exists ONLY here, so a compromised
+  # backend can withhold or stall an update (visible, recoverable) but cannot
+  # fabricate one. Runs ONLY for a real `music-v*` tag — a branch dry-run builds
+  # and packages both artifacts but signs, uploads and ingests nothing.
+  manifest:
+    needs: [windows, linux]
+    if: startsWith(github.event.inputs.tag || github.ref_name, 'music-v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref_name }}
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Download the desktop artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: desktop-*
+          merge-multiple: true
+          path: dist
+      - name: Build the manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The version is read from pubspec.yaml, the SAME source the built app
+          # reports at runtime — deriving it from the tag instead would let a
+          # mistagged release offer an update the client then refuses as
+          # non-newer, silently and forever.
+          VERSION="$(sed -n 's/^version: //p' apps/music/pubspec.yaml | tr -d '[:space:]')"
+          CHANNEL="$(jq -r '.channel' apps/music/config/desktop_release.json)"
+          MIN="$(jq -r '.min_supported_version' apps/music/config/desktop_release.json)"
+          WIN="dist/cymbra-${TAG}-windows-x64-setup.exe"
+          LNX="dist/cymbra-${TAG}-linux-x86_64.AppImage"
+          test -f "$WIN" && test -f "$LNX"
+          BASE="https://github.com/${{ github.repository }}/releases/download/${TAG}"
+          jq -n \
+            --argjson schema 1 \
+            --arg version "$VERSION" \
+            --arg channel "$CHANNEL" \
+            --arg min "$MIN" \
+            --arg released "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg notes "https://github.com/${{ github.repository }}/releases/tag/${TAG}" \
+            --arg win_url "$BASE/$(basename "$WIN")" \
+            --argjson win_size "$(stat -c %s "$WIN")" \
+            --arg win_sha "$(sha256sum "$WIN" | cut -d" " -f1)" \
+            --arg lnx_url "$BASE/$(basename "$LNX")" \
+            --argjson lnx_size "$(stat -c %s "$LNX")" \
+            --arg lnx_sha "$(sha256sum "$LNX" | cut -d" " -f1)" \
+            '{
+               schema: $schema,
+               product: "music",
+               channel: $channel,
+               version: $version,
+               released_at: $released,
+               notes_url: $notes,
+               targets: {
+                 "windows-x64": { kind: "inno-setup", url: $win_url, size: $win_size, sha256: $win_sha },
+                 "linux-x64":   { kind: "appimage",   url: $lnx_url, size: $lnx_size, sha256: $lnx_sha }
+               }
+             }
+             + (if $min == "" then {} else { min_supported_version: $min } end)' \
+            > manifest.json
+          cat manifest.json
+      - name: Sign the manifest
+        env:
+          DESKTOP_UPDATE_SIGNING_KEY: ${{ secrets.DESKTOP_UPDATE_SIGNING_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${DESKTOP_UPDATE_SIGNING_KEY:-}" ]; then
+            echo "::error::DESKTOP_UPDATE_SIGNING_KEY is not set — refusing to publish an unsigned release"
+            exit 1
+          fi
+          KEY_ID="$(jq -r '.key_id' apps/music/config/desktop_release.json)"
+          # rollout 0 on purpose (design, migration plan step 3): the release is
+          # published and verifiable but offered to nobody until an operator
+          # raises the percentage. That is also the kill-switch's resting state.
+          cargo run -q -p cymbra-update-manifest --bin update-sign -- \
+            --key-id "$KEY_ID" --rollout 0 < manifest.json > "cymbra-${TAG}-update-manifest.json"
+          jq . "cymbra-${TAG}-update-manifest.json"
+      # An audit trail independent of the backend: the envelope on the Release is
+      # what CI signed, whatever the feed later serves.
+      - name: Attach the signed envelope to the GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          files: cymbra-${{ env.TAG }}-update-manifest.json
+      - name: Publish to the update feed
+        env:
+          INGEST_SECRET: ${{ secrets.DESKTOP_UPDATE_INGEST_SECRET }}
+          INGEST_URL: ${{ vars.DESKTOP_UPDATE_INGEST_URL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="${INGEST_URL:-https://api.cymbra.app/updates/desktop}"
+          if [ -z "${INGEST_SECRET:-}" ]; then
+            echo "::warning::DESKTOP_UPDATE_INGEST_SECRET unset — envelope published on the Release but not ingested"
+            exit 0
+          fi
+          # The backend re-verifies the signature before storing, so this
+          # credential decides WHETHER something is stored, never WHAT.
+          code="$(curl -sS -o /tmp/ingest.out -w '%{http_code}' -X POST "$URL" \
+            -H "Authorization: Bearer $INGEST_SECRET" \
+            -H 'Content-Type: application/json' \
+            --data-binary @"cymbra-${TAG}-update-manifest.json")"
+          echo "ingest HTTP $code"
+          cat /tmp/ingest.out || true
+          case "$code" in
+            204|200) ;;
+            *) echo "::error::update ingest failed with HTTP $code"; exit 1 ;;
+          esac
 
   android:
     runs-on: ubuntu-latest

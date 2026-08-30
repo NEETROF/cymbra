@@ -734,6 +734,42 @@ async fn main() -> anyhow::Result<()> {
         None => http,
     };
 
+    // --- desktop update feed (change: add-desktop-auto-update, task 2.7).
+    // Public, anonymous `GET /updates/desktop` + the credential-gated CI ingest.
+    // Wired only when the dedicated `app_updates` DB URL is set; unconfigured the
+    // route is still mounted and answers 204, so a deploy that forgets the URL
+    // degrades to "no update is ever offered" instead of a 404 the client cannot
+    // tell apart from a broken edge.
+    // ⚠️ `/updates/*` must also be in the Caddy `@http` matcher, or the path falls
+    // through to tonic and answers 200 with an empty `grpc-status: 12`.
+    let updates_repo: Option<Arc<dyn cymbra_updates::ReleaseRepo>> = match cfg
+        .updates_database_url
+        .as_deref()
+    {
+        Some(db_url) => {
+            let updates_pool = cymbra_updates::connect(db_url, 2).await?;
+            cymbra_updates::MIGRATOR.run(&updates_pool).await?;
+            Some(Arc::new(cymbra_updates::PgReleaseRepo::new(updates_pool)))
+        }
+        None => {
+            tracing::info!("CYMBRA_UPDATES_DATABASE_URL unset — desktop update feed inert (204)");
+            None
+        }
+    };
+    // Verification keys only: this service never signs. An unparseable value is a
+    // hard error rather than a silently empty set, which would look like a working
+    // ingest that refuses every release.
+    let update_trusted_keys = match cfg.update_trusted_keys.as_deref() {
+        Some(v) => cymbra_update_manifest::trusted_keys_from_env_value(v)
+            .map_err(|e| anyhow::anyhow!("CYMBRA_UPDATE_TRUSTED_KEYS is malformed: {e}"))?,
+        None => cymbra_update_manifest::TrustedKeys::new(),
+    };
+    let http = http.merge(cymbra_server::updates_router(cymbra_server::UpdatesState {
+        repo: updates_repo,
+        trusted_keys: Arc::new(update_trusted_keys),
+        ingest_secret: cfg.update_ingest_secret.clone().map(Arc::new),
+    }));
+
     let grpc_addr: SocketAddr = cfg.grpc_addr.parse()?;
     let http_addr: SocketAddr = cfg.http_addr.parse()?;
     tracing::info!(%grpc_addr, %http_addr, "cymbra-server serving");

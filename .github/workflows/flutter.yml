@@ -104,9 +104,13 @@ jobs:
         run: dart run tool/check_store_assets.dart
       - name: Merge coverage (unit/widget + integration)
         run: lcov -a apps/music/coverage/lcov.info -a apps/music/coverage/integration.lcov.info -o apps/music/coverage/merged.lcov.info
+      # `process_runner.dart` is the thin dart:io process seam (Process.start /
+      # exit) whose entire purpose is to be replaced in tests — the same reason
+      # the Rust gate excludes its hardware/thread glue. Its callers, the two
+      # installers, are covered through it (change: add-desktop-auto-update).
       - name: Enforce 80% line coverage
         uses: VeryGoodOpenSource/very_good_coverage@v3
         with:
           path: apps/music/coverage/merged.lcov.info
           min_coverage: 80
-          exclude: "lib/src/rust/** lib/src/grpc/** lib/l10n/gen/** lib/main.dart **/*.g.dart **/*.freezed.dart"
+          exclude: "lib/src/rust/** lib/src/grpc/** lib/l10n/gen/** lib/main.dart lib/services/update/process_runner.dart **/*.g.dart **/*.freezed.dart"

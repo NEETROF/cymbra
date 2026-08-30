@@ -533,6 +533,62 @@ scp backend/deploy/Caddyfile cymbra-prod:/opt/cymbra/backend/deploy/Caddyfile
 ssh cymbra-prod docker exec cymbra-prod-caddy-1 caddy reload --config /etc/caddy/Caddyfile
 ```
 
+### Enabling the desktop update feed (`/updates/*`)
+
+Off by default — the server logs `CYMBRA_UPDATES_DATABASE_URL unset — desktop
+update feed inert (204)` and no client is ever offered an update. Bring it up
+**before** the first release is ingested (change: add-desktop-auto-update):
+
+1. **Provision the role + schema** (idempotent, touches nothing else):
+   ```bash
+   ssh cymbra-prod /opt/cymbra/backend/deploy/provision-optional-modules.sh updates
+   ```
+   It generates the password, writes `CYMBRA_UPDATES_DB_PASSWORD` and
+   `CYMBRA_UPDATES_DATABASE_URL` into `.env`, and verifies `updates_svc` can log in.
+
+2. **Add the verification key and the ingest secret** to `.env`:
+   ```
+   CYMBRA_UPDATE_TRUSTED_KEYS=<key_id>=<base64 public key>
+   CYMBRA_UPDATE_INGEST_SECRET=<openssl rand -hex 32>
+   ```
+   The public key must be the one compiled into the app
+   (`apps/music/lib/services/update/update_signing_keys.dart`). The private key
+   exists **only** as the `DESKTOP_UPDATE_SIGNING_KEY` GitHub Actions secret — the
+   backend never signs, it only verifies. Put the same ingest secret in the
+   `DESKTOP_UPDATE_INGEST_SECRET` repository secret.
+
+3. **Update Caddy** — this step is not optional and is the one that fails
+   silently. `/updates/*` must be in the `@http` matcher (see the section above);
+   without it the path falls through to tonic and answers `200` with an empty
+   `grpc-status: 12`, which the client reads as a malformed manifest and swallows.
+   ```bash
+   scp backend/deploy/Caddyfile cymbra-prod:/opt/cymbra/backend/deploy/Caddyfile
+   ssh cymbra-prod docker exec cymbra-prod-caddy-1 caddy reload --config /etc/caddy/Caddyfile
+   ```
+
+4. **Roll the stack** (`./deploy.sh <version>`) — the server's MIGRATOR creates
+   `app_updates.releases`.
+
+5. **Verify against production, before anything is ingested:**
+   ```bash
+   curl -i 'https://api.cymbra.app/updates/desktop?product=music&channel=stable'
+   ```
+   Expect a bare **`204 No Content`** with `Cache-Control: public, max-age=300`.
+   A `200` with a `grpc-status: 12` header and an empty body means step 3 did not
+   take effect — Caddy is still routing the path to tonic.
+
+**Staging and rollback.** The release workflow ingests at `rollout_percent = 0`
+(nothing is offered). Raise it in steps:
+```sql
+UPDATE app_updates.releases SET rollout_percent = 25, updated_at = now()
+ WHERE product = 'music' AND channel = 'stable' AND version = '1.25.0+34';
+```
+The kill-switch is `rollout_percent = 0` (or `paused = true`); it takes effect
+within the 5-minute cache lifetime. There is **no downgrade path** by design —
+a client refuses any version that is not strictly newer, so rolling back means
+pausing the bad release and shipping a higher fixed version, never re-publishing
+an older one.
+
 ### Enabling the premium plan / beta module (`cymbra-plans`)
 
 Off by default — the server logs `plans disabled (CYMBRA_PLANS_DATABASE_URL unset)`
@@ -665,6 +721,12 @@ re-run the psql above. New or fixed lessons ship without an app release.
 - [ ] **App distribution** — the backend is half of "giving the apps to users": set up
       **TestFlight** (iOS) and **Play Console internal/closed testing** (Android). Build the
       apps pointing at prod (§6).
+- [ ] **Desktop update feed** — if the Windows/Linux updater is shipping:
+      `CYMBRA_UPDATES_DATABASE_URL`, `CYMBRA_UPDATE_TRUSTED_KEYS` and
+      `CYMBRA_UPDATE_INGEST_SECRET` set, `/updates/*` in the Caddy `@http` matcher,
+      and `curl -i '.../updates/desktop?product=music&channel=stable'` answering a
+      bare `204` (NOT a `200` carrying `grpc-status: 12`). Verify this **before**
+      the first release is ingested — a missing Caddy entry fails invisibly.
 - [ ] **Box hardening** — enable `unattended-upgrades` (auto security patches), confirm
       `systemctl enable docker` (services come back after reboot via `restart:
       unless-stopped`), SSH **key-only (no password) on a non-standard port**, `fail2ban`
@@ -683,10 +745,10 @@ re-run the psql above. New or fixed lessons ship without an app release.
 re-run the bootstrap against the live DB (see `backend/README.md` §Database roles) and
 update the matching `*_DATABASE_URL`, then `up -d` to roll the services.
 
-Careful with that bootstrap: `00-roles.sh` rewrites **all eight** role passwords, and
+Careful with that bootstrap: `00-roles.sh` rewrites **all nine** role passwords, and
 the optional modules fall back to the dev defaults committed in
 `docker-compose.prod.yml` (`flags_dev_pw` and friends) for any var you have not set.
-Running it wholesale on a live box to fix one role resets the other seven.
+Running it wholesale on a live box to fix one role resets the other eight.
 
 For the four optional modules there is a rotation that moves the role and the URL
 together, one module at a time:

@@ -108,9 +108,24 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA plans TO :"plans_ro
 ALTER DEFAULT PRIVILEGES IN SCHEMA plans
   GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO :"plans_role";
 
+-- app_updates module — the desktop update feed (change: add-desktop-auto-update)
+-- — owned by updates_svc, confined to its own schema. Stores CI-signed release
+-- manifests verbatim; the server serves them anonymously and re-verifies the
+-- signature on ingest. Carries no identity and no FK to any other schema (the
+-- update check sends no identifier at all), so no cross-schema grants.
+SELECT format('CREATE ROLE %I LOGIN', :'updates_role')
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'updates_role')
+\gexec
+ALTER ROLE :"updates_role" WITH LOGIN PASSWORD :'updates_pw';
+CREATE SCHEMA IF NOT EXISTS app_updates AUTHORIZATION :"updates_role";
+ALTER ROLE :"updates_role" SET search_path = app_updates;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA app_updates TO :"updates_role";
+ALTER DEFAULT PRIVILEGES IN SCHEMA app_updates
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO :"updates_role";
+
 -- Keep the module roles out of the shared `public` schema so the only namespaces
 -- each can touch are its own (+ the narrow jobs.enqueue grant from the migration).
-REVOKE ALL ON SCHEMA public FROM :"auth_role", :"user_role", :"music_role", :"worker_role", :"flags_role", :"analytics_role", :"plans_role";
+REVOKE ALL ON SCHEMA public FROM :"auth_role", :"user_role", :"music_role", :"worker_role", :"flags_role", :"analytics_role", :"plans_role", :"updates_role";
 
 -- Ops role: read+write EVERY schema from a single connection (design OD1/OD2) --
 -- `pg_read_all_data` + `pg_write_all_data` cover all current AND future schemas
@@ -122,4 +137,4 @@ WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'admin_role')
 \gexec
 ALTER ROLE :"admin_role" WITH LOGIN PASSWORD :'admin_pw';
 GRANT pg_read_all_data, pg_write_all_data TO :"admin_role";
-ALTER ROLE :"admin_role" SET search_path = auth, user_account, music, jobs, feature_flags, analytics, plans, public;
+ALTER ROLE :"admin_role" SET search_path = auth, user_account, music, jobs, feature_flags, analytics, plans, app_updates, public;
