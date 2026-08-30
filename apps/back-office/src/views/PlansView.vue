@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, shallowRef } from "vue";
+import { computed, nextTick, onMounted, ref, shallowRef, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { match } from "ts-pattern";
 import { type CampaignKind, isRevocableSource, membersCsv, usePlansStore } from "@/stores/plans";
@@ -123,6 +123,18 @@ function revokeMembership(m: MembershipMsg) {
 // ---- dialogs (grant / enrol / mint / minted) ----
 type Modal = "grant" | "enrol" | "mint" | "minted" | "create" | "reason" | "confirm" | null;
 const modal = ref<Modal>(null);
+
+/** Focus moves INTO the dialog when one opens. `aria-modal` requires it, and the
+ *  Escape handler lives on the dialog element — with focus left on the trigger
+ *  button the keydown never reached it, so Escape silently did nothing. The
+ *  container takes the focus (not a button), so Enter cannot fire a destructive
+ *  action; the reason field is still one Tab away. */
+const dialogEl = ref<HTMLDialogElement | null>(null);
+watch(modal, async (open) => {
+  if (!open) return;
+  await nextTick();
+  dialogEl.value?.focus();
+});
 const grantForm = ref({ endDate: "", confirmOpenEnded: false, reason: "" });
 const enrolForm = ref({ campaignKey: "", reason: "" });
 const mintForm = ref({ campaignKey: "", count: 10, hint: "" });
@@ -613,7 +625,7 @@ onMounted(() => void store.loadCampaigns(true));
 
   <!-- dialogs -->
   <div v-if="modal" class="overlay" @click.self="modal = null">
-    <dialog class="modal" open aria-modal="true" @keydown.esc="modal = null">
+    <dialog ref="dialogEl" class="modal" open aria-modal="true" tabindex="-1" @keydown.esc="modal = null">
       <!-- a destructive action that needs an audited reason -->
       <template v-if="modal === 'reason'">
         <h2>{{ t("plans.confirmTitle") }}</h2>
@@ -874,6 +886,9 @@ tr.inactive td.row-actions {
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
+}
+.modal:focus {
+  outline: none;
 }
 .modal h2 {
   font-size: 1.05rem;
