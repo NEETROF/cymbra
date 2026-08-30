@@ -3624,5 +3624,87 @@
   "coachPlayerFocusBody": "Uncheck what you are not working on. The kit shows and asks for the rest — and the pieces you unchecked still sound when you hit them.",
   "@coachPlayerFocusBody": {
     "description": "Guided step 3 body on a percussion score. States the input rule too: focus never filters what the player hears."
+  },
+  "inputCalibrationTitle": "Microphone calibration",
+  "@inputCalibrationTitle": {
+    "description": "Title of the microphone input calibration section."
+  },
+  "inputCalibrationIntro": "Cymbra plays a short sound and listens for it through the microphone to measure your device's delay.",
+  "@inputCalibrationIntro": {
+    "description": "Explains the calibration flow and doubles as the contextual rationale before the microphone permission prompt."
+  },
+  "inputCalibrationMeasured": "Measured delay: {ms} ms",
+  "@inputCalibrationMeasured": {
+    "description": "Shows the stored measured input delay for the active microphone route.",
+    "placeholders": {
+      "ms": {
+        "type": "int",
+        "example": "85"
+      }
+    }
+  },
+  "inputCalibrationNotMeasured": "Not calibrated yet",
+  "@inputCalibrationNotMeasured": {
+    "description": "Shown when the active microphone route has no stored measurement."
+  },
+  "inputCalibrationRun": "Calibrate",
+  "@inputCalibrationRun": {
+    "description": "Button starting a calibration run."
+  },
+  "inputCalibrationRunning": "Listening for the calibration sound…",
+  "@inputCalibrationRunning": {
+    "description": "Shown while a calibration run is in progress."
+  },
+  "inputCalibrationNotDetected": "The sound was not detected. Raise the volume, bring the device closer, or reduce background noise, then try again.",
+  "@inputCalibrationNotDetected": {
+    "description": "Guidance when the calibration click was never heard."
+  },
+  "inputCalibrationPermissionDenied": "Microphone access is turned off. Allow it in your system settings to use the microphone.",
+  "@inputCalibrationPermissionDenied": {
+    "description": "Guidance when the microphone permission is denied, pointing to the system settings."
+  },
+  "inputCalibrationBluetoothRefused": "Bluetooth microphones cannot be used: their delay is too unstable for playing. Use the built-in microphone or a USB one.",
+  "@inputCalibrationBluetoothRefused": {
+    "description": "Explains why a Bluetooth microphone route is refused for acquisition."
+  },
+  "inputRouteKindBuiltin": "Built-in microphone",
+  "@inputRouteKindBuiltin": {
+    "description": "Capture route kind: the device's own microphone."
+  },
+  "inputRouteKindWired": "Wired microphone",
+  "@inputRouteKindWired": {
+    "description": "Capture route kind: wired headset mic or line input."
+  },
+  "inputRouteKindUsb": "USB microphone",
+  "@inputRouteKindUsb": {
+    "description": "Capture route kind: USB audio device."
+  },
+  "inputRouteKindBluetooth": "Bluetooth microphone",
+  "@inputRouteKindBluetooth": {
+    "description": "Capture route kind: Bluetooth (refused for capture)."
+  },
+  "inputRouteKindOther": "Microphone",
+  "@inputRouteKindOther": {
+    "description": "Capture route kind: unclassified."
+  },
+  "inputSourceTitle": "Input",
+  "@inputSourceTitle": {
+    "description": "Title of the player input-source selector (MIDI vs microphone)."
+  },
+  "inputSourceMidi": "MIDI instrument",
+  "@inputSourceMidi": {
+    "description": "Input-source choice: the connected MIDI instrument."
+  },
+  "inputSourceMicrophone": "Microphone (acoustic instrument)",
+  "@inputSourceMicrophone": {
+    "description": "Input-source choice: acoustic detection over the microphone."
+  },
+  "micFreeRunNeedsCalibration": "Scored free play needs a microphone calibration first — Wait Mode is on for this run.",
+  "@micFreeRunNeedsCalibration": {
+    "description": "Shown when starting scored free-run play with the microphone was steered to Wait Mode because no calibration is stored."
+  },
+  "micFreeRunLatencyTooHigh": "This microphone's delay is too high for scored free play — Wait Mode is on for this run.",
+  "@micFreeRunLatencyTooHigh": {
+    "description": "Shown when the measured microphone latency exceeds what free-run scoring tolerates."
   }
 }

@@ -20,7 +20,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../l10n/gen/app_localizations.dart';
 import '../layout/device_class.dart';
 import '../services/platform_info.dart';
+import '../state/acoustic_input_access.dart';
 import '../state/audio_routing.dart';
+import '../state/player_input_source.dart';
 import '../state/coaching_notifier.dart';
 import '../state/drum_kit.dart';
 import '../state/notation_notifier.dart';
@@ -41,6 +43,7 @@ import '../widgets/otg_guidance.dart';
 import 'drum_calibration_screen.dart';
 import 'midi_monitor_screen.dart';
 import '../widgets/setting_option_row.dart';
+import '../widgets/input_calibration_section.dart';
 import '../widgets/sound_output_section.dart';
 import '../widgets/sound_selector_field.dart';
 
@@ -277,7 +280,7 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
         : null;
     final metronome = _metronomeTile(l10n);
     final tempo = _tempoTile(l10n, data);
-    final midi = _midiSection(l10n, data);
+    final midi = _inputSection(l10n, data);
     // Where the app's audio goes (change: add-audio-output-routing). Unlike the
     // drafted settings around it, this one applies immediately: the point of
     // picking an output is hearing the change.
@@ -969,6 +972,59 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
             ),
           ],
         ),
+      ],
+    );
+  }
+
+  /// The input section (change: add-acoustic-piano-input): without the flag,
+  /// exactly the historical MIDI section; with it, a source selector on top,
+  /// and the microphone source swaps the port picker for the capture route +
+  /// calibration — the same spot a player looks for "what is listening".
+  Widget _inputSection(AppLocalizations l10n, PlayerData data) {
+    if (!ref.watch(acousticInputEnabledProvider)) {
+      return _midiSection(l10n, data);
+    }
+    final source = ref.watch(effectivePlayerInputSourceProvider);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _sectionTitle(l10n.inputSourceTitle),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: CymbraColors.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<PlayerInputSource>(
+              key: const Key('input-source'),
+              isExpanded: true,
+              value: source,
+              dropdownColor: CymbraColors.surfaceContainerHigh,
+              iconEnabledColor: CymbraColors.onSurfaceVariant,
+              style: const TextStyle(color: CymbraColors.onSurface),
+              items: [
+                DropdownMenuItem(
+                  value: PlayerInputSource.midi,
+                  child: Text(l10n.inputSourceMidi),
+                ),
+                DropdownMenuItem(
+                  value: PlayerInputSource.microphone,
+                  child: Text(l10n.inputSourceMicrophone),
+                ),
+              ],
+              onChanged: (v) {
+                if (v != null) {
+                  ref.read(storedInputSourceProvider.notifier).select(v);
+                }
+              },
+            ),
+          ),
+        ),
+        if (source == PlayerInputSource.microphone)
+          InputCalibrationSection(title: _sectionTitle)
+        else
+          _midiSection(l10n, data),
       ],
     );
   }

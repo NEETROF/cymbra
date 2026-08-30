@@ -582,6 +582,21 @@ abstract class PlayerData with _$PlayerData {
     /// either way.
     @Default(false) bool instrumentSoundsItself,
 
+    /// Whether this session's input source is the microphone (change:
+    /// add-acoustic-piano-input), seeded and kept in sync from the effective
+    /// input source. An acoustic instrument sounds itself by definition, so
+    /// live-event synthesis is suppressed **inherently** — independent of the
+    /// [instrumentSoundsItself] setting, which stays a MIDI-scoped choice.
+    /// Everything else — the on-screen keyboard, score playback, metronome,
+    /// scoring, Wait Mode — is untouched, exactly as with that setting.
+    @Default(false) bool usesMicrophoneInput,
+
+    /// Set when starting scored free-run play with the microphone was refused
+    /// and the session was steered to Wait Mode instead (spec: Free-Run Gated
+    /// On Measured Latency) — consumed by a listener widget that shows the
+    /// localized explanation, then acknowledged. Never a silent degradation.
+    @Default(false) bool micSteeredToWaitMode,
+
     /// Whether the app stops sounding the **written score** (change:
     /// add-practice-focus-controls), seeded from the persisted play
     /// preferences. The counterpart of [instrumentSoundsItself] on the other
@@ -623,7 +638,8 @@ abstract class PlayerData with _$PlayerData {
   /// instrument-sounds-itself rule: everything else the note triggers — scoring,
   /// key feedback, the Wait Mode gate — runs regardless of what this returns.
   bool synthesizes(NoteSource source) =>
-      !(instrumentSoundsItself && source == NoteSource.midiDevice);
+      !((instrumentSoundsItself || usesMicrophoneInput) &&
+          source == NoteSource.midiDevice);
 
   /// The score position the player is **hearing** right now — the playhead
   /// shifted back by [outputOffsetMs] (change: add-audio-output-routing).

@@ -15,9 +15,11 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart' show mapEquals, setEquals;
+import 'package:flutter/widgets.dart' show AppLifecycleListener;
 
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../services/audio_capture_service.dart';
 import '../services/audio_service.dart';
 import '../services/midi_service.dart';
 import '../src/rust/api/midi.dart';
@@ -32,6 +34,9 @@ import 'drum_input_mapping.dart';
 import 'drum_input_mapping_notifier.dart';
 import 'drum_kit.dart';
 import 'player_data.dart';
+import 'input_calibration_notifier.dart';
+import 'performance_scoring_core.dart';
+import 'player_input_source.dart';
 import 'score_font.dart';
 import 'notation_playback.dart';
 import 'player_preferences.dart';
@@ -92,7 +97,27 @@ class Player extends _$Player {
     // Listened, not watched: this notifier must not rebuild — and reset the
     // playhead — because a mapping was saved.
     ref.listen(drumInputMappingStoreProvider, (_, _) => _applyMapping());
+    // The input source deciding what feeds this player (change:
+    // add-acoustic-piano-input). Listened, not watched: switching sources must
+    // not rebuild the notifier and reset the playhead.
+    ref.listen(
+      effectivePlayerInputSourceProvider,
+      (_, next) => _applyInputSource(next),
+    );
+    final capture = ref.read(audioCaptureServiceProvider);
+    // Backgrounding closes the capture session app-wide (main.dart's
+    // lifecycle observer); on resume the player re-opens it if it still wants
+    // it — the flag reset makes the next sync re-assert instead of no-op.
+    final lifecycle = AppLifecycleListener(
+      onResume: () {
+        if (_captureSessionActive) {
+          _captureSessionActive = false;
+          _syncCaptureSession();
+        }
+      },
+    );
     ref.onDispose(() {
+      lifecycle.dispose();
       _statusTimer?.cancel();
       _sub?.cancel();
       // The player screen is gone: the engine must stop sounding live notes on
@@ -105,6 +130,15 @@ class Player extends _$Player {
       // note ringing in the audio pipeline. Use the captured reference (not
       // ref.read) since the container is disposing.
       audio.allNotesOff();
+      // The player is the only consumer of acoustic detection: leaving it
+      // closes the microphone (spec: Microphone Capture Lifecycle).
+      if (_captureSessionActive) {
+        _captureSessionActive = false;
+        try {
+          capture.stopDetection();
+          unawaited(capture.endCapture());
+        } catch (_) {}
+      }
     });
     _loadInitial();
     // Seed from the device-persisted play preferences so hands / speed /
@@ -132,6 +166,9 @@ class Player extends _$Player {
       keyboardRange: prefs.keyboardRange,
       readingAid: prefs.readingAid,
       instrumentSoundsItself: prefs.instrumentSoundsItself,
+      usesMicrophoneInput:
+          ref.read(effectivePlayerInputSourceProvider) ==
+          PlayerInputSource.microphone,
       scoreAudioMuted: prefs.scoreAudioMuted,
       outputOffsetMs: prefs.outputOffsetMs,
       invertedKit: prefs.invertedKit,
@@ -256,6 +293,9 @@ class Player extends _$Player {
       speed: s.speed,
       notes: s.visibleNotes,
       percussion: s.isPercussion,
+      // An audio-sourced run excludes sustain and stamps its record (change:
+      // add-acoustic-piano-input).
+      acousticInput: s.usesMicrophoneInput,
     );
   }
 
@@ -486,6 +526,10 @@ class Player extends _$Player {
     // is a statement about pieces, so it is inert on a keyboard score. This is
     // also the first push, once `state` exists to name a device.
     _applyMapping();
+    // A new score can open or close the acoustic session (percussion never
+    // captures) and always resets the expected window.
+    _syncCaptureSession();
+    _pushExpectedPitches();
   }
 
   Future<void> _loadDemo() async {
@@ -728,7 +772,7 @@ class Player extends _$Player {
     // onset or records an extra note (a no-op when no run is active). Presses
     // made during the pre-start countdown are warm-ups and are not scored.
     if (state.countdownMs <= 0) {
-      _scorer.noteOn(pitch, state.clocks, waitMode: state.waitMode);
+      _scorer.noteOn(pitch, _judged(state.clocks), waitMode: state.waitMode);
     }
   }
 
@@ -838,7 +882,7 @@ class Player extends _$Player {
         consumedHeld: {...state.consumedHeld}..remove(pitch),
       );
     }
-    _scorer.noteOff(pitch, state.clocks);
+    _scorer.noteOff(pitch, _judged(state.clocks));
   }
 
   // --- Playback controls ------------------------------------------------
@@ -848,6 +892,17 @@ class Player extends _$Player {
   // is open and restore the prior state when it closes).
   void setPlaying(bool playing) {
     final wasPlaying = state.isPlaying;
+    // Scored free-run needs a measured, window-compatible input chain on the
+    // microphone source (spec: Free-Run Gated On Measured Latency): steer to
+    // Wait Mode — with copy via [PlayerData.micSteeredToWaitMode], never a
+    // silent degradation of scores.
+    if (playing &&
+        state.usesMicrophoneInput &&
+        !state.waitMode &&
+        !state.isPercussion &&
+        ref.read(micFreeRunGateProvider) != MicFreeRunGate.ok) {
+      state = state.copyWith(waitMode: true, micSteeredToWaitMode: true);
+    }
     // Stopping silences any voices and cancels any pending countdown.
     if (!playing) _silenceAll();
     state = state.copyWith(
@@ -1255,7 +1310,7 @@ class Player extends _$Player {
         // no fresh attack — credit the scorer for it (reaction ≈ 0) so it is not
         // later marked missed.
         for (final p in heldDue) {
-          _scorer.noteOn(p, s.clocks, waitMode: true);
+          _scorer.noteOn(p, _judged(s.clocks), waitMode: true);
         }
       }
     }
@@ -1299,7 +1354,7 @@ class Player extends _$Player {
         // Credit the scorer for the stroke it already saw as an extra note's
         // worth of nothing: it answered this onset, just before it opened.
         for (final p in earlyDue) {
-          _scorer.noteOn(p, s.clocks, waitMode: true);
+          _scorer.noteOn(p, _judged(s.clocks), waitMode: true);
         }
       }
     }
@@ -1466,5 +1521,100 @@ class Player extends _$Player {
       _scorer.finishRun(s.clocksAt(next), waitMode: s.waitMode);
       state = state.copyWith(isPlaying: false);
     }
+
+    // The score-informed detector follows the playhead (change:
+    // add-acoustic-piano-input). Guarded to a set-difference: a no-change
+    // frame costs one comparison, not an FFI call.
+    _pushExpectedPitches();
+  }
+
+  // --- Acoustic capture session (change: add-acoustic-piano-input) -------
+
+  /// Whether this notifier currently holds the capture session open.
+  bool _captureSessionActive = false;
+
+  /// The last expected-pitch window pushed to the engine.
+  Set<int> _lastExpected = const {};
+
+  /// The clocks a live attack/release is judged on: shifted earlier by the
+  /// measured input offset plus the detector's confirmation window on an
+  /// audio-sourced session (delta spec: Measured Input Offset Applied To
+  /// Audio-Sourced Attacks), bit-identical for every other source. An
+  /// uncalibrated route still gets the confirmation-window share — the part
+  /// of the chain the engine knows without measuring.
+  ScoreClocks _judged(ScoreClocks clocks) {
+    if (!state.usesMicrophoneInput) return clocks;
+    final measured = ref.read(measuredInputOffsetMsProvider) ?? 0;
+    return shiftClocksForInput(clocks, measured + kDetectionConfirmMs);
+  }
+
+  /// The steer message was shown; drop the flag (its listener calls this).
+  void acknowledgeMicSteer() =>
+      state = state.copyWith(micSteeredToWaitMode: false);
+
+  void _applyInputSource(PlayerInputSource source) {
+    state = state.copyWith(
+      usesMicrophoneInput: source == PlayerInputSource.microphone,
+    );
+    // The source decides who sounds a live note: acoustic sessions synthesize
+    // nothing for the instrument (it sounds itself), so the engine echo must
+    // learn the new answer at the same instant.
+    _applyEcho();
+    _syncCaptureSession();
+  }
+
+  /// Opens or closes the capture session to match the state: microphone
+  /// source, a loaded **non-percussion** score (detecting drums with a
+  /// microphone is out of scope), and the player alive. Idempotent.
+  void _syncCaptureSession() {
+    final wants =
+        state.usesMicrophoneInput &&
+        !state.isPercussion &&
+        state.notes.isNotEmpty;
+    if (wants == _captureSessionActive) return;
+    _captureSessionActive = wants;
+    final capture = ref.read(audioCaptureServiceProvider);
+    if (wants) {
+      unawaited(
+        capture.beginCapture().then((ok) {
+          if (!ok) {
+            _captureSessionActive = false;
+            return;
+          }
+          capture.startDetection();
+          _lastExpected = const {};
+          _pushExpectedPitches();
+        }),
+      );
+    } else {
+      capture.stopDetection();
+      unawaited(capture.endCapture());
+      _lastExpected = const {};
+    }
+  }
+
+  /// Pushes the score's active window to the presence stage: the shared
+  /// expected set ([PlayerData.expectedKeys] — the Wait gate / playhead
+  /// notes), widened in free run by the onsets the binding tolerance lets a
+  /// player attack early. Only on change, and only while the session is open.
+  void _pushExpectedPitches() {
+    if (!_captureSessionActive) return;
+    final s = state;
+    final expected = <int>{...s.expectedKeys};
+    if (!s.waitMode) {
+      for (final n in s.visibleNotes) {
+        if ((n.startMs - s.elapsedMs).abs() <= 300) expected.add(n.pitch);
+      }
+    }
+    if (expected.length == _lastExpected.length &&
+        expected.containsAll(_lastExpected)) {
+      return;
+    }
+    _lastExpected = expected;
+    try {
+      ref
+          .read(audioCaptureServiceProvider)
+          .setExpectedPitches(expected.toList()..sort());
+    } catch (_) {}
   }
 }

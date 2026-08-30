@@ -24,6 +24,13 @@
 	<true/>
 	<key>com.apple.security.files.user-selected.read-only</key>
 	<true/>
+	<!-- Acoustic piano input (change: add-acoustic-piano-input): microphone
+	     capture under App Sandbox. Keep IDENTICAL in both entitlement files —
+	     and re-verify on the store archive export, which has previously
+	     re-signed with stripped entitlements (see memory: macOS App Store
+	     publishing). -->
+	<key>com.apple.security.device.audio-input</key>
+	<true/>
 	<!-- flutter_secure_storage needs an explicit access group to reach the keychain
 	     under App Sandbox; without it a signed sandboxed build loses its session
 	     token on every launch. Must stay identical in DebugProfile.entitlements —

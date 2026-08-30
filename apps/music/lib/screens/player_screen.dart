@@ -49,6 +49,7 @@ import '../state/coaching_notifier.dart';
 import '../widgets/kit_piece_labels.dart';
 import '../widgets/coach_mark.dart';
 import '../widgets/countdown_overlay.dart';
+import '../widgets/mic_free_run_listener.dart';
 import '../widgets/mistake_replay.dart';
 import '../widgets/notation_help_area.dart';
 import '../widgets/play_reward_listeners.dart';
@@ -405,7 +406,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
           percussion: ref.watch(
             playerProvider.select((PlayerData d) => d.isPercussion),
           ),
-          child: PlayRewardListeners(child: _buildPlayer(context)),
+          child: MicFreeRunListener(
+            child: PlayRewardListeners(child: _buildPlayer(context)),
+          ),
         ),
       ),
     );

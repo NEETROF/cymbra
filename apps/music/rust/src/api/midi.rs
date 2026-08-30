@@ -257,6 +257,19 @@ fn open_connections() -> usize {
     CONNECTIONS.lock().unwrap().len()
 }
 
+/// Pushes a detection-sourced event into the live event stream (change:
+/// add-acoustic-piano-input). Acoustic detection produces the same normalized
+/// events the MIDI path does and enters through the same sink, so every
+/// downstream consumer stays source-blind. Deliberately NOT routed through
+/// the echo: a detected note is the acoustic instrument sounding itself, and
+/// re-synthesizing it would both duplicate the sound and feed it back into
+/// the microphone.
+pub(crate) fn emit_detected(event: MidiEvent) {
+    if let Some(sink) = SINK.lock().unwrap().as_ref() {
+        let _ = sink.add(event);
+    }
+}
+
 /// Starts MIDI watching and streams NoteOn/NoteOff into `sink`.
 ///
 /// The thread connects to the first available port, reconnects on hot-plug,

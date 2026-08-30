@@ -35,6 +35,12 @@ pub const ONBOARDING_ENABLED: &str = "onboarding.enabled";
 /// path that can disclose or accept a percussion score.
 pub const DRUMS_ENABLED: &str = "drums.enabled";
 
+/// Acoustic piano input over the microphone (change:
+/// add-acoustic-piano-input). Staff + a beta campaign during the proof of
+/// concept; while off for a caller, the app shows no microphone surface and
+/// never requests the microphone permission.
+pub const ACOUSTIC_INPUT_ENABLED: &str = "acoustic_input.enabled";
+
 /// Shared cross-app kill-switch: when on, apps show an "under maintenance" state.
 pub const PLATFORM_MAINTENANCE: &str = "platform.maintenance";
 
@@ -315,6 +321,13 @@ pub fn builtin() -> Vec<KeyDef> {
             false,
             false,
             "MIDI drums: percussion scores are visible/acceptable for the caller.",
+        ),
+        flag(
+            ACOUSTIC_INPUT_ENABLED,
+            APP_MUSIC,
+            false,
+            false,
+            "Acoustic piano input: the microphone input source is visible for the caller.",
         ),
         flag(
             ONBOARDING_ENABLED,
