@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, nextTick, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { match } from "ts-pattern";
 import { useTakedownsStore } from "@/stores/takedowns";
-import { t } from "@/i18n";
 import type { AdminUserScore } from "@/gen/score_pb";
 
 // Private-score takedown (change: add-private-score-catalog). The view only
@@ -10,6 +10,7 @@ import type { AdminUserScore } from "@/gen/score_pb";
 // behind the injectable client seam. Removal is irreversible, so it is gated on
 // an explicit confirmation that names the consequence AND a non-empty reason.
 
+const { t } = useI18n();
 const store = useTakedownsStore();
 
 const ownerId = ref("");
@@ -17,9 +18,17 @@ const title = ref("");
 const target = ref<AdminUserScore | null>(null);
 const reason = ref("");
 
-function openConfirm(score: AdminUserScore) {
+/** The reason field, focused when the dialog opens. Focus has to move INTO the
+ *  dialog: it puts the cursor on the one thing the operator must fill, and it is
+ *  what makes Escape reach the dialog's own handler (a keydown on the trigger
+ *  button would never get there). */
+const reasonInput = ref<HTMLInputElement | null>(null);
+
+async function openConfirm(score: AdminUserScore) {
   target.value = score;
   reason.value = "";
+  await nextTick();
+  reasonInput.value?.focus();
 }
 
 async function confirmRemoval() {
@@ -28,6 +37,10 @@ async function confirmRemoval() {
   await store.remove(score.id, reason.value);
   target.value = null;
 }
+
+/** A removal in flight: the dialog stays up but inert, so a second click cannot
+ *  fire the same irreversible action twice. */
+const acting = computed(() => store.op.status === "loading");
 
 function formatDate(seconds: bigint): string {
   return new Date(Number(seconds) * 1000).toLocaleDateString();
@@ -117,21 +130,31 @@ const opVm = computed(() =>
     </template>
 
     <!-- Irreversible action: the dialog states the consequence and the reason is
-         mandatory (it is what the audit trail records). -->
-    <dialog v-if="target" open class="confirm">
-      <h2>{{ t("takedowns.confirmTitle") }}</h2>
-      <p>{{ t("takedowns.confirmBody") }}</p>
-      <label>
-        {{ t("takedowns.reason") }}
-        <input v-model="reason" type="text" />
-      </label>
-      <div class="actions">
-        <button type="button" @click="target = null">{{ t("common.cancel") }}</button>
-        <button type="button" class="danger" :disabled="!reason.trim()" @click="confirmRemoval">
-          {{ t("takedowns.confirm") }}
-        </button>
-      </div>
-    </dialog>
+         mandatory (it is what the audit trail records). Asked in-app, never
+         `window.confirm` — a native dialog blocks the renderer and is out of reach
+         of the e2e suite. Same shape as the Plans console's reason modal. -->
+    <div v-if="target" class="overlay" @click.self="target = null">
+      <dialog class="modal" open aria-modal="true" @keydown.esc="target = null">
+        <h2>{{ t("takedowns.confirmTitle") }}</h2>
+        <p>{{ t("takedowns.confirmBody") }}</p>
+        <label>
+          {{ t("takedowns.reason") }}
+          <input
+            ref="reasonInput"
+            v-model="reason"
+            type="text"
+            :aria-label="t('takedowns.reason')"
+            :disabled="acting"
+          />
+        </label>
+        <div class="modal-actions">
+          <button type="button" class="btn-primary danger" :disabled="acting || !reason.trim()" @click="confirmRemoval">
+            {{ t("takedowns.confirm") }}
+          </button>
+          <button type="button" :disabled="acting" @click="target = null">{{ t("common.cancel") }}</button>
+        </div>
+      </dialog>
+    </div>
   </section>
 </template>
 
@@ -152,14 +175,49 @@ const opVm = computed(() =>
 .error {
   color: var(--color-error, #b3261e);
 }
-.confirm {
-  border: 1px solid var(--color-border, #ccc);
-  padding: 1rem;
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 90;
+  display: grid;
+  place-items: center;
 }
-.actions {
+.modal {
+  position: static;
+  width: min(480px, 94vw);
+  margin: 0;
+  background: var(--panel, #1a1a24);
+  color: inherit;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.35rem 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+.modal h2 {
+  font-size: 1.05rem;
+  margin: 0;
+}
+.modal p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+.modal label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.modal input {
+  width: 100%;
+}
+.modal-actions {
   display: flex;
   gap: 0.5rem;
-  justify-content: flex-end;
-  margin-top: 0.75rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.9rem;
 }
 </style>

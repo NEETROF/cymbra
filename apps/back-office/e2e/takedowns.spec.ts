@@ -64,6 +64,31 @@ test.describe("private-score takedown", () => {
     await expect(page.getByText("Reported Piece")).toHaveCount(0);
   });
 
+  test("the dialog can be dismissed without removing anything", async ({ page }) => {
+    await seed(page, { loginAs: "admin", data: { userScores } });
+    await page.goto("/takedowns");
+    await page.getByLabel("Owner id").fill("u-ada");
+    await page.getByRole("button", { name: "Search" }).click();
+    await expect(page.getByText("Reported Piece")).toBeVisible();
+
+    const dialog = page.getByRole("heading", { name: "Remove this score?" });
+
+    // Escape backs out — the score is untouched.
+    await page.getByRole("button", { name: "Remove", exact: true }).click();
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+
+    // Clicking the backdrop backs out too.
+    await page.getByRole("button", { name: "Remove", exact: true }).click();
+    await expect(dialog).toBeVisible();
+    await page.locator(".overlay").click({ position: { x: 5, y: 5 } });
+    await expect(dialog).toBeHidden();
+
+    // Neither dismissal removed the row.
+    await expect(page.getByText("Reported Piece")).toBeVisible();
+  });
+
   test("a moderator never reaches the screen", async ({ page }) => {
     await seed(page, { loginAs: "moderator", data: { userScores } });
     await page.goto("/takedowns");
