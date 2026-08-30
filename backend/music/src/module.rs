@@ -3644,8 +3644,10 @@ mod tests {
         owner: &str,
         title: &str,
     ) -> UserScore {
-        let mut meta = ScoreMeta::default();
-        meta.title = Some(title.into());
+        let meta = ScoreMeta {
+            title: Some(title.into()),
+            ..Default::default()
+        };
         let s = UserScore {
             id: id.into(),
             owner_id: owner.into(),

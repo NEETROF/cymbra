@@ -3538,8 +3538,10 @@ mod tests {
     #[tokio::test]
     async fn takedown_handlers_require_a_music_scope_admin() {
         let (g, _cols, admin, store) = grpc_with_collections();
-        let mut meta = crate::repo::ScoreMeta::default();
-        meta.title = Some("Reported".into());
+        let meta = crate::repo::ScoreMeta {
+            title: Some("Reported".into()),
+            ..Default::default()
+        };
         let seeded = UserScore {
             id: "s1".into(),
             owner_id: "u1".into(),
@@ -3591,8 +3593,10 @@ mod tests {
     #[tokio::test]
     async fn takedown_removal_is_admin_only_needs_a_reason_and_audits_the_caller() {
         let (g, _cols, admin, store) = grpc_with_collections();
-        let mut meta = crate::repo::ScoreMeta::default();
-        meta.title = Some("Reported".into());
+        let meta = crate::repo::ScoreMeta {
+            title: Some("Reported".into()),
+            ..Default::default()
+        };
         let seeded = UserScore {
             id: "s1".into(),
             owner_id: "u1".into(),

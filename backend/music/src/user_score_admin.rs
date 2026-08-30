@@ -117,7 +117,7 @@ impl UserScoreAdminRepo for FakeUserScoreAdminRepo {
             })
             .cloned()
             .collect();
-        hits.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+        hits.sort_by_key(|s| std::cmp::Reverse(s.created_at));
         Ok(hits
             .into_iter()
             .skip(offset.max(0) as usize)

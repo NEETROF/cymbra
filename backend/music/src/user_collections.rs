@@ -178,7 +178,7 @@ impl UserCollectionRepo for FakeUserCollectionRepo {
             .filter(|r| r.owner_id == owner_id)
             .cloned()
             .collect();
-        mine.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+        mine.sort_by_key(|c| std::cmp::Reverse(c.created_at));
         Ok(mine)
     }
 
@@ -226,7 +226,7 @@ impl UserCollectionRepo for FakeUserCollectionRepo {
             .iter()
             .filter(|(c, _, _)| c == collection_id)
             .collect();
-        mine.sort_by(|a, b| b.2.cmp(&a.2));
+        mine.sort_by_key(|(_, _, seq)| std::cmp::Reverse(*seq));
         Ok(mine.iter().map(|(_, s, _)| s.clone()).collect())
     }
 }
