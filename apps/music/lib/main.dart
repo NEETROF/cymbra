@@ -34,6 +34,7 @@ import 'state/foreground_notification_listener.dart';
 import 'state/language_sync_listener.dart';
 import 'state/push_registration_listener.dart';
 import 'state/score_preview_playback.dart';
+import 'state/selected_audio_input.dart';
 import 'state/selected_piano.dart';
 import 'state/acoustic_input_access.dart';
 import 'state/drums_access.dart';
@@ -103,6 +104,11 @@ Future<void> main() async {
   // sound of the session already goes where the user sent it — not only once
   // the sound-output section has been opened.
   container.read(audioRoutingProvider);
+
+  // And the chosen capture input (change: add-acoustic-piano-input): restoring
+  // it here means the first capture of the session already opens the pinned
+  // device, not only once the input section has been visited.
+  container.read(selectedAudioInputProvider);
 
   // Fetch the caller's effective feature flags on launch (identity-scoped,
   // flicker-free from the persisted cache); the observer refreshes on resume.

@@ -19,6 +19,7 @@ import '../l10n/gen/app_localizations.dart';
 import '../services/audio_capture_service.dart';
 import '../src/rust/api/audio_input.dart' show InputRouteKind;
 import '../state/input_calibration_notifier.dart';
+import '../state/selected_audio_input.dart';
 
 /// "Microphone calibration" (change: add-acoustic-piano-input): the active
 /// capture route, the stored measurement for it, and the run button. Every
@@ -56,6 +57,34 @@ class InputCalibrationSection extends ConsumerWidget {
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ),
+        if (ref.watch(selectedAudioInputProvider) case final devices
+            when devices.supportsSelection && devices.inputs.isNotEmpty) ...[
+          DropdownButtonHideUnderline(
+            child: DropdownButton<String?>(
+              key: const Key('input-device'),
+              isExpanded: true,
+              // A pinned device that is gone right now presents as the system
+              // default — the engine applies the same fallback at open time.
+              value: devices.inputs.any((i) => i.name == devices.selected)
+                  ? devices.selected
+                  : null,
+              items: [
+                DropdownMenuItem<String?>(
+                  value: null,
+                  child: Text(l10n.inputDeviceSystemDefault),
+                ),
+                for (final input in devices.inputs)
+                  DropdownMenuItem<String?>(
+                    value: input.name,
+                    child: Text(input.name),
+                  ),
+              ],
+              onChanged: (v) =>
+                  ref.read(selectedAudioInputProvider.notifier).select(v),
+            ),
+          ),
+          const SizedBox(height: 4),
+        ],
         Row(
           children: [
             Expanded(

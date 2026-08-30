@@ -23,6 +23,7 @@ import '../analytics/usage_actions.dart';
 import '../services/audio_capture_service.dart';
 import '../services/preferences_service.dart';
 import 'performance_scoring_core.dart';
+import 'selected_audio_input.dart';
 import 'usage_tracking_notifier.dart';
 
 part 'input_calibration_notifier.freezed.dart';
@@ -91,6 +92,10 @@ class InputCalibration extends _$InputCalibration {
     final service = ref.watch(audioCaptureServiceProvider);
     _routeSub?.cancel();
     _routeSub = service.routeChanges().listen(_onRouteChanged);
+    // A desktop device selection changes what capture would open, and the
+    // platform pushes nothing there — react to the selection provider instead
+    // (rule: listen and update self, never poke a sibling).
+    ref.listen(selectedAudioInputProvider, (_, _) => _refreshRoute());
     ref.onDispose(() {
       _routeSub?.cancel();
       _routeSub = null;
@@ -118,6 +123,14 @@ class InputCalibration extends _$InputCalibration {
       route = await ref.read(audioCaptureServiceProvider).activeRoute();
     } catch (_) {}
     state = state.copyWith(stored: stored, route: route, hydrated: true);
+  }
+
+  Future<void> _refreshRoute() async {
+    try {
+      _onRouteChanged(
+        await ref.read(audioCaptureServiceProvider).activeRoute(),
+      );
+    } catch (_) {}
   }
 
   void _onRouteChanged(CaptureRoute? route) {

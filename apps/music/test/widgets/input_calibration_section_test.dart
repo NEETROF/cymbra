@@ -48,6 +48,7 @@ void main() {
     WidgetTester tester, {
     CaptureRoute? route = builtin,
     Map<String, String>? seeded,
+    bool stubSelection = false,
   }) async {
     service = MockAudioCaptureService();
     when(
@@ -57,6 +58,18 @@ void main() {
     when(
       service.permissionStatus(),
     ).thenAnswer((_) async => InputPermissionStatus.granted);
+    if (stubSelection) {
+      const scarlett = CaptureRoute(
+        name: 'Scarlett 2i2',
+        kind: InputRouteKind.other,
+        refusedBluetooth: false,
+      );
+      when(service.supportsDeviceSelection).thenReturn(true);
+      when(
+        service.listInputs(),
+      ).thenAnswer((_) async => const [builtin, scarlett]);
+      when(service.selectInput(any)).thenAnswer((_) async {});
+    }
     final container = ProviderContainer(
       overrides: [
         audioCaptureServiceProvider.overrideWithValue(service),
@@ -141,6 +154,28 @@ void main() {
       find.textContaining('Allow it in your system settings'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('desktop shows the device picker and applies a choice', (
+    tester,
+  ) async {
+    await pumpSection(tester, stubSelection: true);
+
+    expect(find.byKey(const Key('input-device')), findsOneWidget);
+    expect(find.text('System default'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('input-device')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Scarlett 2i2').last);
+    await tester.pumpAndSettle();
+
+    verify(service.selectInput('Scarlett 2i2')).called(1);
+  });
+
+  testWidgets('mobile offers no device picker', (tester) async {
+    await pumpSection(tester);
+
+    expect(find.byKey(const Key('input-device')), findsNothing);
   });
 
   testWidgets('an undetected run shows the environment guidance', (

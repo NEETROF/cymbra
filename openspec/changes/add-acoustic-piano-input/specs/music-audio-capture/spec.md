@@ -134,6 +134,32 @@ reference sound SHALL end with localized guidance, never an indefinite wait.
 - **THEN** consumers see no measured value for the new route and calibration
   is offered again
 
+### Requirement: Desktop Capture Device Selection
+
+The system SHALL let the user choose the capture input device on desktop —
+where the engine owns the device — from the enumerated list or follow the
+system default; the selection SHALL persist across restarts, SHALL apply to a
+capture already running, and SHALL fall back to the system default — never
+fail — when the chosen device is absent. On mobile platforms the OS owns the
+input route and no device list is offered.
+
+#### Scenario: A chosen input device captures
+
+- **WHEN** the user selects an enumerated input device on desktop
+- **THEN** capture (current and future) acquires from that device, and the
+  choice is restored on the next launch
+
+#### Scenario: An absent device falls back to the default
+
+- **WHEN** the persisted input device is not present at capture time
+- **THEN** capture opens the system default input instead of failing
+
+#### Scenario: Mobile offers no device list
+
+- **WHEN** the platform is iOS or Android
+- **THEN** no input-device picker is offered; the active route is reported as
+  the OS resolves it
+
 ### Requirement: Injectable Capture Seam
 
 The system SHALL expose capture — device lifecycle, route classification,
