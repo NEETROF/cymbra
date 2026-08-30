@@ -1,0 +1,36 @@
+# Shared desktop-update manifest contract (change: add-desktop-auto-update).
+#
+# ONE definition of the signed release envelope, used by the CI signing binary
+# and by the backend ingest handler that re-verifies before storing. Deliberately
+# free of any backend dependency: the crate is the contract, not a service.
+[package]
+name = "cymbra-update-manifest"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+publish = false
+description = "Cymbra desktop update manifest: envelope types, Ed25519 signing and verification over the exact manifest bytes."
+
+[dependencies]
+serde = { workspace = true }
+serde_json.workspace = true
+base64.workspace = true
+ed25519-dalek = { workspace = true }
+thiserror.workspace = true
+rand_core = { version = "0.6", features = ["getrandom"] }
+
+[dev-dependencies]
+serde_json.workspace = true
+
+# Generates a release keypair. The private key NEVER enters the repository: it is
+# stored as the `DESKTOP_UPDATE_SIGNING_KEY` GitHub Actions secret.
+[[bin]]
+name = "update-keygen"
+path = "src/bin/keygen.rs"
+
+# CI signing binary (task 6.1): builds the manifest from the release artifacts
+# and emits the signed envelope on stdout.
+[[bin]]
+name = "update-sign"
+path = "src/bin/sign.rs"

@@ -39,6 +39,10 @@ cymbra-analytics = { path = "../analytics" }
 # Push-notification platform (token registry / consent / timezone RPCs; change:
 # add-push-notifications).
 cymbra-notifications = { path = "../notifications" }
+# Desktop update feed (change: add-desktop-auto-update): the release store and
+# the shared manifest contract the ingest handler re-verifies against.
+cymbra-updates = { path = "../updates" }
+cymbra-update-manifest = { path = "../../crates/update-manifest" }
 async-trait.workspace = true
 uuid.workspace = true
 tokio.workspace = true
@@ -71,6 +75,11 @@ cymbra-user-port = { path = "../user-port", features = ["mock"] }
 # The usage-count seams (`MockUsageCountsRepo` & co.) for the leaving route tests
 # (change: add-lingua-usage-counts).
 cymbra-lingua = { path = "../lingua", features = ["mock"] }
+# Double the release store when testing the update-feed handlers.
+cymbra-updates = { path = "../updates", features = ["mock"] }
+# Sign fixture envelopes in the update-feed handler tests.
+ed25519-dalek = { workspace = true }
+base64.workspace = true
 mockall.workspace = true
 # `ServiceExt::oneshot` drives the Axum router in web-auth handler tests (no socket).
 tower.workspace = true

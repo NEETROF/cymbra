@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "product": "music",
+  "channel": "stable",
+  "version": "1.25.0+34",
+  "released_at": "2026-08-21T10:00:00Z",
+  "min_supported_version": "1.20.0+27",
+  "notes_url": "https://github.com/NEETROF/cymbra/releases/tag/music-v1.25.0",
+  "targets": {
+    "linux-x64": {
+      "kind": "appimage",
+      "url": "https://example.invalid/CymbraMusic-1.25.0-x86_64.AppImage",
+      "size": 52428800,
+      "sha256": "c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f9"
+    },
+    "windows-x64": {
+      "kind": "inno-setup",
+      "url": "https://example.invalid/cymbra-music-1.25.0-setup.exe",
+      "size": 48123904,
+      "sha256": "3b1f2c9d4e5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f90a1b2"
+    }
+  }
+}

@@ -37,8 +37,10 @@ psql -v ON_ERROR_STOP=1 \
   -v lingua_pw="${CYMBRA_LINGUA_DB_PASSWORD:-lingua_dev_pw}" \
   -v jobs_admin_role="${CYMBRA_JOBS_ADMIN_DB_ROLE:-jobs_admin_svc}" \
   -v jobs_admin_pw="${CYMBRA_JOBS_ADMIN_DB_PASSWORD:-jobs_admin_dev_pw}" \
+  -v updates_role="${CYMBRA_UPDATES_DB_ROLE:-updates_svc}" \
+  -v updates_pw="${CYMBRA_UPDATES_DB_PASSWORD:-updates_dev_pw}" \
   -v admin_role="${CYMBRA_ADMIN_DB_ROLE:-admin_svc}" \
   -v admin_pw="${CYMBRA_ADMIN_DB_PASSWORD:-admin_dev_pw}" \
   -f "$TEMPLATE"
 
-echo "cymbra: roles + schemas bootstrapped (auth_svc, user_svc, music_svc, worker_svc, flags_svc, analytics_svc, plans_svc, lingua_svc, jobs_admin_svc, admin_svc)"
+echo "cymbra: roles + schemas bootstrapped (auth_svc, user_svc, music_svc, worker_svc, flags_svc, analytics_svc, plans_svc, lingua_svc, jobs_admin_svc, updates_svc, admin_svc)"

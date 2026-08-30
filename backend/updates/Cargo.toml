@@ -1,0 +1,28 @@
+[package]
+name = "cymbra-updates"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Cymbra desktop update feed — stores CI-signed release manifests and answers which one is servable per product/channel (change: add-desktop-auto-update). Owns the `app_updates` schema."
+
+[dependencies]
+async-trait.workspace = true
+sqlx.workspace = true
+chrono.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+serde = { workspace = true }
+serde_json.workspace = true
+# The shared manifest contract: ingest re-verifies the signature before storing.
+cymbra-update-manifest = { path = "../../crates/update-manifest" }
+# Doubles for the release repository in the server's handler tests
+# (rust-testing default). Gated so mocks never ship in release.
+mockall = { workspace = true, optional = true }
+
+[features]
+mock = ["dep:mockall"]
+
+[dev-dependencies]
+mockall = { workspace = true }
+tokio = { workspace = true }
