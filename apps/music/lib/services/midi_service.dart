@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -109,9 +110,32 @@ class FrbMidiService implements MidiService {
   /// the last screen leaves would only mean re-registering it on the next one.
   static Stream<MidiEvent>? _shared;
 
+  /// How the one engine stream is opened.
+  ///
+  /// Behind a seam **only so the fan-out itself can be asserted**: the real
+  /// opener reaches the native library through the bridge, which a VM unit test
+  /// has no way to load, so without this the one property that matters here —
+  /// that a second `events()` joins the first rather than replacing it — could
+  /// only ever be observed indirectly, through two consumers of a fake service
+  /// that was already broadcast for its own reasons.
+  ///
+  /// Production never touches it; nothing outside a test may assign it.
+  @visibleForTesting
+  static Stream<MidiEvent> Function() opener = defaultOpener;
+
+  /// The production opener, named so a test can put it back.
+  @visibleForTesting
+  static Stream<MidiEvent> defaultOpener() => midi_api.midiEventStream();
+
+  /// Drops the cached stream so the next [events] opens a fresh one.
+  ///
+  /// The cache is process-wide, deliberately (one static for the engine's one
+  /// global sink) — which means tests would otherwise leak it into each other.
+  @visibleForTesting
+  static void resetSharedStream() => _shared = null;
+
   @override
-  Stream<MidiEvent> events() =>
-      _shared ??= midi_api.midiEventStream().asBroadcastStream();
+  Stream<MidiEvent> events() => _shared ??= opener().asBroadcastStream();
 
   @override
   List<String> listPorts() => midi_api.listMidiPorts();
