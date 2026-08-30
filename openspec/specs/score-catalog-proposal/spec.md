@@ -30,7 +30,10 @@ The backend SHALL expose an authenticated, owner-scoped operation (`ProposeScore
 proposes one of the caller's private scores to the public catalog. The operation SHALL
 require, captured at proposal time, a **licence declaration** and an explicit
 **right-to-distribute attestation**; a proposal missing either MUST be refused and MUST
-NOT create a catalog entry. A valid proposal SHALL create a new public-catalog entry
+NOT create a catalog entry. The operation SHALL also refuse a score whose **stored**
+rights basis is `private_use`, deciding on the persisted basis alone and never on the
+proposal's licence declaration (see `backend-score-storage`). A valid proposal SHALL
+create a new public-catalog entry
 carrying the private score's server-derived metadata and a catalog-owned copy of its
 bytes, entering the moderation lifecycle (see `score-moderation`). The caller MUST own
 the referenced private score; proposing a score the caller does not own, or a
@@ -54,6 +57,12 @@ catalog entry.
 
 - **WHEN** a caller proposes a score id that is not in their private library (or does not
   exist)
+- **THEN** the proposal is refused and no catalog entry is created
+
+#### Scenario: Personal-use score cannot be proposed
+
+- **WHEN** a caller proposes their own score whose stored rights basis is
+  `private_use`, with a complete licence declaration and attestation
 - **THEN** the proposal is refused and no catalog entry is created
 
 #### Scenario: Catalog entry survives deletion of the private score
