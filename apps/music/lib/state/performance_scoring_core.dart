@@ -48,6 +48,21 @@ double judgmentClock(ScoreClocks clocks, {required bool waitMode}) =>
 double sustainClock(ScoreClocks clocks, {required bool boundInWaitMode}) =>
     boundInWaitMode ? clocks.emission : clocks.heard;
 
+/// The engine's nominal pitch-confirmation window for acoustic detection
+/// (change: add-acoustic-piano-input): the evidence the presence stage
+/// accumulates after an onset before the note event is emitted. MUST mirror
+/// `DETECTION_CONFIRM_NOMINAL_MS` in `rust/src/api/audio_input_core.rs` —
+/// scoring adds it to the measured input offset so the whole detection chain
+/// is compensated, not just the capture round trip.
+const double kDetectionConfirmMs = 46;
+
+/// Shifts both clocks earlier by [offsetMs] — how an audio-sourced attack is
+/// judged at its true time (delta spec: Measured Input Offset Applied To
+/// Audio-Sourced Attacks). Callers pass 0 (or skip the call) for MIDI input,
+/// which stays bit-identical by construction.
+ScoreClocks shiftClocksForInput(ScoreClocks clocks, double offsetMs) =>
+    (emission: clocks.emission - offsetMs, heard: clocks.heard - offsetMs);
+
 /// Ordered timing verdict for one onset, best (`perfect`) to worst (`missed`).
 ///
 /// In free-run (Wait Mode off) the verdict comes from the signed offset of the

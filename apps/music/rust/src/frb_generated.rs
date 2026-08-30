@@ -38,7 +38,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -2023330428;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1876494587;
 
 // Section: executor
 
@@ -138,6 +138,158 @@ fn wire__crate__api__audio__audio_init_impl(
         },
     )
 }
+fn wire__crate__api__audio_input__audio_input_is_capturing_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "audio_input_is_capturing",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok =
+                    Result::<_, ()>::Ok(crate::api::audio_input::audio_input_is_capturing())?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__audio_input__audio_input_start_capture_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "audio_input_start_capture",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok =
+                    Result::<_, ()>::Ok(crate::api::audio_input::audio_input_start_capture())?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__audio_input__audio_input_start_detection_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "audio_input_start_detection",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok =
+                    Result::<_, ()>::Ok(crate::api::audio_input::audio_input_start_detection())?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__audio_input__audio_input_stop_capture_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "audio_input_stop_capture",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok({
+                    crate::api::audio_input::audio_input_stop_capture();
+                })?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__audio_input__audio_input_stop_detection_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "audio_input_stop_detection",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok({
+                    crate::api::audio_input::audio_input_stop_detection();
+                })?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
 fn wire__crate__api__audio__audio_load_soundfont_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -202,6 +354,38 @@ fn wire__crate__api__audio__audio_load_soundfont_awaited_impl(
                     Ok(output_ok)
                 })())
             }
+        },
+    )
+}
+fn wire__crate__api__audio_input__classify_input_route_token_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "classify_input_route_token",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_token = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok(
+                    crate::api::audio_input::classify_input_route_token(api_token),
+                )?;
+                Ok(output_ok)
+            })())
         },
     )
 }
@@ -395,6 +579,38 @@ fn wire__crate__api__simple__init_app_impl(
         },
     )
 }
+fn wire__crate__api__audio_input__input_route_verdict_for_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "input_route_verdict_for",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_kind = <crate::api::audio_input::InputRouteKind>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok(
+                    crate::api::audio_input::input_route_verdict_for(api_kind),
+                )?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
 fn wire__crate__api__musicxml__layout_systems_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -424,6 +640,35 @@ fn wire__crate__api__musicxml__layout_systems_impl(
                     &api_doc,
                     api_available_width,
                 ))?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__audio_input__list_audio_inputs_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_audio_inputs",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok(crate::api::audio_input::list_audio_inputs())?;
                 Ok(output_ok)
             })())
         },
@@ -691,6 +936,39 @@ fn wire__crate__api__audio__play_preview_clip_impl(
         },
     )
 }
+fn wire__crate__api__audio_input__run_input_calibration_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "run_input_calibration",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok =
+                        Result::<_, ()>::Ok(crate::api::audio_input::run_input_calibration())?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__audio__set_audio_output_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -717,6 +995,38 @@ fn wire__crate__api__audio__set_audio_output_impl(
             transform_result_sse::<_, ()>((move || {
                 let output_ok = Result::<_, ()>::Ok({
                     crate::api::audio::set_audio_output(api_name);
+                })?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__audio_input__set_expected_pitches_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "set_expected_pitches",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_pitches = <Vec<u8>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok({
+                    crate::api::audio_input::set_expected_pitches(api_pitches);
                 })?;
                 Ok(output_ok)
             })())
@@ -1139,6 +1449,18 @@ impl SseDecode for crate::api::musicxml::Attributes {
     }
 }
 
+impl SseDecode for crate::api::audio_input::AudioInputInfo {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_name = <String>::sse_decode(deserializer);
+        let mut var_kind = <crate::api::audio_input::InputRouteKind>::sse_decode(deserializer);
+        return crate::api::audio_input::AudioInputInfo {
+            name: var_name,
+            kind: var_kind,
+        };
+    }
+}
+
 impl SseDecode for crate::api::audio::AudioOutputInfo {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1291,6 +1613,45 @@ impl SseDecode for i32 {
     }
 }
 
+impl SseDecode for crate::api::audio_input::InputCalibrationResult {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_detected = <bool>::sse_decode(deserializer);
+        let mut var_latencyMs = <Option<f64>>::sse_decode(deserializer);
+        return crate::api::audio_input::InputCalibrationResult {
+            detected: var_detected,
+            latency_ms: var_latencyMs,
+        };
+    }
+}
+
+impl SseDecode for crate::api::audio_input::InputRouteKind {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::audio_input::InputRouteKind::Builtin,
+            1 => crate::api::audio_input::InputRouteKind::Wired,
+            2 => crate::api::audio_input::InputRouteKind::Usb,
+            3 => crate::api::audio_input::InputRouteKind::Bluetooth,
+            4 => crate::api::audio_input::InputRouteKind::Other,
+            _ => unreachable!("Invalid variant for InputRouteKind: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::audio_input::InputRouteVerdict {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::audio_input::InputRouteVerdict::Accepted,
+            1 => crate::api::audio_input::InputRouteVerdict::RefusedBluetooth,
+            _ => unreachable!("Invalid variant for InputRouteVerdict: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for crate::api::musicxml::InstrumentDecl {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1325,6 +1686,20 @@ impl SseDecode for Vec<String> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<String>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::audio_input::AudioInputInfo> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::audio_input::AudioInputInfo>::sse_decode(
+                deserializer,
+            ));
         }
         return ans_;
     }
@@ -1697,6 +2072,17 @@ impl SseDecode for Option<crate::api::audio::AudioOutputInfo> {
     }
 }
 
+impl SseDecode for Option<f64> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<f64>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<crate::api::musicxml::Lyric> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -2050,23 +2436,29 @@ fn pde_ffi_dispatcher_primary_impl(
 ) {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        5 => wire__crate__api__audio__audio_load_soundfont_awaited_impl(
+        10 => wire__crate__api__audio__audio_load_soundfont_awaited_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        7 => wire__crate__api__score__demo_score_impl(port, ptr, rust_vec_len, data_len),
-        11 => wire__crate__api__simple__init_app_impl(port, ptr, rust_vec_len, data_len),
-        16 => wire__crate__api__midi__midi_event_stream_impl(port, ptr, rust_vec_len, data_len),
-        19 => wire__crate__api__musicxml__parse_musicxml_impl(port, ptr, rust_vec_len, data_len),
-        25 => wire__crate__api__audio__soundfont_family_evidence_impl(
+        13 => wire__crate__api__score__demo_score_impl(port, ptr, rust_vec_len, data_len),
+        17 => wire__crate__api__simple__init_app_impl(port, ptr, rust_vec_len, data_len),
+        24 => wire__crate__api__midi__midi_event_stream_impl(port, ptr, rust_vec_len, data_len),
+        27 => wire__crate__api__musicxml__parse_musicxml_impl(port, ptr, rust_vec_len, data_len),
+        29 => wire__crate__api__audio_input__run_input_calibration_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        27 => wire__crate__api__musicxml__validate_musicxml_impl(port, ptr, rust_vec_len, data_len),
+        35 => wire__crate__api__audio__soundfont_family_evidence_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        37 => wire__crate__api__musicxml__validate_musicxml_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -2082,23 +2474,58 @@ fn pde_ffi_dispatcher_sync_impl(
         1 => wire__crate__api__audio__active_audio_output_impl(ptr, rust_vec_len, data_len),
         2 => wire__crate__api__audio__all_notes_off_impl(ptr, rust_vec_len, data_len),
         3 => wire__crate__api__audio__audio_init_impl(ptr, rust_vec_len, data_len),
-        4 => wire__crate__api__audio__audio_load_soundfont_impl(ptr, rust_vec_len, data_len),
-        6 => wire__crate__api__midi__connected_port_impl(ptr, rust_vec_len, data_len),
-        8 => wire__crate__api__audio__drum_off_impl(ptr, rust_vec_len, data_len),
-        9 => wire__crate__api__audio__drum_on_impl(ptr, rust_vec_len, data_len),
-        10 => wire__crate__api__simple__greet_impl(ptr, rust_vec_len, data_len),
-        12 => wire__crate__api__musicxml__layout_systems_impl(ptr, rust_vec_len, data_len),
-        13 => wire__crate__api__audio__list_audio_outputs_impl(ptr, rust_vec_len, data_len),
-        14 => wire__crate__api__midi__list_midi_ports_impl(ptr, rust_vec_len, data_len),
-        15 => wire__crate__api__audio__metronome_click_impl(ptr, rust_vec_len, data_len),
-        17 => wire__crate__api__audio__note_off_impl(ptr, rust_vec_len, data_len),
-        18 => wire__crate__api__audio__note_on_impl(ptr, rust_vec_len, data_len),
-        20 => wire__crate__api__audio__play_preview_clip_impl(ptr, rust_vec_len, data_len),
-        21 => wire__crate__api__audio__set_audio_output_impl(ptr, rust_vec_len, data_len),
-        22 => wire__crate__api__midi__set_midi_echo_impl(ptr, rust_vec_len, data_len),
-        23 => wire__crate__api__midi__set_midi_mapping_impl(ptr, rust_vec_len, data_len),
-        24 => wire__crate__api__midi__set_midi_port_impl(ptr, rust_vec_len, data_len),
-        26 => wire__crate__api__audio__stop_preview_clip_impl(ptr, rust_vec_len, data_len),
+        4 => wire__crate__api__audio_input__audio_input_is_capturing_impl(
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        5 => wire__crate__api__audio_input__audio_input_start_capture_impl(
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        6 => wire__crate__api__audio_input__audio_input_start_detection_impl(
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        7 => wire__crate__api__audio_input__audio_input_stop_capture_impl(
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        8 => wire__crate__api__audio_input__audio_input_stop_detection_impl(
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        9 => wire__crate__api__audio__audio_load_soundfont_impl(ptr, rust_vec_len, data_len),
+        11 => wire__crate__api__audio_input__classify_input_route_token_impl(
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        12 => wire__crate__api__midi__connected_port_impl(ptr, rust_vec_len, data_len),
+        14 => wire__crate__api__audio__drum_off_impl(ptr, rust_vec_len, data_len),
+        15 => wire__crate__api__audio__drum_on_impl(ptr, rust_vec_len, data_len),
+        16 => wire__crate__api__simple__greet_impl(ptr, rust_vec_len, data_len),
+        18 => {
+            wire__crate__api__audio_input__input_route_verdict_for_impl(ptr, rust_vec_len, data_len)
+        }
+        19 => wire__crate__api__musicxml__layout_systems_impl(ptr, rust_vec_len, data_len),
+        20 => wire__crate__api__audio_input__list_audio_inputs_impl(ptr, rust_vec_len, data_len),
+        21 => wire__crate__api__audio__list_audio_outputs_impl(ptr, rust_vec_len, data_len),
+        22 => wire__crate__api__midi__list_midi_ports_impl(ptr, rust_vec_len, data_len),
+        23 => wire__crate__api__audio__metronome_click_impl(ptr, rust_vec_len, data_len),
+        25 => wire__crate__api__audio__note_off_impl(ptr, rust_vec_len, data_len),
+        26 => wire__crate__api__audio__note_on_impl(ptr, rust_vec_len, data_len),
+        28 => wire__crate__api__audio__play_preview_clip_impl(ptr, rust_vec_len, data_len),
+        30 => wire__crate__api__audio__set_audio_output_impl(ptr, rust_vec_len, data_len),
+        31 => wire__crate__api__audio_input__set_expected_pitches_impl(ptr, rust_vec_len, data_len),
+        32 => wire__crate__api__midi__set_midi_echo_impl(ptr, rust_vec_len, data_len),
+        33 => wire__crate__api__midi__set_midi_mapping_impl(ptr, rust_vec_len, data_len),
+        34 => wire__crate__api__midi__set_midi_port_impl(ptr, rust_vec_len, data_len),
+        36 => wire__crate__api__audio__stop_preview_clip_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -2126,6 +2553,27 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::musicxml::Attribut
 {
     fn into_into_dart(self) -> FrbWrapper<crate::api::musicxml::Attributes> {
         self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::audio_input::AudioInputInfo {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.name.into_into_dart().into_dart(),
+            self.kind.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::audio_input::AudioInputInfo
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::audio_input::AudioInputInfo>
+    for crate::api::audio_input::AudioInputInfo
+{
+    fn into_into_dart(self) -> crate::api::audio_input::AudioInputInfo {
+        self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -2324,6 +2772,72 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::musicxml::HeadClas
 {
     fn into_into_dart(self) -> FrbWrapper<crate::api::musicxml::HeadClass> {
         self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::audio_input::InputCalibrationResult {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.detected.into_into_dart().into_dart(),
+            self.latency_ms.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::audio_input::InputCalibrationResult
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::audio_input::InputCalibrationResult>
+    for crate::api::audio_input::InputCalibrationResult
+{
+    fn into_into_dart(self) -> crate::api::audio_input::InputCalibrationResult {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::audio_input::InputRouteKind {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Builtin => 0.into_dart(),
+            Self::Wired => 1.into_dart(),
+            Self::Usb => 2.into_dart(),
+            Self::Bluetooth => 3.into_dart(),
+            Self::Other => 4.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::audio_input::InputRouteKind
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::audio_input::InputRouteKind>
+    for crate::api::audio_input::InputRouteKind
+{
+    fn into_into_dart(self) -> crate::api::audio_input::InputRouteKind {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::audio_input::InputRouteVerdict {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Accepted => 0.into_dart(),
+            Self::RefusedBluetooth => 1.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::audio_input::InputRouteVerdict
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::audio_input::InputRouteVerdict>
+    for crate::api::audio_input::InputRouteVerdict
+{
+    fn into_into_dart(self) -> crate::api::audio_input::InputRouteVerdict {
+        self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -2927,6 +3441,14 @@ impl SseEncode for crate::api::musicxml::Attributes {
     }
 }
 
+impl SseEncode for crate::api::audio_input::AudioInputInfo {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.name, serializer);
+        <crate::api::audio_input::InputRouteKind>::sse_encode(self.kind, serializer);
+    }
+}
+
 impl SseEncode for crate::api::audio::AudioOutputInfo {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -3077,6 +3599,49 @@ impl SseEncode for i32 {
     }
 }
 
+impl SseEncode for crate::api::audio_input::InputCalibrationResult {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.detected, serializer);
+        <Option<f64>>::sse_encode(self.latency_ms, serializer);
+    }
+}
+
+impl SseEncode for crate::api::audio_input::InputRouteKind {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::audio_input::InputRouteKind::Builtin => 0,
+                crate::api::audio_input::InputRouteKind::Wired => 1,
+                crate::api::audio_input::InputRouteKind::Usb => 2,
+                crate::api::audio_input::InputRouteKind::Bluetooth => 3,
+                crate::api::audio_input::InputRouteKind::Other => 4,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::audio_input::InputRouteVerdict {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::audio_input::InputRouteVerdict::Accepted => 0,
+                crate::api::audio_input::InputRouteVerdict::RefusedBluetooth => 1,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
 impl SseEncode for crate::api::musicxml::InstrumentDecl {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -3109,6 +3674,16 @@ impl SseEncode for Vec<String> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <String>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::audio_input::AudioInputInfo> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::audio_input::AudioInputInfo>::sse_encode(item, serializer);
         }
     }
 }
@@ -3386,6 +3961,16 @@ impl SseEncode for Option<crate::api::audio::AudioOutputInfo> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::api::audio::AudioOutputInfo>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<f64> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <f64>::sse_encode(value, serializer);
         }
     }
 }

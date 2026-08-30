@@ -131,6 +131,15 @@ class PerformanceScorer extends _$PerformanceScorer {
   /// sustain dimension does not exist.
   bool _percussion = false;
 
+  /// Whether the run's input is acoustic detection (change:
+  /// add-acoustic-piano-input): releases are then unobservable (the damper
+  /// pedal masks them), so the sustain dimension is excluded exactly as on a
+  /// percussion run.
+  bool _acoustic = false;
+
+  /// The regimes with no sustain dimension — one guard for every sustain site.
+  bool get _sustainless => _percussion || _acoustic;
+
   int _combo = 0;
   int _bestCombo = 0;
   final List<HitEffect> _recent = [];
@@ -152,6 +161,7 @@ class PerformanceScorer extends _$PerformanceScorer {
     required double speed,
     required List<TimedNote> notes,
     bool percussion = false,
+    bool acousticInput = false,
   }) {
     _tracked
       ..clear()
@@ -166,6 +176,7 @@ class PerformanceScorer extends _$PerformanceScorer {
     _hands = hands;
     _speed = speed;
     _percussion = percussion;
+    _acoustic = acousticInput;
     state = const ScoringData(active: true, syncPercent: 100);
   }
 
@@ -198,7 +209,7 @@ class PerformanceScorer extends _$PerformanceScorer {
           startMs: playheadMs.round(),
           waitMode: waitMode,
           verdict: TimingVerdict.missed,
-          sustainRatio: _percussion ? null : 0,
+          sustainRatio: _sustainless ? null : 0,
           wrong: true,
         ),
       );
@@ -245,8 +256,9 @@ class PerformanceScorer extends _$PerformanceScorer {
     if (idx == null) return;
     // A percussion release is bookkeeping, never meaning: a stroke's note-off
     // is a property of the module's firmware, so nothing is derived from it —
-    // no ratio, no penalty, ever (change: add-drum-scoring).
-    if (_percussion) return;
+    // no ratio, no penalty, ever (change: add-drum-scoring). An acoustic
+    // release is best-effort at most (the damper pedal): same rule.
+    if (_sustainless) return;
     final t = _tracked[idx];
     if (t.sustainFinal) return;
     final releasedAt = sustainClock(clocks, boundInWaitMode: t.waitMode);
@@ -282,7 +294,7 @@ class PerformanceScorer extends _$PerformanceScorer {
         _pushEffect(t.note.pitch, TimingVerdict.missed, wrong: false);
         changed = true;
       }
-      if (!_percussion &&
+      if (!_sustainless &&
           t.isHit &&
           !t.sustainFinal &&
           !_heldBound.containsValue(t.index)) {
@@ -311,7 +323,7 @@ class PerformanceScorer extends _$PerformanceScorer {
         t.waitMode = waitMode;
         t.resolved = true;
       }
-      if (!_percussion && t.isHit && !t.sustainFinal) {
+      if (!_sustainless && t.isHit && !t.sustainFinal) {
         final noteClock = sustainClock(clocks, boundInWaitMode: t.waitMode);
         t.sustainRatio = sustainRatioFor(
           (noteClock - t.note.startMs).clamp(0.0, double.infinity),
@@ -330,6 +342,7 @@ class PerformanceScorer extends _$PerformanceScorer {
       playedAtMs: _clock.nowMs(),
       speed: _speed,
       percussion: _percussion,
+      acousticInput: _acoustic,
     );
     state = state.copyWith(
       active: false,
@@ -413,7 +426,7 @@ class PerformanceScorer extends _$PerformanceScorer {
   /// run has no sustain dimension at all, and 0 would read as "held nothing" —
   /// and 0 on a keyboard note that was never hit.
   double? _sustainRatioOf(_Tracked t) {
-    if (_percussion) return null;
+    if (_sustainless) return null;
     return t.isHit ? t.sustainRatio : 0;
   }
 
