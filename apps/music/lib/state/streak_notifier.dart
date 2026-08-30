@@ -85,6 +85,22 @@ class Streak extends _$Streak {
   }
 }
 
+/// The run a recovery in flight would restore, or 0 when none is running
+/// (change: make-streak-recovery-reachable).
+///
+/// Exists because the spend and the report of its outcome are no longer in the
+/// same widget: the sheet starts it, the listener says how it went. Armed by
+/// [Streak.recover] itself so no call site can forget, and cleared by whoever
+/// reports it.
+@Riverpod(keepAlive: true)
+class StreakRecoveryPending extends _$StreakRecoveryPending {
+  @override
+  int build() => 0;
+
+  void arm(int run) => state = run;
+  void clear() => state = 0;
+}
+
 /// The recovery offer the user last said "not this time" to (`null` = never),
 /// persisted through the injectable preferences seam.
 ///
@@ -104,7 +120,7 @@ class Streak extends _$Streak {
 /// standing genuinely changes. A later break presents a different run and is
 /// asked, once.
 @Riverpod(keepAlive: true)
-class StreakRecoveryDecline extends _$StreakRecoveryDecline {
+class StreakRecoveryCue extends _$StreakRecoveryCue {
   /// Preferences key for the declined offer. Distinct from the day-keyed key it
   /// replaces, so a stored day string is never read back as a streak count — an
   /// upgrading device simply has no recorded decline, and is asked once.
@@ -124,10 +140,17 @@ class StreakRecoveryDecline extends _$StreakRecoveryDecline {
     }
   }
 
-  /// Record that the offer to restore [run] days was declined. The state moves
-  /// first, so the offer is gone the instant the dialog closes rather than one
-  /// disk round-trip later.
-  Future<void> decline(int run) async {
+  /// Record that the unprompted cue for the offer to restore [run] days has
+  /// been raised, so it is not raised again for this break — not on the other
+  /// screen that mounts the listener, and not on the next launch.
+  ///
+  /// **Silences the cue, never the offer** (change:
+  /// make-streak-recovery-reachable). The recovery stays reachable from the
+  /// streak chip for as long as the server allows it. It was called `decline`
+  /// when the cue *was* the offer and answering "not this time" ended both;
+  /// keeping that name now would say the player forfeited something they did
+  /// not.
+  Future<void> silence(int run) async {
     state = AsyncData(run);
     try {
       await ref
@@ -140,21 +163,26 @@ class StreakRecoveryDecline extends _$StreakRecoveryDecline {
   }
 }
 
-/// Whether a recovery offer should be surfaced right now — a broken streak that
-/// is inside the grace window, affordable, AND not the offer already declined.
+/// Whether the **unprompted cue** should be raised right now — a broken streak
+/// inside the grace window, affordable, and not one already cued.
+///
+/// Not "whether a recovery is available": that question is answered by
+/// `StreakView.recoverable`, and the chip offers it regardless of this
+/// (change: make-streak-recovery-reachable). This gates the interruption only.
 ///
 /// Deliberately matches `AsyncData` only: while loading, and after a failure
 /// (which keeps the previous value around), this is false — so a transient error
 /// or a just-refused spend can never re-pop a confirmation to spend points. The
-/// decline is read the same way: until it has loaded there is no offer, because
-/// re-asking someone who already said no is the failure this guards against.
+/// record is read the same way: until it has loaded no cue is raised, because
+/// re-raising it at someone who has already seen it is the failure this guards
+/// against.
 @riverpod
-bool streakRecoveryOffered(Ref ref) {
+bool streakRecoveryCueDue(Ref ref) {
   if (ref.watch(streakProvider) case AsyncData(
     :final value,
   ) when value.recoverable) {
-    return switch (ref.watch(streakRecoveryDeclineProvider)) {
-      AsyncData(value: final declined) => declined != value.recoverableStreak,
+    return switch (ref.watch(streakRecoveryCueProvider)) {
+      AsyncData(value: final cued) => cued != value.recoverableStreak,
       _ => false,
     };
   }

@@ -70,6 +70,23 @@ abstract class StreakView with _$StreakView {
   /// A live streak with no play yet today — the in-app "don't lose it" cue for
   /// platforms that get no push (design D4).
   bool get atRisk => hasStreak && !playedToday && !recoverable;
+
+  /// A break that is inside the grace window but that the player cannot afford
+  /// (change: make-streak-recovery-reachable).
+  ///
+  /// The wire flattens the server's decision into one bool, so this is the only
+  /// way to tell "too poor" from "gone for good" — and it is not guessable, so
+  /// it is named once here rather than re-derived at each call site.
+  /// `to_proto_standing` maps `InsufficientPoints` to `recoverable: false` with
+  /// `recover_cost` set to what is **needed**, while an intact or lapsed streak
+  /// reports a cost of zero. A cost with no offer therefore means exactly one
+  /// thing: the offer exists and the balance is short.
+  bool get unaffordable => !recoverable && recoverCost > 0;
+
+  /// Whether there is anything to say about a recovery at all — an offer to
+  /// take, or one to explain. False for an intact streak and for a break past
+  /// the grace window, where the honest answer is silence.
+  bool get hasRecoveryToShow => recoverable || unaffordable;
 }
 
 /// The outcome of a confirmed freeze: the restored standing + the fresh balance.

@@ -98,23 +98,13 @@ List<Override> _overrides(
   canUseOnlineServicesProvider.overrideWithValue(online),
 ];
 
-Widget _hostPill(StreakService service) => ProviderScope(
-  overrides: _overrides(service),
-  child: localizedApp(
-    const Scaffold(body: Center(child: CuratorStandingPill())),
-  ),
-);
-
-/// The same scope with no [StreakListener] — used to tear the listener's subtree
-/// down while its dialog is still on screen.
-Widget _hostBare(
-  StreakService service, {
-  PreferencesService? prefs,
-  DateTime Function()? now,
-}) => ProviderScope(
-  overrides: _overrides(service, prefs: prefs, now: now),
-  child: localizedApp(const Scaffold(body: SizedBox.shrink())),
-);
+Widget _hostPill(StreakService service, {PreferencesService? prefs}) =>
+    ProviderScope(
+      overrides: _overrides(service, prefs: prefs),
+      child: localizedApp(
+        const Scaffold(body: Center(child: CuratorStandingPill())),
+      ),
+    );
 
 Widget _hostListener(
   StreakService service, {
@@ -176,8 +166,26 @@ void main() {
     });
   });
 
-  group('recovery flow', () {
-    testWidgets('a broken streak is offered and restored on confirmation', (
+  group('the streak sheet', () {
+    testWidgets('the chip opens it whether or not a recovery is available', (
+      tester,
+    ) async {
+      // Design D1: a control that only sometimes responds teaches players not
+      // to try it. An intact streak opens the sheet too — it just has nothing
+      // to offer.
+      final service = MockStreakService();
+      when(service.getStreak()).thenAnswer((_) async => _streak(current: 5));
+      await tester.pumpWidget(_hostPill(service));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('curator-chip-streak-tap')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('streak-sheet')), findsOneWidget);
+      expect(find.byKey(const Key('streak-sheet-recovery')), findsNothing);
+    });
+
+    testWidgets('a recoverable break offers the buy-back with its cost', (
       tester,
     ) async {
       final service = MockStreakService();
@@ -188,72 +196,193 @@ void main() {
           newBalance: 70,
         ),
       );
-      await tester.pumpWidget(_hostListener(service));
+      await tester.pumpWidget(_hostPill(service));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('curator-chip-streak-tap')));
       await tester.pumpAndSettle();
 
-      // The offer names both what is restored and what it costs.
-      expect(find.byKey(const Key('streak-recover-dialog')), findsOneWidget);
-      expect(find.textContaining('7'), findsWidgets);
+      expect(find.byKey(const Key('streak-sheet-recovery')), findsOneWidget);
       expect(find.textContaining('30'), findsWidgets);
-      // Nothing has been spent by merely showing it.
+      // Opening it spends nothing.
       verifyNever(service.recover());
 
-      await tester.tap(find.byKey(const Key('streak-recover-confirm')));
+      await tester.tap(find.byKey(const Key('streak-sheet-recover')));
       await tester.pumpAndSettle();
-
       verify(service.recover()).called(1);
-      expect(find.byKey(const Key('streak-recover-dialog')), findsNothing);
     });
 
-    testWidgets('declining spends nothing', (tester) async {
-      // The core "no silent debit" guarantee, from the user's side.
+    testWidgets('an unaffordable break is shown disabled with the shortfall', (
+      tester,
+    ) async {
+      // The wire flattens the server's decision into one bool, but reports what
+      // the recovery WOULD cost when it refuses for balance — so "you are N
+      // points short" is knowable, and silence would leave the player unable to
+      // tell "too poor" from "too late".
+      final service = MockStreakService();
+      when(service.getStreak()).thenAnswer(
+        (_) async => _streak(
+          current: 0,
+          playedToday: false,
+          recoverCost: 12, // reported despite recoverable: false
+          recoverableStreak: 7,
+        ),
+      );
+      await tester.pumpWidget(_hostPill(service));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('curator-chip-streak-tap')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('streak-sheet-short')), findsOneWidget);
+      final button = tester.widget<FilledButton>(
+        find.byKey(const Key('streak-sheet-recover')),
+      );
+      expect(button.onPressed, isNull, reason: 'disabled, not hidden');
+      verifyNever(service.recover());
+    });
+
+    testWidgets('a lapsed break offers nothing at all', (tester) async {
+      // Past the grace window the wire reports no cost, so there is nothing to
+      // explain and the honest answer is silence.
+      final service = MockStreakService();
+      when(
+        service.getStreak(),
+      ).thenAnswer((_) async => _streak(current: 0, playedToday: false));
+      await tester.pumpWidget(_hostPill(service));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('curator-chip-streak-tap')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('streak-sheet')), findsOneWidget);
+      expect(find.byKey(const Key('streak-sheet-recovery')), findsNothing);
+    });
+
+    testWidgets('a guest is told to sign in rather than shown a zero', (
+      tester,
+    ) async {
+      final service = MockStreakService();
+      when(service.getStreak()).thenAnswer((_) async => StreakView.none);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: _overrides(service, online: false),
+          child: localizedApp(
+            const Scaffold(body: Center(child: CuratorStandingPill())),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('curator-chip-streak-tap')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('streak-sheet-guest')), findsOneWidget);
+      expect(find.byKey(const Key('streak-sheet-recovery')), findsNothing);
+    });
+
+    testWidgets('becoming tappable leaves the chip rendering unchanged', (
+      tester,
+    ) async {
+      // This chip is on every surface with a standing pill, so a regression in
+      // its muted/lit states is a regression everywhere.
+      final service = MockStreakService();
+      when(
+        service.getStreak(),
+      ).thenAnswer((_) async => _streak(current: 5, playedToday: true));
+      await tester.pumpWidget(_hostPill(service));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('curator-chip-streak')), findsOneWidget);
+      expect(find.text('5'), findsOneWidget);
+      final flame = tester.widget<Icon>(
+        find.byIcon(Icons.local_fire_department),
+      );
+      expect(flame.color, CymbraColors.primary, reason: 'today secured = warm');
+    });
+  });
+
+  group('the recovery cue', () {
+    // The cue replaced a modal (change: make-streak-recovery-reachable). The
+    // buy-back is use-it-or-lose-it — resuming restarts the run — so something
+    // must still speak unprompted, but a modal fired the instant the standing
+    // resolved, interrupting someone who came to practise; closing it to go and
+    // play recorded a refusal that then destroyed the offer.
+
+    testWidgets('a recoverable break is cued, and nothing is spent by it', (
+      tester,
+    ) async {
       final service = MockStreakService();
       when(service.getStreak()).thenAnswer((_) async => _broken());
       await tester.pumpWidget(_hostListener(service));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byKey(const Key('streak-recover-dismiss')));
-      await tester.pumpAndSettle();
-
-      verifyNever(service.recover());
+      // A cue, not a confirmation: it names the run and points at the chip.
+      expect(find.byType(SnackBar), findsOneWidget);
+      expect(find.textContaining('7'), findsWidgets);
+      // The dialog is gone for good.
       expect(find.byKey(const Key('streak-recover-dialog')), findsNothing);
+      // Nothing here can debit anything — the confirmation lives with the money.
+      expect(find.byKey(const Key('streak-recover-confirm')), findsNothing);
+      verifyNever(service.recover());
     });
 
-    testWidgets('declining is remembered across a relaunch', (tester) async {
-      // The regression this guards: the decline used to live in the listener's
-      // State, so the same question re-opened on every cold start (and on every
-      // navigation to the other screen that mounts this listener) for as long as
-      // the grace window held.
+    testWidgets('the cue is raised once per break, across a relaunch', (
+      tester,
+    ) async {
       final prefs = FakePreferencesService();
       final service = MockStreakService();
       when(service.getStreak()).thenAnswer((_) async => _broken());
       await tester.pumpWidget(_hostListener(service, prefs: prefs));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('streak-recover-dismiss')));
-      await tester.pumpAndSettle();
-      // The refusal is written, not just held in memory.
-      expect(prefs.store[StreakRecoveryDecline.prefsKey], isNotNull);
+      // Written, not merely held in memory.
+      expect(prefs.store[StreakRecoveryCue.prefsKey], '7');
 
-      // A fresh app: same device storage, same standing still on offer.
+      // A fresh app: same device storage, same break still on offer.
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pumpWidget(_hostListener(service, prefs: prefs));
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('streak-recover-dialog')), findsNothing);
+      expect(
+        find.byType(SnackBar),
+        findsNothing,
+        reason: 'the interruption is spent; the offer is not',
+      );
       verifyNever(service.recover());
     });
 
-    testWidgets('the same offer is not re-asked on a later day', (
+    testWidgets('a cued break is still recoverable from the chip', (
       tester,
     ) async {
-      // The beta report ("the popup comes back at every launch"): the decline
-      // was filed under the calendar day, on the reasoning that the grace window
-      // is one day wide — but that window is a back-office value, and a wider
-      // one re-asked the identical question every morning. It is filed against
-      // the offer now, so the standing break stays answered.
-      final prefs = FakePreferencesService({
-        StreakRecoveryDecline.prefsKey: '7', // the run _broken() would restore
-      });
+      // The whole point of the change: silencing the cue must not withdraw the
+      // offer. Saying "not now" should cost the interruption, not the option.
+      final prefs = FakePreferencesService({StreakRecoveryCue.prefsKey: '7'});
+      final service = MockStreakService();
+      when(service.getStreak()).thenAnswer((_) async => _broken());
+      when(service.recover()).thenAnswer(
+        (_) async => StreakRecoveryView(
+          streak: _streak(current: 7, playedToday: true),
+          newBalance: 70,
+        ),
+      );
+      await tester.pumpWidget(_hostPill(service, prefs: prefs));
+      await tester.pumpAndSettle();
+
+      // No cue — but the chip opens the offer.
+      expect(find.byType(SnackBar), findsNothing);
+      await tester.tap(find.byKey(const Key('curator-chip-streak-tap')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('streak-sheet-recovery')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('streak-sheet-recover')));
+      await tester.pumpAndSettle();
+      verify(service.recover()).called(1);
+    });
+
+    testWidgets('the same break is not cued again on a later day', (
+      tester,
+    ) async {
+      // The beta report ("the popup comes back at every launch"): it was filed
+      // under the calendar day, on the reasoning that the grace window is one
+      // day wide — but that window is a back-office value, and a wider one
+      // re-raised the identical question every morning.
+      final prefs = FakePreferencesService({StreakRecoveryCue.prefsKey: '7'});
       final service = MockStreakService();
       when(service.getStreak()).thenAnswer((_) async => _broken());
       await tester.pumpWidget(
@@ -265,15 +394,13 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('streak-recover-dialog')), findsNothing);
+      expect(find.byType(SnackBar), findsNothing);
     });
 
-    testWidgets('a genuinely new break is asked about', (tester) async {
-      // The other side of the same rule: refusing one offer must not silence
-      // every future one.
-      final prefs = FakePreferencesService({
-        StreakRecoveryDecline.prefsKey: '7',
-      });
+    testWidgets('a genuinely new break is cued', (tester) async {
+      // The other side of the rule: silencing one break must not silence every
+      // future one.
+      final prefs = FakePreferencesService({StreakRecoveryCue.prefsKey: '7'});
       final service = MockStreakService();
       when(service.getStreak()).thenAnswer(
         (_) async => _streak(
@@ -287,63 +414,10 @@ void main() {
       await tester.pumpWidget(_hostListener(service, prefs: prefs));
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('streak-recover-dialog')), findsOneWidget);
-    });
-
-    testWidgets('the refusal is recorded even if the listener goes away', (
-      tester,
-    ) async {
-      // The dialog outlives its listener: a route change, a rebuild, or the app
-      // being backgrounded and killed all tear the subtree down while the
-      // question is on screen. The refusal used to be written *after* a
-      // `mounted` check, so it was simply lost and asked again next launch.
-      final prefs = FakePreferencesService();
-      final service = MockStreakService();
-      when(service.getStreak()).thenAnswer((_) async => _broken());
-      await tester.pumpWidget(_hostListener(service, prefs: prefs));
-      await tester.pumpAndSettle();
-      expect(find.byKey(const Key('streak-recover-dialog')), findsOneWidget);
-
-      // The listener is gone; the dialog's own route is what answers.
-      final dialogContext = tester.element(
-        find.byKey(const Key('streak-recover-dismiss')),
-      );
-      await tester.pumpWidget(
-        _hostBare(service, prefs: prefs),
-        duration: Duration.zero,
-      );
-      Navigator.of(dialogContext).pop(false);
-      await tester.pumpAndSettle();
-
-      expect(
-        prefs.store[StreakRecoveryDecline.prefsKey],
-        '7',
-        reason: 'the answer survives the widget that collected it',
-      );
-    });
-
-    testWidgets('a refused recovery is reported without a raw error', (
-      tester,
-    ) async {
-      // Insufficient balance / grace elapsed both come back as a failure.
-      final service = MockStreakService();
-      when(service.getStreak()).thenAnswer((_) async => _broken());
-      when(
-        service.recover(),
-      ).thenThrow(Exception('gRPC FAILED_PRECONDITION: not enough points'));
-      await tester.pumpWidget(_hostListener(service));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('streak-recover-confirm')));
-      await tester.pumpAndSettle();
-
-      verify(service.recover()).called(1);
-      // A localized message, never the gRPC string.
       expect(find.byType(SnackBar), findsOneWidget);
-      expect(find.textContaining('FAILED_PRECONDITION'), findsNothing);
-      expect(find.textContaining('gRPC'), findsNothing);
     });
 
-    testWidgets('an intact streak never offers to spend anything', (
+    testWidgets('an intact streak is never cued and offers nothing', (
       tester,
     ) async {
       final service = MockStreakService();
@@ -351,23 +425,49 @@ void main() {
       await tester.pumpWidget(_hostListener(service));
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('streak-recover-dialog')), findsNothing);
+      expect(find.byType(SnackBar), findsNothing);
       verifyNever(service.recover());
     });
 
-    testWidgets('a streak past the grace window is not offered', (
-      tester,
-    ) async {
-      // The server reports it as non-recoverable; the app must not ask.
+    testWidgets('a break past the grace window is not cued', (tester) async {
+      // The server reports it as non-recoverable AND as a zero live run — see
+      // `display_streak`, "the LIVE run, zero once it is broken". A fixture that
+      // reported the lapsed count instead would read to the client as a live
+      // streak at risk, and pull in the at-risk nudge for the wrong reason.
       final service = MockStreakService();
       when(
         service.getStreak(),
-      ).thenAnswer((_) async => _streak(current: 7, playedToday: false));
+      ).thenAnswer((_) async => _streak(current: 0, playedToday: false));
       await tester.pumpWidget(_hostListener(service));
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('streak-recover-dialog')), findsNothing);
+      expect(find.byType(SnackBar), findsNothing);
       verifyNever(service.recover());
+    });
+
+    testWidgets('a refused recovery is reported without a raw error', (
+      tester,
+    ) async {
+      // The outcome still reaches the player, even though the spend now starts
+      // in the sheet and this listener is what reports it.
+      final service = MockStreakService();
+      when(service.getStreak()).thenAnswer((_) async => _broken());
+      when(
+        service.recover(),
+      ).thenThrow(Exception('gRPC FAILED_PRECONDITION: not enough points'));
+      await tester.pumpWidget(_hostListener(service));
+      await tester.pumpAndSettle();
+
+      await tester.runAsync(() async {});
+      final ctx = tester.element(find.byType(Scaffold));
+      final container = ProviderScope.containerOf(ctx);
+      await container.read(streakProvider.notifier).recover();
+      await tester.pumpAndSettle();
+
+      verify(service.recover()).called(1);
+      // A localized message, never the gRPC string.
+      expect(find.textContaining('FAILED_PRECONDITION'), findsNothing);
+      expect(find.textContaining('gRPC'), findsNothing);
     });
   });
 
@@ -396,15 +496,18 @@ void main() {
       expect(find.byType(SnackBar), findsNothing);
     });
 
-    testWidgets('a recovery offer replaces the nudge', (tester) async {
-      // One interruption at a time: the offer IS the reminder.
+    testWidgets('the recovery cue replaces the nudge', (tester) async {
+      // One interruption at a time: the cue IS the reminder. They are both
+      // snackbars now, so this asserts on which one — a recoverable break is
+      // never `atRisk` (the getter excludes it), so only the cue can speak.
       final service = MockStreakService();
       when(service.getStreak()).thenAnswer((_) async => _broken());
       await tester.pumpWidget(_hostListener(service));
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('streak-recover-dialog')), findsOneWidget);
-      expect(find.byType(SnackBar), findsNothing);
+      expect(find.byType(SnackBar), findsOneWidget);
+      expect(find.textContaining('flame'), findsOneWidget);
+      expect(find.textContaining('ends tonight'), findsNothing);
     });
   });
 
@@ -424,14 +527,14 @@ void main() {
       await container.read(streakProvider.future);
       // The offer also waits on the persisted decline: no recorded "not this
       // time" here, so the question stands.
-      await container.read(streakRecoveryDeclineProvider.future);
-      expect(container.read(streakRecoveryOfferedProvider), isTrue);
+      await container.read(streakRecoveryCueProvider.future);
+      expect(container.read(streakRecoveryCueDueProvider), isTrue);
 
       await container.read(streakProvider.notifier).recover();
       final after = container.read(streakProvider).requireValue;
       expect(after.current, 7);
       expect(after.playedToday, isTrue);
-      expect(container.read(streakRecoveryOfferedProvider), isFalse);
+      expect(container.read(streakRecoveryCueDueProvider), isFalse);
     });
 
     test('a declined offer is withdrawn', () async {
@@ -443,12 +546,12 @@ void main() {
       addTearDown(container.dispose);
 
       await container.read(streakProvider.future);
-      await container.read(streakRecoveryDeclineProvider.future);
-      expect(container.read(streakRecoveryOfferedProvider), isTrue);
+      await container.read(streakRecoveryCueProvider.future);
+      expect(container.read(streakRecoveryCueDueProvider), isTrue);
 
-      await container.read(streakRecoveryDeclineProvider.notifier).decline(7);
+      await container.read(streakRecoveryCueProvider.notifier).silence(7);
 
-      expect(container.read(streakRecoveryOfferedProvider), isFalse);
+      expect(container.read(streakRecoveryCueDueProvider), isFalse);
       // The standing itself is untouched — the server still says it is
       // recoverable; only this device stopped asking.
       expect(container.read(streakProvider).requireValue.recoverable, isTrue);
@@ -471,9 +574,9 @@ void main() {
       );
       addTearDown(container.dispose);
       await container.read(streakProvider.future);
-      await container.read(streakRecoveryDeclineProvider.future);
-      await container.read(streakRecoveryDeclineProvider.notifier).decline(7);
-      expect(container.read(streakRecoveryOfferedProvider), isFalse);
+      await container.read(streakRecoveryCueProvider.future);
+      await container.read(streakRecoveryCueProvider.notifier).silence(7);
+      expect(container.read(streakRecoveryCueDueProvider), isFalse);
 
       // A fresh launch, days later, on the SAME unresolved break: the recorded
       // refusal is read back from storage and still stands.
@@ -486,9 +589,9 @@ void main() {
       );
       addTearDown(later.dispose);
       await later.read(streakProvider.future);
-      await later.read(streakRecoveryDeclineProvider.future);
+      await later.read(streakRecoveryCueProvider.future);
       expect(
-        later.read(streakRecoveryOfferedProvider),
+        later.read(streakRecoveryCueDueProvider),
         isFalse,
         reason: 'saying no ends the question, not just today\'s instance',
       );
@@ -508,11 +611,11 @@ void main() {
       final container = ProviderContainer(overrides: _overrides(service));
       addTearDown(container.dispose);
       await container.read(streakProvider.future);
-      await container.read(streakRecoveryDeclineProvider.future);
+      await container.read(streakRecoveryCueProvider.future);
       // A refusal recorded against an earlier, longer run.
-      await container.read(streakRecoveryDeclineProvider.notifier).decline(7);
+      await container.read(streakRecoveryCueProvider.notifier).silence(7);
       expect(
-        container.read(streakRecoveryOfferedProvider),
+        container.read(streakRecoveryCueDueProvider),
         isTrue,
         reason: 'a new break the user has not answered yet is offered',
       );
@@ -529,10 +632,10 @@ void main() {
 
       await container.read(streakProvider.future);
       expect(
-        container.read(streakRecoveryDeclineProvider),
+        container.read(streakRecoveryCueProvider),
         isA<AsyncLoading<int?>>(),
       );
-      expect(container.read(streakRecoveryOfferedProvider), isFalse);
+      expect(container.read(streakRecoveryCueDueProvider), isFalse);
     });
 
     test('a refused recovery lands in the state as an error', () async {
@@ -547,7 +650,7 @@ void main() {
 
       expect(container.read(streakProvider), isA<AsyncError<StreakView>>());
       // ...and no offer is derived from an errored read.
-      expect(container.read(streakRecoveryOfferedProvider), isFalse);
+      expect(container.read(streakRecoveryCueDueProvider), isFalse);
     });
 
     test('refresh re-reads the server standing', () async {
