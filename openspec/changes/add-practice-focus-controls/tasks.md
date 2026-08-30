@@ -144,12 +144,12 @@
   where `_showsNote`/`_showsRest` are byte-identical to before. Refreshing them
   from a Mac would be wrong (they are pinned to the CI platform)
 - [x] 7.4 `openspec validate add-practice-focus-controls --strict`
-- [ ] 7.5 **Ordering:** confirm `add-drum-kit-view` has been archived before this
-  change is, or its percussion `hand-selection` text will never have reached the
-  base spec this delta removes it from — **still open, and it blocks the archive,
-  not the code.** Checked: `add-drum-kit-view` is still in `openspec/changes/`
-  (only `add-drums-access` is archived). `/opsx:archive add-drum-kit-view` must run
-  before `/opsx:archive add-practice-focus-controls`
+- [x] 7.5 **Ordering:** confirm `add-drum-kit-view` has been archived before this
+  change is — **satisfied.** `add-drum-kit-view` was archived on 2026-08-29 to
+  `openspec/changes/archive/2026-08-29-add-drum-kit-view/` and its five deltas
+  folded into `openspec/specs/`, so the percussion `hand-selection` text this
+  delta removes is now in the base spec to be removed from. This change can be
+  archived whenever its §8 verification is done
 
 ## 8. Manual verification — with the tester
 

@@ -8,10 +8,15 @@
   multi-subscriber). Test fakes are unaffected; theirs is already broadcast
 - [x] 1.2 ~~Convert every consumer~~ — unnecessary under 1.1's shape: all six
   keep calling `events()` and are simply no longer in competition
-- [ ] 1.3 Test the caching directly. `events()` reaches the bridge, so this needs
+- [x] 1.3 Test the caching directly. `events()` reaches the bridge, so this needs
   the opener behind a seam (a `@visibleForTesting` injection point) before it can
-  be asserted on the VM — currently covered only by 3.7 at the consumer level and
-  by the on-device pass
+  be asserted on the VM — **done**: `FrbMidiService.opener` / `defaultOpener` /
+  `resetSharedStream`, and `test/services/midi_fanout_test.dart` now pins the
+  adapter itself rather than a fake that was already broadcast for its own
+  reasons: one engine subscription however many callers ask, the handed-out
+  stream is broadcast, two listeners both receive, one leaving does not disturb
+  the other, the last leaving does not close it, and an error reaches everyone
+  without ending the stream
 - [x] 1.4 Regression guard at the consumer level: the monitor and the player both
   receive the same event (`midi_monitor_screen_test.dart`, "observing does not
   disturb the player") — the property that was impossible before
