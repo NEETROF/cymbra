@@ -503,6 +503,12 @@ async fn main() -> anyhow::Result<()> {
                     .with_score_admin(Arc::new(cymbra_music::PgUserScoreAdminRepo::new(
                         music_pool.clone(),
                     )))
+                    // In-app content reporting (change: add-content-reporting).
+                    // Required by Play's UGC policy; unwired, ReportContent refuses
+                    // rather than accepting a report nobody would ever read.
+                    .with_reports(Arc::new(cymbra_music::PgContentReportRepo::new(
+                        music_pool.clone(),
+                    )))
                     // Per-plan upload quota + library cap (change:
                     // add-premium-subscription), flag-backed with the env values
                     // as the free defaults.

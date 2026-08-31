@@ -919,4 +919,30 @@ service ScoreService {
   rpc RedeemReward(RedeemRewardRequest) returns (RedeemRewardResponse);
   // Per-user reliability indicator — MODERATOR/ADMIN only (informs manual promotion).
   rpc GetCuratorReliability(GetCuratorReliabilityRequest) returns (CuratorReliability);
+
+  // In-app content reporting (change: add-content-reporting). Google Play's UGC
+  // policy requires an in-app way to report objectionable content and users;
+  // this is that intake. Any signed-in caller may report.
+  rpc ReportContent(ReportContentRequest) returns (ReportContentResponse);
+}
+
+// --- content reporting (change: add-content-reporting) -----------------------
+
+message ReportContentRequest {
+  // What is reported: "catalog_score", "soundfont" or "profile" (a handle).
+  string target_kind = 1;
+  string target_id = 2;
+  // "copyright" | "inappropriate" | "wrong_content" | "other".
+  string reason = 3;
+  // Free text, at most 2000 characters. Absent or blank is fine.
+  optional string note = 4;
+}
+
+message ReportContentResponse {
+  string report_id = 1;
+  // True when this call created a row; false when an open report by the same
+  // reporter against the same target already stood (the id is that one's). The
+  // app shows the same acknowledgement either way — a reporter who taps twice
+  // must not be told off.
+  bool created = 2;
 }

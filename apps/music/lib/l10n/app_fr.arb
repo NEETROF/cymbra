@@ -870,5 +870,17 @@
   "coachPlayerSoundDrumsBody": "Sélectionnez le kit que vous entendez en jouant. Vous pouvez ajouter vos propres SoundFonts, et en débloquer d’autres avec vos points.",
   "coachPlayerMidiDrumsBody": "C’est ici qu’apparaît votre kit électronique connecté. Laissez le mode automatique, ou choisissez vous-même l’appareil si plusieurs sont branchés.",
   "coachPlayerFocusTitle": "Travaille pièce par pièce",
-  "coachPlayerFocusBody": "Décoche ce que tu ne travailles pas. Le kit affiche et demande le reste — et les pièces décochées sonnent toujours quand tu les frappes."
+  "coachPlayerFocusBody": "Décoche ce que tu ne travailles pas. Le kit affiche et demande le reste — et les pièces décochées sonnent toujours quand tu les frappes.",
+  "reportAction": "Signaler",
+  "reportSheetTitle": "Signaler ce contenu",
+  "reportSheetIntro": "Dites-nous ce qui ne va pas. Un modérateur examine chaque signalement.",
+  "reportReasonCopyright": "Enfreint mes droits",
+  "reportReasonInappropriate": "Contenu inapproprié",
+  "reportReasonWrongContent": "Erroné ou inutilisable",
+  "reportReasonOther": "Autre chose",
+  "reportNoteLabel": "Précisions (facultatif)",
+  "reportSubmit": "Envoyer le signalement",
+  "reportSent": "Signalement envoyé. Merci.",
+  "reportFailed": "Le signalement n'a pas pu être envoyé. Réessayez.",
+  "reportSignInRequired": "Connectez-vous pour signaler un contenu."
 }

@@ -20,6 +20,7 @@ pub mod catalog_daily_access_core;
 pub mod catalog_edit;
 pub mod catalog_limits;
 pub mod catalog_search;
+pub mod content_report;
 pub mod course;
 pub mod course_progress;
 pub mod curation_rewards;
@@ -39,6 +40,7 @@ pub mod offline_secret;
 pub mod pg;
 pub mod pg_badges;
 pub mod pg_catalog_daily_access;
+pub mod pg_content_report;
 pub mod pg_curation_rewards;
 pub mod pg_global_leaderboard;
 pub mod pg_leaderboard;
@@ -92,6 +94,10 @@ pub use catalog_search::{
     CatalogHit, CatalogObjectRef, CatalogSearchParams, CatalogSearchRepo, FakeCatalogRow,
     FakeCatalogSearchRepo,
 };
+pub use content_report::{
+    ContentReportRepo, FakeContentReportRepo, MAX_NOTE_LEN, NewReport, ReportReason, ReportRow,
+    ReportTarget, validate as validate_report,
+};
 pub use course::{Course, CourseRepo, CourseSummary, FakeCourseRepo, PgCourseRepo};
 pub use course_progress::{
     CompletionOutcome, CourseProgress, CourseProgressStore, FakeCourseProgressStore,
@@ -132,6 +138,7 @@ pub use pg::{
 };
 pub use pg_badges::PgBadgeRepo;
 pub use pg_catalog_daily_access::PgCatalogDayAccessRepo;
+pub use pg_content_report::PgContentReportRepo;
 pub use pg_curation_rewards::PgCurationRewardsRepo;
 pub use pg_global_leaderboard::PgGlobalLeaderboardRepo;
 pub use pg_leaderboard::PgLeaderboardRepo;
