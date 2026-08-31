@@ -3,6 +3,7 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { WebAuthError, type WebAuthClient } from "@cymbra/web-auth";
 import RedeemIsland from "../src/components/RedeemIsland.vue";
 import AccountIsland from "../src/components/AccountIsland.vue";
+import DeleteAccountIsland from "../src/components/DeleteAccountIsland.vue";
 import CheckoutIsland from "../src/components/CheckoutIsland.vue";
 import { setClientsForTest } from "../src/lib/session";
 import { t } from "../src/lib/i18n";
@@ -57,6 +58,7 @@ function fakePlans(over: Partial<WebPlansClient> = {}): WebPlansClient {
     })),
     checkout: vi.fn(async () => ({ checkout_url: "https://cymbra.app/checkout?_ptxn=txn_1" })),
     portal: vi.fn(async () => ({ portal_url: "https://portal.example/s" })),
+    deleteAccount: vi.fn(async () => ({ deleted: true })),
     ...over,
   };
 }
@@ -215,5 +217,69 @@ describe("CheckoutIsland", () => {
     await flushPromises();
     expect(w.text()).toBe(t("en", "checkoutUnavailable"));
     expect(document.querySelector('script[src*="paddle"]')).toBeNull();
+  });
+});
+
+describe("DeleteAccountIsland", () => {
+  it("arms only on the typed handle, erases, then shows the final state", async () => {
+    const auth = fakeAuth({ refresh: vi.fn(async () => ({ accessToken: "tok-cookie" })) });
+    const plans = fakePlans();
+    setClientsForTest(auth, plans);
+    const w = mount(DeleteAccountIsland, { props: { lang: "en" } });
+    await flushPromises();
+
+    // The page names the account it is about to erase.
+    expect(w.find('[data-testid="identity"]').text()).toContain("@neetrof");
+    expect(w.text()).toContain(t("en", "deleteConfirmPrompt", { word: "neetrof" }));
+
+    const button = w.find('[data-testid="delete-submit"]');
+    expect(button.attributes("disabled")).toBeDefined();
+
+    // A near-miss keeps it disarmed; nothing is called.
+    await w.find("input[name=confirm]").setValue("neetro");
+    expect(button.attributes("disabled")).toBeDefined();
+    expect(plans.deleteAccount).not.toHaveBeenCalled();
+
+    await w.find("input[name=confirm]").setValue(" Neetrof ");
+    expect(button.attributes("disabled")).toBeUndefined();
+    await w.find("form").trigger("submit");
+    await flushPromises();
+
+    expect(plans.deleteAccount).toHaveBeenCalledWith("tok-cookie");
+    // The session is dropped so the page cannot act twice.
+    expect(auth.logout).toHaveBeenCalled();
+    expect(w.find('[data-testid="deleted"]').text()).toContain(t("en", "deletedTitle"));
+    expect(w.find('[data-testid="delete-submit"]').exists()).toBe(false);
+  });
+
+  it("without a cookie it asks to sign in and calls nothing", async () => {
+    const plans = fakePlans();
+    setClientsForTest(fakeAuth(), plans);
+    const w = mount(DeleteAccountIsland, { props: { lang: "fr" } });
+    await flushPromises();
+    expect(w.text()).toContain(t("fr", "deleteSignInNote"));
+    expect(w.find('[data-testid="delete-account"]').exists()).toBe(false);
+    expect(plans.deleteAccount).not.toHaveBeenCalled();
+    expect(plans.account).not.toHaveBeenCalled();
+  });
+
+  it("keeps a failed deletion on the form with a localized error, account intact", async () => {
+    const auth = fakeAuth({ refresh: vi.fn(async () => ({ accessToken: "tok-cookie" })) });
+    const plans = fakePlans({
+      deleteAccount: vi.fn(async () => {
+        throw new WebAuthError(503, "purge_user queue down");
+      }),
+    });
+    setClientsForTest(auth, plans);
+    const w = mount(DeleteAccountIsland, { props: { lang: "fr" } });
+    await flushPromises();
+    await w.find("input[name=confirm]").setValue("neetrof");
+    await w.find("form").trigger("submit");
+    await flushPromises();
+    expect(w.find('[data-testid="deleted"]').exists()).toBe(false);
+    expect(w.find(".error").text()).toBe(t("fr", "errUnavailable"));
+    // The raw backend detail never reaches the page.
+    expect(w.text()).not.toContain("purge_user");
+    expect(auth.logout).not.toHaveBeenCalled();
   });
 });

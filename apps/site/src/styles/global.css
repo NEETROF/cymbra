@@ -105,6 +105,11 @@ a:hover { text-decoration: underline; }
 .form .btn, .manage .btn, .outcome .btn { justify-self: start; }
 .btn:disabled { opacity: 0.55; cursor: not-allowed; }
 .btn-apple { background: #fff; color: #000; border-color: transparent; }
+/* Irreversible action (account deletion): red, and never the page's only accent. */
+.btn-danger { background: #b3261e; color: #fff; border-color: transparent; }
+.btn-danger:hover { text-decoration: none; opacity: 0.92; }
+.plain { margin: 0; padding-left: 1.2rem; color: var(--muted); font-size: 0.95rem; }
+.plain li + li { margin-top: 0.35rem; }
 .social { display: grid; gap: 0.75rem; margin: 1rem 0 0.5rem; }
 .google-slot { min-height: 44px; }
 .or { display: flex; align-items: center; gap: 0.75rem; color: var(--muted); font-size: 0.85rem; }

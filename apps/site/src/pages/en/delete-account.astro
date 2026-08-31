@@ -1,0 +1,36 @@
+---
+import Base from '../../layouts/Base.astro';
+import DeleteAccountIsland from '../../components/DeleteAccountIsland.vue';
+---
+
+<Base
+  title="Delete my account — Cymbra"
+  description="Permanently delete your Cymbra account and the data attached to it."
+  lang="en"
+  noindex
+>
+  <section class="container narrow">
+    <h1>Delete my account</h1>
+    <DeleteAccountIsland client:load lang="en" />
+
+    <!-- Partial deletion: declared to Play under "Manage app data", so it is
+         described here, outside the island, to stay readable while signed out. -->
+    <section class="prose">
+      <h2>Delete only some of your data</h2>
+      <p>
+        You do not have to delete your account to erase part of your data. From the
+        Cymbra app you can, at any time:
+      </p>
+      <ul>
+        <li>delete a score you imported, from your library;</li>
+        <li>delete a collection, or remove a score from it;</li>
+        <li>delete a sound you imported, from the sounds screen.</li>
+      </ul>
+      <p>
+        For any other targeted deletion request — your progress, your scores, or a
+        contribution already published — write to <a href="mailto:privacy@cymbra.app">privacy@cymbra.app</a>, naming the
+        data concerned.
+      </p>
+    </section>
+  </section>
+</Base>
