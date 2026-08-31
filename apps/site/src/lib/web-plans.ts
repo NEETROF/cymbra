@@ -54,6 +54,8 @@ export interface WebPlansClient {
   me(accessToken: string): Promise<PlanView>;
   /** Handle + linked sign-in methods (spec `web-auth-session`). */
   account(accessToken: string): Promise<AccountView>;
+  /** Erase the caller's own account — irreversible (`POST /web/account/delete`). */
+  deleteAccount(accessToken: string): Promise<{ deleted: boolean }>;
   redeem(accessToken: string, code: string): Promise<RedeemView>;
   checkout(accessToken: string, productId: string): Promise<{ checkout_url: string }>;
   portal(accessToken: string): Promise<{ portal_url: string }>;
@@ -64,6 +66,8 @@ export function createWebPlansClient(apiUrl: string): WebPlansClient {
   return {
     me: (accessToken) => fetchJson<PlanView>(url("/web/plans/me"), { accessToken }),
     account: (accessToken) => fetchJson<AccountView>(url("/web/account/me"), { accessToken }),
+    deleteAccount: (accessToken) =>
+      fetchJson<{ deleted: boolean }>(url("/web/account/delete"), { accessToken, body: {} }),
     redeem: (accessToken, code) =>
       fetchJson<RedeemView>(url("/web/plans/redeem"), { accessToken, body: { code: code.trim() } }),
     checkout: (accessToken, productId) =>

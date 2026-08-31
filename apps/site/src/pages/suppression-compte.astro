@@ -1,0 +1,37 @@
+---
+import Base from '../layouts/Base.astro';
+import DeleteAccountIsland from '../components/DeleteAccountIsland.vue';
+---
+
+<Base
+  title="Supprimer mon compte — Cymbra"
+  description="Supprimez définitivement votre compte Cymbra et les données qui y sont rattachées."
+  lang="fr"
+  noindex
+>
+  <section class="container narrow">
+    <h1>Supprimer mon compte</h1>
+    <DeleteAccountIsland client:load lang="fr" />
+
+    <!-- Suppression partielle : déclarée à Play sous « Gérer les données de
+         l'appli », donc décrite ici, hors de l'îlot, pour rester lisible sans
+         être connecté. -->
+    <section class="prose">
+      <h2>Supprimer seulement certaines données</h2>
+      <p>
+        Vous n'êtes pas obligé·e de supprimer votre compte pour effacer une partie
+        de vos données. Depuis l'application Cymbra, vous pouvez à tout moment :
+      </p>
+      <ul>
+        <li>supprimer une partition que vous avez importée, depuis votre bibliothèque ;</li>
+        <li>supprimer une collection, ou en retirer une partition ;</li>
+        <li>supprimer un son importé depuis l'écran des sons.</li>
+      </ul>
+      <p>
+        Pour toute autre demande de suppression ciblée — votre progression, vos
+        scores ou une contribution déjà publiée — écrivez à <a href="mailto:privacy@cymbra.app">privacy@cymbra.app</a> en précisant
+        les données concernées.
+      </p>
+    </section>
+  </section>
+</Base>

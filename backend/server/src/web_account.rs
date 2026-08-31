@@ -1,11 +1,19 @@
-//! Browser-only **account summary route** for the public site (change:
-//! add-site-account-pages, spec `web-auth-session`): `GET /web/account/me` —
-//! the caller's handle, display name, locale and linked sign-in methods.
+//! Browser-only **account routes** for the public site (change:
+//! add-site-account-pages, spec `web-auth-session`):
 //!
-//! Bearer-authenticated through the same seam as the plan routes, read-only, CORS
-//! restricted to the web origins. The `local` identity's subject is the e-mail and
-//! is returned as `email`; the OIDC subjects (Google / Apple) are **never** exposed —
-//! only the provider name.
+//! - `GET  /web/account/me`     — the caller's handle, display name, locale and
+//!   linked sign-in methods.
+//! - `POST /web/account/delete` — erase the caller's own account.
+//!
+//! Bearer-authenticated through the same seam as the plan routes, CORS restricted
+//! to the web origins. The `local` identity's subject is the e-mail and is returned
+//! as `email`; the OIDC subjects (Google / Apple) are **never** exposed — only the
+//! provider name.
+//!
+//! The delete route exists because Google Play requires a **web** path to account
+//! deletion for any app that offers sign-up: the in-app screen alone does not
+//! satisfy it. It carries no privilege the app's `DeleteAccount` RPC does not — the
+//! bearer names the only account it can erase.
 
 use std::sync::Arc;
 
@@ -13,7 +21,7 @@ use axum::extract::State;
 use axum::http::header::{AUTHORIZATION, CONTENT_TYPE};
 use axum::http::{HeaderMap, HeaderValue, Method, StatusCode};
 use axum::response::{IntoResponse, Response};
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::{Json, Router};
 use cymbra_platform::AppError;
 use cymbra_user_port::UserPort;
@@ -51,6 +59,13 @@ struct ErrorBody {
     error: String,
 }
 
+/// Answer of the delete route. A body (rather than `204 No Content`) because the
+/// site's `fetchJson` parses every success as JSON.
+#[derive(Serialize)]
+struct DeletedView {
+    deleted: bool,
+}
+
 /// Build the router (CORS-wrapped), ready to `.merge()` into the HTTP server.
 pub fn web_account_router(state: WebAccountState, origins: Vec<String>) -> Router {
     let origins: Vec<HeaderValue> = origins
@@ -59,10 +74,11 @@ pub fn web_account_router(state: WebAccountState, origins: Vec<String>) -> Route
         .collect();
     let cors = CorsLayer::new()
         .allow_origin(AllowOrigin::list(origins))
-        .allow_methods([Method::GET, Method::OPTIONS])
+        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
         .allow_headers([CONTENT_TYPE, AUTHORIZATION]);
     Router::new()
         .route("/web/account/me", get(me))
+        .route("/web/account/delete", post(delete_me))
         .layer(cors)
         .with_state(state)
 }
@@ -109,6 +125,19 @@ async fn me(State(s): State<WebAccountState>, headers: HeaderMap) -> Response {
             .collect(),
     };
     (StatusCode::OK, Json(view)).into_response()
+}
+
+/// Erase the caller's own account. The port owns what "erase" means — with the job
+/// queue wired it enqueues the cross-schema `purge_user`, so this returns once the
+/// erasure is scheduled, exactly like the app's RPC.
+async fn delete_me(State(s): State<WebAccountState>, headers: HeaderMap) -> Response {
+    let Some(id) = s.auth.identify_admin(&headers) else {
+        return error_response(&AppError::Unauthenticated("sign in required".into()));
+    };
+    if let Err(e) = s.users.delete_account(&id.user_id).await {
+        return error_response(&e);
+    }
+    (StatusCode::OK, Json(DeletedView { deleted: true })).into_response()
 }
 
 #[cfg(test)]
@@ -161,6 +190,17 @@ mod tests {
             b = b.header(AUTHORIZATION, format!("Bearer {t}"));
         }
         b.body(Body::empty()).unwrap()
+    }
+
+    fn delete_req(bearer: Option<&str>) -> Request<Body> {
+        let mut b = Request::builder()
+            .method(Method::POST)
+            .uri("/web/account/delete")
+            .header(CONTENT_TYPE, "application/json");
+        if let Some(t) = bearer {
+            b = b.header(AUTHORIZATION, format!("Bearer {t}"));
+        }
+        b.body(Body::from("{}")).unwrap()
     }
 
     async fn json_of(resp: Response) -> serde_json::Value {
@@ -222,6 +262,40 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn delete_without_bearer_is_401_and_erases_nothing() {
+        let mut users = MockUserPort::new();
+        users.expect_delete_account().never();
+        let resp = app(users).oneshot(delete_req(None)).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+        assert!(json_of(resp).await.get("error").is_some());
+    }
+
+    #[tokio::test]
+    async fn delete_erases_the_bearers_own_account_only() {
+        let mut users = MockUserPort::new();
+        // The route never reads a user id from the request: `u1` is the bearer's.
+        users
+            .expect_delete_account()
+            .withf(|id| id == "u1")
+            .times(1)
+            .returning(|_| Ok(()));
+        let resp = app(users).oneshot(delete_req(Some("web"))).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(json_of(resp).await["deleted"], true);
+    }
+
+    #[tokio::test]
+    async fn delete_reports_a_port_failure_as_a_safe_error() {
+        let mut users = MockUserPort::new();
+        users
+            .expect_delete_account()
+            .returning(|_| Err(AppError::FailedPrecondition("queue down".into())));
+        let resp = app(users).oneshot(delete_req(Some("web"))).await.unwrap();
+        assert_ne!(resp.status(), StatusCode::OK);
+        assert!(json_of(resp).await.get("error").is_some());
+    }
+
+    #[tokio::test]
     async fn cors_allows_the_site_origin_only() {
         let preflight = |origin: &str| {
             Request::builder()
@@ -246,5 +320,22 @@ mod tests {
             .await
             .unwrap();
         assert!(resp.headers().get("access-control-allow-origin").is_none());
+    }
+
+    #[tokio::test]
+    async fn cors_preflights_the_delete_post() {
+        let preflight = Request::builder()
+            .method(Method::OPTIONS)
+            .uri("/web/account/delete")
+            .header("origin", ORIGIN)
+            .header("access-control-request-method", "POST")
+            .header("access-control-request-headers", "authorization")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app(MockUserPort::new()).oneshot(preflight).await.unwrap();
+        assert_eq!(
+            resp.headers().get("access-control-allow-origin").unwrap(),
+            ORIGIN
+        );
     }
 }

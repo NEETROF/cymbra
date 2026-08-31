@@ -10,6 +10,8 @@ import { formatDate, t, type Lang } from "../lib/i18n";
 import { identityLabel, productLabel } from "../lib/plan-view";
 
 const props = defineProps<{ lang: Lang }>();
+// Account deletion lives on its own page (Google Play requires a web path to it).
+const deleteHref = props.lang === "fr" ? "/suppression-compte" : "/en/delete-account";
 const {
   booted,
   plan,
@@ -106,6 +108,9 @@ onMounted(boot);
       </template>
 
       <p class="muted small">{{ t(lang, "accountAppNote") }}</p>
+      <p class="small">
+        <a :href="deleteHref" data-testid="delete-account-link">{{ t(lang, "deleteAccountLink") }}</a>
+      </p>
       <p class="signout">
         <a href="#" @click.prevent="signOut">{{ t(lang, "signOut") }}</a>
       </p>
