@@ -3617,6 +3617,42 @@
   "kitPieceSplash": "Splash",
   "kitPieceChina": "China",
   "kitPieceKick": "Kick",
+  "kitZoneCrossStick": "Cross-stick",
+  "@kitZoneCrossStick": {
+    "description": "Calibration/pad label for the snare’s side-stick zone (GM 37)."
+  },
+  "kitZoneHiHatOpen": "Open hi-hat",
+  "@kitZoneHiHatOpen": {
+    "description": "Calibration/pad label for the open hi-hat (GM 46) — the same instrument as the closed one, a different trigger on a module."
+  },
+  "kitZoneHiHatPedal": "Hi-hat pedal",
+  "@kitZoneHiHatPedal": {
+    "description": "Calibration/pad label for the hi-hat pedal “chick” (GM 44), the one kit control struck by no hand."
+  },
+  "kitZoneRideBell": "Ride bell",
+  "@kitZoneRideBell": {
+    "description": "Calibration/pad label for the ride bell (GM 53)."
+  },
+  "kitPieceCowbell": "Cowbell",
+  "@kitPieceCowbell": {
+    "description": "Auxiliary pad (GM 56)."
+  },
+  "kitPieceTambourine": "Tambourine",
+  "@kitPieceTambourine": {
+    "description": "Auxiliary pad (GM 54)."
+  },
+  "kitPieceHandClap": "Hand clap",
+  "@kitPieceHandClap": {
+    "description": "Auxiliary pad (GM 39)."
+  },
+  "kitPieceClaves": "Claves",
+  "@kitPieceClaves": {
+    "description": "Auxiliary pad (GM 75)."
+  },
+  "kitPieceWoodBlock": "Wood block",
+  "@kitPieceWoodBlock": {
+    "description": "Auxiliary pad (GM 76)."
+  },
   "drumFocusTitle": "Pieces practised",
   "@drumFocusTitle": {
     "description": "Per-piece practice focus section title (add-practice-focus-controls). Replaces the hands/feet selector on percussion."
@@ -3690,6 +3726,14 @@
   "calibrationAbandon": "Stop",
   "@calibrationAbandon": {
     "description": "Leaves the pass. Nothing is stored — the previous mapping stands."
+  },
+  "calibrationFinish": "Finish here",
+  "@calibrationFinish": {
+    "description": "Ends the pass and keeps what it has learned so far — the counterpart of Stop, which keeps nothing."
+  },
+  "calibrationAuxHint": "Extra pads. Finish here if your kit has none.",
+  "@calibrationAuxHint": {
+    "description": "Shown once the pass leaves the kit itself and starts asking for auxiliary pads."
   },
   "calibrationConflict": "That is already your {piece}",
   "@calibrationConflict": {

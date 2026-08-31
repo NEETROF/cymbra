@@ -139,6 +139,53 @@ percussion score, and the engine is pushed exactly what the app applies, so the
 two cannot drift. A keyboard score with a calibrated kit connected is byte-
 identical to today, which is now asserted rather than assumed.
 
+*Extended after the first beta pass (task 10.1).* The **entry point** now follows
+the seam: the calibration tile is offered on a percussion score only. It was
+offered on every score, so a pianist was invited to calibrate a kit whose mapping
+the seam would then refuse to apply — an invitation to do nothing. The monitor
+keeps the opposite treatment for the opposite reason: it interprets nothing, it
+reports what arrived, and "nothing is arriving at all" is an answer a pianist
+needs as much as a drummer.
+
+### D9 — The pass asks at the grain the hardware has, not the grain the eye has
+
+*Found by the beta's first calibration pass (task 10.2).* `kCalibrationPieceOrder`
+was the list of *lanes*, and a lane deliberately collapses the numbers that share
+one aim point: the closed and open hi-hat are one pad, the snare and its rim one
+drum, the ride and its bell one cymbal. That is right for the eye and wrong for a
+module, which fires each zone on a number of its own — so the parts of a kit most
+likely to send something nonstandard were exactly the parts the pass could not
+ask about, and a rim or an open hi-hat stayed silent and inert *after* a
+calibration that reported success. The auxiliary pads (cowbell, tambourine…) were
+missing for the same reason: no lane, no question.
+
+The pass therefore asks for zones as well as pieces, keyed by the General MIDI
+number they translate to (`gm:37`, `gm:44`, `gm:46`, `gm:53`) — the identity form
+the terminal bucket already uses, so `canonicalGmOfPiece` needed nothing new.
+Downstream is untouched by construction: `drumPieceIdOf(37)` is still the snare,
+so a learned rim flashes the snare pad, satisfies snare onsets and scores as the
+snare. The one distinction that survives translation is the one the app already
+draws — open versus closed hi-hat, which `sameStrokeArticulation` shades a verdict
+with and never gates on.
+
+Two consequences, both deliberate:
+
+- **The list now runs past most kits** (18 kit steps, then 5 auxiliary pads). So
+  the pass gains a third exit beside "skip this one" and "stop": *finish here*,
+  which completes and stores what it has learned. Without it the only way to keep
+  a five-piece kit's mapping would be to tap "this kit has none" a dozen times,
+  and the other exit — abandoning — is defined to keep nothing (D4). It is offered
+  only once something is recorded, where it is not merely "stop" renamed.
+- **The auxiliary pads come last**, after a line saying so, because they are the
+  part of the list most kits answer "none" to. A drummer whose kit ends at the
+  china finishes there.
+
+The prompts speak the player's language: the zones and auxiliary pads gain
+localised labels, read through the same table the pad strip labels a lane with,
+so what a player is asked to hit and what lights when they hit it cannot read
+differently. The monitor keeps naming numbers by the General MIDI standard — it
+reports what the *standard* calls a number, which is a different question.
+
 ### D5 — The monitor shows raw and resolved side by side, and stays honest about silence
 
 Three facts per event, in decreasing rawness: the number as received, the number

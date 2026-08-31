@@ -75,10 +75,29 @@ void main() {
       },
     );
 
-    test('a canonical number round-trips through the piece identity', () {
+    test('a piece round-trips through its canonical number; a zone lands on '
+        'the piece it belongs to', () {
+      // A calibration target is either a piece — where the round trip is the
+      // identity — or a **zone** of one (design D9), where it deliberately is
+      // not: a rim stroke learned as 37 is still the snare to [drumPieceIdOf],
+      // which is precisely what keeps the extra question free of consequences
+      // downstream. The flash, the gate and the scorer never learn that the
+      // pass asked for it separately.
+      const zoneBelongsTo = {
+        kCrossStickPieceId: 'kitPieceSnare',
+        kOpenHiHatPieceId: 'kitPieceHiHat',
+        kRideBellPieceId: 'kitPieceRide',
+      };
       for (final id in kCalibrationPieceOrder) {
-        expect(drumPieceIdOf(canonicalGmOfPiece(id)!), id, reason: id);
+        expect(
+          drumPieceIdOf(canonicalGmOfPiece(id)!),
+          zoneBelongsTo[id] ?? id,
+          reason: id,
+        );
       }
+      // The pedal "chick" is the exception among the zones: no hand strikes it,
+      // so it is a piece of its own rather than part of the hi-hat.
+      expect(drumPieceIdOf(44), kPedalHiHatPieceId);
     });
   });
 

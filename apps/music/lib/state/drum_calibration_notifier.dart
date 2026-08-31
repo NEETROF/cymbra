@@ -85,6 +85,10 @@ class DrumCalibration extends _$DrumCalibration {
   /// Leaves the pass. Nothing is written — the stored mapping stands.
   void abandon() => state = state.abandon();
 
+  /// Ends the pass here, keeping what it learned. Goes through [_apply], so it
+  /// stores exactly like reaching the last step does.
+  void finish() => _apply(state.finish());
+
   /// Begins a pass (or begins one again), discarding anything an earlier pass
   /// in this session had learned but not stored. Armed against the events seen
   /// so far, so the stroke that opened the screen cannot answer the first step.

@@ -49,6 +49,61 @@ replace the previous result only when it completes.
 - **THEN** the conflict is reported and the player is asked to strike again or
   reassign, rather than silently overwriting
 
+### Requirement: The Pass Covers Every Trigger A Kit Sends
+
+The pass SHALL ask for every part of a kit an instrument can trigger on a number
+of its own, not only the pieces the app draws as lanes: the zones of a piece a
+module fires separately — the snare's rim, the open hi-hat, the hi-hat pedal, the
+ride bell — and the auxiliary pads a module offers beside the kit. A zone learned
+this way SHALL still resolve to the piece it belongs to everywhere downstream, so
+asking for it separately SHALL change nothing about what flashes, what the gate
+awaits or what is scored.
+
+Because that list runs past most kits, the pass SHALL offer a way to **end it
+early keeping what it has learned**, distinct from abandoning it, and SHALL ask
+for the auxiliary pads only after the kit itself.
+
+#### Scenario: A zone the module triggers separately is learned
+- **WHEN** the pass asks for the open hi-hat and the kit sends 26 for it
+- **THEN** 26 is recorded, and an incoming 26 is thereafter read as an open
+  hi-hat stroke
+
+#### Scenario: A learned zone is still its piece
+- **WHEN** a stroke arrives on the number recorded for the snare's rim
+- **THEN** it resolves to the snare — the same pad flashes, the same onsets are
+  satisfied and the same scoring applies as for any other snare stroke
+
+#### Scenario: A kit smaller than the list is stored without tapping through it
+- **WHEN** the player ends the pass early after recording some pieces
+- **THEN** exactly those pieces are stored, and the pass counts as completed
+  rather than abandoned
+
+#### Scenario: Ending early with nothing learned is not offered
+- **WHEN** no step has recorded anything yet
+- **THEN** ending early is not offered, because it would be abandoning under
+  another name
+
+### Requirement: The Pass Is Offered Where The Mapping Applies
+
+The calibration pass SHALL be offered from the settings of a percussion score
+only. The mapping states which piece of a **kit** a pad is, and the seam that
+applies it is the identity on any other score, so offering the pass on a keyboard
+score would promise a calibration that provably does nothing there. The input
+monitor, which interprets nothing and reports only what arrived, SHALL remain
+available whatever the loaded score is.
+
+#### Scenario: A keyboard score is not offered the pass
+- **WHEN** the settings are opened on a keyboard score
+- **THEN** the calibration pass is not offered
+
+#### Scenario: A percussion score is offered the pass
+- **WHEN** the settings are opened on a percussion score
+- **THEN** the calibration pass is offered
+
+#### Scenario: The monitor is offered either way
+- **WHEN** the settings are opened on a score of any kind
+- **THEN** the input monitor is offered
+
 ### Requirement: Mapping Is Per Device
 
 A learned mapping SHALL be stored against the MIDI device it was learned from,

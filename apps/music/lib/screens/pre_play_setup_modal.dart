@@ -1064,33 +1064,39 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
         // add-drum-input-calibration). Beside the monitor because they answer
         // the same question in sequence: the monitor shows what the kit sends,
         // this tells the app what it means.
-        Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: ListTile(
-            key: const Key('open-drum-calibration'),
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(
-              Icons.tune,
-              color: CymbraColors.onSurfaceVariant,
-            ),
-            title: Text(
-              l10n.calibrationOpen,
-              style: const TextStyle(color: CymbraColors.onSurface),
-            ),
-            subtitle: Text(
-              l10n.calibrationOpenHint,
-              style: const TextStyle(
+        //
+        // Percussion only, unlike the monitor: the mapping says "this pad is
+        // the snare", and the seam that applies it is identity on anything that
+        // is not a percussion score (design D8). Offering it on a keyboard score
+        // would promise a calibration that provably does nothing there.
+        if (data.isPercussion)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: ListTile(
+              key: const Key('open-drum-calibration'),
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(
+                Icons.tune,
                 color: CymbraColors.onSurfaceVariant,
-                fontSize: 12,
               ),
+              title: Text(
+                l10n.calibrationOpen,
+                style: const TextStyle(color: CymbraColors.onSurface),
+              ),
+              subtitle: Text(
+                l10n.calibrationOpenHint,
+                style: const TextStyle(
+                  color: CymbraColors.onSurfaceVariant,
+                  fontSize: 12,
+                ),
+              ),
+              trailing: const Icon(
+                Icons.chevron_right,
+                color: CymbraColors.onSurfaceVariant,
+              ),
+              onTap: () => openDrumCalibration(context),
             ),
-            trailing: const Icon(
-              Icons.chevron_right,
-              color: CymbraColors.onSurfaceVariant,
-            ),
-            onTap: () => openDrumCalibration(context),
           ),
-        ),
       ],
     );
   }

@@ -205,6 +205,22 @@ class CalibrationState {
   CalibrationState abandon() =>
       isRunning ? copyWith(outcome: CalibrationOutcome.abandoned) : this;
 
+  /// End the pass **here** and keep what it has learned — the counterpart of
+  /// [abandon], which keeps nothing.
+  ///
+  /// The list asks round the whole standard kit and then the auxiliary pads,
+  /// so most kits run out of hardware before the pass runs out of steps. Without
+  /// this the only way to store a five-piece kit would be to tap "this kit has
+  /// none" through every remaining step, and the only other exit — [abandon] —
+  /// would silently throw the pass away.
+  CalibrationState finish() => isRunning
+      ? copyWith(
+          index: pieces.length,
+          clearConflict: true,
+          outcome: CalibrationOutcome.completed,
+        )
+      : this;
+
   CalibrationState _advance({
     required Map<String, int> recorded,
     required int atMs,

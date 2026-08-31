@@ -108,6 +108,21 @@ class _Pass extends ConsumerWidget {
               fontWeight: FontWeight.w700,
             ),
           ),
+          // The pass has left the kit itself and is asking for auxiliary pads —
+          // the part most kits answer "none" to. Said once, where "finish here"
+          // stops being an escape hatch and becomes the ordinary answer.
+          if (kCalibrationAuxPieceOrder.contains(piece)) ...[
+            const SizedBox(height: 8),
+            Text(
+              key: const Key('calibration-aux-hint'),
+              l10n.calibrationAuxHint,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: CymbraColors.onSurfaceVariant,
+                fontSize: 13,
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           if (conflict != null)
             _Conflict(
@@ -149,6 +164,16 @@ class _Pass extends ConsumerWidget {
               ),
             ],
           ),
+          // Keeps what the pass has learned so far. Offered only once there is
+          // something to keep: with nothing recorded it would be "Stop" under
+          // another name, and two buttons doing one thing is a question the
+          // player has to answer for no reason.
+          if (state.recorded.isNotEmpty)
+            TextButton(
+              key: const Key('calibration-finish'),
+              onPressed: notifier.finish,
+              child: Text(l10n.calibrationFinish),
+            ),
         ],
       ),
     );

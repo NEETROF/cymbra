@@ -206,13 +206,51 @@ void main() {
     });
   });
 
-  group('the pieces a pass offers (design D7)', () {
+  group('finishing early (design D9)', () {
+    test('keeps what the pass learned and completes it', () {
+      // The counterpart of abandoning: the list runs past most kits, so a
+      // five-piece kit must be able to stop at its last cymbal and keep the
+      // strokes it recorded rather than tapping "none" to the end.
+      final s = _fresh()
+          .afterStroke(12, atMs: 100)
+          .afterStroke(31, atMs: 200)
+          .finish();
+      expect(s.outcome, CalibrationOutcome.completed);
+      expect(s.isRunning, isFalse);
+      expect(s.recorded, {kKickPieceId: 12, 'kitPieceSnare': 31});
+      expect(s.mapping.byPiece, {kKickPieceId: 12, 'kitPieceSnare': 31});
+    });
+
+    test('a pass that is not running is untouched', () {
+      final idle = CalibrationState(pieces: kCalibrationPieceOrder);
+      expect(idle.finish().outcome, CalibrationOutcome.idle);
+      final abandoned = _fresh().afterStroke(12, atMs: 100).abandon();
+      expect(abandoned.finish().outcome, CalibrationOutcome.abandoned);
+    });
+
+    test('a stroke after finishing changes nothing', () {
+      final s = _fresh().afterStroke(12, atMs: 100).finish();
+      expect(s.afterStroke(31, atMs: 200).recorded, {kKickPieceId: 12});
+    });
+  });
+
+  group('the pieces a pass offers (design D7, D9)', () {
     test('the standard kit, round the kit as a drummer sits at it', () {
       // The fixed order, not the loaded score's: a mapping describes hardware,
       // and a groove with no toms must not leave a kit unable to map its toms.
       expect(kCalibrationPieceOrder.first, kKickPieceId);
       expect(kCalibrationPieceOrder[1], 'kitPieceSnare');
-      expect(kCalibrationPieceOrder[2], 'kitPieceHiHat');
+      // Each zone follows the piece it sits on, because that is the order the
+      // hand moves in: the snare then its rim, the hi-hat then its open and
+      // pedal strokes.
+      expect(kCalibrationPieceOrder[2], kCrossStickPieceId);
+      expect(kCalibrationPieceOrder[3], 'kitPieceHiHat');
+      expect(kCalibrationPieceOrder[4], kOpenHiHatPieceId);
+      expect(kCalibrationPieceOrder[5], kPedalHiHatPieceId);
+      expect(
+        kCalibrationKitPieceOrder.indexOf(kRideBellPieceId),
+        kCalibrationKitPieceOrder.indexOf('kitPieceRide') + 1,
+      );
       expect(kCalibrationPieceOrder, contains('kitPieceRide'));
       expect(kCalibrationPieceOrder, contains('kitPieceCrash'));
       // No duplicates — a piece asked for twice would collide with itself.
@@ -220,6 +258,24 @@ void main() {
         kCalibrationPieceOrder.toSet().length,
         kCalibrationPieceOrder.length,
       );
+    });
+
+    test('the auxiliary pads come last, after the kit itself', () {
+      // A drummer whose kit ends at the china finishes there; the pads most
+      // kits do not have must never stand between them and the end of the pass.
+      expect(
+        kCalibrationPieceOrder,
+        kCalibrationKitPieceOrder + kCalibrationAuxPieceOrder,
+      );
+      expect(kCalibrationKitPieceOrder.last, 'kitPieceChina');
+      expect(kCalibrationAuxPieceOrder, contains('gm:56')); // cowbell
+      for (final id in kCalibrationAuxPieceOrder) {
+        expect(
+          kCalibrationKitPieceOrder,
+          isNot(contains(id)),
+          reason: '$id is offered twice',
+        );
+      }
     });
 
     test('a full pass over the standard kit completes', () {

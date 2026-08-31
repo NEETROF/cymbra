@@ -172,6 +172,29 @@ void main() {
     await _teardown(tester, container);
   });
 
+  testWidgets('the kit calibration is offered on a percussion score only — the '
+      'monitor on both', (tester) async {
+    // Change: add-drum-input-calibration (design D8). The mapping states "this
+    // pad is the snare", and the seam that applies it is the identity on
+    // anything that is not a percussion score: offering the pass on a keyboard
+    // score would promise a calibration that provably does nothing there.
+    //
+    // The monitor is the other half of the rule and stays everywhere: it
+    // interprets nothing, it reports what arrived, and "nothing is arriving at
+    // all" is an answer a pianist needs just as much.
+    final keyboard = await _pumpWithModal(tester);
+    expect(keyboard.read(playerProvider).isPercussion, isFalse);
+    expect(find.byKey(const Key('open-midi-monitor')), findsOneWidget);
+    expect(find.byKey(const Key('open-drum-calibration')), findsNothing);
+    await _teardown(tester, keyboard);
+
+    final drums = await _pumpWithModal(tester, document: sampleDrumDocument());
+    expect(drums.read(playerProvider).isPercussion, isTrue);
+    expect(find.byKey(const Key('open-midi-monitor')), findsOneWidget);
+    expect(find.byKey(const Key('open-drum-calibration')), findsOneWidget);
+    await _teardown(tester, drums);
+  });
+
   testWidgets('close (X) keeps the current settings', (tester) async {
     final container = await _pumpWithModal(tester);
     expect(container.read(playerProvider).selectedHands, Hand.both);

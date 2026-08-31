@@ -179,3 +179,28 @@
 - [ ] 9.7 Confirm input latency is unchanged from the §8 baseline of
   `add-drum-input-mapping` — the translation runs in the MIDI callback and must
   not be perceptible
+
+## 10. What the first beta pass found (D8 entry point, D9 coverage)
+
+- [x] 10.1 Offer the calibration tile on a **percussion score only**
+  (`_midiSection`, gated on `PlayerData.isPercussion`) — the seam that applies the
+  mapping is the identity anywhere else, so the invitation promised nothing. The
+  monitor stays on every score: it interprets nothing
+- [x] 10.2 Split `kCalibrationPieceOrder` into `kCalibrationKitPieceOrder` +
+  `kCalibrationAuxPieceOrder` and add what a module triggers separately: the
+  cross-stick (37), open hi-hat (46), pedal hi-hat (44) and ride bell (53) beside
+  the pieces they sit on, then the auxiliary pads (cowbell, tambourine, hand clap,
+  claves, wood block)
+- [x] 10.3 `CalibrationState.finish()` + the notifier's `finish()`: end the pass
+  here and store what it learned, offered once something is recorded — the list
+  now runs past most kits, and abandoning keeps nothing by design (D4)
+- [x] 10.4 Announce the auxiliary section in the pass, so "finish here" is the
+  ordinary answer rather than an escape hatch
+- [x] 10.5 Localised labels for the zones and auxiliary pads (fr/en/es/it), read
+  through the same table the pad strip labels a lane with — one vocabulary for
+  what the player is asked to hit and what lights when they hit it
+- [x] 10.6 Tests: the calibration entry point is percussion-only and the monitor
+  is not; a zone is learned, translated, and still resolves to its piece; the pass
+  finishes early keeping what it learned; the auxiliary pads come last
+- [ ] 10.7 On the kit: run the extended pass and confirm the rim, the open hi-hat
+  and the pedal are learned on their own numbers and are no longer inert

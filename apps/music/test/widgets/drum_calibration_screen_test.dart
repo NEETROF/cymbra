@@ -216,6 +216,76 @@ void main() {
     await teardown(tester);
   });
 
+  testWidgets('the zones a module triggers separately are learned, and stay '
+      'the piece they belong to', (tester) async {
+    // The gap the beta found (design D9): a kit sends its rim, its open hi-hat
+    // and its pedal on numbers of their own, and a pass that only asked for
+    // pieces left them unmappable — and therefore silent and inert.
+    await pump(tester);
+    await tap(tester, 'calibration-start');
+    await strike(tester, 12); // kick
+    await strike(tester, 31); // snare
+    await strike(tester, 33); // …its rim
+    await strike(tester, 22); // hi-hat, closed
+    await strike(tester, 26); // …open
+    await strike(tester, 21); // …pedal
+    await tap(tester, 'calibration-finish');
+
+    final stored = container
+        .read(drumInputMappingStoreProvider.notifier)
+        .forPort('Drum kit');
+    expect(stored.byPiece, {
+      kKickPieceId: 12,
+      'kitPieceSnare': 31,
+      kCrossStickPieceId: 33,
+      'kitPieceHiHat': 22,
+      kOpenHiHatPieceId: 26,
+      kPedalHiHatPieceId: 21,
+    });
+    // Each lands on the number the app reasons in…
+    expect(stored.translate(33), 37);
+    expect(stored.translate(26), 46);
+    expect(stored.translate(21), 44);
+    // …and the two hi-hat strokes remain ONE piece, told apart only by their
+    // articulation, exactly as a score written in 42s and 46s is.
+    expect(samePiece(42, stored.translate(26)), isTrue);
+    expect(isOpenHiHat(stored.translate(26)), isTrue);
+    expect(isOpenHiHat(stored.translate(22)), isFalse);
+    // The rim is still the snare to everything downstream — the flash, the gate
+    // and the scorer never learn the pass asked for it separately.
+    expect(samePiece(38, stored.translate(33)), isTrue);
+    await teardown(tester);
+  });
+
+  testWidgets('the pass can be finished at the auxiliary pads, keeping what it '
+      'learned', (tester) async {
+    await pump(tester);
+    await tap(tester, 'calibration-start');
+    // Nothing recorded yet: "finish here" would be "stop" under another name.
+    expect(find.byKey(const Key('calibration-finish')), findsNothing);
+
+    await strike(tester, 12); // the kick
+    expect(find.byKey(const Key('calibration-finish')), findsOneWidget);
+    // A kit that ends at the china skips the rest of the standard kit…
+    for (var i = 1; i < kCalibrationKitPieceOrder.length; i++) {
+      await tap(tester, 'calibration-skip');
+    }
+    // …and is told what the remaining steps are before deciding.
+    expect(find.byKey(const Key('calibration-aux-hint')), findsOneWidget);
+
+    await tap(tester, 'calibration-finish');
+    // Completed, not abandoned: the table is shown and the stroke was kept.
+    expect(find.byKey(const Key('calibration-finished')), findsOneWidget);
+    expect(
+      container
+          .read(drumInputMappingStoreProvider.notifier)
+          .forPort('Drum kit')
+          .byPiece,
+      {kKickPieceId: 12},
+    );
+    await teardown(tester);
+  });
+
   testWidgets('strokes stay audible throughout the pass', (tester) async {
     // A player who hears nothing while calibrating cannot tell a mis-mapped pad
     // from a disconnected kit. The player notifier is alive underneath (the
