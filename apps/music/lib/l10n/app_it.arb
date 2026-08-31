@@ -870,5 +870,17 @@
   "coachPlayerSoundDrumsBody": "Seleziona il kit che senti mentre suoni. Puoi aggiungere le tue SoundFont e sbloccarne altre con i tuoi punti.",
   "coachPlayerMidiDrumsBody": "Qui compare la tua batteria elettronica collegata. Lascia la modalità automatica, oppure scegli tu il dispositivo se ne hai più di uno.",
   "coachPlayerFocusTitle": "Studia pezzo per pezzo",
-  "coachPlayerFocusBody": "Deseleziona ciò che non stai studiando. Il kit mostra e chiede il resto, e i pezzi deselezionati suonano comunque quando li colpisci."
+  "coachPlayerFocusBody": "Deseleziona ciò che non stai studiando. Il kit mostra e chiede il resto, e i pezzi deselezionati suonano comunque quando li colpisci.",
+  "reportAction": "Segnala",
+  "reportSheetTitle": "Segnala questo contenuto",
+  "reportSheetIntro": "Dicci cosa non va. Un moderatore esamina ogni segnalazione.",
+  "reportReasonCopyright": "Viola i miei diritti",
+  "reportReasonInappropriate": "Contenuto inappropriato",
+  "reportReasonWrongContent": "Errato o inutilizzabile",
+  "reportReasonOther": "Altro",
+  "reportNoteLabel": "Dettagli (facoltativo)",
+  "reportSubmit": "Invia segnalazione",
+  "reportSent": "Segnalazione inviata. Grazie.",
+  "reportFailed": "Non è stato possibile inviare la segnalazione. Riprova.",
+  "reportSignInRequired": "Accedi per segnalare un contenuto."
 }

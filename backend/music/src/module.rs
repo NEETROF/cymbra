@@ -32,6 +32,7 @@ use sha2::{Digest, Sha256};
 use crate::catalog_daily_access::{AccessState, CatalogDailyAccess, OpenDecision};
 use crate::catalog_edit::{CurrentMeta, MetadataChanges, plan_edit};
 use crate::catalog_search::{CatalogHit, CatalogQuery, CatalogSearchParams, CatalogSearchRepo};
+use crate::content_report::{ContentReportRepo, ReportTarget, validate as validate_report};
 use crate::curation_rewards::CurationRewardsSink;
 use crate::offline_secret::{FakeOfflineSecretRepo, OfflineSecretRepo, generate_offline_secret};
 use crate::repo::{CatalogEntry, ScoreFacets, ScoreMeta};
@@ -164,6 +165,11 @@ pub struct ScoreModule {
     /// wired via [`Self::with_rewards`]. The rating path records engagement + awards
     /// coverage through it; the moderation path settles honesty through it.
     rewards: Option<Arc<dyn CurationRewardsSink>>,
+    /// In-app content-report intake (change: add-content-reporting). `None` ⇒
+    /// `ReportContent` refuses with `FailedPrecondition` rather than silently
+    /// accepting a report nobody will ever read — a reporting button that drops
+    /// reports on the floor is worse than none. Wired via [`Self::with_reports`].
+    reports: Option<Arc<dyn ContentReportRepo>>,
     /// Per-user offline-cache secret store (change: add-offline-score-cache).
     /// Defaults to an in-memory fake so existing call sites and tests are
     /// unaffected; **production MUST override it** via [`Self::with_offline_secrets`]
@@ -299,6 +305,7 @@ impl ScoreModule {
             rating_config: RatingConfig::default(),
             user: None,
             rewards: None,
+            reports: None,
             offline_secrets: Arc::new(FakeOfflineSecretRepo::default()),
             daily_access: None,
             collections: None,
@@ -415,6 +422,14 @@ impl ScoreModule {
     /// work and award nothing.
     pub fn with_rewards(mut self, rewards: Arc<dyn CurationRewardsSink>) -> Self {
         self.rewards = Some(rewards);
+        self
+    }
+
+    /// Wire the content-report intake (change: add-content-reporting). The server
+    /// sets this; tests opt in with [`crate::FakeContentReportRepo`]. When unset,
+    /// `report_content` refuses instead of dropping reports.
+    pub fn with_reports(mut self, reports: Arc<dyn ContentReportRepo>) -> Self {
+        self.reports = Some(reports);
         self
     }
 
@@ -1312,6 +1327,62 @@ impl ScoreModule {
     /// it was not saved). Never touches the public catalog entry.
     pub async fn remove_saved_catalog_score(&self, owner_id: &str, catalog_id: &str) -> Result<()> {
         self.library.remove(owner_id, catalog_id).await
+    }
+
+    // --- content reports (change: add-content-reporting) --------------------
+
+    /// Record a report against a piece of public content. `reporter_id` is the
+    /// authenticated caller — never the body.
+    ///
+    /// Deliberately does **not** verify that the target exists: a reporter should
+    /// be able to flag something that has just been withdrawn or renamed, and a
+    /// lookup here would leak whether a given id is in the catalog. The moderator
+    /// resolves the target when they triage.
+    ///
+    /// Returns the report id and whether this call created it — a second report by
+    /// the same user against the same target returns the first one's id with
+    /// `created == false`, so a double tap is idempotent rather than an error.
+    pub async fn report_content(
+        &self,
+        reporter_id: &str,
+        target_kind: &str,
+        target_id: &str,
+        reason: &str,
+        note: Option<&str>,
+    ) -> Result<(String, bool)> {
+        let Some(reports) = self.reports.as_ref() else {
+            return Err(AppError::FailedPrecondition(
+                "content reporting is not available".into(),
+            ));
+        };
+        let report = validate_report(target_kind, target_id, reason, note)?;
+        let before = reports
+            .count_open_for(report.target, &report.target_id)
+            .await?;
+        let id = reports.insert(reporter_id, &report).await?;
+        let after = reports
+            .count_open_for(report.target, &report.target_id)
+            .await?;
+        Ok((id, after > before))
+    }
+
+    /// The moderator's open queue, oldest first. Caller authorization is the gRPC
+    /// layer's job (scope-matched `music` admin), as everywhere else here.
+    pub async fn list_open_reports(&self, limit: i64) -> Result<Vec<crate::ReportRow>> {
+        let Some(reports) = self.reports.as_ref() else {
+            return Err(AppError::FailedPrecondition(
+                "content reporting is not available".into(),
+            ));
+        };
+        reports.list_open(limit.clamp(1, 500)).await
+    }
+
+    /// How many open reports stand against one target.
+    pub async fn open_report_count(&self, target: ReportTarget, target_id: &str) -> Result<i64> {
+        match self.reports.as_ref() {
+            Some(reports) => reports.count_open_for(target, target_id).await,
+            None => Ok(0),
+        }
     }
 
     // --- score ratings (change: add-app-score-rating) -----------------------
@@ -2693,6 +2764,107 @@ mod tests {
                 b"<score/>"
             );
         }
+    }
+
+    // --- content reports (change: add-content-reporting) --------------------
+
+    /// [`moderated_module`] with the report intake wired to an in-memory repo the
+    /// test can assert on.
+    async fn module_with_reports() -> (ScoreModule, Arc<crate::FakeContentReportRepo>) {
+        let reports = Arc::new(crate::FakeContentReportRepo::default());
+        (
+            moderated_module().await.with_reports(reports.clone()),
+            reports,
+        )
+    }
+
+    #[tokio::test]
+    async fn report_content_records_the_caller_as_reporter() {
+        let (m, reports) = module_with_reports().await;
+        let (id, created) = m
+            .report_content(
+                "u1",
+                "catalog_score",
+                DEBUSSY_1,
+                "copyright",
+                Some(" mine "),
+            )
+            .await
+            .unwrap();
+        assert!(created);
+        let rows = reports.all();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].id, id);
+        assert_eq!(rows[0].reporter_id.as_deref(), Some("u1"));
+        assert_eq!(rows[0].target_id, DEBUSSY_1);
+        // The note is trimmed by the shared validator, not by the caller.
+        assert_eq!(rows[0].note.as_deref(), Some("mine"));
+    }
+
+    #[tokio::test]
+    async fn reporting_twice_is_idempotent_and_reports_it_as_not_created() {
+        let (m, reports) = module_with_reports().await;
+        let (first, created_first) = m
+            .report_content("u1", "soundfont", "sf-1", "inappropriate", None)
+            .await
+            .unwrap();
+        let (second, created_second) = m
+            .report_content("u1", "soundfont", "sf-1", "inappropriate", None)
+            .await
+            .unwrap();
+        assert_eq!(first, second);
+        assert!(created_first);
+        assert!(!created_second);
+        assert_eq!(reports.all().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn report_content_rejects_unknown_vocabulary_before_writing() {
+        let (m, reports) = module_with_reports().await;
+        assert!(matches!(
+            m.report_content("u1", "user_score", "s-1", "copyright", None)
+                .await,
+            Err(AppError::InvalidArgument(_))
+        ));
+        assert!(matches!(
+            m.report_content("u1", "catalog_score", "s-1", "spam", None)
+                .await,
+            Err(AppError::InvalidArgument(_))
+        ));
+        assert!(reports.all().is_empty());
+    }
+
+    #[tokio::test]
+    async fn report_content_accepts_a_target_that_is_not_in_the_catalog() {
+        // Deliberate: a reporter must be able to flag something just withdrawn or
+        // renamed, and a lookup here would leak whether an id exists.
+        let (m, reports) = module_with_reports().await;
+        m.report_content("u1", "catalog_score", "not-in-catalog", "other", None)
+            .await
+            .unwrap();
+        assert_eq!(reports.all().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn report_content_refuses_when_the_intake_is_not_wired() {
+        // A reporting button that drops reports on the floor is worse than none.
+        let m = moderated_module().await;
+        assert!(matches!(
+            m.report_content("u1", "catalog_score", DEBUSSY_1, "copyright", None)
+                .await,
+            Err(AppError::FailedPrecondition(_))
+        ));
+        assert!(matches!(
+            m.list_open_reports(10).await,
+            Err(AppError::FailedPrecondition(_))
+        ));
+        // The count degrades to zero rather than erroring: it decorates a screen.
+        assert_eq!(
+            m.open_report_count(ReportTarget::CatalogScore, DEBUSSY_1)
+                .await
+                .unwrap(),
+            0
+        );
     }
 
     /// [`moderated_module`] plus a real rewards module over a fake repo, returned

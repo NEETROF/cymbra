@@ -870,5 +870,17 @@
   "coachPlayerSoundDrumsBody": "Selecciona el kit que oyes al tocar. Puedes añadir tus propias SoundFonts y desbloquear más con tus puntos.",
   "coachPlayerMidiDrumsBody": "Aquí aparece tu batería electrónica conectada. Déjalo en automático o elige tú mismo el dispositivo si hay varios conectados.",
   "coachPlayerFocusTitle": "Practica pieza por pieza",
-  "coachPlayerFocusBody": "Desmarca lo que no estés trabajando. El kit muestra y pide el resto, y las piezas desmarcadas siguen sonando cuando las golpeas."
+  "coachPlayerFocusBody": "Desmarca lo que no estés trabajando. El kit muestra y pide el resto, y las piezas desmarcadas siguen sonando cuando las golpeas.",
+  "reportAction": "Denunciar",
+  "reportSheetTitle": "Denunciar este contenido",
+  "reportSheetIntro": "Cuéntanos qué ocurre. Un moderador revisa cada denuncia.",
+  "reportReasonCopyright": "Infringe mis derechos",
+  "reportReasonInappropriate": "Contenido inapropiado",
+  "reportReasonWrongContent": "Incorrecto o inservible",
+  "reportReasonOther": "Otra cosa",
+  "reportNoteLabel": "Detalles (opcional)",
+  "reportSubmit": "Enviar denuncia",
+  "reportSent": "Denuncia enviada. Gracias.",
+  "reportFailed": "No se ha podido enviar la denuncia. Inténtalo de nuevo.",
+  "reportSignInRequired": "Inicia sesión para denunciar contenido."
 }

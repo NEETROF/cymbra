@@ -2,64 +2,64 @@
   "@@locale": "en",
   "midiMonitorTitle": "MIDI monitor",
   "@midiMonitorTitle": {
-      "description": "Title of the live MIDI input read-out."
+    "description": "Title of the live MIDI input read-out."
   },
   "midiMonitorHint": "Play something. Each stroke shows the note number your instrument sent, and what the app made of it.",
   "@midiMonitorHint": {
-      "description": "One line telling the player what the monitor shows."
+    "description": "One line telling the player what the monitor shows."
   },
   "midiMonitorClear": "Clear",
   "@midiMonitorClear": {
-      "description": "Empties the monitor so the next stroke is the only entry."
+    "description": "Empties the monitor so the next stroke is the only entry."
   },
   "midiMonitorWaiting": "Waiting for your first note…",
   "@midiMonitorWaiting": {
-      "description": "Shown while a device is connected but nothing has been played."
+    "description": "Shown while a device is connected but nothing has been played."
   },
   "midiMonitorNoDevice": "No MIDI device is connected. Plug your instrument in and it will appear here.",
   "@midiMonitorNoDevice": {
-      "description": "Shown when no MIDI device is connected."
+    "description": "Shown when no MIDI device is connected."
   },
   "midiMonitorEventDetail": "Velocity {velocity} · Channel {channel}",
   "@midiMonitorEventDetail": {
-      "description": "Secondary line of a monitor row: velocity and 1-based channel.",
-      "placeholders": {
-          "velocity": {
-              "type": "int"
-          },
-          "channel": {
-              "type": "int"
-          }
+    "description": "Secondary line of a monitor row: velocity and 1-based channel.",
+    "placeholders": {
+      "velocity": {
+        "type": "int"
+      },
+      "channel": {
+        "type": "int"
       }
+    }
   },
   "midiMonitorOutsideKit": "{name} — not in this score",
   "@midiMonitorOutsideKit": {
-      "description": "A known percussion instrument the loaded score does not use.",
-      "placeholders": {
-          "name": {
-              "type": "String"
-          }
+    "description": "A known percussion instrument the loaded score does not use.",
+    "placeholders": {
+      "name": {
+        "type": "String"
       }
+    }
   },
   "midiMonitorOutsideMap": "Unknown to the app (outside {low}–{high})",
   "@midiMonitorOutsideMap": {
-      "description": "A number outside the General MIDI percussion map.",
-      "placeholders": {
-          "low": {
-              "type": "int"
-          },
-          "high": {
-              "type": "int"
-          }
+    "description": "A number outside the General MIDI percussion map.",
+    "placeholders": {
+      "low": {
+        "type": "int"
+      },
+      "high": {
+        "type": "int"
       }
+    }
   },
   "midiMonitorOpen": "Open the MIDI monitor",
   "@midiMonitorOpen": {
-      "description": "Settings action that opens the MIDI monitor."
+    "description": "Settings action that opens the MIDI monitor."
   },
   "midiMonitorOpenHint": "See the note numbers your instrument actually sends.",
   "@midiMonitorOpenHint": {
-      "description": "Explains what the MIDI monitor is for."
+    "description": "Explains what the MIDI monitor is for."
   },
   "nowPlaying": "Now Playing: {title}",
   "@nowPlaying": {
@@ -1293,67 +1293,163 @@
     "description": "Rights-basis option: public domain or an open licence."
   },
   "batchImportTitle": "Import several scores",
-  "@batchImportTitle": {"description": "Title of the batch import screen."},
+  "@batchImportTitle": {
+    "description": "Title of the batch import screen."
+  },
   "batchImportSelected": "{count} files selected",
-  "@batchImportSelected": {"description": "Number of files in the batch.", "placeholders": {"count": {"type": "int"}}},
+  "@batchImportSelected": {
+    "description": "Number of files in the batch.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "batchImportLevelQuestion": "Difficulty for every file in this batch",
-  "@batchImportLevelQuestion": {"description": "Batch-level difficulty prompt."},
+  "@batchImportLevelQuestion": {
+    "description": "Batch-level difficulty prompt."
+  },
   "batchImportRightsNote": "This declaration applies to every file in the batch.",
-  "@batchImportRightsNote": {"description": "Explains the batch-wide attestation."},
+  "@batchImportRightsNote": {
+    "description": "Explains the batch-wide attestation."
+  },
   "batchImportStart": "Import",
-  "@batchImportStart": {"description": "Starts the batch import."},
-  "batchImportRunning": "Importing {done} of {total}\u2026",
-  "@batchImportRunning": {"description": "Batch progress.", "placeholders": {"done": {"type": "int"}, "total": {"type": "int"}}},
+  "@batchImportStart": {
+    "description": "Starts the batch import."
+  },
+  "batchImportRunning": "Importing {done} of {total}…",
+  "@batchImportRunning": {
+    "description": "Batch progress.",
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "batchImportQuotaWarning": "Your plan allows {remaining} more imports: {over} of these files cannot be imported now.",
-  "@batchImportQuotaWarning": {"description": "Warns before the batch that the selection exceeds the remaining quota.", "placeholders": {"remaining": {"type": "int"}, "over": {"type": "int"}}},
+  "@batchImportQuotaWarning": {
+    "description": "Warns before the batch that the selection exceeds the remaining quota.",
+    "placeholders": {
+      "remaining": {
+        "type": "int"
+      },
+      "over": {
+        "type": "int"
+      }
+    }
+  },
   "batchImportQuotaWarningUpgrade": "A higher plan raises this limit.",
-  "@batchImportQuotaWarningUpgrade": {"description": "Upsell line under the quota warning."},
+  "@batchImportQuotaWarningUpgrade": {
+    "description": "Upsell line under the quota warning."
+  },
   "batchImportDone": "{imported} of {total} imported",
-  "@batchImportDone": {"description": "Batch result summary.", "placeholders": {"imported": {"type": "int"}, "total": {"type": "int"}}},
+  "@batchImportDone": {
+    "description": "Batch result summary.",
+    "placeholders": {
+      "imported": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "batchImportOutcomeImported": "Imported",
-  "@batchImportOutcomeImported": {"description": "Per-file outcome: stored."},
+  "@batchImportOutcomeImported": {
+    "description": "Per-file outcome: stored."
+  },
   "batchImportOutcomeDuplicate": "Already in your library",
-  "@batchImportOutcomeDuplicate": {"description": "Per-file outcome: duplicate content."},
+  "@batchImportOutcomeDuplicate": {
+    "description": "Per-file outcome: duplicate content."
+  },
   "batchImportOutcomeInvalid": "Unreadable score file",
-  "@batchImportOutcomeInvalid": {"description": "Per-file outcome: refused by validation."},
+  "@batchImportOutcomeInvalid": {
+    "description": "Per-file outcome: refused by validation."
+  },
   "batchImportOutcomeQuota": "Import quota reached",
-  "@batchImportOutcomeQuota": {"description": "Per-file outcome: quota exhausted."},
-  "batchImportOutcomeFailed": "Could not be imported \u2014 try again",
-  "@batchImportOutcomeFailed": {"description": "Per-file outcome: retryable failure."},
+  "@batchImportOutcomeQuota": {
+    "description": "Per-file outcome: quota exhausted."
+  },
+  "batchImportOutcomeFailed": "Could not be imported — try again",
+  "@batchImportOutcomeFailed": {
+    "description": "Per-file outcome: retryable failure."
+  },
   "batchImportClose": "Close",
-  "@batchImportClose": {"description": "Closes the batch screen."},
+  "@batchImportClose": {
+    "description": "Closes the batch screen."
+  },
   "collectionsAll": "All my scores",
-  "@collectionsAll": {"description": "Filter option showing the whole private library."},
+  "@collectionsAll": {
+    "description": "Filter option showing the whole private library."
+  },
   "collectionsFilterLabel": "Collection",
-  "@collectionsFilterLabel": {"description": "Label of the collection filter."},
+  "@collectionsFilterLabel": {
+    "description": "Label of the collection filter."
+  },
   "collectionsManage": "Manage collections",
-  "@collectionsManage": {"description": "Opens collection management."},
+  "@collectionsManage": {
+    "description": "Opens collection management."
+  },
   "collectionsNew": "New collection",
-  "@collectionsNew": {"description": "Creates a collection."},
+  "@collectionsNew": {
+    "description": "Creates a collection."
+  },
   "collectionsNameLabel": "Collection name",
-  "@collectionsNameLabel": {"description": "Text field label for a collection name."},
+  "@collectionsNameLabel": {
+    "description": "Text field label for a collection name."
+  },
   "collectionsRename": "Rename",
-  "@collectionsRename": {"description": "Renames a collection."},
+  "@collectionsRename": {
+    "description": "Renames a collection."
+  },
   "collectionsDelete": "Delete",
-  "@collectionsDelete": {"description": "Deletes a collection."},
+  "@collectionsDelete": {
+    "description": "Deletes a collection."
+  },
   "collectionsDeleteConfirm": "Delete this collection? Your scores are kept.",
-  "@collectionsDeleteConfirm": {"description": "Confirms deleting a collection."},
+  "@collectionsDeleteConfirm": {
+    "description": "Confirms deleting a collection."
+  },
   "collectionsAddTo": "Add to a collection",
-  "@collectionsAddTo": {"description": "Adds a score to a collection."},
+  "@collectionsAddTo": {
+    "description": "Adds a score to a collection."
+  },
   "collectionsAdded": "Added to {name}",
-  "@collectionsAdded": {"description": "Confirms a score joined a collection.", "placeholders": {"name": {"type": "String"}}},
+  "@collectionsAdded": {
+    "description": "Confirms a score joined a collection.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "collectionsEmpty": "No collections yet.",
-  "@collectionsEmpty": {"description": "Empty state for the collection list."},
+  "@collectionsEmpty": {
+    "description": "Empty state for the collection list."
+  },
   "collectionsErrorNameTaken": "You already have a collection with that name.",
-  "@collectionsErrorNameTaken": {"description": "Name collision error."},
+  "@collectionsErrorNameTaken": {
+    "description": "Name collision error."
+  },
   "collectionsErrorInvalidName": "Enter a name (80 characters max).",
-  "@collectionsErrorInvalidName": {"description": "Invalid name error."},
+  "@collectionsErrorInvalidName": {
+    "description": "Invalid name error."
+  },
   "collectionsErrorFailed": "Something went wrong. Try again.",
-  "@collectionsErrorFailed": {"description": "Generic collection failure."},
+  "@collectionsErrorFailed": {
+    "description": "Generic collection failure."
+  },
   "commonCancel": "Cancel",
-  "@commonCancel": {"description": "Dismisses a dialog."},
+  "@commonCancel": {
+    "description": "Dismisses a dialog."
+  },
   "commonSave": "Save",
-  "@commonSave": {"description": "Confirms a dialog."},
+  "@commonSave": {
+    "description": "Confirms a dialog."
+  },
   "uploadRightsPrivateUse": "For my personal use only",
   "@uploadRightsPrivateUse": {
     "description": "Rights-basis option: the score is kept for the owner's strictly personal use."
@@ -3015,12 +3111,20 @@
   "streakSheetCurrent": "{days, plural, =0{No streak running} =1{1 day in a row} other{{days} days in a row}}",
   "@streakSheetCurrent": {
     "description": "The live run.",
-    "placeholders": { "days": { "type": "int" } }
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
   },
   "streakSheetLongest": "{days, plural, =0{No best run yet} =1{Best: 1 day} other{Best: {days} days}}",
   "@streakSheetLongest": {
     "description": "The all-time best run — the badge metric.",
-    "placeholders": { "days": { "type": "int" } }
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
   },
   "streakSheetSecured": "Today is secured",
   "@streakSheetSecured": {
@@ -3033,12 +3137,20 @@
   "streakSheetRecoverBody": "{days, plural, =1{Your 1-day streak broke. You can still get it back — until you play again.} other{Your {days}-day streak broke. You can still get it back — until you play again.}}",
   "@streakSheetRecoverBody": {
     "description": "States the offer AND its real deadline: resuming restarts the run, so playing forfeits the buy-back.",
-    "placeholders": { "days": { "type": "int" } }
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
   },
   "streakSheetShort": "{missing, plural, =1{1 point short} other{{missing} points short}}",
   "@streakSheetShort": {
     "description": "Shown when the break is inside the grace window but the balance will not cover it. Actionable where silence is not.",
-    "placeholders": { "missing": { "type": "int" } }
+    "placeholders": {
+      "missing": {
+        "type": "int"
+      }
+    }
   },
   "streakSheetGuest": "Sign in to start a practice streak.",
   "@streakSheetGuest": {
@@ -3051,7 +3163,11 @@
   "streakCueRecoverable": "{days, plural, =1{Your 1-day streak broke — tap the flame to get it back} other{Your {days}-day streak broke — tap the flame to get it back}}",
   "@streakCueRecoverable": {
     "description": "The unprompted launch cue. Points at the chip instead of blocking the way to the instrument; the spend still happens behind a confirmation in the sheet.",
-    "placeholders": { "days": { "type": "int" } }
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
   },
   "streakChipDays": "{days}",
   "@streakChipDays": {
@@ -3532,12 +3648,23 @@
   "calibrationPrompt": "Hit your {piece}",
   "@calibrationPrompt": {
     "description": "The instruction for the current step. {piece} is a localised kit piece name, capitalised as a standalone label — so languages whose possessive agrees in gender (fr, it) use a neutral construction rather than \"your\".",
-    "placeholders": { "piece": { "type": "String" } }
+    "placeholders": {
+      "piece": {
+        "type": "String"
+      }
+    }
   },
   "calibrationStepOf": "Piece {step} of {total}",
   "@calibrationStepOf": {
     "description": "Progress within the pass.",
-    "placeholders": { "step": { "type": "int" }, "total": { "type": "int" } }
+    "placeholders": {
+      "step": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
   },
   "calibrationWaiting": "Waiting for a stroke…",
   "@calibrationWaiting": {
@@ -3546,7 +3673,11 @@
   "calibrationRecorded": "Recorded note {number}",
   "@calibrationRecorded": {
     "description": "Confirmation that the previous step learned a number.",
-    "placeholders": { "number": { "type": "int" } }
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
   },
   "calibrationSkip": "This kit has none",
   "@calibrationSkip": {
@@ -3563,7 +3694,11 @@
   "calibrationConflict": "That is already your {piece}",
   "@calibrationConflict": {
     "description": "A number the pass already recorded for another piece. Surfaced, never resolved silently: on a real kit it usually means the wrong pad was struck.",
-    "placeholders": { "piece": { "type": "String" } }
+    "placeholders": {
+      "piece": {
+        "type": "String"
+      }
+    }
   },
   "calibrationStrikeAgain": "Hit again",
   "@calibrationStrikeAgain": {
@@ -3580,7 +3715,11 @@
   "calibrationDoneBody": "{count, plural, =0{No pads were recorded, so this kit is left uncalibrated.} =1{One pad learned. Your kit now sounds and scores the way you play it.} other{{count} pads learned. Your kit now sounds and scores the way you play it.}}",
   "@calibrationDoneBody": {
     "description": "Result summary.",
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "calibrationDoneClose": "Done",
   "@calibrationDoneClose": {
@@ -3605,12 +3744,26 @@
   "calibrationMappingRow": "sends {number}, read as {standard}",
   "@calibrationMappingRow": {
     "description": "One row of the review table: the number the device sends and the General MIDI number it is read as.",
-    "placeholders": { "number": { "type": "int" }, "standard": { "type": "int" } }
+    "placeholders": {
+      "number": {
+        "type": "int"
+      },
+      "standard": {
+        "type": "int"
+      }
+    }
   },
   "calibrationMappingWouldMean": "{number} normally means {name}",
   "@calibrationMappingWouldMean": {
     "description": "What the sent number would have meant on the standard map, so a wrong entry is visible.",
-    "placeholders": { "number": { "type": "int" }, "name": { "type": "String" } }
+    "placeholders": {
+      "number": {
+        "type": "int"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
   },
   "calibrationClearPiece": "Clear",
   "@calibrationClearPiece": {
@@ -3623,7 +3776,14 @@
   "midiMonitorTranslated": "your {raw} → read as {mapped}",
   "@midiMonitorTranslated": {
     "description": "Shown when this device's calibration changed a stroke's meaning, so a wrong mapping is as visible as a missing one (add-drum-input-calibration).",
-    "placeholders": { "raw": { "type": "int" }, "mapped": { "type": "int" } }
+    "placeholders": {
+      "raw": {
+        "type": "int"
+      },
+      "mapped": {
+        "type": "int"
+      }
+    }
   },
   "instrumentChoiceTitle": "What would you like to start with?",
   "@instrumentChoiceTitle": {
@@ -3694,5 +3854,53 @@
   "coachPlayerFocusBody": "Uncheck what you are not working on. The kit shows and asks for the rest — and the pieces you unchecked still sound when you hit them.",
   "@coachPlayerFocusBody": {
     "description": "Guided step 3 body on a percussion score. States the input rule too: focus never filters what the player hears."
+  },
+  "reportAction": "Report",
+  "@reportAction": {
+    "description": "Label of the action that opens the content-report sheet."
+  },
+  "reportSheetTitle": "Report this content",
+  "@reportSheetTitle": {
+    "description": "Title of the content-report sheet."
+  },
+  "reportSheetIntro": "Tell us what is wrong. A moderator reviews every report.",
+  "@reportSheetIntro": {
+    "description": "Introductory line of the content-report sheet."
+  },
+  "reportReasonCopyright": "Infringes my rights",
+  "@reportReasonCopyright": {
+    "description": "Report reason: copyright or other rights infringement."
+  },
+  "reportReasonInappropriate": "Inappropriate content",
+  "@reportReasonInappropriate": {
+    "description": "Report reason: offensive or unsuitable content."
+  },
+  "reportReasonWrongContent": "Wrong or broken",
+  "@reportReasonWrongContent": {
+    "description": "Report reason: mislabelled, broken, or not what it claims to be."
+  },
+  "reportReasonOther": "Something else",
+  "@reportReasonOther": {
+    "description": "Report reason: anything not covered by the other reasons."
+  },
+  "reportNoteLabel": "Details (optional)",
+  "@reportNoteLabel": {
+    "description": "Label of the optional free-text field in the content-report sheet."
+  },
+  "reportSubmit": "Send report",
+  "@reportSubmit": {
+    "description": "Confirm button of the content-report sheet."
+  },
+  "reportSent": "Report sent. Thank you.",
+  "@reportSent": {
+    "description": "Snackbar shown once a content report has been recorded."
+  },
+  "reportFailed": "The report could not be sent. Try again.",
+  "@reportFailed": {
+    "description": "Snackbar shown when a content report fails to send."
+  },
+  "reportSignInRequired": "Sign in to report content.",
+  "@reportSignInRequired": {
+    "description": "Shown when a signed-out user taps the report action."
   }
 }

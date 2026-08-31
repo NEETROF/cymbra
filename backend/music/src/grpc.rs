@@ -63,15 +63,16 @@ use crate::proto::{
     RecordCourseCompletionRequest, RecordCourseCompletionResponse, RedeemRewardRequest,
     RedeemRewardResponse, RemoveSavedCatalogScoreRequest, RemoveSavedCatalogScoreResponse,
     RemoveScoreFromCollectionRequest, RemoveScoreFromCollectionResponse,
-    RenameScoreCollectionRequest, RenameScoreCollectionResponse, RewardActivity, RewardShopItem,
-    SaveCatalogScoreRequest, SaveCatalogScoreResponse, ScoreCollection, ScoreRecord,
-    SearchCatalogRequest, SearchCatalogResponse, SetModerationStatusRequest,
-    SetModerationStatusResponse, SetScoreFavoriteRequest, SetScoreFavoriteResponse,
-    SetSoundFontModerationStatusRequest, SetSoundFontModerationStatusResponse,
-    SetSoundFontPricingRequest, SetSoundFontPricingResponse, SoundFont as ProtoSoundFont,
-    SubmitScoreRatingRequest, SubmitScoreRatingResponse, UnlockCatalogScoreForTodayRequest,
-    UnlockCatalogScoreForTodayResponse, UpdateCatalogScoreRequest, UpdateCatalogScoreResponse,
-    UpdateSoundFontRequest, UpdateSoundFontResponse, UploadScoreRequest,
+    RenameScoreCollectionRequest, RenameScoreCollectionResponse, ReportContentRequest,
+    ReportContentResponse, RewardActivity, RewardShopItem, SaveCatalogScoreRequest,
+    SaveCatalogScoreResponse, ScoreCollection, ScoreRecord, SearchCatalogRequest,
+    SearchCatalogResponse, SetModerationStatusRequest, SetModerationStatusResponse,
+    SetScoreFavoriteRequest, SetScoreFavoriteResponse, SetSoundFontModerationStatusRequest,
+    SetSoundFontModerationStatusResponse, SetSoundFontPricingRequest, SetSoundFontPricingResponse,
+    SoundFont as ProtoSoundFont, SubmitScoreRatingRequest, SubmitScoreRatingResponse,
+    UnlockCatalogScoreForTodayRequest, UnlockCatalogScoreForTodayResponse,
+    UpdateCatalogScoreRequest, UpdateCatalogScoreResponse, UpdateSoundFontRequest,
+    UpdateSoundFontResponse, UploadScoreRequest,
     score_service_server::{ScoreService, ScoreServiceServer},
 };
 use crate::soundfont::SoundFontRepo;
@@ -1502,6 +1503,29 @@ impl ScoreService for ScoreGrpc {
         Ok(Response::new(UpdateCatalogScoreResponse {}))
     }
 
+    async fn report_content(
+        &self,
+        req: Request<ReportContentRequest>,
+    ) -> Result<Response<ReportContentResponse>, Status> {
+        // Any signed-in user may report (change: add-content-reporting) — Google
+        // Play's UGC policy wants the mechanism reachable, not gated. The reporter
+        // is the authenticated caller, never the body; the module validates the
+        // vocabulary and de-duplicates an open report.
+        let user_id = owner(&req)?;
+        let r = req.into_inner();
+        let (report_id, created) = self
+            .module
+            .report_content(
+                &user_id,
+                &r.target_kind,
+                &r.target_id,
+                &r.reason,
+                r.note.as_deref(),
+            )
+            .await?;
+        Ok(Response::new(ReportContentResponse { report_id, created }))
+    }
+
     async fn submit_score_rating(
         &self,
         req: Request<SubmitScoreRatingRequest>,
@@ -2461,6 +2485,94 @@ mod tests {
         let e = repo.lookup("ydp-grand").await.unwrap().unwrap();
         assert_eq!(e.moderation_status, "accepted");
         assert!(e.review_reason.is_none());
+    }
+
+    #[tokio::test]
+    async fn report_content_credits_the_caller_not_the_body() {
+        // change: add-content-reporting — Play's UGC policy wants the mechanism
+        // reachable by any signed-in user. The security property under test is
+        // that the reporter is the authenticated identity, never a body field.
+        let reports = Arc::new(crate::FakeContentReportRepo::default());
+        let module = Arc::new(
+            ScoreModule::new(
+                Arc::new(FakeUserScoreRepo::default()),
+                Arc::new(FakeCatalogSearchRepo::with(vec![])),
+                Arc::new(FakeUserLibraryRepo::default()),
+                Arc::new(FakeScoreRatingRepo::default()),
+                Arc::new(FakeStore::default()),
+                5,
+                7,
+                1024,
+            )
+            .with_reports(reports.clone()),
+        );
+        let svc = ScoreGrpc::new(module);
+
+        let resp = svc
+            .report_content(authed(
+                ReportContentRequest {
+                    target_kind: "catalog_score".into(),
+                    target_id: DEBUSSY.into(),
+                    reason: "copyright".into(),
+                    note: Some("this is my arrangement".into()),
+                },
+                "u1",
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        assert!(resp.created);
+        assert!(!resp.report_id.is_empty());
+        let rows = reports.all();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].reporter_id.as_deref(), Some("u1"));
+
+        // A second tap is acknowledged, not refused, and creates nothing.
+        let again = svc
+            .report_content(authed(
+                ReportContentRequest {
+                    target_kind: "catalog_score".into(),
+                    target_id: DEBUSSY.into(),
+                    reason: "copyright".into(),
+                    note: None,
+                },
+                "u1",
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(again.report_id, resp.report_id);
+        assert!(!again.created);
+        assert_eq!(reports.all().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn report_content_needs_an_authenticated_caller() {
+        let reports = Arc::new(crate::FakeContentReportRepo::default());
+        let module = Arc::new(
+            ScoreModule::new(
+                Arc::new(FakeUserScoreRepo::default()),
+                Arc::new(FakeCatalogSearchRepo::with(vec![])),
+                Arc::new(FakeUserLibraryRepo::default()),
+                Arc::new(FakeScoreRatingRepo::default()),
+                Arc::new(FakeStore::default()),
+                5,
+                7,
+                1024,
+            )
+            .with_reports(reports.clone()),
+        );
+        let err = ScoreGrpc::new(module)
+            .report_content(Request::new(ReportContentRequest {
+                target_kind: "catalog_score".into(),
+                target_id: DEBUSSY.into(),
+                reason: "other".into(),
+                note: None,
+            }))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::Unauthenticated);
+        assert!(reports.all().is_empty());
     }
 
     /// Attach an authenticated identity to a request (as the interceptor would).

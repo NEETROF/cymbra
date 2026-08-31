@@ -20,6 +20,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
 import '../services/audio_service.dart';
+import '../services/content_report_service.dart';
 import '../services/curator_rewards_service.dart' show RewardShopItemView;
 import '../services/private_soundfont_service.dart'
     show PrivateSoundFontException;
@@ -35,10 +36,13 @@ import '../state/piano_catalog.dart';
 import '../state/player_data.dart' show scoreNoteEdges;
 import '../state/reward_shop_notifier.dart';
 import '../state/selected_piano.dart';
+import '../state/session_notifier.dart';
+import '../state/session_state.dart';
 import '../state/sound_preview_sample.dart';
 import '../theme/cymbra_theme.dart';
 import 'plan_screen.dart';
 import '../widgets/app_snackbar.dart';
+import '../widgets/report_content_sheet.dart';
 import '../widgets/reward_celebration.dart';
 
 /// The instrument-sound **hub** (change: add-soundfont-moderation), reached from
@@ -404,6 +408,29 @@ class _SoundFontsScreenState extends ConsumerState<SoundFontsScreen>
       onRedeem: locked && item.redeemable ? () => _redeemReward(p.id) : null,
       comingSoon: comingSoon,
       previewUnavailable: noPreview,
+      // Catalog fonts are contributed by other people (change:
+      // add-content-reporting); the caller's own fonts are the other call site
+      // and carry no report action.
+      onReport: () => _report(p.id),
+    );
+  }
+
+  /// Open the report sheet for a catalog font, or tell a signed-out visitor to
+  /// sign in first — the RPC is bearer-authenticated, so the sheet would only end
+  /// in a failure they cannot act on.
+  void _report(String fontId) {
+    final l10n = AppLocalizations.of(context);
+    if (ref.read(sessionNotifierProvider) is! SessionAuthenticated) {
+      showAppToast(
+        Overlay.of(context, rootOverlay: true),
+        l10n.reportSignInRequired,
+      );
+      return;
+    }
+    showReportContentSheet(
+      context,
+      target: ReportTarget.soundFont,
+      targetId: fontId,
     );
   }
 
@@ -563,6 +590,7 @@ class _SoundCard extends StatelessWidget {
     this.onRename,
     this.onRemove,
     this.onPropose,
+    this.onReport,
     this.locked = false,
     this.lockCost,
     this.onRedeem,
@@ -582,6 +610,10 @@ class _SoundCard extends StatelessWidget {
   final VoidCallback? onRename;
   final VoidCallback? onRemove;
   final VoidCallback? onPropose;
+
+  /// Report this font (change: add-content-reporting). Set only for catalog
+  /// fonts, which are contributed by other people — you do not report yourself.
+  final VoidCallback? onReport;
 
   /// This catalog font is a costed reward the caller has not yet unlocked.
   final bool locked;
@@ -697,6 +729,7 @@ class _SoundCard extends StatelessWidget {
             : (onRename == null &&
                   onRemove == null &&
                   onPropose == null &&
+                  onReport == null &&
                   entry.proposalStatus == null)
             ? null
             : Row(
@@ -730,6 +763,16 @@ class _SoundCard extends StatelessWidget {
                         color: CymbraColors.onSurfaceVariant,
                       ),
                       onPressed: onRemove,
+                    ),
+                  if (onReport != null)
+                    IconButton(
+                      key: const Key('soundfont-report'),
+                      tooltip: l10n.reportAction,
+                      icon: const Icon(
+                        Icons.flag_outlined,
+                        color: CymbraColors.onSurfaceVariant,
+                      ),
+                      onPressed: onReport,
                     ),
                 ],
               ),

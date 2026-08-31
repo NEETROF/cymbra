@@ -16,12 +16,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
+import '../services/content_report_service.dart';
 import '../state/catalog_search_notifier.dart';
 import '../state/contributed_scores.dart';
 import '../state/drums_access.dart';
 import '../state/score_catalog.dart';
+import '../state/session_notifier.dart';
+import '../state/session_state.dart';
 import '../theme/cymbra_theme.dart';
+import '../widgets/app_snackbar.dart';
 import '../widgets/catalog_access_widgets.dart';
+import '../widgets/report_content_sheet.dart';
 import '../widgets/library_listeners.dart';
 import '../widgets/score_card.dart';
 import '../widgets/collection_bar.dart';
@@ -411,16 +416,61 @@ class _HubCard extends ConsumerWidget {
         ],
       );
     }
-    if (onToggleSave == null) return null;
-    return IconButton(
-      icon: Icon(
-        saved ? Icons.favorite : Icons.favorite_border,
-        color: saved ? CymbraColors.error : CymbraColors.onSurface,
-      ),
-      tooltip: saved
-          ? l10n.scoreHubRemoveFromLibrary
-          : l10n.scoreHubAddToLibrary,
-      onPressed: onToggleSave,
+    // A public-catalog result: report + the save toggle. The report action is
+    // offered on every backend-served entry (change: add-content-reporting) —
+    // Play's UGC policy wants it reachable wherever contributed content shows.
+    // Bundled scores carry no `catalogId` and are ours, so nothing to report.
+    final reportId = entry.catalogId;
+    if (reportId == null && onToggleSave == null) return null;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (reportId != null)
+          IconButton(
+            key: const Key('hub-report'),
+            icon: const Icon(
+              Icons.flag_outlined,
+              color: CymbraColors.onSurface,
+            ),
+            tooltip: l10n.reportAction,
+            onPressed: () => _report(context, ref, reportId, l10n),
+          ),
+        if (onToggleSave != null)
+          IconButton(
+            icon: Icon(
+              saved ? Icons.favorite : Icons.favorite_border,
+              color: saved ? CymbraColors.error : CymbraColors.onSurface,
+            ),
+            tooltip: saved
+                ? l10n.scoreHubRemoveFromLibrary
+                : l10n.scoreHubAddToLibrary,
+            onPressed: onToggleSave,
+          ),
+      ],
+    );
+  }
+
+  /// Open the report sheet, or tell a signed-out visitor to sign in first — the
+  /// RPC is bearer-authenticated, so opening the sheet would only end in a
+  /// failure they cannot act on.
+  void _report(
+    BuildContext context,
+    WidgetRef ref,
+    String catalogId,
+    AppLocalizations l10n,
+  ) {
+    final signedIn = ref.read(sessionNotifierProvider) is SessionAuthenticated;
+    if (!signedIn) {
+      showAppToast(
+        Overlay.of(context, rootOverlay: true),
+        l10n.reportSignInRequired,
+      );
+      return;
+    }
+    showReportContentSheet(
+      context,
+      target: ReportTarget.catalogScore,
+      targetId: catalogId,
     );
   }
 
