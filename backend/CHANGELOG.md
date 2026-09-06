@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.24.0](https://github.com/NEETROF/cymbra/compare/backend-v0.23.0...backend-v0.24.0) (2026-09-06)
+
+
+### Features
+
+* **music:** in-app content reporting, required by Play's UGC policy ([#310](https://github.com/NEETROF/cymbra/issues/310)) ([6fa7293](https://github.com/NEETROF/cymbra/commit/6fa7293f81d1cb37daa30ce2ae770a2aa031fc1c))
+* **music:** private score catalog — personal-use basis, batch import, collections and audited takedown ([#308](https://github.com/NEETROF/cymbra/issues/308)) ([85855f7](https://github.com/NEETROF/cymbra/commit/85855f726a14a615d3cdbf4437d8ea90607ae659))
+* **site:** web account deletion, required by Play ([#309](https://github.com/NEETROF/cymbra/issues/309)) ([cafd539](https://github.com/NEETROF/cymbra/commit/cafd539fd716469845d2a1d6819601c1e21d8efd))
+
 ## [0.23.0](https://github.com/NEETROF/cymbra/compare/backend-v0.22.1...backend-v0.23.0) (2026-08-29)
 
 
