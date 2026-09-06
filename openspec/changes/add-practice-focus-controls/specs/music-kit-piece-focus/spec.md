@@ -23,10 +23,12 @@ on loading another score.
 
 ### Requirement: Mute And Solo
 
-A piece SHALL be muteable (removed from focus) and soloable (the only piece, or
-one of the only pieces, in focus). Soloing a second piece SHALL add it to the
-soloed set rather than replacing it. Clearing the focus selection SHALL restore
-every piece.
+A piece SHALL be muteable (removed from focus) and soloable. Soloing SHALL leave
+that piece as **the only one** in focus, whatever was in focus before: the row's
+action says "solo", and one that leaves four other pieces in focus is not doing
+what the word says. Building a two-piece selection is the other gesture's job —
+the second piece's own checkbox puts it back in focus. Clearing the focus
+selection SHALL restore every piece.
 
 #### Scenario: Muting one piece
 - **WHEN** the player mutes the crash
@@ -36,9 +38,13 @@ every piece.
 - **WHEN** the player solos the hi-hat
 - **THEN** the hi-hat is the only piece in focus
 
-#### Scenario: Soloing a second piece adds it
+#### Scenario: Soloing a second piece isolates that one
 - **WHEN** the hi-hat is soloed and the player solos the snare
-- **THEN** both are in focus and nothing else is
+- **THEN** the snare is the only piece in focus
+
+#### Scenario: Soloing from a partial selection still isolates
+- **WHEN** some pieces are already out of focus and the player solos one
+- **THEN** that piece is the only one in focus
 
 #### Scenario: Clearing restores everything
 - **WHEN** the player clears the selection

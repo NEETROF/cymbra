@@ -75,13 +75,14 @@ class DrumKitPaint {
   /// static outline would read as decoration rather than a demand.
   final double waitPulse;
 
-  /// The surfaces the current hands/feet selection can actually play. A
-  /// surface outside it is drawn faded: with the feet selected, the hands'
-  /// drums have nothing to do, and a kit that still presents them as live
-  /// targets is lying about the exercise. Faded rather than removed — the row
-  /// keeps its order and its widths, so a player switching selection finds
-  /// every piece where they left it. An empty set means "no selection in
-  /// force": everything is live.
+  /// The surfaces this run can actually be played on: the pieces in focus that
+  /// the connected kit also has. A surface outside it is drawn faded, because a
+  /// kit presenting a live target the run neither awaits nor judges is lying
+  /// about the exercise — whether it was left out of the practice selection or
+  /// declared missing from the instrument (design D13). Faded rather than
+  /// removed: the row keeps its order and its widths, so a player changing
+  /// their selection finds every piece where they left it. An empty set means
+  /// nothing is excluded at all.
   final Set<int> playable;
 
   final List<String> labels;

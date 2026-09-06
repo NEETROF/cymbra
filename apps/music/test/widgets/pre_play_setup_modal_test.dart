@@ -25,6 +25,9 @@ import 'package:music/services/score_asset_source.dart';
 import 'package:music/src/rust/api/musicxml.dart';
 import 'package:music/state/player_data.dart';
 import 'package:music/state/player_notifier.dart';
+import 'package:music/state/drum_input_mapping.dart';
+import 'package:music/state/drum_input_mapping_notifier.dart';
+import 'package:music/state/drum_kit.dart';
 import 'package:music/state/player_preferences.dart';
 import 'package:music/state/score_catalog.dart';
 
@@ -40,28 +43,35 @@ const _entry = CatalogEntry(
   level: PracticeLevel.beginner,
 );
 
-ProviderContainer _container({ScoreDocument? document}) => ProviderContainer(
-  overrides: [
-    scoreCatalogProvider.overrideWithValue(const [_entry]),
-    scoreAssetSourceProvider.overrideWithValue(FakeScoreAssetSource()),
-    notationEngineProvider.overrideWithValue(
-      FakeNotationEngine(document: document),
-    ),
-    midiServiceProvider.overrideWithValue(FakeMidiService()),
-    scoreSourceProvider.overrideWithValue(FakeScoreSource()),
-    audioServiceProvider.overrideWithValue(RecordingAudioService()),
-  ],
-);
+ProviderContainer _container({ScoreDocument? document, String? midiPort}) =>
+    ProviderContainer(
+      overrides: [
+        scoreCatalogProvider.overrideWithValue(const [_entry]),
+        scoreAssetSourceProvider.overrideWithValue(FakeScoreAssetSource()),
+        notationEngineProvider.overrideWithValue(
+          FakeNotationEngine(document: document),
+        ),
+        midiServiceProvider.overrideWithValue(
+          FakeMidiService(
+            ports: midiPort == null ? const [] : [midiPort],
+            connected: midiPort,
+          ),
+        ),
+        scoreSourceProvider.overrideWithValue(FakeScoreSource()),
+        audioServiceProvider.overrideWithValue(RecordingAudioService()),
+      ],
+    );
 
 /// Pumps the whole player for [_entry] and leaves the setup modal open — used to
 /// exercise the modal's behaviour (the notation loads so hands are derived).
 Future<ProviderContainer> _pumpWithModal(
   WidgetTester tester, {
   ScoreDocument? document,
+  String? midiPort,
   Size size = const Size(1400, 900),
 }) async {
   await tester.binding.setSurfaceSize(size);
-  final container = _container(document: document);
+  final container = _container(document: document, midiPort: midiPort);
   container.read(selectedScoreProvider.notifier).select(_entry);
   await tester.pumpWidget(
     UncontrolledProviderScope(
@@ -169,6 +179,190 @@ void main() {
     expect(data.kitPieceIds, isEmpty);
     expect(data.isFocusRestrictedRun, isFalse);
     expect(find.byKey(const Key('drum-focus-all')), findsNothing);
+    await _teardown(tester, container);
+  });
+
+  testWidgets('one MIDI-input door per score: the pass on percussion, the '
+      'monitor on a keyboard', (tester) async {
+    // Change: add-drum-input-calibration (designs D8 and D11). The mapping
+    // states "this pad is the snare", and the seam that applies it is the
+    // identity on anything that is not a percussion score: offering the pass on
+    // a keyboard score would promise a calibration that provably does nothing.
+    //
+    // The monitor is not offered beside it on a percussion score either — it
+    // moved one level down, into the calibration surface. Two entries here read
+    // as alternatives, and only one of them repairs anything. On a keyboard
+    // score, where there is no pass, it stays: it is then the only answer to
+    // "nothing is arriving at all".
+    final keyboard = await _pumpWithModal(tester);
+    expect(keyboard.read(playerProvider).isPercussion, isFalse);
+    expect(find.byKey(const Key('open-midi-monitor')), findsOneWidget);
+    expect(find.byKey(const Key('open-drum-calibration')), findsNothing);
+    await _teardown(tester, keyboard);
+
+    final drums = await _pumpWithModal(tester, document: sampleDrumDocument());
+    expect(drums.read(playerProvider).isPercussion, isTrue);
+    expect(find.byKey(const Key('open-drum-calibration')), findsOneWidget);
+    expect(find.byKey(const Key('open-midi-monitor')), findsNothing);
+    await _teardown(tester, drums);
+  });
+
+  testWidgets('the settings name what this score has yet to teach the kit, and '
+      'say so when nothing is left', (tester) async {
+    // Change: add-drum-input-calibration (design D10). The question before
+    // playing is not "is my kit calibrated" but "will everything this groove
+    // asks me to hit be understood" — so the answer is listed under the action
+    // that fixes it, in the score's own terms.
+    final container = await _pumpWithModal(
+      tester,
+      document: sampleDrumDocument(),
+      midiPort: 'Drum kit',
+    );
+    // The fixture writes a kick, a snare and a closed hi-hat; nothing is
+    // learned yet, so all three are named.
+    expect(container.read(playerProvider).calibrationTargets, [
+      kKickPieceId,
+      'kitPieceSnare',
+      'kitPieceHiHat',
+    ]);
+    expect(find.byKey(const Key('calibration-missing')), findsOneWidget);
+    expect(find.byKey(const Key('calibration-complete')), findsNothing);
+    expect(find.textContaining('Snare'), findsWidgets);
+
+    // Learn two of the three: the line shrinks to what is actually left.
+    final store = container.read(drumInputMappingStoreProvider.notifier)
+      ..setPiece('Drum kit', kKickPieceId, 12)
+      ..setPiece('Drum kit', 'kitPieceSnare', 31);
+    await _pumpFrames(tester);
+    expect(
+      tester.widget<Text>(find.byKey(const Key('calibration-missing'))).data,
+      contains('Hi-hat'),
+    );
+    expect(
+      tester.widget<Text>(find.byKey(const Key('calibration-missing'))).data,
+      isNot(contains('Snare')),
+    );
+
+    // Learn the last one and the line turns into the positive statement.
+    store.setPiece('Drum kit', 'kitPieceHiHat', 22);
+    await _pumpFrames(tester);
+    expect(find.byKey(const Key('calibration-missing')), findsNothing);
+    expect(find.byKey(const Key('calibration-complete')), findsOneWidget);
+    await _teardown(tester, container);
+  });
+
+  testWidgets('a piece the kit was said not to have is named as not awaited '
+      '(design D13)', (tester) async {
+    // The safety net for the answer that turns the gate off: "this kit has
+    // none" must be readable BEFORE playing, or a player who tapped through the
+    // pass would find Wait Mode quietly waiting for nothing.
+    final container = await _pumpWithModal(
+      tester,
+      document: sampleDrumDocument(),
+      midiPort: 'Drum kit',
+    );
+    container
+        .read(drumInputMappingStoreProvider.notifier)
+        .save(
+          'Drum kit',
+          DrumInputMapping(
+            const {kKickPieceId: 12, 'kitPieceSnare': 31},
+            absent: const {'kitPieceHiHat'},
+          ),
+        );
+    await _pumpFrames(tester);
+
+    // Nothing left to learn, so no "not calibrated" line…
+    expect(find.byKey(const Key('calibration-missing')), findsNothing);
+    // …but the hi-hat is not silently dropped either.
+    final absent = tester.widget<Text>(
+      find.byKey(const Key('calibration-absent')),
+    );
+    expect(absent.data, contains('Hi-hat'));
+    // And the flat "everything is calibrated" claim gives way to it.
+    expect(find.byKey(const Key('calibration-complete')), findsNothing);
+    await _teardown(tester, container);
+  });
+
+  testWidgets('a piece the kit does not have is greyed out and disabled in the '
+      'pieces-practised list (design D13)', (tester) async {
+    // The run already neither awaits nor judges it, so no choice on this row
+    // could change anything: checking a box cannot put a pad back on the
+    // instrument. Stating that beats offering a dead control.
+    final container = await _pumpWithModal(
+      tester,
+      document: sampleDrumDocument(),
+      midiPort: 'Drum kit',
+    );
+    container
+        .read(drumInputMappingStoreProvider.notifier)
+        .save(
+          'Drum kit',
+          DrumInputMapping(
+            const {'kitPieceSnare': 31},
+            absent: const {'kitPieceHiHat'},
+          ),
+        );
+    await _pumpFrames(tester);
+
+    Checkbox boxOf(String pieceId) => tester.widget<Checkbox>(
+      find.descendant(
+        of: find.byKey(Key('drum-focus-$pieceId')),
+        matching: find.byType(Checkbox),
+      ),
+    );
+    // Unchecked and dead — and the reason is on the row, in the words the pass
+    // asked the question with.
+    expect(boxOf('kitPieceHiHat').onChanged, isNull);
+    expect(boxOf('kitPieceHiHat').value, isFalse);
+    expect(
+      tester
+          .widget<TextButton>(
+            find.descendant(
+              of: find.byKey(const Key('drum-focus-kitPieceHiHat')),
+              matching: find.byType(TextButton),
+            ),
+          )
+          .onPressed,
+      isNull,
+    );
+    // Every other piece keeps its controls.
+    expect(boxOf('kitPieceSnare').onChanged, isNotNull);
+    expect(boxOf('kitPieceSnare').value, isTrue);
+    // …and WHY those rows are dead is said once, under the list, rather than
+    // repeated on every row where it named the state without explaining it.
+    expect(find.byKey(const Key('drum-focus-absent-hint')), findsOneWidget);
+    await _teardown(tester, container);
+  });
+
+  testWidgets('with nothing declared absent, no explanation is offered for an '
+      'absence that is not there', (tester) async {
+    final container = await _pumpWithModal(
+      tester,
+      document: sampleDrumDocument(),
+      midiPort: 'Drum kit',
+    );
+    expect(find.byKey(const Key('drum-focus-absent-hint')), findsNothing);
+    await _teardown(tester, container);
+  });
+
+  testWidgets('the calibration sits under the pieces it explains, not down in '
+      'the MIDI section (design D14)', (tester) async {
+    // The greyed rows and the action that un-greys them are one thought. Six
+    // sections apart, the first looked like a state nobody could account for.
+    final container = await _pumpWithModal(
+      tester,
+      document: sampleDrumDocument(),
+      midiPort: 'Drum kit',
+    );
+    double topOf(String key) => tester.getTopLeft(find.byKey(Key(key))).dy;
+
+    expect(
+      topOf('open-drum-calibration'),
+      greaterThan(topOf('drum-focus-kitPieceSnare')),
+    );
+    // …and above the device picker, which stays where devices are.
+    expect(topOf('open-drum-calibration'), lessThan(topOf('midi-device')));
     await _teardown(tester, container);
   });
 

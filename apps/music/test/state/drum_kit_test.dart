@@ -395,15 +395,31 @@ void main() {
       expect(muted.contains('kitPieceSnare'), isFalse);
     });
 
-    test('soloing a second piece adds it rather than replacing', () {
+    test('soloing a second piece isolates THAT one', () {
+      // It used to add to the selection, which is not what "solo" says on the
+      // row it is invoked from — and adding is what the piece's own checkbox
+      // is for.
       final all = kitPieceIdsOf(deriveDrumLanes(groove), hasKick: true);
       var muted = mutedAfterSoloing(const {}, 'kitPieceHiHat', all);
       muted = mutedAfterSoloing(muted, 'kitPieceSnare', all);
       final focused = all.where((id) => !muted.contains(id)).toList();
-      expect(focused, ['kitPieceHiHat', 'kitPieceSnare']);
+      expect(focused, ['kitPieceSnare']);
     });
 
-    test('soloing a piece already in focus changes nothing', () {
+    test('soloing from a partial selection still isolates', () {
+      // The shape the report came in: with some pieces already unchecked, solo
+      // appeared to do nothing at all.
+      final all = kitPieceIdsOf(deriveDrumLanes(groove), hasKick: true);
+      final muted = mutedAfterSoloing(
+        const {'kitPieceCrash'},
+        'kitPieceSnare',
+        all,
+      );
+      final focused = all.where((id) => !muted.contains(id)).toList();
+      expect(focused, ['kitPieceSnare']);
+    });
+
+    test('soloing the piece already alone changes nothing', () {
       final all = kitPieceIdsOf(deriveDrumLanes(groove), hasKick: true);
       final muted = mutedAfterSoloing(const {}, 'kitPieceHiHat', all);
       expect(mutedAfterSoloing(muted, 'kitPieceHiHat', all), muted);

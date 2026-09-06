@@ -17,6 +17,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../services/midi_service.dart';
 import '../src/rust/api/midi.dart' show MidiEvent, MidiEventKind;
 import 'drum_calibration.dart';
+import 'drum_input_mapping.dart';
 import 'drum_input_mapping_notifier.dart';
 import 'drum_kit.dart';
 import 'midi_status_notifier.dart';
@@ -57,7 +58,24 @@ class DrumCalibration extends _$DrumCalibration {
         .events()
         .listen(_onEvent, onError: (Object _) {});
     ref.onDispose(sub.cancel);
-    return const CalibrationState(pieces: kCalibrationPieceOrder);
+    return CalibrationState(pieces: _targets());
+  }
+
+  /// What this pass asks for: the loaded score's own kit (design D10).
+  ///
+  /// `read`, not `watch`, for the reason the keep-alive above is a `listen`:
+  /// watching would rebuild this notifier — discarding the pass — on every frame
+  /// of playback. Re-read at [start] rather than only at build, so a pass begun
+  /// on a score that finished loading after this surface opened still asks for
+  /// that score's pieces.
+  ///
+  /// Falls back to the standard kit when there is no percussion score to read —
+  /// nothing loaded yet, or the surface reached with a keyboard score, where the
+  /// numbers are pitches and would name pieces the player never struck.
+  List<String> _targets() {
+    final data = ref.read(playerProvider);
+    final targets = data.calibrationTargets;
+    return targets.isEmpty ? kCalibrationPieceOrder : targets;
   }
 
   /// The last timestamp the engine stamped, so a step arms against the events
@@ -85,10 +103,43 @@ class DrumCalibration extends _$DrumCalibration {
   /// Leaves the pass. Nothing is written — the stored mapping stands.
   void abandon() => state = state.abandon();
 
-  /// Begins a pass (or begins one again), discarding anything an earlier pass
-  /// in this session had learned but not stored. Armed against the events seen
-  /// so far, so the stroke that opened the screen cannot answer the first step.
-  void start() => state = state.start(atMs: _lastSeenMs);
+  /// Ends the pass here, keeping what it learned. Goes through [_apply], so it
+  /// stores exactly like reaching the last step does.
+  void finish() => _apply(state.finish());
+
+  /// Begins a pass over every piece the loaded score asks for (or begins one
+  /// again), discarding anything an earlier pass in this session had learned
+  /// but not stored. Armed against the events seen so far, so the stroke that
+  /// opened the screen cannot answer the first step, and asking for the score
+  /// that is loaded **now**.
+  void start() => _begin(_targets());
+
+  /// Begins a pass over only the pieces this score asks for that this device
+  /// has no entry for (design D12) — the ordinary answer for a player who came
+  /// back for the two pads they skipped, and who must not have to re-play the
+  /// seven that already work.
+  void startMissing() {
+    final known = _stored();
+    final missing = [
+      for (final id in _targets())
+        // A piece declared absent is not missing — it is answered (design D13).
+        if (!known.byPiece.containsKey(id) && !known.absent.contains(id)) id,
+    ];
+    _begin(missing.isEmpty ? _targets() : missing);
+  }
+
+  /// The device's stored table. Carried into the pass rather than merged after
+  /// it: a pass over a subset of the kit that stored only what it asked about
+  /// would erase every piece it did not (design D12) — and that goes for the
+  /// pieces it was told the kit does not have as much as for the learned ones.
+  DrumInputMapping _stored() => ref.read(activeDrumMappingProvider);
+
+  void _begin(List<String> pieces) {
+    final stored = _stored();
+    state = CalibrationState(
+      pieces: pieces,
+    ).start(atMs: _lastSeenMs, known: stored.byPiece, absent: stored.absent);
+  }
 
   void _apply(CalibrationState next) {
     if (identical(next, state)) return;

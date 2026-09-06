@@ -22,6 +22,7 @@ import '../layout/device_class.dart';
 import '../services/platform_info.dart';
 import '../state/audio_routing.dart';
 import '../state/coaching_notifier.dart';
+import '../state/drum_input_mapping_notifier.dart';
 import '../state/drum_kit.dart';
 import '../state/notation_notifier.dart';
 import '../state/note_label.dart';
@@ -275,6 +276,11 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     final drumFocus = data.hasDrumPiecesToFocus
         ? _drumFocusSection(l10n, data)
         : null;
+    // Directly under the pieces it explains (design D14): a greyed row and the
+    // action that un-greys it belong to one thought.
+    final drumCalibration = data.isPercussion
+        ? _drumCalibrationSection(l10n, data)
+        : null;
     final metronome = _metronomeTile(l10n);
     final tempo = _tempoTile(l10n, data);
     final midi = _midiSection(l10n, data);
@@ -339,6 +345,7 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
                     child: col([
                       ?hands,
                       ?drumFocus,
+                      ?drumCalibration,
                       metronome,
                       ?keyboardSize,
                       ?invertedKit,
@@ -363,6 +370,7 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
             facts,
             ?hands,
             ?drumFocus,
+            ?drumCalibration,
             metronome,
             tempo,
             ?readingAid,
@@ -664,6 +672,11 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
                   key: Key('drum-focus-${piece.id}'),
                   label: piece.label,
                   inFocus: !data.mutedDrumPieces.contains(piece.id),
+                  // A piece the kit was said not to have is already out of the
+                  // run (design D13), and no choice here can put it back: the
+                  // row states that instead of offering a control that would
+                  // change nothing.
+                  unavailable: data.unplayablePieces.contains(piece.id),
                   soloLabel: l10n.drumFocusSolo,
                   onToggle: () => data.mutedDrumPieces.contains(piece.id)
                       ? notifier.unmuteDrumPiece(piece.id)
@@ -683,6 +696,22 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
             ),
           ),
         ),
+        // Why some rows are dead, said once. Repeating "this kit has none" on
+        // every row named the state without explaining it — where the answer
+        // came from, that it can be taken back, and how a greyed piece differs
+        // from an unchecked one (this one is still drawn).
+        if (pieces.any((p) => data.unplayablePieces.contains(p.id)))
+          Padding(
+            padding: const EdgeInsets.only(top: 4, left: 4),
+            child: Text(
+              key: const Key('drum-focus-absent-hint'),
+              l10n.drumFocusAbsentHint,
+              style: const TextStyle(
+                color: CymbraColors.onSurfaceVariant,
+                fontSize: 12,
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -1033,40 +1062,62 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
         // Its own route, not a section here: this modal pauses the session while
         // it is open, which is exactly wrong for a surface whose purpose is
         // watching live input.
-        Padding(
-          padding: const EdgeInsets.only(top: 8),
-          child: ListTile(
-            key: const Key('open-midi-monitor'),
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(
-              Icons.graphic_eq,
-              color: CymbraColors.onSurfaceVariant,
-            ),
-            title: Text(
-              l10n.midiMonitorOpen,
-              style: const TextStyle(color: CymbraColors.onSurface),
-            ),
-            subtitle: Text(
-              l10n.midiMonitorOpenHint,
-              style: const TextStyle(
+        //
+        // **One door per score** (design D11): on a percussion score the raw
+        // read-out sits one level down, inside the calibration surface — there
+        // the guided pass is the answer to "my pad does nothing", and offering
+        // both here side by side made the diagnostic look like an alternative
+        // to the repair. On a keyboard score there is no pass, so this is the
+        // only thing standing between a silent instrument and a shrug.
+        if (!data.isPercussion)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: ListTile(
+              key: const Key('open-midi-monitor'),
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(
+                Icons.graphic_eq,
                 color: CymbraColors.onSurfaceVariant,
-                fontSize: 12,
               ),
+              title: Text(
+                l10n.midiMonitorOpen,
+                style: const TextStyle(color: CymbraColors.onSurface),
+              ),
+              subtitle: Text(
+                l10n.midiMonitorOpenHint,
+                style: const TextStyle(
+                  color: CymbraColors.onSurfaceVariant,
+                  fontSize: 12,
+                ),
+              ),
+              trailing: const Icon(
+                Icons.chevron_right,
+                color: CymbraColors.onSurfaceVariant,
+              ),
+              onTap: () => openMidiMonitor(context),
             ),
-            trailing: const Icon(
-              Icons.chevron_right,
-              color: CymbraColors.onSurfaceVariant,
-            ),
-            onTap: () => openMidiMonitor(context),
           ),
-        ),
-        // The calibration pass and the mapping it produces (change:
-        // add-drum-input-calibration). Beside the monitor because they answer
-        // the same question in sequence: the monitor shows what the kit sends,
-        // this tells the app what it means.
-        Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: ListTile(
+      ],
+    );
+  }
+
+  /// The kit calibration: the pass, and what this score still has to teach it.
+  ///
+  /// **Under the pieces-practised list, not in the MIDI device section**: that
+  /// section is six sections away, and this is where its consequences are read —
+  /// the rows greyed out because the kit was said not to have them, and the line
+  /// explaining why. Cause and remedy in one glance, rather than an answer
+  /// filed under the hardware that produced it.
+  ///
+  /// Percussion only: the mapping says "this pad is the snare", and the seam
+  /// that applies it is identity on anything that is not a percussion score
+  /// (design D8). Offering it on a keyboard score would promise a calibration
+  /// that provably does nothing there.
+  Widget _drumCalibrationSection(AppLocalizations l10n, PlayerData data) =>
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ListTile(
             key: const Key('open-drum-calibration'),
             contentPadding: EdgeInsets.zero,
             leading: const Icon(
@@ -1090,10 +1141,12 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
             ),
             onTap: () => openDrumCalibration(context),
           ),
-        ),
-      ],
-    );
-  }
+          // Only with a device connected: with none there is no mapping for a
+          // piece to be missing from, and the MIDI section says so itself.
+          if (data.midiConnected)
+            _CalibrationCoverage(targets: data.calibrationTargets),
+        ],
+      );
 }
 
 /// One row of the per-piece focus control (change: add-practice-focus-controls):
@@ -1101,6 +1154,78 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
 ///
 /// The two gestures together give the spec's additive rule: solo the hi-hat,
 /// then check the snare, and exactly those two are asked for.
+/// What the connected kit still has to be taught **for this score** (change:
+/// add-drum-input-calibration, design D10): the pieces the file writes that this
+/// device has no entry for, named right under the action that fixes them.
+///
+/// The question a drummer has before playing is not "is my kit calibrated" but
+/// "will everything this groove asks me to hit be understood" — and since the
+/// pass now asks for the score's own pieces, that question finally has a short,
+/// exact answer.
+class _CalibrationCoverage extends ConsumerWidget {
+  const _CalibrationCoverage({required this.targets});
+
+  /// The score's own calibration targets ([PlayerData.calibrationTargets]).
+  final List<String> targets;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (targets.isEmpty) return const SizedBox.shrink();
+    final l10n = AppLocalizations.of(context);
+    final mapping = ref.watch(activeDrumMappingProvider);
+    // A piece the kit was said not to have is not a gap: it has been answered.
+    // It gets a line of its own instead, because that answer stops Wait Mode
+    // from waiting for it (design D13) — which a player must read here, before
+    // playing, rather than discover mid-groove.
+    final missing = [
+      for (final id in targets)
+        if (!mapping.byPiece.containsKey(id) && !mapping.absent.contains(id))
+          kitPieceLabelOf(l10n, id),
+    ];
+    final absent = [
+      for (final id in targets)
+        if (mapping.absent.contains(id)) kitPieceLabelOf(l10n, id),
+    ];
+    return Padding(
+      // Indented to the tile's text, so these read as that action's own lines
+      // rather than as new items in the section.
+      padding: const EdgeInsets.only(left: 40, right: 8, bottom: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (missing.isNotEmpty)
+            Text(
+              key: const Key('calibration-missing'),
+              l10n.calibrationScoreMissing(missing.join(' · ')),
+              style: const TextStyle(
+                color: CymbraColors.onSurfaceVariant,
+                fontSize: 12,
+              ),
+            )
+          else if (absent.isEmpty)
+            Text(
+              key: const Key('calibration-complete'),
+              l10n.calibrationScoreComplete,
+              style: const TextStyle(
+                color: CymbraColors.tertiary,
+                fontSize: 12,
+              ),
+            ),
+          if (absent.isNotEmpty)
+            Text(
+              key: const Key('calibration-absent'),
+              l10n.calibrationScoreAbsent(absent.join(' · ')),
+              style: const TextStyle(
+                color: CymbraColors.onSurfaceVariant,
+                fontSize: 12,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class _DrumFocusRow extends StatelessWidget {
   const _DrumFocusRow({
     required this.label,
@@ -1108,11 +1233,20 @@ class _DrumFocusRow extends StatelessWidget {
     required this.soloLabel,
     required this.onToggle,
     required this.onSolo,
+    this.unavailable = false,
     super.key,
   });
 
   final String label;
   final bool inFocus;
+
+  /// The connected kit was said not to have this piece (design D13). The run
+  /// already neither awaits nor judges it, so **every control on this row is
+  /// dead**: checking it could not put a pad back on the instrument, and a
+  /// control that changes nothing is worse than one that is visibly out of
+  /// reach. Why it is dead is said once under the list, not on each row.
+  final bool unavailable;
+
   final String soloLabel;
   final VoidCallback onToggle;
   final VoidCallback onSolo;
@@ -1121,18 +1255,18 @@ class _DrumFocusRow extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     children: [
       Checkbox(
-        value: inFocus,
-        onChanged: (_) => onToggle(),
+        value: inFocus && !unavailable,
+        onChanged: unavailable ? null : (_) => onToggle(),
         activeColor: CymbraColors.tertiary,
       ),
       Expanded(
         child: GestureDetector(
-          onTap: onToggle,
+          onTap: unavailable ? null : onToggle,
           behavior: HitTestBehavior.opaque,
           child: Text(
             label,
             style: TextStyle(
-              color: inFocus
+              color: inFocus && !unavailable
                   ? CymbraColors.onSurface
                   : CymbraColors.onSurfaceVariant,
               fontSize: 14,
@@ -1140,7 +1274,10 @@ class _DrumFocusRow extends StatelessWidget {
           ),
         ),
       ),
-      TextButton(onPressed: onSolo, child: Text(soloLabel)),
+      TextButton(
+        onPressed: unavailable ? null : onSolo,
+        child: Text(soloLabel),
+      ),
     ],
   );
 }

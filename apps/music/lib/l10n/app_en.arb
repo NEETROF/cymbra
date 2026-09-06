@@ -3617,6 +3617,42 @@
   "kitPieceSplash": "Splash",
   "kitPieceChina": "China",
   "kitPieceKick": "Kick",
+  "kitZoneCrossStick": "Cross-stick",
+  "@kitZoneCrossStick": {
+    "description": "Calibration/pad label for the snare’s side-stick zone (GM 37)."
+  },
+  "kitZoneHiHatOpen": "Open hi-hat",
+  "@kitZoneHiHatOpen": {
+    "description": "Calibration/pad label for the open hi-hat (GM 46) — the same instrument as the closed one, a different trigger on a module."
+  },
+  "kitZoneHiHatPedal": "Hi-hat pedal",
+  "@kitZoneHiHatPedal": {
+    "description": "Calibration/pad label for the hi-hat pedal “chick” (GM 44), the one kit control struck by no hand."
+  },
+  "kitZoneRideBell": "Ride bell",
+  "@kitZoneRideBell": {
+    "description": "Calibration/pad label for the ride bell (GM 53)."
+  },
+  "kitPieceCowbell": "Cowbell",
+  "@kitPieceCowbell": {
+    "description": "Auxiliary pad (GM 56)."
+  },
+  "kitPieceTambourine": "Tambourine",
+  "@kitPieceTambourine": {
+    "description": "Auxiliary pad (GM 54)."
+  },
+  "kitPieceHandClap": "Hand clap",
+  "@kitPieceHandClap": {
+    "description": "Auxiliary pad (GM 39)."
+  },
+  "kitPieceClaves": "Claves",
+  "@kitPieceClaves": {
+    "description": "Auxiliary pad (GM 75)."
+  },
+  "kitPieceWoodBlock": "Wood block",
+  "@kitPieceWoodBlock": {
+    "description": "Auxiliary pad (GM 76)."
+  },
   "drumFocusTitle": "Pieces practised",
   "@drumFocusTitle": {
     "description": "Per-piece practice focus section title (add-practice-focus-controls). Replaces the hands/feet selector on percussion."
@@ -3624,6 +3660,10 @@
   "drumFocusHint": "Unchecked pieces are not drawn, not awaited and not scored — you can still hit them and hear them.",
   "@drumFocusHint": {
     "description": "Explains that focus states what is ASKED of the player, never what the player hears from their own kit."
+  },
+  "drumFocusAbsentHint": "Greyed out: you told the calibration your kit does not have these. They are still shown, but never awaited or scored.",
+  "@drumFocusAbsentHint": {
+    "description": "Shown under the per-piece practice list when at least one piece is greyed out: names WHY those rows are disabled (the player declared them absent during calibration) and how they differ from an unchecked piece, which is not drawn at all."
   },
   "drumFocusSolo": "Solo",
   "@drumFocusSolo": {
@@ -3641,7 +3681,7 @@
   "@calibrationOpen": {
     "description": "Entry point in the MIDI settings section."
   },
-  "calibrationOpenHint": "Play each drum once so the app learns what your pads send.",
+  "calibrationOpenHint": "Play each piece this score asks for once, so the app learns what your pads send.",
   "@calibrationOpenHint": {
     "description": "Sub-label under the entry point."
   },
@@ -3691,6 +3731,14 @@
   "@calibrationAbandon": {
     "description": "Leaves the pass. Nothing is stored — the previous mapping stands."
   },
+  "calibrationFinish": "Finish here",
+  "@calibrationFinish": {
+    "description": "Ends the pass and keeps what it has learned so far — the counterpart of Stop, which keeps nothing."
+  },
+  "calibrationAuxHint": "Extra pads. Finish here if your kit has none.",
+  "@calibrationAuxHint": {
+    "description": "Shown once the pass leaves the kit itself and starts asking for auxiliary pads."
+  },
   "calibrationConflict": "That is already your {piece}",
   "@calibrationConflict": {
     "description": "A number the pass already recorded for another piece. Surfaced, never resolved silently: on a real kit it usually means the wrong pad was struck.",
@@ -3737,6 +3785,32 @@
   "@calibrationMappingTitle": {
     "description": "The review table of the stored mapping."
   },
+  "calibrationScoreKitTitle": "This score's kit",
+  "@calibrationScoreKitTitle": {
+    "description": "Header of the calibration table when a percussion score is loaded: the rows are that score\u2019s pieces, learned or not."
+  },
+  "calibrationRowMissing": "Not calibrated yet",
+  "@calibrationRowMissing": {
+    "description": "Row subtitle for a piece of this score the connected device has no entry for."
+  },
+  "calibrationStartMissing": "{count, plural, =1{Calibrate the missing one} other{Calibrate the {count} missing}}",
+  "@calibrationStartMissing": {
+    "description": "Primary action when some of the score\u2019s pieces are calibrated and others are not: a pass over the missing ones only.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "calibrationLearnedElsewhere": "{count, plural, =1{1 more piece learned on this kit, outside this score.} other{{count} more pieces learned on this kit, outside this score.}}",
+  "@calibrationLearnedElsewhere": {
+    "description": "Counts entries stored for this device that belong to no piece of the loaded score, so clearing the kit never removes something the screen never showed.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "calibrationMappingEmpty": "This kit is not calibrated. Every note is read exactly as it arrives.",
   "@calibrationMappingEmpty": {
     "description": "Empty state of the review table — which is also the uncalibrated behaviour."
@@ -3772,6 +3846,36 @@
   "calibrationClearAll": "Clear this kit's calibration",
   "@calibrationClearAll": {
     "description": "Returns the device to uncalibrated behaviour."
+  },
+  "calibrationOpenMonitor": "Watch strokes live",
+  "@calibrationOpenMonitor": {
+    "description": "Opens the MIDI monitor from the calibration surface — the raw read-out sits one level below the guided pass (design D11)."
+  },
+  "calibrationOpenMonitorHint": "When a pad is learned wrong, or fires two at once.",
+  "@calibrationOpenMonitorHint": {
+    "description": "Names what the pass cannot show: an entry learned on the wrong number, and a pad that triggers a second one (the pass records the first stroke and moves on)."
+  },
+  "calibrationScoreMissing": "Not calibrated yet for this piece: {pieces}",
+  "@calibrationScoreMissing": {
+    "description": "Listed under the calibration action: the pieces THIS score writes that the connected device has no mapping entry for.",
+    "placeholders": {
+      "pieces": {
+        "type": "String"
+      }
+    }
+  },
+  "calibrationScoreAbsent": "Not awaited, your kit has none: {pieces}",
+  "@calibrationScoreAbsent": {
+    "description": "Listed under the calibration action: the pieces of this score the player answered \"this kit has none\" for. They are no longer awaited by Wait Mode, which must be visible before playing rather than discovered mid-groove.",
+    "placeholders": {
+      "pieces": {
+        "type": "String"
+      }
+    }
+  },
+  "calibrationScoreComplete": "Every kit piece for this score is calibrated.",
+  "@calibrationScoreComplete": {
+    "description": "The positive counterpart: every piece this score asks for has been learned on the connected device."
   },
   "midiMonitorTranslated": "your {raw} → read as {mapped}",
   "@midiMonitorTranslated": {

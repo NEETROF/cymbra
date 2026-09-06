@@ -179,3 +179,100 @@
 - [ ] 9.7 Confirm input latency is unchanged from the §8 baseline of
   `add-drum-input-mapping` — the translation runs in the MIDI callback and must
   not be perceptible
+
+## 10. What the first beta pass found (D8 entry point, D9 coverage)
+
+- [x] 10.1 Offer the calibration tile on a **percussion score only**
+  (`_midiSection`, gated on `PlayerData.isPercussion`) — the seam that applies the
+  mapping is the identity anywhere else, so the invitation promised nothing. The
+  monitor stays on every score: it interprets nothing
+- [x] 10.2 Split `kCalibrationPieceOrder` into `kCalibrationKitPieceOrder` +
+  `kCalibrationAuxPieceOrder` and add what a module triggers separately: the
+  cross-stick (37), open hi-hat (46), pedal hi-hat (44) and ride bell (53) beside
+  the pieces they sit on, then the auxiliary pads (cowbell, tambourine, hand clap,
+  claves, wood block)
+- [x] 10.3 `CalibrationState.finish()` + the notifier's `finish()`: end the pass
+  here and store what it learned, offered once something is recorded — the list
+  now runs past most kits, and abandoning keeps nothing by design (D4)
+- [x] 10.4 Announce the auxiliary section in the pass, so "finish here" is the
+  ordinary answer rather than an escape hatch
+- [x] 10.5 Localised labels for the zones and auxiliary pads (fr/en/es/it), read
+  through the same table the pad strip labels a lane with — one vocabulary for
+  what the player is asked to hit and what lights when they hit it
+- [x] 10.6 Tests: the calibration entry point is percussion-only and the monitor
+  is not; a zone is learned, translated, and still resolves to its piece; the pass
+  finishes early keeping what it learned; the auxiliary pads come last
+- [ ] 10.7 On the kit: run the extended pass and confirm the rim, the open hi-hat
+  and the pedal are learned on their own numbers and are no longer inert
+
+## 11. The pass follows the score (D10)
+
+- [x] 11.1 `calibrationTargetOf` / `calibrationTargetsForScore` in `drum_kit.dart`
+  and `PlayerData.calibrationTargets`: the pieces and zones the loaded file
+  writes, in the standard kit's order, with anything the standard order does not
+  name appended by number rather than dropped
+- [x] 11.2 The pass reads them at build **and at `start()`**, so a score that
+  finished loading after the surface opened is the one asked for; falls back to
+  the standard kit with no percussion score to read
+- [x] 11.3 The settings name what this score has yet to teach the connected
+  device under the calibration action, and say so plainly when nothing is left
+  (`_CalibrationCoverage`)
+- [x] 11.4 The tile's hint follows the new scope ("each piece this score asks
+  for", fr/en/es/it) + the two coverage strings
+- [x] 11.5 Tests: a groove asks for its own three pieces and completes on three
+  strokes; a piece outside the standard order is still offered; the no-score
+  fallback; the coverage line shrinks as pieces are learned and turns positive
+- [ ] 11.6 On the kit: open a groove, confirm the pass asks only for its pieces
+  and that the settings' "not learned yet" line matches what the kit still owes
+
+## 12. One door per score (D11)
+
+- [x] 12.1 The settings offer the monitor on a keyboard score only — the pass
+  replaces it on percussion instead of standing beside it
+- [x] 12.2 The monitor moves to the foot of the calibration surface, labelled for
+  what it answers there (a pad learned wrong, a pad firing two at once), fr/en/
+  es/it
+- [x] 12.3 Tests: one entry point per score type, and the monitor opens from the
+  calibration surface
+
+## 13. The table is the score's kit (D12)
+
+- [x] 13.1 `_MappingTable` lists the score's calibration targets, learned or not,
+  with a "not calibrated yet" marker where the mapping line would be; entries
+  outside this score are counted, never silently cleared
+- [x] 13.2 Two ways in: "calibrate the N missing" and "start over", the first
+  only when it differs from the second
+- [x] 13.3 `CalibrationState.known` / `dropped`: a pass carries the device's
+  table, so a partial pass keeps what it never asked about, collides against
+  stored numbers, and can take an entry away ("this kit has none", reassign)
+- [x] 13.4 Tests: the table lists missing pieces and counts the rest; the partial
+  pass asks only for the gaps and erases nothing; conflicts against stored
+  entries; skip and back over a stored entry
+- [ ] 13.5 On the kit: open the groove from the screenshot and confirm the table
+  names the nine pieces, and that calibrating the five missing ones keeps the
+  four already learned
+
+## 14. "This kit has none" is remembered, and the gate reads it (D13)
+
+- [x] 14.1 `DrumInputMapping.absent` + the `"none"` marker in the stored table
+  (a string where every other value is a number, so an older build degrades to
+  "not calibrated" instead of refusing the table)
+- [x] 14.2 The pass carries and updates it: skip declares, a stroke revokes,
+  back takes it back, and a partial pass keeps the absences it never asked about
+- [x] 14.3 `PlayerData.unplayablePieces` + `awaitedNotes`: the gate and the
+  scorer read it, the painters do not — an absent piece is still drawn
+- [x] 14.4 The surfaces tell the two silences apart: "not calibrated yet" vs
+  "this kit has none" in the table, and a line of its own in the settings, so a
+  gate that stopped waiting is never a surprise
+- [x] 14.5 Tests: the gate lets an absent piece through and still waits for an
+  uncalibrated one; the run is not judged on it; round trip + old-build read;
+  skip/record/back over an absence
+- [ ] 14.6 On the kit: declare a piece absent, confirm Wait Mode no longer holds
+  on it, that it is still drawn, and that the settings say so before playing
+- [x] 14.7 The per-piece practice list greys and disables a piece the kit was
+  said not to have, naming the reason: the run already neither awaits nor judges
+  it, so its checkbox and Solo would be controls that change nothing
+- [x] 14.8 The drawn kit fades a piece the kit does not have, in every mode:
+  `playableDrumSurfaces` reads the absences as well as the focus selection, and
+  `kitCanPlay` consults both grains — a missing PIECE takes its zones with it, a
+  missing zone leaves the piece playable

@@ -402,7 +402,7 @@ String drumPieceIdOf(int gm) {
   for (final piece in _namedPieces) {
     if (piece.gm.contains(gm)) return piece.key;
   }
-  return 'gm:$gm';
+  return gmPieceId(gm);
 }
 
 /// Whether an incoming stroke [incomingGm] is a stroke of the piece a written
@@ -621,22 +621,23 @@ Set<String> mutedAfterMuting(
 /// The muted set after **soloing** [pieceId] out of [all] (design D2): solo is
 /// the same one set, edited from the other side.
 ///
-/// From "everything in focus" it isolates [pieceId]; from an existing
-/// selection it **adds** — soloing the snare after the hi-hat asks for both,
-/// which is what a drummer building up a groove means by isolating a second
-/// piece.
+/// **Always isolates** [pieceId]: whatever was in focus before, only it is
+/// after.
+///
+/// It used to *add* to an existing selection — soloing the snare after the
+/// hi-hat asked for both — which read as a bug from the only place it is
+/// invoked: a row labelled "solo" that leaves four other pieces in focus is not
+/// doing what the word says. And nothing is lost by dropping it, because adding
+/// a second piece is exactly what that piece's own checkbox does; the two
+/// gestures had grown into one.
 Set<String> mutedAfterSoloing(
   Set<String> muted,
   String pieceId,
   List<String> all,
-) =>
-    muted.isEmpty
-          ? {
-              for (final id in all)
-                if (id != pieceId) id,
-            }
-          : {...muted}
-      ..remove(pieceId);
+) => {
+  for (final id in all)
+    if (id != pieceId) id,
+};
 
 // --- Per-device input mapping (change: add-drum-input-calibration) ----------
 
@@ -657,19 +658,89 @@ int? canonicalGmOfPiece(String pieceId) {
   return null;
 }
 
-/// The pieces a calibration pass asks for, in the order it asks — round the
-/// kit as a drummer sits at it: the two hands and the foot first (the pieces
-/// every groove has), then the toms high to low, then the cymbals.
+/// A calibration target keyed by the General MIDI number it translates to —
+/// the form [drumPieceIdOf] gives the terminal bucket, and the form a **zone**
+/// of a named piece takes when the pass asks for it on its own.
 ///
-/// The **fixed standard kit**, deliberately not the loaded score's
-/// (change: add-drum-input-calibration, design D7): a mapping describes a piece
-/// of hardware, not a piece of music, and calibrating from a groove that has no
-/// toms would leave a kit unable to map its toms at all. Every step is
-/// skippable, so a kit that lacks a piece costs one tap.
-const List<String> kCalibrationPieceOrder = [
+/// A lane collapses the numbers that share one aim point, because that is what
+/// the eye needs; a module does not, because each zone is a separate trigger on
+/// the wire. So the pass asks at the grain the *hardware* has (design D9) while
+/// everything downstream keeps reasoning at the grain the *player* has: a rim
+/// zone learned here translates to 37, which [drumPieceIdOf] still calls the
+/// snare, so the flash, the gate and the scorer are untouched by the extra
+/// question.
+String gmPieceId(int gm) => 'gm:$gm';
+
+/// The snare's other zone: the side stick / cross-stick, played on the same
+/// drum ([drumPieceIdOf] answers `kitPieceSnare` for it).
+const String kCrossStickPieceId = 'gm:37';
+
+/// The hi-hat's foot "chick" — a FOOT event, in the terminal bucket until its
+/// bar encoding exists, and the one control on a kit that no hand strikes.
+const String kPedalHiHatPieceId = 'gm:44';
+
+/// The open hi-hat: the same instrument as the closed 42 (one lane, one pad),
+/// a different trigger on nearly every module.
+const String kOpenHiHatPieceId = 'gm:46';
+
+/// The ride's bell — the ride lane's accent surface.
+const String kRideBellPieceId = 'gm:53';
+
+/// The zones that earn a calibration step of their own — the numbers a lane
+/// collapses onto the piece they belong to, but a module fires separately
+/// (design D9). Everything else is asked for at the piece's own grain.
+const Set<int> kCalibrationZoneGmNumbers = {37, 44, 46, 53};
+
+/// The calibration target a written number is learned under: the zone itself
+/// when the pass asks for that zone separately, the number's piece otherwise.
+///
+/// The one place the two grains meet. Recording is per target; *interpreting*
+/// stays per piece ([drumPieceIdOf]), which is why learning a rim separately
+/// changes nothing about what flashes, gates or scores.
+String calibrationTargetOf(int gm) =>
+    kCalibrationZoneGmNumbers.contains(gm) ? gmPieceId(gm) : drumPieceIdOf(gm);
+
+/// The targets a **loaded score** asks for, in the pass's own order (design
+/// D10): what the file actually writes, deduped and ordered like the standard
+/// kit, with anything the standard list does not name appended by number.
+///
+/// A groove is played on the pieces it is written for. Asking for the whole
+/// standard kit made a pass over a hi-hat-and-snare groove eighteen steps of
+/// "this kit has none", and the trade — a piece absent from *this* score cannot
+/// be learned from it — is answered by the score that does write it, and made
+/// visible before playing by the settings' own "not learned yet" line.
+///
+/// The tail matters as much as the head: a score writing a bongo yields a target
+/// the standard list never names, and dropping it would leave the one piece the
+/// player cannot calibrate as the one the file actually asks for.
+List<String> calibrationTargetsForScore(Iterable<int> presentGm) {
+  final targets = {for (final gm in presentGm) calibrationTargetOf(gm)};
+  return [
+    for (final id in kCalibrationPieceOrder)
+      if (targets.remove(id)) id,
+    ...targets.toList()..sort(
+      (a, b) =>
+          (canonicalGmOfPiece(a) ?? 0).compareTo(canonicalGmOfPiece(b) ?? 0),
+    ),
+  ];
+}
+
+/// The standard kit a calibration pass walks, in the order it asks — round the
+/// kit as a drummer sits at it: the foot and the two hands first (the pieces
+/// every groove has), each with the zones that sit on the same piece of
+/// hardware, then the toms high to low, then the cymbals.
+///
+/// The fallback list (design D7, amended by D10): what the pass asks for when
+/// there is no percussion score to read a kit from. A mapping describes a piece
+/// of hardware rather than a piece of music, so the order is the kit's own and
+/// every step is skippable — a kit that lacks a piece costs one tap.
+const List<String> kCalibrationKitPieceOrder = [
   kKickPieceId,
   'kitPieceSnare',
+  kCrossStickPieceId,
   'kitPieceHiHat',
+  kOpenHiHatPieceId,
+  kPedalHiHatPieceId,
   'kitPieceTomHigh',
   'kitPieceTomHiMid',
   'kitPieceTomLowMid',
@@ -677,8 +748,27 @@ const List<String> kCalibrationPieceOrder = [
   'kitPieceTomFloorHigh',
   'kitPieceTomFloorLow',
   'kitPieceRide',
+  kRideBellPieceId,
   'kitPieceCrash',
   'kitPieceCrash2',
   'kitPieceSplash',
   'kitPieceChina',
+];
+
+/// The auxiliary pads a module offers beside the kit itself (design D9). Last,
+/// and after the pass can already be finished, because they are the part of the
+/// list most kits answer "none" to — a player whose kit ends at the china
+/// finishes there rather than tapping through them.
+const List<String> kCalibrationAuxPieceOrder = [
+  'gm:56', // Cowbell
+  'gm:54', // Tambourine
+  'gm:39', // Hand Clap
+  'gm:75', // Claves
+  'gm:76', // Hi Wood Block
+];
+
+/// Every step of a calibration pass: the kit, then the auxiliary pads.
+const List<String> kCalibrationPieceOrder = [
+  ...kCalibrationKitPieceOrder,
+  ...kCalibrationAuxPieceOrder,
 ];
