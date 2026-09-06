@@ -837,6 +837,7 @@
   "kitPieceWoodBlock": "Caja china",
   "drumFocusTitle": "Piezas trabajadas",
   "drumFocusHint": "Las piezas sin marcar no se muestran, no se esperan ni se puntúan; puedes seguir golpeándolas y oyéndolas.",
+  "drumFocusAbsentHint": "En gris: le dijiste a la calibración que tu batería no los tiene. Se siguen mostrando, pero no se esperan ni se puntúan.",
   "drumFocusSolo": "Sola",
   "drumFocusAll": "Kit completo",
   "calibrationTitle": "Calibra tu batería",

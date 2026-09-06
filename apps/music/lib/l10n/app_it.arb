@@ -837,6 +837,7 @@
   "kitPieceWoodBlock": "Blocchetto di legno",
   "drumFocusTitle": "Pezzi in studio",
   "drumFocusHint": "I pezzi deselezionati non vengono disegnati, attesi né valutati: puoi comunque colpirli e sentirli.",
+  "drumFocusAbsentHint": "In grigio: hai detto alla calibrazione che la tua batteria non li ha. Restano visibili, ma non sono attesi né valutati.",
   "drumFocusSolo": "Solo",
   "drumFocusAll": "Kit intero",
   "calibrationTitle": "Calibra la tua batteria",

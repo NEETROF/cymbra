@@ -3661,6 +3661,10 @@
   "@drumFocusHint": {
     "description": "Explains that focus states what is ASKED of the player, never what the player hears from their own kit."
   },
+  "drumFocusAbsentHint": "Greyed out: you told the calibration your kit does not have these. They are still shown, but never awaited or scored.",
+  "@drumFocusAbsentHint": {
+    "description": "Shown under the per-piece practice list when at least one piece is greyed out: names WHY those rows are disabled (the player declared them absent during calibration) and how they differ from an unchecked piece, which is not drawn at all."
+  },
   "drumFocusSolo": "Solo",
   "@drumFocusSolo": {
     "description": "Row action isolating one kit piece; soloing a second piece adds it to the selection."

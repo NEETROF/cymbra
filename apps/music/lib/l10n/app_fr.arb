@@ -837,6 +837,7 @@
   "kitPieceWoodBlock": "Bloc de bois",
   "drumFocusTitle": "Pièces travaillées",
   "drumFocusHint": "Les pièces décochées ne sont ni affichées, ni attendues, ni notées — tu peux toujours les frapper et les entendre.",
+  "drumFocusAbsentHint": "Grisés : tu as déclaré à la calibration que ta batterie ne les a pas. Ils restent affichés, mais ne sont ni attendus ni notés.",
   "drumFocusSolo": "Seule",
   "drumFocusAll": "Kit entier",
   "calibrationTitle": "Calibrer ta batterie",

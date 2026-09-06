@@ -329,6 +329,20 @@ void main() {
     // Every other piece keeps its controls.
     expect(boxOf('kitPieceSnare').onChanged, isNotNull);
     expect(boxOf('kitPieceSnare').value, isTrue);
+    // …and WHY those rows are dead is said once, under the list, rather than
+    // repeated on every row where it named the state without explaining it.
+    expect(find.byKey(const Key('drum-focus-absent-hint')), findsOneWidget);
+    await _teardown(tester, container);
+  });
+
+  testWidgets('with nothing declared absent, no explanation is offered for an '
+      'absence that is not there', (tester) async {
+    final container = await _pumpWithModal(
+      tester,
+      document: sampleDrumDocument(),
+      midiPort: 'Drum kit',
+    );
+    expect(find.byKey(const Key('drum-focus-absent-hint')), findsNothing);
     await _teardown(tester, container);
   });
 

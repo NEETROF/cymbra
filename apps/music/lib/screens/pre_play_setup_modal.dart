@@ -670,7 +670,6 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
                   // row states that instead of offering a control that would
                   // change nothing.
                   unavailable: data.unplayablePieces.contains(piece.id),
-                  unavailableLabel: l10n.calibrationSkip,
                   soloLabel: l10n.drumFocusSolo,
                   onToggle: () => data.mutedDrumPieces.contains(piece.id)
                       ? notifier.unmuteDrumPiece(piece.id)
@@ -690,6 +689,22 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
             ),
           ),
         ),
+        // Why some rows are dead, said once. Repeating "this kit has none" on
+        // every row named the state without explaining it — where the answer
+        // came from, that it can be taken back, and how a greyed piece differs
+        // from an unchecked one (this one is still drawn).
+        if (pieces.any((p) => data.unplayablePieces.contains(p.id)))
+          Padding(
+            padding: const EdgeInsets.only(top: 4, left: 4),
+            child: Text(
+              key: const Key('drum-focus-absent-hint'),
+              l10n.drumFocusAbsentHint,
+              style: const TextStyle(
+                color: CymbraColors.onSurfaceVariant,
+                fontSize: 12,
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -1212,7 +1227,6 @@ class _DrumFocusRow extends StatelessWidget {
     required this.onToggle,
     required this.onSolo,
     this.unavailable = false,
-    this.unavailableLabel = '',
     super.key,
   });
 
@@ -1223,11 +1237,8 @@ class _DrumFocusRow extends StatelessWidget {
   /// already neither awaits nor judges it, so **every control on this row is
   /// dead**: checking it could not put a pad back on the instrument, and a
   /// control that changes nothing is worse than one that is visibly out of
-  /// reach. Greyed and disabled, with the reason beside it.
+  /// reach. Why it is dead is said once under the list, not on each row.
   final bool unavailable;
-
-  /// Why it is disabled, in the same words the pass asked the question with.
-  final String unavailableLabel;
 
   final String soloLabel;
   final VoidCallback onToggle;
@@ -1245,33 +1256,14 @@ class _DrumFocusRow extends StatelessWidget {
         child: GestureDetector(
           onTap: unavailable ? null : onToggle,
           behavior: HitTestBehavior.opaque,
-          child: Row(
-            children: [
-              Flexible(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    color: inFocus && !unavailable
-                        ? CymbraColors.onSurface
-                        : CymbraColors.onSurfaceVariant,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-              if (unavailable) ...[
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Text(
-                    unavailableLabel,
-                    style: const TextStyle(
-                      color: CymbraColors.onSurfaceVariant,
-                      fontSize: 12,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ],
+          child: Text(
+            label,
+            style: TextStyle(
+              color: inFocus && !unavailable
+                  ? CymbraColors.onSurface
+                  : CymbraColors.onSurfaceVariant,
+              fontSize: 14,
+            ),
           ),
         ),
       ),
