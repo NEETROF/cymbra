@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.31.0](https://github.com/NEETROF/cymbra/compare/music-v1.30.0...music-v1.31.0) (2026-09-06)
+
+
+### Features
+
+* **music:** tell the store listings about the drums, and capture what ships ([#314](https://github.com/NEETROF/cymbra/issues/314)) ([f168c67](https://github.com/NEETROF/cymbra/commit/f168c671f4ef90db291add34ecbc67db415b2be7))
+
 ## [1.30.0](https://github.com/NEETROF/cymbra/compare/music-v1.29.0...music-v1.30.0) (2026-09-06)
 
 
