@@ -139,13 +139,24 @@ Release notes are not set from CI. Play makes them optional, and the person who
 sends the release for review is already in the console; a `whatsnew/` directory
 in the repo would go stale between releases.
 
-The step needs a `PLAY_SERVICE_ACCOUNT_JSON` repo secret — the raw JSON key of a
-Google Cloud service account granted **Release manager** on the app (Play Console
-→ Configuration → Accès à l'API). Note that the `neetrof.fr` org inherits
-`iam.disableServiceAccountKeyCreation`, so creating the key needs the same
-project-scoped override already used for the RevenueCat service account. Without
-the secret the upload is skipped with a warning and the AAB is still attached to
-the GitHub Release, which is how it was published by hand until now.
+The step needs a `PLAY_SERVICE_ACCOUNT_JSON` repo secret: the raw JSON key of a
+Google Cloud service account from the `cymbra` project.
+
+**There is no "API access" page on this Play account.** The published guides all
+point at *Configuration → Accès à l'API*; that entry does not exist here, and the
+console's direct URLs redirect to the app list, so hunting for it is a dead end.
+Service accounts are registered as **plain users** instead — which is exactly how
+`revenuecat@cymbra.iam.gserviceaccount.com` already appears under *Utilisateurs et
+autorisations*, Actif, unlimited duration. So: create the account and its JSON key
+in Google Cloud, then invite its `…iam.gserviceaccount.com` address in Play Console
+→ *Utilisateurs et autorisations* → *Inviter de nouveaux utilisateurs*, granting
+release permissions on `com.cymbra.music`.
+
+The `neetrof.fr` org inherits `iam.disableServiceAccountKeyCreation`, so creating
+the key needs the same project-scoped override already used for the RevenueCat
+service account. Without the secret the upload is skipped with a warning and the
+AAB is still attached to the GitHub Release, which is how it was published by hand
+until now.
 
 ## Categories (decided)
 

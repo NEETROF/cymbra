@@ -25,10 +25,16 @@ name: release-build
 #                                   client id is set).
 #   Android (Play upload key + store upload):
 #     PLAY_SERVICE_ACCOUNT_JSON    raw JSON key of a Google Cloud service account
-#                                  granted "Release manager" on the app in Play
-#                                  Console (Configuration → Accès à l'API). Absent
-#                                  ⇒ the Play upload is skipped with a warning and
-#                                  the AAB is only attached to the GitHub Release.
+#                                  (project `cymbra`) that has been INVITED as a
+#                                  user in Play Console → Utilisateurs et
+#                                  autorisations, with release permissions on
+#                                  com.cymbra.music. There is no "API access" page
+#                                  on this account — service accounts are plain
+#                                  users here, which is how
+#                                  revenuecat@cymbra.iam.gserviceaccount.com is
+#                                  already registered. Absent ⇒ the Play upload is
+#                                  skipped with a warning and the AAB is only
+#                                  attached to the GitHub Release.
 #     ANDROID_KEYSTORE_BASE64      base64 of the upload keystore (.jks)
 #     ANDROID_KEYSTORE_PASSWORD    store password
 #     ANDROID_KEY_ALIAS            key alias (e.g. upload)
