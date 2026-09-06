@@ -40,13 +40,19 @@ SEGUI I TUOI PROGRESSI
 • Punteggio in tempo reale su precisione e tempismo
 • Feedback giocoso e un riepilogo della sessione dopo ogni esecuzione
 
+ANCHE LA BATTERIA
+• Vere parti di batteria, sul pentagramma o su un kit animato
+• Colpisci il kit sullo schermo, o suona la tua batteria elettronica
+• Associa i pad una volta — Cymbra si adatta al brano caricato
+• Isola un elemento del kit per studiare un groove, con punteggio come sempre
+
 UNA LIBRERIA IN CRESCITA
 • Spartiti di pubblico dominio inclusi, dal principiante all'avanzato
 • Scegli suoni di piano di qualità, o importa il tuo SoundFont
 
-Collega qualsiasi tastiera MIDI USB, oppure suona sullo schermo. Disponibile in italiano, inglese, francese e spagnolo.
+Collega qualsiasi tastiera MIDI USB o batteria elettronica, oppure suona sullo schermo. Disponibile in italiano, inglese, francese e spagnolo.
 
-Inizia a suonare oggi — il modo migliore per imparare il piano è suonarlo.
+Inizia a suonare oggi — il modo migliore per imparare la musica è suonarla.
 
 ## Categorie
 

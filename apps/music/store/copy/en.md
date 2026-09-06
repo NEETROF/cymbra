@@ -40,13 +40,19 @@ SEE YOUR PROGRESS
 • Real-time scoring rates your accuracy and timing
 • Gamified feedback and a session summary after every run
 
+PLAY THE DRUMS TOO
+• Real drum parts, read on the staff or on an animated kit
+• Tap the kit on screen, or play your electronic drum kit
+• Map your pads once — Cymbra calibrates to the piece you load
+• Isolate one kit piece to drill a groove, scored like any other run
+
 A GROWING LIBRARY
 • Bundled public-domain scores, sorted from beginner to advanced
 • Choose from high-quality piano sounds, or import your own SoundFont
 
-Connect any USB MIDI keyboard, or play along on screen. Available in English, French, Italian and Spanish.
+Connect any USB MIDI keyboard or electronic drum kit, or play along on screen. Available in English, French, Italian and Spanish.
 
-Start playing today — the best way to learn piano is to play it.
+Start playing today — the best way to learn music is to play it.
 
 ## Categories
 

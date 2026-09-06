@@ -40,13 +40,19 @@ SIGUE TU PROGRESO
 • Puntuación en tiempo real de tu precisión y tu ritmo
 • Retroalimentación lúdica y un resumen de la sesión tras cada intento
 
+TAMBIÉN LA BATERÍA
+• Partes de batería reales, en el pentagrama o en un kit animado
+• Golpea el kit en pantalla, o toca tu batería electrónica
+• Asocia tus pads una vez — Cymbra se ajusta a la pieza que cargas
+• Aísla un elemento del kit para trabajar un groove, con puntuación como siempre
+
 UNA BIBLIOTECA QUE CRECE
 • Partituras de dominio público incluidas, de principiante a avanzado
 • Elige sonidos de piano de calidad, o importa tu propio SoundFont
 
-Conecta cualquier teclado MIDI USB, o toca en pantalla. Disponible en español, inglés, francés e italiano.
+Conecta cualquier teclado MIDI USB o batería electrónica, o toca en pantalla. Disponible en español, inglés, francés e italiano.
 
-Empieza a tocar hoy — la mejor forma de aprender piano es tocarlo.
+Empieza a tocar hoy — la mejor forma de aprender música es tocarla.
 
 ## Categorías
 
