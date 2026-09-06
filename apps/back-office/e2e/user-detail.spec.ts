@@ -216,9 +216,34 @@ test.describe("account detail: subscription", () => {
 });
 
 test.describe("account detail: roles, history, reliability, sessions", () => {
+  test("the page is split in two tabs, and the choice is in the URL", async ({ page }) => {
+    // Subscription and roles are unrelated bodies of work, each several tables deep.
+    await seed(page, { loginAs: "admin", data });
+    await page.goto("/users/u-ada");
+
+    // A music admin lands on the subscription; the roles half is not on screen.
+    await expect(page.getByRole("tab", { name: "Subscription" })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByTestId("entitlements")).toBeVisible();
+    await expect(page.getByTestId("role-history")).toHaveCount(0);
+
+    await page.getByRole("tab", { name: "Roles" }).click();
+
+    await expect(page).toHaveURL(/tab=roles/);
+    await expect(page.getByTestId("role-history")).toBeVisible();
+    await expect(page.getByTestId("entitlements")).toHaveCount(0);
+
+    // Addressable: reloading stays on the section the admin was reading.
+    await page.reload();
+    await expect(page.getByTestId("role-history")).toBeVisible();
+
+    // The keyboard walks the tablist, as the pattern expects.
+    await page.getByRole("tab", { name: "Roles" }).press("ArrowLeft");
+    await expect(page.getByTestId("entitlements")).toBeVisible();
+  });
+
   test("a role is granted in a named scope and the page reflects it", async ({ page }) => {
     await seed(page, { loginAs: "admin", data: { accounts: [ada] } });
-    await page.goto("/users/u-ada");
+    await page.goto("/users/u-ada?tab=roles");
 
     await page.getByRole("button", { name: "Grant moderator in music" }).click();
 
@@ -229,7 +254,7 @@ test.describe("account detail: roles, history, reliability, sessions", () => {
     // The history sits on the same screen as the toggle that writes to it. It used to
     // stay one refresh behind: the roles updated, the audit table did not.
     await seed(page, { loginAs: "admin", data: { accounts: [ada] } });
-    await page.goto("/users/u-ada");
+    await page.goto("/users/u-ada?tab=roles");
     await expect(page.getByTestId("role-history")).toContainText("No role changes yet.");
 
     await page.getByRole("button", { name: "Grant moderator in music" }).click();
@@ -249,21 +274,36 @@ test.describe("account detail: roles, history, reliability, sessions", () => {
     // The refresh after the action used to fold the account back through `loading`: the
     // page unmounted, the document collapsed to a couple of lines, the browser clamped
     // the scroll to the top — and the subscription panel remounted and re-fetched.
-    await seed(page, { loginAs: "global-admin", data: { ...data, accounts: [ada] } });
+    // A long audit trail, so the tab is genuinely taller than the window — the bug was
+    // invisible on a page that fits on screen.
+    const history = Array.from({ length: 20 }, (_, i) => ({
+      targetUserId: "u-ada",
+      scope: "music",
+      role: i % 2 ? "moderator" : "admin",
+      action: i % 2 ? "grant" : "revoke",
+      actingAdmin: "019f60be-6cd9-74e2-a600-9893bd2aaa3a",
+      actingAdminHandle: "bossadmin",
+      at: 1_700_000_000 + i,
+    }));
+    await seed(page, { loginAs: "global-admin", data: { ...data, accounts: [ada], grants: history } });
     await page.setViewportSize({ width: 1280, height: 420 });
-    await page.goto("/users/u-ada");
+    await page.goto("/users/u-ada?tab=roles");
     await expect(page.getByTestId("role-history")).toBeVisible();
 
-    await page.getByRole("button", { name: "Grant moderator in music" }).scrollIntoViewIfNeeded();
+    // Scrolled away from the top, with the control still in view — so the click itself
+    // cannot be what moves the page.
+    await page.evaluate(() => window.scrollTo(0, 200));
     const before = await page.evaluate(() => window.scrollY);
     expect(before).toBeGreaterThan(0);
+    const grant = page.getByRole("button", { name: "Grant moderator in music" });
+    await expect(grant).toBeInViewport();
 
-    await page.getByRole("button", { name: "Grant moderator in music" }).click();
+    await grant.click();
     await expect(page.getByRole("button", { name: "Revoke moderator in music" })).toBeVisible();
 
     // Same place, and the page never blanked out under them.
     expect(await page.evaluate(() => window.scrollY)).toBe(before);
-    await expect(page.getByTestId("effective-plan")).toBeVisible();
+    await expect(page.getByTestId("role-history")).toBeVisible();
   });
 
   test("a global admin manages every scope on the one page, no selector", async ({ page }) => {
@@ -274,7 +314,7 @@ test.describe("account detail: roles, history, reliability, sessions", () => {
       rolesByScope: { global: [] as string[], music: [], live: [] },
     };
     await seed(page, { loginAs: "global-admin", data: { accounts: [tara] } });
-    await page.goto("/users/u-tara");
+    await page.goto("/users/u-tara?tab=roles");
 
     await expect(page.getByRole("button", { name: "Grant moderator in global" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Grant moderator in live" })).toBeVisible();
@@ -298,7 +338,7 @@ test.describe("account detail: roles, history, reliability, sessions", () => {
       },
     ];
     await seed(page, { loginAs: "admin", data: { accounts: [ada], grants } });
-    await page.goto("/users/u-ada");
+    await page.goto("/users/u-ada?tab=roles");
 
     // No button to press: the history is part of the account's page.
     await expect(page.getByTestId("role-history")).toContainText("bossadmin");

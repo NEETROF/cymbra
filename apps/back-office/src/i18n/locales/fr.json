@@ -406,6 +406,11 @@
     "backToDirectory": "Tous les utilisateurs",
     "notFoundTitle": "Compte introuvable",
     "notFound": "Aucun compte ne correspond à cet identifiant.",
+    "sections": "Sections du compte",
+    "tab": {
+      "subscription": "Abonnement",
+      "roles": "Rôles"
+    },
     "subscription": "Abonnement",
     "roles": "Rôles",
     "grantRoleInScope": "Attribuer {role} dans {scope}",

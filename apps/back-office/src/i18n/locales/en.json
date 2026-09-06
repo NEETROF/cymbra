@@ -406,6 +406,11 @@
     "backToDirectory": "All users",
     "notFoundTitle": "Account not found",
     "notFound": "No account matches this identifier.",
+    "sections": "Account sections",
+    "tab": {
+      "subscription": "Subscription",
+      "roles": "Roles"
+    },
     "subscription": "Subscription",
     "roles": "Roles",
     "grantRoleInScope": "Grant {role} in {scope}",

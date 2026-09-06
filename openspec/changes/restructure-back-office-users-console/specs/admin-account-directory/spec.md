@@ -69,6 +69,15 @@ if the change had not happened. That re-read SHALL keep the page on screen — i
 fall back to a loading state, which would unmount the page under the operator, discard
 their scroll position and remount (and re-fetch) the subscription panel.
 
+The page SHALL present the **subscription** and the **roles** as two sections the operator
+switches between, rather than stacked one below the other: they are unrelated bodies of
+work, each several tables deep, and stacking them makes either one a scroll away from the
+other. The chosen section SHALL ride in the URL, so a reload or a shared link lands on the
+section that was being read; an unknown or unavailable section falls back to the first
+rather than showing nothing, and a caller with only one section available SHALL be shown
+no switcher at all. The account's identity and the actions that belong to neither section
+(reliability, session revocation) stay outside them.
+
 The page SHALL be **addressable and self-sufficient**: opening the URL directly, reloading it,
 or arriving from a link SHALL load the account (by its id) without requiring the directory
 page to have been visited first. An unknown or malformed id SHALL show a localized
@@ -83,6 +92,16 @@ page to have been visited first. An unknown or malformed id SHALL show a localiz
 
 - **WHEN** an admin activates "grant moderator" for the `live` scope on the detail page
 - **THEN** the role is granted for that account in the `live` scope, the page reflects it, and the change is audited
+
+#### Scenario: The two sections are switchable and addressable
+
+- **WHEN** an admin opens an account, switches to the roles section, and reloads the page
+- **THEN** only one section is on screen at a time, and the reload lands on the roles section
+
+#### Scenario: Only one section to show
+
+- **WHEN** an admin without the `music` scope opens an account (no subscription to show)
+- **THEN** the roles section is shown with no switcher
 
 #### Scenario: The audit history follows the action
 

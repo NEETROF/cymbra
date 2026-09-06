@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 import { flushPromises, mount, RouterLinkStub, type VueWrapper } from "@vue/test-utils";
+import { createMemoryHistory, createRouter, type Router } from "vue-router";
 import { i18n } from "@/i18n";
 import UserDetailView from "@/views/UserDetailView.vue";
 import { setClientsForTest } from "@/lib/api";
@@ -30,15 +31,26 @@ function signIn(scopes: Record<string, string[]>) {
   useAuthStore().setToken(makeJwt({ sub: "admin-1", roles: ["admin"], roles_by_scope: scopes, exp: 4102444800 }));
 }
 
-async function mountDetail(userId: string, data: Record<string, unknown> = {}) {
+/** The page reads its tab from the URL, so the mount needs a real router. A memory
+ *  history keeps it in-process; `tab` selects the section under test. */
+async function mountDetail(userId: string, data: Record<string, unknown> = {}, tab?: "subscription" | "roles") {
   const { clients, state } = makeFakeClients(data);
   setClientsForTest(clients);
+  const router: Router = createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: "/users", name: "users", component: { template: "<div />" } },
+      { path: "/users/:userId", name: "user-detail", component: UserDetailView, props: true },
+    ],
+  });
+  await router.push({ name: "user-detail", params: { userId }, query: tab ? { tab } : {} });
+  await router.isReady();
   const w = mount(UserDetailView, {
     props: { userId },
-    global: { plugins: [i18n], stubs: { RouterLink: RouterLinkStub } },
+    global: { plugins: [i18n, router], stubs: { RouterLink: RouterLinkStub } },
   });
   await flushPromises();
-  return { w, state };
+  return { w, state, router };
 }
 
 const buttonNamed = (w: VueWrapper, label: string) => w.findAll("button").find((b) => b.text() === label);
@@ -67,7 +79,7 @@ describe("account detail page", () => {
     expect(w.find('[data-testid="effective-plan"]').exists()).toBe(false);
   });
 
-  it("shows the subscription, roles and history of the account", async () => {
+  it("shows the subscription of the account", async () => {
     const lookup = {
       userId: "u-ada",
       snapshot: { plan: "premium", source: "admin", endsAt: "2027-01-01T00:00:00Z", betas: [] },
@@ -89,10 +101,45 @@ describe("account detail page", () => {
 
     expect(w.find('[data-testid="effective-plan"]').text()).toContain("Premium");
     expect(w.find('[data-testid="entitlements"]').text()).toContain("admin");
-    // The audit history reads by handle, never by raw id.
-    const history = w.find('[data-testid="role-history"]');
+    // The roles half is a tab away, not on this one.
+    expect(w.find('[data-testid="role-history"]').exists()).toBe(false);
+
+    // On the roles tab, the audit history reads by handle, never by raw id.
+    const { w: roles } = await mountDetail("u-ada", { accounts: [ada], lookup, grants }, "roles");
+    const history = roles.find('[data-testid="role-history"]');
     expect(history.text()).toContain("bossadmin");
     expect(history.text()).not.toContain("019f60be-6cd9");
+    expect(roles.find('[data-testid="effective-plan"]').exists()).toBe(false);
+  });
+
+  it("the two halves are tabs, and the chosen one rides in the URL", async () => {
+    const { w, router } = await mountDetail("u-ada", { accounts: [ada] });
+
+    const tabs = w.findAll('[role="tab"]');
+    expect(tabs.map((t) => t.text())).toEqual(["Subscription", "Roles"]);
+    expect(tabs[0].attributes("aria-selected")).toBe("true");
+
+    await tabs[1].trigger("click");
+    await flushPromises();
+
+    // Addressable: a reload or a shared link lands on the same section.
+    expect(router.currentRoute.value.query.tab).toBe("roles");
+    expect(w.find('[data-testid="role-history"]').exists()).toBe(true);
+  });
+
+  it("an unknown tab in the URL falls back to the first rather than showing nothing", async () => {
+    const { w } = await mountDetail("u-ada", { accounts: [ada] }, "nonsense" as "roles");
+
+    expect(w.find('[data-testid="effective-plan"]').exists()).toBe(true);
+  });
+
+  it("a single available section shows no tab strip", async () => {
+    signIn({ live: ["admin"] });
+    const { w } = await mountDetail("u-ada", { accounts: [ada] });
+
+    // Nothing to switch between: an inert single tab would be noise.
+    expect(w.findAll('[role="tab"]')).toHaveLength(0);
+    expect(w.find('[data-testid="role-history"]').exists()).toBe(true);
   });
 
   it("an admin outside the music scope gets NO subscription block and no plan RPC", async () => {
@@ -110,7 +157,7 @@ describe("account detail page", () => {
 
   it("grants a role in a named scope and re-reads THIS account", async () => {
     signIn({ global: ["admin"] });
-    const { w, state } = await mountDetail("u-ada", { accounts: [ada] });
+    const { w, state } = await mountDetail("u-ada", { accounts: [ada] }, "roles");
 
     // Every authorized scope is on the page at once — no selector to remember.
     const grant = w.find('[aria-label="Grant moderator in live"]');
@@ -125,7 +172,7 @@ describe("account detail page", () => {
   });
 
   it("a single-scope admin manages only their scope", async () => {
-    const { w } = await mountDetail("u-ada", { accounts: [ada] });
+    const { w } = await mountDetail("u-ada", { accounts: [ada] }, "roles");
 
     expect(w.find('[aria-label="Grant moderator in music"]').exists()).toBe(true);
     expect(w.find('[aria-label="Grant moderator in live"]').exists()).toBe(false);
@@ -276,13 +323,7 @@ describe("account detail page", () => {
       rows: [{ id: "e1", source: "admin", startsAt: "2026-01-01T00:00:00Z", status: "active", providerRef: "" }],
       memberships: [],
     };
-    const { clients } = makeFakeClients({ accounts: [ada, bob], lookup });
-    setClientsForTest(clients);
-    const w = mount(UserDetailView, {
-      props: { userId: "u-ada" },
-      global: { plugins: [i18n], stubs: { RouterLink: RouterLinkStub } },
-    });
-    await flushPromises();
+    const { w } = await mountDetail("u-ada", { accounts: [ada, bob], lookup });
     expect(w.find('[data-testid="effective-plan"]').text()).toContain("Premium");
 
     // Navigating to another account re-runs the load. Between the two, the shared store

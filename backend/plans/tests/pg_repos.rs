@@ -6,7 +6,7 @@
 //!
 //! Run: `cargo test -p cymbra-plans --test pg_repos -- --ignored`
 
-use chrono::{Duration, Utc};
+use chrono::{Duration, SubsecRound, Utc};
 use cymbra_plans::pg::{
     PgAccessCodeRepo, PgAuditRepo, PgBillingEventRepo, PgCampaignRepo, PgEntitlementRepo,
     PgMembershipRepo,
@@ -317,7 +317,9 @@ async fn enrolment_is_transactional_single_use_and_one_per_account_per_campaign(
         .revoke(campaign.id, &user.to_string(), now)
         .await
         .unwrap();
-    let later = now + Duration::days(1);
+    // Truncated to the microsecond the column actually keeps: comparing a nanosecond
+    // `Utc::now()` against what Postgres stored is a coin toss, not a test.
+    let later = (now + Duration::days(1)).trunc_subsecs(6);
     memberships
         .enrol(Enrolment {
             campaign_id: campaign.id,
