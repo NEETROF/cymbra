@@ -867,7 +867,7 @@
   "calibrationClearAll": "Effacer la calibration de cette batterie",
   "calibrationOpenMonitor": "Voir les frappes en direct",
   "calibrationOpenMonitorHint": "Quand un pad est mal appris, ou en déclenche deux à la fois.",
-  "calibrationScoreMissing": "Pas encore appris pour ce morceau : {pieces}",
+  "calibrationScoreMissing": "Pas encore calibré pour ce morceau : {pieces}",
   "calibrationScoreComplete": "Tous les éléments de la batterie pour ce morceau sont calibrés.",
   "midiMonitorTranslated": "ton {raw} → lu comme {mapped}",
   "instrumentChoiceTitle": "Par quoi veux-tu commencer ?",

@@ -3825,7 +3825,7 @@
   "@calibrationOpenMonitorHint": {
     "description": "Names what the pass cannot show: an entry learned on the wrong number, and a pad that triggers a second one (the pass records the first stroke and moves on)."
   },
-  "calibrationScoreMissing": "Not learned yet for this piece: {pieces}",
+  "calibrationScoreMissing": "Not calibrated yet for this piece: {pieces}",
   "@calibrationScoreMissing": {
     "description": "Listed under the calibration action: the pieces THIS score writes that the connected device has no mapping entry for.",
     "placeholders": {
