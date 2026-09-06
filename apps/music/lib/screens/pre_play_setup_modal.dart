@@ -276,6 +276,11 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     final drumFocus = data.hasDrumPiecesToFocus
         ? _drumFocusSection(l10n, data)
         : null;
+    // Directly under the pieces it explains (design D14): a greyed row and the
+    // action that un-greys it belong to one thought.
+    final drumCalibration = data.isPercussion
+        ? _drumCalibrationSection(l10n, data)
+        : null;
     final metronome = _metronomeTile(l10n);
     final tempo = _tempoTile(l10n, data);
     final midi = _midiSection(l10n, data);
@@ -340,6 +345,7 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
                     child: col([
                       ?hands,
                       ?drumFocus,
+                      ?drumCalibration,
                       metronome,
                       ?keyboardSize,
                       ?invertedKit,
@@ -364,6 +370,7 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
             facts,
             ?hands,
             ?drumFocus,
+            ?drumCalibration,
             metronome,
             tempo,
             ?readingAid,
@@ -1090,56 +1097,56 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
               onTap: () => openMidiMonitor(context),
             ),
           ),
-        // The calibration pass and the mapping it produces (change:
-        // add-drum-input-calibration). It replaces the monitor on a percussion
-        // score rather than joining it: the two answer the same question in
-        // sequence — what the kit sends, then what it means — and only the
-        // second one repairs anything.
-        //
-        // Percussion only: the mapping says "this pad is the snare", and the
-        // seam that applies it is identity on anything that is not a percussion
-        // score (design D8). Offering it on a keyboard score would promise a
-        // calibration that provably does nothing there.
-        if (data.isPercussion) ...[
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: ListTile(
-              key: const Key('open-drum-calibration'),
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(
-                Icons.tune,
-                color: CymbraColors.onSurfaceVariant,
-              ),
-              title: Text(
-                l10n.calibrationOpen,
-                style: const TextStyle(color: CymbraColors.onSurface),
-              ),
-              subtitle: Text(
-                l10n.calibrationOpenHint,
-                style: const TextStyle(
-                  color: CymbraColors.onSurfaceVariant,
-                  fontSize: 12,
-                ),
-              ),
-              trailing: const Icon(
-                Icons.chevron_right,
-                color: CymbraColors.onSurfaceVariant,
-              ),
-              onTap: () => openDrumCalibration(context),
-            ),
-          ),
-          // …and what this score still has to teach it. Under the action that
-          // fixes it, because the two are one thought: "these are the pieces
-          // this groove will ask you for that your kit has not been read on".
-          //
-          // Only with a device connected: with none there is no mapping to be
-          // missing from, and the section says so a few lines above.
-          if (data.midiConnected)
-            _CalibrationCoverage(targets: data.calibrationTargets),
-        ],
       ],
     );
   }
+
+  /// The kit calibration: the pass, and what this score still has to teach it.
+  ///
+  /// **Under the pieces-practised list, not in the MIDI device section**: that
+  /// section is six sections away, and this is where its consequences are read —
+  /// the rows greyed out because the kit was said not to have them, and the line
+  /// explaining why. Cause and remedy in one glance, rather than an answer
+  /// filed under the hardware that produced it.
+  ///
+  /// Percussion only: the mapping says "this pad is the snare", and the seam
+  /// that applies it is identity on anything that is not a percussion score
+  /// (design D8). Offering it on a keyboard score would promise a calibration
+  /// that provably does nothing there.
+  Widget _drumCalibrationSection(AppLocalizations l10n, PlayerData data) =>
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ListTile(
+            key: const Key('open-drum-calibration'),
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(
+              Icons.tune,
+              color: CymbraColors.onSurfaceVariant,
+            ),
+            title: Text(
+              l10n.calibrationOpen,
+              style: const TextStyle(color: CymbraColors.onSurface),
+            ),
+            subtitle: Text(
+              l10n.calibrationOpenHint,
+              style: const TextStyle(
+                color: CymbraColors.onSurfaceVariant,
+                fontSize: 12,
+              ),
+            ),
+            trailing: const Icon(
+              Icons.chevron_right,
+              color: CymbraColors.onSurfaceVariant,
+            ),
+            onTap: () => openDrumCalibration(context),
+          ),
+          // Only with a device connected: with none there is no mapping for a
+          // piece to be missing from, and the MIDI section says so itself.
+          if (data.midiConnected)
+            _CalibrationCoverage(targets: data.calibrationTargets),
+        ],
+      );
 }
 
 /// One row of the per-piece focus control (change: add-practice-focus-controls):

@@ -346,6 +346,26 @@ void main() {
     await _teardown(tester, container);
   });
 
+  testWidgets('the calibration sits under the pieces it explains, not down in '
+      'the MIDI section (design D14)', (tester) async {
+    // The greyed rows and the action that un-greys them are one thought. Six
+    // sections apart, the first looked like a state nobody could account for.
+    final container = await _pumpWithModal(
+      tester,
+      document: sampleDrumDocument(),
+      midiPort: 'Drum kit',
+    );
+    double topOf(String key) => tester.getTopLeft(find.byKey(Key(key))).dy;
+
+    expect(
+      topOf('open-drum-calibration'),
+      greaterThan(topOf('drum-focus-kitPieceSnare')),
+    );
+    // …and above the device picker, which stays where devices are.
+    expect(topOf('open-drum-calibration'), lessThan(topOf('midi-device')));
+    await _teardown(tester, container);
+  });
+
   testWidgets('close (X) keeps the current settings', (tester) async {
     final container = await _pumpWithModal(tester);
     expect(container.read(playerProvider).selectedHands, Hand.both);
