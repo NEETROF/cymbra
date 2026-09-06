@@ -44,7 +44,7 @@ UNE BIBLIOTHÈQUE QUI S'ÉTOFFE
 • Partitions du domaine public incluses, du débutant à l'avancé
 • Choisissez des sons de piano de qualité, ou importez votre propre SoundFont
 
-Connectez n'importe quel clavier MIDI USB ou Bluetooth, ou jouez à l'écran. Disponible en français, anglais, italien et espagnol.
+Connectez n'importe quel clavier MIDI USB, ou jouez à l'écran. Disponible en français, anglais, italien et espagnol.
 
 Commencez à jouer dès aujourd'hui — la meilleure façon d'apprendre le piano, c'est de jouer.
 

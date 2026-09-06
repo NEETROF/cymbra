@@ -44,7 +44,7 @@ UNA BIBLIOTECA QUE CRECE
 • Partituras de dominio público incluidas, de principiante a avanzado
 • Elige sonidos de piano de calidad, o importa tu propio SoundFont
 
-Conecta cualquier teclado MIDI USB o Bluetooth, o toca en pantalla. Disponible en español, inglés, francés e italiano.
+Conecta cualquier teclado MIDI USB, o toca en pantalla. Disponible en español, inglés, francés e italiano.
 
 Empieza a tocar hoy — la mejor forma de aprender piano es tocarlo.
 

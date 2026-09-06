@@ -44,7 +44,7 @@ UNA LIBRERIA IN CRESCITA
 • Spartiti di pubblico dominio inclusi, dal principiante all'avanzato
 • Scegli suoni di piano di qualità, o importa il tuo SoundFont
 
-Collega qualsiasi tastiera MIDI USB o Bluetooth, oppure suona sullo schermo. Disponibile in italiano, inglese, francese e spagnolo.
+Collega qualsiasi tastiera MIDI USB, oppure suona sullo schermo. Disponibile in italiano, inglese, francese e spagnolo.
 
 Inizia a suonare oggi — il modo migliore per imparare il piano è suonarlo.
 

@@ -44,7 +44,7 @@ A GROWING LIBRARY
 • Bundled public-domain scores, sorted from beginner to advanced
 • Choose from high-quality piano sounds, or import your own SoundFont
 
-Connect any USB or Bluetooth MIDI keyboard, or play along on screen. Available in English, French, Italian and Spanish.
+Connect any USB MIDI keyboard, or play along on screen. Available in English, French, Italian and Spanish.
 
 Start playing today — the best way to learn piano is to play it.
 
