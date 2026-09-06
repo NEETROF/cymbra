@@ -39,8 +39,9 @@ import 'drum_kit.dart';
 /// direction a review table reads. Translation walks it the other way, through
 /// an index built once per instance.
 class DrumInputMapping {
-  DrumInputMapping(Map<String, int> byPiece)
+  DrumInputMapping(Map<String, int> byPiece, {Set<String> absent = const {}})
     : byPiece = Map.unmodifiable(byPiece),
+      absent = Set.unmodifiable(absent),
       _toCanonical = _indexOf(byPiece);
 
   /// The empty mapping — an uncalibrated device. [translate] is the identity.
@@ -49,13 +50,26 @@ class DrumInputMapping {
   /// Piece identity ([drumPieceIdOf]) → the number this device sends.
   final Map<String, int> byPiece;
 
+  /// The pieces the player answered **"this kit has none"** for (design D13).
+  ///
+  /// A different statement from "no entry yet", and the difference is the whole
+  /// point: an uncalibrated device might be a standard one that works perfectly,
+  /// so silence about a piece means nothing. This is the player saying the pad
+  /// does not exist — the one signal that justifies the Wait-Mode gate no longer
+  /// waiting for it, because a gate that holds for a pad nobody can strike never
+  /// opens at all.
+  final Set<String> absent;
+
   /// The reverse index translation runs on: incoming number → canonical
   /// General MIDI number. Built once, so [translate] is a lookup rather than a
   /// scan, and so its result cannot depend on map iteration order.
   final Map<int, int> _toCanonical;
 
-  bool get isEmpty => byPiece.isEmpty;
-  bool get isNotEmpty => byPiece.isNotEmpty;
+  /// Nothing learned **and** nothing declared absent: an entry worth neither
+  /// storing nor keeping. Absences count, or a kit whose owner only ever
+  /// answered "none" would be forgotten on the next launch.
+  bool get isEmpty => byPiece.isEmpty && absent.isEmpty;
+  bool get isNotEmpty => !isEmpty;
 
   static Map<int, int> _indexOf(Map<String, int> byPiece) {
     final index = <int, int>{};
@@ -94,27 +108,42 @@ class DrumInputMapping {
     return null;
   }
 
-  /// This mapping with [pieceId] recorded as [number].
-  DrumInputMapping withPiece(String pieceId, int number) =>
-      DrumInputMapping({...byPiece, pieceId: number});
+  /// This mapping with [pieceId] recorded as [number]. Learning a number
+  /// answers "this kit has none" too, so the piece stops being absent.
+  DrumInputMapping withPiece(String pieceId, int number) => DrumInputMapping({
+    ...byPiece,
+    pieceId: number,
+  }, absent: {...absent}..remove(pieceId));
 
-  /// This mapping without [pieceId].
-  DrumInputMapping withoutPiece(String pieceId) =>
-      DrumInputMapping({...byPiece}..remove(pieceId));
+  /// This mapping with [pieceId] declared absent — no number, never awaited.
+  DrumInputMapping withAbsentPiece(String pieceId) => DrumInputMapping(
+    {...byPiece}..remove(pieceId),
+    absent: {...absent, pieceId},
+  );
+
+  /// This mapping with nothing said about [pieceId] at all: neither a number nor
+  /// an absence, which is what clearing a row means.
+  DrumInputMapping withoutPiece(String pieceId) => DrumInputMapping(
+    {...byPiece}..remove(pieceId),
+    absent: {...absent}..remove(pieceId),
+  );
 
   @override
   bool operator ==(Object other) =>
       other is DrumInputMapping &&
       other.byPiece.length == byPiece.length &&
-      other.byPiece.entries.every((e) => byPiece[e.key] == e.value);
+      other.byPiece.entries.every((e) => byPiece[e.key] == e.value) &&
+      other.absent.length == absent.length &&
+      other.absent.every(absent.contains);
 
   @override
   int get hashCode => Object.hashAllUnordered([
     for (final e in byPiece.entries) Object.hash(e.key, e.value),
+    ...absent,
   ]);
 
   @override
-  String toString() => 'DrumInputMapping($byPiece)';
+  String toString() => 'DrumInputMapping($byPiece, absent: $absent)';
 }
 
 /// Every device's mapping, keyed by MIDI **port name** (design D3): the handle
@@ -123,10 +152,22 @@ class DrumInputMapping {
 /// their own tables.
 typedef DrumInputMappings = Map<String, DrumInputMapping>;
 
+/// The value standing for "this kit has none" in the stored table (design D13).
+///
+/// A **string** where every other value is a number, deliberately: a build that
+/// predates absences drops non-int values while keeping their neighbours (see
+/// [decodeDrumInputMappings]), so a table written here still reads there, minus
+/// the absences — which is exactly the older build's behaviour anyway.
+const String kAbsentPieceMarker = 'none';
+
 /// Serialise every device's mapping for the local preferences store.
 String encodeDrumInputMappings(DrumInputMappings mappings) => jsonEncode({
   for (final entry in mappings.entries)
-    if (entry.value.isNotEmpty) entry.key: entry.value.byPiece,
+    if (entry.value.isNotEmpty)
+      entry.key: <String, Object>{
+        ...entry.value.byPiece,
+        for (final piece in entry.value.absent) piece: kAbsentPieceMarker,
+      },
 });
 
 /// Read back what [encodeDrumInputMappings] wrote.
@@ -146,17 +187,24 @@ DrumInputMappings decodeDrumInputMappings(String? raw) {
       final table = entry.value;
       if (port is! String || table is! Map) continue;
       final byPiece = <String, int>{};
+      final absent = <String>{};
       for (final e in table.entries) {
         final piece = e.key;
         final number = e.value;
-        // A number outside the 7-bit MIDI range cannot have been sent by any
-        // instrument, so it is a corrupt entry rather than an exotic one.
-        if (piece is! String || number is! int || number < 0 || number > 127) {
+        if (piece is! String) continue;
+        // "This kit has none" — the one non-numeric value the table holds.
+        if (number == kAbsentPieceMarker) {
+          absent.add(piece);
           continue;
         }
+        // A number outside the 7-bit MIDI range cannot have been sent by any
+        // instrument, so it is a corrupt entry rather than an exotic one.
+        if (number is! int || number < 0 || number > 127) continue;
         byPiece[piece] = number;
       }
-      if (byPiece.isNotEmpty) result[port] = DrumInputMapping(byPiece);
+      if (byPiece.isNotEmpty || absent.isNotEmpty) {
+        result[port] = DrumInputMapping(byPiece, absent: absent);
+      }
     }
     return result;
   } catch (_) {

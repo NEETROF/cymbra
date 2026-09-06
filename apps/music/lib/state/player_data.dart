@@ -517,6 +517,21 @@ abstract class PlayerData with _$PlayerData {
     /// it would hand a later score a kit with holes in it. Reset on load.
     @Default(<String>{}) Set<String> mutedDrumPieces,
 
+    /// The calibration targets the **connected kit does not have** — the pieces
+    /// its owner answered "this kit has none" for (change:
+    /// add-drum-input-calibration, design D13).
+    ///
+    /// Not a preference and not a focus selection: it describes the instrument
+    /// in the room. A gate that waits for a pad nobody can strike never opens,
+    /// so these onsets are not awaited and not judged — but they are still
+    /// **drawn**, because the score is the score and a drummer reading it should
+    /// see the ride they do not own.
+    ///
+    /// Keyed by calibration target ([calibrationTargetOf]) rather than by piece,
+    /// so a kit with no hi-hat controller stops being asked for open-hi-hat
+    /// strokes while its closed ones are still awaited.
+    @Default(<String>{}) Set<String> unplayablePieces,
+
     /// The loaded score is percussion (change: add-drum-kit-view): the player
     /// renders the drum cascade + pad strip and no keyboard-range apparatus.
     /// The notation modes are offered alongside the cascade (change:
@@ -766,6 +781,18 @@ abstract class PlayerData with _$PlayerData {
       ? kitPieceIdsOf(presentedDrumLanes, hasKick: hasKickPedal)
       : const [];
 
+  /// What a calibration pass asks for on THIS score (change:
+  /// add-drum-input-calibration, design D10): the pieces and zones the file
+  /// actually writes, in the pass's own order.
+  ///
+  /// Read from [notes], never [visibleNotes] or the focus selection: a mapping
+  /// describes the instrument, so practising one hand — or muting the ride for
+  /// a lap — must not shrink what the kit can be taught. Empty outside a
+  /// percussion score, where the mapping does not apply at all (design D8).
+  List<String> get calibrationTargets => isPercussion
+      ? calibrationTargetsForScore(notes.map((n) => n.pitch))
+      : const [];
+
   /// The pieces the session asks for — [kitPieceIds] minus [mutedDrumPieces].
   ///
   /// The spec's own vocabulary, derived rather than stored: holding the
@@ -784,10 +811,17 @@ abstract class PlayerData with _$PlayerData {
   /// Empty outside a percussion score, and empty when nothing is muted — both
   /// mean "everything is live", which is what the surfaces draw by default.
   Set<int> get playableDrumSurfaces {
-    if (!isPercussion || mutedDrumPieces.isEmpty) return const {};
+    if (!isPercussion) return const {};
+    // Both empty ⇒ "everything is live", which the painters read as no fading
+    // at all. Absences count as much as the focus selection here: a piece the
+    // kit does not have is drawn as a live target otherwise, while being
+    // neither awaited nor judged — the instrument would be contradicting the
+    // gate (design D13).
+    if (mutedDrumPieces.isEmpty && unplayablePieces.isEmpty) return const {};
     final result = <int>{};
     for (final n in notes) {
       if (!isDrumPieceInFocus(n.pitch, mutedDrumPieces)) continue;
+      if (!kitCanPlay(n.pitch)) continue;
       final surface = struckSurfaceFor(n.pitch);
       if (surface != null) result.add(surface);
     }
@@ -833,6 +867,34 @@ abstract class PlayerData with _$PlayerData {
   List<TimedNote> get visibleNotes => notes
       .where((n) => _showsNote(n) && _withinRun(n.startMs.toDouble()))
       .toList();
+
+  /// The notes this run actually **asks the player for**: [visibleNotes] minus
+  /// the pieces the connected kit does not have (design D13).
+  ///
+  /// The one list the gate and the scorer read, so what is waited for and what
+  /// is judged cannot disagree — and deliberately NOT the list the painters
+  /// read: an absent piece is still drawn. Identical to [visibleNotes] on a
+  /// keyboard score and on every kit that never declared a piece missing, which
+  /// is the overwhelming majority.
+  List<TimedNote> get awaitedNotes => unplayablePieces.isEmpty
+      ? visibleNotes
+      : [
+          for (final n in visibleNotes)
+            if (kitCanPlay(n.pitch)) n,
+        ];
+
+  /// Whether the connected kit can produce [gm] at all (design D13).
+  ///
+  /// Both grains are consulted, and both are needed: a kit may lack the whole
+  /// **piece** (no ride at all) or only the **zone** the pass asks for
+  /// separately (a hi-hat with no controller, so no open stroke). Checking the
+  /// zone alone would let a score's open hi-hats stand for a hi-hat the player
+  /// said they do not own; checking the piece alone would silence a closed
+  /// hi-hat over a missing controller.
+  bool kitCanPlay(int gm) =>
+      unplayablePieces.isEmpty ||
+      (!unplayablePieces.contains(calibrationTargetOf(gm)) &&
+          !unplayablePieces.contains(drumPieceIdOf(gm)));
 
   /// Whether the current selection shows this rest. Keyboard scores split by
   /// staff; a **percussion** score never hides a rest (change:
@@ -965,7 +1027,7 @@ abstract class PlayerData with _$PlayerData {
   /// [visibleNotes] so a hidden hand is neither awaited nor shown as expected.
   Set<int> requiredNotesAt(double t) {
     final result = <int>{};
-    for (final n in visibleNotes) {
+    for (final n in awaitedNotes) {
       if (n.startMs <= t + 1 && t < n.startMs + n.durationMs) {
         result.add(n.pitch);
       }
@@ -976,10 +1038,11 @@ abstract class PlayerData with _$PlayerData {
   /// Pitches of notes whose onset is at instant [t] (their start coincides with
   /// the playhead, within a 1ms tolerance). This is the Wait Mode gate set: the
   /// notes that must be *attacked* here, regardless of their duration.
-  /// Restricted to [visibleNotes] so the hidden hand never freezes the cascade.
+  /// Restricted to [awaitedNotes] so neither the hidden hand nor a pad the kit
+  /// does not have can freeze the cascade.
   Set<int> onsetPitchesAt(double t) {
     final result = <int>{};
-    for (final n in visibleNotes) {
+    for (final n in awaitedNotes) {
       if ((n.startMs - t).abs() <= 1.0) result.add(n.pitch);
     }
     return result;

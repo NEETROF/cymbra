@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/state/drum_input_mapping.dart';
 import 'package:music/state/drum_kit.dart';
@@ -75,10 +77,29 @@ void main() {
       },
     );
 
-    test('a canonical number round-trips through the piece identity', () {
+    test('a piece round-trips through its canonical number; a zone lands on '
+        'the piece it belongs to', () {
+      // A calibration target is either a piece — where the round trip is the
+      // identity — or a **zone** of one (design D9), where it deliberately is
+      // not: a rim stroke learned as 37 is still the snare to [drumPieceIdOf],
+      // which is precisely what keeps the extra question free of consequences
+      // downstream. The flash, the gate and the scorer never learn that the
+      // pass asked for it separately.
+      const zoneBelongsTo = {
+        kCrossStickPieceId: 'kitPieceSnare',
+        kOpenHiHatPieceId: 'kitPieceHiHat',
+        kRideBellPieceId: 'kitPieceRide',
+      };
       for (final id in kCalibrationPieceOrder) {
-        expect(drumPieceIdOf(canonicalGmOfPiece(id)!), id, reason: id);
+        expect(
+          drumPieceIdOf(canonicalGmOfPiece(id)!),
+          zoneBelongsTo[id] ?? id,
+          reason: id,
+        );
       }
+      // The pedal "chick" is the exception among the zones: no hand strikes it,
+      // so it is a piece of its own rather than part of the hi-hat.
+      expect(drumPieceIdOf(44), kPedalHiHatPieceId);
     });
   });
 
@@ -271,6 +292,74 @@ void main() {
       expect(decodeDrumInputMappings(raw)['Kit']!.byPiece, {
         'kitPieceHiHat': 22,
       });
+    });
+  });
+
+  group('"this kit has none" (design D13)', () {
+    test('an absence survives the round trip', () {
+      final m = DrumInputMapping(
+        const {'kitPieceSnare': 31},
+        absent: const {'kitPieceChina'},
+      );
+      final restored = decodeDrumInputMappings(
+        encodeDrumInputMappings({'Kit': m}),
+      );
+      expect(restored['Kit'], m);
+      expect(restored['Kit']!.absent, {'kitPieceChina'});
+    });
+
+    test('a build that predates absences reads the rest and drops them', () {
+      // The reason the marker is a string where every other value is a number:
+      // the old decoder drops non-int values entry by entry, so the numbers
+      // survive and the absences read as "not calibrated" — that build's own
+      // behaviour, rather than a table it refuses whole.
+      final raw = encodeDrumInputMappings({
+        'Kit': DrumInputMapping(
+          const {'kitPieceSnare': 31},
+          absent: const {'kitPieceChina'},
+        ),
+      });
+      expect(jsonDecode(raw), {
+        'Kit': {'kitPieceSnare': 31, 'kitPieceChina': kAbsentPieceMarker},
+      });
+    });
+
+    test('a device with only absences is still stored', () {
+      // Otherwise a kit whose owner answered nothing but "none" would be
+      // forgotten on the next launch, and the gate would wait again.
+      final m = DrumInputMapping(const {}, absent: const {'kitPieceChina'});
+      expect(m.isEmpty, isFalse);
+      expect(decodeDrumInputMappings(encodeDrumInputMappings({'Kit': m})), {
+        'Kit': m,
+      });
+    });
+
+    test('an absence changes nothing about translation', () {
+      final m = DrumInputMapping(
+        const {'kitPieceSnare': 31},
+        absent: const {'kitPieceChina'},
+      );
+      expect(m.translate(31), 38);
+      expect(m.translate(52), 52); // the china, untranslated as ever
+      expect(m.translationTable, {31: 38});
+    });
+
+    test('learning a number takes the piece back out of absent', () {
+      final m = DrumInputMapping(
+        const {},
+        absent: const {'kitPieceChina'},
+      ).withPiece('kitPieceChina', 91);
+      expect(m.absent, isEmpty);
+      expect(m.byPiece, {'kitPieceChina': 91});
+    });
+
+    test('clearing a row takes away both the number and the answer', () {
+      final m = DrumInputMapping(
+        const {'kitPieceSnare': 31},
+        absent: const {'kitPieceChina'},
+      );
+      expect(m.withoutPiece('kitPieceChina').absent, isEmpty);
+      expect(m.withoutPiece('kitPieceSnare').byPiece, isEmpty);
     });
   });
 

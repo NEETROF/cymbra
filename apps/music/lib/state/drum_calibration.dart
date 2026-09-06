@@ -72,7 +72,10 @@ class CalibrationState {
   const CalibrationState({
     required this.pieces,
     this.index = 0,
+    this.known = const {},
     this.recorded = const {},
+    this.dropped = const {},
+    this.absent = const {},
     this.conflict,
     this.outcome = CalibrationOutcome.idle,
     this.armedAtMs = 0,
@@ -85,9 +88,34 @@ class CalibrationState {
   /// has been answered — the pass is then [CalibrationOutcome.completed].
   final int index;
 
-  /// What has been learned so far: piece identity → the number this device
-  /// sends. Nothing is written to storage until the pass completes.
+  /// What the device **already** knew when the pass began (change:
+  /// add-drum-input-calibration, design D12).
+  ///
+  /// Carried through the pass rather than merged at the end, and for two
+  /// reasons that are really one: a pass now covers a subset of the kit — this
+  /// score's pieces, or only the ones missing from it — so storing what it
+  /// learned *alone* would erase everything it never asked about; and a number
+  /// an untouched piece already holds must still collide, or a partial pass
+  /// would hand one number to two pieces without a word.
+  final Map<String, int> known;
+
+  /// What **this pass** has learned so far: piece identity → the number this
+  /// device sends. Nothing is written to storage until the pass completes.
   final Map<String, int> recorded;
+
+  /// The pieces whose [known] entry this pass takes **away**: the player
+  /// answered "this kit has none", or another piece claimed the number they
+  /// held. Needed because [recorded] can add and replace but cannot remove, and
+  /// a pass that leaves a contradiction standing — a piece declared absent that
+  /// still holds a number — is worse than one that never asked.
+  final Set<String> dropped;
+
+  /// The pieces this device has no pad for — carried in from storage and added
+  /// to by every "this kit has none" (design D13). Kept apart from [dropped]
+  /// because they say different things: a piece that lost its number to a
+  /// reassignment is uncalibrated, a piece declared absent is *answered*, and
+  /// only the second one tells the Wait-Mode gate to stop waiting for it.
+  final Set<String> absent;
 
   /// The unresolved collision the last stroke produced, if any. While this is
   /// set the step has not advanced: the player strikes again or reassigns.
@@ -104,9 +132,16 @@ class CalibrationState {
   bool get isRunning => outcome == CalibrationOutcome.running;
 
   /// Begin (or begin again) from the first piece, discarding anything a
-  /// previous pass in this session had learned but not stored.
-  CalibrationState start({required int atMs}) => CalibrationState(
+  /// previous pass in this session had learned but not stored. [known] is the
+  /// device's stored table, which the pass carries and returns extended.
+  CalibrationState start({
+    required int atMs,
+    Map<String, int> known = const {},
+    Set<String> absent = const {},
+  }) => CalibrationState(
     pieces: pieces,
+    known: known,
+    absent: absent,
     outcome: CalibrationOutcome.running,
     armedAtMs: atMs,
   );
@@ -119,19 +154,29 @@ class CalibrationState {
   int get step => index;
   int get total => pieces.length;
 
-  /// The mapping this pass has built. Read on completion; meaningless before,
-  /// because an abandoned pass must change nothing.
-  DrumInputMapping get mapping => DrumInputMapping(recorded);
+  /// The table a completed pass stores: what the device knew, updated by what
+  /// this pass learned, minus what the player declared this kit does not have.
+  /// Read on completion; meaningless before, because an abandoned pass must
+  /// change nothing.
+  DrumInputMapping get mapping => DrumInputMapping({
+    for (final entry in {...known, ...recorded}.entries)
+      if (!dropped.contains(entry.key)) entry.key: entry.value,
+  }, absent: absent);
 
   CalibrationState copyWith({
     int? index,
     Map<String, int>? recorded,
+    Set<String>? dropped,
+    Set<String>? absent,
     CalibrationOutcome? outcome,
     int? armedAtMs,
     bool clearConflict = false,
     CalibrationConflict? conflict,
   }) => CalibrationState(
     pieces: pieces,
+    known: known,
+    dropped: dropped ?? this.dropped,
+    absent: absent ?? this.absent,
     index: index ?? this.index,
     recorded: recorded ?? this.recorded,
     conflict: clearConflict ? null : (conflict ?? this.conflict),
@@ -161,7 +206,13 @@ class CalibrationState {
         conflict: CalibrationConflict(number: number, heldBy: heldBy),
       );
     }
-    return _advance(recorded: {...recorded, piece: number}, atMs: atMs);
+    return _advance(
+      recorded: {...recorded, piece: number},
+      dropped: {...dropped}..remove(piece),
+      // A pad that just answered is a pad this kit has.
+      absent: {...absent}..remove(piece),
+      atMs: atMs,
+    );
   }
 
   /// Resolve a reported conflict by moving the number to the current piece —
@@ -173,6 +224,9 @@ class CalibrationState {
     if (!isRunning || c == null || piece == null) return this;
     return _advance(
       recorded: {...recorded, piece: c.number}..remove(c.heldBy),
+      // The piece that held it loses the entry whether it learned the number in
+      // this pass or brought it in from storage.
+      dropped: {...dropped, c.heldBy}..remove(piece),
       atMs: atMs,
     );
   }
@@ -183,9 +237,19 @@ class CalibrationState {
       isRunning ? copyWith(clearConflict: true, armedAtMs: atMs) : this;
 
   /// Move on without recording anything: a kit that has no such piece must be
-  /// able to pass rather than invent one.
-  CalibrationState skip({required int atMs}) =>
-      isRunning ? _advance(recorded: recorded, atMs: atMs) : this;
+  /// able to pass rather than invent one — and, when it is re-run over a piece
+  /// that *was* learned, "this kit has none" is an answer that also takes the
+  /// old entry away rather than leaving the contradiction standing.
+  CalibrationState skip({required int atMs}) {
+    final piece = currentPiece;
+    if (!isRunning || piece == null) return this;
+    return _advance(
+      recorded: {...recorded}..remove(piece),
+      dropped: {...dropped, piece},
+      absent: {...absent, piece},
+      atMs: atMs,
+    );
+  }
 
   /// Step back and drop what that step had learned, so re-striking it starts
   /// clean rather than colliding with its own previous answer.
@@ -195,6 +259,8 @@ class CalibrationState {
     return copyWith(
       index: index - 1,
       recorded: {...recorded}..remove(previous),
+      dropped: {...dropped}..remove(previous),
+      absent: {...absent}..remove(previous),
       clearConflict: true,
       armedAtMs: atMs,
     );
@@ -205,14 +271,34 @@ class CalibrationState {
   CalibrationState abandon() =>
       isRunning ? copyWith(outcome: CalibrationOutcome.abandoned) : this;
 
+  /// End the pass **here** and keep what it has learned — the counterpart of
+  /// [abandon], which keeps nothing.
+  ///
+  /// The list asks round the whole standard kit and then the auxiliary pads,
+  /// so most kits run out of hardware before the pass runs out of steps. Without
+  /// this the only way to store a five-piece kit would be to tap "this kit has
+  /// none" through every remaining step, and the only other exit — [abandon] —
+  /// would silently throw the pass away.
+  CalibrationState finish() => isRunning
+      ? copyWith(
+          index: pieces.length,
+          clearConflict: true,
+          outcome: CalibrationOutcome.completed,
+        )
+      : this;
+
   CalibrationState _advance({
     required Map<String, int> recorded,
     required int atMs,
+    Set<String>? dropped,
+    Set<String>? absent,
   }) {
     final next = index + 1;
     return copyWith(
       index: next,
       recorded: recorded,
+      dropped: dropped,
+      absent: absent,
       clearConflict: true,
       armedAtMs: atMs,
       outcome: next >= pieces.length
@@ -221,8 +307,12 @@ class CalibrationState {
     );
   }
 
+  /// The piece [number] already belongs to, whether this pass learned it or the
+  /// device brought it in ([known]) — a partial pass must not quietly hand one
+  /// number to two pieces. A piece the player has just declared absent holds
+  /// nothing.
   String? _pieceHolding(int number, {required String except}) {
-    for (final entry in recorded.entries) {
+    for (final entry in mapping.byPiece.entries) {
       if (entry.value == number && entry.key != except) return entry.key;
     }
     return null;

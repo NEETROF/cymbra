@@ -58,9 +58,18 @@ hand a later score a kit with holes in it.
 
 ### D2 — Solo is expressed in the same set, not a second state
 
-Solo is "focus = exactly these", mute is "focus = everything except these". One
-set, two ways of editing it, so there is no mode where both are set and the
+Solo is "focus = exactly this one", mute is "focus = everything except these".
+One set, two ways of editing it, so there is no mode where both are set and the
 answer depends on precedence.
+
+*Corrected after the beta (2026-09-06).* Solo used to **add** to an existing
+selection — soloing the snare after the hi-hat asked for both — reasoning that a
+drummer builds a groove up piece by piece. Read from the surface it lives on,
+that is simply a row labelled "solo" leaving four other pieces in focus, and it
+was reported as a bug within a session of use ("solo only deselects the others
+when everything is selected"). Building up is the checkbox's job — the piece's
+own box puts it back in focus — so the two gestures had grown into one, and only
+one of them was named after what it did.
 
 The corollary is the empty-set rule: muting the last piece would leave a session
 that asks for nothing, draws nothing and judges nothing — indistinguishable from

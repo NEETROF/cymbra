@@ -15,6 +15,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/state/drum_calibration.dart';
 import 'package:music/state/drum_kit.dart';
+import 'package:music/state/player_data.dart';
 
 // The calibration pass as a pure state machine (change:
 // add-drum-input-calibration, tasks 6.1–6.4).
@@ -175,11 +176,22 @@ void main() {
       expect(s.isRunning, isTrue);
     });
 
-    test('skipping every step completes with an empty mapping', () {
-      final s = _fresh().skip(atMs: 100).skip(atMs: 200).skip(atMs: 300);
-      expect(s.outcome, CalibrationOutcome.completed);
-      expect(s.mapping.isEmpty, isTrue);
-    });
+    test(
+      'skipping every step stores no number — and says the kit has none',
+      () {
+        final s = _fresh().skip(atMs: 100).skip(atMs: 200).skip(atMs: 300);
+        expect(s.outcome, CalibrationOutcome.completed);
+        expect(s.mapping.byPiece, isEmpty);
+        // The answer is kept (design D13): "this kit has none" is a statement
+        // about the instrument, and the gate reads it. Not the same silence as
+        // "never calibrated", which says nothing at all.
+        expect(s.mapping.absent, {
+          kKickPieceId,
+          'kitPieceSnare',
+          'kitPieceHiHat',
+        });
+      },
+    );
 
     test('back drops what that step had learned', () {
       final s = _fresh()
@@ -206,13 +218,194 @@ void main() {
     });
   });
 
-  group('the pieces a pass offers (design D7)', () {
+  group('a pass over part of the kit (design D12)', () {
+    test('what the device already knew is carried through, not erased', () {
+      // The pass now covers a subset — this score's pieces, or only the ones
+      // missing from it — so storing what it learned ALONE would take away
+      // every piece it never asked about.
+      var s = CalibrationState(
+        pieces: const ['kitPieceHiHat'],
+      ).start(atMs: 0, known: const {'kitPieceSnare': 31, 'kitPieceCrash': 91});
+      s = s.afterStroke(22, atMs: 100);
+      expect(s.outcome, CalibrationOutcome.completed);
+      expect(s.mapping.byPiece, {
+        'kitPieceSnare': 31,
+        'kitPieceCrash': 91,
+        'kitPieceHiHat': 22,
+      });
+    });
+
+    test('a number an untouched piece already holds still collides', () {
+      // Without this a partial pass hands one number to two pieces in silence —
+      // exactly the failure the conflict rule exists to prevent (design D4).
+      var s = CalibrationState(
+        pieces: const ['kitPieceHiHat'],
+      ).start(atMs: 0, known: const {'kitPieceSnare': 31});
+      s = s.afterStroke(31, atMs: 100);
+      expect(
+        s.conflict,
+        const CalibrationConflict(number: 31, heldBy: 'kitPieceSnare'),
+      );
+      // The step has not moved on, and nothing was silently reassigned.
+      expect(s.currentPiece, 'kitPieceHiHat');
+      expect(s.mapping.byPiece, {'kitPieceSnare': 31});
+    });
+
+    test('reassigning takes the number off the stored piece that held it', () {
+      var s = CalibrationState(
+        pieces: const ['kitPieceHiHat'],
+      ).start(atMs: 0, known: const {'kitPieceSnare': 31});
+      s = s.afterStroke(31, atMs: 100).reassign(atMs: 200);
+      // One number, one piece — the snare's stale entry goes with it.
+      expect(s.mapping.byPiece, {'kitPieceHiHat': 31});
+    });
+
+    test('"this kit has none" takes away the entry that piece held', () {
+      var s = CalibrationState(
+        pieces: const ['kitPieceRide'],
+      ).start(atMs: 0, known: const {'kitPieceRide': 51, 'kitPieceSnare': 31});
+      s = s.skip(atMs: 100);
+      expect(s.mapping.byPiece, {'kitPieceSnare': 31});
+    });
+
+    test('stepping back onto a skipped piece puts its entry back in play', () {
+      var s = CalibrationState(
+        pieces: const ['kitPieceRide', 'kitPieceCrash'],
+      ).start(atMs: 0, known: const {'kitPieceRide': 51});
+      s = s.skip(atMs: 100).back(atMs: 200);
+      expect(s.currentPiece, 'kitPieceRide');
+      expect(s.mapping.byPiece, {'kitPieceRide': 51});
+    });
+  });
+
+  group('finishing early (design D9)', () {
+    test('keeps what the pass learned and completes it', () {
+      // The counterpart of abandoning: the list runs past most kits, so a
+      // five-piece kit must be able to stop at its last cymbal and keep the
+      // strokes it recorded rather than tapping "none" to the end.
+      final s = _fresh()
+          .afterStroke(12, atMs: 100)
+          .afterStroke(31, atMs: 200)
+          .finish();
+      expect(s.outcome, CalibrationOutcome.completed);
+      expect(s.isRunning, isFalse);
+      expect(s.recorded, {kKickPieceId: 12, 'kitPieceSnare': 31});
+      expect(s.mapping.byPiece, {kKickPieceId: 12, 'kitPieceSnare': 31});
+    });
+
+    test('a pass that is not running is untouched', () {
+      final idle = CalibrationState(pieces: kCalibrationPieceOrder);
+      expect(idle.finish().outcome, CalibrationOutcome.idle);
+      final abandoned = _fresh().afterStroke(12, atMs: 100).abandon();
+      expect(abandoned.finish().outcome, CalibrationOutcome.abandoned);
+    });
+
+    test('a stroke after finishing changes nothing', () {
+      final s = _fresh().afterStroke(12, atMs: 100).finish();
+      expect(s.afterStroke(31, atMs: 200).recorded, {kKickPieceId: 12});
+    });
+  });
+
+  group('what the kit can play (design D13)', () {
+    const notes = [
+      TimedNote(pitch: 42, startMs: 0, durationMs: 100), // hi-hat, closed
+      TimedNote(pitch: 46, startMs: 200, durationMs: 100), // …open
+      TimedNote(pitch: 38, startMs: 400, durationMs: 100), // snare
+    ];
+    PlayerData dataWith(Set<String> unplayable) => PlayerData(
+      notes: notes,
+      isPercussion: true,
+      drumLanes: deriveDrumLanes(notes),
+      unplayablePieces: unplayable,
+    );
+
+    test('a missing PIECE takes its zones with it', () {
+      // Checking the zone alone would let the score's open hi-hats stand for a
+      // hi-hat the player says they do not own.
+      final data = dataWith(const {'kitPieceHiHat'});
+      expect(data.kitCanPlay(42), isFalse);
+      expect(data.kitCanPlay(46), isFalse);
+      expect(data.kitCanPlay(38), isTrue);
+      expect(data.awaitedNotes.map((n) => n.pitch), [38]);
+    });
+
+    test('a missing ZONE leaves the piece playable', () {
+      // A hi-hat with no controller can still be struck closed.
+      final data = dataWith(const {kOpenHiHatPieceId});
+      expect(data.kitCanPlay(42), isTrue);
+      expect(data.kitCanPlay(46), isFalse);
+      expect(data.awaitedNotes.map((n) => n.pitch), [42, 38]);
+      // …and the pad stays lit on the drawn kit, because it is still played.
+      expect(data.playableDrumSurfaces, contains(data.struckSurfaceFor(42)));
+    });
+
+    test(
+      'a missing piece is faded on the drawn kit even with nothing muted',
+      () {
+        final data = dataWith(const {'kitPieceHiHat'});
+        // Not empty — an empty set is what the painters read as "everything is
+        // live", which would draw a piece the run never asks for as a target.
+        expect(data.playableDrumSurfaces, isNotEmpty);
+        expect(
+          data.playableDrumSurfaces,
+          isNot(contains(data.struckSurfaceFor(42))),
+        );
+        expect(data.playableDrumSurfaces, contains(data.struckSurfaceFor(38)));
+      },
+    );
+  });
+
+  group('declaring a piece absent (design D13)', () {
+    test('a recorded stroke takes the piece back out of absent', () {
+      // The player answered "none", then found the pad: the answer goes with it.
+      var s = CalibrationState(
+        pieces: const ['kitPieceRide', 'kitPieceCrash'],
+      ).start(atMs: 0, absent: const {'kitPieceRide'});
+      s = s.afterStroke(51, atMs: 100);
+      expect(s.mapping.absent, isEmpty);
+      expect(s.mapping.byPiece, {'kitPieceRide': 51});
+    });
+
+    test('absences the device already had survive a partial pass', () {
+      // Same rule as the learned numbers (design D12): a pass that asks about
+      // one piece must not un-answer every other.
+      var s = CalibrationState(pieces: const ['kitPieceCrash']).start(
+        atMs: 0,
+        known: const {'kitPieceSnare': 31},
+        absent: const {'kitPieceChina'},
+      );
+      s = s.afterStroke(91, atMs: 100);
+      expect(s.mapping.byPiece, {'kitPieceSnare': 31, 'kitPieceCrash': 91});
+      expect(s.mapping.absent, {'kitPieceChina'});
+    });
+
+    test('stepping back onto an absent answer takes it back', () {
+      var s = CalibrationState(
+        pieces: const ['kitPieceRide', 'kitPieceCrash'],
+      ).start(atMs: 0);
+      s = s.skip(atMs: 100);
+      expect(s.absent, {'kitPieceRide'});
+      expect(s.back(atMs: 200).absent, isEmpty);
+    });
+  });
+
+  group('the pieces a pass offers (design D7, D9)', () {
     test('the standard kit, round the kit as a drummer sits at it', () {
       // The fixed order, not the loaded score's: a mapping describes hardware,
       // and a groove with no toms must not leave a kit unable to map its toms.
       expect(kCalibrationPieceOrder.first, kKickPieceId);
       expect(kCalibrationPieceOrder[1], 'kitPieceSnare');
-      expect(kCalibrationPieceOrder[2], 'kitPieceHiHat');
+      // Each zone follows the piece it sits on, because that is the order the
+      // hand moves in: the snare then its rim, the hi-hat then its open and
+      // pedal strokes.
+      expect(kCalibrationPieceOrder[2], kCrossStickPieceId);
+      expect(kCalibrationPieceOrder[3], 'kitPieceHiHat');
+      expect(kCalibrationPieceOrder[4], kOpenHiHatPieceId);
+      expect(kCalibrationPieceOrder[5], kPedalHiHatPieceId);
+      expect(
+        kCalibrationKitPieceOrder.indexOf(kRideBellPieceId),
+        kCalibrationKitPieceOrder.indexOf('kitPieceRide') + 1,
+      );
       expect(kCalibrationPieceOrder, contains('kitPieceRide'));
       expect(kCalibrationPieceOrder, contains('kitPieceCrash'));
       // No duplicates — a piece asked for twice would collide with itself.
@@ -220,6 +413,68 @@ void main() {
         kCalibrationPieceOrder.toSet().length,
         kCalibrationPieceOrder.length,
       );
+    });
+
+    test('a score is asked for its own pieces, in the pass\'s order', () {
+      // Design D10: a groove is played on the pieces it is written for, so the
+      // pass asks for those — a hi-hat-and-snare groove is three questions, not
+      // twenty-three, and the order is still the kit's own however the file
+      // happens to list its notes.
+      expect(calibrationTargetsForScore([42, 38, 36]), [
+        kKickPieceId,
+        'kitPieceSnare',
+        'kitPieceHiHat',
+      ]);
+      // The numbers a lane collapses become the steps the hardware needs: the
+      // rim beside the snare, the open and pedal strokes beside the hi-hat, the
+      // bell beside the ride.
+      expect(calibrationTargetsForScore([46, 37, 51, 53, 44, 38, 42]), [
+        'kitPieceSnare',
+        kCrossStickPieceId,
+        'kitPieceHiHat',
+        kOpenHiHatPieceId,
+        kPedalHiHatPieceId,
+        'kitPieceRide',
+        kRideBellPieceId,
+      ]);
+      // Both kick numbers are one pedal, asked for once.
+      expect(calibrationTargetsForScore([35, 36]), [kKickPieceId]);
+      // …as are the snare's own numbers, which are one drum.
+      expect(calibrationTargetsForScore([38, 40]), ['kitPieceSnare']);
+    });
+
+    test('a piece the standard list does not name is still asked for', () {
+      // The no-silent-drop rule, applied to calibration: a score writing a
+      // bongo would otherwise leave the one piece the player cannot calibrate
+      // as the one the file actually asks for. Appended by number, after the
+      // standard order.
+      expect(calibrationTargetsForScore([60, 38, 61]), [
+        'kitPieceSnare',
+        'gm:60',
+        'gm:61',
+      ]);
+    });
+
+    test('no notes, no targets — the caller falls back', () {
+      expect(calibrationTargetsForScore(const []), isEmpty);
+    });
+
+    test('the auxiliary pads come last, after the kit itself', () {
+      // A drummer whose kit ends at the china finishes there; the pads most
+      // kits do not have must never stand between them and the end of the pass.
+      expect(
+        kCalibrationPieceOrder,
+        kCalibrationKitPieceOrder + kCalibrationAuxPieceOrder,
+      );
+      expect(kCalibrationKitPieceOrder.last, 'kitPieceChina');
+      expect(kCalibrationAuxPieceOrder, contains('gm:56')); // cowbell
+      for (final id in kCalibrationAuxPieceOrder) {
+        expect(
+          kCalibrationKitPieceOrder,
+          isNot(contains(id)),
+          reason: '$id is offered twice',
+        );
+      }
     });
 
     test('a full pass over the standard kit completes', () {

@@ -116,6 +116,11 @@ function connectMessage(code: Code): string {
       return t("errors.permissionDenied");
     case Code.NotFound:
       return t("errors.notFound");
+    // The thing being created is already there (a duplicate score, a taken collection
+    // name, an existing membership). It fell through to the generic message, which ends
+    // in "Try again" — telling the operator to retry something that can never succeed.
+    case Code.AlreadyExists:
+      return t("errors.alreadyExists");
     case Code.FailedPrecondition:
       return t("errors.notAvailable");
     case Code.InvalidArgument:

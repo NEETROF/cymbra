@@ -34,8 +34,36 @@ String kitPieceLabel(AppLocalizations l10n, DrumLane lane) =>
       'kitPieceCrash2' => l10n.kitPieceCrash2,
       'kitPieceSplash' => l10n.kitPieceSplash,
       'kitPieceChina' => l10n.kitPieceChina,
-      _ => lane.gmName ?? '',
+      _ =>
+        (lane.gmNumbers.length == 1
+                ? gmPieceLabel(l10n, lane.gmNumbers.first)
+                : null) ??
+            lane.gmName ??
+            '',
     };
+
+/// Localised name for a General MIDI percussion number the app names in its own
+/// voice (change: add-drum-input-calibration): the **zones** of a kit piece a
+/// module triggers separately — the cross-stick, the open hi-hat, the pedal
+/// "chick", the ride bell — and the auxiliary pads the calibration pass offers.
+/// Null for every other number, which keeps its General MIDI name: those are a
+/// notation-level vocabulary and are not translated.
+///
+/// One table for both surfaces that name a piece to the player — the pad strip
+/// and the calibration pass — so the prompt a drummer is asked ("hit your
+/// hi-hat pedal") and the pad that lights when they do cannot read differently.
+String? gmPieceLabel(AppLocalizations l10n, int gm) => switch (gm) {
+  37 => l10n.kitZoneCrossStick,
+  39 => l10n.kitPieceHandClap,
+  44 => l10n.kitZoneHiHatPedal,
+  46 => l10n.kitZoneHiHatOpen,
+  53 => l10n.kitZoneRideBell,
+  54 => l10n.kitPieceTambourine,
+  56 => l10n.kitPieceCowbell,
+  75 => l10n.kitPieceClaves,
+  76 => l10n.kitPieceWoodBlock,
+  _ => null,
+};
 
 /// Localised label for a kit piece **identity** (change:
 /// add-drum-input-calibration) — the calibration pass and the mapping table
@@ -53,5 +81,6 @@ String kitPieceLabelOf(AppLocalizations l10n, String pieceId) {
   );
   if (label.isNotEmpty) return label;
   final gm = canonicalGmOfPiece(pieceId);
-  return (gm == null ? null : gmPercussionName(gm)) ?? pieceId;
+  if (gm == null) return pieceId;
+  return gmPieceLabel(l10n, gm) ?? gmPercussionName(gm) ?? pieceId;
 }

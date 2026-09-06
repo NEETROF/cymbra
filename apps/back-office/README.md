@@ -83,7 +83,7 @@ User-facing errors never show raw codes: `humanError` (`src/lib/errors.ts`) maps
 
 Sign-in targets the `music` audience so `music`-scoped roles (`moderator`/`admin`)
 ride in the access token. The router gates the console: unauthenticated → sign-in;
-signed-in non-moderator → access-denied; `/roles` requires `admin`. This is UX only —
+signed-in non-moderator → access-denied; `/users` requires `admin`. This is UX only —
 **every RPC is independently role-guarded server-side**, so the gate can't be bypassed.
 
 ### Cookie sessions (no token in JS storage)
@@ -130,7 +130,8 @@ the build-time CSP `<meta>`) — on Cloudflare Pages these ship via
 
 The **Sessions** view (`/sessions`) lists this account's active sessions and lets the
 user revoke one device or **sign out everywhere**; an admin can revoke a compromised
-account's sessions from the Roles directory (change: `add-session-management`). All of
+account's sessions from that account's page, `/users/{user_id}` (change:
+`add-session-management`). All of
 this goes through the authenticated gRPC `AuthService` (`ListSessions` / `RevokeSession`
 / `RevokeAllSessions` / admin `RevokeAccountSessions`); "this device" is flagged by
 matching the access token's `sid` claim. Sign-out-everywhere also calls the existing
@@ -202,9 +203,10 @@ backend rollout so the queue is populated and the hub isn't empty indefinitely):
 1. **Seed the first `music/admin`** with the ops bootstrap — `backend/scripts/seed_admin.sh`
    (documented in that change's task 1.4). There is no self-service path to admin by
    design; the first one is seeded out-of-band.
-2. That admin signs in to the console and, from **`/roles`**, grants `moderator` (or
-   `admin`) in the `music` scope to each teammate by user id. Every grant/revoke is
-   written to the append-only `role_grants` audit table and shown in the Roles view.
+2. That admin signs in to the console and, from **`/users`**, opens each teammate's
+   account and grants `moderator` (or `admin`) in the `music` scope — no user id to
+   type. Every grant/revoke is written to the append-only `role_grants` audit table
+   and shown in that account's role history.
 3. **Moderators** sign in → the queue (`/`) lists pending scores in review priority;
    they open a row, preview it, and **Accept**/**Reject** (calls `SetModerationStatus`,
    recording `reviewed_by`/`reviewed_at`). Accepted scores become servable in the app hub.

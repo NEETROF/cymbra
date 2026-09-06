@@ -1,8 +1,14 @@
 import { computed, ref } from "vue";
 import { defineStore } from "pinia";
 import { api } from "@/lib/api";
-import { type Async, idle, run, success } from "@/lib/async";
-import type { AccountPlanBadge, CampaignMsg, LookupAccountPlanResponse, MembershipMsg } from "@/gen/plans_pb";
+import { type Async, idle, reread, run, success } from "@/lib/async";
+import type {
+  AccountPlanBadge,
+  CampaignMsg,
+  LookupAccountPlanResponse,
+  MembershipMsg,
+  PlanAuditEntry,
+} from "@/gen/plans_pb";
 
 /** The directory's plan criterion, as the server names it (`ListAccountIdsByPlan.plan`). */
 export type PlanFilter = "any" | "premium" | "trial";
@@ -49,11 +55,17 @@ export const usePlansStore = defineStore("plans", () => {
   const members = ref<Async<MembershipMsg[]>>(idle);
   /** Clear-text codes of the LAST mint — shown once; the view clears it when dismissed. */
   const minted = ref<Async<string[]>>(idle);
+  /** One account's audited plan changes — the reasons the console asks for on every
+   *  grant, enrolment and revocation, read back. */
+  const audit = ref<Async<PlanAuditEntry[]>>(idle);
   /** Batch plan/beta badges for a directory page, keyed by user id. */
   const badges = ref<Async<Record<string, AccountPlanBadge>>>(idle);
   const op = ref<Async<void>>(idle);
-  // The last successful lookup query, re-run after an account-changing mutation.
-  const lastLookup = ref<string | null>(null);
+  // The account the console is currently showing, re-read after a mutation that changes
+  // it. An `AccountRef`, not the raw query: the detail page KNOWS the id, and re-deriving
+  // it from text through `accountRef` would put a heuristic in the middle of a page whose
+  // whole point is that the account is already identified.
+  const lastTarget = ref<AccountRef | null>(null);
   const membersKey = ref<string | null>(null);
 
   /** Campaigns still accepting members or at least not closed (the flags console's
@@ -62,14 +74,29 @@ export const usePlansStore = defineStore("plans", () => {
     campaigns.value.status === "success" ? campaigns.value.data.filter((c) => !c.closedAt) : [],
   );
 
+  /** Look up an account the caller has already identified (the detail page). */
+  async function lookupUser(userId: string) {
+    lastTarget.value = { userId };
+    await run(lookupResult, () => api().plans.lookupAccountPlan(wireRef({ userId })));
+  }
+
+  /** Look up an account from free text: a UUID is an id, anything else a handle. */
   async function lookup(handleOrId: string) {
-    lastLookup.value = handleOrId;
-    await run(lookupResult, () => api().plans.lookupAccountPlan(wireRef(accountRef(handleOrId))));
+    lastTarget.value = accountRef(handleOrId);
+    await run(lookupResult, () => api().plans.lookupAccountPlan(wireRef(lastTarget.value!)));
   }
 
   function clearLookup() {
-    lastLookup.value = null;
+    lastTarget.value = null;
     lookupResult.value = idle;
+    audit.value = idle;
+  }
+
+  /** Load an account's audited plan changes. `keepPrevious` after a mutation: the panel
+   *  is on screen, and blanking it would move the page under the operator. */
+  async function loadAudit(userId: string, keepPrevious = false) {
+    const fetch = async () => (await api().plans.listPlanAudit({ userId, limit: 50 })).entries;
+    await (keepPrevious ? reread : run)(audit, fetch);
   }
 
   async function loadCampaigns(includeClosed = true) {
@@ -90,7 +117,12 @@ export const usePlansStore = defineStore("plans", () => {
     return outcome;
   }
   const relookup = async () => {
-    if (lastLookup.value) await lookup(lastLookup.value);
+    const target = lastTarget.value;
+    if (!target) return;
+    await run(lookupResult, () => api().plans.lookupAccountPlan(wireRef(target)));
+    // The mutation just wrote an audited reason: re-read the trail that shows it, or the
+    // operator types a justification and watches nothing happen.
+    if (target.userId) await loadAudit(target.userId, true);
   };
   const reloadCampaigns = () => loadCampaigns();
   const reloadMembers = async () => {
@@ -220,7 +252,10 @@ export const usePlansStore = defineStore("plans", () => {
 
   return {
     lookupResult,
-    lastLookup,
+    lastTarget,
+    lookupUser,
+    audit,
+    loadAudit,
     campaigns,
     openCampaigns,
     members,

@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
-import { flushPromises, mount, type DOMWrapper, type VueWrapper } from "@vue/test-utils";
+import { flushPromises, mount, RouterLinkStub, type DOMWrapper, type VueWrapper } from "@vue/test-utils";
 import { i18n } from "@/i18n";
-import PlansView from "@/views/PlansView.vue";
+import CampaignsView from "@/views/CampaignsView.vue";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { setClientsForTest } from "@/lib/api";
 import { accountRef, isRevocableSource, membersCsv, usePlansStore } from "@/stores/plans";
@@ -300,7 +300,7 @@ describe("plans store", () => {
   });
 });
 
-describe("plans view — the reopen controls", () => {
+describe("campaigns view — the reopen controls", () => {
   beforeEach(() => {
     setActivePinia(createPinia());
   });
@@ -319,11 +319,16 @@ describe("plans view — the reopen controls", () => {
     setClientsForTest(clients);
     const pinia = createPinia();
     setActivePinia(pinia);
-    const w = mount(PlansView, { global: { plugins: [i18n, pinia] } });
+    // Member rows link to each member's account page; the router itself is e2e's job.
+    const w = mount(CampaignsView, { global: { plugins: [i18n, pinia], stubs: { RouterLink: RouterLinkStub } } });
     await flushPromises();
     return { w, state };
   }
 
+  /** The campaigns page holds no account lookup: the same work now starts in the users
+   *  directory and ends on `/users/{user_id}` (change:
+   *  restructure-back-office-users-console). Two doors to the same room is the thing
+   *  this change removes — so assert the door is gone, not merely unused. */
   const buttonsOf = (w: Awaited<ReturnType<typeof mountView>>["w"], key: string) => {
     const row = w.findAll("tbody tr").find((r) => r.text().includes(key))!;
     return row.findAll("button").map((b) => b.text());
@@ -364,37 +369,6 @@ describe("plans view — the reopen controls", () => {
     await flushPromises();
   };
 
-  it("revoking an entitlement asks in-app and will not send without a reason", async () => {
-    // The reason is audited, so the console must not let it through empty — and
-    // the question is asked in a modal, never `window.prompt`, which blocks the
-    // renderer and is unreachable from e2e / automation.
-    const { w, state } = await mountView([], { lookup });
-    await w.get('input[type="search"]').setValue("ada");
-    await w
-      .findAll("button")
-      .find((b) => b.text() === "Look up")!
-      .trigger("click");
-    await flushPromises();
-
-    await w
-      .findAll("button")
-      .find((b) => b.text() === "Revoke")!
-      .trigger("click");
-    await flushPromises();
-
-    const dialog = w.find("dialog");
-    expect(dialog.exists()).toBe(true);
-    const confirm = () => dialog.findAll("button").find((b) => b.text() === "Confirm")!;
-    expect(confirm().attributes("disabled")).toBeDefined();
-    expect(state.revokeEntitlementCalls).toEqual([]);
-
-    await dialog.get("input").setValue("granted by mistake");
-    await confirm().trigger("click");
-    await flushPromises();
-
-    expect(state.revokeEntitlementCalls).toEqual([{ entitlementId: "e1", reason: "granted by mistake" }]);
-  });
-
   it("states how many memberships a reopening will restore, before acting", async () => {
     const { w, state } = await mountView([closedCampaign], { reactivatable: 12 });
 
@@ -414,6 +388,15 @@ describe("plans view — the reopen controls", () => {
 
     expect(state.reopenCampaignCalls).toEqual([]);
     expect(w.find("dialog").exists()).toBe(false);
+  });
+
+  it("offers no account lookup — that work lives on the account's own page", async () => {
+    const { w, state } = await mountView([featureCampaign]);
+
+    expect(w.find('input[type="search"]').exists()).toBe(false);
+    expect(w.findAll("button").map((b) => b.text())).not.toContain("Look up");
+    // And nothing here reads one account's plan.
+    expect(state.lookupCalls).toEqual([]);
   });
 
   it("closing a TRIAL's enrolment warns that granted trials keep running", async () => {

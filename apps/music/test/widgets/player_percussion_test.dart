@@ -618,13 +618,11 @@ void main() {
     expect(hands, isNotEmpty);
     expect(hands.any((n) => kKickGmNumbers.contains(n.pitch)), isFalse);
 
-    // Soloing the kick from an existing selection ADDS it back rather than
-    // isolating it (design D2) — the additive rule, from the inside.
+    // Soloing the kick isolates it whatever was in focus before (design D2,
+    // corrected after the beta): the former "feet only", in one gesture from
+    // any state rather than one that depends on where the selection stood.
     notifier.soloDrumPiece(kKickPieceId);
-    expect(c.read(playerProvider).mutedDrumPieces, isEmpty);
-
-    // Soloing from the full kit isolates: the former "feet only".
-    notifier.soloDrumPiece(kKickPieceId);
+    expect(c.read(playerProvider).mutedDrumPieces, isNotEmpty);
     final feet = c.read(playerProvider).visibleNotes;
     expect(feet, isNotEmpty);
     expect(feet.every((n) => kKickGmNumbers.contains(n.pitch)), isTrue);

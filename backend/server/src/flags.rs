@@ -6,6 +6,7 @@
 //! scoped roles on the user-owned pool (the isolated `flags_svc` role cannot),
 //! keeping the flags crate app-agnostic.
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -608,6 +609,32 @@ impl cymbra_plans::HandleResolver for UserPortHandles {
                     .is_some_and(|h| h.to_lowercase() == wanted)
             })
             .map(|a| a.user_id))
+    }
+
+    async fn handles_for_ids(&self, ids: &[String]) -> Result<HashMap<String, String>> {
+        if ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+        // The directory's `ids` filter answers this in one call; `plans` owns no account
+        // table, which is why the lookup is wired here and not in the crate.
+        let page = self
+            .users
+            .list_accounts_filtered(
+                &cymbra_user_port::AccountFilter {
+                    query: String::new(),
+                    ids: ids.to_vec(),
+                    exclude_ids: Vec::new(),
+                },
+                ids.len() as i64,
+                0,
+                &[],
+            )
+            .await?;
+        Ok(page
+            .entries
+            .into_iter()
+            .filter_map(|a| a.handle.map(|h| (a.user_id, h)))
+            .collect())
     }
 }
 

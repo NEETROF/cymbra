@@ -113,7 +113,132 @@ is already the snare's, the pass says so — because on a real kit that means th
 player hit the wrong pad, and quietly reassigning it would produce a mapping that
 is wrong in two places at once.
 
+### D13 — Only a piece the player says the kit lacks stops being awaited
+
+*Asked for as "notes on a piece marked missing should no longer be awaited in
+Wait Mode".* The intent is right and the literal rule is a trap, so the trigger
+moved.
+
+Read literally — "no mapping entry ⇒ not awaited" — the majority case breaks: a
+standard GM kit that never needed calibrating has **no entries at all**, so
+nothing would be awaited and the gate would open on every onset with no stroke
+played. Wait Mode would look like it was working and be doing nothing. Narrowing
+it to "once the device has at least one entry" only moves the trap: calibrating
+the single non-standard pad would stop the gate waiting for the eight that were
+fine.
+
+What is unambiguous is the answer the player already gives during the pass —
+**"this kit has none"**. So that answer is now *stored* (it was thrown away),
+per device, beside the numbers:
+
+- the gate does not wait for those pieces, and the scorer does not judge them:
+  being marked down for a pad you do not own is a verdict about your hardware;
+- they are still **drawn** — the score is the score, and the run is still
+  submitted (the focus mechanism, which hides and un-submits, says something
+  else: "not this lap", a statement about the passage rather than the kit);
+- the two silences stay apart everywhere: "not calibrated yet" is a gap to fill,
+  "this kit has none" is an answer, and the table shows them differently.
+
+The stored form is a **string where every other value is a number**
+(`{"kitPieceChina": "none"}`). A build that predates absences drops non-int
+values entry by entry, so it reads the numbers and treats the absences as "not
+calibrated" — its own behaviour, rather than refusing the table whole.
+
+One trap it opens deliberately: a player can tap "this kit has none" through
+every step and end up with a gate that waits for nothing. That is why the
+settings name absences in their own line before playing, rather than reporting
+"everything is calibrated" and leaving the silence to be discovered mid-groove.
+
+### D12 — The table is the score's kit, not the stored rows; a pass may cover part of it
+
+*Raised by the product owner from a screenshot: four learned pads listed above
+"Recommencer", on a groove that needs nine — "the user does not understand what
+they are supposed to do here."* Exactly right, and the reason is that the table
+answered a question nobody arrives with. Someone opens this surface because
+something did not respond; listing what already works says nothing about the
+five pieces that do not.
+
+So the rows are now **the score's calibration targets**, learned or not, each
+missing one saying so where its mapping line would be — and the actions are
+"calibrate the N missing" (the ordinary answer for someone coming back) and
+"start over". The second is offered only when it differs from the first.
+
+That forces a semantics the pass did not have. It used to store *what it
+learned* as the device's whole table, which was harmless while it walked the
+whole standard kit and became **destructive the moment D10 scoped it to a
+score**: calibrating a three-piece groove would have erased the toms learned
+from another one. A pass now carries the device's stored table into its state
+(`CalibrationState.known`), so:
+
+- what it never asked about survives it, by construction rather than by a merge
+  step someone must remember;
+- a number an untouched piece already holds still **collides**, which a merge
+  after the fact could not have caught — a partial pass would otherwise have
+  handed one number to two pieces in silence;
+- `dropped` exists because `recorded` can add but not remove: "this kit has
+  none" on a piece that *was* learned takes its entry away rather than leaving
+  the contradiction standing, and so does reassigning its number to another
+  piece.
+
+### D11 — One MIDI-input door per score; the raw read-out sits below the pass
+
+*Raised by the product owner looking at the settings after D9/D10: "the monitor
+serves no purpose now that each piece can be calibrated one by one."* Nearly
+right, and the fix is placement rather than deletion.
+
+What the pass genuinely made redundant is the monitor as a **first** step: a
+drummer no longer needs to read raw numbers to find out what their pads send —
+the pass asks for each piece by name and records it. What the pass structurally
+cannot show is the rest:
+
+- **A double trigger.** A rim that also fires its head sends two events; the pass
+  records the first and advances, so the collision passes through it invisibly.
+  The monitor shows both lines — this is the trap `tasks.md` §9.3 warns about.
+- **A mapping that is *wrong*.** The table shows what is stored; the monitor
+  shows what actually happens, stroke by stroke (`your 26 → read as 46`).
+- **Velocity, channel, note-off.** A pad sending velocity 0, a module on an
+  unusual channel, a kit that sends no note-off: no piece list ever shows these.
+- **A keyboard.** Since D8 the pass is percussion-only, so for a pianist whose
+  instrument is silent the monitor is the *only* diagnostic in the app.
+
+So: the settings offer exactly one MIDI-input entry per score — the pass on
+percussion, the monitor on anything else — and on a percussion score the monitor
+moves one level down, to the bottom of the calibration surface, labelled for what
+it is there ("Watch strokes live — when a pad is learned wrong, or fires two at
+once"). A player meets the repair first and the diagnostic exactly where the
+repair stops explaining things.
+
+### D10 — …reversed: the pass calibrates the loaded score's kit (supersedes D7)
+
+*Decided by the product owner after running D9's pass on the kit.* D7 reasoned
+from the mapping ("hardware, not music") and got the ergonomics wrong. With D9's
+zones the standard list is twenty-three steps, and a drummer opening a
+hi-hat-and-snare groove answered "this kit has none" nineteen times to teach the
+app three pads. The pass now asks for `PlayerData.calibrationTargets` — the
+pieces and zones **the loaded file writes**, in the standard kit's order, with
+anything the standard order does not name appended rather than dropped (a score
+writing a bongo must not leave the bongo the one uncalibratable piece).
+
+What D7 was protecting is real and is now paid for differently: a piece absent
+from *this* score cannot be learned from it. That cost is bounded — the score
+that writes the piece is the one that asks for it, and the pass is one tap from
+the settings of that score — and the state it creates is made **visible before
+playing** rather than left to be discovered mid-groove: the settings name, under
+the calibration action, exactly the pieces this score asks for that the connected
+device has no entry for ("Not learned yet for this piece: open hi-hat, ride
+bell"), and say so plainly when there are none. That line is the reason the trade
+is acceptable; without it, "the pass is short now" would just mean "the gaps are
+invisible now".
+
+The targets are read from `notes`, never `visibleNotes` or the focus selection:
+practising one hand, or muting the ride for a lap, states what is *asked of the
+player*, and must not shrink what the instrument can be taught. The standard kit
+remains the fallback when there is no percussion score to read — the surface has
+to work before a score is loaded, and a keyboard score's numbers are pitches that
+would name pieces nobody struck.
+
 ### D7 — The pass calibrates a fixed standard kit, not the loaded score's
+*(superseded by D10 — kept for the reasoning it records.)*
 
 *Settled during implementation (task 6.7).* A mapping describes a piece of
 hardware, not a piece of music: calibrating from a groove that has no toms would
@@ -138,6 +263,53 @@ what the score asks for can. So the seam is identity on anything that is not a
 percussion score, and the engine is pushed exactly what the app applies, so the
 two cannot drift. A keyboard score with a calibrated kit connected is byte-
 identical to today, which is now asserted rather than assumed.
+
+*Extended after the first beta pass (task 10.1).* The **entry point** now follows
+the seam: the calibration tile is offered on a percussion score only. It was
+offered on every score, so a pianist was invited to calibrate a kit whose mapping
+the seam would then refuse to apply — an invitation to do nothing. The monitor
+keeps the opposite treatment for the opposite reason: it interprets nothing, it
+reports what arrived, and "nothing is arriving at all" is an answer a pianist
+needs as much as a drummer.
+
+### D9 — The pass asks at the grain the hardware has, not the grain the eye has
+
+*Found by the beta's first calibration pass (task 10.2).* `kCalibrationPieceOrder`
+was the list of *lanes*, and a lane deliberately collapses the numbers that share
+one aim point: the closed and open hi-hat are one pad, the snare and its rim one
+drum, the ride and its bell one cymbal. That is right for the eye and wrong for a
+module, which fires each zone on a number of its own — so the parts of a kit most
+likely to send something nonstandard were exactly the parts the pass could not
+ask about, and a rim or an open hi-hat stayed silent and inert *after* a
+calibration that reported success. The auxiliary pads (cowbell, tambourine…) were
+missing for the same reason: no lane, no question.
+
+The pass therefore asks for zones as well as pieces, keyed by the General MIDI
+number they translate to (`gm:37`, `gm:44`, `gm:46`, `gm:53`) — the identity form
+the terminal bucket already uses, so `canonicalGmOfPiece` needed nothing new.
+Downstream is untouched by construction: `drumPieceIdOf(37)` is still the snare,
+so a learned rim flashes the snare pad, satisfies snare onsets and scores as the
+snare. The one distinction that survives translation is the one the app already
+draws — open versus closed hi-hat, which `sameStrokeArticulation` shades a verdict
+with and never gates on.
+
+Two consequences, both deliberate:
+
+- **The list now runs past most kits** (18 kit steps, then 5 auxiliary pads). So
+  the pass gains a third exit beside "skip this one" and "stop": *finish here*,
+  which completes and stores what it has learned. Without it the only way to keep
+  a five-piece kit's mapping would be to tap "this kit has none" a dozen times,
+  and the other exit — abandoning — is defined to keep nothing (D4). It is offered
+  only once something is recorded, where it is not merely "stop" renamed.
+- **The auxiliary pads come last**, after a line saying so, because they are the
+  part of the list most kits answer "none" to. A drummer whose kit ends at the
+  china finishes there.
+
+The prompts speak the player's language: the zones and auxiliary pads gain
+localised labels, read through the same table the pad strip labels a lane with,
+so what a player is asked to hit and what lights when they hit it cannot read
+differently. The monitor keeps naming numbers by the General MIDI standard — it
+reports what the *standard* calls a number, which is a different question.
 
 ### D5 — The monitor shows raw and resolved side by side, and stays honest about silence
 
