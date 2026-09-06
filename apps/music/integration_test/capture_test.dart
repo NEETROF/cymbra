@@ -285,6 +285,21 @@ void main() {
     await _settle(tester, frames: 10);
     await _perform(tester, container, midi, onsets: 4);
     await _shot(tester, binding, target, 'drums_staff');
+
+    // --- 08 drums_stage ----------------------------------------------------
+    // The perspective stage leads the mode row on a percussion score, yet it is
+    // never what a fresh run selects: `_modeForLoadedScore` resolves percussion
+    // to the cascade when no preference is stored. Ask for it explicitly, or the
+    // one reading the app puts first is the one the store never shows.
+    container.read(playerProvider.notifier).setMode(RenderMode.stage);
+    await _settle(tester, frames: 10);
+    await _perform(tester, container, midi, onsets: 6);
+    expect(
+      container.read(playerProvider).mode,
+      RenderMode.stage,
+      reason: 'the stage is percussion-only; a keyboard score would fall back',
+    );
+    await _shot(tester, binding, target, 'drums_stage');
     container.read(playerProvider.notifier).setPlaying(false);
     await _settle(tester, frames: 6);
   });
@@ -323,17 +338,25 @@ Future<void> _bringIntoView(
   Finder target, {
   required double delta,
 }) async {
-  if (target.evaluate().isNotEmpty) return;
-  await tester.scrollUntilVisible(
-    target,
-    delta,
-    scrollable: find
-        .descendant(
-          of: find.byType(CustomScrollView),
-          matching: find.byType(Scrollable),
-        )
-        .first,
-  );
+  if (target.evaluate().isEmpty) {
+    await tester.scrollUntilVisible(
+      target,
+      delta,
+      scrollable: find
+          .descendant(
+            of: find.byType(CustomScrollView),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+  }
+  // Built is not the same as visible. A wider viewport builds cards far below
+  // the fold, so returning early on "already in the tree" handed `tap()` an
+  // off-screen centre: the tap landed on nothing and the pre-play modal never
+  // opened. That is exactly what broke the tablet targets — the only device
+  // class where the library shows enough columns for the drum card to exist
+  // yet stay out of view. `ensureVisible` is a no-op when it already is.
+  await tester.ensureVisible(target);
   await _settle(tester, frames: 6);
 }
 
