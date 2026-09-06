@@ -72,7 +72,7 @@ cd apps/music && dart run tool/check_store_assets.dart
 
 ## Surfaces covered
 
-Each set shows the same five surfaces, in this order:
+Each set shows the same seven surfaces, in this order:
 
 | # | Surface | What it shows |
 |---|---------|---------------|
@@ -81,6 +81,12 @@ Each set shows the same five surfaces, in this order:
 | 03 | `staff` | The scrolling staff view of the same performance |
 | 04 | `courses` | The solfège learning path — units, lessons and progress |
 | 05 | `measures` | Measure-range selection, for drilling one passage |
+| 06 | `drums` | The animated kit, mid-groove |
+| 07 | `drums_staff` | The same drum part read on the staff |
+
+The drum pair only became publishable when `drums.enabled` went global: while
+it was scoped to `beta:midi-drums`, shipping those two would have advertised a
+feature an ordinary installer could not reach.
 
 Shipped features **not** in the current sets — the audit trail this table
 exists for: the score hub and its search, the seasonal leaderboard, badges and
@@ -88,7 +94,7 @@ the rewards shop, the rating deck, piano-sound selection, and the note reading
 aid. Adding one is a `kCaptureSurfaces` entry in `tool/store_manifest.dart`,
 a step in `capture_test.dart`, and a re-run of every target.
 
-Keep that list short on purpose: 4 targets × 4 locales × 5 surfaces is ~16 MiB
+Keep that list short on purpose: 4 targets × 4 locales × 7 surfaces is ~22 MiB
 of PNG, replaced wholesale on every regeneration. JPEG is not the way out — on
 these images (dark, flat fields plus sharp text and glows) quality 92 comes out
 slightly *larger* than PNG and quality 85 saves 15% for visible artifacts. The
@@ -117,5 +123,8 @@ surface count is the only real lever.
   `Info.plist`, and App Store Connect flags a mismatch between the two.
 - Google Play: **Education**.
 
-The feature graphic tagline ("Learn piano by playing") is a placeholder — adjust
-per final marketing and per-locale listings (app ships en/fr/it/es).
+⚠️ The feature graphic still reads "Learn piano by playing" — baked into the
+PNG, and now **wrong**: drums ship to everyone, and every text field says so.
+It is the one listing asset that cannot be fixed by editing `copy/`; it needs a
+re-render before the Play listing goes out. Adjust it per final marketing and
+per-locale listings too (the app ships en/fr/it/es).

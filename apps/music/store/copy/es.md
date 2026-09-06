@@ -8,7 +8,7 @@ Cymbra Music
 
 ## Subtítulo  (App Store ≤30)
 
-Aprende piano tocando
+Aprende piano y batería
 
 ## Descripción breve  (Play ≤80)
 
@@ -16,11 +16,11 @@ Aprende piano y batería tocando partituras reales, con respuesta al instante.
 
 ## Texto promocional  (App Store ≤170)
 
-Carga partituras reales, conecta tu teclado MIDI o toca en pantalla, y deja que Cymbra te guíe nota a nota — a tu ritmo, con retroalimentación inmediata.
+Carga partituras reales, conecta tu teclado MIDI o tu batería electrónica — o toca en pantalla — y deja que Cymbra te guíe nota a nota, a tu ritmo.
 
 ## Palabras clave  (App Store ≤100, separadas por comas, sin espacios)
 
-piano,aprender piano,partitura,MIDI,teclado,solfeo,synthesia,lecciones,canciones,música
+batería,percusión,partitura,MIDI,teclado,solfeo,synthesia,lecciones,canciones,música
 
 ## Descripción completa  (App Store ≤4000 · Play ≤4000)
 

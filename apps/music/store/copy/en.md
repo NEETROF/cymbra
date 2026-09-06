@@ -8,7 +8,7 @@ Cymbra Music
 
 ## Subtitle  (App Store ≤30)
 
-Learn piano by playing
+Learn piano and drums
 
 ## Short description  (Play ≤80)
 
@@ -16,11 +16,11 @@ Learn piano and drums by playing real sheet music, with instant feedback.
 
 ## Promotional text  (App Store ≤170)
 
-Load real sheet music, connect your MIDI keyboard or play on screen, and let Cymbra guide you note by note — at your own pace, with instant feedback.
+Load real sheet music, connect your MIDI keyboard or electronic drum kit — or play on screen — and let Cymbra guide you note by note, at your own pace.
 
 ## Keywords  (App Store ≤100, comma-separated, no spaces)
 
-piano,learn piano,sheet music,MIDI,keyboard,notation,synthesia,practice,songs,lessons,music,tutor
+drums,drum kit,percussion,sheet music,MIDI,keyboard,notation,synthesia,practice,songs,lessons,tutor
 
 ## Full description  (App Store ≤4000 · Play ≤4000)
 

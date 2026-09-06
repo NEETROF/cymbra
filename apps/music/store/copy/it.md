@@ -8,7 +8,7 @@ Cymbra Music
 
 ## Sottotitolo  (App Store ≤30)
 
-Impara il piano suonando
+Impara piano e batteria
 
 ## Descrizione breve  (Play ≤80)
 
@@ -16,11 +16,11 @@ Impara piano e batteria suonando spartiti veri, con feedback immediato.
 
 ## Testo promozionale  (App Store ≤170)
 
-Carica spartiti veri, collega la tua tastiera MIDI o suona sullo schermo, e lascia che Cymbra ti guidi nota per nota — al tuo ritmo, con un feedback immediato.
+Carica spartiti veri, collega la tastiera MIDI o la batteria elettronica — o suona sullo schermo — e lascia che Cymbra ti guidi nota per nota, al tuo ritmo.
 
 ## Parole chiave  (App Store ≤100, separate da virgole, senza spazi)
 
-piano,pianoforte,imparare piano,spartito,MIDI,tastiera,solfeggio,synthesia,lezioni,brani,musica
+batteria,percussioni,pianoforte,spartito,MIDI,tastiera,solfeggio,synthesia,lezioni,brani,musica
 
 ## Descrizione completa  (App Store ≤4000 · Play ≤4000)
 
