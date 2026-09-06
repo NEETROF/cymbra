@@ -3834,7 +3834,7 @@
       }
     }
   },
-  "calibrationScoreComplete": "Every piece this score asks for is learned.",
+  "calibrationScoreComplete": "Every kit piece for this score is calibrated.",
   "@calibrationScoreComplete": {
     "description": "The positive counterpart: every piece this score asks for has been learned on the connected device."
   },

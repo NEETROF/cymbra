@@ -868,7 +868,7 @@
   "calibrationOpenMonitor": "Ver los golpes en directo",
   "calibrationOpenMonitorHint": "Cuando un pad se aprende mal o dispara dos a la vez.",
   "calibrationScoreMissing": "Aún sin aprender para esta pieza: {pieces}",
-  "calibrationScoreComplete": "Todos los elementos de esta pieza están aprendidos.",
+  "calibrationScoreComplete": "Todos los elementos de la batería para esta pieza están calibrados.",
   "midiMonitorTranslated": "tu {raw} → leído como {mapped}",
   "instrumentChoiceTitle": "¿Con qué quieres empezar?",
   "instrumentChoiceBody": "Tu inicio mostrará ese instrumento primero. Puedes cambiarlo en cualquier momento desde el selector de arriba.",
