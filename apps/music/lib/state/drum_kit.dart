@@ -621,22 +621,23 @@ Set<String> mutedAfterMuting(
 /// The muted set after **soloing** [pieceId] out of [all] (design D2): solo is
 /// the same one set, edited from the other side.
 ///
-/// From "everything in focus" it isolates [pieceId]; from an existing
-/// selection it **adds** — soloing the snare after the hi-hat asks for both,
-/// which is what a drummer building up a groove means by isolating a second
-/// piece.
+/// **Always isolates** [pieceId]: whatever was in focus before, only it is
+/// after.
+///
+/// It used to *add* to an existing selection — soloing the snare after the
+/// hi-hat asked for both — which read as a bug from the only place it is
+/// invoked: a row labelled "solo" that leaves four other pieces in focus is not
+/// doing what the word says. And nothing is lost by dropping it, because adding
+/// a second piece is exactly what that piece's own checkbox does; the two
+/// gestures had grown into one.
 Set<String> mutedAfterSoloing(
   Set<String> muted,
   String pieceId,
   List<String> all,
-) =>
-    muted.isEmpty
-          ? {
-              for (final id in all)
-                if (id != pieceId) id,
-            }
-          : {...muted}
-      ..remove(pieceId);
+) => {
+  for (final id in all)
+    if (id != pieceId) id,
+};
 
 // --- Per-device input mapping (change: add-drum-input-calibration) ----------
 
