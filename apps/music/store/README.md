@@ -123,8 +123,15 @@ surface count is the only real lever.
   `Info.plist`, and App Store Connect flags a mismatch between the two.
 - Google Play: **Education**.
 
-⚠️ The feature graphic still reads "Learn piano by playing" — baked into the
-PNG, and now **wrong**: drums ship to everyone, and every text field says so.
-It is the one listing asset that cannot be fixed by editing `copy/`; it needs a
-re-render before the Play listing goes out. Adjust it per final marketing and
-per-locale listings too (the app ships en/fr/it/es).
+The feature graphic tagline now reads "Learn piano and drums", matching the
+subtitle. It is the one listing asset whose text lives in **pixels**, so it has
+to be re-rendered whenever the positioning changes — and it is easy to forget,
+which is exactly how it kept saying "Learn piano by playing" after drums went
+global. It is also **English-only**: Play serves the same graphic to every
+locale, so it is a marketing artefact, not a translated string.
+
+Re-rendered by rebuilding the tagline band from the clean rows above and below
+it (linear interpolation preserves the radial glow; a copied strip from
+elsewhere leaves a visible seam), then re-drawing the line in SF Pro 30px
+`#8FA3D6` at the original left edge — the tagline is left-aligned with the
+title, not centred under it.
