@@ -33,33 +33,33 @@ function pct(rate: number): string {
     <dialog class="drawer" open aria-modal="true">
       <header>
         <div>
-          <h3>{{ t("roles.reliabilityTitle") }}</h3>
+          <h3>{{ t("users.reliabilityTitle") }}</h3>
           <p class="who">{{ props.handle }}</p>
         </div>
-        <button type="button" class="x" :aria-label="t('roles.close')" @click="$emit('close')">✕</button>
+        <button type="button" class="x" :aria-label="t('users.close')" @click="$emit('close')">✕</button>
       </header>
 
       <div v-if="props.reliability" class="rel-grid">
         <div class="rel-stat">
-          <span class="rel-label">{{ t("roles.reliabilityRatings") }}</span>
+          <span class="rel-label">{{ t("users.reliabilityRatings") }}</span>
           <span class="rel-value">{{ count(props.reliability.totalRatings) }}</span>
         </div>
         <div class="rel-stat">
-          <span class="rel-label">{{ t("roles.reliabilityCoverage") }}</span>
+          <span class="rel-label">{{ t("users.reliabilityCoverage") }}</span>
           <span class="rel-value">{{ count(props.reliability.coverageContribution) }}</span>
         </div>
         <div class="rel-stat">
-          <span class="rel-label">{{ t("roles.reliabilityAlignment") }}</span>
+          <span class="rel-label">{{ t("users.reliabilityAlignment") }}</span>
           <span class="rel-value">{{ pct(props.reliability.alignmentRate) }}</span>
           <span class="rel-note">{{
-            t("roles.reliabilityAlignmentNote", {
+            t("users.reliabilityAlignmentNote", {
               aligned: count(props.reliability.alignedCount),
               settled: count(props.reliability.settledCount),
             })
           }}</span>
         </div>
       </div>
-      <p v-else class="muted">{{ props.loading ? t("common.loading") : t("roles.reliabilityEmpty") }}</p>
+      <p v-else class="muted">{{ props.loading ? t("common.loading") : t("users.reliabilityEmpty") }}</p>
     </dialog>
   </div>
 </template>

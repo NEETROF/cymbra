@@ -149,6 +149,76 @@ describe("roles store", () => {
     expect(state.plansForAccountsCalls).toEqual([["u1"]]);
   });
 
+  // --- one account, for the detail page (change: restructure-back-office-users-console) ---
+
+  it("loads a single account by id, so the detail page needs no directory page", async () => {
+    const accounts = [
+      { userId: "u1", handle: "ada", rolesByScope: [] },
+      { userId: "u2", handle: "bob", rolesByScope: [] },
+    ];
+    const { clients, state } = makeFakeClients({ accounts });
+    setClientsForTest(clients);
+    const store = useRolesStore();
+
+    await store.loadAccount("u2");
+
+    // The directory's `ids` filter carries it — no new RPC, and no page of 25 to sift.
+    expect(state.listAccountsCalls).toEqual([{ query: "", limit: 1, offset: 0, ids: ["u2"] }]);
+    expect(store.account.status).toBe("success");
+    if (store.account.status === "success") expect(store.account.data?.handle).toBe("bob");
+  });
+
+  it("an id that matches nothing is a renderable `null`, not an error", async () => {
+    const { clients } = makeFakeClients({ accounts: [{ userId: "u1", handle: "ada", rolesByScope: [] }] });
+    setClientsForTest(clients);
+    const store = useRolesStore();
+
+    await store.loadAccount("nobody");
+
+    expect(store.account).toEqual({ status: "success", data: null });
+  });
+
+  it("switching accounts drops every per-account slot before the next load", async () => {
+    const accounts = [
+      { userId: "u1", handle: "ada", rolesByScope: [] },
+      { userId: "u2", handle: "bob", rolesByScope: [] },
+    ];
+    const grants = [
+      { targetUserId: "u1", scope: "music", role: "moderator", action: "grant", actingAdmin: "a", at: 1n },
+    ];
+    const { clients } = makeFakeClients({ accounts, grants, reliability: { totalRatings: 3n } });
+    setClientsForTest(clients);
+    const store = useRolesStore();
+    await store.loadAccount("u1");
+    await store.listGrants("u1");
+    await store.loadReliability("u1");
+
+    store.resetAccount();
+
+    // Nothing of account u1 survives: a frame of one account's rights under another
+    // account's name is unacceptable on a page where rights are revoked.
+    expect(store.account.status).toBe("idle");
+    expect(store.grants.status).toBe("idle");
+    expect(store.reliability.status).toBe("idle");
+  });
+
+  it("a role change made on a detail page re-reads that account, not a directory page", async () => {
+    const accounts = [{ userId: "u1", handle: "ada", rolesByScope: [{ scope: "music", roles: [] }] }];
+    const { clients, state } = makeFakeClients({ accounts });
+    setClientsForTest(clients);
+    const store = useRolesStore();
+    await store.loadAccount("u1");
+
+    await store.grant("u1", "moderator", "music", "account");
+
+    expect(state.grantCalls).toEqual([{ userId: "u1", scope: "music", role: "moderator" }]);
+    // Two single-account reads (the initial load + the refresh), no directory page.
+    expect(state.listAccountsCalls).toEqual([
+      { query: "", limit: 1, offset: 0, ids: ["u1"] },
+      { query: "", limit: 1, offset: 0, ids: ["u1"] },
+    ]);
+  });
+
   it("captures a denied grant in the op state instead of throwing", async () => {
     const { clients } = makeFakeClients();
     (clients.user as unknown as { grantRole: () => Promise<never> }).grantRole = () =>

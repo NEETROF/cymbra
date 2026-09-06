@@ -34,6 +34,9 @@ export interface DirectoryParams {
 // match on them — a denied action lands in `op` as `{ status: "error" }`, never a throw.
 export const useRolesStore = defineStore("roles", () => {
   const directory = ref<Async<AccountDirectory>>(idle);
+  // ONE account, for the detail page (change: restructure-back-office-users-console).
+  // `null` on success means "no such account" — a distinct, renderable state, not an error.
+  const account = ref<Async<AccountRow | null>>(idle);
   const grants = ref<Async<RoleGrant[]>>(idle);
   // Read-only per-user curator reliability (change: add-curation-rewards, task 5.2).
   // MODERATOR/ADMIN gated server-side; it only informs manual promotion — it never
@@ -69,6 +72,25 @@ export const useRolesStore = defineStore("roles", () => {
     }
   }
 
+  /** Load a single account by id, so `/users/{id}` stands on its own: a deep link, a
+   *  reload or a link from elsewhere must not depend on the directory page having been
+   *  visited. Reuses the directory's `ids` filter — no extra RPC. */
+  async function loadAccount(userId: string) {
+    await run(account, async () => {
+      const resp = await api().user.listAccounts({ query: "", limit: 1, offset: 0, ids: [userId] });
+      return resp.accounts[0] ?? null;
+    });
+  }
+
+  /** Drop every per-account resource. Called when the detail page switches accounts:
+   *  these are shared store slots, and one frame of account A's roles under account B's
+   *  name is unacceptable on a screen where rights are revoked. */
+  function resetAccount() {
+    account.value = idle;
+    grants.value = idle;
+    reliability.value = idle;
+  }
+
   /** Per-account audit history, most recent first. */
   async function listGrants(userId: string) {
     await run(grants, async () => (await api().user.listRoleGrants({ userId })).grants);
@@ -79,22 +101,41 @@ export const useRolesStore = defineStore("roles", () => {
     await run(reliability, () => api().score.getCuratorReliability({ userId }));
   }
 
-  async function grant(userId: string, role: string, scope: string) {
+  /** What a successful role change re-reads: the directory page it was made from, or
+   *  the single account whose detail page it was made on. */
+  type Refresh = "list" | "account";
+  const refresh = (what: Refresh, userId: string) => (what === "account" ? loadAccount(userId) : list());
+
+  async function grant(userId: string, role: string, scope: string, after: Refresh = "list") {
     const outcome = await run(op, async () => {
       await api().user.grantRole({ userId, scope, role });
     });
-    // Re-list the current page so the row's role badges reflect the change.
-    if (outcome.status === "success") await list();
+    // Re-read so the roles shown reflect the change.
+    if (outcome.status === "success") await refresh(after, userId);
     return outcome;
   }
 
-  async function revoke(userId: string, role: string, scope: string) {
+  async function revoke(userId: string, role: string, scope: string, after: Refresh = "list") {
     const outcome = await run(op, async () => {
       await api().user.revokeRole({ userId, scope, role });
     });
-    if (outcome.status === "success") await list();
+    if (outcome.status === "success") await refresh(after, userId);
     return outcome;
   }
 
-  return { directory, grants, reliability, op, params, list, listGrants, loadReliability, grant, revoke };
+  return {
+    directory,
+    account,
+    grants,
+    reliability,
+    op,
+    params,
+    list,
+    loadAccount,
+    resetAccount,
+    listGrants,
+    loadReliability,
+    grant,
+    revoke,
+  };
 });

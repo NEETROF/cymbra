@@ -2,95 +2,45 @@
 import { computed, nextTick, onMounted, ref, shallowRef, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { match } from "ts-pattern";
-import { type CampaignKind, isRevocableSource, membersCsv, usePlansStore } from "@/stores/plans";
+import { type CampaignKind, membersCsv, usePlansStore } from "@/stores/plans";
 import { useRolesStore } from "@/stores/roles";
 import { useToastsStore } from "@/stores/toasts";
 import { saveTextAsFile } from "@/lib/download";
 import type { Async } from "@/lib/async";
-import type { CampaignMsg, EntitlementRowMsg, MembershipMsg } from "@/gen/plans_pb";
+import type { CampaignMsg, MembershipMsg } from "@/gen/plans_pb";
 import AppTag from "@/components/AppTag.vue";
 import IdBadge from "@/components/IdBadge.vue";
 
-// Music-admin plan console (change: add-premium-subscription): account lookup →
-// effective plan + entitlement rows + memberships, nominative grant/enrol/revoke with a
-// reason, campaign lifecycle, code minting (clear text shown ONCE) and member export.
-// All API work lives in the plans store; this view only matches on the Async unions
-// and toasts each mutation's outcome (localized — never a raw error).
+// Music-admin campaign console (change: restructure-back-office-users-console): campaign
+// lifecycle, code minting (clear text shown ONCE), the per-campaign member list and its
+// export. It holds nothing about an individual account's subscription — that work starts
+// in the users directory and ends on `/users/{user_id}`; an account-lookup field here
+// would be a second door to the same room. All API work lives in the plans store; this
+// view only matches on the Async unions and toasts each mutation's outcome (localized —
+// never a raw error).
 const store = usePlansStore();
 const roles = useRolesStore();
 const toasts = useToastsStore();
 const { t } = useI18n();
 
-// ---- (a) account lookup ----
-const query = ref("");
-const lookupVm = computed(() =>
-  match(store.lookupResult)
-    .with({ status: "idle" }, () => ({ loading: false, error: null as string | null, data: null }))
-    .with({ status: "loading" }, () => ({ loading: true, error: null, data: null }))
-    .with({ status: "error" }, ({ error }) => ({ loading: false, error, data: null }))
-    .with({ status: "success" }, ({ data }) => ({ loading: false, error: null, data }))
-    .exhaustive(),
-);
 const acting = computed(() => store.op.status === "loading");
-/** The looked-up account as the RPCs address it (id once resolved, else the typed handle). */
-const target = computed(() =>
-  lookupVm.value.data?.userId ? { userId: lookupVm.value.data.userId } : { handle: query.value.trim() },
-);
-const targetLabel = computed(() => store.lastLookup ?? "");
-
-function lookup() {
-  const q = query.value.trim();
-  if (q) void store.lookup(q);
-}
-function clear() {
-  query.value = "";
-  store.clearLookup();
-}
 
 const fmt = (iso?: string | null): string => {
   if (!iso) return "—";
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString();
 };
-const isActive = (r: EntitlementRowMsg) => r.status === "active";
-const canRevoke = (r: EntitlementRowMsg) => isActive(r) && isRevocableSource(r.source);
-const openEnded = (r: EntitlementRowMsg) => isActive(r) && !r.endsAt;
 
-async function copyRef(r: EntitlementRowMsg) {
-  try {
-    await navigator.clipboard.writeText(r.providerRef);
-    toasts.success(t("plans.refCopied"));
-  } catch {
-    // Clipboard blocked (insecure context): nothing to surface — the ref stays hidden.
-  }
-}
-
-/** A destructive action waiting for the operator: the localized question and
- *  what to run once confirmed. In-app dialogs, never `window.prompt/confirm` —
- *  a native dialog blocks the renderer, which puts the action out of reach of
- *  the e2e suite and of browser automation. */
-const pendingReason = shallowRef<{ message: string; run: (reason: string) => Promise<void> } | null>(null);
+/** A destructive action waiting for the operator: the localized question and what to run
+ *  once confirmed. In-app dialogs, never `window.prompt/confirm` — a native dialog blocks
+ *  the renderer, which puts the action out of reach of the e2e suite and of browser
+ *  automation. */
 const pendingConfirm = shallowRef<{ message: string; run: () => Promise<void> } | null>(null);
-const reasonForm = ref({ reason: "" });
-const reasonValid = computed(() => reasonForm.value.reason.trim() !== "");
 
-/** Ask a free-text reason (audited), then run the action. */
-function askReason(message: string, run: (reason: string) => Promise<void>) {
-  reasonForm.value = { reason: "" };
-  pendingReason.value = { message, run };
-  modal.value = "reason";
-}
 /** Ask a plain yes/no, then run the action. */
 function askConfirm(message: string, run: () => Promise<void>) {
   pendingConfirm.value = { message, run };
   modal.value = "confirm";
-}
-async function submitReason() {
-  const pending = pendingReason.value;
-  if (!pending) return;
-  await pending.run(reasonForm.value.reason);
-  pendingReason.value = null;
-  modal.value = null;
 }
 async function submitConfirm() {
   const pending = pendingConfirm.value;
@@ -106,37 +56,20 @@ function report(outcome: Async<void>, okMsg: string): boolean {
   return outcome.status === "success";
 }
 
-function revokeRow(r: EntitlementRowMsg) {
-  askReason(t("plans.revokeRowConfirm", { source: r.source }), async (reason) => {
-    report(await store.revokeEntitlement(r.id, reason), t("plans.revokedRow"));
-  });
-}
-function revokeMembership(m: MembershipMsg) {
-  askReason(t("plans.revokeMembershipConfirm", { campaign: m.campaignKey }), async (reason) => {
-    report(
-      await store.revokeMembership({ target: { userId: m.userId }, campaignKey: m.campaignKey, reason }),
-      t("plans.membershipRevoked"),
-    );
-  });
-}
-
-// ---- dialogs (grant / enrol / mint / minted) ----
-type Modal = "grant" | "enrol" | "mint" | "minted" | "create" | "reason" | "confirm" | null;
+// ---- dialogs (create / mint / minted / confirm) ----
+type Modal = "mint" | "minted" | "create" | "confirm" | null;
 const modal = ref<Modal>(null);
 
-/** Focus moves INTO the dialog when one opens. `aria-modal` requires it, and the
- *  Escape handler lives on the dialog element — with focus left on the trigger
- *  button the keydown never reached it, so Escape silently did nothing. The
- *  container takes the focus (not a button), so Enter cannot fire a destructive
- *  action; the reason field is still one Tab away. */
+/** Focus moves INTO the dialog when one opens. `aria-modal` requires it, and the Escape
+ *  handler lives on the dialog element — with focus left on the trigger button the keydown
+ *  never reached it, so Escape silently did nothing. The container takes the focus (not a
+ *  button), so Enter cannot fire a destructive action. */
 const dialogEl = ref<HTMLDialogElement | null>(null);
 watch(modal, async (open) => {
   if (!open) return;
   await nextTick();
   dialogEl.value?.focus();
 });
-const grantForm = ref({ endDate: "", confirmOpenEnded: false, reason: "" });
-const enrolForm = ref({ campaignKey: "", reason: "" });
 const mintForm = ref({ campaignKey: "", count: 10, hint: "" });
 const createForm = ref<{ key: string; name: string; kind: CampaignKind; durationDays: number }>({
   key: "",
@@ -145,42 +78,6 @@ const createForm = ref<{ key: string; name: string; kind: CampaignKind; duration
   durationDays: 90,
 });
 
-function openGrant() {
-  grantForm.value = { endDate: "", confirmOpenEnded: false, reason: "" };
-  modal.value = "grant";
-}
-const grantValid = computed(
-  () => grantForm.value.reason.trim() !== "" && (grantForm.value.endDate !== "" || grantForm.value.confirmOpenEnded),
-);
-async function submitGrant() {
-  const f = grantForm.value;
-  const endsAt = f.endDate ? new Date(`${f.endDate}T23:59:59Z`).toISOString() : undefined;
-  const ok = report(
-    await store.grantPremium({
-      target: target.value,
-      endsAt,
-      confirmOpenEnded: !f.endDate && f.confirmOpenEnded,
-      reason: f.reason.trim(),
-    }),
-    t("plans.granted"),
-  );
-  if (ok) modal.value = null;
-}
-
-function openEnrol() {
-  enrolForm.value = { campaignKey: enrollable.value[0]?.key ?? "", reason: "" };
-  modal.value = "enrol";
-}
-const enrolValid = computed(() => enrolForm.value.campaignKey !== "" && enrolForm.value.reason.trim() !== "");
-async function submitEnrol() {
-  const f = enrolForm.value;
-  const ok = report(
-    await store.enrolHandle({ target: target.value, campaignKey: f.campaignKey, reason: f.reason.trim() }),
-    t("plans.enrolled_ok"),
-  );
-  if (ok) modal.value = null;
-}
-
 // ---- (b) campaigns ----
 const campaignsVm = computed(() =>
   match(store.campaigns)
@@ -188,9 +85,6 @@ const campaignsVm = computed(() =>
     .with({ status: "error" }, ({ error }) => ({ loading: false, error, rows: [] as CampaignMsg[] }))
     .otherwise(() => ({ loading: true, error: null as string | null, rows: [] as CampaignMsg[] })),
 );
-/** Campaigns an admin may still enrol someone in (open AND accepting enrolment). */
-const enrollable = computed(() => store.openCampaigns.filter((c) => c.acceptsEnrolment));
-
 function openCreate() {
   createForm.value = { key: "", name: "", kind: "premium_trial", durationDays: 90 };
   modal.value = "create";
@@ -298,20 +192,12 @@ const membersVm = computed(() =>
     .with({ status: "error" }, ({ error }) => ({ loading: false, error, rows: [] as MembershipMsg[] }))
     .otherwise(() => ({ loading: true, error: null as string | null, rows: [] as MembershipMsg[] })),
 );
-/** The aggregator's customer page for the looked-up account (D5) — built by the
- *  server, which owns the project id; empty when the aggregator is unconfigured. */
-const revenueCatUrl = computed(() => lookupVm.value.data?.aggregatorCustomerUrl || undefined);
-
-/** Best-effort handle for a member: the directory page (if loaded) or the last lookup. */
+/** Best-effort handle for a member, from a directory page loaded earlier in the session.
+ *  Without one, the row shows the id — and the link to the member's own page is what
+ *  actually answers "who is this?", in one click. */
 function handleFor(userId: string): string | undefined {
   const dir = roles.directory.status === "success" ? roles.directory.data.accounts : [];
-  const hit = dir.find((a) => a.userId === userId)?.handle;
-  if (hit) return hit;
-  const looked = lookupVm.value.data;
-  if (looked?.userId === userId && store.lastLookup && !/^[0-9a-f-]{36}$/i.test(store.lastLookup)) {
-    return store.lastLookup.replace(/^@/, "");
-  }
-  return undefined;
+  return dir.find((a) => a.userId === userId)?.handle || undefined;
 }
 function showMembers(c: CampaignMsg) {
   void store.loadMembers(c.key);
@@ -329,185 +215,14 @@ onMounted(() => void store.loadCampaigns(true));
 </script>
 
 <template>
-  <h1 class="page-title">{{ t("plans.title") }}</h1>
-  <p class="muted">{{ t("plans.intro") }}</p>
+  <h1 class="page-title">{{ t("campaigns.title") }}</h1>
+  <p class="muted">{{ t("campaigns.intro") }}</p>
 
-  <!-- (a) account lookup -->
+  <!-- campaigns -->
   <section class="block">
-    <h2>{{ t("plans.lookupTitle") }}</h2>
-    <div class="filter">
-      <input
-        v-model="query"
-        type="search"
-        :placeholder="t('plans.lookupPlaceholder')"
-        :aria-label="t('plans.lookupPlaceholder')"
-        @keyup.enter="lookup"
-      />
-      <button type="button" class="btn-primary" :disabled="lookupVm.loading" @click="lookup">
-        {{ t("plans.lookup") }}
-      </button>
-      <button v-if="lookupVm.data" type="button" @click="clear">{{ t("plans.clear") }}</button>
-    </div>
-    <p v-if="lookupVm.loading" class="muted">{{ t("common.loading") }}</p>
-    <p v-if="lookupVm.error" class="error" role="alert">{{ lookupVm.error }}</p>
-
-    <template v-if="lookupVm.data">
-      <div class="summary" data-testid="effective-plan">
-        <div class="kv">
-          <span class="k">{{ t("plans.effective") }}</span>
-          <span class="v">
-            <AppTag :variant="lookupVm.data.snapshot?.plan === 'premium' ? 'accepted' : 'neutral'">
-              {{ lookupVm.data.snapshot?.plan === "premium" ? t("plans.premium") : t("plans.free") }}
-            </AppTag>
-            <AppTag v-if="lookupVm.data.snapshot?.trialCampaignKey" variant="warn">{{ t("plans.trialTag") }}</AppTag>
-            <AppTag v-if="lookupVm.data.snapshot?.plan === 'premium' && !lookupVm.data.snapshot?.endsAt" variant="warn">
-              {{ t("plans.openEnded") }}
-            </AppTag>
-          </span>
-        </div>
-        <div class="kv">
-          <span class="k">{{ t("plans.source") }}</span>
-          <span class="v mono">{{ lookupVm.data.snapshot?.source || "—" }}</span>
-        </div>
-        <div class="kv">
-          <span class="k">{{ t("plans.endsAt") }}</span>
-          <span class="v">{{ fmt(lookupVm.data.snapshot?.endsAt) }}</span>
-        </div>
-        <div class="kv">
-          <span class="k">{{ t("plans.trial") }}</span>
-          <span class="v">
-            <template v-if="lookupVm.data.snapshot?.trialCampaignKey">
-              <code>{{ lookupVm.data.snapshot?.trialCampaignKey }}</code> ·
-              {{ fmt(lookupVm.data.snapshot?.trialEndsAt) }}
-            </template>
-            <template v-else>—</template>
-          </span>
-        </div>
-        <div class="kv">
-          <span class="k">{{ t("plans.betas") }}</span>
-          <span class="v chips">
-            <AppTag v-for="b in lookupVm.data.snapshot?.betas ?? []" :key="b.campaignKey" variant="neutral" mono>
-              {{ b.campaignKey }}
-            </AppTag>
-            <span v-if="(lookupVm.data.snapshot?.betas ?? []).length === 0">—</span>
-          </span>
-        </div>
-        <div class="kv actions">
-          <button type="button" class="btn-primary" :disabled="acting" @click="openGrant">
-            {{ t("plans.grant") }}
-          </button>
-          <button type="button" :disabled="acting || enrollable.length === 0" @click="openEnrol">
-            {{ t("plans.enrol") }}
-          </button>
-          <!-- Store facts (transactions, renewals, refunds) and revenue live at the
-               aggregator (change: swap-store-billing-to-revenuecat, D5): one link
-               to the customer page; hidden when the project id is not configured. -->
-          <a
-            v-if="revenueCatUrl"
-            :href="revenueCatUrl"
-            target="_blank"
-            rel="noopener noreferrer"
-            data-testid="revenuecat-link"
-          >
-            {{ t("plans.openInRevenueCat") }} ↗
-          </a>
-        </div>
-      </div>
-
-      <h3>{{ t("plans.entitlements") }}</h3>
-      <div class="table-card">
-        <table data-testid="entitlements">
-          <thead>
-            <tr>
-              <th>{{ t("plans.source") }}</th>
-              <th>{{ t("plans.startsAt") }}</th>
-              <th>{{ t("plans.endsAt") }}</th>
-              <th>{{ t("plans.status") }}</th>
-              <th>{{ t("plans.campaign") }}</th>
-              <th>{{ t("plans.colActions") }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="r in lookupVm.data.rows" :key="r.id" :class="{ inactive: !isActive(r) }">
-              <td class="mono">{{ r.source }}</td>
-              <td>{{ fmt(r.startsAt) }}</td>
-              <td>
-                <AppTag v-if="openEnded(r)" variant="warn">{{ t("plans.openEnded") }}</AppTag>
-                <template v-else>{{ fmt(r.endsAt) }}</template>
-              </td>
-              <td>
-                <AppTag :variant="isActive(r) ? 'accepted' : 'neutral'">{{ r.status }}</AppTag>
-              </td>
-              <td class="mono">{{ r.campaignId || "—" }}</td>
-              <td class="row-actions">
-                <button v-if="r.providerRef" type="button" class="btn-sm" @click="copyRef(r)">
-                  {{ t("plans.copyRef") }}
-                </button>
-                <button
-                  v-if="canRevoke(r)"
-                  type="button"
-                  class="btn-sm reject"
-                  :disabled="acting"
-                  @click="revokeRow(r)"
-                >
-                  {{ t("plans.revoke") }}
-                </button>
-              </td>
-            </tr>
-            <tr v-if="lookupVm.data.rows.length === 0">
-              <td colspan="6" class="empty">{{ t("plans.noRows") }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <h3>{{ t("plans.memberships") }}</h3>
-      <div class="table-card">
-        <table data-testid="memberships">
-          <thead>
-            <tr>
-              <th>{{ t("plans.campaign") }}</th>
-              <th>{{ t("plans.kindCol") }}</th>
-              <th>{{ t("plans.enrolled") }}</th>
-              <th>{{ t("plans.endsAt") }}</th>
-              <th>{{ t("plans.colSource") }}</th>
-              <th>{{ t("plans.colActions") }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="m in lookupVm.data.memberships" :key="m.campaignKey" :class="{ inactive: !!m.revokedAt }">
-              <td>
-                <code>{{ m.campaignKey }}</code> <span class="muted">{{ m.campaignName }}</span>
-              </td>
-              <td>{{ t(`plans.kind.${m.kind}`) }}</td>
-              <td>{{ fmt(m.enrolledAt) }}</td>
-              <td>{{ memberState(m) }}</td>
-              <td class="mono">{{ m.source }}</td>
-              <td class="row-actions">
-                <button
-                  v-if="!m.revokedAt"
-                  type="button"
-                  class="btn-sm reject"
-                  :disabled="acting"
-                  @click="revokeMembership(m)"
-                >
-                  {{ t("plans.revoke") }}
-                </button>
-              </td>
-            </tr>
-            <tr v-if="lookupVm.data.memberships.length === 0">
-              <td colspan="6" class="empty">{{ t("plans.noMemberships") }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </template>
-  </section>
-
-  <!-- (b) campaigns -->
-  <section class="block">
-    <div class="page-head">
-      <h2>{{ t("plans.campaigns") }}</h2>
+    <!-- No section heading: the page is the campaign list, and a second "Campaigns"
+         under the page title says nothing the title has not. -->
+    <div class="page-head actions-only">
       <button type="button" class="btn-primary" :disabled="acting" @click="openCreate">{{ t("plans.create") }}</button>
     </div>
     <p v-if="campaignsVm.error" class="error" role="alert">{{ campaignsVm.error }}</p>
@@ -586,7 +301,7 @@ onMounted(() => void store.loadCampaigns(true));
     </div>
   </section>
 
-  <!-- (c) members of the selected campaign -->
+  <!-- members of the selected campaign -->
   <section v-if="store.membersKey" class="block">
     <div class="page-head">
       <h2>{{ t("plans.membersOf", { key: store.membersKey }) }}</h2>
@@ -608,8 +323,12 @@ onMounted(() => void store.loadCampaigns(true));
         <tbody>
           <tr v-for="m in membersVm.rows" :key="m.userId" :class="{ inactive: !!m.revokedAt || membersCampaignClosed }">
             <td>
-              <span v-if="handleFor(m.userId)" class="handle">{{ handleFor(m.userId) }}</span>
-              <IdBadge v-else :id="m.userId" />
+              <!-- A cohort is read here, but acted on there: one click opens the member's
+                   own page instead of re-identifying them by hand. -->
+              <RouterLink class="member" :to="{ name: 'user-detail', params: { userId: m.userId } }">
+                <span v-if="handleFor(m.userId)" class="handle">{{ handleFor(m.userId) }}</span>
+                <IdBadge v-else :id="m.userId" />
+              </RouterLink>
             </td>
             <td>{{ fmt(m.enrolledAt) }}</td>
             <td>{{ memberState(m) }}</td>
@@ -626,91 +345,12 @@ onMounted(() => void store.loadCampaigns(true));
   <!-- dialogs -->
   <div v-if="modal" class="overlay" @click.self="modal = null">
     <dialog ref="dialogEl" class="modal" open aria-modal="true" tabindex="-1" @keydown.esc="modal = null">
-      <!-- a destructive action that needs an audited reason -->
-      <template v-if="modal === 'reason'">
-        <h2>{{ t("plans.confirmTitle") }}</h2>
-        <p>{{ pendingReason?.message }}</p>
-        <label>
-          {{ t("plans.reason") }}
-          <input
-            v-model="reasonForm.reason"
-            :placeholder="t('plans.reasonPlaceholder')"
-            :aria-label="t('plans.reason')"
-            :disabled="acting"
-          />
-        </label>
-        <div class="modal-actions">
-          <button type="button" class="btn-primary" :disabled="acting || !reasonValid" @click="submitReason">
-            {{ t("plans.confirm") }}
-          </button>
-          <button type="button" :disabled="acting" @click="modal = null">{{ t("plans.cancel") }}</button>
-        </div>
-      </template>
-
       <!-- a destructive action that only needs a yes -->
-      <template v-else-if="modal === 'confirm'">
+      <template v-if="modal === 'confirm'">
         <h2>{{ t("plans.confirmTitle") }}</h2>
         <p>{{ pendingConfirm?.message }}</p>
         <div class="modal-actions">
           <button type="button" class="btn-primary" :disabled="acting" @click="submitConfirm">
-            {{ t("plans.confirm") }}
-          </button>
-          <button type="button" :disabled="acting" @click="modal = null">{{ t("plans.cancel") }}</button>
-        </div>
-      </template>
-
-      <!-- grant premium -->
-      <template v-else-if="modal === 'grant'">
-        <h2>{{ t("plans.grantTitle", { handle: targetLabel }) }}</h2>
-        <label>
-          {{ t("plans.endDate") }}
-          <input v-model="grantForm.endDate" type="date" :aria-label="t('plans.endDate')" :disabled="acting" />
-        </label>
-        <p class="hint">{{ t("plans.endDateHint") }}</p>
-        <label v-if="!grantForm.endDate" class="check">
-          <input v-model="grantForm.confirmOpenEnded" type="checkbox" :disabled="acting" />
-          {{ t("plans.confirmOpenEnded") }}
-        </label>
-        <label>
-          {{ t("plans.reason") }}
-          <input
-            v-model="grantForm.reason"
-            :placeholder="t('plans.reasonPlaceholder')"
-            :aria-label="t('plans.reason')"
-            :disabled="acting"
-          />
-        </label>
-        <div class="modal-actions">
-          <button type="button" class="btn-primary" :disabled="acting || !grantValid" @click="submitGrant">
-            {{ t("plans.confirm") }}
-          </button>
-          <button type="button" :disabled="acting" @click="modal = null">{{ t("plans.cancel") }}</button>
-        </div>
-      </template>
-
-      <!-- enrol in campaign -->
-      <template v-else-if="modal === 'enrol'">
-        <h2>{{ t("plans.enrolTitle", { handle: targetLabel }) }}</h2>
-        <label>
-          {{ t("plans.campaign") }}
-          <select v-model="enrolForm.campaignKey" :aria-label="t('plans.campaign')" :disabled="acting">
-            <option value="" disabled>{{ t("plans.chooseCampaign") }}</option>
-            <option v-for="c in enrollable" :key="c.key" :value="c.key">
-              {{ c.name }} ({{ t(`plans.kind.${c.kind}`) }})
-            </option>
-          </select>
-        </label>
-        <label>
-          {{ t("plans.reason") }}
-          <input
-            v-model="enrolForm.reason"
-            :placeholder="t('plans.reasonPlaceholder')"
-            :aria-label="t('plans.reason')"
-            :disabled="acting"
-          />
-        </label>
-        <div class="modal-actions">
-          <button type="button" class="btn-primary" :disabled="acting || !enrolValid" @click="submitEnrol">
             {{ t("plans.confirm") }}
           </button>
           <button type="button" :disabled="acting" @click="modal = null">{{ t("plans.cancel") }}</button>
@@ -784,6 +424,9 @@ onMounted(() => void store.loadCampaigns(true));
 .block {
   margin-top: 1.75rem;
 }
+.page-head.actions-only {
+  justify-content: flex-end;
+}
 .block h2 {
   font-size: 1.15rem;
   margin: 0 0 0.75rem;
@@ -793,53 +436,21 @@ onMounted(() => void store.loadCampaigns(true));
   margin: 1.25rem 0 0.5rem;
   color: var(--muted);
 }
-.filter {
-  display: flex;
-  gap: 0.5rem;
-  margin: 0.75rem 0;
-  flex-wrap: wrap;
-}
-.filter input[type="search"] {
-  min-width: 18rem;
-}
-.summary {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
-  gap: 0.75rem 1.25rem;
-  padding: 1rem 1.25rem;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-}
-.kv {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-}
-.kv .k {
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--muted);
-}
-.kv .v,
-.chips {
-  display: flex;
-  gap: 0.35rem;
-  flex-wrap: wrap;
-  align-items: center;
-}
-.kv.actions {
-  flex-direction: row;
-  align-items: flex-end;
-  gap: 0.5rem;
-}
 .mono {
   font-family: var(--mono);
   font-size: 0.85rem;
 }
 .handle {
   font-weight: 600;
+}
+.member {
+  color: inherit;
+  text-decoration: none;
+}
+.member:hover,
+.member:focus-visible {
+  color: var(--accent);
+  text-decoration: underline;
 }
 .row-actions {
   display: flex;

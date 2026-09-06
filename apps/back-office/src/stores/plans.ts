@@ -52,8 +52,11 @@ export const usePlansStore = defineStore("plans", () => {
   /** Batch plan/beta badges for a directory page, keyed by user id. */
   const badges = ref<Async<Record<string, AccountPlanBadge>>>(idle);
   const op = ref<Async<void>>(idle);
-  // The last successful lookup query, re-run after an account-changing mutation.
-  const lastLookup = ref<string | null>(null);
+  // The account the console is currently showing, re-read after a mutation that changes
+  // it. An `AccountRef`, not the raw query: the detail page KNOWS the id, and re-deriving
+  // it from text through `accountRef` would put a heuristic in the middle of a page whose
+  // whole point is that the account is already identified.
+  const lastTarget = ref<AccountRef | null>(null);
   const membersKey = ref<string | null>(null);
 
   /** Campaigns still accepting members or at least not closed (the flags console's
@@ -62,13 +65,20 @@ export const usePlansStore = defineStore("plans", () => {
     campaigns.value.status === "success" ? campaigns.value.data.filter((c) => !c.closedAt) : [],
   );
 
+  /** Look up an account the caller has already identified (the detail page). */
+  async function lookupUser(userId: string) {
+    lastTarget.value = { userId };
+    await run(lookupResult, () => api().plans.lookupAccountPlan(wireRef({ userId })));
+  }
+
+  /** Look up an account from free text: a UUID is an id, anything else a handle. */
   async function lookup(handleOrId: string) {
-    lastLookup.value = handleOrId;
-    await run(lookupResult, () => api().plans.lookupAccountPlan(wireRef(accountRef(handleOrId))));
+    lastTarget.value = accountRef(handleOrId);
+    await run(lookupResult, () => api().plans.lookupAccountPlan(wireRef(lastTarget.value!)));
   }
 
   function clearLookup() {
-    lastLookup.value = null;
+    lastTarget.value = null;
     lookupResult.value = idle;
   }
 
@@ -90,7 +100,8 @@ export const usePlansStore = defineStore("plans", () => {
     return outcome;
   }
   const relookup = async () => {
-    if (lastLookup.value) await lookup(lastLookup.value);
+    const target = lastTarget.value;
+    if (target) await run(lookupResult, () => api().plans.lookupAccountPlan(wireRef(target)));
   };
   const reloadCampaigns = () => loadCampaigns();
   const reloadMembers = async () => {
@@ -220,7 +231,8 @@ export const usePlansStore = defineStore("plans", () => {
 
   return {
     lookupResult,
-    lastLookup,
+    lastTarget,
+    lookupUser,
     campaigns,
     openCampaigns,
     members,

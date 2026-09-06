@@ -34,8 +34,10 @@ export interface FakeState {
   getCatalogScoreCalls: number;
   grantCalls: { userId: string; scope: string; role: string }[];
   revokeCalls: { userId: string; scope: string; role: string }[];
-  listAccountsCalls: { query: string; limit: number; offset: number }[];
+  listAccountsCalls: { query: string; limit: number; offset: number; ids?: string[] }[];
   reliabilityCalls: string[];
+  /** Admin session revocations requested, by target user id. */
+  revokeAccountSessionsCalls: string[];
   reliability?: unknown;
   setLocaleCalls: string[];
   hits: unknown[];
@@ -100,6 +102,7 @@ export function makeFakeClients(state: Partial<FakeState> = {}): { clients: Clie
     revokeCalls: [],
     listAccountsCalls: [],
     reliabilityCalls: [],
+    revokeAccountSessionsCalls: [],
     reliability: state.reliability,
     setLocaleCalls: [],
     hits: state.hits ?? [],
@@ -145,6 +148,10 @@ export function makeFakeClients(state: Partial<FakeState> = {}): { clients: Clie
       signInLocal: async () => s.tokens,
       signInOidc: async () => s.tokens,
       refresh: async () => s.tokens,
+      revokeAccountSessions: async (req: { userId: string }) => {
+        s.revokeAccountSessionsCalls.push(req.userId);
+        return {};
+      },
     },
     score: {
       searchCatalog: async (req: SearchCall) => {
@@ -190,7 +197,13 @@ export function makeFakeClients(state: Partial<FakeState> = {}): { clients: Clie
       listRoleGrants: async () => ({ grants: s.grants }),
       listAccounts: async (req: { query: string; limit: number; offset: number; ids?: string[] }) => {
         s.listAccountsCalls.push(req);
-        return { accounts: s.accounts, total: s.accounts.length };
+        // `ids` (pre-resolved by the plan service, or a single account for the detail
+        // page) narrows the directory like the server does.
+        const scoped =
+          req.ids && req.ids.length > 0
+            ? s.accounts.filter((a) => req.ids!.includes((a as { userId: string }).userId))
+            : s.accounts;
+        return { accounts: scoped, total: scoped.length };
       },
       getAccount: async () => ({ userId: "u1", locale: s.accountLocale }),
       setLocale: async (req: { locale: string }) => {
