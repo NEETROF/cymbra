@@ -194,7 +194,15 @@ class Player extends _$Player {
     // `_mappingForDevice` already answers "identity on a keyboard score", so
     // the engine is pushed exactly what this side applies — the two cannot
     // drift, which is the whole point of there being one policy.
-    final table = _mappingForDevice().translationTable;
+    final mapping = _mappingForDevice();
+    // The pieces this kit was said not to have travel with the mapping: they
+    // come from the same table, change at the same moments, and the gate must
+    // never be left waiting for a pad the player already told us about
+    // (design D13).
+    if (!setEquals(state.unplayablePieces, mapping.absent)) {
+      state = state.copyWith(unplayablePieces: mapping.absent);
+    }
+    final table = mapping.translationTable;
     if (_pushedMapping != null && mapEquals(_pushedMapping, table)) return;
     _pushedMapping = table;
     try {
@@ -254,7 +262,10 @@ class Player extends _$Player {
       // actually judged over (change: add-drum-scoring).
       hands: s.handsSelectionName,
       speed: s.speed,
-      notes: s.visibleNotes,
+      // What the run actually asks for: a piece the kit does not have is neither
+      // awaited nor judged, or the player would be marked down for a pad they
+      // could not strike (design D13).
+      notes: s.awaitedNotes,
       percussion: s.isPercussion,
     );
   }

@@ -267,9 +267,12 @@ class _MappingTable extends ConsumerWidget {
             for (final id in mapping.byPiece.keys)
               if (!kCalibrationPieceOrder.contains(id)) id,
           ];
+    // "Not calibrated" and "this kit has none" are different answers: only the
+    // first is a gap to fill (design D13).
     final missing = [
       for (final id in rows)
-        if (!mapping.byPiece.containsKey(id)) id,
+        if (!mapping.byPiece.containsKey(id) && !mapping.absent.contains(id))
+          id,
     ];
     // Learned from another score's kit. Counted rather than listed — the
     // question on this screen is this score — but never silent, because
@@ -318,6 +321,7 @@ class _MappingTable extends ConsumerWidget {
               key: Key('calibration-row-$id'),
               pieceId: id,
               number: mapping.byPiece[id],
+              absent: mapping.absent.contains(id),
               onClear: () => store.clearPiece(port, id),
             ),
         if (elsewhere > 0)
@@ -405,6 +409,7 @@ class _MappingRow extends StatelessWidget {
   const _MappingRow({
     required this.pieceId,
     required this.number,
+    required this.absent,
     required this.onClear,
     super.key,
   });
@@ -414,6 +419,11 @@ class _MappingRow extends StatelessWidget {
   /// What this device sends for the piece, or **null** when it has never been
   /// read on it — the row the player came here for (design D12).
   final int? number;
+
+  /// The player answered "this kit has none" for this piece: a state of its own,
+  /// not a gap — and the reason its onsets are no longer awaited (design D13).
+  final bool absent;
+
   final VoidCallback onClear;
 
   @override
@@ -432,13 +442,20 @@ class _MappingRow extends StatelessWidget {
         style: const TextStyle(color: CymbraColors.onSurface, fontSize: 15),
       ),
       subtitle: learned == null
-          // Named in the accent rather than dimmed: this is the row that has
-          // something for the player to do, not the row that matters least.
+          // Two silences, told apart: a piece nobody has been asked about yet —
+          // named in the accent, because it is the row with something to do —
+          // and one the player has answered for, which is settled and quiet.
           ? Text(
-              key: Key('calibration-row-missing-$pieceId'),
-              l10n.calibrationRowMissing,
-              style: const TextStyle(
-                color: CymbraColors.tertiary,
+              key: Key(
+                absent
+                    ? 'calibration-row-absent-$pieceId'
+                    : 'calibration-row-missing-$pieceId',
+              ),
+              absent ? l10n.calibrationSkip : l10n.calibrationRowMissing,
+              style: TextStyle(
+                color: absent
+                    ? CymbraColors.onSurfaceVariant
+                    : CymbraColors.tertiary,
                 fontSize: 12,
               ),
             )
@@ -462,8 +479,10 @@ class _MappingRow extends StatelessWidget {
                   ),
               ],
             ),
-      // Nothing to clear on a piece that was never read.
-      trailing: learned == null
+      // Nothing to clear on a piece that was never read — but "this kit has
+      // none" IS an answer, and taking it back is how a player who buys the
+      // china puts it back in play.
+      trailing: learned == null && !absent
           ? null
           : TextButton(
               onPressed: onClear,

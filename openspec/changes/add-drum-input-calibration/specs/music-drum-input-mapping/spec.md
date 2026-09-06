@@ -196,6 +196,50 @@ about exactly as it was.
 - **WHEN** the device has entries for pieces the loaded score does not ask for
 - **THEN** the surface reports how many, rather than listing or hiding them
 
+### Requirement: A Piece The Kit Does Not Have Is Not Awaited
+
+The pass SHALL remember which pieces the player answered **"this kit has none"**
+for, per device, and the Wait Mode gate SHALL NOT wait for them, nor the scorer
+count them as missed. A gate that holds for a pad nobody can strike never opens,
+and marking a player down for a pad their kit does not have is a verdict about
+the hardware. Those notes SHALL still be **drawn**: the score is the score, and a
+drummer reading it should see the ride they do not own.
+
+A piece with **no entry at all** SHALL still be awaited. The two silences say
+different things: an uncalibrated device may be a standard one that answers every
+number correctly, so treating "nothing recorded" as "cannot be played" would turn
+Wait Mode off for every kit that never needed calibrating.
+
+An absence SHALL be visible before playing — named in the settings beside what is
+still to be calibrated — and SHALL be revocable, so a player who acquires the
+piece can put it back in play.
+
+#### Scenario: An absent piece does not hold the gate
+- **WHEN** an onset asks only for pieces the connected kit was said not to have
+- **THEN** the gate does not wait, and the run continues
+
+#### Scenario: An absent piece is still drawn
+- **WHEN** the loaded score writes a piece the connected kit was said not to have
+- **THEN** it is still displayed
+
+#### Scenario: An absent piece is not counted as missed
+- **WHEN** a run ends with onsets on a piece the kit does not have
+- **THEN** they are not judged, so the result is not marked down for them
+
+#### Scenario: An uncalibrated piece is still awaited
+- **WHEN** the connected device has no entry for a piece and never declared it
+  absent
+- **THEN** the gate waits for it exactly as before
+
+#### Scenario: The answer is visible before playing
+- **WHEN** the settings are opened on a score asking for a piece the kit was said
+  not to have
+- **THEN** that piece is named as not awaited
+
+#### Scenario: The answer can be taken back
+- **WHEN** the player clears that piece's row
+- **THEN** it is neither absent nor calibrated, and is awaited again
+
 ### Requirement: Mapping Is Per Device
 
 A learned mapping SHALL be stored against the MIDI device it was learned from,

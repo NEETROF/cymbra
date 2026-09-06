@@ -25,6 +25,7 @@ import 'package:music/services/score_asset_source.dart';
 import 'package:music/src/rust/api/musicxml.dart';
 import 'package:music/state/player_data.dart';
 import 'package:music/state/player_notifier.dart';
+import 'package:music/state/drum_input_mapping.dart';
 import 'package:music/state/drum_input_mapping_notifier.dart';
 import 'package:music/state/drum_kit.dart';
 import 'package:music/state/player_preferences.dart';
@@ -247,6 +248,39 @@ void main() {
     await _pumpFrames(tester);
     expect(find.byKey(const Key('calibration-missing')), findsNothing);
     expect(find.byKey(const Key('calibration-complete')), findsOneWidget);
+    await _teardown(tester, container);
+  });
+
+  testWidgets('a piece the kit was said not to have is named as not awaited '
+      '(design D13)', (tester) async {
+    // The safety net for the answer that turns the gate off: "this kit has
+    // none" must be readable BEFORE playing, or a player who tapped through the
+    // pass would find Wait Mode quietly waiting for nothing.
+    final container = await _pumpWithModal(
+      tester,
+      document: sampleDrumDocument(),
+      midiPort: 'Drum kit',
+    );
+    container
+        .read(drumInputMappingStoreProvider.notifier)
+        .save(
+          'Drum kit',
+          DrumInputMapping(
+            const {kKickPieceId: 12, 'kitPieceSnare': 31},
+            absent: const {'kitPieceHiHat'},
+          ),
+        );
+    await _pumpFrames(tester);
+
+    // Nothing left to learn, so no "not calibrated" line…
+    expect(find.byKey(const Key('calibration-missing')), findsNothing);
+    // …but the hi-hat is not silently dropped either.
+    final absent = tester.widget<Text>(
+      find.byKey(const Key('calibration-absent')),
+    );
+    expect(absent.data, contains('Hi-hat'));
+    // And the flat "everything is calibrated" claim gives way to it.
+    expect(find.byKey(const Key('calibration-complete')), findsNothing);
     await _teardown(tester, container);
   });
 

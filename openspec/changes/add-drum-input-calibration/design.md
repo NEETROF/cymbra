@@ -113,6 +113,42 @@ is already the snare's, the pass says so — because on a real kit that means th
 player hit the wrong pad, and quietly reassigning it would produce a mapping that
 is wrong in two places at once.
 
+### D13 — Only a piece the player says the kit lacks stops being awaited
+
+*Asked for as "notes on a piece marked missing should no longer be awaited in
+Wait Mode".* The intent is right and the literal rule is a trap, so the trigger
+moved.
+
+Read literally — "no mapping entry ⇒ not awaited" — the majority case breaks: a
+standard GM kit that never needed calibrating has **no entries at all**, so
+nothing would be awaited and the gate would open on every onset with no stroke
+played. Wait Mode would look like it was working and be doing nothing. Narrowing
+it to "once the device has at least one entry" only moves the trap: calibrating
+the single non-standard pad would stop the gate waiting for the eight that were
+fine.
+
+What is unambiguous is the answer the player already gives during the pass —
+**"this kit has none"**. So that answer is now *stored* (it was thrown away),
+per device, beside the numbers:
+
+- the gate does not wait for those pieces, and the scorer does not judge them:
+  being marked down for a pad you do not own is a verdict about your hardware;
+- they are still **drawn** — the score is the score, and the run is still
+  submitted (the focus mechanism, which hides and un-submits, says something
+  else: "not this lap", a statement about the passage rather than the kit);
+- the two silences stay apart everywhere: "not calibrated yet" is a gap to fill,
+  "this kit has none" is an answer, and the table shows them differently.
+
+The stored form is a **string where every other value is a number**
+(`{"kitPieceChina": "none"}`). A build that predates absences drops non-int
+values entry by entry, so it reads the numbers and treats the absences as "not
+calibrated" — its own behaviour, rather than refusing the table whole.
+
+One trap it opens deliberately: a player can tap "this kit has none" through
+every step and end up with a gate that waits for nothing. That is why the
+settings name absences in their own line before playing, rather than reporting
+"everything is calibrated" and leaving the silence to be discovered mid-groove.
+
 ### D12 — The table is the score's kit, not the stored rows; a pass may cover part of it
 
 *Raised by the product owner from a screenshot: four learned pads listed above

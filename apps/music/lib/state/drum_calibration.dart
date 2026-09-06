@@ -75,6 +75,7 @@ class CalibrationState {
     this.known = const {},
     this.recorded = const {},
     this.dropped = const {},
+    this.absent = const {},
     this.conflict,
     this.outcome = CalibrationOutcome.idle,
     this.armedAtMs = 0,
@@ -109,6 +110,13 @@ class CalibrationState {
   /// still holds a number — is worse than one that never asked.
   final Set<String> dropped;
 
+  /// The pieces this device has no pad for — carried in from storage and added
+  /// to by every "this kit has none" (design D13). Kept apart from [dropped]
+  /// because they say different things: a piece that lost its number to a
+  /// reassignment is uncalibrated, a piece declared absent is *answered*, and
+  /// only the second one tells the Wait-Mode gate to stop waiting for it.
+  final Set<String> absent;
+
   /// The unresolved collision the last stroke produced, if any. While this is
   /// set the step has not advanced: the player strikes again or reassigns.
   final CalibrationConflict? conflict;
@@ -129,9 +137,11 @@ class CalibrationState {
   CalibrationState start({
     required int atMs,
     Map<String, int> known = const {},
+    Set<String> absent = const {},
   }) => CalibrationState(
     pieces: pieces,
     known: known,
+    absent: absent,
     outcome: CalibrationOutcome.running,
     armedAtMs: atMs,
   );
@@ -151,12 +161,13 @@ class CalibrationState {
   DrumInputMapping get mapping => DrumInputMapping({
     for (final entry in {...known, ...recorded}.entries)
       if (!dropped.contains(entry.key)) entry.key: entry.value,
-  });
+  }, absent: absent);
 
   CalibrationState copyWith({
     int? index,
     Map<String, int>? recorded,
     Set<String>? dropped,
+    Set<String>? absent,
     CalibrationOutcome? outcome,
     int? armedAtMs,
     bool clearConflict = false,
@@ -165,6 +176,7 @@ class CalibrationState {
     pieces: pieces,
     known: known,
     dropped: dropped ?? this.dropped,
+    absent: absent ?? this.absent,
     index: index ?? this.index,
     recorded: recorded ?? this.recorded,
     conflict: clearConflict ? null : (conflict ?? this.conflict),
@@ -197,6 +209,8 @@ class CalibrationState {
     return _advance(
       recorded: {...recorded, piece: number},
       dropped: {...dropped}..remove(piece),
+      // A pad that just answered is a pad this kit has.
+      absent: {...absent}..remove(piece),
       atMs: atMs,
     );
   }
@@ -232,6 +246,7 @@ class CalibrationState {
     return _advance(
       recorded: {...recorded}..remove(piece),
       dropped: {...dropped, piece},
+      absent: {...absent, piece},
       atMs: atMs,
     );
   }
@@ -245,6 +260,7 @@ class CalibrationState {
       index: index - 1,
       recorded: {...recorded}..remove(previous),
       dropped: {...dropped}..remove(previous),
+      absent: {...absent}..remove(previous),
       clearConflict: true,
       armedAtMs: atMs,
     );
@@ -275,12 +291,14 @@ class CalibrationState {
     required Map<String, int> recorded,
     required int atMs,
     Set<String>? dropped,
+    Set<String>? absent,
   }) {
     final next = index + 1;
     return copyWith(
       index: next,
       recorded: recorded,
       dropped: dropped,
+      absent: absent,
       clearConflict: true,
       armedAtMs: atMs,
       outcome: next >= pieces.length

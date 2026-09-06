@@ -1145,26 +1145,54 @@ class _CalibrationCoverage extends ConsumerWidget {
     if (targets.isEmpty) return const SizedBox.shrink();
     final l10n = AppLocalizations.of(context);
     final mapping = ref.watch(activeDrumMappingProvider);
+    // A piece the kit was said not to have is not a gap: it has been answered.
+    // It gets a line of its own instead, because that answer stops Wait Mode
+    // from waiting for it (design D13) — which a player must read here, before
+    // playing, rather than discover mid-groove.
     final missing = [
       for (final id in targets)
-        if (!mapping.byPiece.containsKey(id)) kitPieceLabelOf(l10n, id),
+        if (!mapping.byPiece.containsKey(id) && !mapping.absent.contains(id))
+          kitPieceLabelOf(l10n, id),
     ];
-    final complete = missing.isEmpty;
+    final absent = [
+      for (final id in targets)
+        if (mapping.absent.contains(id)) kitPieceLabelOf(l10n, id),
+    ];
     return Padding(
-      // Indented to the tile's text, so it reads as that action's own line
-      // rather than as a new item in the section.
+      // Indented to the tile's text, so these read as that action's own lines
+      // rather than as new items in the section.
       padding: const EdgeInsets.only(left: 40, right: 8, bottom: 4),
-      child: Text(
-        key: Key(complete ? 'calibration-complete' : 'calibration-missing'),
-        complete
-            ? l10n.calibrationScoreComplete
-            : l10n.calibrationScoreMissing(missing.join(' · ')),
-        style: TextStyle(
-          color: complete
-              ? CymbraColors.tertiary
-              : CymbraColors.onSurfaceVariant,
-          fontSize: 12,
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (missing.isNotEmpty)
+            Text(
+              key: const Key('calibration-missing'),
+              l10n.calibrationScoreMissing(missing.join(' · ')),
+              style: const TextStyle(
+                color: CymbraColors.onSurfaceVariant,
+                fontSize: 12,
+              ),
+            )
+          else if (absent.isEmpty)
+            Text(
+              key: const Key('calibration-complete'),
+              l10n.calibrationScoreComplete,
+              style: const TextStyle(
+                color: CymbraColors.tertiary,
+                fontSize: 12,
+              ),
+            ),
+          if (absent.isNotEmpty)
+            Text(
+              key: const Key('calibration-absent'),
+              l10n.calibrationScoreAbsent(absent.join(' · ')),
+              style: const TextStyle(
+                color: CymbraColors.onSurfaceVariant,
+                fontSize: 12,
+              ),
+            ),
+        ],
       ),
     );
   }

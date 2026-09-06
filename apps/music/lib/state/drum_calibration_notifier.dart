@@ -17,6 +17,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../services/midi_service.dart';
 import '../src/rust/api/midi.dart' show MidiEvent, MidiEventKind;
 import 'drum_calibration.dart';
+import 'drum_input_mapping.dart';
 import 'drum_input_mapping_notifier.dart';
 import 'drum_kit.dart';
 import 'midi_status_notifier.dart';
@@ -118,22 +119,27 @@ class DrumCalibration extends _$DrumCalibration {
   /// back for the two pads they skipped, and who must not have to re-play the
   /// seven that already work.
   void startMissing() {
-    final known = _known();
+    final known = _stored();
     final missing = [
       for (final id in _targets())
-        if (!known.containsKey(id)) id,
+        // A piece declared absent is not missing — it is answered (design D13).
+        if (!known.byPiece.containsKey(id) && !known.absent.contains(id)) id,
     ];
     _begin(missing.isEmpty ? _targets() : missing);
   }
 
   /// The device's stored table. Carried into the pass rather than merged after
   /// it: a pass over a subset of the kit that stored only what it asked about
-  /// would erase every piece it did not (design D12).
-  Map<String, int> _known() => ref.read(activeDrumMappingProvider).byPiece;
+  /// would erase every piece it did not (design D12) — and that goes for the
+  /// pieces it was told the kit does not have as much as for the learned ones.
+  DrumInputMapping _stored() => ref.read(activeDrumMappingProvider);
 
-  void _begin(List<String> pieces) => state = CalibrationState(
-    pieces: pieces,
-  ).start(atMs: _lastSeenMs, known: _known());
+  void _begin(List<String> pieces) {
+    final stored = _stored();
+    state = CalibrationState(
+      pieces: pieces,
+    ).start(atMs: _lastSeenMs, known: stored.byPiece, absent: stored.absent);
+  }
 
   void _apply(CalibrationState next) {
     if (identical(next, state)) return;

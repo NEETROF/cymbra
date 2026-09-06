@@ -23,6 +23,8 @@ import 'package:music/services/midi_service.dart';
 import 'package:music/services/notation_engine.dart';
 import 'package:music/services/preferences_service.dart';
 import 'package:music/services/score_asset_source.dart';
+import 'package:music/state/drum_input_mapping.dart';
+import 'package:music/state/drum_input_mapping_notifier.dart';
 import 'package:music/state/drum_kit.dart';
 import 'package:music/state/performance_scoring.dart';
 import 'package:music/state/player_notifier.dart';
@@ -60,7 +62,11 @@ Future<void> _frames(WidgetTester tester, {int count = 1}) async {
   }
 }
 
-Future<ProviderContainer> _pump(WidgetTester tester) async {
+Future<ProviderContainer> _pump(
+  WidgetTester tester, {
+  String? midiPort,
+  DrumInputMapping? calibration,
+}) async {
   await tester.binding.setSurfaceSize(const Size(1400, 900));
   final container = ProviderContainer(
     overrides: [
@@ -69,12 +75,22 @@ Future<ProviderContainer> _pump(WidgetTester tester) async {
       notationEngineProvider.overrideWithValue(
         FakeNotationEngine(document: sampleOpenGrooveDocument()),
       ),
-      midiServiceProvider.overrideWithValue(FakeMidiService()),
+      midiServiceProvider.overrideWithValue(
+        FakeMidiService(
+          ports: midiPort == null ? const [] : [midiPort],
+          connected: midiPort,
+        ),
+      ),
       scoreSourceProvider.overrideWithValue(FakeScoreSource()),
       audioServiceProvider.overrideWithValue(RecordingAudioService()),
       preferencesServiceProvider.overrideWithValue(FakePreferencesService()),
     ],
   );
+  if (midiPort != null && calibration != null) {
+    container
+        .read(drumInputMappingStoreProvider.notifier)
+        .save(midiPort, calibration);
+  }
   container.read(selectedScoreProvider.notifier).select(_entry);
   await tester.pumpWidget(
     UncontrolledProviderScope(
@@ -338,6 +354,61 @@ void main() {
       ..noteOn(49);
     await _frames(tester, count: 2);
     expect(c.read(playerProvider).blocked, isFalse);
+    await _teardown(tester, c);
+  });
+
+  testWidgets('a piece the kit does not have is still drawn, but never awaited '
+      'nor judged (design D13)', (tester) async {
+    // "This kit has none" is the one signal that justifies the gate letting go:
+    // a gate that waits for a pad nobody can strike never opens. An UNcalibrated
+    // piece is a different silence — it might be a standard pad that works — and
+    // is deliberately still awaited.
+    final c = await _pump(
+      tester,
+      midiPort: 'Drum kit',
+      calibration: DrumInputMapping(
+        const {'kitPieceHiHat': 22},
+        absent: const {'kitPieceCrash'},
+      ),
+    );
+    final data = c.read(playerProvider);
+    expect(data.unplayablePieces, {'kitPieceCrash'});
+    // Still drawn: the score is the score, and a drummer reading it should see
+    // the cymbal they do not own.
+    expect(data.visibleNotes.any((n) => n.pitch == 49), isTrue);
+    // …and still absent from what the run asks for, which is the one list the
+    // gate and the scorer both read.
+    expect(data.awaitedNotes.any((n) => n.pitch == 49), isFalse);
+    // The opening onset is written crash + hi-hat + kick; the crash drops out
+    // of it and the other two stand.
+    expect(data.onsetPitchesAt(0), {42, 36});
+
+    final player = c.read(playerProvider.notifier)..startPlayback();
+    await _frames(tester, count: 3);
+    player
+      ..noteOn(42)
+      ..noteOn(36);
+    await _frames(tester, count: 2);
+    // The hands and the foot release it — the crash never had to be struck.
+    expect(c.read(playerProvider).blocked, isFalse);
+    await _teardown(tester, c);
+  });
+
+  testWidgets('an uncalibrated piece is still awaited (design D13)', (
+    tester,
+  ) async {
+    // The rule that keeps Wait Mode working for the overwhelming majority: a
+    // standard kit nobody ever calibrated has no entries at all, and "no entry"
+    // must never mean "do not wait" — or the gate would open on every onset
+    // without a stroke being played.
+    final c = await _pump(
+      tester,
+      midiPort: 'Drum kit',
+      calibration: DrumInputMapping(const {'kitPieceHiHat': 22}),
+    );
+    final data = c.read(playerProvider);
+    expect(data.unplayablePieces, isEmpty);
+    expect(data.onsetPitchesAt(0), {49, 42, 36});
     await _teardown(tester, c);
   });
 

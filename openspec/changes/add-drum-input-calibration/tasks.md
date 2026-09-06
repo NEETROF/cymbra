@@ -251,3 +251,21 @@
 - [ ] 13.5 On the kit: open the groove from the screenshot and confirm the table
   names the nine pieces, and that calibrating the five missing ones keeps the
   four already learned
+
+## 14. "This kit has none" is remembered, and the gate reads it (D13)
+
+- [x] 14.1 `DrumInputMapping.absent` + the `"none"` marker in the stored table
+  (a string where every other value is a number, so an older build degrades to
+  "not calibrated" instead of refusing the table)
+- [x] 14.2 The pass carries and updates it: skip declares, a stroke revokes,
+  back takes it back, and a partial pass keeps the absences it never asked about
+- [x] 14.3 `PlayerData.unplayablePieces` + `awaitedNotes`: the gate and the
+  scorer read it, the painters do not — an absent piece is still drawn
+- [x] 14.4 The surfaces tell the two silences apart: "not calibrated yet" vs
+  "this kit has none" in the table, and a line of its own in the settings, so a
+  gate that stopped waiting is never a surprise
+- [x] 14.5 Tests: the gate lets an absent piece through and still waits for an
+  uncalibrated one; the run is not judged on it; round trip + old-build read;
+  skip/record/back over an absence
+- [ ] 14.6 On the kit: declare a piece absent, confirm Wait Mode no longer holds
+  on it, that it is still drawn, and that the settings say so before playing

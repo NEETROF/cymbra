@@ -175,11 +175,22 @@ void main() {
       expect(s.isRunning, isTrue);
     });
 
-    test('skipping every step completes with an empty mapping', () {
-      final s = _fresh().skip(atMs: 100).skip(atMs: 200).skip(atMs: 300);
-      expect(s.outcome, CalibrationOutcome.completed);
-      expect(s.mapping.isEmpty, isTrue);
-    });
+    test(
+      'skipping every step stores no number — and says the kit has none',
+      () {
+        final s = _fresh().skip(atMs: 100).skip(atMs: 200).skip(atMs: 300);
+        expect(s.outcome, CalibrationOutcome.completed);
+        expect(s.mapping.byPiece, isEmpty);
+        // The answer is kept (design D13): "this kit has none" is a statement
+        // about the instrument, and the gate reads it. Not the same silence as
+        // "never calibrated", which says nothing at all.
+        expect(s.mapping.absent, {
+          kKickPieceId,
+          'kitPieceSnare',
+          'kitPieceHiHat',
+        });
+      },
+    );
 
     test('back drops what that step had learned', () {
       final s = _fresh()
@@ -291,6 +302,40 @@ void main() {
     test('a stroke after finishing changes nothing', () {
       final s = _fresh().afterStroke(12, atMs: 100).finish();
       expect(s.afterStroke(31, atMs: 200).recorded, {kKickPieceId: 12});
+    });
+  });
+
+  group('declaring a piece absent (design D13)', () {
+    test('a recorded stroke takes the piece back out of absent', () {
+      // The player answered "none", then found the pad: the answer goes with it.
+      var s = CalibrationState(
+        pieces: const ['kitPieceRide', 'kitPieceCrash'],
+      ).start(atMs: 0, absent: const {'kitPieceRide'});
+      s = s.afterStroke(51, atMs: 100);
+      expect(s.mapping.absent, isEmpty);
+      expect(s.mapping.byPiece, {'kitPieceRide': 51});
+    });
+
+    test('absences the device already had survive a partial pass', () {
+      // Same rule as the learned numbers (design D12): a pass that asks about
+      // one piece must not un-answer every other.
+      var s = CalibrationState(pieces: const ['kitPieceCrash']).start(
+        atMs: 0,
+        known: const {'kitPieceSnare': 31},
+        absent: const {'kitPieceChina'},
+      );
+      s = s.afterStroke(91, atMs: 100);
+      expect(s.mapping.byPiece, {'kitPieceSnare': 31, 'kitPieceCrash': 91});
+      expect(s.mapping.absent, {'kitPieceChina'});
+    });
+
+    test('stepping back onto an absent answer takes it back', () {
+      var s = CalibrationState(
+        pieces: const ['kitPieceRide', 'kitPieceCrash'],
+      ).start(atMs: 0);
+      s = s.skip(atMs: 100);
+      expect(s.absent, {'kitPieceRide'});
+      expect(s.back(atMs: 200).absent, isEmpty);
     });
   });
 

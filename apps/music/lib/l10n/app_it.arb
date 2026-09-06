@@ -872,6 +872,7 @@
   "calibrationOpenMonitor": "Vedi i colpi in diretta",
   "calibrationOpenMonitorHint": "Quando un pad viene appreso male o ne attiva due insieme.",
   "calibrationScoreMissing": "Non ancora calibrati per questo brano: {pieces}",
+  "calibrationScoreAbsent": "Non attesi, la tua batteria non ne ha: {pieces}",
   "calibrationScoreComplete": "Tutti gli elementi della batteria per questo brano sono calibrati.",
   "midiMonitorTranslated": "il tuo {raw} → letto come {mapped}",
   "instrumentChoiceTitle": "Con cosa vuoi iniziare?",

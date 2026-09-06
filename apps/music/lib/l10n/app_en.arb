@@ -3860,6 +3860,15 @@
       }
     }
   },
+  "calibrationScoreAbsent": "Not awaited, your kit has none: {pieces}",
+  "@calibrationScoreAbsent": {
+    "description": "Listed under the calibration action: the pieces of this score the player answered \"this kit has none\" for. They are no longer awaited by Wait Mode, which must be visible before playing rather than discovered mid-groove.",
+    "placeholders": {
+      "pieces": {
+        "type": "String"
+      }
+    }
+  },
   "calibrationScoreComplete": "Every kit piece for this score is calibrated.",
   "@calibrationScoreComplete": {
     "description": "The positive counterpart: every piece this score asks for has been learned on the connected device."
