@@ -23,7 +23,18 @@ name: release-build
 #                                   PKCE. Absent ⇒ desktop Google sign-in fails
 #                                   the exchange (the button still shows if the
 #                                   client id is set).
-#   Android (Play upload key):
+#   Android (Play upload key + store upload):
+#     PLAY_SERVICE_ACCOUNT_JSON    raw JSON key of a Google Cloud service account
+#                                  (project `cymbra`) that has been INVITED as a
+#                                  user in Play Console → Utilisateurs et
+#                                  autorisations, with release permissions on
+#                                  com.cymbra.music. There is no "API access" page
+#                                  on this account — service accounts are plain
+#                                  users here, which is how
+#                                  revenuecat@cymbra.iam.gserviceaccount.com is
+#                                  already registered. Absent ⇒ the Play upload is
+#                                  skipped with a warning and the AAB is only
+#                                  attached to the GitHub Release.
 #     ANDROID_KEYSTORE_BASE64      base64 of the upload keystore (.jks)
 #     ANDROID_KEYSTORE_PASSWORD    store password
 #     ANDROID_KEY_ALIAS            key alias (e.g. upload)
@@ -424,6 +435,11 @@ jobs:
 
   android:
     runs-on: ubuntu-latest
+    env:
+      # `secrets` is NOT a context available to a step-level `if:` (nor to the
+      # workflow-level `env:`), so the presence check is hoisted here, to the job
+      # env, which is one of the few places that can read it.
+      HAS_PLAY_KEY: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON != '' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -498,6 +514,40 @@ jobs:
           files: |
             cymbra-${{ env.TAG }}.aab
             cymbra-${{ env.TAG }}.apk
+      # Push the AAB to Play on real releases (tag push) only — a dispatch
+      # dry-run must never reach the store. Skips cleanly if the service account
+      # secret is absent, like the TestFlight step below.
+      #
+      # `status: draft` + `changesNotSentForReview` on purpose: CI removes the
+      # part that actually hurts (uploading a ~110 MB bundle by hand) but does NOT
+      # ship to 177 countries on its own. The bundle lands as a draft production
+      # release; a human opens "Vue d'ensemble de la publication" and presses
+      # "Envoyer pour examen". Managed publishing is off, so whatever is sent goes
+      # live as soon as Google approves it — an automatic submit would mean a
+      # release-please merge could publish worldwide with nobody in the loop.
+      # To change that deliberately: `status: completed` and drop
+      # `changesNotSentForReview`.
+      #
+      # Release notes are NOT set here. Play makes them optional, and the human
+      # who sends the release for review is already in the console — writing them
+      # there beats a `whatsnew/` directory in the repo that goes stale.
+      #
+      # Pinned to a commit SHA rather than `@v1` (the house style elsewhere in
+      # this file): this action receives a credential that can publish to the
+      # store, so a moved tag would be a store-level compromise.
+      - name: Warn when the Play service account is missing
+        if: ${{ github.event_name == 'push' && env.HAS_PLAY_KEY != 'true' }}
+        run: echo "::warning::PLAY_SERVICE_ACCOUNT_JSON not set — skipping the Play upload; the AAB is on the GitHub Release and can be uploaded by hand."
+      - name: Upload the AAB to Play (draft production release)
+        if: ${{ github.event_name == 'push' && env.HAS_PLAY_KEY == 'true' }}
+        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.cymbra.music
+          releaseFile: cymbra-${{ env.TAG }}.aab
+          track: production
+          status: draft
+          changesNotSentForReview: true
 
   ios:
     runs-on: macos-latest

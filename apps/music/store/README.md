@@ -112,8 +112,51 @@ surface count is the only real lever.
       Mac App Store accepts), four locales.
 - [x] Android phone screenshots — `android/phone_16x9/` (1920×1080, 16:9, within
       Play's 2:1 long-side cap), four locales.
+- [x] Android tablet screenshots — `android/tablet_7/` (1920×1080) and
+      `android/tablet_10/` (2560×1440), four locales. Play marks both
+      **required** as soon as the bundle does not restrict screen sizes, which
+      ours does not; they are 16:9 because Play demands exactly that on these
+      slots, even though a real 7" tablet is 16:10.
 - [x] Listing copy under `copy/` — en, fr, it, es: name, subtitle, short/promo,
       keywords, full description, categories, all within store char limits.
+
+## Publishing
+
+`release-build.yml` uploads the signed AAB to Play on a `music-v*` tag, as a
+**draft** release on the production track (`status: draft` plus
+`changesNotSentForReview`). CI therefore removes the part that actually hurts —
+pushing a ~110 MB bundle through a browser — without shipping anything on its
+own: a human still opens *Vue d'ensemble de la publication* and presses *Envoyer
+pour examen*.
+
+That split is deliberate. Managed publishing is **off**, so whatever is sent for
+review goes live the moment Google approves it; if CI also sent it, merging a
+release-please PR would publish to every country with nobody in the loop. Making
+it fully automatic is one line (`status: completed`, drop
+`changesNotSentForReview`) — a decision, not an oversight.
+
+Release notes are not set from CI. Play makes them optional, and the person who
+sends the release for review is already in the console; a `whatsnew/` directory
+in the repo would go stale between releases.
+
+The step needs a `PLAY_SERVICE_ACCOUNT_JSON` repo secret: the raw JSON key of a
+Google Cloud service account from the `cymbra` project.
+
+**There is no "API access" page on this Play account.** The published guides all
+point at *Configuration → Accès à l'API*; that entry does not exist here, and the
+console's direct URLs redirect to the app list, so hunting for it is a dead end.
+Service accounts are registered as **plain users** instead — which is exactly how
+`revenuecat@cymbra.iam.gserviceaccount.com` already appears under *Utilisateurs et
+autorisations*, Actif, unlimited duration. So: create the account and its JSON key
+in Google Cloud, then invite its `…iam.gserviceaccount.com` address in Play Console
+→ *Utilisateurs et autorisations* → *Inviter de nouveaux utilisateurs*, granting
+release permissions on `com.cymbra.music`.
+
+The `neetrof.fr` org inherits `iam.disableServiceAccountKeyCreation`, so creating
+the key needs the same project-scoped override already used for the RevenueCat
+service account. Without the secret the upload is skipped with a warning and the
+AAB is still attached to the GitHub Release, which is how it was published by hand
+until now.
 
 ## Categories (decided)
 
