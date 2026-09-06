@@ -91,32 +91,47 @@ test.describe("users directory (admin only)", () => {
     await expect(page.getByRole("heading", { name: "Users" })).toBeVisible();
   });
 
-  test("a music-only admin sees no scope selector (single scope)", async ({ page }) => {
-    await seed(page, { loginAs: "admin", data: { accounts: [ada] } });
+  test("a single-scope admin's roles read bare — every chip is that one scope", async ({ page }) => {
+    const tara = { userId: "u-tara", handle: "tara", displayName: "Tara", roles: ["moderator"] };
+    await seed(page, { loginAs: "admin", data: { accounts: [tara] } });
     await page.goto("/users");
 
-    await expect(page.getByRole("heading", { name: "Users" })).toBeVisible();
-    // Only `music` is authorized → the scope picker is hidden.
+    const row = page.getByRole("row", { name: /tara/ });
+    await expect(row).toContainText("moderator");
+    // No scope to disambiguate, so no prefix and no selector to remember.
+    await expect(row).not.toContainText("music:");
     await expect(page.getByRole("combobox", { name: "Scope" })).toHaveCount(0);
   });
 
-  test("a global admin switches scope and the roles column follows", async ({ page }) => {
+  test("a multi-scope admin sees WHICH scope each role comes from", async ({ page }) => {
+    // With a scope selector driving the column, a bare `admin` chip could mean any of
+    // the three and nothing on the row said which.
     const tara = {
       userId: "u-tara",
       handle: "tara",
       displayName: "Tara",
-      rolesByScope: { global: [] as string[], music: ["moderator"], live: [] },
+      rolesByScope: { global: ["user"], music: ["admin"], live: [] as string[] },
     };
     await seed(page, { loginAs: "global-admin", data: { accounts: [tara] } });
     await page.goto("/users");
 
-    const scope = page.getByRole("combobox", { name: "Scope" });
-    await expect(scope).toBeVisible();
-    await scope.selectOption("music");
-    await expect(page.getByRole("row", { name: /tara/ })).toContainText("moderator");
+    const row = page.getByRole("row", { name: /tara/ });
+    await expect(row).toContainText("music:admin");
+    await expect(row).toContainText("global:user");
+    // `live` holds nothing, so it contributes no chip.
+    await expect(row).not.toContainText("live:");
+    await expect(page.getByRole("combobox", { name: "Scope" })).toHaveCount(0);
+  });
 
-    await scope.selectOption("live");
-    await expect(page.getByRole("row", { name: /tara/ })).not.toContainText("moderator");
+  test("a known role never renders as a raw i18n key", async ({ page }) => {
+    // `role.user` was missing from the catalogues, so the chip showed the key itself
+    // ("Role.User", capitalized by CSS) on every account holding the base role.
+    const tara = { userId: "u-tara", handle: "tara", displayName: "Tara", roles: ["user"] };
+    await seed(page, { loginAs: "admin", data: { accounts: [tara] } });
+    await page.goto("/users");
+
+    await expect(page.getByRole("row", { name: /tara/ })).toContainText("user");
+    await expect(page.locator("body")).not.toContainText("role.");
   });
 
   test("filtering by handle narrows the directory", async ({ page }) => {

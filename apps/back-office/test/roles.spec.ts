@@ -219,6 +219,37 @@ describe("roles store", () => {
     ]);
   });
 
+  it("a role change on a detail page re-reads the audit history too, not only the roles", async () => {
+    // The detail page shows the roles AND the history side by side, and a grant writes
+    // to both. Re-reading only the roles left the history a page-refresh behind the
+    // action the operator had just taken, on the same screen.
+    const accounts = [{ userId: "u1", handle: "ada", rolesByScope: [{ scope: "music", roles: [] }] }];
+    const { clients, state } = makeFakeClients({ accounts });
+    setClientsForTest(clients);
+    const store = useRolesStore();
+    await store.loadAccount("u1");
+    await store.listGrants("u1");
+    expect(state.listRoleGrantsCalls).toEqual(["u1"]);
+
+    await store.grant("u1", "moderator", "music", "account");
+
+    expect(state.listRoleGrantsCalls).toEqual(["u1", "u1"]);
+
+    await store.revoke("u1", "moderator", "music", "account");
+
+    expect(state.listRoleGrantsCalls).toEqual(["u1", "u1", "u1"]);
+  });
+
+  it("a directory-page role change does NOT read a per-account history", async () => {
+    const { clients, state } = makeFakeClients({ accounts: [{ userId: "u1", rolesByScope: [] }] });
+    setClientsForTest(clients);
+    const store = useRolesStore();
+
+    await store.grant("u1", "moderator", "music");
+
+    expect(state.listRoleGrantsCalls).toEqual([]);
+  });
+
   it("captures a denied grant in the op state instead of throwing", async () => {
     const { clients } = makeFakeClients();
     (clients.user as unknown as { grantRole: () => Promise<never> }).grantRole = () =>

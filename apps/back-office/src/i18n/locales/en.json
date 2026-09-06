@@ -26,6 +26,7 @@
     "pending": "Awaiting review"
   },
   "role": {
+    "user": "user",
     "moderator": "moderator",
     "admin": "admin"
   },

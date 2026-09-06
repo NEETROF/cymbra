@@ -102,9 +102,15 @@ export const useRolesStore = defineStore("roles", () => {
   }
 
   /** What a successful role change re-reads: the directory page it was made from, or
-   *  the single account whose detail page it was made on. */
+   *  the single account whose detail page it was made on. On the detail page that means
+   *  the account AND its audit history — the change writes a row to `role_grants`, and
+   *  re-reading only the roles left the history one page-refresh behind the action the
+   *  operator had just taken, on the same screen. */
   type Refresh = "list" | "account";
-  const refresh = (what: Refresh, userId: string) => (what === "account" ? loadAccount(userId) : list());
+  const refresh = async (what: Refresh, userId: string) => {
+    if (what === "list") return list();
+    await Promise.all([loadAccount(userId), listGrants(userId)]);
+  };
 
   async function grant(userId: string, role: string, scope: string, after: Refresh = "list") {
     const outcome = await run(op, async () => {

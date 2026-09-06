@@ -3,16 +3,19 @@
 ### Requirement: Users directory page
 
 The back-office **Users** page (`/users`) SHALL present the account directory as a
-paginated table — handle, display name, roles in the selected scope and, for a music-scope
-admin, the effective plan and the active beta memberships — with the existing search and
-filter criteria (free text on handle/email, scope, plan, beta) and pagination. The page is a
-surface for **finding** an account, not for acting on one: every per-account action lives on
-the account detail page, and **activating a row SHALL open `/users/{user_id}`** for that
-account. The former `/roles` path SHALL redirect to `/users` so existing links and bookmarks
-keep working.
+paginated table — handle, display name, roles and, for a music-scope admin, the effective
+plan and the active beta memberships — with the existing search and filter criteria (free
+text on handle/email, plan, beta) and pagination. The page is a surface for **finding** an
+account, not for acting on one: every per-account action lives on the account detail page,
+and **activating a row SHALL open `/users/{user_id}`** for that account. The former
+`/roles` path SHALL redirect to `/users` so existing links and bookmarks keep working.
 
-The scope selector keeps its meaning — it chooses which scope's roles the `roles` column
-shows, offering only the scopes the caller is authorized to administer.
+The roles column SHALL show the account's roles in **every scope the caller is authorized
+to administer**, and SHALL name the scope on each role whenever more than one scope is on
+offer — scoping is what these roles mean, and a bare `admin` that could be any of three
+scopes tells the operator nothing. A caller authorized for a single scope sees that scope's
+roles unqualified. Every role SHALL be shown with its localized name, never a raw
+translation key.
 
 #### Scenario: Opening an account from the directory
 
@@ -32,7 +35,12 @@ shows, offering only the scopes the caller is authorized to administer.
 #### Scenario: Single-scope admin sees only their scope
 
 - **WHEN** a `music/admin` (without `global/admin`) opens the Users page
-- **THEN** only the `music` scope is available to view, with no `live` scope selector, column, or data shown
+- **THEN** only `music` roles are shown, unqualified, and no other scope's roles appear anywhere on the page
+
+#### Scenario: Multi-scope admin reads which scope a role comes from
+
+- **WHEN** a `global/admin` lists an account holding `admin` in `music` and `user` in `global`
+- **THEN** the row names the scope on each role, so the two are told apart without any selector to remember
 
 #### Scenario: Only admins reach the directory
 
@@ -54,6 +62,11 @@ re-identify the same person on a second screen. It SHALL show the account's iden
   never triggers a role change);
 - **revocation of every session** of the account, behind an explicit confirmation.
 
+A role change made on the page SHALL re-read **both** the account's roles and its audit
+history: the change writes a row to the audit trail shown on that same screen, and leaving
+the history a page-refresh behind the action the operator just took makes the trail read as
+if the change had not happened.
+
 The page SHALL be **addressable and self-sufficient**: opening the URL directly, reloading it,
 or arriving from a link SHALL load the account (by its id) without requiring the directory
 page to have been visited first. An unknown or malformed id SHALL show a localized
@@ -68,6 +81,11 @@ page to have been visited first. An unknown or malformed id SHALL show a localiz
 
 - **WHEN** an admin activates "grant moderator" for the `live` scope on the detail page
 - **THEN** the role is granted for that account in the `live` scope, the page reflects it, and the change is audited
+
+#### Scenario: The audit history follows the action
+
+- **WHEN** an admin grants, then revokes, a role from the detail page
+- **THEN** each change appears in that account's role history immediately, with no page refresh
 
 #### Scenario: Multi-scope admin sees every scope at once
 
@@ -97,7 +115,7 @@ page to have been visited first. An unknown or malformed id SHALL show a localiz
 same account's subscription lived on another screen entirely. Role management (and the rest of
 the per-account gestures) moves to the addressable account detail page; the directory keeps
 listing, filtering and navigation. Nothing is lost — the scope-matched authorization rules,
-the scope selector's visibility rules and the "admins only" gate are restated by the two
+the per-scope visibility rules and the "admins only" gate are restated by the two
 requirements added above.
 
 **Migration**: Grant/revoke now happens on `/users/{user_id}` (see "Account detail page")

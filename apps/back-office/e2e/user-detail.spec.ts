@@ -193,6 +193,26 @@ test.describe("account detail: roles, history, reliability, sessions", () => {
     await expect(page.getByRole("button", { name: "Revoke moderator in music" })).toBeVisible();
   });
 
+  test("the role history follows the grant, with no page refresh", async ({ page }) => {
+    // The history sits on the same screen as the toggle that writes to it. It used to
+    // stay one refresh behind: the roles updated, the audit table did not.
+    await seed(page, { loginAs: "admin", data: { accounts: [ada] } });
+    await page.goto("/users/u-ada");
+    await expect(page.getByTestId("role-history")).toContainText("No role changes yet.");
+
+    await page.getByRole("button", { name: "Grant moderator in music" }).click();
+
+    const history = page.getByTestId("role-history");
+    await expect(history).toContainText("grant");
+    await expect(history).toContainText("moderator");
+    await expect(history).toContainText("e2e-admin");
+
+    // And the revocation lands on top of it, still without a refresh.
+    await page.getByRole("button", { name: "Revoke moderator in music" }).click();
+    await expect(history.getByRole("row")).toHaveCount(3); // header + revoke + grant
+    await expect(history).toContainText("revoke");
+  });
+
   test("a global admin manages every scope on the one page, no selector", async ({ page }) => {
     const tara = {
       userId: "u-tara",

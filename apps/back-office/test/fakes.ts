@@ -36,6 +36,8 @@ export interface FakeState {
   revokeCalls: { userId: string; scope: string; role: string }[];
   listAccountsCalls: { query: string; limit: number; offset: number; ids?: string[] }[];
   reliabilityCalls: string[];
+  /** Per-account audit listings requested, by target user id. */
+  listRoleGrantsCalls: string[];
   /** Admin session revocations requested, by target user id. */
   revokeAccountSessionsCalls: string[];
   reliability?: unknown;
@@ -102,6 +104,7 @@ export function makeFakeClients(state: Partial<FakeState> = {}): { clients: Clie
     revokeCalls: [],
     listAccountsCalls: [],
     reliabilityCalls: [],
+    listRoleGrantsCalls: [],
     revokeAccountSessionsCalls: [],
     reliability: state.reliability,
     setLocaleCalls: [],
@@ -194,7 +197,10 @@ export function makeFakeClients(state: Partial<FakeState> = {}): { clients: Clie
         s.revokeCalls.push(req);
         return {};
       },
-      listRoleGrants: async () => ({ grants: s.grants }),
+      listRoleGrants: async (req: { userId: string }) => {
+        s.listRoleGrantsCalls.push(req.userId);
+        return { grants: s.grants };
+      },
       listAccounts: async (req: { query: string; limit: number; offset: number; ids?: string[] }) => {
         s.listAccountsCalls.push(req);
         // `ids` (pre-resolved by the plan service, or a single account for the detail

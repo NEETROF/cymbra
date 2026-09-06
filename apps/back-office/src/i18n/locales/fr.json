@@ -26,6 +26,7 @@
     "pending": "En attente"
   },
   "role": {
+    "user": "utilisateur",
     "moderator": "modérateur",
     "admin": "admin"
   },

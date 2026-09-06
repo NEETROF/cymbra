@@ -166,6 +166,21 @@ export function installE2EClients(): void {
     return { userId: a.userId, handle: a.handle, displayName: a.displayName, roles };
   });
 
+  /** Append a row to the `role_grants` audit listing, as the server does on every
+   *  grant/revoke — most recent first. Without it the console's history could not be
+   *  observed to follow an action taken on the same screen. */
+  function audit(req: { userId: string; scope: string; role: string }, action: "grant" | "revoke") {
+    (data.grants ??= []).unshift({
+      targetUserId: req.userId,
+      scope: req.scope,
+      role: req.role,
+      action,
+      actingAdmin: "u1",
+      actingAdminHandle: "e2e-admin",
+      at: Math.floor(Date.now() / 1000),
+    });
+  }
+
   // Plan console state (change: add-premium-subscription). Mutable copies so grant /
   // revoke / enrol / create / close change what the next lookup or list returns.
   const campaigns: E2ECampaign[] = (data.campaigns ?? []).map((c) => ({ acceptsEnrolment: true, ...c }));
@@ -386,15 +401,24 @@ export function installE2EClients(): void {
           const rs = (acc.roles[req.scope] ??= []);
           if (!rs.includes(req.role)) rs.push(req.role);
         }
+        audit(req, "grant");
         return {};
       },
       revokeRole: async (req: { userId: string; scope: string; role: string }) => {
         failIfSet("revokeRole");
         const acc = byScope.find((a) => a.userId === req.userId);
         if (acc && acc.roles[req.scope]) acc.roles[req.scope] = acc.roles[req.scope].filter((r) => r !== req.role);
+        audit(req, "revoke");
         return {};
       },
-      listRoleGrants: async () => ({ grants: data.grants ?? [] }),
+      // Rows carrying a `targetUserId` belong to that account only, like the server's
+      // per-account audit listing.
+      listRoleGrants: async (req: { userId: string }) => ({
+        grants: (data.grants ?? []).filter((g) => {
+          const target = (g as { targetUserId?: string }).targetUserId;
+          return !target || target === req.userId;
+        }),
+      }),
       getAccount: async () => {
         failIfSet("getAccount");
         return { userId: "u1", locale: data.accountLocale };

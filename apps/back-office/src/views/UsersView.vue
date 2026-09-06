@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
+import { useI18n } from "vue-i18n";
 import { match } from "ts-pattern";
 import { PAGE_SIZE, useRolesStore } from "@/stores/roles";
 import { type PlanFilter, usePlansStore } from "@/stores/plans";
@@ -12,13 +13,14 @@ import AppTag from "@/components/AppTag.vue";
 // Admin-only (route- + server-guarded). A paginated directory of accounts with their
 // roles, plan and betas. It is a surface for FINDING an account, not for acting on one
 // (change: restructure-back-office-users-console): every per-account gesture lives on
-// `/users/{user_id}`, one click away. A `music`-only admin only ever sees `music`; a
-// `global/admin` can switch across global/music/live (change: scope-aware-role-admin).
+// `/users/{user_id}`, one click away. A `music`-only admin only ever sees `music` roles;
+// a `global/admin` sees global/music/live (change: scope-aware-role-admin).
 // All API work lives in the store; this view only matches on the Async unions.
 const store = useRolesStore();
 const plans = usePlansStore();
 const auth = useAuthStore();
 const router = useRouter();
+const { t } = useI18n();
 const filter = ref("");
 // Plan / beta criteria (change: add-premium-subscription). Only a music-scope admin
 // sees the plan columns and filters — the store also skips the badge batch otherwise.
@@ -33,22 +35,22 @@ const badges = computed(() =>
 );
 const badgeFor = (userId: string) => badges.value[userId];
 
-// The scopes this admin may administer, and the one currently selected. Default to
-// the first authorized scope; if the set changes (e.g. after refresh) and the
-// current pick is no longer valid, fall back to the first.
+// The scopes this admin may administer. The column shows them ALL rather than one
+// picked from a selector: with a selector, a bare `admin` chip could mean any scope and
+// nothing on the row said which — the operator had to remember what the selector was
+// set to. Scoping is the whole point of these roles, so it is written on the chip.
 const authorizedScopes = computed<Scope[]>(() => auth.adminScopes);
-const selectedScope = ref<Scope>(authorizedScopes.value[0] ?? ("music" as Scope));
-watch(
-  authorizedScopes,
-  (scopes) => {
-    if (!scopes.includes(selectedScope.value) && scopes.length > 0) selectedScope.value = scopes[0];
-  },
-  { immediate: true },
-);
+/** A single-scope admin needs no prefix: every chip they see is that one scope. */
+const multiScope = computed(() => authorizedScopes.value.length > 1);
 
-/** The roles an account holds in the currently selected scope. */
-function rolesInScope(account: AccountRow): string[] {
-  return account.rolesByScope.find((sr) => sr.scope === selectedScope.value)?.roles ?? [];
+/** Every role the account holds, across the scopes this admin administers. */
+function rolesOf(account: AccountRow): { key: string; label: string }[] {
+  return authorizedScopes.value.flatMap((scope) =>
+    (account.rolesByScope.find((sr) => sr.scope === scope)?.roles ?? []).map((role) => ({
+      key: `${scope}:${role}`,
+      label: multiScope.value ? `${t(`scope.${scope}`)}:${t(`role.${role}`)}` : t(`role.${role}`),
+    })),
+  );
 }
 
 const vm = computed(() =>
@@ -106,12 +108,6 @@ onMounted(() => {
   <p class="muted">{{ $t("users.intro") }}</p>
 
   <div class="filter">
-    <label v-if="authorizedScopes.length > 1" class="scope-picker">
-      {{ $t("users.scope") }}
-      <select v-model="selectedScope" :aria-label="$t('users.scope')">
-        <option v-for="s in authorizedScopes" :key="s" :value="s">{{ $t(`scope.${s}`) }}</option>
-      </select>
-    </label>
     <input
       v-model="filter"
       type="search"
@@ -164,8 +160,8 @@ onMounted(() => {
           <td>{{ a.displayName || "—" }}</td>
           <td>
             <div class="rolechips">
-              <AppTag v-for="r in rolesInScope(a)" :key="r" variant="accent" cap>{{ $t(`role.${r}`) }}</AppTag>
-              <span v-if="rolesInScope(a).length === 0" class="muted">—</span>
+              <AppTag v-for="r in rolesOf(a)" :key="r.key" variant="accent" cap>{{ r.label }}</AppTag>
+              <span v-if="rolesOf(a).length === 0" class="muted">—</span>
             </div>
           </td>
           <td v-if="showPlans" class="plan-cell">
