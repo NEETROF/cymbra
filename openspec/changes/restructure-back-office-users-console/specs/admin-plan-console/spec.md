@@ -56,6 +56,20 @@ flagged in the listing. Store and web rows MUST NOT be revocable from the consol
 the provider's side). After a successful mutation the page SHALL reflect the server's
 recomputed effective plan.
 
+**Revoking a membership SHALL NOT bar re-enrolment.** Only a *live* membership makes an
+account already a member; a revoked one does not, and enrolling again SHALL revive that
+account's single membership row for the campaign rather than adding a second. Without this,
+revoking is a one-way door — the account is out of that campaign for good, recoverable only
+by hand in the database. This does not touch the rule that reopening a **campaign** restores
+nobody who was individually revoked: that is a bulk gesture which must not resurrect a
+deliberate removal, whereas re-enrolling by name is explicit, per-person and audited.
+
+The console SHALL NOT offer to enrol an account into a campaign it is already a live member
+of: that campaign SHALL be listed with the reason rather than hidden, so an operator neither
+hunts for a campaign that is on screen nor walks into a refusal the console could predict. A
+refusal the console did not predict SHALL still read as a duplicate, never as a transient
+failure inviting a retry that cannot succeed.
+
 #### Scenario: Time-bounded grant
 
 - **WHEN** an admin grants premium to the viewed account until a date with a reason
@@ -70,6 +84,21 @@ recomputed effective plan.
 
 - **WHEN** an admin confirms a grant without an end date
 - **THEN** the row is created and marked as open-ended in every listing
+
+#### Scenario: A revoked member can be enrolled again
+
+- **WHEN** an admin enrols an account whose membership in that campaign was previously revoked
+- **THEN** the enrolment succeeds, the account's single membership row for that campaign is live again, and the act is audited
+
+#### Scenario: A live member is not offered the campaign
+
+- **WHEN** an admin opens the enrolment dialog for an account that is already a live member of an open campaign
+- **THEN** that campaign is shown as unavailable with the reason, and cannot be submitted
+
+#### Scenario: A duplicate does not read as a transient failure
+
+- **WHEN** an enrolment is refused because the account is already a member
+- **THEN** the console says so, and does not invite the operator to try again
 
 #### Scenario: Store rows are read-only
 

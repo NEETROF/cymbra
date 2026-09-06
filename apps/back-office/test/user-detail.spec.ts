@@ -177,6 +177,60 @@ describe("account detail page", () => {
     expect(state.revokeEntitlementCalls).toEqual([{ entitlementId: "e1", reason: "granted by mistake" }]);
   });
 
+  it("a campaign the account is already a live member of is offered disabled, with the reason", async () => {
+    // Enrolling into it is refused by the server (`already_member`); the console can see
+    // that coming from the memberships it is already showing.
+    const lookup = {
+      userId: "u-ada",
+      snapshot: { plan: "free", betas: [] },
+      rows: [],
+      memberships: [{ campaignKey: "midi-drums", campaignName: "MIDI drums", kind: "feature", userId: "u-ada" }],
+    };
+    const campaigns = [
+      { id: "c1", key: "midi-drums", name: "MIDI drums", kind: "feature", acceptsEnrolment: true },
+      { id: "c2", key: "spring-trial", name: "Spring trial", kind: "premium_trial", acceptsEnrolment: true },
+    ];
+    const { w } = await mountDetail("u-ada", { accounts: [ada], lookup, campaigns });
+
+    await buttonNamed(w, "Enrol in campaign")!.trigger("click");
+    await flushPromises();
+
+    const options = w.findAll("dialog option");
+    const drums = options.find((o) => o.text().includes("MIDI drums"))!;
+    expect(drums.attributes("disabled")).toBeDefined();
+    expect(drums.text()).toContain("already a member");
+    // The one it CAN join is offered, and preselected.
+    const trial = options.find((o) => o.text().includes("Spring trial"))!;
+    expect(trial.attributes("disabled")).toBeUndefined();
+    expect((w.find("dialog select").element as HTMLSelectElement).value).toBe("spring-trial");
+  });
+
+  it("a REVOKED membership does not disable its campaign — re-enrolling is the point", async () => {
+    const lookup = {
+      userId: "u-ada",
+      snapshot: { plan: "free", betas: [] },
+      rows: [],
+      memberships: [
+        {
+          campaignKey: "midi-drums",
+          campaignName: "MIDI drums",
+          kind: "feature",
+          userId: "u-ada",
+          revokedAt: "2026-08-10T00:00:00Z",
+        },
+      ],
+    };
+    const campaigns = [{ id: "c1", key: "midi-drums", name: "MIDI drums", kind: "feature", acceptsEnrolment: true }];
+    const { w } = await mountDetail("u-ada", { accounts: [ada], lookup, campaigns });
+
+    await buttonNamed(w, "Enrol in campaign")!.trigger("click");
+    await flushPromises();
+
+    const drums = w.findAll("dialog option").find((o) => o.text().includes("MIDI drums"))!;
+    expect(drums.attributes("disabled")).toBeUndefined();
+    expect(drums.text()).not.toContain("already a member");
+  });
+
   it("switching accounts never paints the previous account's rights under the new name", async () => {
     const lookup = {
       userId: "u-ada",

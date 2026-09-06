@@ -310,11 +310,51 @@ async fn enrolment_is_transactional_single_use_and_one_per_account_per_campaign(
             .any(|c| c.key == key)
     );
 
-    // Revoke + purge.
+    // Revoke, then re-enrol: the row is REVIVED (one row per account per campaign), so
+    // revoking is not a one-way door out of a campaign.
     memberships
         .revoke(campaign.id, &user.to_string(), now)
         .await
         .unwrap();
+    let later = now + Duration::days(1);
+    memberships
+        .enrol(Enrolment {
+            campaign_id: campaign.id,
+            user_id: user.to_string(),
+            enrolled_at: later,
+            ends_at: None,
+            source: MembershipSource::Admin,
+            code_id: None,
+            trial_row: None,
+        })
+        .await
+        .unwrap();
+    let ms = memberships.list_for_user(&user.to_string()).await.unwrap();
+    assert_eq!(ms.len(), 1, "revival updates the row, never adds a second");
+    assert!(ms[0].row.revoked_at.is_none());
+    assert_eq!(ms[0].row.enrolled_at, later);
+    assert_eq!(ms[0].row.source, MembershipSource::Admin);
+    // A LIVE membership is still a conflict.
+    assert!(matches!(
+        memberships
+            .enrol(Enrolment {
+                campaign_id: campaign.id,
+                user_id: user.to_string(),
+                enrolled_at: later,
+                ends_at: None,
+                source: MembershipSource::Admin,
+                code_id: None,
+                trial_row: None,
+            })
+            .await,
+        Err(AppError::AlreadyExists(_))
+    ));
+    memberships
+        .revoke(campaign.id, &user.to_string(), later)
+        .await
+        .unwrap();
+
+    // Purge.
     assert_eq!(
         code_repo.revoke_campaign(campaign.id, now).await.unwrap(),
         0

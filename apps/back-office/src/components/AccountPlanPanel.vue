@@ -134,13 +134,29 @@ async function submitGrant() {
   if (ok) modal.value = null;
 }
 
-/** Campaigns an admin may still enrol someone in (open AND accepting enrolment). */
-const enrollable = computed(() => store.openCampaigns.filter((c) => c.acceptsEnrolment));
+/** Campaigns an admin may still enrol this account in (open AND accepting enrolment),
+ *  each flagged when the account is already a LIVE member of it. Such a campaign stays
+ *  listed but disabled with the reason: hiding it leaves the operator hunting for a
+ *  campaign that is right there on the page, and offering it plainly walks them into a
+ *  refusal the console could see coming. A REVOKED membership does not disable it —
+ *  putting someone back in is exactly what an admin re-enrols for. */
+const enrollable = computed(() => {
+  const live = new Set((lookupVm.value.data?.memberships ?? []).filter((m) => !m.revokedAt).map((m) => m.campaignKey));
+  return store.openCampaigns
+    .filter((c) => c.acceptsEnrolment)
+    .map((c) => ({ key: c.key, name: c.name, kind: c.kind, taken: live.has(c.key) }));
+});
+const joinable = computed(() => enrollable.value.filter((c) => !c.taken));
 function openEnrol() {
-  enrolForm.value = { campaignKey: enrollable.value[0]?.key ?? "", reason: "" };
+  enrolForm.value = { campaignKey: joinable.value[0]?.key ?? "", reason: "" };
   modal.value = "enrol";
 }
-const enrolValid = computed(() => enrolForm.value.campaignKey !== "" && enrolForm.value.reason.trim() !== "");
+const enrolValid = computed(
+  () =>
+    enrolForm.value.campaignKey !== "" &&
+    enrolForm.value.reason.trim() !== "" &&
+    joinable.value.some((c) => c.key === enrolForm.value.campaignKey),
+);
 async function submitEnrol() {
   const f = enrolForm.value;
   const ok = report(
@@ -231,7 +247,7 @@ onMounted(() => {
           <button type="button" class="btn-primary" :disabled="acting" @click="openGrant">
             {{ t("plans.grant") }}
           </button>
-          <button type="button" :disabled="acting || enrollable.length === 0" @click="openEnrol">
+          <button type="button" :disabled="acting || joinable.length === 0" @click="openEnrol">
             {{ t("plans.enrol") }}
           </button>
           <!-- Store facts (transactions, renewals, refunds) and revenue live at the
@@ -399,8 +415,10 @@ onMounted(() => {
           {{ t("plans.campaign") }}
           <select v-model="enrolForm.campaignKey" :aria-label="t('plans.campaign')" :disabled="acting">
             <option value="" disabled>{{ t("plans.chooseCampaign") }}</option>
-            <option v-for="c in enrollable" :key="c.key" :value="c.key">
-              {{ c.name }} ({{ t(`plans.kind.${c.kind}`) }})
+            <option v-for="c in enrollable" :key="c.key" :value="c.key" :disabled="c.taken">
+              {{ c.name }} ({{ t(`plans.kind.${c.kind}`) }})<template v-if="c.taken">
+                — {{ t("plans.alreadyMember") }}</template
+              >
             </option>
           </select>
         </label>

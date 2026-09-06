@@ -564,9 +564,17 @@ impl MembershipRepo for PgMembershipRepo {
             .map_err(|err| internal("record redemption", err))?;
         }
 
-        sqlx::query(
+        // The table keeps ONE row per (campaign, user), so re-enrolling someone whose
+        // membership was revoked revives that row rather than inserting a second one.
+        // The `WHERE` keeps a LIVE membership untouched — the row count then tells us it
+        // was a genuine conflict, which is the race the service's own check cannot cover.
+        let inserted = sqlx::query(
             "INSERT INTO beta_memberships (campaign_id, user_id, enrolled_at, ends_at, source) \
-             VALUES ($1, $2, $3, $4, $5)",
+             VALUES ($1, $2, $3, $4, $5) \
+             ON CONFLICT (campaign_id, user_id) DO UPDATE SET \
+               enrolled_at = EXCLUDED.enrolled_at, ends_at = EXCLUDED.ends_at, \
+               source = EXCLUDED.source, revoked_at = NULL \
+             WHERE beta_memberships.revoked_at IS NOT NULL",
         )
         .bind(e.campaign_id)
         .bind(uid)
@@ -575,12 +583,10 @@ impl MembershipRepo for PgMembershipRepo {
         .bind(e.source.as_str())
         .execute(&mut *tx)
         .await
-        .map_err(|err| match &err {
-            sqlx::Error::Database(d) if d.is_unique_violation() => {
-                AppError::AlreadyExists("already_member".into())
-            }
-            _ => internal("insert membership", err),
-        })?;
+        .map_err(|err| internal("insert membership", err))?;
+        if inserted.rows_affected() == 0 {
+            return Err(AppError::AlreadyExists("already_member".into()));
+        }
 
         if let Some(w) = e.trial_row {
             sqlx::query(
