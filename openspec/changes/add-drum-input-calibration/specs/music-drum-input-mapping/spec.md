@@ -240,6 +240,12 @@ piece can put it back in play.
 - **WHEN** the player clears that piece's row
 - **THEN** it is neither absent nor calibrated, and is awaited again
 
+#### Scenario: Its practice controls are visibly out of reach
+- **WHEN** the per-piece practice controls list a piece the kit was said not to
+  have
+- **THEN** that row is greyed and its controls disabled, with the reason shown,
+  rather than offering a choice that would change nothing
+
 ### Requirement: Mapping Is Per Device
 
 A learned mapping SHALL be stored against the MIDI device it was learned from,

@@ -269,3 +269,6 @@
   skip/record/back over an absence
 - [ ] 14.6 On the kit: declare a piece absent, confirm Wait Mode no longer holds
   on it, that it is still drawn, and that the settings say so before playing
+- [x] 14.7 The per-piece practice list greys and disables a piece the kit was
+  said not to have, naming the reason: the run already neither awaits nor judges
+  it, so its checkbox and Solo would be controls that change nothing

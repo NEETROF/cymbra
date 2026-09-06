@@ -284,6 +284,54 @@ void main() {
     await _teardown(tester, container);
   });
 
+  testWidgets('a piece the kit does not have is greyed out and disabled in the '
+      'pieces-practised list (design D13)', (tester) async {
+    // The run already neither awaits nor judges it, so no choice on this row
+    // could change anything: checking a box cannot put a pad back on the
+    // instrument. Stating that beats offering a dead control.
+    final container = await _pumpWithModal(
+      tester,
+      document: sampleDrumDocument(),
+      midiPort: 'Drum kit',
+    );
+    container
+        .read(drumInputMappingStoreProvider.notifier)
+        .save(
+          'Drum kit',
+          DrumInputMapping(
+            const {'kitPieceSnare': 31},
+            absent: const {'kitPieceHiHat'},
+          ),
+        );
+    await _pumpFrames(tester);
+
+    Checkbox boxOf(String pieceId) => tester.widget<Checkbox>(
+      find.descendant(
+        of: find.byKey(Key('drum-focus-$pieceId')),
+        matching: find.byType(Checkbox),
+      ),
+    );
+    // Unchecked and dead — and the reason is on the row, in the words the pass
+    // asked the question with.
+    expect(boxOf('kitPieceHiHat').onChanged, isNull);
+    expect(boxOf('kitPieceHiHat').value, isFalse);
+    expect(
+      tester
+          .widget<TextButton>(
+            find.descendant(
+              of: find.byKey(const Key('drum-focus-kitPieceHiHat')),
+              matching: find.byType(TextButton),
+            ),
+          )
+          .onPressed,
+      isNull,
+    );
+    // Every other piece keeps its controls.
+    expect(boxOf('kitPieceSnare').onChanged, isNotNull);
+    expect(boxOf('kitPieceSnare').value, isTrue);
+    await _teardown(tester, container);
+  });
+
   testWidgets('close (X) keeps the current settings', (tester) async {
     final container = await _pumpWithModal(tester);
     expect(container.read(playerProvider).selectedHands, Hand.both);

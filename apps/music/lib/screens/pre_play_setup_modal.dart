@@ -665,6 +665,12 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
                   key: Key('drum-focus-${piece.id}'),
                   label: piece.label,
                   inFocus: !data.mutedDrumPieces.contains(piece.id),
+                  // A piece the kit was said not to have is already out of the
+                  // run (design D13), and no choice here can put it back: the
+                  // row states that instead of offering a control that would
+                  // change nothing.
+                  unavailable: data.unplayablePieces.contains(piece.id),
+                  unavailableLabel: l10n.calibrationSkip,
                   soloLabel: l10n.drumFocusSolo,
                   onToggle: () => data.mutedDrumPieces.contains(piece.id)
                       ? notifier.unmuteDrumPiece(piece.id)
@@ -1205,11 +1211,24 @@ class _DrumFocusRow extends StatelessWidget {
     required this.soloLabel,
     required this.onToggle,
     required this.onSolo,
+    this.unavailable = false,
+    this.unavailableLabel = '',
     super.key,
   });
 
   final String label;
   final bool inFocus;
+
+  /// The connected kit was said not to have this piece (design D13). The run
+  /// already neither awaits nor judges it, so **every control on this row is
+  /// dead**: checking it could not put a pad back on the instrument, and a
+  /// control that changes nothing is worse than one that is visibly out of
+  /// reach. Greyed and disabled, with the reason beside it.
+  final bool unavailable;
+
+  /// Why it is disabled, in the same words the pass asked the question with.
+  final String unavailableLabel;
+
   final String soloLabel;
   final VoidCallback onToggle;
   final VoidCallback onSolo;
@@ -1218,26 +1237,48 @@ class _DrumFocusRow extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     children: [
       Checkbox(
-        value: inFocus,
-        onChanged: (_) => onToggle(),
+        value: inFocus && !unavailable,
+        onChanged: unavailable ? null : (_) => onToggle(),
         activeColor: CymbraColors.tertiary,
       ),
       Expanded(
         child: GestureDetector(
-          onTap: onToggle,
+          onTap: unavailable ? null : onToggle,
           behavior: HitTestBehavior.opaque,
-          child: Text(
-            label,
-            style: TextStyle(
-              color: inFocus
-                  ? CymbraColors.onSurface
-                  : CymbraColors.onSurfaceVariant,
-              fontSize: 14,
-            ),
+          child: Row(
+            children: [
+              Flexible(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: inFocus && !unavailable
+                        ? CymbraColors.onSurface
+                        : CymbraColors.onSurfaceVariant,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              if (unavailable) ...[
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    unavailableLabel,
+                    style: const TextStyle(
+                      color: CymbraColors.onSurfaceVariant,
+                      fontSize: 12,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
       ),
-      TextButton(onPressed: onSolo, child: Text(soloLabel)),
+      TextButton(
+        onPressed: unavailable ? null : onSolo,
+        child: Text(soloLabel),
+      ),
     ],
   );
 }
