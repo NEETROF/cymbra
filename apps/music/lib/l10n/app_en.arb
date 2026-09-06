@@ -3817,6 +3817,14 @@
   "@calibrationClearAll": {
     "description": "Returns the device to uncalibrated behaviour."
   },
+  "calibrationOpenMonitor": "Watch strokes live",
+  "@calibrationOpenMonitor": {
+    "description": "Opens the MIDI monitor from the calibration surface — the raw read-out sits one level below the guided pass (design D11)."
+  },
+  "calibrationOpenMonitorHint": "When a pad is learned wrong, or fires two at once.",
+  "@calibrationOpenMonitorHint": {
+    "description": "Names what the pass cannot show: an entry learned on the wrong number, and a pad that triggers a second one (the pass records the first stroke and moves on)."
+  },
   "calibrationScoreMissing": "Not learned yet for this piece: {pieces}",
   "@calibrationScoreMissing": {
     "description": "Listed under the calibration action: the pieces THIS score writes that the connected device has no mapping entry for.",

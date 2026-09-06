@@ -109,24 +109,28 @@ SHALL ask for the auxiliary pads only after the kit itself.
 
 ### Requirement: The Pass Is Offered Where The Mapping Applies
 
-The calibration pass SHALL be offered from the settings of a percussion score
-only. The mapping states which piece of a **kit** a pad is, and the seam that
-applies it is the identity on any other score, so offering the pass on a keyboard
-score would promise a calibration that provably does nothing there. The input
-monitor, which interprets nothing and reports only what arrived, SHALL remain
-available whatever the loaded score is.
+The settings SHALL offer **one** MIDI-input entry point per score: the
+calibration pass on a percussion score, the input monitor on any other. The
+mapping states which piece of a **kit** a pad is, and the seam that applies it is
+the identity on any other score, so offering the pass on a keyboard score would
+promise a calibration that provably does nothing there; and offering the raw
+read-out beside the pass reads as an alternative to it when only one of the two
+repairs anything. The monitor SHALL remain reachable on a percussion score from
+the calibration surface itself, where a player already is when the pass did not
+settle the question.
 
 #### Scenario: A keyboard score is not offered the pass
 - **WHEN** the settings are opened on a keyboard score
-- **THEN** the calibration pass is not offered
+- **THEN** the calibration pass is not offered, and the monitor is
 
 #### Scenario: A percussion score is offered the pass
 - **WHEN** the settings are opened on a percussion score
-- **THEN** the calibration pass is offered
+- **THEN** the calibration pass is offered, and the monitor is not listed beside
+  it
 
-#### Scenario: The monitor is offered either way
-- **WHEN** the settings are opened on a score of any kind
-- **THEN** the input monitor is offered
+#### Scenario: The monitor stays one level down
+- **WHEN** the calibration surface is open
+- **THEN** the monitor can be reached from it
 
 ### Requirement: The Settings Name What This Score Has Yet To Teach
 

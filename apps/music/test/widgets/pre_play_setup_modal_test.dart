@@ -181,16 +181,18 @@ void main() {
     await _teardown(tester, container);
   });
 
-  testWidgets('the kit calibration is offered on a percussion score only — the '
-      'monitor on both', (tester) async {
-    // Change: add-drum-input-calibration (design D8). The mapping states "this
-    // pad is the snare", and the seam that applies it is the identity on
-    // anything that is not a percussion score: offering the pass on a keyboard
-    // score would promise a calibration that provably does nothing there.
+  testWidgets('one MIDI-input door per score: the pass on percussion, the '
+      'monitor on a keyboard', (tester) async {
+    // Change: add-drum-input-calibration (designs D8 and D11). The mapping
+    // states "this pad is the snare", and the seam that applies it is the
+    // identity on anything that is not a percussion score: offering the pass on
+    // a keyboard score would promise a calibration that provably does nothing.
     //
-    // The monitor is the other half of the rule and stays everywhere: it
-    // interprets nothing, it reports what arrived, and "nothing is arriving at
-    // all" is an answer a pianist needs just as much.
+    // The monitor is not offered beside it on a percussion score either — it
+    // moved one level down, into the calibration surface. Two entries here read
+    // as alternatives, and only one of them repairs anything. On a keyboard
+    // score, where there is no pass, it stays: it is then the only answer to
+    // "nothing is arriving at all".
     final keyboard = await _pumpWithModal(tester);
     expect(keyboard.read(playerProvider).isPercussion, isFalse);
     expect(find.byKey(const Key('open-midi-monitor')), findsOneWidget);
@@ -199,8 +201,8 @@ void main() {
 
     final drums = await _pumpWithModal(tester, document: sampleDrumDocument());
     expect(drums.read(playerProvider).isPercussion, isTrue);
-    expect(find.byKey(const Key('open-midi-monitor')), findsOneWidget);
     expect(find.byKey(const Key('open-drum-calibration')), findsOneWidget);
+    expect(find.byKey(const Key('open-midi-monitor')), findsNothing);
     await _teardown(tester, drums);
   });
 

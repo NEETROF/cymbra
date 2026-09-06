@@ -1034,42 +1034,51 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
         // Its own route, not a section here: this modal pauses the session while
         // it is open, which is exactly wrong for a surface whose purpose is
         // watching live input.
-        Padding(
-          padding: const EdgeInsets.only(top: 8),
-          child: ListTile(
-            key: const Key('open-midi-monitor'),
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(
-              Icons.graphic_eq,
-              color: CymbraColors.onSurfaceVariant,
-            ),
-            title: Text(
-              l10n.midiMonitorOpen,
-              style: const TextStyle(color: CymbraColors.onSurface),
-            ),
-            subtitle: Text(
-              l10n.midiMonitorOpenHint,
-              style: const TextStyle(
-                color: CymbraColors.onSurfaceVariant,
-                fontSize: 12,
-              ),
-            ),
-            trailing: const Icon(
-              Icons.chevron_right,
-              color: CymbraColors.onSurfaceVariant,
-            ),
-            onTap: () => openMidiMonitor(context),
-          ),
-        ),
-        // The calibration pass and the mapping it produces (change:
-        // add-drum-input-calibration). Beside the monitor because they answer
-        // the same question in sequence: the monitor shows what the kit sends,
-        // this tells the app what it means.
         //
-        // Percussion only, unlike the monitor: the mapping says "this pad is
-        // the snare", and the seam that applies it is identity on anything that
-        // is not a percussion score (design D8). Offering it on a keyboard score
-        // would promise a calibration that provably does nothing there.
+        // **One door per score** (design D11): on a percussion score the raw
+        // read-out sits one level down, inside the calibration surface — there
+        // the guided pass is the answer to "my pad does nothing", and offering
+        // both here side by side made the diagnostic look like an alternative
+        // to the repair. On a keyboard score there is no pass, so this is the
+        // only thing standing between a silent instrument and a shrug.
+        if (!data.isPercussion)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: ListTile(
+              key: const Key('open-midi-monitor'),
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(
+                Icons.graphic_eq,
+                color: CymbraColors.onSurfaceVariant,
+              ),
+              title: Text(
+                l10n.midiMonitorOpen,
+                style: const TextStyle(color: CymbraColors.onSurface),
+              ),
+              subtitle: Text(
+                l10n.midiMonitorOpenHint,
+                style: const TextStyle(
+                  color: CymbraColors.onSurfaceVariant,
+                  fontSize: 12,
+                ),
+              ),
+              trailing: const Icon(
+                Icons.chevron_right,
+                color: CymbraColors.onSurfaceVariant,
+              ),
+              onTap: () => openMidiMonitor(context),
+            ),
+          ),
+        // The calibration pass and the mapping it produces (change:
+        // add-drum-input-calibration). It replaces the monitor on a percussion
+        // score rather than joining it: the two answer the same question in
+        // sequence — what the kit sends, then what it means — and only the
+        // second one repairs anything.
+        //
+        // Percussion only: the mapping says "this pad is the snare", and the
+        // seam that applies it is identity on anything that is not a percussion
+        // score (design D8). Offering it on a keyboard score would promise a
+        // calibration that provably does nothing there.
         if (data.isPercussion) ...[
           Padding(
             padding: const EdgeInsets.only(top: 4),

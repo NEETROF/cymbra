@@ -865,6 +865,8 @@
   "calibrationMappingWouldMean": "{number} normalmente significa {name}",
   "calibrationClearPiece": "Cancella",
   "calibrationClearAll": "Cancella la calibrazione di questa batteria",
+  "calibrationOpenMonitor": "Vedi i colpi in diretta",
+  "calibrationOpenMonitorHint": "Quando un pad viene appreso male o ne attiva due insieme.",
   "calibrationScoreMissing": "Non ancora appresi per questo brano: {pieces}",
   "calibrationScoreComplete": "Tutti gli elementi di questo brano sono appresi.",
   "midiMonitorTranslated": "il tuo {raw} → letto come {mapped}",

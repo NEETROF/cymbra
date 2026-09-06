@@ -113,6 +113,34 @@ is already the snare's, the pass says so — because on a real kit that means th
 player hit the wrong pad, and quietly reassigning it would produce a mapping that
 is wrong in two places at once.
 
+### D11 — One MIDI-input door per score; the raw read-out sits below the pass
+
+*Raised by the product owner looking at the settings after D9/D10: "the monitor
+serves no purpose now that each piece can be calibrated one by one."* Nearly
+right, and the fix is placement rather than deletion.
+
+What the pass genuinely made redundant is the monitor as a **first** step: a
+drummer no longer needs to read raw numbers to find out what their pads send —
+the pass asks for each piece by name and records it. What the pass structurally
+cannot show is the rest:
+
+- **A double trigger.** A rim that also fires its head sends two events; the pass
+  records the first and advances, so the collision passes through it invisibly.
+  The monitor shows both lines — this is the trap `tasks.md` §9.3 warns about.
+- **A mapping that is *wrong*.** The table shows what is stored; the monitor
+  shows what actually happens, stroke by stroke (`your 26 → read as 46`).
+- **Velocity, channel, note-off.** A pad sending velocity 0, a module on an
+  unusual channel, a kit that sends no note-off: no piece list ever shows these.
+- **A keyboard.** Since D8 the pass is percussion-only, so for a pianist whose
+  instrument is silent the monitor is the *only* diagnostic in the app.
+
+So: the settings offer exactly one MIDI-input entry per score — the pass on
+percussion, the monitor on anything else — and on a percussion score the monitor
+moves one level down, to the bottom of the calibration surface, labelled for what
+it is there ("Watch strokes live — when a pad is learned wrong, or fires two at
+once"). A player meets the repair first and the diagnostic exactly where the
+repair stops explaining things.
+
 ### D10 — …reversed: the pass calibrates the loaded score's kit (supersedes D7)
 
 *Decided by the product owner after running D9's pass on the kit.* D7 reasoned

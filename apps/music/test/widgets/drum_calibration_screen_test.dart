@@ -16,6 +16,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/screens/drum_calibration_screen.dart';
+import 'package:music/screens/midi_monitor_screen.dart';
 import 'package:music/services/audio_service.dart';
 import 'package:music/services/midi_service.dart';
 import 'package:music/services/notation_engine.dart';
@@ -245,6 +246,19 @@ void main() {
     expect(container.read(drumCalibrationProvider).recorded, {
       'kitPieceSnare': 12,
     });
+    await teardown(tester);
+  });
+
+  testWidgets('the raw read-out is reachable from here (design D11)', (
+    tester,
+  ) async {
+    // It left the settings, where it read as an alternative to calibrating.
+    // This is where a drummer already is when the pass did not fix it — a pad
+    // learned on the wrong number, or one that fires a second one.
+    await pump(tester);
+    expect(find.byKey(const Key('calibration-open-monitor')), findsOneWidget);
+    await tap(tester, 'calibration-open-monitor');
+    expect(find.byType(MidiMonitorScreen), findsOneWidget);
     await teardown(tester);
   });
 

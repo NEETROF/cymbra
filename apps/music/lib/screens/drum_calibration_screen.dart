@@ -23,6 +23,7 @@ import '../state/drum_kit.dart';
 import '../state/midi_status_notifier.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/kit_piece_labels.dart';
+import 'midi_monitor_screen.dart';
 
 /// Opens the kit calibration surface (change: add-drum-input-calibration).
 ///
@@ -304,6 +305,39 @@ class _MappingTable extends ConsumerWidget {
             child: Text(l10n.calibrationClearAll),
           ),
         ],
+        const Divider(height: 32, color: CymbraColors.outlineVariant),
+        // The raw read-out, one level below the guided pass (design D11).
+        //
+        // Here rather than in the settings because this is where a drummer has
+        // already been sent, and because what it answers is what the pass
+        // cannot: a pad learned on the wrong number, a rim that fires its head
+        // too — the pass records the first stroke and moves on, so a double
+        // trigger passes through it invisibly — and a velocity, a channel or a
+        // missing note-off no piece list ever shows.
+        ListTile(
+          key: const Key('calibration-open-monitor'),
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(
+            Icons.graphic_eq,
+            color: CymbraColors.onSurfaceVariant,
+          ),
+          title: Text(
+            l10n.calibrationOpenMonitor,
+            style: const TextStyle(color: CymbraColors.onSurface),
+          ),
+          subtitle: Text(
+            l10n.calibrationOpenMonitorHint,
+            style: const TextStyle(
+              color: CymbraColors.onSurfaceVariant,
+              fontSize: 12,
+            ),
+          ),
+          trailing: const Icon(
+            Icons.chevron_right,
+            color: CymbraColors.onSurfaceVariant,
+          ),
+          onTap: () => openMidiMonitor(context),
+        ),
       ],
     );
   }

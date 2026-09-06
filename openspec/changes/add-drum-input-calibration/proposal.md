@@ -25,10 +25,11 @@ and cannot **tell the app** what it means.
 - **A MIDI input monitor** (Music app): a live read-out of incoming events —
   note number, the General MIDI name the app resolves it to, velocity, channel,
   and whether it resolves to a piece of the loaded score's kit or to nothing at
-  all. Reachable from the MIDI device section of the settings, works with no
-  score loaded, and is instrument-agnostic (a keyboard shows note names). This is
-  a diagnostic, not a mapping: it makes the invisible visible and nothing else,
-  and it ships on its own.
+  all. Reachable from the MIDI device section of the settings on a keyboard
+  score and from the calibration surface on a percussion one (design D11), works
+  with no score loaded, and is instrument-agnostic (a keyboard shows note names).
+  This is a diagnostic, not a mapping: it makes the invisible visible and nothing
+  else, and it ships on its own.
 - **A calibration pass** (Music app): a guided sequence — "hit your snare",
   "hit your hi-hat" — that records the number each pad sends and stores a
   **mapping for that device**. Skippable per piece (a kit with no China does not

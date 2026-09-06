@@ -224,3 +224,13 @@
   fallback; the coverage line shrinks as pieces are learned and turns positive
 - [ ] 11.6 On the kit: open a groove, confirm the pass asks only for its pieces
   and that the settings' "not learned yet" line matches what the kit still owes
+
+## 12. One door per score (D11)
+
+- [x] 12.1 The settings offer the monitor on a keyboard score only — the pass
+  replaces it on percussion instead of standing beside it
+- [x] 12.2 The monitor moves to the foot of the calibration surface, labelled for
+  what it answers there (a pad learned wrong, a pad firing two at once), fr/en/
+  es/it
+- [x] 12.3 Tests: one entry point per score type, and the monitor opens from the
+  calibration surface
