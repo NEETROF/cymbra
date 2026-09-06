@@ -34,3 +34,21 @@ export async function run<T>(ref: Ref<Async<T>>, fn: () => Promise<T>): Promise<
   }
   return ref.value;
 }
+
+/**
+ * Re-read into an `Async` ref **without regressing to `loading`**: whatever is on screen
+ * stays until the new value lands. For a re-read that follows an action the user just
+ * took, `run` is the wrong fold — the momentary `loading` unmounts everything the view
+ * renders from the data, so the document collapses, the browser clamps the scroll back
+ * to the top, and child components remount (re-issuing their own fetches). An INITIAL
+ * load still uses `run`: there is nothing to keep, and `loading` is then the honest
+ * state. A failure still lands in the union, replacing the stale value.
+ */
+export async function reread<T>(ref: Ref<Async<T>>, fn: () => Promise<T>): Promise<Async<T>> {
+  try {
+    ref.value = success(await fn());
+  } catch (e) {
+    ref.value = failure(humanError(e));
+  }
+  return ref.value;
+}

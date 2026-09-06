@@ -65,7 +65,9 @@ re-identify the same person on a second screen. It SHALL show the account's iden
 A role change made on the page SHALL re-read **both** the account's roles and its audit
 history: the change writes a row to the audit trail shown on that same screen, and leaving
 the history a page-refresh behind the action the operator just took makes the trail read as
-if the change had not happened.
+if the change had not happened. That re-read SHALL keep the page on screen — it MUST NOT
+fall back to a loading state, which would unmount the page under the operator, discard
+their scroll position and remount (and re-fetch) the subscription panel.
 
 The page SHALL be **addressable and self-sufficient**: opening the URL directly, reloading it,
 or arriving from a link SHALL load the account (by its id) without requiring the directory
@@ -86,6 +88,11 @@ page to have been visited first. An unknown or malformed id SHALL show a localiz
 
 - **WHEN** an admin grants, then revokes, a role from the detail page
 - **THEN** each change appears in that account's role history immediately, with no page refresh
+
+#### Scenario: The page does not move under the operator
+
+- **WHEN** an admin scrolls to the roles of a long account page and grants a role
+- **THEN** the page stays where it was, keeps showing the account throughout, and the subscription is not re-fetched
 
 #### Scenario: Multi-scope admin sees every scope at once
 

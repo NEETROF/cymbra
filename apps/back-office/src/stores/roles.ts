@@ -1,7 +1,7 @@
 import { reactive, ref } from "vue";
 import { defineStore } from "pinia";
 import { api } from "@/lib/api";
-import { type Async, idle, run } from "@/lib/async";
+import { type Async, idle, reread, run } from "@/lib/async";
 import { type PlanFilter, usePlansStore } from "@/stores/plans";
 import { useAuthStore } from "@/stores/auth";
 import type { AccountRow, RoleGrant } from "@/gen/user_pb";
@@ -75,11 +75,12 @@ export const useRolesStore = defineStore("roles", () => {
   /** Load a single account by id, so `/users/{id}` stands on its own: a deep link, a
    *  reload or a link from elsewhere must not depend on the directory page having been
    *  visited. Reuses the directory's `ids` filter — no extra RPC. */
-  async function loadAccount(userId: string) {
-    await run(account, async () => {
+  async function loadAccount(userId: string, keepPrevious = false) {
+    const fetch = async () => {
       const resp = await api().user.listAccounts({ query: "", limit: 1, offset: 0, ids: [userId] });
       return resp.accounts[0] ?? null;
-    });
+    };
+    await (keepPrevious ? reread : run)(account, fetch);
   }
 
   /** Drop every per-account resource. Called when the detail page switches accounts:
@@ -92,8 +93,9 @@ export const useRolesStore = defineStore("roles", () => {
   }
 
   /** Per-account audit history, most recent first. */
-  async function listGrants(userId: string) {
-    await run(grants, async () => (await api().user.listRoleGrants({ userId })).grants);
+  async function listGrants(userId: string, keepPrevious = false) {
+    const fetch = async () => (await api().user.listRoleGrants({ userId })).grants;
+    await (keepPrevious ? reread : run)(grants, fetch);
   }
 
   /** Load a user's curator reliability (read-only; server enforces moderator/admin). */
@@ -109,7 +111,11 @@ export const useRolesStore = defineStore("roles", () => {
   type Refresh = "list" | "account";
   const refresh = async (what: Refresh, userId: string) => {
     if (what === "list") return list();
-    await Promise.all([loadAccount(userId), listGrants(userId)]);
+    // `keepPrevious`: the detail page is re-read UNDER the operator, who is looking at
+    // it. Regressing to `loading` unmounts the page, loses their scroll position and
+    // remounts the subscription panel (which then re-fetches) — one clicked toggle, and
+    // they are back at the top of the page.
+    await Promise.all([loadAccount(userId, true), listGrants(userId, true)]);
   };
 
   async function grant(userId: string, role: string, scope: string, after: Refresh = "list") {

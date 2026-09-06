@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { flushPromises } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { PAGE_SIZE, useRolesStore } from "@/stores/roles";
 import { useAuthStore } from "@/stores/auth";
@@ -238,6 +239,50 @@ describe("roles store", () => {
     await store.revoke("u1", "moderator", "music", "account");
 
     expect(state.listRoleGrantsCalls).toEqual(["u1", "u1", "u1"]);
+  });
+
+  it("a refresh after an action keeps the account on screen instead of collapsing to loading", async () => {
+    // `run` folds through `loading`, which is right for an initial load and wrong for a
+    // re-read under an operator who is looking at the page: the view unmounts everything
+    // it renders from the data, the document collapses, the browser clamps the scroll
+    // back to the top and child panels remount (re-issuing their own fetches).
+    const accounts = [{ userId: "u1", handle: "ada", rolesByScope: [{ scope: "music", roles: [] }] }];
+    const { clients } = makeFakeClients({ accounts });
+    setClientsForTest(clients);
+    const store = useRolesStore();
+    await store.loadAccount("u1");
+    await store.listGrants("u1");
+
+    // Hold the re-read open and look at what the page would be rendering meanwhile.
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const user = clients.user as unknown as { listAccounts: (r: unknown) => Promise<unknown> };
+    const realList = user.listAccounts;
+    user.listAccounts = async (r: unknown) => {
+      await gate;
+      return realList(r);
+    };
+
+    const pending = store.grant("u1", "moderator", "music", "account");
+    await flushPromises();
+
+    expect(store.account.status).toBe("success");
+    expect(store.grants.status).toBe("success");
+
+    release();
+    await pending;
+    expect(store.account.status).toBe("success");
+  });
+
+  it("an INITIAL account load still shows loading — there is nothing to keep", async () => {
+    const { clients } = makeFakeClients({ accounts: [{ userId: "u1", rolesByScope: [] }] });
+    setClientsForTest(clients);
+    const store = useRolesStore();
+
+    const pending = store.loadAccount("u1");
+    expect(store.account.status).toBe("loading");
+    await pending;
+    expect(store.account.status).toBe("success");
   });
 
   it("a directory-page role change does NOT read a per-account history", async () => {

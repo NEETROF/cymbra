@@ -213,6 +213,27 @@ test.describe("account detail: roles, history, reliability, sessions", () => {
     await expect(history).toContainText("revoke");
   });
 
+  test("granting a role keeps the operator where they were on the page", async ({ page }) => {
+    // The refresh after the action used to fold the account back through `loading`: the
+    // page unmounted, the document collapsed to a couple of lines, the browser clamped
+    // the scroll to the top — and the subscription panel remounted and re-fetched.
+    await seed(page, { loginAs: "global-admin", data: { ...data, accounts: [ada] } });
+    await page.setViewportSize({ width: 1280, height: 420 });
+    await page.goto("/users/u-ada");
+    await expect(page.getByTestId("role-history")).toBeVisible();
+
+    await page.getByRole("button", { name: "Grant moderator in music" }).scrollIntoViewIfNeeded();
+    const before = await page.evaluate(() => window.scrollY);
+    expect(before).toBeGreaterThan(0);
+
+    await page.getByRole("button", { name: "Grant moderator in music" }).click();
+    await expect(page.getByRole("button", { name: "Revoke moderator in music" })).toBeVisible();
+
+    // Same place, and the page never blanked out under them.
+    expect(await page.evaluate(() => window.scrollY)).toBe(before);
+    await expect(page.getByTestId("effective-plan")).toBeVisible();
+  });
+
   test("a global admin manages every scope on the one page, no selector", async ({ page }) => {
     const tara = {
       userId: "u-tara",
