@@ -113,6 +113,37 @@ is already the snare's, the pass says so — because on a real kit that means th
 player hit the wrong pad, and quietly reassigning it would produce a mapping that
 is wrong in two places at once.
 
+### D12 — The table is the score's kit, not the stored rows; a pass may cover part of it
+
+*Raised by the product owner from a screenshot: four learned pads listed above
+"Recommencer", on a groove that needs nine — "the user does not understand what
+they are supposed to do here."* Exactly right, and the reason is that the table
+answered a question nobody arrives with. Someone opens this surface because
+something did not respond; listing what already works says nothing about the
+five pieces that do not.
+
+So the rows are now **the score's calibration targets**, learned or not, each
+missing one saying so where its mapping line would be — and the actions are
+"calibrate the N missing" (the ordinary answer for someone coming back) and
+"start over". The second is offered only when it differs from the first.
+
+That forces a semantics the pass did not have. It used to store *what it
+learned* as the device's whole table, which was harmless while it walked the
+whole standard kit and became **destructive the moment D10 scoped it to a
+score**: calibrating a three-piece groove would have erased the toms learned
+from another one. A pass now carries the device's stored table into its state
+(`CalibrationState.known`), so:
+
+- what it never asked about survives it, by construction rather than by a merge
+  step someone must remember;
+- a number an untouched piece already holds still **collides**, which a merge
+  after the fact could not have caught — a partial pass would otherwise have
+  handed one number to two pieces in silence;
+- `dropped` exists because `recorded` can add but not remove: "this kit has
+  none" on a piece that *was* learned takes its entry away rather than leaving
+  the contradiction standing, and so does reassigning its number to another
+  piece.
+
 ### D11 — One MIDI-input door per score; the raw read-out sits below the pass
 
 *Raised by the product owner looking at the settings after D9/D10: "the monitor

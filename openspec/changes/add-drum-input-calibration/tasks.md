@@ -234,3 +234,20 @@
   es/it
 - [x] 12.3 Tests: one entry point per score type, and the monitor opens from the
   calibration surface
+
+## 13. The table is the score's kit (D12)
+
+- [x] 13.1 `_MappingTable` lists the score's calibration targets, learned or not,
+  with a "not calibrated yet" marker where the mapping line would be; entries
+  outside this score are counted, never silently cleared
+- [x] 13.2 Two ways in: "calibrate the N missing" and "start over", the first
+  only when it differs from the second
+- [x] 13.3 `CalibrationState.known` / `dropped`: a pass carries the device's
+  table, so a partial pass keeps what it never asked about, collides against
+  stored numbers, and can take an entry away ("this kit has none", reassign)
+- [x] 13.4 Tests: the table lists missing pieces and counts the rest; the partial
+  pass asks only for the gaps and erases nothing; conflicts against stored
+  entries; skip and back over a stored entry
+- [ ] 13.5 On the kit: open the groove from the screenshot and confirm the table
+  names the nine pieces, and that calibrating the five missing ones keeps the
+  four already learned

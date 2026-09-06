@@ -106,12 +106,34 @@ class DrumCalibration extends _$DrumCalibration {
   /// stores exactly like reaching the last step does.
   void finish() => _apply(state.finish());
 
-  /// Begins a pass (or begins one again), discarding anything an earlier pass
-  /// in this session had learned but not stored. Armed against the events seen
-  /// so far, so the stroke that opened the screen cannot answer the first step,
-  /// and asking for the score that is loaded **now**.
-  void start() =>
-      state = CalibrationState(pieces: _targets()).start(atMs: _lastSeenMs);
+  /// Begins a pass over every piece the loaded score asks for (or begins one
+  /// again), discarding anything an earlier pass in this session had learned
+  /// but not stored. Armed against the events seen so far, so the stroke that
+  /// opened the screen cannot answer the first step, and asking for the score
+  /// that is loaded **now**.
+  void start() => _begin(_targets());
+
+  /// Begins a pass over only the pieces this score asks for that this device
+  /// has no entry for (design D12) — the ordinary answer for a player who came
+  /// back for the two pads they skipped, and who must not have to re-play the
+  /// seven that already work.
+  void startMissing() {
+    final known = _known();
+    final missing = [
+      for (final id in _targets())
+        if (!known.containsKey(id)) id,
+    ];
+    _begin(missing.isEmpty ? _targets() : missing);
+  }
+
+  /// The device's stored table. Carried into the pass rather than merged after
+  /// it: a pass over a subset of the kit that stored only what it asked about
+  /// would erase every piece it did not (design D12).
+  Map<String, int> _known() => ref.read(activeDrumMappingProvider).byPiece;
+
+  void _begin(List<String> pieces) => state = CalibrationState(
+    pieces: pieces,
+  ).start(atMs: _lastSeenMs, known: _known());
 
   void _apply(CalibrationState next) {
     if (identical(next, state)) return;

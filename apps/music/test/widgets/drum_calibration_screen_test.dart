@@ -249,6 +249,95 @@ void main() {
     await teardown(tester);
   });
 
+  testWidgets('the table lists this score\'s kit, calibrated or not, and counts '
+      'what was learned elsewhere (design D12)', (tester) async {
+    // The screenshot that started this: four learned pads listed on a groove
+    // that needs nine, and no word about the five missing — which are the ones
+    // the player came here for.
+    await pump(tester, document: sampleDrumDocument());
+    container.read(drumInputMappingStoreProvider.notifier)
+      ..setPiece('Drum kit', kKickPieceId, 12)
+      ..setPiece('Drum kit', 'kitPieceCrash', 91); // another score's kit
+    await tester.pump();
+
+    // The three pieces this groove writes, learned or not.
+    expect(find.byKey(Key('calibration-row-$kKickPieceId')), findsOneWidget);
+    expect(
+      find.byKey(const Key('calibration-row-kitPieceSnare')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('calibration-row-kitPieceHiHat')),
+      findsOneWidget,
+    );
+    // …and the two with no entry say so, where the mapping line would be.
+    expect(
+      find.byKey(const Key('calibration-row-missing-kitPieceSnare')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('calibration-row-missing-kitPieceHiHat')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(Key('calibration-row-missing-$kKickPieceId')),
+      findsNothing,
+    );
+    // The crash belongs to no piece of this score: counted, not listed — so
+    // "clear this kit's calibration" never removes something invisible.
+    expect(
+      find.byKey(const Key('calibration-row-kitPieceCrash')),
+      findsNothing,
+    );
+    expect(find.byKey(const Key('calibration-elsewhere')), findsOneWidget);
+    await teardown(tester);
+  });
+
+  testWidgets('calibrating what is missing asks for those only, and keeps '
+      'every piece it never asked about', (tester) async {
+    await pump(tester, document: sampleDrumDocument());
+    container.read(drumInputMappingStoreProvider.notifier)
+      ..setPiece('Drum kit', kKickPieceId, 12)
+      ..setPiece('Drum kit', 'kitPieceCrash', 91);
+    await tester.pump();
+
+    await tap(tester, 'calibration-start-missing');
+    expect(container.read(drumCalibrationProvider).pieces, [
+      'kitPieceSnare',
+      'kitPieceHiHat',
+    ]);
+
+    await strike(tester, 31);
+    await strike(tester, 22);
+    // Two strokes end it — and the kick and the crash, which this pass never
+    // asked about, are still there. Storing only what a subset pass learned
+    // would have erased both.
+    expect(
+      container
+          .read(drumInputMappingStoreProvider.notifier)
+          .forPort('Drum kit')
+          .byPiece,
+      {
+        kKickPieceId: 12,
+        'kitPieceCrash': 91,
+        'kitPieceSnare': 31,
+        'kitPieceHiHat': 22,
+      },
+    );
+    await teardown(tester);
+  });
+
+  testWidgets('with nothing learned yet there is one way to start, not two', (
+    tester,
+  ) async {
+    // "Calibrate the missing ones" and "start over" would be the same pass
+    // under two names, which is a question the player answers for nothing.
+    await pump(tester, document: sampleDrumDocument());
+    expect(find.byKey(const Key('calibration-start')), findsOneWidget);
+    expect(find.byKey(const Key('calibration-start-missing')), findsNothing);
+    await teardown(tester);
+  });
+
   testWidgets('the raw read-out is reachable from here (design D11)', (
     tester,
   ) async {

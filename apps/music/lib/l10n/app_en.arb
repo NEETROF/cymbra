@@ -3781,6 +3781,32 @@
   "@calibrationMappingTitle": {
     "description": "The review table of the stored mapping."
   },
+  "calibrationScoreKitTitle": "This score's kit",
+  "@calibrationScoreKitTitle": {
+    "description": "Header of the calibration table when a percussion score is loaded: the rows are that score\u2019s pieces, learned or not."
+  },
+  "calibrationRowMissing": "Not calibrated yet",
+  "@calibrationRowMissing": {
+    "description": "Row subtitle for a piece of this score the connected device has no entry for."
+  },
+  "calibrationStartMissing": "{count, plural, =1{Calibrate the missing one} other{Calibrate the {count} missing}}",
+  "@calibrationStartMissing": {
+    "description": "Primary action when some of the score\u2019s pieces are calibrated and others are not: a pass over the missing ones only.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "calibrationLearnedElsewhere": "{count, plural, =1{1 more piece learned on this kit, outside this score.} other{{count} more pieces learned on this kit, outside this score.}}",
+  "@calibrationLearnedElsewhere": {
+    "description": "Counts entries stored for this device that belong to no piece of the loaded score, so clearing the kit never removes something the screen never showed.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "calibrationMappingEmpty": "This kit is not calibrated. Every note is read exactly as it arrives.",
   "@calibrationMappingEmpty": {
     "description": "Empty state of the review table — which is also the uncalibrated behaviour."

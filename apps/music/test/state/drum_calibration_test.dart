@@ -206,6 +206,66 @@ void main() {
     });
   });
 
+  group('a pass over part of the kit (design D12)', () {
+    test('what the device already knew is carried through, not erased', () {
+      // The pass now covers a subset — this score's pieces, or only the ones
+      // missing from it — so storing what it learned ALONE would take away
+      // every piece it never asked about.
+      var s = CalibrationState(
+        pieces: const ['kitPieceHiHat'],
+      ).start(atMs: 0, known: const {'kitPieceSnare': 31, 'kitPieceCrash': 91});
+      s = s.afterStroke(22, atMs: 100);
+      expect(s.outcome, CalibrationOutcome.completed);
+      expect(s.mapping.byPiece, {
+        'kitPieceSnare': 31,
+        'kitPieceCrash': 91,
+        'kitPieceHiHat': 22,
+      });
+    });
+
+    test('a number an untouched piece already holds still collides', () {
+      // Without this a partial pass hands one number to two pieces in silence —
+      // exactly the failure the conflict rule exists to prevent (design D4).
+      var s = CalibrationState(
+        pieces: const ['kitPieceHiHat'],
+      ).start(atMs: 0, known: const {'kitPieceSnare': 31});
+      s = s.afterStroke(31, atMs: 100);
+      expect(
+        s.conflict,
+        const CalibrationConflict(number: 31, heldBy: 'kitPieceSnare'),
+      );
+      // The step has not moved on, and nothing was silently reassigned.
+      expect(s.currentPiece, 'kitPieceHiHat');
+      expect(s.mapping.byPiece, {'kitPieceSnare': 31});
+    });
+
+    test('reassigning takes the number off the stored piece that held it', () {
+      var s = CalibrationState(
+        pieces: const ['kitPieceHiHat'],
+      ).start(atMs: 0, known: const {'kitPieceSnare': 31});
+      s = s.afterStroke(31, atMs: 100).reassign(atMs: 200);
+      // One number, one piece — the snare's stale entry goes with it.
+      expect(s.mapping.byPiece, {'kitPieceHiHat': 31});
+    });
+
+    test('"this kit has none" takes away the entry that piece held', () {
+      var s = CalibrationState(
+        pieces: const ['kitPieceRide'],
+      ).start(atMs: 0, known: const {'kitPieceRide': 51, 'kitPieceSnare': 31});
+      s = s.skip(atMs: 100);
+      expect(s.mapping.byPiece, {'kitPieceSnare': 31});
+    });
+
+    test('stepping back onto a skipped piece puts its entry back in play', () {
+      var s = CalibrationState(
+        pieces: const ['kitPieceRide', 'kitPieceCrash'],
+      ).start(atMs: 0, known: const {'kitPieceRide': 51});
+      s = s.skip(atMs: 100).back(atMs: 200);
+      expect(s.currentPiece, 'kitPieceRide');
+      expect(s.mapping.byPiece, {'kitPieceRide': 51});
+    });
+  });
+
   group('finishing early (design D9)', () {
     test('keeps what the pass learned and completes it', () {
       // The counterpart of abandoning: the list runs past most kits, so a

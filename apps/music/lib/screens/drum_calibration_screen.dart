@@ -21,6 +21,7 @@ import '../state/drum_calibration_notifier.dart';
 import '../state/drum_input_mapping_notifier.dart';
 import '../state/drum_kit.dart';
 import '../state/midi_status_notifier.dart';
+import '../state/player_notifier.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/kit_piece_labels.dart';
 import 'midi_monitor_screen.dart';
@@ -228,9 +229,15 @@ class _Conflict extends StatelessWidget {
   }
 }
 
-/// The stored mapping, piece by piece — and what each number would otherwise
-/// have meant, so an entry recorded from the wrong pad is visible rather than
-/// merely wrong.
+/// **This score's kit**, piece by piece: what each pad sends, what that number
+/// would otherwise have meant — so an entry recorded from the wrong pad is
+/// visible rather than merely wrong — and, just as loudly, the pieces with no
+/// entry at all.
+///
+/// Listing only what was already learned (design D12) answered the question
+/// nobody asks. A player arrives here because something did not respond, and a
+/// table of four learned pads on a groove that needs nine says nothing about
+/// the five that are missing — which are exactly the ones they came for.
 class _MappingTable extends ConsumerWidget {
   const _MappingTable({required this.port, required this.justFinished});
 
@@ -243,15 +250,37 @@ class _MappingTable extends ConsumerWidget {
     final mapping = ref.watch(activeDrumMappingProvider);
     final store = ref.read(drumInputMappingStoreProvider.notifier);
     final calibration = ref.read(drumCalibrationProvider.notifier);
-    // Listed in the pass's own order, so the table and the pass read the same
-    // way — and any entry from a build that knew more pieces still shows, at
-    // the end, rather than silently disappearing.
-    final ordered = [
-      for (final id in kCalibrationPieceOrder)
-        if (mapping.byPiece.containsKey(id)) id,
-      for (final id in mapping.byPiece.keys)
-        if (!kCalibrationPieceOrder.contains(id)) id,
+    // `read`: this route sits on top of the player, so the loaded score cannot
+    // change underneath it — and watching a derived List would rebuild this
+    // list on every player tick, since two equal lists are never identical.
+    final targets = ref.read(playerProvider).calibrationTargets;
+    // With no percussion score to read a kit from, fall back to what the device
+    // has been taught, in the pass's own order — a standard-kit wall of "not
+    // calibrated yet" would be noise rather than an answer. Any entry from a
+    // build that knew more pieces still shows, at the end, rather than
+    // disappearing.
+    final rows = targets.isNotEmpty
+        ? targets
+        : [
+            for (final id in kCalibrationPieceOrder)
+              if (mapping.byPiece.containsKey(id)) id,
+            for (final id in mapping.byPiece.keys)
+              if (!kCalibrationPieceOrder.contains(id)) id,
+          ];
+    final missing = [
+      for (final id in rows)
+        if (!mapping.byPiece.containsKey(id)) id,
     ];
+    // Learned from another score's kit. Counted rather than listed — the
+    // question on this screen is this score — but never silent, because
+    // "clear this kit's calibration" would otherwise remove things nothing on
+    // screen ever mentioned.
+    final elsewhere = mapping.byPiece.keys
+        .where((id) => !rows.contains(id))
+        .length;
+    // Offered only when it differs from starting over: with nothing learned yet
+    // the two passes are the same pass under two names.
+    final canFillGaps = missing.isNotEmpty && missing.length < rows.length;
 
     return ListView(
       key: const Key('calibration-mapping-list'),
@@ -260,7 +289,9 @@ class _MappingTable extends ConsumerWidget {
         if (justFinished == CalibrationOutcome.completed)
           _Finished(count: mapping.byPiece.length),
         Text(
-          l10n.calibrationMappingTitle,
+          targets.isEmpty
+              ? l10n.calibrationMappingTitle
+              : l10n.calibrationScoreKitTitle,
           style: const TextStyle(
             color: CymbraColors.onSurfaceVariant,
             fontSize: 12,
@@ -269,7 +300,7 @@ class _MappingTable extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 8),
-        if (ordered.isEmpty)
+        if (rows.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Text(
@@ -282,22 +313,49 @@ class _MappingTable extends ConsumerWidget {
             ),
           )
         else
-          for (final id in ordered)
+          for (final id in rows)
             _MappingRow(
               key: Key('calibration-row-$id'),
               pieceId: id,
-              number: mapping.byPiece[id]!,
+              number: mapping.byPiece[id],
               onClear: () => store.clearPiece(port, id),
             ),
-        const SizedBox(height: 24),
-        FilledButton(
-          key: const Key('calibration-start'),
-          onPressed: calibration.start,
-          child: Text(
-            ordered.isEmpty ? l10n.calibrationOpen : l10n.calibrationRestart,
+        if (elsewhere > 0)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              key: const Key('calibration-elsewhere'),
+              l10n.calibrationLearnedElsewhere(elsewhere),
+              style: const TextStyle(
+                color: CymbraColors.onSurfaceVariant,
+                fontSize: 12,
+              ),
+            ),
           ),
-        ),
-        if (ordered.isNotEmpty) ...[
+        const SizedBox(height: 24),
+        if (canFillGaps) ...[
+          FilledButton(
+            key: const Key('calibration-start-missing'),
+            onPressed: calibration.startMissing,
+            child: Text(l10n.calibrationStartMissing(missing.length)),
+          ),
+          const SizedBox(height: 8),
+          TextButton(
+            key: const Key('calibration-start'),
+            onPressed: calibration.start,
+            child: Text(l10n.calibrationRestart),
+          ),
+        ] else
+          FilledButton(
+            key: const Key('calibration-start'),
+            onPressed: calibration.start,
+            child: Text(
+              missing.length == rows.length
+                  ? l10n.calibrationOpen
+                  : l10n.calibrationRestart,
+            ),
+          ),
+        if (mapping.isNotEmpty) ...[
           const SizedBox(height: 8),
           TextButton(
             key: const Key('calibration-clear-all'),
@@ -352,47 +410,65 @@ class _MappingRow extends StatelessWidget {
   });
 
   final String pieceId;
-  final int number;
+
+  /// What this device sends for the piece, or **null** when it has never been
+  /// read on it — the row the player came here for (design D12).
+  final int? number;
   final VoidCallback onClear;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final learned = number;
     final standard = canonicalGmOfPiece(pieceId);
     // What the sent number means on the standard map — the line that makes a
     // mis-recorded entry legible ("your snare sends 31, which normally means
     // Sticks") instead of merely wrong.
-    final wouldMean = gmPercussionName(number);
+    final wouldMean = learned == null ? null : gmPercussionName(learned);
     return ListTile(
       contentPadding: EdgeInsets.zero,
       title: Text(
         kitPieceLabelOf(l10n, pieceId),
         style: const TextStyle(color: CymbraColors.onSurface, fontSize: 15),
       ),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            l10n.calibrationMappingRow(number, standard ?? number),
-            style: const TextStyle(
-              color: CymbraColors.onSurfaceVariant,
-              fontSize: 12,
-            ),
-          ),
-          if (wouldMean != null)
-            Text(
-              l10n.calibrationMappingWouldMean(number, wouldMean),
+      subtitle: learned == null
+          // Named in the accent rather than dimmed: this is the row that has
+          // something for the player to do, not the row that matters least.
+          ? Text(
+              key: Key('calibration-row-missing-$pieceId'),
+              l10n.calibrationRowMissing,
               style: const TextStyle(
-                color: CymbraColors.onSurfaceVariant,
-                fontSize: 11,
+                color: CymbraColors.tertiary,
+                fontSize: 12,
               ),
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.calibrationMappingRow(learned, standard ?? learned),
+                  style: const TextStyle(
+                    color: CymbraColors.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
+                ),
+                if (wouldMean != null)
+                  Text(
+                    l10n.calibrationMappingWouldMean(learned, wouldMean),
+                    style: const TextStyle(
+                      color: CymbraColors.onSurfaceVariant,
+                      fontSize: 11,
+                    ),
+                  ),
+              ],
             ),
-        ],
-      ),
-      trailing: TextButton(
-        onPressed: onClear,
-        child: Text(l10n.calibrationClearPiece),
-      ),
+      // Nothing to clear on a piece that was never read.
+      trailing: learned == null
+          ? null
+          : TextButton(
+              onPressed: onClear,
+              child: Text(l10n.calibrationClearPiece),
+            ),
     );
   }
 }

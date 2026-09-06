@@ -156,6 +156,46 @@ connected, there being no mapping for a piece to be missing from.
   device
 - **THEN** the settings say so, rather than showing an empty list
 
+### Requirement: The Table Shows The Whole Score's Kit, Missing Pieces Included
+
+The calibration surface SHALL list every piece the loaded score asks for — the
+ones this device has been read on **and** the ones it has not, each marked as
+such — rather than only the entries already stored. A table of what is already
+known answers a question nobody arrives with: a player opens this because
+something did not respond, and the pieces with no entry are exactly the ones
+they came for. Entries stored for this device that belong to no piece of the
+loaded score SHALL be reported as a count, so clearing the device's calibration
+never removes something the surface never showed.
+
+The surface SHALL offer both a pass over **every** piece of the score and a pass
+over **only the pieces with no entry**, the second only when it differs from the
+first. A pass that covers part of a kit SHALL leave every piece it did not ask
+about exactly as it was.
+
+#### Scenario: A piece with no entry is listed and marked
+- **WHEN** the loaded score asks for a piece the connected device has no entry
+  for
+- **THEN** it appears in the table, marked as not calibrated
+
+#### Scenario: Only the missing pieces are asked for
+- **WHEN** the player starts a pass over the missing pieces
+- **THEN** the pass asks for those pieces only
+
+#### Scenario: A partial pass keeps what it never asked about
+- **WHEN** a pass covering part of the kit completes
+- **THEN** the entries for every other piece — including pieces of other scores'
+  kits — are still in force
+
+#### Scenario: A number an untouched piece holds still collides
+- **WHEN** a stroke during a partial pass arrives on a number already stored for
+  a piece the pass is not asking about
+- **THEN** the conflict is reported rather than one number being given to two
+  pieces
+
+#### Scenario: Entries outside this score are accounted for
+- **WHEN** the device has entries for pieces the loaded score does not ask for
+- **THEN** the surface reports how many, rather than listing or hiding them
+
 ### Requirement: Mapping Is Per Device
 
 A learned mapping SHALL be stored against the MIDI device it was learned from,
