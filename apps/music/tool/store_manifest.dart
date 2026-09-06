@@ -104,6 +104,11 @@ const List<String> kCaptureSurfaces = [
   // cascade mid-run, then the same groove read as engraved percussion.
   'drums',
   'drums_staff',
+  // The perspective stage (RenderMode.stage): percussion-only, and the FIRST
+  // segment of the mode row because it is the reading a beginner reaches for
+  // (lib/screens/player_screen.dart). It is never the default — a fresh run
+  // resolves percussion to the cascade — so it went uncaptured until now.
+  'drums_stage',
 ];
 
 /// The targets a full pass regenerates.
@@ -149,6 +154,40 @@ const List<CaptureTarget> kCaptureTargets = [
     why:
         'Play asks for 16:9 at >=1080p to be eligible for its recommendation '
         'surfaces; the long side stays within its 2x short-side cap.',
+  ),
+  // The two tablet slots are **required** on the Play listing (both carry the
+  // asterisk) as soon as the bundle does not restrict screen sizes — which ours
+  // does not. The pixel sizes are 16:9 because Play demands exactly that on
+  // these slots; a real 7" tablet is 16:10, and the store constraint wins over
+  // hardware fidelity, exactly as it already does for the phone target.
+  //
+  // What matters more than the pixel count is the LOGICAL size: the app
+  // classifies a viewport by its shortest side (landscape-locked, so that is
+  // the height) at 600/900 dp — see lib/layout/device_class.dart. Both targets
+  // land in [600, 900), so they render the tablet layout. Get this wrong and
+  // the "tablet" screenshots would show the phone layout at a bigger size.
+  CaptureTarget(
+    platform: 'android',
+    sizeClass: 'tablet_7',
+    widthPx: 1920,
+    heightPx: 1080,
+    devicePixelRatio: 1.6,
+    device: 'Android emulator',
+    why:
+        'Play requires 7-inch tablet screenshots in 16:9; dpr 1.6 puts the '
+        'viewport at 1200x675 dp — a tablet by the app\'s own breakpoint.',
+  ),
+  CaptureTarget(
+    platform: 'android',
+    sizeClass: 'tablet_10',
+    widthPx: 2560,
+    heightPx: 1440,
+    devicePixelRatio: 2,
+    device: 'Android emulator',
+    why:
+        'Play requires 10-inch tablet screenshots in 16:9; dpr 2 puts the '
+        'viewport at 1280x720 dp — the same tablet class, more pixels, which '
+        'is what a larger tablet actually is.',
   ),
 ];
 

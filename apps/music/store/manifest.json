@@ -13,7 +13,8 @@
     "courses",
     "measures",
     "drums",
-    "drums_staff"
+    "drums_staff",
+    "drums_stage"
   ],
   "targets": [
     {
@@ -55,6 +56,26 @@
       "devicePixelRatio": 2.0,
       "device": "Android emulator",
       "why": "Play asks for 16:9 at >=1080p to be eligible for its recommendation surfaces; the long side stays within its 2x short-side cap."
+    },
+    {
+      "id": "android/tablet_7",
+      "platform": "android",
+      "sizeClass": "tablet_7",
+      "widthPx": 1920,
+      "heightPx": 1080,
+      "devicePixelRatio": 1.6,
+      "device": "Android emulator",
+      "why": "Play requires 7-inch tablet screenshots in 16:9; dpr 1.6 puts the viewport at 1200x675 dp — a tablet by the app's own breakpoint."
+    },
+    {
+      "id": "android/tablet_10",
+      "platform": "android",
+      "sizeClass": "tablet_10",
+      "widthPx": 2560,
+      "heightPx": 1440,
+      "devicePixelRatio": 2.0,
+      "device": "Android emulator",
+      "why": "Play requires 10-inch tablet screenshots in 16:9; dpr 2 puts the viewport at 1280x720 dp — the same tablet class, more pixels, which is what a larger tablet actually is."
     }
   ],
   "assets": [
@@ -115,6 +136,14 @@
       "heightPx": 1320
     },
     {
+      "path": "store/ios/iphone_6.9/en/08_drums_stage.png",
+      "target": "ios/iphone_6.9",
+      "locale": "en",
+      "surface": "drums_stage",
+      "widthPx": 2868,
+      "heightPx": 1320
+    },
+    {
       "path": "store/ios/iphone_6.9/fr/01_library.png",
       "target": "ios/iphone_6.9",
       "locale": "fr",
@@ -167,6 +196,14 @@
       "target": "ios/iphone_6.9",
       "locale": "fr",
       "surface": "drums_staff",
+      "widthPx": 2868,
+      "heightPx": 1320
+    },
+    {
+      "path": "store/ios/iphone_6.9/fr/08_drums_stage.png",
+      "target": "ios/iphone_6.9",
+      "locale": "fr",
+      "surface": "drums_stage",
       "widthPx": 2868,
       "heightPx": 1320
     },
@@ -227,6 +264,14 @@
       "heightPx": 1320
     },
     {
+      "path": "store/ios/iphone_6.9/it/08_drums_stage.png",
+      "target": "ios/iphone_6.9",
+      "locale": "it",
+      "surface": "drums_stage",
+      "widthPx": 2868,
+      "heightPx": 1320
+    },
+    {
       "path": "store/ios/iphone_6.9/es/01_library.png",
       "target": "ios/iphone_6.9",
       "locale": "es",
@@ -279,6 +324,14 @@
       "target": "ios/iphone_6.9",
       "locale": "es",
       "surface": "drums_staff",
+      "widthPx": 2868,
+      "heightPx": 1320
+    },
+    {
+      "path": "store/ios/iphone_6.9/es/08_drums_stage.png",
+      "target": "ios/iphone_6.9",
+      "locale": "es",
+      "surface": "drums_stage",
       "widthPx": 2868,
       "heightPx": 1320
     },
@@ -339,6 +392,14 @@
       "heightPx": 2064
     },
     {
+      "path": "store/ios/ipad_13/en/08_drums_stage.png",
+      "target": "ios/ipad_13",
+      "locale": "en",
+      "surface": "drums_stage",
+      "widthPx": 2752,
+      "heightPx": 2064
+    },
+    {
       "path": "store/ios/ipad_13/fr/01_library.png",
       "target": "ios/ipad_13",
       "locale": "fr",
@@ -391,6 +452,14 @@
       "target": "ios/ipad_13",
       "locale": "fr",
       "surface": "drums_staff",
+      "widthPx": 2752,
+      "heightPx": 2064
+    },
+    {
+      "path": "store/ios/ipad_13/fr/08_drums_stage.png",
+      "target": "ios/ipad_13",
+      "locale": "fr",
+      "surface": "drums_stage",
       "widthPx": 2752,
       "heightPx": 2064
     },
@@ -451,6 +520,14 @@
       "heightPx": 2064
     },
     {
+      "path": "store/ios/ipad_13/it/08_drums_stage.png",
+      "target": "ios/ipad_13",
+      "locale": "it",
+      "surface": "drums_stage",
+      "widthPx": 2752,
+      "heightPx": 2064
+    },
+    {
       "path": "store/ios/ipad_13/es/01_library.png",
       "target": "ios/ipad_13",
       "locale": "es",
@@ -503,6 +580,14 @@
       "target": "ios/ipad_13",
       "locale": "es",
       "surface": "drums_staff",
+      "widthPx": 2752,
+      "heightPx": 2064
+    },
+    {
+      "path": "store/ios/ipad_13/es/08_drums_stage.png",
+      "target": "ios/ipad_13",
+      "locale": "es",
+      "surface": "drums_stage",
       "widthPx": 2752,
       "heightPx": 2064
     },
@@ -563,6 +648,14 @@
       "heightPx": 900
     },
     {
+      "path": "store/macos/desktop_1440x900/en/08_drums_stage.png",
+      "target": "macos/desktop_1440x900",
+      "locale": "en",
+      "surface": "drums_stage",
+      "widthPx": 1440,
+      "heightPx": 900
+    },
+    {
       "path": "store/macos/desktop_1440x900/fr/01_library.png",
       "target": "macos/desktop_1440x900",
       "locale": "fr",
@@ -615,6 +708,14 @@
       "target": "macos/desktop_1440x900",
       "locale": "fr",
       "surface": "drums_staff",
+      "widthPx": 1440,
+      "heightPx": 900
+    },
+    {
+      "path": "store/macos/desktop_1440x900/fr/08_drums_stage.png",
+      "target": "macos/desktop_1440x900",
+      "locale": "fr",
+      "surface": "drums_stage",
       "widthPx": 1440,
       "heightPx": 900
     },
@@ -675,6 +776,14 @@
       "heightPx": 900
     },
     {
+      "path": "store/macos/desktop_1440x900/it/08_drums_stage.png",
+      "target": "macos/desktop_1440x900",
+      "locale": "it",
+      "surface": "drums_stage",
+      "widthPx": 1440,
+      "heightPx": 900
+    },
+    {
       "path": "store/macos/desktop_1440x900/es/01_library.png",
       "target": "macos/desktop_1440x900",
       "locale": "es",
@@ -727,6 +836,14 @@
       "target": "macos/desktop_1440x900",
       "locale": "es",
       "surface": "drums_staff",
+      "widthPx": 1440,
+      "heightPx": 900
+    },
+    {
+      "path": "store/macos/desktop_1440x900/es/08_drums_stage.png",
+      "target": "macos/desktop_1440x900",
+      "locale": "es",
+      "surface": "drums_stage",
       "widthPx": 1440,
       "heightPx": 900
     },
@@ -787,6 +904,14 @@
       "heightPx": 1080
     },
     {
+      "path": "store/android/phone_16x9/en/08_drums_stage.png",
+      "target": "android/phone_16x9",
+      "locale": "en",
+      "surface": "drums_stage",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
       "path": "store/android/phone_16x9/fr/01_library.png",
       "target": "android/phone_16x9",
       "locale": "fr",
@@ -839,6 +964,14 @@
       "target": "android/phone_16x9",
       "locale": "fr",
       "surface": "drums_staff",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
+      "path": "store/android/phone_16x9/fr/08_drums_stage.png",
+      "target": "android/phone_16x9",
+      "locale": "fr",
+      "surface": "drums_stage",
       "widthPx": 1920,
       "heightPx": 1080
     },
@@ -899,6 +1032,14 @@
       "heightPx": 1080
     },
     {
+      "path": "store/android/phone_16x9/it/08_drums_stage.png",
+      "target": "android/phone_16x9",
+      "locale": "it",
+      "surface": "drums_stage",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
       "path": "store/android/phone_16x9/es/01_library.png",
       "target": "android/phone_16x9",
       "locale": "es",
@@ -953,6 +1094,526 @@
       "surface": "drums_staff",
       "widthPx": 1920,
       "heightPx": 1080
+    },
+    {
+      "path": "store/android/phone_16x9/es/08_drums_stage.png",
+      "target": "android/phone_16x9",
+      "locale": "es",
+      "surface": "drums_stage",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
+      "path": "store/android/tablet_7/en/01_library.png",
+      "target": "android/tablet_7",
+      "locale": "en",
+      "surface": "library",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
+      "path": "store/android/tablet_7/en/02_synthesia.png",
+      "target": "android/tablet_7",
+      "locale": "en",
+      "surface": "synthesia",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
+      "path": "store/android/tablet_7/en/03_staff.png",
+      "target": "android/tablet_7",
+      "locale": "en",
+      "surface": "staff",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
+      "path": "store/android/tablet_7/en/04_courses.png",
+      "target": "android/tablet_7",
+      "locale": "en",
+      "surface": "courses",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
+      "path": "store/android/tablet_7/en/05_measures.png",
+      "target": "android/tablet_7",
+      "locale": "en",
+      "surface": "measures",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
+      "path": "store/android/tablet_7/en/06_drums.png",
+      "target": "android/tablet_7",
+      "locale": "en",
+      "surface": "drums",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
+      "path": "store/android/tablet_7/en/07_drums_staff.png",
+      "target": "android/tablet_7",
+      "locale": "en",
+      "surface": "drums_staff",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
+      "path": "store/android/tablet_7/en/08_drums_stage.png",
+      "target": "android/tablet_7",
+      "locale": "en",
+      "surface": "drums_stage",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
+      "path": "store/android/tablet_7/fr/01_library.png",
+      "target": "android/tablet_7",
+      "locale": "fr",
+      "surface": "library",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
+      "path": "store/android/tablet_7/fr/02_synthesia.png",
+      "target": "android/tablet_7",
+      "locale": "fr",
+      "surface": "synthesia",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
+      "path": "store/android/tablet_7/fr/03_staff.png",
+      "target": "android/tablet_7",
+      "locale": "fr",
+      "surface": "staff",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
+      "path": "store/android/tablet_7/fr/04_courses.png",
+      "target": "android/tablet_7",
+      "locale": "fr",
+      "surface": "courses",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
+      "path": "store/android/tablet_7/fr/05_measures.png",
+      "target": "android/tablet_7",
+      "locale": "fr",
+      "surface": "measures",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
+      "path": "store/android/tablet_7/fr/06_drums.png",
+      "target": "android/tablet_7",
+      "locale": "fr",
+      "surface": "drums",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
+      "path": "store/android/tablet_7/fr/07_drums_staff.png",
+      "target": "android/tablet_7",
+      "locale": "fr",
+      "surface": "drums_staff",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
+      "path": "store/android/tablet_7/fr/08_drums_stage.png",
+      "target": "android/tablet_7",
+      "locale": "fr",
+      "surface": "drums_stage",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
+      "path": "store/android/tablet_7/it/01_library.png",
+      "target": "android/tablet_7",
+      "locale": "it",
+      "surface": "library",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
+      "path": "store/android/tablet_7/it/02_synthesia.png",
+      "target": "android/tablet_7",
+      "locale": "it",
+      "surface": "synthesia",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
+      "path": "store/android/tablet_7/it/03_staff.png",
+      "target": "android/tablet_7",
+      "locale": "it",
+      "surface": "staff",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
+      "path": "store/android/tablet_7/it/04_courses.png",
+      "target": "android/tablet_7",
+      "locale": "it",
+      "surface": "courses",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
+      "path": "store/android/tablet_7/it/05_measures.png",
+      "target": "android/tablet_7",
+      "locale": "it",
+      "surface": "measures",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
+      "path": "store/android/tablet_7/it/06_drums.png",
+      "target": "android/tablet_7",
+      "locale": "it",
+      "surface": "drums",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
+      "path": "store/android/tablet_7/it/07_drums_staff.png",
+      "target": "android/tablet_7",
+      "locale": "it",
+      "surface": "drums_staff",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
+      "path": "store/android/tablet_7/it/08_drums_stage.png",
+      "target": "android/tablet_7",
+      "locale": "it",
+      "surface": "drums_stage",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
+      "path": "store/android/tablet_7/es/01_library.png",
+      "target": "android/tablet_7",
+      "locale": "es",
+      "surface": "library",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
+      "path": "store/android/tablet_7/es/02_synthesia.png",
+      "target": "android/tablet_7",
+      "locale": "es",
+      "surface": "synthesia",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
+      "path": "store/android/tablet_7/es/03_staff.png",
+      "target": "android/tablet_7",
+      "locale": "es",
+      "surface": "staff",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
+      "path": "store/android/tablet_7/es/04_courses.png",
+      "target": "android/tablet_7",
+      "locale": "es",
+      "surface": "courses",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
+      "path": "store/android/tablet_7/es/05_measures.png",
+      "target": "android/tablet_7",
+      "locale": "es",
+      "surface": "measures",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
+      "path": "store/android/tablet_7/es/06_drums.png",
+      "target": "android/tablet_7",
+      "locale": "es",
+      "surface": "drums",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
+      "path": "store/android/tablet_7/es/07_drums_staff.png",
+      "target": "android/tablet_7",
+      "locale": "es",
+      "surface": "drums_staff",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
+      "path": "store/android/tablet_7/es/08_drums_stage.png",
+      "target": "android/tablet_7",
+      "locale": "es",
+      "surface": "drums_stage",
+      "widthPx": 1920,
+      "heightPx": 1080
+    },
+    {
+      "path": "store/android/tablet_10/en/01_library.png",
+      "target": "android/tablet_10",
+      "locale": "en",
+      "surface": "library",
+      "widthPx": 2560,
+      "heightPx": 1440
+    },
+    {
+      "path": "store/android/tablet_10/en/02_synthesia.png",
+      "target": "android/tablet_10",
+      "locale": "en",
+      "surface": "synthesia",
+      "widthPx": 2560,
+      "heightPx": 1440
+    },
+    {
+      "path": "store/android/tablet_10/en/03_staff.png",
+      "target": "android/tablet_10",
+      "locale": "en",
+      "surface": "staff",
+      "widthPx": 2560,
+      "heightPx": 1440
+    },
+    {
+      "path": "store/android/tablet_10/en/04_courses.png",
+      "target": "android/tablet_10",
+      "locale": "en",
+      "surface": "courses",
+      "widthPx": 2560,
+      "heightPx": 1440
+    },
+    {
+      "path": "store/android/tablet_10/en/05_measures.png",
+      "target": "android/tablet_10",
+      "locale": "en",
+      "surface": "measures",
+      "widthPx": 2560,
+      "heightPx": 1440
+    },
+    {
+      "path": "store/android/tablet_10/en/06_drums.png",
+      "target": "android/tablet_10",
+      "locale": "en",
+      "surface": "drums",
+      "widthPx": 2560,
+      "heightPx": 1440
+    },
+    {
+      "path": "store/android/tablet_10/en/07_drums_staff.png",
+      "target": "android/tablet_10",
+      "locale": "en",
+      "surface": "drums_staff",
+      "widthPx": 2560,
+      "heightPx": 1440
+    },
+    {
+      "path": "store/android/tablet_10/en/08_drums_stage.png",
+      "target": "android/tablet_10",
+      "locale": "en",
+      "surface": "drums_stage",
+      "widthPx": 2560,
+      "heightPx": 1440
+    },
+    {
+      "path": "store/android/tablet_10/fr/01_library.png",
+      "target": "android/tablet_10",
+      "locale": "fr",
+      "surface": "library",
+      "widthPx": 2560,
+      "heightPx": 1440
+    },
+    {
+      "path": "store/android/tablet_10/fr/02_synthesia.png",
+      "target": "android/tablet_10",
+      "locale": "fr",
+      "surface": "synthesia",
+      "widthPx": 2560,
+      "heightPx": 1440
+    },
+    {
+      "path": "store/android/tablet_10/fr/03_staff.png",
+      "target": "android/tablet_10",
+      "locale": "fr",
+      "surface": "staff",
+      "widthPx": 2560,
+      "heightPx": 1440
+    },
+    {
+      "path": "store/android/tablet_10/fr/04_courses.png",
+      "target": "android/tablet_10",
+      "locale": "fr",
+      "surface": "courses",
+      "widthPx": 2560,
+      "heightPx": 1440
+    },
+    {
+      "path": "store/android/tablet_10/fr/05_measures.png",
+      "target": "android/tablet_10",
+      "locale": "fr",
+      "surface": "measures",
+      "widthPx": 2560,
+      "heightPx": 1440
+    },
+    {
+      "path": "store/android/tablet_10/fr/06_drums.png",
+      "target": "android/tablet_10",
+      "locale": "fr",
+      "surface": "drums",
+      "widthPx": 2560,
+      "heightPx": 1440
+    },
+    {
+      "path": "store/android/tablet_10/fr/07_drums_staff.png",
+      "target": "android/tablet_10",
+      "locale": "fr",
+      "surface": "drums_staff",
+      "widthPx": 2560,
+      "heightPx": 1440
+    },
+    {
+      "path": "store/android/tablet_10/fr/08_drums_stage.png",
+      "target": "android/tablet_10",
+      "locale": "fr",
+      "surface": "drums_stage",
+      "widthPx": 2560,
+      "heightPx": 1440
+    },
+    {
+      "path": "store/android/tablet_10/it/01_library.png",
+      "target": "android/tablet_10",
+      "locale": "it",
+      "surface": "library",
+      "widthPx": 2560,
+      "heightPx": 1440
+    },
+    {
+      "path": "store/android/tablet_10/it/02_synthesia.png",
+      "target": "android/tablet_10",
+      "locale": "it",
+      "surface": "synthesia",
+      "widthPx": 2560,
+      "heightPx": 1440
+    },
+    {
+      "path": "store/android/tablet_10/it/03_staff.png",
+      "target": "android/tablet_10",
+      "locale": "it",
+      "surface": "staff",
+      "widthPx": 2560,
+      "heightPx": 1440
+    },
+    {
+      "path": "store/android/tablet_10/it/04_courses.png",
+      "target": "android/tablet_10",
+      "locale": "it",
+      "surface": "courses",
+      "widthPx": 2560,
+      "heightPx": 1440
+    },
+    {
+      "path": "store/android/tablet_10/it/05_measures.png",
+      "target": "android/tablet_10",
+      "locale": "it",
+      "surface": "measures",
+      "widthPx": 2560,
+      "heightPx": 1440
+    },
+    {
+      "path": "store/android/tablet_10/it/06_drums.png",
+      "target": "android/tablet_10",
+      "locale": "it",
+      "surface": "drums",
+      "widthPx": 2560,
+      "heightPx": 1440
+    },
+    {
+      "path": "store/android/tablet_10/it/07_drums_staff.png",
+      "target": "android/tablet_10",
+      "locale": "it",
+      "surface": "drums_staff",
+      "widthPx": 2560,
+      "heightPx": 1440
+    },
+    {
+      "path": "store/android/tablet_10/it/08_drums_stage.png",
+      "target": "android/tablet_10",
+      "locale": "it",
+      "surface": "drums_stage",
+      "widthPx": 2560,
+      "heightPx": 1440
+    },
+    {
+      "path": "store/android/tablet_10/es/01_library.png",
+      "target": "android/tablet_10",
+      "locale": "es",
+      "surface": "library",
+      "widthPx": 2560,
+      "heightPx": 1440
+    },
+    {
+      "path": "store/android/tablet_10/es/02_synthesia.png",
+      "target": "android/tablet_10",
+      "locale": "es",
+      "surface": "synthesia",
+      "widthPx": 2560,
+      "heightPx": 1440
+    },
+    {
+      "path": "store/android/tablet_10/es/03_staff.png",
+      "target": "android/tablet_10",
+      "locale": "es",
+      "surface": "staff",
+      "widthPx": 2560,
+      "heightPx": 1440
+    },
+    {
+      "path": "store/android/tablet_10/es/04_courses.png",
+      "target": "android/tablet_10",
+      "locale": "es",
+      "surface": "courses",
+      "widthPx": 2560,
+      "heightPx": 1440
+    },
+    {
+      "path": "store/android/tablet_10/es/05_measures.png",
+      "target": "android/tablet_10",
+      "locale": "es",
+      "surface": "measures",
+      "widthPx": 2560,
+      "heightPx": 1440
+    },
+    {
+      "path": "store/android/tablet_10/es/06_drums.png",
+      "target": "android/tablet_10",
+      "locale": "es",
+      "surface": "drums",
+      "widthPx": 2560,
+      "heightPx": 1440
+    },
+    {
+      "path": "store/android/tablet_10/es/07_drums_staff.png",
+      "target": "android/tablet_10",
+      "locale": "es",
+      "surface": "drums_staff",
+      "widthPx": 2560,
+      "heightPx": 1440
+    },
+    {
+      "path": "store/android/tablet_10/es/08_drums_stage.png",
+      "target": "android/tablet_10",
+      "locale": "es",
+      "surface": "drums_stage",
+      "widthPx": 2560,
+      "heightPx": 1440
     }
   ]
 }

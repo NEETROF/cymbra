@@ -8,19 +8,19 @@ Cymbra Music
 
 ## Sous-titre  (App Store ≤30)
 
-Apprends le piano en jouant
+Apprends piano et batterie
 
 ## Description courte  (Play ≤80)
 
-Apprends le piano en jouant de vraies partitions, avec retour immédiat.
+Apprends piano et batterie en jouant de vraies partitions, retour immédiat.
 
 ## Texte promotionnel  (App Store ≤170)
 
-Chargez de vraies partitions, branchez votre clavier MIDI ou jouez à l'écran, et laissez Cymbra vous guider note par note — à votre rythme, avec un retour immédiat.
+Chargez de vraies partitions, branchez votre clavier MIDI ou votre batterie électronique — ou jouez à l'écran — et laissez Cymbra vous guider note par note.
 
 ## Mots-clés  (App Store ≤100, séparés par des virgules, sans espaces)
 
-piano,apprendre piano,partition,MIDI,clavier,solfège,synthesia,cours,morceaux,musique,tuto
+batterie,percussion,partition,MIDI,clavier,solfège,synthesia,cours,morceaux,musique,tuto
 
 ## Description complète  (App Store ≤4000 · Play ≤4000)
 
@@ -40,13 +40,19 @@ SUIVEZ VOS PROGRÈS
 • Notation en temps réel de votre précision et de votre timing
 • Retour ludique et résumé de session après chaque passage
 
+LA BATTERIE AUSSI
+• De vraies parties de batterie, sur la portée ou sur un kit animé
+• Frappez le kit à l'écran, ou jouez sur votre batterie électronique
+• Associez vos pads une fois — Cymbra se cale sur le morceau chargé
+• Isolez un élément du kit pour travailler un groove, noté comme un passage normal
+
 UNE BIBLIOTHÈQUE QUI S'ÉTOFFE
 • Partitions du domaine public incluses, du débutant à l'avancé
 • Choisissez des sons de piano de qualité, ou importez votre propre SoundFont
 
-Connectez n'importe quel clavier MIDI USB ou Bluetooth, ou jouez à l'écran. Disponible en français, anglais, italien et espagnol.
+Connectez n'importe quel clavier MIDI USB ou batterie électronique, ou jouez à l'écran. Disponible en français, anglais, italien et espagnol.
 
-Commencez à jouer dès aujourd'hui — la meilleure façon d'apprendre le piano, c'est de jouer.
+Commencez à jouer dès aujourd'hui — la meilleure façon d'apprendre la musique, c'est de jouer.
 
 ## Catégories
 

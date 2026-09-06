@@ -8,19 +8,19 @@ Cymbra Music
 
 ## Subtítulo  (App Store ≤30)
 
-Aprende piano tocando
+Aprende piano y batería
 
 ## Descripción breve  (Play ≤80)
 
-Aprende piano tocando partituras reales, con retroalimentación al instante.
+Aprende piano y batería tocando partituras reales, con respuesta al instante.
 
 ## Texto promocional  (App Store ≤170)
 
-Carga partituras reales, conecta tu teclado MIDI o toca en pantalla, y deja que Cymbra te guíe nota a nota — a tu ritmo, con retroalimentación inmediata.
+Carga partituras reales, conecta tu teclado MIDI o tu batería electrónica — o toca en pantalla — y deja que Cymbra te guíe nota a nota, a tu ritmo.
 
 ## Palabras clave  (App Store ≤100, separadas por comas, sin espacios)
 
-piano,aprender piano,partitura,MIDI,teclado,solfeo,synthesia,lecciones,canciones,música
+batería,percusión,partitura,MIDI,teclado,solfeo,synthesia,lecciones,canciones,música
 
 ## Descripción completa  (App Store ≤4000 · Play ≤4000)
 
@@ -40,13 +40,19 @@ SIGUE TU PROGRESO
 • Puntuación en tiempo real de tu precisión y tu ritmo
 • Retroalimentación lúdica y un resumen de la sesión tras cada intento
 
+TAMBIÉN LA BATERÍA
+• Partes de batería reales, en el pentagrama o en un kit animado
+• Golpea el kit en pantalla, o toca tu batería electrónica
+• Asocia tus pads una vez — Cymbra se ajusta a la pieza que cargas
+• Aísla un elemento del kit para trabajar un groove, con puntuación como siempre
+
 UNA BIBLIOTECA QUE CRECE
 • Partituras de dominio público incluidas, de principiante a avanzado
 • Elige sonidos de piano de calidad, o importa tu propio SoundFont
 
-Conecta cualquier teclado MIDI USB o Bluetooth, o toca en pantalla. Disponible en español, inglés, francés e italiano.
+Conecta cualquier teclado MIDI USB o batería electrónica, o toca en pantalla. Disponible en español, inglés, francés e italiano.
 
-Empieza a tocar hoy — la mejor forma de aprender piano es tocarlo.
+Empieza a tocar hoy — la mejor forma de aprender música es tocarla.
 
 ## Categorías
 

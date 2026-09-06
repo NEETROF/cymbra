@@ -8,19 +8,19 @@ Cymbra Music
 
 ## Subtitle  (App Store ≤30)
 
-Learn piano by playing
+Learn piano and drums
 
 ## Short description  (Play ≤80)
 
-Learn piano by playing real sheet music, with instant note-by-note feedback.
+Learn piano and drums by playing real sheet music, with instant feedback.
 
 ## Promotional text  (App Store ≤170)
 
-Load real sheet music, connect your MIDI keyboard or play on screen, and let Cymbra guide you note by note — at your own pace, with instant feedback.
+Load real sheet music, connect your MIDI keyboard or electronic drum kit — or play on screen — and let Cymbra guide you note by note, at your own pace.
 
 ## Keywords  (App Store ≤100, comma-separated, no spaces)
 
-piano,learn piano,sheet music,MIDI,keyboard,notation,synthesia,practice,songs,lessons,music,tutor
+drums,drum kit,percussion,sheet music,MIDI,keyboard,notation,synthesia,practice,songs,lessons,tutor
 
 ## Full description  (App Store ≤4000 · Play ≤4000)
 
@@ -40,13 +40,19 @@ SEE YOUR PROGRESS
 • Real-time scoring rates your accuracy and timing
 • Gamified feedback and a session summary after every run
 
+PLAY THE DRUMS TOO
+• Real drum parts, read on the staff or on an animated kit
+• Tap the kit on screen, or play your electronic drum kit
+• Map your pads once — Cymbra calibrates to the piece you load
+• Isolate one kit piece to drill a groove, scored like any other run
+
 A GROWING LIBRARY
 • Bundled public-domain scores, sorted from beginner to advanced
 • Choose from high-quality piano sounds, or import your own SoundFont
 
-Connect any USB or Bluetooth MIDI keyboard, or play along on screen. Available in English, French, Italian and Spanish.
+Connect any USB MIDI keyboard or electronic drum kit, or play along on screen. Available in English, French, Italian and Spanish.
 
-Start playing today — the best way to learn piano is to play it.
+Start playing today — the best way to learn music is to play it.
 
 ## Categories
 
