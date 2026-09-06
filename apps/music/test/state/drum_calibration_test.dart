@@ -15,6 +15,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/state/drum_calibration.dart';
 import 'package:music/state/drum_kit.dart';
+import 'package:music/state/player_data.dart';
 
 // The calibration pass as a pure state machine (change:
 // add-drum-input-calibration, tasks 6.1–6.4).
@@ -303,6 +304,55 @@ void main() {
       final s = _fresh().afterStroke(12, atMs: 100).finish();
       expect(s.afterStroke(31, atMs: 200).recorded, {kKickPieceId: 12});
     });
+  });
+
+  group('what the kit can play (design D13)', () {
+    const notes = [
+      TimedNote(pitch: 42, startMs: 0, durationMs: 100), // hi-hat, closed
+      TimedNote(pitch: 46, startMs: 200, durationMs: 100), // …open
+      TimedNote(pitch: 38, startMs: 400, durationMs: 100), // snare
+    ];
+    PlayerData dataWith(Set<String> unplayable) => PlayerData(
+      notes: notes,
+      isPercussion: true,
+      drumLanes: deriveDrumLanes(notes),
+      unplayablePieces: unplayable,
+    );
+
+    test('a missing PIECE takes its zones with it', () {
+      // Checking the zone alone would let the score's open hi-hats stand for a
+      // hi-hat the player says they do not own.
+      final data = dataWith(const {'kitPieceHiHat'});
+      expect(data.kitCanPlay(42), isFalse);
+      expect(data.kitCanPlay(46), isFalse);
+      expect(data.kitCanPlay(38), isTrue);
+      expect(data.awaitedNotes.map((n) => n.pitch), [38]);
+    });
+
+    test('a missing ZONE leaves the piece playable', () {
+      // A hi-hat with no controller can still be struck closed.
+      final data = dataWith(const {kOpenHiHatPieceId});
+      expect(data.kitCanPlay(42), isTrue);
+      expect(data.kitCanPlay(46), isFalse);
+      expect(data.awaitedNotes.map((n) => n.pitch), [42, 38]);
+      // …and the pad stays lit on the drawn kit, because it is still played.
+      expect(data.playableDrumSurfaces, contains(data.struckSurfaceFor(42)));
+    });
+
+    test(
+      'a missing piece is faded on the drawn kit even with nothing muted',
+      () {
+        final data = dataWith(const {'kitPieceHiHat'});
+        // Not empty — an empty set is what the painters read as "everything is
+        // live", which would draw a piece the run never asks for as a target.
+        expect(data.playableDrumSurfaces, isNotEmpty);
+        expect(
+          data.playableDrumSurfaces,
+          isNot(contains(data.struckSurfaceFor(42))),
+        );
+        expect(data.playableDrumSurfaces, contains(data.struckSurfaceFor(38)));
+      },
+    );
   });
 
   group('declaring a piece absent (design D13)', () {

@@ -240,6 +240,12 @@ piece can put it back in play.
 - **WHEN** the player clears that piece's row
 - **THEN** it is neither absent nor calibrated, and is awaited again
 
+#### Scenario: The drawn kit does not present it as a target
+- **WHEN** the play screen draws the kit for a score asking for a piece the
+  connected kit was said not to have
+- **THEN** that piece is drawn faded, like a piece left out of the practice
+  selection, rather than as a live target
+
 #### Scenario: Its practice controls are visibly out of reach
 - **WHEN** the per-piece practice controls list a piece the kit was said not to
   have

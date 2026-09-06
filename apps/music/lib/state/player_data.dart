@@ -811,10 +811,17 @@ abstract class PlayerData with _$PlayerData {
   /// Empty outside a percussion score, and empty when nothing is muted — both
   /// mean "everything is live", which is what the surfaces draw by default.
   Set<int> get playableDrumSurfaces {
-    if (!isPercussion || mutedDrumPieces.isEmpty) return const {};
+    if (!isPercussion) return const {};
+    // Both empty ⇒ "everything is live", which the painters read as no fading
+    // at all. Absences count as much as the focus selection here: a piece the
+    // kit does not have is drawn as a live target otherwise, while being
+    // neither awaited nor judged — the instrument would be contradicting the
+    // gate (design D13).
+    if (mutedDrumPieces.isEmpty && unplayablePieces.isEmpty) return const {};
     final result = <int>{};
     for (final n in notes) {
       if (!isDrumPieceInFocus(n.pitch, mutedDrumPieces)) continue;
+      if (!kitCanPlay(n.pitch)) continue;
       final surface = struckSurfaceFor(n.pitch);
       if (surface != null) result.add(surface);
     }
@@ -873,8 +880,21 @@ abstract class PlayerData with _$PlayerData {
       ? visibleNotes
       : [
           for (final n in visibleNotes)
-            if (!unplayablePieces.contains(calibrationTargetOf(n.pitch))) n,
+            if (kitCanPlay(n.pitch)) n,
         ];
+
+  /// Whether the connected kit can produce [gm] at all (design D13).
+  ///
+  /// Both grains are consulted, and both are needed: a kit may lack the whole
+  /// **piece** (no ride at all) or only the **zone** the pass asks for
+  /// separately (a hi-hat with no controller, so no open stroke). Checking the
+  /// zone alone would let a score's open hi-hats stand for a hi-hat the player
+  /// said they do not own; checking the piece alone would silence a closed
+  /// hi-hat over a missing controller.
+  bool kitCanPlay(int gm) =>
+      unplayablePieces.isEmpty ||
+      (!unplayablePieces.contains(calibrationTargetOf(gm)) &&
+          !unplayablePieces.contains(drumPieceIdOf(gm)));
 
   /// Whether the current selection shows this rest. Keyboard scores split by
   /// staff; a **percussion** score never hides a rest (change:

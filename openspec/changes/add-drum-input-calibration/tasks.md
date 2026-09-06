@@ -272,3 +272,7 @@
 - [x] 14.7 The per-piece practice list greys and disables a piece the kit was
   said not to have, naming the reason: the run already neither awaits nor judges
   it, so its checkbox and Solo would be controls that change nothing
+- [x] 14.8 The drawn kit fades a piece the kit does not have, in every mode:
+  `playableDrumSurfaces` reads the absences as well as the focus selection, and
+  `kitCanPlay` consults both grains — a missing PIECE takes its zones with it, a
+  missing zone leaves the piece playable

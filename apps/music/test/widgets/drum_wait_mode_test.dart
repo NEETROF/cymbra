@@ -382,6 +382,11 @@ void main() {
     // The opening onset is written crash + hi-hat + kick; the crash drops out
     // of it and the other two stand.
     expect(data.onsetPitchesAt(0), {42, 36});
+    // …and the drawn kit says the same thing: the crash is faded, so the
+    // instrument never presents a live target the run does not ask for.
+    final crashSurface = data.struckSurfaceFor(49)!;
+    expect(data.playableDrumSurfaces, isNot(contains(crashSurface)));
+    expect(data.playableDrumSurfaces, contains(data.struckSurfaceFor(42)));
 
     final player = c.read(playerProvider.notifier)..startPlayback();
     await _frames(tester, count: 3);
@@ -409,6 +414,8 @@ void main() {
     final data = c.read(playerProvider);
     expect(data.unplayablePieces, isEmpty);
     expect(data.onsetPitchesAt(0), {49, 42, 36});
+    // Nothing muted and nothing missing: every piece is drawn live.
+    expect(data.playableDrumSurfaces, isEmpty);
     await _teardown(tester, c);
   });
 
