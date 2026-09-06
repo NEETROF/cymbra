@@ -1,7 +1,7 @@
 import { reactive, ref } from "vue";
 import { defineStore } from "pinia";
 import { api } from "@/lib/api";
-import { type Async, idle, run } from "@/lib/async";
+import { type Async, idle, reread, run } from "@/lib/async";
 import { type PlanFilter, usePlansStore } from "@/stores/plans";
 import { useAuthStore } from "@/stores/auth";
 import type { AccountRow, RoleGrant } from "@/gen/user_pb";
@@ -34,6 +34,9 @@ export interface DirectoryParams {
 // match on them — a denied action lands in `op` as `{ status: "error" }`, never a throw.
 export const useRolesStore = defineStore("roles", () => {
   const directory = ref<Async<AccountDirectory>>(idle);
+  // ONE account, for the detail page (change: restructure-back-office-users-console).
+  // `null` on success means "no such account" — a distinct, renderable state, not an error.
+  const account = ref<Async<AccountRow | null>>(idle);
   const grants = ref<Async<RoleGrant[]>>(idle);
   // Read-only per-user curator reliability (change: add-curation-rewards, task 5.2).
   // MODERATOR/ADMIN gated server-side; it only informs manual promotion — it never
@@ -69,9 +72,30 @@ export const useRolesStore = defineStore("roles", () => {
     }
   }
 
+  /** Load a single account by id, so `/users/{id}` stands on its own: a deep link, a
+   *  reload or a link from elsewhere must not depend on the directory page having been
+   *  visited. Reuses the directory's `ids` filter — no extra RPC. */
+  async function loadAccount(userId: string, keepPrevious = false) {
+    const fetch = async () => {
+      const resp = await api().user.listAccounts({ query: "", limit: 1, offset: 0, ids: [userId] });
+      return resp.accounts[0] ?? null;
+    };
+    await (keepPrevious ? reread : run)(account, fetch);
+  }
+
+  /** Drop every per-account resource. Called when the detail page switches accounts:
+   *  these are shared store slots, and one frame of account A's roles under account B's
+   *  name is unacceptable on a screen where rights are revoked. */
+  function resetAccount() {
+    account.value = idle;
+    grants.value = idle;
+    reliability.value = idle;
+  }
+
   /** Per-account audit history, most recent first. */
-  async function listGrants(userId: string) {
-    await run(grants, async () => (await api().user.listRoleGrants({ userId })).grants);
+  async function listGrants(userId: string, keepPrevious = false) {
+    const fetch = async () => (await api().user.listRoleGrants({ userId })).grants;
+    await (keepPrevious ? reread : run)(grants, fetch);
   }
 
   /** Load a user's curator reliability (read-only; server enforces moderator/admin). */
@@ -79,22 +103,51 @@ export const useRolesStore = defineStore("roles", () => {
     await run(reliability, () => api().score.getCuratorReliability({ userId }));
   }
 
-  async function grant(userId: string, role: string, scope: string) {
+  /** What a successful role change re-reads: the directory page it was made from, or
+   *  the single account whose detail page it was made on. On the detail page that means
+   *  the account AND its audit history — the change writes a row to `role_grants`, and
+   *  re-reading only the roles left the history one page-refresh behind the action the
+   *  operator had just taken, on the same screen. */
+  type Refresh = "list" | "account";
+  const refresh = async (what: Refresh, userId: string) => {
+    if (what === "list") return list();
+    // `keepPrevious`: the detail page is re-read UNDER the operator, who is looking at
+    // it. Regressing to `loading` unmounts the page, loses their scroll position and
+    // remounts the subscription panel (which then re-fetches) — one clicked toggle, and
+    // they are back at the top of the page.
+    await Promise.all([loadAccount(userId, true), listGrants(userId, true)]);
+  };
+
+  async function grant(userId: string, role: string, scope: string, after: Refresh = "list") {
     const outcome = await run(op, async () => {
       await api().user.grantRole({ userId, scope, role });
     });
-    // Re-list the current page so the row's role badges reflect the change.
-    if (outcome.status === "success") await list();
+    // Re-read so the roles shown reflect the change.
+    if (outcome.status === "success") await refresh(after, userId);
     return outcome;
   }
 
-  async function revoke(userId: string, role: string, scope: string) {
+  async function revoke(userId: string, role: string, scope: string, after: Refresh = "list") {
     const outcome = await run(op, async () => {
       await api().user.revokeRole({ userId, scope, role });
     });
-    if (outcome.status === "success") await list();
+    if (outcome.status === "success") await refresh(after, userId);
     return outcome;
   }
 
-  return { directory, grants, reliability, op, params, list, listGrants, loadReliability, grant, revoke };
+  return {
+    directory,
+    account,
+    grants,
+    reliability,
+    op,
+    params,
+    list,
+    loadAccount,
+    resetAccount,
+    listGrants,
+    loadReliability,
+    grant,
+    revoke,
+  };
 });

@@ -11,6 +11,7 @@ use chrono::{DateTime, Utc};
 use cymbra_platform::Result;
 #[cfg(any(test, feature = "mock"))]
 use mockall::automock;
+use std::collections::HashMap;
 use uuid::Uuid;
 
 /// One write to the ledger, upserted by `(source, provider_ref)` (design D3):
@@ -218,10 +219,25 @@ pub struct AuditEntry {
     pub reason: String,
 }
 
+/// One audited mutation as it is READ BACK: the write model plus when it happened.
+/// The console asks for a reason on every destructive plan action, so it must be able
+/// to show those reasons — an audit nobody can consult is a field the operator fills in
+/// for nothing.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AuditRecord {
+    pub actor: String,
+    pub action: String,
+    pub target_ref: Option<String>,
+    pub reason: String,
+    pub at: DateTime<Utc>,
+}
+
 #[cfg_attr(any(test, feature = "mock"), automock)]
 #[async_trait]
 pub trait AuditRepo: Send + Sync {
     async fn record(&self, entry: AuditEntry) -> Result<()>;
+    /// One account's audited plan changes, most recent first.
+    async fn list_for_user(&self, user_id: &str, limit: u32) -> Result<Vec<AuditRecord>>;
 }
 
 /// The seam through which a lapse rotates the user's offline cache secret
@@ -357,6 +373,10 @@ impl PaywallConfigSource for FixedPaywallConfig {
 #[async_trait]
 pub trait HandleResolver: Send + Sync {
     async fn user_id_for_handle(&self, handle: &str) -> Result<Option<String>>;
+    /// Handles for the given account ids (ids with no handle are simply absent), so a
+    /// listing can name the admin who acted instead of showing a raw uuid. `plans` owns
+    /// no account table and cannot join one — the composition root wires this.
+    async fn handles_for_ids(&self, ids: &[String]) -> Result<HashMap<String, String>>;
 }
 
 /// One store subscription as the aggregator reports it for a customer (change:

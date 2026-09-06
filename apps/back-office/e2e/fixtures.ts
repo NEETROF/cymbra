@@ -9,18 +9,21 @@ export function makeJwt(payload: Record<string, unknown>): string {
 }
 
 // The signed-in caller's roles. `admin` is a `music`-scope admin (the common case:
-// the Roles page shows only `music`); `global-admin` is a break-glass admin across
-// every scope (the scope selector appears). The token carries `roles_by_scope` so
+// the Users page shows only `music`); `global-admin` is a break-glass admin across
+// every scope (the scope selector appears); `live-admin` is an admin OUTSIDE the music
+// scope, which is what gates every plan surface. The token carries `roles_by_scope` so
 // the back office can derive the scopes the admin may administer.
-export function tokenFor(role: "moderator" | "admin" | "global-admin" | "none"): string {
+export function tokenFor(role: "moderator" | "admin" | "global-admin" | "live-admin" | "none"): string {
   const rolesByScope: Record<string, string[]> =
     role === "global-admin"
       ? { global: ["admin"] }
       : role === "admin"
         ? { music: ["admin"] }
-        : role === "moderator"
-          ? { music: ["moderator"] }
-          : { global: ["user"] };
+        : role === "live-admin"
+          ? { live: ["admin"] }
+          : role === "moderator"
+            ? { music: ["moderator"] }
+            : { global: ["user"] };
   const roles = [...new Set(Object.values(rolesByScope).flat())];
   return makeJwt({ sub: "u1", aud: "back-office", roles, roles_by_scope: rolesByScope, exp: 4102444800 });
 }
@@ -29,7 +32,7 @@ export interface SeedOptions {
   /** Canned data the fake gRPC-web clients serve (see lib/e2e-seam.ts). */
   data?: E2EData;
   /** Start already authenticated by persisting a token for this role. */
-  loginAs?: "moderator" | "admin" | "global-admin";
+  loginAs?: "moderator" | "admin" | "global-admin" | "live-admin";
 }
 
 // Seed the e2e data (and optionally a signed-in session) BEFORE the app boots, so

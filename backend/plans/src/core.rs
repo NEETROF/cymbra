@@ -144,7 +144,15 @@ pub fn can_enrol(
     if !campaign.accepts_enrolment(now) {
         return Err(EnrolRefusal::CampaignClosed);
     }
-    if existing.iter().any(|m| m.campaign.id == campaign.id) {
+    // Only a LIVE membership blocks. A revoked one must not: revoking is an admin act,
+    // and with no way back, revoking would ban the account from that campaign for good —
+    // recoverable only with a hand-written UPDATE. Re-enrolling someone by name is
+    // explicit and audited, which is the opposite of reopening a campaign, where an
+    // individually revoked member deliberately stays out.
+    if existing
+        .iter()
+        .any(|m| m.campaign.id == campaign.id && m.row.revoked_at.is_none())
+    {
         return Err(EnrolRefusal::AlreadyMember);
     }
     if campaign.kind.is_trial()
@@ -425,6 +433,19 @@ mod tests {
         assert_eq!(
             can_enrol(&trial, std::slice::from_ref(&m), t(3)),
             Err(EnrolRefusal::AlreadyMember)
+        );
+        // A revoked membership does not bar re-enrolment: an admin may put the account
+        // back in by name (revoking must not be a one-way door).
+        let mut revoked = m.clone();
+        revoked.row.revoked_at = Some(t(3));
+        assert_eq!(
+            can_enrol(&trial, std::slice::from_ref(&revoked), t(4)),
+            Ok(())
+        );
+        // ...and it no longer counts as a running trial either.
+        assert_eq!(
+            can_enrol(&trial2, std::slice::from_ref(&revoked), t(4)),
+            Ok(())
         );
         assert_eq!(
             can_enrol(&trial2, std::slice::from_ref(&m), t(3)),

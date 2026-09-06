@@ -34,8 +34,12 @@ export interface FakeState {
   getCatalogScoreCalls: number;
   grantCalls: { userId: string; scope: string; role: string }[];
   revokeCalls: { userId: string; scope: string; role: string }[];
-  listAccountsCalls: { query: string; limit: number; offset: number }[];
+  listAccountsCalls: { query: string; limit: number; offset: number; ids?: string[] }[];
   reliabilityCalls: string[];
+  /** Per-account audit listings requested, by target user id. */
+  listRoleGrantsCalls: string[];
+  /** Admin session revocations requested, by target user id. */
+  revokeAccountSessionsCalls: string[];
   reliability?: unknown;
   setLocaleCalls: string[];
   hits: unknown[];
@@ -60,6 +64,9 @@ export interface FakeState {
   failFlagWrite?: unknown;
   // plans console (change: add-premium-subscription)
   lookupCalls: { userId: string; handle: string }[];
+  /** Per-account audit listings requested (change: read the audited reasons back). */
+  planAuditCalls: { userId: string; limit: number }[];
+  planAudit: unknown[];
   /** What `lookupAccountPlan` returns (a LookupAccountPlanResponse-shaped object). */
   lookup?: unknown;
   campaigns: unknown[];
@@ -100,6 +107,8 @@ export function makeFakeClients(state: Partial<FakeState> = {}): { clients: Clie
     revokeCalls: [],
     listAccountsCalls: [],
     reliabilityCalls: [],
+    listRoleGrantsCalls: [],
+    revokeAccountSessionsCalls: [],
     reliability: state.reliability,
     setLocaleCalls: [],
     hits: state.hits ?? [],
@@ -118,6 +127,8 @@ export function makeFakeClients(state: Partial<FakeState> = {}): { clients: Clie
     failFlags: state.failFlags,
     failFlagWrite: state.failFlagWrite,
     lookupCalls: [],
+    planAuditCalls: [],
+    planAudit: state.planAudit ?? [],
     lookup: state.lookup,
     campaigns: state.campaigns ?? [],
     members: state.members ?? [],
@@ -145,6 +156,10 @@ export function makeFakeClients(state: Partial<FakeState> = {}): { clients: Clie
       signInLocal: async () => s.tokens,
       signInOidc: async () => s.tokens,
       refresh: async () => s.tokens,
+      revokeAccountSessions: async (req: { userId: string }) => {
+        s.revokeAccountSessionsCalls.push(req.userId);
+        return {};
+      },
     },
     score: {
       searchCatalog: async (req: SearchCall) => {
@@ -187,10 +202,19 @@ export function makeFakeClients(state: Partial<FakeState> = {}): { clients: Clie
         s.revokeCalls.push(req);
         return {};
       },
-      listRoleGrants: async () => ({ grants: s.grants }),
+      listRoleGrants: async (req: { userId: string }) => {
+        s.listRoleGrantsCalls.push(req.userId);
+        return { grants: s.grants };
+      },
       listAccounts: async (req: { query: string; limit: number; offset: number; ids?: string[] }) => {
         s.listAccountsCalls.push(req);
-        return { accounts: s.accounts, total: s.accounts.length };
+        // `ids` (pre-resolved by the plan service, or a single account for the detail
+        // page) narrows the directory like the server does.
+        const scoped =
+          req.ids && req.ids.length > 0
+            ? s.accounts.filter((a) => req.ids!.includes((a as { userId: string }).userId))
+            : s.accounts;
+        return { accounts: scoped, total: scoped.length };
       },
       getAccount: async () => ({ userId: "u1", locale: s.accountLocale }),
       setLocale: async (req: { locale: string }) => {
@@ -230,6 +254,10 @@ export function makeFakeClients(state: Partial<FakeState> = {}): { clients: Clie
         return s.lookup ?? { userId: "u-x", snapshot: { plan: "free", betas: [] }, rows: [], memberships: [] };
       },
       listCampaigns: async () => ({ campaigns: s.campaigns }),
+      listPlanAudit: async (req: { userId: string; limit: number }) => {
+        s.planAuditCalls.push(req);
+        return { entries: s.planAudit };
+      },
       listMembers: async (req: { campaignKey: string }) => {
         s.listMembersCalls.push(req.campaignKey);
         return { members: s.members };

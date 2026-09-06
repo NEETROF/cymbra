@@ -53,6 +53,9 @@ service PlanService {
   rpc RevokeCodes(RevokeCodesRequest) returns (RevokeCodesResponse);
   // Admin: members of a campaign (+ CSV export of the same rows).
   rpc ListMembers(ListMembersRequest) returns (ListMembersResponse);
+
+  // The audited reasons behind one account's plan changes (music-admin only).
+  rpc ListPlanAudit(ListPlanAuditRequest) returns (ListPlanAuditResponse);
 }
 
 // ---------------------------------------------------------------- app surface
@@ -329,4 +332,28 @@ message ListMembersRequest {
 }
 message ListMembersResponse {
   repeated MembershipMsg members = 1;
+}
+
+// One audited console mutation on an account's plan. The console asks for a free-text
+// reason on every grant, enrolment and revocation; this is how that reason is read back.
+message PlanAuditEntry {
+  string action = 1;            // grant | revoke_entitlement | enrol | revoke_membership | …
+  string acting_admin = 2;      // account id of the admin who acted
+  // Resolved handle of the acting admin (absent when the admin has no handle or the
+  // account is gone); the console shows this instead of the raw id.
+  optional string acting_admin_handle = 3;
+  // What the action targeted beyond the account itself — a campaign key, an
+  // entitlement id — as recorded at the time.
+  optional string target_ref = 4;
+  string reason = 5;
+  int64 at = 6;                 // unix seconds
+}
+
+message ListPlanAuditRequest {
+  string user_id = 1;
+  // Most recent first; 0 means the server's default window.
+  uint32 limit = 2;
+}
+message ListPlanAuditResponse {
+  repeated PlanAuditEntry entries = 1;
 }

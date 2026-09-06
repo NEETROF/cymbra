@@ -7,7 +7,7 @@ use crate::model::{
     Membership, MembershipRow, MembershipSource, Redemption, Source,
 };
 use crate::ports::{
-    AccessCodeRepo, AuditEntry, AuditRepo, BillingEventRepo, CampaignRepo, Enrolment,
+    AccessCodeRepo, AuditEntry, AuditRecord, AuditRepo, BillingEventRepo, CampaignRepo, Enrolment,
     EntitlementRepo, EntitlementWrite, MembershipRepo, NewCampaign,
 };
 use async_trait::async_trait;
@@ -564,9 +564,17 @@ impl MembershipRepo for PgMembershipRepo {
             .map_err(|err| internal("record redemption", err))?;
         }
 
-        sqlx::query(
+        // The table keeps ONE row per (campaign, user), so re-enrolling someone whose
+        // membership was revoked revives that row rather than inserting a second one.
+        // The `WHERE` keeps a LIVE membership untouched — the row count then tells us it
+        // was a genuine conflict, which is the race the service's own check cannot cover.
+        let inserted = sqlx::query(
             "INSERT INTO beta_memberships (campaign_id, user_id, enrolled_at, ends_at, source) \
-             VALUES ($1, $2, $3, $4, $5)",
+             VALUES ($1, $2, $3, $4, $5) \
+             ON CONFLICT (campaign_id, user_id) DO UPDATE SET \
+               enrolled_at = EXCLUDED.enrolled_at, ends_at = EXCLUDED.ends_at, \
+               source = EXCLUDED.source, revoked_at = NULL \
+             WHERE beta_memberships.revoked_at IS NOT NULL",
         )
         .bind(e.campaign_id)
         .bind(uid)
@@ -575,12 +583,10 @@ impl MembershipRepo for PgMembershipRepo {
         .bind(e.source.as_str())
         .execute(&mut *tx)
         .await
-        .map_err(|err| match &err {
-            sqlx::Error::Database(d) if d.is_unique_violation() => {
-                AppError::AlreadyExists("already_member".into())
-            }
-            _ => internal("insert membership", err),
-        })?;
+        .map_err(|err| internal("insert membership", err))?;
+        if inserted.rows_affected() == 0 {
+            return Err(AppError::AlreadyExists("already_member".into()));
+        }
 
         if let Some(w) = e.trial_row {
             sqlx::query(
@@ -868,6 +874,32 @@ impl AuditRepo for PgAuditRepo {
         .await
         .map_err(|err| internal("audit", err))?;
         Ok(())
+    }
+
+    async fn list_for_user(&self, user_id: &str, limit: u32) -> Result<Vec<AuditRecord>> {
+        let uid = parse_uuid(user_id)?;
+        let rows = sqlx::query(
+            "SELECT actor, action, target_ref, reason, at \
+             FROM plan_admin_audit \
+             WHERE target_user = $1 \
+             ORDER BY at DESC, id DESC \
+             LIMIT $2",
+        )
+        .bind(uid)
+        .bind(i64::from(limit))
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|err| internal("list audit", err))?;
+        Ok(rows
+            .into_iter()
+            .map(|r| AuditRecord {
+                actor: r.get("actor"),
+                action: r.get("action"),
+                target_ref: r.get("target_ref"),
+                reason: r.get("reason"),
+                at: r.get("at"),
+            })
+            .collect())
     }
 }
 

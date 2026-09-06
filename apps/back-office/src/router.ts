@@ -3,8 +3,8 @@ import { useAuthStore } from "@/stores/auth";
 
 // The auth shell and cross-product admin live at the root; music-specific pages are
 // namespaced under `/music/` (path AND `music-` name) so the console can grow other
-// product domains later. Role/account administration is transverse, so it stays at
-// `/roles` with a generic name.
+// product domains later. Account administration is transverse, so it stays at
+// `/users` with a generic name.
 const routes: RouteRecordRaw[] = [
   { path: "/signin", name: "signin", component: () => import("@/views/SignInView.vue"), meta: { public: true } },
   { path: "/denied", name: "denied", component: () => import("@/views/AccessDeniedView.vue"), meta: { public: true } },
@@ -17,9 +17,24 @@ const routes: RouteRecordRaw[] = [
     component: () => import("@/views/ScoreDetailView.vue"),
     props: true,
   },
-  { path: "/roles", name: "roles", component: () => import("@/views/RolesView.vue"), meta: { admin: true } },
+  // One account = one address. The directory finds an account, the detail page acts
+  // on it (change: restructure-back-office-users-console) — so a filtered list and a
+  // single account's subscription are no longer two screens that ignore each other.
+  { path: "/users", name: "users", component: () => import("@/views/UsersView.vue"), meta: { admin: true } },
+  {
+    path: "/users/:userId",
+    name: "user-detail",
+    component: () => import("@/views/UserDetailView.vue"),
+    props: true,
+    meta: { admin: true },
+  },
   { path: "/flags", name: "flags", component: () => import("@/views/FlagsView.vue"), meta: { admin: true } },
-  { path: "/plans", name: "plans", component: () => import("@/views/PlansView.vue"), meta: { admin: true } },
+  {
+    path: "/campaigns",
+    name: "campaigns",
+    component: () => import("@/views/CampaignsView.vue"),
+    meta: { admin: true },
+  },
   {
     path: "/soundfonts",
     name: "soundfonts",
@@ -41,6 +56,10 @@ const routes: RouteRecordRaw[] = [
     component: () => import("@/views/NotificationsView.vue"),
     meta: { admin: true },
   },
+  // The pages these two paths named were split and renamed; admins have them in their
+  // bookmarks, and a silent 404 on an internal tool is paid for in tickets.
+  { path: "/roles", redirect: { name: "users" } },
+  { path: "/plans", redirect: { name: "campaigns" } },
   // Root + anything unknown land on the review queue (the primary work surface).
   { path: "/", redirect: { name: "music-queue" } },
   { path: "/:pathMatch(.*)*", redirect: { name: "music-queue" } },

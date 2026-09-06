@@ -19,6 +19,12 @@ describe("humanError", () => {
   it("maps common codes to their localized messages", () => {
     expect(humanError(new ConnectError("x", Code.PermissionDenied))).toBe(t("errors.permissionDenied"));
     expect(humanError(new ConnectError("x", Code.NotFound))).toBe(t("errors.notFound"));
+    // A duplicate is not a transient failure: the generic message ends in "Try again",
+    // which sent operators retrying an enrolment that could never succeed.
+    const dup = humanError(new ConnectError("already_member", Code.AlreadyExists));
+    expect(dup).toBe(t("errors.alreadyExists"));
+    expect(dup).not.toBe(t("errors.generic"));
+    expect(dup).not.toContain("already_member");
     expect(humanError(new ConnectError("x", Code.Unavailable))).toBe(t("errors.unavailable"));
   });
 

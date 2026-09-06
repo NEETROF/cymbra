@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { flushPromises } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { PAGE_SIZE, useRolesStore } from "@/stores/roles";
 import { useAuthStore } from "@/stores/auth";
@@ -147,6 +148,151 @@ describe("roles store", () => {
     );
     await store.list("", 0);
     expect(state.plansForAccountsCalls).toEqual([["u1"]]);
+  });
+
+  // --- one account, for the detail page (change: restructure-back-office-users-console) ---
+
+  it("loads a single account by id, so the detail page needs no directory page", async () => {
+    const accounts = [
+      { userId: "u1", handle: "ada", rolesByScope: [] },
+      { userId: "u2", handle: "bob", rolesByScope: [] },
+    ];
+    const { clients, state } = makeFakeClients({ accounts });
+    setClientsForTest(clients);
+    const store = useRolesStore();
+
+    await store.loadAccount("u2");
+
+    // The directory's `ids` filter carries it — no new RPC, and no page of 25 to sift.
+    expect(state.listAccountsCalls).toEqual([{ query: "", limit: 1, offset: 0, ids: ["u2"] }]);
+    expect(store.account.status).toBe("success");
+    if (store.account.status === "success") expect(store.account.data?.handle).toBe("bob");
+  });
+
+  it("an id that matches nothing is a renderable `null`, not an error", async () => {
+    const { clients } = makeFakeClients({ accounts: [{ userId: "u1", handle: "ada", rolesByScope: [] }] });
+    setClientsForTest(clients);
+    const store = useRolesStore();
+
+    await store.loadAccount("nobody");
+
+    expect(store.account).toEqual({ status: "success", data: null });
+  });
+
+  it("switching accounts drops every per-account slot before the next load", async () => {
+    const accounts = [
+      { userId: "u1", handle: "ada", rolesByScope: [] },
+      { userId: "u2", handle: "bob", rolesByScope: [] },
+    ];
+    const grants = [
+      { targetUserId: "u1", scope: "music", role: "moderator", action: "grant", actingAdmin: "a", at: 1n },
+    ];
+    const { clients } = makeFakeClients({ accounts, grants, reliability: { totalRatings: 3n } });
+    setClientsForTest(clients);
+    const store = useRolesStore();
+    await store.loadAccount("u1");
+    await store.listGrants("u1");
+    await store.loadReliability("u1");
+
+    store.resetAccount();
+
+    // Nothing of account u1 survives: a frame of one account's rights under another
+    // account's name is unacceptable on a page where rights are revoked.
+    expect(store.account.status).toBe("idle");
+    expect(store.grants.status).toBe("idle");
+    expect(store.reliability.status).toBe("idle");
+  });
+
+  it("a role change made on a detail page re-reads that account, not a directory page", async () => {
+    const accounts = [{ userId: "u1", handle: "ada", rolesByScope: [{ scope: "music", roles: [] }] }];
+    const { clients, state } = makeFakeClients({ accounts });
+    setClientsForTest(clients);
+    const store = useRolesStore();
+    await store.loadAccount("u1");
+
+    await store.grant("u1", "moderator", "music", "account");
+
+    expect(state.grantCalls).toEqual([{ userId: "u1", scope: "music", role: "moderator" }]);
+    // Two single-account reads (the initial load + the refresh), no directory page.
+    expect(state.listAccountsCalls).toEqual([
+      { query: "", limit: 1, offset: 0, ids: ["u1"] },
+      { query: "", limit: 1, offset: 0, ids: ["u1"] },
+    ]);
+  });
+
+  it("a role change on a detail page re-reads the audit history too, not only the roles", async () => {
+    // The detail page shows the roles AND the history side by side, and a grant writes
+    // to both. Re-reading only the roles left the history a page-refresh behind the
+    // action the operator had just taken, on the same screen.
+    const accounts = [{ userId: "u1", handle: "ada", rolesByScope: [{ scope: "music", roles: [] }] }];
+    const { clients, state } = makeFakeClients({ accounts });
+    setClientsForTest(clients);
+    const store = useRolesStore();
+    await store.loadAccount("u1");
+    await store.listGrants("u1");
+    expect(state.listRoleGrantsCalls).toEqual(["u1"]);
+
+    await store.grant("u1", "moderator", "music", "account");
+
+    expect(state.listRoleGrantsCalls).toEqual(["u1", "u1"]);
+
+    await store.revoke("u1", "moderator", "music", "account");
+
+    expect(state.listRoleGrantsCalls).toEqual(["u1", "u1", "u1"]);
+  });
+
+  it("a refresh after an action keeps the account on screen instead of collapsing to loading", async () => {
+    // `run` folds through `loading`, which is right for an initial load and wrong for a
+    // re-read under an operator who is looking at the page: the view unmounts everything
+    // it renders from the data, the document collapses, the browser clamps the scroll
+    // back to the top and child panels remount (re-issuing their own fetches).
+    const accounts = [{ userId: "u1", handle: "ada", rolesByScope: [{ scope: "music", roles: [] }] }];
+    const { clients } = makeFakeClients({ accounts });
+    setClientsForTest(clients);
+    const store = useRolesStore();
+    await store.loadAccount("u1");
+    await store.listGrants("u1");
+
+    // Hold the re-read open and look at what the page would be rendering meanwhile.
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const user = clients.user as unknown as { listAccounts: (r: unknown) => Promise<unknown> };
+    const realList = user.listAccounts;
+    user.listAccounts = async (r: unknown) => {
+      await gate;
+      return realList(r);
+    };
+
+    const pending = store.grant("u1", "moderator", "music", "account");
+    await flushPromises();
+
+    expect(store.account.status).toBe("success");
+    expect(store.grants.status).toBe("success");
+
+    release();
+    await pending;
+    expect(store.account.status).toBe("success");
+  });
+
+  it("an INITIAL account load still shows loading — there is nothing to keep", async () => {
+    const { clients } = makeFakeClients({ accounts: [{ userId: "u1", rolesByScope: [] }] });
+    setClientsForTest(clients);
+    const store = useRolesStore();
+
+    const pending = store.loadAccount("u1");
+    expect(store.account.status).toBe("loading");
+    await pending;
+    expect(store.account.status).toBe("success");
+  });
+
+  it("a directory-page role change does NOT read a per-account history", async () => {
+    const { clients, state } = makeFakeClients({ accounts: [{ userId: "u1", rolesByScope: [] }] });
+    setClientsForTest(clients);
+    const store = useRolesStore();
+
+    await store.grant("u1", "moderator", "music");
+
+    expect(state.listRoleGrantsCalls).toEqual([]);
   });
 
   it("captures a denied grant in the op state instead of throwing", async () => {

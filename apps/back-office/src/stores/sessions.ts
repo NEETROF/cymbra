@@ -10,7 +10,7 @@ import { type Async, idle, run } from "@/lib/async";
 export const useSessionsStore = defineStore("sessions", () => {
   const op = ref<Async<void>>(idle);
 
-  /** Admin: cut off every session of a target account (RolesView action). */
+  /** Admin: cut off every session of a target account (the account detail page). */
   async function revokeAccount(userId: string) {
     return run(op, async () => {
       await api().auth.revokeAccountSessions({ userId });

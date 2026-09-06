@@ -166,6 +166,35 @@ export function installE2EClients(): void {
     return { userId: a.userId, handle: a.handle, displayName: a.displayName, roles };
   });
 
+  /** Append a row to the `role_grants` audit listing, as the server does on every
+   *  grant/revoke — most recent first. Without it the console's history could not be
+   *  observed to follow an action taken on the same screen. */
+  function audit(req: { userId: string; scope: string; role: string }, action: "grant" | "revoke") {
+    (data.grants ??= []).unshift({
+      targetUserId: req.userId,
+      scope: req.scope,
+      role: req.role,
+      action,
+      actingAdmin: "u1",
+      actingAdminHandle: "e2e-admin",
+      at: Math.floor(Date.now() / 1000),
+    });
+  }
+
+  /** Audited plan mutations per account, appended by each mutation as the server does,
+   *  so the console's audit trail can be observed to follow the action. */
+  const planAudit: Record<string, Record<string, unknown>[]> = {};
+  const recordPlanAudit = (userId: string, action: string, targetRef: string | undefined, reason: string) => {
+    (planAudit[userId] ??= []).push({
+      action,
+      actingAdmin: "u1",
+      actingAdminHandle: "e2e-admin",
+      targetRef,
+      reason,
+      at: Math.floor(Date.now() / 1000),
+    });
+  };
+
   // Plan console state (change: add-premium-subscription). Mutable copies so grant /
   // revoke / enrol / create / close change what the next lookup or list returns.
   const campaigns: E2ECampaign[] = (data.campaigns ?? []).map((c) => ({ acceptsEnrolment: true, ...c }));
@@ -386,15 +415,24 @@ export function installE2EClients(): void {
           const rs = (acc.roles[req.scope] ??= []);
           if (!rs.includes(req.role)) rs.push(req.role);
         }
+        audit(req, "grant");
         return {};
       },
       revokeRole: async (req: { userId: string; scope: string; role: string }) => {
         failIfSet("revokeRole");
         const acc = byScope.find((a) => a.userId === req.userId);
         if (acc && acc.roles[req.scope]) acc.roles[req.scope] = acc.roles[req.scope].filter((r) => r !== req.role);
+        audit(req, "revoke");
         return {};
       },
-      listRoleGrants: async () => ({ grants: data.grants ?? [] }),
+      // Rows carrying a `targetUserId` belong to that account only, like the server's
+      // per-account audit listing.
+      listRoleGrants: async (req: { userId: string }) => ({
+        grants: (data.grants ?? []).filter((g) => {
+          const target = (g as { targetUserId?: string }).targetUserId;
+          return !target || target === req.userId;
+        }),
+      }),
       getAccount: async () => {
         failIfSet("getAccount");
         return { userId: "u1", locale: data.accountLocale };
@@ -526,6 +564,9 @@ export function installE2EClients(): void {
     // here every mutation is applied to the seeded state so the re-lookup / re-list
     // the store performs reflects it.
     plans: {
+      listPlanAudit: async (req: { userId: string }) => ({
+        entries: (planAudit[req.userId] ?? []).slice().reverse(),
+      }),
       lookupAccountPlan: async (req: { userId: string; handle: string }) => {
         failIfSet("lookupAccountPlan");
         const uid = resolveUser(req);
@@ -568,7 +609,13 @@ export function installE2EClients(): void {
           });
         return { userIds: ids };
       },
-      grantPremium: async (req: { userId: string; handle: string; endsAt?: string; confirmOpenEnded: boolean }) => {
+      grantPremium: async (req: {
+        userId: string;
+        handle: string;
+        endsAt?: string;
+        confirmOpenEnded: boolean;
+        reason: string;
+      }) => {
         failIfSet("grantPremium");
         if (!req.endsAt && !req.confirmOpenEnded) {
           throw new ConnectError("open-ended grant requires confirmation", Code.FailedPrecondition);
@@ -583,20 +630,22 @@ export function installE2EClients(): void {
           status: "active",
         };
         planOf(uid).rows.push(row);
+        recordPlanAudit(uid, "grant", undefined, req.reason);
         return { row };
       },
-      revokeEntitlement: async (req: { entitlementId: string }) => {
+      revokeEntitlement: async (req: { entitlementId: string; reason: string }) => {
         failIfSet("revokeEntitlement");
-        for (const p of Object.values(plans)) {
+        for (const [uid, p] of Object.entries(plans)) {
           const r = p.rows.find((x) => x.id === req.entitlementId);
           if (r) {
             r.status = "revoked";
             r.revokedAt = nowIso();
+            recordPlanAudit(uid, "revoke_entitlement", req.entitlementId, req.reason);
           }
         }
         return {};
       },
-      enrolHandle: async (req: { userId: string; handle: string; campaignKey: string }) => {
+      enrolHandle: async (req: { userId: string; handle: string; campaignKey: string; reason: string }) => {
         failIfSet("enrolHandle");
         const uid = resolveUser(req);
         const c = campaignByKey(req.campaignKey);
@@ -615,6 +664,7 @@ export function installE2EClients(): void {
           source: "admin",
         };
         planOf(uid).memberships.push(membership);
+        recordPlanAudit(uid, "enrol", c.key, req.reason);
         if (c.kind === "premium_trial") {
           planOf(uid).rows.push({
             id: `e-${Date.now()}`,
@@ -628,11 +678,12 @@ export function installE2EClients(): void {
         }
         return { membership };
       },
-      revokeMembership: async (req: { userId: string; handle: string; campaignKey: string }) => {
+      revokeMembership: async (req: { userId: string; handle: string; campaignKey: string; reason: string }) => {
         failIfSet("revokeMembership");
         const uid = resolveUser(req);
         const m = planOf(uid).memberships.find((x) => x.campaignKey === req.campaignKey && !x.revokedAt);
         if (m) m.revokedAt = nowIso();
+        recordPlanAudit(uid, "revoke_membership", req.campaignKey, req.reason);
         return {};
       },
       createCampaign: async (req: { key: string; name: string; kind: string; durationDays?: number }) => {
