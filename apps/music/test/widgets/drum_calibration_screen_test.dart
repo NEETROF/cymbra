@@ -18,15 +18,29 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:music/screens/drum_calibration_screen.dart';
 import 'package:music/services/audio_service.dart';
 import 'package:music/services/midi_service.dart';
+import 'package:music/services/notation_engine.dart';
 import 'package:music/services/preferences_service.dart';
+import 'package:music/services/score_asset_source.dart';
+import 'package:music/src/rust/api/musicxml.dart' show ScoreDocument;
 import 'package:music/state/drum_calibration_notifier.dart';
 import 'package:music/state/drum_input_mapping_notifier.dart';
 import 'package:music/state/drum_kit.dart';
+import 'package:music/state/score_catalog.dart';
 import 'package:music/src/rust/api/midi.dart' show MidiEvent, MidiEventKind;
 
 import '../support/fakes.dart';
 import '../support/localized.dart';
+import '../support/notation_fakes.dart';
 import '../support/prefs_fakes.dart';
+
+/// The score a document-bearing pump loads, so the pass has a kit to read.
+const _entry = CatalogEntry(
+  id: 'sample',
+  title: 'Groove',
+  composer: 'Tester',
+  assetPath: 'assets/scores/beginner/sample.musicxml',
+  level: PracticeLevel.beginner,
+);
 
 // The calibration flow end to end (change: add-drum-input-calibration,
 // tasks 6.5–6.8 and 7.1–7.3).
@@ -42,6 +56,7 @@ void main() {
     WidgetTester tester, {
     String? connected = 'Drum kit',
     Map<String, String>? storedPrefs,
+    ScoreDocument? document,
   }) async {
     stamp = 0;
     audio = RecordingAudioService();
@@ -61,10 +76,20 @@ void main() {
         scoreSourceProvider.overrideWithValue(FakeScoreSource()),
         audioServiceProvider.overrideWithValue(audio),
         preferencesServiceProvider.overrideWithValue(prefs),
+        scoreCatalogProvider.overrideWithValue(const [_entry]),
+        scoreAssetSourceProvider.overrideWithValue(FakeScoreAssetSource()),
+        notationEngineProvider.overrideWithValue(
+          FakeNotationEngine(document: document),
+        ),
       ],
     );
     // The store restores from preferences on a future; the pass reads it.
     await container.read(drumInputMappingStoreProvider.notifier).restored;
+    // With a document, the surface is reached the way it is in the app: over a
+    // player holding a loaded score, which is the kit the pass reads.
+    if (document != null) {
+      container.read(selectedScoreProvider.notifier).select(_entry);
+    }
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
@@ -73,6 +98,13 @@ void main() {
     );
     await tester.pump();
     await tester.pump();
+    // The score loads asynchronously; let it land before anything asks what
+    // the kit is.
+    if (document != null) {
+      for (var i = 0; i < 12; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+    }
   }
 
   /// A stroke on [pitch], stamped later than every stroke before it — the
@@ -213,6 +245,47 @@ void main() {
     expect(container.read(drumCalibrationProvider).recorded, {
       'kitPieceSnare': 12,
     });
+    await teardown(tester);
+  });
+
+  testWidgets('the pass asks for THIS score\'s kit, not the standard one '
+      '(design D10)', (tester) async {
+    // The fixture is a kick / snare / closed-hi-hat groove. A drummer opening
+    // it is asked three questions, not twenty-three: the pieces they are about
+    // to play, in the pass's own order.
+    await pump(tester, document: sampleDrumDocument());
+    await tap(tester, 'calibration-start');
+    expect(container.read(drumCalibrationProvider).pieces, [
+      kKickPieceId,
+      'kitPieceSnare',
+      'kitPieceHiHat',
+    ]);
+
+    await strike(tester, 12);
+    await strike(tester, 31);
+    await strike(tester, 22);
+    // Three strokes end it — nothing to skip through, nothing to finish early.
+    expect(find.byKey(const Key('calibration-finished')), findsOneWidget);
+    expect(
+      container
+          .read(drumInputMappingStoreProvider.notifier)
+          .forPort('Drum kit')
+          .byPiece,
+      {kKickPieceId: 12, 'kitPieceSnare': 31, 'kitPieceHiHat': 22},
+    );
+    await teardown(tester);
+  });
+
+  testWidgets('with no score to read a kit from, the standard kit is asked '
+      'for', (tester) async {
+    // The fallback that keeps the surface usable on its own — and the reason
+    // every test below still walks the full list.
+    await pump(tester);
+    await tap(tester, 'calibration-start');
+    expect(
+      container.read(drumCalibrationProvider).pieces,
+      kCalibrationPieceOrder,
+    );
     await teardown(tester);
   });
 

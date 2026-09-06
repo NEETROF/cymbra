@@ -685,16 +685,54 @@ const String kOpenHiHatPieceId = 'gm:46';
 /// The ride's bell — the ride lane's accent surface.
 const String kRideBellPieceId = 'gm:53';
 
+/// The zones that earn a calibration step of their own — the numbers a lane
+/// collapses onto the piece they belong to, but a module fires separately
+/// (design D9). Everything else is asked for at the piece's own grain.
+const Set<int> kCalibrationZoneGmNumbers = {37, 44, 46, 53};
+
+/// The calibration target a written number is learned under: the zone itself
+/// when the pass asks for that zone separately, the number's piece otherwise.
+///
+/// The one place the two grains meet. Recording is per target; *interpreting*
+/// stays per piece ([drumPieceIdOf]), which is why learning a rim separately
+/// changes nothing about what flashes, gates or scores.
+String calibrationTargetOf(int gm) =>
+    kCalibrationZoneGmNumbers.contains(gm) ? gmPieceId(gm) : drumPieceIdOf(gm);
+
+/// The targets a **loaded score** asks for, in the pass's own order (design
+/// D10): what the file actually writes, deduped and ordered like the standard
+/// kit, with anything the standard list does not name appended by number.
+///
+/// A groove is played on the pieces it is written for. Asking for the whole
+/// standard kit made a pass over a hi-hat-and-snare groove eighteen steps of
+/// "this kit has none", and the trade — a piece absent from *this* score cannot
+/// be learned from it — is answered by the score that does write it, and made
+/// visible before playing by the settings' own "not learned yet" line.
+///
+/// The tail matters as much as the head: a score writing a bongo yields a target
+/// the standard list never names, and dropping it would leave the one piece the
+/// player cannot calibrate as the one the file actually asks for.
+List<String> calibrationTargetsForScore(Iterable<int> presentGm) {
+  final targets = {for (final gm in presentGm) calibrationTargetOf(gm)};
+  return [
+    for (final id in kCalibrationPieceOrder)
+      if (targets.remove(id)) id,
+    ...targets.toList()..sort(
+      (a, b) =>
+          (canonicalGmOfPiece(a) ?? 0).compareTo(canonicalGmOfPiece(b) ?? 0),
+    ),
+  ];
+}
+
 /// The standard kit a calibration pass walks, in the order it asks — round the
 /// kit as a drummer sits at it: the foot and the two hands first (the pieces
 /// every groove has), each with the zones that sit on the same piece of
 /// hardware, then the toms high to low, then the cymbals.
 ///
-/// The **fixed standard kit**, deliberately not the loaded score's
-/// (change: add-drum-input-calibration, design D7): a mapping describes a piece
-/// of hardware, not a piece of music, and calibrating from a groove that has no
-/// toms would leave a kit unable to map its toms at all. Every step is
-/// skippable, so a kit that lacks a piece costs one tap.
+/// The fallback list (design D7, amended by D10): what the pass asks for when
+/// there is no percussion score to read a kit from. A mapping describes a piece
+/// of hardware rather than a piece of music, so the order is the kit's own and
+/// every step is skippable — a kit that lacks a piece costs one tap.
 const List<String> kCalibrationKitPieceOrder = [
   kKickPieceId,
   'kitPieceSnare',

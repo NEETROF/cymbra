@@ -49,6 +49,30 @@ replace the previous result only when it completes.
 - **THEN** the conflict is reported and the player is asked to strike again or
   reassign, rather than silently overwriting
 
+### Requirement: The Pass Asks For The Loaded Score's Own Kit
+
+The pass SHALL ask for the pieces the **loaded score actually writes**, in the
+standard kit's order, rather than for a fixed kit: a groove is played on the
+pieces it is written for, and asking for a whole standard kit makes a pass over a
+hi-hat-and-snare groove mostly answers of "this kit has none". A piece the score
+writes that the standard order does not name SHALL still be asked for, so the one
+piece a player cannot calibrate is never the one the file requires. With no
+percussion score to read a kit from, the pass SHALL fall back to the standard kit
+so the surface still works on its own.
+
+#### Scenario: A groove asks for its own pieces
+- **WHEN** a score written for kick, snare and hi-hat is loaded and the pass is
+  started
+- **THEN** it asks for those three, in the kit's order, and ends there
+
+#### Scenario: A piece outside the standard order is still offered
+- **WHEN** the loaded score writes a piece the standard kit list does not name
+- **THEN** the pass asks for it too
+
+#### Scenario: No score, standard kit
+- **WHEN** the pass is started with no percussion score loaded
+- **THEN** it asks for the standard kit
+
 ### Requirement: The Pass Covers Every Trigger A Kit Sends
 
 The pass SHALL ask for every part of a kit an instrument can trigger on a number
@@ -59,9 +83,9 @@ this way SHALL still resolve to the piece it belongs to everywhere downstream, s
 asking for it separately SHALL change nothing about what flashes, what the gate
 awaits or what is scored.
 
-Because that list runs past most kits, the pass SHALL offer a way to **end it
-early keeping what it has learned**, distinct from abandoning it, and SHALL ask
-for the auxiliary pads only after the kit itself.
+Because the standard-kit fallback runs past most kits, the pass SHALL offer a way
+to **end it early keeping what it has learned**, distinct from abandoning it, and
+SHALL ask for the auxiliary pads only after the kit itself.
 
 #### Scenario: A zone the module triggers separately is learned
 - **WHEN** the pass asks for the open hi-hat and the kit sends 26 for it
@@ -103,6 +127,30 @@ available whatever the loaded score is.
 #### Scenario: The monitor is offered either way
 - **WHEN** the settings are opened on a score of any kind
 - **THEN** the input monitor is offered
+
+### Requirement: The Settings Name What This Score Has Yet To Teach
+
+The settings SHALL name, under the calibration action, the pieces the loaded
+score asks for that the connected device has **no mapping entry for**, and SHALL
+state plainly when there are none left. The question a player has before playing
+is not whether their kit is calibrated in the abstract but whether everything
+this groove will ask them to hit is understood, and that question SHALL be
+answerable without starting a pass. Nothing SHALL be reported when no device is
+connected, there being no mapping for a piece to be missing from.
+
+#### Scenario: What is missing is named
+- **WHEN** the loaded score asks for a piece the connected device has no entry
+  for
+- **THEN** that piece is named under the calibration action
+
+#### Scenario: A learned piece leaves the list
+- **WHEN** a piece named there is calibrated
+- **THEN** it is no longer named
+
+#### Scenario: Nothing left to teach is said plainly
+- **WHEN** every piece the loaded score asks for has an entry for the connected
+  device
+- **THEN** the settings say so, rather than showing an empty list
 
 ### Requirement: Mapping Is Per Device
 

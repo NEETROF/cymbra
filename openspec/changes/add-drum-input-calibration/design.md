@@ -113,7 +113,37 @@ is already the snare's, the pass says so — because on a real kit that means th
 player hit the wrong pad, and quietly reassigning it would produce a mapping that
 is wrong in two places at once.
 
+### D10 — …reversed: the pass calibrates the loaded score's kit (supersedes D7)
+
+*Decided by the product owner after running D9's pass on the kit.* D7 reasoned
+from the mapping ("hardware, not music") and got the ergonomics wrong. With D9's
+zones the standard list is twenty-three steps, and a drummer opening a
+hi-hat-and-snare groove answered "this kit has none" nineteen times to teach the
+app three pads. The pass now asks for `PlayerData.calibrationTargets` — the
+pieces and zones **the loaded file writes**, in the standard kit's order, with
+anything the standard order does not name appended rather than dropped (a score
+writing a bongo must not leave the bongo the one uncalibratable piece).
+
+What D7 was protecting is real and is now paid for differently: a piece absent
+from *this* score cannot be learned from it. That cost is bounded — the score
+that writes the piece is the one that asks for it, and the pass is one tap from
+the settings of that score — and the state it creates is made **visible before
+playing** rather than left to be discovered mid-groove: the settings name, under
+the calibration action, exactly the pieces this score asks for that the connected
+device has no entry for ("Not learned yet for this piece: open hi-hat, ride
+bell"), and say so plainly when there are none. That line is the reason the trade
+is acceptable; without it, "the pass is short now" would just mean "the gaps are
+invisible now".
+
+The targets are read from `notes`, never `visibleNotes` or the focus selection:
+practising one hand, or muting the ride for a lap, states what is *asked of the
+player*, and must not shrink what the instrument can be taught. The standard kit
+remains the fallback when there is no percussion score to read — the surface has
+to work before a score is loaded, and a keyboard score's numbers are pitches that
+would name pieces nobody struck.
+
 ### D7 — The pass calibrates a fixed standard kit, not the loaded score's
+*(superseded by D10 — kept for the reasoning it records.)*
 
 *Settled during implementation (task 6.7).* A mapping describes a piece of
 hardware, not a piece of music: calibrating from a groove that has no toms would

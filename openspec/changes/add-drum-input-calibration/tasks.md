@@ -204,3 +204,23 @@
   finishes early keeping what it learned; the auxiliary pads come last
 - [ ] 10.7 On the kit: run the extended pass and confirm the rim, the open hi-hat
   and the pedal are learned on their own numbers and are no longer inert
+
+## 11. The pass follows the score (D10)
+
+- [x] 11.1 `calibrationTargetOf` / `calibrationTargetsForScore` in `drum_kit.dart`
+  and `PlayerData.calibrationTargets`: the pieces and zones the loaded file
+  writes, in the standard kit's order, with anything the standard order does not
+  name appended by number rather than dropped
+- [x] 11.2 The pass reads them at build **and at `start()`**, so a score that
+  finished loading after the surface opened is the one asked for; falls back to
+  the standard kit with no percussion score to read
+- [x] 11.3 The settings name what this score has yet to teach the connected
+  device under the calibration action, and say so plainly when nothing is left
+  (`_CalibrationCoverage`)
+- [x] 11.4 The tile's hint follows the new scope ("each piece this score asks
+  for", fr/en/es/it) + the two coverage strings
+- [x] 11.5 Tests: a groove asks for its own three pieces and completes on three
+  strokes; a piece outside the standard order is still offered; the no-score
+  fallback; the coverage line shrinks as pieces are learned and turns positive
+- [ ] 11.6 On the kit: open a groove, confirm the pass asks only for its pieces
+  and that the settings' "not learned yet" line matches what the kit still owes

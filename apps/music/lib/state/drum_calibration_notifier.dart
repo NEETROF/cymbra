@@ -57,7 +57,24 @@ class DrumCalibration extends _$DrumCalibration {
         .events()
         .listen(_onEvent, onError: (Object _) {});
     ref.onDispose(sub.cancel);
-    return const CalibrationState(pieces: kCalibrationPieceOrder);
+    return CalibrationState(pieces: _targets());
+  }
+
+  /// What this pass asks for: the loaded score's own kit (design D10).
+  ///
+  /// `read`, not `watch`, for the reason the keep-alive above is a `listen`:
+  /// watching would rebuild this notifier — discarding the pass — on every frame
+  /// of playback. Re-read at [start] rather than only at build, so a pass begun
+  /// on a score that finished loading after this surface opened still asks for
+  /// that score's pieces.
+  ///
+  /// Falls back to the standard kit when there is no percussion score to read —
+  /// nothing loaded yet, or the surface reached with a keyboard score, where the
+  /// numbers are pitches and would name pieces the player never struck.
+  List<String> _targets() {
+    final data = ref.read(playerProvider);
+    final targets = data.calibrationTargets;
+    return targets.isEmpty ? kCalibrationPieceOrder : targets;
   }
 
   /// The last timestamp the engine stamped, so a step arms against the events
@@ -91,8 +108,10 @@ class DrumCalibration extends _$DrumCalibration {
 
   /// Begins a pass (or begins one again), discarding anything an earlier pass
   /// in this session had learned but not stored. Armed against the events seen
-  /// so far, so the stroke that opened the screen cannot answer the first step.
-  void start() => state = state.start(atMs: _lastSeenMs);
+  /// so far, so the stroke that opened the screen cannot answer the first step,
+  /// and asking for the score that is loaded **now**.
+  void start() =>
+      state = CalibrationState(pieces: _targets()).start(atMs: _lastSeenMs);
 
   void _apply(CalibrationState next) {
     if (identical(next, state)) return;

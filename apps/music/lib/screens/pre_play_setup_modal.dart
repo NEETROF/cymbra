@@ -22,6 +22,7 @@ import '../layout/device_class.dart';
 import '../services/platform_info.dart';
 import '../state/audio_routing.dart';
 import '../state/coaching_notifier.dart';
+import '../state/drum_input_mapping_notifier.dart';
 import '../state/drum_kit.dart';
 import '../state/notation_notifier.dart';
 import '../state/note_label.dart';
@@ -1069,7 +1070,7 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
         // the snare", and the seam that applies it is identity on anything that
         // is not a percussion score (design D8). Offering it on a keyboard score
         // would promise a calibration that provably does nothing there.
-        if (data.isPercussion)
+        if (data.isPercussion) ...[
           Padding(
             padding: const EdgeInsets.only(top: 4),
             child: ListTile(
@@ -1097,6 +1098,15 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
               onTap: () => openDrumCalibration(context),
             ),
           ),
+          // …and what this score still has to teach it. Under the action that
+          // fixes it, because the two are one thought: "these are the pieces
+          // this groove will ask you for that your kit has not been read on".
+          //
+          // Only with a device connected: with none there is no mapping to be
+          // missing from, and the section says so a few lines above.
+          if (data.midiConnected)
+            _CalibrationCoverage(targets: data.calibrationTargets),
+        ],
       ],
     );
   }
@@ -1107,6 +1117,50 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
 ///
 /// The two gestures together give the spec's additive rule: solo the hi-hat,
 /// then check the snare, and exactly those two are asked for.
+/// What the connected kit still has to be taught **for this score** (change:
+/// add-drum-input-calibration, design D10): the pieces the file writes that this
+/// device has no entry for, named right under the action that fixes them.
+///
+/// The question a drummer has before playing is not "is my kit calibrated" but
+/// "will everything this groove asks me to hit be understood" — and since the
+/// pass now asks for the score's own pieces, that question finally has a short,
+/// exact answer.
+class _CalibrationCoverage extends ConsumerWidget {
+  const _CalibrationCoverage({required this.targets});
+
+  /// The score's own calibration targets ([PlayerData.calibrationTargets]).
+  final List<String> targets;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (targets.isEmpty) return const SizedBox.shrink();
+    final l10n = AppLocalizations.of(context);
+    final mapping = ref.watch(activeDrumMappingProvider);
+    final missing = [
+      for (final id in targets)
+        if (!mapping.byPiece.containsKey(id)) kitPieceLabelOf(l10n, id),
+    ];
+    final complete = missing.isEmpty;
+    return Padding(
+      // Indented to the tile's text, so it reads as that action's own line
+      // rather than as a new item in the section.
+      padding: const EdgeInsets.only(left: 40, right: 8, bottom: 4),
+      child: Text(
+        key: Key(complete ? 'calibration-complete' : 'calibration-missing'),
+        complete
+            ? l10n.calibrationScoreComplete
+            : l10n.calibrationScoreMissing(missing.join(' · ')),
+        style: TextStyle(
+          color: complete
+              ? CymbraColors.tertiary
+              : CymbraColors.onSurfaceVariant,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+}
+
 class _DrumFocusRow extends StatelessWidget {
   const _DrumFocusRow({
     required this.label,

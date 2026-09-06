@@ -766,6 +766,18 @@ abstract class PlayerData with _$PlayerData {
       ? kitPieceIdsOf(presentedDrumLanes, hasKick: hasKickPedal)
       : const [];
 
+  /// What a calibration pass asks for on THIS score (change:
+  /// add-drum-input-calibration, design D10): the pieces and zones the file
+  /// actually writes, in the pass's own order.
+  ///
+  /// Read from [notes], never [visibleNotes] or the focus selection: a mapping
+  /// describes the instrument, so practising one hand — or muting the ride for
+  /// a lap — must not shrink what the kit can be taught. Empty outside a
+  /// percussion score, where the mapping does not apply at all (design D8).
+  List<String> get calibrationTargets => isPercussion
+      ? calibrationTargetsForScore(notes.map((n) => n.pitch))
+      : const [];
+
   /// The pieces the session asks for — [kitPieceIds] minus [mutedDrumPieces].
   ///
   /// The spec's own vocabulary, derived rather than stored: holding the

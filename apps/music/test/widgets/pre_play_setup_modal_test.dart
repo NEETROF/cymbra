@@ -25,6 +25,8 @@ import 'package:music/services/score_asset_source.dart';
 import 'package:music/src/rust/api/musicxml.dart';
 import 'package:music/state/player_data.dart';
 import 'package:music/state/player_notifier.dart';
+import 'package:music/state/drum_input_mapping_notifier.dart';
+import 'package:music/state/drum_kit.dart';
 import 'package:music/state/player_preferences.dart';
 import 'package:music/state/score_catalog.dart';
 
@@ -40,28 +42,35 @@ const _entry = CatalogEntry(
   level: PracticeLevel.beginner,
 );
 
-ProviderContainer _container({ScoreDocument? document}) => ProviderContainer(
-  overrides: [
-    scoreCatalogProvider.overrideWithValue(const [_entry]),
-    scoreAssetSourceProvider.overrideWithValue(FakeScoreAssetSource()),
-    notationEngineProvider.overrideWithValue(
-      FakeNotationEngine(document: document),
-    ),
-    midiServiceProvider.overrideWithValue(FakeMidiService()),
-    scoreSourceProvider.overrideWithValue(FakeScoreSource()),
-    audioServiceProvider.overrideWithValue(RecordingAudioService()),
-  ],
-);
+ProviderContainer _container({ScoreDocument? document, String? midiPort}) =>
+    ProviderContainer(
+      overrides: [
+        scoreCatalogProvider.overrideWithValue(const [_entry]),
+        scoreAssetSourceProvider.overrideWithValue(FakeScoreAssetSource()),
+        notationEngineProvider.overrideWithValue(
+          FakeNotationEngine(document: document),
+        ),
+        midiServiceProvider.overrideWithValue(
+          FakeMidiService(
+            ports: midiPort == null ? const [] : [midiPort],
+            connected: midiPort,
+          ),
+        ),
+        scoreSourceProvider.overrideWithValue(FakeScoreSource()),
+        audioServiceProvider.overrideWithValue(RecordingAudioService()),
+      ],
+    );
 
 /// Pumps the whole player for [_entry] and leaves the setup modal open — used to
 /// exercise the modal's behaviour (the notation loads so hands are derived).
 Future<ProviderContainer> _pumpWithModal(
   WidgetTester tester, {
   ScoreDocument? document,
+  String? midiPort,
   Size size = const Size(1400, 900),
 }) async {
   await tester.binding.setSurfaceSize(size);
-  final container = _container(document: document);
+  final container = _container(document: document, midiPort: midiPort);
   container.read(selectedScoreProvider.notifier).select(_entry);
   await tester.pumpWidget(
     UncontrolledProviderScope(
@@ -193,6 +202,50 @@ void main() {
     expect(find.byKey(const Key('open-midi-monitor')), findsOneWidget);
     expect(find.byKey(const Key('open-drum-calibration')), findsOneWidget);
     await _teardown(tester, drums);
+  });
+
+  testWidgets('the settings name what this score has yet to teach the kit, and '
+      'say so when nothing is left', (tester) async {
+    // Change: add-drum-input-calibration (design D10). The question before
+    // playing is not "is my kit calibrated" but "will everything this groove
+    // asks me to hit be understood" — so the answer is listed under the action
+    // that fixes it, in the score's own terms.
+    final container = await _pumpWithModal(
+      tester,
+      document: sampleDrumDocument(),
+      midiPort: 'Drum kit',
+    );
+    // The fixture writes a kick, a snare and a closed hi-hat; nothing is
+    // learned yet, so all three are named.
+    expect(container.read(playerProvider).calibrationTargets, [
+      kKickPieceId,
+      'kitPieceSnare',
+      'kitPieceHiHat',
+    ]);
+    expect(find.byKey(const Key('calibration-missing')), findsOneWidget);
+    expect(find.byKey(const Key('calibration-complete')), findsNothing);
+    expect(find.textContaining('Snare'), findsWidgets);
+
+    // Learn two of the three: the line shrinks to what is actually left.
+    final store = container.read(drumInputMappingStoreProvider.notifier)
+      ..setPiece('Drum kit', kKickPieceId, 12)
+      ..setPiece('Drum kit', 'kitPieceSnare', 31);
+    await _pumpFrames(tester);
+    expect(
+      tester.widget<Text>(find.byKey(const Key('calibration-missing'))).data,
+      contains('Hi-hat'),
+    );
+    expect(
+      tester.widget<Text>(find.byKey(const Key('calibration-missing'))).data,
+      isNot(contains('Snare')),
+    );
+
+    // Learn the last one and the line turns into the positive statement.
+    store.setPiece('Drum kit', 'kitPieceHiHat', 22);
+    await _pumpFrames(tester);
+    expect(find.byKey(const Key('calibration-missing')), findsNothing);
+    expect(find.byKey(const Key('calibration-complete')), findsOneWidget);
+    await _teardown(tester, container);
   });
 
   testWidgets('close (X) keeps the current settings', (tester) async {

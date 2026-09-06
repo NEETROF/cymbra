@@ -260,6 +260,50 @@ void main() {
       );
     });
 
+    test('a score is asked for its own pieces, in the pass\'s order', () {
+      // Design D10: a groove is played on the pieces it is written for, so the
+      // pass asks for those — a hi-hat-and-snare groove is three questions, not
+      // twenty-three, and the order is still the kit's own however the file
+      // happens to list its notes.
+      expect(calibrationTargetsForScore([42, 38, 36]), [
+        kKickPieceId,
+        'kitPieceSnare',
+        'kitPieceHiHat',
+      ]);
+      // The numbers a lane collapses become the steps the hardware needs: the
+      // rim beside the snare, the open and pedal strokes beside the hi-hat, the
+      // bell beside the ride.
+      expect(calibrationTargetsForScore([46, 37, 51, 53, 44, 38, 42]), [
+        'kitPieceSnare',
+        kCrossStickPieceId,
+        'kitPieceHiHat',
+        kOpenHiHatPieceId,
+        kPedalHiHatPieceId,
+        'kitPieceRide',
+        kRideBellPieceId,
+      ]);
+      // Both kick numbers are one pedal, asked for once.
+      expect(calibrationTargetsForScore([35, 36]), [kKickPieceId]);
+      // …as are the snare's own numbers, which are one drum.
+      expect(calibrationTargetsForScore([38, 40]), ['kitPieceSnare']);
+    });
+
+    test('a piece the standard list does not name is still asked for', () {
+      // The no-silent-drop rule, applied to calibration: a score writing a
+      // bongo would otherwise leave the one piece the player cannot calibrate
+      // as the one the file actually asks for. Appended by number, after the
+      // standard order.
+      expect(calibrationTargetsForScore([60, 38, 61]), [
+        'kitPieceSnare',
+        'gm:60',
+        'gm:61',
+      ]);
+    });
+
+    test('no notes, no targets — the caller falls back', () {
+      expect(calibrationTargetsForScore(const []), isEmpty);
+    });
+
     test('the auxiliary pads come last, after the kit itself', () {
       // A drummer whose kit ends at the china finishes there; the pads most
       // kits do not have must never stand between them and the end of the pass.
