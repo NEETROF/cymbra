@@ -64,6 +64,9 @@ export interface FakeState {
   failFlagWrite?: unknown;
   // plans console (change: add-premium-subscription)
   lookupCalls: { userId: string; handle: string }[];
+  /** Per-account audit listings requested (change: read the audited reasons back). */
+  planAuditCalls: { userId: string; limit: number }[];
+  planAudit: unknown[];
   /** What `lookupAccountPlan` returns (a LookupAccountPlanResponse-shaped object). */
   lookup?: unknown;
   campaigns: unknown[];
@@ -124,6 +127,8 @@ export function makeFakeClients(state: Partial<FakeState> = {}): { clients: Clie
     failFlags: state.failFlags,
     failFlagWrite: state.failFlagWrite,
     lookupCalls: [],
+    planAuditCalls: [],
+    planAudit: state.planAudit ?? [],
     lookup: state.lookup,
     campaigns: state.campaigns ?? [],
     members: state.members ?? [],
@@ -249,6 +254,10 @@ export function makeFakeClients(state: Partial<FakeState> = {}): { clients: Clie
         return s.lookup ?? { userId: "u-x", snapshot: { plan: "free", betas: [] }, rows: [], memberships: [] };
       },
       listCampaigns: async () => ({ campaigns: s.campaigns }),
+      listPlanAudit: async (req: { userId: string; limit: number }) => {
+        s.planAuditCalls.push(req);
+        return { entries: s.planAudit };
+      },
       listMembers: async (req: { campaignKey: string }) => {
         s.listMembersCalls.push(req.campaignKey);
         return { members: s.members };

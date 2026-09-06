@@ -231,6 +231,44 @@ describe("account detail page", () => {
     expect(drums.text()).not.toContain("already a member");
   });
 
+  it("shows the audited reason behind each plan change", async () => {
+    // The console demands a free-text reason on every grant, enrolment and revocation.
+    // It used to be written and never read back — a justification the operator typed for
+    // an audit trail no surface could show.
+    const planAudit = [
+      {
+        action: "revoke_membership",
+        actingAdmin: "019f60be-6cd9-74e2-a600-9893bd2aaa3a",
+        actingAdminHandle: "bossadmin",
+        targetRef: "midi-drums",
+        reason: "left the beta programme",
+        at: 1_756_000_000n,
+      },
+      { action: "grant", actingAdmin: "u-other", targetRef: undefined, reason: "beta thanks", at: 1_755_000_000n },
+    ];
+    const { w, state } = await mountDetail("u-ada", { accounts: [ada], planAudit });
+
+    expect(state.planAuditCalls).toEqual([{ userId: "u-ada", limit: 50 }]);
+    const table = w.find('[data-testid="plan-audit"]');
+    expect(table.text()).toContain("left the beta programme");
+    expect(table.text()).toContain("beta thanks");
+    expect(table.text()).toContain("midi-drums");
+    // Actions read as words, and the admin by handle rather than a raw id.
+    expect(table.text()).toContain("membership revoked");
+    expect(table.text()).toContain("bossadmin");
+    expect(table.text()).not.toContain("019f60be-6cd9");
+  });
+
+  it("an account with nothing audited says so, and asks for no audit outside the music scope", async () => {
+    const { w } = await mountDetail("u-ada", { accounts: [ada] });
+    expect(w.find('[data-testid="plan-audit"]').text()).toContain("No plan change recorded");
+
+    signIn({ live: ["admin"] });
+    const { w: w2, state } = await mountDetail("u-ada", { accounts: [ada] });
+    expect(w2.find('[data-testid="plan-audit"]').exists()).toBe(false);
+    expect(state.planAuditCalls).toEqual([]);
+  });
+
   it("switching accounts never paints the previous account's rights under the new name", async () => {
     const lookup = {
       userId: "u-ada",

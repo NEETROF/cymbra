@@ -5,7 +5,7 @@ import { match } from "ts-pattern";
 import { isRevocableSource, usePlansStore } from "@/stores/plans";
 import { useToastsStore } from "@/stores/toasts";
 import type { Async } from "@/lib/async";
-import type { EntitlementRowMsg, MembershipMsg } from "@/gen/plans_pb";
+import type { EntitlementRowMsg, MembershipMsg, PlanAuditEntry } from "@/gen/plans_pb";
 import AppTag from "@/components/AppTag.vue";
 
 // One account's subscription, on that account's own page (change:
@@ -182,6 +182,25 @@ function memberState(m: MembershipMsg): string {
   return fmt(m.endsAt);
 }
 
+// ---- audited changes ----
+// The console demands a free-text reason on every grant, enrolment and revocation. Until
+// now it was written and never read: an operator justified each destructive act to an
+// audit trail no surface in the console could show.
+const auditVm = computed(() =>
+  match(store.audit)
+    .with({ status: "success" }, ({ data }) => ({ loading: false, error: null as string | null, rows: data }))
+    .with({ status: "error" }, ({ error }) => ({ loading: false, error, rows: [] as PlanAuditEntry[] }))
+    .otherwise(() => ({ loading: true, error: null as string | null, rows: [] as PlanAuditEntry[] })),
+);
+/** Known actions read as a sentence; anything the server adds later falls back to its
+ *  raw name rather than to a missing-key placeholder. */
+const AUDIT_ACTIONS = ["grant", "enrol", "revoke_entitlement", "revoke_membership"];
+const actionLabel = (a: string) => (AUDIT_ACTIONS.includes(a) ? t(`plans.auditAction.${a}`) : a);
+function when(atSeconds: bigint | number): string {
+  const ms = Number(atSeconds) * 1000;
+  return ms > 0 ? new Date(ms).toISOString().replace("T", " ").slice(0, 19) : "—";
+}
+
 /** The aggregator's customer page for this account (D5) — built by the server, which
  *  owns the project id; empty when the aggregator is unconfigured. */
 const revenueCatUrl = computed(() => lookupVm.value.data?.aggregatorCustomerUrl || undefined);
@@ -192,6 +211,7 @@ const revenueCatUrl = computed(() => lookupVm.value.data?.aggregatorCustomerUrl 
 onMounted(() => {
   store.clearLookup();
   void store.lookupUser(props.userId);
+  void store.loadAudit(props.userId);
   void store.loadCampaigns(true);
 });
 </script>
@@ -348,6 +368,36 @@ onMounted(() => {
             </tr>
             <tr v-if="lookupVm.data.memberships.length === 0">
               <td colspan="6" class="empty">{{ t("plans.noMemberships") }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>{{ t("plans.auditTitle") }}</h3>
+      <p v-if="auditVm.error" class="error" role="alert">{{ auditVm.error }}</p>
+      <div class="table-card">
+        <table data-testid="plan-audit">
+          <thead>
+            <tr>
+              <th>{{ t("users.when") }}</th>
+              <th>{{ t("users.action") }}</th>
+              <th>{{ t("plans.auditTarget") }}</th>
+              <th>{{ t("plans.auditReason") }}</th>
+              <th>{{ t("users.byAdmin") }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(a, i) in auditVm.rows" :key="i">
+              <td>{{ when(a.at) }}</td>
+              <td>{{ actionLabel(a.action) }}</td>
+              <td class="mono">{{ a.targetRef || "—" }}</td>
+              <td class="reason">{{ a.reason || "—" }}</td>
+              <td :class="{ mono: !a.actingAdminHandle }">{{ a.actingAdminHandle || a.actingAdmin }}</td>
+            </tr>
+            <tr v-if="auditVm.rows.length === 0">
+              <td colspan="5" class="empty">
+                {{ auditVm.loading ? t("common.loading") : t("plans.noAudit") }}
+              </td>
             </tr>
           </tbody>
         </table>
@@ -511,6 +561,11 @@ tr.inactive td {
 }
 tr.inactive td.row-actions {
   opacity: 1;
+}
+.reason {
+  /* The operator's own words: readable, and never squeezed into a nowrap cell. */
+  white-space: pre-wrap;
+  max-width: 28rem;
 }
 .empty {
   color: var(--muted);

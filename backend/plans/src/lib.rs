@@ -36,11 +36,12 @@ pub use model::{
     Source, TrialInfo, Unlock,
 };
 pub use ports::{
-    AccessCodeIssuer, AccessCodeRepo, AuditEntry, AuditRepo, BillingEventRepo, CacheSecretRotator,
-    CampaignRepo, Channel, Clock, Enrolment, EntitlementRepo, EntitlementWrite, FixedPaywallConfig,
-    FixedPlanConfig, HandleResolver, MembershipRepo, MintedCode, NewCampaign, PaywallConfigSource,
-    PlanConfig, PlanConfigSource, PlanSource, Platform, StoreCustomerEraser, StoreCustomerSource,
-    StoreSubscription, SystemClock, WebBillingProvider, WebSubscriptionCanceller,
+    AccessCodeIssuer, AccessCodeRepo, AuditEntry, AuditRecord, AuditRepo, BillingEventRepo,
+    CacheSecretRotator, CampaignRepo, Channel, Clock, Enrolment, EntitlementRepo, EntitlementWrite,
+    FixedPaywallConfig, FixedPlanConfig, HandleResolver, MembershipRepo, MintedCode, NewCampaign,
+    PaywallConfigSource, PlanConfig, PlanConfigSource, PlanSource, Platform, StoreCustomerEraser,
+    StoreCustomerSource, StoreSubscription, SystemClock, WebBillingProvider,
+    WebSubscriptionCanceller,
 };
 pub use service::{AccountPlan, EnrolOutcome, PlanDeps, PlanFilter, PlanService};
 

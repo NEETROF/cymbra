@@ -155,6 +155,38 @@ test.describe("account detail: subscription", () => {
     await expect(page.getByTestId("effective-plan")).toContainText("midi-drums");
   });
 
+  test("the reason typed on an action comes back on the page", async ({ page }) => {
+    // The console demands a free-text justification on every plan mutation. It used to be
+    // written to an audit trail no surface could show — the operator typed it for nothing.
+    await seed(page, { loginAs: "admin", data });
+    await page.goto("/users/u-bob");
+    await expect(page.getByTestId("plan-audit")).toContainText("No plan change recorded");
+
+    await page.getByRole("button", { name: "Enrol in campaign" }).click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByLabel("Campaign").selectOption({ label: "MIDI drums (feature beta)" });
+    await dialog.getByLabel("Reason").fill("early access for the drums beta");
+    await dialog.getByRole("button", { name: "Confirm" }).click();
+    await expect(page.getByText("Enrolled.")).toBeVisible();
+
+    // Straight away, on the same page — no refresh, no other screen.
+    const audit = page.getByTestId("plan-audit");
+    await expect(audit).toContainText("early access for the drums beta");
+    await expect(audit).toContainText("enrolled");
+    await expect(audit).toContainText("midi-drums");
+    await expect(audit).toContainText("e2e-admin");
+
+    // And the next act appends to it, with its own reason.
+    await page.getByTestId("memberships").getByRole("button", { name: "Revoke" }).click();
+    const reasonDialog = page.getByRole("dialog").filter({ hasText: "Confirmation" });
+    await reasonDialog.getByLabel("Reason").fill("wrong person");
+    await reasonDialog.getByRole("button", { name: "Confirm" }).click();
+
+    await expect(audit).toContainText("wrong person");
+    await expect(audit).toContainText("membership revoked");
+    await expect(audit.getByRole("row")).toHaveCount(3); // header + the two acts
+  });
+
   test("an admin outside the music scope gets no subscription block at all", async ({ page }) => {
     await seed(page, { loginAs: "live-admin", data });
     await page.goto("/users/u-ada");

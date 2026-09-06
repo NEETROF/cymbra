@@ -449,6 +449,16 @@
     "noRows": "Aucune ligne de droit.",
     "memberships": "Adhésions bêta",
     "noMemberships": "Aucune adhésion.",
+    "auditTitle": "Changements audités",
+    "auditTarget": "Cible",
+    "auditReason": "Motif saisi",
+    "noAudit": "Aucun changement de plan enregistré pour ce compte.",
+    "auditAction": {
+      "grant": "premium attribué",
+      "enrol": "inscrit",
+      "revoke_entitlement": "droit révoqué",
+      "revoke_membership": "adhésion révoquée"
+    },
     "kindCol": "Type",
     "enrolled": "Inscrit",
     "revoked": "révoqué",

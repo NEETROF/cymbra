@@ -541,6 +541,46 @@ impl PlanServiceTrait for PlanGrpc {
         }))
     }
 
+    async fn list_plan_audit(
+        &self,
+        req: Request<proto::ListPlanAuditRequest>,
+    ) -> Result<Response<proto::ListPlanAuditResponse>, Status> {
+        self.admin(&req)?;
+        let r = req.into_inner();
+        let records = self
+            .svc
+            .admin_audit_for_user(&r.user_id, r.limit)
+            .await
+            .map_err(|e| e.to_status())?;
+        // Name the admin who acted rather than showing a raw uuid — one batch lookup for
+        // the page, and the ids that resolve to nothing simply stay unnamed.
+        let handles = match self.handles.as_ref() {
+            Some(resolver) => {
+                let mut ids: Vec<String> = records.iter().map(|a| a.actor.clone()).collect();
+                ids.sort();
+                ids.dedup();
+                resolver
+                    .handles_for_ids(&ids)
+                    .await
+                    .map_err(|e| e.to_status())?
+            }
+            None => Default::default(),
+        };
+        Ok(Response::new(proto::ListPlanAuditResponse {
+            entries: records
+                .into_iter()
+                .map(|a| proto::PlanAuditEntry {
+                    action: a.action,
+                    acting_admin_handle: handles.get(&a.actor).cloned(),
+                    acting_admin: a.actor,
+                    target_ref: a.target_ref,
+                    reason: a.reason,
+                    at: a.at.timestamp(),
+                })
+                .collect(),
+        }))
+    }
+
     async fn revoke_membership(
         &self,
         req: Request<proto::RevokeMembershipRequest>,

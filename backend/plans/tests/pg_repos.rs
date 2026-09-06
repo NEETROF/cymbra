@@ -8,12 +8,13 @@
 
 use chrono::{Duration, Utc};
 use cymbra_plans::pg::{
-    PgAccessCodeRepo, PgBillingEventRepo, PgCampaignRepo, PgEntitlementRepo, PgMembershipRepo,
+    PgAccessCodeRepo, PgAuditRepo, PgBillingEventRepo, PgCampaignRepo, PgEntitlementRepo,
+    PgMembershipRepo,
 };
 use cymbra_plans::{
-    AccessCodeRepo, BillingEventRepo, CampaignKind, CampaignRepo, Enrolment, EntitlementRepo,
-    EntitlementStatus, EntitlementWrite, EventProvider, MembershipRepo, MembershipSource,
-    NewCampaign, Source, codes,
+    AccessCodeRepo, AuditEntry, AuditRepo, BillingEventRepo, CampaignKind, CampaignRepo, Enrolment,
+    EntitlementRepo, EntitlementStatus, EntitlementWrite, EventProvider, MembershipRepo,
+    MembershipSource, NewCampaign, Source, codes,
 };
 use cymbra_platform::AppError;
 use sqlx::PgPool;
@@ -391,4 +392,60 @@ async fn billing_events_are_idempotent() {
     repo.mark_applied(EventProvider::Revenuecat, &id)
         .await
         .unwrap();
+}
+
+#[tokio::test]
+#[ignore = "needs docker compose (Postgres) up with per-module roles"]
+async fn audit_entries_are_read_back_for_one_account_most_recent_first() {
+    // The console asks for a reason on every plan mutation; an audit that cannot be read
+    // back is a field the operator fills in for nothing.
+    let pool = pool().await;
+    let repo = PgAuditRepo::new(pool);
+    let user = Uuid::now_v7().to_string();
+    let other = Uuid::now_v7().to_string();
+    let actor = Uuid::now_v7().to_string();
+
+    for (action, target_ref, reason) in [
+        ("enrol", Some("spring-trial"), "beta thanks"),
+        ("revoke_membership", Some("spring-trial"), "wrong person"),
+    ] {
+        repo.record(AuditEntry {
+            actor: actor.clone(),
+            action: action.into(),
+            target_user: Some(user.clone()),
+            target_ref: target_ref.map(str::to_string),
+            reason: reason.into(),
+        })
+        .await
+        .unwrap();
+    }
+    repo.record(AuditEntry {
+        actor: actor.clone(),
+        action: "grant".into(),
+        target_user: Some(other.clone()),
+        target_ref: None,
+        reason: "someone else".into(),
+    })
+    .await
+    .unwrap();
+
+    let entries = repo.list_for_user(&user, 50).await.unwrap();
+    assert_eq!(entries.len(), 2, "only this account's entries");
+    // Most recent first, and the reason survives the round trip.
+    assert_eq!(entries[0].action, "revoke_membership");
+    assert_eq!(entries[0].reason, "wrong person");
+    assert_eq!(entries[0].target_ref.as_deref(), Some("spring-trial"));
+    assert_eq!(entries[0].actor, actor);
+    assert_eq!(entries[1].action, "enrol");
+    assert!(entries.iter().all(|e| e.reason != "someone else"));
+
+    // The window is honoured.
+    assert_eq!(repo.list_for_user(&user, 1).await.unwrap().len(), 1);
+    // An account with nothing audited is an empty list, not an error.
+    assert!(
+        repo.list_for_user(&Uuid::now_v7().to_string(), 50)
+            .await
+            .unwrap()
+            .is_empty()
+    );
 }

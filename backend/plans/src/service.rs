@@ -12,9 +12,9 @@ use crate::model::{
     Membership, MembershipRow, MembershipSource, PlanSnapshot, Redemption, Source, Unlock,
 };
 use crate::ports::{
-    AccessCodeIssuer, AccessCodeRepo, AuditEntry, AuditRepo, BillingEventRepo, CacheSecretRotator,
-    CampaignRepo, Clock, Enrolment, EntitlementRepo, EntitlementWrite, MembershipRepo, MintedCode,
-    NewCampaign, PlanConfig, PlanConfigSource, PlanSource,
+    AccessCodeIssuer, AccessCodeRepo, AuditEntry, AuditRecord, AuditRepo, BillingEventRepo,
+    CacheSecretRotator, CampaignRepo, Clock, Enrolment, EntitlementRepo, EntitlementWrite,
+    MembershipRepo, MintedCode, NewCampaign, PlanConfig, PlanConfigSource, PlanSource,
 };
 use async_trait::async_trait;
 use chrono::{DateTime, Duration, Utc};
@@ -687,6 +687,18 @@ impl PlanService {
             .collect())
     }
 
+    /// One account's audited plan changes, most recent first. The console asks for a
+    /// reason on every grant, enrolment and revocation; this is the read side that makes
+    /// those reasons consultable instead of write-only.
+    pub async fn admin_audit_for_user(
+        &self,
+        user_id: &str,
+        limit: u32,
+    ) -> Result<Vec<AuditRecord>> {
+        let limit = if limit == 0 { 50 } else { limit.min(200) };
+        self.d.audit.list_for_user(user_id, limit).await
+    }
+
     async fn audit(
         &self,
         actor: &str,
@@ -797,6 +809,35 @@ mod tests {
             clock: Arc::new(m.clock),
             rotator: Some(Arc::new(m.rotator)),
         })
+    }
+
+    /// The reason typed on every grant/enrolment/revocation must be readable back, and
+    /// the window must stay bounded: the console asks for a justification it could not
+    /// show, which is a field the operator fills in for nothing.
+    #[tokio::test]
+    async fn audit_read_back_defaults_and_caps_the_window() {
+        let mut m = mocks(true, t(1));
+        m.audit.expect_list_for_user().returning(|user, limit| {
+            Ok(vec![AuditRecord {
+                actor: "admin-1".into(),
+                action: "enrol".into(),
+                target_ref: Some(format!("{user}/{limit}")),
+                reason: "beta thanks".into(),
+                at: t(2),
+            }])
+        });
+        let svc = service(m);
+
+        // 0 means "the server's default window", not "no rows".
+        let out = svc.admin_audit_for_user("u1", 0).await.unwrap();
+        assert_eq!(out[0].target_ref.as_deref(), Some("u1/50"));
+        assert_eq!(out[0].reason, "beta thanks");
+        // An asked-for window is honoured…
+        let out = svc.admin_audit_for_user("u1", 10).await.unwrap();
+        assert_eq!(out[0].target_ref.as_deref(), Some("u1/10"));
+        // …up to a cap, so a caller cannot ask for the whole table.
+        let out = svc.admin_audit_for_user("u1", 10_000).await.unwrap();
+        assert_eq!(out[0].target_ref.as_deref(), Some("u1/200"));
     }
 
     fn row(source: Source, ends: Option<DateTime<Utc>>) -> EntitlementRow {

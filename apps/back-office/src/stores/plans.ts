@@ -1,8 +1,14 @@
 import { computed, ref } from "vue";
 import { defineStore } from "pinia";
 import { api } from "@/lib/api";
-import { type Async, idle, run, success } from "@/lib/async";
-import type { AccountPlanBadge, CampaignMsg, LookupAccountPlanResponse, MembershipMsg } from "@/gen/plans_pb";
+import { type Async, idle, reread, run, success } from "@/lib/async";
+import type {
+  AccountPlanBadge,
+  CampaignMsg,
+  LookupAccountPlanResponse,
+  MembershipMsg,
+  PlanAuditEntry,
+} from "@/gen/plans_pb";
 
 /** The directory's plan criterion, as the server names it (`ListAccountIdsByPlan.plan`). */
 export type PlanFilter = "any" | "premium" | "trial";
@@ -49,6 +55,9 @@ export const usePlansStore = defineStore("plans", () => {
   const members = ref<Async<MembershipMsg[]>>(idle);
   /** Clear-text codes of the LAST mint — shown once; the view clears it when dismissed. */
   const minted = ref<Async<string[]>>(idle);
+  /** One account's audited plan changes — the reasons the console asks for on every
+   *  grant, enrolment and revocation, read back. */
+  const audit = ref<Async<PlanAuditEntry[]>>(idle);
   /** Batch plan/beta badges for a directory page, keyed by user id. */
   const badges = ref<Async<Record<string, AccountPlanBadge>>>(idle);
   const op = ref<Async<void>>(idle);
@@ -80,6 +89,14 @@ export const usePlansStore = defineStore("plans", () => {
   function clearLookup() {
     lastTarget.value = null;
     lookupResult.value = idle;
+    audit.value = idle;
+  }
+
+  /** Load an account's audited plan changes. `keepPrevious` after a mutation: the panel
+   *  is on screen, and blanking it would move the page under the operator. */
+  async function loadAudit(userId: string, keepPrevious = false) {
+    const fetch = async () => (await api().plans.listPlanAudit({ userId, limit: 50 })).entries;
+    await (keepPrevious ? reread : run)(audit, fetch);
   }
 
   async function loadCampaigns(includeClosed = true) {
@@ -101,7 +118,11 @@ export const usePlansStore = defineStore("plans", () => {
   }
   const relookup = async () => {
     const target = lastTarget.value;
-    if (target) await run(lookupResult, () => api().plans.lookupAccountPlan(wireRef(target)));
+    if (!target) return;
+    await run(lookupResult, () => api().plans.lookupAccountPlan(wireRef(target)));
+    // The mutation just wrote an audited reason: re-read the trail that shows it, or the
+    // operator types a justification and watches nothing happen.
+    if (target.userId) await loadAudit(target.userId, true);
   };
   const reloadCampaigns = () => loadCampaigns();
   const reloadMembers = async () => {
@@ -233,6 +254,8 @@ export const usePlansStore = defineStore("plans", () => {
     lookupResult,
     lastTarget,
     lookupUser,
+    audit,
+    loadAudit,
     campaigns,
     openCampaigns,
     members,

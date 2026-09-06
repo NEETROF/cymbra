@@ -449,6 +449,16 @@
     "noRows": "No entitlement rows.",
     "memberships": "Beta memberships",
     "noMemberships": "No memberships.",
+    "auditTitle": "Audited changes",
+    "auditTarget": "Target",
+    "auditReason": "Reason given",
+    "noAudit": "No plan change recorded for this account.",
+    "auditAction": {
+      "grant": "premium granted",
+      "enrol": "enrolled",
+      "revoke_entitlement": "entitlement revoked",
+      "revoke_membership": "membership revoked"
+    },
     "kindCol": "Kind",
     "enrolled": "Enrolled",
     "revoked": "revoked",

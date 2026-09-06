@@ -26,6 +26,32 @@ and a free-text reason.
 - **WHEN** an admin grants, revokes, enrols, creates a campaign or mints codes
 - **THEN** an audit entry records who, what, whom and why
 
+### Requirement: The audited reasons are readable back
+
+The console SHALL show, on an account's detail page, that account's audited plan changes
+— when, which action, what it targeted, **the reason the admin gave**, and the acting
+admin named by handle rather than by raw id — most recent first, over a bounded window.
+Asking for a free-text justification on every grant, enrolment and revocation while
+offering no surface that can show it makes the field something the operator fills in for
+nothing, and makes the trail unusable for the review it exists for. The listing is
+music-admin only, like every other plan surface, and SHALL follow an action taken on the
+page without a refresh.
+
+#### Scenario: A reason typed is a reason readable
+
+- **WHEN** an admin enrols an account with a reason, then revokes that membership with another
+- **THEN** both acts appear in that account's audited changes with their own reasons, the campaign they targeted, and the acting admin's handle — without leaving or reloading the page
+
+#### Scenario: Nothing audited yet
+
+- **WHEN** an admin opens an account no plan change has ever touched
+- **THEN** the listing says so in a localized message, not with an error or an empty frame
+
+#### Scenario: Not for another scope's admin
+
+- **WHEN** an admin without the `music` scope opens an account's detail page
+- **THEN** no audited plan change is shown and the listing is not requested
+
 ### Requirement: Entitlement and membership lookup by handle
 
 The console SHALL show, **on the account detail page of the account already being viewed**
