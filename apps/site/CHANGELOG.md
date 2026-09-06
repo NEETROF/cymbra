@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.0](https://github.com/NEETROF/cymbra/compare/site-v0.3.0...site-v0.4.0) (2026-09-06)
+
+
+### Features
+
+* **music:** private score catalog — personal-use basis, batch import, collections and audited takedown ([#308](https://github.com/NEETROF/cymbra/issues/308)) ([85855f7](https://github.com/NEETROF/cymbra/commit/85855f726a14a615d3cdbf4437d8ea90607ae659))
+* **site:** web account deletion, required by Play ([#309](https://github.com/NEETROF/cymbra/issues/309)) ([cafd539](https://github.com/NEETROF/cymbra/commit/cafd539fd716469845d2a1d6819601c1e21d8efd))
+
 ## [0.3.0](https://github.com/NEETROF/cymbra/compare/site-v0.2.0...site-v0.3.0) (2026-08-22)
 
 

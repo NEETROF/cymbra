@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.30.0](https://github.com/NEETROF/cymbra/compare/music-v1.29.0...music-v1.30.0) (2026-09-06)
+
+
+### Features
+
+* **music:** calibrate the kit this score asks for, and stop waiting for pads it does not have ([#313](https://github.com/NEETROF/cymbra/issues/313)) ([de8b4a7](https://github.com/NEETROF/cymbra/commit/de8b4a78c3ac34f5aa3f5d178eaa4171ac1c2120))
+* **music:** in-app content reporting, required by Play's UGC policy ([#310](https://github.com/NEETROF/cymbra/issues/310)) ([6fa7293](https://github.com/NEETROF/cymbra/commit/6fa7293f81d1cb37daa30ce2ae770a2aa031fc1c))
+* **music:** private score catalog — personal-use basis, batch import, collections and audited takedown ([#308](https://github.com/NEETROF/cymbra/issues/308)) ([85855f7](https://github.com/NEETROF/cymbra/commit/85855f726a14a615d3cdbf4437d8ea90607ae659))
+
 ## [1.29.0](https://github.com/NEETROF/cymbra/compare/music-v1.28.0...music-v1.29.0) (2026-08-30)
 
 

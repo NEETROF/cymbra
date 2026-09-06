@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.13.0](https://github.com/NEETROF/cymbra/compare/back-office-v0.12.1...back-office-v0.13.0) (2026-09-06)
+
+
+### Features
+
+* **music:** private score catalog — personal-use basis, batch import, collections and audited takedown ([#308](https://github.com/NEETROF/cymbra/issues/308)) ([85855f7](https://github.com/NEETROF/cymbra/commit/85855f726a14a615d3cdbf4437d8ea90607ae659))
+
+
+### Bug Fixes
+
+* **bo:** move focus into destructive dialogs so escape dismisses them ([#306](https://github.com/NEETROF/cymbra/issues/306)) ([3f5a251](https://github.com/NEETROF/cymbra/commit/3f5a251259e3de4ee3338059a30c655b35020024))
+
 ## [0.12.1](https://github.com/NEETROF/cymbra/compare/back-office-v0.12.0...back-office-v0.12.1) (2026-08-30)
 
 
