@@ -12,7 +12,7 @@ Learn piano by playing
 
 ## Short description  (Play ≤80)
 
-Learn piano by playing real sheet music, with instant note-by-note feedback.
+Learn piano and drums by playing real sheet music, with instant feedback.
 
 ## Promotional text  (App Store ≤170)
 

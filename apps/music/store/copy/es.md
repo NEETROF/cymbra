@@ -12,7 +12,7 @@ Aprende piano tocando
 
 ## Descripción breve  (Play ≤80)
 
-Aprende piano tocando partituras reales, con retroalimentación al instante.
+Aprende piano y batería tocando partituras reales, con respuesta al instante.
 
 ## Texto promocional  (App Store ≤170)
 

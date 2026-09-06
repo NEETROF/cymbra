@@ -12,7 +12,7 @@ Apprends le piano en jouant
 
 ## Description courte  (Play ≤80)
 
-Apprends le piano en jouant de vraies partitions, avec retour immédiat.
+Apprends piano et batterie en jouant de vraies partitions, retour immédiat.
 
 ## Texte promotionnel  (App Store ≤170)
 

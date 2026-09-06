@@ -12,7 +12,7 @@ Impara il piano suonando
 
 ## Descrizione breve  (Play ≤80)
 
-Impara il piano suonando spartiti veri, con feedback immediato nota per nota.
+Impara piano e batteria suonando spartiti veri, con feedback immediato.
 
 ## Testo promozionale  (App Store ≤170)
 
