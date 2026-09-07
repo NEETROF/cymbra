@@ -21,8 +21,8 @@ jobs:
     outputs:
       rust: ${{ steps.f.outputs.rust }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
+      - uses: actions/checkout@v5
+      - uses: dorny/paths-filter@v4
         id: f
         with:
           filters: |
@@ -41,7 +41,7 @@ jobs:
     if: ${{ github.event_name != 'pull_request' || needs.changes.outputs.rust == 'true' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install ALSA (midir backend) + protoc (backend tonic-build)
         run: sudo apt-get update && sudo apt-get install -y libasound2-dev protobuf-compiler
       - uses: dtolnay/rust-toolchain@stable

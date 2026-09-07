@@ -112,7 +112,7 @@ jobs:
   linux:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.inputs.tag || github.ref_name }}
       - name: Linux build deps
@@ -160,7 +160,7 @@ jobs:
       # input) must not create a release named after the branch.
       - name: Attach to the GitHub Release
         if: startsWith(env.TAG, 'music-v')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.TAG }}
           files: cymbra-${{ env.TAG }}-linux-x64.tar.gz
@@ -168,7 +168,7 @@ jobs:
   macos:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.inputs.tag || github.ref_name }}
       - uses: dtolnay/rust-toolchain@stable
@@ -348,7 +348,7 @@ jobs:
       # (the gRPC endpoint is a compile-time define, not inspectable after
       # the fact).
       - name: Upload the .pkg as a workflow artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: cymbra-${{ env.TAG }}-macos-pkg
           path: cymbra-${{ env.TAG }}-macos.pkg
@@ -384,7 +384,7 @@ jobs:
   windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.inputs.tag || github.ref_name }}
       - uses: dtolnay/rust-toolchain@stable
@@ -428,7 +428,7 @@ jobs:
       # input) must not create a release named after the branch.
       - name: Attach to the GitHub Release
         if: startsWith(env.TAG, 'music-v')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.TAG }}
           files: cymbra-${{ env.TAG }}-windows-x64.zip
@@ -441,10 +441,10 @@ jobs:
       # env, which is one of the few places that can read it.
       HAS_PLAY_KEY: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON != '' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.inputs.tag || github.ref_name }}
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
@@ -508,7 +508,7 @@ jobs:
       # input) must not create a release named after the branch.
       - name: Attach to the GitHub Release
         if: startsWith(env.TAG, 'music-v')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.TAG }}
           files: |
@@ -557,7 +557,7 @@ jobs:
   ios:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.inputs.tag || github.ref_name }}
       - uses: dtolnay/rust-toolchain@stable
@@ -680,7 +680,7 @@ jobs:
       # input) must not create a release named after the branch.
       - name: Attach to the GitHub Release
         if: startsWith(env.TAG, 'music-v')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.TAG }}
           files: cymbra-${{ env.TAG }}.ipa

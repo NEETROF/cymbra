@@ -17,7 +17,7 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
-      - uses: googleapis/release-please-action@v4
+      - uses: googleapis/release-please-action@v5
         with:
           # Dedicated token (fine-grained PAT or classic PAT with `repo`) stored
           # as the RELEASE_PLEASE_TOKEN secret. Required because the org policy

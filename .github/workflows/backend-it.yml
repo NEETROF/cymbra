@@ -46,7 +46,7 @@ jobs:
       CYMBRA_PLANS_DATABASE_URL: postgres://plans_svc:plans_dev_pw@localhost:5432/cymbra
       CYMBRA_REDIS_URL: redis://localhost:6379
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install protoc + psql
         run: sudo apt-get update && sudo apt-get install -y protobuf-compiler postgresql-client
       - name: Bootstrap schemas + roles (env-driven, dev defaults)
