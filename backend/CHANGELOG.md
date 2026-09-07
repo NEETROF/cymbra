@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.25.0](https://github.com/NEETROF/cymbra/compare/backend-v0.24.0...backend-v0.25.0) (2026-09-07)
+
+
+### Features
+
+* **plans:** honour sandbox store purchases only for marked accounts ([#319](https://github.com/NEETROF/cymbra/issues/319)) ([916ad39](https://github.com/NEETROF/cymbra/commit/916ad39e9ce79ff19cb1f2df7386a1f24da3fb8b))
+
 ## [0.24.0](https://github.com/NEETROF/cymbra/compare/backend-v0.23.0...backend-v0.24.0) (2026-09-06)
 
 
