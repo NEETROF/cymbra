@@ -1,57 +1,244 @@
-# Manual one-click production deploy of the cymbra-backend image to the single box.
-#
-# Trigger: Actions → deploy → "Run workflow" → enter the version (X.Y.Z or latest).
-# The runner SSHes to the box using a dedicated deploy key (locked to a
-# forced-command that only runs deploy.sh), which pins CYMBRA_IMAGE in the .env,
-# pulls, rolls server+worker, and waits for /healthz.
-#
-# Required repo secrets:
-#   DEPLOY_SSH_KEY   private key of the dedicated deploy keypair
-#   DEPLOY_HOST      box public IPv4 (e.g. 149.202.227.119)
-#   DEPLOY_USER      ssh user (ubuntu)
-#   DEPLOY_SSH_PORT  ssh port (49222)
 name: deploy
 
-# This workflow only SSHes out using secrets; it never calls the GitHub API, so the
-# GITHUB_TOKEN is granted no permissions at all (CodeQL: least-privilege token).
-permissions: {}
+# One entry point to put things in production: pick the apps, optionally pin their
+# versions, run it.
+#
+# Trigger: Actions → deploy → "Run workflow".
+#
+# GitHub cannot pre-fill a dispatch form with live data — `default:` is static YAML
+# read from the default branch. So instead of pretending, this workflow resolves each
+# app's version from `.release-please-manifest.json` at run time and writes a table to
+# the **run summary** saying what was requested, what it resolved to, and what the
+# deploy did. The form stays simple; the record is exact.
+#
+# Leave `versions` empty to deploy each selected app at its last released version.
+# Override any subset: `backend=0.25.0,site=0.4.0`.
+#
+# What "version" means differs by target, and the summary spells it out per run:
+#   backend      → a container image tag that must already exist in the registry
+#                  (built by `backend-image` on the `backend-v*` tag)
+#   back-office  → a git tag to check out and build (`back-office-v<version>`)
+#   site         → a git tag to check out and build (`site-v<version>`)
+#
+# The music app is deliberately absent: shipping it is a store submission, not a
+# deploy — different cadence, review latency, and no comparable rollback. It stays in
+# `release-build`.
+#
+# Each target is also dispatchable on its own (`backend-deploy`, `back-office-deploy`,
+# `site-deploy`); this workflow calls those same reusable workflows, so there is one
+# implementation per target, not two.
 
 on:
   workflow_dispatch:
     inputs:
-      version:
-        description: "Backend image tag to deploy (X.Y.Z, or 'latest')"
+      targets:
+        description: "Apps to deploy, comma-separated: backend, back-office, site (or 'all')"
         required: true
+        default: "backend"
+      versions:
+        description: "Optional pins, e.g. backend=0.25.0,site=0.4.0 — anything omitted uses the last released version"
+        required: false
+        default: ""
+      dry_run:
+        description: "Resolve and report only — deploy nothing"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
 
 concurrency:
-  group: deploy-prod
+  group: deploy-orchestrator
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  plan:
+    name: Resolve versions
     runs-on: ubuntu-latest
-    # To gate deploys behind a manual approval, create a GitHub Environment named
-    # "production" with required reviewers and uncomment the next line.
-    # environment: production
+    outputs:
+      backend: ${{ steps.resolve.outputs.backend }}
+      back_office: ${{ steps.resolve.outputs.back_office }}
+      site: ${{ steps.resolve.outputs.site }}
     steps:
-      - name: Validate version input
-        env:
-          VERSION: ${{ inputs.version }}
-        run: |
-          echo "$VERSION" | grep -Eq '^([0-9]+\.[0-9]+\.[0-9]+|latest)$' \
-            || { echo "invalid version '$VERSION' (expected X.Y.Z or latest)"; exit 1; }
+      - uses: actions/checkout@v4
 
-      - name: Deploy over SSH
+      - name: Resolve targets and versions
+        id: resolve
         env:
-          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-          DEPLOY_SSH_PORT: ${{ secrets.DEPLOY_SSH_PORT }}
-          VERSION: ${{ inputs.version }}
+          TARGETS: ${{ inputs.targets }}
+          VERSIONS: ${{ inputs.versions }}
+          DRY_RUN: ${{ inputs.dry_run }}
         run: |
-          install -m 600 /dev/null key
-          printf '%s\n' "$DEPLOY_SSH_KEY" > key
-          ssh-keyscan -p "$DEPLOY_SSH_PORT" -H "$DEPLOY_HOST" > known_hosts 2>/dev/null
-          ssh -i key -p "$DEPLOY_SSH_PORT" -o UserKnownHostsFile=known_hosts \
-              -o IdentitiesOnly=yes \
-              "$DEPLOY_USER@$DEPLOY_HOST" "deploy $VERSION"
+          set -euo pipefail
+          manifest=.release-please-manifest.json
+
+          # Deliberately no associative arrays: this stays runnable on bash 3.2 so it
+          # can be exercised outside a runner.
+          mkey() { # app -> key in .release-please-manifest.json
+            case "$1" in
+              backend)     echo "backend" ;;
+              back-office) echo "apps/back-office" ;;
+              site)        echo "apps/site" ;;
+              *)           return 1 ;;
+            esac
+          }
+          tagpfx() { # app -> git tag prefix; empty means "an image tag, not a git ref"
+            case "$1" in
+              back-office) echo "back-office-v" ;;
+              site)        echo "site-v" ;;
+              *)           echo "" ;;
+            esac
+          }
+          pin_for() { # app -> pinned version from the `versions` input, or empty
+            printf '%s' "$VERSIONS" | tr ',' '\n' | tr -d ' ' | sed -n "s/^$1=//p" | head -1
+          }
+
+          # --- selected targets -------------------------------------------------
+          selected="$(printf '%s' "$TARGETS" | tr ',' '\n' | tr -d ' ' | grep -v '^$' || true)"
+          if [ "$(printf '%s' "$selected" | tr '[:upper:]' '[:lower:]')" = "all" ]; then
+            selected="$(printf 'backend\nback-office\nsite')"
+          fi
+          [ -n "$selected" ] || { echo "::error::no target selected"; exit 1; }
+
+          while read -r app; do
+            [ -n "$app" ] || continue
+            mkey "$app" >/dev/null || {
+              echo "::error::unknown target '$app' (expected: backend, back-office, site, or all)"; exit 1; }
+          done <<< "$selected"
+
+          # --- explicit pins ----------------------------------------------------
+          if [ -n "$VERSIONS" ]; then
+            while read -r pair; do
+              [ -n "$pair" ] || continue
+              case "$pair" in *=*) ;; *)
+                echo "::error::malformed pin '$pair' (expected app=version)"; exit 1 ;;
+              esac
+              app="${pair%%=*}"; ver="${pair#*=}"
+              mkey "$app" >/dev/null || { echo "::error::unknown app '$app' in versions"; exit 1; }
+              [ -n "$ver" ] || { echo "::error::empty version for '$app'"; exit 1; }
+            done <<< "$(printf '%s' "$VERSIONS" | tr ',' '\n' | tr -d ' ')"
+          fi
+
+          # --- resolve + validate ----------------------------------------------
+          {
+            echo "## Deploy plan"
+            echo
+            echo "| app | requested | resolved | deploys |"
+            echo "|---|---|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          for app in backend back-office site; do
+            if ! grep -qx "$app" <<< "$selected"; then
+              echo "${app//-/_}=" >> "$GITHUB_OUTPUT"
+              continue
+            fi
+
+            pinned="$(pin_for "$app")"
+            if [ -n "$pinned" ]; then
+              requested="$pinned"
+              version="$pinned"
+            else
+              requested="(last release)"
+              version="$(jq -er --arg k "$(mkey "$app")" '.[$k]' "$manifest")" || {
+                echo "::error::no version for '$app' in $manifest"; exit 1; }
+            fi
+
+            if [ "$app" = "backend" ]; then
+              echo "$version" | grep -Eq '^([0-9]+\.[0-9]+\.[0-9]+|latest)$' || {
+                echo "::error::invalid backend version '$version' (expected X.Y.Z or latest)"; exit 1; }
+              deploys="image tag \`$version\`"
+            else
+              tag="$(tagpfx "$app")${version}"
+              # Fail here rather than half-way through a multi-app rollout.
+              git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1 || {
+                echo "::error::tag '$tag' does not exist — release $app first, or pin an existing version"; exit 1; }
+              version="$tag"
+              deploys="git tag \`$tag\`"
+            fi
+
+            echo "${app//-/_}=$version" >> "$GITHUB_OUTPUT"
+            echo "| \`$app\` | $requested | \`$version\` | $deploys |" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+          {
+            echo
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "> **Dry run** — nothing was deployed."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  backend:
+    name: backend
+    needs: plan
+    if: ${{ needs.plan.outputs.backend != '' && !inputs.dry_run }}
+    uses: ./.github/workflows/backend-deploy.yml
+    with:
+      version: ${{ needs.plan.outputs.backend }}
+    secrets: inherit
+
+  back-office:
+    name: back-office
+    needs: plan
+    if: ${{ needs.plan.outputs.back_office != '' && !inputs.dry_run }}
+    uses: ./.github/workflows/back-office-deploy.yml
+    with:
+      ref: ${{ needs.plan.outputs.back_office }}
+    secrets: inherit
+
+  site:
+    name: site
+    needs: plan
+    if: ${{ needs.plan.outputs.site != '' && !inputs.dry_run }}
+    uses: ./.github/workflows/site-deploy.yml
+    with:
+      ref: ${{ needs.plan.outputs.site }}
+    secrets: inherit
+
+  report:
+    name: Report
+    needs: [plan, backend, back-office, site]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Write outcome
+        env:
+          PLAN_BACKEND: ${{ needs.plan.outputs.backend }}
+          PLAN_BACK_OFFICE: ${{ needs.plan.outputs.back_office }}
+          PLAN_SITE: ${{ needs.plan.outputs.site }}
+          R_BACKEND: ${{ needs.backend.result }}
+          R_BACK_OFFICE: ${{ needs['back-office'].result }}
+          R_SITE: ${{ needs.site.result }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          {
+            echo "## Deploy outcome"
+            echo
+            echo "| app | version | result |"
+            echo "|---|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          row() { # $1 app, $2 planned version, $3 job result
+            [ -n "$2" ] || return 0
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "| \`$1\` | \`$2\` | dry run — not deployed |" >> "$GITHUB_STEP_SUMMARY"; return 0
+            fi
+            case "$3" in
+              success)  icon="✅ deployed" ;;
+              failure)  icon="❌ failed" ;;
+              cancelled) icon="⚪ cancelled" ;;
+              skipped)  icon="⏭️ skipped (target not configured)" ;;
+              *)        icon="$3" ;;
+            esac
+            echo "| \`$1\` | \`$2\` | $icon |" >> "$GITHUB_STEP_SUMMARY"
+          }
+
+          row backend "$PLAN_BACKEND" "$R_BACKEND"
+          row back-office "$PLAN_BACK_OFFICE" "$R_BACK_OFFICE"
+          row site "$PLAN_SITE" "$R_SITE"
+
+      - name: Fail if any deploy failed
+        if: ${{ contains(needs.*.result, 'failure') }}
+        run: |
+          echo "::error::at least one deploy failed — see the outcome table above"
+          exit 1

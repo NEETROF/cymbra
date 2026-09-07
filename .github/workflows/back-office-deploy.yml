@@ -35,6 +35,18 @@ name: back-office-deploy
 # the cymbra.app registrable domain, or the refresh cookie is not first-party.
 on:
   workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to build and deploy (e.g. back-office-v0.14.0). Empty = the ref this run was started from."
+        required: false
+        default: ""
+  workflow_call:
+    inputs:
+      ref:
+        description: "Git ref to build and deploy. Empty = the caller's ref."
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -53,6 +65,9 @@ jobs:
         working-directory: apps/back-office
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Empty resolves to the ref this run was started from.
+          ref: ${{ inputs.ref }}
       - name: Install protoc
         run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
       - name: Install Rust wasm toolchain

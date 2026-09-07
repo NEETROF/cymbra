@@ -19,6 +19,18 @@ name: site-deploy
 #                         the back-office deploy)
 on:
   workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to build and deploy (e.g. site-v0.4.0). Empty = the ref this run was started from."
+        required: false
+        default: ""
+  workflow_call:
+    inputs:
+      ref:
+        description: "Git ref to build and deploy. Empty = the caller's ref."
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -36,6 +48,9 @@ jobs:
         working-directory: apps/site
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Empty resolves to the ref this run was started from.
+          ref: ${{ inputs.ref }}
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
