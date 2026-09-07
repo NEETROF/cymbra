@@ -16,7 +16,7 @@ Three findings set the shape of this change:
   `grant_role(x, "live", "moderator")` today. Meanwhile `require_moderator_or_admin`
   (`backend/platform/src/guard.rs:45`) tests the **flat** role set, and `access_claims`
   (`backend/auth/src/module.rs:141-148`) gives a `back-office` token `global ∪ music ∪ live`.
-  One grant opens 22 music gates.
+  One grant opens 23 music gates.
 - **The dependency graph is already right.** `cymbra-music` is a leaf — nothing depends
   on it but `server`, `worker` and `score-crawler` — and it consumes its neighbours as
   `Arc<dyn UserPort>` / `Arc<dyn PlanSource>`. There is nothing to extract, which is why
@@ -66,16 +66,17 @@ with `revoke_role` (`:243`): revoking a bad grant must stay possible in every sc
 is the one placement mistake that would turn a safety lock into a trap.
 
 *Alternative rejected:* fix the guards first and skip the lock. It leaves the window open
-for the duration of a 22-site refactor, for no saving — the lock is five lines.
+for the duration of a 23-site refactor, for no saving — the lock is five lines.
 
 ### D2 — Scope-matched guard modelled on the existing one
 
 Add `require_moderator_or_admin_in_scope(id, scope)` next to `require_admin_in_scope`
 (`backend/platform/src/guard.rs:28`), built on `has_role_in_scope`
 (`backend/platform/src/identity.rs:41`), which already implements the `global`
-break-glass. The migration is parameter propagation across 22 sites: 15
-`require_moderator_or_admin`, 2 inline flat tests (`backend/music/src/grpc.rs:346`,
-`:1277`), and 5 coarse `require_admin`.
+break-glass. The migration is parameter propagation across 23 sites: 16
+`require_moderator_or_admin`, 2 inline flat tests (`backend/music/src/grpc.rs:380`,
+`:1450`), and 5 coarse `require_admin`. Line numbers in `music/src/grpc.rs` drift with
+every feature — re-derive them with grep before starting.
 
 The doc-comment at `guard.rs:38-44` justifies the flat test by claiming the role set is
 the audience's effective set. That reasoning holds for a single-scope app audience and
@@ -101,9 +102,11 @@ Consumers to migrate: `backend/music/src/catalog_daily_access.rs:93`,
 `backend/music/src/module.rs:357`, `backend/music/src/curation_rewards_module.rs:112`,
 `backend/server/src/soundfont.rs:549` and `:886`.
 
-The back-office plan visibility (`apps/back-office/src/stores/roles.ts:49`,
-`views/RolesView.vue:32`) stays gated on `music` until the rest lands — it is the last
-line of the work, not the first.
+The back-office plan visibility stays gated on `music` until the rest lands — it is the
+last line of the work, not the first. Note that `/roles` was split into `/users` +
+`/users/{id}` on 2026-09-06, so the gate now sits at four sites
+(`apps/back-office/src/stores/roles.ts:54`, `views/UsersView.vue:32`,
+`views/UserDetailView.vue:61`, `App.vue:62`) rather than two.
 
 *Alternative rejected:* a separate unlock enum per product. It duplicates the resolution
 machinery for a distinction that one field expresses.
@@ -124,7 +127,7 @@ The transactional-enqueue idiom is reused unchanged; only the target store diffe
 
 ### D5 — Relocation, not rewrite, for the composition root
 
-`backend/server` (7 064 l.) carries ~3 700 l. of purely-music code: `soundfont.rs` 2 679,
+`backend/server` (~7 200 l.) carries ~3 700 l. of purely-music code: `soundfont.rs` 2 679,
 `score_preview.rs` 385, four backfill binaries, and ~137 of `main.rs`'s 790. It moves to
 `backend/music`, which exposes an `axum::Router` the server mounts.
 
@@ -199,7 +202,7 @@ Ordered so each step is independently revertable and the risky window is shortes
 1. **Grant lock** (~5 l.). Revert = delete the block.
 2. **SoundFont purge** — new job kind + `soundfont_store` in `WorkerCtx` + coverage test.
    Independent of everything else; ships alone if the rest slips.
-3. **Scope-matched guards** across 22 sites; remove the flat helper; remove the grant lock
+3. **Scope-matched guards** across 23 sites; remove the flat helper; remove the grant lock
    from step 1.
 4. **Product-scoped unlocks**; back-office plan visibility last.
 5. **Relocation** of ~3 700 l. from `server` to `music`. Pure `git mv` plus three

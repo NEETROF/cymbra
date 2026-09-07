@@ -26,7 +26,7 @@ lands. It splits nothing, adds no deployable, and introduces no new transport.
   scope until the guards are fixed. Placed in `grant_role`, **not** in the shared
   `validate_scope_role` (revoking a bad grant must stay possible).
 - Add `require_moderator_or_admin_in_scope`, modelled on the existing
-  `require_admin_in_scope`, and migrate the **22 production call sites** (15
+  `require_admin_in_scope`, and migrate the **23 production call sites** (15
   `require_moderator_or_admin`, 2 inline flat checks, 5 coarse `require_admin`).
 - Fix the `require_moderator_or_admin` doc-comment, which claims scope-matching that the
   code does not perform for the `back-office` audience.
@@ -102,7 +102,7 @@ lands. It splits nothing, adds no deployable, and introduces no new transport.
 | Product | Consumed (unchanged) | New / changed |
 |---|---|---|
 | **Cymbra ID** | accounts, roles, sessions, erasure job | `grant_role` refuses non-music `moderator` (temporary); erasure gains a SoundFont purge step |
-| **Music** | everything | 22 guard call sites take a scope; unlocks become product-scoped; ~3 700 l. move from `server` into `music` (acquires `axum`, `tower_http`, `jsonwebtoken`) |
+| **Music** | everything | 23 guard call sites take a scope; unlocks become product-scoped; ~3 700 l. move from `server` into `music` (acquires `axum`, `tower_http`, `jsonwebtoken`) |
 | **Lingua** | nothing — the MVP is local-only | nothing in this change; it inherits the boundaries |
 | **Live** | nothing — no module exists | the `live` scope stops being a latent authorization hole |
 | **Back-office** | moderation and admin RPCs | unchanged surface; plan visibility stays gated until unlocks are product-scoped |

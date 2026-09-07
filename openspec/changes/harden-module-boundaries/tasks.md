@@ -19,10 +19,10 @@
 
 - [ ] 3.1 Add `require_moderator_or_admin_in_scope(id, scope)` in `backend/platform/src/guard.rs`, built on `has_role_in_scope` (`backend/platform/src/identity.rs` ~:41), modelled on `require_admin_in_scope` (~:28).
 - [ ] 3.2 Correct the `require_moderator_or_admin` doc-comment (`guard.rs` ~:38-44): its justification holds only for a single-scope app audience and is false for `back-office`.
-- [ ] 3.3 Migrate the 8 sites in `backend/music/src/grpc.rs` (~:751, :856, :877, :906, :1016, :1262, :1303, :1319) to the scope-matched guard.
+- [ ] 3.3 Migrate the 9 sites in `backend/music/src/grpc.rs` (~:795, :900, :921, :950, :1189, :1435, :1476, :1492, :1783) to the scope-matched guard. Re-derive with `grep -n require_moderator_or_admin` before starting — this file drifts.
 - [ ] 3.4 Migrate the 5 sites in `backend/server/src/soundfont.rs` (~:337, :547, :860, :933, :978).
 - [ ] 3.5 Migrate the 2 sites in `backend/server/src/score_preview.rs` (~:100, :169).
-- [ ] 3.6 Replace the 2 inline flat checks in `backend/music/src/grpc.rs` (~:346, :1277) with the scope-matched guard.
+- [ ] 3.6 Replace the 2 inline flat checks in `backend/music/src/grpc.rs` (~:380, :1450) with the scope-matched guard.
 - [ ] 3.7 Review the 5 coarse `require_admin` sites (`backend/music/src/soundfont_pricing.rs` ~:43, `backend/auth/src/grpc.rs` ~:193, `backend/feature-flags/src/grpc.rs` ~:55, `backend/server/src/soundfont.rs` ~:395, `backend/user/src/grpc.rs` ~:195): scope-match each, or record why it is legitimately cross-product (design Open Question 1).
 - [ ] 3.8 Remove the flat `require_moderator_or_admin` so any missed site fails to compile.
 - [ ] 3.9 Test: a `moderator` in another product scope on a `back-office` token is refused at a music gate; a `global/admin` still passes.
@@ -37,7 +37,7 @@
 - [ ] 4.5 Test: an account with an active non-music `premium` and no music entitlement is denied every music unlock.
 - [ ] 4.6 Test: an account holding entitlements for two products gets each product's unlocks independently.
 - [ ] 4.7 Test: an entitlement written before products were distinguished still grants the full music unlock set.
-- [ ] 4.8 **Last**: unblock back-office plan visibility (`apps/back-office/src/stores/roles.ts` ~:49, `views/RolesView.vue` ~:32).
+- [ ] 4.8 **Last**: unblock back-office plan visibility. The `/roles` screen was split into `/users` + `/users/{id}` (2026-09-06), so the `adminScopes.includes("music")` gate now sits at **4 sites**: `apps/back-office/src/stores/roles.ts` ~:54, `views/UsersView.vue` ~:32, `views/UserDetailView.vue` ~:61, `App.vue` ~:62 (nav).
 
 ## 5. Empty the composition root
 
