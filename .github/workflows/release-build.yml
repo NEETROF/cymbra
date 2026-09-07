@@ -518,15 +518,21 @@ jobs:
       # dry-run must never reach the store. Skips cleanly if the service account
       # secret is absent, like the TestFlight step below.
       #
-      # `status: draft` + `changesNotSentForReview` on purpose: CI removes the
-      # part that actually hurts (uploading a ~110 MB bundle by hand) but does NOT
-      # ship to 177 countries on its own. The bundle lands as a draft production
-      # release; a human opens "Vue d'ensemble de la publication" and presses
-      # "Envoyer pour examen". Managed publishing is off, so whatever is sent goes
-      # live as soon as Google approves it — an automatic submit would mean a
-      # release-please merge could publish worldwide with nobody in the loop.
-      # To change that deliberately: `status: completed` and drop
-      # `changesNotSentForReview`.
+      # `status: draft` on purpose: CI removes the part that actually hurts
+      # (uploading a ~110 MB bundle by hand) but does NOT ship to 177 countries on
+      # its own. The bundle lands as a draft production release; a human opens
+      # "Vue d'ensemble de la publication" and presses "Envoyer pour examen".
+      # Managed publishing is off, so whatever is sent goes live as soon as Google
+      # approves it — an automatic submit would mean a release-please merge could
+      # publish worldwide with nobody in the loop. To change that deliberately:
+      # `status: completed`.
+      #
+      # `changesNotSentForReview` is NOT set, and must not be: Play refuses it for
+      # this app — "Changes are sent for review automatically. The query parameter
+      # changesNotSentForReview must not be set." It was set from 1.31.0 and broke
+      # both releases: the AAB uploaded fine and the commit then failed, so the
+      # edit was discarded and nothing reached Play at all. What holds the release
+      # back is `status: draft`, not that parameter.
       #
       # Release notes are NOT set here. Play makes them optional, and the human
       # who sends the release for review is already in the console — writing them
@@ -547,7 +553,6 @@ jobs:
           releaseFile: cymbra-${{ env.TAG }}.aab
           track: production
           status: draft
-          changesNotSentForReview: true
 
   ios:
     runs-on: macos-latest
