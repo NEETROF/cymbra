@@ -38,15 +38,24 @@ mark: they are applied for every account, tester or not.
 - **WHEN** the aggregator's customer state is re-read for an account — on `SyncStorePlan` or by the reconciliation sweep — and it holds a sandbox subscription
 - **THEN** that subscription is mapped only when the account is marked a store tester
 
-## REMOVED Requirements
+### Requirement: A sandbox transfer is honoured only when every account involved is a tester
 
-### Requirement: Sandbox acceptance is an environment-wide setting
+The billing ingest SHALL apply a **sandbox** `TRANSFER` only when every account it
+names — source and destination alike — is marked a store tester, and SHALL drop it
+otherwise. A sandbox entitlement MUST NOT reach an account that is not itself a
+tester by being transferred onto it.
 
-**Reason**: Never specified — the rule lived only in code, as the
-`CYMBRA_REVENUECAT_ALLOW_SANDBOX` process flag documented "staging only". No staging
-environment exists, so the flag's only real use was being switched on and off by hand
-in production, which opens sandbox acceptance for every account while it is on.
+#### Scenario: Transfer between testers is applied
 
-**Migration**: Remove `CYMBRA_REVENUECAT_ALLOW_SANDBOX` from every environment file.
-Mark the accounts that need sandbox purchases as store testers in the back office
-instead.
+- **WHEN** a sandbox `TRANSFER` names only accounts marked as store testers
+- **THEN** it is applied as a production transfer would be
+
+#### Scenario: Transfer onto a non-tester is refused
+
+- **WHEN** a sandbox `TRANSFER` moves an entitlement from a tester to an account that is not marked
+- **THEN** the event is skipped and no row moves
+
+#### Scenario: Production transfers are unaffected
+
+- **WHEN** a production `TRANSFER` names accounts that are not marked
+- **THEN** it is applied

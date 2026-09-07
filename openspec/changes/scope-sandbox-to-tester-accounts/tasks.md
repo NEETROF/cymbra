@@ -1,7 +1,7 @@
 ## 1. Store the mark
 
 - [ ] 1.1 Migration `backend/plans/migrations/0003_store_testers.sql`: `plans.store_testers(user_id uuid primary key, created_at timestamptz not null default now(), created_by text not null)`
-- [ ] 1.2 Add a `StoreTesterRepo` port to `backend/plans/src/ports.rs`: `is_tester(user_id)`, `set(user_id, by)`, `clear(user_id)`, `list_ids()`
+- [ ] 1.2 Add a `StoreTesterRepo` port to `backend/plans/src/ports.rs`: `is_tester(user_id)`, **`testers_among(ids) -> Set`** (the directory decorates a whole page — a per-row read would be an N+1), `set(user_id, by)`, `clear(user_id)`
 - [ ] 1.3 Implement it over Postgres in `backend/plans/src/pg.rs` (thin I/O, excluded from the coverage gate like its neighbours)
 - [ ] 1.4 Mockall mock for the port, and a unit test that presence/absence round-trips through the service
 
@@ -13,6 +13,9 @@
 - [ ] 2.4 Test: a sandbox event for a marked account writes a row; the same event for an unmarked account is skipped as `SkipReason::Sandbox`
 - [ ] 2.5 Test: a **production** event writes a row for an unmarked account — the mark must not gate production
 - [ ] 2.6 Test: clearing the mark stops honouring new sandbox events and leaves rows already written untouched
+- [ ] 2.7 `TRANSFER`: resolve the mark over the union of `transferred_from`, `transferred_to` and `app_user_id`, and honour the event only when all are marked (design D3b)
+- [ ] 2.8 Test: a sandbox transfer between two testers is applied; the same transfer onto an unmarked account is skipped and moves no row
+- [ ] 2.9 Test: a sandbox event whose `app_user_id` is not a Cymbra uuid is skipped — it now reports `Sandbox` rather than `MalformedUser`, since the sandbox guard runs first (design D3c)
 
 ## 3. Remove the environment flag
 

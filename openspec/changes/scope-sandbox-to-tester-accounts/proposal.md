@@ -42,8 +42,10 @@ None. This narrows an existing rule and extends two admin surfaces.
 
 ### Modified Capabilities
 
-- `music-subscription-billing`: sandbox acceptance stops being an environment-wide
-  setting and becomes a property of the purchasing account.
+- `music-subscription-billing`: sandbox acceptance becomes a property of the
+  purchasing account. The rule was never specified — it lived only in code — so the
+  delta **adds** it rather than modifying anything, and adds the transfer rule that
+  keeps a sandbox entitlement from reaching an unmarked account.
 - `admin-plan-console`: the account page gains an audited, admin-only control for
   marking an account a store tester.
 - `admin-account-directory`: the directory gains a store-tester filter.

@@ -64,6 +64,10 @@ review accounts.
 `plans.store_testers(user_id uuid primary key, created_at timestamptz, created_by text)`.
 Presence is the mark; clearing deletes the row.
 
+The port exposes a batch read as well as a single one. `GetPlansForAccounts`
+decorates a whole page of the directory, so a per-row `is_tester` would be an N+1
+against the directory's own pagination.
+
 It is a **billing policy**, not an identity attribute, so it does not belong on a
 users table owned by another domain — the same reasoning that keeps entitlements in
 `plans`. Keying by account id and nothing else keeps the lookup a primary-key hit.
@@ -88,6 +92,34 @@ renamed to say what it now means.
 *Alternative considered*: passing a `SandboxPolicy` trait object into the mappers.
 Rejected — it would make the pure functions do I/O, which is the property that makes
 them testable.
+
+### D3b — Transfers are decided over every account they name
+
+The sandbox check runs **before** the `TRANSFER` branch and before `app_user_id` is
+parsed, so a single boolean resolved from `app_user_id` is not enough for a transfer:
+the event names `transferred_from` and `transferred_to`, which may be several
+accounts.
+
+A sandbox transfer is honoured only when **every** account it names is a tester.
+Without that, a tester could buy in the sandbox and transfer the entitlement onto an
+ordinary account — granting premium to someone the mark never covered, which is the
+hole this change exists to close.
+
+The consequence for the caller: for `TRANSFER` it resolves the mark for the union of
+`transferred_from`, `transferred_to` and `app_user_id`, and passes `true` only if all
+are marked. For every other type, one lookup on `app_user_id`.
+
+### D3c — An unparseable app_user_id is simply not a tester
+
+The sandbox check precedes the `Uuid::parse_str` guard, so a sandbox event carrying
+something that is not a Cymbra account id — RevenueCat keeps an `$RCAnonymousID`
+alias next to the account id, because the SDK configures before sign-in and then
+logs in — resolves to "not a tester" and is skipped as `Sandbox` rather than
+`MalformedUser`.
+
+That is the right outcome and needs no special case: an id we cannot resolve is an
+account we cannot vouch for. It is named here only because the skip *reason* shifts,
+and the ingest counters are read when diagnosing a purchase that did not land.
 
 ### D4 — No cache on the lookup
 
@@ -138,6 +170,8 @@ their own back office or a one-line insert.
 - **Removing the flag is a breaking config change** → It is commented out in
   `.env.example` and false in production, so removing it changes no behaviour. The
   deploy note carries the one-line removal from the box's `.env`.
+- **A sandbox transfer onto an unmarked account would leak premium** → Decided in
+  D3b: every account a transfer names must be marked, or the event is dropped.
 - **Deploy order** → Backend and back office ship together. If the backend lands
   first, the mark simply cannot be set yet; sandbox stays refused, which is today's
   production behaviour. No window is worse than the status quo.
