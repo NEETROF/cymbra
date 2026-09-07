@@ -91,6 +91,24 @@ rules, applied proactively:
 
 Reference: `apps/back-office/src/lib/async.ts` + `src/stores/catalog.ts`.
 
+## Backend — reading database privileges
+
+A SQL string says nothing about privileges on its own. The Postgres **role comes from the
+pool** the query runs on, and each role has a pinned `search_path`
+([backend/db/init/roles.sql.tpl](backend/db/init/roles.sql.tpl): `auth_svc`→`auth`,
+`user_svc`→`user_account`, `music_svc`→`music`, `flags_svc`→`feature_flags`,
+`admin_svc`→every schema), so an **unqualified table name resolves through the role**, not
+through the file the query lives in.
+
+Before concluding that something reads another module's schema, follow the chain:
+query → pool → `db::connect(url)` → env var → role → `search_path`. The distance between a
+query and its `db::connect` is often several files.
+
+`backend/server` and `backend/worker` are **composition roots**, not modules: they legitimately
+hold every pool, so the module-isolation rule does not apply to them literally. A query in
+`server/src/<name>.rs` runs under whichever pool was wired into it — which is frequently not
+the one the file name suggests.
+
 ## Test coverage — minimum 80%
 
 Every change keeps or raises **line coverage ≥ 80%** for both ecosystems; new
