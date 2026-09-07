@@ -100,7 +100,13 @@ class _OtpVerifyScreenState extends ConsumerState<OtpVerifyScreen> {
         TextField(
           key: const Key('otp-code'),
           controller: _code,
-          keyboardType: TextInputType.number,
+          // The code is a UUID (hex + hyphens), not digits: a number pad cannot
+          // type it. No autocorrect/suggestions either — an opaque token is not a
+          // word, and iOS would happily "fix" it.
+          keyboardType: TextInputType.text,
+          autocorrect: false,
+          enableSuggestions: false,
+          textCapitalization: TextCapitalization.none,
           decoration: InputDecoration(labelText: l10n.fieldVerificationCode),
         ),
         const SizedBox(height: 24),
