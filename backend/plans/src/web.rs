@@ -313,6 +313,7 @@ mod tests {
             config: Arc::new(config),
             clock: Arc::new(clock),
             rotator: None,
+            sandbox_accounts: None,
         })
     }
 

@@ -95,7 +95,7 @@ function revokeMembership(m: MembershipMsg) {
 }
 
 // ---- dialogs (grant / enrol / reason) ----
-type Modal = "grant" | "enrol" | "reason" | null;
+type Modal = "grant" | "enrol" | "reason" | "sandboxAccount" | null;
 const modal = ref<Modal>(null);
 
 /** Focus moves INTO the dialog when one opens. `aria-modal` requires it, and the
@@ -111,6 +111,26 @@ watch(modal, async (open) => {
 });
 const grantForm = ref({ endDate: "", confirmOpenEnded: false, reason: "" });
 const enrolForm = ref({ campaignKey: "", reason: "" });
+
+/**
+ * Sandbox account (change: scope-sandbox-to-marked-accounts). Toggling goes through
+ * the reason modal like every other audited plan change: clearing the mark deletes
+ * the row, so the audit trail is the only surviving record that it was ever set.
+ */
+const sandboxForm = ref({ enabled: false, reason: "" });
+function openSandboxAccount(enabled: boolean) {
+  sandboxForm.value = { enabled, reason: "" };
+  modal.value = "sandboxAccount";
+}
+const sandboxValid = computed(() => sandboxForm.value.reason.trim() !== "");
+async function submitSandboxAccount() {
+  const f = sandboxForm.value;
+  const ok = report(
+    await store.setSandboxAccount({ target: target.value, enabled: f.enabled, reason: f.reason.trim() }),
+    t(f.enabled ? "plans.sandboxAccountSet" : "plans.sandboxAccountCleared"),
+  );
+  if (ok) modal.value = null;
+}
 
 function openGrant() {
   grantForm.value = { endDate: "", confirmOpenEnded: false, reason: "" };
@@ -261,6 +281,24 @@ onMounted(() => {
               {{ b.campaignKey }}
             </AppTag>
             <span v-if="(lookupVm.data.snapshot?.betas ?? []).length === 0">—</span>
+          </span>
+        </div>
+        <div class="kv">
+          <span class="k">{{ t("plans.sandboxAccount") }}</span>
+          <span class="v">
+            <label class="sandbox">
+              <!-- `checked` is bound to the fetched value and the click is
+                   intercepted: the box only moves once the server agreed, so a
+                   cancelled or failed change cannot leave it lying. -->
+              <input
+                type="checkbox"
+                data-testid="sandbox-account"
+                :checked="lookupVm.data.sandboxAccount"
+                :disabled="acting"
+                @click.prevent="openSandboxAccount(!lookupVm.data.sandboxAccount)"
+              />
+              <span class="muted">{{ t("plans.sandboxAccountHint") }}</span>
+            </label>
           </span>
         </div>
         <div class="kv actions">
@@ -429,6 +467,34 @@ onMounted(() => {
         </div>
       </template>
 
+      <!-- sandbox account: honour this account's sandbox purchases -->
+      <template v-if="modal === 'sandboxAccount'">
+        <h2>{{ t(sandboxForm.enabled ? "plans.sandboxAccountSetTitle" : "plans.sandboxAccountClearTitle") }}</h2>
+        <p>{{ t("plans.sandboxAccountExplain") }}</p>
+        <label>
+          {{ t("plans.reason") }}
+          <input
+            v-model="sandboxForm.reason"
+            :placeholder="t('plans.reasonPlaceholder')"
+            :aria-label="t('plans.reason')"
+            :disabled="acting"
+            data-testid="sandbox-account-reason"
+          />
+        </label>
+        <div class="modal-actions">
+          <button
+            type="button"
+            class="btn-primary"
+            :disabled="acting || !sandboxValid"
+            data-testid="sandbox-account-confirm"
+            @click="submitSandboxAccount"
+          >
+            {{ t("plans.confirm") }}
+          </button>
+          <button type="button" :disabled="acting" @click="modal = null">{{ t("plans.cancel") }}</button>
+        </div>
+      </template>
+
       <!-- grant premium -->
       <template v-else-if="modal === 'grant'">
         <h2>{{ t("plans.grantTitle", { handle: props.handle }) }}</h2>
@@ -493,6 +559,11 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.sandbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
 .block {
   margin-top: 1.75rem;
 }

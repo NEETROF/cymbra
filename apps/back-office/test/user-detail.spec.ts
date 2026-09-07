@@ -71,6 +71,44 @@ describe("account detail page", () => {
     expect(state.lookupCalls).toEqual([{ userId: "u-bob", handle: "" }]);
   });
 
+  // The sandbox-account checkbox is bound to the SERVER's value and intercepts its own
+  // click: it must not move until the change was accepted, or a cancelled dialog
+  // would leave the console claiming a mark that does not exist.
+  it("the sandbox-account box reflects the fetched value and asks for a reason before moving", async () => {
+    const { w, state } = await mountDetail(
+      "u-ada",
+      {
+        accounts: [ada],
+        lookup: {
+          userId: "u-ada",
+          snapshot: { plan: "free", betas: [] },
+          rows: [],
+          memberships: [],
+          sandboxAccount: true,
+        },
+      },
+      "subscription",
+    );
+
+    const box = w.find('[data-testid="sandbox-account"]');
+    expect((box.element as HTMLInputElement).checked).toBe(true);
+
+    await box.trigger("click");
+    await flushPromises();
+    // Nothing sent yet: the reason is mandatory and the dialog is open.
+    expect(state.setSandboxAccountCalls).toEqual([]);
+    expect(w.find('[data-testid="sandbox-account-reason"]').exists()).toBe(true);
+
+    await w.find('[data-testid="sandbox-account-reason"]').setValue("review over");
+    await w.find('[data-testid="sandbox-account-confirm"]').trigger("click");
+    await flushPromises();
+
+    // Clicking a checked box asks to CLEAR it.
+    expect(state.setSandboxAccountCalls).toEqual([
+      { userId: "u-ada", handle: "", enabled: false, reason: "review over" },
+    ]);
+  });
+
   it("an unknown id shows a localized not-found state, not a raw error", async () => {
     const { w } = await mountDetail("nobody", { accounts: [ada] });
 

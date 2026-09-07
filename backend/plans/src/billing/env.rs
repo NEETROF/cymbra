@@ -28,8 +28,6 @@ pub struct RevenueCatEnv {
     pub webhook_secret: String,
     /// Project id — builds the console's customer deep link (D5); unset ⇒ no link.
     pub project_id: Option<String>,
-    /// Apply `SANDBOX` events/subscriptions — staging only, never production.
-    pub allow_sandbox: bool,
 }
 
 #[derive(Clone)]
@@ -59,7 +57,6 @@ impl BillingEnv {
                 api_key,
                 webhook_secret,
                 project_id: env("CYMBRA_REVENUECAT_PROJECT_ID"),
-                allow_sandbox: flag("CYMBRA_REVENUECAT_ALLOW_SANDBOX"),
             }),
             _ => None,
         };
@@ -101,7 +98,6 @@ impl BillingChannels {
                 webhook_secret: rc.webhook_secret.clone(),
                 api_key: rc.api_key.clone(),
                 project_id: rc.project_id.clone(),
-                allow_sandbox: rc.allow_sandbox,
             }));
             let client = Arc::new(RcClient::new(rc.api_key.clone()));
             c.rc_customers = Some(client.clone());

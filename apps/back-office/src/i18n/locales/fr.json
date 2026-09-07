@@ -537,7 +537,15 @@
     "enrolmentReopened": "Inscriptions rouvertes.",
     "pausedByClosure": "en pause (campagne fermée)",
     "closeTrialEnrolmentConfirm": "Fermer les inscriptions de l'essai {key} ? Plus personne ne pourra le rejoindre, mais les essais DÉJÀ accordés courent jusqu'à leur terme — les fermer ne les retire pas. Pour retirer un premium accordé, révoque l'entitlement du compte.",
-    "confirmTitle": "Confirmation"
+    "confirmTitle": "Confirmation",
+    "sandboxAccount": "Sandbox",
+    "sandboxAccountHint": "Honorer les achats sandbox de ce compte",
+    "sandboxAccountExplain": "Les transactions store en sandbox sont ignorées pour tous les autres. Cette marque n'accorde rien par elle-même — elle décide seulement si un achat sandbox compte. Les reviewers de l'App Store achètent en sandbox : les comptes de review en ont besoin.",
+    "sandboxAccountSetTitle": "Accepter les achats sandbox de ce compte ?",
+    "sandboxAccountClearTitle": "Ne plus accepter les achats sandbox ?",
+    "sandboxAccountSet": "Achats sandbox acceptés",
+    "sandboxAccountCleared": "Achats sandbox refusés",
+    "sandboxAccountFilter": "Achats sandbox"
   },
   "campaigns": {
     "title": "Campagnes",

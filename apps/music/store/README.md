@@ -158,6 +158,42 @@ service account. Without the secret the upload is skipped with a warning and the
 AAB is still attached to the GitHub Release, which is how it was published by hand
 until now.
 
+## Before a store submission
+
+Mark the review accounts as accepting **sandbox purchases** in the back office (Users → the account
+→ Subscription → the sandbox-account box), and check the directory's sandbox-account
+filter returns exactly them.
+
+This is not optional housekeeping. App Review buys in the **sandbox**, and the
+backend honours a sandbox transaction only for a marked account — everyone else's
+is dropped and counted (change: scope-sandbox-to-marked-accounts). An unmarked
+review account means the reviewer pays and unlocks nothing, which reads as a broken
+app rather than a configuration mistake. The rejection of 1.30.0 asked us to
+document the purchase flow, so a reviewer trying it is likely.
+
+The mark grants nothing by itself. That is why the review accounts *also* carry an
+open-ended Premium grant: the grant is what lets a reviewer see the paid features
+without buying, and the mark is what lets the purchase itself work if they try it.
+Both, not either.
+
+The grant does **not** hide the offer, so a granted reviewer still reaches the
+purchase button. What hides it is an active *store or web* subscription:
+`can_purchase_here` is false only when `paid_source` is set, and `Source::Admin`
+and `Source::Code` are not paid channels (`is_paid_channel` in
+`backend/plans/src/model.rs`), so neither a grant nor a redeemed code suppresses
+the card.
+
+Two production accounts exist to verify the mark end to end, and they carry **no**
+grant — the point is to reach the paywall and buy:
+
+| Account | Mark | Expected on a sandbox purchase |
+|---|---|---|
+| `sandbox-1@cymbra.app` | sandbox | an entitlement row is written, the plan turns Premium |
+| `sandbox-2@cymbra.app` | none | nothing is written — the event is dropped as `SkipReason::Sandbox` |
+
+The unmarked one is the half that proves something: a marked account unlocking
+shows the door opens, not that it was ever shut. Run both against the same build.
+
 ## Categories (decided)
 
 - App Store: primary **Education**, secondary **Music**. Same on macOS, and the
