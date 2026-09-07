@@ -188,8 +188,8 @@ grant — the point is to reach the paywall and buy:
 
 | Account | Mark | Expected on a sandbox purchase |
 |---|---|---|
-| `sandox-1@cymbra.app` | store tester | an entitlement row is written, the plan turns Premium |
-| `sandox-2@cymbra.app` | none | nothing is written — the event is dropped as `SkipReason::Sandbox` |
+| `sandbox-1@cymbra.app` | store tester | an entitlement row is written, the plan turns Premium |
+| `sandbox-2@cymbra.app` | none | nothing is written — the event is dropped as `SkipReason::Sandbox` |
 
 The unmarked one is the half that proves something: a marked account unlocking
 shows the door opens, not that it was ever shut. Run both against the same build.
