@@ -3,8 +3,12 @@ name: site-deploy
 # Build + deploy the public web site (apps/site, Astro) to Cloudflare Pages
 # (cymbra.app), the same wrangler pattern as `back-office-deploy.yml`.
 #
-# Release-driven: deploys when release-please cuts a `site-vX.Y.Z` tag (or on a
-# manual `workflow_dispatch`), never on every merge to main.
+# MANUAL ONLY (`workflow_dispatch`). Deliberately NOT triggered by the `site-vX.Y.Z`
+# tag: release-please uses a single Release PR for all four packages
+# (`separate-pull-requests: false`), so a tag-driven deploy meant merging a release
+# for one product shipped the public site too. Releasing and deploying are now two
+# decisions. Cut the release as usual, then run this workflow when the site is
+# actually meant to go out.
 #
 # Dormant until configured: gated on the `CF_PAGES_SITE_PROJECT` repo variable, so
 # until the Pages project is (re)pointed at this monorepo the job is skipped.
@@ -14,10 +18,19 @@ name: site-deploy
 # Required repo SECRETS:  CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID (shared with
 #                         the back-office deploy)
 on:
-  push:
-    tags:
-      - "site-v*"
   workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to build and deploy (e.g. site-v0.4.0). Empty = the ref this run was started from."
+        required: false
+        default: ""
+  workflow_call:
+    inputs:
+      ref:
+        description: "Git ref to build and deploy. Empty = the caller's ref."
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -35,6 +48,9 @@ jobs:
         working-directory: apps/site
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Empty resolves to the ref this run was started from.
+          ref: ${{ inputs.ref }}
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
