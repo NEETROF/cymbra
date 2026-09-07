@@ -9,11 +9,12 @@ name: back-office-deploy
 # Node — then we upload the static `dist/` with wrangler. This also sidesteps the
 # private-registry quirks of the Pages build environment.
 #
-# Release-driven: deploys only when release-please cuts a `back-office-vX.Y.Z` tag
-# (or on a manual `workflow_dispatch`), never on every merge to main. This mirrors
-# how `music` and `backend` ship — version bump via release-please, then deploy the
-# tagged release. To cut a release, merge the back-office Release PR; its tag fires
-# this workflow.
+# MANUAL ONLY (`workflow_dispatch`). Deliberately NOT triggered by the
+# `back-office-vX.Y.Z` tag: release-please uses a single Release PR for all four
+# packages (`separate-pull-requests: false`), so a tag-driven deploy meant merging a
+# release for one product shipped the console for another. Releasing and deploying
+# are now two decisions. Cut the release as usual, then run this workflow when the
+# console is actually meant to go out.
 #
 # Dormant until configured: the deploy job is gated on the `CF_PAGES_PROJECT` repo
 # variable, so until a maintainer creates the Pages project and sets the values below
@@ -33,9 +34,6 @@ name: back-office-deploy
 # Same-site constraint (see README): bo.cymbra.app and VITE_WEB_AUTH_URL must share
 # the cymbra.app registrable domain, or the refresh cookie is not first-party.
 on:
-  push:
-    tags:
-      - "back-office-v*"
   workflow_dispatch:
 
 permissions:
