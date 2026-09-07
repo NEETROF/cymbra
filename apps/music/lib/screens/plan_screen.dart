@@ -24,6 +24,7 @@ import '../services/store_client.dart';
 import '../state/app_locale.dart';
 import '../state/plan_notifier.dart';
 import '../theme/cymbra_theme.dart';
+import '../widgets/legal_link.dart';
 import '../widgets/plan_listener.dart';
 
 /// Push the plan screen (plan status + paywall) from any locked surface or the
@@ -403,26 +404,6 @@ class _SubscriptionLegal extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final links = legalLinksFor(ref.watch(appLocaleProvider).languageCode);
-    final launcher = ref.read(legalLinkLauncherProvider);
-
-    const bodyStyle = TextStyle(
-      color: CymbraColors.onSurfaceVariant,
-      fontSize: 12,
-      height: 1.4,
-    );
-    const linkStyle = TextStyle(
-      color: CymbraColors.primary,
-      fontSize: 12,
-      height: 1.4,
-      decoration: TextDecoration.underline,
-      decorationColor: CymbraColors.primary,
-    );
-
-    Widget link(Key key, String label, Uri url) => GestureDetector(
-      key: key,
-      onTap: () => launcher.open(url),
-      child: Text(label, style: linkStyle),
-    );
 
     return Padding(
       padding: const EdgeInsets.only(top: 12),
@@ -432,18 +413,22 @@ class _SubscriptionLegal extends ConsumerWidget {
           Text(
             l10n.planLegalRenewal,
             key: const Key('plan-legal-renewal'),
-            style: bodyStyle,
+            style: legalBodyStyle,
           ),
           const SizedBox(height: 6),
           Wrap(
             spacing: 16,
             runSpacing: 4,
             children: [
-              link(const Key('plan-legal-terms'), l10n.legalTerms, links.terms),
-              link(
-                const Key('plan-legal-privacy'),
-                l10n.legalPrivacy,
-                links.privacy,
+              LegalLink(
+                key: const Key('plan-legal-terms'),
+                label: l10n.legalTerms,
+                url: links.terms,
+              ),
+              LegalLink(
+                key: const Key('plan-legal-privacy'),
+                label: l10n.legalPrivacy,
+                url: links.privacy,
               ),
             ],
           ),
