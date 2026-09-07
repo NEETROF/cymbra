@@ -158,6 +158,28 @@ service account. Without the secret the upload is skipped with a warning and the
 AAB is still attached to the GitHub Release, which is how it was published by hand
 until now.
 
+## Before a store submission
+
+Mark the review accounts **store testers** in the back office (Users → the account
+→ Subscription → the store-tester box), and check the directory's store-tester
+filter returns exactly them.
+
+This is not optional housekeeping. App Review buys in the **sandbox**, and the
+backend honours a sandbox transaction only for a marked account — everyone else's
+is dropped and counted (change: scope-sandbox-to-tester-accounts). An unmarked
+review account means the reviewer pays and unlocks nothing, which reads as a broken
+app rather than a configuration mistake. The rejection of 1.30.0 asked us to
+document the purchase flow, so a reviewer trying it is likely.
+
+The mark grants nothing by itself. That is why the review accounts *also* carry an
+open-ended Premium grant: the grant is what lets a reviewer see the paid features
+without buying, and the mark is what lets the purchase itself work if they try it.
+Both, not either.
+
+One consequence worth remembering when filming a submission recording: an account
+holding the Premium grant never sees the paywall. Use a second, unmarked-and-free
+account for anything that has to show the offer.
+
 ## Categories (decided)
 
 - App Store: primary **Education**, secondary **Music**. Same on macOS, and the

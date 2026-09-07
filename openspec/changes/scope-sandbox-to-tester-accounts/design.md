@@ -194,5 +194,10 @@ unread.
 
 ## Open Questions
 
-- Should the submission checklist in `apps/music/store/README.md` name the mark as a
-  pre-submission step? Leaning yes, as a task in this change.
+Resolved during implementation:
+
+- **Should `apps/music/store/README.md` name the mark as a pre-submission step?**
+  Yes, done. It also had to say why the review accounts need *both* the mark and
+  their Premium grant — the grant lets a reviewer see the paid features, the mark
+  lets the purchase work if they try it — because holding only one of the two is
+  exactly how this fails quietly.

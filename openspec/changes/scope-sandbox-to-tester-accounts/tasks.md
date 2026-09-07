@@ -44,9 +44,9 @@
 
 ## 6. Ship it
 
-- [ ] 6.1 `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, and `cargo llvm-cov --workspace --fail-under-lines 80`
-- [ ] 6.2 Back-office lint, typecheck and unit tests green
-- [ ] 6.3 Name the mark as a pre-submission step in `apps/music/store/README.md`, next to the demo-account notes (design's open question — resolve it here)
+- [x] 6.1 `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, and `cargo llvm-cov --workspace --fail-under-lines 80`
+- [x] 6.2 Back-office lint, typecheck and unit tests green
+- [x] 6.3 Name the mark as a pre-submission step in `apps/music/store/README.md`, next to the demo-account notes (design's open question — resolve it here)
 - [ ] 6.4 Deploy backend then back office; mark the two review accounts; confirm the filter returns exactly them
 - [ ] 6.5 Delete `CYMBRA_REVENUECAT_ALLOW_SANDBOX` from the box's `.env`, roll `server` + `worker`, and confirm with `docker inspect` — `printenv` misreports on this stack
 - [ ] 6.6 End-to-end before resubmitting to Apple: a sandbox purchase on a marked account writes an entitlement row, the same purchase on an unmarked account writes none
