@@ -121,6 +121,15 @@ void main() {
       expect(find.text('Free plan'), findsOneWidget);
       expect(find.byKey(const Key('plan-buy-premium_monthly')), findsOneWidget);
       expect(find.textContaining('4,99 €'), findsOneWidget);
+      // Restore sits below the purchase card, and the card grew when the
+      // guideline-3.1.2 legal block landed in it: in an 800x600 test window the
+      // ListView no longer builds the button, so scroll it into existence
+      // rather than assert on a viewport accident.
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('plan-restore')),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(find.byKey(const Key('plan-restore')), findsOneWidget);
       // Store builds: no web checkout button, no "I've paid" refresh, no code
       // field anywhere.
@@ -143,6 +152,59 @@ void main() {
     expect(find.byKey(const Key('plan-refresh')), findsOneWidget);
     expect(find.byKey(const Key('plan-restore')), findsNothing);
     expect(find.textContaining('browser'), findsWidgets);
+  });
+
+  // Guideline 3.1.2: the App Store refused 1.30.0 because the subscription flow
+  // carried no renewal terms and no links to the Terms of Use / privacy policy.
+  // Both buy paths must show them — the store one and the desktop web checkout —
+  // so this asserts on each, and on the links actually resolving.
+  testWidgets('store purchase: renewal terms + working legal links', (
+    tester,
+  ) async {
+    final launcher = _RecordingLauncher();
+    await _pump(
+      tester,
+      snapshot: _freeBuyable(PlanChannel.apple),
+      platform: AppPlatform.ios,
+      launcher: launcher,
+    );
+    expect(find.byKey(const Key('plan-legal-renewal')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('plan-legal-terms')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('plan-legal-privacy')));
+    await tester.pump();
+    expect(launcher.opened, hasLength(2));
+    expect(launcher.opened.every((u) => u.host == 'cymbra.app'), isTrue);
+    expect(launcher.opened[0], isNot(launcher.opened[1]));
+  });
+
+  testWidgets('web checkout also carries the legal block', (tester) async {
+    await _pump(
+      tester,
+      snapshot: _freeBuyable(PlanChannel.web),
+      platform: AppPlatform.windows,
+    );
+    expect(find.byKey(const Key('plan-legal-renewal')), findsOneWidget);
+    expect(find.byKey(const Key('plan-legal-terms')), findsOneWidget);
+    expect(find.byKey(const Key('plan-legal-privacy')), findsOneWidget);
+  });
+
+  // The block belongs to the purchase card, not the screen: an account that
+  // cannot buy here must not be shown subscription terms it cannot act on.
+  testWidgets('managed elsewhere: no purchase card, so no legal block', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      snapshot: const PlanSnapshotView(
+        plan: 'premium',
+        source: 'google',
+        managedOn: PlanChannel.google,
+      ),
+      platform: AppPlatform.ios,
+    );
+    expect(find.byKey(const Key('plan-legal-renewal')), findsNothing);
   });
 
   testWidgets('managed elsewhere: no purchase button, says where', (

@@ -21,6 +21,7 @@ import '../services/app_platform.dart';
 import '../services/legal_links.dart';
 import '../services/plan_service.dart';
 import '../services/store_client.dart';
+import '../state/app_locale.dart';
 import '../state/plan_notifier.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/plan_listener.dart';
@@ -381,8 +382,72 @@ class _PurchaseCard extends ConsumerWidget {
               ),
             ] else
               _StoreProducts(products: products, busy: busy),
+            const _SubscriptionLegal(),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// App Store guideline 3.1.2 asks the subscription flow *itself* to carry the
+/// renewal terms and functional links to the Terms of Use and the privacy
+/// policy. Their absence is what got 1.30.0 refused: the same links already
+/// existed on the sign-in screen, which the reviewer never has to pass through
+/// to reach the paywall. It sits inside the purchase card so both buy paths —
+/// store products and the desktop web checkout — carry it.
+class _SubscriptionLegal extends ConsumerWidget {
+  const _SubscriptionLegal();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final links = legalLinksFor(ref.watch(appLocaleProvider).languageCode);
+    final launcher = ref.read(legalLinkLauncherProvider);
+
+    const bodyStyle = TextStyle(
+      color: CymbraColors.onSurfaceVariant,
+      fontSize: 12,
+      height: 1.4,
+    );
+    const linkStyle = TextStyle(
+      color: CymbraColors.primary,
+      fontSize: 12,
+      height: 1.4,
+      decoration: TextDecoration.underline,
+      decorationColor: CymbraColors.primary,
+    );
+
+    Widget link(Key key, String label, Uri url) => GestureDetector(
+      key: key,
+      onTap: () => launcher.open(url),
+      child: Text(label, style: linkStyle),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l10n.planLegalRenewal,
+            key: const Key('plan-legal-renewal'),
+            style: bodyStyle,
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 16,
+            runSpacing: 4,
+            children: [
+              link(const Key('plan-legal-terms'), l10n.legalTerms, links.terms),
+              link(
+                const Key('plan-legal-privacy'),
+                l10n.legalPrivacy,
+                links.privacy,
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
