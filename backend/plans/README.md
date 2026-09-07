@@ -108,8 +108,12 @@ stored here (D5).
   the paywall hides its button and the webhook acknowledges-and-ignores that
   store's events (not recorded: once re-enabled, the reconciliation sweep
   re-reads the accounts). Unset `CYMBRA_REVENUECAT_*` to unmount the route.
-- Sandbox: `CYMBRA_REVENUECAT_ALLOW_SANDBOX=true` on staging only; production
-  ignores (counts) `SANDBOX` events and subscriptions.
+- Sandbox: honoured **per account**, for the accounts marked "sandbox account" in
+  the back office; every other account's `SANDBOX` events and subscriptions are
+  ignored (and counted). A `TRANSFER` needs every account it names to be marked,
+  so a marked account cannot move a sandbox entitlement onto an ordinary one. There is
+  no environment-wide switch: App Review buys in the sandbox, and a global flag
+  left on would accept sandbox purchases from anyone.
 - Refund path: the store refunds (App Store / Play console, or Paddle portal);
   RevenueCat forwards it (`CANCELLATION` / `CUSTOMER_SUPPORT`) and the row ends
   now; past grace, the next sweep withdraws plan-only content. Support looks the

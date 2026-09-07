@@ -149,20 +149,19 @@ async fn main() -> anyhow::Result<()> {
                 billing_events: Arc::new(cymbra_plans::pg::PgBillingEventRepo::new(
                     plans_pool.clone(),
                 )),
-                audit: Arc::new(cymbra_plans::pg::PgAuditRepo::new(plans_pool)),
+                audit: Arc::new(cymbra_plans::pg::PgAuditRepo::new(plans_pool.clone())),
                 config: Arc::new(flags::WorkerPlanConfig::new(flag_service.clone())),
                 clock: Arc::new(cymbra_plans::SystemClock),
                 rotator: Some(rotator),
+                sandbox_accounts: Some(Arc::new(cymbra_plans::pg::PgSandboxAccountRepo::new(
+                    plans_pool,
+                ))),
             }));
             let channels = cymbra_plans::billing::env::BillingChannels::build(
                 &cymbra_plans::billing::env::BillingEnv::from_env(),
             );
             let reconciler = Arc::new(cymbra_plans::billing::reconcile::Reconciler {
                 customers: channels.rc_customers.clone(),
-                allow_sandbox: channels
-                    .revenuecat
-                    .as_ref()
-                    .is_some_and(|rc| rc.allow_sandbox),
             });
             let web_cancel: Option<Arc<dyn cymbra_plans::WebSubscriptionCanceller>> = channels
                 .web

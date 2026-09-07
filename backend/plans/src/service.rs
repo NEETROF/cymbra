@@ -15,10 +15,12 @@ use crate::ports::{
     AccessCodeIssuer, AccessCodeRepo, AuditEntry, AuditRecord, AuditRepo, BillingEventRepo,
     CacheSecretRotator, CampaignRepo, Clock, Enrolment, EntitlementRepo, EntitlementWrite,
     MembershipRepo, MintedCode, NewCampaign, PlanConfig, PlanConfigSource, PlanSource,
+    SandboxAccountRepo,
 };
 use async_trait::async_trait;
 use chrono::{DateTime, Duration, Utc};
 use cymbra_platform::{AppError, Result};
+use std::collections::HashSet;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -34,6 +36,9 @@ pub struct PlanDeps {
     pub clock: Arc<dyn Clock>,
     /// `None` = no offline cache to withdraw (tests, or before the seam is wired).
     pub rotator: Option<Arc<dyn CacheSecretRotator>>,
+    /// `None` = no account accepts sandbox purchases, so every sandbox transaction is refused.
+    /// That is the safe default and matches production before the seam is wired.
+    pub sandbox_accounts: Option<Arc<dyn SandboxAccountRepo>>,
 }
 
 /// Outcome of a successful redemption / enrolment.
@@ -129,10 +134,15 @@ impl PlanService {
     }
 
     /// Directory filter: account ids matching `plan` and/or a beta campaign.
+    /// Account ids matching the directory's filters. `None` inside means "no
+    /// filter narrowed anything yet" — which is why each filter composes through
+    /// the same `Option`, and why a lone `sandbox_accounts_only` must SEED the list
+    /// rather than intersect an empty one.
     pub async fn account_ids(
         &self,
         plan: PlanFilter,
         beta_campaign_key: Option<&str>,
+        sandbox_accounts_only: bool,
     ) -> Result<Vec<String>> {
         let now = self.now();
         let cfg = self.cfg();
@@ -161,6 +171,13 @@ impl PlanService {
             ids = Some(match ids {
                 None => members,
                 Some(prev) => prev.into_iter().filter(|u| members.contains(u)).collect(),
+            });
+        }
+        if sandbox_accounts_only {
+            let marked = self.list_sandbox_accounts().await?;
+            ids = Some(match ids {
+                None => marked,
+                Some(prev) => prev.into_iter().filter(|u| marked.contains(u)).collect(),
             });
         }
         Ok(ids.unwrap_or_default())
@@ -268,6 +285,65 @@ impl PlanService {
 
     /// Admin comp: a `premium` row from `now` to `ends_at`. An open-ended grant
     /// requires `confirm_open_ended`.
+    /// Whether this account's **sandbox** store transactions are honoured
+    /// (change: scope-sandbox-to-marked-accounts). Never an error for an
+    /// unparseable id — an account we cannot resolve is simply not marked.
+    pub async fn is_sandbox_account(&self, user_id: &str) -> Result<bool> {
+        match &self.d.sandbox_accounts {
+            Some(r) => r.is_sandbox_account(user_id).await,
+            None => Ok(false),
+        }
+    }
+
+    /// The marked subset of `user_ids`, for decorating a page of the directory.
+    pub async fn sandbox_accounts_among(&self, user_ids: &[String]) -> Result<HashSet<String>> {
+        match &self.d.sandbox_accounts {
+            Some(r) => r.sandbox_accounts_among(user_ids).await,
+            None => Ok(HashSet::new()),
+        }
+    }
+
+    /// Every marked account — what the directory's sandbox-account filter lists.
+    pub async fn list_sandbox_accounts(&self) -> Result<Vec<String>> {
+        match &self.d.sandbox_accounts {
+            Some(r) => r.list_ids().await,
+            None => Ok(Vec::new()),
+        }
+    }
+
+    /// Set or clear the mark. Audited in **both** directions: clearing deletes the
+    /// row, so the audit trail is the only record that it was ever set.
+    pub async fn set_sandbox_account(
+        &self,
+        user_id: &str,
+        enabled: bool,
+        actor: &str,
+        reason: &str,
+    ) -> Result<()> {
+        let Some(repo) = &self.d.sandbox_accounts else {
+            return Err(AppError::FailedPrecondition(
+                "sandbox accounts are not configured".into(),
+            ));
+        };
+        if enabled {
+            repo.set(user_id, actor).await?;
+        } else {
+            repo.clear(user_id).await?;
+        }
+        self.audit(
+            actor,
+            if enabled {
+                "set_sandbox_account"
+            } else {
+                "clear_sandbox_account"
+            },
+            Some(user_id),
+            None,
+            reason,
+        )
+        .await
+    }
+
     pub async fn grant_premium(
         &self,
         user_id: &str,
@@ -754,6 +830,7 @@ mod tests {
     use crate::ports::{
         MockAccessCodeRepo, MockAuditRepo, MockBillingEventRepo, MockCacheSecretRotator,
         MockCampaignRepo, MockClock, MockEntitlementRepo, MockMembershipRepo, MockPlanConfigSource,
+        MockSandboxAccountRepo,
     };
     use chrono::TimeZone;
     use mockall::predicate::*;
@@ -772,6 +849,7 @@ mod tests {
         config: MockPlanConfigSource,
         clock: MockClock,
         rotator: MockCacheSecretRotator,
+        sandbox_accounts: MockSandboxAccountRepo,
     }
 
     fn mocks(enabled: bool, now: DateTime<Utc>) -> Mocks {
@@ -794,6 +872,7 @@ mod tests {
             config,
             clock,
             rotator: MockCacheSecretRotator::new(),
+            sandbox_accounts: MockSandboxAccountRepo::new(),
         }
     }
 
@@ -808,7 +887,116 @@ mod tests {
             config: Arc::new(m.config),
             clock: Arc::new(m.clock),
             rotator: Some(Arc::new(m.rotator)),
+            sandbox_accounts: Some(Arc::new(m.sandbox_accounts)),
         })
+    }
+
+    // The directory's filters compose through one `Option`: a lone
+    // sandbox-accounts filter must SEED the list, because `PlanFilter::Any` with no
+    // beta leaves it `None` and would otherwise intersect into nothing.
+    #[tokio::test]
+    async fn the_sandbox_account_filter_seeds_alone_and_intersects_when_combined() {
+        let mut m = mocks(true, t(1));
+        m.sandbox_accounts
+            .expect_list_ids()
+            .returning(|| Ok(vec!["a".into(), "b".into()]));
+        m.entitlements
+            .expect_active_user_ids()
+            .returning(|_, _, _| Ok(vec!["b".into(), "c".into()]));
+        let s = service(m);
+
+        // Alone: exactly the marked accounts.
+        let mut alone = s.account_ids(PlanFilter::Any, None, true).await.unwrap();
+        alone.sort();
+        assert_eq!(alone, vec!["a".to_string(), "b".to_string()]);
+
+        // Combined with a plan filter: the intersection, not either side.
+        assert_eq!(
+            s.account_ids(PlanFilter::Premium, None, true)
+                .await
+                .unwrap(),
+            vec!["b".to_string()]
+        );
+
+        // Off: the filter must not narrow anything.
+        assert_eq!(
+            s.account_ids(PlanFilter::Premium, None, false)
+                .await
+                .unwrap(),
+            vec!["b".to_string(), "c".to_string()]
+        );
+    }
+
+    // The mark is the whole point of scope-sandbox-to-marked-accounts: it decides
+    // whether a sandbox purchase counts. Clearing DELETES the row, so the audit
+    // trail is the only surviving record that it was ever set — assert both
+    // directions reach it.
+    #[tokio::test]
+    async fn sandbox_account_mark_is_set_cleared_and_audited_both_ways() {
+        let mut m = mocks(true, t(1));
+        m.sandbox_accounts
+            .expect_set()
+            .withf(|u, by| u == "u1" && by == "admin-1")
+            .times(1)
+            .returning(|_, _| Ok(()));
+        m.sandbox_accounts
+            .expect_clear()
+            .withf(|u| u == "u1")
+            .times(1)
+            .returning(|_| Ok(()));
+        let mut audit = MockAuditRepo::new();
+        audit
+            .expect_record()
+            .withf(|e| e.action == "set_sandbox_account" && e.target_user.as_deref() == Some("u1"))
+            .times(1)
+            .returning(|_| Ok(()));
+        audit
+            .expect_record()
+            .withf(|e| e.action == "clear_sandbox_account")
+            .times(1)
+            .returning(|_| Ok(()));
+        m.audit = audit;
+        let svc = service(m);
+
+        svc.set_sandbox_account("u1", true, "admin-1", "app review")
+            .await
+            .unwrap();
+        svc.set_sandbox_account("u1", false, "admin-1", "review over")
+            .await
+            .unwrap();
+    }
+
+    // Production before the seam is wired, and every test that does not care: no
+    // repo must mean "no account is marked", never "everybody".
+    #[tokio::test]
+    async fn without_the_repo_no_account_is_marked() {
+        let m = mocks(true, t(1));
+        let svc = PlanService::new(PlanDeps {
+            entitlements: Arc::new(m.entitlements),
+            campaigns: Arc::new(m.campaigns),
+            memberships: Arc::new(m.memberships),
+            codes: Arc::new(m.codes),
+            billing_events: Arc::new(m.billing),
+            audit: Arc::new(m.audit),
+            config: Arc::new(m.config),
+            clock: Arc::new(m.clock),
+            rotator: None,
+            sandbox_accounts: None,
+        });
+        assert!(!svc.is_sandbox_account("u1").await.unwrap());
+        assert!(svc.list_sandbox_accounts().await.unwrap().is_empty());
+        assert!(
+            svc.sandbox_accounts_among(&["u1".to_string()])
+                .await
+                .unwrap()
+                .is_empty()
+        );
+        // And marking is refused rather than silently doing nothing.
+        assert!(
+            svc.set_sandbox_account("u1", true, "admin-1", "why")
+                .await
+                .is_err()
+        );
     }
 
     /// The reason typed on every grant/enrolment/revocation must be readable back, and
@@ -1442,19 +1630,19 @@ mod tests {
             .returning(|_, _| Ok(vec!["b".into(), "c".into()]));
         let s = service(m);
         assert_eq!(
-            s.account_ids(PlanFilter::Trial, Some("midi-drums"))
+            s.account_ids(PlanFilter::Trial, Some("midi-drums"), false)
                 .await
                 .unwrap(),
             vec!["b".to_string()]
         );
         assert_eq!(
-            s.account_ids(PlanFilter::Any, Some("midi-drums"))
+            s.account_ids(PlanFilter::Any, Some("midi-drums"), false)
                 .await
                 .unwrap(),
             vec!["b".to_string(), "c".to_string()]
         );
         assert!(
-            s.account_ids(PlanFilter::Any, None)
+            s.account_ids(PlanFilter::Any, None, false)
                 .await
                 .unwrap()
                 .is_empty()

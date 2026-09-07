@@ -26,6 +26,25 @@ export function accountRef(handleOrId: string): AccountRef {
 /** The wire pair for a target (the RPCs take both fields; exactly one is set). */
 const wireRef = (r: AccountRef) => ({ userId: r.userId ?? "", handle: r.handle ?? "" });
 
+/** Resolve a plan × beta × sandbox criterion into account ids (the directory then
+ *  lists them). It reads no store state, so it lives out here rather than in the
+ *  setup: nothing about it is per-store.
+ *  Throws on failure so the caller's `run(...)` folds it into ITS union. */
+export async function accountIdsByPlan(
+  plan: PlanFilter,
+  betaCampaignKey = "",
+  sandboxAccountsOnly = false,
+): Promise<string[]> {
+  return (await api().plans.listAccountIdsByPlan({ plan, betaCampaignKey, sandboxAccountsOnly })).userIds;
+}
+
+/** How many memberships a reopening would restore — read BEFORE reopening, so the
+ *  confirmation says what the action will do rather than what it did. Store state
+ *  free, like [`accountIdsByPlan`], so it lives at module scope too. */
+export async function reactivatableMembers(campaignKey: string): Promise<number> {
+  return (await api().plans.previewReopenCampaign({ campaignKey })).reactivated;
+}
+
 /** The store/web sources end on the provider's side — only `code`/`admin` rows are
  *  revocable from the console. */
 export const REVOCABLE_SOURCES = ["code", "admin"] as const;
@@ -142,6 +161,19 @@ export const usePlansStore = defineStore("plans", () => {
     );
   }
 
+  /**
+   * Mark (or unmark) an account as accepting sandbox purchases: its **sandbox** store transactions
+   * are then honoured (change: scope-sandbox-to-marked-accounts). Grants nothing on
+   * its own — it only decides whether a sandbox purchase counts, which is what App
+   * Review needs, since reviewers buy in the sandbox.
+   */
+  function setSandboxAccount(p: { target: AccountRef; enabled: boolean; reason: string }) {
+    return mutate(
+      () => api().plans.setSandboxAccount({ ...wireRef(p.target), enabled: p.enabled, reason: p.reason }),
+      relookup,
+    );
+  }
+
   function revokeEntitlement(entitlementId: string, reason: string) {
     return mutate(() => api().plans.revokeEntitlement({ entitlementId, reason }), relookup);
   }
@@ -209,12 +241,6 @@ export const usePlansStore = defineStore("plans", () => {
     return mutate(() => api().plans.reopenEnrollment({ campaignKey }), reloadCampaigns);
   }
 
-  /** How many memberships a reopening would restore — read BEFORE reopening, so
-   *  the confirmation says what the action will do rather than what it did. */
-  async function reactivatableMembers(campaignKey: string): Promise<number> {
-    return (await api().plans.previewReopenCampaign({ campaignKey })).reactivated;
-  }
-
   /** Mint N codes; the clear text lands in `minted` ONCE (never re-fetchable). */
   async function mintCodes(campaignKey: string, count: number, issuedToHint = "") {
     return run(minted, async () => (await api().plans.mintCodes({ campaignKey, count, issuedToHint })).codes);
@@ -230,12 +256,6 @@ export const usePlansStore = defineStore("plans", () => {
         codeIds: "codeIds" in p ? p.codeIds : [],
       }),
     );
-  }
-
-  /** Resolve a plan × beta criterion into account ids (the directory then lists them).
-   *  Throws on failure so the caller's `run(...)` folds it into ITS union. */
-  async function accountIdsByPlan(plan: PlanFilter, betaCampaignKey = ""): Promise<string[]> {
-    return (await api().plans.listAccountIdsByPlan({ plan, betaCampaignKey })).userIds;
   }
 
   /** Batch badges for the displayed directory page (one call per page). */
@@ -281,6 +301,7 @@ export const usePlansStore = defineStore("plans", () => {
     clearMinted,
     revokeCodes,
     accountIdsByPlan,
+    setSandboxAccount,
     plansForAccounts,
   };
 });

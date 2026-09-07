@@ -26,6 +26,9 @@ const filter = ref("");
 // sees the plan columns and filters — the store also skips the badge batch otherwise.
 const planFilter = ref<PlanFilter>("any");
 const betaFilter = ref("");
+// Sandbox purchases are honoured for these accounts only; the filter makes the
+// list of them a question anyone can answer instead of tribal knowledge.
+const sandboxAccountFilter = ref(false);
 const showPlans = computed(() => auth.adminScopes.includes("music"));
 const openCampaigns = computed(() => plans.openCampaigns);
 const badges = computed(() =>
@@ -79,7 +82,7 @@ const canNext = computed(() => offset.value + PAGE_SIZE < vm.value.total);
 const colCount = computed(() => (showPlans.value ? 5 : 3));
 
 function search() {
-  store.list(filter.value.trim(), 0, planFilter.value, betaFilter.value);
+  store.list(filter.value.trim(), 0, planFilter.value, betaFilter.value, sandboxAccountFilter.value);
 }
 function prev() {
   if (canPrev.value) store.list(store.params.query, Math.max(0, offset.value - PAGE_SIZE));
@@ -133,6 +136,16 @@ onMounted(() => {
           </option>
         </select>
       </label>
+      <label class="scope-picker">
+        <input
+          v-model="sandboxAccountFilter"
+          type="checkbox"
+          data-testid="sandbox-account-filter"
+          :aria-label="$t('plans.sandboxAccountFilter')"
+          @change="search"
+        />
+        {{ $t("plans.sandboxAccountFilter") }}
+      </label>
     </template>
     <button type="button" @click="search">{{ $t("users.search") }}</button>
   </div>
@@ -172,6 +185,9 @@ onMounted(() => {
               </AppTag>
             </template>
             <span v-else class="muted">{{ $t("plans.free") }}</span>
+            <AppTag v-if="badgeFor(a.userId)?.sandboxAccount" variant="neutral" :title="$t('plans.sandboxAccountHint')">
+              {{ $t("plans.sandboxAccount") }}
+            </AppTag>
           </td>
           <td v-if="showPlans">
             <div class="rolechips">
@@ -236,6 +252,12 @@ onMounted(() => {
   background: var(--panel-2);
 }
 .rolechips {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.plan-cell {
   display: flex;
   gap: 0.3rem;
   flex-wrap: wrap;

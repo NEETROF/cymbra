@@ -32,7 +32,7 @@ pub struct PlanGrpc {
     handles: Option<Arc<dyn HandleResolver>>,
     /// The store aggregator's customer API + its sandbox rule; `None` ⇒
     /// `SyncStorePlan` answers `unimplemented`.
-    store: Option<(Arc<dyn StoreCustomerSource>, bool)>,
+    store: Option<Arc<dyn StoreCustomerSource>>,
     /// The aggregator's project id, for the console's customer deep link (D5);
     /// `None` ⇒ `LookupAccountPlan` returns no url and the console hides it.
     aggregator_project: Option<String>,
@@ -67,13 +67,8 @@ impl PlanGrpc {
     }
 
     /// Wire the store aggregator (customer reads) and whether sandbox
-    /// subscriptions are applied (staging only).
-    pub fn with_store(
-        mut self,
-        customers: Arc<dyn StoreCustomerSource>,
-        allow_sandbox: bool,
-    ) -> Self {
-        self.store = Some((customers, allow_sandbox));
+    pub fn with_store(mut self, customers: Arc<dyn StoreCustomerSource>) -> Self {
+        self.store = Some(customers);
         self
     }
 
@@ -346,7 +341,7 @@ impl PlanServiceTrait for PlanGrpc {
         let platform = platform_from_proto(req.into_inner().platform);
         // Kill-switch off: the free view, no third-party call.
         if self.svc.enabled() {
-            let (customers, allow_sandbox) = self
+            let customers = self
                 .store
                 .as_ref()
                 .ok_or_else(|| Status::unimplemented("store aggregator not configured"))?;
@@ -366,7 +361,6 @@ impl PlanServiceTrait for PlanGrpc {
                 customers.as_ref(),
                 &id.user_id,
                 &products,
-                *allow_sandbox,
                 Utc::now(),
             )
             .await
@@ -422,12 +416,18 @@ impl PlanServiceTrait for PlanGrpc {
             &user_id,
         )
         .unwrap_or_default();
+        let sandbox_account = self
+            .svc
+            .is_sandbox_account(&user_id)
+            .await
+            .map_err(|e| e.to_status())?;
         Ok(Response::new(proto::LookupAccountPlanResponse {
             user_id,
             snapshot: Some(self.plan_response(&ap.snapshot, None)),
             rows: ap.rows.iter().map(row_msg).collect(),
             memberships: ap.memberships.iter().map(membership_msg).collect(),
             aggregator_customer_url,
+            sandbox_account,
         }))
     }
 
@@ -440,10 +440,18 @@ impl PlanServiceTrait for PlanGrpc {
         if ids.len() > 200 {
             return Err(Status::invalid_argument("at most 200 ids per call"));
         }
+        // One read for the whole page: a per-row lookup would be an N+1 against
+        // the directory's own pagination.
+        let marked = self
+            .svc
+            .sandbox_accounts_among(&ids)
+            .await
+            .map_err(|e| e.to_status())?;
         let mut badges = Vec::with_capacity(ids.len());
         for uid in ids {
             let s = self.svc.snapshot(&uid).await.map_err(|e| e.to_status())?;
             badges.push(proto::AccountPlanBadge {
+                sandbox_account: marked.contains(&uid),
                 user_id: uid,
                 plan: s.plan.as_str().to_string(),
                 trial: s.trial.is_some() && s.source == Some(Source::Code),
@@ -464,12 +472,26 @@ impl PlanServiceTrait for PlanGrpc {
         let beta = (!r.beta_campaign_key.is_empty()).then_some(r.beta_campaign_key.as_str());
         let user_ids = self
             .svc
-            .account_ids(filter, beta)
+            .account_ids(filter, beta, r.sandbox_accounts_only)
             .await
             .map_err(|e| e.to_status())?;
         Ok(Response::new(proto::ListAccountIdsByPlanResponse {
             user_ids,
         }))
+    }
+
+    async fn set_sandbox_account(
+        &self,
+        req: Request<proto::SetSandboxAccountRequest>,
+    ) -> Result<Response<proto::SetSandboxAccountResponse>, Status> {
+        let admin = self.admin(&req)?;
+        let r = req.into_inner();
+        let user_id = self.target(&r.user_id, &r.handle).await?;
+        self.svc
+            .set_sandbox_account(&user_id, r.enabled, &admin.user_id, &r.reason)
+            .await
+            .map_err(|e| e.to_status())?;
+        Ok(Response::new(proto::SetSandboxAccountResponse {}))
     }
 
     async fn grant_premium(
