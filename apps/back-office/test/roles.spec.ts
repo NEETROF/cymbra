@@ -114,9 +114,36 @@ describe("roles store", () => {
 
     await store.list("", 0, "trial", "");
 
-    expect(state.idsByPlanCalls).toEqual([{ plan: "trial", betaCampaignKey: "" }]);
+    expect(state.idsByPlanCalls).toEqual([{ plan: "trial", betaCampaignKey: "", storeTestersOnly: false }]);
     expect(state.listAccountsCalls).toEqual([{ query: "", limit: PAGE_SIZE, offset: 0, ids: ["u1", "u9"] }]);
     expect(store.params).toMatchObject({ plan: "trial", beta: "" });
+  });
+
+  // The store-tester filter is a plans attribute on an identity-owned directory,
+  // so it takes the same pre-resolve route as the plan and beta filters.
+  it("the store-tester filter alone still pre-resolves ids", async () => {
+    const accounts = [{ userId: "u1", handle: "ada", rolesByScope: [] }];
+    const { clients, state } = makeFakeClients({ accounts, idsByPlan: ["u1"] });
+    setClientsForTest(clients);
+    const store = useRolesStore();
+
+    await store.list("", 0, "any", "", true);
+
+    // "any" plan and no beta would normally skip the pre-resolve entirely: the
+    // tester filter has to trigger it on its own, or it would silently do nothing.
+    expect(state.idsByPlanCalls).toEqual([{ plan: "any", betaCampaignKey: "", storeTestersOnly: true }]);
+    expect(state.listAccountsCalls).toEqual([{ query: "", limit: PAGE_SIZE, offset: 0, ids: ["u1"] }]);
+    expect(store.params).toMatchObject({ storeTesters: true });
+  });
+
+  it("the store-tester filter composes with a plan filter", async () => {
+    const { clients, state } = makeFakeClients({ accounts: [], idsByPlan: ["u1"] });
+    setClientsForTest(clients);
+    const store = useRolesStore();
+
+    await store.list("", 0, "premium", "", true);
+
+    expect(state.idsByPlanCalls).toEqual([{ plan: "premium", betaCampaignKey: "", storeTestersOnly: true }]);
   });
 
   it("a beta filter with an empty resolved set is an empty page without calling listAccounts", async () => {
@@ -126,7 +153,7 @@ describe("roles store", () => {
 
     await store.list("", 0, "any", "midi-drums");
 
-    expect(state.idsByPlanCalls).toEqual([{ plan: "any", betaCampaignKey: "midi-drums" }]);
+    expect(state.idsByPlanCalls).toEqual([{ plan: "any", betaCampaignKey: "midi-drums", storeTestersOnly: false }]);
     expect(state.listAccountsCalls).toEqual([]);
     expect(store.directory).toEqual({ status: "success", data: { accounts: [], total: 0 } });
   });

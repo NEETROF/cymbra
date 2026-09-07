@@ -26,6 +26,9 @@ const filter = ref("");
 // sees the plan columns and filters — the store also skips the badge batch otherwise.
 const planFilter = ref<PlanFilter>("any");
 const betaFilter = ref("");
+// Sandbox purchases are honoured for these accounts only; the filter makes the
+// list of them a question anyone can answer instead of tribal knowledge.
+const storeTesterFilter = ref(false);
 const showPlans = computed(() => auth.adminScopes.includes("music"));
 const openCampaigns = computed(() => plans.openCampaigns);
 const badges = computed(() =>
@@ -79,7 +82,7 @@ const canNext = computed(() => offset.value + PAGE_SIZE < vm.value.total);
 const colCount = computed(() => (showPlans.value ? 5 : 3));
 
 function search() {
-  store.list(filter.value.trim(), 0, planFilter.value, betaFilter.value);
+  store.list(filter.value.trim(), 0, planFilter.value, betaFilter.value, storeTesterFilter.value);
 }
 function prev() {
   if (canPrev.value) store.list(store.params.query, Math.max(0, offset.value - PAGE_SIZE));
@@ -133,6 +136,16 @@ onMounted(() => {
           </option>
         </select>
       </label>
+      <label class="scope-picker">
+        <input
+          v-model="storeTesterFilter"
+          type="checkbox"
+          data-testid="store-tester-filter"
+          :aria-label="$t('plans.storeTesterFilter')"
+          @change="search"
+        />
+        {{ $t("plans.storeTesterFilter") }}
+      </label>
     </template>
     <button type="button" @click="search">{{ $t("users.search") }}</button>
   </div>
@@ -175,8 +188,15 @@ onMounted(() => {
           </td>
           <td v-if="showPlans">
             <div class="rolechips">
+              <AppTag v-if="badgeFor(a.userId)?.storeTester" variant="neutral" :title="$t('plans.storeTesterHint')">
+                {{ $t("plans.storeTester") }}
+              </AppTag>
               <AppTag v-for="k in badgeFor(a.userId)?.betaKeys ?? []" :key="k" variant="neutral" mono>{{ k }}</AppTag>
-              <span v-if="(badgeFor(a.userId)?.betaKeys ?? []).length === 0" class="muted">—</span>
+              <span
+                v-if="(badgeFor(a.userId)?.betaKeys ?? []).length === 0 && !badgeFor(a.userId)?.storeTester"
+                class="muted"
+                >—</span
+              >
             </div>
           </td>
         </tr>

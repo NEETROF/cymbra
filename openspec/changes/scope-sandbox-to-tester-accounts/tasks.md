@@ -35,12 +35,12 @@
 
 ## 5. Back office
 
-- [ ] 5.1 Regenerate the gRPC-web stubs (`yarn gen`) after the proto change
-- [ ] 5.2 Account page: a "store tester" checkbox next to the plan actions, calling the store — the component never calls the API itself, and the request state is one `Async<T>` union
-- [ ] 5.3 Directory: a store-tester filter beside the existing Plan and Bêta filters, and the badge on the row so a filtered list shows why it matched
-- [ ] 5.4 Locale strings in both `en` and `fr`, aligned — no drift
-- [ ] 5.5 Component tests: the checkbox reflects the fetched state, toggling calls the store, and a failed call surfaces as the union's error rather than a thrown exception
-- [ ] 5.6 Directory test: the filter narrows the list
+- [x] 5.1 Regenerate the gRPC-web stubs (`yarn gen`) after the proto change
+- [x] 5.2 Account page: a "store tester" checkbox next to the plan actions, calling the store — the component never calls the API itself, and the request state is one `Async<T>` union
+- [x] 5.3 Directory: a store-tester filter beside the existing Plan and Bêta filters, and the badge on the row so a filtered list shows why it matched
+- [x] 5.4 Locale strings in both `en` and `fr`, aligned — no drift
+- [x] 5.5 Component tests: the checkbox reflects the fetched state, toggling calls the store, and a failed call surfaces as the union's error rather than a thrown exception
+- [x] 5.6 Directory test: the filter narrows the list
 
 ## 6. Ship it
 

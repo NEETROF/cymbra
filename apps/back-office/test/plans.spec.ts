@@ -145,6 +145,49 @@ describe("plans store", () => {
     expect(state.lookupCalls).toHaveLength(2);
   });
 
+  // The store-tester mark decides whether a SANDBOX purchase counts. It grants
+  // nothing on its own, but it is audited, so it goes through the same
+  // mutate + relookup path as every other plan change.
+  it("marks an account a store tester, then re-runs the lookup so the box reflects the server", async () => {
+    const { clients, state } = makeFakeClients({ lookup });
+    setClientsForTest(clients);
+    const store = usePlansStore();
+    await store.lookup("ada");
+
+    const outcome = await store.setStoreTester({ target: { userId: UUID }, enabled: true, reason: "app review" });
+
+    expect(outcome.status).toBe("success");
+    expect(state.setStoreTesterCalls).toEqual([{ userId: UUID, handle: "", enabled: true, reason: "app review" }]);
+    expect(state.lookupCalls).toHaveLength(2);
+  });
+
+  it("clearing the mark is the same call with enabled false", async () => {
+    const { clients, state } = makeFakeClients({ lookup });
+    setClientsForTest(clients);
+    const store = usePlansStore();
+    await store.lookup("ada");
+
+    await store.setStoreTester({ target: { handle: "ada" }, enabled: false, reason: "review over" });
+
+    expect(state.setStoreTesterCalls).toEqual([{ userId: "", handle: "ada", enabled: false, reason: "review over" }]);
+  });
+
+  // A failed call must land in the union, never escape as a throw the view has to
+  // catch — the rule the whole store follows.
+  it("a refused mark lands in `op` as an error", async () => {
+    const { clients } = makeFakeClients({ lookup });
+    (clients.plans as unknown as { setStoreTester: () => Promise<never> }).setStoreTester = () =>
+      Promise.reject(new ConnectError("nope", Code.PermissionDenied));
+    setClientsForTest(clients);
+    const store = usePlansStore();
+    await store.lookup("ada");
+
+    const outcome = await store.setStoreTester({ target: { userId: UUID }, enabled: true, reason: "r" });
+
+    expect(outcome.status).toBe("error");
+    expect(store.op.status).toBe("error");
+  });
+
   it("an open-ended grant refused by the server lands in `op` as an error, never a throw", async () => {
     const { clients, state } = makeFakeClients({ lookup });
     (clients.plans as unknown as { grantPremium: () => Promise<never> }).grantPremium = () =>
@@ -274,7 +317,7 @@ describe("plans store", () => {
     setClientsForTest(clients);
     const store = usePlansStore();
     const ids = await store.accountIdsByPlan("trial", "midi-drums");
-    expect(state.idsByPlanCalls).toEqual([{ plan: "trial", betaCampaignKey: "midi-drums" }]);
+    expect(state.idsByPlanCalls).toEqual([{ plan: "trial", betaCampaignKey: "midi-drums", storeTestersOnly: false }]);
     expect(ids).toEqual(["u1", "u3"]);
   });
 

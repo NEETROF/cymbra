@@ -142,6 +142,19 @@ export const usePlansStore = defineStore("plans", () => {
     );
   }
 
+  /**
+   * Mark (or unmark) an account a store tester: its **sandbox** store transactions
+   * are then honoured (change: scope-sandbox-to-tester-accounts). Grants nothing on
+   * its own — it only decides whether a sandbox purchase counts, which is what App
+   * Review needs, since reviewers buy in the sandbox.
+   */
+  function setStoreTester(p: { target: AccountRef; enabled: boolean; reason: string }) {
+    return mutate(
+      () => api().plans.setStoreTester({ ...wireRef(p.target), enabled: p.enabled, reason: p.reason }),
+      relookup,
+    );
+  }
+
   function revokeEntitlement(entitlementId: string, reason: string) {
     return mutate(() => api().plans.revokeEntitlement({ entitlementId, reason }), relookup);
   }
@@ -234,8 +247,8 @@ export const usePlansStore = defineStore("plans", () => {
 
   /** Resolve a plan × beta criterion into account ids (the directory then lists them).
    *  Throws on failure so the caller's `run(...)` folds it into ITS union. */
-  async function accountIdsByPlan(plan: PlanFilter, betaCampaignKey = ""): Promise<string[]> {
-    return (await api().plans.listAccountIdsByPlan({ plan, betaCampaignKey })).userIds;
+  async function accountIdsByPlan(plan: PlanFilter, betaCampaignKey = "", storeTestersOnly = false): Promise<string[]> {
+    return (await api().plans.listAccountIdsByPlan({ plan, betaCampaignKey, storeTestersOnly })).userIds;
   }
 
   /** Batch badges for the displayed directory page (one call per page). */
@@ -281,6 +294,7 @@ export const usePlansStore = defineStore("plans", () => {
     clearMinted,
     revokeCodes,
     accountIdsByPlan,
+    setStoreTester,
     plansForAccounts,
   };
 });
