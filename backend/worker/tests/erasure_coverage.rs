@@ -37,6 +37,9 @@ fn repo_root() -> &'static Path {
 fn account_keyed_tables() -> BTreeSet<String> {
     let mut found = BTreeSet::new();
     let root = repo_root();
+    // Add a module here when it gains a schema. A directory that does not exist is
+    // skipped, so listing one early costs nothing — and forgetting to list one makes
+    // this guard silently blind to its tables.
     for module in [
         "auth",
         "user",
@@ -44,6 +47,8 @@ fn account_keyed_tables() -> BTreeSet<String> {
         "plans",
         "analytics",
         "feature-flags",
+        "lingua",
+        "live",
     ] {
         let dir = root.join("backend").join(module).join("migrations");
         let Ok(entries) = std::fs::read_dir(&dir) else {

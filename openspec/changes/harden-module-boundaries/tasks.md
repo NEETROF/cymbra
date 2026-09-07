@@ -19,9 +19,18 @@
 
 ## 3. Scope-matched moderation guards
 
+> Findings from the separation-of-powers audit that belong to this group, beyond the
+> site list: `require_admin` is documented "in any scope — the coarse gate", so it is
+> **not** scope-matched either — task 3.7 must decide each of its 5 sites, and
+> `backend/feature-flags/src/grpc.rs` ~:55 is the one that gates every kill-switch, so
+> scope-matching it is not enough on its own (the actor also has to reach
+> `recent_changes`, and sensitive values need redacting). Removing the flat helper (3.8)
+> is what makes a missed site fail to compile — do not skip it.
+
+
 - [ ] 3.1 Add `require_moderator_or_admin_in_scope(id, scope)` in `backend/platform/src/guard.rs`, built on `has_role_in_scope` (`backend/platform/src/identity.rs` ~:41), modelled on `require_admin_in_scope` (~:28).
 - [ ] 3.2 Correct the `require_moderator_or_admin` doc-comment (`guard.rs` ~:38-44): its justification holds only for a single-scope app audience and is false for `back-office`.
-- [ ] 3.3 Migrate the 9 sites in `backend/music/src/grpc.rs` (~:795, :900, :921, :950, :1189, :1435, :1476, :1492, :1783) to the scope-matched guard. Re-derive with `grep -n require_moderator_or_admin` before starting — this file drifts.
+- [ ] 3.3 Migrate the **8 production sites** in `backend/music/src/grpc.rs` (~:795, :900, :921, :950, :1189, :1435, :1476, :1492) to the scope-matched guard. A ninth hit at ~:1783 is inside `#[cfg(test)]` (the block starts ~:1603) — an earlier anchor refresh counted it, so the total for this file is 8, not 9. Re-derive before starting, and filter out the test block: this file drifts.
 - [ ] 3.4 Migrate the 5 sites in `backend/server/src/soundfont.rs` (~:337, :547, :860, :933, :978).
 - [ ] 3.5 Migrate the 2 sites in `backend/server/src/score_preview.rs` (~:100, :169).
 - [ ] 3.6 Replace the 2 inline flat checks in `backend/music/src/grpc.rs` (~:380, :1450) with the scope-matched guard.
@@ -35,7 +44,7 @@
 - [ ] 4.1 Give each `Unlock` variant an owning product in `backend/plans/src/model.rs` (~:39-52) and replace the flat `PREMIUM_UNLOCKS` block (~:68-75) with a per-product resolution.
 - [ ] 4.2 Read and carry `product` through `backend/plans/src/pg.rs` (today 0 occurrences) for `plan_entitlements` and `beta_campaigns`; no backfill is needed — `DEFAULT 'music'` already makes every existing row correct.
 - [ ] 4.3 Thread the product through the plan snapshot / `PlanSource` so "does the plan grant unlock X" is answered for X's product.
-- [ ] 4.4 Migrate the 5 consumers: `backend/music/src/catalog_daily_access.rs` ~:93, `backend/music/src/module.rs` ~:357, `backend/music/src/curation_rewards_module.rs` ~:112, `backend/server/src/soundfont.rs` ~:549 and ~:886.
+- [ ] 4.4 Migrate the 5 consumers, re-derived: `backend/music/src/catalog_daily_access.rs` ~:93, `backend/music/src/module.rs` **~:404** (not :357), `backend/music/src/curation_rewards_module.rs` ~:112, `backend/server/src/soundfont.rs` ~:549 and ~:886.
 - [ ] 4.5 Test: an account with an active non-music `premium` and no music entitlement is denied every music unlock.
 - [ ] 4.6 Test: an account holding entitlements for two products gets each product's unlocks independently.
 - [ ] 4.7 Test: an entitlement written before products were distinguished still grants the full music unlock set.
