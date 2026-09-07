@@ -71,10 +71,10 @@ describe("account detail page", () => {
     expect(state.lookupCalls).toEqual([{ userId: "u-bob", handle: "" }]);
   });
 
-  // The store-tester checkbox is bound to the SERVER's value and intercepts its own
+  // The sandbox-account checkbox is bound to the SERVER's value and intercepts its own
   // click: it must not move until the change was accepted, or a cancelled dialog
   // would leave the console claiming a mark that does not exist.
-  it("the store-tester box reflects the fetched value and asks for a reason before moving", async () => {
+  it("the sandbox-account box reflects the fetched value and asks for a reason before moving", async () => {
     const { w, state } = await mountDetail(
       "u-ada",
       {
@@ -84,27 +84,29 @@ describe("account detail page", () => {
           snapshot: { plan: "free", betas: [] },
           rows: [],
           memberships: [],
-          storeTester: true,
+          sandboxAccount: true,
         },
       },
       "subscription",
     );
 
-    const box = w.find('[data-testid="store-tester"]');
+    const box = w.find('[data-testid="sandbox-account"]');
     expect((box.element as HTMLInputElement).checked).toBe(true);
 
     await box.trigger("click");
     await flushPromises();
     // Nothing sent yet: the reason is mandatory and the dialog is open.
-    expect(state.setStoreTesterCalls).toEqual([]);
-    expect(w.find('[data-testid="store-tester-reason"]').exists()).toBe(true);
+    expect(state.setSandboxAccountCalls).toEqual([]);
+    expect(w.find('[data-testid="sandbox-account-reason"]').exists()).toBe(true);
 
-    await w.find('[data-testid="store-tester-reason"]').setValue("review over");
-    await w.find('[data-testid="store-tester-confirm"]').trigger("click");
+    await w.find('[data-testid="sandbox-account-reason"]').setValue("review over");
+    await w.find('[data-testid="sandbox-account-confirm"]').trigger("click");
     await flushPromises();
 
     // Clicking a checked box asks to CLEAR it.
-    expect(state.setStoreTesterCalls).toEqual([{ userId: "u-ada", handle: "", enabled: false, reason: "review over" }]);
+    expect(state.setSandboxAccountCalls).toEqual([
+      { userId: "u-ada", handle: "", enabled: false, reason: "review over" },
+    ]);
   });
 
   it("an unknown id shows a localized not-found state, not a raw error", async () => {

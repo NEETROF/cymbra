@@ -15,7 +15,7 @@ use crate::ports::{
     AccessCodeIssuer, AccessCodeRepo, AuditEntry, AuditRecord, AuditRepo, BillingEventRepo,
     CacheSecretRotator, CampaignRepo, Clock, Enrolment, EntitlementRepo, EntitlementWrite,
     MembershipRepo, MintedCode, NewCampaign, PlanConfig, PlanConfigSource, PlanSource,
-    StoreTesterRepo,
+    SandboxAccountRepo,
 };
 use async_trait::async_trait;
 use chrono::{DateTime, Duration, Utc};
@@ -36,9 +36,9 @@ pub struct PlanDeps {
     pub clock: Arc<dyn Clock>,
     /// `None` = no offline cache to withdraw (tests, or before the seam is wired).
     pub rotator: Option<Arc<dyn CacheSecretRotator>>,
-    /// `None` = nobody is a store tester, so every sandbox transaction is refused.
+    /// `None` = no account accepts sandbox purchases, so every sandbox transaction is refused.
     /// That is the safe default and matches production before the seam is wired.
-    pub store_testers: Option<Arc<dyn StoreTesterRepo>>,
+    pub sandbox_accounts: Option<Arc<dyn SandboxAccountRepo>>,
 }
 
 /// Outcome of a successful redemption / enrolment.
@@ -136,13 +136,13 @@ impl PlanService {
     /// Directory filter: account ids matching `plan` and/or a beta campaign.
     /// Account ids matching the directory's filters. `None` inside means "no
     /// filter narrowed anything yet" — which is why each filter composes through
-    /// the same `Option`, and why a lone `store_testers_only` must SEED the list
+    /// the same `Option`, and why a lone `sandbox_accounts_only` must SEED the list
     /// rather than intersect an empty one.
     pub async fn account_ids(
         &self,
         plan: PlanFilter,
         beta_campaign_key: Option<&str>,
-        store_testers_only: bool,
+        sandbox_accounts_only: bool,
     ) -> Result<Vec<String>> {
         let now = self.now();
         let cfg = self.cfg();
@@ -173,11 +173,11 @@ impl PlanService {
                 Some(prev) => prev.into_iter().filter(|u| members.contains(u)).collect(),
             });
         }
-        if store_testers_only {
-            let testers = self.list_store_testers().await?;
+        if sandbox_accounts_only {
+            let marked = self.list_sandbox_accounts().await?;
             ids = Some(match ids {
-                None => testers,
-                Some(prev) => prev.into_iter().filter(|u| testers.contains(u)).collect(),
+                None => marked,
+                Some(prev) => prev.into_iter().filter(|u| marked.contains(u)).collect(),
             });
         }
         Ok(ids.unwrap_or_default())
@@ -286,26 +286,26 @@ impl PlanService {
     /// Admin comp: a `premium` row from `now` to `ends_at`. An open-ended grant
     /// requires `confirm_open_ended`.
     /// Whether this account's **sandbox** store transactions are honoured
-    /// (change: scope-sandbox-to-tester-accounts). Never an error for an
-    /// unparseable id — an account we cannot resolve is simply not a tester.
-    pub async fn is_store_tester(&self, user_id: &str) -> Result<bool> {
-        match &self.d.store_testers {
-            Some(r) => r.is_tester(user_id).await,
+    /// (change: scope-sandbox-to-marked-accounts). Never an error for an
+    /// unparseable id — an account we cannot resolve is simply not marked.
+    pub async fn is_sandbox_account(&self, user_id: &str) -> Result<bool> {
+        match &self.d.sandbox_accounts {
+            Some(r) => r.is_sandbox_account(user_id).await,
             None => Ok(false),
         }
     }
 
     /// The marked subset of `user_ids`, for decorating a page of the directory.
-    pub async fn store_testers_among(&self, user_ids: &[String]) -> Result<HashSet<String>> {
-        match &self.d.store_testers {
-            Some(r) => r.testers_among(user_ids).await,
+    pub async fn sandbox_accounts_among(&self, user_ids: &[String]) -> Result<HashSet<String>> {
+        match &self.d.sandbox_accounts {
+            Some(r) => r.sandbox_accounts_among(user_ids).await,
             None => Ok(HashSet::new()),
         }
     }
 
-    /// Every marked account — what the directory's store-tester filter lists.
-    pub async fn list_store_testers(&self) -> Result<Vec<String>> {
-        match &self.d.store_testers {
+    /// Every marked account — what the directory's sandbox-account filter lists.
+    pub async fn list_sandbox_accounts(&self) -> Result<Vec<String>> {
+        match &self.d.sandbox_accounts {
             Some(r) => r.list_ids().await,
             None => Ok(Vec::new()),
         }
@@ -313,16 +313,16 @@ impl PlanService {
 
     /// Set or clear the mark. Audited in **both** directions: clearing deletes the
     /// row, so the audit trail is the only record that it was ever set.
-    pub async fn set_store_tester(
+    pub async fn set_sandbox_account(
         &self,
         user_id: &str,
         enabled: bool,
         actor: &str,
         reason: &str,
     ) -> Result<()> {
-        let Some(repo) = &self.d.store_testers else {
+        let Some(repo) = &self.d.sandbox_accounts else {
             return Err(AppError::FailedPrecondition(
-                "store testers are not configured".into(),
+                "sandbox accounts are not configured".into(),
             ));
         };
         if enabled {
@@ -333,9 +333,9 @@ impl PlanService {
         self.audit(
             actor,
             if enabled {
-                "set_store_tester"
+                "set_sandbox_account"
             } else {
-                "clear_store_tester"
+                "clear_sandbox_account"
             },
             Some(user_id),
             None,
@@ -830,7 +830,7 @@ mod tests {
     use crate::ports::{
         MockAccessCodeRepo, MockAuditRepo, MockBillingEventRepo, MockCacheSecretRotator,
         MockCampaignRepo, MockClock, MockEntitlementRepo, MockMembershipRepo, MockPlanConfigSource,
-        MockStoreTesterRepo,
+        MockSandboxAccountRepo,
     };
     use chrono::TimeZone;
     use mockall::predicate::*;
@@ -849,7 +849,7 @@ mod tests {
         config: MockPlanConfigSource,
         clock: MockClock,
         rotator: MockCacheSecretRotator,
-        store_testers: MockStoreTesterRepo,
+        sandbox_accounts: MockSandboxAccountRepo,
     }
 
     fn mocks(enabled: bool, now: DateTime<Utc>) -> Mocks {
@@ -872,7 +872,7 @@ mod tests {
             config,
             clock,
             rotator: MockCacheSecretRotator::new(),
-            store_testers: MockStoreTesterRepo::new(),
+            sandbox_accounts: MockSandboxAccountRepo::new(),
         }
     }
 
@@ -887,17 +887,17 @@ mod tests {
             config: Arc::new(m.config),
             clock: Arc::new(m.clock),
             rotator: Some(Arc::new(m.rotator)),
-            store_testers: Some(Arc::new(m.store_testers)),
+            sandbox_accounts: Some(Arc::new(m.sandbox_accounts)),
         })
     }
 
     // The directory's filters compose through one `Option`: a lone
-    // store-testers filter must SEED the list, because `PlanFilter::Any` with no
+    // sandbox-accounts filter must SEED the list, because `PlanFilter::Any` with no
     // beta leaves it `None` and would otherwise intersect into nothing.
     #[tokio::test]
-    async fn the_store_tester_filter_seeds_alone_and_intersects_when_combined() {
+    async fn the_sandbox_account_filter_seeds_alone_and_intersects_when_combined() {
         let mut m = mocks(true, t(1));
-        m.store_testers
+        m.sandbox_accounts
             .expect_list_ids()
             .returning(|| Ok(vec!["a".into(), "b".into()]));
         m.entitlements
@@ -927,19 +927,19 @@ mod tests {
         );
     }
 
-    // The mark is the whole point of scope-sandbox-to-tester-accounts: it decides
+    // The mark is the whole point of scope-sandbox-to-marked-accounts: it decides
     // whether a sandbox purchase counts. Clearing DELETES the row, so the audit
     // trail is the only surviving record that it was ever set — assert both
     // directions reach it.
     #[tokio::test]
-    async fn store_tester_mark_is_set_cleared_and_audited_both_ways() {
+    async fn sandbox_account_mark_is_set_cleared_and_audited_both_ways() {
         let mut m = mocks(true, t(1));
-        m.store_testers
+        m.sandbox_accounts
             .expect_set()
             .withf(|u, by| u == "u1" && by == "admin-1")
             .times(1)
             .returning(|_, _| Ok(()));
-        m.store_testers
+        m.sandbox_accounts
             .expect_clear()
             .withf(|u| u == "u1")
             .times(1)
@@ -947,29 +947,29 @@ mod tests {
         let mut audit = MockAuditRepo::new();
         audit
             .expect_record()
-            .withf(|e| e.action == "set_store_tester" && e.target_user.as_deref() == Some("u1"))
+            .withf(|e| e.action == "set_sandbox_account" && e.target_user.as_deref() == Some("u1"))
             .times(1)
             .returning(|_| Ok(()));
         audit
             .expect_record()
-            .withf(|e| e.action == "clear_store_tester")
+            .withf(|e| e.action == "clear_sandbox_account")
             .times(1)
             .returning(|_| Ok(()));
         m.audit = audit;
         let svc = service(m);
 
-        svc.set_store_tester("u1", true, "admin-1", "app review")
+        svc.set_sandbox_account("u1", true, "admin-1", "app review")
             .await
             .unwrap();
-        svc.set_store_tester("u1", false, "admin-1", "review over")
+        svc.set_sandbox_account("u1", false, "admin-1", "review over")
             .await
             .unwrap();
     }
 
     // Production before the seam is wired, and every test that does not care: no
-    // repo must mean "nobody is a tester", never "everybody".
+    // repo must mean "no account is marked", never "everybody".
     #[tokio::test]
-    async fn without_the_repo_nobody_is_a_tester() {
+    async fn without_the_repo_no_account_is_marked() {
         let m = mocks(true, t(1));
         let svc = PlanService::new(PlanDeps {
             entitlements: Arc::new(m.entitlements),
@@ -981,19 +981,19 @@ mod tests {
             config: Arc::new(m.config),
             clock: Arc::new(m.clock),
             rotator: None,
-            store_testers: None,
+            sandbox_accounts: None,
         });
-        assert!(!svc.is_store_tester("u1").await.unwrap());
-        assert!(svc.list_store_testers().await.unwrap().is_empty());
+        assert!(!svc.is_sandbox_account("u1").await.unwrap());
+        assert!(svc.list_sandbox_accounts().await.unwrap().is_empty());
         assert!(
-            svc.store_testers_among(&["u1".to_string()])
+            svc.sandbox_accounts_among(&["u1".to_string()])
                 .await
                 .unwrap()
                 .is_empty()
         );
         // And marking is refused rather than silently doing nothing.
         assert!(
-            svc.set_store_tester("u1", true, "admin-1", "why")
+            svc.set_sandbox_account("u1", true, "admin-1", "why")
                 .await
                 .is_err()
         );

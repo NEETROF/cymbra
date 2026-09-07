@@ -95,7 +95,7 @@ function revokeMembership(m: MembershipMsg) {
 }
 
 // ---- dialogs (grant / enrol / reason) ----
-type Modal = "grant" | "enrol" | "reason" | "storeTester" | null;
+type Modal = "grant" | "enrol" | "reason" | "sandboxAccount" | null;
 const modal = ref<Modal>(null);
 
 /** Focus moves INTO the dialog when one opens. `aria-modal` requires it, and the
@@ -113,21 +113,21 @@ const grantForm = ref({ endDate: "", confirmOpenEnded: false, reason: "" });
 const enrolForm = ref({ campaignKey: "", reason: "" });
 
 /**
- * Store tester (change: scope-sandbox-to-tester-accounts). Toggling goes through
+ * Sandbox account (change: scope-sandbox-to-marked-accounts). Toggling goes through
  * the reason modal like every other audited plan change: clearing the mark deletes
  * the row, so the audit trail is the only surviving record that it was ever set.
  */
-const testerForm = ref({ enabled: false, reason: "" });
-function openStoreTester(enabled: boolean) {
-  testerForm.value = { enabled, reason: "" };
-  modal.value = "storeTester";
+const sandboxForm = ref({ enabled: false, reason: "" });
+function openSandboxAccount(enabled: boolean) {
+  sandboxForm.value = { enabled, reason: "" };
+  modal.value = "sandboxAccount";
 }
-const testerValid = computed(() => testerForm.value.reason.trim() !== "");
-async function submitStoreTester() {
-  const f = testerForm.value;
+const sandboxValid = computed(() => sandboxForm.value.reason.trim() !== "");
+async function submitSandboxAccount() {
+  const f = sandboxForm.value;
   const ok = report(
-    await store.setStoreTester({ target: target.value, enabled: f.enabled, reason: f.reason.trim() }),
-    t(f.enabled ? "plans.storeTesterSet" : "plans.storeTesterCleared"),
+    await store.setSandboxAccount({ target: target.value, enabled: f.enabled, reason: f.reason.trim() }),
+    t(f.enabled ? "plans.sandboxAccountSet" : "plans.sandboxAccountCleared"),
   );
   if (ok) modal.value = null;
 }
@@ -284,20 +284,20 @@ onMounted(() => {
           </span>
         </div>
         <div class="kv">
-          <span class="k">{{ t("plans.storeTester") }}</span>
+          <span class="k">{{ t("plans.sandboxAccount") }}</span>
           <span class="v">
-            <label class="tester">
+            <label class="sandbox">
               <!-- `checked` is bound to the fetched value and the click is
                    intercepted: the box only moves once the server agreed, so a
                    cancelled or failed change cannot leave it lying. -->
               <input
                 type="checkbox"
-                data-testid="store-tester"
-                :checked="lookupVm.data.storeTester"
+                data-testid="sandbox-account"
+                :checked="lookupVm.data.sandboxAccount"
                 :disabled="acting"
-                @click.prevent="openStoreTester(!lookupVm.data.storeTester)"
+                @click.prevent="openSandboxAccount(!lookupVm.data.sandboxAccount)"
               />
-              <span class="muted">{{ t("plans.storeTesterHint") }}</span>
+              <span class="muted">{{ t("plans.sandboxAccountHint") }}</span>
             </label>
           </span>
         </div>
@@ -467,27 +467,27 @@ onMounted(() => {
         </div>
       </template>
 
-      <!-- store tester: honour this account's sandbox purchases -->
-      <template v-if="modal === 'storeTester'">
-        <h2>{{ t(testerForm.enabled ? "plans.storeTesterSetTitle" : "plans.storeTesterClearTitle") }}</h2>
-        <p>{{ t("plans.storeTesterExplain") }}</p>
+      <!-- sandbox account: honour this account's sandbox purchases -->
+      <template v-if="modal === 'sandboxAccount'">
+        <h2>{{ t(sandboxForm.enabled ? "plans.sandboxAccountSetTitle" : "plans.sandboxAccountClearTitle") }}</h2>
+        <p>{{ t("plans.sandboxAccountExplain") }}</p>
         <label>
           {{ t("plans.reason") }}
           <input
-            v-model="testerForm.reason"
+            v-model="sandboxForm.reason"
             :placeholder="t('plans.reasonPlaceholder')"
             :aria-label="t('plans.reason')"
             :disabled="acting"
-            data-testid="store-tester-reason"
+            data-testid="sandbox-account-reason"
           />
         </label>
         <div class="modal-actions">
           <button
             type="button"
             class="btn-primary"
-            :disabled="acting || !testerValid"
-            data-testid="store-tester-confirm"
-            @click="submitStoreTester"
+            :disabled="acting || !sandboxValid"
+            data-testid="sandbox-account-confirm"
+            @click="submitSandboxAccount"
           >
             {{ t("plans.confirm") }}
           </button>
@@ -559,7 +559,7 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.tester {
+.sandbox {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;

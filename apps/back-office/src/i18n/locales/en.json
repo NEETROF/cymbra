@@ -538,14 +538,14 @@
     "pausedByClosure": "paused (campaign closed)",
     "closeTrialEnrolmentConfirm": "Close enrolment for the {key} trial? No one else can join, but the trials ALREADY granted run to their own end date — closing does not take them back. To withdraw a granted premium, revoke the account's entitlement.",
     "confirmTitle": "Confirmation",
-    "storeTester": "Store tester",
-    "storeTesterHint": "Honour this account's sandbox purchases",
-    "storeTesterExplain": "Sandbox store transactions are dropped for everyone else. This grants nothing on its own — it only decides whether a sandbox purchase counts. App Review buys in the sandbox, so the review accounts need it.",
-    "storeTesterSetTitle": "Mark as a store tester?",
-    "storeTesterClearTitle": "Remove the store tester mark?",
-    "storeTesterSet": "Marked as a store tester",
-    "storeTesterCleared": "Store tester mark removed",
-    "storeTesterFilter": "Store testers"
+    "sandboxAccount": "Sandbox",
+    "sandboxAccountHint": "Honour this account's sandbox purchases",
+    "sandboxAccountExplain": "Sandbox store transactions are dropped for everyone else. This grants nothing on its own — it only decides whether a sandbox purchase counts. App Review buys in the sandbox, so the review accounts need it.",
+    "sandboxAccountSetTitle": "Accept this account's sandbox purchases?",
+    "sandboxAccountClearTitle": "Stop accepting sandbox purchases?",
+    "sandboxAccountSet": "Sandbox purchases accepted",
+    "sandboxAccountCleared": "Sandbox purchases refused",
+    "sandboxAccountFilter": "Sandbox purchases"
   },
   "campaigns": {
     "title": "Campaigns",

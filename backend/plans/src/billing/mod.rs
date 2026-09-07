@@ -86,7 +86,7 @@ pub(crate) mod tests {
     use crate::model::{EntitlementRow, EntitlementStatus, Source};
     use crate::ports::{
         MockAccessCodeRepo, MockAuditRepo, MockBillingEventRepo, MockCampaignRepo, MockClock,
-        MockEntitlementRepo, MockMembershipRepo, MockPlanConfigSource, MockStoreTesterRepo,
+        MockEntitlementRepo, MockMembershipRepo, MockPlanConfigSource, MockSandboxAccountRepo,
         PlanConfig,
     };
     use crate::service::PlanDeps;
@@ -134,36 +134,36 @@ pub(crate) mod tests {
 
     /// Every captured RevenueCat fixture is `"environment": "SANDBOX"` — they are
     /// real payloads from sandbox testing. Before
-    /// scope-sandbox-to-tester-accounts these tests passed `allow_sandbox = true`;
+    /// scope-sandbox-to-marked-accounts these tests passed `allow_sandbox = true`;
     /// now the answer comes from the account, so the default harness marks every
-    /// account a tester. That keeps these tests about the **mapping**, which is
-    /// what they were written for. [`service_without_testers`] is the harness for
+    /// account. That keeps these tests about the **mapping**, which is what they
+    /// were written for. [`service_without_sandbox_accounts`] is the harness for
     /// the gate itself.
     pub(crate) fn service() -> (PlanService, Ledger, EventLog) {
         service_with(true)
     }
 
-    /// Nobody is a tester — the production default.
-    pub(crate) fn service_without_testers() -> (PlanService, Ledger, EventLog) {
+    /// No account is marked — the production default.
+    pub(crate) fn service_without_sandbox_accounts() -> (PlanService, Ledger, EventLog) {
         service_with(false)
     }
 
-    /// Only these accounts are testers. A transfer between a marked and an
+    /// Only these accounts are marked. A transfer between a marked and an
     /// unmarked account is the case that matters: it must not be a way to move a
     /// sandbox entitlement onto an ordinary account.
     pub(crate) fn service_marking(ids: &[&str]) -> (PlanService, Ledger, EventLog) {
         service_impl(Some(ids.iter().map(|s| s.to_string()).collect()))
     }
 
-    fn service_with(everyone_is_a_tester: bool) -> (PlanService, Ledger, EventLog) {
-        service_impl(if everyone_is_a_tester {
+    fn service_with(everyone_is_marked: bool) -> (PlanService, Ledger, EventLog) {
+        service_impl(if everyone_is_marked {
             None
         } else {
             Some(HashSet::new())
         })
     }
 
-    /// `None` = every account is a tester; `Some(set)` = exactly these.
+    /// `None` = every account is marked; `Some(set)` = exactly these.
     fn service_impl(marked: Option<HashSet<String>>) -> (PlanService, Ledger, EventLog) {
         let writes = Arc::new(Mutex::new(Vec::<EntitlementWrite>::new()));
         let events = Arc::new(Mutex::new(Vec::<String>::new()));
@@ -220,21 +220,23 @@ pub(crate) mod tests {
         clock.expect_now().returning(Utc::now);
         let mut audit = MockAuditRepo::new();
         audit.expect_record().returning(|_| Ok(()));
-        let mut testers = MockStoreTesterRepo::new();
+        let mut sandbox = MockSandboxAccountRepo::new();
         let m1 = marked.clone();
-        testers.expect_is_tester().returning(move |u| {
+        sandbox.expect_is_sandbox_account().returning(move |u| {
             Ok(match &m1 {
                 None => true,
                 Some(s) => s.contains(u),
             })
         });
         let m2 = marked.clone();
-        testers.expect_testers_among().returning(move |ids| {
-            Ok(match &m2 {
-                None => ids.iter().cloned().collect(),
-                Some(s) => ids.iter().filter(|i| s.contains(*i)).cloned().collect(),
-            })
-        });
+        sandbox
+            .expect_sandbox_accounts_among()
+            .returning(move |ids| {
+                Ok(match &m2 {
+                    None => ids.iter().cloned().collect(),
+                    Some(s) => ids.iter().filter(|i| s.contains(*i)).cloned().collect(),
+                })
+            });
         let svc = PlanService::new(PlanDeps {
             entitlements: Arc::new(ent),
             campaigns: Arc::new(MockCampaignRepo::new()),
@@ -245,7 +247,7 @@ pub(crate) mod tests {
             config: Arc::new(config),
             clock: Arc::new(clock),
             rotator: None,
-            store_testers: Some(Arc::new(testers)),
+            sandbox_accounts: Some(Arc::new(sandbox)),
         });
         (svc, writes, events)
     }

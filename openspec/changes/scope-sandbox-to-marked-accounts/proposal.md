@@ -18,11 +18,11 @@ to close it. It is not something to repeat on a published app.
 
 ## What Changes
 
-- Accounts can be marked **store testers**. A tester's sandbox transactions are
+- Accounts can be marked **sandbox accounts**. A marked account's sandbox transactions are
   applied; everyone else's are still dropped.
 - The back office gains a checkbox on the account page to set and clear that mark,
   restricted to admins and written to the existing audit trail.
-- The account directory gains a filter for store testers, so the mark is
+- The account directory gains a filter for sandbox accounts, so the mark is
   discoverable and reviewable rather than something only its author remembers.
 - **BREAKING** `CYMBRA_REVENUECAT_ALLOW_SANDBOX` is removed. It is documented
   "staging only" and there is no staging environment: the repo deploys one box from
@@ -47,12 +47,12 @@ None. This narrows an existing rule and extends two admin surfaces.
   delta **adds** it rather than modifying anything, and adds the transfer rule that
   keeps a sandbox entitlement from reaching an unmarked account.
 - `admin-plan-console`: the account page gains an audited, admin-only control for
-  marking an account a store tester.
-- `admin-account-directory`: the directory gains a store-tester filter.
+  marking an account a sandbox account.
+- `admin-account-directory`: the directory gains a sandbox-account filter.
 
 ## Impact
 
-- `backend/plans`: a store-tester store and its port; `RcConfig` loses
+- `backend/plans`: a sandbox-account store and its port; `RcConfig` loses
   `allow_sandbox`; the webhook handler and `SyncStorePlan` resolve the flag per
   account before mapping; a new admin RPC to set it, audited like the existing
   admin grants.

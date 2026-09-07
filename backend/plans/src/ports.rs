@@ -408,7 +408,7 @@ pub trait StoreCustomerSource: Send + Sync {
 }
 
 /// Accounts whose **sandbox** store transactions are honoured (change:
-/// scope-sandbox-to-tester-accounts, design D2). Presence is the mark; there is no
+/// scope-sandbox-to-marked-accounts, design D2). Presence is the mark; there is no
 /// expiry — a mark lapsing between two App Store submissions would reproduce the
 /// silent failure this replaced, so the safety comes from the directory filter and
 /// the audit trail instead.
@@ -416,13 +416,13 @@ pub trait StoreCustomerSource: Send + Sync {
 /// The mark grants nothing on its own.
 #[cfg_attr(any(test, feature = "mock"), automock)]
 #[async_trait]
-pub trait StoreTesterRepo: Send + Sync {
-    async fn is_tester(&self, user_id: &str) -> Result<bool>;
+pub trait SandboxAccountRepo: Send + Sync {
+    async fn is_sandbox_account(&self, user_id: &str) -> Result<bool>;
     /// The marked subset of `user_ids`. The console decorates a whole page of the
-    /// directory at once, so a per-row [`Self::is_tester`] would be an N+1 against
+    /// directory at once, so a per-row [`Self::is_sandbox_account`] would be an N+1 against
     /// the directory's own pagination.
-    async fn testers_among(&self, user_ids: &[String]) -> Result<HashSet<String>>;
-    /// Every marked account — what the directory's store-tester filter lists.
+    async fn sandbox_accounts_among(&self, user_ids: &[String]) -> Result<HashSet<String>>;
+    /// Every marked account — what the directory's sandbox-account filter lists.
     async fn list_ids(&self) -> Result<Vec<String>>;
     async fn set(&self, user_id: &str, by: &str) -> Result<()>;
     async fn clear(&self, user_id: &str) -> Result<()>;

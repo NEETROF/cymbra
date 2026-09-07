@@ -8,7 +8,7 @@ use crate::model::{
 };
 use crate::ports::{
     AccessCodeRepo, AuditEntry, AuditRecord, AuditRepo, BillingEventRepo, CampaignRepo, Enrolment,
-    EntitlementRepo, EntitlementWrite, MembershipRepo, NewCampaign, StoreTesterRepo,
+    EntitlementRepo, EntitlementWrite, MembershipRepo, NewCampaign, SandboxAccountRepo,
 };
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -845,38 +845,38 @@ impl BillingEventRepo for PgBillingEventRepo {
     }
 }
 
-// ---------------------------------------------------------------- store testers
+// ---------------------------------------------------------------- sandbox accounts
 
 #[derive(Clone)]
-pub struct PgStoreTesterRepo {
+pub struct PgSandboxAccountRepo {
     pool: PgPool,
 }
 
-impl PgStoreTesterRepo {
+impl PgSandboxAccountRepo {
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
 }
 
 #[async_trait]
-impl StoreTesterRepo for PgStoreTesterRepo {
-    async fn is_tester(&self, user_id: &str) -> Result<bool> {
+impl SandboxAccountRepo for PgSandboxAccountRepo {
+    async fn is_sandbox_account(&self, user_id: &str) -> Result<bool> {
         // Not a uuid ⇒ not an account we can vouch for. An `$RCAnonymousID` alias
         // reaches here when the SDK configured before sign-in, and answering
-        // "not a tester" is the right outcome — never an error that would retry.
+        // "not marked" is the right outcome — never an error that would retry.
         let Ok(uid) = Uuid::parse_str(user_id) else {
             return Ok(false);
         };
         let found: Option<Uuid> =
-            sqlx::query_scalar("SELECT user_id FROM store_testers WHERE user_id = $1")
+            sqlx::query_scalar("SELECT user_id FROM sandbox_accounts WHERE user_id = $1")
                 .bind(uid)
                 .fetch_optional(&self.pool)
                 .await
-                .map_err(|e| internal("read store tester", e))?;
+                .map_err(|e| internal("read the sandbox mark", e))?;
         Ok(found.is_some())
     }
 
-    async fn testers_among(&self, user_ids: &[String]) -> Result<HashSet<String>> {
+    async fn sandbox_accounts_among(&self, user_ids: &[String]) -> Result<HashSet<String>> {
         let uids: Vec<Uuid> = user_ids
             .iter()
             .filter_map(|s| Uuid::parse_str(s).ok())
@@ -885,44 +885,44 @@ impl StoreTesterRepo for PgStoreTesterRepo {
             return Ok(HashSet::new());
         }
         let rows: Vec<Uuid> =
-            sqlx::query_scalar("SELECT user_id FROM store_testers WHERE user_id = ANY($1)")
+            sqlx::query_scalar("SELECT user_id FROM sandbox_accounts WHERE user_id = ANY($1)")
                 .bind(&uids)
                 .fetch_all(&self.pool)
                 .await
-                .map_err(|e| internal("read store testers", e))?;
+                .map_err(|e| internal("read the sandbox marks", e))?;
         Ok(rows.into_iter().map(|u| u.to_string()).collect())
     }
 
     async fn list_ids(&self) -> Result<Vec<String>> {
         let rows: Vec<Uuid> =
-            sqlx::query_scalar("SELECT user_id FROM store_testers ORDER BY created_at")
+            sqlx::query_scalar("SELECT user_id FROM sandbox_accounts ORDER BY created_at")
                 .fetch_all(&self.pool)
                 .await
-                .map_err(|e| internal("list store testers", e))?;
+                .map_err(|e| internal("list the sandbox accounts", e))?;
         Ok(rows.into_iter().map(|u| u.to_string()).collect())
     }
 
     async fn set(&self, user_id: &str, by: &str) -> Result<()> {
         let uid = parse_uuid(user_id)?;
         sqlx::query(
-            "INSERT INTO store_testers (user_id, created_by) VALUES ($1, $2) \
+            "INSERT INTO sandbox_accounts (user_id, created_by) VALUES ($1, $2) \
              ON CONFLICT (user_id) DO NOTHING",
         )
         .bind(uid)
         .bind(by)
         .execute(&self.pool)
         .await
-        .map_err(|e| internal("set store tester", e))?;
+        .map_err(|e| internal("set the sandbox mark", e))?;
         Ok(())
     }
 
     async fn clear(&self, user_id: &str) -> Result<()> {
         let uid = parse_uuid(user_id)?;
-        sqlx::query("DELETE FROM store_testers WHERE user_id = $1")
+        sqlx::query("DELETE FROM sandbox_accounts WHERE user_id = $1")
             .bind(uid)
             .execute(&self.pool)
             .await
-            .map_err(|e| internal("clear store tester", e))?;
+            .map_err(|e| internal("clear the sandbox mark", e))?;
         Ok(())
     }
 

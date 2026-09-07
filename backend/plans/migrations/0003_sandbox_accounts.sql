@@ -1,5 +1,5 @@
 -- Accounts whose SANDBOX store transactions are honoured (change:
--- scope-sandbox-to-tester-accounts, design D2). Replaces the process-wide
+-- scope-sandbox-to-marked-accounts, design D2). Replaces the process-wide
 -- `CYMBRA_REVENUECAT_ALLOW_SANDBOX`, which accepted sandbox for EVERY account for
 -- as long as it was on.
 --
@@ -9,7 +9,7 @@
 --
 -- The mark grants nothing by itself: it only decides whether a sandbox purchase
 -- counts like a production one.
-CREATE TABLE store_testers (
+CREATE TABLE sandbox_accounts (
     user_id    UUID        PRIMARY KEY,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     created_by TEXT        NOT NULL

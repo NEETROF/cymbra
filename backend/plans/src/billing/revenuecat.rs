@@ -208,7 +208,7 @@ pub fn map_event(
     premium_products: &[String],
     now: DateTime<Utc>,
     // Whether SANDBOX is honoured **for the accounts this event names** (change:
-    // scope-sandbox-to-tester-accounts). Resolved by the caller, which holds the
+    // scope-sandbox-to-marked-accounts). Resolved by the caller, which holds the
     // ids; this function stays pure and only applies the decision.
     accept_sandbox: bool,
 ) -> Mapped {
@@ -397,12 +397,12 @@ pub fn authenticate(cfg: &RcConfig, authorization: Option<&str>) -> Result<()> {
 /// Whether this event's **sandbox** transactions are honoured.
 ///
 /// A `TRANSFER` names several accounts, and a sandbox entitlement must not reach an
-/// account that is not itself a tester by being moved onto it — so a transfer is
+/// account that is not itself marked by being moved onto it — so a transfer is
 /// honoured only when **every** account it names is marked. Every other event type
 /// names one account, `app_user_id`.
 ///
 /// An id that is not a Cymbra account (RevenueCat keeps an `$RCAnonymousID` alias
-/// when the SDK configured before sign-in) is simply not a tester: the event is then
+/// when the SDK configured before sign-in) is simply not marked: the event is then
 /// skipped as `Sandbox` rather than `MalformedUser`, which the ingest counters show.
 async fn sandbox_accepted_for(svc: &PlanService, ev: &RcEvent) -> Result<bool> {
     let ids: Vec<String> = if ev.kind == "TRANSFER" {
@@ -418,7 +418,7 @@ async fn sandbox_accepted_for(svc: &PlanService, ev: &RcEvent) -> Result<bool> {
     if ids.is_empty() {
         return Ok(false);
     }
-    let marked = svc.store_testers_among(&ids).await?;
+    let marked = svc.sandbox_accounts_among(&ids).await?;
     Ok(ids.iter().all(|id| marked.contains(id)))
 }
 
@@ -541,7 +541,7 @@ pub async fn sync_customer(
     // Resolved here rather than passed in: every caller already had to hand us the
     // account, and threading a policy through three call sites is how the old
     // process-wide flag stayed invisible.
-    let accept_sandbox = svc.is_store_tester(user_id).await?;
+    let accept_sandbox = svc.is_sandbox_account(user_id).await?;
     let subs = customers.subscriptions(user_id).await?;
     let writes = map_customer(user_id, &subs, premium_products, now, accept_sandbox);
     let n = writes.len() as u64;
@@ -612,7 +612,7 @@ pub fn project_subscriber(sub: &Subscriber) -> Vec<StoreSubscription> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::billing::tests::{service, service_marking, service_without_testers};
+    use crate::billing::tests::{service, service_marking, service_without_sandbox_accounts};
     use crate::model::EntitlementStatus as S;
     use crate::ports::{FixedPaywallConfig, MockStoreCustomerSource};
     use chrono::Duration;
@@ -1124,14 +1124,14 @@ mod tests {
         v.to_string()
     }
 
-    // The whole point of scope-sandbox-to-tester-accounts: the same sandbox payload
+    // The whole point of scope-sandbox-to-marked-accounts: the same sandbox payload
     // lands or does not, depending only on the account.
     #[tokio::test]
-    async fn sandbox_is_applied_for_a_tester_and_dropped_for_everyone_else() {
+    async fn sandbox_is_applied_for_a_marked_account_and_dropped_for_everyone_else() {
         let pw = paywall(true, true);
-        let (tester, tester_writes, _) = service();
+        let (marked, marked_writes, _) = service();
         let out = handle_webhook(
-            &tester,
+            &marked,
             &cfg(),
             &pw,
             None,
@@ -1142,9 +1142,9 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(out, WebhookOutcome::Ingested(IngestOutcome::Applied));
-        assert_eq!(tester_writes.lock().unwrap().len(), 1);
+        assert_eq!(marked_writes.lock().unwrap().len(), 1);
 
-        let (plain, plain_writes, _) = service_without_testers();
+        let (plain, plain_writes, _) = service_without_sandbox_accounts();
         let out = handle_webhook(
             &plain,
             &cfg(),
@@ -1165,7 +1165,7 @@ mod tests {
     #[tokio::test]
     async fn production_events_ignore_the_mark() {
         let pw = paywall(true, true);
-        let (plain, writes, _) = service_without_testers();
+        let (plain, writes, _) = service_without_sandbox_accounts();
         let body = body_with("initial_purchase", |e| {
             e["environment"] = serde_json::json!("PRODUCTION");
         });
@@ -1206,7 +1206,7 @@ mod tests {
 
         // Same account, mark gone: the renewal that would have extended it is now
         // refused, and nothing rewrites what was already applied.
-        let (plain, plain_writes, _) = service_without_testers();
+        let (plain, plain_writes, _) = service_without_sandbox_accounts();
         let out = handle_webhook(
             &plain,
             &cfg(),
@@ -1223,13 +1223,13 @@ mod tests {
         assert_eq!(writes.lock().unwrap().len(), written);
     }
 
-    // An id we cannot resolve is not a tester. The sandbox guard runs BEFORE the
+    // An id we cannot resolve is not marked. The sandbox guard runs BEFORE the
     // uuid check, so the skip reads `Sandbox` rather than `MalformedUser` — the
     // counters are what one reads when a purchase did not land.
     #[tokio::test]
-    async fn an_unresolvable_app_user_id_is_not_a_tester() {
+    async fn an_unresolvable_app_user_id_is_not_marked() {
         let pw = paywall(true, true);
-        let (svc, writes, _) = service_without_testers();
+        let (svc, writes, _) = service_without_sandbox_accounts();
         let body = body_with("initial_purchase", |e| {
             e["app_user_id"] = serde_json::json!("$RCAnonymousID:abc123");
         });
@@ -1249,11 +1249,11 @@ mod tests {
     }
 
     // A transfer names several accounts. Honouring it on the strength of one mark
-    // would turn the tester into a laundering route: buy in the sandbox, transfer
+    // would turn the mark into a laundering route: buy in the sandbox, transfer
     // onto an ordinary account, keep the premium. Every account it names must be
     // marked, or nothing moves.
     #[tokio::test]
-    async fn a_sandbox_transfer_needs_every_account_it_names_to_be_a_tester() {
+    async fn a_sandbox_transfer_needs_every_account_it_names_to_be_marked() {
         let pw = paywall(true, true);
         let mut customers = MockStoreCustomerSource::new();
         customers.expect_subscriptions().returning(|_| Ok(vec![]));
@@ -1311,9 +1311,9 @@ mod tests {
         );
         assert!(writes.lock().unwrap().is_empty());
         assert_eq!(events.lock().unwrap().len(), 1);
-        // A sandbox event for an account that is NOT a store tester: skipped, and
+        // A sandbox event for an account that that does NOT accept sandbox purchases: skipped, and
         // still recorded so a replay is a duplicate rather than a second chance.
-        let (plain, plain_writes, plain_events) = service_without_testers();
+        let (plain, plain_writes, plain_events) = service_without_sandbox_accounts();
         let out = handle_webhook(
             &plain,
             &cfg(),

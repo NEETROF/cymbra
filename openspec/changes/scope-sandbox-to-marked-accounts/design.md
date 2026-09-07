@@ -15,7 +15,7 @@ The back office already solves the shape of problem this change needs. The accou
 directory lives in the **user** service; plan attributes live in **plans**. The
 console composes them: `GetPlansForAccounts` decorates a page of accounts with plan
 badges, and `ListAccountIdsByPlan` answers "which accounts match this plan filter"
-so the console can intersect. The store-tester mark is another plans attribute and
+so the console can intersect. The sandbox-account mark is another plans attribute and
 follows the same path.
 
 ## Goals / Non-Goals
@@ -61,11 +61,11 @@ review accounts.
 
 ### D2 — The mark is a plans-owned table, keyed by account
 
-`plans.store_testers(user_id uuid primary key, created_at timestamptz, created_by text)`.
+`plans.sandbox_accounts(user_id uuid primary key, created_at timestamptz, created_by text)`.
 Presence is the mark; clearing deletes the row.
 
 The port exposes a batch read as well as a single one. `GetPlansForAccounts`
-decorates a whole page of the directory, so a per-row `is_tester` would be an N+1
+decorates a whole page of the directory, so a per-row `is_sandbox_account` would be an N+1
 against the directory's own pagination.
 
 It is a **billing policy**, not an identity attribute, so it does not belong on a
@@ -100,8 +100,8 @@ parsed, so a single boolean resolved from `app_user_id` is not enough for a tran
 the event names `transferred_from` and `transferred_to`, which may be several
 accounts.
 
-A sandbox transfer is honoured only when **every** account it names is a tester.
-Without that, a tester could buy in the sandbox and transfer the entitlement onto an
+A sandbox transfer is honoured only when **every** account it names is marked.
+Without that, a marked account could buy in the sandbox and transfer the entitlement onto an
 ordinary account — granting premium to someone the mark never covered, which is the
 hole this change exists to close.
 
@@ -109,12 +109,12 @@ The consequence for the caller: for `TRANSFER` it resolves the mark for the unio
 `transferred_from`, `transferred_to` and `app_user_id`, and passes `true` only if all
 are marked. For every other type, one lookup on `app_user_id`.
 
-### D3c — An unparseable app_user_id is simply not a tester
+### D3c — An unparseable app_user_id is simply not marked
 
 The sandbox check precedes the `Uuid::parse_str` guard, so a sandbox event carrying
 something that is not a Cymbra account id — RevenueCat keeps an `$RCAnonymousID`
 alias next to the account id, because the SDK configures before sign-in and then
-logs in — resolves to "not a tester" and is skipped as `Sandbox` rather than
+logs in — resolves to "not marked" and is skipped as `Sandbox` rather than
 `MalformedUser`.
 
 That is the right outcome and needs no special case: an id we cannot resolve is an
@@ -127,20 +127,20 @@ One indexed primary-key read per ingested event. Webhook volume is a handful of
 events per purchase, and the reconciliation sweep runs nightly.
 
 A cache would buy nothing measurable and would delay the effect of **clearing** the
-mark, which is the safety-relevant direction. A stale "still a tester" entry is
+mark, which is the safety-relevant direction. A stale "still marked" entry is
 exactly the kind of quiet wrongness this change is meant to remove.
 
 ### D5 — Admin RPC alongside the existing plan admin surface
 
-`SetStoreTester(user_id, enabled)`, gated and audited like `GrantPremium` and
+`SetSandboxAccount(user_id, enabled)`, gated and audited like `GrantPremium` and
 `RevokeEntitlement`. The current state rides on `LookupAccountPlanResponse`, which the
 account page already fetches, so the console needs no extra round trip to render the
 checkbox.
 
 ### D6 — The directory filter extends the existing cross-domain path
 
-`ListAccountIdsByPlanRequest` gains `store_testers_only`, and `AccountPlanBadge` gains
-`store_tester` so a filtered list can show *why* a row matched. This reuses the route
+`ListAccountIdsByPlanRequest` gains `sandbox_accounts_only`, and `AccountPlanBadge` gains
+`sandbox_account` so a filtered list can show *why* a row matched. This reuses the route
 the console already takes for the plan and beta filters rather than teaching the user
 service about a plans concept.
 
@@ -178,8 +178,8 @@ their own back office or a one-line insert.
 
 ## Migration Plan
 
-1. Migration `0003_store_testers.sql` creates the table. Nothing to backfill: no
-   account is a tester until an admin says so.
+1. Migration `0003_sandbox_accounts.sql` creates the table. Nothing to backfill: no
+   account is marked until an admin says so.
 2. Deploy the backend, then the back office.
 3. Mark the two review accounts, and confirm the directory filter returns exactly
    them.

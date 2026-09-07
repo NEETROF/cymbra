@@ -153,7 +153,7 @@ async fn main() -> anyhow::Result<()> {
                 config: Arc::new(flags::WorkerPlanConfig::new(flag_service.clone())),
                 clock: Arc::new(cymbra_plans::SystemClock),
                 rotator: Some(rotator),
-                store_testers: Some(Arc::new(cymbra_plans::pg::PgStoreTesterRepo::new(
+                sandbox_accounts: Some(Arc::new(cymbra_plans::pg::PgSandboxAccountRepo::new(
                     plans_pool,
                 ))),
             }));

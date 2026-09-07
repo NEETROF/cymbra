@@ -87,8 +87,8 @@ export interface FakeState {
   mintedCodes: string[];
   revokeCodesCalls: { campaignKey: string; codeIds: string[] }[];
   listMembersCalls: string[];
-  idsByPlanCalls: { plan: string; betaCampaignKey: string; storeTestersOnly: boolean }[];
-  setStoreTesterCalls: { userId: string; handle: string; enabled: boolean; reason: string }[];
+  idsByPlanCalls: { plan: string; betaCampaignKey: string; sandboxAccountsOnly: boolean }[];
+  setSandboxAccountCalls: { userId: string; handle: string; enabled: boolean; reason: string }[];
   /** What `listAccountIdsByPlan` resolves to. */
   idsByPlan: string[];
   plansForAccountsCalls: string[][];
@@ -148,7 +148,7 @@ export function makeFakeClients(state: Partial<FakeState> = {}): { clients: Clie
     revokeCodesCalls: [],
     listMembersCalls: [],
     idsByPlanCalls: [],
-    setStoreTesterCalls: [],
+    setSandboxAccountCalls: [],
     idsByPlan: state.idsByPlan ?? [],
     plansForAccountsCalls: [],
     badges: state.badges ?? [],
@@ -268,8 +268,8 @@ export function makeFakeClients(state: Partial<FakeState> = {}): { clients: Clie
         s.grantPremiumCalls.push(req);
         return { row: { id: "e-new" } };
       },
-      setStoreTester: async (req: FakeState["setStoreTesterCalls"][number]) => {
-        s.setStoreTesterCalls.push(req);
+      setSandboxAccount: async (req: FakeState["setSandboxAccountCalls"][number]) => {
+        s.setSandboxAccountCalls.push(req);
         return {};
       },
       revokeEntitlement: async (req: { entitlementId: string; reason: string }) => {
@@ -315,7 +315,7 @@ export function makeFakeClients(state: Partial<FakeState> = {}): { clients: Clie
         s.revokeCodesCalls.push(req);
         return { revoked: 3 };
       },
-      listAccountIdsByPlan: async (req: { plan: string; betaCampaignKey: string; storeTestersOnly: boolean }) => {
+      listAccountIdsByPlan: async (req: { plan: string; betaCampaignKey: string; sandboxAccountsOnly: boolean }) => {
         s.idsByPlanCalls.push(req);
         return { userIds: s.idsByPlan };
       },

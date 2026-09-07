@@ -160,13 +160,13 @@ until now.
 
 ## Before a store submission
 
-Mark the review accounts **store testers** in the back office (Users → the account
-→ Subscription → the store-tester box), and check the directory's store-tester
+Mark the review accounts as accepting **sandbox purchases** in the back office (Users → the account
+→ Subscription → the sandbox-account box), and check the directory's sandbox-account
 filter returns exactly them.
 
 This is not optional housekeeping. App Review buys in the **sandbox**, and the
 backend honours a sandbox transaction only for a marked account — everyone else's
-is dropped and counted (change: scope-sandbox-to-tester-accounts). An unmarked
+is dropped and counted (change: scope-sandbox-to-marked-accounts). An unmarked
 review account means the reviewer pays and unlocks nothing, which reads as a broken
 app rather than a configuration mistake. The rejection of 1.30.0 asked us to
 document the purchase flow, so a reviewer trying it is likely.
@@ -188,7 +188,7 @@ grant — the point is to reach the paywall and buy:
 
 | Account | Mark | Expected on a sandbox purchase |
 |---|---|---|
-| `sandbox-1@cymbra.app` | store tester | an entitlement row is written, the plan turns Premium |
+| `sandbox-1@cymbra.app` | sandbox | an entitlement row is written, the plan turns Premium |
 | `sandbox-2@cymbra.app` | none | nothing is written — the event is dropped as `SkipReason::Sandbox` |
 
 The unmarked one is the half that proves something: a marked account unlocking

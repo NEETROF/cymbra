@@ -5,7 +5,7 @@
 //!   ledger (`apple` / `google` / `web` / `code` / `admin`), premium while any
 //!   row is active, with a **fixed** premium unlock set (design D2);
 //! - **beta memberships**: campaigns of kind `premium_trial` (premium N days
-//!   from each tester's own enrolment) or `feature` (early access, closed by the
+//!   from each member's own enrolment) or `feature` (early access, closed by the
 //!   operator), plus single-use access codes (design D4).
 //!
 //! The crate owns the `plans` schema and stores **identifiers only** — never
@@ -39,8 +39,8 @@ pub use ports::{
     AccessCodeIssuer, AccessCodeRepo, AuditEntry, AuditRecord, AuditRepo, BillingEventRepo,
     CacheSecretRotator, CampaignRepo, Channel, Clock, Enrolment, EntitlementRepo, EntitlementWrite,
     FixedPaywallConfig, FixedPlanConfig, HandleResolver, MembershipRepo, MintedCode, NewCampaign,
-    PaywallConfigSource, PlanConfig, PlanConfigSource, PlanSource, Platform, StoreCustomerEraser,
-    StoreCustomerSource, StoreSubscription, StoreTesterRepo, SystemClock, WebBillingProvider,
+    PaywallConfigSource, PlanConfig, PlanConfigSource, PlanSource, Platform, SandboxAccountRepo,
+    StoreCustomerEraser, StoreCustomerSource, StoreSubscription, SystemClock, WebBillingProvider,
     WebSubscriptionCanceller,
 };
 pub use service::{AccountPlan, EnrolOutcome, PlanDeps, PlanFilter, PlanService};

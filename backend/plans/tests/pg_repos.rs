@@ -9,12 +9,12 @@
 use chrono::{Duration, SubsecRound, Utc};
 use cymbra_plans::pg::{
     PgAccessCodeRepo, PgAuditRepo, PgBillingEventRepo, PgCampaignRepo, PgEntitlementRepo,
-    PgMembershipRepo, PgStoreTesterRepo,
+    PgMembershipRepo, PgSandboxAccountRepo,
 };
 use cymbra_plans::{
     AccessCodeRepo, AuditEntry, AuditRepo, BillingEventRepo, CampaignKind, CampaignRepo, Enrolment,
     EntitlementRepo, EntitlementStatus, EntitlementWrite, EventProvider, MembershipRepo,
-    MembershipSource, NewCampaign, Source, StoreTesterRepo, codes,
+    MembershipSource, NewCampaign, SandboxAccountRepo, Source, codes,
 };
 use cymbra_platform::AppError;
 use sqlx::PgPool;
@@ -452,29 +452,29 @@ async fn audit_entries_are_read_back_for_one_account_most_recent_first() {
     );
 }
 
-/// The store-tester mark (change: scope-sandbox-to-tester-accounts). Exercised
+/// The sandbox-account mark (change: scope-sandbox-to-marked-accounts). Exercised
 /// against real Postgres because `pg.rs` is excluded from the coverage gate: the
 /// batch read and the "set twice is not an error" path only exist here.
 #[tokio::test]
 #[ignore = "needs docker compose (Postgres) up with per-module roles"]
-async fn store_tester_marks_are_set_read_in_batch_and_cleared() {
+async fn sandbox_account_marks_are_set_read_in_batch_and_cleared() {
     let pool = pool().await;
-    let repo = PgStoreTesterRepo::new(pool.clone());
+    let repo = PgSandboxAccountRepo::new(pool.clone());
     let a = Uuid::now_v7();
     let b = Uuid::now_v7();
     let c = Uuid::now_v7();
 
-    assert!(!repo.is_tester(&a.to_string()).await.unwrap());
+    assert!(!repo.is_sandbox_account(&a.to_string()).await.unwrap());
 
     repo.set(&a.to_string(), "admin-1").await.unwrap();
     // Marking twice must be a no-op, not a primary-key violation: the console
     // sends the desired state, not a delta.
     repo.set(&a.to_string(), "admin-2").await.unwrap();
     repo.set(&b.to_string(), "admin-1").await.unwrap();
-    assert!(repo.is_tester(&a.to_string()).await.unwrap());
+    assert!(repo.is_sandbox_account(&a.to_string()).await.unwrap());
 
     let among = repo
-        .testers_among(&[a.to_string(), b.to_string(), c.to_string()])
+        .sandbox_accounts_among(&[a.to_string(), b.to_string(), c.to_string()])
         .await
         .unwrap();
     assert!(among.contains(&a.to_string()));
@@ -485,20 +485,20 @@ async fn store_tester_marks_are_set_read_in_batch_and_cleared() {
     assert!(listed.contains(&a.to_string()) && listed.contains(&b.to_string()));
 
     repo.clear(&a.to_string()).await.unwrap();
-    assert!(!repo.is_tester(&a.to_string()).await.unwrap());
+    assert!(!repo.is_sandbox_account(&a.to_string()).await.unwrap());
     // Clearing an unmarked account is not an error either.
     repo.clear(&c.to_string()).await.unwrap();
 
-    // An id that is not a uuid is simply not a tester — never an error that a
+    // An id that is not a uuid is simply not marked — never an error that a
     // webhook would retry.
-    assert!(!repo.is_tester("$RCAnonymousID:abc").await.unwrap());
+    assert!(!repo.is_sandbox_account("$RCAnonymousID:abc").await.unwrap());
     assert!(
-        repo.testers_among(&["$RCAnonymousID:abc".to_string()])
+        repo.sandbox_accounts_among(&["$RCAnonymousID:abc".to_string()])
             .await
             .unwrap()
             .is_empty()
     );
 
     repo.purge_user(&b.to_string()).await.unwrap();
-    assert!(!repo.is_tester(&b.to_string()).await.unwrap());
+    assert!(!repo.is_sandbox_account(&b.to_string()).await.unwrap());
 }

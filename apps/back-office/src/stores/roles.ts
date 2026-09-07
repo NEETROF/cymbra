@@ -25,7 +25,7 @@ export interface DirectoryParams {
   /** An open campaign key, or "" for any. */
   beta: string;
   /** Restrict to accounts whose sandbox store purchases are honoured. */
-  storeTesters: boolean;
+  sandboxAccounts: boolean;
 }
 
 // Admin-only role administration. The server enforces scope-matched authorization
@@ -46,7 +46,7 @@ export const useRolesStore = defineStore("roles", () => {
   const reliability = ref<Async<CuratorReliability>>(idle);
   const op = ref<Async<void>>(idle);
   // Current directory criteria, so a grant/revoke can re-list the same page.
-  const params = reactive<DirectoryParams>({ query: "", offset: 0, plan: "any", beta: "", storeTesters: false });
+  const params = reactive<DirectoryParams>({ query: "", offset: 0, plan: "any", beta: "", sandboxAccounts: false });
 
   /** Whether the caller may see plan data at all: a music-scope admin only. A
    *  moderator or another scope's admin gets neither badges nor filters, and the batch
@@ -62,14 +62,14 @@ export const useRolesStore = defineStore("roles", () => {
     offset = params.offset,
     plan = params.plan,
     beta = params.beta,
-    storeTesters = params.storeTesters,
+    sandboxAccounts = params.sandboxAccounts,
   ) {
-    Object.assign(params, { query, offset, plan, beta, storeTesters });
+    Object.assign(params, { query, offset, plan, beta, sandboxAccounts });
     const plans = usePlansStore();
     const outcome = await run(directory, async () => {
       let ids: string[] = [];
-      if (plan !== "any" || beta !== "" || storeTesters) {
-        ids = await plans.accountIdsByPlan(plan, beta, storeTesters);
+      if (plan !== "any" || beta !== "" || sandboxAccounts) {
+        ids = await plans.accountIdsByPlan(plan, beta, sandboxAccounts);
         if (ids.length === 0) return { accounts: [], total: 0 };
       }
       const resp = await api().user.listAccounts({ query, limit: PAGE_SIZE, offset, ids });
