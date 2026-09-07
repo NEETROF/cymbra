@@ -25,6 +25,7 @@ import '../../widgets/curator_chip.dart';
 import '../../widgets/language_selector.dart' show showLanguageDialog;
 import '../account/connected_accounts_screen.dart';
 import '../help_screen.dart';
+import '../licenses_screen.dart';
 import '../plan_screen.dart';
 import '../profile_screen.dart';
 import 'delete_account_screen.dart';
@@ -99,7 +100,9 @@ class AccountMenu extends ConsumerWidget {
             case 'privacy':
               launcher.open(links.privacy);
             case 'licenses':
-              showLicensePage(context: context, applicationName: 'Cymbra');
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const LicensesScreen()),
+              );
           }
         },
         itemBuilder: (context) => [
