@@ -1,0 +1,49 @@
+## 1. Store the mark
+
+- [ ] 1.1 Migration `backend/plans/migrations/0003_store_testers.sql`: `plans.store_testers(user_id uuid primary key, created_at timestamptz not null default now(), created_by text not null)`
+- [ ] 1.2 Add a `StoreTesterRepo` port to `backend/plans/src/ports.rs`: `is_tester(user_id)`, `set(user_id, by)`, `clear(user_id)`, `list_ids()`
+- [ ] 1.3 Implement it over Postgres in `backend/plans/src/pg.rs` (thin I/O, excluded from the coverage gate like its neighbours)
+- [ ] 1.4 Mockall mock for the port, and a unit test that presence/absence round-trips through the service
+
+## 2. Resolve the flag per account
+
+- [ ] 2.1 Rename the mappers' `allow_sandbox` parameter to say it is now per-account, and update their doc comments — the signatures and their existing tests do not change
+- [ ] 2.2 Webhook handler: resolve the mark from `ev.app_user_id` before calling `map_event`
+- [ ] 2.3 `sync_customer`: resolve the mark from its `user_id` before calling `map_customer`
+- [ ] 2.4 Test: a sandbox event for a marked account writes a row; the same event for an unmarked account is skipped as `SkipReason::Sandbox`
+- [ ] 2.5 Test: a **production** event writes a row for an unmarked account — the mark must not gate production
+- [ ] 2.6 Test: clearing the mark stops honouring new sandbox events and leaves rows already written untouched
+
+## 3. Remove the environment flag
+
+- [ ] 3.1 Drop `allow_sandbox` from `RcConfig` and `RevenueCatEnv`, and its read in `BillingChannels::build` / `from_env`
+- [ ] 3.2 Remove `CYMBRA_REVENUECAT_ALLOW_SANDBOX` from `backend/.env.example`, `backend/plans/README.md` and `apps/music/store/SUBSCRIPTIONS.md` (two places: the setup section and the rollout order), documenting the mark in its place
+- [ ] 3.3 Reword task 7.9b of the still-open `swap-store-billing-to-revenuecat` change — it tells the reader to flip the flag before the first real purchase, which will no longer exist
+- [ ] 3.4 Check no other reference survives: `grep -rn ALLOW_SANDBOX --exclude-dir=target --exclude-dir=.git .` — `backend/server/src/main.rs` passes the field, and `target/` is full of stale binary matches that drown the real ones
+
+## 4. Admin RPC
+
+- [ ] 4.1 `SetStoreTester(user_id, enabled)` in `backend/plans/proto/plans.proto`; add `store_tester` to `AccountPlanBadge` and `LookupAccountPlanResponse`; add `store_testers_only` to `ListAccountIdsByPlanRequest`
+- [ ] 4.2 Implement the RPC in `backend/plans/src/grpc.rs`, gated like `GrantPremium`, and write the change to the existing admin audit trail in both directions
+- [ ] 4.3 Populate `store_tester` in `LookupAccountPlan` and `GetPlansForAccounts`, and honour `store_testers_only` in `ListAccountIdsByPlan`
+- [ ] 4.4 Test: a caller without admin authority is refused and the mark is unchanged
+- [ ] 4.5 Test: setting and clearing both land in the audit trail with the actor
+- [ ] 4.6 Test: `ListAccountIdsByPlan` with `store_testers_only` returns only marked accounts, and composes with the plan filter
+
+## 5. Back office
+
+- [ ] 5.1 Regenerate the gRPC-web stubs (`yarn gen`) after the proto change
+- [ ] 5.2 Account page: a "store tester" checkbox next to the plan actions, calling the store — the component never calls the API itself, and the request state is one `Async<T>` union
+- [ ] 5.3 Directory: a store-tester filter beside the existing Plan and Bêta filters, and the badge on the row so a filtered list shows why it matched
+- [ ] 5.4 Locale strings in both `en` and `fr`, aligned — no drift
+- [ ] 5.5 Component tests: the checkbox reflects the fetched state, toggling calls the store, and a failed call surfaces as the union's error rather than a thrown exception
+- [ ] 5.6 Directory test: the filter narrows the list
+
+## 6. Ship it
+
+- [ ] 6.1 `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, and `cargo llvm-cov --workspace --fail-under-lines 80`
+- [ ] 6.2 Back-office lint, typecheck and unit tests green
+- [ ] 6.3 Name the mark as a pre-submission step in `apps/music/store/README.md`, next to the demo-account notes (design's open question — resolve it here)
+- [ ] 6.4 Deploy backend then back office; mark the two review accounts; confirm the filter returns exactly them
+- [ ] 6.5 Delete `CYMBRA_REVENUECAT_ALLOW_SANDBOX` from the box's `.env`, roll `server` + `worker`, and confirm with `docker inspect` — `printenv` misreports on this stack
+- [ ] 6.6 End-to-end before resubmitting to Apple: a sandbox purchase on a marked account writes an entitlement row, the same purchase on an unmarked account writes none
