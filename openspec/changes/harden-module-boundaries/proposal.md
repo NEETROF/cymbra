@@ -58,6 +58,16 @@ lands. It splits nothing, adds no deployable, and introduces no new transport.
   the worker's streak sweep (assumed — the worker is an ops actor) and `notifications` (a
   schema-ownership debt, deliberately deferred to its own change).
 
+**Failures stop being invisible**
+- `AppError` gains `Unavailable` and `DeadlineExceeded` plus `From<Status>`: today the
+  type cannot express "no answer" as distinct from "the answer is no", and `Internal`
+  flattens to `"internal error"`.
+- Six outbound calls discard their error by construction (`let Ok(…) =` / `.ok()`) and
+  emit nothing. That is right for the domain outcome they were written for — a private
+  profile legitimately yields no credit — but it also swallows a dependency failure. The
+  visible behaviour stays identical; a non-domain failure now leaves a diagnostic. This
+  already bites whenever the database is unhealthy.
+
 **External contract — a safety net**
 - Add a `buf breaking` CI job over the ten `backend/*/proto/*.proto`.
 
@@ -83,6 +93,8 @@ lands. It splits nothing, adds no deployable, and introduces no new transport.
   code.
 - `platform-proto-compatibility`: shipped clients keep working — the served protobuf
   surface is checked for breaking changes in CI.
+- `platform-transport-failure`: a failure to reach a dependency is expressible,
+  distinguishable from a domain error, and never silently degrades a response.
 
 ### Modified Capabilities
 - `moderation-access-control`: the moderator role is scope-matched at every gate, not

@@ -30,15 +30,14 @@ per-module Postgres role.
 
 ## What Changes
 
-**Precondition work — valuable on its own, do not wait for the split**
-- Extend `AppError` with `Unavailable` and `DeadlineExceeded`, and add `From<Status>`. The
-  type currently cannot express a transport failure, and `Internal` flattens to
-  `"internal error"`, making a remote fault indistinguishable from a local one.
-- Stop swallowing the six outbound seams. They discard the error by construction
-  (`let Ok(…) =` / `.ok()`), which is correct in-process — a private profile legitimately
-  yields no credit — but leaves no signal when the call fails for a different reason. A
-  `warn!` preserves the visible behaviour and pays for itself today, whenever the database
-  is unhealthy.
+**Preconditions, owned by `harden-module-boundaries`**
+- **Transport failure is expressible and never silent** (its groups 9 and 10, and its
+  `platform-transport-failure` capability): `AppError` gains `Unavailable` /
+  `DeadlineExceeded` / `From<Status>`, and the six outbound seams stop discarding their
+  error. These were originally drafted here, then moved: they are corrections of defects
+  that bite today, and a dormant change is the wrong home for work that pays off now.
+- **The composition root is empty of music code** (its group 5), so this change starts
+  from wiring rather than from untangling 301 interleaved lines of `main.rs`.
 
 **The split itself**
 - `music` becomes its own binary, serving its gRPC services and its Axum router, against
@@ -70,8 +69,6 @@ per-module Postgres role.
 ### New Capabilities
 - `platform-service-identity`: a backend component can authenticate as itself when calling
   another backend component, distinctly from a user-scoped token.
-- `platform-transport-failure`: a transport failure is expressible, distinguishable from a
-  domain error, and never silently degrades a response.
 
 ### Modified Capabilities
 - `backend-service`: the backend is served by more than one process; each declares its own
@@ -93,11 +90,11 @@ per-module Postgres role.
 | **Back-office** | moderation + admin RPCs | routed to a second upstream; no surface change |
 | **Site** | web auth, plans, account | unchanged — the BFF routes stay on the main server |
 
-**Code**
-- `backend/platform/src/error.rs` — `Unavailable`, `DeadlineExceeded`, `From<Status>`.
+**Code** (the error type and the six seams are *not* listed — they belong to
+`harden-module-boundaries` and are a precondition here)
 - `backend/platform/src/token.rs` — service identity in `Claims`.
 - `backend/music/src/{module,grpc,leaderboard_module,global_leaderboard_module}.rs` — the
-  six silent seams, then the outbound adapters.
+  outbound adapters.
 - `backend/music/src/bin/` — the new binary and its composition root.
 - `backend/server/src/main.rs`, `flags.rs` — remove the music wiring and the six music
   trait adapters that `harden-module-boundaries` does not relocate.

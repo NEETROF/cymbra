@@ -1,0 +1,100 @@
+# Design — harden-ci-boundaries
+
+## Context
+
+Seventeen workflows, named on three axes at once: by deployable (`back-office`, `site`,
+`backend-image`, `crawler-image`), by stack (`rust`, `flutter`), and by verb (`build`,
+`sonar`, `commitlint`, `release-please`, `frb-codegen`). With one product that reads fine.
+With three you cannot tell from a name whether a workflow is product-scoped or repo-wide.
+
+The trigger for doing this now is sequencing, not tidiness: lingua v1 is local-only
+(`crates/lingua-core`, `apps/lingua-extension`, `apps/lingua-agent`), so it touches CI and
+nothing else. Measured against the current filters:
+
+| lingua v1 unit | covered by |
+|---|---|
+| `crates/lingua-core` | `rust`, `sonar` (glob `crates/**`) — silently correct |
+| `apps/lingua-extension` | **nothing** |
+| `apps/lingua-agent/rust/` | `rust` — and wrongly `frb-codegen` |
+
+## Goals / Non-Goals
+
+**Goals:**
+- A unit that no workflow covers fails loudly instead of shipping unchecked.
+- A workflow's trigger selects exactly what its job verifies.
+- A workflow's name says whether it is product-scoped, without opening the file.
+
+**Non-Goals:**
+- Anything under `backend/` — that is `harden-module-boundaries`.
+- Splitting the coverage gate: it stays one workspace-wide run with one threshold.
+- Per-app deploy pipelines beyond what exists.
+
+## Decisions
+
+### D1 — Fail on an uncovered unit, rather than a catch-all that runs something
+
+Two shapes were considered. A **catch-all workflow** that runs a generic check on any
+unmatched path is tempting, but a generic check on an unknown stack is either vacuous or
+wrong, and a green vacuous job is worse than no job — it looks like coverage. So the rule
+is: an unmatched unit **fails the build and names itself**. Adding an app becomes a
+deliberate act of also declaring how it is checked.
+
+The mechanism (a path-matching job, or a checked-in manifest of declared units) is left to
+implementation, with one criterion that decides it: it must fail on the **pull request**.
+A check that only fires after merge reports a gap that is already in `main`.
+
+### D2 — `frb-codegen`: narrow the trigger, unless a second frb app is imminent
+
+The contradiction is that the trigger spans `apps/*` while the job is hardcoded to music.
+Narrowing the trigger to `apps/music/**` is honest today and is two lines. Making the job
+iterate is more general, but it is generality with one consumer — the same speculative
+move this repo has already paid for elsewhere.
+
+Recommendation: narrow. Revisit if a second flutter_rust_bridge app is actually planned.
+
+### D3 — The prefix is the target, never the stack
+
+`flutter` is the cautionary case: the name was true when there was one Flutter app, and
+becomes a lie at the second. A stack name describes how a unit is built, which is exactly
+the property most likely to be shared by a future product. The deployable or app it serves
+is the property that stays unique.
+
+This is why `rust` splits in two rather than being renamed: `backend/**` and `crates/**`
+are different targets that happen to share a toolchain, and one name for both is the same
+mistake at a larger scale.
+
+## Risks / Trade-offs
+
+- **[A renamed workflow silently stops gating]** → this is the real risk of group 3. A
+  required status check in branch protection is matched **by name**; renaming a workflow
+  leaves the rule pointing at a job that never reports, and the branch appears protected
+  while nothing enforces it. Task 3.5 checks the settings **after** merge, because the new
+  name does not exist until then.
+- **[The uncovered-unit check becomes noise]** → it fires only on paths matching no
+  workflow at all, which is rare by construction; if it fires often, the declaration
+  mechanism is wrong, not the rule.
+- **[Renaming churns open pull requests]** → land group 3 when few branches are in flight,
+  or accept one round of re-runs.
+- **[Splitting `rust` doubles backend CI time]** → the two jobs run in parallel and each
+  compiles less; the shared dependency cache is the same. Measure before assuming.
+
+## Migration Plan
+
+1. **Groups 1 and 2** — coverage rule and the `frb-codegen` fix. Both are additive or
+   two-line; neither renames anything, so nothing in branch protection moves.
+2. **Group 3** — renames, in one commit so the required-check window is as short as
+   possible, followed immediately by the settings check.
+
+Rollback: every step is a workflow file, revertable per commit. The only step with state
+outside the repo is 3.5 (branch protection), which is a manual settings edit either way.
+
+## Open Questions
+
+- Which mechanism for D1 — path-matching job or declared-units manifest? Decide in task
+  1.2 against the pull-request criterion.
+- Does `apps/*/rust/**` belong to `engine-check` or to each app's own check? It is FFI for
+  one app, so arguably the latter; but there is only one such app today, so either is
+  defensible. Decide in task 3.1.
+- Should `crawler-image` become `crawler-build` for consistency, or does `-image` earn its
+  place by naming the artifact kind? Both `backend-image` and `crawler-image` currently use
+  it; keeping it is defensible if it is applied consistently.

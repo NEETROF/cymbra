@@ -81,11 +81,34 @@
   - `backend/notifications/src/pg.rs` (7 statements on `user_account.*`, including `UPDATE user_account.users SET timezone`) — **named debt, deliberately deferred**: a schema-ownership problem, not a request-path leak — `notifications` has no schema or migrations of its own, its tables being created by `backend/user/migrations/0008_push_notifications.sql`. Give it its own change rather than folding it in here.
 - [ ] 8.5 Verify no other request-path read of another module's schema remains: grep the module crates for another module's schema qualifier and confirm every hit is either fixed above or listed as an exception.
 
-## 9. Verification
+## 9. Transport failure is expressible
 
-- [ ] 9.1 `cargo fmt --all --check` and `cargo clippy --workspace --all-targets -- -D warnings` clean.
-- [ ] 9.2 `cargo llvm-cov --workspace --fail-under-lines 80` passes.
-- [ ] 9.3 `melos run analyze` and `dart format` clean; Flutter tests and `dart run custom_lint` pass (back-office and app touched only in 4.8).
-- [ ] 9.4 `openspec validate harden-module-boundaries --strict` passes.
-- [ ] 9.5 Manual: delete a test account holding a private SoundFont and confirm both the row and the `.sf2` object are gone from the private bucket.
-- [ ] 9.6 Manual: from a non-staff account holding a role in one product scope only, confirm the music moderation surfaces are refused.
+- [ ] 11.1 Add `Unavailable` and `DeadlineExceeded` to `AppError` (`backend/platform/src/error.rs`), with their gRPC status mappings both ways.
+- [ ] 11.2 Add `From<tonic::Status> for AppError`, preserving the distinction between a domain outcome and a transport failure. `Internal` currently flattens to `"internal error"` (`error.rs` ~:58) — a remote `Internal` must not become indistinguishable from a transport fault.
+- [ ] 11.3 Test: a timeout maps to `DeadlineExceeded`, an unreachable callee to `Unavailable`, and a remote not-found stays a not-found.
+
+## 10. Stop the silent seams
+
+> Six outbound calls discard their error by construction. That is correct for the
+> domain outcome they were written for — a private profile legitimately yields no
+> credit — but it also swallows a dependency failure, and nothing records it. This
+> already bites today whenever the database is unhealthy; it is not split preparation.
+> Visible behaviour must not change: the field stays omitted, a diagnostic appears.
+
+- [ ] 10.1 `backend/music/src/module.rs` ~:1241 (`attach_review_attribution`, `let Ok(acct) = user.get_account`): match instead, and `warn!` on a non-domain failure.
+- [ ] 10.2 `backend/music/src/module.rs` ~:1261 (`attach_public_credit`, `let Ok(p) = user.get_player_profile`): same treatment.
+- [ ] 10.3 `backend/music/src/grpc.rs` ~:646 (`let Ok(profiles) = user.listable_profiles`): same treatment.
+- [ ] 10.4 `backend/music/src/grpc.rs` ~:836 (`if let Ok(acct) = user.get_account`, admin SoundFont listing): same treatment.
+- [ ] 10.5 `backend/music/src/leaderboard_module.rs` ~:299 (`.ok()` on `get_player_profile`): same treatment.
+- [ ] 10.6 `backend/music/src/global_leaderboard_module.rs` ~:244 (`.ok()` on `get_player_profile`): same treatment.
+- [ ] 10.7 Test: a dependency failure still yields a successful response with the field omitted **and** a diagnostic record; a private profile yields the omission with no record.
+- [ ] 10.8 Re-derive these six anchors with grep before starting — `music/src/grpc.rs` and `module.rs` drift with every feature.
+
+## 11. Verification
+
+- [ ] 11.1 `cargo fmt --all --check` and `cargo clippy --workspace --all-targets -- -D warnings` clean.
+- [ ] 11.2 `cargo llvm-cov --workspace --fail-under-lines 80` passes.
+- [ ] 11.3 `melos run analyze` and `dart format` clean; Flutter tests and `dart run custom_lint` pass (back-office and app touched only in 4.8).
+- [ ] 11.4 `openspec validate harden-module-boundaries --strict` passes.
+- [ ] 11.5 Manual: delete a test account holding a private SoundFont and confirm both the row and the `.sf2` object are gone from the private bucket.
+- [ ] 11.6 Manual: from a non-staff account holding a role in one product scope only, confirm the music moderation surfaces are refused.
