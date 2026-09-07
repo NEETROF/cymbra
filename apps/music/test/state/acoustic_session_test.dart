@@ -24,6 +24,7 @@ import 'package:music/src/rust/api/midi.dart' show MidiEvent, MidiEventKind;
 import 'package:music/services/play_sync_service.dart';
 import 'package:music/state/acoustic_input_access.dart';
 import 'package:music/state/notation_data.dart';
+import 'package:music/state/performance_scoring.dart';
 import 'package:music/state/notation_notifier.dart';
 import 'package:music/state/play_sync_notifier.dart';
 import 'package:music/state/player_data.dart';
@@ -110,6 +111,9 @@ void main() {
     // test so its listeners (input source, notation) stay alive.
     final sub = container.listen(playerProvider, (_, _) {});
     addTearDown(sub.close);
+    // The scorer is autoDispose; in the app the HUD keeps it alive.
+    final scorerSub = container.listen(performanceScorerProvider, (_, _) {});
+    addTearDown(scorerSub.close);
     return container;
   }
 
@@ -266,6 +270,10 @@ void main() {
 
       data = container.read(playerProvider);
       expect(data.gateSatisfied, contains(pitch));
+      // And the SCORER bound it too: gate satisfaction and judgment must
+      // agree (the on-device 0% run had gates opening while every onset went
+      // unbound — the input-offset shift broke Wait Mode's ±1 ms binding).
+      expect(container.read(performanceScorerProvider).combo, 1);
     },
   );
 

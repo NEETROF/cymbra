@@ -225,7 +225,7 @@ class PerformanceScorer extends _$PerformanceScorer {
       final opened = t.gateOpenWallMs ?? _clock.nowMs();
       final reaction = (_clock.nowMs() - opened).toDouble();
       t.reactionMs = reaction;
-      t.verdict = verdictForReactionMs(reaction);
+      t.verdict = verdictForReactionMs(reaction, acousticInput: _acoustic);
     } else {
       final offset = playheadMs - t.note.startMs;
       t.timingOffsetMs = offset;

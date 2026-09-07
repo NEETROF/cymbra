@@ -104,9 +104,11 @@ void main() {
     final state = container.read(inputCalibrationProvider);
     expect(state.status, CalibrationStatus.done);
     expect(state.measuredMs, 84.0);
-    // Persisted under the route's name, so a different route reads nothing.
+    // Persisted under the route's name — with the route itself, so the next
+    // launch can present it even before a capture session opens.
     expect(jsonDecode(prefs.store[InputCalibration.prefsKey]!), {
-      'Built-in Microphone': 84.0,
+      'measurements': {'Built-in Microphone': 84.0},
+      'lastRoute': {'name': 'Built-in Microphone', 'kind': 'builtin'},
     });
   });
 
@@ -161,6 +163,41 @@ void main() {
     );
     expect(prefs.store[InputCalibration.prefsKey], isNull);
   });
+
+  test('a session-close null route keeps the presented route', () async {
+    final container = harness();
+    container.read(inputCalibrationProvider);
+    await settle();
+    expect(container.read(inputCalibrationProvider).route, builtin);
+
+    // Mobile flips back to a playback-only session after capture: the
+    // platform reports no inputs. That is session noise, not a vanished mic.
+    routes.add(null);
+    await settle();
+
+    expect(container.read(inputCalibrationProvider).route, builtin);
+  });
+
+  test(
+    'restore presents the persisted route when the platform has none',
+    () async {
+      final container = harness(
+        seeded: {
+          InputCalibration.prefsKey: jsonEncode({
+            'measurements': {'iPad Microphone': 30.0},
+            'lastRoute': {'name': 'iPad Microphone', 'kind': 'builtin'},
+          }),
+        },
+      );
+      when(service.activeRoute()).thenAnswer((_) async => null);
+      container.read(inputCalibrationProvider);
+      await settle();
+
+      final state = container.read(inputCalibrationProvider);
+      expect(state.route?.name, 'iPad Microphone');
+      expect(state.measuredMs, 30.0);
+    },
+  );
 
   test('a route change re-keys the measurement and lifts a refusal', () async {
     final container = harness(

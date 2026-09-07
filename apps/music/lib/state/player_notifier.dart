@@ -397,7 +397,13 @@ class Player extends _$Player {
     // release is ever owed for a voice that was never started — the shape of the
     // double-strike bug `add-drum-audio-channel` 10.3 fixed. `_sounding` was
     // emptied when the mute went on, so there is nothing left hanging either.
-    if (s.scoreAudioMuted) return;
+    //
+    // An acoustic session mutes it INHERENTLY (change: add-acoustic-piano-input,
+    // on-device finding): the player IS the score audio here, the synth doubling
+    // them at speaker volume was painful — and worse, the doubled notes are
+    // exactly the expected pitches, so the app could hear ITSELF through the
+    // microphone and satisfy its own gates.
+    if (s.scoreAudioMuted || s.usesMicrophoneInput) return;
     if (s.isPercussion) {
       // Percussion readiness gate: until the kit font's awaited install has
       // resolved (KitFontStatus.ready), playback is visual-only — the
@@ -1554,7 +1560,11 @@ class Player extends _$Player {
   /// uncalibrated route still gets the confirmation-window share — the part
   /// of the chain the engine knows without measuring.
   ScoreClocks _judged(ScoreClocks clocks) {
-    if (!state.usesMicrophoneInput) return clocks;
+    // Wait Mode binds POSITIONALLY (±1 ms against the frozen playhead) and
+    // judges reaction on the WALL clock — shifting the score clocks there
+    // doesn't compensate anything, it just unbinds every press (the on-device
+    // 61-missed/0-bound run). The offset belongs to free-run judgment only.
+    if (!state.usesMicrophoneInput || state.waitMode) return clocks;
     final measured = ref.read(measuredInputOffsetMsProvider) ?? 0;
     return shiftClocksForInput(clocks, measured + kDetectionConfirmMs);
   }

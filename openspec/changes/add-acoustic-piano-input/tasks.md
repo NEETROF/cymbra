@@ -108,6 +108,17 @@
   (system-default entry + enumerated devices, mirroring the output picker);
   localized fr/en/es/it; widget tests
 
+## 10. On-device detection tuning (from the 8.4 play sessions)
+
+- [ ] 10.1 False positives: black keys trigger adjacent white notes (F# → F,
+  F → E/D observed on device), and the gate occasionally advances by itself
+  in a quiet room (ambient flukes clearing every check) — tune the
+  unexpected-neighbor veto, attack-splatter handling and the silence guards
+  using the v16 numeric confirmation logs (own/nb_lo/nb_hi per confirmation)
+- [ ] 10.2 On-screen detection debug overlay: heard-level curve + heard-vs-
+  expected notes, so a player can see what the microphone hears (user
+  request during the play test)
+
 ## 8. Verification
 
 - [x] 8.1 `melos run analyze`, `dart run custom_lint`, `dart format` (repo

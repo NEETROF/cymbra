@@ -387,6 +387,11 @@ class PlatformAudioCaptureService implements AudioCaptureService {
       final session =
           await _channel.invokeMethod<bool>('beginCaptureSession') ?? false;
       if (!session) return false;
+      // The session flip fires an iOS route change moments later, which
+      // invalidates whatever stream is open at that instant — including the
+      // one we are about to create. Let the route settle first; the engine's
+      // rebuild-on-invalidation covers whatever still slips through.
+      await Future<void>.delayed(const Duration(milliseconds: 300));
       return input_api.audioInputStartCapture();
     } catch (_) {
       return false;
@@ -405,12 +410,25 @@ class PlatformAudioCaptureService implements AudioCaptureService {
 
   @override
   Future<CalibrationMeasurement?> runCalibration() async {
+    // Leave capture as we found it: a play session may already hold it open
+    // (the player's own capture), and tearing that down on the way out is
+    // exactly how "calibrate, then play" went silent on device — the engine
+    // keeps a pre-existing capture alive, so the wrapper must too.
+    bool wasCapturing;
+    try {
+      wasCapturing = input_api.audioInputIsCapturing();
+    } catch (_) {
+      wasCapturing = false;
+    }
     // The session flip must surround the engine run: `.measurement` is what
     // keeps the voice-processing chain away from the reference click too.
     try {
       final session =
           await _channel.invokeMethod<bool>('beginCaptureSession') ?? false;
       if (!session) return null;
+      // Same settle as [beginCapture]: don't open the stream the flip's own
+      // route change is about to invalidate.
+      await Future<void>.delayed(const Duration(milliseconds: 300));
     } catch (_) {
       return null;
     }
@@ -422,7 +440,9 @@ class PlatformAudioCaptureService implements AudioCaptureService {
     } catch (_) {
       return null;
     } finally {
-      await endCapture();
+      // Only close what this run opened: with a session capture live, both
+      // the engine capture AND the `.measurement` session shape stay.
+      if (!wasCapturing) await endCapture();
     }
   }
 

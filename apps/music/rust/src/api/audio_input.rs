@@ -96,8 +96,21 @@ pub struct InputCalibrationResult {
 /// The engine-wide capture lifecycle. The core decides; this module executes.
 static LIFECYCLE: Mutex<CaptureLifecycle> = Mutex::new(CaptureLifecycle::Idle);
 
-/// Signal channel to the capture thread: any message (or disconnect) stops it.
-static CAPTURE_STOP: Mutex<Option<Sender<()>>> = Mutex::new(None);
+/// What the capture thread can be told while running. Dropping the sender
+/// (see [`audio_input_stop_capture`]) is the stop signal.
+enum CaptureMsg {
+    /// The running stream was invalidated (e.g. iOS "Audio route changed",
+    /// fired by our own capture-session flip): drop it, let the route settle,
+    /// and rebuild — the input twin of the output side's route self-healing.
+    Rebuild,
+    /// Close the stream and end the thread. Explicit rather than a sender
+    /// drop: the thread holds its own sender clones (the error callbacks), so
+    /// a disconnect can never be observed from inside.
+    Stop,
+}
+
+/// Signal channel to the capture thread.
+static CAPTURE_STOP: Mutex<Option<Sender<CaptureMsg>>> = Mutex::new(None);
 
 /// The rate of the running capture stream, published by the capture thread
 /// once the device opens (0 = not yet known / not capturing).
@@ -145,13 +158,14 @@ pub fn audio_input_start_capture() -> bool {
     let mut l = LIFECYCLE.lock().unwrap();
     match l.request_start() {
         CaptureTransition::Open => {
-            let (tx, rx) = channel::<()>();
+            let (tx, rx) = channel::<CaptureMsg>();
+            let thread_tx = tx.clone();
             *CAPTURE_STOP.lock().unwrap() = Some(tx);
             let generation = CAPTURE_GEN.fetch_add(1, Ordering::SeqCst) + 1;
             thread::Builder::new()
                 .name("audio-input".into())
                 .spawn(move || {
-                    if let Err(e) = capture_thread(rx) {
+                    if let Err(e) = capture_thread(rx, thread_tx) {
                         platform_log::log_line("cymbra-audio-in", &format!("capture failed: {e}"));
                     }
                     // Honest state whichever way the thread ended: device
@@ -177,8 +191,9 @@ pub fn audio_input_stop_capture() {
     let mut l = LIFECYCLE.lock().unwrap();
     match l.request_stop() {
         CaptureTransition::Close => {
-            // Dropping the sender disconnects the thread's recv() and ends it.
-            *CAPTURE_STOP.lock().unwrap() = None;
+            if let Some(tx) = CAPTURE_STOP.lock().unwrap().take() {
+                let _ = tx.send(CaptureMsg::Stop);
+            }
         }
         CaptureTransition::Open | CaptureTransition::None => {}
     }
@@ -361,15 +376,38 @@ pub fn run_input_calibration() -> InputCalibrationResult {
     let deadline =
         Instant::now() + Duration::from_millis(CALIB_BASELINE_MS + CALIB_LISTEN_TIMEOUT_MS + 3000);
     let mut outcome: Option<CalibOutcome> = None;
+    // The clip channel LOOPS by design (it exists for soundfont previews the
+    // UI stops): the reference beep must be stopped explicitly, shortly after
+    // it sounded — its silent tail makes the stop land noiselessly.
+    let mut beep_at: Option<Instant> = None;
     while Instant::now() < deadline {
+        if let Some(at) = beep_at
+            && at.elapsed() > Duration::from_millis(200)
+        {
+            super::audio::stop_preview_clip();
+            beep_at = None;
+        }
         {
             let mut guard = CALIB.lock().unwrap();
             if let Some(detector) = guard.as_mut() {
                 if detector.phase() == CalibPhase::ReadyToClick {
-                    super::audio::metronome_click(false);
+                    // A dedicated full-scale reference beep: the metronome's
+                    // click sample is far too soft to be a reference (an iPad
+                    // at max volume measured it near its own noise floor).
+                    super::audio::play_preview_clip(reference_beep_wav());
+                    beep_at = Some(Instant::now());
                     detector.click_emitted();
                 }
                 outcome = detector.take_outcome();
+                if matches!(outcome, Some(CalibOutcome::TimedOut)) {
+                    let (floor, peak, threshold) = detector.diagnostics();
+                    platform_log::log_line(
+                        "cymbra-audio-in",
+                        &format!(
+                            "calibration timeout: floor={floor:.5} peak={peak:.5} threshold={threshold:.5}"
+                        ),
+                    );
+                }
             }
         }
         if outcome.is_some() {
@@ -378,6 +416,8 @@ pub fn run_input_calibration() -> InputCalibrationResult {
         thread::sleep(Duration::from_millis(10));
     }
 
+    // Whatever the exit, never leave the looping beep running.
+    super::audio::stop_preview_clip();
     *CALIB.lock().unwrap() = None;
     if !was_capturing {
         audio_input_stop_capture();
@@ -408,7 +448,56 @@ fn wait_until(timeout: Duration, mut cond: impl FnMut() -> bool) -> bool {
 
 /// Owns the cpal input stream for the whole capture: builds it, publishes the
 /// rate, then parks until the stop signal (or sender drop) ends it.
-fn capture_thread(rx: std::sync::mpsc::Receiver<()>) -> anyhow::Result<()> {
+fn capture_thread(
+    rx: std::sync::mpsc::Receiver<CaptureMsg>,
+    tx: Sender<CaptureMsg>,
+) -> anyhow::Result<()> {
+    let mut rebuilds_left = 5u8;
+    let mut last_rebuild = Instant::now();
+    loop {
+        // Opened fresh on every pass: a rebuild re-resolves the device (the
+        // route that killed the stream may have changed what "default" means)
+        // and can come back at a different rate.
+        let stream = open_capture(&tx)?;
+
+        // Park until told otherwise; the stream lives on this stack frame.
+        match rx.recv() {
+            Ok(CaptureMsg::Rebuild) => {
+                drop(stream);
+                // The budget guards against an invalidation LOOP, not against
+                // a long session: route flips arrive in clusters (every
+                // calibration causes one), and a spent lifetime budget was
+                // what silently killed detection minutes into real play.
+                if last_rebuild.elapsed() > Duration::from_secs(10) {
+                    rebuilds_left = 5;
+                }
+                last_rebuild = Instant::now();
+                if rebuilds_left == 0 {
+                    anyhow::bail!("input stream kept getting invalidated");
+                }
+                rebuilds_left -= 1;
+                // Let the route change finish before reopening on its result;
+                // then drain the burst (one flip can notify several times).
+                thread::sleep(Duration::from_millis(250));
+                loop {
+                    use std::sync::mpsc::TryRecvError;
+                    match rx.try_recv() {
+                        Ok(CaptureMsg::Rebuild) => continue,
+                        Ok(CaptureMsg::Stop) | Err(TryRecvError::Disconnected) => return Ok(()),
+                        Err(TryRecvError::Empty) => break,
+                    }
+                }
+            }
+            // Stop (or a torn-down channel): the generation-guarded exit
+            // cleanup in the spawn wrapper clears the published state.
+            Ok(CaptureMsg::Stop) | Err(_) => return Ok(()),
+        }
+    }
+}
+
+/// Resolves the device, opens and starts the stream, publishes the state and
+/// (re)installs the frame consumers at the actual rate.
+fn open_capture(tx: &Sender<CaptureMsg>) -> anyhow::Result<cpal::Stream> {
     let host = cpal::default_host();
     // Resolve the pinned device against what is present right now; anything
     // absent (or no pin) opens the system default — never a failure.
@@ -436,23 +525,36 @@ fn capture_thread(rx: std::sync::mpsc::Receiver<()>) -> anyhow::Result<()> {
     let channels = config.channels as usize;
 
     let stream = match supported.sample_format() {
-        cpal::SampleFormat::F32 => build_capture::<f32>(&device, &config, channels)?,
-        cpal::SampleFormat::I16 => build_capture::<i16>(&device, &config, channels)?,
-        cpal::SampleFormat::U16 => build_capture::<u16>(&device, &config, channels)?,
+        cpal::SampleFormat::F32 => build_capture::<f32>(&device, &config, channels, tx.clone())?,
+        cpal::SampleFormat::I16 => build_capture::<i16>(&device, &config, channels, tx.clone())?,
+        cpal::SampleFormat::U16 => build_capture::<u16>(&device, &config, channels, tx.clone())?,
         other => anyhow::bail!("unsupported input sample format {other:?}"),
     };
     stream.play()?;
     INPUT_SAMPLE_RATE.store(config.sample_rate, Ordering::Relaxed);
     *ACTIVE_INPUT.lock().unwrap() = device.description().ok().map(|d| d.name().to_string());
+    platform_log::log_line(
+        "cymbra-audio-in",
+        &format!(
+            "opened {:?} — {} Hz, {} ch",
+            ACTIVE_INPUT.lock().unwrap().as_deref().unwrap_or("?"),
+            config.sample_rate,
+            channels
+        ),
+    );
     if DETECT_REQUESTED.load(Ordering::Relaxed) {
         install_detector(config.sample_rate);
     }
-
-    // Any message or a dropped sender means stop; the stream drops with us.
-    // The generation-guarded exit cleanup (in the spawn wrapper) clears the
-    // published state.
-    let _ = rx.recv();
-    Ok(())
+    // An in-flight calibration was feeding the dead stream: restart it at the
+    // fresh rate — its poller sees a new baseline and re-emits the click, so
+    // the run recovers instead of timing out on silence.
+    {
+        let mut calib = CALIB.lock().unwrap();
+        if calib.is_some() {
+            *calib = Some(CalibrationDetector::new(config.sample_rate));
+        }
+    }
+    Ok(stream)
 }
 
 /// Builds the input stream for one sample format: downmix to mono `f32` and
@@ -461,6 +563,7 @@ fn build_capture<T>(
     device: &cpal::Device,
     config: &cpal::StreamConfig,
     channels: usize,
+    rebuild: Sender<CaptureMsg>,
 ) -> anyhow::Result<cpal::Stream>
 where
     T: cpal::SizedSample,
@@ -485,11 +588,29 @@ where
             if let Some(detector) = DETECT.lock().unwrap().as_mut() {
                 let rate = detector.sample_rate();
                 for note in detector.feed(&mono) {
+                    if note.on {
+                        platform_log::log_line(
+                            "cymbra-detect",
+                            &format!(
+                                "emit p={} v={} at={}",
+                                note.pitch, note.velocity, note.at_sample
+                            ),
+                        );
+                    }
                     super::midi::emit_detected(to_midi_event(note, rate));
+                }
+                for line in detector.debug_log.drain(..) {
+                    platform_log::log_line("cymbra-detect", &line);
                 }
             }
         },
-        |e| platform_log::log_line("cymbra-audio-in", &format!("stream error: {e}")),
+        move |e| {
+            platform_log::log_line("cymbra-audio-in", &format!("stream error: {e}"));
+            // A dead stream never recovers on its own (iOS invalidates it on
+            // every route change — including the one our own capture-session
+            // flip causes): ask the capture thread for a rebuild.
+            let _ = rebuild.send(CaptureMsg::Rebuild);
+        },
         None,
     )?;
     Ok(stream)
@@ -509,4 +630,44 @@ fn to_midi_event(note: DetectedNote, rate: u32) -> MidiEvent {
         channel: 0,
         timestamp_ms: note.at_sample * 1000 / u64::from(rate),
     }
+}
+
+/// The calibration reference sound: 80 ms of a loud 1 kHz sine, faded at
+/// both ends (no speaker pop, no end click), followed by 400 ms of silence —
+/// the clip channel loops, and the explicit stop then lands in the silent
+/// tail instead of cutting a sine mid-phase. In-memory mono 16-bit WAV for
+/// the engine's clip path.
+fn reference_beep_wav() -> Vec<u8> {
+    const RATE: u32 = 48_000;
+    const BEEP_MS: u32 = 80;
+    const TAIL_MS: u32 = 400;
+    let n = (RATE * BEEP_MS / 1000) as usize;
+    let tail = (RATE * TAIL_MS / 1000) as usize;
+    let fade = (RATE * 3 / 1000) as usize; // 3 ms
+    let mut pcm = Vec::with_capacity((n + tail) * 2);
+    for i in 0..n {
+        let t = i as f64 / f64::from(RATE);
+        let ramp_in = ((i as f64) / fade as f64).min(1.0);
+        let ramp_out = (((n - 1 - i) as f64) / fade as f64).min(1.0);
+        let sample = (2.0 * std::f64::consts::PI * 1000.0 * t).sin() * 0.6 * ramp_in * ramp_out;
+        let v = (sample * f64::from(i16::MAX)) as i16;
+        pcm.extend_from_slice(&v.to_le_bytes());
+    }
+    pcm.extend(std::iter::repeat_n(0u8, tail * 2));
+    let data_len = pcm.len() as u32;
+    let mut wav = Vec::with_capacity(44 + pcm.len());
+    wav.extend_from_slice(b"RIFF");
+    wav.extend_from_slice(&(36 + data_len).to_le_bytes());
+    wav.extend_from_slice(b"WAVEfmt ");
+    wav.extend_from_slice(&16u32.to_le_bytes()); // fmt chunk size
+    wav.extend_from_slice(&1u16.to_le_bytes()); // PCM
+    wav.extend_from_slice(&1u16.to_le_bytes()); // mono
+    wav.extend_from_slice(&RATE.to_le_bytes());
+    wav.extend_from_slice(&(RATE * 2).to_le_bytes()); // byte rate
+    wav.extend_from_slice(&2u16.to_le_bytes()); // block align
+    wav.extend_from_slice(&16u16.to_le_bytes()); // bits
+    wav.extend_from_slice(b"data");
+    wav.extend_from_slice(&data_len.to_le_bytes());
+    wav.extend_from_slice(&pcm);
+    wav
 }

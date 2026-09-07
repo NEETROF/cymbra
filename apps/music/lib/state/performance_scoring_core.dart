@@ -95,6 +95,13 @@ class ScoringWindows {
   /// Wait Mode: reaction ≤ this ⇒ `good`; beyond it ⇒ `late`.
   static const double waitGoodMs = 300;
 
+  /// Wait Mode over acoustic detection: the detection chain (onset + pitch
+  /// confirmation) rides on top of human reaction, so the windows widen.
+  static const double waitPerfectAcousticMs = 450;
+
+  /// See [waitPerfectAcousticMs].
+  static const double waitGoodAcousticMs = 1200;
+
   /// Sustain credit floor: holding at least this fraction of the intended
   /// duration counts as a full-value sustain.
   static const double sustainCreditFloor = 0.85;
@@ -146,10 +153,24 @@ bool bindsToOnset(double offsetMs) =>
 
 /// Wait-Mode timing verdict from the [reactionMs] between the gate opening on an
 /// onset and the correct attack. Reaction is non-negative; there is no `missed`.
-TimingVerdict verdictForReactionMs(double reactionMs) {
+///
+/// [acousticInput] widens the windows ~2.5× (change: add-acoustic-piano-input,
+/// on-device tuning): the microphone chain adds onset detection plus a
+/// pitch-confirmation window on top of human reaction, and the MIDI-sized
+/// windows graded honest playing as 0% reaction on a working device.
+TimingVerdict verdictForReactionMs(
+  double reactionMs, {
+  bool acousticInput = false,
+}) {
   final r = math.max(0.0, reactionMs);
-  if (r <= ScoringWindows.waitPerfectMs) return TimingVerdict.perfect;
-  if (r <= ScoringWindows.waitGoodMs) return TimingVerdict.good;
+  final perfect = acousticInput
+      ? ScoringWindows.waitPerfectAcousticMs
+      : ScoringWindows.waitPerfectMs;
+  final good = acousticInput
+      ? ScoringWindows.waitGoodAcousticMs
+      : ScoringWindows.waitGoodMs;
+  if (r <= perfect) return TimingVerdict.perfect;
+  if (r <= good) return TimingVerdict.good;
   return TimingVerdict.late;
 }
 

@@ -196,6 +196,9 @@ pub(crate) struct CalibrationDetector {
     click_at: u64,
     /// Sample position after which listening times out.
     deadline: u64,
+    /// Loudest hop RMS seen while listening — diagnostic: what the mic
+    /// actually heard, threshold or not.
+    listen_peak: f64,
     outcome: Option<CalibOutcome>,
 }
 
@@ -210,6 +213,7 @@ impl CalibrationDetector {
             phase: CalibPhase::Baseline,
             click_at: 0,
             deadline: 0,
+            listen_peak: 0.0,
             outcome: None,
         }
     }
@@ -258,10 +262,8 @@ impl CalibrationDetector {
                 }
             }
             CalibPhase::Listening => {
-                // The click must clear the room by a wide margin; the absolute
-                // floor keeps a dead-silent baseline from arming a hair
-                // trigger on the first breath.
-                let threshold = (self.noise_floor * 6.0).max(0.02);
+                self.listen_peak = self.listen_peak.max(rms);
+                let threshold = self.threshold();
                 if rms > threshold {
                     let latency_samples = self.fed.saturating_sub(self.click_at);
                     self.outcome = Some(CalibOutcome::Detected {
@@ -280,23 +282,51 @@ impl CalibrationDetector {
     fn ms_to_samples(&self, ms: u64) -> u64 {
         ms * u64::from(self.sample_rate) / 1000
     }
+
+    /// The level the click must clear. **Ratio-first**, absolute-last: with
+    /// the voice-processing chain off (`.measurement` / UNPROCESSED) the raw
+    /// capture level varies wildly across devices — an iPad at full volume
+    /// measured its own accented click at 0.0012 RMS over a 0.0001 floor
+    /// (2026-09-07), 13× the room but far under any workable absolute. So the
+    /// room ratio decides, and the tiny absolute only keeps a dead-silent
+    /// baseline (floor ≈ 0) from arming a hair trigger.
+    fn threshold(&self) -> f64 {
+        (self.noise_floor * 5.0).max(0.0005)
+    }
+
+    /// Diagnostics for a failed run: the room, what the mic heard while
+    /// listening, and the bar it had to clear — enough to tell "capture is
+    /// silent" from "the click never cleared the threshold".
+    pub(crate) fn diagnostics(&self) -> (f64, f64, f64) {
+        (self.noise_floor, self.listen_peak, self.threshold())
+    }
 }
 
+// ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
 // Acoustic piano note detection (spec: Score-Informed Presence Detection).
 // ---------------------------------------------------------------------------
 
-/// Analysis hop for the onset follower.
+/// Analysis hop: per-pitch envelopes are re-evaluated once per hop.
 const DETECT_HOP: usize = 128;
 
-/// Fast/slow energy follower ratio that declares an attack transient.
-const ONSET_RATIO: f64 = 3.0;
+/// Per-pitch envelope window: short enough to localize an attack (~21 ms at
+/// 48 kHz), long enough for a stable Goertzel reading.
+const ENV_WINDOW: usize = 1024;
 
-/// Absolute RMS floor under which no onset fires (breath, hiss).
-const ONSET_ABS_FLOOR: f64 = 0.01;
+/// A pitch triggers when its own envelope rises this far above its own slow
+/// average. Per-pitch by design: a broadband level gate cannot see a second
+/// note struck while the first still rings (the total RMS barely moves), which
+/// is exactly how consecutive notes went unread on a real piano.
+const ENV_RISE_RATIO: f64 = 4.0;
 
-/// Refractory period after an onset before another may fire.
-const ONSET_REFRACTORY_MS: u64 = 60;
+/// Envelope floor below which a rise never triggers (near-digital silence;
+/// unprocessed capture levels are tiny — see the calibration threshold note).
+const ENV_ABS_FLOOR: f64 = 1e-9;
+
+/// A pitch that emitted stays quiet for this long: its own ring keeps the
+/// envelope high, and one keystroke must stay one event.
+const PITCH_REFRACTORY_MS: u64 = 200;
 
 /// The **nominal** pitch-confirmation window (samples at 44.1/48 kHz land in
 /// the same ballpark): what the Dart scoring layer adds to the measured input
@@ -311,7 +341,8 @@ pub(crate) const DETECTION_CONFIRM_NOMINAL_MS: u64 = 46;
 /// off, so the detector schedules one on its sample clock.
 const SYNTHETIC_OFF_MS: u64 = 300;
 
-/// The longest evidence buffer an onset keeps (per-pitch windows cap here).
+/// The sliding sample buffer confirmations read from (per-pitch confirmation
+/// windows cap here).
 const MAX_EVIDENCE: usize = 8192;
 
 /// One detection emission, on the detector's sample clock.
@@ -330,40 +361,70 @@ pub(crate) struct DetectedNote {
     pub(crate) at_sample: u64,
 }
 
+/// Per-expected-pitch tracking state.
+#[frb(ignore)]
+struct PitchTracker {
+    pitch: u8,
+    /// Slow envelope average — the pitch's own recent level, followed
+    /// quickly downward (a piano decays) and slowly upward.
+    slow: f64,
+    /// Slowly-decaying envelope peak. Two neighboring notes sounding together
+    /// BEAT (the short window cannot resolve a semitone), swinging the bin's
+    /// envelope several-fold at a few hertz — held peaks are what a beat
+    /// maximum can never exceed, while a real re-strike does.
+    peak: f64,
+    /// Consecutive hops the rise condition has held (a noise fluke spikes a
+    /// bin for one reading; a struck note stays up).
+    rise_hops: u8,
+    /// Recent per-hop envelope readings (newest last), for edge-locating the
+    /// attack at emission time: the trigger only ARMS a pitch — a noise
+    /// fluke arming it just before the real strike must not steal the
+    /// timestamp.
+    hist: Vec<f64>,
+    /// Sample position of a pending rise, awaiting confirmation.
+    triggered_at: Option<u64>,
+    /// Sample position of the last emission (`0` = never).
+    last_emit: u64,
+    /// Re-arm hysteresis: false after an emission until the envelope dips
+    /// below a fraction of its peak. A REPEATED note (mi-mi, the opening of
+    /// every other melody) dips between strikes and re-arms; the steady ring
+    /// of a still-held note never does. Replaces a peak-ratio bar that made
+    /// every repeat fight its own resonance.
+    armed: bool,
+}
+
 /// Streaming score-informed note detector over mono PCM.
 ///
-/// Two decoupled stages (design D3): a broadband energy-transient **onset**
-/// stage stamps *when* something was struck; a Goertzel **presence** stage
-/// then confirms *which of the expected pitches* are sounding in the evidence
-/// window that follows. Pitches outside the expected set are never reported —
-/// downstream judgment only sees what arrives (spec: unreported extras carry
-/// no penalty) — and a broadband click with no tonal match (the metronome)
-/// confirms nothing by construction.
+/// Two decoupled stages (design D3), both **per expected pitch**: a
+/// short-window envelope-rise stage stamps *when* that pitch was struck —
+/// per-pitch because a broadband gate is blind to a note played over another
+/// note's ring — and the far-probe presence stage then confirms the rise is
+/// tonal over a longer window, which is what rejects the metronome click and
+/// other broadband transients. Pitches outside the expected set are never
+/// reported — downstream judgment only sees what arrives (spec: unreported
+/// extras carry no penalty).
 #[frb(ignore)]
 pub(crate) struct NoteDetector {
     sample_rate: u32,
     /// Total mono samples fed — the detector's only clock.
     fed: u64,
-    hop_energy: f64,
-    hop_len: usize,
-    /// Slow-moving RMS average (the "room + sustained notes" level).
-    slow: f64,
-    refractory_until: u64,
-    /// The score's active window, set by the app; empty = detection idle.
-    expected: Vec<u8>,
-    /// The open onset, if any: its sample position, its evidence buffer, its
-    /// peak amplitude, and which pitches already confirmed for it.
-    onset: Option<OnsetWindow>,
+    hop_buf: Vec<f32>,
+    /// Sliding buffer of the most recent samples (≤ [`MAX_EVIDENCE`]).
+    ring: Vec<f32>,
+    trackers: Vec<PitchTracker>,
+    /// Slow broadband RMS average, for the strike detector below.
+    bb_slow: f64,
+    /// Sample position of the last broadband energy jump — a hammer strike.
+    /// Re-triggering an already-emitted pitch requires one nearby: a real
+    /// repeat bumps the TOTAL level, a beat between two ringing neighbors
+    /// only sloshes energy between bins (the sum of two sines has constant
+    /// power) and must never re-emit.
+    last_strike_at: u64,
     /// Scheduled synthetic releases `(due_sample, pitch)`.
     pending_offs: Vec<(u64, u8)>,
-}
-
-#[frb(ignore)]
-struct OnsetWindow {
-    at_sample: u64,
-    buf: Vec<f32>,
-    peak: f32,
-    confirmed: Vec<u8>,
+    /// POC diagnostics: one line per trigger/confirm/reject, drained by the
+    /// glue into the platform log so an on-device run can be analyzed.
+    pub(crate) debug_log: Vec<String>,
 }
 
 impl NoteDetector {
@@ -371,13 +432,13 @@ impl NoteDetector {
         Self {
             sample_rate,
             fed: 0,
-            hop_energy: 0.0,
-            hop_len: 0,
-            slow: 0.0,
-            refractory_until: 0,
-            expected: Vec::new(),
-            onset: None,
+            hop_buf: Vec::with_capacity(DETECT_HOP),
+            ring: Vec::with_capacity(MAX_EVIDENCE + DETECT_HOP),
+            trackers: Vec::new(),
+            bb_slow: 0.0,
+            last_strike_at: 0,
             pending_offs: Vec::new(),
+            debug_log: Vec::new(),
         }
     }
 
@@ -386,13 +447,31 @@ impl NoteDetector {
         self.sample_rate
     }
 
-    /// Replaces the expected set (the score's active window). Clearing it
-    /// closes any open onset and idles the detector.
+    /// Replaces the expected set (the score's active window). Trackers of
+    /// pitches that stay carry their state over — the window slides on every
+    /// playhead move, and resetting a ringing pitch's average would re-arm it.
     pub(crate) fn set_expected(&mut self, pitches: Vec<u8>) {
-        self.expected = pitches;
-        if self.expected.is_empty() {
-            self.onset = None;
+        let mut next = Vec::with_capacity(pitches.len());
+        for p in pitches {
+            if next.iter().any(|t: &PitchTracker| t.pitch == p) {
+                continue;
+            }
+            let old = self.trackers.iter().position(|t| t.pitch == p);
+            next.push(match old {
+                Some(i) => self.trackers.swap_remove(i),
+                None => PitchTracker {
+                    pitch: p,
+                    slow: 0.0,
+                    peak: 0.0,
+                    rise_hops: 0,
+                    hist: Vec::new(),
+                    triggered_at: None,
+                    last_emit: 0,
+                    armed: true,
+                },
+            });
         }
+        self.trackers = next;
     }
 
     /// Feeds mono samples; returns every emission they completed.
@@ -400,107 +479,202 @@ impl NoteDetector {
         let mut out = Vec::new();
         for &s in mono {
             self.fed += 1;
-
-            // Evidence accumulation for the open onset.
-            if let Some(w) = self.onset.as_mut() {
-                if w.buf.len() < MAX_EVIDENCE {
-                    w.buf.push(s);
-                    w.peak = w.peak.max(s.abs());
+            self.hop_buf.push(s);
+            if self.hop_buf.len() == DETECT_HOP {
+                self.ring.extend_from_slice(&self.hop_buf);
+                self.hop_buf.clear();
+                let excess = self.ring.len().saturating_sub(MAX_EVIDENCE);
+                if excess > 0 {
+                    self.ring.drain(..excess);
                 }
-                self.try_confirm(&mut out);
-                if self
-                    .onset
-                    .as_ref()
-                    .is_some_and(|w| w.buf.len() >= MAX_EVIDENCE)
-                {
-                    self.onset = None;
-                }
-            }
-
-            // Onset following.
-            self.hop_energy += f64::from(s) * f64::from(s);
-            self.hop_len += 1;
-            if self.hop_len == DETECT_HOP {
-                let rms = (self.hop_energy / DETECT_HOP as f64).sqrt();
-                self.hop_energy = 0.0;
-                self.hop_len = 0;
-                self.on_hop(rms);
-            }
-
-            // Due synthetic releases.
-            if !self.pending_offs.is_empty() {
-                let fed = self.fed;
-                self.pending_offs.retain(|&(due, pitch)| {
-                    if due <= fed {
-                        out.push(DetectedNote {
-                            on: false,
-                            pitch,
-                            velocity: 0,
-                            at_sample: due,
-                        });
-                        false
-                    } else {
-                        true
-                    }
-                });
+                self.on_hop(&mut out);
             }
         }
         out
     }
 
-    fn on_hop(&mut self, rms: f64) {
-        // A fresh detector has no room level yet: adopt the first hop.
-        if self.slow == 0.0 {
-            self.slow = rms;
+    fn on_hop(&mut self, out: &mut Vec<DetectedNote>) {
+        let fed = self.fed;
+        let rate = self.sample_rate;
+        // Broadband strike follower (hammer transients raise the TOTAL level).
+        if self.ring.len() >= DETECT_HOP {
+            let r = rms(&self.ring[self.ring.len() - DETECT_HOP..]);
+            if self.bb_slow > 0.0 && r > (self.bb_slow * 2.0).max(1e-5) {
+                self.last_strike_at = fed;
+            }
+            self.bb_slow = if self.bb_slow == 0.0 {
+                r.max(1e-9)
+            } else if r < self.bb_slow {
+                self.bb_slow * 0.90 + r * 0.10
+            } else {
+                self.bb_slow * 0.95 + r * 0.05
+            };
         }
-        let attack = rms > (self.slow * ONSET_RATIO).max(ONSET_ABS_FLOOR);
-        // EMA after the comparison, so the attack itself does not raise the
-        // bar it is compared against.
-        self.slow = self.slow * 0.95 + rms * 0.05;
+        if self.ring.len() >= ENV_WINDOW {
+            let env_slice = &self.ring[self.ring.len() - ENV_WINDOW..];
+            let expected: Vec<u8> = self.trackers.iter().map(|t| t.pitch).collect();
+            let self_last_strike = self.last_strike_at;
+            for t in &mut self.trackers {
+                let env = goertzel(env_slice, rate, pitch_freq(t.pitch));
+                t.hist.push(env);
+                if t.hist.len() > 64 {
+                    t.hist.remove(0);
+                }
 
-        if attack && self.fed >= self.refractory_until && !self.expected.is_empty() {
-            self.refractory_until = self.fed + self.ms_to_samples(ONSET_REFRACTORY_MS);
-            // Include the just-analyzed hop in the evidence: the transient's
-            // first samples carry energy the presence stage should see.
-            self.onset = Some(OnsetWindow {
-                at_sample: self.fed.saturating_sub(DETECT_HOP as u64),
-                buf: Vec::with_capacity(MAX_EVIDENCE),
-                peak: 0.0,
-                confirmed: Vec::new(),
+                if let Some(at) = t.triggered_at {
+                    // Awaiting confirmation over the long window — doubled
+                    // when an expected semitone NEIGHBOR exists: confirming
+                    // mi against fa needs resolution a base window can't
+                    // give while it still straddles pre-attack silence.
+                    let has_neighbor = [-1i16, 1].iter().any(|&d| {
+                        let np = i16::from(t.pitch) + d;
+                        (0..=127).contains(&np) && expected.contains(&(np as u8))
+                    });
+                    let window = (confirm_window(rate, t.pitch) * if has_neighbor { 2 } else { 1 })
+                        .min(MAX_EVIDENCE);
+                    if fed.saturating_sub(at) >= window as u64 {
+                        t.triggered_at = None;
+                        let have = self.ring.len().min(window);
+                        let slice = &self.ring[self.ring.len() - have..];
+                        // A held note still carries energy in the LAST
+                        // quarter of the window; a click — wherever it sits
+                        // in the slice — leaves it at the noise floor.
+                        // Broadband RMS, so the beating that nulls a per-bin
+                        // envelope mid-note (mi+fa beat at ~19 Hz) cannot
+                        // fake a silence.
+                        let q = (have / 4).max(1);
+                        let head = rms(slice);
+                        let tail = rms(&slice[have - q..]);
+                        let still_sounding = tail * 4.0 >= head;
+                        // An expected semitone NEIGHBOR that was actually
+                        // played leaks heavily into this bin: only emit when
+                        // this bin holds its own against the neighbor's. Over
+                        // a DOUBLED window — at the confirmation length the
+                        // two lobes still overlap and their phases interfere,
+                        // which is exactly what made mi disappear under fa.
+                        let disc_len = (2 * window).min(self.ring.len());
+                        let disc = &self.ring[self.ring.len() - disc_len..];
+                        let own = goertzel_hann(disc, rate, pitch_freq(t.pitch));
+                        let beats_neighbors = [-1i16, 1].iter().all(|&d| {
+                            let np = i16::from(t.pitch) + d;
+                            if !(0..=127).contains(&np) {
+                                return true;
+                            }
+                            let nb = goertzel_hann(disc, rate, pitch_freq(np as u8));
+                            if expected.contains(&(np as u8)) {
+                                // Both may genuinely sound (mi+fa): only veto
+                                // when the neighbor dwarfs this bin.
+                                own * 2.5 >= nb
+                            } else {
+                                // An UNEXPECTED semitone neighbor louder than
+                                // the expected pitch is the wrong note being
+                                // played (si accepted for do, on device): the
+                                // expected bin then only holds leakage.
+                                own * 1.5 >= nb
+                            }
+                        });
+                        let present = pitch_present(slice, rate, t.pitch, &expected);
+                        let nb_lo =
+                            goertzel_hann(disc, rate, pitch_freq(t.pitch.saturating_sub(1)));
+                        let nb_hi =
+                            goertzel_hann(disc, rate, pitch_freq(t.pitch.saturating_add(1)));
+                        self.debug_log.push(format!(
+                            "conf p={} sounding={still_sounding} neighbors={beats_neighbors} present={present} own={own:.2e} nb_lo={nb_lo:.2e} nb_hi={nb_hi:.2e} head={head:.2e} tail={tail:.2e}",
+                            t.pitch
+                        ));
+                        if still_sounding && beats_neighbors && present {
+                            t.last_emit = fed;
+                            t.armed = false;
+                            let peak = slice.iter().fold(0f32, |m, &x| m.max(x.abs()));
+                            // Edge-located onset: the first hop whose env
+                            // reached a quarter of the recent maximum IS the
+                            // attack — wherever the arming trigger sat.
+                            let hist_max = t.hist.iter().cloned().fold(0.0f64, f64::max);
+                            let edge_idx = t
+                                .hist
+                                .iter()
+                                .position(|&e| e >= hist_max * 0.25)
+                                .unwrap_or(0);
+                            let hops_ago = (t.hist.len() - 1 - edge_idx) as u64;
+                            let edge = fed
+                                .saturating_sub(hops_ago * DETECT_HOP as u64)
+                                .saturating_sub(ENV_WINDOW as u64);
+                            let onset = edge.max(at.saturating_sub(ENV_WINDOW as u64));
+                            out.push(DetectedNote {
+                                on: true,
+                                pitch: t.pitch,
+                                velocity: velocity_from_peak(peak),
+                                at_sample: onset,
+                            });
+                            self.pending_offs
+                                .push((onset + ms_to_samples(rate, SYNTHETIC_OFF_MS), t.pitch));
+                        }
+                    }
+                } else {
+                    let refractory = t.last_emit != 0
+                        && fed.saturating_sub(t.last_emit)
+                            < ms_to_samples(rate, PITCH_REFRACTORY_MS);
+                    if !t.armed && env < t.peak * 0.6 {
+                        t.armed = true;
+                    }
+                    let bar = (t.slow * ENV_RISE_RATIO).max(ENV_ABS_FLOOR);
+                    // A pitch that already emitted only re-triggers on the
+                    // heels of a broadband strike (see `last_strike_at`).
+                    let restrike_ok = t.last_emit == 0
+                        || fed.saturating_sub(self_last_strike) < ms_to_samples(rate, 150);
+                    let rise = t.armed && restrike_ok && env > bar && t.slow > 0.0;
+                    if rise && !refractory {
+                        t.rise_hops = t.rise_hops.saturating_add(1);
+                    } else {
+                        t.rise_hops = 0;
+                    }
+                    // Two consecutive hops: one exponential noise fluke can
+                    // clear any ratio for a single reading, a struck note
+                    // holds its bin up.
+                    if t.rise_hops >= 2 {
+                        t.rise_hops = 0;
+                        // The rise shows once the window mostly covers the
+                        // attack: stamp the onset a window back.
+                        t.triggered_at =
+                            Some(fed.saturating_sub(ENV_WINDOW as u64 + DETECT_HOP as u64));
+                        self.debug_log.push(format!(
+                            "trig p={} env={env:.2e} slow={:.2e} peak={:.2e}",
+                            t.pitch, t.slow, t.peak
+                        ));
+                    }
+                }
+
+                // Follow the level: quickly down (a piano decays and the next
+                // rise is measured against the decayed level), slowly up (the
+                // attack must not lift its own bar). Adopt the first reading.
+                if t.slow == 0.0 {
+                    t.slow = env.max(1e-12);
+                } else if env < t.slow {
+                    t.slow = t.slow * 0.80 + env * 0.20;
+                } else {
+                    t.slow = t.slow * 0.97 + env * 0.03;
+                }
+                // Peak-hold with a piano-ish decay (~-5 dB/s at 375 hops/s).
+                t.peak = (t.peak * 0.997).max(env);
+            }
+        }
+
+        // Due synthetic releases.
+        if !self.pending_offs.is_empty() {
+            self.pending_offs.retain(|&(due, pitch)| {
+                if due <= fed {
+                    out.push(DetectedNote {
+                        on: false,
+                        pitch,
+                        velocity: 0,
+                        at_sample: due,
+                    });
+                    false
+                } else {
+                    true
+                }
             });
         }
-    }
-
-    /// Confirms every expected pitch whose window is now full, at most once
-    /// per onset.
-    fn try_confirm(&mut self, out: &mut Vec<DetectedNote>) {
-        let Some(w) = self.onset.as_mut() else { return };
-        let rate = self.sample_rate;
-        for &pitch in &self.expected {
-            if w.confirmed.contains(&pitch) {
-                continue;
-            }
-            let window = confirm_window(rate, pitch);
-            if w.buf.len() < window {
-                continue;
-            }
-            if pitch_present(&w.buf[..window], rate, pitch) {
-                w.confirmed.push(pitch);
-                let velocity = velocity_from_peak(w.peak);
-                out.push(DetectedNote {
-                    on: true,
-                    pitch,
-                    velocity,
-                    at_sample: w.at_sample,
-                });
-                self.pending_offs
-                    .push((w.at_sample + ms_to_samples(rate, SYNTHETIC_OFF_MS), pitch));
-            }
-        }
-    }
-
-    fn ms_to_samples(&self, ms: u64) -> u64 {
-        ms_to_samples(self.sample_rate, ms)
     }
 }
 
@@ -514,15 +688,44 @@ fn pitch_freq(pitch: u8) -> f64 {
 }
 
 /// The evidence window a pitch needs before its presence can be judged:
-/// enough cycles that the Goertzel main lobe separates it from the
-/// half-semitone controls (~17 periods), floored at the nominal window and
-/// capped at [`MAX_EVIDENCE`]. Low pitches therefore confirm later — the
-/// documented POC approximation behind [`DETECTION_CONFIRM_NOMINAL_MS`].
+/// enough cycles for a selective Goertzel reading (~17 periods), floored at
+/// the nominal window and capped at [`MAX_EVIDENCE`]. Low pitches therefore
+/// confirm later — the documented POC approximation behind
+/// [`DETECTION_CONFIRM_NOMINAL_MS`].
 fn confirm_window(rate: u32, pitch: u8) -> usize {
     let periods = 17.0 * f64::from(rate) / pitch_freq(pitch);
     (periods as usize)
         .max(ms_to_samples(rate, DETECTION_CONFIRM_NOMINAL_MS) as usize)
         .min(MAX_EVIDENCE)
+}
+
+/// Broadband RMS of `buf`.
+fn rms(buf: &[f32]) -> f64 {
+    if buf.is_empty() {
+        return 0.0;
+    }
+    let sum: f64 = buf.iter().map(|&x| f64::from(x) * f64::from(x)).sum();
+    (sum / buf.len() as f64).sqrt()
+}
+
+/// Goertzel power of `freq` over a Hann-windowed `buf`. The window is what
+/// makes the far-probe test discriminating: a rectangular window's −13 dB
+/// side lobes let one played note leak into every nearby expected bin far
+/// above the room floor (a synthetic C+E chord confirmed a never-played G);
+/// Hann drops the leakage below the probes.
+fn goertzel_hann(buf: &[f32], rate: u32, freq: f64) -> f64 {
+    let w = 2.0 * std::f64::consts::PI * freq / f64::from(rate);
+    let coeff = 2.0 * w.cos();
+    let n = buf.len();
+    let step = 2.0 * std::f64::consts::PI / (n.max(2) - 1) as f64;
+    let (mut s1, mut s2) = (0.0f64, 0.0f64);
+    for (i, &x) in buf.iter().enumerate() {
+        let hann = 0.5 * (1.0 - (step * i as f64).cos());
+        let s0 = f64::from(x) * hann + coeff * s1 - s2;
+        s2 = s1;
+        s1 = s0;
+    }
+    (s1 * s1 + s2 * s2 - coeff * s1 * s2) / (n as f64)
 }
 
 /// Goertzel power of `freq` over `buf`.
@@ -538,24 +741,63 @@ fn goertzel(buf: &[f32], rate: u32, freq: f64) -> f64 {
     (s1 * s1 + s2 * s2 - coeff * s1 * s2) / (buf.len() as f64)
 }
 
-/// Whether `pitch` is tonally present in `buf`: the energy at its fundamental
-/// must clearly beat semitone **controls** on both sides. Ratio-normalized,
-/// so detuning within the main lobe passes, a broadband transient (a
-/// metronome click) fails on the controls, and the absolute level does not
-/// matter beyond a floor. The fundamental alone decides: folding harmonics in
-/// let a neighboring pitch's fundamental leak through the harmonic bin (B4 at
-/// 494 Hz reading as C4's 523 Hz second harmonic).
-fn pitch_present(buf: &[f32], rate: u32, pitch: u8) -> bool {
+/// Tonal-versus-broadband confirmation against FAR probes. Adjacent-semitone
+/// controls looked discriminating but were a whack-a-mole on a real piano:
+/// E's control sat on an expected F (the mi/fa bug), and after stepping
+/// around expected pitches, G's control at F# still drowned in a *ringing*
+/// F's leakage (the sol bug). Probes ±3..±6 semitones out — skipping anything
+/// within a semitone of an expected pitch — measure the broadband floor a
+/// click or knock would raise, and no sustained neighbor note can sit on
+/// them. The trade, accepted for the POC: a wrong note one semitone off leaks
+/// into the expected bin and may pass — score-informed presence is not a
+/// wrong-note detector (the spec's "unreported extras carry no penalty"
+/// covers the reverse direction).
+fn pitch_present(buf: &[f32], rate: u32, pitch: u8, expected: &[u8]) -> bool {
     let f = pitch_freq(pitch);
-    let signal = goertzel(buf, rate, f);
-    if signal < 1e-7 {
+    let signal = goertzel_hann(buf, rate, f);
+    if signal < 1e-10 {
+        return false;
+    }
+    // Tonality gate, scale-free: a sine concentrates ~N/2 × its broadband
+    // power into its bin, noise concentrates ~1×. Requiring N/64 leaves a
+    // note carrying only a few percent of a chord's power detectable while
+    // making a broadband-only window (noise, clicks) unconfirmable — the
+    // guard that stops a noise fluke from becoming a phantom note whose
+    // refractory then swallows the real strike.
+    let broadband = rms(buf);
+    if signal < broadband * broadband * (buf.len() as f64 / 64.0) {
         return false;
     }
     let semitone = 2f64.powf(1.0 / 12.0);
-    let control = goertzel(buf, rate, f * semitone)
-        .max(goertzel(buf, rate, f / semitone))
-        .max(1e-9);
-    signal / control > 4.0
+    let mut probes: Vec<f64> = Vec::with_capacity(6);
+    for offset in [-6i16, -4, -3, 3, 4, 6] {
+        let probe_pitch = i16::from(pitch) + offset;
+        if !(0..=127).contains(&probe_pitch) {
+            continue;
+        }
+        let near_expected = expected
+            .iter()
+            .any(|&e| (i16::from(e) - probe_pitch).abs() <= 1);
+        if near_expected {
+            continue;
+        }
+        probes.push(goertzel_hann(
+            buf,
+            rate,
+            f * semitone.powi(i32::from(offset)),
+        ));
+    }
+    if probes.len() < 2 {
+        // A cluster so dense no probe is clean: absolute evidence alone.
+        return signal > 1e-8;
+    }
+    probes.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    let median = probes[probes.len() / 2].max(1e-12);
+    // 2×, not the 6× a sine suggested: a REAL piano note carries hammer
+    // noise and partial spread that lift the probes (on-device logs showed
+    // honest notes rejected in series at 6×). Broadband transients stay
+    // caught by the still-sounding check and the per-bin trigger.
+    signal / median > 2.0
 }
 
 /// Attack peak → MIDI velocity. A rough monotone map — audio velocity is an
@@ -669,20 +911,30 @@ mod tests {
 
     const RATE: u32 = 48_000;
 
-    /// `ms` of quiet room noise (well under the absolute floor).
-    fn noise(ms: u64) -> Vec<f32> {
-        let n = (ms * u64::from(RATE) / 1000) as usize;
+    /// Deterministic white-ish samples in ±amp (LCG): a REAL broadband
+    /// fixture. The earlier ±amp alternation was a pure Nyquist tone — a
+    /// pathological spectrum that made floors meaningless.
+    fn white(n: usize, amp: f32, seed: u64) -> Vec<f32> {
+        let mut state = seed;
         (0..n)
-            .map(|i| if i % 2 == 0 { 0.004 } else { -0.004 })
+            .map(|_| {
+                state = state
+                    .wrapping_mul(6364136223846793005)
+                    .wrapping_add(1442695040888963407);
+                let u = ((state >> 33) as f64 / f64::from(1u32 << 31)) - 1.0;
+                (u as f32) * amp
+            })
             .collect()
     }
 
-    /// `ms` of a loud click-like burst.
+    /// `ms` of quiet room noise (well under the absolute floor).
+    fn noise(ms: u64) -> Vec<f32> {
+        white((ms * u64::from(RATE) / 1000) as usize, 0.004, 7)
+    }
+
+    /// `ms` of a loud broadband click-like burst.
     fn burst(ms: u64) -> Vec<f32> {
-        let n = (ms * u64::from(RATE) / 1000) as usize;
-        (0..n)
-            .map(|i| if i % 2 == 0 { 0.5 } else { -0.5 })
-            .collect()
+        white((ms * u64::from(RATE) / 1000) as usize, 0.5, 99)
     }
 
     #[test]
@@ -746,17 +998,21 @@ mod tests {
     // -- Note detection ----------------------------------------------------
 
     /// `ms` of the sum of sines at the given MIDI pitches.
+    /// The bed matters: noiseless sines give near-zero far probes, and any
+    /// leakage then beats any ratio — a world no microphone lives in.
     fn tone(ms: u64, pitches: &[u8], amp: f32) -> Vec<f32> {
         let n = (ms * u64::from(RATE) / 1000) as usize;
+        let bed = white(n, 0.004, 21);
         (0..n)
             .map(|i| {
                 let t = i as f64 / f64::from(RATE);
-                pitches
+                let s: f64 = pitches
                     .iter()
                     .map(|&p| {
                         (2.0 * std::f64::consts::PI * pitch_freq(p) * t).sin() * f64::from(amp)
                     })
-                    .sum::<f64>() as f32
+                    .sum();
+                (s as f32) + bed[i]
             })
             .collect()
     }
@@ -787,7 +1043,10 @@ mod tests {
         // The timestamp is the onset's, not the confirmation's: within a few
         // hops of the level step.
         let err = ons[0].at_sample.abs_diff(quiet_samples);
-        assert!(err < 6 * DETECT_HOP as u64, "onset error: {err} samples");
+        // The rise shows once the envelope window covers the attack: the
+        // stamp is accurate to ~ENV_WINDOW plus a few hops (~25 ms), which
+        // the measured input offset absorbs.
+        assert!(err < 2400, "onset error: {err} samples");
     }
 
     #[test]
@@ -858,6 +1117,67 @@ mod tests {
         let ons: Vec<_> = events.iter().filter(|e| e.on).collect();
         assert_eq!(ons.len(), 1, "events: {events:?}");
         assert_eq!(ons[0].pitch, A4);
+    }
+
+    #[test]
+    fn adjacent_expected_semitones_both_detect() {
+        // E4 + F4 expected AND both sounding: E's +1-semitone control sits ON
+        // F, which vetoed every E before the controls learned to step around
+        // expected pitches (the mi/fa bug from the on-device pass).
+        const F4: u8 = 65;
+        let mut d = NoteDetector::new(RATE);
+        d.set_expected(vec![E4, F4]);
+        let events = play(&mut d, &[E4, F4], 400);
+
+        let mut on_pitches: Vec<u8> = events.iter().filter(|e| e.on).map(|e| e.pitch).collect();
+        on_pitches.sort_unstable();
+        assert_eq!(on_pitches, vec![E4, F4], "events: {events:?}");
+    }
+
+    #[test]
+    fn sol_detects_while_fa_rings() {
+        // E-F-G all expected, F and G sounding together (F under sustain):
+        // adjacent-semitone controls put G's control on F# where the ringing
+        // F leaks — far probes must not care.
+        const F4: u8 = 65;
+        let mut d = NoteDetector::new(RATE);
+        d.set_expected(vec![E4, F4, G4]);
+        let events = play(&mut d, &[F4, G4], 400);
+
+        let mut on_pitches: Vec<u8> = events.iter().filter(|e| e.on).map(|e| e.pitch).collect();
+        on_pitches.sort_unstable();
+        assert_eq!(on_pitches, vec![F4, G4], "events: {events:?}");
+    }
+
+    #[test]
+    fn wrong_semitone_neighbor_does_not_pass() {
+        // C4 expected, B3 played (si for do, the on-device report): B leaks
+        // into C's bin enough to trigger and probe-pass — the unexpected-
+        // neighbor comparison is what says "the louder bin is the played
+        // one, and it is not the expected one".
+        const B3: u8 = 59;
+        let mut d = NoteDetector::new(RATE);
+        d.set_expected(vec![C4]);
+        let events = play(&mut d, &[B3], 400);
+        assert!(events.iter().all(|e| !e.on), "events: {events:?}");
+    }
+
+    #[test]
+    fn repeated_same_note_emits_twice() {
+        // mi-mi, the opening of half the repertoire: the first strike rings,
+        // decays a little, and the SAME pitch is struck again. The re-arm
+        // hysteresis plus the broadband-strike gate must let the repeat
+        // through (a beat between ringing neighbors must not — see
+        // adjacent_expected_semitones_both_detect).
+        let mut d = NoteDetector::new(RATE);
+        d.set_expected(vec![E4]);
+        let mut events = play(&mut d, &[E4], 300);
+        events.extend(d.feed(&tone(250, &[E4], 0.08)));
+        events.extend(d.feed(&tone(300, &[E4], 0.35)));
+
+        let ons: Vec<_> = events.iter().filter(|e| e.on).collect();
+        assert_eq!(ons.len(), 2, "events: {events:?}");
+        assert!(ons.iter().all(|e| e.pitch == E4));
     }
 
     #[test]

@@ -21,6 +21,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../analytics/usage_actions.dart';
 import '../services/audio_capture_service.dart';
+import '../src/rust/api/audio_input.dart' show InputRouteKind;
 import '../services/preferences_service.dart';
 import 'performance_scoring_core.dart';
 import 'selected_audio_input.dart';
@@ -106,14 +107,33 @@ class InputCalibration extends _$InputCalibration {
 
   Future<void> _restore() async {
     var stored = const <String, double>{};
+    CaptureRoute? lastRoute;
     try {
       final raw = await ref
           .read(preferencesServiceProvider)
           .getString(prefsKey);
       if (raw != null) {
-        stored = (jsonDecode(raw) as Map<String, dynamic>).map(
-          (k, v) => MapEntry(k, (v as num).toDouble()),
-        );
+        final decoded = jsonDecode(raw) as Map<String, dynamic>;
+        if (decoded['measurements'] is Map<String, dynamic>) {
+          stored = (decoded['measurements'] as Map<String, dynamic>).map(
+            (k, v) => MapEntry(k, (v as num).toDouble()),
+          );
+          final r = decoded['lastRoute'] as Map<String, dynamic>?;
+          final name = r?['name'] as String?;
+          if (name != null) {
+            lastRoute = CaptureRoute(
+              name: name,
+              kind:
+                  InputRouteKind.values.asNameMap()[r?['kind'] as String?] ??
+                  InputRouteKind.other,
+              refusedBluetooth: false,
+            );
+          }
+        } else {
+          // Legacy shape: the bare name→ms map from before the route was
+          // persisted alongside.
+          stored = decoded.map((k, v) => MapEntry(k, (v as num).toDouble()));
+        }
       }
     } catch (_) {
       // Storage unavailable / corrupt → no stored measurements.
@@ -122,7 +142,14 @@ class InputCalibration extends _$InputCalibration {
     try {
       route = await ref.read(audioCaptureServiceProvider).activeRoute();
     } catch (_) {}
-    state = state.copyWith(stored: stored, route: route, hydrated: true);
+    // A mobile playback session reports no input at all: outside a capture
+    // session the platform's answer is null even though the microphone is
+    // right there. Present the persisted last route rather than nothing.
+    state = state.copyWith(
+      stored: stored,
+      route: route ?? lastRoute,
+      hydrated: true,
+    );
   }
 
   Future<void> _refreshRoute() async {
@@ -134,6 +161,10 @@ class InputCalibration extends _$InputCalibration {
   }
 
   void _onRouteChanged(CaptureRoute? route) {
+    // Null is session noise, not a vanished microphone: closing the capture
+    // session (mobile flips back to a playback-only session) reports no
+    // inputs. Keep presenting the route we know — and its measurement.
+    if (route == null && state.route != null) return;
     // The stored map is keyed by route, so switching routes needs no
     // invalidation: the new route reads its own (possibly absent) entry. A
     // standing refusal lifts here too (spec: refusal lifts when the route
@@ -183,15 +214,22 @@ class InputCalibration extends _$InputCalibration {
     final stored = Map<String, double>.from(state.stored);
     if (route != null) stored[route.name] = measurement.latencyMs;
     state = state.copyWith(stored: stored, status: CalibrationStatus.done);
-    _persist(stored);
+    _persist(stored, route ?? state.route);
     _ship(_latencyBand(measurement.latencyMs));
   }
 
-  Future<void> _persist(Map<String, double> stored) async {
+  Future<void> _persist(Map<String, double> stored, CaptureRoute? route) async {
     try {
       await ref
           .read(preferencesServiceProvider)
-          .setString(prefsKey, jsonEncode(stored));
+          .setString(
+            prefsKey,
+            jsonEncode({
+              'measurements': stored,
+              if (route != null)
+                'lastRoute': {'name': route.name, 'kind': route.kind.name},
+            }),
+          );
     } catch (_) {
       // Best-effort: the in-memory value still applies this session.
     }
