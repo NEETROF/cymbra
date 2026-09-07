@@ -25,6 +25,7 @@ import '../../state/session_notifier.dart';
 import '../../theme/cymbra_theme.dart';
 import '../../widgets/app_snackbar.dart';
 import '../../widgets/language_selector.dart';
+import '../../widgets/legal_link.dart';
 import 'auth_messages.dart';
 import 'email_sign_in_screen.dart';
 
@@ -229,26 +230,6 @@ class _LegalConsent extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final links = legalLinksFor(ref.watch(appLocaleProvider).languageCode);
-    final launcher = ref.read(legalLinkLauncherProvider);
-
-    const bodyStyle = TextStyle(
-      color: CymbraColors.onSurfaceVariant,
-      fontSize: 12,
-      height: 1.4,
-    );
-    const linkStyle = TextStyle(
-      color: CymbraColors.primary,
-      fontSize: 12,
-      height: 1.4,
-      decoration: TextDecoration.underline,
-      decorationColor: CymbraColors.primary,
-    );
-
-    Widget link(Key key, String label, VoidCallback onTap) => GestureDetector(
-      key: key,
-      onTap: onTap,
-      child: Text(label, style: linkStyle),
-    );
 
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 360),
@@ -258,26 +239,26 @@ class _LegalConsent extends ConsumerWidget {
             TextSpan(text: l10n.entryLegalPrefix),
             WidgetSpan(
               alignment: PlaceholderAlignment.middle,
-              child: link(
-                const Key('entry-legal-terms'),
-                l10n.legalTerms,
-                () => launcher.open(links.terms),
+              child: LegalLink(
+                key: const Key('entry-legal-terms'),
+                label: l10n.legalTerms,
+                url: links.terms,
               ),
             ),
             TextSpan(text: l10n.entryLegalSeparator),
             WidgetSpan(
               alignment: PlaceholderAlignment.middle,
-              child: link(
-                const Key('entry-legal-privacy'),
-                l10n.legalPrivacy,
-                () => launcher.open(links.privacy),
+              child: LegalLink(
+                key: const Key('entry-legal-privacy'),
+                label: l10n.legalPrivacy,
+                url: links.privacy,
               ),
             ),
             TextSpan(text: l10n.entryLegalSuffix),
           ],
         ),
         textAlign: TextAlign.center,
-        style: bodyStyle,
+        style: legalBodyStyle,
       ),
     );
   }

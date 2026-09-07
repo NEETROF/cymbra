@@ -792,6 +792,7 @@
   "planIvePaidRefresh": "Ho pagato — aggiorna",
   "planProductMonthly": "Mensile",
   "planProductYearly": "Annuale",
+  "planLegalRenewal": "Gli abbonamenti si rinnovano automaticamente finché non li disdici dall'account del tuo store.",
   "planStoreUnavailable": "Lo store non è disponibile al momento. Riprova più tardi.",
   "planManagedElsewhere": "Il tuo abbonamento è gestito su {channel}.",
   "planRestore": "Ripristina acquisti",

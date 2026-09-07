@@ -21,8 +21,10 @@ import '../services/app_platform.dart';
 import '../services/legal_links.dart';
 import '../services/plan_service.dart';
 import '../services/store_client.dart';
+import '../state/app_locale.dart';
 import '../state/plan_notifier.dart';
 import '../theme/cymbra_theme.dart';
+import '../widgets/legal_link.dart';
 import '../widgets/plan_listener.dart';
 
 /// Push the plan screen (plan status + paywall) from any locked surface or the
@@ -381,8 +383,56 @@ class _PurchaseCard extends ConsumerWidget {
               ),
             ] else
               _StoreProducts(products: products, busy: busy),
+            const _SubscriptionLegal(),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// App Store guideline 3.1.2 asks the subscription flow *itself* to carry the
+/// renewal terms and functional links to the Terms of Use and the privacy
+/// policy. Their absence is what got 1.30.0 refused: the same links already
+/// existed on the sign-in screen, which the reviewer never has to pass through
+/// to reach the paywall. It sits inside the purchase card so both buy paths —
+/// store products and the desktop web checkout — carry it.
+class _SubscriptionLegal extends ConsumerWidget {
+  const _SubscriptionLegal();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final links = legalLinksFor(ref.watch(appLocaleProvider).languageCode);
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l10n.planLegalRenewal,
+            key: const Key('plan-legal-renewal'),
+            style: legalBodyStyle,
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 16,
+            runSpacing: 4,
+            children: [
+              LegalLink(
+                key: const Key('plan-legal-terms'),
+                label: l10n.legalTerms,
+                url: links.terms,
+              ),
+              LegalLink(
+                key: const Key('plan-legal-privacy'),
+                label: l10n.legalPrivacy,
+                url: links.privacy,
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

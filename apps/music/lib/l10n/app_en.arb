@@ -3518,6 +3518,10 @@
   "@planProductYearly": {
     "description": "Product label."
   },
+  "planLegalRenewal": "Subscriptions renew automatically until you cancel them in your store account.",
+  "@planLegalRenewal": {
+    "description": "Auto-renewal disclosure shown with the subscribe buttons (App Store guideline 3.1.2)."
+  },
   "planStoreUnavailable": "The store is not available right now. Please try again later.",
   "@planStoreUnavailable": {
     "description": "Store products could not be loaded."
@@ -3787,7 +3791,7 @@
   },
   "calibrationScoreKitTitle": "This score's kit",
   "@calibrationScoreKitTitle": {
-    "description": "Header of the calibration table when a percussion score is loaded: the rows are that score\u2019s pieces, learned or not."
+    "description": "Header of the calibration table when a percussion score is loaded: the rows are that score’s pieces, learned or not."
   },
   "calibrationRowMissing": "Not calibrated yet",
   "@calibrationRowMissing": {
@@ -3795,7 +3799,7 @@
   },
   "calibrationStartMissing": "{count, plural, =1{Calibrate the missing one} other{Calibrate the {count} missing}}",
   "@calibrationStartMissing": {
-    "description": "Primary action when some of the score\u2019s pieces are calibrated and others are not: a pass over the missing ones only.",
+    "description": "Primary action when some of the score’s pieces are calibrated and others are not: a pass over the missing ones only.",
     "placeholders": {
       "count": {
         "type": "int"
