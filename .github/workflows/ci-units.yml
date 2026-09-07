@@ -1,0 +1,41 @@
+name: ci-units
+
+# Guards CI itself: every buildable unit under apps/, packages/ and crates/ must be
+# watched by at least one workflow, so a change confined to one of them cannot merge
+# unchecked.
+#
+# This is NOT the 80% line-coverage gate (that lives in `rust` and `flutter`). It answers
+# a different question: does anything at all run when this unit changes?
+#
+# Deliberately has no paths filter. The failure it exists to catch is "someone added a
+# directory", which by definition is not covered by any filter yet — a filtered version
+# of this check could never fire on the case it is for. It costs a few seconds.
+#
+# See scripts/check_ci_units.py for why coverage is derived from the workflows rather
+# than from a checked-in manifest.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-units-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  units:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install PyYAML
+        run: pip install --disable-pip-version-check pyyaml
+      - name: Every unit is watched by a workflow
+        run: python3 scripts/check_ci_units.py --list

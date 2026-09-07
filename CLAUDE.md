@@ -132,7 +132,8 @@ code needs tests. CI fails under 80% and also reports to SonarCloud (decoration)
 
 Run locally before pushing:
 ```bash
-cargo llvm-cov --workspace --fail-under-lines 80 --ignore-filename-regex 'frb_generated|/lib\.rs|/midi\.rs|/musicxml\.rs|/audio\.rs|/renderer\.rs|/platform_log\.rs'
+cargo llvm-cov --workspace --fail-under-lines 80 \
+  --ignore-filename-regex "$(cat .github/coverage-ignore-regex.txt)"
 cd apps/music && flutter test --coverage --exclude-tags golden   # then check lcov
 ```
 
@@ -156,6 +157,37 @@ cd apps/music && flutter test --coverage --exclude-tags golden   # then check lc
 
 VSCode: use the `music (debug)` and `music: integration test` launch configs
 (`.vscode/launch.json`).
+
+## CI — every unit is watched
+
+Adding a directory under `apps/`, `packages/` or `crates/` means adding it to the
+paths filter of the workflow that should check it. The `ci-units` workflow fails the
+pull request otherwise, naming the unit — a change confined to a unit no workflow
+watches would merge with no CI at all. Run it locally with
+`python3 scripts/check_ci_units.py --list`.
+
+**Naming.** A workflow that covers one target is `<target>-<verb>`
+(`music-check`, `music-build`, `back-office-check`, `site-check`, `backend-deploy`).
+A workflow with **no target prefix is repo-wide** — `rust`, `sonar`, `commitlint`,
+`codeql`, `release-please`, `openspec-archive`, `ci-units` — and that absence is the
+signal. Prefix with the app or deployable, never the stack: `flutter` was true until a
+second Flutter package existed, `rust` is honest because it really does run
+`cargo --workspace` over everything.
+
+**Coverage exclusions have one source**: `.github/coverage-ignore-regex.txt`, read by
+both `rust` (the 80% gate) and `sonar`. They used to be two inline copies and had
+drifted — sonar was missing the plans/billing exclusions.
+
+Two things CI will not let you get away with:
+
+- **A workflow filters in one of two places**, and both count: a top-level
+  `on.push.paths` / `on.pull_request.paths`, or a `dorny/paths-filter` step in a
+  `changes` job for workflows that always start and gate their real jobs. Most of this
+  repo uses the second.
+- **A wildcard in a filter must match what the job does.** `rust` and `sonar` may claim
+  `apps/*/rust/**` because they run `cargo --workspace`; `frb-codegen` may not, because
+  its body is one app. A trigger broader than its job produces runs that verify the
+  wrong thing.
 
 ## Commits
 

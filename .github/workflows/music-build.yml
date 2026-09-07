@@ -1,4 +1,4 @@
-name: build
+name: music-build
 
 # Native-build gate. Compiles the app for every native target (Android + the
 # three desktops) — the only CI that exercises cargokit per-platform and code
@@ -42,7 +42,7 @@ jobs:
               - 'Cargo.toml'
               - 'Cargo.lock'
               - 'rust-toolchain.toml'
-              - '.github/workflows/build.yml'
+              - '.github/workflows/music-build.yml'
               - '.github/actions/flutter-native-setup/action.yml'
 
   android:

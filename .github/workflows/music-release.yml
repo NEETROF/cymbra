@@ -1,4 +1,4 @@
-name: release-build
+name: music-release
 
 # Builds the music app for desktop + Android + iOS and attaches the artifacts to
 # the GitHub Release that release-please created for a `music-v*` tag.
