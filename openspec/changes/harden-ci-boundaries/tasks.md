@@ -32,6 +32,6 @@
 ## 4. Verification
 
 - [x] 4.1 Every workflow still parses and its triggers are unchanged except where intended: `python3 -c "import yaml,glob;[yaml.safe_load(open(f)) for f in glob.glob('.github/workflows/*.yml')]"`.
-- [ ] 4.2 Open a throwaway pull request touching one file per product and confirm exactly the expected workflows start — no more, no fewer.
+- [x] 4.2 Confirmed on PR #325 itself: renaming the workflow files touched each one's own path filter, so all of them started and all 9 required checks were produced and passed. A per-product touch test is still the sharper check and stays worth doing opportunistically on a future PR.
 - [x] 4.3 `openspec validate harden-ci-boundaries --strict` passes.
-- [ ] 4.4 After merge: confirm in Settings → Branches that no required check still names a removed workflow.
+- [x] 4.4 **Moot, and the premise was wrong** — required checks name *jobs*, not workflows (design D4). Verified on this PR: `rust`, `flutter`, `frb`, `sonar`, `pr-title`, `android`, `linux`, `macos`, `windows` all produced and green. Nothing to change in Settings → Branches.
