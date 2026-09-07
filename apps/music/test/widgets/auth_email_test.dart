@@ -176,6 +176,20 @@ void main() {
 
       expect(find.textContaining('Too many attempts'), findsOneWidget);
     });
+
+    // The emailed code is a UUID (backend mints `Uuid::new_v4()`), so a number pad
+    // cannot type it — on iPad it left the field unfillable without a paste.
+    testWidgets('the code field takes text, not digits', (tester) async {
+      await _pump(
+        tester,
+        const OtpVerifyScreen(email: 'a@x.dev'),
+        auth: FakeAuthService(),
+      );
+
+      final field = tester.widget<TextField>(find.byKey(const Key('otp-code')));
+      expect(field.keyboardType, TextInputType.text);
+      expect(field.autocorrect, isFalse);
+    });
   });
 
   group('Forgot password (task 5.4)', () {

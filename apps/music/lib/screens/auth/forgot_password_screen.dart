@@ -123,7 +123,11 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           TextField(
             key: const Key('forgot-code'),
             controller: _code,
-            keyboardType: TextInputType.number,
+            // Same shape as the verification code: a UUID, not digits.
+            keyboardType: TextInputType.text,
+            autocorrect: false,
+            enableSuggestions: false,
+            textCapitalization: TextCapitalization.none,
             decoration: InputDecoration(labelText: l10n.fieldResetCode),
           ),
           const SizedBox(height: 16),
