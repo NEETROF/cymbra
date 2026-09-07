@@ -1,4 +1,4 @@
-name: site
+name: site-check
 
 # Web-site gate (apps/site, Astro): `astro check` + production build on PRs and
 # main pushes that touch the site (dorny/paths-filter), always on manual dispatch.
@@ -30,7 +30,7 @@ jobs:
             site:
               - 'apps/site/**'
               - 'packages/web-auth/**'
-              - '.github/workflows/site.yml'
+              - '.github/workflows/site-check.yml'
 
   build:
     needs: changes

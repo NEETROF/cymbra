@@ -1,4 +1,4 @@
-name: flutter
+name: music-check
 
 on:
   push:
@@ -35,7 +35,7 @@ jobs:
               - 'melos.yaml'
               - 'pubspec.yaml'
               - 'pubspec.lock'
-              - '.github/workflows/flutter.yml'
+              - '.github/workflows/music-check.yml'
 
   flutter:
     needs: changes

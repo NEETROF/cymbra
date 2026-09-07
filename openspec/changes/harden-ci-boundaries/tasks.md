@@ -21,17 +21,17 @@
 
 ## 3. Names on one axis
 
-- [ ] 3.1 Split `rust` into `backend-check` (`backend/**`) and `engine-check` (`crates/**`, plus `apps/*/rust/**` if it stays there) — one name currently covers the monolith, the shared engine crates and app FFI.
-- [ ] 3.2 Rename `flutter` → `music-check` and `build` → `music-build`. Both cover only `apps/music/**` today, and neither name says which app or which check.
-- [ ] 3.3 Rename `release-build` → `music-release`, `back-office` → `back-office-check`, `site` → `site-check`.
-- [ ] 3.4 Leave `commitlint`, `codeql`, `sonar`, `release-please`, `openspec-archive` unprefixed — that absence becomes the signal for "repo-wide".
-- [ ] 3.5 Update every reference to a renamed workflow: branch protection required checks, badges, and any `needs:`/`workflow_call` between workflows. **A renamed required check silently stops gating** — verify in the repo settings after merging, not before.
-- [ ] 3.6 Reconcile the two `--ignore-filename-regex` lists (`.github/workflows/rust.yml` ~:78, `sonar.yml` ~:93) into one source; they have already diverged. Do not anchor or split the regex, and keep the coverage gate as a single workspace-wide run.
-- [ ] 3.7 Record the naming rule in `CLAUDE.md` alongside 1.6.
+- [x] 3.1 ~~Split `rust`~~ — **not done, deliberately.** `rust.yml` is one workspace-wide run: `cargo fmt --all`, `clippy --workspace`, and `llvm-cov --workspace --fail-under-lines 80`, the aggregate gate CLAUDE.md mandates. Splitting it means either compiling the whole workspace twice or scoping with `-p`, which destroys that single gate. And the name breaks no rule: with no target prefix it reads as repo-wide, which it is. Recorded in design.md D3.
+- [x] 3.2 Rename `flutter` → `music-check` and `build` → `music-build`. Both cover only `apps/music/**` today, and neither name says which app or which check.
+- [x] 3.3 Rename `release-build` → `music-release`, `back-office` → `back-office-check`, `site` → `site-check`.
+- [x] 3.4 Leave `commitlint`, `codeql`, `sonar`, `release-please`, `openspec-archive` unprefixed — that absence becomes the signal for "repo-wide".
+- [x] 3.5 Update every reference to a renamed workflow. **The earlier warning was imprecise**: branch protection matches *job* names, not workflow names — the required checks are `rust`, `flutter`, `frb`, `sonar`, `pr-title`, `android`, `linux`, `macos`, `windows`. Renaming a workflow is therefore safe; renaming a job is not. No job was renamed, and all nine required checks are still produced (verified). No badge or `workflow_call` referenced a renamed workflow.
+- [x] 3.6 Reconcile the two `--ignore-filename-regex` lists (`.github/workflows/rust.yml` ~:78, `sonar.yml` ~:93) into one source; they have already diverged. Do not anchor or split the regex, and keep the coverage gate as a single workspace-wide run.
+- [x] 3.7 Record the naming rule in `CLAUDE.md` alongside 1.6.
 
 ## 4. Verification
 
-- [ ] 4.1 Every workflow still parses and its triggers are unchanged except where intended: `python3 -c "import yaml,glob;[yaml.safe_load(open(f)) for f in glob.glob('.github/workflows/*.yml')]"`.
+- [x] 4.1 Every workflow still parses and its triggers are unchanged except where intended: `python3 -c "import yaml,glob;[yaml.safe_load(open(f)) for f in glob.glob('.github/workflows/*.yml')]"`.
 - [ ] 4.2 Open a throwaway pull request touching one file per product and confirm exactly the expected workflows start — no more, no fewer.
-- [ ] 4.3 `openspec validate harden-ci-boundaries --strict` passes.
+- [x] 4.3 `openspec validate harden-ci-boundaries --strict` passes.
 - [ ] 4.4 After merge: confirm in Settings → Branches that no required check still names a removed workflow.

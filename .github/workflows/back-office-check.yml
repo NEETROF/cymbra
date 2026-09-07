@@ -1,4 +1,4 @@
-name: back-office
+name: back-office-check
 
 # Web-console gate (apps/back-office, Vue 3 + gRPC-web). Generates the TS stubs
 # from the backend protos, then typechecks, runs the Vitest unit/widget suite and
@@ -38,7 +38,7 @@ jobs:
               - 'backend/music/proto/**'
               - 'crates/musicxml-wasm/**'
               - 'crates/musicxml-core/**'
-              - '.github/workflows/back-office.yml'
+              - '.github/workflows/back-office-check.yml'
 
   web-auth:
     needs: changes
