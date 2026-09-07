@@ -46,8 +46,6 @@ pub struct RcConfig {
     pub api_key: String,
     /// Project id (dashboard deep links only).
     pub project_id: Option<String>,
-    /// Apply `SANDBOX` events / subscriptions (staging only).
-    pub allow_sandbox: bool,
 }
 
 /// RevenueCat store name → ledger source. Accepts the webhook casing
@@ -209,7 +207,10 @@ pub fn map_event(
     ev: &RcEvent,
     premium_products: &[String],
     now: DateTime<Utc>,
-    allow_sandbox: bool,
+    // Whether SANDBOX is honoured **for the accounts this event names** (change:
+    // scope-sandbox-to-tester-accounts). Resolved by the caller, which holds the
+    // ids; this function stays pure and only applies the decision.
+    accept_sandbox: bool,
 ) -> Mapped {
     use EntitlementStatus as S;
     let kind = ev.kind.as_str();
@@ -233,7 +234,7 @@ pub fn map_event(
         .environment
         .as_deref()
         .is_some_and(|e| e.eq_ignore_ascii_case("SANDBOX"))
-        && !allow_sandbox
+        && !accept_sandbox
     {
         return Mapped::Skip(SkipReason::Sandbox);
     }
@@ -314,7 +315,8 @@ pub fn map_customer(
     subs: &[StoreSubscription],
     premium_products: &[String],
     now: DateTime<Utc>,
-    allow_sandbox: bool,
+    // Whether SANDBOX is honoured for `user_id` — resolved by the caller.
+    accept_sandbox: bool,
 ) -> Vec<EntitlementWrite> {
     use EntitlementStatus as S;
     let mut out = Vec::new();
@@ -322,7 +324,7 @@ pub fn map_customer(
         let Some(source) = store_to_source(&s.store) else {
             continue;
         };
-        if (s.is_sandbox && !allow_sandbox) || !is_premium_product(premium_products, &s.product_id)
+        if (s.is_sandbox && !accept_sandbox) || !is_premium_product(premium_products, &s.product_id)
         {
             continue;
         }
@@ -392,6 +394,34 @@ pub fn authenticate(cfg: &RcConfig, authorization: Option<&str>) -> Result<()> {
 /// kill-switch → ingest exactly once. `customers` (the customer API) is only
 /// needed for `TRANSFER` destinations; without it they are logged and left to
 /// the next reconciliation.
+/// Whether this event's **sandbox** transactions are honoured.
+///
+/// A `TRANSFER` names several accounts, and a sandbox entitlement must not reach an
+/// account that is not itself a tester by being moved onto it — so a transfer is
+/// honoured only when **every** account it names is marked. Every other event type
+/// names one account, `app_user_id`.
+///
+/// An id that is not a Cymbra account (RevenueCat keeps an `$RCAnonymousID` alias
+/// when the SDK configured before sign-in) is simply not a tester: the event is then
+/// skipped as `Sandbox` rather than `MalformedUser`, which the ingest counters show.
+async fn sandbox_accepted_for(svc: &PlanService, ev: &RcEvent) -> Result<bool> {
+    let ids: Vec<String> = if ev.kind == "TRANSFER" {
+        ev.transferred_from
+            .iter()
+            .chain(ev.transferred_to.iter())
+            .cloned()
+            .collect()
+    } else {
+        vec![ev.app_user_id.clone()]
+    };
+    let ids: Vec<String> = ids.into_iter().filter(|s| !s.is_empty()).collect();
+    if ids.is_empty() {
+        return Ok(false);
+    }
+    let marked = svc.store_testers_among(&ids).await?;
+    Ok(ids.iter().all(|id| marked.contains(id)))
+}
+
 pub async fn handle_webhook(
     svc: &PlanService,
     cfg: &RcConfig,
@@ -406,7 +436,8 @@ pub async fn handle_webhook(
         .map_err(|e| AppError::InvalidArgument(format!("revenuecat webhook body: {e}")))?;
     let ev = parsed.event;
     let products = paywall.products();
-    let mapped = map_event(&ev, &products, now, cfg.allow_sandbox);
+    let accept_sandbox = sandbox_accepted_for(svc, &ev).await?;
+    let mapped = map_event(&ev, &products, now, accept_sandbox);
     let digest = payload_digest(body);
     match mapped {
         Mapped::Skip(reason) => {
@@ -479,8 +510,7 @@ pub async fn handle_webhook(
             match customers {
                 Some(c) => {
                     for uid in to.iter().filter(|u| Uuid::parse_str(u).is_ok()) {
-                        resynced +=
-                            sync_customer(svc, c, uid, &products, cfg.allow_sandbox, now).await?;
+                        resynced += sync_customer(svc, c, uid, &products, now).await?;
                     }
                 }
                 None if !to.is_empty() => tracing::warn!(
@@ -506,11 +536,14 @@ pub async fn sync_customer(
     customers: &dyn StoreCustomerSource,
     user_id: &str,
     premium_products: &[String],
-    allow_sandbox: bool,
     now: DateTime<Utc>,
 ) -> Result<u64> {
+    // Resolved here rather than passed in: every caller already had to hand us the
+    // account, and threading a policy through three call sites is how the old
+    // process-wide flag stayed invisible.
+    let accept_sandbox = svc.is_store_tester(user_id).await?;
     let subs = customers.subscriptions(user_id).await?;
-    let writes = map_customer(user_id, &subs, premium_products, now, allow_sandbox);
+    let writes = map_customer(user_id, &subs, premium_products, now, accept_sandbox);
     let n = writes.len() as u64;
     for w in writes {
         svc.apply(w).await?;
@@ -579,7 +612,7 @@ pub fn project_subscriber(sub: &Subscriber) -> Vec<StoreSubscription> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::billing::tests::service;
+    use crate::billing::tests::{service, service_marking, service_without_testers};
     use crate::model::EntitlementStatus as S;
     use crate::ports::{FixedPaywallConfig, MockStoreCustomerSource};
     use chrono::Duration;
@@ -603,12 +636,11 @@ mod tests {
             .event
     }
 
-    fn cfg(allow_sandbox: bool) -> RcConfig {
+    fn cfg() -> RcConfig {
         RcConfig {
             webhook_secret: "s3cret".into(),
             api_key: "sk_test".into(),
             project_id: None,
-            allow_sandbox,
         }
     }
 
@@ -984,7 +1016,7 @@ mod tests {
 
     #[test]
     fn authentication_is_exact() {
-        let c = cfg(true);
+        let c = cfg();
         assert!(authenticate(&c, Some("s3cret")).is_ok());
         for bad in [
             None,
@@ -1007,7 +1039,7 @@ mod tests {
         let pw = paywall(true, true);
         let out = handle_webhook(
             &svc,
-            &cfg(true),
+            &cfg(),
             &pw,
             None,
             Some("s3cret"),
@@ -1026,7 +1058,7 @@ mod tests {
         }
         let again = handle_webhook(
             &svc,
-            &cfg(true),
+            &cfg(),
             &pw,
             None,
             Some("s3cret"),
@@ -1046,7 +1078,7 @@ mod tests {
         let pw = paywall(true, true);
         let r = handle_webhook(
             &svc,
-            &cfg(true),
+            &cfg(),
             &pw,
             None,
             Some("wrong"),
@@ -1058,16 +1090,7 @@ mod tests {
         assert!(writes.lock().unwrap().is_empty());
         assert!(events.lock().unwrap().is_empty());
         // garbage body after good auth: invalid argument, nothing recorded
-        let r = handle_webhook(
-            &svc,
-            &cfg(true),
-            &pw,
-            None,
-            Some("s3cret"),
-            b"not json",
-            now(),
-        )
-        .await;
+        let r = handle_webhook(&svc, &cfg(), &pw, None, Some("s3cret"), b"not json", now()).await;
         assert!(matches!(r, Err(AppError::InvalidArgument(_))));
         assert!(events.lock().unwrap().is_empty());
     }
@@ -1078,7 +1101,7 @@ mod tests {
         let pw = paywall(true, false); // google off
         let out = handle_webhook(
             &svc,
-            &cfg(true),
+            &cfg(),
             &pw,
             None,
             Some("s3cret"),
@@ -1093,13 +1116,187 @@ mod tests {
         assert!(events.lock().unwrap().is_empty());
     }
 
+    /// A fixture with one field changed — every captured payload is SANDBOX, so
+    /// the production cases have to be built rather than recorded.
+    fn body_with(name: &str, edit: impl FnOnce(&mut serde_json::Value)) -> String {
+        let mut v: serde_json::Value = serde_json::from_str(&fixture(name)).unwrap();
+        edit(v.get_mut("event").unwrap());
+        v.to_string()
+    }
+
+    // The whole point of scope-sandbox-to-tester-accounts: the same sandbox payload
+    // lands or does not, depending only on the account.
+    #[tokio::test]
+    async fn sandbox_is_applied_for_a_tester_and_dropped_for_everyone_else() {
+        let pw = paywall(true, true);
+        let (tester, tester_writes, _) = service();
+        let out = handle_webhook(
+            &tester,
+            &cfg(),
+            &pw,
+            None,
+            Some("s3cret"),
+            fixture("initial_purchase").as_bytes(),
+            now(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(out, WebhookOutcome::Ingested(IngestOutcome::Applied));
+        assert_eq!(tester_writes.lock().unwrap().len(), 1);
+
+        let (plain, plain_writes, _) = service_without_testers();
+        let out = handle_webhook(
+            &plain,
+            &cfg(),
+            &pw,
+            None,
+            Some("s3cret"),
+            fixture("initial_purchase").as_bytes(),
+            now(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(out, WebhookOutcome::Skipped(SkipReason::Sandbox));
+        assert!(plain_writes.lock().unwrap().is_empty());
+    }
+
+    // The mark must gate SANDBOX only. A production purchase by an ordinary
+    // customer is the whole business — it must not need a mark.
+    #[tokio::test]
+    async fn production_events_ignore_the_mark() {
+        let pw = paywall(true, true);
+        let (plain, writes, _) = service_without_testers();
+        let body = body_with("initial_purchase", |e| {
+            e["environment"] = serde_json::json!("PRODUCTION");
+        });
+        let out = handle_webhook(
+            &plain,
+            &cfg(),
+            &pw,
+            None,
+            Some("s3cret"),
+            body.as_bytes(),
+            now(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(out, WebhookOutcome::Ingested(IngestOutcome::Applied));
+        assert_eq!(writes.lock().unwrap().len(), 1);
+    }
+
+    // Clearing the mark stops NEW sandbox events. Rows already written stay: they
+    // are history, and the ledger is forward-only.
+    #[tokio::test]
+    async fn clearing_the_mark_stops_new_sandbox_events_and_keeps_past_rows() {
+        let pw = paywall(true, true);
+        let (svc, writes, _) = service();
+        handle_webhook(
+            &svc,
+            &cfg(),
+            &pw,
+            None,
+            Some("s3cret"),
+            fixture("initial_purchase").as_bytes(),
+            now(),
+        )
+        .await
+        .unwrap();
+        let written = writes.lock().unwrap().len();
+        assert_eq!(written, 1);
+
+        // Same account, mark gone: the renewal that would have extended it is now
+        // refused, and nothing rewrites what was already applied.
+        let (plain, plain_writes, _) = service_without_testers();
+        let out = handle_webhook(
+            &plain,
+            &cfg(),
+            &pw,
+            None,
+            Some("s3cret"),
+            fixture("renewal").as_bytes(),
+            now(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(out, WebhookOutcome::Skipped(SkipReason::Sandbox));
+        assert!(plain_writes.lock().unwrap().is_empty());
+        assert_eq!(writes.lock().unwrap().len(), written);
+    }
+
+    // An id we cannot resolve is not a tester. The sandbox guard runs BEFORE the
+    // uuid check, so the skip reads `Sandbox` rather than `MalformedUser` — the
+    // counters are what one reads when a purchase did not land.
+    #[tokio::test]
+    async fn an_unresolvable_app_user_id_is_not_a_tester() {
+        let pw = paywall(true, true);
+        let (svc, writes, _) = service_without_testers();
+        let body = body_with("initial_purchase", |e| {
+            e["app_user_id"] = serde_json::json!("$RCAnonymousID:abc123");
+        });
+        let out = handle_webhook(
+            &svc,
+            &cfg(),
+            &pw,
+            None,
+            Some("s3cret"),
+            body.as_bytes(),
+            now(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(out, WebhookOutcome::Skipped(SkipReason::Sandbox));
+        assert!(writes.lock().unwrap().is_empty());
+    }
+
+    // A transfer names several accounts. Honouring it on the strength of one mark
+    // would turn the tester into a laundering route: buy in the sandbox, transfer
+    // onto an ordinary account, keep the premium. Every account it names must be
+    // marked, or nothing moves.
+    #[tokio::test]
+    async fn a_sandbox_transfer_needs_every_account_it_names_to_be_a_tester() {
+        let pw = paywall(true, true);
+        let mut customers = MockStoreCustomerSource::new();
+        customers.expect_subscriptions().returning(|_| Ok(vec![]));
+
+        // Destination marked, source not: refused.
+        let (partial, partial_writes, _) = service_marking(&[U2]);
+        let out = handle_webhook(
+            &partial,
+            &cfg(),
+            &pw,
+            Some(&customers),
+            Some("s3cret"),
+            fixture("transfer").as_bytes(),
+            now(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(out, WebhookOutcome::Skipped(SkipReason::Sandbox));
+        assert!(partial_writes.lock().unwrap().is_empty());
+
+        // Both marked: it goes through.
+        let (both, _, _) = service_marking(&[U1, U2]);
+        let out = handle_webhook(
+            &both,
+            &cfg(),
+            &pw,
+            Some(&customers),
+            Some("s3cret"),
+            fixture("transfer").as_bytes(),
+            now(),
+        )
+        .await
+        .unwrap();
+        assert!(matches!(out, WebhookOutcome::Transferred { .. }));
+    }
+
     #[tokio::test]
     async fn webhook_skips_are_recorded_no_ops() {
         let (svc, writes, events) = service();
         let pw = paywall(true, true);
         let out = handle_webhook(
             &svc,
-            &cfg(true),
+            &cfg(),
             &pw,
             None,
             Some("s3cret"),
@@ -1114,10 +1311,12 @@ mod tests {
         );
         assert!(writes.lock().unwrap().is_empty());
         assert_eq!(events.lock().unwrap().len(), 1);
-        // sandbox event in production: skipped, recorded
+        // A sandbox event for an account that is NOT a store tester: skipped, and
+        // still recorded so a replay is a duplicate rather than a second chance.
+        let (plain, plain_writes, plain_events) = service_without_testers();
         let out = handle_webhook(
-            &svc,
-            &cfg(false),
+            &plain,
+            &cfg(),
             &pw,
             None,
             Some("s3cret"),
@@ -1127,6 +1326,8 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(out, WebhookOutcome::Skipped(SkipReason::Sandbox));
+        assert!(plain_writes.lock().unwrap().is_empty());
+        assert_eq!(plain_events.lock().unwrap().len(), 1);
         assert!(writes.lock().unwrap().is_empty());
     }
 
@@ -1134,7 +1335,7 @@ mod tests {
     async fn webhook_refund_and_transfer() {
         let (svc, writes, _) = service();
         let pw = paywall(true, true);
-        let c = cfg(true);
+        let c = cfg();
         // purchase then refund on the same subscription
         handle_webhook(
             &svc,
@@ -1229,7 +1430,7 @@ mod tests {
             .times(1)
             .returning(|_| Ok(vec![]));
         assert_eq!(
-            sync_customer(&svc, &customers, U1, &products(), true, now())
+            sync_customer(&svc, &customers, U1, &products(), now())
                 .await
                 .unwrap(),
             0
@@ -1239,7 +1440,7 @@ mod tests {
             .expect_subscriptions()
             .returning(|_| Err(AppError::Internal(anyhow::anyhow!("down"))));
         assert!(matches!(
-            sync_customer(&svc, &failing, U1, &products(), true, now()).await,
+            sync_customer(&svc, &failing, U1, &products(), now()).await,
             Err(AppError::Internal(_))
         ));
         assert!(writes.lock().unwrap().is_empty());
@@ -1259,7 +1460,7 @@ mod tests {
             }])
         });
         assert_eq!(
-            sync_customer(&svc, &ok, U1, &products(), false, now())
+            sync_customer(&svc, &ok, U1, &products(), now())
                 .await
                 .unwrap(),
             1

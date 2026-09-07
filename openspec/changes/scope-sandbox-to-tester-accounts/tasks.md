@@ -1,28 +1,28 @@
 ## 1. Store the mark
 
-- [ ] 1.1 Migration `backend/plans/migrations/0003_store_testers.sql`: `plans.store_testers(user_id uuid primary key, created_at timestamptz not null default now(), created_by text not null)`
-- [ ] 1.2 Add a `StoreTesterRepo` port to `backend/plans/src/ports.rs`: `is_tester(user_id)`, **`testers_among(ids) -> Set`** (the directory decorates a whole page — a per-row read would be an N+1), `set(user_id, by)`, `clear(user_id)`
-- [ ] 1.3 Implement it over Postgres in `backend/plans/src/pg.rs` (thin I/O, excluded from the coverage gate like its neighbours)
-- [ ] 1.4 Mockall mock for the port, and a unit test that presence/absence round-trips through the service
+- [x] 1.1 Migration `backend/plans/migrations/0003_store_testers.sql`: `plans.store_testers(user_id uuid primary key, created_at timestamptz not null default now(), created_by text not null)`
+- [x] 1.2 Add a `StoreTesterRepo` port to `backend/plans/src/ports.rs`: `is_tester(user_id)`, **`testers_among(ids) -> Set`** (the directory decorates a whole page — a per-row read would be an N+1), `set(user_id, by)`, `clear(user_id)`
+- [x] 1.3 Implement it over Postgres in `backend/plans/src/pg.rs` (thin I/O, excluded from the coverage gate like its neighbours)
+- [x] 1.4 Mockall mock for the port, and a unit test that presence/absence round-trips through the service
 
 ## 2. Resolve the flag per account
 
-- [ ] 2.1 Rename the mappers' `allow_sandbox` parameter to say it is now per-account, and update their doc comments — the signatures and their existing tests do not change
-- [ ] 2.2 Webhook handler: resolve the mark from `ev.app_user_id` before calling `map_event`
-- [ ] 2.3 `sync_customer`: resolve the mark from its `user_id` before calling `map_customer`
-- [ ] 2.4 Test: a sandbox event for a marked account writes a row; the same event for an unmarked account is skipped as `SkipReason::Sandbox`
-- [ ] 2.5 Test: a **production** event writes a row for an unmarked account — the mark must not gate production
-- [ ] 2.6 Test: clearing the mark stops honouring new sandbox events and leaves rows already written untouched
-- [ ] 2.7 `TRANSFER`: resolve the mark over the union of `transferred_from`, `transferred_to` and `app_user_id`, and honour the event only when all are marked (design D3b)
-- [ ] 2.8 Test: a sandbox transfer between two testers is applied; the same transfer onto an unmarked account is skipped and moves no row
-- [ ] 2.9 Test: a sandbox event whose `app_user_id` is not a Cymbra uuid is skipped — it now reports `Sandbox` rather than `MalformedUser`, since the sandbox guard runs first (design D3c)
+- [x] 2.1 Rename the mappers' `allow_sandbox` parameter to say it is now per-account, and update their doc comments — the signatures and their existing tests do not change
+- [x] 2.2 Webhook handler: resolve the mark from `ev.app_user_id` before calling `map_event`
+- [x] 2.3 `sync_customer`: resolve the mark from its `user_id` before calling `map_customer`
+- [x] 2.4 Test: a sandbox event for a marked account writes a row; the same event for an unmarked account is skipped as `SkipReason::Sandbox`
+- [x] 2.5 Test: a **production** event writes a row for an unmarked account — the mark must not gate production
+- [x] 2.6 Test: clearing the mark stops honouring new sandbox events and leaves rows already written untouched
+- [x] 2.7 `TRANSFER`: resolve the mark over the union of `transferred_from`, `transferred_to` and `app_user_id`, and honour the event only when all are marked (design D3b)
+- [x] 2.8 Test: a sandbox transfer between two testers is applied; the same transfer onto an unmarked account is skipped and moves no row
+- [x] 2.9 Test: a sandbox event whose `app_user_id` is not a Cymbra uuid is skipped — it now reports `Sandbox` rather than `MalformedUser`, since the sandbox guard runs first (design D3c)
 
 ## 3. Remove the environment flag
 
-- [ ] 3.1 Drop `allow_sandbox` from `RcConfig` and `RevenueCatEnv`, and its read in `BillingChannels::build` / `from_env`
-- [ ] 3.2 Remove `CYMBRA_REVENUECAT_ALLOW_SANDBOX` from `backend/.env.example`, `backend/plans/README.md` and `apps/music/store/SUBSCRIPTIONS.md` (two places: the setup section and the rollout order), documenting the mark in its place
-- [ ] 3.3 Reword task 7.9b of the still-open `swap-store-billing-to-revenuecat` change — it tells the reader to flip the flag before the first real purchase, which will no longer exist
-- [ ] 3.4 Check no other reference survives: `grep -rn ALLOW_SANDBOX --exclude-dir=target --exclude-dir=.git .` — `backend/server/src/main.rs` passes the field, and `target/` is full of stale binary matches that drown the real ones
+- [x] 3.1 Drop `allow_sandbox` from `RcConfig` and `RevenueCatEnv`, and its read in `BillingChannels::build` / `from_env`
+- [x] 3.2 Remove `CYMBRA_REVENUECAT_ALLOW_SANDBOX` from `backend/.env.example`, `backend/plans/README.md` and `apps/music/store/SUBSCRIPTIONS.md` (two places: the setup section and the rollout order), documenting the mark in its place
+- [x] 3.3 Reword task 7.9b of the still-open `swap-store-billing-to-revenuecat` change — it tells the reader to flip the flag before the first real purchase, which will no longer exist
+- [x] 3.4 Check no other reference survives: `grep -rn ALLOW_SANDBOX --exclude-dir=target --exclude-dir=.git .` — `backend/server/src/main.rs` passes the field, and `target/` is full of stale binary matches that drown the real ones
 
 ## 4. Admin RPC
 

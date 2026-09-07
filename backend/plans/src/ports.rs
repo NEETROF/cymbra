@@ -11,7 +11,7 @@ use chrono::{DateTime, Utc};
 use cymbra_platform::Result;
 #[cfg(any(test, feature = "mock"))]
 use mockall::automock;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
 /// One write to the ledger, upserted by `(source, provider_ref)` (design D3):
@@ -405,6 +405,29 @@ pub struct StoreSubscription {
 #[async_trait]
 pub trait StoreCustomerSource: Send + Sync {
     async fn subscriptions(&self, user_id: &str) -> Result<Vec<StoreSubscription>>;
+}
+
+/// Accounts whose **sandbox** store transactions are honoured (change:
+/// scope-sandbox-to-tester-accounts, design D2). Presence is the mark; there is no
+/// expiry — a mark lapsing between two App Store submissions would reproduce the
+/// silent failure this replaced, so the safety comes from the directory filter and
+/// the audit trail instead.
+///
+/// The mark grants nothing on its own.
+#[cfg_attr(any(test, feature = "mock"), automock)]
+#[async_trait]
+pub trait StoreTesterRepo: Send + Sync {
+    async fn is_tester(&self, user_id: &str) -> Result<bool>;
+    /// The marked subset of `user_ids`. The console decorates a whole page of the
+    /// directory at once, so a per-row [`Self::is_tester`] would be an N+1 against
+    /// the directory's own pagination.
+    async fn testers_among(&self, user_ids: &[String]) -> Result<HashSet<String>>;
+    /// Every marked account — what the directory's store-tester filter lists.
+    async fn list_ids(&self) -> Result<Vec<String>>;
+    async fn set(&self, user_id: &str, by: &str) -> Result<()>;
+    async fn clear(&self, user_id: &str) -> Result<()>;
+    /// Account erasure: the mark must not outlive the account it names.
+    async fn purge_user(&self, user_id: &str) -> Result<()>;
 }
 
 /// Deletes an account's aggregator customer (account erasure, D6).

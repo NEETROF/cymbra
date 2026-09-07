@@ -20,8 +20,6 @@ use std::sync::Arc;
 #[derive(Default)]
 pub struct Reconciler {
     pub customers: Option<Arc<dyn StoreCustomerSource>>,
-    /// Apply `SANDBOX` subscriptions (staging only).
-    pub allow_sandbox: bool,
 }
 
 /// Re-read every account holding a store row (`apple` / `google` / `web`) that
@@ -50,16 +48,7 @@ pub async fn reconcile(
     let products = paywall.products();
     let mut applied = 0u64;
     for uid in users {
-        match sync_customer(
-            svc,
-            customers.as_ref(),
-            &uid,
-            &products,
-            r.allow_sandbox,
-            now,
-        )
-        .await
-        {
+        match sync_customer(svc, customers.as_ref(), &uid, &products, now).await {
             Ok(n) => applied += n,
             Err(e) => tracing::warn!(
                 error = %e,
@@ -148,7 +137,6 @@ mod tests {
             });
         let r = Reconciler {
             customers: Some(Arc::new(customers)),
-            allow_sandbox: false,
         };
         let n = reconcile(&svc, &r, &paywall(), now, Duration::days(3))
             .await
@@ -179,7 +167,6 @@ mod tests {
         });
         let r = Reconciler {
             customers: Some(Arc::new(refunded)),
-            allow_sandbox: false,
         };
         // the row now ends in 31 days: widen the horizon so it is selected
         let n = reconcile(&svc, &r, &paywall(), now, Duration::days(40))
@@ -204,7 +191,6 @@ mod tests {
             .returning(|_| Err(AppError::Internal(anyhow::anyhow!("down"))));
         let r = Reconciler {
             customers: Some(Arc::new(failing)),
-            allow_sandbox: false,
         };
         let n = reconcile(&svc, &r, &paywall(), now, Duration::days(3))
             .await

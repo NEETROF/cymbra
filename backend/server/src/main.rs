@@ -205,10 +205,13 @@ async fn main() -> anyhow::Result<()> {
                     billing_events: Arc::new(cymbra_plans::pg::PgBillingEventRepo::new(
                         plans_pool.clone(),
                     )),
-                    audit: Arc::new(cymbra_plans::pg::PgAuditRepo::new(plans_pool)),
+                    audit: Arc::new(cymbra_plans::pg::PgAuditRepo::new(plans_pool.clone())),
                     config: Arc::new(cymbra_server::FlagPlanConfig::new(flag_service.clone())),
                     clock: Arc::new(cymbra_plans::SystemClock),
                     rotator,
+                    store_testers: Some(Arc::new(cymbra_plans::pg::PgStoreTesterRepo::new(
+                        plans_pool,
+                    ))),
                 },
             )))
         }
@@ -256,7 +259,7 @@ async fn main() -> anyhow::Result<()> {
             (&billing_channels.rc_customers, &billing_channels.revenuecat)
         {
             g = g
-                .with_store(customers.clone(), rc.allow_sandbox)
+                .with_store(customers.clone())
                 .with_aggregator_project(rc.project_id.clone());
         }
         if let Some(w) = &billing_channels.web {

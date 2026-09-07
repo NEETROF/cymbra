@@ -32,7 +32,7 @@ pub struct PlanGrpc {
     handles: Option<Arc<dyn HandleResolver>>,
     /// The store aggregator's customer API + its sandbox rule; `None` ⇒
     /// `SyncStorePlan` answers `unimplemented`.
-    store: Option<(Arc<dyn StoreCustomerSource>, bool)>,
+    store: Option<Arc<dyn StoreCustomerSource>>,
     /// The aggregator's project id, for the console's customer deep link (D5);
     /// `None` ⇒ `LookupAccountPlan` returns no url and the console hides it.
     aggregator_project: Option<String>,
@@ -67,13 +67,8 @@ impl PlanGrpc {
     }
 
     /// Wire the store aggregator (customer reads) and whether sandbox
-    /// subscriptions are applied (staging only).
-    pub fn with_store(
-        mut self,
-        customers: Arc<dyn StoreCustomerSource>,
-        allow_sandbox: bool,
-    ) -> Self {
-        self.store = Some((customers, allow_sandbox));
+    pub fn with_store(mut self, customers: Arc<dyn StoreCustomerSource>) -> Self {
+        self.store = Some(customers);
         self
     }
 
@@ -346,7 +341,7 @@ impl PlanServiceTrait for PlanGrpc {
         let platform = platform_from_proto(req.into_inner().platform);
         // Kill-switch off: the free view, no third-party call.
         if self.svc.enabled() {
-            let (customers, allow_sandbox) = self
+            let customers = self
                 .store
                 .as_ref()
                 .ok_or_else(|| Status::unimplemented("store aggregator not configured"))?;
@@ -366,7 +361,6 @@ impl PlanServiceTrait for PlanGrpc {
                 customers.as_ref(),
                 &id.user_id,
                 &products,
-                *allow_sandbox,
                 Utc::now(),
             )
             .await

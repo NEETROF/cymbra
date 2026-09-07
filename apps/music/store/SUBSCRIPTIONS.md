@@ -34,7 +34,9 @@ store **credentials** are configured in RevenueCat, **not** in our environment.
 - [ ] Webhook (Integrations → Webhooks): URL `https://api.cymbra.app/billing/revenuecat/webhook`
       (staging: the staging host), **Authorization header value** generated there →
       `CYMBRA_REVENUECAT_WEBHOOK_SECRET`; environment "Production + Sandbox" (the
-      backend applies sandbox only where `CYMBRA_REVENUECAT_ALLOW_SANDBOX=true`).
+      backend honours sandbox only for accounts marked "store tester" in the back
+      office — App Review buys in the sandbox, so the review accounts must carry
+      that mark before a submission).
       "Send test event" must answer 200.
 - [ ] Secret **v1 API key** (Project → API keys) → `CYMBRA_REVENUECAT_API_KEY`
       (customer reads for `SyncStorePlan` / reconciliation, customer deletion on erasure).
@@ -117,8 +119,9 @@ store **credentials** are configured in RevenueCat, **not** in our environment.
 1. Everything dark: `plans.enabled` off, every `billing.*.enabled` off.
 2. `plans.enabled` on with a staff-only trial campaign; then the community beta
    (Discord `/beta`) and the first feature beta.
-3. Staging with `CYMBRA_REVENUECAT_ALLOW_SANDBOX=true`: sandbox purchases through
-   RevenueCat on iOS / macOS / Android (webhook + `SyncStorePlan` + reconciliation);
+3. Sandbox purchases through RevenueCat on iOS / macOS / Android, from an account
+   marked "store tester" in the back office (webhook + `SyncStorePlan` +
+   reconciliation);
    then production: `billing.apple.enabled` (TestFlight, production environment)
    → `billing.google.enabled`; then web once the Paddle review and the legal pages
    are live (Paddle is routed into RevenueCat at that point — see the change's §8).

@@ -15,10 +15,12 @@ use crate::ports::{
     AccessCodeIssuer, AccessCodeRepo, AuditEntry, AuditRecord, AuditRepo, BillingEventRepo,
     CacheSecretRotator, CampaignRepo, Clock, Enrolment, EntitlementRepo, EntitlementWrite,
     MembershipRepo, MintedCode, NewCampaign, PlanConfig, PlanConfigSource, PlanSource,
+    StoreTesterRepo,
 };
 use async_trait::async_trait;
 use chrono::{DateTime, Duration, Utc};
 use cymbra_platform::{AppError, Result};
+use std::collections::HashSet;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -34,6 +36,9 @@ pub struct PlanDeps {
     pub clock: Arc<dyn Clock>,
     /// `None` = no offline cache to withdraw (tests, or before the seam is wired).
     pub rotator: Option<Arc<dyn CacheSecretRotator>>,
+    /// `None` = nobody is a store tester, so every sandbox transaction is refused.
+    /// That is the safe default and matches production before the seam is wired.
+    pub store_testers: Option<Arc<dyn StoreTesterRepo>>,
 }
 
 /// Outcome of a successful redemption / enrolment.
@@ -268,6 +273,65 @@ impl PlanService {
 
     /// Admin comp: a `premium` row from `now` to `ends_at`. An open-ended grant
     /// requires `confirm_open_ended`.
+    /// Whether this account's **sandbox** store transactions are honoured
+    /// (change: scope-sandbox-to-tester-accounts). Never an error for an
+    /// unparseable id — an account we cannot resolve is simply not a tester.
+    pub async fn is_store_tester(&self, user_id: &str) -> Result<bool> {
+        match &self.d.store_testers {
+            Some(r) => r.is_tester(user_id).await,
+            None => Ok(false),
+        }
+    }
+
+    /// The marked subset of `user_ids`, for decorating a page of the directory.
+    pub async fn store_testers_among(&self, user_ids: &[String]) -> Result<HashSet<String>> {
+        match &self.d.store_testers {
+            Some(r) => r.testers_among(user_ids).await,
+            None => Ok(HashSet::new()),
+        }
+    }
+
+    /// Every marked account — what the directory's store-tester filter lists.
+    pub async fn list_store_testers(&self) -> Result<Vec<String>> {
+        match &self.d.store_testers {
+            Some(r) => r.list_ids().await,
+            None => Ok(Vec::new()),
+        }
+    }
+
+    /// Set or clear the mark. Audited in **both** directions: clearing deletes the
+    /// row, so the audit trail is the only record that it was ever set.
+    pub async fn set_store_tester(
+        &self,
+        user_id: &str,
+        enabled: bool,
+        actor: &str,
+        reason: &str,
+    ) -> Result<()> {
+        let Some(repo) = &self.d.store_testers else {
+            return Err(AppError::FailedPrecondition(
+                "store testers are not configured".into(),
+            ));
+        };
+        if enabled {
+            repo.set(user_id, actor).await?;
+        } else {
+            repo.clear(user_id).await?;
+        }
+        self.audit(
+            actor,
+            if enabled {
+                "set_store_tester"
+            } else {
+                "clear_store_tester"
+            },
+            Some(user_id),
+            None,
+            reason,
+        )
+        .await
+    }
+
     pub async fn grant_premium(
         &self,
         user_id: &str,
@@ -754,6 +818,7 @@ mod tests {
     use crate::ports::{
         MockAccessCodeRepo, MockAuditRepo, MockBillingEventRepo, MockCacheSecretRotator,
         MockCampaignRepo, MockClock, MockEntitlementRepo, MockMembershipRepo, MockPlanConfigSource,
+        MockStoreTesterRepo,
     };
     use chrono::TimeZone;
     use mockall::predicate::*;
@@ -772,6 +837,7 @@ mod tests {
         config: MockPlanConfigSource,
         clock: MockClock,
         rotator: MockCacheSecretRotator,
+        store_testers: MockStoreTesterRepo,
     }
 
     fn mocks(enabled: bool, now: DateTime<Utc>) -> Mocks {
@@ -794,6 +860,7 @@ mod tests {
             config,
             clock,
             rotator: MockCacheSecretRotator::new(),
+            store_testers: MockStoreTesterRepo::new(),
         }
     }
 
@@ -808,7 +875,80 @@ mod tests {
             config: Arc::new(m.config),
             clock: Arc::new(m.clock),
             rotator: Some(Arc::new(m.rotator)),
+            store_testers: Some(Arc::new(m.store_testers)),
         })
+    }
+
+    // The mark is the whole point of scope-sandbox-to-tester-accounts: it decides
+    // whether a sandbox purchase counts. Clearing DELETES the row, so the audit
+    // trail is the only surviving record that it was ever set — assert both
+    // directions reach it.
+    #[tokio::test]
+    async fn store_tester_mark_is_set_cleared_and_audited_both_ways() {
+        let mut m = mocks(true, t(1));
+        m.store_testers
+            .expect_set()
+            .withf(|u, by| u == "u1" && by == "admin-1")
+            .times(1)
+            .returning(|_, _| Ok(()));
+        m.store_testers
+            .expect_clear()
+            .withf(|u| u == "u1")
+            .times(1)
+            .returning(|_| Ok(()));
+        let mut audit = MockAuditRepo::new();
+        audit
+            .expect_record()
+            .withf(|e| e.action == "set_store_tester" && e.target_user.as_deref() == Some("u1"))
+            .times(1)
+            .returning(|_| Ok(()));
+        audit
+            .expect_record()
+            .withf(|e| e.action == "clear_store_tester")
+            .times(1)
+            .returning(|_| Ok(()));
+        m.audit = audit;
+        let svc = service(m);
+
+        svc.set_store_tester("u1", true, "admin-1", "app review")
+            .await
+            .unwrap();
+        svc.set_store_tester("u1", false, "admin-1", "review over")
+            .await
+            .unwrap();
+    }
+
+    // Production before the seam is wired, and every test that does not care: no
+    // repo must mean "nobody is a tester", never "everybody".
+    #[tokio::test]
+    async fn without_the_repo_nobody_is_a_tester() {
+        let m = mocks(true, t(1));
+        let svc = PlanService::new(PlanDeps {
+            entitlements: Arc::new(m.entitlements),
+            campaigns: Arc::new(m.campaigns),
+            memberships: Arc::new(m.memberships),
+            codes: Arc::new(m.codes),
+            billing_events: Arc::new(m.billing),
+            audit: Arc::new(m.audit),
+            config: Arc::new(m.config),
+            clock: Arc::new(m.clock),
+            rotator: None,
+            store_testers: None,
+        });
+        assert!(!svc.is_store_tester("u1").await.unwrap());
+        assert!(svc.list_store_testers().await.unwrap().is_empty());
+        assert!(
+            svc.store_testers_among(&["u1".to_string()])
+                .await
+                .unwrap()
+                .is_empty()
+        );
+        // And marking is refused rather than silently doing nothing.
+        assert!(
+            svc.set_store_tester("u1", true, "admin-1", "why")
+                .await
+                .is_err()
+        );
     }
 
     /// The reason typed on every grant/enrolment/revocation must be readable back, and

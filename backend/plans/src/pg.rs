@@ -8,13 +8,14 @@ use crate::model::{
 };
 use crate::ports::{
     AccessCodeRepo, AuditEntry, AuditRecord, AuditRepo, BillingEventRepo, CampaignRepo, Enrolment,
-    EntitlementRepo, EntitlementWrite, MembershipRepo, NewCampaign,
+    EntitlementRepo, EntitlementWrite, MembershipRepo, NewCampaign, StoreTesterRepo,
 };
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use cymbra_platform::{AppError, Result};
 use sqlx::postgres::PgRow;
 use sqlx::{PgPool, Row};
+use std::collections::HashSet;
 use uuid::Uuid;
 
 fn internal(ctx: &str, e: impl std::fmt::Display) -> AppError {
@@ -841,6 +842,92 @@ impl BillingEventRepo for PgBillingEventRepo {
             .await
             .map_err(|e| internal("purge billing events", e))?;
         Ok(())
+    }
+}
+
+// ---------------------------------------------------------------- store testers
+
+#[derive(Clone)]
+pub struct PgStoreTesterRepo {
+    pool: PgPool,
+}
+
+impl PgStoreTesterRepo {
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
+    }
+}
+
+#[async_trait]
+impl StoreTesterRepo for PgStoreTesterRepo {
+    async fn is_tester(&self, user_id: &str) -> Result<bool> {
+        // Not a uuid ⇒ not an account we can vouch for. An `$RCAnonymousID` alias
+        // reaches here when the SDK configured before sign-in, and answering
+        // "not a tester" is the right outcome — never an error that would retry.
+        let Ok(uid) = Uuid::parse_str(user_id) else {
+            return Ok(false);
+        };
+        let found: Option<Uuid> =
+            sqlx::query_scalar("SELECT user_id FROM store_testers WHERE user_id = $1")
+                .bind(uid)
+                .fetch_optional(&self.pool)
+                .await
+                .map_err(|e| internal("read store tester", e))?;
+        Ok(found.is_some())
+    }
+
+    async fn testers_among(&self, user_ids: &[String]) -> Result<HashSet<String>> {
+        let uids: Vec<Uuid> = user_ids
+            .iter()
+            .filter_map(|s| Uuid::parse_str(s).ok())
+            .collect();
+        if uids.is_empty() {
+            return Ok(HashSet::new());
+        }
+        let rows: Vec<Uuid> =
+            sqlx::query_scalar("SELECT user_id FROM store_testers WHERE user_id = ANY($1)")
+                .bind(&uids)
+                .fetch_all(&self.pool)
+                .await
+                .map_err(|e| internal("read store testers", e))?;
+        Ok(rows.into_iter().map(|u| u.to_string()).collect())
+    }
+
+    async fn list_ids(&self) -> Result<Vec<String>> {
+        let rows: Vec<Uuid> =
+            sqlx::query_scalar("SELECT user_id FROM store_testers ORDER BY created_at")
+                .fetch_all(&self.pool)
+                .await
+                .map_err(|e| internal("list store testers", e))?;
+        Ok(rows.into_iter().map(|u| u.to_string()).collect())
+    }
+
+    async fn set(&self, user_id: &str, by: &str) -> Result<()> {
+        let uid = parse_uuid(user_id)?;
+        sqlx::query(
+            "INSERT INTO store_testers (user_id, created_by) VALUES ($1, $2) \
+             ON CONFLICT (user_id) DO NOTHING",
+        )
+        .bind(uid)
+        .bind(by)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| internal("set store tester", e))?;
+        Ok(())
+    }
+
+    async fn clear(&self, user_id: &str) -> Result<()> {
+        let uid = parse_uuid(user_id)?;
+        sqlx::query("DELETE FROM store_testers WHERE user_id = $1")
+            .bind(uid)
+            .execute(&self.pool)
+            .await
+            .map_err(|e| internal("clear store tester", e))?;
+        Ok(())
+    }
+
+    async fn purge_user(&self, user_id: &str) -> Result<()> {
+        self.clear(user_id).await
     }
 }
 
