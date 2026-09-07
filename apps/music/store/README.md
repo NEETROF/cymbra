@@ -176,9 +176,23 @@ open-ended Premium grant: the grant is what lets a reviewer see the paid feature
 without buying, and the mark is what lets the purchase itself work if they try it.
 Both, not either.
 
-One consequence worth remembering when filming a submission recording: an account
-holding the Premium grant never sees the paywall. Use a second, unmarked-and-free
-account for anything that has to show the offer.
+The grant does **not** hide the offer, so a granted reviewer still reaches the
+purchase button. What hides it is an active *store or web* subscription:
+`can_purchase_here` is false only when `paid_source` is set, and `Source::Admin`
+and `Source::Code` are not paid channels (`is_paid_channel` in
+`backend/plans/src/model.rs`), so neither a grant nor a redeemed code suppresses
+the card.
+
+Two production accounts exist to verify the mark end to end, and they carry **no**
+grant — the point is to reach the paywall and buy:
+
+| Account | Mark | Expected on a sandbox purchase |
+|---|---|---|
+| `sandox-1@cymbra.app` | store tester | an entitlement row is written, the plan turns Premium |
+| `sandox-2@cymbra.app` | none | nothing is written — the event is dropped as `SkipReason::Sandbox` |
+
+The unmarked one is the half that proves something: a marked account unlocking
+shows the door opens, not that it was ever shut. Run both against the same build.
 
 ## Categories (decided)
 
