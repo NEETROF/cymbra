@@ -25,6 +25,16 @@ pub const PURGE_USER: &str = "purge_user";
 /// is enqueued per user upload during account erasure (and, later, on a failed
 /// single-score object delete).
 pub const PURGE_SCORE_OBJECT: &str = "purge_score_object";
+/// Stable name of the PRIVATE SoundFont object cleanup (change: harden-module-
+/// boundaries, group 2). Payload `{ object_key }`. Deletes one object from the
+/// **private soundfont bucket** (idempotent). One is enqueued per row during
+/// account erasure.
+///
+/// Deliberately NOT [`PURGE_SCORE_OBJECT`]: that job deletes from the *score* store
+/// (`WorkerCtx::storage`), while private fonts live in a separate private bucket
+/// (`WorkerCtx::soundfont_store`, `CYMBRA_SOUNDFONT_S3_*`). Reusing it would remove
+/// the row, log success, and leave the `.sf2` in place.
+pub const PURGE_SOUNDFONT_OBJECT: &str = "purge_soundfont_object";
 /// Stable name of the play-detail retention prune (change: add-play-activity-
 /// profile, D7). No payload. Scheduled: NULLs the heavy `session_result` JSONB on
 /// `music.play_sessions` rows past the retention window, keeping the summary.
@@ -154,6 +164,14 @@ pub fn builtin() -> Vec<JobSpec> {
             RetryPolicy::new(8, Duration::from_secs(30), Duration::from_secs(3600)),
         ),
         JobSpec::new(
+            PURGE_SOUNDFONT_OBJECT,
+            // Same shape as the score-object purge, against the private soundfont
+            // bucket: independent, idempotent, and generous retries so a transient
+            // outage never leaves a deleted account's bytes behind.
+            Channel::parallel("music", "purge"),
+            RetryPolicy::new(8, Duration::from_secs(30), Duration::from_secs(3600)),
+        ),
+        JobSpec::new(
             PLAY_DETAIL_PRUNE,
             // Maintenance sweep; dedup'd per scheduled occurrence, so ordering is
             // moot — parallel so it never head-of-line blocks.
@@ -248,6 +266,7 @@ mod tests {
         assert!(names.contains(&SESSION_REAP.to_string()));
         assert!(names.contains(&PURGE_USER.to_string()));
         assert!(names.contains(&PURGE_SCORE_OBJECT.to_string()));
+        assert!(names.contains(&PURGE_SOUNDFONT_OBJECT.to_string()));
         assert!(names.contains(&PLAY_DETAIL_PRUNE.to_string()));
         assert!(names.contains(&CONSENSUS_HONESTY_SETTLEMENT.to_string()));
         assert!(names.contains(&PUSH_DISPATCH.to_string()));
@@ -314,6 +333,17 @@ mod tests {
         assert_eq!(s.channel().name(), "music.purge");
         assert!(!s.channel().is_ordered());
         assert_eq!(s.default_retry().max_attempts(), 8);
+    }
+
+    /// The soundfont purge is a SEPARATE kind on purpose — see the const's doc: the
+    /// score job deletes from the score store, private fonts live in another bucket.
+    #[test]
+    fn purge_soundfont_object_is_its_own_kind_with_the_same_shape() {
+        let s = spec(PURGE_SOUNDFONT_OBJECT).unwrap();
+        assert_eq!(s.channel().name(), "music.purge");
+        assert!(!s.channel().is_ordered());
+        assert_eq!(s.default_retry().max_attempts(), 8);
+        assert_ne!(PURGE_SOUNDFONT_OBJECT, PURGE_SCORE_OBJECT);
     }
 
     #[test]

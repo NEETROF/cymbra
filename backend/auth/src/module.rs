@@ -618,8 +618,12 @@ mod tests {
             .grant_role("seed", &uid, "music", "admin")
             .await
             .unwrap();
+        // `admin` rather than `moderator`: what this asserts is that a back-office
+        // token carries the real per-scope roles across every scope, and the role is
+        // incidental. `moderator` outside `music` is refused by the temporary lock in
+        // `UserModule::grant_role` (change: harden-module-boundaries, group 1).
         h.user
-            .grant_role("seed", &uid, "live", "moderator")
+            .grant_role("seed", &uid, "live", "admin")
             .await
             .unwrap();
 
@@ -629,12 +633,12 @@ mod tests {
         assert_eq!(claims.aud, ba);
         // The back-office token carries the real per-scope roles across all scopes.
         assert_eq!(claims.roles_by_scope["music"], vec!["admin".to_string()]);
-        assert_eq!(claims.roles_by_scope["live"], vec!["moderator".to_string()]);
+        assert_eq!(claims.roles_by_scope["live"], vec!["admin".to_string()]);
         assert_eq!(claims.roles_by_scope["global"], vec!["user".to_string()]);
 
         // A role change takes effect on the next refresh, audience preserved.
         h.user
-            .revoke_role("seed", &uid, "live", "moderator")
+            .revoke_role("seed", &uid, "live", "admin")
             .await
             .unwrap();
         let refreshed = h.m.refresh(&pair.refresh_token).await.unwrap();

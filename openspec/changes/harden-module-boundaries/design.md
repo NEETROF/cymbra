@@ -125,6 +125,21 @@ So: a new job kind (const + spec + channel, modelled on
 it is constructed only in `backend/worker/src/main.rs:100-113` for `ScorePreviewRenderer`.
 The transactional-enqueue idiom is reused unchanged; only the target store differs.
 
+**Implemented, and the audit widened the scope.** Looking for other tables in the same
+state turned up three more, not zero:
+
+| table | verdict |
+|---|---|
+| `music.user_score_collections` | unreached → now purged |
+| `plans.sandbox_accounts` | unreached → now purged |
+| `user_account.push_tokens`, `notification_prefs` | safe: `REFERENCES user_account.users ON DELETE CASCADE` |
+| `music.user_score_takedowns` | **retention decision — see Open Questions** |
+
+The audit is now a test rather than a one-off: `backend/worker/tests/erasure_coverage.rs`
+reads the migrations for account-keyed tables and fails when one is neither purged, nor
+cascaded, nor exempt with a written reason. It needs no database, and it was verified to
+fail — removing the soundfont delete makes it report that table by name.
+
 ### D5 — Relocation, not rewrite, for the composition root
 
 `backend/server` (~7 200 l.) carries ~3 700 l. of purely-music code: `soundfont.rs` 2 679,
@@ -215,6 +230,16 @@ Step 5 is a relocation with no behaviour change. No database migration is destru
 the `product` work reads a column that already exists with a correct default.
 
 ## Open Questions
+
+- **`music.user_score_takedowns` — erase, pseudonymise, or keep?** It holds `owner_id`,
+  `admin_id`, the content `sha256` and the removal `reason` for an upload taken down by
+  moderation. Erasing it with the account defeats its purpose: the `sha256` is what
+  recognises the same file coming back under a new account. Keeping it retains an
+  identifier naming a person after they asked to be forgotten. A third option is to null
+  the `owner_id` (or set it to a nil UUID) and keep the rest, which satisfies both — at
+  the cost of changing what a moderation record means, and of any code that reads that
+  column. This is a product and legal call, not an implementation detail, so the table is
+  currently EXEMPT with that reason written next to it.
 
 - Should `require_admin` (the five coarse call sites) become scope-matched in this change,
   or stay coarse where it guards genuinely cross-product operations? Resolve per site

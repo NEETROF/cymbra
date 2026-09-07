@@ -486,10 +486,14 @@ mod tests {
     async fn grant_is_scope_matched_across_scopes() {
         let (g, module) = grpc();
         let target = module.resolve_or_provision("google", "t").await.unwrap();
+        // `admin`, not `moderator`: what this test exercises is scope-matched
+        // authorization, and the role is incidental. `moderator` is refused outside
+        // `music` by the temporary lock in `UserModule::grant_role` (change:
+        // harden-module-boundaries, group 1) — use a role that lock does not touch.
         let live_grant = || GrantRoleRequest {
             user_id: target.clone(),
             scope: "live".into(),
-            role: "moderator".into(),
+            role: "admin".into(),
         };
 
         // A music-only admin cannot touch the `live` scope.
@@ -503,7 +507,7 @@ mod tests {
                 .effective_roles(&target, "live")
                 .await
                 .unwrap()
-                .contains(&"moderator".to_string())
+                .contains(&"admin".to_string())
         );
 
         // A global admin (break-glass) can grant in `live`.
@@ -515,7 +519,7 @@ mod tests {
                 .effective_roles(&target, "live")
                 .await
                 .unwrap()
-                .contains(&"moderator".to_string())
+                .contains(&"admin".to_string())
         );
     }
 
@@ -569,8 +573,10 @@ mod tests {
             .grant_role("seed", &target, "music", "moderator")
             .await
             .unwrap();
+        // `admin` in `live` for the same reason as above: the directory test only needs
+        // the target to hold *some* role in each app scope.
         module
-            .grant_role("seed", &target, "live", "moderator")
+            .grant_role("seed", &target, "live", "admin")
             .await
             .unwrap();
 

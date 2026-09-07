@@ -112,7 +112,9 @@ async fn main() -> anyhow::Result<()> {
             )?)),
             None => None,
         };
-    let score_preview = match (storage.clone(), soundfont_store) {
+    // Cloned: the renderer takes ownership below, and `WorkerCtx` also needs it for
+    // the `purge_soundfont_object` job (change: harden-module-boundaries, group 2).
+    let score_preview = match (storage.clone(), soundfont_store.clone()) {
         (Some(score_store), Some(font_store)) => {
             Some(Arc::new(cymbra_music::ScorePreviewRenderer::new(
                 score_store,
@@ -191,6 +193,7 @@ async fn main() -> anyhow::Result<()> {
         auth_pool,
         admin_pool,
         storage,
+        soundfont_store,
         reap_grace_secs: cfg.orphan_reap_grace.as_secs() as i64,
         play_detail_retention_days: cfg.play_detail_retention_days as i64,
         flags: flag_service.clone(),

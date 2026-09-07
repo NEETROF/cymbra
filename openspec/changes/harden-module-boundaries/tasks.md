@@ -1,19 +1,19 @@
 ## 1. Grant lock — buy the window (~15 min)
 
-- [ ] 1.1 In `backend/user/src/module.rs` `grant_role` (~:220), after `validate_scope_role`, refuse `role == "moderator"` when `scope != "music"` with an `InvalidArgument` naming the reason (guards not yet scope-matched). Do **not** touch `validate_scope_role` — it is shared with `revoke_role` (~:243).
-- [ ] 1.2 Test: granting `moderator` in a non-`music` scope is refused; granting `admin` in any scope still succeeds.
-- [ ] 1.3 Test: `revoke_role("moderator")` in a non-`music` scope still **succeeds** while the lock is active (the trap D1 names).
+- [x] 1.1 In `backend/user/src/module.rs` `grant_role` (~:220), after `validate_scope_role`, refuse `role == "moderator"` when `scope != "music"` with an `InvalidArgument` naming the reason (guards not yet scope-matched). Do **not** touch `validate_scope_role` — it is shared with `revoke_role` (~:243).
+- [x] 1.2 Test: granting `moderator` in a non-`music` scope is refused; granting `admin` in any scope still succeeds.
+- [x] 1.3 Test: `revoke_role("moderator")` in a non-`music` scope still **succeeds** while the lock is active (the trap D1 names).
 
 ## 2. Account erasure — close the GDPR gap
 
-- [ ] 2.1 Read `backend/music/migrations/0013_soundfont_moderation.sql` (~:47) and `backend/music/src/user_soundfont.rs` to confirm the exact object-key column on `music.user_soundfonts`.
-- [ ] 2.2 Add a purge job kind for the **private soundfont bucket** in `backend/jobs/src/registry.rs` (const + spec + channel, modelled on `PURGE_SCORE_OBJECT` ~:27). Do **not** reuse `PURGE_SCORE_OBJECT` — it targets the score store (D4).
-- [ ] 2.3 Wire `soundfont_store` into `WorkerCtx` (`backend/worker/src/main.rs` ~:100-113, today built only for `ScorePreviewRenderer`) and add the handler in `backend/worker/src/handlers.rs`.
-- [ ] 2.4 In `purge_user_with` (`backend/worker/src/lib.rs`), `DELETE FROM music.user_soundfonts … RETURNING <object_key>` and enqueue one cleanup job per object **in the same transaction**, reusing the transactional-enqueue idiom (~:133-150).
-- [ ] 2.5 Test: erasing an account removes the rows and issues the object deletion against the **private** bucket.
-- [ ] 2.6 Test: a transient object-store failure retries the cleanup without leaving rows behind.
-- [ ] 2.7 Add the coverage test that fails when an account-keyed personal-data table is not reached by the erasure path, naming the uncovered table.
-- [ ] 2.8 Audit the remaining `music.*` and `plans.*` tables against the erasure path for other omissions of the same kind; fix or record what is found.
+- [x] 2.1 Read `backend/music/migrations/0013_soundfont_moderation.sql` (~:47) and `backend/music/src/user_soundfont.rs` to confirm the exact object-key column on `music.user_soundfonts`.
+- [x] 2.2 Add a purge job kind for the **private soundfont bucket** in `backend/jobs/src/registry.rs` (const + spec + channel, modelled on `PURGE_SCORE_OBJECT` ~:27). Do **not** reuse `PURGE_SCORE_OBJECT` — it targets the score store (D4).
+- [x] 2.3 Wire `soundfont_store` into `WorkerCtx` (`backend/worker/src/main.rs` ~:100-113, today built only for `ScorePreviewRenderer`) and add the handler in `backend/worker/src/handlers.rs`.
+- [x] 2.4 In `purge_user_with` (`backend/worker/src/lib.rs`), `DELETE FROM music.user_soundfonts … RETURNING <object_key>` and enqueue one cleanup job per object **in the same transaction**, reusing the transactional-enqueue idiom (~:133-150).
+- [x] 2.5 Test: erasing an account removes the rows and issues the object deletion against the **private** bucket.
+- [x] 2.6 Test: a transient object-store failure retries the cleanup without leaving rows behind.
+- [x] 2.7 Add the coverage test that fails when an account-keyed personal-data table is not reached by the erasure path, naming the uncovered table.
+- [x] 2.8 Audit the remaining `music.*` and `plans.*` tables against the erasure path. **It found four gaps, not one.** Beyond `music.user_soundfonts`: `music.user_score_collections` and `plans.sandbox_accounts` were unreached and are now purged; `user_account.push_tokens` and `notification_prefs` turned out to be safe (`REFERENCES user_account.users ON DELETE CASCADE`); and `music.user_score_takedowns` is a **retention decision, not an oversight** — see the design's open question. The audit is now a test (`backend/worker/tests/erasure_coverage.rs`) rather than a one-off.
 
 ## 3. Scope-matched moderation guards
 

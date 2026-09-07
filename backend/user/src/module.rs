@@ -226,6 +226,25 @@ impl<R: UserRepo> UserPort for UserModule<R> {
         role: &str,
     ) -> Result<()> {
         validate_scope_role(scope, role)?;
+        // TEMPORARY, and only on the grant path (change: harden-module-boundaries,
+        // group 1). The moderation gates still test the FLAT role set
+        // (`platform::guard::require_moderator_or_admin`), while a `back-office` token
+        // carries `global ∪ music ∪ live` — so a moderator granted in any other scope
+        // would pass every music moderation gate. `SCOPES` already accepts `live`, so
+        // the console would take that grant today.
+        //
+        // Refusing it here closes the hole without waiting for the 23-site guard
+        // migration. Remove this together with group 3, not before.
+        //
+        // Deliberately NOT in `validate_scope_role`: that helper is shared with
+        // `revoke_role` below, and revoking a bad grant must stay possible in every
+        // scope.
+        if role == "moderator" && scope != "music" {
+            return Err(AppError::InvalidArgument(format!(
+                "moderator is music-only until the moderation guards are scope-matched \
+                 (refused for scope {scope:?})"
+            )));
+        }
         // Idempotent role write, then the audit entry (change: add-moderation-back-
         // office). Authorization (admin-only) is enforced at the gRPC layer.
         self.repo.grant_role(user_id, scope, role).await?;
@@ -693,6 +712,59 @@ mod tests {
                 .contains(&"moderator".to_string())
         );
         assert!(m.list_role_grants(&t).await.unwrap().is_empty());
+    }
+
+    /// Temporary lock (change: harden-module-boundaries, group 1): the moderation gates
+    /// still read the flat role set, so a moderator granted outside `music` would pass
+    /// them. `admin` is unaffected — it is already scope-matched at the gates.
+    #[tokio::test]
+    async fn grant_role_refuses_moderator_outside_music() {
+        let m = module();
+        let admin = m.resolve_or_provision("google", "admin").await.unwrap();
+        let t = m.resolve_or_provision("google", "t").await.unwrap();
+
+        for scope in ["live", "global"] {
+            assert!(
+                matches!(
+                    m.grant_role(&admin, &t, scope, "moderator").await,
+                    Err(AppError::InvalidArgument(_))
+                ),
+                "moderator should be refused in scope {scope:?}"
+            );
+        }
+
+        // Music is the one scope the gates actually match, so it still works.
+        m.grant_role(&admin, &t, "music", "moderator")
+            .await
+            .unwrap();
+        // And the lock is about `moderator` only: admin is unaffected in every scope.
+        for scope in ["live", "global", "music"] {
+            m.grant_role(&admin, &t, scope, "admin").await.unwrap();
+        }
+    }
+
+    /// The trap the lock must not fall into: it lives in `grant_role`, not in the
+    /// `validate_scope_role` helper that `revoke_role` also calls. Cleaning up a grant
+    /// made before the lock existed has to stay possible in every scope.
+    #[tokio::test]
+    async fn revoking_moderator_outside_music_still_works() {
+        let m = module();
+        let admin = m.resolve_or_provision("google", "admin").await.unwrap();
+        let t = m.resolve_or_provision("google", "t").await.unwrap();
+
+        // Bypass the port to plant a pre-existing `live/moderator`, as a grant made
+        // before the lock would look in the database.
+        m.repo.grant_role(&t, "live", "moderator").await.unwrap();
+
+        m.revoke_role(&admin, &t, "live", "moderator")
+            .await
+            .expect("revoking a legacy moderator grant must stay possible");
+        assert!(
+            !m.effective_roles(&t, "live")
+                .await
+                .unwrap()
+                .contains(&"moderator".to_string())
+        );
     }
 
     #[tokio::test]

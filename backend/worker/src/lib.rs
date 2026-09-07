@@ -161,10 +161,55 @@ pub async fn purge_user_with(
         }
     }
 
+    // The user's PRIVATE soundfont library (change: harden-module-boundaries, group
+    // 2). Same shape as the scores above, with one difference that matters: these
+    // objects live in the **private soundfont bucket**, not the score store, so they
+    // need their own job kind. Enqueuing `purge_score_object` here would delete the
+    // row, log success, and leave the `.sf2` behind.
+    let font_keys: Vec<String> = sqlx::query_scalar(
+        "DELETE FROM music.user_soundfonts WHERE user_id = $1 RETURNING object_key",
+    )
+    .bind(uid)
+    .fetch_all(&mut *tx)
+    .await?;
+    if !font_keys.is_empty() {
+        let spec = cymbra_jobs::registry::spec(cymbra_jobs::registry::PURGE_SOUNDFONT_OBJECT)
+            .ok_or_else(|| anyhow::anyhow!("purge_soundfont_object spec missing"))?;
+        for key in &font_keys {
+            let req = cymbra_jobs::EnqueueRequest::for_job(
+                &spec,
+                &serde_json::json!({ "object_key": key }),
+                None,
+            )?;
+            sqlx::query(
+                "SELECT jobs.enqueue($1, $2, $3, $4, $5, \
+                 make_interval(secs => $6), make_interval(secs => $7), $8)",
+            )
+            .bind(&req.name)
+            .bind(&req.channel_name)
+            .bind(&req.channel_args)
+            .bind(req.ordered)
+            .bind(req.retries)
+            .bind(req.retry_backoff.as_secs() as i32)
+            .bind(req.delay.as_secs() as i32)
+            .bind(&req.payload_json)
+            .execute(&mut *tx)
+            .await?;
+        }
+    }
+
     // The user's saved-catalog library (change: score-hub-search). These rows
     // reference PUBLIC catalog scores, so there is nothing to erase from the
     // object store — just drop the owner's saves in the same transaction.
     sqlx::query("DELETE FROM music.user_library WHERE owner_id = $1")
+        .bind(uid)
+        .execute(&mut *tx)
+        .await?;
+
+    // The user's private score collections (change: add-private-score-catalog). Owner-
+    // keyed names only, no stored object — drop them with the rest. Found by the
+    // erasure audit, not by the original change (harden-module-boundaries, group 2).
+    sqlx::query("DELETE FROM music.user_score_collections WHERE owner_id = $1")
         .bind(uid)
         .execute(&mut *tx)
         .await?;
@@ -258,6 +303,9 @@ pub async fn purge_user_with(
             "plans.beta_memberships",
             "plans.billing_events",
             "plans.plan_entitlements",
+            // Sandbox marker keyed by user_id — an identifier that names the account
+            // like the rest (change: harden-module-boundaries, group 2 audit).
+            "plans.sandbox_accounts",
         ] {
             sqlx::query(&format!("DELETE FROM {table} WHERE user_id = $1"))
                 .bind(uid)

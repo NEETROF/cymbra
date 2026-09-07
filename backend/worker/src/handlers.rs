@@ -33,6 +33,11 @@ pub struct WorkerCtx {
     /// Object store for the `purge_score_object` job. `None` when the score-upload
     /// feature is unconfigured (then that job is a no-op).
     pub storage: Option<Arc<dyn ObjectStorage>>,
+    /// PRIVATE SoundFont store for the `purge_soundfont_object` job (change:
+    /// harden-module-boundaries, group 2). A DIFFERENT bucket from `storage` — never
+    /// substitute one for the other, or the row goes and the `.sf2` stays.
+    /// `None` when SoundFont delivery is unconfigured (then that job is a no-op).
+    pub soundfont_store: Option<Arc<dyn ObjectStorage>>,
     pub reap_grace_secs: i64,
     /// Retention window (days) for the `play_detail_prune` job (change: add-play-
     /// activity-profile). Prunes `music.play_sessions` detail older than this.
@@ -201,6 +206,40 @@ pub async fn purge_score_object(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(
             None => tracing::warn!(
                 object_key = %p.object_key,
                 "purge_score_object skipped: object store not configured"
+            ),
+        }
+        job.complete().await?;
+        Ok(())
+    }
+    .instrument(span)
+    .await
+}
+
+/// Payload for the `purge_soundfont_object` job (change: harden-module-boundaries).
+#[derive(serde::Deserialize)]
+struct PurgeSoundfontObjectJob {
+    object_key: String,
+}
+
+/// Delete one private-library `.sf2` from the **soundfont** bucket. Enqueued per row
+/// by the account erasure. Idempotent: deleting an already-gone object succeeds.
+#[sqlxmq::job("purge_soundfont_object")]
+pub async fn purge_soundfont_object(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxError> {
+    let span = tracing::info_span!("job.purge_soundfont_object", job_id = %job.id());
+    async move {
+        let p: PurgeSoundfontObjectJob = job
+            .json()?
+            .ok_or("purge_soundfont_object: missing JSON payload")?;
+        // `soundfont_store`, NOT `storage`: the private fonts live in their own
+        // bucket. Using the score store here would report success and delete nothing.
+        match &ctx.soundfont_store {
+            Some(store) => {
+                store.delete(&p.object_key).await?;
+                tracing::info!(object_key = %p.object_key, "private soundfont object purged");
+            }
+            None => tracing::warn!(
+                object_key = %p.object_key,
+                "purge_soundfont_object skipped: soundfont store not configured"
             ),
         }
         job.complete().await?;
@@ -582,6 +621,7 @@ pub fn registry(ctx: WorkerCtx) -> JobRegistry {
         session_reap,
         purge_user,
         purge_score_object,
+        purge_soundfont_object,
         play_detail_prune,
         score_preview_render,
         usage_rollup,
