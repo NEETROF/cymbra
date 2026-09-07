@@ -27,6 +27,11 @@ jobs:
           filters: |
             app:
               - 'apps/music/**'
+              # melos manages apps/** AND packages/**, so `melos run test` already
+              # covers the shared packages — but nothing started this workflow when
+              # only one of them changed. (packages/cymbra_flags had tests no
+              # trigger ran.)
+              - 'packages/**'
               - 'melos.yaml'
               - 'pubspec.yaml'
               - 'pubspec.lock'

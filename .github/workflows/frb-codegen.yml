@@ -23,9 +23,15 @@ jobs:
         with:
           filters: |
             frb:
-              - 'apps/*/rust/**'
-              - 'apps/*/lib/src/rust/**'
-              - 'apps/*/pubspec.yaml'
+              # Narrowed from apps/*/rust/** — the job below is music-only
+              # (working-directory: apps/music, and it diffs apps/music's generated
+              # bridge). The wildcard promised a genericity the body never had, so a
+              # Rust crate under any other app would have started a run that checks
+              # music. Widen it again the day a second flutter_rust_bridge app
+              # exists AND this job iterates.
+              - 'apps/music/rust/**'
+              - 'apps/music/lib/src/rust/**'
+              - 'apps/music/pubspec.yaml'
               - '.github/workflows/frb-codegen.yml'
 
   frb:

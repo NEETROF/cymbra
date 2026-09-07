@@ -157,6 +157,25 @@ cd apps/music && flutter test --coverage --exclude-tags golden   # then check lc
 VSCode: use the `music (debug)` and `music: integration test` launch configs
 (`.vscode/launch.json`).
 
+## CI — every unit is watched
+
+Adding a directory under `apps/`, `packages/` or `crates/` means adding it to the
+paths filter of the workflow that should check it. The `ci-units` workflow fails the
+pull request otherwise, naming the unit — a change confined to a unit no workflow
+watches would merge with no CI at all. Run it locally with
+`python3 scripts/check_ci_units.py --list`.
+
+Two things it will not let you get away with:
+
+- **A workflow filters in one of two places**, and both count: a top-level
+  `on.push.paths` / `on.pull_request.paths`, or a `dorny/paths-filter` step in a
+  `changes` job for workflows that always start and gate their real jobs. Most of this
+  repo uses the second.
+- **A wildcard in a filter must match what the job does.** `rust` and `sonar` may claim
+  `apps/*/rust/**` because they run `cargo --workspace`; `frb-codegen` may not, because
+  its body is one app. A trigger broader than its job produces runs that verify the
+  wrong thing.
+
 ## Commits
 
 Conventional Commits (enforced by `commitlint.yml`). `/caveman-commit` produces

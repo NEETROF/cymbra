@@ -33,6 +33,30 @@ nothing else. Measured against the current filters:
 
 ### D1 — Fail on an uncovered unit, rather than a catch-all that runs something
 
+**Resolved in implementation: coverage is derived from the workflows, not from a
+manifest.** A manifest is a second source of truth that drifts — it keeps claiming a unit
+is covered after the workflow that covered it changed. Reading the filters cannot drift,
+and adding a workflow that selects a unit makes the check pass with nothing else to
+update. `scripts/check_ci_units.py`, run by the `ci-units` workflow on every pull request.
+
+Two things the implementation had to get right, both found by testing rather than by
+reasoning:
+
+- **Both filter mechanisms count.** Four workflows filter at `on.*.paths`; seven always
+  start and gate their real jobs with a `dorny/paths-filter` step. Reading only the
+  top-level filter reported the second group as watching nothing.
+- **Match against real files, never a probe.** A first version probed
+  `<unit>/rust/src/probe.rs`, which made every app match the `apps/*/rust/**` glob of
+  `rust`/`sonar` — so a brand-new TypeScript app was reported as watched and the guard
+  passed on exactly the case it exists for.
+
+**The gap was not hypothetical.** `packages/cymbra_flags` ships `test/flags_test.dart`
+that no trigger ran: melos manages `packages/**`, so `melos run test` covers it, but
+`flutter` and `sonar` filtered on `apps/music/**` only. `release-build.yml` already
+carries comments about an earlier incident of the same shape — a step scoped to
+`apps/music` "silently dropped cymbra_flags". Fixed by adding `packages/**` to both
+filters.
+
 Two shapes were considered. A **catch-all workflow** that runs a generic check on any
 unmatched path is tempting, but a generic check on an unknown stack is either vacuous or
 wrong, and a green vacuous job is worse than no job — it looks like coverage. So the rule
@@ -51,6 +75,16 @@ iterate is more general, but it is generality with one consumer — the same spe
 move this repo has already paid for elsewhere.
 
 Recommendation: narrow. Revisit if a second flutter_rust_bridge app is actually planned.
+
+**Resolved: narrowed** to `apps/music/rust/**`, `apps/music/lib/src/rust/**` and
+`apps/music/pubspec.yaml`. Verified by test 2.3: a Rust crate under another app is now
+watched by `rust` and `sonar` — which handle it correctly, being `cargo --workspace`
+commands — and no longer by `frb-codegen`.
+
+The audit (task 2.2) found no second instance. `rust` and `sonar` also use
+`apps/*/rust/**`, but their jobs are `cargo fmt --all`, `cargo clippy --workspace` and
+`cargo llvm-cov --workspace`, which genuinely handle every workspace member. The
+distinction to keep: a wildcard is honest when the job is generic over what it selects.
 
 ### D3 — The prefix is the target, never the stack
 
