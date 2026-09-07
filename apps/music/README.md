@@ -381,10 +381,17 @@ is still honoured if set, for the day the two roles need to diverge.
 **Sandbox.** The app ships sandboxed. `Release.entitlements` and
 `DebugProfile.entitlements` must stay in sync for every capability the shipped app
 uses — notably `keychain-access-groups`, without which `flutter_secure_storage`
-cannot reach the keychain and the session is lost on every launch. Debug-only extras
-(`allow-jit`, `network.server`) are correct to keep out of Release: macOS sign-in
-uses the native Google SDK and Sign in with Apple, not the Windows/Linux loopback
-listener.
+cannot reach the keychain and the session is lost on every launch. `allow-jit` is a
+debug-only extra and stays out of Release.
+
+`network.server` is **not** debug-only, despite what this paragraph claimed until
+now. Google Sign-In on macOS goes through AppAuth, which receives the OAuth response
+on a loopback listener it opens itself; the App Sandbox refuses that bind without
+the entitlement, and the signed release build then shows a spinner and a generic
+failure with no authorization window ever appearing (PR #252, established by a
+differential test on the release build, not by reasoning). Removing it removes
+Google sign-in from macOS. Apple's automated analysis flags it on submission — the
+justification to reply with is in `apps/music/store/MACOS_ENTITLEMENTS.md`.
 
 **No macOS download until the listing is live.** A `method: app-store` `.pkg` is a
 submission artifact — a user cannot install it — so it is uploaded, not attached to
