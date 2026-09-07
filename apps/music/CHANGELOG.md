@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.31.0](https://github.com/NEETROF/cymbra/compare/music-v1.30.0...music-v1.31.0) (2026-09-07)
+
+
+### Features
+
+* **music:** tell the store listings about the drums, and capture what ships ([#314](https://github.com/NEETROF/cymbra/issues/314)) ([f168c67](https://github.com/NEETROF/cymbra/commit/f168c671f4ef90db291add34ecbc67db415b2be7))
+
+
+### Bug Fixes
+
+* **music:** keep the licenses page clear of the landscape sensor housing ([#318](https://github.com/NEETROF/cymbra/issues/318)) ([60b911b](https://github.com/NEETROF/cymbra/commit/60b911b51e454a18b3b6da6687f5286e649ecd2b))
+* **music:** show renewal terms and legal links in the subscription flow ([#317](https://github.com/NEETROF/cymbra/issues/317)) ([cc25c92](https://github.com/NEETROF/cymbra/commit/cc25c925a5541200ec6174835a97b9dbe2e5fc7f))
+
 ## [1.30.0](https://github.com/NEETROF/cymbra/compare/music-v1.29.0...music-v1.30.0) (2026-09-06)
 
 
