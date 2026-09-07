@@ -32,6 +32,10 @@ service PlanService {
   // Admin: account ids matching a plan / beta filter (the directory resolves
   // them through the identity service's `ListAccounts(ids)`).
   rpc ListAccountIdsByPlan(ListAccountIdsByPlanRequest) returns (ListAccountIdsByPlanResponse);
+  // Admin: mark an account a store tester — its SANDBOX store transactions are
+  // then honoured (change: scope-sandbox-to-tester-accounts). Grants nothing on
+  // its own; audited in both directions.
+  rpc SetStoreTester(SetStoreTesterRequest) returns (SetStoreTesterResponse);
   // Admin: comp — a premium row until `ends_at` (open-ended needs confirmation).
   rpc GrantPremium(GrantPremiumRequest) returns (GrantPremiumResponse);
   // Admin: revoke a `code`/`admin` row (store/web rows are read-only here).
@@ -180,6 +184,9 @@ message LookupAccountPlanResponse {
   // renewals, refunds and revenue live (change: swap-store-billing-to-revenuecat,
   // D5). Empty when the aggregator is not configured; the console hides the link.
   string aggregator_customer_url = 5;
+  // Whether this account is marked a store tester — the console renders its
+  // checkbox from here rather than a second round trip.
+  bool store_tester = 6;
 }
 
 message GetPlansForAccountsRequest {
@@ -191,6 +198,9 @@ message AccountPlanBadge {
   bool trial = 3;
   optional string ends_at = 4;
   repeated string beta_keys = 5;
+  // Sandbox store transactions are honoured for this account. Shown so a filtered
+  // directory says WHY a row matched.
+  bool store_tester = 6;
 }
 message GetPlansForAccountsResponse {
   repeated AccountPlanBadge badges = 1;
@@ -199,10 +209,20 @@ message GetPlansForAccountsResponse {
 message ListAccountIdsByPlanRequest {
   string plan = 1;                 // any | premium | trial
   string beta_campaign_key = 2;    // empty = any
+  bool store_testers_only = 3;     // restrict to accounts marked store testers
 }
 message ListAccountIdsByPlanResponse {
   repeated string user_ids = 1;
 }
+
+message SetStoreTesterRequest {
+  string user_id = 1;
+  string handle = 2;
+  bool enabled = 3;
+  string reason = 4;
+}
+
+message SetStoreTesterResponse {}
 
 message GrantPremiumRequest {
   string user_id = 1;

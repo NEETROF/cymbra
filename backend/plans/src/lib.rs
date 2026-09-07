@@ -40,7 +40,7 @@ pub use ports::{
     CacheSecretRotator, CampaignRepo, Channel, Clock, Enrolment, EntitlementRepo, EntitlementWrite,
     FixedPaywallConfig, FixedPlanConfig, HandleResolver, MembershipRepo, MintedCode, NewCampaign,
     PaywallConfigSource, PlanConfig, PlanConfigSource, PlanSource, Platform, StoreCustomerEraser,
-    StoreCustomerSource, StoreSubscription, SystemClock, WebBillingProvider,
+    StoreCustomerSource, StoreSubscription, StoreTesterRepo, SystemClock, WebBillingProvider,
     WebSubscriptionCanceller,
 };
 pub use service::{AccountPlan, EnrolOutcome, PlanDeps, PlanFilter, PlanService};

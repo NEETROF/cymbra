@@ -134,10 +134,15 @@ impl PlanService {
     }
 
     /// Directory filter: account ids matching `plan` and/or a beta campaign.
+    /// Account ids matching the directory's filters. `None` inside means "no
+    /// filter narrowed anything yet" — which is why each filter composes through
+    /// the same `Option`, and why a lone `store_testers_only` must SEED the list
+    /// rather than intersect an empty one.
     pub async fn account_ids(
         &self,
         plan: PlanFilter,
         beta_campaign_key: Option<&str>,
+        store_testers_only: bool,
     ) -> Result<Vec<String>> {
         let now = self.now();
         let cfg = self.cfg();
@@ -166,6 +171,13 @@ impl PlanService {
             ids = Some(match ids {
                 None => members,
                 Some(prev) => prev.into_iter().filter(|u| members.contains(u)).collect(),
+            });
+        }
+        if store_testers_only {
+            let testers = self.list_store_testers().await?;
+            ids = Some(match ids {
+                None => testers,
+                Some(prev) => prev.into_iter().filter(|u| testers.contains(u)).collect(),
             });
         }
         Ok(ids.unwrap_or_default())
@@ -879,6 +891,42 @@ mod tests {
         })
     }
 
+    // The directory's filters compose through one `Option`: a lone
+    // store-testers filter must SEED the list, because `PlanFilter::Any` with no
+    // beta leaves it `None` and would otherwise intersect into nothing.
+    #[tokio::test]
+    async fn the_store_tester_filter_seeds_alone_and_intersects_when_combined() {
+        let mut m = mocks(true, t(1));
+        m.store_testers
+            .expect_list_ids()
+            .returning(|| Ok(vec!["a".into(), "b".into()]));
+        m.entitlements
+            .expect_active_user_ids()
+            .returning(|_, _, _| Ok(vec!["b".into(), "c".into()]));
+        let s = service(m);
+
+        // Alone: exactly the marked accounts.
+        let mut alone = s.account_ids(PlanFilter::Any, None, true).await.unwrap();
+        alone.sort();
+        assert_eq!(alone, vec!["a".to_string(), "b".to_string()]);
+
+        // Combined with a plan filter: the intersection, not either side.
+        assert_eq!(
+            s.account_ids(PlanFilter::Premium, None, true)
+                .await
+                .unwrap(),
+            vec!["b".to_string()]
+        );
+
+        // Off: the filter must not narrow anything.
+        assert_eq!(
+            s.account_ids(PlanFilter::Premium, None, false)
+                .await
+                .unwrap(),
+            vec!["b".to_string(), "c".to_string()]
+        );
+    }
+
     // The mark is the whole point of scope-sandbox-to-tester-accounts: it decides
     // whether a sandbox purchase counts. Clearing DELETES the row, so the audit
     // trail is the only surviving record that it was ever set — assert both
@@ -1582,19 +1630,19 @@ mod tests {
             .returning(|_, _| Ok(vec!["b".into(), "c".into()]));
         let s = service(m);
         assert_eq!(
-            s.account_ids(PlanFilter::Trial, Some("midi-drums"))
+            s.account_ids(PlanFilter::Trial, Some("midi-drums"), false)
                 .await
                 .unwrap(),
             vec!["b".to_string()]
         );
         assert_eq!(
-            s.account_ids(PlanFilter::Any, Some("midi-drums"))
+            s.account_ids(PlanFilter::Any, Some("midi-drums"), false)
                 .await
                 .unwrap(),
             vec!["b".to_string(), "c".to_string()]
         );
         assert!(
-            s.account_ids(PlanFilter::Any, None)
+            s.account_ids(PlanFilter::Any, None, false)
                 .await
                 .unwrap()
                 .is_empty()

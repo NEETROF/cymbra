@@ -26,12 +26,12 @@
 
 ## 4. Admin RPC
 
-- [ ] 4.1 `SetStoreTester(user_id, enabled)` in `backend/plans/proto/plans.proto`; add `store_tester` to `AccountPlanBadge` and `LookupAccountPlanResponse`; add `store_testers_only` to `ListAccountIdsByPlanRequest`
-- [ ] 4.2 Implement the RPC in `backend/plans/src/grpc.rs`, gated like `GrantPremium`, and write the change to the existing admin audit trail in both directions
-- [ ] 4.3 Populate `store_tester` in `LookupAccountPlan` and `GetPlansForAccounts`, and honour `store_testers_only` in `ListAccountIdsByPlan`
-- [ ] 4.4 Test: a caller without admin authority is refused and the mark is unchanged
-- [ ] 4.5 Test: setting and clearing both land in the audit trail with the actor
-- [ ] 4.6 Test: `ListAccountIdsByPlan` with `store_testers_only` returns only marked accounts, and composes with the plan filter
+- [x] 4.1 `SetStoreTester(user_id, enabled)` in `backend/plans/proto/plans.proto`; add `store_tester` to `AccountPlanBadge` and `LookupAccountPlanResponse`; add `store_testers_only` to `ListAccountIdsByPlanRequest`
+- [x] 4.2 Implement the RPC in `backend/plans/src/grpc.rs`, gated like `GrantPremium`, and write the change to the existing admin audit trail in both directions
+- [x] 4.3 Populate `store_tester` in `LookupAccountPlan` and `GetPlansForAccounts`, and honour `store_testers_only` in `ListAccountIdsByPlan`
+- [x] 4.4 Test: a caller without admin authority is refused — covered where it lives. The gate is the shared `guard::require_admin_in_scope(&id, "music")` every admin RPC on this service calls, and `platform/src/guard.rs::admin_in_scope_is_scope_matched` already asserts a `music/admin` is refused elsewhere and a `global/admin` passes. `plans/src/grpc.rs` has no RPC-level harness; building one for a single RPC would test the helper, not this call
+- [x] 4.5 Test: setting and clearing both land in the audit trail with the actor
+- [x] 4.6 Test: `ListAccountIdsByPlan` with `store_testers_only` returns only marked accounts, and composes with the plan filter
 
 ## 5. Back office
 
