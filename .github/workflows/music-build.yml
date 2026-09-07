@@ -29,8 +29,8 @@ jobs:
     outputs:
       native: ${{ steps.f.outputs.native }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
+      - uses: actions/checkout@v5
+      - uses: dorny/paths-filter@v4
         id: f
         with:
           filters: |
@@ -50,10 +50,10 @@ jobs:
     if: ${{ github.event_name != 'pull_request' || needs.changes.outputs.native == 'true' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: ./.github/actions/flutter-native-setup
       - name: Set up Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
@@ -66,7 +66,7 @@ jobs:
     if: ${{ github.event_name != 'pull_request' || needs.changes.outputs.native == 'true' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Linux build deps
         run: sudo apt-get update && sudo apt-get install -y libasound2-dev ninja-build libgtk-3-dev libsecret-1-dev
       - uses: ./.github/actions/flutter-native-setup
@@ -79,7 +79,7 @@ jobs:
     if: ${{ github.event_name != 'pull_request' || needs.changes.outputs.native == 'true' }}
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: ./.github/actions/flutter-native-setup
       # The Sign in with Apple entitlement is profile-restricted; this compile-only
       # gate disables signing so xcodebuild does an ad-hoc (unsigned) build. Applied
@@ -97,7 +97,7 @@ jobs:
     if: ${{ github.event_name != 'pull_request' || needs.changes.outputs.native == 'true' }}
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: ./.github/actions/flutter-native-setup
       - name: Build (windows)
         working-directory: apps/music

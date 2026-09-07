@@ -60,7 +60,7 @@ jobs:
       back_office: ${{ steps.resolve.outputs.back_office }}
       site: ${{ steps.resolve.outputs.site }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Resolve targets and versions
         id: resolve
