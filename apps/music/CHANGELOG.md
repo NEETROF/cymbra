@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.32.0](https://github.com/NEETROF/cymbra/compare/music-v1.31.0...music-v1.32.0) (2026-09-07)
+
+
+### Features
+
+* **plans:** honour sandbox store purchases only for marked accounts ([#319](https://github.com/NEETROF/cymbra/issues/319)) ([916ad39](https://github.com/NEETROF/cymbra/commit/916ad39e9ce79ff19cb1f2df7386a1f24da3fb8b))
+
+
+### Bug Fixes
+
+* **music:** let the emailed code be typed — it is a UUID, not digits ([#320](https://github.com/NEETROF/cymbra/issues/320)) ([fc8f340](https://github.com/NEETROF/cymbra/commit/fc8f3404116cf6db915ef7ec5b7c9a57ea647063))
+
 ## [1.31.0](https://github.com/NEETROF/cymbra/compare/music-v1.30.0...music-v1.31.0) (2026-09-07)
 
 
