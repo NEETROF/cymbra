@@ -486,40 +486,41 @@ mod tests {
     async fn grant_is_scope_matched_across_scopes() {
         let (g, module) = grpc();
         let target = module.resolve_or_provision("google", "t").await.unwrap();
-        // `admin`, not `moderator`: what this test exercises is scope-matched
-        // authorization, and the role is incidental. `moderator` is refused outside
-        // `music` by the temporary lock in `UserModule::grant_role` (change:
-        // harden-module-boundaries, group 1) — use a role that lock does not touch.
+        // A privileged role in an app scope other than `music` — exactly what the
+        // temporary lock in `UserModule::grant_role` refuses (change:
+        // harden-module-boundaries, group 1). That is deliberate here: the two callers
+        // must be distinguished by the gRPC guard, which runs BEFORE the module, and
+        // the difference in the error proves it.
         let live_grant = || GrantRoleRequest {
             user_id: target.clone(),
             scope: "live".into(),
-            role: "admin".into(),
+            role: "moderator".into(),
         };
 
-        // A music-only admin cannot touch the `live` scope.
+        // A music-only admin is stopped at the guard: it never reaches the module.
         let err = g
             .grant_role(authed_scoped(live_grant(), "m", &[("music", &["admin"])]))
             .await
             .unwrap_err();
         assert_eq!(err.code(), tonic::Code::PermissionDenied);
+
+        // A global admin (break-glass) passes the guard — it is refused further in, by
+        // the lock, with a DIFFERENT code. When the lock goes away with group 3 this
+        // becomes a plain success; until then, "not PermissionDenied" is what says the
+        // guard let it through.
+        let err = g
+            .grant_role(authed_scoped(live_grant(), "g", &[("global", &["admin"])]))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::InvalidArgument);
+
+        // Either way nothing landed: a refused grant writes no role.
         assert!(
             !module
                 .effective_roles(&target, "live")
                 .await
                 .unwrap()
-                .contains(&"admin".to_string())
-        );
-
-        // A global admin (break-glass) can grant in `live`.
-        g.grant_role(authed_scoped(live_grant(), "g", &[("global", &["admin"])]))
-            .await
-            .unwrap();
-        assert!(
-            module
-                .effective_roles(&target, "live")
-                .await
-                .unwrap()
-                .contains(&"admin".to_string())
+                .contains(&"moderator".to_string())
         );
     }
 
@@ -573,10 +574,10 @@ mod tests {
             .grant_role("seed", &target, "music", "moderator")
             .await
             .unwrap();
-        // `admin` in `live` for the same reason as above: the directory test only needs
-        // the target to hold *some* role in each app scope.
+        // Same reason: the directory test only needs the target to hold *some* role in
+        // each app scope, and `user` is the one the lock does not touch.
         module
-            .grant_role("seed", &target, "live", "admin")
+            .grant_role("seed", &target, "live", "user")
             .await
             .unwrap();
 

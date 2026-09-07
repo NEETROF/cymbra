@@ -3,6 +3,8 @@
 - [x] 1.1 In `backend/user/src/module.rs` `grant_role` (~:220), after `validate_scope_role`, refuse `role == "moderator"` when `scope != "music"` with an `InvalidArgument` naming the reason (guards not yet scope-matched). Do **not** touch `validate_scope_role` — it is shared with `revoke_role` (~:243).
 - [x] 1.2 Test: granting `moderator` in a non-`music` scope is refused; granting `admin` in any scope still succeeds.
 - [x] 1.3 Test: `revoke_role("moderator")` in a non-`music` scope still **succeeds** while the lock is active (the trap D1 names).
+- [ ] 1.4 **Found by the separation-of-powers audit, after the lock shipped.** `backend/scripts/seed_admin.sh` (~:19-20, `SCOPE="${2:-music}" ROLE="${3:-admin}"`, then ~:48-50 `INSERT INTO user_account.user_roles … ON CONFLICT DO NOTHING`) writes roles **directly**: it bypasses `validate_scope_role`, bypasses the lock, and writes **no `role_grants` audit row**. It needs privileged psql credentials, so it is not an application escalation — but it is the only entry point for any privileged role in production, and a review of `role_grants` would wrongly conclude nobody holds one. Make it validate the scope/role vocabulary and record the audit row, so the table is the whole truth.
+- [ ] 1.5 Consider a DB-level `CHECK` on `user_account.user_roles(scope, role)`, the way `role_grants` already constrains `action` (`backend/user/migrations/0004_role_grants.sql` ~:15). The lock is a Rust `if`; the table has no vocabulary constraint at all (`0001_init.sql` ~:23-28).
 
 ## 2. Account erasure — close the GDPR gap
 

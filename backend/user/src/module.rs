@@ -227,22 +227,33 @@ impl<R: UserRepo> UserPort for UserModule<R> {
     ) -> Result<()> {
         validate_scope_role(scope, role)?;
         // TEMPORARY, and only on the grant path (change: harden-module-boundaries,
-        // group 1). The moderation gates still test the FLAT role set
-        // (`platform::guard::require_moderator_or_admin`), while a `back-office` token
-        // carries `global ∪ music ∪ live` — so a moderator granted in any other scope
-        // would pass every music moderation gate. `SCOPES` already accepts `live`, so
-        // the console would take that grant today.
+        // group 1). 22 authorization sites still test the FLAT role set — 15
+        // `require_moderator_or_admin`, 5 `require_admin` ("in any scope — the coarse
+        // gate"), 2 inline — while a `back-office` token carries `global ∪ music ∪
+        // live`. So a PRIVILEGED role granted in another app scope silently confers
+        // authority over music, and nothing in the console or the audit says so.
+        // `SCOPES` already accepts `live`, so that grant would be taken today.
         //
-        // Refusing it here closes the hole without waiting for the 23-site guard
-        // migration. Remove this together with group 3, not before.
+        // This does NOT protect against the granter: only `global/admin` or
+        // `<scope>/admin` can reach `grant_role` at all, and both already pass those
+        // gates. What it prevents is creating a *grantee* whose authority does not
+        // match its label.
+        //
+        // `global` is exempt on purpose — it is the break-glass scope, cross-cutting
+        // by design (`has_role_in_scope` treats it as such), and `global/admin` must
+        // stay grantable. The restriction is about the OTHER app scopes.
+        //
+        // Remove this together with group 3 (scope-matching those 22 sites), not
+        // before.
         //
         // Deliberately NOT in `validate_scope_role`: that helper is shared with
         // `revoke_role` below, and revoking a bad grant must stay possible in every
         // scope.
-        if role == "moderator" && scope != "music" {
+        if role != "user" && scope != "music" && cymbra_platform::APP_SCOPES.contains(&scope) {
             return Err(AppError::InvalidArgument(format!(
-                "moderator is music-only until the moderation guards are scope-matched \
-                 (refused for scope {scope:?})"
+                "role {role:?} is refused in scope {scope:?} until the moderation guards \
+                 are scope-matched — they read the flat role set, so it would also grant \
+                 authority over music"
             )));
         }
         // Idempotent role write, then the audit entry (change: add-moderation-back-
@@ -714,33 +725,42 @@ mod tests {
         assert!(m.list_role_grants(&t).await.unwrap().is_empty());
     }
 
-    /// Temporary lock (change: harden-module-boundaries, group 1): the moderation gates
-    /// still read the flat role set, so a moderator granted outside `music` would pass
-    /// them. `admin` is unaffected — it is already scope-matched at the gates.
+    /// Temporary lock (change: harden-module-boundaries, group 1). 22 authorization
+    /// sites read the FLAT role set, `require_admin` included — it is documented "in
+    /// any scope — the coarse gate" (`platform::guard`). So `admin` is NOT
+    /// scope-matched at the gates, and a privileged role in another app scope confers
+    /// authority over music whatever its label says. `global` is exempt: it is the
+    /// break-glass, cross-cutting by design.
     #[tokio::test]
-    async fn grant_role_refuses_moderator_outside_music() {
+    async fn grant_role_refuses_privileged_roles_in_other_app_scopes() {
         let m = module();
         let admin = m.resolve_or_provision("google", "admin").await.unwrap();
         let t = m.resolve_or_provision("google", "t").await.unwrap();
 
-        for scope in ["live", "global"] {
+        // `live` is an app scope that is not `music` — both privileged roles refused.
+        for role in ["moderator", "admin"] {
             assert!(
                 matches!(
-                    m.grant_role(&admin, &t, scope, "moderator").await,
+                    m.grant_role(&admin, &t, "live", role).await,
                     Err(AppError::InvalidArgument(_))
                 ),
-                "moderator should be refused in scope {scope:?}"
+                "{role:?} should be refused in scope \"live\""
             );
         }
 
-        // Music is the one scope the gates actually match, so it still works.
-        m.grant_role(&admin, &t, "music", "moderator")
-            .await
-            .unwrap();
-        // And the lock is about `moderator` only: admin is unaffected in every scope.
-        for scope in ["live", "global", "music"] {
-            m.grant_role(&admin, &t, scope, "admin").await.unwrap();
+        // Music is the scope the gates actually match, so both still work there.
+        for role in ["moderator", "admin"] {
+            m.grant_role(&admin, &t, "music", role).await.unwrap();
         }
+
+        // `global` is the break-glass and stays grantable — locking it would take away
+        // the only way to appoint a platform administrator.
+        for role in ["moderator", "admin"] {
+            m.grant_role(&admin, &t, "global", role).await.unwrap();
+        }
+
+        // The plain `user` role is not privileged: unaffected everywhere.
+        m.grant_role(&admin, &t, "live", "user").await.unwrap();
     }
 
     /// The trap the lock must not fall into: it lives in `grant_role`, not in the
