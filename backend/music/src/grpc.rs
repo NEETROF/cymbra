@@ -645,7 +645,10 @@ impl ScoreService for ScoreGrpc {
                 ids
             };
             if !ids.is_empty()
-                && let Ok(profiles) = user.listable_profiles(&ids, today_utc()).await
+                && let Some(profiles) = crate::seam::optional(
+                    "listable profiles",
+                    user.listable_profiles(&ids, today_utc()).await,
+                )
             {
                 for p in profiles {
                     if let Some(name) = p.handle.or(p.display_name) {
@@ -838,7 +841,8 @@ impl ScoreService for ScoreGrpc {
                 ids
             };
             for id in ids {
-                if let Ok(acct) = user.get_account(id).await
+                if let Some(acct) =
+                    crate::seam::optional("uploader account", user.get_account(id).await)
                     && let Some(name) = acct.handle.or(acct.display_name)
                 {
                     pseudos.insert(id.clone(), name);
@@ -2470,6 +2474,37 @@ mod tests {
         // The listing still serves; the credit is simply omitted (fail-closed).
         assert_eq!(resp.soundfonts.len(), 1);
         assert_eq!(resp.soundfonts[0].contributor_credit, "");
+    }
+
+    /// The other half of the pair: a private profile produces the SAME omission, and
+    /// must stay silent. Two causes, one visible answer — which is exactly why the
+    /// seam used to discard both with `.ok()` and nothing recorded the difference
+    /// (change: harden-module-boundaries, group 10). `crate::seam` classifies them;
+    /// this asserts the classification did not change what the caller sees.
+    #[tokio::test]
+    async fn public_credit_is_absent_for_a_private_profile_too() {
+        use crate::soundfont::FakeSoundFontRepo;
+        use cymbra_user_port::MockUserPort;
+        let mut credited = font("credited", None);
+        credited.uploaded_by = Some(UPLOADER.into());
+        let mut user = MockUserPort::new();
+        user.expect_listable_profiles()
+            .returning(|_, _| Err(cymbra_platform::AppError::NotFound("profile".into())));
+        let svc = grpc()
+            .await
+            .with_soundfonts(Arc::new(FakeSoundFontRepo::with(vec![credited])))
+            .with_user_port(Arc::new(user));
+        let resp = svc
+            .list_sound_fonts(authed(ListSoundFontsRequest {}, "u"))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(resp.soundfonts.len(), 1);
+        assert_eq!(resp.soundfonts[0].contributor_credit, "");
+        // …and the classifier says this one is not worth reporting.
+        assert!(crate::seam::is_domain_outcome(
+            &cymbra_platform::AppError::NotFound("profile".into())
+        ));
     }
 
     #[tokio::test]
