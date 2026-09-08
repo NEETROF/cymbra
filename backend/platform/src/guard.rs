@@ -35,20 +35,24 @@ pub fn require_admin_in_scope(id: &AuthIdentity, scope: &str) -> Result<()> {
     }
 }
 
-/// Require the caller to be a moderator **or** an admin (change: add-moderation-
-/// back-office). Because `AuthIdentity.roles` is the effective set for the token's
-/// audience — the audience scope unioned with `global` — holding `moderator` here
-/// means the caller is a moderator in that audience's scope (e.g. `music/moderator`),
-/// and `admin` covers both a scope admin and a `global/admin` break-glass. This is
-/// the authorization for every moderation operation (evaluate, the privileged
-/// status filter, non-`accepted` fetch-bytes, moderation-oriented sort keys).
-pub fn require_moderator_or_admin(id: &AuthIdentity) -> Result<()> {
-    if id.has_role("admin") || id.has_role("moderator") {
+/// Require the caller to hold `moderator` or `admin` **in `scope`** — the
+/// authorization for every moderation operation (evaluate, the privileged status
+/// filter, non-`accepted` fetch-bytes, moderation-oriented sort keys).
+///
+/// This replaces a flat check whose doc-comment justified itself by claiming
+/// `AuthIdentity.roles` was "the effective set for the token's audience". That is
+/// true for an app audience, and **false for `back-office`**, whose token unions the
+/// roles the administrator holds across *every* scope so one console session can
+/// administer several products. On a console token the flat set therefore answered
+/// "moderator somewhere", and a `live/moderator` passed a music moderation gate
+/// (change: harden-module-boundaries, group 3).
+pub fn require_moderator_or_admin_in_scope(id: &AuthIdentity, scope: &str) -> Result<()> {
+    if id.has_role_in_scope(scope, "admin") || id.has_role_in_scope(scope, "moderator") {
         Ok(())
     } else {
-        Err(AppError::PermissionDenied(
-            "requires role `moderator` or `admin`".into(),
-        ))
+        Err(AppError::PermissionDenied(format!(
+            "requires `moderator` or `admin` in scope `{scope}`"
+        )))
     }
 }
 
@@ -126,12 +130,58 @@ mod tests {
     }
 
     #[test]
-    fn moderator_or_admin_allows_either_and_denies_normal() {
-        assert!(require_moderator_or_admin(&id(&["user", "moderator"])).is_ok());
-        assert!(require_moderator_or_admin(&id(&["user", "admin"])).is_ok());
+    fn moderator_or_admin_in_scope_allows_either_and_denies_normal() {
+        let music_mod = scoped_id(&[("music", &["moderator"])]);
+        let music_admin = scoped_id(&[("music", &["admin"])]);
+        assert!(require_moderator_or_admin_in_scope(&music_mod, "music").is_ok());
+        assert!(require_moderator_or_admin_in_scope(&music_admin, "music").is_ok());
         assert!(matches!(
-            require_moderator_or_admin(&id(&["user"])),
+            require_moderator_or_admin_in_scope(&scoped_id(&[("music", &["user"])]), "music"),
             Err(AppError::PermissionDenied(_))
         ));
+    }
+
+    /// The hole this guard replaced. `scoped_id` builds a **`back-office`** token, whose
+    /// flat `roles` is the union across every scope — so a `live` moderator's flat set
+    /// contains "moderator" and the old check said yes at a music gate. Asserted both
+    /// ways: the flat set really does still contain the role, and the guard still
+    /// refuses. Without the first assertion this test could pass for the wrong reason.
+    #[test]
+    fn a_moderator_of_another_product_is_refused_at_a_music_gate() {
+        let live_mod = scoped_id(&[("live", &["moderator"])]);
+        assert!(
+            live_mod.has_role("moderator"),
+            "precondition: the flat set is what the old guard read"
+        );
+        assert!(matches!(
+            require_moderator_or_admin_in_scope(&live_mod, "music"),
+            Err(AppError::PermissionDenied(_))
+        ));
+        // ...and remains a moderator where they actually hold it.
+        assert!(require_moderator_or_admin_in_scope(&live_mod, "live").is_ok());
+    }
+
+    /// The break-glass must survive the tightening: a `global` admin passes everywhere.
+    #[test]
+    fn the_global_break_glass_still_passes_every_scope() {
+        let global_admin = scoped_id(&[("global", &["admin"])]);
+        for scope in crate::SCOPES {
+            assert!(
+                require_moderator_or_admin_in_scope(&global_admin, scope).is_ok(),
+                "global/admin refused in {scope}"
+            );
+        }
+    }
+
+    /// A legacy token carries no `roles_by_scope`, so every scope-matched guard refuses
+    /// it. Production only mints scoped claims (`token::new_claims_scoped`) and access
+    /// tokens live 15 minutes, so this is the fail-closed direction, not a lockout —
+    /// but it is asserted so the property is deliberate rather than incidental.
+    #[test]
+    fn a_flat_legacy_token_is_refused_everywhere() {
+        let legacy = id(&["admin", "moderator"]);
+        assert!(legacy.roles_by_scope.is_empty());
+        assert!(require_moderator_or_admin_in_scope(&legacy, "music").is_err());
+        assert!(require_admin_in_scope(&legacy, "music").is_err());
     }
 }

@@ -31,12 +31,21 @@ pub use identity::AuthIdentity;
 /// each app scope. `global` unions into every scope; the app scopes are isolated
 /// from one another (change: scope-aware-role-admin, mirrors the user module's
 /// `SCOPES`).
-pub const SCOPES: [&str; 3] = ["global", "music", "live"];
+pub const SCOPES: [&str; 3] = [GLOBAL_SCOPE, MUSIC_SCOPE, LIVE_SCOPE];
+
+/// The break-glass scope: a role held here applies in every scope.
+pub const GLOBAL_SCOPE: &str = "global";
+/// The Cymbra Music product scope. Spelled once so "where is music authority
+/// checked?" is a search for this name rather than for a string literal, and so a
+/// second product cannot inherit a music gate by accident.
+pub const MUSIC_SCOPE: &str = "music";
+/// The Cymbra Live product scope.
+pub const LIVE_SCOPE: &str = "live";
 
 /// The app scopes an administrator can be scoped to (everything in [`SCOPES`]
 /// except the `global` break-glass) — the audiences the back-office session
 /// aggregates.
-pub const APP_SCOPES: [&str; 2] = ["music", "live"];
+pub const APP_SCOPES: [&str; 2] = [MUSIC_SCOPE, LIVE_SCOPE];
 
 /// The dedicated audience the back office authenticates against: its access token
 /// carries the administrator's real roles across `global ∪ music ∪ live`, so one

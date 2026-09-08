@@ -372,22 +372,22 @@ fn to_hit(h: CatalogHit) -> ProtoCatalogHit {
 
 /// The player-open caller facts the daily-access gate needs (change:
 /// add-score-daily-access-rewards), resolved from the identity once per call.
-/// `allow_unvalidated` keeps the historical scope-agnostic test (a moderator/admin
-/// may open a score in any status); `exempt_from_quota` is scope-checked like the
-/// access limiter's exemption — the back-office audience or a music-scope
-/// moderator/admin (global break-glass included) — reviewing is not consumption.
+///
+/// All three privileges now key on **music** staff (change: harden-module-
+/// boundaries, group 3). `allow_unvalidated` used to keep a "historical
+/// scope-agnostic test", which on a `back-office` token meant a moderator of any
+/// product could open a music score in any moderation status; `exempt_from_quota`
+/// was already scope-checked, so the two disagreed about who staff was.
 fn player_caller(id: &AuthIdentity) -> PlayerCaller {
-    let staff = id.is_admin() || id.has_role("moderator");
-    // Role-based only: the audience clause that used to lead this expression was
-    // redundant for real console users (they hold one of these roles) and was the
-    // whole hole for everyone else — the client picks its own audience at sign-in.
-    let exempt_from_quota =
-        id.has_role_in_scope("music", "admin") || id.has_role_in_scope("music", "moderator");
+    // Reviewing is not consumption, and seeing an unvalidated score is a moderation
+    // act: both answer the same question, so they are computed once.
+    let music_staff = id.has_role_in_scope(cymbra_platform::MUSIC_SCOPE, "admin")
+        || id.has_role_in_scope(cymbra_platform::MUSIC_SCOPE, "moderator");
     PlayerCaller {
         user_id: id.user_id.clone(),
-        allow_unvalidated: staff,
-        exempt_from_quota,
-        staff,
+        allow_unvalidated: music_staff,
+        exempt_from_quota: music_staff,
+        staff: music_staff,
         // Stamped by each handler from the async flag read (the helper stays
         // sync); the default fails closed.
         eligible_for_percussion: false,
@@ -794,7 +794,10 @@ impl ScoreService for ScoreGrpc {
         &self,
         req: Request<AdminListSoundFontsRequest>,
     ) -> Result<Response<AdminListSoundFontsResponse>, Status> {
-        cymbra_platform::guard::require_moderator_or_admin(&identity(&req)?)?;
+        cymbra_platform::guard::require_moderator_or_admin_in_scope(
+            &identity(&req)?,
+            cymbra_platform::MUSIC_SCOPE,
+        )?;
         let repo = self.soundfont_repo()?;
         let r = req.into_inner();
         // Paging (change: add-soundfont-moderation): clamp the page size, treat an
@@ -899,7 +902,10 @@ impl ScoreService for ScoreGrpc {
         &self,
         req: Request<UpdateSoundFontRequest>,
     ) -> Result<Response<UpdateSoundFontResponse>, Status> {
-        cymbra_platform::guard::require_moderator_or_admin(&identity(&req)?)?;
+        cymbra_platform::guard::require_moderator_or_admin_in_scope(
+            &identity(&req)?,
+            cymbra_platform::MUSIC_SCOPE,
+        )?;
         let repo = self.soundfont_repo()?;
         let r = req.into_inner();
         let attribution = (!r.attribution.is_empty()).then_some(r.attribution.as_str());
@@ -920,7 +926,10 @@ impl ScoreService for ScoreGrpc {
         &self,
         req: Request<DeleteSoundFontRequest>,
     ) -> Result<Response<DeleteSoundFontResponse>, Status> {
-        cymbra_platform::guard::require_moderator_or_admin(&identity(&req)?)?;
+        cymbra_platform::guard::require_moderator_or_admin_in_scope(
+            &identity(&req)?,
+            cymbra_platform::MUSIC_SCOPE,
+        )?;
         let repo = self.soundfont_repo()?;
         let font_id = req.into_inner().id;
         let entry = repo
@@ -949,7 +958,10 @@ impl ScoreService for ScoreGrpc {
         req: Request<SetSoundFontModerationStatusRequest>,
     ) -> Result<Response<SetSoundFontModerationStatusResponse>, Status> {
         let id = identity(&req)?;
-        cymbra_platform::guard::require_moderator_or_admin(&id)?;
+        cymbra_platform::guard::require_moderator_or_admin_in_scope(
+            &id,
+            cymbra_platform::MUSIC_SCOPE,
+        )?;
         let r = req.into_inner();
         if !matches!(r.status.as_str(), "pending" | "accepted" | "rejected") {
             return Err(Status::invalid_argument(
@@ -1188,7 +1200,10 @@ impl ScoreService for ScoreGrpc {
                 .iter()
                 .any(|k| is_moderation_sort_field(&k.field));
         if uses_moderation {
-            cymbra_platform::guard::require_moderator_or_admin(&id)?;
+            cymbra_platform::guard::require_moderator_or_admin_in_scope(
+                &id,
+                cymbra_platform::MUSIC_SCOPE,
+            )?;
         }
         let eligible_for_percussion = self.drums_eligible(&id).await;
         let r = req.into_inner();
@@ -1434,7 +1449,10 @@ impl ScoreService for ScoreGrpc {
         // informs manual promotion — never auto-promotes. A non-moderator/admin caller
         // is refused before any read.
         let id = identity(&req)?;
-        cymbra_platform::guard::require_moderator_or_admin(&id)?;
+        cymbra_platform::guard::require_moderator_or_admin_in_scope(
+            &id,
+            cymbra_platform::MUSIC_SCOPE,
+        )?;
         let user_id = req.into_inner().user_id;
         let m = self.rewards()?.metrics(&user_id).await?;
         Ok(Response::new(to_proto_reliability(m)))
@@ -1449,7 +1467,13 @@ impl ScoreService for ScoreGrpc {
         // load by id without depending on a prior list.
         let id = identity(&req)?;
         self.guard_enumeration(&id).await?; // per-user browse cap (scrape guard)
-        let privileged = id.is_admin() || id.has_role("moderator");
+        // Scope-matched: a moderator of another product must not resolve a music
+        // score in a non-`accepted` status (change: harden-module-boundaries, group 3).
+        let privileged = cymbra_platform::guard::require_moderator_or_admin_in_scope(
+            &id,
+            cymbra_platform::MUSIC_SCOPE,
+        )
+        .is_ok();
         let eligible = self.drums_eligible(&id).await;
         let catalog_id = req.into_inner().catalog_id;
         let hit = self
@@ -1475,7 +1499,10 @@ impl ScoreService for ScoreGrpc {
         // The reviewer id is the authenticated caller — never the body — and is
         // stamped as `reviewed_by` alongside the status.
         let id = identity(&req)?;
-        cymbra_platform::guard::require_moderator_or_admin(&id)?;
+        cymbra_platform::guard::require_moderator_or_admin_in_scope(
+            &id,
+            cymbra_platform::MUSIC_SCOPE,
+        )?;
         let r = req.into_inner();
         self.module
             .set_moderation_status(&id.user_id, &r.score_id, &r.status, r.reason.as_deref())
@@ -1491,7 +1518,10 @@ impl ScoreService for ScoreGrpc {
         // admin only. The editor is the authenticated caller, never the body; only the
         // descriptive fields are editable (the request shape can't carry derived facts).
         let id = identity(&req)?;
-        cymbra_platform::guard::require_moderator_or_admin(&id)?;
+        cymbra_platform::guard::require_moderator_or_admin_in_scope(
+            &id,
+            cymbra_platform::MUSIC_SCOPE,
+        )?;
         let r = req.into_inner();
         let changes = MetadataChanges {
             title: r.title,
@@ -2592,13 +2622,20 @@ mod tests {
         authed_with(msg, user_id, &["user", "moderator"])
     }
 
+    /// A music-audience token holding `roles` **in the music scope** — the shape
+    /// `token::new_claims_scoped` actually issues, where the flat `roles` field is the
+    /// union derived from `roles_by_scope`. It used to fill only the flat field, which
+    /// made every gate in this file testable without ever exercising a scope.
     fn authed_with<T>(msg: T, user_id: &str, roles: &[&str]) -> Request<T> {
         let mut req = Request::new(msg);
+        let scoped: Vec<String> = roles.iter().map(|r| (*r).to_string()).collect();
         req.extensions_mut().insert(AuthIdentity {
             user_id: user_id.into(),
-            audience: "music".into(),
-            roles: roles.iter().map(|r| (*r).into()).collect(),
-            ..Default::default()
+            audience: cymbra_platform::MUSIC_SCOPE.into(),
+            roles: scoped.clone(),
+            roles_by_scope: [(cymbra_platform::MUSIC_SCOPE.to_string(), scoped)]
+                .into_iter()
+                .collect(),
         });
         req
     }
@@ -3775,6 +3812,26 @@ mod tests {
         req
     }
 
+    /// A console token whose only privileged role is held in **another product**
+    /// (`live`). Its flat `roles` contains "moderator" — the union across scopes is
+    /// what every flat guard used to read — so it is the exact shape that walked
+    /// through music moderation gates before group 3.
+    fn authed_other_product_moderator<T>(msg: T, user_id: &str) -> Request<T> {
+        let mut req = Request::new(msg);
+        req.extensions_mut().insert(AuthIdentity {
+            user_id: user_id.into(),
+            audience: cymbra_platform::BACKOFFICE_AUDIENCE.into(),
+            roles: vec!["user".into(), "moderator".into()],
+            roles_by_scope: [(
+                cymbra_platform::LIVE_SCOPE.to_string(),
+                vec!["moderator".to_string()],
+            )]
+            .into_iter()
+            .collect(),
+        });
+        req
+    }
+
     /// The audience with no role behind it — an ordinary account that re-signed in
     /// asking for `back-office`, which the sign-in path allows.
     fn authed_backoffice_no_role<T>(msg: T, user_id: &str) -> Request<T> {
@@ -3896,10 +3953,22 @@ mod tests {
             .unwrap()
             .into_inner();
         assert!(r.access.unwrap().locked);
-        // A flat (scope-less) `moderator` role still may open pending bytes but IS
-        // quota'd like the access limiter treats it: allow_unvalidated without exempt.
+        // A music moderator is exempt on BOTH counts. This used to assert the opposite
+        // — `locked`, because `allow_unvalidated` read the flat role set while
+        // `exempt_from_quota` was scope-checked, so the same caller was staff for one
+        // decision and not the other. Group 3 removed that split.
         let r = g
-            .get_catalog_score_bytes(authed_moderator(bytes_req(DEBUSSY, None), "flatmod"))
+            .get_catalog_score_bytes(authed_moderator(bytes_req(DEBUSSY, None), "musicmod"))
+            .await
+            .unwrap()
+            .into_inner();
+        assert!(!r.access.unwrap().locked);
+        // A moderator of ANOTHER product, on a console token: quota'd like anyone else.
+        // Their flat role set still contains "moderator" — that is what the old check
+        // read — so this is the hole, asserted closed.
+        let live_mod = authed_other_product_moderator(bytes_req(DEBUSSY, None), "livemod");
+        let r = g
+            .get_catalog_score_bytes(live_mod)
             .await
             .unwrap()
             .into_inner();

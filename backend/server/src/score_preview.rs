@@ -93,11 +93,9 @@ async fn serve_preview(
     if s.auth.identify(&headers).is_none() {
         return status(StatusCode::UNAUTHORIZED);
     }
-    let can_view_unvalidated = s
-        .auth
-        .identify_admin(&headers)
-        .as_ref()
-        .is_some_and(|i| guard::require_moderator_or_admin(i).is_ok());
+    let can_view_unvalidated = s.auth.identify_admin(&headers).as_ref().is_some_and(|i| {
+        guard::require_moderator_or_admin_in_scope(i, cymbra_platform::MUSIC_SCOPE).is_ok()
+    });
     let (Some(store), Some(catalog)) = (s.store.as_ref(), s.catalog.as_ref()) else {
         return status(StatusCode::SERVICE_UNAVAILABLE);
     };
@@ -166,7 +164,13 @@ async fn regenerate_preview(
 ) -> Response {
     match s.auth.identify_admin(&headers) {
         None => return status(StatusCode::UNAUTHORIZED),
-        Some(identity) if guard::require_moderator_or_admin(&identity).is_err() => {
+        Some(identity)
+            if guard::require_moderator_or_admin_in_scope(
+                &identity,
+                cymbra_platform::MUSIC_SCOPE,
+            )
+            .is_err() =>
+        {
             return status(StatusCode::FORBIDDEN);
         }
         Some(_) => {}
@@ -230,11 +234,19 @@ mod tests {
                 .and_then(|v| v.to_str().ok())
                 .map(|r| vec!["user".to_string(), r.to_string()])
                 .unwrap_or_else(|| vec!["user".to_string()]);
+            // The role from `x-role` is held in the MUSIC scope unless the header names
+            // one, so these route tests exercise a scope-matched gate rather than the
+            // flat set (harden-module-boundaries, group 3).
+            let scope = headers
+                .get("x-role-scope")
+                .and_then(|v| v.to_str().ok())
+                .unwrap_or(cymbra_platform::MUSIC_SCOPE)
+                .to_string();
             Some(AuthIdentity {
                 user_id,
-                audience: "music".into(),
-                roles,
-                ..Default::default()
+                audience: cymbra_platform::BACKOFFICE_AUDIENCE.into(),
+                roles: roles.clone(),
+                roles_by_scope: [(scope, roles)].into_iter().collect(),
             })
         }
     }
@@ -299,6 +311,43 @@ mod tests {
             b = b.header("x-role", r);
         }
         b.body(Body::empty()).unwrap()
+    }
+
+    /// The same request, with the role held in another product scope.
+    fn post_req_in_scope(id: &str, user: &str, role: &str, scope: &str) -> Request<Body> {
+        Request::builder()
+            .method(Method::POST)
+            .uri(format!("/scores/{id}/preview"))
+            .header("x-user", user)
+            .header("x-role", role)
+            .header("x-role-scope", scope)
+            .body(Body::empty())
+            .unwrap()
+    }
+
+    /// A moderator of another product must not regenerate a music score's preview.
+    /// Without the scope header the same request reaches the handler (it fails later,
+    /// on the missing preview font); with it, it is refused at the gate — so the test
+    /// shows the scope is what changed the answer, not the route being broken.
+    #[tokio::test]
+    async fn regenerate_is_refused_to_a_moderator_of_another_product() {
+        let app = app(false, true).await;
+        let res = app
+            .clone()
+            .oneshot(post_req(ACCEPTED, Some("m"), Some("moderator")))
+            .await
+            .unwrap();
+        assert_eq!(res.status(), StatusCode::PRECONDITION_FAILED);
+        let res = app
+            .oneshot(post_req_in_scope(
+                ACCEPTED,
+                "m",
+                "moderator",
+                cymbra_platform::LIVE_SCOPE,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(res.status(), StatusCode::FORBIDDEN);
     }
 
     #[tokio::test]
