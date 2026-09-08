@@ -130,6 +130,17 @@ dependencies:
   # widget or notifier imports it (change: swap-store-billing-to-revenuecat).
   purchases_flutter: ^10.9.0
 
+  # Keeps the device's screen lit while a play surface is open (change:
+  # keep-play-surfaces-awake). Every OS measures idle time in TOUCH events, and
+  # a player with both hands on a MIDI instrument produces none — so the screen
+  # went dark mid-piece. One plugin covers all five targets and picks the right
+  # primitive on each (window flag on Android, idle timer on iOS, power
+  # assertions on the desktops). Behind the injectable `screenWakeServiceProvider`
+  # seam, so no widget or notifier imports it and tests load nothing native.
+  # Pinned to 1.x by the `win32` 5.x that file_picker/flutter_secure_storage
+  # already pin, not by choice.
+  wakelock_plus: ^1.3.3
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

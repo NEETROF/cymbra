@@ -46,6 +46,7 @@ import '../state/session_summary.dart';
 import '../state/session_summary_store.dart';
 import '../theme/cymbra_theme.dart';
 import '../state/coaching_notifier.dart';
+import '../widgets/keep_screen_awake.dart';
 import '../widgets/kit_piece_labels.dart';
 import '../widgets/coach_mark.dart';
 import '../widgets/countdown_overlay.dart';
@@ -382,32 +383,38 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       _padFlash.forward(from: 0);
     });
     _maybeShowSetup();
-    return Focus(
-      focusNode: _focusNode,
-      autofocus: true,
-      onKeyEvent: _onKey,
-      child: PopScope(
-        // Intercept the exit ONLY while a rating prompt is actually owed, so the
-        // native back gesture (and iOS's interactive swipe-back) keeps working
-        // untouched in every other case — a bundled score, a guest, an
-        // already-rated piece, or a run too short to have an opinion about.
-        // The top bar's `maybePop` funnels through here too, so both exit paths
-        // share one code path.
-        canPop: !ref.watch(postPlayRatingEligibleProvider(reachedEnd: false)),
-        onPopInvokedWithResult: (didPop, _) {
-          if (!didPop) unawaited(_requestExit());
-        },
-        // Dedicated listener widgets rather than more `ref.listen` in this
-        // build method (architecture rule 4): the font-follows-score reaction
-        // (change: add-drum-audio-channel — a percussion score installs the
-        // remembered kit, leaving restores the piano) and the play-reward
-        // level celebration (change: add-play-rewards).
-        child: ScoreFontListener(
-          percussion: ref.watch(
-            playerProvider.select((PlayerData d) => d.isPercussion),
-          ),
-          child: MicFreeRunListener(
-            child: PlayRewardListeners(child: _buildPlayer(context)),
+    // The play surface par excellence: the player reads it with both hands on
+    // the instrument, so the OS sees no touches and would dim mid-piece — and
+    // Wait Mode makes it worse by holding the playhead exactly while the player
+    // is stuck (change: keep-play-surfaces-awake).
+    return KeepScreenAwake(
+      child: Focus(
+        focusNode: _focusNode,
+        autofocus: true,
+        onKeyEvent: _onKey,
+        child: PopScope(
+          // Intercept the exit ONLY while a rating prompt is actually owed, so
+          // the native back gesture (and iOS's interactive swipe-back) keeps
+          // working untouched in every other case — a bundled score, a guest,
+          // an already-rated piece, or a run too short to have an opinion
+          // about. The top bar's `maybePop` funnels through here too, so both
+          // exit paths share one code path.
+          canPop: !ref.watch(postPlayRatingEligibleProvider(reachedEnd: false)),
+          onPopInvokedWithResult: (didPop, _) {
+            if (!didPop) unawaited(_requestExit());
+          },
+          // Dedicated listener widgets rather than more `ref.listen` in this
+          // build method (architecture rule 4): the font-follows-score
+          // reaction (change: add-drum-audio-channel — a percussion score
+          // installs the remembered kit, leaving restores the piano) and the
+          // play-reward level celebration (change: add-play-rewards).
+          child: ScoreFontListener(
+            percussion: ref.watch(
+              playerProvider.select((PlayerData d) => d.isPercussion),
+            ),
+            child: MicFreeRunListener(
+              child: PlayRewardListeners(child: _buildPlayer(context)),
+            ),
           ),
         ),
       ),
