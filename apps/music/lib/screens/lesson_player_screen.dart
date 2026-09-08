@@ -27,6 +27,7 @@ import '../theme/cymbra_theme.dart';
 import '../widgets/build_chord_view.dart';
 import '../widgets/course_diagram.dart';
 import '../widgets/ear_choice_view.dart';
+import '../widgets/keep_screen_awake.dart';
 import '../widgets/lesson_celebration.dart';
 import '../widgets/lesson_keyboard.dart';
 import '../widgets/lesson_midi_chip.dart';
@@ -162,30 +163,38 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
     // Keep the catalogue warm so the celebration knows the next lesson.
     ref.watch(coursesProvider);
 
-    return Scaffold(
-      backgroundColor: CymbraColors.background,
-      appBar: AppBar(
-        backgroundColor: CymbraColors.surfaceContainerLowest,
-        title: Text(
-          async.valueOrNull == null
-              ? ''
-              : resolveInline(async.value!.title, lang),
-        ),
-        actions: const [LessonMidiChip(), SizedBox(width: 4)],
-      ),
-      body: SafeArea(
-        child: switch (async) {
-          AsyncData(:final value) when value != null => _run(value, l10n, lang),
-          AsyncLoading() => const Center(child: CircularProgressIndicator()),
-          // Unknown/unpublished course, or an unsupported schema version.
-          _ => const Center(
-            child: Icon(
-              Icons.school_outlined,
-              size: 40,
-              color: CymbraColors.onSurfaceVariant,
-            ),
+    // A play surface: the interactive blocks are answered on the instrument,
+    // not on the glass (change: keep-play-surfaces-awake).
+    return KeepScreenAwake(
+      child: Scaffold(
+        backgroundColor: CymbraColors.background,
+        appBar: AppBar(
+          backgroundColor: CymbraColors.surfaceContainerLowest,
+          title: Text(
+            async.valueOrNull == null
+                ? ''
+                : resolveInline(async.value!.title, lang),
           ),
-        },
+          actions: const [LessonMidiChip(), SizedBox(width: 4)],
+        ),
+        body: SafeArea(
+          child: switch (async) {
+            AsyncData(:final value) when value != null => _run(
+              value,
+              l10n,
+              lang,
+            ),
+            AsyncLoading() => const Center(child: CircularProgressIndicator()),
+            // Unknown/unpublished course, or an unsupported schema version.
+            _ => const Center(
+              child: Icon(
+                Icons.school_outlined,
+                size: 40,
+                color: CymbraColors.onSurfaceVariant,
+              ),
+            ),
+          },
+        ),
       ),
     );
   }

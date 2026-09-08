@@ -27,6 +27,7 @@ import 'package:music/state/drum_calibration_notifier.dart';
 import 'package:music/state/drum_input_mapping_notifier.dart';
 import 'package:music/state/drum_kit.dart';
 import 'package:music/state/score_catalog.dart';
+import 'package:music/widgets/keep_screen_awake.dart';
 import 'package:music/src/rust/api/midi.dart' show MidiEvent, MidiEventKind;
 
 import '../support/fakes.dart';
@@ -555,6 +556,15 @@ void main() {
     expect(store.forPort('Drum kit').translate(31), 38);
     expect(store.forPort('Drum kit').translate(40), 40);
     expect(store.forPort('Practice pad').translate(40), 38);
+    await teardown(tester);
+  });
+
+  testWidgets('calibration holds the screen awake', (tester) async {
+    await pump(tester);
+
+    // The whole pass is struck on the kit, never on the device (change:
+    // keep-play-surfaces-awake).
+    expect(find.byType(KeepScreenAwake), findsOneWidget);
     await teardown(tester);
   });
 }
