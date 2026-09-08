@@ -468,8 +468,13 @@ fn membership_from_pg(r: &PgRow) -> Result<Membership> {
     })
 }
 
+/// The campaign columns are spelled out here as well as in [`CAMPAIGN_COLS`], because
+/// the join aliases the membership side. **Adding a campaign column means both**: this
+/// list is what `campaign_from_pg` reads back, and a missing one is not a compile error
+/// — it is a runtime `no column found`, which only an integration test against a real
+/// database can see.
 const MEMBERSHIP_JOIN_SQL: &str = "SELECT c.id, c.key, c.name, c.kind, c.duration_days, \
-       c.enrollment_closes_at, c.closed_at, c.created_by, c.created_at, \
+       c.enrollment_closes_at, c.closed_at, c.created_by, c.created_at, c.product, \
        m.user_id AS m_user_id, m.enrolled_at AS m_enrolled_at, m.ends_at AS m_ends_at, \
        m.revoked_at AS m_revoked_at, m.source AS m_source \
      FROM beta_memberships m JOIN beta_campaigns c ON c.id = m.campaign_id";
@@ -999,4 +1004,32 @@ pub async fn connect(url: &str, max: u32) -> Result<PgPool> {
         .connect(url)
         .await
         .map_err(|e| internal("connect plans db", e))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `campaign_from_pg` reads the same field names whichever query produced the row,
+    /// but the two queries spell their column lists separately: `CAMPAIGN_COLS` for the
+    /// plain selects, and `MEMBERSHIP_JOIN_SQL` which has to alias the membership side.
+    ///
+    /// Adding a campaign column to one and not the other compiles, passes every unit
+    /// test, and fails at RUNTIME with `no column found` — which is exactly what
+    /// happened when `product` was added (group 4): the crate built, 1405 tests were
+    /// green, and only the integration job against a real database caught it.
+    #[test]
+    fn the_membership_join_selects_every_campaign_column() {
+        let missing: Vec<&str> = CAMPAIGN_COLS
+            .split(',')
+            .map(str::trim)
+            .filter(|c| !c.is_empty())
+            .filter(|c| !MEMBERSHIP_JOIN_SQL.contains(&format!("c.{c}")))
+            .collect();
+        assert!(
+            missing.is_empty(),
+            "MEMBERSHIP_JOIN_SQL is missing campaign column(s) {missing:?} — \
+             `campaign_from_pg` would fail at runtime with `no column found`"
+        );
+    }
 }
