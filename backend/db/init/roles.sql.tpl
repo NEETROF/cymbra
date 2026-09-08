@@ -131,6 +131,32 @@ REVOKE ALL ON SCHEMA public FROM :"auth_role", :"user_role", :"music_role", :"wo
 -- Consequence, and it is accepted: INSIDE THE WORKER, NO DATABASE GRANT CONFINES A
 -- MODULE. The worker's own code is the boundary there. A server module must still
 -- never be given this role.
+--
+-- ---------------------------------------------------------------------------
+-- Named cross-schema exceptions (change: harden-module-boundaries, task 8.4)
+--
+-- Two module crates carry SQL naming ANOTHER module's schema. Both are listed here
+-- so they are exceptions on the record rather than discoveries; an audit that finds
+-- a third has found something new. Verified 2026-09-08 by grepping the module
+-- crates for `FROM|JOIN|INTO|UPDATE <schema>.<table>` outside their own schema.
+--
+--   1. `music/src/pg_streak.rs` — `LEFT JOIN user_account.users` (two columns:
+--      locale and timezone), for the streak reminder. VERIFIED worker-only: the
+--      join sits behind `live_streaks`, reachable only through
+--      `StreakModule::reminder_candidates`/`reminder_groups`, and the only caller
+--      is the worker on the ops connection. The server builds the same module on
+--      `music_svc` but never calls them — and if it ever did, the query would fail
+--      rather than leak, because that role cannot read `user_account`. Fail-closed,
+--      which is why this is an acceptable exception and not a hole.
+--
+--   2. `notifications/src/pg.rs` — 11 statements on `user_account.*`, including
+--      `UPDATE user_account.users SET timezone`. NAMED DEBT, deliberately deferred.
+--      This is a schema-OWNERSHIP problem, not a request-path leak: the
+--      notifications module has no schema and no migrations of its own, and its
+--      tables are created by `user/migrations/0008_push_notifications.sql`. Giving
+--      it a schema is its own change — folding it in here would mix a migration,
+--      a role grant and a data move into an unrelated one.
+-- ---------------------------------------------------------------------------
 SELECT format('CREATE ROLE %I LOGIN', :'admin_role')
 WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'admin_role')
 \gexec

@@ -88,13 +88,13 @@
 > The defect is **duplication**: a second implementation of a role-resolution rule the user
 > module already owns, which will diverge silently the day that rule gains a nuance.
 
-- [ ] 8.1 Replace the SQL in `PgAdminScopeResolver` (`backend/server/src/flags.rs` ~:34-48) with `UserPort::scoped_effective_roles(user_id, &["global"])`, checking for `admin`. The composition root already holds `Arc<dyn UserPort>` (`backend/server/src/main.rs` ~:80).
-- [ ] 8.2 Change `build_flag_service` (`backend/server/src/flags.rs` ~:53) to take `Arc<dyn UserPort>` instead of a `PgPool`, and drop `flags_resolver_pool` (`backend/server/src/main.rs` ~:56, `:162`).
-- [ ] 8.3 Test: an account holding `global/admin` resolves as platform admin; one holding `music/admin` only does not. Double the port with `MockUserPort` rather than a database — the point of the change is that no database is needed here.
-- [ ] 8.4 Record the two direct cross-schema reads as **named exceptions**, not silent ones, where the ops role is defined (alongside task 7.5):
+- [x] 8.1 Replace the SQL in `PgAdminScopeResolver` (`backend/server/src/flags.rs` ~:34-48) with `UserPort::scoped_effective_roles(user_id, &["global"])`, checking for `admin`. The composition root already holds `Arc<dyn UserPort>` (`backend/server/src/main.rs` ~:80).
+- [x] 8.2 Change `build_flag_service` (`backend/server/src/flags.rs` ~:53) to take `Arc<dyn UserPort>` instead of a `PgPool`, and drop `flags_resolver_pool` (`backend/server/src/main.rs` ~:56, `:162`).
+- [x] 8.3 Test: an account holding `global/admin` resolves as platform admin; one holding `music/admin` only does not. Double the port with `MockUserPort` rather than a database — the point of the change is that no database is needed here.
+- [x] 8.4 Record the two direct cross-schema reads as **named exceptions**, not silent ones, where the ops role is defined (alongside task 7.5):
   - `backend/music/src/pg_streak.rs:194` (`LEFT JOIN user_account.users`, two columns) — **assumed exception**: worker path only, on the ops connection, and the worker is an ops actor by decision. State that it is not reachable from the request path.
   - `backend/notifications/src/pg.rs` (7 statements on `user_account.*`, including `UPDATE user_account.users SET timezone`) — **named debt, deliberately deferred**: a schema-ownership problem, not a request-path leak — `notifications` has no schema or migrations of its own, its tables being created by `backend/user/migrations/0008_push_notifications.sql`. Give it its own change rather than folding it in here.
-- [ ] 8.5 Verify no other request-path read of another module's schema remains: grep the module crates for another module's schema qualifier and confirm every hit is either fixed above or listed as an exception.
+- [x] 8.5 **Verified: only the two above remain.** Grepped every module crate for `FROM|JOIN|INTO|UPDATE <schema>.<table>` outside its own schema, production code only. The third hit is a `jobs` integration test asserting a role CANNOT read `user_account` — the guard, not a leak. Original: Verify no other request-path read of another module's schema remains: grep the module crates for another module's schema qualifier and confirm every hit is either fixed above or listed as an exception.
 
 ## 9. Transport failure is expressible
 

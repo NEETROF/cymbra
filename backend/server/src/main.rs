@@ -53,7 +53,6 @@ async fn main() -> anyhow::Result<()> {
     let auth_pool = db::connect(&cfg.auth_database_url, 5).await?;
     let user_pool = db::connect(&cfg.user_database_url, 5).await?;
     let ready_pool = user_pool.clone(); // for the readiness probe
-    let flags_resolver_pool = user_pool.clone(); // platform-admin scope resolver
     // Push registry (change: add-push-notifications) — its tables live in the
     // `user_account` schema, so it shares this pool.
     let notifications_pool = user_pool.clone();
@@ -159,7 +158,10 @@ async fn main() -> anyhow::Result<()> {
     // Mounted behind the OPTIONAL interceptor so `GetEffectiveFlags` works with or
     // without a token (pre-account UI respects kill-switches), while the admin
     // methods still require an authenticated admin. Defaults-only when no flags DB.
-    let flag_service = cymbra_server::build_flag_service(&cfg, flags_resolver_pool).await?;
+    // The platform-admin check goes through the user PORT: one implementation of
+    // "who is a global admin", owned by the user module (harden-module-boundaries,
+    // group 8). This used to take a second clone of the user pool.
+    let flag_service = cymbra_server::build_flag_service(&cfg, user_dyn.clone()).await?;
     cymbra_server::spawn_flag_refreshers(&cfg, flag_service.clone());
 
     // --- plans (free/premium ledger, beta campaigns, access codes; change:
