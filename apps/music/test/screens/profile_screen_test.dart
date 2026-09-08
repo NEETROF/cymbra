@@ -16,6 +16,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/screens/profile_screen.dart';
+import 'package:music/services/account_service.dart';
+import 'package:music/services/auth_service.dart';
 import 'package:music/services/achievements_service.dart';
 import 'package:music/services/curator_rewards_service.dart';
 import 'package:music/services/global_leaderboard_service.dart';
@@ -24,10 +26,14 @@ import 'package:music/services/profile_service.dart';
 import 'package:music/state/play_activity.dart';
 import 'package:music/state/play_activity_notifier.dart';
 import 'package:music/state/profile_notifier.dart';
+import 'package:music/services/grpc_client.dart';
+import 'package:music/services/oidc_token_source.dart';
+import 'package:music/services/token_store.dart';
 import 'package:music/state/session_notifier.dart';
 import 'package:music/state/usage_consent.dart';
 import 'package:music/widgets/play_heatmap.dart';
 
+import '../support/auth_fakes.dart';
 import '../support/global_leaderboard_fakes.dart';
 import '../support/localized.dart';
 import '../support/prefs_fakes.dart';
@@ -242,5 +248,144 @@ void main() {
 
     // The neutral age gate (asks a DOB, used once) appears.
     expect(find.text('Confirm your age'), findsOneWidget);
+  });
+
+  group('unresolved own identity (change: fix-session-account-retry)', () {
+    /// Drives the REAL [SessionNotifier] into the degraded state (a transient
+    /// `GetAccount` failure at launch) rather than stubbing `currentUserId`, so
+    /// the test exercises the actual wiring the user hit.
+    ProviderContainer degradedContainer(FakeAccountService acct) {
+      final container = ProviderContainer(
+        overrides: [
+          tokenStoreProvider.overrideWithValue(
+            FakeTokenStore(
+              tokens: const StoredTokens(accessToken: 'a', refreshToken: 'r'),
+            ),
+          ),
+          accountServiceProvider.overrideWithValue(acct),
+          authServiceProvider.overrideWithValue(FakeAuthService()),
+          oidcTokenSourceProvider.overrideWithValue(FakeOidcTokenSource()),
+          playerProfileProvider('me').overrideWith(
+            (ref) async => const PlayerProfile(
+              userId: 'me',
+              handle: 'me',
+              displayName: null,
+              visibility: 'private',
+            ),
+          ),
+          playActivityProvider('me').overrideWith((ref) async => _activity()),
+          curatorRewardsServiceProvider.overrideWithValue(
+            _FakeCuratorRewards(),
+          ),
+          achievementsServiceProvider.overrideWithValue(_FakeAchievements()),
+          globalLeaderboardServiceProvider.overrideWithValue(
+            FakeGlobalLeaderboardService(),
+          ),
+          preferencesServiceProvider.overrideWithValue(
+            FakePreferencesService(),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      return container;
+    }
+
+    testWidgets('offers a retry instead of claiming the profile is missing', (
+      tester,
+    ) async {
+      final acct = FakeAccountService(
+        account: const Account(userId: 'me', version: 1, handle: 'me'),
+      )..getErrors.add(const AuthException(AuthError.unavailable, 'offline'));
+      final container = degradedContainer(acct);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: localizedApp(const ProfileScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(container.read(currentUserIdProvider), isNull);
+      expect(
+        find.byKey(const Key('profile-identity-retry')),
+        findsOneWidget,
+        reason: 'the session is live — this is recoverable, not a dead profile',
+      );
+      expect(
+        find.text("This profile isn't available."),
+        findsNothing,
+        reason: 'that would be a false statement about the account',
+      );
+
+      // The scheduled backoff attempt is not what this test is about (the
+      // notifier tests own it); stop it so no timer outlives the widget test.
+      container.read(sessionNotifierProvider.notifier).onBackground();
+    });
+
+    testWidgets('tapping retry resolves the account and shows the profile', (
+      tester,
+    ) async {
+      final acct = FakeAccountService(
+        account: const Account(userId: 'me', version: 1, handle: 'me'),
+      )..getErrors.add(const AuthException(AuthError.unavailable, 'offline'));
+      final container = degradedContainer(acct);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: localizedApp(const ProfileScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+      container.read(sessionNotifierProvider.notifier).onBackground();
+
+      await tester.tap(find.byKey(const Key('profile-identity-retry')));
+      await tester.pumpAndSettle();
+
+      expect(container.read(currentUserIdProvider), 'me');
+      expect(find.byKey(const Key('profile-identity-retry')), findsNothing);
+      expect(find.text('@me'), findsOneWidget);
+    });
+
+    testWidgets("another player's unavailable profile keeps its message", (
+      tester,
+    ) async {
+      final container = ProviderContainer(
+        overrides: [
+          currentUserIdProvider.overrideWithValue('me'),
+          // Fail-closed on the server: a private/ineligible target reads as an
+          // error, which is a genuinely unavailable profile.
+          playerProfileProvider('other').overrideWith(
+            (ref) async => throw const AuthException(AuthError.notFound),
+          ),
+          playActivityProvider(
+            'other',
+          ).overrideWith((ref) async => _activity()),
+          curatorRewardsServiceProvider.overrideWithValue(
+            _FakeCuratorRewards(),
+          ),
+          achievementsServiceProvider.overrideWithValue(_FakeAchievements()),
+          globalLeaderboardServiceProvider.overrideWithValue(
+            FakeGlobalLeaderboardService(),
+          ),
+          preferencesServiceProvider.overrideWithValue(
+            FakePreferencesService(),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: localizedApp(const ProfileScreen(userId: 'other')),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text("This profile isn't available."), findsOneWidget);
+      expect(find.byKey(const Key('profile-identity-retry')), findsNothing);
+    });
   });
 }
