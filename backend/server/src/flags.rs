@@ -17,41 +17,48 @@ use cymbra_feature_flags::{
 use cymbra_platform::config::Config;
 use cymbra_platform::error::AppError;
 use cymbra_platform::{Result, db};
-use sqlx::PgPool;
+use cymbra_user_port::UserPort;
 
-/// Resolves whether an account is a platform (`global`) admin by reading its
-/// scoped roles from `user_account.user_roles` on the user pool.
-pub struct PgAdminScopeResolver {
-    user_pool: PgPool,
+/// Resolves whether an account is a platform (`global`) admin, **through the user
+/// port** (change: harden-module-boundaries, group 8).
+///
+/// It used to run its own `SELECT … FROM user_roles` on the user pool. That was not a
+/// privilege defect — the pool is `user_svc`, whose `search_path` is `user_account`, so
+/// the unqualified name resolved to a table that role owns. It was a *second
+/// implementation* of a rule the user module already owns, and the two would have
+/// diverged in silence the day "platform admin" gained a nuance.
+pub struct PortAdminScopeResolver {
+    users: Arc<dyn UserPort>,
 }
 
-impl PgAdminScopeResolver {
-    pub fn new(user_pool: PgPool) -> Self {
-        Self { user_pool }
+impl PortAdminScopeResolver {
+    pub fn new(users: Arc<dyn UserPort>) -> Self {
+        Self { users }
     }
 }
 
 #[async_trait]
-impl AdminScopeResolver for PgAdminScopeResolver {
+impl AdminScopeResolver for PortAdminScopeResolver {
     async fn is_platform_admin(&self, user_id: &str) -> Result<bool> {
-        let uid = uuid::Uuid::parse_str(user_id)
-            .map_err(|_| AppError::InvalidArgument(format!("invalid uuid: {user_id}")))?;
-        let is_admin: bool = sqlx::query_scalar(
-            "SELECT EXISTS(SELECT 1 FROM user_roles \
-             WHERE user_id = $1 AND scope = 'global' AND role = 'admin')",
-        )
-        .bind(uid)
-        .fetch_one(&self.user_pool)
-        .await
-        .map_err(|e| AppError::Internal(anyhow::anyhow!("platform-admin check: {e}")))?;
-        Ok(is_admin)
+        let scope = cymbra_platform::GLOBAL_SCOPE.to_string();
+        let held = self
+            .users
+            .scoped_effective_roles(user_id, std::slice::from_ref(&scope))
+            .await?;
+        Ok(held
+            .get(&scope)
+            .is_some_and(|roles| roles.iter().any(|r| r == "admin")))
     }
 }
 
 /// Build the shared flag service. Runs the flags migrations and does a best-effort
-/// initial L1 load so flags are hot before serving. `user_pool` backs the
-/// platform-admin resolver.
-pub async fn build_flag_service(cfg: &Config, user_pool: PgPool) -> Result<Arc<FlagService>> {
+/// initial L1 load so flags are hot before serving. `users` backs the platform-admin
+/// resolver — a port call, not a pool, so this crate no longer needs a second
+/// connection to answer a question the user module owns.
+pub async fn build_flag_service(
+    cfg: &Config,
+    users: Arc<dyn UserPort>,
+) -> Result<Arc<FlagService>> {
     let (store, bus): (Option<Arc<dyn FlagStore>>, Arc<dyn InvalidationBus>) = match &cfg
         .flags_database_url
     {
@@ -80,7 +87,7 @@ pub async fn build_flag_service(cfg: &Config, user_pool: PgPool) -> Result<Arc<F
         }
     };
 
-    let resolver = Arc::new(PgAdminScopeResolver::new(user_pool));
+    let resolver = Arc::new(PortAdminScopeResolver::new(users));
     let service = Arc::new(FlagService::new(Registry::default(), store, bus, resolver));
     if let Err(e) = service.refresh().await {
         // Non-fatal: evaluation falls back to code defaults until the next refresh.
@@ -648,6 +655,57 @@ mod tests {
     use cymbra_music::CatalogLimitsConfigSource;
     use cymbra_platform::config::CatalogLimitsConfig;
     use std::time::Duration;
+
+    /// A user port answering `scoped_effective_roles` with `roles` for the scope it is
+    /// asked about, and nothing for any other.
+    fn port_holding(scope: &'static str, roles: &'static [&'static str]) -> Arc<dyn UserPort> {
+        let mut m = cymbra_user_port::MockUserPort::new();
+        m.expect_scoped_effective_roles()
+            .returning(move |_uid, asked| {
+                Ok(asked
+                    .iter()
+                    .filter(|s| s.as_str() == scope)
+                    .map(|s| {
+                        (
+                            s.clone(),
+                            roles.iter().map(|r| (*r).to_string()).collect::<Vec<_>>(),
+                        )
+                    })
+                    .collect())
+            });
+        Arc::new(m)
+    }
+
+    /// "Platform admin" is `admin` in the **global** scope, and the answer now comes
+    /// from the user port — one implementation, owned by the module that owns roles
+    /// (change: harden-module-boundaries, group 8). No database: that is the point of
+    /// the change, so the test is written the way the code now allows.
+    #[tokio::test]
+    async fn platform_admin_is_global_admin_resolved_through_the_port() {
+        let r = PortAdminScopeResolver::new(port_holding("global", &["user", "admin"]));
+        assert!(r.is_platform_admin("u1").await.unwrap());
+
+        // A product admin is not a platform admin, however senior it looks.
+        let r = PortAdminScopeResolver::new(port_holding("music", &["admin"]));
+        assert!(!r.is_platform_admin("u1").await.unwrap());
+
+        // Holding `global` without `admin` is not enough either.
+        let r = PortAdminScopeResolver::new(port_holding("global", &["user"]));
+        assert!(!r.is_platform_admin("u1").await.unwrap());
+    }
+
+    /// The resolver asks for exactly one scope. Asserted because asking for more would
+    /// make a `music/admin` look global the day the filter above is relaxed.
+    #[tokio::test]
+    async fn the_resolver_asks_only_about_the_global_scope() {
+        let mut m = cymbra_user_port::MockUserPort::new();
+        m.expect_scoped_effective_roles()
+            .withf(|_uid, asked| asked == ["global".to_string()])
+            .times(1)
+            .returning(|_, _| Ok(Default::default()));
+        let r = PortAdminScopeResolver::new(Arc::new(m));
+        assert!(!r.is_platform_admin("u1").await.unwrap());
+    }
 
     /// The env baseline the overrides below have to visibly move away from.
     fn base() -> CatalogLimitsConfig {
