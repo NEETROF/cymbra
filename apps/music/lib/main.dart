@@ -37,6 +37,7 @@ import 'state/score_preview_playback.dart';
 import 'state/selected_audio_input.dart';
 import 'state/selected_piano.dart';
 import 'state/acoustic_input_access.dart';
+import 'state/session_notifier.dart';
 import 'state/drums_access.dart';
 import 'state/plan_notifier.dart';
 import 'state/screen_wake.dart';
@@ -125,7 +126,8 @@ Future<void> main() async {
 
   // Silence the synth when the OS backgrounds/hides the app, so a held voice
   // (note pressed, no note-off yet) doesn't keep ringing while paused; drop any
-  // screen-awake hold while away; refresh the feature flags on return.
+  // screen-awake hold while away; refresh the feature flags and re-resolve a
+  // degraded session on return.
   WidgetsBinding.instance.addObserver(_ForegroundLifecycleObserver(container));
 
   runApp(
@@ -136,7 +138,8 @@ Future<void> main() async {
 /// The one place that decides whether Cymbra is the foreground app, and reacts.
 ///
 /// Cuts all audio when the app leaves the foreground, stops microphone capture
-/// (change: add-acoustic-piano-input), and drops the screen-awake hold a play
+/// (change: add-acoustic-piano-input), suspends the degraded-session retry loop
+/// (change: fix-session-account-retry), and drops the screen-awake hold a play
 /// surface may be holding (change: keep-play-surfaces-awake) — the last matters
 /// most on the desktops, where the hold is a process-level power assertion that
 /// survives losing focus and would otherwise pin the machine awake behind a
@@ -165,6 +168,10 @@ class _ForegroundLifecycleObserver with WidgetsBindingObserver {
       capture.stopDetection();
       unawaited(capture.endCapture());
       _container.read(screenWakeProvider.notifier).setForeground(false);
+      // Stop retrying a degraded session out of sight (change: fix-session-
+      // account-retry). A backgrounded desktop app keeps running, so without
+      // this the backoff loop would burn battery and RPCs unseen.
+      _container.read(sessionNotifierProvider.notifier).onBackground();
     } else if (state == AppLifecycleState.resumed) {
       // Re-takes the hold only if a play surface is still mounted; the notifier
       // owns that question.
@@ -175,6 +182,11 @@ class _ForegroundLifecycleObserver with WidgetsBindingObserver {
       // The daily free-open quota may have rolled over while backgrounded
       // (change: add-score-daily-access-rewards).
       unawaited(_container.read(catalogDailyAccessProvider.notifier).refresh());
+      // Connectivity most plausibly changed while we were away: if the session
+      // is still degraded, re-resolve it now rather than waiting out a backoff.
+      unawaited(
+        _container.read(sessionNotifierProvider.notifier).onForeground(),
+      );
     }
   }
 }
