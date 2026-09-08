@@ -231,12 +231,22 @@ impl<R: UserRepo> UserPort for UserModule<R> {
     ) -> Result<()> {
         validate_scope_role(scope, role)?;
         // TEMPORARY, and only on the grant path (change: harden-module-boundaries,
-        // group 1). 22 authorization sites still test the FLAT role set — 15
-        // `require_moderator_or_admin`, 5 `require_admin` ("in any scope — the coarse
-        // gate"), 2 inline — while a `back-office` token carries `global ∪ music ∪
-        // live`. So a PRIVILEGED role granted in another app scope silently confers
-        // authority over music, and nothing in the console or the audit says so.
-        // `SCOPES` already accepts `live`, so that grant would be taken today.
+        // group 1). A `back-office` token carries `global ∪ music ∪ live`, so anything
+        // reading the FLAT role set treats a privileged role granted in another app
+        // scope as authority over music — and nothing in the console or the audit says
+        // so. `SCOPES` already accepts `live`, so that grant would be taken today.
+        //
+        // Group 3 scope-matched the 17 moderation gates and DELETED the flat
+        // `require_moderator_or_admin`, so a missed one no longer compiles. What still
+        // reads the flat set is `require_admin`, at three sites:
+        //   - `auth/src/grpc.rs` — deliberate: the scope match is on the EFFECT
+        //     (`RevocationScope` bounds the cut), so no privileged role leaks through;
+        //   - `feature-flags/src/grpc.rs` (task 3.11) and `user/src/grpc.rs` (3.12) —
+        //     cross-product READS, still open: any admin reads any product's flag
+        //     change history, and every scope's role grants.
+        //
+        // Those last two are exactly what a `live/admin` would exploit, and this lock
+        // is what stops that account from existing at all.
         //
         // This does NOT protect against the granter: only `global/admin` or
         // `<scope>/admin` can reach `grant_role` at all, and both already pass those
@@ -247,8 +257,9 @@ impl<R: UserRepo> UserPort for UserModule<R> {
         // by design (`has_role_in_scope` treats it as such), and `global/admin` must
         // stay grantable. The restriction is about the OTHER app scopes.
         //
-        // Remove this together with group 3 (scope-matching those 22 sites), not
-        // before.
+        // Removal condition (task 3.10), and it is NOT "group 3 is done": remove this
+        // once 3.11 and 3.12 have closed those two reads. Removing it earlier because
+        // the moderation gates are fixed would arm them.
         //
         // Deliberately NOT in `validate_scope_role`: that helper is shared with
         // `revoke_role` below, and revoking a bad grant must stay possible in every
@@ -812,12 +823,11 @@ mod tests {
         );
     }
 
-    /// Temporary lock (change: harden-module-boundaries, group 1). 22 authorization
-    /// sites read the FLAT role set, `require_admin` included — it is documented "in
-    /// any scope — the coarse gate" (`platform::guard`). So `admin` is NOT
-    /// scope-matched at the gates, and a privileged role in another app scope confers
-    /// authority over music whatever its label says. `global` is exempt: it is the
-    /// break-glass, cross-cutting by design.
+    /// Temporary lock (change: harden-module-boundaries, group 1). The moderation
+    /// gates are scope-matched since group 3, but two cross-product READS still sit
+    /// behind a flat `require_admin` (tasks 3.11/3.12), so a privileged role in another
+    /// app scope would still reach music data. `global` is exempt: it is the
+    /// break-glass, cross-cutting by design. Remove with 3.10, after 3.11/3.12.
     #[tokio::test]
     async fn grant_role_refuses_privileged_roles_in_other_app_scopes() {
         let m = module();
