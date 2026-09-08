@@ -214,7 +214,7 @@ impl SoundfontState {
     async fn plan_grants(&self, user_id: &str, unlock: cymbra_plans::Unlock) -> bool {
         match self.plans.as_ref() {
             None => false,
-            Some(p) => match p.snapshot(user_id).await {
+            Some(p) => match p.snapshot(user_id, unlock.product()).await {
                 Ok(s) => s.grants(unlock),
                 Err(e) => {
                     tracing::warn!(error = %e, "plan snapshot failed; treating caller as free");

@@ -235,6 +235,7 @@ mod tests {
             status: EntitlementStatus::Active,
             revoked_at: None,
             withdrawn_at: None,
+            product: cymbra_platform::MUSIC_SCOPE.to_string(),
         }
     }
 

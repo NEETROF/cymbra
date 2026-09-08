@@ -89,7 +89,7 @@ pub struct PlanSubscriptions(pub Arc<dyn cymbra_plans::PlanSource>);
 #[async_trait]
 impl SubscriptionSource for PlanSubscriptions {
     async fn has_active_subscription(&self, user_id: &str) -> bool {
-        match self.0.snapshot(user_id).await {
+        match self.0.snapshot(user_id, cymbra_platform::MUSIC_SCOPE).await {
             Ok(s) => s.grants(cymbra_plans::Unlock::CatalogUnlimited),
             Err(e) => {
                 tracing::warn!(error = %e, "plan snapshot failed; caller treated as non-subscriber");
@@ -719,7 +719,7 @@ mod plan_subscriptions_tests {
     #[tokio::test]
     async fn premium_snapshot_is_a_subscriber_and_free_or_error_is_not() {
         let mut m = MockPlanSource::new();
-        m.expect_snapshot().returning(|u| match u {
+        m.expect_snapshot().returning(|u, _| match u {
             "premium" => Ok(PlanSnapshot {
                 plan: Plan::Premium,
                 ..PlanSnapshot::free()

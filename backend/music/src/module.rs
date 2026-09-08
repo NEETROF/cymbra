@@ -374,7 +374,7 @@ impl ScoreModule {
             betas: Default::default(),
         };
         if let Some(plans) = self.plans.as_ref() {
-            match plans.snapshot(user_id).await {
+            match plans.snapshot(user_id, cymbra_platform::MUSIC_SCOPE).await {
                 Ok(s) => {
                     ctx = ctx.with_plan(s.plan == cymbra_plans::Plan::Premium, s.beta_keys());
                 }
@@ -400,7 +400,7 @@ impl ScoreModule {
     async fn plan_extends_quotas(&self, user_id: &str) -> bool {
         match self.plans.as_ref() {
             None => false,
-            Some(p) => match p.snapshot(user_id).await {
+            Some(p) => match p.snapshot(user_id, cymbra_platform::MUSIC_SCOPE).await {
                 Ok(s) => s.grants(cymbra_plans::Unlock::ScoresExtendedQuotas),
                 Err(e) => {
                     tracing::warn!(error = %e, "plan snapshot failed; quotas treat caller as free");
@@ -2212,7 +2212,7 @@ mod tests {
         use cymbra_plans::{Plan, PlanSnapshot};
         let (m, _repo, store) = module(1, 7);
         let mut plans = MockPlanSource::new();
-        plans.expect_snapshot().returning(|u| {
+        plans.expect_snapshot().returning(|u, _| {
             Ok(if u == "premium" {
                 PlanSnapshot {
                     plan: Plan::Premium,
@@ -4694,7 +4694,7 @@ mod tests {
 
         // An active `midi-drums` member reaches it, whatever their plan.
         let mut plans = cymbra_plans::ports::MockPlanSource::new();
-        plans.expect_snapshot().returning(|_| {
+        plans.expect_snapshot().returning(|_, _| {
             let mut snap = cymbra_plans::PlanSnapshot::free();
             snap.betas.push(cymbra_plans::BetaInfo {
                 campaign_key: "midi-drums".into(),

@@ -57,11 +57,12 @@ fn row_from_pg(r: &PgRow) -> Result<EntitlementRow> {
         withdrawn_at: r
             .try_get("withdrawn_at")
             .map_err(|e| internal("withdrawn_at", e))?,
+        product: r.try_get("product").map_err(|e| internal("product", e))?,
     })
 }
 
 const ENTITLEMENT_COLS: &str = "id, user_id, source, provider_ref, campaign_id, starts_at, ends_at, \
-                                status, revoked_at, withdrawn_at";
+                                status, revoked_at, withdrawn_at, product";
 
 /// Active-row predicate in SQL, mirroring [`crate::core::row_is_active`]:
 /// not terminal, not revoked, started, and before `ends_at` (+ grace when in
@@ -291,6 +292,7 @@ fn campaign_from_pg(r: &PgRow) -> Result<Campaign> {
         other => return Err(internal("kind", format!("unknown value {other}"))),
     };
     Ok(Campaign {
+        product: r.try_get("product").map_err(|e| internal("product", e))?,
         id: r.try_get("id").map_err(|e| internal("id", e))?,
         key: r.try_get("key").map_err(|e| internal("key", e))?,
         name: r.try_get("name").map_err(|e| internal("name", e))?,
@@ -311,8 +313,8 @@ fn campaign_from_pg(r: &PgRow) -> Result<Campaign> {
     })
 }
 
-const CAMPAIGN_COLS: &str =
-    "id, key, name, kind, duration_days, enrollment_closes_at, closed_at, created_by, created_at";
+const CAMPAIGN_COLS: &str = "id, key, name, kind, duration_days, enrollment_closes_at, \
+                             closed_at, created_by, created_at, product";
 
 #[derive(Clone)]
 pub struct PgCampaignRepo {

@@ -487,7 +487,7 @@ impl cymbra_feature_flags::PlanContextSource for PlanContext {
         // downgrade the caller cannot detect and will cache. The plans kill-switch
         // being off is a different thing entirely — that resolves successfully to
         // an empty beta set, and still does.
-        let s = self.plans.snapshot(user_id).await.inspect_err(|e| {
+        let s = self.plans.snapshot(user_id, cymbra_platform::MUSIC_SCOPE).await.inspect_err(|e| {
             tracing::warn!(error = %e, "plan snapshot failed; flag read refused rather than downgraded");
         })?;
         Ok((s.plan == cymbra_plans::Plan::Premium, s.beta_keys()))
