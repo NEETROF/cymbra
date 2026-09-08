@@ -194,13 +194,34 @@ pub fn needs_withdrawal(rows: &[EntitlementRow], now: DateTime<Utc>, grace: Dura
     !withdrawal_pending(rows, now, grace).is_empty()
 }
 
-/// Build the app-facing snapshot from the raw rows and memberships.
+/// Build the app-facing snapshot **for one product** from the raw rows and
+/// memberships.
+///
+/// Rows and campaigns of other products are dropped first (change:
+/// harden-module-boundaries, group 4). They used to be folded in, so a premium
+/// entitlement bought for any product answered "premium" here and granted every
+/// unlock, and a beta membership of any product appeared in `betas` — where the flag
+/// evaluator matches it as `beta:<key>`. A snapshot is about a product; asking without
+/// naming one is the question that produced the bug.
 pub fn snapshot(
     rows: &[EntitlementRow],
     memberships: &[Membership],
     now: DateTime<Utc>,
     grace: Duration,
+    product: &str,
 ) -> PlanSnapshot {
+    let rows: Vec<EntitlementRow> = rows
+        .iter()
+        .filter(|r| r.product == product)
+        .cloned()
+        .collect();
+    let memberships: Vec<Membership> = memberships
+        .iter()
+        .filter(|m| m.campaign.product == product)
+        .cloned()
+        .collect();
+    let (rows, memberships) = (rows.as_slice(), memberships.as_slice());
+
     let governing = governing_row(rows, now, grace);
     let paid_source = active_paid_row(rows, now, grace).map(|g| g.row.source);
     let active = active_memberships(memberships, now);
@@ -284,6 +305,7 @@ mod tests {
             status,
             revoked_at: None,
             withdrawn_at: None,
+            product: cymbra_platform::MUSIC_SCOPE.to_string(),
         }
     }
 
@@ -297,6 +319,7 @@ mod tests {
             closed_at: None,
             created_by: "admin".into(),
             created_at: t(1),
+            product: cymbra_platform::MUSIC_SCOPE.to_string(),
         }
     }
 
@@ -314,10 +337,119 @@ mod tests {
         }
     }
 
+    fn in_product(mut r: EntitlementRow, product: &str) -> EntitlementRow {
+        r.product = product.to_string();
+        r
+    }
+
+    /// A subscription bought for another product unlocks nothing here. This is what
+    /// group 4 fixes: the `product` column existed from `0001_init` and was never
+    /// read, so any premium row answered "premium" for every product.
+    #[test]
+    fn a_premium_of_another_product_grants_no_music_unlock() {
+        let live_premium = in_product(
+            row(Source::Apple, Some(30), EntitlementStatus::Active),
+            cymbra_platform::LIVE_SCOPE,
+        );
+        let music = snapshot(
+            std::slice::from_ref(&live_premium),
+            &[],
+            t(5),
+            GRACE,
+            cymbra_platform::MUSIC_SCOPE,
+        );
+        assert_eq!(music.plan, Plan::Free);
+        for unlock in crate::model::PREMIUM_UNLOCKS {
+            assert!(
+                !music.grants(*unlock),
+                "{:?} granted by a `live` entitlement",
+                unlock.key()
+            );
+        }
+        // ...and it is still a real subscription where it was bought.
+        let live = snapshot(
+            std::slice::from_ref(&live_premium),
+            &[],
+            t(5),
+            GRACE,
+            cymbra_platform::LIVE_SCOPE,
+        );
+        assert_eq!(live.plan, Plan::Premium);
+    }
+
+    /// Two products, two answers, from the same ledger.
+    #[test]
+    fn each_product_resolves_its_own_entitlements() {
+        let rows = [
+            in_product(
+                row(Source::Apple, Some(30), EntitlementStatus::Active),
+                cymbra_platform::MUSIC_SCOPE,
+            ),
+            in_product(
+                row(Source::Google, Some(30), EntitlementStatus::Active),
+                cymbra_platform::LIVE_SCOPE,
+            ),
+        ];
+        let music = snapshot(&rows, &[], t(5), GRACE, cymbra_platform::MUSIC_SCOPE);
+        let live = snapshot(&rows, &[], t(5), GRACE, cymbra_platform::LIVE_SCOPE);
+        assert_eq!(music.plan, Plan::Premium);
+        assert_eq!(live.plan, Plan::Premium);
+        // Each answer names its own row, so neither is the other's.
+        assert_eq!(music.paid_source, Some(Source::Apple));
+        assert_eq!(live.paid_source, Some(Source::Google));
+    }
+
+    /// Rows written before products were distinguished carry `DEFAULT 'music'`, so no
+    /// backfill is needed and an existing subscriber keeps every unlock.
+    #[test]
+    fn a_legacy_row_still_grants_the_full_music_set() {
+        let legacy = row(Source::Apple, Some(30), EntitlementStatus::Active);
+        assert_eq!(legacy.product, "music", "the column default");
+        let music = snapshot(
+            std::slice::from_ref(&legacy),
+            &[],
+            t(5),
+            GRACE,
+            cymbra_platform::MUSIC_SCOPE,
+        );
+        for unlock in crate::model::PREMIUM_UNLOCKS {
+            assert!(music.grants(*unlock), "{:?} lost", unlock.key());
+        }
+    }
+
+    /// A beta membership of another product is not this product's beta. The flag
+    /// evaluator matches `beta:<key>` from this list, so a `live` campaign leaking in
+    /// would reach music features.
+    #[test]
+    fn a_beta_of_another_product_is_not_listed_here() {
+        let mut c = campaign(CampaignKind::Feature, "midi-drums");
+        c.product = cymbra_platform::LIVE_SCOPE.to_string();
+        let m = member(&c, 2);
+        let music = snapshot(
+            &[],
+            std::slice::from_ref(&m),
+            t(5),
+            GRACE,
+            cymbra_platform::MUSIC_SCOPE,
+        );
+        assert!(music.betas.is_empty());
+        let live = snapshot(
+            &[],
+            std::slice::from_ref(&m),
+            t(5),
+            GRACE,
+            cymbra_platform::LIVE_SCOPE,
+        );
+        assert_eq!(live.betas.len(), 1);
+    }
+
     #[test]
     fn no_row_is_free() {
         assert_eq!(effective_plan(&[], t(5), GRACE), Plan::Free);
-        assert_eq!(snapshot(&[], &[], t(5), GRACE), PlanSnapshot::free());
+        assert_eq!(
+            snapshot(&[], &[], t(5), GRACE, cymbra_platform::MUSIC_SCOPE),
+            PlanSnapshot::free()
+        );
     }
 
     #[test]
@@ -330,7 +462,7 @@ mod tests {
         assert_eq!(g.effective_end, Some(t(20)));
         // trial ended → still premium via apple, unchanged
         assert_eq!(effective_plan(&rows, t(15), GRACE), Plan::Premium);
-        let s = snapshot(&rows, &[], t(15), GRACE);
+        let s = snapshot(&rows, &[], t(15), GRACE, cymbra_platform::MUSIC_SCOPE);
         assert_eq!(s.source, Some(Source::Apple));
         assert!(!s.ends_without_renewal);
     }
@@ -342,16 +474,19 @@ mod tests {
         let apple = row(Source::Apple, Some(10), EntitlementStatus::Active);
         let trial = row(Source::Code, Some(20), EntitlementStatus::Active);
         let rows = vec![apple.clone(), trial.clone()];
-        let s = snapshot(&rows, &[], t(5), GRACE);
+        let s = snapshot(&rows, &[], t(5), GRACE, cymbra_platform::MUSIC_SCOPE);
         assert_eq!(s.source, Some(Source::Code));
         assert_eq!(s.ends_at, Some(t(20)));
         assert_eq!(s.paid_source, Some(Source::Apple));
         // Once the subscription lapses, no paid source (rights carry on via the trial).
-        let s = snapshot(&rows, &[], t(15), GRACE);
+        let s = snapshot(&rows, &[], t(15), GRACE, cymbra_platform::MUSIC_SCOPE);
         assert_eq!(s.paid_source, None);
         assert_eq!(s.plan, Plan::Premium);
         // No paid row at all → None.
-        assert_eq!(snapshot(&[trial], &[], t(5), GRACE).paid_source, None);
+        assert_eq!(
+            snapshot(&[trial], &[], t(5), GRACE, cymbra_platform::MUSIC_SCOPE).paid_source,
+            None
+        );
     }
 
     #[test]
@@ -394,13 +529,23 @@ mod tests {
     #[test]
     fn snapshot_flags_ends_without_renewal() {
         let trial = row(Source::Code, Some(10), EntitlementStatus::Active);
-        assert!(snapshot(&[trial], &[], t(5), GRACE).ends_without_renewal);
+        assert!(
+            snapshot(&[trial], &[], t(5), GRACE, cymbra_platform::MUSIC_SCOPE).ends_without_renewal
+        );
         let cancelled = row(Source::Apple, Some(10), EntitlementStatus::Cancelled);
-        assert!(snapshot(&[cancelled], &[], t(5), GRACE).ends_without_renewal);
+        assert!(
+            snapshot(&[cancelled], &[], t(5), GRACE, cymbra_platform::MUSIC_SCOPE)
+                .ends_without_renewal
+        );
         let renewing = row(Source::Apple, Some(10), EntitlementStatus::Active);
-        assert!(!snapshot(&[renewing], &[], t(5), GRACE).ends_without_renewal);
+        assert!(
+            !snapshot(&[renewing], &[], t(5), GRACE, cymbra_platform::MUSIC_SCOPE)
+                .ends_without_renewal
+        );
         let comp = row(Source::Admin, Some(10), EntitlementStatus::Active);
-        assert!(snapshot(&[comp], &[], t(5), GRACE).ends_without_renewal);
+        assert!(
+            snapshot(&[comp], &[], t(5), GRACE, cymbra_platform::MUSIC_SCOPE).ends_without_renewal
+        );
     }
 
     #[test]
@@ -513,7 +658,13 @@ mod tests {
         trial_row.ends_at = Some(t(1) + Duration::days(90));
         trial_row.campaign_id = Some(trial_c.id);
         let ms = vec![member(&trial_c, 1), member(&feat_c, 2)];
-        let s = snapshot(std::slice::from_ref(&trial_row), &ms, t(5), GRACE);
+        let s = snapshot(
+            std::slice::from_ref(&trial_row),
+            &ms,
+            t(5),
+            GRACE,
+            cymbra_platform::MUSIC_SCOPE,
+        );
         assert_eq!(s.plan, Plan::Premium);
         assert_eq!(s.source, Some(Source::Code));
         assert!(s.ends_without_renewal);
@@ -523,7 +674,7 @@ mod tests {
             vec!["trial".to_string(), "midi-drums".to_string()]
         );
         // feature-beta member on free stays free but keeps the membership
-        let s2 = snapshot(&[], &ms[1..], t(5), GRACE);
+        let s2 = snapshot(&[], &ms[1..], t(5), GRACE, cymbra_platform::MUSIC_SCOPE);
         assert_eq!(s2.plan, Plan::Free);
         assert_eq!(s2.beta_keys(), vec!["midi-drums".to_string()]);
         assert!(s2.trial.is_none());

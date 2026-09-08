@@ -65,6 +65,21 @@ impl Unlock {
     }
 }
 
+impl Unlock {
+    /// The product that sells this unlock. A premium entitlement grants only the
+    /// unlocks of the product it was bought for; today every unlock is a Music one,
+    /// and a second product adds its own here rather than inheriting these.
+    pub fn product(self) -> &'static str {
+        match self {
+            Unlock::CatalogUnlimited
+            | Unlock::SoundfontsLibrary
+            | Unlock::SoundfontLibraryExtended
+            | Unlock::ScoresExtendedQuotas
+            | Unlock::OfflineCache => cymbra_platform::MUSIC_SCOPE,
+        }
+    }
+}
+
 /// The premium unlock set — **fixed in code** (spec: not editable at runtime).
 pub const PREMIUM_UNLOCKS: &[Unlock] = &[
     Unlock::CatalogUnlimited,
@@ -209,6 +224,10 @@ pub struct EntitlementRow {
     pub revoked_at: Option<DateTime<Utc>>,
     /// Stamped once when the row's lapse has been withdrawn (design D13).
     pub withdrawn_at: Option<DateTime<Utc>>,
+    /// The product this entitlement was bought for. The column has existed since
+    /// `0001_init` with `DEFAULT 'music'`, and was never read: a premium row of any
+    /// product granted every unlock (change: harden-module-boundaries, group 4).
+    pub product: String,
 }
 
 /// What a campaign does when someone enrols (design D2/D4).
@@ -244,6 +263,11 @@ impl CampaignKind {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Campaign {
     pub id: Uuid,
+    /// The product this campaign belongs to. Like `plan_entitlements.product`, the
+    /// column has existed since `0001_init` and was never read, so a `live` beta
+    /// membership appeared in a Music snapshot and matched `beta:<key>` there
+    /// (change: harden-module-boundaries, group 4).
+    pub product: String,
     /// Stable key used in flag rollouts (`beta:<key>`) and Discord config.
     pub key: String,
     pub name: String,
@@ -450,6 +474,7 @@ mod tests {
             closed_at: None,
             created_by: "a".into(),
             created_at: now,
+            product: cymbra_platform::MUSIC_SCOPE.to_string(),
         };
         assert!(c.accepts_enrolment(now));
         c.enrollment_closes_at = Some(now - chrono::Duration::seconds(1));

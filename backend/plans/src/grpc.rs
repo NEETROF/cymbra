@@ -297,7 +297,7 @@ impl PlanServiceTrait for PlanGrpc {
         let platform = platform_from_proto(req.into_inner().platform);
         let snapshot = self
             .svc
-            .snapshot(&id.user_id)
+            .snapshot(&id.user_id, cymbra_platform::MUSIC_SCOPE)
             .await
             .map_err(|e| e.to_status())?;
         Ok(Response::new(self.plan_response(&snapshot, platform)))
@@ -369,7 +369,7 @@ impl PlanServiceTrait for PlanGrpc {
         }
         let snapshot = self
             .svc
-            .snapshot(&id.user_id)
+            .snapshot(&id.user_id, cymbra_platform::MUSIC_SCOPE)
             .await
             .map_err(|e| e.to_status())?;
         Ok(Response::new(proto::SyncStorePlanResponse {
@@ -449,7 +449,12 @@ impl PlanServiceTrait for PlanGrpc {
             .map_err(|e| e.to_status())?;
         let mut badges = Vec::with_capacity(ids.len());
         for uid in ids {
-            let s = self.svc.snapshot(&uid).await.map_err(|e| e.to_status())?;
+            // Console badge column: Music, the only product that sells today.
+            let s = self
+                .svc
+                .snapshot(&uid, cymbra_platform::MUSIC_SCOPE)
+                .await
+                .map_err(|e| e.to_status())?;
             badges.push(proto::AccountPlanBadge {
                 sandbox_account: marked.contains(&uid),
                 user_id: uid,

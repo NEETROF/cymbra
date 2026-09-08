@@ -57,11 +57,12 @@ fn row_from_pg(r: &PgRow) -> Result<EntitlementRow> {
         withdrawn_at: r
             .try_get("withdrawn_at")
             .map_err(|e| internal("withdrawn_at", e))?,
+        product: r.try_get("product").map_err(|e| internal("product", e))?,
     })
 }
 
 const ENTITLEMENT_COLS: &str = "id, user_id, source, provider_ref, campaign_id, starts_at, ends_at, \
-                                status, revoked_at, withdrawn_at";
+                                status, revoked_at, withdrawn_at, product";
 
 /// Active-row predicate in SQL, mirroring [`crate::core::row_is_active`]:
 /// not terminal, not revoked, started, and before `ends_at` (+ grace when in
@@ -291,6 +292,7 @@ fn campaign_from_pg(r: &PgRow) -> Result<Campaign> {
         other => return Err(internal("kind", format!("unknown value {other}"))),
     };
     Ok(Campaign {
+        product: r.try_get("product").map_err(|e| internal("product", e))?,
         id: r.try_get("id").map_err(|e| internal("id", e))?,
         key: r.try_get("key").map_err(|e| internal("key", e))?,
         name: r.try_get("name").map_err(|e| internal("name", e))?,
@@ -311,8 +313,8 @@ fn campaign_from_pg(r: &PgRow) -> Result<Campaign> {
     })
 }
 
-const CAMPAIGN_COLS: &str =
-    "id, key, name, kind, duration_days, enrollment_closes_at, closed_at, created_by, created_at";
+const CAMPAIGN_COLS: &str = "id, key, name, kind, duration_days, enrollment_closes_at, \
+                             closed_at, created_by, created_at, product";
 
 #[derive(Clone)]
 pub struct PgCampaignRepo {
@@ -466,8 +468,13 @@ fn membership_from_pg(r: &PgRow) -> Result<Membership> {
     })
 }
 
+/// The campaign columns are spelled out here as well as in [`CAMPAIGN_COLS`], because
+/// the join aliases the membership side. **Adding a campaign column means both**: this
+/// list is what `campaign_from_pg` reads back, and a missing one is not a compile error
+/// — it is a runtime `no column found`, which only an integration test against a real
+/// database can see.
 const MEMBERSHIP_JOIN_SQL: &str = "SELECT c.id, c.key, c.name, c.kind, c.duration_days, \
-       c.enrollment_closes_at, c.closed_at, c.created_by, c.created_at, \
+       c.enrollment_closes_at, c.closed_at, c.created_by, c.created_at, c.product, \
        m.user_id AS m_user_id, m.enrolled_at AS m_enrolled_at, m.ends_at AS m_ends_at, \
        m.revoked_at AS m_revoked_at, m.source AS m_source \
      FROM beta_memberships m JOIN beta_campaigns c ON c.id = m.campaign_id";
@@ -997,4 +1004,32 @@ pub async fn connect(url: &str, max: u32) -> Result<PgPool> {
         .connect(url)
         .await
         .map_err(|e| internal("connect plans db", e))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `campaign_from_pg` reads the same field names whichever query produced the row,
+    /// but the two queries spell their column lists separately: `CAMPAIGN_COLS` for the
+    /// plain selects, and `MEMBERSHIP_JOIN_SQL` which has to alias the membership side.
+    ///
+    /// Adding a campaign column to one and not the other compiles, passes every unit
+    /// test, and fails at RUNTIME with `no column found` — which is exactly what
+    /// happened when `product` was added (group 4): the crate built, 1405 tests were
+    /// green, and only the integration job against a real database caught it.
+    #[test]
+    fn the_membership_join_selects_every_campaign_column() {
+        let missing: Vec<&str> = CAMPAIGN_COLS
+            .split(',')
+            .map(str::trim)
+            .filter(|c| !c.is_empty())
+            .filter(|c| !MEMBERSHIP_JOIN_SQL.contains(&format!("c.{c}")))
+            .collect();
+        assert!(
+            missing.is_empty(),
+            "MEMBERSHIP_JOIN_SQL is missing campaign column(s) {missing:?} — \
+             `campaign_from_pg` would fail at runtime with `no column found`"
+        );
+    }
 }

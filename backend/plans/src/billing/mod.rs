@@ -112,6 +112,7 @@ pub(crate) mod tests {
             status: w.status,
             revoked_at: None,
             withdrawn_at: None,
+            product: cymbra_platform::MUSIC_SCOPE.to_string(),
         }
     }
 

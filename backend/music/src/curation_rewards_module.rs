@@ -108,7 +108,7 @@ impl CurationRewardsModule {
     async fn plan_unlocks_library(&self, user_id: &str) -> bool {
         match self.plans.as_ref() {
             None => false,
-            Some(p) => match p.snapshot(user_id).await {
+            Some(p) => match p.snapshot(user_id, cymbra_platform::MUSIC_SCOPE).await {
                 Ok(s) => s.grants(cymbra_plans::Unlock::SoundfontsLibrary),
                 Err(e) => {
                     tracing::warn!(error = %e, "plan snapshot failed; shop treats caller as free");
@@ -721,7 +721,7 @@ mod tests {
         use cymbra_plans::{Plan, PlanSnapshot};
         let repo = Arc::new(FakeCurationRewardsRepo::default());
         let mut plans = MockPlanSource::new();
-        plans.expect_snapshot().returning(|u| {
+        plans.expect_snapshot().returning(|u, _| {
             Ok(if u == "premium" {
                 PlanSnapshot {
                     plan: Plan::Premium,

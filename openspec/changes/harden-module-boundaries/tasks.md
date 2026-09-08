@@ -45,14 +45,14 @@
 
 ## 4. Product-scoped plan unlocks
 
-- [ ] 4.1 Give each `Unlock` variant an owning product in `backend/plans/src/model.rs` (~:39-52) and replace the flat `PREMIUM_UNLOCKS` block (~:68-75) with a per-product resolution.
-- [ ] 4.2 Read and carry `product` through `backend/plans/src/pg.rs` (today 0 occurrences) for `plan_entitlements` and `beta_campaigns`; no backfill is needed — `DEFAULT 'music'` already makes every existing row correct.
-- [ ] 4.3 Thread the product through the plan snapshot / `PlanSource` so "does the plan grant unlock X" is answered for X's product.
-- [ ] 4.4 Migrate the 5 consumers, re-derived: `backend/music/src/catalog_daily_access.rs` ~:93, `backend/music/src/module.rs` **~:404** (not :357), `backend/music/src/curation_rewards_module.rs` ~:112, `backend/server/src/soundfont.rs` ~:549 and ~:886.
-- [ ] 4.5 Test: an account with an active non-music `premium` and no music entitlement is denied every music unlock.
-- [ ] 4.6 Test: an account holding entitlements for two products gets each product's unlocks independently.
-- [ ] 4.7 Test: an entitlement written before products were distinguished still grants the full music unlock set.
-- [ ] 4.8 **Last**: unblock back-office plan visibility. The `/roles` screen was split into `/users` + `/users/{id}` (2026-09-06), so the `adminScopes.includes("music")` gate now sits at **4 sites**: `apps/back-office/src/stores/roles.ts` ~:54, `views/UsersView.vue` ~:32, `views/UserDetailView.vue` ~:61, `App.vue` ~:62 (nav).
+- [x] 4.1 Give each `Unlock` variant an owning product in `backend/plans/src/model.rs` (~:39-52) and replace the flat `PREMIUM_UNLOCKS` block (~:68-75) with a per-product resolution.
+- [~] 4.2 **Reads done; writes still take the column default.** `EntitlementRow` and `Campaign` now carry `product`, read from the columns that existed since `0001_init`. `EntitlementWrite` does NOT carry it, so inserts keep `DEFAULT 'music'` — correct today because Music is the only product that sells, and a real decision to make when Live does (which product a provider purchase belongs to comes from the product-id mapping). Original: read and carry `product` through `backend/plans/src/pg.rs` (today 0 occurrences) for `plan_entitlements` and `beta_campaigns`; no backfill is needed — `DEFAULT 'music'` already makes every existing row correct.
+- [x] 4.3 Thread the product through the plan snapshot / `PlanSource` so "does the plan grant unlock X" is answered for X's product.
+- [x] 4.4 Migrate the 5 consumers, re-derived: `backend/music/src/catalog_daily_access.rs` ~:93, `backend/music/src/module.rs` **~:404** (not :357), `backend/music/src/curation_rewards_module.rs` ~:112, `backend/server/src/soundfont.rs` ~:549 and ~:886.
+- [x] 4.5 Test: an account with an active non-music `premium` and no music entitlement is denied every music unlock.
+- [x] 4.6 Test: an account holding entitlements for two products gets each product's unlocks independently.
+- [x] 4.7 Test: an entitlement written before products were distinguished still grants the full music unlock set.
+- [ ] 4.8 **BLOCKED, and not by the client.** The three gates are `stores/roles.ts` ~:54, `views/UsersView.vue` ~:32, `views/UserDetailView.vue` ~:61 (the fourth site, `App.vue` ~:62, gates `/takedowns` — a genuinely music-only screen that stays). Widening them now would leak: the console's plan surfaces (`account_plan`, the badge column) ask the server for the MUSIC snapshot, so a `live` admin would be shown Music's plans — the very cross-product read group 4 just closed. The server needs a per-product console view first; only then does the client gate become "the products you administer". Original: unblock back-office plan visibility. The `/roles` screen was split into `/users` + `/users/{id}` (2026-09-06), so the `adminScopes.includes("music")` gate now sits at **4 sites**: `apps/back-office/src/stores/roles.ts` ~:54, `views/UsersView.vue` ~:32, `views/UserDetailView.vue` ~:61, `App.vue` ~:62 (nav).
 
 ## 5. Empty the composition root
 

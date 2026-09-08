@@ -103,7 +103,10 @@ impl PlanService {
 
     /// The app-facing snapshot; runs the on-demand withdrawal check first
     /// (design D13). Kill-switch off ⇒ free, no memberships, no side effect.
-    pub async fn snapshot(&self, user_id: &str) -> Result<PlanSnapshot> {
+    /// The plan snapshot **for `product`** (change: harden-module-boundaries, group 4).
+    /// Every caller names the product it serves; the entitlements and campaigns of the
+    /// others are not part of the answer.
+    pub async fn snapshot(&self, user_id: &str, product: &str) -> Result<PlanSnapshot> {
         if !self.cfg().enabled {
             return Ok(PlanSnapshot::free());
         }
@@ -113,17 +116,24 @@ impl PlanService {
         self.withdraw_rows_if_lapsed(user_id, &rows, now, grace)
             .await?;
         let memberships = self.d.memberships.list_for_user(user_id).await?;
-        Ok(core::snapshot(&rows, &memberships, now, grace))
+        Ok(core::snapshot(&rows, &memberships, now, grace, product))
     }
 
-    /// `true` iff the effective plan grants `unlock` (the seam music uses).
+    /// `true` iff the plan of the unlock's OWN product grants it. The product is not
+    /// a parameter: it is a property of the unlock, so a caller cannot ask whether a
+    /// Live subscription unlocks a Music feature.
     pub async fn grants(&self, user_id: &str, unlock: Unlock) -> Result<bool> {
-        Ok(self.snapshot(user_id).await?.grants(unlock))
+        Ok(self
+            .snapshot(user_id, unlock.product())
+            .await?
+            .grants(unlock))
     }
 
     /// Console lookup: raw rows + memberships + the computed snapshot.
     pub async fn account_plan(&self, user_id: &str) -> Result<AccountPlan> {
-        let snapshot = self.snapshot(user_id).await?;
+        // Music today: it is the only product that sells. A second one makes this
+        // console view per-product rather than adding a second call.
+        let snapshot = self.snapshot(user_id, cymbra_platform::MUSIC_SCOPE).await?;
         let rows = self.d.entitlements.list_for_user(user_id).await?;
         let memberships = self.d.memberships.list_for_user(user_id).await?;
         Ok(AccountPlan {
@@ -798,8 +808,8 @@ impl PlanService {
 
 #[async_trait]
 impl PlanSource for PlanService {
-    async fn snapshot(&self, user_id: &str) -> Result<PlanSnapshot> {
-        PlanService::snapshot(self, user_id).await
+    async fn snapshot(&self, user_id: &str, product: &str) -> Result<PlanSnapshot> {
+        PlanService::snapshot(self, user_id, product).await
     }
 }
 
@@ -1040,6 +1050,7 @@ mod tests {
             status: EntitlementStatus::Active,
             revoked_at: None,
             withdrawn_at: None,
+            product: cymbra_platform::MUSIC_SCOPE.to_string(),
         }
     }
 
@@ -1053,6 +1064,7 @@ mod tests {
             closed_at: None,
             created_by: "admin".into(),
             created_at: t(1),
+            product: cymbra_platform::MUSIC_SCOPE.to_string(),
         }
     }
 
@@ -1069,6 +1081,7 @@ mod tests {
             closed_at: Some(t(4)),
             created_by: "admin".into(),
             created_at: t(1),
+            product: cymbra_platform::MUSIC_SCOPE.to_string(),
         }
     }
 
@@ -1183,7 +1196,10 @@ mod tests {
                 },
             }])
         });
-        let snap = service(m).snapshot("u1").await.unwrap();
+        let snap = service(m)
+            .snapshot("u1", cymbra_platform::MUSIC_SCOPE)
+            .await
+            .unwrap();
         // …while the premium it granted still governs the plan.
         assert_eq!(snap.plan, crate::model::Plan::Premium);
         assert!(
@@ -1196,7 +1212,12 @@ mod tests {
     async fn kill_switch_off_is_free_without_reads() {
         let m = mocks(false, t(5));
         let s = service(m);
-        assert_eq!(s.snapshot("u1").await.unwrap(), PlanSnapshot::free());
+        assert_eq!(
+            s.snapshot("u1", cymbra_platform::MUSIC_SCOPE)
+                .await
+                .unwrap(),
+            PlanSnapshot::free()
+        );
         assert!(!s.withdraw_if_lapsed("u1").await.unwrap());
         assert_eq!(s.sweep_withdrawals().await.unwrap(), 0);
     }
@@ -1213,7 +1234,10 @@ mod tests {
         m.entitlements.expect_mark_withdrawn().times(0);
         m.rotator.expect_rotate().times(0);
         let s = service(m);
-        let snap = s.snapshot("u1").await.unwrap();
+        let snap = s
+            .snapshot("u1", cymbra_platform::MUSIC_SCOPE)
+            .await
+            .unwrap();
         assert!(snap.grants(Unlock::CatalogUnlimited));
         assert!(s.grants("u1", Unlock::OfflineCache).await.unwrap());
     }
@@ -1249,7 +1273,10 @@ mod tests {
             .in_sequence(&mut seq)
             .returning(|_, _| Ok(0));
         let s = service(m);
-        let snap = s.snapshot("u1").await.unwrap();
+        let snap = s
+            .snapshot("u1", cymbra_platform::MUSIC_SCOPE)
+            .await
+            .unwrap();
         assert_eq!(snap.plan, crate::model::Plan::Free);
         assert!(!s.withdraw_if_lapsed("u1").await.unwrap());
     }
@@ -1269,7 +1296,13 @@ mod tests {
         m.entitlements.expect_mark_withdrawn().times(0);
         m.rotator.expect_rotate().times(0);
         let s = service(m);
-        assert_eq!(s.snapshot("u1").await.unwrap().source, Some(Source::Google));
+        assert_eq!(
+            s.snapshot("u1", cymbra_platform::MUSIC_SCOPE)
+                .await
+                .unwrap()
+                .source,
+            Some(Source::Google)
+        );
     }
 
     #[tokio::test]
@@ -1428,6 +1461,7 @@ mod tests {
                     status: w.status,
                     revoked_at: None,
                     withdrawn_at: None,
+                    product: cymbra_platform::MUSIC_SCOPE.to_string(),
                 })
             });
         let s = service(m);
@@ -1504,6 +1538,7 @@ mod tests {
                 closed_at: None,
                 created_by: n.created_by,
                 created_at: t(5),
+                product: cymbra_platform::MUSIC_SCOPE.to_string(),
             })
         });
         let s = service(m);

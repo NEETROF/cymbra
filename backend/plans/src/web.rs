@@ -154,7 +154,8 @@ pub async fn my_plan(
     user_id: &str,
     platform: Option<Platform>,
 ) -> Result<PlanView> {
-    let snapshot = svc.snapshot(user_id).await?;
+    // The app's and the site's "my plan" are Music surfaces.
+    let snapshot = svc.snapshot(user_id, cymbra_platform::MUSIC_SCOPE).await?;
     Ok(plan_view(svc, paywall, &snapshot, platform))
 }
 
@@ -213,7 +214,8 @@ pub async fn create_checkout(
         return Err(AppError::FailedPrecondition("web channel disabled".into()));
     }
     let web = web.ok_or_else(|| AppError::Config("web billing not configured".into()))?;
-    let snapshot = svc.snapshot(user_id).await?;
+    // Web checkout sells the Music subscription.
+    let snapshot = svc.snapshot(user_id, cymbra_platform::MUSIC_SCOPE).await?;
     if snapshot.paid_source.is_some() {
         return Err(AppError::FailedPrecondition(
             "already subscribed on another channel".into(),
@@ -277,6 +279,7 @@ mod tests {
             status: EntitlementStatus::Active,
             revoked_at: None,
             withdrawn_at: None,
+            product: cymbra_platform::MUSIC_SCOPE.to_string(),
         }
     }
 
@@ -535,6 +538,7 @@ mod tests {
             closed_at: None,
             created_by: "a".into(),
             created_at: t(1),
+            product: cymbra_platform::MUSIC_SCOPE.to_string(),
         };
     }
 }

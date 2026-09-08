@@ -261,7 +261,11 @@ pub trait WebSubscriptionCanceller: Send + Sync {
 #[cfg_attr(any(test, feature = "mock"), automock)]
 #[async_trait]
 pub trait PlanSource: Send + Sync {
-    async fn snapshot(&self, user_id: &str) -> Result<PlanSnapshot>;
+    /// The snapshot **for `product`**. The parameter exists so a module cannot ask a
+    /// question that spans products: it used to be absent, and a premium entitlement
+    /// bought for any product unlocked every other one's paid features
+    /// (change: harden-module-boundaries, group 4).
+    async fn snapshot(&self, user_id: &str, product: &str) -> Result<PlanSnapshot>;
 }
 
 /// A minted code: the clear text is returned **once**.
