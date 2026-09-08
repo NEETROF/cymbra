@@ -65,10 +65,10 @@
 
 ## 6. External contract net
 
-- [ ] 6.1 Add a `buf` configuration and a CI job running `buf breaking` over the ten `backend/*/proto/*.proto`.
-- [ ] 6.2 Decide and document the baseline: previous commit, or the last shipped `music-v*` tag (design Open Question 2).
-- [ ] 6.3 Document how an intentional break is recorded in a change, and note the measured expectation (~1 override per 8–9 proto commits).
-- [ ] 6.4 Verify the gate fails on a removed RPC and on a renumbered field, and passes on an added field.
+- [x] 6.1 Add a `buf` configuration and a CI job running `buf breaking` over the ten `backend/*/proto/*.proto`.
+- [x] 6.2 **Decided: the pull request's target branch.** It answers the actionable question — does THIS change break a client — and since every pull request is gated, a break reaches `main` only through an acknowledged one. A tag baseline would re-flag every past intentional break on every run. Recorded in CLAUDE.md. Original: Decide and document the baseline: previous commit, or the last shipped `music-v*` tag (design Open Question 2).
+- [x] 6.3 **Override is the Conventional Commits breaking marker on the PR title** (`feat(x)!:`) — already validated by commitlint, already turned into a major bump by release-please, so the break lands in the changelog instead of a CI override, and nothing has to be undone afterwards. Original: Document how an intentional break is recorded in a change, and note the measured expectation (~1 override per 8–9 proto commits).
+- [x] 6.4 **Verified locally against a real baseline**, all three: a renumbered field fails it, a deleted RPC fails it, an added field passes. Original: Verify the gate fails on a removed RPC and on a renumbered field, and passes on an added field.
 
 ## 7. Design record and documented decisions
 
