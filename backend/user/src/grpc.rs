@@ -551,37 +551,36 @@ mod tests {
     async fn grant_is_scope_matched_across_scopes() {
         let (g, module) = grpc();
         let target = module.resolve_or_provision("google", "t").await.unwrap();
-        // A privileged role in an app scope other than `music` — exactly what the
-        // temporary lock in `UserModule::grant_role` refuses (change:
-        // harden-module-boundaries, group 1). That is deliberate here: the two callers
-        // must be distinguished by the gRPC guard, which runs BEFORE the module, and
-        // the difference in the error proves it.
+        // Who may grant is decided by the gRPC guard, scope-matched, BEFORE the module.
         let live_grant = || GrantRoleRequest {
             user_id: target.clone(),
             scope: "live".into(),
             role: "moderator".into(),
         };
 
-        // A music-only admin is stopped at the guard: it never reaches the module.
+        // A music-only admin has no authority over `live`: stopped at the guard.
         let err = g
             .grant_role(authed_scoped(live_grant(), "m", &[("music", &["admin"])]))
             .await
             .unwrap_err();
         assert_eq!(err.code(), tonic::Code::PermissionDenied);
-
-        // A global admin (break-glass) passes the guard — it is refused further in, by
-        // the lock, with a DIFFERENT code. When the lock goes away with group 3 this
-        // becomes a plain success; until then, "not PermissionDenied" is what says the
-        // guard let it through.
-        let err = g
-            .grant_role(authed_scoped(live_grant(), "g", &[("global", &["admin"])]))
-            .await
-            .unwrap_err();
-        assert_eq!(err.code(), tonic::Code::InvalidArgument);
-
-        // Either way nothing landed: a refused grant writes no role.
         assert!(
             !module
+                .effective_roles(&target, "live")
+                .await
+                .unwrap()
+                .contains(&"moderator".to_string()),
+            "a refused grant writes no role"
+        );
+
+        // A global admin passes, and the grant now LANDS. This used to fail with
+        // `InvalidArgument` from the temporary lock of group 1; removing that lock
+        // (task 3.10) is exactly what group 3 and tasks 3.11-3.14 were for.
+        g.grant_role(authed_scoped(live_grant(), "g", &[("global", &["admin"])]))
+            .await
+            .unwrap();
+        assert!(
+            module
                 .effective_roles(&target, "live")
                 .await
                 .unwrap()
