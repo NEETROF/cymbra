@@ -230,47 +230,6 @@ impl<R: UserRepo> UserPort for UserModule<R> {
         role: &str,
     ) -> Result<()> {
         validate_scope_role(scope, role)?;
-        // TEMPORARY, and only on the grant path (change: harden-module-boundaries,
-        // group 1). A `back-office` token carries `global ∪ music ∪ live`, so anything
-        // reading the FLAT role set treats a privileged role granted in another app
-        // scope as authority over music — and nothing in the console or the audit says
-        // so. `SCOPES` already accepts `live`, so that grant would be taken today.
-        //
-        // Group 3 scope-matched the 17 moderation gates and DELETED the flat
-        // `require_moderator_or_admin`, so a missed one no longer compiles. What still
-        // reads the flat set is `require_admin`, at three sites:
-        //   - `auth/src/grpc.rs` — deliberate: the scope match is on the EFFECT
-        //     (`RevocationScope` bounds the cut), so no privileged role leaks through;
-        //   - `feature-flags/src/grpc.rs` (task 3.11) and `user/src/grpc.rs` (3.12) —
-        //     cross-product READS, still open: any admin reads any product's flag
-        //     change history, and every scope's role grants.
-        //
-        // Those last two are exactly what a `live/admin` would exploit, and this lock
-        // is what stops that account from existing at all.
-        //
-        // This does NOT protect against the granter: only `global/admin` or
-        // `<scope>/admin` can reach `grant_role` at all, and both already pass those
-        // gates. What it prevents is creating a *grantee* whose authority does not
-        // match its label.
-        //
-        // `global` is exempt on purpose — it is the break-glass scope, cross-cutting
-        // by design (`has_role_in_scope` treats it as such), and `global/admin` must
-        // stay grantable. The restriction is about the OTHER app scopes.
-        //
-        // Removal condition (task 3.10), and it is NOT "group 3 is done": remove this
-        // once 3.11 and 3.12 have closed those two reads. Removing it earlier because
-        // the moderation gates are fixed would arm them.
-        //
-        // Deliberately NOT in `validate_scope_role`: that helper is shared with
-        // `revoke_role` below, and revoking a bad grant must stay possible in every
-        // scope.
-        if role != "user" && scope != "music" && cymbra_platform::APP_SCOPES.contains(&scope) {
-            return Err(AppError::InvalidArgument(format!(
-                "role {role:?} is refused in scope {scope:?} until the moderation guards \
-                 are scope-matched — they read the flat role set, so it would also grant \
-                 authority over music"
-            )));
-        }
         // Idempotent role write, then the audit entry (change: add-moderation-back-
         // office). Authorization (admin-only) is enforced at the gRPC layer.
         self.repo.grant_role(user_id, scope, role).await?;
@@ -823,55 +782,43 @@ mod tests {
         );
     }
 
-    /// Temporary lock (change: harden-module-boundaries, group 1). The moderation
-    /// gates are scope-matched since group 3, but two cross-product READS still sit
-    /// behind a flat `require_admin` (tasks 3.11/3.12), so a privileged role in another
-    /// app scope would still reach music data. `global` is exempt: it is the
-    /// break-glass, cross-cutting by design. Remove with 3.10, after 3.11/3.12.
+    /// The lock of group 1 is GONE (task 3.10): a privileged role may again be granted
+    /// in any app scope. It bought the window in which the guards read the flat role
+    /// set, so an `admin` of one product was an admin of all; group 3 scope-matched
+    /// those guards, 3.11-3.14 closed the reads and the write path that still keyed on
+    /// the audience, and this is what those changes were for.
     #[tokio::test]
-    async fn grant_role_refuses_privileged_roles_in_other_app_scopes() {
+    async fn a_privileged_role_may_be_granted_in_any_app_scope() {
         let m = module();
         let admin = m.resolve_or_provision("google", "admin").await.unwrap();
         let t = m.resolve_or_provision("google", "t").await.unwrap();
 
-        // `live` is an app scope that is not `music` — both privileged roles refused.
-        for role in ["moderator", "admin"] {
-            assert!(
-                matches!(
-                    m.grant_role(&admin, &t, "live", role).await,
-                    Err(AppError::InvalidArgument(_))
-                ),
-                "{role:?} should be refused in scope \"live\""
-            );
+        for scope in cymbra_platform::SCOPES {
+            for role in ROLES {
+                m.grant_role(&admin, &t, scope, role)
+                    .await
+                    .unwrap_or_else(|e| panic!("{role:?} refused in scope {scope:?}: {e:?}"));
+            }
         }
 
-        // Music is the scope the gates actually match, so both still work there.
-        for role in ["moderator", "admin"] {
-            m.grant_role(&admin, &t, "music", role).await.unwrap();
-        }
-
-        // `global` is the break-glass and stays grantable — locking it would take away
-        // the only way to appoint a platform administrator.
-        for role in ["moderator", "admin"] {
-            m.grant_role(&admin, &t, "global", role).await.unwrap();
-        }
-
-        // The plain `user` role is not privileged: unaffected everywhere.
-        m.grant_role(&admin, &t, "live", "user").await.unwrap();
+        // The vocabulary is still the boundary — that part was never the lock.
+        assert!(matches!(
+            m.grant_role(&admin, &t, "lingua", "admin").await,
+            Err(AppError::InvalidArgument(_))
+        ));
     }
 
-    /// The trap the lock must not fall into: it lives in `grant_role`, not in the
-    /// `validate_scope_role` helper that `revoke_role` also calls. Cleaning up a grant
-    /// made before the lock existed has to stay possible in every scope.
+    /// Grant and revoke stay symmetric in every scope. This guarded the trap the lock
+    /// could have fallen into — living in the `validate_scope_role` helper that
+    /// `revoke_role` also calls, which would have made a bad grant unremovable. The
+    /// lock is gone, but the symmetry is worth keeping asserted.
     #[tokio::test]
     async fn revoking_moderator_outside_music_still_works() {
         let m = module();
         let admin = m.resolve_or_provision("google", "admin").await.unwrap();
         let t = m.resolve_or_provision("google", "t").await.unwrap();
 
-        // Bypass the port to plant a pre-existing `live/moderator`, as a grant made
-        // before the lock would look in the database.
-        m.repo.grant_role(&t, "live", "moderator").await.unwrap();
+        m.grant_role(&admin, &t, "live", "moderator").await.unwrap();
 
         m.revoke_role(&admin, &t, "live", "moderator")
             .await
