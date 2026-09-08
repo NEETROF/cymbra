@@ -84,6 +84,26 @@ pub struct Actor {
     pub console: Option<ConsoleScopes>,
 }
 
+impl Actor {
+    /// The apps whose flag change **history** this actor may read (change:
+    /// harden-module-boundaries, task 3.11). `None` means every app — a platform
+    /// (`global`) admin. A console token sees the apps it holds `admin` in; a
+    /// single-app token sees its own app.
+    ///
+    /// Listing flag *definitions* is deliberately cross-app (the console shows every
+    /// app, editable per scope). History is not the same read: it carries the values
+    /// and who set them, so it follows the authority the actor actually holds.
+    ///
+    /// An admin of no app yields an empty list, i.e. nothing — the fail-closed answer.
+    pub fn visible_apps(&self) -> Option<Vec<String>> {
+        match &self.console {
+            Some(c) if c.platform => None,
+            Some(c) => Some(c.admin_apps.clone()),
+            None => Some(vec![self.app.clone()]),
+        }
+    }
+}
+
 /// Whether a back-office console caller may edit a key in `app`: admin in that app
 /// scope, or a platform (`global`) admin for shared `all` keys and any app it is
 /// not directly scoped for (change: scope-aware-role-admin).
@@ -544,6 +564,7 @@ impl FlagService {
         &self,
         app_filter: Option<&str>,
         key_filter: Option<&str>,
+        visible_apps: Option<Vec<String>>,
         limit: i64,
     ) -> Result<Vec<crate::store::ChangeRecord>> {
         let store = self
@@ -554,6 +575,7 @@ impl FlagService {
             .recent_changes(
                 app_filter.unwrap_or(""),
                 key_filter.unwrap_or(""),
+                visible_apps,
                 limit.clamp(1, 500),
             )
             .await

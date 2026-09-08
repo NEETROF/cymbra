@@ -61,10 +61,17 @@ pub trait FlagStore: Send + Sync {
     /// Remove an override (revert to code default) and append the audit.
     async fn clear(&self, app: &str, key: &str, actor: &str, old_display: &str) -> Result<()>;
     /// Recent changes, newest first. An empty `app_filter`/`key_filter` means "any".
+    ///
+    /// `visible_apps` is the authorization boundary, separate from the caller's own
+    /// filter: `None` sees every app (a platform admin), `Some(list)` sees only those (owned: it holds at most one entry per product).
+    /// It is applied in SQL rather than to the fetched rows, so `limit` still returns
+    /// `limit` visible rows instead of a silently short page. An empty list therefore
+    /// means "nothing", which is the fail-closed reading.
     async fn recent_changes(
         &self,
         app_filter: &str,
         key_filter: &str,
+        visible_apps: Option<Vec<String>>,
         limit: i64,
     ) -> Result<Vec<ChangeRecord>>;
 }
@@ -200,6 +207,7 @@ impl FlagStore for PgFlagStore {
         &self,
         app_filter: &str,
         key_filter: &str,
+        visible_apps: Option<Vec<String>>,
         limit: i64,
     ) -> Result<Vec<ChangeRecord>> {
         use sqlx::Row;
@@ -208,11 +216,13 @@ impl FlagStore for PgFlagStore {
         let rows = sqlx::query(
             "SELECT app, key, old_value, new_value, actor, at FROM feature_flag_changes \
              WHERE ($1::text IS NULL OR app = $1) AND ($2::text IS NULL OR key = $2) \
+               AND ($4::text[] IS NULL OR app = ANY($4)) \
              ORDER BY at DESC LIMIT $3",
         )
         .bind(app)
         .bind(key)
         .bind(limit)
+        .bind(visible_apps)
         .fetch_all(&self.pool)
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!("list changes: {e}")))?;

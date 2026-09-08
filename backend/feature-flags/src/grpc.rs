@@ -200,12 +200,18 @@ impl FlagServiceTrait for FlagGrpc {
         &self,
         req: Request<proto::ListFlagChangesRequest>,
     ) -> std::result::Result<Response<proto::ListFlagChangesResponse>, Status> {
-        let _ = self.admin_actor(&req)?;
+        // The actor used to be DISCARDED here (`let _ =`), so any admin read any
+        // product's flag change history — who flipped which kill-switch, and to what
+        // (change: harden-module-boundaries, task 3.11). Their own `app_filter` is a
+        // convenience; `visible_apps` is the boundary, and it is applied in SQL so
+        // `limit` still returns a full page of rows the caller may see.
+        let actor = self.admin_actor(&req)?;
+        let visible = actor.visible_apps();
         let r = req.into_inner();
         let app = (!r.app_filter.is_empty()).then_some(r.app_filter.as_str());
         let key = (!r.key.is_empty()).then_some(r.key.as_str());
         let limit = if r.limit == 0 { 100 } else { r.limit as i64 };
-        let changes = self.svc.recent_changes(app, key, limit).await?;
+        let changes = self.svc.recent_changes(app, key, visible, limit).await?;
         Ok(Response::new(proto::ListFlagChangesResponse {
             changes: changes.iter().map(change_to_proto).collect(),
         }))
@@ -405,6 +411,83 @@ mod tests {
             roles_by_scope,
         });
         req
+    }
+
+    /// A `FlagGrpc` whose store records the `visible_apps` the handler passed down, so
+    /// the assertion is on the boundary that reaches SQL rather than on rows a fake
+    /// happened to return.
+    fn grpc_recording_visibility(
+        platform_admin: bool,
+        seen: Arc<std::sync::Mutex<Option<Option<Vec<String>>>>>,
+    ) -> FlagGrpc {
+        let mut store = MockFlagStore::new();
+        store.expect_load_all().returning(|| Ok(vec![]));
+        store.expect_recent_changes().returning(move |_, _, v, _| {
+            *seen.lock().unwrap() = Some(v);
+            Ok(vec![])
+        });
+        let mut resolver = MockAdminScopeResolver::new();
+        resolver
+            .expect_is_platform_admin()
+            .returning(move |_| Ok(platform_admin));
+        FlagGrpc::new(Arc::new(FlagService::new(
+            Registry::default(),
+            Some(Arc::new(store)),
+            Arc::new(NoopBus),
+            Arc::new(resolver),
+        )))
+    }
+
+    /// The flag change history carries values and the admin who set them, so it is
+    /// bounded by the apps the caller administers — not by the filter the caller sent.
+    /// The handler used to discard its actor entirely (task 3.11).
+    #[tokio::test]
+    async fn flag_history_is_bounded_by_the_apps_the_caller_administers() {
+        // A music-only console admin asking for EVERYTHING gets music only.
+        let seen = Arc::new(std::sync::Mutex::new(None));
+        let g = grpc_recording_visibility(false, seen.clone());
+        g.list_flag_changes(console_req(
+            proto::ListFlagChangesRequest::default(),
+            &[("music", &["admin"])],
+        ))
+        .await
+        .unwrap();
+        assert_eq!(
+            seen.lock().unwrap().clone().unwrap(),
+            Some(vec!["music".to_string()])
+        );
+
+        // Asking specifically for another product does not widen it: the filter is a
+        // convenience, `visible_apps` is the boundary.
+        let seen = Arc::new(std::sync::Mutex::new(None));
+        let g = grpc_recording_visibility(false, seen.clone());
+        g.list_flag_changes(console_req(
+            proto::ListFlagChangesRequest {
+                app_filter: "live".into(),
+                ..Default::default()
+            },
+            &[("music", &["admin"])],
+        ))
+        .await
+        .unwrap();
+        assert_eq!(
+            seen.lock().unwrap().clone().unwrap(),
+            Some(vec!["music".to_string()])
+        );
+    }
+
+    /// The `global` break-glass keeps the whole history: `None` is "every app".
+    #[tokio::test]
+    async fn a_platform_admin_still_reads_every_app_history() {
+        let seen = Arc::new(std::sync::Mutex::new(None));
+        let g = grpc_recording_visibility(true, seen.clone());
+        g.list_flag_changes(console_req(
+            proto::ListFlagChangesRequest::default(),
+            &[("global", &["admin"])],
+        ))
+        .await
+        .unwrap();
+        assert_eq!(seen.lock().unwrap().clone().unwrap(), None);
     }
 
     #[tokio::test]
