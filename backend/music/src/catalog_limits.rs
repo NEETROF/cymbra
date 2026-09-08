@@ -141,8 +141,21 @@ impl CatalogAccessLimiter {
     /// Every other caller — music-app moderators, other-scope admins, regular users
     /// — is subject.
     fn exempt(&self, id: &AuthIdentity) -> bool {
-        id.audience == cymbra_platform::BACKOFFICE_AUDIENCE
-            || id.has_role_in_scope("music", "admin")
+        // The audience may only NARROW, never grant. It is a request field the client
+        // picks at sign-in, checked solely against the global allow-list — which does
+        // contain `back-office` in production. As a disjunct it let any account
+        // re-sign-in as `back-office` and walk out of the burst cap, the volume
+        // allowance and the enumeration cap; as a conjunct it costs an impostor
+        // everything and a real console user nothing.
+        //
+        // The two exemptions are deliberately different, and both predate this fix:
+        //   * a music (or global break-glass) admin is exempt wherever it calls from;
+        //   * a moderator is exempt only in the console — in the app it is a player,
+        //     and subject to the caps like any other (`moderator_and_other_scope_admin
+        //     _are_subject`).
+        id.has_role_in_scope("music", "admin")
+            || (id.audience == cymbra_platform::BACKOFFICE_AUDIENCE
+                && id.has_role_in_scope("music", "moderator"))
     }
 
     /// Burst cap + play-aware volume allowance on raw-bytes egress. `Ok` when the
@@ -425,6 +438,31 @@ mod tests {
         }
     }
 
+    /// Regression guard. The exemption used to be `id.audience == BACKOFFICE_AUDIENCE
+    /// || …`, and the audience is a request field the client chooses at sign-in,
+    /// validated only against a global allow-list that contains `back-office` in
+    /// production. Any account could therefore re-sign-in as `back-office` and leave
+    /// the burst cap, the volume allowance and the enumeration cap behind.
+    #[tokio::test]
+    async fn back_office_audience_alone_earns_nothing() {
+        let l = limiter(Arc::new(FakePlayRepo::default()));
+        let mut impostor = user("imp", &[("global", &["user"])]);
+        impostor.audience = cymbra_platform::BACKOFFICE_AUDIENCE.into();
+
+        // It is limited exactly like the plain user it is: the caps still bite.
+        let mut refused = false;
+        for _ in 0..50 {
+            if l.check_enumeration(&impostor).await.is_err() {
+                refused = true;
+                break;
+            }
+        }
+        assert!(
+            refused,
+            "claiming the back-office audience must not lift the enumeration cap"
+        );
+    }
+
     #[tokio::test]
     async fn music_admin_and_global_admin_bypass() {
         let l = limiter(Arc::new(FakePlayRepo::default()));
@@ -442,10 +480,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn back_office_audience_is_exempt_even_as_moderator() {
-        // The curator console reuses GetCatalogScoreBytes but is a trusted, CORS-gated
-        // audience with no play activity — it must never be limited, even for a
-        // moderator (who would otherwise sit at the base floor).
+    async fn a_music_moderator_is_exempt_in_the_console() {
+        // The curator console reuses GetCatalogScoreBytes and has no play activity, so
+        // its users must not be limited. The audience alone earns nothing though: the
+        // moderator ROLE is what exempts, and only when it calls from the console.
         let l = limiter(Arc::new(FakePlayRepo::default()));
         let mut bo_mod = user("bo1", &[("global", &["user"]), ("music", &["moderator"])]);
         bo_mod.audience = cymbra_platform::BACKOFFICE_AUDIENCE.into();
