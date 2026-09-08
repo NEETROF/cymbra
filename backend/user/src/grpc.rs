@@ -192,12 +192,22 @@ impl<P: UserPort + 'static> UserService for UserGrpc<P> {
         req: Request<ListRoleGrantsRequest>,
     ) -> Result<Response<ListRoleGrantsResponse>, Status> {
         let id = identity(&req)?;
+        // Coarse gate, then a scope-matched FILTER (change: harden-module-boundaries,
+        // task 3.12). This used to return every scope's grants, so a `music/admin`
+        // read who had been made a `live/admin` and by whom — the audit trail of a
+        // product they hold no authority over. Grant and revoke are already
+        // scope-matched; reading the history now follows the same rule.
+        //
+        // `admin_scopes` yields every scope for a `global/admin` (the break-glass) and
+        // just their own for a scoped admin, so an admin of nothing sees nothing.
         cymbra_platform::guard::require_admin(&id)?;
+        let visible = id.admin_scopes(&cymbra_platform::SCOPES);
         let grants = self
             .port
             .list_role_grants(&req.into_inner().user_id)
             .await?
             .into_iter()
+            .filter(|g| visible.contains(&g.scope))
             .map(|g| ProtoRoleGrant {
                 target_user_id: g.target_user_id,
                 scope: g.scope,
@@ -391,6 +401,61 @@ mod tests {
             .await
             .unwrap_err();
         assert_eq!(err.code(), tonic::Code::PermissionDenied);
+    }
+
+    /// The audit answers "who was given what, by whom" — for the products the reader
+    /// governs. It used to return every scope's grants behind a coarse `require_admin`,
+    /// so a `music/admin` read who had been made a `live` anything (task 3.12).
+    ///
+    /// The `live` row is a `user` grant because the #327 lock still refuses privileged
+    /// roles outside `music`; that is enough to prove the filter, and it is the exact
+    /// row a music admin has no business reading.
+    #[tokio::test]
+    async fn the_grant_audit_is_filtered_to_the_scopes_the_reader_administers() {
+        let (g, module) = grpc();
+        let target = module.resolve_or_provision("google", "t").await.unwrap();
+        let god = &[("global", &["user", "admin"][..])];
+        for (scope, role) in [("music", "moderator"), ("live", "user")] {
+            g.grant_role(authed_scoped(
+                GrantRoleRequest {
+                    user_id: target.clone(),
+                    scope: scope.into(),
+                    role: role.into(),
+                },
+                "root",
+                god,
+            ))
+            .await
+            .unwrap();
+        }
+
+        let list = async |caller: &str, pairs: &[(&str, &[&str])]| {
+            g.list_role_grants(authed_scoped(
+                ListRoleGrantsRequest {
+                    user_id: target.clone(),
+                },
+                caller,
+                pairs,
+            ))
+            .await
+            .unwrap()
+            .into_inner()
+            .grants
+        };
+
+        // A music admin sees the music row and not the live one.
+        let seen = list("musicadm", &[("music", &["user", "admin"][..])]).await;
+        assert_eq!(seen.len(), 1, "expected the music grant only, got {seen:?}");
+        assert_eq!(seen[0].scope, "music");
+
+        // The break-glass sees the whole history.
+        let all = list("root", god).await;
+        assert_eq!(all.len(), 2);
+
+        // An admin of another product sees nothing of this account's music history.
+        let none = list("liveadm", &[("live", &["user", "admin"][..])]).await;
+        assert_eq!(none.len(), 1, "live/user is theirs to see; music is not");
+        assert_eq!(none[0].scope, "live");
     }
 
     #[tokio::test]
