@@ -372,12 +372,12 @@ impl AuthPort for AuthModule {
         &self,
         acting_admin: &str,
         target_user_id: &str,
-        audience: &str,
+        scope: &cymbra_auth_port::RevocationScope,
     ) -> Result<()> {
-        // One transactional, audience-scoped delete + audit in the store: the count is
-        // exact (from the delete) and the trail can't be lost on a partial failure.
+        // One transactional, scoped delete + audit in the store: the count is exact
+        // (from the delete) and the trail can't be lost on a partial failure.
         self.sessions
-            .revoke_account_sessions_audited(target_user_id, acting_admin, audience)
+            .revoke_account_sessions_audited(target_user_id, acting_admin, scope)
             .await?;
         Ok(())
     }
@@ -763,9 +763,13 @@ mod tests {
         let target = sub_of(&music.access_token, "music");
 
         // A music-scoped admin revoke cuts ONLY the target's music sessions.
-        h.m.revoke_account_sessions("admin-9", &target, "music")
-            .await
-            .unwrap();
+        h.m.revoke_account_sessions(
+            "admin-9",
+            &target,
+            &cymbra_auth_port::RevocationScope::Only(vec!["music".into()]),
+        )
+        .await
+        .unwrap();
 
         // The music session is gone; the live session survives (out of scope).
         assert!(matches!(

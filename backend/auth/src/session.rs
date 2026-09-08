@@ -14,6 +14,7 @@
 //! no DB. The pure token logic lives in [`session_core`] (host-tested).
 
 use async_trait::async_trait;
+use cymbra_auth_port::RevocationScope;
 use cymbra_platform::{AppError, Result};
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -55,14 +56,24 @@ pub trait SessionStore: Send + Sync {
     /// Admin-revoke every session of `target_user_id` **scoped to `audience`** and write
     /// a **durable** audit entry (acting admin + target + audience + count) in the SAME
     /// transaction as the delete — so a revoked account is always traceable and the
-    /// count can't drift. Returns the number of sessions revoked. Audience-scoped so a
-    /// caller can't cut sessions in an app they don't administer.
+    /// count can't drift. Returns the number of sessions revoked. Scoped to what the
+    /// acting admin is entitled to cut, so a caller can't reach an app they do not
+    /// administer — and, just as importantly, DOES reach every app they do.
     async fn revoke_account_sessions_audited(
         &self,
         target_user_id: &str,
         acting_admin: &str,
-        audience: &str,
+        scope: &RevocationScope,
     ) -> Result<i64>;
+}
+
+/// Human-readable form of a [`RevocationScope`] for the audit trail: `*` for the
+/// break-glass, otherwise the audiences that were targeted.
+pub fn describe_scope(scope: &RevocationScope) -> String {
+    match scope {
+        RevocationScope::All => "*".to_string(),
+        RevocationScope::Only(auds) => auds.join(","),
+    }
 }
 
 /// One admin-revocation audit entry (the fake exposes these for tests).
@@ -193,19 +204,24 @@ impl SessionStore for FakeSessionStore {
         &self,
         target_user_id: &str,
         acting_admin: &str,
-        audience: &str,
+        scope: &RevocationScope,
     ) -> Result<i64> {
         let count = {
             let mut fams = self.fams.lock().unwrap();
             let before = fams.len();
-            // Audience-scoped: only the target's sessions in this app are cut.
-            fams.retain(|_, f| !(f.user_id == target_user_id && f.audience == audience));
+            fams.retain(|_, f| {
+                let in_scope = match scope {
+                    RevocationScope::All => true,
+                    RevocationScope::Only(auds) => auds.iter().any(|a| a == &f.audience),
+                };
+                !(f.user_id == target_user_id && in_scope)
+            });
             (before - fams.len()) as i64
         };
         self.audit.lock().unwrap().push(AdminRevocation {
             target_user_id: target_user_id.into(),
             acting_admin: acting_admin.into(),
-            audience: audience.into(),
+            audience: describe_scope(scope),
             revoked_count: count,
         });
         Ok(count)

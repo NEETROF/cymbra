@@ -352,7 +352,7 @@ mod tests {
             &self,
             _admin: &str,
             _target: &str,
-            _audience: &str,
+            _scope: &cymbra_auth_port::RevocationScope,
         ) -> Result<()> {
             unreachable!()
         }
