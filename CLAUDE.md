@@ -189,6 +189,36 @@ Two things CI will not let you get away with:
   its body is one app. A trigger broader than its job produces runs that verify the
   wrong thing.
 
+## The external contract — `.proto` is the only thing clients see
+
+The `.proto` files are what the Flutter app, the back office and the site call. A
+client already installed keeps calling the shape it was built against, so **removing an
+RPC or renumbering a field breaks it while the server compiles perfectly** — `cargo`
+only ever sees the new shape. Nothing else in CI notices.
+
+The `proto` workflow runs `buf breaking` on every pull request that touches
+`backend/*/proto/**`, against the **target branch** (not the last release tag): it
+answers "does this pull request break a client?", and since every pull request is
+gated, a break reaches `main` only through an acknowledged one. A tag baseline would
+re-flag every past intentional break forever.
+
+The rule set is `FILE` — the strictest wire-compatibility category. It refuses a
+removed or renamed RPC/message/field, a renumbered field, a changed field type, and a
+declaration moved between files (generated Dart/TS imports follow file names).
+
+**Breaking on purpose.** Mark the pull request title with the Conventional Commits
+breaking marker — `feat(music)!: …`. The gate then reports the break without failing,
+commitlint already validates that title, and release-please turns it into a major bump,
+so the break lands in the changelog instead of being buried in a CI override. Nothing
+has to be remembered and undone afterwards.
+
+Expect this rarely: measured over this repo's history, roughly **one intentional break
+per 8–9 proto commits**. A marker on a title that did not need one is worth a question
+in review.
+
+Verified against real cases when the gate was added: a renumbered field and a deleted
+RPC both fail it; an added field passes.
+
 ## Commits
 
 Conventional Commits (enforced by `commitlint.yml`). `/caveman-commit` produces

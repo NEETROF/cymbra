@@ -1,0 +1,25 @@
+# Breaking-change gate for the EXTERNAL contract (change: harden-module-boundaries,
+# group 6). The `.proto` files are what the Flutter app, the back office and the site
+# actually call; a removed RPC or a renumbered field breaks clients already installed,
+# and nothing in `cargo` notices — the server compiles perfectly against its own new
+# shape.
+#
+# One module per proto directory: none of them imports another, so they stay
+# independent and a module can move with its crate without touching this file.
+version: v2
+modules:
+  - path: backend/analytics/proto
+  - path: backend/auth-port/proto
+  - path: backend/feature-flags/proto
+  - path: backend/music/proto
+  - path: backend/notifications/proto
+  - path: backend/plans/proto
+  - path: backend/user-port/proto
+breaking:
+  # FILE is the strictest wire-compatibility category: it refuses a removed or
+  # renamed RPC/message/field, a renumbered field, and a changed field type — the
+  # things that break a client that has not been updated. It also refuses moving a
+  # declaration between files, which matters here because generated Dart/TS imports
+  # follow file names.
+  use:
+    - FILE

@@ -1,0 +1,78 @@
+name: proto
+
+# Guards the EXTERNAL contract. The `.proto` files are what the Flutter app, the back
+# office and the site actually call, and a client already installed keeps calling the
+# shape it was built against. Removing an RPC or renumbering a field breaks those
+# clients while the server compiles perfectly — `cargo` only ever sees the new shape.
+#
+# Repo-wide, so no target prefix (see CLAUDE.md): it covers every `backend/*/proto`.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - "backend/*/proto/**"
+      - "buf.yaml"
+      - ".github/workflows/proto.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: proto-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  proto:
+    runs-on: ubuntu-latest
+    steps:
+      # `buf breaking` compares against a git ref, so it needs the history, not a
+      # shallow clone of the tip.
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: bufbuild/buf-action@v1
+        with:
+          setup_only: true
+
+      - name: The contract still parses
+        run: buf build
+
+      # The baseline is the pull request's target branch, not the last release tag
+      # (design Open Question 2). It answers the actionable question — "does THIS pull
+      # request break a client?" — and because every pull request is gated, a break can
+      # only reach `main` through an acknowledged one. A tag baseline would instead
+      # re-flag every past intentional break on every run, forever.
+      #
+      # `origin/<base>` is the ref the guard below actually tests for, so the two
+      # cannot disagree about what is being compared.
+      - name: Baseline carries a buf config
+        id: baseline
+        if: github.event_name == 'pull_request'
+        run: |
+          if git cat-file -e "origin/${{ github.base_ref }}:buf.yaml" 2>/dev/null; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No buf.yaml on ${{ github.base_ref }} yet — nothing to compare against."
+          fi
+
+      # An intentional break is declared the way this repo already declares one: a
+      # Conventional Commits breaking marker on the pull request title (`feat(x)!:`),
+      # which commitlint validates and release-please turns into a major bump. The
+      # break then shows up in the changelog rather than buried in a CI override, and
+      # nothing has to be remembered and removed afterwards.
+      - name: No breaking change to the external contract
+        if: steps.baseline.outputs.ready == 'true'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          BASE: ${{ github.base_ref }}
+        run: |
+          if printf '%s' "$PR_TITLE" | grep -qE '^[a-z]+(\([^)]*\))?!:'; then
+            echo "::notice::Title marks a breaking change — reporting without failing."
+            buf breaking --against ".git#ref=origin/${BASE}" || true
+          else
+            buf breaking --against ".git#ref=origin/${BASE}"
+          fi
