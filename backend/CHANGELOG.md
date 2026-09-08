@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.26.0](https://github.com/NEETROF/cymbra/compare/backend-v0.25.0...backend-v0.26.0) (2026-09-08)
+
+
+### Features
+
+* **backend:** bound flag history and the grant audit to the caller's products ([#334](https://github.com/NEETROF/cymbra/issues/334)) ([4ab4ba7](https://github.com/NEETROF/cymbra/commit/4ab4ba7e431e5fb3c3ea7f0e4b0e923ab521e6c3))
+* **backend:** derive staffness per scope, from one definition ([#335](https://github.com/NEETROF/cymbra/issues/335)) ([501b139](https://github.com/NEETROF/cymbra/commit/501b139927229668b8fafecf74650ea82a8d1508))
+* **backend:** lock non-music moderator grants and close the erasure gaps ([#327](https://github.com/NEETROF/cymbra/issues/327)) ([c0b7ad9](https://github.com/NEETROF/cymbra/commit/c0b7ad927c0ec224739b55129a7ea730dc184f31))
+* **backend:** scope-match every moderation guard ([#332](https://github.com/NEETROF/cymbra/issues/332)) ([73ff911](https://github.com/NEETROF/cymbra/commit/73ff9114b097e0c836155d80f1953cbf4f5565af))
+* **plans:** resolve entitlements and betas per product ([#339](https://github.com/NEETROF/cymbra/issues/339)) ([8092021](https://github.com/NEETROF/cymbra/commit/80920212bcd0cd079745a29dc1dccb0595b0850c))
+* **platform:** tell "retry" apart from "this is broken" ([#344](https://github.com/NEETROF/cymbra/issues/344)) ([b0f11a5](https://github.com/NEETROF/cymbra/commit/b0f11a5dc465e1a4f29a6ad28e25e3f6b60f8a12))
+* **user:** constrain the role vocabulary in the database and audit the seed ([#331](https://github.com/NEETROF/cymbra/issues/331)) ([237d51e](https://github.com/NEETROF/cymbra/commit/237d51e729fb0630438d0ba419e4e47cb2d7fb2a))
+* **user:** remove the temporary grant lock ([#338](https://github.com/NEETROF/cymbra/issues/338)) ([c21dac9](https://github.com/NEETROF/cymbra/commit/c21dac960339ed8bb2cb9c74a871c208f82884a4))
+
+
+### Bug Fixes
+
+* **auth,plans:** revoke every session the admin governs, and deny on an empty product set ([#329](https://github.com/NEETROF/cymbra/issues/329)) ([1708e48](https://github.com/NEETROF/cymbra/commit/1708e4831d65091958254320672b78dc1094147c))
+* **feature-flags:** authorize flag writes from roles, never from the audience ([#337](https://github.com/NEETROF/cymbra/issues/337)) ([98a3b88](https://github.com/NEETROF/cymbra/commit/98a3b8886516a5f1f76f535f6f79ed00d37f1a95))
+* **music:** record the dependency failures the decoration seams swallowed ([#345](https://github.com/NEETROF/cymbra/issues/345)) ([d82c165](https://github.com/NEETROF/cymbra/commit/d82c165180371aabf3849d0c37c599b43ebd8b8c))
+* **music:** the audience may narrow a privilege, never grant one ([#328](https://github.com/NEETROF/cymbra/issues/328)) ([fc165ea](https://github.com/NEETROF/cymbra/commit/fc165ea8b0359e159808d25e72a8ea7bd968d882))
+
 ## [0.25.0](https://github.com/NEETROF/cymbra/compare/backend-v0.24.0...backend-v0.25.0) (2026-09-07)
 
 
