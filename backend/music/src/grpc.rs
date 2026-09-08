@@ -378,9 +378,11 @@ fn to_hit(h: CatalogHit) -> ProtoCatalogHit {
 /// moderator/admin (global break-glass included) — reviewing is not consumption.
 fn player_caller(id: &AuthIdentity) -> PlayerCaller {
     let staff = id.is_admin() || id.has_role("moderator");
-    let exempt_from_quota = id.audience == cymbra_platform::BACKOFFICE_AUDIENCE
-        || id.has_role_in_scope("music", "admin")
-        || id.has_role_in_scope("music", "moderator");
+    // Role-based only: the audience clause that used to lead this expression was
+    // redundant for real console users (they hold one of these roles) and was the
+    // whole hole for everyone else — the client picks its own audience at sign-in.
+    let exempt_from_quota =
+        id.has_role_in_scope("music", "admin") || id.has_role_in_scope("music", "moderator");
     PlayerCaller {
         user_id: id.user_id.clone(),
         allow_unvalidated: staff,
@@ -3756,7 +3758,26 @@ mod tests {
     }
 
     /// A back-office audience token (no privileged role).
+    /// A REAL console caller: the back-office audience **and** the music role its user
+    /// actually holds. It used to carry the audience alone, which is what let the
+    /// quota exemption be claimed by anyone — see
+    /// `back_office_audience_alone_does_not_lift_the_quota`.
     fn authed_backoffice<T>(msg: T, user_id: &str) -> Request<T> {
+        let mut req = Request::new(msg);
+        req.extensions_mut().insert(AuthIdentity {
+            user_id: user_id.into(),
+            audience: cymbra_platform::BACKOFFICE_AUDIENCE.into(),
+            roles: vec!["user".into(), "moderator".into()],
+            roles_by_scope: [("music".to_string(), vec!["moderator".to_string()])]
+                .into_iter()
+                .collect(),
+        });
+        req
+    }
+
+    /// The audience with no role behind it — an ordinary account that re-signed in
+    /// asking for `back-office`, which the sign-in path allows.
+    fn authed_backoffice_no_role<T>(msg: T, user_id: &str) -> Request<T> {
         let mut req = Request::new(msg);
         req.extensions_mut().insert(AuthIdentity {
             user_id: user_id.into(),
@@ -3821,6 +3842,25 @@ mod tests {
         );
         assert!(locked.data.is_empty());
         assert!(locked.access.unwrap().locked);
+    }
+
+    /// Regression guard: `exempt_from_quota` used to lead with
+    /// `id.audience == BACKOFFICE_AUDIENCE ||  …`. The audience is a request field the
+    /// client picks at sign-in, so that disjunct handed the daily-access exemption to
+    /// anyone who asked for it. It is gone; the role clauses that followed it are what
+    /// exempt a real console user.
+    #[tokio::test]
+    async fn back_office_audience_alone_does_not_lift_the_quota() {
+        let (g, _repo) = grpc_gated(0, 20).await;
+        let r = g
+            .get_catalog_score_bytes(authed_backoffice_no_role(bytes_req(DEBUSSY, None), "imp"))
+            .await
+            .unwrap()
+            .into_inner();
+        assert!(
+            r.access.unwrap().locked,
+            "the back-office audience with no music role must be quota'd like any player"
+        );
     }
 
     #[tokio::test]
