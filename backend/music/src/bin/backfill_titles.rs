@@ -77,25 +77,12 @@ fn parse_opts() -> Result<Opts> {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let _ = dotenvy::from_filename("backend/.env").or_else(|_| dotenvy::dotenv());
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
-        )
-        .init();
+    cymbra_music::ops::init();
 
     let opts = parse_opts()?;
     let cfg = Config::from_env()?;
 
-    let db_url = cfg
-        .music_database_url
-        .as_deref()
-        .context("CYMBRA_MUSIC_DATABASE_URL is required for the title backfill")?;
-
-    let pool = cymbra_music::connect(db_url, 4)
-        .await
-        .context("connecting to the music database")?;
+    let pool = cymbra_music::ops::music_pool(&cfg, "the title backfill", 4).await?;
     let storage = score_object_store(&cfg)?;
 
     let repo = PgTitleBackfillRepo::new(pool);

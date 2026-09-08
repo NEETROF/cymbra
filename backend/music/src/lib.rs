@@ -39,6 +39,7 @@ pub mod leaderboard_module;
 pub mod module;
 pub mod object_stores;
 pub mod offline_secret;
+pub mod ops;
 pub mod pg;
 pub mod pg_badges;
 pub mod pg_catalog_daily_access;

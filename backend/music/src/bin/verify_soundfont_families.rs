@@ -35,13 +35,7 @@ use cymbra_platform::config::Config;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let _ = dotenvy::from_filename("backend/.env").or_else(|_| dotenvy::dotenv());
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
-        )
-        .init();
+    cymbra_music::ops::init();
 
     if std::env::args().skip(1).any(|a| a == "-h" || a == "--help") {
         println!(
@@ -53,13 +47,7 @@ async fn main() -> Result<()> {
     }
 
     let cfg = Config::from_env()?;
-    let db_url = cfg
-        .music_database_url
-        .as_deref()
-        .context("CYMBRA_MUSIC_DATABASE_URL is required for the verification pass")?;
-    let pool = cymbra_music::connect(db_url, 2)
-        .await
-        .context("connecting to the music database")?;
+    let pool = cymbra_music::ops::music_pool(&cfg, "the verification pass", 2).await?;
     let repo = PgSoundFontRepo::new(pool);
     let store = soundfont_object_store(&cfg)?;
 
