@@ -33,6 +33,11 @@ pub struct WorkerCtx {
     /// Object store for the `purge_score_object` job. `None` when the score-upload
     /// feature is unconfigured (then that job is a no-op).
     pub storage: Option<Arc<dyn ObjectStorage>>,
+    /// PRIVATE SoundFont store for the `purge_soundfont_object` job (change:
+    /// harden-module-boundaries, group 2). A DIFFERENT bucket from `storage` — never
+    /// substitute one for the other, or the row goes and the `.sf2` stays.
+    /// `None` when SoundFont delivery is unconfigured (then that job is a no-op).
+    pub soundfont_store: Option<Arc<dyn ObjectStorage>>,
     pub reap_grace_secs: i64,
     /// Retention window (days) for the `play_detail_prune` job (change: add-play-
     /// activity-profile). Prunes `music.play_sessions` detail older than this.
@@ -176,35 +181,61 @@ pub async fn purge_user(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxEr
     .await
 }
 
-/// Payload for the `purge_score_object` job (change: add-user-score-upload).
-#[derive(Deserialize)]
-struct PurgeScoreObjectJob {
+/// Payload shared by both object-cleanup jobs.
+#[derive(serde::Deserialize)]
+struct PurgeObjectJob {
     object_key: String,
 }
 
-/// Delete one stored score object by key. Enqueued during account erasure (and,
-/// later, on a failed single-score object delete). Idempotent: deleting a missing
-/// key is a no-op, so at-least-once re-delivery is safe. A no-op with a warning
-/// when the store is unconfigured (the feature is off).
+/// Delete one stored object, idempotently. `store` is `None` when that feature is
+/// unconfigured, and the job then completes as a no-op rather than failing forever.
+///
+/// The two jobs stay SEPARATE kinds even though they share this body: they target
+/// different buckets, and using one for the other's key removes the row, logs
+/// success, and leaves the bytes in place.
+async fn purge_one_object(
+    job: &mut CurrentJob,
+    store: Option<&Arc<dyn ObjectStorage>>,
+    kind: &'static str,
+) -> Result<(), BoxError> {
+    let p: PurgeObjectJob = job
+        .json()?
+        .ok_or_else(|| format!("{kind}: missing JSON payload"))?;
+    match store {
+        Some(store) => {
+            store.delete(&p.object_key).await?;
+            tracing::info!(object_key = %p.object_key, kind, "stored object purged");
+        }
+        None => tracing::warn!(
+            object_key = %p.object_key,
+            kind,
+            "object purge skipped: store not configured"
+        ),
+    }
+    job.complete().await?;
+    Ok(())
+}
+
+/// Remove one user-score object from the SCORE store.
 #[sqlxmq::job("purge_score_object")]
 pub async fn purge_score_object(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxError> {
     let span = tracing::info_span!("job.purge_score_object", job_id = %job.id());
+    async move { purge_one_object(&mut job, ctx.storage.as_ref(), "purge_score_object").await }
+        .instrument(span)
+        .await
+}
+
+/// Remove one private-library `.sf2` from the SOUNDFONT store — a different bucket.
+#[sqlxmq::job("purge_soundfont_object")]
+pub async fn purge_soundfont_object(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxError> {
+    let span = tracing::info_span!("job.purge_soundfont_object", job_id = %job.id());
     async move {
-        let p: PurgeScoreObjectJob = job
-            .json()?
-            .ok_or("purge_score_object: missing JSON payload")?;
-        match &ctx.storage {
-            Some(store) => {
-                store.delete(&p.object_key).await?;
-                tracing::info!(object_key = %p.object_key, "score object purged");
-            }
-            None => tracing::warn!(
-                object_key = %p.object_key,
-                "purge_score_object skipped: object store not configured"
-            ),
-        }
-        job.complete().await?;
-        Ok(())
+        purge_one_object(
+            &mut job,
+            ctx.soundfont_store.as_ref(),
+            "purge_soundfont_object",
+        )
+        .await
     }
     .instrument(span)
     .await
@@ -582,6 +613,7 @@ pub fn registry(ctx: WorkerCtx) -> JobRegistry {
         session_reap,
         purge_user,
         purge_score_object,
+        purge_soundfont_object,
         play_detail_prune,
         score_preview_render,
         usage_rollup,

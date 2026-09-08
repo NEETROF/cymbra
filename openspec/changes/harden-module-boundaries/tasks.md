@@ -1,25 +1,36 @@
 ## 1. Grant lock — buy the window (~15 min)
 
-- [ ] 1.1 In `backend/user/src/module.rs` `grant_role` (~:220), after `validate_scope_role`, refuse `role == "moderator"` when `scope != "music"` with an `InvalidArgument` naming the reason (guards not yet scope-matched). Do **not** touch `validate_scope_role` — it is shared with `revoke_role` (~:243).
-- [ ] 1.2 Test: granting `moderator` in a non-`music` scope is refused; granting `admin` in any scope still succeeds.
-- [ ] 1.3 Test: `revoke_role("moderator")` in a non-`music` scope still **succeeds** while the lock is active (the trap D1 names).
+- [x] 1.1 In `backend/user/src/module.rs` `grant_role` (~:220), after `validate_scope_role`, refuse `role == "moderator"` when `scope != "music"` with an `InvalidArgument` naming the reason (guards not yet scope-matched). Do **not** touch `validate_scope_role` — it is shared with `revoke_role` (~:243).
+- [x] 1.2 Test: granting `moderator` in a non-`music` scope is refused; granting `admin` in any scope still succeeds.
+- [x] 1.3 Test: `revoke_role("moderator")` in a non-`music` scope still **succeeds** while the lock is active (the trap D1 names).
+- [ ] 1.4 **Found by the separation-of-powers audit, after the lock shipped.** `backend/scripts/seed_admin.sh` (~:19-20, `SCOPE="${2:-music}" ROLE="${3:-admin}"`, then ~:48-50 `INSERT INTO user_account.user_roles … ON CONFLICT DO NOTHING`) writes roles **directly**: it bypasses `validate_scope_role`, bypasses the lock, and writes **no `role_grants` audit row**. It needs privileged psql credentials, so it is not an application escalation — but it is the only entry point for any privileged role in production, and a review of `role_grants` would wrongly conclude nobody holds one. Make it validate the scope/role vocabulary and record the audit row, so the table is the whole truth.
+- [ ] 1.5 Consider a DB-level `CHECK` on `user_account.user_roles(scope, role)`, the way `role_grants` already constrains `action` (`backend/user/migrations/0004_role_grants.sql` ~:15). The lock is a Rust `if`; the table has no vocabulary constraint at all (`0001_init.sql` ~:23-28).
 
 ## 2. Account erasure — close the GDPR gap
 
-- [ ] 2.1 Read `backend/music/migrations/0013_soundfont_moderation.sql` (~:47) and `backend/music/src/user_soundfont.rs` to confirm the exact object-key column on `music.user_soundfonts`.
-- [ ] 2.2 Add a purge job kind for the **private soundfont bucket** in `backend/jobs/src/registry.rs` (const + spec + channel, modelled on `PURGE_SCORE_OBJECT` ~:27). Do **not** reuse `PURGE_SCORE_OBJECT` — it targets the score store (D4).
-- [ ] 2.3 Wire `soundfont_store` into `WorkerCtx` (`backend/worker/src/main.rs` ~:100-113, today built only for `ScorePreviewRenderer`) and add the handler in `backend/worker/src/handlers.rs`.
-- [ ] 2.4 In `purge_user_with` (`backend/worker/src/lib.rs`), `DELETE FROM music.user_soundfonts … RETURNING <object_key>` and enqueue one cleanup job per object **in the same transaction**, reusing the transactional-enqueue idiom (~:133-150).
-- [ ] 2.5 Test: erasing an account removes the rows and issues the object deletion against the **private** bucket.
-- [ ] 2.6 Test: a transient object-store failure retries the cleanup without leaving rows behind.
-- [ ] 2.7 Add the coverage test that fails when an account-keyed personal-data table is not reached by the erasure path, naming the uncovered table.
-- [ ] 2.8 Audit the remaining `music.*` and `plans.*` tables against the erasure path for other omissions of the same kind; fix or record what is found.
+- [x] 2.1 Read `backend/music/migrations/0013_soundfont_moderation.sql` (~:47) and `backend/music/src/user_soundfont.rs` to confirm the exact object-key column on `music.user_soundfonts`.
+- [x] 2.2 Add a purge job kind for the **private soundfont bucket** in `backend/jobs/src/registry.rs` (const + spec + channel, modelled on `PURGE_SCORE_OBJECT` ~:27). Do **not** reuse `PURGE_SCORE_OBJECT` — it targets the score store (D4).
+- [x] 2.3 Wire `soundfont_store` into `WorkerCtx` (`backend/worker/src/main.rs` ~:100-113, today built only for `ScorePreviewRenderer`) and add the handler in `backend/worker/src/handlers.rs`.
+- [x] 2.4 In `purge_user_with` (`backend/worker/src/lib.rs`), `DELETE FROM music.user_soundfonts … RETURNING <object_key>` and enqueue one cleanup job per object **in the same transaction**, reusing the transactional-enqueue idiom (~:133-150).
+- [x] 2.5 Test: erasing an account removes the rows and issues the object deletion against the **private** bucket.
+- [x] 2.6 Test: a transient object-store failure retries the cleanup without leaving rows behind.
+- [x] 2.7 Add the coverage test that fails when an account-keyed personal-data table is not reached by the erasure path, naming the uncovered table.
+- [x] 2.8 Audit the remaining `music.*` and `plans.*` tables against the erasure path. **It found four gaps, not one.** Beyond `music.user_soundfonts`: `music.user_score_collections` and `plans.sandbox_accounts` were unreached and are now purged; `user_account.push_tokens` and `notification_prefs` turned out to be safe (`REFERENCES user_account.users ON DELETE CASCADE`); and `music.user_score_takedowns` is a **retention decision, not an oversight** — see the design's open question. The audit is now a test (`backend/worker/tests/erasure_coverage.rs`) rather than a one-off.
 
 ## 3. Scope-matched moderation guards
 
+> Findings from the separation-of-powers audit that belong to this group, beyond the
+> site list: `require_admin` is documented "in any scope — the coarse gate", so it is
+> **not** scope-matched either — task 3.7 must decide each of its 5 sites, and
+> `backend/feature-flags/src/grpc.rs` ~:55 is the one that gates every kill-switch, so
+> scope-matching it is not enough on its own (the actor also has to reach
+> `recent_changes`, and sensitive values need redacting). Removing the flat helper (3.8)
+> is what makes a missed site fail to compile — do not skip it.
+
+
 - [ ] 3.1 Add `require_moderator_or_admin_in_scope(id, scope)` in `backend/platform/src/guard.rs`, built on `has_role_in_scope` (`backend/platform/src/identity.rs` ~:41), modelled on `require_admin_in_scope` (~:28).
 - [ ] 3.2 Correct the `require_moderator_or_admin` doc-comment (`guard.rs` ~:38-44): its justification holds only for a single-scope app audience and is false for `back-office`.
-- [ ] 3.3 Migrate the 9 sites in `backend/music/src/grpc.rs` (~:795, :900, :921, :950, :1189, :1435, :1476, :1492, :1783) to the scope-matched guard. Re-derive with `grep -n require_moderator_or_admin` before starting — this file drifts.
+- [ ] 3.3 Migrate the **8 production sites** in `backend/music/src/grpc.rs` (~:795, :900, :921, :950, :1189, :1435, :1476, :1492) to the scope-matched guard. A ninth hit at ~:1783 is inside `#[cfg(test)]` (the block starts ~:1603) — an earlier anchor refresh counted it, so the total for this file is 8, not 9. Re-derive before starting, and filter out the test block: this file drifts.
 - [ ] 3.4 Migrate the 5 sites in `backend/server/src/soundfont.rs` (~:337, :547, :860, :933, :978).
 - [ ] 3.5 Migrate the 2 sites in `backend/server/src/score_preview.rs` (~:100, :169).
 - [ ] 3.6 Replace the 2 inline flat checks in `backend/music/src/grpc.rs` (~:380, :1450) with the scope-matched guard.
@@ -33,7 +44,7 @@
 - [ ] 4.1 Give each `Unlock` variant an owning product in `backend/plans/src/model.rs` (~:39-52) and replace the flat `PREMIUM_UNLOCKS` block (~:68-75) with a per-product resolution.
 - [ ] 4.2 Read and carry `product` through `backend/plans/src/pg.rs` (today 0 occurrences) for `plan_entitlements` and `beta_campaigns`; no backfill is needed — `DEFAULT 'music'` already makes every existing row correct.
 - [ ] 4.3 Thread the product through the plan snapshot / `PlanSource` so "does the plan grant unlock X" is answered for X's product.
-- [ ] 4.4 Migrate the 5 consumers: `backend/music/src/catalog_daily_access.rs` ~:93, `backend/music/src/module.rs` ~:357, `backend/music/src/curation_rewards_module.rs` ~:112, `backend/server/src/soundfont.rs` ~:549 and ~:886.
+- [ ] 4.4 Migrate the 5 consumers, re-derived: `backend/music/src/catalog_daily_access.rs` ~:93, `backend/music/src/module.rs` **~:404** (not :357), `backend/music/src/curation_rewards_module.rs` ~:112, `backend/server/src/soundfont.rs` ~:549 and ~:886.
 - [ ] 4.5 Test: an account with an active non-music `premium` and no music entitlement is denied every music unlock.
 - [ ] 4.6 Test: an account holding entitlements for two products gets each product's unlocks independently.
 - [ ] 4.7 Test: an entitlement written before products were distinguished still grants the full music unlock set.

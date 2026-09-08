@@ -284,6 +284,92 @@ async fn purge_erases_saved_catalog_library_but_not_the_catalog() {
         .unwrap();
 }
 
+/// harden-module-boundaries (group 2) — the private soundfont library is erased with
+/// the account, AND a cleanup job is enqueued per stored object IN THE SAME
+/// transaction. The job kind matters: these `.sf2` live in the private soundfont
+/// bucket, not the score store, so the row must produce a `purge_soundfont_object`
+/// and never a `purge_score_object` — the latter would delete from the wrong bucket,
+/// report success, and leave the bytes behind.
+#[tokio::test]
+#[ignore = "needs docker compose (Postgres) with per-module roles"]
+async fn purge_erases_private_soundfonts_and_enqueues_their_object_cleanup() {
+    migrate().await;
+    let music = connect("CYMBRA_MUSIC_DATABASE_URL").await;
+    cymbra_music::MIGRATOR.run(&music).await.unwrap();
+    let admin = connect("CYMBRA_ADMIN_DATABASE_URL").await;
+
+    let uid = seed_user(
+        &admin,
+        "local",
+        &format!("sf-{}@x.dev", uuid::Uuid::now_v7()),
+    )
+    .await;
+    // Named for what it is — a path in the object store, not a credential. Calling
+    // it `key` tripped CodeQL's cleartext-logging heuristic, and the name was
+    // genuinely misleading in a security-adjacent test.
+    let sf2_path = format!("user-soundfonts/{uid}/{}.sf2", uuid::Uuid::now_v7());
+    sqlx::query(
+        "INSERT INTO music.user_soundfonts \
+         (id, user_id, label, object_key, content_sha256, size_bytes) \
+         VALUES ($1, $2, 'my font', $3, $4, 1024)",
+    )
+    .bind(uuid::Uuid::now_v7())
+    .bind(uid)
+    .bind(&sf2_path)
+    .bind(format!("sha-{uid}"))
+    .execute(&admin)
+    .await
+    .unwrap();
+
+    cymbra_worker::purge_user(&admin, &uid.to_string())
+        .await
+        .expect("purge should succeed");
+
+    assert_eq!(
+        count(
+            &admin,
+            "SELECT count(*) FROM music.user_soundfonts WHERE user_id = $1::uuid",
+            &uid.to_string(),
+        )
+        .await,
+        0,
+        "private library rows must be purged"
+    );
+
+    // The object cleanup was enqueued in the same transaction, as the right kind.
+    let queued: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM mq_msgs m JOIN mq_payloads p ON p.id = m.id \
+         WHERE m.name = 'purge_soundfont_object' \
+           AND convert_from(p.payload_json, 'UTF8') LIKE '%' || $1 || '%'",
+    )
+    .bind(&sf2_path)
+    .fetch_one(&admin)
+    .await
+    .unwrap_or(-1);
+    // The path is deliberately NOT interpolated here: it embeds the account uuid, and
+    // CodeQL reads an assertion message as a log sink (rust/cleartext-logging). The
+    // test name and the count say enough to diagnose a failure.
+    assert_eq!(
+        queued, 1,
+        "exactly one purge_soundfont_object must be queued for the seeded font"
+    );
+
+    // …and NOT the score-object job, which targets the other bucket.
+    let wrong: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM mq_msgs m JOIN mq_payloads p ON p.id = m.id \
+         WHERE m.name = 'purge_score_object' \
+           AND convert_from(p.payload_json, 'UTF8') LIKE '%' || $1 || '%'",
+    )
+    .bind(&sf2_path)
+    .fetch_one(&admin)
+    .await
+    .unwrap_or(-1);
+    assert_eq!(
+        wrong, 0,
+        "the soundfont object must not go to the score store job"
+    );
+}
+
 /// add-global-leaderboard (task 3.3) — the purge erases the user's GLOBAL
 /// leaderboard data: both the live per-season bests and the frozen end-of-season
 /// standings. Neither has a cross-schema FK to the account row, so nothing
