@@ -680,7 +680,7 @@ mod tests {
         EvalContext::anonymous(app)
     }
     fn staff_ctx(app: &str) -> EvalContext {
-        EvalContext::authenticated(app, &["admin".into()])
+        EvalContext::staff(app)
     }
 
     #[tokio::test]

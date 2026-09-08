@@ -150,7 +150,7 @@ impl cymbra_music::DailyAccessConfigSource for FlagDailyAccessConfig {
     fn daily_access_config(&self, staff: bool) -> cymbra_music::DailyAccessConfig {
         use cymbra_feature_flags::registry;
         let ctx = if staff {
-            cymbra_feature_flags::EvalContext::authenticated(registry::APP_MUSIC, &["admin".into()])
+            cymbra_feature_flags::EvalContext::staff(registry::APP_MUSIC)
         } else {
             cymbra_feature_flags::EvalContext::anonymous(registry::APP_MUSIC)
         };

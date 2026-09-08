@@ -94,7 +94,7 @@ impl LeaderboardGrpc {
 /// Staff = a moderator/admin role in any scope — the same test the score RPCs
 /// apply before resolving the drum audience (`grpc.rs`).
 fn is_staff(id: &AuthIdentity) -> bool {
-    id.roles.iter().any(|r| r == "admin" || r == "moderator")
+    cymbra_platform::guard::is_staff_in_scope(id, cymbra_platform::MUSIC_SCOPE)
 }
 
 fn proto_entry(e: BoardEntry) -> ProtoEntry {
@@ -340,6 +340,70 @@ mod tests {
         .await
         .unwrap()
         .into_inner()
+    }
+
+    /// A console token holding `roles` in `scope` — the union across scopes lands in
+    /// the flat `roles` field, as a real token has it.
+    fn authed_staff_in<T>(msg: T, user_id: &str, scope: &str, roles: &[&str]) -> Request<T> {
+        let held: Vec<String> = roles.iter().map(|r| (*r).to_string()).collect();
+        let mut req = Request::new(msg);
+        req.extensions_mut().insert(AuthIdentity {
+            user_id: user_id.into(),
+            audience: cymbra_platform::BACKOFFICE_AUDIENCE.into(),
+            roles: held.clone(),
+            roles_by_scope: [(scope.to_string(), held)].into_iter().collect(),
+        });
+        req
+    }
+
+    /// Staffness is what reaches the drum seam, and it is **music** staffness. The
+    /// other drum tests stub the seam to a constant, so they never observe the
+    /// `staff` argument at all — here the seam returns it, which makes the caller's
+    /// scope the only thing that decides (task 3.13).
+    ///
+    /// This path had no coverage: making `is_staff` return `true` unconditionally
+    /// passed the whole music suite.
+    #[tokio::test]
+    async fn percussion_staffness_is_music_staffness() {
+        let board = async |scope: &str| {
+            let repo = Arc::new(FakeLeaderboardRepo::default());
+            repo.accept("drum");
+            repo.mark_percussion("drum");
+            let g = grpc(repo, &["a1"]);
+            g.module
+                .maintain_from_session(&session("a1", "drum", 95.0))
+                .await
+                .unwrap();
+            let mut drums = MockDrumsEligibility::new();
+            // Eligible exactly when the caller is staff, so the assertion below is
+            // about staffness and nothing else.
+            drums
+                .expect_eligible_for_percussion()
+                .returning(|_, staff| staff);
+            let g = g.with_drums(Arc::new(drums));
+            g.get_leaderboard(authed_staff_in(
+                GetLeaderboardRequest {
+                    score_id: "drum".into(),
+                    mode: "tempo".into(),
+                    offset: 0,
+                    limit: 50,
+                },
+                "me",
+                scope,
+                &["user", "moderator"],
+            ))
+            .await
+            .unwrap()
+            .into_inner()
+        };
+
+        assert_eq!(board("music").await.total, 1, "a music moderator is staff");
+        assert_eq!(
+            board("live").await.total,
+            0,
+            "a moderator of another product is not"
+        );
+        assert_eq!(board("global").await.total, 1, "the break-glass is staff");
     }
 
     #[tokio::test]
