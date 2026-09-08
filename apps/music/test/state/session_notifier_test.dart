@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
+
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/services/account_service.dart';
@@ -44,6 +47,33 @@ ProviderContainer makeContainer({
 
 Account account({String? handle}) =>
     Account(userId: 'user-1', version: 1, handle: handle);
+
+/// A transient (offline / deadline-exceeded) `GetAccount` failure — the one that
+/// leaves the session degraded instead of signing the user out.
+const _transient = AuthException(AuthError.unavailable, 'offline');
+
+FakeTokenStore _signedInStore() => FakeTokenStore(
+  tokens: const StoredTokens(accessToken: 'a', refreshToken: 'r'),
+);
+
+/// [FakeAccountService] whose *first* `getAccount` fails transiently and whose
+/// later ones hang until the test completes them — the only way to hold the
+/// single-flight window open and observe it.
+class _HangingAfterFailure extends FakeAccountService {
+  _HangingAfterFailure({super.account});
+
+  final List<Completer<Account>> pending = [];
+  int attempts = 0;
+
+  @override
+  Future<Account> getAccount() {
+    attempts++;
+    if (attempts == 1) return Future.error(_transient);
+    final completer = Completer<Account>();
+    pending.add(completer);
+    return completer.future;
+  }
+}
 
 void main() {
   group('SessionNotifier hydration (task 3.5)', () {
@@ -370,6 +400,257 @@ void main() {
 
       expect(c.read(isGuestSessionProvider), isFalse);
       expect(c.read(canUseOnlineServicesProvider), isTrue);
+    });
+  });
+
+  group('degraded-session recovery (change: fix-session-account-retry)', () {
+    test('a transient failure at sign-in recovers with no user action', () {
+      fakeAsync((fa) {
+        final acct = FakeAccountService(account: account(handle: 'ada'))
+          ..getErrors.add(_transient);
+        final c = makeContainer(store: FakeTokenStore(), account: acct);
+        c.read(sessionNotifierProvider);
+        fa.flushMicrotasks();
+
+        unawaited(
+          c
+              .read(sessionNotifierProvider.notifier)
+              .onSignedIn(
+                const AuthTokens(accessToken: 'a', refreshToken: 'r'),
+              ),
+        );
+        fa.flushMicrotasks();
+
+        // Signed in, but with no identity: the state the user was stranded in.
+        expect(c.read(sessionNotifierProvider).accountUnresolved, isTrue);
+        expect(c.read(currentUserIdProvider), isNull);
+        expect(c.read(currentUserHandleProvider), isNull);
+
+        fa.elapse(kAccountRetryInitialDelay);
+        fa.flushMicrotasks();
+
+        expect(c.read(sessionNotifierProvider).accountUnresolved, isFalse);
+        expect(c.read(currentUserHandleProvider), 'ada');
+        expect(c.read(currentUserIdProvider), 'user-1');
+      });
+    });
+
+    test('a transient failure at launch recovers with no user action', () {
+      fakeAsync((fa) {
+        final acct = FakeAccountService(account: account(handle: 'ada'))
+          ..getErrors.add(_transient);
+        final c = makeContainer(store: _signedInStore(), account: acct);
+        c.read(sessionNotifierProvider);
+        fa.flushMicrotasks();
+
+        expect(c.read(sessionNotifierProvider).accountUnresolved, isTrue);
+
+        fa.elapse(kAccountRetryInitialDelay);
+        fa.flushMicrotasks();
+
+        expect(c.read(currentUserHandleProvider), 'ada');
+      });
+    });
+
+    test('successive failures back off, doubling up to the cap', () {
+      fakeAsync((fa) {
+        final acct = FakeAccountService(account: account(handle: 'ada'))
+          ..getErrors.addAll(List.filled(12, _transient));
+        final c = makeContainer(store: _signedInStore(), account: acct);
+        c.read(sessionNotifierProvider);
+        fa.flushMicrotasks();
+        expect(acct.getAccountCalls, 1, reason: 'the initial resolution');
+
+        // 2s, 4s, 8s, 16s, 32s, then pinned at the 60s cap.
+        for (final seconds in [2, 4, 8, 16, 32, 60, 60]) {
+          final before = acct.getAccountCalls;
+          fa.elapse(Duration(seconds: seconds) - const Duration(seconds: 1));
+          fa.flushMicrotasks();
+          expect(
+            acct.getAccountCalls,
+            before,
+            reason: 'nothing fires before the ${seconds}s delay',
+          );
+
+          fa.elapse(const Duration(seconds: 1));
+          fa.flushMicrotasks();
+          expect(
+            acct.getAccountCalls,
+            before + 1,
+            reason: 'exactly one attempt at the ${seconds}s delay',
+          );
+        }
+      });
+    });
+
+    test('no retry is issued while the app is out of the foreground', () {
+      fakeAsync((fa) {
+        final acct = FakeAccountService(account: account(handle: 'ada'))
+          ..getErrors.addAll(List.filled(12, _transient));
+        final c = makeContainer(store: _signedInStore(), account: acct);
+        c.read(sessionNotifierProvider);
+        fa.flushMicrotasks();
+        expect(acct.getAccountCalls, 1);
+
+        c.read(sessionNotifierProvider.notifier).onBackground();
+        fa.elapse(const Duration(minutes: 10));
+        fa.flushMicrotasks();
+
+        expect(
+          acct.getAccountCalls,
+          1,
+          reason:
+              'a backgrounded desktop app keeps running — it must not '
+              'keep spending RPCs unseen',
+        );
+        expect(
+          c.read(sessionNotifierProvider).accountUnresolved,
+          isTrue,
+          reason: 'backgrounding never signs anyone out',
+        );
+      });
+    });
+
+    test(
+      'returning to the foreground retries at once and resets the backoff',
+      () {
+        fakeAsync((fa) {
+          final acct = FakeAccountService(account: account(handle: 'ada'))
+            ..getErrors.addAll(List.filled(12, _transient));
+          final c = makeContainer(store: _signedInStore(), account: acct);
+          final notifier = c.read(sessionNotifierProvider.notifier);
+          c.read(sessionNotifierProvider);
+          fa.flushMicrotasks();
+
+          // Let the backoff grow past its first step (2s, then 4s).
+          fa.elapse(const Duration(seconds: 2));
+          fa.flushMicrotasks();
+          fa.elapse(const Duration(seconds: 4));
+          fa.flushMicrotasks();
+          expect(acct.getAccountCalls, 3);
+
+          notifier.onBackground();
+          fa.elapse(const Duration(minutes: 10));
+          fa.flushMicrotasks();
+          expect(acct.getAccountCalls, 3);
+
+          unawaited(notifier.onForeground());
+          fa.flushMicrotasks();
+          expect(
+            acct.getAccountCalls,
+            4,
+            reason: 'a foreground return attempts immediately',
+          );
+
+          // Reset: the next attempt is the FIRST delay away, not the 8s the
+          // backoff had climbed to before backgrounding.
+          fa.elapse(kAccountRetryInitialDelay);
+          fa.flushMicrotasks();
+          expect(acct.getAccountCalls, 5, reason: 'the backoff was reset');
+        });
+      },
+    );
+
+    test(
+      'returning to the foreground with a resolved account issues nothing',
+      () {
+        fakeAsync((fa) {
+          final acct = FakeAccountService(account: account(handle: 'ada'));
+          final c = makeContainer(store: _signedInStore(), account: acct);
+          c.read(sessionNotifierProvider);
+          fa.flushMicrotasks();
+          expect(acct.getAccountCalls, 1);
+
+          unawaited(c.read(sessionNotifierProvider.notifier).onForeground());
+          fa.flushMicrotasks();
+
+          expect(acct.getAccountCalls, 1);
+        });
+      },
+    );
+
+    test('concurrent triggers coalesce into one GetAccount', () {
+      fakeAsync((fa) {
+        final acct = _HangingAfterFailure(account: account(handle: 'ada'));
+        final c = makeContainer(store: _signedInStore(), account: acct);
+        final notifier = c.read(sessionNotifierProvider.notifier);
+        c.read(sessionNotifierProvider);
+        fa.flushMicrotasks();
+        expect(acct.attempts, 1, reason: 'the initial resolution failed');
+
+        // The scheduled re-attempt fires and hangs: the single-flight window.
+        fa.elapse(kAccountRetryInitialDelay);
+        fa.flushMicrotasks();
+        expect(acct.attempts, 2);
+        expect(acct.pending, hasLength(1));
+
+        // The user taps retry and the app foregrounds, both mid-flight.
+        unawaited(notifier.refreshAccount());
+        unawaited(notifier.onForeground());
+        fa.flushMicrotasks();
+
+        expect(
+          acct.attempts,
+          2,
+          reason: 'both triggers join the in-flight resolution',
+        );
+
+        acct.pending.single.complete(account(handle: 'ada'));
+        fa.flushMicrotasks();
+        expect(c.read(currentUserHandleProvider), 'ada');
+      });
+    });
+
+    test('signing out cancels a scheduled retry', () {
+      fakeAsync((fa) {
+        final acct = FakeAccountService(account: account(handle: 'ada'))
+          ..getErrors.addAll(List.filled(12, _transient));
+        final c = makeContainer(store: _signedInStore(), account: acct);
+        c.read(sessionNotifierProvider);
+        fa.flushMicrotasks();
+        expect(acct.getAccountCalls, 1);
+
+        unawaited(c.read(sessionNotifierProvider.notifier).signOut());
+        fa.flushMicrotasks();
+        expect(c.read(sessionNotifierProvider), isA<SessionUnauthenticated>());
+
+        final afterSignOut = acct.getAccountCalls;
+        fa.elapse(const Duration(minutes: 10));
+        fa.flushMicrotasks();
+
+        expect(
+          acct.getAccountCalls,
+          afterSignOut,
+          reason: 'no retry outlives the session it was retrying',
+        );
+      });
+    });
+
+    test('a terminal failure inside a retry signs out and stops the loop', () {
+      fakeAsync((fa) {
+        final acct = FakeAccountService(account: account(handle: 'ada'))
+          ..getErrors.addAll(const [
+            _transient,
+            AuthException(AuthError.unauthenticated),
+          ]);
+        final c = makeContainer(store: _signedInStore(), account: acct);
+        c.read(sessionNotifierProvider);
+        fa.flushMicrotasks();
+        expect(c.read(sessionNotifierProvider).accountUnresolved, isTrue);
+
+        fa.elapse(kAccountRetryInitialDelay);
+        fa.flushMicrotasks();
+
+        expect(
+          c.read(sessionNotifierProvider),
+          isA<SessionUnauthenticated>(),
+          reason: 'the loop can never keep a revoked session alive',
+        );
+        final afterTerminal = acct.getAccountCalls;
+        fa.elapse(const Duration(minutes: 10));
+        fa.flushMicrotasks();
+        expect(acct.getAccountCalls, afterTerminal);
+      });
     });
   });
 }

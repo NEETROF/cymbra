@@ -31,7 +31,8 @@ sealed class SessionState with _$SessionState {
   const factory SessionState.guest() = SessionGuest;
 
   /// A live Cymbra ID session. [account] is null when it could not be fetched
-  /// (e.g. offline at startup); [needsHandle] then defaults to false.
+  /// (e.g. offline at startup) — see [accountUnresolved]; [needsHandle] then
+  /// defaults to false.
   const factory SessionState.authenticated({Account? account}) =
       SessionAuthenticated;
 
@@ -43,6 +44,17 @@ sealed class SessionState with _$SessionState {
   /// Whether the user must still pick a handle before reaching the library.
   bool get needsHandle => switch (this) {
     SessionAuthenticated(:final account) => account?.needsHandle ?? false,
+    _ => false,
+  };
+
+  /// The **degraded** session: live (the tokens are good) but carrying no
+  /// account, because `GetAccount` failed transiently. The user is signed in
+  /// yet the app has no identity for them — no handle, no user id — so every
+  /// identity-keyed feature (play-session capture, flag targeting, favorites
+  /// index, offline cache, plan) is silently off. [SessionNotifier] retries
+  /// resolution while this holds; it is never a resting state.
+  bool get accountUnresolved => switch (this) {
+    SessionAuthenticated(:final account) => account == null,
     _ => false,
   };
 }
