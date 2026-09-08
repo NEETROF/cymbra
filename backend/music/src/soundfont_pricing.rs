@@ -40,7 +40,9 @@ use cymbra_platform::identity::AuthIdentity;
 /// Whether the font *exists* is not decided here — the repo write reports that, so an
 /// unauthorized caller never learns which ids exist.
 pub fn decide(caller: &AuthIdentity, point_cost: i32) -> Result<i64> {
-    guard::require_admin(caller)?;
+    // Scope-matched (change: harden-module-boundaries, group 3): pricing a music
+    // soundfont is music authority, so an admin of another product is refused here.
+    guard::require_admin_in_scope(caller, cymbra_platform::MUSIC_SCOPE)?;
     if point_cost < 0 {
         return Err(AppError::InvalidArgument(
             "point_cost must be greater than or equal to 0".into(),
@@ -53,12 +55,21 @@ pub fn decide(caller: &AuthIdentity, point_cost: i32) -> Result<i64> {
 mod tests {
     use super::*;
 
+    /// A console token holding `roles` in the **music** scope. It used to leave
+    /// `roles_by_scope` empty, so every test here passed the gate on the flat set —
+    /// the very thing group 3 removed.
     fn id(roles: &[&str]) -> AuthIdentity {
+        id_in(cymbra_platform::MUSIC_SCOPE, roles)
+    }
+
+    /// The same, in an arbitrary scope, to exercise a caller privileged elsewhere.
+    fn id_in(scope: &str, roles: &[&str]) -> AuthIdentity {
+        let held: Vec<String> = roles.iter().map(|s| s.to_string()).collect();
         AuthIdentity {
             user_id: "u".into(),
-            audience: "back-office".into(),
-            roles: roles.iter().map(|s| s.to_string()).collect(),
-            roles_by_scope: std::collections::BTreeMap::new(),
+            audience: cymbra_platform::BACKOFFICE_AUDIENCE.into(),
+            roles: held.clone(),
+            roles_by_scope: [(scope.to_string(), held)].into_iter().collect(),
         }
     }
 
@@ -80,6 +91,22 @@ mod tests {
             decide(&id(&["user"]), 250),
             Err(AppError::PermissionDenied(_))
         ));
+    }
+
+    /// Pricing a music font is music authority: an admin of another product is
+    /// refused even though their flat role set says "admin" (harden-module-boundaries,
+    /// group 3). Asserted alongside the flat set so the test cannot pass by accident.
+    #[test]
+    fn an_admin_of_another_product_may_not_price_a_music_font() {
+        let live_admin = id_in(cymbra_platform::LIVE_SCOPE, &["user", "admin"]);
+        assert!(live_admin.has_role("admin"));
+        assert!(matches!(
+            decide(&live_admin, 250),
+            Err(AppError::PermissionDenied(_))
+        ));
+        // The global break-glass still prices.
+        let global_admin = id_in(cymbra_platform::GLOBAL_SCOPE, &["admin"]);
+        assert_eq!(decide(&global_admin, 250).unwrap(), 250);
     }
 
     #[test]

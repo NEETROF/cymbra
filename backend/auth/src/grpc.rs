@@ -192,6 +192,12 @@ impl<P: AuthPort + 'static> AuthService for AuthGrpc<P> {
         // their app sessions alive while reporting a successful revocation.
         let (admin, scope) = {
             let id = identity(&req)?;
+            // Deliberately the COARSE gate (harden-module-boundaries, task 3.7):
+            // the scope match happens on the EFFECT, not the entry. Any admin may ask
+            // to cut an account's sessions, but `RevocationScope` below limits the cut
+            // to the scopes they actually administer, so a `music/admin` cannot reach a
+            // `live` session. Narrowing here too would only change which error the
+            // caller sees, and would break the `global` break-glass path.
             cymbra_platform::guard::require_admin(id)?;
             let scope = if id.has_role_in_scope("global", "admin") {
                 // Break-glass: a platform admin cuts every session the account has.

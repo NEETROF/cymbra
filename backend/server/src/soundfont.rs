@@ -334,7 +334,7 @@ pub fn decide_upload(identity: Option<&AuthIdentity>, is_valid_sf2: bool) -> Upl
     let Some(id) = identity else {
         return UploadDecision::Unauthenticated;
     };
-    if guard::require_moderator_or_admin(id).is_err() {
+    if guard::require_moderator_or_admin_in_scope(id, cymbra_platform::MUSIC_SCOPE).is_err() {
         return UploadDecision::Forbidden;
     }
     if !is_valid_sf2 {
@@ -392,11 +392,14 @@ async fn upload(
 
     // Status branches on the uploader's role: an admin's upload is auto-`accepted`; a
     // moderator's lands `pending` for a second reviewer.
-    let moderation_status = if guard::require_admin(&identity).is_ok() {
-        "accepted"
-    } else {
-        "pending"
-    };
+    // Scope-matched: auto-accepting bypasses music moderation, so it takes a music
+    // admin — not an admin of some other product (harden-module-boundaries, group 3).
+    let moderation_status =
+        if guard::require_admin_in_scope(&identity, cymbra_platform::MUSIC_SCOPE).is_ok() {
+            "accepted"
+        } else {
+            "pending"
+        };
 
     let object_key = format!("{id}.sf2");
     let size = body.len() as i64;
@@ -544,7 +547,8 @@ async fn import_mine(
     // Quota, resolved per request from the caller's plan (change: add-premium-
     // subscription): free keeps the historical cap, premium the extended one; mod/admin
     // are exempt. The refusal tells the app a higher plan raises the limit.
-    if guard::require_moderator_or_admin(&identity).is_err() {
+    if guard::require_moderator_or_admin_in_scope(&identity, cymbra_platform::MUSIC_SCOPE).is_err()
+    {
         let extended = s
             .plan_grants(&user_id, cymbra_plans::Unlock::SoundfontLibraryExtended)
             .await;
@@ -853,11 +857,9 @@ async fn serve(
     }
     // A music-scope moderator/admin may audition unvalidated fonts; a normal caller
     // only sees `accepted` ones (change: add-soundfont-moderation).
-    let can_view_unvalidated = s
-        .auth
-        .identify_admin(&headers)
-        .as_ref()
-        .is_some_and(|i| guard::require_moderator_or_admin(i).is_ok());
+    let can_view_unvalidated = s.auth.identify_admin(&headers).as_ref().is_some_and(|i| {
+        guard::require_moderator_or_admin_in_scope(i, cymbra_platform::MUSIC_SCOPE).is_ok()
+    });
     let Some(repo) = s.repo.as_ref() else {
         // Feature unconfigured (no music DB / catalog) — the route is disabled.
         return status(StatusCode::SERVICE_UNAVAILABLE);
@@ -926,11 +928,9 @@ async fn serve_preview(
     if user.is_none() {
         return status(StatusCode::UNAUTHORIZED);
     }
-    let can_view_unvalidated = s
-        .auth
-        .identify_admin(&headers)
-        .as_ref()
-        .is_some_and(|i| guard::require_moderator_or_admin(i).is_ok());
+    let can_view_unvalidated = s.auth.identify_admin(&headers).as_ref().is_some_and(|i| {
+        guard::require_moderator_or_admin_in_scope(i, cymbra_platform::MUSIC_SCOPE).is_ok()
+    });
     let Some(repo) = s.repo.as_ref() else {
         return status(StatusCode::SERVICE_UNAVAILABLE);
     };
@@ -975,7 +975,13 @@ async fn regenerate_preview(
 ) -> Response {
     match s.auth.identify_admin(&headers) {
         None => return status(StatusCode::UNAUTHORIZED),
-        Some(identity) if guard::require_moderator_or_admin(&identity).is_err() => {
+        Some(identity)
+            if guard::require_moderator_or_admin_in_scope(
+                &identity,
+                cymbra_platform::MUSIC_SCOPE,
+            )
+            .is_err() =>
+        {
             return status(StatusCode::FORBIDDEN);
         }
         Some(_) => {}
@@ -1706,11 +1712,20 @@ mod tests {
     // --- Upload (admin) --------------------------------------------------
 
     fn ident(user: &str, roles: &[&str]) -> AuthIdentity {
+        ident_in(user, cymbra_platform::MUSIC_SCOPE, roles)
+    }
+
+    /// A token holding `roles` in `scope`, with the flat `roles` field derived as the
+    /// union — the shape `token::new_claims_scoped` issues. `ident` used to leave
+    /// `roles_by_scope` empty, so these routes were only ever tested against the flat
+    /// set (harden-module-boundaries, group 3).
+    fn ident_in(user: &str, scope: &str, roles: &[&str]) -> AuthIdentity {
+        let held: Vec<String> = roles.iter().map(|r| (*r).to_string()).collect();
         AuthIdentity {
             user_id: user.into(),
-            audience: "music".into(),
-            roles: roles.iter().map(|r| (*r).into()).collect(),
-            ..Default::default()
+            audience: cymbra_platform::BACKOFFICE_AUDIENCE.into(),
+            roles: held.clone(),
+            roles_by_scope: [(scope.to_string(), held)].into_iter().collect(),
         }
     }
 
@@ -1781,6 +1796,23 @@ mod tests {
             UploadDecision::InvalidBody
         );
         assert_eq!(decide_upload(Some(&admin), true), UploadDecision::Accept);
+    }
+
+    /// Uploading to the music catalogue is music authority. A `live` moderator's flat
+    /// role set contains "moderator" — what the old guard read — so this asserts both
+    /// that the flat set still says yes and that the route now says no
+    /// (harden-module-boundaries, group 3).
+    #[test]
+    fn an_uploader_privileged_in_another_product_is_forbidden() {
+        let live_mod = ident_in("lm", cymbra_platform::LIVE_SCOPE, &["user", "moderator"]);
+        assert!(live_mod.has_role("moderator"));
+        assert_eq!(
+            decide_upload(Some(&live_mod), true),
+            UploadDecision::Forbidden
+        );
+        // The global break-glass still uploads.
+        let global = ident_in("g", cymbra_platform::GLOBAL_SCOPE, &["admin"]);
+        assert_eq!(decide_upload(Some(&global), true), UploadDecision::Accept);
     }
 
     #[tokio::test]
