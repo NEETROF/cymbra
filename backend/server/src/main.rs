@@ -701,11 +701,10 @@ async fn main() -> anyhow::Result<()> {
     };
     let http = cymbra_server::http_router(jwks, ready_pool, cache.clone())
         .merge(cymbra_server::web_auth_router(auth_port, web_auth_cfg))
-        .merge(cymbra_server::soundfont_router(
+        // One mount for the whole music HTTP surface: which routes it contains is the
+        // module's business (change: harden-module-boundaries, group 5).
+        .merge(cymbra_music::http::router(
             soundfont_state,
-            cfg.back_office_origins.clone(),
-        ))
-        .merge(cymbra_server::score_preview_router(
             score_preview_state,
             cfg.back_office_origins.clone(),
         ));

@@ -34,10 +34,10 @@
 //!     cargo run -p cymbra-server --bin reconcile-corpus -- --apply --max-removal-ratio 0.8
 
 use anyhow::{Context, Result};
+use cymbra_music::object_stores::score_object_store;
 use cymbra_music::pg::PgReconcileRepo;
 use cymbra_music::reconcile::{QUARANTINE_PREFIX, ReconcileOptions, run_reconcile};
 use cymbra_platform::config::Config;
-use cymbra_server::maintenance::score_object_store;
 use cymbra_storage::ObjectStorage;
 
 /// Parsed command-line options.
@@ -98,25 +98,12 @@ fn parse_opts() -> Result<Opts> {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let _ = dotenvy::from_filename("backend/.env").or_else(|_| dotenvy::dotenv());
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
-        )
-        .init();
+    cymbra_music::ops::init();
 
     let opts = parse_opts()?;
     let cfg = Config::from_env()?;
 
-    let db_url = cfg
-        .music_database_url
-        .as_deref()
-        .context("CYMBRA_MUSIC_DATABASE_URL is required to read the catalog")?;
-
-    let pool = cymbra_music::connect(db_url, 4)
-        .await
-        .context("connecting to the music database")?;
+    let pool = cymbra_music::ops::music_pool(&cfg, "read the catalog", 4).await?;
     let storage = score_object_store(&cfg)?;
 
     if opts.purge {

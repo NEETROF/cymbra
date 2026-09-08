@@ -30,8 +30,8 @@ use cymbra_platform::identity::AuthIdentity;
 use serde::{Deserialize, Serialize};
 use tower_http::cors::{AllowOrigin, CorsLayer};
 
-use crate::soundfont::SoundfontAuth;
 use crate::web_auth::{http_status, safe_message};
+use cymbra_music::soundfont_http::SoundfontAuth;
 
 /// Router state: the plan service + paywall config + throttle cache + the
 /// (optional) web billing provider, and the bearer auth seam.

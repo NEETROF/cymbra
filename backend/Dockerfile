@@ -20,7 +20,10 @@ COPY . .
 # needs no SQL files. cache mounts keep rebuilds fast in CI.
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/src/target \
-    cargo build --release --locked -p cymbra-server -p cymbra-worker \
+    # `-p cymbra-music`: the one-off maintenance binaries moved into the music
+    # module with its HTTP surface (change: harden-module-boundaries, group 5).
+    # Their names are unchanged, so the `cp` below still finds them.
+    cargo build --release --locked -p cymbra-server -p cymbra-worker -p cymbra-music \
     && cp target/release/cymbra-server target/release/cymbra-worker \
           target/release/backfill-titles target/release/reconcile-corpus \
           target/release/backfill-instruments target/release/backfill-score-previews \

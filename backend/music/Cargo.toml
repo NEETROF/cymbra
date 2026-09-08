@@ -6,6 +6,26 @@ license.workspace = true
 authors.workspace = true
 description = "Cymbra music-domain module — the public score catalog (crawler-ingested) plus authenticated user uploads (user_scores + gRPC ScoreService), owned by the `music` schema."
 
+[[bin]]
+name = "backfill-titles"
+path = "src/bin/backfill_titles.rs"
+
+[[bin]]
+name = "backfill-score-previews"
+path = "src/bin/backfill_score_previews.rs"
+
+[[bin]]
+name = "backfill-instruments"
+path = "src/bin/backfill_instruments.rs"
+
+[[bin]]
+name = "reconcile-corpus"
+path = "src/bin/reconcile_corpus.rs"
+
+[[bin]]
+name = "verify-soundfont-families"
+path = "src/bin/verify_soundfont_families.rs"
+
 [dependencies]
 async-trait.workspace = true
 # Per-row progress/skip logging for the title backfill maintenance path.
@@ -53,6 +73,16 @@ cymbra-jobs = { path = "../jobs" }
 cymbra-feature-flags = { path = "../feature-flags" }
 cymbra-plans = { path = "../plans" }
 
+# HTTP surface (change: harden-module-boundaries, group 5). The music delivery,
+# upload and preview routes live here rather than in the composition root, so the
+# module owns its whole external surface — gRPC and HTTP alike.
+axum.workspace = true
+tower-http.workspace = true
+jsonwebtoken.workspace = true
+# The one-off maintenance binaries print their own logs (they run outside the server).
+tracing-subscriber.workspace = true
+dotenvy.workspace = true
+
 [build-dependencies]
 tonic-build.workspace = true
 
@@ -65,3 +95,5 @@ mockall = { workspace = true }
 # `MockPlanSource` for the plan-aware gates (rust-testing default).
 cymbra-feature-flags = { path = "../feature-flags", features = ["mock"] }
 cymbra-plans = { path = "../plans", features = ["mock"] }
+# `ServiceExt::oneshot` drives the Axum routers in the HTTP handler tests (no socket).
+tower.workspace = true

@@ -31,9 +31,9 @@
 //!     cargo run -p cymbra-server --bin backfill-instruments -- --apply
 
 use anyhow::{Context, Result};
+use cymbra_music::object_stores::score_object_store;
 use cymbra_music::{PgInstrumentBackfillRepo, ScoreTable, run_instrument_backfill};
 use cymbra_platform::config::Config;
-use cymbra_server::maintenance::score_object_store;
 
 /// Parsed command-line options.
 struct Opts {
@@ -71,25 +71,12 @@ fn parse_opts() -> Result<Opts> {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let _ = dotenvy::from_filename("backend/.env").or_else(|_| dotenvy::dotenv());
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
-        )
-        .init();
+    cymbra_music::ops::init();
 
     let opts = parse_opts()?;
     let cfg = Config::from_env()?;
 
-    let db_url = cfg
-        .music_database_url
-        .as_deref()
-        .context("CYMBRA_MUSIC_DATABASE_URL is required for the instrument backfill")?;
-
-    let pool = cymbra_music::connect(db_url, 4)
-        .await
-        .context("connecting to the music database")?;
+    let pool = cymbra_music::ops::music_pool(&cfg, "the instrument backfill", 4).await?;
     let storage = score_object_store(&cfg)?;
 
     let repo = PgInstrumentBackfillRepo::new(pool);

@@ -22,25 +22,23 @@
 //!   (immediate feedback for the back-office "Generate sample"), overwrites the
 //!   object and stamps the row's rendered marker.
 //!
-//! Thin axum glue over [`cymbra_music::ScorePreviewRenderer`]; coverage-excluded
+//! Thin axum glue over [`crate::ScorePreviewRenderer`]; coverage-excluded
 //! like the SoundFont routes.
 
 use std::sync::Arc;
 
+use crate::{CatalogSearchRepo, RenderOutcome, ScorePreviewRenderer, score_preview_object_key};
 use axum::Router;
 use axum::body::Body;
 use axum::extract::{Path, State};
 use axum::http::{HeaderMap, HeaderValue, Method, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
-use cymbra_music::{
-    CatalogSearchRepo, RenderOutcome, ScorePreviewRenderer, score_preview_object_key,
-};
 use cymbra_platform::{AppError, guard};
 use cymbra_storage::{ObjectStorage, StorageError};
 use tower_http::cors::{AllowOrigin, CorsLayer};
 
-use crate::soundfont::SoundfontAuth;
+use crate::soundfont_http::SoundfontAuth;
 
 /// Router state: the score store (the teaser lives beside the score bytes), the
 /// catalog read port (moderation visibility), the renderer (regenerate; `None`
@@ -55,7 +53,7 @@ pub struct ScorePreviewState {
     /// The drum-audience seam (change: add-drums-access): the module predicate
     /// behind the same gate every RPC uses. `None` fails closed — a percussion
     /// piece's preview then answers not-found for everyone.
-    pub drums: Option<Arc<dyn cymbra_music::DrumsEligibility>>,
+    pub drums: Option<Arc<dyn crate::DrumsEligibility>>,
 }
 
 /// The score-preview router, ready to `.merge()` into the HTTP server. Same CORS
@@ -111,7 +109,7 @@ async fn serve_preview(
             // Percussion previews DO render now (change: add-drum-audio-channel,
             // kit font on the drum channel), so this audience gate is what keeps
             // the clip from disclosing the piece to the ineligible.
-            if obj.instrument == cymbra_music::Instrument::Percussion {
+            if obj.instrument == crate::Instrument::Percussion {
                 let user = s.auth.identify(&headers).unwrap_or_default();
                 let eligible = match s.drums.as_ref() {
                     Some(d) => d.eligible_for_percussion(&user, can_view_unvalidated).await,
@@ -205,12 +203,12 @@ async fn regenerate_preview(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::body::to_bytes;
-    use axum::http::Request;
-    use cymbra_music::{
+    use crate::{
         FakeCatalogRow, FakeCatalogSearchRepo, FakeSoundFontRepo, FixedScorePreviewConfig,
         ScorePreviewConfig,
     };
+    use axum::body::to_bytes;
+    use axum::http::Request;
     use cymbra_platform::AuthIdentity;
     use cymbra_storage::FakeStore;
     use tower::ServiceExt;
