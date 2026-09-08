@@ -304,7 +304,10 @@ async fn purge_erases_private_soundfonts_and_enqueues_their_object_cleanup() {
         &format!("sf-{}@x.dev", uuid::Uuid::now_v7()),
     )
     .await;
-    let key = format!("user-soundfonts/{uid}/{}.sf2", uuid::Uuid::now_v7());
+    // Named for what it is — a path in the object store, not a credential. Calling
+    // it `key` tripped CodeQL's cleartext-logging heuristic, and the name was
+    // genuinely misleading in a security-adjacent test.
+    let sf2_path = format!("user-soundfonts/{uid}/{}.sf2", uuid::Uuid::now_v7());
     sqlx::query(
         "INSERT INTO music.user_soundfonts \
          (id, user_id, label, object_key, content_sha256, size_bytes) \
@@ -312,7 +315,7 @@ async fn purge_erases_private_soundfonts_and_enqueues_their_object_cleanup() {
     )
     .bind(uuid::Uuid::now_v7())
     .bind(uid)
-    .bind(&key)
+    .bind(&sf2_path)
     .bind(format!("sha-{uid}"))
     .execute(&admin)
     .await
@@ -339,13 +342,13 @@ async fn purge_erases_private_soundfonts_and_enqueues_their_object_cleanup() {
          WHERE m.name = 'purge_soundfont_object' \
            AND convert_from(p.payload_json, 'UTF8') LIKE '%' || $1 || '%'",
     )
-    .bind(&key)
+    .bind(&sf2_path)
     .fetch_one(&admin)
     .await
     .unwrap_or(-1);
     assert_eq!(
         queued, 1,
-        "exactly one purge_soundfont_object must be queued for {key}"
+        "exactly one purge_soundfont_object must be queued for {sf2_path}"
     );
 
     // …and NOT the score-object job, which targets the other bucket.
@@ -354,13 +357,13 @@ async fn purge_erases_private_soundfonts_and_enqueues_their_object_cleanup() {
          WHERE m.name = 'purge_score_object' \
            AND convert_from(p.payload_json, 'UTF8') LIKE '%' || $1 || '%'",
     )
-    .bind(&key)
+    .bind(&sf2_path)
     .fetch_one(&admin)
     .await
     .unwrap_or(-1);
     assert_eq!(
         wrong, 0,
-        "the soundfont key must not go to the score store job"
+        "the soundfont object must not go to the score store job"
     );
 }
 
