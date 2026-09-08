@@ -98,9 +98,9 @@
 
 ## 9. Transport failure is expressible
 
-- [ ] 11.1 Add `Unavailable` and `DeadlineExceeded` to `AppError` (`backend/platform/src/error.rs`), with their gRPC status mappings both ways.
-- [ ] 11.2 Add `From<tonic::Status> for AppError`, preserving the distinction between a domain outcome and a transport failure. `Internal` currently flattens to `"internal error"` (`error.rs` ~:58) — a remote `Internal` must not become indistinguishable from a transport fault.
-- [ ] 11.3 Test: a timeout maps to `DeadlineExceeded`, an unreachable callee to `Unavailable`, and a remote not-found stays a not-found.
+- [~] 11.1 **`Unavailable` done, with a real producer; `DeadlineExceeded` deliberately NOT added.** Redis failures were `Internal`, so a client could not tell "retry" from "this is broken"; they are `Unavailable` now (gRPC `Unavailable`, HTTP 503 — the compiler's exhaustive match forced the HTTP mapping too). The driver message is logged, not returned: the payload names the dependency only, because `Unavailable` reaches the client verbatim while `Internal` collapses. `DeadlineExceeded` has **no producer** — nothing in the workspace times out today — and group 7 has just deleted machinery kept warm for a transport that is not written. Add it with its first timeout.
+- [ ] 11.2 **Deferred to the split, on group 7's own rule.** Nothing in the workspace receives a `tonic::Status`: `build_client(false)` is set in all seven `build.rs` and no module calls another over the wire. An unused `From` impl is the exact shape group 7 deleted. The nuance it exists to preserve is written down here so it is not rediscovered: a remote `Internal` must stay distinguishable from a transport fault, and `AppError::Internal` flattens to `"internal error"` (`error.rs`), so the conversion must not route both there. Original: add `From<tonic::Status> for AppError`, preserving the distinction between a domain outcome and a transport failure. `Internal` currently flattens to `"internal error"` (`error.rs` ~:58) — a remote `Internal` must not become indistinguishable from a transport fault.
+- [~] 11.3 **Tested what exists**: `Unavailable` and `Internal` map to distinct gRPC codes, and the `Unavailable` payload carries no driver detail. The timeout and remote-not-found cases wait on 11.1/11.2 having producers. Original: test: a timeout maps to `DeadlineExceeded`, an unreachable callee to `Unavailable`, and a remote not-found stays a not-found.
 
 ## 10. Stop the silent seams
 

@@ -173,6 +173,9 @@ pub(crate) fn http_status(e: &AppError) -> StatusCode {
         AppError::AlreadyExists(_) | AppError::Aborted(_) => StatusCode::CONFLICT,
         AppError::FailedPrecondition(_) => StatusCode::PRECONDITION_FAILED,
         AppError::ResourceExhausted(_) => StatusCode::TOO_MANY_REQUESTS,
+        // 503, not 500: the request is fine, the dependency is not — and the
+        // difference is what tells a browser or the site to retry.
+        AppError::Unavailable(_) => StatusCode::SERVICE_UNAVAILABLE,
         AppError::Config(_) | AppError::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }
