@@ -37,6 +37,13 @@ pub enum AppError {
     /// Misconfiguration discovered at startup or runtime.
     #[error("configuration error: {0}")]
     Config(String),
+    /// A dependency is unreachable — the request is not wrong, it cannot be served
+    /// right now. Distinct from [`Self::Internal`] because the two call for opposite
+    /// client behaviour: retry this one, report the other (change:
+    /// harden-module-boundaries, group 9). Redis being down used to arrive as
+    /// `Internal`, indistinguishable from a bug.
+    #[error("unavailable: {0}")]
+    Unavailable(String),
     /// Unexpected internal failure (logged, not detailed to clients).
     #[error("internal error")]
     Internal(#[source] anyhow::Error),
@@ -54,6 +61,7 @@ impl AppError {
             AppError::Aborted(m) => Status::new(Code::Aborted, m.clone()),
             AppError::FailedPrecondition(m) => Status::new(Code::FailedPrecondition, m.clone()),
             AppError::ResourceExhausted(m) => Status::new(Code::ResourceExhausted, m.clone()),
+            AppError::Unavailable(m) => Status::new(Code::Unavailable, m.clone()),
             AppError::Config(m) => Status::new(Code::Internal, format!("configuration error: {m}")),
             AppError::Internal(_) => Status::new(Code::Internal, "internal error"),
         }
@@ -74,6 +82,34 @@ impl From<anyhow::Error> for AppError {
 
 #[cfg(test)]
 mod tests {
+
+    /// `Unavailable` is not `Internal`, and the difference is the point: one says
+    /// "retry", the other says "this is broken". They used to be the same answer
+    /// (change: harden-module-boundaries, group 9).
+    #[test]
+    fn unavailable_is_distinguishable_from_internal() {
+        assert_eq!(
+            AppError::Unavailable("cache".into()).to_status().code(),
+            Code::Unavailable
+        );
+        assert_eq!(
+            AppError::Internal(anyhow::anyhow!("boom"))
+                .to_status()
+                .code(),
+            Code::Internal
+        );
+    }
+
+    /// The payload names the dependency and nothing else: it reaches the client
+    /// verbatim (unlike `Internal`, which collapses), so a driver message or a host
+    /// must never be put in it.
+    #[test]
+    fn the_unavailable_message_carries_no_internal_detail() {
+        let s = AppError::Unavailable("cache".into()).to_status();
+        assert_eq!(s.message(), "cache");
+        assert!(!s.message().contains("redis"));
+    }
+
     use super::*;
 
     #[test]

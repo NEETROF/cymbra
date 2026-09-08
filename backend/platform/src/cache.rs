@@ -26,8 +26,16 @@ pub trait Cache: Send + Sync {
     async fn ping(&self) -> bool;
 }
 
+/// Every Redis failure is an availability failure, not a bug in the request: the
+/// caller should retry, and `Internal` told it the opposite (change:
+/// harden-module-boundaries, group 9).
+///
+/// The driver's message is LOGGED, not returned. `AppError::Unavailable` is
+/// client-visible — its payload names the dependency and nothing else, so a
+/// connection string or a host never reaches a caller.
 fn map(e: redis::RedisError) -> AppError {
-    AppError::Internal(anyhow::anyhow!("redis: {e}"))
+    tracing::warn!(error = %e, "cache unavailable");
+    AppError::Unavailable("cache".into())
 }
 
 /// Redis-backed [`Cache`] over a cheap-to-clone connection manager.
@@ -38,11 +46,14 @@ pub struct RedisCache {
 
 impl RedisCache {
     pub async fn connect(url: &str) -> Result<Self> {
-        let client = redis::Client::open(url)
-            .map_err(|e| AppError::Internal(anyhow::anyhow!("redis url: {e}")))?;
+        let client =
+            redis::Client::open(url).map_err(|e| AppError::Config(format!("redis url: {e}")))?;
         let mgr = redis::aio::ConnectionManager::new(client)
             .await
-            .map_err(|e| AppError::Internal(anyhow::anyhow!("redis connect: {e}")))?;
+            .map_err(|e| {
+                tracing::warn!(error = %e, "cache connect failed");
+                AppError::Unavailable("cache".into())
+            })?;
         Ok(Self { mgr })
     }
 }
