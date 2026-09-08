@@ -1,6 +1,13 @@
+// `build_client(false)`: nothing in this workspace calls a module over gRPC.
+// The boundary between modules is a Rust trait, and an internal transport is
+// written when a module is actually split out — not kept warm in case (change:
+// harden-module-boundaries, group 7). The apps generate their own Dart/TS
+// clients from the same `.proto`, which is the external contract.
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Generates the `cymbra.notifications.v1` protobuf types + tonic client/server
-    // stubs (NotificationService — token registry, consent, timezone).
-    tonic_build::configure().compile_protos(&["proto/notifications.proto"], &["proto"])?;
+    // Generates the `cymbra.notifications.v1` protobuf types + the tonic SERVER
+    // stub (NotificationService — token registry, consent, timezone).
+    tonic_build::configure()
+        .build_client(false)
+        .compile_protos(&["proto/notifications.proto"], &["proto"])?;
     Ok(())
 }

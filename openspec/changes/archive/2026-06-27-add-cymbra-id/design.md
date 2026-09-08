@@ -164,20 +164,34 @@ port (so there is no cross-schema FK from auth to user).
 **Extraction test (the design's litmus):** moving a module to its own service
 should require only — (a) give it its own `main` that mounts the gRPC **server**
 adapter it already has, (b) point its DB/schema at its own infra, (c) in the
-monolith's `server`, swap the direct adapter for the `-port` gRPC **client**
-adapter that already exists. No new code, no changes to other modules' domain code.
+monolith's `server`, swap the direct adapter for a gRPC **client** adapter.
+
+> **Superseded on 2026-09-08** (change: harden-module-boundaries, group 7). Step (c)
+> said "the client adapter *that already exists*". None was ever written, and the one
+> thing named as such — `user-port::GrpcUserClient` — did not implement the port, held
+> a single method and had no caller; it has been deleted, and `build_client(false)` now
+> stops the unused stubs being generated at all. The extraction test still holds, with
+> (c) reading "write the client adapter": the boundary between modules is the **Rust
+> trait**, and an internal transport is written when a module is actually split out.
 
 ### D1: tonic + prost, with each port exposed as a gRPC service
 **tonic** is the de-facto async gRPC stack for Rust (tokio/hyper, HTTP/2, tower
 middleware). Services are defined in `.proto` and generated with
 `prost`/`tonic-build`. The `.proto` files become the contract the Flutter client
-consumes later. Each module's port maps **1:1 to a gRPC service**, split into a
-**server adapter** (in `<module>`, translating RPCs into local port calls — the
-public surface) and a **client adapter** (in `<module>-port`, implementing the
-port trait via a tonic client). Both are thin DTO⇄protobuf translators; domain
-logic lives once, in the local implementation. A shared **contract test** runs the
-same scenarios against the direct and gRPC client adapters to prove they behave
-identically.
+consumes later. Each module's `.proto` defines the **external** contract the Flutter app, the back
+office and the site consume, served by a **server adapter** in `<module>` that
+translates RPCs into local port calls. It is a thin DTO⇄protobuf translator; domain
+logic lives once, in the local implementation.
+
+> **Superseded on 2026-09-08** (change: harden-module-boundaries, group 7). This said
+> the port maps *1:1 to a gRPC service*, that `<module>-port` carries a **client
+> adapter implementing the port trait**, and that a **shared contract test** proves the
+> two adapters agree. None of the three was built, and none should be: the port is the
+> *internal* boundary and the `.proto` is the *external* contract — they answer to
+> different audiences and are deliberately not the same shape. With no client adapter
+> there is nothing for a contract test to compare. What replaces it is stated in
+> CLAUDE.md as the three-object rule, and the external contract is now guarded by
+> `buf breaking` (group 6) instead.
 - *Note on Axum*: the request path is gRPC, **except** a tiny **Axum** HTTP surface
   mounted alongside tonic for the **JWKS endpoint** (`/.well-known/jwks.json`, which
   conventionally must be HTTP/JSON so downstream apps and standard libraries can

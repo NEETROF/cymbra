@@ -1,8 +1,12 @@
 //! `cymbra-auth-port` — the auth module's **contract** crate.
 //!
-//! Carries the [`AuthPort`] trait + DTOs, the generated protobuf types, and the
-//! gRPC **client** adapter. Consumers depend on this crate only, never on
-//! `cymbra-auth` (design D0).
+//! Carries the [`AuthPort`] trait + DTOs and the generated protobuf types. Consumers
+//! depend on this crate only, never on `cymbra-auth` (design D0).
+//!
+//! It carries no gRPC **client** adapter, and the header claimed one until group 7 of
+//! harden-module-boundaries. The `.proto` here is the EXTERNAL contract, for the apps;
+//! the boundary between modules is the trait, and an internal transport is written
+//! when a module is split out, not before.
 
 use async_trait::async_trait;
 use cymbra_platform::Result;
