@@ -8,7 +8,7 @@
 
 use crate::proto::flag_service_server::{FlagService as FlagServiceTrait, FlagServiceServer};
 use crate::proto::{self};
-use crate::service::{Actor, ConsoleScopes, FlagService, KeyState};
+use crate::service::{Actor, AdminScopes, FlagService, KeyState};
 use crate::store::ChangeRecord;
 use crate::value::FlagValue;
 use crate::{EvalContext, RolloutScope};
@@ -52,20 +52,24 @@ impl FlagGrpc {
             .get::<AuthIdentity>()
             .cloned()
             .ok_or_else(|| Status::unauthenticated("missing identity"))?;
+        // Coarse entry gate; the scope match is on the effect, below and in
+        // `authorize_write`.
         cymbra_platform::guard::require_admin(&id)?;
-        // The back-office admin console (dedicated audience) administers multiple
-        // scopes: derive its per-app admin set + platform flag from the token's
-        // scoped roles, so the flags panel lists every app and gates edits per scope
-        // instead of keying on a single app audience (change: scope-aware-role-admin).
-        let console =
-            (id.audience == cymbra_platform::BACKOFFICE_AUDIENCE).then(|| ConsoleScopes {
-                admin_apps: id.admin_scopes(&cymbra_platform::APP_SCOPES),
-                platform: id.has_role_in_scope("global", "admin"),
-            });
+        // Authority, from the token's SCOPED roles — for every caller, not just the
+        // console. Deriving it only for a `back-office` audience left the app-token
+        // path comparing the audience to the key's app, which the client chooses
+        // (change: harden-module-boundaries, task 3.14).
+        let scopes = AdminScopes {
+            admin_apps: id.admin_scopes(&cymbra_platform::APP_SCOPES),
+            platform: id.has_role_in_scope(cymbra_platform::GLOBAL_SCOPE, "admin"),
+        };
+        // Presentation: the console lists every app's keys, an app token its own.
+        let console = id.audience == cymbra_platform::BACKOFFICE_AUDIENCE;
         Ok(Actor {
             user_id: id.user_id,
             app: id.audience,
             is_admin: true,
+            scopes,
             console,
         })
     }
@@ -367,15 +371,12 @@ mod tests {
         FlagGrpc::new(svc)
     }
 
+    /// An app-token admin: audience `audience`, and — as `new_claims_scoped` issues —
+    /// the `admin` role held **in that app's scope**. It used to fill only the flat
+    /// `roles` field, which is why nothing here caught task 3.14: with no scoped roles
+    /// there was nothing for the audience comparison to disagree with.
     fn admin_req<T>(msg: T, audience: &str) -> Request<T> {
-        let mut req = Request::new(msg);
-        req.extensions_mut().insert(AuthIdentity {
-            user_id: "00000000-0000-0000-0000-0000000000aa".into(),
-            audience: audience.into(),
-            roles: vec!["admin".into()],
-            ..Default::default()
-        });
-        req
+        scoped_req(msg, audience, &[(audience, &["admin"])])
     }
 
     /// A signed-in **non-staff** caller. Staff match every `beta:` scope by
@@ -390,6 +391,80 @@ mod tests {
             ..Default::default()
         });
         req
+    }
+
+    /// A request with an ARBITRARY audience and the given per-scope roles. The
+    /// audience is chosen by the client at sign-in, so a test that wants to model a
+    /// real caller must be able to set the two independently.
+    fn scoped_req<T>(msg: T, audience: &str, pairs: &[(&str, &[&str])]) -> Request<T> {
+        let roles_by_scope: std::collections::BTreeMap<String, Vec<String>> = pairs
+            .iter()
+            .map(|(s, rs)| (s.to_string(), rs.iter().map(|r| (*r).to_string()).collect()))
+            .collect();
+        let mut roles: Vec<String> = Vec::new();
+        for rs in roles_by_scope.values() {
+            for r in rs {
+                if !roles.contains(r) {
+                    roles.push(r.clone());
+                }
+            }
+        }
+        let mut req = Request::new(msg);
+        req.extensions_mut().insert(AuthIdentity {
+            user_id: "00000000-0000-0000-0000-0000000000cc".into(),
+            audience: audience.into(),
+            roles,
+            roles_by_scope,
+        });
+        req
+    }
+
+    /// Writing a flag is authority over **that key's app**, and the caller's audience
+    /// is not evidence of it: the client picks its audience at sign-in, and
+    /// `check_audience` only tests membership in the allowed list.
+    ///
+    /// The non-console write path used to read `def.app != actor.app`, where
+    /// `actor.app` was the audience — so an admin of another product signing in as
+    /// `music` flipped music kill-switches (harden-module-boundaries, task 3.14).
+    #[tokio::test]
+    async fn an_admin_of_another_product_cannot_write_by_claiming_the_audience() {
+        let g = grpc(false);
+        let err = g
+            .set_flag(scoped_req(
+                proto::SetFlagRequest {
+                    key: registry::REWARDS_ENABLED.into(),
+                    app: APP_MUSIC.into(),
+                    enabled: true,
+                    rollout_scope: "global".into(),
+                    confirm: false,
+                },
+                APP_MUSIC,               // the audience they asked for...
+                &[("live", &["admin"])], // ...and the authority they actually hold
+            ))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::PermissionDenied);
+    }
+
+    /// The counterpart: a music admin writes music keys whatever audience they used.
+    #[tokio::test]
+    async fn a_music_admin_writes_music_keys_from_any_audience() {
+        for audience in [APP_MUSIC, cymbra_platform::BACKOFFICE_AUDIENCE] {
+            let g = grpc(false);
+            g.set_flag(scoped_req(
+                proto::SetFlagRequest {
+                    key: registry::REWARDS_ENABLED.into(),
+                    app: APP_MUSIC.into(),
+                    enabled: true,
+                    rollout_scope: "global".into(),
+                    confirm: false,
+                },
+                audience,
+                &[("music", &["admin"])],
+            ))
+            .await
+            .unwrap_or_else(|e| panic!("music admin refused on audience {audience}: {e}"));
+        }
     }
 
     /// A back-office console request whose caller holds the given per-scope roles.

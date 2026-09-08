@@ -57,11 +57,16 @@ pub struct EffectiveSet {
     pub version: String,
 }
 
-/// The apps a back-office **console** caller may administer, derived from the
-/// token's per-scope roles (change: scope-aware-role-admin). The console lists
-/// every app's flags but may only edit those it is scoped for.
+/// What a caller may administer, derived from the token's **scoped** roles.
+///
+/// This used to be `ConsoleScopes`, computed only for a back-office token, while an
+/// app token was authorized by comparing its AUDIENCE to the key's app. The audience
+/// is chosen by the client at sign-in and only checked against an allow-list, so an
+/// admin of another product could sign in as `music` and write music keys
+/// (change: harden-module-boundaries, task 3.14). Authority now comes from the roles
+/// for every caller; the audience decides presentation only.
 #[derive(Debug, Clone)]
-pub struct ConsoleScopes {
+pub struct AdminScopes {
     /// App scopes (e.g. `music`, `live`) in which the caller holds `admin`.
     pub admin_apps: Vec<String>,
     /// Whether the caller is a platform (`global`) admin — required to edit `all`
@@ -74,14 +79,15 @@ pub struct ConsoleScopes {
 #[derive(Debug, Clone)]
 pub struct Actor {
     pub user_id: String,
-    /// The caller's token audience (app). For a back-office console token this is
-    /// the console audience, not a real app — see `console`.
+    /// The caller's token audience. **Presentation only** — it selects which app an
+    /// app-token caller is shown, never what they may change.
     pub app: String,
     pub is_admin: bool,
-    /// Present when the caller is the back-office admin console: it lists every
-    /// app's flags, with per-app editability from `admin_apps`/`platform` — instead
-    /// of the single-app-token view keyed on `app` (change: scope-aware-role-admin).
-    pub console: Option<ConsoleScopes>,
+    /// What this caller actually administers. Independent of `app`.
+    pub scopes: AdminScopes,
+    /// True for the back-office console: it LISTS every app's keys. Editability is
+    /// still per scope, so this widens the view and never the authority.
+    pub console: bool,
 }
 
 impl Actor {
@@ -96,18 +102,18 @@ impl Actor {
     ///
     /// An admin of no app yields an empty list, i.e. nothing — the fail-closed answer.
     pub fn visible_apps(&self) -> Option<Vec<String>> {
-        match &self.console {
-            Some(c) if c.platform => None,
-            Some(c) => Some(c.admin_apps.clone()),
-            None => Some(vec![self.app.clone()]),
+        if self.scopes.platform {
+            None
+        } else {
+            Some(self.scopes.admin_apps.clone())
         }
     }
 }
 
-/// Whether a back-office console caller may edit a key in `app`: admin in that app
-/// scope, or a platform (`global`) admin for shared `all` keys and any app it is
-/// not directly scoped for (change: scope-aware-role-admin).
-fn console_can_edit(c: &ConsoleScopes, app: &str) -> bool {
+/// Whether a caller may edit a key in `app`: admin in that app scope, or a platform
+/// (`global`) admin for shared `all` keys and any app it is not directly scoped for.
+/// One rule for every caller — console or app token (task 3.14).
+fn can_edit(c: &AdminScopes, app: &str) -> bool {
     if app == crate::context::APP_ALL {
         c.platform
     } else {
@@ -351,33 +357,26 @@ impl FlagService {
         actor: &Actor,
         app_filter: Option<&str>,
     ) -> Result<Vec<(KeyState, bool)>> {
-        // Back-office console: list EVERY app's keys; editability comes from the
-        // token's per-scope roles (no resolver call). A key is editable when the
-        // caller is admin in that key's app scope, or a platform admin for shared
-        // `all` keys (change: scope-aware-role-admin).
-        if let Some(c) = &actor.console {
-            return Ok(self
-                .definitions_all(app_filter)
-                .into_iter()
-                .map(|ks| {
-                    let editable = console_can_edit(c, ks.def.app);
-                    (ks, editable)
-                })
-                .collect());
-        }
-        let platform = if actor.is_admin {
-            self.resolver
+        // The console lists EVERY app's keys; an app token lists its own. That is the
+        // only thing the audience decides. Editability is the same rule in both cases
+        // — admin in that key's app scope, or a platform admin — so a wider view never
+        // becomes wider authority (task 3.14).
+        let listed = if actor.console {
+            self.definitions_all(app_filter)
+        } else {
+            self.definitions(&actor.app, app_filter)
+        };
+        let platform = actor.is_admin
+            && !actor.scopes.platform
+            && self
+                .resolver
                 .is_platform_admin(&actor.user_id)
                 .await
-                .unwrap_or(false)
-        } else {
-            false
-        };
-        Ok(self
-            .definitions(&actor.app, app_filter)
+                .unwrap_or(false);
+        Ok(listed
             .into_iter()
             .map(|ks| {
-                let editable = actor.is_admin && (actor.app == ks.def.app || platform);
+                let editable = actor.is_admin && (can_edit(&actor.scopes, ks.def.app) || platform);
                 (ks, editable)
             })
             .collect())
@@ -588,26 +587,24 @@ impl FlagService {
         if !actor.is_admin {
             return Err(AppError::PermissionDenied("requires role `admin`".into()));
         }
-        // Back-office console: authorize from the token's per-scope roles — admin in
-        // the key's app scope, or platform admin for shared `all`/other-app keys
-        // (change: scope-aware-role-admin).
-        if let Some(c) = &actor.console {
-            if !console_can_edit(c, def.app) {
-                return Err(AppError::PermissionDenied(format!(
-                    "changing `{}`-scoped keys requires admin in that scope",
-                    def.app
-                )));
-            }
+        // Authorize from the token's per-scope roles, for EVERY caller. The audience
+        // is not consulted: it is client-chosen at sign-in and only checked against an
+        // allow-list, so comparing it to the key's app let an admin of another product
+        // write here by asking for this audience (task 3.14).
+        if can_edit(&actor.scopes, def.app) {
             return Ok(());
         }
-        let needs_platform = def.app == crate::context::APP_ALL || def.app != actor.app;
-        if needs_platform && !self.resolver.is_platform_admin(&actor.user_id).await? {
-            return Err(AppError::PermissionDenied(format!(
-                "changing `{}`-scoped keys requires a platform admin",
-                def.app
-            )));
+        // Second source of AUTHORITY, not of identity: the account's current
+        // platform-admin status, read live. The token may predate a promotion, and a
+        // platform admin edits any app. Both sources answer "what does this account
+        // hold"; neither is the audience, which is what the caller picks.
+        if self.resolver.is_platform_admin(&actor.user_id).await? {
+            return Ok(());
         }
-        Ok(())
+        Err(AppError::PermissionDenied(format!(
+            "changing `{}`-scoped keys requires admin in that scope",
+            def.app
+        )))
     }
 
     async fn publish_invalidation(&self) {
@@ -856,12 +853,38 @@ mod tests {
         assert_ne!(a.version, c.version, "changed content ⇒ changed version");
     }
 
+    /// An app-token actor: audience `app`, and — as a real token has it — admin in
+    /// that same app scope. The audience and the authority used to be conflated here
+    /// too, which is why no test caught task 3.14.
     fn actor(app: &str, is_admin: bool) -> Actor {
         Actor {
             user_id: "00000000-0000-0000-0000-0000000000aa".into(),
             app: app.into(),
             is_admin,
-            console: None,
+            scopes: AdminScopes {
+                admin_apps: if is_admin {
+                    vec![app.to_string()]
+                } else {
+                    vec![]
+                },
+                platform: false,
+            },
+            console: false,
+        }
+    }
+
+    /// An actor whose audience and authority DISAGREE — the shape of the hole: an
+    /// admin of `holds` asking for the `app` audience.
+    fn actor_claiming(app: &str, holds: &[&str]) -> Actor {
+        Actor {
+            user_id: "00000000-0000-0000-0000-0000000000aa".into(),
+            app: app.into(),
+            is_admin: true,
+            scopes: AdminScopes {
+                admin_apps: holds.iter().map(|s| s.to_string()).collect(),
+                platform: false,
+            },
+            console: false,
         }
     }
 
@@ -871,11 +894,46 @@ mod tests {
             user_id: "00000000-0000-0000-0000-0000000000aa".into(),
             app: "back-office".into(),
             is_admin: true,
-            console: Some(ConsoleScopes {
+            scopes: AdminScopes {
                 admin_apps: admin_apps.iter().map(|s| s.to_string()).collect(),
                 platform,
-            }),
+            },
+            console: true,
         }
+    }
+
+    /// Authorization must not consult the audience. `actor_claiming` is an admin of
+    /// `live` asking for the `music` audience — the shape a client can produce on its
+    /// own, since the audience is declared at sign-in and only checked against an
+    /// allow-list (task 3.14). The resolver says "not a platform admin", so the only
+    /// thing that could authorize this write is the audience, and it must not.
+    #[tokio::test]
+    async fn a_write_is_refused_when_only_the_audience_matches() {
+        let svc = FlagService::new(
+            Registry::default(),
+            Some(Arc::new({
+                let mut s = MockFlagStore::new();
+                s.expect_load_all().returning(|| Ok(vec![]));
+                s
+            })),
+            Arc::new(NoopBus),
+            resolver(false),
+        );
+        let err = svc
+            .set_value(
+                &actor_claiming(APP_MUSIC, &["live"]),
+                APP_MUSIC,
+                registry::REWARDS_ENABLED,
+                FlagValue::Bool(true),
+                None,
+                false,
+            )
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(err, AppError::PermissionDenied(_)),
+            "audience matched the key's app but the caller administers only `live`: {err:?}"
+        );
     }
 
     #[tokio::test]
