@@ -186,16 +186,30 @@ impl<P: AuthPort + 'static> AuthService for AuthGrpc<P> {
         &self,
         req: Request<proto::RevokeAccountSessionsRequest>,
     ) -> Result<Response<proto::RevokeAccountSessionsResponse>, Status> {
-        // Admin-gated: only an admin may cut off another account's sessions, and only
-        // within the audience their admin role is scoped to (the token's audience).
-        let (admin, audience) = {
+        // Admin-gated, and scoped by what the admin ADMINISTERS — not by the audience
+        // of their own token. That was the previous rule, and since the console always
+        // signs in as `back-office`, it cut the target's console sessions and left
+        // their app sessions alive while reporting a successful revocation.
+        let (admin, scope) = {
             let id = identity(&req)?;
             cymbra_platform::guard::require_admin(id)?;
-            (id.user_id.clone(), id.audience.clone())
+            let scope = if id.has_role_in_scope("global", "admin") {
+                // Break-glass: a platform admin cuts every session the account has.
+                cymbra_auth_port::RevocationScope::All
+            } else {
+                // Otherwise: the app audiences this admin is entitled to, plus the
+                // web + console surfaces, which are the identity product rather than
+                // any one app. An empty list here would cut nothing, never everything.
+                let mut auds = id.admin_scopes(&cymbra_platform::APP_SCOPES);
+                auds.push(cymbra_platform::BACKOFFICE_AUDIENCE.to_string());
+                auds.push("web".to_string());
+                cymbra_auth_port::RevocationScope::Only(auds)
+            };
+            (id.user_id.clone(), scope)
         };
         let target = req.into_inner().user_id;
         self.port
-            .revoke_account_sessions(&admin, &target, &audience)
+            .revoke_account_sessions(&admin, &target, &scope)
             .await?;
         Ok(Response::new(proto::RevokeAccountSessionsResponse {}))
     }
@@ -251,21 +265,68 @@ mod tests {
         // `.with` + `.times(1)` are verified on drop.
     }
 
+    /// An identity holding `admin` in one app scope, signed in to the console.
+    fn req_scoped_admin<T>(body: T, user_id: &str, scope: &str) -> Request<T> {
+        let mut req = Request::new(body);
+        req.extensions_mut().insert(AuthIdentity {
+            user_id: user_id.into(),
+            audience: cymbra_platform::BACKOFFICE_AUDIENCE.into(),
+            roles: vec!["user".into(), "admin".into()],
+            roles_by_scope: [(scope.to_string(), vec!["admin".to_string()])]
+                .into_iter()
+                .collect(),
+        });
+        req
+    }
+
+    /// The revocation reaches the app the admin administers — NOT the audience their
+    /// own token happens to carry. Before this rule, a console admin (always
+    /// `back-office`) cut the target's console sessions and left the app ones alive.
     #[tokio::test]
-    async fn admin_can_revoke_a_target_account() {
+    async fn revocation_is_scoped_by_what_the_admin_administers() {
         let mut port = MockAuthPort::new();
-        // The admin's own token audience ("music") scopes the revocation.
         port.expect_revoke_account_sessions()
-            .with(eq("admin-1"), eq("target"), eq("music"))
+            .withf(|admin, target, scope| {
+                admin == "admin-1"
+                    && target == "target"
+                    && match scope {
+                        cymbra_auth_port::RevocationScope::Only(auds) => {
+                            auds.contains(&"music".to_string())
+                                && auds.contains(&"back-office".to_string())
+                                && !auds.contains(&"live".to_string())
+                        }
+                        cymbra_auth_port::RevocationScope::All => false,
+                    }
+            })
             .times(1)
             .returning(|_, _, _| Ok(()));
         let g = grpc(port);
-        g.revoke_account_sessions(req_as(
+        g.revoke_account_sessions(req_scoped_admin(
             proto::RevokeAccountSessionsRequest {
                 user_id: "target".into(),
             },
             "admin-1",
-            &["user", "admin"],
+            "music",
+        ))
+        .await
+        .unwrap();
+    }
+
+    /// The `global` break-glass cuts every session the account has.
+    #[tokio::test]
+    async fn global_admin_revokes_every_audience() {
+        let mut port = MockAuthPort::new();
+        port.expect_revoke_account_sessions()
+            .withf(|_, _, scope| matches!(scope, cymbra_auth_port::RevocationScope::All))
+            .times(1)
+            .returning(|_, _, _| Ok(()));
+        let g = grpc(port);
+        g.revoke_account_sessions(req_scoped_admin(
+            proto::RevokeAccountSessionsRequest {
+                user_id: "target".into(),
+            },
+            "admin-1",
+            "global",
         ))
         .await
         .unwrap();

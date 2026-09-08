@@ -82,11 +82,27 @@ fn base_product(product: &str) -> &str {
 }
 
 fn is_premium_product(products: &[String], product: &str) -> bool {
-    // An empty product set would grant nothing; treat it as "any" and let the
-    // paywall config own the list. Both product spellings match the configured
-    // set (see `base_product`).
+    // FAIL CLOSED on an empty set. This used to read `products.is_empty() || …`,
+    // i.e. "no list configured means every product qualifies" — so clearing
+    // `plans.premium.products`, or setting it to something that is not a JSON array
+    // (`products()` then yields an empty vec), silently granted Music premium for any
+    // product in the RevenueCat project, on the next webhook.
+    //
+    // Denying is the recoverable failure: purchases stop, someone notices, the flag
+    // gets fixed. Granting is the silent one. The configured default is
+    // ["premium_monthly", "premium_yearly"], so an empty list is always a
+    // misconfiguration, never a normal state.
+    if products.is_empty() {
+        tracing::warn!(
+            product,
+            "premium product list is empty — refusing to grant; check the \
+             plans.premium.products flag"
+        );
+        return false;
+    }
+    // Both product spellings match the configured set (see `base_product`).
     let base = base_product(product);
-    products.is_empty() || products.iter().any(|p| p == product || p == base)
+    products.iter().any(|p| p == product || p == base)
 }
 
 /// The aggregator's dashboard page for one customer — the console's "open in
@@ -890,9 +906,17 @@ mod tests {
             map_event(&ev, &p, n, true),
             Mapped::Skip(SkipReason::MissingFields("expiration_at_ms"))
         );
-        // empty product set = any product
+        // An empty product set grants NOTHING. It used to mean "any product", so
+        // clearing the flag (or setting it to a non-array) handed Music premium to
+        // every product in the RevenueCat project on the next webhook.
         let ev = event("renewal");
-        assert!(matches!(map_event(&ev, &[], n, true), Mapped::Writes(_)));
+        assert!(
+            matches!(
+                map_event(&ev, &[], n, true),
+                Mapped::Skip(SkipReason::ProductNotPremium(_))
+            ),
+            "an empty premium product set must deny, not grant"
+        );
     }
 
     #[test]

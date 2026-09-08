@@ -9,6 +9,7 @@
 //! (`expires_at > now()`), so correctness never depends on the reap cadence.
 
 use async_trait::async_trait;
+use cymbra_auth_port::RevocationScope;
 use cymbra_platform::{AppError, Result};
 use sqlx::{PgPool, Row};
 use std::time::Duration;
@@ -138,17 +139,29 @@ impl SessionStore for PgSessionStore {
         &self,
         target_user_id: &str,
         acting_admin: &str,
-        audience: &str,
+        scope: &RevocationScope,
     ) -> Result<i64> {
         let mut tx = self.pool.begin().await.map_err(internal)?;
-        // Audience-scoped delete; `rows_affected` is the exact count (no pre-count race).
-        let deleted = sqlx::query("DELETE FROM sessions WHERE user_id = $1 AND audience = $2")
-            .bind(target_user_id)
-            .bind(audience)
-            .execute(&mut *tx)
-            .await
-            .map_err(internal)?
-            .rows_affected() as i64;
+        // `rows_affected` is the exact count (no pre-count race). `All` is the
+        // break-glass; `Only` never means "everything", so an empty list cuts nothing
+        // rather than silently widening.
+        let deleted = match scope {
+            RevocationScope::All => {
+                sqlx::query("DELETE FROM sessions WHERE user_id = $1")
+                    .bind(target_user_id)
+                    .execute(&mut *tx)
+                    .await
+            }
+            RevocationScope::Only(auds) => {
+                sqlx::query("DELETE FROM sessions WHERE user_id = $1 AND audience = ANY($2)")
+                    .bind(target_user_id)
+                    .bind(auds)
+                    .execute(&mut *tx)
+                    .await
+            }
+        }
+        .map_err(internal)?
+        .rows_affected() as i64;
         // Audit in the SAME transaction: a revoked account is always traceable, and a
         // failure here rolls the delete back rather than losing the trail.
         sqlx::query(
@@ -159,7 +172,7 @@ impl SessionStore for PgSessionStore {
         .bind(session_core::new_id())
         .bind(target_user_id)
         .bind(acting_admin)
-        .bind(audience)
+        .bind(crate::session::describe_scope(scope))
         .bind(deleted as i32)
         .execute(&mut *tx)
         .await

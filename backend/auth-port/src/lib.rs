@@ -22,6 +22,20 @@ pub struct TokenPair {
     pub refresh_token: String,
 }
 
+/// Which of a target account's sessions an admin revocation may cut.
+///
+/// Deliberately NOT a plain list with "empty means everything": that shape is how a
+/// filter silently becomes a no-op in the permissive direction. Here an empty
+/// [`Self::Only`] revokes nothing, which is the safe failure.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RevocationScope {
+    /// Every audience — the `global/admin` break-glass.
+    All,
+    /// Only these audiences. An admin scoped to one product cuts that product's
+    /// sessions and no other.
+    Only(Vec<String>),
+}
+
 /// The auth module's port: sign-up, verification, sign-in (local + OIDC), token
 /// lifecycle (refresh/logout), password reset, and identity link/unlink.
 ///
@@ -45,14 +59,19 @@ pub trait AuthPort: Send + Sync {
     /// Revoke every session for `user_id` (self sign-out-everywhere).
     async fn revoke_all_sessions(&self, user_id: &str) -> Result<()>;
     /// Revoke every session for `target_user_id` **within `audience`** as an admin
-    /// action, recording a durable audit entry (acting admin + target + audience +
-    /// count). Scoped to `audience` so a caller can't cut sessions in an app they don't
-    /// administer; authorization (the admin role) is enforced by the caller (gRPC adapter).
+    /// action, recording a durable audit entry (acting admin + target + scope + count).
+    ///
+    /// `scope` is what the ACTING ADMIN is entitled to cut, derived from their roles —
+    /// **not** the audience of their own token. Using the token's audience is how this
+    /// used to work, and it meant the console (always `back-office`) cut the target's
+    /// console sessions and left their app sessions alive, while reporting success.
+    ///
+    /// Authorization (the admin role) is enforced by the caller (gRPC adapter).
     async fn revoke_account_sessions(
         &self,
         acting_admin: &str,
         target_user_id: &str,
-        audience: &str,
+        scope: &RevocationScope,
     ) -> Result<()>;
     async fn request_password_reset(&self, email: &str, locale: &str) -> Result<()>;
     async fn reset_password(&self, token: &str, new_password: &str) -> Result<()>;
