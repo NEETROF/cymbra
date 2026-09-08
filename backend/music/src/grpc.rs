@@ -234,7 +234,7 @@ impl ScoreGrpc {
     /// Whether the caller holds a staff role — the same rule
     /// `EvalContext::authenticated` applies (admin or moderator).
     fn is_staff(id: &AuthIdentity) -> bool {
-        id.roles.iter().any(|r| r == "admin" || r == "moderator")
+        cymbra_platform::guard::is_staff_in_scope(id, cymbra_platform::MUSIC_SCOPE)
     }
 
     /// The caller's drum eligibility (change: add-drums-access), resolved once

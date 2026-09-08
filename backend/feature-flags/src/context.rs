@@ -141,12 +141,31 @@ pub struct EvalContext {
 }
 
 impl EvalContext {
-    /// Build from the authenticated identity's audience + effective roles.
-    pub fn authenticated(app: &str, roles: &[String]) -> Self {
-        let staff = roles.iter().any(|r| r == "admin" || r == "moderator");
+    /// Build from a verified identity, for the app the flags are evaluated against.
+    ///
+    /// `staff` is **scope-matched** (change: harden-module-boundaries, task 3.13). It
+    /// used to read the flat role set, and `staff` short-circuits every rollout gate —
+    /// `StaffOnly`, `Beta(_)`, and `PremiumOnly` — so a moderator of another product
+    /// received this app's betas *and* its paid features. The `global` break-glass
+    /// still matches, as it does in every scope.
+    pub fn for_identity(app: &str, id: &cymbra_platform::AuthIdentity) -> Self {
         Self {
             app: app.to_string(),
-            staff,
+            // One definition of "staff", shared with the guards it mirrors.
+            staff: cymbra_platform::guard::is_staff_in_scope(id, app),
+            premium: false,
+            betas: BTreeSet::new(),
+        }
+    }
+
+    /// An explicitly staff context for an evaluation that is **not** derived from a
+    /// caller — resolving staff-facing defaults, for instance. Kept separate from
+    /// [`Self::for_identity`] so "evaluate as staff" cannot be spelled by inventing a
+    /// role list, which is how the two synthetic call sites used to do it.
+    pub fn staff(app: &str) -> Self {
+        Self {
+            app: app.to_string(),
+            staff: true,
             premium: false,
             betas: BTreeSet::new(),
         }
@@ -209,12 +228,44 @@ mod tests {
         assert!(!RolloutScope::StaffOnly.is_plan_scoped());
     }
 
+    /// An identity holding `roles` in `scope`, with the flat `roles` field derived as
+    /// the union — the shape a console token really has.
+    fn id_in(scope: &str, roles: &[&str]) -> cymbra_platform::AuthIdentity {
+        let held: Vec<String> = roles.iter().map(|r| (*r).to_string()).collect();
+        cymbra_platform::AuthIdentity {
+            user_id: "u".into(),
+            audience: cymbra_platform::BACKOFFICE_AUDIENCE.into(),
+            roles: held.clone(),
+            roles_by_scope: [(scope.to_string(), held)].into_iter().collect(),
+        }
+    }
+
     #[test]
-    fn staff_derived_from_roles() {
-        assert!(EvalContext::authenticated("music", &["admin".into()]).staff);
-        assert!(EvalContext::authenticated("music", &["moderator".into()]).staff);
-        assert!(!EvalContext::authenticated("music", &["user".into()]).staff);
+    fn staff_is_derived_per_scope() {
+        assert!(EvalContext::for_identity("music", &id_in("music", &["admin"])).staff);
+        assert!(EvalContext::for_identity("music", &id_in("music", &["moderator"])).staff);
+        assert!(!EvalContext::for_identity("music", &id_in("music", &["user"])).staff);
         assert!(!EvalContext::anonymous("music").staff);
+        // The break-glass is staff in every app.
+        assert!(EvalContext::for_identity("music", &id_in("global", &["admin"])).staff);
+        assert!(EvalContext::staff("music").staff);
+    }
+
+    /// `staff` short-circuits `StaffOnly`, `Beta(_)` AND `PremiumOnly`, so a moderator
+    /// of another product used to receive this app's betas and its paid features. The
+    /// flat set still says "moderator" — asserted, so this cannot pass for the wrong
+    /// reason (task 3.13).
+    #[test]
+    fn a_moderator_of_another_product_is_not_staff_here() {
+        let live_mod = id_in("live", &["user", "moderator"]);
+        assert!(live_mod.roles.iter().any(|r| r == "moderator"));
+        let ctx = EvalContext::for_identity("music", &live_mod);
+        assert!(!ctx.staff);
+        assert!(!ctx.rollout_reaches(&RolloutScope::StaffOnly));
+        assert!(!ctx.rollout_reaches(&RolloutScope::PremiumOnly));
+        assert!(!ctx.rollout_reaches(&RolloutScope::Beta("midi-drums".into())));
+        // ...and is staff where they actually hold the role.
+        assert!(EvalContext::for_identity("live", &live_mod).staff);
     }
 
     #[test]
@@ -227,7 +278,7 @@ mod tests {
 
     #[test]
     fn rollout_reaches_by_staffness() {
-        let staff = EvalContext::authenticated("music", &["admin".into()]);
+        let staff = EvalContext::staff("music");
         let user = EvalContext::anonymous("music");
         assert!(staff.rollout_reaches(&RolloutScope::Global));
         assert!(staff.rollout_reaches(&RolloutScope::StaffOnly));
@@ -240,13 +291,13 @@ mod tests {
     /// staff} — a premium payer outside the beta does NOT match.
     #[test]
     fn plan_scoped_rollouts_reach_matrix() {
-        let free = EvalContext::authenticated("music", &["user".into()]);
-        let premium = EvalContext::authenticated("music", &["user".into()]).with_plan(true, []);
-        let member_free = EvalContext::authenticated("music", &["user".into()])
-            .with_plan(false, ["midi-drums".to_string()]);
-        let member_premium = EvalContext::authenticated("music", &["user".into()])
-            .with_plan(true, ["midi-drums".to_string()]);
-        let staff = EvalContext::authenticated("music", &["moderator".into()]);
+        let free = EvalContext::anonymous("music");
+        let premium = EvalContext::anonymous("music").with_plan(true, []);
+        let member_free =
+            EvalContext::anonymous("music").with_plan(false, ["midi-drums".to_string()]);
+        let member_premium =
+            EvalContext::anonymous("music").with_plan(true, ["midi-drums".to_string()]);
+        let staff = EvalContext::for_identity("music", &id_in("music", &["moderator"]));
         let drums = RolloutScope::Beta("midi-drums".into());
         let other = RolloutScope::Beta("other".into());
 

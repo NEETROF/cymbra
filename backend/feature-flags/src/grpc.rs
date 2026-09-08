@@ -95,7 +95,10 @@ impl FlagServiceTrait for FlagGrpc {
                     .plan_context(&id.user_id)
                     .await
                     .map_err(|e| e.to_status())?;
-                EvalContext::authenticated(&id.audience, &id.roles).with_plan(premium, betas)
+                // Scope-matched (task 3.13): staff short-circuits StaffOnly, Beta and
+                // PremiumOnly, so reading the flat role set handed this app's betas and
+                // paid features to a moderator of another product.
+                EvalContext::for_identity(&id.audience, id).with_plan(premium, betas)
             }
             None => EvalContext::anonymous(&r.app),
         };

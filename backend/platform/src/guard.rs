@@ -47,13 +47,26 @@ pub fn require_admin_in_scope(id: &AuthIdentity, scope: &str) -> Result<()> {
 /// "moderator somewhere", and a `live/moderator` passed a music moderation gate
 /// (change: harden-module-boundaries, group 3).
 pub fn require_moderator_or_admin_in_scope(id: &AuthIdentity, scope: &str) -> Result<()> {
-    if id.has_role_in_scope(scope, "admin") || id.has_role_in_scope(scope, "moderator") {
+    if is_staff_in_scope(id, scope) {
         Ok(())
     } else {
         Err(AppError::PermissionDenied(format!(
             "requires `moderator` or `admin` in scope `{scope}`"
         )))
     }
+}
+
+/// Whether the caller is staff **in `scope`** — `moderator` or `admin` there, or the
+/// `global` break-glass. The same test [`require_moderator_or_admin_in_scope`] gates
+/// on, exposed as a predicate for the places that *widen* what a caller sees rather
+/// than refusing them: drum eligibility, leaderboard audience, flag rollout staffness.
+///
+/// One definition on purpose (change: harden-module-boundaries, task 3.13). It was
+/// written out by hand in three places — twice in `cymbra-music`, once in
+/// `EvalContext::authenticated` — all reading the FLAT role set, so none of them was
+/// found by searching for the guard helpers.
+pub fn is_staff_in_scope(id: &AuthIdentity, scope: &str) -> bool {
+    id.has_role_in_scope(scope, "admin") || id.has_role_in_scope(scope, "moderator")
 }
 
 #[cfg(test)]
