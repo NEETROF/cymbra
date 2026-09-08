@@ -72,12 +72,12 @@
 
 ## 7. Design record and documented decisions
 
-- [ ] 7.1 Delete `GrpcUserClient` (`backend/user-port/src/lib.rs` ~:352-377) and fix the doc-comment at ~:146-147 that presents it as an implementor.
-- [ ] 7.2 Fix `backend/auth-port/src/lib.rs` ~:1-5, which claims to carry a gRPC client adapter that does not exist.
-- [ ] 7.3 **After 7.1**, add `.build_client(false)` to the seven `build.rs`; `auth-port/build.rs` and `user-port/build.rs` use the `compile_protos` shorthand and need `configure()` first.
-- [ ] 7.4 Amend `openspec/changes/archive/2026-06-27-add-cymbra-id/design.md` (~:170-180): remove the 1:1 port↔gRPC-service rule, the "client adapter implementing the port trait", and the shared contract test.
-- [ ] 7.5 Name the worker among the permitted ops actors in `backend/db/init/roles.sql.tpl` (~:118-119), and state that module boundaries inside the worker are not database-enforced.
-- [ ] 7.6 Record the three-object boundary rule (internal boundary / internal transport / external contract) in `CLAUDE.md`, with the reference patterns `backend/plans/src/ports.rs` and `backend/feature-flags/src/context.rs`.
+- [x] 7.1 Delete `GrpcUserClient` (`backend/user-port/src/lib.rs` ~:352-377) and fix the doc-comment at ~:146-147 that presents it as an implementor.
+- [x] 7.2 Fix `backend/auth-port/src/lib.rs` ~:1-5, which claims to carry a gRPC client adapter that does not exist.
+- [x] 7.3 **After 7.1**, add `.build_client(false)` to the seven `build.rs`; `auth-port/build.rs` and `user-port/build.rs` use the `compile_protos` shorthand and need `configure()` first.
+- [x] 7.4 Amend `openspec/changes/archive/2026-06-27-add-cymbra-id/design.md` (~:170-180): remove the 1:1 port↔gRPC-service rule, the "client adapter implementing the port trait", and the shared contract test.
+- [x] 7.5 Name the worker among the permitted ops actors in `backend/db/init/roles.sql.tpl` (~:118-119), and state that module boundaries inside the worker are not database-enforced.
+- [x] 7.6 Record the three-object boundary rule (internal boundary / internal transport / external contract) in `CLAUDE.md`, with the reference patterns `backend/plans/src/ports.rs` and `backend/feature-flags/src/context.rs`.
 
 ## 8. One implementation of role resolution
 

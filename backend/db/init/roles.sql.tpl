@@ -115,8 +115,22 @@ REVOKE ALL ON SCHEMA public FROM :"auth_role", :"user_role", :"music_role", :"wo
 -- Ops role: read+write EVERY schema from a single connection (design OD1/OD2) --
 -- `pg_read_all_data` + `pg_write_all_data` cover all current AND future schemas
 -- as pure DML — no object ownership, no DDL — so the per-module ownership model
--- is intact. This deliberately crosses D0 for OPERATIONS ONLY (runners/admins/
--- psql); it MUST NEVER be wired into an application module.
+-- is intact. This deliberately crosses D0.
+--
+-- Two permitted actors, and the second is not "operations" (change:
+-- harden-module-boundaries, task 7.5 — the comment used to say "MUST NEVER be wired
+-- into an application module", which the worker has always contradicted):
+--
+--   1. Operators: runners, admins, psql.
+--   2. `cymbra-worker`, on a SECOND pool. Its queue pool is `worker_svc`; the job
+--      handlers reach every module's schema through this one. That is a decision,
+--      not drift: a job body legitimately spans modules (erasure touches user,
+--      music and plans in one transaction), and splitting it into per-module pools
+--      would only move the cross-schema write, not remove it.
+--
+-- Consequence, and it is accepted: INSIDE THE WORKER, NO DATABASE GRANT CONFINES A
+-- MODULE. The worker's own code is the boundary there. A server module must still
+-- never be given this role.
 SELECT format('CREATE ROLE %I LOGIN', :'admin_role')
 WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'admin_role')
 \gexec

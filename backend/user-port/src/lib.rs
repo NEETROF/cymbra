@@ -143,8 +143,12 @@ pub struct AccountPage {
 
 /// The user module's port: the contract `cymbra-auth` and the server adapter call.
 ///
-/// Implemented in-process by the direct adapter (`cymbra-user`) and — for the
-/// public account-management subset — over the wire by [`GrpcUserClient`].
+/// Implemented in-process by the direct adapter (`cymbra-user`). There is **no**
+/// wire implementation: the boundary between modules is this trait, and no internal
+/// transport is written before a module is actually split out (change:
+/// harden-module-boundaries, group 7). A `GrpcUserClient` used to be named here as
+/// the wire implementor — it never implemented the trait, carried one method, and
+/// had no caller.
 // `#[automock]` sits ABOVE `#[async_trait]` (gated on the `mock` feature) so the
 // music PlayService can double the play-activity visibility gate in unit tests.
 #[cfg_attr(feature = "mock", mockall::automock)]
@@ -348,30 +352,4 @@ pub trait UserPort: Send + Sync {
         user_ids: &[String],
         today: NaiveDate,
     ) -> Result<Vec<PlayerProfile>>;
-}
-
-/// gRPC **client** adapter for the public account-management surface — used to
-/// reach an *extracted* user service (design D0/D1). The in-process internal
-/// methods (resolve/provision, link/unlink, roles) stay on the direct adapter.
-pub struct GrpcUserClient {
-    inner: proto::user_service_client::UserServiceClient<tonic::transport::Channel>,
-}
-
-impl GrpcUserClient {
-    pub fn new(channel: tonic::transport::Channel) -> Self {
-        Self {
-            inner: proto::user_service_client::UserServiceClient::new(channel),
-        }
-    }
-
-    /// Read the caller's account (auth carried in request metadata).
-    // `tonic::Status` is large by design, like every gRPC adapter signature.
-    #[allow(clippy::result_large_err)]
-    pub async fn get_account(&mut self) -> std::result::Result<proto::Account, tonic::Status> {
-        Ok(self
-            .inner
-            .get_account(proto::GetAccountRequest {})
-            .await?
-            .into_inner())
-    }
 }

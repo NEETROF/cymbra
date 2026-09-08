@@ -189,6 +189,33 @@ Two things CI will not let you get away with:
   its body is one app. A trigger broader than its job produces runs that verify the
   wrong thing.
 
+## Three different objects, often confused
+
+A module has **one boundary**, **no internal transport**, and **one external contract**.
+They are not the same thing and are deliberately not the same shape.
+
+| | What it is | Where |
+|---|---|---|
+| **Internal boundary** | A Rust trait, declared by the CONSUMER | `plans/src/ports.rs` (`PlanSource`), `feature-flags/src/context.rs` (`PlanContextSource`) |
+| **Internal transport** | Nothing. Written when a module is actually split out, not before | — |
+| **External contract** | The `.proto`, for the apps / back office / site | `backend/*/proto/`, gated by `buf breaking` |
+
+The reference patterns are `backend/plans/src/ports.rs` and
+`backend/feature-flags/src/context.rs`: the trait is declared by the crate that
+*needs* the capability, not by the one that provides it, so the provider can change
+without the consumer's contract moving.
+
+**Why no internal transport.** A gRPC client adapter "kept warm in case we split" costs
+maintenance, invites a module to call another over the wire when a trait call would do,
+and — as the archived `add-cymbra-id` design shows — decays into documentation of
+something that was never built. `build_client(false)` is set in every `build.rs`, so the
+stubs are not even generated. A split writes the adapter then; the trait is what makes
+that a small job.
+
+**Do not** map a port 1:1 onto a gRPC service. The port answers the module next door;
+the `.proto` answers a phone that has not been updated in six months. Different
+audiences, different rates of change, different compatibility rules.
+
 ## The external contract — `.proto` is the only thing clients see
 
 The `.proto` files are what the Flutter app, the back office and the site call. A
