@@ -38,6 +38,49 @@ pub async fn purge_user(admin_pool: &PgPool, user_id: &str) -> anyhow::Result<()
 /// and leaves no trace at the aggregator. Store subscriptions themselves are the
 /// user's to cancel on the store. Both calls happen outside the erasure
 /// transaction: a provider failure retries the job, never half-erases. When the
+/// Delete the rows `delete_sql` selects for `uid` and enqueue one `job_name` per
+/// returned `object_key`, all on the caller's transaction.
+///
+/// `delete_sql` must bind the account id as `$1` and `RETURNING object_key`.
+async fn purge_objects_of(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    delete_sql: &str,
+    uid: uuid::Uuid,
+    job_name: &str,
+) -> anyhow::Result<()> {
+    let object_keys: Vec<String> = sqlx::query_scalar(delete_sql)
+        .bind(uid)
+        .fetch_all(&mut **tx)
+        .await?;
+    if object_keys.is_empty() {
+        return Ok(());
+    }
+    let spec = cymbra_jobs::registry::spec(job_name)
+        .ok_or_else(|| anyhow::anyhow!("{job_name} spec missing"))?;
+    for key in &object_keys {
+        let req = cymbra_jobs::EnqueueRequest::for_job(
+            &spec,
+            &serde_json::json!({ "object_key": key }),
+            None,
+        )?;
+        sqlx::query(
+            "SELECT jobs.enqueue($1, $2, $3, $4, $5, \
+             make_interval(secs => $6), make_interval(secs => $7), $8)",
+        )
+        .bind(&req.name)
+        .bind(&req.channel_name)
+        .bind(&req.channel_args)
+        .bind(req.ordered)
+        .bind(req.retries)
+        .bind(req.retry_backoff.as_secs() as i32)
+        .bind(req.delay.as_secs() as i32)
+        .bind(&req.payload_json)
+        .execute(&mut **tx)
+        .await?;
+    }
+    Ok(())
+}
+
 /// `plans` schema is not deployed (no `CYMBRA_PLANS_DATABASE_URL`), the plans step
 /// is skipped entirely.
 pub async fn purge_user_with(
@@ -124,78 +167,26 @@ pub async fn purge_user_with(
         .execute(&mut *tx)
         .await?;
 
-    // The user's contributed scores live in the `music` schema (no cross-schema
-    // FK, so no cascade): delete the rows and, in the SAME transaction, enqueue a
-    // `purge_score_object` job per stored object so its bytes are removed too. The
-    // transactional enqueue makes the row deletes and the cleanup jobs atomic;
-    // each object job is independently retryable if the store is transiently down.
-    let object_keys: Vec<String> = sqlx::query_scalar(
-        "DELETE FROM music.user_scores WHERE owner_id = $1 RETURNING object_key",
-    )
-    .bind(uid)
-    .fetch_all(&mut *tx)
-    .await?;
-    if !object_keys.is_empty() {
-        let spec = cymbra_jobs::registry::spec(cymbra_jobs::registry::PURGE_SCORE_OBJECT)
-            .ok_or_else(|| anyhow::anyhow!("purge_score_object spec missing"))?;
-        for key in &object_keys {
-            let req = cymbra_jobs::EnqueueRequest::for_job(
-                &spec,
-                &serde_json::json!({ "object_key": key }),
-                None,
-            )?;
-            sqlx::query(
-                "SELECT jobs.enqueue($1, $2, $3, $4, $5, \
-                 make_interval(secs => $6), make_interval(secs => $7), $8)",
-            )
-            .bind(&req.name)
-            .bind(&req.channel_name)
-            .bind(&req.channel_args)
-            .bind(req.ordered)
-            .bind(req.retries)
-            .bind(req.retry_backoff.as_secs() as i32)
-            .bind(req.delay.as_secs() as i32)
-            .bind(&req.payload_json)
-            .execute(&mut *tx)
-            .await?;
-        }
-    }
-
-    // The user's PRIVATE soundfont library (change: harden-module-boundaries, group
-    // 2). Same shape as the scores above, with one difference that matters: these
-    // objects live in the **private soundfont bucket**, not the score store, so they
-    // need their own job kind. Enqueuing `purge_score_object` here would delete the
-    // row, log success, and leave the `.sf2` behind.
-    let font_keys: Vec<String> = sqlx::query_scalar(
-        "DELETE FROM music.user_soundfonts WHERE user_id = $1 RETURNING object_key",
-    )
-    .bind(uid)
-    .fetch_all(&mut *tx)
-    .await?;
-    if !font_keys.is_empty() {
-        let spec = cymbra_jobs::registry::spec(cymbra_jobs::registry::PURGE_SOUNDFONT_OBJECT)
-            .ok_or_else(|| anyhow::anyhow!("purge_soundfont_object spec missing"))?;
-        for key in &font_keys {
-            let req = cymbra_jobs::EnqueueRequest::for_job(
-                &spec,
-                &serde_json::json!({ "object_key": key }),
-                None,
-            )?;
-            sqlx::query(
-                "SELECT jobs.enqueue($1, $2, $3, $4, $5, \
-                 make_interval(secs => $6), make_interval(secs => $7), $8)",
-            )
-            .bind(&req.name)
-            .bind(&req.channel_name)
-            .bind(&req.channel_args)
-            .bind(req.ordered)
-            .bind(req.retries)
-            .bind(req.retry_backoff.as_secs() as i32)
-            .bind(req.delay.as_secs() as i32)
-            .bind(&req.payload_json)
-            .execute(&mut *tx)
-            .await?;
-        }
+    // Stored-object tables: delete the account's rows and, in the SAME transaction,
+    // enqueue one cleanup job per object so its bytes go too. The transactional
+    // enqueue makes the deletes and the jobs atomic; each object job is independently
+    // retryable if its store is transiently down.
+    //
+    // The job kind is per-table on purpose, and it is the one thing that must not be
+    // shared: scores live in the score store, private soundfonts in a separate private
+    // bucket. Enqueuing the wrong kind removes the row, logs success, and leaves the
+    // bytes behind.
+    for (delete_sql, job_name) in [
+        (
+            "DELETE FROM music.user_scores WHERE owner_id = $1 RETURNING object_key",
+            cymbra_jobs::registry::PURGE_SCORE_OBJECT,
+        ),
+        (
+            "DELETE FROM music.user_soundfonts WHERE user_id = $1 RETURNING object_key",
+            cymbra_jobs::registry::PURGE_SOUNDFONT_OBJECT,
+        ),
+    ] {
+        purge_objects_of(&mut tx, delete_sql, uid, job_name).await?;
     }
 
     // The user's saved-catalog library (change: score-hub-search). These rows

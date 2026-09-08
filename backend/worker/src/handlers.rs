@@ -181,69 +181,61 @@ pub async fn purge_user(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxEr
     .await
 }
 
-/// Payload for the `purge_score_object` job (change: add-user-score-upload).
-#[derive(Deserialize)]
-struct PurgeScoreObjectJob {
+/// Payload shared by both object-cleanup jobs.
+#[derive(serde::Deserialize)]
+struct PurgeObjectJob {
     object_key: String,
 }
 
-/// Delete one stored score object by key. Enqueued during account erasure (and,
-/// later, on a failed single-score object delete). Idempotent: deleting a missing
-/// key is a no-op, so at-least-once re-delivery is safe. A no-op with a warning
-/// when the store is unconfigured (the feature is off).
+/// Delete one stored object, idempotently. `store` is `None` when that feature is
+/// unconfigured, and the job then completes as a no-op rather than failing forever.
+///
+/// The two jobs stay SEPARATE kinds even though they share this body: they target
+/// different buckets, and using one for the other's key removes the row, logs
+/// success, and leaves the bytes in place.
+async fn purge_one_object(
+    job: &mut CurrentJob,
+    store: Option<&Arc<dyn ObjectStorage>>,
+    kind: &'static str,
+) -> Result<(), BoxError> {
+    let p: PurgeObjectJob = job
+        .json()?
+        .ok_or_else(|| format!("{kind}: missing JSON payload"))?;
+    match store {
+        Some(store) => {
+            store.delete(&p.object_key).await?;
+            tracing::info!(object_key = %p.object_key, kind, "stored object purged");
+        }
+        None => tracing::warn!(
+            object_key = %p.object_key,
+            kind,
+            "object purge skipped: store not configured"
+        ),
+    }
+    job.complete().await?;
+    Ok(())
+}
+
+/// Remove one user-score object from the SCORE store.
 #[sqlxmq::job("purge_score_object")]
 pub async fn purge_score_object(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxError> {
     let span = tracing::info_span!("job.purge_score_object", job_id = %job.id());
-    async move {
-        let p: PurgeScoreObjectJob = job
-            .json()?
-            .ok_or("purge_score_object: missing JSON payload")?;
-        match &ctx.storage {
-            Some(store) => {
-                store.delete(&p.object_key).await?;
-                tracing::info!(object_key = %p.object_key, "score object purged");
-            }
-            None => tracing::warn!(
-                object_key = %p.object_key,
-                "purge_score_object skipped: object store not configured"
-            ),
-        }
-        job.complete().await?;
-        Ok(())
-    }
-    .instrument(span)
-    .await
+    async move { purge_one_object(&mut job, ctx.storage.as_ref(), "purge_score_object").await }
+        .instrument(span)
+        .await
 }
 
-/// Payload for the `purge_soundfont_object` job (change: harden-module-boundaries).
-#[derive(serde::Deserialize)]
-struct PurgeSoundfontObjectJob {
-    object_key: String,
-}
-
-/// Delete one private-library `.sf2` from the **soundfont** bucket. Enqueued per row
-/// by the account erasure. Idempotent: deleting an already-gone object succeeds.
+/// Remove one private-library `.sf2` from the SOUNDFONT store — a different bucket.
 #[sqlxmq::job("purge_soundfont_object")]
 pub async fn purge_soundfont_object(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxError> {
     let span = tracing::info_span!("job.purge_soundfont_object", job_id = %job.id());
     async move {
-        let p: PurgeSoundfontObjectJob = job
-            .json()?
-            .ok_or("purge_soundfont_object: missing JSON payload")?;
-        // `soundfont_store`, NOT `storage`: the private fonts live in their own
-        // bucket. Using the score store here would report success and delete nothing.
-        match &ctx.soundfont_store {
-            Some(store) => {
-                store.delete(&p.object_key).await?;
-                tracing::info!(object_key = %p.object_key, "private soundfont object purged");
-            }
-            None => tracing::warn!(
-                object_key = %p.object_key,
-                "purge_soundfont_object skipped: soundfont store not configured"
-            ),
-        }
-        job.complete().await?;
-        Ok(())
+        purge_one_object(
+            &mut job,
+            ctx.soundfont_store.as_ref(),
+            "purge_soundfont_object",
+        )
+        .await
     }
     .instrument(span)
     .await
