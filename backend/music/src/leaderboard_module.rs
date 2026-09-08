@@ -292,11 +292,12 @@ impl LeaderboardModule {
                 let public_stored: Vec<StoredBest> = public.iter().map(|b| (*b).clone()).collect();
                 let rank = leaderboard_core::own_rank(&public_stored, own_best);
                 // The owner always sees their own profile (whatever the visibility).
-                let me = self
-                    .user
-                    .get_player_profile(viewer_id, viewer_id, today)
-                    .await
-                    .ok();
+                let me = crate::seam::optional(
+                    "own leaderboard profile",
+                    self.user
+                        .get_player_profile(viewer_id, viewer_id, today)
+                        .await,
+                );
                 Some(BoardEntry {
                     rank,
                     user_id: viewer_id.to_string(),

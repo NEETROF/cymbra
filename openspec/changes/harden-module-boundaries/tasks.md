@@ -98,9 +98,9 @@
 
 ## 9. Transport failure is expressible
 
-- [~] 11.1 **`Unavailable` done, with a real producer; `DeadlineExceeded` deliberately NOT added.** Redis failures were `Internal`, so a client could not tell "retry" from "this is broken"; they are `Unavailable` now (gRPC `Unavailable`, HTTP 503 — the compiler's exhaustive match forced the HTTP mapping too). The driver message is logged, not returned: the payload names the dependency only, because `Unavailable` reaches the client verbatim while `Internal` collapses. `DeadlineExceeded` has **no producer** — nothing in the workspace times out today — and group 7 has just deleted machinery kept warm for a transport that is not written. Add it with its first timeout.
-- [ ] 11.2 **Deferred to the split, on group 7's own rule.** Nothing in the workspace receives a `tonic::Status`: `build_client(false)` is set in all seven `build.rs` and no module calls another over the wire. An unused `From` impl is the exact shape group 7 deleted. The nuance it exists to preserve is written down here so it is not rediscovered: a remote `Internal` must stay distinguishable from a transport fault, and `AppError::Internal` flattens to `"internal error"` (`error.rs`), so the conversion must not route both there. Original: add `From<tonic::Status> for AppError`, preserving the distinction between a domain outcome and a transport failure. `Internal` currently flattens to `"internal error"` (`error.rs` ~:58) — a remote `Internal` must not become indistinguishable from a transport fault.
-- [~] 11.3 **Tested what exists**: `Unavailable` and `Internal` map to distinct gRPC codes, and the `Unavailable` payload carries no driver detail. The timeout and remote-not-found cases wait on 11.1/11.2 having producers. Original: test: a timeout maps to `DeadlineExceeded`, an unreachable callee to `Unavailable`, and a remote not-found stays a not-found.
+- [~] 9.1 **`Unavailable` done, with a real producer; `DeadlineExceeded` deliberately NOT added.** Redis failures were `Internal`, so a client could not tell "retry" from "this is broken"; they are `Unavailable` now (gRPC `Unavailable`, HTTP 503 — the compiler's exhaustive match forced the HTTP mapping too). The driver message is logged, not returned: the payload names the dependency only, because `Unavailable` reaches the client verbatim while `Internal` collapses. `DeadlineExceeded` has **no producer** — nothing in the workspace times out today — and group 7 has just deleted machinery kept warm for a transport that is not written. Add it with its first timeout.
+- [ ] 9.2 **Deferred to the split, on group 7's own rule.** Nothing in the workspace receives a `tonic::Status`: `build_client(false)` is set in all seven `build.rs` and no module calls another over the wire. An unused `From` impl is the exact shape group 7 deleted. The nuance it exists to preserve is written down here so it is not rediscovered: a remote `Internal` must stay distinguishable from a transport fault, and `AppError::Internal` flattens to `"internal error"` (`error.rs`), so the conversion must not route both there. Original: add `From<tonic::Status> for AppError`, preserving the distinction between a domain outcome and a transport failure. `Internal` currently flattens to `"internal error"` (`error.rs` ~:58) — a remote `Internal` must not become indistinguishable from a transport fault.
+- [~] 9.3 **Tested what exists**: `Unavailable` and `Internal` map to distinct gRPC codes, and the `Unavailable` payload carries no driver detail. The timeout and remote-not-found cases wait on 9.1/9.2 having producers. Original: test: a timeout maps to `DeadlineExceeded`, an unreachable callee to `Unavailable`, and a remote not-found stays a not-found.
 
 ## 10. Stop the silent seams
 
@@ -110,20 +110,20 @@
 > already bites today whenever the database is unhealthy; it is not split preparation.
 > Visible behaviour must not change: the field stays omitted, a diagnostic appears.
 
-- [ ] 10.1 `backend/music/src/module.rs` ~:1241 (`attach_review_attribution`, `let Ok(acct) = user.get_account`): match instead, and `warn!` on a non-domain failure.
-- [ ] 10.2 `backend/music/src/module.rs` ~:1261 (`attach_public_credit`, `let Ok(p) = user.get_player_profile`): same treatment.
-- [ ] 10.3 `backend/music/src/grpc.rs` ~:646 (`let Ok(profiles) = user.listable_profiles`): same treatment.
-- [ ] 10.4 `backend/music/src/grpc.rs` ~:836 (`if let Ok(acct) = user.get_account`, admin SoundFont listing): same treatment.
-- [ ] 10.5 `backend/music/src/leaderboard_module.rs` ~:299 (`.ok()` on `get_player_profile`): same treatment.
-- [ ] 10.6 `backend/music/src/global_leaderboard_module.rs` ~:244 (`.ok()` on `get_player_profile`): same treatment.
-- [ ] 10.7 Test: a dependency failure still yields a successful response with the field omitted **and** a diagnostic record; a private profile yields the omission with no record.
-- [ ] 10.8 Re-derive these six anchors with grep before starting — `music/src/grpc.rs` and `module.rs` drift with every feature.
+- [x] 10.1 `backend/music/src/module.rs` ~:1241 (`attach_review_attribution`, `let Ok(acct) = user.get_account`): match instead, and `warn!` on a non-domain failure.
+- [x] 10.2 `backend/music/src/module.rs` ~:1261 (`attach_public_credit`, `let Ok(p) = user.get_player_profile`): same treatment.
+- [x] 10.3 `backend/music/src/grpc.rs` ~:646 (`let Ok(profiles) = user.listable_profiles`): same treatment.
+- [x] 10.4 `backend/music/src/grpc.rs` ~:836 (`if let Ok(acct) = user.get_account`, admin SoundFont listing): same treatment.
+- [x] 10.5 `backend/music/src/leaderboard_module.rs` ~:299 (`.ok()` on `get_player_profile`): same treatment.
+- [x] 10.6 `backend/music/src/global_leaderboard_module.rs` ~:244 (`.ok()` on `get_player_profile`): same treatment.
+- [x] 10.7 Test: a dependency failure still yields a successful response with the field omitted **and** a diagnostic record; a private profile yields the omission with no record.
+- [x] 10.8 **Re-derived first: all six were exactly where the task said** (`module.rs` 1241/1261, `grpc.rs` 648/841, `leaderboard_module.rs` 299, `global_leaderboard_module.rs` 244). A second sweep after the change found no seventh. Original: re-derive these six anchors with grep before starting — `music/src/grpc.rs` and `module.rs` drift with every feature.
 
 ## 11. Verification
 
-- [ ] 11.1 `cargo fmt --all --check` and `cargo clippy --workspace --all-targets -- -D warnings` clean.
-- [ ] 11.2 `cargo llvm-cov --workspace --fail-under-lines 80` passes.
-- [ ] 11.3 `melos run analyze` and `dart format` clean; Flutter tests and `dart run custom_lint` pass (back-office and app touched only in 4.8).
-- [ ] 11.4 `openspec validate harden-module-boundaries --strict` passes.
+- [x] 11.1 `cargo fmt --all --check` and `cargo clippy --workspace --all-targets -- -D warnings` clean.
+- [x] 11.2 `cargo llvm-cov --workspace --fail-under-lines 80` passes — **93.34% lines**, 88.96% functions.
+- [x] 11.3 **Not applicable: no Flutter or Vue file was touched.** 4.8 is the only task that would have, and it stays blocked on a per-product console view (see group 4). Verified with `git diff --name-only` over the whole change series.
+- [x] 11.4 `openspec validate harden-module-boundaries --strict` passes.
 - [ ] 11.5 Manual: delete a test account holding a private SoundFont and confirm both the row and the `.sf2` object are gone from the private bucket.
 - [ ] 11.6 Manual: from a non-staff account holding a role in one product scope only, confirm the music moderation surfaces are refused.

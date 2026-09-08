@@ -1238,7 +1238,8 @@ impl ScoreModule {
         };
         for h in hits.iter_mut() {
             if let Some(pid) = h.proposed_by.clone()
-                && let Ok(acct) = user.get_account(&pid).await
+                && let Some(acct) =
+                    crate::seam::optional("proposer account", user.get_account(&pid).await)
             {
                 h.proposer_display_name = acct.handle.or(acct.display_name);
             }
@@ -1258,7 +1259,10 @@ impl ScoreModule {
             h.contributor_credit = None;
             if h.moderation_status.as_deref() == Some("accepted")
                 && let (Some(user), Some(pid)) = (self.user.clone(), proposed_by)
-                && let Ok(p) = user.get_player_profile("public", &pid, today).await
+                && let Some(p) = crate::seam::optional(
+                    "public contributor credit",
+                    user.get_player_profile("public", &pid, today).await,
+                )
             {
                 h.contributor_credit = p.handle.or(p.display_name);
             }

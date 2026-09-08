@@ -237,11 +237,12 @@ impl GlobalLeaderboardModule {
                 let public_owned: Vec<GlobalScore> = public.iter().map(|s| (*s).clone()).collect();
                 let rank = global_leaderboard_core::own_rank(&public_owned, mine);
                 // The owner always sees their own profile (whatever the visibility).
-                let me = self
-                    .user
-                    .get_player_profile(viewer_id, viewer_id, today)
-                    .await
-                    .ok();
+                let me = crate::seam::optional(
+                    "own global-leaderboard profile",
+                    self.user
+                        .get_player_profile(viewer_id, viewer_id, today)
+                        .await,
+                );
                 Some(entry(rank, mine, me.as_ref()))
             }
             None => None,

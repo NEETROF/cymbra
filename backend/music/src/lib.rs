@@ -62,6 +62,7 @@ pub mod score_preview;
 pub mod score_preview_http;
 pub mod score_preview_module;
 pub mod score_rating;
+pub mod seam;
 pub mod soundfont;
 pub mod soundfont_access;
 pub mod soundfont_http;
