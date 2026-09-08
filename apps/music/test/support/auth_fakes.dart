@@ -209,6 +209,19 @@ class FakeAccountService implements AccountService {
   /// Identities returned by [listIdentities]; mutate to model link/unlink refetch.
   List<LinkedIdentity> identities;
 
+  /// Errors thrown by successive [getAccount] calls, consumed in order — lets a
+  /// test model "fails transiently, then succeeds", which is what the degraded-
+  /// session retry loop is about (change: fix-session-account-retry). Same idiom
+  /// as [FakeAuthService.linkErrors]. A null entry, or running past the end,
+  /// falls through to the sticky [getError] and then to a normal success.
+  final List<AuthException?> getErrors = [];
+
+  int _getCount = 0;
+
+  /// How many times [getAccount] has been called — the retry-loop assertions
+  /// count attempts rather than scanning [calls].
+  int get getAccountCalls => _getCount;
+
   final List<String> calls = [];
 
   FakeAccountService({
@@ -225,6 +238,9 @@ class FakeAccountService implements AccountService {
   @override
   Future<Account> getAccount() async {
     calls.add('getAccount');
+    final scripted = _getCount < getErrors.length ? getErrors[_getCount] : null;
+    _getCount++;
+    if (scripted != null) throw scripted;
     if (getError != null) throw getError!;
     return account ?? (throw const AuthException(AuthError.notFound));
   }

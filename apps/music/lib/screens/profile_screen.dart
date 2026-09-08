@@ -49,15 +49,59 @@ class ProfileScreen extends ConsumerWidget {
     final selfId = ref.watch(currentUserIdProvider);
     final targetId = userId ?? selfId;
     final isSelf = targetId != null && targetId == selfId;
+    // A self-view with no id is NOT a missing profile: the session is live and
+    // only the local account resolution failed (change: fix-session-account-
+    // retry). Saying "this profile isn't available" there is a false statement
+    // about the account, and sends the user hunting for a problem that does not
+    // exist. Another player's unavailable profile keeps that message.
+    final unresolvedSelf =
+        userId == null && ref.watch(sessionNotifierProvider).accountUnresolved;
+
+    final Widget body;
+    if (targetId != null) {
+      body = _ProfileBody(targetId: targetId, isSelf: isSelf);
+    } else if (unresolvedSelf) {
+      body = const _UnresolvedIdentity();
+    } else {
+      body = Center(child: Text(l10n.profileUnavailable));
+    }
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.profileTitle)),
       // Respect the display cutouts (notch/camera, esp. the side inset in
       // landscape and the home indicator), like the other screens.
-      body: SafeArea(
-        child: targetId == null
-            ? Center(child: Text(l10n.profileUnavailable))
-            : _ProfileBody(targetId: targetId, isSelf: isSelf),
+      body: SafeArea(child: body),
+    );
+  }
+}
+
+/// Own-profile fallback while the account has not resolved yet (change:
+/// fix-session-account-retry). Presents the state as temporary and offers
+/// recovery. The retry is *fired, never awaited*: the screen watches
+/// [currentUserIdProvider] and rebuilds straight into the profile body once the
+/// account lands, so there is no outcome to branch on here.
+class _UnresolvedIdentity extends ConsumerWidget {
+  const _UnresolvedIdentity();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(l10n.profileIdentityUnresolved, textAlign: TextAlign.center),
+            const SizedBox(height: 16),
+            FilledButton(
+              key: const Key('profile-identity-retry'),
+              onPressed: () =>
+                  ref.read(sessionNotifierProvider.notifier).refreshAccount(),
+              child: Text(l10n.retry),
+            ),
+          ],
+        ),
       ),
     );
   }

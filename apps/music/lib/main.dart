@@ -34,6 +34,7 @@ import 'state/language_sync_listener.dart';
 import 'state/push_registration_listener.dart';
 import 'state/score_preview_playback.dart';
 import 'state/selected_piano.dart';
+import 'state/session_notifier.dart';
 import 'state/drums_access.dart';
 import 'state/plan_notifier.dart';
 import 'state/usage_tracking_notifier.dart';
@@ -109,19 +110,22 @@ Future<void> main() async {
 
   // Silence the synth when the OS backgrounds/hides the app, so a held voice
   // (note pressed, no note-off yet) doesn't keep ringing while paused; refresh
-  // the feature flags when the app returns to the foreground.
-  WidgetsBinding.instance.addObserver(_AudioLifecycleObserver(container));
+  // the feature flags and re-resolve a degraded session when the app returns to
+  // the foreground.
+  WidgetsBinding.instance.addObserver(_AppLifecycleObserver(container));
 
   runApp(
     UncontrolledProviderScope(container: container, child: const CymbraApp()),
   );
 }
 
-/// Cuts all audio when the app leaves the foreground. `paused`/`hidden` cover
-/// mobile backgrounding (and desktop minimise); `inactive` is intentionally not
-/// silenced so a brief focus change on desktop doesn't chop a sounding note.
-class _AudioLifecycleObserver with WidgetsBindingObserver {
-  _AudioLifecycleObserver(this._container);
+/// The app's single lifecycle fan-out: cuts all audio, suspends the session
+/// retry loop, and refreshes the foreground-sensitive state. `paused`/`hidden`
+/// cover mobile backgrounding (and desktop minimise); `inactive` is
+/// intentionally not acted on so a brief focus change on desktop doesn't chop a
+/// sounding note.
+class _AppLifecycleObserver with WidgetsBindingObserver {
+  _AppLifecycleObserver(this._container);
 
   final ProviderContainer _container;
 
@@ -132,6 +136,10 @@ class _AudioLifecycleObserver with WidgetsBindingObserver {
         state == AppLifecycleState.detached) {
       _container.read(audioServiceProvider).allNotesOff();
       unawaited(_container.read(scorePreviewPlaybackProvider.notifier).stop());
+      // Stop retrying a degraded session out of sight (change: fix-session-
+      // account-retry). A backgrounded desktop app keeps running, so without
+      // this the backoff loop would burn battery and RPCs unseen.
+      _container.read(sessionNotifierProvider.notifier).onBackground();
     } else if (state == AppLifecycleState.resumed) {
       // Re-fetch effective flags on foreground (cheap when unchanged via the
       // version/ETag) so a kill-switch flip is picked up without a restart.
@@ -139,6 +147,11 @@ class _AudioLifecycleObserver with WidgetsBindingObserver {
       // The daily free-open quota may have rolled over while backgrounded
       // (change: add-score-daily-access-rewards).
       unawaited(_container.read(catalogDailyAccessProvider.notifier).refresh());
+      // Connectivity most plausibly changed while we were away: if the session
+      // is still degraded, re-resolve it now rather than waiting out a backoff.
+      unawaited(
+        _container.read(sessionNotifierProvider.notifier).onForeground(),
+      );
     }
   }
 }

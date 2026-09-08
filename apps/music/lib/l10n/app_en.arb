@@ -1729,6 +1729,10 @@
   "@profileUnavailable": {
     "description": "Profile / visibility UI (change: add-play-activity-profile)."
   },
+  "profileIdentityUnresolved": "We couldn't load your account details yet. Check your connection and try again.",
+  "@profileIdentityUnresolved": {
+    "description": "Profile: shown on your OWN profile when the app is signed in but has not resolved the account yet (transient GetAccount failure). Distinct from profileUnavailable, which means the profile itself cannot be shown (change: fix-session-account-retry)."
+  },
   "profilePublicHint": "Your profile is visible to other signed-in players.",
   "@profilePublicHint": {
     "description": "Profile: hint shown when the profile is public."
