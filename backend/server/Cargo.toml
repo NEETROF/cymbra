@@ -14,31 +14,6 @@ path = "src/lib.rs"
 name = "cymbra-server"
 path = "src/main.rs"
 
-# One-off maintenance: recompute catalog titles from stored score bytes.
-[[bin]]
-name = "backfill-titles"
-path = "src/bin/backfill_titles.rs"
-
-# One-off maintenance: enqueue audio-teaser renders for accepted pieces without one.
-[[bin]]
-name = "backfill-score-previews"
-path = "src/bin/backfill_score_previews.rs"
-
-[[bin]]
-name = "backfill-instruments"
-path = "src/bin/backfill_instruments.rs"
-
-# One-off maintenance: quarantine corpus objects no catalog row references.
-[[bin]]
-name = "reconcile-corpus"
-path = "src/bin/reconcile_corpus.rs"
-
-# One-off ops verification: report soundfont rows whose recorded family their
-# preset banks cannot support (read-only; change: add-drum-audio-channel).
-[[bin]]
-name = "verify-soundfont-families"
-path = "src/bin/verify_soundfont_families.rs"
-
 [dependencies]
 cymbra-platform = { path = "../platform" }
 cymbra-auth = { path = "../auth" }

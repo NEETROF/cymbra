@@ -31,9 +31,9 @@
 //!     cargo run -p cymbra-server --bin backfill-instruments -- --apply
 
 use anyhow::{Context, Result};
+use cymbra_music::object_stores::score_object_store;
 use cymbra_music::{PgInstrumentBackfillRepo, ScoreTable, run_instrument_backfill};
 use cymbra_platform::config::Config;
-use cymbra_server::maintenance::score_object_store;
 
 /// Parsed command-line options.
 struct Opts {

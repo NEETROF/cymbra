@@ -28,6 +28,11 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use crate::{
+    Access, FamilyRefusal, FontEntry, SoundFontRepo, UserFontEntry, UserSoundFontRepo,
+    detect_family, entitlement, normalize_family, preview_object_key, render_preview_wav,
+    sha256_hex, verify_declared_family,
+};
 use axum::body::{Body, Bytes};
 use axum::extract::{DefaultBodyLimit, Path, Query, State};
 use axum::http::{HeaderMap, StatusCode, header};
@@ -35,11 +40,6 @@ use axum::http::{HeaderValue, Method};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use cymbra_music::{
-    Access, FamilyRefusal, FontEntry, SoundFontRepo, UserFontEntry, UserSoundFontRepo,
-    detect_family, entitlement, normalize_family, preview_object_key, render_preview_wav,
-    sha256_hex, verify_declared_family,
-};
 use cymbra_platform::{AuthIdentity, guard, token};
 use cymbra_storage::{ObjectStorage, StorageError};
 use jsonwebtoken::DecodingKey;
@@ -205,7 +205,7 @@ pub struct SoundfontState {
     /// configured, or the kill-switch off) ⇒ every caller is `free`.
     pub plans: Option<Arc<dyn cymbra_plans::PlanSource>>,
     /// Per-plan private-library quota; `None` ⇒ the fixed defaults.
-    pub library_quota: Option<Arc<dyn cymbra_music::LibraryQuotaSource>>,
+    pub library_quota: Option<Arc<dyn crate::LibraryQuotaSource>>,
 }
 
 impl SoundfontState {
@@ -225,11 +225,11 @@ impl SoundfontState {
     }
 
     fn library_max(&self, extended: bool) -> i64 {
-        use cymbra_music::LibraryQuotaSource as _;
+        use crate::LibraryQuotaSource as _;
         self.library_quota
             .as_ref()
             .map(|q| q.max_fonts(extended))
-            .unwrap_or_else(|| cymbra_music::FixedLibraryQuota::default().max_fonts(extended))
+            .unwrap_or_else(|| crate::FixedLibraryQuota::default().max_fonts(extended))
     }
 }
 
@@ -1241,9 +1241,7 @@ mod tests {
     async fn app(store: Option<Arc<dyn ObjectStorage>>, user: Option<&'static str>) -> Router {
         app_with_repo(
             store,
-            Some(Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![
-                upright(),
-            ]))),
+            Some(Arc::new(crate::FakeSoundFontRepo::with(vec![upright()]))),
             user,
         )
     }
@@ -1475,12 +1473,11 @@ mod tests {
     #[tokio::test]
     async fn locked_costed_font_is_refused_as_not_found() {
         // A costed font, caller has no grant, isn't the uploader, isn't a moderator.
-        let repo: Arc<dyn SoundFontRepo> =
-            Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![costed(
-                "grand",
-                "grand.sf2",
-                Some("someone-else"),
-            )]));
+        let repo: Arc<dyn SoundFontRepo> = Arc::new(crate::FakeSoundFontRepo::with(vec![costed(
+            "grand",
+            "grand.sf2",
+            Some("someone-else"),
+        )]));
         let r = plain_app(
             costed_store("grand.sf2").await,
             repo,
@@ -1496,7 +1493,7 @@ mod tests {
     #[tokio::test]
     async fn owned_costed_font_is_served() {
         // A redemption grant for (u, grand) unlocks the bytes.
-        let concrete = cymbra_music::FakeSoundFontRepo::with(vec![costed(
+        let concrete = crate::FakeSoundFontRepo::with(vec![costed(
             "grand",
             "grand.sf2",
             Some("someone-else"),
@@ -1516,12 +1513,11 @@ mod tests {
 
     #[tokio::test]
     async fn own_import_of_costed_font_is_served_to_owner() {
-        let repo: Arc<dyn SoundFontRepo> =
-            Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![costed(
-                "grand",
-                "grand.sf2",
-                Some("u"),
-            )]));
+        let repo: Arc<dyn SoundFontRepo> = Arc::new(crate::FakeSoundFontRepo::with(vec![costed(
+            "grand",
+            "grand.sf2",
+            Some("u"),
+        )]));
         let r = plain_app(
             costed_store("grand.sf2").await,
             repo,
@@ -1533,12 +1529,11 @@ mod tests {
 
     #[tokio::test]
     async fn music_moderator_admin_is_exempt_from_entitlement() {
-        let repo: Arc<dyn SoundFontRepo> =
-            Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![costed(
-                "grand",
-                "grand.sf2",
-                Some("someone-else"),
-            )]));
+        let repo: Arc<dyn SoundFontRepo> = Arc::new(crate::FakeSoundFontRepo::with(vec![costed(
+            "grand",
+            "grand.sf2",
+            Some("someone-else"),
+        )]));
         let r = plain_app(
             costed_store("grand.sf2").await,
             repo,
@@ -1559,12 +1554,11 @@ mod tests {
             .put("grand.preview.wav", b"RIFF....WAVE".to_vec())
             .await
             .unwrap();
-        let repo: Arc<dyn SoundFontRepo> =
-            Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![costed(
-                "grand",
-                "grand.sf2",
-                Some("someone-else"),
-            )]));
+        let repo: Arc<dyn SoundFontRepo> = Arc::new(crate::FakeSoundFontRepo::with(vec![costed(
+            "grand",
+            "grand.sf2",
+            Some("someone-else"),
+        )]));
         let r = plain_app(Arc::new(store), repo, Some(ident("u", &["user"])));
         // The full font download is refused…
         let dl = r.clone().oneshot(get("/soundfonts/grand")).await.unwrap();
@@ -1583,12 +1577,11 @@ mod tests {
     #[tokio::test]
     async fn preview_absent_is_404() {
         // Font visible, but no preview object stored yet → not-found (app greys the play).
-        let repo: Arc<dyn SoundFontRepo> =
-            Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![entry(
-                "upright-piano-kw",
-                "UprightPianoKW-20220221.sf2",
-                "CC0-1.0",
-            )]));
+        let repo: Arc<dyn SoundFontRepo> = Arc::new(crate::FakeSoundFontRepo::with(vec![entry(
+            "upright-piano-kw",
+            "UprightPianoKW-20220221.sf2",
+            "CC0-1.0",
+        )]));
         let r = plain_app(
             Arc::new(FakeStore::default()),
             repo,
@@ -1610,7 +1603,7 @@ mod tests {
             .await
             .unwrap();
         let repo: Arc<dyn SoundFontRepo> =
-            Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![entry_status(
+            Arc::new(crate::FakeSoundFontRepo::with(vec![entry_status(
                 "pend", "pend.sf2", "CC0-1.0", "pending",
             )]));
         let r = plain_app(Arc::new(store), repo, Some(ident("u", &["user"])));
@@ -1620,12 +1613,11 @@ mod tests {
 
     #[tokio::test]
     async fn regenerate_preview_requires_admin() {
-        let repo: Arc<dyn SoundFontRepo> =
-            Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![entry(
-                "grand",
-                "grand.sf2",
-                "CC0-1.0",
-            )]));
+        let repo: Arc<dyn SoundFontRepo> = Arc::new(crate::FakeSoundFontRepo::with(vec![entry(
+            "grand",
+            "grand.sf2",
+            "CC0-1.0",
+        )]));
         // A plain user is refused.
         let r = plain_app(
             costed_store("grand.sf2").await,
@@ -1648,7 +1640,7 @@ mod tests {
 
     #[tokio::test]
     async fn regenerate_preview_unknown_font_is_404() {
-        let repo: Arc<dyn SoundFontRepo> = Arc::new(cymbra_music::FakeSoundFontRepo::default());
+        let repo: Arc<dyn SoundFontRepo> = Arc::new(crate::FakeSoundFontRepo::default());
         let r = plain_app(
             Arc::new(FakeStore::default()),
             repo,
@@ -1666,12 +1658,11 @@ mod tests {
         // Admin regenerates a font whose stored bytes aren't a real SoundFont → the
         // render fails and the endpoint reports failure (the pure route glue around the
         // excluded synth is exercised).
-        let repo: Arc<dyn SoundFontRepo> =
-            Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![entry(
-                "grand",
-                "grand.sf2",
-                "CC0-1.0",
-            )]));
+        let repo: Arc<dyn SoundFontRepo> = Arc::new(crate::FakeSoundFontRepo::with(vec![entry(
+            "grand",
+            "grand.sf2",
+            "CC0-1.0",
+        )]));
         let r = plain_app(
             costed_store("grand.sf2").await,
             repo,
@@ -1690,7 +1681,7 @@ mod tests {
         // SoundFont, so the preview render fails — the upload still succeeds and no
         // preview object is stored (recoverable via regenerate).
         let store = Arc::new(FakeStore::default());
-        let repo = Arc::new(cymbra_music::FakeSoundFontRepo::default());
+        let repo = Arc::new(crate::FakeSoundFontRepo::default());
         let r = soundfont_router(
             SoundfontState {
                 store: Some(store.clone()),
@@ -1744,7 +1735,7 @@ mod tests {
         soundfont_router(
             SoundfontState {
                 store: Some(store),
-                repo: Some(Arc::new(cymbra_music::FakeSoundFontRepo::default())),
+                repo: Some(Arc::new(crate::FakeSoundFontRepo::default())),
                 user_repo: None,
                 auth: Arc::new(FixedAdminAuth(identity)),
                 plans: None,
@@ -1758,12 +1749,12 @@ mod tests {
     /// the preamble guard and the `keyboard` family verification (change:
     /// add-drum-audio-channel).
     fn sf2_bytes() -> Vec<u8> {
-        cymbra_music::fake_sf2_with_banks(&[0])
+        crate::fake_sf2_with_banks(&[0])
     }
 
     /// A kit-only `.sf2` (every preset in bank 128) — the `percussion` family.
     fn kit_sf2_bytes() -> Vec<u8> {
-        cymbra_music::fake_sf2_with_banks(&[128])
+        crate::fake_sf2_with_banks(&[128])
     }
 
     /// A bare `RIFF … sfbk` preamble: valid enough for the upload guard, but its
@@ -1842,7 +1833,7 @@ mod tests {
     #[tokio::test]
     async fn upload_admin_stores_object_and_row() {
         let store = Arc::new(FakeStore::default());
-        let repo = Arc::new(cymbra_music::FakeSoundFontRepo::default());
+        let repo = Arc::new(crate::FakeSoundFontRepo::default());
         let r = soundfont_router(
             SoundfontState {
                 store: Some(store.clone()),
@@ -1874,7 +1865,7 @@ mod tests {
     #[tokio::test]
     async fn upload_by_moderator_is_pending() {
         let store = Arc::new(FakeStore::default());
-        let repo = Arc::new(cymbra_music::FakeSoundFontRepo::default());
+        let repo = Arc::new(crate::FakeSoundFontRepo::default());
         let r = soundfont_router(
             SoundfontState {
                 store: Some(store),
@@ -1917,8 +1908,7 @@ mod tests {
             review_reason: None,
             resubmission_note: None,
         };
-        let repo: Arc<dyn SoundFontRepo> =
-            Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![existing]));
+        let repo: Arc<dyn SoundFontRepo> = Arc::new(crate::FakeSoundFontRepo::with(vec![existing]));
         let r = soundfont_router(
             SoundfontState {
                 store: Some(store),
@@ -1938,7 +1928,7 @@ mod tests {
     async fn upload_duplicate_id_is_409() {
         let store = Arc::new(FakeStore::default());
         let repo: Arc<dyn SoundFontRepo> =
-            Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![FontEntry {
+            Arc::new(crate::FakeSoundFontRepo::with(vec![FontEntry {
                 id: "ydp-grand".into(),
                 label: "existing".into(),
                 object_key: "ydp-grand.sf2".into(),
@@ -1988,7 +1978,7 @@ mod tests {
     #[tokio::test]
     async fn upload_family_mismatch_is_refused_and_stores_nothing() {
         let store = Arc::new(FakeStore::default());
-        let repo = Arc::new(cymbra_music::FakeSoundFontRepo::default());
+        let repo = Arc::new(crate::FakeSoundFontRepo::default());
         let r = soundfont_router(
             SoundfontState {
                 store: Some(store.clone()),
@@ -2024,7 +2014,7 @@ mod tests {
     #[tokio::test]
     async fn upload_records_the_verified_family_and_bridges_piano() {
         let store = Arc::new(FakeStore::default());
-        let repo = Arc::new(cymbra_music::FakeSoundFontRepo::default());
+        let repo = Arc::new(crate::FakeSoundFontRepo::default());
         let r = soundfont_router(
             SoundfontState {
                 store: Some(store),
@@ -2065,7 +2055,7 @@ mod tests {
     #[tokio::test]
     async fn upload_of_unreadable_banks_is_refused_as_unverifiable() {
         let store = Arc::new(FakeStore::default());
-        let repo = Arc::new(cymbra_music::FakeSoundFontRepo::default());
+        let repo = Arc::new(crate::FakeSoundFontRepo::default());
         let r = soundfont_router(
             SoundfontState {
                 store: Some(store),
@@ -2093,7 +2083,7 @@ mod tests {
 
     // --- Private per-user library ----------------------------------------
 
-    use cymbra_music::{FakeUserSoundFontRepo, UserFontEntry, UserSoundFontRepo};
+    use crate::{FakeUserSoundFontRepo, UserFontEntry, UserSoundFontRepo};
 
     /// A router wired with a private-library repo + store and a fixed identity.
     fn private_app(
@@ -2104,7 +2094,7 @@ mod tests {
         soundfont_router(
             SoundfontState {
                 store: Some(store),
-                repo: Some(Arc::new(cymbra_music::FakeSoundFontRepo::default())),
+                repo: Some(Arc::new(crate::FakeSoundFontRepo::default())),
                 user_repo: Some(user_repo),
                 auth: Arc::new(FixedAdminAuth(Some(identity))),
                 plans: None,
@@ -2196,7 +2186,7 @@ mod tests {
         assert_eq!(repo.count("u").await.unwrap(), 1);
         // The effective family of the undeclared sync is the detected one.
         assert_eq!(
-            cymbra_music::detect_family(&kit_sf2_bytes()).unwrap(),
+            crate::detect_family(&kit_sf2_bytes()).unwrap(),
             "percussion"
         );
     }
@@ -2374,7 +2364,7 @@ mod tests {
         // Missing attestation → refused.
         let r = propose_app(
             Arc::new(FakeUserSoundFontRepo::with(seed.clone())),
-            Arc::new(cymbra_music::FakeSoundFontRepo::default()),
+            Arc::new(crate::FakeSoundFontRepo::default()),
             store.clone(),
             ident("u", &["user"]),
         );
@@ -2389,7 +2379,7 @@ mod tests {
         // Missing licence (even with attestation) → refused.
         let r = propose_app(
             Arc::new(FakeUserSoundFontRepo::with(seed)),
-            Arc::new(cymbra_music::FakeSoundFontRepo::default()),
+            Arc::new(crate::FakeSoundFontRepo::default()),
             store,
             ident("u", &["user"]),
         );
@@ -2411,7 +2401,7 @@ mod tests {
             Arc::new(FakeUserSoundFontRepo::with(vec![user_entry(
                 "f1", "u", "shaX",
             )]));
-        let catalog = Arc::new(cymbra_music::FakeSoundFontRepo::default());
+        let catalog = Arc::new(crate::FakeSoundFontRepo::default());
         let r = propose_app(
             user_repo,
             catalog.clone(),
@@ -2449,7 +2439,7 @@ mod tests {
             Arc::new(FakeUserSoundFontRepo::with(vec![user_entry(
                 "f1", "u", "shaK",
             )]));
-        let catalog = Arc::new(cymbra_music::FakeSoundFontRepo::default());
+        let catalog = Arc::new(crate::FakeSoundFontRepo::default());
         let r = propose_app(user_repo, catalog.clone(), store, ident("u", &["user"]));
         let resp = r
             .oneshot(post(
@@ -2477,7 +2467,7 @@ mod tests {
             Arc::new(FakeUserSoundFontRepo::with(vec![user_entry(
                 "f1", "u", "shaZ",
             )]));
-        let catalog = Arc::new(cymbra_music::FakeSoundFontRepo::default());
+        let catalog = Arc::new(crate::FakeSoundFontRepo::default());
         let r = propose_app(
             user_repo,
             catalog.clone(),
@@ -2531,7 +2521,7 @@ mod tests {
             resubmission_note: None,
         };
         let catalog: Arc<dyn SoundFontRepo> =
-            Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![cataloged]));
+            Arc::new(crate::FakeSoundFontRepo::with(vec![cataloged]));
         let r = propose_app(user_repo, catalog, store, ident("u", &["user"]));
         let resp = r.oneshot(get("/me/soundfonts")).await.unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
@@ -2565,7 +2555,7 @@ mod tests {
             Arc::new(FakeUserSoundFontRepo::with(vec![user_entry(
                 "f1", "u", "dupsha",
             )]));
-        let catalog = Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![rejected_row(
+        let catalog = Arc::new(crate::FakeSoundFontRepo::with(vec![rejected_row(
             "old",
             "dupsha",
             "bad licence",
@@ -2594,7 +2584,7 @@ mod tests {
             Arc::new(FakeUserSoundFontRepo::with(vec![user_entry(
                 "f1", "u", "dupsha",
             )]));
-        let catalog = Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![rejected_row(
+        let catalog = Arc::new(crate::FakeSoundFontRepo::with(vec![rejected_row(
             "old",
             "dupsha",
             "bad licence",
@@ -2634,9 +2624,7 @@ mod tests {
             ..entry_status("waiting", "waiting.sf2", "CC0-1.0", "pending")
         };
         let catalog: Arc<dyn SoundFontRepo> =
-            Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![
-                rejected, pending,
-            ]));
+            Arc::new(crate::FakeSoundFontRepo::with(vec![rejected, pending]));
         let r = propose_app(user_repo, catalog, store, ident("u", &["user"]));
         let resp = r.oneshot(get("/me/soundfonts")).await.unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
@@ -2655,7 +2643,7 @@ mod tests {
     async fn propose_not_owned_is_404() {
         let r = propose_app(
             Arc::new(FakeUserSoundFontRepo::default()),
-            Arc::new(cymbra_music::FakeSoundFontRepo::default()),
+            Arc::new(crate::FakeSoundFontRepo::default()),
             Arc::new(FakeStore::default()),
             ident("u", &["user"]),
         );
@@ -2697,7 +2685,7 @@ mod tests {
             resubmission_note: None,
         };
         let catalog: Arc<dyn SoundFontRepo> =
-            Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![existing]));
+            Arc::new(crate::FakeSoundFontRepo::with(vec![existing]));
         let r = propose_app(user_repo, catalog, store, ident("u", &["user"]));
         let resp = r
             .oneshot(post(

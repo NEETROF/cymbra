@@ -34,10 +34,10 @@
 //!     cargo run -p cymbra-server --bin reconcile-corpus -- --apply --max-removal-ratio 0.8
 
 use anyhow::{Context, Result};
+use cymbra_music::object_stores::score_object_store;
 use cymbra_music::pg::PgReconcileRepo;
 use cymbra_music::reconcile::{QUARANTINE_PREFIX, ReconcileOptions, run_reconcile};
 use cymbra_platform::config::Config;
-use cymbra_server::maintenance::score_object_store;
 use cymbra_storage::ObjectStorage;
 
 /// Parsed command-line options.

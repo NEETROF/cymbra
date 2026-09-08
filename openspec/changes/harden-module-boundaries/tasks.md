@@ -56,12 +56,12 @@
 
 ## 5. Empty the composition root
 
-- [ ] 5.1 Add `axum`, `tower_http` and `jsonwebtoken` to `backend/music/Cargo.toml` (none is declared today) — the assumed consequence of D5.
-- [ ] 5.2 Move `backend/server/src/soundfont.rs` (~2 679 l.) and `score_preview.rs` (~385 l.) into `backend/music`, exposing an `axum::Router` instead of free handlers.
-- [ ] 5.3 Move the four music backfill binaries from `backend/server/src/bin/` into `backend/music`.
-- [ ] 5.4 Reduce `backend/server/src/main.rs` to mounting the music router; remove the ~137 lines of music wiring.
-- [ ] 5.5 Check the coverage ignore regexes (`.github/workflows/rust.yml`, `sonar.yml`) for paths naming the moved `server/` files; update the moved paths only, without anchoring or splitting the regex.
-- [ ] 5.6 Verify no behaviour change: routes, auth and responses identical before/after.
+- [x] 5.1 Add `axum`, `tower_http` and `jsonwebtoken` to `backend/music/Cargo.toml` (none is declared today) — the assumed consequence of D5.
+- [x] 5.2 Move `backend/server/src/soundfont.rs` (~2 679 l.) and `score_preview.rs` (~385 l.) into `backend/music`, exposing an `axum::Router` instead of free handlers.
+- [x] 5.3 Move the four music backfill binaries from `backend/server/src/bin/` into `backend/music`.
+- [x] 5.4 Reduce `backend/server/src/main.rs` to mounting the music router; remove the ~137 lines of music wiring.
+- [x] 5.5 **Checked: no change needed.** The exclusions name files (`/backfill_titles\.rs`), not paths, so they follow the move; the only path-anchored `server/` entry is `server/src/billing.rs`, which stayed. The two HTTP files were never excluded and still are not. Original: check the coverage ignore regexes (`.github/workflows/rust.yml`, `sonar.yml`) for paths naming the moved `server/` files; update the moved paths only, without anchoring or splitting the regex.
+- [x] 5.6 Verify no behaviour change: routes, auth and responses identical before/after.
 
 ## 6. External contract net
 

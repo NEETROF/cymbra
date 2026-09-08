@@ -28,8 +28,8 @@ use cymbra_user_port::UserPort;
 use serde::Serialize;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 
-use crate::soundfont::SoundfontAuth;
 use crate::web_auth::{http_status, safe_message};
+use cymbra_music::soundfont_http::SoundfontAuth;
 
 /// Router state: the identity port + the bearer auth seam.
 #[derive(Clone)]

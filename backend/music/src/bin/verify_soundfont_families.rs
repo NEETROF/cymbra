@@ -29,9 +29,9 @@
 //!     cargo run -p cymbra-server --bin verify-soundfont-families
 
 use anyhow::{Context, Result};
+use cymbra_music::object_stores::soundfont_object_store;
 use cymbra_music::{PgSoundFontRepo, SoundFontRepo, normalize_family, verify_declared_family};
 use cymbra_platform::config::Config;
-use cymbra_server::maintenance::soundfont_object_store;
 
 #[tokio::main]
 async fn main() -> Result<()> {
