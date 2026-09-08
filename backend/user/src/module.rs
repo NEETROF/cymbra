@@ -24,8 +24,12 @@ const DEFAULT_MIN_PUBLIC_SHARING_AGE: u32 = 16;
 /// via `effective_roles`.
 const ROLES: [&str; 3] = ["user", "admin", "moderator"];
 /// Recognized authorization scopes (module audiences + the `global` break-glass).
-/// `pub(crate)` so the gRPC layer can compute a caller's authorized scopes.
-pub(crate) const SCOPES: [&str; 3] = ["global", "music", "live"];
+/// Re-exported rather than restated: this crate held a second, identical copy of
+/// `cymbra_platform::SCOPES`, so adding a product scope had two places to remember and
+/// `APP_SCOPES` — used by the grant lock below — was already read from platform. One
+/// definition; migration 0009 pins the database to it, and the test below fails if the
+/// two drift. `pub(crate)` so the gRPC layer can compute a caller's authorized scopes.
+pub(crate) use cymbra_platform::SCOPES;
 /// Account-directory paging bounds (change: add-admin-account-directory): a `0`/
 /// negative request means "default page", capped so a caller can't pull the whole
 /// table in one call.
@@ -723,6 +727,89 @@ mod tests {
                 .contains(&"moderator".to_string())
         );
         assert!(m.list_role_grants(&t).await.unwrap().is_empty());
+    }
+
+    /// The database constrains the same vocabulary the Rust side validates
+    /// (migration 0009). These are two independent writers of `user_roles` — the port
+    /// and `backend/scripts/seed_admin.sh` — so the two lists drifting apart would let
+    /// one accept what the other rejects. Reads the migration rather than restating
+    /// it, so adding a scope in only one place fails here.
+    #[test]
+    fn the_migration_constrains_exactly_the_vocabulary_rust_validates() {
+        let sql = std::fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/migrations/0009_role_vocabulary.sql"
+        ))
+        .expect("read migration 0009");
+
+        let seed = std::fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../scripts/seed_admin.sh"
+        ))
+        .expect("read seed_admin.sh");
+
+        // Collapse whitespace so a needle spans line breaks and alignment.
+        let sql = sql.split_whitespace().collect::<Vec<_>>().join(" ");
+        let seed = seed.split_whitespace().collect::<Vec<_>>().join(" ");
+
+        // The values one `… IN (…)` list holds.
+        let listed_in = |text: &str, after: &str| -> Vec<String> {
+            let at = text
+                .find(after)
+                .unwrap_or_else(|| panic!("no longer contains {after:?}"));
+            let body = &text[at + after.len()..];
+            let close = body.find(')').expect("the list closes");
+            let mut values: Vec<String> = body[..close]
+                .split(',')
+                .map(|v| v.trim().trim_matches('\'').to_string())
+                .filter(|v| !v.is_empty())
+                .collect();
+            values.sort();
+            values
+        };
+
+        let listed = |after: &str| listed_in(&sql, after);
+
+        // The vocabulary is stated in five places, and every one of them is compared
+        // here: the two CHECK constraints, the migration's pre-check that names
+        // offending rows (a constraint alone rejects anonymously), and the two guards in
+        // `seed_admin.sh` — the only path that creates a privileged role in production.
+        let sql_scopes = listed("CHECK (scope IN (");
+        let sql_roles = listed("CHECK (role IN (");
+        for (label, actual, expected) in [
+            (
+                "0009 pre-check, scope",
+                listed("scope NOT IN ("),
+                &sql_scopes,
+            ),
+            ("0009 pre-check, role", listed("role NOT IN ("), &sql_roles),
+            (
+                "seed_admin.sh, scope",
+                listed_in(&seed, "s NOT IN ("),
+                &sql_scopes,
+            ),
+            (
+                "seed_admin.sh, role",
+                listed_in(&seed, "r NOT IN ("),
+                &sql_roles,
+            ),
+        ] {
+            assert_eq!(&actual, expected, "{label} lists a different vocabulary");
+        }
+
+        let mut rust_scopes: Vec<String> = SCOPES.iter().map(|s| s.to_string()).collect();
+        let mut rust_roles: Vec<String> = ROLES.iter().map(|r| r.to_string()).collect();
+        rust_scopes.sort();
+        rust_roles.sort();
+
+        assert_eq!(
+            sql_scopes, rust_scopes,
+            "migration 0009 and SCOPES disagree — adding a product scope means both"
+        );
+        assert_eq!(
+            sql_roles, rust_roles,
+            "migration 0009 and ROLES disagree — adding a role means both"
+        );
     }
 
     /// Temporary lock (change: harden-module-boundaries, group 1). 22 authorization
