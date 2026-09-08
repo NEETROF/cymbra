@@ -346,9 +346,12 @@ async fn purge_erases_private_soundfonts_and_enqueues_their_object_cleanup() {
     .fetch_one(&admin)
     .await
     .unwrap_or(-1);
+    // The path is deliberately NOT interpolated here: it embeds the account uuid, and
+    // CodeQL reads an assertion message as a log sink (rust/cleartext-logging). The
+    // test name and the count say enough to diagnose a failure.
     assert_eq!(
         queued, 1,
-        "exactly one purge_soundfont_object must be queued for {sf2_path}"
+        "exactly one purge_soundfont_object must be queued for the seeded font"
     );
 
     // …and NOT the score-object job, which targets the other bucket.
