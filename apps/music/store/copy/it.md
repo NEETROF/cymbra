@@ -54,6 +54,13 @@ Collega qualsiasi tastiera MIDI USB o batteria elettronica, oppure suona sullo s
 
 Inizia a suonare oggi — il modo migliore per imparare la musica è suonarla.
 
+ABBONAMENTO
+Cymbra Premium è un abbonamento a rinnovo automatico. Il pagamento viene addebitato
+sul tuo account dello store e si rinnova salvo disdetta almeno 24 ore prima della
+fine del periodo. Gestiscilo o disdicilo nelle impostazioni del tuo account.
+Termini di utilizzo (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+Informativa sulla privacy: https://cymbra.app/en/privacy/
+
 ## Categorie
 
 - App Store: principale **Istruzione**, secondaria **Musica**

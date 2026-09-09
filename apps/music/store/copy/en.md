@@ -54,6 +54,13 @@ Connect any USB MIDI keyboard or electronic drum kit, or play along on screen. A
 
 Start playing today — the best way to learn music is to play it.
 
+SUBSCRIPTION
+Cymbra Premium is an auto-renewable subscription. Payment is charged to your store
+account and renews unless it is cancelled at least 24 hours before the end of the
+period. Manage or cancel it in your store account settings.
+Terms of Use (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+Privacy Policy: https://cymbra.app/en/privacy/
+
 ## Categories
 
 - App Store: primary **Education**, secondary **Music**
