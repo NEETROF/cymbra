@@ -54,6 +54,14 @@ Connectez n'importe quel clavier MIDI USB ou batterie électronique, ou jouez à
 
 Commencez à jouer dès aujourd'hui — la meilleure façon d'apprendre la musique, c'est de jouer.
 
+ABONNEMENT
+Cymbra Premium est un abonnement à renouvellement automatique. Le paiement est
+prélevé sur votre compte de la boutique et se renouvelle sauf résiliation au moins
+24 heures avant la fin de la période. Gérez-le ou résiliez-le dans les réglages de
+votre compte.
+Conditions d'utilisation (CLUF) : https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+Politique de confidentialité : https://cymbra.app/confidentialite/
+
 ## Catégories
 
 - App Store : principale **Éducation**, secondaire **Musique**

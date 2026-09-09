@@ -54,6 +54,13 @@ Conecta cualquier teclado MIDI USB o batería electrónica, o toca en pantalla. 
 
 Empieza a tocar hoy — la mejor forma de aprender música es tocarla.
 
+SUSCRIPCIÓN
+Cymbra Premium es una suscripción de renovación automática. El pago se carga a tu
+cuenta de la tienda y se renueva salvo que la canceles al menos 24 horas antes de
+que termine el periodo. Gestiónala o cancélala en los ajustes de tu cuenta.
+Términos de uso (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+Política de privacidad: https://cymbra.app/en/privacy/
+
 ## Categorías
 
 - App Store: principal **Educación**, secundaria **Música**
