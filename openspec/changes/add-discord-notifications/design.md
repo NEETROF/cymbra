@@ -147,7 +147,7 @@ evaluated in UTC with the existing one-day margin). Call sites cannot assemble t
 incorrectly, which is the same reasoning that produced `listable_profiles`.
 
 Storage: an additive column on the user profile in the `user_account` schema, migration
-`backend/user/migrations/0008_discord_visibility.sql`, `NOT NULL DEFAULT false`. It is covered by
+`backend/user/migrations/0010_discord_visibility.sql`, `NOT NULL DEFAULT false`. It is covered by
 the existing `purge_user` erasure job.
 
 ### D7 — Two tiers, one digest, one throttle, one aggregate minimum
@@ -213,7 +213,7 @@ role. Reconsider when roles multiply.
 Beta testers come from the community; the community lives on Discord. Rather than minting a
 list of codes and pasting it into a channel (it leaks the first time someone screenshots it),
 the member **claims** access: `/beta`, run in a configured beta channel, asks the access-code
-port (`music-access-codes`, from `add-premium-subscription`) for **one single-use code bound
+port (`AccessCodeIssuer`, `music-access-codes` — already on `main`) for **one single-use code bound
 to the campaign mapped to that channel** (one channel per campaign — a premium trial or a
 feature beta such as `midi-drums`), records `(campaign, discord_user_id) → code` so a second `/beta` from
 the same member returns the *same* link instead of a new code, and answers with an
@@ -233,8 +233,8 @@ Two rules keep this out of the stores' way: `/beta` mints **free, campaign-bound
 only** — never a price, never a discount (those are Apple/Google/MoR offers) — and the code is
 redeemed **on the web**, never through a code-entry field in the App Store / Play builds
 (Apple 3.1.1 explicitly names licence keys as a forbidden unlock mechanism). The
-`community-invite-entry` link is therefore also the natural surface for "want early access? join
-the Discord" while a campaign is open — that placement is decided in `add-premium-subscription`.
+`music-community-invite` link is therefore also the natural surface for "want early access? join
+the Discord" while a campaign is open — that placement was settled by `add-premium-subscription`.
 
 *Alternative considered*: a shared multi-use code pinned in a role-locked channel. Zero
 interaction code, but it leaks, needs `max_uses` + revocation babysitting, and yields no cohort.
@@ -270,9 +270,10 @@ state → Discord role); a claim command is explicit, auditable and works before
 - **Stale rendering data** → the worker reads at publication time, so a message can describe
   state that changed seconds later; acceptable for announcements, and the consent gate is
   re-checked at that same moment.
-- **Migration number collision** with the unmerged `add-push-notifications` branch, which also
-  adds `backend/user/migrations/0008_*` → whichever lands second is renumbered on rebase (this
-  has already happened once in this repo, `0012 → 0015`).
+- **Migration number collision**: `add-push-notifications` won the race for `0008` and the role
+  vocabulary took `0009`, so this change now writes `0010`. The hazard is not gone — any branch
+  that lands a `user_account` migration first pushes this one up again, and the number is only
+  correct at rebase time (it has already moved twice in this repo, `0012 → 0015`, `0008 → 0010`).
 - **Coverage**: a new workspace member drags the global gate; the pure core must be thoroughly
   tested and the two HTTP adapters added to the ignore regex in the same change, or CI fails.
 
