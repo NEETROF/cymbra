@@ -37,14 +37,6 @@ NOT require a code change.
 - **WHEN** a user whose native language is `fr` opens the popup for an English word
 - **THEN** the gloss shown comes from the (en → fr) pack
 
-### Requirement: LingQ import for the cold start
-The system SHALL import a LingQ export (CSV) and mark the corresponding lemmas `known`
-(provenance `import`), after lemmatising the imported entries.
-
-#### Scenario: Importing a LingQ export
-- **WHEN** a LingQ CSV containing `running` is imported
-- **THEN** the lemma `run` is marked known with provenance `import`
-
 ### Requirement: Exposure counters
 The model SHALL maintain, per (studied language, lemma), an exposure counter
 (occurrences encountered, the source of the last encounter, a timestamp). In v1,

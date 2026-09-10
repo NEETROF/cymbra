@@ -12,8 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Knowledge model — per-(language, lemma) statuses, frequency-rank
-//! calibration, the L1/L2 profile and LingQ import.
+//! Knowledge model (spec `lingua-knowledge-model`).
 //!
-//! Filled by the `add-lingua-knowledge-model` change (spec
-//! `lingua-knowledge-model`); this slot only reserves the module layout.
+//! What the learner knows, per `(studied language, lemma)`: explicit
+//! statuses with provenance, implicit "known" below a frequency-rank
+//! calibration, multi-candidate resolution in the learner's favour, the
+//! L1/L2 profile, frequency-rank calibration for the cold start, and
+//! exposure counters.
+//!
+//! This is the type vocabulary every later surface shares; keeping it in the
+//! core (not in each shell) is what will make merging the local stores
+//! mechanical at the sync change. Everything here is pure and free of a
+//! clock — timestamps are passed in — so it stays host-testable and
+//! WASM-identical.
+
+pub mod exposure;
+pub mod profile;
+pub mod state;
+pub mod status;
+
+pub use exposure::{Exposure, ExposureCounters};
+pub use profile::{LanguagePair, NativeLanguage, Profile};
+pub use state::{FrequencyRanks, KnowledgeState, MapFrequencyRanks};
+pub use status::{KnownSource, Status};

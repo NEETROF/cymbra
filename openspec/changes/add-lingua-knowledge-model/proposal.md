@@ -7,10 +7,10 @@ missing is **what the user knows about them**. The knowledge model is the produc
 central contract: it is what the decks, the extension, the agent plugin and — later —
 the sync all consume, and its `(studied language, lemma)` key plus its statuses are
 what makes the count honest (the differentiator against LingQ/Readlang, which count
-surface forms). This change also delivers the two answers to the cold start — without
-them, day 1 highlights 60% of the page: **frequency-rank calibration** and the **LingQ
-import** (which doubles as an acquisition weapon: "migrate from LingQ, keep your
-history").
+surface forms). This change also delivers the answer to the cold start — without it,
+day 1 highlights 60% of the page: **frequency-rank calibration** ("I know the N most
+common words"). (A bulk primer such as a LingQ import is deferred to a later change,
+pending real demand; the `import` provenance is nonetheless reserved in the schema.)
 
 **Position in the stack** (12 changes, implementation order): **2/12.** Explicit
 prerequisite: **add-lingua-analysis** (the `lingua-core` crate, lemmatisation,
@@ -29,8 +29,6 @@ add-lingua-agent → add-lingua-backend → add-lingua-connected-clients.
 - **L1/L2 profile**: `native_language` (the language of comfort) kept distinct from the
   studied languages; every API keyed by pair (L2→L1). The MVP ships only
   (English → French), but adding a pair is data, not code.
-- **LingQ import (CSV)**: imported entries are lemmatised, then marked `known` with
-  provenance `import` — the cold start for the target segment.
 - **Exposure counters** per (language, lemma): occurrences encountered, source,
   timestamp — with no effect on statuses in v1 (input data for the future
   Migaku-style inference).
@@ -43,8 +41,8 @@ add-lingua-agent → add-lingua-backend → add-lingua-connected-clients.
 ### New Capabilities
 - `lingua-knowledge-model`: the knowledge state per lemma and per studied language —
   statuses (new/learning/known/ignored), "known" inferable from the SRS, frequency-rank
-  calibration at startup, LingQ import (CSV), L1/L2 profile (native language ≠ studied
-  language, everything keyed by pair), exposure counters.
+  calibration at startup, L1/L2 profile (native language ≠ studied language, everything
+  keyed by pair), exposure counters.
 
 ### Modified Capabilities
 _None. This change stays local to the `lingua-core` crate: it neither consumes nor
@@ -57,8 +55,10 @@ modifies `id-*`/`platform-*`._
 - **Tree**: `crates/lingua-core` only (the `knowledge/` module already laid out by
   `add-lingua-analysis`); no new unit — the existing Rust CI lane already covers the
   crate.
-- **Dependencies**: none new (minimal CSV parsing; `serde` is already there).
+- **Dependencies**: none new (`serde` is already there).
 - **Out of scope**: cards/FSRS and the "known" inference from the SRS
   (`add-lingua-decks-review`), the real frequency/gloss pack
-  (`add-lingua-data-pack`), the surfaces that display this data (extension, Apple app,
-  plugin — later changes), multi-store reconciliation (`add-lingua-backend`).
+  (`add-lingua-data-pack`), a bulk import primer such as LingQ (deferred pending
+  demand; the `import` provenance is reserved), the surfaces that display this data
+  (extension, Apple app, plugin — later changes), multi-store reconciliation
+  (`add-lingua-backend`).

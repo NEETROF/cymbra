@@ -24,7 +24,11 @@ use serde::{Deserialize, Serialize};
 
 /// Languages the pipeline can study. Extended change by change (Romance
 /// languages next); each variant carries its own tokenisation pre-pass.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+///
+/// `Ord`/`Hash` so it can key the knowledge model's per-`(language, lemma)`
+/// maps (`add-lingua-knowledge-model`); ordering keeps serialised state
+/// deterministic.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum StudiedLanguage {
     /// English.
     English,
