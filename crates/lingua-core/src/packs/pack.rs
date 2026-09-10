@@ -177,9 +177,11 @@ fn parse_freq(bytes: &[u8], lemma_count: usize) -> Result<Vec<u32>, PackError> {
     if bytes.len() != lemma_count * 4 {
         return Err(PackError::Malformed(section::FREQ));
     }
-    Ok(bytes
-        .chunks_exact(4)
-        .map(|c| u32::from_le_bytes(c.try_into().unwrap()))
+    Ok((0..lemma_count)
+        .map(|i| {
+            let word: [u8; 4] = bytes[i * 4..i * 4 + 4].try_into().unwrap();
+            u32::from_le_bytes(word)
+        })
         .collect())
 }
 
