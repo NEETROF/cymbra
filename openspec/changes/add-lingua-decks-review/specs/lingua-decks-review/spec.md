@@ -27,12 +27,12 @@ Marquer une carte « je connais » pendant la révision SHALL passer le lemme en
 - **WHEN** l'utilisateur répond « je connais » sur la carte `seldom`
 - **THEN** `seldom` passe en statut `known` (provenance `srs`) et la carte sort de la file de révision
 
-### Requirement: Export Anki sans perte silencieuse
-Le système SHALL exporter les decks en CSV importable dans Anki, avec une colonne par champ de carte (lemme, forme vue, phrase, glose, source, statut, échéance, état FSRS). Un champ non peuplé SHALL produire une colonne vide ; aucun champ peuplé ne SHALL être omis.
+### Requirement: Sauvegarde et restauration sans perte
+Le système SHALL exporter l'état complet (cartes avec tous leurs champs — lemme, forme vue, phrase, glose, source, statut, échéance, état FSRS —, statuts de mots, calibration, paramètres FSRS) dans un fichier de sauvegarde versionné, et SHALL restaurer ce fichier à l'identique. Aucun champ peuplé ne SHALL être omis de la sauvegarde ; une restauration sur état vierge SHALL reproduire l'état d'origine (aller-retour sans perte). Le schéma de carte SHALL rester intégralement sérialisable champ par champ, de sorte qu'un export au format Anki (différé à un change ultérieur) reste un simple sérialiseur.
 
-#### Scenario: Export d'un deck
-- **WHEN** l'utilisateur exporte son deck de 20 cartes
-- **THEN** le CSV contient 20 lignes, toutes les colonnes du schéma présentes, les champs peuplés fidèlement reportés
+#### Scenario: Aller-retour de sauvegarde
+- **WHEN** l'utilisateur sauvegarde un état de 20 cartes et 300 statuts puis le restaure sur une installation vierge
+- **THEN** l'état restauré est identique à l'original — cartes, statuts, calibration et échéances de révision comprises
 
 ### Requirement: Révision présente au ras de la lecture
 La révision SHALL être accessible sans quitter le navigateur : le compteur de cartes dues SHALL être visible dans le popup de l'icône et le side panel, et une session de révision SHALL pouvoir être lancée depuis le side panel ou le panneau injecté. La réponse d'une carte SHALL être masquée jusqu'à une action explicite de révélation.

@@ -15,8 +15,8 @@ L'état FSRS (stabilité, difficulté, échéance) vit sur la carte, calculé da
 ### D3 — « Je connais » ferme la boucle avec le knowledge model
 Marquer « je connais » en révision passe le lemme en `known` provenance `srs` — le champ `known_source` d'`add-lingua-knowledge-model` préparait exactement cette inférence façon Migaku — et retire la carte de la file **sans la supprimer ni effacer son historique** : l'état FSRS reste, et le mot peut revenir en apprentissage plus tard sans perte.
 
-### D4 — Export Anki : CSV v1, tous les champs, jamais de perte silencieuse
-Export Anki : CSV v1 avec **tous les champs peuplés** de la carte (mot, forme, phrase, glose, source, statut, échéance, état FSRS ; champ non peuplé = colonne vide) — jamais de perte silencieuse. L'export Anki propre est le must-have documenté de la catégorie ; le designer dans le schéma dès le jour 1 évite le CSV « best effort » qui perdrait l'état SRS ou la provenance.
+### D4 — Sauvegarde/restauration d'abord, export Anki différé
+Pendant toute la phase locale de la pile (avant `add-lingua-backend`/`add-lingua-connected-clients`), l'état vit dans le storage d'un profil de navigateur — fragile (reset de profil = tout perdu). Le filet de sécurité du MVP est donc une **sauvegarde/restauration complète** (fichier versionné : cartes, statuts, calibration, paramètres FSRS ; aller-retour sans perte testé), qui sert aussi de migration d'appareil pré-sync. **L'export au format Anki est différé** (décision utilisateur) : ce qui coûte cher à rattraper n'est pas le sérialiseur mais le schéma (leçon Lute) — le schéma reste exportable par construction (champs propres, provenance, glose séparée), et le CSV Anki viendra comme change dédié quand des utilisateurs le demanderont.
 
 ## Risks / Trade-offs
 
