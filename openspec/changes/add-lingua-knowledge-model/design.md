@@ -14,7 +14,7 @@ stores mechanical at the sync change (`add-lingua-backend`).
 - The knowledge state per `(studied language, lemma)`: statuses, provenance, implicit
   known by calibration, multi-candidate resolution.
 - The pair-keyed L1/L2 profile from day 1 (zero retrofit when a pair is added).
-- The two cold-start primers: rank calibration, LingQ import.
+- Frequency-rank calibration: the cold-start primer.
 - Exposure counters, the substrate of the future inference.
 
 **Non-Goals:**
@@ -57,21 +57,14 @@ direction. MVP = (en→fr) only, but adding (es→fr) is data, not code. The rul
 analyse the L1" (the language gate) is already carried by `add-lingua-analysis`'s
 per-block detection; the profile supplies it the L1.
 
-### D4 — LingQ import: lemmatise on import, provenance `import`
-The LingQ export (CSV) contains surface forms (precisely the original product's flaw):
-every entry goes through the lemmatisation cascade before being marked `known` with
-provenance `import`. Two roles at once: the cold start for the target segment (existing
-LingQ users — the founder among them) and an acquisition weapon ("migrate from LingQ,
-keep your history"). Tested on a real anonymised sample.
-
-### D5 — Exposure counters: record without interpreting
+### D4 — Exposure counters: record without interpreting
 Per (studied language, lemma): a counter of occurrences encountered, the source of the
 last encounter, a timestamp. In v1 exposure **never modifies a status** — pitfall #1 of
 the category: LingQ's auto-known-on-page-turn, explicitly rejected. It is input data for
 the future inference ("known" deduced from the SRS/from exposure), fed by agent
 ingestion (`add-lingua-agent`) and by reading (`add-lingua-extension-reading`).
 
-### D6 — Interface vocabulary: never "lemma" on screen
+### D5 — Interface vocabulary: never "lemma" on screen
 The target user does not know the word "lemma" (a direct user lesson, re-learned during
 the preshot). The invariant is declared in this capability — the model is what names the
 concepts — and applied and linted by every surface in the stack
@@ -87,8 +80,6 @@ canonical form, "distinct words" for counts of unique lemmas.
 - [Implicit statuses = a result that depends on the frequency table] → the table is
   versioned with the pack; the *explicit* status always wins, so a pack update never
   overwrites a user's decision.
-- [LingQ import: uneven export quality] → systematic lemmatisation + a distinct `import`
-  provenance: a dubious import stays identifiable and bulk-correctable later.
 - [Two local stores (extension / plugin) unreconciled in v1] → accepted (a decision
   inherited from the stack): the sync change will merge them server-side; this change
   supplies exactly the shared type vocabulary that will make that merge mechanical.
@@ -103,5 +94,5 @@ plugin SQLite) and the sync will consume.
 
 - The calibration slider's default (0? 1,000?) on first open — to settle alongside the
   calibration UI (`add-lingua-extension-reading`), with no impact on the model.
-- The exact recognised columns of the LingQ export (CSV/Anki variants observed in the
-  wild) — freeze at implementation time on real samples.
+- Whether a bulk import primer (LingQ, Anki, …) is worth building at all — deferred
+  until real demand; if built, it targets the reserved `import` provenance.
