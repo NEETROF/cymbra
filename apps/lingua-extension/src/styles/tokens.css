@@ -1,0 +1,69 @@
+/*
+ * Cymbra "Sonic Luminescence" design tokens — the SINGLE home for colour in the
+ * extension. Source of truth: CymbraColors (apps/music/lib/theme/cymbra_theme.dart),
+ * already mirrored into CSS by the back office (apps/back-office/src/styles.css).
+ *
+ * Naming diverges deliberately from the back office's bare names (--bg, --accent):
+ * this sheet is injected into arbitrary third-party pages and into a closed shadow
+ * root, so every custom property is prefixed --cymbra-lingua-* to never collide with
+ * a host page's own variables. Both :root (documents: the page, the popup) and :host
+ * (the injected word-popup shadow root) get the tokens so one sheet serves all three
+ * contexts. Dark-only, like the source palette.
+ *
+ * No colour literal may live anywhere but this file (enforced by a lint test).
+ */
+:root,
+:host {
+  /* Surfaces (Midnight Navy), deepest → lightest */
+  --cymbra-lingua-bg: #0b1326; /* CymbraColors.background */
+  --cymbra-lingua-bg-deep: #060e20; /* surfaceContainerLowest */
+  --cymbra-lingua-panel: #131b2e; /* surfaceContainerLow — cards */
+  --cymbra-lingua-panel-2: #171f33; /* surfaceContainer — raised */
+  --cymbra-lingua-panel-3: #222a3d; /* surfaceContainerHigh — hover */
+  --cymbra-lingua-border: #212a40; /* subtle divider */
+  --cymbra-lingua-border-2: #2d3449; /* surfaceContainerHighest — stronger edge */
+
+  /* Text */
+  --cymbra-lingua-text: #dae2fd; /* onSurface */
+  --cymbra-lingua-muted: #9aa1ba; /* softened onSurfaceVariant */
+  --cymbra-lingua-faint: #6a7091; /* placeholders */
+
+  /* Brand */
+  --cymbra-lingua-accent: #d2bbff; /* CymbraColors.primary — lilac (links, focus) */
+  --cymbra-lingua-accent-strong: #7c3aed; /* CymbraColors.primaryContainer — violet (fills) */
+  --cymbra-lingua-accent-ink: #ede0ff; /* onPrimary — text on the violet fill */
+  --cymbra-lingua-teal: #44e2cd; /* secondary */
+  --cymbra-lingua-green: #4edea3; /* tertiary — success */
+  --cymbra-lingua-amber: #ffb454; /* CymbraColors.handLeft — "learning" */
+  --cymbra-lingua-coral: #ffb4ab; /* CymbraColors.error — "unknown" */
+
+  /* Highlight tints, derived from amber (learning) and coral (unknown). Translucent
+     fills tint the text background; the dotted underline keeps them distinguishable
+     on both light and dark pages while leaving the page text in its own colour. */
+  --cymbra-lingua-learning-fill: rgba(255, 180, 84, 0.28); /* amber #ffb454 */
+  --cymbra-lingua-learning-underline: #e0930f;
+  --cymbra-lingua-unknown-fill: rgba(255, 180, 171, 0.3); /* coral #ffb4ab */
+  --cymbra-lingua-unknown-underline: #d8502e;
+
+  /* Radii (identity) */
+  --cymbra-lingua-radius: 12px;
+  --cymbra-lingua-radius-lg: 18px;
+
+  /* Shadow for surfaces the extension owns / injects */
+  --cymbra-lingua-shadow: 0 8px 28px rgba(6, 14, 32, 0.45);
+
+  --cymbra-lingua-font: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Highlight paint (CSS Custom Highlight API). Registered from highlight.ts; the
+   registry names must match HL_UNKNOWN / HL_LEARNING. The var() values resolve
+   against the highlighted element, which inherits them from the page :root above. */
+::highlight(cymbra-lingua-learning) {
+  background-color: var(--cymbra-lingua-learning-fill);
+  text-decoration: underline dotted var(--cymbra-lingua-learning-underline);
+}
+
+::highlight(cymbra-lingua-unknown) {
+  background-color: var(--cymbra-lingua-unknown-fill);
+  text-decoration: underline dotted var(--cymbra-lingua-unknown-underline);
+}

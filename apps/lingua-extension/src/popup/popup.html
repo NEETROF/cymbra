@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cymbra Lingua</title>
+    <link rel="stylesheet" href="tokens.css" />
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <h1>Cymbra Lingua</h1>
+
+    <div id="analysed">
+      <div class="pct"><span id="pct">—</span></div>
+      <div class="pct-label">de mots connus sur cette page</div>
+      <div class="bar"><span id="bar" style="width: 0%"></span></div>
+
+      <div class="row"><span>Mots analysés</span><b id="counted">0</b></div>
+      <div class="row"><span>Mots inconnus</span><b id="unknown">0</b></div>
+      <div class="row sub"><span>dont mots différents</span><b id="distinct">0</b></div>
+      <div class="row"><span>Marqués connus</span><b id="known">0</b></div>
+    </div>
+
+    <div id="setup" hidden>
+      <div class="note">Cette page n'est pas encore analysée.</div>
+      <button class="primary" id="analyse">Analyser cette page</button>
+      <button class="reset" id="always">Toujours surligner (toutes les pages)</button>
+    </div>
+
+    <div class="calib">
+      <label>Mon niveau : je connais les <b id="calibv">3000</b> mots les plus courants</label>
+      <input type="range" id="calib" min="500" max="10000" step="100" value="3000" />
+    </div>
+
+    <div class="deck"><span>Deck (en cours)</span><b id="deck">0</b></div>
+
+    <button class="reset" id="reset">Réinitialiser (statuts + calibration)</button>
+
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

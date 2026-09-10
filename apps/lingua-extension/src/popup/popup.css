@@ -1,0 +1,133 @@
+/* Icon-popup styles (a surface the extension owns → full Cymbra identity). Colours
+   come only from tokens.css (loaded before this sheet). No colour literals here. */
+body {
+  width: 280px;
+  margin: 0;
+  padding: 14px;
+  background: var(--cymbra-lingua-bg);
+  color: var(--cymbra-lingua-text);
+  font-family: var(--cymbra-lingua-font);
+  font-size: 13px;
+}
+
+h1 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.pct {
+  font-size: 34px;
+  font-weight: 700;
+  color: var(--cymbra-lingua-accent);
+  line-height: 1;
+}
+
+.pct-label {
+  color: var(--cymbra-lingua-muted);
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.bar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--cymbra-lingua-panel-2);
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.bar > span {
+  display: block;
+  height: 100%;
+  background: var(--cymbra-lingua-accent-strong);
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 0;
+  color: var(--cymbra-lingua-muted);
+}
+
+.row.sub {
+  padding-left: 12px;
+  font-size: 12px;
+}
+
+.row b {
+  color: var(--cymbra-lingua-text);
+  font-weight: 600;
+}
+
+.note {
+  margin: 4px 0 8px;
+  padding: 8px 10px;
+  border-radius: var(--cymbra-lingua-radius);
+  background: var(--cymbra-lingua-panel);
+  border: 1px solid var(--cymbra-lingua-border);
+  color: var(--cymbra-lingua-muted);
+  font-size: 12px;
+}
+
+.calib {
+  margin: 14px 0 6px;
+  padding-top: 12px;
+  border-top: 1px solid var(--cymbra-lingua-border);
+}
+
+.calib label {
+  display: block;
+  color: var(--cymbra-lingua-muted);
+  margin-bottom: 6px;
+}
+
+.calib b {
+  color: var(--cymbra-lingua-text);
+}
+
+.calib input[type="range"] {
+  width: 100%;
+  accent-color: var(--cymbra-lingua-accent-strong);
+}
+
+.deck {
+  display: flex;
+  justify-content: space-between;
+  margin: 12px 0;
+  color: var(--cymbra-lingua-muted);
+}
+
+.deck b {
+  color: var(--cymbra-lingua-amber);
+}
+
+button.reset,
+button.primary {
+  width: 100%;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid var(--cymbra-lingua-border-2);
+  background: var(--cymbra-lingua-panel-2);
+  color: var(--cymbra-lingua-muted);
+  font-family: inherit;
+  font-size: 12px;
+}
+
+button.reset:hover {
+  background: var(--cymbra-lingua-panel-3);
+  color: var(--cymbra-lingua-text);
+}
+
+button.primary {
+  margin-bottom: 8px;
+  background: var(--cymbra-lingua-accent-strong);
+  border-color: var(--cymbra-lingua-accent-strong);
+  color: var(--cymbra-lingua-accent-ink);
+}
+
+button.primary:hover {
+  filter: brightness(1.08);
+}

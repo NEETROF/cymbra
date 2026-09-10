@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Cymbra Lingua",
+  "version": "0.1.0",
+  "description": "Read the web in place: unknown words highlighted, an honest per-page percentage. Offline, private.",
+  "minimum_chrome_version": "116",
+  "permissions": ["activeTab", "storage", "scripting"],
+  "optional_host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Cymbra Lingua"
+  },
+  "commands": {
+    "lingua-capture-selection": {
+      "suggested_key": { "default": "Alt+L" },
+      "description": "Capturer la sélection (mot ou expression) avec sa phrase"
+    }
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["wasm/lingua_wasm.js", "wasm/lingua_wasm_bg.wasm", "assets/pack.lingua"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

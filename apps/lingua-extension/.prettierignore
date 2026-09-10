@@ -1,0 +1,7 @@
+dist/
+coverage/
+node_modules/
+src/wasm/pkg/
+assets/pack.lingua
+test/fixtures/
+*.lingua

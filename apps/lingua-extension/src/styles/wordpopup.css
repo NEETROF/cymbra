@@ -1,0 +1,74 @@
+/*
+ * Word-popup styles, scoped to the closed shadow root. Injected together with
+ * tokens.css (which sets the --cymbra-lingua-* custom properties on :host). No
+ * colour literals here — everything references the token sheet.
+ */
+.card {
+  position: fixed;
+  z-index: 2147483647;
+  max-width: 280px;
+  min-width: 220px;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border-radius: var(--cymbra-lingua-radius);
+  background: var(--cymbra-lingua-panel);
+  border: 1px solid var(--cymbra-lingua-border);
+  box-shadow: var(--cymbra-lingua-shadow);
+  color: var(--cymbra-lingua-text);
+  font-family: var(--cymbra-lingua-font);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.headword {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--cymbra-lingua-text);
+}
+
+.seen,
+.rarity {
+  margin-top: 2px;
+  color: var(--cymbra-lingua-muted);
+  font-size: 12px;
+}
+
+.gloss {
+  margin-top: 8px;
+  color: var(--cymbra-lingua-accent);
+  font-size: 14px;
+}
+
+.gloss.empty {
+  color: var(--cymbra-lingua-faint);
+  font-style: italic;
+  font-size: 12px;
+}
+
+.actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.actions button {
+  flex: 1;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--cymbra-lingua-border-2);
+  background: var(--cymbra-lingua-panel-2);
+  color: var(--cymbra-lingua-text);
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.actions button:hover {
+  background: var(--cymbra-lingua-panel-3);
+}
+
+.actions button.primary {
+  background: var(--cymbra-lingua-accent-strong);
+  border-color: var(--cymbra-lingua-accent-strong);
+  color: var(--cymbra-lingua-accent-ink);
+}
