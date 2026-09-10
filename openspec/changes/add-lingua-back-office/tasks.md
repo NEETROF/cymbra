@@ -1,6 +1,6 @@
 # Tasks — add-lingua-back-office
 
-_Prérequis : `add-lingua-id-sync` implémenté (crate `backend/lingua`, schéma `lingua`, pool `lingua_svc`, sync + `StatsService`)._
+_Prérequis : `add-lingua-backend` implémenté (crate `backend/lingua`, schéma `lingua`, pool `lingua_svc`, sync + `StatsService`)._
 
 ## 1. Protos admin (backend/lingua/proto)
 
@@ -10,7 +10,7 @@ _Prérequis : `add-lingua-id-sync` implémenté (crate `backend/lingua`, schéma
 
 ## 2. Backend — autorisation et agrégats
 
-- [ ] 2.1 Scope `lingua` : vérifier qu'`add-lingua-id-sync` a déclaré `lingua` dans `SCOPES`/`APP_SCOPES` (`backend/platform/src/lib.rs`) et dans l'attribution de rôles (`backend/user/src/module.rs`) ; sinon, l'ajouter ici — avec le test « un `music/admin` n'a pas `lingua` »
+- [ ] 2.1 Scope `lingua` : vérifier qu'`add-lingua-backend` a déclaré `lingua` dans `SCOPES`/`APP_SCOPES` (`backend/platform/src/lib.rs`) et dans l'attribution de rôles (`backend/user/src/module.rs`) ; sinon, l'ajouter ici — avec le test « un `music/admin` n'a pas `lingua` »
 - [ ] 2.2 Gating : chaque RPC de `LinguaAdminService` appelle `cymbra_platform::guard::require_admin_in_scope(&id, "lingua")` ; service monté dans `backend/server` derrière l'intercepteur **strict** (pattern `UsageServiceServer`), inerte sans `CYMBRA_LINGUA_DATABASE_URL`
 - [ ] 2.3 Tests de gating (pattern `backend/analytics/src/grpc.rs`) : `lingua/admin` accepté, `global/admin` accepté (break-glass), `music/admin` refusé (`PermissionDenied`), token plat legacy refusé
 - [ ] 2.4 Agrégats SQL sur le schéma `lingua` (pool `lingua_svc`) : comptes actifs (sync dans la fenêtre), mots appris/jour (transitions vers `known` datées), révisions/jour (journal syncé), répartition par langue étudiée — requêtes groupées par jour, uniquement des comptages

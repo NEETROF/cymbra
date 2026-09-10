@@ -2,7 +2,7 @@
 
 ## Why
 
-Une fois le backend Lingua en place (change `add-lingua-id-sync` : schéma `lingua`, sync, `StatsService`), l'exploitation du produit est aveugle : aucun moyen de savoir combien de comptes utilisent Lingua, à quel rythme, sur quelles langues, ni quelles versions de packs de données circulent. Le back-office Vue est déjà la console d'administration de tous les produits (music, plans, flags, usage) — Lingua doit s'y brancher, pas inventer une console à part.
+Une fois le backend Lingua en place (change `add-lingua-backend` : schéma `lingua`, sync, `StatsService`), l'exploitation du produit est aveugle : aucun moyen de savoir combien de comptes utilisent Lingua, à quel rythme, sur quelles langues, ni quelles versions de packs de données circulent. Le back-office Vue est déjà la console d'administration de tous les produits (music, plans, flags, usage) — Lingua doit s'y brancher, pas inventer une console à part.
 
 Le périmètre est **OPS uniquement, par décision produit** : des agrégats, le registre des packs, les flags. **Pas de vue support par compte** — les données Lingua (mots rencontrés, decks, historique de révision) décrivent ce qu'une personne lit ; c'est sensible par nature, et l'administrateur n'a aucun besoin opérationnel de les voir. Cette limite est une exigence de spec, pas une omission.
 
@@ -26,8 +26,8 @@ _Aucune. La console `/flags` (`feature-flags-admin`) est consommée telle quelle
 
 ## Impact
 
-- **Produits** : **back-office** = tout le nouveau front (écran, store, nav, i18n en/fr) ; **Lingua backend** = nouveaux protos + RPC admin dans `backend/lingua` (dépend de `add-lingua-id-sync`, qui crée le crate, le schéma et la sync) ; **ID** = consommé (audience `back-office`, rôles scopés, `require_admin_in_scope`) ; **Music / Live / site** : intacts.
-- **Dépendance** : `add-lingua-id-sync` doit être implémenté d'abord (schéma `lingua`, pool `lingua_svc`, `StatsService`). Si ce change n'a pas déjà déclaré le scope `lingua` (`SCOPES`/`APP_SCOPES` de `backend/platform` + attribution de rôles), le présent change le fait.
+- **Produits** : **back-office** = tout le nouveau front (écran, store, nav, i18n en/fr) ; **Lingua backend** = nouveaux protos + RPC admin dans `backend/lingua` (dépend de `add-lingua-backend`, qui crée le crate, le schéma et la sync) ; **ID** = consommé (audience `back-office`, rôles scopés, `require_admin_in_scope`) ; **Music / Live / site** : intacts.
+- **Dépendance** : `add-lingua-backend` doit être implémenté d'abord (schéma `lingua`, pool `lingua_svc`, `StatsService`). Si ce change n'a pas déjà déclaré le scope `lingua` (`SCOPES`/`APP_SCOPES` de `backend/platform` + attribution de rôles), le présent change le fait.
 - **Arborescence** : `backend/lingua/proto/lingua_admin.proto` + `src` (agrégats, gating) ; `scripts/lingua-data` (émission du manifeste) ; `apps/back-office/src` (stores/lingua.ts, views/LinguaView.vue, transport, router, i18n) ; `apps/back-office/e2e/lingua.spec.ts`.
 - **CI** : aucune nouvelle unité — `backend/lingua` est couvert par la lane `rust` (workspace) et `apps/back-office` par `back-office-check` ; `ci-units` inchangé. Le nouveau proto tombe sous le gate `buf breaking` du workflow `proto` (fichier nouveau : passe). Coverage ≥ 80 % des deux côtés ; les adaptateurs minces (`pg*.rs`, `grpc.rs`) suivent la convention d'exclusion existante, la logique d'agrégation reste host-testée.
 - **Hors périmètre (explicitement)** : vue support par compte (rejetée pour la vie privée — pas « plus tard », rejetée), OTA des packs (le registre le prépare, ne le livre pas), écriture du registre depuis la CI vers la prod, nouvelle UI de flags, agrégats temps réel.
