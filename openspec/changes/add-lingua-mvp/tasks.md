@@ -59,21 +59,39 @@ _Les sections 2-4 testent sur des mini-fixtures synthétiques (FST/fréquences d
 - [ ] 7.9 Storage versionné avec migrations + réinitialisation ; export Anki depuis le side panel
 - [ ] 7.10 Page attributions (NOTICE du pack) + privacy note « rien ne quitte l'appareil »
 - [ ] 7.11 Vérification manuelle : load unpacked, parcours complet (calibration → lecture → +Deck → révision → export) sur 5 sites réels
-- [ ] 7.12 Charte Cymbra : `tokens.css` mirrorant `CymbraColors` (précédent : `apps/back-office/src/styles.css`), appliquée au popup d'icône, side panel, drawer et popup de mot ; surlignages dérivés de l'ambre/corail de la palette ; lint « aucun hex hors tokens.css » branché sur 9.2
+- [ ] 7.12 Charte Cymbra : `tokens.css` mirrorant `CymbraColors` (précédent : `apps/back-office/src/styles.css`), appliquée au popup d'icône, side panel, drawer et popup de mot ; surlignages dérivés de l'ambre/corail de la palette ; lint « aucun hex hors tokens.css » branché sur 11.2
 
-## 8. Plugin Claude Code (spec lingua-agent-capture)
+## 8. Port Firefox (desktop + Android — spec lingua-browser-extension)
 
-- [ ] 8.1 Binaire `apps/lingua-agent` : `lingua-core` natif + store SQLite `~/.lingua/` (schéma versionné) ; sous-commandes `ingest`, `statusline`, `vocab`, `mcp`
-- [ ] 8.2 Trait `SessionSource` + impl Claude Code (parse JSONL, extraction texte assistant) ; tests sur transcripts factices ; invariant testé : aucune phrase persistée, aucune connexion réseau
-- [ ] 8.3 Hook `Stop` (manifeste plugin) → `lingua ingest --transcript <path>` ; idempotence par offset de transcript
-- [ ] 8.4 Statusline : % du dernier message + nouveaux de la session ; dégradation silencieuse
-- [ ] 8.5 Skill `/vocab` : liste des inconnus de session avec gloses, ajout au deck avec consentement (phrase d'origine incluse à ce moment-là seulement)
-- [ ] 8.6 Serveur MCP (`list_decks`, `add_words`, `due_cards`, `answer_card`) avec validation d'entrées ; test d'intégration bout-en-bout incluant la révision conversationnelle
-- [ ] 8.7 Manifeste plugin Claude Code (hooks + statusline + skill + MCP) + doc d'installation ; documenter la configuration manuelle de la statusline si le manifeste ne peut pas l'installer
+- [ ] 8.1 Spike jour 1 : WASM dans un content script Firefox (CSP) — verdict documenté ; le design assume le repli event page quel que soit le résultat
+- [ ] 8.2 Variante de manifest `firefox` générée par le build (event page `background.scripts` déclaré à côté du `service_worker`, CSP `wasm-unsafe-eval` explicite, `browser_specific_settings`)
+- [ ] 8.3 Impl `AnalyzerPort` event page : WASM chargé dans l'event page, requêtes par lots, mémoïsation par forme côté content script
+- [ ] 8.4 Permissions optionnelles à l'install (détection `permissions.contains` + prompt) et panneau via `sidebar_action` (même page que le side panel)
+- [ ] 8.5 Parcours manuel Firefox desktop + Android (`web-ext run` / adb) documenté ; publication AMO (desktop + Android, même zip)
 
-## 9. Gates et finitions
+## 9. Apple : app conteneur + extension Safari (spec lingua-apple-app)
 
-- [ ] 9.1 `cargo fmt --all --check` + `clippy -D warnings` + `cargo llvm-cov --workspace --fail-under-lines 80` (avec le `--ignore-filename-regex` mis à jour en 1.3)
-- [ ] 9.2 vitest vert sur `apps/lingua-extension` ; lint « pas de “lemme” » sur les chaînes UI de l'extension ET les sorties utilisateur du plugin (statusline, `/vocab`, MCP)
-- [ ] 9.3 README produit (installation extension + plugin, philosophie local-first, limites connues)
-- [ ] 9.4 `openspec validate add-lingua-mvp --strict` final + mise à jour des specs si l'implémentation a fait bouger un contrat
+- [ ] 9.1 Scaffold `apps/lingua-apple` : `safari-web-extension-converter` sur la variante `safari`, projet Xcode **universal purchase** (une fiche iOS + macOS, bundle `com.cymbra.lingua`)
+- [ ] 9.2 Handler natif : `SafariWebExtensionHandler` → FFI `lingua-core` (lib statique), packs dans le bundle de l'app ; impl `AnalyzerPort` nativeMessaging (event page, lots, mémoïsation) ; dégradation douce testée (pont coupé ⇒ pas de surlignage, page intacte)
+- [ ] 9.3 App conteneur (SwiftUI minimal, charte Cymbra) : decks + révision FSRS + calibration + import LingQ + réglages — l'app vit sans l'extension
+- [ ] 9.4 Activation guidée : walkthrough iOS pas-à-pas + heartbeat App Group ; macOS deep link `showPreferencesForExtension` + état `SFSafariExtensionManager` ; accueil reflétant l'état
+- [ ] 9.5 Signing/TestFlight : cloner le pattern `release-build` de music (App ID, profils, lane CI) ; dogfooding via TestFlight interne
+- [ ] 9.6 Parcours manuel Safari macOS (dev-mode puis signé) et iOS (TestFlight) : activation → calibration → lecture → +Deck → révision ; soumission App Store
+- [ ] 9.7 `ci-units` : ajouter `apps/lingua-apple` (et la lane qui le surveille) au filtre
+
+## 10. Plugin Claude Code (spec lingua-agent-capture)
+
+- [ ] 10.1 Binaire `apps/lingua-agent` : `lingua-core` natif + store SQLite `~/.lingua/` (schéma versionné) ; sous-commandes `ingest`, `statusline`, `vocab`, `mcp`
+- [ ] 10.2 Trait `SessionSource` + impl Claude Code (parse JSONL, extraction texte assistant) ; tests sur transcripts factices ; invariant testé : aucune phrase persistée, aucune connexion réseau
+- [ ] 10.3 Hook `Stop` (manifeste plugin) → `lingua ingest --transcript <path>` ; idempotence par offset de transcript
+- [ ] 10.4 Statusline : % du dernier message + nouveaux de la session ; dégradation silencieuse
+- [ ] 10.5 Skill `/vocab` : liste des inconnus de session avec gloses, ajout au deck avec consentement (phrase d'origine incluse à ce moment-là seulement)
+- [ ] 10.6 Serveur MCP (`list_decks`, `add_words`, `due_cards`, `answer_card`) avec validation d'entrées ; test d'intégration bout-en-bout incluant la révision conversationnelle
+- [ ] 10.7 Manifeste plugin Claude Code (hooks + statusline + skill + MCP) + doc d'installation ; documenter la configuration manuelle de la statusline si le manifeste ne peut pas l'installer
+
+## 11. Gates et finitions
+
+- [ ] 11.1 `cargo fmt --all --check` + `clippy -D warnings` + `cargo llvm-cov --workspace --fail-under-lines 80` (avec le `--ignore-filename-regex` mis à jour en 1.3)
+- [ ] 11.2 vitest vert sur `apps/lingua-extension` ; lint « pas de “lemme” » sur les chaînes UI de l'extension ET les sorties utilisateur du plugin (statusline, `/vocab`, MCP)
+- [ ] 11.3 README produit (installation extension + plugin, philosophie local-first, limites connues)
+- [ ] 11.4 `openspec validate add-lingua-mvp --strict` final + mise à jour des specs si l'implémentation a fait bouger un contrat

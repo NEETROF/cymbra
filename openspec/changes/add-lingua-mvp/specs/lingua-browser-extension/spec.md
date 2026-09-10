@@ -2,8 +2,19 @@
 
 ## ADDED Requirements
 
+### Requirement: Matrice de navigateurs supportés
+L'extension SHALL être construite depuis une source unique et livrée sur quatre navigateurs : Chrome et Edge desktop (même build Chromium, deux stores), Firefox (desktop et Android — variante event page, host permissions optionnelles à l'install), et Safari macOS/iOS (variante convertie, hébergée par l'app conteneur). Les canaux tiers (Edge Canary Android, stores curés, forks Chromium) ne SHALL PAS être promis ni testés. Le build SHALL produire les trois variantes de manifest depuis la même source.
+
+#### Scenario: Un build, trois artefacts
+- **WHEN** le build de release s'exécute
+- **THEN** il produit les artefacts chromium, firefox et safari depuis la même source, ne différant que par le manifest et l'implémentation de l'`AnalyzerPort`
+
+#### Scenario: Permissions Firefox à l'installation
+- **WHEN** l'utilisateur installe l'extension sur Firefox
+- **THEN** l'extension fonctionne en mode « surligner cette page » et propose le grant global via le prompt de permissions optionnelles
+
 ### Requirement: Surlignage in-place sans mutation du DOM
-L'extension SHALL surligner les mots inconnus (et distinctement les mots « en cours ») via la CSS Custom Highlight API, sans envelopper les mots dans des éléments ni modifier le DOM de la page. Le contenu dynamique (SPA) SHALL être re-analysé par sous-arbre muté, avec débounce. L'analyse SHALL tourner dans le monde isolé du content script (WASM), derrière un port de messages (`AnalyzerPort`).
+L'extension SHALL surligner les mots inconnus (et distinctement les mots « en cours ») via la CSS Custom Highlight API, sans envelopper les mots dans des éléments ni modifier le DOM de la page. Le contenu dynamique (SPA) SHALL être re-analysé par sous-arbre muté, avec débounce. Le content script SHALL consommer l'analyse exclusivement via un port de messages (`AnalyzerPort`), dont l'implémentation varie par navigateur : WASM dans le content script (Chromium), WASM dans l'event page (Firefox), native via nativeMessaging (Safari).
 
 #### Scenario: Page anglaise surlignée
 - **WHEN** une page d'article en anglais est chargée avec l'extension active
@@ -35,7 +46,7 @@ Un raccourci clavier SHALL capturer la sélection courante (mot ou expression, b
 - **THEN** le panneau affiche l'expression et sa phrase d'origine, et « + Deck » crée la carte
 
 ### Requirement: Deux surfaces de révision
-L'extension SHALL offrir la révision dans le **side panel natif** (la page est poussée, le panneau survit aux navigations) et dans un **panneau injecté** repliable (shadow DOM) pour les micro-révisions. Les deux SHALL opérer sur le même état local.
+L'extension SHALL offrir la révision dans le **panneau natif du navigateur** quand il existe (Side Panel sur Chromium, sidebar sur Firefox — la page est poussée, le panneau survit aux navigations) et dans un **panneau injecté** repliable (shadow DOM) pour les micro-révisions. Sur Safari, qui n'a pas d'API de panneau, le panneau injecté SHALL porter seul la révision dans le navigateur. Toutes les surfaces SHALL opérer sur le même état local.
 
 #### Scenario: Side panel pendant la navigation
 - **WHEN** l'utilisateur ouvre le side panel puis navigue vers une autre page
