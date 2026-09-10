@@ -39,8 +39,8 @@ yarn lint && yarn format:check && yarn typecheck && yarn test
 - **State** — statuses, the captured deck, calibration — lives in
   `chrome.storage.local` under a versioned schema with forward migration
   (`src/state/`). A gesture in one tab repaints every other via `storage.onChanged`.
-- **Permissions** — `activeTab` by default (the popup's *Analyser cette page*),
-  `<all_urls>` optional (*Toujours surligner*, granted once). No network requests at
+- **Permissions** — `activeTab` by default (the popup's _Analyser cette page_),
+  `<all_urls>` optional (_Toujours surligner_, granted once). No network requests at
   all; the pack and glosses are local assets.
 - **Identity** — one token sheet (`src/styles/tokens.css`) mirrors the Cymbra
   "Sonic Luminescence" palette; no colour literal lives anywhere else (lint-enforced).
