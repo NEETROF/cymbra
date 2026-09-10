@@ -1,67 +1,95 @@
-# lingua-browser-extension — expérience navigateur (lecture, Chromium)
+# lingua-browser-extension — browser experience (reading, Chromium)
 
 ## ADDED Requirements
 
-### Requirement: Surlignage in-place sans mutation du DOM
-L'extension SHALL surligner les mots inconnus (et distinctement les mots « en cours ») via la CSS Custom Highlight API, sans envelopper les mots dans des éléments ni modifier le DOM de la page. Le contenu dynamique (SPA) SHALL être re-analysé par sous-arbre muté, avec débounce. Le content script SHALL consommer l'analyse exclusivement via un port de messages (`AnalyzerPort`) ; dans ce périmètre Chromium, l'implémentation est le WASM instancié dans le content script — le port est la couture prévue pour les variantes ultérieures de la pile (WASM dans l'event page sur Firefox, nativeMessaging sur Safari), sans toucher au content script.
+### Requirement: In-place highlighting without DOM mutation
+The extension SHALL highlight unknown words (and, distinctly, "learning" words) through the
+CSS Custom Highlight API, without wrapping words in elements or otherwise modifying the
+page DOM. Dynamic content (SPAs) SHALL be re-analysed per mutated subtree, debounced. The
+content script SHALL consume analysis exclusively through a message port (`AnalyzerPort`);
+within this Chromium scope the implementation is the WASM module instantiated in the
+content script — the port is the seam planned for the later variants in the stack (WASM in
+the event page on Firefox, nativeMessaging on Safari), with no change to the content
+script.
 
-#### Scenario: Page anglaise surlignée
-- **WHEN** une page d'article en anglais est chargée avec l'extension active
-- **THEN** les mots inconnus apparaissent surlignés et le DOM de la page ne contient aucun nœud ajouté par l'extension (hors hôtes d'UI de l'extension)
+#### Scenario: English page highlighted
+- **WHEN** an English article page is loaded with the extension active
+- **THEN** unknown words appear highlighted and the page DOM contains no node added by the extension (outside the extension's own UI hosts)
 
-#### Scenario: Contenu ajouté dynamiquement
-- **WHEN** une SPA insère un nouveau paragraphe anglais
-- **THEN** ce paragraphe est analysé et surligné sans re-analyse complète de la page
+#### Scenario: Dynamically inserted content
+- **WHEN** an SPA inserts a new English paragraph
+- **THEN** that paragraph is analysed and highlighted without re-analysing the whole page
 
-### Requirement: Pourcentage de la page visible en permanence
-Le badge de l'icône SHALL afficher le pourcentage de mots connus de l'onglet actif, mis à jour à chaque changement d'état ; sur une page non analysable, il SHALL afficher un état neutre. Le popup de l'icône SHALL détailler : % connu, mots analysés, mots inconnus (occurrences et mots différents), et le réglage de calibration.
+### Requirement: Page percentage always visible
+The icon badge SHALL show the percentage of known words for the active tab, refreshed on
+every state change; on a page that cannot be analysed it SHALL show a neutral state. The
+icon popup SHALL break this down: percentage known, words analysed, unknown words
+(occurrences and distinct words), and the calibration setting.
 
-#### Scenario: Badge sur page analysée
-- **WHEN** une page à 94 % de tokens connus est active
-- **THEN** le badge affiche « 94% »
+#### Scenario: Badge on an analysed page
+- **WHEN** a page at 94% known tokens is active
+- **THEN** the badge shows "94%"
 
-### Requirement: Popup de mot au clic
-Cliquer un mot surligné SHALL ouvrir un panneau (shadow DOM fermé) affichant : la forme du dictionnaire, la forme vue si différente, la glose en langue maternelle (du pack, hors-ligne), le rang de fréquence vulgarisé, et les actions « Je connais », « + Deck », « Ignorer ». Chaque action SHALL mettre à jour le statut, re-peindre la page immédiatement et se propager aux autres onglets.
+### Requirement: Word popup on click
+Clicking a highlighted word SHALL open a panel (closed shadow DOM) showing: the dictionary
+form, the form as seen if it differs, the native-language gloss (from the pack, offline),
+the frequency rank in plain language, and the actions "Je connais", "+ Deck" and "Ignorer"
+(the shipping UI copy is French). Each action SHALL update the status, repaint the page
+immediately and propagate to the other tabs.
 
-#### Scenario: Ajout au deck
-- **WHEN** l'utilisateur clique « + Deck » sur un mot surligné
-- **THEN** le mot passe au surlignage « en cours » sur cet onglet et sur tout autre onglet ouvert, et une carte est créée avec la phrase d'origine
+#### Scenario: Adding to the deck
+- **WHEN** the user clicks "+ Deck" on a highlighted word
+- **THEN** the word switches to the "learning" highlight on this tab and on every other open tab, and a card is created with the source sentence
 
-### Requirement: Capture de sélection au raccourci clavier
-Un raccourci clavier SHALL capturer la sélection courante (mot ou expression, bornée en longueur) et ouvrir le panneau avec la phrase d'origine extraite automatiquement, permettant l'ajout au deck comme carte d'expression.
+### Requirement: Selection capture on a keyboard shortcut
+A keyboard shortcut SHALL capture the current selection (a word or a phrase, bounded in
+length) and open the panel with the source sentence extracted automatically, allowing the
+selection to be added to the deck as a phrase card.
 
-#### Scenario: Capture d'une expression
-- **WHEN** l'utilisateur sélectionne trois mots et presse le raccourci
-- **THEN** le panneau affiche l'expression et sa phrase d'origine, et « + Deck » crée la carte
+#### Scenario: Capturing a phrase
+- **WHEN** the user selects three words and presses the shortcut
+- **THEN** the panel shows the phrase and its source sentence, and "+ Deck" creates the card
 
-### Requirement: Identité visuelle Cymbra
-Les surfaces d'UI possédées par l'extension (popup d'icône, pages d'extension) SHALL appliquer la charte graphique Cymbra — la palette « Sonic Luminescence » de `apps/music/lib/theme/cymbra_theme.dart`, déjà mirrorée en variables CSS par le back-office (`apps/back-office/src/styles.css`) — via une feuille de tokens unique embarquée dans l'extension. Les surfaces injectées dans les pages tierces (popup de mot) SHALL consommer les mêmes tokens, la lisibilité sur page claire comme sombre primant sur la fidélité au thème sombre. Les teintes de surlignage SHALL dériver de l'ambre (`handLeft` — « en cours ») et du corail (`error` — « inconnu ») de la palette. Aucune couleur ne SHALL être codée en dur hors de la feuille de tokens.
+### Requirement: Cymbra visual identity
+The UI surfaces the extension owns (icon popup, extension pages) SHALL apply the Cymbra
+visual identity — the "Sonic Luminescence" palette from
+`apps/music/lib/theme/cymbra_theme.dart`, already mirrored into CSS variables by the back
+office (`apps/back-office/src/styles.css`) — through a single token sheet embedded in the
+extension. Surfaces injected into third-party pages (the word popup) SHALL consume the same
+tokens, with legibility on both light and dark pages taking precedence over fidelity to the
+dark theme. Highlight tints SHALL derive from the palette's amber (`handLeft` —
+"learning") and coral (`error` — "unknown"). No color SHALL be hard-coded outside the token
+sheet.
 
-#### Scenario: Cohérence des surfaces d'extension
-- **WHEN** l'utilisateur ouvre le popup d'icône puis une page d'extension
-- **THEN** les deux surfaces rendent avec les tokens Cymbra (fonds Midnight Navy, primaire violet, rayons de la charte) et aucun hex hors de la feuille de tokens n'existe dans les styles (vérifié par lint)
+#### Scenario: Extension surfaces stay consistent
+- **WHEN** the user opens the icon popup and then an extension page
+- **THEN** both surfaces render with the Cymbra tokens (Midnight Navy backgrounds, violet primary, the identity's radii) and no hex outside the token sheet exists in the styles (checked by lint)
 
-#### Scenario: Surlignage lisible sur page claire
-- **WHEN** une page à fond clair est surlignée
-- **THEN** les teintes ambre et corail des surlignages laissent le texte de la page dans sa couleur d'origine et restent distinguables entre elles
+#### Scenario: Highlighting legible on a light page
+- **WHEN** a light-background page is highlighted
+- **THEN** the amber and coral highlight tints leave the page text in its original color and stay distinguishable from each other
 
-### Requirement: Posture de permissions minimale
-L'extension SHALL s'installer avec `activeTab` et déclarer `<all_urls>` en permission optionnelle : « surligner cette page » SHALL fonctionner sans grant global ; « toujours surligner » SHALL demander le grant une seule fois. Aucun texte de page ne SHALL quitter l'appareil.
+### Requirement: Minimal permission posture
+The extension SHALL install with `activeTab` and declare `<all_urls>` as an optional
+permission: "highlight this page" SHALL work without a global grant; "always highlight"
+SHALL ask for the grant exactly once. No page text SHALL leave the device.
 
-#### Scenario: Premier usage sans grant global
-- **WHEN** l'utilisateur clique l'icône sur une page sans avoir accordé `<all_urls>`
-- **THEN** la page courante est analysée et surlignée via `activeTab`
+#### Scenario: First use without a global grant
+- **WHEN** the user clicks the icon on a page without having granted `<all_urls>`
+- **THEN** the current page is analysed and highlighted through `activeTab`
 
-### Requirement: Aucune requête réseau
-En v1, l'extension ne SHALL émettre aucune requête réseau : le pack et les gloses sont des assets locaux, et ni le texte des pages ni les données utilisateur ne quittent l'appareil.
+### Requirement: No network requests
+In v1 the extension SHALL issue no network request at all: the pack and the glosses are
+local assets, and neither page text nor user data leaves the device.
 
-#### Scenario: Fonctionnement hors ligne
-- **WHEN** l'utilisateur lit une page déjà chargée sans connexion réseau
-- **THEN** le surlignage et le popup de mot (glose comprise) fonctionnent intégralement
+#### Scenario: Working offline
+- **WHEN** the user reads an already-loaded page with no network connection
+- **THEN** highlighting and the word popup (gloss included) work in full
 
-### Requirement: État local versionné
-L'état (statuts, cartes, calibration, préférences) SHALL vivre dans `chrome.storage.local` sous un schéma versionné avec migration ascendante. Une réinitialisation complète SHALL être offerte.
+### Requirement: Versioned local state
+State (statuses, cards, calibration, preferences) SHALL live in `chrome.storage.local`
+under a versioned schema with forward migration. A full reset SHALL be offered.
 
-#### Scenario: Migration de schéma
-- **WHEN** l'extension démarre sur un état de version antérieure
-- **THEN** l'état est migré sans perte et la version stockée est mise à jour
+#### Scenario: Schema migration
+- **WHEN** the extension starts on state from an earlier version
+- **THEN** the state is migrated without loss and the stored version is updated

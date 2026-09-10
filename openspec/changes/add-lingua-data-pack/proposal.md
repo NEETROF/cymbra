@@ -1,32 +1,70 @@
-# add-lingua-data-pack — Cymbra Lingua : pack de données anglais → français
+# add-lingua-data-pack — Cymbra Lingua: the English → French data pack
 
 ## Why
 
-Le cœur d'analyse (`add-lingua-analysis`) et les étages qui le suivent testent sur des mini-fixtures synthétiques ; pour analyser du vrai texte il faut de vraies données : le FST formes→lemmes, les rangs de fréquence et les gloses. Ce change livre le **pack de données anglais → français** construit hors-ligne (AGID en FST, fréquences wordfreq, gloses kaikki) : format de pack versionné, clé par paire (langue étudiée → langue maternelle), pile de notices de licences embarquée. C'est aussi le change qui fixe l'hygiène de licences du produit (données à usage commercial autorisé, liste noire GPL/NC) et le budget de taille qui rend le pack embarquable dans une extension.
+The analysis core (`add-lingua-analysis`) and every stage above it are tested against
+tiny synthetic fixtures; analysing real text needs real data — the form→lemma FST, the
+frequency ranks and the glosses. This change delivers the **English → French data pack**
+built offline (AGID as an FST, wordfreq frequencies, kaikki glosses): a versioned pack
+format, keyed by pair (studied language → native language), with the full stack of
+licence notices embedded. It is also the change that fixes the product's licence hygiene
+(commercial-use data only, GPL/NC denylist) and the size budget that makes the pack
+shippable inside an extension.
 
-**Position dans la pile (4/12)** : add-lingua-analysis → add-lingua-knowledge-model → add-lingua-decks-review → **add-lingua-data-pack** → add-lingua-wasm → add-lingua-extension-reading → add-lingua-extension-review → add-lingua-firefox → add-lingua-apple → add-lingua-agent → add-lingua-backend → add-lingua-connected-clients. **Prérequis explicite : `add-lingua-analysis`** (le cœur lit le format : la cascade de lemmatisation consomme le FST, le % consomme les rangs, et l'`analyzer_version` exposée par le cœur gate la compatibilité des packs).
+**Position in the stack (4/12)**: add-lingua-analysis → add-lingua-knowledge-model →
+add-lingua-decks-review → **add-lingua-data-pack** → add-lingua-wasm →
+add-lingua-extension-reading → add-lingua-extension-review → add-lingua-firefox →
+add-lingua-apple → add-lingua-agent → add-lingua-backend →
+add-lingua-connected-clients. **Explicit prerequisite: `add-lingua-analysis`** — the core
+is what reads the format: the lemmatisation cascade consumes the FST, the percentage
+consumes the ranks, and the `analyzer_version` the core exposes gates pack
+compatibility.
 
 ## What Changes
 
-- **Pipeline `scripts/lingua-data/`** : construction hors-ligne reproductible (sources datées, données brutes non commitées) — téléchargement AGID, export wordfreq, extrait kaikki fr-glosses ; construction du FST (AGID inversé), de la table de fréquence (rangs quantisés) et du `gloss.zst` offset-indexé (top lemmes, budget).
-- **Format conteneur `pack.lingua`** : magic + TOC — `meta` (paire, `pack_version`, `analyzer_version` compatible, licences), `forms.fst`, `lemmas.bin`, `freq.bin`, `gloss.zst`, `NOTICE` — et **lecteur dans `lingua-core`** avec refus des versions incompatibles.
-- **Garde-fous licences** : liste noire GPL/AGPL/NC documentée dans `scripts/lingua-data`, vérification du NOTICE au build.
-- **Budget de taille** : échec de build si pack > 5 Mo ; la remédiation réduit la couverture des gloses, jamais le FST ni les fréquences.
-- **Le pack n'est jamais commité** : reconstruit en CI (déterminisme testé) et mis en cache ; le dev local le construit une fois via le script.
-- MVP : un seul pack (EN→FR), mais **tout le code est pair-keyed** — ajouter (ES→FR) = données, pas du code.
+- **`scripts/lingua-data/` pipeline** — a reproducible offline build (dated sources, raw
+  data never committed): AGID download, wordfreq export, kaikki fr-glosses extract; then
+  the FST (AGID inverted), the frequency table (quantised ranks) and the offset-indexed
+  `gloss.zst` (top lemmas, within budget).
+- **`pack.lingua` container format** — magic + TOC: `meta` (pair, `pack_version`,
+  compatible `analyzer_version`, licences), `forms.fst`, `lemmas.bin`, `freq.bin`,
+  `gloss.zst`, `NOTICE` — plus a **reader in `lingua-core`** that refuses incompatible
+  versions.
+- **Licence guard-rails** — a GPL/AGPL/NC denylist documented in `scripts/lingua-data`,
+  and a NOTICE check at build time.
+- **Size budget** — the build fails if the pack exceeds 5 MB; the remedy shrinks gloss
+  coverage, never the FST or the frequencies.
+- **The pack is never committed** — it is rebuilt in CI (determinism tested) and cached;
+  a local dev builds it once via the script.
+- MVP ships a single pack (EN→FR), but **all the code is pair-keyed** — adding (ES→FR) is
+  data, not code.
 
 ## Capabilities
 
 ### New Capabilities
-- `lingua-data-packs` : format des packs de données par paire (L2→L1) — FST formes→lemmes, fréquences, gloses — versionnés, avec attributions de licences (AGID/wordfreq CC BY-SA/kaikki CC BY-SA) ; pipeline de construction hors-ligne reproductible.
+- `lingua-data-packs`: the per-pair (L2→L1) data-pack format — form→lemma FST,
+  frequencies, glosses — versioned, with licence attributions (AGID / wordfreq CC BY-SA /
+  kaikki CC BY-SA), plus the reproducible offline build pipeline.
 
 ### Modified Capabilities
-_Aucune. `lingua-analysis` consomme le pack via ses API existantes (lookup FST, rangs de fréquence) — le contrat d'analyse ne bouge pas. La page « Attributions » exigée par la spec est un contrat de la capability, réalisé côté extension par `add-lingua-extension-reading`._
+<!-- None. `lingua-analysis` consumes the pack through its existing APIs (FST lookup,
+     frequency ranks) — the analysis contract does not move. The "Attributions" page the
+     spec requires is a contract of this capability, realised on the extension side by
+     `add-lingua-extension-reading`. -->
 
 ## Impact
 
-- **Produits** : Lingua (données + lecteur de pack — rien de consommé hors de la pile Lingua) ; **Cymbra ID / Music / Live / back-office / site : intacts** (aucun proto, aucun crate backend, aucune app existante modifiés).
-- **Arborescence** : `scripts/lingua-data/` (nouveau pipeline), `crates/lingua-core` (module `packs/` : lecteur du conteneur). Aucune nouvelle unité `apps/*`/`packages/*`/`crates/*` — rien à ajouter à `ci-units`.
-- **CI** : la lane Rust existante couvre le lecteur (llvm-cov ≥ 80 %) ; le pack (en→fr) est construit en CI et mis en cache (jamais commité), avec test de reproductibilité.
-- **Dépendances nouvelles** : données AGID + wordfreq + kaikki (buildées hors-ligne, non commitées brutes) ; compression zstd pour les gloses.
-- **Hors périmètre** : la page « Attributions » dans l'extension (`add-lingua-extension-reading`), l'embarquement du pack dans le module WASM (`add-lingua-wasm`) et dans le bundle Apple (`add-lingua-apple`), les packs langues romanes (fr/it/es/pt — le format pair-keyed les attend).
+- **Products**: Lingua only (data + pack reader — nothing consumed outside the Lingua
+  stack); **Cymbra ID / Music / Live / back office / site: untouched** (no proto, no
+  backend crate, no existing app modified).
+- **Tree**: `scripts/lingua-data/` (new pipeline), `crates/lingua-core` (a `packs/`
+  module: the container reader). No new `apps/*`/`packages/*`/`crates/*` unit — nothing to
+  add to `ci-units`.
+- **CI**: the existing Rust lane covers the reader (llvm-cov ≥ 80%); the (en→fr) pack is
+  built in CI and cached (never committed), with a reproducibility test.
+- **New dependencies**: AGID + wordfreq + kaikki data (built offline, raw sources not
+  committed); zstd compression for the glosses.
+- **Out of scope**: the "Attributions" page in the extension
+  (`add-lingua-extension-reading`), embedding the pack in the WASM module
+  (`add-lingua-wasm`) and in the Apple bundle (`add-lingua-apple`), and the Romance-language
+  packs (fr/it/es/pt — the pair-keyed format is waiting for them).

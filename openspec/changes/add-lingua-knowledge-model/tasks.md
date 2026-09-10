@@ -2,8 +2,8 @@
 
 ## 1. lingua-core — knowledge model (spec lingua-knowledge-model)
 
-- [ ] 1.1 Types statuts (`learning/known/ignored` + provenance `manual/calibration/srs/import`) et résolution connu-implicite par rang ≤ calibration ; le statut explicite prime
-- [ ] 1.2 Résolution multi-candidats (connu si un candidat l'est) avec tests
-- [ ] 1.3 Profil L1/L2 : `native_language` + langues étudiées ; toutes les API clées par paire ; tests avec paire factice
-- [ ] 1.4 Import LingQ (CSV) → statuts `known` provenance `import`, entrées lemmatisées ; test sur échantillon réel anonymisé
-- [ ] 1.5 Compteurs d'exposition par (langue, lemme) : incréments à l'ingestion, source + horodatage, sans effet sur les statuts ; tests
+- [ ] 1.1 Status types (`learning/known/ignored` + provenance `manual/calibration/srs/import`) and implicit-known resolution by rank ≤ calibration; the explicit status wins
+- [ ] 1.2 Multi-candidate resolution (known if any candidate is) with tests
+- [ ] 1.3 L1/L2 profile: `native_language` + studied languages; every API keyed by pair; tests with a dummy pair
+- [ ] 1.4 LingQ import (CSV) → `known` statuses with provenance `import`, entries lemmatised; test on a real anonymised sample
+- [ ] 1.5 Exposure counters per (language, lemma): increments on ingestion, source + timestamp, with no effect on statuses; tests

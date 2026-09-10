@@ -1,21 +1,21 @@
-# lingua-stats — agrégats d'apprentissage : écran de stats des clients
+# lingua-stats — learning aggregates: the clients' stats screen
 
 ## ADDED Requirements
 
-### Requirement: Écran de stats dans l'extension et l'app
-L'extension et l'app conteneur SHALL offrir un écran de stats d'apprentissage — mots appris, révisions faites, expositions, par jour et par langue — alimenté par la lecture consolidée quand l'utilisateur est connecté, et par les agrégats locaux de l'appareil sinon ; l'écran SHALL indiquer la portée affichée (tous les appareils ou cet appareil) et que les sessions d'agents (plugin Claude Code, local-only) n'y figurent pas.
+### Requirement: Stats screen in the extension and the app
+The extension and the container app SHALL offer a learning stats screen — words learned, reviews done, exposures, per day and per language — fed by the consolidated server read when the user is signed in and by the device's local aggregates otherwise; the screen SHALL state the scope shown (all devices or this device) and that agent sessions (the Claude Code plugin, local-only) are not counted in it.
 
-#### Scenario: Stats consolidées une fois connecté
-- **WHEN** un utilisateur connecté ouvre l'écran de stats de l'extension après avoir révisé sur deux appareils
-- **THEN** les totaux affichés couvrent les deux appareils et l'écran indique la portée « tous les appareils »
+#### Scenario: Consolidated stats once signed in
+- **WHEN** a signed-in user opens the extension's stats screen after reviewing on two devices
+- **THEN** the totals shown cover both devices and the screen states the "all devices" scope
 
-#### Scenario: Stats locales sans compte
-- **WHEN** un utilisateur sans compte ouvre l'écran de stats
-- **THEN** les agrégats locaux de l'appareil s'affichent avec la portée « cet appareil », sans aucune requête réseau
+#### Scenario: Local stats without an account
+- **WHEN** a user without an account opens the stats screen
+- **THEN** the device's local aggregates are shown with the "this device" scope, with no network request
 
-### Requirement: Vocabulaire des stats sans jargon
-Les écrans et réponses de stats ne SHALL PAS afficher le terme « lemme » : les comptes de lemmes uniques SHALL être libellés « mots différents » et la forme canonique « forme du dictionnaire », conformément à la règle de vocabulaire du produit.
+### Requirement: Jargon-free stats vocabulary
+Stats screens and responses SHALL NOT display the term "lemma": counts of unique lemmas SHALL be labelled "distinct words" and the canonical form "dictionary form", per the product's vocabulary rule.
 
-#### Scenario: Libellé des mots appris
-- **WHEN** l'écran de stats affiche le compte de mots appris de la semaine
-- **THEN** le libellé emploie « mots » ou « mots différents », et le terme « lemme » n'apparaît nulle part
+#### Scenario: Label for words learned
+- **WHEN** the stats screen shows the week's count of words learned
+- **THEN** the label uses "words" or "distinct words", and the term "lemma" appears nowhere

@@ -2,18 +2,41 @@
 
 ## Context
 
-Cinquième étage de la pile Lingua : le cœur (`add-lingua-analysis`) est déterministe à `analyzer_version` donnée et dispose d'un corpus de fixtures de non-régression ; le pack (`add-lingua-data-pack`) est versionné et compatible-gaté. Ce change ajoute la seconde cible de compilation du même cerveau. Décisions héritées et non rediscutées : déterminisme contractuel et fixtures (`add-lingua-analysis`), format et budget 5 Mo du pack (`add-lingua-data-pack`).
+The fifth storey of the Lingua stack. The core (`add-lingua-analysis`) is deterministic at
+a given `analyzer_version` and carries a regression corpus of fixtures; the pack
+(`add-lingua-data-pack`) is versioned and compatibility-gated. This change adds the second
+compilation target for the same brain. Inherited and not re-litigated here: contractual
+determinism and the fixtures (`add-lingua-analysis`), and the pack format and its 5 MB
+budget (`add-lingua-data-pack`).
 
 ## Decisions
 
-### D1 — Cible WASM : wasm-pack `--target web`, bindings minces, logique dans le cœur
-`lingua-core` compile en WASM via wasm-pack `--target web` — le format consommable tel quel par un content script ou une event page d'extension, sans bundler dédié. Les bindings wasm-bindgen (crate/feature `lingua-wasm`) sont une couche mince : analyse **par lot de blocs** → tokens classés, statuts, %, gloses — aucune logique dedans ; la logique reste dans `lingua-core`, host-testée (convention du monorepo : le glue de binding est exclu du coverage, comme le glue frb de music, la logique jamais). Un seul artefact WASM : ce qui varie par navigateur (où il s'instancie) est confiné derrière l'`AnalyzerPort`, décision portée par `add-lingua-extension-reading`.
+### D1 — WASM target: wasm-pack `--target web`, thin bindings, logic in the core
+`lingua-core` compiles to WASM through wasm-pack `--target web` — the format a content
+script or an extension event page consumes as-is, with no dedicated bundler. The
+wasm-bindgen bindings (the `lingua-wasm` crate/feature) are a thin layer:
+**batch-of-blocks** analysis → classified tokens, statuses, percentage, glosses — no logic
+inside. The logic stays in `lingua-core`, host-tested (the monorepo convention: binding
+glue is excluded from coverage, like music's frb glue; the logic never is). One WASM
+artefact only: what varies per browser (where it is instantiated) is confined behind the
+`AnalyzerPort`, a decision owned by `add-lingua-extension-reading`.
 
-### D2 — La parité est un contrat testé en CI, pas une promesse
-Déterminisme contractuel hérité d'`add-lingua-analysis`, étendu à la cible croisée : à `analyzer_version` égale et pack égal, sortie identique octet pour octet entre natif et WASM, testée en CI sur le corpus de fixtures (fixtures croisées natif/WASM). La lane de parité échoue sur toute divergence — une divergence silencieuse entre cibles fausserait le % affiché par l'extension sans qu'aucun test natif ne le voie. C'est la garantie « un seul cerveau » sur laquelle reposent tous les changes de surface suivants.
+### D2 — Parity is a contract tested in CI, not a promise
+Contractual determinism, inherited from `add-lingua-analysis`, extended across targets: at
+equal `analyzer_version` and equal pack, output is byte-for-byte identical between native
+and WASM, tested in CI over the fixture corpus (fixtures crossed native/WASM). The parity
+lane fails on any divergence — a silent divergence between targets would corrupt the
+percentage the extension shows without a single native test noticing. This is the "one
+brain" guarantee every surface change downstream rests on.
 
 ## Risks / Trade-offs
 
-- [Divergences natif/wasm32 (flottants, tailles d'entiers, ordre d'itération)] → sorties canonicalisées (représentations déterministes, collections ordonnées) ; la lane de parité est le filet — elle transforme une classe de bugs indétectables en échec de CI.
-- [Taille du module (~1 Mo de code wasm + pack ≤ 5 Mo)] → budget du pack posé par `add-lingua-data-pack` ; instanciation lazy, mémoïsation et coût par onglet relèvent d'`add-lingua-extension-reading` (risque géré là-bas, cible < 50 ms d'init).
-- [WASM dans les content scripts Firefox (CSP)] → hors périmètre ici : spike jour 1 du port Firefox (`add-lingua-firefox`) ; la cible `--target web` reste valable dans les deux emplacements (content script ou event page).
+- [Native/wasm32 divergence (floats, integer widths, iteration order)] → canonicalised
+  output (deterministic representations, ordered collections); the parity lane is the net
+  — it turns a class of undetectable bugs into a CI failure.
+- [Module size (~1 MB of wasm code + a ≤ 5 MB pack)] → the pack budget is set by
+  `add-lingua-data-pack`; lazy instantiation, memoisation and per-tab cost belong to
+  `add-lingua-extension-reading` (risk managed there, target < 50 ms init).
+- [WASM inside Firefox content scripts (CSP)] → out of scope here: it is the day-one spike
+  of the Firefox port (`add-lingua-firefox`); the `--target web` build holds in either
+  location (content script or event page).

@@ -1,35 +1,35 @@
-# lingua-data-packs — packs de données linguistiques
+# lingua-data-packs — linguistic data packs
 
 ## ADDED Requirements
 
-### Requirement: Pack conteneur versionné par paire de langues
-Un pack SHALL être un conteneur unique versionné, clé par paire (langue étudiée → langue maternelle), contenant : métadonnées (paire, `pack_version`, `analyzer_version` compatible, licences), FST formes→lemmes, table de fréquence (rangs), gloses compressées indexées par lemme, et fichier NOTICE. Le cœur SHALL refuser un pack dont la version d'analyseur est incompatible.
+### Requirement: Versioned pack container, keyed by language pair
+A pack SHALL be a single versioned container, keyed by pair (studied language → native language), holding: metadata (the pair, `pack_version`, the compatible `analyzer_version`, licences), a form→lemma FST, a frequency table (ranks), compressed glosses indexed by lemma, and a NOTICE file. The core SHALL refuse a pack whose analyser version is incompatible.
 
-#### Scenario: Chargement du pack EN→FR
-- **WHEN** l'extension démarre avec le pack (en → fr) embarqué
-- **THEN** le cœur expose lemmatisation, rangs de fréquence et gloses françaises pour l'anglais
+#### Scenario: Loading the EN→FR pack
+- **WHEN** the extension starts with the (en → fr) pack embedded
+- **THEN** the core exposes lemmatisation, frequency ranks and French glosses for English
 
-#### Scenario: Pack incompatible
-- **WHEN** un pack déclare une `analyzer_version` incompatible avec le cœur
-- **THEN** le chargement échoue avec une erreur explicite, sans analyse partielle
+#### Scenario: Incompatible pack
+- **WHEN** a pack declares an `analyzer_version` incompatible with the core
+- **THEN** loading fails with an explicit error and no partial analysis is produced
 
-### Requirement: Hygiène de licences
-Le pipeline de construction SHALL n'accepter que des sources dont la licence autorise l'usage commercial (AGID, WordNet, wordfreq CC BY-SA, kaikki CC BY-SA) et SHALL rejeter toute source GPL, AGPL ou non-commerciale (liste noire documentée). Chaque pack SHALL embarquer la pile complète des notices, et l'interface utilisateur SHALL exposer une page d'attributions.
+### Requirement: Licence hygiene
+The build pipeline SHALL accept only sources whose licence permits commercial use (AGID, WordNet, wordfreq CC BY-SA, kaikki CC BY-SA) and SHALL reject any GPL, AGPL or non-commercial source (documented denylist). Every pack SHALL embed the complete stack of notices, and the user interface SHALL expose an attributions page.
 
-#### Scenario: Notices embarquées
-- **WHEN** un pack est construit
-- **THEN** son NOTICE contient les attributions AGID (avec sa pile amont, dont WordNet), wordfreq et kaikki, et la page « Attributions » de l'extension les affiche
+#### Scenario: Notices embedded
+- **WHEN** a pack is built
+- **THEN** its NOTICE carries the AGID attributions (including its upstream stack, WordNet among them), wordfreq and kaikki, and the extension's "Attributions" page displays them
 
-### Requirement: Construction hors-ligne reproductible
-Les packs SHALL être construits par un pipeline scripté et reproductible à partir de sources datées ; les données brutes ne SHALL PAS être commitées. Deux exécutions du pipeline sur les mêmes sources SHALL produire des packs identiques.
+### Requirement: Reproducible offline build
+Packs SHALL be built by a scripted, reproducible pipeline from dated sources, and the raw data SHALL NOT be committed. Two runs of the pipeline over the same sources SHALL produce identical packs.
 
-#### Scenario: Rebuild du pack
-- **WHEN** le pipeline est relancé sur les mêmes fichiers sources
-- **THEN** le pack produit est identique octet pour octet au pack précédent
+#### Scenario: Rebuilding the pack
+- **WHEN** the pipeline is re-run over the same source files
+- **THEN** the resulting pack is byte-for-byte identical to the previous one
 
-### Requirement: Budget de taille
-Le pack (en → fr) embarqué dans l'extension SHALL rester sous 5 Mo (FST + fréquences + gloses compressées). En cas de dépassement, le build SHALL échouer ; la remédiation SHALL réduire la couverture des gloses, jamais celle du FST ni des fréquences.
+### Requirement: Size budget
+The (en → fr) pack embedded in the extension SHALL stay under 5 MB (FST + frequencies + compressed glosses). If it goes over, the build SHALL fail, and the remedy SHALL reduce gloss coverage, never the FST or the frequencies.
 
-#### Scenario: Arbitrage de taille
-- **WHEN** le `gloss.zst` fait dépasser les 5 Mo au build
-- **THEN** le build échoue avec la consigne de réduire le nombre de lemmes glosés
+#### Scenario: Arbitrating size
+- **WHEN** `gloss.zst` pushes the build past 5 MB
+- **THEN** the build fails, telling the operator to reduce the number of glossed lemmas

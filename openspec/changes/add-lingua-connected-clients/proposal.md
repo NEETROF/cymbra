@@ -1,34 +1,88 @@
-# add-lingua-connected-clients — Cymbra Lingua : sign-in, synchronisation et stats dans l'extension et l'app
+# add-lingua-connected-clients — Cymbra Lingua: sign-in, sync and stats in the extension and the app
 
 ## Why
 
-`add-lingua-backend` a livré un serveur complet mais **inerte pour l'utilisateur** : audience `lingua`, trois services de sync, protocole LWW — et aucun client qui s'y connecte. Ce change ferme la boucle : la connexion Cymbra ID dans l'extension et l'app Apple, l'outbox cliente, la fusion du store pré-compte et l'écran de stats consolidé. Le cas réel du fondateur — Chrome sur macOS + Safari iOS — devient enfin cohérent : un mot appris sur le Mac est « connu » sur l'iPhone, une carte créée sur mobile est révisable dans le side panel desktop. Le local-first de la pile reste le mode par défaut — l'extension et l'app vivent entièrement sans compte, la synchronisation est **opt-in** à la connexion.
+`add-lingua-backend` shipped a complete server that is **inert for the user**: the
+`lingua` audience, three sync services, the LWW protocol — and no client connecting to
+any of it. This change closes the loop: Cymbra ID sign-in in the extension and the Apple
+app, the client outbox, the pre-account store merge, and the consolidated stats screen.
+The founder's real case — Chrome on macOS + Safari on iOS — finally becomes coherent: a
+word learned on the Mac is "known" on the iPhone, a card created on mobile is reviewable
+in the desktop side panel. The stack's local-first behaviour remains the default — the
+extension and the app work entirely without an account, and syncing is **opt-in** at
+sign-in.
 
-**Position dans la pile** (12 changes) : **12e et dernier**. **Prérequis explicites : `add-lingua-extension-review`** (side panel, cartes, statuts — les surfaces qui gagnent l'UI compte et l'outbox), **`add-lingua-apple`** (app conteneur et extension Safari) et **`add-lingua-backend`** (audience, services, protocole). `add-lingua-firefox` est couvert par ricochet (même code d'extension ; `browser.identity.launchWebAuthFlow` existe).
+**Position in the stack** (12 changes): **12th and last**. **Explicit prerequisites:
+`add-lingua-extension-review`** (side panel, cards, statuses — the surfaces that gain the
+account UI and the outbox), **`add-lingua-apple`** (container app and Safari extension)
+and **`add-lingua-backend`** (audience, services, protocol). `add-lingua-firefox` is
+covered by ricochet (same extension code; `browser.identity.launchWebAuthFlow` exists).
 
 ## What Changes
 
-- **Connexion dans l'extension** : bearer `TokenPair` sur gRPC-web (Connect-ES — template `apps/back-office/src/lib/transport.ts` + `api.ts` : intercepteurs auth / refresh single-flight / session-expiry), refresh token rotatif (la détection de réutilisation avec révocation de famille existe déjà côté serveur), access token en `storage.session`, refresh en `storage.local`. Deux méthodes : **OIDC Google** via `chrome.identity.launchWebAuthFlow` (client id déjà au CSV `CYMBRA_GOOGLE_AUDIENCE` depuis `add-lingua-backend`) et **email/mot de passe** existants (`SignInLocal`).
-- **Connexion dans l'app Apple** : native dans l'app conteneur (`SignInOidc` via tonic natif, jetons en Keychain). **Sign in with Apple est obligatoire dès qu'un login tiers existe sur iOS** (règle App Store) — le backend supporte déjà l'OIDC Apple (`CYMBRA_APPLE_AUDIENCE`). L'extension Safari consomme la session de l'app via l'App Group (un compte par appareil, pas de flow OAuth dans Safari).
-- **Sync opt-in, local-first préservé** : sans compte, rien ne change ; une déconnexion arrête la sync sans toucher l'état local.
-- **Outbox client + pull delta** : op-log local des mutations vidé par lots idempotents, pull par curseur, application LWW symétrique au serveur ; au premier sign-in, le store local pré-compte est **fusionné** (poussée intégrale aux horodatages d'origine, puis pull du snapshot fusionné).
-- **Écran de stats consolidé** dans l'extension et l'app, alimenté par `StatsService` quand connecté, par l'état local sinon ; portée affichée (« tous les appareils » / « cet appareil ») ; mention « hors sessions d'agents ».
-- **Le plugin Claude Code reste local-only** : le store `~/.lingua/` ne gagne aucun chemin réseau (sa sync = change ultérieur dédié) ; l'invariant « aucune connexion réseau » reste testé.
-- Vocabulaire UI : jamais « lemme » dans les nouveaux écrans (compte, sync, stats) — « forme du dictionnaire », « mots différents ».
+- **Sign-in in the extension**: a bearer `TokenPair` over gRPC-web (Connect-ES —
+  templated on `apps/back-office/src/lib/transport.ts` + `api.ts`: auth /
+  single-flight refresh / session-expiry interceptors), rotating refresh token (reuse
+  detection with family revocation already exists server-side), the access token in
+  `storage.session` and the refresh token in `storage.local`. Two methods: **Google
+  OIDC** through `chrome.identity.launchWebAuthFlow` (the client id has been in the
+  `CYMBRA_GOOGLE_AUDIENCE` CSV since `add-lingua-backend`) and the existing
+  email/password (`SignInLocal`).
+- **Sign-in in the Apple app**: native, in the container app (`SignInOidc` over native
+  tonic, tokens in the Keychain). **Sign in with Apple is mandatory as soon as a
+  third-party login exists on iOS** (App Store rule) — the backend already supports
+  Apple OIDC (`CYMBRA_APPLE_AUDIENCE`). The Safari extension consumes the app's session
+  through the App Group (one account per device, no OAuth flow inside Safari).
+- **Opt-in sync, local-first preserved**: without an account, nothing changes; signing
+  out stops syncing without touching local state.
+- **Client outbox + delta pull**: a local op-log of mutations drained in idempotent
+  batches, a cursor pull, and LWW application symmetric to the server's; at first
+  sign-in the pre-account local store is **merged** (pushed in full with its original
+  timestamps, then the merged snapshot is pulled back).
+- **A consolidated stats screen** in the extension and the app, fed by `StatsService`
+  when signed in and by local state otherwise; the displayed scope ("all devices" /
+  "this device"); a note that agent sessions are excluded.
+- **The Claude Code plugin stays local-only**: the `~/.lingua/` store gains no network
+  path (its sync is a dedicated later change); the "no network connection" invariant
+  stays tested.
+- UI vocabulary: the word "lemma" never appears in the new screens (account, sync,
+  stats) — say "dictionary form", "distinct words".
 
 ## Capabilities
 
 ### New Capabilities
-- `lingua-sync` (moitié clients) : compte optionnel et local-first préservé, connexion extension (gRPC-web bearer, OIDC Google + email/mdp, jetons rangés par volatilité), connexion native app Apple (Sign in with Apple inclus, session partagée avec l'extension Safari), fusion du store pré-compte au premier sign-in, plugin Claude Code hors sync. _La moitié serveur (audience, module, protocole, vie privée serveur, purge) est le change `add-lingua-backend`._
-- `lingua-stats` (moitié clients) : l'écran de stats dans l'extension et l'app — consolidé quand connecté, local sinon, portée affichée — et la règle de vocabulaire sans jargon. _Le stockage et la lecture consolidée serveur sont le change `add-lingua-backend`._
+- `lingua-sync` (client half): an optional account with local-first preserved, extension
+  sign-in (gRPC-web bearer, Google OIDC + email/password, tokens stored by volatility),
+  native sign-in in the Apple app (Sign in with Apple included, session shared with the
+  Safari extension), the pre-account store merge at first sign-in, and the Claude Code
+  plugin left out of sync. _The server half (audience, module, protocol, server-side
+  privacy, purge) is the `add-lingua-backend` change._
+- `lingua-stats` (client half): the stats screen in the extension and the app —
+  consolidated when signed in, local otherwise, with the scope displayed — and the
+  jargon-free vocabulary rule. _Server-side storage and the consolidated read are the
+  `add-lingua-backend` change._
 
 ### Modified Capabilities
-_Aucune. Les capabilities `lingua-*` de la pile locale ne sont pas modifiées : leur mode local reste le défaut, ce change ajoute le mode connecté par-dessus. Le socle (`backend-auth`, flags, analytics) est consommé tel quel._
+_None. The local stack's `lingua-*` capabilities are untouched: their local mode stays
+the default and this change adds the connected mode on top. The platform
+(`backend-auth`, flags, analytics) is consumed as-is._
 
 ## Impact
 
-- **Produits** : Lingua (extension + app Apple : UI compte, outbox, écran stats) ; **Cymbra ID consommé** (OIDC Google/Apple, refresh rotatif) ; **backend Lingua consommé** (`add-lingua-backend`) ; Music / Live / back-office / site : **intacts**.
-- **Arborescence** : `apps/lingua-extension` (transport Connect-ES, UI compte, outbox, écran stats), `apps/lingua-apple` (écran de connexion SwiftUI, App Group, sync, écran stats).
-- **Env/deploy** : rien de nouveau côté serveur (tout est livré par `add-lingua-backend`) ; doc dev : ajout de l'origine d'extension de dev à `CYMBRA_ALLOWED_WEB_ORIGINS` de l'environnement local uniquement.
-- **CI** : aucune unité nouvelle — `apps/lingua-extension` et `apps/lingua-apple` sont déjà surveillées par leurs lanes de la pile ; vitest étendu (session, outbox, stats) ; parcours TestFlight re-déroulé (Sign in with Apple, privacy labels : données de compte + contenu utilisateur synchronisé).
-- **Hors périmètre (changes ultérieurs)** : sync du plugin Claude Code (transcripts confidentiels — local-only réaffirmé ici), sync des médias/images de cartes (chiffrée, pattern cache scores), console back-office Lingua et rôles/scope `lingua`, TextProfile/catalogue de livres, web de gestion de compte Lingua (le site existant couvre déjà la gestion Cymbra ID).
+- **Products**: Lingua (extension + Apple app: account UI, outbox, stats screen);
+  **Cymbra ID consumed** (Google/Apple OIDC, rotating refresh); **Lingua backend
+  consumed** (`add-lingua-backend`); Music / Live / back office / site: **untouched**.
+- **Tree**: `apps/lingua-extension` (Connect-ES transport, account UI, outbox, stats
+  screen), `apps/lingua-apple` (SwiftUI sign-in screen, App Group, sync, stats screen).
+- **Env/deploy**: nothing new server-side (all of it ships with `add-lingua-backend`);
+  dev doc: add the dev extension origin to `CYMBRA_ALLOWED_WEB_ORIGINS` in the local
+  environment only.
+- **CI**: no new unit — `apps/lingua-extension` and `apps/lingua-apple` are already
+  watched by their lanes in the stack; vitest extended (session, outbox, stats); the
+  TestFlight pass re-run (Sign in with Apple, privacy labels: account data + synced user
+  content).
+- **Out of scope (later changes)**: Claude Code plugin sync (confidential transcripts —
+  local-only restated here), card media/image sync (encrypted, the score-cache pattern),
+  the Lingua back-office console and the `lingua` role/scope, TextProfile/book catalogue,
+  a Lingua account-management website (the existing site already covers Cymbra ID
+  management).

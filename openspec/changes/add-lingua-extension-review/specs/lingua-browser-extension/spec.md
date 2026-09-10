@@ -1,14 +1,20 @@
-# lingua-browser-extension — révision dans le navigateur
+# lingua-browser-extension — review in the browser
 
 ## ADDED Requirements
 
-### Requirement: Deux surfaces de révision
-L'extension SHALL offrir la révision dans le **panneau natif du navigateur** quand il existe (Side Panel sur Chromium, sidebar sur Firefox — la page est poussée, le panneau survit aux navigations) et dans un **panneau injecté** repliable (shadow DOM) pour les micro-révisions. Sur Safari, qui n'a pas d'API de panneau, le panneau injecté SHALL porter seul la révision dans le navigateur. Toutes les surfaces SHALL opérer sur le même état local. La sauvegarde/restauration sans perte (définie par `lingua-decks-review`) SHALL être accessible depuis le side panel (téléchargement du fichier et ré-import).
+### Requirement: Two review surfaces
+The extension SHALL offer review in the **browser's native panel** where one exists (Side
+Panel on Chromium, sidebar on Firefox — the page is pushed, the panel survives navigation)
+and in a collapsible **injected panel** (shadow DOM) for micro-reviews. On Safari, which
+has no panel API, the injected panel SHALL carry in-browser review on its own. Every
+surface SHALL operate on the same local state. Lossless backup/restore (defined by
+`lingua-decks-review`) SHALL be reachable from the side panel (file download and
+re-import).
 
-#### Scenario: Side panel pendant la navigation
-- **WHEN** l'utilisateur ouvre le side panel puis navigue vers une autre page
-- **THEN** le side panel reste ouvert et sa session de révision continue
+#### Scenario: Side panel during navigation
+- **WHEN** the user opens the side panel and then navigates to another page
+- **THEN** the side panel stays open and its review session continues
 
-#### Scenario: Sauvegarde depuis le side panel
-- **WHEN** l'utilisateur déclenche la sauvegarde depuis le side panel
-- **THEN** un fichier de sauvegarde versionné est téléchargé, contenant l'état complet (cartes champ par champ, statuts, calibration, paramètres FSRS), et son ré-import restaure l'état à l'identique
+#### Scenario: Backup from the side panel
+- **WHEN** the user triggers a backup from the side panel
+- **THEN** a versioned backup file is downloaded containing the complete state (cards field by field, statuses, calibration, FSRS parameters), and re-importing it restores the state identically

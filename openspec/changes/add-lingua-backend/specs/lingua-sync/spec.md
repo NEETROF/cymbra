@@ -1,95 +1,95 @@
-# lingua-sync — compte Cymbra ID et synchronisation : serveur et protocole
+# lingua-sync — Cymbra ID account and synchronisation: server and protocol
 
 ## ADDED Requirements
 
-### Requirement: Audience `lingua` admise par configuration seule
-Les jetons Lingua SHALL être émis et rafraîchis sous l'audience `lingua`, admise en ajoutant `lingua` à la liste de configuration `CYMBRA_ALLOWED_AUDIENCES` — sans nouveau code d'identité, sans nouveau rôle et sans nouveau scope (`SCOPES`/`APP_SCOPES` du socle inchangés).
+### Requirement: The `lingua` audience admitted by configuration alone
+Lingua tokens SHALL be issued and refreshed under the `lingua` audience, admitted by adding `lingua` to the `CYMBRA_ALLOWED_AUDIENCES` configuration list — with no new identity code, no new role and no new scope (the platform's `SCOPES`/`APP_SCOPES` are unchanged).
 
-#### Scenario: Émission d'un jeton lingua
-- **WHEN** un client appelle `SignInLocal` ou `SignInOidc` avec l'audience `lingua` sur un serveur dont `CYMBRA_ALLOWED_AUDIENCES` contient `lingua`
-- **THEN** un `TokenPair` est émis avec l'audience `lingua` et le refresh fonctionne pour cette audience
+#### Scenario: Issuing a lingua token
+- **WHEN** a client calls `SignInLocal` or `SignInOidc` with the `lingua` audience on a server whose `CYMBRA_ALLOWED_AUDIENCES` contains `lingua`
+- **THEN** a `TokenPair` is issued for the `lingua` audience and refresh works for that audience
 
-#### Scenario: Audience non configurée refusée
-- **WHEN** un client demande l'audience `lingua` sur un serveur dont la configuration ne la liste pas
-- **THEN** la connexion est refusée par le contrôle d'audience existant
+#### Scenario: Unconfigured audience refused
+- **WHEN** a client requests the `lingua` audience on a server whose configuration does not list it
+- **THEN** sign-in is refused by the existing audience check
 
-### Requirement: Origines gRPC-web générales sans élargir la liste console
-Le serveur SHALL admettre les origines navigateur produit sur la surface gRPC-web via une nouvelle liste `CYMBRA_ALLOWED_WEB_ORIGINS` (dont `chrome-extension://<id>`), servie en union avec `CYMBRA_BACK_OFFICE_ORIGINS` par la couche CORS de tonic ; la liste console ne SHALL PAS être élargie et la nouvelle liste ne SHALL PAS être credentialed (bearer uniquement, pas de cookies). Une liste vide SHALL rester le défaut (aucune origine produit admise).
+### Requirement: General gRPC-web origins without widening the console list
+The server SHALL admit product browser origins on the gRPC-web surface through a new `CYMBRA_ALLOWED_WEB_ORIGINS` list (including `chrome-extension://<id>`), served as a union with `CYMBRA_BACK_OFFICE_ORIGINS` by tonic's CORS layer; the console list SHALL NOT be widened and the new list SHALL NOT be credentialed (bearer only, no cookies). An empty list SHALL remain the default (no product origin admitted).
 
-#### Scenario: Preflight de l'extension accepté
-- **WHEN** l'extension publiée émet un appel gRPC-web et son origine `chrome-extension://<id>` figure dans `CYMBRA_ALLOWED_WEB_ORIGINS`
-- **THEN** le preflight CORS et l'appel aboutissent, sans que cette origine apparaisse dans `CYMBRA_BACK_OFFICE_ORIGINS`
+#### Scenario: The extension's preflight is accepted
+- **WHEN** the published extension issues a gRPC-web call and its `chrome-extension://<id>` origin is listed in `CYMBRA_ALLOWED_WEB_ORIGINS`
+- **THEN** the CORS preflight and the call succeed, without that origin appearing in `CYMBRA_BACK_OFFICE_ORIGINS`
 
-#### Scenario: Origine inconnue bloquée
-- **WHEN** une page web d'origine non listée tente un appel gRPC-web
-- **THEN** le navigateur bloque l'appel par CORS, et l'intercepteur d'auth reste l'autorité d'autorisation pour tout appel qui parvient au serveur
+#### Scenario: Unknown origin blocked
+- **WHEN** a web page from an unlisted origin attempts a gRPC-web call
+- **THEN** the browser blocks the call by CORS, and the auth interceptor remains the authorisation authority for any call that does reach the server
 
-### Requirement: Module backend isolé et inerte sans configuration
-Le backend Lingua SHALL être un crate `backend/lingua` calqué sur `backend/music` : schéma Postgres `lingua` possédé par un rôle `lingua_svc` à `search_path` épinglé, migrations propres, `UserPort` injecté pour tout besoin compte (jamais de lecture d'un autre schéma), protos `cymbra.lingua.v1` dans `backend/lingua/proto`. Sans `CYMBRA_LINGUA_DATABASE_URL`, les services Lingua ne SHALL PAS être câblés et le serveur SHALL démarrer normalement.
+### Requirement: Isolated backend module, inert without configuration
+The Lingua backend SHALL be a `backend/lingua` crate modelled on `backend/music`: a `lingua` Postgres schema owned by a `lingua_svc` role with a pinned `search_path`, its own migrations, an injected `UserPort` for any account need (never a read of another schema), and `cymbra.lingua.v1` protos in `backend/lingua/proto`. Without `CYMBRA_LINGUA_DATABASE_URL`, the Lingua services SHALL NOT be wired and the server SHALL start normally.
 
-#### Scenario: Serveur sans base lingua
-- **WHEN** le serveur démarre sans `CYMBRA_LINGUA_DATABASE_URL`
-- **THEN** il sert normalement les autres modules et journalise que les services Lingua sont désactivés
+#### Scenario: Server without a lingua database
+- **WHEN** the server starts without `CYMBRA_LINGUA_DATABASE_URL`
+- **THEN** it serves the other modules normally and logs that the Lingua services are disabled
 
-#### Scenario: Isolation de schéma
-- **WHEN** une requête du module Lingua s'exécute
-- **THEN** elle tourne sur le pool `lingua_svc`, dont le `search_path` résout uniquement le schéma `lingua`
+#### Scenario: Schema isolation
+- **WHEN** a query from the Lingua module runs
+- **THEN** it runs on the `lingua_svc` pool, whose `search_path` resolves the `lingua` schema only
 
-### Requirement: Synchronisation des statuts par op-log et last-write-wins
-`KnownWordsService` SHALL synchroniser les statuts par (langue, lemme) : le client pousse une outbox d'opérations horodatées (lots idempotents, reprise par offset), le serveur résout en last-write-wins par lemme (horodatage le plus récent, tie-break déterministe par appareil), et le client tire les changements par curseur delta ; l'amorçage ou un curseur invalide SHALL passer par un snapshot gardé par ETag/version (réponse « inchangé » sans corps si l'ETag correspond).
+### Requirement: Status synchronisation by op-log and last-write-wins
+`KnownWordsService` SHALL synchronise statuses per (language, lemma): the client pushes an outbox of timestamped operations (idempotent batches, offset resumption), the server resolves last-write-wins per lemma (most recent timestamp, deterministic per-device tie-break), and the client pulls changes by delta cursor; bootstrap or an invalid cursor SHALL go through a snapshot guarded by ETag/version (an "unchanged" response with no body when the ETag matches).
 
-#### Scenario: Statut propagé entre deux appareils
-- **WHEN** l'utilisateur marque `seldom` connu sur son Mac puis synchronise son iPhone
-- **THEN** l'iPhone reçoit le statut `known` de `seldom` via le pull par curseur
+#### Scenario: A status propagates between two devices
+- **WHEN** the user marks `seldom` as known on their Mac and then syncs their iPhone
+- **THEN** the iPhone receives the `known` status for `seldom` through the cursor pull
 
-#### Scenario: Conflit résolu par le geste le plus récent
-- **WHEN** deux appareils hors ligne posent des statuts différents sur le même lemme puis synchronisent
-- **THEN** le statut à l'horodatage le plus récent gagne sur le serveur et les deux appareils convergent vers lui
+#### Scenario: Conflict resolved by the most recent gesture
+- **WHEN** two offline devices set different statuses on the same lemma and then sync
+- **THEN** the status with the most recent timestamp wins on the server and both devices converge on it
 
-#### Scenario: Push interrompu repris sans doublon
-- **WHEN** un push d'outbox est interrompu puis rejoué intégralement
-- **THEN** l'état serveur est identique à celui d'un push unique (idempotence par lot)
+#### Scenario: An interrupted push resumes without duplicates
+- **WHEN** an outbox push is interrupted and then replayed in full
+- **THEN** the server state is identical to that of a single push (per-batch idempotence)
 
-### Requirement: Synchronisation des cartes complètes, médias exclus
-`DeckService` SHALL synchroniser les cartes complètes — lemme, forme vue, phrase de provenance, source explicitement capturée, glose, état FSRS — identifiées par un id client stable, en last-write-wins par carte (suppressions incluses). Le contenu du champ `media` ne SHALL PAS être synchronisé dans ce change (l'emplacement du schéma reste local).
+### Requirement: Complete card synchronisation, media excluded
+`DeckService` SHALL synchronise complete cards — lemma, surface form, source sentence, explicitly captured source, gloss, FSRS state — identified by a stable client id, last-write-wins per card (deletions included). The contents of the `media` field SHALL NOT be synchronised in this change (the schema slot stays local).
 
-#### Scenario: Carte créée sur mobile, révisée sur desktop
-- **WHEN** une carte créée en lisant dans Safari iOS est synchronisée puis l'utilisateur ouvre le side panel sur son Mac
-- **THEN** la carte y apparaît avec sa phrase de provenance et son état FSRS, et sa révision sur le Mac se propage en retour
+#### Scenario: Card created on mobile, reviewed on desktop
+- **WHEN** a card created while reading in Safari on iOS is synced and the user then opens the side panel on their Mac
+- **THEN** the card appears there with its source sentence and FSRS state, and reviewing it on the Mac propagates back
 
-#### Scenario: Carte avec image
-- **WHEN** une carte locale porte un média et est synchronisée
-- **THEN** tous ses champs montent sauf le contenu du média, qui reste sur l'appareil d'origine
+#### Scenario: Card with an image
+- **WHEN** a local card carries media and is synchronised
+- **THEN** all of its fields go up except the media content, which stays on the originating device
 
-### Requirement: Allow-list stricte de ce qui monte au serveur
-Seules trois familles de données SHALL monter : statuts de lemmes, cartes, agrégats de stats. Aucune URL de navigation, aucun texte de page, aucun historique de lecture web ne SHALL être transmis ni stocké serveur — la seule source montante est celle portée par une carte explicitement créée par l'utilisateur. Les compteurs d'exposition de la pile locale SHALL rester locaux dans ce change.
+### Requirement: Strict allow-list of what reaches the server
+Only three families of data SHALL go up: lemma statuses, cards and stat aggregates. No browsing URL, no page text and no web reading history SHALL be transmitted or stored server-side — the only source that goes up is the one carried by a card the user explicitly created. The local stack's exposure counters SHALL stay local in this change.
 
-#### Scenario: Lecture sans capture
-- **WHEN** un utilisateur connecté lit dix pages sans créer de carte ni toucher un statut
-- **THEN** aucune donnée relative à ces pages (URL, texte, comptes par page) n'est transmise au serveur
+#### Scenario: Reading without capture
+- **WHEN** a signed-in user reads ten pages without creating a card or touching a status
+- **THEN** no data about those pages (URL, text, per-page counts) is transmitted to the server
 
-#### Scenario: La carte est la seule exception
-- **WHEN** l'utilisateur crée une carte depuis une page
-- **THEN** la phrase et la source de cette carte montent avec elle, et rien d'autre de la page ne monte
+#### Scenario: The card is the only exception
+- **WHEN** the user creates a card from a page
+- **THEN** that card's sentence and source go up with it, and nothing else from the page goes up
 
-### Requirement: Purge des données Lingua à la suppression du compte
-La suppression du compte (`DeleteAccount`) SHALL purger toutes les données `lingua.*` de l'utilisateur via le job `purge_user` existant, étendu (handler worker + `search_path` du rôle admin incluant `lingua`), de manière idempotente ; un compte sans données Lingua SHALL être un no-op pour cette étape.
+### Requirement: Lingua data purged on account deletion
+Account deletion (`DeleteAccount`) SHALL purge all of the user's `lingua.*` data through the existing `purge_user` job, extended (worker handler + admin role `search_path` including `lingua`), idempotently; an account with no Lingua data SHALL be a no-op for that step.
 
-#### Scenario: Suppression d'un compte avec données Lingua
-- **WHEN** un utilisateur avec statuts, cartes et stats serveur supprime son compte
-- **THEN** le job `purge_user` efface toutes ses lignes des tables du schéma `lingua`
+#### Scenario: Deleting an account that has Lingua data
+- **WHEN** a user with server-side statuses, cards and stats deletes their account
+- **THEN** the `purge_user` job erases all of their rows in the `lingua` schema's tables
 
-#### Scenario: Purge rejouée
-- **WHEN** le job `purge_user` est rejoué pour le même utilisateur
-- **THEN** il réussit sans erreur et sans effet supplémentaire
+#### Scenario: Replayed purge
+- **WHEN** the `purge_user` job is replayed for the same user
+- **THEN** it succeeds without error and without further effect
 
-### Requirement: Socle consommé sans redéclaration
-Lingua SHALL consommer le socle tel quel : l'évaluation des feature flags SHALL dériver l'app de l'audience du jeton (`lingua` automatique, aucun nouveau mécanisme), les évènements d'usage SHALL passer par le service analytics existant (`platform` = `web` pour l'extension, `ios`/`macos` pour l'app), et les services `cymbra.lingua.v1` SHALL être atteignables par la route gRPC/gRPC-web existante sans modification du reverse proxy (aucune nouvelle route HTTP).
+### Requirement: Platform consumed without redeclaration
+Lingua SHALL consume the platform as-is: feature-flag evaluation SHALL derive the app from the token audience (`lingua` automatically, no new mechanism), usage events SHALL go through the existing analytics service (`platform` = `web` for the extension, `ios`/`macos` for the app), and the `cymbra.lingua.v1` services SHALL be reachable over the existing gRPC/gRPC-web route with no reverse-proxy change (no new HTTP route).
 
-#### Scenario: Flag évalué pour l'audience lingua
-- **WHEN** un client connecté avec un jeton `lingua` évalue un flag scopé à l'app `lingua`
-- **THEN** le flag est évalué dans le contexte `lingua` sans configuration supplémentaire côté flags
+#### Scenario: Flag evaluated for the lingua audience
+- **WHEN** a client signed in with a `lingua` token evaluates a flag scoped to the `lingua` app
+- **THEN** the flag is evaluated in the `lingua` context with no extra configuration on the flags side
 
-#### Scenario: Appel gRPC-web routé sans changement Caddy
-- **WHEN** l'extension appelle `/cymbra.lingua.v1.KnownWordsService/…` à travers le reverse proxy de production
-- **THEN** l'appel atteint tonic par la branche par défaut existante, preflight CORS compris
+#### Scenario: gRPC-web call routed with no Caddy change
+- **WHEN** the extension calls `/cymbra.lingua.v1.KnownWordsService/…` through the production reverse proxy
+- **THEN** the call reaches tonic through the existing default branch, CORS preflight included

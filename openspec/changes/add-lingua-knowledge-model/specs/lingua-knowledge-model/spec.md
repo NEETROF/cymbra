@@ -1,49 +1,66 @@
-# lingua-knowledge-model — état de connaissance lexicale
+# lingua-knowledge-model — lexical knowledge state
 
 ## ADDED Requirements
 
-### Requirement: Clé de connaissance par paire langue-lemme
-L'état de connaissance SHALL être stocké par clé `(langue étudiée, lemme)` — sans partie du discours. Les expressions multi-mots SHALL être des lemmes à part entière (texte avec espaces). Un token SHALL être considéré connu si **au moins un** de ses lemmes candidats est connu.
+### Requirement: Knowledge keyed by language-lemma pair
+Knowledge state SHALL be stored under a `(studied language, lemma)` key — with no part
+of speech. Multi-word expressions SHALL be lemmas in their own right (text with
+spaces). A token SHALL be considered known when **at least one** of its candidate
+lemmas is known.
 
-#### Scenario: Ambiguïté résolue en faveur de l'apprenant
-- **WHEN** le lemme `can` est marqué connu et le token `cans` est analysé
-- **THEN** le token compte comme connu
+#### Scenario: Ambiguity resolved in the learner's favour
+- **WHEN** the lemma `can` is marked known and the token `cans` is analysed
+- **THEN** the token counts as known
 
-### Requirement: Statuts explicites et statut implicite par calibration
-Le modèle SHALL supporter les statuts explicites `learning`, `known`, `ignored` ; l'absence d'entrée signifie « nouveau ». Un lemme sans statut explicite SHALL être implicitement connu si son rang de fréquence est inférieur ou égal au seuil de calibration de l'utilisateur. Chaque statut `known` SHALL porter sa provenance (`manual`, `calibration`, `srs`, `import`).
+### Requirement: Explicit statuses and implicit status by calibration
+The model SHALL support the explicit statuses `learning`, `known` and `ignored`; the
+absence of an entry means "new". A lemma with no explicit status SHALL be implicitly
+known when its frequency rank is at or below the user's calibration threshold. Every
+`known` status SHALL carry its provenance (`manual`, `calibration`, `srs`, `import`).
 
-#### Scenario: Calibration au démarrage
-- **WHEN** l'utilisateur règle sa calibration à « je connais les 3 000 mots les plus courants » sans avoir marqué aucun mot
-- **THEN** tout lemme de rang ≤ 3 000 est classé connu par l'analyse
+#### Scenario: Calibration at startup
+- **WHEN** the user sets their calibration to "I know the 3,000 most common words" without having marked any word
+- **THEN** every lemma of rank ≤ 3,000 is classified as known by the analysis
 
-#### Scenario: Le statut explicite prime sur la calibration
-- **WHEN** un lemme de rang 500 est explicitement marqué `learning`
-- **THEN** il est classé « en cours » par l'analyse malgré la calibration
+#### Scenario: The explicit status wins over calibration
+- **WHEN** a lemma of rank 500 is explicitly marked `learning`
+- **THEN** the analysis classifies it as learning despite the calibration
 
-### Requirement: Profil L1/L2
-Le profil utilisateur SHALL distinguer `native_language` (langue de confort : gloses, futures traductions) des langues étudiées, et toutes les données dépendantes de la langue (gloses, packs, état de connaissance) SHALL être clées par paire (langue étudiée → langue maternelle). Le MVP SHALL livrer la paire (anglais → français) uniquement, sans que l'ajout d'une paire n'exige de changement de code.
+### Requirement: L1/L2 profile
+The user profile SHALL keep `native_language` (the language of comfort: glosses, future
+translations) distinct from the studied languages, and all language-dependent data
+(glosses, packs, knowledge state) SHALL be keyed by pair (studied language → native
+language). The MVP SHALL ship the (English → French) pair only, and adding a pair SHALL
+NOT require a code change.
 
-#### Scenario: Gloses dans la langue maternelle
-- **WHEN** un utilisateur de langue maternelle `fr` consulte le popup d'un mot anglais
-- **THEN** la glose affichée provient du pack (en → fr)
+#### Scenario: Glosses in the native language
+- **WHEN** a user whose native language is `fr` opens the popup for an English word
+- **THEN** the gloss shown comes from the (en → fr) pack
 
-### Requirement: Import LingQ pour le démarrage à froid
-Le système SHALL importer un export LingQ (CSV) et marquer `known` (provenance `import`) les lemmes correspondants, après lemmatisation des entrées importées.
+### Requirement: LingQ import for the cold start
+The system SHALL import a LingQ export (CSV) and mark the corresponding lemmas `known`
+(provenance `import`), after lemmatising the imported entries.
 
-#### Scenario: Import d'un export LingQ
-- **WHEN** un CSV LingQ contenant `running` est importé
-- **THEN** le lemme `run` est marqué connu avec provenance `import`
+#### Scenario: Importing a LingQ export
+- **WHEN** a LingQ CSV containing `running` is imported
+- **THEN** the lemma `run` is marked known with provenance `import`
 
-### Requirement: Compteurs d'exposition
-Le modèle SHALL maintenir, par (langue étudiée, lemme), un compteur d'expositions (occurrences rencontrées, source de la dernière rencontre, horodatage). En v1, l'exposition ne SHALL PAS modifier le statut d'un lemme — c'est une donnée d'entrée pour l'inférence future (« connu » déduit du SRS/de l'exposition).
+### Requirement: Exposure counters
+The model SHALL maintain, per (studied language, lemma), an exposure counter
+(occurrences encountered, the source of the last encounter, a timestamp). In v1,
+exposure SHALL NOT modify a lemma's status — it is input data for the future inference
+("known" deduced from the SRS / from exposure).
 
-#### Scenario: Ingestion d'une session d'agent
-- **WHEN** une session contenant 2 occurrences d'un lemme sans statut est ingérée
-- **THEN** le compteur d'exposition du lemme augmente de 2 et son statut reste « nouveau »
+#### Scenario: Ingesting an agent session
+- **WHEN** a session containing 2 occurrences of a lemma with no status is ingested
+- **THEN** that lemma's exposure counter increases by 2 and its status stays "new"
 
-### Requirement: Vocabulaire d'interface sans jargon
-Les surfaces utilisateur — extension **et** plugin (statusline, `/vocab`, réponses MCP) — ne SHALL PAS afficher le terme « lemme ». Les libellés SHALL utiliser « forme du dictionnaire » (pour la forme canonique) et « mots différents » (pour les comptes de lemmes uniques).
+### Requirement: Jargon-free interface vocabulary
+User-facing surfaces SHALL NOT display the term "lemma" (nor its French equivalent
+« lemme » in the shipped French UI) — this covers the extension **and** the plugin
+(statusline, `/vocab`, MCP responses). Labels SHALL use the wording "dictionary form"
+(for the canonical form) and "distinct words" (for counts of unique lemmas).
 
-#### Scenario: Popup d'un mot fléchi
-- **WHEN** l'utilisateur clique sur `pitfalls`
-- **THEN** le popup titre `pitfall` et indique « forme vue : “pitfalls” », sans le mot « lemme »
+#### Scenario: Popup for an inflected word
+- **WHEN** the user clicks `pitfalls`
+- **THEN** the popup is titled `pitfall` and shows the encountered form — in the shipped French UI, « forme vue : “pitfalls” » — with no occurrence of the word "lemma"

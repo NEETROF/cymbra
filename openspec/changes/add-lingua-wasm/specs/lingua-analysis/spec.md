@@ -1,14 +1,14 @@
-# lingua-analysis — cible WASM et parité
+# lingua-analysis — WASM target and parity
 
 ## ADDED Requirements
 
-### Requirement: Parité native/WASM
-Le cœur SHALL être compilable en module WASM (build wasm-pack `--target web`) exposant l'analyse par lot de blocs (tokens classés, statuts, pourcentage, gloses), et SHALL produire, à `analyzer_version` égale et pack égal, des sorties identiques octet pour octet entre la cible native et la cible WASM sur le corpus de fixtures. Une lane CI SHALL construire le module WASM et exécuter les tests de parité.
+### Requirement: Native/WASM parity
+The core SHALL be compilable as a WASM module (a `wasm-pack --target web` build) exposing batch-of-blocks analysis (classified tokens, statuses, percentage, glosses), and SHALL produce, at equal `analyzer_version` and equal pack, byte-for-byte identical output between the native target and the WASM target over the fixture corpus. A CI lane SHALL build the WASM module and run the parity tests.
 
-#### Scenario: Parité sur le corpus de fixtures
-- **WHEN** le même texte de fixture est analysé par le binaire natif et par le module WASM à la même `analyzer_version` et avec le même pack
-- **THEN** les sorties (token, lemme, classement, pourcentage) sont identiques octet pour octet
+#### Scenario: Parity over the fixture corpus
+- **WHEN** the same fixture text is analysed by the native binary and by the WASM module at the same `analyzer_version` and with the same pack
+- **THEN** the outputs (token, lemma, classification, percentage) are byte-for-byte identical
 
-#### Scenario: Divergence bloquée en CI
-- **WHEN** une modification du cœur fait diverger la sortie WASM de la sortie native sur une fixture
-- **THEN** la lane CI de parité échoue
+#### Scenario: Divergence blocked in CI
+- **WHEN** a change to the core makes the WASM output diverge from the native output on a fixture
+- **THEN** the CI parity lane fails

@@ -2,43 +2,85 @@
 
 ## Context
 
-Les briques amont de la pile fournissent tout le nécessaire : la cascade de lemmatisation et l'`analyzer_version` contractuelle (`add-lingua-analysis`), les statuts et compteurs d'exposition (`add-lingua-knowledge-model`), les cartes et la planification FSRS (`add-lingua-decks-review`), le pack EN→FR et ses gloses (`add-lingua-data-pack`). Ce change ne fait que brancher ce cerveau, compilé en natif, sur les sessions Claude Code. L'exploration amont a établi les contraintes : le surlignage in-place du TUI est **impossible** (aucun post-processing du rendu) ; ce qui est viable est le hook `Stop` (reçoit `transcript_path` JSONL), la statusline, une skill et un serveur MCP. Les transcripts sont confidentiels (code employeur) → local-only par défaut, non négociable.
+The upstream bricks of the stack supply everything needed: the lemmatisation cascade and
+the contractual `analyzer_version` (`add-lingua-analysis`), statuses and exposure counters
+(`add-lingua-knowledge-model`), cards and FSRS scheduling (`add-lingua-decks-review`), and
+the EN→FR pack with its glosses (`add-lingua-data-pack`). This change only wires that
+brain, compiled natively, into Claude Code sessions. The upstream exploration settled the
+constraints: in-place highlighting inside the TUI is **impossible** (there is no
+post-processing of the rendered output); what is viable is the `Stop` hook (it receives
+`transcript_path`, a JSONL file), the statusline, a skill and an MCP server. Transcripts
+are confidential (employer code) → local-only by default, non-negotiable.
 
-Décisions héritées non rediscutées ici : clé `(langue étudiée, lemme)` sans POS et compteurs d'exposition (`add-lingua-knowledge-model`), FSRS via le crate `fsrs` épinglé (`add-lingua-decks-review`), déterminisme à `analyzer_version` donnée (`add-lingua-analysis`).
+Inherited and not re-litigated here: the `(studied language, lemma)` key without POS and
+the exposure counters (`add-lingua-knowledge-model`), FSRS through the pinned `fsrs` crate
+(`add-lingua-decks-review`), and determinism at a given `analyzer_version`
+(`add-lingua-analysis`).
 
 ## Goals / Non-Goals
 
-**Goals :**
-- Chaque réponse de Claude Code alimente automatiquement les compteurs d'exposition ; `/vocab` et la statusline exposent l'état.
-- Un seul cerveau : la même analyse (même `analyzer_version`) produit les mêmes résultats dans l'extension (WASM) et le plugin (natif).
-- Les cartes du store plugin restent révisables (via l'agent) et exportables.
+**Goals:**
+- Every Claude Code reply feeds the exposure counters automatically; `/vocab` and the
+  statusline surface the state.
+- One brain: the same analysis (same `analyzer_version`) produces the same results in the
+  extension (WASM) and in the plugin (native).
+- The cards in the plugin store stay reviewable (through the agent) and exportable.
 
-**Non-Goals :**
-- Sync du store `~/.lingua/` (les transcripts sont confidentiels ; la sync des autres surfaces est `add-lingua-backend`/`add-lingua-connected-clients`, le plugin y est explicitement exclu).
-- Adaptateurs d'autres agents (Codex, Aider, Gemini) — le trait `SessionSource` est le contrat, les impls viendront.
-- TUI de révision dédiée, surlignage dans le terminal.
+**Non-Goals:**
+- Syncing the `~/.lingua/` store (transcripts are confidential; syncing the other surfaces
+  is `add-lingua-backend` / `add-lingua-connected-clients`, and the plugin is explicitly
+  excluded there).
+- Adapters for other agents (Codex, Aider, Gemini) — the `SessionSource` trait is the
+  contract, the impls come later.
+- A dedicated review TUI, or highlighting inside the terminal.
 
 ## Decisions
 
-### D1 — Plugin Claude Code : un binaire, quatre branchements
-`lingua` (binaire Rust, `lingua-core` natif) + manifeste plugin : hook `Stop` (lit `transcript_path`, extrait le texte assistant des JSONL, ingère les expositions), statusline (lit le même transcript, affiche `📖 96 % · 3 nouveaux`), skill `/vocab` (liste les inconnus de la session, gloses, ajout au deck), serveur MCP (`list_decks`, `add_words`, `due_cards`, `answer_card`). La révision côté plugin passe par l'agent lui-même (quiz conversationnel : `due_cards` → questions → `answer_card`) — pas de TUI dédiée en v1, les cartes du store plugin restent ainsi révisables et exportables.
+### D1 — The Claude Code plugin: one binary, four attachment points
+`lingua` (a Rust binary over native `lingua-core`) plus a plugin manifest: the `Stop` hook
+(reads `transcript_path`, extracts the assistant text from the JSONL, ingests the
+exposures), the statusline (reads the same transcript, shows `📖 96 % · 3 nouveaux` — the
+plugin ships French UI copy), the `/vocab` skill (lists the session's unknown words, their
+glosses, adds them to the deck), and the MCP server (`list_decks`, `add_words`,
+`due_cards`, `answer_card`). Review on the plugin side goes through the agent itself (a
+conversational quiz: `due_cards` → questions → `answer_card`) — no dedicated TUI in v1,
+which still leaves the plugin store's cards reviewable and exportable.
 
-### D2 — Local-only par construction
-Les données vivent dans `~/.lingua/` (SQLite via `rusqlite`, schéma versionné) — **jamais de contenu de transcript persisté, seulement lemmes + compteurs + phrases explicitement capturées par l'utilisateur**. Le binaire n'ouvre aucune connexion réseau ; l'invariant est testé (et le restera lors des changes de sync : le plugin y est hors périmètre). Le store plugin et le store extension ne sont **pas réconciliés** dans la pile locale (décision héritée du découpage : un faux sync local serait du travail jeté) — les schémas partagent les types de `lingua-core` pour que la fusion soit mécanique le jour venu.
+### D2 — Local-only by construction
+The data lives in `~/.lingua/` (SQLite through `rusqlite`, versioned schema) — **never any
+transcript content persisted, only lemmas, counters and the sentences the user explicitly
+captures**. The binary opens no network connection; the invariant is tested (and stays
+tested through the sync changes, where the plugin is out of scope). The plugin store and
+the extension store are **not reconciled** within the local stack (a decision inherited
+from the split: a fake local sync would be thrown-away work) — the schemas share
+`lingua-core`'s types so that merging them is mechanical the day it matters.
 
-### D3 — Trait `SessionSource` : Claude Code est la première impl, pas la seule
-L'ingestion passe par une abstraction `SessionSource` (localisation des sessions, extraction du texte assistant) dont Claude Code est la première implémentation. Un nouvel agent (Codex, Aider) s'ajoute par une impl du trait sans modifier le pipeline d'analyse. La couche interactive (decks, révision) est le serveur MCP — la seule intégration standardisée, portable sur tous les agents ; l'affichage riche (statusline live) reste Claude-Code-only.
+### D3 — The `SessionSource` trait: Claude Code is the first impl, not the only one
+Ingestion goes through a `SessionSource` abstraction (locating sessions, extracting the
+assistant text), of which Claude Code is the first implementation. A new agent (Codex,
+Aider) is added by implementing the trait, without touching the analysis pipeline. The
+interactive layer (decks, review) is the MCP server — the only standardised integration,
+portable to every agent; rich display (a live statusline) stays Claude-Code-only.
 
 ## Risks / Trade-offs
 
-- [Store plugin et store extension divergent (deux états locaux)] → assumé et hérité de la pile locale ; la fusion est le problème des changes de sync (qui excluent le plugin — divergence documentée dans leur UI de stats : « hors sessions d'agents »).
-- [Formats de transcript Claude Code non contractuels (JSONL interne)] → parsing défensif, dégradation silencieuse (statusline muette, ingestion sautée), idempotence par offset de transcript ; fixtures factices en tests plutôt que transcripts réels.
-- [Le manifeste plugin ne peut peut-être pas installer la statusline] → documenter la configuration manuelle (tâche dédiée).
+- [The plugin store and the extension store drift apart (two local states)] → accepted and
+  inherited from the local stack; merging them is the sync changes' problem (and they
+  exclude the plugin — the divergence is documented in their stats UI: "excluding agent
+  sessions").
+- [Claude Code transcript formats are not contractual (internal JSONL)] → defensive
+  parsing, silent degradation (a mute statusline, ingestion skipped), idempotence keyed on
+  the transcript offset; tests run on synthetic fixtures rather than real transcripts.
+- [The plugin manifest may not be able to install the statusline] → document the manual
+  configuration (a dedicated task).
 
 ## Migration Plan
 
-Rien à migrer (nouveau livrable, local-only). Rollback = désinstaller le plugin ; le store `~/.lingua/` reste sur disque, supprimable par l'utilisateur. Le schéma SQLite versionné prépare les migrations futures.
+Nothing to migrate (a new, local-only deliverable). Rollback = uninstall the plugin; the
+`~/.lingua/` store stays on disk and the user can delete it. The versioned SQLite schema
+prepares future migrations.
 
 ## Open Questions
 
-- Distribution du plugin Claude Code (marketplace plugin vs repo git) — à trancher à la livraison, sans impact sur l'architecture.
+- How the Claude Code plugin is distributed (plugin marketplace vs git repo) — to be
+  settled at delivery, with no impact on the architecture.

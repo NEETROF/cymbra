@@ -1,16 +1,16 @@
 # Tasks — add-lingua-agent
 
-## 1. Plugin Claude Code (spec lingua-agent-capture)
+## 1. Claude Code plugin (spec lingua-agent-capture)
 
-- [ ] 1.1 Binaire `apps/lingua-agent` : `lingua-core` natif + store SQLite `~/.lingua/` (schéma versionné) ; sous-commandes `ingest`, `statusline`, `vocab`, `mcp`
-- [ ] 1.2 Trait `SessionSource` + impl Claude Code (parse JSONL, extraction texte assistant) ; tests sur transcripts factices ; invariant testé : aucune phrase persistée, aucune connexion réseau
-- [ ] 1.3 Hook `Stop` (manifeste plugin) → `lingua ingest --transcript <path>` ; idempotence par offset de transcript
-- [ ] 1.4 Statusline : % du dernier message + nouveaux de la session ; dégradation silencieuse
-- [ ] 1.5 Skill `/vocab` : liste des inconnus de session avec gloses, ajout au deck avec consentement (phrase d'origine incluse à ce moment-là seulement)
-- [ ] 1.6 Serveur MCP (`list_decks`, `add_words`, `due_cards`, `answer_card`) avec validation d'entrées ; test d'intégration bout-en-bout incluant la révision conversationnelle
-- [ ] 1.7 Manifeste plugin Claude Code (hooks + statusline + skill + MCP) + doc d'installation ; documenter la configuration manuelle de la statusline si le manifeste ne peut pas l'installer
+- [ ] 1.1 `apps/lingua-agent` binary: native `lingua-core` + a SQLite store in `~/.lingua/` (versioned schema); `ingest`, `statusline`, `vocab` and `mcp` subcommands
+- [ ] 1.2 `SessionSource` trait + the Claude Code impl (JSONL parsing, assistant-text extraction); tests over synthetic transcripts; invariants under test: no sentence persisted, no network connection
+- [ ] 1.3 `Stop` hook (plugin manifest) → `lingua ingest --transcript <path>`; idempotence keyed on the transcript offset
+- [ ] 1.4 Statusline: the last message's percentage + the session's new words; silent degradation
+- [ ] 1.5 `/vocab` skill: list the session's unknown words with glosses, add to the deck with consent (the source sentence is included only at that point)
+- [ ] 1.6 MCP server (`list_decks`, `add_words`, `due_cards`, `answer_card`) with input validation; an end-to-end integration test covering conversational review
+- [ ] 1.7 Claude Code plugin manifest (hooks + statusline + skill + MCP) + install docs; document the manual statusline configuration if the manifest cannot install it
 
-## 2. Gates et finitions
+## 2. Gates and finishing
 
-- [ ] 2.1 `cargo fmt --all --check` + `clippy -D warnings` + `cargo llvm-cov --workspace --fail-under-lines 80` ; `apps/lingua-agent` ajouté au filtre `ci-units` ; lint « pas de “lemme” » étendu aux sorties utilisateur du plugin (statusline, `/vocab`, MCP)
-- [ ] 2.2 `openspec validate add-lingua-agent --strict` final + mise à jour des specs si l'implémentation a fait bouger un contrat
+- [ ] 2.1 `cargo fmt --all --check` + `clippy -D warnings` + `cargo llvm-cov --workspace --fail-under-lines 80`; `apps/lingua-agent` added to the `ci-units` filter; the "no 'lemma' in UI copy" lint extended to the plugin's user-facing output (statusline, `/vocab`, MCP)
+- [ ] 2.2 Final `openspec validate add-lingua-agent --strict` + spec updates if the implementation moved a contract

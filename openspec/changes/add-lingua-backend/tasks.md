@@ -1,38 +1,38 @@
 # Tasks — add-lingua-backend
 
-## 1. Audience et configuration
+## 1. Audience and configuration
 
-- [ ] 1.1 Ajouter `lingua` à `CYMBRA_ALLOWED_AUDIENCES` dans `backend/.env.example` et `backend/deploy/.env.prod.example` (+ commentaire) ; test d'intégration : `SignInLocal`/`Refresh` d'audience `lingua` acceptés, audience absente de la conf refusée
-- [ ] 1.2 Créer le client OAuth Google de l'extension (type Web, redirect `https://<ext-id>.chromiumapp.org/`) et l'ajouter au CSV `CYMBRA_GOOGLE_AUDIENCE` (env example + doc) — précédent : client desktop
-- [ ] 1.3 Introduire `CYMBRA_ALLOWED_WEB_ORIGINS` (config serveur, CSV, défaut vide) et servir l'union `back_office_origins ∪ allowed_web_origins` dans la couche CORS gRPC-web de tonic (`backend/server/src/main.rs`) ; tests : origine de la nouvelle liste admise, origine inconnue refusée, `CYMBRA_BACK_OFFICE_ORIGINS` non élargie
-- [ ] 1.4 Vérifier sur pièces que `SCOPES`/`APP_SCOPES` (`backend/platform/src/lib.rs`) ne référencent nulle part `lingua` après ce change (aucun scope ajouté — revue, pas de code)
+- [ ] 1.1 Add `lingua` to `CYMBRA_ALLOWED_AUDIENCES` in `backend/.env.example` and `backend/deploy/.env.prod.example` (+ comment); integration test: `SignInLocal`/`Refresh` with the `lingua` audience accepted, an audience absent from the config refused
+- [ ] 1.2 Create the extension's Google OAuth client (Web type, redirect `https://<ext-id>.chromiumapp.org/`) and add it to the `CYMBRA_GOOGLE_AUDIENCE` CSV (env example + doc) — precedent: the desktop client
+- [ ] 1.3 Introduce `CYMBRA_ALLOWED_WEB_ORIGINS` (server config, CSV, empty by default) and serve the union `back_office_origins ∪ allowed_web_origins` in tonic's gRPC-web CORS layer (`backend/server/src/main.rs`); tests: an origin from the new list admitted, an unknown origin refused, `CYMBRA_BACK_OFFICE_ORIGINS` not widened
+- [ ] 1.4 Confirm on the evidence that `SCOPES`/`APP_SCOPES` (`backend/platform/src/lib.rs`) reference `lingua` nowhere after this change (no scope added — a review, not code)
 
-## 2. Crate `backend/lingua`
+## 2. The `backend/lingua` crate
 
-- [ ] 2.1 Scaffold `backend/lingua` (crate `cymbra-lingua`) calqué sur `backend/music` : `Cargo.toml` (workspace), `build.rs` (`build_client(false)`), layout `src/` avec seam `*_core.rs` / `pg*.rs` / `grpc.rs`
-- [ ] 2.2 Schéma + rôle : entrée `lingua_svc` (schéma `lingua`, `search_path` épinglé) dans `backend/db/init/roles.sql.tpl`, `CYMBRA_LINGUA_DATABASE_URL` dans les env examples, `backend/deploy/provision-lingua-role.sql` + branchement dans `provision-optional-modules.sh` (pattern music)
-- [ ] 2.3 Migrations : tables statuts (user, langue, lemme, statut, provenance, horodatage, device, séquence de changement), cartes (id client, champs du schéma de la pile locale hors contenu média, séquence), agrégats stats (user, jour, langue, device) ; index sur (user, séquence) pour le pull par curseur
-- [ ] 2.4 Câblage serveur : module inerte sans `CYMBRA_LINGUA_DATABASE_URL` (log « lingua services disabled »), pool propre + MIGRATOR, `UserPort` injecté, services derrière l'intercepteur d'auth strict avec contrôle d'audience
-- [ ] 2.5 Mettre à jour `DEPLOY.md` (activation du module, variables, provision)
+- [ ] 2.1 Scaffold `backend/lingua` (crate `cymbra-lingua`) modelled on `backend/music`: `Cargo.toml` (workspace), `build.rs` (`build_client(false)`), `src/` layout with the `*_core.rs` / `pg*.rs` / `grpc.rs` seam
+- [ ] 2.2 Schema + role: a `lingua_svc` entry (`lingua` schema, pinned `search_path`) in `backend/db/init/roles.sql.tpl`, `CYMBRA_LINGUA_DATABASE_URL` in the env examples, `backend/deploy/provision-lingua-role.sql` + wiring into `provision-optional-modules.sh` (the music pattern)
+- [ ] 2.3 Migrations: status table (user, language, lemma, status, provenance, timestamp, device, change sequence), card table (client id, the local stack's schema fields minus media content, sequence), stat aggregates (user, day, language, device); index on (user, sequence) for the cursor pull
+- [ ] 2.4 Server wiring: module inert without `CYMBRA_LINGUA_DATABASE_URL` (log "lingua services disabled"), its own pool + MIGRATOR, injected `UserPort`, services behind the strict auth interceptor with audience checking
+- [ ] 2.5 Update `DEPLOY.md` (enabling the module, variables, provisioning)
 
-## 3. Protos et services `cymbra.lingua.v1`
+## 3. `cymbra.lingua.v1` protos and services
 
-- [ ] 3.1 `backend/lingua/proto/known_words.proto` : `KnownWordsService` — `PushOps` (lots idempotents horodatés), `PullChanges` (curseur delta), `GetSnapshot` (ETag/version, réponse « inchangé ») ; `buf lint` vert (protos nouveaux : `buf breaking` non concerné)
-- [ ] 3.2 Logique de sync host-testée (`known_words_core.rs`) : LWW par (langue, lemme) avec tie-break par device, idempotence des lots, séquence monotone, reprise par offset ; tests de convergence (conflit, replay, interleaving)
-- [ ] 3.3 `deck.proto` : `DeckService` — push/pull de cartes complètes par id client, LWW par carte, suppressions propagées, champ média jamais transporté ; `deck_core.rs` + tests
-- [ ] 3.4 `stats.proto` : `StatsService` — `UpsertDailyStats` (clé jour/langue/device), `GetStats` (plage de dates, séries consolidées SUM par jour × langue) ; `stats_core.rs` + tests (double appareil, upsert rejoué)
-- [ ] 3.5 Adaptateurs `pg_known_words.rs` / `pg_deck.rs` / `pg_stats.rs` + `grpc.rs` (auth : l'utilisateur du jeton, jamais un user_id client) ; ajouter les nouveaux `pg*.rs` au périmètre du regex d'exclusion coverage si le pattern existant ne les couvre pas déjà
-- [ ] 3.6 Test d'intégration bout-en-bout : deux clients simulés convergent (statuts + cartes + stats) à travers les trois services
+- [ ] 3.1 `backend/lingua/proto/known_words.proto`: `KnownWordsService` — `PushOps` (idempotent timestamped batches), `PullChanges` (cursor delta), `GetSnapshot` (ETag/version, "unchanged" response); `buf lint` green (new protos: `buf breaking` does not apply)
+- [ ] 3.2 Host-tested sync logic (`known_words_core.rs`): LWW per (language, lemma) with a device tie-break, batch idempotence, monotonic sequence, offset resumption; convergence tests (conflict, replay, interleaving)
+- [ ] 3.3 `deck.proto`: `DeckService` — push/pull of complete cards by client id, LWW per card, deletions propagated, the media field never transported; `deck_core.rs` + tests
+- [ ] 3.4 `stats.proto`: `StatsService` — `UpsertDailyStats` (day/language/device key), `GetStats` (date range, series consolidated by SUM per day × language); `stats_core.rs` + tests (two devices, replayed upsert)
+- [ ] 3.5 `pg_known_words.rs` / `pg_deck.rs` / `pg_stats.rs` adapters + `grpc.rs` (auth: the token's user, never a client-supplied user_id); add the new `pg*.rs` files to the coverage exclusion regex if the existing pattern does not already cover them
+- [ ] 3.6 End-to-end integration test: two simulated clients converge (statuses + cards + stats) across the three services
 
-## 4. Purge et vie privée
+## 4. Purge and privacy
 
-- [ ] 4.1 Étendre `purge_user_with` (`backend/worker/src/lib.rs`) : effacement `lingua.*` pour l'utilisateur, idempotent, no-op sans données ; étendre le `search_path` du rôle admin (`roles.sql.tpl` ligne admin + doc de migration prod)
-- [ ] 4.2 Tests du handler worker : purge avec données, purge rejouée, compte sans données Lingua
-- [ ] 4.3 Test-contrat « allow-list » : les messages proto de `cymbra.lingua.v1` ne contiennent aucun champ d'URL de page lue, de texte de page ou d'historique (revue de schéma documentée dans le proto + assertion sur les descripteurs si praticable)
+- [ ] 4.1 Extend `purge_user_with` (`backend/worker/src/lib.rs`): erase `lingua.*` for the user, idempotent, a no-op without data; extend the admin role's `search_path` (`roles.sql.tpl` admin line + prod migration doc)
+- [ ] 4.2 Worker handler tests: purge with data, replayed purge, an account with no Lingua data
+- [ ] 4.3 Allow-list contract test: the `cymbra.lingua.v1` proto messages carry no field for a read page's URL, page text or history (a schema review documented in the proto + an assertion on the descriptors if practical)
 
-## 5. Gates et finitions
+## 5. Gates and finishing
 
-- [ ] 5.1 `cargo fmt --all --check` + `clippy --workspace --all-targets -- -D warnings` + `cargo llvm-cov --workspace --fail-under-lines 80` (regex d'exclusion partagé à jour pour les nouveaux adaptateurs)
-- [ ] 5.2 `buf lint` sur `backend/lingua/proto` ; vérifier que la lane `proto` (`buf breaking`) surveille `backend/lingua/proto/**` pour les changes suivants
-- [ ] 5.3 Env/deploy finalisés : `.env.example`, `.env.prod.example`, `DEPLOY.md`, provision ; répétition du plan de migration (backend inerte → provision → activation — les clients au change suivant)
-- [ ] 5.4 `openspec validate add-lingua-backend --strict` final + mise à jour des specs si l'implémentation a fait bouger un contrat
+- [ ] 5.1 `cargo fmt --all --check` + `clippy --workspace --all-targets -- -D warnings` + `cargo llvm-cov --workspace --fail-under-lines 80` (shared exclusion regex up to date for the new adapters)
+- [ ] 5.2 `buf lint` on `backend/lingua/proto`; confirm the `proto` lane (`buf breaking`) watches `backend/lingua/proto/**` for the following changes
+- [ ] 5.3 Env/deploy finalised: `.env.example`, `.env.prod.example`, `DEPLOY.md`, provisioning; rehearse the migration plan (inert backend → provisioning → enablement — the clients come in the next change)
+- [ ] 5.4 Final `openspec validate add-lingua-backend --strict` + spec updates if implementation moved a contract

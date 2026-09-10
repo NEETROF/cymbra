@@ -1,12 +1,12 @@
 # Tasks — add-lingua-extension-reading
 
-## 1. Extension navigateur — lecture (spec lingua-browser-extension)
+## 1. Browser extension — reading (spec lingua-browser-extension)
 
-- [ ] 1.1 Scaffold `apps/lingua-extension` : MV3, TS sans framework, Yarn, vitest, esbuild/vite build ; manifest `activeTab` + `optional_host_permissions <all_urls>` + `storage` + commandes clavier ; unité ajoutée au filtre `ci-units` avec sa lane vitest/lint
-- [ ] 1.2 `AnalyzerPort` (messages) + instanciation lazy du WASM dans le content script ; mémoïsation par forme
-- [ ] 1.3 Moteur de surlignage : TreeWalker → Ranges → deux registres Highlight ; styles `::highlight()` ; exclusions (script/style/éditable/hôtes d'UI)
-- [ ] 1.4 Re-scan par sous-arbre muté (MutationObserver débouncé) + IntersectionObserver pour prioriser le visible ; test manuel sur 5 SPA lourdes documenté
-- [ ] 1.5 Popup de mot (shadow DOM fermé) : forme du dictionnaire, forme vue, glose du pack, rareté vulgarisée, actions statuts ; propagation cross-onglets via `storage.onChanged` ; AUCUNE occurrence du mot « lemme » (test de lint des chaînes UI)
-- [ ] 1.6 Capture de sélection au raccourci : extraction de la phrase d'origine, carte d'expression
-- [ ] 1.7 Badge % par onglet + popup d'icône (stats, compteur de cartes dues, curseur de calibration, reset)
-- [ ] 1.8 Charte Cymbra : `tokens.css` mirrorant `CymbraColors` (précédent : `apps/back-office/src/styles.css`), appliquée au popup d'icône, au popup de mot et aux pages d'extension (les surfaces de révision d'`add-lingua-extension-review` consommeront la même feuille) ; surlignages dérivés de l'ambre/corail de la palette ; lint « aucun hex hors tokens.css » branché sur la lane vitest/lint de 1.1
+- [ ] 1.1 Scaffold `apps/lingua-extension`: MV3, framework-free TS, Yarn, vitest, esbuild/vite build; manifest with `activeTab` + `optional_host_permissions <all_urls>` + `storage` + keyboard commands; unit added to the `ci-units` filter with its vitest/lint lane
+- [ ] 1.2 `AnalyzerPort` (messages) + lazy WASM instantiation in the content script; per-form memoisation
+- [ ] 1.3 Highlight engine: TreeWalker → Ranges → two Highlight registries; `::highlight()` styles; exclusions (script/style/editable/extension UI hosts)
+- [ ] 1.4 Per-mutated-subtree re-scan (debounced MutationObserver) + IntersectionObserver to prioritise what is visible; manual test on 5 heavy SPAs, documented
+- [ ] 1.5 Word popup (closed shadow DOM): dictionary form, form as seen, pack gloss, plain-language rarity, status actions; cross-tab propagation via `storage.onChanged`; NO occurrence of the word "lemma" (UI-string lint test)
+- [ ] 1.6 Selection capture on the shortcut: source-sentence extraction, phrase card
+- [ ] 1.7 Per-tab percentage badge + icon popup (stats, due-card counter, calibration slider, reset)
+- [ ] 1.8 Cymbra identity: `tokens.css` mirroring `CymbraColors` (precedent: `apps/back-office/src/styles.css`), applied to the icon popup, the word popup and the extension pages (the review surfaces from `add-lingua-extension-review` will consume the same sheet); highlight tints derived from the palette's amber/coral; the "no hex outside tokens.css" lint wired into the vitest/lint lane from 1.1

@@ -2,57 +2,130 @@
 
 ## Context
 
-La pile locale a acté deux choses qui contraignent ce change : (1) chaque surface a un **état local versionné** dont les schémas partagent les types de `lingua-core` — « pour que la fusion soit mécanique » (décisions de `add-lingua-extension-review` et `add-lingua-apple`) : ce change est cette fusion ; (2) le transport extension avait déjà été tranché à l'exploration : **bearer gRPC-web** (Connect-ES, template back-office), jamais le cookie `/web/auth` (SameSite=Strict + CORS exact-origin = hostile aux extensions par design).
+The local stack settled two things that constrain this change: (1) every surface has a
+**versioned local state** whose schemas share the `lingua-core` types — "so that merging
+is mechanical" (decisions from `add-lingua-extension-review` and `add-lingua-apple`):
+this change is that merge; (2) the extension's transport was already settled during
+exploration: **gRPC-web bearer** (Connect-ES, the back-office template), never the
+`/web/auth` cookie (SameSite=Strict + exact-origin CORS is hostile to extensions by
+design).
 
-Le serveur est entièrement livré par `add-lingua-backend` : audience `lingua` en configuration, `CYMBRA_ALLOWED_WEB_ORIGINS`, les trois services `cymbra.lingua.v1`, le protocole (op-log, LWW, curseur, snapshot), la purge. Les décisions de protocole et de vie privée serveur (allow-list) y sont prises et ne sont pas rediscutées ici — ce design ne couvre que le **côté client** : comment on se connecte, où vivent les jetons, comment l'outbox et la fusion s'orchestrent, et l'écran de stats.
+The server ships entirely with `add-lingua-backend`: the `lingua` audience in
+configuration, `CYMBRA_ALLOWED_WEB_ORIGINS`, the three `cymbra.lingua.v1` services, the
+protocol (op-log, LWW, cursor, snapshot) and the purge. The protocol and server-side
+privacy decisions (the allow-list) are taken there and are not relitigated here — this
+design covers only the **client side**: how you sign in, where the tokens live, how the
+outbox and the merge are orchestrated, and the stats screen.
 
 ## Goals / Non-Goals
 
-**Goals :**
-- Un utilisateur connecté retrouve les mêmes statuts de mots, les mêmes cartes et des stats consolidées sur tous ses appareils (extension Chromium/Firefox, Safari + app Apple).
-- Sans compte, rien ne change : le local-first de la pile reste le mode par défaut ; la sync est opt-in à la connexion.
-- L'UI lit toujours le store local ; la sync est un échange d'arrière-plan invisible.
+**Goals:**
+- A signed-in user finds the same word statuses, the same cards and consolidated stats
+  on every device (Chromium/Firefox extension, Safari + the Apple app).
+- Without an account nothing changes: the stack's local-first behaviour stays the
+  default; syncing is opt-in at sign-in.
+- The UI always reads the local store; syncing is an invisible background exchange.
 
-**Non-Goals :**
-- Sync du plugin Claude Code (`~/.lingua/`) — les transcripts sont confidentiels ; change ultérieur avec son propre design (auth CLI loopback PKCE).
-- Médias/images de cartes (v1 : le champ `media` du schéma ne se synchronise pas ; la sync chiffrée viendra avec la capture d'image).
-- Tout ce qui est serveur (protocole, schéma, purge, CORS) — livré par `add-lingua-backend`.
-- Multi-comptes par appareil, partage entre utilisateurs.
+**Non-Goals:**
+- Claude Code plugin sync (`~/.lingua/`) — transcripts are confidential; a later change
+  with its own design (loopback PKCE CLI auth).
+- Card media/images (v1: the schema's `media` field does not sync; encrypted sync comes
+  with image capture).
+- Anything server-side (protocol, schema, purge, CORS) — shipped by
+  `add-lingua-backend`.
+- Multiple accounts per device, sharing between users.
 
 ## Decisions
 
-### D1 — Transport extension : gRPC-web bearer, tokens séparés par volatilité
-Connect-ES + `createGrpcWebTransport`, clone du template back-office (`transport.ts` : intercepteur auth `Authorization: Bearer`, refresh **single-flight** avec retry unique, session-expiry en dernier recours ; `api.ts` : seam `setClientsForTest`). Rangement des jetons par volatilité : **access token en `chrome.storage.session`** (mémoire, purgé à la fermeture du navigateur, invisible du disque) ; **refresh token en `chrome.storage.local`** (la session survit au redémarrage — c'est lui qui est rotatif et révocable serveur). Alternative rejetée : les deux en `storage.local` — un access token persisté ne vaut que quelques minutes mais traîne sur disque ; les deux en `session` — re-login à chaque redémarrage, inacceptable pour une extension de lecture quotidienne.
+### D1 — Extension transport: gRPC-web bearer, tokens split by volatility
+Connect-ES + `createGrpcWebTransport`, cloned from the back-office template
+(`transport.ts`: an `Authorization: Bearer` auth interceptor, **single-flight** refresh
+with a single retry, session-expiry as a last resort; `api.ts`: the `setClientsForTest`
+seam). Tokens are stored by volatility: the **access token in `chrome.storage.session`**
+(in memory, purged when the browser closes, never on disk); the **refresh token in
+`chrome.storage.local`** (the session survives a restart — and it is the one that
+rotates and is server-revocable). Rejected alternatives: both in `storage.local` — a
+persisted access token is only worth a few minutes yet lingers on disk; both in
+`session` — a re-login on every restart, unacceptable for a daily reading extension.
 
-### D2 — OIDC dans l'extension : `chrome.identity.launchWebAuthFlow`, client id du CSV
-Google uniquement côté extension : `launchWebAuthFlow` ouvre le flow OAuth (redirect `https://<ext-id>.chromiumapp.org/`), l'extension récupère l'`id_token` et appelle `SignInOidc(provider=google, audience=lingua)`. Le client id (type Web, redirect chromiumapp.org) est déjà au **CSV `CYMBRA_GOOGLE_AUDIENCE`** (livré par `add-lingua-backend`, précédent exact du client desktop). Email/mot de passe = `SignInLocal` existant, mêmes écrans de reset que le site. Firefox : `browser.identity.launchWebAuthFlow` existe — même code. **Pas de Sign in with Apple dans l'extension** : la règle App Store ne s'applique qu'aux apps ; sur Safari, la connexion vit dans l'app conteneur (D3).
+### D2 — OIDC in the extension: `chrome.identity.launchWebAuthFlow`, client id from the CSV
+Google only on the extension side: `launchWebAuthFlow` opens the OAuth flow (redirect
+`https://<ext-id>.chromiumapp.org/`), the extension gets the `id_token` and calls
+`SignInOidc(provider=google, audience=lingua)`. The client id (Web type, chromiumapp.org
+redirect) is already in the **`CYMBRA_GOOGLE_AUDIENCE` CSV** (shipped by
+`add-lingua-backend`, the exact precedent being the desktop client). Email/password is
+the existing `SignInLocal`, with the same reset screens as the site. Firefox:
+`browser.identity.launchWebAuthFlow` exists — same code. **No Sign in with Apple in the
+extension**: the App Store rule applies to apps only; on Safari, sign-in lives in the
+container app (D3).
 
-### D3 — App Apple : connexion native, Sign in with Apple obligatoire
-L'app conteneur se connecte en **tonic natif** (`SignInOidc`/`SignInLocal` — pas de gRPC-web : c'est une app, pas un navigateur), jetons dans le Keychain, refresh partagé avec l'extension Safari via l'App Group (un seul compte par appareil, l'extension consomme la session de l'app par le handler natif — pas de flow OAuth dans Safari). Dès qu'un login tiers (Google) est proposé sur iOS, **Sign in with Apple doit l'être aussi** (guideline App Store) : le backend le supporte déjà (`CYMBRA_APPLE_AUDIENCE`), l'app utilise `ASAuthorizationController` natif. Ordre des boutons : Apple d'abord sur iOS, conformément aux attentes de review.
+### D3 — Apple app: native sign-in, Sign in with Apple mandatory
+The container app signs in over **native tonic** (`SignInOidc`/`SignInLocal` — no
+gRPC-web: it is an app, not a browser), with tokens in the Keychain and the refresh
+shared with the Safari extension through the App Group (a single account per device; the
+extension consumes the app's session through the native handler — no OAuth flow inside
+Safari). As soon as a third-party login (Google) is offered on iOS, **Sign in with Apple
+must be offered too** (App Store guideline): the backend already supports it
+(`CYMBRA_APPLE_AUDIENCE`) and the app uses the native `ASAuthorizationController`. Button
+order: Apple first on iOS, in line with review expectations.
 
-### D4 — Fusion du store pré-compte au premier sign-in : upload puis merge, le local reste maître d'affichage
-À la première connexion d'un appareil : l'état local (statuts, cartes, stats de la pile locale) est **poussé intégralement** comme autant d'ops horodatées (les horodatages locaux d'origine sont conservés), puis le client tire le snapshot fusionné. Le merge serveur est le LWW ordinaire du protocole (`add-lingua-backend`) — le premier sign-in n'est pas un cas spécial, juste une grosse outbox. Ensuite le modèle reste **local-first** : l'UI lit toujours le store local ; la sync est un échange d'arrière-plan (au réveil du service worker, après un lot de mutations, à l'ouverture du side panel). Une déconnexion arrête la sync sans toucher l'état local.
+### D4 — Merging the pre-account store at first sign-in: upload then merge, local stays the display authority
+At a device's first sign-in, the local state (statuses, cards, the local stack's stats)
+is **pushed in full** as timestamped ops (the original local timestamps are preserved),
+and the client then pulls the merged snapshot. The server-side merge is the protocol's
+ordinary LWW (`add-lingua-backend`) — first sign-in is not a special case, just a large
+outbox. After that the model stays **local-first**: the UI always reads the local store;
+syncing is a background exchange (on service-worker wake, after a batch of mutations, on
+side-panel open). Signing out stops syncing without touching local state.
 
-### D5 — Le plugin Claude Code reste local-only — réaffirmé, pas oublié
-Le store `~/.lingua/` ne gagne **aucun** chemin réseau dans ce change : les transcripts sont du code employeur, et l'invariant « aucune connexion réseau » de `add-lingua-agent` (spec `lingua-agent-capture`) est testé. Sa sync sera un change dédié (auth CLI loopback PKCE, opt-in explicite par machine). Conséquence assumée : les statuts extension et plugin continuent de diverger — c'était déjà l'état de la pile locale, et la fusion mécanique reste possible le jour venu (mêmes types `lingua-core`).
+### D5 — The Claude Code plugin stays local-only — restated, not forgotten
+The `~/.lingua/` store gains **no** network path in this change: transcripts are employer
+code, and the "no network connection" invariant of `add-lingua-agent` (the
+`lingua-agent-capture` spec) is tested. Its sync will be a dedicated change (loopback
+PKCE CLI auth, explicit per-machine opt-in). Accepted consequence: extension and plugin
+statuses keep diverging — that was already the local stack's state, and the mechanical
+merge stays possible when the day comes (same `lingua-core` types).
 
 ## Risks / Trade-offs
 
-- [Refresh token en `storage.local` : lisible par un malware local] → même exposition que tout secret de profil navigateur ; mitigé par la rotation + détection de réutilisation (la famille est révoquée au premier replay) et `RevokeAllSessions` accessible.
-- [Poussée initiale volumineuse au premier sign-in (des années de statuts)] → lots bornés + reprise par offset d'outbox (portés par le protocole de `add-lingua-backend`) ; l'ordre des ops préserve les horodatages, donc une interruption est reprise sans corruption.
-- [Origine `chrome-extension://<id>` : l'id change entre dev (unpacked) et store] → l'id publié est stable (clé au manifest) ; en dev, l'origine locale s'ajoute à `CYMBRA_ALLOWED_WEB_ORIGINS` de l'environnement de dev seulement. Firefox (`moz-extension://<uuid>` aléatoire par install) : à vérifier à l'intégration, le repli documenté étant un id d'origine par `browser_specific_settings`.
-- [Divergence extension ↔ plugin Claude Code maintenue] → assumée et réaffirmée (D5) ; documentée dans l'UI de stats (« hors sessions d'agents »).
-- [Horloge client fausse : un appareil décalé « gagne » des conflits LWW] → tie-break et clamp côté serveur (`add-lingua-backend`) ; le pire cas reste corrigeable d'un clic (reposer le statut).
+- [Refresh token in `storage.local`: readable by local malware] → the same exposure as
+  any browser-profile secret; mitigated by rotation plus reuse detection (the family is
+  revoked on the first replay) and an accessible `RevokeAllSessions`.
+- [A bulky initial push at first sign-in (years of statuses)] → bounded batches plus
+  outbox-offset resumption (carried by the `add-lingua-backend` protocol); op order
+  preserves timestamps, so an interruption resumes without corruption.
+- [`chrome-extension://<id>` origin: the id differs between dev (unpacked) and store] →
+  the published id is stable (key in the manifest); in dev, the local origin is added to
+  `CYMBRA_ALLOWED_WEB_ORIGINS` in the dev environment only. Firefox
+  (`moz-extension://<uuid>`, random per install): to be confirmed at integration, the
+  documented fallback being a fixed origin id via `browser_specific_settings`.
+- [Extension ↔ Claude Code plugin divergence maintained] → accepted and restated (D5);
+  documented in the stats UI ("excluding agent sessions").
+- [Wrong client clock: a skewed device "wins" LWW conflicts] → tie-break and clamping
+  server-side (`add-lingua-backend`); the worst case is still fixable with one click (set
+  the status again).
 
 ## Migration Plan
 
-1. Prérequis : `add-lingua-backend` déployé et provisionné (audience, origines, `CYMBRA_LINGUA_DATABASE_URL` active).
-2. Extension d'abord (UI compte + outbox + stats) — dogfooding Chrome macOS du fondateur.
-3. App Apple ensuite (TestFlight interne avec le backend de dev, puis review App Store — Sign in with Apple présent, privacy labels à jour).
-4. Rollback : la déconnexion (ou le retrait de `CYMBRA_LINGUA_DATABASE_URL` côté serveur) fait retomber les clients en local-only — c'est leur mode par défaut ; les schémas locaux ne migrent pas destructivement, donc un client « sync » continue de fonctionner seul.
+1. Prerequisite: `add-lingua-backend` deployed and provisioned (audience, origins,
+   `CYMBRA_LINGUA_DATABASE_URL` active).
+2. Extension first (account UI + outbox + stats) — the founder's Chrome-on-macOS
+   dogfooding.
+3. The Apple app next (internal TestFlight against the dev backend, then App Store review
+   — Sign in with Apple present, privacy labels up to date).
+4. Rollback: signing out (or removing `CYMBRA_LINGUA_DATABASE_URL` server-side) drops the
+   clients back to local-only — their default mode; the local schemas do not migrate
+   destructively, so a "synced" client keeps working on its own.
 
 ## Open Questions
 
-- Périodicité exacte de la sync d'arrière-plan côté extension (au réveil du SW + `chrome.alarms` ? seuil d'ops ?) — à mesurer au dogfooding, sans impact sur le protocole.
-- Le partage de session app ↔ extension Safari via App Group : l'extension consomme-t-elle les jetons par le handler natif à chaque appel, ou une copie App Group avec invalidation ? À trancher à l'implémentation (le contrat — un seul compte par appareil Apple — ne bouge pas).
-- Faut-il exposer un bouton « Synchroniser maintenant » ou rester silencieux (indicateur discret seulement) ? Penché : indicateur + action manuelle dans les réglages, jamais de friction dans la lecture.
+- The exact cadence of background sync in the extension (on service-worker wake +
+  `chrome.alarms`? an op threshold?) — to be measured during dogfooding, with no impact
+  on the protocol.
+- Sharing the session between the app and the Safari extension through the App Group:
+  does the extension fetch the tokens through the native handler on every call, or is
+  there an App Group copy with invalidation? To be settled at implementation (the
+  contract — a single account per Apple device — does not move).
+- Should a "Sync now" button be exposed, or should it stay silent (a discreet indicator
+  only)? Leaning: an indicator plus a manual action in settings, never friction while
+  reading.

@@ -1,10 +1,10 @@
 # Tasks — add-lingua-decks-review
 
-## 1. lingua-core — decks et révision (spec lingua-decks-review)
+## 1. lingua-core — decks and review (spec lingua-decks-review)
 
-_Tests sur mini-fixtures synthétiques (comme les étages précédents du cœur) ; le vrai pack arrive avec `add-lingua-data-pack`._
+_Tests on synthetic mini-fixtures (as in the earlier storeys of the core); the real pack arrives with `add-lingua-data-pack`._
 
-- [ ] 1.1 Schéma de carte (lemme, forme, phrase, source, glose, `media` optionnel avec `source`/`sync_policy`, état FSRS) sérialisable versionné
-- [ ] 1.2 Intégration FSRS : notation `again/hard/good/easy`, échéances, compteur de dues ; version du crate épinglée, paramètres stockés sur l'état
-- [ ] 1.3 « Je connais » en révision → statut `known` provenance `srs`, carte conservée hors file ; tests
-- [ ] 1.4 Sauvegarde/restauration : export complet de l'état (cartes, statuts, calibration, paramètres FSRS) en fichier versionné + restauration à l'identique ; tests d'aller-retour sans perte (round-trip champ par champ)
+- [ ] 1.1 Card schema (lemma, form, sentence, source, gloss, optional `media` with `source`/`sync_policy`, FSRS state), versioned serialisable
+- [ ] 1.2 FSRS integration: `again/hard/good/easy` grading, due dates, due count; crate version pinned, parameters stored on the state
+- [ ] 1.3 "I know this" during review → `known` status with provenance `srs`, card kept out of the queue; tests
+- [ ] 1.4 Backup/restore: full state export (cards, statuses, calibration, FSRS parameters) to a versioned file + identical restore; lossless round-trip tests (field by field)

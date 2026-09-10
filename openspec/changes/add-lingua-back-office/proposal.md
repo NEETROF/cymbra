@@ -1,33 +1,82 @@
-# add-lingua-back-office — Cymbra Lingua : section admin du back-office (OPS)
+# add-lingua-back-office — Cymbra Lingua: the back office's admin section (OPS)
 
 ## Why
 
-Une fois le backend Lingua en place (change `add-lingua-backend` : schéma `lingua`, sync, `StatsService`), l'exploitation du produit est aveugle : aucun moyen de savoir combien de comptes utilisent Lingua, à quel rythme, sur quelles langues, ni quelles versions de packs de données circulent. Le back-office Vue est déjà la console d'administration de tous les produits (music, plans, flags, usage) — Lingua doit s'y brancher, pas inventer une console à part.
+Once the Lingua backend is in place (`add-lingua-backend`: the `lingua` schema, sync,
+`StatsService`), running the product is blind: there is no way to know how many accounts
+use Lingua, at what rate, on which languages, nor which data-pack versions are in
+circulation. The Vue back office is already the admin console for every product (music,
+plans, flags, usage) — Lingua should plug into it, not invent a console of its own.
 
-Le périmètre est **OPS uniquement, par décision produit** : des agrégats, le registre des packs, les flags. **Pas de vue support par compte** — les données Lingua (mots rencontrés, decks, historique de révision) décrivent ce qu'une personne lit ; c'est sensible par nature, et l'administrateur n'a aucun besoin opérationnel de les voir. Cette limite est une exigence de spec, pas une omission.
+The scope is **OPS only, by product decision**: aggregates, the pack registry, flags.
+**No per-account support view** — Lingua data (words encountered, decks, review history)
+describes what a person reads; that is sensitive by nature, and the administrator has no
+operational need to see it. That limit is a spec requirement, not an omission.
 
 ## What Changes
 
-- **Nouvelle capability `admin-lingua-console`** : l'écran « Lingua » du back-office et les RPC admin qui le servent.
-- **Nouveaux protos admin dans `backend/lingua/proto`** (fichier dédié `lingua_admin.proto`, service `LinguaAdminService`) : `AdminGetLinguaUsage` (tuiles agrégées), `AdminGetLinguaUsageSeries` (séries par jour), `AdminListDataPacks` (registre des packs). Derrière l'intercepteur d'auth **strict** existant, gatés `require_admin_in_scope(id, "lingua")` — le pattern des RPC admin de `backend/music` et de `backend/analytics`, avec le scope **lingua** explicite (leçon « séparation des pouvoirs » : un `music/admin` n'administre pas Lingua par accident).
-- **Implémentation backend** dans `backend/lingua` : agrégats SQL sur le schéma `lingua` (pool `lingua_svc`), aucune nouvelle télémétrie — on agrège ce que la sync possède déjà. Aucune réponse ne contient d'identifiant de compte.
-- **Registre des packs = manifeste committé** : `scripts/lingua-data` émet un `packs-manifest.json` (pack_version, analyzer_version, paire L2→L1, date de build CI, taille, NOTICE), embarqué par le backend au compile et servi tel quel. La distribution des packs reste **embarquée dans l'extension** en v1 : le registre est informatif et prépare l'OTA futur.
-- **Écran BO « Lingua »** (`apps/back-office`, route `/lingua`) suivant strictement la skill `vue-frontend-architecture` : store Pinia derrière le seam `api()`/`setClientsForTest`, état async en unions `Async<T>` matchées exhaustivement, aucun appel API dans les composants. Pattern visuel de l'écran `/usage` (tuiles + séries temporelles + répartitions). Entrée de navigation et route gatées `adminScope: "lingua"` (précédent : `/takedowns`).
-- **Flags Lingua : aucune UI nouvelle.** Les clés sont déclarées dans le registry backend (`KeyDef`, app `lingua`) et administrées par la console `/flags` **existante**.
-- Vocabulaire UI : comme partout dans Lingua, le mot « lemme » n'apparaît jamais à l'écran (« mots appris », « mots différents », « forme du dictionnaire »).
+- **A new `admin-lingua-console` capability**: the back office's "Lingua" screen and the
+  admin RPCs that serve it.
+- **New admin protos in `backend/lingua/proto`** (a dedicated `lingua_admin.proto`,
+  service `LinguaAdminService`): `AdminGetLinguaUsage` (aggregate tiles),
+  `AdminGetLinguaUsageSeries` (per-day series), `AdminListDataPacks` (the pack registry).
+  Behind the existing **strict** auth interceptor, gated by
+  `require_admin_in_scope(id, "lingua")` — the pattern of `backend/music`'s and
+  `backend/analytics`'s admin RPCs, with the **lingua** scope made explicit (the
+  separation-of-powers lesson: a `music/admin` does not administer Lingua by accident).
+- **Backend implementation** in `backend/lingua`: SQL aggregates over the `lingua` schema
+  (the `lingua_svc` pool), no new telemetry — we aggregate what sync already holds. No
+  response carries an account identifier.
+- **The pack registry is a committed manifest**: `scripts/lingua-data` emits a
+  `packs-manifest.json` (pack_version, analyzer_version, the L2→L1 pair, CI build date,
+  size, NOTICE), embedded by the backend at compile time and served as-is. Pack
+  distribution stays **bundled in the extension** in v1: the registry is informational
+  and paves the way for a future OTA.
+- **The "Lingua" back-office screen** (`apps/back-office`, route `/lingua`), following the
+  `vue-frontend-architecture` skill strictly: a Pinia store behind the
+  `api()`/`setClientsForTest` seam, async state as exhaustively matched `Async<T>` unions,
+  no API call inside a component. The visual pattern of the `/usage` screen (tiles + time
+  series + breakdowns). The nav entry and the route are gated by
+  `adminScope: "lingua"` (precedent: `/takedowns`).
+- **Lingua flags: no new UI.** The keys are declared in the backend registry (`KeyDef`,
+  app `lingua`) and administered through the **existing** `/flags` console.
+- UI vocabulary: as everywhere in Lingua, the word "lemma" never appears on screen (say
+  "words learned", "distinct words", "dictionary form").
 
 ## Capabilities
 
 ### New Capabilities
-- `admin-lingua-console` : la section Lingua du back-office — autorisation scopée `lingua`, agrégats d'usage (tuiles + séries + répartition par langue étudiée), règle dure de vie privée (agrégats seuls, jamais de donnée par compte), registre des versions de packs en lecture, flags via la console existante, états async localisés.
+- `admin-lingua-console`: the back office's Lingua section — `lingua`-scoped
+  authorisation, usage aggregates (tiles + series + breakdown by studied language), a
+  hard privacy rule (aggregates only, never per-account data), a read-only registry of
+  pack versions, flags through the existing console, and localised async states.
 
 ### Modified Capabilities
-_Aucune. La console `/flags` (`feature-flags-admin`) est consommée telle quelle — les clés Lingua ne sont que des déclarations de registry côté backend, déjà couvertes par `runtime-feature-flags`. L'authentification back-office (`back-office-admin-session`) et le modèle de rôles scopés sont consommés, pas modifiés (le scope `lingua` est une valeur de plus dans une liste existante, pas un nouveau comportement)._
+_None. The `/flags` console (`feature-flags-admin`) is consumed as-is — the Lingua keys
+are only backend registry declarations, already covered by `runtime-feature-flags`. Back
+office authentication (`back-office-admin-session`) and the scoped-role model are
+consumed, not modified (the `lingua` scope is one more value in an existing list, not new
+behaviour)._
 
 ## Impact
 
-- **Produits** : **back-office** = tout le nouveau front (écran, store, nav, i18n en/fr) ; **Lingua backend** = nouveaux protos + RPC admin dans `backend/lingua` (dépend de `add-lingua-backend`, qui crée le crate, le schéma et la sync) ; **ID** = consommé (audience `back-office`, rôles scopés, `require_admin_in_scope`) ; **Music / Live / site** : intacts.
-- **Dépendance** : `add-lingua-backend` doit être implémenté d'abord (schéma `lingua`, pool `lingua_svc`, `StatsService`). Si ce change n'a pas déjà déclaré le scope `lingua` (`SCOPES`/`APP_SCOPES` de `backend/platform` + attribution de rôles), le présent change le fait.
-- **Arborescence** : `backend/lingua/proto/lingua_admin.proto` + `src` (agrégats, gating) ; `scripts/lingua-data` (émission du manifeste) ; `apps/back-office/src` (stores/lingua.ts, views/LinguaView.vue, transport, router, i18n) ; `apps/back-office/e2e/lingua.spec.ts`.
-- **CI** : aucune nouvelle unité — `backend/lingua` est couvert par la lane `rust` (workspace) et `apps/back-office` par `back-office-check` ; `ci-units` inchangé. Le nouveau proto tombe sous le gate `buf breaking` du workflow `proto` (fichier nouveau : passe). Coverage ≥ 80 % des deux côtés ; les adaptateurs minces (`pg*.rs`, `grpc.rs`) suivent la convention d'exclusion existante, la logique d'agrégation reste host-testée.
-- **Hors périmètre (explicitement)** : vue support par compte (rejetée pour la vie privée — pas « plus tard », rejetée), OTA des packs (le registre le prépare, ne le livre pas), écriture du registre depuis la CI vers la prod, nouvelle UI de flags, agrégats temps réel.
+- **Products**: **back office** = all the new front end (screen, store, nav, en/fr i18n);
+  **Lingua backend** = new protos + admin RPCs in `backend/lingua` (depends on
+  `add-lingua-backend`, which creates the crate, the schema and sync); **ID** = consumed
+  (`back-office` audience, scoped roles, `require_admin_in_scope`); Music / Live / site:
+  untouched.
+- **Dependency**: `add-lingua-backend` must be implemented first (the `lingua` schema, the
+  `lingua_svc` pool, `StatsService`). If that change has not already declared the `lingua`
+  scope (`SCOPES`/`APP_SCOPES` in `backend/platform` + role assignment), this change does
+  it.
+- **Tree**: `backend/lingua/proto/lingua_admin.proto` + `src` (aggregates, gating);
+  `scripts/lingua-data` (manifest emission); `apps/back-office/src` (stores/lingua.ts,
+  views/LinguaView.vue, transport, router, i18n); `apps/back-office/e2e/lingua.spec.ts`.
+- **CI**: no new unit — `backend/lingua` is covered by the `rust` lane (workspace) and
+  `apps/back-office` by `back-office-check`; `ci-units` unchanged. The new proto falls
+  under the `proto` workflow's `buf breaking` gate (a new file: it passes). Coverage
+  ≥ 80% on both sides; the thin adapters (`pg*.rs`, `grpc.rs`) follow the existing
+  exclusion convention, and the aggregation logic stays host-tested.
+- **Out of scope (explicitly)**: a per-account support view (rejected for privacy — not
+  "later", rejected), pack OTA (the registry prepares it, does not ship it), writing the
+  registry from CI to production, a new flags UI, real-time aggregates.

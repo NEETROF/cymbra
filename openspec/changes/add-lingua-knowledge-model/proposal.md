@@ -1,30 +1,64 @@
-# add-lingua-knowledge-model — Cymbra Lingua : état de connaissance lexicale
+# add-lingua-knowledge-model — Cymbra Lingua: lexical knowledge state
 
 ## Why
 
-Le pipeline d'analyse (`add-lingua-analysis`) sait produire des lemmes ; il faut maintenant dire **ce que l'utilisateur en sait**. Le knowledge model est le contrat central du produit : c'est lui que consomment les decks, l'extension, le plugin agent et, plus tard, la sync — sa clé `(langue étudiée, lemme)` et ses statuts sont ce qui rend le comptage honnête (le différenciateur face à LingQ/Readlang, qui comptent les formes de surface). Ce change livre aussi les deux réponses au démarrage à froid — sans elles, le jour 1 surligne 60 % de la page : la **calibration par rang de fréquence** et l'**import LingQ** (qui est en même temps une arme d'acquisition : « migre depuis LingQ, garde ton historique »).
+The analysis pipeline (`add-lingua-analysis`) knows how to produce lemmas; what is
+missing is **what the user knows about them**. The knowledge model is the product's
+central contract: it is what the decks, the extension, the agent plugin and — later —
+the sync all consume, and its `(studied language, lemma)` key plus its statuses are
+what makes the count honest (the differentiator against LingQ/Readlang, which count
+surface forms). This change also delivers the two answers to the cold start — without
+them, day 1 highlights 60% of the page: **frequency-rank calibration** and the **LingQ
+import** (which doubles as an acquisition weapon: "migrate from LingQ, keep your
+history").
 
-**Position dans la pile** (12 changes, ordre d'implémentation) : **2/12.** Prérequis explicite : **add-lingua-analysis** (crate `lingua-core`, lemmatisation, rangs de fréquence, `analyzer_version`). Suite : add-lingua-decks-review → add-lingua-data-pack → add-lingua-wasm → add-lingua-extension-reading → add-lingua-extension-review → add-lingua-firefox → add-lingua-apple → add-lingua-agent → add-lingua-backend → add-lingua-connected-clients.
+**Position in the stack** (12 changes, implementation order): **2/12.** Explicit
+prerequisite: **add-lingua-analysis** (the `lingua-core` crate, lemmatisation,
+frequency ranks, `analyzer_version`). Then: add-lingua-decks-review →
+add-lingua-data-pack → add-lingua-wasm → add-lingua-extension-reading →
+add-lingua-extension-review → add-lingua-firefox → add-lingua-apple →
+add-lingua-agent → add-lingua-backend → add-lingua-connected-clients.
 
 ## What Changes
 
-- **Module `knowledge/` de `crates/lingua-core`** : statuts explicites (`learning`, `known`, `ignored` ; « nouveau » = absence d'entrée) avec provenance (`manual`/`calibration`/`srs`/`import`), « connu » implicite sous le seuil de calibration (rang de fréquence ≤ N), résolution multi-candidats pro-apprenant (connu si un candidat l'est).
-- **Profil L1/L2** : `native_language` (langue de confort) distincte des langues étudiées ; toutes les API clées par paire (L2→L1). Le MVP ne livre que (anglais → français), mais ajouter une paire = données, pas du code.
-- **Import LingQ (CSV)** : les entrées importées sont lemmatisées puis marquées `known` provenance `import` — le démarrage à froid du segment cible.
-- **Compteurs d'exposition** par (langue, lemme) : occurrences rencontrées, source, horodatage — sans effet sur les statuts en v1 (donnée d'entrée de l'inférence future façon Migaku).
-- **Invariant de vocabulaire UI** posé dès ce change : le mot « lemme » n'apparaît jamais à l'écran (« forme du dictionnaire », « mots différents ») — chaque surface ultérieure de la pile l'applique et le linte.
+- **`knowledge/` module of `crates/lingua-core`**: explicit statuses (`learning`,
+  `known`, `ignored`; "new" = no entry) with provenance
+  (`manual`/`calibration`/`srs`/`import`), implicit "known" below the calibration
+  threshold (frequency rank ≤ N), multi-candidate resolution in the learner's favour
+  (known if any candidate is).
+- **L1/L2 profile**: `native_language` (the language of comfort) kept distinct from the
+  studied languages; every API keyed by pair (L2→L1). The MVP ships only
+  (English → French), but adding a pair is data, not code.
+- **LingQ import (CSV)**: imported entries are lemmatised, then marked `known` with
+  provenance `import` — the cold start for the target segment.
+- **Exposure counters** per (language, lemma): occurrences encountered, source,
+  timestamp — with no effect on statuses in v1 (input data for the future
+  Migaku-style inference).
+- **The UI vocabulary invariant** is laid down in this change: the word "lemma" never
+  appears on screen ("dictionary form", "distinct words") — every later surface in the
+  stack applies and lints it.
 
 ## Capabilities
 
 ### New Capabilities
-- `lingua-knowledge-model` : l'état de connaissance par lemme et par langue étudiée — statuts (nouveau/en cours/connu/ignoré), « connu » inférable du SRS, calibration par rang de fréquence au démarrage, import LingQ (CSV), profil L1/L2 (langue maternelle ≠ langue étudiée, tout est clé par paire), compteurs d'exposition.
+- `lingua-knowledge-model`: the knowledge state per lemma and per studied language —
+  statuses (new/learning/known/ignored), "known" inferable from the SRS, frequency-rank
+  calibration at startup, LingQ import (CSV), L1/L2 profile (native language ≠ studied
+  language, everything keyed by pair), exposure counters.
 
 ### Modified Capabilities
-_Aucune. Ce change reste local au crate `lingua-core` : il ne consomme ni ne modifie `id-*`/`platform-*`._
+_None. This change stays local to the `lingua-core` crate: it neither consumes nor
+modifies `id-*`/`platform-*`._
 
 ## Impact
 
-- **Produits** : Lingua (nouveau) ; **Cymbra ID / Music / Live / back-office / site : intacts** (aucun proto, aucun crate backend, aucune app existante modifiés).
-- **Arborescence** : `crates/lingua-core` uniquement (module `knowledge/` prévu par `add-lingua-analysis`) ; aucune nouvelle unité — la lane CI Rust existante couvre déjà le crate.
-- **Dépendances** : aucune nouvelle (parsing CSV minimal ; `serde` déjà présent).
-- **Hors périmètre** : cartes/FSRS et l'inférence « connu » depuis le SRS (`add-lingua-decks-review`), pack réel de fréquences/gloses (`add-lingua-data-pack`), les surfaces qui affichent ces données (extension, app Apple, plugin — changes ultérieurs), la réconciliation multi-stores (`add-lingua-backend`).
+- **Products**: Lingua (new); **Cymbra ID / Music / Live / back office / site:
+  untouched** (no proto, no backend crate, no existing app modified).
+- **Tree**: `crates/lingua-core` only (the `knowledge/` module already laid out by
+  `add-lingua-analysis`); no new unit — the existing Rust CI lane already covers the
+  crate.
+- **Dependencies**: none new (minimal CSV parsing; `serde` is already there).
+- **Out of scope**: cards/FSRS and the "known" inference from the SRS
+  (`add-lingua-decks-review`), the real frequency/gloss pack
+  (`add-lingua-data-pack`), the surfaces that display this data (extension, Apple app,
+  plugin — later changes), multi-store reconciliation (`add-lingua-backend`).

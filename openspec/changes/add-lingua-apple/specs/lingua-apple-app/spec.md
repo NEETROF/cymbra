@@ -1,35 +1,35 @@
-# lingua-apple-app — app conteneur Safari (iOS + macOS)
+# lingua-apple-app — Safari container app (iOS + macOS)
 
 ## ADDED Requirements
 
-### Requirement: Une app avec des fonctions propres, une fiche universelle
-L'app conteneur SHALL être une app à part entière (decks, révision FSRS, réglages, import LingQ) et non une coquille pour l'extension, et SHALL être publiée sous **une seule fiche App Store universelle couvrant iOS et macOS** (universal purchase, un seul projet Xcode). Elle SHALL embarquer les packs de données dans son bundle — jamais dans le storage de l'extension.
+### Requirement: An app with functions of its own, one universal listing
+The container app SHALL be an app in its own right (decks, FSRS review, settings, LingQ import) rather than a shell around the extension, and SHALL ship under **a single universal App Store listing covering iOS and macOS** (universal purchase, one Xcode project). It SHALL embed the data packs in its own bundle — never in extension storage.
 
-#### Scenario: L'app vit sans l'extension
-- **WHEN** l'utilisateur ouvre l'app sans avoir activé l'extension Safari
-- **THEN** il peut consulter ses decks, réviser ses cartes dues et lancer la calibration ou l'import LingQ
+#### Scenario: The app lives without the extension
+- **WHEN** the user opens the app without having enabled the Safari extension
+- **THEN** they can browse their decks, review their due cards, and start calibration or a LingQ import
 
-### Requirement: Activation guidée de l'extension
-L'app SHALL guider l'activation de l'extension Safari, qui arrive désactivée par défaut : sur iOS, un walkthrough pas-à-pas (l'OS n'offre ni invite ni API d'état) avec détection d'activation par **heartbeat App Group** (l'extension écrit un battement à chaque exécution, l'app le lit) ; sur macOS, un bouton ouvrant directement le panneau Extensions de Safari (`SFSafariApplication.showPreferencesForExtension`) et l'état réel via `SFSafariExtensionManager`. L'écran d'accueil SHALL refléter l'état d'activation.
+### Requirement: Guided extension activation
+The app SHALL guide activation of the Safari extension, which arrives disabled by default: on iOS, a step-by-step walkthrough (the OS offers neither a prompt nor a state API) with activation detected through an **App Group heartbeat** (the extension writes a beat on every run, the app reads it); on macOS, a button that opens Safari's Extensions pane directly (`SFSafariApplication.showPreferencesForExtension`) plus the real state through `SFSafariExtensionManager`. The home screen SHALL reflect the activation state.
 
-#### Scenario: Premier lancement iOS
-- **WHEN** l'utilisateur ouvre l'app pour la première fois sur iOS sans extension active
-- **THEN** le walkthrough d'activation s'affiche en premier, et disparaît de lui-même une fois le heartbeat de l'extension observé
+#### Scenario: First launch on iOS
+- **WHEN** the user opens the app for the first time on iOS with no active extension
+- **THEN** the activation walkthrough shows first, and dismisses itself once the extension's heartbeat is observed
 
-#### Scenario: Activation macOS en deux clics
-- **WHEN** l'utilisateur clique « Activer dans Safari » sur macOS
-- **THEN** le panneau Extensions de Safari s'ouvre à la bonne entrée, et l'app affiche « extension active » dès que l'API d'état le confirme
+#### Scenario: Two-click activation on macOS
+- **WHEN** the user clicks « Activer dans Safari » on macOS (the shipping UI is French)
+- **THEN** Safari's Extensions pane opens on the right entry, and the app shows « extension active » as soon as the state API confirms it
 
-### Requirement: Analyse native partagée avec l'extension
-L'extension Safari SHALL obtenir l'analyse via nativeMessaging (event page → `SafariWebExtensionHandler`), le handler exécutant `lingua-core` compilé en natif — aucun WASM ne SHALL être instancié dans les contextes d'extension Safari. Les requêtes SHALL être des lots (par viewport), avec mémoïsation par forme côté content script, et une panne du pont SHALL dégrader en douceur (pas de surlignage) sans bloquer la page.
+### Requirement: Native analysis shared with the extension
+The Safari extension SHALL obtain its analysis over nativeMessaging (event page → `SafariWebExtensionHandler`), the handler running `lingua-core` compiled natively — no WASM SHALL be instantiated in any Safari extension context. Requests SHALL be batched (per viewport), memoised per word form on the content-script side, and a failure of the bridge SHALL degrade gracefully (no highlighting) without blocking the page.
 
-#### Scenario: Analyse d'une page dans Safari
-- **WHEN** une page anglaise est chargée dans Safari avec l'extension active
-- **THEN** le surlignage apparaît, l'analyse ayant transité par le handler natif, et aucun module WASM n'a été chargé dans l'extension
+#### Scenario: Analysing a page in Safari
+- **WHEN** an English page is loaded in Safari with the extension active
+- **THEN** highlighting appears, the analysis having gone through the native handler, and no WASM module was loaded in the extension
 
-### Requirement: État local par appareil, prêt pour la sync
-Chaque appareil SHALL conserver son état local (statuts, cartes, calibration) sous le même schéma versionné que l'extension Chromium/Firefox, amorcé par calibration ou import LingQ ; aucune synchronisation ne SHALL exister dans ce change, et les types partagés de `lingua-core` SHALL garantir qu'une fusion ultérieure (change de sync) est mécanique.
+### Requirement: Per-device local state, ready for sync
+Each device SHALL keep its own local state (statuses, cards, calibration) under the same versioned schema as the Chromium/Firefox extension, seeded by calibration or a LingQ import; no synchronisation SHALL exist in this change, and `lingua-core`'s shared types SHALL guarantee that a later merge (the sync change) is mechanical.
 
-#### Scenario: iPhone et Mac indépendants
-- **WHEN** l'utilisateur marque un mot « connu » sur son Mac
-- **THEN** l'état de son iPhone est inchangé (aucune sync dans ce change), sans erreur ni écart de schéma
+#### Scenario: iPhone and Mac stay independent
+- **WHEN** the user marks a word as known on their Mac
+- **THEN** their iPhone's state is unchanged (there is no sync in this change), with no error and no schema divergence

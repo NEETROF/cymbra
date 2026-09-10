@@ -2,27 +2,49 @@
 
 ## Context
 
-Septième change de la pile Lingua, directement au-dessus d'`add-lingua-extension-reading` : l'extension Chromium lit, surligne et crée des cartes ; ce change lui donne ses surfaces de révision. Le moteur est hérité : état FSRS et export Anki dans `lingua-core` (`add-lingua-decks-review`), bindings (`add-lingua-wasm`), charte/tokens, storage et `AnalyzerPort` (`add-lingua-extension-reading`). Le preshot (`~/workspace/lingua-preshot`) avait validé les deux surfaces (panneau latéral / panneau flottant).
+Seventh change in the Lingua stack, sitting directly on top of
+`add-lingua-extension-reading`: the Chromium extension reads, highlights and creates cards;
+this change gives it its review surfaces. The engine is inherited: FSRS state and Anki
+export in `lingua-core` (`add-lingua-decks-review`), the bindings (`add-lingua-wasm`), the
+identity/tokens, storage and `AnalyzerPort` (`add-lingua-extension-reading`). The preshot
+(`~/workspace/lingua-preshot`) had already proven both surfaces (side panel / floating
+panel).
 
 ## Goals / Non-Goals
 
-**Goals :**
-- Boucle complète dans le navigateur : deck consultable, session de révision FSRS, export Anki — sur le même état local que la lecture.
-- Deux surfaces : side panel natif par défaut, drawer injecté pour les micro-révisions — conçues pour être portées telles quelles (sidebar Firefox, drawer-only Safari) par les changes suivants.
+**Goals:**
+- The full loop in the browser: a browsable deck, an FSRS review session, Anki export — on
+  the same local state as reading.
+- Two surfaces: a native side panel by default, an injected drawer for micro-reviews —
+  designed to be ported as-is (Firefox sidebar, drawer-only Safari) by the later changes.
 
-**Non-Goals :**
-- Badge « dues » sur l'icône, alarmes, notifications (v1 : compteur dans le popup d'icône et le side panel).
-- Portage Firefox/Safari des surfaces (`add-lingua-firefox`, `add-lingua-apple`).
-- Sync des cartes et de l'historique de révision (`add-lingua-backend`).
+**Non-Goals:**
+- A "due" badge on the icon, alarms, notifications (v1: the counter lives in the icon popup
+  and the side panel).
+- Porting the surfaces to Firefox/Safari (`add-lingua-firefox`, `add-lingua-apple`).
+- Syncing cards and review history (`add-lingua-backend`).
 
 ## Decisions
 
-L'algorithme (FSRS, notation `again/hard/good/easy`, « Je connais » → `known` provenance `srs`) et le format d'export Anki (CSV, une colonne par champ, jamais de perte silencieuse) sont décidés par `add-lingua-decks-review` ; ce change ne décide que des surfaces.
+The algorithm (FSRS, the `again/hard/good/easy` grading, "Je connais" → `known` with
+provenance `srs`) and the Anki export format (CSV, one column per field, never a silent
+loss) are decided by `add-lingua-decks-review`; this change only decides the surfaces.
 
-### D1 — Deux surfaces d'UI : Side Panel API par défaut, drawer injecté en repli
-UI : side panel (Side Panel API — la page est poussée, survit aux navigations) par défaut ; drawer overlay injecté (shadow DOM fermé) en repli et pour les micro-révisions — les deux partagent la même logique de session et opèrent sur le même état `chrome.storage.local`. Le badge de l'icône reste dédié au % de la page ; le compteur de cartes dues est visible dans le popup de l'icône et le side panel (pas de badge « dues » ni d'alarme en v1). Cette dualité est la cible de pile : Firefox exposera la même page via `sidebar_action` ; Safari, sans API de panneau, portera la révision navigateur sur le seul drawer. Export Anki : déclenché depuis le side panel, produit le CSV sans perte de `lingua-core`.
+### D1 — Two UI surfaces: Side Panel API by default, injected drawer as the fallback
+UI: the side panel (Side Panel API — the page is pushed, the panel survives navigation) by
+default; an injected overlay drawer (closed shadow DOM) as the fallback and for
+micro-reviews — both share the same session logic and operate on the same
+`chrome.storage.local` state. The icon badge stays dedicated to the page percentage; the
+due-card counter is visible in the icon popup and the side panel (no "due" badge and no
+alarm in v1). This duality is the stack target: Firefox will expose the same page through
+`sidebar_action`; Safari, having no panel API, will carry in-browser review on the drawer
+alone. Anki export: triggered from the side panel, producing `lingua-core`'s lossless CSV.
 
 ## Risks / Trade-offs
 
-- [Deux surfaces pour une même logique = risque de divergence] → la session de révision est un module unique (testé vitest) ; side panel et drawer ne sont que deux hôtes de rendu de ce module.
-- [Le drawer vit dans des pages hostiles (styles agressifs, z-index)] → shadow DOM fermé + tokens embarqués (charte d'`add-lingua-extension-reading`), lisibilité sur page claire comme sombre.
+- [Two surfaces over one logic = risk of divergence] → the review session is a single
+  module (tested with vitest); the side panel and the drawer are only two rendering hosts
+  for that module.
+- [The drawer lives in hostile pages (aggressive styles, z-index)] → closed shadow DOM +
+  embedded tokens (the identity from `add-lingua-extension-reading`), legible on light and
+  dark pages alike.

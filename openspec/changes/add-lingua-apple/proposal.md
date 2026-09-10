@@ -1,30 +1,62 @@
-# add-lingua-apple — app conteneur Apple + extension Safari (macOS + iOS)
+# add-lingua-apple — Apple container app + Safari extension (macOS + iOS)
 
 ## Why
 
-Sur iOS, Safari est la seule voie d'extension (règle Apple), assumée — et l'extension y arrive **désactivée** par défaut : le décrochage documenté n°1 de la catégorie. La réponse n'est pas un README mais une app conteneur à part entière (guideline 4.4) : elle héberge l'extension Safari convertie, porte les écrans decks/révision, l'analyse **native** (pas de WASM chez Apple), et le parcours d'activation guidé. Ce change complète la matrice de navigateurs du MVP : la variante `safari` rejoint le build multi-cibles introduit par `add-lingua-firefox`.
+On iOS, Safari is the only route to an extension (Apple's rule) — a constraint we
+accept — and the extension lands there **disabled** by default: the documented #1
+drop-off of the category. The answer is not a README but a container app in its own
+right (guideline 4.4): it hosts the converted Safari extension, carries the
+decks/review screens, runs the analysis **natively** (no WASM on Apple), and owns the
+guided activation flow. This change completes the MVP's browser matrix: the `safari`
+variant joins the multi-target build introduced by `add-lingua-firefox`.
 
-**Position dans la pile** (12 changes) : 9ᵉ, après `add-lingua-firefox`. Prérequis explicites : `add-lingua-extension-review` (extension complète — lecture + révision, drawer injecté) et `add-lingua-firefox` (le système de variantes de manifest que la variante `safari` rejoint).
+**Position in the stack** (12 changes): 9th, after `add-lingua-firefox`. Explicit
+prerequisites: `add-lingua-extension-review` (the complete extension — reading +
+review, injected drawer included) and `add-lingua-firefox` (the manifest-variant
+system the `safari` variant joins).
 
 ## What Changes
 
-- **Nouvelle app conteneur Apple** (`apps/lingua-apple`) : un projet Xcode, **une fiche App Store universelle (iOS + macOS)** qui héberge l'extension Safari convertie, l'**analyse native** (`lingua-core` lié en natif via nativeMessaging — pas de WASM chez Apple, packs dans le bundle), les écrans decks/révision, et le **parcours d'activation** de l'extension (walkthrough pas-à-pas sur iOS + détection par heartbeat App Group ; deep link et API d'état sur macOS).
-- **Variante `safari` du build de l'extension** : troisième variante de manifest depuis la même source (`safari-web-extension-converter`), analyse via nativeMessaging derrière l'`AnalyzerPort`, drawer injecté seul pour la révision dans le navigateur (Safari n'a pas d'API de panneau).
-- **Signing/TestFlight** : pattern `release-build` de music cloné (chaîne Apple existante) ; dogfooding iOS via TestFlight interne.
-- Les canaux « tier 3 » (Edge Canary Android par ID, stores curés Edge/Samsung, forks Chromium) sont explicitement **non supportés** : le build standard peut y tourner, rien n'y est promis ni testé.
+- **A new Apple container app** (`apps/lingua-apple`): one Xcode project, **one
+  universal App Store listing (iOS + macOS)** that hosts the converted Safari
+  extension, the **native analysis** (`lingua-core` linked natively over
+  nativeMessaging — no WASM on Apple, packs in the bundle), the decks/review screens,
+  and the extension's **activation flow** (step-by-step walkthrough on iOS +
+  detection through an App Group heartbeat; deep link and state API on macOS).
+- **A `safari` variant of the extension build**: a third manifest variant from the
+  same source (`safari-web-extension-converter`), analysis over nativeMessaging
+  behind the `AnalyzerPort`, and the injected drawer carrying in-browser review on
+  its own (Safari has no panel API).
+- **Signing/TestFlight**: music's `release-build` pattern cloned (the existing Apple
+  chain); iOS dogfooding through internal TestFlight.
+- "Tier 3" channels (Edge Canary Android by ID, curated Edge/Samsung stores, Chromium
+  forks) are explicitly **unsupported**: the standard build may well run there,
+  nothing is promised or tested.
 
 ## Capabilities
 
 ### New Capabilities
-- `lingua-apple-app` : l'app conteneur Safari (iOS + macOS) — fonctions propres (decks/révision), activation guidée de l'extension (walkthrough + heartbeat iOS, deep link + API d'état macOS), analyse native via nativeMessaging, packs dans le bundle, fiche App Store universelle.
+- `lingua-apple-app`: the Safari container app (iOS + macOS) — its own functions
+  (decks/review), guided activation of the extension (iOS walkthrough + heartbeat,
+  macOS deep link + state API), native analysis over nativeMessaging, packs in the
+  bundle, one universal App Store listing.
 
 ### Modified Capabilities
-- `lingua-browser-extension` : ajout du requirement « Variante Safari » — la variante convertie hébergée par l'app conteneur rejoint la matrice de build (chromium/firefox/safari), avec la limite « tier 3 non promis ».
+- `lingua-browser-extension`: adds the "Safari variant" requirement — the converted
+  variant hosted by the container app joins the build matrix
+  (chromium/firefox/safari), with the "tier 3 is not promised" limit.
 
 ## Impact
 
-- **Produits** : Lingua ; la chaîne de signing Apple de music est **consommée** (pattern cloné), pas modifiée ; aucun proto, aucun crate backend touchés.
-- **Arborescence** : `apps/lingua-apple` (projet Xcode : app conteneur + extension Safari + handler natif) ; `apps/lingua-extension` gagne la variante `safari` dans son build multi-cibles.
-- **CI** : lane de signing Apple clonée du pattern `release-build` de music (TestFlight interne pour le dogfooding iOS) ; `apps/lingua-apple` ajouté au filtre `ci-units`.
-- **Stores** : App Store (une fiche universelle iOS/macOS). Cadence assumée : les fixes Safari passent par la review Apple — les comportements se rodent d'abord sur Chromium/Firefox.
-- **Dépendances nouvelles** : aucune côté Rust ; outillage `safari-web-extension-converter` (Xcode) côté build.
+- **Products**: Lingua; music's Apple signing chain is **consumed** (the pattern is
+  cloned), not modified; no proto, no backend crate touched.
+- **Tree**: `apps/lingua-apple` (Xcode project: container app + Safari extension +
+  native handler); `apps/lingua-extension` gains the `safari` variant in its
+  multi-target build.
+- **CI**: an Apple signing lane cloned from music's `release-build` pattern (internal
+  TestFlight for iOS dogfooding); `apps/lingua-apple` added to the `ci-units` filter.
+- **Stores**: App Store (one universal iOS/macOS listing). Accepted cadence: Safari
+  fixes go through Apple review — behaviours are shaken out on Chromium/Firefox
+  first.
+- **New dependencies**: none on the Rust side; the `safari-web-extension-converter`
+  tooling (Xcode) on the build side.

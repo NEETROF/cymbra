@@ -1,31 +1,66 @@
-# add-lingua-decks-review — Cymbra Lingua : decks, cartes et révision FSRS dans le cœur
+# add-lingua-decks-review — Cymbra Lingua: decks, cards and FSRS review in the core
 
 ## Why
 
-`add-lingua-knowledge-model` sait dire ce que l'utilisateur connaît ; rien ne l'aide encore à apprendre ce qu'il ne connaît pas. Ce change ajoute au cœur la brique d'apprentissage : decks et cartes avec provenance (la phrase d'origine, capturable seulement au moment de la rencontre), planification de révision FSRS, et sauvegarde/restauration complète de l'état — le filet de sécurité de la phase locale (avant la sync, l'état ne vit que dans un profil de navigateur). L'export au format Anki est différé à un change ultérieur : le schéma de carte, conçu exportable champ par champ dès le jour 1, le garde bon marché. Tout reste de la logique pure `lingua-core`, host-testée : les surfaces d'UI (side panel, drawer, app conteneur) arrivent dans les changes suivants et consomment ce moteur tel quel.
+`add-lingua-knowledge-model` can say what the user knows; nothing yet helps them learn
+what they do not. This change adds the learning brick to the core: decks and cards with
+provenance (the originating sentence, capturable only at the moment of the encounter),
+FSRS review scheduling, and full backup/restore of the state — the safety net of the
+local phase (before the sync, the state lives in a single browser profile). Anki-format
+export is deferred to a later change: the card schema, designed field-by-field
+exportable from day 1, keeps it cheap. Everything stays pure `lingua-core` logic,
+host-tested: the UI surfaces (side panel, drawer, container app) arrive in the following
+changes and consume this engine as is.
 
-**Position dans la pile (3/12)** : add-lingua-analysis → add-lingua-knowledge-model → **add-lingua-decks-review** → add-lingua-data-pack → add-lingua-wasm → add-lingua-extension-reading → add-lingua-extension-review → add-lingua-firefox → add-lingua-apple → add-lingua-agent → add-lingua-backend → add-lingua-connected-clients. **Prérequis explicite : `add-lingua-knowledge-model`** (statuts, provenance `srs`, clé (langue, lemme) — le passage en « connu » depuis la révision écrit dans le knowledge model).
+**Position in the stack (3/12)**: add-lingua-analysis → add-lingua-knowledge-model →
+**add-lingua-decks-review** → add-lingua-data-pack → add-lingua-wasm →
+add-lingua-extension-reading → add-lingua-extension-review → add-lingua-firefox →
+add-lingua-apple → add-lingua-agent → add-lingua-backend →
+add-lingua-connected-clients. **Explicit prerequisite: `add-lingua-knowledge-model`**
+(statuses, `srs` provenance, the (language, lemma) key — moving a word to "known" from
+review writes into the knowledge model).
 
 ## What Changes
 
-- **Module `decks/` dans `crates/lingua-core`** : schéma de carte sérialisable versionné — lemme, forme rencontrée, phrase de contexte d'origine, source de la rencontre (URL ou identifiant de session d'agent, horodatage), glose, emplacement de média optionnel (`media` avec `source: capture|banque|génération` et `sync_policy` — non peuplé dans ce change mais présent dans le schéma). Les expressions multi-mots sont des cartes de plein droit.
-- **Intégration FSRS** (crate `fsrs`, version épinglée) : notation `again/hard/good/easy`, échéances, compteur de cartes dues calculable à tout instant ; paramètres stockés sur l'état.
-- **« Je connais » en révision** → statut `known` provenance `srs` dans le knowledge model, carte conservée hors file (historique intact).
-- **Sauvegarde/restauration** : export complet de l'état en fichier versionné (cartes, statuts, calibration, paramètres FSRS) et restauration à l'identique — jamais de perte silencieuse. (Export au format Anki : différé, le schéma reste sérialisable champ par champ.)
-- Le requirement « révision au ras de la lecture » (compteur de dues visible, session lançable depuis le side panel/panneau injecté, réponse masquée) est posé ici comme contrat de la capability ; ses surfaces sont livrées par `add-lingua-extension-review` (puis `add-lingua-apple`), qui consomment ce moteur.
+- **`decks/` module in `crates/lingua-core`**: a versioned serialisable card schema —
+  lemma, encountered form, originating context sentence, source of the encounter (URL or
+  agent session identifier, timestamp), gloss, an optional media slot (`media`, with
+  `source: capture|stock|generated` and `sync_policy` — not populated in this change
+  but present in the schema). Multi-word expressions are cards in their own right.
+- **FSRS integration** (the `fsrs` crate, version pinned): `again/hard/good/easy`
+  grading, due dates, a due-card count computable at any moment; parameters stored on
+  the state.
+- **"I know this" during review** → `known` status with provenance `srs` in the
+  knowledge model, the card kept out of the queue (history intact).
+- **Backup/restore**: full export of the state to a versioned file (cards, statuses,
+  calibration, FSRS parameters) and identical restore — never a silent loss.
+  (Anki-format export: deferred, the schema stays field-by-field serialisable.)
+- The "review right next to the reading" requirement (a visible due count, a session
+  launchable from the side panel / injected panel, the answer hidden) is laid down here
+  as the capability's contract; its surfaces are delivered by
+  `add-lingua-extension-review` (then `add-lingua-apple`), which consume this engine.
 
 ## Capabilities
 
 ### New Capabilities
-- `lingua-decks-review` : decks et cartes — carte = lemme + forme vue + phrase de provenance + source + média optionnel (schéma jour 1, capture d'image différée), révision FSRS, sauvegarde/restauration sans perte (export Anki différé), expressions multi-mots, révision accessible au ras de la lecture.
+- `lingua-decks-review`: decks and cards — a card is lemma + encountered form +
+  originating sentence + source + optional media (day-1 schema, image capture deferred),
+  FSRS review, lossless backup/restore (Anki export deferred), multi-word expressions,
+  review reachable right next to the reading.
 
 ### Modified Capabilities
-_Aucune. `lingua-knowledge-model` est consommée telle quelle (statuts et provenance `srs`)._
+_None. `lingua-knowledge-model` is consumed as is (statuses and the `srs` provenance)._
 
 ## Impact
 
-- **Produits** : Lingua (nouveau module du cœur — rien de consommé hors de la pile Lingua) ; **Cymbra ID / Music / Live / back-office / site : intacts** (aucun proto, aucun crate backend, aucune app existante modifiés).
-- **Arborescence** : `crates/lingua-core` (module `decks/`) uniquement — aucune nouvelle unité `apps/*`/`packages/*`.
-- **CI** : couvert par la lane Rust existante (fmt/clippy/llvm-cov ≥ 80 %), déjà branchée sur le crate par `add-lingua-analysis` ; aucune nouvelle lane, rien à ajouter à `ci-units`.
-- **Dépendances nouvelles** : `fsrs` (Rust), version épinglée.
-- **Hors périmètre** : toute UI de révision (`add-lingua-extension-review`, `add-lingua-apple`), capture d'image sur les cartes (le schéma `media` est prêt, la capture est différée), sync des cartes (`add-lingua-backend` / `add-lingua-connected-clients`).
+- **Products**: Lingua (a new core module — nothing consumed outside the Lingua stack);
+  **Cymbra ID / Music / Live / back office / site: untouched** (no proto, no backend
+  crate, no existing app modified).
+- **Tree**: `crates/lingua-core` (the `decks/` module) only — no new `apps/*`/`packages/*`
+  unit.
+- **CI**: covered by the existing Rust lane (fmt/clippy/llvm-cov ≥ 80%), already wired
+  to the crate by `add-lingua-analysis`; no new lane, nothing to add to `ci-units`.
+- **New dependencies**: `fsrs` (Rust), version pinned.
+- **Out of scope**: every review UI (`add-lingua-extension-review`,
+  `add-lingua-apple`), image capture on cards (the `media` schema is ready, the capture
+  is deferred), card sync (`add-lingua-backend` / `add-lingua-connected-clients`).

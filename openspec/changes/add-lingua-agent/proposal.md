@@ -1,29 +1,60 @@
-# add-lingua-agent — Cymbra Lingua : plugin Claude Code (capture des sessions d'agents)
+# add-lingua-agent — Cymbra Lingua: the Claude Code plugin (agent-session capture)
 
 ## Why
 
-Le troisième gap de marché confirmé par l'étude concurrentielle — l'ingestion du corpus quotidien du développeur (sessions d'agents IA) qu'aucun produit n'exploite — n'est couvert par aucune étape précédente de la pile : le cœur (`lingua-core`) et l'extension navigateur savent analyser et réviser, mais chaque réponse de Claude Code reste invisible des compteurs d'exposition. Ce change livre le plugin Claude Code complet, **local-only par construction** (les transcripts sont du code employeur, confidentiels) : le même cerveau d'analyse (même `analyzer_version`) que l'extension, branché sur les sessions de l'agent.
+The third market gap the competitive study confirmed — ingesting the developer's daily
+corpus (AI agent sessions), which no product exploits — is covered by no earlier stage of
+the stack: the core (`lingua-core`) and the browser extension can analyse and review, but
+every Claude Code reply stays invisible to the exposure counters. This change delivers the
+complete Claude Code plugin, **local-only by construction** (transcripts are employer
+code, confidential): the same analysis brain (same `analyzer_version`) as the extension,
+wired into the agent's sessions.
 
-**Position dans la pile** (12 changes) : **10e** — après `add-lingua-apple`, avant `add-lingua-backend`. **Prérequis explicites : `add-lingua-decks-review`** (et transitivement `add-lingua-analysis` + `add-lingua-knowledge-model` : cascade de lemmatisation, statuts, cartes FSRS) ainsi que `add-lingua-data-pack` (pack EN→FR pour les gloses). **Parallélisable avec la branche extension** (`add-lingua-extension-reading` → `add-lingua-firefox` → `add-lingua-apple`) : aucune dépendance dans un sens ni dans l'autre.
+**Position in the stack** (12 changes): **10th** — after `add-lingua-apple`, before
+`add-lingua-backend`. **Explicit prerequisites: `add-lingua-decks-review`** (and
+transitively `add-lingua-analysis` + `add-lingua-knowledge-model`: the lemmatisation
+cascade, statuses, FSRS cards) plus `add-lingua-data-pack` (the EN→FR pack for glosses).
+**Parallelisable with the extension branch** (`add-lingua-extension-reading` →
+`add-lingua-firefox` → `add-lingua-apple`): no dependency in either direction.
 
 ## What Changes
 
-- **Nouveau plugin Claude Code** (`apps/lingua-agent`) : binaire Rust `lingua` + hook `Stop` (ingestion des transcripts JSONL), statusline « % connus · N nouveaux », skill `/vocab`, serveur MCP pour les opérations de deck. Ingestion **local-only par construction** (les transcripts sont confidentiels). Architecture `SessionSource` extensible aux autres agents (Codex, Aider — hors périmètre de ce change).
-- **Store local `~/.lingua/`** (SQLite, schéma versionné) : lemmes, compteurs, cartes — jamais de contenu de transcript persisté, seulement les phrases explicitement capturées par l'utilisateur via `/vocab`.
-- Vocabulaire UI : le mot « lemme » n'apparaît **jamais** dans les sorties utilisateur du plugin (statusline, `/vocab`, MCP) — « forme du dictionnaire », « mots différents ».
+- **A new Claude Code plugin** (`apps/lingua-agent`): a `lingua` Rust binary + a `Stop`
+  hook (JSONL transcript ingestion), a statusline ("% known · N new"), a `/vocab` skill,
+  and an MCP server for deck operations. Ingestion is **local-only by construction**
+  (transcripts are confidential). A `SessionSource` architecture keeps it extensible to
+  other agents (Codex, Aider — out of scope for this change).
+- **A local `~/.lingua/` store** (SQLite, versioned schema): lemmas, counters, cards —
+  never any transcript content, only the sentences the user explicitly captures through
+  `/vocab`.
+- UI vocabulary: the word "lemma" **never** appears in the plugin's user-facing output
+  (statusline, `/vocab`, MCP) — the copy says "dictionary form" and "distinct words".
 
 ## Capabilities
 
 ### New Capabilities
-- `lingua-agent-capture` : l'ingestion des sessions d'agents IA — hook Claude Code, statusline, `/vocab`, MCP decks, trait `SessionSource`, local-only par défaut.
+- `lingua-agent-capture`: ingestion of AI agent sessions — the Claude Code hook, the
+  statusline, `/vocab`, MCP decks, the `SessionSource` trait, local-only by default.
 
 ### Modified Capabilities
-_Aucune. Le plugin consomme `lingua-analysis`, `lingua-knowledge-model` et `lingua-decks-review` (livrées par les changes précédents de la pile) via `lingua-core` en natif — il ne les redéclare pas. Aucun socle `id-*`/`platform-*` touché : pas de compte, pas de réseau._
+<!-- None. The plugin consumes `lingua-analysis`, `lingua-knowledge-model` and
+     `lingua-decks-review` (delivered by the earlier changes in the stack) through
+     `lingua-core` natively — it does not redeclare them. No `id-*`/`platform-*`
+     foundation is touched: no account, no network. -->
 
 ## Impact
 
-- **Produits** : Lingua (nouveau livrable plugin) ; **Cymbra ID / Music / Live / back-office : intacts** (aucun proto, aucun crate backend, aucune app existante modifiés).
-- **Arborescence** : `apps/lingua-agent` (binaire Rust + manifeste plugin Claude Code : hooks, statusline, skill, MCP).
-- **CI** : la lane Rust existante (`cargo --workspace`) couvre le binaire (fmt/clippy/llvm-cov ≥ 80 %, logique host-testée) ; `apps/lingua-agent` est ajouté au filtre `ci-units`. Le lint « pas de “lemme” » s'étend aux sorties utilisateur du plugin.
-- **Dépendances nouvelles** : `rusqlite` (store local) ; `lingua-core` déjà dans le workspace.
-- **Hors périmètre** : adaptateurs Codex/Aider/Gemini (le trait `SessionSource` est le contrat, pas les impls), TUI de révision dédiée (la révision passe par l'agent), toute synchronisation réseau du store `~/.lingua/` (les changes `add-lingua-backend`/`add-lingua-connected-clients` synchronisent l'extension et l'app — **pas le plugin**, réaffirmé là-bas).
+- **Products**: Lingua (a new plugin deliverable); **Cymbra ID / Music / Live / back
+  office: untouched** (no proto, no backend crate, no existing app modified).
+- **Tree**: `apps/lingua-agent` (Rust binary + the Claude Code plugin manifest: hooks,
+  statusline, skill, MCP).
+- **CI**: the existing Rust lane (`cargo --workspace`) covers the binary (fmt/clippy/
+  llvm-cov ≥ 80%, logic host-tested); `apps/lingua-agent` is added to the `ci-units`
+  filter. The "no 'lemma' in UI copy" lint extends to the plugin's user-facing output.
+- **New dependencies**: `rusqlite` (the local store); `lingua-core` is already in the
+  workspace.
+- **Out of scope**: Codex/Aider/Gemini adapters (the `SessionSource` trait is the
+  contract, not the impls), a dedicated review TUI (review goes through the agent), and
+  any network sync of the `~/.lingua/` store (`add-lingua-backend` /
+  `add-lingua-connected-clients` sync the extension and the app — **not the plugin**,
+  restated there).

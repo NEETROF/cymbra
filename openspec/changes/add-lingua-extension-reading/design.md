@@ -2,45 +2,99 @@
 
 ## Context
 
-Sixième change de la pile Lingua. Le cœur est déjà là : analyse déterministe (`add-lingua-analysis`), knowledge model lemma-first (`add-lingua-knowledge-model`), decks/FSRS et export Anki (`add-lingua-decks-review`), pack EN→FR (`add-lingua-data-pack`), bindings WASM et parité natif/WASM (`add-lingua-wasm`). Ce change industrialise la partie extension du **preshot fonctionnel** (`~/workspace/lingua-preshot`, extension MV3 JS pur) qui a validé sur pièces : le rendu CSS Custom Highlight API sur page réelle, la boucle popup → statuts → repaint, la calibration par curseur, la capture de sélection.
+Sixth change in the Lingua stack. The core is already there: deterministic analysis
+(`add-lingua-analysis`), the lemma-first knowledge model (`add-lingua-knowledge-model`),
+decks/FSRS and Anki export (`add-lingua-decks-review`), the EN→FR pack
+(`add-lingua-data-pack`), the WASM bindings and native/WASM parity (`add-lingua-wasm`).
+This change industrialises the extension half of the **working preshot**
+(`~/workspace/lingua-preshot`, a plain-JS MV3 extension) that proved the pieces on real
+pages: CSS Custom Highlight API rendering, the popup → statuses → repaint loop, slider
+calibration, selection capture.
 
-Contraintes héritées du monorepo : Yarn pour le JS, pas de logique métier dans les coquilles. Contraintes produit actées : jamais de silo de lecture, jamais « lemme » à l'écran, local-only par défaut, comptage honnête par lemme.
+Monorepo constraints inherited: Yarn for JS, no business logic in the shells. Product
+decisions already made: never a reading silo, never "lemma" on screen, local-only by
+default, honest per-lemma counting.
 
 ## Goals / Non-Goals
 
-**Goals :**
-- Un utilisateur (le fondateur d'abord) lit le web en anglais sur Chrome/Edge avec surlignage des mots inconnus, % par page honnête, popup de mot hors-ligne, capture d'expressions et création de cartes — **sans compte, sans réseau**.
-- Poser la couture `AnalyzerPort` qui permettra Firefox (WASM en event page) et Safari (nativeMessaging) sans toucher au content script.
+**Goals:**
+- A user (the founder first) reads the English web in Chrome/Edge with unknown words
+  highlighted, an honest per-page percentage, an offline word popup, phrase capture and
+  card creation — **with no account and no network**.
+- Lay the `AnalyzerPort` seam that will make Firefox (WASM in an event page) and Safari
+  (nativeMessaging) possible without touching the content script.
 
-**Non-Goals :**
-- Surfaces de révision dans l'extension — side panel, drawer, export Anki (`add-lingua-extension-review`).
-- Variantes de build/manifest Firefox et Safari (`add-lingua-firefox`, `add-lingua-apple`).
-- Sync multi-device, comptes, backend (`add-lingua-backend`, `add-lingua-connected-clients`) ; plugin agent (`add-lingua-agent`).
+**Non-Goals:**
+- Review surfaces inside the extension — side panel, drawer, Anki export
+  (`add-lingua-extension-review`).
+- The Firefox and Safari build/manifest variants (`add-lingua-firefox`,
+  `add-lingua-apple`).
+- Multi-device sync, accounts, backend (`add-lingua-backend`,
+  `add-lingua-connected-clients`); the agent plugin (`add-lingua-agent`).
 
 ## Decisions
 
-Les décisions du cœur (clé `(langue, lemme)` sans POS, cascade de lemmatisation, format de pack, planning FSRS, cible WASM) sont héritées des changes amont de la pile et ne sont pas re-décidées ici.
+The core decisions (the `(language, lemma)` key without POS, the lemmatisation cascade,
+the pack format, FSRS scheduling, the WASM target) are inherited from the upstream changes
+in the stack and are not re-decided here.
 
-### D1 — Rendu : CSS Custom Highlight API, interaction par `caretRangeFromPoint`
-Deux registres (`lingua-unknown`, `lingua-learning`), zéro mutation du DOM (pas de guerre avec React/hydration — validé par le preshot). Clic : `caretRangeFromPoint` → index de tokens trié (portable, Safari-compatible plus tard) ; `highlightsFromPoint` (Chromium 140+) en amélioration progressive. Repli `<span>` non implémenté en v1 (toutes les cibles MVP supportent l'API). MutationObserver débouncé avec re-scan **par sous-arbre muté** (le preshot re-scannait tout — suffisant pour juger, pas pour Gmail).
+### D1 — Rendering: CSS Custom Highlight API, interaction via `caretRangeFromPoint`
+Two registries (`lingua-unknown`, `lingua-learning`), zero DOM mutation (no war with
+React/hydration — proven by the preshot). Click: `caretRangeFromPoint` → a sorted token
+index (portable, Safari-compatible later); `highlightsFromPoint` (Chromium 140+) as
+progressive enhancement. No `<span>` fallback in v1 (every MVP target supports the API).
+A debounced MutationObserver re-scans **per mutated subtree** (the preshot re-scanned
+everything — good enough to judge, not good enough for Gmail).
 
-### D2 — Où vit le WASM : dans le content script
-Le monde isolé de Chrome autorise `wasm-unsafe-eval` ; le module (code wasm ~1 Mo + pack EN ≤ 5 Mo) s'instancie par onglet, zéro IPC pour analyser. Le service worker ne garde que l'orchestration (badge, commandes). Les résultats par forme sont mémoïsés côté JS. Alternative rejetée : WASM dans le SW (aller-retours par page, SW tué à 30 s). L'analyse est exposée derrière un **`AnalyzerPort`** par messages malgré tout — c'est la couture qui permettra Firefox (WASM en event page) et Safari (nativeMessaging) sans toucher au content script.
+### D2 — Where the WASM lives: in the content script
+Chrome's isolated world allows `wasm-unsafe-eval`; the module (~1 MB of wasm code + an EN
+pack ≤ 5 MB) is instantiated per tab, with zero IPC to analyse. The service worker keeps
+only orchestration (badge, commands). Per-form results are memoised on the JS side.
+Rejected alternative: WASM in the SW (a round trip per page, and the SW is killed at 30 s).
+Analysis is still exposed behind an **`AnalyzerPort`** over messages — that is the seam
+that will let Firefox (WASM in an event page) and Safari (nativeMessaging) work without
+touching the content script.
 
-### D3 — Permissions : `activeTab` + `optional_host_permissions <all_urls>`
-Install sans avertissement effrayant ; « surligner cette page » marche immédiatement ; « toujours surligner » demande le grant une fois. Aligne Chrome sur le modèle imposé par Firefox/Safari (cibles ultérieures de la pile) et dé-risque la review du store. Le badge % fonctionne dans les deux modes.
+### D3 — Permissions: `activeTab` + `optional_host_permissions <all_urls>`
+Install with no scary warning; "highlight this page" works immediately; "always highlight"
+asks for the grant once. It aligns Chrome with the model Firefox/Safari impose (later
+targets in the stack) and de-risks the store review. The percentage badge works in both
+modes.
 
-### D4 — État extension : `chrome.storage.local`, schéma versionné
-Statuts (map lemme→statut compact), cartes (JSON), calibration, préférences — sous une clé racine versionnée avec migration. Le pack est un asset de l'extension (pas dans storage). L'extension et le futur plugin agent (`add-lingua-agent`) auront chacun leur store local ; la **réconciliation est le problème des changes de sync** (`add-lingua-backend`/`add-lingua-connected-clients`), pas de celui-ci — un faux sync local serait du travail jeté.
+### D4 — Extension state: `chrome.storage.local`, versioned schema
+Statuses (a compact lemma→status map), cards (JSON), calibration, preferences — under a
+versioned root key with migration. The pack is an extension asset, not storage. The
+extension and the future agent plugin (`add-lingua-agent`) will each have their own local
+store; **reconciliation belongs to the sync changes** (`add-lingua-backend` /
+`add-lingua-connected-clients`), not to this one — a fake local sync would be thrown-away
+work.
 
-### D5 — Charte graphique : tokens Cymbra partagés
-Source de vérité = `CymbraColors` (« Sonic Luminescence », `apps/music/lib/theme/cymbra_theme.dart`). L'extension embarque une `tokens.css` qui la mirrore — exactement le précédent du back-office (`apps/back-office/src/styles.css` mirrore déjà le thème Flutter). Surfaces possédées par l'extension = charte pleine (Midnight Navy, violet primaire, rayons 12/18) ; surfaces injectées en page tierce = mêmes tokens mais lisibilité d'abord (les pages hôtes sont claires ou sombres). Coïncidence exploitée : la palette contient déjà l'ambre (`handLeft`, sémantique « pending ») et le corail (`error`) — ils deviennent les teintes de surlignage « en cours »/« inconnu », rendant le surlignage nativement Cymbra. Un lint interdit tout hex hors de `tokens.css` ; les surfaces de révision (`add-lingua-extension-review`) consommeront la même feuille.
+### D5 — Visual identity: shared Cymbra tokens
+Source of truth = `CymbraColors` ("Sonic Luminescence",
+`apps/music/lib/theme/cymbra_theme.dart`). The extension embeds a `tokens.css` that mirrors
+it — exactly the back-office precedent (`apps/back-office/src/styles.css` already mirrors
+the Flutter theme). Surfaces the extension owns = full identity (Midnight Navy, primary
+violet, 12/18 radii); surfaces injected into third-party pages = the same tokens but
+legibility first (host pages are light or dark). A useful coincidence: the palette already
+contains amber (`handLeft`, semantically "pending") and coral (`error`) — they become the
+"learning"/"unknown" highlight tints, making the highlighting natively Cymbra. A lint
+forbids any hex outside `tokens.css`; the review surfaces
+(`add-lingua-extension-review`) will consume the same sheet.
 
-### D6 — Monorepo : `apps/lingua-extension`, TS sans framework
-TS sans framework (le DOM injecté n'a pas besoin de Vue), vitest pour la logique TS, build Yarn ; le module WASM est celui produit par `add-lingua-wasm` (wasm-pack `--target web`). Pas de Flutter, pas de Tauri dans ce change.
+### D6 — Monorepo: `apps/lingua-extension`, framework-free TS
+Framework-free TS (injected DOM does not need Vue), vitest for the TS logic, a Yarn build;
+the WASM module is the one produced by `add-lingua-wasm` (wasm-pack `--target web`). No
+Flutter, no Tauri in this change.
 
 ## Risks / Trade-offs
 
-- [Perf du re-scan sur SPA lourdes (Gmail, feeds virtualisés)] → re-scan par sous-arbre + IntersectionObserver (analyse du visible d'abord) + budget par frame ; page pathologique = dégradation douce (surlignage partiel), jamais de jank imputable à l'extension.
-- [Taille WASM + pack (~6 Mo) instanciée par onglet] → mémoïsation par forme, instanciation lazy (au premier bloc anglais détecté), un seul module partagé par frame principale ; mesurer avant d'optimiser (cible < 50 ms d'init).
-- [Store review Chrome (`<all_urls>` optionnel, lecture de texte de page)] → posture D3 + privacy policy « le texte lu ne quitte jamais l'appareil » (vraie par construction — requirement « Aucune requête réseau »).
+- [Re-scan performance on heavy SPAs (Gmail, virtualised feeds)] → per-subtree re-scan +
+  IntersectionObserver (analyse what is visible first) + a per-frame budget; a pathological
+  page degrades gracefully (partial highlighting), never with jank attributable to the
+  extension.
+- [WASM + pack (~6 MB) instantiated per tab] → per-form memoisation, lazy instantiation (on
+  the first English block detected), a single module shared by the main frame; measure
+  before optimising (target < 50 ms of init).
+- [Chrome store review (optional `<all_urls>`, reading page text)] → the D3 posture plus a
+  privacy policy stating "the text you read never leaves the device" — true by construction
+  (the "No network requests" requirement).

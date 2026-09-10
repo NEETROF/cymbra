@@ -1,9 +1,9 @@
 # Tasks — add-lingua-firefox
 
-## 1. Port Firefox (desktop + Android)
+## 1. Firefox port (desktop + Android)
 
-- [ ] 1.1 Spike jour 1 : WASM dans un content script Firefox (CSP) — verdict documenté ; le design assume le repli event page quel que soit le résultat
-- [ ] 1.2 Système de variantes de manifest introduit dans le build : variante `firefox` générée à côté de `chromium` (event page `background.scripts` déclaré à côté du `service_worker`, CSP `wasm-unsafe-eval` explicite, `browser_specific_settings`)
-- [ ] 1.3 Impl `AnalyzerPort` event page : WASM chargé dans l'event page, requêtes par lots, mémoïsation par forme côté content script
-- [ ] 1.4 Permissions optionnelles à l'install (détection `permissions.contains` + prompt) et panneau via `sidebar_action` (même page que le side panel)
-- [ ] 1.5 Parcours manuel Firefox desktop + Android (`web-ext run` / adb) documenté ; publication AMO (desktop + Android, même zip)
+- [ ] 1.1 Day-one spike: WASM in a Firefox content script (CSP) — verdict documented; the design assumes the event-page fallback whatever the outcome
+- [ ] 1.2 Manifest-variant system introduced in the build: a `firefox` variant generated alongside `chromium` (event page `background.scripts` declared alongside `service_worker`, explicit `wasm-unsafe-eval` CSP, `browser_specific_settings`)
+- [ ] 1.3 Event-page `AnalyzerPort` impl: WASM loaded in the event page, batched requests, memoisation per word form on the content-script side
+- [ ] 1.4 Optional permissions at install (`permissions.contains` detection + prompt) and the panel via `sidebar_action` (the same page as the side panel)
+- [ ] 1.5 Manual Firefox desktop + Android pass (`web-ext run` / adb) documented; AMO publication (desktop + Android, the same zip)

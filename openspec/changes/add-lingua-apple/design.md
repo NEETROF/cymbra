@@ -2,21 +2,57 @@
 
 ## Context
 
-La pile a livré l'extension Chromium complète (`add-lingua-extension-reading` + `add-lingua-extension-review`, drawer injecté compris) et le système de variantes de build avec la variante Firefox (`add-lingua-firefox`). Ce change ajoute la troisième variante — `safari` — et l'app conteneur Apple qui l'héberge. Décisions héritées par référence : `AnalyzerPort` et cible WASM (`add-lingua-wasm`), surfaces de révision et drawer injecté (`add-lingua-extension-review`), variantes de manifest (`add-lingua-firefox`), schéma de storage versionné (`add-lingua-extension-reading`).
+The stack has shipped the complete Chromium extension (`add-lingua-extension-reading`
++ `add-lingua-extension-review`, injected drawer included) and the build-variant
+system together with its Firefox variant (`add-lingua-firefox`). This change adds the
+third variant — `safari` — and the Apple container app that hosts it. Decisions
+inherited by reference: the `AnalyzerPort` and the WASM target (`add-lingua-wasm`),
+the review surfaces and the injected drawer (`add-lingua-extension-review`), the
+manifest variants (`add-lingua-firefox`), and the versioned storage schema
+(`add-lingua-extension-reading`).
 
 ## Decisions
 
-### D1 — Variante Safari dans la matrice de build (part Safari de D12 du design source)
+### D1 — The Safari variant joins the build matrix (the Safari half of D12 in the source design)
 
-La variante `safari` rejoint le build multi-cibles introduit par `add-lingua-firefox` : le build produit désormais chromium / firefox / safari depuis la même source. Ce qui varie reste confiné derrière les deux coutures existantes : l'**`AnalyzerPort`** — Safari = **aucun WASM** : nativeMessaging vers le handler natif de l'app conteneur, qui linke `lingua-core` compilé ARM — et la **surface de panneau** — drawer injecté seul sur Safari, qui n'a pas d'API de panneau. Les canaux tier 3 ne reçoivent ni test ni promesse.
+The `safari` variant joins the multi-target build introduced by
+`add-lingua-firefox`: the build now produces chromium / firefox / safari from the
+same source. What differs stays confined behind the two existing seams: the
+**`AnalyzerPort`** — Safari means **no WASM at all**: nativeMessaging to the
+container app's native handler, which links `lingua-core` compiled for ARM — and the
+**panel surface** — the injected drawer alone on Safari, which has no panel API.
+Tier-3 channels get neither a test nor a promise.
 
-### D2 — App conteneur Apple : une fiche, deux OS, l'analyse en natif (D13 du design source)
+### D2 — Apple container app: one listing, two OSes, analysis in native code (D13 in the source design)
 
-Un projet Xcode (`apps/lingua-apple`), **une fiche App Store universelle iOS + macOS** (universal purchase). L'app n'est pas une coquille (guideline 4.4) : elle héberge decks/révision et le parcours d'activation — indispensable car l'extension arrive **désactivée** : sur iOS, walkthrough pas-à-pas + détection par **heartbeat App Group** (aucune API d'état d'extension sur iOS) ; sur macOS, deep link `SFSafariApplication.showPreferencesForExtension` + `SFSafariExtensionManager` pour l'état réel. L'analyse passe par le `SafariWebExtensionHandler` (event page → `sendNativeMessage` → `lingua-core` natif) ; les **packs vivent dans le bundle de l'app** (contourne les quotas de storage d'extension iOS ~3 Mo). Sans sync (change ultérieur), chaque appareil a son état local, amorcé par calibration/import LingQ ; les schémas partagent les types de `lingua-core` pour une fusion mécanique. Signing/TestFlight : pattern `release-build` de music cloné (chaîne Apple existante) ; dogfooding iOS via TestFlight interne (sans review publique) ; cadence des fixes Safari = review App Store, donc les comportements se rodent d'abord sur Chromium.
+One Xcode project (`apps/lingua-apple`), **one universal iOS + macOS App Store
+listing** (universal purchase). The app is not a shell (guideline 4.4): it hosts
+decks/review and the activation flow — which is indispensable, because the extension
+arrives **disabled**: on iOS, a step-by-step walkthrough plus activation detected
+through an **App Group heartbeat** (iOS exposes no extension-state API); on macOS, a
+`SFSafariApplication.showPreferencesForExtension` deep link plus
+`SFSafariExtensionManager` for the real state. Analysis goes through the
+`SafariWebExtensionHandler` (event page → `sendNativeMessage` → native
+`lingua-core`); the **packs live in the app bundle** (working around iOS extension
+storage quotas of ~3 MB). With no sync (a later change), each device keeps its own
+local state, seeded by calibration or a LingQ import; the schemas share
+`lingua-core`'s types, so a later merge is mechanical. Signing/TestFlight: music's
+`release-build` pattern cloned (the existing Apple chain); iOS dogfooding through
+internal TestFlight (no public review); the cadence of Safari fixes is App Store
+review, so behaviours are shaken out on Chromium first.
 
 ## Risks / Trade-offs
 
-- [Fragilités Safari (SW tués, quotas storage, review Apple sur chaque fix)] → event page partout chez Apple, analyse et packs côté natif, comportements rodés sur Chromium avant d'être figés côté Safari ; taxe de septembre (nouvel OS Apple) budgétée.
-- [Funnel d'activation iOS (extension désactivée par défaut, sans aide système)] → walkthrough animé + heartbeat App Group ; c'est le décrochage documenté n°1 de la catégorie, traité comme un écran produit à part entière, pas un README.
-- [Panne du pont nativeMessaging] → dégradation douce (pas de surlignage), page intacte — testée explicitement (tâche 1.2).
-- [Quatre navigateurs pour un solo dev] → un artefact unique + coutures ; l'ordre d'implémentation reste Chromium → Firefox → Apple ; matrice de parcours manuel par navigateur avant chaque release.
+- [Safari fragility (killed service workers, storage quotas, Apple review on every
+  fix)] → event pages everywhere on Apple, analysis and packs on the native side,
+  behaviours shaken out on Chromium before they are frozen on Safari; the September
+  tax (a new Apple OS) is budgeted.
+- [The iOS activation funnel (extension disabled by default, no help from the system)]
+  → an animated walkthrough + the App Group heartbeat; this is the documented #1
+  drop-off of the category, treated as a product screen in its own right, not a
+  README.
+- [nativeMessaging bridge failure] → graceful degradation (no highlighting), the page
+  intact — explicitly tested (task 1.2).
+- [Four browsers for a solo dev] → a single artefact + seams; the implementation
+  order stays Chromium → Firefox → Apple; a manual pass matrix per browser before
+  each release.

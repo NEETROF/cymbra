@@ -1,29 +1,49 @@
-# add-lingua-firefox — port Firefox (desktop + Android)
+# add-lingua-firefox — Firefox port (desktop + Android)
 
 ## Why
 
-L'extension Chromium livrée par les changes amont couvre le dogfooding quotidien du fondateur (Chrome sur macOS), mais Firefox est le seul navigateur Android à store ouvert (AMO) : le même zip MV3 y livre l'extension sur desktop **et** mobile, quasi gratuitement. C'est aussi ce change qui introduit le **système de variantes de manifest** — l'extension devient un artefact multi-navigateurs construit depuis une source unique, fondation sur laquelle la variante `safari` se branchera au change suivant (`add-lingua-apple`).
+The Chromium extension shipped by the upstream changes covers the founder's daily
+dogfooding (Chrome on macOS), but Firefox is the only Android browser with an open
+store (AMO): the same MV3 zip ships the extension on desktop **and** on mobile,
+almost for free. This change is also the one that introduces the **manifest-variant
+system** — the extension becomes a multi-browser artefact built from a single
+source, the foundation the `safari` variant plugs into at the next change
+(`add-lingua-apple`).
 
-**Position dans la pile** (12 changes) : 8ᵉ, après `add-lingua-extension-review`. Prérequis explicites : `add-lingua-extension-review` (extension Chromium complète — lecture + révision) et, par transitivité, `add-lingua-wasm` (l'`AnalyzerPort` et la cible WASM que la variante Firefox recâble).
+**Position in the stack** (12 changes): 8th, after `add-lingua-extension-review`.
+Explicit prerequisites: `add-lingua-extension-review` (the complete Chromium
+extension — reading + review) and, transitively, `add-lingua-wasm` (the
+`AnalyzerPort` and the WASM target the Firefox variant rewires).
 
 ## What Changes
 
-- Le build de `apps/lingua-extension` produit désormais **deux variantes de manifest depuis la même source** : `chromium` (existante) et `firefox` (nouvelle). Ce qui varie est confiné derrière les coutures existantes (`AnalyzerPort`, surface de panneau).
-- **Variante Firefox** : event page (`background.scripts` déclaré à côté du `service_worker`), **WASM chargé dans l'event page** derrière l'`AnalyzerPort` (la CSP Firefox bloque le WASM en content script — spike jour 1), host permissions optionnelles demandées à l'install (prompt), panneau via `sidebar_action` (même page que le side panel).
-- **Publication AMO** : desktop + Android, même zip.
+- The `apps/lingua-extension` build now produces **two manifest variants from the
+  same source**: `chromium` (existing) and `firefox` (new). What differs stays
+  confined behind the existing seams (`AnalyzerPort`, panel surface).
+- **Firefox variant**: an event page (`background.scripts` declared alongside
+  `service_worker`), **WASM loaded in the event page** behind the `AnalyzerPort`
+  (Firefox's CSP blocks WASM in a content script — day-one spike), optional host
+  permissions requested at install (prompt), the panel via `sidebar_action` (the same
+  page as the side panel).
+- **AMO publication**: desktop + Android, the same zip.
 
 ## Capabilities
 
 ### New Capabilities
-_Aucune._
+_None._
 
 ### Modified Capabilities
-- `lingua-browser-extension` : ajout du requirement « Variante Firefox » — la promesse multi-navigateurs (source unique, variantes de build) entre dans la spec avec sa première variante ; le comportement Chromium existant est inchangé.
+- `lingua-browser-extension`: adds the "Firefox variant" requirement — the
+  multi-browser promise (single source, build variants) enters the spec with its
+  first variant; existing Chromium behaviour is unchanged.
 
 ## Impact
 
-- **Produits** : Lingua uniquement ; aucune app existante, aucun crate backend, aucun proto touchés.
-- **Arborescence** : `apps/lingua-extension` (builds multi-cibles `chromium`/`firefox`) ; aucune nouvelle unité — le filtre `ci-units` est inchangé.
-- **CI** : la lane extension construit désormais les deux variantes de manifest ; parcours manuel Firefox desktop + Android documenté (`web-ext run` / adb).
-- **Stores** : AMO (desktop + Android, même zip). Les canaux « tier 3 » restent non supportés (formalisé au change `add-lingua-apple` avec la matrice complète).
-- **Dépendances nouvelles** : outillage `web-ext` (dev + publication AMO).
+- **Products**: Lingua only; no existing app, no backend crate, no proto touched.
+- **Tree**: `apps/lingua-extension` (multi-target `chromium`/`firefox` builds); no
+  new unit — the `ci-units` filter is unchanged.
+- **CI**: the extension lane now builds both manifest variants; the manual Firefox
+  desktop + Android pass is documented (`web-ext run` / adb).
+- **Stores**: AMO (desktop + Android, the same zip). "Tier 3" channels stay
+  unsupported (formalised in `add-lingua-apple`, with the full matrix).
+- **New dependencies**: the `web-ext` tooling (dev + AMO publication).

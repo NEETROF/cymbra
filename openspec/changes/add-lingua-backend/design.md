@@ -2,67 +2,182 @@
 
 ## Context
 
-Côté backend, tout le nécessaire existe : `check_audience` (`backend/auth/src/module.rs:126`) itère `CYMBRA_ALLOWED_AUDIENCES` ; la rotation du refresh token avec détection de réutilisation et révocation de famille est en place (testée : `refresh_rotates_then_reuse_revokes_family`) ; l'OIDC Google **et** Apple sont vérifiés serveur (`CYMBRA_GOOGLE_AUDIENCE`/`CYMBRA_APPLE_AUDIENCE`, CSV d'audiences) ; le pattern « module produit » est établi par `backend/music` (schéma + rôle + `search_path` épinglé + MIGRATOR + inertie sans env) ; le job `purge_user` (`#[sqlxmq::job]`, pool `admin_svc`) porte déjà l'effacement cross-schéma. Le delta est donc étroit et surtout de la **configuration** — c'est le but de ce design : le garder étroit.
+On the backend, everything needed already exists: `check_audience`
+(`backend/auth/src/module.rs:126`) iterates `CYMBRA_ALLOWED_AUDIENCES`; refresh-token
+rotation with reuse detection and family revocation is in place (tested:
+`refresh_rotates_then_reuse_revokes_family`); Google **and** Apple OIDC are verified
+server-side (`CYMBRA_GOOGLE_AUDIENCE`/`CYMBRA_APPLE_AUDIENCE`, CSV audiences); the
+"product module" pattern is established by `backend/music` (schema + role + pinned
+`search_path` + MIGRATOR + inert without env); and the `purge_user` job
+(`#[sqlxmq::job]`, `admin_svc` pool) already carries cross-schema erasure. The delta is
+therefore narrow and mostly **configuration** — keeping it narrow is the point of this
+design.
 
-Contrainte héritée de la pile locale : chaque surface cliente a un **état local versionné** dont les schémas partagent les types de `lingua-core` (décision de `add-lingua-decks-review` et `add-lingua-apple`) — « pour que la fusion soit mécanique » : le protocole défini ici est cette fusion, les clients s'y brancheront au change `add-lingua-connected-clients` (qui porte les décisions côté client : transport bearer gRPC-web, stockage des jetons, OIDC dans l'extension, Sign in with Apple, fusion du store pré-compte).
+Constraint inherited from the local stack: every client surface has a **versioned local
+state** whose schemas share the `lingua-core` types (decided in `add-lingua-decks-review`
+and `add-lingua-apple`) — "so that merging is mechanical": the protocol defined here is
+that merge, and the clients plug into it in `add-lingua-connected-clients` (which
+carries the client-side decisions: gRPC-web bearer transport, token storage, OIDC in the
+extension, Sign in with Apple, pre-account store merge).
 
 ## Goals / Non-Goals
 
-**Goals :**
-- Un backend Lingua complet et **déployable inerte** : crate, migrations, rôles, protos, services — rien ne change pour personne tant que `CYMBRA_LINGUA_DATABASE_URL` est absente.
-- Le serveur ne voit **que** ce que la spec autorise : statuts de lemmes, cartes, agrégats. Jamais l'historique de lecture.
-- Zéro nouveau rôle, zéro nouveau scope, zéro route HTTP nouvelle : l'empreinte sur le socle = deux variables d'env et une liste CORS.
-- Un protocole de sync convergent testable serveur seul (deux clients simulés convergent).
+**Goals:**
+- A complete Lingua backend that is **deployable inert**: crate, migrations, roles,
+  protos, services — nothing changes for anyone as long as
+  `CYMBRA_LINGUA_DATABASE_URL` is absent.
+- The server sees **only** what the spec allows: lemma statuses, cards, aggregates.
+  Never reading history.
+- Zero new role, zero new scope, zero new HTTP route: the footprint on the platform is
+  two env variables and one CORS list.
+- A convergent sync protocol testable server-side alone (two simulated clients
+  converge).
 
-**Non-Goals :**
-- Les clients connectés (UI compte, outbox cliente, fusion du store pré-compte, écran de stats) — change `add-lingua-connected-clients`.
-- Sync du plugin Claude Code (`~/.lingua/`) — les transcripts sont confidentiels ; change ultérieur avec son propre design (auth CLI loopback PKCE).
-- Médias/images de cartes (v1 : le champ `media` du schéma ne se synchronise pas ; la sync chiffrée viendra avec la capture d'image).
-- Console back-office Lingua, rôles/scope `lingua`, modération — rien d'admin dans ce change.
-- Résolution de conflits fine (CRDT, historique par champ) — voir D3.
+**Non-Goals:**
+- The connected clients (account UI, client outbox, pre-account store merge, stats
+  screen) — the `add-lingua-connected-clients` change.
+- Claude Code plugin sync (`~/.lingua/`) — transcripts are confidential; a later change
+  with its own design (loopback PKCE CLI auth).
+- Card media/images (v1: the schema's `media` field does not sync; encrypted sync comes
+  with image capture).
+- Lingua back-office console, `lingua` role/scope, moderation — nothing admin in this
+  change.
+- Fine-grained conflict resolution (CRDT, per-field history) — see D3.
 
 ## Decisions
 
-### D1 — Audience `lingua` : une entrée de configuration, zéro rôle
-`CYMBRA_ALLOWED_AUDIENCES=music,live,back-office,web,lingua` — c'est tout le delta d'identité. `check_audience` accepte l'audience à l'émission comme au refresh ; les jetons `lingua` traversent l'intercepteur d'auth strict comme ceux de `music`. **`SCOPES`/`APP_SCOPES` (`backend/platform/src/lib.rs`) ne bougent pas** : un scope n'existe que pour porter des rôles d'administration scopés, et ce change n'a aucune surface admin. Alternative rejetée : ajouter `LINGUA_SCOPE` « pour plus tard » — cela traînerait l'agrégation de session back-office et l'admin scope-aware pour un usage nul en v1, et l'audit séparation-des-pouvoirs a montré le coût des scopes déclarés-mais-pas-testés. Le scope arrivera avec la première surface admin Lingua (`add-lingua-back-office`).
+### D1 — The `lingua` audience: one configuration entry, zero roles
+`CYMBRA_ALLOWED_AUDIENCES=music,live,back-office,web,lingua` — that is the whole
+identity delta. `check_audience` accepts the audience at issuance and at refresh;
+`lingua` tokens cross the strict auth interceptor exactly like `music` ones.
+**`SCOPES`/`APP_SCOPES` (`backend/platform/src/lib.rs`) do not move**: a scope exists
+only to carry scoped administration roles, and this change has no admin surface.
+Rejected alternative: adding `LINGUA_SCOPE` "for later" — that would drag back-office
+session aggregation and scope-aware admin along for zero v1 use, and the
+separation-of-powers audit showed what declared-but-untested scopes cost. The scope
+arrives with the first Lingua admin surface (`add-lingua-back-office`).
 
-### D2 — CORS : `CYMBRA_ALLOWED_WEB_ORIGINS`, l'union plutôt que l'élargissement
-Nouvelle variable `CYMBRA_ALLOWED_WEB_ORIGINS` : liste générale d'origines navigateur admises sur la surface gRPC-web **bearer-only**. La couche CORS de tonic (aujourd'hui nourrie de `cfg.back_office_origins` seule) passe à l'union `back_office_origins ∪ allowed_web_origins`. C'est là qu'ira `chrome-extension://<id>` (id stable, dérivé de la clé publiée au store). Alternatives rejetées : élargir `CYMBRA_BACK_OFFICE_ORIGINS` — son nom est un contrat (« console only », dit le commentaire d'env) et mêler une origine produit à la liste de la console admin brouille l'audit ; réutiliser `CYMBRA_WEB_ORIGINS` — elle gouverne la surface **cookie credentialed** (`/web/auth/*` + site), exactement ce qu'une extension ne doit pas toucher. La CORS reste de la défense en profondeur : l'autorisation est l'intercepteur d'auth, pas l'origine.
+### D2 — CORS: `CYMBRA_ALLOWED_WEB_ORIGINS`, the union rather than a widening
+A new `CYMBRA_ALLOWED_WEB_ORIGINS` variable: a general list of browser origins admitted
+on the **bearer-only** gRPC-web surface. The tonic CORS layer (today fed by
+`cfg.back_office_origins` alone) moves to the union
+`back_office_origins ∪ allowed_web_origins`. That is where `chrome-extension://<id>`
+goes (a stable id, derived from the key published to the store). Rejected alternatives:
+widening `CYMBRA_BACK_OFFICE_ORIGINS` — its name is a contract ("console only", says the
+env comment), and mixing a product origin into the admin console's list muddies the
+audit; reusing `CYMBRA_WEB_ORIGINS` — it governs the **credentialed cookie** surface
+(`/web/auth/*` + site), exactly what an extension must not touch. CORS remains defence
+in depth: the auth interceptor is the authorisation, not the origin.
 
-### D3 — Protocole de sync : op-log client, LWW par entité, pull par curseur — pas de CRDT
-Chaque client tient une **outbox** (op-log local des mutations : statut posé, carte créée/modifiée/supprimée) vidée vers le serveur par lots idempotents ; chaque op porte l'horodatage client et le `device_id`. Résolution : **last-write-wins par (langue, lemme)** pour les statuts et **par carte** (id client UUID) pour les decks — horodatage le plus récent gagne, tie-break déterministe par `device_id`. Le pull est un **delta par curseur** (séquence de changement serveur monotone par utilisateur) ; le bootstrap ou un curseur invalide passe par un **snapshot** gardé par ETag/version (pas de re-téléchargement si rien n'a bougé). Pourquoi pas de CRDT : l'état est de type ensemble-qui-croît + compteurs — deux appareils qui posent chacun un statut sur le même lemme dans la même minute est le pire cas réel, et « le dernier geste gagne » est exactement la sémantique attendue par l'utilisateur. Un CRDT par champ coûterait le format, la doc et les tests d'un protocole de recherche pour un conflit qui se résout d'un clic. **La fusion du premier sign-in n'est pas un cas spécial** : le client poussera son état pré-compte comme une grosse outbox aux horodatages d'origine (décision côté client au change suivant) — le serveur applique le LWW ordinaire.
+### D3 — Sync protocol: client op-log, LWW per entity, cursor pull — no CRDT
+Each client keeps an **outbox** (a local op-log of mutations: status set, card
+created/edited/deleted) drained to the server in idempotent batches; every op carries the
+client timestamp and the `device_id`. Resolution: **last-write-wins per (language,
+lemma)** for statuses and **per card** (client UUID) for decks — the most recent
+timestamp wins, with a deterministic `device_id` tie-break. The pull is a **cursor
+delta** (a monotonic per-user server change sequence); bootstrap or an invalid cursor
+goes through a **snapshot** guarded by ETag/version (no re-download if nothing moved).
+Why no CRDT: the state is a growing set plus counters — two devices each setting a
+status on the same lemma within the same minute is the realistic worst case, and "the
+last gesture wins" is exactly the semantics the user expects. A per-field CRDT would
+cost the format, the documentation and the tests of a research protocol for a conflict a
+single click resolves. **The first-sign-in merge is not a special case**: the client
+pushes its pre-account state as one large outbox with the original timestamps (a
+client-side decision in the next change) — the server applies ordinary LWW.
 
-### D4 — Ce que le serveur stocke : trois tables de données, une allow-list
-Schéma `lingua` : statuts par (user, langue, lemme, statut, provenance, horodatage, device) ; cartes complètes au schéma de la pile locale **moins** le contenu du champ `media` (l'emplacement reste, rien ne monte) — la phrase de provenance et la source d'une carte montent : ce sont les **données personnelles que l'utilisateur a explicitement capturées**, pas de l'historique ; agrégats de stats (D5). L'allow-list est le contrat de la spec : toute donnée absente de ces trois familles ne monte pas — en particulier aucune URL de page simplement lue, aucun texte de page, aucun compteur par-site. Les compteurs d'exposition de la pile locale restent **locaux** en v1 (volumineux, faible valeur multi-appareils, et c'est la donnée la plus proche de l'historique de lecture — la garder locale est aussi une position produit).
+### D4 — What the server stores: three data tables, one allow-list
+The `lingua` schema holds: statuses per (user, language, lemma, status, provenance,
+timestamp, device); complete cards at the local stack's schema **minus** the contents of
+the `media` field (the slot stays, nothing goes up) — a card's source sentence and
+source do go up: they are **personal data the user explicitly captured**, not history;
+and stat aggregates (D5). The allow-list is the spec's contract: any data outside these
+three families does not go up — in particular no URL of a merely-read page, no page
+text, no per-site counter. The local stack's exposure counters stay **local** in v1
+(bulky, low multi-device value, and the data closest to reading history — keeping it
+local is also a product position).
 
-### D5 — Stats : agrégats additifs par (jour, langue, appareil), consolidation à la lecture
-Chaque appareil upserte ses lignes d'agrégat `(jour UTC, langue, device_id) → {expositions, mots appris, révisions faites}` — idempotent (upsert par clé), jamais d'événement fin horodaté. La lecture (`StatsService.GetStats`) somme sur les appareils et renvoie des séries par jour × langue, consommées par l'écran de stats des clients (change suivant). Alternative rejetée : compteurs absolus LWW par (jour, langue) — deux appareils actifs le même jour s'écraseraient mutuellement ; la clé par appareil rend l'addition juste par construction. Vie privée : le grain jour × langue est le plus fin autorisé — pas d'heure, pas de source, pas de site.
+### D5 — Stats: additive aggregates per (day, language, device), consolidated on read
+Each device upserts its aggregate rows `(UTC day, language, device_id) → {exposures,
+words learned, reviews done}` — idempotent (upsert by key), never a fine-grained
+timestamped event. The read (`StatsService.GetStats`) sums across devices and returns
+series per day × language, consumed by the clients' stats screen (next change). Rejected
+alternative: absolute LWW counters per (day, language) — two devices active on the same
+day would overwrite each other; keying by device makes addition correct by construction.
+Privacy: day × language is the finest grain allowed — no hour, no source, no site.
 
-### D6 — Module backend : `backend/lingua` calqué sur `backend/music`, inerte sans env
-Crate `cymbra-lingua` : schéma Postgres `lingua` possédé par le rôle `lingua_svc` à `search_path` épinglé (`roles.sql.tpl` + `provision-lingua-role.sql` pour la prod, pattern `provision-music-role.sql`), MIGRATOR propre, protos `cymbra.lingua.v1` dans `backend/lingua/proto` (`build_client(false)` — pas de transport interne, conformément à la règle des trois objets). Le serveur ne câble les trois services que si `CYMBRA_LINGUA_DATABASE_URL` est posée — sinon `tracing::info!("lingua services disabled")`, comme music. `UserPort` injecté (le trait du crate `user-port`, déclaré côté consommateur) pour l'existence/l'état du compte — jamais de lecture du schéma `user_account`. Logique de merge/curseur en `lingua_sync_core.rs` host-testé ; adaptateurs `pg*.rs`/`grpc.rs` couverts par le regex d'exclusion existant.
+### D6 — Backend module: `backend/lingua` modelled on `backend/music`, inert without env
+The `cymbra-lingua` crate: a `lingua` Postgres schema owned by the `lingua_svc` role with
+a pinned `search_path` (`roles.sql.tpl` + `provision-lingua-role.sql` for production,
+the `provision-music-role.sql` pattern), its own MIGRATOR, `cymbra.lingua.v1` protos in
+`backend/lingua/proto` (`build_client(false)` — no internal transport, per the
+three-objects rule). The server wires the three services only if
+`CYMBRA_LINGUA_DATABASE_URL` is set — otherwise
+`tracing::info!("lingua services disabled")`, like music. `UserPort` is injected (the
+`user-port` crate's trait, declared by the consumer) for account existence/state — never
+a read of the `user_account` schema. Merge/cursor logic lives in host-tested
+`lingua_sync_core.rs`; the `pg*.rs`/`grpc.rs` adapters are covered by the existing
+exclusion regex.
 
-### D7 — Purge : étendre `purge_user`, pas créer un job
-`DeleteAccount` déclenche déjà le job `purge_user` (worker, pool `admin_svc`, idempotent). Le delta : `purge_user_with` efface aussi `lingua.*` pour l'utilisateur, et le `search_path` du rôle admin (`roles.sql.tpl`) gagne le schéma `lingua`. Un compte sans données Lingua est un no-op (le job reste idempotent). Alternative rejetée : un job `purge_lingua` séparé — deux jobs à séquencer pour une même sémantique RGPD, et le précédent (plans, analytics) est l'extension du job unique.
+### D7 — Purge: extend `purge_user`, do not create a job
+`DeleteAccount` already triggers the `purge_user` job (worker, `admin_svc` pool,
+idempotent). The delta: `purge_user_with` also erases `lingua.*` for the user, and the
+admin role's `search_path` (`roles.sql.tpl`) gains the `lingua` schema. An account with
+no Lingua data is a no-op (the job stays idempotent). Rejected alternative: a separate
+`purge_lingua` job — two jobs to sequence for one GDPR semantic, and the precedent
+(plans, analytics) is extending the single job.
 
-### D8 — Socle consommé tel quel : flags par audience, analytics existant, Caddy inchangé
-Feature flags : l'`EvalContext` dérive `app` de l'audience du jeton — un jeton `lingua` est scopé `lingua` automatiquement, aucune déclaration ; les futures bêtas Lingua se gèrent dans la console flags existante. Analytics : les clients émettront leurs évènements d'usage via `UsageService` avec les valeurs `platform` déjà au contrat du proto (`web`, `ios`, `macos`) — pas de nouveau pipeline. Observabilité : les services `lingua` passent sous l'`ObserveLayer` existante comme tout service tonic. **Caddy : vérifié contre le matcher** — les chemins gRPC `/cymbra.lingua.v1.<Service>/<Method>` sont disjoints de la liste `@http` (`/.well-known/*`, `/healthz`, `/web/*`, …) et tombent dans la branche par défaut → tonic h2c, qui porte aussi le gRPC-web + le preflight CORS. Le piège documenté (« préfixe absent du matcher → tonic répond 200 + grpc-status 12 ») ne mord que les routes **HTTP Axum** ; ce change n'en ajoute aucune, donc le Caddyfile ne bouge pas.
+### D8 — Platform consumed as-is: flags by audience, existing analytics, Caddy unchanged
+Feature flags: the `EvalContext` derives `app` from the token audience — a `lingua` token
+is scoped `lingua` automatically, with no declaration; future Lingua betas are managed in
+the existing flags console. Analytics: the clients will emit usage events through
+`UsageService` with the `platform` values already in the proto contract (`web`, `ios`,
+`macos`) — no new pipeline. Observability: the `lingua` services sit under the existing
+`ObserveLayer` like any tonic service. **Caddy: checked against the matcher** — the gRPC
+paths `/cymbra.lingua.v1.<Service>/<Method>` are disjoint from the `@http` list
+(`/.well-known/*`, `/healthz`, `/web/*`, …) and fall through to the default branch →
+tonic h2c, which also carries gRPC-web and the CORS preflight. The documented trap
+("prefix missing from the matcher → tonic answers 200 + an empty grpc-status 12") only
+bites **Axum HTTP** routes; this change adds none, so the Caddyfile does not move.
 
 ## Risks / Trade-offs
 
-- [LWW + horloges client fausses : un appareil à l'heure décalée « gagne » des conflits] → tie-break déterministe par `device_id`, horodatage serveur de réception conservé pour l'audit, et clamp des horodatages futurs à la réception ; le pire cas reste corrigeable d'un clic (reposer le statut).
-- [Origine `chrome-extension://<id>` : l'id change entre dev (unpacked) et store] → l'id publié est stable (clé au manifest) ; en dev, l'origine locale s'ajoute à `CYMBRA_ALLOWED_WEB_ORIGINS` de l'environnement de dev seulement. Firefox (`moz-extension://<uuid>` aléatoire par install) : non bloquant — les requêtes fetch d'une event page MV3 Firefox ne portent pas d'origine soumise à cette CORS de la même façon ; à vérifier à l'intégration cliente, le repli documenté étant un id d'origine par `browser_specific_settings`.
-- [Poussée initiale volumineuse au premier sign-in (des années de statuts)] → lots bornés + reprise par offset d'outbox, portés par le protocole (idempotence par lot) ; l'ordre des ops préserve les horodatages, donc une interruption est reprise sans corruption.
-- [Deux listes d'origines de plus en plus proches (`WEB_ORIGINS`, `ALLOWED_WEB_ORIGINS`)] → noms et commentaires d'env explicites (« cookie credentialed » vs « gRPC-web bearer ») ; refus délibéré de les fusionner tant que leurs sémantiques diffèrent.
-- [Module lingua sur le même serveur : rayon d'explosion partagé] → même trade-off que music/plans, assumé par la trajectoire backend actée (pas de split avant le besoin) ; le crate garde la frontière (schéma + rôle + port) pour que le split reste un petit travail.
-- [Backend livré avant tout client : risque de contrat inadapté] → le protocole est testé par deux clients **simulés** convergents (test d'intégration bout-en-bout), et les types viennent de `lingua-core` — le même vocabulaire que les stores clients réels.
+- [LWW + wrong client clocks: a device with a skewed clock "wins" conflicts] →
+  deterministic `device_id` tie-break, the server receipt timestamp kept for audit, and
+  future timestamps clamped on receipt; the worst case is still fixable with one click
+  (set the status again).
+- [`chrome-extension://<id>` origin: the id differs between dev (unpacked) and store] →
+  the published id is stable (key in the manifest); in dev, the local origin is added to
+  `CYMBRA_ALLOWED_WEB_ORIGINS` in the dev environment only. Firefox
+  (`moz-extension://<uuid>`, random per install): not blocking — fetch requests from a
+  Firefox MV3 event page do not carry an origin subject to this CORS in the same way; to
+  be confirmed at client integration, the documented fallback being a fixed origin id via
+  `browser_specific_settings`.
+- [A bulky initial push at first sign-in (years of statuses)] → bounded batches plus
+  outbox-offset resumption, carried by the protocol (per-batch idempotence); op order
+  preserves timestamps, so an interruption resumes without corruption.
+- [Two increasingly similar origin lists (`WEB_ORIGINS`, `ALLOWED_WEB_ORIGINS`)] →
+  explicit env names and comments ("credentialed cookie" vs "gRPC-web bearer"); a
+  deliberate refusal to merge them while their semantics differ.
+- [The lingua module on the same server: shared blast radius] → the same trade-off as
+  music/plans, accepted by the agreed backend trajectory (no split before the need); the
+  crate keeps the boundary (schema + role + port) so that the split stays a small job.
+- [Backend shipped before any client: risk of an ill-fitting contract] → the protocol is
+  tested by two **simulated** converging clients (an end-to-end integration test), and
+  the types come from `lingua-core` — the same vocabulary as the real client stores.
 
 ## Migration Plan
 
-1. Backend d'abord (déployable inerte) : crate + migrations + rôles + protos + services, `CYMBRA_LINGUA_DATABASE_URL` absente en prod → rien ne change pour personne.
-2. Provision : `provision-lingua-role.sql` + extension du `search_path` admin + env prod (`ALLOWED_AUDIENCES`, `ALLOWED_WEB_ORIGINS`, client id Google) ; activer la variable DB.
-3. Les clients arrivent au change `add-lingua-connected-clients` (extension puis app Apple).
-4. Rollback : retirer `CYMBRA_LINGUA_DATABASE_URL` rend le module inerte ; aucun client ne dépend encore du serveur.
+1. Backend first (deployable inert): crate + migrations + roles + protos + services,
+   `CYMBRA_LINGUA_DATABASE_URL` absent in production → nothing changes for anyone.
+2. Provisioning: `provision-lingua-role.sql` + the admin `search_path` extension + prod
+   env (`ALLOWED_AUDIENCES`, `ALLOWED_WEB_ORIGINS`, the Google client id); then enable
+   the DB variable.
+3. The clients arrive in `add-lingua-connected-clients` (extension, then the Apple app).
+4. Rollback: removing `CYMBRA_LINGUA_DATABASE_URL` makes the module inert; no client
+   depends on the server yet.
 
 ## Open Questions
 
-- Le format exact du snapshot (un message unique vs stream par pages) — à trancher à l'implémentation selon les tailles réelles ; le contrat (ETag/version, réponse « inchangé ») ne bouge pas.
+- The exact snapshot format (a single message vs a paged stream) — to be settled at
+  implementation against real sizes; the contract (ETag/version, "unchanged" response)
+  does not move.

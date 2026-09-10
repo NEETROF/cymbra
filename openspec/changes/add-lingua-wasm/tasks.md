@@ -1,7 +1,7 @@
 # Tasks — add-lingua-wasm
 
-## 1. Cible WASM (spec lingua-analysis — parité native/WASM)
+## 1. WASM target (spec lingua-analysis — native/WASM parity)
 
-- [ ] 1.1 Crate/feature `lingua-wasm` : bindings wasm-bindgen (analyse par lot de blocs → tokens classés, statuts, %, gloses) ; build wasm-pack `--target web`
-- [ ] 1.2 Test de parité natif/WASM sur les fixtures (même `analyzer_version` ⇒ sorties identiques)
-- [ ] 1.3 Lane CI : build wasm + exécution des tests de parité
+- [ ] 1.1 `lingua-wasm` crate/feature: wasm-bindgen bindings (batch-of-blocks analysis → classified tokens, statuses, percentage, glosses); `wasm-pack --target web` build
+- [ ] 1.2 Native/WASM parity test over the fixtures (same `analyzer_version` ⇒ identical output)
+- [ ] 1.3 CI lane: build the wasm module + run the parity tests

@@ -1,34 +1,34 @@
 # Tasks — add-lingua-connected-clients
 
-## 1. Extension — compte et session
+## 1. Extension — account and session
 
-- [ ] 1.1 Transport gRPC-web Connect-ES dans `apps/lingua-extension` : clone adapté de `apps/back-office/src/lib/transport.ts` + `api.ts` (intercepteurs auth / refresh single-flight / session-expiry, seam de test), URL backend par variable de build
-- [ ] 1.2 Stockage des jetons : access en `chrome.storage.session`, refresh en `chrome.storage.local` ; reprise de session au démarrage (refresh → nouveau `TokenPair`) ; tests vitest du cycle
-- [ ] 1.3 UI compte (popup d'icône + page de réglages, tokens Cymbra) : « Continuer avec Google » (`chrome.identity.launchWebAuthFlow` → `SignInOidc`), email/mot de passe (`SignInLocal`), état connecté (email masquable), déconnexion (`Logout` + purge des jetons, état local intact)
-- [ ] 1.4 Doc dev : origine `chrome-extension://` stable par clé de manifest ; ajout de l'origine dev à `CYMBRA_ALLOWED_WEB_ORIGINS` de l'environnement local uniquement
+- [ ] 1.1 Connect-ES gRPC-web transport in `apps/lingua-extension`: an adapted clone of `apps/back-office/src/lib/transport.ts` + `api.ts` (auth / single-flight refresh / session-expiry interceptors, test seam), backend URL from a build variable
+- [ ] 1.2 Token storage: access token in `chrome.storage.session`, refresh token in `chrome.storage.local`; session resumption at startup (refresh → a new `TokenPair`); vitest coverage of the cycle
+- [ ] 1.3 Account UI (icon popup + settings page, Cymbra tokens): "Continue with Google" (`chrome.identity.launchWebAuthFlow` → `SignInOidc`), email/password (`SignInLocal`), signed-in state (email maskable), sign-out (`Logout` + token purge, local state intact)
+- [ ] 1.4 Dev doc: the `chrome-extension://` origin is stable via the manifest key; add the dev origin to `CYMBRA_ALLOWED_WEB_ORIGINS` in the local environment only
 
-## 2. Extension — outbox et synchronisation
+## 2. Extension — outbox and synchronisation
 
-- [ ] 2.1 Outbox locale (op-log versionné dans `chrome.storage.local`) : chaque mutation de statut/carte enfile une op horodatée (device_id généré à l'install) ; vidage par lots avec reprise par offset
-- [ ] 2.2 Pull par curseur + application au store local (LWW côté client symétrique au serveur) ; propagation cross-onglets existante (`storage.onChanged`) déclenchée par les changements tirés
-- [ ] 2.3 Fusion du premier sign-in : poussée intégrale de l'état pré-compte (horodatages d'origine conservés), puis pull du snapshot fusionné ; test du scénario « deux appareils avec états locaux disjoints »
-- [ ] 2.4 Orchestration d'arrière-plan : sync au réveil du service worker, après un lot de mutations et à l'ouverture du side panel ; indicateur discret d'état de sync + action manuelle dans les réglages ; aucune requête tant que non connecté
-- [ ] 2.5 Stats : agrégation locale par (jour, langue) → `UpsertDailyStats` avec device_id ; tests vitest (idempotence du re-push)
+- [ ] 2.1 Local outbox (a versioned op-log in `chrome.storage.local`): every status/card mutation enqueues a timestamped op (device_id generated at install); drained in batches with offset resumption
+- [ ] 2.2 Cursor pull + application to the local store (client-side LWW symmetric to the server's); the existing cross-tab propagation (`storage.onChanged`) triggered by pulled changes
+- [ ] 2.3 First-sign-in merge: full push of the pre-account state (original timestamps preserved), then a pull of the merged snapshot; test the "two devices with disjoint local states" scenario
+- [ ] 2.4 Background orchestration: sync on service-worker wake, after a batch of mutations and on side-panel open; a discreet sync-state indicator + a manual action in settings; no request at all while signed out
+- [ ] 2.5 Stats: local aggregation per (day, language) → `UpsertDailyStats` with the device_id; vitest coverage (re-push idempotence)
 
-## 3. Extension — écran de stats
+## 3. Extension — stats screen
 
-- [ ] 3.1 Écran de stats (page d'extension, tokens Cymbra) : séries par jour × langue (mots appris, révisions, expositions), plage 7/30/90 jours ; connecté = `GetStats` consolidé (portée « tous les appareils »), sinon agrégats locaux (portée « cet appareil ») ; mention « hors sessions d'agents »
-- [ ] 3.2 Lint des chaînes UI étendu aux nouveaux écrans (compte, sync, stats) : aucune occurrence de « lemme » (« forme du dictionnaire », « mots différents »)
+- [ ] 3.1 Stats screen (extension page, Cymbra tokens): series per day × language (words learned, reviews, exposures), 7/30/90-day ranges; signed in = consolidated `GetStats` (scope "all devices"), otherwise local aggregates (scope "this device"); a note that agent sessions are excluded
+- [ ] 3.2 UI-string lint extended to the new screens (account, sync, stats): no occurrence of "lemma" (say "dictionary form", "distinct words")
 
-## 4. App Apple — connexion native et sync
+## 4. Apple app — native sign-in and sync
 
-- [ ] 4.1 Écran de connexion natif (SwiftUI, charte Cymbra) : Sign in with Apple (`ASAuthorizationController` → `SignInOidc` Apple) + « Continuer avec Google » + email/mot de passe, via tonic natif d'audience `lingua` ; jetons en Keychain
-- [ ] 4.2 Partage de session app ↔ extension Safari via App Group (un compte par appareil) : l'extension synchronise sous la session de l'app, aucun flow OAuth dans Safari ; trancher jetons-par-handler vs copie App Group (question ouverte du design) et documenter
-- [ ] 4.3 Sync app : même outbox/pull/fusion que l'extension (types `lingua-core` partagés) pour statuts, cartes, stats ; premier sign-in fusionne l'état local de l'appareil
-- [ ] 4.4 Écran de stats de l'app (mêmes règles que 3.1) ; vérification manuelle croisée : mot marqué sur Mac visible sur iPhone, carte iOS révisable sur desktop, stats consolidées justes
-- [ ] 4.5 TestFlight interne avec le backend de dev ; parcours de review App Store re-déroulé (Sign in with Apple présent, privacy labels mis à jour : données de compte + contenu utilisateur synchronisé)
+- [ ] 4.1 Native sign-in screen (SwiftUI, Cymbra styling): Sign in with Apple (`ASAuthorizationController` → Apple `SignInOidc`) + "Continue with Google" + email/password, over native tonic with the `lingua` audience; tokens in the Keychain
+- [ ] 4.2 App ↔ Safari extension session sharing through the App Group (one account per device): the extension syncs under the app's session, no OAuth flow inside Safari; settle tokens-per-handler vs an App Group copy (the design's open question) and document it
+- [ ] 4.3 App sync: the same outbox/pull/merge as the extension (shared `lingua-core` types) for statuses, cards and stats; first sign-in merges the device's local state
+- [ ] 4.4 The app's stats screen (same rules as 3.1); manual cross-device check: a word marked on the Mac visible on the iPhone, an iOS card reviewable on desktop, consolidated stats correct
+- [ ] 4.5 Internal TestFlight against the dev backend; App Store review pass re-run (Sign in with Apple present, privacy labels updated: account data + synced user content)
 
-## 5. Gates et finitions
+## 5. Gates and finishing
 
-- [ ] 5.1 vitest vert sur `apps/lingua-extension` ; `python3 scripts/check_ci_units.py --list` confirme que toutes les unités touchées restent surveillées
-- [ ] 5.2 `openspec validate add-lingua-connected-clients --strict` final + mise à jour des specs si l'implémentation a fait bouger un contrat
+- [ ] 5.1 vitest green on `apps/lingua-extension`; `python3 scripts/check_ci_units.py --list` confirms every touched unit is still watched
+- [ ] 5.2 Final `openspec validate add-lingua-connected-clients --strict` + spec updates if implementation moved a contract

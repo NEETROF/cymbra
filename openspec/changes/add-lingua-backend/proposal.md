@@ -1,33 +1,109 @@
-# add-lingua-backend — Cymbra Lingua : audience, module backend et protocole de synchronisation
+# add-lingua-backend — Cymbra Lingua: audience, backend module and sync protocol
 
 ## Why
 
-La pile Lingua a livré un produit délibérément local : chaque appareil porte son propre état, amorcé par calibration ou import LingQ, et rien ne converge jamais. Dès le deuxième appareil — le cas réel du fondateur : Chrome sur macOS + Safari iOS — les statuts divergent. Ce change livre la première brique **serveur** de Lingua, seule : l'audience Cymbra ID `lingua` (l'intégration « quasi gratuite » identifiée à l'exploration : une entrée de configuration), un crate `backend/lingua` calqué sur `backend/music`, les trois services de sync et leur protocole, la purge RGPD. Le tout est **déployable inerte** (aucun client ne s'y connecte encore) : les clients arrivent au change suivant.
+The Lingua stack shipped a deliberately local product: every device carries its own
+state, seeded by calibration or a LingQ import, and nothing ever converges. From the
+second device on — the founder's real case, Chrome on macOS + Safari on iOS — statuses
+drift apart. This change ships the first **server** brick of Lingua, on its own: the
+Cymbra ID `lingua` audience (the "almost free" integration identified during
+exploration — one configuration entry), a `backend/lingua` crate modelled on
+`backend/music`, the three sync services and their protocol, and the GDPR purge. The
+whole thing is **deployable inert** (nothing connects to it yet): the clients arrive in
+the next change.
 
-**Position dans la pile** (12 changes) : **11e** — après `add-lingua-agent`, avant `add-lingua-connected-clients`. **Prérequis explicite : `add-lingua-decks-review`** (les schémas serveur reprennent les types partagés de `lingua-core` — statuts, cartes, état FSRS — pour que la fusion soit mécanique). **Indépendant de la branche extension** (`add-lingua-extension-reading` → `add-lingua-apple`) et du plugin (`add-lingua-agent`) : parallélisable avec elles. Consommé par `add-lingua-connected-clients` (12e) et, hors pile, par `add-lingua-back-office`.
+**Position in the stack** (12 changes): **11th** — after `add-lingua-agent`, before
+`add-lingua-connected-clients`. **Explicit prerequisite: `add-lingua-decks-review`**
+(the server schemas reuse the shared `lingua-core` types — statuses, cards, FSRS state
+— so that merging is mechanical). **Independent of the extension branch**
+(`add-lingua-extension-reading` → `add-lingua-apple`) and of the plugin
+(`add-lingua-agent`): parallelisable with both. Consumed by
+`add-lingua-connected-clients` (12th) and, outside the stack, by
+`add-lingua-back-office`.
 
 ## What Changes
 
-- **Audience Cymbra ID `lingua` = une entrée de configuration.** `CYMBRA_ALLOWED_AUDIENCES` (backend/.env.example) passe de `music,live,back-office,web` à `music,live,back-office,web,lingua` ; `check_audience` (`backend/auth/src/module.rs`) l'admet sans autre code. **Aucun rôle ni scope `lingua` en v1** : `SCOPES`/`APP_SCOPES` (`backend/platform/src/lib.rs`) ne bougent pas — pas de console back-office Lingua dans ce change. Le client OAuth Google de l'extension (redirect `chromiumapp.org`) est créé et ajouté au CSV `CYMBRA_GOOGLE_AUDIENCE` (précédent du client desktop) — son flow côté client arrive au change suivant.
-- **CORS** : nouvelle variable `CYMBRA_ALLOWED_WEB_ORIGINS` (liste générale d'origines gRPC-web bearer-only) — la couche CORS tonic sert l'union avec `CYMBRA_BACK_OFFICE_ORIGINS`, qui n'est **pas** élargie (la console admin reste sa propre liste). C'est là que vivra l'origine `chrome-extension://<id>` (bearer, jamais credentialed).
-- **Nouveau crate `backend/lingua`** calqué sur `backend/music` : schéma Postgres `lingua`, rôle `lingua_svc` à `search_path` épinglé, migrations propres, `UserPort` injecté, **module inerte sans `CYMBRA_LINGUA_DATABASE_URL`**, protos `cymbra.lingua.v1` dans `backend/lingua/proto` (`build_client(false)` comme partout).
-- **Trois services** : `KnownWordsService` (sync des statuts par (langue, lemme) : op-log client (outbox), last-write-wins par lemme avec horodatage, pull par curseur delta, snapshot initial gardé par ETag/version) ; `DeckService` (cartes complètes **avec** phrase de provenance — données personnelles de l'utilisateur ; médias/images **exclus** de la v1) ; `StatsService` (agrégats d'apprentissage par jour et par langue : expositions, mots appris, révisions faites). La fusion du premier sign-in n'est **pas un cas spécial du protocole** : c'est le LWW ordinaire appliqué à une grosse outbox.
-- **Vie privée — règles dures en spec** : ne montent QUE statuts de lemmes, cartes et agrégats de stats. **Jamais** d'URL de navigation, jamais de texte de page, jamais d'historique de lecture web ; la seule URL serveur est celle portée par une carte explicitement créée par l'utilisateur. `DeleteAccount` → purge de `lingua.*` via le job `purge_user` existant (handler worker étendu).
-- **Plateforme consommée, pas redéclarée** : feature flags (l'`EvalContext` dérive l'app de l'audience du jeton — `lingua` automatique), analytics (`UsageService`, valeurs `platform` déjà au contrat), observabilité existante. **Caddy : rien à changer** — les chemins `/cymbra.lingua.v1.*/…` tombent dans la branche par défaut → tonic (le piège du matcher `@http` ne concerne que les routes HTTP Axum ; ce change n'en ajoute aucune).
+- **The `lingua` Cymbra ID audience is one configuration entry.**
+  `CYMBRA_ALLOWED_AUDIENCES` (backend/.env.example) goes from
+  `music,live,back-office,web` to `music,live,back-office,web,lingua`;
+  `check_audience` (`backend/auth/src/module.rs`) admits it with no further code.
+  **No `lingua` role and no `lingua` scope in v1**: `SCOPES`/`APP_SCOPES`
+  (`backend/platform/src/lib.rs`) do not move — there is no Lingua back-office console
+  in this change. The extension's Google OAuth client (redirect `chromiumapp.org`) is
+  created and added to the `CYMBRA_GOOGLE_AUDIENCE` CSV (the desktop client is the
+  precedent) — its client-side flow arrives in the next change.
+- **CORS**: a new `CYMBRA_ALLOWED_WEB_ORIGINS` variable (a general list of bearer-only
+  gRPC-web origins) — the tonic CORS layer serves the union with
+  `CYMBRA_BACK_OFFICE_ORIGINS`, which is **not** widened (the admin console keeps its
+  own list). This is where `chrome-extension://<id>` will live (bearer, never
+  credentialed).
+- **New `backend/lingua` crate** modelled on `backend/music`: a `lingua` Postgres
+  schema, a `lingua_svc` role with a pinned `search_path`, its own migrations, an
+  injected `UserPort`, a **module that stays inert without
+  `CYMBRA_LINGUA_DATABASE_URL`**, and `cymbra.lingua.v1` protos in
+  `backend/lingua/proto` (`build_client(false)`, as everywhere).
+- **Three services**: `KnownWordsService` (syncs statuses per (language, lemma):
+  client op-log (outbox), last-write-wins per lemma by timestamp, cursor-based delta
+  pull, initial snapshot guarded by ETag/version); `DeckService` (complete cards
+  **including** the source sentence — the user's own personal data; media/images
+  **excluded** from v1); `StatsService` (learning aggregates per day and per language:
+  exposures, words learned, reviews done). The first-sign-in merge is **not a special
+  case of the protocol**: it is ordinary LWW applied to a large outbox.
+- **Privacy — hard rules in spec**: only lemma statuses, cards and stat aggregates go
+  up. **Never** a browsing URL, never page text, never web reading history; the only
+  URL the server sees is the one carried by a card the user explicitly created.
+  `DeleteAccount` → `lingua.*` purge via the existing `purge_user` job (extended worker
+  handler).
+- **Platform consumed, not redeclared**: feature flags (the `EvalContext` derives the
+  app from the token audience — `lingua` comes for free), analytics (`UsageService`,
+  whose `platform` values are already in the contract), existing observability.
+  **Caddy: nothing to change** — `/cymbra.lingua.v1.*/…` paths fall through to the
+  default branch → tonic (the `@http` matcher trap only concerns Axum HTTP routes, and
+  this change adds none).
 
 ## Capabilities
 
 ### New Capabilities
-- `lingua-sync` (moitié serveur et protocole) : audience `lingua` par configuration, origines gRPC-web générales, module backend isolé et inerte, protocole de sync (op-log, LWW, curseur, snapshot) pour statuts et cartes, règles dures de vie privée serveur, purge à la suppression du compte, socle consommé tel quel. _La moitié client (sign-in extension/app, outbox client, fusion du store pré-compte, opt-in) est le change `add-lingua-connected-clients`._
-- `lingua-stats` (moitié serveur) : les agrégats d'apprentissage — par jour, par langue et par appareil (expositions, mots appris, révisions faites), upsert idempotent, consolidation serveur à la lecture, agrégats seulement (jamais d'événements horodatés fins). _L'écran de stats des clients est le change `add-lingua-connected-clients`._
+- `lingua-sync` (server and protocol half): the `lingua` audience by configuration,
+  general gRPC-web origins, an isolated and inert backend module, the sync protocol
+  (op-log, LWW, cursor, snapshot) for statuses and cards, hard server-side privacy
+  rules, purge on account deletion, and the platform consumed as-is. _The client half
+  (extension/app sign-in, client outbox, pre-account store merge, opt-in) is the
+  `add-lingua-connected-clients` change._
+- `lingua-stats` (server half): learning aggregates — per day, per language and per
+  device (exposures, words learned, reviews done) — idempotent upsert, server-side
+  consolidation on read, aggregates only (never fine-grained timestamped events). _The
+  clients' stats screen is the `add-lingua-connected-clients` change._
 
 ### Modified Capabilities
-_Aucune. L'audience est de la configuration, pas un delta de spec : `backend-auth` (émission/refresh/OIDC), `user-account` (`DeleteAccount`), `runtime-feature-flags`, `feature-usage-analytics` et `job-infrastructure` sont **consommés tels quels** — un produit consomme le socle, il ne le redéclare pas. Les capabilities `lingua-*` de la pile locale ne sont pas modifiées._
+_None. The audience is configuration, not a spec delta: `backend-auth`
+(issuance/refresh/OIDC), `user-account` (`DeleteAccount`), `runtime-feature-flags`,
+`feature-usage-analytics` and `job-infrastructure` are **consumed as-is** — a product
+consumes the platform, it does not redeclare it. The local stack's `lingua-*`
+capabilities are untouched._
 
 ## Impact
 
-- **Produits** : Lingua backend (tout est nouveau) ; **Cymbra ID consommé** (audience en conf, OIDC vérifié serveur, refresh rotatif, `DeleteAccount`) ; **socle consommé** (flags, analytics, jobs, observabilité) ; Music / Live / back-office / site : **intacts** (aucun proto existant modifié, aucun scope ajouté). Aucun client Lingua modifié dans ce change.
-- **Arborescence** : `backend/lingua` (crate + `proto/` + `migrations/`), `backend/db/init/roles.sql.tpl` (schéma `lingua`, rôle `lingua_svc`, `search_path` du rôle admin étendu), `backend/deploy/provision-lingua-role.sql`, `backend/worker` (purge `lingua.*`), `backend/server` (câblage du module + CORS union).
-- **Env/deploy** : `CYMBRA_LINGUA_DATABASE_URL` (nouveau, module inerte sans), `CYMBRA_ALLOWED_AUDIENCES` +`lingua`, `CYMBRA_ALLOWED_WEB_ORIGINS` (nouveau), `CYMBRA_GOOGLE_AUDIENCE` + client id extension ; `.env.example`, `.env.prod.example`, `DEPLOY.md`, `provision-optional-modules.sh` mis à jour.
-- **CI** : la lane `rust` (repo-wide, `cargo --workspace`) couvre `backend/lingua` d'office ; llvm-cov ≥ 80 % avec la convention existante (logique en `*_core.rs`, adaptateurs `pg*.rs`/`grpc.rs` exclus par le regex partagé) ; **`buf breaking` non concerné** (protos entièrement nouveaux — la gate s'applique dès le change suivant) ; `ci-units` : aucune unité nouvelle sous `apps/`.
-- **Hors périmètre (changes ultérieurs)** : les clients connectés — sign-in extension/app, outbox client, fusion du store pré-compte, écran de stats (`add-lingua-connected-clients`) ; sync du plugin Claude Code (transcripts confidentiels — réaffirmé là-bas) ; sync des médias/images de cartes ; console back-office Lingua et rôles/scope `lingua` (`add-lingua-back-office`) ; TextProfile/catalogue de livres.
+- **Products**: Lingua backend (all new); **Cymbra ID consumed** (audience in config,
+  server-verified OIDC, rotating refresh, `DeleteAccount`); **platform consumed**
+  (flags, analytics, jobs, observability); Music / Live / back office / site:
+  **untouched** (no existing proto modified, no scope added). No Lingua client changes
+  in this change.
+- **Tree**: `backend/lingua` (crate + `proto/` + `migrations/`),
+  `backend/db/init/roles.sql.tpl` (`lingua` schema, `lingua_svc` role, admin role
+  `search_path` extended), `backend/deploy/provision-lingua-role.sql`, `backend/worker`
+  (`lingua.*` purge), `backend/server` (module wiring + CORS union).
+- **Env/deploy**: `CYMBRA_LINGUA_DATABASE_URL` (new, module inert without it),
+  `CYMBRA_ALLOWED_AUDIENCES` +`lingua`, `CYMBRA_ALLOWED_WEB_ORIGINS` (new),
+  `CYMBRA_GOOGLE_AUDIENCE` + the extension client id; `.env.example`,
+  `.env.prod.example`, `DEPLOY.md` and `provision-optional-modules.sh` updated.
+- **CI**: the `rust` lane (repo-wide, `cargo --workspace`) covers `backend/lingua`
+  automatically; llvm-cov ≥ 80% under the existing convention (logic in `*_core.rs`,
+  `pg*.rs`/`grpc.rs` adapters excluded by the shared regex); **`buf breaking` does not
+  apply** (the protos are entirely new — the gate bites from the next change on);
+  `ci-units`: no new unit under `apps/`.
+- **Out of scope (later changes)**: the connected clients — extension/app sign-in,
+  client outbox, pre-account store merge, stats screen
+  (`add-lingua-connected-clients`); Claude Code plugin sync (confidential transcripts —
+  restated there); card media/image sync; the Lingua back-office console and the
+  `lingua` role/scope (`add-lingua-back-office`); TextProfile/book catalogue.

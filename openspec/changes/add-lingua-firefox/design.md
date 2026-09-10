@@ -2,16 +2,36 @@
 
 ## Context
 
-L'extension Chromium existe et est complète (`add-lingua-extension-reading` + `add-lingua-extension-review`) : source WebExtension MV3 unique, analyse consommée par le content script via l'`AnalyzerPort` (couture posée par `add-lingua-wasm`, impl Chromium = WASM dans le content script), side panel de révision. Ce change la porte sur Firefox desktop + Android et introduit le système de variantes de manifest. Toutes les décisions amont (surlignage Highlight API, storage versionné, permissions `activeTab` + optionnelles, charte Cymbra) sont héritées telles quelles des changes précédents de la pile.
+The Chromium extension exists and is complete (`add-lingua-extension-reading` +
+`add-lingua-extension-review`): a single MV3 WebExtension source, analysis consumed
+by the content script through the `AnalyzerPort` (the seam laid by
+`add-lingua-wasm`, Chromium impl = WASM in the content script), and a review side
+panel. This change ports it to Firefox desktop + Android and introduces the
+manifest-variant system. Every upstream decision (Highlight API highlighting,
+versioned storage, `activeTab` + optional permissions, the Cymbra design language)
+is inherited as-is from the earlier changes in the stack.
 
 ## Decisions
 
-### D1 — Un artefact, des variantes de build (part Firefox de D12 du design source)
+### D1 — One artefact, several build variants (the Firefox half of D12 in the source design)
 
-Une seule source WebExtension MV3 ; le build produit des variantes de manifest — `chromium` et `firefox` avec ce change (la variante `safari` rejoindra la matrice avec `add-lingua-apple`). Ce qui varie est confiné derrière deux coutures : l'**`AnalyzerPort`** (Chrome/Edge = WASM dans le content script ; Firefox = WASM dans l'event page — sa CSP bloque le WASM en content script, spike jour 1) et la **surface de panneau** (Side Panel API sur Chromium ; `sidebar_action` sur Firefox — la même page d'extension dans les deux cas). Firefox : `background.scripts` (event page) déclaré à côté du `service_worker`, host permissions optionnelles à l'install (prompt), même zip publié desktop + Android sur AMO.
+One MV3 WebExtension source; the build produces manifest variants — `chromium` and
+`firefox` with this change (the `safari` variant joins the matrix with
+`add-lingua-apple`). What differs stays confined behind two seams: the
+**`AnalyzerPort`** (Chrome/Edge = WASM in the content script; Firefox = WASM in the
+event page — its CSP blocks WASM in a content script, day-one spike) and the
+**panel surface** (Side Panel API on Chromium; `sidebar_action` on Firefox — the same
+extension page in both cases). Firefox: `background.scripts` (event page) declared
+alongside `service_worker`, optional host permissions at install (prompt), the same
+zip published to AMO for desktop and Android.
 
 ## Risks / Trade-offs
 
-- [WASM dans les content scripts Firefox (CSP)] → spike jour 1 du port ; le repli est déjà le design (WASM en event page + messages via l'`AnalyzerPort`) — le verdict du spike ne change pas l'architecture, seulement l'opportunité d'une optimisation ultérieure.
-- [Event page tuée entre deux requêtes] → requêtes par lots + mémoïsation par forme côté content script ; la ré-instanciation du module est idempotente.
-- [Deux variantes pour un solo dev] → un artefact unique + coutures ; l'ordre d'implémentation reste Chromium → Firefox → Apple ; parcours manuel par navigateur avant chaque release.
+- [WASM in Firefox content scripts (CSP)] → day-one spike of the port; the fallback
+  is already the design (WASM in the event page + messages through the
+  `AnalyzerPort`) — the spike's verdict does not change the architecture, only
+  whether a later optimisation is on the table.
+- [Event page killed between two requests] → batched requests + memoisation per word
+  form on the content-script side; re-instantiating the module is idempotent.
+- [Two variants for a solo dev] → a single artefact + seams; the implementation order
+  stays Chromium → Firefox → Apple; a manual pass per browser before each release.

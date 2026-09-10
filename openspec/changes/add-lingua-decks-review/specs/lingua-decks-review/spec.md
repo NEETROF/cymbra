@@ -1,42 +1,60 @@
-# lingua-decks-review — decks, cartes et révision
+# lingua-decks-review — decks, cards and review
 
 ## ADDED Requirements
 
-### Requirement: Schéma de carte avec provenance
-Une carte SHALL porter au minimum : le lemme, la forme rencontrée, la phrase de contexte d'origine, la source de la rencontre (URL ou identifiant de session d'agent, horodatage), la glose, et un emplacement de média optionnel (`media`, avec `source: capture|banque|génération` et `sync_policy`) — non peuplé dans ce change mais présent dans le schéma. Les expressions multi-mots SHALL être des cartes de plein droit.
+### Requirement: Card schema with provenance
+A card SHALL carry at minimum: the lemma, the encountered form, the originating context
+sentence, the source of the encounter (URL or agent session identifier, timestamp), the
+gloss, and an optional media slot (`media`, with `source: capture|stock|generated` and
+`sync_policy`) — not populated in this change but present in the schema. Multi-word
+expressions SHALL be cards in their own right.
 
-#### Scenario: Carte créée depuis le popup
-- **WHEN** l'utilisateur ajoute `conundrum` au deck depuis une page web
-- **THEN** la carte contient le lemme, la phrase d'origine complète et l'URL de la page
+#### Scenario: Card created from the popup
+- **WHEN** the user adds `conundrum` to the deck from a web page
+- **THEN** the card holds the lemma, the complete originating sentence and the page URL
 
-#### Scenario: Carte d'expression
-- **WHEN** l'utilisateur capture la sélection « compelling starting point » au raccourci clavier
-- **THEN** une carte d'expression est créée avec la phrase d'origine
+#### Scenario: Expression card
+- **WHEN** the user captures the selection "compelling starting point" with the keyboard shortcut
+- **THEN** an expression card is created with the originating sentence
 
-### Requirement: Planification de révision FSRS
-La révision SHALL être planifiée par FSRS dans le cœur : chaque carte porte son état (stabilité, difficulté, échéance) et les quatre réponses (`again`, `hard`, `good`, `easy`) SHALL mettre à jour l'état et l'échéance. Le nombre de cartes dues SHALL être calculable à tout instant.
+### Requirement: FSRS review scheduling
+Review SHALL be scheduled by FSRS in the core: each card carries its own state
+(stability, difficulty, due date), and the four answers (`again`, `hard`, `good`, `easy`)
+SHALL update that state and the due date. The number of due cards SHALL be computable at
+any moment.
 
-#### Scenario: Réponse « good » repousse l'échéance
-- **WHEN** une carte due est notée `good`
-- **THEN** son échéance devient strictement postérieure à maintenant et son état FSRS est mis à jour
+#### Scenario: A "good" answer pushes the due date out
+- **WHEN** a due card is graded `good`
+- **THEN** its due date becomes strictly later than now and its FSRS state is updated
 
-### Requirement: Passage en connu depuis la révision
-Marquer une carte « je connais » pendant la révision SHALL passer le lemme en statut `known` (provenance `srs`) et le retirer des cartes dues, sans supprimer la carte ni son historique.
+### Requirement: Moving to known from review
+Marking a card "I know this" during review SHALL move the lemma to the `known` status
+(provenance `srs`) and remove it from the due cards, without deleting the card or its
+history.
 
-#### Scenario: Mot appris
-- **WHEN** l'utilisateur répond « je connais » sur la carte `seldom`
-- **THEN** `seldom` passe en statut `known` (provenance `srs`) et la carte sort de la file de révision
+#### Scenario: Word learned
+- **WHEN** the user answers "I know this" on the `seldom` card
+- **THEN** `seldom` moves to the `known` status (provenance `srs`) and the card leaves the review queue
 
-### Requirement: Sauvegarde et restauration sans perte
-Le système SHALL exporter l'état complet (cartes avec tous leurs champs — lemme, forme vue, phrase, glose, source, statut, échéance, état FSRS —, statuts de mots, calibration, paramètres FSRS) dans un fichier de sauvegarde versionné, et SHALL restaurer ce fichier à l'identique. Aucun champ peuplé ne SHALL être omis de la sauvegarde ; une restauration sur état vierge SHALL reproduire l'état d'origine (aller-retour sans perte). Le schéma de carte SHALL rester intégralement sérialisable champ par champ, de sorte qu'un export au format Anki (différé à un change ultérieur) reste un simple sérialiseur.
+### Requirement: Lossless backup and restore
+The system SHALL export the complete state (cards with all their fields — lemma,
+encountered form, sentence, gloss, source, status, due date, FSRS state — word statuses,
+calibration, FSRS parameters) to a versioned backup file, and SHALL restore that file
+identically. No populated field SHALL be omitted from the backup; a restore onto a clean
+state SHALL reproduce the original state (a lossless round trip). The card schema SHALL
+stay entirely serialisable field by field, so that an Anki-format export (deferred to a
+later change) remains a plain serialiser.
 
-#### Scenario: Aller-retour de sauvegarde
-- **WHEN** l'utilisateur sauvegarde un état de 20 cartes et 300 statuts puis le restaure sur une installation vierge
-- **THEN** l'état restauré est identique à l'original — cartes, statuts, calibration et échéances de révision comprises
+#### Scenario: Backup round trip
+- **WHEN** the user backs up a state of 20 cards and 300 statuses, then restores it onto a fresh install
+- **THEN** the restored state is identical to the original — cards, statuses, calibration and review due dates included
 
-### Requirement: Révision présente au ras de la lecture
-La révision SHALL être accessible sans quitter le navigateur : le compteur de cartes dues SHALL être visible dans le popup de l'icône et le side panel, et une session de révision SHALL pouvoir être lancée depuis le side panel ou le panneau injecté. La réponse d'une carte SHALL être masquée jusqu'à une action explicite de révélation.
+### Requirement: Review present right next to the reading
+Review SHALL be reachable without leaving the browser: the due-card count SHALL be
+visible in the icon popup and in the side panel, and a review session SHALL be
+launchable from the side panel or the injected panel. A card's answer SHALL stay hidden
+until an explicit reveal action.
 
-#### Scenario: Micro-session depuis le side panel
-- **WHEN** l'utilisateur ouvre le side panel et lance « Réviser maintenant » avec 3 cartes dues
-- **THEN** les cartes défilent une par une, réponse masquée puis révélée, et le compteur de dues décroît
+#### Scenario: Micro-session from the side panel
+- **WHEN** the user opens the side panel and starts a review with 3 cards due (French UI copy: « Réviser maintenant »)
+- **THEN** the cards come one by one, answer hidden then revealed, and the due count goes down

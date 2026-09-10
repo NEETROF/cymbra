@@ -1,8 +1,8 @@
 # Tasks — add-lingua-extension-review
 
-## 1. Révision dans l'extension (spec lingua-browser-extension)
+## 1. Review inside the extension (spec lingua-browser-extension)
 
-- [ ] 1.1 Side panel (deck, session de révision FSRS, réponse masquée/révélée, compteur de dues) + drawer injecté replié partageant la même logique ; permission `sidePanel` ajoutée au manifest
-- [ ] 1.2 Storage versionné avec migrations + réinitialisation ; sauvegarde (téléchargement) et restauration (ré-import) depuis le side panel
-- [ ] 1.3 Page attributions (NOTICE du pack) + privacy note « rien ne quitte l'appareil »
-- [ ] 1.4 Vérification manuelle : load unpacked, parcours complet (calibration → lecture → +Deck → révision → export) sur 5 sites réels
+- [ ] 1.1 Side panel (deck, FSRS review session, answer hidden/revealed, due counter) + a collapsed injected drawer sharing the same logic; `sidePanel` permission added to the manifest
+- [ ] 1.2 Versioned storage with migrations + reset; backup (download) and restore (re-import) from the side panel
+- [ ] 1.3 Attributions page (the pack's NOTICE) + a privacy note stating "nothing leaves the device"
+- [ ] 1.4 Manual verification: load unpacked, full walkthrough (calibration → reading → +Deck → review → export) on 5 real sites

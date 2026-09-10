@@ -1,31 +1,65 @@
-# add-lingua-extension-reading — Cymbra Lingua : l'extension qui lit (Chromium)
+# add-lingua-extension-reading — Cymbra Lingua: the extension that reads (Chromium)
 
 ## Why
 
-Les changes précédents de la pile livrent le cerveau (analyse, knowledge model, decks/FSRS, pack EN→FR, cible WASM) — mais rien que l'utilisateur puisse ouvrir. Ce change livre la première surface utilisable : l'instrumentation de lecture dans le navigateur, **sur Chromium (Chrome + Edge, même build)** — le dogfooding quotidien du fondateur, sous Chrome sur macOS. Le principe produit n°1 s'incarne ici : jamais de silo — on lit le web **sur place**, surligné, avec un % honnête par lemme.
+The earlier changes in the stack ship the brain (analysis, knowledge model, decks/FSRS,
+the EN→FR pack, the WASM target) — but nothing a user can open. This change ships the
+first usable surface: reading instrumentation inside the browser, **on Chromium (Chrome
++ Edge, one build)** — the founder's daily dogfooding, under Chrome on macOS. Product
+principle #1 takes shape here: never a silo — you read the web **in place**, highlighted,
+with an honest per-lemma percentage.
 
-**Position dans la pile (12 changes) : 6ᵉ.** Prérequis directs : `add-lingua-decks-review` (cartes créées par « + Deck », compteur de dues), `add-lingua-data-pack` (gloses/fréquences hors-ligne), `add-lingua-wasm` (bindings d'analyse) — qui tirent eux-mêmes `add-lingua-analysis` et `add-lingua-knowledge-model`. Les variantes Firefox (`add-lingua-firefox`) et Safari/Apple (`add-lingua-apple`) arrivent plus loin dans la pile : ce change pose la couture (`AnalyzerPort`) qui les rendra possibles sans toucher au content script. Les surfaces de révision (side panel/drawer) sont le change suivant, `add-lingua-extension-review`.
+**Position in the stack (12 changes): 6th.** Direct prerequisites: `add-lingua-decks-review`
+(cards created by "+ Deck", the due counter), `add-lingua-data-pack` (offline glosses and
+frequencies), `add-lingua-wasm` (analysis bindings) — which in turn pull `add-lingua-analysis`
+and `add-lingua-knowledge-model`. The Firefox (`add-lingua-firefox`) and Safari/Apple
+(`add-lingua-apple`) variants come later in the stack: this change lays the seam
+(`AnalyzerPort`) that makes them possible without touching the content script. The review
+surfaces (side panel / drawer) are the next change, `add-lingua-extension-review`.
 
 ## What Changes
 
-- **Nouvelle extension navigateur MV3** (`apps/lingua-extension`), ciblant Chromium : surlignage des mots inconnus via CSS Custom Highlight API (zéro mutation du DOM), % de mots connus par page (badge + popup d'icône avec calibration par curseur), popup de mot au clic (forme du dictionnaire, glose, rareté, actions statuts), capture de sélection multi-mots au raccourci clavier avec phrase d'origine, création de cartes « + Deck ».
-- **`AnalyzerPort`** : le content script consomme l'analyse exclusivement par messages ; l'implémentation de ce change est le WASM instancié dans le content script.
-- **Posture de permissions minimale** (`activeTab` + `<all_urls>` optionnel), **aucune requête réseau**, tout l'état en `chrome.storage.local` sous schéma versionné.
-- **Charte Cymbra** : `tokens.css` mirrorant `CymbraColors`, surlignages dérivés de l'ambre/corail de la palette, lint « aucun hex hors tokens.css ».
-- Vocabulaire UI : le mot « lemme » n'apparaît **jamais** à l'écran (« forme du dictionnaire », « mots différents ») — lint des chaînes UI.
+- **A new MV3 browser extension** (`apps/lingua-extension`) targeting Chromium: unknown
+  words highlighted via the CSS Custom Highlight API (zero DOM mutation), a known-words
+  percentage per page (badge + icon popup with a calibration slider), a word popup on
+  click (dictionary form, gloss, rarity, status actions), multi-word selection capture on
+  a keyboard shortcut with the source sentence, and "+ Deck" card creation.
+- **`AnalyzerPort`**: the content script consumes analysis exclusively over messages; in
+  this change the implementation is the WASM module instantiated in the content script.
+- **A minimal permission posture** (`activeTab` + optional `<all_urls>`), **no network
+  requests at all**, and all state in `chrome.storage.local` under a versioned schema.
+- **Cymbra visual identity**: a `tokens.css` mirroring `CymbraColors`, highlight tints
+  derived from the palette's amber and coral, and a lint forbidding any hex outside
+  `tokens.css`.
+- UI vocabulary: the word "lemma" **never** appears on screen ("dictionary form",
+  "distinct words") — enforced by a lint over UI strings.
 
 ## Capabilities
 
 ### New Capabilities
-- `lingua-browser-extension` : l'expérience de **lecture** dans le navigateur — surlignage in-place, % par page, popup de mot, capture de sélection, calibration, identité visuelle Cymbra, posture de permissions, zéro réseau, état local versionné. Les requirements de révision (side panel/drawer) et la matrice multi-navigateurs sont ajoutés à cette capability par les changes suivants de la pile.
+- `lingua-browser-extension`: the **reading** experience in the browser — in-place
+  highlighting, per-page percentage, word popup, selection capture, calibration, Cymbra
+  visual identity, permission posture, zero network, versioned local state. The review
+  requirements (side panel / drawer) and the multi-browser matrix are added to this
+  capability by the later changes in the stack.
 
 ### Modified Capabilities
-_Aucune._
+_None._
 
 ## Impact
 
-- **Produits** : Lingua uniquement ; Cymbra ID / Music / Live / back-office intacts.
-- **Arborescence** : `apps/lingua-extension` (TS sans framework, wasm-pack, Yarn, vitest, build esbuild/vite) — nouvelle unité `apps/*`, ajoutée au filtre `ci-units` avec sa lane vitest/lint.
-- **CI** : lane vitest + lints (« lemme », hex hors tokens) sur `apps/lingua-extension` ; le build WASM et les tests de parité sont déjà couverts par `add-lingua-wasm`.
-- **Distribution** : load unpacked pour le dogfooding ; publication (Chrome Web Store + Microsoft Add-ons, même build) quand stable — recommandation héritée : unlisted dès que stable, pour roder la review. Les canaux tier 3 (forks Chromium, stores curés) restent non supportés.
-- **Hors périmètre** : side panel/drawer et export Anki dans l'extension (`add-lingua-extension-review`), variantes de manifest Firefox/Safari (`add-lingua-firefox`, `add-lingua-apple`), sync/compte (`add-lingua-backend`, `add-lingua-connected-clients`).
+- **Products**: Lingua only; Cymbra ID / Music / Live / back office untouched.
+- **Tree**: `apps/lingua-extension` (framework-free TS, wasm-pack, Yarn, vitest, an
+  esbuild/vite build) — a new `apps/*` unit, added to the `ci-units` filter with its own
+  vitest/lint lane.
+- **CI**: a vitest + lint lane (the "lemma" lint, the out-of-tokens hex lint) over
+  `apps/lingua-extension`; the WASM build and the parity tests are already covered by
+  `add-lingua-wasm`.
+- **Distribution**: load unpacked for dogfooding; publication (Chrome Web Store +
+  Microsoft Add-ons, same build) once stable — inherited recommendation: unlisted as soon
+  as it is stable, to break in the store review. Tier-3 channels (Chromium forks, curated
+  stores) stay unsupported.
+- **Out of scope**: side panel / drawer and Anki export inside the extension
+  (`add-lingua-extension-review`), the Firefox/Safari manifest variants
+  (`add-lingua-firefox`, `add-lingua-apple`), sync and accounts (`add-lingua-backend`,
+  `add-lingua-connected-clients`).

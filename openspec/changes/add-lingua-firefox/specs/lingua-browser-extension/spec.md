@@ -1,14 +1,14 @@
-# lingua-browser-extension — variante Firefox (delta)
+# lingua-browser-extension — Firefox variant (delta)
 
 ## ADDED Requirements
 
-### Requirement: Variante Firefox
-L'extension SHALL être livrée sur Firefox (desktop et Android) comme variante de build construite depuis la même source que la variante chromium : event page (`background.scripts` déclaré à côté du `service_worker`), analyse WASM chargée dans l'event page et consommée par le content script via l'`AnalyzerPort`, host permissions optionnelles demandées à l'install, panneau via `sidebar_action` (la même page que le side panel Chromium), et publication AMO desktop + Android avec le même zip.
+### Requirement: Firefox variant
+The extension SHALL ship on Firefox (desktop and Android) as a build variant produced from the same source as the chromium variant: an event page (`background.scripts` declared alongside `service_worker`), WASM analysis loaded in the event page and consumed by the content script through the `AnalyzerPort`, optional host permissions requested at install, the panel via `sidebar_action` (the same page as the Chromium side panel), and AMO publication for desktop and Android from the same zip.
 
-#### Scenario: Un build, deux artefacts
-- **WHEN** le build de release s'exécute
-- **THEN** il produit les variantes chromium et firefox depuis la même source, ne différant que par le manifest et l'implémentation de l'`AnalyzerPort` (la variante safari rejoindra ce build avec `add-lingua-apple`)
+#### Scenario: One build, two artefacts
+- **WHEN** the release build runs
+- **THEN** it produces the chromium and firefox variants from the same source, differing only in the manifest and the `AnalyzerPort` implementation (the safari variant joins this build with `add-lingua-apple`)
 
-#### Scenario: Permissions Firefox à l'installation
-- **WHEN** l'utilisateur installe l'extension sur Firefox
-- **THEN** l'extension fonctionne en mode « surligner cette page » et propose le grant global via le prompt de permissions optionnelles
+#### Scenario: Firefox permissions at install
+- **WHEN** the user installs the extension on Firefox
+- **THEN** the extension works in its per-page mode (« surligner cette page » — the UI ships in French) and offers the global grant through the optional-permissions prompt
