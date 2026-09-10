@@ -25,6 +25,6 @@ unicode-segmentation = { workspace = true }
 fst = { workspace = true }
 whichlang = { workspace = true }
 serde = { workspace = true }
-
-[dev-dependencies]
+# Backup/restore serialises the whole state to JSON at runtime; serde_json is
+# WASM-clean (no getrandom / no net), unlike the FSRS optimiser crate.
 serde_json = { workspace = true }
