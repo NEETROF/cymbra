@@ -12,8 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Decks — provenance-carrying cards, FSRS review scheduling and lossless
-//! backup/restore.
+//! Decks, cards, FSRS review and whole-product backup/restore (spec
+//! `lingua-decks-review`).
 //!
-//! Filled by the `add-lingua-decks-review` change (spec `lingua-decks-review`);
-//! this slot only reserves the module layout.
+//! A [`card::Card`] carries provenance and an FSRS review state; a
+//! [`review::Deck`] holds one card per `(studied language, lemma)`, and a
+//! [`review::ReviewSession`] walks the due cards, grading them
+//! ([`fsrs`]) or marking them known (writing `Known(Srs)` into the knowledge
+//! model). [`backup::LinguaState`] is the versioned root the surfaces persist
+//! and back up losslessly. Pure, clock-injected, WASM-identical.
+
+pub mod backup;
+pub mod card;
+pub mod fsrs;
+pub mod review;
+
+pub use backup::{BACKUP_SCHEMA_VERSION, LinguaState, RestoreError};
+pub use card::{Card, EncounterSource, Media, MediaSource, Provenance, SyncPolicy};
+pub use fsrs::{FsrsParams, Memory, Rating, ReviewState};
+pub use review::{Deck, ReviewSession};

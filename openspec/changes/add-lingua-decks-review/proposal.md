@@ -27,7 +27,7 @@ review writes into the knowledge model).
   agent session identifier, timestamp), gloss, an optional media slot (`media`, with
   `source: capture|stock|generated` and `sync_policy` — not populated in this change
   but present in the schema). Multi-word expressions are cards in their own right.
-- **FSRS integration** (the `fsrs` crate, version pinned): `again/hard/good/easy`
+- **FSRS-5 scheduling** reimplemented in the core (no new deps; the `fsrs` optimiser crate is out of scope — see design D2): `again/hard/good/easy`
   grading, due dates, a due-card count computable at any moment; parameters stored on
   the state.
 - **"I know this" during review** → `known` status with provenance `srs` in the
