@@ -1,7 +1,7 @@
 {
   "_comment": [
     "Declarative description of the Cymbra Discord server, applied by provision.sh.",
-    "Product sections use a channel-name prefix (music-*, id-*, live-*) so mentions and",
+    "Product sections use a channel-name prefix (music-*, id-*, live-*, lingua-*) so mentions and",
     "search stay unambiguous once a second product ships. A category with",
     "\"enabled\": false is declared here but NOT created — flip it the day the product",
     "has something to show, and re-run the script."
@@ -129,6 +129,15 @@
         { "name": "live-announcements", "type": "text", "topic": "Cymbra Live news.", "readonly": true },
         { "name": "live-help",          "type": "text", "topic": "Cymbra Live questions." },
         { "name": "live-stats",         "type": "text", "topic": "Cymbra Live report. Bot only.", "readonly": true }
+      ]
+    },
+    {
+      "name": "CYMBRA LINGUA",
+      "enabled": false,
+      "channels": [
+        { "name": "lingua-announcements", "type": "text", "topic": "Cymbra Lingua news.", "readonly": true },
+        { "name": "lingua-help",          "type": "text", "topic": "Cymbra Lingua questions. Say which browser you use." },
+        { "name": "lingua-stats",         "type": "text", "topic": "Cymbra Lingua report. Bot only.", "readonly": true }
       ]
     },
     {

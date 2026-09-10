@@ -6,11 +6,11 @@
 - [ ] 1.4 Implement pure `(product, category) → channel` routing over a configuration map with product-namespaced categories (`music.*`, `id.*`, later `live.*`); an unmapped pair resolves to "no channel" (no-op), never to a default channel, so one product can never post in another's section
 - [ ] 1.5 Implement pure message rendering per event kind, locale-parameterised (D9), with a rendering test per kind asserting no id/email leaks into the body
 - [ ] 1.6 Implement the pure throttle + aggregate-minimum arithmetic (per-player window, minimum player count below which a figure is omitted) with unit tests on the boundaries
-- [ ] 1.7 Unit-test the pure core to the coverage bar and add the HTTP adapter paths to the `--ignore-filename-regex` list used by `cargo llvm-cov` (CI + CLAUDE.md snippet)
+- [ ] 1.7 Unit-test the pure core to the coverage bar and add the HTTP adapter paths to `.github/coverage-ignore-regex.txt` — the **single** source read by both the `rust` 80% gate and `sonar` (it used to be two inline copies and they had drifted); mirror the addition in the CLAUDE.md coverage paragraph
 
 ## 2. Consent + gate (D6)
 
-- [ ] 2.1 Write `backend/user/migrations/0008_discord_visibility.sql`: additive `NOT NULL DEFAULT false` consent column on the user profile (renumber if `add-push-notifications` lands first)
+- [ ] 2.1 Write `backend/user/migrations/0010_discord_visibility.sql`: additive `NOT NULL DEFAULT false` consent column on the user profile (`0008` and `0009` are taken on `main` by push notifications and the role vocabulary; renumber again if another branch lands first)
 - [ ] 2.2 Add the single fail-closed `UserPort` method returning the subset of ids **nameable on Discord** (consent ON **and** publicly listable **and** age-eligible, UTC with the existing one-day margin); implement it in the Postgres repo
 - [ ] 2.3 Unit-test the gate exhaustively: consent-only, listable-only, both, unknown id, private profile, not-yet-eligible, eligible-today boundary — each asserting exclusion by default
 - [ ] 2.4 Expose read/write of the consent on the account RPC surface (proto + service + tests); writing it MUST NOT change profile visibility, and vice versa
@@ -53,7 +53,7 @@
 - [ ] 6.5 Drive the role from account state (grant on qualifying, revoke on losing it) via a job, and test the idempotent repeat
 - [ ] 6.6 Apply the D6 gate to any player-data answer a command returns, and return the same neutral "not available" answer for private, not-eligible, and unknown players
 - [ ] 6.7 Document all Discord secrets in `backend/.env.example` (per-channel webhook URLs, bot token, application public key) and assert missing config disables rather than degrades
-- [ ] 6.8 Define the `AccessCodeIssuer` port consumed by `/beta` (mint one single-use code for the open campaign; grant directly for a known account) with a `NoCampaign` default impl answering "beta not open"; the real impl comes from `add-premium-subscription` (`music-access-codes`) — `#[automock]` per the `rust-testing` convention
+- [ ] 6.8 Wire `/beta` to the **existing** `AccessCodeIssuer` port (`backend/plans/src/ports.rs`, landed with `add-premium-subscription`, already `#[automock]`-able under the `mock` feature): its `mint(campaign_key, issued_by, issued_to_hint)` covers the code path and returns `Err` when the campaign refuses enrolment, which the handler renders as "beta not open" — no `NoCampaign` impl to write. The **direct-grant** path (D10-linked member) is NOT on that port: `enrol` is a `MembershipRepo` method, so declare a second narrow consumer-side port for it rather than taking the repo
 - [ ] 6.9 Add `discord.beta_claims (campaign, discord_user_id, code_ref, claimed_at)` to `backend/discord/migrations/` (PK `(campaign, discord_user_id)`) so a repeated `/beta` is idempotent and the cohort is queryable
 - [ ] 6.10 Implement `/beta` (D11): channel + optional role check from the interaction payload, claim lookup → reuse, else mint via the port and insert the claim in one transaction, ephemeral reply with `cymbra.app/redeem?code=…`, or direct grant + confirmation when the member is linked (D10); register the command with `default_member_permissions` so it is invisible outside the beta channel
 - [ ] 6.11 Test `/beta`: first claim mints once and records the claim; second claim mints nothing and repeats the link; wrong channel / missing role refuse without side effect; closed campaign answers "beta not open"; linked account is granted directly; the reply is always ephemeral; and a **direct-grant** path never bypasses the campaign end
