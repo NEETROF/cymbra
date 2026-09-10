@@ -18,7 +18,7 @@
   "dependencies": {
     "@astrojs/vue": "^7.0.2",
     "@cymbra/web-auth": "portal:../../packages/web-auth",
-    "astro": "^7.0.6",
+    "astro": "^7.2.8",
     "vue": "^3.5.41"
   },
   "packageManager": "yarn@4.10.3",
