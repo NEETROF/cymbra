@@ -12,11 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Data packs — the versioned pair-keyed (studied → native) container format
-//! and its reader.
+//! Data packs — the versioned pair-keyed (studied → native) container and its
+//! reader (spec `lingua-data-packs`).
 //!
-//! Filled by the `add-lingua-data-pack` change (spec `lingua-data-packs`);
-//! this slot only reserves the module layout. The analysis pipeline already
-//! consumes pack *contents* (the forms→lemmas FST) through
-//! [`crate::analysis::lexicon`], which reads from plain byte slices so the
-//! container can stay `include_bytes!`-compatible.
+//! A `pack.lingua` bundles, for one language pair: metadata (the pair, the
+//! `pack_version`, the compatible `analyzer_version`, licences), a
+//! form→lemma FST + its lemma pool, a frequency table (ranks keyed by lemma
+//! id), zstd-compressed French glosses (offset-indexed by lemma id), and a
+//! NOTICE. This module is the **reader** only: it decodes the container from
+//! an `include_bytes!`-compatible byte slice, refuses a pack built for an
+//! incompatible analyser generation, and exposes the pack's contents to the
+//! analysis and knowledge layers. Gloss decompression uses the pure-Rust
+//! `ruzstd`, so the reader stays WASM-clean. The offline *builder* lives in
+//! the native `lingua-pack` crate; [`format::write_container`] is the shared
+//! low-level writer both it and the tests use.
+
+pub mod format;
+pub mod meta;
+pub mod pack;
+
+pub use format::{FormatError, Section, read_container, write_container};
+pub use meta::PackMeta;
+pub use pack::{Pack, PackError};

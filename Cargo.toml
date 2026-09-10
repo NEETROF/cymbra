@@ -112,6 +112,11 @@ sysinfo = "0.32"
 unicode-segmentation = "1"
 fst = "0.4"
 whichlang = "0.1"
+# Pure-Rust zstd DECODER for reading pack glosses in the WASM core (no C, no
+# getrandom). The offline pack builder compresses with the C-backed `zstd`
+# crate, which is native-only and never reaches WASM.
+ruzstd = "0.9"
+zstd = "0.13"
 
 # testing — default test-double is mockall generated mocks (#[automock]).
 # A crate opts in under [dev-dependencies] with `mockall = { workspace = true }`.
