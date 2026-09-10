@@ -106,6 +106,13 @@ opentelemetry-otlp = { version = "0.32", features = ["grpc-tonic"] }
 opentelemetry-appender-tracing = "0.32"
 tokio-metrics = "0.3"
 sysinfo = "0.32"
+# Lingua analysis core (change: add-lingua-analysis) — pure Rust, no external
+# data, no C toolchain: every one of these must stay WASM-compatible (the
+# extension target arrives with add-lingua-wasm).
+unicode-segmentation = "1"
+fst = "0.4"
+whichlang = "0.1"
+
 # testing — default test-double is mockall generated mocks (#[automock]).
 # A crate opts in under [dev-dependencies] with `mockall = { workspace = true }`.
 # See the `rust-testing` skill.

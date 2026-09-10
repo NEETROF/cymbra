@@ -16,6 +16,10 @@ context: |
     - `site-*`     site public cymbra.app (apps/site, Astro) : vitrine, pages
                    légales publiées, connexion web, rachat de code, checkout et
                    gestion d'abonnement web
+    - `lingua-*`   Cymbra Lingua : apprentissage des langues — crates/lingua-core,
+                   extension navigateur (apps/lingua-extension), app conteneur
+                   Apple (apps/lingua-apple), plugin agent (apps/lingua-agent),
+                   backend/lingua
 
   Un produit CONSOMME le socle, il ne le redéclare jamais. Une capability
   appartient à un seul domaine ; si elle en sert deux, c'est du `platform-*`.
@@ -40,7 +44,7 @@ context: |
 # Per-artifact rules
 rules:
   specs:
-    - Préfixer toute NOUVELLE capability par id-/music-/live-/platform-/admin-/site-.
+    - Préfixer toute NOUVELLE capability par id-/music-/live-/platform-/admin-/site-/lingua-.
     - Avant de créer une capability, vérifier via `openspec list --specs` qu'une
       capability existante (surtout `id-*` / `platform-*` et leurs équivalents
       legacy) ne la couvre pas déjà — étendre plutôt que dupliquer.
