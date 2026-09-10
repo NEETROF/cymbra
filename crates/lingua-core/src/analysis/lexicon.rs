@@ -109,6 +109,25 @@ impl<D: AsRef<[u8]>> FstLexicon<D> {
     }
 }
 
+impl<D: AsRef<[u8]>> FstLexicon<D> {
+    /// The lemma id a form maps to (the index into the lemma pool). A lemma
+    /// resolves to its own id. Used by the data pack to key frequency ranks
+    /// and glosses by lemma id.
+    pub fn id_of(&self, form_lower: &str) -> Option<u64> {
+        self.forms.get(form_lower.as_bytes())
+    }
+
+    /// The lemma at a given id, if in range.
+    pub fn lemma_at(&self, id: u64) -> Option<&str> {
+        self.lemma_pool.get(id as usize).map(String::as_str)
+    }
+
+    /// Number of lemmas in the pool.
+    pub fn lemma_count(&self) -> usize {
+        self.lemma_pool.len()
+    }
+}
+
 impl<D: AsRef<[u8]>> Lexicon for FstLexicon<D> {
     fn lemma_of(&self, form_lower: &str) -> Option<&str> {
         self.forms

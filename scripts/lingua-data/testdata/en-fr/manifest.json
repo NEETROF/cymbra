@@ -1,0 +1,18 @@
+{
+  "meta": {
+    "studied": "en",
+    "native": "fr",
+    "pack_version": "0.0.0-testdata",
+    "analyzer_version": "1.0.0",
+    "licences": [
+      "AGID (permissive, commercial use allowed)",
+      "wordfreq (CC BY-SA 4.0)",
+      "kaikki / frwiktionary (CC BY-SA + GFDL)"
+    ]
+  },
+  "sources": [
+    { "name": "AGID", "licence": "Permissive" },
+    { "name": "wordfreq", "licence": "CcBySa" },
+    { "name": "kaikki", "licence": "CcBySa" }
+  ]
+}

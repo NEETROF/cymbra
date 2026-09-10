@@ -1,0 +1,6 @@
+# Raw downloaded sources and built packs are never committed (spec:
+# add-lingua-data-pack). Only testdata/ (a tiny hand-made fixture) and the
+# scripts are tracked.
+work/
+dist/
+*.lingua

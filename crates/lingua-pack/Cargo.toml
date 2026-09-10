@@ -13,25 +13,18 @@
 # limitations under the License.
 
 [package]
-name = "lingua-core"
+name = "lingua-pack"
 version = "0.1.0"
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
-description = "Cymbra Lingua core: deterministic text analysis (tokenisation, lemmatisation, language gating, known-token percentage)"
+description = "Cymbra Lingua offline pack builder (native-only): assembles a versioned pack.lingua from AGID/wordfreq/kaikki-derived tables"
 
 [dependencies]
-unicode-segmentation = { workspace = true }
+lingua-core = { path = "../lingua-core" }
 fst = { workspace = true }
-whichlang = { workspace = true }
 serde = { workspace = true }
-# Backup/restore serialises the whole state to JSON at runtime; serde_json is
-# WASM-clean (no getrandom / no net), unlike the FSRS optimiser crate.
 serde_json = { workspace = true }
-# Pure-Rust zstd decoder for reading a pack's compressed glosses; WASM-clean.
-ruzstd = { workspace = true }
-
-[dev-dependencies]
-# zstd (C-backed) builds fixture packs in tests only; as a dev-dependency it is
-# never compiled into the WASM build.
+# C-backed zstd for high-ratio gloss compression. Native-only: this crate is
+# never targeted to WASM (the reader in lingua-core uses pure-Rust ruzstd).
 zstd = { workspace = true }
