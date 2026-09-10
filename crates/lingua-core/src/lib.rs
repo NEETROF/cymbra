@@ -30,5 +30,6 @@
 
 pub mod analysis;
 pub mod decks;
+pub mod engine;
 pub mod knowledge;
 pub mod packs;
