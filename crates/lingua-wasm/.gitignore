@@ -1,0 +1,3 @@
+# wasm-pack build output (the `--target web` bundle). Ephemeral: CI rebuilds it,
+# and the extension consumes it from its own build step — never committed here.
+/pkg/

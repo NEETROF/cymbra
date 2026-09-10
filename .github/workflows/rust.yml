@@ -53,6 +53,8 @@ jobs:
           # fails this build.
           targets: wasm32-unknown-unknown
       - uses: taiki-e/install-action@cargo-llvm-cov
+      # wasm-pack drives the lingua-wasm build + the native/WASM parity test below.
+      - uses: taiki-e/install-action@wasm-pack
       - uses: Swatinem/rust-cache@v2
       - name: Module boundaries (no impl->impl deps)
         run: python3 backend/scripts/check_boundaries.py
@@ -87,3 +89,12 @@ jobs:
         run: |
           cargo build -p cymbra-musicxml-wasm --target wasm32-unknown-unknown
           cargo build -p cymbra-audio-wasm --target wasm32-unknown-unknown
+      # Lingua ships its analysis core to the browser extension as a wasm-pack
+      # bundle. Build the actual `--target web` deliverable, then run the parity
+      # test under Node: it asserts the wasm engine's JSON equals the same golden
+      # the native `cargo test` run above checks, so byte-identical output across
+      # the two targets — the determinism contract — is proven, not assumed.
+      - name: Build + parity-test lingua wasm (wasm-pack)
+        run: |
+          wasm-pack build crates/lingua-wasm --target web
+          wasm-pack test --node crates/lingua-wasm
