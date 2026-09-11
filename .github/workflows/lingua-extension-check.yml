@@ -1,0 +1,71 @@
+name: lingua-extension-check
+
+# Gate for apps/lingua-extension (framework-free TS MV3 browser extension, Yarn Berry).
+# Builds the lingua wasm bindings from Rust, then lints, typechecks, runs the Vitest
+# suite (jsdom), and verifies the extension bundles. The wasm glue is gitignored like
+# the back office's, so CI produces it with wasm-pack.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lingua-extension-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      ext: ${{ steps.f.outputs.ext }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dorny/paths-filter@v4
+        id: f
+        with:
+          filters: |
+            ext:
+              - 'apps/lingua-extension/**'
+              - 'crates/lingua-wasm/**'
+              - 'crates/lingua-core/**'
+              - '.github/workflows/lingua-extension-check.yml'
+
+  check:
+    needs: changes
+    if: ${{ github.event_name != 'pull_request' || needs.changes.outputs.ext == 'true' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/lingua-extension
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: taiki-e/install-action@wasm-pack
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: Enable Corepack (Yarn Berry)
+        run: corepack enable
+      - name: Install dependencies
+        run: yarn install --immutable
+      - name: Lint (ESLint)
+        run: yarn lint
+      - name: Format check (Prettier)
+        run: yarn format:check
+      - name: Typecheck
+        run: yarn typecheck
+      - name: Unit tests (Vitest)
+        run: yarn test
+      # Full build: wasm-pack bindings + testdata pack + esbuild bundle. Proves the
+      # loadable extension assembles, not just that the sources typecheck.
+      - name: Build extension
+        run: |
+          yarn gen:wasm
+          yarn gen:pack
+          yarn build

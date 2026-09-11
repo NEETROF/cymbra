@@ -1,0 +1,19 @@
+# Dependencies (Yarn Berry, node-modules linker)
+node_modules/
+.yarn/*
+!.yarn/patches
+!.yarn/releases
+!.yarn/plugins
+!.yarn/sdks
+.pnp.*
+
+# Build output
+dist/
+coverage/
+
+# Generated wasm bindings (produced by `yarn gen:wasm` from crates/lingua-wasm)
+src/wasm/pkg/
+
+# Shipped/dogfooding data pack (built by `yarn gen:pack`; real packs are never committed).
+# The tiny testdata pack under test/fixtures/ IS committed as a vitest fixture.
+assets/pack.lingua
