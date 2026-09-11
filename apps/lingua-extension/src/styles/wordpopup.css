@@ -27,6 +27,22 @@
   padding-right: 20px; /* clear the ✕ close button */
 }
 
+/* The floating "+ Deck" button next to a multi-word mouse selection. */
+.selbtn {
+  position: fixed;
+  z-index: 2147483647;
+  cursor: pointer;
+  padding: 6px 12px;
+  border: 1px solid var(--cymbra-lingua-accent-strong);
+  border-radius: 10px;
+  background: var(--cymbra-lingua-accent-strong);
+  color: var(--cymbra-lingua-accent-ink);
+  font-family: var(--cymbra-lingua-font);
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: var(--cymbra-lingua-shadow);
+}
+
 .close {
   position: absolute;
   top: 6px;

@@ -6,7 +6,8 @@ import { Drawer } from "./reading/drawer.ts";
 import { clear as clearHighlights, injectPageStyles, render } from "./reading/highlight.ts";
 import { ReadingObservers } from "./reading/observer.ts";
 import { findTokenAt, type ResolvedToken, resolveTokens, type ScanStats, statsFromAnalysis } from "./reading/scan.ts";
-import { captureSelection, sentenceAround } from "./reading/selection.ts";
+import { captureSelection, MAX_SELECTION_LENGTH, sentenceAround } from "./reading/selection.ts";
+import { SelectionButton } from "./reading/selectionbutton.ts";
 import { type Gesture, WordPopup } from "./reading/wordpopup.ts";
 import { type AsyncStorageArea, hydrateEngine, ROOT_KEY, saveBackup } from "./state/storage.ts";
 import drawerCss from "./styles/drawer.css";
@@ -67,6 +68,7 @@ class ReadingSession {
   private readonly popup: WordPopup;
   private readonly drawer: Drawer;
   private readonly observers: ReadingObservers;
+  private readonly selButton: SelectionButton;
 
   // The port is resolved before construction (`resolveContentPort`) so a CSP-blocked
   // page can hand us the messaging port instead of the in-content WASM engine.
@@ -79,6 +81,7 @@ class ReadingSession {
       onChange: () => this.persist(),
     });
     this.observers = new ReadingObservers({ onRescan: (containers) => void this.refresh(containers) });
+    this.selButton = new SelectionButton(`${tokensCss}\n${popupCss}`, () => this.onSelectionPick());
   }
 
   async start(): Promise<void> {
@@ -90,6 +93,11 @@ class ReadingSession {
     document.addEventListener("click", (e) => this.onClick(e), true);
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && this.popup.visible()) this.popup.hide();
+    });
+    // A multi-word mouse selection offers a floating "+ Deck" button (Alt+L still works).
+    document.addEventListener("mouseup", (e) => this.onMouseUp(e));
+    document.addEventListener("mousedown", (e) => {
+      if (!this.selButton.contains(e.target)) this.selButton.hide();
     });
     chrome.storage.onChanged.addListener((changes, areaName) => {
       const root = changes[ROOT_KEY];
@@ -176,6 +184,28 @@ class ReadingSession {
     e.stopPropagation();
   }
 
+  /** Offer the floating "+ Deck" button when the mouse selects a multi-word phrase. */
+  private onMouseUp(e: MouseEvent): void {
+    if (this.selButton.contains(e.target) || this.popup.contains(e.target)) return;
+    const sel = window.getSelection();
+    const text = sel ? String(sel).trim().replace(/\s+/g, " ") : "";
+    if (sel && !sel.isCollapsed && text.includes(" ") && text.length <= MAX_SELECTION_LENGTH) {
+      const range = sel.getRangeAt(0);
+      const box = typeof range.getBoundingClientRect === "function" ? range.getBoundingClientRect() : null;
+      if (box) {
+        this.selButton.show({ left: box.left, bottom: box.bottom });
+        return;
+      }
+    }
+    this.selButton.hide();
+  }
+
+  /** The floating button was clicked: capture the live selection as an expression card. */
+  private onSelectionPick(): void {
+    this.selButton.hide();
+    void this.onCaptureSelection();
+  }
+
   private async onCaptureSelection(): Promise<void> {
     const cap = captureSelection();
     if (!cap) return;
@@ -185,7 +215,7 @@ class ReadingSession {
       headword: cap.text,
       surface: cap.text,
       gloss,
-      rarity: isPhrase ? "Expression — la phrase part avec la carte." : "Sélection.",
+      rarity: isPhrase ? "Expression — la carte gardera sa phrase d’origine." : "Sélection.",
       sentence: cap.sentence,
       rect: cap.rect,
       expression: isPhrase,
