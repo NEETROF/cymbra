@@ -209,6 +209,30 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
       case "account:signOut":
         session.signOut().then(() => sendResponse({ ok: true, state: session.state() }));
         return true;
+      case "stats:get": {
+        // Consolidated stats for the stats screen (summed across the account's devices).
+        const range = message as { fromDay?: number; toDay?: number };
+        if (!session.state().signedIn) {
+          sendResponse({ ok: false });
+          return false;
+        }
+        api()
+          .stats.getStats({ fromDay: range.fromDay ?? 0, toDay: range.toDay ?? 0, language: "" })
+          .then(
+            (res) =>
+              sendResponse({
+                ok: true,
+                rows: res.stats.map((s) => ({
+                  day: s.day,
+                  exposures: s.exposures,
+                  wordsLearned: s.wordsLearned,
+                  reviews: s.reviewsDone,
+                })),
+              }),
+            () => sendResponse({ ok: false }),
+          );
+        return true;
+      }
       default:
         return undefined;
     }

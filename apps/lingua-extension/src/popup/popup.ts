@@ -173,6 +173,11 @@ async function main(): Promise<void> {
     renderAccount(res?.state ?? { signedIn: false });
   });
 
+  $("open-stats").addEventListener("click", () => {
+    void chrome.tabs.create({ url: chrome.runtime.getURL("stats.html") });
+    window.close();
+  });
+
   await applyEnabled(await loadEnabled(storageArea));
   renderAccount((await sendRuntime({ type: "account:state" })) as AccountState | null);
 }

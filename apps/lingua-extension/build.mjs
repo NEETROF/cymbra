@@ -87,6 +87,8 @@ const staticCopies = [
   ["src/popup/popup.css", "popup.css"],
   ["src/sidepanel/sidepanel.html", "sidepanel.html"],
   ["src/sidepanel/sidepanel.css", "sidepanel.css"],
+  ["src/stats/stats.html", "stats.html"],
+  ["src/stats/stats.css", "stats.css"],
   ["src/styles/tokens.css", "tokens.css"],
   ["src/styles/review.css", "review.css"],
   ["src/wasm/pkg/lingua_wasm.js", "wasm/lingua_wasm.js"],
@@ -124,10 +126,14 @@ for (const target of targets) {
     format: target === "firefox" ? "iife" : "esm",
   });
 
-  // Popup + side panel → ES modules (loaded as <script type="module">).
+  // Popup + side panel + stats → ES modules (loaded as <script type="module">).
   await build({
     ...common,
-    entryPoints: { popup: join(root, "src/popup/popup.ts"), sidepanel: join(root, "src/sidepanel/sidepanel.ts") },
+    entryPoints: {
+      popup: join(root, "src/popup/popup.ts"),
+      sidepanel: join(root, "src/sidepanel/sidepanel.ts"),
+      stats: join(root, "src/stats/stats.ts"),
+    },
     outdir: dist,
     format: "esm",
   });

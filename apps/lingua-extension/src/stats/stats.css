@@ -1,0 +1,104 @@
+/* Stats screen (a surface the extension owns → full Cymbra identity). Colours come only
+   from tokens.css; no colour literal here. */
+body {
+  margin: 0;
+  background: var(--cymbra-lingua-bg);
+  color: var(--cymbra-lingua-text);
+  font-family: var(--cymbra-lingua-font);
+  font-size: 14px;
+}
+
+main {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 28px 20px 40px;
+}
+
+h1 {
+  margin: 0 0 18px;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.scope {
+  color: var(--cymbra-lingua-muted);
+  font-size: 13px;
+}
+
+.ranges {
+  display: flex;
+  gap: 4px;
+}
+
+.ranges button {
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--cymbra-lingua-border-2);
+  background: var(--cymbra-lingua-panel);
+  color: var(--cymbra-lingua-muted);
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.ranges button:hover {
+  background: var(--cymbra-lingua-panel-3);
+  color: var(--cymbra-lingua-text);
+}
+
+.ranges button.active {
+  background: var(--cymbra-lingua-accent-strong);
+  border-color: var(--cymbra-lingua-accent-strong);
+  color: var(--cymbra-lingua-accent-ink);
+}
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.card {
+  padding: 16px 18px;
+  border-radius: var(--cymbra-lingua-radius-lg);
+  background: var(--cymbra-lingua-panel);
+  border: 1px solid var(--cymbra-lingua-border);
+}
+
+.metric {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.mlabel {
+  color: var(--cymbra-lingua-muted);
+  font-size: 13px;
+}
+
+.mtotal {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--cymbra-lingua-text);
+}
+
+.chart {
+  display: block;
+  line-height: 0;
+}
+
+.note {
+  margin-top: 22px;
+  color: var(--cymbra-lingua-faint);
+  font-size: 12px;
+}
