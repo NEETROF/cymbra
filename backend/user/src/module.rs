@@ -699,18 +699,19 @@ mod tests {
         assert!(m.list_role_grants(&t).await.unwrap().is_empty());
     }
 
-    /// The database constrains the same vocabulary the Rust side validates
-    /// (migration 0009). These are two independent writers of `user_roles` — the port
-    /// and `backend/scripts/seed_admin.sh` — so the two lists drifting apart would let
-    /// one accept what the other rejects. Reads the migration rather than restating
-    /// it, so adding a scope in only one place fails here.
+    /// The database constrains the same vocabulary the Rust side validates (the latest
+    /// vocabulary migration — 0010, which restated the set to add `lingua`). These are
+    /// two independent writers of `user_roles` — the port and
+    /// `backend/scripts/seed_admin.sh` — so the two lists drifting apart would let one
+    /// accept what the other rejects. Reads the migration rather than restating it, so
+    /// adding a scope in only one place fails here.
     #[test]
     fn the_migration_constrains_exactly_the_vocabulary_rust_validates() {
         let sql = std::fs::read_to_string(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/migrations/0009_role_vocabulary.sql"
+            "/migrations/0010_lingua_scope.sql"
         ))
-        .expect("read migration 0009");
+        .expect("read migration 0010");
 
         let seed = std::fs::read_to_string(concat!(
             env!("CARGO_MANIFEST_DIR"),
@@ -774,11 +775,11 @@ mod tests {
 
         assert_eq!(
             sql_scopes, rust_scopes,
-            "migration 0009 and SCOPES disagree — adding a product scope means both"
+            "migration 0010 and SCOPES disagree — adding a product scope means both"
         );
         assert_eq!(
             sql_roles, rust_roles,
-            "migration 0009 and ROLES disagree — adding a role means both"
+            "migration 0010 and ROLES disagree — adding a role means both"
         );
     }
 
@@ -801,9 +802,11 @@ mod tests {
             }
         }
 
-        // The vocabulary is still the boundary — that part was never the lock.
+        // The vocabulary is still the boundary — that part was never the lock. `lingua`
+        // is a recognised scope since add-lingua-back-office, so an unknown scope stands
+        // in for the rejection.
         assert!(matches!(
-            m.grant_role(&admin, &t, "lingua", "admin").await,
+            m.grant_role(&admin, &t, "chess", "admin").await,
             Err(AppError::InvalidArgument(_))
         ));
     }

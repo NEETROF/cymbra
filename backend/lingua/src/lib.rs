@@ -32,6 +32,14 @@ pub mod stats;
 pub mod stats_core;
 pub mod stats_grpc;
 
+// The back office's ops console (change: add-lingua-back-office): aggregates + the
+// read-only pack registry, gated by `admin` in the `lingua` scope.
+pub mod admin;
+pub mod admin_core;
+pub mod admin_grpc;
+pub mod pack_registry;
+pub mod pg_admin;
+
 pub use deck::{Card, DeckModule, DeckRepo};
 pub use deck_grpc::DeckGrpc;
 pub use known_words::{KnownWordsModule, KnownWordsRepo, Status, StatusChange};
@@ -41,6 +49,10 @@ pub use pg_known_words::PgKnownWordsRepo;
 pub use pg_stats::PgStatsRepo;
 pub use stats::{DailyStat, StatsModule, StatsRepo};
 pub use stats_grpc::StatsGrpc;
+
+pub use admin::{LinguaAdminModule, LinguaAdminRepo};
+pub use admin_grpc::LinguaAdminGrpc;
+pub use pg_admin::PgLinguaAdminRepo;
 
 /// The generated `cymbra.lingua.v1` server stubs + messages.
 #[allow(clippy::result_large_err)]

@@ -751,7 +751,10 @@ async fn main() -> anyhow::Result<()> {
     // --- lingua module (Cymbra Lingua sync: statuses, cards, daily stats; change:
     // add-lingua-backend). Owns the `lingua` schema via `lingua_svc`. Inert without
     // CYMBRA_LINGUA_DATABASE_URL. Identity comes from the token, so no UserPort here.
-    let (known_words_svc, deck_svc, stats_svc) = match cfg.lingua_database_url.as_deref() {
+    let (known_words_svc, deck_svc, stats_svc, lingua_admin_svc) = match cfg
+        .lingua_database_url
+        .as_deref()
+    {
         Some(db_url) => {
             let pool = db::connect(db_url, 5).await?;
             cymbra_lingua::MIGRATOR.run(&pool).await?;
@@ -764,6 +767,12 @@ async fn main() -> anyhow::Result<()> {
             let stats = std::sync::Arc::new(cymbra_lingua::StatsModule::new(std::sync::Arc::new(
                 cymbra_lingua::PgStatsRepo::new(pool.clone()),
             )));
+            // Ops console (change: add-lingua-back-office): gated by `admin` in the
+            // `lingua` scope. `new` parses the embedded pack registry — an invalid
+            // committed manifest fails the boot here rather than a request.
+            let admin = std::sync::Arc::new(cymbra_lingua::LinguaAdminModule::new(
+                std::sync::Arc::new(cymbra_lingua::PgLinguaAdminRepo::new(pool.clone())),
+            )?);
             (
                 Some(cymbra_lingua::proto::known_words_service_server::KnownWordsServiceServer::with_interceptor(
                     cymbra_lingua::KnownWordsGrpc::new(known_words),
@@ -777,11 +786,15 @@ async fn main() -> anyhow::Result<()> {
                     cymbra_lingua::StatsGrpc::new(stats),
                     strict.clone(),
                 )),
+                Some(cymbra_lingua::proto::lingua_admin_service_server::LinguaAdminServiceServer::with_interceptor(
+                    cymbra_lingua::LinguaAdminGrpc::new(admin),
+                    strict.clone(),
+                )),
             )
         }
         None => {
             tracing::info!("lingua services disabled (CYMBRA_LINGUA_DATABASE_URL unset)");
-            (None, None, None)
+            (None, None, None, None)
         }
     };
 
@@ -848,6 +861,9 @@ async fn main() -> anyhow::Result<()> {
     }
     if let Some(stats_svc) = stats_svc {
         router = router.add_service(stats_svc);
+    }
+    if let Some(lingua_admin_svc) = lingua_admin_svc {
+        router = router.add_service(lingua_admin_svc);
     }
     let grpc = router.serve(grpc_addr);
     let listener = tokio::net::TcpListener::bind(http_addr).await?;

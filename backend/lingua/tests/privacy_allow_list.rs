@@ -96,3 +96,37 @@ fn the_card_source_is_the_only_url_shaped_field() {
         );
     }
 }
+
+#[test]
+fn the_admin_proto_carries_no_account_identifier() {
+    // The ops console is aggregates-only (change: add-lingua-back-office, D2): no
+    // `lingua_admin.proto` response message may carry a field attributable to an
+    // account. A leak would require a `.proto` change — this pins it as a test.
+    // (Substrings like "account" are fine: `active_accounts` is a COUNT; the concern
+    // is an *identifier* field, so identifiers are matched exactly.)
+    let proto = include_str!("../proto/lingua_admin.proto");
+    let account_identifiers = [
+        "user_id",
+        "account_id",
+        "owner_id",
+        "uid",
+        "user",
+        "account",
+        "handle",
+        "email",
+        "subject",
+    ];
+    let mut checked = 0usize;
+    for field in field_names(proto) {
+        checked += 1;
+        assert!(
+            !account_identifiers.contains(&field.as_str()),
+            "lingua_admin.proto field `{field}` names an account identifier — the ops \
+             console must serve aggregates only"
+        );
+    }
+    assert!(
+        checked >= 15,
+        "expected to inspect the admin proto fields, saw {checked}"
+    );
+}

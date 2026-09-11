@@ -20,6 +20,9 @@ FLAGS_PROTO_DIR="$REPO_ROOT/backend/feature-flags/proto"
 ANALYTICS_PROTO_DIR="$REPO_ROOT/backend/analytics/proto"
 # Plans console (change: add-premium-subscription).
 PLANS_PROTO_DIR="$REPO_ROOT/backend/plans/proto"
+# Lingua ops console (change: add-lingua-back-office) — only the admin service; the
+# sync protos next to it are client-only.
+LINGUA_PROTO_DIR="$REPO_ROOT/backend/lingua/proto"
 
 command -v protoc >/dev/null 2>&1 || {
   echo "error: protoc not found on PATH (brew install protobuf)" >&2
@@ -42,9 +45,10 @@ protoc \
   --proto_path="$FLAGS_PROTO_DIR" \
   --proto_path="$ANALYTICS_PROTO_DIR" \
   --proto_path="$PLANS_PROTO_DIR" \
+  --proto_path="$LINGUA_PROTO_DIR" \
   --plugin=protoc-gen-es="$PLUGIN" \
   --es_out="$OUT_DIR" \
   --es_opt=target=ts \
-  auth.proto user.proto score.proto flags.proto usage.proto plans.proto
+  auth.proto user.proto score.proto flags.proto usage.proto plans.proto lingua_admin.proto
 
 echo "Generated TS gRPC stubs into $OUT_DIR"

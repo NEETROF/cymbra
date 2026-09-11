@@ -14,7 +14,7 @@ export interface TokenClaims {
 }
 
 /** The authorization scopes a role can live in (mirrors the backend's `SCOPES`). */
-export const SCOPES = ["global", "music", "live"] as const;
+export const SCOPES = ["global", "music", "live", "lingua"] as const;
 export type Scope = (typeof SCOPES)[number];
 
 function base64UrlDecode(input: string): string {
