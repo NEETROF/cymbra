@@ -17,6 +17,71 @@ h1 {
   letter-spacing: 0.02em;
 }
 
+/* Master on/off toggle (a real checkbox styled as a switch). */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+#enabled-label {
+  color: var(--cymbra-lingua-muted);
+  font-size: 12px;
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+  flex: none;
+}
+
+.switch input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.switch .slider {
+  position: absolute;
+  inset: 0;
+  cursor: pointer;
+  border-radius: 999px;
+  background: var(--cymbra-lingua-panel-3);
+  border: 1px solid var(--cymbra-lingua-border-2);
+  transition: background 0.15s ease;
+}
+
+.switch .slider::before {
+  content: "";
+  position: absolute;
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  top: 2px;
+  border-radius: 50%;
+  background: var(--cymbra-lingua-text);
+  transition: transform 0.15s ease;
+}
+
+.switch input:checked + .slider {
+  background: var(--cymbra-lingua-accent-strong);
+  border-color: var(--cymbra-lingua-accent-strong);
+}
+
+.switch input:checked + .slider::before {
+  transform: translateX(18px);
+  background: var(--cymbra-lingua-accent-ink);
+}
+
+.switch input:focus-visible + .slider {
+  outline: 2px solid var(--cymbra-lingua-accent);
+  outline-offset: 2px;
+}
+
 .pct {
   font-size: 34px;
   font-weight: 700;

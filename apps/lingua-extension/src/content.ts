@@ -8,7 +8,14 @@ import { ReadingObservers } from "./reading/observer.ts";
 import { findTokenAt, type ResolvedToken, resolveTokens, type ScanStats, statsFromAnalysis } from "./reading/scan.ts";
 import { captureSelection, MAX_SELECTION_LENGTH, sentenceAround } from "./reading/selection.ts";
 import { type Gesture, WordPopup } from "./reading/wordpopup.ts";
-import { type AsyncStorageArea, hydrateEngine, ROOT_KEY, saveBackup } from "./state/storage.ts";
+import {
+  type AsyncStorageArea,
+  ENABLED_KEY,
+  hydrateEngine,
+  loadEnabled,
+  ROOT_KEY,
+  saveBackup,
+} from "./state/storage.ts";
 import drawerCss from "./styles/drawer.css";
 import popupCss from "./styles/wordpopup.css";
 import reviewCss from "./styles/review.css";
@@ -64,6 +71,8 @@ class ReadingSession {
   private resolved: ResolvedToken[] = [];
   private stats: ScanStats = NOT_ANALYSABLE;
   private calibration = 3000;
+  /** Global master switch. When off the reader does not analyse, paint or pop up. */
+  private enabled = true;
   private readonly popup: WordPopup;
   private readonly drawer: Drawer;
   private readonly observers: ReadingObservers;
@@ -82,11 +91,9 @@ class ReadingSession {
   }
 
   async start(): Promise<void> {
-    injectPageStyles(tokensCss);
     await hydrateEngine(this.port, storageArea);
     this.calibration = await this.port.calibration();
-    await this.refresh([document.body]);
-    this.observers.start();
+    this.enabled = await loadEnabled(storageArea);
     document.addEventListener("click", (e) => this.onClick(e), true);
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && this.popup.visible()) this.popup.hide();
@@ -94,10 +101,13 @@ class ReadingSession {
     // A multi-word mouse selection opens the whole-selection card directly (Alt+L too).
     document.addEventListener("mouseup", (e) => this.onMouseUp(e));
     chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName !== "local") return;
       const root = changes[ROOT_KEY];
-      if (areaName === "local" && root && typeof (root.newValue as { backup?: string })?.backup === "string") {
+      if (root && typeof (root.newValue as { backup?: string })?.backup === "string") {
         void this.onExternalChange((root.newValue as { backup: string }).backup);
       }
+      const toggled = changes[ENABLED_KEY];
+      if (toggled) void this.onEnabledChange(toggled.newValue !== false);
     });
     chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       if (msg?.type === "captureSelection") void this.onCaptureSelection();
@@ -110,6 +120,31 @@ class ReadingSession {
       }
       return false;
     });
+
+    if (this.enabled) await this.activate();
+    else this.pushDisabledBadge();
+  }
+
+  /** Paint the page and begin watching it for changes (the reader's "on" state). */
+  private async activate(): Promise<void> {
+    injectPageStyles(tokensCss);
+    await this.refresh([document.body]);
+    this.observers.start();
+  }
+
+  /** React to the global toggle flipping in another context (popup, other tab). */
+  private async onEnabledChange(enabled: boolean): Promise<void> {
+    if (enabled === this.enabled) return;
+    this.enabled = enabled;
+    if (enabled) {
+      await this.activate();
+    } else {
+      this.observers.stop();
+      this.popup.hide();
+      this.resolved = [];
+      clearHighlights();
+      this.pushDisabledBadge();
+    }
   }
 
   private async persist(): Promise<void> {
@@ -131,6 +166,10 @@ class ReadingSession {
 
   /** Re-analyse current block text (no DOM walk) and repaint. */
   private async repaint(): Promise<void> {
+    if (!this.enabled) {
+      clearHighlights();
+      return;
+    }
     const blocks = [...this.blocksByContainer.values()];
     if (blocks.length === 0) {
       this.resolved = [];
@@ -159,8 +198,17 @@ class ReadingSession {
     }
   }
 
+  /** Clear the badge for this tab: the reader is switched off here. */
+  private pushDisabledBadge(): void {
+    try {
+      chrome.runtime.sendMessage({ type: "stats", pct: null, disabled: true });
+    } catch {
+      // The service worker may be asleep; nothing to show while disabled anyway.
+    }
+  }
+
   private onClick(e: MouseEvent): void {
-    if (this.popup.contains(e.target)) return;
+    if (!this.enabled || this.popup.contains(e.target)) return;
     // A live phrase/compound selection is the whole-selection card's job (onMouseUp);
     // don't also open the single-word popup for whatever word the release landed on.
     const sel = window.getSelection();
@@ -191,7 +239,7 @@ class ReadingSession {
    *  selection counts as one when it holds a space or a hyphen (so "repo-wide" is taken
    *  whole, not reduced to the word the release landed on). */
   private onMouseUp(e: MouseEvent): void {
-    if (this.popup.contains(e.target)) return;
+    if (!this.enabled || this.popup.contains(e.target)) return;
     const sel = window.getSelection();
     const text = sel ? String(sel).trim().replace(/\s+/g, " ") : "";
     if (sel && !sel.isCollapsed && /[-\s]/.test(text) && text.length <= MAX_SELECTION_LENGTH) {
@@ -200,6 +248,7 @@ class ReadingSession {
   }
 
   private async onCaptureSelection(): Promise<void> {
+    if (!this.enabled) return;
     const cap = captureSelection();
     if (!cap) return;
     const isPhrase = cap.text.includes(" ");

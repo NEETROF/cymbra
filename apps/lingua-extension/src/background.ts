@@ -28,6 +28,8 @@ const ALL_URLS = "<all_urls>";
 interface StatsMessage {
   type: "stats";
   pct: number | null;
+  /** When true the reader is switched off on this tab: clear the badge entirely. */
+  disabled?: boolean;
 }
 
 chrome.runtime.onMessage.addListener((message: unknown, sender) => {
@@ -35,6 +37,10 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
   if (msg?.type !== "stats") return;
   const tabId = sender.tab?.id;
   if (tabId == null) return;
+  if (msg.disabled) {
+    void chrome.action.setBadgeText({ tabId, text: "" });
+    return;
+  }
   const pct = msg.pct ?? null;
   void chrome.action.setBadgeText({ tabId, text: pct == null ? "—" : `${pct}%` });
   void chrome.action.setBadgeBackgroundColor({ tabId, color: pct == null ? BADGE_NEUTRAL : BADGE_ACTIVE });
