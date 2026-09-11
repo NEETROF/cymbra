@@ -157,7 +157,7 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
       syncEngine ??= new SyncEngine({
         port: syncPort,
         storage: localStore,
-        clients: () => ({ knownWords: api().knownWords, deck: api().deck }),
+        clients: () => ({ knownWords: api().knownWords, deck: api().deck, stats: api().stats }),
         deviceId: await deviceIdPromise,
       });
       await syncEngine.sync();

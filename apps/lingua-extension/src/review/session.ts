@@ -17,10 +17,15 @@ export class ReviewController {
   private started = false;
   private card: ReviewCard | null = null;
 
-  /** `now` supplies epoch-seconds (Date.now()/1000 in production). */
+  /**
+   * `now` supplies epoch-seconds (Date.now()/1000 in production). `record` is an
+   * optional daily-stats hook (add-lingua-connected-clients §3): "review" on each grade,
+   * "learned" on mark-known. Both surfaces inject a storage-backed recorder; tests omit it.
+   */
   constructor(
     private readonly port: LinguaPort,
     private readonly now: () => number,
+    private readonly record: (event: "review" | "learned") => void = () => {},
   ) {}
 
   /** Start a session over everything due now. */
@@ -41,6 +46,7 @@ export class ReviewController {
   /** Grade the current card and move to the next. */
   async grade(rating: Rating): Promise<ReviewView> {
     await this.port.reviewGrade(rating, this.now());
+    this.record("review");
     this.card = await this.port.reviewCurrent();
     return this.view();
   }
@@ -48,6 +54,7 @@ export class ReviewController {
   /** Mark the current card known (retire it) and move to the next. */
   async markKnown(): Promise<ReviewView> {
     await this.port.reviewMarkKnown(this.now());
+    this.record("learned");
     this.card = await this.port.reviewCurrent();
     return this.view();
   }

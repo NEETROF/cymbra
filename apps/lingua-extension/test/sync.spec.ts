@@ -72,8 +72,13 @@ function fakeClients() {
   const pushCards = vi.fn(async () => ({ applied: 0n, cursor: 0n }));
   const pullChanges = vi.fn(async () => ({ changes: [] as WireChange[], cursor: 7n }));
   const pullCards = vi.fn(async () => ({ cards: [] as WireCard[], cursor: 9n }));
-  const clients = { knownWords: { pushOps, pullChanges }, deck: { pushCards, pullCards } } as unknown as SyncClients;
-  return { clients, pushOps, pushCards, pullChanges, pullCards };
+  const upsertDailyStats = vi.fn(async () => ({ upserted: 0n }));
+  const clients = {
+    knownWords: { pushOps, pullChanges },
+    deck: { pushCards, pullCards },
+    stats: { upsertDailyStats },
+  } as unknown as SyncClients;
+  return { clients, pushOps, pushCards, pullChanges, pullCards, upsertDailyStats };
 }
 
 beforeEach(() => vi.clearAllMocks());
@@ -171,6 +176,20 @@ describe("SyncEngine", () => {
     const engine = new SyncEngine({ port, storage, clients: () => f.clients, deviceId: "d" });
     await engine.sync();
     expect(storage.store[ROOT_KEY]).toEqual({ v: 2, backup: "ORIGINAL" }); // untouched
+  });
+
+  it("upserts the local daily stats (mapping reviews→reviewsDone + device id)", async () => {
+    const { port } = syncPort({});
+    const f = fakeClients();
+    const storage = fakeArea({
+      ...v2("BACKUP"),
+      "cymbra-lingua-daily": { 20000: { exposures: 12, wordsLearned: 3, reviews: 5 } },
+    });
+    const engine = new SyncEngine({ port, storage, clients: () => f.clients, deviceId: "dev-2" });
+    await engine.sync();
+    expect(f.upsertDailyStats).toHaveBeenCalledWith({
+      stats: [{ day: 20000, language: "en", deviceId: "dev-2", exposures: 12, wordsLearned: 3, reviewsDone: 5 }],
+    });
   });
 
   it("applies pulled changes onto the LATEST backup, not the start-of-sync snapshot (no clobber)", async () => {

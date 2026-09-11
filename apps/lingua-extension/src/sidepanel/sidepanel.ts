@@ -1,6 +1,7 @@
 import { createLinguaPort } from "../analyzer/create-port.ts";
 import { ReviewController } from "../review/session.ts";
 import { renderReview } from "../review/view.ts";
+import { dailyRecorder } from "../state/dailystats.ts";
 import { type AsyncStorageArea, hydrateEngine, ROOT_KEY, saveBackup } from "../state/storage.ts";
 
 // Side-panel controller (a surface the extension owns). The page is pushed by the
@@ -16,7 +17,7 @@ const area: AsyncStorageArea = {
 
 const now = (): number => Math.floor(Date.now() / 1000);
 const port = createLinguaPort();
-let controller = new ReviewController(port, now);
+let controller = new ReviewController(port, now, dailyRecorder(area));
 
 function $(id: string): HTMLElement {
   const el = document.getElementById(id);
@@ -62,7 +63,7 @@ async function doRestore(file: File): Promise<void> {
   try {
     await port.restore(await file.text());
     await persist();
-    controller = new ReviewController(port, now);
+    controller = new ReviewController(port, now, dailyRecorder(area));
     await refreshSummary();
     renderReview($("review"), controller.view(), actions);
     $("msg").textContent = "Sauvegarde restaurée.";
