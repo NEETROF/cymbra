@@ -2,6 +2,8 @@ import { fileURLToPath, URL } from "node:url";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
+  // Mirror the build-time target define so any module referencing __TARGET__ resolves.
+  define: { __TARGET__: JSON.stringify("chromium") },
   resolve: {
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
   },
@@ -26,6 +28,8 @@ export default defineConfig({
         "src/sidepanel/sidepanel.ts",
         "src/reading/drawer.ts",
         "src/analyzer/engine.ts",
+        "src/analyzer/create-port.ts",
+        "src/analyzer/rpc.ts",
         "**/*.d.ts",
       ],
     },

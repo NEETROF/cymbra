@@ -14,11 +14,16 @@ corepack enable
 yarn install
 yarn gen:wasm     # build the wasm bindings from crates/lingua-wasm  → src/wasm/pkg/ (gitignored)
 yarn gen:pack     # build the EN→FR data pack                        → assets/pack.lingua (gitignored)
-yarn build        # bundle the loadable extension                    → dist/
+yarn build        # bundle both browser variants → dist-chromium/ and dist-firefox/
 ```
 
-Then load it unpacked: Chrome → `chrome://extensions` → Developer mode → **Load
-unpacked** → pick `apps/lingua-extension/dist`.
+One source, two build variants (`yarn build:chromium` / `yarn build:firefox` build just
+one). Load unpacked:
+
+- **Chrome/Edge** → `chrome://extensions` → Developer mode → **Load unpacked** → pick
+  `apps/lingua-extension/dist-chromium`.
+- **Firefox** (desktop or Android) → `yarn start:firefox` (`web-ext run`, uses
+  `dist-firefox`), or `about:debugging` → Load Temporary Add-on.
 
 Checks (what CI runs):
 
@@ -80,8 +85,26 @@ deck + FSRS); it is persisted as its lossless backup string in `chrome.storage.l
 so a gesture or a graded card in one context repaints every other via
 `storage.onChanged`, and the backup file is a byte-for-byte export of the same thing.
 
+## Browser variants
+
+The build produces one artefact per browser from a single source; the differences are
+confined behind the `AnalyzerPort` and the panel surface, selected by the esbuild
+`__TARGET__` define:
+
+- **Chromium** (`chromium`): WASM engine in the content script; panel via the Side Panel
+  API; service-worker background.
+- **Firefox** (`firefox`, desktop + Android): Firefox's CSP blocks WASM in a content
+  script, so the engine runs in the **event page** and the content script / side panel
+  reach it over a messaging `AnalyzerPort` (`rpc.ts` / `messaging-port.ts` / the
+  `rpc-host` in `background.ts`); panel via `sidebar_action` (the same page); an
+  add-on id in `browser_specific_settings`. The engine self-hydrates from storage on
+  event-page wake. Published to AMO (desktop + Android, the same zip).
+
+Whether WASM can in fact run in a Firefox content script (a later optimisation) is the
+day-one spike (task 1.1); the event-page path is the architecture either way.
+
 ## Scope
 
-Reading + review ship here. The Firefox/Safari manifest variants (the Firefox sidebar
-reuses the side-panel page; Safari leans on the drawer), sync and accounts, and the
-agent plugin are later changes in the stack.
+Reading + review + the Chromium/Firefox variants ship here. The Safari variant (it
+leans on the drawer, no panel API), sync and accounts, and the agent plugin are later
+changes in the stack.

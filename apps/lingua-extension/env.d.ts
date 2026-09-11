@@ -1,5 +1,10 @@
 // Ambient module declarations for the extension build.
 
+// Build-time target, injected by esbuild `define` per manifest variant. Selects the
+// AnalyzerPort implementation (Chromium: WASM in the content script; Firefox: WASM in
+// the event page reached over messaging) and the panel surface.
+declare const __TARGET__: "chromium" | "firefox";
+
 // tokens.css (and other .css) imported as a string, inlined into the injected
 // closed shadow root so the single token sheet stays the only home for colors.
 declare module "*.css" {

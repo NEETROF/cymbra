@@ -1,4 +1,4 @@
-import { WasmAnalyzerPort } from "./analyzer/engine.ts";
+import { createLinguaPort } from "./analyzer/create-port.ts";
 import type { LinguaPort } from "./analyzer/port.ts";
 import type { TokenClass } from "./analyzer/types.ts";
 import { type Block, collectBlocks } from "./reading/blocks.ts";
@@ -60,7 +60,7 @@ const NOT_ANALYSABLE: ScanStats = statsFromAnalysis({
 });
 
 class ReadingSession {
-  private readonly port: LinguaPort = new WasmAnalyzerPort();
+  private readonly port: LinguaPort = createLinguaPort();
   private readonly blocksByContainer = new Map<Element, Block>();
   private resolved: ResolvedToken[] = [];
   private stats: ScanStats = NOT_ANALYSABLE;

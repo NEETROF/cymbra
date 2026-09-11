@@ -7,8 +7,11 @@ node_modules/
 !.yarn/sdks
 .pnp.*
 
-# Build output
+# Build output (one dir per browser variant)
 dist/
+dist-chromium/
+dist-firefox/
+web-ext-artifacts/
 coverage/
 
 # Generated wasm bindings (produced by `yarn gen:wasm` from crates/lingua-wasm)

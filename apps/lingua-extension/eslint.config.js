@@ -8,7 +8,7 @@ import globals from "globals";
 export default tseslint.config(
   {
     name: "ext/ignores",
-    ignores: ["dist/**", "coverage/**", "src/wasm/pkg/**", "assets/**"],
+    ignores: ["dist/**", "dist-*/**", "coverage/**", "src/wasm/pkg/**", "assets/**"],
   },
   js.configs.recommended,
   tseslint.configs.recommended,

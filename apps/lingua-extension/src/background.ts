@@ -1,9 +1,14 @@
-// Service worker: orchestration only (design D2). It paints the toolbar badge from
-// the per-tab percentage the content script reports, routes the capture-selection
-// keyboard command, and manages the activeTab-first permission posture (design D3):
-// nothing runs until the user acts. "Always highlight" grants <all_urls>, which
-// registers the reader on every page; without it, the popup injects on demand via
-// activeTab. No analysis, no storage writes, no network.
+import { WasmAnalyzerPort } from "./analyzer/engine.ts";
+import { handleRpc, isRpcRequest } from "./analyzer/rpc-host.ts";
+import { type AsyncStorageArea, hydrateEngine } from "./state/storage.ts";
+
+// Background worker: orchestration for both variants — badge, keyboard commands, the
+// activeTab-first permission posture (design D3). On Firefox (an event page, not a
+// service worker) it ALSO hosts the WASM engine and answers the content script / side
+// panel over the AnalyzerPort RPC, because Firefox's CSP blocks WASM in a content
+// script. On Chromium the engine lives in each content script and this stays pure
+// orchestration. "Always highlight" grants <all_urls>, registering the reader on every
+// page; without it, the popup injects on demand via activeTab. No network.
 
 // Badge colours are set through the chrome.action API (not CSS), so they cannot be a
 // token var; they mirror the Cymbra palette: violet primaryContainer for an analysed
@@ -30,6 +35,25 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
   void chrome.action.setBadgeBackgroundColor({ tabId, color: pct == null ? BADGE_NEUTRAL : BADGE_ACTIVE });
   chrome.action.setBadgeTextColor?.({ tabId, color: BADGE_TEXT });
 });
+
+// Firefox only: host the WASM engine in the event page and serve the AnalyzerPort RPC.
+// The engine self-hydrates from storage on wake (so a restarted event page restores
+// state before answering); the surfaces persist after their own mutations, as on
+// Chromium.
+if (__TARGET__ === "firefox") {
+  const storage: AsyncStorageArea = {
+    get: (keys) => chrome.storage.local.get(keys),
+    set: (items) => chrome.storage.local.set(items),
+  };
+  const enginePort = new WasmAnalyzerPort();
+  let hydrated: Promise<void> | null = null;
+  const ensure = (): Promise<void> => (hydrated ??= hydrateEngine(enginePort, storage));
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (!isRpcRequest(message)) return undefined;
+    void handleRpc(enginePort, ensure, message).then(sendResponse);
+    return true; // async response
+  });
+}
 
 chrome.commands.onCommand.addListener((command) => {
   chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
