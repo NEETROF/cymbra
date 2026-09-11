@@ -345,6 +345,24 @@ const SYNTHETIC_OFF_MS: u64 = 300;
 /// windows cap here).
 const MAX_EVIDENCE: usize = 8192;
 
+/// A failed confirmation retries at this cadence until
+/// [`CONFIRM_RETRY_BUDGET_MS`] runs out. One shot per trigger was
+/// structurally chord-blind: the single evaluation lands right on the attack,
+/// where the hammer transient and the OTHER co-struck notes inflate both the
+/// broadband and the probes, so only the loudest chord member survived it —
+/// and a decaying note can never re-trigger (its slow average rose while it
+/// waited). On device, sol failed at sig=8.2e-3 inside the transient and
+/// passed at 6.1e-3 once it had decayed: the timing decided, not the level.
+/// The wrong-note vetoes hold across retries — a struck neighbor or lower
+/// octave keeps its convicting bins hot through the whole budget, and a
+/// click's window slides out entirely (the tonality gate then sees noise).
+const CONFIRM_RETRY_STEP_MS: u64 = 43;
+
+/// How long past the first evaluation a triggered pitch keeps retrying.
+/// Bounded well under the Wait Mode reaction windows (450/1200 ms): a note
+/// confirmed on the last retry still reads as an immediate answer.
+const CONFIRM_RETRY_BUDGET_MS: u64 = 260;
+
 /// One detection emission, on the detector's sample clock.
 #[frb(ignore)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -383,6 +401,9 @@ struct PitchTracker {
     hist: Vec<f64>,
     /// Sample position of a pending rise, awaiting confirmation.
     triggered_at: Option<u64>,
+    /// Earliest sample position the next confirmation attempt may run at —
+    /// paces the retries so the Goertzel battery is not recomputed every hop.
+    next_conf_at: u64,
     /// Sample position of the last emission (`0` = never).
     last_emit: u64,
     /// Re-arm hysteresis: false after an emission until the envelope dips
@@ -466,6 +487,7 @@ impl NoteDetector {
                     rise_hops: 0,
                     hist: Vec::new(),
                     triggered_at: None,
+                    next_conf_at: 0,
                     last_emit: 0,
                     armed: true,
                 },
@@ -532,8 +554,8 @@ impl NoteDetector {
                     });
                     let window = (confirm_window(rate, t.pitch) * if has_neighbor { 2 } else { 1 })
                         .min(MAX_EVIDENCE);
-                    if fed.saturating_sub(at) >= window as u64 {
-                        t.triggered_at = None;
+                    let elapsed = fed.saturating_sub(at);
+                    if elapsed >= window as u64 && fed >= t.next_conf_at {
                         let have = self.ring.len().min(window);
                         let slice = &self.ring[self.ring.len() - have..];
                         // A held note still carries energy in the LAST
@@ -597,10 +619,11 @@ impl NoteDetector {
                         let nb_hi =
                             goertzel_hann(disc, rate, pitch_freq(t.pitch.saturating_add(1)));
                         self.debug_log.push(format!(
-                            "conf p={} sounding={still_sounding} neighbors={beats_neighbors} present={present} own={own:.2e} nb_lo={nb_lo:.2e} nb_hi={nb_hi:.2e} sig={signal:.2e} h2={h2:.2e}",
+                            "conf p={} sounding={still_sounding} neighbors={beats_neighbors} present={present} own={own:.2e} nb_lo={nb_lo:.2e} nb_hi={nb_hi:.2e} sig={signal:.2e} h2={h2:.2e} rms={head:.2e}",
                             t.pitch
                         ));
                         if still_sounding && beats_neighbors && present {
+                            t.triggered_at = None;
                             t.last_emit = fed;
                             t.armed = false;
                             let peak = slice.iter().fold(0f32, |m, &x| m.max(x.abs()));
@@ -626,6 +649,12 @@ impl NoteDetector {
                             });
                             self.pending_offs
                                 .push((onset + ms_to_samples(rate, SYNTHETIC_OFF_MS), t.pitch));
+                        } else if elapsed
+                            >= window as u64 + ms_to_samples(rate, CONFIRM_RETRY_BUDGET_MS)
+                        {
+                            t.triggered_at = None;
+                        } else {
+                            t.next_conf_at = fed + ms_to_samples(rate, CONFIRM_RETRY_STEP_MS);
                         }
                     }
                 } else {
@@ -655,6 +684,7 @@ impl NoteDetector {
                         // attack: stamp the onset a window back.
                         t.triggered_at =
                             Some(fed.saturating_sub(ENV_WINDOW as u64 + DETECT_HOP as u64));
+                        t.next_conf_at = 0;
                         self.debug_log.push(format!(
                             "trig p={} env={env:.2e} slow={:.2e} peak={:.2e}",
                             t.pitch, t.slow, t.peak
@@ -666,7 +696,15 @@ impl NoteDetector {
                 // rise is measured against the decayed level), slowly up (the
                 // attack must not lift its own bar). Adopt the first reading.
                 if t.slow == 0.0 {
-                    t.slow = env.max(1e-12);
+                    // A fresh tracker is born whenever the gate reaches its
+                    // pitch — often WHILE the room still rings from the notes
+                    // just played (a rewind, a chord arriving). Adopting that
+                    // first reading as "quiet" made the real strike forever
+                    // unable to rise 4× above it (on device: after a rewind
+                    // only the one pitch whose tracker had survived kept
+                    // detecting). Seed a decade under instead: worst case it
+                    // triggers on ring and the confirmation stage rejects.
+                    t.slow = (env * 0.1).max(1e-12);
                 } else if env < t.slow {
                     t.slow = t.slow * 0.80 + env * 0.20;
                 } else {
@@ -698,6 +736,19 @@ impl NoteDetector {
 
 fn ms_to_samples(rate: u32, ms: u64) -> u64 {
     ms * u64::from(rate) / 1000
+}
+
+/// Whether a semitone position sits within one semitone of an expected
+/// pitch's fundamental OR its octave partial — i.e., whether a control bin
+/// there would measure the chord itself. Both the far probes and the
+/// octave-below tattletale went blind to this: a probe for ré landed on
+/// sol4 (sol's burning 2nd partial), and si's fifth-check bin at fa♯4 sat a
+/// semitone under that same sol4 (Minuet in G, on device).
+fn near_expected_partial(semitone_pitch: i16, expected: &[u8]) -> bool {
+    expected.iter().any(|&e| {
+        let e = i16::from(e);
+        (semitone_pitch - e).abs() <= 1 || (semitone_pitch - (e + 12)).abs() <= 1
+    })
 }
 
 /// MIDI note number → frequency in Hz (equal temperament, A4 = 440).
@@ -772,9 +823,35 @@ fn goertzel(buf: &[f32], rate: u32, freq: f64) -> f64 {
 /// covers the reverse direction).
 fn pitch_present(buf: &[f32], rate: u32, pitch: u8, expected: &[u8]) -> bool {
     let f = pitch_freq(pitch);
-    let signal = goertzel_hann(buf, rate, f);
+    // A real piano's LOW fundamentals are weak — the energy lives in the
+    // partials (played do3 went undetected on device while do2, whose 2nd
+    // partial sits exactly on do3's bin, sailed through). Below ~A3 the
+    // octave partial joins the evidence.
+    let low_register = f < 220.0;
+    let fundamental = goertzel_hann(buf, rate, f);
+    let signal = if low_register {
+        fundamental + goertzel_hann(buf, rate, 2.0 * f)
+    } else {
+        fundamental
+    };
     if signal < 1e-10 {
         return false;
+    }
+    // Octave-below tattletale: the note an octave down owns every octave bin
+    // this pitch has, so no octave-based evidence can tell them apart. Its
+    // 3rd partial can: it sits at the FIFTH (1.5f — do2 puts sol3 at 196 Hz
+    // where a genuine do3 has nothing). A hot fifth convicts the lower
+    // octave — unless that fifth is itself expected (quint chords exist).
+    let fifth_pitch = i16::from(pitch) + 7;
+    if !near_expected_partial(fifth_pitch, expected) {
+        let fifth = goertzel_hann(buf, rate, 1.5 * f);
+        // POWER ratio: a lower-octave 3rd partial at half the amplitude of
+        // its 2nd is a QUARTER of its power — the bar sits well under that,
+        // and three orders of magnitude above the noise a genuine note
+        // leaves at its fifth.
+        if fifth > signal * 0.08 {
+            return false;
+        }
     }
     // Tonality gate, scale-free: a sine concentrates ~N/2 × its broadband
     // power into its bin, noise concentrates ~1×. Requiring N/64 leaves a
@@ -782,21 +859,46 @@ fn pitch_present(buf: &[f32], rate: u32, pitch: u8, expected: &[u8]) -> bool {
     // making a broadband-only window (noise, clicks) unconfirmable — the
     // guard that stops a noise fluke from becoming a phantom note whose
     // refractory then swallows the real strike.
+    //
+    // Chord-aware: the broadband the gate compares against is discounted by
+    // the energy MEASURED at the other expected pitches' bins (fundamental
+    // + octave). Against the whole buffer the gate is structurally
+    // chord-blind — in sol-si-ré each member holds a fraction of the total,
+    // and on device the missing member's sig/bar ratio sat frozen at
+    // 0.4–0.55 through every retry (signal and rms decay together; no
+    // amount of waiting fixes an energy SHARE). The discount is
+    // self-limiting: a click or noise fluke puts nothing in the co-expected
+    // bins, so a lone phantom faces the full gate, and the rms²/8 floor
+    // keeps a hard bar (8× a noise window's concentration at N=4096) even
+    // when the chord mates own the whole buffer.
     let broadband = rms(buf);
-    if signal < broadband * broadband * (buf.len() as f64 / 64.0) {
+    let mut mates = 0.0;
+    for &e in expected {
+        if e == pitch {
+            continue;
+        }
+        let fe = pitch_freq(e);
+        mates += goertzel_hann(buf, rate, fe) + goertzel_hann(buf, rate, 2.0 * fe);
+    }
+    // A Hann-windowed sine of amplitude A reads A²·N/16 in its bin and
+    // contributes A²/2 to rms²: bin → broadband power is 8/N.
+    let residual =
+        (broadband * broadband - 8.0 * mates / buf.len() as f64).max(broadband * broadband / 8.0);
+    if signal < residual * (buf.len() as f64 / 64.0) {
         return false;
     }
     let semitone = 2f64.powf(1.0 / 12.0);
-    let mut probes: Vec<f64> = Vec::with_capacity(6);
-    for offset in [-6i16, -4, -3, 3, 4, 6] {
+    let mut probes: Vec<f64> = Vec::with_capacity(8);
+    // ±5 included: inside a chord, a pitch flanked by expected notes (si in
+    // sol-si-ré) loses its ±3/±4 probes to the skip rule and was left with
+    // two — and a two-value "median" indexed at len/2 is the MAX, turning
+    // the test unfairly strict for exactly that pitch.
+    for offset in [-6i16, -5, -4, -3, 3, 4, 5, 6] {
         let probe_pitch = i16::from(pitch) + offset;
         if !(0..=127).contains(&probe_pitch) {
             continue;
         }
-        let near_expected = expected
-            .iter()
-            .any(|&e| (i16::from(e) - probe_pitch).abs() <= 1);
-        if near_expected {
+        if near_expected_partial(probe_pitch, expected) {
             continue;
         }
         probes.push(goertzel_hann(
@@ -810,7 +912,9 @@ fn pitch_present(buf: &[f32], rate: u32, pitch: u8, expected: &[u8]) -> bool {
         return signal > 1e-8;
     }
     probes.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-    let median = probes[probes.len() / 2].max(1e-12);
+    // Lower median: with an even count this picks the smaller middle value,
+    // so a thin probe set degrades lenient rather than strict.
+    let median = probes[(probes.len() - 1) / 2].max(1e-12);
     // 2×, not the 6× a sine suggested: a REAL piano note carries hammer
     // noise and partial spread that lift the probes (on-device logs showed
     // honest notes rejected in series at 6×). Broadband transients stay
@@ -1028,10 +1132,11 @@ mod tests {
                     .iter()
                     .map(|&p| {
                         let w = 2.0 * std::f64::consts::PI * pitch_freq(p) * t;
-                        // Fundamental + a 2nd partial, like a struck string:
-                        // the harmonic-verification gate rightly rejects a
-                        // bare sine (nothing real sounds like one).
-                        (w.sin() + (2.0 * w).sin() * 0.35) * f64::from(amp)
+                        // Fundamental + a STRONG 2nd partial, like a struck
+                        // string (real chords killed probes and tattletales
+                        // that a 0.35 partial let pass): nothing real sounds
+                        // like a bare sine.
+                        (w.sin() + (2.0 * w).sin() * 0.6) * f64::from(amp)
                     })
                     .sum();
                 (s as f32) + bed[i]
@@ -1080,6 +1185,57 @@ mod tests {
         let mut on_pitches: Vec<u8> = events.iter().filter(|e| e.on).map(|e| e.pitch).collect();
         on_pitches.sort_unstable();
         assert_eq!(on_pitches, vec![C4, E4], "events: {events:?}");
+    }
+
+    /// Sample-wise sum of two signals (they must be the same length).
+    fn mix(a: &[f32], b: &[f32]) -> Vec<f32> {
+        a.iter().zip(b).map(|(x, y)| x + y).collect()
+    }
+
+    #[test]
+    fn chord_member_masked_by_its_own_strike_confirms_on_retry() {
+        let mut d = NoteDetector::new(RATE);
+        // The on-device chord (Minuet in G): sol3-si3-ré4. si is the
+        // vulnerable member — above the low-register boundary (no octave
+        // help) and quieter than ré, its one confirmation shot landed inside
+        // the hammer transient, where the broadband floor buries its share
+        // of the chord, and a decaying note never re-triggers.
+        d.set_expected(vec![55, 59, 62]);
+        let mut events = d.feed(&noise(200));
+        // The strike: unequal chord voicing under a loud broadband burst.
+        let n = (80 * u64::from(RATE) / 1000) as usize;
+        let attack = mix(
+            &mix(&tone(80, &[62], 0.22), &tone(80, &[55, 59], 0.16)),
+            &white(n, 0.4, 3),
+        );
+        events.extend(d.feed(&attack));
+        // The hammer noise gone, the chord keeps ringing: the retries get a
+        // clean window.
+        events.extend(d.feed(&mix(&tone(600, &[62], 0.22), &tone(600, &[55, 59], 0.16))));
+
+        let mut on: Vec<u8> = events.iter().filter(|e| e.on).map(|e| e.pitch).collect();
+        on.sort_unstable();
+        assert_eq!(on, vec![55, 59, 62], "events: {events:?}");
+    }
+
+    #[test]
+    fn quiet_chord_member_holds_a_small_energy_share_and_still_confirms() {
+        let mut d = NoteDetector::new(RATE);
+        // The v24 on-device failure: si's fundamental held well under an
+        // eighth of the chord's power, so the un-discounted tonality gate
+        // rejected it at EVERY retry — sig and rms decay together, the
+        // ratio sat frozen at 0.4–0.55 for the whole budget. No transient
+        // needed: the share alone kills it.
+        d.set_expected(vec![55, 59, 62]);
+        let mut events = d.feed(&noise(200));
+        events.extend(d.feed(&mix(
+            &mix(&tone(700, &[62], 0.28), &tone(700, &[55], 0.16)),
+            &tone(700, &[59], 0.09),
+        )));
+
+        let mut on: Vec<u8> = events.iter().filter(|e| e.on).map(|e| e.pitch).collect();
+        on.sort_unstable();
+        assert_eq!(on, vec![55, 59, 62], "events: {events:?}");
     }
 
     #[test]
@@ -1169,6 +1325,86 @@ mod tests {
         let mut on_pitches: Vec<u8> = events.iter().filter(|e| e.on).map(|e| e.pitch).collect();
         on_pitches.sort_unstable();
         assert_eq!(on_pitches, vec![F4, G4], "events: {events:?}");
+    }
+
+    /// A low piano note: weak fundamental, strong 2nd partial, present 3rd —
+    /// how real strings below ~C3 measure at a microphone.
+    fn low_tone(ms: u64, pitch: u8, amp: f32) -> Vec<f32> {
+        let n = (ms * u64::from(RATE) / 1000) as usize;
+        let bed = white(n, 0.004, 33);
+        let f = pitch_freq(pitch);
+        (0..n)
+            .map(|i| {
+                let t = i as f64 / f64::from(RATE);
+                let w = 2.0 * std::f64::consts::PI * f * t;
+                let s = w.sin() * 0.15 + (2.0 * w).sin() * 1.0 + (3.0 * w).sin() * 0.5;
+                (s * f64::from(amp)) as f32 + bed[i]
+            })
+            .collect()
+    }
+
+    #[test]
+    fn weak_fundamental_low_note_detects() {
+        // do3 played for a do3 gate: the fundamental is weak but the octave
+        // partial carries it (the on-device report: do3 undetectable).
+        const C3: u8 = 48;
+        let mut d = NoteDetector::new(RATE);
+        d.set_expected(vec![C3]);
+        let mut events = d.feed(&noise(200));
+        events.extend(d.feed(&low_tone(500, C3, 0.3)));
+        let ons: Vec<_> = events.iter().filter(|e| e.on).collect();
+        assert_eq!(ons.len(), 1, "events: {events:?}");
+        assert_eq!(ons[0].pitch, C3);
+    }
+
+    #[test]
+    fn octave_below_does_not_impersonate() {
+        // do2 played for a do3 gate: do2's 2nd partial sits exactly on do3's
+        // bin — but its 3rd partial lights the fifth (sol3), where a real
+        // do3 has nothing. The tattletale must reject.
+        const C3: u8 = 48;
+        const C2: u8 = 36;
+        let mut d = NoteDetector::new(RATE);
+        d.set_expected(vec![C3]);
+        let mut events = d.feed(&noise(200));
+        events.extend(d.feed(&low_tone(500, C2, 0.3)));
+        assert!(events.iter().all(|e| !e.on), "events: {events:?}");
+    }
+
+    #[test]
+    fn chord_middle_pitch_flanked_by_expected_detects() {
+        // sol-si-ré (Minuet in G): si's ±3/±4 probes all land on expected
+        // chordmates and are skipped — the thinned probe set must degrade
+        // lenient, not strict (on device, si went undetected in the chord
+        // while working alone).
+        const G3: u8 = 55;
+        const B3: u8 = 59;
+        const D4: u8 = 62;
+        let mut d = NoteDetector::new(RATE);
+        d.set_expected(vec![G3, B3, D4]);
+        let events = play(&mut d, &[G3, B3, D4], 400);
+        let mut on_pitches: Vec<u8> = events.iter().filter(|e| e.on).map(|e| e.pitch).collect();
+        on_pitches.sort_unstable();
+        assert_eq!(on_pitches, vec![G3, B3, D4], "events: {events:?}");
+    }
+
+    #[test]
+    fn gate_arriving_on_a_ringing_pitch_still_detects_the_restrike() {
+        // The rewind case: the gate returns to a pitch whose string still
+        // rings from the previous pass. The tracker created at that moment
+        // must not adopt the ring as its quiet baseline.
+        let mut d = NoteDetector::new(RATE);
+        d.set_expected(vec![G4]); // some other gate first
+        let mut events = d.feed(&noise(200));
+        events.extend(d.feed(&tone(400, &[A4], 0.3))); // A4 rings, untracked
+        d.set_expected(vec![A4]); // rewind: gate returns to A4 mid-ring
+        events.extend(d.feed(&tone(200, &[A4], 0.3))); // ring continues
+        events.extend(d.feed(&tone(400, &[A4], 0.55))); // the RE-STRIKE
+        let ons: Vec<_> = events.iter().filter(|e| e.on).collect();
+        assert!(
+            ons.iter().any(|e| e.pitch == A4),
+            "restrike went undetected: {events:?}"
+        );
     }
 
     #[test]

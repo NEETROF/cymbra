@@ -277,6 +277,71 @@ void main() {
     },
   );
 
+  test(
+    'a transport rewind re-aims the detector at the jumped-to gate',
+    () async {
+      final container = harness();
+      await settle();
+      container
+          .read(storedInputSourceProvider.notifier)
+          .select(PlayerInputSource.microphone);
+      await settle();
+
+      final player = container.read(playerProvider.notifier);
+      player.setPlaying(true);
+      player.advance(10000);
+      player.advance(5000);
+      var data = container.read(playerProvider);
+      expect(data.blocked, isTrue);
+      final first = data.visibleNotes.first.pitch;
+
+      // Satisfy the first gate and walk to the second (a different pitch).
+      midi.emit(
+        MidiEvent(
+          kind: MidiEventKind.noteOn,
+          pitch: first,
+          velocity: 80,
+          channel: 0,
+          timestampMs: BigInt.zero,
+        ),
+      );
+      await settle();
+      // Released before the rewind — a key still held would legitimately
+      // re-satisfy the re-landed gate through the held-note tolerance.
+      midi.emit(
+        MidiEvent(
+          kind: MidiEventKind.noteOff,
+          pitch: first,
+          velocity: 0,
+          channel: 0,
+          timestampMs: BigInt.zero,
+        ),
+      );
+      await settle();
+      player.advance(4000);
+      player.advance(100);
+      data = container.read(playerProvider);
+      expect(data.blocked, isTrue);
+      expect(data.expectedKeys.single, isNot(first));
+
+      // Rewinding lands the playhead ON the first onset: every subsequent tick
+      // takes the blocked early-return, so the re-aim must not depend on the
+      // normal tick exit (on device the detector stayed on the pre-rewind set
+      // forever — only that one pitch kept working).
+      clearInteractions(capture);
+      player.restart();
+      player.advance(100);
+
+      final pushed = verify(capture.setExpectedPitches(captureAny)).captured;
+      expect(
+        pushed,
+        isNotEmpty,
+        reason: 'the rewind must re-push the gate set',
+      );
+      expect(pushed.last, [first]);
+    },
+  );
+
   test('a MIDI session is untouched by the free-run gate', () async {
     final container = harness();
     await settle();

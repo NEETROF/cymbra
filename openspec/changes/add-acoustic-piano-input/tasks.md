@@ -121,6 +121,20 @@
 - [ ] 10.2 On-screen detection debug overlay: heard-level curve + heard-vs-
   expected notes, so a player can see what the microphone hears (user
   request during the play test)
+- [x] 10.3 Chords and transport rewinds (third on-device data campaign,
+  Minuet in G): a rewind landing ON an onset froze the expected set — the
+  Wait-Mode blocked tick exit skipped the detector push, and every later
+  tick took that exit; and a chord strike gave each member ONE confirmation
+  shot timed inside the hammer transient, against a tonality gate comparing
+  each bin to the WHOLE buffer (structurally chord-blind: the missing
+  member's sig/bar ratio sat at 0.4–0.55 through every observation). Closed
+  by pushing the expected set through every tick exit and transport jump,
+  confirmation retries (43 ms cadence, 260 ms budget — the wrong-note
+  vetoes hold across it), and a chord-aware broadband discount (energy
+  measured at co-expected bins, rms²/8 floor). Device-validated: the
+  sol-si-ré gate opens per strike across rewinds, two full passes fluid
+  (fa♯, low register, mid-piece chord included), zero emissions through
+  the wrong-note and silence controls
 
 ## 8. Verification
 

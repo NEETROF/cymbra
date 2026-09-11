@@ -275,7 +275,16 @@ pub fn audio_input_stop_detection() {
 /// Wait-gate change; an empty list idles the detector.
 #[frb(sync)]
 pub fn set_expected_pitches(pitches: Vec<u8>) {
-    *EXPECTED.lock().unwrap() = pitches.clone();
+    {
+        let mut expected = EXPECTED.lock().unwrap();
+        if *expected != pitches {
+            diag_log(&format!(
+                "expected={pitches:?} detector={}",
+                DETECT.lock().unwrap().is_some()
+            ));
+        }
+        *expected = pitches.clone();
+    }
     if let Some(d) = DETECT.lock().unwrap().as_mut() {
         d.set_expected(pitches);
     }

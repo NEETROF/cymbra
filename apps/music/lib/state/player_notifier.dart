@@ -1216,6 +1216,9 @@ class Player extends _$Player {
       consumedHeld: const {},
       strokeAtMs: const {},
     );
+    // Re-aim the score-informed detector at the jumped-to position even while
+    // paused — the next tick would fix it, but a paused strike judges now.
+    _pushExpectedPitches();
     if (state.isPlaying) _maybeStartRun();
   }
 
@@ -1253,6 +1256,7 @@ class Player extends _$Player {
       consumedHeld: const {},
       strokeAtMs: const {},
     );
+    _pushExpectedPitches();
   }
 
   // --- Time advance (called by the screen's Ticker) ---------------------
@@ -1381,6 +1385,11 @@ class Player extends _$Player {
       // Persist any seeding done above (s no longer identical) even when
       // already blocked; otherwise just latch the blocked flag once.
       if (!identical(s, state) || !s.blocked) state = s.copyWith(blocked: true);
+      // This early return is a tick exit like the one at the bottom: the
+      // detector must keep following the gate through it, or a transport jump
+      // that lands ON an onset (rewind to the top) leaves it aimed at the
+      // pre-jump set forever — every tick thereafter takes this branch.
+      _pushExpectedPitches();
       return;
     }
 
