@@ -277,7 +277,8 @@ class ReadingSession {
         capturedAt: nowSeconds(),
       });
     } else {
-      await this.port.setStatus(key, g.status);
+      // Stamp the change so it orders correctly in cross-device sync (LWW).
+      await this.port.setStatusAt(key, g.status, Date.now());
     }
     await this.persist();
     await this.repaint();

@@ -41,6 +41,43 @@ export interface NewCard {
   capturedAt: number;
 }
 
+// Sync ops (add-lingua-connected-clients §2), in the engine's own shape (snake_case,
+// matching the KnownWordsService / DeckService message fields). The sync engine maps
+// these to/from the Connect-ES request/response messages (adding a device_id, mapping
+// `updated_at`↔`client_ts`). All timestamps are epoch millis on the wire.
+
+/** One exported word-status op, from `exportStatusOps`. */
+export interface StatusOp {
+  language: string;
+  lemma: string;
+  status: string; // "known" | "learning" | "ignored"
+  provenance: string; // "manual" | "srs" | "import"
+  updated_at: number; // epoch millis
+}
+
+/** An incoming resolved status change to apply (from a pull). */
+export interface StatusChangeIn {
+  language: string;
+  lemma: string;
+  status: string; // "known" | "learning" | "ignored" | "cleared"
+  updated_at: number; // epoch millis
+}
+
+/** One exported whole-card op, from `exportCardOps` (also the apply shape). */
+export interface CardOp {
+  client_id: string;
+  language: string;
+  lemma: string;
+  surface_form: string;
+  source_sentence: string;
+  source: string;
+  gloss: string;
+  fsrs_state: string; // opaque JSON
+  deleted: boolean;
+  client_ts: number; // epoch millis
+  device_id: string;
+}
+
 // The full engine surface the review change drives (add-lingua-extension-review): the
 // reading AnalyzerPort plus deck building, an FSRS review session, lossless
 // backup/restore and pack attributions. The engine holds the whole lingua-core
@@ -76,4 +113,18 @@ export interface LinguaPort extends AnalyzerPort {
   notice(): Promise<string>;
   /** The pack's source licences. */
   licences(): Promise<string[]>;
+
+  // Sync (add-lingua-connected-clients §2): the engine timestamps mutations and
+  // exports/applies ops for the KnownWordsService / DeckService.
+
+  /** Set a status stamped with a sync timestamp (epoch millis) for last-write-wins. */
+  setStatusAt(lemma: string, status: LemmaStatus | null, atMs: number): Promise<void>;
+  /** Every explicit status as an op, for a push (outbox / first-sign-in upload). */
+  exportStatusOps(): Promise<StatusOp[]>;
+  /** Apply pulled status changes under last-write-wins; returns how many changed. */
+  applyStatusChanges(changes: StatusChangeIn[]): Promise<number>;
+  /** Every deck card as an op, for a push. */
+  exportCardOps(): Promise<CardOp[]>;
+  /** Apply pulled card ops under last-write-wins; returns how many changed. */
+  applyCardOps(ops: CardOp[]): Promise<number>;
 }

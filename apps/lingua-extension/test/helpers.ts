@@ -87,6 +87,11 @@ export function makeFakePort(deck: FakeCard[] = []): { port: LinguaPort; calls: 
     },
     notice: async () => "NOTICE",
     licences: async () => ["L1"],
+    setStatusAt: async (l, s) => void calls.setStatus.push([l, s]),
+    exportStatusOps: async () => [],
+    applyStatusChanges: async () => 0,
+    exportCardOps: async () => [],
+    applyCardOps: async () => 0,
   };
   return { port, calls };
 }

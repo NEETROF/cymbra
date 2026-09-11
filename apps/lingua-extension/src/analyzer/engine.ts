@@ -1,4 +1,4 @@
-import type { LinguaPort, NewCard, Rating, ReviewCard } from "./port.ts";
+import type { CardOp, LinguaPort, NewCard, Rating, ReviewCard, StatusChangeIn, StatusOp } from "./port.ts";
 import type { LemmaStatus, PageAnalysis } from "./types.ts";
 
 // The Chromium LinguaPort implementation: the lingua-core WASM module instantiated
@@ -39,6 +39,11 @@ interface WasmEngine {
   reset(): void;
   notice(): string;
   licences(): string;
+  setStatusAt(lemma: string, status: string, atMs: number): void;
+  exportStatusOps(): string;
+  applyStatusChanges(json: string): number;
+  exportCardOps(): string;
+  applyCardOps(json: string): number;
   free(): void;
 }
 
@@ -160,5 +165,25 @@ export class WasmAnalyzerPort implements LinguaPort {
 
   async licences(): Promise<string[]> {
     return JSON.parse((await this.engine()).licences()) as string[];
+  }
+
+  async setStatusAt(lemma: string, status: LemmaStatus | null, atMs: number): Promise<void> {
+    (await this.engine()).setStatusAt(lemma, status ?? CLEAR, atMs);
+  }
+
+  async exportStatusOps(): Promise<StatusOp[]> {
+    return JSON.parse((await this.engine()).exportStatusOps()) as StatusOp[];
+  }
+
+  async applyStatusChanges(changes: StatusChangeIn[]): Promise<number> {
+    return (await this.engine()).applyStatusChanges(JSON.stringify(changes));
+  }
+
+  async exportCardOps(): Promise<CardOp[]> {
+    return JSON.parse((await this.engine()).exportCardOps()) as CardOp[];
+  }
+
+  async applyCardOps(ops: CardOp[]): Promise<number> {
+    return (await this.engine()).applyCardOps(JSON.stringify(ops));
   }
 }
