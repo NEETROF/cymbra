@@ -618,8 +618,15 @@ impl NoteDetector {
                             goertzel_hann(disc, rate, pitch_freq(t.pitch.saturating_sub(1)));
                         let nb_hi =
                             goertzel_hann(disc, rate, pitch_freq(t.pitch.saturating_add(1)));
+                        // `strike_ago` instruments the speech question: does a
+                        // voice-faked confirmation sit near a broadband jump
+                        // (syllables also trip the 2× follower) or far from
+                        // any (pure vowel glide)? The answer decides whether
+                        // a strike-proximity gate can reject speech at all.
+                        let strike_ago_ms =
+                            fed.saturating_sub(self.last_strike_at) * 1000 / u64::from(rate);
                         self.debug_log.push(format!(
-                            "conf p={} sounding={still_sounding} neighbors={beats_neighbors} present={present} own={own:.2e} nb_lo={nb_lo:.2e} nb_hi={nb_hi:.2e} sig={signal:.2e} h2={h2:.2e} rms={head:.2e}",
+                            "conf p={} sounding={still_sounding} neighbors={beats_neighbors} present={present} own={own:.2e} nb_lo={nb_lo:.2e} nb_hi={nb_hi:.2e} sig={signal:.2e} h2={h2:.2e} rms={head:.2e} strike_ago={strike_ago_ms}",
                             t.pitch
                         ));
                         if still_sounding && beats_neighbors && present {
