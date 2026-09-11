@@ -5,24 +5,23 @@
 # this file except in compliance with the License. You may obtain a copy of the
 # License at http://www.apache.org/licenses/LICENSE-2.0
 
-"""Reduce the raw EN->FR sources into the four pack tables (spec: add-lingua-data-pack).
+"""Reduce the raw EN->FR sources (AGID + wordfreq + kaikki) into the pack tables.
 
-Inputs (already downloaded into <work>/ by build.sh, git-ignored):
-  - agid-infl.txt          AGID inflection database  (form <- lemma)
+Inputs (downloaded into <work>/ by build.sh, git-ignored):
+  - agid-infl.txt          AGID inflection database  (lemma <POS>: forms)
   - kaikki-Anglais.jsonl   kaikki frwiktionary "Anglais" extract (FR glosses of EN words)
   - wordfreq (pip)         English frequency ranks
 
 Outputs (into <work>/, consumed by lingua-pack-build):
-  - forms.tsv   form<TAB>lemma
-  - freq.tsv    lemma<TAB>rank      (1 = most frequent)
-  - gloss.tsv   lemma<TAB>gloss     (one short French gloss)
-  - NOTICE      the attribution stack (the builder fails if a source is missing)
-  - manifest.json  PackMeta + sources
+  forms.tsv  (form<TAB>lemma) / freq.tsv (lemma<TAB>rank) / gloss.tsv (lemma<TAB>gloss)
+  / NOTICE / manifest.json
 
-Everything is SCOPED to the top-N most frequent English lemmas (wordfreq): that is
-what keeps the pack under the 5 MB budget and covers the vocabulary that matters —
-rarer words simply read as "unknown", which is honest. Output is deterministic
-(sorted, fixed build date) so a rebuild from the same snapshots is byte-identical.
+Key rule: only CANONICAL LEMMAS (base forms) are ever treated as lemmas. An inflected
+form (e.g. "targets", "gives") is kept in forms.tsv so it lemmatises to its base, but is
+NEVER given a rank or a gloss of its own — otherwise it becomes a spurious pool lemma
+that (a) carries a useless "Pluriel de …" form-of gloss and (b) collides with its base
+lemma's entry. Pack is scoped to the top-N canonical lemmas to fit the 5 MB budget.
+Output is sorted + date-stamped so a rebuild from the same snapshots is byte-identical.
 """
 
 import argparse
@@ -30,40 +29,36 @@ import json
 import os
 import re
 
-# A studied-language token we keep: starts with a letter, then letters/apostrophe/hyphen.
 _TOKEN = re.compile(r"[A-Za-z][A-Za-z'\-]*")
 
-
-def top_lemmas(n):
-    """The top-n English words as a lemma->dense-rank map (1-based)."""
-    from wordfreq import top_n_list
-
-    ranks = {}
-    for w in top_n_list("en", n):
-        w = w.strip().lower()
-        if w and _TOKEN.fullmatch(w) and w not in ranks:
-            ranks[w] = len(ranks) + 1
-    return ranks
+# French frwiktionary "form-of" gloss templates — these mark an entry that is an
+# inflected form, not a word with a meaning of its own; never a useful translation.
+_FORM_OF = re.compile(
+    r"^(pluriel|singulier|f[ée]minin|masculin|participe|pr[ée]t[ée]rit|"
+    r"(troisi[èe]me|deuxi[èe]me|premi[èe]re) personne|variante|autre graphie|"
+    r"forme (de|du|d'|verbale|fl[ée]chie)|genre|orthographe)\b",
+    re.IGNORECASE,
+)
 
 
 def agid_forms(inflections):
-    """Every inflected form on an AGID line's right-hand side, cleaned.
-
-    Groups are `|`-separated, alternatives `,`-separated; `{...}` are usage notes and
-    `?`/`!`/`~` and bare numbers are annotations — all dropped.
-    """
+    """Cleaned inflected forms from an AGID right-hand side."""
     cleaned = re.sub(r"\{[^}]*\}", " ", inflections)
     out = []
     for tok in re.split(r"[|,]", cleaned):
         tok = tok.strip().strip("?!~").strip()
-        m = _TOKEN.fullmatch(tok)
-        if m:
+        if _TOKEN.fullmatch(tok):
             out.append(tok.lower())
     return out
 
 
-def reduce_forms(path, lemmas):
-    """(form, lemma) pairs for every AGID entry whose lemma is in the top-N set."""
+def parse_agid(path):
+    """All (form, lemma) pairs from AGID, skipping questionable-POS lines.
+
+    A `?` on the part of speech (e.g. `gif N?: gives`) marks a doubtful headword; such
+    lines carry bogus inflections (AGID really does claim the noun "gif" pluralises to
+    "gives"), so they are dropped.
+    """
     pairs = set()
     with open(path, encoding="utf-8", errors="replace") as f:
         for line in f:
@@ -74,12 +69,29 @@ def reduce_forms(path, lemmas):
             if not head:
                 continue
             lemma = head[0].lower()
-            if lemma not in lemmas:
+            if not _TOKEN.fullmatch(lemma):
+                continue
+            if any("?" in flag for flag in head[1:]):  # questionable POS -> skip
                 continue
             pairs.add((lemma, lemma))
             for form in agid_forms(right):
                 pairs.add((form, lemma))
     return pairs
+
+
+def canonical_ranks(inflected, want):
+    """Dense ranks over the top canonical lemmas (wordfreq order, inflected forms skipped)."""
+    from wordfreq import top_n_list
+
+    ranks = {}
+    for w in top_n_list("en", want * 4):
+        w = w.strip().lower()
+        if w in ranks or not _TOKEN.fullmatch(w) or w in inflected:
+            continue
+        ranks[w] = len(ranks) + 1
+        if len(ranks) >= want:
+            break
+    return ranks
 
 
 def clean_gloss(text, maxlen):
@@ -90,16 +102,13 @@ def clean_gloss(text, maxlen):
 
 
 def reduce_gloss(path, lemmas, maxlen, per_sense=42, max_senses=3):
-    """Up to `max_senses` short French glosses per top-N lemma, joined by "; ".
+    """Up to `max_senses` short French glosses per canonical lemma, joined by "; ".
 
-    English words are polysemous and frwiktionary's first sense is not always the
-    common one (e.g. `run`'s first sense is a rare noun, "Liquide"), so a single
-    `senses[0]` is often misleading. Gathering the first gloss of the first few senses
-    ACROSS the word's POS entries surfaces the everyday meaning (…"Courir"…) and gives
-    the reader the range, which is what a vocabulary popup wants.
+    Glosses are gathered one-per-sense, round-robin ACROSS a word's POS entries, so a
+    verb meaning appears beside the noun (run -> "Course; Courir") rather than being
+    crowded out. Form-of senses ("Pluriel de …") are skipped — they are not meanings.
     """
-    # word -> list of per-entry (per-POS) gloss lists, e.g. run -> [[noun senses], [verb senses]].
-    entries = {}
+    entries = {}  # word -> [per-entry [gloss,...]]
     with open(path, encoding="utf-8", errors="replace") as f:
         for line in f:
             try:
@@ -112,7 +121,7 @@ def reduce_gloss(path, lemmas, maxlen, per_sense=42, max_senses=3):
             senses = []
             for sense in d.get("senses", []):
                 gg = sense.get("glosses") or []
-                if gg:
+                if gg and not _FORM_OF.match(gg[0].strip()):
                     g = clean_gloss(gg[0], per_sense)
                     if g:
                         senses.append(g)
@@ -121,9 +130,6 @@ def reduce_gloss(path, lemmas, maxlen, per_sense=42, max_senses=3):
 
     glosses = {}
     for word, per_entry in entries.items():
-        # Round-robin by sense depth ACROSS entries: take each POS's first sense before
-        # any POS's second, so a verb meaning appears next to the noun rather than being
-        # crowded out by one entry's many senses.
         picked = []
         depth = 0
         deepest = max(len(e) for e in per_entry)
@@ -170,26 +176,24 @@ def main():
     ap.add_argument("--pack-version", required=True)
     a = ap.parse_args()
 
-    ranks = top_lemmas(a.max_lemmas)
+    pairs = parse_agid(os.path.join(a.work, "agid-infl.txt"))
+    inflected = {form for form, lemma in pairs if form != lemma}
+    ranks = canonical_ranks(inflected, a.max_lemmas)
     lemmas = set(ranks)
-    forms = reduce_forms(os.path.join(a.work, "agid-infl.txt"), lemmas)
+
+    # forms.tsv: every AGID mapping whose lemma we keep, plus each lemma's self-map so a
+    # lemma with no listed inflection is still recognised.
+    forms = {(f, l) for f, l in pairs if l in lemmas}
+    forms |= {(l, l) for l in lemmas}
     glosses = reduce_gloss(os.path.join(a.work, "kaikki-Anglais.jsonl"), lemmas, a.max_gloss_len)
 
-    write(
-        a.work,
-        "forms.tsv",
-        "".join(f"{form}\t{lemma}\n" for form, lemma in sorted(forms)),
-    )
+    write(a.work, "forms.tsv", "".join(f"{f}\t{l}\n" for f, l in sorted(forms)))
     write(
         a.work,
         "freq.tsv",
-        "".join(f"{lemma}\t{rank}\n" for lemma, rank in sorted(ranks.items(), key=lambda kv: kv[1])),
+        "".join(f"{l}\t{r}\n" for l, r in sorted(ranks.items(), key=lambda kv: kv[1])),
     )
-    write(
-        a.work,
-        "gloss.tsv",
-        "".join(f"{lemma}\t{g}\n" for lemma, g in sorted(glosses.items())),
-    )
+    write(a.work, "gloss.tsv", "".join(f"{l}\t{g}\n" for l, g in sorted(glosses.items())))
     write(a.work, "NOTICE", NOTICE)
     manifest = {
         "meta": {
@@ -211,7 +215,7 @@ def main():
     }
     write(a.work, "manifest.json", json.dumps(manifest, indent=2, ensure_ascii=False) + "\n")
 
-    print(f"reduced en-fr: forms={len(forms)} freq={len(ranks)} gloss={len(glosses)}")
+    print(f"reduced en-fr: forms={len(forms)} lemmas={len(ranks)} gloss={len(glosses)}")
 
 
 if __name__ == "__main__":
