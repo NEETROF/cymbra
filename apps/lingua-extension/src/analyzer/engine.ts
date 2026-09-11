@@ -42,10 +42,13 @@ interface WasmEngine {
   free(): void;
 }
 
-interface WasmModule {
+export interface WasmModule {
   default: (init: Response | string | URL) => Promise<unknown>;
   LinguaEngine: new (packBytes: Uint8Array) => WasmEngine;
 }
+
+/** How the wasm-pack glue module is obtained. */
+export type GlueLoader = () => Promise<WasmModule>;
 
 /** Paths of the vendored wasm output + pack within the built extension. */
 const GLUE_PATH = "wasm/lingua_wasm.js";
@@ -55,8 +58,19 @@ const PACK_PATH = "assets/pack.lingua";
 /** The status string that clears an explicit status in the WASM engine. */
 const CLEAR = "clear";
 
+/**
+ * Default loader: dynamic-import the glue by its extension URL. This is the ONLY option
+ * for a content script (a classic IIFE cannot statically import an ES module) and it
+ * works in a Firefox event page — but NOT in a Chromium service worker, where the HTML
+ * spec forbids dynamic `import()`. The service worker passes a static loader instead.
+ */
+const dynamicGlue: GlueLoader = async () =>
+  (await import(/* @vite-ignore */ chrome.runtime.getURL(GLUE_PATH))) as WasmModule;
+
 export class WasmAnalyzerPort implements LinguaPort {
   private enginePromise: Promise<WasmEngine> | null = null;
+
+  constructor(private readonly loadGlue: GlueLoader = dynamicGlue) {}
 
   /** Instantiated once per tab, on the first call. */
   private engine(): Promise<WasmEngine> {
@@ -64,7 +78,7 @@ export class WasmAnalyzerPort implements LinguaPort {
   }
 
   private async build(): Promise<WasmEngine> {
-    const mod = (await import(/* @vite-ignore */ chrome.runtime.getURL(GLUE_PATH))) as WasmModule;
+    const mod = await this.loadGlue();
     await mod.default(await fetch(chrome.runtime.getURL(WASM_PATH)));
     const packBytes = new Uint8Array(await (await fetch(chrome.runtime.getURL(PACK_PATH))).arrayBuffer());
     // Throws if the pack is malformed or built for an incompatible analyzer_version.

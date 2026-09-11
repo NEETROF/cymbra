@@ -1,6 +1,11 @@
-import { WasmAnalyzerPort } from "./analyzer/engine.ts";
+import { type GlueLoader, WasmAnalyzerPort, type WasmModule } from "./analyzer/engine.ts";
 import { handleRpc, isRpcRequest } from "./analyzer/rpc-host.ts";
 import { type AsyncStorageArea, hydrateEngine } from "./state/storage.ts";
+// Static import of the wasm-pack glue (esbuild bundles it into the background). The
+// engine hosted here must NOT dynamic-import: a Chromium service worker forbids
+// `import()` (HTML spec). A static loader sidesteps that; it is harmless on the Firefox
+// event page too.
+import * as wasmGlue from "./wasm/pkg/lingua_wasm.js";
 
 // Background worker: orchestration for both variants — badge, keyboard commands, the
 // activeTab-first permission posture (design D3). On Firefox (an event page, not a
@@ -36,16 +41,20 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
   chrome.action.setBadgeTextColor?.({ tabId, color: BADGE_TEXT });
 });
 
-// Firefox only: host the WASM engine in the event page and serve the AnalyzerPort RPC.
-// The engine self-hydrates from storage on wake (so a restarted event page restores
-// state before answering); the surfaces persist after their own mutations, as on
-// Chromium.
-if (__TARGET__ === "firefox") {
+// Host the WASM engine here and serve the AnalyzerPort RPC. On Firefox (whose
+// content-script CSP always blocks WASM) this is the primary engine; on Chromium it is
+// the fallback for pages whose own CSP blocks the in-content engine (e.g. GitHub) — the
+// content script's `resolveContentPort` routes to it over this RPC. Lazy: the engine
+// instantiates on the first RPC, so a Chromium session that never hits a CSP-strict
+// page pays nothing. It self-hydrates from storage on wake, so a restarted worker
+// restores state before answering; the surfaces persist after their own mutations.
+{
   const storage: AsyncStorageArea = {
     get: (keys) => chrome.storage.local.get(keys),
     set: (items) => chrome.storage.local.set(items),
   };
-  const enginePort = new WasmAnalyzerPort();
+  const staticGlue: GlueLoader = async () => wasmGlue as unknown as WasmModule;
+  const enginePort = new WasmAnalyzerPort(staticGlue);
   let hydrated: Promise<void> | null = null;
   const ensure = (): Promise<void> => (hydrated ??= hydrateEngine(enginePort, storage));
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
