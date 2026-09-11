@@ -4,7 +4,7 @@
       "studied": "en",
       "native": "fr",
       "pack_version": "0.0.0-testdata",
-      "analyzer_version": "1.0.0",
+      "analyzer_version": "1.1.0",
       "built_at": "2026-09-11",
       "size_bytes": 747,
       "notice": "Cymbra Lingua data pack — attributions (test fixture).\n\nAGID: permission to use, copy, modify, distribute and sell, with notices retained (WordNet, 2of12id, ENABLE upstream).\nwordfreq: CC BY-SA 4.0.\nkaikki / frwiktionary: CC BY-SA 4.0 + GFDL.\n"

@@ -173,6 +173,38 @@ impl KnowledgeState {
         }
         best.into()
     }
+
+    /// Classifies a hyphenated compound the lexicon does not know as a unit,
+    /// from its part lemmas (e.g. `repo-wide` → `["repo", "wide"]`).
+    ///
+    /// An explicit status the reader set on the whole compound wins — a card
+    /// added for `repo-wide` is honoured as its own lemma. Otherwise the compound is
+    /// only as known as its **weakest** part: you understand `repo-wide` only
+    /// if you understand both `repo` and `wide` (unlike ambiguous single-word
+    /// candidates in [`classify`](Self::classify), where knowing any one sense
+    /// is enough). An empty part list is `Unknown`.
+    pub fn classify_compound(
+        &self,
+        lang: StudiedLanguage,
+        whole: &str,
+        parts: &[String],
+        ranks: &impl FrequencyRanks,
+    ) -> TokenClass {
+        if self.explicit_status(lang, whole).is_some() {
+            return self.classify(lang, &[whole], ranks);
+        }
+        let mut weakest: Option<Verdict> = None;
+        for part in parts {
+            let verdict = match self.resolve_lemma(lang, part, ranks) {
+                Some(Status::Known(_)) => Verdict::Known,
+                Some(Status::Ignored) => Verdict::Ignored,
+                Some(Status::Learning) => Verdict::Learning,
+                None => Verdict::Unknown,
+            };
+            weakest = Some(weakest.map_or(verdict, |w| w.min(verdict)));
+        }
+        weakest.unwrap_or(Verdict::Unknown).into()
+    }
 }
 
 /// Cross-candidate precedence: a token is as known as its most-known
@@ -281,6 +313,73 @@ mod tests {
             TokenClass::Unknown
         );
         assert_eq!(state.explicit_count(), 0);
+    }
+
+    fn parts(words: &[&str]) -> Vec<String> {
+        words.iter().map(|w| (*w).to_owned()).collect()
+    }
+
+    #[test]
+    fn compound_is_known_only_when_every_part_is_known() {
+        let mut state = KnowledgeState::new();
+        state.set_calibration(EN, 3_000);
+        // run (500) + code (2,500): both below the threshold → Known.
+        assert_eq!(
+            state.classify_compound(EN, "run-code", &parts(&["run", "code"]), &ranks()),
+            TokenClass::Known
+        );
+        // run known, seldom (5,100) above the threshold → weakest link Unknown.
+        assert_eq!(
+            state.classify_compound(EN, "run-seldom", &parts(&["run", "seldom"]), &ranks()),
+            TokenClass::Unknown
+        );
+    }
+
+    #[test]
+    fn compound_takes_its_weakest_part_not_its_strongest() {
+        let mut state = KnowledgeState::new();
+        state.set_calibration(EN, 3_000);
+        state.set_status(EN, "run", Status::Learning); // below threshold, but in the deck
+        // run Learning + code Known → weakest is Learning (contrast `classify`,
+        // which would pick the strongest and return Known).
+        assert_eq!(
+            state.classify_compound(EN, "run-code", &parts(&["run", "code"]), &ranks()),
+            TokenClass::Learning
+        );
+    }
+
+    #[test]
+    fn an_ignored_part_still_counts_as_known_for_the_compound() {
+        let mut state = KnowledgeState::new();
+        state.set_calibration(EN, 3_000);
+        state.set_status(EN, "run", Status::Ignored);
+        // Ignored counts as known (like a Known part), so run + code → Ignored,
+        // which the coverage tally treats as known.
+        assert_eq!(
+            state.classify_compound(EN, "run-code", &parts(&["run", "code"]), &ranks()),
+            TokenClass::Ignored
+        );
+    }
+
+    #[test]
+    fn an_explicit_status_on_the_whole_compound_wins() {
+        let mut state = KnowledgeState::new();
+        state.set_calibration(EN, 3_000);
+        // Neither part is known, but the reader added the compound to their deck.
+        state.set_status(EN, "repo-wide", Status::Learning);
+        assert_eq!(
+            state.classify_compound(EN, "repo-wide", &parts(&["repo", "wide"]), &ranks()),
+            TokenClass::Learning
+        );
+    }
+
+    #[test]
+    fn a_compound_with_no_parts_is_unknown() {
+        let state = KnowledgeState::new();
+        assert_eq!(
+            state.classify_compound(EN, "repo-wide", &[], &ranks()),
+            TokenClass::Unknown
+        );
     }
 
     #[test]
