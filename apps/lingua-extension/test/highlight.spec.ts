@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { injectPageStyles } from "@/reading/highlight.ts";
 
 const STYLE_ID = "cymbra-lingua-style";
-const CSS = ":root{--cymbra-lingua-unknown-fill:rgba(0,0,0,.1)}::highlight(cymbra-lingua-unknown){background:var(--cymbra-lingua-unknown-fill)}";
+const CSS =
+  ":root{--cymbra-lingua-unknown-fill:rgba(0,0,0,.1)}::highlight(cymbra-lingua-unknown){background:var(--cymbra-lingua-unknown-fill)}";
 
 // jsdom exposes no `adoptedStyleSheets`, so these exercise the <style> fallback —
 // the path that must self-heal when a morphing SPA (GitHub) strips the node.
