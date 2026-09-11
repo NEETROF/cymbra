@@ -22,6 +22,7 @@
 //! output lives in `lingua-core` and stays WASM-clean.
 
 pub mod licence;
+pub mod manifest;
 
 use std::path::Path;
 
