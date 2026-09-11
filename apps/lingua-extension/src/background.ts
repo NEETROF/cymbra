@@ -3,12 +3,18 @@ import { handleRpc, isRpcRequest } from "./analyzer/rpc-host.ts";
 import { api, initApi } from "./net/api.ts";
 import { setTokenRefresher, setUnauthenticatedHandler } from "./net/transport.ts";
 import { Session } from "./state/session.ts";
-import { type AsyncStorageArea, hydrateEngine } from "./state/storage.ts";
+import { type AsyncStorageArea, hydrateEngine, ROOT_KEY } from "./state/storage.ts";
+import { getOrCreateDeviceId, SyncEngine } from "./sync/sync.ts";
 // Static import of the wasm-pack glue (esbuild bundles it into the background). The
 // engine hosted here must NOT dynamic-import: a Chromium service worker forbids
 // `import()` (HTML spec). A static loader sidesteps that; it is harmless on the Firefox
 // event page too.
 import * as wasmGlue from "./wasm/pkg/lingua_wasm.js";
+
+// The wasm-pack glue as a STATIC loader: a Chromium service worker forbids dynamic
+// import(), so both engines hosted here (the rpc-host reading engine and the sync
+// engine) take this instead of the content script's dynamic loader.
+const staticGlue: GlueLoader = async () => wasmGlue as unknown as WasmModule;
 
 // Background worker: orchestration for both variants — badge, keyboard commands, the
 // activeTab-first permission posture (design D3). On Firefox (an event page, not a
@@ -62,7 +68,6 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
     get: (keys) => chrome.storage.local.get(keys),
     set: (items) => chrome.storage.local.set(items),
   };
-  const staticGlue: GlueLoader = async () => wasmGlue as unknown as WasmModule;
   const enginePort = new WasmAnalyzerPort(staticGlue);
   let hydrated: Promise<void> | null = null;
   const ensure = (): Promise<void> => (hydrated ??= hydrateEngine(enginePort, storage));
@@ -118,7 +123,64 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
   // A terminal 401 (refresh already failed and purged) needs no extra work here; the
   // popup re-reads state on open. Left as a hook for the §2 sync-state indicator.
   setUnauthenticatedHandler(() => {});
-  void session.resume();
+
+  // Sync (§2b): a DEDICATED engine (static glue — a service worker forbids dynamic
+  // import()) that the SyncEngine hydrates from the backup each run, leaving the
+  // rpc-host reading engine untouched. Runs only while signed in; debounced so a burst
+  // of mutations (each persisting the backup) coalesces into one exchange.
+  const syncPort = new WasmAnalyzerPort(staticGlue);
+  let deviceIdPromise: Promise<string> | null = null;
+  let syncEngine: SyncEngine | null = null;
+  let syncing = false;
+  let syncPending = false;
+  let syncTimer: ReturnType<typeof setTimeout> | null = null;
+  const scheduleSync = (delayMs: number): void => {
+    if (!session.state().signedIn) return;
+    // A trigger arriving mid-sync is remembered, not lost, and drained when the current
+    // run finishes — so a mutation made during a slow sync still gets pushed.
+    if (syncing) {
+      syncPending = true;
+      return;
+    }
+    if (syncTimer !== null) clearTimeout(syncTimer);
+    syncTimer = setTimeout(() => {
+      syncTimer = null;
+      void runSync();
+    }, delayMs);
+  };
+  const runSync = async (): Promise<void> => {
+    if (syncing || !session.state().signedIn) return;
+    syncing = true;
+    syncPending = false;
+    try {
+      deviceIdPromise ??= getOrCreateDeviceId(localStore);
+      syncEngine ??= new SyncEngine({
+        port: syncPort,
+        storage: localStore,
+        clients: () => ({ knownWords: api().knownWords, deck: api().deck }),
+        deviceId: await deviceIdPromise,
+      });
+      await syncEngine.sync();
+    } catch (e) {
+      // Reset the memoised device id + engine so a transient failure (e.g. a storage
+      // read error) retries next time instead of wedging for the worker's lifetime.
+      deviceIdPromise = null;
+      syncEngine = null;
+      console.warn("[Cymbra Lingua] sync failed:", e);
+    } finally {
+      syncing = false;
+      if (syncPending) scheduleSync(0); // drain a trigger that arrived during the run
+    }
+  };
+
+  // Restore a session on wake and sync once if one was resumed.
+  void session.resume().then((ok) => {
+    if (ok) scheduleSync(0);
+  });
+  // A mutation in any context persists the backup → debounced sync.
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "local" && changes[ROOT_KEY]) scheduleSync(2000);
+  });
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     const msg = message as { type?: string; email?: string; password?: string } | null;
@@ -128,13 +190,19 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
         return false;
       case "account:signInGoogle":
         session.signInWithGoogle().then(
-          () => sendResponse({ ok: true, state: session.state() }),
+          () => {
+            scheduleSync(0);
+            sendResponse({ ok: true, state: session.state() });
+          },
           (e: unknown) => sendResponse({ ok: false, error: errorMessage(e) }),
         );
         return true;
       case "account:signInLocal":
         session.signInLocal(msg.email ?? "", msg.password ?? "").then(
-          () => sendResponse({ ok: true, state: session.state() }),
+          () => {
+            scheduleSync(0);
+            sendResponse({ ok: true, state: session.state() });
+          },
           (e: unknown) => sendResponse({ ok: false, error: errorMessage(e) }),
         );
         return true;
