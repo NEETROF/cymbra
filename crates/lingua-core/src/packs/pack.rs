@@ -19,6 +19,7 @@ use std::io::Read;
 
 use crate::analysis::ANALYZER_VERSION;
 use crate::analysis::lexicon::{FstLexicon, Lexicon, LexiconError};
+use crate::knowledge::level::{CefrLevel, CefrLevels};
 use crate::knowledge::state::FrequencyRanks;
 
 use super::format::{FormatError, read_container};
@@ -154,6 +155,25 @@ impl Pack {
     pub fn notice(&self) -> &str {
         &self.notice
     }
+
+    /// The lemmas whose frequency rank is within `[lo, hi]` inclusive, each with
+    /// its gloss when the pack carries one, in ascending lemma-id order.
+    /// Unranked lemmas (rank 0) are skipped. Enumerates a frequency band for the
+    /// stats ladder and level-targeted seeding on pairs without CEFR data (the
+    /// per-CEFR-level enumerator arrives with the pack-format slice).
+    pub fn lemmas_in_rank_band(&self, lo: u32, hi: u32) -> Vec<(&str, Option<&str>)> {
+        (0..self.lexicon.lemma_count() as u64)
+            .filter_map(|id| {
+                let rank = *self.freq.get(id as usize)?;
+                if rank == 0 || rank < lo || rank > hi {
+                    return None;
+                }
+                let lemma = self.lexicon.lemma_at(id)?;
+                let gloss = self.glosses.get(&id).map(String::as_str);
+                Some((lemma, gloss))
+            })
+            .collect()
+    }
 }
 
 impl FrequencyRanks for Pack {
@@ -163,6 +183,15 @@ impl FrequencyRanks for Pack {
             Some(0) | None => None,
             Some(rank) => Some(rank),
         }
+    }
+}
+
+impl CefrLevels for Pack {
+    fn level(&self, _lemma: &str) -> Option<CefrLevel> {
+        // The per-lemma CEFR level table arrives with the pack-format slice of
+        // add-lingua-cefr-levels; until then the pack reports no levels, so the
+        // knowledge model falls back to frequency-rank calibration.
+        None
     }
 }
 
@@ -322,6 +351,22 @@ mod tests {
         assert_eq!(pack.gloss("city"), Some("ville"));
         assert_eq!(pack.gloss("seldom"), None);
         assert!(pack.notice().contains("CC BY-SA"));
+    }
+
+    #[test]
+    fn rank_band_enumeration_lists_ranked_lemmas_with_glosses_in_id_order() {
+        let pack = Pack::load(&sample_pack_bytes(ANALYZER_VERSION)).expect("load");
+        // run (500) and city (1,200) are in [1, 2000]; seldom (unranked) is
+        // skipped. Lemma ids follow the FST's sorted order (city < run < seldom).
+        let band = pack.lemmas_in_rank_band(1, 2_000);
+        assert_eq!(band, vec![("city", Some("ville")), ("run", Some("courir"))]);
+        // A tighter band excludes run (rank 500 < 600).
+        assert_eq!(
+            pack.lemmas_in_rank_band(600, 2_000),
+            vec![("city", Some("ville"))]
+        );
+        // Pack reports no CEFR levels yet (format slice pending).
+        assert_eq!(pack.level("run"), None);
     }
 
     #[test]
