@@ -667,7 +667,9 @@ mod tests {
             .collect();
         assert_eq!(scopes, vec!["music"]);
 
-        // A global admin sees all three scopes.
+        // A global admin sees every scope it may administer (add-lingua-back-office
+        // added `lingua` to that set; the column shows even where the target holds no
+        // role there).
         let resp = g
             .list_accounts(authed_scoped(
                 ListAccountsRequest {
@@ -688,7 +690,7 @@ mod tests {
             .map(|sr| sr.scope.as_str())
             .collect();
         scopes.sort();
-        assert_eq!(scopes, vec!["global", "live", "music"]);
+        assert_eq!(scopes, vec!["global", "lingua", "live", "music"]);
 
         // A caller who is admin in no scope is refused outright.
         let err = g

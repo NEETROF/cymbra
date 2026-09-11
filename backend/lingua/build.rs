@@ -16,6 +16,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "proto/known_words.proto",
                 "proto/deck.proto",
                 "proto/stats.proto",
+                "proto/lingua_admin.proto",
             ],
             &["proto"],
         )?;

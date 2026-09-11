@@ -84,6 +84,8 @@ const FR: Record<string, string> = {
   "billing.apple.enabled": "Canal d’achat Apple : bouton du paywall + route des notifications App Store.",
   "billing.google.enabled": "Canal d’achat Google : bouton du paywall + route des notifications Play.",
   "billing.web.enabled": "Canal d’achat web (marchand officiel) : checkout hébergé + webhook.",
+  "lingua.sync.enabled":
+    "Coupe-circuit de la synchronisation Cymbra Lingua (activé par défaut ; désactiver coupe le push/pull pour tous les appareils connectés sans livrer de client). Le mode local n’est pas affecté.",
 };
 
 const BY_LOCALE: Record<string, Record<string, string>> = { fr: FR };

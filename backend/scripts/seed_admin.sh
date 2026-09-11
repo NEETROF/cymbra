@@ -62,9 +62,9 @@ BEGIN
     RAISE EXCEPTION 'no account with id %', u;
   END IF;
   -- Reject a typo here rather than at the CHECK constraint, so the message names
-  -- what is accepted (migration 0009 enforces the same vocabulary).
-  IF s NOT IN ('global', 'music', 'live') THEN
-    RAISE EXCEPTION 'unknown scope %; expected global, music or live', s;
+  -- what is accepted (migration 0010 enforces the same vocabulary).
+  IF s NOT IN ('global', 'music', 'live', 'lingua') THEN
+    RAISE EXCEPTION 'unknown scope %; expected global, music, live or lingua', s;
   END IF;
   IF r NOT IN ('user', 'admin', 'moderator') THEN
     RAISE EXCEPTION 'unknown role %; expected user, admin or moderator', r;

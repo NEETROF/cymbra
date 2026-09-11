@@ -73,7 +73,8 @@
     "usage": "Usage",
     "menu": "Menu",
     "notifications": "Notifications",
-    "takedowns": "Retraits"
+    "takedowns": "Retraits",
+    "lingua": "Lingua"
   },
   "usage": {
     "title": "Usage des fonctionnalités",
@@ -98,6 +99,30 @@
     "byDeviceClass": "Utilisateurs par type d’appareil",
     "actionBreakdown": "Répartition des actions",
     "noData": "Aucune donnée pour cette période"
+  },
+  "lingua": {
+    "title": "Lingua",
+    "syncedNote": "Les agrégats ne couvrent que les comptes qui synchronisent ; un appareil resté local n’est pas compté.",
+    "from": "Du",
+    "to": "Au",
+    "language": "Langue étudiée",
+    "anyLanguage": "Toutes les langues",
+    "apply": "Appliquer",
+    "loading": "Chargement de l’usage Lingua…",
+    "activeAccounts": "Comptes actifs",
+    "wordsLearned": "Mots appris",
+    "reviews": "Révisions",
+    "exposures": "Expositions",
+    "byLanguage": "Par langue étudiée",
+    "noData": "Aucune donnée pour cette période",
+    "packsTitle": "Packs de données",
+    "pair": "Paire",
+    "packVersion": "Version du pack",
+    "analyzerVersion": "Version de l’analyseur",
+    "builtAt": "Compilé",
+    "size": "Taille",
+    "notice": "Attributions",
+    "viewNotice": "Voir les attributions"
   },
   "notifications": {
     "title": "Notifications",

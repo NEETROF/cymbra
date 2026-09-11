@@ -64,6 +64,25 @@ export interface E2EData {
   };
   usageActions?: string[];
   usageBreakdown?: { action: string; variant?: string; events: number }[];
+  /** Lingua ops-console fixtures (change: add-lingua-back-office): the aggregate tiles
+   * + per-language breakdown, and the read-only pack registry. The per-day series are
+   * synthesised as a single day from the tile totals so the line charts render. */
+  linguaUsage?: {
+    activeAccounts?: number;
+    wordsLearned?: number;
+    reviews?: number;
+    exposures?: number;
+    byLanguage?: { language: string; activeAccounts: number; wordsLearned: number; reviews: number }[];
+  };
+  linguaPacks?: {
+    studied: string;
+    native: string;
+    packVersion: string;
+    analyzerVersion: string;
+    builtAt: string;
+    sizeBytes: number;
+    notice: string;
+  }[];
   /** Declared flag/config keys for the "Notifications" panel (change:
    * add-push-notifications), which is a filtered view over the flag registry.
    * Mutated in place by setFlag/setConfig/clearOverride so the panel's re-read
@@ -499,6 +518,45 @@ export function installE2EClients(): void {
         }
         return {
           points: (data.usageBreakdown ?? []).map((r) => ({ day: today, series: r.action, value: BigInt(r.events) })),
+        };
+      },
+    },
+    lingua: {
+      adminGetLinguaUsage: async () => {
+        failIfSet("adminGetLinguaUsage");
+        const u = data.linguaUsage ?? {};
+        return {
+          activeAccounts: BigInt(u.activeAccounts ?? 0),
+          wordsLearned: BigInt(u.wordsLearned ?? 0),
+          reviews: BigInt(u.reviews ?? 0),
+          byLanguage: (u.byLanguage ?? []).map((l) => ({
+            language: l.language,
+            activeAccounts: BigInt(l.activeAccounts),
+            wordsLearned: BigInt(l.wordsLearned),
+            reviews: BigInt(l.reviews),
+          })),
+        };
+      },
+      adminGetLinguaUsageSeries: async (req: { metric: number }) => {
+        failIfSet("adminGetLinguaUsageSeries");
+        const today = new Date().toISOString().slice(0, 10);
+        const u = data.linguaUsage ?? {};
+        // metric: 0 = words learned, 1 = reviews, 2 = exposures.
+        const total = req.metric === 1 ? u.reviews : req.metric === 2 ? u.exposures : u.wordsLearned;
+        return { points: [{ day: today, value: BigInt(total ?? 0) }] };
+      },
+      adminListDataPacks: async () => {
+        failIfSet("adminListDataPacks");
+        return {
+          packs: (data.linguaPacks ?? []).map((p) => ({
+            studied: p.studied,
+            native: p.native,
+            packVersion: p.packVersion,
+            analyzerVersion: p.analyzerVersion,
+            builtAt: p.builtAt,
+            sizeBytes: BigInt(p.sizeBytes),
+            notice: p.notice,
+          })),
         };
       },
     },

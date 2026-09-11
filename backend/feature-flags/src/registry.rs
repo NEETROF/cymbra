@@ -18,6 +18,10 @@ use serde_json::json;
 /// The `music` app scope.
 pub const APP_MUSIC: &str = "music";
 
+/// The `lingua` app scope (change: add-lingua-back-office). Keyed here so a Lingua
+/// flag shows up in the existing `/flags` console with no new UI.
+pub const APP_LINGUA: &str = "lingua";
+
 // --- key names (stable identifiers; features read these) --------------------
 
 // Feature on/off flags (safe state = disabled).
@@ -44,6 +48,12 @@ pub const PLATFORM_MAINTENANCE: &str = "platform.maintenance";
 /// off stops clients emitting usage events without a client release. Distinct from
 /// the per-user consent toggle — either one off suppresses emission.
 pub const ANALYTICS_COLLECTION_ENABLED: &str = "analytics.collection.enabled";
+
+/// Cymbra Lingua cross-device sync master switch (change: add-lingua-back-office).
+/// Defaults ON; flipping it off disables the sync services server-wide without a
+/// client release. Local-first behaviour is unaffected — an off switch only stops
+/// signed-in devices from pushing/pulling.
+pub const LINGUA_SYNC_ENABLED: &str = "lingua.sync.enabled";
 
 // Config tunables (the scattered straw-man values live here).
 pub const RATING_REVIEW_MIN_VOTES: &str = "rating.review.min_votes";
@@ -667,6 +677,16 @@ pub fn builtin() -> Vec<KeyDef> {
             FlagValue::Int(180),
             true,
             "Days raw feature-usage events are retained before the purge job deletes them (permanent aggregates are unaffected).",
+        ),
+        // Lingua sync kill-switch: defaults ON (the feature works once clients ship);
+        // flip off to stop all sync server-wide without a release. Local-first mode is
+        // untouched — this only gates signed-in push/pull.
+        flag(
+            LINGUA_SYNC_ENABLED,
+            APP_LINGUA,
+            true,
+            false,
+            "Cymbra Lingua cross-device sync master switch (defaults on; flip off to disable push/pull for all signed-in devices without a client release).",
         ),
     ]
 }

@@ -20,6 +20,9 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 uuid.workspace = true
 anyhow.workspace = true
+# Admin aggregates window on UTC days; chrono converts the yyyy-mm-dd window (the
+# /usage convention) to/from the epoch-day integer key stored in `lingua.daily_stats`.
+chrono.workspace = true
 tokio.workspace = true
 tonic.workspace = true
 prost.workspace = true

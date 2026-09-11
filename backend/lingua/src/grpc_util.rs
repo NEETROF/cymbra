@@ -22,6 +22,15 @@ pub fn caller<T>(req: &Request<T>) -> Result<String, Status> {
         .ok_or_else(|| Status::unauthenticated("missing identity"))
 }
 
+/// The full interceptor-injected identity — for the admin RPCs, which gate on the
+/// caller's scoped roles (`require_admin_in_scope`), not just their user id.
+pub fn identity<T>(req: &Request<T>) -> Result<AuthIdentity, Status> {
+    req.extensions()
+        .get::<AuthIdentity>()
+        .cloned()
+        .ok_or_else(|| Status::unauthenticated("missing identity"))
+}
+
 /// The server receipt time in epoch milliseconds — the clamp reference for client ops.
 pub fn now_ms() -> i64 {
     SystemTime::now()

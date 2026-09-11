@@ -52,7 +52,7 @@ describe("jwt role decoding", () => {
     // A global admin is admin in every scope (break-glass).
     const global = decodeClaims(makeJwt({ sub: "g", roles: ["admin"], roles_by_scope: { global: ["admin"] } }));
     expect(hasRoleInScope(global.rolesByScope, "live", "admin")).toBe(true);
-    expect(adminScopes(global.rolesByScope)).toEqual(["global", "music", "live"]);
+    expect(adminScopes(global.rolesByScope)).toEqual(["global", "music", "live", "lingua"]);
 
     // A non-admin has no authorized scopes.
     const mod = decodeClaims(makeJwt({ sub: "u", roles: ["moderator"], roles_by_scope: { music: ["moderator"] } }));

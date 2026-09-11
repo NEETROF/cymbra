@@ -73,7 +73,8 @@
     "usage": "Usage",
     "menu": "Menu",
     "notifications": "Notifications",
-    "takedowns": "Takedowns"
+    "takedowns": "Takedowns",
+    "lingua": "Lingua"
   },
   "usage": {
     "title": "Feature usage",
@@ -98,6 +99,30 @@
     "byDeviceClass": "Users by device class",
     "actionBreakdown": "Action breakdown",
     "noData": "No data for this period"
+  },
+  "lingua": {
+    "title": "Lingua",
+    "syncedNote": "Aggregates cover only accounts that sync; a device kept local is not counted.",
+    "from": "From",
+    "to": "To",
+    "language": "Studied language",
+    "anyLanguage": "All languages",
+    "apply": "Apply",
+    "loading": "Loading Lingua usage…",
+    "activeAccounts": "Active accounts",
+    "wordsLearned": "Words learned",
+    "reviews": "Reviews",
+    "exposures": "Exposures",
+    "byLanguage": "By studied language",
+    "noData": "No data for this period",
+    "packsTitle": "Data packs",
+    "pair": "Pair",
+    "packVersion": "Pack version",
+    "analyzerVersion": "Analyzer version",
+    "builtAt": "Built",
+    "size": "Size",
+    "notice": "Notice",
+    "viewNotice": "View notice"
   },
   "notifications": {
     "title": "Notifications",

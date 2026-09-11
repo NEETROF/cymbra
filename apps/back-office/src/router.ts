@@ -51,6 +51,15 @@ const routes: RouteRecordRaw[] = [
   },
   { path: "/usage", name: "usage", component: () => import("@/views/UsageView.vue"), meta: { admin: true } },
   {
+    // Lingua ops console (change: add-lingua-back-office): lingua-scope admins only —
+    // aggregates + the pack registry, never a per-account view. The guard checks the
+    // scope; every RPC is re-gated server-side.
+    path: "/lingua",
+    name: "lingua",
+    component: () => import("@/views/LinguaView.vue"),
+    meta: { admin: true, adminScope: "lingua" },
+  },
+  {
     path: "/notifications",
     name: "notifications",
     component: () => import("@/views/NotificationsView.vue"),

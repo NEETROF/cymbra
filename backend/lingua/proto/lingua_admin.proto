@@ -1,0 +1,95 @@
+// Copyright 2026 NEETROF
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+// this file except in compliance with the License. You may obtain a copy of the
+// License at http://www.apache.org/licenses/LICENSE-2.0
+
+syntax = "proto3";
+
+package cymbra.lingua.v1;
+
+// The back office's Lingua OPS console (change: add-lingua-back-office). Every RPC is
+// gated by `admin` in the `lingua` scope (`require_admin_in_scope`), behind the strict
+// auth interceptor with the `back-office` audience.
+//
+// PRIVACY ALLOW-LIST — the scope of this service, not a temporary restriction: it
+// serves AGGREGATES ONLY. No response message below carries an account identifier
+// (user id, handle, email) or per-account content (a word a person encountered, their
+// decks, their individual stats). A per-account view would require changing this
+// `.proto` — visible in review and at the `buf` gate. The finest grain is
+// day × studied-language, computed from the existing sync data (no new telemetry).
+service LinguaAdminService {
+  // Aggregate tiles + a breakdown by studied language over a UTC-day window.
+  rpc AdminGetLinguaUsage(AdminGetLinguaUsageRequest) returns (AdminGetLinguaUsageResponse);
+  // A per-day series for one metric over a window (optionally one studied language).
+  rpc AdminGetLinguaUsageSeries(AdminGetLinguaUsageSeriesRequest) returns (AdminGetLinguaUsageSeriesResponse);
+  // The read-only registry of published data-pack versions.
+  rpc AdminListDataPacks(AdminListDataPacksRequest) returns (AdminListDataPacksResponse);
+}
+
+// A closed UTC-day window, inclusive both ends (yyyy-mm-dd, the /usage convention).
+message LinguaWindow {
+  string from_day = 1;
+  string to_day = 2;
+}
+
+message AdminGetLinguaUsageRequest {
+  LinguaWindow window = 1;
+}
+
+// One studied language's aggregates within the window (counts only, no account data).
+message LinguaLanguageUsage {
+  string language = 1;         // studied-language code, e.g. "en"
+  int64 active_accounts = 2;   // distinct accounts that synced stats in this language
+  int64 words_learned = 3;
+  int64 reviews = 4;
+}
+
+message AdminGetLinguaUsageResponse {
+  int64 active_accounts = 1;   // distinct accounts that synced within the window
+  int64 words_learned = 2;     // words learned in the window (summed synced daily stats)
+  int64 reviews = 3;           // reviews done in the window (summed synced daily stats)
+  repeated LinguaLanguageUsage by_language = 4;
+}
+
+// Which per-day metric a series returns. Chosen server-side from this enum, never a
+// client-supplied column name.
+enum LinguaSeriesMetric {
+  LINGUA_SERIES_WORDS_LEARNED = 0;
+  LINGUA_SERIES_REVIEWS = 1;
+  LINGUA_SERIES_EXPOSURES = 2;
+}
+
+message AdminGetLinguaUsageSeriesRequest {
+  LinguaWindow window = 1;
+  LinguaSeriesMetric metric = 2;
+  string language = 3;         // empty => every studied language
+}
+
+// One point of a per-day series (no account data — a day and a count).
+message LinguaSeriesPoint {
+  string day = 1;              // yyyy-mm-dd
+  int64 value = 2;
+}
+
+message AdminGetLinguaUsageSeriesResponse {
+  repeated LinguaSeriesPoint points = 1;
+}
+
+message AdminListDataPacksRequest {}
+
+// One published pack in the registry (a build artefact versioned with the repo). No
+// account data — pack metadata only.
+message LinguaDataPack {
+  string studied = 1;          // studied-language code
+  string native = 2;           // native / gloss language code
+  string pack_version = 3;     // the pack's content revision
+  string analyzer_version = 4; // the analyser generation it was built for
+  string built_at = 5;         // CI build date (yyyy-mm-dd)
+  int64 size_bytes = 6;
+  string notice = 7;           // the pack's NOTICE (licences/attribution), verbatim
+}
+
+message AdminListDataPacksResponse {
+  repeated LinguaDataPack packs = 1;
+}

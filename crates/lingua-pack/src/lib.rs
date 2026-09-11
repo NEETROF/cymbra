@@ -22,6 +22,7 @@
 //! output lives in `lingua-core` and stays WASM-clean.
 
 pub mod licence;
+pub mod manifest;
 
 use std::path::Path;
 
@@ -290,6 +291,49 @@ mod tests {
         assert_eq!(
             build_pack(&inputs()).unwrap(),
             build_pack(&inputs()).unwrap()
+        );
+    }
+
+    /// Staleness guard for the pack registry the Lingua ops console serves (change:
+    /// add-lingua-back-office, task 3.3). Rebuilds the committed testdata pack and
+    /// asserts the committed `packs-manifest.json` entry still describes it by content
+    /// (version + size + NOTICE). A drift here means `scripts/lingua-data/build.sh
+    /// emit-manifest` was not re-run and committed.
+    #[test]
+    fn the_committed_pack_manifest_matches_a_fresh_build() {
+        use std::path::Path;
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let dir = root.join("../../scripts/lingua-data/testdata/en-fr");
+        let inputs = inputs_from_dir(&dir).expect("read testdata inputs");
+        let bytes = build_pack(&inputs).expect("build testdata pack");
+
+        let manifest =
+            std::fs::read_to_string(root.join("../../backend/lingua/packs-manifest.json"))
+                .expect("read committed packs-manifest.json");
+        let v: serde_json::Value = serde_json::from_str(&manifest).expect("valid manifest json");
+        let entry = v["packs"]
+            .as_array()
+            .expect("packs array")
+            .iter()
+            .find(|p| p["studied"] == *inputs.meta.studied && p["native"] == *inputs.meta.native)
+            .expect("the testdata pair is listed in the committed manifest");
+
+        let stale = "packs-manifest.json is stale — re-run \
+                     `scripts/lingua-data/build.sh emit-manifest` and commit it";
+        assert_eq!(entry["pack_version"], *inputs.meta.pack_version, "{stale}");
+        assert_eq!(
+            entry["analyzer_version"], *inputs.meta.analyzer_version,
+            "{stale}"
+        );
+        assert_eq!(
+            entry["size_bytes"].as_i64(),
+            Some(bytes.len() as i64),
+            "{stale}"
+        );
+        assert_eq!(
+            entry["notice"].as_str(),
+            Some(inputs.notice.as_str()),
+            "{stale}"
         );
     }
 

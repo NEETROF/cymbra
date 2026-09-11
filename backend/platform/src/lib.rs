@@ -31,7 +31,7 @@ pub use identity::AuthIdentity;
 /// each app scope. `global` unions into every scope; the app scopes are isolated
 /// from one another (change: scope-aware-role-admin, mirrors the user module's
 /// `SCOPES`).
-pub const SCOPES: [&str; 3] = [GLOBAL_SCOPE, MUSIC_SCOPE, LIVE_SCOPE];
+pub const SCOPES: [&str; 4] = [GLOBAL_SCOPE, MUSIC_SCOPE, LIVE_SCOPE, LINGUA_SCOPE];
 
 /// The break-glass scope: a role held here applies in every scope.
 pub const GLOBAL_SCOPE: &str = "global";
@@ -41,11 +41,14 @@ pub const GLOBAL_SCOPE: &str = "global";
 pub const MUSIC_SCOPE: &str = "music";
 /// The Cymbra Live product scope.
 pub const LIVE_SCOPE: &str = "live";
+/// The Cymbra Lingua product scope (change: add-lingua-back-office). Its admin gates
+/// the Lingua ops console; a `music`/`live` admin does not inherit it.
+pub const LINGUA_SCOPE: &str = "lingua";
 
 /// The app scopes an administrator can be scoped to (everything in [`SCOPES`]
 /// except the `global` break-glass) — the audiences the back-office session
 /// aggregates.
-pub const APP_SCOPES: [&str; 2] = [MUSIC_SCOPE, LIVE_SCOPE];
+pub const APP_SCOPES: [&str; 3] = [MUSIC_SCOPE, LIVE_SCOPE, LINGUA_SCOPE];
 
 /// The dedicated audience the back office authenticates against: its access token
 /// carries the administrator's real roles across `global ∪ music ∪ live`, so one
