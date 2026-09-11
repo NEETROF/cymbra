@@ -15,7 +15,11 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "build": "node build.mjs"
+    "build": "node build.mjs",
+    "build:chromium": "node build.mjs chromium",
+    "build:firefox": "node build.mjs firefox",
+    "start:firefox": "web-ext run --source-dir dist-firefox",
+    "start:firefox-android": "web-ext run --target firefox-android --source-dir dist-firefox"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -29,6 +33,7 @@
     "prettier": "^3.9.6",
     "typescript": "~5.6.3",
     "typescript-eslint": "^8.65.0",
-    "vitest": "^3.2.7"
+    "vitest": "^3.2.7",
+    "web-ext": "^8.3.0"
   }
 }

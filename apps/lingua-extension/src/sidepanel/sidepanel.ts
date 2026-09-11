@@ -1,4 +1,4 @@
-import { WasmAnalyzerPort } from "../analyzer/engine.ts";
+import { createLinguaPort } from "../analyzer/create-port.ts";
 import { ReviewController } from "../review/session.ts";
 import { renderReview } from "../review/view.ts";
 import { type AsyncStorageArea, hydrateEngine, ROOT_KEY, saveBackup } from "../state/storage.ts";
@@ -15,7 +15,7 @@ const area: AsyncStorageArea = {
 };
 
 const now = (): number => Math.floor(Date.now() / 1000);
-const port = new WasmAnalyzerPort();
+const port = createLinguaPort();
 let controller = new ReviewController(port, now);
 
 function $(id: string): HTMLElement {
