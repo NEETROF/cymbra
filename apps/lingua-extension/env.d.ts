@@ -5,6 +5,16 @@
 // the event page reached over messaging) and the panel surface.
 declare const __TARGET__: "chromium" | "firefox";
 
+// Backend gRPC-web origin for the sync transport, injected by esbuild `define`
+// (build.mjs, from LINGUA_GRPC_WEB_URL). Defaults to the local backend for dogfooding.
+declare const __GRPC_WEB_URL__: string;
+
+// Google OAuth Web client id (chromiumapp.org redirect) for "Continue with Google",
+// injected by esbuild `define` (from LINGUA_GOOGLE_CLIENT_ID). Empty until the client is
+// registered in Cloud console (task 1.2); an empty value disables Google sign-in with a
+// clear error, leaving email/password working.
+declare const __GOOGLE_CLIENT_ID__: string;
+
 // tokens.css (and other .css) imported as a string, inlined into the injected
 // closed shadow root so the single token sheet stays the only home for colors.
 declare module "*.css" {

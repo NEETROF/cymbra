@@ -13,9 +13,38 @@ cd apps/lingua-extension
 corepack enable
 yarn install
 yarn gen:wasm     # build the wasm bindings from crates/lingua-wasm  → src/wasm/pkg/ (gitignored)
+yarn gen:proto    # build the gRPC-web/protobuf stubs (auth + sync)  → src/gen/ (gitignored)
 yarn gen:pack     # build the EN→FR data pack                        → assets/pack.lingua (gitignored)
 yarn build        # bundle both browser variants → dist-chromium/ and dist-firefox/
 ```
+
+## Account sync (Cymbra ID)
+
+Signing in (icon popup → **Continuer avec Google** or email/password) turns on
+cross-device sync of the deck, word statuses and stats; signed out, the extension stays
+purely local. The transport is gRPC-web bearer (Connect-ES), tokens split by volatility
+— access in `chrome.storage.session`, refresh in `chrome.storage.local`. The backend
+origin and the Google client id come from build-time env vars, both defaulted for a
+local dogfooding build:
+
+```bash
+LINGUA_GRPC_WEB_URL="http://localhost:50051" \
+LINGUA_GOOGLE_CLIENT_ID="<web-oauth-client-id>" \
+  yarn build     # build.mjs also grants the origin in the manifest host_permissions
+```
+
+Two one-time manual steps make **real** sign-in work (the code + email/password path ship
+regardless; Google needs the client, and the backend must allow the extension origin):
+
+1. **Google OAuth client** (Web type) with the redirect
+   `https://<extension-id>.chromiumapp.org/` — its client id goes into
+   `LINGUA_GOOGLE_CLIENT_ID` here and into the backend's `CYMBRA_GOOGLE_AUDIENCE` CSV.
+   The published extension id is stable (manifest key); an unpacked dev build's id is
+   shown on `chrome://extensions`.
+2. **Backend CORS**: add the extension origin `chrome-extension://<extension-id>` to
+   `CYMBRA_ALLOWED_WEB_ORIGINS` in the **dev** environment only. (Firefox's
+   `moz-extension://<uuid>` is per-install; use a fixed origin via
+   `browser_specific_settings` when wiring Firefox sync.)
 
 One source, two build variants (`yarn build:chromium` / `yarn build:firefox` build just
 one). Load unpacked:

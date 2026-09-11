@@ -1,5 +1,8 @@
 import { type GlueLoader, WasmAnalyzerPort, type WasmModule } from "./analyzer/engine.ts";
 import { handleRpc, isRpcRequest } from "./analyzer/rpc-host.ts";
+import { api, initApi } from "./net/api.ts";
+import { setTokenRefresher, setUnauthenticatedHandler } from "./net/transport.ts";
+import { Session } from "./state/session.ts";
 import { type AsyncStorageArea, hydrateEngine } from "./state/storage.ts";
 // Static import of the wasm-pack glue (esbuild bundles it into the background). The
 // engine hosted here must NOT dynamic-import: a Chromium service worker forbids
@@ -68,6 +71,84 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
     void handleRpc(enginePort, ensure, message).then(sendResponse);
     return true; // async response
   });
+}
+
+// Account & session (add-lingua-connected-clients §1). The background owns the single
+// session: it wires the transport's token getter + single-flight refresher to it, and
+// the popup/settings drive sign-in through messages. Signed out, no request is ever
+// made. Google sign-in runs the OAuth flow here (chrome.identity works in the worker).
+{
+  const sessionStore: AsyncStorageArea = {
+    get: (keys) => chrome.storage.session.get(keys),
+    set: (items) => chrome.storage.session.set(items),
+  };
+  const localStore: AsyncStorageArea = {
+    get: (keys) => chrome.storage.local.get(keys),
+    set: (items) => chrome.storage.local.set(items),
+  };
+
+  // "Continue with Google": OpenID implicit flow via launchWebAuthFlow. The redirect is
+  // https://<ext-id>.chromiumapp.org/ (stable for a published id); the id_token comes
+  // back in the URL fragment and is exchanged server-side by SignInOidc.
+  const getGoogleIdToken = async (): Promise<string> => {
+    if (!__GOOGLE_CLIENT_ID__) {
+      throw new Error("Google sign-in is not configured in this build (missing client id).");
+    }
+    const redirectUri = chrome.identity.getRedirectURL();
+    const auth = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+    auth.searchParams.set("client_id", __GOOGLE_CLIENT_ID__);
+    auth.searchParams.set("response_type", "id_token");
+    auth.searchParams.set("redirect_uri", redirectUri);
+    auth.searchParams.set("scope", "openid email");
+    auth.searchParams.set("nonce", crypto.randomUUID());
+    const redirect = await chrome.identity.launchWebAuthFlow({ url: auth.toString(), interactive: true });
+    const idToken = redirect ? new URLSearchParams(new URL(redirect).hash.slice(1)).get("id_token") : null;
+    if (!idToken) throw new Error("Google did not return an id_token.");
+    return idToken;
+  };
+
+  const session = new Session({
+    auth: () => api().auth,
+    sessionArea: sessionStore,
+    localArea: localStore,
+    getGoogleIdToken,
+  });
+  initApi(() => session.token());
+  setTokenRefresher(() => session.refresh());
+  // A terminal 401 (refresh already failed and purged) needs no extra work here; the
+  // popup re-reads state on open. Left as a hook for the §2 sync-state indicator.
+  setUnauthenticatedHandler(() => {});
+  void session.resume();
+
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    const msg = message as { type?: string; email?: string; password?: string } | null;
+    switch (msg?.type) {
+      case "account:state":
+        sendResponse(session.state());
+        return false;
+      case "account:signInGoogle":
+        session.signInWithGoogle().then(
+          () => sendResponse({ ok: true, state: session.state() }),
+          (e: unknown) => sendResponse({ ok: false, error: errorMessage(e) }),
+        );
+        return true;
+      case "account:signInLocal":
+        session.signInLocal(msg.email ?? "", msg.password ?? "").then(
+          () => sendResponse({ ok: true, state: session.state() }),
+          (e: unknown) => sendResponse({ ok: false, error: errorMessage(e) }),
+        );
+        return true;
+      case "account:signOut":
+        session.signOut().then(() => sendResponse({ ok: true, state: session.state() }));
+        return true;
+      default:
+        return undefined;
+    }
+  });
+}
+
+function errorMessage(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
 }
 
 chrome.commands.onCommand.addListener((command) => {

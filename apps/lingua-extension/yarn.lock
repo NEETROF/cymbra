@@ -88,6 +88,41 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@bufbuild/protobuf@npm:2.15.0, @bufbuild/protobuf@npm:^2.2.3":
+  version: 2.15.0
+  resolution: "@bufbuild/protobuf@npm:2.15.0"
+  checksum: 10c0/098f7d942a6b2c3010f4c169df02e3be528477f0774bcfa36aa91561eddc542cba01b72a508c81a335f53bd7bd77683e47b10dc51953ce6f6adf66983c2fc185
+  languageName: node
+  linkType: hard
+
+"@bufbuild/protoc-gen-es@npm:^2.2.3":
+  version: 2.15.0
+  resolution: "@bufbuild/protoc-gen-es@npm:2.15.0"
+  dependencies:
+    "@bufbuild/protobuf": "npm:2.15.0"
+    "@bufbuild/protoplugin": "npm:2.15.0"
+  peerDependencies:
+    "@bufbuild/protobuf": 2.15.0
+  peerDependenciesMeta:
+    "@bufbuild/protobuf":
+      optional: true
+  bin:
+    protoc-gen-es: bin/protoc-gen-es
+  checksum: 10c0/4a4ed2e31a8e5ea425a8de8376bd4ec9c072c65601c6103be64a047be42fbe6a9804af14d308584c8a8eb9583e6ec1a6e06303718d98a71cbb30bb8b8663472d
+  languageName: node
+  linkType: hard
+
+"@bufbuild/protoplugin@npm:2.15.0":
+  version: 2.15.0
+  resolution: "@bufbuild/protoplugin@npm:2.15.0"
+  dependencies:
+    "@bufbuild/protobuf": "npm:2.15.0"
+    "@typescript/vfs": "npm:^1.6.2"
+    typescript: "npm:5.4.5"
+  checksum: 10c0/8c77618c7bd18f6667256696970a808ffd960faff568d88503716b70b436ff1e3dae4af2df3addba2edb3119dff0397482437583607b473356eb7c5f6fef00a9
+  languageName: node
+  linkType: hard
+
 "@cacheable/memory@npm:^2.2.0":
   version: 2.2.0
   resolution: "@cacheable/memory@npm:2.2.0"
@@ -107,6 +142,25 @@ __metadata:
     hashery: "npm:^1.5.1"
     keyv: "npm:^5.6.0"
   checksum: 10c0/99e901accd71eeb0bce91484d6c66d7ef2c731b541561eb5dc9ea7fed78bdc0b65e5dd2a80edde50191143bcfc5f238fc4742475b32e82d43b43eea224038e35
+  languageName: node
+  linkType: hard
+
+"@connectrpc/connect-web@npm:^2.0.1":
+  version: 2.2.0
+  resolution: "@connectrpc/connect-web@npm:2.2.0"
+  peerDependencies:
+    "@bufbuild/protobuf": ^2.7.0
+    "@connectrpc/connect": 2.2.0
+  checksum: 10c0/ad98062fc5e9a027a917487d9abcab64dccfc8bbb357e78172be787d669f7b611e6ccd75148633c1b874222060f803f2ae4a5ae72c2708a84658dc9786b2d958
+  languageName: node
+  linkType: hard
+
+"@connectrpc/connect@npm:^2.0.1":
+  version: 2.2.0
+  resolution: "@connectrpc/connect@npm:2.2.0"
+  peerDependencies:
+    "@bufbuild/protobuf": ^2.7.0
+  checksum: 10c0/f03a5a8c74d74a9016027280173f44d983f69e9b999dcad47520c2dd474be2289bd33b22e1e374173dc919c6ffb1ab5886464d6c279bca26ff2432231bdf0915
   languageName: node
   linkType: hard
 
@@ -160,6 +214,10 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@cymbra/lingua-extension@workspace:."
   dependencies:
+    "@bufbuild/protobuf": "npm:^2.2.3"
+    "@bufbuild/protoc-gen-es": "npm:^2.2.3"
+    "@connectrpc/connect": "npm:^2.0.1"
+    "@connectrpc/connect-web": "npm:^2.0.1"
     "@eslint/js": "npm:^10.0.1"
     "@types/chrome": "npm:^0.2.9"
     "@types/node": "npm:^22.10.0"
@@ -1307,6 +1365,17 @@ __metadata:
     "@typescript-eslint/types": "npm:8.70.0"
     eslint-visitor-keys: "npm:^5.0.0"
   checksum: 10c0/43fe28dc1045a686deead8c9334f6e9d8b3fa8f84917147aabd9747783b8bc531254a95a9bfb33355b25cf5ec9a72c62bcde313f13869d7a5e5603d96be593a9
+  languageName: node
+  linkType: hard
+
+"@typescript/vfs@npm:^1.6.2":
+  version: 1.6.4
+  resolution: "@typescript/vfs@npm:1.6.4"
+  dependencies:
+    debug: "npm:^4.4.3"
+  peerDependencies:
+    typescript: "*"
+  checksum: 10c0/acb9de42f23fda3f75e3d7900ba106ef323a2f4e7cf0e4a94dbb457e26d353ca63bb35193ed1a32fc8733f3ae59099612b290b06bd6221694861beb9bfb62f62
   languageName: node
   linkType: hard
 
@@ -5192,6 +5261,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"typescript@npm:5.4.5":
+  version: 5.4.5
+  resolution: "typescript@npm:5.4.5"
+  bin:
+    tsc: bin/tsc
+    tsserver: bin/tsserver
+  checksum: 10c0/2954022ada340fd3d6a9e2b8e534f65d57c92d5f3989a263754a78aba549f7e6529acc1921913560a4b816c46dce7df4a4d29f9f11a3dc0d4213bb76d043251e
+  languageName: node
+  linkType: hard
+
 "typescript@npm:~5.6.3":
   version: 5.6.3
   resolution: "typescript@npm:5.6.3"
@@ -5199,6 +5278,16 @@ __metadata:
     tsc: bin/tsc
     tsserver: bin/tsserver
   checksum: 10c0/44f61d3fb15c35359bc60399cb8127c30bae554cd555b8e2b46d68fa79d680354b83320ad419ff1b81a0bdf324197b29affe6cc28988cd6a74d4ac60c94f9799
+  languageName: node
+  linkType: hard
+
+"typescript@patch:typescript@npm%3A5.4.5#optional!builtin<compat/typescript>":
+  version: 5.4.5
+  resolution: "typescript@patch:typescript@npm%3A5.4.5#optional!builtin<compat/typescript>::version=5.4.5&hash=5adc0c"
+  bin:
+    tsc: bin/tsc
+    tsserver: bin/tsserver
+  checksum: 10c0/db2ad2a16ca829f50427eeb1da155e7a45e598eec7b086d8b4e8ba44e5a235f758e606d681c66992230d3fc3b8995865e5fd0b22a2c95486d0b3200f83072ec9
   languageName: node
   linkType: hard
 
