@@ -62,7 +62,26 @@ on-device pass on heavy SPAs (Gmail, an infinite feed, a docs site, a news site,
 chat app): confirm inserted paragraphs get highlighted, scrolling stays smooth, and the
 extension never janks a page. This can't run in CI; do it against a real pack.
 
+## Review (side panel + drawer)
+
+Reading builds the deck; review runs it, on the same local state:
+
+- A native **side panel** (`sidepanel.html`, `Alt+Shift+S`, the page is pushed and the
+  panel survives navigation): deck summary, an FSRS review session (answer hidden until
+  revealed, `À revoir`/`Difficile`/`Correct`/`Facile`, `Je connais`), lossless
+  **backup** (download) / **restore** (re-import), and a Sources & confidentialité
+  section (the pack's NOTICE + "nothing leaves the device").
+- An injected **drawer** (`Alt+Shift+D`, closed shadow DOM) for micro-reviews without
+  leaving the page — the same `ReviewController` + `renderReview` as the side panel, two
+  hosts over one logic. On Safari (no panel API) this becomes the sole review surface.
+
+State authority: the WASM engine holds lingua-core's whole `LinguaState` (knowledge +
+deck + FSRS); it is persisted as its lossless backup string in `chrome.storage.local`,
+so a gesture or a graded card in one context repaints every other via
+`storage.onChanged`, and the backup file is a byte-for-byte export of the same thing.
+
 ## Scope
 
-This change ships **reading**. The side panel / floating drawer review surfaces, Anki
-export, the Firefox/Safari manifests, sync and accounts are later changes in the stack.
+Reading + review ship here. The Firefox/Safari manifest variants (the Firefox sidebar
+reuses the side-panel page; Safari leans on the drawer), sync and accounts, and the
+agent plugin are later changes in the stack.

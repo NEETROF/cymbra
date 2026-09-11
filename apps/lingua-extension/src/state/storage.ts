@@ -1,46 +1,20 @@
+import type { LinguaPort } from "../analyzer/port.ts";
 import type { LemmaStatus } from "../analyzer/types.ts";
 
-// Versioned local state (design D4). Everything the extension owns — statuses, the
-// deck of captured cards, calibration and preferences — lives under ONE root key in
-// chrome.storage.local, with forward migration. The pack is an extension asset, not
-// storage. Reconciliation with the server / the agent plugin belongs to the sync
-// changes, not here: this is a self-contained local store.
+// Versioned local state (designs D4 + the review change). The authoritative state is
+// lingua-core's LinguaState, held by the WASM engine and persisted as its lossless
+// backup string under one root key in chrome.storage.local. Every context (content
+// script, side panel) restores from it and writes back through it, so the deck, FSRS
+// schedule, statuses and calibration stay in lockstep and a backup file is a byte-for-
+// byte export of the same thing.
+//
+// v2 is the backup-backed shape. v1 is the reading-only shape shipped by
+// add-lingua-extension-reading (statuses + light cards + calibration); it is migrated
+// forward through the engine without loss on first load.
 
-/** Current schema version. Bump + add a migration step when the shape changes. */
-export const SCHEMA_VERSION = 1;
-
-/** The root key under which the whole state object is stored. */
+export const STORAGE_VERSION = 2;
 export const ROOT_KEY = "lingua";
-
-/** Default calibration: "I know the 3000 most common words." */
 export const DEFAULT_CALIBRATION = 3000;
-
-/** A captured deck card: a form plus the sentence it was seen in. */
-export interface Card {
-  /** Dictionary form (the deck key). */
-  lemma: string;
-  /** The surface text as first captured. */
-  surface: string;
-  /** The source sentence the word/phrase was seen in (context for review). */
-  sentence: string;
-  /** Capture time (epoch ms); the caller supplies the clock. */
-  createdAt: number;
-}
-
-/** The whole extension state. */
-export interface LinguaState {
-  version: number;
-  /** Explicit per-form statuses. Absent = classified by calibration only. */
-  statuses: Record<string, LemmaStatus>;
-  /** Deck cards, keyed by dictionary form. */
-  cards: Record<string, Card>;
-  /** Calibration threshold (frequency rank). */
-  calibration: number;
-  prefs: {
-    /** Whether the user granted "always highlight" (<all_urls>). */
-    autoHighlight: boolean;
-  };
-}
 
 /** The minimal async storage surface we need; chrome.storage.local satisfies it. */
 export interface AsyncStorageArea {
@@ -48,89 +22,91 @@ export interface AsyncStorageArea {
   set(items: Record<string, unknown>): Promise<void>;
 }
 
-/** A fresh default state. */
-export function defaultState(): LinguaState {
-  return {
-    version: SCHEMA_VERSION,
-    statuses: {},
-    cards: {},
-    calibration: DEFAULT_CALIBRATION,
-    prefs: { autoHighlight: false },
-  };
+/** A v1 (reading-only) card, as add-lingua-extension-reading stored it. */
+interface V1Card {
+  lemma: string;
+  surface: string;
+  sentence: string;
+  createdAt: number;
 }
 
-/**
- * Bring any stored shape up to the current schema without loss.
- *
- * `undefined` → defaults. A legacy shape from the proof-of-concept — a flat
- * `{ statuses, calib }` with no `version` — is treated as version 0 and folded
- * forward (calibration renamed, cards/prefs introduced). Unknown newer versions
- * are returned as-is (a forward-compatible read should not clobber them).
- */
-export function migrate(raw: unknown): LinguaState {
-  if (raw == null || typeof raw !== "object") return defaultState();
-  const obj = raw as Record<string, unknown>;
+/** The v1 (reading-only) stored shape. */
+export interface V1State {
+  statuses: Record<string, LemmaStatus>;
+  cards: Record<string, V1Card>;
+  calibration: number;
+}
 
-  // Version 0: the pre-schema flat shape ({ statuses, calib }), no `version` field.
-  let state: LinguaState;
-  if (typeof obj.version !== "number") {
-    state = {
-      version: 1,
-      statuses: isStatusMap(obj.statuses) ? obj.statuses : {},
-      cards: {},
-      calibration: typeof obj.calib === "number" ? obj.calib : DEFAULT_CALIBRATION,
-      prefs: { autoHighlight: false },
-    };
-  } else {
-    state = {
-      version: obj.version,
-      statuses: isStatusMap(obj.statuses) ? obj.statuses : {},
-      cards: isCardMap(obj.cards) ? obj.cards : {},
-      calibration: typeof obj.calibration === "number" ? obj.calibration : DEFAULT_CALIBRATION,
-      prefs: {
-        autoHighlight:
-          typeof obj.prefs === "object" &&
-          obj.prefs !== null &&
-          (obj.prefs as Record<string, unknown>).autoHighlight === true,
+/** What the root key currently holds, classified. */
+export type Stored = { kind: "v2"; backup: string } | { kind: "v1"; v1: V1State } | { kind: "empty" };
+
+/** Classify a raw stored value into v2 / v1 / empty. */
+export function classifyStored(raw: unknown): Stored {
+  if (raw == null || typeof raw !== "object") return { kind: "empty" };
+  const obj = raw as Record<string, unknown>;
+  if (typeof obj.backup === "string") return { kind: "v2", backup: obj.backup };
+  if (typeof obj.statuses === "object" && obj.statuses !== null) {
+    return {
+      kind: "v1",
+      v1: {
+        statuses: obj.statuses as Record<string, LemmaStatus>,
+        cards: (typeof obj.cards === "object" && obj.cards !== null ? obj.cards : {}) as Record<string, V1Card>,
+        calibration: typeof obj.calibration === "number" ? obj.calibration : DEFAULT_CALIBRATION,
       },
     };
   }
-
-  // Future steps: `while (state.version < SCHEMA_VERSION) { ...; state.version++ }`.
-  // A newer-than-known version is left untouched (never downgraded).
-  if (state.version < SCHEMA_VERSION) state.version = SCHEMA_VERSION;
-  return state;
+  return { kind: "empty" };
 }
 
-function isStatusMap(v: unknown): v is Record<string, LemmaStatus> {
-  if (typeof v !== "object" || v === null) return false;
-  return Object.values(v).every((s) => s === "known" || s === "learning" || s === "ignored");
-}
-
-function isCardMap(v: unknown): v is Record<string, Card> {
-  if (typeof v !== "object" || v === null) return false;
-  return Object.values(v).every(
-    (c) =>
-      typeof c === "object" &&
-      c !== null &&
-      typeof (c as Card).lemma === "string" &&
-      typeof (c as Card).createdAt === "number",
-  );
-}
-
-/** Read and migrate the state. Persists the migrated shape when it changed on read. */
-export async function loadState(area: AsyncStorageArea): Promise<LinguaState> {
+/** Read and classify the stored state. */
+export async function loadStored(area: AsyncStorageArea): Promise<Stored> {
   const got = await area.get(ROOT_KEY);
-  const raw = got[ROOT_KEY];
-  const state = migrate(raw);
-  // Persist the upgrade so the next reader sees the current shape.
-  if (raw == null || (raw as Record<string, unknown>).version !== state.version) {
-    await saveState(area, state);
-  }
-  return state;
+  return classifyStored(got[ROOT_KEY]);
 }
 
-/** Write the whole state under the root key. */
-export async function saveState(area: AsyncStorageArea, state: LinguaState): Promise<void> {
-  await area.set({ [ROOT_KEY]: state });
+/** Persist a backup string under the root key. */
+export async function saveBackup(area: AsyncStorageArea, backup: string): Promise<void> {
+  await area.set({ [ROOT_KEY]: { v: STORAGE_VERSION, backup } });
+}
+
+/**
+ * Load the authoritative state into a fresh engine (any context: content script or
+ * side panel): restore a v2 backup, forward-migrate a v1 store, or seed the engine's
+ * default backup on a fresh install. After this the engine holds the state and storage
+ * carries its backup.
+ */
+export async function hydrateEngine(port: LinguaPort, area: AsyncStorageArea): Promise<void> {
+  const stored = await loadStored(area);
+  if (stored.kind === "v2") {
+    await port.restore(stored.backup);
+  } else if (stored.kind === "v1") {
+    await saveBackup(area, await hydrateFromV1(port, stored.v1));
+  } else {
+    await saveBackup(area, await port.backup());
+  }
+}
+
+/**
+ * Forward-migrate a v1 state into the engine (calibration, statuses, learning cards)
+ * and return the resulting backup string. Learning forms become deck cards carrying
+ * their captured sentence; known/ignored forms become plain statuses.
+ */
+export async function hydrateFromV1(port: LinguaPort, v1: V1State): Promise<string> {
+  await port.setCalibration(v1.calibration || DEFAULT_CALIBRATION);
+  for (const [lemma, status] of Object.entries(v1.statuses)) {
+    if (status === "learning") {
+      const card = v1.cards[lemma];
+      await port.addCard({
+        lemma,
+        surface: card?.surface ?? lemma,
+        sentence: card?.sentence ?? "",
+        url: "",
+        gloss: null,
+        capturedAt: card?.createdAt ?? 0,
+      });
+    } else {
+      await port.setStatus(lemma, status);
+    }
+  }
+  return port.backup();
 }

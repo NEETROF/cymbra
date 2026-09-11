@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
   type AsyncStorageArea,
-  DEFAULT_CALIBRATION,
-  defaultState,
-  loadState,
-  migrate,
+  classifyStored,
+  hydrateFromV1,
+  loadStored,
   ROOT_KEY,
-  SCHEMA_VERSION,
-  saveState,
+  saveBackup,
+  STORAGE_VERSION,
+  type V1State,
 } from "@/state/storage.ts";
+import { makeFakePort } from "./helpers.ts";
 
-/** An in-memory chrome.storage.local stand-in. */
 function fakeArea(seed: Record<string, unknown> = {}): AsyncStorageArea & { store: Record<string, unknown> } {
   const store: Record<string, unknown> = { ...seed };
   return {
@@ -27,60 +27,69 @@ function fakeArea(seed: Record<string, unknown> = {}): AsyncStorageArea & { stor
   };
 }
 
-describe("migrate", () => {
-  it("returns defaults for undefined/garbage", () => {
-    expect(migrate(undefined)).toEqual(defaultState());
-    expect(migrate(null)).toEqual(defaultState());
-    expect(migrate(42)).toEqual(defaultState());
-    expect(defaultState().calibration).toBe(DEFAULT_CALIBRATION);
+describe("classifyStored", () => {
+  it("recognises a v2 backup-backed shape", () => {
+    expect(classifyStored({ v: 2, backup: '{"schema_version":1}' })).toEqual({
+      kind: "v2",
+      backup: '{"schema_version":1}',
+    });
   });
 
-  it("folds the pre-schema flat shape (no version) forward without loss", () => {
-    const legacy = { statuses: { run: "known", seldom: "learning" }, calib: 1500 };
-    const migrated = migrate(legacy);
-    expect(migrated.version).toBe(SCHEMA_VERSION);
-    expect(migrated.calibration).toBe(1500);
-    expect(migrated.statuses).toEqual({ run: "known", seldom: "learning" });
-    expect(migrated.cards).toEqual({});
-    expect(migrated.prefs.autoHighlight).toBe(false);
+  it("recognises the v1 reading-only shape", () => {
+    const raw = { version: 1, statuses: { run: "known" }, cards: {}, calibration: 1500 };
+    const c = classifyStored(raw);
+    expect(c.kind).toBe("v1");
+    if (c.kind === "v1") expect(c.v1.calibration).toBe(1500);
   });
 
-  it("preserves a current-version object", () => {
-    const state = { ...defaultState(), calibration: 2000, statuses: { city: "ignored" as const } };
-    expect(migrate(state)).toEqual(state);
-  });
-
-  it("never downgrades a newer-than-known version", () => {
-    const future = { version: 99, statuses: {}, cards: {}, calibration: 4000, prefs: { autoHighlight: true } };
-    expect(migrate(future).version).toBe(99);
-  });
-
-  it("drops a malformed statuses/cards map instead of trusting it", () => {
-    const bad = { version: 1, statuses: { x: "bogus" }, cards: { y: { nope: true } }, calibration: 3000, prefs: {} };
-    const migrated = migrate(bad);
-    expect(migrated.statuses).toEqual({});
-    expect(migrated.cards).toEqual({});
+  it("treats null / garbage / unknown shapes as empty", () => {
+    expect(classifyStored(null).kind).toBe("empty");
+    expect(classifyStored(42).kind).toBe("empty");
+    expect(classifyStored({ nothing: true }).kind).toBe("empty");
   });
 });
 
-describe("loadState / saveState", () => {
-  it("migrates a legacy store on read and persists the upgraded shape", async () => {
-    const area = fakeArea({ [ROOT_KEY]: { statuses: { run: "known" }, calib: 1200 } });
-    const state = await loadState(area);
-    expect(state.version).toBe(SCHEMA_VERSION);
-    expect(state.calibration).toBe(1200);
-    // Persisted: a second read sees the migrated shape directly.
-    expect((area.store[ROOT_KEY] as { version: number }).version).toBe(SCHEMA_VERSION);
-  });
-
-  it("round-trips a saved state", async () => {
+describe("loadStored / saveBackup", () => {
+  it("round-trips a saved backup as v2", async () => {
     const area = fakeArea();
-    const state = { ...defaultState(), calibration: 5000 };
-    await saveState(area, state);
-    expect(await loadState(area)).toEqual(state);
+    await saveBackup(area, "BACKUP-STRING");
+    expect(await loadStored(area)).toEqual({ kind: "v2", backup: "BACKUP-STRING" });
+    expect((area.store[ROOT_KEY] as { v: number }).v).toBe(STORAGE_VERSION);
   });
 
-  it("returns defaults for an empty store", async () => {
-    expect(await loadState(fakeArea())).toEqual(defaultState());
+  it("reports empty for an empty store", async () => {
+    expect((await loadStored(fakeArea())).kind).toBe("empty");
+  });
+});
+
+describe("hydrateFromV1", () => {
+  it("migrates calibration, statuses and learning cards into the engine", async () => {
+    const { port, calls } = makeFakePort();
+    const v1: V1State = {
+      calibration: 1500,
+      statuses: { run: "known", city: "ignored", seldom: "learning" },
+      cards: { seldom: { lemma: "seldom", surface: "Seldom", sentence: "They seldom ship.", createdAt: 111 } },
+    };
+    const backup = await hydrateFromV1(port, v1);
+
+    expect(calls.setCalibration).toEqual([1500]);
+    // known/ignored → plain statuses; learning → a deck card.
+    expect(calls.setStatus).toEqual(
+      expect.arrayContaining([
+        ["run", "known"],
+        ["city", "ignored"],
+      ]),
+    );
+    expect(calls.setStatus).not.toContainEqual(["seldom", "learning"]);
+    expect(calls.addCard).toEqual([
+      { lemma: "seldom", surface: "Seldom", sentence: "They seldom ship.", url: "", gloss: null, capturedAt: 111 },
+    ]);
+    expect(typeof backup).toBe("string");
+  });
+
+  it("falls back to the default calibration when v1 has none", async () => {
+    const { port, calls } = makeFakePort();
+    await hydrateFromV1(port, { calibration: 0, statuses: {}, cards: {} });
+    expect(calls.setCalibration).toEqual([3000]);
   });
 });

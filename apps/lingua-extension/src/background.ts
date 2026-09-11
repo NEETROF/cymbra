@@ -32,9 +32,16 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
 });
 
 chrome.commands.onCommand.addListener((command) => {
-  if (command !== "lingua-capture-selection") return;
   chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
-    if (tab?.id != null) void chrome.tabs.sendMessage(tab.id, { type: "captureSelection" }).catch(() => {});
+    const tabId = tab?.id;
+    if (tabId == null) return;
+    if (command === "lingua-capture-selection") {
+      void chrome.tabs.sendMessage(tabId, { type: "captureSelection" }).catch(() => {});
+    } else if (command === "lingua-toggle-drawer") {
+      void chrome.tabs.sendMessage(tabId, { type: "toggleDrawer" }).catch(() => {});
+    } else if (command === "lingua-side-panel") {
+      void chrome.sidePanel.open({ tabId }).catch(() => {});
+    }
   });
 });
 

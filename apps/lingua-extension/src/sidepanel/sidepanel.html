@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cymbra Lingua — révision</title>
+    <link rel="stylesheet" href="tokens.css" />
+    <link rel="stylesheet" href="review.css" />
+    <link rel="stylesheet" href="sidepanel.css" />
+  </head>
+  <body>
+    <h1>Cymbra Lingua</h1>
+    <div class="summary" id="summary">…</div>
+
+    <div class="review" id="review"></div>
+
+    <div class="tools">
+      <button id="backup">Sauvegarder</button>
+      <button id="restore">Restaurer</button>
+      <input type="file" id="restore-file" accept="application/json" hidden />
+    </div>
+    <div class="msg" id="msg"></div>
+
+    <details>
+      <summary>Sources & confidentialité</summary>
+      <div class="privacy" id="privacy">Rien ne quitte votre appareil : l'analyse et les traductions sont locales.</div>
+      <div id="licences"></div>
+      <pre class="notice" id="notice"></pre>
+    </details>
+
+    <script type="module" src="sidepanel.js"></script>
+  </body>
+</html>

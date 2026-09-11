@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "description": "Read the web in place: unknown words highlighted, an honest per-page percentage. Offline, private.",
   "minimum_chrome_version": "116",
-  "permissions": ["activeTab", "storage", "scripting"],
+  "permissions": ["activeTab", "storage", "scripting", "sidePanel"],
   "optional_host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js",
@@ -14,10 +14,21 @@
     "default_popup": "popup.html",
     "default_title": "Cymbra Lingua"
   },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
   "commands": {
     "lingua-capture-selection": {
       "suggested_key": { "default": "Alt+L" },
       "description": "Capturer la sélection (mot ou expression) avec sa phrase"
+    },
+    "lingua-toggle-drawer": {
+      "suggested_key": { "default": "Alt+Shift+D" },
+      "description": "Ouvrir/fermer le panneau de révision sur la page"
+    },
+    "lingua-side-panel": {
+      "suggested_key": { "default": "Alt+Shift+S" },
+      "description": "Ouvrir le panneau latéral de révision"
     }
   },
   "content_security_policy": {

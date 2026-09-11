@@ -1,0 +1,55 @@
+/* Shared review-widget styles (side panel + injected drawer). Colours come only from
+   tokens.css. No colour literals here. */
+.review-note {
+  color: var(--cymbra-lingua-muted);
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.review-headword {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--cymbra-lingua-text);
+  margin: 6px 0 10px;
+}
+
+.review-gloss {
+  font-size: 16px;
+  color: var(--cymbra-lingua-accent);
+  margin-bottom: 6px;
+}
+
+.review-sentence {
+  font-size: 13px;
+  color: var(--cymbra-lingua-muted);
+  margin-bottom: 12px;
+}
+
+.review-grades {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.review-btn {
+  cursor: pointer;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--cymbra-lingua-border-2);
+  background: var(--cymbra-lingua-panel-2);
+  color: var(--cymbra-lingua-text);
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.review-btn:hover {
+  background: var(--cymbra-lingua-panel-3);
+}
+
+.review-btn.primary {
+  background: var(--cymbra-lingua-accent-strong);
+  border-color: var(--cymbra-lingua-accent-strong);
+  color: var(--cymbra-lingua-accent-ink);
+}
