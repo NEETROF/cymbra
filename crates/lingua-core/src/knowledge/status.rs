@@ -60,6 +60,43 @@ impl Status {
     pub fn counts_as_known(self) -> bool {
         matches!(self, Status::Known(_) | Status::Ignored)
     }
+
+    /// The sync-protocol status string (`add-lingua-connected-clients`,
+    /// `KnownWordsService`): `"known" | "learning" | "ignored"`. (`"cleared"`
+    /// is the wire value for an *absent* status; see [`Status::from_wire`].)
+    pub fn wire_kind(self) -> &'static str {
+        match self {
+            Status::Learning => "learning",
+            Status::Known(_) => "known",
+            Status::Ignored => "ignored",
+        }
+    }
+
+    /// The sync-protocol provenance string: `"manual" | "srs" | "import"`.
+    /// `Known(Calibration)` is never an explicit entry, so it never reaches the
+    /// wire; a learning/ignored status is a manual decision.
+    pub fn wire_provenance(self) -> &'static str {
+        match self {
+            Status::Known(KnownSource::Srs) => "srs",
+            Status::Known(KnownSource::Import) => "import",
+            _ => "manual",
+        }
+    }
+
+    /// Parse a `(kind, provenance)` wire pair into a status, or `None` for
+    /// `"cleared"` / an unrecognised kind (which the caller treats as a clear).
+    pub fn from_wire(kind: &str, provenance: &str) -> Option<Status> {
+        match kind {
+            "learning" => Some(Status::Learning),
+            "ignored" => Some(Status::Ignored),
+            "known" => Some(Status::Known(match provenance {
+                "srs" => KnownSource::Srs,
+                "import" => KnownSource::Import,
+                _ => KnownSource::Manual,
+            })),
+            _ => None,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -72,5 +109,34 @@ mod tests {
         assert!(Status::Known(KnownSource::Calibration).counts_as_known());
         assert!(Status::Ignored.counts_as_known());
         assert!(!Status::Learning.counts_as_known());
+    }
+
+    #[test]
+    fn wire_kind_and_provenance_round_trip_through_from_wire() {
+        for status in [
+            Status::Learning,
+            Status::Ignored,
+            Status::Known(KnownSource::Manual),
+            Status::Known(KnownSource::Srs),
+            Status::Known(KnownSource::Import),
+        ] {
+            let back = Status::from_wire(status.wire_kind(), status.wire_provenance());
+            assert_eq!(back, Some(status), "round trip {status:?}");
+        }
+    }
+
+    #[test]
+    fn calibration_known_serialises_as_a_manual_known_on_the_wire() {
+        // Calibration is never an explicit entry, so it collapses to manual if it
+        // ever reaches the wire — never the reverse of a stored SRS/import known.
+        let s = Status::Known(KnownSource::Calibration);
+        assert_eq!(s.wire_kind(), "known");
+        assert_eq!(s.wire_provenance(), "manual");
+    }
+
+    #[test]
+    fn cleared_and_unknown_kinds_parse_to_none() {
+        assert_eq!(Status::from_wire("cleared", "manual"), None);
+        assert_eq!(Status::from_wire("bogus", "manual"), None);
     }
 }

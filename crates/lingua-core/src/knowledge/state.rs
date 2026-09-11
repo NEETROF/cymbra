@@ -77,6 +77,23 @@ pub struct KnowledgeState {
     /// and a rank ≤ this value is implicitly known. Absent = 0 (nothing
     /// implicitly known).
     calibration: BTreeMap<StudiedLanguage, u32>,
+    /// Last-change time (epoch millis) per lemma, for cross-device last-write-
+    /// wins sync (`add-lingua-connected-clients`). Absent = 0 (a pre-sync entry,
+    /// which loses to any real timestamp). `#[serde(default)]` so an older backup
+    /// without this map restores cleanly. A cleared lemma keeps its timestamp as
+    /// a tombstone so a stale re-add cannot win.
+    #[serde(default)]
+    updated: BTreeMap<StudiedLanguage, BTreeMap<String, i64>>,
+}
+
+/// One exported status for the sync outbox — a lemma's current status and the
+/// time it last changed on this device.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StatusRecord {
+    pub language: StudiedLanguage,
+    pub lemma: String,
+    pub status: Status,
+    pub updated_at: i64,
 }
 
 impl KnowledgeState {
@@ -85,7 +102,8 @@ impl KnowledgeState {
         Self::default()
     }
 
-    /// Sets a lemma's explicit status.
+    /// Sets a lemma's explicit status (no sync timestamp — internal/test use;
+    /// the timestamp defaults to 0, which loses to any real one in LWW).
     pub fn set_status(&mut self, lang: StudiedLanguage, lemma: &str, status: Status) {
         self.statuses
             .entry(lang)
@@ -93,8 +111,25 @@ impl KnowledgeState {
             .insert(lemma.to_owned(), status);
     }
 
+    /// Sets a lemma's explicit status and stamps its sync timestamp (epoch
+    /// millis). The mutation path the surfaces use, so a change carries a time
+    /// the sync outbox and cross-device LWW can order it by.
+    pub fn set_status_at(
+        &mut self,
+        lang: StudiedLanguage,
+        lemma: &str,
+        status: Status,
+        at_ms: i64,
+    ) {
+        self.set_status(lang, lemma, status);
+        self.updated
+            .entry(lang)
+            .or_default()
+            .insert(lemma.to_owned(), at_ms);
+    }
+
     /// Removes any explicit status, returning the lemma to "new" (subject to
-    /// calibration again).
+    /// calibration again). Its sync timestamp is left as a tombstone.
     pub fn clear_status(&mut self, lang: StudiedLanguage, lemma: &str) {
         if let Some(per_lang) = self.statuses.get_mut(&lang) {
             per_lang.remove(lemma);
@@ -102,6 +137,61 @@ impl KnowledgeState {
                 self.statuses.remove(&lang);
             }
         }
+    }
+
+    /// The last-change time (epoch millis) of a lemma's status; 0 if never
+    /// stamped (a pre-sync entry).
+    pub fn status_updated_at(&self, lang: StudiedLanguage, lemma: &str) -> i64 {
+        self.updated
+            .get(&lang)
+            .and_then(|m| m.get(lemma))
+            .copied()
+            .unwrap_or(0)
+    }
+
+    /// Every explicit status with its sync timestamp, in deterministic order —
+    /// the outbox source for a full push (e.g. first sign-in).
+    pub fn export_statuses(&self) -> Vec<StatusRecord> {
+        let mut out = Vec::new();
+        for (&language, per_lang) in &self.statuses {
+            for (lemma, &status) in per_lang {
+                out.push(StatusRecord {
+                    language,
+                    lemma: lemma.clone(),
+                    status,
+                    updated_at: self.status_updated_at(language, lemma),
+                });
+            }
+        }
+        out
+    }
+
+    /// Apply an incoming status change under last-write-wins: a strictly-newer
+    /// change wins; an equal timestamp also applies (the server already resolved
+    /// ties, so its value is authoritative and re-applying is a no-op); an older
+    /// one is dropped. `incoming = None` clears the lemma (the `"cleared"` wire
+    /// value). Returns whether local state changed. The timestamp is always
+    /// advanced to `at_ms` when the change is accepted, so a later stale op loses.
+    pub fn apply_status_lww(
+        &mut self,
+        lang: StudiedLanguage,
+        lemma: &str,
+        incoming: Option<Status>,
+        at_ms: i64,
+    ) -> bool {
+        if at_ms < self.status_updated_at(lang, lemma) {
+            return false;
+        }
+        let before = self.explicit_status(lang, lemma);
+        match incoming {
+            Some(status) => self.set_status(lang, lemma, status),
+            None => self.clear_status(lang, lemma),
+        }
+        self.updated
+            .entry(lang)
+            .or_default()
+            .insert(lemma.to_owned(), at_ms);
+        before != incoming
     }
 
     /// The explicit status of a lemma, if any.
@@ -380,6 +470,81 @@ mod tests {
             state.classify_compound(EN, "repo-wide", &[], &ranks()),
             TokenClass::Unknown
         );
+    }
+
+    #[test]
+    fn set_status_at_stamps_and_exports_with_its_timestamp() {
+        let mut state = KnowledgeState::new();
+        state.set_status_at(EN, "seldom", Status::Learning, 1_000);
+        state.set_status_at(EN, "run", Status::Known(KnownSource::Manual), 2_000);
+        assert_eq!(state.status_updated_at(EN, "seldom"), 1_000);
+        let records = state.export_statuses();
+        assert_eq!(records.len(), 2);
+        // Deterministic (lemma-ordered): run before seldom.
+        assert_eq!(records[0].lemma, "run");
+        assert_eq!(records[0].updated_at, 2_000);
+        assert_eq!(records[1].lemma, "seldom");
+        assert_eq!(records[1].status, Status::Learning);
+    }
+
+    #[test]
+    fn plain_set_status_leaves_a_zero_timestamp() {
+        let mut state = KnowledgeState::new();
+        state.set_status(EN, "run", Status::Ignored);
+        assert_eq!(state.status_updated_at(EN, "run"), 0);
+    }
+
+    #[test]
+    fn lww_applies_newer_and_equal_but_drops_older() {
+        let mut state = KnowledgeState::new();
+        state.set_status_at(EN, "run", Status::Learning, 100);
+
+        // Older op: dropped, no change.
+        assert!(!state.apply_status_lww(EN, "run", Some(Status::Ignored), 50));
+        assert_eq!(state.explicit_status(EN, "run"), Some(Status::Learning));
+
+        // Newer op wins.
+        assert!(state.apply_status_lww(EN, "run", Some(Status::Known(KnownSource::Srs)), 200));
+        assert_eq!(
+            state.explicit_status(EN, "run"),
+            Some(Status::Known(KnownSource::Srs))
+        );
+        assert_eq!(state.status_updated_at(EN, "run"), 200);
+
+        // Equal timestamp applies (server-authoritative) but reports no change when identical.
+        assert!(!state.apply_status_lww(EN, "run", Some(Status::Known(KnownSource::Srs)), 200));
+    }
+
+    #[test]
+    fn lww_clear_removes_the_status_but_keeps_a_tombstone() {
+        let mut state = KnowledgeState::new();
+        state.set_status_at(EN, "run", Status::Learning, 100);
+        assert!(state.apply_status_lww(EN, "run", None, 300));
+        assert_eq!(state.explicit_status(EN, "run"), None);
+        // A stale re-add older than the clear loses.
+        assert!(!state.apply_status_lww(EN, "run", Some(Status::Learning), 200));
+        assert_eq!(state.explicit_status(EN, "run"), None);
+    }
+
+    #[test]
+    fn a_backup_without_the_updated_map_restores_with_zero_timestamps() {
+        // An older backup (add-lingua-decks-review era) has no `updated` field.
+        // Strip it from a real serialisation rather than hand-writing the format.
+        let mut original = KnowledgeState::new();
+        original.set_status_at(EN, "run", Status::Known(KnownSource::Manual), 5_000);
+        original.set_calibration(EN, 3_000);
+        let mut value = serde_json::to_value(&original).expect("serialises");
+        value.as_object_mut().expect("object").remove("updated");
+        assert!(value.get("updated").is_none());
+
+        let restored: KnowledgeState =
+            serde_json::from_value(value).expect("restores without `updated`");
+        assert_eq!(
+            restored.explicit_status(EN, "run"),
+            Some(Status::Known(KnownSource::Manual))
+        );
+        assert_eq!(restored.status_updated_at(EN, "run"), 0);
+        assert_eq!(restored.export_statuses()[0].updated_at, 0);
     }
 
     #[test]
