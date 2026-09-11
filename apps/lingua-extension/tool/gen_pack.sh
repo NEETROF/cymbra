@@ -4,10 +4,10 @@
 #   yarn gen:pack       → assets/pack.lingua        (shipped/dogfooding pack, gitignored)
 #   yarn gen:fixtures   → test/fixtures/en-fr.testdata.lingua  (committed vitest fixture)
 #
-# Today both use the tiny committed testdata sources (scripts/lingua-data/testdata/en-fr):
-# real-source fetching (build.sh en-fr <out>) is still an unwired stub in this checkout.
-# When real sources are wired (scripts/lingua-data/SOURCES.md), the dogfooding pack switches
-# to the full lexicon; the fixture stays on --testdata so vitest is hermetic and small.
+# Both use the tiny committed testdata sources (scripts/lingua-data/testdata/en-fr), so
+# CI and vitest stay hermetic and small. The FULL EN->FR lexicon is built by
+# `yarn gen:pack:real` (→ scripts/lingua-data/build.sh en-fr), which downloads the real
+# sources into work/ (git-ignored) — use it for dogfooding / release, not in CI.
 set -euo pipefail
 
 OUT="${1:?usage: gen_pack.sh <output-path>}"

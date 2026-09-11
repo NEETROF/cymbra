@@ -37,17 +37,33 @@ if [[ "${1:-}" == "emit-manifest" || "${1:-}" == "check-manifest" ]]; then
   exit 0
 fi
 
-# fetch_and_reduce: download the dated upstream sources into $2 and reduce them
-# to forms.tsv / freq.tsv / gloss.tsv / NOTICE / manifest.json. Kept as a
-# documented stub: wire the exact download URLs + reducers per pair here. It
-# MUST only pull sources cleared by scripts/lingua-data/SOURCES.md (the licence
-# denylist is also enforced in the builder, which fails the build on a denied
-# source). Raw downloads go under work/ (git-ignored) and are never committed.
+# fetch_and_reduce: download the dated upstream sources into $2 (work dir) and reduce
+# them to forms.tsv / freq.tsv / gloss.tsv / NOTICE / manifest.json. Only sources
+# cleared by scripts/lingua-data/SOURCES.md are pulled (the licence denylist is also
+# enforced in the builder). Raw downloads go under work/ (git-ignored), never committed;
+# an already-downloaded snapshot is reused so a rebuild does not re-fetch.
+# Override the scope/version with LINGUA_MAX_LEMMAS / LINGUA_PACK_VERSION.
 fetch_and_reduce() {
-  local pair="$1"
-  echo "error: real-source fetch for '$pair' is not wired in this checkout." >&2
-  echo "       See scripts/lingua-data/SOURCES.md; run with --testdata to smoke-test." >&2
-  exit 2
+  local pair="$1" work="$2"
+  case "$pair" in
+    en-fr)
+      mkdir -p "$work"
+      # AGID inflection database (permissive) — form -> lemma. ~3.4 MB.
+      [[ -f "$work/agid-infl.txt" ]] || curl -sSL --fail -o "$work/agid-infl.txt" \
+        "https://raw.githubusercontent.com/en-wl/wordlist/master/agid/infl.txt"
+      # kaikki frwiktionary "Anglais" extract (CC BY-SA + GFDL) — FR glosses of EN words. ~188 MB.
+      [[ -f "$work/kaikki-Anglais.jsonl" ]] || curl -sSL --fail --compressed -o "$work/kaikki-Anglais.jsonl" \
+        "https://kaikki.org/frwiktionary/Anglais/kaikki.org-dictionary-Anglais.jsonl"
+      # wordfreq (CC BY-SA) — the package IS the frequency source.
+      python3 -c "import wordfreq" 2>/dev/null || pip3 install --user --quiet wordfreq
+      python3 "$here/reduce-en-fr.py" --work "$work" \
+        --max-lemmas "${LINGUA_MAX_LEMMAS:-40000}" \
+        --built-at "$(date -u +%F)" --pack-version "${LINGUA_PACK_VERSION:-1.0.0}"
+      ;;
+    *)
+      echo "error: real-source fetch for '$pair' is not wired (see SOURCES.md)." >&2
+      exit 2 ;;
+  esac
 }
 
 if [[ "${1:-}" == "--testdata" ]]; then
