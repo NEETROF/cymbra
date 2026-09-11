@@ -2,10 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   type AsyncStorageArea,
   classifyStored,
+  ENABLED_KEY,
   hydrateFromV1,
+  loadEnabled,
   loadStored,
   ROOT_KEY,
   saveBackup,
+  saveEnabled,
   STORAGE_VERSION,
   type V1State,
 } from "@/state/storage.ts";
@@ -59,6 +62,23 @@ describe("loadStored / saveBackup", () => {
 
   it("reports empty for an empty store", async () => {
     expect((await loadStored(fakeArea())).kind).toBe("empty");
+  });
+});
+
+describe("loadEnabled / saveEnabled", () => {
+  it("defaults to enabled when the flag was never set", async () => {
+    expect(await loadEnabled(fakeArea())).toBe(true);
+  });
+
+  it("round-trips the flag and never touches the state backup", async () => {
+    const area = fakeArea({ [ROOT_KEY]: { v: STORAGE_VERSION, backup: "KEEP" } });
+    await saveEnabled(area, false);
+    expect(await loadEnabled(area)).toBe(false);
+    expect(area.store[ENABLED_KEY]).toBe(false);
+    // Toggling the reader must not disturb the deck/status backup.
+    expect(area.store[ROOT_KEY]).toEqual({ v: STORAGE_VERSION, backup: "KEEP" });
+    await saveEnabled(area, true);
+    expect(await loadEnabled(area)).toBe(true);
   });
 });
 

@@ -16,6 +16,13 @@ export const STORAGE_VERSION = 2;
 export const ROOT_KEY = "lingua";
 export const DEFAULT_CALIBRATION = 3000;
 
+/**
+ * Whether the reader is enabled, kept under its own key (independent of the state
+ * backup so toggling it never rewrites the deck/statuses). A global master switch:
+ * every context reads it and reacts to its `storage.onChanged`. Default on.
+ */
+export const ENABLED_KEY = "cymbra-lingua-enabled";
+
 /** The minimal async storage surface we need; chrome.storage.local satisfies it. */
 export interface AsyncStorageArea {
   get(keys: string | string[] | null): Promise<Record<string, unknown>>;
@@ -67,6 +74,17 @@ export async function loadStored(area: AsyncStorageArea): Promise<Stored> {
 /** Persist a backup string under the root key. */
 export async function saveBackup(area: AsyncStorageArea, backup: string): Promise<void> {
   await area.set({ [ROOT_KEY]: { v: STORAGE_VERSION, backup } });
+}
+
+/** Whether the reader is enabled; absent means on (the default for a fresh install). */
+export async function loadEnabled(area: AsyncStorageArea): Promise<boolean> {
+  const got = await area.get(ENABLED_KEY);
+  return got[ENABLED_KEY] !== false;
+}
+
+/** Set the global enabled flag. */
+export async function saveEnabled(area: AsyncStorageArea, enabled: boolean): Promise<void> {
+  await area.set({ [ENABLED_KEY]: enabled });
 }
 
 /**

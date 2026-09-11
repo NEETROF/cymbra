@@ -1,7 +1,16 @@
+import { loadEnabled, saveEnabled } from "../state/storage.ts";
+
 // Icon-popup controller (a surface the extension owns). It holds no engine and no
 // storage of its own: it asks the active tab's content script for stats and drives
 // calibration / reset / review through messages, so the content script (which owns the
-// engine and persists) stays the single writer. Excluded from coverage (DOM wiring).
+// engine and persists) stays the single writer. The one thing it writes directly is the
+// global enabled flag (a plain setting, not engine state); content scripts react to it
+// via storage.onChanged. Excluded from coverage (DOM wiring).
+
+const storageArea = {
+  get: (keys: string | string[] | null) => chrome.storage.local.get(keys),
+  set: (items: Record<string, unknown>) => chrome.storage.local.set(items),
+};
 
 interface PageStats {
   analysable: boolean;
@@ -71,6 +80,19 @@ async function refresh(): Promise<void> {
   render((await send({ type: "getStats" })) as PageStats | null);
 }
 
+/** Reflect the global enabled flag: off hides the reader panels; on shows them. */
+async function applyEnabled(enabled: boolean): Promise<void> {
+  ($("enabled") as HTMLInputElement).checked = enabled;
+  $("enabled-label").textContent = enabled ? "Surlignage activé" : "Surlignage désactivé";
+  $("disabled-note").hidden = enabled;
+  if (!enabled) {
+    $("setup").hidden = true;
+    $("controls").hidden = true;
+    return;
+  }
+  await refresh();
+}
+
 async function main(): Promise<void> {
   const calib = $("calib") as HTMLInputElement;
   calib.addEventListener("input", () => {
@@ -94,7 +116,13 @@ async function main(): Promise<void> {
     if (await chrome.permissions.request({ origins: ["<all_urls>"] })) window.close();
   });
 
-  await refresh();
+  $("enabled").addEventListener("change", async () => {
+    const enabled = ($("enabled") as HTMLInputElement).checked;
+    await saveEnabled(storageArea, enabled);
+    await applyEnabled(enabled);
+  });
+
+  await applyEnabled(await loadEnabled(storageArea));
 }
 
 void main();

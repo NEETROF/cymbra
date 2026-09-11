@@ -10,6 +10,16 @@
   <body>
     <h1>Cymbra Lingua</h1>
 
+    <div class="toggle-row">
+      <label class="switch">
+        <input type="checkbox" id="enabled" checked />
+        <span class="slider"></span>
+      </label>
+      <span id="enabled-label">Surlignage activé</span>
+    </div>
+
+    <div id="disabled-note" class="note" hidden>Surlignage désactivé sur toutes les pages.</div>
+
     <div id="setup" hidden>
       <div class="note">Cette page n'est pas encore analysée.</div>
       <button class="primary" id="analyse">Analyser cette page</button>
