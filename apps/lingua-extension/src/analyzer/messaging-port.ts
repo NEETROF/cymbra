@@ -1,5 +1,5 @@
-import type { LinguaPort, NewCard, Rating, ReviewCard } from "./port.ts";
-import type { PageAnalysis } from "./types.ts";
+import type { CardOp, LinguaPort, NewCard, Rating, ReviewCard, StatusChangeIn, StatusOp } from "./port.ts";
+import type { LemmaStatus, PageAnalysis } from "./types.ts";
 import { sendRpc } from "./rpc.ts";
 
 // The Firefox AnalyzerPort implementation: a thin LinguaPort that forwards every call
@@ -72,5 +72,20 @@ export class MessagingLinguaPort implements LinguaPort {
   }
   licences(): Promise<string[]> {
     return this.rpc("licences");
+  }
+  setStatusAt(lemma: string, status: LemmaStatus | null, atMs: number): Promise<void> {
+    return this.rpc("setStatusAt", [lemma, status, atMs]);
+  }
+  exportStatusOps(): Promise<StatusOp[]> {
+    return this.rpc("exportStatusOps");
+  }
+  applyStatusChanges(changes: StatusChangeIn[]): Promise<number> {
+    return this.rpc("applyStatusChanges", [changes]);
+  }
+  exportCardOps(): Promise<CardOp[]> {
+    return this.rpc("exportCardOps");
+  }
+  applyCardOps(ops: CardOp[]): Promise<number> {
+    return this.rpc("applyCardOps", [ops]);
   }
 }
