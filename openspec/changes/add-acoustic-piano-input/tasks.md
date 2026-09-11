@@ -118,9 +118,12 @@
   tried and rejected: real notes measured 0.2–0.5% octave ratios on device).
   Validated by two on-device data protocols: real mi/fa pass every time,
   fa♯-for-fa 0/12 across sessions, zero silent-room phantoms
-- [ ] 10.2 On-screen detection debug overlay: heard-level curve + heard-vs-
-  expected notes, so a player can see what the microphone hears (user
-  request during the play test)
+- [x] 10.2 ~~On-screen detection debug overlay~~ — DROPPED (user decision,
+  2026-09-11): its purpose — seeing what the microphone hears to debug
+  detection — was fulfilled by the on-device diagnostics file and the
+  targeted data protocols, which settled every issue with numbers. If
+  players ever need feedback on what the app hears, that is a product
+  feature (a heard-level indicator in calibration), to be specced then
 - [x] 10.3 Chords and transport rewinds (third on-device data campaign,
   Minuet in G): a rewind landing ON an onset froze the expected set — the
   Wait-Mode blocked tick exit skipped the detector push, and every later
