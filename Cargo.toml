@@ -120,6 +120,10 @@ zstd = "0.13"
 # WASM bindings for the extension target (change: add-lingua-wasm).
 wasm-bindgen = "0.2"
 wasm-bindgen-test = "0.3"
+# Local store for the Claude Code plugin (change: add-lingua-agent) — native binary
+# only (never in lingua-core / WASM). `bundled` compiles SQLite from source, so there
+# is no system-libsqlite dependency on dev machines or CI.
+rusqlite = { version = "0.32", features = ["bundled"] }
 
 # testing — default test-double is mockall generated mocks (#[automock]).
 # A crate opts in under [dev-dependencies] with `mockall = { workspace = true }`.

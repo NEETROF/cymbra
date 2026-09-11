@@ -13,8 +13,7 @@ post-processing of the rendered output); what is viable is the `Stop` hook (it r
 are confidential (employer code) → local-only by default, non-negotiable.
 
 Inherited and not re-litigated here: the `(studied language, lemma)` key without POS and
-the exposure counters (`add-lingua-knowledge-model`), FSRS through the pinned `fsrs` crate
-(`add-lingua-decks-review`), and determinism at a given `analyzer_version`
+the exposure counters (`add-lingua-knowledge-model`), FSRS scheduling reimplemented in-core (`add-lingua-decks-review`), and determinism at a given `analyzer_version`
 (`add-lingua-analysis`).
 
 ## Goals / Non-Goals

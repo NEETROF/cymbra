@@ -1,0 +1,7 @@
+{
+  "name": "cymbra-lingua",
+  "version": "0.1.0",
+  "description": "Track your English vocabulary from Claude Code sessions — locally, no account, no network.",
+  "author": { "name": "NEETROF" },
+  "homepage": "https://cymbra.app"
+}
