@@ -1,0 +1,54 @@
+// Copyright 2026 NEETROF
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+// this file except in compliance with the License. You may obtain a copy of the
+// License at http://www.apache.org/licenses/LICENSE-2.0
+
+syntax = "proto3";
+
+package cymbra.lingua.v1;
+
+// Syncs whole deck cards across a user's devices, identified by a stable client id,
+// last-write-wins per card (deletions included). The caller's identity comes from the
+// access token, never the body.
+//
+// PRIVACY ALLOW-LIST: a card carries only the user's own data — the form, the sentence
+// they captured, and the source they attached. The `media` contents are NEVER
+// transported in this change (the schema slot stays local on the originating device);
+// there is no bytes field here.
+service DeckService {
+  rpc PushCards(PushCardsRequest) returns (PushCardsResponse);
+  rpc PullCards(PullCardsRequest) returns (PullCardsResponse);
+}
+
+// A whole card as one device holds it (or a tombstone when `deleted`).
+message CardOp {
+  string client_id = 1; // stable card UUID (the LWW key)
+  string lemma = 2;
+  string surface_form = 3;
+  string source_sentence = 4; // the sentence the user captured with the card
+  string source = 5; // the origin the user attached to the card (their own data) — the only URL that may exist
+  string gloss = 6;
+  string fsrs_state = 7; // opaque JSON of the FSRS review state
+  bool deleted = 8; // tombstone propagated by LWW
+  int64 client_ts = 9; // client op time (epoch millis); clamped on receipt
+  string device_id = 10; // stable per-device id (LWW tie-break)
+}
+
+message PushCardsRequest {
+  repeated CardOp cards = 1;
+}
+
+message PushCardsResponse {
+  uint64 applied = 1;
+  int64 cursor = 2;
+}
+
+message PullCardsRequest {
+  int64 cursor = 1; // 0 = from the start
+}
+
+message PullCardsResponse {
+  repeated CardOp cards = 1; // includes tombstones (deleted=true)
+  int64 cursor = 2;
+}

@@ -748,6 +748,43 @@ async fn main() -> anyhow::Result<()> {
     let http_addr: SocketAddr = cfg.http_addr.parse()?;
     tracing::info!(%grpc_addr, %http_addr, "cymbra-server serving");
 
+    // --- lingua module (Cymbra Lingua sync: statuses, cards, daily stats; change:
+    // add-lingua-backend). Owns the `lingua` schema via `lingua_svc`. Inert without
+    // CYMBRA_LINGUA_DATABASE_URL. Identity comes from the token, so no UserPort here.
+    let (known_words_svc, deck_svc, stats_svc) = match cfg.lingua_database_url.as_deref() {
+        Some(db_url) => {
+            let pool = db::connect(db_url, 5).await?;
+            cymbra_lingua::MIGRATOR.run(&pool).await?;
+            let known_words = std::sync::Arc::new(cymbra_lingua::KnownWordsModule::new(
+                std::sync::Arc::new(cymbra_lingua::PgKnownWordsRepo::new(pool.clone())),
+            ));
+            let deck = std::sync::Arc::new(cymbra_lingua::DeckModule::new(std::sync::Arc::new(
+                cymbra_lingua::PgDeckRepo::new(pool.clone()),
+            )));
+            let stats = std::sync::Arc::new(cymbra_lingua::StatsModule::new(std::sync::Arc::new(
+                cymbra_lingua::PgStatsRepo::new(pool.clone()),
+            )));
+            (
+                Some(cymbra_lingua::proto::known_words_service_server::KnownWordsServiceServer::with_interceptor(
+                    cymbra_lingua::KnownWordsGrpc::new(known_words),
+                    strict.clone(),
+                )),
+                Some(cymbra_lingua::proto::deck_service_server::DeckServiceServer::with_interceptor(
+                    cymbra_lingua::DeckGrpc::new(deck),
+                    strict.clone(),
+                )),
+                Some(cymbra_lingua::proto::stats_service_server::StatsServiceServer::with_interceptor(
+                    cymbra_lingua::StatsGrpc::new(stats),
+                    strict.clone(),
+                )),
+            )
+        }
+        None => {
+            tracing::info!("lingua services disabled (CYMBRA_LINGUA_DATABASE_URL unset)");
+            (None, None, None)
+        }
+    };
+
     // Browser transport for the back office (change: add-moderation-back-office):
     // gRPC-web + a CORS layer restricted to the configured origin(s). gRPC-web is a
     // framing of gRPC (not REST), and the native HTTP/2 gRPC surface the app uses is
@@ -755,9 +792,14 @@ async fn main() -> anyhow::Result<()> {
     // HTTP/1.1. Every method still runs behind the same auth interceptor + role
     // guards, so CORS is defence-in-depth, not the authorization boundary. An empty
     // origin list (the default) allows no cross-origin browser access.
+    // gRPC-web CORS origins = back office ∪ the extra gRPC-web list (change:
+    // add-lingua-backend). The back-office cookie/plan-JSON surfaces are NOT widened —
+    // they keep reading `back_office_origins` alone; only this gRPC-web layer sees the
+    // union, so a lingua browser client (chrome-extension://…) is admitted bearer-only.
     let cors_origins: Vec<HeaderValue> = cfg
         .back_office_origins
         .iter()
+        .chain(cfg.allowed_web_origins.iter())
         .filter_map(|o| o.parse::<HeaderValue>().ok())
         .collect();
     let cors = CorsLayer::new()
@@ -797,6 +839,15 @@ async fn main() -> anyhow::Result<()> {
     }
     if let Some(plan_svc) = plan_svc {
         router = router.add_service(plan_svc);
+    }
+    if let Some(known_words_svc) = known_words_svc {
+        router = router.add_service(known_words_svc);
+    }
+    if let Some(deck_svc) = deck_svc {
+        router = router.add_service(deck_svc);
+    }
+    if let Some(stats_svc) = stats_svc {
+        router = router.add_service(stats_svc);
     }
     let grpc = router.serve(grpc_addr);
     let listener = tokio::net::TcpListener::bind(http_addr).await?;

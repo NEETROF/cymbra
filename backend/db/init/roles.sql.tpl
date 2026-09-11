@@ -108,9 +108,25 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA plans TO :"plans_ro
 ALTER DEFAULT PRIVILEGES IN SCHEMA plans
   GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO :"plans_role";
 
+-- lingua module (Cymbra Lingua: word statuses, cards, daily stat aggregates;
+-- change: add-lingua-backend) — owned by lingua_svc, confined to its own schema.
+-- Consumes the platform (UserPort for account state — never a read of user_account),
+-- so no cross-schema grants. Inert until CYMBRA_LINGUA_DATABASE_URL is set; the server
+-- then runs its MIGRATOR and serves the cymbra.lingua.v1 services on this role. No FK
+-- to user_account (purge by user_id).
+SELECT format('CREATE ROLE %I LOGIN', :'lingua_role')
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'lingua_role')
+\gexec
+ALTER ROLE :"lingua_role" WITH LOGIN PASSWORD :'lingua_pw';
+CREATE SCHEMA IF NOT EXISTS lingua AUTHORIZATION :"lingua_role";
+ALTER ROLE :"lingua_role" SET search_path = lingua;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA lingua TO :"lingua_role";
+ALTER DEFAULT PRIVILEGES IN SCHEMA lingua
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO :"lingua_role";
+
 -- Keep the module roles out of the shared `public` schema so the only namespaces
 -- each can touch are its own (+ the narrow jobs.enqueue grant from the migration).
-REVOKE ALL ON SCHEMA public FROM :"auth_role", :"user_role", :"music_role", :"worker_role", :"flags_role", :"analytics_role", :"plans_role";
+REVOKE ALL ON SCHEMA public FROM :"auth_role", :"user_role", :"music_role", :"worker_role", :"flags_role", :"analytics_role", :"plans_role", :"lingua_role";
 
 -- Ops role: read+write EVERY schema from a single connection (design OD1/OD2) --
 -- `pg_read_all_data` + `pg_write_all_data` cover all current AND future schemas
@@ -162,4 +178,4 @@ WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'admin_role')
 \gexec
 ALTER ROLE :"admin_role" WITH LOGIN PASSWORD :'admin_pw';
 GRANT pg_read_all_data, pg_write_all_data TO :"admin_role";
-ALTER ROLE :"admin_role" SET search_path = auth, user_account, music, jobs, feature_flags, analytics, plans, public;
+ALTER ROLE :"admin_role" SET search_path = auth, user_account, music, jobs, feature_flags, analytics, plans, lingua, public;

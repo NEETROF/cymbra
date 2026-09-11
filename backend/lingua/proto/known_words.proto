@@ -1,0 +1,73 @@
+// Copyright 2026 NEETROF
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+// this file except in compliance with the License. You may obtain a copy of the
+// License at http://www.apache.org/licenses/LICENSE-2.0
+
+syntax = "proto3";
+
+package cymbra.lingua.v1;
+
+// Syncs per-(language, lemma) word statuses across a user's devices. The caller's
+// identity comes from the internal access token (request metadata), NEVER the body.
+//
+// PRIVACY ALLOW-LIST (add-lingua-backend): the only data that crosses the wire is a
+// lemma status. There is deliberately NO field for a browsing URL, page text,
+// per-page/per-site counter, or reading history.
+service KnownWordsService {
+  // Drain a client outbox of timestamped ops in an idempotent batch; returns the
+  // number applied and the new tip cursor. Replaying a batch is a no-op.
+  rpc PushOps(PushOpsRequest) returns (PushOpsResponse);
+  // Pull the changes after a monotonic per-user cursor (0 = from the start).
+  rpc PullChanges(PullChangesRequest) returns (PullChangesResponse);
+  // Full snapshot, guarded by an ETag/version — an "unchanged" response with no body
+  // when the client's ETag still matches. For bootstrap or an invalid cursor.
+  rpc GetSnapshot(GetSnapshotRequest) returns (GetSnapshotResponse);
+}
+
+// One status operation from a client's outbox.
+message StatusOp {
+  string language = 1; // studied-language code, e.g. "en"
+  string lemma = 2; // dictionary form
+  string status = 3; // "known" | "learning" | "ignored" | "cleared"
+  string provenance = 4; // "manual" | "calibration" | "srs" | "import"
+  int64 client_ts = 5; // client op time (epoch millis); future values are clamped on receipt
+  string device_id = 6; // stable per-device id (last-write-wins tie-break)
+}
+
+message PushOpsRequest {
+  repeated StatusOp ops = 1;
+}
+
+message PushOpsResponse {
+  uint64 applied = 1; // ops that won last-write-wins and changed state
+  int64 cursor = 2; // the new tip cursor after this push
+}
+
+message PullChangesRequest {
+  int64 cursor = 1; // 0 = from the start
+}
+
+// A resolved status as it now stands on the server.
+message StatusChange {
+  string language = 1;
+  string lemma = 2;
+  string status = 3;
+  int64 updated_at = 4; // the winning op's (clamped) timestamp
+  int64 sequence = 5; // the server's monotonic change sequence
+}
+
+message PullChangesResponse {
+  repeated StatusChange changes = 1;
+  int64 cursor = 2; // pass back on the next pull
+}
+
+message GetSnapshotRequest {
+  string etag = 1; // last-seen ETag; empty forces a full snapshot
+}
+
+message GetSnapshotResponse {
+  bool unchanged = 1; // true => the ETag matched; statuses is empty
+  string etag = 2;
+  repeated StatusChange statuses = 3;
+}

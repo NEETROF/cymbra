@@ -56,3 +56,7 @@ humantime.workspace = true
 tokio = { workspace = true }
 # The plans mocks (mockall) for the erasure seams in the purge IT.
 cymbra-plans = { path = "../plans", features = ["mock"] }
+# The purge IT migrates the optional `lingua` schema (via its MIGRATOR) to prove the
+# account-erasure sweep clears it. Dev-only: production erases `lingua.*` by raw SQL
+# on the admin pool, so the worker keeps no runtime dependency on the lingua crate.
+cymbra-lingua = { path = "../lingua" }
