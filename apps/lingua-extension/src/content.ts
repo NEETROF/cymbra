@@ -6,7 +6,7 @@ import { Drawer } from "./reading/drawer.ts";
 import { clear as clearHighlights, injectPageStyles, render } from "./reading/highlight.ts";
 import { ReadingObservers } from "./reading/observer.ts";
 import { findTokenAt, type ResolvedToken, resolveTokens, type ScanStats, statsFromAnalysis } from "./reading/scan.ts";
-import { captureSelection, sentenceAround } from "./reading/selection.ts";
+import { captureSelection, MAX_SELECTION_LENGTH, sentenceAround } from "./reading/selection.ts";
 import { type Gesture, WordPopup } from "./reading/wordpopup.ts";
 import { type AsyncStorageArea, hydrateEngine, ROOT_KEY, saveBackup } from "./state/storage.ts";
 import drawerCss from "./styles/drawer.css";
@@ -91,6 +91,8 @@ class ReadingSession {
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && this.popup.visible()) this.popup.hide();
     });
+    // A multi-word mouse selection opens the whole-selection card directly (Alt+L too).
+    document.addEventListener("mouseup", (e) => this.onMouseUp(e));
     chrome.storage.onChanged.addListener((changes, areaName) => {
       const root = changes[ROOT_KEY];
       if (areaName === "local" && root && typeof (root.newValue as { backup?: string })?.backup === "string") {
@@ -154,6 +156,10 @@ class ReadingSession {
 
   private onClick(e: MouseEvent): void {
     if (this.popup.contains(e.target)) return;
+    // A live multi-word selection is the whole-selection card's job (onMouseUp); don't
+    // also open the single-word popup for whatever word the release landed on.
+    const sel = window.getSelection();
+    if (sel && !sel.isCollapsed && String(sel).trim().includes(" ")) return;
     const caret = caretAt(e.clientX, e.clientY);
     if (!caret) {
       if (this.popup.visible()) this.popup.hide();
@@ -176,6 +182,16 @@ class ReadingSession {
     e.stopPropagation();
   }
 
+  /** A multi-word mouse selection opens the whole-selection card directly. */
+  private onMouseUp(e: MouseEvent): void {
+    if (this.popup.contains(e.target)) return;
+    const sel = window.getSelection();
+    const text = sel ? String(sel).trim().replace(/\s+/g, " ") : "";
+    if (sel && !sel.isCollapsed && text.includes(" ") && text.length <= MAX_SELECTION_LENGTH) {
+      void this.onCaptureSelection();
+    }
+  }
+
   private async onCaptureSelection(): Promise<void> {
     const cap = captureSelection();
     if (!cap) return;
@@ -185,7 +201,7 @@ class ReadingSession {
       headword: cap.text,
       surface: cap.text,
       gloss,
-      rarity: isPhrase ? "Expression — la phrase part avec la carte." : "Sélection.",
+      rarity: isPhrase ? "Expression — la carte gardera sa phrase d’origine." : "Sélection.",
       sentence: cap.sentence,
       rect: cap.rect,
       expression: isPhrase,
