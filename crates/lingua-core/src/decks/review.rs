@@ -53,6 +53,34 @@ impl Deck {
             .insert(card.lemma.clone(), card);
     }
 
+    /// Seeds cards for a chosen set of `(lemma, gloss)` — typically the lemmas
+    /// of a selected CEFR level, in the caller's order (commonest-first by
+    /// default) — for level-targeted feeding (`add-lingua-cefr-levels`). Skips
+    /// any lemma that already has a card or an explicit status in `knowledge`
+    /// (idempotent), stops after `cap` new cards, and stamps each with the
+    /// reserved `Import` source. Returns the number actually added.
+    pub fn seed_lemmas<'a>(
+        &mut self,
+        lang: StudiedLanguage,
+        lemmas: impl IntoIterator<Item = (&'a str, Option<&'a str>)>,
+        knowledge: &KnowledgeState,
+        cap: usize,
+        at: i64,
+    ) -> usize {
+        let mut added = 0;
+        for (lemma, gloss) in lemmas {
+            if added >= cap {
+                break;
+            }
+            if self.get(lang, lemma).is_some() || knowledge.explicit_status(lang, lemma).is_some() {
+                continue;
+            }
+            self.upsert(lang, Card::seeded(lemma, gloss.map(str::to_owned), at));
+            added += 1;
+        }
+        added
+    }
+
     /// The card for a lemma, if present.
     pub fn get(&self, lang: StudiedLanguage, lemma: &str) -> Option<&Card> {
         self.cards
@@ -257,6 +285,30 @@ mod tests {
         assert_eq!(deck.len(), 3);
         assert_eq!(deck.due_count(0), 3);
         assert_eq!(deck.due_keys(0).len(), 3);
+    }
+
+    #[test]
+    fn seed_lemmas_caps_and_skips_tracked_lemmas() {
+        let mut deck = deck_of(&["run"]); // `run` already carded
+        let mut knowledge = KnowledgeState::new();
+        knowledge.set_status(EN, "city", Status::Learning); // `city` has an explicit status
+        let candidates = [
+            ("run", Some("courir")),    // already carded → skip
+            ("city", Some("ville")),    // explicit status → skip
+            ("nuance", Some("nuance")), // new → add
+            ("quixotic", None),         // new → add
+            ("arcane", None),           // would add, but the cap stops us first
+        ];
+        let added = deck.seed_lemmas(EN, candidates, &knowledge, 2, 5 * DAY);
+        assert_eq!(added, 2);
+        assert!(deck.get(EN, "nuance").is_some());
+        assert!(deck.get(EN, "quixotic").is_some());
+        assert!(deck.get(EN, "arcane").is_none()); // capped
+        assert_eq!(
+            deck.get(EN, "nuance").unwrap().provenance.source,
+            EncounterSource::Import
+        );
+        assert_eq!(deck.get(EN, "nuance").unwrap().updated_at, 5 * DAY);
     }
 
     #[test]

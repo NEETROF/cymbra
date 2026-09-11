@@ -33,6 +33,12 @@ pub enum KnownSource {
     /// `add-lingua-decks-review`; the variant is declared here so the schema
     /// is frozen from day 1.
     Srs,
+    /// Confirmed by reading exposure: a below-level lemma the reader met on
+    /// enough distinct days without ever acting on it, promoted by the explicit
+    /// exposure-promotion operation (`add-lingua-cefr-levels`). Kept distinct
+    /// from `Manual`/`Calibration` so an exposure-inferred known stays
+    /// identifiable and bulk-reversible.
+    Exposure,
     /// Brought in by a bulk import (e.g. a LingQ export). Declared to freeze
     /// the schema; the import path itself is deferred to a later change (no
     /// code writes this in the MVP), the same way `Srs` is declared here and
@@ -72,12 +78,16 @@ impl Status {
         }
     }
 
-    /// The sync-protocol provenance string: `"manual" | "srs" | "import"`.
-    /// `Known(Calibration)` is never an explicit entry, so it never reaches the
-    /// wire; a learning/ignored status is a manual decision.
+    /// The sync-protocol provenance string:
+    /// `"manual" | "srs" | "exposure" | "import"`. `Known(Calibration)` is never
+    /// an explicit entry, so it never reaches the wire; a learning/ignored
+    /// status is a manual decision. A client that predates `"exposure"` maps the
+    /// unknown value back to `manual` in [`Status::from_wire`] — a lossy but safe
+    /// degrade (it stays a known).
     pub fn wire_provenance(self) -> &'static str {
         match self {
             Status::Known(KnownSource::Srs) => "srs",
+            Status::Known(KnownSource::Exposure) => "exposure",
             Status::Known(KnownSource::Import) => "import",
             _ => "manual",
         }

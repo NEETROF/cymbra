@@ -27,11 +27,13 @@
 //! WASM-identical.
 
 pub mod exposure;
+pub mod level;
 pub mod profile;
 pub mod state;
 pub mod status;
 
 pub use exposure::{Exposure, ExposureCounters};
+pub use level::{CefrLevel, CefrLevels};
 pub use profile::{LanguagePair, NativeLanguage, Profile};
-pub use state::{FrequencyRanks, KnowledgeState, MapFrequencyRanks};
+pub use state::{BandStats, FrequencyRanks, KnowledgeState, MapFrequencyRanks};
 pub use status::{KnownSource, Status};
