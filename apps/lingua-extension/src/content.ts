@@ -142,6 +142,11 @@ class ReadingSession {
     const analysis = await this.port.analyse(blocks.map((b) => b.text));
     this.resolved = resolveTokens(blocks, analysis);
     this.stats = statsFromAnalysis(analysis);
+    // Re-assert the token sheet before painting: a single-page-app navigation
+    // (GitHub's morphing) can strip our injected styles, which leaves highlights
+    // unpainted even though clicks still resolve. injectPageStyles is idempotent
+    // and self-healing, so this restores them on the first paint after a nav.
+    injectPageStyles(tokensCss);
     render(this.resolved);
     this.pushBadge();
   }
