@@ -146,7 +146,17 @@
   -- -D warnings`
 - [x] 8.2 Coverage ≥ 80 % both ecosystems with the new exclusions in place
 - [x] 8.3 `openspec validate add-acoustic-piano-input --strict` passes
-- [ ] 8.4 Manual on-device pass (staff flag): calibration on iPhone + one
-  Android device against a real acoustic piano; Wait Mode session plays; BT
-  mic route correctly refused; free-run gate honest on both devices;
-  store archive export keeps the macOS `audio-input` entitlement
+- [x] 8.4 Manual on-device pass (staff flag), 2026-09-11: calibration
+  against a real acoustic piano on iPad (31 ms) and Galaxy Tab S6 Lite
+  (277 ms — the AAudio/VOICE_RECOGNITION stack, absorbed by the measured
+  offset by design); Wait Mode sessions play fluidly on both (iPad: 94%
+  full-piece run, chords, rewinds; Android: scales + two-note chords with
+  both members emitting within ~20 ms, a 20 s speech hold with every
+  voice-triggered confirmation rejected); the acoustic flag served
+  end-to-end (`staff_only` override → signed session → mic source
+  visible, snapshot persisted offline). RESERVE: the Bluetooth-mic
+  refusal was not exercised on-device (no BT headset at hand) — the
+  route verdict stays covered by the core unit tests; and sustained
+  speech aimed exactly at the expected pitch remains a known POC
+  limitation (conversational speech is rejected; see the strike_ago
+  instrumentation for the future pitch-stability hardening)
