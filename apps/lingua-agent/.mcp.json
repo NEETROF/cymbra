@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "lingua": {
+      "command": "lingua",
+      "args": ["mcp"]
+    }
+  }
+}
