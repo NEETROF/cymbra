@@ -6,7 +6,8 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `build_capture`, `capture_thread`, `install_detector`, `to_midi_event`, `wait_until`
+// These functions are ignored because they are not marked as `pub`: `build_capture`, `capture_thread`, `diag_log`, `install_detector`, `open_capture`, `reference_beep_wav`, `to_midi_event`, `wait_until`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `CaptureMsg`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// Starts microphone capture, returning whether capture is running afterwards.
