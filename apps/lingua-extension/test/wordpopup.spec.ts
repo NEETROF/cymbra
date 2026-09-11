@@ -56,7 +56,7 @@ describe("word popup card", () => {
   it("offers Je connais / + Deck / Ignorer for a word, and hides Je connais for an expression", () => {
     const word = createCard();
     word.show(content(), () => {});
-    expect([...word.el.querySelectorAll("button")].map((b) => b.textContent)).toEqual([
+    expect([...word.el.querySelectorAll(".actions button")].map((b) => b.textContent)).toEqual([
       "Je connais",
       "+ Deck",
       "Ignorer",
@@ -64,7 +64,15 @@ describe("word popup card", () => {
 
     const phrase = createCard();
     phrase.show(content({ headword: "ship on friday", expression: true }), () => {});
-    expect([...phrase.el.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["+ Deck", "Ignorer"]);
+    expect([...phrase.el.querySelectorAll(".actions button")].map((b) => b.textContent)).toEqual(["+ Deck", "Ignorer"]);
+  });
+
+  it("dismisses on the ✕ close button", () => {
+    const card = createCard();
+    card.show(content(), () => {});
+    expect(card.visible()).toBe(true);
+    (card.el.querySelector(".close") as HTMLButtonElement).click();
+    expect(card.visible()).toBe(false);
   });
 
   it("falls back to a 'no translation' note when the pack has no gloss", () => {
