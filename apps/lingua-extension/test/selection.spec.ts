@@ -45,6 +45,19 @@ describe("captureSelection", () => {
     expect(cap!.sentence).toBe("They seldom ship on Friday.");
   });
 
+  it("snaps a partial selection out to whole words", () => {
+    const full = "show the parity proof now";
+    document.body.innerHTML = `<p>${full}</p>`;
+    const textNode = document.querySelector("p")!.firstChild!;
+    const range = document.createRange();
+    range.setStart(textNode, full.indexOf("the")); // starts at a word boundary
+    range.setEnd(textNode, full.indexOf("proof") + 3); // ends mid-word inside "proof"
+    const sel = window.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(range);
+    expect(captureSelection()!.text).toBe("the parity proof");
+  });
+
   it("rejects a selection longer than a phrase", () => {
     document.body.innerHTML = `<p>${"word ".repeat(60)}</p>`;
     const textNode = document.querySelector("p")!.firstChild!;
