@@ -27,7 +27,7 @@
 use lingua_core::analysis::language::StudiedLanguage;
 use lingua_core::decks::backup::LinguaState;
 use lingua_core::decks::card::{Card, EncounterSource, Provenance};
-use lingua_core::decks::fsrs::Rating;
+use lingua_core::decks::fsrs::{Rating, ReviewState};
 use lingua_core::decks::review::ReviewSession;
 use lingua_core::engine::analyse_page_json;
 use lingua_core::knowledge::status::{KnownSource, Status};
@@ -157,6 +157,104 @@ impl LinguaEngine {
                 Status::from_wire(kind, "manual"),
                 updated_at,
             ) {
+                changed += 1;
+            }
+        }
+        Ok(changed)
+    }
+
+    /// The whole deck as `CardOp`-shaped JSON for a push to `DeckService`
+    /// (one card per lemma; `client_id` = lemma). The FSRS state travels as an
+    /// opaque JSON string. `device_id` is left empty for the caller to attach;
+    /// `client_ts` is the card's `updated_at` in millis.
+    #[wasm_bindgen(js_name = exportCardOps)]
+    pub fn export_card_ops(&self) -> String {
+        let ops: Vec<serde_json::Value> = self
+            .state
+            .deck
+            .export_cards()
+            .into_iter()
+            .map(|(_lang, card)| {
+                let source = match &card.provenance.source {
+                    EncounterSource::Web { url } => url.clone(),
+                    _ => String::new(), // agent-captured cards are local-only; no source on the wire
+                };
+                serde_json::json!({
+                    "client_id": card.lemma,
+                    "language": "en",
+                    "lemma": card.lemma,
+                    "surface_form": card.encountered_form,
+                    "source_sentence": card.provenance.sentence,
+                    "source": source,
+                    "gloss": card.gloss.clone().unwrap_or_default(),
+                    "fsrs_state": serde_json::to_string(&card.review).unwrap_or_default(),
+                    "deleted": false,
+                    "client_ts": card.updated_at * 1000,
+                    "device_id": "",
+                })
+            })
+            .collect();
+        serde_json::to_string(&ops).unwrap_or_else(|_| "[]".to_owned())
+    }
+
+    /// Apply a batch of pulled `CardOp`s (JSON array) under last-write-wins.
+    /// Returns how many changed local state. `deleted` ops are skipped — card
+    /// deletion is not an MVP feature (mark-known retires a card, it does not
+    /// remove it), and the tombstones a correct delete would need arrive with the
+    /// change that adds deletion. `captured_at` has no wire field, so a first-seen
+    /// card takes the op timestamp as a proxy; the deck preserves it thereafter.
+    #[wasm_bindgen(js_name = applyCardOps)]
+    pub fn apply_card_ops(&mut self, json: &str) -> Result<usize, JsError> {
+        let ops: Vec<serde_json::Value> =
+            serde_json::from_str(json).map_err(|e| JsError::new(&e.to_string()))?;
+        let mut changed = 0usize;
+        for op in &ops {
+            if op.get("language").and_then(|v| v.as_str()).unwrap_or("en") != "en" {
+                continue;
+            }
+            if op
+                .get("deleted")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false)
+            {
+                continue; // deletion + tombstones are a future change
+            }
+            let lemma = op
+                .get("lemma")
+                .or_else(|| op.get("client_id"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            if lemma.is_empty() {
+                continue;
+            }
+            let str_field = |k: &str| op.get(k).and_then(|v| v.as_str()).unwrap_or("").to_owned();
+            let client_ts = op
+                .get("client_ts")
+                .and_then(serde_json::Value::as_i64)
+                .unwrap_or(0);
+            let updated_at = client_ts / 1000; // wire millis → the deck's second-based unit
+            let gloss = op
+                .get("gloss")
+                .and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty())
+                .map(str::to_owned);
+            let review: ReviewState =
+                serde_json::from_str(&str_field("fsrs_state")).unwrap_or_default();
+            let mut card = Card::new(
+                lemma,
+                &str_field("surface_form"),
+                Provenance {
+                    sentence: str_field("source_sentence"),
+                    source: EncounterSource::Web {
+                        url: str_field("source"),
+                    },
+                    captured_at: updated_at,
+                },
+                gloss,
+            );
+            card.review = review;
+            card.updated_at = updated_at;
+            if self.state.deck.apply_card_lww(EN, card) {
                 changed += 1;
             }
         }

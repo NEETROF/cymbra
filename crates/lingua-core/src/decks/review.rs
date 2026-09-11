@@ -92,6 +92,51 @@ impl Deck {
             .filter(|card| card.review.is_due(now))
             .count()
     }
+
+    /// Every card with its language, cloned — the outbox source for a card push
+    /// (`add-lingua-connected-clients`), in deterministic (language, lemma) order.
+    /// The FSRS state travels as the card's `review`.
+    pub fn export_cards(&self) -> Vec<(StudiedLanguage, Card)> {
+        let mut out = Vec::new();
+        for (&lang, per_lang) in &self.cards {
+            for card in per_lang.values() {
+                out.push((lang, card.clone()));
+            }
+        }
+        out
+    }
+
+    /// Apply a pulled card under last-write-wins by its `updated_at`: a
+    /// newer-or-equal card wins (upsert), an older one is dropped. Returns whether
+    /// local state changed.
+    ///
+    /// Upsert-only: cards are added, graded and retired but never deleted in the
+    /// MVP (mark-known retires a card, it does not remove it), so there is no
+    /// deletion to sync. Card deletion — and the tombstones it would need to stay
+    /// LWW-correct — is deferred to the change that actually adds it, rather than
+    /// shipping a delete path that resurrects on a stale re-add.
+    ///
+    /// `captured_at` is the immutable encounter time and does not travel on the
+    /// wire (the `CardOp` has no field for it), so the local value is preserved on
+    /// an update: sync never rewrites when the word was first met.
+    pub fn apply_card_lww(&mut self, lang: StudiedLanguage, mut card: Card) -> bool {
+        // No existing card → i64::MIN, so any incoming wins.
+        let existing_ts = self
+            .get(lang, &card.lemma)
+            .map_or(i64::MIN, |c| c.updated_at);
+        if card.updated_at < existing_ts {
+            return false;
+        }
+        if let Some(captured_at) = self
+            .get(lang, &card.lemma)
+            .map(|c| c.provenance.captured_at)
+        {
+            card.provenance.captured_at = captured_at;
+        }
+        let changed = self.get(lang, &card.lemma) != Some(&card);
+        self.upsert(lang, card);
+        changed
+    }
 }
 
 /// A review session over the cards that were due when it started. Owns its
@@ -149,6 +194,7 @@ impl ReviewSession {
         };
         if let Some(card) = deck.cards.get_mut(&lang).and_then(|m| m.get_mut(&lemma)) {
             card.review.grade(params, rating, now);
+            card.updated_at = now; // sync: a grade is a change
         }
         self.advance();
     }
@@ -160,9 +206,10 @@ impl ReviewSession {
         let Some((lang, lemma)) = self.current_key().cloned() else {
             return;
         };
-        knowledge.set_status(lang, &lemma, Status::Known(KnownSource::Srs));
+        knowledge.set_status_at(lang, &lemma, Status::Known(KnownSource::Srs), now * 1000);
         if let Some(card) = deck.cards.get_mut(&lang).and_then(|m| m.get_mut(&lemma)) {
             card.review.retire(now);
+            card.updated_at = now; // sync: retiring is a change
         }
         self.advance();
     }
@@ -268,5 +315,81 @@ mod tests {
         session.grade(&mut deck, &params, Rating::Again, 0);
         assert_eq!(session.remaining(), 0);
         assert_eq!(deck.get(EN, "run").unwrap().review.reps, 1);
+    }
+
+    fn card_at(lemma: &str, updated_at: i64) -> Card {
+        let mut c = card(lemma);
+        c.updated_at = updated_at;
+        c
+    }
+
+    #[test]
+    fn export_cards_lists_every_card_in_deterministic_order() {
+        let deck = deck_of(&["run", "city", "seldom"]);
+        let lemmas: Vec<_> = deck
+            .export_cards()
+            .into_iter()
+            .map(|(_, c)| c.lemma)
+            .collect();
+        assert_eq!(lemmas, ["city", "run", "seldom"]); // BTreeMap (lemma) order
+    }
+
+    #[test]
+    fn apply_card_lww_upserts_newer_applies_unknown_drops_older() {
+        let mut deck = Deck::new();
+        deck.upsert(EN, card_at("run", 100));
+
+        // Older incoming loses.
+        let mut older = card_at("run", 50);
+        older.encountered_form = "OLD".to_owned();
+        assert!(!deck.apply_card_lww(EN, older));
+        assert_eq!(deck.get(EN, "run").unwrap().encountered_form, "run");
+
+        // Newer incoming wins.
+        let mut newer = card_at("run", 200);
+        newer.encountered_form = "NEW".to_owned();
+        assert!(deck.apply_card_lww(EN, newer));
+        assert_eq!(deck.get(EN, "run").unwrap().encountered_form, "NEW");
+
+        // A card the deck never had is applied.
+        assert!(deck.apply_card_lww(EN, card_at("city", 10)));
+        assert!(deck.get(EN, "city").is_some());
+    }
+
+    #[test]
+    fn apply_card_lww_preserves_the_local_captured_at() {
+        // captured_at is the immutable encounter time; it has no wire field, so an
+        // incoming op carries only the op timestamp. Applying must not overwrite it.
+        let mut original = card("run"); // captured_at 0
+        original.provenance.captured_at = 1_000;
+        original.updated_at = 1_000;
+        let mut deck = Deck::new();
+        deck.upsert(EN, original);
+
+        // A later grade elsewhere arrives as an op stamped 5_000 with captured_at=5_000.
+        let mut graded = card("run");
+        graded.provenance.captured_at = 5_000; // what the wire would fabricate
+        graded.updated_at = 5_000;
+        graded.encountered_form = "ran".to_owned();
+        deck.apply_card_lww(EN, graded);
+
+        let stored = deck.get(EN, "run").unwrap();
+        assert_eq!(stored.encountered_form, "ran"); // the update landed
+        assert_eq!(stored.provenance.captured_at, 1_000); // encounter time preserved
+        assert_eq!(stored.updated_at, 5_000);
+    }
+
+    #[test]
+    fn grading_and_mark_known_bump_the_card_updated_at() {
+        let mut deck = deck_of(&["run", "seldom"]); // captured_at 0 → updated_at 0
+        let params = FsrsParams::default();
+        let mut knowledge = KnowledgeState::new();
+        let mut session = ReviewSession::start(&deck, 0);
+        session.grade(&mut deck, &params, Rating::Good, 5 * DAY);
+        assert_eq!(deck.get(EN, "run").unwrap().updated_at, 5 * DAY);
+        session.mark_known(&mut deck, &mut knowledge, 7 * DAY);
+        assert_eq!(deck.get(EN, "seldom").unwrap().updated_at, 7 * DAY);
+        // mark-known also stamps the status (in millis) so it syncs.
+        assert_eq!(knowledge.status_updated_at(EN, "seldom"), 7 * DAY * 1000);
     }
 }
