@@ -8,6 +8,7 @@
   "scripts": {
     "gen:wasm": "bash tool/gen_wasm.sh",
     "gen:pack": "bash tool/gen_pack.sh assets/pack.lingua",
+    "gen:pack:real": "bash ../../scripts/lingua-data/build.sh en-fr assets/pack.lingua",
     "gen:fixtures": "bash tool/gen_pack.sh test/fixtures/en-fr.testdata.lingua",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
