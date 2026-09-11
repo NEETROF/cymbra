@@ -90,6 +90,79 @@ impl LinguaEngine {
         }
     }
 
+    // --- Status sync (add-lingua-connected-clients §2): the extension's outbox
+    // and cursor-pull talk to KnownWordsService in these shapes. English only. ---
+
+    /// Like `setStatus`, but stamps the change with a sync timestamp (epoch
+    /// millis, the caller's clock) so the outbox and cross-device LWW can order
+    /// it. `status` is `learning` | `known` | `ignored`; anything else clears.
+    #[wasm_bindgen(js_name = setStatusAt)]
+    pub fn set_status_at(&mut self, lemma: &str, status: &str, at_ms: f64) {
+        match Status::from_wire(status, "manual") {
+            Some(s) => self
+                .state
+                .knowledge
+                .set_status_at(EN, lemma, s, at_ms as i64),
+            None => self.state.knowledge.clear_status(EN, lemma),
+        }
+    }
+
+    /// The full set of explicit statuses as `StatusOp`-shaped JSON
+    /// (`{language, lemma, status, provenance, updated_at}`), for a push (the
+    /// first-sign-in full upload, or an incremental drain the caller filters).
+    #[wasm_bindgen(js_name = exportStatusOps)]
+    pub fn export_status_ops(&self) -> String {
+        let ops: Vec<serde_json::Value> = self
+            .state
+            .knowledge
+            .export_statuses()
+            .into_iter()
+            .map(|r| {
+                serde_json::json!({
+                    "language": "en",
+                    "lemma": r.lemma,
+                    "status": r.status.wire_kind(),
+                    "provenance": r.status.wire_provenance(),
+                    "updated_at": r.updated_at,
+                })
+            })
+            .collect();
+        serde_json::to_string(&ops).unwrap_or_else(|_| "[]".to_owned())
+    }
+
+    /// Apply a batch of pulled `StatusChange`s (JSON array of
+    /// `{language, lemma, status, updated_at}`) under last-write-wins. Returns
+    /// how many changed local state. A pulled change carries no provenance, so a
+    /// synced `known` lands as manual (the provenance nuance stays device-local).
+    #[wasm_bindgen(js_name = applyStatusChanges)]
+    pub fn apply_status_changes(&mut self, json: &str) -> Result<usize, JsError> {
+        let changes: Vec<serde_json::Value> =
+            serde_json::from_str(json).map_err(|e| JsError::new(&e.to_string()))?;
+        let mut changed = 0usize;
+        for c in &changes {
+            if c.get("language").and_then(|v| v.as_str()).unwrap_or("en") != "en" {
+                continue; // the MVP studies English only
+            }
+            let Some(lemma) = c.get("lemma").and_then(|v| v.as_str()) else {
+                continue;
+            };
+            let kind = c.get("status").and_then(|v| v.as_str()).unwrap_or("");
+            let updated_at = c
+                .get("updated_at")
+                .and_then(serde_json::Value::as_i64)
+                .unwrap_or(0);
+            if self.state.knowledge.apply_status_lww(
+                EN,
+                lemma,
+                Status::from_wire(kind, "manual"),
+                updated_at,
+            ) {
+                changed += 1;
+            }
+        }
+        Ok(changed)
+    }
+
     /// Analyses a batch of blocks, returning the canonical JSON of the page
     /// analysis (classified tokens, statuses, percentage, glosses).
     pub fn analyse(&self, blocks: Vec<String>) -> String {
