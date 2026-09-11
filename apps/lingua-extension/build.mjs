@@ -6,13 +6,51 @@
 // modules); the popup and side panel are ES modules; the background is an ES-module
 // service worker on Chromium and a classic event-page script on Firefox.
 import { build } from "esbuild";
-import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = dirname(fileURLToPath(import.meta.url));
 const requested = process.argv.slice(2).filter((a) => !a.startsWith("-"));
 const targets = requested.length ? requested : ["chromium", "firefox"];
+
+// Guard: the bundled pack and the engine must share an analyzer version. The engine
+// refuses a mismatched pack at RUNTIME ("pack built for analyzer X but this core is
+// Y"), which reads as "the extension is broken" during dogfooding. A bump of
+// lingua-core's ANALYZER_VERSION leaves the gitignored real pack (gen:pack:real) stale,
+// so fail the build early with an actionable message instead. Read the core's constant
+// as the source of truth; scan the pack container for its meta version (ASCII in the
+// binary). CI runs gen:pack (testdata, current version) before build, so it always matches.
+function coreAnalyzerVersion() {
+  const src = readFileSync(join(root, "../../crates/lingua-core/src/analysis/mod.rs"), "utf8");
+  return src.match(/ANALYZER_VERSION:\s*&str\s*=\s*"([^"]+)"/)?.[1] ?? null;
+}
+function packAnalyzerVersion(packPath) {
+  // latin1 keeps the binary intact while the ASCII meta JSON stays matchable.
+  return (
+    readFileSync(packPath)
+      .toString("latin1")
+      .match(/"analyzer_version"\s*:\s*"([^"]+)"/)?.[1] ?? null
+  );
+}
+function assertPackMatchesEngine() {
+  const packPath = join(root, "assets/pack.lingua");
+  if (!existsSync(packPath)) {
+    throw new Error(
+      "assets/pack.lingua is missing — run `yarn gen:pack` (testdata) or `yarn gen:pack:real` (full en-fr) before building.",
+    );
+  }
+  const core = coreAnalyzerVersion();
+  const pack = packAnalyzerVersion(packPath);
+  if (core && pack && core !== pack) {
+    throw new Error(
+      `Analyzer version mismatch: assets/pack.lingua is ${pack} but lingua-core is ${core}. ` +
+        "The engine refuses a mismatched pack at runtime. Rebuild the pack: " +
+        "`yarn gen:pack:real` (your full en-fr pack) or `yarn gen:pack` (testdata).",
+    );
+  }
+}
+assertPackMatchesEngine();
 
 const baseManifest = JSON.parse(readFileSync(join(root, "manifest.json"), "utf8"));
 
