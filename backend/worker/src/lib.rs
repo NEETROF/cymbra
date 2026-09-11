@@ -99,6 +99,15 @@ pub async fn purge_user_with(
             .await
             .unwrap_or(false);
 
+    // Lingua is optional infrastructure (change: add-lingua-backend): the schema exists
+    // only when CYMBRA_LINGUA_DATABASE_URL was set. Probe before erasing so a box
+    // without the module is a clean skip.
+    let lingua_deployed: bool =
+        sqlx::query_scalar("SELECT to_regclass('lingua.word_statuses') IS NOT NULL")
+            .fetch_one(admin_pool)
+            .await
+            .unwrap_or(false);
+
     if plans_deployed {
         // Cancel active web subscriptions on the provider first (outside the
         // erasure transaction: a provider failure must retry the job, not leave a
@@ -298,6 +307,21 @@ pub async fn purge_user_with(
             // like the rest (change: harden-module-boundaries, group 2 audit).
             "plans.sandbox_accounts",
         ] {
+            sqlx::query(&format!("DELETE FROM {table} WHERE user_id = $1"))
+                .bind(uid)
+                .execute(&mut *tx)
+                .await?;
+        }
+    }
+
+    // The user's Lingua data (change: add-lingua-backend, design D7): word statuses,
+    // cards and daily stat aggregates — all keyed by user_id in the `lingua` schema (no
+    // cross-schema FK; account state comes through the UserPort, never a DB reference).
+    // Media never leaves the device, so there is no stored object to erase — just drop
+    // the rows in the same transaction so no Lingua data outlives the account. Skipped
+    // entirely when the schema is not deployed. Table names MUST match the migration.
+    if lingua_deployed {
+        for table in ["lingua.word_statuses", "lingua.cards", "lingua.daily_stats"] {
             sqlx::query(&format!("DELETE FROM {table} WHERE user_id = $1"))
                 .bind(uid)
                 .execute(&mut *tx)

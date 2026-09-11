@@ -187,6 +187,30 @@ to this box. The Caddyfile already routes `/web/auth/*` + gRPC-web (incl. the CO
 preflight) correctly; roll the server after setting the two vars:
 `docker compose -f docker-compose.prod.yml up -d`.
 
+### Cymbra Lingua (optional module — off by default)
+
+The `lingua` sync backend (word statuses, cards, daily stats) is **inert until you set
+its DB URL**; the server starts and serves everything else without it. To enable it on a
+box provisioned before the module existed:
+
+```bash
+# 1. Provision the role + schema + the ops role's search_path (idempotent, targeted).
+export CYMBRA_LINGUA_DB_PASSWORD=<chosen lingua password>
+./provision-optional-modules.sh lingua      # or: provision-lingua-role.sql (see its header)
+# 2. Set both env lines (URL password MUST equal CYMBRA_LINGUA_DB_PASSWORD):
+#      CYMBRA_LINGUA_DATABASE_URL=postgres://lingua_svc:<pw>@postgres:5432/cymbra
+#      CYMBRA_LINGUA_DB_PASSWORD=<pw>
+# 3. Add `lingua` to CYMBRA_ALLOWED_AUDIENCES, and the published extension origin to
+#    CYMBRA_ALLOWED_WEB_ORIGINS (bearer-only gRPC-web CORS; does NOT widen the
+#    back-office list). No Caddy change — the cymbra.lingua.v1 paths fall through to gRPC.
+# 4. Roll server AND worker (the worker reads the URL for GDPR purge):
+docker compose -f docker-compose.prod.yml up -d
+```
+
+The server's MIGRATOR creates the `lingua` tables on first boot with the URL set; the
+`cymbra.lingua.v1` services then mount. `DeleteAccount` erases the user's `lingua.*` rows
+through the existing purge job.
+
 ## 7. Backups (do this before you invite users)
 
 ```bash

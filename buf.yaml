@@ -11,6 +11,7 @@ modules:
   - path: backend/analytics/proto
   - path: backend/auth-port/proto
   - path: backend/feature-flags/proto
+  - path: backend/lingua/proto
   - path: backend/music/proto
   - path: backend/notifications/proto
   - path: backend/plans/proto

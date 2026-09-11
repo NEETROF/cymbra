@@ -531,3 +531,89 @@ async fn purge_deletes_the_aggregator_customer_before_the_plan_rows() {
         "plan rows must be gone"
     );
 }
+
+/// add-lingua-backend (task 4.2) — the purge erases the user's Lingua data across all
+/// three tables (word statuses, cards, daily stats), is a replayed no-op, and succeeds
+/// for an account that has the module deployed but no Lingua data. None has a
+/// cross-schema FK, so only the explicit deletes in `purge_user` clear them.
+#[tokio::test]
+#[ignore = "needs docker compose (Postgres) with per-module roles"]
+async fn purge_erases_lingua_data_and_is_idempotent() {
+    migrate().await;
+    // Migrations run as the owning role (admin holds DML, not DDL): create the lingua
+    // schema tables as lingua_svc so the deployed-probe in the purge sees them.
+    let lingua = connect("CYMBRA_LINGUA_DATABASE_URL").await;
+    cymbra_lingua::MIGRATOR.run(&lingua).await.unwrap();
+    let admin = connect("CYMBRA_ADMIN_DATABASE_URL").await;
+
+    let uid = seed_user(
+        &admin,
+        "local",
+        &format!("lingua-{}@x.dev", uuid::Uuid::now_v7()),
+    )
+    .await;
+
+    // One row in each table, seeded via admin (pg_write_all_data + lingua on its path).
+    sqlx::query(
+        "INSERT INTO lingua.word_statuses \
+         (user_id, language, lemma, status, provenance, updated_at, device_id, seq) \
+         VALUES ($1::uuid, 'en', 'seldom', 'known', 'manual', 100, 'mac', \
+                 nextval('lingua.change_seq'))",
+    )
+    .bind(uid.to_string())
+    .execute(&admin)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO lingua.cards \
+         (user_id, client_id, lemma, source_sentence, updated_at, device_id, seq) \
+         VALUES ($1::uuid, 'c1', 'seldom', 'They seldom ship.', 100, 'mac', \
+                 nextval('lingua.change_seq'))",
+    )
+    .bind(uid.to_string())
+    .execute(&admin)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO lingua.daily_stats \
+         (user_id, day, language, device_id, reviews_done) \
+         VALUES ($1::uuid, 20000, 'en', 'mac', 12)",
+    )
+    .bind(uid.to_string())
+    .execute(&admin)
+    .await
+    .unwrap();
+
+    cymbra_worker::purge_user(&admin, &uid.to_string())
+        .await
+        .expect("purge should succeed");
+
+    for table in ["word_statuses", "cards", "daily_stats"] {
+        assert_eq!(
+            count(
+                &admin,
+                &format!("SELECT count(*) FROM lingua.{table} WHERE user_id = $1::uuid"),
+                &uid.to_string(),
+            )
+            .await,
+            0,
+            "lingua.{table} rows must be purged"
+        );
+    }
+
+    // Replayed purge: everything already gone → still a success, deletes nothing.
+    cymbra_worker::purge_user(&admin, &uid.to_string())
+        .await
+        .expect("replayed lingua purge is a no-op success");
+
+    // Deployed module, no data: purging a fresh account still succeeds.
+    let empty = seed_user(
+        &admin,
+        "local",
+        &format!("lingua-empty-{}@x.dev", uuid::Uuid::now_v7()),
+    )
+    .await;
+    cymbra_worker::purge_user(&admin, &empty.to_string())
+        .await
+        .expect("purge with no lingua data must succeed");
+}

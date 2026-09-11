@@ -49,6 +49,10 @@ pub struct Config {
     /// Postgres URL for the `music` schema (role `music_svc`). Required to wire the
     /// score-upload service; `None` leaves it unwired (the feature stays inert).
     pub music_database_url: Option<String>,
+    /// Postgres URL for the `lingua` schema (role `lingua_svc`; change:
+    /// add-lingua-backend). `None` leaves the Cymbra Lingua sync services unwired
+    /// (deployable inert — the server starts and serves other modules normally).
+    pub lingua_database_url: Option<String>,
     /// Postgres URL for the `feature_flags` schema (role `flags_svc`; change:
     /// add-runtime-feature-flags). `None` runs the flag service in defaults-only
     /// mode (every key resolves to its code default, admin edits refused) — a valid
@@ -89,6 +93,13 @@ pub struct Config {
     /// unset it defaults to `back_office_origins` (the pre-site behaviour). The
     /// gRPC-web layer keeps using `back_office_origins` only.
     pub web_origins: Vec<String>,
+    /// Extra browser origins allowed on the **gRPC-web** transport only (change:
+    /// add-lingua-backend). Kept separate from `back_office_origins` so a gRPC-web
+    /// client (e.g. the lingua extension, `chrome-extension://<id>`) can reach the
+    /// backend without joining the credentialed back-office CORS/cookie allow-list.
+    /// The gRPC-web `CorsLayer` serves the UNION of `back_office_origins` and this list.
+    /// `CYMBRA_ALLOWED_WEB_ORIGINS`; empty (the default) ⇒ back-office only.
+    pub allowed_web_origins: Vec<String>,
     /// `Domain` attribute for the web-auth refresh cookie. `None` (the default)
     /// scopes the cookie to the exact API host; set it to the shared registrable
     /// parent (e.g. `cymbra.app`) so `api.` and `bo.` share the first-party cookie.
@@ -244,6 +255,10 @@ pub mod config_core {
                 .get("CYMBRA_MUSIC_DATABASE_URL")
                 .filter(|v| !v.is_empty())
                 .cloned(),
+            lingua_database_url: m
+                .get("CYMBRA_LINGUA_DATABASE_URL")
+                .filter(|v| !v.is_empty())
+                .cloned(),
             flags_database_url: m
                 .get("CYMBRA_FLAGS_DATABASE_URL")
                 .filter(|v| !v.is_empty())
@@ -275,6 +290,8 @@ pub mod config_core {
                     v
                 }
             },
+            // Extra gRPC-web CORS origins, UNIONed with back_office_origins; empty ⇒ none.
+            allowed_web_origins: csv(m, "CYMBRA_ALLOWED_WEB_ORIGINS"),
             web_auth_cookie_domain: m
                 .get("CYMBRA_WEB_AUTH_COOKIE_DOMAIN")
                 .filter(|v| !v.is_empty())
@@ -501,6 +518,43 @@ mod tests {
         );
         // The gRPC-web list is untouched by the site origin.
         assert_eq!(c.back_office_origins, vec!["https://bo.cymbra.app"]);
+    }
+
+    #[test]
+    fn allowed_web_origins_default_empty_and_parse_a_csv() {
+        // Empty by default (change: add-lingua-backend) ⇒ no extra gRPC-web origin.
+        let c = config_core::parse(&base()).unwrap();
+        assert!(c.allowed_web_origins.is_empty());
+        // A CSV widens only this list; the back-office gRPC-web list stays as configured.
+        let mut m = base();
+        m.insert(
+            "CYMBRA_BACK_OFFICE_ORIGINS".into(),
+            "https://bo.cymbra.app".into(),
+        );
+        m.insert(
+            "CYMBRA_ALLOWED_WEB_ORIGINS".into(),
+            "chrome-extension://abc, https://read.example".into(),
+        );
+        let c = config_core::parse(&m).unwrap();
+        assert_eq!(
+            c.allowed_web_origins,
+            vec!["chrome-extension://abc", "https://read.example"]
+        );
+        assert_eq!(c.back_office_origins, vec!["https://bo.cymbra.app"]);
+    }
+
+    #[test]
+    fn lingua_database_url_is_optional_and_absent_by_default() {
+        // Inert without its URL (the module logs "lingua services disabled").
+        let c = config_core::parse(&base()).unwrap();
+        assert!(c.lingua_database_url.is_none());
+        let mut m = base();
+        m.insert(
+            "CYMBRA_LINGUA_DATABASE_URL".into(),
+            "postgres://lingua".into(),
+        );
+        let c = config_core::parse(&m).unwrap();
+        assert_eq!(c.lingua_database_url.as_deref(), Some("postgres://lingua"));
     }
 
     #[test]

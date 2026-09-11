@@ -34,7 +34,7 @@ PG_DB="${PG_DB:-cymbra}"
 PG_NET_HOST="${PG_NET_HOST:-postgres}"
 
 usage() {
-  echo "usage: $(basename "$0") [--rotate] [flags|plans|music|analytics …]" >&2
+  echo "usage: $(basename "$0") [--rotate] [flags|plans|music|analytics|lingua …]" >&2
   exit 2
 }
 
@@ -57,13 +57,13 @@ done
 # Canonical order, whatever order they were asked in: flags first (the plan
 # module reads its own kill-switch from the flag store).
 MODULES=()
-for known in flags plans music analytics; do
+for known in flags plans music analytics lingua; do
   for want in "${REQUESTED[@]}"; do
     if [[ "$want" == "$known" ]]; then MODULES+=("$known"); break; fi
   done
 done
 for want in "${REQUESTED[@]}"; do
-  case "$want" in flags|plans|music|analytics) ;; *) MODULES+=("$want") ;; esac
+  case "$want" in flags|plans|music|analytics|lingua) ;; *) MODULES+=("$want") ;; esac
 done
 
 [[ -f "$ENV_FILE" ]] || { echo "[provision] refused: no .env in $DIR" >&2; exit 1; }

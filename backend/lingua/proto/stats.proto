@@ -1,0 +1,60 @@
+// Copyright 2026 NEETROF
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+// this file except in compliance with the License. You may obtain a copy of the
+// License at http://www.apache.org/licenses/LICENSE-2.0
+
+syntax = "proto3";
+
+package cymbra.lingua.v1;
+
+// Learning aggregates per (UTC day, studied language, device). The caller's identity
+// comes from the access token, never the body.
+//
+// PRIVACY ALLOW-LIST: day × language is the FINEST grain stored — no hour, no source,
+// no site, no per-page counter, no timestamped event. Reads sum across the account's
+// devices; a user only ever sees their own stats.
+service StatsService {
+  // Idempotent upsert of a device's daily aggregates (replace-by-key, never add).
+  rpc UpsertDailyStats(UpsertDailyStatsRequest) returns (UpsertDailyStatsResponse);
+  // Consolidated read: summed across devices, one value per (day, language), for a
+  // date range, for the authenticated user only.
+  rpc GetStats(GetStatsRequest) returns (GetStatsResponse);
+}
+
+// A device's aggregate for one UTC day and language.
+message DailyStat {
+  int32 day = 1; // UTC day key (days since the Unix epoch)
+  string language = 2;
+  string device_id = 3; // part of the upsert key so two devices never clobber each other
+  uint32 exposures = 4;
+  uint32 words_learned = 5;
+  uint32 reviews_done = 6;
+}
+
+message UpsertDailyStatsRequest {
+  repeated DailyStat stats = 1;
+}
+
+message UpsertDailyStatsResponse {
+  uint64 upserted = 1;
+}
+
+message GetStatsRequest {
+  int32 from_day = 1; // inclusive UTC day
+  int32 to_day = 2; // inclusive UTC day
+  string language = 3; // empty => all languages
+}
+
+// Summed across every device on the account.
+message ConsolidatedStat {
+  int32 day = 1;
+  string language = 2;
+  uint32 exposures = 3;
+  uint32 words_learned = 4;
+  uint32 reviews_done = 5;
+}
+
+message GetStatsResponse {
+  repeated ConsolidatedStat stats = 1;
+}
