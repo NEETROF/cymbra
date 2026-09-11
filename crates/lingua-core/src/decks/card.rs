@@ -129,6 +129,24 @@ impl Card {
         }
     }
 
+    /// A card seeded for level-targeted feeding (`add-lingua-cefr-levels`),
+    /// not from a real reading encounter. There is no originating sentence, so
+    /// it is empty, and the source is [`EncounterSource::Import`] rather than a
+    /// fabricated URL or agent session. The encountered form is the lemma
+    /// itself.
+    pub fn seeded(lemma: &str, gloss: Option<String>, at: i64) -> Self {
+        Card::new(
+            lemma,
+            lemma,
+            Provenance {
+                sentence: String::new(),
+                source: EncounterSource::Import,
+                captured_at: at,
+            },
+            gloss,
+        )
+    }
+
     /// Whether the lemma is a multi-word expression.
     pub fn is_expression(&self) -> bool {
         self.lemma.contains(' ')
@@ -182,6 +200,17 @@ mod tests {
             card.provenance.sentence,
             "The suggestions remain a compelling starting point."
         );
+    }
+
+    #[test]
+    fn seeded_card_uses_import_and_has_no_sentence() {
+        let card = Card::seeded("nuance", Some("nuance".to_owned()), 1_700_000_000);
+        assert_eq!(card.lemma, "nuance");
+        assert_eq!(card.encountered_form, "nuance");
+        assert_eq!(card.provenance.source, EncounterSource::Import);
+        assert!(card.provenance.sentence.is_empty());
+        assert_eq!(card.provenance.captured_at, 1_700_000_000);
+        assert_eq!(card.updated_at, 1_700_000_000);
     }
 
     #[test]

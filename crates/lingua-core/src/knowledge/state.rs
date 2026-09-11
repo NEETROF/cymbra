@@ -28,6 +28,8 @@ use serde::{Deserialize, Serialize};
 use crate::analysis::language::StudiedLanguage;
 use crate::analysis::percent::TokenClass;
 
+use super::exposure::ExposureCounters;
+use super::level::{CefrLevel, CefrLevels};
 use super::status::{KnownSource, Status};
 
 /// Frequency ranks for the studied language (rank 1 = most frequent). Backed
@@ -39,24 +41,48 @@ pub trait FrequencyRanks {
     fn rank(&self, lemma: &str) -> Option<u32>;
 }
 
-/// In-memory ranks for tests and small fixtures.
+/// In-memory ranks (and, optionally, CEFR levels) for tests and small
+/// fixtures. Implements both [`FrequencyRanks`] and [`CefrLevels`] so one
+/// object satisfies the resolver's bound, exactly as the real [`Pack`] does.
+///
+/// [`Pack`]: crate::packs::Pack
 #[derive(Debug, Default, Clone)]
 pub struct MapFrequencyRanks {
     ranks: BTreeMap<String, u32>,
+    levels: BTreeMap<String, CefrLevel>,
 }
 
 impl MapFrequencyRanks {
-    /// Builds a rank table from `(lemma, rank)` pairs.
+    /// Builds a rank table from `(lemma, rank)` pairs (no CEFR levels).
     pub fn from_pairs(pairs: impl IntoIterator<Item = (&'static str, u32)>) -> Self {
         Self {
             ranks: pairs.into_iter().map(|(l, r)| (l.to_owned(), r)).collect(),
+            levels: BTreeMap::new(),
         }
+    }
+
+    /// Attaches CEFR levels to some lemmas, for the level-aware tests.
+    pub fn with_levels(
+        mut self,
+        pairs: impl IntoIterator<Item = (&'static str, CefrLevel)>,
+    ) -> Self {
+        self.levels = pairs
+            .into_iter()
+            .map(|(l, lvl)| (l.to_owned(), lvl))
+            .collect();
+        self
     }
 }
 
 impl FrequencyRanks for MapFrequencyRanks {
     fn rank(&self, lemma: &str) -> Option<u32> {
         self.ranks.get(lemma).copied()
+    }
+}
+
+impl CefrLevels for MapFrequencyRanks {
+    fn level(&self, lemma: &str) -> Option<CefrLevel> {
+        self.levels.get(lemma).copied()
     }
 }
 
@@ -75,8 +101,17 @@ pub struct KnowledgeState {
     statuses: BTreeMap<StudiedLanguage, BTreeMap<String, Status>>,
     /// Per-language calibration threshold: a lemma with no explicit status
     /// and a rank ≤ this value is implicitly known. Absent = 0 (nothing
-    /// implicitly known).
+    /// implicitly known). Used only when no CEFR level is declared for the
+    /// language (the fallback for pairs without CEFR data).
     calibration: BTreeMap<StudiedLanguage, u32>,
+    /// Per-language declared CEFR level (`add-lingua-cefr-levels`). When set,
+    /// it replaces the frequency-rank calibration: a lemma with no explicit
+    /// status is presumed known iff its CEFR level is strictly below this one;
+    /// a lemma at or above the level, or with no CEFR level at all, is unknown.
+    /// Absent = no declared level (fall back to `calibration`). `#[serde(default)]`
+    /// so an older backup restores cleanly.
+    #[serde(default)]
+    declared_level: BTreeMap<StudiedLanguage, CefrLevel>,
     /// Last-change time (epoch millis) per lemma, for cross-device last-write-
     /// wins sync (`add-lingua-connected-clients`). Absent = 0 (a pre-sync entry,
     /// which loses to any real timestamp). `#[serde(default)]` so an older backup
@@ -213,24 +248,54 @@ impl KnowledgeState {
         self.calibration.get(&lang).copied().unwrap_or(0)
     }
 
+    /// Declares the user's CEFR level for a language ("I'm B2"). Once set, it
+    /// governs presumed-known instead of the frequency calibration.
+    pub fn set_declared_level(&mut self, lang: StudiedLanguage, level: CefrLevel) {
+        self.declared_level.insert(lang, level);
+    }
+
+    /// The declared CEFR level for a language, if any.
+    pub fn declared_level(&self, lang: StudiedLanguage) -> Option<CefrLevel> {
+        self.declared_level.get(&lang).copied()
+    }
+
+    /// Clears the declared level, returning the language to frequency-rank
+    /// calibration.
+    pub fn clear_declared_level(&mut self, lang: StudiedLanguage) {
+        self.declared_level.remove(&lang);
+    }
+
     /// Number of explicit statuses across all languages (for stats / tests).
     pub fn explicit_count(&self) -> usize {
         self.statuses.values().map(BTreeMap::len).sum()
     }
 
-    /// The effective status of a single lemma: the explicit one if present,
-    /// otherwise implicit `Known(Calibration)` when ranked at or below the
-    /// threshold, otherwise `None` ("new"/unknown).
+    /// The effective status of a single lemma: the explicit one if present;
+    /// otherwise, when a CEFR level is declared, implicit `Known(Calibration)`
+    /// iff the lemma's level is strictly below it (and `None` — unknown — when
+    /// at/above or unlevelled); otherwise the frequency-rank fallback (implicit
+    /// `Known(Calibration)` when ranked at or below the calibration threshold);
+    /// otherwise `None` ("new"/unknown).
     pub fn resolve_lemma(
         &self,
         lang: StudiedLanguage,
         lemma: &str,
-        ranks: &impl FrequencyRanks,
+        lexis: &(impl FrequencyRanks + CefrLevels),
     ) -> Option<Status> {
         if let Some(explicit) = self.explicit_status(lang, lemma) {
             return Some(explicit);
         }
-        match ranks.rank(lemma) {
+        // A declared CEFR level gates presumed-known by level, not by rank:
+        // below the level is presumed known; at/above it — or a lemma with no
+        // CEFR level (rarer than C2, so a hard word) — is unknown.
+        if let Some(declared) = self.declared_level(lang) {
+            return match lexis.level(lemma) {
+                Some(level) if level < declared => Some(Status::Known(KnownSource::Calibration)),
+                _ => None,
+            };
+        }
+        // No declared level: fall back to frequency-rank calibration.
+        match lexis.rank(lemma) {
             Some(rank) if rank <= self.calibration(lang) => {
                 Some(Status::Known(KnownSource::Calibration))
             }
@@ -246,11 +311,11 @@ impl KnowledgeState {
         &self,
         lang: StudiedLanguage,
         candidates: &[&str],
-        ranks: &impl FrequencyRanks,
+        lexis: &(impl FrequencyRanks + CefrLevels),
     ) -> TokenClass {
         let mut best = Verdict::Unknown;
         for candidate in candidates {
-            let verdict = match self.resolve_lemma(lang, candidate, ranks) {
+            let verdict = match self.resolve_lemma(lang, candidate, lexis) {
                 Some(Status::Known(_)) => Verdict::Known,
                 Some(Status::Ignored) => Verdict::Ignored,
                 Some(Status::Learning) => Verdict::Learning,
@@ -278,14 +343,14 @@ impl KnowledgeState {
         lang: StudiedLanguage,
         whole: &str,
         parts: &[String],
-        ranks: &impl FrequencyRanks,
+        lexis: &(impl FrequencyRanks + CefrLevels),
     ) -> TokenClass {
         if self.explicit_status(lang, whole).is_some() {
-            return self.classify(lang, &[whole], ranks);
+            return self.classify(lang, &[whole], lexis);
         }
         let mut weakest: Option<Verdict> = None;
         for part in parts {
-            let verdict = match self.resolve_lemma(lang, part, ranks) {
+            let verdict = match self.resolve_lemma(lang, part, lexis) {
                 Some(Status::Known(_)) => Verdict::Known,
                 Some(Status::Ignored) => Verdict::Ignored,
                 Some(Status::Learning) => Verdict::Learning,
@@ -294,6 +359,91 @@ impl KnowledgeState {
             weakest = Some(weakest.map_or(verdict, |w| w.min(verdict)));
         }
         weakest.unwrap_or(Verdict::Unknown).into()
+    }
+
+    /// Folds a band of lemmas (typically all lemmas of one CEFR level) into a
+    /// confirmed / presumed / to-learn breakdown for the progression ladder.
+    /// `confirmed` = an explicit `known`/`ignored` (real, any provenance except
+    /// the implicit `calibration`); `presumed` = implicit `Known(Calibration)`
+    /// (below the declared level, unproven); `to_learn` = `learning` or new.
+    /// The three always sum to the number of lemmas folded.
+    pub fn band_stats<'a>(
+        &self,
+        lang: StudiedLanguage,
+        lemmas: impl IntoIterator<Item = &'a str>,
+        lexis: &(impl FrequencyRanks + CefrLevels),
+    ) -> BandStats {
+        let mut stats = BandStats::default();
+        for lemma in lemmas {
+            match self.explicit_status(lang, lemma) {
+                Some(status) if status.counts_as_known() => stats.confirmed += 1,
+                Some(_) => stats.to_learn += 1, // learning
+                None => match self.resolve_lemma(lang, lemma, lexis) {
+                    Some(Status::Known(KnownSource::Calibration)) => stats.presumed += 1,
+                    _ => stats.to_learn += 1,
+                },
+            }
+        }
+        stats
+    }
+
+    /// Confirms presumed-known lemmas that reading has vouched for
+    /// (`add-lingua-cefr-levels`). A **caller-driven** operation — recording
+    /// exposure never calls it, so a caller that never promotes (the agent
+    /// plugin) keeps the v1 "exposure never changes a status" behaviour.
+    ///
+    /// Promotes a lemma to `Known(Exposure)` iff ALL hold: a CEFR level is
+    /// declared for the language and the lemma is strictly below it (presumed),
+    /// it has no explicit status (so any user interaction blocks promotion), and
+    /// it has been encountered on at least `threshold_days` distinct days.
+    /// Returns the promoted lemmas (deterministic order). `Known(Exposure)`
+    /// keeps promotions distinguishable and bulk-reversible.
+    pub fn promote_by_exposure(
+        &mut self,
+        lang: StudiedLanguage,
+        exposures: &ExposureCounters,
+        lexis: &(impl FrequencyRanks + CefrLevels),
+        threshold_days: u32,
+        at_ms: i64,
+    ) -> Vec<String> {
+        let Some(declared) = self.declared_level(lang) else {
+            return Vec::new();
+        };
+        let mut promoted = Vec::new();
+        for (lemma, exposure) in exposures.lemmas(lang) {
+            if exposure.distinct_days < threshold_days {
+                continue;
+            }
+            if self.explicit_status(lang, lemma).is_some() {
+                continue;
+            }
+            if matches!(lexis.level(lemma), Some(level) if level < declared) {
+                promoted.push(lemma.to_owned());
+            }
+        }
+        for lemma in &promoted {
+            self.set_status_at(lang, lemma, Status::Known(KnownSource::Exposure), at_ms);
+        }
+        promoted
+    }
+}
+
+/// Per-band knowledge breakdown for the CEFR ladder. The three counts sum to
+/// the size of the band folded (see [`KnowledgeState::band_stats`]).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct BandStats {
+    /// Explicitly known/ignored — proven, any provenance except `calibration`.
+    pub confirmed: usize,
+    /// Presumed known below the declared level (implicit, unproven).
+    pub presumed: usize,
+    /// Learning or new — not yet known.
+    pub to_learn: usize,
+}
+
+impl BandStats {
+    /// The band size (all three tiers).
+    pub fn total(self) -> usize {
+        self.confirmed + self.presumed + self.to_learn
     }
 }
 
@@ -570,5 +720,166 @@ mod tests {
         assert_eq!(state, back);
         // Ordered maps ⇒ a second serialise is byte-identical.
         assert_eq!(json, serde_json::to_string(&back).expect("serialise again"));
+    }
+
+    // Ranks plus CEFR levels for the level-aware tests. `cat` A1, `run` A2,
+    // `city` B1, `nuance` B2, `quixotic` C1; `zyzzyva` is ranked but unlevelled.
+    fn leveled() -> MapFrequencyRanks {
+        MapFrequencyRanks::from_pairs([
+            ("cat", 300),
+            ("run", 500),
+            ("city", 1_200),
+            ("nuance", 4_000),
+            ("quixotic", 9_000),
+            ("zyzzyva", 40_000),
+        ])
+        .with_levels([
+            ("cat", CefrLevel::A1),
+            ("run", CefrLevel::A2),
+            ("city", CefrLevel::B1),
+            ("nuance", CefrLevel::B2),
+            ("quixotic", CefrLevel::C1),
+        ])
+    }
+
+    #[test]
+    fn spec_presumed_known_below_the_declared_level() {
+        let mut state = KnowledgeState::new();
+        state.set_declared_level(EN, CefrLevel::B2);
+        // Below B2 → presumed known (implicit calibration).
+        assert_eq!(
+            state.resolve_lemma(EN, "run", &leveled()),
+            Some(Status::Known(KnownSource::Calibration))
+        );
+        assert_eq!(state.classify(EN, &["city"], &leveled()), TokenClass::Known);
+        // At the level and above → unknown (highlighted).
+        assert_eq!(
+            state.classify(EN, &["nuance"], &leveled()),
+            TokenClass::Unknown
+        );
+        assert_eq!(
+            state.classify(EN, &["quixotic"], &leveled()),
+            TokenClass::Unknown
+        );
+    }
+
+    #[test]
+    fn a_declared_level_leaves_unlevelled_words_unknown_not_rank_calibrated() {
+        let mut state = KnowledgeState::new();
+        state.set_declared_level(EN, CefrLevel::C2);
+        // Even a very common rank: with a level declared, no CEFR level ⇒ unknown.
+        state.set_calibration(EN, 100_000); // would mark everything under the rank path
+        assert_eq!(
+            state.classify(EN, &["zyzzyva"], &leveled()),
+            TokenClass::Unknown
+        );
+    }
+
+    #[test]
+    fn an_explicit_status_still_wins_under_a_declared_level() {
+        let mut state = KnowledgeState::new();
+        state.set_declared_level(EN, CefrLevel::B2);
+        state.set_status(EN, "nuance", Status::Learning); // at the level, but in the deck
+        assert_eq!(
+            state.classify(EN, &["nuance"], &leveled()),
+            TokenClass::Learning
+        );
+    }
+
+    #[test]
+    fn band_stats_splits_confirmed_presumed_and_to_learn() {
+        let mut state = KnowledgeState::new();
+        state.set_declared_level(EN, CefrLevel::B2);
+        // Among these B1/A-level lemmas: mark one confirmed, leave the rest presumed.
+        state.set_status(EN, "run", Status::Known(KnownSource::Manual)); // confirmed
+        state.set_status(EN, "cat", Status::Learning); // to-learn
+        // city presumed (below B2, no explicit); quixotic (C1) is above → to-learn.
+        let stats = state.band_stats(EN, ["run", "cat", "city", "quixotic"], &leveled());
+        assert_eq!(stats.confirmed, 1);
+        assert_eq!(stats.presumed, 1);
+        assert_eq!(stats.to_learn, 2);
+        assert_eq!(stats.total(), 4);
+    }
+
+    #[test]
+    fn promote_by_exposure_confirms_below_level_after_threshold_days() {
+        let mut state = KnowledgeState::new();
+        state.set_declared_level(EN, CefrLevel::B2);
+        let mut exp = ExposureCounters::new();
+        // `run` (A2, below B2) read on 4 distinct days; `nuance` (B2) also read a lot.
+        for d in 0..4 {
+            exp.record(EN, "run", 1, "https://x", d * 86_400);
+        }
+        for d in 0..9 {
+            exp.record(EN, "nuance", 1, "https://x", d * 86_400);
+        }
+        let promoted = state.promote_by_exposure(EN, &exp, &leveled(), 4, 1_000);
+        assert_eq!(promoted, vec!["run".to_string()]); // nuance is at-level, not promoted
+        assert_eq!(
+            state.explicit_status(EN, "run"),
+            Some(Status::Known(KnownSource::Exposure))
+        );
+        assert_eq!(state.status_updated_at(EN, "run"), 1_000);
+    }
+
+    #[test]
+    fn promote_by_exposure_respects_the_day_threshold() {
+        let mut state = KnowledgeState::new();
+        state.set_declared_level(EN, CefrLevel::B2);
+        let mut exp = ExposureCounters::new();
+        // 20 occurrences but all on one day → 1 distinct day → not promoted at N=4.
+        for _ in 0..20 {
+            exp.record(EN, "run", 1, "https://x", 10);
+        }
+        assert!(
+            state
+                .promote_by_exposure(EN, &exp, &leveled(), 4, 1_000)
+                .is_empty()
+        );
+        assert_eq!(state.explicit_status(EN, "run"), None);
+    }
+
+    #[test]
+    fn an_interaction_blocks_exposure_promotion() {
+        let mut state = KnowledgeState::new();
+        state.set_declared_level(EN, CefrLevel::B2);
+        state.set_status(EN, "run", Status::Learning); // the user added it to the deck
+        let mut exp = ExposureCounters::new();
+        for d in 0..6 {
+            exp.record(EN, "run", 1, "https://x", d * 86_400);
+        }
+        assert!(
+            state
+                .promote_by_exposure(EN, &exp, &leveled(), 4, 1_000)
+                .is_empty()
+        );
+        assert_eq!(state.explicit_status(EN, "run"), Some(Status::Learning));
+    }
+
+    #[test]
+    fn promote_by_exposure_needs_a_declared_level() {
+        let mut state = KnowledgeState::new();
+        // No declared level → the presumed set is undefined → no promotion.
+        let mut exp = ExposureCounters::new();
+        for d in 0..9 {
+            exp.record(EN, "run", 1, "https://x", d * 86_400);
+        }
+        assert!(
+            state
+                .promote_by_exposure(EN, &exp, &leveled(), 4, 1_000)
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn recording_exposure_alone_never_changes_a_status() {
+        // The D5 invariant: recording never promotes; only the explicit op does.
+        let mut exp = ExposureCounters::new();
+        for d in 0..10 {
+            exp.record(EN, "run", 1, "https://x", d * 86_400);
+        }
+        let state = KnowledgeState::new();
+        // The reader never called promote_by_exposure → `run` stays new.
+        assert_eq!(state.explicit_status(EN, "run"), None);
     }
 }
