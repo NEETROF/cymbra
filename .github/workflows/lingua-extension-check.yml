@@ -50,16 +50,20 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: "22"
+      - name: Install protoc
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
       - name: Enable Corepack (Yarn Berry)
         run: corepack enable
       - name: Install dependencies
         run: yarn install --immutable
-      # The service worker statically imports the wasm-pack glue (background.ts loads
-      # the engine off the content script for CSP-strict pages), so typecheck now needs
-      # the generated glue present — build it before lint/typecheck, not only at bundle
-      # time. eslint + prettier already ignore src/wasm/pkg.
+      # Both the wasm glue (statically imported by the service worker) and the gRPC-web
+      # protobuf stubs (imported by the sync transport) are gitignored and generated, so
+      # typecheck needs them present — produce both before lint/typecheck, not only at
+      # bundle time. eslint + prettier already ignore src/wasm/pkg and src/gen.
       - name: Generate wasm bindings
         run: yarn gen:wasm
+      - name: Generate proto stubs
+        run: yarn gen:proto
       - name: Lint (ESLint)
         run: yarn lint
       - name: Format check (Prettier)

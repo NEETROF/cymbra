@@ -45,6 +45,37 @@ async function send(message: unknown): Promise<unknown> {
   }
 }
 
+/** Message the background (account/session lives there), tolerating an asleep worker. */
+async function sendRuntime(message: unknown): Promise<unknown> {
+  try {
+    return await chrome.runtime.sendMessage(message);
+  } catch {
+    return null;
+  }
+}
+
+interface AccountState {
+  signedIn: boolean;
+}
+interface AccountResult {
+  ok: boolean;
+  error?: string;
+  state?: AccountState;
+}
+
+function renderAccount(state: AccountState | null): void {
+  const signedIn = state?.signedIn ?? false;
+  $("acct-in").hidden = !signedIn;
+  $("acct-out").hidden = signedIn;
+  $("acct-error").hidden = true;
+}
+
+function showAccountError(message: string): void {
+  const el = $("acct-error");
+  el.textContent = message;
+  el.hidden = false;
+}
+
 function render(stats: PageStats | null): void {
   const present = stats !== null;
   $("setup").hidden = present;
@@ -122,7 +153,28 @@ async function main(): Promise<void> {
     await applyEnabled(enabled);
   });
 
+  $("signin-google").addEventListener("click", async () => {
+    const res = (await sendRuntime({ type: "account:signInGoogle" })) as AccountResult | null;
+    if (res?.ok) renderAccount(res.state ?? { signedIn: true });
+    else showAccountError(res?.error ?? "Connexion impossible.");
+  });
+
+  $("signin-local").addEventListener("click", async () => {
+    const email = ($("acct-email") as HTMLInputElement).value.trim();
+    const password = ($("acct-password") as HTMLInputElement).value;
+    if (!email || !password) return;
+    const res = (await sendRuntime({ type: "account:signInLocal", email, password })) as AccountResult | null;
+    if (res?.ok) renderAccount(res.state ?? { signedIn: true });
+    else showAccountError(res?.error ?? "Email ou mot de passe incorrect.");
+  });
+
+  $("signout").addEventListener("click", async () => {
+    const res = (await sendRuntime({ type: "account:signOut" })) as AccountResult | null;
+    renderAccount(res?.state ?? { signedIn: false });
+  });
+
   await applyEnabled(await loadEnabled(storageArea));
+  renderAccount((await sendRuntime({ type: "account:state" })) as AccountState | null);
 }
 
 void main();

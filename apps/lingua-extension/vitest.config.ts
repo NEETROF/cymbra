@@ -2,8 +2,12 @@ import { fileURLToPath, URL } from "node:url";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
-  // Mirror the build-time target define so any module referencing __TARGET__ resolves.
-  define: { __TARGET__: JSON.stringify("chromium") },
+  // Mirror the build-time defines so any module referencing them resolves under test.
+  define: {
+    __TARGET__: JSON.stringify("chromium"),
+    __GRPC_WEB_URL__: JSON.stringify("http://localhost:50051"),
+    __GOOGLE_CLIENT_ID__: JSON.stringify(""),
+  },
   resolve: {
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
   },

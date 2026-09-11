@@ -16,6 +16,19 @@ const targets = requested.length ? requested : ["chromium", "firefox"];
 
 const baseManifest = JSON.parse(readFileSync(join(root, "manifest.json"), "utf8"));
 
+// Backend gRPC-web origin + Google OAuth client id come from the environment so a
+// dogfooding/release build points at the right backend without editing source. The
+// origin is also granted in the manifest's host_permissions (below), since an MV3
+// fetch to it needs the host permission.
+const GRPC_WEB_URL = process.env.LINGUA_GRPC_WEB_URL ?? "http://localhost:50051";
+const GOOGLE_CLIENT_ID = process.env.LINGUA_GOOGLE_CLIENT_ID ?? "";
+
+/** `https://host/*` match pattern for the backend origin (host_permissions). */
+function hostPattern(url) {
+  const u = new URL(url);
+  return `${u.protocol}//${u.host}/*`;
+}
+
 /** Transform the (Chromium) base manifest into the Firefox variant. */
 function firefoxManifest(base) {
   const m = structuredClone(base);
@@ -55,7 +68,11 @@ for (const target of targets) {
     target: ["chrome116", "firefox128"],
     logLevel: "info",
     loader: { ".css": "text" },
-    define: { __TARGET__: JSON.stringify(target) },
+    define: {
+      __TARGET__: JSON.stringify(target),
+      __GRPC_WEB_URL__: JSON.stringify(GRPC_WEB_URL),
+      __GOOGLE_CLIENT_ID__: JSON.stringify(GOOGLE_CLIENT_ID),
+    },
   };
 
   // Content script → classic IIFE (dynamic import of the wasm glue stays a runtime import).
@@ -77,7 +94,10 @@ for (const target of targets) {
     format: "esm",
   });
 
-  const manifest = target === "firefox" ? firefoxManifest(baseManifest) : baseManifest;
+  const manifest = target === "firefox" ? firefoxManifest(baseManifest) : structuredClone(baseManifest);
+  // Grant the configured backend origin so the sync transport's gRPC-web fetch is
+  // allowed (the server must also allow the extension origin via CYMBRA_ALLOWED_WEB_ORIGINS).
+  manifest.host_permissions = [...new Set([...(manifest.host_permissions ?? []), hostPattern(GRPC_WEB_URL)])];
   writeFileSync(join(dist, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
   for (const [from, to] of staticCopies) cpSync(join(root, from), join(dist, to));
 

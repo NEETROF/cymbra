@@ -196,3 +196,40 @@ button.primary {
 button.primary:hover {
   filter: brightness(1.08);
 }
+
+/* Account & sync section (add-lingua-connected-clients §1). */
+.account {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--cymbra-lingua-border);
+}
+
+.acct-local {
+  margin: 8px 0;
+}
+
+.acct-local summary {
+  cursor: pointer;
+  color: var(--cymbra-lingua-muted);
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.acct-local input {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 6px;
+  padding: 7px 9px;
+  border-radius: 8px;
+  border: 1px solid var(--cymbra-lingua-border-2);
+  background: var(--cymbra-lingua-panel);
+  color: var(--cymbra-lingua-text);
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.acct-error {
+  margin-top: 6px;
+  color: var(--cymbra-lingua-coral);
+  font-size: 12px;
+}

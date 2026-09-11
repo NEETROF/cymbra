@@ -51,6 +51,24 @@
       <button class="reset" id="reset">Réinitialiser (statuts + calibration)</button>
     </div>
 
+    <div id="account" class="account">
+      <div id="acct-out" hidden>
+        <div class="note">Connecte-toi pour synchroniser ton deck et tes mots entre appareils.</div>
+        <button class="primary" id="signin-google">Continuer avec Google</button>
+        <details class="acct-local">
+          <summary>Email et mot de passe</summary>
+          <input type="email" id="acct-email" placeholder="Email" autocomplete="username" />
+          <input type="password" id="acct-password" placeholder="Mot de passe" autocomplete="current-password" />
+          <button class="reset" id="signin-local">Se connecter</button>
+        </details>
+        <div id="acct-error" class="acct-error" hidden></div>
+      </div>
+      <div id="acct-in" hidden>
+        <div class="row"><span>Compte</span><b>Synchronisation activée</b></div>
+        <button class="reset" id="signout">Se déconnecter</button>
+      </div>
+    </div>
+
     <script type="module" src="popup.js"></script>
   </body>
 </html>

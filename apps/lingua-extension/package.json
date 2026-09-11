@@ -7,6 +7,7 @@
   "description": "Cymbra Lingua — MV3 browser extension (Chromium): reads the web in place, highlights unknown words, honest per-page percentage.",
   "scripts": {
     "gen:wasm": "bash tool/gen_wasm.sh",
+    "gen:proto": "bash tool/gen_proto.sh",
     "gen:pack": "bash tool/gen_pack.sh assets/pack.lingua",
     "gen:pack:real": "bash ../../scripts/lingua-data/build.sh en-fr assets/pack.lingua",
     "gen:fixtures": "bash tool/gen_pack.sh test/fixtures/en-fr.testdata.lingua",
@@ -22,7 +23,13 @@
     "start:firefox": "web-ext run --source-dir dist-firefox",
     "start:firefox-android": "web-ext run --target firefox-android --source-dir dist-firefox"
   },
+  "dependencies": {
+    "@bufbuild/protobuf": "^2.2.3",
+    "@connectrpc/connect": "^2.0.1",
+    "@connectrpc/connect-web": "^2.0.1"
+  },
   "devDependencies": {
+    "@bufbuild/protoc-gen-es": "^2.2.3",
     "@eslint/js": "^10.0.1",
     "@types/chrome": "^0.2.9",
     "@types/node": "^22.10.0",

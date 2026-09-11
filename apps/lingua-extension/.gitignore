@@ -17,6 +17,9 @@ coverage/
 # Generated wasm bindings (produced by `yarn gen:wasm` from crates/lingua-wasm)
 src/wasm/pkg/
 
+# Generated gRPC-web/protobuf stubs (produced by `yarn gen:proto`, like the back office's)
+src/gen/
+
 # Shipped/dogfooding data pack (built by `yarn gen:pack`; real packs are never committed).
 # The tiny testdata pack under test/fixtures/ IS committed as a vitest fixture.
 assets/pack.lingua
