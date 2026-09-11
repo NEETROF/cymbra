@@ -31,12 +31,13 @@ await build({
   format: "iife",
 });
 
-// Service worker + popup → ES modules.
+// Service worker + popup + side panel → ES modules.
 await build({
   ...common,
   entryPoints: {
     background: join(root, "src/background.ts"),
     popup: join(root, "src/popup/popup.ts"),
+    sidepanel: join(root, "src/sidepanel/sidepanel.ts"),
   },
   outdir: dist,
   format: "esm",
@@ -47,7 +48,10 @@ const copies = [
   ["manifest.json", "manifest.json"],
   ["src/popup/popup.html", "popup.html"],
   ["src/popup/popup.css", "popup.css"],
+  ["src/sidepanel/sidepanel.html", "sidepanel.html"],
+  ["src/sidepanel/sidepanel.css", "sidepanel.css"],
   ["src/styles/tokens.css", "tokens.css"],
+  ["src/styles/review.css", "review.css"],
   ["src/wasm/pkg/lingua_wasm.js", "wasm/lingua_wasm.js"],
   ["src/wasm/pkg/lingua_wasm_bg.wasm", "wasm/lingua_wasm_bg.wasm"],
   ["assets/pack.lingua", "assets/pack.lingua"],

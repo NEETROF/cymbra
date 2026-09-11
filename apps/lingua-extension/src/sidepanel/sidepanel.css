@@ -1,0 +1,86 @@
+/* Side-panel page (a surface the extension owns → full Cymbra identity). Colours come
+   only from tokens.css (loaded first). No colour literals here. */
+body {
+  margin: 0;
+  padding: 14px;
+  background: var(--cymbra-lingua-bg);
+  color: var(--cymbra-lingua-text);
+  font-family: var(--cymbra-lingua-font);
+  font-size: 13px;
+}
+
+h1 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.summary {
+  color: var(--cymbra-lingua-muted);
+  margin-bottom: 14px;
+}
+
+.summary b {
+  color: var(--cymbra-lingua-amber);
+}
+
+.review {
+  min-height: 120px;
+  padding: 14px;
+  border-radius: var(--cymbra-lingua-radius);
+  background: var(--cymbra-lingua-panel);
+  border: 1px solid var(--cymbra-lingua-border);
+}
+
+.tools {
+  display: flex;
+  gap: 8px;
+  margin: 14px 0;
+}
+
+.tools button {
+  flex: 1;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid var(--cymbra-lingua-border-2);
+  background: var(--cymbra-lingua-panel-2);
+  color: var(--cymbra-lingua-text);
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.tools button:hover {
+  background: var(--cymbra-lingua-panel-3);
+}
+
+.msg {
+  min-height: 16px;
+  color: var(--cymbra-lingua-muted);
+  font-size: 12px;
+}
+
+details {
+  margin-top: 14px;
+  border-top: 1px solid var(--cymbra-lingua-border);
+  padding-top: 12px;
+  color: var(--cymbra-lingua-muted);
+  font-size: 12px;
+}
+
+summary {
+  cursor: pointer;
+  color: var(--cymbra-lingua-text);
+}
+
+.notice {
+  white-space: pre-wrap;
+  font-family: var(--cymbra-lingua-mono, monospace);
+  font-size: 11px;
+  margin-top: 8px;
+}
+
+.privacy {
+  margin-top: 10px;
+  color: var(--cymbra-lingua-green);
+}

@@ -1,0 +1,46 @@
+/* Injected review drawer, scoped to its closed shadow root. tokens.css sets the
+   --cymbra-lingua-* properties on :host; review.css styles the review widget. No
+   colour literals here. */
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 300px;
+  max-width: 92vw;
+  height: 100vh;
+  box-sizing: border-box;
+  z-index: 2147483646;
+  padding: 14px;
+  overflow-y: auto;
+  background: var(--cymbra-lingua-panel);
+  border-left: 1px solid var(--cymbra-lingua-border);
+  box-shadow: var(--cymbra-lingua-shadow);
+  color: var(--cymbra-lingua-text);
+  font-family: var(--cymbra-lingua-font);
+  font-size: 13px;
+}
+
+.drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.drawer-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.drawer-close {
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: var(--cymbra-lingua-muted);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.drawer-close:hover {
+  color: var(--cymbra-lingua-text);
+}

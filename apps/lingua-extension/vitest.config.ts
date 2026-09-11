@@ -23,6 +23,8 @@ export default defineConfig({
         "src/background.ts",
         "src/content.ts",
         "src/popup/popup.ts",
+        "src/sidepanel/sidepanel.ts",
+        "src/reading/drawer.ts",
         "src/analyzer/engine.ts",
         "**/*.d.ts",
       ],
