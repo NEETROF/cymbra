@@ -43,7 +43,9 @@ const GOLDEN: &str = include_str!("fixtures/golden.json");
 /// Builds the exact scenario both targets analyse: a calibrated reader, one
 /// lemma forced to `learning`, over English prose that mixes known words
 /// (`run`, `city` — ranked below the threshold), an above-threshold word
-/// (`seldom`), an unranked word (`conundrum`), and out-of-lexicon words.
+/// (`seldom`), an unranked word (`conundrum`), out-of-lexicon words, and two
+/// hyphenated compounds — `city-run` (both parts known → one Known token) and
+/// `run-seldom` (a part above the threshold → weakest-link Unknown).
 fn analyse_fixture() -> String {
     let mut engine = LinguaEngine::new(PACK).expect("fixture pack loads");
     engine.set_calibration(3_000);
@@ -51,6 +53,7 @@ fn analyse_fixture() -> String {
     engine.analyse(vec![
         "The runner runs through many cities every morning before work.".to_owned(),
         "She ran again today, yet she seldom meets such a strange conundrum.".to_owned(),
+        "The city-run service runs well, yet the run-seldom rule holds here.".to_owned(),
     ])
 }
 

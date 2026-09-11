@@ -94,6 +94,26 @@ pub fn is_out_of_lexicon_proper_noun(
         && !lexicon.contains_lemma(lemma)
 }
 
+/// The proper-noun heuristic for a hyphenated compound the lexicon does not
+/// know as a unit: sentence-cased *and* no part is a known lexicon word — a
+/// genuine name like `Jean-Pierre`, not an ordinary compound like `Read-only`
+/// whose parts are known.
+///
+/// The whole compound is by construction absent from the lexicon (that is why
+/// it has parts), so [`is_out_of_lexicon_proper_noun`] applied to the whole
+/// would exclude *every* sentence-initial compound. This mirrors the rule at
+/// the part level instead, so a capitalized compound is excluded exactly when
+/// its separate parts would each have been — and counting no longer depends on
+/// whether the compound happens to start a sentence.
+pub fn compound_is_out_of_lexicon_proper_noun(
+    surface: &str,
+    part_lemmas: &[String],
+    lexicon: &(impl Lexicon + ?Sized),
+) -> bool {
+    surface.chars().next().is_some_and(char::is_uppercase)
+        && part_lemmas.iter().all(|p| !lexicon.contains(p))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -155,5 +175,31 @@ mod tests {
         assert!(is_out_of_lexicon_proper_noun("Cymbra", "cymbra", &lex));
         // Lowercase never triggers the heuristic.
         assert!(!is_out_of_lexicon_proper_noun("cymbra", "cymbra", &lex));
+    }
+
+    #[test]
+    fn compound_proper_noun_needs_case_and_no_known_part() {
+        let (bytes, pool) =
+            build_lexicon_blobs(&[("teams", "team")], &["france", "read", "only"]).expect("build");
+        let lex = FstLexicon::from_slices(bytes, &pool).expect("load");
+        let parts = |ws: &[&str]| ws.iter().map(|w| (*w).to_owned()).collect::<Vec<_>>();
+        // Cased, but a part is a known word → an ordinary compound, not a name.
+        assert!(!compound_is_out_of_lexicon_proper_noun(
+            "Read-only",
+            &parts(&["read", "only"]),
+            &lex
+        ));
+        // Cased and no part is known → a hyphenated name, excluded.
+        assert!(compound_is_out_of_lexicon_proper_noun(
+            "Jean-Pierre",
+            &parts(&["jean", "pierre"]),
+            &lex
+        ));
+        // Lowercase never triggers it, even when no part is known.
+        assert!(!compound_is_out_of_lexicon_proper_noun(
+            "jean-pierre",
+            &parts(&["jean", "pierre"]),
+            &lex
+        ));
     }
 }

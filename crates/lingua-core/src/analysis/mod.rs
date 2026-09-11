@@ -39,4 +39,4 @@ pub mod tokenize;
 /// counts and the future community TextProfiles are only comparable at an
 /// equal version — a silent behavioural drift here corrupts every count built
 /// on top (design D5).
-pub const ANALYZER_VERSION: &str = "1.0.0";
+pub const ANALYZER_VERSION: &str = "1.1.0";

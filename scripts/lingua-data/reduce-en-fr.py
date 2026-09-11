@@ -200,7 +200,7 @@ def main():
             "studied": "en",
             "native": "fr",
             "pack_version": a.pack_version,
-            "analyzer_version": "1.0.0",
+            "analyzer_version": "1.1.0",
             "licences": [
                 "AGID (permissive, commercial use allowed)",
                 "wordfreq (CC BY-SA 4.0)",

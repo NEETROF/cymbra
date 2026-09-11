@@ -24,7 +24,7 @@ use serde::Serialize;
 use super::language::{MIN_ANALYSABLE_TOKENS, StudiedLanguage, block_is_studied};
 use super::lemmatize::lemmatize;
 use super::lexicon::Lexicon;
-use super::tokenize::tokenize;
+use super::tokenize::{Token, tokenize};
 
 /// One analysed token occurrence, in document order.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -35,6 +35,11 @@ pub struct AnalysedToken {
     pub surface: String,
     /// The lemma the cascade produced (lowercase).
     pub lemma: String,
+    /// Part lemmas of a hyphenated compound the lexicon does not know as a
+    /// unit, empty otherwise. When present, the classifier judges the token by
+    /// its weakest part rather than by `lemma` alone.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub parts: Vec<String>,
     /// Byte span of the source word inside its block.
     pub start: usize,
     /// Byte end (exclusive) of the source word inside its block.
@@ -67,11 +72,12 @@ pub fn analyse_document(
             continue;
         }
         for token in tokenize(block, studied, lexicon) {
-            let lemma = lemmatize(&token.text, lexicon);
+            let (lemma, parts) = resolve_lemmas(&token, lexicon);
             out.push(AnalysedToken {
                 block: block_idx,
                 surface: token.text,
                 lemma,
+                parts,
                 start: token.start,
                 end: token.end,
             });
@@ -81,6 +87,31 @@ pub fn analyse_document(
         return DocumentAnalysis::NotAnalysable;
     }
     DocumentAnalysis::Analysed(out)
+}
+
+/// Resolves a token's lemma, and — for a hyphenated compound the lexicon does
+/// not know as a unit — its part lemmas.
+///
+/// A compound the lexicon recognises (`e-mail`, `x-ray` — every lemma carries
+/// an identity form, so `lemma_of` catches ranked/glossed compounds too) is a
+/// single lexical unit: its own lemma, no parts. An unknown compound
+/// (`repo-wide`, `type-safe`) keeps the lowercased surface as its lemma — the
+/// single-word suffix cascade has no business stemming it — and carries its
+/// parts so the classifier can judge it by its weakest one.
+fn resolve_lemmas(token: &Token, lexicon: &(impl Lexicon + ?Sized)) -> (String, Vec<String>) {
+    if token.parts.is_empty() {
+        return (lemmatize(&token.text, lexicon), Vec::new());
+    }
+    let whole = token.text.replace('\u{2019}', "'").to_lowercase();
+    if let Some(lemma) = lexicon.lemma_of(&whole) {
+        return (lemma.to_owned(), Vec::new());
+    }
+    let parts = token
+        .parts
+        .iter()
+        .map(|piece| lemmatize(piece, lexicon))
+        .collect();
+    (whole, parts)
 }
 
 #[cfg(test)]
@@ -140,6 +171,36 @@ mod tests {
                 for t in &tokens {
                     assert_eq!(&block[t.start..t.end], t.surface, "span must match surface");
                 }
+            }
+            other => panic!("expected analysed document, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn an_unknown_compound_keeps_its_parts_a_known_one_is_a_unit() {
+        // `x-ray` is a listed lexicon compound (a unit — its own lemma, no
+        // parts); `code-quick` is not (split into part lemmas).
+        let lexicon = {
+            let (bytes, pool) =
+                build_lexicon_blobs(&[("x-ray", "x-ray")], &["the", "fox", "code", "quick"])
+                    .expect("build");
+            FstLexicon::from_slices(bytes, &pool).expect("load")
+        };
+        let block = "The x-ray beats the code-quick fox that ran over the lazy dog today now.";
+        match analyse_document(&[block], StudiedLanguage::English, &lexicon) {
+            DocumentAnalysis::Analysed(tokens) => {
+                let xray = tokens.iter().find(|t| t.surface == "x-ray").expect("x-ray");
+                assert_eq!(xray.lemma, "x-ray");
+                assert!(xray.parts.is_empty(), "a listed compound is a lexical unit");
+
+                let cq = tokens
+                    .iter()
+                    .find(|t| t.surface == "code-quick")
+                    .expect("code-quick");
+                assert_eq!(cq.lemma, "code-quick", "unknown compound is not stemmed");
+                assert_eq!(cq.parts, ["code", "quick"]);
+                // The span still slices back to the surface.
+                assert_eq!(&block[cq.start..cq.end], "code-quick");
             }
             other => panic!("expected analysed document, got {other:?}"),
         }

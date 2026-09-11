@@ -26,7 +26,9 @@ use serde::Serialize;
 
 use crate::analysis::ANALYZER_VERSION;
 use crate::analysis::language::StudiedLanguage;
-use crate::analysis::percent::{Coverage, TokenClass, is_out_of_lexicon_proper_noun};
+use crate::analysis::percent::{
+    Coverage, TokenClass, compound_is_out_of_lexicon_proper_noun, is_out_of_lexicon_proper_noun,
+};
 use crate::analysis::pipeline::{DocumentAnalysis, analyse_document};
 use crate::knowledge::state::KnowledgeState;
 use crate::packs::Pack;
@@ -94,10 +96,21 @@ pub fn analyse_page(
     let mut coverage = Coverage::default();
     let mut out = Vec::with_capacity(tokens.len());
     for token in tokens {
-        let class = if is_out_of_lexicon_proper_noun(&token.surface, &token.lemma, pack.lexicon()) {
+        let class = if token.parts.is_empty() {
+            if is_out_of_lexicon_proper_noun(&token.surface, &token.lemma, pack.lexicon()) {
+                TokenClass::ProperNounOutOfLexicon
+            } else {
+                knowledge.classify(studied, &[token.lemma.as_str()], pack)
+            }
+        } else if compound_is_out_of_lexicon_proper_noun(
+            &token.surface,
+            &token.parts,
+            pack.lexicon(),
+        ) {
+            // A hyphenated name (`Jean-Pierre`), excluded like any proper noun.
             TokenClass::ProperNounOutOfLexicon
         } else {
-            knowledge.classify(studied, &[token.lemma.as_str()], pack)
+            knowledge.classify_compound(studied, &token.lemma, &token.parts, pack)
         };
         coverage.add(class);
         // A gloss is only useful for words the reader does not yet know.
@@ -246,6 +259,83 @@ mod tests {
         assert!(team.gloss.is_none());
         // Most of the page is known; only the unranked words (and/they/seldom) are not.
         assert!(page.percent.unwrap() >= 70);
+    }
+
+    #[test]
+    fn a_hyphenated_compound_is_one_token_judged_by_its_weakest_part() {
+        let pack = sample_pack();
+        let mut knowledge = KnowledgeState::new();
+        knowledge.set_calibration(EN, 3_000);
+        let page = analyse_page(
+            &["The team-ship do not ship code, yet the code-seldom team do not ship."],
+            EN,
+            &pack,
+            &knowledge,
+        );
+        assert!(page.analysable);
+        // Both parts below the threshold → the compound is a single Known token.
+        let known = page
+            .tokens
+            .iter()
+            .find(|t| t.surface == "team-ship")
+            .expect("team-ship is one token");
+        assert_eq!(known.class, TokenClass::Known);
+        assert!(known.gloss.is_none());
+        // `seldom` is above the threshold, so the compound drops to Unknown, and
+        // its whole-compound lemma has no gloss in the pack.
+        let unknown = page
+            .tokens
+            .iter()
+            .find(|t| t.surface == "code-seldom")
+            .expect("code-seldom is one token");
+        assert_eq!(unknown.class, TokenClass::Unknown);
+        assert_eq!(unknown.lemma, "code-seldom");
+        assert!(unknown.gloss.is_none());
+    }
+
+    #[test]
+    fn a_sentence_initial_compound_is_counted_not_excluded_as_a_proper_noun() {
+        let pack = sample_pack();
+        let mut knowledge = KnowledgeState::new();
+        knowledge.set_calibration(EN, 3_000);
+        // "Team-ship" leads the sentence; both parts are known words, so it is
+        // counted (Known) exactly as the lowercase "team-ship" is — not dropped
+        // as a proper noun merely for being sentence-cased.
+        let page = analyse_page(
+            &["Team-ship do not ship the code, and the team-ship ships the code today."],
+            EN,
+            &pack,
+            &knowledge,
+        );
+        let initial = page
+            .tokens
+            .iter()
+            .find(|t| t.surface == "Team-ship")
+            .expect("Team-ship");
+        let mid = page
+            .tokens
+            .iter()
+            .find(|t| t.surface == "team-ship")
+            .expect("team-ship");
+        assert_eq!(initial.class, TokenClass::Known);
+        assert_eq!(
+            initial.class, mid.class,
+            "counting must not depend on sentence position"
+        );
+
+        // A genuine hyphenated name (no part is a known word) is still excluded.
+        let named = analyse_page(
+            &["Foo-bar do not ship the code on Friday, and the code ships the code today."],
+            EN,
+            &pack,
+            &knowledge,
+        );
+        let foo = named
+            .tokens
+            .iter()
+            .find(|t| t.surface == "Foo-bar")
+            .expect("Foo-bar");
+        assert_eq!(foo.class, TokenClass::ProperNounOutOfLexicon);
     }
 
     #[test]
