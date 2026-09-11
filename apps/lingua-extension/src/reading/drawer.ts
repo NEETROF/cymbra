@@ -17,6 +17,8 @@ export interface DrawerOptions {
   now: () => number;
   /** Persist after a state-changing action (backup → storage). */
   onChange: () => Promise<void>;
+  /** Daily-stats hook forwarded to the review controller (grade / mark-known). */
+  record?: (event: "review" | "learned") => void;
 }
 
 export class Drawer {
@@ -28,7 +30,7 @@ export class Drawer {
   private open = false;
 
   constructor(private readonly opts: DrawerOptions) {
-    this.controller = new ReviewController(opts.port, opts.now);
+    this.controller = new ReviewController(opts.port, opts.now, opts.record);
 
     this.host = document.createElement("div");
     this.host.id = "cymbra-lingua-drawer-host";

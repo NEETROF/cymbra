@@ -2,6 +2,8 @@ import type { Client } from "@connectrpc/connect";
 import type { CardOp, LinguaPort, StatusChangeIn } from "../analyzer/port.ts";
 import type { DeckService } from "../gen/deck_pb.ts";
 import type { KnownWordsService } from "../gen/known_words_pb.ts";
+import type { StatsService } from "../gen/stats_pb.ts";
+import { loadDailyStats } from "../state/dailystats.ts";
 import { type AsyncStorageArea, loadStored, saveBackup } from "../state/storage.ts";
 
 // The extension sync engine (add-lingua-connected-clients §2). When signed in it pushes
@@ -25,6 +27,7 @@ const BATCH = 500;
 export interface SyncClients {
   knownWords: Client<typeof KnownWordsService>;
   deck: Client<typeof DeckService>;
+  stats: Client<typeof StatsService>;
 }
 
 export interface SyncDeps {
@@ -60,6 +63,7 @@ export class SyncEngine {
 
     const pushedStatuses = await this.pushStatuses();
     const pushedCards = await this.pushCards();
+    await this.pushStats();
 
     // Fetch pulls WITHOUT applying, so apply + persist happen together at the end.
     const statuses = await this.fetchStatuses();
@@ -122,6 +126,20 @@ export class SyncEngine {
       });
     }
     return ops.length;
+  }
+
+  /** Idempotent upsert of the local daily aggregates (replace-by-key server-side). */
+  private async pushStats(): Promise<void> {
+    const daily = await loadDailyStats(this.deps.storage);
+    const stats = Object.entries(daily).map(([day, s]) => ({
+      day: Number(day),
+      language: "en",
+      deviceId: this.deps.deviceId,
+      exposures: s.exposures,
+      wordsLearned: s.wordsLearned,
+      reviewsDone: s.reviews,
+    }));
+    if (stats.length > 0) await this.deps.clients().stats.upsertDailyStats({ stats });
   }
 
   /** Fetch status changes after the stored cursor (no apply, no cursor write). */

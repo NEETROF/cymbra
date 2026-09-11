@@ -8,6 +8,7 @@ import { ReadingObservers } from "./reading/observer.ts";
 import { findTokenAt, type ResolvedToken, resolveTokens, type ScanStats, statsFromAnalysis } from "./reading/scan.ts";
 import { captureSelection, MAX_SELECTION_LENGTH, sentenceAround } from "./reading/selection.ts";
 import { type Gesture, WordPopup } from "./reading/wordpopup.ts";
+import { dailyRecorder, recordExposures, recordWordLearned, utcDay } from "./state/dailystats.ts";
 import {
   type AsyncStorageArea,
   ENABLED_KEY,
@@ -73,6 +74,8 @@ class ReadingSession {
   private calibration = 3000;
   /** Global master switch. When off the reader does not analyse, paint or pop up. */
   private enabled = true;
+  /** Daily exposures are counted once per page load (a re-scan does not re-count). */
+  private exposuresRecorded = false;
   private readonly popup: WordPopup;
   private readonly drawer: Drawer;
   private readonly observers: ReadingObservers;
@@ -86,6 +89,7 @@ class ReadingSession {
       port: this.port,
       now: nowSeconds,
       onChange: () => this.persist(),
+      record: dailyRecorder(storageArea),
     });
     this.observers = new ReadingObservers({ onRescan: (containers) => void this.refresh(containers) });
   }
@@ -181,6 +185,11 @@ class ReadingSession {
     const analysis = await this.port.analyse(blocks.map((b) => b.text));
     this.resolved = resolveTokens(blocks, analysis);
     this.stats = statsFromAnalysis(analysis);
+    // Count studied-word exposures once per page load (§3 daily stats).
+    if (this.stats.analysable && !this.exposuresRecorded && this.stats.counted > 0) {
+      this.exposuresRecorded = true;
+      void recordExposures(storageArea, utcDay(Date.now()), this.stats.counted);
+    }
     // Re-assert the token sheet before painting: a single-page-app navigation
     // (GitHub's morphing) can strip our injected styles, which leaves highlights
     // unpainted even though clicks still resolve. injectPageStyles is idempotent
@@ -279,6 +288,7 @@ class ReadingSession {
     } else {
       // Stamp the change so it orders correctly in cross-device sync (LWW).
       await this.port.setStatusAt(key, g.status, Date.now());
+      if (g.status === "known") void recordWordLearned(storageArea, utcDay(Date.now()));
     }
     await this.persist();
     await this.repaint();
