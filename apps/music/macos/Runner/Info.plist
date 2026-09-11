@@ -54,5 +54,8 @@
 			</array>
 		</dict>
 	</array>
+	<!-- Acoustic piano input (change: add-acoustic-piano-input). -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Cymbra listens to your acoustic instrument through the microphone so it can follow the notes you play.</string>
 </dict>
 </plist>

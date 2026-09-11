@@ -37,6 +37,11 @@ abstract final class UsageActions {
   // Settings change (carries `variant` = the setting *category*, never the value).
   static const settingsChange = 'settings_change';
 
+  // Input calibration run (change: add-acoustic-piano-input; carries `variant`
+  // = a low-cardinality outcome bucket — a latency band or a failure reason —
+  // never the raw measurement). The D7 fleet probe: which devices can capture.
+  static const inputCalibration = 'input_calibration';
+
   // Scores (carry `subjectId` = the score id).
   static const scoreUpload = 'score_upload';
   static const scorePropose = 'score_propose';

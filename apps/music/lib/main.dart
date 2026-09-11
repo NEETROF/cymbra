@@ -21,6 +21,7 @@ import 'dart:async';
 
 import 'l10n/gen/app_localizations.dart';
 import 'screens/onboarding/onboarding_gate.dart';
+import 'services/audio_capture_service.dart';
 import 'services/audio_service.dart';
 import 'services/flags_integration.dart';
 import 'services/license_notices.dart';
@@ -33,7 +34,9 @@ import 'state/foreground_notification_listener.dart';
 import 'state/language_sync_listener.dart';
 import 'state/push_registration_listener.dart';
 import 'state/score_preview_playback.dart';
+import 'state/selected_audio_input.dart';
 import 'state/selected_piano.dart';
+import 'state/acoustic_input_access.dart';
 import 'state/drums_access.dart';
 import 'state/plan_notifier.dart';
 import 'state/usage_tracking_notifier.dart';
@@ -79,6 +82,13 @@ Future<void> main() async {
       drumsEnabledProvider.overrideWith(
         (ref) => ref.watch(flagsProvider).getBool(kDrumsEnabledFlag, or: false),
       ),
+      // Microphone input visibility (change: add-acoustic-piano-input): plain
+      // `false` in tests, the remote `acoustic_input.enabled` flag in the app.
+      acousticInputEnabledProvider.overrideWith(
+        (ref) => ref
+            .watch(flagsProvider)
+            .getBool(kAcousticInputEnabledFlag, or: false),
+      ),
     ],
   );
   unawaited(container.read(audioServiceProvider).init());
@@ -94,6 +104,11 @@ Future<void> main() async {
   // sound of the session already goes where the user sent it — not only once
   // the sound-output section has been opened.
   container.read(audioRoutingProvider);
+
+  // And the chosen capture input (change: add-acoustic-piano-input): restoring
+  // it here means the first capture of the session already opens the pinned
+  // device, not only once the input section has been visited.
+  container.read(selectedAudioInputProvider);
 
   // Fetch the caller's effective feature flags on launch (identity-scoped,
   // flicker-free from the persisted cache); the observer refreshes on resume.
@@ -132,6 +147,12 @@ class _AudioLifecycleObserver with WidgetsBindingObserver {
         state == AppLifecycleState.detached) {
       _container.read(audioServiceProvider).allNotesOff();
       unawaited(_container.read(scorePreviewPlaybackProvider.notifier).stop());
+      // The microphone never captures in the background (change:
+      // add-acoustic-piano-input, spec: Microphone Capture Lifecycle). The
+      // player re-opens its session on its next sync if it is still alive.
+      final capture = _container.read(audioCaptureServiceProvider);
+      capture.stopDetection();
+      unawaited(capture.endCapture());
     } else if (state == AppLifecycleState.resumed) {
       // Re-fetch effective flags on foreground (cheap when unchanged via the
       // version/ETag) so a kill-switch flip is picked up without a restart.

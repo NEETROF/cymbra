@@ -33,14 +33,32 @@ class MainActivity : FlutterActivity() {
      *  [AudioRouter]; the activity only owns its lifecycle. */
     private var audioRouter: AudioRouter? = null
 
+    /** Microphone input (change: add-acoustic-piano-input): permission,
+     *  capture configuration and input route — same ownership shape. */
+    private var audioInput: AudioInput? = null
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         audioRouter = AudioRouter(this).also {
             it.attach(flutterEngine.dartExecutor.binaryMessenger)
         }
+        audioInput = AudioInput(this).also {
+            it.attach(flutterEngine.dartExecutor.binaryMessenger)
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray,
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        audioInput?.onRequestPermissionsResult(requestCode, grantResults)
     }
 
     override fun onDestroy() {
+        audioInput?.dispose()
+        audioInput = null
         audioRouter?.dispose()
         audioRouter = null
         super.onDestroy()
