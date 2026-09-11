@@ -1,4 +1,4 @@
-import { createLinguaPort } from "./analyzer/create-port.ts";
+import { resolveContentPort } from "./analyzer/create-port.ts";
 import type { LinguaPort } from "./analyzer/port.ts";
 import type { TokenClass } from "./analyzer/types.ts";
 import { type Block, collectBlocks } from "./reading/blocks.ts";
@@ -60,7 +60,6 @@ const NOT_ANALYSABLE: ScanStats = statsFromAnalysis({
 });
 
 class ReadingSession {
-  private readonly port: LinguaPort = createLinguaPort();
   private readonly blocksByContainer = new Map<Element, Block>();
   private resolved: ResolvedToken[] = [];
   private stats: ScanStats = NOT_ANALYSABLE;
@@ -69,7 +68,9 @@ class ReadingSession {
   private readonly drawer: Drawer;
   private readonly observers: ReadingObservers;
 
-  constructor() {
+  // The port is resolved before construction (`resolveContentPort`) so a CSP-blocked
+  // page can hand us the messaging port instead of the in-content WASM engine.
+  constructor(private readonly port: LinguaPort) {
     this.popup = new WordPopup({ css: `${tokensCss}\n${popupCss}`, onGesture: (g) => void this.onGesture(g) });
     this.drawer = new Drawer({
       css: `${tokensCss}\n${reviewCss}\n${drawerCss}`,
@@ -253,7 +254,15 @@ async function bootstrap(): Promise<void> {
   const w = window as unknown as Record<string, boolean>;
   if (w[GUARD]) return;
   w[GUARD] = true;
-  await new ReadingSession().start();
+  try {
+    const port = await resolveContentPort();
+    await new ReadingSession(port).start();
+  } catch (e) {
+    // Surface a legible failure rather than dying as a silent unhandled rejection,
+    // and allow a retry on the next injection.
+    console.error("[Cymbra Lingua] reader failed to start:", e);
+    w[GUARD] = false;
+  }
 }
 
 if (document.readyState === "loading") {

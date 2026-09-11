@@ -54,6 +54,12 @@ jobs:
         run: corepack enable
       - name: Install dependencies
         run: yarn install --immutable
+      # The service worker statically imports the wasm-pack glue (background.ts loads
+      # the engine off the content script for CSP-strict pages), so typecheck now needs
+      # the generated glue present — build it before lint/typecheck, not only at bundle
+      # time. eslint + prettier already ignore src/wasm/pkg.
+      - name: Generate wasm bindings
+        run: yarn gen:wasm
       - name: Lint (ESLint)
         run: yarn lint
       - name: Format check (Prettier)
@@ -62,10 +68,9 @@ jobs:
         run: yarn typecheck
       - name: Unit tests (Vitest)
         run: yarn test
-      # Full build: wasm-pack bindings + testdata pack + esbuild bundle. Proves the
-      # loadable extension assembles, not just that the sources typecheck.
+      # Full build: testdata pack + esbuild bundle (the wasm bindings were generated
+      # above). Proves the loadable extension assembles, not just that it typechecks.
       - name: Build extension
         run: |
-          yarn gen:wasm
           yarn gen:pack
           yarn build
