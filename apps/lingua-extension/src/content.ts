@@ -156,10 +156,10 @@ class ReadingSession {
 
   private onClick(e: MouseEvent): void {
     if (this.popup.contains(e.target)) return;
-    // A live multi-word selection is the whole-selection card's job (onMouseUp); don't
-    // also open the single-word popup for whatever word the release landed on.
+    // A live phrase/compound selection is the whole-selection card's job (onMouseUp);
+    // don't also open the single-word popup for whatever word the release landed on.
     const sel = window.getSelection();
-    if (sel && !sel.isCollapsed && String(sel).trim().includes(" ")) return;
+    if (sel && !sel.isCollapsed && /[-\s]/.test(String(sel).trim())) return;
     const caret = caretAt(e.clientX, e.clientY);
     if (!caret) {
       if (this.popup.visible()) this.popup.hide();
@@ -182,12 +182,14 @@ class ReadingSession {
     e.stopPropagation();
   }
 
-  /** A multi-word mouse selection opens the whole-selection card directly. */
+  /** A phrase or compound mouse selection opens the whole-selection card directly. A
+   *  selection counts as one when it holds a space or a hyphen (so "repo-wide" is taken
+   *  whole, not reduced to the word the release landed on). */
   private onMouseUp(e: MouseEvent): void {
     if (this.popup.contains(e.target)) return;
     const sel = window.getSelection();
     const text = sel ? String(sel).trim().replace(/\s+/g, " ") : "";
-    if (sel && !sel.isCollapsed && text.includes(" ") && text.length <= MAX_SELECTION_LENGTH) {
+    if (sel && !sel.isCollapsed && /[-\s]/.test(text) && text.length <= MAX_SELECTION_LENGTH) {
       void this.onCaptureSelection();
     }
   }
