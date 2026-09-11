@@ -509,6 +509,14 @@ class Player extends _$Player {
       // the matcher judges what they satisfy (change: add-drum-scoring), so a
       // drum score no longer forces it off.
       isPercussion: derived.isPercussion,
+      // The mic source only applies to non-percussion scores: crossing a
+      // score-family boundary re-derives it, since the source listener only
+      // fires on source CHANGES and would leave a drums score carrying the
+      // previous score's microphone behavior (or a keyboard score without it).
+      usesMicrophoneInput:
+          ref.read(effectivePlayerInputSourceProvider) ==
+              PlayerInputSource.microphone &&
+          !derived.isPercussion,
       drumLanes: derived.isPercussion
           ? deriveDrumLanes(derived.notes)
           : const <DrumLane>[],
@@ -1584,7 +1592,13 @@ class Player extends _$Player {
 
   void _applyInputSource(PlayerInputSource source) {
     state = state.copyWith(
-      usesMicrophoneInput: source == PlayerInputSource.microphone,
+      // A percussion score never uses the microphone (detecting drums with
+      // it is out of scope): the stored choice stands but has no effect —
+      // the same presentational fallback as the flag. Without this, a drums
+      // session inherited the mic behavior with no capture behind it: e-kit
+      // strokes went unsounded and the score audio stayed muted.
+      usesMicrophoneInput:
+          source == PlayerInputSource.microphone && !state.isPercussion,
     );
     // The source decides who sounds a live note: acoustic sessions synthesize
     // nothing for the instrument (it sounds itself), so the engine echo must

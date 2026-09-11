@@ -1010,7 +1010,10 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
   /// and the microphone source swaps the port picker for the capture route +
   /// calibration — the same spot a player looks for "what is listening".
   Widget _inputSection(AppLocalizations l10n, PlayerData data) {
-    if (!ref.watch(acousticInputEnabledProvider)) {
+    // No selector on a percussion score: the microphone source is
+    // keyboard-only (detecting drums with it is out of scope), so a drums
+    // session shows exactly the historical MIDI section, flag or not.
+    if (!ref.watch(acousticInputEnabledProvider) || data.isPercussion) {
       return _midiSection(l10n, data);
     }
     final source = ref.watch(effectivePlayerInputSourceProvider);

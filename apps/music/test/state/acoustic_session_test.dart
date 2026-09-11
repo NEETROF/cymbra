@@ -64,6 +64,10 @@ class _FixedNotation extends Notation {
   final NotationData _data;
   @override
   NotationData build() => _data;
+
+  /// Test hook: swap the loaded document mid-test (the real notifier loads
+  /// through catalog entries).
+  void swap(NotationData data) => state = data;
 }
 
 void main() {
@@ -341,6 +345,38 @@ void main() {
       expect(pushed.last, [first]);
     },
   );
+
+  test('a percussion score neutralizes a stored microphone source', () async {
+    final container = harness();
+    container.read(playerProvider);
+    await settle();
+    container
+        .read(storedInputSourceProvider.notifier)
+        .select(PlayerInputSource.microphone);
+    await settle();
+    expect(container.read(playerProvider).usesMicrophoneInput, isTrue);
+
+    // A drums score loads: the mic source is keyboard-only, so the session
+    // closes and none of the microphone behavior leaks — without this, the
+    // e-kit went unsounded and the score audio stayed muted (on-device
+    // report), with no capture ever opening behind it.
+    (container.read(notationProvider.notifier) as _FixedNotation).swap(
+      NotationData(document: sampleDrumDocument()),
+    );
+    await settle();
+
+    final data = container.read(playerProvider);
+    expect(data.isPercussion, isTrue);
+    expect(data.usesMicrophoneInput, isFalse);
+    expect(data.synthesizes(NoteSource.midiDevice), isTrue);
+    verify(capture.endCapture()).called(1);
+    // The stored choice survives untouched (presentational fallback): a
+    // keyboard score re-applies it.
+    expect(
+      container.read(storedInputSourceProvider),
+      PlayerInputSource.microphone,
+    );
+  });
 
   test('a MIDI session is untouched by the free-run gate', () async {
     final container = harness();
