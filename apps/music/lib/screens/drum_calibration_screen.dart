@@ -23,6 +23,7 @@ import '../state/drum_kit.dart';
 import '../state/midi_status_notifier.dart';
 import '../state/player_notifier.dart';
 import '../theme/cymbra_theme.dart';
+import '../widgets/keep_screen_awake.dart';
 import '../widgets/kit_piece_labels.dart';
 import 'midi_monitor_screen.dart';
 
@@ -50,18 +51,22 @@ class DrumCalibrationScreen extends ConsumerWidget {
     final port = ref.watch(midiStatusProvider.select((s) => s.connected));
     final pass = ref.watch(drumCalibrationProvider);
 
-    return Scaffold(
-      backgroundColor: CymbraColors.background,
-      appBar: AppBar(
-        backgroundColor: CymbraColors.surfaceContainerLowest,
-        title: Text(l10n.calibrationTitle),
+    // A play surface: the whole pass is the player striking pads on their kit,
+    // never the device (change: keep-play-surfaces-awake).
+    return KeepScreenAwake(
+      child: Scaffold(
+        backgroundColor: CymbraColors.background,
+        appBar: AppBar(
+          backgroundColor: CymbraColors.surfaceContainerLowest,
+          title: Text(l10n.calibrationTitle),
+        ),
+        body: switch (port) {
+          // Nothing to store a mapping against, and nothing to play into.
+          null => _NoDevice(message: l10n.calibrationNoDevice),
+          _ when pass.isRunning => _Pass(state: pass),
+          _ => _MappingTable(port: port, justFinished: pass.outcome),
+        },
       ),
-      body: switch (port) {
-        // Nothing to store a mapping against, and nothing to play into.
-        null => _NoDevice(message: l10n.calibrationNoDevice),
-        _ when pass.isRunning => _Pass(state: pass),
-        _ => _MappingTable(port: port, justFinished: pass.outcome),
-      },
     );
   }
 }

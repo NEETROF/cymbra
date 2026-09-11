@@ -21,6 +21,7 @@ import '../state/midi_monitor.dart';
 import '../state/midi_monitor_notifier.dart';
 import '../state/player_notifier.dart';
 import '../theme/cymbra_theme.dart';
+import '../widgets/keep_screen_awake.dart';
 
 /// Opens the MIDI input monitor (change: add-drum-input-calibration).
 ///
@@ -52,41 +53,45 @@ class MidiMonitorScreen extends ConsumerWidget {
     final entries = ref.watch(midiMonitorProvider);
     final player = ref.watch(playerProvider);
 
-    return Scaffold(
-      backgroundColor: CymbraColors.background,
-      appBar: AppBar(
-        backgroundColor: CymbraColors.surfaceContainerLowest,
-        title: Text(l10n.midiMonitorTitle),
-        actions: [
-          IconButton(
-            key: const Key('midi-monitor-clear'),
-            tooltip: l10n.midiMonitorClear,
-            onPressed: () => ref.read(midiMonitorProvider.notifier).clear(),
-            icon: const Icon(Icons.clear_all),
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          _Header(device: player.connectedDevice, entryCount: entries.length),
-          const Divider(height: 1, color: CymbraColors.outlineVariant),
-          Expanded(
-            child: entries.isEmpty
-                ? _Empty(connected: player.midiConnected)
-                : ListView.separated(
-                    key: const Key('midi-monitor-list'),
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    itemCount: entries.length,
-                    separatorBuilder: (_, _) => const Divider(
-                      height: 1,
-                      indent: 16,
-                      endIndent: 16,
-                      color: CymbraColors.outlineVariant,
+    // A play surface: the player exercises their instrument and watches the
+    // stream, touching the device only to leave (change: keep-play-surfaces-awake).
+    return KeepScreenAwake(
+      child: Scaffold(
+        backgroundColor: CymbraColors.background,
+        appBar: AppBar(
+          backgroundColor: CymbraColors.surfaceContainerLowest,
+          title: Text(l10n.midiMonitorTitle),
+          actions: [
+            IconButton(
+              key: const Key('midi-monitor-clear'),
+              tooltip: l10n.midiMonitorClear,
+              onPressed: () => ref.read(midiMonitorProvider.notifier).clear(),
+              icon: const Icon(Icons.clear_all),
+            ),
+          ],
+        ),
+        body: Column(
+          children: [
+            _Header(device: player.connectedDevice, entryCount: entries.length),
+            const Divider(height: 1, color: CymbraColors.outlineVariant),
+            Expanded(
+              child: entries.isEmpty
+                  ? _Empty(connected: player.midiConnected)
+                  : ListView.separated(
+                      key: const Key('midi-monitor-list'),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      itemCount: entries.length,
+                      separatorBuilder: (_, _) => const Divider(
+                        height: 1,
+                        indent: 16,
+                        endIndent: 16,
+                        color: CymbraColors.outlineVariant,
+                      ),
+                      itemBuilder: (_, i) => _EntryRow(entry: entries[i]),
                     ),
-                    itemBuilder: (_, i) => _EntryRow(entry: entries[i]),
-                  ),
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }

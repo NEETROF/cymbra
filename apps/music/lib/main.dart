@@ -39,6 +39,7 @@ import 'state/selected_piano.dart';
 import 'state/acoustic_input_access.dart';
 import 'state/drums_access.dart';
 import 'state/plan_notifier.dart';
+import 'state/screen_wake.dart';
 import 'state/usage_tracking_notifier.dart';
 import 'theme/cymbra_theme.dart';
 import 'widgets/coach_layer.dart';
@@ -123,20 +124,30 @@ Future<void> main() async {
   container.read(usageFlushSchedulerProvider);
 
   // Silence the synth when the OS backgrounds/hides the app, so a held voice
-  // (note pressed, no note-off yet) doesn't keep ringing while paused; refresh
-  // the feature flags when the app returns to the foreground.
-  WidgetsBinding.instance.addObserver(_AudioLifecycleObserver(container));
+  // (note pressed, no note-off yet) doesn't keep ringing while paused; drop any
+  // screen-awake hold while away; refresh the feature flags on return.
+  WidgetsBinding.instance.addObserver(_ForegroundLifecycleObserver(container));
 
   runApp(
     UncontrolledProviderScope(container: container, child: const CymbraApp()),
   );
 }
 
-/// Cuts all audio when the app leaves the foreground. `paused`/`hidden` cover
-/// mobile backgrounding (and desktop minimise); `inactive` is intentionally not
-/// silenced so a brief focus change on desktop doesn't chop a sounding note.
-class _AudioLifecycleObserver with WidgetsBindingObserver {
-  _AudioLifecycleObserver(this._container);
+/// The one place that decides whether Cymbra is the foreground app, and reacts.
+///
+/// Cuts all audio when the app leaves the foreground, stops microphone capture
+/// (change: add-acoustic-piano-input), and drops the screen-awake hold a play
+/// surface may be holding (change: keep-play-surfaces-awake) — the last matters
+/// most on the desktops, where the hold is a process-level power assertion that
+/// survives losing focus and would otherwise pin the machine awake behind a
+/// minimised window.
+///
+/// `paused`/`hidden` cover mobile backgrounding (and desktop minimise);
+/// `inactive` is intentionally treated as neither, so a brief focus change on
+/// desktop doesn't chop a sounding note — and so pulling down the notification
+/// shade or dismissing a permission dialog mid-practice doesn't dim the screen.
+class _ForegroundLifecycleObserver with WidgetsBindingObserver {
+  _ForegroundLifecycleObserver(this._container);
 
   final ProviderContainer _container;
 
@@ -153,7 +164,11 @@ class _AudioLifecycleObserver with WidgetsBindingObserver {
       final capture = _container.read(audioCaptureServiceProvider);
       capture.stopDetection();
       unawaited(capture.endCapture());
+      _container.read(screenWakeProvider.notifier).setForeground(false);
     } else if (state == AppLifecycleState.resumed) {
+      // Re-takes the hold only if a play surface is still mounted; the notifier
+      // owns that question.
+      _container.read(screenWakeProvider.notifier).setForeground(true);
       // Re-fetch effective flags on foreground (cheap when unchanged via the
       // version/ETag) so a kill-switch flip is picked up without a restart.
       unawaited(_container.read(flagsProvider.notifier).refresh());
