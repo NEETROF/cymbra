@@ -88,6 +88,9 @@ class ReadingSession {
     await this.refresh([document.body]);
     this.observers.start();
     document.addEventListener("click", (e) => this.onClick(e), true);
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && this.popup.visible()) this.popup.hide();
+    });
     chrome.storage.onChanged.addListener((changes, areaName) => {
       const root = changes[ROOT_KEY];
       if (areaName === "local" && root && typeof (root.newValue as { backup?: string })?.backup === "string") {

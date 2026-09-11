@@ -112,6 +112,15 @@ export function createCard(): CardView {
       el.hidden = false;
     },
   };
+
+  // A close affordance (clicking off the popup also dismisses it — see content.ts).
+  const closeEl = document.createElement("button");
+  closeEl.className = "close";
+  closeEl.textContent = "✕"; // ✕
+  closeEl.setAttribute("aria-label", "Fermer");
+  closeEl.addEventListener("click", () => view.hide());
+  el.append(closeEl);
+
   return view;
 }
 
