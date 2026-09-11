@@ -252,6 +252,7 @@ pub fn input_route_verdict_for(kind: InputRouteKind) -> InputRouteVerdict {
 /// emits nothing until [`set_expected_pitches`] provides a non-empty window.
 #[frb(sync)]
 pub fn audio_input_start_detection() -> bool {
+    diag_log("--- detection session start ---");
     DETECT_REQUESTED.store(true, Ordering::Relaxed);
     let running = audio_input_start_capture();
     let rate = INPUT_SAMPLE_RATE.load(Ordering::Relaxed);
@@ -589,18 +590,15 @@ where
                 let rate = detector.sample_rate();
                 for note in detector.feed(&mono) {
                     if note.on {
-                        platform_log::log_line(
-                            "cymbra-detect",
-                            &format!(
-                                "emit p={} v={} at={}",
-                                note.pitch, note.velocity, note.at_sample
-                            ),
-                        );
+                        diag_log(&format!(
+                            "emit p={} v={} at={}",
+                            note.pitch, note.velocity, note.at_sample
+                        ));
                     }
                     super::midi::emit_detected(to_midi_event(note, rate));
                 }
                 for line in detector.debug_log.drain(..) {
-                    platform_log::log_line("cymbra-detect", &line);
+                    diag_log(&line);
                 }
             }
         },
@@ -670,4 +668,24 @@ fn reference_beep_wav() -> Vec<u8> {
     wav.extend_from_slice(&data_len.to_le_bytes());
     wav.extend_from_slice(&pcm);
     wav
+}
+
+/// Detection diagnostics go to the platform log AND to a plain file in the
+/// app's Documents directory. On iOS the platform log is bare stderr — gone
+/// the moment no console is attached (a lesson paid with a full on-device
+/// data session): the file survives everything and is pulled afterwards with
+/// `devicectl device copy from --domain-type appDataContainer`.
+fn diag_log(line: &str) {
+    platform_log::log_line("cymbra-detect", line);
+    if let Ok(home) = std::env::var("HOME") {
+        use std::io::Write;
+        let path = std::path::Path::new(&home).join("Documents/cymbra-detect.log");
+        if let Ok(mut f) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path)
+        {
+            let _ = writeln!(f, "{line}");
+        }
+    }
 }

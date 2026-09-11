@@ -110,11 +110,14 @@
 
 ## 10. On-device detection tuning (from the 8.4 play sessions)
 
-- [ ] 10.1 False positives: black keys trigger adjacent white notes (F# → F,
+- [x] 10.1 False positives: black keys trigger adjacent white notes (F# → F,
   F → E/D observed on device), and the gate occasionally advances by itself
-  in a quiet room (ambient flukes clearing every check) — tune the
-  unexpected-neighbor veto, attack-splatter handling and the silence guards
-  using the v16 numeric confirmation logs (own/nb_lo/nb_hi per confirmation)
+  in a quiet room (ambient flukes clearing every check) — closed by the
+  unexpected-neighbor veto plus the harmonic CONTEST (the neighbor's octave
+  outshining the pitch's convicts the neighbor; an absolute octave bar was
+  tried and rejected: real notes measured 0.2–0.5% octave ratios on device).
+  Validated by two on-device data protocols: real mi/fa pass every time,
+  fa♯-for-fa 0/12 across sessions, zero silent-room phantoms
 - [ ] 10.2 On-screen detection debug overlay: heard-level curve + heard-vs-
   expected notes, so a player can see what the microphone hears (user
   request during the play test)

@@ -555,6 +555,9 @@ impl NoteDetector {
                         let disc_len = (2 * window).min(self.ring.len());
                         let disc = &self.ring[self.ring.len() - disc_len..];
                         let own = goertzel_hann(disc, rate, pitch_freq(t.pitch));
+                        let f = pitch_freq(t.pitch);
+                        let h2 = goertzel_hann(slice, rate, 2.0 * f);
+                        let signal = goertzel_hann(slice, rate, f);
                         let beats_neighbors = [-1i16, 1].iter().all(|&d| {
                             let np = i16::from(t.pitch) + d;
                             if !(0..=127).contains(&np) {
@@ -569,17 +572,32 @@ impl NoteDetector {
                                 // An UNEXPECTED semitone neighbor louder than
                                 // the expected pitch is the wrong note being
                                 // played (si accepted for do, on device): the
-                                // expected bin then only holds leakage.
-                                own * 1.5 >= nb
+                                // expected bin then only holds leakage. And
+                                // the harmonic contest (see above): the
+                                // neighbor's octave outshining ours convicts
+                                // the neighbor even when the fundamentals
+                                // are ambiguous.
+                                let nb_h2 = goertzel_hann(slice, rate, 2.0 * pitch_freq(np as u8));
+                                own * 1.5 >= nb && h2 * 2.0 >= nb_h2
                             }
                         });
                         let present = pitch_present(slice, rate, t.pitch, &expected);
+                        // Harmonic CONTEST, not an absolute harmonic gate: a
+                        // real note's octave level varies wildly with the
+                        // instrument and mic position (on-device, honest fa
+                        // strikes measured 0.2–0.5% of the fundamental —
+                        // below any workable absolute bar, overlapping the
+                        // leak range). What never lies: the neighbors'
+                        // octaves live far apart (fa5 = 698 Hz, fa♯5 =
+                        // 740 Hz — no leakage up there), so if a neighbor's
+                        // octave outshines this pitch's, the neighbor is
+                        // what was struck.
                         let nb_lo =
                             goertzel_hann(disc, rate, pitch_freq(t.pitch.saturating_sub(1)));
                         let nb_hi =
                             goertzel_hann(disc, rate, pitch_freq(t.pitch.saturating_add(1)));
                         self.debug_log.push(format!(
-                            "conf p={} sounding={still_sounding} neighbors={beats_neighbors} present={present} own={own:.2e} nb_lo={nb_lo:.2e} nb_hi={nb_hi:.2e} head={head:.2e} tail={tail:.2e}",
+                            "conf p={} sounding={still_sounding} neighbors={beats_neighbors} present={present} own={own:.2e} nb_lo={nb_lo:.2e} nb_hi={nb_hi:.2e} sig={signal:.2e} h2={h2:.2e}",
                             t.pitch
                         ));
                         if still_sounding && beats_neighbors && present {
@@ -1009,7 +1027,11 @@ mod tests {
                 let s: f64 = pitches
                     .iter()
                     .map(|&p| {
-                        (2.0 * std::f64::consts::PI * pitch_freq(p) * t).sin() * f64::from(amp)
+                        let w = 2.0 * std::f64::consts::PI * pitch_freq(p) * t;
+                        // Fundamental + a 2nd partial, like a struck string:
+                        // the harmonic-verification gate rightly rejects a
+                        // bare sine (nothing real sounds like one).
+                        (w.sin() + (2.0 * w).sin() * 0.35) * f64::from(amp)
                     })
                     .sum();
                 (s as f32) + bed[i]
