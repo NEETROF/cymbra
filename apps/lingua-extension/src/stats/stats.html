@@ -7,21 +7,10 @@
     <link rel="stylesheet" href="tokens.css" />
     <link rel="stylesheet" href="stats.css" />
   </head>
-  <body>
+  <body class="stats-page">
     <main>
       <h1>Statistiques d'apprentissage</h1>
-      <div class="topline">
-        <span id="scope" class="scope">Cet appareil</span>
-        <div id="ranges" class="ranges">
-          <button data-range="7">7 j</button>
-          <button data-range="30" class="active">30 j</button>
-          <button data-range="90">90 j</button>
-        </div>
-      </div>
-
-      <div id="cards" class="cards"></div>
-
-      <p class="note">Les sessions d'agent IA (plugin Claude Code) ne sont pas comptées ici.</p>
+      <div id="stats-root"></div>
     </main>
     <script type="module" src="stats.js"></script>
   </body>

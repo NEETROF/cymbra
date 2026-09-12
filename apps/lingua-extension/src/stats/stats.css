@@ -1,6 +1,9 @@
-/* Stats screen (a surface the extension owns → full Cymbra identity). Colours come only
-   from tokens.css; no colour literal here. */
-body {
+/* Stats view (a surface the extension owns → full Cymbra identity). Colours come only
+   from tokens.css; no colour literal here. Component rules are scoped under `.stats`
+   so this sheet can be linked into the side panel without restyling its body/h1; the
+   `.stats-page` rules style only the standalone tab's shell. */
+
+.stats-page {
   margin: 0;
   background: var(--cymbra-lingua-bg);
   color: var(--cymbra-lingua-text);
@@ -8,38 +11,115 @@ body {
   font-size: 14px;
 }
 
-main {
+.stats-page main {
   max-width: 520px;
   margin: 0 auto;
   padding: 28px 20px 40px;
 }
 
-h1 {
+.stats-page h1 {
   margin: 0 0 18px;
   font-size: 20px;
   font-weight: 600;
   letter-spacing: 0.01em;
 }
 
-.topline {
+/* --- CEFR ladder --- */
+.stats .ladder {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.ladder-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.ladder-pos {
+  font-size: 12px;
+  color: var(--cymbra-lingua-accent);
+}
+
+.ladder-pos b {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--cymbra-lingua-text);
+  margin-left: 4px;
+}
+
+.ladder-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ladder-lvl {
+  width: 26px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cymbra-lingua-muted);
+}
+
+.ladder-row--here .ladder-lvl {
+  color: var(--cymbra-lingua-amber);
+}
+
+.ladder-track {
+  flex: 1;
+  display: flex;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--cymbra-lingua-border-2);
+  overflow: hidden;
+}
+
+.ladder-conf {
+  height: 100%;
+  background: var(--cymbra-lingua-green);
+}
+
+.ladder-pres {
+  height: 100%;
+  background: var(--cymbra-lingua-teal);
+  opacity: 0.55;
+}
+
+.ladder-frac {
+  width: 78px;
+  text-align: right;
+  font-size: 11px;
+  color: var(--cymbra-lingua-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.ladder-legend {
+  margin-top: 2px;
+}
+
+/* --- Daily counters --- */
+.stats .topline {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 
-.scope {
+.stats .scope {
   color: var(--cymbra-lingua-muted);
   font-size: 13px;
 }
 
-.ranges {
+.stats .ranges {
   display: flex;
   gap: 4px;
 }
 
-.ranges button {
+.stats .ranges button {
   cursor: pointer;
   padding: 6px 12px;
   border-radius: 999px;
@@ -50,55 +130,55 @@ h1 {
   font-size: 12px;
 }
 
-.ranges button:hover {
+.stats .ranges button:hover {
   background: var(--cymbra-lingua-panel-3);
   color: var(--cymbra-lingua-text);
 }
 
-.ranges button.active {
+.stats .ranges button.active {
   background: var(--cymbra-lingua-accent-strong);
   border-color: var(--cymbra-lingua-accent-strong);
   color: var(--cymbra-lingua-accent-ink);
 }
 
-.cards {
+.stats .cards {
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
 
-.card {
+.stats .card {
   padding: 16px 18px;
   border-radius: var(--cymbra-lingua-radius-lg);
   background: var(--cymbra-lingua-panel);
   border: 1px solid var(--cymbra-lingua-border);
 }
 
-.metric {
+.stats .metric {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   margin-bottom: 12px;
 }
 
-.mlabel {
+.stats .mlabel {
   color: var(--cymbra-lingua-muted);
   font-size: 13px;
 }
 
-.mtotal {
+.stats .mtotal {
   font-size: 26px;
   font-weight: 700;
   color: var(--cymbra-lingua-text);
 }
 
-.chart {
+.stats .chart {
   display: block;
   line-height: 0;
 }
 
-.note {
-  margin-top: 22px;
+.stats .note {
+  margin-top: 14px;
   color: var(--cymbra-lingua-faint);
   font-size: 12px;
 }

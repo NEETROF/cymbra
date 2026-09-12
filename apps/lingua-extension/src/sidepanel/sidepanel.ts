@@ -3,6 +3,10 @@ import { ReviewController } from "../review/session.ts";
 import { renderReview } from "../review/view.ts";
 import { dailyRecorder } from "../state/dailystats.ts";
 import { type AsyncStorageArea, hydrateEngine, ROOT_KEY, saveBackup } from "../state/storage.ts";
+import { mountStats } from "../stats/view.ts";
+
+/** Transient key the popup sets to open the panel straight on the stats view. */
+const PANEL_VIEW_KEY = "cymbra-lingua-panel-view";
 
 // Side-panel controller (a surface the extension owns). The page is pushed by the
 // browser and survives navigation. It holds its own engine hydrated from the shared
@@ -78,11 +82,37 @@ async function loadAttributions(): Promise<void> {
   $("notice").textContent = await port.notice();
 }
 
+/** Switch between the review and stats views; stats is (re)mounted each time it is
+ * shown, so it always reflects the current statuses + level. */
+async function showView(view: "review" | "stats"): Promise<void> {
+  $("view-review").hidden = view !== "review";
+  $("view-stats").hidden = view !== "stats";
+  for (const b of document.querySelectorAll<HTMLButtonElement>("#views button")) {
+    b.classList.toggle("active", b.dataset.view === view);
+  }
+  if (view === "stats") await mountStats($("view-stats"), port, area);
+}
+
 async function main(): Promise<void> {
   await hydrateEngine(port, area);
   await refreshSummary();
   renderReview($("review"), controller.view(), actions);
   await loadAttributions();
+
+  for (const b of document.querySelectorAll<HTMLButtonElement>("#views button")) {
+    b.addEventListener("click", () => void showView((b.dataset.view as "review" | "stats") ?? "review"));
+  }
+
+  // The popup can request opening straight on the stats view.
+  try {
+    const sess = await chrome.storage.session.get(PANEL_VIEW_KEY);
+    if (sess[PANEL_VIEW_KEY] === "stats") {
+      await chrome.storage.session.remove(PANEL_VIEW_KEY);
+      await showView("stats");
+    }
+  } catch {
+    /* storage.session may be unavailable; default to the review view */
+  }
 
   $("backup").addEventListener("click", async () => download("cymbra-lingua-backup.json", await port.backup()));
   const fileInput = $("restore-file") as HTMLInputElement;
