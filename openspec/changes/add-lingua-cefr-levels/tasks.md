@@ -30,17 +30,17 @@
 
 ## 5. Extension surfaces (apps/lingua-extension)
 
-- [ ] 5.1 Widen the analyzer port/engine/types seam with the new sync methods (band stats, seed, promote, level)
-- [ ] 5.2 Popup: replace the frequency slider with a CEFR level picker for English (keep the slider as the no-CEFR fallback); persist the declared level in versioned local state (and sync it if D-open-question resolves to sync)
-- [ ] 5.3 Highlighting: gate at the declared level and above (below-level presumed-known not highlighted); a clicked word still takes an explicit status
-- [ ] 5.4 Call `promoteByExposure` on read (after page analysis), passing the day; ensure it is a no-op without a declared level
-- [ ] 5.5 Stats screen: CEFR ladder A1→C2 (confirmed/presumed/to-learn per level + estimated position); degrade to frequency bands labelled "estimé" where no CEFR data
-- [ ] 5.6 "Renforcer un niveau" control: level chips, count (bounded by the cap), order toggle, seeds via `seedBand` and reports the number added
-- [ ] 5.7 Extension tests (vitest) for the new model/chart/logic; `yarn lint` + `yarn format:check` clean; keep coverage ≥ 80%
+- [x] 5.1 Widen the analyzer port/engine/types seam with the new sync methods (band stats, seed, promote, level)
+- [x] 5.2 Popup: replace the frequency slider with a CEFR level picker for English (keep the slider as the no-CEFR fallback); persist the declared level in versioned local state (and sync it if D-open-question resolves to sync)
+- [x] 5.3 Highlighting: gate at the declared level and above (below-level presumed-known not highlighted); a clicked word still takes an explicit status
+- [x] 5.4 Call `promoteByExposure` on read (after page analysis), passing the day; ensure it is a no-op without a declared level
+- [x] 5.5 Stats screen: CEFR ladder A1→C2 (confirmed/presumed/to-learn per level + estimated position); degrade to frequency bands labelled "estimé" where no CEFR data
+- [x] 5.6 "Renforcer un niveau" control: level chips, count (bounded by the cap), order toggle, seeds via `seedBand` and reports the number added
+- [x] 5.7 Extension tests (vitest) for the new model/chart/logic; `yarn lint` + `yarn format:check` clean; keep coverage ≥ 80%
 
 ## 6. Validation + delivery
 
-- [ ] 6.1 `openspec validate add-lingua-cefr-levels --strict` passes
-- [ ] 6.2 Verify no proto/wire break (`buf breaking` unaffected — provenance stays a string)
-- [ ] 6.3 Stack the implementation PRs core-first (feat, lingua-scoped); green CI; squash-merge each on CLEAN
-- [ ] 6.4 After merge, `/opsx:archive add-lingua-cefr-levels`
+- [x] 6.1 `openspec validate add-lingua-cefr-levels --strict` passes
+- [x] 6.2 Verify no proto/wire break (`buf breaking` unaffected — provenance stays a string)
+- [x] 6.3 Stack the implementation PRs core-first (feat, lingua-scoped); green CI; squash-merge each on CLEAN
+- [x] 6.4 After merge, `/opsx:archive add-lingua-cefr-levels`
