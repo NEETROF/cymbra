@@ -70,6 +70,33 @@ impl CefrLevel {
             _ => None,
         }
     }
+
+    /// The dense 1-based code stored in the pack's level table (A1 = 1 … C2 = 6);
+    /// 0 in the table means "no level", so this never returns 0.
+    pub fn to_code(self) -> u8 {
+        match self {
+            CefrLevel::A1 => 1,
+            CefrLevel::A2 => 2,
+            CefrLevel::B1 => 3,
+            CefrLevel::B2 => 4,
+            CefrLevel::C1 => 5,
+            CefrLevel::C2 => 6,
+        }
+    }
+
+    /// Parses a dense level code back into a level; `0` (no level) or anything
+    /// out of range yields `None`.
+    pub fn from_code(code: u8) -> Option<CefrLevel> {
+        match code {
+            1 => Some(CefrLevel::A1),
+            2 => Some(CefrLevel::A2),
+            3 => Some(CefrLevel::B1),
+            4 => Some(CefrLevel::B2),
+            5 => Some(CefrLevel::C1),
+            6 => Some(CefrLevel::C2),
+            _ => None,
+        }
+    }
 }
 
 /// A per-lemma CEFR level source, backed by the pack's optional level table.
@@ -99,5 +126,17 @@ mod tests {
             assert_eq!(CefrLevel::from_label(level.label()), Some(level));
         }
         assert_eq!(CefrLevel::from_label("D1"), None);
+    }
+
+    #[test]
+    fn code_round_trips_and_reserves_zero() {
+        for level in CefrLevel::ALL {
+            assert!(level.to_code() >= 1);
+            assert_eq!(CefrLevel::from_code(level.to_code()), Some(level));
+        }
+        assert_eq!(CefrLevel::from_code(0), None); // 0 = no level
+        assert_eq!(CefrLevel::from_code(7), None);
+        // Codes are ordered like the levels.
+        assert!(CefrLevel::A1.to_code() < CefrLevel::C2.to_code());
     }
 }
