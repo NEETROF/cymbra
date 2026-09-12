@@ -4,8 +4,16 @@ import type { CefrLevel, TokenClass } from "./analyzer/types.ts";
 import { type Block, collectBlocks } from "./reading/blocks.ts";
 import { Drawer } from "./reading/drawer.ts";
 import { clear as clearHighlights, injectPageStyles, render } from "./reading/highlight.ts";
+import { ExposureTracker } from "./reading/exposure-tracker.ts";
 import { ReadingObservers } from "./reading/observer.ts";
-import { findTokenAt, type ResolvedToken, resolveTokens, type ScanStats, statsFromAnalysis } from "./reading/scan.ts";
+import {
+  findTokenAt,
+  lemmasByContainer,
+  type ResolvedToken,
+  resolveTokens,
+  type ScanStats,
+  statsFromAnalysis,
+} from "./reading/scan.ts";
 import { captureSelection, MAX_SELECTION_LENGTH, sentenceAround } from "./reading/selection.ts";
 import { type Gesture, WordPopup } from "./reading/wordpopup.ts";
 import { dailyRecorder, recordExposures, recordWordLearned, utcDay } from "./state/dailystats.ts";
@@ -68,6 +76,11 @@ const NOT_ANALYSABLE: ScanStats = statsFromAnalysis({
   percent: null,
 });
 
+/** Distinct read-days after which a below-level presumed word is confirmed known. */
+const EXPOSURE_PROMOTE_DAYS = 4;
+/** Debounce before flushing accumulated reading exposures to the engine. */
+const EXPOSURE_FLUSH_MS = 2000;
+
 class ReadingSession {
   private readonly blocksByContainer = new Map<Element, Block>();
   private resolved: ResolvedToken[] = [];
@@ -80,6 +93,12 @@ class ReadingSession {
   private readonly popup: WordPopup;
   private readonly drawer: Drawer;
   private readonly observers: ReadingObservers;
+  /** Viewport-gated reading exposure (slice 5c): lemmas whose block was actually read. */
+  private readonly exposure: ExposureTracker;
+  private readonly pendingExposure = new Set<string>();
+  private exposureFlushTimer: ReturnType<typeof setTimeout> | null = null;
+  /** The last backup we wrote, to ignore our own storage.onChanged echo. */
+  private lastBackup: string | null = null;
 
   // The port is resolved before construction (`resolveContentPort`) so a CSP-blocked
   // page can hand us the messaging port instead of the in-content WASM engine.
@@ -93,6 +112,7 @@ class ReadingSession {
       record: dailyRecorder(storageArea),
     });
     this.observers = new ReadingObservers({ onRescan: (containers) => void this.refresh(containers) });
+    this.exposure = new ExposureTracker((lemmas) => this.onExposed(lemmas));
   }
 
   async start(): Promise<void> {
@@ -113,6 +133,10 @@ class ReadingSession {
       }
       const toggled = changes[ENABLED_KEY];
       if (toggled) void this.onEnabledChange(toggled.newValue !== false);
+    });
+    // Flush pending reading exposures before the tab is hidden / navigated away.
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden" && this.pendingExposure.size > 0) void this.flushExposure();
     });
     chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       if (msg?.type === "captureSelection") void this.onCaptureSelection();
@@ -136,6 +160,7 @@ class ReadingSession {
     injectPageStyles(tokensCss);
     await this.refresh([document.body]);
     this.observers.start();
+    this.exposure.start();
   }
 
   /** React to the global toggle flipping in another context (popup, other tab). */
@@ -146,6 +171,10 @@ class ReadingSession {
       await this.activate();
     } else {
       this.observers.stop();
+      this.exposure.stop();
+      if (this.exposureFlushTimer !== null) clearTimeout(this.exposureFlushTimer);
+      this.exposureFlushTimer = null;
+      this.pendingExposure.clear();
       this.popup.hide();
       this.resolved = [];
       clearHighlights();
@@ -154,7 +183,9 @@ class ReadingSession {
   }
 
   private async persist(): Promise<void> {
-    await saveBackup(storageArea, await this.port.backup());
+    const backup = await this.port.backup();
+    this.lastBackup = backup; // so our own storage.onChanged echo is ignored
+    await saveBackup(storageArea, backup);
   }
 
   /** Re-walk the given dirty containers, then repaint from a fresh whole-doc analysis. */
@@ -187,6 +218,8 @@ class ReadingSession {
     const analysis = await this.port.analyse(blocks.map((b) => b.text));
     this.resolved = resolveTokens(blocks, analysis);
     this.stats = statsFromAnalysis(analysis);
+    // Track which blocks the reader actually sees, to confirm below-level words by reading.
+    if (this.stats.analysable) this.exposure.track(lemmasByContainer(blocks, analysis));
     // Count studied-word exposures once per page load (§3 daily stats).
     if (this.stats.analysable && !this.exposuresRecorded && this.stats.counted > 0) {
       this.exposuresRecorded = true;
@@ -297,9 +330,34 @@ class ReadingSession {
   }
 
   private async onExternalChange(backup: string): Promise<void> {
+    if (backup === this.lastBackup) return; // our own write echoed back — nothing to do
     await this.port.restore(backup);
     this.calibration = await this.port.calibration();
     await this.repaint();
+  }
+
+  /** A block was read (visible past the dwell): queue its lemmas and throttle a flush. */
+  private onExposed(lemmas: string[]): void {
+    for (const lemma of lemmas) this.pendingExposure.add(lemma);
+    if (this.exposureFlushTimer !== null) return; // a flush is already scheduled
+    this.exposureFlushTimer = setTimeout(() => void this.flushExposure(), EXPOSURE_FLUSH_MS);
+  }
+
+  /**
+   * Record the read lemmas as exposures, then confirm any below-level presumed word
+   * that has now been read on enough distinct days. Off the render path (throttled);
+   * only repaints when a promotion actually changed a word's status.
+   */
+  private async flushExposure(): Promise<void> {
+    this.exposureFlushTimer = null;
+    if (this.pendingExposure.size === 0) return;
+    const lemmas = [...this.pendingExposure];
+    this.pendingExposure.clear();
+    const now = Date.now();
+    await this.port.recordExposures(lemmas, `reading:${location.hostname}`, now);
+    const promoted = await this.port.promoteByExposure(EXPOSURE_PROMOTE_DAYS, now);
+    await this.persist();
+    if (promoted > 0) await this.repaint(); // words became known → refresh highlights
   }
 
   private async onSetCalibration(value: number): Promise<void> {
