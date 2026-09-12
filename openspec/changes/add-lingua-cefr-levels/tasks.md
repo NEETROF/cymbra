@@ -25,8 +25,8 @@
 
 ## 4. WASM bindings (crates/lingua-wasm — thin glue, coverage-excluded)
 
-- [ ] 4.1 Expose `bandStats`, `seedBand`, `promoteByExposure`, and declared-level get/set as JSON methods mirroring `analyse`/`reviewCurrent`
-- [ ] 4.2 Regenerate the extension's analyzer bindings and verify the port/types compile against the new methods
+- [x] 4.1 Exposed `setDeclaredLevel`/`declaredLevel`, `hasLevels`, `levelLadder` (per-level confirmed/presumed/toLearn/total JSON), `recordExposures` (per-lemma, ms→s), `promoteByExposure`, and `seedLevel` (commonest/rare order) on `LinguaEngine`, mirroring the existing JSON-in/out bindings
+- [x] 4.2 Regenerated the extension's wasm pkg (`gen:wasm`) and verified the generated `lingua_wasm.d.ts` carries all seven methods (pkg is a gitignored build artifact). Widening the extension port seam to call them is task 5.1
 
 ## 5. Extension surfaces (apps/lingua-extension)
 
