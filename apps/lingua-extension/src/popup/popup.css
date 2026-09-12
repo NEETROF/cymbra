@@ -1,5 +1,14 @@
 /* Icon-popup styles (a surface the extension owns → full Cymbra identity). Colours
    come only from tokens.css (loaded before this sheet). No colour literals here. */
+
+/* The `hidden` attribute must always win: an id/class rule that sets `display`
+   (e.g. #reset-menu { display: flex }) otherwise overrides the UA `[hidden]`
+   rule, so a toggled flex/grid block stays visible. Toggle visibility via
+   `el.hidden`, and this keeps it honest. */
+[hidden] {
+  display: none !important;
+}
+
 body {
   width: 280px;
   margin: 0;
