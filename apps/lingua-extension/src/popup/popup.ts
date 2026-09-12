@@ -160,7 +160,10 @@ async function main(): Promise<void> {
   calib.addEventListener("input", () => {
     $("calibv").textContent = calib.value;
   });
-  calib.addEventListener("change", () => void send({ type: "setCalibration", value: Number(calib.value) }));
+  calib.addEventListener("change", async () => {
+    await send({ type: "setCalibration", value: Number(calib.value) });
+    await refresh(); // the calibration moves the known-word percentage; reflect it now
+  });
 
   // CEFR level picker: a chip declares the level; "Débutant" (empty value) clears
   // it — nothing presumed known. The content script sets it on the engine.
