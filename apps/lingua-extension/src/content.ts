@@ -138,6 +138,16 @@ class ReadingSession {
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "hidden" && this.pendingExposure.size > 0) void this.flushExposure();
     });
+    // The word popup is position:fixed and anchored to a word's box; a scroll detaches it
+    // (and near the page bottom it could sit half-off-screen). Dismiss it on scroll — a
+    // re-click reopens it correctly placed. Capture so nested scroll containers count too.
+    window.addEventListener(
+      "scroll",
+      () => {
+        if (this.popup.visible()) this.popup.hide();
+      },
+      { capture: true, passive: true },
+    );
     chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       // The mutating commands acknowledge only AFTER their repaint has settled
       // `this.stats`, so the popup's follow-up `getStats` reads the new
@@ -283,7 +293,7 @@ class ReadingSession {
       gloss: hit.token.gloss,
       rarity: rarityText(hit.token.class, this.calibration),
       sentence: sentenceAround(hit.range.startContainer, hit.token.surface),
-      rect: { left: rect.left, bottom: rect.bottom },
+      rect: { left: rect.left, top: rect.top, bottom: rect.bottom },
     });
     e.stopPropagation();
   }

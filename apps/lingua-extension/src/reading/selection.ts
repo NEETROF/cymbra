@@ -24,7 +24,7 @@ export function sentenceAround(node: Node | null, needle: string): string {
 export interface Capture {
   text: string;
   sentence: string;
-  rect: { left: number; bottom: number };
+  rect: { left: number; top: number; bottom: number };
 }
 
 /**
@@ -69,7 +69,7 @@ export function captureSelection(maxLength: number = MAX_SELECTION_LENGTH): Capt
     // Some nodes reject re-selection; the capture itself is still correct.
   }
   const box = typeof range.getBoundingClientRect === "function" ? range.getBoundingClientRect() : null;
-  const rect = { left: box?.left ?? 0, bottom: box?.bottom ?? 0 };
+  const rect = { left: box?.left ?? 0, top: box?.top ?? 0, bottom: box?.bottom ?? 0 };
   const firstWord = text.split(" ")[0] ?? text;
   const sentence = sentenceAround(range.startContainer, firstWord);
   return { text, sentence, rect };

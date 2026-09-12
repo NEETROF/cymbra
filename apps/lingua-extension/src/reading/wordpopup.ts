@@ -34,8 +34,8 @@ export interface WordPopupContent {
   sentence: string;
   /** Whether this is a multi-word expression (hides "Je connais"). */
   expression?: boolean;
-  /** Anchor rectangle in viewport coordinates. */
-  rect: { left: number; bottom: number };
+  /** Anchor rectangle in viewport coordinates (the word's box). */
+  rect: { left: number; top: number; bottom: number };
 }
 
 /** A card view: a detached element tree plus show/hide, independent of any shadow root. */
@@ -107,9 +107,8 @@ export function createCard(): CardView {
       if (!content.expression) actionsEl.append(button("Je connais", "known", false, onGesture));
       actionsEl.append(button("+ Deck", "learning", true, onGesture), button("Ignorer", "ignored", false, onGesture));
 
-      el.style.left = `${clamp(content.rect.left, 8, viewportWidth() - 296)}px`;
-      el.style.top = `${content.rect.bottom + 8}px`;
-      el.hidden = false;
+      el.hidden = false; // reveal first so the card can be measured, then position it
+      positionCard(el, content.rect);
     },
   };
 
@@ -175,11 +174,30 @@ function div(className: string): HTMLElement {
   return e;
 }
 
+/**
+ * Place the fixed card fully within the viewport: just below the word, flipped ABOVE it
+ * when there isn't room below, and finally clamped so it is never clipped. Near the bottom
+ * of the page an un-flipped card showed only partially and — being `position: fixed` —
+ * could not be scrolled into view; the flip + clamp fix that. Measured after the card is
+ * revealed so its real height/width drive the placement.
+ */
+function positionCard(el: HTMLElement, rect: { left: number; top: number; bottom: number }): void {
+  const r = el.getBoundingClientRect();
+  el.style.left = `${clamp(rect.left, 8, viewportWidth() - r.width - 8)}px`;
+  let top = rect.bottom + 8; // prefer just below the word
+  if (top + r.height > viewportHeight() - 8) top = rect.top - 8 - r.height; // no room below → flip above
+  el.style.top = `${clamp(top, 8, viewportHeight() - r.height - 8)}px`; // keep it fully on screen
+}
+
 function clamp(x: number, lo: number, hi: number): number {
   const top = hi < lo ? lo : hi;
   return Math.max(lo, Math.min(top, x));
 }
 
 function viewportWidth(): number {
-  return document.documentElement.clientWidth || 1024;
+  return document.documentElement.clientWidth || window.innerWidth || 1024;
+}
+
+function viewportHeight(): number {
+  return document.documentElement.clientHeight || window.innerHeight || 768;
 }
