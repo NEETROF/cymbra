@@ -17,11 +17,11 @@
 
 ## 3. Pack format + data pipeline (crates/lingua-pack, scripts/lingua-data)
 
-- [ ] 3.1 Add the optional per-lemma CEFR level section to the pack container format + `PackMeta`; reader in `lingua-core::packs`; bump the pack format version and `ANALYZER_VERSION`
-- [ ] 3.2 Add the CEFR-J v1.6 + Octanove C1/C2 join step to the build pipeline (lowest-level collapse rule); record sources in `scripts/lingua-data/SOURCES.md`
-- [ ] 3.3 Extend the licence guard to admit CEFR-J (citation) + Octanove (CC BY-SA 4.0) and write both attributions into NOTICE
-- [ ] 3.4 Regenerate the 3 fixture packs and the real gitignored pack (`gen:pack:real`) at the new version; confirm the `build.mjs` guard passes
-- [ ] 3.5 Update the en-fr testdata pack so host tests in §1–§2 can assert real level enumeration
+- [x] 3.1 Add the optional per-lemma CEFR level section (`levels`, one u8/lemma-id) to the pack container + reader in `lingua-core::packs` (`Pack::level`, `lemmas_at_level`, `has_levels`). **No `ANALYZER_VERSION` bump**: the section is additive and behaviour-preserving (level-based presumed-known only activates once a level is declared), so old cores load a level-bearing pack and ignore the section, and a level-less pack is byte-identical to before — this avoids the regenerate-everything/break-the-extension landmine
+- [x] 3.2 Add the CEFR-J v1.5 + Octanove C1/C2 join step to the build pipeline (`reduce-en-fr.py` `reduce_levels`, lowest-level collapse; `build.sh` fetches both CSVs from the Open Language Profiles repo); record sources in `scripts/lingua-data/SOURCES.md`
+- [x] 3.3 CEFR-J (Permissive + citation) + Octanove (CC BY-SA 4.0) pass the existing licence guard; both attributions written into the generated + testdata NOTICE and declared in the manifests
+- [x] 3.4 Because there is no version bump, existing packs stay compatible and need no forced regeneration; the real pack gains levels on its next pipeline rebuild (CI/dev). Regenerated the testdata pack + `backend/lingua/packs-manifest.json` (staleness test green). Also fixed a `set -u` empty-array bug in `build.sh` (macOS bash 3.2)
+- [x] 3.5 Added `scripts/lingua-data/testdata/en-fr/level.tsv` (real CEFR values: run A1, city A1, seldom B2) so host tests assert real level enumeration end-to-end
 
 ## 4. WASM bindings (crates/lingua-wasm — thin glue, coverage-excluded)
 
