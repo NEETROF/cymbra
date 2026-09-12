@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.0](https://github.com/NEETROF/cymbra/compare/back-office-v0.14.0...back-office-v0.15.0) (2026-09-12)
+
+
+### Features
+
+* **lingua:** add the back-office ops console ([#365](https://github.com/NEETROF/cymbra/issues/365)) ([89fb161](https://github.com/NEETROF/cymbra/commit/89fb161d3125768098505ce937fd9809aa5d166f))
+
 ## [0.14.0](https://github.com/NEETROF/cymbra/compare/back-office-v0.13.0...back-office-v0.14.0) (2026-09-07)
 
 
