@@ -37,6 +37,25 @@ pub struct StatusChange {
     pub sequence: i64,
 }
 
+/// One declared-level decision from a client outbox (`add-lingua-cefr-levels`).
+/// `level` is `""` for "débutant" (an explicit from-zero choice) or a CEFR label.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DeclaredLevelOpInput {
+    pub language: String,
+    pub level: String,
+    pub client_ts: i64,
+    pub device_id: String,
+}
+
+/// A resolved declared level as it now stands on the server.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DeclaredLevelChange {
+    pub language: String,
+    pub level: String,
+    pub updated_at: i64,
+    pub sequence: i64,
+}
+
 /// Alias kept for the public surface; a status op as accepted from a client.
 pub type Status = StatusOpInput;
 
@@ -47,12 +66,25 @@ pub trait KnownWordsRepo: Send + Sync {
     /// Apply one op (its `client_ts` is already clamped). Returns whether it won LWW and
     /// changed stored state; a winning op is assigned the next change sequence.
     async fn apply_op(&self, user: &str, op: &StatusOpInput) -> Result<bool>;
-    /// The user's current tip cursor (max change sequence; 0 when empty).
+    /// The user's current tip cursor (max change sequence across statuses AND declared
+    /// levels, which share one per-user sequence; 0 when empty).
     async fn tip_cursor(&self, user: &str) -> Result<i64>;
-    /// Changes with `sequence > cursor`, in sequence order.
+    /// Status changes with `sequence > cursor`, in sequence order.
     async fn changes_since(&self, user: &str, cursor: i64) -> Result<Vec<StatusChange>>;
     /// Every current status for the user (the snapshot).
     async fn snapshot(&self, user: &str) -> Result<Vec<StatusChange>>;
+
+    /// Apply one declared-level op (its `client_ts` is already clamped), same LWW + change
+    /// sequence as [`apply_op`](Self::apply_op). Returns whether it won and changed state.
+    async fn apply_level_op(&self, user: &str, op: &DeclaredLevelOpInput) -> Result<bool>;
+    /// Declared-level changes with `sequence > cursor`, in sequence order.
+    async fn level_changes_since(
+        &self,
+        user: &str,
+        cursor: i64,
+    ) -> Result<Vec<DeclaredLevelChange>>;
+    /// Every current declared level for the user (the snapshot).
+    async fn level_snapshot(&self, user: &str) -> Result<Vec<DeclaredLevelChange>>;
 }
 
 /// Orchestrates status sync over a [`KnownWordsRepo`].
@@ -84,11 +116,47 @@ impl KnownWordsModule {
         Ok((applied, self.repo.tip_cursor(user).await?))
     }
 
+    /// Drain declared-level ops the same way as [`push_ops`](Self::push_ops): clamp, apply
+    /// LWW, return how many changed state plus the new tip cursor. Levels share the per-user
+    /// change sequence with statuses, so either push advances the same cursor.
+    pub async fn push_level_ops(
+        &self,
+        user: &str,
+        levels: Vec<DeclaredLevelOpInput>,
+        now: i64,
+    ) -> Result<(u64, i64)> {
+        let mut applied = 0u64;
+        for mut op in levels {
+            op.client_ts = clamp_ts(op.client_ts, now);
+            if self.repo.apply_level_op(user, &op).await? {
+                applied += 1;
+            }
+        }
+        Ok((applied, self.repo.tip_cursor(user).await?))
+    }
+
     /// Pull changes after `cursor`, returning them and the cursor to use next time.
     pub async fn pull_changes(&self, user: &str, cursor: i64) -> Result<(Vec<StatusChange>, i64)> {
         let changes = self.repo.changes_since(user, cursor).await?;
         let next = changes.iter().map(|c| c.sequence).max().unwrap_or(cursor);
         Ok((changes, next))
+    }
+
+    /// Pull declared-level changes after `cursor` (the same cursor space as
+    /// [`pull_changes`](Self::pull_changes)), returning them and the next cursor.
+    pub async fn pull_level_changes(
+        &self,
+        user: &str,
+        cursor: i64,
+    ) -> Result<(Vec<DeclaredLevelChange>, i64)> {
+        let changes = self.repo.level_changes_since(user, cursor).await?;
+        let next = changes.iter().map(|c| c.sequence).max().unwrap_or(cursor);
+        Ok((changes, next))
+    }
+
+    /// The declared-level snapshot — every current declared level for the user.
+    pub async fn level_snapshot(&self, user: &str) -> Result<Vec<DeclaredLevelChange>> {
+        self.repo.level_snapshot(user).await
     }
 
     /// A snapshot guarded by an ETag (the tip cursor as a string): when the client's
@@ -122,10 +190,20 @@ mod tests {
     }
 
     #[derive(Default)]
+    struct LevelStored {
+        level: String,
+        updated_at: i64,
+        device_id: String,
+        sequence: i64,
+    }
+
+    #[derive(Default)]
     struct FakeKnownWordsRepo {
         // user -> (language, lemma) -> stored
         #[allow(clippy::type_complexity)]
         rows: Mutex<HashMap<String, HashMap<(String, String), Stored>>>,
+        // user -> language -> declared level (shares `seq` with statuses)
+        levels: Mutex<HashMap<String, HashMap<String, LevelStored>>>,
         seq: Mutex<i64>,
     }
 
@@ -161,13 +239,22 @@ mod tests {
 
         async fn tip_cursor(&self, user: &str) -> Result<i64> {
             let rows = self.rows.lock().unwrap();
-            Ok(rows
+            let status_max = rows
                 .get(user)
                 .into_iter()
                 .flat_map(|m| m.values())
                 .map(|s| s.sequence)
                 .max()
-                .unwrap_or(0))
+                .unwrap_or(0);
+            let levels = self.levels.lock().unwrap();
+            let level_max = levels
+                .get(user)
+                .into_iter()
+                .flat_map(|m| m.values())
+                .map(|l| l.sequence)
+                .max()
+                .unwrap_or(0);
+            Ok(status_max.max(level_max))
         }
 
         async fn changes_since(&self, user: &str, cursor: i64) -> Result<Vec<StatusChange>> {
@@ -191,6 +278,59 @@ mod tests {
 
         async fn snapshot(&self, user: &str) -> Result<Vec<StatusChange>> {
             self.changes_since(user, 0).await
+        }
+
+        async fn apply_level_op(&self, user: &str, op: &DeclaredLevelOpInput) -> Result<bool> {
+            let mut levels = self.levels.lock().unwrap();
+            let per_user = levels.entry(user.to_owned()).or_default();
+            if let Some(existing) = per_user.get(&op.language)
+                && !wins(
+                    existing.updated_at,
+                    &existing.device_id,
+                    op.client_ts,
+                    &op.device_id,
+                )
+            {
+                return Ok(false);
+            }
+            let mut seq = self.seq.lock().unwrap();
+            *seq += 1;
+            per_user.insert(
+                op.language.clone(),
+                LevelStored {
+                    level: op.level.clone(),
+                    updated_at: op.client_ts,
+                    device_id: op.device_id.clone(),
+                    sequence: *seq,
+                },
+            );
+            Ok(true)
+        }
+
+        async fn level_changes_since(
+            &self,
+            user: &str,
+            cursor: i64,
+        ) -> Result<Vec<DeclaredLevelChange>> {
+            let levels = self.levels.lock().unwrap();
+            let mut out: Vec<DeclaredLevelChange> = levels
+                .get(user)
+                .into_iter()
+                .flat_map(|m| m.iter())
+                .filter(|(_, l)| l.sequence > cursor)
+                .map(|(lang, l)| DeclaredLevelChange {
+                    language: lang.clone(),
+                    level: l.level.clone(),
+                    updated_at: l.updated_at,
+                    sequence: l.sequence,
+                })
+                .collect();
+            out.sort_by_key(|c| c.sequence);
+            Ok(out)
+        }
+
+        async fn level_snapshot(&self, user: &str) -> Result<Vec<DeclaredLevelChange>> {
+            self.level_changes_since(user, 0).await
         }
     }
 
@@ -299,5 +439,76 @@ mod tests {
         let (delta, _) = module.pull_changes("u1", cursor).await.unwrap();
         assert_eq!(delta.len(), 1);
         assert_eq!(delta[0].lemma, "city");
+    }
+
+    fn level_op(level: &str, ts: i64, device: &str) -> DeclaredLevelOpInput {
+        DeclaredLevelOpInput {
+            language: "en".into(),
+            level: level.into(),
+            client_ts: ts,
+            device_id: device.into(),
+        }
+    }
+
+    #[tokio::test]
+    async fn declared_level_push_then_pull_propagates() {
+        let module = KnownWordsModule::new(Arc::new(FakeKnownWordsRepo::default()));
+        let (applied, cursor) = module
+            .push_level_ops("u1", vec![level_op("B2", 100, "mac")], 1_000)
+            .await
+            .unwrap();
+        assert_eq!(applied, 1);
+        let (levels, next) = module.pull_level_changes("u1", 0).await.unwrap();
+        assert_eq!(levels.len(), 1);
+        assert_eq!(levels[0].level, "B2");
+        assert_eq!(next, cursor);
+    }
+
+    #[tokio::test]
+    async fn declared_level_conflict_resolves_by_latest_timestamp() {
+        let module = KnownWordsModule::new(Arc::new(FakeKnownWordsRepo::default()));
+        module
+            .push_level_ops("u1", vec![level_op("B1", 100, "mac")], 1_000)
+            .await
+            .unwrap();
+        module
+            .push_level_ops("u1", vec![level_op("C1", 200, "iphone")], 1_000)
+            .await
+            .unwrap();
+        let snap = module.level_snapshot("u1").await.unwrap();
+        assert_eq!(snap.len(), 1);
+        assert_eq!(snap[0].level, "C1"); // the later decision won
+    }
+
+    #[tokio::test]
+    async fn debutant_syncs_as_an_empty_level() {
+        let module = KnownWordsModule::new(Arc::new(FakeKnownWordsRepo::default()));
+        module
+            .push_level_ops("u1", vec![level_op("", 100, "mac")], 1_000)
+            .await
+            .unwrap();
+        let snap = module.level_snapshot("u1").await.unwrap();
+        assert_eq!(snap.len(), 1);
+        assert_eq!(snap[0].level, ""); // "débutant" is a real, synced decision
+    }
+
+    #[tokio::test]
+    async fn a_level_change_advances_the_shared_cursor() {
+        let module = KnownWordsModule::new(Arc::new(FakeKnownWordsRepo::default()));
+        // A status first, then a level: the level takes the later sequence, so a
+        // client caught up on statuses still has the level waiting past its cursor.
+        module
+            .push_ops("u1", vec![op("seldom", "known", 100, "mac")], 1_000)
+            .await
+            .unwrap();
+        let (_, after_status) = module.pull_changes("u1", 0).await.unwrap();
+        let (_, after_level) = module
+            .push_level_ops("u1", vec![level_op("B2", 150, "mac")], 1_000)
+            .await
+            .unwrap();
+        assert!(after_level > after_status); // the shared sequence advanced
+        let (levels, _) = module.pull_level_changes("u1", after_status).await.unwrap();
+        assert_eq!(levels.len(), 1);
+        assert_eq!(levels[0].level, "B2");
     }
 }

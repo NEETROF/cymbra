@@ -14,7 +14,9 @@ use cymbra_platform::{AppError, Result};
 use sqlx::{PgPool, Row};
 use uuid::Uuid;
 
-use crate::known_words::{KnownWordsRepo, StatusChange, StatusOpInput};
+use crate::known_words::{
+    DeclaredLevelChange, DeclaredLevelOpInput, KnownWordsRepo, StatusChange, StatusOpInput,
+};
 
 fn internal(e: sqlx::Error) -> AppError {
     AppError::Internal(anyhow::anyhow!("lingua db: {e}"))
@@ -64,8 +66,13 @@ impl KnownWordsRepo for PgKnownWordsRepo {
     }
 
     async fn tip_cursor(&self, user: &str) -> Result<i64> {
+        // Statuses and declared levels share `lingua.change_seq`, so the cursor is
+        // the max sequence over both tables — a change to either advances it.
         let row = sqlx::query(
-            "SELECT COALESCE(MAX(seq), 0) AS c FROM lingua.word_statuses WHERE user_id = $1",
+            "SELECT GREATEST( \
+               (SELECT COALESCE(MAX(seq), 0) FROM lingua.word_statuses WHERE user_id = $1), \
+               (SELECT COALESCE(MAX(seq), 0) FROM lingua.declared_levels WHERE user_id = $1) \
+             ) AS c",
         )
         .bind(uid(user)?)
         .fetch_one(&self.pool)
@@ -98,5 +105,58 @@ impl KnownWordsRepo for PgKnownWordsRepo {
 
     async fn snapshot(&self, user: &str) -> Result<Vec<StatusChange>> {
         self.changes_since(user, 0).await
+    }
+
+    async fn apply_level_op(&self, user: &str, op: &DeclaredLevelOpInput) -> Result<bool> {
+        let affected = sqlx::query(
+            "INSERT INTO lingua.declared_levels \
+               (user_id, language, level, updated_at, device_id, seq) \
+             VALUES ($1, $2, $3, $4, $5, nextval('lingua.change_seq')) \
+             ON CONFLICT (user_id, language) DO UPDATE SET \
+               level = excluded.level, updated_at = excluded.updated_at, \
+               device_id = excluded.device_id, seq = nextval('lingua.change_seq') \
+             WHERE excluded.updated_at > lingua.declared_levels.updated_at \
+                OR (excluded.updated_at = lingua.declared_levels.updated_at \
+                    AND excluded.device_id > lingua.declared_levels.device_id)",
+        )
+        .bind(uid(user)?)
+        .bind(&op.language)
+        .bind(&op.level)
+        .bind(op.client_ts)
+        .bind(&op.device_id)
+        .execute(&self.pool)
+        .await
+        .map_err(internal)?
+        .rows_affected();
+        Ok(affected > 0)
+    }
+
+    async fn level_changes_since(
+        &self,
+        user: &str,
+        cursor: i64,
+    ) -> Result<Vec<DeclaredLevelChange>> {
+        let rows = sqlx::query(
+            "SELECT language, level, updated_at, seq FROM lingua.declared_levels \
+             WHERE user_id = $1 AND seq > $2 ORDER BY seq",
+        )
+        .bind(uid(user)?)
+        .bind(cursor)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(internal)?;
+        Ok(rows
+            .iter()
+            .map(|r| DeclaredLevelChange {
+                language: r.get("language"),
+                level: r.get("level"),
+                updated_at: r.get("updated_at"),
+                sequence: r.get("seq"),
+            })
+            .collect())
+    }
+
+    async fn level_snapshot(&self, user: &str) -> Result<Vec<DeclaredLevelChange>> {
+        self.level_changes_since(user, 0).await
     }
 }
