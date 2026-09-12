@@ -135,23 +135,30 @@ async function main(): Promise<void> {
   });
   calib.addEventListener("change", () => void send({ type: "setCalibration", value: Number(calib.value) }));
 
-  // Reset flow: open a menu, choose a scope (partial / complete), then confirm.
-  // Two deliberate clicks minimum, and the destructive path is styled + spelled
-  // out — a single stray click can never wipe the deck. `pendingScope` carries
-  // the choice between the scope step and the confirm step.
+  // Reset flow — a small wizard whose steps REPLACE one another, so the popup
+  // shows exactly one thing at a time:
+  //   rest    → only the "Réinitialiser…" button
+  //   scope   → the button is hidden; the two scope choices + Annuler
+  //   confirm → the warning + Oui, confirmer + Annuler (scope choices hidden)
+  // Any "Annuler" (and confirming) returns to rest — just the button. A stray
+  // click can never wipe the deck (choose scope, then confirm). `pendingScope`
+  // carries the choice from the scope step to the confirm step.
   let pendingScope: "full" | "partial" | null = null;
-  const closeResetMenu = (): void => {
+  const showRest = (): void => {
     $("reset-menu").hidden = true;
+    $("reset").hidden = false;
+    $("reset-scope").hidden = false; // ready for the next open
     $("reset-confirm").hidden = true;
     pendingScope = null;
   };
   $("reset").addEventListener("click", () => {
-    const menu = $("reset-menu");
-    menu.hidden = !menu.hidden;
+    $("reset").hidden = true;
+    $("reset-menu").hidden = false;
+    $("reset-scope").hidden = false;
     $("reset-confirm").hidden = true;
     pendingScope = null;
   });
-  $("reset-cancel").addEventListener("click", closeResetMenu);
+  $("reset-cancel").addEventListener("click", showRest);
   const askConfirm = (scope: "full" | "partial"): void => {
     pendingScope = scope;
     let warn: string;
@@ -167,31 +174,30 @@ async function main(): Promise<void> {
         "Tu n'es pas connecté : cette action est irréversible.";
     }
     $("reset-warn").textContent = warn;
+    // Replace the scope step with the confirmation.
+    $("reset-scope").hidden = true;
     $("reset-confirm").hidden = false;
   };
   $("reset-partial").addEventListener("click", () => askConfirm("partial"));
   $("reset-full").addEventListener("click", () => askConfirm("full"));
-  $("reset-no").addEventListener("click", () => {
-    $("reset-confirm").hidden = true;
-    pendingScope = null;
-  });
+  $("reset-no").addEventListener("click", showRest); // Annuler = exit the whole flow
   $("reset-yes").addEventListener("click", async () => {
     if (!pendingScope) return;
     const scope = pendingScope;
-    closeResetMenu();
+    showRest();
     await send({ type: "reset", scope });
     await refresh();
   });
 
   // Settings view (gear icon): the rarely-used, destructive reset lives here,
-  // off the main page. Opening or leaving it collapses the reset menu.
+  // off the main page. Opening or leaving it returns the reset flow to rest.
   $("settings-open").addEventListener("click", () => {
-    closeResetMenu();
+    showRest();
     $("main-view").hidden = true;
     $("settings-view").hidden = false;
   });
   $("settings-back").addEventListener("click", () => {
-    closeResetMenu();
+    showRest();
     $("settings-view").hidden = true;
     $("main-view").hidden = false;
   });

@@ -1,5 +1,14 @@
 /* Icon-popup styles (a surface the extension owns → full Cymbra identity). Colours
    come only from tokens.css (loaded before this sheet). No colour literals here. */
+
+/* The `hidden` attribute must always win: an id/class rule that sets `display`
+   (e.g. #reset-menu { display: flex }) otherwise overrides the UA `[hidden]`
+   rule, so a toggled flex/grid block stays visible. Toggle visibility via
+   `el.hidden`, and this keeps it honest. */
+[hidden] {
+  display: none !important;
+}
+
 body {
   width: 280px;
   margin: 0;
@@ -276,6 +285,12 @@ button.danger:hover {
   background: var(--cymbra-lingua-panel);
 }
 
+#reset-scope {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .reset-note,
 .reset-warn {
   font-size: 11px;
@@ -291,9 +306,6 @@ button.danger:hover {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-top: 4px;
-  padding-top: 8px;
-  border-top: 1px solid var(--cymbra-lingua-border);
 }
 
 /* Account & sync section (add-lingua-connected-clients §1). */
