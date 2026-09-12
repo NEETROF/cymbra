@@ -139,12 +139,21 @@ class ReadingSession {
       if (document.visibilityState === "hidden" && this.pendingExposure.size > 0) void this.flushExposure();
     });
     chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+      // The mutating commands acknowledge only AFTER their repaint has settled
+      // `this.stats`, so the popup's follow-up `getStats` reads the new
+      // percentage — not the pre-change one it would catch if we acked eagerly.
       if (msg?.type === "captureSelection") void this.onCaptureSelection();
       else if (msg?.type === "toggleDrawer") void this.drawer.toggle();
-      else if (msg?.type === "setCalibration") void this.onSetCalibration(Number(msg.value));
-      else if (msg?.type === "setLevel") void this.onSetLevel((msg.value as CefrLevel) || null);
-      else if (msg?.type === "reset") void this.onReset(msg.scope === "partial" ? "partial" : "full");
-      else if (msg?.type === "getStats") {
+      else if (msg?.type === "setCalibration") {
+        void this.onSetCalibration(Number(msg.value)).then(() => sendResponse(true));
+        return true;
+      } else if (msg?.type === "setLevel") {
+        void this.onSetLevel((msg.value as CefrLevel) || null).then(() => sendResponse(true));
+        return true;
+      } else if (msg?.type === "reset") {
+        void this.onReset(msg.scope === "partial" ? "partial" : "full").then(() => sendResponse(true));
+        return true;
+      } else if (msg?.type === "getStats") {
         void this.statsMessage().then(sendResponse);
         return true; // async response
       }
