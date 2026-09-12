@@ -67,6 +67,9 @@ export class MessagingLinguaPort implements LinguaPort {
   reset(): Promise<void> {
     return this.rpc("reset");
   }
+  resetStatuses(): Promise<void> {
+    return this.rpc("resetStatuses");
+  }
   notice(): Promise<string> {
     return this.rpc("notice");
   }

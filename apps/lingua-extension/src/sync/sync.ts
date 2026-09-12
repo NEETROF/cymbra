@@ -195,6 +195,17 @@ function chunk<T>(arr: T[], size: number): T[][] {
   return out;
 }
 
+/**
+ * Reset the pull cursors to 0 so the NEXT sync re-pulls the full server state
+ * (backend returns everything with `sequence > 0`). Called after a full local
+ * wipe so a signed-in user's statuses + deck re-download from the server instead
+ * of staying gone — the reset becomes a repair, not a loss. Exposure counters are
+ * device-local and do not come back.
+ */
+export async function clearSyncCursors(storage: AsyncStorageArea): Promise<void> {
+  await storage.set({ [STATUS_CURSOR_KEY]: 0, [CARD_CURSOR_KEY]: 0 });
+}
+
 /** The stable per-install device id (LWW tie-break), generated once and stored. */
 export async function getOrCreateDeviceId(storage: AsyncStorageArea): Promise<string> {
   const got = await storage.get(DEVICE_KEY);

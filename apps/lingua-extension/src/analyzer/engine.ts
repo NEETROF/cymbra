@@ -37,6 +37,7 @@ interface WasmEngine {
   backup(): string;
   restore(json: string): void;
   reset(): void;
+  resetStatuses(): void;
   notice(): string;
   licences(): string;
   setStatusAt(lemma: string, status: string, atMs: number): void;
@@ -157,6 +158,10 @@ export class WasmAnalyzerPort implements LinguaPort {
 
   async reset(): Promise<void> {
     (await this.engine()).reset();
+  }
+
+  async resetStatuses(): Promise<void> {
+    (await this.engine()).resetStatuses();
   }
 
   async notice(): Promise<string> {

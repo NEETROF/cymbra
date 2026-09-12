@@ -63,8 +63,12 @@ interface AccountResult {
   state?: AccountState;
 }
 
+/** Whether a Cymbra ID session is active — decides the reset warning's wording. */
+let accountSignedIn = false;
+
 function renderAccount(state: AccountState | null): void {
   const signedIn = state?.signedIn ?? false;
+  accountSignedIn = signedIn;
   $("acct-in").hidden = !signedIn;
   $("acct-out").hidden = signedIn;
   $("acct-error").hidden = true;
@@ -131,9 +135,65 @@ async function main(): Promise<void> {
   });
   calib.addEventListener("change", () => void send({ type: "setCalibration", value: Number(calib.value) }));
 
-  $("reset").addEventListener("click", async () => {
-    await send({ type: "reset" });
+  // Reset flow: open a menu, choose a scope (partial / complete), then confirm.
+  // Two deliberate clicks minimum, and the destructive path is styled + spelled
+  // out — a single stray click can never wipe the deck. `pendingScope` carries
+  // the choice between the scope step and the confirm step.
+  let pendingScope: "full" | "partial" | null = null;
+  const closeResetMenu = (): void => {
+    $("reset-menu").hidden = true;
+    $("reset-confirm").hidden = true;
+    pendingScope = null;
+  };
+  $("reset").addEventListener("click", () => {
+    const menu = $("reset-menu");
+    menu.hidden = !menu.hidden;
+    $("reset-confirm").hidden = true;
+    pendingScope = null;
+  });
+  $("reset-cancel").addEventListener("click", closeResetMenu);
+  const askConfirm = (scope: "full" | "partial"): void => {
+    pendingScope = scope;
+    let warn: string;
+    if (scope === "partial") {
+      warn = "Effacer tes statuts et ta calibration ? Ton deck de révision est conservé.";
+    } else if (accountSignedIn) {
+      warn =
+        "Effacer les données de cet appareil (statuts, deck, progression) ? " +
+        "Comme tu es connecté, elles seront re-téléchargées depuis le serveur à la prochaine synchronisation.";
+    } else {
+      warn =
+        "⚠️ Effacer DÉFINITIVEMENT tes statuts, ton deck de révision et ta progression ? " +
+        "Tu n'es pas connecté : cette action est irréversible.";
+    }
+    $("reset-warn").textContent = warn;
+    $("reset-confirm").hidden = false;
+  };
+  $("reset-partial").addEventListener("click", () => askConfirm("partial"));
+  $("reset-full").addEventListener("click", () => askConfirm("full"));
+  $("reset-no").addEventListener("click", () => {
+    $("reset-confirm").hidden = true;
+    pendingScope = null;
+  });
+  $("reset-yes").addEventListener("click", async () => {
+    if (!pendingScope) return;
+    const scope = pendingScope;
+    closeResetMenu();
+    await send({ type: "reset", scope });
     await refresh();
+  });
+
+  // Settings view (gear icon): the rarely-used, destructive reset lives here,
+  // off the main page. Opening or leaving it collapses the reset menu.
+  $("settings-open").addEventListener("click", () => {
+    closeResetMenu();
+    $("main-view").hidden = true;
+    $("settings-view").hidden = false;
+  });
+  $("settings-back").addEventListener("click", () => {
+    closeResetMenu();
+    $("settings-view").hidden = true;
+    $("main-view").hidden = false;
   });
 
   $("review").addEventListener("click", async () => {

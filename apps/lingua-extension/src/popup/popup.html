@@ -8,68 +8,131 @@
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
-    <h1>Cymbra Lingua</h1>
-
-    <div class="toggle-row">
-      <label class="switch">
-        <input type="checkbox" id="enabled" checked />
-        <span class="slider"></span>
-      </label>
-      <span id="enabled-label">Surlignage activé</span>
+    <div class="topbar">
+      <h1>Cymbra Lingua</h1>
+      <button id="settings-open" class="icon-btn" aria-label="Réglages" title="Réglages">
+        <svg
+          viewBox="0 0 24 24"
+          width="18"
+          height="18"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="3"></circle>
+          <path
+            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+          ></path>
+        </svg>
+      </button>
     </div>
 
-    <div id="disabled-note" class="note" hidden>Surlignage désactivé sur toutes les pages.</div>
+    <div id="main-view">
+      <div class="toggle-row">
+        <label class="switch">
+          <input type="checkbox" id="enabled" checked />
+          <span class="slider"></span>
+        </label>
+        <span id="enabled-label">Surlignage activé</span>
+      </div>
 
-    <div id="setup" hidden>
-      <div class="note">Cette page n'est pas encore analysée.</div>
-      <button class="primary" id="analyse">Analyser cette page</button>
-      <button class="reset" id="always">Toujours surligner (toutes les pages)</button>
+      <div id="disabled-note" class="note" hidden>Surlignage désactivé sur toutes les pages.</div>
+
+      <div id="setup" hidden>
+        <div class="note">Cette page n'est pas encore analysée.</div>
+        <button class="primary" id="analyse">Analyser cette page</button>
+        <button class="reset" id="always">Toujours surligner (toutes les pages)</button>
+      </div>
+
+      <div id="controls" hidden>
+        <div id="analysed">
+          <div class="pct"><span id="pct">—</span></div>
+          <div class="pct-label">de mots connus sur cette page</div>
+          <div class="bar"><span id="bar" style="width: 0%"></span></div>
+
+          <div class="row"><span>Mots analysés</span><b id="counted">0</b></div>
+          <div class="row"><span>Mots inconnus</span><b id="unknown">0</b></div>
+          <div class="row sub"><span>dont mots différents</span><b id="distinct">0</b></div>
+        </div>
+
+        <div id="note" class="note" hidden>Pas de texte anglais détecté sur cette page.</div>
+
+        <div class="row"><span>Mots suivis</span><b id="tracked">0</b></div>
+
+        <div class="calib">
+          <label>Mon niveau : je connais les <b id="calibv">3000</b> mots les plus courants</label>
+          <input type="range" id="calib" min="500" max="10000" step="100" value="3000" />
+        </div>
+
+        <div class="deck"><span>Deck (en cours)</span><b id="deck">0</b></div>
+        <button class="primary" id="review">Réviser (<span id="due">0</span>)</button>
+      </div>
+
+      <div id="account" class="account">
+        <div id="acct-out" hidden>
+          <div class="note">Connecte-toi pour synchroniser ton deck et tes mots entre appareils.</div>
+          <button class="primary" id="signin-google">Continuer avec Google</button>
+          <details class="acct-local">
+            <summary>Email et mot de passe</summary>
+            <input type="email" id="acct-email" placeholder="Email" autocomplete="username" />
+            <input type="password" id="acct-password" placeholder="Mot de passe" autocomplete="current-password" />
+            <button class="reset" id="signin-local">Se connecter</button>
+          </details>
+          <div id="acct-error" class="acct-error" hidden></div>
+        </div>
+        <div id="acct-in" hidden>
+          <div class="row"><span>Compte</span><b>Synchronisation activée</b></div>
+          <button class="reset" id="signout">Se déconnecter</button>
+        </div>
+      </div>
+
+      <button class="reset" id="open-stats">Statistiques d'apprentissage</button>
     </div>
 
-    <div id="controls" hidden>
-      <div id="analysed">
-        <div class="pct"><span id="pct">—</span></div>
-        <div class="pct-label">de mots connus sur cette page</div>
-        <div class="bar"><span id="bar" style="width: 0%"></span></div>
-
-        <div class="row"><span>Mots analysés</span><b id="counted">0</b></div>
-        <div class="row"><span>Mots inconnus</span><b id="unknown">0</b></div>
-        <div class="row sub"><span>dont mots différents</span><b id="distinct">0</b></div>
+    <div id="settings-view" hidden>
+      <div class="settings-head">
+        <button id="settings-back" class="icon-btn" aria-label="Retour" title="Retour">
+          <svg
+            viewBox="0 0 24 24"
+            width="18"
+            height="18"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M15 18l-6-6 6-6"></path>
+          </svg>
+        </button>
+        <span class="settings-title">Réglages</span>
       </div>
 
-      <div id="note" class="note" hidden>Pas de texte anglais détecté sur cette page.</div>
-
-      <div class="row"><span>Mots suivis</span><b id="tracked">0</b></div>
-
-      <div class="calib">
-        <label>Mon niveau : je connais les <b id="calibv">3000</b> mots les plus courants</label>
-        <input type="range" id="calib" min="500" max="10000" step="100" value="3000" />
+      <div class="setting-block">
+        <div class="setting-label">Réinitialisation</div>
+        <div class="note">Efface tes données locales. À n'utiliser qu'exceptionnellement.</div>
+        <div id="reset-box">
+          <button class="reset" id="reset">Réinitialiser…</button>
+          <div id="reset-menu" hidden>
+            <div class="reset-note">
+              Choisis la portée. La réinitialisation complète efface ton deck de révision — c'est définitif.
+            </div>
+            <button class="reset" id="reset-partial">Partielle — statuts + calibration (garde le deck)</button>
+            <button class="danger" id="reset-full">Complète — tout effacer (statuts, deck, progression)</button>
+            <button class="reset" id="reset-cancel">Annuler</button>
+            <div id="reset-confirm" class="reset-confirm" hidden>
+              <div class="reset-warn" id="reset-warn"></div>
+              <button class="danger" id="reset-yes">Oui, confirmer</button>
+              <button class="reset" id="reset-no">Non, annuler</button>
+            </div>
+          </div>
+        </div>
       </div>
-
-      <div class="deck"><span>Deck (en cours)</span><b id="deck">0</b></div>
-      <button class="primary" id="review">Réviser (<span id="due">0</span>)</button>
-      <button class="reset" id="reset">Réinitialiser (statuts + calibration)</button>
     </div>
-
-    <div id="account" class="account">
-      <div id="acct-out" hidden>
-        <div class="note">Connecte-toi pour synchroniser ton deck et tes mots entre appareils.</div>
-        <button class="primary" id="signin-google">Continuer avec Google</button>
-        <details class="acct-local">
-          <summary>Email et mot de passe</summary>
-          <input type="email" id="acct-email" placeholder="Email" autocomplete="username" />
-          <input type="password" id="acct-password" placeholder="Mot de passe" autocomplete="current-password" />
-          <button class="reset" id="signin-local">Se connecter</button>
-        </details>
-        <div id="acct-error" class="acct-error" hidden></div>
-      </div>
-      <div id="acct-in" hidden>
-        <div class="row"><span>Compte</span><b>Synchronisation activée</b></div>
-        <button class="reset" id="signout">Se déconnecter</button>
-      </div>
-    </div>
-
-    <button class="reset" id="open-stats">Statistiques d'apprentissage</button>
 
     <script type="module" src="popup.js"></script>
   </body>

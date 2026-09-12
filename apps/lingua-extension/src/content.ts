@@ -17,6 +17,7 @@ import {
   ROOT_KEY,
   saveBackup,
 } from "./state/storage.ts";
+import { clearSyncCursors } from "./sync/sync.ts";
 import drawerCss from "./styles/drawer.css";
 import popupCss from "./styles/wordpopup.css";
 import reviewCss from "./styles/review.css";
@@ -117,7 +118,7 @@ class ReadingSession {
       if (msg?.type === "captureSelection") void this.onCaptureSelection();
       else if (msg?.type === "toggleDrawer") void this.drawer.toggle();
       else if (msg?.type === "setCalibration") void this.onSetCalibration(Number(msg.value));
-      else if (msg?.type === "reset") void this.onReset();
+      else if (msg?.type === "reset") void this.onReset(msg.scope === "partial" ? "partial" : "full");
       else if (msg?.type === "getStats") {
         void this.statsMessage().then(sendResponse);
         return true; // async response
@@ -308,8 +309,24 @@ class ReadingSession {
     await this.repaint();
   }
 
-  private async onReset(): Promise<void> {
-    await this.port.reset();
+  /**
+   * `full` wipes everything (statuses, exposure, deck + FSRS); `partial` clears
+   * statuses/calibration/level but KEEPS the deck and exposure. Both restore the
+   * default calibration. The popup gates this behind an explicit scope choice and
+   * a confirmation, so a single stray click can never wipe a deck.
+   *
+   * A `full` reset also clears the sync cursors, so the next sync re-pulls the
+   * whole server state: for a signed-in user the statuses + deck re-download
+   * (a repair), rather than being gone. A `partial` reset leaves the cursors
+   * alone — it is a deliberate local clear of statuses, not a re-pull.
+   */
+  private async onReset(scope: "full" | "partial"): Promise<void> {
+    if (scope === "partial") {
+      await this.port.resetStatuses();
+    } else {
+      await this.port.reset();
+      await clearSyncCursors(storageArea);
+    }
     await this.port.setCalibration(3000);
     this.calibration = 3000;
     await this.persist();
