@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bienvenue — Cymbra Lingua</title>
+    <link rel="stylesheet" href="tokens.css" />
+    <link rel="stylesheet" href="onboarding.css" />
+  </head>
+  <body class="onboarding">
+    <main>
+      <h1>Bienvenue dans Cymbra Lingua</h1>
+      <p class="lead">
+        Surligne les mots que tu ne connais pas encore pendant que tu lis en anglais, puis révise-les
+        au bon moment — sans quitter ta page.
+      </p>
+
+      <section id="level-section" hidden>
+        <h2>Quel est ton niveau d'anglais ?</h2>
+        <p class="muted">
+          Les mots en dessous de ton niveau ne seront pas surlignés. Rien n'est présumé tant que tu
+          n'as pas choisi — et tu pourras changer ça à tout moment dans les réglages.
+        </p>
+        <div id="level-chips" class="chips">
+          <button class="lvl" data-lvl="A1">A1</button>
+          <button class="lvl" data-lvl="A2">A2</button>
+          <button class="lvl" data-lvl="B1">B1</button>
+          <button class="lvl" data-lvl="B2">B2</button>
+          <button class="lvl" data-lvl="C1">C1</button>
+          <button class="lvl" data-lvl="C2">C2</button>
+          <button class="lvl beginner" data-lvl="">Débutant — je pars de zéro</button>
+        </div>
+        <p id="level-confirm" class="confirm" hidden></p>
+      </section>
+
+      <section class="start">
+        <h2>Pour commencer</h2>
+        <ol>
+          <li>Épingle l'icône Cymbra Lingua dans la barre du navigateur.</li>
+          <li>Ouvre une page en anglais et clique l'icône pour l'analyser.</li>
+          <li>Clique un mot surligné pour le traduire ou l'ajouter à ton deck.</li>
+        </ol>
+      </section>
+    </main>
+    <script type="module" src="onboarding.js"></script>
+  </body>
+</html>
