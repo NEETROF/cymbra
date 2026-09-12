@@ -196,17 +196,44 @@ h1 {
   font-size: 12px;
 }
 
+.setting-block + .setting-block {
+  margin-top: 18px;
+}
+
 .level {
-  margin: 14px 0 6px;
-  padding-top: 12px;
-  border-top: 1px solid var(--cymbra-lingua-border);
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.level > label {
+/* Compact level reminder shown on the main panel (the picker lives in Réglages). */
+.level-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 12px 0;
   color: var(--cymbra-lingua-muted);
+  font-size: 12px;
+}
+
+.level-indicator b {
+  color: var(--cymbra-lingua-text);
+}
+
+.linklike {
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--cymbra-lingua-accent);
+  text-decoration: underline;
+}
+
+#level-cta {
+  margin: 12px 0;
 }
 
 .level-chips {
@@ -240,12 +267,6 @@ h1 {
 
 .lvl-beginner {
   flex-basis: 100%;
-}
-
-.calib {
-  margin: 14px 0 6px;
-  padding-top: 12px;
-  border-top: 1px solid var(--cymbra-lingua-border);
 }
 
 .calib label {
