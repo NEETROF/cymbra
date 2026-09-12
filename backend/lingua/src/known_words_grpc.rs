@@ -15,11 +15,14 @@ use std::sync::Arc;
 use tonic::{Request, Response, Status};
 
 use crate::grpc_util::{caller, now_ms};
-use crate::known_words::{KnownWordsModule, StatusChange, StatusOpInput};
+use crate::known_words::{
+    DeclaredLevelChange, DeclaredLevelOpInput, KnownWordsModule, StatusChange, StatusOpInput,
+};
 use crate::proto::known_words_service_server::KnownWordsService;
 use crate::proto::{
-    GetSnapshotRequest, GetSnapshotResponse, PullChangesRequest, PullChangesResponse,
-    PushOpsRequest, PushOpsResponse, StatusChange as ProtoChange,
+    DeclaredLevelChange as ProtoLevelChange, GetSnapshotRequest, GetSnapshotResponse,
+    PullChangesRequest, PullChangesResponse, PushOpsRequest, PushOpsResponse,
+    StatusChange as ProtoChange,
 };
 
 pub struct KnownWordsGrpc {
@@ -42,6 +45,15 @@ fn to_proto(c: StatusChange) -> ProtoChange {
     }
 }
 
+fn level_to_proto(c: DeclaredLevelChange) -> ProtoLevelChange {
+    ProtoLevelChange {
+        language: c.language,
+        level: c.level,
+        updated_at: c.updated_at,
+        sequence: c.sequence,
+    }
+}
+
 #[tonic::async_trait]
 impl KnownWordsService for KnownWordsGrpc {
     async fn push_ops(
@@ -49,8 +61,8 @@ impl KnownWordsService for KnownWordsGrpc {
         req: Request<PushOpsRequest>,
     ) -> Result<Response<PushOpsResponse>, Status> {
         let user = caller(&req)?;
-        let ops = req
-            .into_inner()
+        let body = req.into_inner();
+        let ops = body
             .ops
             .into_iter()
             .map(|o| StatusOpInput {
@@ -62,8 +74,26 @@ impl KnownWordsService for KnownWordsGrpc {
                 device_id: o.device_id,
             })
             .collect();
-        let (applied, cursor) = self.module.push_ops(&user, ops, now_ms()).await?;
-        Ok(Response::new(PushOpsResponse { applied, cursor }))
+        let levels = body
+            .declared_levels
+            .into_iter()
+            .map(|o| DeclaredLevelOpInput {
+                language: o.language,
+                level: o.level,
+                client_ts: o.client_ts,
+                device_id: o.device_id,
+            })
+            .collect();
+        // One `now` for both drains, so a status and a level pushed together clamp
+        // against the same clock. Levels share the cursor, so the second call's
+        // tip is the authoritative one to return.
+        let now = now_ms();
+        let (status_applied, _) = self.module.push_ops(&user, ops, now).await?;
+        let (level_applied, cursor) = self.module.push_level_ops(&user, levels, now).await?;
+        Ok(Response::new(PushOpsResponse {
+            applied: status_applied + level_applied,
+            cursor,
+        }))
     }
 
     async fn pull_changes(
@@ -71,13 +101,13 @@ impl KnownWordsService for KnownWordsGrpc {
         req: Request<PullChangesRequest>,
     ) -> Result<Response<PullChangesResponse>, Status> {
         let user = caller(&req)?;
-        let (changes, cursor) = self
-            .module
-            .pull_changes(&user, req.into_inner().cursor)
-            .await?;
+        let cursor = req.into_inner().cursor;
+        let (changes, status_next) = self.module.pull_changes(&user, cursor).await?;
+        let (levels, level_next) = self.module.pull_level_changes(&user, cursor).await?;
         Ok(Response::new(PullChangesResponse {
             changes: changes.into_iter().map(to_proto).collect(),
-            cursor,
+            cursor: status_next.max(level_next),
+            declared_levels: levels.into_iter().map(level_to_proto).collect(),
         }))
     }
 
@@ -90,10 +120,18 @@ impl KnownWordsService for KnownWordsGrpc {
             .module
             .get_snapshot(&user, &req.into_inner().etag)
             .await?;
+        // When the ETag matched, the whole snapshot is unchanged — levels included —
+        // so skip the level read too.
+        let levels = if unchanged {
+            Vec::new()
+        } else {
+            self.module.level_snapshot(&user).await?
+        };
         Ok(Response::new(GetSnapshotResponse {
             unchanged,
             etag,
             statuses: statuses.into_iter().map(to_proto).collect(),
+            declared_levels: levels.into_iter().map(level_to_proto).collect(),
         }))
     }
 }

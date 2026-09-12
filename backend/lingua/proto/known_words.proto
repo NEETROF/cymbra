@@ -35,8 +35,21 @@ message StatusOp {
   string device_id = 6; // stable per-device id (last-write-wins tie-break)
 }
 
+// One declared-level decision from a client's outbox (add-lingua-cefr-levels).
+// The declared CEFR level is a per-language preference that rides this service so
+// a level change bumps the same per-user cursor/ETag as statuses and propagates
+// with them. It is the user's own preference — the privacy allow-list above still
+// holds (no URL, page text, or reading history).
+message DeclaredLevelOp {
+  string language = 1; // studied-language code, e.g. "en"
+  string level = 2; // "" = "débutant" (an explicit from-zero choice) | "A1".."C2"
+  int64 client_ts = 3; // client decision time (epoch millis); future values clamped on receipt
+  string device_id = 4; // stable per-device id (last-write-wins tie-break)
+}
+
 message PushOpsRequest {
   repeated StatusOp ops = 1;
+  repeated DeclaredLevelOp declared_levels = 2; // add-lingua-cefr-levels
 }
 
 message PushOpsResponse {
@@ -57,9 +70,18 @@ message StatusChange {
   int64 sequence = 5; // the server's monotonic change sequence
 }
 
+// A resolved declared level as it now stands on the server (add-lingua-cefr-levels).
+message DeclaredLevelChange {
+  string language = 1;
+  string level = 2; // "" = débutant | "A1".."C2"
+  int64 updated_at = 3; // the winning decision's (clamped) timestamp
+  int64 sequence = 4; // the same per-user change sequence as StatusChange
+}
+
 message PullChangesResponse {
   repeated StatusChange changes = 1;
   int64 cursor = 2; // pass back on the next pull
+  repeated DeclaredLevelChange declared_levels = 3; // add-lingua-cefr-levels
 }
 
 message GetSnapshotRequest {
@@ -70,4 +92,5 @@ message GetSnapshotResponse {
   bool unchanged = 1; // true => the ETag matched; statuses is empty
   string etag = 2;
   repeated StatusChange statuses = 3;
+  repeated DeclaredLevelChange declared_levels = 4; // add-lingua-cefr-levels
 }

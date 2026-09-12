@@ -321,7 +321,12 @@ pub async fn purge_user_with(
     // the rows in the same transaction so no Lingua data outlives the account. Skipped
     // entirely when the schema is not deployed. Table names MUST match the migration.
     if lingua_deployed {
-        for table in ["lingua.word_statuses", "lingua.cards", "lingua.daily_stats"] {
+        for table in [
+            "lingua.word_statuses",
+            "lingua.declared_levels",
+            "lingua.cards",
+            "lingua.daily_stats",
+        ] {
             sqlx::query(&format!("DELETE FROM {table} WHERE user_id = $1"))
                 .bind(uid)
                 .execute(&mut *tx)
