@@ -1,3 +1,4 @@
+import type { CefrLevel } from "../analyzer/types.ts";
 import { loadEnabled, saveEnabled } from "../state/storage.ts";
 
 // Icon-popup controller (a surface the extension owns). It holds no engine and no
@@ -19,6 +20,8 @@ interface PageStats {
   unknownOccurrences: number;
   distinctUnknown: number;
   calibration: number;
+  declaredLevel: CefrLevel | null;
+  hasLevels: boolean;
   trackedCount: number;
   deckCount: number;
   dueCount: number;
@@ -100,8 +103,25 @@ function render(stats: PageStats | null): void {
   $("tracked").textContent = String(stats.trackedCount);
   $("deck").textContent = String(stats.deckCount);
   $("due").textContent = String(stats.dueCount);
-  ($("calib") as HTMLInputElement).value = String(stats.calibration);
-  $("calibv").textContent = String(stats.calibration);
+
+  // With CEFR data, the reader declares a level (the frequency slider is the
+  // fallback for language packs without CEFR levels).
+  if (stats.hasLevels) {
+    $("level-block").hidden = false;
+    $("calib-block").hidden = true;
+    const current = stats.declaredLevel ?? "";
+    for (const b of document.querySelectorAll<HTMLButtonElement>("#level-chips .lvl")) {
+      b.classList.toggle("active", (b.dataset.lvl ?? "") === current);
+    }
+    $("level-hint").textContent = stats.declaredLevel
+      ? `Les mots sous ${stats.declaredLevel} ne sont plus surlignés.`
+      : "Choisis ton niveau — rien n'est présumé connu pour l'instant.";
+  } else {
+    $("level-block").hidden = true;
+    $("calib-block").hidden = false;
+    ($("calib") as HTMLInputElement).value = String(stats.calibration);
+    $("calibv").textContent = String(stats.calibration);
+  }
 }
 
 async function analyseCurrentPage(): Promise<void> {
@@ -134,6 +154,15 @@ async function main(): Promise<void> {
     $("calibv").textContent = calib.value;
   });
   calib.addEventListener("change", () => void send({ type: "setCalibration", value: Number(calib.value) }));
+
+  // CEFR level picker: a chip declares the level; "Débutant" (empty value) clears
+  // it — nothing presumed known. The content script sets it on the engine.
+  for (const chip of document.querySelectorAll<HTMLButtonElement>("#level-chips .lvl")) {
+    chip.addEventListener("click", async () => {
+      await send({ type: "setLevel", value: chip.dataset.lvl ?? "" });
+      await refresh();
+    });
+  }
 
   // Reset flow — a small wizard whose steps REPLACE one another, so the popup
   // shows exactly one thing at a time:

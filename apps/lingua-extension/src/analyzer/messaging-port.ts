@@ -1,5 +1,5 @@
 import type { CardOp, LinguaPort, NewCard, Rating, ReviewCard, StatusChangeIn, StatusOp } from "./port.ts";
-import type { LemmaStatus, PageAnalysis } from "./types.ts";
+import type { CefrLevel, LemmaStatus, LevelRow, PageAnalysis, SeedOrder } from "./types.ts";
 import { sendRpc } from "./rpc.ts";
 
 // The Firefox AnalyzerPort implementation: a thin LinguaPort that forwards every call
@@ -90,5 +90,26 @@ export class MessagingLinguaPort implements LinguaPort {
   }
   applyCardOps(ops: CardOp[]): Promise<number> {
     return this.rpc("applyCardOps", [ops]);
+  }
+  setDeclaredLevel(level: CefrLevel | null): Promise<void> {
+    return this.rpc("setDeclaredLevel", [level]);
+  }
+  declaredLevel(): Promise<CefrLevel | null> {
+    return this.rpc("declaredLevel");
+  }
+  hasLevels(): Promise<boolean> {
+    return this.rpc("hasLevels");
+  }
+  levelLadder(): Promise<LevelRow[]> {
+    return this.rpc("levelLadder");
+  }
+  recordExposures(lemmas: string[], source: string, atMs: number): Promise<void> {
+    return this.rpc("recordExposures", [lemmas, source, atMs]);
+  }
+  promoteByExposure(thresholdDays: number, atMs: number): Promise<number> {
+    return this.rpc("promoteByExposure", [thresholdDays, atMs]);
+  }
+  seedLevel(level: CefrLevel, count: number, order: SeedOrder, at: number): Promise<number> {
+    return this.rpc("seedLevel", [level, count, order, at]);
   }
 }

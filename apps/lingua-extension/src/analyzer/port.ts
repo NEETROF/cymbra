@@ -1,4 +1,4 @@
-import type { LemmaStatus, PageAnalysis } from "./types.ts";
+import type { CefrLevel, LemmaStatus, LevelRow, PageAnalysis, SeedOrder } from "./types.ts";
 
 // The AnalyzerPort seam (design D2). The content script consumes analysis exclusively
 // through this interface, never touching the WASM module directly. In this Chromium
@@ -129,4 +129,22 @@ export interface LinguaPort extends AnalyzerPort {
   exportCardOps(): Promise<CardOp[]>;
   /** Apply pulled card ops under last-write-wins; returns how many changed. */
   applyCardOps(ops: CardOp[]): Promise<number>;
+
+  // CEFR levels (add-lingua-cefr-levels): the reader declares a level, reads
+  // fill the ladder, and a level can seed the deck.
+
+  /** Declare the reader's CEFR level, or `null` to clear it (back to frequency calibration). */
+  setDeclaredLevel(level: CefrLevel | null): Promise<void>;
+  /** The declared CEFR level, or `null` if none is set. */
+  declaredLevel(): Promise<CefrLevel | null>;
+  /** Whether the loaded pack carries CEFR data (else the ladder/feeding fall back to frequency). */
+  hasLevels(): Promise<boolean>;
+  /** The CEFR ladder A1→C2: confirmed / presumed / to-learn per level. Empty without CEFR data. */
+  levelLadder(): Promise<LevelRow[]>;
+  /** Record one reading exposure per lemma (feeds distinct-day counters; never changes a status). */
+  recordExposures(lemmas: string[], source: string, atMs: number): Promise<void>;
+  /** Confirm presumed-known lemmas read on ≥ N distinct days; returns how many were promoted. */
+  promoteByExposure(thresholdDays: number, atMs: number): Promise<number>;
+  /** Seed up to `count` cards from a level (commonest- or rarest-first); returns how many added. */
+  seedLevel(level: CefrLevel, count: number, order: SeedOrder, at: number): Promise<number>;
 }

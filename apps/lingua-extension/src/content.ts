@@ -1,6 +1,6 @@
 import { resolveContentPort } from "./analyzer/create-port.ts";
 import type { LinguaPort } from "./analyzer/port.ts";
-import type { TokenClass } from "./analyzer/types.ts";
+import type { CefrLevel, TokenClass } from "./analyzer/types.ts";
 import { type Block, collectBlocks } from "./reading/blocks.ts";
 import { Drawer } from "./reading/drawer.ts";
 import { clear as clearHighlights, injectPageStyles, render } from "./reading/highlight.ts";
@@ -118,6 +118,7 @@ class ReadingSession {
       if (msg?.type === "captureSelection") void this.onCaptureSelection();
       else if (msg?.type === "toggleDrawer") void this.drawer.toggle();
       else if (msg?.type === "setCalibration") void this.onSetCalibration(Number(msg.value));
+      else if (msg?.type === "setLevel") void this.onSetLevel((msg.value as CefrLevel) || null);
       else if (msg?.type === "reset") void this.onReset(msg.scope === "partial" ? "partial" : "full");
       else if (msg?.type === "getStats") {
         void this.statsMessage().then(sendResponse);
@@ -310,6 +311,21 @@ class ReadingSession {
   }
 
   /**
+   * Declare (or clear, with `null` = "débutant / from zero") the reader's CEFR
+   * level. With a level in play the frequency calibration must presume nothing —
+   * the level is the only source of presumed-known (design: no silent
+   * presumption) — so it is pinned to 0. Below-level words then stop being
+   * highlighted; at/above stay highlighted.
+   */
+  private async onSetLevel(level: CefrLevel | null): Promise<void> {
+    await this.port.setDeclaredLevel(level);
+    await this.port.setCalibration(0);
+    this.calibration = 0;
+    await this.persist();
+    await this.repaint();
+  }
+
+  /**
    * `full` wipes everything (statuses, exposure, deck + FSRS); `partial` clears
    * statuses/calibration/level but KEEPS the deck and exposure. Both restore the
    * default calibration. The popup gates this behind an explicit scope choice and
@@ -327,8 +343,12 @@ class ReadingSession {
       await this.port.reset();
       await clearSyncCursors(storageArea);
     }
-    await this.port.setCalibration(3000);
-    this.calibration = 3000;
+    // Option B: with CEFR data, presume nothing until the reader picks a level —
+    // keep frequency calibration at 0 and let the popup re-prompt for a level.
+    // Without CEFR data, restore the default frequency calibration.
+    const cal = (await this.port.hasLevels()) ? 0 : 3000;
+    await this.port.setCalibration(cal);
+    this.calibration = cal;
     await this.persist();
     await this.repaint();
   }
@@ -342,6 +362,8 @@ class ReadingSession {
       unknownOccurrences: this.stats.unknownOccurrences,
       distinctUnknown: this.stats.distinctUnknown,
       calibration: this.calibration,
+      declaredLevel: await this.port.declaredLevel(),
+      hasLevels: await this.port.hasLevels(),
       trackedCount: await this.port.trackedCount(),
       deckCount: await this.port.deckCount(),
       dueCount: await this.port.dueCount(now),

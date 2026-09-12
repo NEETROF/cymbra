@@ -196,6 +196,52 @@ h1 {
   font-size: 12px;
 }
 
+.level {
+  margin: 14px 0 6px;
+  padding-top: 12px;
+  border-top: 1px solid var(--cymbra-lingua-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.level > label {
+  color: var(--cymbra-lingua-muted);
+}
+
+.level-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.lvl {
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--cymbra-lingua-border-2);
+  background: var(--cymbra-lingua-panel-2);
+  color: var(--cymbra-lingua-muted);
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.lvl:hover {
+  background: var(--cymbra-lingua-panel-3);
+  color: var(--cymbra-lingua-text);
+}
+
+.lvl.active {
+  background: var(--cymbra-lingua-accent-strong);
+  border-color: var(--cymbra-lingua-accent-strong);
+  color: var(--cymbra-lingua-accent-ink);
+  font-weight: 600;
+}
+
+.lvl-beginner {
+  flex-basis: 100%;
+}
+
 .calib {
   margin: 14px 0 6px;
   padding-top: 12px;
