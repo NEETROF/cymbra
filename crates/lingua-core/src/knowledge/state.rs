@@ -21,7 +21,7 @@
 //! token's candidate lemmas the token takes the most-known verdict (known if
 //! **any** candidate is known — the learner's favour).
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
@@ -112,6 +112,16 @@ pub struct KnowledgeState {
     /// so an older backup restores cleanly.
     #[serde(default)]
     declared_level: BTreeMap<StudiedLanguage, CefrLevel>,
+    /// Last-decision time (epoch millis) of the declared level per language, for
+    /// cross-device last-write-wins sync (`add-lingua-cefr-levels`). Its PRESENCE
+    /// is the record that a level decision was made — including a decision of
+    /// "débutant" (no level), which leaves `declared_level` empty but stamps a
+    /// time here, so it is distinguishable from "never decided" and can win LWW.
+    /// Absent = 0 (never decided, or a pre-sync level restored from an older
+    /// backup, which loses to any real timestamp). `#[serde(default)]` so an older
+    /// backup restores cleanly.
+    #[serde(default)]
+    declared_level_at: BTreeMap<StudiedLanguage, i64>,
     /// Last-change time (epoch millis) per lemma, for cross-device last-write-
     /// wins sync (`add-lingua-connected-clients`). Absent = 0 (a pre-sync entry,
     /// which loses to any real timestamp). `#[serde(default)]` so an older backup
@@ -128,6 +138,16 @@ pub struct StatusRecord {
     pub language: StudiedLanguage,
     pub lemma: String,
     pub status: Status,
+    pub updated_at: i64,
+}
+
+/// One exported declared-level decision for the sync outbox — a language's
+/// current declared level (`None` = "débutant", an explicit from-zero choice)
+/// and the time that decision was last made on this device.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeclaredLevelRecord {
+    pub language: StudiedLanguage,
+    pub level: Option<CefrLevel>,
     pub updated_at: i64,
 }
 
@@ -263,6 +283,68 @@ impl KnowledgeState {
     /// calibration.
     pub fn clear_declared_level(&mut self, lang: StudiedLanguage) {
         self.declared_level.remove(&lang);
+    }
+
+    /// Records a declared-level decision (`Some(level)`, or `None` for
+    /// "débutant") and stamps its sync time (epoch millis). The mutation path a
+    /// surface uses, so the decision carries a time the sync outbox and
+    /// cross-device LWW can order it by. Mirrors [`set_status_at`](Self::set_status_at).
+    pub fn set_declared_level_at(
+        &mut self,
+        lang: StudiedLanguage,
+        level: Option<CefrLevel>,
+        at_ms: i64,
+    ) {
+        match level {
+            Some(l) => self.set_declared_level(lang, l),
+            None => self.clear_declared_level(lang),
+        }
+        self.declared_level_at.insert(lang, at_ms);
+    }
+
+    /// The last-decision time (epoch millis) of the declared level for a
+    /// language; 0 if never decided (or a pre-sync level restored from an older
+    /// backup). Mirrors [`status_updated_at`](Self::status_updated_at).
+    pub fn declared_level_updated_at(&self, lang: StudiedLanguage) -> i64 {
+        self.declared_level_at.get(&lang).copied().unwrap_or(0)
+    }
+
+    /// Apply an incoming declared-level decision under last-write-wins: a
+    /// strictly-newer decision wins; an equal timestamp also applies (the server
+    /// resolved the tie, so its value is authoritative and re-applying is a
+    /// no-op); an older one is dropped. `incoming = None` is the explicit
+    /// "débutant" decision (not "clear the record"). Returns whether local state
+    /// changed. Mirrors [`apply_status_lww`](Self::apply_status_lww).
+    pub fn apply_declared_level_lww(
+        &mut self,
+        lang: StudiedLanguage,
+        incoming: Option<CefrLevel>,
+        at_ms: i64,
+    ) -> bool {
+        if at_ms < self.declared_level_updated_at(lang) {
+            return false;
+        }
+        let before = self.declared_level(lang);
+        self.set_declared_level_at(lang, incoming, at_ms);
+        before != incoming
+    }
+
+    /// Every declared-level decision with its sync timestamp, in deterministic
+    /// order — the outbox source for a full push. Emits a language that carries a
+    /// decision timestamp OR a declared level (the latter covers a level set
+    /// before sync existed, exported with `updated_at` 0 so it loses to any real
+    /// change). Mirrors [`export_statuses`](Self::export_statuses).
+    pub fn export_declared_levels(&self) -> Vec<DeclaredLevelRecord> {
+        let mut langs: BTreeSet<StudiedLanguage> = self.declared_level_at.keys().copied().collect();
+        langs.extend(self.declared_level.keys().copied());
+        langs
+            .into_iter()
+            .map(|language| DeclaredLevelRecord {
+                language,
+                level: self.declared_level(language),
+                updated_at: self.declared_level_updated_at(language),
+            })
+            .collect()
     }
 
     /// Number of explicit statuses across all languages (for stats / tests).
@@ -677,6 +759,69 @@ mod tests {
     }
 
     #[test]
+    fn declared_level_exports_and_round_trips_through_lww() {
+        let mut src = KnowledgeState::new();
+        src.set_declared_level_at(EN, Some(CefrLevel::B2), 500);
+        let records = src.export_declared_levels();
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].level, Some(CefrLevel::B2));
+        assert_eq!(records[0].updated_at, 500);
+
+        // A second device applies the exported decision and converges.
+        let mut dst = KnowledgeState::new();
+        assert!(dst.apply_declared_level_lww(EN, Some(CefrLevel::B2), 500));
+        assert_eq!(dst.declared_level(EN), Some(CefrLevel::B2));
+        assert_eq!(dst.declared_level_updated_at(EN), 500);
+        // Re-applying the identical decision (equal timestamp) changes nothing.
+        assert!(!dst.apply_declared_level_lww(EN, Some(CefrLevel::B2), 500));
+    }
+
+    #[test]
+    fn declared_level_lww_newer_wins_older_loses() {
+        let mut state = KnowledgeState::new();
+        state.set_declared_level_at(EN, Some(CefrLevel::B1), 200);
+        assert!(!state.apply_declared_level_lww(EN, Some(CefrLevel::A1), 100)); // older loses
+        assert_eq!(state.declared_level(EN), Some(CefrLevel::B1));
+        assert!(state.apply_declared_level_lww(EN, Some(CefrLevel::C1), 300)); // newer wins
+        assert_eq!(state.declared_level(EN), Some(CefrLevel::C1));
+    }
+
+    #[test]
+    fn debutant_is_a_real_decision_that_syncs_and_clears_a_remote_level() {
+        // "Débutant" (no level) is an explicit from-zero choice, distinct from
+        // "never decided": it exports with a timestamp and wins LWW over an older level.
+        let mut origin = KnowledgeState::new();
+        origin.set_declared_level_at(EN, None, 400);
+        let records = origin.export_declared_levels();
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].level, None);
+        assert_eq!(records[0].updated_at, 400);
+
+        let mut device = KnowledgeState::new();
+        device.set_declared_level_at(EN, Some(CefrLevel::B2), 300); // an older level
+        assert!(device.apply_declared_level_lww(EN, None, 400)); // débutant wins
+        assert_eq!(device.declared_level(EN), None);
+        assert_eq!(device.declared_level_updated_at(EN), 400);
+    }
+
+    #[test]
+    fn never_decided_exports_nothing_but_a_pre_sync_level_exports_at_zero() {
+        // Never touched → nothing to push.
+        assert!(KnowledgeState::new().export_declared_levels().is_empty());
+        // A level set before sync existed (no stamp) still exports, at time 0, so
+        // it propagates once but loses to any real cross-device change — the
+        // current-user upgrade path.
+        let mut state = KnowledgeState::new();
+        state.set_declared_level(EN, CefrLevel::A2);
+        let records = state.export_declared_levels();
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].level, Some(CefrLevel::A2));
+        assert_eq!(records[0].updated_at, 0);
+        assert!(state.apply_declared_level_lww(EN, Some(CefrLevel::C2), 10)); // real ts beats 0
+        assert_eq!(state.declared_level(EN), Some(CefrLevel::C2));
+    }
+
+    #[test]
     fn a_backup_without_the_updated_map_restores_with_zero_timestamps() {
         // An older backup (add-lingua-decks-review era) has no `updated` field.
         // Strip it from a real serialisation rather than hand-writing the format.
@@ -715,6 +860,7 @@ mod tests {
         state.set_calibration(EN, 3_000);
         state.set_status(EN, "run", Status::Learning);
         state.set_status(EN, "code", Status::Known(KnownSource::Import));
+        state.set_declared_level_at(EN, Some(CefrLevel::B2), 123);
         let json = serde_json::to_string(&state).expect("serialise");
         let back: KnowledgeState = serde_json::from_str(&json).expect("deserialise");
         assert_eq!(state, back);
