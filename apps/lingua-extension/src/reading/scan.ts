@@ -78,6 +78,30 @@ export function statsFromAnalysis(a: PageAnalysis): ScanStats {
 }
 
 /** Resolve the paintable tokens (Learning/Unknown) to DOM Ranges (pure). */
+/**
+ * Distinct lemmas per block container, from the FULL analysis (every class except
+ * proper nouns — not just painted tokens). Feeds viewport-gated exposure so that
+ * below-level "presumed known" words, which are never painted, still count as read
+ * when their container is on screen (add-lingua-cefr-levels, slice 5c).
+ */
+export function lemmasByContainer(blocks: Block[], a: PageAnalysis): Map<Element, string[]> {
+  const sets = new Map<Element, Set<string>>();
+  for (const token of a.tokens) {
+    if (token.class === "ProperNounOutOfLexicon") continue;
+    const block = blocks[token.block];
+    if (!block) continue;
+    let set = sets.get(block.container);
+    if (!set) {
+      set = new Set();
+      sets.set(block.container, set);
+    }
+    set.add(token.lemma);
+  }
+  const out = new Map<Element, string[]>();
+  for (const [container, set] of sets) out.set(container, [...set]);
+  return out;
+}
+
 export function resolveTokens(blocks: Block[], a: PageAnalysis): ResolvedToken[] {
   const resolved: ResolvedToken[] = [];
   for (const token of a.tokens) {
