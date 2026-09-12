@@ -73,6 +73,45 @@ describe("word popup card", () => {
     expect([...phrase.el.querySelectorAll(".actions button")].map((b) => b.textContent)).toEqual(["+ Deck", "Ignorer"]);
   });
 
+  it("offers reclassify actions for a KNOWN word (no 'Je connais', no clear — a Known may be presumed)", () => {
+    const card = createCard();
+    card.show(content({ status: "known" }), () => {});
+    expect([...card.el.querySelectorAll(".actions button")].map((b) => b.textContent)).toEqual(["+ Deck", "Ignorer"]);
+  });
+
+  it("offers reclassify actions for an IGNORED word (no 'Ignorer', adds 'Remettre à apprendre')", () => {
+    const card = createCard();
+    card.show(content({ status: "ignored" }), () => {});
+    expect([...card.el.querySelectorAll(".actions button")].map((b) => b.textContent)).toEqual([
+      "Je connais",
+      "+ Deck",
+      "Remettre à apprendre",
+    ]);
+  });
+
+  it("hides '+ Deck' for a LEARNING word and offers no clear (already 'à apprendre')", () => {
+    const card = createCard();
+    card.show(content({ status: "learning" }), () => {});
+    expect([...card.el.querySelectorAll(".actions button")].map((b) => b.textContent)).toEqual([
+      "Je connais",
+      "Ignorer",
+    ]);
+  });
+
+  it("emits a null status (clear → 'à apprendre') on 'Remettre à apprendre'", () => {
+    const card = createCard();
+    const spy = vi.fn<(g: Gesture) => void>();
+    card.show(content({ status: "ignored" }), spy);
+    button(card.el, "Remettre à apprendre").click();
+    expect(spy).toHaveBeenCalledWith({
+      lemma: "seldom",
+      surface: "Seldom",
+      sentence: "They seldom ship on Friday.",
+      status: null,
+    });
+    expect(card.visible()).toBe(false);
+  });
+
   it("dismisses on the ✕ close button", () => {
     const card = createCard();
     card.show(content(), () => {});

@@ -1,13 +1,16 @@
 import { resolveContentPort } from "./analyzer/create-port.ts";
 import type { LinguaPort } from "./analyzer/port.ts";
-import type { CefrLevel, TokenClass } from "./analyzer/types.ts";
+import type { CefrLevel, LemmaStatus, TokenClass } from "./analyzer/types.ts";
 import { type Block, collectBlocks } from "./reading/blocks.ts";
 import { Drawer } from "./reading/drawer.ts";
 import { clear as clearHighlights, injectPageStyles, render } from "./reading/highlight.ts";
 import { ExposureTracker } from "./reading/exposure-tracker.ts";
 import { ReadingObservers } from "./reading/observer.ts";
 import {
+  type BlockTokens,
+  clickableByContainer,
   findTokenAt,
+  findTokenInBlock,
   lemmasByContainer,
   type ResolvedToken,
   resolveTokens,
@@ -45,6 +48,21 @@ const storageArea: AsyncStorageArea = {
 };
 
 const nowSeconds = (): number => Math.floor(Date.now() / 1000);
+
+/** The reader's current status for a token class, or null for a new/unknown word — drives
+ *  which actions the popup offers when a word is reopened. */
+function statusOfClass(cls: TokenClass): LemmaStatus | null {
+  switch (cls) {
+    case "Known":
+      return "known";
+    case "Ignored":
+      return "ignored";
+    case "Learning":
+      return "learning";
+    default:
+      return null;
+  }
+}
 
 function caretAt(x: number, y: number): { node: Node; offset: number } | null {
   const doc = document as Document & {
@@ -84,6 +102,8 @@ const EXPOSURE_FLUSH_MS = 2000;
 class ReadingSession {
   private readonly blocksByContainer = new Map<Element, Block>();
   private resolved: ResolvedToken[] = [];
+  /** Per-container block+tokens, for the Alt-click reclassify path of non-painted words. */
+  private clickable = new Map<Element, BlockTokens>();
   private stats: ScanStats = NOT_ANALYSABLE;
   private calibration = 3000;
   /** Global master switch. When off the reader does not analyse, paint or pop up. */
@@ -196,6 +216,7 @@ class ReadingSession {
       this.pendingExposure.clear();
       this.popup.hide();
       this.resolved = [];
+      this.clickable.clear();
       clearHighlights();
       this.pushDisabledBadge();
     }
@@ -229,6 +250,7 @@ class ReadingSession {
     const blocks = [...this.blocksByContainer.values()];
     if (blocks.length === 0) {
       this.resolved = [];
+      this.clickable.clear();
       this.stats = NOT_ANALYSABLE;
       clearHighlights();
       this.pushBadge();
@@ -236,6 +258,7 @@ class ReadingSession {
     }
     const analysis = await this.port.analyse(blocks.map((b) => b.text));
     this.resolved = resolveTokens(blocks, analysis);
+    this.clickable = clickableByContainer(blocks, analysis);
     this.stats = statsFromAnalysis(analysis);
     // Track which blocks the reader actually sees, to confirm below-level words by reading.
     if (this.stats.analysable) this.exposure.track(lemmasByContainer(blocks, analysis));
@@ -281,10 +304,14 @@ class ReadingSession {
       if (this.popup.visible()) this.popup.hide();
       return;
     }
-    const hit = findTokenAt(this.resolved, caret.node, caret.offset);
+    // A plain click resolves only PAINTED words (Learning/Unknown). A non-painted word
+    // (Known/Ignored) is reclassifiable only with the Alt/Option modifier — a plain click
+    // must fall through untouched so the page's own click handling is never swallowed.
+    const painted = findTokenAt(this.resolved, caret.node, caret.offset);
+    const hit = painted ?? (e.altKey ? this.reclassifyHit(caret.node, caret.offset) : null);
     if (!hit) {
       if (this.popup.visible()) this.popup.hide();
-      return;
+      return; // no stopPropagation on a miss — a plain click stays the page's to handle
     }
     const rect = hit.range.getBoundingClientRect();
     this.popup.show({
@@ -293,9 +320,22 @@ class ReadingSession {
       gloss: hit.token.gloss,
       rarity: rarityText(hit.token.class, this.calibration),
       sentence: sentenceAround(hit.range.startContainer, hit.token.surface),
+      status: statusOfClass(hit.token.class),
       rect: { left: rect.left, top: rect.top, bottom: rect.bottom },
     });
     e.stopPropagation();
+    if (!painted) e.preventDefault(); // an Alt-click reclassify: suppress the browser default too
+  }
+
+  /** Hit-test a non-painted word (Known/Ignored) by resolving only its own block's tokens.
+   *  Block+tokens come paired from the same analysis, so a since-changed DOM yields a clean
+   *  miss (ranges over old nodes), never a wrong-word hit. */
+  private reclassifyHit(node: Node, offset: number): ResolvedToken | null {
+    let el: Element | null = node instanceof Element ? node : node.parentElement;
+    while (el && !this.clickable.has(el)) el = el.parentElement;
+    const entry = el && this.clickable.get(el);
+    if (!entry) return null;
+    return findTokenInBlock(entry.block, entry.tokens, node, offset);
   }
 
   /** A phrase or compound mouse selection opens the whole-selection card directly. A

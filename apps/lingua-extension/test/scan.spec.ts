@@ -2,7 +2,15 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { AnalyzerPort } from "@/analyzer/port.ts";
 import type { AnalyzedToken, PageAnalysis } from "@/analyzer/types.ts";
 import { collectBlocks } from "@/reading/blocks.ts";
-import { findTokenAt, lemmasByContainer, resolveTokens, scan, statsFromAnalysis } from "@/reading/scan.ts";
+import {
+  clickableByContainer,
+  findTokenAt,
+  findTokenInBlock,
+  lemmasByContainer,
+  resolveTokens,
+  scan,
+  statsFromAnalysis,
+} from "@/reading/scan.ts";
 
 beforeEach(() => {
   document.body.innerHTML = "";
@@ -109,6 +117,37 @@ describe("scan", () => {
     const result = await scan(port);
     expect(result.stats.analysable).toBe(false);
     expect(called).toBe(false);
+  });
+});
+
+describe("clickableByContainer", () => {
+  it("pairs each container's block with its tokens and drops proper nouns", () => {
+    document.body.innerHTML = `<p>alpha</p><p>beta</p>`;
+    const blocks = collectBlocks(document.body);
+    const a = analysis([
+      tok({ block: 0, start: 0, end: 3, surface: "run", lemma: "run", class: "Known" }),
+      tok({ block: 0, start: 0, end: 5, surface: "Paris", lemma: "paris", class: "ProperNounOutOfLexicon" }),
+      tok({ block: 1, start: 0, end: 4, surface: "city", lemma: "city", class: "Ignored" }),
+    ]);
+    const map = clickableByContainer(blocks, a);
+    const first = map.get(blocks[0].container)!;
+    expect(first.block).toBe(blocks[0]); // block paired with its own tokens
+    expect(first.tokens.map((t) => t.lemma)).toEqual(["run"]); // proper noun dropped
+    expect(map.get(blocks[1].container)!.tokens.map((t) => t.lemma)).toEqual(["city"]);
+  });
+});
+
+describe("findTokenInBlock", () => {
+  it("hit-tests a non-painted (Known) word by resolving its block on demand", () => {
+    document.body.innerHTML = `<p>The runner runs.</p>`;
+    const blocks = collectBlocks(document.body);
+    const a = analysis([tok({ block: 0, start: 4, end: 10, surface: "runner", lemma: "run", class: "Known" })]);
+    const { block, tokens } = clickableByContainer(blocks, a).get(blocks[0].container)!;
+    const textNode = document.querySelector("p")!.firstChild!;
+    const hit = findTokenInBlock(block, tokens, textNode, 6);
+    expect(hit?.token.lemma).toBe("run");
+    expect(hit?.range.toString()).toBe("runner");
+    expect(findTokenInBlock(block, tokens, textNode, 12)).toBeNull(); // past the word
   });
 });
 
