@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CardOp, StatusChangeIn, StatusOp } from "@/analyzer/port.ts";
 import type { AsyncStorageArea } from "@/state/storage.ts";
-import { getOrCreateDeviceId, SyncEngine, type SyncClients } from "@/sync/sync.ts";
+import { clearSyncCursors, getOrCreateDeviceId, SyncEngine, type SyncClients } from "@/sync/sync.ts";
 import { makeFakePort } from "./helpers.ts";
 
 function fakeArea(seed: Record<string, unknown> = {}): AsyncStorageArea & { store: Record<string, unknown> } {
@@ -205,5 +205,17 @@ describe("SyncEngine", () => {
     await engine.sync();
     // The pulled change is applied on top of the re-loaded latest backup, not B0.
     expect(calls.restored).toEqual(["B0", "B1-concurrent"]);
+  });
+});
+
+describe("clearSyncCursors", () => {
+  it("resets both pull cursors to 0 so the next sync re-pulls the full server state", async () => {
+    const area = fakeArea({
+      "cymbra-lingua-status-cursor": 42,
+      "cymbra-lingua-card-cursor": 99,
+    });
+    await clearSyncCursors(area);
+    expect(area.store["cymbra-lingua-status-cursor"]).toBe(0);
+    expect(area.store["cymbra-lingua-card-cursor"]).toBe(0);
   });
 });

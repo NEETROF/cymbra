@@ -63,8 +63,12 @@ interface AccountResult {
   state?: AccountState;
 }
 
+/** Whether a Cymbra ID session is active — decides the reset warning's wording. */
+let accountSignedIn = false;
+
 function renderAccount(state: AccountState | null): void {
   const signedIn = state?.signedIn ?? false;
+  accountSignedIn = signedIn;
   $("acct-in").hidden = !signedIn;
   $("acct-out").hidden = signedIn;
   $("acct-error").hidden = true;
@@ -150,10 +154,19 @@ async function main(): Promise<void> {
   $("reset-cancel").addEventListener("click", closeResetMenu);
   const askConfirm = (scope: "full" | "partial"): void => {
     pendingScope = scope;
-    $("reset-warn").textContent =
-      scope === "full"
-        ? "⚠️ Effacer DÉFINITIVEMENT tes statuts, ton deck de révision et ta progression ? Action irréversible."
-        : "Effacer tes statuts et ta calibration ? Ton deck de révision est conservé.";
+    let warn: string;
+    if (scope === "partial") {
+      warn = "Effacer tes statuts et ta calibration ? Ton deck de révision est conservé.";
+    } else if (accountSignedIn) {
+      warn =
+        "Effacer les données de cet appareil (statuts, deck, progression) ? " +
+        "Comme tu es connecté, elles seront re-téléchargées depuis le serveur à la prochaine synchronisation.";
+    } else {
+      warn =
+        "⚠️ Effacer DÉFINITIVEMENT tes statuts, ton deck de révision et ta progression ? " +
+        "Tu n'es pas connecté : cette action est irréversible.";
+    }
+    $("reset-warn").textContent = warn;
     $("reset-confirm").hidden = false;
   };
   $("reset-partial").addEventListener("click", () => askConfirm("partial"));
