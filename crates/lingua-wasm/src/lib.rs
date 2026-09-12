@@ -30,6 +30,8 @@ use lingua_core::decks::card::{Card, EncounterSource, Provenance};
 use lingua_core::decks::fsrs::{Rating, ReviewState};
 use lingua_core::decks::review::ReviewSession;
 use lingua_core::engine::analyse_page_json;
+use lingua_core::knowledge::level::CefrLevel;
+use lingua_core::knowledge::state::FrequencyRanks;
 use lingua_core::knowledge::status::{KnownSource, Status};
 use lingua_core::packs::Pack;
 use wasm_bindgen::prelude::*;
@@ -72,6 +74,91 @@ impl LinguaEngine {
     /// The current calibration threshold.
     pub fn calibration(&self) -> u32 {
         self.state.knowledge.calibration(EN)
+    }
+
+    /// Declares the reader's CEFR level (`"A1"`..`"C2"`); any other value —
+    /// including `""` — clears it, returning to frequency calibration.
+    #[wasm_bindgen(js_name = setDeclaredLevel)]
+    pub fn set_declared_level(&mut self, level: &str) {
+        match CefrLevel::from_label(level) {
+            Some(l) => self.state.knowledge.set_declared_level(EN, l),
+            None => self.state.knowledge.clear_declared_level(EN),
+        }
+    }
+
+    /// The declared CEFR level label (`"A1"`..`"C2"`), or `None` if none is set.
+    #[wasm_bindgen(js_name = declaredLevel)]
+    pub fn declared_level(&self) -> Option<String> {
+        self.state
+            .knowledge
+            .declared_level(EN)
+            .map(|l| l.label().to_owned())
+    }
+
+    /// Whether the loaded pack carries a CEFR level table (else the ladder and
+    /// level-targeted feeding fall back to frequency bands).
+    #[wasm_bindgen(js_name = hasLevels)]
+    pub fn has_levels(&self) -> bool {
+        self.pack.has_levels()
+    }
+
+    /// The CEFR progression ladder as JSON — an array of
+    /// `{level, confirmed, presumed, toLearn, total}`, one row per level A1..C2,
+    /// folded over the pack's lemmas at each level. `[]` when the pack carries no
+    /// CEFR data.
+    #[wasm_bindgen(js_name = levelLadder)]
+    pub fn level_ladder(&self) -> String {
+        if !self.pack.has_levels() {
+            return "[]".to_owned();
+        }
+        let rows: Vec<serde_json::Value> = CefrLevel::ALL
+            .iter()
+            .map(|&level| {
+                let lemmas = self.pack.lemmas_at_level(level);
+                let stats =
+                    self.state
+                        .knowledge
+                        .band_stats(EN, lemmas.iter().map(|(l, _)| *l), &self.pack);
+                serde_json::json!({
+                    "level": level.label(),
+                    "confirmed": stats.confirmed,
+                    "presumed": stats.presumed,
+                    "toLearn": stats.to_learn,
+                    "total": stats.total(),
+                })
+            })
+            .collect();
+        serde_json::to_string(&rows).unwrap_or_else(|_| "[]".to_owned())
+    }
+
+    /// Records one reading exposure per lemma (`source` tag, `at_ms` in millis),
+    /// feeding the distinct-day counters that back exposure-confirmed known.
+    /// Recording never changes a status (design D5) — promotion is the separate,
+    /// explicit `promoteByExposure`.
+    #[wasm_bindgen(js_name = recordExposures)]
+    pub fn record_exposures(&mut self, lemmas: Vec<String>, source: &str, at_ms: f64) {
+        let secs = (at_ms as i64).div_euclid(1000); // exposure timestamps are epoch seconds
+        for lemma in &lemmas {
+            self.state.exposure.record(EN, lemma, 1, source, secs);
+        }
+    }
+
+    /// Confirms presumed-known lemmas that reading has vouched for: below the
+    /// declared level, no explicit status, seen on at least `threshold_days`
+    /// distinct days. Returns the number promoted to `Known(Exposure)`; a no-op
+    /// (0) without a declared level. `at_ms` (millis) stamps the sync timestamp.
+    #[wasm_bindgen(js_name = promoteByExposure)]
+    pub fn promote_by_exposure(&mut self, threshold_days: u32, at_ms: f64) -> usize {
+        self.state
+            .knowledge
+            .promote_by_exposure(
+                EN,
+                &self.state.exposure,
+                &self.pack,
+                threshold_days,
+                at_ms as i64,
+            )
+            .len()
     }
 
     /// Sets an explicit status for a form. `status` is one of `learning`,
@@ -307,6 +394,38 @@ impl LinguaEngine {
             gloss,
         );
         self.state.deck.upsert(EN, card);
+    }
+
+    /// Seeds up to `count` deck cards from a CEFR level's lemmas. `order` is
+    /// `"common"` (commonest-first, the default) or `"rare"`; unranked lemmas
+    /// always sort last. Skips lemmas already carded or with an explicit status.
+    /// `at` is Unix-epoch seconds. Returns the number actually added; a no-op (0)
+    /// for an unknown level or a pack with no CEFR data.
+    #[wasm_bindgen(js_name = seedLevel)]
+    pub fn seed_level(&mut self, level: &str, count: usize, order: &str, at: f64) -> usize {
+        let Some(lvl) = CefrLevel::from_label(level) else {
+            return 0;
+        };
+        let mut items = self.pack.lemmas_at_level(lvl);
+        if order == "rare" {
+            items.sort_by_key(|(l, _)| {
+                (
+                    self.pack.rank(l).is_none(),
+                    std::cmp::Reverse(self.pack.rank(l).unwrap_or(0)),
+                )
+            });
+        } else {
+            items.sort_by_key(|(l, _)| {
+                (self.pack.rank(l).is_none(), self.pack.rank(l).unwrap_or(0))
+            });
+        }
+        self.state.deck.seed_lemmas(
+            EN,
+            items.iter().map(|(l, g)| (*l, *g)),
+            &self.state.knowledge,
+            count,
+            at as i64,
+        )
     }
 
     /// Total number of cards in the deck.
