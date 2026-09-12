@@ -62,7 +62,21 @@
 
         <div class="row"><span>Mots suivis</span><b id="tracked">0</b></div>
 
-        <div class="calib">
+        <div id="level-block" class="level" hidden>
+          <label>Mon niveau d'anglais</label>
+          <div id="level-chips" class="level-chips">
+            <button class="lvl" data-lvl="A1">A1</button>
+            <button class="lvl" data-lvl="A2">A2</button>
+            <button class="lvl" data-lvl="B1">B1</button>
+            <button class="lvl" data-lvl="B2">B2</button>
+            <button class="lvl" data-lvl="C1">C1</button>
+            <button class="lvl" data-lvl="C2">C2</button>
+            <button class="lvl lvl-beginner" data-lvl="">Débutant</button>
+          </div>
+          <div id="level-hint" class="note"></div>
+        </div>
+
+        <div id="calib-block" class="calib">
           <label>Mon niveau : je connais les <b id="calibv">3000</b> mots les plus courants</label>
           <input type="range" id="calib" min="500" max="10000" step="100" value="3000" />
         </div>

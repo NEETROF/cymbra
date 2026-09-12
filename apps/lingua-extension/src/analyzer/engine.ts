@@ -1,5 +1,5 @@
 import type { CardOp, LinguaPort, NewCard, Rating, ReviewCard, StatusChangeIn, StatusOp } from "./port.ts";
-import type { LemmaStatus, PageAnalysis } from "./types.ts";
+import type { CefrLevel, LemmaStatus, LevelRow, PageAnalysis, SeedOrder } from "./types.ts";
 
 // The Chromium LinguaPort implementation: the lingua-core WASM module instantiated
 // lazily in the content script's isolated world (design D2). This is the only place
@@ -45,6 +45,13 @@ interface WasmEngine {
   applyStatusChanges(json: string): number;
   exportCardOps(): string;
   applyCardOps(json: string): number;
+  setDeclaredLevel(level: string): void;
+  declaredLevel(): string | undefined;
+  hasLevels(): boolean;
+  levelLadder(): string;
+  recordExposures(lemmas: string[], source: string, atMs: number): void;
+  promoteByExposure(thresholdDays: number, atMs: number): number;
+  seedLevel(level: string, count: number, order: string, at: number): number;
   free(): void;
 }
 
@@ -190,5 +197,35 @@ export class WasmAnalyzerPort implements LinguaPort {
 
   async applyCardOps(ops: CardOp[]): Promise<number> {
     return (await this.engine()).applyCardOps(JSON.stringify(ops));
+  }
+
+  // --- CEFR levels (add-lingua-cefr-levels) ---
+
+  async setDeclaredLevel(level: CefrLevel | null): Promise<void> {
+    (await this.engine()).setDeclaredLevel(level ?? "");
+  }
+
+  async declaredLevel(): Promise<CefrLevel | null> {
+    return ((await this.engine()).declaredLevel() as CefrLevel | undefined) ?? null;
+  }
+
+  async hasLevels(): Promise<boolean> {
+    return (await this.engine()).hasLevels();
+  }
+
+  async levelLadder(): Promise<LevelRow[]> {
+    return JSON.parse((await this.engine()).levelLadder()) as LevelRow[];
+  }
+
+  async recordExposures(lemmas: string[], source: string, atMs: number): Promise<void> {
+    (await this.engine()).recordExposures(lemmas, source, atMs);
+  }
+
+  async promoteByExposure(thresholdDays: number, atMs: number): Promise<number> {
+    return (await this.engine()).promoteByExposure(thresholdDays, atMs);
+  }
+
+  async seedLevel(level: CefrLevel, count: number, order: SeedOrder, at: number): Promise<number> {
+    return (await this.engine()).seedLevel(level, count, order, at);
   }
 }
