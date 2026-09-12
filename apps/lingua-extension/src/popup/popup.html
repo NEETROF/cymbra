@@ -48,7 +48,23 @@
 
       <div class="deck"><span>Deck (en cours)</span><b id="deck">0</b></div>
       <button class="primary" id="review">Réviser (<span id="due">0</span>)</button>
-      <button class="reset" id="reset">Réinitialiser (statuts + calibration)</button>
+
+      <div id="reset-box">
+        <button class="reset" id="reset">Réinitialiser…</button>
+        <div id="reset-menu" hidden>
+          <div class="reset-note">
+            Choisis la portée. La réinitialisation complète efface ton deck de révision — c'est définitif.
+          </div>
+          <button class="reset" id="reset-partial">Partielle — statuts + calibration (garde le deck)</button>
+          <button class="danger" id="reset-full">Complète — tout effacer (statuts, deck, progression)</button>
+          <button class="reset" id="reset-cancel">Annuler</button>
+          <div id="reset-confirm" class="reset-confirm" hidden>
+            <div class="reset-warn" id="reset-warn"></div>
+            <button class="danger" id="reset-yes">Oui, confirmer</button>
+            <button class="reset" id="reset-no">Non, annuler</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div id="account" class="account">

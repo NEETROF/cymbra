@@ -107,8 +107,10 @@ export interface LinguaPort extends AnalyzerPort {
   backup(): Promise<string>;
   /** Replace the whole state from a backup string (throws on an unknown version). */
   restore(json: string): Promise<void>;
-  /** Reset the whole state to empty defaults (a full reset). */
+  /** Reset the whole state to empty defaults (a full reset: statuses, deck, exposure). */
   reset(): Promise<void>;
+  /** Partial reset: clear statuses, calibration and the declared level, but KEEP the deck and exposure. */
+  resetStatuses(): Promise<void>;
   /** The pack's bundled attribution NOTICE. */
   notice(): Promise<string>;
   /** The pack's source licences. */

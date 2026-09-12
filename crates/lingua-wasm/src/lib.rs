@@ -31,7 +31,7 @@ use lingua_core::decks::fsrs::{Rating, ReviewState};
 use lingua_core::decks::review::ReviewSession;
 use lingua_core::engine::analyse_page_json;
 use lingua_core::knowledge::level::CefrLevel;
-use lingua_core::knowledge::state::FrequencyRanks;
+use lingua_core::knowledge::state::{FrequencyRanks, KnowledgeState};
 use lingua_core::knowledge::status::{KnownSource, Status};
 use lingua_core::packs::Pack;
 use wasm_bindgen::prelude::*;
@@ -522,10 +522,20 @@ impl LinguaEngine {
         Ok(())
     }
 
-    /// Resets the whole state to empty defaults (a full reset). The caller
+    /// Resets the whole state to empty defaults (a full reset) — statuses,
+    /// exposure counters, and the whole deck (review cards + FSRS). The caller
     /// re-applies its default calibration afterwards.
     pub fn reset(&mut self) {
         self.state = LinguaState::default();
+        self.session = None;
+    }
+
+    /// A partial reset: clears explicit statuses, calibration and the declared
+    /// level, but KEEPS the deck (review cards + FSRS) and the exposure
+    /// counters. The caller re-applies its default calibration afterwards.
+    #[wasm_bindgen(js_name = resetStatuses)]
+    pub fn reset_statuses(&mut self) {
+        self.state.knowledge = KnowledgeState::default();
         self.session = None;
     }
 

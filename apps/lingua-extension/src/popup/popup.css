@@ -197,6 +197,54 @@ button.primary:hover {
   filter: brightness(1.08);
 }
 
+button.danger {
+  width: 100%;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid var(--cymbra-lingua-coral);
+  background: var(--cymbra-lingua-panel-2);
+  color: var(--cymbra-lingua-coral);
+  font-family: inherit;
+  font-size: 12px;
+}
+
+button.danger:hover {
+  background: var(--cymbra-lingua-unknown-fill);
+  color: var(--cymbra-lingua-text);
+}
+
+#reset-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 10px;
+  border: 1px solid var(--cymbra-lingua-border);
+  border-radius: 12px;
+  background: var(--cymbra-lingua-panel);
+}
+
+.reset-note,
+.reset-warn {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--cymbra-lingua-muted);
+}
+
+.reset-warn {
+  color: var(--cymbra-lingua-coral);
+}
+
+.reset-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--cymbra-lingua-border);
+}
+
 /* Account & sync section (add-lingua-connected-clients §1). */
 .account {
   margin-top: 14px;

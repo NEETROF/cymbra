@@ -131,8 +131,42 @@ async function main(): Promise<void> {
   });
   calib.addEventListener("change", () => void send({ type: "setCalibration", value: Number(calib.value) }));
 
-  $("reset").addEventListener("click", async () => {
-    await send({ type: "reset" });
+  // Reset flow: open a menu, choose a scope (partial / complete), then confirm.
+  // Two deliberate clicks minimum, and the destructive path is styled + spelled
+  // out — a single stray click can never wipe the deck. `pendingScope` carries
+  // the choice between the scope step and the confirm step.
+  let pendingScope: "full" | "partial" | null = null;
+  const closeResetMenu = (): void => {
+    $("reset-menu").hidden = true;
+    $("reset-confirm").hidden = true;
+    pendingScope = null;
+  };
+  $("reset").addEventListener("click", () => {
+    const menu = $("reset-menu");
+    menu.hidden = !menu.hidden;
+    $("reset-confirm").hidden = true;
+    pendingScope = null;
+  });
+  $("reset-cancel").addEventListener("click", closeResetMenu);
+  const askConfirm = (scope: "full" | "partial"): void => {
+    pendingScope = scope;
+    $("reset-warn").textContent =
+      scope === "full"
+        ? "⚠️ Effacer DÉFINITIVEMENT tes statuts, ton deck de révision et ta progression ? Action irréversible."
+        : "Effacer tes statuts et ta calibration ? Ton deck de révision est conservé.";
+    $("reset-confirm").hidden = false;
+  };
+  $("reset-partial").addEventListener("click", () => askConfirm("partial"));
+  $("reset-full").addEventListener("click", () => askConfirm("full"));
+  $("reset-no").addEventListener("click", () => {
+    $("reset-confirm").hidden = true;
+    pendingScope = null;
+  });
+  $("reset-yes").addEventListener("click", async () => {
+    if (!pendingScope) return;
+    const scope = pendingScope;
+    closeResetMenu();
+    await send({ type: "reset", scope });
     await refresh();
   });
 
