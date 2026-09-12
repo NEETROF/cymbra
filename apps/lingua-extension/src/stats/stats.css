@@ -240,3 +240,70 @@
   margin-top: 2px;
   color: var(--cymbra-lingua-green);
 }
+
+.stats .marked {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.stats .marked-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.stats .marked-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.stats .marked-word {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stats .marked-badge {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--cymbra-lingua-border-2);
+  color: var(--cymbra-lingua-muted);
+}
+
+.stats .marked-badge--ignored {
+  color: var(--cymbra-lingua-amber);
+  border-color: var(--cymbra-lingua-amber);
+}
+
+.stats .marked-undo {
+  flex-shrink: 0;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--cymbra-lingua-border-2);
+  background: var(--cymbra-lingua-panel-2);
+  color: var(--cymbra-lingua-text);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.stats .marked-undo:hover {
+  filter: brightness(1.08);
+}
+
+.stats .marked-undo:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

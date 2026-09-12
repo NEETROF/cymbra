@@ -87,3 +87,24 @@ export function consolidatedToMap(
   }
   return out;
 }
+
+/** A word the reader explicitly marked "connu" or "ignoré" (both hide it from
+ *  highlighting). Learning words are excluded — they live in the deck, not here. */
+export interface MarkedWord {
+  lemma: string;
+  status: "known" | "ignored";
+  updated_at: number;
+}
+
+/**
+ * The explicitly known/ignored words from an `exportStatusOps` list, newest decision
+ * first (ties alphabetical). Drives the "Mots marqués" management list, where each can be
+ * put back "à apprendre". `exportStatusOps` returns only EXPLICIT statuses (never
+ * presumed-known), so clearing any of these reliably resurfaces the word.
+ */
+export function markedWords(ops: { lemma: string; status: string; updated_at: number }[]): MarkedWord[] {
+  return ops
+    .filter((o) => o.status === "known" || o.status === "ignored")
+    .map((o) => ({ lemma: o.lemma, status: o.status as "known" | "ignored", updated_at: o.updated_at }))
+    .sort((a, b) => b.updated_at - a.updated_at || a.lemma.localeCompare(b.lemma));
+}
