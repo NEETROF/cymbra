@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { CefrLevel, LevelRow } from "@/analyzer/types.ts";
 import { barChartSvg } from "@/stats/chart.ts";
-import { buildSeries, consolidatedToMap, dayWindow, estimatedPosition } from "@/stats/model.ts";
+import { buildSeries, consolidatedToMap, dayWindow, estimatedPosition, markedWords } from "@/stats/model.ts";
 
 const CEFR: readonly CefrLevel[] = ["A1", "A2", "B1", "B2", "C1", "C2"];
 
@@ -86,5 +86,24 @@ describe("barChartSvg", () => {
     const svg = barChartSvg([0, 0, 0], "var(--cymbra-lingua-green)", "x");
     expect((svg.match(/<rect /g) ?? []).length).toBe(0);
     expect(svg).toContain("<line"); // baseline still drawn
+  });
+});
+
+describe("markedWords", () => {
+  const op = (lemma: string, status: string, updated_at: number) => ({ lemma, status, updated_at });
+
+  it("keeps only known/ignored, newest decision first (ties alphabetical)", () => {
+    const words = markedWords([
+      op("run", "learning", 500), // dropped — learning lives in the deck
+      op("seldom", "ignored", 300),
+      op("city", "known", 300), // same ts as seldom → alphabetical: city before seldom
+      op("holocene", "ignored", 900),
+    ]);
+    expect(words.map((w) => `${w.lemma}:${w.status}`)).toEqual(["holocene:ignored", "city:known", "seldom:ignored"]);
+  });
+
+  it("returns an empty list when nothing is explicitly marked", () => {
+    expect(markedWords([op("run", "learning", 1)])).toEqual([]);
+    expect(markedWords([])).toEqual([]);
   });
 });

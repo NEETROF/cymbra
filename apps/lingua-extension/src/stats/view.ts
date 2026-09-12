@@ -9,6 +9,7 @@ import {
   type CountsByDay,
   dayWindow,
   estimatedPosition,
+  markedWords,
   type Range,
   RANGES,
 } from "./model.ts";
@@ -106,6 +107,7 @@ export async function mountStats(root: HTMLElement, port: LinguaPort, area: Asyn
   root.innerHTML =
     `<div class="ladder-slot"></div>` +
     `<div class="seed-slot"></div>` +
+    `<div class="marked-slot"></div>` +
     `<div class="topline"><span class="scope">…</span>` +
     `<div class="ranges">` +
     RANGES.map((r) => `<button data-range="${r}"${r === range ? ' class="active"' : ""}>${r} j</button>`).join("") +
@@ -153,6 +155,61 @@ export async function mountStats(root: HTMLElement, port: LinguaPort, area: Asyn
       await renderLadder();
     });
   }
+
+  // "Mots marqués" — the discoverable way to undo a "connu"/"ignoré" decision (the
+  // in-page counterpart is Alt-clicking the word). Re-rendered after an undo; the ladder
+  // counts change too. Built with DOM APIs so a lemma is never interpolated into HTML.
+  const renderMarked = async (): Promise<void> => {
+    const words = markedWords(await port.exportStatusOps());
+    const slot = pick(".marked-slot");
+    slot.replaceChildren();
+    const wrap = document.createElement("div");
+    wrap.className = "marked";
+    const title = document.createElement("div");
+    title.className = "mlabel";
+    title.textContent = "Mots marqués";
+    wrap.append(title);
+    if (words.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "note";
+      empty.textContent = "Aucun mot marqué « connu » ou « ignoré » pour l'instant.";
+      wrap.append(empty);
+      slot.append(wrap);
+      return;
+    }
+    const note = document.createElement("div");
+    note.className = "seed-note";
+    note.textContent =
+      "Marqués « connu » ou « ignoré » (donc plus surlignés). Remets-en un « à apprendre » pour qu'il soit de nouveau signalé.";
+    wrap.append(note);
+    const list = document.createElement("ul");
+    list.className = "marked-list";
+    for (const w of words) {
+      const li = document.createElement("li");
+      li.className = "marked-row";
+      const word = document.createElement("span");
+      word.className = "marked-word";
+      word.textContent = w.lemma;
+      const badge = document.createElement("span");
+      badge.className = `marked-badge marked-badge--${w.status}`;
+      badge.textContent = w.status === "known" ? "connu" : "ignoré";
+      const undo = document.createElement("button");
+      undo.className = "marked-undo";
+      undo.textContent = "Remettre à apprendre";
+      undo.addEventListener("click", async () => {
+        undo.disabled = true;
+        await port.setStatusAt(w.lemma, null, Date.now());
+        await saveBackup(area, await port.backup());
+        await renderMarked();
+        await renderLadder();
+      });
+      li.append(word, badge, undo);
+      list.append(li);
+    }
+    wrap.append(list);
+    slot.append(wrap);
+  };
+  await renderMarked();
 
   const renderCards = async (): Promise<void> => {
     const { byDay, scope } = await fetchCounts(area, range);
