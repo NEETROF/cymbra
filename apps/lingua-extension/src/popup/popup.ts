@@ -135,21 +135,27 @@ async function main(): Promise<void> {
   });
   calib.addEventListener("change", () => void send({ type: "setCalibration", value: Number(calib.value) }));
 
-  // Reset flow: open a menu, choose a scope (partial / complete), then confirm.
+  // Reset flow — three states that REPLACE one another, never stack:
+  //   closed  → only the "Réinitialiser…" button
+  //   scope   → the two scope choices + Annuler
+  //   confirm → the warning + Oui/Non (the scope choices are hidden)
   // Two deliberate clicks minimum, and the destructive path is styled + spelled
-  // out — a single stray click can never wipe the deck. `pendingScope` carries
-  // the choice between the scope step and the confirm step.
+  // out — a stray click can never wipe the deck. `pendingScope` carries the
+  // choice from the scope step to the confirm step.
   let pendingScope: "full" | "partial" | null = null;
-  const closeResetMenu = (): void => {
-    $("reset-menu").hidden = true;
+  const showScope = (): void => {
+    $("reset-scope").hidden = false;
     $("reset-confirm").hidden = true;
     pendingScope = null;
+  };
+  const closeResetMenu = (): void => {
+    $("reset-menu").hidden = true;
+    showScope(); // reset to the scope step for the next open
   };
   $("reset").addEventListener("click", () => {
     const menu = $("reset-menu");
     menu.hidden = !menu.hidden;
-    $("reset-confirm").hidden = true;
-    pendingScope = null;
+    showScope();
   });
   $("reset-cancel").addEventListener("click", closeResetMenu);
   const askConfirm = (scope: "full" | "partial"): void => {
@@ -167,14 +173,13 @@ async function main(): Promise<void> {
         "Tu n'es pas connecté : cette action est irréversible.";
     }
     $("reset-warn").textContent = warn;
+    // Replace the scope step with the confirmation.
+    $("reset-scope").hidden = true;
     $("reset-confirm").hidden = false;
   };
   $("reset-partial").addEventListener("click", () => askConfirm("partial"));
   $("reset-full").addEventListener("click", () => askConfirm("full"));
-  $("reset-no").addEventListener("click", () => {
-    $("reset-confirm").hidden = true;
-    pendingScope = null;
-  });
+  $("reset-no").addEventListener("click", showScope); // back to the scope choices
   $("reset-yes").addEventListener("click", async () => {
     if (!pendingScope) return;
     const scope = pendingScope;

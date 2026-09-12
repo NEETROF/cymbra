@@ -285,6 +285,12 @@ button.danger:hover {
   background: var(--cymbra-lingua-panel);
 }
 
+#reset-scope {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .reset-note,
 .reset-warn {
   font-size: 11px;
@@ -300,9 +306,6 @@ button.danger:hover {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-top: 4px;
-  padding-top: 8px;
-  border-top: 1px solid var(--cymbra-lingua-border);
 }
 
 /* Account & sync section (add-lingua-connected-clients §1). */
