@@ -95,6 +95,68 @@ impl LinguaEngine {
             .map(|l| l.label().to_owned())
     }
 
+    /// Like `setDeclaredLevel`, but stamps the decision with a sync timestamp
+    /// (epoch millis, the caller's clock) so the outbox and cross-device LWW can
+    /// order it. A `""` / invalid label is the explicit "débutant" decision (no
+    /// level), which syncs just like a level.
+    #[wasm_bindgen(js_name = setDeclaredLevelAt)]
+    pub fn set_declared_level_at(&mut self, level: &str, at_ms: f64) {
+        self.state
+            .knowledge
+            .set_declared_level_at(EN, CefrLevel::from_label(level), at_ms as i64);
+    }
+
+    /// The declared-level decisions as sync JSON (array of
+    /// `{language, level, updated_at}`, `level` a label or `""` for débutant), for
+    /// a push. Mirrors `exportStatusOps`.
+    #[wasm_bindgen(js_name = exportDeclaredLevels)]
+    pub fn export_declared_levels(&self) -> String {
+        let rows: Vec<serde_json::Value> = self
+            .state
+            .knowledge
+            .export_declared_levels()
+            .into_iter()
+            .map(|r| {
+                serde_json::json!({
+                    "language": "en",
+                    "level": r.level.map(|l| l.label()).unwrap_or(""),
+                    "updated_at": r.updated_at,
+                })
+            })
+            .collect();
+        serde_json::to_string(&rows).unwrap_or_else(|_| "[]".to_owned())
+    }
+
+    /// Apply pulled declared-level changes (JSON array of
+    /// `{language, level, updated_at}`) under last-write-wins. `level` `""` (or
+    /// absent) is the débutant decision. Returns how many changed local state.
+    /// Mirrors `applyStatusChanges`.
+    #[wasm_bindgen(js_name = applyDeclaredLevelChanges)]
+    pub fn apply_declared_level_changes(&mut self, json: &str) -> Result<usize, JsError> {
+        let changes: Vec<serde_json::Value> =
+            serde_json::from_str(json).map_err(|e| JsError::new(&e.to_string()))?;
+        let mut changed = 0usize;
+        for c in &changes {
+            if c.get("language").and_then(|v| v.as_str()).unwrap_or("en") != "en" {
+                continue; // the MVP studies English only
+            }
+            let level =
+                CefrLevel::from_label(c.get("level").and_then(|v| v.as_str()).unwrap_or(""));
+            let updated_at = c
+                .get("updated_at")
+                .and_then(serde_json::Value::as_i64)
+                .unwrap_or(0);
+            if self
+                .state
+                .knowledge
+                .apply_declared_level_lww(EN, level, updated_at)
+            {
+                changed += 1;
+            }
+        }
+        Ok(changed)
+    }
+
     /// Whether the loaded pack carries a CEFR level table (else the ladder and
     /// level-targeted feeding fall back to frequency bands).
     #[wasm_bindgen(js_name = hasLevels)]
