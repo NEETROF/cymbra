@@ -60,6 +60,18 @@ const baseManifest = JSON.parse(readFileSync(join(root, "manifest.json"), "utf8"
 // fetch to it needs the host permission.
 const GRPC_WEB_URL = process.env.LINGUA_GRPC_WEB_URL ?? "http://localhost:50051";
 const GOOGLE_CLIENT_ID = process.env.LINGUA_GOOGLE_CLIENT_ID ?? "";
+// A committed DEV public key pins the UNPACKED Chromium extension id. Without it Chromium
+// assigns a random per-profile id, so chrome.identity.getRedirectURL() —
+// https://<id>.chromiumapp.org/ — changes per machine and never matches the redirect URI
+// registered on the Google OAuth client (redirect_uri_mismatch). This throwaway PUBLIC key
+// yields the stable dev id `figfjglfdiffocldficbimecjnhnkhkh`, i.e. redirect
+// https://figfjglfdiffocldficbimecjnhnkhkh.chromiumapp.org/ and origin
+// chrome-extension://figfjglfdiffocldficbimecjnhnkhkh. Override with LINGUA_EXT_KEY for a
+// release (or set it to "" to let the Web Store assign the id). Firefox ignores `key` — it
+// pins its id via browser_specific_settings.gecko instead.
+const EXT_KEY =
+  process.env.LINGUA_EXT_KEY ??
+  "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmO6fyVYfGiE/aY3LTZ5RIZnwHslFqU5VEVPwehSSs7ah1g3L3LQby7Sg/UubpfrAiKzn/Y97la+j//5nLHGIR0R7+Mu4wuWJjqlb1JglazkjMgIKALmJehrPCb+0n5l+9WNerFSV3YCC76mm9XYeHlgrvrQsmAMq1hI5b264lL45akxRF3fR7QoPh/pzBVyociD4BOYCB0DsjDql8fghaH4hxoeQFwkdhcePO0I4S5KbuehMgIazk9DCh7eTVGGSUs9p0pRMYGydFkzTc9YBG3gL2OoBQ+p5lQMM5B3hNyDPni5BpJ02XW8ZhLdm009avnk3rbm1DBLWF5GcHsuUnQIDAQAB";
 
 /** `https://host/*` match pattern for the backend origin (host_permissions). */
 function hostPattern(url) {
@@ -145,6 +157,9 @@ for (const target of targets) {
   // Grant the configured backend origin so the sync transport's gRPC-web fetch is
   // allowed (the server must also allow the extension origin via CYMBRA_ALLOWED_WEB_ORIGINS).
   manifest.host_permissions = [...new Set([...(manifest.host_permissions ?? []), hostPattern(GRPC_WEB_URL)])];
+  // Pin the unpacked Chromium id (stable chrome.identity redirect URL); Firefox uses its
+  // gecko id instead, so it must never carry `key`.
+  if (target !== "firefox" && EXT_KEY) manifest.key = EXT_KEY;
   writeFileSync(join(dist, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
   for (const [from, to] of staticCopies) cpSync(join(root, from), join(dist, to));
 

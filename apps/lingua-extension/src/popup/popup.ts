@@ -1,5 +1,6 @@
-import type { CefrLevel } from "../analyzer/types.ts";
+import { SIGNIN_ERROR_KEY } from "../state/session.ts";
 import { loadEnabled, saveEnabled } from "../state/storage.ts";
+import type { CefrLevel } from "../analyzer/types.ts";
 
 // Icon-popup controller (a surface the extension owns). It holds no engine and no
 // storage of its own: it asks the active tab's content script for stats and drives
@@ -81,6 +82,33 @@ function showAccountError(message: string): void {
   const el = $("acct-error");
   el.textContent = message;
   el.hidden = false;
+}
+
+/** Drop the persisted sign-in error (storage.session); tolerates it being unavailable. */
+async function clearSignInError(): Promise<void> {
+  try {
+    await chrome.storage.session.set({ [SIGNIN_ERROR_KEY]: null });
+  } catch {
+    // storage.session may be unavailable; nothing to clear.
+  }
+}
+
+/**
+ * Surface (once) a sign-in failure the background persisted while this popup was torn
+ * down by Google's auth window. Read from storage.session directly — the worker may have
+ * napped since — then clear it so it never shows stale. No-op when already signed in.
+ */
+async function surfaceSignInError(): Promise<void> {
+  try {
+    const got = await chrome.storage.session.get(SIGNIN_ERROR_KEY);
+    const err = got[SIGNIN_ERROR_KEY];
+    if (typeof err === "string" && err.length > 0) {
+      if (!accountSignedIn) showAccountError(err);
+      await clearSignInError();
+    }
+  } catch {
+    // storage.session may be unavailable in some contexts; nothing to surface.
+  }
 }
 
 function render(stats: PageStats | null): void {
@@ -263,18 +291,32 @@ async function main(): Promise<void> {
   });
 
   $("signin-google").addEventListener("click", async () => {
+    // Opening Google's auth window steals focus and tears this popup down, so the
+    // awaited result usually never arrives here (res === null). That is fine: the
+    // background finishes the sign-in, and on reopen the popup shows the signed-in
+    // state — or the persisted error via surfaceSignInError(). A null result is NOT a
+    // failure to report here; only act when the popup actually survived (res !== null).
     const res = (await sendRuntime({ type: "account:signInGoogle" })) as AccountResult | null;
     if (res?.ok) renderAccount(res.state ?? { signedIn: true });
-    else showAccountError(res?.error ?? "Connexion impossible.");
+    else if (res) {
+      // Shown live — drop the background's persisted copy so it does not re-show on the
+      // next open (the failure may not have reached launchWebAuthFlow, e.g. empty client id).
+      showAccountError(res.error ?? "Connexion impossible.");
+      await clearSignInError();
+    }
   });
 
   $("signin-local").addEventListener("click", async () => {
     const email = ($("acct-email") as HTMLInputElement).value.trim();
     const password = ($("acct-password") as HTMLInputElement).value;
     if (!email || !password) return;
+    // Local sign-in never opens an auth window, so this popup stays alive: a null result
+    // is a real transport/worker hiccup (not a torn-down popup), and the local flow does
+    // not persist errors — so report it here, but not as a wrong-password.
     const res = (await sendRuntime({ type: "account:signInLocal", email, password })) as AccountResult | null;
     if (res?.ok) renderAccount(res.state ?? { signedIn: true });
-    else showAccountError(res?.error ?? "Email ou mot de passe incorrect.");
+    else if (res) showAccountError(res.error ?? "Email ou mot de passe incorrect.");
+    else showAccountError("Connexion impossible, réessaie.");
   });
 
   $("signout").addEventListener("click", async () => {
@@ -298,6 +340,7 @@ async function main(): Promise<void> {
 
   await applyEnabled(await loadEnabled(storageArea));
   renderAccount((await sendRuntime({ type: "account:state" })) as AccountState | null);
+  await surfaceSignInError(); // show a sign-in failure that happened after the popup closed
 }
 
 void main();
