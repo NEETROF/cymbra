@@ -275,7 +275,19 @@ async function syncReaderRegistration(): Promise<void> {
   }
 }
 
-chrome.runtime.onInstalled.addListener(() => void syncReaderRegistration());
+chrome.runtime.onInstalled.addListener((details) => {
+  void syncReaderRegistration();
+  // Best-effort first-run welcome (Chromium/Firefox). The popup's level CTA is the
+  // portable equivalent, so failures here are swallowed (e.g. Safari, where opening a
+  // tab from install is unreliable).
+  if (details.reason === "install") {
+    try {
+      void chrome.tabs.create({ url: chrome.runtime.getURL("onboarding.html") });
+    } catch {
+      /* onboarding tab is optional; ignore where unsupported */
+    }
+  }
+});
 chrome.runtime.onStartup.addListener(() => void syncReaderRegistration());
 
 // When the user grants "always highlight", register the reader and light up the
