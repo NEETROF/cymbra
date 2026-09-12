@@ -1,5 +1,5 @@
 import type { Client } from "@connectrpc/connect";
-import type { CardOp, LinguaPort, StatusChangeIn } from "../analyzer/port.ts";
+import type { CardOp, DeclaredLevelOp, LinguaPort, StatusChangeIn } from "../analyzer/port.ts";
 import type { DeckService } from "../gen/deck_pb.ts";
 import type { KnownWordsService } from "../gen/known_words_pb.ts";
 import type { StatsService } from "../gen/stats_pb.ts";
@@ -62,6 +62,7 @@ export class SyncEngine {
     await this.deps.port.restore(stored.backup);
 
     const pushedStatuses = await this.pushStatuses();
+    await this.pushDeclaredLevels();
     const pushedCards = await this.pushCards();
     await this.pushStats();
 
@@ -70,7 +71,7 @@ export class SyncEngine {
     const cards = await this.fetchCards();
 
     let pulled = 0;
-    if (statuses.changes.length > 0 || cards.ops.length > 0) {
+    if (statuses.changes.length > 0 || statuses.declaredLevels.length > 0 || cards.ops.length > 0) {
       // Re-hydrate from the LATEST backup before applying + persisting, so a local
       // mutation made in another context during the (slow) push/pull round-trip is not
       // clobbered by writing back the stale start-of-sync snapshot. Applies are
@@ -78,6 +79,8 @@ export class SyncEngine {
       const latest = await loadStored(this.deps.storage);
       if (latest.kind === "v2") await this.deps.port.restore(latest.backup);
       if (statuses.changes.length > 0) pulled += await this.deps.port.applyStatusChanges(statuses.changes);
+      if (statuses.declaredLevels.length > 0)
+        pulled += await this.deps.port.applyDeclaredLevelChanges(statuses.declaredLevels);
       if (cards.ops.length > 0) pulled += await this.deps.port.applyCardOps(cards.ops);
       if (pulled > 0) await saveBackup(this.deps.storage, await this.deps.port.backup());
     }
@@ -105,6 +108,26 @@ export class SyncEngine {
       });
     }
     return ops.length;
+  }
+
+  /**
+   * Push the declared-level decisions (add-lingua-cefr-levels). They ride
+   * KnownWordsService alongside the statuses and share the same cursor, so no
+   * separate cursor is tracked. Sent in one request (there is one per language);
+   * skipped when there is nothing to push.
+   */
+  private async pushDeclaredLevels(): Promise<void> {
+    const levels = await this.deps.port.exportDeclaredLevels();
+    if (levels.length === 0) return;
+    await this.deps.clients().knownWords.pushOps({
+      ops: [],
+      declaredLevels: levels.map((l) => ({
+        language: l.language,
+        level: l.level,
+        clientTs: BigInt(l.updated_at),
+        deviceId: this.deps.deviceId,
+      })),
+    });
   }
 
   private async pushCards(): Promise<number> {
@@ -142,8 +165,16 @@ export class SyncEngine {
     if (stats.length > 0) await this.deps.clients().stats.upsertDailyStats({ stats });
   }
 
-  /** Fetch status changes after the stored cursor (no apply, no cursor write). */
-  private async fetchStatuses(): Promise<{ changes: StatusChangeIn[]; cursor: number }> {
+  /**
+   * Fetch status + declared-level changes after the stored cursor (no apply, no
+   * cursor write). Levels share the status cursor server-side, so one pull returns
+   * both and one cursor covers them.
+   */
+  private async fetchStatuses(): Promise<{
+    changes: StatusChangeIn[];
+    declaredLevels: DeclaredLevelOp[];
+    cursor: number;
+  }> {
     const cursor = await this.loadCursor(STATUS_CURSOR_KEY);
     const res = await this.deps.clients().knownWords.pullChanges({ cursor: BigInt(cursor) });
     return {
@@ -152,6 +183,11 @@ export class SyncEngine {
         lemma: c.lemma,
         status: c.status,
         updated_at: Number(c.updatedAt),
+      })),
+      declaredLevels: res.declaredLevels.map((l) => ({
+        language: l.language,
+        level: l.level,
+        updated_at: Number(l.updatedAt),
       })),
       cursor: Number(res.cursor),
     };

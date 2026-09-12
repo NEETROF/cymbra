@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { CardOp, StatusChangeIn, StatusOp } from "@/analyzer/port.ts";
+import type { CardOp, DeclaredLevelOp, StatusChangeIn, StatusOp } from "@/analyzer/port.ts";
 import type { AsyncStorageArea } from "@/state/storage.ts";
 import { clearSyncCursors, getOrCreateDeviceId, SyncEngine, type SyncClients } from "@/sync/sync.ts";
 import { makeFakePort } from "./helpers.ts";
@@ -27,15 +27,23 @@ const v2 = (backup: string) => ({ [ROOT_KEY]: { v: 2, backup } });
 function syncPort(over: {
   statusOps?: StatusOp[];
   cardOps?: CardOp[];
+  levelOps?: DeclaredLevelOp[];
   onApplyStatuses?: (c: StatusChangeIn[]) => number;
   onApplyCards?: (c: CardOp[]) => number;
+  onApplyLevels?: (c: DeclaredLevelOp[]) => number;
 }) {
   const { port } = makeFakePort();
-  const calls = { restored: [] as string[], appliedStatuses: [] as StatusChangeIn[][], appliedCards: [] as CardOp[][] };
+  const calls = {
+    restored: [] as string[],
+    appliedStatuses: [] as StatusChangeIn[][],
+    appliedCards: [] as CardOp[][],
+    appliedLevels: [] as DeclaredLevelOp[][],
+  };
   port.restore = async (j) => void calls.restored.push(j);
   port.backup = async () => "MERGED-BACKUP";
   port.exportStatusOps = async () => over.statusOps ?? [];
   port.exportCardOps = async () => over.cardOps ?? [];
+  port.exportDeclaredLevels = async () => over.levelOps ?? [];
   port.applyStatusChanges = async (c) => {
     calls.appliedStatuses.push(c);
     return over.onApplyStatuses?.(c) ?? 0;
@@ -43,6 +51,10 @@ function syncPort(over: {
   port.applyCardOps = async (c) => {
     calls.appliedCards.push(c);
     return over.onApplyCards?.(c) ?? 0;
+  };
+  port.applyDeclaredLevelChanges = async (c) => {
+    calls.appliedLevels.push(c);
+    return over.onApplyLevels?.(c) ?? 0;
   };
   return { port, calls };
 }
@@ -66,11 +78,21 @@ interface WireCard {
   clientTs: bigint;
   deviceId: string;
 }
+interface WireLevel {
+  language: string;
+  level: string;
+  updatedAt: bigint;
+  sequence: bigint;
+}
 
 function fakeClients() {
   const pushOps = vi.fn(async () => ({ applied: 0n, cursor: 0n }));
   const pushCards = vi.fn(async () => ({ applied: 0n, cursor: 0n }));
-  const pullChanges = vi.fn(async () => ({ changes: [] as WireChange[], cursor: 7n }));
+  const pullChanges = vi.fn(async () => ({
+    changes: [] as WireChange[],
+    cursor: 7n,
+    declaredLevels: [] as WireLevel[],
+  }));
   const pullCards = vi.fn(async () => ({ cards: [] as WireCard[], cursor: 9n }));
   const upsertDailyStats = vi.fn(async () => ({ upserted: 0n }));
   const clients = {
@@ -158,6 +180,7 @@ describe("SyncEngine", () => {
     f.pullChanges.mockResolvedValueOnce({
       changes: [{ language: "en", lemma: "city", status: "known", updatedAt: 42n, sequence: 3n }],
       cursor: 12n,
+      declaredLevels: [],
     });
     const { port, calls } = syncPort({ onApplyStatuses: () => 1 });
     const storage = fakeArea(v2("BACKUP"));
@@ -192,13 +215,51 @@ describe("SyncEngine", () => {
     });
   });
 
+  it("pushes the declared level (mapping updated_at→clientTs + device id) alongside the statuses", async () => {
+    const { port } = syncPort({ levelOps: [{ language: "en", level: "B2", updated_at: 1700 }] });
+    const f = fakeClients();
+    const engine = new SyncEngine({
+      port,
+      storage: fakeArea(v2("BACKUP")),
+      clients: () => f.clients,
+      deviceId: "dev-1",
+    });
+    await engine.sync();
+    // The level rides a pushOps call (empty ops, one declared level).
+    expect(f.pushOps).toHaveBeenCalledWith({
+      ops: [],
+      declaredLevels: [{ language: "en", level: "B2", clientTs: 1700n, deviceId: "dev-1" }],
+    });
+  });
+
+  it("applies a pulled declared level (mapping bigint→number) and persists the merge", async () => {
+    const f = fakeClients();
+    f.pullChanges.mockResolvedValueOnce({
+      changes: [],
+      cursor: 8n,
+      declaredLevels: [{ language: "en", level: "C1", updatedAt: 99n, sequence: 4n }],
+    });
+    const { port, calls } = syncPort({ onApplyLevels: () => 1 });
+    const storage = fakeArea(v2("BACKUP"));
+    const engine = new SyncEngine({ port, storage, clients: () => f.clients, deviceId: "d" });
+
+    const res = await engine.sync();
+    expect(res?.pulled).toBe(1);
+    expect(calls.appliedLevels[0]).toEqual([{ language: "en", level: "C1", updated_at: 99 }]);
+    expect(storage.store[ROOT_KEY]).toEqual({ v: 2, backup: "MERGED-BACKUP" });
+  });
+
   it("applies pulled changes onto the LATEST backup, not the start-of-sync snapshot (no clobber)", async () => {
     const storage = fakeArea(v2("B0"));
     const f = fakeClients();
     // A concurrent local mutation lands (another context persists) during the pull.
     f.pullChanges.mockImplementationOnce(async () => {
       await storage.set(v2("B1-concurrent"));
-      return { changes: [{ language: "en", lemma: "city", status: "known", updatedAt: 5n, sequence: 1n }], cursor: 3n };
+      return {
+        changes: [{ language: "en", lemma: "city", status: "known", updatedAt: 5n, sequence: 1n }],
+        cursor: 3n,
+        declaredLevels: [],
+      };
     });
     const { port, calls } = syncPort({ onApplyStatuses: () => 1 });
     const engine = new SyncEngine({ port, storage, clients: () => f.clients, deviceId: "d" });

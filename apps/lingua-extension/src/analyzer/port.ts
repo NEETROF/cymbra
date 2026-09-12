@@ -63,6 +63,13 @@ export interface StatusChangeIn {
   updated_at: number; // epoch millis
 }
 
+/** One exported declared-level decision, from `exportDeclaredLevels` (also the apply shape). */
+export interface DeclaredLevelOp {
+  language: string;
+  level: string; // "" = débutant | "A1".."C2"
+  updated_at: number; // epoch millis
+}
+
 /** One exported whole-card op, from `exportCardOps` (also the apply shape). */
 export interface CardOp {
   client_id: string;
@@ -135,8 +142,14 @@ export interface LinguaPort extends AnalyzerPort {
 
   /** Declare the reader's CEFR level, or `null` to clear it (back to frequency calibration). */
   setDeclaredLevel(level: CefrLevel | null): Promise<void>;
+  /** Like `setDeclaredLevel`, but stamps the decision (epoch millis) for cross-device last-write-wins. */
+  setDeclaredLevelAt(level: CefrLevel | null, atMs: number): Promise<void>;
   /** The declared CEFR level, or `null` if none is set. */
   declaredLevel(): Promise<CefrLevel | null>;
+  /** Every declared-level decision as an op, for a push (rides KnownWordsService with the statuses). */
+  exportDeclaredLevels(): Promise<DeclaredLevelOp[]>;
+  /** Apply pulled declared-level changes under last-write-wins; returns how many changed. */
+  applyDeclaredLevelChanges(changes: DeclaredLevelOp[]): Promise<number>;
   /** Whether the loaded pack carries CEFR data (else the ladder/feeding fall back to frequency). */
   hasLevels(): Promise<boolean>;
   /** The CEFR ladder A1→C2: confirmed / presumed / to-learn per level. Empty without CEFR data. */
