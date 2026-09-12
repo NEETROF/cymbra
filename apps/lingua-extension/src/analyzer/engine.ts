@@ -1,4 +1,13 @@
-import type { CardOp, LinguaPort, NewCard, Rating, ReviewCard, StatusChangeIn, StatusOp } from "./port.ts";
+import type {
+  CardOp,
+  DeclaredLevelOp,
+  LinguaPort,
+  NewCard,
+  Rating,
+  ReviewCard,
+  StatusChangeIn,
+  StatusOp,
+} from "./port.ts";
 import type { CefrLevel, LemmaStatus, LevelRow, PageAnalysis, SeedOrder } from "./types.ts";
 
 // The Chromium LinguaPort implementation: the lingua-core WASM module instantiated
@@ -46,7 +55,10 @@ interface WasmEngine {
   exportCardOps(): string;
   applyCardOps(json: string): number;
   setDeclaredLevel(level: string): void;
+  setDeclaredLevelAt(level: string, atMs: number): void;
   declaredLevel(): string | undefined;
+  exportDeclaredLevels(): string;
+  applyDeclaredLevelChanges(json: string): number;
   hasLevels(): boolean;
   levelLadder(): string;
   recordExposures(lemmas: string[], source: string, atMs: number): void;
@@ -205,8 +217,20 @@ export class WasmAnalyzerPort implements LinguaPort {
     (await this.engine()).setDeclaredLevel(level ?? "");
   }
 
+  async setDeclaredLevelAt(level: CefrLevel | null, atMs: number): Promise<void> {
+    (await this.engine()).setDeclaredLevelAt(level ?? "", atMs);
+  }
+
   async declaredLevel(): Promise<CefrLevel | null> {
     return ((await this.engine()).declaredLevel() as CefrLevel | undefined) ?? null;
+  }
+
+  async exportDeclaredLevels(): Promise<DeclaredLevelOp[]> {
+    return JSON.parse((await this.engine()).exportDeclaredLevels()) as DeclaredLevelOp[];
+  }
+
+  async applyDeclaredLevelChanges(changes: DeclaredLevelOp[]): Promise<number> {
+    return (await this.engine()).applyDeclaredLevelChanges(JSON.stringify(changes));
   }
 
   async hasLevels(): Promise<boolean> {

@@ -385,7 +385,8 @@ class ReadingSession {
    * highlighted; at/above stay highlighted.
    */
   private async onSetLevel(level: CefrLevel | null): Promise<void> {
-    await this.port.setDeclaredLevel(level);
+    // Stamp the decision so it wins cross-device last-write-wins when it syncs.
+    await this.port.setDeclaredLevelAt(level, Date.now());
     await this.port.setCalibration(0);
     this.calibration = 0;
     await this.persist();

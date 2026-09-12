@@ -36,7 +36,7 @@ async function main(): Promise<void> {
   for (const chip of chips) {
     chip.addEventListener("click", async () => {
       const level = (chip.dataset.lvl as CefrLevel) || null;
-      await port.setDeclaredLevel(level);
+      await port.setDeclaredLevelAt(level, Date.now()); // stamp for cross-device LWW
       // With a declared level, presumption comes only from it (option B).
       await port.setCalibration(0);
       await saveBackup(area, await port.backup());

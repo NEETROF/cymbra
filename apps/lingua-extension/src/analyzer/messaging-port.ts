@@ -1,4 +1,13 @@
-import type { CardOp, LinguaPort, NewCard, Rating, ReviewCard, StatusChangeIn, StatusOp } from "./port.ts";
+import type {
+  CardOp,
+  DeclaredLevelOp,
+  LinguaPort,
+  NewCard,
+  Rating,
+  ReviewCard,
+  StatusChangeIn,
+  StatusOp,
+} from "./port.ts";
 import type { CefrLevel, LemmaStatus, LevelRow, PageAnalysis, SeedOrder } from "./types.ts";
 import { sendRpc } from "./rpc.ts";
 
@@ -94,8 +103,17 @@ export class MessagingLinguaPort implements LinguaPort {
   setDeclaredLevel(level: CefrLevel | null): Promise<void> {
     return this.rpc("setDeclaredLevel", [level]);
   }
+  setDeclaredLevelAt(level: CefrLevel | null, atMs: number): Promise<void> {
+    return this.rpc("setDeclaredLevelAt", [level, atMs]);
+  }
   declaredLevel(): Promise<CefrLevel | null> {
     return this.rpc("declaredLevel");
+  }
+  exportDeclaredLevels(): Promise<DeclaredLevelOp[]> {
+    return this.rpc("exportDeclaredLevels");
+  }
+  applyDeclaredLevelChanges(changes: DeclaredLevelOp[]): Promise<number> {
+    return this.rpc("applyDeclaredLevelChanges", [changes]);
   }
   hasLevels(): Promise<boolean> {
     return this.rpc("hasLevels");
