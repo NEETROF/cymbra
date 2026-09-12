@@ -170,6 +170,19 @@ async function main(): Promise<void> {
     await refresh();
   });
 
+  // Settings view (gear icon): the rarely-used, destructive reset lives here,
+  // off the main page. Opening or leaving it collapses the reset menu.
+  $("settings-open").addEventListener("click", () => {
+    closeResetMenu();
+    $("main-view").hidden = true;
+    $("settings-view").hidden = false;
+  });
+  $("settings-back").addEventListener("click", () => {
+    closeResetMenu();
+    $("settings-view").hidden = true;
+    $("main-view").hidden = false;
+  });
+
   $("review").addEventListener("click", async () => {
     const tabId = await activeTabId();
     if (tabId != null) await chrome.sidePanel.open({ tabId });
