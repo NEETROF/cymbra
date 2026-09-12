@@ -30,7 +30,7 @@ message StatusOp {
   string language = 1; // studied-language code, e.g. "en"
   string lemma = 2; // dictionary form
   string status = 3; // "known" | "learning" | "ignored" | "cleared"
-  string provenance = 4; // "manual" | "calibration" | "srs" | "import"
+  string provenance = 4; // "manual" | "srs" | "exposure" | "import" (opaque to the server; an unknown value degrades to "manual" on a client that predates it)
   int64 client_ts = 5; // client op time (epoch millis); future values are clamped on receipt
   string device_id = 6; // stable per-device id (last-write-wins tie-break)
 }

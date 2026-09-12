@@ -81,8 +81,9 @@ impl Status {
     /// The sync-protocol provenance string:
     /// `"manual" | "srs" | "exposure" | "import"`. `Known(Calibration)` is never
     /// an explicit entry, so it never reaches the wire; a learning/ignored
-    /// status is a manual decision. A client that predates `"exposure"` maps the
-    /// unknown value back to `manual` in [`Status::from_wire`] — a lossy but safe
+    /// status is a manual decision. This client round-trips every value it emits
+    /// (see [`Status::from_wire`]); a client that predates a provenance it has
+    /// never heard of degrades that value back to `manual` — a lossy but safe
     /// degrade (it stays a known).
     pub fn wire_provenance(self) -> &'static str {
         match self {
@@ -101,6 +102,7 @@ impl Status {
             "ignored" => Some(Status::Ignored),
             "known" => Some(Status::Known(match provenance {
                 "srs" => KnownSource::Srs,
+                "exposure" => KnownSource::Exposure,
                 "import" => KnownSource::Import,
                 _ => KnownSource::Manual,
             })),
@@ -128,11 +130,22 @@ mod tests {
             Status::Ignored,
             Status::Known(KnownSource::Manual),
             Status::Known(KnownSource::Srs),
+            Status::Known(KnownSource::Exposure),
             Status::Known(KnownSource::Import),
         ] {
             let back = Status::from_wire(status.wire_kind(), status.wire_provenance());
             assert_eq!(back, Some(status), "round trip {status:?}");
         }
+    }
+
+    #[test]
+    fn an_unknown_provenance_degrades_to_a_manual_known() {
+        // D6 back-compat: a provenance this client has never heard of (e.g. one a
+        // future client invents) stays a known rather than being dropped.
+        assert_eq!(
+            Status::from_wire("known", "something-new"),
+            Some(Status::Known(KnownSource::Manual)),
+        );
     }
 
     #[test]
