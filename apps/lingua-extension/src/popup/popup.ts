@@ -279,8 +279,17 @@ async function main(): Promise<void> {
     renderAccount(res?.state ?? { signedIn: false });
   });
 
-  $("open-stats").addEventListener("click", () => {
-    void chrome.tabs.create({ url: chrome.runtime.getURL("stats.html") });
+  $("open-stats").addEventListener("click", async () => {
+    // Open the stats in the side panel (like the review), not a full tab.
+    const tabId = await activeTabId();
+    if (tabId != null) {
+      try {
+        await chrome.storage.session.set({ "cymbra-lingua-panel-view": "stats" });
+      } catch {
+        /* storage.session may be unavailable; the panel just opens on review */
+      }
+      await chrome.sidePanel.open({ tabId });
+    }
     window.close();
   });
 

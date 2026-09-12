@@ -1,6 +1,37 @@
 import { describe, expect, it } from "vitest";
+import type { CefrLevel, LevelRow } from "@/analyzer/types.ts";
 import { barChartSvg } from "@/stats/chart.ts";
-import { buildSeries, consolidatedToMap, dayWindow } from "@/stats/model.ts";
+import { buildSeries, consolidatedToMap, dayWindow, estimatedPosition } from "@/stats/model.ts";
+
+const CEFR: readonly CefrLevel[] = ["A1", "A2", "B1", "B2", "C1", "C2"];
+
+/** Build a full A1..C2 ladder; `known` gives the known fraction (0..1) per level. */
+function ladder(known: Partial<Record<CefrLevel, number>>, total = 100): LevelRow[] {
+  return CEFR.map((level) => {
+    const confirmed = Math.round((known[level] ?? 0) * total);
+    return { level, confirmed, presumed: 0, toLearn: total - confirmed, total };
+  });
+}
+
+describe("estimatedPosition", () => {
+  it("is the lowest level not yet cleared (>= 90% known)", () => {
+    expect(estimatedPosition(ladder({ A1: 1, A2: 1, B1: 0.95, B2: 0.4, C1: 0 }))).toBe("B2");
+  });
+
+  it("counts confirmed + presumed toward mastery", () => {
+    const rows = ladder({ A1: 1 });
+    rows[1] = { level: "A2", confirmed: 50, presumed: 45, toLearn: 5, total: 100 }; // 95% → cleared
+    expect(estimatedPosition(rows)).toBe("B1"); // first not-cleared after A1/A2
+  });
+
+  it("returns the top present level when everything is cleared", () => {
+    expect(estimatedPosition(ladder({ A1: 1, A2: 1, B1: 1, B2: 1, C1: 1, C2: 1 }))).toBe("C2");
+  });
+
+  it("is null when the pack has no CEFR data (all bands empty)", () => {
+    expect(estimatedPosition(ladder({}, 0))).toBeNull();
+  });
+});
 
 describe("dayWindow", () => {
   it("is the inclusive window of `window` days ending at toDay", () => {
