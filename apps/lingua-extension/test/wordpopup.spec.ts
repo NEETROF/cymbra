@@ -11,9 +11,15 @@ const content = (over: Partial<WordPopupContent> = {}): WordPopupContent => ({
   gloss: "rarement",
   rarity: "Peu fréquent — au-delà de tes 3 000 mots les plus courants.",
   sentence: "They seldom ship on Friday.",
-  rect: { left: 40, bottom: 80 },
+  rect: { left: 40, top: 60, bottom: 80 },
   ...over,
 });
+
+/** Stub the card's measured box so positioning can be tested without real layout. */
+function stubSize(card: { el: HTMLElement }, width: number, height: number): void {
+  card.el.getBoundingClientRect = () =>
+    ({ width, height, top: 0, left: 0, right: width, bottom: height, x: 0, y: 0, toJSON() {} }) as DOMRect;
+}
 
 function button(card: HTMLElement, label: string): HTMLButtonElement {
   const b = [...card.querySelectorAll("button")].find((el) => el.textContent === label);
@@ -87,5 +93,48 @@ describe("word popup card", () => {
     const card = createCard();
     card.show(content(), () => {});
     expect(card.el.textContent ?? "").not.toMatch(/lemm/i);
+  });
+});
+
+describe("word popup positioning", () => {
+  const H = 200; // pretend viewport height
+  beforeEach(() => {
+    Object.defineProperty(window, "innerHeight", { value: H, configurable: true });
+    Object.defineProperty(window, "innerWidth", { value: 1000, configurable: true });
+  });
+
+  it("places the card just below the word when there is room", () => {
+    const card = createCard();
+    document.body.append(card.el);
+    stubSize(card, 260, 100);
+    card.show(content({ rect: { left: 40, top: 20, bottom: 40 } }), () => {});
+    expect(card.el.style.top).toBe("48px"); // bottom(40) + 8
+    expect(card.el.style.left).toBe("40px");
+  });
+
+  it("flips the card above the word when there is no room below (near the page bottom)", () => {
+    const card = createCard();
+    document.body.append(card.el);
+    stubSize(card, 260, 120);
+    // Word near the bottom: below (170+8=178)+120=298 > 192 → flip above: top(150)-8-120=22.
+    card.show(content({ rect: { left: 40, top: 150, bottom: 170 } }), () => {});
+    expect(card.el.style.top).toBe("22px");
+  });
+
+  it("clamps into the viewport so the card is never partially off-screen", () => {
+    const card = createCard();
+    document.body.append(card.el);
+    stubSize(card, 260, 120);
+    // Even flipping above would overflow the top (top 20 → 20-8-120 = -108) → clamp to 8.
+    card.show(content({ rect: { left: 40, top: 20, bottom: 190 } }), () => {});
+    expect(card.el.style.top).toBe("8px");
+  });
+
+  it("clamps the card's left edge within the viewport width", () => {
+    const card = createCard();
+    document.body.append(card.el);
+    stubSize(card, 260, 100);
+    card.show(content({ rect: { left: 5000, top: 20, bottom: 40 } }), () => {});
+    expect(card.el.style.left).toBe(`${1000 - 260 - 8}px`); // vw - width - 8
   });
 });
