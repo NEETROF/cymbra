@@ -102,6 +102,56 @@ export function lemmasByContainer(blocks: Block[], a: PageAnalysis): Map<Element
   return out;
 }
 
+/** A block paired with its tokens — one entry per container, for the on-demand click path. */
+export interface BlockTokens {
+  block: Block;
+  tokens: AnalyzedToken[];
+}
+
+/**
+ * Analysed tokens grouped by their block container, each paired with the exact Block they
+ * were analysed against (proper nouns dropped). Feeds the click path for words that aren't
+ * painted (Known/Ignored): a click resolves only the clicked block's tokens on demand — so
+ * a marked word can be reopened without holding a Range for every word on the page. Pairing
+ * block+tokens from the SAME analysis is deliberate: if the DOM changed since, resolving the
+ * stale block yields ranges over old nodes that no longer match the live caret (a clean
+ * miss), never a wrong-word hit.
+ */
+export function clickableByContainer(blocks: Block[], a: PageAnalysis): Map<Element, BlockTokens> {
+  const out = new Map<Element, BlockTokens>();
+  for (const token of a.tokens) {
+    if (token.class === "ProperNounOutOfLexicon") continue;
+    const block = blocks[token.block];
+    if (!block) continue;
+    let entry = out.get(block.container);
+    if (!entry) {
+      entry = { block, tokens: [] };
+      out.set(block.container, entry);
+    }
+    entry.tokens.push(token);
+  }
+  return out;
+}
+
+/**
+ * Resolve one block's tokens to ranges and hit-test a caret against them — the on-demand
+ * click path for a non-painted (Known/Ignored) word, so it can be reclassified. Bounded to
+ * a single block's tokens.
+ */
+export function findTokenInBlock(
+  block: Block,
+  tokens: AnalyzedToken[],
+  node: Node,
+  offset: number,
+): ResolvedToken | null {
+  const resolved: ResolvedToken[] = [];
+  for (const token of tokens) {
+    const range = rangeForToken(block, token.start, token.end);
+    if (range) resolved.push({ token, range });
+  }
+  return findTokenAt(resolved, node, offset);
+}
+
 export function resolveTokens(blocks: Block[], a: PageAnalysis): ResolvedToken[] {
   const resolved: ResolvedToken[] = [];
   for (const token of a.tokens) {

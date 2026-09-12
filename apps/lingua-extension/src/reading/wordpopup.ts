@@ -18,7 +18,8 @@ export interface Gesture {
   surface: string;
   /** The source sentence, carried onto a created card. */
   sentence: string;
-  status: LemmaStatus;
+  /** The chosen status, or `null` to clear it ("Remettre à apprendre"). */
+  status: LemmaStatus | null;
 }
 
 export interface WordPopupContent {
@@ -34,6 +35,8 @@ export interface WordPopupContent {
   sentence: string;
   /** Whether this is a multi-word expression (hides "Je connais"). */
   expression?: boolean;
+  /** The word's current status (drives which actions are offered); null = new/unknown. */
+  status?: LemmaStatus | null;
   /** Anchor rectangle in viewport coordinates (the word's box). */
   rect: { left: number; top: number; bottom: number };
 }
@@ -63,7 +66,7 @@ export function createCard(): CardView {
 
   function button(
     label: string,
-    status: LemmaStatus,
+    status: LemmaStatus | null,
     primary: boolean,
     onGesture: (g: Gesture) => void,
   ): HTMLButtonElement {
@@ -103,9 +106,17 @@ export function createCard(): CardView {
         glossEl.classList.add("empty");
       }
 
+      // Actions depend on the word's current status: hide the one it already is. Offer
+      // "Remettre à apprendre" (clear) only for an IGNORED word — ignored is always an
+      // explicit decision, so clearing it reliably un-ignores. A displayed "Known" may be
+      // merely presumed by level/frequency, where clearing would be a dead no-op, so no
+      // clear there ("+ Deck" is the real "I want to learn this" for such a word).
       actionsEl.replaceChildren();
-      if (!content.expression) actionsEl.append(button("Je connais", "known", false, onGesture));
-      actionsEl.append(button("+ Deck", "learning", true, onGesture), button("Ignorer", "ignored", false, onGesture));
+      const st = content.status ?? null;
+      if (!content.expression && st !== "known") actionsEl.append(button("Je connais", "known", false, onGesture));
+      if (st !== "learning") actionsEl.append(button("+ Deck", "learning", true, onGesture));
+      if (st !== "ignored") actionsEl.append(button("Ignorer", "ignored", false, onGesture));
+      if (st === "ignored") actionsEl.append(button("Remettre à apprendre", null, false, onGesture));
 
       el.hidden = false; // reveal first so the card can be measured, then position it
       positionCard(el, content.rect);

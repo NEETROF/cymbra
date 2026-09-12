@@ -70,6 +70,12 @@ yarn lint && yarn format:check && yarn typecheck && yarn test
   (`cymbra-lingua-unknown`, `cymbra-lingua-learning`), **zero DOM mutation**
   (`src/reading/highlight.ts`, `blocks.ts`). Dynamic pages are re-analysed per mutated
   subtree, visible content first (`observer.ts`).
+- **Gestures** — a plain click on a highlighted (unknown/learning) word opens the popup
+  (`Je connais` / `+ Deck` / `Ignorer`). A word you already marked isn't highlighted, so
+  to change your mind **Alt/Option-click** it: the popup reopens with the status-aware
+  actions (an ignored word offers `Remettre à apprendre` to un-ignore it). A plain click
+  never intercepts a non-highlighted word, so the page's own click handling is untouched.
+  `Alt+L` captures a multi-word selection as a phrase card.
 - **State** — statuses, the captured deck, calibration — lives in
   `chrome.storage.local` under a versioned schema with forward migration
   (`src/state/`). A gesture in one tab repaints every other via `storage.onChanged`.
