@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.33.0](https://github.com/NEETROF/cymbra/compare/music-v1.32.0...music-v1.33.0) (2026-09-12)
+
+
+### Features
+
+* **music:** acoustic piano input over the microphone ([#376](https://github.com/NEETROF/cymbra/issues/376)) ([4e965a0](https://github.com/NEETROF/cymbra/commit/4e965a06e3c4991a57acda257c5e930e354254d9))
+
 ## [1.32.0](https://github.com/NEETROF/cymbra/compare/music-v1.31.0...music-v1.32.0) (2026-09-07)
 
 

@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.27.0](https://github.com/NEETROF/cymbra/compare/backend-v0.26.0...backend-v0.27.0) (2026-09-12)
+
+
+### Features
+
+* **lingua:** add the audience, backend module and sync protocol ([#363](https://github.com/NEETROF/cymbra/issues/363)) ([cb7992d](https://github.com/NEETROF/cymbra/commit/cb7992d25283e044e0aea30530c2578b3cf638ba))
+* **lingua:** add the back-office ops console ([#365](https://github.com/NEETROF/cymbra/issues/365)) ([89fb161](https://github.com/NEETROF/cymbra/commit/89fb161d3125768098505ce937fd9809aa5d166f))
+* **lingua:** add the CEFR level table to the pack format and pipeline ([#389](https://github.com/NEETROF/cymbra/issues/389)) ([b0c31cd](https://github.com/NEETROF/cymbra/commit/b0c31cd2a396685ff88a78b465feee67a3c5a9d7))
+* **lingua:** sync the declared CEFR level via KnownWordsService (level sync 2/3) ([#402](https://github.com/NEETROF/cymbra/issues/402)) ([0001e44](https://github.com/NEETROF/cymbra/commit/0001e44164892b1dcaa21e1e248d9900527e2cfa))
+* **lingua:** tokenise hyphenated compounds as one honest token ([#373](https://github.com/NEETROF/cymbra/issues/373)) ([3feeb3c](https://github.com/NEETROF/cymbra/commit/3feeb3c609f6f82e88b82df53d73d8e29870ec63))
+* **music:** acoustic piano input over the microphone ([#376](https://github.com/NEETROF/cymbra/issues/376)) ([4e965a0](https://github.com/NEETROF/cymbra/commit/4e965a06e3c4991a57acda257c5e930e354254d9))
+
+
+### Bug Fixes
+
+* **lingua:** round-trip the "exposure" provenance on sync (design D6) ([#400](https://github.com/NEETROF/cymbra/issues/400)) ([692852f](https://github.com/NEETROF/cymbra/commit/692852fed5eabfd3cb95bf628076e4c8970c33fc))
+
 ## [0.26.0](https://github.com/NEETROF/cymbra/compare/backend-v0.25.0...backend-v0.26.0) (2026-09-08)
 
 
