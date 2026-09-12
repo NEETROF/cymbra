@@ -62,23 +62,10 @@
 
         <div class="row"><span>Mots suivis</span><b id="tracked">0</b></div>
 
-        <div id="level-block" class="level" hidden>
-          <label>Mon niveau d'anglais</label>
-          <div id="level-chips" class="level-chips">
-            <button class="lvl" data-lvl="A1">A1</button>
-            <button class="lvl" data-lvl="A2">A2</button>
-            <button class="lvl" data-lvl="B1">B1</button>
-            <button class="lvl" data-lvl="B2">B2</button>
-            <button class="lvl" data-lvl="C1">C1</button>
-            <button class="lvl" data-lvl="C2">C2</button>
-            <button class="lvl lvl-beginner" data-lvl="">Débutant</button>
-          </div>
-          <div id="level-hint" class="note"></div>
-        </div>
-
-        <div id="calib-block" class="calib">
-          <label>Mon niveau : je connais les <b id="calibv">3000</b> mots les plus courants</label>
-          <input type="range" id="calib" min="500" max="10000" step="100" value="3000" />
+        <button id="level-cta" class="primary" hidden>Choisis ton niveau d'anglais</button>
+        <div id="level-indicator" class="level-indicator" hidden>
+          <span>Niveau d'anglais : <b id="level-current">—</b></span>
+          <button id="level-edit" class="linklike">Modifier</button>
         </div>
 
         <div class="deck"><span>Deck (en cours)</span><b id="deck">0</b></div>
@@ -124,6 +111,27 @@
           </svg>
         </button>
         <span class="settings-title">Réglages</span>
+      </div>
+
+      <div class="setting-block">
+        <div class="setting-label">Niveau d'anglais</div>
+        <div id="level-block" class="level">
+          <div id="level-chips" class="level-chips">
+            <button class="lvl" data-lvl="A1">A1</button>
+            <button class="lvl" data-lvl="A2">A2</button>
+            <button class="lvl" data-lvl="B1">B1</button>
+            <button class="lvl" data-lvl="B2">B2</button>
+            <button class="lvl" data-lvl="C1">C1</button>
+            <button class="lvl" data-lvl="C2">C2</button>
+            <button class="lvl lvl-beginner" data-lvl="">Débutant</button>
+          </div>
+          <div id="level-hint" class="note"></div>
+        </div>
+
+        <div id="calib-block" class="calib">
+          <label>Je connais les <b id="calibv">3000</b> mots les plus courants</label>
+          <input type="range" id="calib" min="500" max="10000" step="100" value="3000" />
+        </div>
       </div>
 
       <div class="setting-block">

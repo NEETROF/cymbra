@@ -107,6 +107,8 @@ function render(stats: PageStats | null): void {
   // With CEFR data, the reader declares a level (the frequency slider is the
   // fallback for language packs without CEFR levels).
   if (stats.hasLevels) {
+    // The picker lives in Réglages; the main panel gets a compact reminder, or a
+    // call-to-action until a level has been chosen (asked at first use).
     $("level-block").hidden = false;
     $("calib-block").hidden = true;
     const current = stats.declaredLevel ?? "";
@@ -116,11 +118,16 @@ function render(stats: PageStats | null): void {
     $("level-hint").textContent = stats.declaredLevel
       ? `Les mots sous ${stats.declaredLevel} ne sont plus surlignés.`
       : "Choisis ton niveau — rien n'est présumé connu pour l'instant.";
+    $("level-cta").hidden = stats.declaredLevel !== null;
+    $("level-indicator").hidden = stats.declaredLevel === null;
+    $("level-current").textContent = stats.declaredLevel ?? "—";
   } else {
     $("level-block").hidden = true;
     $("calib-block").hidden = false;
     ($("calib") as HTMLInputElement).value = String(stats.calibration);
     $("calibv").textContent = String(stats.calibration);
+    $("level-cta").hidden = true;
+    $("level-indicator").hidden = true;
   }
 }
 
@@ -218,13 +225,17 @@ async function main(): Promise<void> {
     await refresh();
   });
 
-  // Settings view (gear icon): the rarely-used, destructive reset lives here,
-  // off the main page. Opening or leaving it returns the reset flow to rest.
-  $("settings-open").addEventListener("click", () => {
+  // Settings view (gear icon): the level picker + the destructive reset live
+  // here, off the main page. Opening or leaving it returns the reset flow to
+  // rest. The main-panel level CTA / "Modifier" also route here.
+  const openSettings = (): void => {
     showRest();
     $("main-view").hidden = true;
     $("settings-view").hidden = false;
-  });
+  };
+  $("settings-open").addEventListener("click", openSettings);
+  $("level-cta").addEventListener("click", openSettings);
+  $("level-edit").addEventListener("click", openSettings);
   $("settings-back").addEventListener("click", () => {
     showRest();
     $("settings-view").hidden = true;
