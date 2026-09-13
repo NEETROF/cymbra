@@ -1,0 +1,88 @@
+name: codeql
+
+# Advanced setup, replacing GitHub's default setup: the default setup analyses every
+# language on every pull request and cannot be path-filtered, so a TypeScript-only
+# change paid for c-cpp, python, rust and actions too.
+#
+# Pull requests analyse only the languages whose sources changed. Pushes to main and
+# the weekly schedule always analyse everything, so the baseline a pull request is
+# compared against stays complete. The category matches the default setup's
+# (`/language:<lang>`), so existing alerts carry over instead of being reopened.
+#
+# The default setup must be disabled in Settings > Code security: while it is on, the
+# SARIF this workflow uploads is rejected.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '27 4 * * 1'
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  # Filter names are CodeQL language ids: the matched list becomes the matrix as is.
+  # Editing this workflow re-runs every language, since it is the thing being tested.
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      languages: ${{ github.event_name == 'pull_request' && steps.f.outputs.changes || '["actions","c-cpp","javascript-typescript","python","rust"]' }}
+    steps:
+      - uses: dorny/paths-filter@v4
+        if: ${{ github.event_name == 'pull_request' }}
+        id: f
+        with:
+          filters: |
+            actions:
+              - '.github/workflows/**'
+              - '.github/actions/**'
+              - '**/action.yml'
+              - '**/action.yaml'
+            c-cpp:
+              - '**/*.{c,cc,cpp,cxx,h,hh,hpp,hxx,m,mm}'
+              - '.github/workflows/codeql.yml'
+            javascript-typescript:
+              - '**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts,vue,astro,html}'
+              - '.github/workflows/codeql.yml'
+            python:
+              - '**/*.py'
+              - '.github/workflows/codeql.yml'
+            rust:
+              - '**/*.rs'
+              - '**/Cargo.toml'
+              - 'Cargo.lock'
+              - '.github/workflows/codeql.yml'
+
+  analyze:
+    needs: changes
+    if: ${{ needs.changes.outputs.languages != '[]' }}
+    name: analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      packages: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ${{ fromJSON(needs.changes.outputs.languages) }}
+    steps:
+      - uses: actions/checkout@v5
+      # `none` for every language, as the default setup did: the Flutter desktop
+      # runners (the only C/C++) can't be autobuilt on a Linux runner anyway.
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+      - uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:${{ matrix.language }}
