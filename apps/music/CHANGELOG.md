@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.33.2](https://github.com/NEETROF/cymbra/compare/music-v1.33.1...music-v1.33.2) (2026-09-13)
+
+
+### Bug Fixes
+
+* **music:** keep the guest sign-in button direct, beside an overflow menu ([#428](https://github.com/NEETROF/cymbra/issues/428)) ([88160ed](https://github.com/NEETROF/cymbra/commit/88160ed4c7174f90e5c3c0c97f6feca2249c4c0a))
+
 ## [1.33.1](https://github.com/NEETROF/cymbra/compare/music-v1.33.0...music-v1.33.1) (2026-09-13)
 
 
