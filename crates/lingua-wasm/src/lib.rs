@@ -244,7 +244,10 @@ impl LinguaEngine {
 
     /// Like `setStatus`, but stamps the change with a sync timestamp (epoch
     /// millis, the caller's clock) so the outbox and cross-device LWW can order
-    /// it. `status` is `learning` | `known` | `ignored`; anything else clears.
+    /// it. `status` is `learning` | `known` | `ignored`; anything else withdraws
+    /// the status ("Remettre à apprendre"): stamped, so the word stays highlighted
+    /// even where calibration or the declared level would presume it known,
+    /// exposure no longer re-confirms it, and the undo syncs as `cleared`.
     #[wasm_bindgen(js_name = setStatusAt)]
     pub fn set_status_at(&mut self, lemma: &str, status: &str, at_ms: f64) {
         match Status::from_wire(status, "manual") {
@@ -252,13 +255,17 @@ impl LinguaEngine {
                 .state
                 .knowledge
                 .set_status_at(EN, lemma, s, at_ms as i64),
-            None => self.state.knowledge.clear_status(EN, lemma),
+            None => self
+                .state
+                .knowledge
+                .clear_status_at(EN, lemma, at_ms as i64),
         }
     }
 
     /// The full set of explicit statuses as `StatusOp`-shaped JSON
     /// (`{language, lemma, status, provenance, updated_at}`), for a push (the
     /// first-sign-in full upload, or an incremental drain the caller filters).
+    /// A withdrawn status exports as `cleared`, so an undo reaches other devices.
     #[wasm_bindgen(js_name = exportStatusOps)]
     pub fn export_status_ops(&self) -> String {
         let ops: Vec<serde_json::Value> = self
@@ -270,8 +277,8 @@ impl LinguaEngine {
                 serde_json::json!({
                     "language": "en",
                     "lemma": r.lemma,
-                    "status": r.status.wire_kind(),
-                    "provenance": r.status.wire_provenance(),
+                    "status": r.status.map_or("cleared", Status::wire_kind),
+                    "provenance": r.status.map_or("manual", Status::wire_provenance),
                     "updated_at": r.updated_at,
                 })
             })

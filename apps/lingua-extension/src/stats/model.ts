@@ -99,8 +99,10 @@ export interface MarkedWord {
 /**
  * The explicitly known/ignored words from an `exportStatusOps` list, newest decision
  * first (ties alphabetical). Drives the "Mots marqués" management list, where each can be
- * put back "à apprendre". `exportStatusOps` returns only EXPLICIT statuses (never
- * presumed-known), so clearing any of these reliably resurfaces the word.
+ * put back "à apprendre". `exportStatusOps` returns explicit statuses plus withdrawn ones
+ * (`cleared`, dropped here), never presumed-known. Clearing one withdraws the decision in
+ * the engine, which resurfaces the word even below the declared level and stops reading
+ * from re-confirming it.
  */
 export function markedWords(ops: { lemma: string; status: string; updated_at: number }[]): MarkedWord[] {
   return ops

@@ -108,9 +108,9 @@ export function createCard(): CardView {
 
       // Actions depend on the word's current status: hide the one it already is. Offer
       // "Remettre à apprendre" (clear) only for an IGNORED word — ignored is always an
-      // explicit decision, so clearing it reliably un-ignores. A displayed "Known" may be
-      // merely presumed by level/frequency, where clearing would be a dead no-op, so no
-      // clear there ("+ Deck" is the real "I want to learn this" for such a word).
+      // explicit decision, and clearing withdraws it so the word is highlighted again. A
+      // displayed "Known" may be merely presumed by level/frequency, so no clear there
+      // ("+ Deck" is the real "I want to learn this" for such a word).
       actionsEl.replaceChildren();
       const st = content.status ?? null;
       if (!content.expression && st !== "known") actionsEl.append(button("Je connais", "known", false, onGesture));
