@@ -46,15 +46,16 @@
 - [x] 7.3 `melos run integration` green — this is the Linux/Xvfb path where the Linux screensaver inhibitor has nothing to talk to, so it proves the swallow-errors rule (design D7).
       - Green (2/2) on macOS with the REAL plugin, so a real hold was taken and released around the player. Note the gate is `flutter test integration_test -d macos --exclude-tags capture` — the raw command without that exclusion also runs the store-capture scenario, which needs `flutter drive` and fails at launch. That failure is the invocation, not the code.
 - [x] 7.4 Build all five targets, not just the two that reported the bug. On this machine `pod install` needs `LANG=en_US.UTF-8`, and `flutter test -d macos` rewrites the native shells — check `git status` on `ios/` and `macos/` afterwards.
-      - Built locally: **Android** (debug APK), **iOS** (`--no-codesign`) and **macOS**. Both Apple `Podfile.lock`s and the macOS `GeneratedPluginRegistrant.swift` gained the plugin and nothing else; `ios/`, `macos/` and `android/` are otherwise untouched. **Linux and Windows are not buildable on this Mac** — left to CI. Low risk on both: the Linux implementation is pure-Dart D-Bus and Windows uses `win32`, already a transitive dependency of `file_picker` and `flutter_secure_storage`.
+      - Built locally: **Android** (debug APK), **iOS** (`--no-codesign`) and **macOS**. Both Apple `Podfile.lock`s and the macOS `GeneratedPluginRegistrant.swift` gained the plugin and nothing else; `ios/`, `macos/` and `android/` are otherwise untouched. **Linux and Windows are not buildable on this Mac** — left to CI. CI later built both green (`linux` and `windows` jobs on `1bc53b54`). Low risk on both: the Linux implementation is pure-Dart D-Bus and Windows uses `win32`, already a transitive dependency of `file_picker` and `flutter_secure_storage`.
 
 ## 8. On-device validation
 
-- [ ] 8.1 Android phone: open a score, play a passage on a connected MIDI keyboard for longer than the device's screen timeout without touching the screen — the screen stays lit.
-- [ ] 8.2 Android phone: let Wait Mode hold at an onset past the screen timeout — the screen stays lit.
-- [ ] 8.3 Same two checks on iOS.
-- [ ] 8.4 Leave the player, sit on the library past the timeout — the screen sleeps normally.
-- [ ] 8.5 Background the app from the player screen and leave the device alone — it sleeps on its normal schedule (this is the one the mobile platforms would fake for us, so verify it rather than assume it).
-- [ ] 8.6 Desktop (macOS): open the player, minimise the window, and confirm the machine sleeps on its own schedule — the case that motivated the explicit foreground release (design D1).
-- [ ] 8.7 Pull down the notification shade / trigger a permission dialog mid-session and dismiss it — the screen must not dim (the `inactive` exclusion, task 5.5).
+- [x] 8.1 Android phone: open a score, play a passage on a connected MIDI keyboard for longer than the device's screen timeout without touching the screen — the screen stays lit.
+- [x] 8.2 Android phone: let Wait Mode hold at an onset past the screen timeout — the screen stays lit.
+- [x] 8.3 Same two checks on iOS.
+- [x] 8.4 Leave the player, sit on the library past the timeout — the screen sleeps normally.
+- [x] 8.5 Background the app from the player screen and leave the device alone — it sleeps on its normal schedule (this is the one the mobile platforms would fake for us, so verify it rather than assume it).
+- [x] 8.6 Desktop (macOS): open the player, minimise the window, and confirm the machine sleeps on its own schedule — the case that motivated the explicit foreground release (design D1).
+- [x] 8.7 Pull down the notification shade / trigger a permission dialog mid-session and dismiss it — the screen must not dim (the `inactive` exclusion, task 5.5).
+      - Validated on-device by the owner on **macOS, Android and iOS** (2026-09-13), no regression reported. Also observed: on macOS at rest on a non-play screen, `pmset -g assertions` shows `PreventUserIdleDisplaySleep 0` with no assertion owned by the app; and a local run with `--dart-define-from-file=config/prod.json` holds an established TLS connection to `api.cymbra.app:443` (a run without it targets `localhost`, which leaves A4/E1-style flag-gated cases untestable on a device).
 - [ ] 8.8 Report back to the two users who raised it.
