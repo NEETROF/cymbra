@@ -56,6 +56,15 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
   chrome.action.setBadgeTextColor?.({ tabId, color: BADGE_TEXT });
 });
 
+// The in-page HUD asks the background to open the stats — a plain extension tab, which
+// works on every variant (incl. Firefox for Android) and needs no user-gesture juggling
+// that a side panel / sidebar open would from a content-script click.
+chrome.runtime.onMessage.addListener((message: unknown) => {
+  if ((message as { type?: string } | null)?.type === "openStats") {
+    void chrome.tabs.create({ url: chrome.runtime.getURL("stats.html") });
+  }
+});
+
 // Host the WASM engine here and serve the AnalyzerPort RPC. On Firefox (whose
 // content-script CSP always blocks WASM) this is the primary engine; on Chromium it is
 // the fallback for pages whose own CSP blocks the in-content engine (e.g. GitHub) — the

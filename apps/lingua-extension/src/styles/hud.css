@@ -1,0 +1,123 @@
+/* Injected in-page HUD — the discreet, expandable percentage pill — scoped to its closed
+   shadow root. tokens.css sets the --cymbra-lingua-* properties on :host; no colour
+   literals here (lint-enforced). */
+.hud {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  z-index: 2147483645;
+  font-family: var(--cymbra-lingua-font);
+  font-size: 13px;
+  color: var(--cymbra-lingua-text);
+}
+
+.hud-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  background: var(--cymbra-lingua-panel);
+  border: 1px solid var(--cymbra-lingua-border);
+  border-radius: 999px;
+  box-shadow: var(--cymbra-lingua-shadow);
+}
+
+.hud-pct {
+  cursor: pointer;
+  border: none;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  background: var(--cymbra-lingua-accent);
+  color: var(--cymbra-lingua-accent-ink);
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.hud-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: 4px;
+}
+
+.hud-act,
+.hud-gear,
+.hud-collapse {
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: var(--cymbra-lingua-text);
+  font-family: inherit;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: var(--cymbra-lingua-radius);
+  white-space: nowrap;
+}
+
+.hud-act:hover,
+.hud-gear:hover,
+.hud-collapse:hover {
+  background: var(--cymbra-lingua-bg);
+}
+
+.hud-gear,
+.hud-collapse {
+  color: var(--cymbra-lingua-muted);
+  font-size: 15px;
+  line-height: 1;
+  padding: 4px 6px;
+}
+
+.hud-settings {
+  margin-bottom: 6px;
+  padding: 10px;
+  max-width: 78vw;
+  background: var(--cymbra-lingua-panel);
+  border: 1px solid var(--cymbra-lingua-border);
+  border-radius: var(--cymbra-lingua-radius-lg);
+  box-shadow: var(--cymbra-lingua-shadow);
+}
+
+.hud-settings-label {
+  color: var(--cymbra-lingua-muted);
+  font-size: 11px;
+  margin-bottom: 6px;
+}
+
+.hud-levels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.hud-lvl {
+  cursor: pointer;
+  border: 1px solid var(--cymbra-lingua-border);
+  background: transparent;
+  color: var(--cymbra-lingua-text);
+  font-family: inherit;
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+.hud-lvl.active {
+  background: var(--cymbra-lingua-accent);
+  color: var(--cymbra-lingua-accent-ink);
+  border-color: var(--cymbra-lingua-accent);
+}
+
+.hud-hide {
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: var(--cymbra-lingua-muted);
+  font-family: inherit;
+  font-size: 12px;
+  padding: 4px 0;
+  text-decoration: underline;
+}

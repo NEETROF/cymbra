@@ -17,19 +17,24 @@ import {
   type ScanStats,
   statsFromAnalysis,
 } from "./reading/scan.ts";
+import { LinguaHud } from "./reading/hud.ts";
 import { captureSelection, MAX_SELECTION_LENGTH, sentenceAround } from "./reading/selection.ts";
 import { type Gesture, WordPopup } from "./reading/wordpopup.ts";
 import { dailyRecorder, recordExposures, recordWordLearned, utcDay } from "./state/dailystats.ts";
 import {
   type AsyncStorageArea,
   ENABLED_KEY,
+  HUD_HIDDEN_KEY,
   hydrateEngine,
   loadEnabled,
+  loadHudHidden,
   ROOT_KEY,
   saveBackup,
+  saveHudHidden,
 } from "./state/storage.ts";
 import { clearSyncCursors } from "./sync/sync.ts";
 import drawerCss from "./styles/drawer.css";
+import hudCss from "./styles/hud.css";
 import popupCss from "./styles/wordpopup.css";
 import reviewCss from "./styles/review.css";
 import tokensCss from "./styles/tokens.css";
@@ -119,12 +124,19 @@ class ReadingSession {
   private suppressSelection = false;
   private stats: ScanStats = NOT_ANALYSABLE;
   private calibration = 3000;
+  /** Cached CEFR facts for the HUD, so a repaint needs no extra port round-trips: whether
+   *  the pack has levels (constant) and the declared level (refreshed where it changes). */
+  private hasLevels = false;
+  private declaredLevel: CefrLevel | null = null;
+  /** Whether the reader hid the in-page HUD pill (persisted, toggled from the popup). */
+  private hudHidden = false;
   /** Global master switch. When off the reader does not analyse, paint or pop up. */
   private enabled = true;
   /** Daily exposures are counted once per page load (a re-scan does not re-count). */
   private exposuresRecorded = false;
   private readonly popup: WordPopup;
   private readonly drawer: Drawer;
+  private readonly hud: LinguaHud;
   private readonly observers: ReadingObservers;
   /** Viewport-gated reading exposure (slice 5c): lemmas whose block was actually read. */
   private readonly exposure: ExposureTracker;
@@ -144,6 +156,16 @@ class ReadingSession {
       onChange: () => this.persist(),
       record: dailyRecorder(storageArea),
     });
+    this.hud = new LinguaHud({
+      css: `${tokensCss}\n${hudCss}`,
+      actions: {
+        onReview: () => void this.drawer.toggle(),
+        onCapture: () => void this.onCaptureSelection(),
+        onStats: () => this.openStats(),
+        onSetLevel: (level) => void this.onSetLevel(level),
+        onHide: () => void this.hideHud(),
+      },
+    });
     this.observers = new ReadingObservers({ onRescan: (containers) => void this.refresh(containers) });
     this.exposure = new ExposureTracker((lemmas) => this.onExposed(lemmas));
   }
@@ -151,6 +173,9 @@ class ReadingSession {
   async start(): Promise<void> {
     await hydrateEngine(this.port, storageArea);
     this.calibration = await this.port.calibration();
+    this.hasLevels = await this.port.hasLevels();
+    this.declaredLevel = await this.port.declaredLevel();
+    this.hudHidden = await loadHudHidden(storageArea);
     this.enabled = await loadEnabled(storageArea);
     document.addEventListener("click", (e) => this.onClick(e), true);
     // Long-press = the touch equivalent of Alt-click (reopen a marked word). touchstart/move/
@@ -188,6 +213,11 @@ class ReadingSession {
       }
       const toggled = changes[ENABLED_KEY];
       if (toggled) void this.onEnabledChange(toggled.newValue !== false);
+      const hudToggled = changes[HUD_HIDDEN_KEY];
+      if (hudToggled) {
+        this.hudHidden = hudToggled.newValue === true;
+        this.syncHud();
+      }
     });
     // Flush pending reading exposures before the tab is hidden / navigated away.
     document.addEventListener("visibilitychange", () => {
@@ -232,9 +262,42 @@ class ReadingSession {
   /** Paint the page and begin watching it for changes (the reader's "on" state). */
   private async activate(): Promise<void> {
     injectPageStyles(tokensCss);
+    this.hud.mount();
+    this.syncHud();
     await this.refresh([document.body]);
     this.observers.start();
     this.exposure.start();
+  }
+
+  /** Reflect the HUD's current visibility: shown only while enabled and not user-hidden. */
+  private syncHud(): void {
+    this.hud.setHidden(!this.enabled || this.hudHidden);
+  }
+
+  /** Push the current reading state into the in-page HUD pill. */
+  private updateHud(): void {
+    this.hud.update({
+      analysable: this.stats.analysable,
+      percent: this.stats.percent,
+      hasLevels: this.hasLevels,
+      declaredLevel: this.declaredLevel,
+    });
+  }
+
+  /** Open the learning statistics (background opens the page — no popup needed). */
+  private openStats(): void {
+    try {
+      chrome.runtime.sendMessage({ type: "openStats" });
+    } catch {
+      // The service worker may be asleep; the user can retry.
+    }
+  }
+
+  /** Hide the in-page HUD (persisted; the popup offers to show it again). */
+  private async hideHud(): Promise<void> {
+    this.hudHidden = true;
+    await saveHudHidden(storageArea, true);
+    this.syncHud();
   }
 
   /** React to the global toggle flipping in another context (popup, other tab). */
@@ -253,6 +316,7 @@ class ReadingSession {
       this.resolved = [];
       this.clickable.clear();
       clearHighlights();
+      this.syncHud();
       this.pushDisabledBadge();
     }
   }
@@ -289,6 +353,7 @@ class ReadingSession {
       this.stats = NOT_ANALYSABLE;
       clearHighlights();
       this.pushBadge();
+      this.updateHud();
       return;
     }
     const analysis = await this.port.analyse(blocks.map((b) => b.text));
@@ -309,6 +374,7 @@ class ReadingSession {
     injectPageStyles(tokensCss);
     render(this.resolved);
     this.pushBadge();
+    this.updateHud();
   }
 
   private pushBadge(): void {
@@ -534,6 +600,7 @@ class ReadingSession {
     if (backup === this.lastBackup) return; // our own write echoed back — nothing to do
     await this.port.restore(backup);
     this.calibration = await this.port.calibration();
+    this.declaredLevel = await this.port.declaredLevel(); // a sync may have changed the level
     await this.repaint();
   }
 
@@ -581,6 +648,7 @@ class ReadingSession {
     await this.port.setDeclaredLevelAt(level, Date.now());
     await this.port.setCalibration(0);
     this.calibration = 0;
+    this.declaredLevel = level;
     await this.persist();
     await this.repaint();
   }
@@ -609,6 +677,7 @@ class ReadingSession {
     const cal = (await this.port.hasLevels()) ? 0 : 3000;
     await this.port.setCalibration(cal);
     this.calibration = cal;
+    this.declaredLevel = await this.port.declaredLevel(); // a reset clears the declared level
     await this.persist();
     await this.repaint();
   }
