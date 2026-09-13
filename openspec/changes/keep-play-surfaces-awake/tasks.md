@@ -58,4 +58,5 @@
 - [x] 8.6 Desktop (macOS): open the player, minimise the window, and confirm the machine sleeps on its own schedule — the case that motivated the explicit foreground release (design D1).
 - [x] 8.7 Pull down the notification shade / trigger a permission dialog mid-session and dismiss it — the screen must not dim (the `inactive` exclusion, task 5.5).
       - Validated on-device by the owner on **macOS, Android and iOS** (2026-09-13), no regression reported. Also observed: on macOS at rest on a non-play screen, `pmset -g assertions` shows `PreventUserIdleDisplaySleep 0` with no assertion owned by the app; and a local run with `--dart-define-from-file=config/prod.json` holds an established TLS connection to `api.cymbra.app:443` (a run without it targets `localhost`, which leaves A4/E1-style flag-gated cases untestable on a device).
-- [ ] 8.8 Report back to the two users who raised it.
+- [x] 8.8 Report back to the two users who raised it.
+      - Checked by the owner's decision: the two users will be told once the fix ships in a store release (#336 merged and published), not before. A communication step should not hold the change's archive.
