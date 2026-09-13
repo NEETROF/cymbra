@@ -280,9 +280,10 @@ impl LinguaEngine {
     }
 
     /// Apply a batch of pulled `StatusChange`s (JSON array of
-    /// `{language, lemma, status, updated_at}`) under last-write-wins. Returns
-    /// how many changed local state. A pulled change carries no provenance, so a
-    /// synced `known` lands as manual (the provenance nuance stays device-local).
+    /// `{language, lemma, status, provenance?, updated_at}`) under last-write-wins.
+    /// Returns how many changed local state. The pulled change now carries `provenance`,
+    /// so an exposure-confirmed known keeps its reversible tag on a second device; a
+    /// missing/empty value (a server that predates the field) degrades to manual.
     #[wasm_bindgen(js_name = applyStatusChanges)]
     pub fn apply_status_changes(&mut self, json: &str) -> Result<usize, JsError> {
         let changes: Vec<serde_json::Value> =
@@ -296,6 +297,11 @@ impl LinguaEngine {
                 continue;
             };
             let kind = c.get("status").and_then(|v| v.as_str()).unwrap_or("");
+            let provenance = c
+                .get("provenance")
+                .and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty())
+                .unwrap_or("manual");
             let updated_at = c
                 .get("updated_at")
                 .and_then(serde_json::Value::as_i64)
@@ -303,7 +309,7 @@ impl LinguaEngine {
             if self.state.knowledge.apply_status_lww(
                 EN,
                 lemma,
-                Status::from_wire(kind, "manual"),
+                Status::from_wire(kind, provenance),
                 updated_at,
             ) {
                 changed += 1;

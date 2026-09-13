@@ -33,6 +33,9 @@ pub struct StatusChange {
     pub language: String,
     pub lemma: String,
     pub status: String,
+    /// "manual" | "srs" | "exposure" | "import" — carried through so a second device keeps
+    /// an exposure-confirmed known reversible (empty from a client/DB that predates it).
+    pub provenance: String,
     pub updated_at: i64,
     pub sequence: i64,
 }
@@ -184,6 +187,7 @@ mod tests {
     #[derive(Default)]
     struct Stored {
         status: String,
+        provenance: String,
         updated_at: i64,
         device_id: String,
         sequence: i64,
@@ -229,6 +233,7 @@ mod tests {
                 key,
                 Stored {
                     status: op.status.clone(),
+                    provenance: op.provenance.clone(),
                     updated_at: op.client_ts,
                     device_id: op.device_id.clone(),
                     sequence: *seq,
@@ -268,6 +273,7 @@ mod tests {
                     language: lang.clone(),
                     lemma: lemma.clone(),
                     status: s.status.clone(),
+                    provenance: s.provenance.clone(),
                     updated_at: s.updated_at,
                     sequence: s.sequence,
                 })
@@ -358,6 +364,17 @@ mod tests {
         assert_eq!(changes.len(), 1);
         assert_eq!(changes[0].status, "known");
         assert_eq!(next, cursor);
+    }
+
+    #[tokio::test]
+    async fn provenance_round_trips_on_pull() {
+        let module = KnownWordsModule::new(Arc::new(FakeKnownWordsRepo::default()));
+        let mut exposure = op("run", "known", 100, "mac");
+        exposure.provenance = "exposure".into();
+        module.push_ops("u1", vec![exposure], 1_000).await.unwrap();
+        // A second device must see the exposure tag, not a degraded "manual".
+        let (changes, _) = module.pull_changes("u1", 0).await.unwrap();
+        assert_eq!(changes[0].provenance, "exposure");
     }
 
     #[tokio::test]

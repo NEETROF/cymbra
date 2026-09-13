@@ -42,6 +42,7 @@ fn to_proto(c: StatusChange) -> ProtoChange {
         status: c.status,
         updated_at: c.updated_at,
         sequence: c.sequence,
+        provenance: c.provenance,
     }
 }
 

@@ -83,7 +83,7 @@ impl KnownWordsRepo for PgKnownWordsRepo {
 
     async fn changes_since(&self, user: &str, cursor: i64) -> Result<Vec<StatusChange>> {
         let rows = sqlx::query(
-            "SELECT language, lemma, status, updated_at, seq FROM lingua.word_statuses \
+            "SELECT language, lemma, status, provenance, updated_at, seq FROM lingua.word_statuses \
              WHERE user_id = $1 AND seq > $2 ORDER BY seq",
         )
         .bind(uid(user)?)
@@ -97,6 +97,7 @@ impl KnownWordsRepo for PgKnownWordsRepo {
                 language: r.get("language"),
                 lemma: r.get("lemma"),
                 status: r.get("status"),
+                provenance: r.get("provenance"),
                 updated_at: r.get("updated_at"),
                 sequence: r.get("seq"),
             })
