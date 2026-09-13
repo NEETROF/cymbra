@@ -171,12 +171,15 @@ async function messageReader(tabId: number, message: unknown): Promise<void> {
   } catch {
     // Already present, or a page the reader cannot run on (e.g. a browser page).
   }
-  for (let i = 0; i < 6; i++) {
+  // A cold Firefox event page must spin up and instantiate the WASM engine + pack before
+  // content.ts registers its message listener, which on a phone can take a few seconds —
+  // so keep pinging (~4s) rather than dropping the first tap.
+  for (let i = 0; i < 20; i++) {
     try {
       await chrome.tabs.sendMessage(tabId, message);
       return;
     } catch {
-      await new Promise((r) => setTimeout(r, 120)); // the freshly-injected listener isn't up yet
+      await new Promise((r) => setTimeout(r, 200)); // the freshly-injected listener isn't up yet
     }
   }
 }
@@ -191,20 +194,29 @@ async function messageReader(tabId: number, message: unknown): Promise<void> {
  *    its page in a tab (the drawer has no stats face).
  */
 async function openReviewSurface(view: "review" | "stats"): Promise<void> {
+  const sidebar = __TARGET__ === "firefox" ? firefoxSidebar() : undefined;
+
+  // The sidepanel/sidebar page reads this transient flag during its init to pick the
+  // view. Set it for stats and CLEAR it for review, so a stale "stats" never leaks into a
+  // later review-open. Fire-and-forget: awaiting it would spend the transient user
+  // activation that Firefox's sidebarAction.open() demands, and the panel page loads well
+  // after the write lands. Only the panel/sidebar consume it (not the Android stats tab).
+  if (__TARGET__ === "chromium" || sidebar?.open) {
+    void chrome.storage.session.set({ "cymbra-lingua-panel-view": view === "stats" ? "stats" : null }).catch(() => {});
+  }
+
+  if (sidebar?.open) {
+    // Firefox desktop. MUST be called synchronously within the click handler — any await
+    // before it spends the user gesture and open() rejects, so the sidebar never opens.
+    void sidebar.open().catch(() => {});
+    window.close();
+    return;
+  }
+
   const tabId = await activeTabId();
   if (tabId == null) return;
-  if (view === "stats") {
-    try {
-      await chrome.storage.session.set({ "cymbra-lingua-panel-view": "stats" });
-    } catch {
-      // storage.session may be unavailable; the panel just opens on the review view.
-    }
-  }
-  const sidebar = __TARGET__ === "firefox" ? firefoxSidebar() : undefined;
   if (__TARGET__ === "chromium") {
     await chrome.sidePanel.open({ tabId });
-  } else if (sidebar?.open) {
-    await sidebar.open(); // Firefox desktop
   } else if (view === "stats") {
     await chrome.tabs.create({ url: chrome.runtime.getURL("stats.html") }); // Firefox Android
   } else {

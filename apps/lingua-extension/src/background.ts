@@ -244,6 +244,15 @@ function errorMessage(e: unknown): string {
 }
 
 chrome.commands.onCommand.addListener((command) => {
+  // Firefox's sidebarAction.open() must run synchronously within the command event, so
+  // handle it before the async tabs.query below (Chromium's sidePanel.open needs a tabId
+  // and tolerates the hop). Firefox for Android has no sidebarAction — and no keyboard to
+  // fire this command — so it is a harmless no-op there.
+  if (command === "lingua-side-panel" && __TARGET__ === "firefox") {
+    const sidebar = (chrome as unknown as { sidebarAction?: { open?: () => Promise<void> } }).sidebarAction;
+    void sidebar?.open?.()?.catch(() => {});
+    return;
+  }
   chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
     const tabId = tab?.id;
     if (tabId == null) return;
@@ -252,14 +261,8 @@ chrome.commands.onCommand.addListener((command) => {
     } else if (command === "lingua-toggle-drawer") {
       void chrome.tabs.sendMessage(tabId, { type: "toggleDrawer" }).catch(() => {});
     } else if (command === "lingua-side-panel") {
-      // Chromium: the Side Panel API. Firefox desktop: its sidebar (no sidePanel API);
-      // Firefox for Android has neither, but has no keyboard to fire this command either.
-      if (__TARGET__ === "chromium") {
-        void chrome.sidePanel.open({ tabId }).catch(() => {});
-      } else {
-        const sidebar = (chrome as unknown as { sidebarAction?: { open?: () => Promise<void> } }).sidebarAction;
-        void sidebar?.open?.()?.catch(() => {});
-      }
+      // Chromium only — Firefox was handled synchronously above.
+      void chrome.sidePanel.open({ tabId }).catch(() => {});
     }
   });
 });
