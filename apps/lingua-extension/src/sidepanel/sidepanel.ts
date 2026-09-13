@@ -63,14 +63,22 @@ async function main(): Promise<void> {
     b.addEventListener("click", () => void showView((b.dataset.view as PanelView) ?? "review"));
   }
 
-  // The popup / in-page HUD can request opening straight on a view.
+  // The popup / in-page HUD request a view through this flag. Read it on load AND react to
+  // it changing while the panel is already open — chrome.sidePanel.open() on an open panel
+  // is a no-op, so without this listener clicking "Réviser" while on Statistiques would not
+  // switch the view.
+  const applyRequestedView = (v: unknown): void => {
+    if (v === "review" || v === "stats" || v === "settings") {
+      void chrome.storage.session.remove(PANEL_VIEW_KEY);
+      void showView(v);
+    }
+  };
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === "session" && changes[PANEL_VIEW_KEY]) applyRequestedView(changes[PANEL_VIEW_KEY].newValue);
+  });
   try {
     const sess = await chrome.storage.session.get(PANEL_VIEW_KEY);
-    const requested = sess[PANEL_VIEW_KEY];
-    if (requested === "review" || requested === "stats" || requested === "settings") {
-      await chrome.storage.session.remove(PANEL_VIEW_KEY);
-      await showView(requested);
-    }
+    applyRequestedView(sess[PANEL_VIEW_KEY]);
   } catch {
     /* storage.session may be unavailable; default to the review view */
   }

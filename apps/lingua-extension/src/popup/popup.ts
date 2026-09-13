@@ -173,8 +173,11 @@ async function openReviewSurface(view: "review" | "stats"): Promise<void> {
     window.close();
     return;
   }
+  // Set the exact view: the panel reads it on load AND reacts to it changing while already
+  // open, so "Réviser" switches an open panel off Statistiques (an open panel ignores a
+  // second sidePanel.open()).
   try {
-    await chrome.storage.session.set({ "cymbra-lingua-panel-view": view === "stats" ? "stats" : null });
+    await chrome.storage.session.set({ "cymbra-lingua-panel-view": view });
   } catch {
     // storage.session may be unavailable; the panel just opens on the review view.
   }
