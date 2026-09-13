@@ -50,8 +50,8 @@ export interface NewCard {
 export interface StatusOp {
   language: string;
   lemma: string;
-  status: string; // "known" | "learning" | "ignored"
-  provenance: string; // "manual" | "srs" | "import"
+  status: string; // "known" | "learning" | "ignored" | "cleared" (a withdrawn decision)
+  provenance: string; // "manual" | "srs" | "exposure" | "import"
   updated_at: number; // epoch millis
 }
 

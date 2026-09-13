@@ -16,7 +16,8 @@
 //! frequency-rank calibration, and token classification (designs D1, D2).
 //!
 //! Classification precedence, per candidate lemma: an explicit status always
-//! wins over calibration; a lemma with no entry is implicitly known when its
+//! wins over calibration; a status the reader withdrew (a stamped clear)
+//! resolves unknown; a lemma with no entry is implicitly known when its
 //! rank is at or below the calibration threshold, otherwise unknown. Across a
 //! token's candidate lemmas the token takes the most-known verdict (known if
 //! **any** candidate is known — the learner's favour).
@@ -126,7 +127,10 @@ pub struct KnowledgeState {
     /// wins sync (`add-lingua-connected-clients`). Absent = 0 (a pre-sync entry,
     /// which loses to any real timestamp). `#[serde(default)]` so an older backup
     /// without this map restores cleanly. A cleared lemma keeps its timestamp as
-    /// a tombstone so a stale re-add cannot win.
+    /// a tombstone so a stale re-add cannot win. That tombstone is also the record
+    /// that the reader WITHDREW a decision ("Remettre à apprendre"): a stamped
+    /// lemma with no status resolves as new — never presumed known, never promoted
+    /// by exposure — and exports as `cleared` so the undo reaches other devices.
     #[serde(default)]
     updated: BTreeMap<StudiedLanguage, BTreeMap<String, i64>>,
 }
@@ -137,7 +141,8 @@ pub struct KnowledgeState {
 pub struct StatusRecord {
     pub language: StudiedLanguage,
     pub lemma: String,
-    pub status: Status,
+    /// `None` is a withdrawn decision (the `"cleared"` wire value).
+    pub status: Option<Status>,
     pub updated_at: i64,
 }
 
@@ -183,8 +188,23 @@ impl KnowledgeState {
             .insert(lemma.to_owned(), at_ms);
     }
 
-    /// Removes any explicit status, returning the lemma to "new" (subject to
-    /// calibration again). Its sync timestamp is left as a tombstone.
+    /// Withdraws a lemma's explicit status and stamps the withdrawal (epoch
+    /// millis) — the mutation path the surfaces use ("Remettre à apprendre"). The
+    /// lemma resolves as new even where calibration or the declared level would
+    /// presume it known, exposure no longer promotes it, and the withdrawal
+    /// exports as `cleared` at `at_ms`, so it wins over the older decision elsewhere.
+    pub fn clear_status_at(&mut self, lang: StudiedLanguage, lemma: &str, at_ms: i64) {
+        self.clear_status(lang, lemma);
+        self.updated
+            .entry(lang)
+            .or_default()
+            .insert(lemma.to_owned(), at_ms);
+    }
+
+    /// Removes any explicit status. Its sync timestamp, if any, is left as a
+    /// tombstone, which makes the removal a withdrawn decision (see
+    /// [`clear_status_at`](Self::clear_status_at)); an entry that was never
+    /// stamped returns to plain "new", subject to calibration again.
     pub fn clear_status(&mut self, lang: StudiedLanguage, lemma: &str) {
         if let Some(per_lang) = self.statuses.get_mut(&lang) {
             per_lang.remove(lemma);
@@ -204,16 +224,35 @@ impl KnowledgeState {
             .unwrap_or(0)
     }
 
-    /// Every explicit status with its sync timestamp, in deterministic order —
-    /// the outbox source for a full push (e.g. first sign-in).
+    /// Every explicit status and every withdrawn one (`status: None`), with its
+    /// sync timestamp, in deterministic order — the outbox source for a full push
+    /// (e.g. first sign-in).
     pub fn export_statuses(&self) -> Vec<StatusRecord> {
+        let languages: BTreeSet<StudiedLanguage> = self
+            .statuses
+            .keys()
+            .chain(self.updated.keys())
+            .copied()
+            .collect();
         let mut out = Vec::new();
-        for (&language, per_lang) in &self.statuses {
-            for (lemma, &status) in per_lang {
+        for language in languages {
+            let lemmas: BTreeSet<&String> = self
+                .statuses
+                .get(&language)
+                .into_iter()
+                .flat_map(BTreeMap::keys)
+                .chain(
+                    self.updated
+                        .get(&language)
+                        .into_iter()
+                        .flat_map(BTreeMap::keys),
+                )
+                .collect();
+            for lemma in lemmas {
                 out.push(StatusRecord {
                     language,
                     lemma: lemma.clone(),
-                    status,
+                    status: self.explicit_status(language, lemma),
                     updated_at: self.status_updated_at(language, lemma),
                 });
             }
@@ -238,6 +277,7 @@ impl KnowledgeState {
             return false;
         }
         let before = self.explicit_status(lang, lemma);
+        let was_withdrawn = self.is_withdrawn(lang, lemma);
         match incoming {
             Some(status) => self.set_status(lang, lemma, status),
             None => self.clear_status(lang, lemma),
@@ -246,7 +286,9 @@ impl KnowledgeState {
             .entry(lang)
             .or_default()
             .insert(lemma.to_owned(), at_ms);
-        before != incoming
+        // A first withdrawal of a word this device never decided on still changes
+        // how it resolves (no longer presumed), though the status stays absent.
+        before != incoming || self.is_withdrawn(lang, lemma) != was_withdrawn
     }
 
     /// The explicit status of a lemma, if any.
@@ -255,6 +297,17 @@ impl KnowledgeState {
             .get(&lang)
             .and_then(|per_lang| per_lang.get(lemma))
             .copied()
+    }
+
+    /// Whether the reader withdrew a decision on this lemma: no explicit status,
+    /// but a sync timestamp left behind by a clear (see
+    /// [`clear_status_at`](Self::clear_status_at)).
+    fn is_withdrawn(&self, lang: StudiedLanguage, lemma: &str) -> bool {
+        self.explicit_status(lang, lemma).is_none()
+            && self
+                .updated
+                .get(&lang)
+                .is_some_and(|m| m.contains_key(lemma))
     }
 
     /// Sets the calibration threshold for a language ("I know the N most
@@ -353,6 +406,7 @@ impl KnowledgeState {
     }
 
     /// The effective status of a single lemma: the explicit one if present;
+    /// `None` (new) when the reader withdrew one, whatever the calibration;
     /// otherwise, when a CEFR level is declared, implicit `Known(Calibration)`
     /// iff the lemma's level is strictly below it (and `None` — unknown — when
     /// at/above or unlevelled); otherwise the frequency-rank fallback (implicit
@@ -366,6 +420,10 @@ impl KnowledgeState {
     ) -> Option<Status> {
         if let Some(explicit) = self.explicit_status(lang, lemma) {
             return Some(explicit);
+        }
+        // A withdrawn decision means "don't treat this one as known": never presumed.
+        if self.is_withdrawn(lang, lemma) {
+            return None;
         }
         // A declared CEFR level gates presumed-known by level, not by rank:
         // below the level is presumed known; at/above it — or a lemma with no
@@ -476,8 +534,9 @@ impl KnowledgeState {
     ///
     /// Promotes a lemma to `Known(Exposure)` iff ALL hold: a CEFR level is
     /// declared for the language and the lemma is strictly below it (presumed),
-    /// it has no explicit status (so any user interaction blocks promotion), and
-    /// it has been encountered on at least `threshold_days` distinct days.
+    /// it has no explicit status nor a withdrawn one (so any user interaction —
+    /// including undoing a promotion — blocks promotion), and it has been
+    /// encountered on at least `threshold_days` distinct days.
     /// Returns the promoted lemmas (deterministic order). `Known(Exposure)`
     /// keeps promotions distinguishable and bulk-reversible.
     pub fn promote_by_exposure(
@@ -488,18 +547,19 @@ impl KnowledgeState {
         threshold_days: u32,
         at_ms: i64,
     ) -> Vec<String> {
-        let Some(declared) = self.declared_level(lang) else {
+        if self.declared_level(lang).is_none() {
             return Vec::new();
-        };
+        }
         let mut promoted = Vec::new();
         for (lemma, exposure) in exposures.lemmas(lang) {
             if exposure.distinct_days < threshold_days {
                 continue;
             }
-            if self.explicit_status(lang, lemma).is_some() {
-                continue;
-            }
-            if matches!(lexis.level(lemma), Some(level) if level < declared) {
+            // Exactly the presumed lemmas: an explicit or withdrawn status, or a
+            // lemma at/above the declared level, resolves to something else.
+            if self.resolve_lemma(lang, lemma, lexis)
+                == Some(Status::Known(KnownSource::Calibration))
+            {
                 promoted.push(lemma.to_owned());
             }
         }
@@ -716,7 +776,7 @@ mod tests {
         assert_eq!(records[0].lemma, "run");
         assert_eq!(records[0].updated_at, 2_000);
         assert_eq!(records[1].lemma, "seldom");
-        assert_eq!(records[1].status, Status::Learning);
+        assert_eq!(records[1].status, Some(Status::Learning));
     }
 
     #[test]
@@ -1027,5 +1087,97 @@ mod tests {
         let state = KnowledgeState::new();
         // The reader never called promote_by_exposure → `run` stays new.
         assert_eq!(state.explicit_status(EN, "run"), None);
+    }
+
+    #[test]
+    fn withdrawing_an_exposure_promotion_resurfaces_the_word_for_good() {
+        let mut state = KnowledgeState::new();
+        state.set_declared_level(EN, CefrLevel::B2);
+        let mut exp = ExposureCounters::new();
+        for d in 0..4 {
+            exp.record(EN, "run", 1, "https://x", d * 86_400);
+        }
+        let promoted = state.promote_by_exposure(EN, &exp, &leveled(), 4, 1_000);
+        assert_eq!(promoted, vec!["run".to_string()]);
+
+        // The reader puts it back "à apprendre" from the marked-words list.
+        state.clear_status_at(EN, "run", 2_000);
+        assert_eq!(
+            state.classify(EN, &["run"], &leveled()),
+            TokenClass::Unknown
+        );
+
+        // Reading on must not confirm it a second time.
+        assert!(
+            state
+                .promote_by_exposure(EN, &exp, &leveled(), 4, 3_000)
+                .is_empty()
+        );
+        assert_eq!(
+            state.classify(EN, &["run"], &leveled()),
+            TokenClass::Unknown
+        );
+    }
+
+    #[test]
+    fn withdrawing_a_manual_known_below_the_declared_level_resurfaces_it() {
+        let mut state = KnowledgeState::new();
+        state.set_declared_level(EN, CefrLevel::B2);
+        state.set_status_at(EN, "city", Status::Known(KnownSource::Manual), 1_000);
+        state.clear_status_at(EN, "city", 2_000);
+        assert_eq!(
+            state.classify(EN, &["city"], &leveled()),
+            TokenClass::Unknown
+        );
+        // The ladder counts it as still to learn, not presumed.
+        let stats = state.band_stats(EN, ["city"], &leveled());
+        assert_eq!((stats.presumed, stats.to_learn), (0, 1));
+    }
+
+    #[test]
+    fn a_withdrawal_exports_as_cleared_at_the_time_it_was_made() {
+        let mut state = KnowledgeState::new();
+        state.set_status_at(EN, "run", Status::Known(KnownSource::Manual), 1_000);
+        state.set_status_at(EN, "seldom", Status::Learning, 1_000);
+        state.clear_status_at(EN, "run", 2_000);
+        let records = state.export_statuses();
+        assert_eq!(records.len(), 2);
+        assert_eq!(records[0].lemma, "run");
+        assert_eq!(records[0].status, None);
+        assert_eq!(records[0].updated_at, 2_000);
+        assert_eq!(records[1].status, Some(Status::Learning));
+        // A stale "known" from another device loses to the withdrawal.
+        assert!(!state.apply_status_lww(
+            EN,
+            "run",
+            Some(Status::Known(KnownSource::Manual)),
+            1_500
+        ));
+        assert_eq!(state.explicit_status(EN, "run"), None);
+    }
+
+    #[test]
+    fn a_pulled_withdrawal_stops_the_presumption_until_a_newer_decision() {
+        let mut state = KnowledgeState::new();
+        state.set_calibration(EN, 3_000);
+        assert_eq!(state.classify(EN, &["run"], &ranks()), TokenClass::Known);
+        // This device never decided on `run`, yet the pulled undo changes how it resolves.
+        assert!(state.apply_status_lww(EN, "run", None, 500));
+        assert_eq!(state.classify(EN, &["run"], &ranks()), TokenClass::Unknown);
+        // A later decision still wins over the withdrawal.
+        state.set_status_at(EN, "run", Status::Known(KnownSource::Manual), 600);
+        assert_eq!(state.classify(EN, &["run"], &ranks()), TokenClass::Known);
+    }
+
+    #[test]
+    fn an_unstamped_clear_returns_to_calibration() {
+        // Only a stamped decision can be withdrawn: a status set without a sync time
+        // (internal / pre-sync) and then cleared is plain "new" again.
+        let mut state = KnowledgeState::new();
+        state.set_calibration(EN, 3_000);
+        state.set_status(EN, "run", Status::Ignored);
+        state.clear_status(EN, "run");
+        assert_eq!(state.classify(EN, &["run"], &ranks()), TokenClass::Known);
+        assert!(state.export_statuses().is_empty());
     }
 }

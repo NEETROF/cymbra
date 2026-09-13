@@ -98,6 +98,7 @@ describe("markedWords", () => {
       op("seldom", "ignored", 300),
       op("city", "known", 300), // same ts as seldom → alphabetical: city before seldom
       op("holocene", "ignored", 900),
+      op("abyss", "cleared", 950), // dropped — a withdrawn decision, already put back
     ]);
     expect(words.map((w) => `${w.lemma}:${w.status}`)).toEqual(["holocene:ignored", "city:known", "seldom:ignored"]);
   });
