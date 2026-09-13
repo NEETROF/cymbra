@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/NEETROF/cymbra/compare/site-v0.4.0...site-v0.5.0) (2026-09-13)
+
+
+### Features
+
+* **site:** add a support page, as App Store guideline 1.5 requires ([#412](https://github.com/NEETROF/cymbra/issues/412)) ([4fcaf86](https://github.com/NEETROF/cymbra/commit/4fcaf86fd66c621fe5127eea5d40b098ebe834ca))
+
 ## [0.4.0](https://github.com/NEETROF/cymbra/compare/site-v0.3.0...site-v0.4.0) (2026-09-06)
 
 

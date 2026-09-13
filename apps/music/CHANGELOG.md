@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.33.0](https://github.com/NEETROF/cymbra/compare/music-v1.32.0...music-v1.33.0) (2026-09-13)
+
+
+### Features
+
+* **music:** acoustic piano input over the microphone ([#376](https://github.com/NEETROF/cymbra/issues/376)) ([4e965a0](https://github.com/NEETROF/cymbra/commit/4e965a06e3c4991a57acda257c5e930e354254d9))
+* **music:** keep the screen awake on the play surfaces ([#336](https://github.com/NEETROF/cymbra/issues/336)) ([b0ae49a](https://github.com/NEETROF/cymbra/commit/b0ae49ab3e5778d056f57bc0c65a8e71e04dae7b))
+* **music:** open the app without a sign-in wall ([#413](https://github.com/NEETROF/cymbra/issues/413)) ([68f937e](https://github.com/NEETROF/cymbra/commit/68f937e4cc7798acf91ea324cbe73137dbd17ffc))
+
 ## [1.32.0](https://github.com/NEETROF/cymbra/compare/music-v1.31.0...music-v1.32.0) (2026-09-07)
 
 
