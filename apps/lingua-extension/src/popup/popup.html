@@ -135,6 +135,21 @@
       </div>
 
       <div class="setting-block">
+        <div class="setting-label">Barre sur la page</div>
+        <div class="toggle-row">
+          <label class="switch">
+            <input type="checkbox" id="hud-toggle" />
+            <span class="slider"></span>
+          </label>
+          <span>Afficher la pastille de pourcentage</span>
+        </div>
+        <div class="note">
+          Une pastille discrète en bas de la page : pourcentage de mots connus + accès au deck, à la capture et au
+          niveau. Un tap la déplie.
+        </div>
+      </div>
+
+      <div class="setting-block">
         <div class="setting-label">Raccourcis &amp; gestes</div>
         <details class="shortcuts">
           <summary>Voir les raccourcis</summary>
@@ -148,9 +163,10 @@
             </li>
           </ul>
           <div class="note">
-            Les raccourcis clavier sont modifiables dans les réglages d'extensions du navigateur. Sur tablette, retrouve
-            tes mots marqués dans les Statistiques.
+            Sur tablette (sans clavier), ouvre ton deck avec le bouton « Réviser » du panneau, reclasse un mot par appui
+            long, et retrouve tes mots marqués dans les Statistiques.
           </div>
+          <button class="linklike" id="shortcuts-config" type="button">Configurer les raccourcis du navigateur</button>
         </details>
       </div>
 

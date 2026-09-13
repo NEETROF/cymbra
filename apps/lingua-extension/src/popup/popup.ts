@@ -1,5 +1,5 @@
 import { SIGNIN_ERROR_KEY } from "../state/session.ts";
-import { loadEnabled, saveEnabled } from "../state/storage.ts";
+import { loadEnabled, loadHudHidden, saveEnabled, saveHudHidden } from "../state/storage.ts";
 import type { CefrLevel } from "../analyzer/types.ts";
 
 // Icon-popup controller (a surface the extension owns). It holds no engine and no
@@ -159,6 +159,85 @@ function render(stats: PageStats | null): void {
   }
 }
 
+/** Firefox desktop exposes the sidebar API; Chromium and Firefox-for-Android do not. */
+function firefoxSidebar(): { open?: () => Promise<void> } | undefined {
+  return (chrome as unknown as { sidebarAction?: { open?: () => Promise<void> } }).sidebarAction;
+}
+
+/** Inject the reader (self-guarded) then deliver a message, retrying until its listener is up. */
+async function messageReader(tabId: number, message: unknown): Promise<void> {
+  try {
+    await chrome.scripting.executeScript({ target: { tabId }, files: ["content.js"] });
+  } catch {
+    // Already present, or a page the reader cannot run on (e.g. a browser page).
+  }
+  // A cold Firefox event page must spin up and instantiate the WASM engine + pack before
+  // content.ts registers its message listener, which on a phone can take a few seconds —
+  // so keep pinging (~4s) rather than dropping the first tap.
+  for (let i = 0; i < 20; i++) {
+    try {
+      await chrome.tabs.sendMessage(tabId, message);
+      return;
+    } catch {
+      await new Promise((r) => setTimeout(r, 200)); // the freshly-injected listener isn't up yet
+    }
+  }
+}
+
+/**
+ * Open the review/stats surface for the active tab, portably across variants — this is
+ * the ONLY touch-reachable path to the deck (no keyboard on a tablet), so it must never
+ * depend on a shortcut:
+ *  - Chromium: the Side Panel API.
+ *  - Firefox desktop: the sidebar (the same page, routed by the view flag).
+ *  - Firefox for Android (no sidebar API): review opens the in-page drawer; stats opens
+ *    its page in a tab (the drawer has no stats face).
+ */
+async function openReviewSurface(view: "review" | "stats"): Promise<void> {
+  const sidebar = __TARGET__ === "firefox" ? firefoxSidebar() : undefined;
+
+  // The sidepanel/sidebar page reads this transient flag during its init to pick the
+  // view. Set it for stats and CLEAR it for review, so a stale "stats" never leaks into a
+  // later review-open. Fire-and-forget: awaiting it would spend the transient user
+  // activation that Firefox's sidebarAction.open() demands, and the panel page loads well
+  // after the write lands. Only the panel/sidebar consume it (not the Android stats tab).
+  if (__TARGET__ === "chromium" || sidebar?.open) {
+    void chrome.storage.session.set({ "cymbra-lingua-panel-view": view === "stats" ? "stats" : null }).catch(() => {});
+  }
+
+  if (sidebar?.open) {
+    // Firefox desktop. MUST be called synchronously within the click handler — any await
+    // before it spends the user gesture and open() rejects, so the sidebar never opens.
+    void sidebar.open().catch(() => {});
+    window.close();
+    return;
+  }
+
+  const tabId = await activeTabId();
+  if (tabId == null) return;
+  if (__TARGET__ === "chromium") {
+    await chrome.sidePanel.open({ tabId });
+  } else if (view === "stats") {
+    await chrome.tabs.create({ url: chrome.runtime.getURL("stats.html") }); // Firefox Android
+  } else {
+    await messageReader(tabId, { type: "toggleDrawer" }); // Firefox Android → in-page drawer
+  }
+  window.close();
+}
+
+/** Open the browser's per-extension keyboard-shortcut editor (Chrome) / add-ons page (Firefox). */
+async function openShortcutsConfig(): Promise<void> {
+  // Extensions may open these internal pages via tabs.create; Firefox has no direct
+  // shortcuts URL, so about:addons (its editor lives under the gear menu) is the target.
+  const url = __TARGET__ === "firefox" ? "about:addons" : "chrome://extensions/shortcuts";
+  try {
+    await chrome.tabs.create({ url });
+  } catch {
+    // Some builds block internal URLs; nothing actionable to show in the popup.
+  }
+  window.close();
+}
+
 async function analyseCurrentPage(): Promise<void> {
   const tabId = await activeTabId();
   if (tabId == null) return;
@@ -273,11 +352,7 @@ async function main(): Promise<void> {
     $("main-view").hidden = false;
   });
 
-  $("review").addEventListener("click", async () => {
-    const tabId = await activeTabId();
-    if (tabId != null) await chrome.sidePanel.open({ tabId });
-    window.close();
-  });
+  $("review").addEventListener("click", () => void openReviewSurface("review"));
 
   $("analyse").addEventListener("click", () => void analyseCurrentPage());
   $("always").addEventListener("click", async () => {
@@ -324,18 +399,14 @@ async function main(): Promise<void> {
     renderAccount(res?.state ?? { signedIn: false });
   });
 
-  $("open-stats").addEventListener("click", async () => {
-    // Open the stats in the side panel (like the review), not a full tab.
-    const tabId = await activeTabId();
-    if (tabId != null) {
-      try {
-        await chrome.storage.session.set({ "cymbra-lingua-panel-view": "stats" });
-      } catch {
-        /* storage.session may be unavailable; the panel just opens on review */
-      }
-      await chrome.sidePanel.open({ tabId });
-    }
-    window.close();
+  $("open-stats").addEventListener("click", () => void openReviewSurface("stats"));
+  $("shortcuts-config").addEventListener("click", () => void openShortcutsConfig());
+
+  // In-page HUD visibility: checked = shown. The content script reacts via storage.onChanged.
+  const hudToggle = $("hud-toggle") as HTMLInputElement;
+  hudToggle.checked = !(await loadHudHidden(storageArea));
+  hudToggle.addEventListener("change", async () => {
+    await saveHudHidden(storageArea, !hudToggle.checked);
   });
 
   await applyEnabled(await loadEnabled(storageArea));
