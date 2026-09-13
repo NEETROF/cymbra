@@ -24,6 +24,7 @@ import 'package:music/services/midi_service.dart';
 import 'package:music/services/preferences_service.dart';
 import 'package:music/src/rust/api/midi.dart' show MidiEvent, MidiEventKind;
 import 'package:music/state/course_completion_notifier.dart';
+import 'package:music/widgets/keep_screen_awake.dart';
 
 import '../support/fakes.dart';
 import '../support/prefs_fakes.dart';
@@ -289,5 +290,13 @@ void main() {
           .onPressed,
       isNotNull,
     );
+  });
+
+  testWidgets('the lesson player holds the screen awake', (tester) async {
+    await pump(tester, FakePreferencesService());
+
+    // Interactive blocks are answered on the instrument (change:
+    // keep-play-surfaces-awake).
+    expect(find.byType(KeepScreenAwake), findsOneWidget);
   });
 }

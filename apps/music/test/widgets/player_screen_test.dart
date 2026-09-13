@@ -28,6 +28,7 @@ import 'package:music/state/countdown.dart';
 import 'package:music/state/player_data.dart';
 import 'package:music/state/player_notifier.dart';
 import 'package:music/theme/cymbra_theme.dart';
+import 'package:music/widgets/keep_screen_awake.dart';
 
 import '../support/fakes.dart';
 import '../support/localized.dart';
@@ -935,5 +936,15 @@ void main() {
         await teardownScreen(tester);
       });
     });
+  });
+
+  testWidgets('the player holds the screen awake', (tester) async {
+    await pumpScreen(tester);
+
+    // The regression this guards: a refactor of the build method dropping the
+    // wrapper would silently bring back the dark screen mid-piece (change:
+    // keep-play-surfaces-awake).
+    expect(find.byType(KeepScreenAwake), findsOneWidget);
+    await teardownScreen(tester);
   });
 }

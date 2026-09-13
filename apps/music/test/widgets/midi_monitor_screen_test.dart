@@ -25,6 +25,7 @@ import 'package:music/state/notation_notifier.dart';
 import 'package:music/state/midi_monitor_notifier.dart';
 import 'package:music/src/rust/api/midi.dart' show MidiEvent;
 import 'package:music/state/player_notifier.dart';
+import 'package:music/widgets/keep_screen_awake.dart';
 
 import '../support/fakes.dart';
 import '../support/localized.dart';
@@ -246,5 +247,14 @@ void main() {
       expect(entry.isInert, isFalse);
       await teardown(tester);
     });
+  });
+
+  testWidgets('the monitor holds the screen awake', (tester) async {
+    await pump(tester);
+
+    // The player exercises the instrument and watches; nothing touches the
+    // glass (change: keep-play-surfaces-awake).
+    expect(find.byType(KeepScreenAwake), findsOneWidget);
+    await teardown(tester);
   });
 }
