@@ -38,10 +38,9 @@ any online (backend-bound) service. Choosing guest — from the welcome or from 
 SHALL persist the choice so that neither the welcome nor the entry screen is shown again on
 subsequent launches. The app SHALL expose an explicit way for a guest to sign in or create an
 account from within the app, through the contextual sign-in surface, and SHALL keep the user in
-guest mode until authentication succeeds. The guest's account control SHALL open a menu that
-leads with signing in and also reaches the subscription paywall, help, language and the legal
-pages (terms, privacy, licenses); it SHALL NOT offer the profile, connected accounts, sign-out or
-account deletion.
+guest mode until authentication succeeds. Next to a direct sign-in button, a guest SHALL have a
+menu reaching the subscription paywall, language and the legal pages (terms, privacy, licenses);
+it SHALL NOT offer the profile, connected accounts, sign-out or account deletion.
 
 #### Scenario: Entering guest mode
 - **WHEN** the user picks "continue without an account" on the welcome or on the entry screen
@@ -52,8 +51,8 @@ account deletion.
 - **THEN** the feature is unavailable (hidden or disabled) and the app offers to sign in or create an account instead of calling the backend
 
 #### Scenario: Guest account menu
-- **WHEN** a guest opens the account control
-- **THEN** they can sign in, open the subscription paywall, help, language and the legal pages, and see no profile, connected accounts, sign-out or deletion entry
+- **WHEN** a guest looks at the account controls
+- **THEN** the sign-in button opens sign-in in one tap, and the menu beside it opens the subscription paywall, language and the legal pages, with no profile, connected accounts, sign-out or deletion entry
 
 #### Scenario: Guest upgrades to an account
 - **WHEN** a guest chooses to sign in or create an account from within the app and authentication succeeds

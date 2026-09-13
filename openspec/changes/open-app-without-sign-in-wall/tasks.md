@@ -15,7 +15,7 @@
 
 - [x] 3.1 Guest account button (`account-signin`): open the contextual sign-in surface through `inviteSignIn` instead of calling `leaveGuest()`
 - [x] 3.2 Widget tests: a guest who signs in from the library stays on the library, signed in; a guest who backs out stays a guest on the same screen
-- [x] 3.3 Guest account control: turn the lone sign-in button into a menu (`account-guest-menu`) leading with sign-in and reaching the paywall, help, language and legal pages — the paywall's guest state was otherwise unreachable (found on the 1.33.0 build); widget tests for the entries shown and hidden, the paywall route and a legal link
+- [x] 3.3 Guest account control: keep the direct sign-in button and add an overflow menu beside it (`account-guest-menu`) reaching the paywall, language and legal pages — the paywall's guest state was otherwise unreachable (found on the 1.33.0 build); widget tests for the entries shown and hidden, the paywall route and a legal link
 
 ## 4. Paywall guest state
 
