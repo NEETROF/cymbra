@@ -180,7 +180,8 @@ export async function mountStats(root: HTMLElement, port: LinguaPort, area: Asyn
     const note = document.createElement("div");
     note.className = "seed-note";
     note.textContent =
-      "Marqués « connu » ou « ignoré » (donc plus surlignés). Remets-en un « à apprendre » pour qu'il soit de nouveau signalé.";
+      "Marqués « connu » ou « ignoré » (donc plus surlignés). Remets-en un « à apprendre » pour qu'il soit de nouveau signalé. " +
+      "En lecture : Alt/Option-clic (ou appui long sur tactile) sur un mot pour le rouvrir.";
     wrap.append(note);
     const list = document.createElement("ul");
     list.className = "marked-list";

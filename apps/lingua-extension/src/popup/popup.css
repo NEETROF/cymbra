@@ -411,3 +411,30 @@ button.danger:hover {
   color: var(--cymbra-lingua-coral);
   font-size: 12px;
 }
+
+.shortcuts summary {
+  cursor: pointer;
+  color: var(--cymbra-lingua-muted);
+  font-size: 12px;
+}
+
+.shortcuts-list {
+  list-style: none;
+  margin: 8px 0 4px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--cymbra-lingua-text);
+}
+
+.shortcuts-list kbd {
+  font-family: inherit;
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: 5px;
+  border: 1px solid var(--cymbra-lingua-border-2);
+  background: var(--cymbra-lingua-panel-2);
+  color: var(--cymbra-lingua-muted);
+}

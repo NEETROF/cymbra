@@ -64,6 +64,11 @@ function statusOfClass(cls: TokenClass): LemmaStatus | null {
   }
 }
 
+/** Hold duration (ms) that turns a single-finger press into a reclassify long-press. */
+const LONG_PRESS_MS = 500;
+/** Finger travel (px) beyond which a press is treated as a scroll/drag, not a long-press. */
+const LONG_PRESS_MOVE_TOL = 10;
+
 function caretAt(x: number, y: number): { node: Node; offset: number } | null {
   const doc = document as Document & {
     caretRangeFromPoint?: (x: number, y: number) => Range | null;
@@ -104,6 +109,14 @@ class ReadingSession {
   private resolved: ResolvedToken[] = [];
   /** Per-container block+tokens, for the Alt-click reclassify path of non-painted words. */
   private clickable = new Map<Element, BlockTokens>();
+  /** In-flight long-press candidate (touch equivalent of Alt-click), or null. */
+  private longPress: { x: number; y: number; timer: ReturnType<typeof setTimeout> } | null = null;
+  /** True between a fired long-press and its touchend, so the compat click is swallowed. */
+  private longPressFired = false;
+  /** Ignore synthesised clicks until this epoch-ms (a long-press's compat click). */
+  private suppressClickUntil = 0;
+  /** While true, suppress the native long-press text-selection + context menu. */
+  private suppressSelection = false;
   private stats: ScanStats = NOT_ANALYSABLE;
   private calibration = 3000;
   /** Global master switch. When off the reader does not analyse, paint or pop up. */
@@ -140,6 +153,28 @@ class ReadingSession {
     this.calibration = await this.port.calibration();
     this.enabled = await loadEnabled(storageArea);
     document.addEventListener("click", (e) => this.onClick(e), true);
+    // Long-press = the touch equivalent of Alt-click (reopen a marked word). touchstart/move/
+    // cancel stay passive (they only arm/cancel the timer); touchend is non-passive so a
+    // fired press can swallow its compatibility click. selectstart/contextmenu are suppressed
+    // only while a long-press is firing, to kill the native text-selection + callout it raises.
+    document.addEventListener("touchstart", (e) => this.onTouchStart(e), { capture: true, passive: true });
+    document.addEventListener("touchmove", (e) => this.onTouchMove(e), { capture: true, passive: true });
+    document.addEventListener("touchend", (e) => this.onTouchEnd(e), { capture: true });
+    document.addEventListener("touchcancel", () => this.onTouchCancel(), { capture: true, passive: true });
+    document.addEventListener(
+      "selectstart",
+      (e) => {
+        if (this.suppressSelection) e.preventDefault();
+      },
+      true,
+    );
+    document.addEventListener(
+      "contextmenu",
+      (e) => {
+        if (this.suppressSelection) e.preventDefault();
+      },
+      true,
+    );
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && this.popup.visible()) this.popup.hide();
     });
@@ -295,6 +330,13 @@ class ReadingSession {
 
   private onClick(e: MouseEvent): void {
     if (!this.enabled || this.popup.contains(e.target)) return;
+    if (Date.now() < this.suppressClickUntil) {
+      // The compatibility click a long-press just fired: swallow it whole, so a long-pressed
+      // link cannot navigate on the fallback click either.
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
     // A live phrase/compound selection is the whole-selection card's job (onMouseUp);
     // don't also open the single-word popup for whatever word the release landed on.
     const sel = window.getSelection();
@@ -304,15 +346,100 @@ class ReadingSession {
       if (this.popup.visible()) this.popup.hide();
       return;
     }
-    // A plain click resolves only PAINTED words (Learning/Unknown). A non-painted word
-    // (Known/Ignored) is reclassifiable only with the Alt/Option modifier — a plain click
-    // must fall through untouched so the page's own click handling is never swallowed.
-    const painted = findTokenAt(this.resolved, caret.node, caret.offset);
-    const hit = painted ?? (e.altKey ? this.reclassifyHit(caret.node, caret.offset) : null);
+    // A plain click resolves only PAINTED words; a non-painted (Known/Ignored) word needs the
+    // Alt/Option modifier, so a plain click never intercepts one (the page keeps it).
+    const hit = this.hitAt(caret.node, caret.offset, e.altKey);
     if (!hit) {
       if (this.popup.visible()) this.popup.hide();
-      return; // no stopPropagation on a miss — a plain click stays the page's to handle
+      return;
     }
+    const isLink = e.target instanceof Element && !!e.target.closest("a[href]");
+    // Only an UNTREATED word (Unknown) blocks its link — "tant qu'un mot n'a pas été traité".
+    // A treated (Learning/decked) word that is a link follows the link on a plain click; its
+    // popup stays reachable via Alt-click / long-press. Alt-click always reclassifies.
+    if (!e.altKey && hit.token.class === "Learning" && isLink) return;
+    this.showPopup(hit);
+    e.stopPropagation();
+    // Suppress the default ONLY to block an untreated word's link, or for a deliberate
+    // Alt-click — never otherwise, so a painted word inside a <label>/<summary>/<button>
+    // keeps its native activation.
+    if (e.altKey || isLink) e.preventDefault();
+  }
+
+  /**
+   * Long-press = the touch equivalent of Alt-click: press-and-hold ONE finger on a word to
+   * reopen it (painted or a marked Known/Ignored word) and reclassify. One finger is
+   * precise (a word is a small target); two fingers can't sit on one word. The catch is
+   * that a long-press also raises the OS text-selection + callout, which `fireLongPress`
+   * suppresses. Cancelled by movement, a second finger, an early lift, or touchcancel.
+   */
+  private onTouchStart(e: TouchEvent): void {
+    this.cancelLongPress();
+    if (!this.enabled || this.popup.contains(e.target) || e.touches.length !== 1) return;
+    const t = e.touches[0];
+    if (!t) return;
+    const x = t.clientX;
+    const y = t.clientY;
+    this.longPress = { x, y, timer: setTimeout(() => this.fireLongPress(x, y), LONG_PRESS_MS) };
+  }
+
+  private onTouchMove(e: TouchEvent): void {
+    const lp = this.longPress;
+    if (!lp) return;
+    const t = e.touches[0];
+    // A moved finger is a scroll/drag, and a second finger is a pinch — neither is a press.
+    if (e.touches.length !== 1 || !t || Math.hypot(t.clientX - lp.x, t.clientY - lp.y) > LONG_PRESS_MOVE_TOL) {
+      this.cancelLongPress();
+    }
+  }
+
+  private onTouchEnd(e: TouchEvent): void {
+    if (this.longPressFired) {
+      // The press already opened the popup; swallow the compatibility click this touchend
+      // would synthesise (else it would re-hit onClick and, for a marked word, dismiss it).
+      this.longPressFired = false;
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    this.cancelLongPress(); // an early lift (before the timer) is a normal tap, not a press
+  }
+
+  private onTouchCancel(): void {
+    this.longPressFired = false;
+    this.cancelLongPress();
+  }
+
+  private cancelLongPress(): void {
+    if (this.longPress) {
+      clearTimeout(this.longPress.timer);
+      this.longPress = null;
+    }
+  }
+
+  /** The hold completed: open the word's popup and suppress the native selection/callout. */
+  private fireLongPress(x: number, y: number): void {
+    this.longPress = null;
+    if (!this.enabled || !this.openWordAt(x, y, true)) return;
+    this.longPressFired = true; // touchend will swallow the compat click
+    this.suppressClickUntil = Date.now() + 700; // fallback if the browser clicks anyway
+    this.suppressSelection = true; // kill the long-press text-selection + context menu
+    setTimeout(() => {
+      this.suppressSelection = false;
+    }, 1000);
+    window.getSelection()?.removeAllRanges();
+  }
+
+  /**
+   * The token at a caret: a PAINTED word (Learning/Unknown) directly, or — when
+   * `allowReclassify` (the deliberate Alt-click / long-press path) — a non-painted
+   * (Known/Ignored) word via an on-demand block hit-test. Null when nothing is there.
+   */
+  private hitAt(node: Node, offset: number, allowReclassify: boolean): ResolvedToken | null {
+    return findTokenAt(this.resolved, node, offset) ?? (allowReclassify ? this.reclassifyHit(node, offset) : null);
+  }
+
+  /** Show the word popup for a resolved hit (status-aware actions), anchored to its box. */
+  private showPopup(hit: ResolvedToken): void {
     const rect = hit.range.getBoundingClientRect();
     this.popup.show({
       headword: hit.token.lemma,
@@ -323,8 +450,19 @@ class ReadingSession {
       status: statusOfClass(hit.token.class),
       rect: { left: rect.left, top: rect.top, bottom: rect.bottom },
     });
-    e.stopPropagation();
-    if (!painted) e.preventDefault(); // an Alt-click reclassify: suppress the browser default too
+  }
+
+  /** Open the popup for the word at viewport (x, y) (the long-press path always reclassifies).
+   *  Returns whether a word was found; dismisses any open popup on a miss. */
+  private openWordAt(x: number, y: number, allowReclassify: boolean): boolean {
+    const caret = caretAt(x, y);
+    const hit = caret && this.hitAt(caret.node, caret.offset, allowReclassify);
+    if (!hit) {
+      if (this.popup.visible()) this.popup.hide();
+      return false;
+    }
+    this.showPopup(hit);
+    return true;
   }
 
   /** Hit-test a non-painted word (Known/Ignored) by resolving only its own block's tokens.
