@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.33.1](https://github.com/NEETROF/cymbra/compare/music-v1.33.0...music-v1.33.1) (2026-09-13)
+
+
+### Bug Fixes
+
+* **music:** give guests an account menu that reaches the subscription ([#426](https://github.com/NEETROF/cymbra/issues/426)) ([82eb502](https://github.com/NEETROF/cymbra/commit/82eb502aff32d4e2e59742a9b433f76834d290d2))
+
 ## [1.33.0](https://github.com/NEETROF/cymbra/compare/music-v1.32.0...music-v1.33.0) (2026-09-13)
 
 
