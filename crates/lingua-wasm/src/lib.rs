@@ -458,6 +458,15 @@ impl LinguaEngine {
         self.state.deck.upsert(EN, card);
     }
 
+    /// Retire the deck card for `lemma` if present (keep it, stop it coming due) — used
+    /// when a word is reclassified `known`/`ignored` outside a review, so its card stops
+    /// surfacing. `now` is Unix-epoch seconds (the card's time unit). No-op when there is
+    /// no card for the lemma.
+    #[wasm_bindgen(js_name = retireCard)]
+    pub fn retire_card(&mut self, lemma: &str, now: f64) {
+        self.state.deck.retire(EN, lemma, now as i64);
+    }
+
     /// Seeds up to `count` deck cards from a CEFR level's lemmas. `order` is
     /// `"common"` (commonest-first, the default) or `"rare"`; unranked lemmas
     /// always sort last. Skips lemmas already carded or with an explicit status.
