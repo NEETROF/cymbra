@@ -142,9 +142,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Guests get the sign-in affordance, never the account menu (which is the
-      // only path to Connected accounts).
-      expect(find.byKey(const Key('account-signin')), findsOneWidget);
+      // Guests get the guest menu, never the account menu (which is the only
+      // path to Connected accounts).
+      expect(find.byKey(const Key('account-guest-menu')), findsOneWidget);
       expect(find.byKey(const Key('account-menu')), findsNothing);
       expect(find.byKey(const Key('account-connected')), findsNothing);
     });

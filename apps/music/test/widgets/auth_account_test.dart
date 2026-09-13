@@ -177,7 +177,7 @@ void main() {
       final store = FakeTokenStore(guest: true);
       final c = await _signedIn(tester, const AccountMenu(), store: store);
       expect(c.read(sessionNotifierProvider), isA<SessionGuest>());
-      expect(find.byKey(const Key('account-signin')), findsOneWidget);
+      expect(find.byKey(const Key('account-guest-menu')), findsOneWidget);
       expect(find.byKey(const Key('account-menu')), findsNothing);
     });
 
