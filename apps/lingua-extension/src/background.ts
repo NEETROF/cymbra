@@ -252,7 +252,14 @@ chrome.commands.onCommand.addListener((command) => {
     } else if (command === "lingua-toggle-drawer") {
       void chrome.tabs.sendMessage(tabId, { type: "toggleDrawer" }).catch(() => {});
     } else if (command === "lingua-side-panel") {
-      void chrome.sidePanel.open({ tabId }).catch(() => {});
+      // Chromium: the Side Panel API. Firefox desktop: its sidebar (no sidePanel API);
+      // Firefox for Android has neither, but has no keyboard to fire this command either.
+      if (__TARGET__ === "chromium") {
+        void chrome.sidePanel.open({ tabId }).catch(() => {});
+      } else {
+        const sidebar = (chrome as unknown as { sidebarAction?: { open?: () => Promise<void> } }).sidebarAction;
+        void sidebar?.open?.()?.catch(() => {});
+      }
     }
   });
 });
