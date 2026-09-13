@@ -1,18 +1,10 @@
 import { createLinguaPort } from "../analyzer/create-port.ts";
-import type { CefrLevel } from "../analyzer/types.ts";
+import { mountSettings, type SettingsView } from "../reading/settings-view.ts";
 import { ReviewController } from "../review/session.ts";
 import { renderReview } from "../review/view.ts";
 import { dailyRecorder } from "../state/dailystats.ts";
-import {
-  type AsyncStorageArea,
-  hydrateEngine,
-  loadHudHidden,
-  ROOT_KEY,
-  saveBackup,
-  saveHudHidden,
-} from "../state/storage.ts";
+import { type AsyncStorageArea, hydrateEngine, ROOT_KEY, saveBackup } from "../state/storage.ts";
 import { mountStats } from "../stats/view.ts";
-import { clearSyncCursors } from "../sync/sync.ts";
 
 /** Transient key the popup sets to open the panel straight on the stats view. */
 const PANEL_VIEW_KEY = "cymbra-lingua-panel-view";
@@ -93,6 +85,8 @@ async function loadAttributions(): Promise<void> {
 
 type PanelView = "review" | "stats" | "settings";
 
+let settings: SettingsView | null = null;
+
 /** Switch between the review, stats and settings views; stats and settings are refreshed
  * each time they are shown, so they always reflect the current statuses + level. */
 async function showView(view: PanelView): Promise<void> {
@@ -103,95 +97,19 @@ async function showView(view: PanelView): Promise<void> {
     b.classList.toggle("active", b.dataset.view === view);
   }
   if (view === "stats") await mountStats($("view-stats"), port, area);
-  if (view === "settings") await renderSettings();
-}
-
-/** Reflect current settings into the Réglages view (level, calibration, HUD toggle). */
-async function renderSettings(): Promise<void> {
-  const [hasLevels, declared] = [await port.hasLevels(), await port.declaredLevel()];
-  const current = declared ?? "";
-  for (const b of document.querySelectorAll<HTMLButtonElement>("#s-level-chips .lvl")) {
-    b.classList.toggle("active", (b.dataset.lvl ?? "") === current);
+  if (view === "settings") {
+    // One settings impl, shared with the in-page drawer (mountSettings). A reset re-creates
+    // the controller so the review view reflects the wiped deck.
+    settings ??= mountSettings($("view-settings"), port, area, {
+      persist,
+      onReset: async () => {
+        controller = new ReviewController(port, now, dailyRecorder(area));
+        await refreshSummary();
+        renderReview($("review"), controller.view(), actions);
+      },
+    });
+    await settings.refresh();
   }
-  $("s-level-hint").textContent = declared
-    ? `Les mots sous ${declared} ne sont plus surlignés.`
-    : "Choisis ton niveau — rien n'est présumé connu pour l'instant.";
-  $("s-calib-block").hidden = hasLevels;
-  if (!hasLevels) {
-    const cal = await port.calibration();
-    ($("s-calib") as HTMLInputElement).value = String(cal);
-    $("s-calibv").textContent = String(cal);
-  }
-  ($("s-hud-toggle") as HTMLInputElement).checked = !(await loadHudHidden(area));
-}
-
-/** Declare the CEFR level (null = Débutant); mirrors the content script's onSetLevel. */
-async function setLevel(level: CefrLevel | null): Promise<void> {
-  await port.setDeclaredLevelAt(level, Date.now());
-  await port.setCalibration(0);
-  await persist();
-  await renderSettings();
-}
-
-/** Reset local data; mirrors the content script's onReset, driven by the panel's port. */
-async function doReset(scope: "full" | "partial"): Promise<void> {
-  if (scope === "partial") {
-    await port.resetStatuses();
-  } else {
-    await port.reset();
-    await clearSyncCursors(area);
-  }
-  await port.setCalibration((await port.hasLevels()) ? 0 : 3000);
-  await persist();
-  controller = new ReviewController(port, now, dailyRecorder(area));
-  await refreshSummary();
-  renderReview($("review"), controller.view(), actions);
-  await renderSettings();
-  $("s-reset-msg").textContent = scope === "partial" ? "Statuts et calibration réinitialisés." : "Données effacées.";
-}
-
-/** Wire the Réglages controls once (state is refreshed by renderSettings on each show). */
-function wireSettings(): void {
-  for (const b of document.querySelectorAll<HTMLButtonElement>("#s-level-chips .lvl")) {
-    b.addEventListener("click", () => void setLevel((b.dataset.lvl as CefrLevel) || null));
-  }
-  const calib = $("s-calib") as HTMLInputElement;
-  calib.addEventListener("input", () => {
-    $("s-calibv").textContent = calib.value;
-  });
-  calib.addEventListener("change", async () => {
-    await port.setCalibration(Number(calib.value));
-    await persist();
-  });
-  ($("s-hud-toggle") as HTMLInputElement).addEventListener("change", async (e) => {
-    await saveHudHidden(area, !(e.target as HTMLInputElement).checked);
-  });
-  $("s-shortcuts-config").addEventListener("click", () => {
-    const url = __TARGET__ === "firefox" ? "about:addons" : "chrome://extensions/shortcuts";
-    void chrome.tabs.create({ url });
-  });
-
-  // Reset wizard: Réinitialiser… → scope choice; a full wipe needs an extra confirm.
-  const showReset = (menu: boolean, confirm: boolean): void => {
-    $("s-reset").hidden = menu || confirm;
-    $("s-reset-menu").hidden = !menu;
-    $("s-reset-confirm").hidden = !confirm;
-  };
-  $("s-reset").addEventListener("click", () => showReset(true, false));
-  $("s-reset-cancel").addEventListener("click", () => showReset(false, false));
-  $("s-reset-partial").addEventListener("click", () => {
-    showReset(false, false);
-    void doReset("partial");
-  });
-  $("s-reset-full").addEventListener("click", () => {
-    $("s-reset-warn").textContent = "Effacer statuts, deck de révision et progression ? Action définitive hors sync.";
-    showReset(false, true);
-  });
-  $("s-reset-no").addEventListener("click", () => showReset(false, false));
-  $("s-reset-yes").addEventListener("click", () => {
-    showReset(false, false);
-    void doReset("full");
-  });
 }
 
 async function main(): Promise<void> {
@@ -203,7 +121,6 @@ async function main(): Promise<void> {
   for (const b of document.querySelectorAll<HTMLButtonElement>("#views button")) {
     b.addEventListener("click", () => void showView((b.dataset.view as PanelView) ?? "review"));
   }
-  wireSettings();
 
   // The popup / in-page HUD can request opening straight on the stats or settings view.
   try {

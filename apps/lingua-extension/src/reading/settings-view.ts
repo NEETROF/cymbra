@@ -1,0 +1,216 @@
+import type { LinguaPort } from "../analyzer/port.ts";
+import { CEFR_LEVELS, type CefrLevel } from "../analyzer/types.ts";
+import { type AsyncStorageArea, loadHudHidden, saveHudHidden } from "../state/storage.ts";
+import { clearSyncCursors } from "../sync/sync.ts";
+
+// The Réglages view, built as plain DOM into a given container so ONE implementation
+// serves two hosts: the native side panel and the in-page drawer (same pattern as review's
+// renderReview). It drives the host's own port and persists via `persist`, so every other
+// surface reacts through storage.onChanged; `onReset` lets the host refresh its review
+// after a wipe. Level + calibration mirror the content script's onSetLevel / onReset.
+
+export interface SettingsOptions {
+  /** Persist engine state after a change (backup → storage). */
+  persist: () => Promise<void>;
+  /** Refresh the host's review/summary after a reset (the deck may have changed). */
+  onReset?: () => Promise<void> | void;
+}
+
+export interface SettingsView {
+  /** Re-sync the controls with the engine (call each time the view is shown). */
+  refresh: () => Promise<void>;
+}
+
+function el<K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  className?: string,
+  text?: string,
+): HTMLElementTagNameMap[K] {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text != null) node.textContent = text;
+  return node;
+}
+
+function settingBlock(label: string): HTMLDivElement {
+  const block = el("div", "set-block");
+  block.append(el("div", "set-label", label));
+  return block;
+}
+
+function shortcut(...parts: (string | HTMLElement)[]): HTMLLIElement {
+  const li = el("li");
+  li.append(...parts);
+  return li;
+}
+
+function kbd(key: string): HTMLElement {
+  return el("kbd", undefined, key);
+}
+
+/** Mount the Réglages controls into `container`. Returns a `refresh()` to re-sync state. */
+export function mountSettings(
+  container: HTMLElement,
+  port: LinguaPort,
+  area: AsyncStorageArea,
+  opts: SettingsOptions,
+): SettingsView {
+  container.replaceChildren();
+
+  // — Niveau d'anglais —
+  const levelBlock = settingBlock("Niveau d'anglais");
+  const chips = el("div", "level-chips");
+  const chipButtons = new Map<string, HTMLButtonElement>();
+  const addChip = (value: string, label: string): void => {
+    const b = el("button", value === "" ? "lvl lvl-beginner" : "lvl", label);
+    b.type = "button";
+    b.dataset.lvl = value;
+    b.addEventListener("click", () => void setLevel((value as CefrLevel) || null));
+    chips.append(b);
+    chipButtons.set(value, b);
+  };
+  for (const lvl of CEFR_LEVELS) addChip(lvl, lvl);
+  addChip("", "Débutant");
+  const hint = el("div", "set-note");
+  const calibBlock = el("div", "calib");
+  calibBlock.hidden = true;
+  const calibValue = el("b", undefined, "3000");
+  const calibLabel = el("label");
+  calibLabel.append("Je connais les ", calibValue, " mots les plus courants");
+  const calib = el("input");
+  calib.type = "range";
+  calib.min = "500";
+  calib.max = "10000";
+  calib.step = "100";
+  calib.value = "3000";
+  calibBlock.append(calibLabel, calib);
+  levelBlock.append(chips, hint, calibBlock);
+
+  // — Barre sur la page —
+  const barBlock = settingBlock("Barre sur la page");
+  const toggleRow = el("label", "set-toggle");
+  const toggle = el("input");
+  toggle.type = "checkbox";
+  toggleRow.append(toggle, el("span", undefined, "Afficher la pastille de pourcentage"));
+  barBlock.append(
+    toggleRow,
+    el("div", "set-note", "Pastille discrète en bas de la page : pourcentage + accès au deck et aux réglages."),
+  );
+
+  // — Raccourcis & gestes —
+  const scBlock = settingBlock("Raccourcis & gestes");
+  const scList = el("ul", "set-shortcuts");
+  scList.append(
+    shortcut(kbd("Alt"), "+", kbd("Maj"), "+", kbd("S"), " — panneau latéral"),
+    shortcut(kbd("Alt"), "+", kbd("Maj"), "+", kbd("D"), " — panneau de révision sur la page"),
+    shortcut(kbd("Alt"), "+", kbd("L"), " — capturer la sélection"),
+    shortcut(kbd("Alt"), "/", kbd("Option"), "-clic (ou appui long) sur un mot — le reclasser"),
+  );
+  const scConfig = el("button", "linklike", "Configurer les raccourcis du navigateur");
+  scConfig.type = "button";
+  scConfig.addEventListener("click", () => {
+    const url = __TARGET__ === "firefox" ? "about:addons" : "chrome://extensions/shortcuts";
+    void chrome.tabs.create({ url });
+  });
+  scBlock.append(scList, scConfig);
+
+  // — Réinitialisation (scope choice; a full wipe needs an extra confirm) —
+  const resetBlock = settingBlock("Réinitialisation");
+  resetBlock.append(el("div", "set-note", "Efface tes données locales. À n'utiliser qu'exceptionnellement."));
+  const resetBtn = el("button", "set-reset", "Réinitialiser…");
+  resetBtn.type = "button";
+  const menu = el("div");
+  menu.hidden = true;
+  const resetPartial = el("button", "set-reset", "Partielle — statuts + calibration (garde le deck)");
+  resetPartial.type = "button";
+  const resetFull = el("button", "set-danger", "Complète — tout effacer");
+  resetFull.type = "button";
+  const resetCancel = el("button", "set-reset", "Annuler");
+  resetCancel.type = "button";
+  menu.append(resetPartial, resetFull, resetCancel);
+  const confirm = el("div");
+  confirm.hidden = true;
+  const warn = el("div", "set-warn");
+  const confirmYes = el("button", "set-danger", "Oui, confirmer");
+  confirmYes.type = "button";
+  const confirmNo = el("button", "set-reset", "Annuler");
+  confirmNo.type = "button";
+  confirm.append(warn, confirmYes, confirmNo);
+  const resetMsg = el("div", "set-note");
+  resetBlock.append(resetBtn, menu, confirm, resetMsg);
+
+  const showReset = (showMenu: boolean, showConfirm: boolean): void => {
+    resetBtn.hidden = showMenu || showConfirm;
+    menu.hidden = !showMenu;
+    confirm.hidden = !showConfirm;
+  };
+  resetBtn.addEventListener("click", () => showReset(true, false));
+  resetCancel.addEventListener("click", () => showReset(false, false));
+  confirmNo.addEventListener("click", () => showReset(false, false));
+  resetPartial.addEventListener("click", () => {
+    showReset(false, false);
+    void doReset("partial");
+  });
+  resetFull.addEventListener("click", () => {
+    warn.textContent = "Effacer statuts, deck de révision et progression ? Action définitive hors sync.";
+    showReset(false, true);
+  });
+  confirmYes.addEventListener("click", () => {
+    showReset(false, false);
+    void doReset("full");
+  });
+
+  container.append(levelBlock, barBlock, scBlock, resetBlock);
+
+  // — Live wiring —
+  calib.addEventListener("input", () => {
+    calibValue.textContent = calib.value;
+  });
+  calib.addEventListener("change", async () => {
+    await port.setCalibration(Number(calib.value));
+    await opts.persist();
+  });
+  toggle.addEventListener("change", async () => {
+    await saveHudHidden(area, !toggle.checked);
+  });
+
+  async function setLevel(level: CefrLevel | null): Promise<void> {
+    await port.setDeclaredLevelAt(level, Date.now());
+    await port.setCalibration(0);
+    await opts.persist();
+    await refresh();
+  }
+
+  async function doReset(scope: "full" | "partial"): Promise<void> {
+    if (scope === "partial") {
+      await port.resetStatuses();
+    } else {
+      await port.reset();
+      await clearSyncCursors(area);
+    }
+    await port.setCalibration((await port.hasLevels()) ? 0 : 3000);
+    await opts.persist();
+    await opts.onReset?.();
+    await refresh();
+    resetMsg.textContent = scope === "partial" ? "Statuts et calibration réinitialisés." : "Données effacées.";
+  }
+
+  async function refresh(): Promise<void> {
+    const [hasLevels, declared] = [await port.hasLevels(), await port.declaredLevel()];
+    const current = declared ?? "";
+    for (const [value, b] of chipButtons) b.classList.toggle("active", value === current);
+    hint.textContent = declared
+      ? `Les mots sous ${declared} ne sont plus surlignés.`
+      : "Choisis ton niveau — rien n'est présumé connu pour l'instant.";
+    calibBlock.hidden = hasLevels;
+    if (!hasLevels) {
+      const cal = await port.calibration();
+      calib.value = String(cal);
+      calibValue.textContent = String(cal);
+    }
+    toggle.checked = !(await loadHudHidden(area));
+  }
+
+  void refresh();
+  return { refresh };
+}

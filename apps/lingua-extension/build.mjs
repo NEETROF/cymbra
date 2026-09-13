@@ -105,6 +105,7 @@ const staticCopies = [
   ["src/onboarding/onboarding.css", "onboarding.css"],
   ["src/styles/tokens.css", "tokens.css"],
   ["src/styles/review.css", "review.css"],
+  ["src/styles/settings.css", "settings.css"],
   ["src/wasm/pkg/lingua_wasm.js", "wasm/lingua_wasm.js"],
   ["src/wasm/pkg/lingua_wasm_bg.wasm", "wasm/lingua_wasm_bg.wasm"],
   ["assets/pack.lingua", "assets/pack.lingua"],

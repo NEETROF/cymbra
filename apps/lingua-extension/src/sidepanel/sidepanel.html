@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="tokens.css" />
     <link rel="stylesheet" href="review.css" />
     <link rel="stylesheet" href="stats.css" />
+    <link rel="stylesheet" href="settings.css" />
     <link rel="stylesheet" href="sidepanel.css" />
   </head>
   <body>
@@ -42,66 +43,8 @@
 
     <div id="view-stats" hidden></div>
 
-    <div id="view-settings" hidden>
-      <div class="set-block">
-        <div class="set-label">Niveau d'anglais</div>
-        <div id="s-level-chips" class="level-chips">
-          <button class="lvl" data-lvl="A1">A1</button>
-          <button class="lvl" data-lvl="A2">A2</button>
-          <button class="lvl" data-lvl="B1">B1</button>
-          <button class="lvl" data-lvl="B2">B2</button>
-          <button class="lvl" data-lvl="C1">C1</button>
-          <button class="lvl" data-lvl="C2">C2</button>
-          <button class="lvl lvl-beginner" data-lvl="">Débutant</button>
-        </div>
-        <div id="s-level-hint" class="set-note"></div>
-        <div id="s-calib-block" class="calib" hidden>
-          <label>Je connais les <b id="s-calibv">3000</b> mots les plus courants</label>
-          <input type="range" id="s-calib" min="500" max="10000" step="100" value="3000" />
-        </div>
-      </div>
-
-      <div class="set-block">
-        <div class="set-label">Barre sur la page</div>
-        <label class="set-toggle">
-          <input type="checkbox" id="s-hud-toggle" />
-          <span>Afficher la pastille de pourcentage</span>
-        </label>
-        <div class="set-note">Pastille discrète en bas de la page : pourcentage + accès au deck et aux réglages.</div>
-      </div>
-
-      <div class="set-block">
-        <div class="set-label">Raccourcis &amp; gestes</div>
-        <ul class="set-shortcuts">
-          <li><kbd>Alt</kbd>+<kbd>Maj</kbd>+<kbd>S</kbd> — panneau latéral</li>
-          <li><kbd>Alt</kbd>+<kbd>Maj</kbd>+<kbd>D</kbd> — panneau de révision sur la page</li>
-          <li><kbd>Alt</kbd>+<kbd>L</kbd> — capturer la sélection</li>
-          <li><kbd>Alt</kbd>/<kbd>Option</kbd>-clic (ou appui long) sur un mot — le reclasser</li>
-        </ul>
-        <button class="linklike" id="s-shortcuts-config" type="button">Configurer les raccourcis du navigateur</button>
-      </div>
-
-      <div class="set-block">
-        <div class="set-label">Réinitialisation</div>
-        <div class="set-note">Efface tes données locales. À n'utiliser qu'exceptionnellement.</div>
-        <div id="s-reset-box">
-          <button class="set-reset" id="s-reset" type="button">Réinitialiser…</button>
-          <div id="s-reset-menu" hidden>
-            <button class="set-reset" id="s-reset-partial" type="button">
-              Partielle — statuts + calibration (garde le deck)
-            </button>
-            <button class="set-danger" id="s-reset-full" type="button">Complète — tout effacer</button>
-            <button class="set-reset" id="s-reset-cancel" type="button">Annuler</button>
-          </div>
-          <div id="s-reset-confirm" hidden>
-            <div class="set-warn" id="s-reset-warn"></div>
-            <button class="set-danger" id="s-reset-yes" type="button">Oui, confirmer</button>
-            <button class="set-reset" id="s-reset-no" type="button">Annuler</button>
-          </div>
-        </div>
-        <div class="set-note" id="s-reset-msg"></div>
-      </div>
-    </div>
+    <!-- Réglages are built by mountSettings (shared with the in-page drawer). -->
+    <div id="view-settings" hidden></div>
 
     <script type="module" src="sidepanel.js"></script>
   </body>
