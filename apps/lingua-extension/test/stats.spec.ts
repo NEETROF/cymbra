@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { CefrLevel, LevelRow } from "@/analyzer/types.ts";
 import { barChartSvg } from "@/stats/chart.ts";
-import { buildSeries, consolidatedToMap, dayWindow, estimatedPosition, markedWords } from "@/stats/model.ts";
+import {
+  buildSeries,
+  consolidatedToMap,
+  dayWindow,
+  estimatedPosition,
+  groupMarkedWords,
+  markedWords,
+} from "@/stats/model.ts";
 
 const CEFR: readonly CefrLevel[] = ["A1", "A2", "B1", "B2", "C1", "C2"];
 
@@ -106,5 +113,42 @@ describe("markedWords", () => {
   it("returns an empty list when nothing is explicitly marked", () => {
     expect(markedWords([op("run", "learning", 1)])).toEqual([]);
     expect(markedWords([])).toEqual([]);
+  });
+});
+
+describe("groupMarkedWords", () => {
+  const op = (lemma: string, status: string, provenance: string, updated_at: number) => ({
+    lemma,
+    status,
+    provenance,
+    updated_at,
+  });
+  const lemmas = (words: { lemma: string }[]) => words.map((w) => w.lemma);
+
+  it("splits the reader's decisions from reading and review confirmations, newest first", () => {
+    const groups = groupMarkedWords([
+      op("seldom", "ignored", "manual", 100),
+      op("city", "known", "manual", 300),
+      op("run", "known", "exposure", 200),
+      op("cat", "known", "exposure", 400),
+      op("nuance", "known", "srs", 500),
+      op("quixotic", "learning", "manual", 900), // in the deck, not a marked word
+      op("abyss", "cleared", "manual", 950), // already put back
+    ]);
+    expect(lemmas(groups.decision)).toEqual(["city", "seldom"]);
+    expect(lemmas(groups.reading)).toEqual(["cat", "run"]);
+    expect(lemmas(groups.review)).toEqual(["nuance"]);
+    expect(groups.reading.every((w) => w.origin === "reading")).toBe(true);
+  });
+
+  it("keeps imported and unlabelled knowns, and every ignored word, with the decisions", () => {
+    const groups = groupMarkedWords([
+      op("holocene", "known", "import", 3),
+      { lemma: "era", status: "known", updated_at: 2 },
+      op("zyzzyva", "ignored", "exposure", 1),
+    ]);
+    expect(lemmas(groups.decision)).toEqual(["holocene", "era", "zyzzyva"]);
+    expect(groups.reading).toEqual([]);
+    expect(groups.review).toEqual([]);
   });
 });
