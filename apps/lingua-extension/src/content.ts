@@ -154,7 +154,7 @@ class ReadingSession {
     this.hud = new LinguaHud({
       css: `${tokensCss}\n${hudCss}`,
       actions: {
-        onReview: () => void this.drawer.toggle(),
+        onReview: () => this.openPanel("review"),
         onStats: () => this.openPanel("stats"),
         onSettings: () => this.openPanel("settings"),
       },
@@ -277,7 +277,7 @@ class ReadingSession {
 
   /** Ask the background to open the lateral panel (side panel / sidebar) on a given view;
    *  it falls back to a tab where the platform can't open the panel from a page click. */
-  private openPanel(view: "stats" | "settings"): void {
+  private openPanel(view: "review" | "stats" | "settings"): void {
     try {
       chrome.runtime.sendMessage({ type: "openPanel", view });
     } catch {

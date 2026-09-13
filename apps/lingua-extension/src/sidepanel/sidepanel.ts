@@ -209,7 +209,7 @@ async function main(): Promise<void> {
   try {
     const sess = await chrome.storage.session.get(PANEL_VIEW_KEY);
     const requested = sess[PANEL_VIEW_KEY];
-    if (requested === "stats" || requested === "settings") {
+    if (requested === "review" || requested === "stats" || requested === "settings") {
       await chrome.storage.session.remove(PANEL_VIEW_KEY);
       await showView(requested);
     }

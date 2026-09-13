@@ -66,7 +66,7 @@ const PANEL_VIEW_KEY = "cymbra-lingua-panel-view";
 chrome.runtime.onMessage.addListener((message: unknown, sender) => {
   const m = message as { type?: string; view?: string } | null;
   if (m?.type !== "openPanel") return;
-  const view = m.view === "settings" ? "settings" : "stats";
+  const view = m.view === "settings" || m.view === "review" ? m.view : "stats";
   // Fire-and-forget: the panel page reads this on init; awaiting it would spend the gesture.
   void chrome.storage.session.set({ [PANEL_VIEW_KEY]: view }).catch(() => {});
   const openTab = (): void => void chrome.tabs.create({ url: chrome.runtime.getURL("sidepanel.html") });
