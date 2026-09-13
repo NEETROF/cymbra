@@ -36,6 +36,7 @@ interface WasmEngine {
     gloss: string | null | undefined,
     capturedAt: number,
   ): void;
+  retireCard(lemma: string, now: number): void;
   deckCount(): number;
   dueCount(now: number): number;
   startReview(now: number): number;
@@ -136,6 +137,10 @@ export class WasmAnalyzerPort implements LinguaPort {
 
   async addCard(card: NewCard): Promise<void> {
     (await this.engine()).addCard(card.lemma, card.surface, card.sentence, card.url, card.gloss, card.capturedAt);
+  }
+
+  async retireCard(lemma: string, now: number): Promise<void> {
+    (await this.engine()).retireCard(lemma, now);
   }
 
   async deckCount(): Promise<number> {

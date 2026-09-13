@@ -50,6 +50,7 @@ export function makeFakePort(deck: FakeCard[] = []): { port: LinguaPort; calls: 
     gloss: async () => undefined,
     trackedCount: async () => calls.setStatus.length + calls.addCard.length,
     addCard: async (c) => void calls.addCard.push(c),
+    retireCard: async () => {},
     deckCount: async () => calls.addCard.length,
     dueCount: async () => queue.length - pos,
     startReview: async () => {

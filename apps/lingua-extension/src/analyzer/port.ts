@@ -96,6 +96,8 @@ export interface LinguaPort extends AnalyzerPort {
   trackedCount(): Promise<number>;
   /** Add (or replace) a deck card and mark its form learning. */
   addCard(card: NewCard): Promise<void>;
+  /** Retire the card for a lemma if present (keep it, stop it coming due); `now` in epoch seconds. */
+  retireCard(lemma: string, now: number): Promise<void>;
   /** Total cards in the deck. */
   deckCount(): Promise<number>;
   /** Cards due at `now` (epoch seconds). */

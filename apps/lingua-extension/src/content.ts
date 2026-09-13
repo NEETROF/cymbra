@@ -383,6 +383,10 @@ class ReadingSession {
       // Stamp the change so it orders correctly in cross-device sync (LWW).
       await this.port.setStatusAt(key, g.status, Date.now());
       if (g.status === "known") void recordWordLearned(storageArea, utcDay(Date.now()));
+      // Promoting a word that was in the deck (learning) to known/ignored must retire its
+      // card so it stops coming due — a word you now treat as known/ignored shouldn't keep
+      // being reviewed. No-op when there is no card. (Clearing → "à apprendre" keeps it.)
+      if (g.status === "known" || g.status === "ignored") await this.port.retireCard(key, nowSeconds());
     }
     await this.persist();
     await this.repaint();

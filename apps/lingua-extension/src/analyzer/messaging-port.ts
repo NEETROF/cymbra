@@ -46,6 +46,9 @@ export class MessagingLinguaPort implements LinguaPort {
   addCard(card: NewCard): Promise<void> {
     return this.rpc("addCard", [card]);
   }
+  retireCard(lemma: string, now: number): Promise<void> {
+    return this.rpc("retireCard", [lemma, now]);
+  }
   deckCount(): Promise<number> {
     return this.rpc("deckCount");
   }

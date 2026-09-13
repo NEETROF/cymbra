@@ -88,6 +88,23 @@ impl Deck {
             .and_then(|per_lang| per_lang.get(lemma))
     }
 
+    /// Retire the card for `lemma` if one exists (keep the card + its FSRS history; it
+    /// simply stops coming due) and stamp it for sync. Returns whether a card was retired.
+    /// Used when a word is reclassified known/ignored OUTSIDE a review — [`mark_known`] does
+    /// the same for the in-review card — so a card never keeps surfacing for a word the
+    /// reader no longer treats as to-learn. This is retirement, not deletion (the card
+    /// stays, so it needs no deletion tombstone and syncs as a plain LWW update).
+    ///
+    /// [`mark_known`]: ReviewSession::mark_known
+    pub fn retire(&mut self, lang: StudiedLanguage, lemma: &str, now: i64) -> bool {
+        let Some(card) = self.cards.get_mut(&lang).and_then(|m| m.get_mut(lemma)) else {
+            return false;
+        };
+        card.review.retire(now);
+        card.updated_at = now; // sync: retiring is a change
+        true
+    }
+
     /// Total number of cards across all languages.
     pub fn len(&self) -> usize {
         self.cards.values().map(BTreeMap::len).sum()
@@ -285,6 +302,17 @@ mod tests {
         assert_eq!(deck.len(), 3);
         assert_eq!(deck.due_count(0), 3);
         assert_eq!(deck.due_keys(0).len(), 3);
+    }
+
+    #[test]
+    fn retire_stops_a_card_coming_due_but_keeps_it() {
+        let mut deck = deck_of(&["run", "ship"]);
+        assert_eq!(deck.due_count(0), 2);
+        assert!(deck.retire(EN, "run", 1_000)); // reclassified known/ignored elsewhere
+        assert_eq!(deck.due_count(i64::MAX - 1), 1); // `run` no longer due, `ship` still is
+        assert!(deck.get(EN, "run").is_some()); // kept, not deleted
+        assert_eq!(deck.get(EN, "run").unwrap().updated_at, 1_000); // stamped for sync
+        assert!(!deck.retire(EN, "absent", 1_000)); // no-op when there is no card
     }
 
     #[test]
