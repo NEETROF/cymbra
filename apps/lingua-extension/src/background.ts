@@ -56,12 +56,32 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
   chrome.action.setBadgeTextColor?.({ tabId, color: BADGE_TEXT });
 });
 
-// The in-page HUD asks the background to open the stats — a plain extension tab, which
-// works on every variant (incl. Firefox for Android) and needs no user-gesture juggling
-// that a side panel / sidebar open would from a content-script click.
-chrome.runtime.onMessage.addListener((message: unknown) => {
-  if ((message as { type?: string } | null)?.type === "openStats") {
-    void chrome.tabs.create({ url: chrome.runtime.getURL("stats.html") });
+// The in-page HUD asks the background to open the lateral panel (Chrome side panel /
+// Firefox sidebar) on a given view. The open is issued SYNCHRONOUSLY inside the message
+// listener, using sender.tab.id, so the content-script click's user activation is still
+// live (sidePanel.open / sidebarAction.open both require it); a tab of the same page is
+// the fallback where the platform still refuses, or has no such surface (Firefox Android).
+const PANEL_VIEW_KEY = "cymbra-lingua-panel-view";
+
+chrome.runtime.onMessage.addListener((message: unknown, sender) => {
+  const m = message as { type?: string; view?: string } | null;
+  if (m?.type !== "openPanel") return;
+  const view = m.view === "settings" ? "settings" : "stats";
+  // Fire-and-forget: the panel page reads this on init; awaiting it would spend the gesture.
+  void chrome.storage.session.set({ [PANEL_VIEW_KEY]: view }).catch(() => {});
+  const openTab = (): void => void chrome.tabs.create({ url: chrome.runtime.getURL("sidepanel.html") });
+  const tabId = sender.tab?.id;
+  if (__TARGET__ === "chromium") {
+    if (chrome.sidePanel?.open && tabId != null) {
+      chrome.sidePanel.open({ tabId }).catch(openTab);
+    } else {
+      openTab();
+    }
+  } else {
+    const sidebar = (chrome as unknown as { sidebarAction?: { open?: () => Promise<void> } }).sidebarAction;
+    const opening = sidebar?.open?.();
+    if (opening?.catch) opening.catch(openTab);
+    else if (!opening) openTab();
   }
 });
 

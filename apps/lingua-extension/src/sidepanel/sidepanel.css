@@ -110,3 +110,144 @@ summary {
   color: var(--cymbra-lingua-accent-ink);
   font-weight: 600;
 }
+
+/* Réglages view (mirrors the popup's settings, on the lateral panel). */
+.set-block {
+  margin-bottom: 18px;
+}
+
+.set-label {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.set-note {
+  color: var(--cymbra-lingua-muted);
+  font-size: 12px;
+  margin-top: 8px;
+  line-height: 1.5;
+}
+
+.level-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.lvl {
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--cymbra-lingua-border-2);
+  background: var(--cymbra-lingua-panel-2);
+  color: var(--cymbra-lingua-text);
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.lvl:hover {
+  background: var(--cymbra-lingua-panel-3);
+}
+
+.lvl.active {
+  background: var(--cymbra-lingua-accent-strong);
+  border-color: var(--cymbra-lingua-accent-strong);
+  color: var(--cymbra-lingua-accent-ink);
+  font-weight: 600;
+}
+
+.lvl-beginner {
+  flex: 1 0 100%;
+}
+
+.calib {
+  margin-top: 12px;
+}
+
+.calib label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--cymbra-lingua-muted);
+}
+
+.calib input[type="range"] {
+  width: 100%;
+  accent-color: var(--cymbra-lingua-accent-strong);
+}
+
+.set-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.set-toggle input {
+  width: 34px;
+  height: 20px;
+  accent-color: var(--cymbra-lingua-accent-strong);
+}
+
+.set-shortcuts {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--cymbra-lingua-muted);
+  font-size: 12px;
+  line-height: 1.9;
+}
+
+kbd {
+  font-family: var(--cymbra-lingua-mono, monospace);
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: 5px;
+  border: 1px solid var(--cymbra-lingua-border-2);
+  background: var(--cymbra-lingua-panel-2);
+  color: var(--cymbra-lingua-text);
+}
+
+.linklike {
+  margin-top: 10px;
+  cursor: pointer;
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--cymbra-lingua-accent);
+  font-family: inherit;
+  font-size: 12px;
+  text-decoration: underline;
+}
+
+#s-reset-box button {
+  display: block;
+  width: 100%;
+  cursor: pointer;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.set-reset {
+  border: 1px solid var(--cymbra-lingua-border-2);
+  background: var(--cymbra-lingua-panel-2);
+  color: var(--cymbra-lingua-text);
+}
+
+.set-reset:hover {
+  background: var(--cymbra-lingua-panel-3);
+}
+
+.set-danger {
+  border: 1px solid var(--cymbra-lingua-coral);
+  background: transparent;
+  color: var(--cymbra-lingua-coral);
+}
+
+.set-warn {
+  margin-top: 8px;
+  color: var(--cymbra-lingua-coral);
+  font-size: 12px;
+  line-height: 1.5;
+}

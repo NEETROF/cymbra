@@ -9,16 +9,14 @@ beforeEach(() => {
 function actions(over: Partial<HudActions> = {}): HudActions {
   return {
     onReview: vi.fn(),
-    onCapture: vi.fn(),
     onStats: vi.fn(),
-    onSetLevel: vi.fn(),
-    onHide: vi.fn(),
+    onSettings: vi.fn(),
     ...over,
   };
 }
 
 function state(over: Partial<HudState> = {}): HudState {
-  return { analysable: true, percent: 42, hasLevels: true, declaredLevel: "B1", ...over };
+  return { analysable: true, percent: 42, ...over };
 }
 
 function q(el: HTMLElement, sel: string): HTMLElement {
@@ -27,9 +25,9 @@ function q(el: HTMLElement, sel: string): HTMLElement {
   return found;
 }
 
-function levelChip(el: HTMLElement, value: string): HTMLButtonElement {
-  const b = [...el.querySelectorAll<HTMLButtonElement>(".hud-lvl")].find((x) => x.dataset.lvl === value);
-  if (!b) throw new Error(`no level chip "${value}"`);
+function act(el: HTMLElement, label: string): HTMLButtonElement {
+  const b = [...el.querySelectorAll<HTMLButtonElement>(".hud-act")].find((x) => x.textContent === label);
+  if (!b) throw new Error(`no action "${label}"`);
   return b;
 }
 
@@ -71,65 +69,32 @@ describe("in-page HUD pill", () => {
     const row = q(hud.el, ".hud-actions");
 
     q(hud.el, ".hud-pct").click(); // expand
-    const btn = (label: string): HTMLButtonElement =>
-      [...hud.el.querySelectorAll<HTMLButtonElement>(".hud-act")].find((b) => b.textContent === label)!;
-
-    btn("Réviser").click();
+    act(hud.el, "Réviser").click();
     expect(a.onReview).toHaveBeenCalledOnce();
     expect(row.hidden).toBe(true); // collapsed after acting
 
     q(hud.el, ".hud-pct").click();
-    btn("Capturer").click();
-    expect(a.onCapture).toHaveBeenCalledOnce();
-
-    q(hud.el, ".hud-pct").click();
-    btn("Stats").click();
+    act(hud.el, "Stats").click();
     expect(a.onStats).toHaveBeenCalledOnce();
   });
 
-  it("toggles the settings popover from the gear and marks the current level", () => {
-    const hud = createHud(actions());
-    hud.update(state({ declaredLevel: "B1" }));
-    const settings = q(hud.el, ".hud-settings");
-    expect(settings.hidden).toBe(true);
-
-    q(hud.el, ".hud-pct").click();
-    q(hud.el, ".hud-gear").click();
-    expect(settings.hidden).toBe(false);
-    expect(levelChip(hud.el, "B1").classList.contains("active")).toBe(true);
-    expect(levelChip(hud.el, "A1").classList.contains("active")).toBe(false);
-  });
-
-  it("declares a level (and 'Débutant' clears it), then closes the popover", () => {
+  it("opens the settings from the gear and collapses", () => {
     const a = actions();
     const hud = createHud(a);
     hud.update(state());
-    const settings = q(hud.el, ".hud-settings");
-
     q(hud.el, ".hud-pct").click();
     q(hud.el, ".hud-gear").click();
-    levelChip(hud.el, "C1").click();
-    expect(a.onSetLevel).toHaveBeenLastCalledWith("C1");
-    expect(settings.hidden).toBe(true);
-
-    q(hud.el, ".hud-gear").click();
-    levelChip(hud.el, "").click(); // "Débutant"
-    expect(a.onSetLevel).toHaveBeenLastCalledWith(null);
+    expect(a.onSettings).toHaveBeenCalledOnce();
+    expect(q(hud.el, ".hud-actions").hidden).toBe(true);
   });
 
-  it("hides the level picker when the pack has no CEFR levels", () => {
+  it("collapses via the chevron", () => {
     const hud = createHud(actions());
-    hud.update(state({ hasLevels: false }));
-    expect(q(hud.el, ".hud-levels").hidden).toBe(true);
-    expect(q(hud.el, ".hud-settings-label").hidden).toBe(true);
-  });
-
-  it("invokes onHide from 'Masquer la barre'", () => {
-    const a = actions();
-    const hud = createHud(a);
     hud.update(state());
-    q(hud.el, ".hud-hide").click();
-    expect(a.onHide).toHaveBeenCalledOnce();
+    q(hud.el, ".hud-pct").click();
+    expect(q(hud.el, ".hud-actions").hidden).toBe(false);
+    q(hud.el, ".hud-collapse").click();
+    expect(q(hud.el, ".hud-actions").hidden).toBe(true);
   });
 });
 

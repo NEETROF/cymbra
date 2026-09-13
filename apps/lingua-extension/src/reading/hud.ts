@@ -1,10 +1,9 @@
-import { CEFR_LEVELS, type CefrLevel } from "../analyzer/types.ts";
-
 // The in-page HUD: a discreet, expandable "percentage pill" anchored bottom-right of the
 // page. Collapsed it shows just the known-word percentage; tapped it reveals the reader's
-// actions (Réviser / Capturer / Stats) and a settings popover (CEFR level + hide). It is
-// the touch-reachable home of the reader on the page itself — the deck, capture and level
-// without opening the toolbar popup, which matters most on mobile (no keyboard).
+// actions — Réviser (the in-page deck), Capturer (a selection into the deck), Stats, and a
+// gear that opens the extension's Réglages in the lateral panel. It is the touch-reachable
+// home of the reader on the page itself, which matters most on mobile (no keyboard, awkward
+// toolbar popup).
 //
 // Split like the word popup: a pure `createHud` factory building the DOM (testable via its
 // returned `el`), wrapped by `LinguaHud` into a closed shadow root injected on the page.
@@ -12,14 +11,10 @@ import { CEFR_LEVELS, type CefrLevel } from "../analyzer/types.ts";
 export interface HudActions {
   /** Open the review deck (the in-page drawer). */
   onReview: () => void;
-  /** Capture the current selection (word or phrase) into the deck. */
-  onCapture: () => void;
-  /** Open the learning statistics. */
+  /** Open the learning statistics (the lateral panel). */
   onStats: () => void;
-  /** Declare the CEFR level (null = "Débutant", nothing presumed known). */
-  onSetLevel: (level: CefrLevel | null) => void;
-  /** Hide the HUD (persisted by the caller; re-shown from the popup). */
-  onHide: () => void;
+  /** Open the extension's settings (the lateral Réglages panel). */
+  onSettings: () => void;
 }
 
 export interface HudState {
@@ -27,16 +22,14 @@ export interface HudState {
   analysable: boolean;
   /** Known-word percentage, or null when it cannot be computed. */
   percent: number | null;
-  /** Whether the pack carries CEFR levels (drives the level picker in settings). */
-  hasLevels: boolean;
-  /** The declared level, or null for "Débutant". */
-  declaredLevel: CefrLevel | null;
 }
 
 export interface HudView {
   readonly el: HTMLElement;
-  /** Reflect the latest reading state (percentage, level, whether to show at all). */
+  /** Reflect the latest reading state (percentage, whether to show at all). */
   update(state: HudState): void;
+  /** Collapse the actions row back to the bare pill. */
+  collapse(): void;
   /** Whether the pill is currently shown (not hidden for a non-analysable page). */
   visible(): boolean;
 }
@@ -47,6 +40,9 @@ function button(cls: string, text: string, onClick: () => void, ariaLabel?: stri
   b.type = "button";
   b.textContent = text;
   if (ariaLabel) b.setAttribute("aria-label", ariaLabel);
+  // Preserve any page text selection so "Capturer" can read it: a plain mousedown on a
+  // button collapses the document selection before the click handler runs. click still fires.
+  b.addEventListener("mousedown", (e) => e.preventDefault());
   b.addEventListener("click", onClick);
   return b;
 }
@@ -61,52 +57,20 @@ export function createHud(actions: HudActions): HudView {
   row.className = "hud-actions";
   row.hidden = true;
 
-  const settings = document.createElement("div");
-  settings.className = "hud-settings";
-  settings.hidden = true;
-
   const collapse = (): void => {
     row.hidden = true;
-    settings.hidden = true;
   };
-
-  // Settings popover: the CEFR level picker + "hide the bar". Anchored above the pill.
-  const settingsLabel = document.createElement("div");
-  settingsLabel.className = "hud-settings-label";
-  settingsLabel.textContent = "Niveau d'anglais";
-  const levels = document.createElement("div");
-  levels.className = "hud-levels";
-  const levelButtons = new Map<string, HTMLButtonElement>();
-  const addLevel = (value: string, text: string): void => {
-    const b = button("hud-lvl", text, () => {
-      actions.onSetLevel((value as CefrLevel) || null);
-      settings.hidden = true; // the reader re-renders us via update() with the new level
-    });
-    b.dataset.lvl = value;
-    levels.append(b);
-    levelButtons.set(value, b);
-  };
-  for (const lvl of CEFR_LEVELS) addLevel(lvl, lvl);
-  addLevel("", "Débutant");
-  const hideBtn = button("hud-hide", "Masquer la barre", () => actions.onHide());
-  settings.append(settingsLabel, levels, hideBtn);
 
   // The pill: the always-visible percentage toggles the actions row.
   const pill = document.createElement("div");
   pill.className = "hud-pill";
   const pct = button("hud-pct", "—", () => {
-    const willExpand = row.hidden;
-    row.hidden = !willExpand;
-    if (!willExpand) settings.hidden = true;
+    row.hidden = !row.hidden;
   });
   pct.setAttribute("aria-label", "Mots connus sur la page — ouvrir les actions");
 
   const review = button("hud-act", "Réviser", () => {
     actions.onReview();
-    collapse();
-  });
-  const capture = button("hud-act", "Capturer", () => {
-    actions.onCapture();
     collapse();
   });
   const stats = button("hud-act", "Stats", () => {
@@ -117,17 +81,19 @@ export function createHud(actions: HudActions): HudView {
     "hud-gear",
     "⚙",
     () => {
-      settings.hidden = !settings.hidden;
+      actions.onSettings();
+      collapse();
     },
-    "Paramètres",
+    "Réglages",
   );
   const collapseBtn = button("hud-collapse", "⌄", collapse, "Réduire");
-  row.append(review, capture, stats, gear, collapseBtn);
+  row.append(review, stats, gear, collapseBtn);
   pill.append(pct, row);
-  el.append(settings, pill);
+  el.append(pill);
 
   return {
     el,
+    collapse,
     visible: () => !el.hidden,
     update(state: HudState): void {
       el.hidden = !state.analysable;
@@ -136,12 +102,6 @@ export function createHud(actions: HudActions): HudView {
         return;
       }
       pct.textContent = state.percent == null ? "—" : `${state.percent}%`;
-      // The level picker only makes sense with a CEFR pack; otherwise settings offer just
-      // "Masquer la barre".
-      settingsLabel.hidden = !state.hasLevels;
-      levels.hidden = !state.hasLevels;
-      const current = state.declaredLevel ?? "";
-      for (const [value, b] of levelButtons) b.classList.toggle("active", value === current);
     },
   };
 }
@@ -170,8 +130,10 @@ export class LinguaHud {
     root.append(style, this.view.el);
   }
 
-  /** Attach the host to the page (idempotent). */
+  /** Attach the host to the page (idempotent; clears any orphan host from a failed retry). */
   mount(): void {
+    const existing = document.getElementById("cymbra-lingua-hud-host");
+    if (existing && existing !== this.host) existing.remove();
     if (!this.host.isConnected) document.documentElement.appendChild(this.host);
     this.applyHidden();
   }
@@ -190,7 +152,10 @@ export class LinguaHud {
 
   private applyHidden(): void {
     this.host.style.display = this.hidden ? "none" : "";
-    if (!this.hidden && this.last) this.view.update(this.last);
+    if (!this.hidden) {
+      this.view.collapse(); // re-show as the bare pill, never mid-expansion
+      if (this.last) this.view.update(this.last);
+    }
   }
 
   /** Remove the host from the page. */
