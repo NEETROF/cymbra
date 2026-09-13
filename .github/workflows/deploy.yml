@@ -12,7 +12,9 @@ name: deploy
 # deploy did. The form stays simple; the record is exact.
 #
 # Leave `versions` empty to deploy each selected app at its last released version.
-# Override any subset: `backend=0.25.0,site=0.4.0`.
+# Override any subset: `backend=0.25.0,site=0.4.0`. With a single target a bare
+# `0.4.0` is enough. A version may also be written `v0.4.0` or as the release tag
+# (`site-v0.4.0`).
 #
 # What "version" means differs by target, and the summary spells it out per run:
 #   backend      → a container image tag that must already exist in the registry
@@ -36,7 +38,7 @@ on:
         required: true
         default: "backend"
       versions:
-        description: "Optional pins, e.g. backend=0.25.0,site=0.4.0 — anything omitted uses the last released version"
+        description: "Optional pins, e.g. backend=0.25.0,site=0.4.0 (or just 0.4.0 with one target) — anything omitted uses the last released version"
         required: false
         default: ""
       dry_run:
@@ -106,6 +108,18 @@ jobs:
               echo "::error::unknown target '$app' (expected: backend, back-office, site, or all)"; exit 1; }
           done <<< "$selected"
 
+          # --- a bare version -----------------------------------------------------
+          # `0.5.0` with a single target is that target's version; with several it is
+          # ambiguous, so it has to name the app.
+          VERSIONS="$(printf '%s' "$VERSIONS" | tr -d '[:space:]')"
+          case "$VERSIONS" in
+            ''|*=*) ;;
+            *)
+              [ "$(grep -c . <<< "$selected")" -eq 1 ] || {
+                echo "::error::bare version '$VERSIONS' with several targets — use app=version (e.g. site=$VERSIONS)"; exit 1; }
+              VERSIONS="$(head -1 <<< "$selected")=$VERSIONS" ;;
+          esac
+
           # --- explicit pins ----------------------------------------------------
           if [ -n "$VERSIONS" ]; then
             while read -r pair; do
@@ -136,7 +150,9 @@ jobs:
             pinned="$(pin_for "$app")"
             if [ -n "$pinned" ]; then
               requested="$pinned"
-              version="$pinned"
+              # site-v0.5.0, v0.5.0 and 0.5.0 all mean 0.5.0.
+              version="${pinned#"$app"-}"
+              version="${version#v}"
             else
               requested="(last release)"
               version="$(jq -er --arg k "$(mkey "$app")" '.[$k]' "$manifest")" || {
@@ -237,8 +253,15 @@ jobs:
           row back-office "$PLAN_BACK_OFFICE" "$R_BACK_OFFICE"
           row site "$PLAN_SITE" "$R_SITE"
 
+      - name: Fail if the plan failed
+        # Nothing was deployed, so the outcome table is empty: point at the real error.
+        if: ${{ needs.plan.result == 'failure' }}
+        run: |
+          echo "::error::could not resolve targets/versions — see the 'Resolve versions' job"
+          exit 1
+
       - name: Fail if any deploy failed
-        if: ${{ contains(needs.*.result, 'failure') }}
+        if: ${{ needs.plan.result != 'failure' && contains(needs.*.result, 'failure') }}
         run: |
           echo "::error::at least one deploy failed — see the outcome table above"
           exit 1

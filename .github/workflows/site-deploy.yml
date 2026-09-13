@@ -21,7 +21,7 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: "Git ref to build and deploy (e.g. site-v0.4.0). Empty = the ref this run was started from."
+        description: "Version or git ref to deploy: 0.5.0 means the tag site-v0.5.0; anything else is used as-is. Empty = the ref this run was started from."
         required: false
         default: ""
   workflow_call:
@@ -47,10 +47,29 @@ jobs:
       run:
         working-directory: apps/site
     steps:
+      - name: Resolve ref
+        id: ref
+        # Runs before checkout, so apps/site does not exist yet.
+        working-directory: .
+        env:
+          REF: ${{ inputs.ref }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          set -euo pipefail
+          ref="$(printf '%s' "$REF" | tr -d '[:space:]')"
+          # A bare version (0.5.0 or v0.5.0) means the site's release tag. Checked
+          # here: a missing ref otherwise surfaces as an opaque `git fetch` exit 1.
+          if printf '%s' "$ref" | grep -Eq '^v?[0-9]+\.[0-9]+\.[0-9]+$'; then
+            ref="site-v${ref#v}"
+            git ls-remote --exit-code --tags "$REPO_URL" "refs/tags/$ref" >/dev/null || {
+              echo "::error::tag '$ref' does not exist — release the site first, or pick an existing site-v* tag"; exit 1; }
+          fi
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+          echo "Deploying \`${ref:-$GITHUB_REF_NAME}\`" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/checkout@v5
         with:
           # Empty resolves to the ref this run was started from.
-          ref: ${{ inputs.ref }}
+          ref: ${{ steps.ref.outputs.ref }}
       - uses: actions/setup-node@v5
         with:
           node-version: "22"
