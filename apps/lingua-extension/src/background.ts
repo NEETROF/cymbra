@@ -56,11 +56,11 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
   chrome.action.setBadgeTextColor?.({ tabId, color: BADGE_TEXT });
 });
 
-// The in-page HUD asks the background to open the lateral panel (Chrome side panel /
-// Firefox sidebar) on a given view. The open is issued SYNCHRONOUSLY inside the message
-// listener, using sender.tab.id, so the content-script click's user activation is still
-// live (sidePanel.open / sidebarAction.open both require it); a tab of the same page is
-// the fallback where the platform still refuses, or has no such surface (Firefox Android).
+// The in-page HUD asks the background to open the Chromium Side Panel on a given view. The
+// open is issued SYNCHRONOUSLY inside the message listener, using sender.tab.id, so the
+// content-script click's user activation is still live (sidePanel.open requires it); a tab
+// of the same page is the rare fallback. Firefox never sends this — it stays in the page via
+// the in-page drawer (content.ts routes to the drawer there), so this is Chromium-only.
 const PANEL_VIEW_KEY = "cymbra-lingua-panel-view";
 
 chrome.runtime.onMessage.addListener((message: unknown, sender) => {
@@ -71,18 +71,8 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
   void chrome.storage.session.set({ [PANEL_VIEW_KEY]: view }).catch(() => {});
   const openTab = (): void => void chrome.tabs.create({ url: chrome.runtime.getURL("sidepanel.html") });
   const tabId = sender.tab?.id;
-  if (__TARGET__ === "chromium") {
-    if (chrome.sidePanel?.open && tabId != null) {
-      chrome.sidePanel.open({ tabId }).catch(openTab);
-    } else {
-      openTab();
-    }
-  } else {
-    const sidebar = (chrome as unknown as { sidebarAction?: { open?: () => Promise<void> } }).sidebarAction;
-    const opening = sidebar?.open?.();
-    if (opening?.catch) opening.catch(openTab);
-    else if (!opening) openTab();
-  }
+  if (chrome.sidePanel?.open && tabId != null) chrome.sidePanel.open({ tabId }).catch(openTab);
+  else openTab();
 });
 
 // Host the WASM engine here and serve the AnalyzerPort RPC. On Firefox (whose
@@ -273,13 +263,13 @@ function errorMessage(e: unknown): string {
 }
 
 chrome.commands.onCommand.addListener((command) => {
-  // Firefox's sidebarAction.open() must run synchronously within the command event, so
-  // handle it before the async tabs.query below (Chromium's sidePanel.open needs a tabId
-  // and tolerates the hop). Firefox for Android has no sidebarAction — and no keyboard to
-  // fire this command — so it is a harmless no-op there.
+  // Firefox has no native lateral panel — Alt+Shift+S opens the in-page drawer (stay in the
+  // page), like everything else on Firefox. Chromium's lingua-side-panel opens the Side Panel
+  // below (its sidePanel.open needs a tabId and tolerates the async tabs.query hop).
   if (command === "lingua-side-panel" && __TARGET__ === "firefox") {
-    const sidebar = (chrome as unknown as { sidebarAction?: { open?: () => Promise<void> } }).sidebarAction;
-    void sidebar?.open?.()?.catch(() => {});
+    chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
+      if (tab?.id != null) void chrome.tabs.sendMessage(tab.id, { type: "openDrawer", view: "review" }).catch(() => {});
+    });
     return;
   }
   chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {

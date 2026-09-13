@@ -85,9 +85,10 @@ function firefoxManifest(base) {
   delete m.minimum_chrome_version;
   // Firefox MV3 background is an event page (scripts), not a service worker.
   m.background = { scripts: ["background.js"] };
-  // No Side Panel API on Firefox; the same page is a sidebar.
+  // No lateral panel on Firefox: the reader stays in the page via the injected drawer, so
+  // there is no side_panel AND no sidebar_action. A sidebar_action would make Firefox
+  // auto-open its native sidebar on install/reload (unwanted) and duplicate the drawer.
   delete m.side_panel;
-  m.sidebar_action = { default_panel: "sidepanel.html", default_title: "Cymbra Lingua" };
   // Firefox requires an add-on id; it has no "sidePanel" permission.
   m.browser_specific_settings = { gecko: { id: "lingua@cymbra.app", strict_min_version: "128.0" } };
   m.permissions = (m.permissions ?? []).filter((p) => p !== "sidePanel");
