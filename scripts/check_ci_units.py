@@ -11,10 +11,10 @@ The repo answers that in two ways, so this reads both:
   `openspec-archive`);
 * a `dorny/paths-filter` step in a `changes` job, for workflows that always start and then
   gate their real jobs on the outcome (`flutter`, `rust`, `build`, `sonar`, `site`,
-  `back-office`, `frb-codegen`). Reading only the top-level filter would report these as
-  watching nothing, which is how the first version of this script got it wrong.
+  `back-office`, `frb-codegen`, `codeql`). Reading only the top-level filter would report
+  these as watching nothing, which is how the first version of this script got it wrong.
 
-A workflow with neither (commitlint, codeql, release-please) runs on everything and is
+A workflow with neither (commitlint, release-please) runs on everything and is
 ignored: counting it would make the check vacuous — it watches every unit and verifies
 none.
 
