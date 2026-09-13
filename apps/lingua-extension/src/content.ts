@@ -2,7 +2,7 @@ import { resolveContentPort } from "./analyzer/create-port.ts";
 import type { LinguaPort } from "./analyzer/port.ts";
 import type { CefrLevel, LemmaStatus, TokenClass } from "./analyzer/types.ts";
 import { type Block, collectBlocks } from "./reading/blocks.ts";
-import { Drawer } from "./reading/drawer.ts";
+import { Drawer, type DrawerView } from "./reading/drawer.ts";
 import { clear as clearHighlights, injectPageStyles, render } from "./reading/highlight.ts";
 import { ExposureTracker } from "./reading/exposure-tracker.ts";
 import { ReadingObservers } from "./reading/observer.ts";
@@ -20,7 +20,7 @@ import {
 import { LinguaHud } from "./reading/hud.ts";
 import { captureSelection, MAX_SELECTION_LENGTH, sentenceAround } from "./reading/selection.ts";
 import { type Gesture, WordPopup } from "./reading/wordpopup.ts";
-import { dailyRecorder, recordExposures, recordWordLearned, utcDay } from "./state/dailystats.ts";
+import { recordExposures, recordWordLearned, utcDay } from "./state/dailystats.ts";
 import {
   type AsyncStorageArea,
   ENABLED_KEY,
@@ -36,6 +36,8 @@ import drawerCss from "./styles/drawer.css";
 import hudCss from "./styles/hud.css";
 import popupCss from "./styles/wordpopup.css";
 import reviewCss from "./styles/review.css";
+import statsCss from "./stats/stats.css";
+import settingsCss from "./styles/settings.css";
 import tokensCss from "./styles/tokens.css";
 
 // Content-script controller. Owns the analysis pass, the highlight paint, the word
@@ -52,6 +54,11 @@ const storageArea: AsyncStorageArea = {
 };
 
 const nowSeconds = (): number => Math.floor(Date.now() / 1000);
+
+/** Coerce an untrusted message payload to a drawer view (defaults to review). */
+function drawerView(v: unknown): DrawerView {
+  return v === "stats" || v === "settings" ? v : "review";
+}
 
 /** The reader's current status for a token class, or null for a new/unknown word — drives
  *  which actions the popup offers when a word is reopened. */
@@ -145,18 +152,18 @@ class ReadingSession {
   constructor(private readonly port: LinguaPort) {
     this.popup = new WordPopup({ css: `${tokensCss}\n${popupCss}`, onGesture: (g) => void this.onGesture(g) });
     this.drawer = new Drawer({
-      css: `${tokensCss}\n${reviewCss}\n${drawerCss}`,
+      css: `${tokensCss}\n${reviewCss}\n${statsCss}\n${settingsCss}\n${drawerCss}`,
       port: this.port,
+      area: storageArea,
       now: nowSeconds,
       onChange: () => this.persist(),
-      record: dailyRecorder(storageArea),
     });
     this.hud = new LinguaHud({
       css: `${tokensCss}\n${hudCss}`,
       actions: {
-        onReview: () => this.openPanel("review"),
-        onStats: () => this.openPanel("stats"),
-        onSettings: () => this.openPanel("settings"),
+        onReview: () => this.openReviewSurface("review"),
+        onStats: () => this.openReviewSurface("stats"),
+        onSettings: () => this.openReviewSurface("settings"),
       },
     });
     this.observers = new ReadingObservers({ onRescan: (containers) => void this.refresh(containers) });
@@ -230,6 +237,7 @@ class ReadingSession {
       // percentage — not the pre-change one it would catch if we acked eagerly.
       if (msg?.type === "captureSelection") void this.onCaptureSelection();
       else if (msg?.type === "toggleDrawer") void this.drawer.toggle();
+      else if (msg?.type === "openDrawer") void this.drawer.openOn(drawerView(msg.view));
       else if (msg?.type === "setCalibration") {
         void this.onSetCalibration(Number(msg.value)).then(() => sendResponse(true));
         return true;
@@ -275,9 +283,17 @@ class ReadingSession {
     });
   }
 
-  /** Ask the background to open the lateral panel (side panel / sidebar) on a given view;
-   *  it falls back to a tab where the platform can't open the panel from a page click. */
-  private openPanel(view: "review" | "stats" | "settings"): void {
+  /** Open a panel view, staying in the page as much as possible:
+   *   - Firefox: the in-page drawer (a page element cannot open the sidebar).
+   *   - Chromium: the native Side Panel, which docks beside the page (via the background). */
+  private openReviewSurface(view: DrawerView): void {
+    if (__TARGET__ === "firefox") void this.drawer.openOn(view);
+    else this.openPanel(view);
+  }
+
+  /** Ask the background to open the Chromium Side Panel on a given view (it keeps the
+   *  content-script click's user gesture); a tab is the rare fallback. */
+  private openPanel(view: DrawerView): void {
     try {
       chrome.runtime.sendMessage({ type: "openPanel", view });
     } catch {
