@@ -1,5 +1,5 @@
 import { SIGNIN_ERROR_KEY } from "../state/session.ts";
-import { loadEnabled, saveEnabled } from "../state/storage.ts";
+import { loadEnabled, loadHudHidden, saveEnabled, saveHudHidden } from "../state/storage.ts";
 import type { CefrLevel } from "../analyzer/types.ts";
 
 // Icon-popup controller (a surface the extension owns). It holds no engine and no
@@ -401,6 +401,13 @@ async function main(): Promise<void> {
 
   $("open-stats").addEventListener("click", () => void openReviewSurface("stats"));
   $("shortcuts-config").addEventListener("click", () => void openShortcutsConfig());
+
+  // In-page HUD visibility: checked = shown. The content script reacts via storage.onChanged.
+  const hudToggle = $("hud-toggle") as HTMLInputElement;
+  hudToggle.checked = !(await loadHudHidden(storageArea));
+  hudToggle.addEventListener("change", async () => {
+    await saveHudHidden(storageArea, !hudToggle.checked);
+  });
 
   await applyEnabled(await loadEnabled(storageArea));
   renderAccount((await sendRuntime({ type: "account:state" })) as AccountState | null);

@@ -23,6 +23,13 @@ export const DEFAULT_CALIBRATION = 3000;
  */
 export const ENABLED_KEY = "cymbra-lingua-enabled";
 
+/**
+ * Whether the in-page HUD (the discreet percentage pill) is hidden by the reader. Its own
+ * key, independent of the state backup, so toggling it never rewrites the deck/statuses;
+ * every context reacts to its `storage.onChanged`. Absent means shown (the default).
+ */
+export const HUD_HIDDEN_KEY = "cymbra-lingua-hud-hidden";
+
 /** The minimal async storage surface we need; chrome.storage.local satisfies it. */
 export interface AsyncStorageArea {
   get(keys: string | string[] | null): Promise<Record<string, unknown>>;
@@ -85,6 +92,17 @@ export async function loadEnabled(area: AsyncStorageArea): Promise<boolean> {
 /** Set the global enabled flag. */
 export async function saveEnabled(area: AsyncStorageArea, enabled: boolean): Promise<void> {
   await area.set({ [ENABLED_KEY]: enabled });
+}
+
+/** Whether the in-page HUD is hidden; absent means shown (the default). */
+export async function loadHudHidden(area: AsyncStorageArea): Promise<boolean> {
+  const got = await area.get(HUD_HIDDEN_KEY);
+  return got[HUD_HIDDEN_KEY] === true;
+}
+
+/** Set the HUD-hidden flag. */
+export async function saveHudHidden(area: AsyncStorageArea, hidden: boolean): Promise<void> {
+  await area.set({ [HUD_HIDDEN_KEY]: hidden });
 }
 
 /**

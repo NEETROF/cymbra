@@ -17,19 +17,23 @@ import {
   type ScanStats,
   statsFromAnalysis,
 } from "./reading/scan.ts";
+import { LinguaHud } from "./reading/hud.ts";
 import { captureSelection, MAX_SELECTION_LENGTH, sentenceAround } from "./reading/selection.ts";
 import { type Gesture, WordPopup } from "./reading/wordpopup.ts";
 import { dailyRecorder, recordExposures, recordWordLearned, utcDay } from "./state/dailystats.ts";
 import {
   type AsyncStorageArea,
   ENABLED_KEY,
+  HUD_HIDDEN_KEY,
   hydrateEngine,
   loadEnabled,
+  loadHudHidden,
   ROOT_KEY,
   saveBackup,
 } from "./state/storage.ts";
 import { clearSyncCursors } from "./sync/sync.ts";
 import drawerCss from "./styles/drawer.css";
+import hudCss from "./styles/hud.css";
 import popupCss from "./styles/wordpopup.css";
 import reviewCss from "./styles/review.css";
 import tokensCss from "./styles/tokens.css";
@@ -119,12 +123,15 @@ class ReadingSession {
   private suppressSelection = false;
   private stats: ScanStats = NOT_ANALYSABLE;
   private calibration = 3000;
+  /** Whether the reader hid the in-page HUD pill (persisted, toggled from the popup / panel). */
+  private hudHidden = false;
   /** Global master switch. When off the reader does not analyse, paint or pop up. */
   private enabled = true;
   /** Daily exposures are counted once per page load (a re-scan does not re-count). */
   private exposuresRecorded = false;
   private readonly popup: WordPopup;
   private readonly drawer: Drawer;
+  private readonly hud: LinguaHud;
   private readonly observers: ReadingObservers;
   /** Viewport-gated reading exposure (slice 5c): lemmas whose block was actually read. */
   private readonly exposure: ExposureTracker;
@@ -144,6 +151,14 @@ class ReadingSession {
       onChange: () => this.persist(),
       record: dailyRecorder(storageArea),
     });
+    this.hud = new LinguaHud({
+      css: `${tokensCss}\n${hudCss}`,
+      actions: {
+        onReview: () => this.openPanel("review"),
+        onStats: () => this.openPanel("stats"),
+        onSettings: () => this.openPanel("settings"),
+      },
+    });
     this.observers = new ReadingObservers({ onRescan: (containers) => void this.refresh(containers) });
     this.exposure = new ExposureTracker((lemmas) => this.onExposed(lemmas));
   }
@@ -151,6 +166,7 @@ class ReadingSession {
   async start(): Promise<void> {
     await hydrateEngine(this.port, storageArea);
     this.calibration = await this.port.calibration();
+    this.hudHidden = await loadHudHidden(storageArea);
     this.enabled = await loadEnabled(storageArea);
     document.addEventListener("click", (e) => this.onClick(e), true);
     // Long-press = the touch equivalent of Alt-click (reopen a marked word). touchstart/move/
@@ -188,6 +204,11 @@ class ReadingSession {
       }
       const toggled = changes[ENABLED_KEY];
       if (toggled) void this.onEnabledChange(toggled.newValue !== false);
+      const hudToggled = changes[HUD_HIDDEN_KEY];
+      if (hudToggled) {
+        this.hudHidden = hudToggled.newValue === true;
+        this.syncHud();
+      }
     });
     // Flush pending reading exposures before the tab is hidden / navigated away.
     document.addEventListener("visibilitychange", () => {
@@ -233,8 +254,35 @@ class ReadingSession {
   private async activate(): Promise<void> {
     injectPageStyles(tokensCss);
     await this.refresh([document.body]);
+    // Mount the HUD only after a successful first paint, so a failed init (which resets
+    // the injection guard and lets a retry create a fresh session) leaves no orphan host.
+    this.hud.mount();
+    this.syncHud();
     this.observers.start();
     this.exposure.start();
+  }
+
+  /** Reflect the HUD's current visibility: shown only while enabled and not user-hidden. */
+  private syncHud(): void {
+    this.hud.setHidden(!this.enabled || this.hudHidden);
+  }
+
+  /** Push the current reading state into the in-page HUD pill. */
+  private updateHud(): void {
+    this.hud.update({
+      analysable: this.stats.analysable,
+      percent: this.stats.percent,
+    });
+  }
+
+  /** Ask the background to open the lateral panel (side panel / sidebar) on a given view;
+   *  it falls back to a tab where the platform can't open the panel from a page click. */
+  private openPanel(view: "review" | "stats" | "settings"): void {
+    try {
+      chrome.runtime.sendMessage({ type: "openPanel", view });
+    } catch {
+      // The service worker may be asleep; the user can retry.
+    }
   }
 
   /** React to the global toggle flipping in another context (popup, other tab). */
@@ -253,6 +301,7 @@ class ReadingSession {
       this.resolved = [];
       this.clickable.clear();
       clearHighlights();
+      this.syncHud();
       this.pushDisabledBadge();
     }
   }
@@ -289,6 +338,7 @@ class ReadingSession {
       this.stats = NOT_ANALYSABLE;
       clearHighlights();
       this.pushBadge();
+      this.updateHud();
       return;
     }
     const analysis = await this.port.analyse(blocks.map((b) => b.text));
@@ -309,6 +359,7 @@ class ReadingSession {
     injectPageStyles(tokensCss);
     render(this.resolved);
     this.pushBadge();
+    this.updateHud();
   }
 
   private pushBadge(): void {
