@@ -89,9 +89,7 @@ void main() {
     await _pumpGuestMenu(tester);
 
     for (final key in [
-      'account-signin',
       'account-plan',
-      'account-help',
       'account-language',
       'account-legal-terms',
       'account-legal-privacy',
@@ -99,6 +97,16 @@ void main() {
     ]) {
       expect(find.byKey(Key(key)), findsOneWidget, reason: key);
     }
+    // Signing in is the direct button next to the menu, and help keeps its own
+    // app-bar icon, so neither is repeated here.
+    expect(
+      find.descendant(
+        of: find.byType(PopupMenuItem<String>),
+        matching: find.text('Sign in'),
+      ),
+      findsNothing,
+    );
+    expect(find.byKey(const Key('account-help')), findsNothing);
     // The account-bound entries stay out of a guest's reach.
     expect(find.byKey(const Key('account-profile')), findsNothing);
     expect(find.byKey(const Key('account-connected')), findsNothing);

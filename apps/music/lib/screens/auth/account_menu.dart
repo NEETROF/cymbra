@@ -23,7 +23,6 @@ import '../../state/app_language.dart';
 import '../../state/app_locale.dart';
 import '../../state/session_notifier.dart';
 import '../../state/session_state.dart';
-import '../../theme/cymbra_theme.dart';
 import '../../widgets/curator_chip.dart';
 import '../../widgets/language_selector.dart' show showLanguageDialog;
 import '../account/connected_accounts_screen.dart';
@@ -103,30 +102,24 @@ class AccountMenu extends ConsumerWidget {
       }
     }
 
-    // Entries every user gets, guest or signed in.
-    List<PopupMenuEntry<String>> commonItems() => [
-      PopupMenuItem<String>(
-        key: const Key('account-plan'),
-        value: 'plan',
-        child: Text(l10n.accountPlanMenu),
+    // Entries shared by the guest and the signed-in menus.
+    PopupMenuEntry<String> planItem() => PopupMenuItem<String>(
+      key: const Key('account-plan'),
+      value: 'plan',
+      child: Text(l10n.accountPlanMenu),
+    );
+
+    PopupMenuEntry<String> languageItem() => PopupMenuItem<String>(
+      key: const Key('account-language'),
+      value: 'language',
+      child: Row(
+        children: [
+          Text(activeLanguage.flag, style: const TextStyle(fontSize: 18)),
+          const SizedBox(width: 12),
+          Expanded(child: Text(l10n.settingsCategoryLanguage)),
+        ],
       ),
-      PopupMenuItem<String>(
-        key: const Key('account-help'),
-        value: 'help',
-        child: Text(l10n.helpTitle),
-      ),
-      PopupMenuItem<String>(
-        key: const Key('account-language'),
-        value: 'language',
-        child: Row(
-          children: [
-            Text(activeLanguage.flag, style: const TextStyle(fontSize: 18)),
-            const SizedBox(width: 12),
-            Expanded(child: Text(l10n.settingsCategoryLanguage)),
-          ],
-        ),
-      ),
-    ];
+    );
 
     List<PopupMenuEntry<String>> legalItems() => [
       const PopupMenuDivider(),
@@ -160,43 +153,30 @@ class AccountMenu extends ConsumerWidget {
     ];
 
     return switch (session) {
-      // The control still reads "Sign in", but it opens a menu: a guest must be
-      // able to reach the subscription (and why it needs an account), the
-      // language and the legal pages without signing in first.
-      SessionGuest() => PopupMenuButton<String>(
-        key: const Key('account-guest-menu'),
-        tooltip: l10n.signIn,
-        onSelected: onSelected,
-        itemBuilder: (context) => [
-          PopupMenuItem<String>(
+      // Signing in stays one tap away; the overflow menu beside it lets a guest
+      // reach the subscription (and why it needs an account), the language and
+      // the legal pages without signing in first. Help keeps its own app-bar
+      // icon, so it is not repeated here.
+      SessionGuest() => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextButton.icon(
             key: const Key('account-signin'),
-            value: 'signin',
-            child: Row(
-              children: [
-                const Icon(Icons.login, size: 20),
-                const SizedBox(width: 12),
-                Expanded(child: Text(l10n.signIn)),
-              ],
-            ),
+            onPressed: () => onSelected('signin'),
+            icon: const Icon(Icons.login),
+            label: Text(l10n.signIn),
           ),
-          const PopupMenuDivider(),
-          ...commonItems(),
-          ...legalItems(),
-        ],
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.login, size: 20, color: CymbraColors.primary),
-              const SizedBox(width: 8),
-              Text(
-                l10n.signIn,
-                style: const TextStyle(color: CymbraColors.primary),
-              ),
+          PopupMenuButton<String>(
+            key: const Key('account-guest-menu'),
+            icon: const Icon(Icons.more_vert),
+            onSelected: onSelected,
+            itemBuilder: (context) => [
+              planItem(),
+              languageItem(),
+              ...legalItems(),
             ],
           ),
-        ),
+        ],
       ),
       SessionAuthenticated(:final account) => PopupMenuButton<String>(
         key: const Key('account-menu'),
@@ -221,7 +201,13 @@ class AccountMenu extends ConsumerWidget {
             value: 'connected',
             child: Text(l10n.connectedAccountsManage),
           ),
-          ...commonItems(),
+          planItem(),
+          PopupMenuItem<String>(
+            key: const Key('account-help'),
+            value: 'help',
+            child: Text(l10n.helpTitle),
+          ),
+          languageItem(),
           PopupMenuItem<String>(
             value: 'signout',
             child: Text(l10n.accountSignOut),

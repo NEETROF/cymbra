@@ -48,10 +48,8 @@ Future<ProviderContainer> _guestWithMenu(WidgetTester tester) async {
   return c;
 }
 
-/// Opens the guest menu and picks "Sign in".
+/// Taps the guest's direct "Sign in" button.
 Future<void> _openSignIn(WidgetTester tester) async {
-  await tester.tap(find.byKey(const Key('account-guest-menu')));
-  await tester.pumpAndSettle();
   await tester.tap(find.byKey(const Key('account-signin')));
   await tester.pumpAndSettle();
 }
