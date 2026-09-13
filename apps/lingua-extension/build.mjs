@@ -160,6 +160,15 @@ for (const target of targets) {
   // Pin the unpacked Chromium id (stable chrome.identity redirect URL); Firefox uses its
   // gecko id instead, so it must never carry `key`.
   if (target !== "firefox" && EXT_KEY) manifest.key = EXT_KEY;
+  // Dev-only escape hatch: LINGUA_ALL_URLS=1 declares the reader as a STATIC content script
+  // on every page, so it runs on load AND reload with no activeTab/permission dance. For
+  // on-device dogfooding — notably Firefox for Android, where the runtime host-permission
+  // grant + scripting.registerContentScripts don't reliably take effect. NEVER for a shipped
+  // build: the product is activeTab-first by design (privacy). content.ts self-guards against
+  // running twice, so this coexists with the dynamic injection.
+  if (process.env.LINGUA_ALL_URLS === "1") {
+    manifest.content_scripts = [{ matches: ["<all_urls>"], js: ["content.js"], run_at: "document_idle" }];
+  }
   writeFileSync(join(dist, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
   for (const [from, to] of staticCopies) cpSync(join(root, from), join(dist, to));
 
