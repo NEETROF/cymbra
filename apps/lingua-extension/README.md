@@ -54,25 +54,27 @@ one). Load unpacked:
 - **Firefox** (desktop or Android) → `yarn start:firefox` (`web-ext run`, uses
   `dist-firefox`), or `about:debugging` → Load Temporary Add-on.
 
-**Dogfooding on Firefox for Android**: the product is activeTab-first, so the reader
-is injected on demand (popup → _Analyser cette page_) or via a granted `<all_urls>`
-that registers a dynamic content script. On Firefox for Android the runtime
-host-permission grant + `scripting.registerContentScripts` don't reliably take effect
-(the highlight works once via _Analyser cette page_ but not across a reload). For
-on-device testing, build with **`LINGUA_ALL_URLS=1`** — it declares the reader as a
-**static** `content_scripts` on `<all_urls>`, so it runs on every page load and reload
-with no permission dance. Use the dogfood script so the flag is never forgotten (forget
-it and pages stop re-highlighting on reload — the exact symptom this works around):
+**Reader injection differs by browser** (`build.mjs`). Chromium is **activeTab-first**:
+no static content script; the reader is injected on demand (popup → _Analyser cette page_)
+or, after _Toujours surligner_ grants `<all_urls>`, by a dynamic
+`scripting.registerContentScripts`. **Firefox always ships the reader as a static
+`content_scripts` on `<all_urls>`** — MV3 dynamic registration doesn't reliably fire on
+GeckoView / Firefox for Android (the highlight worked once via _Analyser cette page_ but
+not across a reload), and `browser.contentScripts.register()` dies with the non-persistent
+event page. The browser-level static injection is the only thing that runs on every load
+**and** reload. The global _Surlignage activé_ toggle (default on) is the off switch, and
+the reader is entirely local (no network), so always-on is an acceptable trade on Firefox.
+
+Dogfooding — build the variant and launch it (no flag needed on Firefox now):
 
 ```bash
-yarn dogfood:firefox-android   # = LINGUA_ALL_URLS=1 build:firefox + start:firefox-android
+yarn dogfood:firefox-android   # = build:firefox + web-ext run --target firefox-android
 # or yarn dogfood:firefox on desktop; web-ext live-reloads on each rebuild
 ```
 
-This flag is **dev-only** — never set it for a shipped build (it would drop the
-activeTab-first privacy model). `content.ts` self-guards against running twice, so it
-coexists with the normal dynamic injection. (The production path for persistent
-Firefox-Android highlighting is tracked separately — see the on-device note below.)
+`LINGUA_ALL_URLS=1` remains a **Chromium-only dev** escape hatch to force the static
+script there too (to test the always-on path on Chrome); never ship it for Chromium, whose
+model is activeTab-first. `content.ts` self-guards against running twice.
 
 Checks (what CI runs):
 
@@ -99,9 +101,10 @@ yarn lint && yarn format:check && yarn typecheck && yarn test
 - **State** — statuses, the captured deck, calibration — lives in
   `chrome.storage.local` under a versioned schema with forward migration
   (`src/state/`). A gesture in one tab repaints every other via `storage.onChanged`.
-- **Permissions** — `activeTab` by default (the popup's _Analyser cette page_),
-  `<all_urls>` optional (_Toujours surligner_, granted once). No network requests at
-  all; the pack and glosses are local assets.
+- **Permissions** — on Chromium, `activeTab` by default (the popup's _Analyser cette
+  page_) with `<all_urls>` optional (_Toujours surligner_, granted once); on Firefox the
+  reader is a static content script on every page (see the injection note above). No
+  network requests at all; the pack and glosses are local assets.
 - **Identity** — one token sheet (`src/styles/tokens.css`) mirrors the Cymbra
   "Sonic Luminescence" palette; no colour literal lives anywhere else (lint-enforced).
 
