@@ -43,6 +43,12 @@
   padding-right: 4px;
 }
 
+/* The `hidden` attribute must beat `display: flex` above (equal specificity → source
+   order would keep it flex), or the collapse (⌄) and the collapsed default never hide. */
+.hud-actions[hidden] {
+  display: none;
+}
+
 .hud-act,
 .hud-gear,
 .hud-collapse {
@@ -69,55 +75,4 @@
   font-size: 15px;
   line-height: 1;
   padding: 4px 6px;
-}
-
-.hud-settings {
-  margin-bottom: 6px;
-  padding: 10px;
-  max-width: 78vw;
-  background: var(--cymbra-lingua-panel);
-  border: 1px solid var(--cymbra-lingua-border);
-  border-radius: var(--cymbra-lingua-radius-lg);
-  box-shadow: var(--cymbra-lingua-shadow);
-}
-
-.hud-settings-label {
-  color: var(--cymbra-lingua-muted);
-  font-size: 11px;
-  margin-bottom: 6px;
-}
-
-.hud-levels {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-bottom: 8px;
-}
-
-.hud-lvl {
-  cursor: pointer;
-  border: 1px solid var(--cymbra-lingua-border);
-  background: transparent;
-  color: var(--cymbra-lingua-text);
-  font-family: inherit;
-  font-size: 12px;
-  padding: 3px 8px;
-  border-radius: 999px;
-}
-
-.hud-lvl.active {
-  background: var(--cymbra-lingua-accent);
-  color: var(--cymbra-lingua-accent-ink);
-  border-color: var(--cymbra-lingua-accent);
-}
-
-.hud-hide {
-  cursor: pointer;
-  border: none;
-  background: transparent;
-  color: var(--cymbra-lingua-muted);
-  font-family: inherit;
-  font-size: 12px;
-  padding: 4px 0;
-  text-decoration: underline;
 }
