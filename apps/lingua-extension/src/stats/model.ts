@@ -88,12 +88,33 @@ export function consolidatedToMap(
   return out;
 }
 
-/** A word the reader explicitly marked "connu" or "ignoré" (both hide it from
- *  highlighting). Learning words are excluded — they live in the deck, not here. */
+/**
+ * Where a marked word's decision came from, one section each in the list: the reader's
+ * own "connu"/"ignoré" gesture (`decision`), a known confirmed automatically by reading
+ * below the declared level (`reading`, provenance `exposure`), or "je connais" during a
+ * review (`review`, provenance `srs`). An ignored word is always a decision.
+ */
+export type MarkedOrigin = "decision" | "reading" | "review";
+
+/** The list's sections, in display order. */
+export const MARKED_ORIGINS: readonly MarkedOrigin[] = ["decision", "reading", "review"];
+
+/** A word marked "connu" or "ignoré" (both hide it from highlighting). Learning words
+ *  are excluded — they live in the deck, not here. */
 export interface MarkedWord {
   lemma: string;
   status: "known" | "ignored";
+  origin: MarkedOrigin;
   updated_at: number;
+}
+
+/** The marked words split by origin, each newest decision first. */
+export type MarkedGroups = Record<MarkedOrigin, MarkedWord[]>;
+
+function markedOrigin(status: "known" | "ignored", provenance: string | undefined): MarkedOrigin {
+  if (status === "known" && provenance === "exposure") return "reading";
+  if (status === "known" && provenance === "srs") return "review";
+  return "decision"; // manual, import, or an ignored word
 }
 
 /**
@@ -104,9 +125,27 @@ export interface MarkedWord {
  * the engine, which resurfaces the word even below the declared level and stops reading
  * from re-confirming it.
  */
-export function markedWords(ops: { lemma: string; status: string; updated_at: number }[]): MarkedWord[] {
+export function markedWords(
+  ops: { lemma: string; status: string; provenance?: string; updated_at: number }[],
+): MarkedWord[] {
   return ops
     .filter((o) => o.status === "known" || o.status === "ignored")
-    .map((o) => ({ lemma: o.lemma, status: o.status as "known" | "ignored", updated_at: o.updated_at }))
+    .map((o) => {
+      const status = o.status as "known" | "ignored";
+      return { lemma: o.lemma, status, origin: markedOrigin(status, o.provenance), updated_at: o.updated_at };
+    })
     .sort((a, b) => b.updated_at - a.updated_at || a.lemma.localeCompare(b.lemma));
+}
+
+/**
+ * {@link markedWords} split into the list's sections, keeping the newest-first order
+ * within each. Lets the reader's own decisions stay short and scannable while the
+ * automatic confirmations (which grow with reading) sit apart.
+ */
+export function groupMarkedWords(
+  ops: { lemma: string; status: string; provenance?: string; updated_at: number }[],
+): MarkedGroups {
+  const groups: MarkedGroups = { decision: [], reading: [], review: [] };
+  for (const word of markedWords(ops)) groups[word.origin].push(word);
+  return groups;
 }

@@ -9,7 +9,10 @@ import {
   type CountsByDay,
   dayWindow,
   estimatedPosition,
-  markedWords,
+  groupMarkedWords,
+  MARKED_ORIGINS,
+  type MarkedOrigin,
+  type MarkedWord,
   type Range,
   RANGES,
 } from "./model.ts";
@@ -84,6 +87,23 @@ function ladderHtml(rows: LevelRow[], declared: CefrLevel | null): string {
 /** Max cards a single "Renforcer un niveau" action may seed (matches the engine cap). */
 const SEED_CAP = 50;
 
+/** The "Mots marqués" sections: the reader's decisions open, the automatic ones folded. */
+const MARKED_SECTIONS: { origin: MarkedOrigin; label: string; note: string | null; open: boolean }[] = [
+  { origin: "decision", label: "Mes décisions", note: null, open: true },
+  {
+    origin: "reading",
+    label: "Confirmés par la lecture",
+    note: "Sous ton niveau et lus plusieurs jours différents : passés « connu » automatiquement.",
+    open: false,
+  },
+  {
+    origin: "review",
+    label: "Validés en révision",
+    note: "Marqués « je connais » pendant une révision.",
+    open: false,
+  },
+];
+
 function seedControlHtml(): string {
   const levels = CEFR_LEVELS.map((l) => `<option value="${l}">${l}</option>`).join("");
   return (
@@ -157,10 +177,80 @@ export async function mountStats(root: HTMLElement, port: LinguaPort, area: Asyn
   }
 
   // "Mots marqués" — the discoverable way to undo a "connu"/"ignoré" decision (the
-  // in-page counterpart is Alt-clicking the word). Re-rendered after an undo; the ladder
-  // counts change too. Built with DOM APIs so a lemma is never interpolated into HTML.
+  // in-page counterpart is Alt-clicking the word). Split by origin: the reader's own
+  // decisions stay open and short; the automatic confirmations (reading, review), which
+  // grow with use, sit folded behind a count and only build their rows when opened.
+  // Re-rendered after an undo, keeping each section's open state; the ladder counts
+  // change too. Built with DOM APIs so a lemma is never interpolated into HTML.
+  const markedOpen = Object.fromEntries(MARKED_SECTIONS.map((s) => [s.origin, s.open])) as Record<
+    MarkedOrigin,
+    boolean
+  >;
+
+  const markedRow = (w: MarkedWord, showBadge: boolean): HTMLLIElement => {
+    const li = document.createElement("li");
+    li.className = "marked-row";
+    const word = document.createElement("span");
+    word.className = "marked-word";
+    word.textContent = w.lemma;
+    li.append(word);
+    if (showBadge) {
+      const badge = document.createElement("span");
+      badge.className = `marked-badge marked-badge--${w.status}`;
+      badge.textContent = w.status === "known" ? "connu" : "ignoré";
+      li.append(badge);
+    }
+    const undo = document.createElement("button");
+    undo.className = "marked-undo";
+    undo.textContent = "Remettre à apprendre";
+    undo.addEventListener("click", async () => {
+      undo.disabled = true;
+      await port.setStatusAt(w.lemma, null, Date.now());
+      await saveBackup(area, await port.backup());
+      await renderMarked();
+      await renderLadder();
+    });
+    li.append(undo);
+    return li;
+  };
+
+  const markedSection = (section: (typeof MARKED_SECTIONS)[number], words: MarkedWord[]): HTMLDetailsElement => {
+    const details = document.createElement("details");
+    details.className = "marked-group";
+    const summary = document.createElement("summary");
+    summary.className = "marked-summary";
+    const label = document.createElement("span");
+    label.className = "marked-summary-label";
+    label.textContent = section.label;
+    const count = document.createElement("span");
+    count.className = "marked-count";
+    count.textContent = String(words.length);
+    summary.append(label, count);
+    details.append(summary);
+    if (section.note) {
+      const note = document.createElement("div");
+      note.className = "marked-group-note";
+      note.textContent = section.note;
+      details.append(note);
+    }
+    const list = document.createElement("ul");
+    list.className = "marked-list";
+    details.append(list);
+    const fill = (): void => {
+      if (list.childElementCount > 0) return;
+      for (const w of words) list.append(markedRow(w, section.origin === "decision"));
+    };
+    details.open = markedOpen[section.origin];
+    if (details.open) fill();
+    details.addEventListener("toggle", () => {
+      markedOpen[section.origin] = details.open;
+      if (details.open) fill();
+    });
+    return details;
+  };
+
   const renderMarked = async (): Promise<void> => {
-    const words = markedWords(await port.exportStatusOps());
+    const groups = groupMarkedWords(await port.exportStatusOps());
     const slot = pick(".marked-slot");
     slot.replaceChildren();
     const wrap = document.createElement("div");
@@ -169,7 +259,7 @@ export async function mountStats(root: HTMLElement, port: LinguaPort, area: Asyn
     title.className = "mlabel";
     title.textContent = "Mots marqués";
     wrap.append(title);
-    if (words.length === 0) {
+    if (MARKED_ORIGINS.every((origin) => groups[origin].length === 0)) {
       const empty = document.createElement("div");
       empty.className = "note";
       empty.textContent = "Aucun mot marqué « connu » ou « ignoré » pour l'instant.";
@@ -183,31 +273,10 @@ export async function mountStats(root: HTMLElement, port: LinguaPort, area: Asyn
       "Marqués « connu » ou « ignoré » (donc plus surlignés). Remets-en un « à apprendre » pour qu'il soit de nouveau signalé. " +
       "En lecture : Alt/Option-clic (ou appui long sur tactile) sur un mot pour le rouvrir.";
     wrap.append(note);
-    const list = document.createElement("ul");
-    list.className = "marked-list";
-    for (const w of words) {
-      const li = document.createElement("li");
-      li.className = "marked-row";
-      const word = document.createElement("span");
-      word.className = "marked-word";
-      word.textContent = w.lemma;
-      const badge = document.createElement("span");
-      badge.className = `marked-badge marked-badge--${w.status}`;
-      badge.textContent = w.status === "known" ? "connu" : "ignoré";
-      const undo = document.createElement("button");
-      undo.className = "marked-undo";
-      undo.textContent = "Remettre à apprendre";
-      undo.addEventListener("click", async () => {
-        undo.disabled = true;
-        await port.setStatusAt(w.lemma, null, Date.now());
-        await saveBackup(area, await port.backup());
-        await renderMarked();
-        await renderLadder();
-      });
-      li.append(word, badge, undo);
-      list.append(li);
+    for (const section of MARKED_SECTIONS) {
+      const words = groups[section.origin];
+      if (words.length > 0) wrap.append(markedSection(section, words));
     }
-    wrap.append(list);
     slot.append(wrap);
   };
   await renderMarked();
