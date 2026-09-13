@@ -54,6 +54,23 @@ one). Load unpacked:
 - **Firefox** (desktop or Android) → `yarn start:firefox` (`web-ext run`, uses
   `dist-firefox`), or `about:debugging` → Load Temporary Add-on.
 
+**Dogfooding on Firefox for Android**: the product is activeTab-first, so the reader
+is injected on demand (popup → _Analyser cette page_) or via a granted `<all_urls>`
+that registers a dynamic content script. On Firefox for Android the runtime
+host-permission grant + `scripting.registerContentScripts` don't reliably take effect
+(the highlight works once via _Analyser cette page_ but not across a reload). For
+on-device testing, build with **`LINGUA_ALL_URLS=1`** — it declares the reader as a
+**static** `content_scripts` on `<all_urls>`, so it runs on every page load and reload
+with no permission dance:
+
+```bash
+LINGUA_ALL_URLS=1 yarn build:firefox && yarn start:firefox-android
+```
+
+This flag is **dev-only** — never set it for a shipped build (it would drop the
+activeTab-first privacy model). `content.ts` self-guards against running twice, so it
+coexists with the normal dynamic injection.
+
 Checks (what CI runs):
 
 ```bash
