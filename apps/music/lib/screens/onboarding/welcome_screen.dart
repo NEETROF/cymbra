@@ -19,6 +19,7 @@ import '../../l10n/gen/app_localizations.dart';
 import '../../state/onboarding_notifier.dart';
 import '../../state/performance_scoring.dart';
 import '../../state/score_catalog.dart';
+import '../../state/session_notifier.dart';
 import '../../theme/cymbra_theme.dart';
 import '../../widgets/language_selector.dart';
 import '../open_score.dart';
@@ -47,9 +48,35 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
     super.dispose();
   }
 
-  /// Leaves the welcome for good — used by Skip, Sign in and Continue alike, so
-  /// it never reappears whichever way the user left it.
+  /// Leaves the welcome for good, so it never reappears whichever way the user
+  /// left it.
   void _finish() => ref.read(onboardingProvider.notifier).completeWelcome();
+
+  /// Skip and "continue without an account": enter guest mode, then leave the
+  /// welcome (change: open-app-without-sign-in-wall). Guest comes FIRST — the
+  /// gate hands over to the session routing as soon as the welcome is complete,
+  /// and an unauthenticated session at that frame would flash the entry screen.
+  /// Both notifiers are read up front: entering guest mode swaps the welcome out
+  /// of the tree, so `ref` is not usable once the first await returns.
+  Future<void> _continueAsGuest() async {
+    final session = ref.read(sessionNotifierProvider.notifier);
+    final onboarding = ref.read(onboardingProvider.notifier);
+    await session.continueAsGuest();
+    onboarding.completeWelcome();
+  }
+
+  /// Sign in from the welcome: the contextual, resumable sign-in surface over
+  /// the welcome — never the entry screen. Leaving it without authenticating
+  /// returns here, free to try, sign in or continue without an account.
+  Future<void> _signIn() async {
+    final onboarding = ref.read(onboardingProvider.notifier);
+    final signedIn = await inviteSignIn(
+      context,
+      ref,
+      SignInBenefit.keepProgress,
+    );
+    if (signedIn) onboarding.completeWelcome();
+  }
 
   void _next() => _pages.nextPage(
     duration: const Duration(milliseconds: 220),
@@ -152,7 +179,7 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                   padding: const EdgeInsets.all(4),
                   child: TextButton(
                     key: const Key('welcome-skip'),
-                    onPressed: _finish,
+                    onPressed: _continueAsGuest,
                     child: Text(l10n.welcomeSkip),
                   ),
                 ),
@@ -207,14 +234,14 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
       children: [
         TextButton(
           key: const Key('welcome-sign-in'),
-          // Sign-in is an option, never a wall: it just leaves the welcome for
-          // the entry screen, which still offers continuing without an account.
-          onPressed: _finish,
+          // Sign-in is an option, never a wall: the contextual surface opens
+          // over the welcome, and backing out of it returns here.
+          onPressed: _signIn,
           child: Text(l10n.signIn),
         ),
         TextButton(
           key: const Key('welcome-continue'),
-          onPressed: _finish,
+          onPressed: _continueAsGuest,
           child: Text(l10n.welcomeContinueWithoutAccount),
         ),
       ],

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,9 +25,11 @@ import '../services/plan_service.dart';
 import '../services/store_client.dart';
 import '../state/app_locale.dart';
 import '../state/plan_notifier.dart';
+import '../state/session_notifier.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/legal_link.dart';
 import '../widgets/plan_listener.dart';
+import 'onboarding/sign_in_invitation.dart';
 
 /// Push the plan screen (plan status + paywall) from any locked surface or the
 /// account menu.
@@ -62,6 +66,10 @@ class PlanScreen extends ConsumerWidget {
     final plan = ref.watch(planProvider);
     final flow = ref.watch(purchaseFlowProvider);
     final platform = ref.watch(appPlatformProvider);
+    // A guest cannot be told apart from a free user by the snapshot (both are
+    // `free`), so the guest state is decided by the session (change:
+    // open-app-without-sign-in-wall, design D4).
+    final guest = !ref.watch(canUseOnlineServicesProvider);
     return PlanListener(
       child: Scaffold(
         backgroundColor: CymbraColors.background,
@@ -109,25 +117,32 @@ class PlanScreen extends ConsumerWidget {
                   ],
                   _BenefitsCard(),
                   const SizedBox(height: 16),
-                  if (snap.canPurchaseHere)
-                    _PurchaseCard(
-                      snapshot: snap,
-                      platform: platform,
-                      busy: flow.busy,
-                    )
-                  else if (snap.managedOn != null)
-                    _ManagedElsewhereCard(channel: snap.managedOn!),
-                  if (platform.isStoreBuild) ...[
-                    const SizedBox(height: 8),
-                    TextButton(
-                      key: const Key('plan-restore'),
-                      onPressed: flow.busy
-                          ? null
-                          : () => ref
-                                .read(purchaseFlowProvider.notifier)
-                                .restore(),
-                      child: Text(l10n.planRestore),
-                    ),
+                  // A guest gets the reason an account is needed and a way to
+                  // sign in — never a purchase, a price or a restore, none of
+                  // which can work without an account.
+                  if (guest)
+                    const _GuestSubscribeCard()
+                  else ...[
+                    if (snap.canPurchaseHere)
+                      _PurchaseCard(
+                        snapshot: snap,
+                        platform: platform,
+                        busy: flow.busy,
+                      )
+                    else if (snap.managedOn != null)
+                      _ManagedElsewhereCard(channel: snap.managedOn!),
+                    if (platform.isStoreBuild) ...[
+                      const SizedBox(height: 8),
+                      TextButton(
+                        key: const Key('plan-restore'),
+                        onPressed: flow.busy
+                            ? null
+                            : () => ref
+                                  .read(purchaseFlowProvider.notifier)
+                                  .restore(),
+                        child: Text(l10n.planRestore),
+                      ),
+                    ],
                   ],
                 ],
               ],
@@ -281,6 +296,41 @@ class _BetasCard extends StatelessWidget {
                       : l10n.planBetaJoined(_fmtDate(context, b.joinedAt)),
                 ),
               ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The paywall for a guest (change: open-app-without-sign-in-wall): premium
+/// lives on the Cymbra account, so the card says why and offers sign-in. Once
+/// the session is signed in, the plan provider — identity-scoped — re-reads the
+/// plan and this screen shows the purchase card in its place, with no extra
+/// wiring: nothing here waits on the invitation's result.
+class _GuestSubscribeCard extends ConsumerWidget {
+  const _GuestSubscribeCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    return Card(
+      key: const Key('plan-guest'),
+      color: CymbraColors.surfaceContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(l10n.planGuestBody),
+            const SizedBox(height: 12),
+            FilledButton(
+              key: const Key('plan-guest-sign-in'),
+              onPressed: () => unawaited(
+                inviteSignIn(context, ref, SignInBenefit.subscribe),
+              ),
+              child: Text(l10n.planGuestSignIn),
+            ),
           ],
         ),
       ),

@@ -2200,6 +2200,10 @@
   "@signInInviteBenefitProgress": {
     "description": "Benefit line offered after the no-account try."
   },
+  "signInInviteBenefitSubscribe": "Sign in to subscribe. Premium is attached to your Cymbra account, which is what makes it follow you on every device.",
+  "@signInInviteBenefitSubscribe": {
+    "description": "Benefit line when a guest wants to subscribe: premium lives on the account."
+  },
   "signInInviteDecline": "Not now",
   "@signInInviteDecline": {
     "description": "Action declining the sign-in invitation and returning to what the user was doing."
@@ -3472,6 +3476,14 @@
   "planBenefitsTitle": "Premium includes",
   "@planBenefitsTitle": {
     "description": "Section title: premium benefits."
+  },
+  "planGuestBody": "Premium is attached to your Cymbra account: that is what makes it follow you on every device you sign in on. Sign in, or create a free account, to subscribe.",
+  "@planGuestBody": {
+    "description": "Paywall shown to a guest: why subscribing needs an account."
+  },
+  "planGuestSignIn": "Sign in to subscribe",
+  "@planGuestSignIn": {
+    "description": "Paywall button for a guest: opens sign-in, then returns to the paywall."
   },
   "planBenefitCatalog": "Unlimited catalog pieces every day",
   "@planBenefitCatalog": {
