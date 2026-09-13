@@ -48,6 +48,14 @@ Future<ProviderContainer> _guestWithMenu(WidgetTester tester) async {
   return c;
 }
 
+/// Opens the guest menu and picks "Sign in".
+Future<void> _openSignIn(WidgetTester tester) async {
+  await tester.tap(find.byKey(const Key('account-guest-menu')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(const Key('account-signin')));
+  await tester.pumpAndSettle();
+}
+
 /// Route transitions without `pumpAndSettle`: once signed in, the account
 /// control can show an indefinite progress indicator that never settles.
 Future<void> _frames(WidgetTester tester, [int count = 12]) async {
@@ -63,8 +71,7 @@ void main() {
       final c = await _guestWithMenu(tester);
       expect(c.read(sessionNotifierProvider), isA<SessionGuest>());
 
-      await tester.tap(find.byKey(const Key('account-signin')));
-      await tester.pumpAndSettle();
+      await _openSignIn(tester);
       expect(find.byKey(const Key('sign-in-invitation')), findsOneWidget);
 
       await tester.tap(find.byKey(const Key('sign-in-invitation-decline')));
@@ -73,7 +80,7 @@ void main() {
       // Backing out used to be impossible: the button dropped the guest choice
       // and sent them to the entry screen before they had signed in.
       expect(c.read(sessionNotifierProvider), isA<SessionGuest>());
-      expect(find.byKey(const Key('account-signin')), findsOneWidget);
+      expect(find.byKey(const Key('account-guest-menu')), findsOneWidget);
     },
   );
 
@@ -82,8 +89,7 @@ void main() {
   ) async {
     final c = await _guestWithMenu(tester);
 
-    await tester.tap(find.byKey(const Key('account-signin')));
-    await tester.pumpAndSettle();
+    await _openSignIn(tester);
     await tester.tap(find.byKey(const Key('sign-in-invitation-accept')));
     await tester.pumpAndSettle();
     expect(find.byType(SignInInvitationScreen), findsOneWidget);
@@ -94,7 +100,7 @@ void main() {
     expect(c.read(canUseOnlineServicesProvider), isTrue);
     expect(find.byType(SignInInvitationScreen), findsNothing);
     // The same host screen, now carrying the signed-in account control.
-    expect(find.byKey(const Key('account-signin')), findsNothing);
+    expect(find.byKey(const Key('account-guest-menu')), findsNothing);
     expect(find.byKey(const Key('account-menu')), findsOneWidget);
   });
 }

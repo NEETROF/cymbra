@@ -23,6 +23,7 @@ import '../../state/app_language.dart';
 import '../../state/app_locale.dart';
 import '../../state/session_notifier.dart';
 import '../../state/session_state.dart';
+import '../../theme/cymbra_theme.dart';
 import '../../widgets/curator_chip.dart';
 import '../../widgets/language_selector.dart' show showLanguageDialog;
 import '../account/connected_accounts_screen.dart';
@@ -33,9 +34,11 @@ import '../profile_screen.dart';
 import 'delete_account_screen.dart';
 import '../onboarding/sign_in_invitation.dart';
 
-/// App-bar account control. For a guest it offers to sign in / create an account
-/// (leaving guest mode → entry screen). For a signed-in user it exposes sign-out
-/// and account deletion. Account deletion is never shown to guests.
+/// App-bar account control. A guest gets a menu that leads with signing in and
+/// also reaches the subscription, help, language and legal pages — everything
+/// that does not need an account. A signed-in user additionally gets the
+/// profile, connected accounts, sign-out and account deletion, which are never
+/// shown to guests.
 class AccountMenu extends ConsumerWidget {
   const AccountMenu({super.key});
 
@@ -52,17 +55,148 @@ class AccountMenu extends ConsumerWidget {
     final activeLanguage =
         AppLanguage.fromCode(ref.watch(appLocaleProvider).languageCode) ??
         AppLanguage.en;
+
+    void onSelected(String value) {
+      switch (value) {
+        // A guest signs in through the contextual, resumable surface and comes
+        // back to the screen they were on — not the entry screen (change:
+        // open-app-without-sign-in-wall). The guest choice is replaced only once
+        // authentication succeeds, so backing out leaves them a guest.
+        case 'signin':
+          unawaited(inviteSignIn(context, ref, SignInBenefit.keepProgress));
+        case 'profile':
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const ProfileScreen()),
+          );
+        case 'connected':
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const ConnectedAccountsScreen(),
+            ),
+          );
+        // Reachable by a guest too: the paywall's guest state explains that
+        // premium is attached to the account and invites them to sign in.
+        case 'plan':
+          openPlanScreen(context);
+        case 'help':
+          openHelp(context);
+        case 'language':
+          showLanguageDialog(context, ref);
+        case 'signout':
+          ref.read(sessionNotifierProvider.notifier).signOut();
+        case 'signout-all':
+          _confirmSignOutEverywhere(context, ref, l10n);
+        case 'delete':
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const DeleteAccountScreen(),
+            ),
+          );
+        case 'terms':
+          launcher.open(links.terms);
+        case 'privacy':
+          launcher.open(links.privacy);
+        case 'licenses':
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const LicensesScreen()),
+          );
+      }
+    }
+
+    // Entries every user gets, guest or signed in.
+    List<PopupMenuEntry<String>> commonItems() => [
+      PopupMenuItem<String>(
+        key: const Key('account-plan'),
+        value: 'plan',
+        child: Text(l10n.accountPlanMenu),
+      ),
+      PopupMenuItem<String>(
+        key: const Key('account-help'),
+        value: 'help',
+        child: Text(l10n.helpTitle),
+      ),
+      PopupMenuItem<String>(
+        key: const Key('account-language'),
+        value: 'language',
+        child: Row(
+          children: [
+            Text(activeLanguage.flag, style: const TextStyle(fontSize: 18)),
+            const SizedBox(width: 12),
+            Expanded(child: Text(l10n.settingsCategoryLanguage)),
+          ],
+        ),
+      ),
+    ];
+
+    List<PopupMenuEntry<String>> legalItems() => [
+      const PopupMenuDivider(),
+      PopupMenuItem<String>(
+        key: const Key('account-legal-terms'),
+        value: 'terms',
+        child: _LegalMenuRow(
+          icon: Icons.description_outlined,
+          label: l10n.legalTerms,
+        ),
+      ),
+      PopupMenuItem<String>(
+        key: const Key('account-legal-privacy'),
+        value: 'privacy',
+        child: _LegalMenuRow(
+          icon: Icons.privacy_tip_outlined,
+          label: l10n.legalPrivacy,
+        ),
+      ),
+      PopupMenuItem<String>(
+        key: const Key('account-legal-licenses'),
+        value: 'licenses',
+        child: _LegalMenuRow(
+          icon: Icons.article_outlined,
+          label: l10n.legalLicenses,
+          // Unlike terms/privacy, this opens an in-app page, not an external
+          // browser — a forward chevron instead of the "opens externally" hint.
+          trailingIcon: Icons.chevron_right,
+        ),
+      ),
+    ];
+
     return switch (session) {
-      // A guest signs in through the contextual, resumable surface and comes back
-      // to the screen they were on — not the entry screen (change:
-      // open-app-without-sign-in-wall). The guest choice is replaced only once
-      // authentication succeeds, so backing out leaves them a guest.
-      SessionGuest() => TextButton.icon(
-        key: const Key('account-signin'),
-        onPressed: () =>
-            unawaited(inviteSignIn(context, ref, SignInBenefit.keepProgress)),
-        icon: const Icon(Icons.login),
-        label: Text(l10n.signIn),
+      // The control still reads "Sign in", but it opens a menu: a guest must be
+      // able to reach the subscription (and why it needs an account), the
+      // language and the legal pages without signing in first.
+      SessionGuest() => PopupMenuButton<String>(
+        key: const Key('account-guest-menu'),
+        tooltip: l10n.signIn,
+        onSelected: onSelected,
+        itemBuilder: (context) => [
+          PopupMenuItem<String>(
+            key: const Key('account-signin'),
+            value: 'signin',
+            child: Row(
+              children: [
+                const Icon(Icons.login, size: 20),
+                const SizedBox(width: 12),
+                Expanded(child: Text(l10n.signIn)),
+              ],
+            ),
+          ),
+          const PopupMenuDivider(),
+          ...commonItems(),
+          ...legalItems(),
+        ],
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.login, size: 20, color: CymbraColors.primary),
+              const SizedBox(width: 8),
+              Text(
+                l10n.signIn,
+                style: const TextStyle(color: CymbraColors.primary),
+              ),
+            ],
+          ),
+        ),
       ),
       SessionAuthenticated(:final account) => PopupMenuButton<String>(
         key: const Key('account-menu'),
@@ -70,48 +204,7 @@ class AccountMenu extends ConsumerWidget {
         // rewards): it replaces the plain person icon; tapping it opens this menu,
         // whose "profile" entry shows the full rewards.
         tooltip: l10n.curatorEntryTooltip,
-        child: const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-          child: CuratorStandingPill(),
-        ),
-        onSelected: (value) {
-          switch (value) {
-            case 'profile':
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(builder: (_) => const ProfileScreen()),
-              );
-            case 'connected':
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const ConnectedAccountsScreen(),
-                ),
-              );
-            case 'plan':
-              openPlanScreen(context);
-            case 'help':
-              openHelp(context);
-            case 'language':
-              showLanguageDialog(context, ref);
-            case 'signout':
-              ref.read(sessionNotifierProvider.notifier).signOut();
-            case 'signout-all':
-              _confirmSignOutEverywhere(context, ref, l10n);
-            case 'delete':
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const DeleteAccountScreen(),
-                ),
-              );
-            case 'terms':
-              launcher.open(links.terms);
-            case 'privacy':
-              launcher.open(links.privacy);
-            case 'licenses':
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(builder: (_) => const LicensesScreen()),
-              );
-          }
-        },
+        onSelected: onSelected,
         itemBuilder: (context) => [
           if (account?.handle != null)
             PopupMenuItem<String>(
@@ -128,27 +221,7 @@ class AccountMenu extends ConsumerWidget {
             value: 'connected',
             child: Text(l10n.connectedAccountsManage),
           ),
-          PopupMenuItem<String>(
-            key: const Key('account-plan'),
-            value: 'plan',
-            child: Text(l10n.accountPlanMenu),
-          ),
-          PopupMenuItem<String>(
-            key: const Key('account-help'),
-            value: 'help',
-            child: Text(l10n.helpTitle),
-          ),
-          PopupMenuItem<String>(
-            key: const Key('account-language'),
-            value: 'language',
-            child: Row(
-              children: [
-                Text(activeLanguage.flag, style: const TextStyle(fontSize: 18)),
-                const SizedBox(width: 12),
-                Expanded(child: Text(l10n.settingsCategoryLanguage)),
-              ],
-            ),
-          ),
+          ...commonItems(),
           PopupMenuItem<String>(
             value: 'signout',
             child: Text(l10n.accountSignOut),
@@ -162,36 +235,12 @@ class AccountMenu extends ConsumerWidget {
             value: 'delete',
             child: Text(l10n.accountDelete),
           ),
-          const PopupMenuDivider(),
-          PopupMenuItem<String>(
-            key: const Key('account-legal-terms'),
-            value: 'terms',
-            child: _LegalMenuRow(
-              icon: Icons.description_outlined,
-              label: l10n.legalTerms,
-            ),
-          ),
-          PopupMenuItem<String>(
-            key: const Key('account-legal-privacy'),
-            value: 'privacy',
-            child: _LegalMenuRow(
-              icon: Icons.privacy_tip_outlined,
-              label: l10n.legalPrivacy,
-            ),
-          ),
-          PopupMenuItem<String>(
-            key: const Key('account-legal-licenses'),
-            value: 'licenses',
-            child: _LegalMenuRow(
-              icon: Icons.article_outlined,
-              label: l10n.legalLicenses,
-              // Unlike terms/privacy, this opens an in-app page, not an
-              // external browser — a forward chevron instead of the
-              // "opens externally" hint.
-              trailingIcon: Icons.chevron_right,
-            ),
-          ),
+          ...legalItems(),
         ],
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          child: CuratorStandingPill(),
+        ),
       ),
       _ => const SizedBox.shrink(),
     };
