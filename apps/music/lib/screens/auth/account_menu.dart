@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -29,6 +31,7 @@ import '../licenses_screen.dart';
 import '../plan_screen.dart';
 import '../profile_screen.dart';
 import 'delete_account_screen.dart';
+import '../onboarding/sign_in_invitation.dart';
 
 /// App-bar account control. For a guest it offers to sign in / create an account
 /// (leaving guest mode → entry screen). For a signed-in user it exposes sign-out
@@ -50,10 +53,14 @@ class AccountMenu extends ConsumerWidget {
         AppLanguage.fromCode(ref.watch(appLocaleProvider).languageCode) ??
         AppLanguage.en;
     return switch (session) {
+      // A guest signs in through the contextual, resumable surface and comes back
+      // to the screen they were on — not the entry screen (change:
+      // open-app-without-sign-in-wall). The guest choice is replaced only once
+      // authentication succeeds, so backing out leaves them a guest.
       SessionGuest() => TextButton.icon(
         key: const Key('account-signin'),
         onPressed: () =>
-            ref.read(sessionNotifierProvider.notifier).leaveGuest(),
+            unawaited(inviteSignIn(context, ref, SignInBenefit.keepProgress)),
         icon: const Icon(Icons.login),
         label: Text(l10n.signIn),
       ),
