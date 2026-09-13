@@ -160,13 +160,17 @@ for (const target of targets) {
   // Pin the unpacked Chromium id (stable chrome.identity redirect URL); Firefox uses its
   // gecko id instead, so it must never carry `key`.
   if (target !== "firefox" && EXT_KEY) manifest.key = EXT_KEY;
-  // Dev-only escape hatch: LINGUA_ALL_URLS=1 declares the reader as a STATIC content script
-  // on every page, so it runs on load AND reload with no activeTab/permission dance. For
-  // on-device dogfooding — notably Firefox for Android, where the runtime host-permission
-  // grant + scripting.registerContentScripts don't reliably take effect. NEVER for a shipped
-  // build: the product is activeTab-first by design (privacy). content.ts self-guards against
-  // running twice, so this coexists with the dynamic injection.
-  if (process.env.LINGUA_ALL_URLS === "1") {
+  // Reader injection strategy differs by browser:
+  //  - Firefox (incl. Android): a STATIC content script on every page, ALWAYS. MV3 dynamic
+  //    registration (scripting.registerContentScripts) does not reliably fire on GeckoView,
+  //    and browser.contentScripts.register() dies with the non-persistent event page — so the
+  //    browser-level static injection is the only thing that runs on every load AND reload.
+  //    The global "Surlignage activé" toggle (default on) is the off switch; the reader is
+  //    entirely local (no network), so always-on is an acceptable trade for reliability.
+  //  - Chromium: activeTab-first by design — no static script; scripting.registerContentScripts
+  //    (which works there) powers "Toujours surligner". LINGUA_ALL_URLS=1 forces the static
+  //    script for dev testing of the always-on path on Chrome.
+  if (target === "firefox" || process.env.LINGUA_ALL_URLS === "1") {
     manifest.content_scripts = [{ matches: ["<all_urls>"], js: ["content.js"], run_at: "document_idle" }];
   }
   writeFileSync(join(dist, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);

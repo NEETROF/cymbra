@@ -296,8 +296,12 @@ chrome.commands.onCommand.addListener((command) => {
   });
 });
 
-/** Register the reader for every page when <all_urls> is granted; unregister otherwise. */
+/** Register the reader for every page when <all_urls> is granted; unregister otherwise.
+ *  No-op on Firefox: it ships a STATIC content script on every page (build.mjs), because
+ *  dynamic registration is unreliable on GeckoView — so there is nothing to register here,
+ *  and doing so would double-inject. Chromium (activeTab-first) uses the dynamic path. */
 async function syncReaderRegistration(): Promise<void> {
+  if (__TARGET__ === "firefox") return;
   const granted = await chrome.permissions.contains({ origins: [ALL_URLS] });
   const registered = (await chrome.scripting.getRegisteredContentScripts({ ids: [READER_SCRIPT_ID] })).length > 0;
   if (granted && !registered) {
