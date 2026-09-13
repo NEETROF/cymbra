@@ -159,27 +159,68 @@ function render(stats: PageStats | null): void {
   }
 }
 
+/** Firefox desktop exposes the sidebar API; Chromium and Firefox-for-Android do not. */
+function firefoxSidebar(): { open?: () => Promise<void> } | undefined {
+  return (chrome as unknown as { sidebarAction?: { open?: () => Promise<void> } }).sidebarAction;
+}
+
+/** Inject the reader (self-guarded) then deliver a message, retrying until its listener is up. */
+async function messageReader(tabId: number, message: unknown): Promise<void> {
+  try {
+    await chrome.scripting.executeScript({ target: { tabId }, files: ["content.js"] });
+  } catch {
+    // Already present, or a page the reader cannot run on (e.g. a browser page).
+  }
+  // A cold Firefox event page must spin up and instantiate the WASM engine + pack before
+  // content.ts registers its message listener, which on a phone can take a few seconds —
+  // so keep pinging (~4s) rather than dropping the first tap.
+  for (let i = 0; i < 20; i++) {
+    try {
+      await chrome.tabs.sendMessage(tabId, message);
+      return;
+    } catch {
+      await new Promise((r) => setTimeout(r, 200)); // the freshly-injected listener isn't up yet
+    }
+  }
+}
+
 /**
- * Open the review/stats surface for the active tab, landing in the SAME place as the
- * in-page HUD so the two entry points are consistent:
- *  - Chromium: the Side Panel API (the HUD reaches it too, via a background message that
- *    keeps the user gesture).
- *  - Firefox: a tab of the panel page. The sidebar can only be opened from an extension
- *    surface (this popup), NOT from an in-page element, so the HUD could never match it —
- *    a tab works identically from both, on desktop and Android. The panel page reads the
- *    view flag on init.
+ * Open the review/stats surface for the active tab, portably across variants — this is
+ * the ONLY touch-reachable path to the deck (no keyboard on a tablet), so it must never
+ * depend on a shortcut:
+ *  - Chromium: the Side Panel API.
+ *  - Firefox desktop: the sidebar (the same page, routed by the view flag).
+ *  - Firefox for Android (no sidebar API): review opens the in-page drawer; stats opens
+ *    its page in a tab (the drawer has no stats face).
  */
 async function openReviewSurface(view: "review" | "stats"): Promise<void> {
-  try {
-    await chrome.storage.session.set({ "cymbra-lingua-panel-view": view === "stats" ? "stats" : null });
-  } catch {
-    // storage.session may be unavailable; the panel just opens on the review view.
+  const sidebar = __TARGET__ === "firefox" ? firefoxSidebar() : undefined;
+
+  // The sidepanel/sidebar page reads this transient flag during its init to pick the
+  // view. Set it for stats and CLEAR it for review, so a stale "stats" never leaks into a
+  // later review-open. Fire-and-forget: awaiting it would spend the transient user
+  // activation that Firefox's sidebarAction.open() demands, and the panel page loads well
+  // after the write lands. Only the panel/sidebar consume it (not the Android stats tab).
+  if (__TARGET__ === "chromium" || sidebar?.open) {
+    void chrome.storage.session.set({ "cymbra-lingua-panel-view": view === "stats" ? "stats" : null }).catch(() => {});
   }
+
+  if (sidebar?.open) {
+    // Firefox desktop. MUST be called synchronously within the click handler — any await
+    // before it spends the user gesture and open() rejects, so the sidebar never opens.
+    void sidebar.open().catch(() => {});
+    window.close();
+    return;
+  }
+
+  const tabId = await activeTabId();
+  if (tabId == null) return;
   if (__TARGET__ === "chromium") {
-    const tabId = await activeTabId();
-    if (tabId != null) await chrome.sidePanel.open({ tabId });
+    await chrome.sidePanel.open({ tabId });
+  } else if (view === "stats") {
+    await chrome.tabs.create({ url: chrome.runtime.getURL("stats.html") }); // Firefox Android
   } else {
-    await chrome.tabs.create({ url: chrome.runtime.getURL("sidepanel.html") });
+    await messageReader(tabId, { type: "toggleDrawer" }); // Firefox Android → in-page drawer
   }
   window.close();
 }

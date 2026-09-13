@@ -71,14 +71,17 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
   void chrome.storage.session.set({ [PANEL_VIEW_KEY]: view }).catch(() => {});
   const openTab = (): void => void chrome.tabs.create({ url: chrome.runtime.getURL("sidepanel.html") });
   const tabId = sender.tab?.id;
-  if (__TARGET__ === "chromium" && chrome.sidePanel?.open && tabId != null) {
-    // Chromium propagates the content-script click's user activation through this message,
-    // so the side panel opens (same destination as the popup); a tab covers the rare miss.
-    chrome.sidePanel.open({ tabId }).catch(openTab);
+  if (__TARGET__ === "chromium") {
+    if (chrome.sidePanel?.open && tabId != null) {
+      chrome.sidePanel.open({ tabId }).catch(openTab);
+    } else {
+      openTab();
+    }
   } else {
-    // Firefox: sidebarAction.open() needs a user gesture that does NOT survive the message,
-    // so the sidebar can't be opened from the page — use a tab, exactly like the popup does.
-    openTab();
+    const sidebar = (chrome as unknown as { sidebarAction?: { open?: () => Promise<void> } }).sidebarAction;
+    const opening = sidebar?.open?.();
+    if (opening?.catch) opening.catch(openTab);
+    else if (!opening) openTab();
   }
 });
 
