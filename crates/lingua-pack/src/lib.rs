@@ -27,6 +27,7 @@ pub mod manifest;
 use std::path::Path;
 
 use lingua_core::analysis::lexicon::{FstLexicon, build_lexicon_blobs};
+use lingua_core::knowledge::level::CefrLevel;
 use lingua_core::packs::format::write_container;
 use lingua_core::packs::meta::PackMeta;
 use lingua_core::packs::pack::section;
@@ -55,6 +56,9 @@ pub struct PackInputs {
     pub ranks: Vec<(String, u32)>,
     /// Lemma → native-language gloss (kaikki-derived).
     pub glosses: Vec<(String, String)>,
+    /// Lemma → CEFR level (CEFR-J A1–B2 + Octanove C1–C2), when the pair has
+    /// licence-clean CEFR data. Empty otherwise (no level table is emitted).
+    pub levels: Vec<(String, CefrLevel)>,
     /// The full attribution NOTICE text.
     pub notice: String,
     /// The sources actually used, for the licence guard.
@@ -109,9 +113,23 @@ pub fn inputs_from_dir(dir: &Path) -> std::io::Result<PackInputs> {
             .filter_map(|(lemma, rank)| rank.parse::<u32>().ok().map(|r| (lemma, r)))
             .collect(),
         glosses: tsv_pairs(&read("gloss.tsv")?),
+        levels: read_levels(dir)?,
         notice: read("NOTICE")?,
         sources: manifest.sources,
     })
+}
+
+/// Reads the optional `level.tsv` (`lemma<TAB>A1..C2`). A pair without CEFR data
+/// simply has no file → no levels. Unrecognised level labels are skipped.
+fn read_levels(dir: &Path) -> std::io::Result<Vec<(String, CefrLevel)>> {
+    match std::fs::read_to_string(dir.join("level.tsv")) {
+        Ok(text) => Ok(tsv_pairs(&text)
+            .into_iter()
+            .filter_map(|(lemma, label)| CefrLevel::from_label(&label).map(|lvl| (lemma, lvl)))
+            .collect()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),
+        Err(e) => Err(e),
+    }
 }
 
 /// Parses `a<TAB>b` lines, skipping blank lines and lines without a tab.
@@ -179,17 +197,33 @@ pub fn build_pack(inputs: &PackInputs) -> Result<Vec<u8>, BuildError> {
     entries.sort_unstable_by_key(|(id, _)| *id);
     let gloss_zst = compress_glosses(&entries);
 
+    // CEFR level code per lemma id (0 = no level). Emitted as an optional
+    // section ONLY when the pair has CEFR data, so a level-less pack stays
+    // byte-for-byte identical to before this feature.
+    let levels_bytes: Vec<u8> = if inputs.levels.is_empty() {
+        Vec::new()
+    } else {
+        let mut levels = vec![0u8; lex.lemma_count()];
+        for (lemma, level) in &inputs.levels {
+            if let Some(id) = lex.id_of(lemma) {
+                levels[id as usize] = level.to_code();
+            }
+        }
+        levels
+    };
+
     let meta_json = serde_json::to_vec(&inputs.meta).expect("PackMeta serialises");
-    let pack = write_container(
-        &meta_json,
-        &[
-            (section::FORMS, &forms),
-            (section::LEMMAS, pool.as_bytes()),
-            (section::FREQ, &freq_bytes),
-            (section::GLOSS_ZST, &gloss_zst),
-            (section::NOTICE, inputs.notice.as_bytes()),
-        ],
-    );
+    let mut sections: Vec<(&str, &[u8])> = vec![
+        (section::FORMS, forms.as_slice()),
+        (section::LEMMAS, pool.as_bytes()),
+        (section::FREQ, freq_bytes.as_slice()),
+    ];
+    if !levels_bytes.is_empty() {
+        sections.push((section::LEVELS, levels_bytes.as_slice()));
+    }
+    sections.push((section::GLOSS_ZST, gloss_zst.as_slice()));
+    sections.push((section::NOTICE, inputs.notice.as_bytes()));
+    let pack = write_container(&meta_json, &sections);
 
     if pack.len() > MAX_PACK_BYTES {
         return Err(BuildError::OverBudget {
@@ -270,6 +304,7 @@ mod tests {
                 ("run".into(), "courir".into()),
                 ("city".into(), "ville".into()),
             ],
+            levels: vec![],
             notice: "AGID (permissive), wordfreq (CC BY-SA), kaikki (CC BY-SA).".into(),
             sources: sources(),
         }
@@ -291,6 +326,44 @@ mod tests {
         assert_eq!(
             build_pack(&inputs()).unwrap(),
             build_pack(&inputs()).unwrap()
+        );
+    }
+
+    #[test]
+    fn a_level_less_pack_is_byte_identical_to_before_the_levels_section() {
+        // With no levels, no LEVELS section is emitted — the guarantee that this
+        // feature does not disturb packs for pairs without CEFR data.
+        let bytes = build_pack(&inputs()).unwrap();
+        let (_, sections) = lingua_core::packs::format::read_container(&bytes).expect("decode");
+        assert!(sections.iter().all(|s| s.name != section::LEVELS));
+    }
+
+    #[test]
+    fn built_pack_carries_cefr_levels_when_present() {
+        use lingua_core::knowledge::level::{CefrLevel, CefrLevels};
+        let mut inp = inputs();
+        inp.levels = vec![
+            ("run".into(), CefrLevel::A1),
+            ("city".into(), CefrLevel::A2),
+        ];
+        inp.sources.push(licence::Source {
+            name: "CEFR-J".into(),
+            licence: licence::Licence::Permissive,
+        });
+        inp.sources.push(licence::Source {
+            name: "Octanove".into(),
+            licence: licence::Licence::CcBySa,
+        });
+        inp.notice
+            .push_str(" CEFR-J (permissive + citation), Octanove (CC BY-SA 4.0).");
+        let bytes = build_pack(&inp).expect("build");
+        let pack = Pack::load(&bytes).expect("load");
+        assert!(pack.has_levels());
+        assert_eq!(pack.level("run"), Some(CefrLevel::A1));
+        assert_eq!(pack.level("city"), Some(CefrLevel::A2));
+        assert_eq!(
+            pack.lemmas_at_level(CefrLevel::A1),
+            vec![("run", Some("courir"))]
         );
     }
 

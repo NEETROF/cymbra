@@ -53,11 +53,56 @@ impl Deck {
             .insert(card.lemma.clone(), card);
     }
 
+    /// Seeds cards for a chosen set of `(lemma, gloss)` — typically the lemmas
+    /// of a selected CEFR level, in the caller's order (commonest-first by
+    /// default) — for level-targeted feeding (`add-lingua-cefr-levels`). Skips
+    /// any lemma that already has a card or an explicit status in `knowledge`
+    /// (idempotent), stops after `cap` new cards, and stamps each with the
+    /// reserved `Import` source. Returns the number actually added.
+    pub fn seed_lemmas<'a>(
+        &mut self,
+        lang: StudiedLanguage,
+        lemmas: impl IntoIterator<Item = (&'a str, Option<&'a str>)>,
+        knowledge: &KnowledgeState,
+        cap: usize,
+        at: i64,
+    ) -> usize {
+        let mut added = 0;
+        for (lemma, gloss) in lemmas {
+            if added >= cap {
+                break;
+            }
+            if self.get(lang, lemma).is_some() || knowledge.explicit_status(lang, lemma).is_some() {
+                continue;
+            }
+            self.upsert(lang, Card::seeded(lemma, gloss.map(str::to_owned), at));
+            added += 1;
+        }
+        added
+    }
+
     /// The card for a lemma, if present.
     pub fn get(&self, lang: StudiedLanguage, lemma: &str) -> Option<&Card> {
         self.cards
             .get(&lang)
             .and_then(|per_lang| per_lang.get(lemma))
+    }
+
+    /// Retire the card for `lemma` if one exists (keep the card + its FSRS history; it
+    /// simply stops coming due) and stamp it for sync. Returns whether a card was retired.
+    /// Used when a word is reclassified known/ignored OUTSIDE a review — [`mark_known`] does
+    /// the same for the in-review card — so a card never keeps surfacing for a word the
+    /// reader no longer treats as to-learn. This is retirement, not deletion (the card
+    /// stays, so it needs no deletion tombstone and syncs as a plain LWW update).
+    ///
+    /// [`mark_known`]: ReviewSession::mark_known
+    pub fn retire(&mut self, lang: StudiedLanguage, lemma: &str, now: i64) -> bool {
+        let Some(card) = self.cards.get_mut(&lang).and_then(|m| m.get_mut(lemma)) else {
+            return false;
+        };
+        card.review.retire(now);
+        card.updated_at = now; // sync: retiring is a change
+        true
     }
 
     /// Total number of cards across all languages.
@@ -91,6 +136,51 @@ impl Deck {
             .flat_map(BTreeMap::values)
             .filter(|card| card.review.is_due(now))
             .count()
+    }
+
+    /// Every card with its language, cloned — the outbox source for a card push
+    /// (`add-lingua-connected-clients`), in deterministic (language, lemma) order.
+    /// The FSRS state travels as the card's `review`.
+    pub fn export_cards(&self) -> Vec<(StudiedLanguage, Card)> {
+        let mut out = Vec::new();
+        for (&lang, per_lang) in &self.cards {
+            for card in per_lang.values() {
+                out.push((lang, card.clone()));
+            }
+        }
+        out
+    }
+
+    /// Apply a pulled card under last-write-wins by its `updated_at`: a
+    /// newer-or-equal card wins (upsert), an older one is dropped. Returns whether
+    /// local state changed.
+    ///
+    /// Upsert-only: cards are added, graded and retired but never deleted in the
+    /// MVP (mark-known retires a card, it does not remove it), so there is no
+    /// deletion to sync. Card deletion — and the tombstones it would need to stay
+    /// LWW-correct — is deferred to the change that actually adds it, rather than
+    /// shipping a delete path that resurrects on a stale re-add.
+    ///
+    /// `captured_at` is the immutable encounter time and does not travel on the
+    /// wire (the `CardOp` has no field for it), so the local value is preserved on
+    /// an update: sync never rewrites when the word was first met.
+    pub fn apply_card_lww(&mut self, lang: StudiedLanguage, mut card: Card) -> bool {
+        // No existing card → i64::MIN, so any incoming wins.
+        let existing_ts = self
+            .get(lang, &card.lemma)
+            .map_or(i64::MIN, |c| c.updated_at);
+        if card.updated_at < existing_ts {
+            return false;
+        }
+        if let Some(captured_at) = self
+            .get(lang, &card.lemma)
+            .map(|c| c.provenance.captured_at)
+        {
+            card.provenance.captured_at = captured_at;
+        }
+        let changed = self.get(lang, &card.lemma) != Some(&card);
+        self.upsert(lang, card);
+        changed
     }
 }
 
@@ -149,6 +239,7 @@ impl ReviewSession {
         };
         if let Some(card) = deck.cards.get_mut(&lang).and_then(|m| m.get_mut(&lemma)) {
             card.review.grade(params, rating, now);
+            card.updated_at = now; // sync: a grade is a change
         }
         self.advance();
     }
@@ -160,9 +251,10 @@ impl ReviewSession {
         let Some((lang, lemma)) = self.current_key().cloned() else {
             return;
         };
-        knowledge.set_status(lang, &lemma, Status::Known(KnownSource::Srs));
+        knowledge.set_status_at(lang, &lemma, Status::Known(KnownSource::Srs), now * 1000);
         if let Some(card) = deck.cards.get_mut(&lang).and_then(|m| m.get_mut(&lemma)) {
             card.review.retire(now);
+            card.updated_at = now; // sync: retiring is a change
         }
         self.advance();
     }
@@ -210,6 +302,41 @@ mod tests {
         assert_eq!(deck.len(), 3);
         assert_eq!(deck.due_count(0), 3);
         assert_eq!(deck.due_keys(0).len(), 3);
+    }
+
+    #[test]
+    fn retire_stops_a_card_coming_due_but_keeps_it() {
+        let mut deck = deck_of(&["run", "ship"]);
+        assert_eq!(deck.due_count(0), 2);
+        assert!(deck.retire(EN, "run", 1_000)); // reclassified known/ignored elsewhere
+        assert_eq!(deck.due_count(i64::MAX - 1), 1); // `run` no longer due, `ship` still is
+        assert!(deck.get(EN, "run").is_some()); // kept, not deleted
+        assert_eq!(deck.get(EN, "run").unwrap().updated_at, 1_000); // stamped for sync
+        assert!(!deck.retire(EN, "absent", 1_000)); // no-op when there is no card
+    }
+
+    #[test]
+    fn seed_lemmas_caps_and_skips_tracked_lemmas() {
+        let mut deck = deck_of(&["run"]); // `run` already carded
+        let mut knowledge = KnowledgeState::new();
+        knowledge.set_status(EN, "city", Status::Learning); // `city` has an explicit status
+        let candidates = [
+            ("run", Some("courir")),    // already carded → skip
+            ("city", Some("ville")),    // explicit status → skip
+            ("nuance", Some("nuance")), // new → add
+            ("quixotic", None),         // new → add
+            ("arcane", None),           // would add, but the cap stops us first
+        ];
+        let added = deck.seed_lemmas(EN, candidates, &knowledge, 2, 5 * DAY);
+        assert_eq!(added, 2);
+        assert!(deck.get(EN, "nuance").is_some());
+        assert!(deck.get(EN, "quixotic").is_some());
+        assert!(deck.get(EN, "arcane").is_none()); // capped
+        assert_eq!(
+            deck.get(EN, "nuance").unwrap().provenance.source,
+            EncounterSource::Import
+        );
+        assert_eq!(deck.get(EN, "nuance").unwrap().updated_at, 5 * DAY);
     }
 
     #[test]
@@ -268,5 +395,81 @@ mod tests {
         session.grade(&mut deck, &params, Rating::Again, 0);
         assert_eq!(session.remaining(), 0);
         assert_eq!(deck.get(EN, "run").unwrap().review.reps, 1);
+    }
+
+    fn card_at(lemma: &str, updated_at: i64) -> Card {
+        let mut c = card(lemma);
+        c.updated_at = updated_at;
+        c
+    }
+
+    #[test]
+    fn export_cards_lists_every_card_in_deterministic_order() {
+        let deck = deck_of(&["run", "city", "seldom"]);
+        let lemmas: Vec<_> = deck
+            .export_cards()
+            .into_iter()
+            .map(|(_, c)| c.lemma)
+            .collect();
+        assert_eq!(lemmas, ["city", "run", "seldom"]); // BTreeMap (lemma) order
+    }
+
+    #[test]
+    fn apply_card_lww_upserts_newer_applies_unknown_drops_older() {
+        let mut deck = Deck::new();
+        deck.upsert(EN, card_at("run", 100));
+
+        // Older incoming loses.
+        let mut older = card_at("run", 50);
+        older.encountered_form = "OLD".to_owned();
+        assert!(!deck.apply_card_lww(EN, older));
+        assert_eq!(deck.get(EN, "run").unwrap().encountered_form, "run");
+
+        // Newer incoming wins.
+        let mut newer = card_at("run", 200);
+        newer.encountered_form = "NEW".to_owned();
+        assert!(deck.apply_card_lww(EN, newer));
+        assert_eq!(deck.get(EN, "run").unwrap().encountered_form, "NEW");
+
+        // A card the deck never had is applied.
+        assert!(deck.apply_card_lww(EN, card_at("city", 10)));
+        assert!(deck.get(EN, "city").is_some());
+    }
+
+    #[test]
+    fn apply_card_lww_preserves_the_local_captured_at() {
+        // captured_at is the immutable encounter time; it has no wire field, so an
+        // incoming op carries only the op timestamp. Applying must not overwrite it.
+        let mut original = card("run"); // captured_at 0
+        original.provenance.captured_at = 1_000;
+        original.updated_at = 1_000;
+        let mut deck = Deck::new();
+        deck.upsert(EN, original);
+
+        // A later grade elsewhere arrives as an op stamped 5_000 with captured_at=5_000.
+        let mut graded = card("run");
+        graded.provenance.captured_at = 5_000; // what the wire would fabricate
+        graded.updated_at = 5_000;
+        graded.encountered_form = "ran".to_owned();
+        deck.apply_card_lww(EN, graded);
+
+        let stored = deck.get(EN, "run").unwrap();
+        assert_eq!(stored.encountered_form, "ran"); // the update landed
+        assert_eq!(stored.provenance.captured_at, 1_000); // encounter time preserved
+        assert_eq!(stored.updated_at, 5_000);
+    }
+
+    #[test]
+    fn grading_and_mark_known_bump_the_card_updated_at() {
+        let mut deck = deck_of(&["run", "seldom"]); // captured_at 0 → updated_at 0
+        let params = FsrsParams::default();
+        let mut knowledge = KnowledgeState::new();
+        let mut session = ReviewSession::start(&deck, 0);
+        session.grade(&mut deck, &params, Rating::Good, 5 * DAY);
+        assert_eq!(deck.get(EN, "run").unwrap().updated_at, 5 * DAY);
+        session.mark_known(&mut deck, &mut knowledge, 7 * DAY);
+        assert_eq!(deck.get(EN, "seldom").unwrap().updated_at, 7 * DAY);
+        // mark-known also stamps the status (in millis) so it syncs.
+        assert_eq!(knowledge.status_updated_at(EN, "seldom"), 7 * DAY * 1000);
     }
 }

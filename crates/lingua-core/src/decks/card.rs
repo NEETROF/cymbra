@@ -99,6 +99,14 @@ pub struct Card {
     pub media: Option<Media>,
     /// The FSRS review state (never reviewed until first graded).
     pub review: ReviewState,
+    /// Last-change time (epoch **seconds** — the deck's native unit, as used by
+    /// `grade`/`retire`) for cross-device last-write-wins sync
+    /// (`add-lingua-connected-clients`). Stamped at creation (= `captured_at`) and
+    /// bumped on every grade / mark-known. `#[serde(default)]` so an older backup
+    /// restores with 0 (which loses to any real timestamp). The sync wire uses
+    /// millis, so the boundary multiplies by 1000.
+    #[serde(default)]
+    pub updated_at: i64,
 }
 
 impl Card {
@@ -109,6 +117,7 @@ impl Card {
         provenance: Provenance,
         gloss: Option<String>,
     ) -> Self {
+        let updated_at = provenance.captured_at;
         Self {
             lemma: lemma.to_owned(),
             encountered_form: encountered_form.to_owned(),
@@ -116,7 +125,26 @@ impl Card {
             gloss,
             media: None,
             review: ReviewState::new(),
+            updated_at,
         }
+    }
+
+    /// A card seeded for level-targeted feeding (`add-lingua-cefr-levels`),
+    /// not from a real reading encounter. There is no originating sentence, so
+    /// it is empty, and the source is [`EncounterSource::Import`] rather than a
+    /// fabricated URL or agent session. The encountered form is the lemma
+    /// itself.
+    pub fn seeded(lemma: &str, gloss: Option<String>, at: i64) -> Self {
+        Card::new(
+            lemma,
+            lemma,
+            Provenance {
+                sentence: String::new(),
+                source: EncounterSource::Import,
+                captured_at: at,
+            },
+            gloss,
+        )
     }
 
     /// Whether the lemma is a multi-word expression.
@@ -172,6 +200,17 @@ mod tests {
             card.provenance.sentence,
             "The suggestions remain a compelling starting point."
         );
+    }
+
+    #[test]
+    fn seeded_card_uses_import_and_has_no_sentence() {
+        let card = Card::seeded("nuance", Some("nuance".to_owned()), 1_700_000_000);
+        assert_eq!(card.lemma, "nuance");
+        assert_eq!(card.encountered_form, "nuance");
+        assert_eq!(card.provenance.source, EncounterSource::Import);
+        assert!(card.provenance.sentence.is_empty());
+        assert_eq!(card.provenance.captured_at, 1_700_000_000);
+        assert_eq!(card.updated_at, 1_700_000_000);
     }
 
     #[test]

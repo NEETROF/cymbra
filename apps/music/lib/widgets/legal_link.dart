@@ -15,7 +15,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../l10n/gen/app_localizations.dart';
 import '../services/legal_links.dart';
+import '../state/app_locale.dart';
 import '../theme/cymbra_theme.dart';
 
 /// Fine print, sized and coloured the same wherever it appears: the sign-in
@@ -51,4 +53,56 @@ class LegalLink extends ConsumerWidget {
     onTap: () => ref.read(legalLinkLauncherProvider).open(url),
     child: Text(label, style: _style),
   );
+}
+
+/// "By continuing, you accept the Terms and the Privacy Policy", with both
+/// references tappable.
+///
+/// Shown on every surface where a user signs in or creates an account — the
+/// entry screen and the contextual sign-in surface alike (spec `legal-links`,
+/// "Consent notice at account entry") — so an account is never created without
+/// it, whichever way the user reached sign-in. [keyPrefix] keeps each surface's
+/// links addressable on their own in tests (`entry-legal-terms`,
+/// `invite-legal-terms`). URLs follow the active locale.
+class LegalConsent extends ConsumerWidget {
+  const LegalConsent({required this.keyPrefix, super.key});
+
+  final String keyPrefix;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final links = legalLinksFor(ref.watch(appLocaleProvider).languageCode);
+
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 360),
+      child: Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(text: l10n.entryLegalPrefix),
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: LegalLink(
+                key: Key('$keyPrefix-legal-terms'),
+                label: l10n.legalTerms,
+                url: links.terms,
+              ),
+            ),
+            TextSpan(text: l10n.entryLegalSeparator),
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: LegalLink(
+                key: Key('$keyPrefix-legal-privacy'),
+                label: l10n.legalPrivacy,
+                url: links.privacy,
+              ),
+            ),
+            TextSpan(text: l10n.entryLegalSuffix),
+          ],
+        ),
+        textAlign: TextAlign.center,
+        style: legalBodyStyle,
+      ),
+    );
+  }
 }

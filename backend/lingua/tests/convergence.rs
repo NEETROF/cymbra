@@ -13,7 +13,10 @@ use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use cymbra_lingua::deck::{Card, DeckModule, DeckRepo};
-use cymbra_lingua::known_words::{KnownWordsModule, KnownWordsRepo, StatusChange, StatusOpInput};
+use cymbra_lingua::known_words::{
+    DeclaredLevelChange, DeclaredLevelOpInput, KnownWordsModule, KnownWordsRepo, StatusChange,
+    StatusOpInput,
+};
 use cymbra_lingua::known_words_core::wins;
 use cymbra_lingua::stats::{DailyStat, StatsModule, StatsRepo};
 use cymbra_platform::Result;
@@ -29,8 +32,17 @@ struct StatusRow {
 }
 
 #[derive(Default)]
+struct LevelRow {
+    level: String,
+    updated_at: i64,
+    device_id: String,
+    sequence: i64,
+}
+
+#[derive(Default)]
 struct FakeStatuses {
     rows: Mutex<HashMap<(String, String), StatusRow>>,
+    levels: Mutex<HashMap<String, LevelRow>>, // language -> declared level
     seq: Mutex<i64>,
 }
 
@@ -58,14 +70,23 @@ impl KnownWordsRepo for FakeStatuses {
         Ok(true)
     }
     async fn tip_cursor(&self, _user: &str) -> Result<i64> {
-        Ok(self
+        let status_max = self
             .rows
             .lock()
             .unwrap()
             .values()
             .map(|r| r.sequence)
             .max()
-            .unwrap_or(0))
+            .unwrap_or(0);
+        let level_max = self
+            .levels
+            .lock()
+            .unwrap()
+            .values()
+            .map(|r| r.sequence)
+            .max()
+            .unwrap_or(0);
+        Ok(status_max.max(level_max))
     }
     async fn changes_since(&self, _user: &str, cursor: i64) -> Result<Vec<StatusChange>> {
         let rows = self.rows.lock().unwrap();
@@ -85,6 +106,48 @@ impl KnownWordsRepo for FakeStatuses {
     }
     async fn snapshot(&self, user: &str) -> Result<Vec<StatusChange>> {
         self.changes_since(user, 0).await
+    }
+    async fn apply_level_op(&self, _user: &str, op: &DeclaredLevelOpInput) -> Result<bool> {
+        let mut levels = self.levels.lock().unwrap();
+        if let Some(e) = levels.get(&op.language)
+            && !wins(e.updated_at, &e.device_id, op.client_ts, &op.device_id)
+        {
+            return Ok(false);
+        }
+        let mut seq = self.seq.lock().unwrap();
+        *seq += 1;
+        levels.insert(
+            op.language.clone(),
+            LevelRow {
+                level: op.level.clone(),
+                updated_at: op.client_ts,
+                device_id: op.device_id.clone(),
+                sequence: *seq,
+            },
+        );
+        Ok(true)
+    }
+    async fn level_changes_since(
+        &self,
+        _user: &str,
+        cursor: i64,
+    ) -> Result<Vec<DeclaredLevelChange>> {
+        let levels = self.levels.lock().unwrap();
+        let mut out: Vec<DeclaredLevelChange> = levels
+            .iter()
+            .filter(|(_, r)| r.sequence > cursor)
+            .map(|(lang, r)| DeclaredLevelChange {
+                language: lang.clone(),
+                level: r.level.clone(),
+                updated_at: r.updated_at,
+                sequence: r.sequence,
+            })
+            .collect();
+        out.sort_by_key(|c| c.sequence);
+        Ok(out)
+    }
+    async fn level_snapshot(&self, user: &str) -> Result<Vec<DeclaredLevelChange>> {
+        self.level_changes_since(user, 0).await
     }
 }
 
@@ -204,6 +267,38 @@ async fn two_devices_converge_across_statuses_cards_and_stats() {
             .status,
         "learning"
     );
+
+    // Declared level: Mac sets B1 @100; iPhone upgrades to B2 @200 (later wins). The
+    // level rides the same service and cursor, so both devices converge on it too.
+    words
+        .push_level_ops(
+            USER,
+            vec![DeclaredLevelOpInput {
+                language: "en".into(),
+                level: "B1".into(),
+                client_ts: 100,
+                device_id: "mac".into(),
+            }],
+            1_000,
+        )
+        .await
+        .unwrap();
+    words
+        .push_level_ops(
+            USER,
+            vec![DeclaredLevelOpInput {
+                language: "en".into(),
+                level: "B2".into(),
+                client_ts: 200,
+                device_id: "iphone".into(),
+            }],
+            1_000,
+        )
+        .await
+        .unwrap();
+    let levels = words.level_snapshot(USER).await.unwrap();
+    assert_eq!(levels.len(), 1);
+    assert_eq!(levels[0].level, "B2"); // the later decision won on both devices
 
     // Cards: iPhone creates a card; Mac pulls it, edits it later; iPhone pulls the edit.
     let mut card = Card {

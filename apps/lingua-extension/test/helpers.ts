@@ -50,6 +50,7 @@ export function makeFakePort(deck: FakeCard[] = []): { port: LinguaPort; calls: 
     gloss: async () => undefined,
     trackedCount: async () => calls.setStatus.length + calls.addCard.length,
     addCard: async (c) => void calls.addCard.push(c),
+    retireCard: async () => {},
     deckCount: async () => calls.addCard.length,
     dueCount: async () => queue.length - pos,
     startReview: async () => {
@@ -85,8 +86,27 @@ export function makeFakePort(deck: FakeCard[] = []): { port: LinguaPort; calls: 
       queue = [];
       pos = 0;
     },
+    resetStatuses: async () => {
+      queue = [];
+      pos = 0;
+    },
     notice: async () => "NOTICE",
     licences: async () => ["L1"],
+    setStatusAt: async (l, s) => void calls.setStatus.push([l, s]),
+    exportStatusOps: async () => [],
+    applyStatusChanges: async () => 0,
+    exportCardOps: async () => [],
+    applyCardOps: async () => 0,
+    setDeclaredLevel: async () => {},
+    setDeclaredLevelAt: async () => {},
+    declaredLevel: async () => null,
+    exportDeclaredLevels: async () => [],
+    applyDeclaredLevelChanges: async () => 0,
+    hasLevels: async () => false,
+    levelLadder: async () => [],
+    recordExposures: async () => {},
+    promoteByExposure: async () => 0,
+    seedLevel: async () => 0,
   };
   return { port, calls };
 }

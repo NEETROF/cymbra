@@ -1,0 +1,162 @@
+## 1. Flag and scaffolding
+
+- [x] 1.1 Define the server flag (staff + beta campaign audience) and the
+  default-`false` provider with the `main.dart` remote override, mirroring
+  `drumsEnabled` (`apps/music/lib/state/drums_access.dart`)
+- [x] 1.2 Scaffold `api/audio_input.rs` (glue) + `api/audio_input_core.rs`
+  (pure core) with the `#[frb(ignore)]` internal-types pattern; add
+  `/audio_input\.rs` to the coverage exclusion regex in
+  `.github/workflows/rust.yml` and `sonar.yml`
+- [x] 1.3 Run `flutter_rust_bridge_codegen generate` and wire the empty FFI
+  surface end to end (a no-op capture start/stop reachable from Dart)
+
+## 2. Capture foundation (Rust)
+
+- [x] 2.1 Implement cpal input-device enumeration, capture start/stop, and
+  the capture thread handing fixed-size frames to the core; lifecycle bound
+  to explicit start/stop calls only
+- [x] 2.2 Implement input route classification in the core (built-in / wired
+  / USB / Bluetooth / other from platform descriptors, never display names)
+  with unit tests, including the unknown-kind degrade case
+- [x] 2.3 Implement the Bluetooth refusal in the core (route accepted /
+  refused verdict + reason) with unit tests; glue surfaces the verdict to
+  Dart
+- [x] 2.4 Implement the calibration state machine in the core (armed → click
+  emitted → detected(latency) | timeout) with unit tests over synthetic PCM;
+  glue emits the reference click through the existing output path
+
+## 3. Platform capture configuration
+
+- [x] 3.1 iOS: `NSMicrophoneUsageDescription`, `AVAudioSession`
+  `.measurement` mode scoped to capture sessions; verify play+record does not
+  disturb the existing output route handling
+- [x] 3.2 macOS: `com.apple.security.device.audio-input` entitlement +
+  usage description; verify the entitlement survives the **store archive
+  export re-signing** (memory: export previously stripped entitlements)
+- [x] 3.3 Android: `RECORD_AUDIO` permission, probe
+  `PROPERTY_SUPPORT_AUDIO_SOURCE_UNPROCESSED`, select `UNPROCESSED` else
+  `VOICE_RECOGNITION`; record the obtained configuration and expose it to
+  diagnostics
+- [x] 3.4 Desktop Linux/Windows: default input device capture (no permission
+  prompt); confirm graceful no-input-device behavior
+
+## 4. Dart capture seam and state
+
+- [x] 4.1 `AudioCaptureService` seam (permission state, routes, refusal,
+  calibration, lifecycle) + mockito-generated mock; provider following the
+  house pattern
+- [x] 4.2 Permission flow state: contextual rationale before the OS prompt,
+  denied → guidance with settings pointer; localized fr/en
+- [x] 4.3 Calibration notifier + UI flow (run, result, re-run, per-route
+  storage keyed like the output selection, invalidation on route change);
+  localized failure guidance; widget tests over the mocked seam
+- [x] 4.4 Ship calibration results through the existing diagnostics/usage
+  path (D7 fleet probe)
+
+## 5. Piano detection
+
+- [x] 5.1 Onset detector in `audio_input_core.rs` (attack-transient
+  timestamping) with unit tests over synthetic and recorded-fixture PCM
+- [x] 5.2 Score-informed pitch-presence stage (expected-set evaluation,
+  detuning-tolerant bands, evidence accumulation post-onset) with fixture
+  tests: single notes, sparse chords, damper-sustained repeats
+- [x] 5.3 Expected-set feed: the played score's active window (playhead
+  vicinity / open Wait gate pitches) crossed into the engine; emitted events
+  carry onset timestamps and enter `midi_event_stream()`
+- [x] 5.4 Metronome-click rejection in the detector (known transient masked
+  by construction); test with click overlaid on note fixtures
+
+## 6. Source selection and no-echo
+
+- [x] 6.1 `PlayerInputSource` (MIDI | microphone) state above the seam;
+  microphone visible only under the flag; MIDI port memory untouched by
+  switching; unit tests
+- [x] 6.2 Input-status surfaces show the microphone source + route where the
+  MIDI port shows today; localized fr/en
+- [x] 6.3 Detected-note events bypass synthesis (no `MidiEcho` for the
+  microphone source — inherent, independent of the MIDI-scoped setting);
+  on-screen keyboard still sounds; test both
+- [x] 6.4 Capture lifecycle bound to consuming features: starts with an
+  audio-sourced session/calibration, stops on end/background; never runs
+  under other sources; widget/notifier tests
+
+## 7. Scoring integration
+
+- [x] 7.1 Stamp the input source on the immutable session record; unit tests
+- [x] 7.2 Apply the measured input offset to audio-sourced attack timestamps
+  before judgment (`performance_scoring_core.dart`); MIDI runs bit-identical;
+  unit tests both ways
+- [x] 7.3 Exclude the sustain dimension for audio-sourced runs and
+  redistribute its weight (percussion precedent); unit tests
+- [x] 7.4 Free-run gate: scored free-run with the microphone requires a
+  stored, window-compatible measurement; otherwise steer to Wait Mode /
+  calibration with localized copy; widget tests of both branches
+- [x] 7.5 Wait Mode path end-to-end with the mocked capture seam: gate
+  satisfaction from detected events, uncalibrated route allowed
+
+## 9. Desktop input-device selection (added after review)
+
+- [x] 9.1 Engine: selected-input static + `set_audio_input(name?)` restarting
+  a running capture, active-input reporting, and a pure device-resolution
+  helper in the core (exact-name match, absent → system default) with unit
+  tests
+- [x] 9.2 Seam: `supportsDeviceSelection` / `listInputs` / `selectInput` on
+  `AudioCaptureService` (desktop-only; mobile and web are empty/no-op)
+- [x] 9.3 Persisted selection notifier (restore on launch, apply via the
+  seam) + the calibration route refreshing on selection change; unit tests
+- [x] 9.4 Input-device dropdown in the calibration section on desktop
+  (system-default entry + enumerated devices, mirroring the output picker);
+  localized fr/en/es/it; widget tests
+
+## 10. On-device detection tuning (from the 8.4 play sessions)
+
+- [x] 10.1 False positives: black keys trigger adjacent white notes (F# → F,
+  F → E/D observed on device), and the gate occasionally advances by itself
+  in a quiet room (ambient flukes clearing every check) — closed by the
+  unexpected-neighbor veto plus the harmonic CONTEST (the neighbor's octave
+  outshining the pitch's convicts the neighbor; an absolute octave bar was
+  tried and rejected: real notes measured 0.2–0.5% octave ratios on device).
+  Validated by two on-device data protocols: real mi/fa pass every time,
+  fa♯-for-fa 0/12 across sessions, zero silent-room phantoms
+- [x] 10.2 ~~On-screen detection debug overlay~~ — DROPPED (user decision,
+  2026-09-11): its purpose — seeing what the microphone hears to debug
+  detection — was fulfilled by the on-device diagnostics file and the
+  targeted data protocols, which settled every issue with numbers. If
+  players ever need feedback on what the app hears, that is a product
+  feature (a heard-level indicator in calibration), to be specced then
+- [x] 10.3 Chords and transport rewinds (third on-device data campaign,
+  Minuet in G): a rewind landing ON an onset froze the expected set — the
+  Wait-Mode blocked tick exit skipped the detector push, and every later
+  tick took that exit; and a chord strike gave each member ONE confirmation
+  shot timed inside the hammer transient, against a tonality gate comparing
+  each bin to the WHOLE buffer (structurally chord-blind: the missing
+  member's sig/bar ratio sat at 0.4–0.55 through every observation). Closed
+  by pushing the expected set through every tick exit and transport jump,
+  confirmation retries (43 ms cadence, 260 ms budget — the wrong-note
+  vetoes hold across it), and a chord-aware broadband discount (energy
+  measured at co-expected bins, rms²/8 floor). Device-validated: the
+  sol-si-ré gate opens per strike across rewinds, two full passes fluid
+  (fa♯, low register, mid-piece chord included), zero emissions through
+  the wrong-note and silence controls
+
+## 8. Verification
+
+- [x] 8.1 `melos run analyze`, `dart run custom_lint`, `dart format` (repo
+  root), `cargo fmt --all --check`, `cargo clippy --workspace --all-targets
+  -- -D warnings`
+- [x] 8.2 Coverage ≥ 80 % both ecosystems with the new exclusions in place
+- [x] 8.3 `openspec validate add-acoustic-piano-input --strict` passes
+- [x] 8.4 Manual on-device pass (staff flag), 2026-09-11: calibration
+  against a real acoustic piano on iPad (31 ms) and Galaxy Tab S6 Lite
+  (277 ms — the AAudio/VOICE_RECOGNITION stack, absorbed by the measured
+  offset by design); Wait Mode sessions play fluidly on both (iPad: 94%
+  full-piece run, chords, rewinds; Android: scales + two-note chords with
+  both members emitting within ~20 ms, a 20 s speech hold with every
+  voice-triggered confirmation rejected); the acoustic flag served
+  end-to-end (`staff_only` override → signed session → mic source
+  visible, snapshot persisted offline). RESERVE: the Bluetooth-mic
+  refusal was not exercised on-device (no BT headset at hand) — the
+  route verdict stays covered by the core unit tests; and sustained
+  speech aimed exactly at the expected pitch remains a known POC
+  limitation (conversational speech is rejected; see the strike_ago
+  instrumentation for the future pitch-stability hardening)

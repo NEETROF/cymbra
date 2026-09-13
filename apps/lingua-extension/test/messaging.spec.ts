@@ -30,6 +30,22 @@ describe("MessagingLinguaPort", () => {
     await port.reviewGrade("good", 42);
     expect(send).toHaveBeenCalledWith("reviewGrade", ["good", 42]);
   });
+
+  it("forwards the sync methods", async () => {
+    const send = vi.fn(async (method: string) =>
+      method === "applyStatusChanges" || method === "applyCardOps" ? 2 : [],
+    );
+    const port = new MessagingLinguaPort(send);
+
+    await port.setStatusAt("seldom", "known", 1700);
+    expect(send).toHaveBeenCalledWith("setStatusAt", ["seldom", "known", 1700]);
+    await port.exportStatusOps();
+    expect(send).toHaveBeenCalledWith("exportStatusOps", []);
+    expect(await port.applyStatusChanges([{ language: "en", lemma: "run", status: "known", updated_at: 5 }])).toBe(2);
+    await port.exportCardOps();
+    expect(send).toHaveBeenCalledWith("exportCardOps", []);
+    expect(await port.applyCardOps([])).toBe(2);
+  });
 });
 
 describe("rpc host", () => {

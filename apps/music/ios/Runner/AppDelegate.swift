@@ -34,6 +34,15 @@ import UIKit
   private static let routingChannelName = "org.cymbra.music/audio_routing"
   private var routingChannel: FlutterMethodChannel?
 
+  /// Channel owning the capture-session lifecycle and the *input* route
+  /// (change: add-acoustic-piano-input). The session flips to
+  /// `.playAndRecord`/`.measurement` only while a microphone-consuming feature
+  /// runs — `.measurement` bypasses the voice-processing chain (AGC, noise
+  /// suppression, voice EC) that destroys sustained musical notes — and is
+  /// restored to the plain playback configuration the moment it ends.
+  private static let inputChannelName = "org.cymbra.music/audio_input"
+  private var inputChannel: FlutterMethodChannel?
+
   /// The system route picker, kept off-screen for the whole session.
   /// `AVRoutePickerView` has no imperative "present" API — the sanctioned way to
   /// show it is to tap its own button — so the view has to live in the hierarchy
@@ -52,6 +61,7 @@ import UIKit
     MIDIClientCreateWithBlock("CymbraMidiRefresh" as CFString, &midiRefreshClient) { _ in }
     if let controller = window?.rootViewController as? FlutterViewController {
       configureAudioRouting(controller: controller)
+      configureAudioInput(controller: controller)
     }
     GeneratedPluginRegistrant.register(with: self)
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
@@ -146,6 +156,88 @@ import UIKit
   @objc private func audioRouteChanged(_ notification: Notification) {
     DispatchQueue.main.async { [weak self] in
       self?.routingChannel?.invokeMethod("routeChanged", arguments: AppDelegate.currentRoute())
+      self?.inputChannel?.invokeMethod(
+        "inputRouteChanged", arguments: AppDelegate.currentInputRoute())
     }
+  }
+
+  /// Wires the capture-session channel (change: add-acoustic-piano-input).
+  private func configureAudioInput(controller: FlutterViewController) {
+    let channel = FlutterMethodChannel(
+      name: AppDelegate.inputChannelName,
+      binaryMessenger: controller.binaryMessenger
+    )
+    channel.setMethodCallHandler { call, result in
+      switch call.method {
+      case "beginCaptureSession":
+        result(AppDelegate.beginCaptureSession())
+      case "endCaptureSession":
+        AppDelegate.endCaptureSession()
+        result(nil)
+      case "activeInputRoute":
+        result(AppDelegate.currentInputRoute())
+      case "permissionStatus":
+        result(AppDelegate.recordPermissionStatus())
+      case "requestPermission":
+        AVAudioSession.sharedInstance().requestRecordPermission { granted in
+          DispatchQueue.main.async { result(granted) }
+        }
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
+    inputChannel = channel
+  }
+
+  /// The record permission as Dart's three-state model expects it.
+  private static func recordPermissionStatus() -> String {
+    switch AVAudioSession.sharedInstance().recordPermission {
+    case .granted: return "granted"
+    case .denied: return "denied"
+    case .undetermined: return "undetermined"
+    @unknown default: return "denied"
+    }
+  }
+
+  /// Flips the shared session into capture shape. `.playAndRecord` +
+  /// `.measurement` disables the voice-processing chain; `.defaultToSpeaker`
+  /// keeps output on the speaker (playAndRecord otherwise routes to the
+  /// receiver); `.allowBluetoothA2DP` keeps a Bluetooth *output* on the A2DP
+  /// music profile instead of dragging the whole session down to HFP.
+  /// Returns whether the configuration was obtained — `false` degrades, never
+  /// crashes.
+  private static func beginCaptureSession() -> Bool {
+    let session = AVAudioSession.sharedInstance()
+    do {
+      try session.setCategory(
+        .playAndRecord, mode: .measurement, options: [.defaultToSpeaker, .allowBluetoothA2DP])
+      try session.setActive(true)
+      return true
+    } catch {
+      NSLog("[cymbra-audio-in] capture session setup failed: \(error)")
+      return false
+    }
+  }
+
+  /// Restores the plain playback configuration the app runs under otherwise —
+  /// the exact shape `configureAudioSession` establishes at launch.
+  private static func endCaptureSession() {
+    let session = AVAudioSession.sharedInstance()
+    do {
+      try session.setCategory(.playback, mode: .default)
+      try session.setActive(true)
+    } catch {
+      NSLog("[cymbra-audio-in] capture session restore failed: \(error)")
+    }
+  }
+
+  /// The input the session is capturing from, as `{name, token}` — the token
+  /// is the **raw** `AVAudioSession.Port` value, classified by the engine
+  /// (never by display name); nil when the session reports no input.
+  private static func currentInputRoute() -> [String: String]? {
+    guard let input = AVAudioSession.sharedInstance().currentRoute.inputs.first else {
+      return nil
+    }
+    return ["name": input.portName, "token": input.portType.rawValue]
   }
 }

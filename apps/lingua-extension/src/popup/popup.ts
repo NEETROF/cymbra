@@ -1,4 +1,6 @@
+import { SIGNIN_ERROR_KEY } from "../state/session.ts";
 import { loadEnabled, saveEnabled } from "../state/storage.ts";
+import type { CefrLevel } from "../analyzer/types.ts";
 
 // Icon-popup controller (a surface the extension owns). It holds no engine and no
 // storage of its own: it asks the active tab's content script for stats and drives
@@ -19,6 +21,8 @@ interface PageStats {
   unknownOccurrences: number;
   distinctUnknown: number;
   calibration: number;
+  declaredLevel: CefrLevel | null;
+  hasLevels: boolean;
   trackedCount: number;
   deckCount: number;
   dueCount: number;
@@ -63,8 +67,12 @@ interface AccountResult {
   state?: AccountState;
 }
 
+/** Whether a Cymbra ID session is active — decides the reset warning's wording. */
+let accountSignedIn = false;
+
 function renderAccount(state: AccountState | null): void {
   const signedIn = state?.signedIn ?? false;
+  accountSignedIn = signedIn;
   $("acct-in").hidden = !signedIn;
   $("acct-out").hidden = signedIn;
   $("acct-error").hidden = true;
@@ -74,6 +82,33 @@ function showAccountError(message: string): void {
   const el = $("acct-error");
   el.textContent = message;
   el.hidden = false;
+}
+
+/** Drop the persisted sign-in error (storage.session); tolerates it being unavailable. */
+async function clearSignInError(): Promise<void> {
+  try {
+    await chrome.storage.session.set({ [SIGNIN_ERROR_KEY]: null });
+  } catch {
+    // storage.session may be unavailable; nothing to clear.
+  }
+}
+
+/**
+ * Surface (once) a sign-in failure the background persisted while this popup was torn
+ * down by Google's auth window. Read from storage.session directly — the worker may have
+ * napped since — then clear it so it never shows stale. No-op when already signed in.
+ */
+async function surfaceSignInError(): Promise<void> {
+  try {
+    const got = await chrome.storage.session.get(SIGNIN_ERROR_KEY);
+    const err = got[SIGNIN_ERROR_KEY];
+    if (typeof err === "string" && err.length > 0) {
+      if (!accountSignedIn) showAccountError(err);
+      await clearSignInError();
+    }
+  } catch {
+    // storage.session may be unavailable in some contexts; nothing to surface.
+  }
 }
 
 function render(stats: PageStats | null): void {
@@ -96,8 +131,32 @@ function render(stats: PageStats | null): void {
   $("tracked").textContent = String(stats.trackedCount);
   $("deck").textContent = String(stats.deckCount);
   $("due").textContent = String(stats.dueCount);
-  ($("calib") as HTMLInputElement).value = String(stats.calibration);
-  $("calibv").textContent = String(stats.calibration);
+
+  // With CEFR data, the reader declares a level (the frequency slider is the
+  // fallback for language packs without CEFR levels).
+  if (stats.hasLevels) {
+    // The picker lives in Réglages; the main panel gets a compact reminder, or a
+    // call-to-action until a level has been chosen (asked at first use).
+    $("level-block").hidden = false;
+    $("calib-block").hidden = true;
+    const current = stats.declaredLevel ?? "";
+    for (const b of document.querySelectorAll<HTMLButtonElement>("#level-chips .lvl")) {
+      b.classList.toggle("active", (b.dataset.lvl ?? "") === current);
+    }
+    $("level-hint").textContent = stats.declaredLevel
+      ? `Les mots sous ${stats.declaredLevel} ne sont plus surlignés.`
+      : "Choisis ton niveau — rien n'est présumé connu pour l'instant.";
+    $("level-cta").hidden = stats.declaredLevel !== null;
+    $("level-indicator").hidden = stats.declaredLevel === null;
+    $("level-current").textContent = stats.declaredLevel ?? "—";
+  } else {
+    $("level-block").hidden = true;
+    $("calib-block").hidden = false;
+    ($("calib") as HTMLInputElement).value = String(stats.calibration);
+    $("calibv").textContent = String(stats.calibration);
+    $("level-cta").hidden = true;
+    $("level-indicator").hidden = true;
+  }
 }
 
 async function analyseCurrentPage(): Promise<void> {
@@ -129,11 +188,89 @@ async function main(): Promise<void> {
   calib.addEventListener("input", () => {
     $("calibv").textContent = calib.value;
   });
-  calib.addEventListener("change", () => void send({ type: "setCalibration", value: Number(calib.value) }));
+  calib.addEventListener("change", async () => {
+    await send({ type: "setCalibration", value: Number(calib.value) });
+    await refresh(); // the calibration moves the known-word percentage; reflect it now
+  });
 
-  $("reset").addEventListener("click", async () => {
-    await send({ type: "reset" });
+  // CEFR level picker: a chip declares the level; "Débutant" (empty value) clears
+  // it — nothing presumed known. The content script sets it on the engine.
+  for (const chip of document.querySelectorAll<HTMLButtonElement>("#level-chips .lvl")) {
+    chip.addEventListener("click", async () => {
+      await send({ type: "setLevel", value: chip.dataset.lvl ?? "" });
+      await refresh();
+    });
+  }
+
+  // Reset flow — a small wizard whose steps REPLACE one another, so the popup
+  // shows exactly one thing at a time:
+  //   rest    → only the "Réinitialiser…" button
+  //   scope   → the button is hidden; the two scope choices + Annuler
+  //   confirm → the warning + Oui, confirmer + Annuler (scope choices hidden)
+  // Any "Annuler" (and confirming) returns to rest — just the button. A stray
+  // click can never wipe the deck (choose scope, then confirm). `pendingScope`
+  // carries the choice from the scope step to the confirm step.
+  let pendingScope: "full" | "partial" | null = null;
+  const showRest = (): void => {
+    $("reset-menu").hidden = true;
+    $("reset").hidden = false;
+    $("reset-scope").hidden = false; // ready for the next open
+    $("reset-confirm").hidden = true;
+    pendingScope = null;
+  };
+  $("reset").addEventListener("click", () => {
+    $("reset").hidden = true;
+    $("reset-menu").hidden = false;
+    $("reset-scope").hidden = false;
+    $("reset-confirm").hidden = true;
+    pendingScope = null;
+  });
+  $("reset-cancel").addEventListener("click", showRest);
+  const askConfirm = (scope: "full" | "partial"): void => {
+    pendingScope = scope;
+    let warn: string;
+    if (scope === "partial") {
+      warn = "Effacer tes statuts et ta calibration ? Ton deck de révision est conservé.";
+    } else if (accountSignedIn) {
+      warn =
+        "Effacer les données de cet appareil (statuts, deck, progression) ? " +
+        "Comme tu es connecté, elles seront re-téléchargées depuis le serveur à la prochaine synchronisation.";
+    } else {
+      warn =
+        "⚠️ Effacer DÉFINITIVEMENT tes statuts, ton deck de révision et ta progression ? " +
+        "Tu n'es pas connecté : cette action est irréversible.";
+    }
+    $("reset-warn").textContent = warn;
+    // Replace the scope step with the confirmation.
+    $("reset-scope").hidden = true;
+    $("reset-confirm").hidden = false;
+  };
+  $("reset-partial").addEventListener("click", () => askConfirm("partial"));
+  $("reset-full").addEventListener("click", () => askConfirm("full"));
+  $("reset-no").addEventListener("click", showRest); // Annuler = exit the whole flow
+  $("reset-yes").addEventListener("click", async () => {
+    if (!pendingScope) return;
+    const scope = pendingScope;
+    showRest();
+    await send({ type: "reset", scope });
     await refresh();
+  });
+
+  // Settings view (gear icon): the level picker + the destructive reset live
+  // here, off the main page. Opening or leaving it returns the reset flow to
+  // rest. The main-panel level CTA / "Modifier" also route here.
+  const openSettings = (): void => {
+    showRest();
+    $("main-view").hidden = true;
+    $("settings-view").hidden = false;
+  };
+  $("settings-open").addEventListener("click", openSettings);
+  $("level-cta").addEventListener("click", openSettings);
+  $("level-edit").addEventListener("click", openSettings);
+  $("settings-back").addEventListener("click", () => {
+    showRest();
+    $("settings-view").hidden = true;
+    $("main-view").hidden = false;
   });
 
   $("review").addEventListener("click", async () => {
@@ -154,18 +291,32 @@ async function main(): Promise<void> {
   });
 
   $("signin-google").addEventListener("click", async () => {
+    // Opening Google's auth window steals focus and tears this popup down, so the
+    // awaited result usually never arrives here (res === null). That is fine: the
+    // background finishes the sign-in, and on reopen the popup shows the signed-in
+    // state — or the persisted error via surfaceSignInError(). A null result is NOT a
+    // failure to report here; only act when the popup actually survived (res !== null).
     const res = (await sendRuntime({ type: "account:signInGoogle" })) as AccountResult | null;
     if (res?.ok) renderAccount(res.state ?? { signedIn: true });
-    else showAccountError(res?.error ?? "Connexion impossible.");
+    else if (res) {
+      // Shown live — drop the background's persisted copy so it does not re-show on the
+      // next open (the failure may not have reached launchWebAuthFlow, e.g. empty client id).
+      showAccountError(res.error ?? "Connexion impossible.");
+      await clearSignInError();
+    }
   });
 
   $("signin-local").addEventListener("click", async () => {
     const email = ($("acct-email") as HTMLInputElement).value.trim();
     const password = ($("acct-password") as HTMLInputElement).value;
     if (!email || !password) return;
+    // Local sign-in never opens an auth window, so this popup stays alive: a null result
+    // is a real transport/worker hiccup (not a torn-down popup), and the local flow does
+    // not persist errors — so report it here, but not as a wrong-password.
     const res = (await sendRuntime({ type: "account:signInLocal", email, password })) as AccountResult | null;
     if (res?.ok) renderAccount(res.state ?? { signedIn: true });
-    else showAccountError(res?.error ?? "Email ou mot de passe incorrect.");
+    else if (res) showAccountError(res.error ?? "Email ou mot de passe incorrect.");
+    else showAccountError("Connexion impossible, réessaie.");
   });
 
   $("signout").addEventListener("click", async () => {
@@ -173,8 +324,23 @@ async function main(): Promise<void> {
     renderAccount(res?.state ?? { signedIn: false });
   });
 
+  $("open-stats").addEventListener("click", async () => {
+    // Open the stats in the side panel (like the review), not a full tab.
+    const tabId = await activeTabId();
+    if (tabId != null) {
+      try {
+        await chrome.storage.session.set({ "cymbra-lingua-panel-view": "stats" });
+      } catch {
+        /* storage.session may be unavailable; the panel just opens on review */
+      }
+      await chrome.sidePanel.open({ tabId });
+    }
+    window.close();
+  });
+
   await applyEnabled(await loadEnabled(storageArea));
   renderAccount((await sendRuntime({ type: "account:state" })) as AccountState | null);
+  await surfaceSignInError(); // show a sign-in failure that happened after the popup closed
 }
 
 void main();

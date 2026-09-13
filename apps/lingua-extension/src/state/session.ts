@@ -15,6 +15,13 @@ import type { AsyncStorageArea } from "./storage.ts";
 
 const ACCESS_KEY = "cymbra-lingua-access"; // chrome.storage.session
 const REFRESH_KEY = "cymbra-lingua-refresh"; // chrome.storage.local
+/**
+ * The last sign-in failure, in chrome.storage.session (transient, gone on browser
+ * close). Chrome tears the browser-action popup down when the Google auth window takes
+ * focus, so the popup's awaited result never renders; persisting the error here lets the
+ * popup surface it on its next open. Cleared on a successful sign-in.
+ */
+export const SIGNIN_ERROR_KEY = "cymbra-lingua-signin-error";
 const AUDIENCE = "lingua";
 
 /** Everything the session needs, injected so the flows are testable without Chrome. */
@@ -64,13 +71,21 @@ export class Session {
 
   /** Email + password (existing SignInLocal), scoped to the `lingua` audience. */
   async signInLocal(email: string, password: string): Promise<void> {
+    // No recordError here: the local form stays open on failure, so its error renders
+    // inline — persisting it would re-show stale on the next popup open. Only the Google
+    // flow (which tears the popup down) needs the persisted channel.
     await this.store(await this.deps.auth().signInLocal({ email, password, audience: AUDIENCE }));
   }
 
   /** "Continue with Google": run the OAuth flow, exchange the id_token via SignInOidc. */
   async signInWithGoogle(): Promise<void> {
-    const idToken = await this.deps.getGoogleIdToken();
-    await this.store(await this.deps.auth().signInOidc({ idToken, audience: AUDIENCE }));
+    try {
+      const idToken = await this.deps.getGoogleIdToken();
+      await this.store(await this.deps.auth().signInOidc({ idToken, audience: AUDIENCE }));
+    } catch (e) {
+      await this.recordError(e);
+      throw e;
+    }
   }
 
   /**
@@ -104,8 +119,14 @@ export class Session {
   private async store(pair: { accessToken: string; refreshToken: string }): Promise<void> {
     this.access = pair.accessToken;
     this.refreshTok = pair.refreshToken;
-    await this.deps.sessionArea.set({ [ACCESS_KEY]: pair.accessToken });
+    // Clear any stale sign-in error alongside the new access token (one success wipes it).
+    await this.deps.sessionArea.set({ [ACCESS_KEY]: pair.accessToken, [SIGNIN_ERROR_KEY]: null });
     await this.deps.localArea.set({ [REFRESH_KEY]: pair.refreshToken });
+  }
+
+  /** Persist a sign-in failure so the (possibly torn-down) popup can show it on reopen. */
+  private async recordError(e: unknown): Promise<void> {
+    await this.deps.sessionArea.set({ [SIGNIN_ERROR_KEY]: e instanceof Error ? e.message : String(e) });
   }
 
   private async purge(): Promise<void> {

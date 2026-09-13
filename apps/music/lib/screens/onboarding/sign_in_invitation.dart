@@ -22,6 +22,7 @@ import '../../state/auth_flow.dart';
 import '../../state/session_notifier.dart';
 import '../../theme/cymbra_theme.dart';
 import '../../widgets/app_snackbar.dart';
+import '../../widgets/legal_link.dart';
 import '../auth/auth_messages.dart';
 import '../auth/auth_scaffold.dart';
 import '../auth/email_sign_up_screen.dart';
@@ -43,6 +44,11 @@ enum SignInBenefit {
 
   /// Keeping progress and library after the no-account try.
   keepProgress,
+
+  /// Subscribing to premium, which is attached to the Cymbra account — that is
+  /// what makes it follow the user on every device (change:
+  /// open-app-without-sign-in-wall).
+  subscribe,
 }
 
 /// The localized benefit line shown in the invitation.
@@ -53,6 +59,7 @@ String signInBenefitMessage(AppLocalizations l10n, SignInBenefit benefit) =>
       SignInBenefit.leaderboards => l10n.signInInviteBenefitLeaderboards,
       SignInBenefit.goPublic => l10n.signInInviteBenefitPublic,
       SignInBenefit.keepProgress => l10n.signInInviteBenefitProgress,
+      SignInBenefit.subscribe => l10n.signInInviteBenefitSubscribe,
     };
 
 /// Route name of the invitation screen, so the sign-in listener pops exactly
@@ -239,6 +246,10 @@ class _SignInInvitationScreenState
                   ),
             child: Text(l10n.signInCreateAccount),
           ),
+          // Consent at every account surface (spec `legal-links`): this is now the
+          // way most people create an account, so it must carry the notice too.
+          const SizedBox(height: 16),
+          const LegalConsent(keyPrefix: 'invite'),
         ],
       ),
     );

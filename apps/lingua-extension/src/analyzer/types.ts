@@ -47,3 +47,25 @@ export type LemmaStatus = "known" | "learning" | "ignored";
 export function isPaintedClass(cls: TokenClass): cls is "Learning" | "Unknown" {
   return cls === "Learning" || cls === "Unknown";
 }
+
+/** A CEFR level, ordered A1 < … < C2 (add-lingua-cefr-levels). */
+export type CefrLevel = "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
+
+/** The six levels in ascending order — the ladder's rows / the picker's options. */
+export const CEFR_LEVELS: readonly CefrLevel[] = ["A1", "A2", "B1", "B2", "C1", "C2"];
+
+/** One row of the CEFR progression ladder, from `levelLadder()`. */
+export interface LevelRow {
+  level: CefrLevel;
+  /** Explicitly known (proven; any provenance but the implicit calibration). */
+  confirmed: number;
+  /** Presumed known below the declared level (implicit, unproven). */
+  presumed: number;
+  /** Learning or new — not yet known. */
+  toLearn: number;
+  /** Band size (confirmed + presumed + toLearn). */
+  total: number;
+}
+
+/** Order in which level-targeted seeding takes a level's lemmas. */
+export type SeedOrder = "common" | "rare";

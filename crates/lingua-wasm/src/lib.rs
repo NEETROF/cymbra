@@ -27,9 +27,11 @@
 use lingua_core::analysis::language::StudiedLanguage;
 use lingua_core::decks::backup::LinguaState;
 use lingua_core::decks::card::{Card, EncounterSource, Provenance};
-use lingua_core::decks::fsrs::Rating;
+use lingua_core::decks::fsrs::{Rating, ReviewState};
 use lingua_core::decks::review::ReviewSession;
 use lingua_core::engine::analyse_page_json;
+use lingua_core::knowledge::level::CefrLevel;
+use lingua_core::knowledge::state::{FrequencyRanks, KnowledgeState};
 use lingua_core::knowledge::status::{KnownSource, Status};
 use lingua_core::packs::Pack;
 use wasm_bindgen::prelude::*;
@@ -74,6 +76,153 @@ impl LinguaEngine {
         self.state.knowledge.calibration(EN)
     }
 
+    /// Declares the reader's CEFR level (`"A1"`..`"C2"`); any other value —
+    /// including `""` — clears it, returning to frequency calibration.
+    #[wasm_bindgen(js_name = setDeclaredLevel)]
+    pub fn set_declared_level(&mut self, level: &str) {
+        match CefrLevel::from_label(level) {
+            Some(l) => self.state.knowledge.set_declared_level(EN, l),
+            None => self.state.knowledge.clear_declared_level(EN),
+        }
+    }
+
+    /// The declared CEFR level label (`"A1"`..`"C2"`), or `None` if none is set.
+    #[wasm_bindgen(js_name = declaredLevel)]
+    pub fn declared_level(&self) -> Option<String> {
+        self.state
+            .knowledge
+            .declared_level(EN)
+            .map(|l| l.label().to_owned())
+    }
+
+    /// Like `setDeclaredLevel`, but stamps the decision with a sync timestamp
+    /// (epoch millis, the caller's clock) so the outbox and cross-device LWW can
+    /// order it. A `""` / invalid label is the explicit "débutant" decision (no
+    /// level), which syncs just like a level.
+    #[wasm_bindgen(js_name = setDeclaredLevelAt)]
+    pub fn set_declared_level_at(&mut self, level: &str, at_ms: f64) {
+        self.state
+            .knowledge
+            .set_declared_level_at(EN, CefrLevel::from_label(level), at_ms as i64);
+    }
+
+    /// The declared-level decisions as sync JSON (array of
+    /// `{language, level, updated_at}`, `level` a label or `""` for débutant), for
+    /// a push. Mirrors `exportStatusOps`.
+    #[wasm_bindgen(js_name = exportDeclaredLevels)]
+    pub fn export_declared_levels(&self) -> String {
+        let rows: Vec<serde_json::Value> = self
+            .state
+            .knowledge
+            .export_declared_levels()
+            .into_iter()
+            .map(|r| {
+                serde_json::json!({
+                    "language": "en",
+                    "level": r.level.map(|l| l.label()).unwrap_or(""),
+                    "updated_at": r.updated_at,
+                })
+            })
+            .collect();
+        serde_json::to_string(&rows).unwrap_or_else(|_| "[]".to_owned())
+    }
+
+    /// Apply pulled declared-level changes (JSON array of
+    /// `{language, level, updated_at}`) under last-write-wins. `level` `""` (or
+    /// absent) is the débutant decision. Returns how many changed local state.
+    /// Mirrors `applyStatusChanges`.
+    #[wasm_bindgen(js_name = applyDeclaredLevelChanges)]
+    pub fn apply_declared_level_changes(&mut self, json: &str) -> Result<usize, JsError> {
+        let changes: Vec<serde_json::Value> =
+            serde_json::from_str(json).map_err(|e| JsError::new(&e.to_string()))?;
+        let mut changed = 0usize;
+        for c in &changes {
+            if c.get("language").and_then(|v| v.as_str()).unwrap_or("en") != "en" {
+                continue; // the MVP studies English only
+            }
+            let level =
+                CefrLevel::from_label(c.get("level").and_then(|v| v.as_str()).unwrap_or(""));
+            let updated_at = c
+                .get("updated_at")
+                .and_then(serde_json::Value::as_i64)
+                .unwrap_or(0);
+            if self
+                .state
+                .knowledge
+                .apply_declared_level_lww(EN, level, updated_at)
+            {
+                changed += 1;
+            }
+        }
+        Ok(changed)
+    }
+
+    /// Whether the loaded pack carries a CEFR level table (else the ladder and
+    /// level-targeted feeding fall back to frequency bands).
+    #[wasm_bindgen(js_name = hasLevels)]
+    pub fn has_levels(&self) -> bool {
+        self.pack.has_levels()
+    }
+
+    /// The CEFR progression ladder as JSON — an array of
+    /// `{level, confirmed, presumed, toLearn, total}`, one row per level A1..C2,
+    /// folded over the pack's lemmas at each level. `[]` when the pack carries no
+    /// CEFR data.
+    #[wasm_bindgen(js_name = levelLadder)]
+    pub fn level_ladder(&self) -> String {
+        if !self.pack.has_levels() {
+            return "[]".to_owned();
+        }
+        let rows: Vec<serde_json::Value> = CefrLevel::ALL
+            .iter()
+            .map(|&level| {
+                let lemmas = self.pack.lemmas_at_level(level);
+                let stats =
+                    self.state
+                        .knowledge
+                        .band_stats(EN, lemmas.iter().map(|(l, _)| *l), &self.pack);
+                serde_json::json!({
+                    "level": level.label(),
+                    "confirmed": stats.confirmed,
+                    "presumed": stats.presumed,
+                    "toLearn": stats.to_learn,
+                    "total": stats.total(),
+                })
+            })
+            .collect();
+        serde_json::to_string(&rows).unwrap_or_else(|_| "[]".to_owned())
+    }
+
+    /// Records one reading exposure per lemma (`source` tag, `at_ms` in millis),
+    /// feeding the distinct-day counters that back exposure-confirmed known.
+    /// Recording never changes a status (design D5) — promotion is the separate,
+    /// explicit `promoteByExposure`.
+    #[wasm_bindgen(js_name = recordExposures)]
+    pub fn record_exposures(&mut self, lemmas: Vec<String>, source: &str, at_ms: f64) {
+        let secs = (at_ms as i64).div_euclid(1000); // exposure timestamps are epoch seconds
+        for lemma in &lemmas {
+            self.state.exposure.record(EN, lemma, 1, source, secs);
+        }
+    }
+
+    /// Confirms presumed-known lemmas that reading has vouched for: below the
+    /// declared level, no explicit status, seen on at least `threshold_days`
+    /// distinct days. Returns the number promoted to `Known(Exposure)`; a no-op
+    /// (0) without a declared level. `at_ms` (millis) stamps the sync timestamp.
+    #[wasm_bindgen(js_name = promoteByExposure)]
+    pub fn promote_by_exposure(&mut self, threshold_days: u32, at_ms: f64) -> usize {
+        self.state
+            .knowledge
+            .promote_by_exposure(
+                EN,
+                &self.state.exposure,
+                &self.pack,
+                threshold_days,
+                at_ms as i64,
+            )
+            .len()
+    }
+
     /// Sets an explicit status for a form. `status` is one of `learning`,
     /// `known`, `ignored`; anything else clears it.
     #[wasm_bindgen(js_name = setStatus)]
@@ -88,6 +237,177 @@ impl LinguaEngine {
             "ignored" => self.state.knowledge.set_status(EN, lemma, Status::Ignored),
             _ => self.state.knowledge.clear_status(EN, lemma),
         }
+    }
+
+    // --- Status sync (add-lingua-connected-clients §2): the extension's outbox
+    // and cursor-pull talk to KnownWordsService in these shapes. English only. ---
+
+    /// Like `setStatus`, but stamps the change with a sync timestamp (epoch
+    /// millis, the caller's clock) so the outbox and cross-device LWW can order
+    /// it. `status` is `learning` | `known` | `ignored`; anything else clears.
+    #[wasm_bindgen(js_name = setStatusAt)]
+    pub fn set_status_at(&mut self, lemma: &str, status: &str, at_ms: f64) {
+        match Status::from_wire(status, "manual") {
+            Some(s) => self
+                .state
+                .knowledge
+                .set_status_at(EN, lemma, s, at_ms as i64),
+            None => self.state.knowledge.clear_status(EN, lemma),
+        }
+    }
+
+    /// The full set of explicit statuses as `StatusOp`-shaped JSON
+    /// (`{language, lemma, status, provenance, updated_at}`), for a push (the
+    /// first-sign-in full upload, or an incremental drain the caller filters).
+    #[wasm_bindgen(js_name = exportStatusOps)]
+    pub fn export_status_ops(&self) -> String {
+        let ops: Vec<serde_json::Value> = self
+            .state
+            .knowledge
+            .export_statuses()
+            .into_iter()
+            .map(|r| {
+                serde_json::json!({
+                    "language": "en",
+                    "lemma": r.lemma,
+                    "status": r.status.wire_kind(),
+                    "provenance": r.status.wire_provenance(),
+                    "updated_at": r.updated_at,
+                })
+            })
+            .collect();
+        serde_json::to_string(&ops).unwrap_or_else(|_| "[]".to_owned())
+    }
+
+    /// Apply a batch of pulled `StatusChange`s (JSON array of
+    /// `{language, lemma, status, updated_at}`) under last-write-wins. Returns
+    /// how many changed local state. A pulled change carries no provenance, so a
+    /// synced `known` lands as manual (the provenance nuance stays device-local).
+    #[wasm_bindgen(js_name = applyStatusChanges)]
+    pub fn apply_status_changes(&mut self, json: &str) -> Result<usize, JsError> {
+        let changes: Vec<serde_json::Value> =
+            serde_json::from_str(json).map_err(|e| JsError::new(&e.to_string()))?;
+        let mut changed = 0usize;
+        for c in &changes {
+            if c.get("language").and_then(|v| v.as_str()).unwrap_or("en") != "en" {
+                continue; // the MVP studies English only
+            }
+            let Some(lemma) = c.get("lemma").and_then(|v| v.as_str()) else {
+                continue;
+            };
+            let kind = c.get("status").and_then(|v| v.as_str()).unwrap_or("");
+            let updated_at = c
+                .get("updated_at")
+                .and_then(serde_json::Value::as_i64)
+                .unwrap_or(0);
+            if self.state.knowledge.apply_status_lww(
+                EN,
+                lemma,
+                Status::from_wire(kind, "manual"),
+                updated_at,
+            ) {
+                changed += 1;
+            }
+        }
+        Ok(changed)
+    }
+
+    /// The whole deck as `CardOp`-shaped JSON for a push to `DeckService`
+    /// (one card per lemma; `client_id` = lemma). The FSRS state travels as an
+    /// opaque JSON string. `device_id` is left empty for the caller to attach;
+    /// `client_ts` is the card's `updated_at` in millis.
+    #[wasm_bindgen(js_name = exportCardOps)]
+    pub fn export_card_ops(&self) -> String {
+        let ops: Vec<serde_json::Value> = self
+            .state
+            .deck
+            .export_cards()
+            .into_iter()
+            .map(|(_lang, card)| {
+                let source = match &card.provenance.source {
+                    EncounterSource::Web { url } => url.clone(),
+                    _ => String::new(), // agent-captured cards are local-only; no source on the wire
+                };
+                serde_json::json!({
+                    "client_id": card.lemma,
+                    "language": "en",
+                    "lemma": card.lemma,
+                    "surface_form": card.encountered_form,
+                    "source_sentence": card.provenance.sentence,
+                    "source": source,
+                    "gloss": card.gloss.clone().unwrap_or_default(),
+                    "fsrs_state": serde_json::to_string(&card.review).unwrap_or_default(),
+                    "deleted": false,
+                    "client_ts": card.updated_at * 1000,
+                    "device_id": "",
+                })
+            })
+            .collect();
+        serde_json::to_string(&ops).unwrap_or_else(|_| "[]".to_owned())
+    }
+
+    /// Apply a batch of pulled `CardOp`s (JSON array) under last-write-wins.
+    /// Returns how many changed local state. `deleted` ops are skipped — card
+    /// deletion is not an MVP feature (mark-known retires a card, it does not
+    /// remove it), and the tombstones a correct delete would need arrive with the
+    /// change that adds deletion. `captured_at` has no wire field, so a first-seen
+    /// card takes the op timestamp as a proxy; the deck preserves it thereafter.
+    #[wasm_bindgen(js_name = applyCardOps)]
+    pub fn apply_card_ops(&mut self, json: &str) -> Result<usize, JsError> {
+        let ops: Vec<serde_json::Value> =
+            serde_json::from_str(json).map_err(|e| JsError::new(&e.to_string()))?;
+        let mut changed = 0usize;
+        for op in &ops {
+            if op.get("language").and_then(|v| v.as_str()).unwrap_or("en") != "en" {
+                continue;
+            }
+            if op
+                .get("deleted")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false)
+            {
+                continue; // deletion + tombstones are a future change
+            }
+            let lemma = op
+                .get("lemma")
+                .or_else(|| op.get("client_id"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            if lemma.is_empty() {
+                continue;
+            }
+            let str_field = |k: &str| op.get(k).and_then(|v| v.as_str()).unwrap_or("").to_owned();
+            let client_ts = op
+                .get("client_ts")
+                .and_then(serde_json::Value::as_i64)
+                .unwrap_or(0);
+            let updated_at = client_ts / 1000; // wire millis → the deck's second-based unit
+            let gloss = op
+                .get("gloss")
+                .and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty())
+                .map(str::to_owned);
+            let review: ReviewState =
+                serde_json::from_str(&str_field("fsrs_state")).unwrap_or_default();
+            let mut card = Card::new(
+                lemma,
+                &str_field("surface_form"),
+                Provenance {
+                    sentence: str_field("source_sentence"),
+                    source: EncounterSource::Web {
+                        url: str_field("source"),
+                    },
+                    captured_at: updated_at,
+                },
+                gloss,
+            );
+            card.review = review;
+            card.updated_at = updated_at;
+            if self.state.deck.apply_card_lww(EN, card) {
+                changed += 1;
+            }
+        }
+        Ok(changed)
     }
 
     /// Analyses a batch of blocks, returning the canonical JSON of the page
@@ -136,6 +456,47 @@ impl LinguaEngine {
             gloss,
         );
         self.state.deck.upsert(EN, card);
+    }
+
+    /// Retire the deck card for `lemma` if present (keep it, stop it coming due) — used
+    /// when a word is reclassified `known`/`ignored` outside a review, so its card stops
+    /// surfacing. `now` is Unix-epoch seconds (the card's time unit). No-op when there is
+    /// no card for the lemma.
+    #[wasm_bindgen(js_name = retireCard)]
+    pub fn retire_card(&mut self, lemma: &str, now: f64) {
+        self.state.deck.retire(EN, lemma, now as i64);
+    }
+
+    /// Seeds up to `count` deck cards from a CEFR level's lemmas. `order` is
+    /// `"common"` (commonest-first, the default) or `"rare"`; unranked lemmas
+    /// always sort last. Skips lemmas already carded or with an explicit status.
+    /// `at` is Unix-epoch seconds. Returns the number actually added; a no-op (0)
+    /// for an unknown level or a pack with no CEFR data.
+    #[wasm_bindgen(js_name = seedLevel)]
+    pub fn seed_level(&mut self, level: &str, count: usize, order: &str, at: f64) -> usize {
+        let Some(lvl) = CefrLevel::from_label(level) else {
+            return 0;
+        };
+        let mut items = self.pack.lemmas_at_level(lvl);
+        if order == "rare" {
+            items.sort_by_key(|(l, _)| {
+                (
+                    self.pack.rank(l).is_none(),
+                    std::cmp::Reverse(self.pack.rank(l).unwrap_or(0)),
+                )
+            });
+        } else {
+            items.sort_by_key(|(l, _)| {
+                (self.pack.rank(l).is_none(), self.pack.rank(l).unwrap_or(0))
+            });
+        }
+        self.state.deck.seed_lemmas(
+            EN,
+            items.iter().map(|(l, g)| (*l, *g)),
+            &self.state.knowledge,
+            count,
+            at as i64,
+        )
     }
 
     /// Total number of cards in the deck.
@@ -232,10 +593,20 @@ impl LinguaEngine {
         Ok(())
     }
 
-    /// Resets the whole state to empty defaults (a full reset). The caller
+    /// Resets the whole state to empty defaults (a full reset) — statuses,
+    /// exposure counters, and the whole deck (review cards + FSRS). The caller
     /// re-applies its default calibration afterwards.
     pub fn reset(&mut self) {
         self.state = LinguaState::default();
+        self.session = None;
+    }
+
+    /// A partial reset: clears explicit statuses, calibration and the declared
+    /// level, but KEEPS the deck (review cards + FSRS) and the exposure
+    /// counters. The caller re-applies its default calibration afterwards.
+    #[wasm_bindgen(js_name = resetStatuses)]
+    pub fn reset_statuses(&mut self) {
+        self.state.knowledge = KnowledgeState::default();
         self.session = None;
     }
 

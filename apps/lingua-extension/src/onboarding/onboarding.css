@@ -1,0 +1,103 @@
+/* First-run welcome page (a surface the extension owns → full Cymbra identity).
+   Colours come only from tokens.css; no colour literal here. */
+.onboarding {
+  margin: 0;
+  background: var(--cymbra-lingua-bg);
+  color: var(--cymbra-lingua-text);
+  font-family: var(--cymbra-lingua-font);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.onboarding main {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 48px 24px 64px;
+}
+
+.onboarding h1 {
+  margin: 0 0 12px;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.onboarding h2 {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.onboarding .lead {
+  color: var(--cymbra-lingua-muted);
+  margin: 0 0 32px;
+}
+
+.onboarding section {
+  padding: 20px;
+  margin-bottom: 18px;
+  border: 1px solid var(--cymbra-lingua-border);
+  border-radius: var(--cymbra-lingua-radius-lg);
+  background: var(--cymbra-lingua-panel);
+}
+
+.onboarding .muted {
+  color: var(--cymbra-lingua-muted);
+  font-size: 13px;
+  margin: 0 0 14px;
+}
+
+.onboarding .chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.onboarding .lvl {
+  cursor: pointer;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--cymbra-lingua-border-2);
+  background: var(--cymbra-lingua-panel-2);
+  color: var(--cymbra-lingua-muted);
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.onboarding .lvl:hover {
+  background: var(--cymbra-lingua-panel-3);
+  color: var(--cymbra-lingua-text);
+}
+
+.onboarding .lvl.active {
+  background: var(--cymbra-lingua-accent-strong);
+  border-color: var(--cymbra-lingua-accent-strong);
+  color: var(--cymbra-lingua-accent-ink);
+  font-weight: 600;
+}
+
+.onboarding .beginner {
+  flex-basis: 100%;
+}
+
+.onboarding .confirm {
+  margin: 14px 0 0;
+  color: var(--cymbra-lingua-green);
+  font-size: 14px;
+}
+
+.onboarding ol {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--cymbra-lingua-muted);
+}
+
+.onboarding li {
+  margin: 4px 0;
+}
+
+.onboarding .lvl:focus-visible,
+.onboarding a:focus-visible {
+  outline: 2px solid var(--cymbra-lingua-accent);
+  outline-offset: 2px;
+}

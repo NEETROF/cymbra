@@ -16,6 +16,8 @@
 mod android_output;
 pub mod audio;
 mod audio_core;
+pub mod audio_input;
+mod audio_input_core;
 pub mod midi;
 mod midi_core;
 pub mod musicxml;

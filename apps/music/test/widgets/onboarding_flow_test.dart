@@ -60,6 +60,7 @@ ProviderContainer _container({
   required FakePreferencesService prefs,
   Locale device = const Locale('en'),
   FakeTokenStore? store,
+  FakeAccountService? account,
 }) {
   final container = ProviderContainer(
     overrides: [
@@ -73,7 +74,7 @@ ProviderContainer _container({
       soundFontCatalogServiceProvider.overrideWithValue(
         FakeSoundFontCatalogService(),
       ),
-      accountServiceProvider.overrideWithValue(FakeAccountService()),
+      accountServiceProvider.overrideWithValue(account ?? FakeAccountService()),
       oidcTokenSourceProvider.overrideWithValue(FakeOidcTokenSource()),
       curatorRewardsServiceProvider.overrideWithValue(
         const FakeCuratorRewardsService(),
@@ -184,11 +185,97 @@ void main() {
     await tester.tap(find.byKey(const Key('welcome-skip')));
     await tester.pumpAndSettle();
 
-    // Skipping lands on the entry screen — which still offers continuing
-    // without an account, so nothing is gated behind a mandatory sign-up.
+    // Skipping enters guest mode and opens the app, with no account entry
+    // screen in between (change: open-app-without-sign-in-wall).
     expect(find.byType(WelcomeScreen), findsNothing);
-    expect(find.byKey(const Key('entry-guest')), findsOneWidget);
+    expect(find.byType(EntryScreen), findsNothing);
+    expect(container.read(sessionNotifierProvider), isA<SessionGuest>());
+    expect(find.byType(LibraryScreen), findsOneWidget);
     expect(prefs.store[Onboarding.welcomePrefsKey], 'true');
+
+    // Unmount here: the library warms providers that own timers, cancelled on
+    // container dispose — which the binding checks before tear-downs run.
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+    container.dispose();
+  });
+
+  testWidgets('continuing without an account enters guest mode, not the wall', (
+    tester,
+  ) async {
+    final prefs = FakePreferencesService({Onboarding.languagePrefsKey: 'true'});
+    final container = _container(prefs: prefs);
+    await _pump(tester, container);
+    await _toLastWelcomePage(tester);
+
+    await tester.tap(find.byKey(const Key('welcome-continue')));
+    await tester.pumpAndSettle();
+
+    // The button says "without an account", and that is what it now does.
+    expect(find.byType(EntryScreen), findsNothing);
+    expect(container.read(sessionNotifierProvider), isA<SessionGuest>());
+    expect(find.byType(LibraryScreen), findsOneWidget);
+    expect(prefs.store[Onboarding.welcomePrefsKey], 'true');
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+    container.dispose();
+  });
+
+  testWidgets('leaving sign-in from the welcome returns to the welcome', (
+    tester,
+  ) async {
+    final prefs = FakePreferencesService({Onboarding.languagePrefsKey: 'true'});
+    final container = _container(prefs: prefs);
+    await _pump(tester, container);
+    await _toLastWelcomePage(tester);
+
+    await tester.tap(find.byKey(const Key('welcome-sign-in')));
+    await tester.pumpAndSettle();
+    // The contextual invitation opens over the welcome — not the entry screen.
+    expect(find.byKey(const Key('sign-in-invitation')), findsOneWidget);
+    expect(find.byType(EntryScreen), findsNothing);
+
+    await tester.tap(find.byKey(const Key('sign-in-invitation-decline')));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(WelcomeScreen), findsOneWidget);
+    expect(
+      container.read(sessionNotifierProvider),
+      isA<SessionUnauthenticated>(),
+    );
+    expect(prefs.store[Onboarding.welcomePrefsKey], isNull);
+  });
+
+  testWidgets('signing in from the welcome ends it', (tester) async {
+    final prefs = FakePreferencesService({Onboarding.languagePrefsKey: 'true'});
+    final container = _container(
+      prefs: prefs,
+      // A brand-new account: the handle gate follows, not the welcome again.
+      account: FakeAccountService(account: fakeAccount(handle: null)),
+    );
+    await _pump(tester, container);
+    await _toLastWelcomePage(tester);
+
+    await tester.tap(find.byKey(const Key('welcome-sign-in')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('sign-in-invitation-accept')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('invite-google')));
+    await _frames(tester, 20);
+
+    expect(container.read(canUseOnlineServicesProvider), isTrue);
+    expect(find.byType(WelcomeScreen), findsNothing);
+    expect(find.byType(EntryScreen), findsNothing);
+    expect(prefs.store[Onboarding.welcomePrefsKey], 'true');
+
+    // A signed-in session starts account-scoped calls whose transport deadlines
+    // arm timers; let them run out before unmounting, or the binding reports
+    // them as pending once the tree is gone.
+    await tester.pump(const Duration(minutes: 1));
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+    container.dispose();
   });
 
   testWidgets('the shipped CymbraApp opens on the first-run step', (

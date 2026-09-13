@@ -39,6 +39,20 @@ pub struct Exposure {
     /// Unix-epoch seconds of the most recent encounter, supplied by the
     /// caller.
     pub last_seen: i64,
+    /// UTC day number (whole days since the Unix epoch) of the most recent
+    /// encounter. Kept so distinct reading days can be counted without storing
+    /// every day. `#[serde(default)]` so an older backup restores with 0.
+    #[serde(default)]
+    pub last_day: i64,
+    /// Number of distinct UTC days on which the lemma has been encountered. It
+    /// is the promotion signal (`add-lingua-cefr-levels`): "read repeatedly over
+    /// time", not "seen many times in one page". Advanced only when a record
+    /// lands on a later day than `last_day`, so it is exact for the
+    /// forward-in-time reading stream and bounded to two extra fields; an
+    /// out-of-order earlier record does not inflate it. `#[serde(default)]` so
+    /// an older backup restores with 0.
+    #[serde(default)]
+    pub distinct_days: u32,
 }
 
 /// Exposure counters for the whole knowledge model, deterministic (ordered
@@ -75,10 +89,20 @@ impl ExposureCounters {
                 occurrences: 0,
                 last_source: String::new(),
                 last_seen: 0,
+                last_day: 0,
+                distinct_days: 0,
             });
         entry.occurrences += count;
         entry.last_source = source.to_owned();
         entry.last_seen = timestamp;
+        // Whole UTC days since the epoch. A first record (distinct_days == 0) or
+        // one on a later day than the last advances the distinct-day count; a
+        // same-day or out-of-order-earlier record does not.
+        let day = timestamp.div_euclid(86_400);
+        if entry.distinct_days == 0 || day > entry.last_day {
+            entry.distinct_days = entry.distinct_days.saturating_add(1);
+            entry.last_day = day;
+        }
     }
 
     /// The exposure record for a lemma, if it has ever been seen.
@@ -86,6 +110,15 @@ impl ExposureCounters {
         self.counters
             .get(&lang)
             .and_then(|per_lang| per_lang.get(lemma))
+    }
+
+    /// Every recorded lemma for a language, with its exposure, in deterministic
+    /// (lemma) order — the source the exposure-promotion pass folds over.
+    pub fn lemmas(&self, lang: StudiedLanguage) -> impl Iterator<Item = (&str, &Exposure)> + '_ {
+        self.counters
+            .get(&lang)
+            .into_iter()
+            .flat_map(|per_lang| per_lang.iter().map(|(lemma, exp)| (lemma.as_str(), exp)))
     }
 
     /// Number of distinct lemmas with any exposure across all languages.
@@ -127,5 +160,37 @@ mod tests {
     fn unseen_lemma_has_no_record() {
         let counters = ExposureCounters::new();
         assert_eq!(counters.get(EN, "never"), None);
+    }
+
+    const DAY: i64 = 86_400;
+
+    #[test]
+    fn distinct_days_count_days_not_occurrences() {
+        let mut counters = ExposureCounters::new();
+        // Three encounters on day 0, one on day 1: two distinct days.
+        counters.record(EN, "run", 1, "p1", 10);
+        counters.record(EN, "run", 5, "p2", 20);
+        counters.record(EN, "run", 1, "p3", DAY + 5);
+        let exp = counters.get(EN, "run").expect("recorded");
+        assert_eq!(exp.occurrences, 7);
+        assert_eq!(exp.distinct_days, 2);
+    }
+
+    #[test]
+    fn an_out_of_order_earlier_record_does_not_inflate_distinct_days() {
+        let mut counters = ExposureCounters::new();
+        counters.record(EN, "run", 1, "p", 3 * DAY);
+        counters.record(EN, "run", 1, "p", DAY); // earlier day, arrives later
+        let exp = counters.get(EN, "run").expect("recorded");
+        assert_eq!(exp.distinct_days, 1);
+    }
+
+    #[test]
+    fn lemmas_iterates_in_lemma_order() {
+        let mut counters = ExposureCounters::new();
+        counters.record(EN, "zebra", 1, "p", 0);
+        counters.record(EN, "apple", 1, "p", 0);
+        let seen: Vec<&str> = counters.lemmas(EN).map(|(l, _)| l).collect();
+        assert_eq!(seen, ["apple", "zebra"]);
     }
 }

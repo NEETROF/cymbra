@@ -1,5 +1,14 @@
-import type { LinguaPort, NewCard, Rating, ReviewCard } from "./port.ts";
-import type { LemmaStatus, PageAnalysis } from "./types.ts";
+import type {
+  CardOp,
+  DeclaredLevelOp,
+  LinguaPort,
+  NewCard,
+  Rating,
+  ReviewCard,
+  StatusChangeIn,
+  StatusOp,
+} from "./port.ts";
+import type { CefrLevel, LemmaStatus, LevelRow, PageAnalysis, SeedOrder } from "./types.ts";
 
 // The Chromium LinguaPort implementation: the lingua-core WASM module instantiated
 // lazily in the content script's isolated world (design D2). This is the only place
@@ -27,6 +36,7 @@ interface WasmEngine {
     gloss: string | null | undefined,
     capturedAt: number,
   ): void;
+  retireCard(lemma: string, now: number): void;
   deckCount(): number;
   dueCount(now: number): number;
   startReview(now: number): number;
@@ -37,8 +47,24 @@ interface WasmEngine {
   backup(): string;
   restore(json: string): void;
   reset(): void;
+  resetStatuses(): void;
   notice(): string;
   licences(): string;
+  setStatusAt(lemma: string, status: string, atMs: number): void;
+  exportStatusOps(): string;
+  applyStatusChanges(json: string): number;
+  exportCardOps(): string;
+  applyCardOps(json: string): number;
+  setDeclaredLevel(level: string): void;
+  setDeclaredLevelAt(level: string, atMs: number): void;
+  declaredLevel(): string | undefined;
+  exportDeclaredLevels(): string;
+  applyDeclaredLevelChanges(json: string): number;
+  hasLevels(): boolean;
+  levelLadder(): string;
+  recordExposures(lemmas: string[], source: string, atMs: number): void;
+  promoteByExposure(thresholdDays: number, atMs: number): number;
+  seedLevel(level: string, count: number, order: string, at: number): number;
   free(): void;
 }
 
@@ -113,6 +139,10 @@ export class WasmAnalyzerPort implements LinguaPort {
     (await this.engine()).addCard(card.lemma, card.surface, card.sentence, card.url, card.gloss, card.capturedAt);
   }
 
+  async retireCard(lemma: string, now: number): Promise<void> {
+    (await this.engine()).retireCard(lemma, now);
+  }
+
   async deckCount(): Promise<number> {
     return (await this.engine()).deckCount();
   }
@@ -154,11 +184,77 @@ export class WasmAnalyzerPort implements LinguaPort {
     (await this.engine()).reset();
   }
 
+  async resetStatuses(): Promise<void> {
+    (await this.engine()).resetStatuses();
+  }
+
   async notice(): Promise<string> {
     return (await this.engine()).notice();
   }
 
   async licences(): Promise<string[]> {
     return JSON.parse((await this.engine()).licences()) as string[];
+  }
+
+  async setStatusAt(lemma: string, status: LemmaStatus | null, atMs: number): Promise<void> {
+    (await this.engine()).setStatusAt(lemma, status ?? CLEAR, atMs);
+  }
+
+  async exportStatusOps(): Promise<StatusOp[]> {
+    return JSON.parse((await this.engine()).exportStatusOps()) as StatusOp[];
+  }
+
+  async applyStatusChanges(changes: StatusChangeIn[]): Promise<number> {
+    return (await this.engine()).applyStatusChanges(JSON.stringify(changes));
+  }
+
+  async exportCardOps(): Promise<CardOp[]> {
+    return JSON.parse((await this.engine()).exportCardOps()) as CardOp[];
+  }
+
+  async applyCardOps(ops: CardOp[]): Promise<number> {
+    return (await this.engine()).applyCardOps(JSON.stringify(ops));
+  }
+
+  // --- CEFR levels (add-lingua-cefr-levels) ---
+
+  async setDeclaredLevel(level: CefrLevel | null): Promise<void> {
+    (await this.engine()).setDeclaredLevel(level ?? "");
+  }
+
+  async setDeclaredLevelAt(level: CefrLevel | null, atMs: number): Promise<void> {
+    (await this.engine()).setDeclaredLevelAt(level ?? "", atMs);
+  }
+
+  async declaredLevel(): Promise<CefrLevel | null> {
+    return ((await this.engine()).declaredLevel() as CefrLevel | undefined) ?? null;
+  }
+
+  async exportDeclaredLevels(): Promise<DeclaredLevelOp[]> {
+    return JSON.parse((await this.engine()).exportDeclaredLevels()) as DeclaredLevelOp[];
+  }
+
+  async applyDeclaredLevelChanges(changes: DeclaredLevelOp[]): Promise<number> {
+    return (await this.engine()).applyDeclaredLevelChanges(JSON.stringify(changes));
+  }
+
+  async hasLevels(): Promise<boolean> {
+    return (await this.engine()).hasLevels();
+  }
+
+  async levelLadder(): Promise<LevelRow[]> {
+    return JSON.parse((await this.engine()).levelLadder()) as LevelRow[];
+  }
+
+  async recordExposures(lemmas: string[], source: string, atMs: number): Promise<void> {
+    (await this.engine()).recordExposures(lemmas, source, atMs);
+  }
+
+  async promoteByExposure(thresholdDays: number, atMs: number): Promise<number> {
+    return (await this.engine()).promoteByExposure(thresholdDays, atMs);
+  }
+
+  async seedLevel(level: CefrLevel, count: number, order: SeedOrder, at: number): Promise<number> {
+    return (await this.engine()).seedLevel(level, count, order, at);
   }
 }

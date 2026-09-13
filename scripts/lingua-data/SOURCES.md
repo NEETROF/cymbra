@@ -12,7 +12,10 @@ the denylist and refuses to build on a denied source.
 | `forms.tsv` (`form → lemma`) | **AGID** (Automatically Generated Inflection Database, SCOWL/aspell family) | Permissive — "use, copy, modify, distribute and sell", notices retained (WordNet, 2of12id, ENABLE, … upstream) | invert `infl.txt` to form→lemma pairs |
 | `freq.tsv` (`lemma → rank`) | **wordfreq** English large list | CC BY-SA 4.0 (incl. SUBTLEX with Brysbaert's permission) | top ~50k lemmas, dense rank |
 | `gloss.tsv` (`lemma → gloss`) | **kaikki.org** extract of the French Wiktionary (`frwiktionary`) | CC BY-SA 4.0 + GFDL | one short French gloss per lemma, top ~20–30k lemmas (arbitrated by the 5 MB budget) |
+| `level.tsv` (`lemma → CEFR`) *(optional)* | **CEFR-J Wordlist v1.5** (A1–B2, Tono Lab / TUFS) + **Octanove Vocabulary Profile C1/C2 v1.0** (C1–C2, Octanove Labs), both from the Open Language Profiles repo | CEFR-J: commercial use allowed with acknowledgement; Octanove: CC BY-SA 4.0 | lowest CEFR level per kept lemma across POS rows; the only pairing that covers A1→C2 with commercial-redistribution rights (Octanove was built to extend CEFR-J past B2) |
 | `NOTICE` | all of the above | — | the full attribution stack, embedded in the pack and shown on the extension's Attributions page |
+
+The CEFR level table is **optional and additive**: a pair without licence-clean CEFR data ships no `level.tsv`, the builder emits no `levels` section, and the reader falls back to frequency bands. Adding the section does **not** bump `analyzer_version` — it is behaviour-preserving (level-based presumed-known only activates once the user declares a level), so old cores load a level-bearing pack and simply ignore the section.
 
 ## Allowed vs denied licences
 

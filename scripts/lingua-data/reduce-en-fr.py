@@ -159,7 +159,43 @@ wordfreq (English frequency list): CC BY-SA 4.0 (includes SUBTLEX with Brysbaert
 permission).
 
 kaikki.org extract of the French Wiktionary (frwiktionary): CC BY-SA 4.0 + GFDL.
+
+CEFR-J: The CEFR-J Wordlist Version 1.5. Compiled by Yukio Tono, Tokyo University of
+Foreign Studies. Used for research and commercial purposes with acknowledgement of the
+source.
+
+Octanove: Octanove Vocabulary Profile C1/C2 v1.0, Octanove Labs, CC BY-SA 4.0.
 """
+
+# CEFR level order (A1 lowest). A lemma listed at several levels/POS takes the LOWEST
+# (earliest-taught) level — the collapse rule from the design.
+_LEVEL_RANK = {"A1": 1, "A2": 2, "B1": 3, "B2": 4, "C1": 5, "C2": 6}
+
+
+def reduce_levels(cefrj_path, octanove_path, lemmas):
+    """Lowest CEFR level per kept lemma, from CEFR-J (A1-B2) + Octanove (C1-C2).
+
+    Both CSVs share the columns `headword,pos,CEFR,...`. A headword may be a
+    slash-joined set of variants (e.g. "a.m./A.M./am/AM"); each alphabetic variant
+    is mapped. Only lemmas we actually keep in the pack are emitted.
+    """
+    import csv
+
+    best = {}  # lemma -> lowest level rank seen
+    for path in (cefrj_path, octanove_path):
+        if not os.path.exists(path):
+            continue
+        with open(path, encoding="utf-8", errors="replace", newline="") as f:
+            for row in csv.DictReader(f):
+                rank = _LEVEL_RANK.get((row.get("CEFR") or "").strip().upper())
+                if rank is None:
+                    continue
+                for part in (row.get("headword") or "").split("/"):
+                    w = part.strip().lower()
+                    if _TOKEN.fullmatch(w) and w in lemmas and rank < best.get(w, 99):
+                        best[w] = rank
+    inv = {v: k for k, v in _LEVEL_RANK.items()}
+    return {w: inv[r] for w, r in best.items()}
 
 
 def write(work, name, text):
@@ -186,6 +222,11 @@ def main():
     forms = {(f, l) for f, l in pairs if l in lemmas}
     forms |= {(l, l) for l in lemmas}
     glosses = reduce_gloss(os.path.join(a.work, "kaikki-Anglais.jsonl"), lemmas, a.max_gloss_len)
+    levels = reduce_levels(
+        os.path.join(a.work, "cefrj-vocabulary-profile-1.5.csv"),
+        os.path.join(a.work, "octanove-vocabulary-profile-c1c2-1.0.csv"),
+        lemmas,
+    )
 
     write(a.work, "forms.tsv", "".join(f"{f}\t{l}\n" for f, l in sorted(forms)))
     write(
@@ -194,6 +235,7 @@ def main():
         "".join(f"{l}\t{r}\n" for l, r in sorted(ranks.items(), key=lambda kv: kv[1])),
     )
     write(a.work, "gloss.tsv", "".join(f"{l}\t{g}\n" for l, g in sorted(glosses.items())))
+    write(a.work, "level.tsv", "".join(f"{l}\t{lvl}\n" for l, lvl in sorted(levels.items())))
     write(a.work, "NOTICE", NOTICE)
     manifest = {
         "meta": {
@@ -205,17 +247,24 @@ def main():
                 "AGID (permissive, commercial use allowed)",
                 "wordfreq (CC BY-SA 4.0)",
                 "kaikki / frwiktionary (CC BY-SA 4.0 + GFDL)",
+                "CEFR-J Wordlist v1.5 (commercial use allowed with attribution)",
+                "Octanove Vocabulary Profile C1/C2 v1.0 (CC BY-SA 4.0)",
             ],
         },
         "sources": [
             {"name": "AGID", "licence": "Permissive"},
             {"name": "wordfreq", "licence": "CcBySa"},
             {"name": "kaikki", "licence": "CcBySa"},
+            {"name": "CEFR-J", "licence": "Permissive"},
+            {"name": "Octanove", "licence": "CcBySa"},
         ],
     }
     write(a.work, "manifest.json", json.dumps(manifest, indent=2, ensure_ascii=False) + "\n")
 
-    print(f"reduced en-fr: forms={len(forms)} lemmas={len(ranks)} gloss={len(glosses)}")
+    print(
+        f"reduced en-fr: forms={len(forms)} lemmas={len(ranks)} "
+        f"gloss={len(glosses)} levels={len(levels)}"
+    )
 
 
 if __name__ == "__main__":

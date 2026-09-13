@@ -5,9 +5,9 @@
       "native": "fr",
       "pack_version": "0.0.0-testdata",
       "analyzer_version": "1.1.0",
-      "built_at": "2026-09-11",
-      "size_bytes": 747,
-      "notice": "Cymbra Lingua data pack — attributions (test fixture).\n\nAGID: permission to use, copy, modify, distribute and sell, with notices retained (WordNet, 2of12id, ENABLE upstream).\nwordfreq: CC BY-SA 4.0.\nkaikki / frwiktionary: CC BY-SA 4.0 + GFDL.\n"
+      "built_at": "2026-09-12",
+      "size_bytes": 1142,
+      "notice": "Cymbra Lingua data pack — attributions (test fixture).\n\nAGID: permission to use, copy, modify, distribute and sell, with notices retained (WordNet, 2of12id, ENABLE upstream).\nwordfreq: CC BY-SA 4.0.\nkaikki / frwiktionary: CC BY-SA 4.0 + GFDL.\nCEFR-J: The CEFR-J Wordlist Version 1.5. Compiled by Yukio Tono, Tokyo University of Foreign Studies. Used for research and commercial purposes with acknowledgement of the source.\nOctanove: Octanove Vocabulary Profile C1/C2 v1.0, Octanove Labs, CC BY-SA 4.0.\n"
     }
   ]
 }

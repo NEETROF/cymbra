@@ -1,5 +1,14 @@
-import type { LinguaPort, NewCard, Rating, ReviewCard } from "./port.ts";
-import type { PageAnalysis } from "./types.ts";
+import type {
+  CardOp,
+  DeclaredLevelOp,
+  LinguaPort,
+  NewCard,
+  Rating,
+  ReviewCard,
+  StatusChangeIn,
+  StatusOp,
+} from "./port.ts";
+import type { CefrLevel, LemmaStatus, LevelRow, PageAnalysis, SeedOrder } from "./types.ts";
 import { sendRpc } from "./rpc.ts";
 
 // The Firefox AnalyzerPort implementation: a thin LinguaPort that forwards every call
@@ -37,6 +46,9 @@ export class MessagingLinguaPort implements LinguaPort {
   addCard(card: NewCard): Promise<void> {
     return this.rpc("addCard", [card]);
   }
+  retireCard(lemma: string, now: number): Promise<void> {
+    return this.rpc("retireCard", [lemma, now]);
+  }
   deckCount(): Promise<number> {
     return this.rpc("deckCount");
   }
@@ -67,10 +79,58 @@ export class MessagingLinguaPort implements LinguaPort {
   reset(): Promise<void> {
     return this.rpc("reset");
   }
+  resetStatuses(): Promise<void> {
+    return this.rpc("resetStatuses");
+  }
   notice(): Promise<string> {
     return this.rpc("notice");
   }
   licences(): Promise<string[]> {
     return this.rpc("licences");
+  }
+  setStatusAt(lemma: string, status: LemmaStatus | null, atMs: number): Promise<void> {
+    return this.rpc("setStatusAt", [lemma, status, atMs]);
+  }
+  exportStatusOps(): Promise<StatusOp[]> {
+    return this.rpc("exportStatusOps");
+  }
+  applyStatusChanges(changes: StatusChangeIn[]): Promise<number> {
+    return this.rpc("applyStatusChanges", [changes]);
+  }
+  exportCardOps(): Promise<CardOp[]> {
+    return this.rpc("exportCardOps");
+  }
+  applyCardOps(ops: CardOp[]): Promise<number> {
+    return this.rpc("applyCardOps", [ops]);
+  }
+  setDeclaredLevel(level: CefrLevel | null): Promise<void> {
+    return this.rpc("setDeclaredLevel", [level]);
+  }
+  setDeclaredLevelAt(level: CefrLevel | null, atMs: number): Promise<void> {
+    return this.rpc("setDeclaredLevelAt", [level, atMs]);
+  }
+  declaredLevel(): Promise<CefrLevel | null> {
+    return this.rpc("declaredLevel");
+  }
+  exportDeclaredLevels(): Promise<DeclaredLevelOp[]> {
+    return this.rpc("exportDeclaredLevels");
+  }
+  applyDeclaredLevelChanges(changes: DeclaredLevelOp[]): Promise<number> {
+    return this.rpc("applyDeclaredLevelChanges", [changes]);
+  }
+  hasLevels(): Promise<boolean> {
+    return this.rpc("hasLevels");
+  }
+  levelLadder(): Promise<LevelRow[]> {
+    return this.rpc("levelLadder");
+  }
+  recordExposures(lemmas: string[], source: string, atMs: number): Promise<void> {
+    return this.rpc("recordExposures", [lemmas, source, atMs]);
+  }
+  promoteByExposure(thresholdDays: number, atMs: number): Promise<number> {
+    return this.rpc("promoteByExposure", [thresholdDays, atMs]);
+  }
+  seedLevel(level: CefrLevel, count: number, order: SeedOrder, at: number): Promise<number> {
+    return this.rpc("seedLevel", [level, count, order, at]);
   }
 }

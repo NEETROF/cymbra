@@ -68,6 +68,11 @@
 	     Apple requires a purpose string even though the app does not currently
 	     use these APIs. Access is only requested if the user picks an image
 	     (e.g. an avatar); the app functions fully without granting it. -->
+	<!-- Acoustic piano input (change: add-acoustic-piano-input): the microphone
+	     is opened only when the user selects the microphone input source or runs
+	     the input calibration, and never outside those features. -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Cymbra listens to your acoustic instrument through the microphone so it can follow the notes you play.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Cymbra can use the camera if you choose to take a photo, for example to set a profile picture.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

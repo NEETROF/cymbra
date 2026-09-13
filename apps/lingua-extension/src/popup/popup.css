@@ -1,5 +1,14 @@
 /* Icon-popup styles (a surface the extension owns → full Cymbra identity). Colours
    come only from tokens.css (loaded before this sheet). No colour literals here. */
+
+/* The `hidden` attribute must always win: an id/class rule that sets `display`
+   (e.g. #reset-menu { display: flex }) otherwise overrides the UA `[hidden]`
+   rule, so a toggled flex/grid block stays visible. Toggle visibility via
+   `el.hidden`, and this keeps it honest. */
+[hidden] {
+  display: none !important;
+}
+
 body {
   width: 280px;
   margin: 0;
@@ -11,10 +20,61 @@ body {
 }
 
 h1 {
-  margin: 0 0 10px;
+  margin: 0;
   font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.02em;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  cursor: pointer;
+  border: 1px solid var(--cymbra-lingua-border-2);
+  border-radius: 8px;
+  background: var(--cymbra-lingua-panel-2);
+  color: var(--cymbra-lingua-muted);
+}
+
+.icon-btn:hover {
+  background: var(--cymbra-lingua-panel-3);
+  color: var(--cymbra-lingua-text);
+}
+
+.settings-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.settings-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.setting-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.setting-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cymbra-lingua-text);
 }
 
 /* Master on/off toggle (a real checkbox styled as a switch). */
@@ -136,10 +196,77 @@ h1 {
   font-size: 12px;
 }
 
-.calib {
-  margin: 14px 0 6px;
-  padding-top: 12px;
-  border-top: 1px solid var(--cymbra-lingua-border);
+.setting-block + .setting-block {
+  margin-top: 18px;
+}
+
+.level {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Compact level reminder shown on the main panel (the picker lives in Réglages). */
+.level-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 12px 0;
+  color: var(--cymbra-lingua-muted);
+  font-size: 12px;
+}
+
+.level-indicator b {
+  color: var(--cymbra-lingua-text);
+}
+
+.linklike {
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--cymbra-lingua-accent);
+  text-decoration: underline;
+}
+
+#level-cta {
+  margin: 12px 0;
+}
+
+.level-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.lvl {
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--cymbra-lingua-border-2);
+  background: var(--cymbra-lingua-panel-2);
+  color: var(--cymbra-lingua-muted);
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.lvl:hover {
+  background: var(--cymbra-lingua-panel-3);
+  color: var(--cymbra-lingua-text);
+}
+
+.lvl.active {
+  background: var(--cymbra-lingua-accent-strong);
+  border-color: var(--cymbra-lingua-accent-strong);
+  color: var(--cymbra-lingua-accent-ink);
+  font-weight: 600;
+}
+
+.lvl-beginner {
+  flex-basis: 100%;
 }
 
 .calib label {
@@ -197,6 +324,57 @@ button.primary:hover {
   filter: brightness(1.08);
 }
 
+button.danger {
+  width: 100%;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid var(--cymbra-lingua-coral);
+  background: var(--cymbra-lingua-panel-2);
+  color: var(--cymbra-lingua-coral);
+  font-family: inherit;
+  font-size: 12px;
+}
+
+button.danger:hover {
+  background: var(--cymbra-lingua-unknown-fill);
+  color: var(--cymbra-lingua-text);
+}
+
+#reset-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 10px;
+  border: 1px solid var(--cymbra-lingua-border);
+  border-radius: 12px;
+  background: var(--cymbra-lingua-panel);
+}
+
+#reset-scope {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.reset-note,
+.reset-warn {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--cymbra-lingua-muted);
+}
+
+.reset-warn {
+  color: var(--cymbra-lingua-coral);
+}
+
+.reset-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 /* Account & sync section (add-lingua-connected-clients §1). */
 .account {
   margin-top: 14px;
@@ -232,4 +410,31 @@ button.primary:hover {
   margin-top: 6px;
   color: var(--cymbra-lingua-coral);
   font-size: 12px;
+}
+
+.shortcuts summary {
+  cursor: pointer;
+  color: var(--cymbra-lingua-muted);
+  font-size: 12px;
+}
+
+.shortcuts-list {
+  list-style: none;
+  margin: 8px 0 4px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--cymbra-lingua-text);
+}
+
+.shortcuts-list kbd {
+  font-family: inherit;
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: 5px;
+  border: 1px solid var(--cymbra-lingua-border-2);
+  background: var(--cymbra-lingua-panel-2);
+  color: var(--cymbra-lingua-muted);
 }

@@ -161,6 +161,12 @@ class SessionResult {
   /// Playback speed multiplier the run was played at.
   final double speed;
 
+  /// Which input produced the run — `midi` or `microphone` (delta spec: Input
+  /// Source Stamped On The Run Record). Stamped so later policy (leaderboard
+  /// eligibility, analytics, support) can distinguish audio-sourced runs
+  /// without re-deriving anything.
+  final String inputSource;
+
   const SessionResult({
     required this.pieceId,
     required this.title,
@@ -182,6 +188,7 @@ class SessionResult {
     required this.notes,
     required this.playedAtMs,
     required this.speed,
+    this.inputSource = 'midi',
   });
 
   /// Derives a full result from the per-note [judgments] and run metadata,
@@ -200,7 +207,12 @@ class SessionResult {
     required int playedAtMs,
     required double speed,
     bool percussion = false,
+    bool acousticInput = false,
   }) {
+    // Both attack-only regimes share one blend (delta spec: Sustain Judgment,
+    // audio-sourced runs): percussion has no sustain to judge, and acoustic
+    // input cannot observe releases (the damper pedal masks them).
+    final sustainless = percussion || acousticInput;
     double? subScore(bool waitMode) {
       final onsets = judgments
           .where((j) => !j.wrong && j.waitMode == waitMode)
@@ -209,7 +221,7 @@ class SessionResult {
       final wrong = judgments
           .where((j) => j.wrong && j.waitMode == waitMode)
           .length;
-      if (percussion) {
+      if (sustainless) {
         return percussionSyncPercent(
           onsetVerdicts: onsets.map((j) => j.verdict),
           wrongNotes: wrong,
@@ -264,7 +276,7 @@ class SessionResult {
       pieceId: pieceId,
       title: title,
       hands: hands,
-      overallSyncPct: percussion
+      overallSyncPct: sustainless
           ? percussionSyncPercent(onsetVerdicts: verdicts, wrongNotes: wrong)
           : syncPercent(
               onsetVerdicts: verdicts,
@@ -280,7 +292,7 @@ class SessionResult {
       avgReactionMs: avgReaction,
       timing: timingScore(verdicts),
       correctness: correctnessScore(verdicts, wrong),
-      sustain: percussion
+      sustain: sustainless
           ? null
           : sustainScore(ratios, anyOnsetJudged: verdicts.isNotEmpty),
       verdictCounts: counts,
@@ -289,6 +301,7 @@ class SessionResult {
       notes: judgments,
       playedAtMs: playedAtMs,
       speed: speed,
+      inputSource: acousticInput ? 'microphone' : 'midi',
     );
   }
 
@@ -317,6 +330,7 @@ class SessionResult {
     'notes': notes.map((n) => n.toJson()).toList(),
     'playedAtMs': playedAtMs,
     'speed': speed,
+    'inputSource': inputSource,
   };
 
   factory SessionResult.fromJson(Map<String, dynamic> json) => SessionResult(
@@ -345,5 +359,7 @@ class SessionResult {
         .toList(),
     playedAtMs: (json['playedAtMs'] as num).toInt(),
     speed: (json['speed'] as num).toDouble(),
+    // Absent on records stored before the stamp existed: those were MIDI.
+    inputSource: json['inputSource'] as String? ?? 'midi',
   );
 }

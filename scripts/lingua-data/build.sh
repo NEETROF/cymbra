@@ -32,8 +32,10 @@ if [[ "${1:-}" == "emit-manifest" || "${1:-}" == "check-manifest" ]]; then
   pack_inputs=("$here/testdata/en-fr")
   mode_args=()
   [[ "$1" == "check-manifest" ]] && mode_args+=(--check)
+  # ${arr[@]+"${arr[@]}"} expands to nothing when empty — safe under `set -u` on
+  # bash 3.2 (macOS), where a bare "${arr[@]}" on an empty array errors.
   cargo run --quiet --release -p lingua-pack --bin lingua-pack-manifest -- \
-    "${mode_args[@]}" --built-at "$(date -u +%F)" "$manifest" "${pack_inputs[@]}"
+    ${mode_args[@]+"${mode_args[@]}"} --built-at "$(date -u +%F)" "$manifest" "${pack_inputs[@]}"
   exit 0
 fi
 
@@ -56,6 +58,13 @@ fetch_and_reduce() {
         "https://kaikki.org/frwiktionary/Anglais/kaikki.org-dictionary-Anglais.jsonl"
       # wordfreq (CC BY-SA) — the package IS the frequency source.
       python3 -c "import wordfreq" 2>/dev/null || pip3 install --user --quiet wordfreq
+      # CEFR levels: CEFR-J Wordlist v1.5 (A1-B2, commercial OK + citation) and
+      # Octanove Vocabulary Profile C1/C2 v1.0 (C1-C2, CC BY-SA 4.0), both from the
+      # Open Language Profiles repo. ~0.4 MB together. Absence => no level.tsv.
+      [[ -f "$work/cefrj-vocabulary-profile-1.5.csv" ]] || curl -sSL --fail -o "$work/cefrj-vocabulary-profile-1.5.csv" \
+        "https://raw.githubusercontent.com/openlanguageprofiles/olp-en-cefrj/master/cefrj-vocabulary-profile-1.5.csv"
+      [[ -f "$work/octanove-vocabulary-profile-c1c2-1.0.csv" ]] || curl -sSL --fail -o "$work/octanove-vocabulary-profile-c1c2-1.0.csv" \
+        "https://raw.githubusercontent.com/openlanguageprofiles/olp-en-cefrj/master/octanove-vocabulary-profile-c1c2-1.0.csv"
       python3 "$here/reduce-en-fr.py" --work "$work" \
         --max-lemmas "${LINGUA_MAX_LEMMAS:-40000}" \
         --built-at "$(date -u +%F)" --pack-version "${LINGUA_PACK_VERSION:-1.0.0}"

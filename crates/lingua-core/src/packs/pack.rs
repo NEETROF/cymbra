@@ -19,6 +19,7 @@ use std::io::Read;
 
 use crate::analysis::ANALYZER_VERSION;
 use crate::analysis::lexicon::{FstLexicon, Lexicon, LexiconError};
+use crate::knowledge::level::{CefrLevel, CefrLevels};
 use crate::knowledge::state::FrequencyRanks;
 
 use super::format::{FormatError, read_container};
@@ -34,6 +35,11 @@ pub mod section {
     pub const FREQ: &str = "freq";
     /// zstd-compressed, offset-indexed glosses.
     pub const GLOSS_ZST: &str = "gloss.zst";
+    /// Per-lemma-id CEFR level, one `u8` each (0 = no level, 1..=6 = A1..=C2).
+    /// Optional: absent for pairs with no licence-clean CEFR data. Additive, so
+    /// a pack without it loads on any core and a pack with it loads on an older
+    /// core that simply ignores the section.
+    pub const LEVELS: &str = "levels";
     /// The attribution NOTICE (UTF-8).
     pub const NOTICE: &str = "notice";
 }
@@ -82,6 +88,9 @@ pub struct Pack {
     lexicon: FstLexicon<Vec<u8>>,
     /// Rank per lemma id (0 = unranked).
     freq: Vec<u32>,
+    /// CEFR level code per lemma id (0 = no level, 1..=6 = A1..=C2). Empty when
+    /// the pack carries no level table.
+    levels: Vec<u8>,
     /// Gloss per lemma id, for the lemmas that carry one.
     glosses: BTreeMap<u64, String>,
     notice: String,
@@ -115,6 +124,10 @@ impl Pack {
         let lexicon = FstLexicon::from_slices(forms, lemmas).map_err(PackError::Lexicon)?;
 
         let freq = parse_freq(take(section::FREQ)?, lexicon.lemma_count())?;
+        let levels = match sections.iter().find(|s| s.name == section::LEVELS) {
+            Some(s) => parse_levels(&s.data, lexicon.lemma_count())?,
+            None => Vec::new(),
+        };
         let glosses = match sections.iter().find(|s| s.name == section::GLOSS_ZST) {
             Some(s) => parse_glosses(&s.data)?,
             None => BTreeMap::new(),
@@ -129,6 +142,7 @@ impl Pack {
             meta,
             lexicon,
             freq,
+            levels,
             glosses,
             notice,
         })
@@ -154,6 +168,50 @@ impl Pack {
     pub fn notice(&self) -> &str {
         &self.notice
     }
+
+    /// The lemmas whose frequency rank is within `[lo, hi]` inclusive, each with
+    /// its gloss when the pack carries one, in ascending lemma-id order.
+    /// Unranked lemmas (rank 0) are skipped. Enumerates a frequency band for the
+    /// stats ladder and level-targeted seeding on pairs without CEFR data; the
+    /// per-CEFR-level enumerator is [`Pack::lemmas_at_level`].
+    pub fn lemmas_in_rank_band(&self, lo: u32, hi: u32) -> Vec<(&str, Option<&str>)> {
+        (0..self.lexicon.lemma_count() as u64)
+            .filter_map(|id| {
+                let rank = *self.freq.get(id as usize)?;
+                if rank == 0 || rank < lo || rank > hi {
+                    return None;
+                }
+                let lemma = self.lexicon.lemma_at(id)?;
+                let gloss = self.glosses.get(&id).map(String::as_str);
+                Some((lemma, gloss))
+            })
+            .collect()
+    }
+
+    /// The lemmas tagged with a given CEFR `level`, each with its gloss when the
+    /// pack carries one, in ascending lemma-id order. Empty when the pack has no
+    /// level table. Feeds the CEFR ladder's per-level counts and level-targeted
+    /// seeding. When ordering matters (commonest-first seeding) the caller sorts
+    /// the result by `rank`.
+    pub fn lemmas_at_level(&self, level: CefrLevel) -> Vec<(&str, Option<&str>)> {
+        let code = level.to_code();
+        (0..self.lexicon.lemma_count() as u64)
+            .filter_map(|id| {
+                if self.levels.get(id as usize).copied() != Some(code) {
+                    return None;
+                }
+                let lemma = self.lexicon.lemma_at(id)?;
+                let gloss = self.glosses.get(&id).map(String::as_str);
+                Some((lemma, gloss))
+            })
+            .collect()
+    }
+
+    /// Whether the pack carries a CEFR level table (i.e. levels are available
+    /// for this pair). When false, callers fall back to frequency bands.
+    pub fn has_levels(&self) -> bool {
+        !self.levels.is_empty()
+    }
 }
 
 impl FrequencyRanks for Pack {
@@ -163,6 +221,13 @@ impl FrequencyRanks for Pack {
             Some(0) | None => None,
             Some(rank) => Some(rank),
         }
+    }
+}
+
+impl CefrLevels for Pack {
+    fn level(&self, lemma: &str) -> Option<CefrLevel> {
+        let id = self.lexicon.id_of(lemma)? as usize;
+        CefrLevel::from_code(self.levels.get(id).copied()?)
     }
 }
 
@@ -183,6 +248,15 @@ fn parse_freq(bytes: &[u8], lemma_count: usize) -> Result<Vec<u32>, PackError> {
             u32::from_le_bytes(word)
         })
         .collect())
+}
+
+/// One `u8` CEFR-level code per lemma id (0 = no level, 1..=6 = A1..=C2). The
+/// section length must match the lemma count exactly, like [`parse_freq`].
+fn parse_levels(bytes: &[u8], lemma_count: usize) -> Result<Vec<u8>, PackError> {
+    if bytes.len() != lemma_count {
+        return Err(PackError::Malformed(section::LEVELS));
+    }
+    Ok(bytes.to_vec())
 }
 
 /// Decompresses the gloss blob and reads its index. Decompressed layout:
@@ -322,6 +396,87 @@ mod tests {
         assert_eq!(pack.gloss("city"), Some("ville"));
         assert_eq!(pack.gloss("seldom"), None);
         assert!(pack.notice().contains("CC BY-SA"));
+    }
+
+    #[test]
+    fn rank_band_enumeration_lists_ranked_lemmas_with_glosses_in_id_order() {
+        let pack = Pack::load(&sample_pack_bytes(ANALYZER_VERSION)).expect("load");
+        // run (500) and city (1,200) are in [1, 2000]; seldom (unranked) is
+        // skipped. Lemma ids follow the FST's sorted order (city < run < seldom).
+        let band = pack.lemmas_in_rank_band(1, 2_000);
+        assert_eq!(band, vec![("city", Some("ville")), ("run", Some("courir"))]);
+        // A tighter band excludes run (rank 500 < 600).
+        assert_eq!(
+            pack.lemmas_in_rank_band(600, 2_000),
+            vec![("city", Some("ville"))]
+        );
+        // Pack reports no CEFR levels yet (format slice pending).
+        assert_eq!(pack.level("run"), None);
+    }
+
+    #[test]
+    fn a_pack_with_a_levels_section_exposes_and_enumerates_levels() {
+        use crate::knowledge::level::{CefrLevel, CefrLevels};
+        let (forms, pool) = build_lexicon_blobs(
+            &[("running", "run"), ("cities", "city")],
+            &["run", "city", "seldom"],
+        )
+        .expect("lexicon");
+        let lex = FstLexicon::from_slices(forms.clone(), &pool).unwrap();
+        let freq_bytes = vec![0u8; lex.lemma_count() * 4]; // ranks irrelevant here
+        let mut levels = vec![0u8; lex.lemma_count()];
+        levels[lex.id_of("city").unwrap() as usize] = CefrLevel::A1.to_code();
+        levels[lex.id_of("run").unwrap() as usize] = CefrLevel::A2.to_code();
+        levels[lex.id_of("seldom").unwrap() as usize] = CefrLevel::B2.to_code();
+        let gloss = build_gloss_zst(&[(lex.id_of("run").unwrap() as u32, "courir")]);
+        let bytes = write_container(
+            &meta_json(ANALYZER_VERSION),
+            &[
+                (section::FORMS, &forms),
+                (section::LEMMAS, pool.as_bytes()),
+                (section::FREQ, &freq_bytes),
+                (section::LEVELS, &levels),
+                (section::GLOSS_ZST, &gloss),
+                (section::NOTICE, b"x"),
+            ],
+        );
+        let pack = Pack::load(&bytes).expect("load");
+        assert!(pack.has_levels());
+        assert_eq!(pack.level("city"), Some(CefrLevel::A1));
+        assert_eq!(pack.level("run"), Some(CefrLevel::A2));
+        assert_eq!(pack.level("seldom"), Some(CefrLevel::B2));
+        assert_eq!(pack.level("absent"), None);
+        // Enumeration is in ascending lemma-id order, with glosses when present.
+        assert_eq!(pack.lemmas_at_level(CefrLevel::A1), vec![("city", None)]);
+        assert_eq!(
+            pack.lemmas_at_level(CefrLevel::A2),
+            vec![("run", Some("courir"))]
+        );
+        assert_eq!(
+            pack.lemmas_at_level(CefrLevel::C2),
+            Vec::<(&str, Option<&str>)>::new()
+        );
+    }
+
+    #[test]
+    fn a_levels_section_of_the_wrong_length_is_rejected() {
+        let (forms, pool) = build_lexicon_blobs(&[("run", "run")], &[]).unwrap();
+        let lex = FstLexicon::from_slices(forms.clone(), &pool).unwrap();
+        let freq_bytes = vec![0u8; lex.lemma_count() * 4];
+        let bad_levels = vec![1u8; lex.lemma_count() + 3]; // wrong length
+        let bytes = write_container(
+            &meta_json(ANALYZER_VERSION),
+            &[
+                (section::FORMS, &forms),
+                (section::LEMMAS, pool.as_bytes()),
+                (section::FREQ, &freq_bytes),
+                (section::LEVELS, &bad_levels),
+            ],
+        );
+        assert!(matches!(
+            Pack::load(&bytes),
+            Err(PackError::Malformed(section::LEVELS))
+        ));
     }
 
     #[test]
