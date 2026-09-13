@@ -61,15 +61,18 @@ host-permission grant + `scripting.registerContentScripts` don't reliably take e
 (the highlight works once via _Analyser cette page_ but not across a reload). For
 on-device testing, build with **`LINGUA_ALL_URLS=1`** — it declares the reader as a
 **static** `content_scripts` on `<all_urls>`, so it runs on every page load and reload
-with no permission dance:
+with no permission dance. Use the dogfood script so the flag is never forgotten (forget
+it and pages stop re-highlighting on reload — the exact symptom this works around):
 
 ```bash
-LINGUA_ALL_URLS=1 yarn build:firefox && yarn start:firefox-android
+yarn dogfood:firefox-android   # = LINGUA_ALL_URLS=1 build:firefox + start:firefox-android
+# or yarn dogfood:firefox on desktop; web-ext live-reloads on each rebuild
 ```
 
 This flag is **dev-only** — never set it for a shipped build (it would drop the
 activeTab-first privacy model). `content.ts` self-guards against running twice, so it
-coexists with the normal dynamic injection.
+coexists with the normal dynamic injection. (The production path for persistent
+Firefox-Android highlighting is tracked separately — see the on-device note below.)
 
 Checks (what CI runs):
 
