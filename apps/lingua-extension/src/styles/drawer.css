@@ -5,7 +5,7 @@
   position: fixed;
   top: 0;
   right: 0;
-  width: 300px;
+  width: 380px; /* ~ Chrome's side-panel width, so the two hosts feel the same */
   max-width: 92vw;
   height: 100vh;
   box-sizing: border-box;

@@ -19,28 +19,8 @@
       <button data-view="settings">Réglages</button>
     </div>
 
-    <div id="view-review">
-      <div class="summary" id="summary">…</div>
-
-      <div class="review" id="review"></div>
-
-      <div class="tools">
-        <button id="backup">Sauvegarder</button>
-        <button id="restore">Restaurer</button>
-        <input type="file" id="restore-file" accept="application/json" hidden />
-      </div>
-      <div class="msg" id="msg"></div>
-
-      <details>
-        <summary>Sources & confidentialité</summary>
-        <div class="privacy" id="privacy">
-          Rien ne quitte votre appareil : l'analyse et les traductions sont locales.
-        </div>
-        <div id="licences"></div>
-        <pre class="notice" id="notice"></pre>
-      </details>
-    </div>
-
+    <!-- Views are built by their shared mounts (mountReview / mountStats / mountSettings). -->
+    <div id="view-review"></div>
     <div id="view-stats" hidden></div>
 
     <!-- Réglages are built by mountSettings (shared with the in-page drawer). -->

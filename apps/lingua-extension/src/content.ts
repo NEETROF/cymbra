@@ -20,7 +20,7 @@ import {
 import { LinguaHud } from "./reading/hud.ts";
 import { captureSelection, MAX_SELECTION_LENGTH, sentenceAround } from "./reading/selection.ts";
 import { type Gesture, WordPopup } from "./reading/wordpopup.ts";
-import { dailyRecorder, recordExposures, recordWordLearned, utcDay } from "./state/dailystats.ts";
+import { recordExposures, recordWordLearned, utcDay } from "./state/dailystats.ts";
 import {
   type AsyncStorageArea,
   ENABLED_KEY,
@@ -157,7 +157,6 @@ class ReadingSession {
       area: storageArea,
       now: nowSeconds,
       onChange: () => this.persist(),
-      record: dailyRecorder(storageArea),
     });
     this.hud = new LinguaHud({
       css: `${tokensCss}\n${hudCss}`,
