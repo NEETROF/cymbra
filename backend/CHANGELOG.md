@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.27.1](https://github.com/NEETROF/cymbra/compare/backend-v0.27.0...backend-v0.27.1) (2026-09-13)
+
+
+### Bug Fixes
+
+* **lingua:** round-trip exposure provenance on the sync pull ([#425](https://github.com/NEETROF/cymbra/issues/425)) ([f5e557c](https://github.com/NEETROF/cymbra/commit/f5e557c92000977b2052cc286431f4d79c1bc6ee))
+
 ## [0.27.0](https://github.com/NEETROF/cymbra/compare/backend-v0.26.0...backend-v0.27.0) (2026-09-13)
 
 
