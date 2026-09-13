@@ -60,6 +60,7 @@ export interface StatusChangeIn {
   language: string;
   lemma: string;
   status: string; // "known" | "learning" | "ignored" | "cleared"
+  provenance?: string; // "manual" | "srs" | "exposure" | "import"; empty/absent → manual
   updated_at: number; // epoch millis
 }
 

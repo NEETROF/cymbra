@@ -182,6 +182,7 @@ export class SyncEngine {
         language: c.language,
         lemma: c.lemma,
         status: c.status,
+        provenance: c.provenance,
         updated_at: Number(c.updatedAt),
       })),
       declaredLevels: res.declaredLevels.map((l) => ({

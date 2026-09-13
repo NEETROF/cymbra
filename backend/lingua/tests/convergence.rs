@@ -26,6 +26,7 @@ use cymbra_platform::Result;
 #[derive(Default)]
 struct StatusRow {
     status: String,
+    provenance: String,
     updated_at: i64,
     device_id: String,
     sequence: i64,
@@ -62,6 +63,7 @@ impl KnownWordsRepo for FakeStatuses {
             key,
             StatusRow {
                 status: op.status.clone(),
+                provenance: op.provenance.clone(),
                 updated_at: op.client_ts,
                 device_id: op.device_id.clone(),
                 sequence: *seq,
@@ -97,6 +99,7 @@ impl KnownWordsRepo for FakeStatuses {
                 language: lang.clone(),
                 lemma: lemma.clone(),
                 status: r.status.clone(),
+                provenance: r.provenance.clone(),
                 updated_at: r.updated_at,
                 sequence: r.sequence,
             })

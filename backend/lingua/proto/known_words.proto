@@ -68,6 +68,7 @@ message StatusChange {
   string status = 3;
   int64 updated_at = 4; // the winning op's (clamped) timestamp
   int64 sequence = 5; // the server's monotonic change sequence
+  string provenance = 6; // "manual" | "srs" | "exposure" | "import" (empty on a server that predates this)
 }
 
 // A resolved declared level as it now stands on the server (add-lingua-cefr-levels).
