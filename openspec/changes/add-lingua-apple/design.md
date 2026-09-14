@@ -2,57 +2,131 @@
 
 ## Context
 
-The stack has shipped the complete Chromium extension (`add-lingua-extension-reading`
-+ `add-lingua-extension-review`, injected drawer included) and the build-variant
-system together with its Firefox variant (`add-lingua-firefox`). This change adds the
-third variant — `safari` — and the Apple container app that hosts it. Decisions
-inherited by reference: the `AnalyzerPort` and the WASM target (`add-lingua-wasm`),
-the review surfaces and the injected drawer (`add-lingua-extension-review`), the
-manifest variants (`add-lingua-firefox`), and the versioned storage schema
-(`add-lingua-extension-reading`).
+The extension ships from one MV3 source as two build variants (`add-lingua-firefox`):
+`chromium` runs the WASM engine in the content script; `firefox` runs it in the event
+page and reaches it over the `MessagingLinguaPort`, injects the reader statically and
+keeps review in the in-page drawer. Safari needs a third variant and, because Apple only
+distributes Safari extensions inside an app, a host app.
+
+A spike (2026-09-14) built the firefox variant, converted it with
+`safari-web-extension-converter`, and ran it on Safari macOS, the iOS 26.5 simulator
+and an iPhone 15 Pro Max under iOS 27, with timing instrumentation in the content
+script and the event page. Its measurements drive every decision below.
+
+| Measurement (Wikipedia article, ~1 800 blocks) | Result |
+|---|---|
+| `analyse` RPC, event page, 144 KB in / 2.3 MB out | 83–172 ms |
+| Word click with ~15 300 ranges registered | handled in 2–4 ms, **dispatched 2.4–2.8 s late** |
+| Same page after `CSS.highlights.clear()` | dispatched 1–5 ms late |
+| Same page, windowed painting (~1 070 ranges) | dispatched 7–9 ms late; "+ Deck" end to end 270 ms |
+| iPhone, 2 min in another app, then "+ Deck" and reload | no perceptible latency, page highlighted again |
 
 ## Decisions
 
-### D1 — The Safari variant joins the build matrix (the Safari half of D12 in the source design)
+### D1 — Safari takes the Firefox path; no native analysis
 
-The `safari` variant joins the multi-target build introduced by
-`add-lingua-firefox`: the build now produces chromium / firefox / safari from the
-same source. What differs stays confined behind the two existing seams: the
-**`AnalyzerPort`** — Safari means **no WASM at all**: nativeMessaging to the
-container app's native handler, which links `lingua-core` compiled for ARM — and the
-**panel surface** — the injected drawer alone on Safari, which has no panel API.
-Tier-3 channels get neither a test nor a promise.
+The Safari variant hosts the same WASM engine in its event page and serves the content
+script through the existing `MessagingLinguaPort`. The earlier plan — nativeMessaging
+to a `SafariWebExtensionHandler` linking `lingua-core` — is dropped: the measurements
+show no need for it, and it would add a second engine build, an FFI surface, a native
+process with its own (historically very low) memory cap, and an App Review round for
+every engine change.
 
-### D2 — Apple container app: one listing, two OSes, analysis in native code (D13 in the source design)
+It stays the documented fallback if a device shows the event page being killed for
+memory — the iPhone pass, including a suspension, did not.
 
-One Xcode project (`apps/lingua-apple`), **one universal iOS + macOS App Store
-listing** (universal purchase). The app is not a shell (guideline 4.4): it hosts
-decks/review and the activation flow — which is indispensable, because the extension
-arrives **disabled**: on iOS, a step-by-step walkthrough plus activation detected
-through an **App Group heartbeat** (iOS exposes no extension-state API); on macOS, a
-`SFSafariApplication.showPreferencesForExtension` deep link plus
-`SFSafariExtensionManager` for the real state. Analysis goes through the
-`SafariWebExtensionHandler` (event page → `sendNativeMessage` → native
-`lingua-core`); the **packs live in the app bundle** (working around iOS extension
-storage quotas of ~3 MB). With no sync (a later change), each device keeps its own
-local state, seeded by calibration or a LingQ import; the schemas share
-`lingua-core`'s types, so a later merge is mechanical. Signing/TestFlight: music's
-`release-build` pattern cloned (the existing Apple chain); iOS dogfooding through
-internal TestFlight (no public review); the cadence of Safari fixes is App Store
-review, so behaviours are shaken out on Chromium first.
+### D2 — The `safari` variant is derived from the firefox manifest
+
+`build.mjs` gains a `safari` target built like `firefox`, with these manifest
+differences: `background` is `{ scripts, persistent: false }` (iOS refuses persistent
+background pages); no `browser_specific_settings.gecko`; no `sidePanel` and no
+`identity` permission (the converter reports `identity` unsupported); a static
+`content_scripts` entry on `<all_urls>`, like Firefox. The icon set is added to the base
+manifest, so every variant gets it.
+
+In the source, the checks that today read `__TARGET__ === "firefox"` actually mean one
+of a few capabilities: the engine lives in the event page, review opens in the in-page
+drawer, the reader is injected statically. They become named predicates that are true
+for both `firefox` and `safari`, rather than `firefox || safari` sprinkled at each
+call site.
+
+### D3 — Highlights are painted for a viewport window only (every variant)
+
+WebKit re-evaluates every registered highlight range on each rendering update: with
+~15 000 ranges the page's main thread blocks for 0.7–5 s at a time, so clicks arrive
+seconds late even though our handler takes milliseconds. `render()` keeps the full
+resolved token list (click hit-testing is unchanged) but registers only the ranges of
+blocks within one viewport above and below the visible area. An `IntersectionObserver`
+on the block containers (`rootMargin: "100% 0px"`) maintains that set, and repaints are
+batched per animation frame. Without `IntersectionObserver`, everything is painted
+as before.
+
+It applies to every variant — one implementation — because Chromium and Firefox also
+pay for thousands of live ranges on long pages; they merely hide it better.
+
+The 15 000 figure is the uncalibrated worst case: `lingua-core` starts at calibration 0,
+so with no declared level every word is "unknown". A declared level lowers the count
+but does not bound it on long pages, so the window stays.
+
+### D4 — The container app is minimal
+
+Apple requires a host app; this change gives it exactly two jobs.
+
+- **Host the `safari` variant.** The Xcode project is the converter's output, committed
+  in `apps/lingua-apple`. Its extension resources point at
+  `apps/lingua-extension/dist-safari`, built before `xcodebuild`, instead of a copy that
+  would drift.
+- **Guide activation.** Safari ships extensions disabled.
+  - On iOS, which exposes no extension-state API, the app shows the steps (Settings →
+    Apps → Safari → Extensions, allow websites) and where the extension lives in Safari
+    (the address-bar menu).
+  - On macOS, a button calls `SFSafariApplication.showPreferencesForExtension`, and
+    `SFSafariExtensionManager` reports the real enabled state.
+
+No decks, review, state or session live in the app: the extension already has all of
+them, on every variant.
+
+### D5 — First run and sign-in on Safari
+
+**First run.** Chromium and Firefox open `onboarding.html` on install to pick a level;
+Safari does not (an extension is enabled from Settings, not installed in the browser).
+When no level is declared, the in-page pastille therefore offers the level choice,
+reusing the existing settings module in the drawer. Until then the page is highlighted
+at calibration 0, exactly as today.
+
+**Sign-in.** The Safari extension signs in with its own flow, like the other variants.
+Buttons for providers that need `identity.launchWebAuthFlow` are shown only where that
+API exists — a feature detection, not a `__TARGET__` check, consistent with
+`add-lingua-account-parity`. On Safari that leaves email/password. This supersedes the
+App Group session sharing that `add-lingua-connected-clients` D3 planned around a
+native app sign-in.
+
+### D6 — Touch-primary devices (every variant)
+
+`(pointer: coarse)` identifies Safari on iPhone/iPad and Firefox for Android. There the
+popup uses the full width instead of the 280 px desktop column, and the "configure the
+browser's shortcuts" link is hidden: its targets (`about:addons`,
+`chrome://extensions/shortcuts`) are error pages, and there is no keyboard to use the
+shortcuts anyway.
 
 ## Risks / Trade-offs
 
-- [Safari fragility (killed service workers, storage quotas, Apple review on every
-  fix)] → event pages everywhere on Apple, analysis and packs on the native side,
-  behaviours shaken out on Chromium before they are frozen on Safari; the September
-  tax (a new Apple OS) is budgeted.
-- [The iOS activation funnel (extension disabled by default, no help from the system)]
-  → an animated walkthrough + the App Group heartbeat; this is the documented #1
-  drop-off of the category, treated as a product screen in its own right, not a
-  README.
-- [nativeMessaging bridge failure] → graceful degradation (no highlighting), the page
-  intact — explicitly tested (task 1.2).
-- [Four browsers for a solo dev] → a single artefact + seams; the implementation
-  order stays Chromium → Firefox → Apple; a manual pass matrix per browser before
-  each release.
+- **iOS memory / suspension on other devices.** Measured fine on one recent iPhone;
+  older or smaller devices are unverified. → Manual pass on the oldest device at hand
+  before submission; D1's native fallback stays documented.
+- **Unreadable sheet title on iOS 27.** Safari draws the popup sheet's native title in
+  black over the dark popup under light mode; iOS 26.5 draws it white. Three page-side
+  levers had no effect on iOS 27: a `theme-color` meta, an empty `<title>`, and a
+  canvas following the system `color-scheme`. → Try an empty `action.default_title` in
+  the safari manifest; otherwise ship it as a known issue and report it to Apple.
+- **App Review, guideline 4.2 (minimum functionality).** A host app that only explains
+  activation can be judged thin. → A genuine activation guide with state detection on
+  macOS; the deferred SwiftUI features are the answer if review insists.
+- **Tabs open before an app update** lose their content script until reloaded (seen on
+  the simulator). → Accepted; mentioned in the activation guide.
+- **Fix cadence.** Every Safari fix goes through App Review. → Behaviours are shaken
+  out on Chromium/Firefox first.
+- **Duplicated settings UI.** `popup.html` carries its own settings markup next to
+  `mountSettings` (drawer / side panel), and their copy has already diverged. This
+  change touches both for the shortcut link but does not merge them; that is a
+  follow-up.
