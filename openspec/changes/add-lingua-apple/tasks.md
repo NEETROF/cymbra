@@ -10,7 +10,7 @@
 ## 2. Reading on long pages (every variant)
 
 - [x] 2.1 Viewport-windowed painting in `reading/highlight.ts` (`IntersectionObserver` on block containers, `rootMargin: "100% 0px"`, rAF-batched repaint, full paint without the observer) and `ResolvedToken.container` in `reading/scan.ts`; unit tests for window membership, repaint on intersection change and the fallback
-- [ ] 2.2 Manual check on Safari macOS: long Wikipedia article with no declared level — no main-thread stall on click, highlights follow a fast scroll
+- [x] 2.2 Manual check on Safari macOS: long Wikipedia article with no declared level — no main-thread stall on click, highlights follow a fast scroll
 
 ## 3. Touch-primary devices (every variant)
 
@@ -25,10 +25,10 @@
 
 ## 5. Apple container app
 
-- [ ] 5.1 Scaffold `apps/lingua-apple` with `safari-web-extension-converter` (universal, Swift, bundle `com.cymbra.lingua`), commit the project, and point its extension resources at `apps/lingua-extension/dist-safari`
-- [ ] 5.2 Activation guide (French copy): iOS steps (Settings → Apps → Safari → Extensions, allow websites, the address-bar menu, reload open tabs); macOS button → `SFSafariApplication.showPreferencesForExtension` and enabled state via `SFSafariExtensionManager`
+- [x] 5.1 Scaffold `apps/lingua-apple` with `safari-web-extension-converter` (universal, Swift, bundle `com.cymbra.lingua`), commit the project, and point its extension resources at `apps/lingua-extension/dist-safari`
+- [x] 5.2 Activation guide (French copy): iOS steps (Settings → Apps → Safari → Extensions, allow websites, the address-bar menu, reload open tabs); macOS button → `SFSafariApplication.showPreferencesForExtension` and enabled state via `SFSafariExtensionManager`
 - [ ] 5.3 Signing + TestFlight lane cloned from the `ios` and `macos` jobs of `music-release` (App IDs `com.cymbra.lingua` and `.Extension`)
-- [ ] 5.4 `lingua-apple-build` workflow (macOS runner: extension `safari` build, then unsigned `xcodebuild` for the iOS simulator and macOS); add `apps/lingua-apple` to the `ci-units` filter
+- [x] 5.4 `lingua-apple-build` workflow (macOS runner: extension `safari` build, then unsigned `xcodebuild` for the iOS simulator and macOS); add `apps/lingua-apple` to the `ci-units` filter
 
 ## 6. Validation and release
 
