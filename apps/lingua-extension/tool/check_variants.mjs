@@ -32,7 +32,10 @@ expect(firefox.browser_specific_settings?.gecko?.id, "firefox: needs a gecko add
 expect(firefox.content_scripts?.length, "firefox: needs the static content script");
 expect(!firefox.key, "firefox: must not carry the Chromium key");
 
-expect(safari.background?.scripts && safari.background.persistent === false, "safari: event page must be non-persistent");
+expect(
+  safari.background?.scripts && safari.background.persistent === false,
+  "safari: event page must be non-persistent",
+);
 expect(!safari.background?.service_worker, "safari: must not declare a service worker");
 expect(safari.content_scripts?.length, "safari: needs the static content script");
 expect(!safari.side_panel, "safari: must not declare a side panel");

@@ -6,7 +6,9 @@
  * has no identity API, so provider buttons that would fail there are not offered — a feature
  * detection, not a target check, so a browser gaining the API gets the buttons back.
  */
-export function hasWebAuthFlow(identity: { launchWebAuthFlow?: unknown } | undefined = globalThis.chrome?.identity): boolean {
+export function hasWebAuthFlow(
+  identity: { launchWebAuthFlow?: unknown } | undefined = globalThis.chrome?.identity,
+): boolean {
   return typeof identity?.launchWebAuthFlow === "function";
 }
 

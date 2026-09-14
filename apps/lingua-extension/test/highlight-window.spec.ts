@@ -36,7 +36,9 @@ class FakeObserver {
 
   /** Deliver intersection changes as the browser would. */
   fire(changes: [Element, boolean][]): void {
-    const entries = changes.map(([target, isIntersecting]) => ({ target, isIntersecting }) as IntersectionObserverEntry);
+    const entries = changes.map(
+      ([target, isIntersecting]) => ({ target, isIntersecting }) as IntersectionObserverEntry,
+    );
     this.callback(entries, this as unknown as IntersectionObserver);
   }
 }
