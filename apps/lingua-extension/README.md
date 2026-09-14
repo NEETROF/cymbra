@@ -20,18 +20,32 @@ yarn build        # bundle every browser variant → dist-chromium/, dist-firefo
 
 ## Account sync (Cymbra ID)
 
-Signing in (icon popup → **Continuer avec Google** or email/password) turns on
+Signing in (icon popup → **Continuer avec Google / Apple** or email/password) turns on
 cross-device sync of the deck, word statuses and stats; signed out, the extension stays
-purely local. The transport is gRPC-web bearer (Connect-ES), tokens split by volatility
-— access in `chrome.storage.session`, refresh in `chrome.storage.local`. The backend
-origin and the Google client id come from build-time env vars, both defaulted for a
-local dogfooding build:
+purely local. Account creation, email verification (emailed code) and password reset live
+on the **account page** (`account.html`, a tab opened from the popup or onboarding — the
+popup is destroyed when the reader leaves for their mailbox). The transport is gRPC-web
+bearer (Connect-ES), tokens split by volatility — access in `chrome.storage.session`,
+refresh in `chrome.storage.local`. The backend origin and the provider client ids come
+from build-time env vars, all defaulted for a local dogfooding build:
 
 ```bash
 LINGUA_GRPC_WEB_URL="http://localhost:50051" \
 LINGUA_GOOGLE_CLIENT_ID="<web-oauth-client-id>" \
+LINGUA_APPLE_CLIENT_ID="<apple-services-id>" \
   yarn build     # build.mjs also grants the origin in the manifest host_permissions
 ```
+
+An empty client id hides that provider's button; so does a browser without
+`identity.launchWebAuthFlow` (Firefox for Android), where email is the only method.
+
+**Sign in with Apple** asks Apple for **no scope** (`response_type=code id_token`,
+`response_mode=fragment`): Apple only allows the fragment without email/name scopes, and
+Cymbra ID resolves the account by `(apple, sub)` without reading the email — so the same
+Apple ID lands on the same account as in Cymbra Music. The client id is the site's
+**Services ID** (`PUBLIC_APPLE_CLIENT_ID`, already in the backend's `CYMBRA_APPLE_AUDIENCE`);
+add the extension redirect URLs (`https://<extension-id>.chromiumapp.org/` and Firefox's
+`identity.getRedirectURL()`) as return URLs on it.
 
 Two one-time manual steps make **real** sign-in work (the code + email/password path ship
 regardless; Google needs the client, and the backend must allow the extension origin):

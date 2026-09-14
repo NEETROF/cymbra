@@ -1,16 +1,8 @@
 // Platform capabilities the extension's own surfaces adapt to, detected at runtime so
 // one bundle serves desktop and mobile browsers alike.
 
-/**
- * Whether the browser can run a provider OAuth flow (`identity.launchWebAuthFlow`). Safari
- * has no identity API, so provider buttons that would fail there are not offered — a feature
- * detection, not a target check, so a browser gaining the API gets the buttons back.
- */
-export function hasWebAuthFlow(
-  identity: { launchWebAuthFlow?: unknown } | undefined = globalThis.chrome?.identity,
-): boolean {
-  return typeof identity?.launchWebAuthFlow === "function";
-}
+// Which sign-in providers a browser offers (identity.launchWebAuthFlow present, client id
+// configured) lives with the provider flows: `availableProviders` in state/oidc.ts.
 
 /** Whether the primary pointer is coarse: a touch-first device (phone, tablet). */
 export function isTouchPrimary(): boolean {

@@ -8,25 +8,25 @@
 
 ## 2. Session and background
 
-- [ ] 2.1 `src/state/auth-errors.ts`: pure `authErrorFromCode` (Connect code → `unauthenticated | alreadyExists | rateLimited | failedPrecondition | invalidArgument | unavailable | unknown`, `DEADLINE_EXCEEDED` → `unavailable`), mirroring Music's mapping; vitest table test
-- [ ] 2.2 `Session`: add `signUp`, `verifyEmail`, `resendVerification`, `requestPasswordReset`, `resetPassword` (no tokens, locale passed through) and `signInWithApple` over a new `getAppleIdToken` dependency; failures surface as categories; vitest with a fake `AuthService` client
-- [ ] 2.3 Apple request helpers (pure): authorize-URL builder (Services ID, redirect URL, no scope, `code id_token`, `fragment`, random `state` + `nonce`) and fragment parser that rejects a `state` mismatch and ignores `code`; wire `getAppleIdToken` in `background.ts`; vitest
-- [ ] 2.4 Cancel detection for `launchWebAuthFlow` (Google and Apple): a user-closed window resolves as "cancelled" — no RPC, nothing written under `SIGNIN_ERROR_KEY`; vitest for both providers
-- [ ] 2.5 Background messages `account:signUp`, `account:verifyEmail`, `account:resendVerification`, `account:requestPasswordReset`, `account:resetPassword`, `account:signInApple`, `account:providers` (`{google, apple}` = client id configured × `identity.launchWebAuthFlow` present); every successful sign-in schedules a sync; replies carry categories, never error strings
-- [ ] 2.6 `build.mjs` + `env.d.ts`: `LINGUA_APPLE_CLIENT_ID` → `__APPLE_CLIENT_ID__` (empty by default = Apple hidden); README build section documents it next to `LINGUA_GOOGLE_CLIENT_ID`
+- [x] 2.1 `src/state/auth-errors.ts`: pure `authErrorFromCode` (Connect code → `unauthenticated | alreadyExists | rateLimited | failedPrecondition | invalidArgument | notFound | unavailable | unknown`, `DEADLINE_EXCEEDED` → `unavailable`, a failed fetch → `unavailable`), mirroring Music's mapping; vitest table test
+- [x] 2.2 `Session`: add `signUp`, `verifyEmail`, `resendVerification`, `requestPasswordReset`, `resetPassword` (no tokens, locale passed through) and `signInWithProvider` over `getGoogleIdToken` / a new `getAppleIdToken` dependency; failures surface as categories (`AccountError`), a provider failure is persisted as `{provider, kind}`; vitest with a fake `AuthService` client
+- [x] 2.3 Apple request helpers (pure, `src/state/oidc.ts`): authorize-URL builders (Apple: Services ID, redirect URL, no scope, `code id_token`, `fragment`; Google moved here, both with random `state` + `nonce`) and a fragment parser that rejects a `state` mismatch and ignores `code`; `getAppleIdToken` wired in `background.ts`; vitest
+- [x] 2.4 Cancel detection for `launchWebAuthFlow` (Google and Apple): a user-closed window or a provider cancel error resolves as "cancelled" — no RPC, nothing written under `SIGNIN_ERROR_KEY`; vitest for both providers
+- [x] 2.5 Background messages `account:signUp`, `account:verifyEmail`, `account:resendVerification`, `account:requestPasswordReset`, `account:resetPassword`, `account:signInApple`, `account:providers` (`{google, apple}` = client id configured × `identity.launchWebAuthFlow` present), dispatched by the unit-tested `src/account/host.ts`; every successful sign-in schedules a sync; replies carry categories, never error strings (`account:state` now answers `{ok, state}`, the stats view follows)
+- [x] 2.6 `build.mjs` + `env.d.ts` + `vitest.config.ts`: `LINGUA_APPLE_CLIENT_ID` → `__APPLE_CLIENT_ID__` (empty by default = Apple hidden); README account section documents it next to `LINGUA_GOOGLE_CLIENT_ID`
 
 ## 3. Account page
 
-- [ ] 3.1 `src/account/` (`account.html`, `account.css`, `account.ts`) added to the build (entry + static copies, both variants), Cymbra tokens only; views sign-in / sign-up / code / forgot / reset / signed-in driven by a pure view-state reducer (vitest)
-- [ ] 3.2 Sign-up → code → automatic `SignInLocal`: password held only in page memory and dropped after use; pending email in `storage.session`; a reload resumes on the code step and a verification then returns to sign-in with the email prefilled; resend action; vitest asserts no storage area ever holds the password
-- [ ] 3.3 Forgot password → reset (code + new password) → sign-in with the email prefilled; the request confirmation is identical whether or not the account exists
-- [ ] 3.4 Unverified sign-in (`failedPrecondition`) on the page moves to the code step; deep link (`account.html#verify?email=…`, `#signup`, `#forgot`) opens the matching view
-- [ ] 3.5 Copy per design D7 (context × category), French like the rest of the extension; vitest lint: no surface renders a Connect error's `message`, and no "lemme"/"lemma" in the new strings
+- [x] 3.1 `src/account/` (`account.html`, `account.css`, `account.ts`) added to the build (entry + static copies, both variants), Cymbra tokens only; views sign-in / sign-up / code / forgot / reset / signed-in driven by a controller (`flow.ts`) and a pure renderer (`view.ts`), both unit-tested like the review controller/view
+- [x] 3.2 Sign-up → code → automatic `SignInLocal`: password held only in page memory and dropped after use; pending email in `storage.session`; a reload resumes on the code step and a verification then returns to sign-in with the email prefilled; resend action; vitest asserts the pending store never receives the password
+- [x] 3.3 Forgot password → reset (code + new password) → sign-in with the email prefilled; the request confirmation is identical whether or not the account exists
+- [x] 3.4 Unverified sign-in (`failedPrecondition`) on the page moves to the code step; deep link (`account.html#verify`, `#signup`, `#forgot`) opens the matching view — the email travels in `storage.session` (pending email), never in the URL
+- [x] 3.5 Copy per design D7 (context × category), French like the rest of the extension (`src/account/copy.ts`); vitest lint: no account surface reads an error's `message` and the background replies with categories; no "lemme"/"lemma" in the new strings
 
 ## 4. Entry points
 
-- [ ] 4.1 Popup: "Continuer avec Apple" button (Apple window tears the popup down → reuse the persisted-error path), Google/Apple hidden per `account:providers`, links "Créer un compte" / "Mot de passe oublié ?" open the account page; an unverified sign-in opens the page on the code step with the email only
-- [ ] 4.2 Onboarding: a last, skippable step offering account creation (opens `account.html#signup`) or "Plus tard"; skipping changes nothing else
+- [x] 4.1 Popup: "Continuer avec Apple" button (Apple window tears the popup down → reuse the persisted-error path, now a category), Google/Apple hidden per `account:providers`, links "Créer un compte" / "Mot de passe oublié ?" open the account page; an unverified sign-in opens the page on the code step with the email only
+- [x] 4.2 Onboarding: a skippable section offering account creation (opens `account.html#signup`) or "Plus tard"; hidden when already signed in; skipping changes nothing else
 
 ## 5. Apple relay fallback (only if 1.2 activates D4 — otherwise mark N/A)
 
@@ -36,7 +36,7 @@
 
 ## 6. Verification
 
-- [ ] 6.1 `apps/lingua-extension`: lint, vitest (coverage ≥ 80 %), `node build.mjs` for both variants green; `python3 scripts/check_ci_units.py --list` still watches every touched unit (plus `cargo fmt`/`clippy -D warnings`/tests if §5 ran)
+- [x] 6.1 `apps/lingua-extension`: lint, format, typecheck, vitest (new modules 96–100 % line coverage; the extension has no global coverage gate in CI) and `node build.mjs` for both variants green; `python3 scripts/check_ci_units.py --list` still watches every touched unit (no new unit)
 - [ ] 6.2 [manual] Chrome on macOS against a real backend: sign-up → code from the mailbox → signed in → sync runs; forgotten password end to end; Apple with an Apple ID already used in Music lands on the same account; Google unchanged
 - [ ] 6.3 [manual] Firefox desktop: Google, Apple and email; Firefox for Android: no provider buttons, email sign-up/sign-in/reset work
-- [ ] 6.4 `openspec validate add-lingua-account-parity --strict`
+- [x] 6.4 `openspec validate add-lingua-account-parity --strict`

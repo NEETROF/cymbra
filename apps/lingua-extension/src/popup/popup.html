@@ -76,13 +76,16 @@
       <div id="account" class="account">
         <div id="acct-out" hidden>
           <div class="note">Connecte-toi pour synchroniser ton deck et tes mots entre appareils.</div>
-          <button class="primary" id="signin-google">Continuer avec Google</button>
+          <button class="primary" id="signin-google" hidden>Continuer avec Google</button>
+          <button class="primary" id="signin-apple" hidden>Continuer avec Apple</button>
           <details class="acct-local">
             <summary>Email et mot de passe</summary>
             <input type="email" id="acct-email" placeholder="Email" autocomplete="username" />
             <input type="password" id="acct-password" placeholder="Mot de passe" autocomplete="current-password" />
             <button class="reset" id="signin-local">Se connecter</button>
+            <button class="linklike" id="acct-forgot" type="button">Mot de passe oublié ?</button>
           </details>
+          <button class="linklike" id="acct-signup" type="button">Créer un compte</button>
           <div id="acct-error" class="acct-error" hidden></div>
         </div>
         <div id="acct-in" hidden>

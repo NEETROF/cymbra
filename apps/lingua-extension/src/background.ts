@@ -1,7 +1,10 @@
 import { type GlueLoader, WasmAnalyzerPort, type WasmModule } from "./analyzer/engine.ts";
 import { handleRpc, isRpcRequest } from "./analyzer/rpc-host.ts";
+import { handleAccountMessage } from "./account/host.ts";
+import { isAccountMessage } from "./account/messages.ts";
 import { api, initApi } from "./net/api.ts";
 import { setTokenRefresher, setUnauthenticatedHandler } from "./net/transport.ts";
+import { appleAuthorizeRequest, availableProviders, googleAuthorizeRequest, runAuthFlow } from "./state/oidc.ts";
 import { Session } from "./state/session.ts";
 import { type AsyncStorageArea, hydrateEngine, ROOT_KEY } from "./state/storage.ts";
 import { getOrCreateDeviceId, SyncEngine } from "./sync/sync.ts";
@@ -111,24 +114,26 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
     set: (items) => chrome.storage.local.set(items),
   };
 
-  // "Continue with Google": OpenID implicit flow via launchWebAuthFlow. The redirect is
-  // https://<ext-id>.chromiumapp.org/ (stable for a published id); the id_token comes
-  // back in the URL fragment and is exchanged server-side by SignInOidc.
-  const getGoogleIdToken = async (): Promise<string> => {
-    if (!__GOOGLE_CLIENT_ID__) {
-      throw new Error("Google sign-in is not configured in this build (missing client id).");
-    }
-    const redirectUri = chrome.identity.getRedirectURL();
-    const auth = new URL("https://accounts.google.com/o/oauth2/v2/auth");
-    auth.searchParams.set("client_id", __GOOGLE_CLIENT_ID__);
-    auth.searchParams.set("response_type", "id_token");
-    auth.searchParams.set("redirect_uri", redirectUri);
-    auth.searchParams.set("scope", "openid email");
-    auth.searchParams.set("nonce", crypto.randomUUID());
-    const redirect = await chrome.identity.launchWebAuthFlow({ url: auth.toString(), interactive: true });
-    const idToken = redirect ? new URLSearchParams(new URL(redirect).hash.slice(1)).get("id_token") : null;
-    if (!idToken) throw new Error("Google did not return an id_token.");
-    return idToken;
+  // Provider sign-in (Google, Apple): an authorization request through launchWebAuthFlow.
+  // The redirect is https://<ext-id>.chromiumapp.org/ (stable via the manifest key); the
+  // id_token comes back in the URL fragment and is exchanged server-side by SignInOidc. A
+  // closed window resolves to null (a cancel). Apple is asked for NO scope so it answers
+  // in the fragment (add-lingua-account-parity, design D3).
+  const launch = async (url: string): Promise<string | undefined> =>
+    chrome.identity.launchWebAuthFlow({ url, interactive: true });
+  const requestParams = (clientId: string) => ({
+    clientId,
+    redirectUri: chrome.identity.getRedirectURL(),
+    state: crypto.randomUUID(),
+    nonce: crypto.randomUUID(),
+  });
+  const getGoogleIdToken = async (): Promise<string | null> => {
+    if (!__GOOGLE_CLIENT_ID__) throw new Error("Google sign-in is not configured in this build.");
+    return runAuthFlow(launch, googleAuthorizeRequest(requestParams(__GOOGLE_CLIENT_ID__)));
+  };
+  const getAppleIdToken = async (): Promise<string | null> => {
+    if (!__APPLE_CLIENT_ID__) throw new Error("Apple sign-in is not configured in this build.");
+    return runAuthFlow(launch, appleAuthorizeRequest(requestParams(__APPLE_CLIENT_ID__)));
   };
 
   const session = new Session({
@@ -136,6 +141,7 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
     sessionArea: sessionStore,
     localArea: localStore,
     getGoogleIdToken,
+    getAppleIdToken,
   });
   initApi(() => session.token());
   setTokenRefresher(() => session.refresh());
@@ -202,32 +208,19 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
   });
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    const msg = message as { type?: string; email?: string; password?: string } | null;
+    // Every account:* message (sign-in, sign-up, verification, reset, providers) goes
+    // through the unit-tested host; replies carry categories, never error strings.
+    if (isAccountMessage(message)) {
+      void handleAccountMessage(message, {
+        session,
+        providers: () =>
+          availableProviders({ google: __GOOGLE_CLIENT_ID__, apple: __APPLE_CLIENT_ID__ }, chrome.identity),
+        onSignedIn: () => scheduleSync(0),
+      }).then(sendResponse);
+      return true;
+    }
+    const msg = message as { type?: string } | null;
     switch (msg?.type) {
-      case "account:state":
-        sendResponse(session.state());
-        return false;
-      case "account:signInGoogle":
-        session.signInWithGoogle().then(
-          () => {
-            scheduleSync(0);
-            sendResponse({ ok: true, state: session.state() });
-          },
-          (e: unknown) => sendResponse({ ok: false, error: errorMessage(e) }),
-        );
-        return true;
-      case "account:signInLocal":
-        session.signInLocal(msg.email ?? "", msg.password ?? "").then(
-          () => {
-            scheduleSync(0);
-            sendResponse({ ok: true, state: session.state() });
-          },
-          (e: unknown) => sendResponse({ ok: false, error: errorMessage(e) }),
-        );
-        return true;
-      case "account:signOut":
-        session.signOut().then(() => sendResponse({ ok: true, state: session.state() }));
-        return true;
       case "stats:get": {
         // Consolidated stats for the stats screen (summed across the account's devices).
         const range = message as { fromDay?: number; toDay?: number };
@@ -256,10 +249,6 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
         return undefined;
     }
   });
-}
-
-function errorMessage(e: unknown): string {
-  return e instanceof Error ? e.message : String(e);
 }
 
 chrome.commands.onCommand.addListener((command) => {

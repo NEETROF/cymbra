@@ -1,9 +1,12 @@
 import type { Client } from "@connectrpc/connect";
 import type { AuthService } from "@/gen/auth_pb";
+import { AccountError, type AuthErrorKind, authErrorOf } from "./auth-errors.ts";
+import type { Provider } from "./oidc.ts";
 import type { AsyncStorageArea } from "./storage.ts";
 
-// The account session (add-lingua-connected-clients §1). Owns the token pair and the
-// sign-in / refresh / sign-out flows against the AuthService. Local-first: without a
+// The account session (add-lingua-connected-clients §1, add-lingua-account-parity). Owns
+// the token pair and every AuthService flow: sign-in (email, Google, Apple), sign-up,
+// email verification, password reset, refresh and sign-out. Local-first: without a
 // session nothing changes, and signing out never touches the reader's own state.
 //
 // Tokens are split by volatility (design D1): the short-lived ACCESS token in
@@ -12,17 +15,31 @@ import type { AsyncStorageArea } from "./storage.ts";
 // survives a browser restart). A background service worker is ephemeral, so the access
 // token is also mirrored in memory for the transport's synchronous getter and rebuilt
 // from the refresh token on wake.
+//
+// Every failure is rethrown as an AccountError carrying a category (design D7): no
+// caller ever sees — or can display — a raw gRPC/Connect message.
 
 const ACCESS_KEY = "cymbra-lingua-access"; // chrome.storage.session
 const REFRESH_KEY = "cymbra-lingua-refresh"; // chrome.storage.local
 /**
- * The last sign-in failure, in chrome.storage.session (transient, gone on browser
- * close). Chrome tears the browser-action popup down when the Google auth window takes
- * focus, so the popup's awaited result never renders; persisting the error here lets the
+ * The last provider sign-in failure, in chrome.storage.session (transient, gone on browser
+ * close). Chrome tears the browser-action popup down when the provider's auth window takes
+ * focus, so the popup's awaited result never renders; persisting the failure here lets the
  * popup surface it on its next open. Cleared on a successful sign-in.
  */
 export const SIGNIN_ERROR_KEY = "cymbra-lingua-signin-error";
 const AUDIENCE = "lingua";
+
+/** What SIGNIN_ERROR_KEY holds: the provider and the category, never a message. */
+export interface PersistedSignInError {
+  provider: Provider;
+  kind: AuthErrorKind;
+}
+
+export function isPersistedSignInError(v: unknown): v is PersistedSignInError {
+  const e = v as Partial<PersistedSignInError> | null;
+  return (e?.provider === "google" || e?.provider === "apple") && typeof e.kind === "string";
+}
 
 /** Everything the session needs, injected so the flows are testable without Chrome. */
 export interface SessionDeps {
@@ -32,13 +49,17 @@ export interface SessionDeps {
   sessionArea: AsyncStorageArea;
   /** chrome.storage.local-backed area (refresh token). */
   localArea: AsyncStorageArea;
-  /** Run the provider OAuth flow and return an id_token (chrome.identity in prod). */
-  getGoogleIdToken: () => Promise<string>;
+  /** Run Google's flow: the id_token, or null when the reader closed the window. */
+  getGoogleIdToken: () => Promise<string | null>;
+  /** Run Apple's flow: the id_token, or null when the reader closed the window. */
+  getAppleIdToken: () => Promise<string | null>;
 }
 
 export interface SessionState {
   signedIn: boolean;
 }
+
+export type ProviderOutcome = "signedIn" | "cancelled";
 
 export class Session {
   private access: string | null = null;
@@ -69,23 +90,55 @@ export class Session {
     return false;
   }
 
-  /** Email + password (existing SignInLocal), scoped to the `lingua` audience. */
+  /** Email + password (SignInLocal), scoped to the `lingua` audience. */
   async signInLocal(email: string, password: string): Promise<void> {
     // No recordError here: the local form stays open on failure, so its error renders
-    // inline — persisting it would re-show stale on the next popup open. Only the Google
-    // flow (which tears the popup down) needs the persisted channel.
-    await this.store(await this.deps.auth().signInLocal({ email, password, audience: AUDIENCE }));
+    // inline — persisting it would re-show stale on the next popup open. Only the provider
+    // flows (which tear the popup down) need the persisted channel.
+    await categorized(async () =>
+      this.store(await this.deps.auth().signInLocal({ email, password, audience: AUDIENCE })),
+    );
   }
 
-  /** "Continue with Google": run the OAuth flow, exchange the id_token via SignInOidc. */
-  async signInWithGoogle(): Promise<void> {
+  /**
+   * "Continue with Google/Apple": run the provider flow, exchange the id_token via
+   * SignInOidc. A closed window is a cancel — no RPC, nothing persisted.
+   */
+  async signInWithProvider(provider: Provider): Promise<ProviderOutcome> {
     try {
-      const idToken = await this.deps.getGoogleIdToken();
+      const getIdToken = provider === "apple" ? this.deps.getAppleIdToken : this.deps.getGoogleIdToken;
+      const idToken = await getIdToken();
+      if (idToken == null) return "cancelled";
       await this.store(await this.deps.auth().signInOidc({ idToken, audience: AUDIENCE }));
+      return "signedIn";
     } catch (e) {
-      await this.recordError(e);
-      throw e;
+      const kind = authErrorOf(e);
+      await this.recordError({ provider, kind });
+      throw new AccountError(kind);
     }
+  }
+
+  /** Create a local account; the backend emails a verification code (in `locale`). */
+  async signUp(email: string, password: string, locale: string): Promise<void> {
+    await categorized(() => this.deps.auth().signUpLocal({ email, password, locale }));
+  }
+
+  /** Confirm an email with the emailed code. */
+  async verifyEmail(code: string): Promise<void> {
+    await categorized(() => this.deps.auth().verifyEmail({ token: code }));
+  }
+
+  async resendVerification(email: string, locale: string): Promise<void> {
+    await categorized(() => this.deps.auth().resendVerification({ email, locale }));
+  }
+
+  /** Same answer whether or not the account exists (the backend never enumerates). */
+  async requestPasswordReset(email: string, locale: string): Promise<void> {
+    await categorized(() => this.deps.auth().requestPasswordReset({ email, locale }));
+  }
+
+  async resetPassword(code: string, newPassword: string): Promise<void> {
+    await categorized(() => this.deps.auth().resetPassword({ token: code, newPassword }));
   }
 
   /**
@@ -124,9 +177,13 @@ export class Session {
     await this.deps.localArea.set({ [REFRESH_KEY]: pair.refreshToken });
   }
 
-  /** Persist a sign-in failure so the (possibly torn-down) popup can show it on reopen. */
-  private async recordError(e: unknown): Promise<void> {
-    await this.deps.sessionArea.set({ [SIGNIN_ERROR_KEY]: e instanceof Error ? e.message : String(e) });
+  /** Persist a provider failure so the (possibly torn-down) popup can show it on reopen. */
+  private async recordError(error: PersistedSignInError): Promise<void> {
+    try {
+      await this.deps.sessionArea.set({ [SIGNIN_ERROR_KEY]: error });
+    } catch {
+      // storage.session unavailable: the live reply still carries the category.
+    }
   }
 
   private async purge(): Promise<void> {
@@ -134,6 +191,15 @@ export class Session {
     this.refreshTok = null;
     await this.deps.sessionArea.set({ [ACCESS_KEY]: null });
     await this.deps.localArea.set({ [REFRESH_KEY]: null });
+  }
+}
+
+/** Run a call, rethrowing any failure as a categorized AccountError. */
+async function categorized<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (e) {
+    throw new AccountError(authErrorOf(e));
   }
 }
 
