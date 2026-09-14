@@ -1,5 +1,6 @@
 import type { LinguaPort } from "../analyzer/port.ts";
 import { CEFR_LEVELS, type CefrLevel } from "../analyzer/types.ts";
+import { needsLevelChoice } from "../state/level-choice.ts";
 import { hasShortcutEditor } from "../state/platform.ts";
 import { type AsyncStorageArea, loadHudHidden, saveHudHidden } from "../state/storage.ts";
 import { clearSyncCursors } from "../sync/sync.ts";
@@ -198,12 +199,19 @@ export function mountSettings(
   }
 
   async function refresh(): Promise<void> {
-    const [hasLevels, declared] = [await port.hasLevels(), await port.declaredLevel()];
-    const current = declared ?? "";
+    const [hasLevels, declared, needsChoice] = [
+      await port.hasLevels(),
+      await port.declaredLevel(),
+      await needsLevelChoice(port),
+    ];
+    // Nothing is highlighted as chosen until a decision exists (« Débutant » is one).
+    const current = needsChoice ? null : (declared ?? "");
     for (const [value, b] of chipButtons) b.classList.toggle("active", value === current);
     hint.textContent = declared
       ? `Les mots sous ${declared} ne sont plus surlignés.`
-      : "Choisis ton niveau — rien n'est présumé connu pour l'instant.";
+      : needsChoice
+        ? "Choisis ton niveau — rien n'est présumé connu pour l'instant."
+        : "Débutant — rien n'est présumé connu.";
     calibBlock.hidden = hasLevels;
     if (!hasLevels) {
       const cal = await port.calibration();

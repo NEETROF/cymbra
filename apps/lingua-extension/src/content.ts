@@ -21,6 +21,7 @@ import { LinguaHud } from "./reading/hud.ts";
 import { captureSelection, MAX_SELECTION_LENGTH, sentenceAround } from "./reading/selection.ts";
 import { type Gesture, WordPopup } from "./reading/wordpopup.ts";
 import { recordExposures, recordWordLearned, utcDay } from "./state/dailystats.ts";
+import { needsLevelChoice } from "./state/level-choice.ts";
 import {
   type AsyncStorageArea,
   ENABLED_KEY,
@@ -336,9 +337,9 @@ class ReadingSession {
     this.updateHud();
   }
 
-  /** Whether the reader still has to declare a level for a language with CEFR data. */
+  /** Whether the reader still has to choose a level (« Débutant » counts as a choice). */
   private async refreshNeedsLevel(): Promise<void> {
-    this.needsLevel = (await this.port.hasLevels()) && (await this.port.declaredLevel()) === null;
+    this.needsLevel = await needsLevelChoice(this.port);
   }
 
   /** Re-walk the given dirty containers, then repaint from a fresh whole-doc analysis. */
@@ -705,6 +706,7 @@ class ReadingSession {
       calibration: this.calibration,
       declaredLevel: await this.port.declaredLevel(),
       hasLevels: await this.port.hasLevels(),
+      needsLevel: await needsLevelChoice(this.port),
       trackedCount: await this.port.trackedCount(),
       deckCount: await this.port.deckCount(),
       dueCount: await this.port.dueCount(now),

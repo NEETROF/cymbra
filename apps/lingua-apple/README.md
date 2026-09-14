@@ -47,3 +47,11 @@ A build without step 1 fails with an explicit message from the copy phase.
   needs Safari → Settings → Developer → _Allow unsigned extensions_.
 
 Tabs opened before the extension was enabled or updated need a reload to be highlighted.
+
+## Known issue — popup title on iOS 27
+
+On iOS 27 in light mode, Safari draws the extension popup sheet's native title
+(« Cymbra Lingua ») in black over the dark popup; iOS 26.5 draws it white. The title is
+Safari's own chrome: a `theme-color` meta, an empty `<title>`, a canvas following the
+system `color-scheme` and an empty `action.default_title` were all tried on a device and
+changed nothing. It needs a Safari fix (Apple Feedback).

@@ -21,7 +21,7 @@
 
 - [x] 4.1 With no declared level, the in-page pastille offers the level choice (the existing settings module in the drawer)
 - [x] 4.2 Provider buttons that need `identity.launchWebAuthFlow` are shown only where it exists (feature detection, aligned with `add-lingua-account-parity`); email/password on Safari
-- [ ] 4.3 iOS 27 sheet title: try an empty `action.default_title` in the safari manifest; otherwise document the known issue and file Apple feedback
+- [x] 4.3 iOS 27 sheet title: try an empty `action.default_title` in the safari manifest; otherwise document the known issue and file Apple feedback
 
 ## 5. Apple container app
 

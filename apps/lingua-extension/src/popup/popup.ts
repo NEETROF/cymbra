@@ -24,6 +24,8 @@ interface PageStats {
   calibration: number;
   declaredLevel: CefrLevel | null;
   hasLevels: boolean;
+  /** No level decision yet (« Débutant » is a decision): show the call to action. */
+  needsLevel: boolean;
   trackedCount: number;
   deckCount: number;
   dueCount: number;
@@ -140,16 +142,19 @@ function render(stats: PageStats | null): void {
     // call-to-action until a level has been chosen (asked at first use).
     $("level-block").hidden = false;
     $("calib-block").hidden = true;
-    const current = stats.declaredLevel ?? "";
+    // « Débutant » is a decision (no level, but chosen): only a missing decision asks again.
+    const current = stats.needsLevel ? null : (stats.declaredLevel ?? "");
     for (const b of document.querySelectorAll<HTMLButtonElement>("#level-chips .lvl")) {
       b.classList.toggle("active", (b.dataset.lvl ?? "") === current);
     }
     $("level-hint").textContent = stats.declaredLevel
       ? `Les mots sous ${stats.declaredLevel} ne sont plus surlignés.`
-      : "Choisis ton niveau — rien n'est présumé connu pour l'instant.";
-    $("level-cta").hidden = stats.declaredLevel !== null;
-    $("level-indicator").hidden = stats.declaredLevel === null;
-    $("level-current").textContent = stats.declaredLevel ?? "—";
+      : stats.needsLevel
+        ? "Choisis ton niveau — rien n'est présumé connu pour l'instant."
+        : "Débutant — rien n'est présumé connu.";
+    $("level-cta").hidden = !stats.needsLevel;
+    $("level-indicator").hidden = stats.needsLevel;
+    $("level-current").textContent = stats.declaredLevel ?? "Débutant";
   } else {
     $("level-block").hidden = true;
     $("calib-block").hidden = false;
