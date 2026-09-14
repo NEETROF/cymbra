@@ -43,7 +43,9 @@ export function ladderHtml(rows: LevelRow[], declared: CefrLevel | null): string
   return (
     `<div class="ladder">${head}${cols}${bars}` +
     `<div class="note ladder-legend">Confirmés (lus / appris), présumés (sous ton niveau), à apprendre.</div>` +
-    `<div class="note ladder-scope">Chaque niveau compte les mots qu'il introduit ; « cumulé » ajoute ceux des niveaux précédents. ` +
-    `Ce sont les mots de base de chaque niveau : un lecteur de ce niveau en connaît en général bien davantage.</div></div>`
+    // French punctuation keeps its spaces unbreakable (narrow and regular no-break
+    // entities), so « cumulé » never wraps away from its guillemets in the narrow drawer.
+    `<div class="note ladder-scope">Chaque niveau compte les mots qu'il introduit&#8239;; «&#8239;cumulé&#8239;» ajoute ceux des niveaux précédents. ` +
+    `Ce sont les mots de base de chaque niveau&nbsp;: un lecteur de ce niveau en connaît en général bien davantage.</div></div>`
   );
 }
