@@ -1,62 +1,81 @@
-# add-lingua-apple — Apple container app + Safari extension (macOS + iOS)
+# add-lingua-apple — Safari extension (macOS + iOS) in a minimal Apple container app
 
 ## Why
 
-On iOS, Safari is the only route to an extension (Apple's rule) — a constraint we
-accept — and the extension lands there **disabled** by default: the documented #1
-drop-off of the category. The answer is not a README but a container app in its own
-right (guideline 4.4): it hosts the converted Safari extension, carries the
-decks/review screens, runs the analysis **natively** (no WASM on Apple), and owns the
-guided activation flow. This change completes the MVP's browser matrix: the `safari`
-variant joins the multi-target build introduced by `add-lingua-firefox`.
+On iOS, Safari is the only route to a browser extension (Apple's rule): Firefox and
+Chrome for iOS run no extensions, so Lingua simply does not exist on an iPhone today.
+Safari on macOS comes with the same port.
 
-**Position in the stack** (12 changes): 9th, after `add-lingua-firefox`. Explicit
-prerequisites: `add-lingua-extension-review` (the complete extension — reading +
-review, injected drawer included) and `add-lingua-firefox` (the manifest-variant
-system the `safari` variant joins).
+The previous version of this change assumed Safari could not run the engine and planned
+native analysis over nativeMessaging plus a SwiftUI decks app. A spike on 2026-09-14
+measured the port instead, and overturned that premise: the **unchanged WASM engine**
+runs in Safari's non-persistent event page — the path the Firefox variant already takes
+— on macOS, on the iOS 26.5 simulator and on an iPhone under iOS 27. A long Wikipedia
+article analyses in ~150 ms, and after two minutes in another app an action that wakes
+the engine completes with no perceptible latency. The Safari variant is therefore the
+Firefox build plus a thin host app, not a second engine.
+
+The spike also surfaced what does not carry over as-is: WebKit stalls the page for
+seconds when ~15 000 highlight ranges are registered; the `identity` permission is not
+supported; the manifest has no icons (Safari shows none); no first-run page opens, so an
+uncalibrated reader sees every word highlighted; the popup's "configure shortcuts" link
+lands on an error page on touch devices, and the popup keeps a narrow desktop column.
+
+**Position in the stack**: after `add-lingua-firefox` (archived), whose manifest-variant
+system and event-page `AnalyzerPort` this change reuses.
 
 ## What Changes
 
-- **A new Apple container app** (`apps/lingua-apple`): one Xcode project, **one
-  universal App Store listing (iOS + macOS)** that hosts the converted Safari
-  extension, the **native analysis** (`lingua-core` linked natively over
-  nativeMessaging — no WASM on Apple, packs in the bundle), the decks/review screens,
-  and the extension's **activation flow** (step-by-step walkthrough on iOS +
-  detection through an App Group heartbeat; deep link and state API on macOS).
-- **A `safari` variant of the extension build**: a third manifest variant from the
-  same source (`safari-web-extension-converter`), analysis over nativeMessaging
-  behind the `AnalyzerPort`, and the injected drawer carrying in-browser review on
-  its own (Safari has no panel API).
-- **Signing/TestFlight**: music's `release-build` pattern cloned (the existing Apple
-  chain); iOS dogfooding through internal TestFlight.
-- "Tier 3" channels (Edge Canary Android by ID, curated Edge/Samsung stores, Chromium
-  forks) are explicitly **unsupported**: the standard build may well run there,
-  nothing is promised or tested.
+- **A `safari` build variant** of `apps/lingua-extension`, derived from the firefox
+  variant: non-persistent event page hosting the WASM engine behind the `AnalyzerPort`,
+  static content script, the in-page drawer as the only review surface, no `sidePanel`
+  or `identity` permission, and an icon set (added for every variant).
+- **Viewport-windowed highlighting** (every variant): only the blocks within about one
+  viewport of the visible area are painted, following the scroll.
+- **Touch-primary adaptations** (every variant): full-width popup, no link to a
+  keyboard-shortcut editor that does not exist there.
+- **First run on Safari**: with no onboarding page, the level choice is offered from
+  the page itself.
+- **Sign-in on Safari**: the extension's own flow; providers that need
+  `identity.launchWebAuthFlow` are offered only where it exists (email/password on
+  Safari).
+- **A minimal Apple container app** (`apps/lingua-apple`): the converter's Xcode
+  project, one universal iOS + macOS listing (bundle `com.cymbra.lingua`), whose only
+  job is to host the extension and guide its activation.
+- **Signing / TestFlight / CI** for the app, cloned from music's Apple release jobs.
+- **Deferred** to a later change, only if real use asks for it: native analysis, a
+  SwiftUI decks/review app, an App Group activation heartbeat, native sign-in in the app.
+- "Tier 3" channels (Edge Canary Android, curated Edge/Samsung stores, Chromium forks)
+  stay explicitly **unsupported**: nothing is promised or tested there.
 
 ## Capabilities
 
 ### New Capabilities
-- `lingua-apple-app`: the Safari container app (iOS + macOS) — its own functions
-  (decks/review), guided activation of the extension (iOS walkthrough + heartbeat,
-  macOS deep link + state API), native analysis over nativeMessaging, packs in the
-  bundle, one universal App Store listing.
+- `lingua-apple-app`: the minimal Safari container app (iOS + macOS) — hosts the
+  `safari` variant under one universal listing and guides activation; no learning
+  feature or state of its own.
 
 ### Modified Capabilities
-- `lingua-browser-extension`: adds the "Safari variant" requirement — the converted
-  variant hosted by the container app joins the build matrix
-  (chromium/firefox/safari), with the "tier 3 is not promised" limit.
+- `lingua-browser-extension`: adds the "Safari variant" and "Touch-primary devices"
+  requirements; modifies "In-place highlighting without DOM mutation" (per-variant
+  engine placement, viewport-windowed painting).
 
 ## Impact
 
-- **Products**: Lingua; music's Apple signing chain is **consumed** (the pattern is
-  cloned), not modified; no proto, no backend crate touched.
-- **Tree**: `apps/lingua-apple` (Xcode project: container app + Safari extension +
-  native handler); `apps/lingua-extension` gains the `safari` variant in its
-  multi-target build.
-- **CI**: an Apple signing lane cloned from music's `release-build` pattern (internal
-  TestFlight for iOS dogfooding); `apps/lingua-apple` added to the `ci-units` filter.
-- **Stores**: App Store (one universal iOS/macOS listing). Accepted cadence: Safari
-  fixes go through Apple review — behaviours are shaken out on Chromium/Firefox
-  first.
-- **New dependencies**: none on the Rust side; the `safari-web-extension-converter`
-  tooling (Xcode) on the build side.
+- **Products**: **Lingua** only — new `safari` variant and container app. **Cymbra ID**:
+  consumed unchanged (the extension's existing sign-in). **Music**: nothing modified;
+  its Apple signing jobs are the pattern cloned. **Live / back office / site**: none.
+- **Other in-flight changes**: `add-lingua-connected-clients` D3 (native sign-in in the
+  Apple app, session shared with the Safari extension through an App Group) no longer
+  has an app to live in — the Safari extension signs in and syncs on its own, like the
+  other variants. Amend D3 when that change is next touched. `add-lingua-account-parity`
+  already detects `identity.launchWebAuthFlow` by feature, which this change relies on.
+- **Tree**: `apps/lingua-extension` (build target, highlight painting, touch
+  adaptations, first-run level prompt, icons); `apps/lingua-apple` (new unit).
+- **CI**: `lingua-extension-check` also builds the `safari` variant; a new
+  `lingua-apple-build` workflow builds the Xcode project; `apps/lingua-apple` joins the
+  `ci-units` filter.
+- **Stores**: App Store, one universal iOS + macOS listing. Safari fixes go through
+  App Review, so behaviours are shaken out on Chromium/Firefox first.
+- **New dependencies**: none (Xcode's `safari-web-extension-converter` scaffolds the
+  project once).
