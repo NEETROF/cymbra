@@ -1,11 +1,33 @@
-import type { CefrLevel, LevelRow } from "../analyzer/types.ts";
-import { cumulativeTotals, estimatedPosition } from "./model.ts";
+import type { CefrLevel, LevelRow, VocabularyEstimate } from "../analyzer/types.ts";
+import { cumulativeTotals, estimatedPosition, roughCount } from "./model.ts";
 
 // The CEFR progression ladder's markup, shared by every stats host through mountStats.
 // Pure (rows in, HTML out), so it is unit-tested without a DOM or the engine.
 
 /** A count in French notation (thin space between thousands). */
 const fmt = (n: number): string => n.toLocaleString("fr-FR");
+
+/**
+ * The estimated vocabulary size: one rounded figure (an extrapolation, not a count), how
+ * it was obtained, and how many words are confirmed. Empty when the pack has no
+ * dictionary words to estimate over.
+ */
+export function vocabularyHtml(est: VocabularyEstimate): string {
+  if (est.universe === 0) return "";
+  const label = `<span class="mlabel">Vocabulaire estimé</span>`;
+  if (est.estimated === 0) {
+    return (
+      `<div class="vocab"><div class="vocab-head">${label}</div>` +
+      `<div class="note">Pas encore d'estimation&nbsp;: déclare ton niveau dans les réglages ou marque des mots que tu connais.</div></div>`
+    );
+  }
+  const confirmed = est.confirmed ? ` (dont ${fmt(est.confirmed)} confirmés)` : "";
+  return (
+    `<div class="vocab"><div class="vocab-head">${label}<b class="vocab-n">≈&nbsp;${fmt(roughCount(est.estimated))} mots</b></div>` +
+    `<div class="note">Extrapolé de ton niveau et de tes mots marqués, tranche de fréquence par tranche, ` +
+    `sur les ${fmt(est.universe)} mots du dictionnaire${confirmed}.</div></div>`
+  );
+}
 
 /**
  * One row per level: how many of that level's own words are known (confirmed +

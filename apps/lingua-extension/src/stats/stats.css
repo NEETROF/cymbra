@@ -24,6 +24,25 @@
   letter-spacing: 0.01em;
 }
 
+/* --- Estimated vocabulary --- */
+.stats .vocab {
+  margin-bottom: 16px;
+}
+
+.vocab-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+
+.vocab-n {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--cymbra-lingua-text);
+  font-variant-numeric: tabular-nums;
+}
+
 /* --- CEFR ladder --- */
 .stats .ladder {
   display: flex;

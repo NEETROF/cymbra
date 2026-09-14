@@ -1,4 +1,4 @@
-import type { CefrLevel, LemmaStatus, LevelRow, PageAnalysis, SeedOrder } from "./types.ts";
+import type { CefrLevel, LemmaStatus, LevelRow, PageAnalysis, SeedOrder, VocabularyEstimate } from "./types.ts";
 
 // The AnalyzerPort seam (design D2). The content script consumes analysis exclusively
 // through this interface, never touching the WASM module directly. In this Chromium
@@ -157,6 +157,8 @@ export interface LinguaPort extends AnalyzerPort {
   hasLevels(): Promise<boolean>;
   /** The CEFR ladder A1→C2: confirmed / presumed / to-learn per level. Empty without CEFR data. */
   levelLadder(): Promise<LevelRow[]>;
+  /** The estimated vocabulary size: each frequency band's known share, extrapolated over the pack's dictionary words. */
+  vocabularyEstimate(): Promise<VocabularyEstimate>;
   /** Record one reading exposure per lemma (feeds distinct-day counters; never changes a status). */
   recordExposures(lemmas: string[], source: string, atMs: number): Promise<void>;
   /** Confirm presumed-known lemmas read on ≥ N distinct days; returns how many were promoted. */

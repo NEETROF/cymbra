@@ -3,7 +3,7 @@ import { type CefrLevel, CEFR_LEVELS, type SeedOrder } from "../analyzer/types.t
 import { loadDailyStats, utcDay } from "../state/dailystats.ts";
 import { type AsyncStorageArea, saveBackup } from "../state/storage.ts";
 import { barChartSvg } from "./chart.ts";
-import { ladderHtml } from "./ladder.ts";
+import { ladderHtml, vocabularyHtml } from "./ladder.ts";
 import {
   buildSeries,
   consolidatedToMap,
@@ -98,6 +98,7 @@ export async function mountStats(root: HTMLElement, port: LinguaPort, area: Asyn
   let range: Range = 30;
   root.classList.add("stats");
   root.innerHTML =
+    `<div class="vocab-slot"></div>` +
     `<div class="ladder-slot"></div>` +
     `<div class="seed-slot"></div>` +
     `<div class="marked-slot"></div>` +
@@ -114,8 +115,9 @@ export async function mountStats(root: HTMLElement, port: LinguaPort, area: Asyn
     return el;
   };
 
-  // The ladder does not depend on the range; re-rendered after a seed.
+  // The ladder and the estimate do not depend on the range; re-rendered after a seed.
   const renderLadder = async (): Promise<void> => {
+    pick(".vocab-slot").innerHTML = vocabularyHtml(await port.vocabularyEstimate());
     if (await port.hasLevels()) {
       const [rows, declared] = [await port.levelLadder(), await port.declaredLevel()];
       pick(".ladder-slot").innerHTML = ladderHtml(rows, declared);

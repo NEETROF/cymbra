@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { CefrLevel, LevelRow } from "@/analyzer/types.ts";
 import { barChartSvg } from "@/stats/chart.ts";
-import { ladderHtml } from "@/stats/ladder.ts";
+import { ladderHtml, vocabularyHtml } from "@/stats/ladder.ts";
 import {
   buildSeries,
   consolidatedToMap,
@@ -10,6 +10,7 @@ import {
   estimatedPosition,
   groupMarkedWords,
   markedWords,
+  roughCount,
 } from "@/stats/model.ts";
 
 const CEFR: readonly CefrLevel[] = ["A1", "A2", "B1", "B2", "C1", "C2"];
@@ -43,6 +44,36 @@ describe("ladderHtml", () => {
 
   it("explains that a level counts only its own base words", () => {
     expect(ladderHtml(bands([1, 1, 1, 1, 1, 1]), null)).toContain("Chaque niveau compte les mots qu'il introduit");
+  });
+});
+
+describe("roughCount", () => {
+  it("keeps two significant digits", () => {
+    expect(roughCount(1285)).toBe(1300);
+    expect(roughCount(15823)).toBe(16000);
+    expect(roughCount(995)).toBe(1000);
+  });
+
+  it("leaves small counts as they are", () => {
+    expect(roughCount(0)).toBe(0);
+    expect(roughCount(99)).toBe(99);
+  });
+});
+
+describe("vocabularyHtml", () => {
+  it("shows the rounded estimate, the dictionary size and the confirmed words", () => {
+    const html = vocabularyHtml({ estimated: 15823, confirmed: 120, universe: 25009 });
+    expect(html).toContain(`≈&nbsp;${fr(16000)} mots`);
+    expect(html).toContain(`${fr(25009)} mots du dictionnaire (dont ${fr(120)} confirmés)`);
+  });
+
+  it("asks for a level or marked words before there is anything to estimate", () => {
+    expect(vocabularyHtml({ estimated: 0, confirmed: 0, universe: 25009 })).toContain("Pas encore d'estimation");
+    expect(vocabularyHtml({ estimated: 0, confirmed: 0, universe: 0 })).toBe("");
+  });
+
+  it("omits the confirmed count when there is none", () => {
+    expect(vocabularyHtml({ estimated: 3200, confirmed: 0, universe: 25009 })).not.toContain("confirmés");
   });
 });
 
