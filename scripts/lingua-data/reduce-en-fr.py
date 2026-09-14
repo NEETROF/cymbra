@@ -5,40 +5,83 @@
 # this file except in compliance with the License. You may obtain a copy of the
 # License at http://www.apache.org/licenses/LICENSE-2.0
 
-"""Reduce the raw EN->FR sources (AGID + wordfreq + kaikki) into the pack tables.
+"""Reduce the raw EN->FR sources (AGID + wordfreq + kaikki + CEFR lists) into the pack tables.
 
 Inputs (downloaded into <work>/ by build.sh, git-ignored):
   - agid-infl.txt          AGID inflection database  (lemma <POS>: forms)
   - kaikki-Anglais.jsonl   kaikki frwiktionary "Anglais" extract (FR glosses of EN words)
   - wordfreq (pip)         English frequency ranks
+  - cefrj-*.csv / octanove-*.csv   CEFR levels (optional)
+and, from this repository, the analyser's irregular-form table (lingua-core lemmatize.rs).
 
 Outputs (into <work>/, consumed by lingua-pack-build):
   forms.tsv  (form<TAB>lemma) / freq.tsv (lemma<TAB>rank) / gloss.tsv (lemma<TAB>gloss)
-  / NOTICE / manifest.json
+  / level.tsv (lemma<TAB>A1..C2) / NOTICE / manifest.json
 
-Key rule: only CANONICAL LEMMAS (base forms) are ever treated as lemmas. An inflected
-form (e.g. "targets", "gives") is kept in forms.tsv so it lemmatises to its base, but is
-NEVER given a rank or a gloss of its own — otherwise it becomes a spurious pool lemma
-that (a) carries a useless "Pluriel de …" form-of gloss and (b) collides with its base
-lemma's entry. Pack is scoped to the top-N canonical lemmas to fit the 5 MB budget.
+Key rules:
+1. Only CANONICAL LEMMAS (base forms) are ever treated as lemmas. An inflected form (e.g.
+   "targets", "gives") is kept in forms.tsv so it lemmatises to its base, but is NEVER
+   given a rank or a gloss of its own — otherwise it becomes a spurious pool lemma that
+   (a) carries a useless "Pluriel de …" form-of gloss and (b) collides with its base
+   lemma's entry.
+2. AGID is not always right about what an inflection is: it lists "butter" as the
+   comparative of "but", "number" as the comparative of "numb", "his" as the plural of
+   "hi". A form that is really a word of its own (`own_words`) stays a canonical lemma.
+3. Every form maps to exactly ONE lemma (`resolve_forms`): itself when it is a word of its
+   own, otherwise its most frequent base. The pack's FST keeps a single lemma per form and,
+   left to choose, keeps the alphabetically first — which is how "butter" became "but".
+4. CEFR-listed words the frequency cut leaves out (rare C1/C2 words, hyphenated compounds
+   wordfreq never ranks) are appended after the ranked lemmas, so the level table covers
+   the CEFR lists instead of silently dropping a sixth of them.
+
+Pack is scoped to the top-N canonical lemmas (+ those CEFR words) to fit the 5 MB budget.
 Output is sorted + date-stamped so a rebuild from the same snapshots is byte-identical.
 """
 
 import argparse
+import csv
+import functools
 import json
 import os
 import re
 
 _TOKEN = re.compile(r"[A-Za-z][A-Za-z'\-]*")
 
+_REPO = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+_LEMMATIZE_RS = os.path.join(_REPO, "crates", "lingua-core", "src", "analysis", "lemmatize.rs")
+
 # French frwiktionary "form-of" gloss templates — these mark an entry that is an
 # inflected form, not a word with a meaning of its own; never a useful translation.
 _FORM_OF = re.compile(
-    r"^(pluriel|singulier|f[ée]minin|masculin|participe|pr[ée]t[ée]rit|"
-    r"(troisi[èe]me|deuxi[èe]me|premi[èe]re) personne|variante|autre graphie|"
+    r"^(pluriel|singulier|f[ée]minin|masculin|participe|pr[ée]t[ée]rit|comparatif|superlatif|"
+    r"g[ée]rondif|(troisi[èe]me|deuxi[èe]me|premi[èe]re) personne|variante|autre graphie|"
     r"forme (de|du|d'|verbale|fl[ée]chie)|genre|orthographe)\b",
     re.IGNORECASE,
 )
+
+# The English word a form-of gloss points at: "Pluriel de datum.", "Prétérit du verbe to
+# find". Every candidate is collected; callers only test membership.
+_FORM_OF_TARGET = re.compile(
+    r"\b(?:de|du|d['’])\s*(?:verbe\s+|adjectif\s+|nom\s+)?(?:to\s+)?[«“\"]?\s*"
+    r"([A-Za-z][A-Za-z'\-]*)",
+    re.IGNORECASE,
+)
+
+# AGID relation kinds: N = plural, V = verb form, A = comparison.
+# What a relation can make of a word, in the CEFR lists' vocabulary (a participle is
+# routinely taught as an adjective) ...
+_INFLECTION_POS = {
+    "N": {"noun"},
+    "V": {"verb", "be-verb", "do-verb", "have-verb", "modal auxiliary", "adjective"},
+    "A": {"adjective", "adverb"},
+}
+# ... and what the BASE must be for the relation to make sense, per source.
+_WIKT_BASE_POS = {"N": {"noun", "name"}, "V": {"verb"}, "A": {"adj", "adv"}}
+_CEFR_BASE_POS = {
+    "N": {"noun"},
+    "V": {"verb", "be-verb", "do-verb", "have-verb", "modal auxiliary"},
+    "A": {"adjective", "adverb"},
+}
 
 
 def agid_forms(inflections):
@@ -52,14 +95,15 @@ def agid_forms(inflections):
     return out
 
 
-def parse_agid(path):
-    """All (form, lemma) pairs from AGID, skipping questionable-POS lines.
+def parse_agid_relations(path):
+    """All (form, lemma) pairs from AGID, and each inflected form's (lemma, kind) relations.
 
     A `?` on the part of speech (e.g. `gif N?: gives`) marks a doubtful headword; such
     lines carry bogus inflections (AGID really does claim the noun "gif" pluralises to
-    "gives"), so they are dropped.
+    "gives"), so they are dropped. The relation kind is the flag's first letter: N, V or A.
     """
     pairs = set()
+    relations = {}
     with open(path, encoding="utf-8", errors="replace") as f:
         for line in f:
             if ":" not in line:
@@ -73,10 +117,142 @@ def parse_agid(path):
                 continue
             if any("?" in flag for flag in head[1:]):  # questionable POS -> skip
                 continue
+            kind = head[1][0] if len(head) > 1 else ""
             pairs.add((lemma, lemma))
             for form in agid_forms(right):
                 pairs.add((form, lemma))
-    return pairs
+                if form != lemma:
+                    relations.setdefault(form, set()).add((lemma, kind))
+    return pairs, relations
+
+
+def analyser_irregulars(path=_LEMMATIZE_RS):
+    """The analyser's hard-coded irregular forms (lingua-core `IRREGULARS`): form -> lemma.
+
+    The analyser resolves these before it ever looks at the pack, so a pack lemma for one
+    of them ("left", "found") could never be reached by reading.
+    """
+    with open(path, encoding="utf-8") as f:
+        src = f.read()
+    start = src.find("const IRREGULARS")
+    end = src.find("];", start)
+    table = dict(re.findall(r'\(\s*"([^"]+)"\s*,\s*"([^"]+)"\s*\)', src[start:end])) if start >= 0 else {}
+    if not table:
+        raise ValueError(f"no IRREGULARS table in {path}")
+    return table
+
+
+def wiktionary_signals(path, words):
+    """For the given words: the parts of speech they have a meaning under, and their form-of targets.
+
+    A sense is a meaning when its gloss says what the word means ("Beurre."), not which
+    word it is a form of ("Comparatif de numb."); the targets are the words such pointers
+    name.
+    """
+    meanings, targets = {}, {}
+    with open(path, encoding="utf-8", errors="replace") as f:
+        for line in f:
+            try:
+                d = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            word = (d.get("word") or "").strip().lower()
+            if word not in words:
+                continue
+            for sense in d.get("senses", []):
+                gg = sense.get("glosses") or []
+                gloss = gg[0].strip() if gg else ""
+                if not gloss:
+                    continue
+                if _FORM_OF.match(gloss):
+                    found = {t.lower() for t in _FORM_OF_TARGET.findall(gloss)}
+                    targets.setdefault(word, set()).update(found)
+                else:
+                    meanings.setdefault(word, set()).add(d.get("pos") or "")
+    return meanings, targets
+
+
+def regular_inflection(form, base, kind):
+    """Whether `form` is the regular plural / verb form / comparison of `base`.
+
+    "butter" IS the regular comparative of "but" — spelling alone never clears a relation;
+    it only makes a relation whose base has the right part of speech believable.
+    """
+    vowels = "aeiou"
+    doubles = len(base) >= 3 and base[-1] not in vowels + "wxy" and base[-2] in vowels and base[-3] not in vowels
+    if kind == "N":
+        made = {base + "s", base + "es"}
+        if base.endswith("y"):
+            made.add(base[:-1] + "ies")
+    elif kind == "V":
+        made = {base + "s", base + "es", base + "ed", base + "d", base + "ing"}
+        if base.endswith("e"):
+            made.add(base[:-1] + "ing")
+        if base.endswith("y"):
+            made |= {base[:-1] + "ied", base[:-1] + "ies"}
+        if doubles:
+            made |= {base + base[-1] + "ed", base + base[-1] + "ing"}
+    elif kind == "A":
+        made = {base + "er", base + "est", base + "r", base + "st"}
+        if base.endswith("y"):
+            made |= {base[:-1] + "ier", base[:-1] + "iest"}
+        if doubles:
+            made |= {base + base[-1] + "er", base + base[-1] + "est"}
+    else:
+        return False
+    return form in made
+
+
+def own_words(relations, meanings, targets, cefr, frequency, never=frozenset()):
+    """The AGID-inflected forms that are really words of their own and must stay lemmas.
+
+    Never an -ing/-ed form (in running text those are overwhelmingly the verb: "used",
+    "going") nor one of `never` (the analyser's irregular forms). Otherwise a form is its
+    own word when any of these holds:
+    - Wiktionary gives it a meaning, never names any of its bases as what it is a form of,
+      and no relation is believable — a base with the right part of speech it regularly
+      inflects to ("butter": "but" is no adjective; "sales" stays "sale");
+    - it has a meaning and is at least ten times commoner than its commonest base, which a
+      real inflection never is ("number" / "numb", "data" / "datum");
+    - a CEFR list teaches it with a part of speech its relations cannot produce, and none
+      of its bases is taught with the part of speech the relation needs ("customer", a
+      noun, is not a comparison of "custom", a noun; "times" stays "time");
+    - Wiktionary gives it a meaning without naming a base, and a CEFR list teaches it
+      with such an impossible part of speech ("owner", a noun, next to "own").
+
+    How the rule was chosen, and how well it does, is in SOURCES.md ("Words AGID gets wrong").
+    """
+    out = set()
+    for form, rels in relations.items():
+        if form in never or form.endswith(("ing", "ed")):
+            continue
+        meaningful = bool(meanings.get(form))
+        named = targets.get(form, set())
+        unattested = meaningful and not any(base in named for base, _ in rels)
+
+        def base_has_pos(base, kind):
+            if meanings.get(base, set()) & _WIKT_BASE_POS.get(kind, set()):
+                return True
+            return bool({pos for pos, _ in cefr.get(base, ())} & _CEFR_BASE_POS.get(kind, set()))
+
+        believable = any(
+            base_has_pos(base, kind) and (regular_inflection(form, base, kind) or base in named)
+            for base, kind in rels
+        )
+        taught = {pos for pos, _ in cefr.get(form, ())}
+        producible = set().union(*(_INFLECTION_POS.get(kind, set()) for _, kind in rels))
+        mistaught = bool(taught - producible)
+        taught_base = any(
+            {pos for pos, _ in cefr.get(base, ())} & _CEFR_BASE_POS.get(kind, set()) for base, kind in rels
+        )
+        if (
+            (unattested and not believable)
+            or (unattested and mistaught)
+            or (mistaught and not taught_base)
+            or (meaningful and frequency(form) - max(frequency(base) for base, _ in rels) >= 1.0)
+        ):
+            out.add(form)
+    return out
 
 
 def canonical_ranks(inflected, want):
@@ -92,6 +268,49 @@ def canonical_ranks(inflected, want):
         if len(ranks) >= want:
             break
     return ranks
+
+
+def append_level_extras(ranks, cefr, inflected, frequency, lemma_of):
+    """Ranks extended with the CEFR headwords the frequency cut left out.
+
+    They carry their CEFR level, so a declared level and the ladder see the whole list.
+    wordfreq never ranks a hyphenated compound, and the analyser judges an unlisted one by
+    its rarest part, so a compound whose parts are all ranked takes that part's rank
+    ("well-known" ranks as "known", via `lemma_of`) — a frequency slider treats it exactly
+    as before it was listed. Every other word ranks after the whole frequency list,
+    commonest first by `frequency(word)` (wordfreq's Zipf value in the real build).
+    """
+    out = dict(ranks)
+    rarest = []
+    for w in sorted(w for w in cefr if w not in ranks and w not in inflected and _TOKEN.fullmatch(w)):
+        parts = [ranks.get(lemma_of(part)) for part in w.split("-")] if "-" in w else [None]
+        if all(parts):
+            out[w] = max(parts)
+        else:
+            rarest.append(w)
+    last = max(ranks.values(), default=0)
+    for i, w in enumerate(sorted(rarest, key=lambda w: (-frequency(w), w)), start=1):
+        out[w] = last + i
+    return out
+
+
+def resolve_forms(pairs, ranks, own):
+    """The single lemma of every form whose lemma is kept.
+
+    A word of its own that is kept maps to itself, never to a base AGID wrongly gave it
+    (a word of its own too rare to keep still resolves as before); any other form maps to
+    its most frequent kept base, ties broken alphabetically.
+    """
+    candidates = {}
+    for form, lemma in pairs:
+        if lemma in ranks and not (form in own and form in ranks and lemma != form):
+            candidates.setdefault(form, set()).add(lemma)
+    for lemma in ranks:
+        candidates.setdefault(lemma, set()).add(lemma)
+    return {
+        form: min(lemmas, key=lambda lemma: (ranks[lemma], lemma))
+        for form, lemmas in candidates.items()
+    }
 
 
 def clean_gloss(text, maxlen):
@@ -172,30 +391,36 @@ Octanove: Octanove Vocabulary Profile C1/C2 v1.0, Octanove Labs, CC BY-SA 4.0.
 _LEVEL_RANK = {"A1": 1, "A2": 2, "B1": 3, "B2": 4, "C1": 5, "C2": 6}
 
 
-def reduce_levels(cefrj_path, octanove_path, lemmas):
-    """Lowest CEFR level per kept lemma, from CEFR-J (A1-B2) + Octanove (C1-C2).
+def read_cefr(paths):
+    """headword -> {(part of speech, level)} across the CEFR lists; missing files are skipped.
 
-    Both CSVs share the columns `headword,pos,CEFR,...`. A headword may be a
-    slash-joined set of variants (e.g. "a.m./A.M./am/AM"); each alphabetic variant
-    is mapped. Only lemmas we actually keep in the pack are emitted.
+    Both CSVs share the columns `headword,pos,CEFR,...`. A headword may be a slash-joined
+    set of variants (e.g. "a.m./A.M./am/AM"); each alphabetic variant is kept.
     """
-    import csv
-
-    best = {}  # lemma -> lowest level rank seen
-    for path in (cefrj_path, octanove_path):
+    cefr = {}
+    for path in paths:
         if not os.path.exists(path):
             continue
         with open(path, encoding="utf-8", errors="replace", newline="") as f:
             for row in csv.DictReader(f):
-                rank = _LEVEL_RANK.get((row.get("CEFR") or "").strip().upper())
-                if rank is None:
+                level = (row.get("CEFR") or "").strip().upper()
+                if level not in _LEVEL_RANK:
                     continue
+                pos = (row.get("pos") or "").strip()
                 for part in (row.get("headword") or "").split("/"):
                     w = part.strip().lower()
-                    if _TOKEN.fullmatch(w) and w in lemmas and rank < best.get(w, 99):
-                        best[w] = rank
-    inv = {v: k for k, v in _LEVEL_RANK.items()}
-    return {w: inv[r] for w, r in best.items()}
+                    if _TOKEN.fullmatch(w):
+                        cefr.setdefault(w, set()).add((pos, level))
+    return cefr
+
+
+def reduce_levels(cefr, lemmas):
+    """Lowest CEFR level per kept lemma. Only lemmas we actually keep in the pack are emitted."""
+    return {
+        w: min((level for _, level in entries), key=_LEVEL_RANK.__getitem__)
+        for w, entries in cefr.items()
+        if w in lemmas
+    }
 
 
 def write(work, name, text):
@@ -212,23 +437,33 @@ def main():
     ap.add_argument("--pack-version", required=True)
     a = ap.parse_args()
 
-    pairs = parse_agid(os.path.join(a.work, "agid-infl.txt"))
-    inflected = {form for form, lemma in pairs if form != lemma}
+    from wordfreq import zipf_frequency
+
+    zipf = functools.lru_cache(maxsize=None)(lambda w: zipf_frequency(w, "en"))
+    kaikki = os.path.join(a.work, "kaikki-Anglais.jsonl")
+    pairs, relations = parse_agid_relations(os.path.join(a.work, "agid-infl.txt"))
+    cefr = read_cefr(
+        [
+            os.path.join(a.work, "cefrj-vocabulary-profile-1.5.csv"),
+            os.path.join(a.work, "octanove-vocabulary-profile-c1c2-1.0.csv"),
+        ]
+    )
+    bases = {base for rels in relations.values() for base, _ in rels}
+    meanings, targets = wiktionary_signals(kaikki, set(relations) | bases)
+    own = own_words(relations, meanings, targets, cefr, zipf, never=set(analyser_irregulars()))
+    inflected = {form for form, lemma in pairs if form != lemma} - own
     ranks = canonical_ranks(inflected, a.max_lemmas)
+    ranked = len(ranks)
+    if cefr:
+        ranked_forms = resolve_forms(pairs, ranks, own)
+        ranks = append_level_extras(ranks, cefr, inflected, zipf, ranked_forms.get)
     lemmas = set(ranks)
 
-    # forms.tsv: every AGID mapping whose lemma we keep, plus each lemma's self-map so a
-    # lemma with no listed inflection is still recognised.
-    forms = {(f, l) for f, l in pairs if l in lemmas}
-    forms |= {(l, l) for l in lemmas}
-    glosses = reduce_gloss(os.path.join(a.work, "kaikki-Anglais.jsonl"), lemmas, a.max_gloss_len)
-    levels = reduce_levels(
-        os.path.join(a.work, "cefrj-vocabulary-profile-1.5.csv"),
-        os.path.join(a.work, "octanove-vocabulary-profile-c1c2-1.0.csv"),
-        lemmas,
-    )
+    forms = resolve_forms(pairs, ranks, own)
+    glosses = reduce_gloss(kaikki, lemmas, a.max_gloss_len)
+    levels = reduce_levels(cefr, lemmas)
 
-    write(a.work, "forms.tsv", "".join(f"{f}\t{l}\n" for f, l in sorted(forms)))
+    write(a.work, "forms.tsv", "".join(f"{f}\t{l}\n" for f, l in sorted(forms.items())))
     write(
         a.work,
         "freq.tsv",
@@ -262,7 +497,8 @@ def main():
     write(a.work, "manifest.json", json.dumps(manifest, indent=2, ensure_ascii=False) + "\n")
 
     print(
-        f"reduced en-fr: forms={len(forms)} lemmas={len(ranks)} "
+        f"reduced en-fr: forms={len(forms)} lemmas={len(ranks)} (ranked={ranked}, "
+        f"cefr-only={len(ranks) - ranked}) own-words={len(own & lemmas)} "
         f"gloss={len(glosses)} levels={len(levels)}"
     )
 
