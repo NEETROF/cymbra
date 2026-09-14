@@ -72,9 +72,14 @@ jobs:
         run: yarn typecheck
       - name: Unit tests (Vitest)
         run: yarn test
-      # Full build: testdata pack + esbuild bundle (the wasm bindings were generated
-      # above). Proves the loadable extension assembles, not just that it typechecks.
+      # Full build: testdata pack + esbuild bundle of every variant (chromium, firefox,
+      # safari; the wasm bindings were generated above). Proves the loadable extension
+      # assembles, not just that it typechecks.
       - name: Build extension
         run: |
           yarn gen:pack
           yarn build
+      # Each manifest carries what its browser needs, and each bundle kept only its own
+      # capability branches (a misplaced __TARGET__ check type-checks but not this).
+      - name: Verify browser variants
+        run: yarn check:variants

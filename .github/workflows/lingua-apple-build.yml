@@ -1,0 +1,79 @@
+name: lingua-apple-build
+
+# Builds the Apple host app of the Safari extension (apps/lingua-apple) for the iOS
+# simulator and macOS, unsigned. The app bundles the extension's safari build through a
+# copy phase, so the extension is built first; a change to the extension or its engine is
+# therefore a change to this app too. Signing and TestFlight are a separate release lane.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lingua-apple-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      apple: ${{ steps.f.outputs.apple }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dorny/paths-filter@v4
+        id: f
+        with:
+          filters: |
+            apple:
+              - 'apps/lingua-apple/**'
+              - 'apps/lingua-extension/**'
+              - 'crates/lingua-wasm/**'
+              - 'crates/lingua-core/**'
+              - '.github/workflows/lingua-apple-build.yml'
+
+  build:
+    needs: changes
+    if: ${{ github.event_name != 'pull_request' || needs.changes.outputs.apple == 'true' }}
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: taiki-e/install-action@wasm-pack
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: Set up protoc (gRPC-web stubs)
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Enable Corepack (Yarn Berry)
+        run: corepack enable
+      - name: Build the extension's safari variant
+        working-directory: apps/lingua-extension
+        run: |
+          yarn install --immutable
+          yarn gen:wasm
+          yarn gen:proto
+          yarn gen:pack
+          yarn build:safari
+      - name: Build the iOS app (simulator, unsigned)
+        working-directory: apps/lingua-apple
+        run: |
+          xcodebuild -project "Cymbra Lingua.xcodeproj" -scheme "Cymbra Lingua (iOS)" \
+            -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/dd" CODE_SIGNING_ALLOWED=NO build
+      - name: Build the macOS app (unsigned)
+        working-directory: apps/lingua-apple
+        run: |
+          xcodebuild -project "Cymbra Lingua.xcodeproj" -scheme "Cymbra Lingua (macOS)" \
+            -configuration Release -derivedDataPath "$RUNNER_TEMP/dd" CODE_SIGNING_ALLOWED=NO build
+      - name: Verify the extension is bundled
+        run: |
+          test -f "$RUNNER_TEMP/dd/Build/Products/Release-iphonesimulator/Cymbra Lingua.app/PlugIns/Cymbra Lingua Extension.appex/manifest.json"
+          test -f "$RUNNER_TEMP/dd/Build/Products/Release/Cymbra Lingua.app/Contents/PlugIns/Cymbra Lingua Extension.appex/Contents/Resources/manifest.json"

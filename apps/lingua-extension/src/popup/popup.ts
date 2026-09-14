@@ -1,3 +1,4 @@
+import { hasShortcutEditor, hasWebAuthFlow } from "../state/platform.ts";
 import { SIGNIN_ERROR_KEY } from "../state/session.ts";
 import { loadEnabled, loadHudHidden, saveEnabled, saveHudHidden } from "../state/storage.ts";
 import type { CefrLevel } from "../analyzer/types.ts";
@@ -23,6 +24,8 @@ interface PageStats {
   calibration: number;
   declaredLevel: CefrLevel | null;
   hasLevels: boolean;
+  /** No level decision yet (« Débutant » is a decision): show the call to action. */
+  needsLevel: boolean;
   trackedCount: number;
   deckCount: number;
   dueCount: number;
@@ -139,16 +142,19 @@ function render(stats: PageStats | null): void {
     // call-to-action until a level has been chosen (asked at first use).
     $("level-block").hidden = false;
     $("calib-block").hidden = true;
-    const current = stats.declaredLevel ?? "";
+    // « Débutant » is a decision (no level, but chosen): only a missing decision asks again.
+    const current = stats.needsLevel ? null : (stats.declaredLevel ?? "");
     for (const b of document.querySelectorAll<HTMLButtonElement>("#level-chips .lvl")) {
       b.classList.toggle("active", (b.dataset.lvl ?? "") === current);
     }
     $("level-hint").textContent = stats.declaredLevel
       ? `Les mots sous ${stats.declaredLevel} ne sont plus surlignés.`
-      : "Choisis ton niveau — rien n'est présumé connu pour l'instant.";
-    $("level-cta").hidden = stats.declaredLevel !== null;
-    $("level-indicator").hidden = stats.declaredLevel === null;
-    $("level-current").textContent = stats.declaredLevel ?? "—";
+      : stats.needsLevel
+        ? "Choisis ton niveau — rien n'est présumé connu pour l'instant."
+        : "Débutant — rien n'est présumé connu.";
+    $("level-cta").hidden = !stats.needsLevel;
+    $("level-indicator").hidden = stats.needsLevel;
+    $("level-current").textContent = stats.declaredLevel ?? "Débutant";
   } else {
     $("level-block").hidden = true;
     $("calib-block").hidden = false;
@@ -163,12 +169,13 @@ function render(stats: PageStats | null): void {
  * Open a panel view, staying in the page as much as possible and landing in the SAME place
  * as the in-page HUD:
  *  - Chromium: the native Side Panel (docks beside the page).
- *  - Firefox: the in-page drawer — a page element cannot open the sidebar, so both the popup
- *    and the HUD use the drawer, which never leaves the page (and works on Android too). The
- *    reader is always injected on Firefox, so the message reaches the active tab.
+ *  - Firefox and Safari: the in-page drawer — a page element cannot open Firefox's sidebar and
+ *    Safari has no panel API, so both the popup and the HUD use the drawer, which never leaves
+ *    the page (and works on mobile too). The reader is always injected there, so the message
+ *    reaches the active tab.
  */
 async function openReviewSurface(view: "review" | "stats"): Promise<void> {
-  if (__TARGET__ === "firefox") {
+  if (__REVIEW_IN_PAGE__) {
     await send({ type: "openDrawer", view });
     window.close();
     return;
@@ -326,7 +333,11 @@ async function main(): Promise<void> {
     await applyEnabled(enabled);
   });
 
-  $("signin-google").addEventListener("click", async () => {
+  // No identity API (Safari): offer email/password only, already unfolded.
+  const google = $("signin-google");
+  google.hidden = !hasWebAuthFlow();
+  if (google.hidden) document.querySelector<HTMLDetailsElement>(".acct-local")?.setAttribute("open", "");
+  google.addEventListener("click", async () => {
     // Opening Google's auth window steals focus and tears this popup down, so the
     // awaited result usually never arrives here (res === null). That is fine: the
     // background finishes the sign-in, and on reopen the popup shows the signed-in
@@ -361,7 +372,9 @@ async function main(): Promise<void> {
   });
 
   $("open-stats").addEventListener("click", () => void openReviewSurface("stats"));
-  $("shortcuts-config").addEventListener("click", () => void openShortcutsConfig());
+  const shortcutsConfig = $("shortcuts-config");
+  shortcutsConfig.hidden = !hasShortcutEditor();
+  shortcutsConfig.addEventListener("click", () => void openShortcutsConfig());
 
   // In-page HUD visibility: checked = shown. The content script reacts via storage.onChanged.
   const hudToggle = $("hud-toggle") as HTMLInputElement;

@@ -19,6 +19,18 @@ body {
   font-size: 13px;
 }
 
+/* On a touch-primary device the popup is either a sheet or page of imposed width (Safari on
+   iPhone, Firefox for Android) or a popover sized from its content (Safari on iPad). `auto`
+   fills the imposed width instead of a narrow desktop column; the minimum keeps the iPad
+   popover from shrinking to its narrowest content, and still fits a 375 px phone. */
+@media (pointer: coarse) {
+  body {
+    box-sizing: border-box;
+    width: auto;
+    min-width: 360px;
+  }
+}
+
 h1 {
   margin: 0;
   font-size: 14px;

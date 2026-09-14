@@ -1,0 +1,94 @@
+* {
+    -webkit-user-select: none;
+    -webkit-user-drag: none;
+    cursor: default;
+}
+
+:root {
+    color-scheme: light dark;
+
+    --spacing: 20px;
+}
+
+html {
+    height: 100%;
+}
+
+body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+
+    gap: var(--spacing);
+    margin: 0 calc(var(--spacing) * 2);
+    height: 100%;
+
+    font: -apple-system-short-body;
+    text-align: center;
+}
+
+body:not(.platform-mac, .platform-ios) :is(.platform-mac, .platform-ios) {
+    display: none;
+}
+
+body.platform-ios .platform-mac {
+    display: none;
+}
+
+body.platform-mac .platform-ios {
+    display: none;
+}
+
+body.platform-ios .platform-mac {
+    display: none;
+}
+
+body:not(.state-on, .state-off) :is(.state-on, .state-off) {
+    display: none;
+}
+
+body.state-on :is(.state-off, .state-unknown) {
+    display: none;
+}
+
+body.state-off :is(.state-on, .state-unknown) {
+    display: none;
+}
+
+button {
+    font-size: 1em;
+}
+
+h1 {
+    margin: 0;
+    font-size: 1.4em;
+}
+
+.lede {
+    margin: 0;
+    max-width: 32em;
+}
+
+/* The iOS steps read top to bottom, so they are left-aligned inside the centred page. */
+.steps {
+    margin: 0;
+    padding-left: 1.4em;
+    max-width: 30em;
+    text-align: left;
+    line-height: 1.5;
+}
+
+.steps li + li {
+    margin-top: 0.6em;
+}
+
+.note {
+    margin: 0;
+    font-size: 0.9em;
+    opacity: 0.7;
+}
+
+.steps + .note {
+    margin-top: var(--spacing);
+}

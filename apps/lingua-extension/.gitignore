@@ -11,6 +11,7 @@ node_modules/
 dist/
 dist-chromium/
 dist-firefox/
+dist-safari/
 web-ext-artifacts/
 coverage/
 

@@ -1,0 +1,72 @@
+// Verify the built browser variants (run after `yarn build`): each manifest carries what its
+// browser needs, and each bundle kept only its own branches of the capability defines
+// (build.mjs `capabilities` + esbuild minifySyntax). A stray `__TARGET__ === "firefox"` left
+// where a capability belongs builds fine and type-checks — only the bundle shows it.
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+const failures = [];
+
+function read(target, file) {
+  return readFileSync(join(root, `dist-${target}`, file), "utf8");
+}
+
+function expect(ok, message) {
+  if (!ok) failures.push(message);
+}
+
+const manifests = Object.fromEntries(
+  ["chromium", "firefox", "safari"].map((t) => [t, JSON.parse(read(t, "manifest.json"))]),
+);
+
+// Manifests.
+const { chromium, firefox, safari } = manifests;
+expect(chromium.background?.service_worker, "chromium: background must be a service worker");
+expect(!chromium.content_scripts, "chromium: must stay activeTab-first (no static content script)");
+expect(chromium.permissions.includes("sidePanel"), "chromium: needs the sidePanel permission");
+
+expect(firefox.background?.scripts, "firefox: background must be an event page");
+expect(firefox.browser_specific_settings?.gecko?.id, "firefox: needs a gecko add-on id");
+expect(firefox.content_scripts?.length, "firefox: needs the static content script");
+expect(!firefox.key, "firefox: must not carry the Chromium key");
+
+expect(
+  safari.background?.scripts && safari.background.persistent === false,
+  "safari: event page must be non-persistent",
+);
+expect(!safari.background?.service_worker, "safari: must not declare a service worker");
+expect(safari.content_scripts?.length, "safari: needs the static content script");
+expect(!safari.side_panel, "safari: must not declare a side panel");
+for (const p of ["sidePanel", "identity"]) {
+  expect(!safari.permissions.includes(p), `safari: must not request the unsupported "${p}" permission`);
+}
+expect(!safari.key && !safari.browser_specific_settings, "safari: must carry neither the Chromium key nor a gecko id");
+
+for (const [target, m] of Object.entries(manifests)) {
+  expect(m.icons && Object.keys(m.icons).length > 0, `${target}: manifest must declare icons`);
+}
+
+// Folded branches: markers that exist in exactly one family of variants.
+const markers = [
+  // The in-content WASM probe of resolveContentPort — Chromium only.
+  { file: "content.js", text: "inContent.calibration", chromium: true },
+  // The in-page drawer as the review surface — event-page family only.
+  { file: "content.js", text: "drawer.openOn(view)", chromium: false },
+  // Dynamic reader registration — Chromium only.
+  { file: "background.js", text: "registerContentScripts(", chromium: true },
+];
+for (const { file, text, chromium: inChromium } of markers) {
+  for (const target of ["chromium", "firefox", "safari"]) {
+    const present = read(target, file).includes(text);
+    const wanted = (target === "chromium") === inChromium;
+    expect(present === wanted, `${target}/${file}: "${text}" should be ${wanted ? "present" : "folded away"}`);
+  }
+}
+
+if (failures.length > 0) {
+  console.error(`Variant check failed:\n- ${failures.join("\n- ")}`);
+  process.exit(1);
+}
+console.log("Variant check passed: chromium, firefox, safari.");

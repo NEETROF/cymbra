@@ -11,6 +11,8 @@ import { type Block, collectBlocks, rangeForToken } from "./blocks.ts";
 export interface ResolvedToken {
   token: AnalyzedToken;
   range: Range;
+  /** The block container the token was read from (groups painting by block). */
+  container?: Element;
 }
 
 /** Page-level counts the badge and popup display. */
@@ -147,7 +149,7 @@ export function findTokenInBlock(
   const resolved: ResolvedToken[] = [];
   for (const token of tokens) {
     const range = rangeForToken(block, token.start, token.end);
-    if (range) resolved.push({ token, range });
+    if (range) resolved.push({ token, range, container: block.container });
   }
   return findTokenAt(resolved, node, offset);
 }
@@ -159,7 +161,7 @@ export function resolveTokens(blocks: Block[], a: PageAnalysis): ResolvedToken[]
     const block = blocks[token.block];
     if (!block) continue;
     const range = rangeForToken(block, token.start, token.end);
-    if (range) resolved.push({ token, range });
+    if (range) resolved.push({ token, range, container: block.container });
   }
   return resolved;
 }
