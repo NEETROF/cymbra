@@ -22,6 +22,11 @@ export interface HudState {
   analysable: boolean;
   /** Known-word percentage, or null when it cannot be computed. */
   percent: number | null;
+  /**
+   * No level declared yet for a language with CEFR data: every word reads as unknown, so the
+   * pill offers the choice right away. Needed where no first-run page opens (Safari).
+   */
+  needsLevel?: boolean;
 }
 
 export interface HudView {
@@ -88,7 +93,13 @@ export function createHud(actions: HudActions): HudView {
   );
   const collapseBtn = button("hud-collapse", "⌄", collapse, "Réduire");
   row.append(review, stats, gear, collapseBtn);
-  pill.append(pct, row);
+  // Outside the collapsible row: visible on the bare pill until a level is declared.
+  const level = button("hud-level", "Choisis ton niveau", () => {
+    actions.onSettings();
+    collapse();
+  });
+  level.hidden = true;
+  pill.append(pct, level, row);
   el.append(pill);
 
   return {
@@ -102,6 +113,7 @@ export function createHud(actions: HudActions): HudView {
         return;
       }
       pct.textContent = state.percent == null ? "—" : `${state.percent}%`;
+      level.hidden = !state.needsLevel;
     },
   };
 }

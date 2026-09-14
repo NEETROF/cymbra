@@ -88,6 +88,27 @@ describe("in-page HUD pill", () => {
     expect(q(hud.el, ".hud-actions").hidden).toBe(true);
   });
 
+  it("offers the level choice until a level is declared, opening the settings", () => {
+    const a = actions();
+    const hud = createHud(a);
+    hud.update(state({ needsLevel: true }));
+    const level = q(hud.el, ".hud-level");
+    expect(level.hidden).toBe(false);
+    expect(level.textContent).toBe("Choisis ton niveau");
+
+    level.click();
+    expect(a.onSettings).toHaveBeenCalledOnce();
+
+    hud.update(state({ needsLevel: false }));
+    expect(level.hidden).toBe(true);
+  });
+
+  it("hides the level choice by default", () => {
+    const hud = createHud(actions());
+    hud.update(state());
+    expect(q(hud.el, ".hud-level").hidden).toBe(true);
+  });
+
   it("collapses via the chevron", () => {
     const hud = createHud(actions());
     hud.update(state());

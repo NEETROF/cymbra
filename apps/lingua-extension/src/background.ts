@@ -263,10 +263,10 @@ function errorMessage(e: unknown): string {
 }
 
 chrome.commands.onCommand.addListener((command) => {
-  // Firefox has no native lateral panel — Alt+Shift+S opens the in-page drawer (stay in the
-  // page), like everything else on Firefox. Chromium's lingua-side-panel opens the Side Panel
-  // below (its sidePanel.open needs a tabId and tolerates the async tabs.query hop).
-  if (command === "lingua-side-panel" && __TARGET__ === "firefox") {
+  // Firefox and Safari have no native lateral panel — Alt+Shift+S opens the in-page drawer
+  // (stay in the page), like everything else there. Chromium's lingua-side-panel opens the
+  // Side Panel below (its sidePanel.open needs a tabId and tolerates the async tabs.query hop).
+  if (command === "lingua-side-panel" && __REVIEW_IN_PAGE__) {
     chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
       if (tab?.id != null) void chrome.tabs.sendMessage(tab.id, { type: "openDrawer", view: "review" }).catch(() => {});
     });
@@ -287,11 +287,12 @@ chrome.commands.onCommand.addListener((command) => {
 });
 
 /** Register the reader for every page when <all_urls> is granted; unregister otherwise.
- *  No-op on Firefox: it ships a STATIC content script on every page (build.mjs), because
- *  dynamic registration is unreliable on GeckoView — so there is nothing to register here,
- *  and doing so would double-inject. Chromium (activeTab-first) uses the dynamic path. */
+ *  No-op on Firefox and Safari: they ship a STATIC content script on every page (build.mjs),
+ *  because dynamic registration is unreliable on GeckoView and in Safari — so there is nothing
+ *  to register here, and doing so would double-inject. Chromium (activeTab-first) uses the
+ *  dynamic path. */
 async function syncReaderRegistration(): Promise<void> {
-  if (__TARGET__ === "firefox") return;
+  if (__STATIC_READER__) return;
   const granted = await chrome.permissions.contains({ origins: [ALL_URLS] });
   const registered = (await chrome.scripting.getRegisteredContentScripts({ ids: [READER_SCRIPT_ID] })).length > 0;
   if (granted && !registered) {

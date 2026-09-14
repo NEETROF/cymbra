@@ -1,3 +1,4 @@
+import { hasShortcutEditor, hasWebAuthFlow } from "../state/platform.ts";
 import { SIGNIN_ERROR_KEY } from "../state/session.ts";
 import { loadEnabled, loadHudHidden, saveEnabled, saveHudHidden } from "../state/storage.ts";
 import type { CefrLevel } from "../analyzer/types.ts";
@@ -163,12 +164,13 @@ function render(stats: PageStats | null): void {
  * Open a panel view, staying in the page as much as possible and landing in the SAME place
  * as the in-page HUD:
  *  - Chromium: the native Side Panel (docks beside the page).
- *  - Firefox: the in-page drawer — a page element cannot open the sidebar, so both the popup
- *    and the HUD use the drawer, which never leaves the page (and works on Android too). The
- *    reader is always injected on Firefox, so the message reaches the active tab.
+ *  - Firefox and Safari: the in-page drawer — a page element cannot open Firefox's sidebar and
+ *    Safari has no panel API, so both the popup and the HUD use the drawer, which never leaves
+ *    the page (and works on mobile too). The reader is always injected there, so the message
+ *    reaches the active tab.
  */
 async function openReviewSurface(view: "review" | "stats"): Promise<void> {
-  if (__TARGET__ === "firefox") {
+  if (__REVIEW_IN_PAGE__) {
     await send({ type: "openDrawer", view });
     window.close();
     return;
@@ -326,7 +328,11 @@ async function main(): Promise<void> {
     await applyEnabled(enabled);
   });
 
-  $("signin-google").addEventListener("click", async () => {
+  // No identity API (Safari): offer email/password only, already unfolded.
+  const google = $("signin-google");
+  google.hidden = !hasWebAuthFlow();
+  if (google.hidden) document.querySelector<HTMLDetailsElement>(".acct-local")?.setAttribute("open", "");
+  google.addEventListener("click", async () => {
     // Opening Google's auth window steals focus and tears this popup down, so the
     // awaited result usually never arrives here (res === null). That is fine: the
     // background finishes the sign-in, and on reopen the popup shows the signed-in
@@ -361,7 +367,9 @@ async function main(): Promise<void> {
   });
 
   $("open-stats").addEventListener("click", () => void openReviewSurface("stats"));
-  $("shortcuts-config").addEventListener("click", () => void openShortcutsConfig());
+  const shortcutsConfig = $("shortcuts-config");
+  shortcutsConfig.hidden = !hasShortcutEditor();
+  shortcutsConfig.addEventListener("click", () => void openShortcutsConfig());
 
   // In-page HUD visibility: checked = shown. The content script reacts via storage.onChanged.
   const hudToggle = $("hud-toggle") as HTMLInputElement;

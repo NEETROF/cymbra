@@ -1,5 +1,6 @@
 import type { LinguaPort } from "../analyzer/port.ts";
 import { CEFR_LEVELS, type CefrLevel } from "../analyzer/types.ts";
+import { hasShortcutEditor } from "../state/platform.ts";
 import { type AsyncStorageArea, loadHudHidden, saveHudHidden } from "../state/storage.ts";
 import { clearSyncCursors } from "../sync/sync.ts";
 
@@ -112,7 +113,8 @@ export function mountSettings(
     const url = __TARGET__ === "firefox" ? "about:addons" : "chrome://extensions/shortcuts";
     void chrome.tabs.create({ url });
   });
-  scBlock.append(scList, scConfig);
+  scBlock.append(scList);
+  if (hasShortcutEditor()) scBlock.append(scConfig);
 
   // — Réinitialisation (scope choice; a full wipe needs an extra confirm) —
   const resetBlock = settingBlock("Réinitialisation");

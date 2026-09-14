@@ -21,7 +21,7 @@ export default tseslint.config(
   },
   {
     name: "ext/node-tooling",
-    files: ["build.mjs", "*.config.ts", "vitest.config.ts"],
+    files: ["build.mjs", "tool/**/*.mjs", "*.config.ts", "vitest.config.ts"],
     languageOptions: {
       globals: { ...globals.node },
     },

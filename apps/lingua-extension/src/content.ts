@@ -146,6 +146,8 @@ class ReadingSession {
   private exposureFlushTimer: ReturnType<typeof setTimeout> | null = null;
   /** The last backup we wrote, to ignore our own storage.onChanged echo. */
   private lastBackup: string | null = null;
+  /** No level declared for a CEFR language yet: the HUD offers the choice (see refreshNeedsLevel). */
+  private needsLevel = false;
 
   // The port is resolved before construction (`resolveContentPort`) so a CSP-blocked
   // page can hand us the messaging port instead of the in-content WASM engine.
@@ -175,6 +177,7 @@ class ReadingSession {
     this.calibration = await this.port.calibration();
     this.hudHidden = await loadHudHidden(storageArea);
     this.enabled = await loadEnabled(storageArea);
+    await this.refreshNeedsLevel();
     document.addEventListener("click", (e) => this.onClick(e), true);
     // Long-press = the touch equivalent of Alt-click (reopen a marked word). touchstart/move/
     // cancel stay passive (they only arm/cancel the timer); touchend is non-passive so a
@@ -280,14 +283,16 @@ class ReadingSession {
     this.hud.update({
       analysable: this.stats.analysable,
       percent: this.stats.percent,
+      needsLevel: this.needsLevel,
     });
   }
 
   /** Open a panel view, staying in the page as much as possible:
-   *   - Firefox: the in-page drawer (a page element cannot open the sidebar).
+   *   - Firefox and Safari: the in-page drawer (a page element cannot open Firefox's
+   *     sidebar; Safari has no panel API).
    *   - Chromium: the native Side Panel, which docks beside the page (via the background). */
   private openReviewSurface(view: DrawerView): void {
-    if (__TARGET__ === "firefox") void this.drawer.openOn(view);
+    if (__REVIEW_IN_PAGE__) void this.drawer.openOn(view);
     else this.openPanel(view);
   }
 
@@ -326,6 +331,14 @@ class ReadingSession {
     const backup = await this.port.backup();
     this.lastBackup = backup; // so our own storage.onChanged echo is ignored
     await saveBackup(storageArea, backup);
+    // A level picked in the drawer's settings lands here (our own echo is ignored below).
+    await this.refreshNeedsLevel();
+    this.updateHud();
+  }
+
+  /** Whether the reader still has to declare a level for a language with CEFR data. */
+  private async refreshNeedsLevel(): Promise<void> {
+    this.needsLevel = (await this.port.hasLevels()) && (await this.port.declaredLevel()) === null;
   }
 
   /** Re-walk the given dirty containers, then repaint from a fresh whole-doc analysis. */
@@ -601,6 +614,7 @@ class ReadingSession {
     if (backup === this.lastBackup) return; // our own write echoed back — nothing to do
     await this.port.restore(backup);
     this.calibration = await this.port.calibration();
+    await this.refreshNeedsLevel(); // a level picked in another tab or the popup
     await this.repaint();
   }
 

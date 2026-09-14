@@ -1,9 +1,17 @@
 // Ambient module declarations for the extension build.
 
-// Build-time target, injected by esbuild `define` per manifest variant. Selects the
-// AnalyzerPort implementation (Chromium: WASM in the content script; Firefox: WASM in
-// the event page reached over messaging) and the panel surface.
-declare const __TARGET__: "chromium" | "firefox";
+// Build-time target, injected by esbuild `define` per manifest variant. Prefer the
+// capability defines below; __TARGET__ stays for what is genuinely browser-specific
+// (internal settings URLs, whether a shortcut editor exists).
+declare const __TARGET__: "chromium" | "firefox" | "safari";
+
+// Build-time capabilities (build.mjs `capabilities`), true for firefox and safari:
+// the analysis engine lives in the background event page, reached over messaging…
+declare const __ENGINE_IN_EVENT_PAGE__: boolean;
+// …review, stats and settings open in the in-page drawer (no native panel reachable)…
+declare const __REVIEW_IN_PAGE__: boolean;
+// …and the reader is injected by a static content script, not registered dynamically.
+declare const __STATIC_READER__: boolean;
 
 // Backend gRPC-web origin for the sync transport, injected by esbuild `define`
 // (build.mjs, from LINGUA_GRPC_WEB_URL). Defaults to the local backend for dogfooding.

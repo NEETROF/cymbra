@@ -5,6 +5,9 @@ export default defineConfig({
   // Mirror the build-time defines so any module referencing them resolves under test.
   define: {
     __TARGET__: JSON.stringify("chromium"),
+    __ENGINE_IN_EVENT_PAGE__: "false",
+    __REVIEW_IN_PAGE__: "false",
+    __STATIC_READER__: "false",
     __GRPC_WEB_URL__: JSON.stringify("http://localhost:50051"),
     __GOOGLE_CLIENT_ID__: JSON.stringify(""),
   },
