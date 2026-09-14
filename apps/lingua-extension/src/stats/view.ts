@@ -117,8 +117,9 @@ export async function mountStats(root: HTMLElement, port: LinguaPort, area: Asyn
 
   // The ladder and the estimate do not depend on the range; re-rendered after a seed.
   const renderLadder = async (): Promise<void> => {
-    pick(".vocab-slot").innerHTML = vocabularyHtml(await port.vocabularyEstimate());
-    if (await port.hasLevels()) {
+    const hasLevels = await port.hasLevels();
+    pick(".vocab-slot").innerHTML = vocabularyHtml(await port.vocabularyEstimate(), hasLevels);
+    if (hasLevels) {
       const [rows, declared] = [await port.levelLadder(), await port.declaredLevel()];
       pick(".ladder-slot").innerHTML = ladderHtml(rows, declared);
     } else {

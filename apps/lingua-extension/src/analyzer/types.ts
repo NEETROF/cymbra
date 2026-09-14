@@ -75,6 +75,11 @@ export interface VocabularyEstimate {
   confirmed: number;
   /** The pack's dictionary words the estimate is taken over. */
   universe: number;
+  /**
+   * What it rests on: a declared level or the frequency slider (extrapolated), or only
+   * the words marked known (then `estimated` is their exact count).
+   */
+  basis: "level" | "frequency" | "marked";
 }
 
 /** Order in which level-targeted seeding takes a level's lemmas. */

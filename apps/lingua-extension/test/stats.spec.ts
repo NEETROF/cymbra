@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CefrLevel, LevelRow } from "@/analyzer/types.ts";
+import type { CefrLevel, LevelRow, VocabularyEstimate } from "@/analyzer/types.ts";
 import { barChartSvg } from "@/stats/chart.ts";
 import { ladderHtml, vocabularyHtml } from "@/stats/ladder.ts";
 import {
@@ -61,19 +61,47 @@ describe("roughCount", () => {
 });
 
 describe("vocabularyHtml", () => {
-  it("shows the rounded estimate, the dictionary size and the confirmed words", () => {
-    const html = vocabularyHtml({ estimated: 15823, confirmed: 120, universe: 25009 });
-    expect(html).toContain(`≈&nbsp;${fr(16000)} mots`);
-    expect(html).toContain(`${fr(25009)} mots du dictionnaire (dont ${fr(120)} confirmés)`);
+  const est = (
+    estimated: number,
+    confirmed: number,
+    basis: VocabularyEstimate["basis"] = "level",
+  ): VocabularyEstimate => ({
+    estimated,
+    confirmed,
+    universe: 25009,
+    basis,
   });
 
-  it("asks for a level or marked words before there is anything to estimate", () => {
-    expect(vocabularyHtml({ estimated: 0, confirmed: 0, universe: 25009 })).toContain("Pas encore d'estimation");
-    expect(vocabularyHtml({ estimated: 0, confirmed: 0, universe: 0 })).toBe("");
+  it("shows a rounded, extrapolated figure with what it rests on", () => {
+    const html = vocabularyHtml(est(15823, 120), true);
+    expect(html).toContain(`≈&nbsp;${fr(16000)} mots`);
+    expect(html).toContain("D'après ton niveau déclaré");
+    expect(html).toContain(`${fr(25009)} mots du dictionnaire (dont ${fr(120)} confirmés)`);
+    expect(vocabularyHtml(est(2959, 0, "frequency"), true)).toContain("ton réglage des mots les plus courants");
+  });
+
+  it("never rounds below the words confirmed", () => {
+    expect(vocabularyHtml(est(1049, 1040), true)).toContain(`≈&nbsp;${fr(1040)} mots`);
+  });
+
+  it("gives the exact count, not an estimate, when only marked words are known", () => {
+    const html = vocabularyHtml(est(1249, 1249, "marked"), true);
+    expect(html).toContain(`>${fr(1249)} mots<`);
+    expect(html).toContain("Vocabulaire connu");
+    expect(html).not.toContain("≈");
+    expect(html).not.toContain("extrapolé");
+  });
+
+  it("asks for what is missing before there is anything to estimate", () => {
+    expect(vocabularyHtml(est(0, 0, "level"), true)).toContain("marque ceux que tu connais");
+    expect(vocabularyHtml(est(0, 0, "level"), true)).not.toContain("déclare ton niveau");
+    expect(vocabularyHtml(est(0, 0, "marked"), true)).toContain("déclare ton niveau");
+    expect(vocabularyHtml(est(0, 0, "marked"), false)).toContain("règle les mots courants");
+    expect(vocabularyHtml({ ...est(0, 0), universe: 0 }, true)).toBe("");
   });
 
   it("omits the confirmed count when there is none", () => {
-    expect(vocabularyHtml({ estimated: 3200, confirmed: 0, universe: 25009 })).not.toContain("confirmés");
+    expect(vocabularyHtml(est(3200, 0), true)).not.toContain("confirmés");
   });
 });
 

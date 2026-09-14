@@ -34,19 +34,36 @@ use super::status::Status;
 pub const BAND: u32 = 1_000;
 
 /// How many words of a band must say something about the reader before the band's known
-/// share is extrapolated to all of its words.
+/// share is applied in full to the rest of the band; below that, it is applied in
+/// proportion (see [`KnowledgeState::vocabulary_estimate`]).
 pub const MIN_EVIDENCE: usize = 25;
+
+/// What an estimate rests on, so a surface can say so truthfully.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum VocabularyBasis {
+    /// A declared CEFR level (plus the words the reader marked), extrapolated.
+    Level,
+    /// The frequency calibration (plus the words the reader marked), extrapolated.
+    Frequency,
+    /// Only the words the reader marked: no level, no calibration, nothing extrapolated —
+    /// the estimate is then the exact count of words marked known.
+    #[default]
+    Marked,
+}
 
 /// An estimated vocabulary size over a pack's dictionary words.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
 pub struct VocabularyEstimate {
-    /// Estimated number of known words among `universe`.
+    /// Estimated number of known words among `universe`; never below `confirmed`.
     pub estimated: usize,
     /// Words the reader explicitly knows: marked known, validated in review or
     /// confirmed by reading.
     pub confirmed: usize,
     /// The dictionary words the estimate is taken over (ignored words left out).
     pub universe: usize,
+    /// What the estimate rests on.
+    pub basis: VocabularyBasis,
 }
 
 #[derive(Default)]
@@ -57,6 +74,20 @@ struct Band {
     confirmed: usize,
 }
 
+impl Band {
+    /// The band's estimated known words: those known (for sure or presumed) plus the rest
+    /// of the band at the known share, where the share is taken over at least
+    /// [`MIN_EVIDENCE`] words. A thin band's share is thus shrunk rather than switched
+    /// off, so the estimate has no step: one more word of evidence moves it by less than
+    /// a word's worth of the band, and a word marked not known never raises it.
+    fn estimated(&self) -> usize {
+        let rest = self.words - self.evidence;
+        let over = self.evidence.max(MIN_EVIDENCE);
+        // known + round(rest × known / over), in integers.
+        self.known + (2 * rest * self.known + over) / (2 * over)
+    }
+}
+
 impl KnowledgeState {
     /// Estimates how many of `words` — dictionary words with their frequency rank — the
     /// reader knows.
@@ -65,10 +96,11 @@ impl KnowledgeState {
     /// engine holds an opinion on are the evidence: an explicit status, and — with a
     /// declared CEFR level — every word that has a CEFR level (presumed known below the
     /// level, not at or above it), or — without one — every word (known up to the
-    /// frequency calibration). When a band holds at least [`MIN_EVIDENCE`] such words,
-    /// its known share is applied to all of its words; otherwise only the words known for
-    /// sure count. Ignored words are left out, as a vocabulary size counts neither names
-    /// nor noise. Integer-only, so the figure is identical on every target.
+    /// frequency calibration). The band's known words (for sure or presumed) count, and
+    /// its other words count at the known share of the evidence — in full once the band
+    /// holds [`MIN_EVIDENCE`] such words, in proportion before. Ignored words are left
+    /// out, as a vocabulary size counts neither names nor noise. Integer-only, so the
+    /// figure is identical on every target.
     pub fn vocabulary_estimate<'a>(
         &self,
         lang: StudiedLanguage,
@@ -76,6 +108,13 @@ impl KnowledgeState {
         lexis: &(impl FrequencyRanks + CefrLevels),
     ) -> VocabularyEstimate {
         let declared = self.declared_level(lang).is_some();
+        let basis = if declared {
+            VocabularyBasis::Level
+        } else if self.calibration(lang) > 0 {
+            VocabularyBasis::Frequency
+        } else {
+            VocabularyBasis::Marked
+        };
         let mut bands: BTreeMap<u32, Band> = BTreeMap::new();
         for (lemma, rank) in words {
             let explicit = self.explicit_status(lang, lemma);
@@ -102,19 +141,18 @@ impl KnowledgeState {
                 band.known += usize::from(known);
             }
         }
-        bands
-            .values()
-            .fold(VocabularyEstimate::default(), |mut total, band| {
+        bands.values().fold(
+            VocabularyEstimate {
+                basis,
+                ..VocabularyEstimate::default()
+            },
+            |mut total, band| {
                 total.universe += band.words;
                 total.confirmed += band.confirmed;
-                total.estimated += if band.evidence >= MIN_EVIDENCE {
-                    // round(known / evidence × words), in integers.
-                    (2 * band.known * band.words + band.evidence) / (2 * band.evidence)
-                } else {
-                    band.known
-                };
+                total.estimated += band.estimated();
                 total
-            })
+            },
+        )
     }
 }
 
@@ -150,36 +188,60 @@ mod tests {
         (words, lexis)
     }
 
+    fn at_b1() -> KnowledgeState {
+        let mut state = KnowledgeState::new();
+        state.set_declared_level(EN, CefrLevel::B1);
+        state
+    }
+
     #[test]
     fn a_bands_known_share_is_extrapolated_to_all_its_words() {
         let (words, lexis) = words(100, 40);
-        let mut state = KnowledgeState::new();
-        state.set_declared_level(EN, CefrLevel::B1);
         // 40 leveled words: the 20 A1 presumed known, the 20 B2 not — half of 100 words.
-        let estimate = state.vocabulary_estimate(EN, words, &lexis);
+        let estimate = at_b1().vocabulary_estimate(EN, words, &lexis);
         assert_eq!(
             estimate,
             VocabularyEstimate {
                 estimated: 50,
                 confirmed: 0,
-                universe: 100
+                universe: 100,
+                basis: VocabularyBasis::Level,
             }
         );
     }
 
     #[test]
-    fn a_thin_band_counts_only_the_words_known_for_sure() {
+    fn a_thin_bands_share_is_shrunk_not_switched_off() {
         let (words, lexis) = words(100, 10);
-        let mut state = KnowledgeState::new();
-        state.set_declared_level(EN, CefrLevel::B1);
-        assert_eq!(state.vocabulary_estimate(EN, words, &lexis).estimated, 5);
+        // 10 words of evidence, 5 known: the 90 others count at 5 / 25, not 5 / 10.
+        assert_eq!(
+            at_b1().vocabulary_estimate(EN, words, &lexis).estimated,
+            5 + 18
+        );
+    }
+
+    #[test]
+    fn a_word_marked_not_known_never_raises_the_estimate() {
+        let (words, lexis) = words(100, 10);
+        let mut state = at_b1();
+        let mut last = state
+            .vocabulary_estimate(EN, words.clone(), &lexis)
+            .estimated;
+        // Carding unleveled words one by one walks the evidence across MIN_EVIDENCE.
+        for r in 11..=60 {
+            state.set_status(EN, word(r), Status::Learning);
+            let now = state
+                .vocabulary_estimate(EN, words.clone(), &lexis)
+                .estimated;
+            assert!(now <= last, "rank {r}: {now} > {last}");
+            last = now;
+        }
     }
 
     #[test]
     fn explicit_statuses_are_evidence_and_ignored_words_are_left_out() {
         let (words, lexis) = words(100, 0);
-        let mut state = KnowledgeState::new();
-        state.set_declared_level(EN, CefrLevel::B1);
+        let mut state = at_b1();
         for r in 1..=20 {
             state.set_status(EN, word(r), Status::Known(KnownSource::Manual));
         }
@@ -188,13 +250,14 @@ mod tests {
         }
         state.set_status(EN, word(31), Status::Ignored);
         let estimate = state.vocabulary_estimate(EN, words, &lexis);
-        // 30 words of evidence, 20 known, over the 99 words left: round(20 / 30 × 99).
+        // 30 words of evidence, 20 known, over the 99 words left: 20 + round(69 × 20 / 30).
         assert_eq!(
             estimate,
             VocabularyEstimate {
                 estimated: 66,
                 confirmed: 20,
-                universe: 99
+                universe: 99,
+                basis: VocabularyBasis::Level,
             }
         );
     }
@@ -207,15 +270,22 @@ mod tests {
         let estimate = state.vocabulary_estimate(EN, words, &lexis);
         assert_eq!(estimate.estimated, 1_500);
         assert_eq!(estimate.universe, 2_000);
+        assert_eq!(estimate.basis, VocabularyBasis::Frequency);
     }
 
     #[test]
-    fn nothing_known_estimates_nothing() {
+    fn with_neither_level_nor_calibration_the_estimate_is_the_words_marked_known() {
         let (words, lexis) = words(100, 40);
-        let state = KnowledgeState::new();
-        assert_eq!(state.vocabulary_estimate(EN, words, &lexis).estimated, 0);
+        let mut state = KnowledgeState::new();
+        state.set_calibration(EN, 0);
+        for r in [3, 50, 99] {
+            state.set_status(EN, word(r), Status::Known(KnownSource::Manual));
+        }
+        let estimate = state.vocabulary_estimate(EN, words.clone(), &lexis);
+        assert_eq!((estimate.estimated, estimate.confirmed), (3, 3));
+        assert_eq!(estimate.basis, VocabularyBasis::Marked);
         assert_eq!(
-            state.vocabulary_estimate(EN, Vec::new(), &lexis),
+            KnowledgeState::new().vocabulary_estimate(EN, Vec::new(), &lexis),
             VocabularyEstimate::default()
         );
     }

@@ -8,24 +8,36 @@ import { cumulativeTotals, estimatedPosition, roughCount } from "./model.ts";
 const fmt = (n: number): string => n.toLocaleString("fr-FR");
 
 /**
- * The estimated vocabulary size: one rounded figure (an extrapolation, not a count), how
- * it was obtained, and how many words are confirmed. Empty when the pack has no
- * dictionary words to estimate over.
+ * The estimated vocabulary size, worded for what it rests on. Extrapolated from a
+ * declared level or the frequency slider, it is a rounded figure that never reads below
+ * the words confirmed; resting only on marked words, it is their exact count. Empty when
+ * the pack has no dictionary words to estimate over.
  */
-export function vocabularyHtml(est: VocabularyEstimate): string {
+export function vocabularyHtml(est: VocabularyEstimate, hasLevels: boolean): string {
   if (est.universe === 0) return "";
-  const label = `<span class="mlabel">Vocabulaire estimé</span>`;
+  const exact = est.basis === "marked";
+  const label = `<span class="mlabel">${exact ? "Vocabulaire connu" : "Vocabulaire estimé"}</span>`;
   if (est.estimated === 0) {
+    const hint =
+      est.basis === "level"
+        ? "Ton niveau ne présume encore aucun mot&nbsp;: marque ceux que tu connais pour lancer l'estimation."
+        : `Pas encore d'estimation&nbsp;: ${hasLevels ? "déclare ton niveau" : "règle les mots courants que tu connais"} dans les réglages, ou marque des mots que tu connais.`;
+    return `<div class="vocab"><div class="vocab-head">${label}</div><div class="note">${hint}</div></div>`;
+  }
+  const dictionary = `sur les ${fmt(est.universe)} mots du dictionnaire`;
+  if (exact) {
     return (
-      `<div class="vocab"><div class="vocab-head">${label}</div>` +
-      `<div class="note">Pas encore d'estimation&nbsp;: déclare ton niveau dans les réglages ou marque des mots que tu connais.</div></div>`
+      `<div class="vocab"><div class="vocab-head">${label}<b class="vocab-n">${fmt(est.estimated)} mots</b></div>` +
+      `<div class="note">Les mots que tu as marqués connus, ${dictionary}.</div></div>`
     );
   }
+  const source = est.basis === "level" ? "ton niveau déclaré" : "ton réglage des mots les plus courants";
   const confirmed = est.confirmed ? ` (dont ${fmt(est.confirmed)} confirmés)` : "";
+  const figure = Math.max(roughCount(est.estimated), est.confirmed);
   return (
-    `<div class="vocab"><div class="vocab-head">${label}<b class="vocab-n">≈&nbsp;${fmt(roughCount(est.estimated))} mots</b></div>` +
-    `<div class="note">Extrapolé de ton niveau et de tes mots marqués, tranche de fréquence par tranche, ` +
-    `sur les ${fmt(est.universe)} mots du dictionnaire${confirmed}.</div></div>`
+    `<div class="vocab"><div class="vocab-head">${label}<b class="vocab-n">≈&nbsp;${fmt(figure)} mots</b></div>` +
+    `<div class="note">D'après ${source} et tes mots marqués, extrapolé tranche de fréquence par tranche, ` +
+    `${dictionary}${confirmed}.</div></div>`
   );
 }
 
