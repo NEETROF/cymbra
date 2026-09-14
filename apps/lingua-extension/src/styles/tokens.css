@@ -55,6 +55,15 @@
   --cymbra-lingua-font: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
+/* Native widgets (scrollbars, selects, number inputs) follow the dark palette inside the
+   surfaces the extension injects. :host ONLY — this sheet is also adopted by the page being
+   read, where :root is the host page's own root: forcing color-scheme there would restyle
+   that site's scrollbars and form controls. The extension's own documents (popup, side
+   panel, stats tab, onboarding) declare it with <meta name="color-scheme" content="dark">. */
+:host {
+  color-scheme: dark;
+}
+
 /* Highlight paint (CSS Custom Highlight API). Registered from highlight.ts; the
    registry names must match HL_UNKNOWN / HL_LEARNING. The var() values resolve
    against the highlighted element, which inherits them from the page :root above. */
