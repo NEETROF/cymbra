@@ -14,7 +14,7 @@ The extension and the container app SHALL remain fully usable without an account
 - **THEN** their local statuses, cards and stats stay intact and usable offline, and no further sync request is sent
 
 ### Requirement: Extension sign-in over gRPC-web bearer
-The extension SHALL sign in over gRPC-web with a bearer `TokenPair` (never the `/web/auth` cookie surface): auth/refresh interceptors modelled on the back office, single-flight refresh with exactly one retry, the access token kept in `storage.session` and the refresh token in `storage.local`. Two methods SHALL be offered: Google OIDC through `chrome.identity.launchWebAuthFlow` (client id added to the `CYMBRA_GOOGLE_AUDIENCE` CSV) and email/password (`SignInLocal`).
+The extension SHALL sign in over gRPC-web with a bearer `TokenPair` (never the `/web/auth` cookie surface): auth/refresh interceptors modelled on the back office, single-flight refresh with exactly one retry, the access token kept in `storage.session` and the refresh token in `storage.local`. The sign-in methods SHALL be those specified by `lingua-account` (at least Google OIDC through `chrome.identity.launchWebAuthFlow`, client id added to the `CYMBRA_GOOGLE_AUDIENCE` CSV, and email/password through `SignInLocal`).
 
 #### Scenario: Google sign-in from the extension
 - **WHEN** the user picks "Continue with Google" in the extension

@@ -4,7 +4,7 @@
 
 - [x] 1.1 Connect-ES gRPC-web transport in `apps/lingua-extension`: an adapted clone of `apps/back-office/src/lib/transport.ts` + `api.ts` (auth / single-flight refresh / session-expiry interceptors, test seam), backend URL from a build variable
 - [x] 1.2 Token storage: access token in `chrome.storage.session`, refresh token in `chrome.storage.local`; session resumption at startup (refresh → a new `TokenPair`); vitest coverage of the cycle
-- [ ] 1.3 Account UI (icon popup + settings page, Cymbra tokens): "Continue with Google" (`chrome.identity.launchWebAuthFlow` → `SignInOidc`), email/password (`SignInLocal`), signed-in state (email maskable), sign-out (`Logout` + token purge, local state intact) — icon-popup account section done; the standalone settings page + email display fold into the §3 stats page
+- [ ] 1.3 Account UI (icon popup + settings page, Cymbra tokens): "Continue with Google" (`chrome.identity.launchWebAuthFlow` → `SignInOidc`), email/password (`SignInLocal`), signed-in state (email maskable), sign-out (`Logout` + token purge, local state intact) — icon-popup account section done; the standalone settings page + email display fold into the §3 stats page; sign-up, verification, password reset and Sign in with Apple move to `add-lingua-account-parity`
 - [x] 1.4 Dev doc: the `chrome-extension://` origin is stable via the manifest key; add the dev origin to `CYMBRA_ALLOWED_WEB_ORIGINS` in the local environment only
 
 ## 2. Extension — outbox and synchronisation

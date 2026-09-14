@@ -54,10 +54,13 @@ Google only on the extension side: `launchWebAuthFlow` opens the OAuth flow (red
 `SignInOidc(provider=google, audience=lingua)`. The client id (Web type, chromiumapp.org
 redirect) is already in the **`CYMBRA_GOOGLE_AUDIENCE` CSV** (shipped by
 `add-lingua-backend`, the exact precedent being the desktop client). Email/password is
-the existing `SignInLocal`, with the same reset screens as the site. Firefox:
-`browser.identity.launchWebAuthFlow` exists — same code. **No Sign in with Apple in the
-extension**: the App Store rule applies to apps only; on Safari, sign-in lives in the
-container app (D3).
+the existing `SignInLocal`. Firefox desktop: `browser.identity.launchWebAuthFlow`
+exists — same code. ~~No Sign in with Apple in the extension~~ — **amended by
+`add-lingua-account-parity`**: the App Store rule indeed applies to apps only, but an
+Apple-only Cymbra account (created in Music) has no other way in, so the extension also
+offers Sign in with Apple (scope-less `launchWebAuthFlow`), plus email sign-up,
+verification and password reset. The method list is specified by `lingua-account`. On
+Safari, sign-in still lives in the container app (D3).
 
 ### D3 — Apple app: native sign-in, Sign in with Apple mandatory
 The host app (`apps/lingua-apple`, the minimal app of `add-lingua-apple`) gains the
