@@ -88,12 +88,31 @@
   opacity: 0.55;
 }
 
-.ladder-frac {
-  width: 78px;
+.ladder-frac,
+.ladder-cum {
   text-align: right;
   font-size: 11px;
   color: var(--cymbra-lingua-muted);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ladder-frac {
+  width: 84px;
+}
+
+.ladder-cum {
+  width: 44px;
+}
+
+/* Column captions above the rows: "ce niveau" / "cumulé". */
+.ladder-cols .ladder-frac,
+.ladder-cols .ladder-cum {
+  font-size: 10px;
+}
+
+.ladder-spacer {
+  flex: 1;
 }
 
 .ladder-legend {

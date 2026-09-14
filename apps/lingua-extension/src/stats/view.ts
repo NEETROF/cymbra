@@ -1,14 +1,14 @@
 import type { LinguaPort } from "../analyzer/port.ts";
-import { type CefrLevel, CEFR_LEVELS, type LevelRow, type SeedOrder } from "../analyzer/types.ts";
+import { type CefrLevel, CEFR_LEVELS, type SeedOrder } from "../analyzer/types.ts";
 import { loadDailyStats, utcDay } from "../state/dailystats.ts";
 import { type AsyncStorageArea, saveBackup } from "../state/storage.ts";
 import { barChartSvg } from "./chart.ts";
+import { ladderHtml } from "./ladder.ts";
 import {
   buildSeries,
   consolidatedToMap,
   type CountsByDay,
   dayWindow,
-  estimatedPosition,
   groupMarkedWords,
   MARKED_ORIGINS,
   type MarkedOrigin,
@@ -55,33 +55,6 @@ async function fetchCounts(area: AsyncStorageArea, range: Range): Promise<{ byDa
     if (res?.ok && res.rows) return { byDay: consolidatedToMap(res.rows), scope: "Tous tes appareils" };
   }
   return { byDay: await loadDailyStats(area), scope: "Cet appareil" };
-}
-
-function ladderHtml(rows: LevelRow[], declared: CefrLevel | null): string {
-  const pos = estimatedPosition(rows);
-  const head =
-    `<div class="ladder-head"><span class="mlabel">Mon niveau d'anglais</span>` +
-    (pos ? `<span class="ladder-pos">niveau estimé <b>${pos}</b></span>` : "") +
-    `</div>`;
-  const bars = rows
-    .map((r) => {
-      const known = r.confirmed + r.presumed;
-      const conf = r.total ? (r.confirmed / r.total) * 100 : 0;
-      const pres = r.total ? (r.presumed / r.total) * 100 : 0;
-      const here = r.level === declared ? " ladder-row--here" : "";
-      return (
-        `<div class="ladder-row${here}"><span class="ladder-lvl">${r.level}</span>` +
-        `<span class="ladder-track">` +
-        `<span class="ladder-conf" style="width:${conf}%"></span>` +
-        `<span class="ladder-pres" style="width:${pres}%"></span></span>` +
-        `<span class="ladder-frac">${known} / ${r.total}</span></div>`
-      );
-    })
-    .join("");
-  return (
-    `<div class="ladder">${head}${bars}` +
-    `<div class="note ladder-legend">Confirmés (lus / appris), présumés (sous ton niveau), à apprendre.</div></div>`
-  );
 }
 
 /** Max cards a single "Renforcer un niveau" action may seed (matches the engine cap). */

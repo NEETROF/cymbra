@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { CefrLevel, LevelRow } from "@/analyzer/types.ts";
 import { barChartSvg } from "@/stats/chart.ts";
+import { ladderHtml } from "@/stats/ladder.ts";
 import {
   buildSeries,
   consolidatedToMap,
+  cumulativeTotals,
   dayWindow,
   estimatedPosition,
   groupMarkedWords,
@@ -11,6 +13,38 @@ import {
 } from "@/stats/model.ts";
 
 const CEFR: readonly CefrLevel[] = ["A1", "A2", "B1", "B2", "C1", "C2"];
+
+/** A ladder with the given band sizes, `known` of each band presumed known. */
+function bands(totals: number[], known = 0): LevelRow[] {
+  return totals.map((total, i) => ({ level: CEFR[i], confirmed: 0, presumed: known, toLearn: total - known, total }));
+}
+
+const fr = (n: number): string => n.toLocaleString("fr-FR");
+
+describe("cumulativeTotals", () => {
+  it("adds each level's words to those of every level below it", () => {
+    expect(cumulativeTotals(bands([986, 1122, 1945, 2148, 726, 566]))).toEqual([986, 2108, 4053, 6201, 6927, 7493]);
+  });
+
+  it("is empty for an empty ladder", () => {
+    expect(cumulativeTotals([])).toEqual([]);
+  });
+});
+
+describe("ladderHtml", () => {
+  it("shows each level's own words next to the running total up to that level", () => {
+    const html = ladderHtml(bands([986, 1122, 1945, 2148, 726, 566], 10), "A2");
+    expect(html).toContain(`${fr(10)} / ${fr(1122)}`); // A2's own band
+    expect(html).toContain(`<span class="ladder-cum">${fr(2108)}</span>`); // A1 + A2
+    expect(html).toContain(`<span class="ladder-cum">${fr(7493)}</span>`); // the whole list
+    expect(html).toContain("cumulé");
+    expect(html.match(/ladder-row--here/g)).toHaveLength(1);
+  });
+
+  it("explains that a level counts only its own base words", () => {
+    expect(ladderHtml(bands([1, 1, 1, 1, 1, 1]), null)).toContain("Chaque niveau compte les mots qu'il introduit");
+  });
+});
 
 /** Build a full A1..C2 ladder; `known` gives the known fraction (0..1) per level. */
 function ladder(known: Partial<Record<CefrLevel, number>>, total = 100): LevelRow[] {
