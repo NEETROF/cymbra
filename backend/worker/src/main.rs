@@ -267,6 +267,13 @@ fn spawn_dlq_sweep(pool: sqlx::PgPool, interval: Duration) {
                 Ok(_) => {}
                 Err(e) => tracing::warn!(error = %e, "dead-letter sweep failed"),
             }
+            // Same cadence, separate failure: history hygiene must never hold up
+            // dead-lettering (change: add-admin-jobs-console, design D6).
+            match cymbra_jobs::prune_history(&pool).await {
+                Ok(n) if n > 0 => tracing::info!(pruned = n, "job history pruned past retention"),
+                Ok(_) => {}
+                Err(e) => tracing::warn!(error = %e, "job history prune failed"),
+            }
         }
     });
 }

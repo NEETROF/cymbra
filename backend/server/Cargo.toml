@@ -26,6 +26,8 @@ cymbra-lingua = { path = "../lingua" }
 cymbra-storage = { path = "../storage" }
 # DeleteAccount enqueues a `purge_user` job via the jobs.enqueue seam.
 cymbra-jobs = { path = "../jobs" }
+# The back-office Jobs console (change: add-admin-jobs-console).
+cymbra-jobs-admin = { path = "../jobs-admin" }
 # Shared runtime feature-flag & config service (change: add-runtime-feature-flags).
 cymbra-feature-flags = { path = "../feature-flags" }
 # Plans (change: add-premium-subscription): PlanService gRPC, plan-aware gates,
