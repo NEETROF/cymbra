@@ -2,9 +2,9 @@
 
 ## 1. Apple spike and manual configuration
 
-- [ ] 1.1 [manual] On the site's Apple Services ID (`PUBLIC_APPLE_CLIENT_ID`), add the return URLs `https://figfjglfdiffocldficbimecjnhnkhkh.chromiumapp.org/` (Chromium dev id) and the Firefox URL read from `identity.getRedirectURL()` (`https://<hash>.extensions.allizom.org/`)
-- [ ] 1.2 [manual] Spike (design D3): run a hand-built scope-less authorize URL (`response_type=code id_token`, `response_mode=fragment`, `state`, `nonce`) through `launchWebAuthFlow` on the dev id; confirm the id_token arrives in the fragment, that `SignInOidc(audience="lingua")` accepts it against the dev backend, and that the resolved account is the one a Music Apple sign-in uses (compare identities in the back office `/users`). Record the outcome in design.md — D3 confirmed, or D4 activated (then §5 applies)
-- [ ] 1.3 [manual] Check the running backend's `CYMBRA_APPLE_AUDIENCE` contains the Services ID (`docker inspect`, not `printenv`); release builds set `LINGUA_APPLE_CLIENT_ID`
+- [x] 1.1 [manual] On the site's Apple Services ID (`PUBLIC_APPLE_CLIENT_ID` = `com.cymbra.bo.web`), add the return URLs `https://figfjglfdiffocldficbimecjnhnkhkh.chromiumapp.org/` (Chromium dev id) and the Firefox URL read from `identity.getRedirectURL()` (`https://<hash>.extensions.allizom.org/`) — Chromium domain + return URL registered and saved 2026-09-15; the Firefox URL is added with the Firefox pass (6.3)
+- [x] 1.2 [manual] Spike (design D3): run a hand-built scope-less authorize URL (`response_type=code id_token`, `response_mode=fragment`, `state`, `nonce`) through `launchWebAuthFlow` on the dev id; confirm the id_token arrives in the fragment, that `SignInOidc(audience="lingua")` accepts it against the dev backend, and that the resolved account is the one a Music Apple sign-in uses (compare identities in the back office `/users`). Record the outcome in design.md — D3 confirmed, or D4 activated (then §5 applies) — **D3 confirmed 2026-09-15** against production: Apple accepted the chromiumapp.org return URL, answered in the fragment, and `SignInOidc(audience="lingua")` signed in from Chrome on macOS
+- [x] 1.3 [manual] Check the running backend's `CYMBRA_APPLE_AUDIENCE` contains the Services ID (`docker inspect`, not `printenv`); release builds set `LINGUA_APPLE_CLIENT_ID` — proven by the production Apple sign-in (the verifier only accepts listed audiences); production also needed `lingua` added to `CYMBRA_ALLOWED_AUDIENCES` (done 2026-09-15)
 
 ## 2. Session and background
 
@@ -30,9 +30,9 @@
 
 ## 5. Apple relay fallback (only if 1.2 activates D4 — otherwise mark N/A)
 
-- [ ] 5.1 `backend/server`: `POST /web/auth/apple/relay` (form-encoded `id_token` + `state`), target from `state` exact-matched against `CYMBRA_EXTENSION_REDIRECT_URIS` (CSV, empty → 404), unknown target → 400, `303` to `<target>#id_token=…&state=…` with `Cache-Control: no-store` + `Referrer-Policy: no-referrer`, body and `Location` never logged; `.env.example` entry; tests for each case
-- [ ] 5.2 Extension: Apple request switches to `response_mode=form_post` with the relay as `redirect_uri` and `state` carrying `identity.getRedirectURL()`; fragment parsing unchanged; vitest
-- [ ] 5.3 [manual] Relay return URL on the Services ID; `CYMBRA_EXTENSION_REDIRECT_URIS` set on the backend with the Chromium and Firefox redirect URLs
+- [x] 5.1 N/A — D3 confirmed (task 1.2), no relay needed. Was: `backend/server`: `POST /web/auth/apple/relay` (form-encoded `id_token` + `state`), target from `state` exact-matched against `CYMBRA_EXTENSION_REDIRECT_URIS` (CSV, empty → 404), unknown target → 400, `303` to `<target>#id_token=…&state=…` with `Cache-Control: no-store` + `Referrer-Policy: no-referrer`, body and `Location` never logged; `.env.example` entry; tests for each case
+- [x] 5.2 N/A — D3 confirmed. Was: Extension: Apple request switches to `response_mode=form_post` with the relay as `redirect_uri` and `state` carrying `identity.getRedirectURL()`; fragment parsing unchanged; vitest
+- [x] 5.3 N/A — D3 confirmed. Was: [manual] Relay return URL on the Services ID; `CYMBRA_EXTENSION_REDIRECT_URIS` set on the backend with the Chromium and Firefox redirect URLs
 
 ## 6. Verification
 

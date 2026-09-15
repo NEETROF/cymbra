@@ -241,6 +241,9 @@ one product, and a Lingua-only account would still reach Music without a handle.
 
 ## Open Questions
 
-- Spike outcome (D3 vs D4) — resolved by task 1.
+- ~~Spike outcome (D3 vs D4)~~ — **resolved 2026-09-15: D3 confirmed.** Apple accepted
+  `https://figfjglfdiffocldficbimecjnhnkhkh.chromiumapp.org/` as a return URL on
+  `com.cymbra.bo.web` (no domain file), answered the scope-less request in the fragment, and
+  production signed the reader in from Chrome on macOS. D4 (the relay) is not built.
 - Should the signed-in view show the account email? The access token does not carry it; it
   would need `AccountService.GetAccount`. Deferred unless dogfooding asks for it.
