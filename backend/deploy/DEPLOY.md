@@ -211,6 +211,30 @@ The server's MIGRATOR creates the `lingua` tables on first boot with the URL set
 `cymbra.lingua.v1` services then mount. `DeleteAccount` erases the user's `lingua.*` rows
 through the existing purge job.
 
+### Jobs console (back office — off until its URL is set)
+
+The back-office **Jobs** page (queue table, per-period figures, cancelling a queued job)
+talks to `JobsAdminService`, which the server mounts only when
+`CYMBRA_JOBS_ADMIN_DATABASE_URL` is set. It connects as `jobs_admin_svc`, a role with no
+table privilege at all: it may only EXECUTE the four `jobs.admin_*` functions, so it can
+list queue metadata and cancel a job but never read a job's payload. The worker records
+the attempt history the page reads whether or not the console is enabled.
+
+```bash
+# 1. Provision the role (idempotent, targeted; the password goes through a psql variable).
+docker exec -e JPW='<chosen jobs admin password>' -i cymbra-prod-postgres-1 \
+  psql -U cymbra -d cymbra -v jobs_admin_pw="$JPW" -f - < provision-jobs-admin-role.sql
+# 2. Set the URL in .env (SERVER only; the password is the one from step 1):
+#      CYMBRA_JOBS_ADMIN_DATABASE_URL=postgres://jobs_admin_svc:<pw>@postgres:5432/cymbra
+# 3. Roll the stack. No Caddy change — cymbra.jobs.v1 falls through to gRPC.
+docker compose -f docker-compose.prod.yml up -d
+```
+
+Order with the worker deploy does not matter: the worker's migration grants the functions
+to `jobs_admin_svc` if the role exists, and the script grants them if the functions exist.
+`provision-optional-modules.sh` does not cover this role (it models one role + one schema
+per module; this one owns no schema). Only `global` admins see the page.
+
 ### Sign-in and email limits
 
 Password sign-in and the verification/reset emails are rate-limited in Valkey, keyed so

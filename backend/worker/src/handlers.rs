@@ -4,10 +4,16 @@
 //! (email sender, user module). Job *names* match `cymbra_jobs::registry` so a
 //! producer's `jobs.enqueue(name => ...)` dispatches here. Handlers are
 //! at-least-once and MUST be idempotent (design D9).
+//!
+//! Every handler body runs inside [`tracked`] (change: add-admin-jobs-console, design
+//! D1), which records the attempt for the back-office Jobs console and skips a job an
+//! operator cancelled between its claim and its start. A handler written without it
+//! would be invisible there and could run after a cancellation.
 
 use std::error::Error;
 use std::sync::Arc;
 
+use cymbra_jobs::tracked;
 use cymbra_platform::email::EmailSender;
 use cymbra_storage::ObjectStorage;
 use cymbra_user::{PgUserRepo, UserModule};
@@ -97,7 +103,8 @@ struct EmailJob {
 pub async fn verification_email(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxError> {
     // One span per execution → a trace per job in Tempo (service `cymbra-worker`).
     let span = tracing::info_span!("job.verification_email", job_id = %job.id());
-    async move {
+    let (pool, id, name) = (job.pool().clone(), job.id(), job.name().to_owned());
+    tracked(&pool, id, &name, async move {
         let p: EmailJob = job
             .json()?
             .ok_or("verification_email: missing JSON payload")?;
@@ -109,7 +116,7 @@ pub async fn verification_email(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(
         ctx.email.send(&p.to, &email).await?;
         job.complete().await?;
         Ok(())
-    }
+    })
     .instrument(span)
     .await
 }
@@ -120,7 +127,8 @@ pub async fn verification_email(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(
 #[sqlxmq::job("orphan_reap")]
 pub async fn orphan_reap(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxError> {
     let span = tracing::info_span!("job.orphan_reap", job_id = %job.id());
-    async move {
+    let (pool, id, name) = (job.pool().clone(), job.id(), job.name().to_owned());
+    tracked(&pool, id, &name, async move {
         let now = chrono::Utc::now().timestamp();
         let purged = ctx.user.reap_orphans(now, ctx.reap_grace_secs).await?;
         if purged > 0 {
@@ -128,7 +136,7 @@ pub async fn orphan_reap(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxE
         }
         job.complete().await?;
         Ok(())
-    }
+    })
     .instrument(span)
     .await
 }
@@ -139,14 +147,15 @@ pub async fn orphan_reap(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxE
 #[sqlxmq::job("session_reap")]
 pub async fn session_reap(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxError> {
     let span = tracing::info_span!("job.session_reap", job_id = %job.id());
-    async move {
+    let (pool, id, name) = (job.pool().clone(), job.id(), job.name().to_owned());
+    tracked(&pool, id, &name, async move {
         let deleted = cymbra_auth::reap_expired_sessions(&ctx.auth_pool).await?;
         if deleted > 0 {
             tracing::info!(reaped = deleted, "expired sessions purged (scheduled job)");
         }
         job.complete().await?;
         Ok(())
-    }
+    })
     .instrument(span)
     .await
 }
@@ -164,7 +173,8 @@ struct PurgeUserJob {
 #[sqlxmq::job("purge_user")]
 pub async fn purge_user(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxError> {
     let span = tracing::info_span!("job.purge_user", job_id = %job.id());
-    async move {
+    let (pool, id, name) = (job.pool().clone(), job.id(), job.name().to_owned());
+    tracked(&pool, id, &name, async move {
         let p: PurgeUserJob = job.json()?.ok_or("purge_user: missing JSON payload")?;
         cymbra_worker::purge_user_with(
             &ctx.admin_pool,
@@ -176,7 +186,7 @@ pub async fn purge_user(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxEr
         tracing::info!(user_id = %p.user_id, "account data purged");
         job.complete().await?;
         Ok(())
-    }
+    })
     .instrument(span)
     .await
 }
@@ -220,23 +230,27 @@ async fn purge_one_object(
 #[sqlxmq::job("purge_score_object")]
 pub async fn purge_score_object(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxError> {
     let span = tracing::info_span!("job.purge_score_object", job_id = %job.id());
-    async move { purge_one_object(&mut job, ctx.storage.as_ref(), "purge_score_object").await }
-        .instrument(span)
-        .await
+    let (pool, id, name) = (job.pool().clone(), job.id(), job.name().to_owned());
+    tracked(&pool, id, &name, async move {
+        purge_one_object(&mut job, ctx.storage.as_ref(), "purge_score_object").await
+    })
+    .instrument(span)
+    .await
 }
 
 /// Remove one private-library `.sf2` from the SOUNDFONT store — a different bucket.
 #[sqlxmq::job("purge_soundfont_object")]
 pub async fn purge_soundfont_object(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxError> {
     let span = tracing::info_span!("job.purge_soundfont_object", job_id = %job.id());
-    async move {
+    let (pool, id, name) = (job.pool().clone(), job.id(), job.name().to_owned());
+    tracked(&pool, id, &name, async move {
         purge_one_object(
             &mut job,
             ctx.soundfont_store.as_ref(),
             "purge_soundfont_object",
         )
         .await
-    }
+    })
     .instrument(span)
     .await
 }
@@ -248,14 +262,15 @@ pub async fn purge_soundfont_object(mut job: CurrentJob, ctx: WorkerCtx) -> Resu
 #[sqlxmq::job("play_detail_prune")]
 pub async fn play_detail_prune(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxError> {
     let span = tracing::info_span!("job.play_detail_prune", job_id = %job.id());
-    async move {
+    let (pool, id, name) = (job.pool().clone(), job.id(), job.name().to_owned());
+    tracked(&pool, id, &name, async move {
         let pruned =
             cymbra_worker::prune_play_detail(&ctx.admin_pool, ctx.play_detail_retention_days)
                 .await?;
         tracing::info!(pruned, "play-detail retention prune complete");
         job.complete().await?;
         Ok(())
-    }
+    })
     .instrument(span)
     .await
 }
@@ -270,7 +285,8 @@ pub async fn play_detail_prune(mut job: CurrentJob, ctx: WorkerCtx) -> Result<()
 #[sqlxmq::job("score_preview_render")]
 pub async fn score_preview_render(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxError> {
     let span = tracing::info_span!("job.score_preview_render", job_id = %job.id());
-    async move {
+    let (pool, id, name) = (job.pool().clone(), job.id(), job.name().to_owned());
+    tracked(&pool, id, &name, async move {
         let p: ScorePreviewRenderJob = job
             .json()?
             .ok_or("score_preview_render: missing JSON payload")?;
@@ -301,7 +317,7 @@ pub async fn score_preview_render(mut job: CurrentJob, ctx: WorkerCtx) -> Result
         }
         job.complete().await?;
         Ok(())
-    }
+    })
     .instrument(span)
     .await
 }
@@ -314,12 +330,13 @@ pub async fn score_preview_render(mut job: CurrentJob, ctx: WorkerCtx) -> Result
 #[sqlxmq::job("usage_rollup")]
 pub async fn usage_rollup(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxError> {
     let span = tracing::info_span!("job.usage_rollup", job_id = %job.id());
-    async move {
+    let (pool, id, name) = (job.pool().clone(), job.id(), job.name().to_owned());
+    tracked(&pool, id, &name, async move {
         cymbra_analytics::rollup_closed_days(&ctx.admin_pool).await?;
         tracing::info!("usage analytics daily rollup complete");
         job.complete().await?;
         Ok(())
-    }
+    })
     .instrument(span)
     .await
 }
@@ -333,7 +350,8 @@ pub async fn usage_rollup(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), Box
 #[sqlxmq::job("usage_purge")]
 pub async fn usage_purge(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxError> {
     let span = tracing::info_span!("job.usage_purge", job_id = %job.id());
-    async move {
+    let (pool, id, name) = (job.pool().clone(), job.id(), job.name().to_owned());
+    tracked(&pool, id, &name, async move {
         // Pick up any BO retention change (best-effort; falls back to last-known /
         // code default on a store outage — fail-safe).
         if let Err(e) = ctx.flags.refresh().await {
@@ -352,7 +370,7 @@ pub async fn usage_purge(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxE
         );
         job.complete().await?;
         Ok(())
-    }
+    })
     .instrument(span)
     .await
 }
@@ -366,14 +384,15 @@ pub async fn consensus_honesty_settlement(
     ctx: WorkerCtx,
 ) -> Result<(), BoxError> {
     let span = tracing::info_span!("job.consensus_honesty_settlement", job_id = %job.id());
-    async move {
+    let (pool, id, name) = (job.pool().clone(), job.id(), job.name().to_owned());
+    tracked(&pool, id, &name, async move {
         let settled = cymbra_worker::settle_consensus_honesty(&ctx.admin_pool).await?;
         if settled > 0 {
             tracing::info!(settled, "consensus honesty settlement complete");
         }
         job.complete().await?;
         Ok(())
-    }
+    })
     .instrument(span)
     .await
 }
@@ -386,7 +405,8 @@ pub async fn consensus_honesty_settlement(
 #[sqlxmq::job("global_season_snapshot")]
 pub async fn global_season_snapshot(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxError> {
     let span = tracing::info_span!("job.global_season_snapshot", job_id = %job.id());
-    async move {
+    let (pool, id, name) = (job.pool().clone(), job.id(), job.name().to_owned());
+    tracked(&pool, id, &name, async move {
         let frozen =
             cymbra_worker::snapshot_global_season(&ctx.admin_pool, ctx.user.as_ref()).await?;
         if frozen > 0 {
@@ -394,7 +414,7 @@ pub async fn global_season_snapshot(mut job: CurrentJob, ctx: WorkerCtx) -> Resu
         }
         job.complete().await?;
         Ok(())
-    }
+    })
     .instrument(span)
     .await
 }
@@ -433,7 +453,8 @@ fn default_true() -> bool {
 #[sqlxmq::job("push_dispatch")]
 pub async fn push_dispatch(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxError> {
     let span = tracing::info_span!("job.push_dispatch", job_id = %job.id());
-    async move {
+    let (pool, id, name) = (job.pool().clone(), job.id(), job.name().to_owned());
+    tracked(&pool, id, &name, async move {
         let p: PushDispatchJob = job.json()?.ok_or("push_dispatch: missing JSON payload")?;
         match &ctx.push {
             Some(dispatcher) => {
@@ -471,7 +492,7 @@ pub async fn push_dispatch(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), Bo
         }
         job.complete().await?;
         Ok(())
-    }
+    })
     .instrument(span)
     .await
 }
@@ -493,7 +514,8 @@ pub async fn push_dispatch(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), Bo
 #[sqlxmq::job("streak_reminder")]
 pub async fn streak_reminder(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxError> {
     let span = tracing::info_span!("job.streak_reminder", job_id = %job.id());
-    async move {
+    let (pool, id, name) = (job.pool().clone(), job.id(), job.name().to_owned());
+    tracked(&pool, id, &name, async move {
         let Some(dispatcher) = &ctx.push else {
             tracing::warn!("streak_reminder skipped: FCM credentials not configured");
             job.complete().await?;
@@ -540,7 +562,7 @@ pub async fn streak_reminder(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), 
         }
         job.complete().await?;
         Ok(())
-    }
+    })
     .instrument(span)
     .await
 }
@@ -554,7 +576,8 @@ pub async fn streak_reminder(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), 
 #[sqlxmq::job("plans_reconcile")]
 pub async fn plans_reconcile(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxError> {
     let span = tracing::info_span!("job.plans_reconcile", job_id = %job.id());
-    async move {
+    let (pool, id, name) = (job.pool().clone(), job.id(), job.name().to_owned());
+    tracked(&pool, id, &name, async move {
         if let Err(e) = ctx.flags.refresh().await {
             tracing::warn!(error = %e, "plans_reconcile flag refresh failed; using last-known/default");
         }
@@ -575,7 +598,7 @@ pub async fn plans_reconcile(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), 
         }
         job.complete().await?;
         Ok(())
-    }
+    })
     .instrument(span)
     .await
 }
@@ -587,7 +610,8 @@ pub async fn plans_reconcile(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), 
 #[sqlxmq::job("plans_withdraw")]
 pub async fn plans_withdraw(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxError> {
     let span = tracing::info_span!("job.plans_withdraw", job_id = %job.id());
-    async move {
+    let (pool, id, name) = (job.pool().clone(), job.id(), job.name().to_owned());
+    tracked(&pool, id, &name, async move {
         if let Err(e) = ctx.flags.refresh().await {
             tracing::warn!(error = %e, "plans_withdraw flag refresh failed; using last-known/default");
         }
@@ -600,14 +624,16 @@ pub async fn plans_withdraw(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), B
         }
         job.complete().await?;
         Ok(())
-    }
+    })
     .instrument(span)
     .await
 }
 
-/// Build the job registry with all handlers registered and the shared context set.
-pub fn registry(ctx: WorkerCtx) -> JobRegistry {
-    let mut registry = JobRegistry::new(&[
+/// Every handler the worker runs — one list for the registry and for the test that
+/// pins it to `cymbra_jobs::registry::builtin()`, so a kind the console lists always
+/// has a handler, and a handler always has a kind (change: add-admin-jobs-console).
+fn all_jobs() -> [&'static sqlxmq::NamedJob; 16] {
+    [
         verification_email,
         orphan_reap,
         session_reap,
@@ -624,7 +650,29 @@ pub fn registry(ctx: WorkerCtx) -> JobRegistry {
         streak_reminder,
         plans_reconcile,
         plans_withdraw,
-    ]);
+    ]
+}
+
+/// Build the job registry with all handlers registered and the shared context set.
+pub fn registry(ctx: WorkerCtx) -> JobRegistry {
+    let mut registry = JobRegistry::new(&all_jobs());
     registry.set_context(ctx);
     registry
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_registered_kind_has_exactly_one_handler() {
+        let mut handlers: Vec<&str> = all_jobs().iter().map(|job| job.name()).collect();
+        handlers.sort_unstable();
+        let mut kinds: Vec<String> = cymbra_jobs::registry::builtin()
+            .iter()
+            .map(|spec| spec.name().to_owned())
+            .collect();
+        kinds.sort_unstable();
+        assert_eq!(handlers, kinds);
+    }
 }

@@ -124,9 +124,33 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA lingua TO :"lingua_
 ALTER DEFAULT PRIVILEGES IN SCHEMA lingua
   GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO :"lingua_role";
 
+-- jobs console (change: add-admin-jobs-console) — the server's narrow access to the
+-- queue for the back-office Jobs page. NOT a module role, and never to be given to
+-- one. It owns nothing and holds no table privilege: USAGE on `jobs` and EXECUTE on
+-- four SECURITY DEFINER functions (list, per-state counts, period figures, cancel),
+-- so it reads queue metadata and cancels a job but cannot read a payload.
+SELECT format('CREATE ROLE %I LOGIN', :'jobs_admin_role')
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'jobs_admin_role')
+\gexec
+ALTER ROLE :"jobs_admin_role" WITH LOGIN PASSWORD :'jobs_admin_pw';
+ALTER ROLE :"jobs_admin_role" SET search_path = jobs;
+-- The `jobs` migration grants these to `jobs_admin_svc` when the role exists at
+-- migration time. On a re-apply over an already-migrated database (or with a custom
+-- role name) the functions exist first, so grant them here too.
+SELECT format('GRANT USAGE ON SCHEMA jobs TO %I', :'jobs_admin_role')
+WHERE to_regprocedure('jobs.admin_cancel(uuid, text, text[])') IS NOT NULL
+\gexec
+SELECT format(
+  'GRANT EXECUTE ON FUNCTION jobs.admin_list_jobs(text, text, integer, integer), '
+  'jobs.admin_queue_counts(text), jobs.admin_period_stats(timestamptz, timestamptz, text), '
+  'jobs.admin_cancel(uuid, text, text[]) TO %I',
+  :'jobs_admin_role')
+WHERE to_regprocedure('jobs.admin_cancel(uuid, text, text[])') IS NOT NULL
+\gexec
+
 -- Keep the module roles out of the shared `public` schema so the only namespaces
 -- each can touch are its own (+ the narrow jobs.enqueue grant from the migration).
-REVOKE ALL ON SCHEMA public FROM :"auth_role", :"user_role", :"music_role", :"worker_role", :"flags_role", :"analytics_role", :"plans_role", :"lingua_role";
+REVOKE ALL ON SCHEMA public FROM :"auth_role", :"user_role", :"music_role", :"worker_role", :"flags_role", :"analytics_role", :"plans_role", :"lingua_role", :"jobs_admin_role";
 
 -- Ops role: read+write EVERY schema from a single connection (design OD1/OD2) --
 -- `pg_read_all_data` + `pg_write_all_data` cover all current AND future schemas

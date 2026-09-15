@@ -757,6 +757,29 @@ async fn main() -> anyhow::Result<()> {
     let http_addr: SocketAddr = cfg.http_addr.parse()?;
     tracing::info!(%grpc_addr, %http_addr, "cymbra-server serving");
 
+    // --- Jobs console (the back-office queue view + cancellation; change:
+    // add-admin-jobs-console). Runs on `jobs_admin_svc`, which can only EXECUTE the
+    // `jobs.admin_*` functions and never read a payload. Every RPC is gated on
+    // `global/admin`. Inert without CYMBRA_JOBS_ADMIN_DATABASE_URL.
+    let jobs_admin_svc = match cfg.jobs_admin_database_url.as_deref() {
+        Some(db_url) => {
+            let pool = db::connect(db_url, 3).await?;
+            let module = Arc::new(cymbra_jobs_admin::JobsAdminModule::new(Arc::new(
+                cymbra_jobs_admin::PgJobsAdminRepo::new(pool),
+            )));
+            Some(
+                cymbra_jobs_admin::proto::jobs_admin_service_server::JobsAdminServiceServer::with_interceptor(
+                    cymbra_jobs_admin::JobsAdminGrpc::new(module),
+                    strict.clone(),
+                ),
+            )
+        }
+        None => {
+            tracing::info!("jobs console disabled (CYMBRA_JOBS_ADMIN_DATABASE_URL unset)");
+            None
+        }
+    };
+
     // --- lingua module (Cymbra Lingua sync: statuses, cards, daily stats; change:
     // add-lingua-backend). Owns the `lingua` schema via `lingua_svc`. Inert without
     // CYMBRA_LINGUA_DATABASE_URL. Identity comes from the token, so no UserPort here.
@@ -873,6 +896,9 @@ async fn main() -> anyhow::Result<()> {
     }
     if let Some(lingua_admin_svc) = lingua_admin_svc {
         router = router.add_service(lingua_admin_svc);
+    }
+    if let Some(jobs_admin_svc) = jobs_admin_svc {
+        router = router.add_service(jobs_admin_svc);
     }
     let grpc = router.serve(grpc_addr);
     let listener = tokio::net::TcpListener::bind(http_addr).await?;

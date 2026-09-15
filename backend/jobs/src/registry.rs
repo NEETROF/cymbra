@@ -101,6 +101,7 @@ pub struct JobSpec {
     name: String,
     channel: Channel,
     default_retry: RetryPolicy,
+    cancellable: bool,
 }
 
 impl JobSpec {
@@ -109,7 +110,20 @@ impl JobSpec {
             name: name.into(),
             channel,
             default_retry,
+            cancellable: true,
         }
+    }
+
+    /// Mark the kind as one an operator may never cancel from the back office (change:
+    /// add-admin-jobs-console, design D3). Reserved for obligations, not preferences:
+    /// dropping an erasure job would leave a deleted account's data behind.
+    pub fn not_cancellable(mut self) -> Self {
+        self.cancellable = false;
+        self
+    }
+
+    pub fn cancellable(&self) -> bool {
+        self.cancellable
     }
 
     pub fn name(&self) -> &str {
@@ -155,14 +169,16 @@ pub fn builtin() -> Vec<JobSpec> {
             // Erasure is idempotent, so retries after a partial failure are safe.
             Channel::parallel("user", "purge"),
             RetryPolicy::new(5, Duration::from_secs(30), Duration::from_secs(3600)),
-        ),
+        )
+        .not_cancellable(),
         JobSpec::new(
             PURGE_SCORE_OBJECT,
             // Each object delete is independent and idempotent → parallel; retry
             // generously since a transient S3 outage should not drop the object.
             Channel::parallel("music", "purge"),
             RetryPolicy::new(8, Duration::from_secs(30), Duration::from_secs(3600)),
-        ),
+        )
+        .not_cancellable(),
         JobSpec::new(
             PURGE_SOUNDFONT_OBJECT,
             // Same shape as the score-object purge, against the private soundfont
@@ -170,7 +186,8 @@ pub fn builtin() -> Vec<JobSpec> {
             // outage never leaves a deleted account's bytes behind.
             Channel::parallel("music", "purge"),
             RetryPolicy::new(8, Duration::from_secs(30), Duration::from_secs(3600)),
-        ),
+        )
+        .not_cancellable(),
         JobSpec::new(
             PLAY_DETAIL_PRUNE,
             // Maintenance sweep; dedup'd per scheduled occurrence, so ordering is
@@ -254,9 +271,31 @@ pub fn spec(name: &str) -> Option<JobSpec> {
     builtin().into_iter().find(|s| s.name() == name)
 }
 
+/// The kinds no operator may cancel. Passed to `jobs.admin_cancel` so the refusal is
+/// decided under the same row lock as the delete, with this registry as the one list.
+pub fn protected_kinds() -> Vec<String> {
+    builtin()
+        .into_iter()
+        .filter(|s| !s.cancellable())
+        .map(|s| s.name().to_owned())
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn erasure_jobs_are_the_protected_kinds() {
+        let mut protected = protected_kinds();
+        protected.sort();
+        assert_eq!(
+            protected,
+            vec![PURGE_SCORE_OBJECT, PURGE_SOUNDFONT_OBJECT, PURGE_USER]
+        );
+        assert!(spec(VERIFICATION_EMAIL).unwrap().cancellable());
+        assert!(!spec(PURGE_USER).unwrap().cancellable());
+    }
 
     #[test]
     fn builtin_has_first_slice_jobs() {

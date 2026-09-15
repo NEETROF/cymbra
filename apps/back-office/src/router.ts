@@ -60,6 +60,15 @@ const routes: RouteRecordRaw[] = [
     meta: { admin: true, adminScope: "lingua" },
   },
   {
+    // Jobs console (change: add-admin-jobs-console): global-scope admins only — the queue
+    // spans every product (identity emails, erasure, Music renders). The guard checks the
+    // scope; every RPC is re-gated server-side.
+    path: "/jobs",
+    name: "jobs",
+    component: () => import("@/views/JobsView.vue"),
+    meta: { admin: true, adminScope: "global" },
+  },
+  {
     path: "/notifications",
     name: "notifications",
     component: () => import("@/views/NotificationsView.vue"),

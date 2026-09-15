@@ -1064,6 +1064,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "cymbra-jobs-admin"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "cymbra-jobs",
+ "cymbra-platform",
+ "mockall",
+ "prost 0.13.5",
+ "sqlx",
+ "tokio",
+ "tonic 0.12.3",
+ "tonic-build",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "cymbra-lingua"
 version = "0.1.0"
 dependencies = [
@@ -1243,6 +1262,7 @@ dependencies = [
  "cymbra-auth-port",
  "cymbra-feature-flags",
  "cymbra-jobs",
+ "cymbra-jobs-admin",
  "cymbra-lingua",
  "cymbra-music",
  "cymbra-notifications",

@@ -1,0 +1,147 @@
+// Copyright 2026 NEETROF
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+// this file except in compliance with the License. You may obtain a copy of the
+// License at http://www.apache.org/licenses/LICENSE-2.0
+
+syntax = "proto3";
+
+package cymbra.jobs.v1;
+
+// The back office's Jobs console (change: add-admin-jobs-console). Every RPC is gated by
+// `admin` in the `global` scope — the queue spans every product — behind the strict auth
+// interceptor with the `back-office` audience.
+//
+// PRIVACY: this service carries queue METADATA only. No message below holds a job's
+// payload or anything derived from it (a verification email's payload is a recipient
+// address and a rendered body), nor an attempt's error text — errors stay in logs and
+// traces. Adding either would mean changing this `.proto`, visible in review and at the
+// `buf` gate; the database role behind it cannot read payloads either.
+service JobsAdminService {
+  // A page of the jobs currently in the queue, oldest first, plus the matching total.
+  rpc AdminListJobs(AdminListJobsRequest) returns (AdminListJobsResponse);
+  // Counts per state for the queue as it is now, and figures over a time window.
+  rpc AdminGetJobStats(AdminGetJobStatsRequest) returns (AdminGetJobStatsResponse);
+  // The registered job kinds (the kind filter is data-driven from this).
+  rpc AdminListJobKinds(AdminListJobKindsRequest) returns (AdminListJobKindsResponse);
+  // Cancel one queued job. Refusals are outcomes, not errors.
+  rpc AdminCancelJob(AdminCancelJobRequest) returns (AdminCancelJobResponse);
+}
+
+// Where a queued job stands. Derived server-side from the queue and the attempt history;
+// the first matching state wins, in this order: RUNNING, EXHAUSTED, BLOCKED, READY,
+// RETRY_WAIT, SCHEDULED.
+enum JobState {
+  // In a filter: any state. Never returned for a job.
+  JOB_STATE_UNSPECIFIED = 0;
+  // An attempt is executing on a worker.
+  JOB_STATE_RUNNING = 1;
+  // Runnable now; waiting for a free worker slot.
+  JOB_STATE_READY = 2;
+  // Enqueued with a delay and never attempted yet.
+  JOB_STATE_SCHEDULED = 3;
+  // An earlier attempt failed; waiting for the backoff to elapse.
+  JOB_STATE_RETRY_WAIT = 4;
+  // On an ordered channel, behind a predecessor that is still queued.
+  JOB_STATE_BLOCKED = 5;
+  // No retries left; the dead-letter sweep will move it out.
+  JOB_STATE_EXHAUSTED = 6;
+}
+
+// One job in the queue.
+message QueuedJob {
+  string id = 1;                          // the queue message id (UUID)
+  string kind = 2;                        // job name, e.g. "verification_email"
+  string channel = 3;                     // "<module>.<kind>" channel
+  JobState state = 4;
+  int32 attempts_made = 5;                // attempts recorded in the history
+  int32 attempts_left = 6;                // retries sqlxmq still allows
+  int64 enqueued_at_ms = 7;               // unix epoch ms
+  optional int64 next_attempt_at_ms = 8;  // unset when no further attempt is planned
+  optional int64 started_at_ms = 9;       // set when RUNNING: the current attempt's start
+  bool cancellable = 10;                  // not running, and the kind is not protected
+}
+
+message AdminListJobsRequest {
+  JobState state = 1;  // UNSPECIFIED = every state
+  string kind = 2;     // "" = every kind
+  int32 limit = 3;     // 1..=100
+  int32 offset = 4;    // >= 0
+}
+
+message AdminListJobsResponse {
+  repeated QueuedJob jobs = 1;
+  int64 total = 2;  // jobs matching the filters, across all pages
+}
+
+// A half-open time window [from_ms, to_ms), unix epoch milliseconds. It must end no later
+// than now and start within the 90-day history retention.
+message StatsWindow {
+  int64 from_ms = 1;
+  int64 to_ms = 2;
+}
+
+message AdminGetJobStatsRequest {
+  StatsWindow window = 1;
+  string kind = 2;  // "" = every kind; applies to both the queue and the period figures
+}
+
+// The queue as it is now.
+message QueueCounts {
+  int64 total = 1;
+  int64 running = 2;
+  int64 ready = 3;
+  int64 scheduled = 4;
+  int64 retry_wait = 5;
+  int64 blocked = 6;
+  int64 exhausted = 7;
+}
+
+// Figures over the requested window.
+message PeriodStats {
+  int64 completed = 1;          // distinct jobs whose attempt succeeded in the window
+  int64 failed_attempts = 2;    // attempts that failed in the window
+  int64 dead_lettered = 3;      // jobs moved to the dead-letter store in the window
+  int64 cancelled = 4;          // jobs cancelled from the console in the window
+  optional int64 avg_run_ms = 5;  // mean run time of succeeded attempts; unset when none
+}
+
+message AdminGetJobStatsResponse {
+  QueueCounts queue = 1;
+  PeriodStats period = 2;
+  // When the attempt history starts (its oldest record), unix epoch ms; unset when the
+  // history is empty. Figures for time before it are not zero, they are unknown.
+  optional int64 history_since_ms = 3;
+}
+
+message AdminListJobKindsRequest {}
+
+message JobKind {
+  string name = 1;
+  string channel = 2;
+  bool cancellable = 3;  // false for erasure obligations
+}
+
+message AdminListJobKindsResponse {
+  repeated JobKind kinds = 1;
+}
+
+message AdminCancelJobRequest {
+  string job_id = 1;
+}
+
+enum CancelOutcome {
+  CANCEL_OUTCOME_UNSPECIFIED = 0;
+  // Removed from the queue; it will never run.
+  CANCEL_OUTCOME_CANCELLED = 1;
+  // No longer in the queue (it completed, was dead-lettered, or was already cancelled).
+  CANCEL_OUTCOME_GONE = 2;
+  // Refused: an attempt is executing.
+  CANCEL_OUTCOME_RUNNING = 3;
+  // Refused: the kind is an erasure obligation and can never be cancelled.
+  CANCEL_OUTCOME_PROTECTED = 4;
+}
+
+message AdminCancelJobResponse {
+  CancelOutcome outcome = 1;
+}

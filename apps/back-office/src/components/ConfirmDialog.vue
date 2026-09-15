@@ -17,6 +17,11 @@ const props = defineProps<{
   message: string | null;
   /** An action in flight: the buttons stay visible but inert. */
   busy?: boolean;
+  /** Button labels naming the actual choice, when "Confirm" / "Cancel" would be
+   *  ambiguous — e.g. confirming a cancellation, where a "Cancel" button reads as
+   *  the action itself. Default to the generic labels. */
+  confirmLabel?: string;
+  cancelLabel?: string;
 }>();
 
 const emit = defineEmits<{ confirm: []; cancel: [] }>();
@@ -45,9 +50,11 @@ watch(
       <p>{{ props.message }}</p>
       <div class="modal-actions">
         <button type="button" class="btn-primary" :disabled="props.busy" @click="emit('confirm')">
-          {{ t("common.confirm") }}
+          {{ props.confirmLabel ?? t("common.confirm") }}
         </button>
-        <button type="button" :disabled="props.busy" @click="emit('cancel')">{{ t("common.cancel") }}</button>
+        <button type="button" :disabled="props.busy" @click="emit('cancel')">
+          {{ props.cancelLabel ?? t("common.cancel") }}
+        </button>
       </div>
     </dialog>
   </div>

@@ -43,6 +43,7 @@ const ICONS: Record<string, string> = {
   usage: "M3 3v18h18M7 15l4-4 3 3 5-6",
   notifications: "M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0",
   lingua: "M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5A2.5 2.5 0 0 0 6.5 22H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15z",
+  jobs: "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20ZM12 6v6l4 2",
 };
 
 const nav = computed(() => {
@@ -66,6 +67,10 @@ const nav = computed(() => {
     // Lingua-scope only (change: add-lingua-back-office).
     if (auth.adminScopes.includes("lingua")) {
       items.push({ to: "/lingua", key: "nav.lingua", icon: "lingua" });
+    }
+    // Global-scope only (change: add-admin-jobs-console): the queue spans every product.
+    if (auth.adminScopes.includes("global")) {
+      items.push({ to: "/jobs", key: "nav.jobs", icon: "jobs" });
     }
   }
   return items;
