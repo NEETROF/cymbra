@@ -36,15 +36,16 @@ system and event-page `AnalyzerPort` this change reuses.
   keyboard-shortcut editor that does not exist there.
 - **First run on Safari**: with no onboarding page, the level choice is offered from
   the page itself.
-- **Sign-in on Safari**: the extension's own flow; providers that need
-  `identity.launchWebAuthFlow` are offered only where it exists (email/password on
-  Safari).
+- **Sign-in on Safari, interim**: provider buttons that need
+  `identity.launchWebAuthFlow` are hidden where it is missing, leaving email/password;
+  `add-lingua-connected-clients` replaces this with the host app's native session.
 - **A minimal Apple container app** (`apps/lingua-apple`): the converter's Xcode
   project, one universal iOS + macOS listing (bundle `com.cymbra.lingua`), whose only
   job is to host the extension and guide its activation.
 - **Signing / TestFlight / CI** for the app, cloned from music's Apple release jobs.
 - **Deferred** to a later change, only if real use asks for it: native analysis, a
-  SwiftUI decks/review app, an App Group activation heartbeat, native sign-in in the app.
+  SwiftUI decks/review app, an App Group activation heartbeat. Native sign-in in the app
+  is planned by `add-lingua-connected-clients`.
 - "Tier 3" channels (Edge Canary Android, curated Edge/Samsung stores, Chromium forks)
   stay explicitly **unsupported**: nothing is promised or tested there.
 
@@ -65,11 +66,10 @@ system and event-page `AnalyzerPort` this change reuses.
 - **Products**: **Lingua** only — new `safari` variant and container app. **Cymbra ID**:
   consumed unchanged (the extension's existing sign-in). **Music**: nothing modified;
   its Apple signing jobs are the pattern cloned. **Live / back office / site**: none.
-- **Other in-flight changes**: `add-lingua-connected-clients` D3 (native sign-in in the
-  Apple app, session shared with the Safari extension through an App Group) no longer
-  has an app to live in — the Safari extension signs in and syncs on its own, like the
-  other variants. Amend D3 when that change is next touched. `add-lingua-account-parity`
-  already detects `identity.launchWebAuthFlow` by feature, which this change relies on.
+- **Other in-flight changes**: `add-lingua-connected-clients` builds on the host app —
+  native sign-in there, its session lent to the Safari extension (its D3 and D6).
+  `add-lingua-account-parity` already detects `identity.launchWebAuthFlow` by feature,
+  which the interim Safari sign-in relies on.
 - **Tree**: `apps/lingua-extension` (build target, highlight painting, touch
   adaptations, first-run level prompt, icons); `apps/lingua-apple` (new unit).
 - **CI**: `lingua-extension-check` also builds the `safari` variant; a new

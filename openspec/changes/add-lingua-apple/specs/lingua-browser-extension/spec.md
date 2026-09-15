@@ -3,7 +3,7 @@
 ## ADDED Requirements
 
 ### Requirement: Safari variant
-The extension SHALL ship on Safari for macOS and iOS as the `safari` variant of the multi-target build, produced from the same source as the chromium and firefox variants and hosted by the Apple container app. The variant SHALL run the WASM analysis in a non-persistent event page consumed by the content script through the `AnalyzerPort`, inject the reader through a static content script, use the in-page drawer as its only review surface (Safari has no panel API), and declare no permission Safari does not support (`sidePanel`, `identity`). Account sign-in SHALL offer only the methods the browser supports, detected by feature (`identity.launchWebAuthFlow`), so email/password is offered on Safari. When no level is declared, the page SHALL offer the level choice, since Safari opens no first-run page. Tier-3 channels (Edge Canary Android, curated Edge/Samsung stores, Chromium forks) SHALL NOT be promised or tested.
+The extension SHALL ship on Safari for macOS and iOS as the `safari` variant of the multi-target build, produced from the same source as the chromium and firefox variants and hosted by the Apple container app. The variant SHALL run the WASM analysis in a non-persistent event page consumed by the content script through the `AnalyzerPort`, inject the reader through a static content script, use the in-page drawer as its only review surface (Safari has no panel API), and declare no permission Safari does not support (`sidePanel`, `identity`). When no level is declared, the page SHALL offer the level choice, since Safari opens no first-run page. Tier-3 channels (Edge Canary Android, curated Edge/Samsung stores, Chromium forks) SHALL NOT be promised or tested.
 
 #### Scenario: One build, three artefacts
 - **WHEN** the release build runs
@@ -20,10 +20,6 @@ The extension SHALL ship on Safari for macOS and iOS as the `safari` variant of 
 #### Scenario: Review in Safari
 - **WHEN** the user opens review from the in-page pastille or from the extension popup in Safari
 - **THEN** the in-page drawer carries the review session, on the same local state as the rest of the extension
-
-#### Scenario: Sign-in without the identity API
-- **WHEN** the user opens the account section on Safari, where `identity.launchWebAuthFlow` is unavailable
-- **THEN** email/password sign-in is offered and no provider button that cannot complete is shown
 
 #### Scenario: First run with no declared level
 - **WHEN** the user enables the extension in Safari and opens an English page without having declared a level
