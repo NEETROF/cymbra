@@ -2,7 +2,7 @@
 
 ## 1. Apple spike and manual configuration
 
-- [x] 1.1 [manual] On the site's Apple Services ID (`PUBLIC_APPLE_CLIENT_ID` = `com.cymbra.bo.web`), add the return URLs `https://figfjglfdiffocldficbimecjnhnkhkh.chromiumapp.org/` (Chromium dev id) and the Firefox URL read from `identity.getRedirectURL()` (`https://<hash>.extensions.allizom.org/`) — Chromium domain + return URL registered and saved 2026-09-15; the Firefox URL is added with the Firefox pass (6.3)
+- [x] 1.1 [manual] On the site's Apple Services ID (`PUBLIC_APPLE_CLIENT_ID` = `com.cymbra.bo.web`), add the return URLs `https://figfjglfdiffocldficbimecjnhnkhkh.chromiumapp.org/` (Chromium dev id) and the Firefox URL read from `identity.getRedirectURL()` (`https://<hash>.extensions.allizom.org/`) — Chromium and Firefox domains + return URLs registered and saved 2026-09-15
 - [x] 1.2 [manual] Spike (design D3): run a hand-built scope-less authorize URL (`response_type=code id_token`, `response_mode=fragment`, `state`, `nonce`) through `launchWebAuthFlow` on the dev id; confirm the id_token arrives in the fragment, that `SignInOidc(audience="lingua")` accepts it against the dev backend, and that the resolved account is the one a Music Apple sign-in uses (compare identities in the back office `/users`). Record the outcome in design.md — D3 confirmed, or D4 activated (then §5 applies) — **D3 confirmed 2026-09-15** against production: Apple accepted the chromiumapp.org return URL, answered in the fragment, and `SignInOidc(audience="lingua")` signed in from Chrome on macOS
 - [x] 1.3 [manual] Check the running backend's `CYMBRA_APPLE_AUDIENCE` contains the Services ID (`docker inspect`, not `printenv`); release builds set `LINGUA_APPLE_CLIENT_ID` — proven by the production Apple sign-in (the verifier only accepts listed audiences); production also needed `lingua` added to `CYMBRA_ALLOWED_AUDIENCES` (done 2026-09-15)
 
@@ -37,8 +37,8 @@
 ## 6. Verification
 
 - [x] 6.1 `apps/lingua-extension`: lint, format, typecheck, vitest (new modules 96–100 % line coverage; the extension has no global coverage gate in CI) and `node build.mjs` for both variants green; `python3 scripts/check_ci_units.py --list` still watches every touched unit (no new unit)
-- [ ] 6.2 [manual] Chrome on macOS against a real backend: sign-up → code from the mailbox → signed in → sync runs; forgotten password end to end; Apple with an Apple ID already used in Music lands on the same account; Google unchanged
-- [ ] 6.3 [manual] Firefox desktop: Google, Apple and email; Firefox for Android: no provider buttons, email sign-up/sign-in/reset work
+- [x] 6.2 [manual] Chrome on macOS against a real backend: sign-up → code from the mailbox → signed in → sync runs; forgotten password end to end; Apple with an Apple ID already used in Music lands on the same account; Google unchanged — validated against production 2026-09-15 (sign-up + code + automatic sign-in, forgotten password, Google, Apple, handle step); sync not exercised: the `lingua` backend module is not deployed in production yet (`add-lingua-connected-clients`)
+- [ ] 6.3 [manual] Firefox desktop: Google, Apple and email; Firefox for Android: no provider buttons, email sign-up/sign-in/reset work — Firefox desktop validated against production 2026-09-15 (email, Google, Apple; redirect `https://4c0d4d892737d7bb66cf280aafecc32150587ff4.extensions.allizom.org/` registered on the Google client and `com.cymbra.bo.web`); Firefox for Android pending
 - [x] 6.4 `openspec validate add-lingua-account-parity --strict`
 
 ## 7. Handle step (found in production: handle-less accounts are reaped after 24 h)
