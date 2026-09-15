@@ -105,17 +105,35 @@ export class Session {
    * SignInOidc. A closed window is a cancel — no RPC, nothing persisted.
    */
   async signInWithProvider(provider: Provider): Promise<ProviderOutcome> {
+    let idToken: string | null;
     try {
       const getIdToken = provider === "apple" ? this.deps.getAppleIdToken : this.deps.getGoogleIdToken;
-      const idToken = await getIdToken();
-      if (idToken == null) return "cancelled";
-      await this.store(await this.deps.auth().signInOidc({ idToken, audience: AUDIENCE }));
-      return "signedIn";
+      idToken = await getIdToken();
     } catch (e) {
-      const kind = authErrorOf(e);
-      await this.recordError({ provider, kind });
-      throw new AccountError(kind);
+      throw await this.providerFailure(provider, e);
     }
+    if (idToken == null) return "cancelled";
+    await this.signInWithIdToken(provider, idToken);
+    return "signedIn";
+  }
+
+  /**
+   * Exchange a provider id_token obtained outside the browser flow — on Safari, handed over by
+   * the host app (add-lingua-connected-clients D6) — exactly like a flow's own token.
+   */
+  async signInWithIdToken(provider: Provider, idToken: string): Promise<void> {
+    try {
+      await this.store(await this.deps.auth().signInOidc({ idToken, audience: AUDIENCE }));
+    } catch (e) {
+      throw await this.providerFailure(provider, e);
+    }
+  }
+
+  /** Categorize a provider failure and persist it for a popup that may have been torn down. */
+  private async providerFailure(provider: Provider, e: unknown): Promise<AccountError> {
+    const kind = authErrorOf(e);
+    await this.recordError({ provider, kind });
+    return new AccountError(kind);
   }
 
   /** Create a local account; the backend emails a verification code (in `locale`). */

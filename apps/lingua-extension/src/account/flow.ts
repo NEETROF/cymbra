@@ -193,8 +193,25 @@ export class AccountFlow {
     const type = provider === "apple" ? "account:signInApple" : "account:signInGoogle";
     const reply = await this.run(context, { type });
     if (reply?.ok) return this.resolveProfile(null);
+    // Safari: the host app shows the provider's sheet; the page collects the token on return.
+    if (reply?.handedOff)
+      return this.set({ notice: "Termine la connexion dans l'app Cymbra Lingua, puis reviens ici." });
     // Shown live here, so the background's persisted copy must not re-show in the popup.
     if (reply && !reply.cancelled) await this.deps.clearPersistedError();
+    return this.view();
+  }
+
+  /**
+   * Collect an id_token the host app handed back (Safari), when the page opens and each time
+   * the reader comes back to it. With nothing pending the page stays as it is.
+   */
+  async collectHandedToken(): Promise<AccountViewState> {
+    const reply = await this.deps.send({ type: "account:collectHandedToken" });
+    if (!reply?.provider) return this.view();
+    if (reply.ok) return this.resolveProfile(null);
+    // Shown live here, so the background's persisted copy must not re-show in the popup.
+    await this.deps.clearPersistedError();
+    this.fail(reply.provider === "apple" ? "signInApple" : "signInGoogle", reply.error ?? "unknown");
     return this.view();
   }
 
@@ -273,7 +290,7 @@ export class AccountFlow {
     const reply = await this.deps.send(message);
     this.s.busy = false;
     if (reply == null) this.fail(context, "unavailable");
-    else if (!reply.ok && !reply.cancelled) this.fail(context, reply.error ?? "unknown");
+    else if (!reply.ok && !reply.cancelled && !reply.handedOff) this.fail(context, reply.error ?? "unknown");
     else this.set({});
     return reply;
   }

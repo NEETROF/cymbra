@@ -14,6 +14,9 @@ function setup(overrides: Partial<AccountHostDeps["session"]> = {}) {
       signedIn = true;
       return "signedIn" as const;
     }),
+    signInWithIdToken: vi.fn(async () => {
+      signedIn = true;
+    }),
     signOut: vi.fn(async () => {
       signedIn = false;
     }),
@@ -73,6 +76,63 @@ describe("handleAccountMessage", () => {
     const reply = await handleAccountMessage({ type: "account:signInApple" }, deps);
     expect(reply).toEqual({ ok: false, cancelled: true, state: { signedIn: false } });
     expect(deps.onSignedIn).not.toHaveBeenCalled();
+  });
+
+  describe("on Safari, through the host app", () => {
+    function withHandOff(handed: { provider: "apple" | "google"; idToken: string } | null, session = setup()) {
+      const handOff = { open: vi.fn(async () => {}), take: vi.fn(async () => handed) };
+      return { ...session, deps: { ...session.deps, handOff }, handOff };
+    }
+
+    it("opens the host app instead of a provider flow", async () => {
+      const { deps, session, handOff } = withHandOff(null);
+      const reply = await handleAccountMessage({ type: "account:signInGoogle" }, deps);
+      expect(handOff.open).toHaveBeenCalledWith("google");
+      expect(session.signInWithProvider).not.toHaveBeenCalled();
+      expect(reply).toEqual({ ok: false, handedOff: true, state: { signedIn: false } });
+      expect(deps.onSignedIn).not.toHaveBeenCalled();
+    });
+
+    it("signs in with a handed-over id_token and schedules a sync", async () => {
+      const { deps, session } = withHandOff({ provider: "apple", idToken: "tok" });
+      const reply = await handleAccountMessage({ type: "account:collectHandedToken" }, deps);
+      expect(session.signInWithIdToken).toHaveBeenCalledWith("apple", "tok");
+      expect(reply).toEqual({ ok: true, state: { signedIn: true }, provider: "apple" });
+      expect(deps.onSignedIn).toHaveBeenCalledOnce();
+    });
+
+    it("leaves the state alone when nothing was handed over", async () => {
+      const { deps, session } = withHandOff(null);
+      expect(await handleAccountMessage({ type: "account:collectHandedToken" }, deps)).toEqual({
+        ok: true,
+        state: { signedIn: false },
+      });
+      expect(session.signInWithIdToken).not.toHaveBeenCalled();
+    });
+
+    it("reports a rejected id_token with its provider", async () => {
+      const failing = setup({
+        signInWithIdToken: vi.fn(async () => {
+          throw new AccountError("unauthenticated");
+        }),
+      });
+      const { deps } = withHandOff({ provider: "google", idToken: "tok" }, failing);
+      expect(await handleAccountMessage({ type: "account:collectHandedToken" }, deps)).toEqual({
+        ok: false,
+        error: "unauthenticated",
+        provider: "google",
+      });
+      expect(deps.onSignedIn).not.toHaveBeenCalled();
+    });
+
+    it("collects nothing where there is no host app", async () => {
+      const { deps, session } = setup();
+      expect(await handleAccountMessage({ type: "account:collectHandedToken" }, deps)).toEqual({
+        ok: true,
+        state: { signedIn: false },
+      });
+      expect(session.signInWithIdToken).not.toHaveBeenCalled();
+    });
   });
 
   it("passes sign-up, verification and reset through without signing in", async () => {

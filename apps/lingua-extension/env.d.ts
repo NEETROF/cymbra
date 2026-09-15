@@ -12,6 +12,9 @@ declare const __ENGINE_IN_EVENT_PAGE__: boolean;
 declare const __REVIEW_IN_PAGE__: boolean;
 // …and the reader is injected by a static content script, not registered dynamically.
 declare const __STATIC_READER__: boolean;
+// Safari only: Apple and Google sign-in come from the host app over native messaging
+// (add-lingua-connected-clients D6), since Safari has no identity.launchWebAuthFlow.
+declare const __NATIVE_PROVIDERS__: boolean;
 
 // Backend gRPC-web origin for the sync transport, injected by esbuild `define`
 // (build.mjs, from LINGUA_GRPC_WEB_URL). Defaults to the local backend for dogfooding.

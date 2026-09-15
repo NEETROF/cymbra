@@ -1,5 +1,5 @@
 import type { AuthErrorKind } from "../state/auth-errors.ts";
-import type { Providers } from "../state/oidc.ts";
+import type { Provider, Providers } from "../state/oidc.ts";
 
 // The account message protocol between the surfaces (popup, account page, onboarding) and
 // the background, which owns the single session (add-lingua-account-parity, design D2).
@@ -11,6 +11,8 @@ export type AccountMessage =
   | { type: "account:signInLocal"; email: string; password: string }
   | { type: "account:signInGoogle" }
   | { type: "account:signInApple" }
+  /** Safari: exchange an id_token the host app handed back, if one is pending. */
+  | { type: "account:collectHandedToken" }
   | { type: "account:signOut" }
   | { type: "account:signUp"; email: string; password: string; locale: string }
   | { type: "account:verifyEmail"; code: string }
@@ -32,6 +34,10 @@ export interface AccountReply {
   error?: AuthErrorKind;
   /** A provider flow the reader closed: not a failure, nothing to show. */
   cancelled?: boolean;
+  /** Safari: the sign-in went on in the host app; the token is collected on return. */
+  handedOff?: boolean;
+  /** On account:collectHandedToken, the provider of the token that was collected. */
+  provider?: Provider;
   state?: AccountState;
   providers?: Providers;
   /** The account's handle (`null` = none yet), on account:profile and account:setHandle. */

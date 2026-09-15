@@ -243,6 +243,45 @@ describe("AccountFlow providers", () => {
   });
 });
 
+describe("AccountFlow on Safari, through the host app", () => {
+  it("sends the reader to the host app without reporting a failure", async () => {
+    const { flow, deps } = setup({ "account:signInApple": { ok: false, handedOff: true } });
+    await flow.init("");
+    const s = await flow.signInWith("apple");
+    expect(s.error).toBeNull();
+    expect(s.notice).toContain("Cymbra Lingua");
+    expect(s.view).toBe("signin");
+    expect(deps.clearPersistedError).not.toHaveBeenCalled();
+  });
+
+  it("signs in once the host app handed a token back", async () => {
+    const { flow } = setup({ "account:collectHandedToken": { ok: true, provider: "google" } });
+    await flow.init("");
+    expect((await flow.collectHandedToken()).view).toBe("signedin");
+  });
+
+  it("stays put when nothing was handed back or the worker is silent", async () => {
+    for (const reply of [{ ok: true }, null]) {
+      const { flow } = setup({ "account:collectHandedToken": reply });
+      await flow.init("#signup");
+      const s = await flow.collectHandedToken();
+      expect(s.view).toBe("signup");
+      expect(s.error).toBeNull();
+    }
+  });
+
+  it("shows a rejected token live under its provider and drops the persisted copy", async () => {
+    const { flow, deps } = setup({
+      "account:collectHandedToken": { ok: false, error: "unauthenticated", provider: "apple" },
+    });
+    await flow.init("");
+    const s = await flow.collectHandedToken();
+    expect(s.error).toContain("Apple");
+    expect(s.errorKind).toBe("unauthenticated");
+    expect(deps.clearPersistedError).toHaveBeenCalledOnce();
+  });
+});
+
 describe("AccountFlow password reset", () => {
   it("requests a code, then resets and returns to sign-in", async () => {
     const { flow, sent } = setup();

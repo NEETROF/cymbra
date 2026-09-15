@@ -111,9 +111,9 @@ function safariManifest(base) {
   delete m.browser_specific_settings;
   // iOS refuses a persistent background page; the event page is suspended and woken on demand.
   m.background = { ...m.background, persistent: false };
-  // Safari does not support the identity API: providers needing launchWebAuthFlow are
-  // feature-detected away in the account UI, so the permission would only raise a warning.
-  m.permissions = m.permissions.filter((p) => p !== "identity");
+  // Safari does not support the identity API; Apple and Google come from the host app instead,
+  // collected through the extension's native handler (add-lingua-connected-clients D6).
+  m.permissions = [...m.permissions.filter((p) => p !== "identity"), "nativeMessaging"];
   return m;
 }
 
@@ -129,6 +129,8 @@ function capabilities(target) {
     __ENGINE_IN_EVENT_PAGE__: JSON.stringify(eventPageFamily),
     __REVIEW_IN_PAGE__: JSON.stringify(eventPageFamily),
     __STATIC_READER__: JSON.stringify(eventPageFamily),
+    // Safari only: Apple and Google come from the host app over native messaging.
+    __NATIVE_PROVIDERS__: JSON.stringify(target === "safari"),
   };
 }
 

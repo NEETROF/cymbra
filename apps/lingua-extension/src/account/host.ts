@@ -1,5 +1,6 @@
 import { authErrorOf } from "../state/auth-errors.ts";
-import type { Providers } from "../state/oidc.ts";
+import type { HandedIdToken } from "../state/native-signin.ts";
+import type { Provider, Providers } from "../state/oidc.ts";
 import type { Session } from "../state/session.ts";
 import type { AccountMessage, AccountReply } from "./messages.ts";
 import type { AccountPort, AccountProfile } from "./profile.ts";
@@ -15,6 +16,7 @@ export interface AccountHostDeps {
     | "state"
     | "signInLocal"
     | "signInWithProvider"
+    | "signInWithIdToken"
     | "signOut"
     | "signUp"
     | "verifyEmail"
@@ -25,6 +27,16 @@ export interface AccountHostDeps {
   /** The signed-in account's profile (handle) over UserService. */
   account: AccountPort;
   providers: () => Providers;
+  /**
+   * Safari only (add-lingua-connected-clients D6): Apple and Google run in the host app,
+   * which hands the id_token back through the native handler. Absent elsewhere.
+   */
+  handOff?: {
+    /** Open the host app on the provider's sheet. */
+    open: (provider: Provider) => Promise<void>;
+    /** The pending id_token, returned once; null when none is waiting. */
+    take: () => Promise<HandedIdToken | null>;
+  };
   /** Called after every successful sign-in (schedules a sync). */
   onSignedIn: () => void;
 }
@@ -47,8 +59,22 @@ export async function handleAccountMessage(msg: AccountMessage, deps: AccountHos
       case "account:signInGoogle":
       case "account:signInApple": {
         const provider = msg.type === "account:signInApple" ? "apple" : "google";
+        if (deps.handOff) {
+          await deps.handOff.open(provider);
+          return { ok: false, handedOff: true, state: session.state() };
+        }
         const outcome = await session.signInWithProvider(provider);
         return outcome === "cancelled" ? { ok: false, cancelled: true, state: session.state() } : signedIn();
+      }
+      case "account:collectHandedToken": {
+        const handed = deps.handOff ? await deps.handOff.take() : null;
+        if (!handed) return { ok: true, state: session.state() };
+        try {
+          await session.signInWithIdToken(handed.provider, handed.idToken);
+        } catch (e) {
+          return { ok: false, error: authErrorOf(e), provider: handed.provider };
+        }
+        return { ...signedIn(), provider: handed.provider };
       }
       case "account:signOut":
         await session.signOut();

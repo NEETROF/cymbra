@@ -43,6 +43,16 @@ for (const p of ["sidePanel", "identity"]) {
   expect(!safari.permissions.includes(p), `safari: must not request the unsupported "${p}" permission`);
 }
 expect(!safari.key && !safari.browser_specific_settings, "safari: must carry neither the Chromium key nor a gecko id");
+expect(
+  safari.permissions.includes("nativeMessaging"),
+  "safari: needs nativeMessaging to collect the host app's id_token",
+);
+for (const [target, m] of [
+  ["chromium", chromium],
+  ["firefox", firefox],
+]) {
+  expect(!m.permissions.includes("nativeMessaging"), `${target}: must not request nativeMessaging`);
+}
 
 for (const [target, m] of Object.entries(manifests)) {
   expect(m.icons && Object.keys(m.icons).length > 0, `${target}: manifest must declare icons`);
@@ -62,6 +72,36 @@ for (const { file, text, chromium: inChromium } of markers) {
     const present = read(target, file).includes(text);
     const wanted = (target === "chromium") === inChromium;
     expect(present === wanted, `${target}/${file}: "${text}" should be ${wanted ? "present" : "folded away"}`);
+  }
+}
+
+// Safari only: the host app hand-off (add-lingua-connected-clients D6).
+const safariOnly = [
+  { file: "background.js", text: "sendNativeMessage(" },
+  { file: "popup.js", text: "account:collectHandedToken" },
+];
+for (const { file, text } of safariOnly) {
+  for (const target of ["chromium", "firefox", "safari"]) {
+    const wanted = target === "safari";
+    expect(
+      read(target, file).includes(text) === wanted,
+      `${target}/${file}: "${text}" should be ${wanted ? "present" : "folded away"}`,
+    );
+  }
+}
+
+// A define missing from build.mjs builds fine and type-checks (env.d.ts declares it), then
+// throws a ReferenceError at runtime: no bundle may keep one of env.d.ts's defines.
+const defines = [...readFileSync(join(root, "env.d.ts"), "utf8").matchAll(/declare const (__[A-Z_]+__)/g)].map(
+  (m) => m[1],
+);
+expect(defines.length > 0, "env.d.ts: no build defines found");
+for (const target of ["chromium", "firefox", "safari"]) {
+  for (const file of ["background.js", "content.js", "popup.js", "account.js"]) {
+    const bundle = read(target, file);
+    for (const name of defines) {
+      expect(!bundle.includes(name), `${target}/${file}: build define "${name}" was not replaced`);
+    }
   }
 }
 

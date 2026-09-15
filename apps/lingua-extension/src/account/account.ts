@@ -76,7 +76,12 @@ function main(): void {
     syncHash(state.view);
   });
   window.addEventListener("hashchange", () => void flow.go(viewFromHash(location.hash)));
-  void flow.init(location.hash);
+  // Safari: an Apple/Google sign-in finishes in the host app, which hands the id_token back.
+  // Collect it once the page is ready, and each time the reader comes back to it.
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") void flow.collectHandedToken();
+  });
+  void flow.init(location.hash).then(() => flow.collectHandedToken());
 }
 
 main();
