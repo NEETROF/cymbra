@@ -348,7 +348,11 @@ function goTo(offset: number) {
             <th>{{ t("jobs.columns.nextAttempt") }}</th>
             <th>{{ t("jobs.columns.started") }}</th>
             <th>{{ t("jobs.columns.id") }}</th>
-            <th class="sr-only">{{ t("jobs.columns.actions") }}</th>
+            <!-- The cell stays in the layout (the header row spans the whole table);
+                 only its label is visually hidden. -->
+            <th>
+              <span class="sr-only">{{ t("jobs.columns.actions") }}</span>
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -399,6 +403,8 @@ function goTo(offset: number) {
     <ConfirmDialog
       :message="confirmMessage"
       :busy="store.cancelling !== null"
+      :confirm-label="t('jobs.cancel')"
+      :cancel-label="t('jobs.keep')"
       @confirm="confirmCancel"
       @cancel="dismissCancel"
     />

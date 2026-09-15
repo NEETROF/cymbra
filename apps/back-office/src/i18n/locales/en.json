@@ -196,6 +196,7 @@
     "loading": "Loading jobs…",
     "empty": "No job in the queue.",
     "cancel": "Cancel job",
+    "keep": "Keep job",
     "confirmCancel": "Cancel the {kind} job {id}? It will never run.",
     "outcome": {
       "cancelled": "Job cancelled.",

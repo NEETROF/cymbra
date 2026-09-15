@@ -196,6 +196,7 @@
     "loading": "Chargement des jobs…",
     "empty": "Aucun job dans la file.",
     "cancel": "Annuler le job",
+    "keep": "Garder le job",
     "confirmCancel": "Annuler le job {kind} {id} ? Il ne sera jamais exécuté.",
     "outcome": {
       "cancelled": "Job annulé.",

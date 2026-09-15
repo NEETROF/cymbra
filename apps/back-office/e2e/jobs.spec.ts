@@ -77,7 +77,9 @@ test.describe("jobs console", () => {
     const dialog = page.getByRole("dialog");
     await expect(dialog).toContainText("render_preview");
     await expect(dialog).toContainText("00000002");
-    await dialog.getByRole("button", { name: "Confirm" }).click();
+    // The dialog names both choices: "Cancel" alone would read as the action itself.
+    await expect(dialog.getByRole("button", { name: "Keep job" })).toBeVisible();
+    await dialog.getByRole("button", { name: "Cancel job" }).click();
 
     await expect(page.getByText("Job cancelled.")).toBeVisible();
     await expect(dialog).toHaveCount(0);
@@ -92,7 +94,7 @@ test.describe("jobs console", () => {
     await page.goto("/jobs");
 
     await page.getByTestId("job-cancel").click();
-    await page.getByRole("dialog").getByRole("button", { name: "Cancel" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Keep job" }).click();
 
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await expect(page.getByTestId("job-row")).toHaveCount(1);
