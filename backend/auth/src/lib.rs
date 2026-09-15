@@ -9,6 +9,7 @@
 pub mod creds;
 pub mod creds_pg;
 pub mod grpc;
+pub mod limits;
 pub mod module;
 pub mod pending_setpw;
 pub mod session;
@@ -18,6 +19,7 @@ pub mod verifier;
 pub use creds::{Credential, CredentialRepo, FakeCredentialRepo};
 pub use creds_pg::PgCredentialRepo;
 pub use grpc::AuthGrpc;
+pub use limits::AuthLimits;
 pub use module::{AuthConfig, AuthModule};
 pub use pending_setpw::{
     CachePendingStore, FakePendingStore, PendingCredentialStore, PendingLocalCredential,

@@ -20,8 +20,15 @@ pub struct Config {
     pub allowed_audiences: Vec<String>,
     pub token: TokenConfig,
     pub password_min_length: usize,
+    /// Failed sign-ins for one (email, client address) before that pair is locked.
     pub signin_max_attempts: u32,
     pub signin_lockout: Duration,
+    /// Failed sign-ins from one client address, across emails, per lockout window
+    /// (change: fix-auth-lockout-dos).
+    pub signin_addr_max_failures: u32,
+    /// Failed sign-ins for one email, across addresses: the distributed-attack ceiling.
+    pub signin_account_max_failures: u32,
+    pub signin_account_window: Duration,
     pub smtp_url: String,
     /// `From` for transactional mail; accepts a display-name form, e.g.
     /// `"Cymbra ID <no-reply@cymbra.app>"` (change: template-backend-emails).
@@ -29,9 +36,16 @@ pub struct Config {
     /// Hosted neutral "Cymbra ID" logo URL shown in branded email headers. `None`
     /// (the default) ships the text wordmark alone until the asset exists.
     pub email_logo_url: Option<String>,
-    /// Max verification/reset emails per window.
+    /// Max verification/reset emails per window, per (email, client address).
     pub email_max: u32,
     pub email_window: Duration,
+    /// Emails (sign-up, verification, reset) from one client address, across emails
+    /// (change: fix-auth-lockout-dos).
+    pub email_addr_max: u32,
+    pub email_addr_window: Duration,
+    /// Verification/reset emails for one email, across client addresses.
+    pub email_account_max: u32,
+    pub email_account_window: Duration,
     pub verify_ttl: Duration,
     pub reset_ttl: Duration,
     /// Trusted OIDC providers (Google/Apple) — empty entries omitted.
@@ -236,14 +250,21 @@ pub mod config_core {
             password_min_length: num(m, "CYMBRA_PASSWORD_MIN_LENGTH", 12)?,
             signin_max_attempts: num(m, "CYMBRA_SIGNIN_MAX_ATTEMPTS", 5)?,
             signin_lockout: dur(m, "CYMBRA_SIGNIN_LOCKOUT", "15m")?,
+            signin_addr_max_failures: num(m, "CYMBRA_SIGNIN_ADDR_MAX_FAILURES", 30)?,
+            signin_account_max_failures: rate(m, "CYMBRA_SIGNIN_ACCOUNT_FAILURE_RATE", "200/1h")?.0,
+            signin_account_window: rate(m, "CYMBRA_SIGNIN_ACCOUNT_FAILURE_RATE", "200/1h")?.1,
             smtp_url: req(m, "CYMBRA_SMTP_URL")?,
             smtp_from: opt(m, "CYMBRA_SMTP_FROM", "Cymbra ID <no-reply@cymbra.dev>"),
             email_logo_url: m
                 .get("CYMBRA_EMAIL_LOGO_URL")
                 .filter(|v| !v.is_empty())
                 .cloned(),
-            email_max: email_rate(m)?.0,
-            email_window: email_rate(m)?.1,
+            email_max: rate(m, "CYMBRA_EMAIL_SEND_RATE", "3/1h")?.0,
+            email_window: rate(m, "CYMBRA_EMAIL_SEND_RATE", "3/1h")?.1,
+            email_addr_max: rate(m, "CYMBRA_EMAIL_ADDR_SEND_RATE", "20/1h")?.0,
+            email_addr_window: rate(m, "CYMBRA_EMAIL_ADDR_SEND_RATE", "20/1h")?.1,
+            email_account_max: rate(m, "CYMBRA_EMAIL_ACCOUNT_SEND_RATE", "10/1h")?.0,
+            email_account_window: rate(m, "CYMBRA_EMAIL_ACCOUNT_SEND_RATE", "10/1h")?.1,
             verify_ttl: dur(m, "CYMBRA_VERIFY_TOKEN_TTL", "24h")?,
             reset_ttl: dur(m, "CYMBRA_RESET_TOKEN_TTL", "1h")?,
             oidc_providers: oidc_providers(m),
@@ -364,17 +385,19 @@ pub mod config_core {
         }))
     }
 
-    /// Parse `CYMBRA_EMAIL_SEND_RATE` of the form `N/<duration>` (e.g. `3/1h`).
-    fn email_rate(m: &HashMap<String, String>) -> Result<(u32, Duration)> {
-        let raw = opt(m, "CYMBRA_EMAIL_SEND_RATE", "3/1h");
+    /// Parse a rate of the form `N/<duration>` (e.g. `3/1h`) from `key`, else `default`
+    /// (`CYMBRA_EMAIL_SEND_RATE` and the limits of change fix-auth-lockout-dos).
+    fn rate(m: &HashMap<String, String>, key: &str, default: &str) -> Result<(u32, Duration)> {
+        let raw = opt(m, key, default);
         let (n, win) = raw
             .split_once('/')
-            .ok_or_else(|| AppError::Config(format!("CYMBRA_EMAIL_SEND_RATE invalid: {raw:?}")))?;
-        let max = n.trim().parse::<u32>().map_err(|_| {
-            AppError::Config(format!("CYMBRA_EMAIL_SEND_RATE count invalid: {n:?}"))
-        })?;
+            .ok_or_else(|| AppError::Config(format!("{key} invalid: {raw:?}")))?;
+        let max = n
+            .trim()
+            .parse::<u32>()
+            .map_err(|_| AppError::Config(format!("{key} count invalid: {n:?}")))?;
         let window = humantime::parse_duration(win.trim())
-            .map_err(|e| AppError::Config(format!("CYMBRA_EMAIL_SEND_RATE window invalid: {e}")))?;
+            .map_err(|e| AppError::Config(format!("{key} window invalid: {e}")))?;
         Ok((max, window))
     }
 
@@ -496,6 +519,43 @@ mod tests {
         // Web-auth cookie: no Domain by default, Secure fail-closed to true.
         assert!(c.web_auth_cookie_domain.is_none());
         assert!(c.web_auth_cookie_secure);
+    }
+
+    #[test]
+    fn auth_limits_default_and_override() {
+        // Change fix-auth-lockout-dos: per-address and per-email ceilings, with defaults.
+        let c = config_core::parse(&base()).unwrap();
+        assert_eq!(c.signin_addr_max_failures, 30);
+        assert_eq!(
+            (c.signin_account_max_failures, c.signin_account_window),
+            (200, Duration::from_secs(3600))
+        );
+        assert_eq!(
+            (c.email_addr_max, c.email_addr_window),
+            (20, Duration::from_secs(3600))
+        );
+        assert_eq!(
+            (c.email_account_max, c.email_account_window),
+            (10, Duration::from_secs(3600))
+        );
+
+        let mut m = base();
+        m.insert("CYMBRA_SIGNIN_ADDR_MAX_FAILURES".into(), "12".into());
+        m.insert("CYMBRA_SIGNIN_ACCOUNT_FAILURE_RATE".into(), "50/30m".into());
+        m.insert("CYMBRA_EMAIL_ADDR_SEND_RATE".into(), "7/2h".into());
+        let c = config_core::parse(&m).unwrap();
+        assert_eq!(c.signin_addr_max_failures, 12);
+        assert_eq!(
+            (c.signin_account_max_failures, c.signin_account_window),
+            (50, Duration::from_secs(1800))
+        );
+        assert_eq!(
+            (c.email_addr_max, c.email_addr_window),
+            (7, Duration::from_secs(7200))
+        );
+
+        m.insert("CYMBRA_EMAIL_ACCOUNT_SEND_RATE".into(), "ten/1h".into());
+        assert!(config_core::parse(&m).is_err());
     }
 
     #[test]
