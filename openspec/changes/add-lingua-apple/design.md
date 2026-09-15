@@ -84,8 +84,8 @@ Apple requires a host app; this change gives it exactly two jobs.
     `SFSafariExtensionManager` reports the real enabled state.
 
 No decks, review or learning state live in the app: the extension already has them, on
-every variant. The account session is the one exception, added by
-`add-lingua-connected-clients` (native sign-in, lent to the Safari extension).
+every variant. It holds no account session either: `add-lingua-connected-clients` only
+has it run the native Apple and Google sheets for the Safari extension.
 
 ### D5 — First run and sign-in on Safari
 
@@ -95,12 +95,11 @@ When no level is declared, the in-page pastille therefore offers the level choic
 reusing the existing settings module in the drawer. Until then the page is highlighted
 at calibration 0, exactly as today.
 
-**Sign-in, interim.** Buttons for providers that need `identity.launchWebAuthFlow` are
-shown only where that API exists — a feature detection, not a `__TARGET__` check,
-consistent with `add-lingua-account-parity` — which leaves email/password on Safari.
-`add-lingua-connected-clients` replaces this: the host app signs in natively (Apple,
-Google, email) and lends its session to the Safari extension, which then shows no sign-in
-form at all.
+**Sign-in.** Buttons for providers that need `identity.launchWebAuthFlow` are shown only
+where that API exists — a feature detection, not a `__TARGET__` check, consistent with
+`add-lingua-account-parity` — which leaves email on Safari, where that change's account
+page runs unchanged. `add-lingua-connected-clients` adds Apple and Google back on Safari
+through the host app.
 
 ### D6 — Touch-primary devices (every variant)
 
