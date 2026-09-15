@@ -223,6 +223,14 @@ one product, and a Lingua-only account would still reach Music without a handle.
   checks `state`; server-side nonce binding stays a separate Cymbra ID change.
 - **Firefox Android readers can only use email** → explicit in the UI (no dead buttons);
   acceptable given ~2 % share.
+- **Apple's consent screen says « Cymbra Music »** → Apple shows the name and icon of the
+  Services ID's primary App ID as published on the App Store (`com.cymbra.bo.web` is
+  grouped under `com.cymbra.music`; the site and back office show the same). Accepted for
+  now. Once the Lingua Apple host app is published, a `com.cymbra.lingua.web` Services ID
+  grouped under `com.cymbra.lingua` (same extension return URLs, added to
+  `CYMBRA_APPLE_AUDIENCE`, built as `LINGUA_APPLE_CLIENT_ID`) shows « Cymbra Lingua ».
+  Nothing is lost by switching: Apple's user identifier and private email are scoped to the
+  developer team, not to the app or its grouping.
 - **Unverified sign-in from the popup loses the password** → one extra sign-in after
   verification, in exchange for never moving a password across surfaces.
 
