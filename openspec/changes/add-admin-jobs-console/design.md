@@ -115,14 +115,15 @@ window, and the cancellation decision.
 
 ### D3 — Cancellation is one `SECURITY DEFINER` function and one Rust rule
 
-`jobs.admin_cancel(p_job_id uuid, p_actor text) RETURNS text` does the following,
-in the caller's transaction:
+`jobs.admin_cancel(p_job_id uuid, p_actor text, p_protected text[]) RETURNS text` does
+the following, in the caller's transaction:
 
 1. Lock the message `FOR UPDATE`. If it is missing, return `gone`.
-2. If a `running` attempt holds the lease (the D2 `running` rule), return `running`.
-3. Record `jobs.cancellations(job_id, job_name, channel_name, cancelled_by, cancelled_at)`,
+2. If the job's kind is in `p_protected`, return `protected`.
+3. If a `running` attempt holds the lease (the D2 `running` rule), return `running`.
+4. Record `jobs.cancellations(job_id, job_name, channel_name, cancelled_by, cancelled_at)`,
    and close any stale `running` attempt as `abandoned`.
-4. **Relink the ordered chain**:
+5. **Relink the ordered chain**:
    - store `v_pred := after_message_id`;
    - set this message's `after_message_id = NULL`, which frees its slot in the unique
      index;
@@ -132,18 +133,21 @@ in the caller's transaction:
    Deleting a non-head message directly would set the successor to nil. That either
    violates the unique index (the head already holds nil) or lets the successor run
    concurrently with the head. Both break ordering. Deleting the head keeps sqlxmq's
-   own behaviour: the successor becomes the head.
-5. Return `cancelled`.
+   own behaviour: the successor becomes the head. `mq_delete` only notifies runners when
+   it removes a head, and the relink has cleared that marker, so the function sends the
+   channel notification itself: a promoted successor starts at once, not at the next poll.
+6. Return `cancelled`.
 
 The begin step of D1 locks the same row, so claim, start and cancel serialize. Either
 the cancellation sees the new `running` attempt and refuses, or the handler finds the
 message gone and skips.
 
 **Protected kinds.** `JobSpec` gains `cancellable: bool`, `true` by default. It is
-`false` for `purge_user`, `purge_score_object` and `purge_soundfont_object`. The Rust
-module reads the job's name first and refuses a protected kind before calling
-`admin_cancel`. The name of a job id never changes, so reading it first is not a
-race. A kind missing from the registry is cancellable: no handler would run it anyway.
+`false` for `purge_user`, `purge_score_object` and `purge_soundfont_object`. The server
+passes `registry::protected_kinds()` to `admin_cancel`, which refuses them under the same
+row lock as the delete: the list keeps one home (the registry) and the check cannot race
+the cancellation. A kind missing from the registry is cancellable: no handler would run
+it anyway.
 
 The RPC answers with an outcome, `CANCELLED | GONE | RUNNING | PROTECTED`, rather than
 error codes. The console turns each one into a precise message. `GONE` is not an
@@ -159,6 +163,11 @@ The new role gets `USAGE` on schema `jobs` and `EXECUTE` on `admin_list_jobs`,
 `SECURITY DEFINER`, owned by `worker_svc`, with `SET search_path = jobs`, and have
 `EXECUTE` revoked from `PUBLIC`. The role gets no table privileges, so it physically
 cannot read `mq_payloads`, and no function returns a payload column.
+
+`jobs.enqueue` (migration 0006) still had Postgres's default `EXECUTE` for `PUBLIC`.
+That was harmless while only module roles had `USAGE` on `jobs`, each with its own
+explicit grant, but it would let the console role enqueue jobs. The migration revokes it;
+every intended caller keeps its explicit grant.
 
 `cymbra-server` reads the optional `CYMBRA_JOBS_ADMIN_DATABASE_URL`. When it is unset,
 `JobsAdminService` is not mounted, like the Lingua and analytics consoles.
@@ -178,7 +187,12 @@ role before the worker migrates.
 
 ### D5 — Contract, gate and pagination
 
-- `backend/jobs/proto/jobs_admin.proto`, package `cymbra.jobs.v1`, service
+- **A separate crate, `backend/jobs-admin` (`cymbra-jobs-admin`).** `cymbra-jobs` is
+  deliberately free of `cymbra-platform` so the engine stays extractable (its `error`
+  module says so); the console is transport — gRPC, the admin session, `AppError` — and
+  consumes the substrate like any product would. The migration, the attempt seam and
+  `JobSpec::cancellable` stay in `cymbra-jobs`.
+- `backend/jobs-admin/proto/jobs_admin.proto`, package `cymbra.jobs.v1`, service
   `JobsAdminService`:
   - `AdminListJobs(state?, kind?, limit, offset)` returns rows plus `total`;
   - `AdminGetJobStats(window, kind?)` returns counts per state now, plus the period
@@ -196,7 +210,9 @@ role before the worker migrates.
   shifts the next page.
 - **Window.** The window is a pair of epoch-millisecond bounds, `from < to`, with
   `to ≤ now` and `from ≥ now − 90 days` (the retention window). Anything else is
-  `INVALID_ARGUMENT`. Presets (1 h, 24 h, 7 d, 30 d) are computed client-side.
+  `INVALID_ARGUMENT`. Presets (1 h, 24 h, 7 d, 30 d) are computed client-side, from the
+  browser's clock, so an end up to five minutes ahead of the server is clamped to `now`
+  rather than refused.
 - **Period figures.** Over `[from, to)`:
   - `completed`: distinct jobs with a `succeeded` attempt finished in the window;
   - `failed_attempts`: `failed` attempts finished in the window;
