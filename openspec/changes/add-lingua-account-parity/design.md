@@ -53,7 +53,8 @@ Platform facts:
 - Identity linking, collision merge (Music's D7), account deletion from the extension — the
   handle step's "use another account" deleting a handle-less account (D9) is the only one.
 - Localising the extension UI (French-only today); only emails follow the browser locale.
-- Safari (container-app sign-in, `add-lingua-apple`).
+- Apple and Google on Safari, which has no identity API — the host app provides them
+  (`add-lingua-connected-clients`); the email flows run on Safari unchanged.
 - Nonce binding of OIDC id_tokens server-side (no `nonce` field in `SignInOidcRequest`;
   pre-existing, tracked as a risk below).
 

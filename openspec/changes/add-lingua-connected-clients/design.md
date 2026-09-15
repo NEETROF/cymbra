@@ -60,24 +60,20 @@ exists — same code. ~~No Sign in with Apple in the extension~~ — **amended b
 Apple-only Cymbra account (created in Music) has no other way in, so the extension also
 offers Sign in with Apple (scope-less `launchWebAuthFlow`), plus email sign-up,
 verification and password reset. The method list is specified by `lingua-account`. On
-Safari, sign-in still lives in the container app (D3).
+Safari, the same flows run in the extension; only Apple and Google come from the host app
+(D3).
 
-### D3 — Apple app: native sign-in, Sign in with Apple mandatory
-The host app (`apps/lingua-apple`, the minimal app of `add-lingua-apple`) gains the
-account. It signs in with **Sign in with Apple** (native `ASAuthorizationController`),
+### D3 — On Safari, the host app provides Apple and Google; the extension keeps its session
+Safari has no `identity.launchWebAuthFlow`, so the extension cannot run a provider flow.
+Everything else already runs in the Safari extension exactly as on Chrome — email sign-in,
+sign-up, verification, password reset and the handle (`add-lingua-account-parity`) — and
+its network path is direct (D7). The host app (`apps/lingua-apple`) therefore fills only
+the provider gap. It runs **Sign in with Apple** (native `ASAuthorizationController`) and
 **Continue with Google** (the Google Sign-In SDK, with an iOS/macOS OAuth client for
-`com.cymbra.lingua`) and **email/password** — Apple first on iOS, in line with review
-expectations; the App Store rule requires Apple as soon as Google is offered. Email
-accounts are created and recovered natively too (`SignUpLocal` + `VerifyEmail` with a
-code, `RequestPasswordReset` + `ResetPassword`), because `cymbra.app` has no sign-up or
-reset page to send people to.
-
-Calls go over **gRPC-web with Connect-Swift**, generated from
-`backend/auth-port/proto/auth.proto`: the same protocol and endpoint as the extension
-(D1), so there is no second transport to route and secure. Tokens live in the Keychain,
-in an access group shared with the Safari extension's native handler (D6). The app holds
-**no learning state** — reading, decks, review and sync stay in the extension
-(`add-lingua-apple` D4); the session is the one thing it owns.
+`com.cymbra.lingua`), Apple first — the App Store rule requires Apple as soon as Google is
+offered — and hands the resulting **id_token** to the extension (D6). The extension calls
+`SignInOidc(audience="lingua")` with it, the same exchange as a Chrome sign-in, and owns the
+session like every variant (D1). The app holds neither learning state nor a session.
 
 ### D4 — Merging the pre-account store at first sign-in: upload then merge, local stays the display authority
 At a device's first sign-in, the local state (statuses, cards, the local stack's stats)
@@ -96,22 +92,23 @@ PKCE CLI auth, explicit per-machine opt-in). Accepted consequence: extension and
 statuses keep diverging — that was already the local stack's state, and the mechanical
 merge stays possible when the day comes (same `lingua-core` types).
 
-### D6 — The Safari extension borrows the app's session; only native code refreshes
-This settles the former open question. On Safari the extension keeps **no refresh token
-and no sign-in form**. When it needs an access token, its event page asks the extension's
-native handler (`browser.runtime.sendNativeMessage` → `SafariWebExtensionHandler`), which
-reads the shared Keychain and returns a short-lived access token — refreshing first if it
-has expired. A `session.invalidate` message lets the extension report a token the server
-rejected.
+### D6 — The id_token handoff between the host app and the Safari extension
+On Safari, « Continuer avec Apple » and « Continuer avec Google » open the host app through
+its URL scheme, naming the provider. The app shows the native sheet and, on success, writes
+the id_token once to the App Group container, then tells the reader to go back to Safari.
+The extension's event page asks its native handler for a pending token (`auth.takeIdToken`,
+over `browser.runtime.sendNativeMessage` → `SafariWebExtensionHandler`) when the popup or
+the account page opens and when the event page wakes. The handler returns it once, deletes
+it, and discards one older than five minutes (an Apple id_token lives ten). The extension
+then runs the ordinary `SignInOidc` and schedules a sync.
 
-Refreshing stays native because the server **rotates refresh tokens and revokes the whole
-family on a replay** (`backend/auth/src/session.rs`): two holders refreshing the same token
-would sign the user out everywhere. The app and the handler run in separate processes, so a
-refresh takes an App Group file lock and re-reads the Keychain inside it — whoever comes
-second finds the new pair and does not refresh. The extension's `Session` gains a native
-source behind the same seam (a capability define, as in `add-lingua-apple` D2); its sync
-engine does not change. Rejected: an App Group copy of the tokens for the extension to
-read — it leaves the refresh question open, and the handler is only a message away.
+Rejected: the app owning the session and lending access tokens to the extension (this
+change's earlier D6). Once `add-lingua-account-parity` shipped the account flows in every
+extension, it would have duplicated those screens natively and needed a cross-process
+refresh lock, because the server revokes a whole token family when a refresh token is
+replayed (`backend/auth/src/session.rs`). With the extension as the only session owner,
+that risk does not arise. Rejected too: the native handler presenting the sheet — a Safari
+web extension's handler has no UI.
 
 ### D7 — Safari's network path is direct, proven by a spike
 The extension's gRPC-web calls leave from Safari's event page, whose origin
@@ -127,9 +124,11 @@ pass (task 4.8) re-checks it on macOS and on a device.
 
 ## Risks / Trade-offs
 
-- [A double refresh (app and extension) revokes the token family] → a single owner:
-  native code only, serialised by an App Group lock (D6), with a test that runs two
-  refreshes concurrently.
+- [An id_token left behind in the App Group] → read once and deleted by the handler,
+  discarded after five minutes, and readable only by the app and its extension (D6).
+- [Apple and Google on Safari take two hops, Safari → app → Safari] → accepted: email needs
+  none and the app says when to go back; provider detection turns the in-extension flow
+  back on by itself if Safari ever ships `identity.launchWebAuthFlow`.
 - [Safari blocks the event page's cross-origin calls] → spike first; the native forward
   is the fallback (D7).
 - [Refresh token in `storage.local`: readable by local malware] → the same exposure as
@@ -155,9 +154,9 @@ pass (task 4.8) re-checks it on macOS and on a device.
    `CYMBRA_LINGUA_DATABASE_URL` active).
 2. Extension first (account UI + outbox + stats) — the founder's Chrome-on-macOS
    dogfooding.
-3. The Apple host app next: the Safari network spike (D7) first, then native sign-in and
-   the session bridge (D6); internal TestFlight against the dev backend, then App Store
-   review — Sign in with Apple present, privacy labels up to date.
+3. The Apple host app next: the Safari network spike (D7), then the native Apple and
+   Google sheet and the id_token handoff (D3, D6); internal TestFlight against the dev
+   backend, then App Store review — Sign in with Apple present, privacy labels up to date.
 4. Rollback: signing out (or removing `CYMBRA_LINGUA_DATABASE_URL` server-side) drops the
    clients back to local-only — their default mode; the local schemas do not migrate
    destructively, so a "synced" client keeps working on its own.
