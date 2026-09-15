@@ -113,13 +113,17 @@ source behind the same seam (a capability define, as in `add-lingua-apple` D2); 
 engine does not change. Rejected: an App Group copy of the tokens for the extension to
 read — it leaves the refresh question open, and the handler is only a message away.
 
-### D7 — Safari's network path is proven before it is relied on
+### D7 — Safari's network path is direct, proven by a spike
 The extension's gRPC-web calls leave from Safari's event page, whose origin
 (`safari-web-extension://<uuid>`) is random per install and so cannot be listed in
-`CYMBRA_ALLOWED_WEB_ORIGINS`. Whether the manifest's host permission exempts the event page
-from CORS on Safari, as it does on Chromium, is checked first (task 4.6). If it does not,
-the handler forwards the extension's RPCs as opaque HTTP requests: `URLSession` has no
-CORS, and the D6 bridge already exists.
+`CYMBRA_ALLOWED_WEB_ORIGINS`. The spike (task 4.6, iOS 26.5 simulator) called
+`AuthService.Refresh` with a bogus token from the event page against
+`https://api.cymbra.app`: the server's answer came back readable (HTTP 200,
+`grpc-status: 16`) although the response carried no `Access-Control-Allow-Origin`. Safari
+exempts the event page from CORS through the manifest's host permission, as Chromium does,
+so the extension calls the backend directly. Forwarding the RPCs through the native handler
+(`URLSession` has no CORS) stays the fallback should a later Safari change this; the manual
+pass (task 4.8) re-checks it on macOS and on a device.
 
 ## Risks / Trade-offs
 
