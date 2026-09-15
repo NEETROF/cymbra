@@ -31,7 +31,7 @@ way to remove a job that should not run: today that means `psql` against `jobs.m
   `purge_soundfont_object`: a legal obligation, not a queue-hygiene choice);
   cancelling a job on an ordered channel lets the next one proceed; cancelling one
   occurrence of a recurring job leaves the schedule enabled.
-- A new `JobsAdminService` gRPC contract (`backend/jobs/proto/jobs_admin.proto`) with
+- A new `JobsAdminService` gRPC contract (`backend/jobs-admin/proto/jobs_admin.proto`) with
   list, stats, kinds and cancel RPCs. It never returns a job's payload: payloads carry
   personal data (a verification email's recipient and body).
 - A new narrow database role, `jobs_admin_svc`, used by `cymbra-server` for the
@@ -71,9 +71,10 @@ way to remove a job that should not run: today that means `psql` against `jobs.m
 
 **Code**
 - `backend/jobs`: migration (history tables, admin functions, grants),
-  `JobSpec::cancellable`, the attempt-tracking seam, the admin module
+  `JobSpec::cancellable`, the attempt-tracking seam.
+- `backend/jobs-admin` (new crate `cymbra-jobs-admin`): the admin module
   (`admin_core.rs`, `admin.rs`, `pg_admin.rs`, `admin_grpc.rs`), the proto and a
-  `build.rs`.
+  `build.rs`. Separate so `cymbra-jobs` stays free of `cymbra-platform`.
 - `backend/worker`: every handler wrapped by the attempt tracker; the sweep
   gains a grace rule for running attempts, plus pruning.
 - `backend/server` + `backend/platform/src/config.rs`: optional
