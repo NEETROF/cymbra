@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.27.2](https://github.com/NEETROF/cymbra/compare/backend-v0.27.1...backend-v0.27.2) (2026-09-15)
+
+
+### Bug Fixes
+
+* **backend:** keep the job runner polling while any worker slot is free ([#441](https://github.com/NEETROF/cymbra/issues/441)) ([56ec2fa](https://github.com/NEETROF/cymbra/commit/56ec2fad4836c1377567c973a1ab0f37894747a1))
+* **backend:** key sign-in lockouts and email throttles on email and client address ([#446](https://github.com/NEETROF/cymbra/issues/446)) ([0132181](https://github.com/NEETROF/cymbra/commit/0132181a294ff1ab3546f50583eee32067994c5c))
+
 ## [0.27.1](https://github.com/NEETROF/cymbra/compare/backend-v0.27.0...backend-v0.27.1) (2026-09-13)
 
 
