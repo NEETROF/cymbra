@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.0](https://github.com/NEETROF/cymbra/compare/back-office-v0.15.0...back-office-v0.16.0) (2026-09-15)
+
+
+### Features
+
+* **back-office:** jobs console — queue table, period figures and safe cancellation ([#447](https://github.com/NEETROF/cymbra/issues/447)) ([3c077c8](https://github.com/NEETROF/cymbra/commit/3c077c84ff14e240628321db37968f864bd5c9d6))
+
 ## [0.15.0](https://github.com/NEETROF/cymbra/compare/back-office-v0.14.0...back-office-v0.15.0) (2026-09-13)
 
 
