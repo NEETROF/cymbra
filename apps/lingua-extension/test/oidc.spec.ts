@@ -33,11 +33,12 @@ describe("appleAuthorizeRequest", () => {
 });
 
 describe("googleAuthorizeRequest", () => {
-  it("runs the OpenID implicit flow with state", () => {
+  it("runs the OpenID implicit flow with state and the account chooser", () => {
     const url = new URL(googleAuthorizeRequest(params).url);
     expect(url.origin + url.pathname).toBe("https://accounts.google.com/o/oauth2/v2/auth");
     expect(url.searchParams.get("response_type")).toBe("id_token");
     expect(url.searchParams.get("scope")).toBe("openid email");
+    expect(url.searchParams.get("prompt")).toBe("select_account");
     expect(url.searchParams.get("state")).toBe("S1");
   });
 });

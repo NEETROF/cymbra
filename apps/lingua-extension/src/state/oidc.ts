@@ -24,6 +24,9 @@ export function googleAuthorizeRequest(p: RequestParams): AuthorizeRequest {
   url.searchParams.set("response_type", "id_token");
   url.searchParams.set("redirect_uri", p.redirectUri);
   url.searchParams.set("scope", "openid email");
+  // Always show the account chooser: the browser's signed-in Google account is often not
+  // the one the reader uses for Cymbra (Music re-prompts the same way).
+  url.searchParams.set("prompt", "select_account");
   url.searchParams.set("state", p.state);
   url.searchParams.set("nonce", p.nonce);
   return { url: url.toString(), state: p.state };
