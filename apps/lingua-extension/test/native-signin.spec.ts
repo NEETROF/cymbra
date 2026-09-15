@@ -1,5 +1,26 @@
 import { describe, expect, it, vi } from "vitest";
-import { hostAppSignInUrl, parseHandedIdToken, takeHandedIdToken } from "@/state/native-signin.ts";
+import { hostAppSignInUrl, nativeProviders, parseHandedIdToken, takeHandedIdToken } from "@/state/native-signin.ts";
+
+describe("nativeProviders", () => {
+  it("offers Apple always and Google as the host app reports it", async () => {
+    const send = vi.fn(async () => ({ apple: true, google: true }));
+    expect(await nativeProviders(send)).toEqual({ apple: true, google: true });
+    expect(send).toHaveBeenCalledWith({ type: "auth.providers" });
+    expect(await nativeProviders(async () => ({ apple: true, google: false }))).toEqual({ apple: true, google: false });
+  });
+
+  it("offers Apple only when the handler is missing, failing or unclear", async () => {
+    for (const send of [
+      async () => {
+        throw new Error("no native handler");
+      },
+      async () => null,
+      async () => ({ google: "yes" }),
+    ]) {
+      expect(await nativeProviders(send)).toEqual({ apple: true, google: false });
+    }
+  });
+});
 
 describe("hostAppSignInUrl", () => {
   it("opens the host app on the requested provider", () => {

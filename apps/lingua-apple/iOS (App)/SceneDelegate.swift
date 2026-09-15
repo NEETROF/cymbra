@@ -32,7 +32,11 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         guard let provider = SignInLink.provider(from: url), let root = window?.rootViewController else { return }
         root.dismiss(animated: false)
         let sheet = UIHostingController(
-            rootView: SignInView(requested: provider, google: nil, handoff: IdTokenHandoff.shared()) { [weak root] in
+            rootView: SignInView(
+                requested: provider,
+                google: GoogleWebSignIn.fromBundle(anchor: { [weak self] in self?.window ?? UIWindow() }),
+                handoff: IdTokenHandoff.shared()
+            ) { [weak root] in
                 root?.dismiss(animated: true)
             }
         )

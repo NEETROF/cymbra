@@ -28,7 +28,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         signInWindow?.close()
         let window = NSWindow(
             contentViewController: NSHostingController(
-                rootView: SignInView(requested: provider, google: nil, handoff: IdTokenHandoff.shared()) { [weak self] in
+                rootView: SignInView(
+                    requested: provider,
+                    google: GoogleWebSignIn.fromBundle(anchor: { [weak self] in self?.signInWindow ?? NSWindow() }),
+                    handoff: IdTokenHandoff.shared()
+                ) { [weak self] in
                     self?.signInWindow?.close()
                 }
             )

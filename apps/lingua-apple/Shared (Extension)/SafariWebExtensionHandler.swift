@@ -12,7 +12,11 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
         let message = request?.userInfo?[SFExtensionMessageKey]
 
         // Never log the message or the reply: the reply can carry an id_token.
-        let reply = NativeMessage.reply(to: message, handoff: IdTokenHandoff.shared())
+        let reply = NativeMessage.reply(
+            to: message,
+            handoff: IdTokenHandoff.shared(),
+            googleClientId: Bundle.main.object(forInfoDictionaryKey: "LinguaGoogleClientId") as? String
+        )
         if reply["error"] != nil {
             os_log(.error, "Refused an unknown native message from the extension")
         }

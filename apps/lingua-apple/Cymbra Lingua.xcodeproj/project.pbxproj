@@ -35,6 +35,8 @@
 		AFB5BE87305892E000728144 /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFB5BE85305892E000728144 /* SignInView.swift */; };
 		AFB5BE8A305892E000728144 /* LinguaSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = AFB5BE88305892E000728144 /* LinguaSignIn */; };
 		AFB5BE8B305892E000728144 /* LinguaSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = AFB5BE89305892E000728144 /* LinguaSignIn */; };
+		AFB5BE8D305892E000728144 /* GoogleWebSignIn.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFB5BE8C305892E000728144 /* GoogleWebSignIn.swift */; };
+		AFB5BE8E305892E000728144 /* GoogleWebSignIn.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFB5BE8C305892E000728144 /* GoogleWebSignIn.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -102,6 +104,7 @@
 		AFB5BDFC305892E000728144 /* Cymbra Lingua Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Cymbra Lingua Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		AFB5BE01305892E000728144 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AFB5BE85305892E000728144 /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
+		AFB5BE8C305892E000728144 /* GoogleWebSignIn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleWebSignIn.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -156,6 +159,7 @@
 		AFB5BDC5305892DF00728144 /* Shared (App) */ = {
 			isa = PBXGroup;
 			children = (
+				AFB5BE8C305892E000728144 /* GoogleWebSignIn.swift */,
 				AFB5BE85305892E000728144 /* SignInView.swift */,
 				AFB5BDCC305892DF00728144 /* ViewController.swift */,
 				AFB5BDCD305892E000728144 /* Assets.xcassets */,
@@ -460,6 +464,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AFB5BE8D305892E000728144 /* GoogleWebSignIn.swift in Sources */,
 				AFB5BE86305892E000728144 /* SignInView.swift in Sources */,
 				AFB5BE0A305892E000728144 /* ViewController.swift in Sources */,
 				AFB5BDD8305892E000728144 /* AppDelegate.swift in Sources */,
@@ -471,6 +476,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AFB5BE8E305892E000728144 /* GoogleWebSignIn.swift in Sources */,
 				AFB5BE87305892E000728144 /* SignInView.swift in Sources */,
 				AFB5BE0B305892E000728144 /* ViewController.swift in Sources */,
 				AFB5BDE9305892E000728144 /* AppDelegate.swift in Sources */,
@@ -582,6 +588,7 @@
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				DEVELOPMENT_TEAM = VMFJ6KRW77;
+				LINGUA_GOOGLE_CLIENT_ID = "";
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_DYNAMIC_NO_PIC = NO;
@@ -644,6 +651,7 @@
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				DEVELOPMENT_TEAM = VMFJ6KRW77;
+				LINGUA_GOOGLE_CLIENT_ID = "";
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -664,6 +672,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_ENTITLEMENTS = "iOS (Extension)/Cymbra Lingua Extension.entitlements";
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "iOS (Extension)/Info.plist";
@@ -697,6 +706,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_ENTITLEMENTS = "iOS (Extension)/Cymbra Lingua Extension.entitlements";
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "iOS (Extension)/Info.plist";
@@ -733,6 +743,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_ENTITLEMENTS = "iOS (App)/Cymbra Lingua.entitlements";
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "iOS (App)/Info.plist";
@@ -773,6 +784,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_ENTITLEMENTS = "iOS (App)/Cymbra Lingua.entitlements";
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "iOS (App)/Info.plist";
@@ -812,6 +824,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_ENTITLEMENTS = "macOS (Extension)/Cymbra Lingua Extension.entitlements";
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -847,6 +860,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_ENTITLEMENTS = "macOS (Extension)/Cymbra Lingua Extension.entitlements";
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -884,6 +898,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_ENTITLEMENTS = "macOS (App)/Cymbra Lingua.entitlements";
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -925,6 +940,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_ENTITLEMENTS = "macOS (App)/Cymbra Lingua.entitlements";
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;

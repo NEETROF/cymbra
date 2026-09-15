@@ -23,8 +23,14 @@ public struct HandedIdToken: Equatable, Sendable {
 /// extension's native handler takes it. A token is readable once and for at most five
 /// minutes (an Apple id_token lives ten): whatever is read, or found expired, is deleted.
 public final class IdTokenHandoff {
-    /// Shared by the app and the extension (App Group entitlement on both).
+    /// Shared by the app and the extension (App Group entitlement on both). A sandboxed macOS
+    /// app reaches, on every supported macOS, the groups prefixed with its team id; iOS uses
+    /// the registered `group.` id.
+    #if os(macOS)
+    public static let appGroup = "VMFJ6KRW77.com.cymbra.lingua"
+    #else
     public static let appGroup = "group.com.cymbra.lingua"
+    #endif
     /// How long a handed token stays readable.
     public static let maxAge: TimeInterval = 5 * 60
 

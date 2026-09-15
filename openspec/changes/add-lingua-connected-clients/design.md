@@ -69,9 +69,14 @@ Everything else already runs in the Safari extension exactly as on Chrome — em
 sign-up, verification, password reset and the handle (`add-lingua-account-parity`) — and
 its network path is direct (D7). The host app (`apps/lingua-apple`) therefore fills only
 the provider gap. It runs **Sign in with Apple** (native `ASAuthorizationController`) and
-**Continue with Google** (the Google Sign-In SDK, with an iOS/macOS OAuth client for
-`com.cymbra.lingua`), Apple first — the App Store rule requires Apple as soon as Google is
-offered — and hands the resulting **id_token** to the extension (D6). The extension calls
+**Continue with Google** (the authorization-code flow with PKCE in
+`ASWebAuthenticationSession`, on an iOS OAuth client for `com.cymbra.lingua`), Apple first —
+the App Store rule requires Apple as soon as Google is offered — and hands the resulting
+**id_token** to the extension (D6). Google needs no SDK: an iOS client has no secret, the
+session intercepts its reversed-client-id redirect, and one code exchange yields the
+id_token — without the Google Sign-In SDK's keychain state, which already broke Music's
+macOS sign-in after a re-signature. The client id is a build setting; without one, the app
+reports Google as unavailable and the Safari extension hides its button. The extension calls
 `SignInOidc(audience="lingua")` with it, the same exchange as a Chrome sign-in, and owns the
 session like every variant (D1). The app holds neither learning state nor a session.
 

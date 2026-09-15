@@ -5,7 +5,13 @@ import { userServicePort } from "./account/profile.ts";
 import { type AccountReply, isAccountMessage } from "./account/messages.ts";
 import { api, initApi } from "./net/api.ts";
 import { setTokenRefresher, setUnauthenticatedHandler } from "./net/transport.ts";
-import { hostAppSignInUrl, NATIVE_APP_ID, takeHandedIdToken } from "./state/native-signin.ts";
+import {
+  hostAppSignInUrl,
+  NATIVE_APP_ID,
+  type NativeSend,
+  nativeProviders,
+  takeHandedIdToken,
+} from "./state/native-signin.ts";
 import {
   appleAuthorizeRequest,
   availableProviders,
@@ -208,20 +214,28 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
 
   // Safari (add-lingua-connected-clients D6): Apple and Google run in the host app, which
   // hands the id_token back through this extension's native handler.
-  const handOff = __NATIVE_PROVIDERS__
-    ? {
-        open: async (provider: Provider): Promise<void> => {
-          await chrome.tabs.create({ url: hostAppSignInUrl(provider) });
-        },
-        take: () => takeHandedIdToken((message) => chrome.runtime.sendNativeMessage(NATIVE_APP_ID, message)),
-      }
+  // Everything native stays inside the define's branch, so the other variants fold it away.
+  const native = __NATIVE_PROVIDERS__
+    ? (() => {
+        const send: NativeSend = (message) => chrome.runtime.sendNativeMessage(NATIVE_APP_ID, message);
+        return {
+          providers: () => nativeProviders(send),
+          handOff: {
+            open: async (provider: Provider): Promise<void> => {
+              await chrome.tabs.create({ url: hostAppSignInUrl(provider) });
+            },
+            take: () => takeHandedIdToken(send),
+          },
+        };
+      })()
     : undefined;
+  const handOff = native?.handOff;
   const accountDeps: AccountHostDeps = {
     session,
     account: userServicePort(() => api().user),
     providers: () =>
-      __NATIVE_PROVIDERS__
-        ? { google: true, apple: true }
+      native
+        ? native.providers()
         : availableProviders({ google: __GOOGLE_CLIENT_ID__, apple: __APPLE_CLIENT_ID__ }, chrome.identity),
     handOff,
     onSignedIn: () => scheduleSync(0),

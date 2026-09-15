@@ -83,8 +83,9 @@ the default and this change adds the connected mode on top. The platform
   `CYMBRA_APPLE_AUDIENCE` and the app's Google OAuth client in `CYMBRA_GOOGLE_AUDIENCE`.
   Dev doc: add the dev extension origin to `CYMBRA_ALLOWED_WEB_ORIGINS` in the local
   environment only.
-- **New dependencies**: the Google Sign-In SDK in `apps/lingua-apple` (Swift Package
-  Manager).
+- **New dependencies**: none — Google on the host app uses `ASWebAuthenticationSession`
+  with PKCE rather than the Google Sign-In SDK; the hand-off logic is a local Swift
+  package (`apps/lingua-apple/LinguaSignIn`).
 - **CI**: no new unit — `apps/lingua-extension` and `apps/lingua-apple` are already
   watched by their lanes in the stack; vitest extended (session, outbox, stats); the
   TestFlight pass re-run (Sign in with Apple, privacy labels: account data + synced user

@@ -26,7 +26,8 @@ export interface AccountHostDeps {
   >;
   /** The signed-in account's profile (handle) over UserService. */
   account: AccountPort;
-  providers: () => Providers;
+  /** Synchronous from the browser's APIs; asynchronous on Safari, where the host app answers. */
+  providers: () => Providers | Promise<Providers>;
   /**
    * Safari only (add-lingua-connected-clients D6): Apple and Google run in the host app,
    * which hands the id_token back through the native handler. Absent elsewhere.
@@ -52,7 +53,7 @@ export async function handleAccountMessage(msg: AccountMessage, deps: AccountHos
       case "account:state":
         return { ok: true, state: session.state() };
       case "account:providers":
-        return { ok: true, providers: deps.providers() };
+        return { ok: true, providers: await deps.providers() };
       case "account:signInLocal":
         await session.signInLocal(msg.email, msg.password);
         return signedIn();

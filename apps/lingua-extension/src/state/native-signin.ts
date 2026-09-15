@@ -1,4 +1,4 @@
-import type { Provider } from "./oidc.ts";
+import type { Provider, Providers } from "./oidc.ts";
 
 // Apple and Google on Safari (add-lingua-connected-clients, design D3/D6). Safari has no
 // identity.launchWebAuthFlow, so the host app (apps/lingua-apple) runs the native Apple or
@@ -29,6 +29,19 @@ export function parseHandedIdToken(reply: unknown): HandedIdToken | null {
 }
 
 export type NativeSend = (message: { type: string }) => Promise<unknown>;
+
+/**
+ * The providers the host app offers: Apple always, Google once the app is built with a Google
+ * client. A missing or failing handler offers Apple only.
+ */
+export async function nativeProviders(send: NativeSend): Promise<Providers> {
+  try {
+    const reply = (await send({ type: "auth.providers" })) as { google?: unknown } | null;
+    return { apple: true, google: reply?.google === true };
+  } catch {
+    return { apple: true, google: false };
+  }
+}
 
 /** Ask the native handler for a pending id_token. A missing or failing handler means nothing is pending. */
 export async function takeHandedIdToken(send: NativeSend): Promise<HandedIdToken | null> {
