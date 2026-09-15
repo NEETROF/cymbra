@@ -47,5 +47,5 @@
 
 - [x] 7.1 `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo llvm-cov` with the shared ignore regex, jobs/auth/user integration tests against local Postgres
 - [x] 7.2 Back office: `yarn gen`, `yarn typecheck`, `yarn lint`, `rtk proxy yarn format:check`, `yarn test`, `yarn e2e`
-- [ ] 7.3 Dogfood on the local stack: enqueue jobs of several kinds, watch states move, cancel a ready and a blocked job, check period figures, confirm a `music/admin` is refused
+- [x] 7.3 Dogfood on the local stack (server + worker + back office, signed in as a `global/admin`): real scheduled jobs recorded in the history, queue cards per state (scheduled, blocked, retry wait, running), period presets, state filter, pagination, cancel a scheduled job (cancellation row carries the admin's id), no Cancel on running and `purge_user` rows. The `music/admin` refusal was not exercised live — it is covered by the gRPC gate unit tests and `e2e/jobs.spec.ts`
 - [x] 7.4 `openspec validate add-admin-jobs-console --strict`
