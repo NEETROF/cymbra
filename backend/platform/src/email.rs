@@ -12,6 +12,16 @@ use async_trait::async_trait;
 use lettre::message::{Mailbox, MultiPart};
 use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor};
 use std::sync::Mutex;
+use std::time::Duration;
+
+/// Upper bound on one whole SMTP send (connect, TLS, auth, envelope, data).
+///
+/// A send holds a job-runner slot in the worker and a request in the server.
+/// lettre's own timeout applies per network operation (60 s each), so a relay that
+/// stalls or trickles its replies could hold that slot for many minutes. Past this
+/// bound the send fails and the job is retried; the rare cost is a duplicate
+/// message when the relay had in fact accepted it.
+pub const SEND_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// Sends transactional email (verification, password reset) as multipart HTML +
 /// plain text.
@@ -24,6 +34,7 @@ pub trait EmailSender: Send + Sync {
 pub struct SmtpSender {
     transport: AsyncSmtpTransport<Tokio1Executor>,
     from: Mailbox,
+    send_timeout: Duration,
 }
 
 impl SmtpSender {
@@ -36,7 +47,11 @@ impl SmtpSender {
         let from = from
             .parse::<Mailbox>()
             .map_err(|e| AppError::Config(format!("invalid SMTP from address: {e}")))?;
-        Ok(Self { transport, from })
+        Ok(Self {
+            transport,
+            from,
+            send_timeout: SEND_TIMEOUT,
+        })
     }
 }
 
@@ -55,9 +70,14 @@ impl EmailSender for SmtpSender {
                 email.html.clone(),
             ))
             .map_err(|e| AppError::Internal(anyhow::anyhow!("build email: {e}")))?;
-        self.transport
-            .send(message)
+        tokio::time::timeout(self.send_timeout, self.transport.send(message))
             .await
+            .map_err(|_| {
+                AppError::Internal(anyhow::anyhow!(
+                    "send email: timed out after {:?}",
+                    self.send_timeout
+                ))
+            })?
             .map_err(|e| AppError::Internal(anyhow::anyhow!("send email: {e}")))?;
         Ok(())
     }
@@ -121,6 +141,29 @@ mod tests {
             SmtpSender::new("://bad-url", "no-reply@cymbra.app"),
             Err(AppError::Config(_))
         ));
+    }
+
+    #[tokio::test]
+    async fn smtp_send_gives_up_on_a_stalled_relay() {
+        // Accepts the connection but never sends the SMTP greeting: without the
+        // overall bound, lettre would wait its own 60 s per operation.
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        tokio::spawn(async move {
+            let mut open = Vec::new();
+            while let Ok((socket, _)) = listener.accept().await {
+                open.push(socket);
+            }
+        });
+        let mut sender =
+            SmtpSender::new(&format!("smtp://127.0.0.1:{port}"), "no-reply@cymbra.app").unwrap();
+        sender.send_timeout = Duration::from_millis(200);
+
+        let started = std::time::Instant::now();
+        let err = sender.send("to@x.dev", &rendered()).await.unwrap_err();
+        assert!(matches!(err, AppError::Internal(_)), "{err:?}");
+        assert!(format!("{err:?}").contains("timed out"), "{err:?}");
+        assert!(started.elapsed() < Duration::from_secs(10));
     }
 
     #[tokio::test]

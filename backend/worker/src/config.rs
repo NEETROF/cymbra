@@ -24,6 +24,13 @@ pub struct WorkerConfig {
     /// Health/readiness HTTP surface.
     pub http_addr: String,
     /// sqlxmq runner concurrency bounds (design D7 — the operational tunable).
+    ///
+    /// `concurrency_min` is sqlxmq's **re-poll threshold, not a floor of workers**:
+    /// the runner only polls the queue while fewer than `min` jobs are running, and
+    /// otherwise sleeps (up to 60 s, re-checking on every wake-up). With `min = 1`
+    /// one long job — a render, a purge, a stalled SMTP send — stops every other
+    /// job from being picked up, transactional email included. Unset, it follows
+    /// `concurrency_max`, so the runner keeps polling while any slot is free.
     pub concurrency_min: usize,
     pub concurrency_max: usize,
     /// How often the recurring scheduler evaluates `jobs.schedules`.
@@ -78,8 +85,17 @@ pub mod core {
     use super::{Duration, HashMap, WorkerConfig};
 
     pub fn parse(m: &HashMap<String, String>) -> Result<WorkerConfig, String> {
-        let concurrency_min = num(m, "CYMBRA_WORKER_CONCURRENCY_MIN", 1)?;
         let concurrency_max = num(m, "CYMBRA_WORKER_CONCURRENCY_MAX", 16)?;
+        // `min` is the re-poll threshold (see `WorkerConfig::concurrency_min`), so it
+        // defaults to `max`; below 1 the runner would never poll at all.
+        let concurrency_min = num(m, "CYMBRA_WORKER_CONCURRENCY_MIN", concurrency_max)?;
+        if concurrency_min == 0 {
+            return Err(
+                "CYMBRA_WORKER_CONCURRENCY_MIN must be at least 1 (the job runner only polls \
+                 while fewer than MIN jobs are running)"
+                    .into(),
+            );
+        }
         if concurrency_min > concurrency_max {
             return Err(format!(
                 "CYMBRA_WORKER_CONCURRENCY_MIN ({concurrency_min}) > MAX ({concurrency_max})"
@@ -222,7 +238,8 @@ mod tests {
     fn parses_with_defaults() {
         let c = core::parse(&base()).unwrap();
         assert_eq!(c.admin_database_url, "postgres://admin");
-        assert_eq!(c.concurrency_min, 1);
+        // `min` follows `max`: the runner keeps polling while any slot is free.
+        assert_eq!(c.concurrency_min, 16);
         assert_eq!(c.concurrency_max, 16);
         assert_eq!(c.scheduler_interval, Duration::from_secs(30));
         assert_eq!(c.dlq_sweep_interval, Duration::from_secs(60));
@@ -293,6 +310,29 @@ mod tests {
                 .unwrap_err()
                 .contains("CYMBRA_ADMIN_DATABASE_URL")
         );
+    }
+
+    #[test]
+    fn concurrency_min_follows_max_when_unset() {
+        let mut m = base();
+        m.insert("CYMBRA_WORKER_CONCURRENCY_MAX".into(), "4".into());
+        let c = core::parse(&m).unwrap();
+        assert_eq!((c.concurrency_min, c.concurrency_max), (4, 4));
+        // An explicit MIN still wins.
+        m.insert("CYMBRA_WORKER_CONCURRENCY_MIN".into(), "2".into());
+        let c = core::parse(&m).unwrap();
+        assert_eq!((c.concurrency_min, c.concurrency_max), (2, 4));
+    }
+
+    #[test]
+    fn concurrency_min_zero_fails() {
+        // sqlxmq never polls when `running < 0` cannot hold — the worker would sit idle.
+        let mut m = base();
+        m.insert("CYMBRA_WORKER_CONCURRENCY_MIN".into(), "0".into());
+        assert!(core::parse(&m).unwrap_err().contains("at least 1"));
+        let mut m = base();
+        m.insert("CYMBRA_WORKER_CONCURRENCY_MAX".into(), "0".into());
+        assert!(core::parse(&m).is_err());
     }
 
     #[test]
