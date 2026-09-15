@@ -394,6 +394,22 @@ button.danger:hover {
   border-top: 1px solid var(--cymbra-lingua-border);
 }
 
+/* Signed in: the account row, the handle call to action and sign-out stack with one gap,
+   and the stats button below keeps the same breathing room (`[hidden]` still wins). */
+#acct-in {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+#acct-in button.primary {
+  margin-bottom: 0;
+}
+
+#open-stats {
+  margin-top: 8px;
+}
+
 .acct-local {
   margin: 8px 0;
 }

@@ -1,3 +1,4 @@
+import type { AccountReply } from "../account/messages.ts";
 import { createLinguaPort } from "../analyzer/create-port.ts";
 import type { CefrLevel } from "../analyzer/types.ts";
 import { type AsyncStorageArea, hydrateEngine, saveBackup } from "../state/storage.ts";
@@ -19,7 +20,30 @@ function $(id: string): HTMLElement {
   return el;
 }
 
+/**
+ * Optional, skippable account step (add-lingua-account-parity, design D8). Hidden when
+ * already signed in; "Plus tard" just hides it — nothing else depends on it.
+ */
+async function showAccountOffer(): Promise<void> {
+  try {
+    const reply = (await chrome.runtime.sendMessage({ type: "account:state" })) as AccountReply | undefined;
+    if (reply?.state?.signedIn) return;
+  } catch {
+    // Worker unreachable: offer anyway, the account page handles it.
+  }
+  const section = $("account-section");
+  section.hidden = false;
+  $("account-create").addEventListener(
+    "click",
+    () => void chrome.tabs.create({ url: chrome.runtime.getURL("account.html#signup") }),
+  );
+  $("account-later").addEventListener("click", () => {
+    section.hidden = true;
+  });
+}
+
 async function main(): Promise<void> {
+  void showAccountOffer();
   const port = createLinguaPort();
   await hydrateEngine(port, area);
 

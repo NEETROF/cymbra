@@ -1,16 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { hasShortcutEditor, hasWebAuthFlow, isTouchPrimary } from "@/state/platform.ts";
-
-describe("hasWebAuthFlow", () => {
-  it("is true where the identity API can launch a web auth flow", () => {
-    expect(hasWebAuthFlow({ launchWebAuthFlow: () => Promise.resolve("") })).toBe(true);
-  });
-
-  it("is false without the identity API (Safari)", () => {
-    expect(hasWebAuthFlow(undefined)).toBe(false);
-    expect(hasWebAuthFlow({})).toBe(false);
-  });
-});
+import { hasShortcutEditor, isTouchPrimary } from "@/state/platform.ts";
 
 /** Stub matchMedia so `(pointer: coarse)` matches only on a touch-primary device. */
 function pointer(coarse: boolean): void {

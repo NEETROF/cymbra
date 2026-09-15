@@ -45,8 +45,8 @@ interface ConsolidatedRow {
 }
 
 async function fetchCounts(area: AsyncStorageArea, range: Range): Promise<{ byDay: CountsByDay; scope: string }> {
-  const account = (await sendRuntime({ type: "account:state" })) as { signedIn?: boolean } | null;
-  if (account?.signedIn) {
+  const account = (await sendRuntime({ type: "account:state" })) as { state?: { signedIn?: boolean } } | null;
+  if (account?.state?.signedIn) {
     const { fromDay, toDay } = dayWindow(utcDay(Date.now()), range);
     const res = (await sendRuntime({ type: "stats:get", fromDay, toDay })) as {
       ok?: boolean;

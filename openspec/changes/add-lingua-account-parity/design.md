@@ -50,7 +50,8 @@ Platform facts:
 - One session owner (the background); UI surfaces never call the API.
 
 **Non-Goals**
-- Handle selection, identity linking, collision merge (Music's D7), account deletion.
+- Identity linking, collision merge (Music's D7), account deletion from the extension — the
+  handle step's "use another account" deleting a handle-less account (D9) is the only one.
 - Localising the extension UI (French-only today); only emails follow the browser locale.
 - Safari (container-app sign-in, `add-lingua-apple`).
 - Nonce binding of OIDC id_tokens server-side (no `nonce` field in `SignInOidcRequest`;
@@ -183,6 +184,27 @@ The onboarding tab (first launch, CEFR level) gains a last, skippable step: "Cr�
 pour retrouver tes mots sur tous tes appareils" → opens `account.html#signup`, or
 "Plus tard". Nothing else in the extension changes when it is skipped.
 
+### D9 — Every account leaves the extension with a handle
+Cymbra ID's orphan reaper (`orphan_reap`, hourly, grace `CYMBRA_ORPHAN_REAP_GRACE` = 24 h)
+deletes every account whose handle is still null; it exists so Music's abandoned
+onboardings do not pile up (`handle-onboarding`). An account created from the extension —
+by email, or at a first Google/Apple sign-in — never had a handle, so it was deleted the
+next day, while its `auth` credential survived in another schema and blocked the email.
+Found on the first production test, after the proposal had put the handle out of scope.
+
+The extension therefore applies Music's gate. After every sign-in, and whenever the account
+page opens signed in, it reads the account (`UserService.GetAccount`). Without a handle it
+lands on « Choisis ton pseudo »: the 1–15 letters/digits policy checked locally,
+availability asked once typing pauses (a slower answer overtaken by newer typing is
+dropped), `UpdateAccount` with the account's current version and its other fields sent
+back unchanged, `ALREADY_EXISTS` / `ABORTED` shown as taken. « Utiliser un autre compte »
+follows Music's rule: a handle-less account is deleted (`DeleteAccount`), an account with a
+handle is only signed out, and an account whose profile cannot be read is never deleted on
+a guess. The popup shows `@handle`, or « Choisir mon pseudo » while it is missing.
+
+Rejected: sparing accounts with a Lingua session in the reaper — it bends an `id-*` rule for
+one product, and a Lingua-only account would still reach Music without a handle.
+
 ## Risks / Trade-offs
 
 - **Apple refuses the extension return URLs** → D4 relay, already designed; the spike is
@@ -201,6 +223,14 @@ pour retrouver tes mots sur tous tes appareils" → opens `account.html#signup`,
   checks `state`; server-side nonce binding stays a separate Cymbra ID change.
 - **Firefox Android readers can only use email** → explicit in the UI (no dead buttons);
   acceptable given ~2 % share.
+- **Apple's consent screen says « Cymbra Music »** → Apple shows the name and icon of the
+  Services ID's primary App ID as published on the App Store (`com.cymbra.bo.web` is
+  grouped under `com.cymbra.music`; the site and back office show the same). Accepted for
+  now. Once the Lingua Apple host app is published, a `com.cymbra.lingua.web` Services ID
+  grouped under `com.cymbra.lingua` (same extension return URLs, added to
+  `CYMBRA_APPLE_AUDIENCE`, built as `LINGUA_APPLE_CLIENT_ID`) shows « Cymbra Lingua ».
+  Nothing is lost by switching: Apple's user identifier and private email are scoped to the
+  developer team, not to the app or its grouping.
 - **Unverified sign-in from the popup loses the password** → one extra sign-in after
   verification, in exchange for never moving a password across surfaces.
 
@@ -219,6 +249,9 @@ pour retrouver tes mots sur tous tes appareils" → opens `account.html#signup`,
 
 ## Open Questions
 
-- Spike outcome (D3 vs D4) — resolved by task 1.
+- ~~Spike outcome (D3 vs D4)~~ — **resolved 2026-09-15: D3 confirmed.** Apple accepted
+  `https://figfjglfdiffocldficbimecjnhnkhkh.chromiumapp.org/` as a return URL on
+  `com.cymbra.bo.web` (no domain file), answered the scope-less request in the fragment, and
+  production signed the reader in from Chrome on macOS. D4 (the relay) is not built.
 - Should the signed-in view show the account email? The access token does not carry it; it
   would need `AccountService.GetAccount`. Deferred unless dogfooding asks for it.

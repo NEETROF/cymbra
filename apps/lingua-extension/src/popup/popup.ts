@@ -1,5 +1,8 @@
-import { hasShortcutEditor, hasWebAuthFlow } from "../state/platform.ts";
-import { SIGNIN_ERROR_KEY } from "../state/session.ts";
+import { errorCopy } from "../account/copy.ts";
+import { type AccountReply, type AccountState, PENDING_EMAIL_KEY } from "../account/messages.ts";
+import type { Provider } from "../state/oidc.ts";
+import { hasShortcutEditor } from "../state/platform.ts";
+import { isPersistedSignInError, SIGNIN_ERROR_KEY } from "../state/session.ts";
 import { loadEnabled, loadHudHidden, saveEnabled, saveHudHidden } from "../state/storage.ts";
 import type { CefrLevel } from "../analyzer/types.ts";
 
@@ -61,15 +64,6 @@ async function sendRuntime(message: unknown): Promise<unknown> {
   }
 }
 
-interface AccountState {
-  signedIn: boolean;
-}
-interface AccountResult {
-  ok: boolean;
-  error?: string;
-  state?: AccountState;
-}
-
 /** Whether a Cymbra ID session is active — decides the reset warning's wording. */
 let accountSignedIn = false;
 
@@ -79,6 +73,20 @@ function renderAccount(state: AccountState | null): void {
   $("acct-in").hidden = !signedIn;
   $("acct-out").hidden = signedIn;
   $("acct-error").hidden = true;
+  if (signedIn) void renderHandle();
+  else $("acct-handle-cta").hidden = true;
+}
+
+/**
+ * Show the account's handle, or ask for one: a Cymbra account without a handle is deleted by
+ * the backend's orphan reaper, so the popup keeps offering the account page's handle step.
+ */
+async function renderHandle(): Promise<void> {
+  const res = (await sendRuntime({ type: "account:profile" })) as AccountReply | null;
+  const needsHandle = res?.ok === true && res.handle == null;
+  $("acct-handle").textContent =
+    res?.ok && res.handle ? `@${res.handle}` : needsHandle ? "Pseudo à choisir" : "Synchronisation activée";
+  $("acct-handle-cta").hidden = !needsHandle;
 }
 
 function showAccountError(message: string): void {
@@ -105,13 +113,39 @@ async function surfaceSignInError(): Promise<void> {
   try {
     const got = await chrome.storage.session.get(SIGNIN_ERROR_KEY);
     const err = got[SIGNIN_ERROR_KEY];
-    if (typeof err === "string" && err.length > 0) {
-      if (!accountSignedIn) showAccountError(err);
+    if (isPersistedSignInError(err)) {
+      if (!accountSignedIn) showAccountError(errorCopy(providerContext(err.provider), err.kind));
       await clearSignInError();
     }
   } catch {
     // storage.session may be unavailable in some contexts; nothing to surface.
   }
+}
+
+function providerContext(provider: Provider): "signInGoogle" | "signInApple" {
+  return provider === "apple" ? "signInApple" : "signInGoogle";
+}
+
+/** Open the account page — a tab, which survives the reader leaving for their mailbox. */
+async function openAccountPage(view: "signup" | "forgot" | "verify" | "handle"): Promise<void> {
+  try {
+    await chrome.tabs.create({ url: chrome.runtime.getURL(`account.html#${view}`) });
+  } catch {
+    // Tab creation refused; nothing actionable in the popup.
+  }
+  window.close();
+}
+
+/** Show only the providers this build and browser support (add-lingua-account-parity D5). */
+async function renderProviders(): Promise<void> {
+  const res = (await sendRuntime({ type: "account:providers" })) as AccountReply | null;
+  const google = Boolean(res?.providers?.google);
+  const apple = Boolean(res?.providers?.apple);
+  $("signin-google").hidden = !google;
+  $("signin-apple").hidden = !apple;
+  // No provider (Safari, Firefox for Android, or none configured): email is the only way
+  // in, so show its form already unfolded.
+  if (!google && !apple) document.querySelector<HTMLDetailsElement>(".acct-local")?.setAttribute("open", "");
 }
 
 function render(stats: PageStats | null): void {
@@ -333,41 +367,49 @@ async function main(): Promise<void> {
     await applyEnabled(enabled);
   });
 
-  // No identity API (Safari): offer email/password only, already unfolded.
-  const google = $("signin-google");
-  google.hidden = !hasWebAuthFlow();
-  if (google.hidden) document.querySelector<HTMLDetailsElement>(".acct-local")?.setAttribute("open", "");
-  google.addEventListener("click", async () => {
-    // Opening Google's auth window steals focus and tears this popup down, so the
-    // awaited result usually never arrives here (res === null). That is fine: the
-    // background finishes the sign-in, and on reopen the popup shows the signed-in
-    // state — or the persisted error via surfaceSignInError(). A null result is NOT a
-    // failure to report here; only act when the popup actually survived (res !== null).
-    const res = (await sendRuntime({ type: "account:signInGoogle" })) as AccountResult | null;
+  // Opening a provider's auth window steals focus and tears this popup down, so the awaited
+  // result usually never arrives here (res === null). That is fine: the background finishes
+  // the sign-in, and on reopen the popup shows the signed-in state — or the persisted
+  // failure via surfaceSignInError(). A null result is NOT a failure to report here; only
+  // act when the popup actually survived. A closed provider window is a cancel: no message.
+  const providerSignIn = async (provider: Provider): Promise<void> => {
+    const type = provider === "apple" ? "account:signInApple" : "account:signInGoogle";
+    const res = (await sendRuntime({ type })) as AccountReply | null;
     if (res?.ok) renderAccount(res.state ?? { signedIn: true });
-    else if (res) {
-      // Shown live — drop the background's persisted copy so it does not re-show on the
-      // next open (the failure may not have reached launchWebAuthFlow, e.g. empty client id).
-      showAccountError(res.error ?? "Connexion impossible.");
+    else if (res && !res.cancelled) {
+      // Shown live — drop the background's persisted copy so it does not re-show next open.
+      showAccountError(errorCopy(providerContext(provider), res.error ?? "unknown"));
       await clearSignInError();
     }
-  });
+  };
+  $("signin-google").addEventListener("click", () => void providerSignIn("google"));
+  $("signin-apple").addEventListener("click", () => void providerSignIn("apple"));
 
   $("signin-local").addEventListener("click", async () => {
     const email = ($("acct-email") as HTMLInputElement).value.trim();
     const password = ($("acct-password") as HTMLInputElement).value;
     if (!email || !password) return;
     // Local sign-in never opens an auth window, so this popup stays alive: a null result
-    // is a real transport/worker hiccup (not a torn-down popup), and the local flow does
-    // not persist errors — so report it here, but not as a wrong-password.
-    const res = (await sendRuntime({ type: "account:signInLocal", email, password })) as AccountResult | null;
+    // is a real transport/worker hiccup (not a torn-down popup) — reported as unreachable.
+    const res = (await sendRuntime({ type: "account:signInLocal", email, password })) as AccountReply | null;
     if (res?.ok) renderAccount(res.state ?? { signedIn: true });
-    else if (res) showAccountError(res.error ?? "Email ou mot de passe incorrect.");
-    else showAccountError("Connexion impossible, réessaie.");
+    else if (res?.error === "failedPrecondition") {
+      // Unverified email: continue on the account page's code step. Only the email goes
+      // across (storage.session); the password never leaves this popup (design D6).
+      try {
+        await chrome.storage.session.set({ [PENDING_EMAIL_KEY]: email });
+      } catch {
+        // storage.session unavailable: the page opens on sign-in instead.
+      }
+      await openAccountPage("verify");
+    } else showAccountError(errorCopy("signInEmail", res?.error ?? "unavailable"));
   });
+  $("acct-signup").addEventListener("click", () => void openAccountPage("signup"));
+  $("acct-forgot").addEventListener("click", () => void openAccountPage("forgot"));
+  $("acct-handle-open").addEventListener("click", () => void openAccountPage("handle"));
 
   $("signout").addEventListener("click", async () => {
-    const res = (await sendRuntime({ type: "account:signOut" })) as AccountResult | null;
+    const res = (await sendRuntime({ type: "account:signOut" })) as AccountReply | null;
     renderAccount(res?.state ?? { signedIn: false });
   });
 
@@ -384,7 +426,8 @@ async function main(): Promise<void> {
   });
 
   await applyEnabled(await loadEnabled(storageArea));
-  renderAccount((await sendRuntime({ type: "account:state" })) as AccountState | null);
+  renderAccount(((await sendRuntime({ type: "account:state" })) as AccountReply | null)?.state ?? null);
+  await renderProviders();
   await surfaceSignInError(); // show a sign-in failure that happened after the popup closed
 }
 

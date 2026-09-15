@@ -10,6 +10,7 @@ export default defineConfig({
     __STATIC_READER__: "false",
     __GRPC_WEB_URL__: JSON.stringify("http://localhost:50051"),
     __GOOGLE_CLIENT_ID__: JSON.stringify(""),
+    __APPLE_CLIENT_ID__: JSON.stringify(""),
   },
   resolve: {
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
@@ -32,6 +33,7 @@ export default defineConfig({
         "src/background.ts",
         "src/content.ts",
         "src/popup/popup.ts",
+        "src/account/account.ts",
         "src/sidepanel/sidepanel.ts",
         "src/reading/drawer.ts",
         "src/analyzer/engine.ts",

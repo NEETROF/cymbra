@@ -23,6 +23,11 @@ declare const __GRPC_WEB_URL__: string;
 // clear error, leaving email/password working.
 declare const __GOOGLE_CLIENT_ID__: string;
 
+// Apple Services ID (the site's web client id) for "Continue with Apple", injected by
+// esbuild `define` (from LINGUA_APPLE_CLIENT_ID). Empty by default: the Apple button is
+// hidden (add-lingua-account-parity, design D5).
+declare const __APPLE_CLIENT_ID__: string;
+
 // tokens.css (and other .css) imported as a string, inlined into the injected
 // closed shadow root so the single token sheet stays the only home for colors.
 declare module "*.css" {

@@ -65,6 +65,8 @@ const baseManifest = JSON.parse(readFileSync(join(root, "manifest.json"), "utf8"
 // fetch to it needs the host permission.
 const GRPC_WEB_URL = process.env.LINGUA_GRPC_WEB_URL ?? "http://localhost:50051";
 const GOOGLE_CLIENT_ID = process.env.LINGUA_GOOGLE_CLIENT_ID ?? "";
+// Apple Services ID (the site's web client id). Empty hides "Continuer avec Apple".
+const APPLE_CLIENT_ID = process.env.LINGUA_APPLE_CLIENT_ID ?? "";
 // A committed DEV public key pins the UNPACKED Chromium extension id. Without it Chromium
 // assigns a random per-profile id, so chrome.identity.getRedirectURL() —
 // https://<id>.chromiumapp.org/ — changes per machine and never matches the redirect URI
@@ -141,6 +143,8 @@ const staticCopies = [
   ["src/stats/stats.css", "stats.css"],
   ["src/onboarding/onboarding.html", "onboarding.html"],
   ["src/onboarding/onboarding.css", "onboarding.css"],
+  ["src/account/account.html", "account.html"],
+  ["src/account/account.css", "account.css"],
   ["src/styles/tokens.css", "tokens.css"],
   ["src/styles/review.css", "review.css"],
   ["src/styles/settings.css", "settings.css"],
@@ -169,6 +173,7 @@ for (const target of targets) {
       ...capabilities(target),
       __GRPC_WEB_URL__: JSON.stringify(GRPC_WEB_URL),
       __GOOGLE_CLIENT_ID__: JSON.stringify(GOOGLE_CLIENT_ID),
+      __APPLE_CLIENT_ID__: JSON.stringify(APPLE_CLIENT_ID),
     },
   };
 
@@ -191,6 +196,7 @@ for (const target of targets) {
       sidepanel: join(root, "src/sidepanel/sidepanel.ts"),
       stats: join(root, "src/stats/stats.ts"),
       onboarding: join(root, "src/onboarding/onboarding.ts"),
+      account: join(root, "src/account/account.ts"),
     },
     outdir: dist,
     format: "esm",
