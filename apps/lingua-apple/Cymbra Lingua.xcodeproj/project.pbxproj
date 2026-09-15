@@ -31,6 +31,10 @@
 		AFB5BE0F305892E000728144 /* SafariWebExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFB5BDCF305892E000728144 /* SafariWebExtensionHandler.swift */; };
 		AFB5BE83305892E000728144 /* LinguaSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = AFB5BE81305892E000728144 /* LinguaSignIn */; };
 		AFB5BE84305892E000728144 /* LinguaSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = AFB5BE82305892E000728144 /* LinguaSignIn */; };
+		AFB5BE86305892E000728144 /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFB5BE85305892E000728144 /* SignInView.swift */; };
+		AFB5BE87305892E000728144 /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFB5BE85305892E000728144 /* SignInView.swift */; };
+		AFB5BE8A305892E000728144 /* LinguaSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = AFB5BE88305892E000728144 /* LinguaSignIn */; };
+		AFB5BE8B305892E000728144 /* LinguaSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = AFB5BE89305892E000728144 /* LinguaSignIn */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -97,6 +101,7 @@
 		AFB5BDF7305892E000728144 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AFB5BDFC305892E000728144 /* Cymbra Lingua Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Cymbra Lingua Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		AFB5BE01305892E000728144 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		AFB5BE85305892E000728144 /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -104,6 +109,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AFB5BE8A305892E000728144 /* LinguaSignIn in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -111,6 +117,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AFB5BE8B305892E000728144 /* LinguaSignIn in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -149,6 +156,7 @@
 		AFB5BDC5305892DF00728144 /* Shared (App) */ = {
 			isa = PBXGroup;
 			children = (
+				AFB5BE85305892E000728144 /* SignInView.swift */,
 				AFB5BDCC305892DF00728144 /* ViewController.swift */,
 				AFB5BDCD305892E000728144 /* Assets.xcassets */,
 				AFB5BDC6305892DF00728144 /* Resources */,
@@ -243,6 +251,7 @@
 			);
 			name = "Cymbra Lingua (iOS)";
 			packageProductDependencies = (
+				AFB5BE88305892E000728144 /* LinguaSignIn */,
 			);
 			productName = "Cymbra Lingua (iOS)";
 			productReference = AFB5BDD4305892E000728144 /* Cymbra Lingua.app */;
@@ -264,6 +273,7 @@
 			);
 			name = "Cymbra Lingua (macOS)";
 			packageProductDependencies = (
+				AFB5BE89305892E000728144 /* LinguaSignIn */,
 			);
 			productName = "Cymbra Lingua (macOS)";
 			productReference = AFB5BDE6305892E000728144 /* Cymbra Lingua.app */;
@@ -450,6 +460,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AFB5BE86305892E000728144 /* SignInView.swift in Sources */,
 				AFB5BE0A305892E000728144 /* ViewController.swift in Sources */,
 				AFB5BDD8305892E000728144 /* AppDelegate.swift in Sources */,
 				AFB5BDDA305892E000728144 /* SceneDelegate.swift in Sources */,
@@ -460,6 +471,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AFB5BE87305892E000728144 /* SignInView.swift in Sources */,
 				AFB5BE0B305892E000728144 /* ViewController.swift in Sources */,
 				AFB5BDE9305892E000728144 /* AppDelegate.swift in Sources */,
 			);
@@ -1012,6 +1024,16 @@
 			productName = LinguaSignIn;
 		};
 		AFB5BE82305892E000728144 /* LinguaSignIn */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AFB5BE80305892E000728144 /* XCLocalSwiftPackageReference "LinguaSignIn" */;
+			productName = LinguaSignIn;
+		};
+		AFB5BE88305892E000728144 /* LinguaSignIn */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AFB5BE80305892E000728144 /* XCLocalSwiftPackageReference "LinguaSignIn" */;
+			productName = LinguaSignIn;
+		};
+		AFB5BE89305892E000728144 /* LinguaSignIn */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = AFB5BE80305892E000728144 /* XCLocalSwiftPackageReference "LinguaSignIn" */;
 			productName = LinguaSignIn;

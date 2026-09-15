@@ -18,6 +18,14 @@ extension (see `openspec/changes/add-lingua-apple`).
   settings on the extension (`SFSafariApplication.showPreferencesForExtension`).
 - **Minimum OS** — iOS 17.2 / macOS 12: the reader paints with the CSS Custom Highlight
   API, which Safari ships from 17.2.
+- **Apple and Google sign-in** (`openspec/changes/add-lingua-connected-clients`, D6) — Safari
+  has no `identity.launchWebAuthFlow`, so the extension opens this app on
+  `cymbra-lingua://signin?provider=apple|google` (`CFBundleURLTypes` in both apps). The app
+  shows `Shared (App)/SignInView.swift`, runs the provider's native sheet and leaves the
+  id_token in the App Group; the extension's `SafariWebExtensionHandler` answers
+  `auth.takeIdToken` with it once, within five minutes. The Cymbra session stays in the
+  extension. The logic lives in the local package [`LinguaSignIn`](LinguaSignIn), linked by
+  all four targets.
 
 The project was scaffolded by `xcrun safari-web-extension-converter` and then changed by
 hand to replace its copied resources with the build phase above.
