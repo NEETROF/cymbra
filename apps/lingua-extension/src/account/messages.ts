@@ -16,7 +16,11 @@ export type AccountMessage =
   | { type: "account:verifyEmail"; code: string }
   | { type: "account:resendVerification"; email: string; locale: string }
   | { type: "account:requestPasswordReset"; email: string; locale: string }
-  | { type: "account:resetPassword"; code: string; newPassword: string };
+  | { type: "account:resetPassword"; code: string; newPassword: string }
+  | { type: "account:profile" }
+  | { type: "account:checkHandle"; handle: string }
+  | { type: "account:setHandle"; handle: string }
+  | { type: "account:abandon" };
 
 export interface AccountState {
   signedIn: boolean;
@@ -30,6 +34,10 @@ export interface AccountReply {
   cancelled?: boolean;
   state?: AccountState;
   providers?: Providers;
+  /** The account's handle (`null` = none yet), on account:profile and account:setHandle. */
+  handle?: string | null;
+  /** On account:checkHandle. */
+  available?: boolean;
 }
 
 /** The pending verification email (never the password), in chrome.storage.session. */

@@ -40,3 +40,12 @@
 - [ ] 6.2 [manual] Chrome on macOS against a real backend: sign-up → code from the mailbox → signed in → sync runs; forgotten password end to end; Apple with an Apple ID already used in Music lands on the same account; Google unchanged
 - [ ] 6.3 [manual] Firefox desktop: Google, Apple and email; Firefox for Android: no provider buttons, email sign-up/sign-in/reset work
 - [x] 6.4 `openspec validate add-lingua-account-parity --strict`
+
+## 7. Handle step (found in production: handle-less accounts are reaped after 24 h)
+
+- [x] 7.1 `UserService` client (`tool/gen_proto.sh` + `net/transport.ts`) and the `account/profile.ts` port — `GetAccount`, `CheckHandleAvailability`, `UpdateAccount` with the current version and the other fields sent back, `DeleteAccount` — with categorized errors (`ABORTED` → `conflict`); vitest
+- [x] 7.2 Host messages `account:profile`, `account:checkHandle`, `account:setHandle` (fresh read, then write), `account:abandon` (delete only a readable handle-less account, then sign out); vitest
+- [x] 7.3 Account page handle step: gate after every sign-in and on opening signed in, local policy, debounced availability with overtaken answers dropped, save, taken/conflict, abandon, no navigation away, focus and caret kept across re-renders; signed-in view shows `@handle`; vitest
+- [x] 7.4 Popup: `@handle` in the account row, « Choisir mon pseudo » opening the handle step while it is missing
+- [x] 7.5 CI: `lingua-extension-check` watches the proto directories the extension generates from (auth-port, user-port, lingua)
+- [ ] 7.6 [manual] Production: a new email account picks a handle and is still there the next day; an existing handle-less account is asked at sign-in; a Music account with a handle is not asked

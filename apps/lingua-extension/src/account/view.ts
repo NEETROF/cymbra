@@ -1,10 +1,11 @@
 import type { Provider } from "../state/oidc.ts";
 import type { AccountView, AccountViewState } from "./flow.ts";
+import { HANDLE_MAX_LENGTH, type HandleStatus } from "./handle.ts";
 
 // DOM for the account page (add-lingua-account-parity). Pure rendering from the
 // controller's state into a host element, wired to actions — unit-tested with jsdom like
-// review/view.ts. Every reader-provided value (the email) goes through textContent/value,
-// never innerHTML.
+// review/view.ts. Every reader-provided value (the email, the handle) goes through
+// textContent/value, never innerHTML.
 
 export interface AccountActions {
   signInEmail(email: string, password: string): void;
@@ -16,7 +17,19 @@ export interface AccountActions {
   signInWith(provider: Provider): void;
   signOut(): void;
   go(view: AccountView): void;
+  editHandle(candidate: string): void;
+  commitHandle(): void;
+  abandonHandle(): void;
 }
+
+const HANDLE_HELP: Record<HandleStatus, string> = {
+  empty: `1 à ${HANDLE_MAX_LENGTH} lettres ou chiffres.`,
+  invalid: `1 à ${HANDLE_MAX_LENGTH} lettres ou chiffres uniquement (sans espaces ni symboles).`,
+  checking: "Vérification…",
+  available: "Disponible !",
+  taken: "Ce pseudo est pris — essaies-en un autre.",
+  error: "Impossible de vérifier pour l'instant — tu peux quand même valider.",
+};
 
 function h<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
@@ -43,17 +56,17 @@ function field(name: string, label: string, type: string, autocomplete: string, 
   return { wrap, input };
 }
 
-function form(fields: Field[], submitLabel: string, busy: boolean, onSubmit: () => void): HTMLFormElement {
+function form(fields: Field[], submitLabel: string, disabled: boolean, onSubmit: () => void): HTMLFormElement {
   const f = h("form", "account-form");
   f.noValidate = true;
   for (const x of fields) f.append(x.wrap);
   const submit = h("button", "account-primary", submitLabel);
   submit.type = "submit";
-  submit.disabled = busy;
+  submit.disabled = disabled;
   f.append(submit);
   f.addEventListener("submit", (event) => {
     event.preventDefault();
-    if (!busy) onSubmit();
+    if (!disabled) onSubmit();
   });
   return f;
 }
@@ -184,8 +197,35 @@ export function renderAccount(root: HTMLElement, s: AccountViewState, a: Account
       );
       break;
     }
+    case "handle": {
+      title("Choisis ton pseudo");
+      card.append(
+        h(
+          "p",
+          "account-lead",
+          "Ton pseudo identifie ton compte Cymbra — le même que dans Cymbra Music. Tu pourras le retrouver partout.",
+        ),
+      );
+      const handle = field("handle", "Pseudo", "text", "nickname", s.candidate);
+      handle.input.maxLength = HANDLE_MAX_LENGTH;
+      handle.input.spellcheck = false;
+      handle.input.setAttribute("autocapitalize", "off");
+      handle.input.addEventListener("input", () => a.editHandle(handle.input.value));
+      const help = h("span", `account-help account-help-${s.handleStatus}`, HANDLE_HELP[s.handleStatus]);
+      help.setAttribute("aria-live", "polite");
+      handle.wrap.append(help);
+      const blocked =
+        s.busy || s.handleStatus === "empty" || s.handleStatus === "invalid" || s.handleStatus === "taken";
+      card.append(
+        form([handle], "Continuer", blocked, () => a.commitHandle()),
+        h("p", "account-footnote", "Sans pseudo, ce compte n'est pas conservé."),
+        links([["Utiliser un autre compte", () => a.abandonHandle()]]),
+      );
+      break;
+    }
     case "signedin": {
       title("Tu es connecté");
+      if (s.handle) card.append(h("p", "account-handle", `@${s.handle}`));
       card.append(
         h(
           "p",
@@ -201,5 +241,23 @@ export function renderAccount(root: HTMLElement, s: AccountViewState, a: Account
       break;
     }
   }
+
+  // Re-rendering replaces the inputs: keep the reader's focus and caret where they were, so
+  // live feedback (the handle's availability) never interrupts typing.
+  const active = document.activeElement;
+  const focused = active instanceof HTMLInputElement && root.contains(active) ? active : null;
+  const name = focused?.name ?? null;
+  const caret = focused?.selectionStart ?? null;
   root.replaceChildren(card);
+  if (name) {
+    const again = root.querySelector<HTMLInputElement>(`input[name="${name}"]`);
+    again?.focus();
+    if (again && caret != null) {
+      try {
+        again.setSelectionRange(caret, caret);
+      } catch {
+        // email/number inputs do not support a selection range
+      }
+    }
+  }
 }

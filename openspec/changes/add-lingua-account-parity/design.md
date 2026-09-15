@@ -50,7 +50,8 @@ Platform facts:
 - One session owner (the background); UI surfaces never call the API.
 
 **Non-Goals**
-- Handle selection, identity linking, collision merge (Music's D7), account deletion.
+- Identity linking, collision merge (Music's D7), account deletion from the extension — the
+  handle step's "use another account" deleting a handle-less account (D9) is the only one.
 - Localising the extension UI (French-only today); only emails follow the browser locale.
 - Safari (container-app sign-in, `add-lingua-apple`).
 - Nonce binding of OIDC id_tokens server-side (no `nonce` field in `SignInOidcRequest`;
@@ -182,6 +183,27 @@ surface renders `error.message` from a Connect error.
 The onboarding tab (first launch, CEFR level) gains a last, skippable step: "Crée un compte
 pour retrouver tes mots sur tous tes appareils" → opens `account.html#signup`, or
 "Plus tard". Nothing else in the extension changes when it is skipped.
+
+### D9 — Every account leaves the extension with a handle
+Cymbra ID's orphan reaper (`orphan_reap`, hourly, grace `CYMBRA_ORPHAN_REAP_GRACE` = 24 h)
+deletes every account whose handle is still null; it exists so Music's abandoned
+onboardings do not pile up (`handle-onboarding`). An account created from the extension —
+by email, or at a first Google/Apple sign-in — never had a handle, so it was deleted the
+next day, while its `auth` credential survived in another schema and blocked the email.
+Found on the first production test, after the proposal had put the handle out of scope.
+
+The extension therefore applies Music's gate. After every sign-in, and whenever the account
+page opens signed in, it reads the account (`UserService.GetAccount`). Without a handle it
+lands on « Choisis ton pseudo »: the 1–15 letters/digits policy checked locally,
+availability asked once typing pauses (a slower answer overtaken by newer typing is
+dropped), `UpdateAccount` with the account's current version and its other fields sent
+back unchanged, `ALREADY_EXISTS` / `ABORTED` shown as taken. « Utiliser un autre compte »
+follows Music's rule: a handle-less account is deleted (`DeleteAccount`), an account with a
+handle is only signed out, and an account whose profile cannot be read is never deleted on
+a guess. The popup shows `@handle`, or « Choisir mon pseudo » while it is missing.
+
+Rejected: sparing accounts with a Lingua session in the reaper — it bends an `id-*` rule for
+one product, and a Lingua-only account would still reach Music without a handle.
 
 ## Risks / Trade-offs
 

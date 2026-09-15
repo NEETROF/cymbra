@@ -26,6 +26,12 @@ function setup(overrides: Partial<AccountHostDeps["session"]> = {}) {
   };
   const deps = {
     session,
+    account: {
+      profile: vi.fn(async () => ({ handle: "alice", version: 1, displayName: null, preferences: "{}" })),
+      checkHandle: vi.fn(async () => true),
+      setHandle: vi.fn(async () => ({ handle: "alice", version: 2, displayName: null, preferences: "{}" })),
+      deleteAccount: vi.fn(async () => {}),
+    },
     providers: vi.fn(() => ({ google: true, apple: false })),
     onSignedIn: vi.fn(),
   };

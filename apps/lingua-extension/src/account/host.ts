@@ -2,10 +2,12 @@ import { authErrorOf } from "../state/auth-errors.ts";
 import type { Providers } from "../state/oidc.ts";
 import type { Session } from "../state/session.ts";
 import type { AccountMessage, AccountReply } from "./messages.ts";
+import type { AccountPort, AccountProfile } from "./profile.ts";
 
 // The background's account message handler (add-lingua-account-parity, design D2): the
-// only place surfaces reach the session. Kept out of background.ts so the dispatch is
-// unit-tested. Replies carry categories, never error strings.
+// only place surfaces reach the session and the Cymbra ID account. Kept out of
+// background.ts so the dispatch is unit-tested. Replies carry categories, never error
+// strings.
 
 export interface AccountHostDeps {
   session: Pick<
@@ -20,13 +22,15 @@ export interface AccountHostDeps {
     | "requestPasswordReset"
     | "resetPassword"
   >;
+  /** The signed-in account's profile (handle) over UserService. */
+  account: AccountPort;
   providers: () => Providers;
   /** Called after every successful sign-in (schedules a sync). */
   onSignedIn: () => void;
 }
 
 export async function handleAccountMessage(msg: AccountMessage, deps: AccountHostDeps): Promise<AccountReply> {
-  const { session } = deps;
+  const { session, account } = deps;
   const signedIn = (): AccountReply => {
     deps.onSignedIn();
     return { ok: true, state: session.state() };
@@ -64,6 +68,38 @@ export async function handleAccountMessage(msg: AccountMessage, deps: AccountHos
       case "account:resetPassword":
         await session.resetPassword(msg.code, msg.newPassword);
         return { ok: true };
+      case "account:profile": {
+        if (!session.state().signedIn) return { ok: false, error: "unauthenticated" };
+        const profile = await account.profile();
+        return { ok: true, state: session.state(), handle: profile.handle };
+      }
+      case "account:checkHandle":
+        return { ok: true, available: await account.checkHandle(msg.handle) };
+      case "account:setHandle": {
+        // Read the account fresh so the write carries the current version and fields.
+        const updated = await account.setHandle(msg.handle, await account.profile());
+        return { ok: true, state: session.state(), handle: updated.handle };
+      }
+      case "account:abandon": {
+        // Music's rule (handle-onboarding): leaving the handle step deletes a handle-less
+        // account — the reaper would delete it anyway — and only signs out one that has a
+        // handle. A profile that cannot be read counts as "has one": never delete on a guess.
+        let current: AccountProfile | null = null;
+        try {
+          current = await account.profile();
+        } catch {
+          current = null;
+        }
+        if (current && current.handle == null) {
+          try {
+            await account.deleteAccount();
+          } catch {
+            // Best effort: the backend's orphan reaper purges it later.
+          }
+        }
+        await session.signOut();
+        return { ok: true, state: session.state() };
+      }
     }
   } catch (e) {
     return { ok: false, error: authErrorOf(e) };

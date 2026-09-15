@@ -51,7 +51,16 @@ function syncHash(view: AccountView): void {
 function main(): void {
   const root = document.getElementById("account-root");
   if (!root) return;
+  // The handle's availability is asked once typing pauses; the controller drops stale answers.
+  let handleCheck: ReturnType<typeof setTimeout> | null = null;
   const actions: AccountActions = {
+    editHandle: (candidate) => {
+      const state = flow.editHandle(candidate);
+      if (handleCheck !== null) clearTimeout(handleCheck);
+      handleCheck = state.handleStatus === "checking" ? setTimeout(() => void flow.checkHandle(), 400) : null;
+    },
+    commitHandle: () => void flow.commitHandle(),
+    abandonHandle: () => void flow.abandonHandle(),
     signInEmail: (email, password) => void flow.signInEmail(email, password),
     signUp: (email, password) => void flow.signUp(email, password),
     verify: (code) => void flow.verify(code),

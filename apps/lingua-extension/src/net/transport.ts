@@ -4,6 +4,7 @@ import { AuthService } from "@/gen/auth_pb";
 import { DeckService } from "@/gen/deck_pb";
 import { KnownWordsService } from "@/gen/known_words_pb";
 import { StatsService } from "@/gen/stats_pb";
+import { UserService } from "@/gen/user_pb";
 
 // gRPC-web bearer transport for the extension, cloned from the back office
 // (apps/back-office/src/lib/transport.ts). Design D1 (add-lingua-connected-clients):
@@ -99,6 +100,8 @@ export interface Clients {
   knownWords: Client<typeof KnownWordsService>;
   deck: Client<typeof DeckService>;
   stats: Client<typeof StatsService>;
+  /** The Cymbra ID account (handle) — add-lingua-account-parity. */
+  user: Client<typeof UserService>;
 }
 
 export function createClients(transport: Transport): Clients {
@@ -107,5 +110,6 @@ export function createClients(transport: Transport): Clients {
     knownWords: createClient(KnownWordsService, transport),
     deck: createClient(DeckService, transport),
     stats: createClient(StatsService, transport),
+    user: createClient(UserService, transport),
   };
 }

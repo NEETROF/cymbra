@@ -1,6 +1,7 @@
 import { type GlueLoader, WasmAnalyzerPort, type WasmModule } from "./analyzer/engine.ts";
 import { handleRpc, isRpcRequest } from "./analyzer/rpc-host.ts";
 import { handleAccountMessage } from "./account/host.ts";
+import { userServicePort } from "./account/profile.ts";
 import { isAccountMessage } from "./account/messages.ts";
 import { api, initApi } from "./net/api.ts";
 import { setTokenRefresher, setUnauthenticatedHandler } from "./net/transport.ts";
@@ -213,6 +214,7 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
     if (isAccountMessage(message)) {
       void handleAccountMessage(message, {
         session,
+        account: userServicePort(() => api().user),
         providers: () =>
           availableProviders({ google: __GOOGLE_CLIENT_ID__, apple: __APPLE_CLIENT_ID__ }, chrome.identity),
         onSignedIn: () => scheduleSync(0),

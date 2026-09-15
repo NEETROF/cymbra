@@ -13,9 +13,10 @@ function setup(replies: Replies = {}, pendingSeed: string | null = null) {
   const defaults: Replies = {
     "account:state": { ok: true, state: { signedIn: false } },
     "account:providers": { ok: true, providers: { google: true, apple: true } },
+    "account:profile": { ok: true, handle: "alice" },
   };
   const deps = {
-    send: vi.fn(async (message: AccountMessage) => {
+    send: vi.fn(async (message: AccountMessage): Promise<AccountReply | null> => {
       sent.push(message);
       if (message.type in replies) return replies[message.type] ?? null;
       return defaults[message.type] ?? { ok: true };
@@ -43,14 +44,17 @@ describe("viewFromHash", () => {
     expect(viewFromHash("#forgot")).toBe("forgot");
     expect(viewFromHash("#verify")).toBe("verify");
     expect(viewFromHash("#signedin")).toBe("signin");
+    expect(viewFromHash("#handle")).toBe("signin");
     expect(viewFromHash("")).toBe("signin");
   });
 });
 
 describe("AccountFlow.init", () => {
-  it("shows the signed-in view when a session exists", async () => {
+  it("shows the signed-in view with the handle when a session exists", async () => {
     const { flow } = setup({ "account:state": { ok: true, state: { signedIn: true } } });
-    expect((await flow.init("#signup")).view).toBe("signedin");
+    const s = await flow.init("#signup");
+    expect(s.view).toBe("signedin");
+    expect(s.handle).toBe("alice");
   });
 
   it("opens the requested view with the available providers", async () => {
@@ -89,9 +93,9 @@ describe("AccountFlow sign-up → code → signed in", () => {
     expect(s.notice).toContain("new@example.com");
 
     s = await flow.verify(" 123456 ");
-    expect(types(sent).slice(-2)).toEqual(["account:verifyEmail", "account:signInLocal"]);
-    expect(sent.at(-2)).toEqual({ type: "account:verifyEmail", code: "123456" });
-    expect(sent.at(-1)).toEqual({ type: "account:signInLocal", email: "new@example.com", password: PASSWORD });
+    expect(types(sent).slice(-3)).toEqual(["account:verifyEmail", "account:signInLocal", "account:profile"]);
+    expect(sent.at(-3)).toEqual({ type: "account:verifyEmail", code: "123456" });
+    expect(sent.at(-2)).toEqual({ type: "account:signInLocal", email: "new@example.com", password: PASSWORD });
     expect(s.view).toBe("signedin");
     expect(pendingWrites).toEqual(["new@example.com", null]);
   });
@@ -168,6 +172,7 @@ describe("AccountFlow sign-in", () => {
       sent.push(m);
       if (m.type === "account:state") return { ok: true, state: { signedIn: false } };
       if (m.type === "account:providers") return { ok: true, providers: { google: false, apple: false } };
+      if (m.type === "account:profile") return { ok: true, handle: "alice" };
       if (m.type === "account:verifyEmail") verified = true;
       if (m.type === "account:signInLocal" && !verified) return { ok: false, error: "failedPrecondition" };
       return { ok: true, state: { signedIn: true } };
@@ -179,7 +184,7 @@ describe("AccountFlow sign-in", () => {
     expect(pendingWrites).toEqual(["me@example.com"]);
     s = await flow.verify("123456");
     expect(s.view).toBe("signedin");
-    expect(sent.at(-1)).toEqual({ type: "account:signInLocal", email: "me@example.com", password: PASSWORD });
+    expect(sent.at(-2)).toEqual({ type: "account:signInLocal", email: "me@example.com", password: PASSWORD });
   });
 
   it("shows the credential error for a wrong password", async () => {
@@ -215,7 +220,7 @@ describe("AccountFlow providers", () => {
     const { flow, sent } = setup();
     await flow.init("");
     const s = await flow.signInWith("apple");
-    expect(sent.at(-1)).toEqual({ type: "account:signInApple" });
+    expect(sent.at(-2)).toEqual({ type: "account:signInApple" });
     expect(s.view).toBe("signedin");
   });
 
@@ -262,6 +267,127 @@ describe("AccountFlow password reset", () => {
   });
 });
 
+describe("AccountFlow handle step", () => {
+  const handleLess: Replies = { "account:profile": { ok: true, handle: null } };
+  const signedInHandleLess: Replies = { ...handleLess, "account:state": { ok: true, state: { signedIn: true } } };
+
+  it("asks for a handle after signing in to an account without one", async () => {
+    const { flow } = setup(handleLess);
+    await flow.init("");
+    const s = await flow.signInEmail("me@example.com", PASSWORD);
+    expect(s.view).toBe("handle");
+    expect(s.handleStatus).toBe("empty");
+  });
+
+  it("asks for a handle after a provider sign-in and when opening signed in", async () => {
+    const provider = setup(handleLess);
+    await provider.flow.init("");
+    expect((await provider.flow.signInWith("google")).view).toBe("handle");
+    expect((await setup(signedInHandleLess).flow.init("")).view).toBe("handle");
+  });
+
+  it("keeps the session when the profile cannot be read", async () => {
+    const { flow } = setup({ "account:state": { ok: true, state: { signedIn: true } }, "account:profile": null });
+    const s = await flow.init("");
+    expect(s.view).toBe("signedin");
+    expect(s.errorKind).toBe("unavailable");
+  });
+
+  it("checks the policy locally before asking the server", async () => {
+    const { flow, sent } = setup(signedInHandleLess);
+    await flow.init("");
+    expect(flow.editHandle("a b").handleStatus).toBe("invalid");
+    expect(flow.editHandle("  ").handleStatus).toBe("empty");
+    await flow.checkHandle();
+    expect(types(sent)).not.toContain("account:checkHandle");
+    expect(flow.editHandle("alice").handleStatus).toBe("checking");
+  });
+
+  it("reports available, taken and an unreachable check", async () => {
+    const taken = setup({ ...signedInHandleLess, "account:checkHandle": { ok: true, available: false } });
+    await taken.flow.init("");
+    taken.flow.editHandle(" alice ");
+    expect((await taken.flow.checkHandle()).handleStatus).toBe("taken");
+    expect(taken.sent.at(-1)).toEqual({ type: "account:checkHandle", handle: "alice" });
+
+    const free = setup({ ...signedInHandleLess, "account:checkHandle": { ok: true, available: true } });
+    await free.flow.init("");
+    free.flow.editHandle("alice");
+    expect((await free.flow.checkHandle()).handleStatus).toBe("available");
+
+    const offline = setup({ ...signedInHandleLess, "account:checkHandle": null });
+    await offline.flow.init("");
+    offline.flow.editHandle("alice");
+    expect((await offline.flow.checkHandle()).handleStatus).toBe("error");
+  });
+
+  it("drops an availability answer overtaken by newer typing", async () => {
+    const { flow, deps } = setup(signedInHandleLess);
+    await flow.init("");
+    const base = deps.send.getMockImplementation()!;
+    let answer!: (reply: AccountReply) => void;
+    deps.send.mockImplementation((m: AccountMessage) =>
+      m.type === "account:checkHandle"
+        ? new Promise<AccountReply>((resolve) => {
+            answer = resolve;
+          })
+        : base(m),
+    );
+    flow.editHandle("ali");
+    const stale = flow.checkHandle();
+    flow.editHandle("alic");
+    answer({ ok: true, available: false });
+    expect((await stale).handleStatus).toBe("checking");
+    expect(flow.view().candidate).toBe("alic");
+  });
+
+  it("saves the handle and lands signed in", async () => {
+    const { flow, sent } = setup({ ...signedInHandleLess, "account:setHandle": { ok: true, handle: "Alice" } });
+    await flow.init("");
+    flow.editHandle(" Alice ");
+    const s = await flow.commitHandle();
+    expect(sent.at(-1)).toEqual({ type: "account:setHandle", handle: "Alice" });
+    expect(s.view).toBe("signedin");
+    expect(s.handle).toBe("Alice");
+    expect(s.notice).toContain("@Alice");
+  });
+
+  it("flags a handle claimed in the meantime", async () => {
+    const { flow } = setup({ ...signedInHandleLess, "account:setHandle": { ok: false, error: "conflict" } });
+    await flow.init("");
+    flow.editHandle("alice");
+    const s = await flow.commitHandle();
+    expect(s.view).toBe("handle");
+    expect(s.handleStatus).toBe("taken");
+    expect(s.error).toContain("pris");
+  });
+
+  it("refuses to save an invalid handle without asking the server", async () => {
+    const { flow, sent } = setup(signedInHandleLess);
+    await flow.init("");
+    flow.editHandle("a-b");
+    expect((await flow.commitHandle()).handleStatus).toBe("invalid");
+    flow.editHandle("");
+    expect((await flow.commitHandle()).handleStatus).toBe("empty");
+    expect(types(sent)).not.toContain("account:setHandle");
+  });
+
+  it("leaves the step through abandon, back to sign-in", async () => {
+    const { flow, sent } = setup(signedInHandleLess);
+    await flow.init("");
+    const s = await flow.abandonHandle();
+    expect(sent.at(-1)).toEqual({ type: "account:abandon" });
+    expect(s.view).toBe("signin");
+    expect(s.notice).toContain("déconnecté");
+  });
+
+  it("cannot be navigated away from", async () => {
+    const { flow } = setup(signedInHandleLess);
+    await flow.init("");
+    expect(flow.go("signup").view).toBe("handle");
+  });
+});
+
 describe("AccountFlow navigation", () => {
   it("clears messages on navigation and needs an email for the code step", async () => {
     const { flow } = setup({ "account:signInLocal": { ok: false, error: "unauthenticated" } });
@@ -276,11 +402,18 @@ describe("AccountFlow navigation", () => {
     expect(s.view).toBe("signin");
   });
 
+  it("stays on the signed-in view when a link or hash asks for another", async () => {
+    const { flow } = setup({ "account:state": { ok: true, state: { signedIn: true } } });
+    await flow.init("");
+    expect(flow.go("signin").view).toBe("signedin");
+  });
+
   it("signs out back to sign-in", async () => {
     const { flow, sent } = setup({ "account:state": { ok: true, state: { signedIn: true } } });
     await flow.init("");
     const s = await flow.signOut();
     expect(sent.at(-1)).toEqual({ type: "account:signOut" });
     expect(s.view).toBe("signin");
+    expect(s.handle).toBeNull();
   });
 });

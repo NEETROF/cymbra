@@ -12,6 +12,7 @@ export type AuthErrorKind =
   | "failedPrecondition"
   | "invalidArgument"
   | "notFound"
+  | "conflict"
   | "unavailable"
   | "unknown";
 
@@ -28,6 +29,9 @@ export function authErrorFromCode(code: number): AuthErrorKind {
       return "notFound";
     case Code.AlreadyExists:
       return "alreadyExists";
+    // Optimistic-concurrency conflict, e.g. a handle claimed or the account updated mid-flight.
+    case Code.Aborted:
+      return "conflict";
     case Code.ResourceExhausted:
       return "rateLimited";
     case Code.FailedPrecondition:

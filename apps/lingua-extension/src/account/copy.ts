@@ -5,7 +5,7 @@ import type { AuthErrorKind } from "../state/auth-errors.ts";
 // provider failure is never worded as a password error.
 
 export type FlowContext =
-  "signInEmail" | "signInGoogle" | "signInApple" | "signUp" | "verify" | "resend" | "forgot" | "reset";
+  "signInEmail" | "signInGoogle" | "signInApple" | "signUp" | "verify" | "resend" | "forgot" | "reset" | "handle";
 
 const UNAVAILABLE = "Impossible de joindre Cymbra. Vérifie ta connexion et réessaie.";
 const RATE_LIMITED = "Trop de tentatives. Réessaie dans quelques minutes.";
@@ -35,6 +35,11 @@ export function errorCopy(context: FlowContext, kind: AuthErrorKind): string {
     case "reset":
       if (kind === "invalidArgument" || kind === "notFound" || kind === "unauthenticated")
         return "Code invalide ou expiré, ou mot de passe trop faible.";
+      return GENERIC;
+    case "handle":
+      if (kind === "alreadyExists" || kind === "conflict") return "Ce pseudo vient d'être pris — choisis-en un autre.";
+      if (kind === "invalidArgument") return "1 à 15 lettres ou chiffres uniquement (sans espaces ni symboles).";
+      if (kind === "unauthenticated") return "Ta session a expiré. Reconnecte-toi.";
       return GENERIC;
     case "resend":
     case "forgot":

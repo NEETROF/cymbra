@@ -18,6 +18,9 @@ beforeEach(() => {
     signInWith: vi.fn(),
     signOut: vi.fn(),
     go: vi.fn(),
+    editHandle: vi.fn(),
+    commitHandle: vi.fn(),
+    abandonHandle: vi.fn(),
   };
 });
 
@@ -29,6 +32,9 @@ const state = (over: Partial<AccountViewState> = {}): AccountViewState => ({
   errorKind: null,
   notice: null,
   providers: { google: true, apple: true },
+  handle: null,
+  candidate: "",
+  handleStatus: "empty",
   ...over,
 });
 
@@ -135,8 +141,48 @@ describe("renderAccount", () => {
     expect(actions.signInEmail).not.toHaveBeenCalled();
   });
 
+  it("handle step: typing reports, submitting commits, abandon leaves", () => {
+    render({ view: "handle", candidate: "alice", handleStatus: "available" });
+    expect(root.textContent).toContain("Disponible");
+    input("handle").value = "alicia";
+    input("handle").dispatchEvent(new Event("input"));
+    expect(actions.editHandle).toHaveBeenCalledWith("alicia");
+    submit();
+    expect(actions.commitHandle).toHaveBeenCalledOnce();
+    button("Utiliser un autre compte").click();
+    expect(actions.abandonHandle).toHaveBeenCalledOnce();
+  });
+
+  it("handle step: an empty, invalid or taken handle cannot be submitted", () => {
+    for (const handleStatus of ["empty", "invalid", "taken"] as const) {
+      actions.commitHandle.mockClear();
+      render({ view: "handle", candidate: "x", handleStatus });
+      expect(button("Continuer").disabled).toBe(true);
+      submit();
+      expect(actions.commitHandle).not.toHaveBeenCalled();
+    }
+  });
+
+  it("keeps focus and caret in the handle field across re-renders", () => {
+    render({ view: "handle", candidate: "al", handleStatus: "checking" });
+    const first = input("handle");
+    first.focus();
+    first.setSelectionRange(2, 2);
+    render({ view: "handle", candidate: "al", handleStatus: "available" });
+    const again = input("handle");
+    expect(again).not.toBe(first);
+    expect(document.activeElement).toBe(again);
+    expect(again.selectionStart).toBe(2);
+  });
+
+  it("signed-in shows the handle as text", () => {
+    render({ view: "signedin", handle: "<b>x</b>" });
+    expect(root.querySelector(".account-handle")!.textContent).toBe("@<b>x</b>");
+    expect(root.querySelector(".account-handle b")).toBeNull();
+  });
+
   it("never renders the word 'lemma'/'lemme'", () => {
-    for (const view of ["signin", "signup", "verify", "forgot", "reset", "signedin"] as const) {
+    for (const view of ["signin", "signup", "verify", "forgot", "reset", "handle", "signedin"] as const) {
       render({ view, email: "me@example.com" });
       expect(root.textContent ?? "").not.toMatch(/lemm/i);
     }

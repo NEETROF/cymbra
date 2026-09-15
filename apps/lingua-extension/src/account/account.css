@@ -160,6 +160,27 @@
   font-size: 12px;
 }
 
+.account-help {
+  font-size: 12px;
+  color: var(--cymbra-lingua-muted);
+}
+
+.account-help-available {
+  color: var(--cymbra-lingua-green);
+}
+
+.account-help-invalid,
+.account-help-taken {
+  color: var(--cymbra-lingua-coral);
+}
+
+.account-handle {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--cymbra-lingua-accent);
+}
+
 .account-input:focus-visible,
 .account-primary:focus-visible,
 .account-provider:focus-visible,

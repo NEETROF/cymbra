@@ -73,6 +73,20 @@ function renderAccount(state: AccountState | null): void {
   $("acct-in").hidden = !signedIn;
   $("acct-out").hidden = signedIn;
   $("acct-error").hidden = true;
+  if (signedIn) void renderHandle();
+  else $("acct-handle-cta").hidden = true;
+}
+
+/**
+ * Show the account's handle, or ask for one: a Cymbra account without a handle is deleted by
+ * the backend's orphan reaper, so the popup keeps offering the account page's handle step.
+ */
+async function renderHandle(): Promise<void> {
+  const res = (await sendRuntime({ type: "account:profile" })) as AccountReply | null;
+  const needsHandle = res?.ok === true && res.handle == null;
+  $("acct-handle").textContent =
+    res?.ok && res.handle ? `@${res.handle}` : needsHandle ? "Pseudo à choisir" : "Synchronisation activée";
+  $("acct-handle-cta").hidden = !needsHandle;
 }
 
 function showAccountError(message: string): void {
@@ -113,7 +127,7 @@ function providerContext(provider: Provider): "signInGoogle" | "signInApple" {
 }
 
 /** Open the account page — a tab, which survives the reader leaving for their mailbox. */
-async function openAccountPage(view: "signup" | "forgot" | "verify"): Promise<void> {
+async function openAccountPage(view: "signup" | "forgot" | "verify" | "handle"): Promise<void> {
   try {
     await chrome.tabs.create({ url: chrome.runtime.getURL(`account.html#${view}`) });
   } catch {
@@ -392,6 +406,7 @@ async function main(): Promise<void> {
   });
   $("acct-signup").addEventListener("click", () => void openAccountPage("signup"));
   $("acct-forgot").addEventListener("click", () => void openAccountPage("forgot"));
+  $("acct-handle-open").addEventListener("click", () => void openAccountPage("handle"));
 
   $("signout").addEventListener("click", async () => {
     const res = (await sendRuntime({ type: "account:signOut" })) as AccountReply | null;

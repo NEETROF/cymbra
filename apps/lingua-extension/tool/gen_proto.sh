@@ -5,9 +5,10 @@
 # (Connect ES v2: the *_pb.ts files carry both messages and service descriptors,
 # consumed by @connectrpc/connect's createClient). Run via `yarn gen:proto`.
 #
-# The auth service (sign in / refresh / logout) plus the three cymbra.lingua.v1 sync
-# services (known words, deck, stats) — the *client* side of add-lingua-connected-clients.
-# The lingua admin service is NOT here: that is the back office's, not a client's.
+# The auth service (sign in / refresh / logout), the user service (the account's handle —
+# add-lingua-account-parity) plus the three cymbra.lingua.v1 sync services (known words,
+# deck, stats) — the *client* side of add-lingua-connected-clients. The lingua admin
+# service is NOT here: that is the back office's, not a client's.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -17,6 +18,7 @@ REPO_ROOT="$(cd "$APP_DIR/../.." && pwd)"
 OUT_DIR="$APP_DIR/src/gen"
 AUTH_PROTO_DIR="$REPO_ROOT/backend/auth-port/proto"
 LINGUA_PROTO_DIR="$REPO_ROOT/backend/lingua/proto"
+USER_PROTO_DIR="$REPO_ROOT/backend/user-port/proto"
 
 command -v protoc >/dev/null 2>&1 || {
   echo "error: protoc not found on PATH (brew install protobuf)" >&2
@@ -35,9 +37,10 @@ mkdir -p "$OUT_DIR"
 protoc \
   --proto_path="$AUTH_PROTO_DIR" \
   --proto_path="$LINGUA_PROTO_DIR" \
+  --proto_path="$USER_PROTO_DIR" \
   --plugin=protoc-gen-es="$PLUGIN" \
   --es_out="$OUT_DIR" \
   --es_opt=target=ts \
-  auth.proto known_words.proto deck.proto stats.proto
+  auth.proto user.proto known_words.proto deck.proto stats.proto
 
 echo "Generated TS gRPC stubs into $OUT_DIR"

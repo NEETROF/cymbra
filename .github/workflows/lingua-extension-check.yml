@@ -30,6 +30,10 @@ jobs:
           filters: |
             ext:
               - 'apps/lingua-extension/**'
+              # The protos `yarn gen:proto` generates the extension's clients from.
+              - 'backend/auth-port/proto/**'
+              - 'backend/user-port/proto/**'
+              - 'backend/lingua/proto/**'
               - 'crates/lingua-wasm/**'
               - 'crates/lingua-core/**'
               - 'scripts/lingua-data/**'

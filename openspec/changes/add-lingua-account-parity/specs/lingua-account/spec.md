@@ -123,3 +123,26 @@ The extension SHALL map every auth failure to a category (unauthenticated, alrea
 #### Scenario: Too many attempts
 - **WHEN** a sign-in, resend or reset fails with `RESOURCE_EXHAUSTED`
 - **THEN** the reader sees that there were too many attempts and to try again later
+
+### Requirement: Handle chosen before the account is kept
+The extension SHALL read the signed-in account after every sign-in and whenever the account page opens signed in, and SHALL lead an account without a handle to a handle step before anything else: the handle policy (1–15 Unicode letters or digits) checked locally, availability checked with the server once typing pauses, the handle saved with `UpdateAccount`, and a handle taken in the meantime reported as taken. Leaving the step SHALL delete a handle-less account and sign out, and SHALL only sign out an account that has a handle or whose profile cannot be read. The popup SHALL show the account's handle, or a call to choose one while it is missing.
+
+#### Scenario: Account without a handle
+- **WHEN** a reader signs in to an account with no handle (a new email account, a first Google or Apple sign-in, or an existing handle-less account)
+- **THEN** the account page shows the handle step instead of the signed-in view
+
+#### Scenario: Account that already has a handle
+- **WHEN** a reader signs in to an account that already has a handle, for example from Cymbra Music
+- **THEN** no handle is asked and the signed-in view shows `@handle`
+
+#### Scenario: Handle taken in the meantime
+- **WHEN** `UpdateAccount` fails with `ALREADY_EXISTS` or `ABORTED`
+- **THEN** the handle step stays open and says the handle was just taken
+
+#### Scenario: Leaving without a handle
+- **WHEN** the reader picks "use another account" on the handle step of a handle-less account
+- **THEN** `DeleteAccount` is called, the session is signed out, and the page returns to sign-in
+
+#### Scenario: Popup reminder
+- **WHEN** the popup opens signed in to a handle-less account
+- **THEN** it offers « Choisir mon pseudo », which opens the account page on the handle step
