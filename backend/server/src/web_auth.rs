@@ -25,7 +25,7 @@ use axum::http::{HeaderMap, HeaderName, HeaderValue, Method, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::post;
 use axum::{Json, Router};
-use cymbra_auth_port::AuthPort;
+use cymbra_auth_port::{AuthPort, ClientAddr};
 use cymbra_platform::AppError;
 use serde::Serialize;
 use tower_http::cors::{AllowOrigin, CorsLayer};
@@ -211,12 +211,26 @@ async fn signin(
     if !csrf_ok(&headers) {
         return error_response(StatusCode::FORBIDDEN, "missing csrf header", None);
     }
+    // The lockout keys the email with the client address (change: fix-auth-lockout-dos).
+    let client = ClientAddr::new(cymbra_platform::client_addr::resolve(
+        |name| {
+            headers
+                .get(name)
+                .and_then(|v| v.to_str().ok())
+                .map(str::to_string)
+        },
+        None,
+    ));
     let result = match body.0 {
         SignInBody::Local {
             email,
             password,
             audience,
-        } => s.auth.sign_in_local(&email, &password, &audience).await,
+        } => {
+            s.auth
+                .sign_in_local(&email, &password, &audience, &client)
+                .await
+        }
         SignInBody::Oidc { id_token, audience } => s.auth.sign_in_oidc(&id_token, &audience).await,
     };
     match result {
@@ -320,6 +334,7 @@ mod tests {
             email: &str,
             password: &str,
             audience: &str,
+            _client: &ClientAddr,
         ) -> Result<TokenPair> {
             if email != self.email || password != self.password {
                 return Err(AppError::Unauthenticated("invalid credentials".into()));
@@ -359,16 +374,32 @@ mod tests {
         ) -> Result<()> {
             unreachable!()
         }
-        async fn sign_up_local(&self, _email: &str, _password: &str, _locale: &str) -> Result<()> {
+        async fn sign_up_local(
+            &self,
+            _email: &str,
+            _password: &str,
+            _locale: &str,
+            _client: &ClientAddr,
+        ) -> Result<()> {
             unreachable!()
         }
         async fn verify_email(&self, _token: &str) -> Result<()> {
             unreachable!()
         }
-        async fn resend_verification(&self, _email: &str, _locale: &str) -> Result<()> {
+        async fn resend_verification(
+            &self,
+            _email: &str,
+            _locale: &str,
+            _client: &ClientAddr,
+        ) -> Result<()> {
             unreachable!()
         }
-        async fn request_password_reset(&self, _email: &str, _locale: &str) -> Result<()> {
+        async fn request_password_reset(
+            &self,
+            _email: &str,
+            _locale: &str,
+            _client: &ClientAddr,
+        ) -> Result<()> {
             unreachable!()
         }
         async fn reset_password(&self, _token: &str, _new_password: &str) -> Result<()> {

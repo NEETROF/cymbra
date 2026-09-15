@@ -7,6 +7,7 @@
 //! [`AuthIdentity`] request context. It MUST NOT depend on any module crate.
 
 pub mod cache;
+pub mod client_addr;
 pub mod config;
 pub mod db;
 pub mod email;

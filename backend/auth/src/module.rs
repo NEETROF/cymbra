@@ -6,7 +6,7 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use async_trait::async_trait;
-use cymbra_auth_port::{AuthPort, TokenPair};
+use cymbra_auth_port::{AuthPort, ClientAddr, TokenPair};
 use cymbra_platform::cache::Cache;
 use cymbra_platform::email::EmailSender;
 use cymbra_platform::email_template::{self, SupportedLocale};
@@ -15,6 +15,7 @@ use cymbra_user_port::UserPort;
 use jsonwebtoken::EncodingKey;
 
 use crate::creds::CredentialRepo;
+use crate::limits::{self, AuthLimits};
 use crate::pending_setpw::{PendingCredentialStore, PendingLocalCredential};
 use crate::session::SessionStore;
 use crate::verifier::OidcVerifier;
@@ -26,10 +27,8 @@ pub struct AuthConfig {
     pub refresh_ttl: Duration,
     pub allowed_audiences: Vec<String>,
     pub password_min_length: usize,
-    pub signin_max_attempts: u32,
-    pub signin_lockout: Duration,
-    pub email_max: u32,
-    pub email_window: Duration,
+    /// Brute-force and email-send limits (change: fix-auth-lockout-dos).
+    pub limits: AuthLimits,
     pub verify_ttl: Duration,
     pub reset_ttl: Duration,
     /// Hosted "Cymbra ID" logo URL for branded emails; `None` = text wordmark only.
@@ -155,6 +154,50 @@ impl AuthModule {
         ))
     }
 
+    /// Current value of a sign-in failure counter (absent = 0).
+    async fn failures(&self, key: &str) -> Result<u32> {
+        Ok(self
+            .cache
+            .get(key)
+            .await?
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(0))
+    }
+
+    /// Spend one verification/reset email against its three budgets — per (email,
+    /// address) for `scope`, per address, per email — stopping at the first refusal so a
+    /// refused request does not spend the later ones (change: fix-auth-lockout-dos, D4).
+    /// The keys never depend on whether the account exists.
+    async fn throttle_email(&self, scope: &str, email: &str, client: &ClientAddr) -> Result<()> {
+        let l = &self.cfg.limits;
+        let cache = self.cache.as_ref();
+        let addr = client.as_str();
+        ratelimit::check(
+            cache,
+            scope,
+            &limits::email_pair_subject(email, addr),
+            l.email_max,
+            l.email_window,
+        )
+        .await?;
+        ratelimit::check(
+            cache,
+            limits::EMAIL_ADDR_SCOPE,
+            addr,
+            l.email_addr_max,
+            l.email_addr_window,
+        )
+        .await?;
+        ratelimit::check(
+            cache,
+            limits::EMAIL_ACCOUNT_SCOPE,
+            &limits::normalize_email(email),
+            l.email_account_max,
+            l.email_account_window,
+        )
+        .await
+    }
+
     /// Mint an access (signed) + refresh (session) token pair for `audience`.
     async fn issue(&self, user_id: &str, audience: &str) -> Result<TokenPair> {
         let claims = self.access_claims(user_id, audience).await?;
@@ -174,10 +217,7 @@ impl AuthConfig {
         refresh_ttl: Duration,
         allowed_audiences: Vec<String>,
         password_min_length: usize,
-        signin_max_attempts: u32,
-        signin_lockout: Duration,
-        email_max: u32,
-        email_window: Duration,
+        limits: AuthLimits,
         verify_ttl: Duration,
         reset_ttl: Duration,
         email_logo_url: Option<String>,
@@ -187,10 +227,7 @@ impl AuthConfig {
             refresh_ttl,
             allowed_audiences,
             password_min_length,
-            signin_max_attempts,
-            signin_lockout,
-            email_max,
-            email_window,
+            limits,
             verify_ttl,
             reset_ttl,
             email_logo_url,
@@ -200,8 +237,25 @@ impl AuthConfig {
 
 #[async_trait]
 impl AuthPort for AuthModule {
-    async fn sign_up_local(&self, email: &str, password: &str, locale: &str) -> Result<()> {
+    async fn sign_up_local(
+        &self,
+        email: &str,
+        password: &str,
+        locale: &str,
+        client: &ClientAddr,
+    ) -> Result<()> {
         password::check_policy(password, self.cfg.password_min_length)?;
+        // Sign-up emails an address that has no account yet, so only the per-address
+        // budget applies: it stops one client from mailing arbitrary addresses (D4).
+        let l = &self.cfg.limits;
+        ratelimit::check(
+            self.cache.as_ref(),
+            limits::EMAIL_ADDR_SCOPE,
+            client.as_str(),
+            l.email_addr_max,
+            l.email_addr_window,
+        )
+        .await?;
         let hash = password::hash(password)?;
         self.creds.insert(email, &hash).await?; // AlreadyExists if taken
         // Provision the shared account + its `local` identity, then record the
@@ -265,15 +319,13 @@ impl AuthPort for AuthModule {
         }
     }
 
-    async fn resend_verification(&self, email: &str, locale: &str) -> Result<()> {
-        ratelimit::check(
-            self.cache.as_ref(),
-            "verify_email",
-            email,
-            self.cfg.email_max,
-            self.cfg.email_window,
-        )
-        .await?;
+    async fn resend_verification(
+        &self,
+        email: &str,
+        locale: &str,
+        client: &ClientAddr,
+    ) -> Result<()> {
+        self.throttle_email("verify_email", email, client).await?;
         if let Some(cred) = self.creds.get(email).await?
             && !cred.email_verified
         {
@@ -301,16 +353,24 @@ impl AuthPort for AuthModule {
         email: &str,
         password: &str,
         audience: &str,
+        client: &ClientAddr,
     ) -> Result<TokenPair> {
         self.check_audience(audience)?;
-        let lock_key = format!("signin:{email}");
-        let attempts: u32 = self
-            .cache
-            .get(&lock_key)
-            .await?
-            .and_then(|v| v.parse().ok())
-            .unwrap_or(0);
-        if attempts >= self.cfg.signin_max_attempts {
+        // Three counters (change: fix-auth-lockout-dos, D3): the lockout per (email,
+        // address), failures per address across emails, and a higher ceiling per email
+        // across addresses. Any one at its limit refuses, and increments nothing.
+        let l = &self.cfg.limits;
+        let addr = client.as_str();
+        let pair_key = limits::signin_pair_key(email, addr);
+        let addr_key = limits::signin_addr_key(addr);
+        let account_key = limits::signin_account_key(email);
+        if limits::at_limit(self.failures(&pair_key).await?, l.signin_max_attempts)
+            || limits::at_limit(self.failures(&addr_key).await?, l.signin_addr_max_failures)
+            || limits::at_limit(
+                self.failures(&account_key).await?,
+                l.signin_account_max_failures,
+            )
+        {
             return Err(AppError::ResourceExhausted(
                 "too many sign-in attempts, try again later".into(),
             ));
@@ -324,7 +384,13 @@ impl AuthPort for AuthModule {
             Some(c) => c,
             None => {
                 self.cache
-                    .incr_with_ttl(&lock_key, self.cfg.signin_lockout)
+                    .incr_with_ttl(&pair_key, l.signin_lockout)
+                    .await?;
+                self.cache
+                    .incr_with_ttl(&addr_key, l.signin_lockout)
+                    .await?;
+                self.cache
+                    .incr_with_ttl(&account_key, l.signin_account_window)
                     .await?;
                 return Err(AppError::Unauthenticated("invalid credentials".into()));
             }
@@ -332,7 +398,10 @@ impl AuthPort for AuthModule {
         if !cred.email_verified {
             return Err(AppError::FailedPrecondition("email not verified".into()));
         }
-        self.cache.del(&lock_key).await?; // clear failures on success
+        // Only the owner can succeed: clear their lockout and the per-email ceiling. The
+        // per-address counter stays — it also reflects other emails.
+        self.cache.del(&pair_key).await?;
+        self.cache.del(&account_key).await?;
         let user_id = self.user.resolve_or_provision("local", email).await?;
         self.issue(&user_id, audience).await
     }
@@ -382,15 +451,13 @@ impl AuthPort for AuthModule {
         Ok(())
     }
 
-    async fn request_password_reset(&self, email: &str, locale: &str) -> Result<()> {
-        ratelimit::check(
-            self.cache.as_ref(),
-            "reset_email",
-            email,
-            self.cfg.email_max,
-            self.cfg.email_window,
-        )
-        .await?;
+    async fn request_password_reset(
+        &self,
+        email: &str,
+        locale: &str,
+        client: &ClientAddr,
+    ) -> Result<()> {
+        self.throttle_email("reset_email", email, client).await?;
         if let Some(_cred) = self.creds.get(email).await? {
             // Locale refresh + stored-locale fallback lookup live INSIDE the
             // account-exists branch (design D5), so they add no observable
@@ -528,7 +595,21 @@ mod tests {
         user: Arc<dyn UserPort>,
     }
 
+    /// The address the existing tests sign in and send from.
+    fn ip() -> ClientAddr {
+        ClientAddr::new("198.51.100.1")
+    }
+
     fn harness() -> Harness {
+        harness_with(AuthLimits::with_default_ceilings(
+            3,
+            Duration::from_secs(60),
+            5,
+            Duration::from_secs(3600),
+        ))
+    }
+
+    fn harness_with(limits: AuthLimits) -> Harness {
         let user: Arc<dyn UserPort> = Arc::new(UserModule::new(FakeUserRepo::default()));
         let creds = Arc::new(FakeCredentialRepo::default());
         let cache: Arc<dyn Cache> = Arc::new(FakeCache::default());
@@ -548,10 +629,7 @@ mod tests {
                 cymbra_platform::BACKOFFICE_AUDIENCE.into(),
             ],
             12,
-            3,
-            Duration::from_secs(60),
-            5,
-            Duration::from_secs(3600),
+            limits,
             Duration::from_secs(86_400),
             Duration::from_secs(3600),
             None,
@@ -590,10 +668,13 @@ mod tests {
     #[tokio::test]
     async fn signup_verify_signin_issues_scoped_token() {
         let h = harness();
-        h.m.sign_up_local("a@x.dev", PW, "").await.unwrap();
+        h.m.sign_up_local("a@x.dev", PW, "", &ip()).await.unwrap();
         let tok = h.creds.peek_verification_token("a@x.dev").unwrap();
         h.m.verify_email(&tok).await.unwrap();
-        let pair = h.m.sign_in_local("a@x.dev", PW, "music").await.unwrap();
+        let pair =
+            h.m.sign_in_local("a@x.dev", PW, "music", &ip())
+                .await
+                .unwrap();
         let claims = ptoken::verify(&pair.access_token, &keys(), &["music"]).unwrap();
         assert_eq!(claims.aud, "music");
         assert!(claims.roles.contains(&"user".to_string()));
@@ -605,7 +686,7 @@ mod tests {
     #[tokio::test]
     async fn back_office_signin_carries_every_scope_and_refresh_reflects_changes() {
         let h = harness();
-        h.m.sign_up_local("adm@x.dev", PW, "").await.unwrap();
+        h.m.sign_up_local("adm@x.dev", PW, "", &ip()).await.unwrap();
         let tok = h.creds.peek_verification_token("adm@x.dev").unwrap();
         h.m.verify_email(&tok).await.unwrap();
         // The account is a music/admin and a live/moderator (but not global).
@@ -629,7 +710,7 @@ mod tests {
             .unwrap();
 
         let ba = cymbra_platform::BACKOFFICE_AUDIENCE;
-        let pair = h.m.sign_in_local("adm@x.dev", PW, ba).await.unwrap();
+        let pair = h.m.sign_in_local("adm@x.dev", PW, ba, &ip()).await.unwrap();
         let claims = ptoken::verify(&pair.access_token, &keys(), &[ba]).unwrap();
         assert_eq!(claims.aud, ba);
         // The back-office token carries the real per-scope roles across all scopes.
@@ -652,7 +733,7 @@ mod tests {
     #[tokio::test]
     async fn signup_enqueues_email_off_request_path() {
         let h = harness();
-        h.m.sign_up_local("a@x.dev", PW, "").await.unwrap();
+        h.m.sign_up_local("a@x.dev", PW, "", &ip()).await.unwrap();
         // SMTP is no longer on the sign-up request path (design D10).
         assert!(
             h.email.sent.lock().unwrap().is_empty(),
@@ -672,13 +753,13 @@ mod tests {
     #[tokio::test]
     async fn duplicate_and_weak_password() {
         let h = harness();
-        h.m.sign_up_local("a@x.dev", PW, "").await.unwrap();
+        h.m.sign_up_local("a@x.dev", PW, "", &ip()).await.unwrap();
         assert!(matches!(
-            h.m.sign_up_local("a@x.dev", PW, "").await,
+            h.m.sign_up_local("a@x.dev", PW, "", &ip()).await,
             Err(AppError::AlreadyExists(_))
         ));
         assert!(matches!(
-            h.m.sign_up_local("b@x.dev", "short", "").await,
+            h.m.sign_up_local("b@x.dev", "short", "", &ip()).await,
             Err(AppError::InvalidArgument(_))
         ));
     }
@@ -686,10 +767,10 @@ mod tests {
     #[tokio::test]
     async fn unverified_blocked_then_wrong_password_then_lockout() {
         let h = harness();
-        h.m.sign_up_local("a@x.dev", PW, "").await.unwrap();
+        h.m.sign_up_local("a@x.dev", PW, "", &ip()).await.unwrap();
         // unverified
         assert!(matches!(
-            h.m.sign_in_local("a@x.dev", PW, "music").await,
+            h.m.sign_in_local("a@x.dev", PW, "music", &ip()).await,
             Err(AppError::FailedPrecondition(_))
         ));
         let tok = h.creds.peek_verification_token("a@x.dev").unwrap();
@@ -697,12 +778,12 @@ mod tests {
         // three wrong attempts -> Unauthenticated, then lockout
         for _ in 0..3 {
             assert!(matches!(
-                h.m.sign_in_local("a@x.dev", "nope", "music").await,
+                h.m.sign_in_local("a@x.dev", "nope", "music", &ip()).await,
                 Err(AppError::Unauthenticated(_))
             ));
         }
         assert!(matches!(
-            h.m.sign_in_local("a@x.dev", "nope", "music").await,
+            h.m.sign_in_local("a@x.dev", "nope", "music", &ip()).await,
             Err(AppError::ResourceExhausted(_))
         ));
     }
@@ -806,12 +887,17 @@ mod tests {
     #[tokio::test]
     async fn password_reset_invalidates_sessions() {
         let h = harness();
-        h.m.sign_up_local("b@x.dev", PW, "").await.unwrap();
+        h.m.sign_up_local("b@x.dev", PW, "", &ip()).await.unwrap();
         let vt = h.creds.peek_verification_token("b@x.dev").unwrap();
         h.m.verify_email(&vt).await.unwrap();
-        let pair = h.m.sign_in_local("b@x.dev", PW, "music").await.unwrap();
+        let pair =
+            h.m.sign_in_local("b@x.dev", PW, "music", &ip())
+                .await
+                .unwrap();
 
-        h.m.request_password_reset("b@x.dev", "").await.unwrap();
+        h.m.request_password_reset("b@x.dev", "", &ip())
+            .await
+            .unwrap();
         let rt = h.creds.peek_reset_token("b@x.dev").unwrap();
         let new_pw = format!("Pw-{}-Aa1!", uuid::Uuid::new_v4());
         h.m.reset_password(&rt, &new_pw).await.unwrap();
@@ -822,7 +908,7 @@ mod tests {
             Err(AppError::Unauthenticated(_))
         ));
         // new password works
-        h.m.sign_in_local("b@x.dev", &new_pw, "music")
+        h.m.sign_in_local("b@x.dev", &new_pw, "music", &ip())
             .await
             .unwrap();
     }
@@ -847,7 +933,7 @@ mod tests {
 
         // Sign-in fails as "no such credential" (unauthenticated), not "unverified".
         assert!(matches!(
-            h.m.sign_in_local("me@x.dev", PW, "music").await,
+            h.m.sign_in_local("me@x.dev", PW, "music", &ip()).await,
             Err(AppError::Unauthenticated(_))
         ));
 
@@ -855,7 +941,10 @@ mod tests {
         // local identity, resolving to the SAME account (no second account).
         let tok = h.pending.only_token();
         h.m.verify_email(&tok).await.unwrap();
-        let pair = h.m.sign_in_local("me@x.dev", PW, "music").await.unwrap();
+        let pair =
+            h.m.sign_in_local("me@x.dev", PW, "music", &ip())
+                .await
+                .unwrap();
         assert_eq!(sub_of(&pair.access_token, "music"), uid);
     }
 
@@ -869,7 +958,9 @@ mod tests {
             .await
             .unwrap();
         // … the email is NOT reserved: a fresh sign-up can still register it.
-        h.m.sign_up_local("victim@x.dev", PW, "").await.unwrap();
+        h.m.sign_up_local("victim@x.dev", PW, "", &ip())
+            .await
+            .unwrap();
         assert!(h.creds.get("victim@x.dev").await.unwrap().is_some());
     }
 
@@ -923,7 +1014,7 @@ mod tests {
         ));
         // The email resolves to A's account.
         let pair =
-            h.m.sign_in_local("shared@x.dev", PW, "music")
+            h.m.sign_in_local("shared@x.dev", PW, "music", &ip())
                 .await
                 .unwrap();
         assert_eq!(sub_of(&pair.access_token, "music"), uid_a);
@@ -959,7 +1050,7 @@ mod tests {
     async fn set_local_credential_rejects_email_owned_by_another_account() {
         let h = harness();
         // Account A owns me@x.dev via a verified local credential.
-        h.m.sign_up_local("me@x.dev", PW, "").await.unwrap();
+        h.m.sign_up_local("me@x.dev", PW, "", &ip()).await.unwrap();
         let vt = h.creds.peek_verification_token("me@x.dev").unwrap();
         h.m.verify_email(&vt).await.unwrap();
 
@@ -972,7 +1063,9 @@ mod tests {
             Err(AppError::AlreadyExists(_))
         ));
         // A can still sign in — its credential survived the failed claim.
-        h.m.sign_in_local("me@x.dev", PW, "music").await.unwrap();
+        h.m.sign_in_local("me@x.dev", PW, "music", &ip())
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
@@ -1002,7 +1095,10 @@ mod tests {
             .await
             .unwrap();
         h.m.verify_email(&h.pending.only_token()).await.unwrap();
-        let pair = h.m.sign_in_local("me@x.dev", PW, "music").await.unwrap();
+        let pair =
+            h.m.sign_in_local("me@x.dev", PW, "music", &ip())
+                .await
+                .unwrap();
         assert_eq!(sub_of(&pair.access_token, "music"), uid);
     }
 
@@ -1029,11 +1125,11 @@ mod tests {
     #[tokio::test]
     async fn resend_verification_sends_branded_multipart_email() {
         let h = harness();
-        h.m.sign_up_local("v@x.dev", PW, "").await.unwrap();
+        h.m.sign_up_local("v@x.dev", PW, "", &ip()).await.unwrap();
         // Sign-up enqueues a job (no direct send yet).
         assert!(h.email.sent.lock().unwrap().is_empty());
 
-        h.m.resend_verification("v@x.dev", "").await.unwrap();
+        h.m.resend_verification("v@x.dev", "", &ip()).await.unwrap();
         let sent = h.email.sent.lock().unwrap();
         let msg = sent.first().expect("resend should send one email");
         let code = h.creds.peek_verification_token("v@x.dev").unwrap();
@@ -1052,10 +1148,12 @@ mod tests {
     async fn sign_up_records_locale_and_resend_falls_back_to_it() {
         let h = harness();
         // Sign up carrying French → the account's stored locale becomes fr.
-        h.m.sign_up_local("a@x.dev", PW, "fr-FR").await.unwrap();
+        h.m.sign_up_local("a@x.dev", PW, "fr-FR", &ip())
+            .await
+            .unwrap();
         // A later resend that carries NO locale renders in the STORED (French)
         // locale, not English.
-        h.m.resend_verification("a@x.dev", "").await.unwrap();
+        h.m.resend_verification("a@x.dev", "", &ip()).await.unwrap();
         let sent = h.email.sent.lock().unwrap();
         let msg = sent.first().expect("resend should send one email");
         assert_eq!(msg.subject, "Vérifiez votre compte Cymbra");
@@ -1065,9 +1163,11 @@ mod tests {
     async fn request_locale_overrides_stored_locale() {
         let h = harness();
         // Stored locale is French from sign-up …
-        h.m.sign_up_local("a@x.dev", PW, "fr").await.unwrap();
+        h.m.sign_up_local("a@x.dev", PW, "fr", &ip()).await.unwrap();
         // … but an explicit Italian request wins over the stored French.
-        h.m.resend_verification("a@x.dev", "it").await.unwrap();
+        h.m.resend_verification("a@x.dev", "it", &ip())
+            .await
+            .unwrap();
         let sent = h.email.sent.lock().unwrap();
         let msg = sent.first().expect("resend should send one email");
         assert_eq!(msg.subject, "Verifica il tuo account Cymbra");
@@ -1077,9 +1177,9 @@ mod tests {
     async fn no_stored_and_no_request_locale_renders_in_english() {
         let h = harness();
         // No locale at sign-up → nothing stored.
-        h.m.sign_up_local("a@x.dev", PW, "").await.unwrap();
+        h.m.sign_up_local("a@x.dev", PW, "", &ip()).await.unwrap();
         // Resend with no locale either → English fallback.
-        h.m.resend_verification("a@x.dev", "").await.unwrap();
+        h.m.resend_verification("a@x.dev", "", &ip()).await.unwrap();
         let sent = h.email.sent.lock().unwrap();
         let msg = sent.first().expect("resend should send one email");
         assert_eq!(msg.subject, "Verify your Cymbra account");
@@ -1089,13 +1189,19 @@ mod tests {
     async fn password_reset_is_enumeration_uniform_with_stored_locale_lookup() {
         let h = harness();
         // An existing, verified account whose stored locale is French.
-        h.m.sign_up_local("real@x.dev", PW, "fr").await.unwrap();
+        h.m.sign_up_local("real@x.dev", PW, "fr", &ip())
+            .await
+            .unwrap();
         let vt = h.creds.peek_verification_token("real@x.dev").unwrap();
         h.m.verify_email(&vt).await.unwrap();
 
         // Both an existing and a non-existing address return the SAME uniform Ok(()).
-        h.m.request_password_reset("real@x.dev", "").await.unwrap();
-        h.m.request_password_reset("ghost@x.dev", "").await.unwrap();
+        h.m.request_password_reset("real@x.dev", "", &ip())
+            .await
+            .unwrap();
+        h.m.request_password_reset("ghost@x.dev", "", &ip())
+            .await
+            .unwrap();
 
         // Only the existing account produced an email — the stored-locale lookup
         // (inside the account-exists branch) adds no externally observable
@@ -1110,12 +1216,12 @@ mod tests {
     #[tokio::test]
     async fn password_reset_sends_branded_localized_email() {
         let h = harness();
-        h.m.sign_up_local("r@x.dev", PW, "").await.unwrap();
+        h.m.sign_up_local("r@x.dev", PW, "", &ip()).await.unwrap();
         let vt = h.creds.peek_verification_token("r@x.dev").unwrap();
         h.m.verify_email(&vt).await.unwrap();
 
         // French locale -> French subject + French legal links.
-        h.m.request_password_reset("r@x.dev", "fr-FR")
+        h.m.request_password_reset("r@x.dev", "fr-FR", &ip())
             .await
             .unwrap();
         let sent = h.email.sent.lock().unwrap();
@@ -1125,5 +1231,208 @@ mod tests {
         assert!(msg.html.contains("https://cymbra.app/cgu/"));
         assert!(msg.html.contains(&code));
         assert!(msg.text.contains(&code));
+    }
+
+    // --- Limits keyed on (email, address) (change: fix-auth-lockout-dos) ---------------
+
+    fn at(addr: &str) -> ClientAddr {
+        ClientAddr::new(addr)
+    }
+
+    /// Limits small enough to reach in a test: (pair, per address, per email) for
+    /// sign-in and for email sends.
+    fn tight(signin: (u32, u32, u32), email: (u32, u32, u32)) -> AuthLimits {
+        let hour = Duration::from_secs(3600);
+        AuthLimits {
+            signin_max_attempts: signin.0,
+            signin_lockout: Duration::from_secs(60),
+            signin_addr_max_failures: signin.1,
+            signin_account_max_failures: signin.2,
+            signin_account_window: hour,
+            email_max: email.0,
+            email_window: hour,
+            email_addr_max: email.1,
+            email_addr_window: hour,
+            email_account_max: email.2,
+            email_account_window: hour,
+        }
+    }
+
+    /// A verified local account, signed up from its own address.
+    async fn verified(h: &Harness, email: &str) {
+        h.m.sign_up_local(email, PW, "", &at("192.0.2.1"))
+            .await
+            .unwrap();
+        let tok = h.creds.peek_verification_token(email).unwrap();
+        h.m.verify_email(&tok).await.unwrap();
+    }
+
+    async fn wrong(h: &Harness, email: &str, addr: &str) -> Result<TokenPair> {
+        h.m.sign_in_local(email, "nope", "music", &at(addr)).await
+    }
+
+    #[tokio::test]
+    async fn a_lockout_from_one_address_does_not_lock_the_owner_elsewhere() {
+        let h = harness(); // 3 failures per (email, address)
+        verified(&h, "a@x.dev").await;
+        for _ in 0..3 {
+            assert!(matches!(
+                wrong(&h, "a@x.dev", "203.0.113.66").await,
+                Err(AppError::Unauthenticated(_))
+            ));
+        }
+        // The attacker's address is locked out, even with the right password…
+        assert!(matches!(
+            h.m.sign_in_local("a@x.dev", PW, "music", &at("203.0.113.66"))
+                .await,
+            Err(AppError::ResourceExhausted(_))
+        ));
+        // …while the owner, from their own address, signs in.
+        h.m.sign_in_local("a@x.dev", PW, "music", &at("198.51.100.20"))
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn failures_across_emails_block_that_address() {
+        let h = harness_with(tight((3, 4, 200), (5, 20, 10)));
+        verified(&h, "a@x.dev").await;
+        verified(&h, "b@x.dev").await;
+        for email in ["a@x.dev", "a@x.dev", "b@x.dev", "b@x.dev"] {
+            assert!(matches!(
+                wrong(&h, email, "203.0.113.66").await,
+                Err(AppError::Unauthenticated(_))
+            ));
+        }
+        // Four failures from one address: it is refused even for an email it never tried.
+        assert!(matches!(
+            wrong(&h, "c@x.dev", "203.0.113.66").await,
+            Err(AppError::ResourceExhausted(_))
+        ));
+        // Another address is unaffected.
+        h.m.sign_in_local("b@x.dev", PW, "music", &at("198.51.100.20"))
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn failures_spread_over_addresses_hit_the_email_ceiling() {
+        let h = harness_with(tight((3, 30, 4), (5, 20, 10)));
+        verified(&h, "a@x.dev").await;
+        for addr in ["203.0.113.1", "203.0.113.1", "203.0.113.2", "203.0.113.2"] {
+            assert!(matches!(
+                wrong(&h, "a@x.dev", addr).await,
+                Err(AppError::Unauthenticated(_))
+            ));
+        }
+        assert!(matches!(
+            h.m.sign_in_local("a@x.dev", PW, "music", &at("203.0.113.3"))
+                .await,
+            Err(AppError::ResourceExhausted(_))
+        ));
+    }
+
+    #[tokio::test]
+    async fn a_success_clears_the_lockout_and_the_email_ceiling() {
+        let h = harness_with(tight((3, 30, 4), (5, 20, 10)));
+        verified(&h, "a@x.dev").await;
+        let addr = "198.51.100.20";
+        for _ in 0..2 {
+            wrong(&h, "a@x.dev", addr).await.unwrap_err();
+        }
+        h.m.sign_in_local("a@x.dev", PW, "music", &at(addr))
+            .await
+            .unwrap();
+        for _ in 0..2 {
+            wrong(&h, "a@x.dev", addr).await.unwrap_err();
+        }
+        // Without the clearing, the pair (4 ≥ 3) and the ceiling (4 ≥ 4) would refuse.
+        h.m.sign_in_local("a@x.dev", PW, "music", &at(addr))
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn letter_case_and_spaces_share_the_counters() {
+        let h = harness();
+        verified(&h, "a@x.dev").await;
+        for variant in ["A@x.dev", " a@x.dev ", "a@X.DEV"] {
+            assert!(matches!(
+                wrong(&h, variant, "203.0.113.66").await,
+                Err(AppError::Unauthenticated(_))
+            ));
+        }
+        assert!(matches!(
+            h.m.sign_in_local("a@x.dev", PW, "music", &at("203.0.113.66"))
+                .await,
+            Err(AppError::ResourceExhausted(_))
+        ));
+    }
+
+    #[tokio::test]
+    async fn one_address_cannot_exhaust_anothers_reset_emails() {
+        let h = harness_with(tight((3, 30, 200), (2, 20, 10)));
+        verified(&h, "r@x.dev").await;
+        let attacker = at("203.0.113.66");
+        h.m.request_password_reset("r@x.dev", "", &attacker)
+            .await
+            .unwrap();
+        h.m.request_password_reset("r@x.dev", "", &attacker)
+            .await
+            .unwrap();
+        assert!(matches!(
+            h.m.request_password_reset("r@x.dev", "", &attacker).await,
+            Err(AppError::ResourceExhausted(_))
+        ));
+        // The owner still receives a reset email from their own address.
+        h.m.request_password_reset("r@x.dev", "", &at("198.51.100.20"))
+            .await
+            .unwrap();
+        assert_eq!(h.email.sent.lock().unwrap().len(), 3);
+    }
+
+    #[tokio::test]
+    async fn the_address_budget_spans_every_email_endpoint() {
+        let h = harness_with(tight((3, 30, 200), (5, 3, 10)));
+        let addr = at("203.0.113.77");
+        h.m.sign_up_local("x@x.dev", PW, "", &addr).await.unwrap();
+        h.m.resend_verification("x@x.dev", "", &addr).await.unwrap();
+        h.m.request_password_reset("x@x.dev", "", &addr)
+            .await
+            .unwrap();
+        assert!(matches!(
+            h.m.request_password_reset("y@x.dev", "", &addr).await,
+            Err(AppError::ResourceExhausted(_))
+        ));
+        assert!(matches!(
+            h.m.sign_up_local("z@x.dev", PW, "", &addr).await,
+            Err(AppError::ResourceExhausted(_))
+        ));
+        h.m.request_password_reset("y@x.dev", "", &at("203.0.113.78"))
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn email_requests_spread_over_addresses_hit_the_email_ceiling() {
+        let h = harness_with(tight((3, 30, 200), (1, 20, 2)));
+        h.m.request_password_reset("r@x.dev", "", &at("203.0.113.1"))
+            .await
+            .unwrap();
+        // Refused by its own pair budget: this must not spend the email ceiling…
+        assert!(matches!(
+            h.m.request_password_reset("R@x.dev", "", &at("203.0.113.1"))
+                .await,
+            Err(AppError::ResourceExhausted(_))
+        ));
+        // …so a second address still gets through, and a third reaches the ceiling.
+        h.m.request_password_reset("r@x.dev", "", &at("203.0.113.2"))
+            .await
+            .unwrap();
+        assert!(matches!(
+            h.m.request_password_reset("r@x.dev", "", &at("203.0.113.3"))
+                .await,
+            Err(AppError::ResourceExhausted(_))
+        ));
     }
 }

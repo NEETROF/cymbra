@@ -98,25 +98,20 @@ fn unauthenticated() -> Response {
     error_response(&AppError::Unauthenticated("sign in required".into()))
 }
 
-/// Best-effort client address for the per-address throttle: the first
-/// `X-Forwarded-For` hop (set by the reverse proxy), else `X-Real-IP`, else
-/// `unknown` — the per-account limit is the primary guard.
+/// Best-effort client address for the per-address throttle, resolved like every other
+/// rate limit (`cymbra_platform::client_addr`: the first `X-Forwarded-For` hop set by the
+/// reverse proxy, else `X-Real-IP`, else `unknown`) — the per-account limit is the primary
+/// guard.
 fn client_addr(headers: &HeaderMap) -> String {
-    headers
-        .get("x-forwarded-for")
-        .and_then(|v| v.to_str().ok())
-        .and_then(|v| v.split(',').next())
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .or_else(|| {
+    cymbra_platform::client_addr::resolve(
+        |name| {
             headers
-                .get("x-real-ip")
+                .get(name)
                 .and_then(|v| v.to_str().ok())
-                .map(str::trim)
-                .filter(|s| !s.is_empty())
-        })
-        .unwrap_or("unknown")
-        .to_string()
+                .map(str::to_string)
+        },
+        None,
+    )
 }
 
 fn error_response(e: &AppError) -> Response {

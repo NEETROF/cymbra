@@ -8,9 +8,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use cymbra_auth::{
-    AuthConfig, AuthModule, FakeOidcVerifier, PgCredentialRepo, PgSessionStore, SessionStore,
+    AuthConfig, AuthLimits, AuthModule, FakeOidcVerifier, PgCredentialRepo, PgSessionStore,
+    SessionStore,
 };
-use cymbra_auth_port::AuthPort;
+use cymbra_auth_port::{AuthPort, ClientAddr};
 use cymbra_platform::cache::{Cache, RedisCache};
 use cymbra_platform::email::{EmailSender, FakeEmail};
 use cymbra_platform::{AppError, Result};
@@ -52,10 +53,7 @@ async fn local_lifecycle_signup_verify_signin_refresh_reuse() -> Result<()> {
         Duration::from_secs(2_592_000),
         vec!["music".into()],
         12,
-        3,
-        Duration::from_secs(60),
-        5,
-        Duration::from_secs(3600),
+        AuthLimits::with_default_ceilings(3, Duration::from_secs(60), 5, Duration::from_secs(3600)),
         Duration::from_secs(86_400),
         Duration::from_secs(3600),
         None,
@@ -70,8 +68,9 @@ async fn local_lifecycle_signup_verify_signin_refresh_reuse() -> Result<()> {
 
     // Unique email per run.
     let email_addr = format!("it-{}@x.dev", uuid::Uuid::new_v4());
+    let client = ClientAddr::new("203.0.113.7");
 
-    m.sign_up_local(&email_addr, PW, "").await?;
+    m.sign_up_local(&email_addr, PW, "", &client).await?;
     // Pull the verification token straight from the auth schema.
     let token: String =
         sqlx::query_scalar("SELECT verification_token FROM local_credentials WHERE email = $1")
@@ -81,7 +80,7 @@ async fn local_lifecycle_signup_verify_signin_refresh_reuse() -> Result<()> {
             .unwrap();
     m.verify_email(&token).await?;
 
-    let pair = m.sign_in_local(&email_addr, PW, "music").await?;
+    let pair = m.sign_in_local(&email_addr, PW, "music", &client).await?;
     let rotated = m.refresh(&pair.refresh_token).await?;
 
     // Replaying the original (now rotated) refresh token is reuse → rejected.
