@@ -9,6 +9,7 @@
 //! ([`engine`]) sits behind the seam and is coverage-excluded like the other I/O
 //! adapters.
 
+pub mod attempt;
 pub mod channel;
 pub mod dlq;
 pub mod engine;
@@ -19,12 +20,18 @@ pub mod retry;
 pub mod schedule;
 pub mod scheduler;
 
+pub use attempt::{AttemptOutcome, AttemptStart, HISTORY_RETENTION_DAYS};
 pub use channel::{Channel, Ordering};
 pub use dlq::{DeadLetter, is_exhausted};
-pub use engine::{PgEnqueuer, dead_letter_sweep, load_retry_policy, transactional_enqueue};
+pub use engine::{
+    PgEnqueuer, begin_attempt, dead_letter_sweep, finish_attempt, load_retry_policy, prune_history,
+    tracked, transactional_enqueue,
+};
 pub use enqueue::{EnqueueRequest, Enqueuer, FakeEnqueuer};
 pub use error::{JobError, Result};
-pub use registry::{JobSpec, ORPHAN_REAP, PURGE_USER, SESSION_REAP, VERIFICATION_EMAIL, spec};
+pub use registry::{
+    JobSpec, ORPHAN_REAP, PURGE_USER, SESSION_REAP, VERIFICATION_EMAIL, protected_kinds, spec,
+};
 pub use retry::RetryPolicy;
 pub use schedule::{MissedRun, Schedule, bucket, dedup_key};
 pub use scheduler::run_scheduler_tick;

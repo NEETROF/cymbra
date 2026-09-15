@@ -66,6 +66,11 @@ pub struct Config {
     /// add-premium-subscription). `None` leaves `PlanService` unwired: every
     /// plan-aware seam answers `free`, exactly the pre-plan behaviour.
     pub plans_database_url: Option<String>,
+    /// Postgres URL for the back-office Jobs console (role `jobs_admin_svc`; change:
+    /// add-admin-jobs-console). That role can only EXECUTE the `jobs.admin_*`
+    /// functions — never read a job payload. `None` leaves `JobsAdminService` unwired
+    /// (the console stays inert; the worker is unaffected).
+    pub jobs_admin_database_url: Option<String>,
     /// Master secret for the period-salted pseudonymous analytics `user_bucket`
     /// (design D2, Option A): `salt(month) = HMAC(secret, "YYYY-MM")`. Required to
     /// wire the `UsageService`; `None` leaves it unwired even if the DB is set (a
@@ -269,6 +274,10 @@ pub mod config_core {
                 .cloned(),
             plans_database_url: m
                 .get("CYMBRA_PLANS_DATABASE_URL")
+                .filter(|v| !v.is_empty())
+                .cloned(),
+            jobs_admin_database_url: m
+                .get("CYMBRA_JOBS_ADMIN_DATABASE_URL")
                 .filter(|v| !v.is_empty())
                 .cloned(),
             analytics_bucket_secret: m
@@ -555,6 +564,30 @@ mod tests {
         );
         let c = config_core::parse(&m).unwrap();
         assert_eq!(c.lingua_database_url.as_deref(), Some("postgres://lingua"));
+    }
+
+    #[test]
+    fn jobs_admin_database_url_is_optional_and_blank_means_unset() {
+        // Inert without its URL (the server logs "jobs console disabled").
+        let c = config_core::parse(&base()).unwrap();
+        assert!(c.jobs_admin_database_url.is_none());
+        let mut m = base();
+        m.insert("CYMBRA_JOBS_ADMIN_DATABASE_URL".into(), String::new());
+        assert!(
+            config_core::parse(&m)
+                .unwrap()
+                .jobs_admin_database_url
+                .is_none()
+        );
+        m.insert(
+            "CYMBRA_JOBS_ADMIN_DATABASE_URL".into(),
+            "postgres://jobs_admin".into(),
+        );
+        let c = config_core::parse(&m).unwrap();
+        assert_eq!(
+            c.jobs_admin_database_url.as_deref(),
+            Some("postgres://jobs_admin")
+        );
     }
 
     #[test]

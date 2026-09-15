@@ -37,6 +37,7 @@ jobs:
               - 'backend/user-port/proto/**'
               - 'backend/music/proto/**'
               - 'backend/lingua/proto/**'
+              - 'backend/jobs-admin/proto/**'
               - 'crates/musicxml-wasm/**'
               - 'crates/musicxml-core/**'
               - '.github/workflows/back-office-check.yml'

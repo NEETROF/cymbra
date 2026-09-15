@@ -74,7 +74,8 @@
     "menu": "Menu",
     "notifications": "Notifications",
     "takedowns": "Retraits",
-    "lingua": "Lingua"
+    "lingua": "Lingua",
+    "jobs": "Jobs"
   },
   "usage": {
     "title": "Usage des fonctionnalités",
@@ -123,6 +124,85 @@
     "size": "Taille",
     "notice": "Attributions",
     "viewNotice": "Voir les attributions"
+  },
+  "jobs": {
+    "title": "Jobs",
+    "refresh": "Actualiser",
+    "autoRefresh": "Actualisation auto (15 s)",
+    "queueTitle": "File actuelle",
+    "periodTitle": "Sur une période",
+    "states": {
+      "running": "En cours",
+      "ready": "Prêt",
+      "scheduled": "Programmé",
+      "retry_wait": "Nouvel essai en attente",
+      "blocked": "Bloqué",
+      "exhausted": "Épuisé"
+    },
+    "filters": {
+      "state": "État",
+      "kind": "Type",
+      "any": "Tous"
+    },
+    "matching": "Jobs correspondants : {n}",
+    "columns": {
+      "id": "ID",
+      "kind": "Type",
+      "state": "État",
+      "attempts": "Essais (faits / restants)",
+      "enqueued": "Mis en file",
+      "nextAttempt": "Prochain essai",
+      "started": "Démarré",
+      "actions": "Actions"
+    },
+    "queue": {
+      "total": "En file",
+      "running": "En cours",
+      "ready": "Prêts",
+      "retry": "Nouvel essai en attente",
+      "waiting": "Programmés / bloqués",
+      "exhausted": "Épuisés"
+    },
+    "period": {
+      "label": "Période",
+      "lastHour": "Dernière heure",
+      "last24h": "Dernières 24 heures",
+      "last7d": "7 derniers jours",
+      "last30d": "30 derniers jours",
+      "custom": "Personnalisée",
+      "from": "Du",
+      "to": "Au",
+      "apply": "Appliquer"
+    },
+    "periodCards": {
+      "completed": "Terminés",
+      "failed": "Essais échoués",
+      "dead": "Mis au rebut",
+      "cancelled": "Annulés",
+      "avg": "Durée moyenne d'exécution"
+    },
+    "duration": {
+      "ms": "{n} ms",
+      "s": "{n} s",
+      "min": "{n} min"
+    },
+    "historyNote": "L'historique commence le {date} — l'activité antérieure n'est pas comptée.",
+    "validation": {
+      "incomplete": "Choisissez un début et une fin.",
+      "order": "Le début doit précéder la fin.",
+      "future": "La fin ne peut pas être dans le futur.",
+      "retention": "Le début doit se situer dans les 90 derniers jours."
+    },
+    "loading": "Chargement des jobs…",
+    "empty": "Aucun job dans la file.",
+    "cancel": "Annuler le job",
+    "confirmCancel": "Annuler le job {kind} {id} ? Il ne sera jamais exécuté.",
+    "outcome": {
+      "cancelled": "Job annulé.",
+      "gone": "Ce job n'est plus dans la file.",
+      "running": "Un job en cours d'exécution ne peut pas être annulé.",
+      "protected": "Les jobs d'effacement de données ne peuvent pas être annulés."
+    }
   },
   "notifications": {
     "title": "Notifications",

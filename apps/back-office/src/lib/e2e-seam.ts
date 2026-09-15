@@ -4,6 +4,7 @@ import type { Clients } from "@/lib/transport";
 import { setWebAuthClientForTest, WebAuthError, type WebAuthClient } from "@/lib/web-auth";
 import { setRegeneratePreviewForTest, setUploadForTest } from "@/stores/soundfonts";
 import { setRegenerateScorePreviewForTest } from "@/stores/catalog";
+import { CancelOutcome, JobState } from "@/gen/jobs_admin_pb";
 
 // E2E test seam (loaded ONLY when VITE_E2E=1 — see main.ts). Playwright seeds
 // `window.__CYMBRA_E2E__` with canned data via addInitScript before the app boots;
@@ -95,11 +96,41 @@ export interface E2EData {
   campaigns?: E2ECampaign[];
   plans?: Record<string, E2EAccountPlan>;
   mintedCodes?: string[];
+  /** Jobs console fixtures (change: add-admin-jobs-console): the queued jobs (a
+   * successful cancellation removes one in place, so the re-read reflects it), the
+   * registered kinds (`cancellable: false` = an erasure kind), the period figures
+   * (`cancelled` is bumped by a cancellation) and when the attempt history starts. The
+   * queue counts are DERIVED from `jobs`, so the cards and the table never disagree. */
+  jobs?: E2EJob[];
+  jobKinds?: { name: string; channel: string; cancellable: boolean }[];
+  jobPeriod?: {
+    completed?: number;
+    failedAttempts?: number;
+    deadLettered?: number;
+    cancelled?: number;
+    avgRunMs?: number;
+  };
+  jobHistorySinceMs?: number;
   /** Force a method to reject with a ConnectError, keyed by method name. */
   fail?: Record<string, E2EFailure>;
   /** Force a method to reject with a ConnectError exactly ONCE (then succeed) —
    * used to exercise the silent refresh-and-retry path. Keyed by method name. */
   failOnce?: Record<string, E2EFailure>;
+}
+
+/** One queued job as the seam models it: the proto row with plain numbers and the state
+ * by name. `cancellable` is derived like the server: not running, and a cancellable kind
+ * (a kind absent from `jobKinds` is cancellable). */
+export interface E2EJob {
+  id: string;
+  kind: string;
+  channel?: string;
+  state: "running" | "ready" | "scheduled" | "retry_wait" | "blocked" | "exhausted";
+  attemptsMade?: number;
+  attemptsLeft?: number;
+  enqueuedAtMs: number;
+  nextAttemptAtMs?: number;
+  startedAtMs?: number;
 }
 
 /** One declared key as the e2e seam models it (a bool flag or an int config). */
@@ -174,6 +205,20 @@ export function installE2EClients(): void {
   // Mutable copy so a flag/config write changes what the next list returns.
   const flags: E2EFlag[] = (data.flags ?? []).map((f) => ({ ...f }));
   const findFlag = (key: string) => flags.find((f) => f.key === key);
+  // Jobs console state (change: add-admin-jobs-console): the seeded arrays themselves, so
+  // a cancellation removes the job and bumps the cancelled figure in place.
+  const queuedJobs: E2EJob[] = (data.jobs ??= []);
+  const jobPeriod = (data.jobPeriod ??= {});
+  const JOB_STATES: Record<E2EJob["state"], JobState> = {
+    running: JobState.RUNNING,
+    ready: JobState.READY,
+    scheduled: JobState.SCHEDULED,
+    retry_wait: JobState.RETRY_WAIT,
+    blocked: JobState.BLOCKED,
+    exhausted: JobState.EXHAUSTED,
+  };
+  const kindCancellable = (kind: string) => data.jobKinds?.find((k) => k.name === kind)?.cancellable ?? true;
+  const optionalBig = (v: number | undefined) => (v === undefined ? undefined : BigInt(v));
   // Mutable per-scope copy so grant/revoke change roles in the right scope and the
   // next listAccounts reflects it. A seed's flat `roles` is treated as `music`.
   const byScope: { userId: string; handle?: string; displayName?: string; roles: Record<string, string[]> }[] = (
@@ -558,6 +603,72 @@ export function installE2EClients(): void {
             notice: p.notice,
           })),
         };
+      },
+    },
+    // Jobs console (change: add-admin-jobs-console). Global-admin only server-side; here
+    // a cancellation mutates the seeded queue so the store's re-read reflects it.
+    jobs: {
+      adminListJobs: async (req: { state: JobState; kind: string; limit: number; offset: number }) => {
+        failIfSet("adminListJobs");
+        const rows = queuedJobs
+          .filter((j) => (!req.state || JOB_STATES[j.state] === req.state) && (!req.kind || j.kind === req.kind))
+          .sort((a, b) => a.enqueuedAtMs - b.enqueuedAtMs);
+        const offset = req.offset ?? 0;
+        return {
+          jobs: rows.slice(offset, offset + (req.limit || 25)).map((j) => ({
+            id: j.id,
+            kind: j.kind,
+            channel: j.channel ?? `e2e.${j.kind}`,
+            state: JOB_STATES[j.state],
+            attemptsMade: j.attemptsMade ?? 0,
+            attemptsLeft: j.attemptsLeft ?? 0,
+            enqueuedAtMs: BigInt(j.enqueuedAtMs),
+            nextAttemptAtMs: optionalBig(j.nextAttemptAtMs),
+            startedAtMs: optionalBig(j.startedAtMs),
+            cancellable: kindCancellable(j.kind) && j.state !== "running",
+          })),
+          total: BigInt(rows.length),
+        };
+      },
+      adminGetJobStats: async (req: { kind: string }) => {
+        failIfSet("adminGetJobStats");
+        const scoped = queuedJobs.filter((j) => !req.kind || j.kind === req.kind);
+        const count = (state: E2EJob["state"]) => BigInt(scoped.filter((j) => j.state === state).length);
+        return {
+          queue: {
+            total: BigInt(scoped.length),
+            running: count("running"),
+            ready: count("ready"),
+            scheduled: count("scheduled"),
+            retryWait: count("retry_wait"),
+            blocked: count("blocked"),
+            exhausted: count("exhausted"),
+          },
+          period: {
+            completed: BigInt(jobPeriod.completed ?? 0),
+            failedAttempts: BigInt(jobPeriod.failedAttempts ?? 0),
+            deadLettered: BigInt(jobPeriod.deadLettered ?? 0),
+            cancelled: BigInt(jobPeriod.cancelled ?? 0),
+            avgRunMs: optionalBig(jobPeriod.avgRunMs),
+          },
+          historySinceMs: optionalBig(data.jobHistorySinceMs),
+        };
+      },
+      adminListJobKinds: async () => {
+        failIfSet("adminListJobKinds");
+        return { kinds: (data.jobKinds ?? []).map((k) => ({ ...k })) };
+      },
+      // Same decision order as the server (D3): gone, then a protected kind (read from the
+      // registry before touching the queue), then a running attempt.
+      adminCancelJob: async (req: { jobId: string }) => {
+        failIfSet("adminCancelJob");
+        const i = queuedJobs.findIndex((j) => j.id === req.jobId);
+        if (i < 0) return { outcome: CancelOutcome.GONE };
+        if (!kindCancellable(queuedJobs[i].kind)) return { outcome: CancelOutcome.PROTECTED };
+        if (queuedJobs[i].state === "running") return { outcome: CancelOutcome.RUNNING };
+        queuedJobs.splice(i, 1);
+        jobPeriod.cancelled = (jobPeriod.cancelled ?? 0) + 1;
+        return { outcome: CancelOutcome.CANCELLED };
       },
     },
     flags: {

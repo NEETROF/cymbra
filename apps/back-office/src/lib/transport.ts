@@ -9,6 +9,7 @@ import { FlagService } from "@/gen/flags_pb";
 import { UsageService } from "@/gen/usage_pb";
 import { PlanService } from "@/gen/plans_pb";
 import { LinguaAdminService } from "@/gen/lingua_admin_pb";
+import { JobsAdminService } from "@/gen/jobs_admin_pb";
 
 // The backend speaks gRPC-web (tonic-web); Connect's gRPC-web transport talks to
 // it directly. The auth interceptor attaches the bearer access token the same way
@@ -177,6 +178,7 @@ export interface Clients {
   usage: Client<typeof UsageService>;
   plans: Client<typeof PlanService>;
   lingua: Client<typeof LinguaAdminService>;
+  jobs: Client<typeof JobsAdminService>;
 }
 
 export function createClients(transport: Transport): Clients {
@@ -188,5 +190,6 @@ export function createClients(transport: Transport): Clients {
     usage: createClient(UsageService, transport),
     plans: createClient(PlanService, transport),
     lingua: createClient(LinguaAdminService, transport),
+    jobs: createClient(JobsAdminService, transport),
   };
 }

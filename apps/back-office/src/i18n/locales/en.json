@@ -74,7 +74,8 @@
     "menu": "Menu",
     "notifications": "Notifications",
     "takedowns": "Takedowns",
-    "lingua": "Lingua"
+    "lingua": "Lingua",
+    "jobs": "Jobs"
   },
   "usage": {
     "title": "Feature usage",
@@ -123,6 +124,85 @@
     "size": "Size",
     "notice": "Notice",
     "viewNotice": "View notice"
+  },
+  "jobs": {
+    "title": "Jobs",
+    "refresh": "Refresh",
+    "autoRefresh": "Auto-refresh (15 s)",
+    "queueTitle": "Queue now",
+    "periodTitle": "Over a period",
+    "states": {
+      "running": "Running",
+      "ready": "Ready",
+      "scheduled": "Scheduled",
+      "retry_wait": "Waiting for retry",
+      "blocked": "Blocked",
+      "exhausted": "Exhausted"
+    },
+    "filters": {
+      "state": "State",
+      "kind": "Kind",
+      "any": "Any"
+    },
+    "matching": "Matching jobs: {n}",
+    "columns": {
+      "id": "ID",
+      "kind": "Kind",
+      "state": "State",
+      "attempts": "Attempts (made / left)",
+      "enqueued": "Enqueued",
+      "nextAttempt": "Next attempt",
+      "started": "Started",
+      "actions": "Actions"
+    },
+    "queue": {
+      "total": "In queue",
+      "running": "Running",
+      "ready": "Ready",
+      "retry": "Waiting for retry",
+      "waiting": "Scheduled / blocked",
+      "exhausted": "Exhausted"
+    },
+    "period": {
+      "label": "Period",
+      "lastHour": "Last hour",
+      "last24h": "Last 24 hours",
+      "last7d": "Last 7 days",
+      "last30d": "Last 30 days",
+      "custom": "Custom",
+      "from": "From",
+      "to": "To",
+      "apply": "Apply"
+    },
+    "periodCards": {
+      "completed": "Completed",
+      "failed": "Failed attempts",
+      "dead": "Dead-lettered",
+      "cancelled": "Cancelled",
+      "avg": "Average run time"
+    },
+    "duration": {
+      "ms": "{n} ms",
+      "s": "{n} s",
+      "min": "{n} min"
+    },
+    "historyNote": "History starts on {date} — earlier activity isn't counted.",
+    "validation": {
+      "incomplete": "Pick both a start and an end.",
+      "order": "The start must be before the end.",
+      "future": "The end can't be in the future.",
+      "retention": "The start must be within the last 90 days."
+    },
+    "loading": "Loading jobs…",
+    "empty": "No job in the queue.",
+    "cancel": "Cancel job",
+    "confirmCancel": "Cancel the {kind} job {id}? It will never run.",
+    "outcome": {
+      "cancelled": "Job cancelled.",
+      "gone": "This job is no longer in the queue.",
+      "running": "A running job can't be cancelled.",
+      "protected": "Data-erasure jobs can't be cancelled."
+    }
   },
   "notifications": {
     "title": "Notifications",
