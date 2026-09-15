@@ -60,14 +60,21 @@ extension**: the App Store rule applies to apps only; on Safari, sign-in lives i
 container app (D3).
 
 ### D3 — Apple app: native sign-in, Sign in with Apple mandatory
-The container app signs in over **native tonic** (`SignInOidc`/`SignInLocal` — no
-gRPC-web: it is an app, not a browser), with tokens in the Keychain and the refresh
-shared with the Safari extension through the App Group (a single account per device; the
-extension consumes the app's session through the native handler — no OAuth flow inside
-Safari). As soon as a third-party login (Google) is offered on iOS, **Sign in with Apple
-must be offered too** (App Store guideline): the backend already supports it
-(`CYMBRA_APPLE_AUDIENCE`) and the app uses the native `ASAuthorizationController`. Button
-order: Apple first on iOS, in line with review expectations.
+The host app (`apps/lingua-apple`, the minimal app of `add-lingua-apple`) gains the
+account. It signs in with **Sign in with Apple** (native `ASAuthorizationController`),
+**Continue with Google** (the Google Sign-In SDK, with an iOS/macOS OAuth client for
+`com.cymbra.lingua`) and **email/password** — Apple first on iOS, in line with review
+expectations; the App Store rule requires Apple as soon as Google is offered. Email
+accounts are created and recovered natively too (`SignUpLocal` + `VerifyEmail` with a
+code, `RequestPasswordReset` + `ResetPassword`), because `cymbra.app` has no sign-up or
+reset page to send people to.
+
+Calls go over **gRPC-web with Connect-Swift**, generated from
+`backend/auth-port/proto/auth.proto`: the same protocol and endpoint as the extension
+(D1), so there is no second transport to route and secure. Tokens live in the Keychain,
+in an access group shared with the Safari extension's native handler (D6). The app holds
+**no learning state** — reading, decks, review and sync stay in the extension
+(`add-lingua-apple` D4); the session is the one thing it owns.
 
 ### D4 — Merging the pre-account store at first sign-in: upload then merge, local stays the display authority
 At a device's first sign-in, the local state (statuses, cards, the local stack's stats)
@@ -86,8 +93,38 @@ PKCE CLI auth, explicit per-machine opt-in). Accepted consequence: extension and
 statuses keep diverging — that was already the local stack's state, and the mechanical
 merge stays possible when the day comes (same `lingua-core` types).
 
+### D6 — The Safari extension borrows the app's session; only native code refreshes
+This settles the former open question. On Safari the extension keeps **no refresh token
+and no sign-in form**. When it needs an access token, its event page asks the extension's
+native handler (`browser.runtime.sendNativeMessage` → `SafariWebExtensionHandler`), which
+reads the shared Keychain and returns a short-lived access token — refreshing first if it
+has expired. A `session.invalidate` message lets the extension report a token the server
+rejected.
+
+Refreshing stays native because the server **rotates refresh tokens and revokes the whole
+family on a replay** (`backend/auth/src/session.rs`): two holders refreshing the same token
+would sign the user out everywhere. The app and the handler run in separate processes, so a
+refresh takes an App Group file lock and re-reads the Keychain inside it — whoever comes
+second finds the new pair and does not refresh. The extension's `Session` gains a native
+source behind the same seam (a capability define, as in `add-lingua-apple` D2); its sync
+engine does not change. Rejected: an App Group copy of the tokens for the extension to
+read — it leaves the refresh question open, and the handler is only a message away.
+
+### D7 — Safari's network path is proven before it is relied on
+The extension's gRPC-web calls leave from Safari's event page, whose origin
+(`safari-web-extension://<uuid>`) is random per install and so cannot be listed in
+`CYMBRA_ALLOWED_WEB_ORIGINS`. Whether the manifest's host permission exempts the event page
+from CORS on Safari, as it does on Chromium, is checked first (task 4.6). If it does not,
+the handler forwards the extension's RPCs as opaque HTTP requests: `URLSession` has no
+CORS, and the D6 bridge already exists.
+
 ## Risks / Trade-offs
 
+- [A double refresh (app and extension) revokes the token family] → a single owner:
+  native code only, serialised by an App Group lock (D6), with a test that runs two
+  refreshes concurrently.
+- [Safari blocks the event page's cross-origin calls] → spike first; the native forward
+  is the fallback (D7).
 - [Refresh token in `storage.local`: readable by local malware] → the same exposure as
   any browser-profile secret; mitigated by rotation plus reuse detection (the family is
   revoked on the first replay) and an accessible `RevokeAllSessions`.
@@ -111,8 +148,9 @@ merge stays possible when the day comes (same `lingua-core` types).
    `CYMBRA_LINGUA_DATABASE_URL` active).
 2. Extension first (account UI + outbox + stats) — the founder's Chrome-on-macOS
    dogfooding.
-3. The Apple app next (internal TestFlight against the dev backend, then App Store review
-   — Sign in with Apple present, privacy labels up to date).
+3. The Apple host app next: the Safari network spike (D7) first, then native sign-in and
+   the session bridge (D6); internal TestFlight against the dev backend, then App Store
+   review — Sign in with Apple present, privacy labels up to date.
 4. Rollback: signing out (or removing `CYMBRA_LINGUA_DATABASE_URL` server-side) drops the
    clients back to local-only — their default mode; the local schemas do not migrate
    destructively, so a "synced" client keeps working on its own.
@@ -122,10 +160,6 @@ merge stays possible when the day comes (same `lingua-core` types).
 - The exact cadence of background sync in the extension (on service-worker wake +
   `chrome.alarms`? an op threshold?) — to be measured during dogfooding, with no impact
   on the protocol.
-- Sharing the session between the app and the Safari extension through the App Group:
-  does the extension fetch the tokens through the native handler on every call, or is
-  there an App Group copy with invalidation? To be settled at implementation (the
-  contract — a single account per Apple device — does not move).
 - Should a "Sync now" button be exposed, or should it stay silent (a discreet indicator
   only)? Leaning: an indicator plus a manual action in settings, never friction while
   reading.

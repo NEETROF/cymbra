@@ -20,13 +20,17 @@
 - [ ] 3.1 Stats screen (extension page, Cymbra tokens): series per day × language (words learned, reviews, exposures), 7/30/90-day ranges; signed in = consolidated `GetStats` (scope "all devices"), otherwise local aggregates (scope "this device"); a note that agent sessions are excluded
 - [ ] 3.2 UI-string lint extended to the new screens (account, sync, stats): no occurrence of "lemma" (say "dictionary form", "distinct words")
 
-## 4. Apple app — native sign-in and sync
+## 4. Apple host app — native sign-in, and the Safari extension on its session
 
-- [ ] 4.1 Native sign-in screen (SwiftUI, Cymbra styling): Sign in with Apple (`ASAuthorizationController` → Apple `SignInOidc`) + "Continue with Google" + email/password, over native tonic with the `lingua` audience; tokens in the Keychain
-- [ ] 4.2 App ↔ Safari extension session sharing through the App Group (one account per device): the extension syncs under the app's session, no OAuth flow inside Safari; settle tokens-per-handler vs an App Group copy (the design's open question) and document it
-- [ ] 4.3 App sync: the same outbox/pull/merge as the extension (shared `lingua-core` types) for statuses, cards and stats; first sign-in merges the device's local state
-- [ ] 4.4 The app's stats screen (same rules as 3.1); manual cross-device check: a word marked on the Mac visible on the iPhone, an iOS card reviewable on desktop, consolidated stats correct
-- [ ] 4.5 Internal TestFlight against the dev backend; App Store review pass re-run (Sign in with Apple present, privacy labels updated: account data + synced user content)
+- [ ] 4.1 Connect-Swift gRPC-web client for `AuthService` in `apps/lingua-apple`, generated from `backend/auth-port/proto/auth.proto`; backend URL per build configuration
+- [ ] 4.2 Native session store: tokens in a Keychain access group shared by the app and its Safari extension; refresh only on the native side, serialised across the two processes by an App Group file lock (never two refreshes of the same token); XCTest coverage of the lock and of the purge after a failed refresh
+- [ ] 4.3 Sign-in screens (SwiftUI, Cymbra styling, French copy): Sign in with Apple first, Continue with Google, email/password; email sign-up with code verification and resend, password reset; signed-in state and sign-out (`Logout`, then Keychain purge); the activation guide stays reachable
+- [ ] 4.4 `SafariWebExtensionHandler` bridge: `session.state`, `session.accessToken` (refreshed under the lock when expired) and `session.invalidate` messages; `nativeMessaging` permission in the safari manifest only
+- [ ] 4.5 Extension on Safari: a native session source behind the existing `Session` seam (capability define), no refresh token in extension storage; the account section shows the app's session state or « Connecte-toi dans l'app Cymbra Lingua » with a way to open the app, replacing the interim email form of `add-lingua-apple`; the sync engine unchanged
+- [ ] 4.6 Spike first: a gRPC-web call from Safari's event page to the backend (CORS for the per-install `safari-web-extension://` origin); if Safari blocks it, forward the extension's RPCs through the native handler
+- [ ] 4.7 Configuration: `com.cymbra.lingua` added to `CYMBRA_APPLE_AUDIENCE`; a Google OAuth client for `com.cymbra.lingua` added to `CYMBRA_GOOGLE_AUDIENCE`, with its URL scheme; Sign in with Apple, Keychain access group, App Group and (macOS) outgoing-network entitlements on the app and the extension
+- [ ] 4.8 Manual cross-device check: a word marked in Chrome on the Mac visible in Safari on the iPhone, a card created in Safari reviewable on desktop, consolidated stats correct, and signing out in the app stops Safari's sync
+- [ ] 4.9 Internal TestFlight against the dev backend; App Store review pass re-run (Sign in with Apple present, privacy labels updated: account data + synced user content)
 
 ## 5. Gates and finishing
 

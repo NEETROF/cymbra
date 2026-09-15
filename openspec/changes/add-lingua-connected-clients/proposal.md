@@ -28,11 +28,16 @@ covered by ricochet (same extension code; `browser.identity.launchWebAuthFlow` e
   OIDC** through `chrome.identity.launchWebAuthFlow` (the client id has been in the
   `CYMBRA_GOOGLE_AUDIENCE` CSV since `add-lingua-backend`) and the existing
   email/password (`SignInLocal`).
-- **Sign-in in the Apple app**: native, in the container app (`SignInOidc` over native
-  tonic, tokens in the Keychain). **Sign in with Apple is mandatory as soon as a
-  third-party login exists on iOS** (App Store rule) — the backend already supports
-  Apple OIDC (`CYMBRA_APPLE_AUDIENCE`). The Safari extension consumes the app's session
-  through the App Group (one account per device, no OAuth flow inside Safari).
+- **Sign-in in the Apple app**: native, in the host app `apps/lingua-apple` — Sign in
+  with Apple, Continue with Google and email/password, plus native email sign-up (code
+  verification) and password reset, over gRPC-web (Connect-Swift) against the `lingua`
+  audience. **Sign in with Apple is mandatory as soon as a third-party login exists on
+  iOS** (App Store rule). Tokens live in a Keychain access group shared with the Safari
+  extension's native handler, the only party that refreshes.
+- **The Safari extension uses the app's session**: no sign-in form and no refresh token
+  in Safari; the extension asks the native handler for short-lived access tokens over
+  native messaging and syncs exactly like the other variants (one account per Apple
+  device).
 - **Opt-in sync, local-first preserved**: without an account, nothing changes; signing
   out stops syncing without touching local state.
 - **Client outbox + delta pull**: a local op-log of mutations drained in idempotent
@@ -53,8 +58,9 @@ covered by ricochet (same extension code; `browser.identity.launchWebAuthFlow` e
 ### New Capabilities
 - `lingua-sync` (client half): an optional account with local-first preserved, extension
   sign-in (gRPC-web bearer, Google OIDC + email/password, tokens stored by volatility),
-  native sign-in in the Apple app (Sign in with Apple included, session shared with the
-  Safari extension), the pre-account store merge at first sign-in, and the Claude Code
+  native sign-in in the Apple app (Sign in with Apple, Google, email with sign-up and
+  reset) whose session the Safari extension borrows with native-only refresh, the
+  pre-account store merge at first sign-in, and the Claude Code
   plugin left out of sync. _The server half (audience, module, protocol, server-side
   privacy, purge) is the `add-lingua-backend` change._
 - `lingua-stats` (client half): the stats screen in the extension and the app —
@@ -69,14 +75,21 @@ the default and this change adds the connected mode on top. The platform
 
 ## Impact
 
-- **Products**: Lingua (extension + Apple app: account UI, outbox, stats screen);
-  **Cymbra ID consumed** (Google/Apple OIDC, rotating refresh); **Lingua backend
-  consumed** (`add-lingua-backend`); Music / Live / back office / site: **untouched**.
+- **Products**: Lingua (extension: account UI, outbox, stats screen; Apple host app:
+  native sign-in and the session lent to the Safari extension); **Cymbra ID consumed**
+  (Google/Apple OIDC, email sign-up, verification and reset, rotating refresh); **Lingua
+  backend consumed** (`add-lingua-backend`); Music / Live / back office / site:
+  **untouched**.
 - **Tree**: `apps/lingua-extension` (Connect-ES transport, account UI, outbox, stats
-  screen), `apps/lingua-apple` (SwiftUI sign-in screen, App Group, sync, stats screen).
-- **Env/deploy**: nothing new server-side (all of it ships with `add-lingua-backend`);
-  dev doc: add the dev extension origin to `CYMBRA_ALLOWED_WEB_ORIGINS` in the local
+  screen, the Safari native session source), `apps/lingua-apple` (SwiftUI sign-in and
+  account screens, Connect-Swift auth client, shared Keychain session, native messaging
+  bridge).
+- **Env/deploy**: no server code; production configuration gains `com.cymbra.lingua` in
+  `CYMBRA_APPLE_AUDIENCE` and the app's Google OAuth client in `CYMBRA_GOOGLE_AUDIENCE`.
+  Dev doc: add the dev extension origin to `CYMBRA_ALLOWED_WEB_ORIGINS` in the local
   environment only.
+- **New dependencies**: Connect-Swift, SwiftProtobuf and the Google Sign-In SDK in
+  `apps/lingua-apple` (Swift Package Manager).
 - **CI**: no new unit — `apps/lingua-extension` and `apps/lingua-apple` are already
   watched by their lanes in the stack; vitest extended (session, outbox, stats); the
   TestFlight pass re-run (Sign in with Apple, privacy labels: account data + synced user
