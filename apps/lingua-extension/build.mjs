@@ -1,10 +1,11 @@
 // Build the loadable MV3 extension into dist-<target>/ for each browser variant. One
 // source; the differences are confined to the manifest and, at runtime, behind the
-// AnalyzerPort (Chromium: WASM in the content script; Firefox: WASM in the event page)
-// and the panel surface (Side Panel API vs sidebar_action) — selected by the esbuild
-// `__TARGET__` define. The content script is a classic IIFE (content scripts are not
-// modules); the popup and side panel are ES modules; the background is an ES-module
-// service worker on Chromium and a classic event-page script on Firefox.
+// AnalyzerPort (Chromium: WASM in the content script; Firefox and Safari: WASM in the event
+// page) and the panel surface (Side Panel API vs the in-page drawer) — selected by the
+// esbuild `__TARGET__` and capability defines. The content script is a classic IIFE
+// (content scripts are not modules); the popup and side panel are ES modules; the
+// background is an ES-module service worker on Chromium and a classic event-page script on
+// Firefox and Safari.
 import { build } from "esbuild";
 import { existsSync, cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -12,7 +13,11 @@ import { fileURLToPath } from "node:url";
 
 const root = dirname(fileURLToPath(import.meta.url));
 const requested = process.argv.slice(2).filter((a) => !a.startsWith("-"));
-const targets = requested.length ? requested : ["chromium", "firefox"];
+const TARGETS = ["chromium", "firefox", "safari"];
+const targets = requested.length ? requested : TARGETS;
+for (const t of targets) {
+  if (!TARGETS.includes(t)) throw new Error(`Unknown build target "${t}" — expected one of: ${TARGETS.join(", ")}.`);
+}
 
 // Guard: the bundled pack and the engine must share an analyzer version. The engine
 // refuses a mismatched pack at RUNTIME ("pack built for analyzer X but this core is
@@ -95,6 +100,38 @@ function firefoxManifest(base) {
   return m;
 }
 
+/** Transform the base manifest into the Safari variant (macOS + iOS), hosted by apps/lingua-apple. */
+function safariManifest(base) {
+  // Safari takes the Firefox path (event-page engine, static reader, in-page drawer) — the
+  // add-lingua-apple spike ran it unchanged on macOS, the iOS simulator and an iPhone.
+  const m = firefoxManifest(base);
+  // Safari needs no add-on id (the host app's bundle identifies it).
+  delete m.browser_specific_settings;
+  // iOS refuses a persistent background page; the event page is suspended and woken on demand.
+  m.background = { ...m.background, persistent: false };
+  // Safari does not support the identity API: providers needing launchWebAuthFlow are
+  // feature-detected away in the account UI, so the permission would only raise a warning.
+  m.permissions = m.permissions.filter((p) => p !== "identity");
+  return m;
+}
+
+/**
+ * Build-time capabilities, injected as esbuild defines so each variant's bundle folds its
+ * branches (and a grep of dist-<target>/ shows only that variant's code). Chromium runs the
+ * engine in the content script and opens review in its Side Panel; Firefox and Safari run the
+ * engine in the event page, review in the in-page drawer, and inject the reader statically.
+ */
+function capabilities(target) {
+  const eventPageFamily = target !== "chromium";
+  return {
+    __ENGINE_IN_EVENT_PAGE__: JSON.stringify(eventPageFamily),
+    __REVIEW_IN_PAGE__: JSON.stringify(eventPageFamily),
+    __STATIC_READER__: JSON.stringify(eventPageFamily),
+  };
+}
+
+const manifestFor = { chromium: structuredClone, firefox: firefoxManifest, safari: safariManifest };
+
 const staticCopies = [
   ["src/popup/popup.html", "popup.html"],
   ["src/popup/popup.css", "popup.css"],
@@ -121,11 +158,15 @@ for (const target of targets) {
   const common = {
     bundle: true,
     sourcemap: false,
+    // Fold the define'd constants and drop the branches they disable, so each variant ships
+    // only its own code (identifiers and whitespace stay readable; this is syntax-only).
+    minifySyntax: true,
     target: ["chrome116", "firefox128"],
     logLevel: "info",
     loader: { ".css": "text" },
     define: {
       __TARGET__: JSON.stringify(target),
+      ...capabilities(target),
       __GRPC_WEB_URL__: JSON.stringify(GRPC_WEB_URL),
       __GOOGLE_CLIENT_ID__: JSON.stringify(GOOGLE_CLIENT_ID),
     },
@@ -134,12 +175,12 @@ for (const target of targets) {
   // Content script → classic IIFE (dynamic import of the wasm glue stays a runtime import).
   await build({ ...common, entryPoints: { content: join(root, "src/content.ts") }, outdir: dist, format: "iife" });
 
-  // Background → ES-module service worker (Chromium) or classic event-page script (Firefox).
+  // Background → ES-module service worker (Chromium) or classic event-page script (Firefox, Safari).
   await build({
     ...common,
     entryPoints: { background: join(root, "src/background.ts") },
     outdir: dist,
-    format: target === "firefox" ? "iife" : "esm",
+    format: target === "chromium" ? "esm" : "iife",
   });
 
   // Popup + side panel + stats → ES modules (loaded as <script type="module">).
@@ -155,13 +196,13 @@ for (const target of targets) {
     format: "esm",
   });
 
-  const manifest = target === "firefox" ? firefoxManifest(baseManifest) : structuredClone(baseManifest);
+  const manifest = manifestFor[target](baseManifest);
   // Grant the configured backend origin so the sync transport's gRPC-web fetch is
   // allowed (the server must also allow the extension origin via CYMBRA_ALLOWED_WEB_ORIGINS).
   manifest.host_permissions = [...new Set([...(manifest.host_permissions ?? []), hostPattern(GRPC_WEB_URL)])];
   // Pin the unpacked Chromium id (stable chrome.identity redirect URL); Firefox uses its
-  // gecko id instead, so it must never carry `key`.
-  if (target !== "firefox" && EXT_KEY) manifest.key = EXT_KEY;
+  // gecko id and Safari its host app's bundle, so neither must carry `key`.
+  if (target === "chromium" && EXT_KEY) manifest.key = EXT_KEY;
   // Reader injection strategy differs by browser:
   //  - Firefox (incl. Android): a STATIC content script on every page, ALWAYS. MV3 dynamic
   //    registration (scripting.registerContentScripts) does not reliably fire on GeckoView,
@@ -172,11 +213,17 @@ for (const target of targets) {
   //  - Chromium: activeTab-first by design — no static script; scripting.registerContentScripts
   //    (which works there) powers "Toujours surligner". LINGUA_ALL_URLS=1 forces the static
   //    script for dev testing of the always-on path on Chrome.
-  if (target === "firefox" || process.env.LINGUA_ALL_URLS === "1") {
+  //  - Safari (macOS + iOS) follows Firefox: a static content script, like the event-page engine.
+  if (target !== "chromium" || process.env.LINGUA_ALL_URLS === "1") {
     manifest.content_scripts = [{ matches: ["<all_urls>"], js: ["content.js"], run_at: "document_idle" }];
   }
   writeFileSync(join(dist, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
   for (const [from, to] of staticCopies) cpSync(join(root, from), join(dist, to));
+  // The committed icon set (tool/gen_icons.sh), except the host app's 1024 px icon.
+  cpSync(join(root, "icons"), join(dist, "icons"), {
+    recursive: true,
+    filter: (src) => !src.endsWith("icon-1024.png"),
+  });
 
   console.log(`Built ${target} → dist-${target}/`);
 }

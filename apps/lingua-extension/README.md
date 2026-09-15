@@ -1,4 +1,4 @@
-# Cymbra Lingua — browser extension (Chromium)
+# Cymbra Lingua — browser extension (Chromium, Firefox, Safari)
 
 The first user-facing Lingua surface: read the English web **in place**, with unknown
 words highlighted, an honest per-page percentage, an offline word popup, phrase capture
@@ -15,7 +15,7 @@ yarn install
 yarn gen:wasm     # build the wasm bindings from crates/lingua-wasm  → src/wasm/pkg/ (gitignored)
 yarn gen:proto    # build the gRPC-web/protobuf stubs (auth + sync)  → src/gen/ (gitignored)
 yarn gen:pack     # build the EN→FR data pack                        → assets/pack.lingua (gitignored)
-yarn build        # bundle both browser variants → dist-chromium/ and dist-firefox/
+yarn build        # bundle every browser variant → dist-chromium/, dist-firefox/, dist-safari/
 ```
 
 ## Account sync (Cymbra ID)
@@ -46,24 +46,29 @@ regardless; Google needs the client, and the backend must allow the extension or
    `moz-extension://<uuid>` is per-install; use a fixed origin via
    `browser_specific_settings` when wiring Firefox sync.)
 
-One source, two build variants (`yarn build:chromium` / `yarn build:firefox` build just
-one). Load unpacked:
+One source, three build variants (`yarn build:chromium` / `build:firefox` /
+`build:safari` build just one). Load unpacked:
 
 - **Chrome/Edge** → `chrome://extensions` → Developer mode → **Load unpacked** → pick
   `apps/lingua-extension/dist-chromium`.
 - **Firefox** (desktop or Android) → `yarn start:firefox` (`web-ext run`, uses
   `dist-firefox`), or `about:debugging` → Load Temporary Add-on.
+- **Safari** (macOS) → Safari Settings → Advanced → _Show features for web developers_,
+  then Developer → _Allow unsigned extensions_, and Develop → _Add Temporary Extension…_
+  → pick `apps/lingua-extension/dist-safari`. For iOS, and for a signed macOS build, use
+  the host app in `apps/lingua-apple`.
 
 **Reader injection differs by browser** (`build.mjs`). Chromium is **activeTab-first**:
 no static content script; the reader is injected on demand (popup → _Analyser cette page_)
 or, after _Toujours surligner_ grants `<all_urls>`, by a dynamic
-`scripting.registerContentScripts`. **Firefox always ships the reader as a static
-`content_scripts` on `<all_urls>`** — MV3 dynamic registration doesn't reliably fire on
-GeckoView / Firefox for Android (the highlight worked once via _Analyser cette page_ but
-not across a reload), and `browser.contentScripts.register()` dies with the non-persistent
-event page. The browser-level static injection is the only thing that runs on every load
-**and** reload. The global _Surlignage activé_ toggle (default on) is the off switch, and
-the reader is entirely local (no network), so always-on is an acceptable trade on Firefox.
+`scripting.registerContentScripts`. **Firefox and Safari always ship the reader as a
+static `content_scripts` on `<all_urls>`** — MV3 dynamic registration doesn't reliably
+fire on GeckoView / Firefox for Android (the highlight worked once via _Analyser cette
+page_ but not across a reload), and `browser.contentScripts.register()` dies with the
+non-persistent event page. The browser-level static injection is the only thing that runs
+on every load **and** reload. The global _Surlignage activé_ toggle (default on) is the
+off switch, and the reader is entirely local (no network), so always-on is an acceptable
+trade there.
 
 Dogfooding — build the variant and launch it (no flag needed on Firefox now):
 
@@ -84,14 +89,17 @@ yarn lint && yarn format:check && yarn typecheck && yarn test
 
 ## How it works
 
-- **Analysis** runs in the content script's isolated world via the `AnalyzerPort`
-  seam (`src/analyzer/`). The Chromium implementation is the WASM module
-  (`WasmAnalyzerPort`); Firefox and Safari will implement the same port differently
-  without touching the reading code.
+- **Analysis** goes through the `AnalyzerPort` seam (`src/analyzer/`): the WASM module
+  runs in the content script's isolated world on Chromium (`WasmAnalyzerPort`), and in
+  the background event page on Firefox and Safari (`MessagingLinguaPort`), without
+  touching the reading code.
 - **Highlighting** uses the CSS Custom Highlight API — two registries
   (`cymbra-lingua-unknown`, `cymbra-lingua-learning`), **zero DOM mutation**
-  (`src/reading/highlight.ts`, `blocks.ts`). Dynamic pages are re-analysed per mutated
-  subtree, visible content first (`observer.ts`).
+  (`src/reading/highlight.ts`, `blocks.ts`). Only the blocks within about one viewport of
+  the visible area are painted, following the scroll: WebKit re-evaluates every registered
+  range on each rendering update, and ~15 000 ranges on a long article stalled Safari for
+  seconds. Dynamic pages are re-analysed per mutated subtree, visible content first
+  (`observer.ts`).
 - **Gestures** — a plain click on a highlighted (unknown/learning) word opens the popup
   (`Je connais` / `+ Deck` / `Ignorer`). A word you already marked isn't highlighted, so
   to change your mind **Alt/Option-click** it: the popup reopens with the status-aware
@@ -102,9 +110,9 @@ yarn lint && yarn format:check && yarn typecheck && yarn test
   `chrome.storage.local` under a versioned schema with forward migration
   (`src/state/`). A gesture in one tab repaints every other via `storage.onChanged`.
 - **Permissions** — on Chromium, `activeTab` by default (the popup's _Analyser cette
-  page_) with `<all_urls>` optional (_Toujours surligner_, granted once); on Firefox the
-  reader is a static content script on every page (see the injection note above). No
-  network requests at all; the pack and glosses are local assets.
+  page_) with `<all_urls>` optional (_Toujours surligner_, granted once); on Firefox and
+  Safari the reader is a static content script on every page (see the injection note
+  above). No network requests at all; the pack and glosses are local assets.
 - **Identity** — one token sheet (`src/styles/tokens.css`) mirrors the Cymbra
   "Sonic Luminescence" palette; no colour literal lives anywhere else (lint-enforced).
 
@@ -136,7 +144,7 @@ Reading builds the deck; review runs it, on the same local state:
   section (the pack's NOTICE + "nothing leaves the device").
 - An injected **drawer** (`Alt+Shift+D`, closed shadow DOM) for micro-reviews without
   leaving the page — the same `ReviewController` + `renderReview` as the side panel, two
-  hosts over one logic. On Safari (no panel API) this becomes the sole review surface.
+  hosts over one logic. On Firefox and Safari it is the review surface.
 
 State authority: the WASM engine holds lingua-core's whole `LinguaState` (knowledge +
 deck + FSRS); it is persisted as its lossless backup string in `chrome.storage.local`,
@@ -145,24 +153,25 @@ so a gesture or a graded card in one context repaints every other via
 
 ## Browser variants
 
-The build produces one artefact per browser from a single source; the differences are
-confined behind the `AnalyzerPort` and the panel surface, selected by the esbuild
-`__TARGET__` define:
+The build produces one artefact per browser from a single source. What differs is chosen
+at build time: `__TARGET__` plus capability defines (`__ENGINE_IN_EVENT_PAGE__`,
+`__REVIEW_IN_PAGE__`, `__STATIC_READER__` — see `capabilities` in `build.mjs`), so each
+bundle folds away the other variants' branches:
 
 - **Chromium** (`chromium`): WASM engine in the content script; panel via the Side Panel
   API; service-worker background.
 - **Firefox** (`firefox`, desktop + Android): Firefox's CSP blocks WASM in a content
-  script, so the engine runs in the **event page** and the content script / side panel
-  reach it over a messaging `AnalyzerPort` (`rpc.ts` / `messaging-port.ts` / the
-  `rpc-host` in `background.ts`); panel via `sidebar_action` (the same page); an
-  add-on id in `browser_specific_settings`. The engine self-hydrates from storage on
-  event-page wake. Published to AMO (desktop + Android, the same zip).
-
-Whether WASM can in fact run in a Firefox content script (a later optimisation) is the
-day-one spike (task 1.1); the event-page path is the architecture either way.
+  script, so the engine runs in the **event page** and the content script reaches it over
+  a messaging `AnalyzerPort` (`rpc.ts` / `messaging-port.ts` / the `rpc-host` in
+  `background.ts`); review in the in-page drawer; an add-on id in
+  `browser_specific_settings`. The engine self-hydrates from storage on event-page wake.
+  Published to AMO (desktop + Android, the same zip).
+- **Safari** (`safari`, macOS + iOS): the Firefox path with a **non-persistent** event
+  page (iOS refuses a persistent one), no `sidePanel` / `identity` permission, and no
+  add-on id. Distributed inside the host app `apps/lingua-apple`, whose Xcode project
+  bundles `dist-safari/`.
 
 ## Scope
 
-Reading + review + the Chromium/Firefox variants ship here. The Safari variant (it
-leans on the drawer, no panel API), sync and accounts, and the agent plugin are later
-changes in the stack.
+Reading + review + the Chromium/Firefox/Safari variants ship here. The agent plugin is a
+separate app (`apps/lingua-agent`).

@@ -36,6 +36,24 @@
   font-size: 13px;
 }
 
+/* Shown next to the percentage until a level is declared (no first-run page on Safari). */
+.hud-level {
+  cursor: pointer;
+  border: 1px solid var(--cymbra-lingua-accent);
+  border-radius: 999px;
+  padding: 3px 10px;
+  background: transparent;
+  color: var(--cymbra-lingua-accent);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.hud-level[hidden] {
+  display: none;
+}
+
 .hud-actions {
   display: flex;
   align-items: center;
