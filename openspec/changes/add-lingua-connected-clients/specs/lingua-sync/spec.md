@@ -28,35 +28,20 @@ The extension SHALL sign in over gRPC-web with a bearer `TokenPair` (never the `
 - **WHEN** the user restarts their browser
 - **THEN** the access token from `storage.session` is gone, the refresh token from `storage.local` obtains a new `TokenPair`, and the session continues without re-entering credentials
 
-### Requirement: Native sign-in in the Apple app with Sign in with Apple
-The container app SHALL sign in natively over gRPC-web against the `lingua` audience, offering Sign in with Apple, Continue with Google and email/password at the same level (Sign in with Apple first on iOS), plus native email sign-up with code verification and password reset. Its tokens SHALL live in a Keychain access group shared only with its Safari extension, and signing out SHALL revoke the refresh token (`Logout`) and clear that Keychain. The app SHALL hold no learning state: the session is the only account data it owns.
+### Requirement: Apple and Google sign-in on Safari through the host app
+On Safari, which has no `identity.launchWebAuthFlow`, the container app SHALL provide Sign in with Apple and Continue with Google natively (Sign in with Apple first) and SHALL hand the resulting id_token to its Safari extension through the App Group, readable once and for at most five minutes. The Safari extension SHALL exchange that id_token through `SignInOidc` against the `lingua` audience and SHALL own the resulting session like every other variant. The container app SHALL hold neither a session nor learning state, and the email flows SHALL stay in the extension.
 
-#### Scenario: Sign in with Apple present
-- **WHEN** the iOS sign-in screen shows "Continue with Google"
-- **THEN** "Continue with Apple" is offered at the same level and yields a `TokenPair` for the `lingua` audience through the existing Apple OIDC
+#### Scenario: Apple sign-in from Safari
+- **WHEN** the reader picks "Continue with Apple" in the Safari extension, completes the native Apple sheet in the container app and goes back to Safari
+- **THEN** the extension exchanges the handed id_token through `SignInOidc`, is signed in to the same Cymbra account as with Apple on any other client, and schedules a sync
 
-#### Scenario: Creating an email account in the app
-- **WHEN** a user without an account signs up with an email and a password in the app
-- **THEN** a verification code is sent, entering it signs them in, and no web page is needed
+#### Scenario: A handed id_token is used once
+- **WHEN** the extension has collected a handed id_token, or the token is older than five minutes
+- **THEN** the App Group no longer holds it, and an expired token is discarded without any RPC
 
-#### Scenario: Forgotten password
-- **WHEN** a user with an email account asks to reset their password in the app
-- **THEN** they receive a reset code and set a new password without leaving the app
-
-### Requirement: The Safari extension uses the app's session
-On Safari the extension SHALL hold no sign-in form and no refresh token: it SHALL obtain short-lived access tokens from the container app's native extension handler over native messaging, and only the native side SHALL refresh, serialised across the app and the extension, because the server revokes the whole token family when a refresh token is replayed. Without a session in the app, the extension SHALL show the signed-out state with a way to open the app and SHALL send no sync request.
-
-#### Scenario: The Safari extension inherits the session
-- **WHEN** the user is signed in to the container app and reads a page in Safari
-- **THEN** the extension syncs under the app's account, with no sign-in screen in Safari
-
-#### Scenario: Signing out in the app
-- **WHEN** the user signs out in the container app
-- **THEN** the Safari extension shows the signed-out state and sends no further sync request, its local state intact
-
-#### Scenario: One refresh for two callers
-- **WHEN** the app and the Safari extension both need a new access token at the same moment
-- **THEN** a single refresh request is sent, both receive the new token, and the session is not revoked
+#### Scenario: Email flows stay in the extension
+- **WHEN** a Safari reader signs up, verifies an email or resets a password
+- **THEN** it happens in the extension's account page, with no native screen involved
 
 ### Requirement: Local store merged at first sign-in
 At the first sign-in of a device holding pre-account local state, the client SHALL push that state in full as operations preserving their original timestamps, then pull the merged state; the merge SHALL be the protocol's ordinary last-write-wins (no special case) and SHALL lose nothing: every local status, card or aggregate missing from the server is created.

@@ -42,8 +42,8 @@ id_token **with no scope**, returned in the URL fragment exactly like Google's.
   creation as an optional, skippable step. Local-first is untouched: no wall, ever.
 - **Provider availability per browser**: Google and Apple are shown only when configured in
   the build **and** the browser exposes `identity.launchWebAuthFlow`. Firefox for Android
-  has no identity API → email only there. Safari stays out of scope (its sign-in lives in
-  the container app, `add-lingua-apple`).
+  has no identity API → email only there. Safari runs the same email flows; its Apple and
+  Google come through the host app (`add-lingua-connected-clients`).
 - **Errors in plain words**: every auth failure maps to a category and a user-facing
   message; a raw gRPC/Connect string never reaches the UI, and a provider failure is never
   worded as a password error.
@@ -98,4 +98,4 @@ text is amended in place inside `add-lingua-connected-clients` (see What Changes
 - **Out of scope**: linking identities / merging a social account into
   an existing one (Music's collision flow), account deletion (the site already has it),
   extension UI localisation (the extension is French-only today — only the emails follow
-  the browser language), Safari.
+  the browser language).

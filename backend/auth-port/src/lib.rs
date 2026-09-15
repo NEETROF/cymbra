@@ -26,6 +26,27 @@ pub struct TokenPair {
     pub refresh_token: String,
 }
 
+/// The client address a rate-limited call is attributed to (change: fix-auth-lockout-dos),
+/// resolved by the adapter with `cymbra_platform::client_addr::resolve`. A newtype, so it
+/// cannot be passed where an email or a password is expected.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ClientAddr(String);
+
+impl ClientAddr {
+    pub fn new(addr: impl Into<String>) -> Self {
+        Self(addr.into())
+    }
+
+    /// No address could be read: every such call shares one budget.
+    pub fn unknown() -> Self {
+        Self(cymbra_platform::client_addr::UNKNOWN.to_string())
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
 /// Which of a target account's sessions an admin revocation may cut.
 ///
 /// Deliberately NOT a plain list with "empty means everything": that shape is how a
@@ -51,12 +72,31 @@ pub enum RevocationScope {
 #[async_trait]
 pub trait AuthPort: Send + Sync {
     /// `locale` (optional; empty string = unset) selects the transactional-email
-    /// language, falling back to English (change: template-backend-emails).
-    async fn sign_up_local(&self, email: &str, password: &str, locale: &str) -> Result<()>;
+    /// language, falling back to English (change: template-backend-emails). `client` is
+    /// the address the email-send budget is charged to (change: fix-auth-lockout-dos).
+    async fn sign_up_local(
+        &self,
+        email: &str,
+        password: &str,
+        locale: &str,
+        client: &ClientAddr,
+    ) -> Result<()>;
     async fn verify_email(&self, token: &str) -> Result<()>;
-    async fn resend_verification(&self, email: &str, locale: &str) -> Result<()>;
-    async fn sign_in_local(&self, email: &str, password: &str, audience: &str)
-    -> Result<TokenPair>;
+    async fn resend_verification(
+        &self,
+        email: &str,
+        locale: &str,
+        client: &ClientAddr,
+    ) -> Result<()>;
+    /// `client` keys the lockout together with the email, so failures from one address
+    /// never lock the same email out elsewhere (change: fix-auth-lockout-dos).
+    async fn sign_in_local(
+        &self,
+        email: &str,
+        password: &str,
+        audience: &str,
+        client: &ClientAddr,
+    ) -> Result<TokenPair>;
     async fn sign_in_oidc(&self, id_token: &str, audience: &str) -> Result<TokenPair>;
     async fn refresh(&self, refresh_token: &str) -> Result<TokenPair>;
     async fn logout(&self, refresh_token: &str) -> Result<()>;
@@ -77,7 +117,12 @@ pub trait AuthPort: Send + Sync {
         target_user_id: &str,
         scope: &RevocationScope,
     ) -> Result<()>;
-    async fn request_password_reset(&self, email: &str, locale: &str) -> Result<()>;
+    async fn request_password_reset(
+        &self,
+        email: &str,
+        locale: &str,
+        client: &ClientAddr,
+    ) -> Result<()>;
     async fn reset_password(&self, token: &str, new_password: &str) -> Result<()>;
     async fn link_identity(&self, user_id: &str, id_token: &str) -> Result<()>;
     async fn unlink_identity(&self, user_id: &str, provider: &str, subject: &str) -> Result<()>;

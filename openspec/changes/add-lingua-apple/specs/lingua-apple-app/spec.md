@@ -25,7 +25,7 @@ The app SHALL guide the user through enabling the Safari extension, which Safari
 - **THEN** Safari's settings open on the extension, and the app shows « extension active » once the state API confirms it
 
 ### Requirement: No learning state in the app
-The container app SHALL NOT hold learning state: the Safari extension SHALL keep its statuses, decks and review state in its own extension storage, under the same versioned schema as the other variants, and SHALL synchronise on its own like them. The account session is the only data the app may hold, as specified by `lingua-sync`.
+The container app SHALL NOT hold learning state: the Safari extension SHALL keep its statuses, decks and review state in its own extension storage, under the same versioned schema as the other variants, and SHALL synchronise on its own like them. It SHALL hold no account session either: its only part in sign-in is the native Apple and Google sheet specified by `lingua-sync`.
 
 #### Scenario: Reading without opening the app again
 - **WHEN** the user has enabled the extension and never reopens the app
