@@ -24,6 +24,25 @@
   letter-spacing: 0.01em;
 }
 
+/* --- Estimated vocabulary --- */
+.stats .vocab {
+  margin-bottom: 16px;
+}
+
+.vocab-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+
+.vocab-n {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--cymbra-lingua-text);
+  font-variant-numeric: tabular-nums;
+}
+
 /* --- CEFR ladder --- */
 .stats .ladder {
   display: flex;
@@ -88,12 +107,31 @@
   opacity: 0.55;
 }
 
-.ladder-frac {
-  width: 78px;
+.ladder-frac,
+.ladder-cum {
   text-align: right;
   font-size: 11px;
   color: var(--cymbra-lingua-muted);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ladder-frac {
+  width: 84px;
+}
+
+.ladder-cum {
+  width: 44px;
+}
+
+/* Column captions above the rows: "ce niveau" / "cumulé". */
+.ladder-cols .ladder-frac,
+.ladder-cols .ladder-cum {
+  font-size: 10px;
+}
+
+.ladder-spacer {
+  flex: 1;
 }
 
 .ladder-legend {

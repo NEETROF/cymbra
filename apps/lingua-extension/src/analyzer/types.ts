@@ -67,5 +67,20 @@ export interface LevelRow {
   total: number;
 }
 
+/** The reader's estimated vocabulary size, from `vocabularyEstimate()`. */
+export interface VocabularyEstimate {
+  /** Estimated known words among `universe` (each frequency band's known share, extrapolated). */
+  estimated: number;
+  /** Words explicitly known: marked, validated in review or confirmed by reading. */
+  confirmed: number;
+  /** The pack's dictionary words the estimate is taken over. */
+  universe: number;
+  /**
+   * What it rests on: a declared level or the frequency slider (extrapolated), or only
+   * the words marked known (then `estimated` is their exact count).
+   */
+  basis: "level" | "frequency" | "marked";
+}
+
 /** Order in which level-targeted seeding takes a level's lemmas. */
 export type SeedOrder = "common" | "rare";

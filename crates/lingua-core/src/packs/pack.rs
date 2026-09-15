@@ -212,6 +212,23 @@ impl Pack {
     pub fn has_levels(&self) -> bool {
         !self.levels.is_empty()
     }
+
+    /// The pack's dictionary words with their frequency rank: the ranked lemmas that
+    /// carry a gloss or a CEFR level, in ascending lemma-id order. A ranked token with
+    /// neither is mostly a name or noise ("london", "www"), which a vocabulary size does
+    /// not count. Feeds the estimated vocabulary size.
+    pub fn dictionary_words(&self) -> Vec<(&str, u32)> {
+        (0..self.lexicon.lemma_count() as u64)
+            .filter_map(|id| {
+                let rank = *self.freq.get(id as usize)?;
+                let leveled = self.levels.get(id as usize).is_some_and(|&code| code != 0);
+                if rank == 0 || !(leveled || self.glosses.contains_key(&id)) {
+                    return None;
+                }
+                Some((self.lexicon.lemma_at(id)?, rank))
+            })
+            .collect()
+    }
 }
 
 impl FrequencyRanks for Pack {
@@ -412,6 +429,41 @@ mod tests {
         );
         // Pack reports no CEFR levels yet (format slice pending).
         assert_eq!(pack.level("run"), None);
+    }
+
+    #[test]
+    fn dictionary_words_are_the_ranked_lemmas_with_a_gloss_or_a_level() {
+        use crate::knowledge::level::CefrLevel;
+        let (forms, pool) =
+            build_lexicon_blobs(&[], &["nuance", "run", "seldom", "www"]).expect("lexicon");
+        let lex = FstLexicon::from_slices(forms.clone(), &pool).unwrap();
+        let id = |lemma: &str| lex.id_of(lemma).unwrap() as usize;
+        let mut freq = vec![0u32; lex.lemma_count()];
+        freq[id("run")] = 500;
+        freq[id("nuance")] = 4_000;
+        freq[id("www")] = 900; // ranked, but neither glossed nor levelled
+        // `seldom` is levelled but unranked.
+        let mut levels = vec![0u8; lex.lemma_count()];
+        levels[id("nuance")] = CefrLevel::B2.to_code();
+        levels[id("seldom")] = CefrLevel::C1.to_code();
+        let freq_bytes: Vec<u8> = freq.iter().flat_map(|r| r.to_le_bytes()).collect();
+        let gloss = build_gloss_zst(&[(id("run") as u32, "courir")]);
+        let bytes = write_container(
+            &meta_json(ANALYZER_VERSION),
+            &[
+                (section::FORMS, &forms),
+                (section::LEMMAS, pool.as_bytes()),
+                (section::FREQ, &freq_bytes),
+                (section::LEVELS, &levels),
+                (section::GLOSS_ZST, &gloss),
+                (section::NOTICE, b"AGID. wordfreq. kaikki."),
+            ],
+        );
+        let pack = Pack::load(&bytes).expect("load");
+        assert_eq!(
+            pack.dictionary_words(),
+            vec![("nuance", 4_000), ("run", 500)]
+        );
     }
 
     #[test]

@@ -1,16 +1,109 @@
 import { describe, expect, it } from "vitest";
-import type { CefrLevel, LevelRow } from "@/analyzer/types.ts";
+import type { CefrLevel, LevelRow, VocabularyEstimate } from "@/analyzer/types.ts";
 import { barChartSvg } from "@/stats/chart.ts";
+import { ladderHtml, vocabularyHtml } from "@/stats/ladder.ts";
 import {
   buildSeries,
   consolidatedToMap,
+  cumulativeTotals,
   dayWindow,
   estimatedPosition,
   groupMarkedWords,
   markedWords,
+  roughCount,
 } from "@/stats/model.ts";
 
 const CEFR: readonly CefrLevel[] = ["A1", "A2", "B1", "B2", "C1", "C2"];
+
+/** A ladder with the given band sizes, `known` of each band presumed known. */
+function bands(totals: number[], known = 0): LevelRow[] {
+  return totals.map((total, i) => ({ level: CEFR[i], confirmed: 0, presumed: known, toLearn: total - known, total }));
+}
+
+const fr = (n: number): string => n.toLocaleString("fr-FR");
+
+describe("cumulativeTotals", () => {
+  it("adds each level's words to those of every level below it", () => {
+    expect(cumulativeTotals(bands([986, 1122, 1945, 2148, 726, 566]))).toEqual([986, 2108, 4053, 6201, 6927, 7493]);
+  });
+
+  it("is empty for an empty ladder", () => {
+    expect(cumulativeTotals([])).toEqual([]);
+  });
+});
+
+describe("ladderHtml", () => {
+  it("shows each level's own words next to the running total up to that level", () => {
+    const html = ladderHtml(bands([986, 1122, 1945, 2148, 726, 566], 10), "A2");
+    expect(html).toContain(`${fr(10)} / ${fr(1122)}`); // A2's own band
+    expect(html).toContain(`<span class="ladder-cum">${fr(2108)}</span>`); // A1 + A2
+    expect(html).toContain(`<span class="ladder-cum">${fr(7493)}</span>`); // the whole list
+    expect(html).toContain("cumulé");
+    expect(html.match(/ladder-row--here/g)).toHaveLength(1);
+  });
+
+  it("explains that a level counts only its own base words", () => {
+    expect(ladderHtml(bands([1, 1, 1, 1, 1, 1]), null)).toContain("Chaque niveau compte les mots qu'il introduit");
+  });
+});
+
+describe("roughCount", () => {
+  it("keeps two significant digits", () => {
+    expect(roughCount(1285)).toBe(1300);
+    expect(roughCount(15823)).toBe(16000);
+    expect(roughCount(995)).toBe(1000);
+  });
+
+  it("leaves small counts as they are", () => {
+    expect(roughCount(0)).toBe(0);
+    expect(roughCount(99)).toBe(99);
+  });
+});
+
+describe("vocabularyHtml", () => {
+  const est = (
+    estimated: number,
+    confirmed: number,
+    basis: VocabularyEstimate["basis"] = "level",
+  ): VocabularyEstimate => ({
+    estimated,
+    confirmed,
+    universe: 25009,
+    basis,
+  });
+
+  it("shows a rounded, extrapolated figure with what it rests on", () => {
+    const html = vocabularyHtml(est(15823, 120), true);
+    expect(html).toContain(`≈&nbsp;${fr(16000)} mots`);
+    expect(html).toContain("D'après ton niveau déclaré");
+    expect(html).toContain(`${fr(25009)} mots du dictionnaire (dont ${fr(120)} confirmés)`);
+    expect(vocabularyHtml(est(2959, 0, "frequency"), true)).toContain("ton réglage des mots les plus courants");
+  });
+
+  it("never rounds below the words confirmed", () => {
+    expect(vocabularyHtml(est(1049, 1040), true)).toContain(`≈&nbsp;${fr(1040)} mots`);
+  });
+
+  it("gives the exact count, not an estimate, when only marked words are known", () => {
+    const html = vocabularyHtml(est(1249, 1249, "marked"), true);
+    expect(html).toContain(`>${fr(1249)} mots<`);
+    expect(html).toContain("Vocabulaire connu");
+    expect(html).not.toContain("≈");
+    expect(html).not.toContain("extrapolé");
+  });
+
+  it("asks for what is missing before there is anything to estimate", () => {
+    expect(vocabularyHtml(est(0, 0, "level"), true)).toContain("marque ceux que tu connais");
+    expect(vocabularyHtml(est(0, 0, "level"), true)).not.toContain("déclare ton niveau");
+    expect(vocabularyHtml(est(0, 0, "marked"), true)).toContain("déclare ton niveau");
+    expect(vocabularyHtml(est(0, 0, "marked"), false)).toContain("règle les mots courants");
+    expect(vocabularyHtml({ ...est(0, 0), universe: 0 }, true)).toBe("");
+  });
+
+  it("omits the confirmed count when there is none", () => {
+    expect(vocabularyHtml(est(3200, 0), true)).not.toContain("confirmés");
+  });
+});
 
 /** Build a full A1..C2 ladder; `known` gives the known fraction (0..1) per level. */
 function ladder(known: Partial<Record<CefrLevel, number>>, total = 100): LevelRow[] {

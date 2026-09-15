@@ -24,6 +24,26 @@ export function estimatedPosition(rows: LevelRow[]): CefrLevel | null {
   return withData[withData.length - 1].level;
 }
 
+/**
+ * Running totals of the ladder's band sizes: each level's words plus those of every
+ * level below it. A band only counts the words introduced at its level, so this is
+ * the figure comparable with overall vocabulary-size estimates per level.
+ */
+export function cumulativeTotals(rows: LevelRow[]): number[] {
+  let sum = 0;
+  return rows.map((r) => (sum += r.total));
+}
+
+/**
+ * A count rounded to two significant digits (1 285 → 1 300, 15 823 → 16 000), for a
+ * figure that is an estimate: a precise-looking number would claim a precision it lacks.
+ */
+export function roughCount(n: number): number {
+  if (n < 100) return n;
+  const step = 10 ** (Math.floor(Math.log10(n)) - 1);
+  return Math.round(n / step) * step;
+}
+
 /** One day's counts (the three tracked metrics). */
 export interface DayCounts {
   exposures: number;

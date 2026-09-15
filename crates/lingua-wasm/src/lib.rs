@@ -193,6 +193,18 @@ impl LinguaEngine {
         serde_json::to_string(&rows).unwrap_or_else(|_| "[]".to_owned())
     }
 
+    /// The reader's estimated vocabulary size as JSON `{estimated, confirmed, universe}`:
+    /// each frequency band's known share, extrapolated over the pack's dictionary words
+    /// (see `KnowledgeState::vocabulary_estimate`). Works with or without CEFR data.
+    #[wasm_bindgen(js_name = vocabularyEstimate)]
+    pub fn vocabulary_estimate(&self) -> String {
+        let estimate =
+            self.state
+                .knowledge
+                .vocabulary_estimate(EN, self.pack.dictionary_words(), &self.pack);
+        serde_json::to_string(&estimate).unwrap_or_else(|_| "{}".to_owned())
+    }
+
     /// Records one reading exposure per lemma (`source` tag, `at_ms` in millis),
     /// feeding the distinct-day counters that back exposure-confirmed known.
     /// Recording never changes a status (design D5) — promotion is the separate,

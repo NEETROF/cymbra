@@ -8,7 +8,7 @@ import type {
   StatusChangeIn,
   StatusOp,
 } from "./port.ts";
-import type { CefrLevel, LemmaStatus, LevelRow, PageAnalysis, SeedOrder } from "./types.ts";
+import type { CefrLevel, LemmaStatus, LevelRow, PageAnalysis, SeedOrder, VocabularyEstimate } from "./types.ts";
 import { sendRpc } from "./rpc.ts";
 
 // The Firefox AnalyzerPort implementation: a thin LinguaPort that forwards every call
@@ -123,6 +123,9 @@ export class MessagingLinguaPort implements LinguaPort {
   }
   levelLadder(): Promise<LevelRow[]> {
     return this.rpc("levelLadder");
+  }
+  vocabularyEstimate(): Promise<VocabularyEstimate> {
+    return this.rpc("vocabularyEstimate");
   }
   recordExposures(lemmas: string[], source: string, atMs: number): Promise<void> {
     return this.rpc("recordExposures", [lemmas, source, atMs]);
