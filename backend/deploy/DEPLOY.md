@@ -235,6 +235,31 @@ to `jobs_admin_svc` if the role exists, and the script grants them if the functi
 `provision-optional-modules.sh` does not cover this role (it models one role + one schema
 per module; this one owns no schema). Only `global` admins see the page.
 
+### Sign-in and email limits
+
+Password sign-in and the verification/reset emails are rate-limited in Valkey, keyed so
+that nobody can lock someone else out (change: fix-auth-lockout-dos):
+
+| What | Valkey key | Default |
+|---|---|---|
+| Lockout for one email **from one address** | `signin:<email>:<address>` | `CYMBRA_SIGNIN_MAX_ATTEMPTS=5` per `CYMBRA_SIGNIN_LOCKOUT=15m` |
+| Failed sign-ins from one address, all emails | `signin-addr:<address>` | `CYMBRA_SIGNIN_ADDR_MAX_FAILURES=30` per lockout window |
+| Failed sign-ins for one email, all addresses | `signin-acct:<email>` | `CYMBRA_SIGNIN_ACCOUNT_FAILURE_RATE=200/1h` |
+| Verification/reset emails for one email from one address | `rl:verify_email:<email>:<address>`, `rl:reset_email:<email>:<address>` | `CYMBRA_EMAIL_SEND_RATE=3/1h` |
+| Emails from one address, sign-up included | `rl:email_addr:<address>` | `CYMBRA_EMAIL_ADDR_SEND_RATE=20/1h` |
+| Verification/reset emails for one email, all addresses | `rl:email_acct:<email>` | `CYMBRA_EMAIL_ACCOUNT_SEND_RATE=10/1h` |
+
+`<email>` is trimmed and lower-cased. `<address>` is the first `X-Forwarded-For` hop — only
+trustworthy because Caddy is the sole entry and rewrites that header: never publish the
+server's ports directly. A refused attempt answers `RESOURCE_EXHAUSTED`.
+
+To lift a lock by hand (the owner's account ceiling, then every per-address lockout):
+
+```bash
+docker compose -f docker-compose.prod.yml exec valkey valkey-cli DEL "signin-acct:user@example.com"
+docker compose -f docker-compose.prod.yml exec valkey sh -c 'valkey-cli --scan --pattern "signin:user@example.com:*" | xargs -r valkey-cli DEL'
+```
+
 ## 7. Backups (do this before you invite users)
 
 ```bash

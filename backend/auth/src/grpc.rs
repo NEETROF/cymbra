@@ -14,7 +14,7 @@ use cymbra_auth_port::proto::{
     self,
     auth_service_server::{AuthService, AuthServiceServer},
 };
-use cymbra_auth_port::{AuthPort, TokenPair};
+use cymbra_auth_port::{AuthPort, ClientAddr, TokenPair};
 use cymbra_platform::AuthIdentity;
 use tonic::{Request, Response, Status};
 
@@ -43,6 +43,20 @@ fn caller<T>(req: &Request<T>) -> Result<String, Status> {
     identity(req).map(|i| i.user_id.clone())
 }
 
+/// The client address the rate limits attribute a call to (change: fix-auth-lockout-dos):
+/// Caddy's first `X-Forwarded-For` hop, else `X-Real-IP`, else the peer address.
+fn client_addr<T>(req: &Request<T>) -> ClientAddr {
+    ClientAddr::new(cymbra_platform::client_addr::resolve(
+        |name| {
+            req.metadata()
+                .get(name)
+                .and_then(|v| v.to_str().ok())
+                .map(str::to_string)
+        },
+        req.remote_addr().map(|a| a.ip()),
+    ))
+}
+
 /// The verified caller identity (user_id + effective roles), stamped by the
 /// internal-token interceptor. Absent when no valid access token was presented.
 fn identity<T>(req: &Request<T>) -> Result<&AuthIdentity, Status> {
@@ -57,9 +71,10 @@ impl<P: AuthPort + 'static> AuthService for AuthGrpc<P> {
         &self,
         req: Request<proto::SignUpLocalRequest>,
     ) -> Result<Response<proto::SignUpLocalResponse>, Status> {
+        let client = client_addr(&req);
         let r = req.into_inner();
         self.port
-            .sign_up_local(&r.email, &r.password, &r.locale)
+            .sign_up_local(&r.email, &r.password, &r.locale, &client)
             .await?;
         Ok(Response::new(proto::SignUpLocalResponse {}))
     }
@@ -76,8 +91,11 @@ impl<P: AuthPort + 'static> AuthService for AuthGrpc<P> {
         &self,
         req: Request<proto::ResendVerificationRequest>,
     ) -> Result<Response<proto::ResendVerificationResponse>, Status> {
+        let client = client_addr(&req);
         let r = req.into_inner();
-        self.port.resend_verification(&r.email, &r.locale).await?;
+        self.port
+            .resend_verification(&r.email, &r.locale, &client)
+            .await?;
         Ok(Response::new(proto::ResendVerificationResponse {}))
     }
 
@@ -85,10 +103,11 @@ impl<P: AuthPort + 'static> AuthService for AuthGrpc<P> {
         &self,
         req: Request<proto::SignInLocalRequest>,
     ) -> Result<Response<proto::TokenPair>, Status> {
+        let client = client_addr(&req);
         let r = req.into_inner();
         let pair = self
             .port
-            .sign_in_local(&r.email, &r.password, &r.audience)
+            .sign_in_local(&r.email, &r.password, &r.audience, &client)
             .await?;
         Ok(Response::new(token_pair(pair)))
     }
@@ -122,9 +141,10 @@ impl<P: AuthPort + 'static> AuthService for AuthGrpc<P> {
         &self,
         req: Request<proto::RequestPasswordResetRequest>,
     ) -> Result<Response<proto::RequestPasswordResetResponse>, Status> {
+        let client = client_addr(&req);
         let r = req.into_inner();
         self.port
-            .request_password_reset(&r.email, &r.locale)
+            .request_password_reset(&r.email, &r.locale, &client)
             .await?;
         Ok(Response::new(proto::RequestPasswordResetResponse {}))
     }
@@ -334,6 +354,71 @@ mod tests {
             "admin-1",
             "global",
         ))
+        .await
+        .unwrap();
+    }
+
+    /// Sign-in is attributed to Caddy's first forwarded hop, not to the proxy itself.
+    #[tokio::test]
+    async fn sign_in_is_attributed_to_the_first_forwarded_hop() {
+        let mut port = MockAuthPort::new();
+        port.expect_sign_in_local()
+            .withf(|email, _, audience, client| {
+                email == "a@x.dev" && audience == "lingua" && client.as_str() == "203.0.113.5"
+            })
+            .times(1)
+            .returning(|_, _, _, _| {
+                Ok(TokenPair {
+                    access_token: "a".into(),
+                    refresh_token: "r".into(),
+                })
+            });
+        let g = grpc(port);
+        let mut req = Request::new(proto::SignInLocalRequest {
+            email: "a@x.dev".into(),
+            password: "pw".into(),
+            audience: "lingua".into(),
+        });
+        req.metadata_mut()
+            .insert("x-forwarded-for", "203.0.113.5, 10.0.0.1".parse().unwrap());
+        g.sign_in_local(req).await.unwrap();
+    }
+
+    /// The email endpoints charge the resolved address too; without any, `unknown`.
+    #[tokio::test]
+    async fn email_endpoints_pass_the_client_address() {
+        let mut port = MockAuthPort::new();
+        port.expect_sign_up_local()
+            .withf(|_, _, _, client| client.as_str() == "10.0.0.9")
+            .times(1)
+            .returning(|_, _, _, _| Ok(()));
+        port.expect_resend_verification()
+            .withf(|_, _, client| client.as_str() == "unknown")
+            .times(1)
+            .returning(|_, _, _| Ok(()));
+        port.expect_request_password_reset()
+            .withf(|_, _, client| client.as_str() == "unknown")
+            .times(1)
+            .returning(|_, _, _| Ok(()));
+        let g = grpc(port);
+        let mut up = Request::new(proto::SignUpLocalRequest {
+            email: "a@x.dev".into(),
+            password: "pw".into(),
+            locale: String::new(),
+        });
+        up.metadata_mut()
+            .insert("x-real-ip", "10.0.0.9".parse().unwrap());
+        g.sign_up_local(up).await.unwrap();
+        g.resend_verification(Request::new(proto::ResendVerificationRequest {
+            email: "a@x.dev".into(),
+            locale: String::new(),
+        }))
+        .await
+        .unwrap();
+        g.request_password_reset(Request::new(proto::RequestPasswordResetRequest {
+            email: "a@x.dev".into(),
+            locale: String::new(),
+        }))
         .await
         .unwrap();
     }
