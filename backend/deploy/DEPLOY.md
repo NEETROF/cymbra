@@ -264,6 +264,23 @@ DNS records it gives you (in Google domain management):
 `CYMBRA_SMTP_FROM` must be on that authenticated domain. Send yourself a test
 sign-up and confirm the mail arrives in the inbox (check the DKIM=pass header).
 
+### Emails arrive minutes late → check the worker's concurrency
+
+Verification and reset mail is sent by `cymbra-worker` as a queued job. sqlxmq only
+picks up new jobs while fewer than `CYMBRA_WORKER_CONCURRENCY_MIN` are running, so
+`MIN` is a re-poll threshold, not a floor of workers: with `MIN=1`, one long job (a
+render, a purge, a stalled SMTP send) holds every other job back, emails included.
+The code default is now `MIN = MAX`, but an `.env` copied from an older example still
+pins `MIN=1` and overrides it. On the box:
+
+```bash
+cd /opt/cymbra/backend/deploy
+# set MIN equal to CYMBRA_WORKER_CONCURRENCY_MAX (16 by default)
+sed -i 's/^CYMBRA_WORKER_CONCURRENCY_MIN=.*/CYMBRA_WORKER_CONCURRENCY_MIN=16/' .env
+docker compose -f docker-compose.prod.yml up -d worker
+docker compose -f docker-compose.prod.yml logs worker | grep "job runner started"   # min=16 max=16
+```
+
 ## 10. Observability (optional — off by default)
 
 Docker logs (`docker compose logs -f server worker`) are enough at this scale, and
