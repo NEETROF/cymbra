@@ -29,6 +29,8 @@
 		AFB5BE0D305892E000728144 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AFB5BDCD305892E000728144 /* Assets.xcassets */; };
 		AFB5BE0E305892E000728144 /* SafariWebExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFB5BDCF305892E000728144 /* SafariWebExtensionHandler.swift */; };
 		AFB5BE0F305892E000728144 /* SafariWebExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFB5BDCF305892E000728144 /* SafariWebExtensionHandler.swift */; };
+		AFB5BE83305892E000728144 /* LinguaSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = AFB5BE81305892E000728144 /* LinguaSignIn */; };
+		AFB5BE84305892E000728144 /* LinguaSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = AFB5BE82305892E000728144 /* LinguaSignIn */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -116,6 +118,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AFB5BE83305892E000728144 /* LinguaSignIn in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -123,6 +126,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AFB5BE84305892E000728144 /* LinguaSignIn in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -280,6 +284,7 @@
 			);
 			name = "Cymbra Lingua Extension (iOS)";
 			packageProductDependencies = (
+				AFB5BE81305892E000728144 /* LinguaSignIn */,
 			);
 			productName = "Cymbra Lingua Extension (iOS)";
 			productReference = AFB5BDF2305892E000728144 /* Cymbra Lingua Extension.appex */;
@@ -300,6 +305,7 @@
 			);
 			name = "Cymbra Lingua Extension (macOS)";
 			packageProductDependencies = (
+				AFB5BE82305892E000728144 /* LinguaSignIn */,
 			);
 			productName = "Cymbra Lingua Extension (macOS)";
 			productReference = AFB5BDFC305892E000728144 /* Cymbra Lingua Extension.appex */;
@@ -338,6 +344,9 @@
 			);
 			mainGroup = AFB5BDC0305892DF00728144;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				AFB5BE80305892E000728144 /* XCLocalSwiftPackageReference "LinguaSignIn" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = AFB5BDD5305892E000728144 /* Products */;
 			projectDirPath = "";
@@ -988,6 +997,26 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		AFB5BE80305892E000728144 /* XCLocalSwiftPackageReference "LinguaSignIn" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = LinguaSignIn;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		AFB5BE81305892E000728144 /* LinguaSignIn */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AFB5BE80305892E000728144 /* XCLocalSwiftPackageReference "LinguaSignIn" */;
+			productName = LinguaSignIn;
+		};
+		AFB5BE82305892E000728144 /* LinguaSignIn */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AFB5BE80305892E000728144 /* XCLocalSwiftPackageReference "LinguaSignIn" */;
+			productName = LinguaSignIn;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = AFB5BDC1305892DF00728144 /* Project object */;
 }
