@@ -57,6 +57,33 @@ function assertPackMatchesEngine() {
 }
 assertPackMatchesEngine();
 
+// Guard: src/wasm/pkg is gitignored and only refreshed by `yarn gen:wasm`, so a build can
+// bundle an engine older than the code calling it — the stats view then stops on its first
+// missing method (vocabularyEstimate, #439) with nothing on screen. Every method the
+// extension calls is declared on `WasmEngine` (src/analyzer/engine.ts); the wasm-bindgen
+// glue's `LinguaEngine` class must provide each of them.
+function assertWasmMatchesEngine() {
+  const gluePath = join(root, "src/wasm/pkg/lingua_wasm.js");
+  if (!existsSync(gluePath)) {
+    throw new Error("src/wasm/pkg is missing — run `yarn gen:wasm` before building.");
+  }
+  const declared = readFileSync(join(root, "src/analyzer/engine.ts"), "utf8").match(
+    /interface WasmEngine \{([\s\S]*?)\n\}/,
+  )?.[1];
+  if (!declared) throw new Error("`interface WasmEngine` not found in src/analyzer/engine.ts.");
+  const called = [...declared.matchAll(/^ {2}(\w+)\(/gm)].map((m) => m[1]);
+  const glue = readFileSync(gluePath, "utf8").match(/export class LinguaEngine \{([\s\S]*?)\n\}/)?.[1] ?? "";
+  const provided = new Set([...glue.matchAll(/^ {4}(\w+)\(/gm)].map((m) => m[1]));
+  const missing = called.filter((name) => !provided.has(name));
+  if (missing.length > 0) {
+    throw new Error(
+      `src/wasm/pkg is older than the extension: LinguaEngine lacks ${missing.join(", ")}. ` +
+        "Rebuild it: `yarn gen:wasm`.",
+    );
+  }
+}
+assertWasmMatchesEngine();
+
 const baseManifest = JSON.parse(readFileSync(join(root, "manifest.json"), "utf8"));
 
 // Backend gRPC-web origin + Google OAuth client id come from the environment so a
