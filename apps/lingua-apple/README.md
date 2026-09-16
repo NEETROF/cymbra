@@ -33,8 +33,10 @@ hand to replace its copied resources with the build phase above.
 ## Build
 
 ```bash
-# 1. The extension (see apps/lingua-extension/README.md for gen:wasm / gen:proto / gen:pack)
-cd apps/lingua-extension && yarn build:safari
+# 1. The extension (see apps/lingua-extension/README.md for gen:wasm / gen:proto / gen:pack).
+#    The bundle is copied as built: for a device or a release, point it at production,
+#    otherwise it calls http://localhost:50051 and every sign-in fails.
+cd apps/lingua-extension && LINGUA_GRPC_WEB_URL=https://api.cymbra.app yarn build:safari
 
 # 2. The app — Xcode, or from the command line:
 cd ../lingua-apple
@@ -44,6 +46,11 @@ xcodebuild -project "Cymbra Lingua.xcodeproj" -scheme "Cymbra Lingua (macOS)" CO
 ```
 
 A build without step 1 fails with an explicit message from the copy phase.
+
+`LINGUA_GOOGLE_CLIENT_ID` (project build setting) is the Google OAuth **iOS** client of
+`com.cymbra.lingua`; it must also be listed in the backend's `CYMBRA_GOOGLE_AUDIENCE`, and
+`com.cymbra.lingua` in `CYMBRA_APPLE_AUDIENCE`. An empty value hides Google in the app and
+in the Safari extension.
 
 ## Run
 
