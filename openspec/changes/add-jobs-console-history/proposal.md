@@ -1,6 +1,6 @@
 ## Why
 
-The back-office Jobs console (`/jobs`) shows only the jobs **still in the queue**:
+The back-office Jobs console (`/admin/jobs`, formerly `/jobs`) shows only the jobs **still in the queue**:
 sqlxmq deletes a job when it completes, so finished work surfaces only as period
 totals ("completed over the period"). An operator who sees jobs running "on their
 own" cannot tell which kinds finished, when, or whether they were started by a

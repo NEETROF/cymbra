@@ -321,6 +321,12 @@ which use unique job names as the existing cases do.
   → This only affects the last page, and the store's step-back logic covers an
   emptied page.
 
+- [`restructure-back-office-navigation` (#453) modifies the same "Global-admin-only access
+  to the jobs console" requirement, moving the page to `/admin/jobs`] → the delta here
+  already carries that path and the `/jobs` redirect, so it stays correct only if this
+  change is archived **after** that one. Re-check the block against `openspec/specs`
+  before archiving.
+
 ## Migration Plan
 
 1. Merge. The worker applies `0019` on boot and grants the functions, because

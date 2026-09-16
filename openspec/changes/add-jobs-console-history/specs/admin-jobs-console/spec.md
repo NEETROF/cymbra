@@ -123,11 +123,11 @@ The mark SHALL appear in the kind filter, the per-kind breakdown, the history ro
 
 ### Requirement: Global-admin-only access to the jobs console
 
-The jobs console operations SHALL be available only to callers holding `admin` in the `global` scope. These operations are: listing queued jobs, listing finished job history, reading job statistics and their per-kind breakdown, listing job kinds with their schedules, and cancelling a job. A caller without that role MUST receive `PERMISSION_DENIED`, or `UNAUTHENTICATED` without a session, and no data. The back office SHALL show the Jobs navigation entry, and route to the console, only for such admins; the server-side check remains authoritative.
+The jobs console operations SHALL be available only to callers holding `admin` in the `global` scope. These operations are: listing queued jobs, listing finished job history, reading job statistics and their per-kind breakdown, listing job kinds with their schedules, and cancelling a job. A caller without that role MUST receive `PERMISSION_DENIED`, or `UNAUTHENTICATED` without a session, and no data. The back office SHALL show the Jobs navigation entry (Administration section) and serve its route, `/admin/jobs`, only to such admins; the former `/jobs` path SHALL redirect to it. The server-side check remains authoritative.
 
 #### Scenario: Global admin reaches the console
 
-- **WHEN** a `global/admin` opens `/jobs`
+- **WHEN** a `global/admin` opens `/admin/jobs`, or the former `/jobs`
 - **THEN** the Jobs page loads with the queue table and statistics
 
 #### Scenario: Module admin is refused
@@ -143,7 +143,7 @@ The jobs console operations SHALL be available only to callers holding `admin` i
 #### Scenario: Module admin sees no entry point
 
 - **WHEN** a `music/admin` without `global/admin` is signed in to the back office
-- **THEN** no Jobs navigation entry is shown and navigating to `/jobs` redirects away
+- **THEN** no Jobs navigation entry is shown and navigating to `/admin/jobs` redirects away
 
 ### Requirement: Job payloads are never exposed by the console
 
