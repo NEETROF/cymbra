@@ -55,4 +55,4 @@
 
 - [x] 9.1 `yarn lint`, `yarn typecheck`, `yarn format:check` (aucun fichier Dart/Rust touché : `melos run analyze` et `cargo fmt` sans objet)
 - [x] 9.2 `yarn test` (couverture ≥ 80 %) et `yarn e2e` verts
-- [ ] 9.3 Vérification manuelle sur `bo.cymbra.app` (ou le dev server) : parcours annuaire → détail → retour, deep-link `/users/{id}`, `/campaigns` sans recherche de compte, anciennes URL redirigées
+- [x] 9.3 Vérification manuelle sur `bo.cymbra.app` (ou le dev server) : parcours annuaire → détail → retour, deep-link `/users/{id}`, `/campaigns` sans recherche de compte, anciennes URL redirigées
