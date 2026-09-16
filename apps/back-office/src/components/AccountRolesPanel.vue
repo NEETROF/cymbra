@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 import { useRolesStore } from "@/stores/roles";
 import { useAuthStore } from "@/stores/auth";
 import AppTag from "@/components/AppTag.vue";
 import type { AccountRow } from "@/gen/user_pb";
 import type { Scope } from "@/lib/jwt";
+import { MANAGED_ROLES, roleLabel } from "@/lib/roles";
 
 // One account's roles, one block per scope the caller may administer (change:
 // restructure-back-office-users-console). The directory needs a scope selector because
@@ -15,10 +17,21 @@ const props = defineProps<{ account: AccountRow }>();
 
 const store = useRolesStore();
 const auth = useAuthStore();
+const { t, te } = useI18n();
 
-const MANAGED_ROLES = ["moderator", "admin"] as const;
 const scopes = computed<Scope[]>(() => auth.adminScopes);
 const acting = computed(() => store.op.status === "loading");
+
+// The chips show roles the SERVER holds, which is a free string (`grant_role` guards
+// the scope, not the role), so an unlabelled one falls back to its own name instead of
+// rendering "ROLE.X". Scopes need no such fallback: they come from the token's closed
+// `SCOPES` list, which test/i18n.spec.ts holds to a label in every locale.
+const label = (role: string) =>
+  roleLabel(
+    role,
+    (k) => te(k),
+    (k) => t(k),
+  );
 
 function rolesIn(scope: string): string[] {
   return props.account.rolesByScope.find((sr) => sr.scope === scope)?.roles ?? [];
@@ -37,7 +50,7 @@ function toggle(scope: string, role: string) {
       <div v-for="s in scopes" :key="s" class="scope-row">
         <span class="scope-name">{{ $t(`scope.${s}`) }}</span>
         <div class="rolechips">
-          <AppTag v-for="r in rolesIn(s)" :key="r" variant="accent" cap>{{ $t(`role.${r}`) }}</AppTag>
+          <AppTag v-for="r in rolesIn(s)" :key="r" variant="accent" cap>{{ label(r) }}</AppTag>
           <span v-if="rolesIn(s).length === 0" class="muted">—</span>
         </div>
         <div class="actions">
@@ -50,12 +63,12 @@ function toggle(scope: string, role: string) {
             :disabled="acting"
             :aria-label="
               rolesIn(s).includes(r)
-                ? $t('users.revokeRoleInScope', { role: $t(`role.${r}`), scope: $t(`scope.${s}`) })
-                : $t('users.grantRoleInScope', { role: $t(`role.${r}`), scope: $t(`scope.${s}`) })
+                ? $t('users.revokeRoleInScope', { role: label(r), scope: $t(`scope.${s}`) })
+                : $t('users.grantRoleInScope', { role: label(r), scope: $t(`scope.${s}`) })
             "
             @click="toggle(s, r)"
           >
-            {{ rolesIn(s).includes(r) ? "−" : "+" }} {{ $t(`role.${r}`) }}
+            {{ rolesIn(s).includes(r) ? "−" : "+" }} {{ label(r) }}
           </button>
         </div>
       </div>

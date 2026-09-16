@@ -250,6 +250,18 @@ test.describe("account detail: roles, history, reliability, sessions", () => {
     await expect(page.getByRole("button", { name: "Revoke moderator in music" })).toBeVisible();
   });
 
+  test("a role this console was never taught reads as its own name, not a raw key", async ({ page }) => {
+    // This is the panel that shipped "SCOPE.LINGUA": it builds role labels the same way,
+    // and the server may hold a role the console has no message for (`grant_role` guards
+    // the scope, never the role). The chip must degrade to the role's own name.
+    const rita = { userId: "u-rita", handle: "rita", displayName: "Rita", roles: ["reviewer"] };
+    await seed(page, { loginAs: "admin", data: { accounts: [rita] } });
+    await page.goto("/users/u-rita?tab=roles");
+
+    await expect(page.getByText("reviewer", { exact: true })).toBeVisible();
+    await expect(page.locator("body")).not.toContainText("role.");
+  });
+
   test("the role history follows the grant, with no page refresh", async ({ page }) => {
     // The history sits on the same screen as the toggle that writes to it. It used to
     // stay one refresh behind: the roles updated, the audit table did not.
