@@ -72,3 +72,10 @@ On iOS 27 in light mode, Safari draws the extension popup sheet's native title
 Safari's own chrome: a `theme-color` meta, an empty `<title>`, a canvas following the
 system `color-scheme` and an empty `action.default_title` were all tried on a device and
 changed nothing. It needs a Safari fix (Apple Feedback).
+
+## Known issue — Google on macOS with Chrome as the default browser
+
+macOS runs the Google sign-in in the default browser. After a Chrome session it could not
+match (`SafariLaunchAgent`: « Received response for unrecognized request »), the system
+queued every later attempt without opening anything until Chrome was quit completely. The
+sheet now keeps « Annuler » active and says so; quitting Chrome and retrying works.

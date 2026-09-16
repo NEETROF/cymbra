@@ -8,6 +8,8 @@ import os.log
 /// available rather than failing.
 protocol GoogleIdTokenSource {
     func idToken() async -> ProviderOutcome
+    /// Abandon an attempt in flight; its `idToken()` then answers `.cancelled`.
+    func cancel()
 }
 
 /// The host app's sign-in sheet (add-lingua-connected-clients, design D6), opened by the
@@ -38,6 +40,11 @@ struct SignInView: View {
                 Text(SignInCopy.lede)
                     .foregroundStyle(Palette.muted)
                 providerButton
+                    .disabled(working)
+                if working {
+                    Text(SignInCopy.browserWaiting)
+                        .foregroundStyle(Palette.muted)
+                }
                 if case let .failed(provider) = phase {
                     Text(SignInCopy.failure(provider))
                         .foregroundStyle(Palette.coral)
@@ -52,7 +59,8 @@ struct SignInView: View {
         .frame(maxWidth: 420)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Palette.background)
-        .disabled(working)
+        // Cancelling or closing the sheet also abandons a browser attempt still in flight.
+        .onDisappear { google?.cancel() }
     }
 
     @ViewBuilder

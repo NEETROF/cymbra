@@ -58,5 +58,6 @@ final class SignInFlowTests: XCTestCase {
             XCTAssertTrue(copy.contains(provider == .apple ? "Apple" : "Google"))
             XCTAssertFalse(copy.lowercased().contains("mot de passe"))
         }
+        XCTAssertFalse(SignInCopy.browserWaiting.lowercased().contains("mot de passe"))
     }
 }

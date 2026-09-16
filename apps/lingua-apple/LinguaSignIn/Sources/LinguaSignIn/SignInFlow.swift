@@ -53,6 +53,8 @@ public enum SignInCopy {
     public static let heading = "Connexion à Cymbra Lingua"
     public static let lede = "Connecte-toi pour retrouver tes mots et tes révisions sur tous tes appareils."
     public static let done = "C'est fait ! Retourne dans Safari : Cymbra Lingua termine la connexion."
+    public static let browserWaiting =
+        "Termine la connexion dans la fenêtre de ton navigateur. Si rien ne s'ouvre, annule, quitte ton navigateur et réessaie."
     public static let close = "Fermer"
     public static let cancel = "Annuler"
 
