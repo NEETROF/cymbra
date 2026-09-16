@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import en from "@/i18n/locales/en.json";
 import fr from "@/i18n/locales/fr.json";
+import { SCOPES } from "@/lib/jwt";
 
 // Flatten a message catalogue into sorted dotted key paths.
 function keys(obj: Record<string, unknown>, prefix = ""): string[] {
@@ -21,6 +22,23 @@ describe("i18n locales", () => {
   for (const [name, msgs] of Object.entries(others)) {
     it(`"${name}" has exactly the English key set`, () => {
       expect(keys(msgs)).toEqual(base);
+    });
+  }
+});
+
+// A scope with no label renders its RAW KEY: the roles panel showed "SCOPE.LINGUA"
+// because `lingua` was missing from BOTH locales — which the parity test above cannot
+// see, since it only compares the locales with each other. The token's scope list is
+// the reference: every scope it can carry needs a label in every locale.
+describe("scope labels", () => {
+  const catalogues: Record<string, { scope: Record<string, string> }> = {
+    en: en as unknown as { scope: Record<string, string> },
+    fr: fr as unknown as { scope: Record<string, string> },
+  };
+
+  for (const [name, msgs] of Object.entries(catalogues)) {
+    it(`"${name}" labels every scope a token can carry`, () => {
+      expect(Object.keys(msgs.scope).sort()).toEqual([...SCOPES].sort());
     });
   }
 });
