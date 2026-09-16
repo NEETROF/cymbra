@@ -2,6 +2,25 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>fr</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>fr</string>
+	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.cymbra.lingua.signin</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>cymbra-lingua</string>
+			</array>
+		</dict>
+	</array>
+	<key>LinguaGoogleClientId</key>
+	<string>$(LINGUA_GOOGLE_CLIENT_ID)</string>
 	<key>SFSafariWebExtensionConverterVersion</key>
 	<string>26.6</string>
 </dict>

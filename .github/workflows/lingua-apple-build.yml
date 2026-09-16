@@ -41,6 +41,9 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v5
+      - name: Test the id_token hand-off (LinguaSignIn)
+        working-directory: apps/lingua-apple/LinguaSignIn
+        run: swift test
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown

@@ -185,6 +185,25 @@ describe("Session", () => {
     expect(sessionArea.store[SIGNIN_ERROR_KEY]).toEqual({ provider: "google", kind: "unknown" });
   });
 
+  it("exchanges a handed-over id_token without running a provider flow", async () => {
+    const { client, calls } = fakeAuth({ oidc: { accessToken: "H", refreshToken: "HR" } });
+    const getAppleIdToken = vi.fn(async () => "never");
+    const { session, localArea } = makeSession(client, { getAppleIdToken });
+    await session.signInWithIdToken("apple", "handed-id-token");
+    expect(getAppleIdToken).not.toHaveBeenCalled();
+    expect(calls.signInOidc).toHaveBeenCalledWith({ idToken: "handed-id-token", audience: "lingua" });
+    expect(session.token()).toBe("H");
+    expect(localArea.store[REFRESH_KEY]).toBe("HR");
+  });
+
+  it("persists a rejected handed-over id_token under its provider", async () => {
+    const { client } = fakeAuth({}, { signInOidc: Code.PermissionDenied });
+    const { session, sessionArea } = makeSession(client);
+    await expect(session.signInWithIdToken("google", "stale")).rejects.toBeInstanceOf(AccountError);
+    expect(sessionArea.store[SIGNIN_ERROR_KEY]).toMatchObject({ provider: "google" });
+    expect(session.state().signedIn).toBe(false);
+  });
+
   it("maps a local sign-in failure to a category without persisting it", async () => {
     const { client } = fakeAuth({}, { signInLocal: Code.FailedPrecondition });
     const { session, sessionArea } = makeSession(client);

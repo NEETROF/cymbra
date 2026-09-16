@@ -1,11 +1,24 @@
 import { type GlueLoader, WasmAnalyzerPort, type WasmModule } from "./analyzer/engine.ts";
 import { handleRpc, isRpcRequest } from "./analyzer/rpc-host.ts";
-import { handleAccountMessage } from "./account/host.ts";
+import { type AccountHostDeps, handleAccountMessage } from "./account/host.ts";
 import { userServicePort } from "./account/profile.ts";
-import { isAccountMessage } from "./account/messages.ts";
+import { type AccountReply, isAccountMessage } from "./account/messages.ts";
 import { api, initApi } from "./net/api.ts";
 import { setTokenRefresher, setUnauthenticatedHandler } from "./net/transport.ts";
-import { appleAuthorizeRequest, availableProviders, googleAuthorizeRequest, runAuthFlow } from "./state/oidc.ts";
+import {
+  hostAppSignInUrl,
+  NATIVE_APP_ID,
+  type NativeSend,
+  nativeProviders,
+  takeHandedIdToken,
+} from "./state/native-signin.ts";
+import {
+  appleAuthorizeRequest,
+  availableProviders,
+  googleAuthorizeRequest,
+  type Provider,
+  runAuthFlow,
+} from "./state/oidc.ts";
 import { Session } from "./state/session.ts";
 import { type AsyncStorageArea, hydrateEngine, ROOT_KEY } from "./state/storage.ts";
 import { getOrCreateDeviceId, SyncEngine } from "./sync/sync.ts";
@@ -199,9 +212,48 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
     }
   };
 
-  // Restore a session on wake and sync once if one was resumed.
-  void session.resume().then((ok) => {
+  // Safari (add-lingua-connected-clients D6): Apple and Google run in the host app, which
+  // hands the id_token back through this extension's native handler.
+  // Everything native stays inside the define's branch, so the other variants fold it away.
+  const native = __NATIVE_PROVIDERS__
+    ? (() => {
+        const send: NativeSend = (message) => chrome.runtime.sendNativeMessage(NATIVE_APP_ID, message);
+        return {
+          providers: () => nativeProviders(send),
+          handOff: {
+            open: async (provider: Provider): Promise<void> => {
+              await chrome.tabs.create({ url: hostAppSignInUrl(provider) });
+            },
+            take: () => takeHandedIdToken(send),
+          },
+        };
+      })()
+    : undefined;
+  const handOff = native?.handOff;
+  const accountDeps: AccountHostDeps = {
+    session,
+    account: userServicePort(() => api().user),
+    providers: () =>
+      native
+        ? native.providers()
+        : availableProviders({ google: __GOOGLE_CLIENT_ID__, apple: __APPLE_CLIENT_ID__ }, chrome.identity),
+    handOff,
+    onSignedIn: () => scheduleSync(0),
+  };
+
+  // One collection at a time: the wake below and a surface opening can ask together, and the
+  // second must wait for the first's sign-in rather than read "nothing pending" and move on.
+  let collecting: Promise<AccountReply> | null = null;
+  const collectHandedToken = (): Promise<AccountReply> =>
+    (collecting ??= handleAccountMessage({ type: "account:collectHandedToken" }, accountDeps).finally(() => {
+      collecting = null;
+    }));
+
+  // Restore a session on wake and sync once if one was resumed. On Safari, also collect an
+  // id_token the host app handed back while the event page was asleep.
+  void session.resume().then(async (ok) => {
     if (ok) scheduleSync(0);
+    if (handOff) await collectHandedToken();
   });
   // A mutation in any context persists the backup → debounced sync.
   chrome.storage.onChanged.addListener((changes, area) => {
@@ -212,13 +264,11 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
     // Every account:* message (sign-in, sign-up, verification, reset, providers) goes
     // through the unit-tested host; replies carry categories, never error strings.
     if (isAccountMessage(message)) {
-      void handleAccountMessage(message, {
-        session,
-        account: userServicePort(() => api().user),
-        providers: () =>
-          availableProviders({ google: __GOOGLE_CLIENT_ID__, apple: __APPLE_CLIENT_ID__ }, chrome.identity),
-        onSignedIn: () => scheduleSync(0),
-      }).then(sendResponse);
+      const reply =
+        message.type === "account:collectHandedToken"
+          ? collectHandedToken()
+          : handleAccountMessage(message, accountDeps);
+      void reply.then(sendResponse);
       return true;
     }
     const msg = message as { type?: string } | null;

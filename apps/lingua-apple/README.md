@@ -18,6 +18,14 @@ extension (see `openspec/changes/add-lingua-apple`).
   settings on the extension (`SFSafariApplication.showPreferencesForExtension`).
 - **Minimum OS** — iOS 17.2 / macOS 12: the reader paints with the CSS Custom Highlight
   API, which Safari ships from 17.2.
+- **Apple and Google sign-in** (`openspec/changes/add-lingua-connected-clients`, D6) — Safari
+  has no `identity.launchWebAuthFlow`, so the extension opens this app on
+  `cymbra-lingua://signin?provider=apple|google` (`CFBundleURLTypes` in both apps). The app
+  shows `Shared (App)/SignInView.swift`, runs the provider's native sheet and leaves the
+  id_token in the App Group; the extension's `SafariWebExtensionHandler` answers
+  `auth.takeIdToken` with it once, within five minutes. The Cymbra session stays in the
+  extension. The logic lives in the local package [`LinguaSignIn`](LinguaSignIn), linked by
+  all four targets.
 
 The project was scaffolded by `xcrun safari-web-extension-converter` and then changed by
 hand to replace its copied resources with the build phase above.
@@ -25,8 +33,10 @@ hand to replace its copied resources with the build phase above.
 ## Build
 
 ```bash
-# 1. The extension (see apps/lingua-extension/README.md for gen:wasm / gen:proto / gen:pack)
-cd apps/lingua-extension && yarn build:safari
+# 1. The extension (see apps/lingua-extension/README.md for gen:wasm / gen:proto / gen:pack).
+#    The bundle is copied as built: for a device or a release, point it at production,
+#    otherwise it calls http://localhost:50051 and every sign-in fails.
+cd apps/lingua-extension && LINGUA_GRPC_WEB_URL=https://api.cymbra.app yarn build:safari
 
 # 2. The app — Xcode, or from the command line:
 cd ../lingua-apple
@@ -35,7 +45,14 @@ xcodebuild -project "Cymbra Lingua.xcodeproj" -scheme "Cymbra Lingua (iOS)" \
 xcodebuild -project "Cymbra Lingua.xcodeproj" -scheme "Cymbra Lingua (macOS)" CODE_SIGNING_ALLOWED=NO build
 ```
 
-A build without step 1 fails with an explicit message from the copy phase.
+A build without step 1 fails with an explicit message from the copy phase, and so does a
+device build or an archive whose bundle still calls `localhost` (simulator and Mac builds
+may keep a local backend).
+
+`LINGUA_GOOGLE_CLIENT_ID` (project build setting) is the Google OAuth **iOS** client of
+`com.cymbra.lingua`; it must also be listed in the backend's `CYMBRA_GOOGLE_AUDIENCE`, and
+`com.cymbra.lingua` in `CYMBRA_APPLE_AUDIENCE`. An empty value hides Google in the app and
+in the Safari extension.
 
 ## Run
 
@@ -55,3 +72,10 @@ On iOS 27 in light mode, Safari draws the extension popup sheet's native title
 Safari's own chrome: a `theme-color` meta, an empty `<title>`, a canvas following the
 system `color-scheme` and an empty `action.default_title` were all tried on a device and
 changed nothing. It needs a Safari fix (Apple Feedback).
+
+## Known issue — Google on macOS with Chrome as the default browser
+
+macOS runs the Google sign-in in the default browser. After a Chrome session it could not
+match (`SafariLaunchAgent`: « Received response for unrecognized request »), the system
+queued every later attempt without opening anything until Chrome was quit completely. The
+sheet now keeps « Annuler » active and says so; quitting Chrome and retrying works.

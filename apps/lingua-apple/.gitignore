@@ -3,3 +3,6 @@ xcuserdata/
 *.xcuserstate
 build/
 DerivedData/
+# Swift package build output (LinguaSignIn)
+.build/
+.swiftpm/

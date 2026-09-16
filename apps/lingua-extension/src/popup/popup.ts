@@ -376,6 +376,8 @@ async function main(): Promise<void> {
     const type = provider === "apple" ? "account:signInApple" : "account:signInGoogle";
     const res = (await sendRuntime({ type })) as AccountReply | null;
     if (res?.ok) renderAccount(res.state ?? { signedIn: true });
+    // Safari: the host app now shows the provider's sheet; the next popup open collects the token.
+    else if (res?.handedOff) window.close();
     else if (res && !res.cancelled) {
       // Shown live — drop the background's persisted copy so it does not re-show next open.
       showAccountError(errorCopy(providerContext(provider), res.error ?? "unknown"));
@@ -426,6 +428,9 @@ async function main(): Promise<void> {
   });
 
   await applyEnabled(await loadEnabled(storageArea));
+  // Safari: exchange an id_token the host app handed back before reading the account state;
+  // a failure is persisted by the background and shown by surfaceSignInError() below.
+  if (__NATIVE_PROVIDERS__) await sendRuntime({ type: "account:collectHandedToken" });
   renderAccount(((await sendRuntime({ type: "account:state" })) as AccountReply | null)?.state ?? null);
   await renderProviders();
   await surfaceSignInError(); // show a sign-in failure that happened after the popup closed

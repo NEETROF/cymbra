@@ -1,42 +1,29 @@
-//
-//  SafariWebExtensionHandler.swift
-//  Shared (Extension)
-//
-//  Created by fortin guillaume on 14/09/2026.
-//
-
+import LinguaSignIn
 import SafariServices
 import os.log
 
+/// The extension's native side (add-lingua-connected-clients, design D6): it hands over the
+/// id_token the host app's sign-in sheet left in the App Group, once. It has no UI and never
+/// touches the network or the Cymbra session, which stay in the extension.
 class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
 
     func beginRequest(with context: NSExtensionContext) {
         let request = context.inputItems.first as? NSExtensionItem
+        let message = request?.userInfo?[SFExtensionMessageKey]
 
-        let profile: UUID?
-        if #available(iOS 17.0, macOS 14.0, *) {
-            profile = request?.userInfo?[SFExtensionProfileKey] as? UUID
-        } else {
-            profile = request?.userInfo?["profile"] as? UUID
+        // Never log the message or the reply: the reply can carry an id_token.
+        let reply = NativeMessage.reply(
+            to: message,
+            handoff: IdTokenHandoff.shared(),
+            googleClientId: Bundle.main.object(forInfoDictionaryKey: "LinguaGoogleClientId") as? String
+        )
+        if reply["error"] != nil {
+            os_log(.error, "Refused an unknown native message from the extension")
         }
-
-        let message: Any?
-        if #available(iOS 15.0, macOS 11.0, *) {
-            message = request?.userInfo?[SFExtensionMessageKey]
-        } else {
-            message = request?.userInfo?["message"]
-        }
-
-        os_log(.default, "Received message from browser.runtime.sendNativeMessage: %@ (profile: %@)", String(describing: message), profile?.uuidString ?? "none")
 
         let response = NSExtensionItem()
-        if #available(iOS 15.0, macOS 11.0, *) {
-            response.userInfo = [ SFExtensionMessageKey: [ "echo": message ] ]
-        } else {
-            response.userInfo = [ "message": [ "echo": message ] ]
-        }
-
-        context.completeRequest(returningItems: [ response ], completionHandler: nil)
+        response.userInfo = [SFExtensionMessageKey: reply]
+        context.completeRequest(returningItems: [response], completionHandler: nil)
     }
 
 }
