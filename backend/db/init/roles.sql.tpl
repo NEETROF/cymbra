@@ -127,8 +127,9 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA lingua
 -- jobs console (change: add-admin-jobs-console) — the server's narrow access to the
 -- queue for the back-office Jobs page. NOT a module role, and never to be given to
 -- one. It owns nothing and holds no table privilege: USAGE on `jobs` and EXECUTE on
--- four SECURITY DEFINER functions (list, per-state counts, period figures, cancel),
--- so it reads queue metadata and cancels a job but cannot read a payload.
+-- the SECURITY DEFINER `jobs.admin_*` functions (queue list, per-state counts, period
+-- figures and their per-kind breakdown, finished-attempt history and count, schedules,
+-- cancel), so it reads queue metadata and cancels a job but cannot read a payload.
 SELECT format('CREATE ROLE %I LOGIN', :'jobs_admin_role')
 WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'jobs_admin_role')
 \gexec
@@ -146,6 +147,17 @@ SELECT format(
   'jobs.admin_cancel(uuid, text, text[]) TO %I',
   :'jobs_admin_role')
 WHERE to_regprocedure('jobs.admin_cancel(uuid, text, text[])') IS NOT NULL
+\gexec
+-- History, per-kind figures and schedules (change: add-jobs-console-history) — a later
+-- migration (0019), so guarded on its own functions: a database can hold 0018 without it.
+SELECT format(
+  'GRANT EXECUTE ON FUNCTION '
+  'jobs.admin_list_attempts(timestamptz, timestamptz, text, text, integer, integer), '
+  'jobs.admin_count_attempts(timestamptz, timestamptz, text, text), '
+  'jobs.admin_period_stats_by_kind(timestamptz, timestamptz, text), '
+  'jobs.admin_list_schedules() TO %I',
+  :'jobs_admin_role')
+WHERE to_regprocedure('jobs.admin_list_attempts(timestamptz, timestamptz, text, text, integer, integer)') IS NOT NULL
 \gexec
 
 -- Keep the module roles out of the shared `public` schema so the only namespaces

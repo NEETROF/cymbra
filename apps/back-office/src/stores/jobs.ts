@@ -4,7 +4,15 @@ import { api } from "@/lib/api";
 import { type Async, failure, idle, reread, run } from "@/lib/async";
 import { humanError } from "@/lib/errors";
 import { t } from "@/i18n";
-import { CancelOutcome, JobState, type QueuedJob } from "@/gen/jobs_admin_pb";
+import {
+  AttemptOutcome,
+  CancelOutcome,
+  JobState,
+  type FinishedAttempt,
+  type PeriodStats as WirePeriodStats,
+  type QueuedJob,
+} from "@/gen/jobs_admin_pb";
+import type { ScheduleInfo } from "@/lib/cadence";
 import { type ToastVariant, useToastsStore } from "@/stores/toasts";
 
 // Jobs console (change: add-admin-jobs-console, task 6.2). The ONLY place that calls
@@ -15,6 +23,11 @@ import { type ToastVariant, useToastsStore } from "@/stores/toasts";
 //
 // Privacy: these types carry queue METADATA only — the contract has no payload and no
 // error text to carry (see `jobs_admin.proto`).
+//
+// History (change: add-jobs-console-history): the finished attempts are a second list,
+// shown on their own tab and loaded the first time the tab opens. Its window is frozen
+// when the list is (re)loaded and reused while paging, so attempts finishing meanwhile
+// cannot shift the pages being browsed; a refresh or a filter/period change moves it.
 
 /** Table page size (the server accepts 1..=100). */
 export const PAGE_SIZE = 25;
@@ -61,18 +74,86 @@ export interface PeriodStats {
   /** Mean run time of succeeded attempts; `null` when none succeeded. */
   avgRunMs: number | null;
 }
+/** The period figures of one kind with activity in the window. */
+export interface KindPeriodRow {
+  kind: string;
+  period: PeriodStats;
+  /** When its latest attempt finished in the window (epoch ms); `null` when none did. */
+  lastFinishedAt: number | null;
+}
 export interface JobStats {
   queue: QueueCounts;
   period: PeriodStats;
   /** When the attempt history starts (epoch ms); `null` while it is empty. Figures for
    *  time before it are unknown, not zero. */
   historySince: number | null;
+  /** `period` per kind with activity, sorted by kind. Empty from an older server. */
+  byKind: KindPeriodRow[];
 }
-/** A registered job kind (feeds the kind filter). */
+/** A registered job kind (feeds the kind filter) and the schedules that enqueue it. */
 export interface JobKindInfo {
   name: string;
   channel: string;
   cancellable: boolean;
+  schedules: ScheduleInfo[];
+}
+
+/** One finished attempt, with epoch-ms times as plain numbers. */
+export interface FinishedAttemptRow {
+  jobId: string;
+  kind: string;
+  channel: string;
+  outcome: AttemptOutcome;
+  attempt: number;
+  startedAt: number;
+  finishedAt: number;
+  /** `null` for an abandoned attempt: its finish time is not the end of a run. */
+  durationMs: number | null;
+}
+/** One page of the history plus the total matching the filters. */
+export interface HistoryPage {
+  attempts: FinishedAttemptRow[];
+  total: number;
+}
+/** The history filter (the kind filter is the page's) and its page. */
+export interface HistoryParams {
+  outcome: AttemptOutcome;
+  offset: number;
+}
+
+export type JobsTab = "queue" | "history";
+
+/** One line of the per-kind breakdown: a kind, its figures (zeros when it did nothing in
+ *  the window) and its latest finish. */
+export interface BreakdownRow {
+  kind: string;
+  period: PeriodStats;
+  lastFinishedAt: number | null;
+}
+
+const ZERO_PERIOD: PeriodStats = { completed: 0, failedAttempts: 0, deadLettered: 0, cancelled: 0, avgRunMs: null };
+
+/** Every registered kind merged with the kinds that had activity — a scheduled kind that
+ *  did not run shows as a zero row, and a kind that ran but is no longer registered keeps
+ *  its row. A kind filter narrows it to that kind. Sorted by kind. */
+export function breakdownRows(
+  kinds: readonly JobKindInfo[],
+  byKind: readonly KindPeriodRow[],
+  kindFilter: string,
+): BreakdownRow[] {
+  const rows = new Map<string, BreakdownRow>();
+  for (const k of kinds) rows.set(k.name, { kind: k.name, period: ZERO_PERIOD, lastFinishedAt: null });
+  for (const k of byKind) rows.set(k.kind, { kind: k.kind, period: k.period, lastFinishedAt: k.lastFinishedAt });
+  return [...rows.values()]
+    .filter((r) => kindFilter === "" || r.kind === kindFilter)
+    .sort((a, b) => a.kind.localeCompare(b.kind));
+}
+
+/** The totals say something happened but no per-kind row came back: a server older than
+ *  the breakdown. Zeros would then be a lie. */
+export function breakdownUnavailable(stats: JobStats): boolean {
+  const p = stats.period;
+  return stats.byKind.length === 0 && p.completed + p.failedAttempts + p.deadLettered + p.cancelled > 0;
 }
 
 /** The table filters. `UNSPECIFIED` = any state, `""` = any kind. */
@@ -136,6 +217,29 @@ function parseLocal(value: string): number {
 
 const optionalMs = (v: bigint | undefined): number | null => (v === undefined ? null : Number(v));
 
+function toPeriod(p: WirePeriodStats | undefined): PeriodStats {
+  return {
+    completed: Number(p?.completed ?? 0n),
+    failedAttempts: Number(p?.failedAttempts ?? 0n),
+    deadLettered: Number(p?.deadLettered ?? 0n),
+    cancelled: Number(p?.cancelled ?? 0n),
+    avgRunMs: optionalMs(p?.avgRunMs),
+  };
+}
+
+function toAttempt(a: FinishedAttempt): FinishedAttemptRow {
+  return {
+    jobId: a.jobId,
+    kind: a.kind,
+    channel: a.channel,
+    outcome: a.outcome,
+    attempt: a.attempt,
+    startedAt: Number(a.startedAtMs),
+    finishedAt: Number(a.finishedAtMs),
+    durationMs: optionalMs(a.durationMs),
+  };
+}
+
 function toRow(j: QueuedJob): QueuedJobRow {
   return {
     id: j.id,
@@ -166,10 +270,15 @@ export const useJobsStore = defineStore("jobs", () => {
   const page = ref<Async<JobsPage>>(idle);
   const stats = ref<Async<JobStats>>(idle);
   const kinds = ref<Async<JobKindInfo[]>>(idle);
+  const history = ref<Async<HistoryPage>>(idle);
   /** The job id whose cancellation is in flight (request + the re-read after it). */
   const cancelling = ref<string | null>(null);
   const params = reactive<JobsParams>({ state: JobState.UNSPECIFIED, kind: "", offset: 0 });
+  const historyParams = reactive<HistoryParams>({ outcome: AttemptOutcome.UNSPECIFIED, offset: 0 });
   const period = reactive<PeriodSelection>({ preset: "24h", from: "", to: "" });
+  const tab = ref<JobsTab>("queue");
+  /** The window the history was last (re)loaded with; paging reuses it. */
+  let historyWindow: { fromMs: number; toMs: number } | null = null;
 
   async function fetchPage(): Promise<JobsPage> {
     const r = await api().jobs.adminListJobs({
@@ -197,7 +306,6 @@ export const useJobsStore = defineStore("jobs", () => {
         kind: params.kind,
       });
       const q = r.queue;
-      const p = r.period;
       return {
         queue: {
           total: Number(q?.total ?? 0n),
@@ -208,16 +316,60 @@ export const useJobsStore = defineStore("jobs", () => {
           blocked: Number(q?.blocked ?? 0n),
           exhausted: Number(q?.exhausted ?? 0n),
         },
-        period: {
-          completed: Number(p?.completed ?? 0n),
-          failedAttempts: Number(p?.failedAttempts ?? 0n),
-          deadLettered: Number(p?.deadLettered ?? 0n),
-          cancelled: Number(p?.cancelled ?? 0n),
-          avgRunMs: optionalMs(p?.avgRunMs),
-        },
+        period: toPeriod(r.period),
         historySince: optionalMs(r.historySinceMs),
+        byKind: r.byKind.map((k) => ({
+          kind: k.kind,
+          period: toPeriod(k.period),
+          lastFinishedAt: optionalMs(k.lastFinishedAtMs),
+        })),
       } satisfies JobStats;
     });
+  }
+
+  async function fetchHistory(): Promise<HistoryPage> {
+    // Only called once `historyWindow` is set (see `loadHistory`).
+    const w = historyWindow as { fromMs: number; toMs: number };
+    const r = await api().jobs.adminListJobHistory({
+      window: { fromMs: BigInt(w.fromMs), toMs: BigInt(w.toMs) },
+      kind: params.kind,
+      outcome: historyParams.outcome,
+      limit: PAGE_SIZE,
+      offset: historyParams.offset,
+    });
+    return { attempts: r.attempts.map(toAttempt), total: Number(r.total) };
+  }
+
+  /** (Re)load the history over the CURRENT period, freezing that window for paging. An
+   *  invalid window never reaches the server. */
+  async function loadHistory(fold: typeof run) {
+    const now = Date.now();
+    const w = windowFor(period, now);
+    const invalid = validateWindow(w.fromMs, w.toMs, now);
+    if (invalid) {
+      history.value = failure(t(invalid));
+      return;
+    }
+    historyWindow = w;
+    const outcome = await fold(history, fetchHistory);
+    // A page emptied under the operator steps back to the last page with rows.
+    if (outcome.status === "success" && outcome.data.attempts.length === 0 && historyParams.offset > 0) {
+      const total = outcome.data.total;
+      historyParams.offset = total === 0 ? 0 : Math.floor((total - 1) / PAGE_SIZE) * PAGE_SIZE;
+      await fold(history, fetchHistory);
+    }
+  }
+
+  /** Reload the list the operator is looking at; the other one is marked stale so it is
+   *  loaded afresh the next time its tab opens. */
+  async function loadActiveList(fold: typeof run) {
+    if (tab.value === "history") {
+      page.value = idle;
+      await loadHistory(fold);
+    } else {
+      history.value = idle;
+      await (fold === run ? run(page, fetchPage) : rereadPage());
+    }
   }
 
   /** Re-read the page under the operator. A page emptied by jobs leaving the queue (a
@@ -237,20 +389,66 @@ export const useJobsStore = defineStore("jobs", () => {
     await Promise.all([run(page, fetchPage), loadStats(run)]);
   }
 
-  /** The registered kinds, for the kind filter (data-driven, no hard-coded list). */
+  /** The registered kinds and their schedules (data-driven, no hard-coded list): the kind
+   *  filter, the breakdown and every cadence badge read this one resource. */
   async function loadKinds() {
     await run(kinds, async () =>
       (await api().jobs.adminListJobKinds({})).kinds.map(
-        (k) => ({ name: k.name, channel: k.channel, cancellable: k.cancellable }) satisfies JobKindInfo,
+        (k) =>
+          ({
+            name: k.name,
+            channel: k.channel,
+            cancellable: k.cancellable,
+            schedules: k.schedules.map((s) => ({
+              name: s.name,
+              cron: s.cron,
+              timezone: s.timezone,
+              enabled: s.enabled,
+            })),
+          }) satisfies JobKindInfo,
       ),
     );
   }
 
   /** Change the state and/or kind filter: back to the first page. The kind also scopes the
-   *  statistics, so both are reloaded. */
+   *  statistics and the history, so the active list and the statistics are reloaded. */
   async function setFilters(next: { state?: JobState; kind?: string }) {
     Object.assign(params, next, { offset: 0 });
-    await Promise.all([run(page, fetchPage), loadStats(run)]);
+    historyParams.offset = 0;
+    await Promise.all([loadActiveList(run), loadStats(run)]);
+  }
+
+  /** Show one tab. A list never loaded (or made stale by a filter change) loads now. */
+  async function setTab(next: JobsTab) {
+    tab.value = next;
+    if (next === "history" && history.value.status === "idle") await loadHistory(run);
+    if (next === "queue" && page.value.status === "idle") await run(page, fetchPage);
+  }
+
+  /** Change the history's outcome filter: back to its first page, over the current period. */
+  async function setHistoryFilters(next: { outcome: AttemptOutcome }) {
+    historyParams.outcome = next.outcome;
+    historyParams.offset = 0;
+    await loadHistory(run);
+  }
+
+  /** Move to another history page, over the window the list was loaded with. */
+  async function goToHistoryPage(offset: number) {
+    historyParams.offset = Math.max(0, offset);
+    if (historyWindow === null) {
+      await loadHistory(run);
+      return;
+    }
+    await run(history, fetchHistory);
+  }
+
+  /** From the breakdown: filter the page on `kind` and open its history. */
+  async function showKindHistory(kind: string) {
+    params.kind = kind;
+    params.offset = 0;
+    historyParams.offset = 0;
+    tab.value = "history";
+    await Promise.all([loadActiveList(run), loadStats(run)]);
   }
 
   /** Move to another page (the statistics do not depend on the page). */
@@ -269,12 +467,20 @@ export const useJobsStore = defineStore("jobs", () => {
       period.to = toLocalInput(w.toMs);
     }
     Object.assign(period, next);
-    await loadStats(reread);
+    historyParams.offset = 0;
+    if (tab.value === "history") {
+      await Promise.all([loadHistory(reread), loadStats(reread)]);
+    } else {
+      // The history is over the old period now: loaded afresh when its tab opens.
+      history.value = idle;
+      await loadStats(reread);
+    }
   }
 
-  /** Re-read the page and the statistics without collapsing what is on screen. */
+  /** Re-read the active list and the statistics without collapsing what is on screen. A
+   *  preset period moves forward, so the history's newest attempts land on its page 1. */
   async function refresh() {
-    await Promise.all([rereadPage(), loadStats(reread)]);
+    await Promise.all([loadActiveList(reread), loadStats(reread)]);
   }
 
   /** Cancel one queued job. Every outcome — including a refusal — is a localised toast;
@@ -303,12 +509,19 @@ export const useJobsStore = defineStore("jobs", () => {
     page,
     stats,
     kinds,
+    history,
     cancelling,
     params,
+    historyParams,
     period,
+    tab,
     load,
     loadKinds,
     setFilters,
+    setTab,
+    setHistoryFilters,
+    goToHistoryPage,
+    showKindHistory,
     goToPage,
     setPeriod,
     refresh,

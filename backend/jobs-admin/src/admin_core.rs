@@ -1,7 +1,9 @@
 //! Pure rules for the back-office Jobs console (change: add-admin-jobs-console),
 //! host-tested: request validation (page, window, filters, job id), the state and
 //! outcome vocabularies shared with the `jobs.admin_*` SQL functions, per-row
-//! cancellability, and the shaping of per-state counts.
+//! cancellability, and the shaping of per-state counts. Change add-jobs-console-history
+//! adds the finished-attempt vocabulary and shaping, the per-kind figures, and the join
+//! of the registered kinds with their schedules.
 //!
 //! The queue state itself is derived once, in the `jobs.admin_queue` view (design D2):
 //! filtering, paging and counting by state all have to happen server-side, so the rule
@@ -255,13 +257,107 @@ pub struct PeriodStats {
     pub avg_run_ms: Option<i64>,
 }
 
-/// Everything the console's cards show.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// The period figures of one kind. Every figure but the average adds up, across kinds,
+/// to the [`PeriodStats`] of the same window and filter.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct KindPeriodStats {
+    pub kind: String,
+    pub stats: PeriodStats,
+    /// The kind's latest finished attempt in the window, whatever its outcome.
+    pub last_finished_at: Option<DateTime<Utc>>,
+}
+
+/// Everything the console's cards and breakdown show.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct JobStats {
     pub queue: QueueCounts,
     pub period: PeriodStats,
     /// The oldest attempt on record; before it the figures are unknown.
     pub history_since: Option<DateTime<Utc>>,
+    /// `period` per kind with activity in the window, sorted by kind.
+    pub by_kind: Vec<KindPeriodStats>,
+}
+
+/// How a finished attempt ended: the `outcome` words of `jobs.job_attempts`, minus
+/// `running` — a running attempt is not history. Distinct from
+/// `cymbra_jobs::attempt::AttemptOutcome`, which the worker writes and which has no
+/// `abandoned` (the sweep and the cancellation close those).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum HistoryOutcome {
+    Succeeded,
+    Failed,
+    Abandoned,
+}
+
+impl HistoryOutcome {
+    pub const ALL: [HistoryOutcome; 3] = [
+        HistoryOutcome::Succeeded,
+        HistoryOutcome::Failed,
+        HistoryOutcome::Abandoned,
+    ];
+
+    pub fn as_db(self) -> &'static str {
+        match self {
+            HistoryOutcome::Succeeded => "succeeded",
+            HistoryOutcome::Failed => "failed",
+            HistoryOutcome::Abandoned => "abandoned",
+        }
+    }
+
+    pub fn from_db(s: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|outcome| outcome.as_db() == s)
+    }
+}
+
+/// One finished attempt as `jobs.admin_list_attempts` returns it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AttemptRow {
+    pub job_id: Uuid,
+    pub kind: String,
+    pub channel: String,
+    pub attempt: i32,
+    pub outcome: String,
+    pub started_at: DateTime<Utc>,
+    pub finished_at: DateTime<Utc>,
+}
+
+/// One finished attempt as the console shows it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FinishedAttempt {
+    pub job_id: Uuid,
+    pub kind: String,
+    pub channel: String,
+    pub outcome: HistoryOutcome,
+    pub attempt: i32,
+    pub started_at: DateTime<Utc>,
+    pub finished_at: DateTime<Utc>,
+    /// How long the handler ran. `None` for an abandoned attempt: its finish time is when
+    /// the crash was noticed, so the difference is not a run time.
+    pub duration_ms: Option<i64>,
+}
+
+pub fn finished_attempt(row: AttemptRow) -> Result<FinishedAttempt> {
+    let outcome = HistoryOutcome::from_db(&row.outcome).ok_or_else(|| {
+        AppError::Internal(anyhow::anyhow!(
+            "unexpected attempt outcome {:?} in the history",
+            row.outcome
+        ))
+    })?;
+    let duration_ms = match outcome {
+        HistoryOutcome::Abandoned => None,
+        // Clock adjustments between the two writes must not show a negative run.
+        _ => Some((row.finished_at - row.started_at).num_milliseconds().max(0)),
+    };
+    Ok(FinishedAttempt {
+        job_id: row.job_id,
+        kind: row.kind,
+        channel: row.channel,
+        outcome,
+        attempt: row.attempt,
+        started_at: row.started_at,
+        finished_at: row.finished_at,
+        duration_ms,
+    })
 }
 
 /// The result of a cancellation request — the words `jobs.admin_cancel` returns.
@@ -287,32 +383,68 @@ impl CancelOutcome {
     }
 }
 
-/// A registered job kind, for the console's filter.
+/// One recurring schedule as `jobs.admin_list_schedules` returns it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ScheduleRow {
+    pub name: String,
+    pub kind: String,
+    pub cron: String,
+    pub timezone: String,
+    pub enabled: bool,
+}
+
+/// A schedule attached to its kind.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct JobSchedule {
+    pub name: String,
+    pub cron: String,
+    pub timezone: String,
+    pub enabled: bool,
+}
+
+/// A registered job kind, for the console's filter, with the schedules that enqueue it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct JobKind {
     pub name: String,
     pub channel: String,
     pub cancellable: bool,
+    /// Empty for a kind only enqueued on demand.
+    pub schedules: Vec<JobSchedule>,
 }
 
-/// Every registered kind, sorted by name.
-pub fn job_kinds() -> Vec<JobKind> {
+/// Every registered kind, sorted by name, each with its schedules sorted by name. A
+/// schedule whose kind the registry does not know is dropped: the scheduler skips it too.
+pub fn job_kinds(schedules: Vec<ScheduleRow>) -> Vec<JobKind> {
     let mut kinds: Vec<JobKind> = registry::builtin()
         .into_iter()
         .map(|spec| JobKind {
             name: spec.name().to_owned(),
             channel: spec.channel().name(),
             cancellable: spec.cancellable(),
+            schedules: Vec::new(),
         })
         .collect();
     kinds.sort_by(|a, b| a.name.cmp(&b.name));
+    for row in schedules {
+        if let Some(kind) = kinds.iter_mut().find(|k| k.name == row.kind) {
+            kind.schedules.push(JobSchedule {
+                name: row.name,
+                cron: row.cron,
+                timezone: row.timezone,
+                enabled: row.enabled,
+            });
+        }
+    }
+    for kind in &mut kinds {
+        kind.schedules.sort_by(|a, b| a.name.cmp(&b.name));
+    }
     kinds
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cymbra_jobs::registry::{PURGE_USER, VERIFICATION_EMAIL};
+    use cymbra_jobs::registry::{PURGE_USER, SESSION_REAP, VERIFICATION_EMAIL};
 
     fn now() -> DateTime<Utc> {
         DateTime::parse_from_rfc3339("2026-09-15T12:00:00Z")
@@ -523,12 +655,107 @@ mod tests {
 
     #[test]
     fn kinds_are_sorted_and_flag_erasure() {
-        let kinds = job_kinds();
+        let kinds = job_kinds(vec![]);
         assert!(kinds.windows(2).all(|w| w[0].name <= w[1].name));
         let purge = kinds.iter().find(|k| k.name == PURGE_USER).unwrap();
         assert!(!purge.cancellable);
         assert_eq!(purge.channel, "user.purge");
         let email = kinds.iter().find(|k| k.name == VERIFICATION_EMAIL).unwrap();
         assert!(email.cancellable);
+        assert!(kinds.iter().all(|k| k.schedules.is_empty()));
+    }
+
+    fn schedule(name: &str, kind: &str, cron: &str, enabled: bool) -> ScheduleRow {
+        ScheduleRow {
+            name: name.into(),
+            kind: kind.into(),
+            cron: cron.into(),
+            timezone: "UTC".into(),
+            enabled,
+        }
+    }
+
+    #[test]
+    fn schedules_join_their_kind_and_unknown_kinds_are_dropped() {
+        let kinds = job_kinds(vec![
+            schedule("session_reap_hourly", SESSION_REAP, "0 * * * *", true),
+            schedule("session_reap_b", SESSION_REAP, "30 * * * *", false),
+            schedule("session_reap_a", SESSION_REAP, "15 * * * *", true),
+            schedule("retired_hourly", "retired_job", "0 * * * *", true),
+        ]);
+        let reap = kinds.iter().find(|k| k.name == SESSION_REAP).unwrap();
+        let names: Vec<&str> = reap.schedules.iter().map(|s| s.name.as_str()).collect();
+        assert_eq!(
+            names,
+            ["session_reap_a", "session_reap_b", "session_reap_hourly"]
+        );
+        assert_eq!(reap.schedules[1].cron, "30 * * * *");
+        assert!(!reap.schedules[1].enabled);
+        assert_eq!(reap.schedules[0].timezone, "UTC");
+        assert!(kinds.iter().all(|k| k.name != "retired_job"));
+        let email = kinds.iter().find(|k| k.name == VERIFICATION_EMAIL).unwrap();
+        assert!(email.schedules.is_empty());
+    }
+
+    fn attempt_row(outcome: &str) -> AttemptRow {
+        AttemptRow {
+            job_id: Uuid::from_u128(9),
+            kind: VERIFICATION_EMAIL.into(),
+            channel: "auth.email".into(),
+            attempt: 2,
+            outcome: outcome.into(),
+            started_at: now() - Duration::milliseconds(1_500),
+            finished_at: now(),
+        }
+    }
+
+    #[test]
+    fn history_outcomes_round_trip_and_running_is_not_one() {
+        for outcome in HistoryOutcome::ALL {
+            assert_eq!(HistoryOutcome::from_db(outcome.as_db()), Some(outcome));
+        }
+        assert_eq!(HistoryOutcome::from_db("running"), None);
+    }
+
+    #[test]
+    fn a_finished_attempt_carries_its_run_time() {
+        for word in ["succeeded", "failed"] {
+            let a = finished_attempt(attempt_row(word)).unwrap();
+            assert_eq!(a.duration_ms, Some(1_500), "{word}");
+            assert_eq!(a.attempt, 2);
+            assert_eq!(a.job_id, Uuid::from_u128(9));
+            assert_eq!(a.finished_at, now());
+        }
+        assert_eq!(
+            finished_attempt(attempt_row("failed")).unwrap().outcome,
+            HistoryOutcome::Failed
+        );
+    }
+
+    #[test]
+    fn an_abandoned_attempt_has_no_run_time() {
+        let a = finished_attempt(attempt_row("abandoned")).unwrap();
+        assert_eq!(a.outcome, HistoryOutcome::Abandoned);
+        assert_eq!(a.duration_ms, None);
+    }
+
+    #[test]
+    fn a_run_time_is_never_negative() {
+        let a = finished_attempt(AttemptRow {
+            started_at: now() + Duration::seconds(1),
+            ..attempt_row("succeeded")
+        })
+        .unwrap();
+        assert_eq!(a.duration_ms, Some(0));
+    }
+
+    #[test]
+    fn a_running_or_unknown_outcome_in_the_history_is_an_internal_error() {
+        for word in ["running", "paused"] {
+            assert!(matches!(
+                finished_attempt(attempt_row(word)),
+                Err(AppError::Internal(_))
+            ));
+        }
     }
 }

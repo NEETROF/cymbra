@@ -212,6 +212,52 @@
       "gone": "This job is no longer in the queue.",
       "running": "A running job can't be cancelled.",
       "protected": "Data-erasure jobs can't be cancelled."
+    },
+    "tabs": {
+      "label": "Jobs view",
+      "queue": "Queue",
+      "history": "History"
+    },
+    "cadence": {
+      "onDemand": "On demand",
+      "paused": "Schedule paused",
+      "scheduled": "Scheduled · {cadence}",
+      "hourly": "hourly at :{mm}",
+      "daily": "daily at {hh}:{mm} ({tz})",
+      "custom": "{cron} ({tz})"
+    },
+    "breakdown": {
+      "title": "By kind",
+      "unavailable": "The per-kind breakdown isn't available from this server yet.",
+      "open": "Show the history of {kind}",
+      "columns": {
+        "kind": "Kind",
+        "completed": "Completed",
+        "failed": "Failed attempts",
+        "dead": "Dead-lettered",
+        "cancelled": "Cancelled",
+        "avg": "Average run",
+        "last": "Last finished"
+      }
+    },
+    "history": {
+      "loading": "Loading the history…",
+      "empty": "No attempt finished in this period.",
+      "matching": "Finished attempts: {n}",
+      "outcome": "Outcome",
+      "columns": {
+        "id": "Job",
+        "kind": "Kind",
+        "outcome": "Outcome",
+        "attempt": "Attempt",
+        "finished": "Finished",
+        "duration": "Run time"
+      }
+    },
+    "outcomes": {
+      "succeeded": "Succeeded",
+      "failed": "Failed",
+      "abandoned": "Abandoned"
     }
   },
   "notifications": {

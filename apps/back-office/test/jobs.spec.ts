@@ -3,8 +3,18 @@ import { createPinia, setActivePinia } from "pinia";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { setClientsForTest } from "@/lib/api";
 import type { Clients } from "@/lib/transport";
-import { CancelOutcome, JobState } from "@/gen/jobs_admin_pb";
-import { PAGE_SIZE, toLocalInput, useJobsStore, validateWindow, windowFor } from "@/stores/jobs";
+import { AttemptOutcome, CancelOutcome, JobState } from "@/gen/jobs_admin_pb";
+import {
+  PAGE_SIZE,
+  breakdownRows,
+  breakdownUnavailable,
+  toLocalInput,
+  useJobsStore,
+  validateWindow,
+  windowFor,
+  type JobKindInfo,
+  type JobStats,
+} from "@/stores/jobs";
 import { useToastsStore } from "@/stores/toasts";
 
 // Jobs console store (change: add-admin-jobs-console, task 6.2). Driven entirely through
@@ -24,6 +34,24 @@ interface StatsReq {
   window: { fromMs: bigint; toMs: bigint };
   kind: string;
 }
+interface HistoryReq {
+  window: { fromMs: bigint; toMs: bigint };
+  kind: string;
+  outcome: AttemptOutcome;
+  limit: number;
+  offset: number;
+}
+
+const wireAttempt = {
+  jobId: "7a1b2c3d-1111-4222-8333-444455556666",
+  kind: "session_reap",
+  channel: "auth.session_reap",
+  outcome: AttemptOutcome.SUCCEEDED,
+  attempt: 1,
+  startedAtMs: 1_757_000_000_000n,
+  finishedAtMs: 1_757_000_001_500n,
+  durationMs: 1_500n,
+};
 
 const wireJob = {
   id: "0f9c2a4e-1111-4222-8333-444455556666",
@@ -46,12 +74,16 @@ function wire(
     cancelError?: unknown;
     avgRunMs?: bigint;
     historySinceMs?: bigint;
+    byKind?: unknown[];
+    history?: { attempts: unknown[]; total: bigint }[];
   } = {},
 ) {
   const listCalls: ListReq[] = [];
   const statsCalls: StatsReq[] = [];
   const cancelCalls: string[] = [];
+  const historyCalls: HistoryReq[] = [];
   const pages = opts.pages ?? [{ jobs: [wireJob], total: 1n }];
+  const history = opts.history ?? [{ attempts: [wireAttempt], total: 1n }];
   const clients = {
     jobs: {
       adminListJobs: vi.fn(async (req: ListReq) => {
@@ -70,12 +102,23 @@ function wire(
             avgRunMs: opts.avgRunMs,
           },
           historySinceMs: opts.historySinceMs,
+          byKind: opts.byKind ?? [],
         };
+      }),
+      adminListJobHistory: vi.fn(async (req: HistoryReq) => {
+        historyCalls.push({ ...req });
+        return history[Math.min(historyCalls.length - 1, history.length - 1)];
       }),
       adminListJobKinds: vi.fn(async () => ({
         kinds: [
-          { name: "verification_email", channel: "identity.verification_email", cancellable: true },
-          { name: "purge_user", channel: "identity.purge_user", cancellable: false },
+          { name: "verification_email", channel: "identity.verification_email", cancellable: true, schedules: [] },
+          { name: "purge_user", channel: "identity.purge_user", cancellable: false, schedules: [] },
+          {
+            name: "session_reap",
+            channel: "auth.session_reap",
+            cancellable: true,
+            schedules: [{ name: "session_reap_hourly", cron: "0 * * * *", timezone: "UTC", enabled: true }],
+          },
         ],
       })),
       adminCancelJob: vi.fn(async (req: { jobId: string }) => {
@@ -86,7 +129,7 @@ function wire(
     },
   } as unknown as Clients;
   setClientsForTest(clients);
-  return { clients, listCalls, statsCalls, cancelCalls };
+  return { clients, listCalls, statsCalls, cancelCalls, historyCalls };
 }
 
 describe("jobs window helpers", () => {
@@ -193,8 +236,40 @@ describe("jobs store", () => {
       expect(store.kinds.data.map((k) => [k.name, k.cancellable])).toEqual([
         ["verification_email", true],
         ["purge_user", false],
+        ["session_reap", true],
+      ]);
+      expect(store.kinds.data[2].schedules).toEqual([
+        { name: "session_reap_hourly", cron: "0 * * * *", timezone: "UTC", enabled: true },
       ]);
     }
+  });
+
+  it("maps the per-kind breakdown", async () => {
+    wire({
+      byKind: [
+        {
+          kind: "session_reap",
+          period: { completed: 24n, failedAttempts: 1n, deadLettered: 0n, cancelled: 0n, avgRunMs: 40n },
+          lastFinishedAtMs: 1_757_000_000_000n,
+        },
+        { kind: "purge_user", period: undefined, lastFinishedAtMs: undefined },
+      ],
+    });
+    const store = useJobsStore();
+    await store.load();
+    if (store.stats.status !== "success") throw new Error("expected success");
+    expect(store.stats.data.byKind).toEqual([
+      {
+        kind: "session_reap",
+        period: { completed: 24, failedAttempts: 1, deadLettered: 0, cancelled: 0, avgRunMs: 40 },
+        lastFinishedAt: 1_757_000_000_000,
+      },
+      {
+        kind: "purge_user",
+        period: { completed: 0, failedAttempts: 0, deadLettered: 0, cancelled: 0, avgRunMs: null },
+        lastFinishedAt: null,
+      },
+    ]);
   });
 
   it("changing a filter resets the offset and scopes both reads", async () => {
@@ -316,5 +391,230 @@ describe("jobs store", () => {
     await store.load();
 
     expect(store.page).toEqual({ status: "error", error: "Service unavailable. Try again." });
+  });
+
+  it("the history loads the first time its tab opens, and only then", async () => {
+    const { historyCalls, listCalls } = wire();
+    const store = useJobsStore();
+    await store.load();
+    expect(historyCalls).toHaveLength(0);
+
+    await store.setTab("history");
+
+    expect(store.tab).toBe("history");
+    expect(historyCalls).toEqual([
+      {
+        window: { fromMs: BigInt(NOW - DAY), toMs: BigInt(NOW) },
+        kind: "",
+        outcome: AttemptOutcome.UNSPECIFIED,
+        limit: PAGE_SIZE,
+        offset: 0,
+      },
+    ]);
+    if (store.history.status !== "success") throw new Error("expected success");
+    expect(store.history.data).toEqual({
+      attempts: [
+        {
+          jobId: wireAttempt.jobId,
+          kind: "session_reap",
+          channel: "auth.session_reap",
+          outcome: AttemptOutcome.SUCCEEDED,
+          attempt: 1,
+          startedAt: 1_757_000_000_000,
+          finishedAt: 1_757_000_001_500,
+          durationMs: 1_500,
+        },
+      ],
+      total: 1,
+    });
+
+    await store.setTab("queue");
+    await store.setTab("history");
+    expect(historyCalls).toHaveLength(1);
+    expect(listCalls).toHaveLength(1);
+  });
+
+  it("an abandoned attempt has no run time", async () => {
+    wire({
+      history: [
+        { attempts: [{ ...wireAttempt, outcome: AttemptOutcome.ABANDONED, durationMs: undefined }], total: 1n },
+      ],
+    });
+    const store = useJobsStore();
+    await store.setTab("history");
+    if (store.history.status !== "success") throw new Error("expected success");
+    expect(store.history.data.attempts[0].durationMs).toBeNull();
+  });
+
+  it("paging keeps the window the history was loaded with; a refresh moves it", async () => {
+    const { historyCalls } = wire({ history: [{ attempts: [wireAttempt], total: 60n }] });
+    const store = useJobsStore();
+    await store.setTab("history");
+
+    vi.setSystemTime(NOW + 5 * 60_000);
+    await store.goToHistoryPage(PAGE_SIZE);
+
+    expect(historyCalls[1].offset).toBe(PAGE_SIZE);
+    expect(historyCalls[1].window).toEqual(historyCalls[0].window);
+
+    await store.refresh();
+
+    expect(historyCalls[2].window).toEqual({
+      fromMs: BigInt(NOW + 5 * 60_000 - DAY),
+      toMs: BigInt(NOW + 5 * 60_000),
+    });
+    // Still on the page the operator was reading.
+    expect(historyCalls[2].offset).toBe(PAGE_SIZE);
+    expect(store.history.status).toBe("success");
+  });
+
+  it("the outcome filter goes back to the first history page", async () => {
+    const { historyCalls } = wire({ history: [{ attempts: [wireAttempt], total: 60n }] });
+    const store = useJobsStore();
+    await store.setTab("history");
+    await store.goToHistoryPage(PAGE_SIZE);
+
+    await store.setHistoryFilters({ outcome: AttemptOutcome.FAILED });
+
+    expect(historyCalls.at(-1)).toMatchObject({ outcome: AttemptOutcome.FAILED, offset: 0 });
+    expect(store.historyParams.offset).toBe(0);
+  });
+
+  it("a kind filter reloads the tab being read and leaves the other one to reload later", async () => {
+    const { historyCalls, listCalls, statsCalls } = wire();
+    const store = useJobsStore();
+    await store.load();
+    await store.setTab("history");
+
+    await store.setFilters({ kind: "session_reap" });
+
+    expect(historyCalls.at(-1)).toMatchObject({ kind: "session_reap", offset: 0 });
+    expect(statsCalls.at(-1)?.kind).toBe("session_reap");
+    expect(listCalls).toHaveLength(1);
+    expect(store.page.status).toBe("idle");
+
+    await store.setTab("queue");
+    expect(listCalls.at(-1)).toMatchObject({ kind: "session_reap", offset: 0 });
+    expect(store.page.status).toBe("success");
+  });
+
+  it("a filter change on the queue marks the history stale", async () => {
+    const { historyCalls } = wire();
+    const store = useJobsStore();
+    await store.setTab("history");
+    await store.setTab("queue");
+
+    await store.setFilters({ kind: "purge_user" });
+    expect(store.history.status).toBe("idle");
+
+    await store.setTab("history");
+    expect(historyCalls.at(-1)?.kind).toBe("purge_user");
+  });
+
+  it("a period change reloads the history when it is shown, and marks it stale otherwise", async () => {
+    const { historyCalls } = wire();
+    const store = useJobsStore();
+    await store.setTab("history");
+
+    await store.setPeriod({ preset: "7d" });
+    expect(historyCalls.at(-1)?.window).toEqual({ fromMs: BigInt(NOW - 7 * DAY), toMs: BigInt(NOW) });
+    expect(store.history.status).toBe("success");
+
+    await store.setTab("queue");
+    await store.setPeriod({ preset: "1h" });
+    expect(store.history.status).toBe("idle");
+    expect(historyCalls).toHaveLength(2);
+  });
+
+  it("an invalid custom window never reaches the history RPC", async () => {
+    const { historyCalls } = wire();
+    const store = useJobsStore();
+    await store.setTab("history");
+
+    await store.setPeriod({ preset: "custom", from: "2026-09-12T10:00", to: "2026-09-11T10:00" });
+
+    expect(historyCalls).toHaveLength(1);
+    expect(store.history).toEqual({ status: "error", error: "The start must be before the end." });
+  });
+
+  it("selecting a kind in the breakdown opens its history over the same period", async () => {
+    const { historyCalls, statsCalls } = wire();
+    const store = useJobsStore();
+    await store.load();
+    await store.setPeriod({ preset: "7d" });
+
+    await store.showKindHistory("usage_rollup");
+
+    expect(store.tab).toBe("history");
+    expect(store.params.kind).toBe("usage_rollup");
+    expect(historyCalls.at(-1)).toMatchObject({
+      kind: "usage_rollup",
+      offset: 0,
+      window: { fromMs: BigInt(NOW - 7 * DAY), toMs: BigInt(NOW) },
+    });
+    expect(statsCalls.at(-1)?.kind).toBe("usage_rollup");
+  });
+
+  it("a history page emptied under the operator steps back to the last page with rows", async () => {
+    const full = { attempts: [wireAttempt], total: 26n };
+    const emptied = { attempts: [], total: 25n };
+    const { historyCalls } = wire({ history: [full, full, emptied, full] });
+    const store = useJobsStore();
+    await store.setTab("history");
+    await store.goToHistoryPage(PAGE_SIZE);
+
+    await store.refresh();
+
+    expect(historyCalls.map((c) => c.offset)).toEqual([0, PAGE_SIZE, PAGE_SIZE, 0]);
+    expect(store.historyParams.offset).toBe(0);
+  });
+
+  it("moving pages before the history ever loaded loads it", async () => {
+    const { historyCalls } = wire();
+    const store = useJobsStore();
+
+    await store.goToHistoryPage(PAGE_SIZE);
+
+    expect(historyCalls).toHaveLength(1);
+    expect(historyCalls[0].offset).toBe(PAGE_SIZE);
+  });
+});
+
+describe("per-kind breakdown", () => {
+  const kind = (name: string): JobKindInfo => ({ name, channel: `x.${name}`, cancellable: true, schedules: [] });
+  const period = { completed: 3, failedAttempts: 0, deadLettered: 0, cancelled: 0, avgRunMs: 12 };
+  const zero = { completed: 0, failedAttempts: 0, deadLettered: 0, cancelled: 0, avgRunMs: null };
+
+  it("lists every registered kind, zeros included, plus active kinds no longer registered", () => {
+    const rows = breakdownRows(
+      [kind("plans_reconcile"), kind("orphan_reap")],
+      [
+        { kind: "orphan_reap", period, lastFinishedAt: 5 },
+        { kind: "retired_job", period, lastFinishedAt: 7 },
+      ],
+      "",
+    );
+    expect(rows).toEqual([
+      { kind: "orphan_reap", period, lastFinishedAt: 5 },
+      { kind: "plans_reconcile", period: zero, lastFinishedAt: null },
+      { kind: "retired_job", period, lastFinishedAt: 7 },
+    ]);
+  });
+
+  it("a kind filter narrows it to that kind", () => {
+    const rows = breakdownRows([kind("plans_reconcile"), kind("orphan_reap")], [], "orphan_reap");
+    expect(rows.map((r) => r.kind)).toEqual(["orphan_reap"]);
+  });
+
+  it("is unavailable only when the totals moved but no per-kind row came back", () => {
+    const stats = (completed: number, byKind: JobStats["byKind"]): JobStats => ({
+      queue: { total: 0, running: 0, ready: 0, scheduled: 0, retryWait: 0, blocked: 0, exhausted: 0 },
+      period: { ...zero, completed },
+      historySince: null,
+      byKind,
+    });
+    expect(breakdownUnavailable(stats(12, []))).toBe(true);
+    expect(breakdownUnavailable(stats(0, []))).toBe(false);
+    expect(breakdownUnavailable(stats(12, [{ kind: "a", period, lastFinishedAt: null }]))).toBe(false);
   });
 });

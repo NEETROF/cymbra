@@ -1,5 +1,5 @@
 import { test, expect, seed } from "./fixtures";
-import type { E2EJob } from "../src/lib/e2e-seam";
+import type { E2EAttempt, E2EJob } from "../src/lib/e2e-seam";
 
 // Change: add-admin-jobs-console. Drives the "Jobs" console in a real browser against the
 // gated fake seam (no backend): the queue and period cards, the paginated table, a
@@ -164,5 +164,183 @@ test.describe("jobs console", () => {
     await expect(page.getByRole("link", { name: "Jobs" })).toHaveCount(0);
     await page.goto("/admin/jobs");
     await expect(page).not.toHaveURL(/\/admin\/jobs$/);
+  });
+});
+
+// Change: add-jobs-console-history — the finished attempts, the per-kind breakdown and the
+// cadence of the kinds that run on their own.
+const SCHEDULED_KINDS = [
+  {
+    name: "session_reap",
+    channel: "auth.session_reap",
+    cancellable: true,
+    schedules: [{ name: "session_reap_hourly", cron: "0 * * * *", timezone: "UTC", enabled: true }],
+  },
+  {
+    name: "plans_reconcile",
+    channel: "plans.reconcile",
+    cancellable: true,
+    schedules: [{ name: "plans_reconcile_daily", cron: "10 4 * * *", timezone: "UTC", enabled: true }],
+  },
+  {
+    name: "usage_purge",
+    channel: "analytics.usage_purge",
+    cancellable: true,
+    schedules: [{ name: "usage_purge_daily", cron: "40 3 * * *", timezone: "UTC", enabled: false }],
+  },
+  { name: "verification_email", channel: "identity.verification_email", cancellable: true },
+];
+
+const NOW = Date.now();
+const MIN = 60 * 1000;
+
+/** 30 hourly reaps, one abandoned, and a verification email that failed then succeeded. */
+const ATTEMPTS: E2EAttempt[] = [
+  ...Array.from({ length: 30 }, (_, i): E2EAttempt => ({
+    jobId: `${String(i + 1).padStart(8, "0")}-bbbb-4bbb-8bbb-bbbbbbbbbbbb`,
+    kind: "session_reap",
+    outcome: "succeeded",
+    finishedAtMs: NOW - (i + 1) * 30 * MIN,
+    durationMs: 40,
+  })),
+  {
+    jobId: "abandon0-cccc-4ccc-8ccc-cccccccccccc",
+    kind: "session_reap",
+    outcome: "abandoned",
+    finishedAtMs: NOW - 5 * MIN,
+  },
+  {
+    jobId: "email000-dddd-4ddd-8ddd-dddddddddddd",
+    kind: "verification_email",
+    outcome: "failed",
+    attempt: 1,
+    finishedAtMs: NOW - 3 * MIN,
+    durationMs: 1200,
+  },
+  {
+    jobId: "email000-dddd-4ddd-8ddd-dddddddddddd",
+    kind: "verification_email",
+    outcome: "succeeded",
+    attempt: 2,
+    finishedAtMs: NOW - 2 * MIN,
+    durationMs: 800,
+  },
+];
+
+test.describe("jobs history", () => {
+  test("the history lists finished attempts newest first, pages and filters by outcome", async ({ page }) => {
+    await seed(page, { loginAs: "global-admin", data: { jobKinds: SCHEDULED_KINDS, jobAttempts: ATTEMPTS } });
+    await page.goto("/admin/jobs");
+    await page.getByTestId("tab-history").click();
+
+    const rows = page.getByTestId("history-row");
+    await expect(rows).toHaveCount(25);
+    await expect(page.getByTestId("history-total")).toHaveText("Finished attempts: 33");
+    await expect(rows.first()).toContainText("verification_email");
+    await expect(rows.first()).toContainText("Succeeded");
+    await expect(rows.first()).toContainText("800 ms");
+    await expect(rows.nth(1)).toContainText("Failed");
+    await expect(rows.nth(2)).toContainText("Abandoned");
+    await expect(rows.nth(2).getByTestId("history-duration")).toHaveText("—");
+
+    await page.getByRole("button", { name: "Next →" }).click();
+    await expect(rows).toHaveCount(8);
+    await expect(page.getByText("26–33 of 33")).toBeVisible();
+
+    await page.getByTestId("history-outcome").selectOption({ label: "Failed" });
+    await expect(rows).toHaveCount(1);
+    await expect(page.getByTestId("history-total")).toHaveText("Finished attempts: 1");
+    await expect(rows.first()).toContainText("verification_email");
+  });
+
+  test("kinds carry their cadence in the filter, the breakdown and the rows", async ({ page }) => {
+    await seed(page, {
+      loginAs: "global-admin",
+      data: {
+        jobKinds: SCHEDULED_KINDS,
+        jobAttempts: ATTEMPTS,
+        jobs: [job(1, { kind: "session_reap", channel: "auth.session_reap" })],
+      },
+    });
+    await page.goto("/admin/jobs");
+
+    await expect(page.getByTestId("filter-kind").locator("option")).toHaveText([
+      "Any",
+      "session_reap — Scheduled · hourly at :00",
+      "plans_reconcile — Scheduled · daily at 04:10 (UTC)",
+      "usage_purge — Schedule paused",
+      "verification_email — On demand",
+    ]);
+    await expect(page.getByTestId("job-row").first().getByTestId("cadence")).toHaveText("Scheduled · hourly at :00");
+
+    const breakdown = page.getByTestId("breakdown-row");
+    const row = (kind: string) => page.locator(`[data-testid="breakdown-row"][data-kind="${kind}"]`);
+    await expect(breakdown).toHaveCount(4);
+    await expect(row("session_reap").getByTestId("breakdown-completed")).toHaveText("30");
+    await expect(row("verification_email").getByTestId("breakdown-completed")).toHaveText("1");
+    // Scheduled, but nothing ran over the period: a zero row next to its cadence.
+    await expect(row("plans_reconcile").getByTestId("breakdown-completed")).toHaveText("0");
+    await expect(row("plans_reconcile").getByTestId("breakdown-last")).toHaveText("—");
+    await expect(row("plans_reconcile").getByTestId("cadence")).toHaveText("Scheduled · daily at 04:10 (UTC)");
+    await expect(row("usage_purge").getByTestId("cadence")).toHaveText("Schedule paused");
+    // The breakdown adds up to the card.
+    await expect(page.getByTestId("stat-period-completed").getByTestId("stat-value")).toHaveText("31");
+
+    await page.getByTestId("tab-history").click();
+    await expect(page.getByTestId("history-row").first().getByTestId("cadence")).toHaveText("On demand");
+  });
+
+  test("selecting a kind in the breakdown opens its history", async ({ page }) => {
+    await seed(page, { loginAs: "global-admin", data: { jobKinds: SCHEDULED_KINDS, jobAttempts: ATTEMPTS } });
+    await page.goto("/admin/jobs");
+
+    await page
+      .locator('[data-testid="breakdown-row"][data-kind="verification_email"]')
+      .getByTestId("breakdown-open")
+      .click();
+
+    await expect(page.getByTestId("tab-history")).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByTestId("filter-kind")).toHaveValue("verification_email");
+    await expect(page.getByTestId("history-row")).toHaveCount(2);
+    await expect(page.getByTestId("breakdown-row")).toHaveCount(1);
+    await expect(page.getByTestId("stat-period-completed").getByTestId("stat-value")).toHaveText("1");
+
+    // Back on the queue, the kind filter still applies.
+    await page.getByTestId("tab-queue").click();
+    await expect(page.getByTestId("jobs-empty")).toBeVisible();
+  });
+
+  test("a server without the breakdown says so instead of showing zeros", async ({ page }) => {
+    await seed(page, {
+      loginAs: "global-admin",
+      data: { jobKinds: SCHEDULED_KINDS, jobAttempts: ATTEMPTS, jobByKindMissing: true },
+    });
+    await page.goto("/admin/jobs");
+
+    await expect(page.getByTestId("breakdown-unavailable")).toBeVisible();
+    await expect(page.getByTestId("breakdown-row")).toHaveCount(0);
+  });
+
+  test("a failed history read shows a localised error, never a raw code", async ({ page }) => {
+    await seed(page, {
+      loginAs: "global-admin",
+      data: {
+        jobKinds: SCHEDULED_KINDS,
+        jobAttempts: ATTEMPTS,
+        fail: { adminListJobHistory: { code: 12, message: "unimplemented" } },
+      },
+    });
+    await page.goto("/admin/jobs");
+    await page.getByTestId("tab-history").click();
+
+    await expect(page.getByTestId("history-error")).toBeVisible();
+    await expect(page.locator("body")).not.toContainText("unimplemented");
+  });
+
+  test("a module admin still has neither the entry nor the history", async ({ page }) => {
+    await seed(page, { loginAs: "admin", data: { jobKinds: SCHEDULED_KINDS, jobAttempts: ATTEMPTS } });
+    await page.goto("/admin/jobs");
+    await expect(page).not.toHaveURL(/\/admin\/jobs$/);
+    await expect(page.getByTestId("tab-history")).toHaveCount(0);
   });
 });
