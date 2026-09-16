@@ -8,7 +8,8 @@ import { kindCadence, kindCadenceLabel, type ScheduleInfo } from "@/lib/cadence"
 // Whether a job kind runs on its own, and how often (change: add-jobs-console-history).
 // Props only: the schedules come from the kinds the store loaded. `null` = the kinds are
 // not known (yet), so nothing is claimed.
-const props = defineProps<{ schedules: readonly ScheduleInfo[] | null }>();
+// `wrap` lets the label break inside a table cell rather than widen its column.
+const props = defineProps<{ schedules: readonly ScheduleInfo[] | null; wrap?: boolean }>();
 const { t } = useI18n();
 
 const cadence = computed(() => (props.schedules === null ? null : kindCadence(props.schedules)));
@@ -25,5 +26,12 @@ const variant = computed(() =>
 </script>
 
 <template>
-  <AppTag v-if="cadence" :variant="variant" :data-cadence="cadence.type" data-testid="cadence">{{ label }}</AppTag>
+  <AppTag
+    v-if="cadence"
+    :variant="variant"
+    :data-cadence="cadence.type"
+    :style="wrap ? { whiteSpace: 'normal' } : undefined"
+    data-testid="cadence"
+    >{{ label }}</AppTag
+  >
 </template>

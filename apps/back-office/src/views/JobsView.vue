@@ -454,7 +454,7 @@ function goTo(offset: number) {
               <td>
                 <div class="kind">
                   {{ job.kind }}
-                  <CadenceBadge :schedules="schedulesOf(job.kind)" />
+                  <CadenceBadge :schedules="schedulesOf(job.kind)" wrap />
                 </div>
                 <div class="muted channel">{{ job.channel }}</div>
               </td>

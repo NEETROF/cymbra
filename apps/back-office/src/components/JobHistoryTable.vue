@@ -84,7 +84,7 @@ const absolute = (ms: number) => formatAbsolute(ms, currentLocale());
           <td>
             <div class="kind">
               {{ a.kind }}
-              <CadenceBadge :schedules="schedulesOf(a.kind)" />
+              <CadenceBadge :schedules="schedulesOf(a.kind)" wrap />
             </div>
             <div class="muted channel">{{ a.channel }}</div>
           </td>

@@ -47,6 +47,16 @@ function stats(over: Partial<JobStats> = {}): JobStats {
 }
 
 describe("CadenceBadge", () => {
+  it("can let its label wrap inside a table cell", () => {
+    const w = mount(CadenceBadge, { props: { schedules: [], wrap: true }, global });
+    expect(w.get('[data-testid="cadence"]').attributes("style")).toContain("white-space: normal");
+    expect(
+      mount(CadenceBadge, { props: { schedules: [] }, global })
+        .get('[data-testid="cadence"]')
+        .attributes("style"),
+    ).toBeUndefined();
+  });
+
   it("claims nothing while the kinds are unknown", () => {
     const w = mount(CadenceBadge, { props: { schedules: null }, global });
     expect(w.find('[data-testid="cadence"]').exists()).toBe(false);

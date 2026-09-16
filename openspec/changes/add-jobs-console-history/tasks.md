@@ -86,7 +86,7 @@
 
 ## 5. Verification
 
-- [ ] 5.1 Rust:
+- [x] 5.1 Rust:
   - `cargo fmt --all --check`;
   - `cargo clippy --workspace --all-targets -- -D warnings`;
   - `cargo llvm-cov --workspace --fail-under-lines 80` with the shared ignore regex;
