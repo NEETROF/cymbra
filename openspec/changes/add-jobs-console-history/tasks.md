@@ -20,7 +20,7 @@
 
 - [x] 2.1 Add `rpc AdminListJobHistory`, the `AttemptOutcome` enum (`ATTEMPT_OUTCOME_UNSPECIFIED`, `_SUCCEEDED`, `_FAILED`, `_ABANDONED`), and the messages `AdminListJobHistoryRequest` (`window`, `kind`, `outcome`, `limit`, `offset`), `FinishedAttempt` (`job_id`, `kind`, `channel`, `outcome`, `attempt`, `started_at_ms`, `finished_at_ms`, `optional duration_ms`) and `AdminListJobHistoryResponse` (`attempts`, `total`). Nothing in them carries a payload or error text
 - [x] 2.2 Add `KindPeriodStats` (`kind`, `PeriodStats period`, `optional last_finished_at_ms`) and `AdminGetJobStatsResponse.by_kind = 4`. Add `JobSchedule` (`name`, `cron`, `timezone`, `enabled`) and `JobKind.schedules = 4`
-- [ ] 2.3 `buf breaking` against `main` passes with no breaking marker
+- [x] 2.3 `buf breaking` against `main` passes with no breaking marker
 
 ## 3. Admin module (`backend/jobs-admin`)
 
