@@ -30,7 +30,7 @@ const userScores: NonNullable<E2EData["userScores"]> = [
 test.describe("private-score takedown", () => {
   test("a music admin looks a reported score up by title", async ({ page }) => {
     await seed(page, { loginAs: "admin", data: { userScores } });
-    await page.goto("/takedowns");
+    await page.goto("/music/private-scores");
 
     // The search is refused client-side until a criterion is given.
     await expect(page.getByRole("button", { name: "Search" })).toBeDisabled();
@@ -44,7 +44,7 @@ test.describe("private-score takedown", () => {
 
   test("removal needs an explicit confirmation and a reason", async ({ page }) => {
     await seed(page, { loginAs: "admin", data: { userScores } });
-    await page.goto("/takedowns");
+    await page.goto("/music/private-scores");
     await page.getByLabel("Owner id").fill("u-ada");
     await page.getByRole("button", { name: "Search" }).click();
     await expect(page.getByText("Reported Piece")).toBeVisible();
@@ -66,7 +66,7 @@ test.describe("private-score takedown", () => {
 
   test("the dialog can be dismissed without removing anything", async ({ page }) => {
     await seed(page, { loginAs: "admin", data: { userScores } });
-    await page.goto("/takedowns");
+    await page.goto("/music/private-scores");
     await page.getByLabel("Owner id").fill("u-ada");
     await page.getByRole("button", { name: "Search" }).click();
     await expect(page.getByText("Reported Piece")).toBeVisible();
@@ -91,7 +91,7 @@ test.describe("private-score takedown", () => {
 
   test("a moderator never reaches the screen", async ({ page }) => {
     await seed(page, { loginAs: "moderator", data: { userScores } });
-    await page.goto("/takedowns");
+    await page.goto("/music/private-scores");
     // The route guard sends a non-admin away; the takedown form is not rendered.
     await expect(page.getByRole("button", { name: "Search" })).toHaveCount(0);
   });

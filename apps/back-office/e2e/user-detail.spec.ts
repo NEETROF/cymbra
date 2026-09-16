@@ -45,7 +45,7 @@ test.describe("account detail: subscription", () => {
   test("a deep link shows the trial row, the beta membership and the effective plan", async ({ page }) => {
     await seed(page, { loginAs: "admin", data });
     // Straight to the URL: no directory page visited first, nothing typed.
-    await page.goto("/users/u-ada");
+    await page.goto("/admin/users/u-ada");
 
     await expect(page.getByRole("heading", { name: "ada" })).toBeVisible();
     const summary = page.getByTestId("effective-plan");
@@ -63,7 +63,7 @@ test.describe("account detail: subscription", () => {
 
   test("an unknown id shows a localized not-found state", async ({ page }) => {
     await seed(page, { loginAs: "admin", data });
-    await page.goto("/users/u-nobody");
+    await page.goto("/admin/users/u-nobody");
 
     await expect(page.getByRole("heading", { name: "Account not found" })).toBeVisible();
     await expect(page.locator("body")).not.toContainText("[");
@@ -76,7 +76,7 @@ test.describe("account detail: subscription", () => {
     // unreachable from Playwright, and it froze browser automation in a
     // production session. It is an in-app dialog now, hence this coverage.
     await seed(page, { loginAs: "admin", data });
-    await page.goto("/users/u-ada");
+    await page.goto("/admin/users/u-ada");
 
     await page.getByTestId("entitlements").getByRole("button", { name: "Revoke" }).click();
     const dialog = page.getByRole("dialog").filter({ hasText: "Confirmation" });
@@ -94,7 +94,7 @@ test.describe("account detail: subscription", () => {
   // dialog element never receives the keydown and the key does nothing at all.
   test("escape backs out of the revoke dialog without revoking", async ({ page }) => {
     await seed(page, { loginAs: "admin", data });
-    await page.goto("/users/u-ada");
+    await page.goto("/admin/users/u-ada");
 
     await page.getByTestId("entitlements").getByRole("button", { name: "Revoke" }).click();
     const dialog = page.getByRole("dialog").filter({ hasText: "Confirmation" });
@@ -107,7 +107,7 @@ test.describe("account detail: subscription", () => {
 
   test("granting premium with an end date and a reason adds an admin row and re-reads", async ({ page }) => {
     await seed(page, { loginAs: "admin", data });
-    await page.goto("/users/u-bob");
+    await page.goto("/admin/users/u-bob");
     await expect(page.getByTestId("effective-plan")).toContainText("free");
 
     await page.getByRole("button", { name: "Grant premium" }).click();
@@ -125,7 +125,7 @@ test.describe("account detail: subscription", () => {
 
   test("an open-ended grant needs the explicit confirmation", async ({ page }) => {
     await seed(page, { loginAs: "admin", data });
-    await page.goto("/users/u-bob");
+    await page.goto("/admin/users/u-bob");
 
     await page.getByRole("button", { name: "Grant premium" }).click();
     const dialog = page.getByRole("dialog");
@@ -142,7 +142,7 @@ test.describe("account detail: subscription", () => {
 
   test("enrolling the account in a feature campaign adds a membership", async ({ page }) => {
     await seed(page, { loginAs: "admin", data });
-    await page.goto("/users/u-bob");
+    await page.goto("/admin/users/u-bob");
 
     await page.getByRole("button", { name: "Enrol in campaign" }).click();
     const dialog = page.getByRole("dialog");
@@ -159,7 +159,7 @@ test.describe("account detail: subscription", () => {
     // The console demands a free-text justification on every plan mutation. It used to be
     // written to an audit trail no surface could show — the operator typed it for nothing.
     await seed(page, { loginAs: "admin", data });
-    await page.goto("/users/u-bob");
+    await page.goto("/admin/users/u-bob");
     await expect(page.getByTestId("plan-audit")).toContainText("No plan change recorded");
 
     await page.getByRole("button", { name: "Enrol in campaign" }).click();
@@ -189,7 +189,7 @@ test.describe("account detail: subscription", () => {
 
   test("an admin outside the music scope gets no subscription block at all", async ({ page }) => {
     await seed(page, { loginAs: "live-admin", data });
-    await page.goto("/users/u-ada");
+    await page.goto("/admin/users/u-ada");
 
     // Absent, not empty: an empty "Subscription" section would read as "no plan".
     await expect(page.getByRole("heading", { name: "ada" })).toBeVisible();
@@ -203,7 +203,7 @@ test.describe("account detail: subscription", () => {
 
   test("switching accounts never shows the previous account's rights", async ({ page }) => {
     await seed(page, { loginAs: "admin", data });
-    await page.goto("/users/u-ada");
+    await page.goto("/admin/users/u-ada");
     await expect(page.getByTestId("effective-plan")).toContainText("Premium");
 
     await page.getByRole("link", { name: "All users" }).click();
@@ -219,7 +219,7 @@ test.describe("account detail: roles, history, reliability, sessions", () => {
   test("the page is split in two tabs, and the choice is in the URL", async ({ page }) => {
     // Subscription and roles are unrelated bodies of work, each several tables deep.
     await seed(page, { loginAs: "admin", data });
-    await page.goto("/users/u-ada");
+    await page.goto("/admin/users/u-ada");
 
     // A music admin lands on the subscription; the roles half is not on screen.
     await expect(page.getByRole("tab", { name: "Subscription" })).toHaveAttribute("aria-selected", "true");
@@ -243,7 +243,7 @@ test.describe("account detail: roles, history, reliability, sessions", () => {
 
   test("a role is granted in a named scope and the page reflects it", async ({ page }) => {
     await seed(page, { loginAs: "admin", data: { accounts: [ada] } });
-    await page.goto("/users/u-ada?tab=roles");
+    await page.goto("/admin/users/u-ada?tab=roles");
 
     await page.getByRole("button", { name: "Grant moderator in music" }).click();
 
@@ -256,7 +256,7 @@ test.describe("account detail: roles, history, reliability, sessions", () => {
     // the scope, never the role). The chip must degrade to the role's own name.
     const rita = { userId: "u-rita", handle: "rita", displayName: "Rita", roles: ["reviewer"] };
     await seed(page, { loginAs: "admin", data: { accounts: [rita] } });
-    await page.goto("/users/u-rita?tab=roles");
+    await page.goto("/admin/users/u-rita?tab=roles");
 
     await expect(page.getByText("reviewer", { exact: true })).toBeVisible();
     await expect(page.locator("body")).not.toContainText("role.");
@@ -266,7 +266,7 @@ test.describe("account detail: roles, history, reliability, sessions", () => {
     // The history sits on the same screen as the toggle that writes to it. It used to
     // stay one refresh behind: the roles updated, the audit table did not.
     await seed(page, { loginAs: "admin", data: { accounts: [ada] } });
-    await page.goto("/users/u-ada?tab=roles");
+    await page.goto("/admin/users/u-ada?tab=roles");
     await expect(page.getByTestId("role-history")).toContainText("No role changes yet.");
 
     await page.getByRole("button", { name: "Grant moderator in music" }).click();
@@ -299,7 +299,7 @@ test.describe("account detail: roles, history, reliability, sessions", () => {
     }));
     await seed(page, { loginAs: "global-admin", data: { ...data, accounts: [ada], grants: history } });
     await page.setViewportSize({ width: 1280, height: 420 });
-    await page.goto("/users/u-ada?tab=roles");
+    await page.goto("/admin/users/u-ada?tab=roles");
     await expect(page.getByTestId("role-history")).toBeVisible();
 
     // Scrolled away from the top, with the control still in view — so the click itself
@@ -326,7 +326,7 @@ test.describe("account detail: roles, history, reliability, sessions", () => {
       rolesByScope: { global: [] as string[], music: [], live: [] },
     };
     await seed(page, { loginAs: "global-admin", data: { accounts: [tara] } });
-    await page.goto("/users/u-tara?tab=roles");
+    await page.goto("/admin/users/u-tara?tab=roles");
 
     await expect(page.getByRole("button", { name: "Grant moderator in global" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Grant moderator in live" })).toBeVisible();
@@ -350,7 +350,7 @@ test.describe("account detail: roles, history, reliability, sessions", () => {
       },
     ];
     await seed(page, { loginAs: "admin", data: { accounts: [ada], grants } });
-    await page.goto("/users/u-ada?tab=roles");
+    await page.goto("/admin/users/u-ada?tab=roles");
 
     // No button to press: the history is part of the account's page.
     await expect(page.getByTestId("role-history")).toContainText("bossadmin");
@@ -371,7 +371,7 @@ test.describe("account detail: roles, history, reliability, sessions", () => {
         },
       },
     });
-    await page.goto("/users/u-ada");
+    await page.goto("/admin/users/u-ada");
 
     await page.getByRole("button", { name: "Reliability" }).click();
 
@@ -392,7 +392,7 @@ test.describe("account detail: roles, history, reliability, sessions", () => {
         fail: { getCuratorReliability: { code: 14, message: "[unavailable] curator lookup down" } },
       },
     });
-    await page.goto("/users/u-ada");
+    await page.goto("/admin/users/u-ada");
 
     await page.getByRole("button", { name: "Reliability" }).click();
 
@@ -410,7 +410,7 @@ test.describe("account detail: roles, history, reliability, sessions", () => {
         fail: { revokeAccountSessions: { code: 14, message: "[unavailable] backend down" } },
       },
     });
-    await page.goto("/users/u-ada");
+    await page.goto("/admin/users/u-ada");
 
     await page.getByRole("button", { name: "Revoke sessions" }).click();
     // In-app confirmation (never window.confirm — a native dialog blocks the renderer).

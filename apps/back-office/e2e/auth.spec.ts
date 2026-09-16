@@ -177,9 +177,9 @@ test.describe("route guards", () => {
 
   test("a moderator cannot reach the admin-only users route", async ({ page }) => {
     await seed(page, { loginAs: "moderator", data: { hits: [sampleHit()] } });
-    await page.goto("/users");
-    // The admin guard bounces a non-admin to the catalog.
-    await expect(page).toHaveURL(/\/music\/catalog$/);
-    await expect(page.getByRole("heading", { name: "Catalog" })).toBeVisible();
+    await page.goto("/admin/users");
+    // The guard sends a non-admin to their landing page — the review queue.
+    await expect(page).toHaveURL(/\/music\/queue$/);
+    await expect(page.getByRole("heading", { name: "Catalog review" })).toBeVisible();
   });
 });

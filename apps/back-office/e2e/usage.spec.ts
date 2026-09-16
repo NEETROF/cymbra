@@ -22,7 +22,7 @@ test.describe("usage analytics console", () => {
         usageBreakdown: [{ action: "play_start", variant: "", events: 300 }],
       },
     });
-    await page.goto("/usage");
+    await page.goto("/music/usage");
 
     await expect(page.getByRole("heading", { name: "Feature usage" })).toBeVisible();
     // Exact distinct-user total for the period (shown in both view modes).
@@ -46,7 +46,7 @@ test.describe("usage analytics console", () => {
     await seed(page, { loginAs: "moderator", data: {} });
     await page.goto("/music/queue");
     await expect(page.getByRole("link", { name: "Usage" })).toHaveCount(0);
-    await page.goto("/usage");
-    await expect(page).not.toHaveURL(/\/usage$/);
+    await page.goto("/music/usage");
+    await expect(page).not.toHaveURL(/\/music\/usage$/);
   });
 });

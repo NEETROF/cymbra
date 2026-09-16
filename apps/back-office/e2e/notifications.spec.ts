@@ -16,7 +16,7 @@ test.describe("notifications panel", () => {
       // A key from another domain must not leak into this panel.
       data: { flags: [KILL_SWITCH, STREAK_ENABLED, STREAK_HOUR, { key: "rating.enabled", value: false }] },
     });
-    await page.goto("/notifications");
+    await page.goto("/admin/notifications");
 
     await expect(page.getByRole("heading", { name: "Notifications", exact: true })).toBeVisible();
     await expect(page.getByTestId("kill-switch")).toHaveText("On");
@@ -29,7 +29,7 @@ test.describe("notifications panel", () => {
 
   test("flipping the kill-switch off is reflected after the re-read", async ({ page }) => {
     await seed(page, { loginAs: "admin", data: { flags: [KILL_SWITCH, STREAK_ENABLED, STREAK_HOUR] } });
-    await page.goto("/notifications");
+    await page.goto("/admin/notifications");
 
     await page.getByTestId("kill-switch").click();
     await expect(page.getByTestId("kill-switch")).toHaveText("Off");
@@ -37,7 +37,7 @@ test.describe("notifications panel", () => {
 
   test("a new schedule hour is saved and read back", async ({ page }) => {
     await seed(page, { loginAs: "admin", data: { flags: [KILL_SWITCH, STREAK_ENABLED, STREAK_HOUR] } });
-    await page.goto("/notifications");
+    await page.goto("/admin/notifications");
 
     await page.getByTestId("hour-practice_streak").fill("7");
     await page.getByTestId("save-hour-practice_streak").click();
@@ -46,7 +46,7 @@ test.describe("notifications panel", () => {
 
   test("with no category declared the panel says so", async ({ page }) => {
     await seed(page, { loginAs: "admin", data: { flags: [KILL_SWITCH] } });
-    await page.goto("/notifications");
+    await page.goto("/admin/notifications");
 
     await expect(page.getByTestId("no-categories")).toBeVisible();
     await expect(page.getByTestId("kill-switch")).toBeVisible();
@@ -57,7 +57,7 @@ test.describe("notifications panel", () => {
       loginAs: "admin",
       data: { flags: [KILL_SWITCH], fail: { listFlagDefinitions: { code: 14, message: "backend down" } } },
     });
-    await page.goto("/notifications");
+    await page.goto("/admin/notifications");
 
     const alert = page.getByRole("alert");
     await expect(alert).toBeVisible();
@@ -66,10 +66,10 @@ test.describe("notifications panel", () => {
 
   test("a moderator cannot reach the panel", async ({ page }) => {
     await seed(page, { loginAs: "moderator", data: { flags: [KILL_SWITCH] } });
-    await page.goto("/notifications");
+    await page.goto("/admin/notifications");
 
     // Admin-only route: a moderator is redirected to their work surface.
-    await expect(page).not.toHaveURL(/\/notifications/);
+    await expect(page).not.toHaveURL(/\/admin\/notifications/);
     await expect(page.getByTestId("kill-switch")).toHaveCount(0);
   });
 });

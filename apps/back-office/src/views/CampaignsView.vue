@@ -14,7 +14,7 @@ import IdBadge from "@/components/IdBadge.vue";
 // Music-admin campaign console (change: restructure-back-office-users-console): campaign
 // lifecycle, code minting (clear text shown ONCE), the per-campaign member list and its
 // export. It holds nothing about an individual account's subscription — that work starts
-// in the users directory and ends on `/users/{user_id}`; an account-lookup field here
+// in the users directory and ends on `/admin/users/{user_id}`; an account-lookup field here
 // would be a second door to the same room. All API work lives in the plans store; this
 // view only matches on the Async unions and toasts each mutation's outcome (localized —
 // never a raw error).
@@ -325,7 +325,7 @@ onMounted(() => void store.loadCampaigns(true));
             <td>
               <!-- A cohort is read here, but acted on there: one click opens the member's
                    own page instead of re-identifying them by hand. -->
-              <RouterLink class="member" :to="{ name: 'user-detail', params: { userId: m.userId } }">
+              <RouterLink class="member" :to="{ name: 'admin-user-detail', params: { userId: m.userId } }">
                 <span v-if="handleFor(m.userId)" class="handle">{{ handleFor(m.userId) }}</span>
                 <IdBadge v-else :id="m.userId" />
               </RouterLink>

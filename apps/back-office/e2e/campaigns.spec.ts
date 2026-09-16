@@ -61,7 +61,7 @@ const data: E2EData = { accounts: [ada, bob, cleo], campaigns, plans };
 test.describe("campaigns console (music admin only)", () => {
   test("closing a feature campaign marks it closed and lists its members as revoked", async ({ page }) => {
     await seed(page, { loginAs: "admin", data });
-    await page.goto("/campaigns");
+    await page.goto("/music/campaigns");
 
     const row = page.getByTestId("campaigns").getByRole("row", { name: /midi-drums/ });
     await row.getByRole("button", { name: "Members" }).click();
@@ -82,7 +82,7 @@ test.describe("campaigns console (music admin only)", () => {
 
   test("minting codes shows the clear text once; dismissed, it is gone", async ({ page }) => {
     await seed(page, { loginAs: "admin", data: { ...data, mintedCodes: ["QQQQ-1111", "WWWW-2222", "EEEE-3333"] } });
-    await page.goto("/campaigns");
+    await page.goto("/music/campaigns");
 
     await page
       .getByTestId("campaigns")
@@ -107,7 +107,7 @@ test.describe("campaigns console (music admin only)", () => {
 
   test("creating a trial campaign lists it with its duration", async ({ page }) => {
     await seed(page, { loginAs: "admin", data });
-    await page.goto("/campaigns");
+    await page.goto("/music/campaigns");
     await page.getByRole("button", { name: "Create campaign" }).click();
     const dialog = page.getByRole("dialog");
     await dialog.getByLabel("Key").fill("autumn-trial");
@@ -122,7 +122,7 @@ test.describe("campaigns console (music admin only)", () => {
 
   test("the page holds no account lookup — that work lives on the account's own page", async ({ page }) => {
     await seed(page, { loginAs: "admin", data });
-    await page.goto("/campaigns");
+    await page.goto("/music/campaigns");
 
     await expect(page.getByRole("heading", { name: "Campaigns" })).toBeVisible();
     await expect(page.getByPlaceholder("handle or account id")).toHaveCount(0);
@@ -134,13 +134,13 @@ test.describe("campaigns console (music admin only)", () => {
     await seed(page, { loginAs: "admin", data });
     await page.goto("/plans");
 
-    await expect(page).toHaveURL(/\/campaigns$/);
+    await expect(page).toHaveURL(/\/music\/campaigns$/);
     await expect(page.getByRole("heading", { name: "Campaigns" })).toBeVisible();
   });
 
   test("a member row opens that member's account page", async ({ page }) => {
     await seed(page, { loginAs: "admin", data });
-    await page.goto("/campaigns");
+    await page.goto("/music/campaigns");
 
     await page
       .getByTestId("campaigns")
@@ -151,7 +151,7 @@ test.describe("campaigns console (music admin only)", () => {
     // answers "who is this?", in one click.
     await page.getByTestId("members").getByRole("link").first().click();
 
-    await expect(page).toHaveURL(/\/users\/u-(ada|cleo)$/);
+    await expect(page).toHaveURL(/\/admin\/users\/u-(ada|cleo)$/);
     await expect(page.getByTestId("entitlements")).toBeVisible();
   });
 });
@@ -162,7 +162,7 @@ test.describe("flags console: plan / beta rollout", () => {
       loginAs: "admin",
       data: { ...data, flags: [{ key: "rating.enabled", app: "music", value: false }] },
     });
-    await page.goto("/flags");
+    await page.goto("/admin/flags");
     await page.getByRole("button", { name: "Edit" }).first().click();
 
     const select = page.getByRole("combobox", { name: /rollout scope/ });

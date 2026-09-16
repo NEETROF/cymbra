@@ -8,6 +8,7 @@ import { meLabel, useMeStore } from "@/stores/me";
 import { currentLocale, SUPPORTED_LOCALES } from "@/i18n";
 import AppTag from "@/components/AppTag.vue";
 import ToastHost from "@/components/ToastHost.vue";
+import { visibleSections, type NavIcon } from "@/lib/navigation";
 
 const auth = useAuthStore();
 // Who is signed in: the sidebar names the account, because every scope-gated page
@@ -48,9 +49,10 @@ const shell = computed(() => auth.isAuthenticated && auth.isModerator && !route.
 
 // Minimal line icons (Lucide-style paths) so the nav reads like the mockup
 // without pulling an icon dependency.
-const ICONS: Record<string, string> = {
+const ICONS: Record<NavIcon, string> = {
   queue: "M3 5h18M3 12h18M3 19h12",
   catalog: "M9 18V5l12-2v13M9 13l12-2M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm12-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z",
+  privateScores: "M5 11h14v10H5zM8 11V7a4 4 0 0 1 8 0v4",
   users:
     "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm13 10v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75",
   flags: "M4 22V4m0 0 8-2 8 3v9l-8-2-8 2",
@@ -62,35 +64,9 @@ const ICONS: Record<string, string> = {
   jobs: "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20ZM12 6v6l4 2",
 };
 
-const nav = computed(() => {
-  const items = [
-    { to: "/music/queue", key: "nav.queue", icon: "queue" },
-    { to: "/music/catalog", key: "nav.catalog", icon: "catalog" },
-  ];
-  if (auth.isAdmin) {
-    items.push(
-      { to: "/users", key: "nav.users", icon: "users" },
-      { to: "/flags", key: "nav.flags", icon: "flags" },
-      { to: "/campaigns", key: "nav.campaigns", icon: "campaigns" },
-      { to: "/soundfonts", key: "nav.soundfonts", icon: "soundfonts" },
-      { to: "/usage", key: "nav.usage", icon: "usage" },
-      { to: "/notifications", key: "nav.notifications", icon: "notifications" },
-    );
-    // Music-scope only (change: add-private-score-catalog).
-    if (auth.adminScopes.includes("music")) {
-      items.push({ to: "/takedowns", key: "nav.takedowns", icon: "soundfonts" });
-    }
-    // Lingua-scope only (change: add-lingua-back-office).
-    if (auth.adminScopes.includes("lingua")) {
-      items.push({ to: "/lingua", key: "nav.lingua", icon: "lingua" });
-    }
-    // Global-scope only (change: add-admin-jobs-console): the queue spans every product.
-    if (auth.adminScopes.includes("global")) {
-      items.push({ to: "/jobs", key: "nav.jobs", icon: "jobs" });
-    }
-  }
-  return items;
-});
+// The sidebar, grouped by product (change: restructure-back-office-navigation): only
+// the entries whose page the guard would open, and no section left empty.
+const sections = computed(() => visibleSections(router, auth.claims));
 
 async function signOut() {
   closeMenu();
@@ -121,22 +97,40 @@ async function signOut() {
         </span>
       </div>
 
-      <nav class="nav">
-        <RouterLink v-for="item in nav" :key="item.to" :to="item.to" class="nav-item" @click="closeMenu">
-          <svg
-            class="ic"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
+      <!-- One labelled group per product: the heading both separates and names it
+           (no divider — it would be a second signal for the same boundary). -->
+      <nav class="nav" :aria-label="t('nav.menu')">
+        <div
+          v-for="section in sections"
+          :key="section.id"
+          class="nav-section"
+          role="group"
+          :aria-labelledby="`nav-heading-${section.id}`"
+          :data-testid="`nav-section-${section.id}`"
+        >
+          <span :id="`nav-heading-${section.id}`" class="nav-heading">{{ t(section.heading) }}</span>
+          <RouterLink
+            v-for="item in section.entries"
+            :key="item.route"
+            :to="{ name: item.route }"
+            class="nav-item"
+            @click="closeMenu"
           >
-            <path :d="ICONS[item.icon]" />
-          </svg>
-          <span>{{ t(item.key) }}</span>
-        </RouterLink>
+            <svg
+              class="ic"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path :d="ICONS[item.icon]" />
+            </svg>
+            <span>{{ t(item.label) }}</span>
+          </RouterLink>
+        </div>
       </nav>
 
       <div class="foot">
@@ -262,10 +256,29 @@ async function signOut() {
   color: var(--muted);
 }
 
+/* The nav scrolls on its own when the sections outgrow a short screen, so the
+   account footer stays in view. */
 .nav {
   display: flex;
   flex-direction: column;
+  gap: 1.1rem;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.nav-section {
+  display: flex;
+  flex-direction: column;
   gap: 0.25rem;
+}
+.nav-heading {
+  padding: 0 0.75rem 0.2rem;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  /* --muted, not --faint: at this size --faint falls under 4.5:1 on the sidebar. */
+  color: var(--muted);
 }
 .nav-item {
   display: flex;

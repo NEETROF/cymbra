@@ -30,7 +30,7 @@ test.describe("lingua ops console", () => {
         ],
       },
     });
-    await page.goto("/lingua");
+    await page.goto("/lingua/overview");
 
     await expect(page.getByRole("heading", { name: "Lingua" })).toBeVisible();
     // The aggregate tiles.
@@ -49,17 +49,19 @@ test.describe("lingua ops console", () => {
   test("a non-admin moderator has neither the link nor access", async ({ page }) => {
     await seed(page, { loginAs: "moderator", data: {} });
     await page.goto("/music/queue");
-    await expect(page.getByRole("link", { name: "Lingua" })).toHaveCount(0);
-    await page.goto("/lingua");
-    await expect(page).not.toHaveURL(/\/lingua$/);
+    await expect(page.getByTestId("nav-section-lingua")).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Overview" })).toHaveCount(0);
+    await page.goto("/lingua/overview");
+    await expect(page).not.toHaveURL(/\/lingua\/overview$/);
   });
 
   test("a music-only admin is redirected (wrong scope)", async ({ page }) => {
     await seed(page, { loginAs: "admin", data: {} });
     await page.goto("/music/queue");
-    // The nav link is scope-gated: a music admin never sees it.
-    await expect(page.getByRole("link", { name: "Lingua" })).toHaveCount(0);
-    await page.goto("/lingua");
-    await expect(page).not.toHaveURL(/\/lingua$/);
+    // The Lingua section is scope-gated: a music admin never sees it.
+    await expect(page.getByTestId("nav-section-lingua")).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Overview" })).toHaveCount(0);
+    await page.goto("/lingua/overview");
+    await expect(page).not.toHaveURL(/\/lingua\/overview$/);
   });
 });
