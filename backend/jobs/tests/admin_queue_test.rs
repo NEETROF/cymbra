@@ -1,6 +1,8 @@
 //! Jobs-console SQL integration tests (change: add-admin-jobs-console): the state
 //! `jobs.admin_queue` gives each queued job, the cancellation outcomes including the
 //! ordered-chain relink, the period figures, and what `jobs_admin_svc` may not do.
+//! Change add-jobs-console-history adds the finished-attempt history, the per-kind
+//! figures and the schedule list.
 //!
 //! Requires the dev infra with roles bootstrapped (`db/init/00-roles.sh` creates
 //! `jobs_admin_svc`); runs the `jobs` migrations itself as worker_svc. Every test uses
@@ -14,7 +16,7 @@ use std::time::Duration;
 
 use cymbra_jobs::{AttemptStart, EnqueueRequest, begin_attempt, transactional_enqueue};
 use sqlx::postgres::PgPoolOptions;
-use sqlx::{PgPool, Row};
+use sqlx::{Column, PgPool, Row};
 use uuid::Uuid;
 
 async fn connect(var: &str) -> PgPool {
@@ -374,6 +376,8 @@ async fn the_console_role_can_only_call_the_admin_functions() {
         "SELECT count(*) FROM jobs.mq_msgs",
         "SELECT count(*) FROM jobs.job_attempts",
         "SELECT count(*) FROM jobs.admin_queue",
+        "SELECT payload_json FROM jobs.schedules",
+        "SELECT last_error FROM jobs.dead_letter",
         "DELETE FROM jobs.mq_msgs WHERE false",
         "SELECT jobs.enqueue('x', 'it.x', '', false, 0, INTERVAL '1 second', INTERVAL '0', '{}')",
     ] {
@@ -391,6 +395,364 @@ async fn the_console_role_can_only_call_the_admin_functions() {
         .unwrap();
     sqlx::query("SELECT * FROM jobs.admin_period_stats(NOW() - INTERVAL '1 hour', NOW(), NULL)")
         .fetch_one(&console)
+        .await
+        .unwrap();
+    for sql in [
+        "SELECT * FROM jobs.admin_list_attempts(NOW() - INTERVAL '1 hour', NOW(), NULL, NULL, 1, 0)",
+        "SELECT jobs.admin_count_attempts(NOW() - INTERVAL '1 hour', NOW(), NULL, NULL)",
+        "SELECT * FROM jobs.admin_period_stats_by_kind(NOW() - INTERVAL '1 hour', NOW(), NULL)",
+        "SELECT * FROM jobs.admin_list_schedules()",
+    ] {
+        sqlx::query(sql).fetch_all(&console).await.expect(sql);
+    }
+}
+
+/// Insert finished (or running) attempts for `name`, each `minutes_ago` before one shared
+/// `NOW()`, with a 2-second run time.
+async fn attempts(pool: &PgPool, name: &str, channel: &str, rows: &[(Uuid, i32, &str, i64)]) {
+    for (job_id, attempt, outcome, minutes_ago) in rows {
+        let finished = (*outcome != "running").then_some(*minutes_ago);
+        sqlx::query(
+            "INSERT INTO jobs.job_attempts \
+                 (job_id, job_name, channel_name, attempt, started_at, finished_at, outcome) \
+             VALUES ($1, $2, $3, $4, \
+                     NOW() - make_interval(mins => $5::int) - INTERVAL '2 seconds', \
+                     NOW() - make_interval(mins => $6::int), $7)",
+        )
+        .bind(job_id)
+        .bind(name)
+        .bind(channel)
+        .bind(attempt)
+        .bind(*minutes_ago as i32)
+        .bind(finished.map(|m| m as i32))
+        .bind(outcome)
+        .execute(pool)
+        .await
+        .unwrap();
+    }
+}
+
+async fn purge_history(pool: &PgPool, name: &str) {
+    for sql in [
+        "DELETE FROM jobs.job_attempts WHERE job_name = $1",
+        "DELETE FROM jobs.cancellations WHERE job_name = $1",
+        "DELETE FROM jobs.dead_letter WHERE name = $1",
+    ] {
+        sqlx::query(sql).bind(name).execute(pool).await.unwrap();
+    }
+}
+
+#[tokio::test]
+#[ignore = "needs docker compose (Postgres) with roles bootstrapped"]
+async fn history_lists_finished_attempts_newest_first_and_pages() {
+    let worker = worker().await;
+    let console = console().await;
+    let (name, channel) = unique("history");
+    let (retried, ok, crashed, live) = (
+        Uuid::new_v4(),
+        Uuid::new_v4(),
+        Uuid::new_v4(),
+        Uuid::new_v4(),
+    );
+    attempts(
+        &worker,
+        &name,
+        &channel,
+        &[
+            (retried, 1, "failed", 50),
+            (retried, 2, "succeeded", 40),
+            (ok, 1, "succeeded", 30),
+            (crashed, 1, "abandoned", 20),
+            (live, 1, "running", 10),
+            // Outside a 1-hour window.
+            (ok, 1, "succeeded", 120),
+        ],
+    )
+    .await;
+
+    let page = |outcome: Option<&'static str>, limit: i32, offset: i32| {
+        let console = console.clone();
+        let name = name.clone();
+        async move {
+            sqlx::query(
+                "SELECT job_id, attempt, outcome FROM jobs.admin_list_attempts(\
+                 NOW() - INTERVAL '1 hour', NOW(), $1, $2, $3, $4)",
+            )
+            .bind(name)
+            .bind(outcome)
+            .bind(limit)
+            .bind(offset)
+            .fetch_all(&console)
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|r| {
+                (
+                    r.get::<Uuid, _>("job_id"),
+                    r.get::<i32, _>("attempt"),
+                    r.get::<String, _>("outcome"),
+                )
+            })
+            .collect::<Vec<_>>()
+        }
+    };
+    let count = |outcome: Option<&'static str>| {
+        let console = console.clone();
+        let name = name.clone();
+        async move {
+            sqlx::query_scalar::<_, i64>(
+                "SELECT jobs.admin_count_attempts(NOW() - INTERVAL '1 hour', NOW(), $1, $2)",
+            )
+            .bind(name)
+            .bind(outcome)
+            .fetch_one(&console)
+            .await
+            .unwrap()
+        }
+    };
+
+    // Newest first, `running` never listed, the old attempt outside the window.
+    assert_eq!(
+        page(None, 10, 0).await,
+        vec![
+            (crashed, 1, "abandoned".to_owned()),
+            (ok, 1, "succeeded".to_owned()),
+            (retried, 2, "succeeded".to_owned()),
+            (retried, 1, "failed".to_owned()),
+        ]
+    );
+    assert_eq!(count(None).await, 4);
+
+    // Paging continues the same order; a page past the end is empty but the total stays.
+    assert_eq!(
+        page(None, 2, 2).await,
+        vec![
+            (retried, 2, "succeeded".to_owned()),
+            (retried, 1, "failed".to_owned()),
+        ]
+    );
+    assert!(page(None, 2, 10).await.is_empty());
+
+    // Outcome filter.
+    assert_eq!(
+        page(Some("failed"), 10, 0).await,
+        vec![(retried, 1, "failed".to_owned())]
+    );
+    assert_eq!(count(Some("succeeded")).await, 2);
+    assert_eq!(count(Some("running")).await, 0);
+
+    // Kind filter: another kind's attempts are not listed.
+    let (other, other_channel) = unique("history_other");
+    attempts(
+        &worker,
+        &other,
+        &other_channel,
+        &[(Uuid::new_v4(), 1, "succeeded", 5)],
+    )
+    .await;
+    assert_eq!(count(None).await, 4);
+
+    purge_history(&worker, &name).await;
+    purge_history(&worker, &other).await;
+}
+
+#[tokio::test]
+#[ignore = "needs docker compose (Postgres) with roles bootstrapped"]
+async fn per_kind_figures_add_up_to_the_period_totals() {
+    let worker = worker().await;
+    let console = console().await;
+    let (a, a_channel) = unique("bykind_a");
+    let (b, b_channel) = unique("bykind_b");
+    let (c, c_channel) = unique("bykind_c");
+
+    attempts(
+        &worker,
+        &a,
+        &a_channel,
+        &[
+            (Uuid::new_v4(), 1, "succeeded", 10),
+            (Uuid::new_v4(), 1, "succeeded", 20),
+            (Uuid::new_v4(), 1, "failed", 30),
+        ],
+    )
+    .await;
+    attempts(
+        &worker,
+        &b,
+        &b_channel,
+        &[(Uuid::new_v4(), 1, "abandoned", 15)],
+    )
+    .await;
+    // `c` only has a dead letter and a cancellation: no attempt at all.
+    let (dead, gone) = (Uuid::new_v4(), Uuid::new_v4());
+    sqlx::query(
+        "INSERT INTO jobs.dead_letter (id, name, channel_name, attempts, payload_json, last_error, \
+             dead_lettered_at) \
+         VALUES ($1, $2, $3, 0, '{\"to\":\"someone@example.com\"}', 'boom', NOW() - INTERVAL '5 minutes')",
+    )
+    .bind(dead)
+    .bind(&c)
+    .bind(&c_channel)
+    .execute(&worker)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO jobs.cancellations (job_id, job_name, channel_name, cancelled_by, cancelled_at) \
+         VALUES ($1, $2, $3, 'it-admin', NOW() - INTERVAL '6 minutes')",
+    )
+    .bind(gone)
+    .bind(&c)
+    .bind(&c_channel)
+    .execute(&worker)
+    .await
+    .unwrap();
+
+    let by_kind = |name: String| {
+        let console = console.clone();
+        async move {
+            sqlx::query(
+                "SELECT * FROM jobs.admin_period_stats_by_kind(NOW() - INTERVAL '1 hour', NOW(), $1)",
+            )
+            .bind(name)
+            .fetch_all(&console)
+            .await
+            .unwrap()
+        }
+    };
+    let total = |name: String| {
+        let console = console.clone();
+        async move {
+            sqlx::query(
+                "SELECT * FROM jobs.admin_period_stats(NOW() - INTERVAL '1 hour', NOW(), $1)",
+            )
+            .bind(name)
+            .fetch_one(&console)
+            .await
+            .unwrap()
+        }
+    };
+
+    for name in [&a, &b, &c] {
+        let rows = by_kind(name.clone()).await;
+        assert_eq!(rows.len(), 1, "{name}: one row per kind with activity");
+        let (row, sum) = (&rows[0], total(name.clone()).await);
+        assert_eq!(row.get::<String, _>("job_name"), *name);
+        for col in ["completed", "failed_attempts", "dead_lettered", "cancelled"] {
+            assert_eq!(
+                row.get::<i64, _>(col),
+                sum.get::<i64, _>(col),
+                "{name}.{col}"
+            );
+        }
+        assert_eq!(
+            row.get::<Option<i64>, _>("avg_run_ms"),
+            sum.get::<Option<i64>, _>("avg_run_ms"),
+            "{name}.avg_run_ms"
+        );
+    }
+
+    let a_row = &by_kind(a.clone()).await[0];
+    assert_eq!(a_row.get::<i64, _>("completed"), 2);
+    assert_eq!(a_row.get::<i64, _>("failed_attempts"), 1);
+    assert_eq!(a_row.get::<Option<i64>, _>("avg_run_ms"), Some(2000));
+    assert!(
+        a_row
+            .get::<Option<chrono::DateTime<chrono::Utc>>, _>("last_finished_at")
+            .is_some()
+    );
+
+    // Only an abandoned attempt: no figure, but it ran — listed, with its finish time.
+    let b_row = &by_kind(b.clone()).await[0];
+    assert_eq!(b_row.get::<i64, _>("completed"), 0);
+    assert_eq!(b_row.get::<Option<i64>, _>("avg_run_ms"), None);
+    assert!(
+        b_row
+            .get::<Option<chrono::DateTime<chrono::Utc>>, _>("last_finished_at")
+            .is_some()
+    );
+
+    let c_row = &by_kind(c.clone()).await[0];
+    assert_eq!(c_row.get::<i64, _>("dead_lettered"), 1);
+    assert_eq!(c_row.get::<i64, _>("cancelled"), 1);
+    assert_eq!(
+        c_row.get::<Option<chrono::DateTime<chrono::Utc>>, _>("last_finished_at"),
+        None
+    );
+
+    // Unfiltered, every test kind is there, in kind order.
+    let names: Vec<String> = sqlx::query_scalar(
+        "SELECT job_name FROM jobs.admin_period_stats_by_kind(NOW() - INTERVAL '1 hour', NOW(), NULL)",
+    )
+    .fetch_all(&console)
+    .await
+    .unwrap();
+    let ours: Vec<&String> = names.iter().filter(|n| [&a, &b, &c].contains(n)).collect();
+    let mut sorted = ours.clone();
+    sorted.sort();
+    assert_eq!(ours.len(), 3);
+    assert_eq!(ours, sorted);
+
+    // A window with nothing in it returns no row for these kinds.
+    assert!(
+        sqlx::query(
+            "SELECT * FROM jobs.admin_period_stats_by_kind(NOW() - INTERVAL '3 hours', \
+             NOW() - INTERVAL '2 hours', $1)",
+        )
+        .bind(&a)
+        .fetch_all(&console)
+        .await
+        .unwrap()
+        .is_empty()
+    );
+
+    for name in [&a, &b, &c] {
+        purge_history(&worker, name).await;
+    }
+}
+
+#[tokio::test]
+#[ignore = "needs docker compose (Postgres) with roles bootstrapped"]
+async fn schedules_are_listed_without_their_payload() {
+    let worker = worker().await;
+    let console = console().await;
+    let (name, _) = unique("schedule");
+    sqlx::query(
+        "INSERT INTO jobs.schedules (name, module, kind, cron_expr, timezone, enabled, payload_json) \
+         VALUES ($1, 'it', $2, '0 */6 * * 1-5', 'Europe/Paris', false, '{\"secret\":true}')",
+    )
+    .bind(&name)
+    .bind(format!("{name}_kind"))
+    .execute(&worker)
+    .await
+    .unwrap();
+
+    let rows = sqlx::query("SELECT * FROM jobs.admin_list_schedules()")
+        .fetch_all(&console)
+        .await
+        .unwrap();
+    let ours = rows
+        .iter()
+        .find(|r| r.get::<String, _>("name") == name)
+        .expect("the test schedule is listed");
+    assert_eq!(ours.get::<String, _>("kind"), format!("{name}_kind"));
+    assert_eq!(ours.get::<String, _>("cron_expr"), "0 */6 * * 1-5");
+    assert_eq!(ours.get::<String, _>("timezone"), "Europe/Paris");
+    assert!(!ours.get::<bool, _>("enabled"));
+    // The columns are exactly these: no payload, no scheduler bookkeeping.
+    let columns: Vec<&str> = ours.columns().iter().map(|c| c.name()).collect();
+    assert_eq!(
+        columns,
+        ["name", "kind", "cron_expr", "timezone", "enabled"]
+    );
+    // The seeded schedules are there too.
+    assert!(
+        rows.iter()
+            .any(|r| r.get::<String, _>("name") == "orphan_reap_hourly")
+    );
+
+    sqlx::query("DELETE FROM jobs.schedules WHERE name = $1")
+        .bind(&name)
+        .execute(&worker)
         .await
         .unwrap();
 }

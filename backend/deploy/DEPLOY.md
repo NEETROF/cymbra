@@ -213,11 +213,13 @@ through the existing purge job.
 
 ### Jobs console (back office — off until its URL is set)
 
-The back-office **Jobs** page (queue table, per-period figures, cancelling a queued job)
-talks to `JobsAdminService`, which the server mounts only when
+The back-office **Jobs** page (queue table, per-period figures and their per-kind
+breakdown, the history of finished attempts, each kind's schedule, cancelling a queued
+job) talks to `JobsAdminService`, which the server mounts only when
 `CYMBRA_JOBS_ADMIN_DATABASE_URL` is set. It connects as `jobs_admin_svc`, a role with no
-table privilege at all: it may only EXECUTE the four `jobs.admin_*` functions, so it can
-list queue metadata and cancel a job but never read a job's payload. The worker records
+table privilege at all: it may only EXECUTE the `jobs.admin_*` functions (0018, plus the
+history/schedule ones from 0019), so it can list queue metadata and cancel a job but never
+read a job's payload, a schedule's payload or an error text. The worker records
 the attempt history the page reads whether or not the console is enabled.
 
 ```bash
@@ -232,6 +234,10 @@ docker compose -f docker-compose.prod.yml up -d
 
 Order with the worker deploy does not matter: the worker's migration grants the functions
 to `jobs_admin_svc` if the role exists, and the script grants them if the functions exist.
+A migration that adds console functions (0019) grants them the same way, so an existing
+role needs nothing; re-running the script is harmless. **Deploy the backend before the back
+office** when the console gains an RPC: the page otherwise calls a method the server does
+not have yet (the History tab shows an error until the backend catches up).
 `provision-optional-modules.sh` does not cover this role (it models one role + one schema
 per module; this one owns no schema). Only `global` admins see the page.
 

@@ -26,6 +26,9 @@ service JobsAdminService {
   rpc AdminListJobKinds(AdminListJobKindsRequest) returns (AdminListJobKindsResponse);
   // Cancel one queued job. Refusals are outcomes, not errors.
   rpc AdminCancelJob(AdminCancelJobRequest) returns (AdminCancelJobResponse);
+  // A page of the attempts that finished in a window, newest first, plus the matching
+  // total (change: add-jobs-console-history). Running attempts belong to AdminListJobs.
+  rpc AdminListJobHistory(AdminListJobHistoryRequest) returns (AdminListJobHistoryResponse);
 }
 
 // Where a queued job stands. Derived server-side from the queue and the attempt history;
@@ -106,20 +109,44 @@ message PeriodStats {
   optional int64 avg_run_ms = 5;  // mean run time of succeeded attempts; unset when none
 }
 
+// The period figures of one job kind (change: add-jobs-console-history).
+message KindPeriodStats {
+  string kind = 1;
+  PeriodStats period = 2;
+  // When the kind's latest attempt finished in the window, whatever its outcome; unset
+  // when none did (the kind only has dead-lettered or cancelled jobs).
+  optional int64 last_finished_at_ms = 3;
+}
+
 message AdminGetJobStatsResponse {
   QueueCounts queue = 1;
   PeriodStats period = 2;
   // When the attempt history starts (its oldest record), unix epoch ms; unset when the
   // history is empty. Figures for time before it are not zero, they are unknown.
   optional int64 history_since_ms = 3;
+  // `period` per kind, over the same window and kind filter; every figure but the average
+  // adds up to `period`. Only kinds with activity in the window, sorted by kind. Empty from
+  // a server older than this field.
+  repeated KindPeriodStats by_kind = 4;
 }
 
 message AdminListJobKindsRequest {}
+
+// A recurring schedule that enqueues a kind, as the scheduler reads it at run time
+// (change: add-jobs-console-history). Its payload is never returned.
+message JobSchedule {
+  string name = 1;      // e.g. "orphan_reap_hourly"
+  string cron = 2;      // five-field cron, e.g. "5 * * * *"
+  string timezone = 3;  // IANA name the cron is evaluated in, e.g. "UTC"
+  bool enabled = 4;     // a disabled schedule enqueues nothing
+}
 
 message JobKind {
   string name = 1;
   string channel = 2;
   bool cancellable = 3;  // false for erasure obligations
+  // The schedules that enqueue this kind; empty for a kind only enqueued on demand.
+  repeated JobSchedule schedules = 4;
 }
 
 message AdminListJobKindsResponse {
@@ -144,4 +171,41 @@ enum CancelOutcome {
 
 message AdminCancelJobResponse {
   CancelOutcome outcome = 1;
+}
+
+// How a finished attempt ended (change: add-jobs-console-history). There is no RUNNING:
+// a running attempt is not history.
+enum AttemptOutcome {
+  // In a filter: any finished outcome. Never returned for an attempt.
+  ATTEMPT_OUTCOME_UNSPECIFIED = 0;
+  ATTEMPT_OUTCOME_SUCCEEDED = 1;
+  ATTEMPT_OUTCOME_FAILED = 2;
+  // The worker running it went away; its finish time is when that was noticed.
+  ATTEMPT_OUTCOME_ABANDONED = 3;
+}
+
+message AdminListJobHistoryRequest {
+  StatsWindow window = 1;       // attempts whose finish time is in [from_ms, to_ms)
+  string kind = 2;              // "" = every kind
+  AttemptOutcome outcome = 3;   // UNSPECIFIED = every finished outcome
+  int32 limit = 4;              // 1..=100
+  int32 offset = 5;             // >= 0
+}
+
+// One finished attempt. Like every message here, no payload and no error text: errors
+// stay in logs and traces, keyed by `job_id`.
+message FinishedAttempt {
+  string job_id = 1;                 // the queue message id (UUID)
+  string kind = 2;
+  string channel = 3;
+  AttemptOutcome outcome = 4;
+  int32 attempt = 5;                 // 1 for the first attempt
+  int64 started_at_ms = 6;
+  int64 finished_at_ms = 7;
+  optional int64 duration_ms = 8;    // unset for ABANDONED, whose finish time is not a run's end
+}
+
+message AdminListJobHistoryResponse {
+  repeated FinishedAttempt attempts = 1;
+  int64 total = 2;  // attempts matching the filters, across all pages
 }

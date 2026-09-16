@@ -1,14 +1,14 @@
 ## 1. Admin SQL functions and grants (`backend/jobs/migrations`)
 
-- [ ] 1.1 Migration `0019_admin_job_history.sql`, re-runnable (`CREATE OR REPLACE FUNCTION`, `CREATE INDEX IF NOT EXISTS`). Add the index `job_attempts_name_finished_idx ON job_attempts (job_name, finished_at) WHERE finished_at IS NOT NULL`
-- [ ] 1.2 `SECURITY DEFINER` functions, all `STABLE` with `SET search_path = jobs` and `REVOKE EXECUTE … FROM PUBLIC`:
+- [x] 1.1 Migration `0019_admin_job_history.sql`, re-runnable (`CREATE OR REPLACE FUNCTION`, `CREATE INDEX IF NOT EXISTS`). Add the index `job_attempts_name_finished_idx ON job_attempts (job_name, finished_at) WHERE finished_at IS NOT NULL`
+- [x] 1.2 `SECURITY DEFINER` functions, all `STABLE` with `SET search_path = jobs` and `REVOKE EXECUTE … FROM PUBLIC`:
   - `admin_list_attempts(p_from, p_to, p_name, p_outcome, p_limit, p_offset)`: finished attempts only, ordered `finished_at DESC, id DESC`;
   - `admin_count_attempts(p_from, p_to, p_name, p_outcome)`;
   - `admin_period_stats_by_kind(p_from, p_to, p_name)`: one grouped aggregate per source (attempts, `dead_letter`, `cancellations`), combined with `UNION ALL`, only kinds with activity, ordered by kind;
   - `admin_list_schedules()`: `name, kind, cron_expr, timezone, enabled`, with no `payload_json`.
-- [ ] 1.3 Grant the four functions to `jobs_admin_svc` in a conditional `DO` block, when the role exists
-- [ ] 1.4 `backend/db/init/roles.sql.tpl` and `backend/deploy/provision-jobs-admin-role.sql`: grant the new functions in their own block, guarded by `to_regprocedure('jobs.admin_list_attempts(timestamptz, timestamptz, text, text, integer, integer)')`. Update the comments that say "four functions" and the jobs-console section of `DEPLOY.md`
-- [ ] 1.5 Integration tests (`#[ignore]`, `backend/jobs/tests/admin_queue_test.rs`, unique job names):
+- [x] 1.3 Grant the four functions to `jobs_admin_svc` in a conditional `DO` block, when the role exists
+- [x] 1.4 `backend/db/init/roles.sql.tpl` and `backend/deploy/provision-jobs-admin-role.sql`: grant the new functions in their own block, guarded by `to_regprocedure('jobs.admin_list_attempts(timestamptz, timestamptz, text, text, integer, integer)')`. Update the comments that say "four functions" and the jobs-console section of `DEPLOY.md`
+- [x] 1.5 Integration tests (`#[ignore]`, `backend/jobs/tests/admin_queue_test.rs`, unique job names):
   - history order and paging;
   - kind and outcome filters;
   - `running` excluded;
@@ -18,30 +18,30 @@
 
 ## 2. Contract (`backend/jobs-admin/proto/jobs_admin.proto`, additive only)
 
-- [ ] 2.1 Add `rpc AdminListJobHistory`, the `AttemptOutcome` enum (`ATTEMPT_OUTCOME_UNSPECIFIED`, `_SUCCEEDED`, `_FAILED`, `_ABANDONED`), and the messages `AdminListJobHistoryRequest` (`window`, `kind`, `outcome`, `limit`, `offset`), `FinishedAttempt` (`job_id`, `kind`, `channel`, `outcome`, `attempt`, `started_at_ms`, `finished_at_ms`, `optional duration_ms`) and `AdminListJobHistoryResponse` (`attempts`, `total`). Nothing in them carries a payload or error text
-- [ ] 2.2 Add `KindPeriodStats` (`kind`, `PeriodStats period`, `optional last_finished_at_ms`) and `AdminGetJobStatsResponse.by_kind = 4`. Add `JobSchedule` (`name`, `cron`, `timezone`, `enabled`) and `JobKind.schedules = 4`
+- [x] 2.1 Add `rpc AdminListJobHistory`, the `AttemptOutcome` enum (`ATTEMPT_OUTCOME_UNSPECIFIED`, `_SUCCEEDED`, `_FAILED`, `_ABANDONED`), and the messages `AdminListJobHistoryRequest` (`window`, `kind`, `outcome`, `limit`, `offset`), `FinishedAttempt` (`job_id`, `kind`, `channel`, `outcome`, `attempt`, `started_at_ms`, `finished_at_ms`, `optional duration_ms`) and `AdminListJobHistoryResponse` (`attempts`, `total`). Nothing in them carries a payload or error text
+- [x] 2.2 Add `KindPeriodStats` (`kind`, `PeriodStats period`, `optional last_finished_at_ms`) and `AdminGetJobStatsResponse.by_kind = 4`. Add `JobSchedule` (`name`, `cron`, `timezone`, `enabled`) and `JobKind.schedules = 4`
 - [ ] 2.3 `buf breaking` against `main` passes with no breaking marker
 
 ## 3. Admin module (`backend/jobs-admin`)
 
-- [ ] 3.1 `admin_core.rs`:
+- [x] 3.1 `admin_core.rs`:
   - `HistoryOutcome` with `as_db`/`from_db` and the proto-filter mapping;
   - `AttemptRow` → `FinishedAttempt` shaping, with no run time for `abandoned`;
   - the `KindPeriodStats` row;
   - `job_kinds(schedules)`, which joins the registry with the schedules and drops unknown kinds.
 
   Unit tests for each
-- [ ] 3.2 `admin.rs`:
+- [x] 3.2 `admin.rs`:
   - `JobsAdminRepo` gains `history`, `history_count` and `schedules`;
   - `period_stats` returns the totals and the per-kind rows together;
   - `JobsAdminModule::history` validates the window and page before touching the repo;
   - `kinds()` becomes `async` and fallible.
 
   Unit tests use the generated `MockJobsAdminRepo`: invalid window or page never reaches the repo, the kind filter is trimmed, a total past the last page is kept, and the schedules are joined
-- [ ] 3.3 `pg_admin.rs`:
+- [x] 3.3 `pg_admin.rs`:
   - call the new functions;
   - read `admin_period_stats` and `admin_period_stats_by_kind` in one `REPEATABLE READ READ ONLY` transaction.
-- [ ] 3.4 `admin_grpc.rs`:
+- [x] 3.4 `admin_grpc.rs`:
   - `AdminListJobHistory` behind the same `global_admin` gate;
   - outcome proto ↔ domain mapping, with an unknown value rejected as `INVALID_ARGUMENT`;
   - `by_kind` and `schedules` filled.

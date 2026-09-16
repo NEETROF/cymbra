@@ -1,6 +1,6 @@
 -- Provision the Jobs-console role on a LIVE database (change: add-admin-jobs-console).
 -- Idempotent and TARGETED: it creates or updates `jobs_admin_svc` and, if the worker has
--- already migrated them, grants it the four queue-administration functions. It touches
+-- already migrated them, grants it the queue-administration functions. It touches
 -- no other role's password. Mirror of the `jobs console` block in db/init/roles.sql.tpl.
 --
 -- The role owns nothing and gets no table privilege: USAGE on schema `jobs` and EXECUTE
@@ -43,6 +43,20 @@ BEGIN
     RAISE NOTICE 'jobs_admin_svc: queue-administration functions granted';
   ELSE
     RAISE NOTICE 'jobs_admin_svc: functions not migrated yet; the worker migration will grant them';
+  END IF;
+
+  -- History, per-kind figures and schedules (change: add-jobs-console-history, migration
+  -- 0019). Guarded on its own functions: a database can hold the 0018 ones without these.
+  IF to_regprocedure('jobs.admin_list_attempts(timestamptz, timestamptz, text, text, integer, integer)') IS NOT NULL THEN
+    GRANT EXECUTE ON FUNCTION
+      jobs.admin_list_attempts(timestamptz, timestamptz, text, text, integer, integer),
+      jobs.admin_count_attempts(timestamptz, timestamptz, text, text),
+      jobs.admin_period_stats_by_kind(timestamptz, timestamptz, text),
+      jobs.admin_list_schedules()
+    TO jobs_admin_svc;
+    RAISE NOTICE 'jobs_admin_svc: history and schedule functions granted';
+  ELSE
+    RAISE NOTICE 'jobs_admin_svc: history functions not migrated yet; the worker migration will grant them';
   END IF;
 END $$;
 
