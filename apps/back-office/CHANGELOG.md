@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.18.0](https://github.com/NEETROF/cymbra/compare/back-office-v0.17.0...back-office-v0.18.0) (2026-09-16)
+
+
+### Features
+
+* **back-office:** show finished jobs, per-kind figures and schedules in the jobs console ([#459](https://github.com/NEETROF/cymbra/issues/459)) ([d6fe09d](https://github.com/NEETROF/cymbra/commit/d6fe09dbb9b64582c99caa3271134c8383d0ed01))
+
+
+### Bug Fixes
+
+* **back-office:** keep the mobile drawer footer and the private scores page on screen ([#457](https://github.com/NEETROF/cymbra/issues/457)) ([53097a1](https://github.com/NEETROF/cymbra/commit/53097a16b313dd0bb22fc0cbda3e9df97797678a))
+
 ## [0.17.0](https://github.com/NEETROF/cymbra/compare/back-office-v0.16.2...back-office-v0.17.0) (2026-09-16)
 
 
