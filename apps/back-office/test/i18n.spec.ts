@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import en from "@/i18n/locales/en.json";
 import fr from "@/i18n/locales/fr.json";
 import { SCOPES } from "@/lib/jwt";
+import { MANAGED_ROLES } from "@/lib/roles";
 
 // Flatten a message catalogue into sorted dotted key paths.
 function keys(obj: Record<string, unknown>, prefix = ""): string[] {
@@ -39,6 +40,24 @@ describe("scope labels", () => {
   for (const [name, msgs] of Object.entries(catalogues)) {
     it(`"${name}" labels every scope a token can carry`, () => {
       expect(Object.keys(msgs.scope).sort()).toEqual([...SCOPES].sort());
+    });
+  }
+});
+
+// Roles are NOT a closed set: the server stores whatever `grant_role` was given (it
+// guards the scope, never the role), so the catalogues cannot be held to the full list
+// the way scopes are — an unlabelled one falls back to its own name (role-label.spec.ts).
+// What IS closed is the set this console grants, so those must all be labelled.
+describe("role labels", () => {
+  const catalogues: Record<string, { role: Record<string, string> }> = {
+    en: en as unknown as { role: Record<string, string> },
+    fr: fr as unknown as { role: Record<string, string> },
+  };
+
+  for (const [name, msgs] of Object.entries(catalogues)) {
+    it(`"${name}" labels every role the console can grant`, () => {
+      const labelled = Object.keys(msgs.role);
+      expect(MANAGED_ROLES.filter((r) => !labelled.includes(r))).toEqual([]);
     });
   }
 });

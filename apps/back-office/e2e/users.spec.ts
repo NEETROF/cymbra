@@ -134,6 +134,18 @@ test.describe("users directory (admin only)", () => {
     await expect(page.locator("body")).not.toContainText("role.");
   });
 
+  test("a role the console was never taught reads as its own name", async ({ page }) => {
+    // Roles are free strings server-side: `grant_role` guards the SCOPE, never the role.
+    // So the console can meet one it has no message for, and the chip must degrade to
+    // the role's own name — the same class of bug that put "SCOPE.LINGUA" in production.
+    const tara = { userId: "u-tara", handle: "tara", displayName: "Tara", roles: ["reviewer"] };
+    await seed(page, { loginAs: "admin", data: { accounts: [tara] } });
+    await page.goto("/users");
+
+    await expect(page.getByRole("row", { name: /tara/ })).toContainText("reviewer");
+    await expect(page.locator("body")).not.toContainText("role.");
+  });
+
   test("filtering by handle narrows the directory", async ({ page }) => {
     await seed(page, { loginAs: "admin", data: { accounts: [ada, bob] } });
     await page.goto("/users");

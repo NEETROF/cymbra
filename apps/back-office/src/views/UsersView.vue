@@ -7,6 +7,7 @@ import { PAGE_SIZE, useRolesStore } from "@/stores/roles";
 import { type PlanFilter, usePlansStore } from "@/stores/plans";
 import { useAuthStore } from "@/stores/auth";
 import type { Scope } from "@/lib/jwt";
+import { roleLabel } from "@/lib/roles";
 import type { AccountRow } from "@/gen/user_pb";
 import AppTag from "@/components/AppTag.vue";
 
@@ -20,7 +21,7 @@ const store = useRolesStore();
 const plans = usePlansStore();
 const auth = useAuthStore();
 const router = useRouter();
-const { t } = useI18n();
+const { t, te } = useI18n();
 const filter = ref("");
 // Plan / beta criteria (change: add-premium-subscription). Only a music-scope admin
 // sees the plan columns and filters — the store also skips the badge batch otherwise.
@@ -46,13 +47,22 @@ const authorizedScopes = computed<Scope[]>(() => auth.adminScopes);
 /** A single-scope admin needs no prefix: every chip they see is that one scope. */
 const multiScope = computed(() => authorizedScopes.value.length > 1);
 
-/** Every role the account holds, across the scopes this admin administers. */
+/** Every role the account holds, across the scopes this admin administers. A role with
+ * no label falls back to its own name — the server stores roles as free strings, so the
+ * chip must never read "ROLE.X" (see `roleLabel`). */
 function rolesOf(account: AccountRow): { key: string; label: string }[] {
   return authorizedScopes.value.flatMap((scope) =>
-    (account.rolesByScope.find((sr) => sr.scope === scope)?.roles ?? []).map((role) => ({
-      key: `${scope}:${role}`,
-      label: multiScope.value ? `${t(`scope.${scope}`)}:${t(`role.${role}`)}` : t(`role.${role}`),
-    })),
+    (account.rolesByScope.find((sr) => sr.scope === scope)?.roles ?? []).map((role) => {
+      const name = roleLabel(
+        role,
+        (k) => te(k),
+        (k) => t(k),
+      );
+      return {
+        key: `${scope}:${role}`,
+        label: multiScope.value ? `${t(`scope.${scope}`)}:${name}` : name,
+      };
+    }),
   );
 }
 
