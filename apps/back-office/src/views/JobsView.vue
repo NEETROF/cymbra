@@ -4,17 +4,25 @@ import { useI18n } from "vue-i18n";
 import { match } from "ts-pattern";
 import {
   PAGE_SIZE,
+  type FinishedAttemptRow,
+  type JobKindInfo,
   type JobStats,
+  type JobsTab,
   type PeriodPreset,
   type QueuedJobRow,
   useJobsStore,
   windowFor,
   toLocalInput,
 } from "@/stores/jobs";
-import { JobState } from "@/gen/jobs_admin_pb";
+import { type AttemptOutcome, JobState } from "@/gen/jobs_admin_pb";
 import { currentLocale } from "@/i18n";
+import { kindCadence, kindCadenceLabel } from "@/lib/cadence";
+import { formatAbsolute, formatCount, formatDuration, formatRelative } from "@/lib/jobFormat";
 import AppTag from "@/components/AppTag.vue";
+import CadenceBadge from "@/components/CadenceBadge.vue";
 import ConfirmDialog from "@/components/ConfirmDialog.vue";
+import JobHistoryTable from "@/components/JobHistoryTable.vue";
+import JobKindBreakdown from "@/components/JobKindBreakdown.vue";
 import StatCards, { type StatItem } from "@/components/StatCards.vue";
 import TablePager from "@/components/TablePager.vue";
 
@@ -24,6 +32,10 @@ import TablePager from "@/components/TablePager.vue";
 // gated by the router (meta.adminScope = "global"); every RPC is re-gated server-side.
 // A cancellation is fired, not awaited: its outcome arrives as a toast from the store, and
 // the dialog closes when the store's `cancelling` returns to null.
+//
+// History (change: add-jobs-console-history): a Queue / History tab pair, the period figures
+// broken down by kind (selecting a kind opens its history), and a cadence badge wherever a
+// kind is shown, so jobs that run on their own can be told apart.
 
 const store = useJobsStore();
 const { t } = useI18n();
@@ -89,22 +101,52 @@ const statsVm = computed(() =>
     .exhaustive(),
 );
 
-const kindOptions = computed(() =>
-  match(store.kinds)
-    .with({ status: "success" }, ({ data }) => data.map((k) => k.name))
-    .otherwise(() => [] as string[]),
+const historyVm = computed(() =>
+  match(store.history)
+    .with({ status: "idle" }, () => ({
+      loading: true,
+      error: null as string | null,
+      attempts: [] as FinishedAttemptRow[],
+      total: 0,
+    }))
+    .with({ status: "loading" }, () => ({
+      loading: true,
+      error: null,
+      attempts: [] as FinishedAttemptRow[],
+      total: 0,
+    }))
+    .with({ status: "error" }, ({ error }) => ({
+      loading: false,
+      error,
+      attempts: [] as FinishedAttemptRow[],
+      total: 0,
+    }))
+    .with({ status: "success" }, ({ data }) => ({
+      loading: false,
+      error: null,
+      attempts: data.attempts,
+      total: data.total,
+    }))
+    .exhaustive(),
 );
 
-const num = (v: number | undefined) => (v === undefined ? "—" : v.toLocaleString(currentLocale()));
+/** The registered kinds, or `null` while unknown (then no cadence is claimed). */
+const kindList = computed<JobKindInfo[] | null>(() =>
+  match(store.kinds)
+    .with({ status: "success" }, ({ data }) => data)
+    .otherwise(() => null),
+);
+const kindOptions = computed(() =>
+  (kindList.value ?? []).map((k) => ({
+    name: k.name,
+    label: `${k.name} — ${kindCadenceLabel(kindCadence(k.schedules), t)}`,
+  })),
+);
+const schedulesOf = (kind: string) =>
+  kindList.value === null ? null : (kindList.value.find((k) => k.name === kind)?.schedules ?? []);
 
-/** A compact human duration: ms under a second, seconds under a minute, then minutes. */
-function fmtDuration(ms: number | null | undefined): string {
-  if (ms === null || ms === undefined) return "—";
-  const n = (v: number) => v.toLocaleString(currentLocale(), { maximumFractionDigits: 1 });
-  if (ms < 1000) return t("jobs.duration.ms", { n: n(Math.round(ms)) });
-  if (ms < 60_000) return t("jobs.duration.s", { n: n(ms / 1000) });
-  return t("jobs.duration.min", { n: n(ms / 60_000) });
-}
+const num = (v: number | undefined) => formatCount(v, currentLocale());
+const fmtDuration = (ms: number | null | undefined) => formatDuration(ms, t, currentLocale());
 
 const queueCards = computed<StatItem[]>(() => {
   const q = statsVm.value.data?.queue;
@@ -171,7 +213,7 @@ const periodCards = computed<StatItem[]>(() => {
   ];
 });
 
-const absolute = (ms: number) => new Date(ms).toLocaleString(currentLocale());
+const absolute = (ms: number) => formatAbsolute(ms, currentLocale());
 
 /** The history starts after the window does: earlier figures are unknown, not zero. */
 const historyNote = computed(() => {
@@ -184,22 +226,38 @@ const historyNote = computed(() => {
 });
 
 /** "3 minutes ago" / "in 20 seconds" — the absolute time goes in the title. */
-function relative(ms: number | null): string {
-  if (ms === null) return "—";
-  const diff = ms - Date.now();
-  const abs = Math.abs(diff);
-  const rtf = new Intl.RelativeTimeFormat(currentLocale(), { numeric: "auto" });
-  if (abs < 60_000) return rtf.format(Math.round(diff / 1000), "second");
-  if (abs < 3_600_000) return rtf.format(Math.round(diff / 60_000), "minute");
-  if (abs < 86_400_000) return rtf.format(Math.round(diff / 3_600_000), "hour");
-  return rtf.format(Math.round(diff / 86_400_000), "day");
-}
+const relative = (ms: number | null) => formatRelative(ms, Date.now(), currentLocale());
 
 // ---- filters ----
 const stateFilter = ref<JobState>(store.params.state);
 const kindFilter = ref(store.params.kind);
+// The breakdown can set the kind too.
+watch(
+  () => store.params.kind,
+  (kind) => {
+    kindFilter.value = kind;
+  },
+);
 function applyFilters() {
   void store.setFilters({ state: stateFilter.value, kind: kindFilter.value });
+}
+
+// ---- tabs ----
+const TABS: { id: JobsTab; key: string }[] = [
+  { id: "queue", key: "jobs.tabs.queue" },
+  { id: "history", key: "jobs.tabs.history" },
+];
+function selectTab(tab: JobsTab) {
+  void store.setTab(tab);
+}
+function showKind(kind: string) {
+  void store.showKindHistory(kind);
+}
+function setOutcome(outcome: AttemptOutcome) {
+  void store.setHistoryFilters({ outcome });
+}
+function goToHistory(offset: number) {
+  void store.goToHistoryPage(offset);
 }
 
 // ---- period ----
@@ -313,10 +371,27 @@ function goTo(offset: number) {
     <p v-if="statsVm.error" class="error" role="alert" data-testid="stats-error">{{ statsVm.error }}</p>
     <StatCards :items="periodCards" />
     <p v-if="historyNote" class="muted note" data-testid="history-note">{{ historyNote }}</p>
+    <JobKindBreakdown :stats="statsVm.data" :kinds="kindList" :kind-filter="store.params.kind" @select="showKind" />
 
-    <!-- Table filters. -->
+    <!-- The queue now, or what finished over the period. -->
+    <div class="viewtoggle" role="tablist" :aria-label="t('jobs.tabs.label')">
+      <button
+        v-for="tab in TABS"
+        :key="tab.id"
+        type="button"
+        role="tab"
+        :aria-selected="store.tab === tab.id"
+        :class="{ active: store.tab === tab.id }"
+        :data-testid="`tab-${tab.id}`"
+        @click="selectTab(tab.id)"
+      >
+        {{ t(tab.key) }}
+      </button>
+    </div>
+
+    <!-- The kind filter scopes both tabs and the figures above. -->
     <div class="filters">
-      <label>
+      <label v-if="store.tab === 'queue'">
         <span>{{ t("jobs.filters.state") }}</span>
         <select v-model="stateFilter" data-testid="filter-state" @change="applyFilters">
           <option :value="JobState.UNSPECIFIED">{{ t("jobs.filters.any") }}</option>
@@ -327,78 +402,103 @@ function goTo(offset: number) {
         <span>{{ t("jobs.filters.kind") }}</span>
         <select v-model="kindFilter" data-testid="filter-kind" @change="applyFilters">
           <option value="">{{ t("jobs.filters.any") }}</option>
-          <option v-for="k in kindOptions" :key="k" :value="k">{{ k }}</option>
+          <option v-for="k in kindOptions" :key="k.name" :value="k.name">{{ k.label }}</option>
         </select>
       </label>
-      <span v-if="!pageVm.loading && !pageVm.error" class="muted matching" data-testid="jobs-total">
+      <span
+        v-if="store.tab === 'queue' && !pageVm.loading && !pageVm.error"
+        class="muted matching"
+        data-testid="jobs-total"
+      >
         {{ t("jobs.matching", { n: num(pageVm.total) }) }}
       </span>
     </div>
 
-    <p v-if="pageVm.error" class="error" role="alert" data-testid="jobs-error">{{ pageVm.error }}</p>
+    <JobHistoryTable
+      v-if="store.tab === 'history'"
+      :attempts="historyVm.attempts"
+      :total="historyVm.total"
+      :loading="historyVm.loading"
+      :error="historyVm.error"
+      :offset="store.historyParams.offset"
+      :limit="PAGE_SIZE"
+      :outcome="store.historyParams.outcome"
+      :kinds="kindList"
+      @outcome="setOutcome"
+      @page="goToHistory"
+    />
 
-    <div class="table-card">
-      <table data-testid="jobs-table">
-        <thead>
-          <tr>
-            <th>{{ t("jobs.columns.kind") }}</th>
-            <th>{{ t("jobs.columns.state") }}</th>
-            <th class="n">{{ t("jobs.columns.attempts") }}</th>
-            <th>{{ t("jobs.columns.enqueued") }}</th>
-            <th>{{ t("jobs.columns.nextAttempt") }}</th>
-            <th>{{ t("jobs.columns.started") }}</th>
-            <th>{{ t("jobs.columns.id") }}</th>
-            <!-- The cell stays in the layout (the header row spans the whole table);
+    <template v-else>
+      <p v-if="pageVm.error" class="error" role="alert" data-testid="jobs-error">{{ pageVm.error }}</p>
+
+      <div class="table-card">
+        <table data-testid="jobs-table">
+          <thead>
+            <tr>
+              <th>{{ t("jobs.columns.kind") }}</th>
+              <th>{{ t("jobs.columns.state") }}</th>
+              <th class="n">{{ t("jobs.columns.attempts") }}</th>
+              <th>{{ t("jobs.columns.enqueued") }}</th>
+              <th>{{ t("jobs.columns.nextAttempt") }}</th>
+              <th>{{ t("jobs.columns.started") }}</th>
+              <th>{{ t("jobs.columns.id") }}</th>
+              <!-- The cell stays in the layout (the header row spans the whole table);
                  only its label is visually hidden. -->
-            <th>
-              <span class="sr-only">{{ t("jobs.columns.actions") }}</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="job in pageVm.jobs" :key="job.id" data-testid="job-row">
-            <td>
-              <div class="kind">{{ job.kind }}</div>
-              <div class="muted channel">{{ job.channel }}</div>
-            </td>
-            <td>
-              <AppTag :variant="stateInfo(job.state)?.tag ?? 'neutral'" data-testid="job-state">
-                {{ stateInfo(job.state) ? t(`jobs.states.${stateInfo(job.state)?.key}`) : "—" }}
-              </AppTag>
-            </td>
-            <td class="n">{{ job.attemptsMade }} / {{ job.attemptsLeft }}</td>
-            <td :title="absolute(job.enqueuedAt)">{{ relative(job.enqueuedAt) }}</td>
-            <td :title="job.nextAttemptAt === null ? undefined : absolute(job.nextAttemptAt)">
-              {{ relative(job.nextAttemptAt) }}
-            </td>
-            <td :title="job.startedAt === null ? undefined : absolute(job.startedAt)">{{ relative(job.startedAt) }}</td>
-            <td>
-              <code class="id" :title="job.id">{{ job.id.slice(0, 8) }}</code>
-            </td>
-            <td class="actions">
-              <button
-                v-if="job.cancellable"
-                type="button"
-                class="reject"
-                data-testid="job-cancel"
-                :disabled="store.cancelling !== null"
-                @click="pending = job"
-              >
-                {{ t("jobs.cancel") }}
-              </button>
-            </td>
-          </tr>
-          <tr v-if="pageVm.loading">
-            <td colspan="8" class="empty" data-testid="jobs-loading">{{ t("jobs.loading") }}</td>
-          </tr>
-          <tr v-else-if="pageVm.jobs.length === 0 && !pageVm.error">
-            <td colspan="8" class="empty" data-testid="jobs-empty">{{ t("jobs.empty") }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+              <th>
+                <span class="sr-only">{{ t("jobs.columns.actions") }}</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="job in pageVm.jobs" :key="job.id" data-testid="job-row">
+              <td>
+                <div class="kind">
+                  {{ job.kind }}
+                  <CadenceBadge :schedules="schedulesOf(job.kind)" />
+                </div>
+                <div class="muted channel">{{ job.channel }}</div>
+              </td>
+              <td>
+                <AppTag :variant="stateInfo(job.state)?.tag ?? 'neutral'" data-testid="job-state">
+                  {{ stateInfo(job.state) ? t(`jobs.states.${stateInfo(job.state)?.key}`) : "—" }}
+                </AppTag>
+              </td>
+              <td class="n">{{ job.attemptsMade }} / {{ job.attemptsLeft }}</td>
+              <td :title="absolute(job.enqueuedAt)">{{ relative(job.enqueuedAt) }}</td>
+              <td :title="job.nextAttemptAt === null ? undefined : absolute(job.nextAttemptAt)">
+                {{ relative(job.nextAttemptAt) }}
+              </td>
+              <td :title="job.startedAt === null ? undefined : absolute(job.startedAt)">
+                {{ relative(job.startedAt) }}
+              </td>
+              <td>
+                <code class="id" :title="job.id">{{ job.id.slice(0, 8) }}</code>
+              </td>
+              <td class="actions">
+                <button
+                  v-if="job.cancellable"
+                  type="button"
+                  class="reject"
+                  data-testid="job-cancel"
+                  :disabled="store.cancelling !== null"
+                  @click="pending = job"
+                >
+                  {{ t("jobs.cancel") }}
+                </button>
+              </td>
+            </tr>
+            <tr v-if="pageVm.loading">
+              <td colspan="8" class="empty" data-testid="jobs-loading">{{ t("jobs.loading") }}</td>
+            </tr>
+            <tr v-else-if="pageVm.jobs.length === 0 && !pageVm.error">
+              <td colspan="8" class="empty" data-testid="jobs-empty">{{ t("jobs.empty") }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
-    <TablePager :offset="store.params.offset" :limit="PAGE_SIZE" :total="pageVm.total" @page="goTo" />
+      <TablePager :offset="store.params.offset" :limit="PAGE_SIZE" :total="pageVm.total" @page="goTo" />
+    </template>
 
     <ConfirmDialog
       :message="confirmMessage"
@@ -469,7 +569,29 @@ function goTo(offset: number) {
   font-size: 0.85rem;
 }
 .kind {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
   font-weight: 600;
+}
+.viewtoggle {
+  display: inline-flex;
+  margin-bottom: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.viewtoggle button {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 0.4rem 0.9rem;
+}
+.viewtoggle button.active {
+  background: var(--accent-strong);
+  color: #fff;
 }
 .channel {
   font-family: var(--mono);

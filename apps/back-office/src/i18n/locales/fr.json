@@ -212,6 +212,52 @@
       "gone": "Ce job n'est plus dans la file.",
       "running": "Un job en cours d'exécution ne peut pas être annulé.",
       "protected": "Les jobs d'effacement de données ne peuvent pas être annulés."
+    },
+    "tabs": {
+      "label": "Vue des jobs",
+      "queue": "File",
+      "history": "Historique"
+    },
+    "cadence": {
+      "onDemand": "À la demande",
+      "paused": "Planification suspendue",
+      "scheduled": "Planifié · {cadence}",
+      "hourly": "toutes les heures à :{mm}",
+      "daily": "tous les jours à {hh}:{mm} ({tz})",
+      "custom": "{cron} ({tz})"
+    },
+    "breakdown": {
+      "title": "Par type",
+      "unavailable": "La ventilation par type n’est pas encore disponible sur ce serveur.",
+      "open": "Voir l’historique de {kind}",
+      "columns": {
+        "kind": "Type",
+        "completed": "Terminés",
+        "failed": "Essais échoués",
+        "dead": "Mis au rebut",
+        "cancelled": "Annulés",
+        "avg": "Durée moyenne",
+        "last": "Dernière fin"
+      }
+    },
+    "history": {
+      "loading": "Chargement de l’historique…",
+      "empty": "Aucun essai terminé sur cette période.",
+      "matching": "Essais terminés : {n}",
+      "outcome": "Résultat",
+      "columns": {
+        "id": "Job",
+        "kind": "Type",
+        "outcome": "Résultat",
+        "attempt": "Essai",
+        "finished": "Terminée",
+        "duration": "Durée"
+      }
+    },
+    "outcomes": {
+      "succeeded": "Réussi",
+      "failed": "Échoué",
+      "abandoned": "Abandonné"
     }
   },
   "notifications": {

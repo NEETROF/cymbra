@@ -4,7 +4,7 @@ import type { Clients } from "@/lib/transport";
 import { setWebAuthClientForTest, WebAuthError, type WebAuthClient } from "@/lib/web-auth";
 import { setRegeneratePreviewForTest, setUploadForTest } from "@/stores/soundfonts";
 import { setRegenerateScorePreviewForTest } from "@/stores/catalog";
-import { CancelOutcome, JobState } from "@/gen/jobs_admin_pb";
+import { AttemptOutcome, CancelOutcome, JobState } from "@/gen/jobs_admin_pb";
 
 // E2E test seam (loaded ONLY when VITE_E2E=1 — see main.ts). Playwright seeds
 // `window.__CYMBRA_E2E__` with canned data via addInitScript before the app boots;
@@ -105,7 +105,19 @@ export interface E2EData {
    * (`cancelled` is bumped by a cancellation) and when the attempt history starts. The
    * queue counts are DERIVED from `jobs`, so the cards and the table never disagree. */
   jobs?: E2EJob[];
-  jobKinds?: { name: string; channel: string; cancellable: boolean }[];
+  jobKinds?: {
+    name: string;
+    channel: string;
+    cancellable: boolean;
+    /** Change add-jobs-console-history: the schedules that enqueue the kind. */
+    schedules?: { name: string; cron: string; timezone: string; enabled: boolean }[];
+  }[];
+  /** Change add-jobs-console-history: the finished attempts. The history lists them, and
+   * the per-kind breakdown — and, when `jobPeriod` is not seeded, the period cards — are
+   * DERIVED from them, so the two always agree. */
+  jobAttempts?: E2EAttempt[];
+  /** Simulate a server older than the breakdown: `by_kind` comes back empty. */
+  jobByKindMissing?: boolean;
   jobPeriod?: {
     completed?: number;
     failedAttempts?: number;
@@ -134,6 +146,18 @@ export interface E2EJob {
   enqueuedAtMs: number;
   nextAttemptAtMs?: number;
   startedAtMs?: number;
+}
+
+/** One finished attempt as the seam models it (change: add-jobs-console-history). */
+export interface E2EAttempt {
+  jobId: string;
+  kind: string;
+  channel?: string;
+  outcome: "succeeded" | "failed" | "abandoned";
+  attempt?: number;
+  finishedAtMs: number;
+  /** Omitted for an abandoned attempt. */
+  durationMs?: number;
 }
 
 /** One declared key as the e2e seam models it (a bool flag or an int config). */
@@ -211,7 +235,28 @@ export function installE2EClients(): void {
   // Jobs console state (change: add-admin-jobs-console): the seeded arrays themselves, so
   // a cancellation removes the job and bumps the cancelled figure in place.
   const queuedJobs: E2EJob[] = (data.jobs ??= []);
+  const derivePeriod = data.jobPeriod === undefined && data.jobAttempts !== undefined;
   const jobPeriod = (data.jobPeriod ??= {});
+  const attempts: E2EAttempt[] = data.jobAttempts ?? [];
+  const OUTCOMES: Record<E2EAttempt["outcome"], AttemptOutcome> = {
+    succeeded: AttemptOutcome.SUCCEEDED,
+    failed: AttemptOutcome.FAILED,
+    abandoned: AttemptOutcome.ABANDONED,
+  };
+  type Window = { fromMs: bigint; toMs: bigint } | undefined;
+  const inWindow = (w: Window, ms: number) => !w || (ms >= Number(w.fromMs) && ms < Number(w.toMs));
+  /** The period figures of `rows`, computed like `admin_period_stats`. */
+  const figures = (rows: E2EAttempt[]) => {
+    const ok = rows.filter((a) => a.outcome === "succeeded");
+    const runs = ok.map((a) => a.durationMs ?? 0);
+    return {
+      completed: BigInt(new Set(ok.map((a) => a.jobId)).size),
+      failedAttempts: BigInt(rows.filter((a) => a.outcome === "failed").length),
+      deadLettered: 0n,
+      cancelled: 0n,
+      avgRunMs: runs.length ? BigInt(Math.round(runs.reduce((x, y) => x + y, 0) / runs.length)) : undefined,
+    };
+  };
   const JOB_STATES: Record<E2EJob["state"], JobState> = {
     running: JobState.RUNNING,
     ready: JobState.READY,
@@ -638,9 +683,23 @@ export function installE2EClients(): void {
           total: BigInt(rows.length),
         };
       },
-      adminGetJobStats: async (req: { kind: string }) => {
+      adminGetJobStats: async (req: { kind: string; window?: Window }) => {
         failIfSet("adminGetJobStats");
         const scoped = queuedJobs.filter((j) => !req.kind || j.kind === req.kind);
+        const finished = attempts.filter(
+          (a) => (!req.kind || a.kind === req.kind) && inWindow(req.window, a.finishedAtMs),
+        );
+        const kindsSeen = [...new Set(finished.map((a) => a.kind))].sort((a, b) => a.localeCompare(b));
+        const byKind = data.jobByKindMissing
+          ? []
+          : kindsSeen.map((kind) => {
+              const rows = finished.filter((a) => a.kind === kind);
+              return {
+                kind,
+                period: figures(rows),
+                lastFinishedAtMs: BigInt(Math.max(...rows.map((a) => a.finishedAtMs))),
+              };
+            });
         const count = (state: E2EJob["state"]) => BigInt(scoped.filter((j) => j.state === state).length);
         return {
           queue: {
@@ -652,19 +711,54 @@ export function installE2EClients(): void {
             blocked: count("blocked"),
             exhausted: count("exhausted"),
           },
-          period: {
-            completed: BigInt(jobPeriod.completed ?? 0),
-            failedAttempts: BigInt(jobPeriod.failedAttempts ?? 0),
-            deadLettered: BigInt(jobPeriod.deadLettered ?? 0),
-            cancelled: BigInt(jobPeriod.cancelled ?? 0),
-            avgRunMs: optionalBig(jobPeriod.avgRunMs),
-          },
+          period: derivePeriod
+            ? figures(finished)
+            : {
+                completed: BigInt(jobPeriod.completed ?? 0),
+                failedAttempts: BigInt(jobPeriod.failedAttempts ?? 0),
+                deadLettered: BigInt(jobPeriod.deadLettered ?? 0),
+                cancelled: BigInt(jobPeriod.cancelled ?? 0),
+                avgRunMs: optionalBig(jobPeriod.avgRunMs),
+              },
           historySinceMs: optionalBig(data.jobHistorySinceMs),
+          byKind,
         };
       },
       adminListJobKinds: async () => {
         failIfSet("adminListJobKinds");
-        return { kinds: (data.jobKinds ?? []).map((k) => ({ ...k })) };
+        return { kinds: (data.jobKinds ?? []).map((k) => ({ ...k, schedules: k.schedules ?? [] })) };
+      },
+      // Same shape as `admin_list_attempts`: finished in the window, newest first.
+      adminListJobHistory: async (req: {
+        window?: Window;
+        kind: string;
+        outcome: AttemptOutcome;
+        limit: number;
+        offset: number;
+      }) => {
+        failIfSet("adminListJobHistory");
+        const rows = attempts
+          .filter(
+            (a) =>
+              inWindow(req.window, a.finishedAtMs) &&
+              (!req.kind || a.kind === req.kind) &&
+              (!req.outcome || OUTCOMES[a.outcome] === req.outcome),
+          )
+          .sort((a, b) => b.finishedAtMs - a.finishedAtMs);
+        const offset = req.offset ?? 0;
+        return {
+          attempts: rows.slice(offset, offset + (req.limit || 25)).map((a) => ({
+            jobId: a.jobId,
+            kind: a.kind,
+            channel: a.channel ?? `e2e.${a.kind}`,
+            outcome: OUTCOMES[a.outcome],
+            attempt: a.attempt ?? 1,
+            startedAtMs: BigInt(a.finishedAtMs - (a.durationMs ?? 0)),
+            finishedAtMs: BigInt(a.finishedAtMs),
+            durationMs: a.outcome === "abandoned" ? undefined : optionalBig(a.durationMs),
+          })),
+          total: BigInt(rows.length),
+        };
       },
       // Same decision order as the server (D3): gone, then a protected kind (read from the
       // registry before touching the queue), then a running attempt.

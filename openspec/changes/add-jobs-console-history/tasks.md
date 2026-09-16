@@ -50,9 +50,9 @@
 
 ## 4. Back office (`apps/back-office`)
 
-- [ ] 4.1 `yarn gen` regenerates `jobs_admin_pb`
-- [ ] 4.2 `lib/cadence.ts`: pure cron parser that returns a discriminated union (`hourly` / `daily` / `custom`, plus the paused state when every schedule is disabled). Vitest covers all ten seeded crons, a non-UTC timezone and the raw fallback
-- [ ] 4.3 `stores/jobs.ts`:
+- [x] 4.1 `yarn gen` regenerates `jobs_admin_pb`
+- [x] 4.2 `lib/cadence.ts`: pure cron parser that returns a discriminated union (`hourly` / `daily` / `custom`, plus the paused state when every schedule is disabled). Vitest covers all ten seeded crons, a non-UTC timezone and the raw fallback
+- [x] 4.3 `stores/jobs.ts`:
   - new state: `history: Async<HistoryPage>`, `historyParams` (outcome, offset), a history window frozen between reloads, and `tab`;
   - new actions: `setTab` (loads the history lazily), `setHistoryFilters` and `goToHistoryPage`;
   - `JobStats.byKind` and `JobKindInfo.schedules`;
@@ -60,24 +60,24 @@
   - the step-back-on-empty-page logic is reused for the history.
 
   Vitest over the fake client
-- [ ] 4.4 `components/JobKindBreakdown.vue` (props and events only):
+- [x] 4.4 `components/JobKindBreakdown.vue` (props and events only):
   - every registered kind, merged with `byKind`, zero rows included;
   - a cadence badge on each kind;
   - "breakdown unavailable" when the totals are non-zero and `byKind` is empty;
   - selecting a row emits the kind.
-- [ ] 4.5 `components/JobHistoryTable.vue` (props and events only):
+- [x] 4.5 `components/JobHistoryTable.vue` (props and events only):
   - columns: job id, kind with its cadence badge, channel, outcome tag, attempt, finish time (relative, with the absolute time in the title), run time;
   - outcome filter;
   - `TablePager`;
   - empty state.
-- [ ] 4.6 `views/JobsView.vue`:
+- [x] 4.6 `views/JobsView.vue`:
   - a Queue / History `tablist`;
   - the breakdown under the period cards, where selecting a kind sets the kind filter and opens History;
   - cadence badges in the kind filter options and on queue rows;
   - the history-start note on both tabs;
   - auto-refresh re-reads the active tab.
-- [ ] 4.7 `i18n/locales/en.json` and `fr.json`, aligned: tab labels, history columns, outcomes, cadence templates (`hourly at :{mm}`, `daily at {hh}:{mm} ({tz})`, raw, paused, on demand), breakdown headings, "breakdown unavailable"
-- [ ] 4.8 `lib/e2e-seam.ts` jobs fake: a history fixture with mixed outcomes over more than one page, schedules on some kinds, `by_kind` derived from the fixture. `e2e/jobs.spec.ts`:
+- [x] 4.7 `i18n/locales/en.json` and `fr.json`, aligned: tab labels, history columns, outcomes, cadence templates (`hourly at :{mm}`, `daily at {hh}:{mm} ({tz})`, raw, paused, on demand), breakdown headings, "breakdown unavailable"
+- [x] 4.8 `lib/e2e-seam.ts` jobs fake: a history fixture with mixed outcomes over more than one page, schedules on some kinds, `by_kind` derived from the fixture. `e2e/jobs.spec.ts`:
   - history paging and the outcome filter;
   - a zero row for a scheduled kind that did not run;
   - hourly and daily badges, and "On demand";
