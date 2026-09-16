@@ -55,6 +55,27 @@ test.describe("sign-in", () => {
   });
 });
 
+test.describe("signed-in account", () => {
+  test("the sidebar names the account and its admin scopes", async ({ page }) => {
+    // `admin` is a music-scope admin: the scopes line is what explains why a
+    // global-only page (Jobs) is absent from the nav.
+    await seed(page, { loginAs: "admin", data: { me: { handle: "Cymbra" }, hits: [sampleHit()] } });
+    await page.goto("/music/queue");
+
+    await expect(page.getByTestId("current-account")).toHaveText("Cymbra");
+    await expect(page.getByTestId("current-scopes")).toHaveText("music");
+  });
+
+  test("an account with no handle falls back to a short id, never an empty chip", async ({ page }) => {
+    await seed(page, { loginAs: "moderator", data: { hits: [sampleHit()] } });
+    await page.goto("/music/queue");
+
+    // The fake account is `u1`; a moderator administers no scope, so no scopes line.
+    await expect(page.getByTestId("current-account")).toHaveText("u1");
+    await expect(page.getByTestId("current-scopes")).toHaveCount(0);
+  });
+});
+
 test.describe("memory-only session", () => {
   test("sign-in persists no token in localStorage or sessionStorage", async ({ page }) => {
     await seed(page, {

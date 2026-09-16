@@ -45,6 +45,9 @@ export interface E2EData {
   /** The account's stored language returned by `getAccount` (change: sync-account-
    * language-preference); `setLocale` writes it here so a re-read reflects it. */
   accountLocale?: string;
+  /** The signed-in account's own identity, as `getAccount` returns it: what the sidebar
+   * names. Absent handle + display name ⇒ the sidebar falls back to a short user id. */
+  me?: { handle?: string; displayName?: string };
   /** Private user scores the takedown lookup returns (change:
    * add-private-score-catalog); a removal deletes from this list in place so a
    * re-search reflects it. */
@@ -499,7 +502,12 @@ export function installE2EClients(): void {
       }),
       getAccount: async () => {
         failIfSet("getAccount");
-        return { userId: "u1", locale: data.accountLocale };
+        return {
+          userId: "u1",
+          locale: data.accountLocale,
+          handle: data.me?.handle,
+          displayName: data.me?.displayName,
+        };
       },
       setLocale: async (req: { locale: string }) => {
         failIfSet("setLocale");

@@ -33,7 +33,11 @@
   "scope": {
     "global": "global",
     "music": "music",
-    "live": "live"
+    "live": "live",
+    "lingua": "lingua"
+  },
+  "account": {
+    "signedInAs": "Connecté en tant que {name}"
   },
   "status": {
     "pending": "en attente",
