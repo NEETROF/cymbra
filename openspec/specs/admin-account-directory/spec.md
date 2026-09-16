@@ -81,13 +81,14 @@ page and a total of 0. Roles exposure and admin authorization rules are unchange
 
 ### Requirement: Users directory page
 
-The back-office **Users** page (`/users`) SHALL present the account directory as a
+The back-office **Users** page (`/admin/users`, in the Administration section) SHALL present the account directory as a
 paginated table — handle, display name, roles and, for a music-scope admin, the effective
 plan and the active beta memberships — with the existing search and filter criteria (free
 text on handle/email, plan, beta) and pagination. The page is a surface for **finding** an
 account, not for acting on one: every per-account action lives on the account detail page,
-and **activating a row SHALL open `/users/{user_id}`** for that account. The former
-`/roles` path SHALL redirect to `/users` so existing links and bookmarks keep working.
+and **activating a row SHALL open `/admin/users/{user_id}`** for that account. The former
+`/users` and `/roles` paths SHALL redirect to `/admin/users`, keeping their query, so existing
+links and bookmarks keep working.
 
 The roles column SHALL show the account's roles in **every scope the caller is authorized
 to administer**, and SHALL name the scope on each role whenever more than one scope is on
@@ -99,12 +100,12 @@ translation key.
 #### Scenario: Opening an account from the directory
 
 - **WHEN** an admin activates a row in the Users directory
-- **THEN** the console navigates to `/users/{user_id}` for that account, without the admin ever typing or copying an account id
+- **THEN** the console navigates to `/admin/users/{user_id}` for that account, without the admin ever typing or copying an account id
 
 #### Scenario: The old path still resolves
 
-- **WHEN** an admin opens `/roles` (a bookmark, an old link)
-- **THEN** the console lands on `/users` showing the same directory
+- **WHEN** an admin opens `/users` or `/roles` (a bookmark, an old link)
+- **THEN** the console lands on `/admin/users` showing the same directory
 
 #### Scenario: Filter, paginate, and empty state
 
@@ -128,7 +129,7 @@ translation key.
 
 ### Requirement: Account detail page
 
-The back office SHALL provide an **account detail page at `/users/{user_id}`** that gathers
+The back office SHALL provide an **account detail page at `/admin/users/{user_id}`** that gathers
 everything the console knows and can do about one account, so an admin never has to
 re-identify the same person on a second screen. It SHALL show the account's identity header
 (handle, display name) and, for a caller authorized to see each of them:
@@ -159,12 +160,14 @@ no switcher at all. The account's identity and the actions that belong to neithe
 
 The page SHALL be **addressable and self-sufficient**: opening the URL directly, reloading it,
 or arriving from a link SHALL load the account (by its id) without requiring the directory
-page to have been visited first. An unknown or malformed id SHALL show a localized
-"account not found" state, never a raw error string.
+page to have been visited first. The former `/users/{user_id}` path SHALL redirect to
+`/admin/users/{user_id}`, keeping the id and the query (the chosen section included). An
+unknown or malformed id SHALL show a localized "account not found" state, never a raw error
+string.
 
 #### Scenario: Direct URL loads the account
 
-- **WHEN** an admin opens `/users/{user_id}` directly (bookmark, reload, link from elsewhere in the console)
+- **WHEN** an admin opens `/admin/users/{user_id}` directly (bookmark, reload, link from elsewhere in the console)
 - **THEN** the page loads that account's identity, roles and — for a music-scope admin — its plan, without any prior navigation
 
 #### Scenario: Grant a role from the detail page
@@ -209,6 +212,11 @@ page to have been visited first. An unknown or malformed id SHALL show a localiz
 
 #### Scenario: Unknown account
 
-- **WHEN** an admin opens `/users/{id}` for an id that matches no account
+- **WHEN** an admin opens `/admin/users/{id}` for an id that matches no account
 - **THEN** the page shows a localized "account not found" state and offers a way back to the directory
+
+#### Scenario: A former account link still opens the account
+
+- **WHEN** an admin opens `/users/{user_id}?tab=roles` (a link made before the move)
+- **THEN** the console lands on `/admin/users/{user_id}?tab=roles` showing that account's roles section
 
