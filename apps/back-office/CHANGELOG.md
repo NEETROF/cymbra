@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.2](https://github.com/NEETROF/cymbra/compare/back-office-v0.16.1...back-office-v0.16.2) (2026-09-16)
+
+
+### Bug Fixes
+
+* **back-office:** show an unlabelled role by its name, not its i18n key ([#450](https://github.com/NEETROF/cymbra/issues/450)) ([cd03762](https://github.com/NEETROF/cymbra/commit/cd03762a2cdc3f47d032d5342e211bfb54c067e9))
+
 ## [0.16.1](https://github.com/NEETROF/cymbra/compare/back-office-v0.16.0...back-office-v0.16.1) (2026-09-16)
 
 
