@@ -60,7 +60,7 @@ const data: E2EData = { accounts: [ada, bob, cleo], campaigns, plans };
 test.describe("users directory (admin only)", () => {
   test("an admin browses the directory and opens an account", async ({ page }) => {
     await seed(page, { loginAs: "admin", data: { accounts: [ada] } });
-    await page.goto("/users");
+    await page.goto("/admin/users");
 
     await expect(page.getByRole("heading", { name: "Users" })).toBeVisible();
     // Read-only: the row carries no action buttons any more — they live on the account.
@@ -70,31 +70,31 @@ test.describe("users directory (admin only)", () => {
     // The handle is a real link: keyboard-reachable, openable in a new tab.
     await page.getByRole("link", { name: "ada" }).click();
 
-    await expect(page).toHaveURL(/\/users\/u-ada$/);
+    await expect(page).toHaveURL(/\/admin\/users\/u-ada$/);
     await expect(page.getByRole("heading", { name: "ada" })).toBeVisible();
   });
 
   test("clicking anywhere on the row opens that account too", async ({ page }) => {
     await seed(page, { loginAs: "admin", data: { accounts: [ada, bob] } });
-    await page.goto("/users");
+    await page.goto("/admin/users");
 
     await page.getByRole("row", { name: /Bob Ross/ }).click();
 
-    await expect(page).toHaveURL(/\/users\/u-bob$/);
+    await expect(page).toHaveURL(/\/admin\/users\/u-bob$/);
   });
 
   test("the old /roles path still resolves", async ({ page }) => {
     await seed(page, { loginAs: "admin", data: { accounts: [ada] } });
     await page.goto("/roles");
 
-    await expect(page).toHaveURL(/\/users$/);
+    await expect(page).toHaveURL(/\/admin\/users$/);
     await expect(page.getByRole("heading", { name: "Users" })).toBeVisible();
   });
 
   test("a single-scope admin's roles read bare — every chip is that one scope", async ({ page }) => {
     const tara = { userId: "u-tara", handle: "tara", displayName: "Tara", roles: ["moderator"] };
     await seed(page, { loginAs: "admin", data: { accounts: [tara] } });
-    await page.goto("/users");
+    await page.goto("/admin/users");
 
     const row = page.getByRole("row", { name: /tara/ });
     await expect(row).toContainText("moderator");
@@ -113,7 +113,7 @@ test.describe("users directory (admin only)", () => {
       rolesByScope: { global: ["user"], music: ["admin"], live: [] as string[] },
     };
     await seed(page, { loginAs: "global-admin", data: { accounts: [tara] } });
-    await page.goto("/users");
+    await page.goto("/admin/users");
 
     const row = page.getByRole("row", { name: /tara/ });
     await expect(row).toContainText("music:admin");
@@ -128,7 +128,7 @@ test.describe("users directory (admin only)", () => {
     // ("Role.User", capitalized by CSS) on every account holding the base role.
     const tara = { userId: "u-tara", handle: "tara", displayName: "Tara", roles: ["user"] };
     await seed(page, { loginAs: "admin", data: { accounts: [tara] } });
-    await page.goto("/users");
+    await page.goto("/admin/users");
 
     await expect(page.getByRole("row", { name: /tara/ })).toContainText("user");
     await expect(page.locator("body")).not.toContainText("role.");
@@ -140,7 +140,7 @@ test.describe("users directory (admin only)", () => {
     // the role's own name — the same class of bug that put "SCOPE.LINGUA" in production.
     const tara = { userId: "u-tara", handle: "tara", displayName: "Tara", roles: ["reviewer"] };
     await seed(page, { loginAs: "admin", data: { accounts: [tara] } });
-    await page.goto("/users");
+    await page.goto("/admin/users");
 
     await expect(page.getByRole("row", { name: /tara/ })).toContainText("reviewer");
     await expect(page.locator("body")).not.toContainText("role.");
@@ -148,7 +148,7 @@ test.describe("users directory (admin only)", () => {
 
   test("filtering by handle narrows the directory", async ({ page }) => {
     await seed(page, { loginAs: "admin", data: { accounts: [ada, bob] } });
-    await page.goto("/users");
+    await page.goto("/admin/users");
 
     await expect(page.getByRole("link", { name: "ada" })).toBeVisible();
     await expect(page.getByRole("link", { name: "bob" })).toBeVisible();
@@ -162,7 +162,7 @@ test.describe("users directory (admin only)", () => {
 
   test("an empty result shows a friendly message, not a raw code", async ({ page }) => {
     await seed(page, { loginAs: "admin", data: { accounts: [ada] } });
-    await page.goto("/users");
+    await page.goto("/admin/users");
 
     await page.getByPlaceholder("filter by handle or email").fill("zzz-nobody");
     await page.getByRole("button", { name: "Search" }).click();
@@ -176,7 +176,7 @@ test.describe("users directory (admin only)", () => {
 test.describe("users directory: plan badges + filters", () => {
   test("a music admin sees plan/beta badges and filters by trial and by beta", async ({ page }) => {
     await seed(page, { loginAs: "admin", data });
-    await page.goto("/users");
+    await page.goto("/admin/users");
     await expect(page.getByRole("columnheader", { name: "Plan" })).toBeVisible();
 
     // Badges per row, from the batch call.
@@ -207,7 +207,7 @@ test.describe("users directory: plan badges + filters", () => {
 
   test("from a filtered list straight to one account's rows", async ({ page }) => {
     await seed(page, { loginAs: "admin", data });
-    await page.goto("/users");
+    await page.goto("/admin/users");
     await page.getByRole("combobox", { name: "Beta" }).selectOption("midi-drums");
 
     await page.getByRole("link", { name: "ada" }).click();
@@ -220,7 +220,7 @@ test.describe("users directory: plan badges + filters", () => {
 
   test("the beta filter lists only the open campaigns", async ({ page }) => {
     await seed(page, { loginAs: "admin", data });
-    await page.goto("/users");
+    await page.goto("/admin/users");
     const options = page.getByRole("combobox", { name: "Beta" }).locator("option");
     await expect(options.filter({ hasText: "MIDI drums" })).toHaveCount(1);
     await expect(options.filter({ hasText: "Spring trial" })).toHaveCount(1);

@@ -1,20 +1,62 @@
 <script setup lang="ts">
-import { computed, nextTick, ref } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
+import { useRoute, useRouter, type LocationQuery } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { match } from "ts-pattern";
 import { useTakedownsStore } from "@/stores/takedowns";
 import type { AdminUserScore } from "@/gen/score_pb";
 
-// Private-score takedown (change: add-private-score-catalog). The view only
-// renders and collects intent: the lookup and the removal live in the store,
-// behind the injectable client seam. Removal is irreversible, so it is gated on
-// an explicit confirmation that names the consequence AND a non-empty reason.
+// Private scores — takedown on notice (change: add-private-score-catalog). These are
+// the scores users imported for their own use; they are never in the catalog. The view
+// only renders and collects intent: the lookup and the removal live in the store,
+// behind the injectable client seam. Removal is irreversible, so it is gated on an
+// explicit confirmation that names the consequence AND a non-empty reason.
+//
+// The lookup criteria ride in the URL (change: restructure-back-office-navigation): an
+// account page links here with `?owner=`, and a lookup survives a reload or a shared
+// link. The query is the single source of the criteria — submitting the form writes it,
+// and a change of query runs the search.
 
 const { t } = useI18n();
 const store = useTakedownsStore();
+const route = useRoute();
+const router = useRouter();
 
 const ownerId = ref("");
 const title = ref("");
+
+function queryText(query: LocationQuery, key: string): string {
+  const value = query[key];
+  return (Array.isArray(value) ? value[0] : value) ?? "";
+}
+
+/** Fill the form from the URL and run the lookup when it carries a criterion. */
+function searchFromQuery() {
+  ownerId.value = queryText(route.query, "owner");
+  title.value = queryText(route.query, "title");
+  if (ownerId.value.trim() || title.value.trim()) {
+    void store.search({ ownerId: ownerId.value, title: title.value });
+  }
+}
+// Only while this page is the current one: leaving it also changes the query.
+watch(
+  () => route.query,
+  () => {
+    if (route.name === "music-private-scores") searchFromQuery();
+  },
+  { immediate: true },
+);
+
+function submit() {
+  const owner = ownerId.value.trim();
+  const fragment = title.value.trim();
+  if (owner === queryText(route.query, "owner") && fragment === queryText(route.query, "title")) {
+    // Same criteria: the URL does not move, so the watcher would not fire — search again.
+    searchFromQuery();
+    return;
+  }
+  void router.replace({ query: { owner: owner || undefined, title: fragment || undefined } });
+}
 const target = ref<AdminUserScore | null>(null);
 const reason = ref("");
 
@@ -72,11 +114,11 @@ const opVm = computed(() =>
 </script>
 
 <template>
-  <section class="takedowns">
+  <section class="private-scores">
     <h1>{{ t("takedowns.title") }}</h1>
     <p class="intro">{{ t("takedowns.intro") }}</p>
 
-    <form class="search" @submit.prevent="store.search({ ownerId, title })">
+    <form class="search" @submit.prevent="submit">
       <label>
         {{ t("takedowns.ownerId") }}
         <input v-model="ownerId" type="text" />
@@ -116,7 +158,11 @@ const opVm = computed(() =>
           <tr v-for="score in resultsVm.rows" :key="score.id">
             <td>{{ score.title ?? "—" }}</td>
             <td>{{ score.composer ?? "—" }}</td>
-            <td class="mono">{{ score.ownerId }}</td>
+            <td class="mono">
+              <RouterLink :to="{ name: 'admin-user-detail', params: { userId: score.ownerId } }">
+                {{ score.ownerId }}
+              </RouterLink>
+            </td>
             <td>{{ formatDate(score.createdAt) }}</td>
             <td>{{ score.rightsBasis }}</td>
             <td>
@@ -159,7 +205,7 @@ const opVm = computed(() =>
 </template>
 
 <style scoped>
-.takedowns {
+.private-scores {
   padding: 1rem;
 }
 .search {

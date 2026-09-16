@@ -42,7 +42,7 @@ test.describe("jobs console", () => {
     await page.goto("/music/queue");
     await page.getByRole("link", { name: "Jobs" }).click();
 
-    await expect(page).toHaveURL(/\/jobs$/);
+    await expect(page).toHaveURL(/\/admin\/jobs$/);
     await expect(page.getByRole("heading", { name: "Jobs" })).toBeVisible();
     await expect(statValue(page, "queue-total")).toHaveText("30");
     await expect(statValue(page, "queue-ready")).toHaveText("30");
@@ -68,7 +68,7 @@ test.describe("jobs console", () => {
         jobPeriod: { completed: 0, failedAttempts: 0, deadLettered: 0, cancelled: 2 },
       },
     });
-    await page.goto("/jobs");
+    await page.goto("/admin/jobs");
     await expect(page.getByTestId("job-row")).toHaveCount(3);
     await expect(statValue(page, "period-cancelled")).toHaveText("2");
 
@@ -91,7 +91,7 @@ test.describe("jobs console", () => {
 
   test("dismissing the confirmation cancels nothing", async ({ page }) => {
     await seed(page, { loginAs: "global-admin", data: { jobs: [job(1)], jobKinds: KINDS } });
-    await page.goto("/jobs");
+    await page.goto("/admin/jobs");
 
     await page.getByTestId("job-cancel").click();
     await page.getByRole("dialog").getByRole("button", { name: "Keep job" }).click();
@@ -113,7 +113,7 @@ test.describe("jobs console", () => {
         jobKinds: KINDS,
       },
     });
-    await page.goto("/jobs");
+    await page.goto("/admin/jobs");
 
     const rows = page.getByTestId("job-row");
     await expect(rows).toHaveCount(3);
@@ -130,7 +130,7 @@ test.describe("jobs console", () => {
       job(i + 1, i % 7 === 0 ? { state: "retry_wait", attemptsMade: 1, attemptsLeft: 4 } : {}),
     );
     await seed(page, { loginAs: "global-admin", data: { jobs, jobKinds: KINDS } });
-    await page.goto("/jobs");
+    await page.goto("/admin/jobs");
     await expect(page.getByTestId("jobs-total")).toContainText("30");
     await expect(statValue(page, "queue-retry")).toHaveText("5");
 
@@ -147,7 +147,7 @@ test.describe("jobs console", () => {
 
   test("an invalid custom period is refused on screen", async ({ page }) => {
     await seed(page, { loginAs: "global-admin", data: { jobs: [job(1)], jobKinds: KINDS } });
-    await page.goto("/jobs");
+    await page.goto("/admin/jobs");
 
     await page.getByTestId("period-custom").click();
     await expect(page.getByTestId("period-custom")).toHaveAttribute("aria-pressed", "true");
@@ -162,7 +162,7 @@ test.describe("jobs console", () => {
     await seed(page, { loginAs: "admin", data: {} });
     await page.goto("/music/queue");
     await expect(page.getByRole("link", { name: "Jobs" })).toHaveCount(0);
-    await page.goto("/jobs");
-    await expect(page).not.toHaveURL(/\/jobs$/);
+    await page.goto("/admin/jobs");
+    await expect(page).not.toHaveURL(/\/admin\/jobs$/);
   });
 });

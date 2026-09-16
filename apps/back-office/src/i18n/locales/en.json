@@ -65,7 +65,7 @@
   },
   "denied": {
     "title": "Access denied",
-    "body": "This account is signed in but is not a moderator or admin, so no moderation actions are available. Ask an admin to grant you the moderator role."
+    "body": "This account has no page in this console. Ask an administrator for the role you need."
   },
   "nav": {
     "queue": "Catalog review",
@@ -77,9 +77,14 @@
     "usage": "Usage",
     "menu": "Menu",
     "notifications": "Notifications",
-    "takedowns": "Takedowns",
-    "lingua": "Lingua",
-    "jobs": "Jobs"
+    "privateScores": "Private scores",
+    "linguaOverview": "Overview",
+    "jobs": "Jobs",
+    "sections": {
+      "music": "Music",
+      "lingua": "Lingua",
+      "admin": "Administration"
+    }
   },
   "usage": {
     "title": "Feature usage",
@@ -532,6 +537,7 @@
     "role": "Role",
     "byAdmin": "By admin",
     "reliability": "Reliability",
+    "privateScores": "Private scores",
     "reliabilityTitle": "Curator reliability",
     "reliabilityRatings": "Ratings",
     "reliabilityCoverage": "Coverage contribution",
@@ -686,8 +692,8 @@
     "copied": "Copied"
   },
   "takedowns": {
-    "title": "Private-score takedown",
-    "intro": "Find a reported private score and remove it. Removal is irreversible and audited.",
+    "title": "Private scores — takedown on notice",
+    "intro": "Scores that users imported for their own use — never part of the catalog. Find a reported one and remove it: removal is irreversible and audited.",
     "ownerId": "Owner id",
     "titleFragment": "Title contains",
     "search": "Search",

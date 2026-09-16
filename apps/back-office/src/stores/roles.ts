@@ -80,7 +80,7 @@ export const useRolesStore = defineStore("roles", () => {
     }
   }
 
-  /** Load a single account by id, so `/users/{id}` stands on its own: a deep link, a
+  /** Load a single account by id, so `/admin/users/{id}` stands on its own: a deep link, a
    *  reload or a link from elsewhere must not depend on the directory page having been
    *  visited. Reuses the directory's `ids` filter — no extra RPC. */
   async function loadAccount(userId: string, keepPrevious = false) {

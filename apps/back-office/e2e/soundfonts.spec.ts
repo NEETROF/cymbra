@@ -22,7 +22,7 @@ test.describe("sound fonts admin", () => {
         ],
       },
     });
-    await page.goto("/soundfonts");
+    await page.goto("/music/soundfonts");
     await expect(page.getByRole("heading", { name: "Sound fonts" })).toBeVisible();
     await expect(page.getByText("Upright Piano KW")).toBeVisible();
 
@@ -82,7 +82,7 @@ test.describe("sound fonts admin", () => {
         ],
       },
     });
-    await page.goto("/soundfonts");
+    await page.goto("/music/soundfonts");
 
     await page
       .getByRole("row", { name: /Upright Piano KW/ })
@@ -126,7 +126,7 @@ test.describe("sound fonts admin", () => {
         ],
       },
     });
-    await page.goto("/soundfonts");
+    await page.goto("/music/soundfonts");
 
     // The user-contributed row names its uploader and shows the justification…
     const community = page.getByRole("row", { name: /Community Grand/ });
@@ -149,7 +149,7 @@ test.describe("sound fonts admin", () => {
     await seed(page, { loginAs: "moderator", data: { counts: { pending: 0, accepted: 0, rejected: 0 } } });
     await page.goto("/music/queue");
     await expect(page.getByRole("link", { name: "Sound fonts" })).toHaveCount(0);
-    await page.goto("/soundfonts");
-    await expect(page).not.toHaveURL(/\/soundfonts$/);
+    await page.goto("/music/soundfonts");
+    await expect(page).not.toHaveURL(/\/music\/soundfonts$/);
   });
 });

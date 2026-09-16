@@ -14,7 +14,7 @@ import AppTag from "@/components/AppTag.vue";
 // Admin-only (route- + server-guarded). A paginated directory of accounts with their
 // roles, plan and betas. It is a surface for FINDING an account, not for acting on one
 // (change: restructure-back-office-users-console): every per-account gesture lives on
-// `/users/{user_id}`, one click away. A `music`-only admin only ever sees `music` roles;
+// `/admin/users/{user_id}`, one click away. A `music`-only admin only ever sees `music` roles;
 // a `global/admin` sees global/music/live (change: scope-aware-role-admin).
 // All API work lives in the store; this view only matches on the Async unions.
 const store = useRolesStore();
@@ -107,7 +107,7 @@ function next() {
  *  itself, a future button) are left to that control. */
 function openRow(event: MouseEvent, userId: string) {
   if ((event.target as HTMLElement | null)?.closest("a, button")) return;
-  void router.push({ name: "user-detail", params: { userId } });
+  void router.push({ name: "admin-user-detail", params: { userId } });
 }
 
 onMounted(() => {
@@ -176,7 +176,7 @@ onMounted(() => {
       <tbody>
         <tr v-for="a in vm.accounts" :key="a.userId" class="row-link" @click="openRow($event, a.userId)">
           <td class="handle">
-            <RouterLink :to="{ name: 'user-detail', params: { userId: a.userId } }">
+            <RouterLink :to="{ name: 'admin-user-detail', params: { userId: a.userId } }">
               {{ a.handle || $t("users.noHandle") }}
             </RouterLink>
           </td>

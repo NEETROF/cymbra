@@ -22,7 +22,7 @@ test("the play control is merged with Generate sample by preview availability", 
       ],
     },
   });
-  await page.goto("/soundfonts");
+  await page.goto("/music/soundfonts");
   await expect(page.getByRole("heading", { name: "Sound fonts" })).toBeVisible();
   await expect(page.getByText("YDP Grand Piano")).toBeVisible();
 

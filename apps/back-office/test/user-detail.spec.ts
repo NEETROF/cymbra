@@ -39,11 +39,23 @@ async function mountDetail(userId: string, data: Record<string, unknown> = {}, t
   const router: Router = createRouter({
     history: createMemoryHistory(),
     routes: [
-      { path: "/users", name: "users", component: { template: "<div />" } },
-      { path: "/users/:userId", name: "user-detail", component: UserDetailView, props: true },
+      { path: "/admin/users", name: "admin-users", component: { template: "<div />" } },
+      {
+        path: "/admin/users/:userId",
+        name: "admin-user-detail",
+        component: UserDetailView,
+        props: true,
+        meta: { access: { role: "admin" } },
+      },
+      {
+        path: "/music/private-scores",
+        name: "music-private-scores",
+        component: { template: "<div />" },
+        meta: { access: { role: "admin", scope: "music" } },
+      },
     ],
   });
-  await router.push({ name: "user-detail", params: { userId }, query: tab ? { tab } : {} });
+  await router.push({ name: "admin-user-detail", params: { userId }, query: tab ? { tab } : {} });
   await router.isReady();
   const w = mount(UserDetailView, {
     props: { userId },
@@ -191,6 +203,30 @@ describe("account detail page", () => {
     expect(state.plansForAccountsCalls).toEqual([]);
     // The rest of the page is still theirs to work with.
     expect(w.find('[data-testid="role-history"]').exists()).toBe(true);
+  });
+
+  // Change: restructure-back-office-navigation — from an account to its private scores.
+  function privateScoresLink(w: VueWrapper) {
+    return w.findAllComponents(RouterLinkStub).find((l) => {
+      const to = l.props().to as { name?: string };
+      return to.name === "music-private-scores";
+    });
+  }
+
+  it("a music admin gets a link to this account's private scores, filtered on it", async () => {
+    signIn({ music: ["admin"] });
+    const { w } = await mountDetail("u-ada", { accounts: [ada] });
+
+    const link = privateScoresLink(w);
+    expect(link?.props().to).toEqual({ name: "music-private-scores", query: { owner: "u-ada" } });
+    expect(link?.text()).toBe("Private scores");
+  });
+
+  it("an admin outside the music scope gets no private-scores link", async () => {
+    signIn({ live: ["admin"] });
+    const { w } = await mountDetail("u-ada", { accounts: [ada] });
+
+    expect(privateScoresLink(w)).toBeUndefined();
   });
 
   it("grants a role in a named scope and re-reads THIS account", async () => {

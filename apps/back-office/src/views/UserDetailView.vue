@@ -14,6 +14,7 @@ import CuratorReliabilityDrawer from "@/components/CuratorReliabilityDrawer.vue"
 import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import IdBadge from "@/components/IdBadge.vue";
 import type { RoleGrant } from "@/gen/user_pb";
+import { canOpenRoute } from "@/lib/navigation";
 
 // One account, one address (change: restructure-back-office-users-console). Everything
 // the console knows and can do about this person: subscription, roles in every scope the
@@ -59,6 +60,11 @@ function onTabKey(event: KeyboardEvent, index: number) {
 /** Plan data is music-admin only: another scope's admin sees the account without any
  *  subscription block, and the plan RPCs are never issued for them. */
 const showPlans = computed(() => auth.adminScopes.includes("music"));
+
+/** The account's private scores, for whoever may open that page (a music-scope admin):
+ *  the lookup opens already filtered on this owner (change:
+ *  restructure-back-office-navigation). */
+const showPrivateScores = computed(() => canOpenRoute(router, "music-private-scores", auth.claims));
 
 const vm = computed(() =>
   match(store.account)
@@ -136,7 +142,7 @@ watch(
 
 <template>
   <div class="head">
-    <RouterLink class="back" :to="{ name: 'users' }">← {{ $t("users.backToDirectory") }}</RouterLink>
+    <RouterLink class="back" :to="{ name: 'admin-users' }">← {{ $t("users.backToDirectory") }}</RouterLink>
   </div>
 
   <p v-if="vm.loading" class="muted">{{ $t("common.loading") }}</p>
@@ -154,6 +160,14 @@ watch(
       <IdBadge :id="vm.account.userId" />
     </div>
     <div class="head-actions">
+      <RouterLink
+        v-if="showPrivateScores"
+        class="link-button"
+        data-testid="account-private-scores"
+        :to="{ name: 'music-private-scores', query: { owner: vm.account.userId } }"
+      >
+        {{ $t("users.privateScores") }}
+      </RouterLink>
       <button type="button" :disabled="acting" @click="openReliability">{{ $t("users.reliability") }}</button>
       <button type="button" :disabled="acting" @click="pendingSessionRevoke = true">
         {{ $t("sessions.revokeAccount") }}
@@ -268,5 +282,17 @@ watch(
   gap: 0.5rem;
   flex-wrap: wrap;
   margin-top: 0.75rem;
+}
+/* A navigation, so a link — dressed like the action buttons beside it. */
+.link-button {
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--border-2);
+  background: var(--panel-2);
+  color: var(--text);
+  border-radius: 10px;
+  transition: background 0.15s;
+}
+.link-button:hover {
+  background: var(--panel-3);
 }
 </style>

@@ -124,10 +124,10 @@ describe("lingua store", () => {
 describe("lingua vocabulary", () => {
   // The plain-language rule: no Lingua UI string says "lemma" (say "words learned",
   // "distinct words", "dictionary form"). The screen renders every label through
-  // `t("lingua.*")` / `t("nav.lingua")`, so scanning those strings is scanning the UI.
+  // `t("lingua.*")` / `t("nav.linguaOverview")` / `t("nav.sections.lingua")`, so scanning those strings is scanning the UI.
   it("no Lingua UI string contains 'lemma' in en or fr", () => {
     for (const json of [en, fr]) {
-      const linguaStrings = JSON.stringify(json.lingua) + json.nav.lingua;
+      const linguaStrings = JSON.stringify(json.lingua) + json.nav.linguaOverview + json.nav.sections.lingua;
       expect(/lemm/i.test(linguaStrings)).toBe(false);
     }
   });
