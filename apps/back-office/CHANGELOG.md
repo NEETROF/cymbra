@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.1](https://github.com/NEETROF/cymbra/compare/back-office-v0.16.0...back-office-v0.16.1) (2026-09-16)
+
+
+### Bug Fixes
+
+* **back-office:** name the signed-in account in the sidebar ([#448](https://github.com/NEETROF/cymbra/issues/448)) ([731ecda](https://github.com/NEETROF/cymbra/commit/731ecda72881887205d143953b7b84f620c4f936))
+
 ## [0.16.0](https://github.com/NEETROF/cymbra/compare/back-office-v0.15.0...back-office-v0.16.0) (2026-09-15)
 
 
