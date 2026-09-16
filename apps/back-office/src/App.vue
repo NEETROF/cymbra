@@ -1,14 +1,30 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { RouterLink, RouterView, useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { useAuthStore } from "@/stores/auth";
 import { useLocaleStore } from "@/stores/locale";
+import { meLabel, useMeStore } from "@/stores/me";
 import { currentLocale, SUPPORTED_LOCALES } from "@/i18n";
 import AppTag from "@/components/AppTag.vue";
 import ToastHost from "@/components/ToastHost.vue";
 
 const auth = useAuthStore();
+// Who is signed in: the sidebar names the account, because every scope-gated page
+// depends on ITS roles and the role chip alone never said which account it was.
+const me = useMeStore();
+watch(
+  () => auth.isAuthenticated,
+  (signedIn) => {
+    if (signedIn) void me.load();
+    else me.clear();
+  },
+  { immediate: true },
+);
+/** The signed-in account's name; falls back to a short id until the profile lands. */
+const whoami = computed(() => meLabel(me.me, auth.userId));
+/** The scopes this admin may administer — what makes a scope-gated page appear. */
+const scopeLabels = computed(() => auth.adminScopes.map((s) => t(`scope.${s}`)).join(", "));
 // Language selection goes through the store so a signed-in choice is also recorded
 // on the account (change: sync-account-language-preference).
 const locale = useLocaleStore();
@@ -138,7 +154,17 @@ async function signOut() {
               <circle cx="12" cy="7" r="4" />
             </svg>
           </span>
-          <AppTag variant="accent" cap>{{ auth.isAdmin ? t("role.admin") : t("role.moderator") }}</AppTag>
+          <div class="who">
+            <span class="whoami" :title="t('account.signedInAs', { name: whoami })" data-testid="current-account">
+              {{ whoami }}
+            </span>
+            <div class="who-tags">
+              <AppTag variant="accent" cap>{{ auth.isAdmin ? t("role.admin") : t("role.moderator") }}</AppTag>
+              <span v-if="scopeLabels" class="scopes" :title="scopeLabels" data-testid="current-scopes">
+                {{ scopeLabels }}
+              </span>
+            </div>
+          </div>
         </div>
         <div class="lang" role="toolbar" aria-label="language">
           <button
@@ -288,6 +314,37 @@ async function signOut() {
 .avatar svg {
   width: 17px;
   height: 17px;
+}
+/* Identity beside the avatar: the name on its own line, the role + scopes under it.
+   `min-width: 0` lets a long handle ellipsize instead of widening the sidebar. */
+.who {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+.whoami {
+  font-weight: 600;
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.who-tags {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+/* Wraps rather than ellipsizes: a `global` admin holds every scope, and the whole
+   point of this line is to say which ones — a cut "global, music, live, lin…" answers
+   nothing. The footer has the room; the title carries the full list for a narrow rail. */
+.scopes {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  overflow-wrap: anywhere;
 }
 .lang {
   display: inline-flex;
