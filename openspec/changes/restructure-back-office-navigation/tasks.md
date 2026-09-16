@@ -41,4 +41,4 @@
 - [x] 7.1 `yarn lint`, `yarn typecheck`, `yarn format:check` in `apps/back-office` (Prettier gate through `rtk proxy`)
 - [x] 7.2 `yarn test` (coverage ≥ 80 %) and `yarn e2e` green
 - [x] 7.3 Visual check on the dev server: sidebar screenshots for a global admin and a music moderator; old bookmarks redirect
-- [ ] 7.4 Manual check on `bo.cymbra.app` after deploy: sections match the account's scopes, old links redirect, account ↔ private scores links work
+- [x] 7.4 Manual check on `bo.cymbra.app` after deploy: sections match the account's scopes, old links redirect, account ↔ private scores links work
