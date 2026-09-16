@@ -45,7 +45,9 @@ xcodebuild -project "Cymbra Lingua.xcodeproj" -scheme "Cymbra Lingua (iOS)" \
 xcodebuild -project "Cymbra Lingua.xcodeproj" -scheme "Cymbra Lingua (macOS)" CODE_SIGNING_ALLOWED=NO build
 ```
 
-A build without step 1 fails with an explicit message from the copy phase.
+A build without step 1 fails with an explicit message from the copy phase, and so does a
+device build or an archive whose bundle still calls `localhost` (simulator and Mac builds
+may keep a local backend).
 
 `LINGUA_GOOGLE_CLIENT_ID` (project build setting) is the Google OAuth **iOS** client of
 `com.cymbra.lingua`; it must also be listed in the backend's `CYMBRA_GOOGLE_AUDIENCE`, and
