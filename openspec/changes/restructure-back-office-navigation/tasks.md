@@ -1,6 +1,6 @@
 ## 1. Access rule and navigation model
 
-- [ ] 1.1 Add `src/lib/access.ts`: the `Access` type (`role`, optional `scope`), a pure `canOpen(access, rolesByScope)` built on `hasRoleInScope` (global counts everywhere; missing access = not openable)
+- [ ] 1.1 Add `src/lib/navigation.ts`: the `Access` type (`role`, optional `scope`), a pure `canOpen(access, rolesByScope)` built on `hasRoleInScope` (global counts everywhere; missing access = not openable)
 - [ ] 1.2 In the same module, declare the sidebar model: the three sections (id, heading i18n key) and their ordered entries (route name, label key, icon), plus `landing(router, rolesByScope)` returning the first openable entry or `denied`
 - [ ] 1.3 Unit-test `canOpen` for moderator/admin rules, scoped and unscoped, global break-glass, and a missing rule; test `landing` for a music moderator, a music admin, a lingua-only admin, a global admin and a live-only moderator
 

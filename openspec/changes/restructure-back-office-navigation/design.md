@@ -8,7 +8,7 @@ two places that were written separately:
 - `router.ts` guards routes with `meta: { admin, adminScope }`, and falls back to
   `music-catalog` on refusal; `/` and unknown paths land on `music-queue`.
 
-The two drifted. *Instrument sounds* (`/soundfonts`), *Campaigns* (`/campaigns`) and *Usage*
+The two drifted. *Sound fonts* (`/soundfonts`), *Campaigns* (`/campaigns`) and *Usage*
 (`/usage`) carry only `meta.admin`, so any admin sees them and opens them, while their RPCs
 check `admin` in `music` (`soundfont_http.rs`, `plans/src/grpc.rs`, `analytics/src/grpc.rs`).
 The Music moderation pages carry no scope at all, so a `live` moderator or a `lingua` admin
@@ -49,8 +49,8 @@ Each route carries `meta.access = { role: "moderator" | "admin", scope?: Scope }
 - `role: "admin", scope` → admin in `scope` (global counts);
 - `role: "admin"` without scope → admin in any scope (today's `meta.admin`).
 
-A pure `canOpen(access, rolesByScope)` in a new `src/lib/access.ts` implements it on top of
-`hasRoleInScope`. The guard calls it; the sidebar model lists route **names** per group and
+A pure `canOpen(access, claims)` in a new `src/lib/navigation.ts` implements it on top of
+`hasRoleInScope` (the unscoped rule reads the flat role set, as `meta.admin` did). The guard calls it; the sidebar model lists route **names** per group and
 keeps an entry only if `canOpen(router.resolve(name).meta.access, …)`. So the sidebar cannot
 show a page the guard refuses — the drift above becomes unrepresentable rather than merely
 fixed.
@@ -62,11 +62,11 @@ Access per page:
 
 | Group | Page | Path | Access |
 |---|---|---|---|
-| Music | Review queue | `/music/queue` | moderator · music |
+| Music | Catalog review | `/music/queue` | moderator · music |
 | Music | Catalog | `/music/catalog` | moderator · music |
 | Music | *(review, score detail — not in the sidebar)* | `/music/review`, `/music/score/:id` | moderator · music |
 | Music | Private scores | `/music/private-scores` | admin · music |
-| Music | Instrument sounds | `/music/soundfonts` | admin · music |
+| Music | Sound fonts | `/music/soundfonts` | admin · music |
 | Music | Campaigns | `/music/campaigns` | admin · music |
 | Music | Usage | `/music/usage` | admin · music |
 | Lingua | Overview | `/lingua/overview` | admin · lingua |
@@ -91,8 +91,9 @@ A redirect record per former path: `/takedowns → music-private-scores`,
 `/soundfonts → music-soundfonts`, `/campaigns` and `/plans → music-campaigns`,
 `/usage → music-usage`, `/lingua → lingua-overview`, `/users` and `/roles → admin-users`,
 `/users/:userId → admin-user-detail` (param carried), `/flags`, `/notifications`,
-`/jobs → admin-*`. Redirects are function redirects that forward `to.query` (the user page
-uses `?tab=`, the private-scores page gets `?owner=`). Group roots `/music`, `/lingua`,
+`/jobs → admin-*`. They are redirects **by route name**, which vue-router resolves with the
+original path params and query (the user page uses `?tab=`, the private-scores page gets
+`?owner=`); a test pins that behaviour for both. Group roots `/music`, `/lingua`,
 `/admin` redirect to the group's first page; the guard then re-routes if that page is not
 the operator's.
 
@@ -101,7 +102,7 @@ link. Removing them later is a separate decision.
 
 ### D4 — Landing is the first page the operator can open
 
-`landing(rolesByScope)` walks the sidebar model in order and returns the first page
+`landing(router, session)` walks the sidebar model in order and returns the first page
 `canOpen` admits, or the `denied` route when there is none. It serves `/`, unknown paths, a
 refused page, and the post-sign-in redirect (today hard-coded to `music-queue` in the guard
 and in `SignInView`). A music moderator still lands on the review queue; a `lingua`-only

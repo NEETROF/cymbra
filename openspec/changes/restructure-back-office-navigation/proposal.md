@@ -4,7 +4,7 @@ The back-office sidebar is one flat list that mixes three products — Music mod
 Lingua, and cross-product administration — in the order the pages happened to ship, so an
 operator cannot tell what a page belongs to. It also names things misleadingly ("Takedowns"
 reads as "delete a catalog score" when it removes a user's *private* score), and three
-entries are shown to admins the server then refuses: *Instrument sounds*, *Campaigns* and
+entries are shown to admins the server then refuses: *Sound fonts*, *Campaigns* and
 *Usage* appear for any admin, yet their RPCs require `admin` in the `music` scope, so a
 `lingua`-only admin gets three links that fail. URLs follow no rule either: two Music pages
 live under `/music/`, four others at the root.
@@ -15,7 +15,7 @@ live under `/music/`, four others at the root.
   **Administration** — and a section with nothing the operator can open is not shown.
 - An entry is shown **exactly when its page would open**: the navigation and the route guard
   read the same per-page access rule (role + scope), so a link can no longer lead to a
-  refusal. This fixes *Instrument sounds*, *Campaigns* and *Usage* (now `music`-admin only)
+  refusal. This fixes *Sound fonts*, *Campaigns* and *Usage* (now `music`-admin only)
   and scopes the Music moderation pages to the `music` scope.
 - Every page path starts with its section: `/music/…`, `/lingua/…`, `/admin/…`.
   **BREAKING (URLs only)**: `/takedowns`, `/soundfonts`, `/campaigns`, `/usage`, `/lingua`,
@@ -62,8 +62,8 @@ Products impacted:
 ## Impact
 
 - `apps/back-office/src/router.ts` (route table, access meta, redirects, guard, landing),
-  `src/App.vue` (grouped sidebar), a new `src/lib/access.ts`-style module holding the
-  navigation model and the access rule shared by guard and sidebar.
+  `src/App.vue` (grouped sidebar), a new `src/lib/navigation.ts` holding the navigation
+  model and the access rule shared by guard and sidebar.
 - Every in-app link that names a moved route (`RouterLink`/`router.push` by name), notably
   `UserDetailView`, `UsersView`, `CampaignsView`, `TakedownsView`, `AccessDeniedView`,
   `SignInView`.

@@ -2,7 +2,7 @@
 
 ### Requirement: Navigation grouped by product
 
-The back-office sidebar SHALL present its entries in three headed sections, in this order: **Music** (Review queue, Catalog, Private scores, Instrument sounds, Campaigns, Usage), **Lingua** (Overview) and **Administration** (Users, Feature flags, Notifications, Jobs). Each section SHALL be exposed as a labelled group whose heading names it, and a section with no entry the operator can open MUST NOT be shown, heading included. Section headings and entry labels SHALL be localized in every supported locale.
+The back-office sidebar SHALL present its entries in three headed sections, in this order: **Music** (Catalog review, Catalog, Private scores, Sound fonts, Campaigns, Usage), **Lingua** (Overview) and **Administration** (Users, Feature flags, Notifications, Jobs). Each section SHALL be exposed as a labelled group whose heading names it, and a section with no entry the operator can open MUST NOT be shown, heading included. Section headings and entry labels SHALL be localized in every supported locale.
 
 #### Scenario: A global admin sees the three sections
 
@@ -12,7 +12,7 @@ The back-office sidebar SHALL present its entries in three headed sections, in t
 #### Scenario: A music moderator sees only what they moderate
 
 - **WHEN** an account holding only `moderator` in the `music` scope opens the console
-- **THEN** the sidebar shows the Music section with Review queue and Catalog only, and no Lingua or Administration heading
+- **THEN** the sidebar shows the Music section with Catalog review and Catalog only, and no Lingua or Administration heading
 
 #### Scenario: Sections are announced as groups
 
@@ -21,12 +21,12 @@ The back-office sidebar SHALL present its entries in three headed sections, in t
 
 ### Requirement: An entry is shown exactly when its page opens
 
-Every back-office page except the public ones (sign-in, access denied) SHALL declare one access rule — a role (`moderator` or `admin`) and optionally a scope — and both the route guard and the sidebar MUST evaluate that same rule, so an entry is shown if and only if navigating to its page is admitted. A `moderator` rule admits a moderator or an admin of the scope; an `admin` rule admits an admin of the scope; a rule without a scope admits an admin of any scope; a role held in the `global` scope counts in every scope. The rules SHALL be: Review queue, Catalog, score review and score detail — `moderator` in `music`; Private scores, Instrument sounds, Campaigns and Usage — `admin` in `music`; Overview — `admin` in `lingua`; Users, account detail, Feature flags and Notifications — `admin` in any scope; Jobs — `admin` in `global`. A non-public page that declares no rule MUST be treated as not openable. These checks are a convenience only: every RPC stays independently gated server-side.
+Every back-office page except the public ones (sign-in, access denied) SHALL declare one access rule — a role (`moderator` or `admin`) and optionally a scope — and both the route guard and the sidebar MUST evaluate that same rule, so an entry is shown if and only if navigating to its page is admitted. A `moderator` rule admits a moderator or an admin of the scope; an `admin` rule admits an admin of the scope; a rule without a scope admits an admin of any scope; a role held in the `global` scope counts in every scope. The rules SHALL be: Catalog review, Catalog, score review and score detail — `moderator` in `music`; Private scores, Sound fonts, Campaigns and Usage — `admin` in `music`; Overview — `admin` in `lingua`; Users, account detail, Feature flags and Notifications — `admin` in any scope; Jobs — `admin` in `global`. A non-public page that declares no rule MUST be treated as not openable. These checks are a convenience only: every RPC stays independently gated server-side.
 
 #### Scenario: A lingua-only admin is not offered Music administration
 
 - **WHEN** an account holding `admin` only in the `lingua` scope opens the console
-- **THEN** the sidebar shows no Instrument sounds, Campaigns or Usage entry, and navigating to `/music/soundfonts`, `/music/campaigns` or `/music/usage` redirects them away
+- **THEN** the sidebar shows no Sound fonts, Campaigns or Usage entry, and navigating to `/music/soundfonts`, `/music/campaigns` or `/music/usage` redirects them away
 
 #### Scenario: A music admin reaches every Music page
 
@@ -44,7 +44,7 @@ Every page path SHALL start with its section's prefix: `/music/` (`/music/queue`
 
 #### Scenario: Paths name the product
 
-- **WHEN** a music admin opens the Instrument sounds entry
+- **WHEN** a music admin opens the Sound fonts entry
 - **THEN** the address bar shows `/music/soundfonts`
 
 #### Scenario: A section root opens its first page
