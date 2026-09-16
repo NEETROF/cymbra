@@ -1,4 +1,10 @@
-import { createRouter, createWebHistory, type RouteRecordRaw, type RouterHistory } from "vue-router";
+import {
+  createRouter,
+  createWebHistory,
+  type RouteComponent,
+  type RouteRecordRaw,
+  type RouterHistory,
+} from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { canOpen, landing, type Access } from "@/lib/navigation";
 
@@ -13,109 +19,48 @@ const LINGUA_ADMIN: Access = { role: "admin", scope: "lingua" };
 const ANY_ADMIN: Access = { role: "admin" };
 const GLOBAL_ADMIN: Access = { role: "admin", scope: "global" };
 
+/** One page: where it lives, what it shows, and who may open it. */
+function page(
+  path: string,
+  name: string,
+  component: RouteComponent | (() => Promise<RouteComponent>),
+  access: Access,
+  props = false,
+): RouteRecordRaw {
+  return { path, name, component, props, meta: { access } };
+}
+
 const pages: RouteRecordRaw[] = [
   { path: "/signin", name: "signin", component: () => import("@/views/SignInView.vue"), meta: { public: true } },
   { path: "/denied", name: "denied", component: () => import("@/views/AccessDeniedView.vue"), meta: { public: true } },
 
   // Music
-  {
-    path: "/music/queue",
-    name: "music-queue",
-    component: () => import("@/views/QueueView.vue"),
-    meta: { access: MUSIC_MODERATOR },
-  },
-  {
-    path: "/music/catalog",
-    name: "music-catalog",
-    component: () => import("@/views/CatalogView.vue"),
-    meta: { access: MUSIC_MODERATOR },
-  },
-  {
-    path: "/music/review",
-    name: "music-review",
-    component: () => import("@/views/ReviewView.vue"),
-    meta: { access: MUSIC_MODERATOR },
-  },
-  {
-    path: "/music/score/:id",
-    name: "music-score",
-    component: () => import("@/views/ScoreDetailView.vue"),
-    props: true,
-    meta: { access: MUSIC_MODERATOR },
-  },
-  {
-    // Private-score takedown (change: add-private-score-catalog): scores users imported
-    // for their own use, never in the catalog. Its lookup criteria ride in the query.
-    path: "/music/private-scores",
-    name: "music-private-scores",
-    component: () => import("@/views/PrivateScoresView.vue"),
-    meta: { access: MUSIC_ADMIN },
-  },
-  {
-    path: "/music/soundfonts",
-    name: "music-soundfonts",
-    component: () => import("@/views/SoundFontsView.vue"),
-    meta: { access: MUSIC_ADMIN },
-  },
-  {
-    // Plan RPCs are music-admin gated (`require_admin_in_scope("music")`).
-    path: "/music/campaigns",
-    name: "music-campaigns",
-    component: () => import("@/views/CampaignsView.vue"),
-    meta: { access: MUSIC_ADMIN },
-  },
-  {
-    // Usage analytics come from the Music app and are music-admin gated server-side.
-    path: "/music/usage",
-    name: "music-usage",
-    component: () => import("@/views/UsageView.vue"),
-    meta: { access: MUSIC_ADMIN },
-  },
+  page("/music/queue", "music-queue", () => import("@/views/QueueView.vue"), MUSIC_MODERATOR),
+  page("/music/catalog", "music-catalog", () => import("@/views/CatalogView.vue"), MUSIC_MODERATOR),
+  page("/music/review", "music-review", () => import("@/views/ReviewView.vue"), MUSIC_MODERATOR),
+  page("/music/score/:id", "music-score", () => import("@/views/ScoreDetailView.vue"), MUSIC_MODERATOR, true),
+  // Private-score takedown (change: add-private-score-catalog): scores users imported for
+  // their own use, never in the catalog. Its lookup criteria ride in the query.
+  page("/music/private-scores", "music-private-scores", () => import("@/views/PrivateScoresView.vue"), MUSIC_ADMIN),
+  page("/music/soundfonts", "music-soundfonts", () => import("@/views/SoundFontsView.vue"), MUSIC_ADMIN),
+  // Plan RPCs are music-admin gated (`require_admin_in_scope("music")`).
+  page("/music/campaigns", "music-campaigns", () => import("@/views/CampaignsView.vue"), MUSIC_ADMIN),
+  // Usage analytics come from the Music app and are music-admin gated server-side.
+  page("/music/usage", "music-usage", () => import("@/views/UsageView.vue"), MUSIC_ADMIN),
 
   // Lingua — aggregates + the pack registry, never a per-account view
   // (change: add-lingua-back-office).
-  {
-    path: "/lingua/overview",
-    name: "lingua-overview",
-    component: () => import("@/views/LinguaView.vue"),
-    meta: { access: LINGUA_ADMIN },
-  },
+  page("/lingua/overview", "lingua-overview", () => import("@/views/LinguaView.vue"), LINGUA_ADMIN),
 
   // Administration — cross-product. One account = one address: the directory finds an
   // account, the detail page acts on it (change: restructure-back-office-users-console).
-  {
-    path: "/admin/users",
-    name: "admin-users",
-    component: () => import("@/views/UsersView.vue"),
-    meta: { access: ANY_ADMIN },
-  },
-  {
-    path: "/admin/users/:userId",
-    name: "admin-user-detail",
-    component: () => import("@/views/UserDetailView.vue"),
-    props: true,
-    meta: { access: ANY_ADMIN },
-  },
-  {
-    path: "/admin/flags",
-    name: "admin-flags",
-    component: () => import("@/views/FlagsView.vue"),
-    meta: { access: ANY_ADMIN },
-  },
-  {
-    path: "/admin/notifications",
-    name: "admin-notifications",
-    component: () => import("@/views/NotificationsView.vue"),
-    meta: { access: ANY_ADMIN },
-  },
-  {
-    // The queue spans every product (identity emails, erasure, Music renders), so only a
-    // global admin reads it (change: add-admin-jobs-console).
-    path: "/admin/jobs",
-    name: "admin-jobs",
-    component: () => import("@/views/JobsView.vue"),
-    meta: { access: GLOBAL_ADMIN },
-  },
+  page("/admin/users", "admin-users", () => import("@/views/UsersView.vue"), ANY_ADMIN),
+  page("/admin/users/:userId", "admin-user-detail", () => import("@/views/UserDetailView.vue"), ANY_ADMIN, true),
+  page("/admin/flags", "admin-flags", () => import("@/views/FlagsView.vue"), ANY_ADMIN),
+  page("/admin/notifications", "admin-notifications", () => import("@/views/NotificationsView.vue"), ANY_ADMIN),
+  // The queue spans every product (identity emails, erasure, Music renders), so only a
+  // global admin reads it (change: add-admin-jobs-console).
+  page("/admin/jobs", "admin-jobs", () => import("@/views/JobsView.vue"), GLOBAL_ADMIN),
 ];
 
 // A section root opens the section's first page; the guard re-routes if that page is

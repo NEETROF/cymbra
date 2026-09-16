@@ -62,8 +62,8 @@ const reason = ref("");
 
 /** The reason field, focused when the dialog opens. Focus has to move INTO the
  *  dialog: it puts the cursor on the one thing the operator must fill, and it is
- *  what makes Escape reach the dialog's own handler (a keydown on the trigger
- *  button would never get there). */
+ *  what makes Escape reach the overlay's handler, which the dialog's keydown bubbles
+ *  to (a keydown on the trigger button would never get there). */
 const reasonInput = ref<HTMLInputElement | null>(null);
 
 async function openConfirm(score: AdminUserScore) {
@@ -179,8 +179,8 @@ const opVm = computed(() =>
          mandatory (it is what the audit trail records). Asked in-app, never
          `window.confirm` — a native dialog blocks the renderer and is out of reach
          of the e2e suite. Same shape as the Plans console's reason modal. -->
-    <div v-if="target" class="overlay" @click.self="target = null">
-      <dialog class="modal" open aria-modal="true" @keydown.esc="target = null">
+    <div v-if="target" class="overlay" @click.self="target = null" @keydown.esc="target = null">
+      <dialog class="modal" open aria-modal="true">
         <h2>{{ t("takedowns.confirmTitle") }}</h2>
         <p>{{ t("takedowns.confirmBody") }}</p>
         <label>
