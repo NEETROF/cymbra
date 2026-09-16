@@ -82,6 +82,21 @@ test.describe("grouped sidebar", () => {
     await expect(sidebar(page).getByRole("link")).toHaveText(["Catalog review", "Catalog"]);
   });
 
+  test("on a short phone screen the drawer keeps sign-out in view and scrolls its entries", async ({ page }) => {
+    // Chromium has no collapsing toolbar, so this pins the layout (footer fixed, entries
+    // scrolling) rather than the `dvh` unit iOS needs on top of it.
+    await page.setViewportSize({ width: 375, height: 560 });
+    await seed(page, { loginAs: "global-admin", data: {} });
+    await page.goto("/music/queue");
+
+    await page.getByRole("button", { name: "Menu" }).click();
+    await expect(page.getByRole("button", { name: "Sign out" })).toBeInViewport();
+    const jobs = sidebar(page).getByRole("link", { name: "Jobs" });
+    await jobs.scrollIntoViewIfNeeded();
+    await expect(jobs).toBeInViewport();
+    await expect(page.getByRole("button", { name: "Sign out" })).toBeInViewport();
+  });
+
   test("a sidebar entry opens its page under the section prefix", async ({ page }) => {
     await seed(page, { loginAs: "admin", data: { userScores } });
     await page.goto("/music/queue");
@@ -129,7 +144,7 @@ test.describe("account and private scores", () => {
     await expect(page.getByText("Reported Piece")).toBeVisible();
     await expect(page.getByText("Another Score")).toHaveCount(0);
 
-    await page.getByRole("link", { name: "u-ada" }).click();
+    await page.getByRole("link", { name: "Account u-ada" }).click();
     await expect(page).toHaveURL(/\/admin\/users\/u-ada$/);
     await expect(page.getByRole("heading", { name: "ada" })).toBeVisible();
   });
@@ -147,6 +162,17 @@ test.describe("account and private scores", () => {
     await expect(page.getByLabel("Title contains")).toHaveValue("another");
     await expect(page.getByText("Another Score")).toBeVisible();
     await expect(page.getByText("Reported Piece")).toHaveCount(0);
+  });
+
+  test("on a phone the private scores page never scrolls sideways — only its table does", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 700 });
+    await seed(page, { loginAs: "admin", data: { userScores } });
+    await page.goto("/music/private-scores?title=e");
+    await expect(page.getByText("Reported Piece")).toBeVisible();
+
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(overflow).toBeLessThanOrEqual(0);
+    await expect(page.getByRole("button", { name: "Search" })).toBeInViewport();
   });
 
   test("an admin outside the music scope gets no private-scores link", async ({ page }) => {

@@ -5,6 +5,7 @@
 // and the popover reveals the whole id for copy/paste.
 import { onBeforeUnmount, ref } from "vue";
 import { useI18n } from "vue-i18n";
+import { shortId as short } from "@/lib/uuid";
 
 const props = defineProps<{ id: string }>();
 const { t } = useI18n();
@@ -13,9 +14,6 @@ const open = ref(false);
 const copied = ref(false);
 const root = ref<HTMLElement | null>(null);
 let resetTimer: ReturnType<typeof setTimeout> | undefined;
-
-// The random tail distinguishes rows; the timestamp prefix does not.
-const short = (id: string): string => id.replaceAll("-", "").slice(-8).toUpperCase();
 
 function toggle(): void {
   open.value = !open.value;

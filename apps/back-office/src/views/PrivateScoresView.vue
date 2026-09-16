@@ -5,6 +5,7 @@ import { useI18n } from "vue-i18n";
 import { match } from "ts-pattern";
 import { useTakedownsStore } from "@/stores/takedowns";
 import type { AdminUserScore } from "@/gen/score_pb";
+import { shortId } from "@/lib/uuid";
 
 // Private scores — takedown on notice (change: add-private-score-catalog). These are
 // the scores users imported for their own use; they are never in the catalog. The view
@@ -17,7 +18,7 @@ import type { AdminUserScore } from "@/gen/score_pb";
 // link. The query is the single source of the criteria — submitting the form writes it,
 // and a change of query runs the search.
 
-const { t } = useI18n();
+const { t, te } = useI18n();
 const store = useTakedownsStore();
 const route = useRoute();
 const router = useRouter();
@@ -84,6 +85,13 @@ async function confirmRemoval() {
  *  fire the same irreversible action twice. */
 const acting = computed(() => store.op.status === "loading");
 
+/** The rights basis in words; a basis this console has no label for shows as stored
+ *  rather than as a raw translation key. */
+function basisLabel(basis: string): string {
+  const key = `takedowns.basis.${basis}`;
+  return te(key) ? t(key) : basis;
+}
+
 function formatDate(seconds: bigint): string {
   return new Date(Number(seconds) * 1000).toLocaleDateString();
 }
@@ -143,36 +151,44 @@ const opVm = computed(() =>
     </template>
     <template v-else-if="resultsVm.rows">
       <p v-if="resultsVm.rows.length === 0">{{ t("takedowns.noResults") }}</p>
-      <table v-else>
-        <thead>
-          <tr>
-            <th>{{ t("takedowns.colTitle") }}</th>
-            <th>{{ t("takedowns.colComposer") }}</th>
-            <th>{{ t("takedowns.colOwner") }}</th>
-            <th>{{ t("takedowns.colCreated") }}</th>
-            <th>{{ t("takedowns.colBasis") }}</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="score in resultsVm.rows" :key="score.id">
-            <td>{{ score.title ?? "—" }}</td>
-            <td>{{ score.composer ?? "—" }}</td>
-            <td class="mono">
-              <RouterLink :to="{ name: 'admin-user-detail', params: { userId: score.ownerId } }">
-                {{ score.ownerId }}
-              </RouterLink>
-            </td>
-            <td>{{ formatDate(score.createdAt) }}</td>
-            <td>{{ score.rightsBasis }}</td>
-            <td>
-              <button type="button" class="danger" @click="openConfirm(score)">
-                {{ t("takedowns.remove") }}
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <!-- The table scrolls inside its card on a narrow screen instead of dragging the
+           whole page sideways. -->
+      <div v-else class="table-card">
+        <table>
+          <thead>
+            <tr>
+              <th>{{ t("takedowns.colTitle") }}</th>
+              <th>{{ t("takedowns.colComposer") }}</th>
+              <th>{{ t("takedowns.colOwner") }}</th>
+              <th>{{ t("takedowns.colCreated") }}</th>
+              <th>{{ t("takedowns.colBasis") }}</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="score in resultsVm.rows" :key="score.id">
+              <td>{{ score.title ?? "—" }}</td>
+              <td>{{ score.composer ?? "—" }}</td>
+              <td class="mono">
+                <RouterLink
+                  :to="{ name: 'admin-user-detail', params: { userId: score.ownerId } }"
+                  :title="score.ownerId"
+                  :aria-label="t('takedowns.ownerLink', { id: score.ownerId })"
+                >
+                  {{ shortId(score.ownerId) }}
+                </RouterLink>
+              </td>
+              <td>{{ formatDate(score.createdAt) }}</td>
+              <td>{{ basisLabel(score.rightsBasis) }}</td>
+              <td>
+                <button type="button" class="danger" @click="openConfirm(score)">
+                  {{ t("takedowns.remove") }}
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </template>
 
     <!-- Irreversible action: the dialog states the consequence and the reason is
@@ -208,11 +224,24 @@ const opVm = computed(() =>
 .private-scores {
   padding: 1rem;
 }
+/* Wraps on a phone: the two criteria stack and the button follows, rather than the
+   row pushing the page wider than the screen. */
 .search {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.75rem;
   align-items: end;
   margin-bottom: 1rem;
+}
+.search label {
+  display: flex;
+  flex: 1 1 14rem;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+.search input {
+  width: 100%;
 }
 .mono {
   font-family: monospace;

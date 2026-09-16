@@ -84,10 +84,28 @@ describe("private scores page", () => {
     expect(searches).toHaveLength(2);
   });
 
-  it("links each owner id to that owner's account page", async () => {
+  it("links each owner to that owner's account page, by a short id that keeps the full one", async () => {
     const { w } = await mountAt({ owner: "u-ada" });
 
-    const link = w.findAllComponents(RouterLinkStub).find((l) => l.text() === "u-ada");
+    const link = w.findAllComponents(RouterLinkStub).find((l) => l.text() === "UADA");
     expect(link?.props().to).toEqual({ name: "admin-user-detail", params: { userId: "u-ada" } });
+    expect(link?.attributes("title")).toBe("u-ada");
+    expect(link?.attributes("aria-label")).toBe("Account u-ada");
+  });
+
+  it("names the rights basis in words, and shows an unknown one as stored", async () => {
+    const { w } = await mountAt({ owner: "u-ada" });
+    expect(w.find("tbody").text()).toContain("Private use");
+    expect(w.find("tbody").text()).not.toContain("private_use");
+
+    score.rightsBasis = "licensed";
+    const again = await mountAt({ owner: "u-ada" });
+    expect(again.w.find("tbody").text()).toContain("licensed");
+    score.rightsBasis = "private_use";
+  });
+
+  it("keeps the results table in a card that scrolls on its own", async () => {
+    const { w } = await mountAt({ owner: "u-ada" });
+    expect(w.find(".table-card table").exists()).toBe(true);
   });
 });

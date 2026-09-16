@@ -703,8 +703,14 @@
     "colTitle": "Titre",
     "colComposer": "Compositeur",
     "colOwner": "Propriétaire",
+    "ownerLink": "Compte {id}",
     "colCreated": "Importée",
     "colBasis": "Base de droits",
+    "basis": {
+      "own_work": "Œuvre personnelle",
+      "public_domain": "Domaine public",
+      "private_use": "Usage privé"
+    },
     "remove": "Retirer",
     "confirmTitle": "Retirer cette partition ?",
     "confirmBody": "Cela supprime définitivement la partition et son fichier. Le propriétaire la perd. Un enregistrement d'audit est conservé.",

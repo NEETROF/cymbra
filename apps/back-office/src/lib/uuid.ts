@@ -20,3 +20,10 @@ export function uuidv7(): string {
   const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
+
+/** The short form of an id: its last 8 hex digits, upper-cased. Ids are UUID v7, whose
+ *  leading hex is a millisecond timestamp shared by ids minted together — the trailing
+ *  (random) hex is what tells two rows apart. */
+export function shortId(id: string): string {
+  return id.replaceAll("-", "").slice(-8).toUpperCase();
+}

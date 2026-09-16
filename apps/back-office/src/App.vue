@@ -209,10 +209,14 @@ async function signOut() {
   min-height: 100vh;
 }
 
+/* `dvh`, not just `vh`: on a phone `100vh` is the screen with the browser's toolbars
+   collapsed, so a sidebar that tall hides its footer (language, sign-out) behind them.
+   `vh` stays as the fallback for browsers without dynamic viewport units. */
 .sidebar {
   position: sticky;
   top: 0;
   height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -446,6 +450,7 @@ async function signOut() {
     top: 0;
     left: 0;
     height: 100vh;
+    height: 100dvh;
     width: 260px;
     transform: translateX(-100%);
     transition: transform 0.22s ease;
