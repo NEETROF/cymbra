@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.29.0](https://github.com/NEETROF/cymbra/compare/backend-v0.28.0...backend-v0.29.0) (2026-09-16)
+
+
+### Features
+
+* **back-office:** show finished jobs, per-kind figures and schedules in the jobs console ([#459](https://github.com/NEETROF/cymbra/issues/459)) ([d6fe09d](https://github.com/NEETROF/cymbra/commit/d6fe09dbb9b64582c99caa3271134c8383d0ed01))
+
 ## [0.28.0](https://github.com/NEETROF/cymbra/compare/backend-v0.27.1...backend-v0.28.0) (2026-09-15)
 
 
