@@ -703,8 +703,14 @@
     "colTitle": "Title",
     "colComposer": "Composer",
     "colOwner": "Owner",
+    "ownerLink": "Account {id}",
     "colCreated": "Imported",
     "colBasis": "Rights basis",
+    "basis": {
+      "own_work": "Own work",
+      "public_domain": "Public domain",
+      "private_use": "Private use"
+    },
     "remove": "Remove",
     "confirmTitle": "Remove this score?",
     "confirmBody": "This permanently deletes the score and its file. The owner loses it. An audit record is kept.",
