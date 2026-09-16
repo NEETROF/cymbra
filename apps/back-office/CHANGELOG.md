@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.0](https://github.com/NEETROF/cymbra/compare/back-office-v0.16.2...back-office-v0.17.0) (2026-09-16)
+
+
+### Features
+
+* **back-office:** group the navigation by product and gate it like the routes ([#455](https://github.com/NEETROF/cymbra/issues/455)) ([a561115](https://github.com/NEETROF/cymbra/commit/a5611151c3ed433ed3fb8a98d3bcfebb59abe777))
+
 ## [0.16.2](https://github.com/NEETROF/cymbra/compare/back-office-v0.16.1...back-office-v0.16.2) (2026-09-16)
 
 
