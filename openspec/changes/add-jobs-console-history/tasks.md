@@ -91,10 +91,10 @@
   - `cargo clippy --workspace --all-targets -- -D warnings`;
   - `cargo llvm-cov --workspace --fail-under-lines 80` with the shared ignore regex;
   - the `admin_queue_test` integration tests against local Postgres.
-- [ ] 5.2 Back office: `yarn gen`, `yarn typecheck`, `yarn lint`, `rtk proxy yarn format:check`, `yarn test`, `yarn e2e`
+- [x] 5.2 Back office: `yarn gen`, `yarn typecheck`, `yarn lint`, `rtk proxy yarn format:check`, `yarn test`, `yarn e2e`
 - [ ] 5.3 Dogfood on the local stack, signed in as a `global/admin`:
   - the History tab lists the real hourly runs (`session_reap`, `orphan_reap`, …) with their run time;
   - the breakdown matches the cards;
   - the nightly kinds show "daily at …" and a zero row when the period excludes their run;
   - changing a schedule's cron in `jobs.schedules` shows the new cadence after a reload.
-- [ ] 5.4 `openspec validate add-jobs-console-history --strict`
+- [x] 5.4 `openspec validate add-jobs-console-history --strict`

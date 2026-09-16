@@ -322,10 +322,10 @@ which use unique job names as the existing cases do.
   emptied page.
 
 - [`restructure-back-office-navigation` (#453) modifies the same "Global-admin-only access
-  to the jobs console" requirement, moving the page to `/admin/jobs`] → the delta here
-  already carries that path and the `/jobs` redirect, so it stays correct only if this
-  change is archived **after** that one. Re-check the block against `openspec/specs`
-  before archiving.
+  to the jobs console" requirement, moving the page to `/admin/jobs`] → both deltas now
+  carry the **same** text for it (the `/admin/jobs` path, the `/jobs` redirect and the
+  history operations), so whichever change is archived last writes identical content and
+  the order no longer matters. Keep the two blocks identical if either is edited.
 
 ## Migration Plan
 
