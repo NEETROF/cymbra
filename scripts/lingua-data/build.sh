@@ -84,4 +84,7 @@ else
   fetch_and_reduce "$pair" "$input"
 fi
 
+# The builder writes the file but not its folder, which a fresh checkout may lack
+# (apps/lingua-extension/assets/ holds only the git-ignored pack).
+mkdir -p "$(dirname "$out")"
 cargo run --quiet --release -p lingua-pack --bin lingua-pack-build -- "$input" "$out"
