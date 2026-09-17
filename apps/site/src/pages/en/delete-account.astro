@@ -11,6 +11,10 @@ import DeleteAccountIsland from '../../components/DeleteAccountIsland.vue';
 >
   <section class="container narrow">
     <h1>Delete my account</h1>
+    <p class="prose">
+      Your Cymbra account is shared by every Cymbra app — Cymbra Music and Cymbra Lingua.
+      Deleting it also erases your data in each of them.
+    </p>
     <DeleteAccountIsland client:load lang="en" />
 
     <!-- Partial deletion: declared to Play under "Manage app data", so it is
@@ -18,14 +22,19 @@ import DeleteAccountIsland from '../../components/DeleteAccountIsland.vue';
     <section class="prose">
       <h2>Delete only some of your data</h2>
       <p>
-        You do not have to delete your account to erase part of your data. From the
-        Cymbra app you can, at any time:
+        You do not have to delete your account to erase part of your data. From
+        Cymbra Music you can, at any time:
       </p>
       <ul>
         <li>delete a score you imported, from your library;</li>
         <li>delete a collection, or remove a score from it;</li>
         <li>delete a sound you imported, from the sounds screen.</li>
       </ul>
+      <p>
+        From Cymbra Lingua, <strong>Compte → Tes données → Effacer mes données Lingua</strong>
+        erases your Lingua words, level, deck and statistics, on the server and on all your
+        devices, without touching your account or Cymbra Music.
+      </p>
       <p>
         For any other targeted deletion request — your progress, your scores, or a
         contribution already published — write to <a href="mailto:privacy@cymbra.app">privacy@cymbra.app</a>, naming the
