@@ -51,7 +51,7 @@ The Lingua backend SHALL be a `backend/lingua` crate modelled on `backend/music`
 - **THEN** the server state is identical to that of a single push (per-batch idempotence)
 
 ### Requirement: Complete card synchronisation, media excluded
-`DeckService` SHALL synchronise complete cards — lemma, surface form, source sentence, explicitly captured source, gloss, FSRS state — identified by a stable client id, last-write-wins per card (deletions included). The contents of the `media` field SHALL NOT be synchronised in this change (the schema slot stays local).
+`DeckService` SHALL synchronise complete cards — lemma, surface form, source sentence, gloss, FSRS state — identified by a stable client id, last-write-wins per card (deletions included). The page a card was captured from stays on the device (`add-lingua-privacy-controls`): the card's `source` field is deprecated, sent empty and never stored. The contents of the `media` field SHALL NOT be synchronised in this change (the schema slot stays local).
 
 #### Scenario: Card created on mobile, reviewed on desktop
 - **WHEN** a card created while reading in Safari on iOS is synced and the user then opens the side panel on their Mac
@@ -62,7 +62,7 @@ The Lingua backend SHALL be a `backend/lingua` crate modelled on `backend/music`
 - **THEN** all of its fields go up except the media content, which stays on the originating device
 
 ### Requirement: Strict allow-list of what reaches the server
-Only three families of data SHALL go up: lemma statuses, cards and stat aggregates. No browsing URL, no page text and no web reading history SHALL be transmitted or stored server-side — the only source that goes up is the one carried by a card the user explicitly created. The local stack's exposure counters SHALL stay local in this change.
+Only three families of data SHALL go up: lemma statuses, cards and stat aggregates. No browsing URL, no page text and no web reading history SHALL be transmitted or stored server-side — not even the page a card was captured from (`add-lingua-privacy-controls`). The local stack's exposure counters SHALL stay local in this change.
 
 #### Scenario: Reading without capture
 - **WHEN** a signed-in user reads ten pages without creating a card or touching a status
@@ -70,7 +70,7 @@ Only three families of data SHALL go up: lemma statuses, cards and stat aggregat
 
 #### Scenario: The card is the only exception
 - **WHEN** the user creates a card from a page
-- **THEN** that card's sentence and source go up with it, and nothing else from the page goes up
+- **THEN** that card's sentence goes up with it, and nothing else from the page goes up — not even its address
 
 ### Requirement: Lingua data purged on account deletion
 Account deletion (`DeleteAccount`) SHALL purge all of the user's `lingua.*` data through the existing `purge_user` job, extended (worker handler + admin role `search_path` including `lingua`), idempotently; an account with no Lingua data SHALL be a no-op for that step.

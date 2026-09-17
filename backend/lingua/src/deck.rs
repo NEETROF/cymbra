@@ -7,13 +7,17 @@
 //! The Deck domain module: whole cards synced by stable client id, last-write-wins per
 //! card (tombstones included). Same clamp + LWW rules as KnownWords
 //! ([`known_words_core`]). Media contents never cross the wire (allow-list) — there is
-//! no media field.
+//! no media field — and neither does the page a card was captured from
+//! (add-lingua-privacy-controls): a card has no source here. Ops dated before the user's
+//! erasure mark are dropped ([`data_core`](crate::data_core)).
 
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use cymbra_platform::Result;
 
+use crate::data::ErasureMarks;
+use crate::data_core::predates_erasure;
 use crate::known_words_core::clamp_ts;
 
 /// A whole card as one device holds it (a tombstone when `deleted`). On a pull,
@@ -24,7 +28,6 @@ pub struct Card {
     pub lemma: String,
     pub surface_form: String,
     pub source_sentence: String,
-    pub source: String,
     pub gloss: String,
     pub fsrs_state: String,
     pub deleted: bool,
@@ -47,17 +50,25 @@ pub trait DeckRepo: Send + Sync {
 /// Orchestrates card sync over a [`DeckRepo`].
 pub struct DeckModule {
     repo: Arc<dyn DeckRepo>,
+    marks: Arc<dyn ErasureMarks>,
 }
 
 impl DeckModule {
-    pub fn new(repo: Arc<dyn DeckRepo>) -> Self {
-        Self { repo }
+    pub fn new(repo: Arc<dyn DeckRepo>, marks: Arc<dyn ErasureMarks>) -> Self {
+        Self { repo, marks }
     }
 
+    /// Drain a client's cards: clamp, drop what predates the user's erasure, apply LWW.
+    /// Returns how many changed state plus the new tip cursor; dropped cards still count
+    /// as acknowledged (they are simply not stored).
     pub async fn push_cards(&self, user: &str, cards: Vec<Card>, now: i64) -> Result<(u64, i64)> {
+        let erased_at = self.marks.erased_at(user).await?;
         let mut applied = 0u64;
         for mut card in cards {
             card.updated_at = clamp_ts(card.updated_at, now);
+            if predates_erasure(card.updated_at, erased_at) {
+                continue;
+            }
             if self.repo.apply_card(user, &card).await? {
                 applied += 1;
             }
@@ -75,6 +86,7 @@ impl DeckModule {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::data::MockErasureMarks;
     use crate::known_words_core::wins;
     use std::collections::HashMap;
     use std::sync::Mutex;
@@ -133,13 +145,22 @@ mod tests {
         }
     }
 
+    fn marks(erased_at: i64) -> Arc<dyn ErasureMarks> {
+        let mut marks = MockErasureMarks::new();
+        marks.expect_erased_at().returning(move |_| Ok(erased_at));
+        Arc::new(marks)
+    }
+
+    fn never_erased() -> Arc<dyn ErasureMarks> {
+        marks(0)
+    }
+
     fn card(id: &str, sentence: &str, ts: i64, device: &str) -> Card {
         Card {
             client_id: id.into(),
             lemma: "seldom".into(),
             surface_form: "seldom".into(),
             source_sentence: sentence.into(),
-            source: "https://example.com/read".into(),
             gloss: "rarement".into(),
             fsrs_state: "{}".into(),
             deleted: false,
@@ -151,7 +172,7 @@ mod tests {
 
     #[tokio::test]
     async fn card_syncs_with_its_sentence_and_review_state() {
-        let module = DeckModule::new(Arc::new(FakeDeckRepo::default()));
+        let module = DeckModule::new(Arc::new(FakeDeckRepo::default()), never_erased());
         module
             .push_cards(
                 "u1",
@@ -168,7 +189,7 @@ mod tests {
 
     #[tokio::test]
     async fn deletion_propagates_by_lww() {
-        let module = DeckModule::new(Arc::new(FakeDeckRepo::default()));
+        let module = DeckModule::new(Arc::new(FakeDeckRepo::default()), never_erased());
         module
             .push_cards("u1", vec![card("c1", "s", 100, "iphone")], 1_000)
             .await
@@ -183,7 +204,7 @@ mod tests {
 
     #[tokio::test]
     async fn stale_edit_loses_to_the_newer_card() {
-        let module = DeckModule::new(Arc::new(FakeDeckRepo::default()));
+        let module = DeckModule::new(Arc::new(FakeDeckRepo::default()), never_erased());
         module
             .push_cards("u1", vec![card("c1", "new", 200, "mac")], 1_000)
             .await
@@ -197,5 +218,45 @@ mod tests {
             module.repo.changes_since("u1", 0).await.unwrap()[0].source_sentence,
             "new"
         );
+    }
+
+    #[tokio::test]
+    async fn cards_dated_before_the_erasure_are_not_stored() {
+        let module = DeckModule::new(Arc::new(FakeDeckRepo::default()), marks(500));
+        let (applied, _) = module
+            .push_cards(
+                "u1",
+                vec![card("old", "s", 400, "mac"), card("edge", "s", 500, "mac")],
+                1_000,
+            )
+            .await
+            .unwrap();
+        assert_eq!(applied, 0);
+        assert!(module.pull_cards("u1", 0).await.unwrap().0.is_empty());
+    }
+
+    #[tokio::test]
+    async fn a_card_made_after_the_erasure_syncs() {
+        let module = DeckModule::new(Arc::new(FakeDeckRepo::default()), marks(500));
+        let (applied, _) = module
+            .push_cards("u1", vec![card("new", "s", 501, "mac")], 1_000)
+            .await
+            .unwrap();
+        assert_eq!(applied, 1);
+        assert_eq!(
+            module.pull_cards("u1", 0).await.unwrap().0[0].client_id,
+            "new"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_future_dated_card_is_judged_at_its_receipt_time() {
+        // Clamped to `now` (400) first, so a skewed clock cannot slip past the mark.
+        let module = DeckModule::new(Arc::new(FakeDeckRepo::default()), marks(500));
+        let (applied, _) = module
+            .push_cards("u1", vec![card("skewed", "s", 9_999, "mac")], 400)
+            .await
+            .unwrap();
+        assert_eq!(applied, 0);
     }
 }

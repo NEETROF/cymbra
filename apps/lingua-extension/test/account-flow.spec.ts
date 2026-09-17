@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { AccountFlow, type AccountViewState, viewFromHash } from "@/account/flow.ts";
+import { AccountFlow, type AccountViewState, deleteAccountUrl, viewFromHash } from "@/account/flow.ts";
 import type { AccountMessage, AccountReply } from "@/account/messages.ts";
 
 type Replies = Partial<Record<AccountMessage["type"], AccountReply | null>>;
@@ -454,5 +454,55 @@ describe("AccountFlow navigation", () => {
     expect(sent.at(-1)).toEqual({ type: "account:signOut" });
     expect(s.view).toBe("signin");
     expect(s.handle).toBeNull();
+  });
+});
+
+describe("AccountFlow « Tes données » (add-lingua-privacy-controls)", () => {
+  const signedIn: Replies = { "account:state": { ok: true, state: { signedIn: true } } };
+
+  it("links to the deletion page in the reader's language", () => {
+    expect(deleteAccountUrl("fr-FR")).toBe("https://cymbra.app/suppression-compte/");
+    expect(deleteAccountUrl("fr")).toBe("https://cymbra.app/suppression-compte/");
+    expect(deleteAccountUrl("en-US")).toBe("https://cymbra.app/en/delete-account/");
+    expect(deleteAccountUrl("de")).toBe("https://cymbra.app/en/delete-account/");
+    expect(setup().flow.view().deleteAccountUrl).toBe("https://cymbra.app/suppression-compte/");
+  });
+
+  it("erases only after the confirmation, then says so and stays signed in", async () => {
+    const { flow, sent } = setup(signedIn);
+    await flow.init("");
+    await flow.eraseLinguaData(); // not confirmed yet
+    expect(types(sent)).not.toContain("account:eraseLinguaData");
+    expect(flow.askErase().confirmingErase).toBe(true);
+    const s = await flow.eraseLinguaData();
+    expect(types(sent)).toContain("account:eraseLinguaData");
+    expect(s.confirmingErase).toBe(false);
+    expect(s.notice).toContain("autres appareils");
+    expect(s.view).toBe("signedin");
+  });
+
+  it("cancelling sends nothing", async () => {
+    const { flow, sent } = setup(signedIn);
+    await flow.init("");
+    flow.askErase();
+    expect(flow.cancelErase().confirmingErase).toBe(false);
+    expect(types(sent)).not.toContain("account:eraseLinguaData");
+  });
+
+  it("reports a failed erasure without claiming anything was erased", async () => {
+    const { flow } = setup({ ...signedIn, "account:eraseLinguaData": { ok: false, error: "unavailable" } });
+    await flow.init("");
+    flow.askErase();
+    const s = await flow.eraseLinguaData();
+    expect(s.error).toBe("Impossible de joindre Cymbra. Vérifie ta connexion et réessaie.");
+    expect(s.notice).toBeNull();
+    expect(s.confirmingErase).toBe(false);
+  });
+
+  it("words a server failure as intact data", async () => {
+    const { flow } = setup({ ...signedIn, "account:eraseLinguaData": { ok: false, error: "unknown" } });
+    await flow.init("");
+    flow.askErase();
+    expect((await flow.eraseLinguaData()).error).toContain("Tes données sont intactes");
   });
 });

@@ -22,7 +22,9 @@ export type AccountMessage =
   | { type: "account:profile" }
   | { type: "account:checkHandle"; handle: string }
   | { type: "account:setHandle"; handle: string }
-  | { type: "account:abandon" };
+  | { type: "account:abandon" }
+  /** « Effacer mes données Lingua »: the server and this device; the account stays. */
+  | { type: "account:eraseLinguaData" };
 
 export interface AccountState {
   signedIn: boolean;

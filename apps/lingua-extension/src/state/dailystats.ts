@@ -41,6 +41,11 @@ async function bump(area: AsyncStorageArea, day: number, field: keyof DailyStat,
   await area.set({ [KEY]: stats });
 }
 
+/** Drop every local daily count (a full wipe, e.g. after a Lingua-only erasure). */
+export async function clearDailyStats(area: AsyncStorageArea): Promise<void> {
+  await area.set({ [KEY]: {} });
+}
+
 /** Record `n` studied-word exposures for the day (no-op for a non-positive count). */
 export async function recordExposures(area: AsyncStorageArea, day: number, n: number): Promise<void> {
   if (n > 0) await bump(area, day, "exposures", n);

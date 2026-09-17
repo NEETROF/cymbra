@@ -9,13 +9,14 @@
 //! browsing-history signal. The proof is a schema review pinned as a test: parse the
 //! field identifiers out of every proto and assert none names a forbidden signal.
 //!
-//! The single legitimate origin a user may attach — a card's `source` — is the sole
-//! exception, and it is exact-matched so a `source_url` or `source_history` could never
-//! slip through under its cover.
+//! A card's `source` is exact-matched as the sole exception, so a `source_url` or
+//! `source_history` could never slip through under its cover. Since
+//! add-lingua-privacy-controls it is a deprecated slot the server ignores: the page a card
+//! came from stays on the device.
 
 /// Field names that are always allowed even though a substring rule might flag them.
-/// `source` is the user's own attached card origin (allow-listed by design); it is the
-/// only URL-shaped value in the protocol and lives nowhere but a card the user made.
+/// `source` is the deprecated card-origin slot (sent empty, never stored), kept only so
+/// installed clients keep working; it lives nowhere but a card.
 const ALLOWED_EXACT: &[&str] = &["source", "source_sentence"];
 
 /// Substrings that would betray page-level tracking if they appeared in a field name.
@@ -53,6 +54,7 @@ fn no_proto_field_names_a_browsing_signal() {
         ("known_words", include_str!("../proto/known_words.proto")),
         ("deck", include_str!("../proto/deck.proto")),
         ("stats", include_str!("../proto/stats.proto")),
+        ("lingua_data", include_str!("../proto/lingua_data.proto")),
     ];
     let mut checked = 0usize;
     for (name, proto) in protos {
@@ -78,17 +80,20 @@ fn no_proto_field_names_a_browsing_signal() {
 }
 
 #[test]
-fn the_card_source_is_the_only_url_shaped_field() {
-    // The one allow-listed origin exists (a card's `source`) and nothing url-shaped
-    // exists outside it: `source` appears in deck.proto and in no other proto.
+fn the_card_source_is_a_deprecated_slot_and_nowhere_else() {
+    // The page a card came from stays on the device (add-lingua-privacy-controls): the
+    // wire slot survives for installed clients, but only as a deprecated field, and no
+    // other proto may carry a `source`.
     let deck = include_str!("../proto/deck.proto");
     assert!(
-        field_names(deck).iter().any(|f| f == "source"),
-        "a card must keep its user-attached `source`"
+        deck.lines()
+            .any(|l| l.trim() == "string source = 5 [deprecated = true];"),
+        "a card's `source` must stay a deprecated slot"
     );
     for other in [
         include_str!("../proto/known_words.proto"),
         include_str!("../proto/stats.proto"),
+        include_str!("../proto/lingua_data.proto"),
     ] {
         assert!(
             !field_names(other).iter().any(|f| f == "source"),

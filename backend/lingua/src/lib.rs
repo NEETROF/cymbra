@@ -13,8 +13,9 @@
 //! composition root wires none of it.
 //!
 //! Privacy allow-list (spec `lingua-sync`): only lemma statuses, user-created cards and
-//! day-grained aggregates ever cross the wire — never a browsing URL, page text, or
-//! reading history.
+//! day-grained aggregates ever cross the wire — never a browsing URL (not even the page a
+//! card was captured from), page text, or reading history. A reader can erase all of it
+//! without deleting their account ([`LinguaDataService`](data_grpc::DataGrpc)).
 
 pub mod grpc_util;
 
@@ -32,6 +33,13 @@ pub mod stats;
 pub mod stats_core;
 pub mod stats_grpc;
 
+// The reader's Lingua-only erasure and the mark every push is filtered against
+// (change: add-lingua-privacy-controls).
+pub mod data;
+pub mod data_core;
+pub mod data_grpc;
+pub mod pg_data;
+
 // The back office's ops console (change: add-lingua-back-office): aggregates + the
 // read-only pack registry, gated by `admin` in the `lingua` scope.
 pub mod admin;
@@ -40,10 +48,13 @@ pub mod admin_grpc;
 pub mod pack_registry;
 pub mod pg_admin;
 
+pub use data::{DataModule, DataRepo, ErasureMarks};
+pub use data_grpc::DataGrpc;
 pub use deck::{Card, DeckModule, DeckRepo};
 pub use deck_grpc::DeckGrpc;
 pub use known_words::{KnownWordsModule, KnownWordsRepo, Status, StatusChange};
 pub use known_words_grpc::KnownWordsGrpc;
+pub use pg_data::PgDataRepo;
 pub use pg_deck::PgDeckRepo;
 pub use pg_known_words::PgKnownWordsRepo;
 pub use pg_stats::PgStatsRepo;

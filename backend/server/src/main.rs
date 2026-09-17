@@ -783,22 +783,30 @@ async fn main() -> anyhow::Result<()> {
     // --- lingua module (Cymbra Lingua sync: statuses, cards, daily stats; change:
     // add-lingua-backend). Owns the `lingua` schema via `lingua_svc`. Inert without
     // CYMBRA_LINGUA_DATABASE_URL. Identity comes from the token, so no UserPort here.
-    let (known_words_svc, deck_svc, stats_svc, lingua_admin_svc) = match cfg
+    let (known_words_svc, deck_svc, stats_svc, lingua_admin_svc, lingua_data_svc) = match cfg
         .lingua_database_url
         .as_deref()
     {
         Some(db_url) => {
             let pool = db::connect(db_url, 5).await?;
             cymbra_lingua::MIGRATOR.run(&pool).await?;
+            // The Lingua-only erasure (change: add-lingua-privacy-controls): one repo serves
+            // the erasure itself and the mark every sync module filters pushes against.
+            let data_repo = std::sync::Arc::new(cymbra_lingua::PgDataRepo::new(pool.clone()));
+            let marks: std::sync::Arc<dyn cymbra_lingua::ErasureMarks> = data_repo.clone();
             let known_words = std::sync::Arc::new(cymbra_lingua::KnownWordsModule::new(
                 std::sync::Arc::new(cymbra_lingua::PgKnownWordsRepo::new(pool.clone())),
+                marks.clone(),
             ));
-            let deck = std::sync::Arc::new(cymbra_lingua::DeckModule::new(std::sync::Arc::new(
-                cymbra_lingua::PgDeckRepo::new(pool.clone()),
-            )));
-            let stats = std::sync::Arc::new(cymbra_lingua::StatsModule::new(std::sync::Arc::new(
-                cymbra_lingua::PgStatsRepo::new(pool.clone()),
-            )));
+            let deck = std::sync::Arc::new(cymbra_lingua::DeckModule::new(
+                std::sync::Arc::new(cymbra_lingua::PgDeckRepo::new(pool.clone())),
+                marks.clone(),
+            ));
+            let stats = std::sync::Arc::new(cymbra_lingua::StatsModule::new(
+                std::sync::Arc::new(cymbra_lingua::PgStatsRepo::new(pool.clone())),
+                marks,
+            ));
+            let data = std::sync::Arc::new(cymbra_lingua::DataModule::new(data_repo));
             // Ops console (change: add-lingua-back-office): gated by `admin` in the
             // `lingua` scope. `new` parses the embedded pack registry — an invalid
             // committed manifest fails the boot here rather than a request.
@@ -822,11 +830,15 @@ async fn main() -> anyhow::Result<()> {
                     cymbra_lingua::LinguaAdminGrpc::new(admin),
                     strict.clone(),
                 )),
+                Some(cymbra_lingua::proto::lingua_data_service_server::LinguaDataServiceServer::with_interceptor(
+                    cymbra_lingua::DataGrpc::new(data),
+                    strict.clone(),
+                )),
             )
         }
         None => {
             tracing::info!("lingua services disabled (CYMBRA_LINGUA_DATABASE_URL unset)");
-            (None, None, None, None)
+            (None, None, None, None, None)
         }
     };
 
@@ -896,6 +908,9 @@ async fn main() -> anyhow::Result<()> {
     }
     if let Some(lingua_admin_svc) = lingua_admin_svc {
         router = router.add_service(lingua_admin_svc);
+    }
+    if let Some(lingua_data_svc) = lingua_data_svc {
+        router = router.add_service(lingua_data_svc);
     }
     if let Some(jobs_admin_svc) = jobs_admin_svc {
         router = router.add_service(jobs_admin_svc);

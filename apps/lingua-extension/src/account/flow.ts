@@ -28,6 +28,10 @@ export interface AccountViewState {
   /** The handle being typed on the handle step, and its live status. */
   candidate: string;
   handleStatus: HandleStatus;
+  /** The erasure is waiting for the reader's explicit confirmation. */
+  confirmingErase: boolean;
+  /** Where the whole Cymbra account is deleted (the site), in the reader's language. */
+  deleteAccountUrl: string;
 }
 
 export interface PendingEmailStore {
@@ -45,6 +49,19 @@ export interface AccountFlowDeps {
 }
 
 const NAVIGABLE: readonly AccountView[] = ["signin", "signup", "verify", "forgot", "reset"];
+
+/**
+ * The site page that deletes the whole Cymbra account (add-lingua-privacy-controls, D5):
+ * French for a French browser, English otherwise.
+ */
+export function deleteAccountUrl(locale: string): string {
+  return locale.toLowerCase().startsWith("fr")
+    ? "https://cymbra.app/suppression-compte/"
+    : "https://cymbra.app/en/delete-account/";
+}
+
+const ERASED_NOTICE =
+  "Tes données Lingua sont effacées. Tes autres appareils les effaceront à leur prochaine synchronisation.";
 
 /** The view a `#hash` asks for (`#signup`, `#forgot`, `#verify`, …); sign-in otherwise. */
 export function viewFromHash(hash: string): AccountView {
@@ -68,12 +85,16 @@ export class AccountFlow {
     handle: null,
     candidate: "",
     handleStatus: "empty",
+    confirmingErase: false,
+    deleteAccountUrl: "",
   };
 
   constructor(
     private readonly deps: AccountFlowDeps,
     private readonly onChange: (state: AccountViewState) => void = () => {},
-  ) {}
+  ) {
+    this.s.deleteAccountUrl = deleteAccountUrl(deps.locale);
+  }
 
   view(): AccountViewState {
     return { ...this.s, providers: { ...this.s.providers } };
@@ -215,6 +236,23 @@ export class AccountFlow {
     return this.view();
   }
 
+  /** « Effacer mes données Lingua » asks for an explicit confirmation first. */
+  askErase(): AccountViewState {
+    return this.set({ confirmingErase: true, error: null, errorKind: null, notice: null });
+  }
+
+  cancelErase(): AccountViewState {
+    return this.set({ confirmingErase: false });
+  }
+
+  /** Erase the reader's Lingua data (server and this device); the account stays signed in. */
+  async eraseLinguaData(): Promise<AccountViewState> {
+    if (!this.s.confirmingErase) return this.view();
+    const reply = await this.run("eraseData", { type: "account:eraseLinguaData" });
+    if (reply?.ok) return this.set({ confirmingErase: false, notice: ERASED_NOTICE });
+    return this.set({ confirmingErase: false });
+  }
+
   /** The reader typed on the handle step: local status now, the server check comes later. */
   editHandle(candidate: string): AccountViewState {
     this.checkSeq++; // any availability answer still in flight is now stale
@@ -267,7 +305,14 @@ export class AccountFlow {
 
   async signOut(): Promise<AccountViewState> {
     await this.run("signInEmail", { type: "account:signOut" });
-    return this.set({ view: "signin", handle: null, error: null, errorKind: null, notice: null });
+    return this.set({
+      view: "signin",
+      handle: null,
+      error: null,
+      errorKind: null,
+      notice: null,
+      confirmingErase: false,
+    });
   }
 
   /**

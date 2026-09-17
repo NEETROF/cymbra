@@ -11,6 +11,10 @@ import DeleteAccountIsland from '../components/DeleteAccountIsland.vue';
 >
   <section class="container narrow">
     <h1>Supprimer mon compte</h1>
+    <p class="prose">
+      Votre compte Cymbra est commun à toutes les apps Cymbra — Cymbra Music et Cymbra
+      Lingua. Le supprimer efface aussi vos données dans chacune d'elles.
+    </p>
     <DeleteAccountIsland client:load lang="fr" />
 
     <!-- Suppression partielle : déclarée à Play sous « Gérer les données de
@@ -20,13 +24,18 @@ import DeleteAccountIsland from '../components/DeleteAccountIsland.vue';
       <h2>Supprimer seulement certaines données</h2>
       <p>
         Vous n'êtes pas obligé·e de supprimer votre compte pour effacer une partie
-        de vos données. Depuis l'application Cymbra, vous pouvez à tout moment :
+        de vos données. Depuis Cymbra Music, vous pouvez à tout moment :
       </p>
       <ul>
         <li>supprimer une partition que vous avez importée, depuis votre bibliothèque ;</li>
         <li>supprimer une collection, ou en retirer une partition ;</li>
         <li>supprimer un son importé depuis l'écran des sons.</li>
       </ul>
+      <p>
+        Depuis Cymbra Lingua, <strong>Compte → Tes données → Effacer mes données Lingua</strong>
+        efface vos mots, votre niveau, votre deck et vos statistiques Lingua, sur le serveur et sur
+        tous vos appareils, sans toucher à votre compte ni à Cymbra Music.
+      </p>
       <p>
         Pour toute autre demande de suppression ciblée — votre progression, vos
         scores ou une contribution déjà publiée — écrivez à <a href="mailto:privacy@cymbra.app">privacy@cymbra.app</a> en précisant

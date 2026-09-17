@@ -127,7 +127,7 @@ function providerContext(provider: Provider): "signInGoogle" | "signInApple" {
 }
 
 /** Open the account page — a tab, which survives the reader leaving for their mailbox. */
-async function openAccountPage(view: "signup" | "forgot" | "verify" | "handle"): Promise<void> {
+async function openAccountPage(view: "signup" | "forgot" | "verify" | "handle" | "data"): Promise<void> {
   try {
     await chrome.tabs.create({ url: chrome.runtime.getURL(`account.html#${view}`) });
   } catch {
@@ -409,6 +409,7 @@ async function main(): Promise<void> {
   $("acct-signup").addEventListener("click", () => void openAccountPage("signup"));
   $("acct-forgot").addEventListener("click", () => void openAccountPage("forgot"));
   $("acct-handle-open").addEventListener("click", () => void openAccountPage("handle"));
+  $("acct-data").addEventListener("click", () => void openAccountPage("data"));
 
   $("signout").addEventListener("click", async () => {
     const res = (await sendRuntime({ type: "account:signOut" })) as AccountReply | null;

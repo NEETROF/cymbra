@@ -51,6 +51,9 @@ function syncHash(view: AccountView): void {
 function main(): void {
   const root = document.getElementById("account-root");
   if (!root) return;
+  // The popup's « Gérer mes données » opens #data; the hash is replaced by the view once
+  // rendered, so remember the request first.
+  const wantsData = location.hash === "#data";
   // The handle's availability is asked once typing pauses; the controller drops stale answers.
   let handleCheck: ReturnType<typeof setTimeout> | null = null;
   const actions: AccountActions = {
@@ -60,6 +63,9 @@ function main(): void {
       handleCheck = state.handleStatus === "checking" ? setTimeout(() => void flow.checkHandle(), 400) : null;
     },
     commitHandle: () => void flow.commitHandle(),
+    askErase: () => void flow.askErase(),
+    cancelErase: () => void flow.cancelErase(),
+    eraseLinguaData: () => void flow.eraseLinguaData(),
     abandonHandle: () => void flow.abandonHandle(),
     signInEmail: (email, password) => void flow.signInEmail(email, password),
     signUp: (email, password) => void flow.signUp(email, password),
@@ -81,7 +87,12 @@ function main(): void {
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") void flow.collectHandedToken();
   });
-  void flow.init(location.hash).then(() => flow.collectHandedToken());
+  void flow
+    .init(location.hash)
+    .then(() => flow.collectHandedToken())
+    .then(() => {
+      if (wantsData) document.getElementById("data")?.scrollIntoView({ block: "start" });
+    });
 }
 
 main();

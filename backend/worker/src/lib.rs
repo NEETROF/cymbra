@@ -107,6 +107,14 @@ pub async fn purge_user_with(
             .fetch_one(admin_pool)
             .await
             .unwrap_or(false);
+    // The Lingua-only erasure mark (change: add-lingua-privacy-controls) arrives with the
+    // module's migration 0003; probe it on its own so a worker running ahead of the
+    // server's migration still purges the rest.
+    let lingua_erasures_deployed: bool =
+        sqlx::query_scalar("SELECT to_regclass('lingua.data_erasures') IS NOT NULL")
+            .fetch_one(admin_pool)
+            .await
+            .unwrap_or(false);
 
     if plans_deployed {
         // Cancel active web subscriptions on the provider first (outside the
@@ -328,6 +336,12 @@ pub async fn purge_user_with(
             "lingua.daily_stats",
         ] {
             sqlx::query(&format!("DELETE FROM {table} WHERE user_id = $1"))
+                .bind(uid)
+                .execute(&mut *tx)
+                .await?;
+        }
+        if lingua_erasures_deployed {
+            sqlx::query("DELETE FROM lingua.data_erasures WHERE user_id = $1")
                 .bind(uid)
                 .execute(&mut *tx)
                 .await?;

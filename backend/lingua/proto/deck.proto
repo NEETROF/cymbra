@@ -12,8 +12,10 @@ package cymbra.lingua.v1;
 // last-write-wins per card (deletions included). The caller's identity comes from the
 // access token, never the body.
 //
-// PRIVACY ALLOW-LIST: a card carries only the user's own data — the form, the sentence
-// they captured, and the source they attached. The `media` contents are NEVER
+// PRIVACY ALLOW-LIST: a card carries only the user's own data — the form and the sentence
+// they captured. The page it was captured from stays on the device
+// (add-lingua-privacy-controls): `source` is deprecated, sent empty and never stored. The
+// `media` contents are NEVER
 // transported in this change (the schema slot stays local on the originating device);
 // there is no bytes field here.
 service DeckService {
@@ -27,7 +29,10 @@ message CardOp {
   string lemma = 2;
   string surface_form = 3;
   string source_sentence = 4; // the sentence the user captured with the card
-  string source = 5; // the origin the user attached to the card (their own data) — the only URL that may exist
+  // Deprecated (add-lingua-privacy-controls): the page a card was captured from stays on
+  // the device. Clients send it empty; the server ignores any value and returns it empty.
+  // Kept (not reserved) so installed clients that still set it keep working.
+  string source = 5 [deprecated = true];
   string gloss = 6;
   string fsrs_state = 7; // opaque JSON of the FSRS review state
   bool deleted = 8; // tombstone propagated by LWW

@@ -96,6 +96,26 @@ exist before a delivery. The iOS app icon is the opaque, full-bleed render of
 `tool/gen_icons.sh` (App Store Connect refuses transparency); the macOS sizes keep the rounded
 mark.
 
+## App Store privacy (Confidentialité de l'app)
+
+The answers for App Store Connect, from what Lingua actually sends
+(`openspec/changes/add-lingua-privacy-controls`). Page text, reading exposures and a card's
+page address never leave the device, so **Browsing History is not declared**. Nothing is
+used for tracking.
+
+| Apple data type | What it is in Lingua | Linked to the user | Purposes |
+|---|---|---|---|
+| Contact Info → Email Address | the Cymbra account's e-mail (sign-up, verification) | yes | App Functionality |
+| Identifiers → User ID | the Cymbra account and its handle | yes | App Functionality, Analytics |
+| Identifiers → Device ID | the random installation id used by sync | yes | App Functionality |
+| User Content → Other User Content | word statuses, level, deck (word, sentence, gloss, review state) | yes | App Functionality |
+| Usage Data → Product Interaction | daily counts (words learned, reviews, words met) | yes | App Functionality, Analytics (aggregated back-office figures) |
+
+Not collected: browsing history, search history, location, contacts, purchases, diagnostics,
+financial or health data. Privacy policy: `https://cymbra.app/confidentialite/`
+(`/en/privacy/`, Annex B). Account deletion: `https://cymbra.app/suppression-compte/`,
+linked from the extension's account page, next to « Effacer mes données Lingua ».
+
 ## Known issue — popup title on iOS 27
 
 On iOS 27 in light mode, Safari draws the extension popup sheet's native title
