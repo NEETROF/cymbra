@@ -2,6 +2,7 @@ import type { LinguaPort } from "../analyzer/port.ts";
 import { mountReview, type ReviewPage } from "../review/review-page.ts";
 import { type AsyncStorageArea } from "../state/storage.ts";
 import { mountStats } from "../stats/view.ts";
+import { requestSync } from "../sync/messages.ts";
 import { mountSettings, type SettingsView } from "./settings-view.ts";
 
 // The injected in-page panel: a closed-shadow overlay with Révision / Statistiques /
@@ -35,6 +36,7 @@ export class Drawer {
   private reviewPage: ReviewPage | null = null;
   private settings: SettingsView | null = null;
   private open = false;
+  private current: DrawerView = "review";
 
   constructor(private readonly opts: DrawerOptions) {
     this.host = document.createElement("div");
@@ -93,7 +95,16 @@ export class Drawer {
     if (!this.host.isConnected) document.documentElement.appendChild(this.host);
     this.open = true;
     this.panel.hidden = false;
+    void requestSync();
     await this.switchTo(view);
+  }
+
+  /**
+   * Redraw the open view after the engine changed under it (a reading gesture, a sync pull).
+   * Révision keeps a review under way: its page only redraws the current card.
+   */
+  async refresh(): Promise<void> {
+    if (this.open) await this.switchTo(this.current);
   }
 
   hide(): void {
@@ -102,6 +113,7 @@ export class Drawer {
   }
 
   private async switchTo(view: DrawerView): Promise<void> {
+    this.current = view;
     this.reviewBody.hidden = view !== "review";
     this.statsBody.hidden = view !== "stats";
     this.settingsBody.hidden = view !== "settings";

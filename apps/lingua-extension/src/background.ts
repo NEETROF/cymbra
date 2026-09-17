@@ -21,6 +21,8 @@ import {
 } from "./state/oidc.ts";
 import { Session } from "./state/session.ts";
 import { type AsyncStorageArea, hydrateEngine, ROOT_KEY } from "./state/storage.ts";
+import { isSyncMessage, LAST_SYNC_KEY, loadLastSync, type SyncReply } from "./sync/messages.ts";
+import { SyncScheduler } from "./sync/scheduler.ts";
 import { getOrCreateDeviceId, SyncEngine } from "./sync/sync.ts";
 // Static import of the wasm-pack glue (esbuild bundles it into the background). The
 // engine hosted here must NOT dynamic-import: a Chromium service worker forbids
@@ -170,26 +172,6 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
   const syncPort = new WasmAnalyzerPort(staticGlue);
   let deviceIdPromise: Promise<string> | null = null;
   let syncEngine: SyncEngine | null = null;
-  let syncing = false;
-  let syncPending = false;
-  /** The sync run in flight, so an erasure can wait for it instead of racing its push. */
-  let syncRun: Promise<void> | null = null;
-  let erasing = false;
-  let syncTimer: ReturnType<typeof setTimeout> | null = null;
-  const scheduleSync = (delayMs: number): void => {
-    if (!session.state().signedIn) return;
-    // A trigger arriving mid-sync is remembered, not lost, and drained when the current
-    // run finishes — so a mutation made during a slow sync still gets pushed.
-    if (syncing || erasing) {
-      syncPending = true;
-      return;
-    }
-    if (syncTimer !== null) clearTimeout(syncTimer);
-    syncTimer = setTimeout(() => {
-      syncTimer = null;
-      void runSync();
-    }, delayMs);
-  };
   const getSyncEngine = async (): Promise<SyncEngine> => {
     deviceIdPromise ??= getOrCreateDeviceId(localStore);
     syncEngine ??= new SyncEngine({
@@ -200,44 +182,24 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
     });
     return syncEngine;
   };
-  const runSync = (): Promise<void> => {
-    if (syncing || erasing || !session.state().signedIn) return Promise.resolve();
-    syncing = true;
-    syncPending = false;
-    syncRun = doSync();
-    return syncRun;
-  };
-  const doSync = async (): Promise<void> => {
-    try {
-      await (await getSyncEngine()).sync();
-    } catch (e) {
+  const scheduler = new SyncScheduler({
+    sync: async () => (await getSyncEngine()).sync().then(() => undefined),
+    signedIn: () => session.state().signedIn,
+    now: () => Date.now(),
+    lastSynced: async () => (await loadLastSync(localStore)) ?? 0,
+    onSynced: (at) => localStore.set({ [LAST_SYNC_KEY]: at }),
+    onError: (e) => {
       // Reset the memoised device id + engine so a transient failure (e.g. a storage
       // read error) retries next time instead of wedging for the worker's lifetime.
       deviceIdPromise = null;
       syncEngine = null;
       console.warn("[Cymbra Lingua] sync failed:", e);
-    } finally {
-      syncing = false;
-      syncRun = null;
-      if (syncPending) scheduleSync(0); // drain a trigger that arrived during the run
-    }
-  };
+    },
+  });
   // « Effacer mes données Lingua » (add-lingua-privacy-controls): no sync may push between
-  // the server erasure and the local wipe, so new runs are held and a running one awaited.
-  const eraseLinguaData = async (): Promise<void> => {
-    erasing = true;
-    try {
-      if (syncTimer !== null) {
-        clearTimeout(syncTimer);
-        syncTimer = null;
-      }
-      if (syncRun) await syncRun;
-      await (await getSyncEngine()).eraseAll();
-    } finally {
-      erasing = false;
-      scheduleSync(0); // pull back anything created elsewhere since the erasure
-    }
-  };
+  // the server erasure and the local wipe, so runs are held and a running one awaited; the
+  // held triggers then pull back anything created elsewhere since the erasure.
+  const eraseLinguaData = (): Promise<void> => scheduler.exclusive(async () => (await getSyncEngine()).eraseAll());
 
   // Safari (add-lingua-connected-clients D6): Apple and Google run in the host app, which
   // hands the id_token back through this extension's native handler.
@@ -266,7 +228,7 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
         : availableProviders({ google: __GOOGLE_CLIENT_ID__, apple: __APPLE_CLIENT_ID__ }, chrome.identity),
     handOff,
     eraseLinguaData,
-    onSignedIn: () => scheduleSync(0),
+    onSignedIn: () => scheduler.schedule(0),
   };
 
   // One collection at a time: the wake below and a surface opening can ask together, and the
@@ -277,15 +239,16 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
       collecting = null;
     }));
 
-  // Restore a session on wake and sync once if one was resumed. On Safari, also collect an
-  // id_token the host app handed back while the event page was asleep.
+  // Restore a session on wake and sync if one was resumed (unless one ran within the minute:
+  // an event page restarts often). On Safari, also collect an id_token the host app handed
+  // back while the event page was asleep.
   void session.resume().then(async (ok) => {
-    if (ok) scheduleSync(0);
+    if (ok) await scheduler.onOpen();
     if (handOff) await collectHandedToken();
   });
   // A mutation in any context persists the backup → debounced sync.
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === "local" && changes[ROOT_KEY]) scheduleSync(2000);
+    if (area === "local" && changes[ROOT_KEY]) scheduler.schedule(2000);
   });
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -297,6 +260,18 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
           ? collectHandedToken()
           : handleAccountMessage(message, accountDeps);
       void reply.then(sendResponse);
+      return true;
+    }
+    // A surface opened or a page loaded (throttled), or « Synchroniser maintenant » (forced).
+    if (isSyncMessage(message)) {
+      if (!message.force) {
+        void scheduler.onOpen();
+        sendResponse({ ok: true } satisfies SyncReply);
+        return false;
+      }
+      void scheduler
+        .syncNow()
+        .then((error) => sendResponse((error ? { ok: false, error } : { ok: true }) satisfies SyncReply));
       return true;
     }
     const msg = message as { type?: string } | null;

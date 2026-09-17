@@ -3,7 +3,8 @@ import { type AccountReply, type AccountState, PENDING_EMAIL_KEY } from "../acco
 import type { Provider } from "../state/oidc.ts";
 import { hasShortcutEditor } from "../state/platform.ts";
 import { isPersistedSignInError, SIGNIN_ERROR_KEY } from "../state/session.ts";
-import { loadEnabled, loadHudHidden, saveEnabled, saveHudHidden } from "../state/storage.ts";
+import { loadEnabled, loadHudHidden, ROOT_KEY, saveEnabled, saveHudHidden } from "../state/storage.ts";
+import { requestSync } from "../sync/messages.ts";
 import type { CefrLevel } from "../analyzer/types.ts";
 
 // Icon-popup controller (a surface the extension owns). It holds no engine and no
@@ -435,6 +436,15 @@ async function main(): Promise<void> {
   renderAccount(((await sendRuntime({ type: "account:state" })) as AccountReply | null)?.state ?? null);
   await renderProviders();
   await surfaceSignInError(); // show a sign-in failure that happened after the popup closed
+
+  // Opening the popup asks for a sync. What it pulls changes the backup, which the page
+  // restores: re-read the counts once the page has caught up.
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "local" && changes[ROOT_KEY]) {
+      setTimeout(() => void applyEnabled(($("enabled") as HTMLInputElement).checked), 300);
+    }
+  });
+  void requestSync();
 }
 
 void main();
