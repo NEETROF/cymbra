@@ -226,7 +226,7 @@ class ReadingSession {
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "hidden" && this.pendingExposure.size > 0) void this.flushExposure();
       // Back on the tab (possibly after reading on another device): ask for a sync too.
-      if (document.visibilityState === "visible" && this.enabled) void requestSync();
+      if (document.visibilityState === "visible" && this.enabled) void requestSync("page");
     });
     // The word popup is position:fixed and anchored to a word's box; a scroll detaches it
     // (and near the page bottom it could sit half-off-screen). Dismiss it on scroll — a
@@ -276,7 +276,7 @@ class ReadingSession {
     this.observers.start();
     this.exposure.start();
     // A page load asks for a sync; the background runs at most one a minute.
-    void requestSync();
+    void requestSync("page");
   }
 
   /** Reflect the HUD's current visibility: shown only while enabled and not user-hidden. */
@@ -340,6 +340,10 @@ class ReadingSession {
     // A level picked in the drawer's settings lands here (our own echo is ignored below).
     await this.refreshNeedsLevel();
     this.updateHud();
+    // Push what just changed. The background debounces a storage change too, but its timer
+    // dies with a suspended Safari event page; this request keeps the page alive until the
+    // exchange is over (it is throttled, so a burst of gestures still makes one run).
+    void requestSync("surface");
   }
 
   /** Whether the reader still has to choose a level (« Débutant » counts as a choice). */

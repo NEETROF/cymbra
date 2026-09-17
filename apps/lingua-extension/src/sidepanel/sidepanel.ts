@@ -90,7 +90,7 @@ async function main(): Promise<void> {
     if (current === "review" || review?.reviewing()) return;
     void port.restore(backup).then(() => showView(current));
   });
-  void requestSync();
+  void requestSync("surface");
   try {
     const sess = await chrome.storage.session.get(PANEL_VIEW_KEY);
     applyRequestedView(sess[PANEL_VIEW_KEY]);

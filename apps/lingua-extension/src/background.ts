@@ -22,7 +22,7 @@ import {
 import { Session } from "./state/session.ts";
 import { type AsyncStorageArea, hydrateEngine, ROOT_KEY } from "./state/storage.ts";
 import { isSyncMessage, LAST_SYNC_KEY, loadLastSync, type SyncReply } from "./sync/messages.ts";
-import { SyncScheduler } from "./sync/scheduler.ts";
+import { PAGE_INTERVAL_MS, SURFACE_INTERVAL_MS, SyncScheduler } from "./sync/scheduler.ts";
 import { getOrCreateDeviceId, SyncEngine } from "./sync/sync.ts";
 // Static import of the wasm-pack glue (esbuild bundles it into the background). The
 // engine hosted here must NOT dynamic-import: a Chromium service worker forbids
@@ -243,7 +243,7 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
   // an event page restarts often). On Safari, also collect an id_token the host app handed
   // back while the event page was asleep.
   void session.resume().then(async (ok) => {
-    if (ok) await scheduler.onOpen();
+    if (ok) await scheduler.onOpen(SURFACE_INTERVAL_MS);
     if (handOff) await collectHandedToken();
   });
   // A mutation in any context persists the backup → debounced sync.
@@ -263,11 +263,13 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
       return true;
     }
     // A surface opened or a page loaded (throttled), or « Synchroniser maintenant » (forced).
+    // Both answer only once the exchange is over: the pending response is what keeps Safari's
+    // event page alive until then.
     if (isSyncMessage(message)) {
       if (!message.force) {
-        void scheduler.onOpen();
-        sendResponse({ ok: true } satisfies SyncReply);
-        return false;
+        const interval = message.reason === "page" ? PAGE_INTERVAL_MS : SURFACE_INTERVAL_MS;
+        void scheduler.onOpen(interval).then(() => sendResponse({ ok: true } satisfies SyncReply));
+        return true;
       }
       void scheduler
         .syncNow()

@@ -470,7 +470,7 @@ async function main(): Promise<void> {
     }
     if (changes[LAST_SYNC_KEY]) void refreshSync();
   });
-  void requestSync();
+  void requestSync("surface");
 }
 
 void main();

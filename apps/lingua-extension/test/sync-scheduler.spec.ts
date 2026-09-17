@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { OPEN_INTERVAL_MS, SyncScheduler } from "@/sync/scheduler.ts";
+import { PAGE_INTERVAL_MS, SURFACE_INTERVAL_MS, SyncScheduler } from "@/sync/scheduler.ts";
 
 function makeScheduler(options: { signedIn?: boolean; fail?: () => unknown } = {}) {
   let signedIn = options.signedIn ?? true;
@@ -78,19 +78,39 @@ describe("SyncScheduler", () => {
     expect(h.runs).toHaveLength(2);
   });
 
-  it("grants an open at most once a minute, counting the last success", async () => {
+  it("grants an open once per interval, counting the last success", async () => {
     const h = makeScheduler();
 
     await h.scheduler.onOpen();
-    await vi.advanceTimersByTimeAsync(0);
-    await h.scheduler.onOpen(); // same minute: ignored
-    await vi.advanceTimersByTimeAsync(0);
+    await h.scheduler.onOpen(); // straight away: ignored
     expect(h.runs).toHaveLength(1);
 
-    h.advance(OPEN_INTERVAL_MS);
+    h.advance(SURFACE_INTERVAL_MS);
     await h.scheduler.onOpen();
-    await vi.advanceTimersByTimeAsync(0);
     expect(h.runs).toHaveLength(2);
+
+    // A page load waits longer between runs than a surface the reader just opened.
+    h.advance(SURFACE_INTERVAL_MS);
+    await h.scheduler.onOpen(PAGE_INTERVAL_MS);
+    expect(h.runs).toHaveLength(2);
+    h.advance(PAGE_INTERVAL_MS);
+    await h.scheduler.onOpen(PAGE_INTERVAL_MS);
+    expect(h.runs).toHaveLength(3);
+  });
+
+  it("resolves only once its run is over, so the caller can keep the page alive", async () => {
+    const h = makeScheduler();
+    h.blockNextRun();
+
+    let done = false;
+    const open = h.scheduler.onOpen().then(() => (done = true));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(h.runs).toHaveLength(1);
+    expect(done).toBe(false); // the exchange is still going
+
+    h.finish();
+    await open;
+    expect(done).toBe(true);
   });
 
   it("records the last success and reports a failure's category", async () => {
