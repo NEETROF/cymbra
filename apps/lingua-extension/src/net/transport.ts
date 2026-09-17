@@ -3,6 +3,7 @@ import { createGrpcWebTransport } from "@connectrpc/connect-web";
 import { AuthService } from "@/gen/auth_pb";
 import { DeckService } from "@/gen/deck_pb";
 import { KnownWordsService } from "@/gen/known_words_pb";
+import { LinguaDataService } from "@/gen/lingua_data_pb";
 import { StatsService } from "@/gen/stats_pb";
 import { UserService } from "@/gen/user_pb";
 
@@ -100,6 +101,8 @@ export interface Clients {
   knownWords: Client<typeof KnownWordsService>;
   deck: Client<typeof DeckService>;
   stats: Client<typeof StatsService>;
+  /** The reader's Lingua-only erasure and its mark — add-lingua-privacy-controls. */
+  data: Client<typeof LinguaDataService>;
   /** The Cymbra ID account (handle) — add-lingua-account-parity. */
   user: Client<typeof UserService>;
 }
@@ -110,6 +113,7 @@ export function createClients(transport: Transport): Clients {
     knownWords: createClient(KnownWordsService, transport),
     deck: createClient(DeckService, transport),
     stats: createClient(StatsService, transport),
+    data: createClient(LinguaDataService, transport),
     user: createClient(UserService, transport),
   };
 }

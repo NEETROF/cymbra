@@ -71,6 +71,7 @@ function hostSetup(current: AccountProfile | Error = profile(), signedInAtStart 
     session: session as unknown as AccountHostDeps["session"],
     account,
     providers: () => ({ google: false, apple: false }),
+    eraseLinguaData: vi.fn(async () => {}),
     onSignedIn: vi.fn(),
   };
   return { session, account, deps };

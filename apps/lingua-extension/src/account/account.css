@@ -181,8 +181,54 @@
   color: var(--cymbra-lingua-accent);
 }
 
+.account-data {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--cymbra-lingua-border);
+}
+
+.account-subtitle {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.account-warning {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--cymbra-lingua-coral);
+  border-radius: var(--cymbra-lingua-radius);
+  color: var(--cymbra-lingua-coral);
+  font-size: 14px;
+}
+
+.account-danger {
+  cursor: pointer;
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--cymbra-lingua-coral);
+  border-radius: 10px;
+  background: none;
+  color: var(--cymbra-lingua-coral);
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.account-danger:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.account-data .account-link {
+  display: inline-block;
+  margin-top: 6px;
+}
+
 .account-input:focus-visible,
 .account-primary:focus-visible,
+.account-danger:focus-visible,
 .account-provider:focus-visible,
 .account-secondary:focus-visible,
 .account-link:focus-visible {
