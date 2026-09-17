@@ -93,7 +93,9 @@ avoids.
 ### D3 — No gateway: HTTP interactions endpoint with Ed25519 verification
 
 Slash commands arrive as signed HTTP POSTs on `POST /discord/interactions`, served by the
-existing axum/tonic server (Caddy already routes by path). Verification is Ed25519 over
+existing axum/tonic server. Caddy routes by path, but through an **allow-list**: `/discord/*`
+must be added to its `@http` matcher, or the request falls through to tonic and Discord's endpoint
+verification receives a gRPC `UNIMPLEMENTED`. Verification is Ed25519 over
 `timestamp || body` against the application public key, **before** any parsing that could have a
 side effect; `PING` answers `PONG`. This adds no deployable and no persistent connection.
 
@@ -147,7 +149,7 @@ evaluated in UTC with the existing one-day margin). Call sites cannot assemble t
 incorrectly, which is the same reasoning that produced `listable_profiles`.
 
 Storage: an additive column on the user profile in the `user_account` schema, migration
-`backend/user/migrations/0010_discord_visibility.sql`, `NOT NULL DEFAULT false`. It is covered by
+`backend/user/migrations/0011_discord_visibility.sql`, `NOT NULL DEFAULT false`. It is covered by
 the existing `purge_user` erasure job.
 
 ### D7 — Two tiers, one digest, one throttle, one aggregate minimum
@@ -270,10 +272,10 @@ state → Discord role); a claim command is explicit, auditable and works before
 - **Stale rendering data** → the worker reads at publication time, so a message can describe
   state that changed seconds later; acceptable for announcements, and the consent gate is
   re-checked at that same moment.
-- **Migration number collision**: `add-push-notifications` won the race for `0008` and the role
-  vocabulary took `0009`, so this change now writes `0010`. The hazard is not gone — any branch
+- **Migration number collision**: `add-push-notifications` won the race for `0008`, the role
+  vocabulary took `0009` and the Lingua role scope `0010`, so this change now writes `0011`. The hazard is not gone — any branch
   that lands a `user_account` migration first pushes this one up again, and the number is only
-  correct at rebase time (it has already moved twice in this repo, `0012 → 0015`, `0008 → 0010`).
+  correct at rebase time (it has already moved three times in this repo, `0012 → 0015`, `0008 → 0010 → 0011`).
 - **Coverage**: a new workspace member drags the global gate; the pure core must be thoroughly
   tested and the two HTTP adapters added to the ignore regex in the same change, or CI fails.
 

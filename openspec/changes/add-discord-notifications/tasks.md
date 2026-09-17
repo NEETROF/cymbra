@@ -10,7 +10,7 @@
 
 ## 2. Consent + gate (D6)
 
-- [ ] 2.1 Write `backend/user/migrations/0010_discord_visibility.sql`: additive `NOT NULL DEFAULT false` consent column on the user profile (`0008` and `0009` are taken on `main` by push notifications and the role vocabulary; renumber again if another branch lands first)
+- [ ] 2.1 Write `backend/user/migrations/0011_discord_visibility.sql`: additive `NOT NULL DEFAULT false` consent column on the user profile (`0008`–`0010` are taken on `main` by push notifications, the role vocabulary and the Lingua role scope; renumber again if another branch lands first)
 - [ ] 2.2 Add the single fail-closed `UserPort` method returning the subset of ids **nameable on Discord** (consent ON **and** publicly listable **and** age-eligible, UTC with the existing one-day margin); implement it in the Postgres repo
 - [ ] 2.3 Unit-test the gate exhaustively: consent-only, listable-only, both, unknown id, private profile, not-yet-eligible, eligible-today boundary — each asserting exclusion by default
 - [ ] 2.4 Expose read/write of the consent on the account RPC surface (proto + service + tests); writing it MUST NOT change profile visibility, and vice versa
@@ -22,7 +22,7 @@
 - [ ] 3.2 Implement the claim → post → mark-published sequence over that table, including re-claim of a stale claim after the grace period; integration-test the double-execution and crash-between-claim-and-post paths
 - [ ] 3.3 Add `DISCORD_NOTIFY` and `DISCORD_DIGEST` name constants + `JobSpec`s + their `Channel` to `cymbra_jobs::registry`
 - [ ] 3.4 Implement `WebhookDiscordSender` (reqwest, per-channel webhook URLs, no secret in logs or errors) behind the port
-- [ ] 3.5 Add `discord: Option<Arc<dyn DiscordSender>>` to `WorkerCtx` and the `#[sqlxmq::job("discord_notify")]` handler: load event → re-evaluate flags + gate → render → publish; `None` sender or missing channel = successful no-op
+- [ ] 3.5 Add `discord: Option<Arc<dyn DiscordSender>>` to `WorkerCtx` and the `#[sqlxmq::job("discord_notify")]` handler: load event → re-evaluate flags + gate → render → publish; `None` sender or missing channel = successful no-op. The body runs inside `cymbra_jobs::tracked`, like every other handler, so the back-office jobs history records its attempts (same for `discord_digest` and the role job of 6.5)
 - [ ] 3.6 Implement the `discord_digest` handler: one message **per product** into that product's stats channel, at that product's flag-driven cadence, from the existing daily aggregates, with the aggregate minimum applied; seed its schedule in `backend/jobs/migrations/`
 - [ ] 3.7 Build the Music report content: active players, sessions, new accounts, scores rated (and how many reached consensus), catalog items accepted, top 10 pieces played — the top-pieces query MUST join `music.catalog_scores` and count only accepted catalog pieces, since `play_sessions.score_id` also holds **user** score ids and would otherwise publish a private upload's identity
 - [ ] 3.8 Build the top-50 surfaces: weekly post in the product's leaderboard channel and an on-demand slash command, both reusing the same pure ranking core as the top 10
@@ -42,11 +42,11 @@
 
 - [ ] 5.1 Register the `discord.enabled` kill-switch (**default off**) and one flag per product-namespaced category (`discord.music.*`, `discord.id.*`) plus each product's report cadence (daily/weekly) in the flag definitions
 - [ ] 5.2 Read the flags at publication time in both handlers; kill-switch off suppresses every category, a category flag off suppresses only its own
-- [ ] 5.3 Add the flag descriptions/copy so they are self-explanatory in the back-office flags console (no new screen)
+- [ ] 5.3 Add the flag descriptions/copy so they are self-explanatory in the back-office flags console (no new screen): the English `doc` in `backend/feature-flags/src/registry.rs`, the French one in `apps/back-office/src/i18n/flag-descriptions.ts`
 
 ## 6. Bot: interactions endpoint + roles (D3, D10)
 
-- [ ] 6.1 Add `POST /discord/interactions` to the existing HTTP server with Ed25519 verification over `timestamp || body` **before** any parsing with side effects; `401` on missing/invalid signature, `PONG` on `PING`
+- [ ] 6.1 Add `POST /discord/interactions` to the existing HTTP server with Ed25519 verification over `timestamp || body` **before** any parsing with side effects; `401` on missing/invalid signature, `PONG` on `PING`. Add `/discord/*` to the `@http` path allow-list in `backend/deploy/Caddyfile` in the same change: a prefix missing from it falls through to tonic and Discord gets a gRPC `UNIMPLEMENTED`, which fails its endpoint verification
 - [ ] 6.2 Test the endpoint: valid signature accepted, tampered body rejected, stale timestamp rejected, missing headers rejected, `PING` answered — and assert no side effect on every rejection path
 - [ ] 6.3 Implement the account-link slash command: short-lived one-time code issued by the app, resolved by the handler to store the member's Discord user id (single-use, expiring, rate-limited)
 - [ ] 6.4 Implement `BotRestDiscordSender` role grant/revoke (idempotent: granting an existing role or revoking an absent one succeeds) with the bot token from the environment
@@ -65,10 +65,11 @@
 - [ ] 7.2 Write the toggle copy stating **before** opting in that already-published Discord messages stay published, and add ARB strings for `en`/`fr`/`es`/`it`
 - [ ] 7.3 Add the flag-gated community entry point opening the stable `cymbra.app/discord` redirect through the existing launcher seam, with no invite code anywhere in the app
 - [ ] 7.4 Widget-test the toggle (optimistic state, failure path shows a localized message, never a raw error) and the entry point (hidden when the flag is off, target asserted through the injected launcher)
+- [ ] 7.5 Add the `/discord` redirect to `apps/site/public/_redirects` (Cloudflare Pages) as a `302`, so rotating the invite is a one-line site change and no browser caches the old target
 
 ## 8. Legal + docs
 
-- [ ] 8.1 Document the Discord publication, the consent, and its forward-only irreversibility in `docs/legal/politique-de-confidentialite.md` and `docs/legal/privacy-policy.md`
+- [ ] 8.1 Document the Discord publication, the consent, and its forward-only irreversibility in the **published** privacy policy (`apps/site/src/pages/confidentialite.md`, `apps/site/src/pages/en/privacy.md`) and in the drafts it came from (`docs/legal/politique-de-confidentialite.md`, `docs/legal/privacy-policy.md`)
 - [ ] 8.2 Write `backend/discord/README.md`: event categories, the deny-list, the gate, the flags, and the operational runbook (rotate a webhook, hard-kill, read the DLQ)
 
 ## 9. Verification

@@ -10,8 +10,8 @@
 #   - .github/workflows/music-release.yml, as a final job that waits for every
 #     platform to attach its artifacts — announcing earlier would link a release
 #     page with no downloads on it;
-#   - .github/workflows/discord-release.yml, for the components that have no
-#     artifacts to wait for (backend, back-office).
+#   - .github/workflows/release-announce.yml, for the components that have no
+#     artifacts to wait for (backend, back-office, site).
 #
 # Environment:
 #   TAG                   release tag, e.g. music-v1.2.0            (required)
@@ -53,6 +53,7 @@ case "$TAG" in
   music-v*)       PRODUCT="Cymbra Music" ;;
   backend-v*)     PRODUCT="Cymbra Backend" ;;
   back-office-v*) PRODUCT="Cymbra Back Office" ;;
+  site-v*)        PRODUCT="cymbra.app" ;;
   *)              PRODUCT="Cymbra" ;;
 esac
 VERSION="${TAG##*-v}"
