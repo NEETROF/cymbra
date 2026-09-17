@@ -20,7 +20,7 @@ import {
   runAuthFlow,
 } from "./state/oidc.ts";
 import { Session } from "./state/session.ts";
-import { type AsyncStorageArea, hydrateEngine, ROOT_KEY } from "./state/storage.ts";
+import { type AsyncStorageArea, hydrateEngine, ROOT_KEY, SESSION_LOST_KEY } from "./state/storage.ts";
 import { isSyncMessage, LAST_SYNC_KEY, loadLastSync, type SyncReply } from "./sync/messages.ts";
 import { PAGE_INTERVAL_MS, SURFACE_INTERVAL_MS, SyncScheduler } from "./sync/scheduler.ts";
 import { getOrCreateDeviceId, SyncEngine } from "./sync/sync.ts";
@@ -52,6 +52,22 @@ const BADGE_TEXT = "#ffffff";
 
 const READER_SCRIPT_ID = "lingua-reader";
 const ALL_URLS = "<all_urls>";
+
+// A session this device held was refused by the server: the toolbar icon carries an alert
+// dot until the reader signs in again, so "not syncing any more" is visible at a glance
+// (the badge keeps showing the page's percentage).
+const PLAIN_ICON = { 16: "icons/icon-16.png", 32: "icons/icon-32.png", 48: "icons/icon-48.png" };
+const ALERT_ICON = { 16: "icons/icon-alert-16.png", 32: "icons/icon-alert-32.png", 48: "icons/icon-alert-48.png" };
+
+function showSessionLost(lost: boolean): void {
+  // setIcon is unavailable on some builds; the popup and drawer still say it.
+  void chrome.action.setIcon?.({ path: lost ? ALERT_ICON : PLAIN_ICON })?.catch(() => {});
+}
+
+void chrome.storage.local.get(SESSION_LOST_KEY).then((got) => showSessionLost(got[SESSION_LOST_KEY] === true));
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && changes[SESSION_LOST_KEY]) showSessionLost(changes[SESSION_LOST_KEY].newValue === true);
+});
 
 interface StatsMessage {
   type: "stats";

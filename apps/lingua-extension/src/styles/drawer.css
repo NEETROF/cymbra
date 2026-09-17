@@ -65,3 +65,16 @@
 .drawer-close:hover {
   color: var(--cymbra-lingua-text);
 }
+
+/* A session the server refused (add-lingua-account-parity): the reader sees it as soon as
+   the panel opens, without hunting for the account section in the popup. */
+.drawer-lost {
+  margin: 0 12px 10px;
+  padding: 6px 8px;
+  border: 1px solid var(--cymbra-lingua-border-2);
+  border-radius: 8px;
+  background: rgba(255, 180, 84, 0.12);
+  color: var(--cymbra-lingua-amber);
+  font-size: 12px;
+  line-height: 1.4;
+}

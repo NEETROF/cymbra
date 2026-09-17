@@ -31,6 +31,7 @@ import {
   loadHudHidden,
   ROOT_KEY,
   saveBackup,
+  SESSION_LOST_KEY,
 } from "./state/storage.ts";
 import { requestSync } from "./sync/messages.ts";
 import { clearSyncCursors } from "./sync/sync.ts";
@@ -221,6 +222,8 @@ class ReadingSession {
         this.hudHidden = hudToggled.newValue === true;
         this.syncHud();
       }
+      const lost = changes[SESSION_LOST_KEY];
+      if (lost) this.drawer.setSessionLost(lost.newValue === true);
     });
     // Flush pending reading exposures before the tab is hidden / navigated away.
     document.addEventListener("visibilitychange", () => {
@@ -260,6 +263,8 @@ class ReadingSession {
       }
       return false;
     });
+
+    this.drawer.setSessionLost((await storageArea.get(SESSION_LOST_KEY))[SESSION_LOST_KEY] === true);
 
     if (this.enabled) await this.activate();
     else this.pushDisabledBadge();

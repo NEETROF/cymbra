@@ -30,6 +30,13 @@ export const ENABLED_KEY = "cymbra-lingua-enabled";
  */
 export const HUD_HIDDEN_KEY = "cymbra-lingua-hud-hidden";
 
+/**
+ * Set when a session this device held was refused by the server (expired or revoked), so
+ * every surface can say so at a glance instead of silently not syncing. The Session clears
+ * it on any successful sign-in or refresh, and when the reader signs out on purpose.
+ */
+export const SESSION_LOST_KEY = "cymbra-lingua-session-lost";
+
 /** The minimal async storage surface we need; chrome.storage.local satisfies it. */
 export interface AsyncStorageArea {
   get(keys: string | string[] | null): Promise<Record<string, unknown>>;
