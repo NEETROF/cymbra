@@ -21,6 +21,9 @@ beforeEach(() => {
     editHandle: vi.fn(),
     commitHandle: vi.fn(),
     abandonHandle: vi.fn(),
+    askErase: vi.fn(),
+    cancelErase: vi.fn(),
+    eraseLinguaData: vi.fn(),
   };
 });
 
@@ -35,6 +38,8 @@ const state = (over: Partial<AccountViewState> = {}): AccountViewState => ({
   handle: null,
   candidate: "",
   handleStatus: "empty",
+  confirmingErase: false,
+  deleteAccountUrl: "https://cymbra.app/suppression-compte/",
   ...over,
 });
 
@@ -186,5 +191,41 @@ describe("renderAccount", () => {
       render({ view, email: "me@example.com" });
       expect(root.textContent ?? "").not.toMatch(/lemm/i);
     }
+  });
+
+  describe("« Tes données » (add-lingua-privacy-controls)", () => {
+    it("asks before erasing and links to the whole-account deletion with its warning", () => {
+      render({ view: "signedin", handle: "alice" });
+      const section = root.querySelector<HTMLElement>("#data")!;
+      expect(section.textContent).toContain("Music compris");
+      const link = section.querySelector<HTMLAnchorElement>("a")!;
+      expect(link.textContent).toBe("Supprimer mon compte Cymbra");
+      expect(link.href).toBe("https://cymbra.app/suppression-compte/");
+      expect(link.target).toBe("_blank");
+      button("Effacer mes données Lingua…").click();
+      expect(actions.askErase).toHaveBeenCalledOnce();
+      expect(actions.eraseLinguaData).not.toHaveBeenCalled();
+    });
+
+    it("states what the erasure does before confirming it", () => {
+      render({ view: "signedin", confirmingErase: true });
+      const warning = root.querySelector("#data [role=alert]")!;
+      expect(warning.textContent).toContain("tous tes appareils");
+      expect(warning.textContent).toContain("Cymbra Music ne sont pas touchés");
+      button("Oui, effacer mes données Lingua").click();
+      expect(actions.eraseLinguaData).toHaveBeenCalledOnce();
+      button("Annuler").click();
+      expect(actions.cancelErase).toHaveBeenCalledOnce();
+    });
+
+    it("disables the erasure while a call is in flight", () => {
+      render({ view: "signedin", confirmingErase: true, busy: true });
+      expect(button("Oui, effacer mes données Lingua").disabled).toBe(true);
+    });
+
+    it("is only offered to a signed-in reader", () => {
+      render({ view: "signin" });
+      expect(root.querySelector("#data")).toBeNull();
+    });
   });
 });

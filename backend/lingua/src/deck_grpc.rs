@@ -5,7 +5,8 @@
 // License at http://www.apache.org/licenses/LICENSE-2.0
 
 //! Tonic adapter for DeckService — thin transport (coverage-excluded); logic is
-//! host-tested in `deck`. Media contents are never transported.
+//! host-tested in `deck`. Media contents are never transported, and a card's deprecated
+//! `source` is ignored on push and returned empty.
 
 #![allow(clippy::result_large_err)]
 
@@ -36,7 +37,6 @@ fn from_proto(o: CardOp) -> Card {
         lemma: o.lemma,
         surface_form: o.surface_form,
         source_sentence: o.source_sentence,
-        source: o.source,
         gloss: o.gloss,
         fsrs_state: o.fsrs_state,
         deleted: o.deleted,
@@ -46,13 +46,16 @@ fn from_proto(o: CardOp) -> Card {
     }
 }
 
+// `source` is deprecated in the contract; it is only ever written empty.
+#[allow(deprecated)]
 fn to_proto(c: Card) -> CardOp {
     CardOp {
         client_id: c.client_id,
         lemma: c.lemma,
         surface_form: c.surface_form,
         source_sentence: c.source_sentence,
-        source: c.source,
+        // The page a card came from stays on the device (add-lingua-privacy-controls).
+        source: String::new(),
         gloss: c.gloss,
         fsrs_state: c.fsrs_state,
         deleted: c.deleted,

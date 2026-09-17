@@ -340,7 +340,9 @@ impl LinguaEngine {
     /// The whole deck as `CardOp`-shaped JSON for a push to `DeckService`
     /// (one card per lemma; `client_id` = lemma). The FSRS state travels as an
     /// opaque JSON string. `device_id` is left empty for the caller to attach;
-    /// `client_ts` is the card's `updated_at` in millis.
+    /// `client_ts` is the card's `updated_at` in millis. `source` is always empty: the
+    /// page a card was captured from stays on the device (add-lingua-privacy-controls)
+    /// and only the local backup keeps it.
     #[wasm_bindgen(js_name = exportCardOps)]
     pub fn export_card_ops(&self) -> String {
         let ops: Vec<serde_json::Value> = self
@@ -349,17 +351,13 @@ impl LinguaEngine {
             .export_cards()
             .into_iter()
             .map(|(_lang, card)| {
-                let source = match &card.provenance.source {
-                    EncounterSource::Web { url } => url.clone(),
-                    _ => String::new(), // agent-captured cards are local-only; no source on the wire
-                };
                 serde_json::json!({
                     "client_id": card.lemma,
                     "language": "en",
                     "lemma": card.lemma,
                     "surface_form": card.encountered_form,
                     "source_sentence": card.provenance.sentence,
-                    "source": source,
+                    "source": "",
                     "gloss": card.gloss.clone().unwrap_or_default(),
                     "fsrs_state": serde_json::to_string(&card.review).unwrap_or_default(),
                     "deleted": false,
@@ -376,7 +374,8 @@ impl LinguaEngine {
     /// deletion is not an MVP feature (mark-known retires a card, it does not
     /// remove it), and the tombstones a correct delete would need arrive with the
     /// change that adds deletion. `captured_at` has no wire field, so a first-seen
-    /// card takes the op timestamp as a proxy; the deck preserves it thereafter.
+    /// card takes the op timestamp as a proxy; the deck preserves it thereafter, and
+    /// keeps the local page address when the op carries none (it never does now).
     #[wasm_bindgen(js_name = applyCardOps)]
     pub fn apply_card_ops(&mut self, json: &str) -> Result<usize, JsError> {
         let ops: Vec<serde_json::Value> =

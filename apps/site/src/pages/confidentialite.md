@@ -2,14 +2,14 @@
 layout: ../layouts/Legal.astro
 title: Politique de confidentialité
 lang: fr
-updated: 18/08/2026
+updated: 17/09/2026
 ---
 
 La présente politique explique quelles données personnelles les **services Cymbra**
 (édités par **NEETROF**) traitent, pourquoi, sur quelle base légale, avec qui elles sont
 partagées, combien de temps elles sont conservées, et quels sont vos droits. Elle couvre
 le **compte Cymbra**, partagé entre les services Cymbra ; les traitements propres à un
-produit figurent en **annexe** (voir *Annexe A — Cymbra Music*).
+produit figurent en **annexe** (voir *Annexe A — Cymbra Music* et *Annexe B — Cymbra Lingua*).
 
 ## 1. Responsable du traitement
 
@@ -98,7 +98,10 @@ Vous disposez des droits d'**accès**, de **rectification**, d'**effacement**, d
 
 - **Effacement (droit à l'oubli)** : vous pouvez **supprimer votre compte directement
   dans l'application** (Réglages → Supprimer mon compte). La suppression est
-  irréversible et efface vos données personnelles.
+  irréversible et efface vos données personnelles. Votre compte étant commun à toutes les
+  apps Cymbra, sa suppression vaut pour chacune d'elles (Cymbra Music, Cymbra Lingua).
+- **Cymbra Lingua** : vous pouvez aussi effacer **uniquement** vos données Lingua, sans
+  supprimer votre compte (voir *Annexe B*).
 - Pour toute autre demande, écrivez à **privacy@cymbra.app**. Vous pouvez aussi
   introduire une réclamation auprès de la **CNIL** (www.cnil.fr).
 
@@ -132,4 +135,36 @@ en complément du §2, nous traitons :
 - **Conservation** : tant que vous conservez le contenu ; la **suppression** retire le
   fichier et son enregistrement (voir CGU, *Annexe A — Cymbra Music*).
 - Ces fichiers sont **hébergés dans l'Union européenne** (France), comme le reste de vos
+  données.
+
+---
+
+## Annexe B — Cymbra Lingua
+
+**Cymbra Lingua** (extension de navigateur et app Safari) surligne, dans les pages que vous
+lisez, les mots anglais que vous ne connaissez pas encore. En complément du §2 :
+
+**Ce qui reste sur votre appareil.** Le texte des pages est analysé **sur votre appareil** et
+n'est jamais envoyé. Restent aussi sur l'appareil : le détail de vos lectures (quels mots
+vous avez rencontrés, sur quelles pages), l'**adresse de la page** où vous ajoutez un mot à
+votre deck et, si vous n'êtes pas connecté, l'ensemble de vos données Lingua.
+
+**Ce qui est synchronisé si vous êtes connecté** à votre compte Cymbra :
+
+| Donnée | Origine | Finalité |
+|---|---|---|
+| Statut de chaque mot (connu, en apprentissage, ignoré) et niveau d'anglais déclaré | vous | retrouver votre progression sur vos appareils |
+| Deck de révision : le mot, la phrase où vous l'avez trouvé, sa traduction et son état de révision — **sans** l'adresse de la page | vous | réviser sur tous vos appareils |
+| Statistiques par jour (mots appris, révisions, nombre de mots rencontrés) | calculées sur l'appareil | afficher vos statistiques ; chiffres d'usage **agrégés** pour faire fonctionner le service |
+| Identifiant d'installation aléatoire | généré par l'extension | départager deux appareils lors de la synchronisation |
+
+- **Base légale** : exécution du contrat (fourniture de la synchronisation).
+- **Conservation** : tant que votre compte existe, ou jusqu'à ce que vous effaciez vos
+  données Lingua.
+- **Effacer vos données Lingua sans supprimer votre compte** : dans l'extension,
+  *Compte → Tes données → Effacer mes données Lingua*. L'effacement porte sur le serveur
+  et sur tous vos appareils (chacun s'efface à sa prochaine synchronisation) ; votre
+  compte Cymbra et vos autres apps Cymbra ne sont pas touchés.
+- La **suppression de votre compte** (§7) efface aussi toutes vos données Lingua.
+- Ces données sont **hébergées dans l'Union européenne** (France), comme le reste de vos
   données.

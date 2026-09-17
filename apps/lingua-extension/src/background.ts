@@ -172,12 +172,15 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
   let syncEngine: SyncEngine | null = null;
   let syncing = false;
   let syncPending = false;
+  /** The sync run in flight, so an erasure can wait for it instead of racing its push. */
+  let syncRun: Promise<void> | null = null;
+  let erasing = false;
   let syncTimer: ReturnType<typeof setTimeout> | null = null;
   const scheduleSync = (delayMs: number): void => {
     if (!session.state().signedIn) return;
     // A trigger arriving mid-sync is remembered, not lost, and drained when the current
     // run finishes — so a mutation made during a slow sync still gets pushed.
-    if (syncing) {
+    if (syncing || erasing) {
       syncPending = true;
       return;
     }
@@ -187,19 +190,26 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
       void runSync();
     }, delayMs);
   };
-  const runSync = async (): Promise<void> => {
-    if (syncing || !session.state().signedIn) return;
+  const getSyncEngine = async (): Promise<SyncEngine> => {
+    deviceIdPromise ??= getOrCreateDeviceId(localStore);
+    syncEngine ??= new SyncEngine({
+      port: syncPort,
+      storage: localStore,
+      clients: () => ({ knownWords: api().knownWords, deck: api().deck, stats: api().stats, data: api().data }),
+      deviceId: await deviceIdPromise,
+    });
+    return syncEngine;
+  };
+  const runSync = (): Promise<void> => {
+    if (syncing || erasing || !session.state().signedIn) return Promise.resolve();
     syncing = true;
     syncPending = false;
+    syncRun = doSync();
+    return syncRun;
+  };
+  const doSync = async (): Promise<void> => {
     try {
-      deviceIdPromise ??= getOrCreateDeviceId(localStore);
-      syncEngine ??= new SyncEngine({
-        port: syncPort,
-        storage: localStore,
-        clients: () => ({ knownWords: api().knownWords, deck: api().deck, stats: api().stats }),
-        deviceId: await deviceIdPromise,
-      });
-      await syncEngine.sync();
+      await (await getSyncEngine()).sync();
     } catch (e) {
       // Reset the memoised device id + engine so a transient failure (e.g. a storage
       // read error) retries next time instead of wedging for the worker's lifetime.
@@ -208,7 +218,24 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
       console.warn("[Cymbra Lingua] sync failed:", e);
     } finally {
       syncing = false;
+      syncRun = null;
       if (syncPending) scheduleSync(0); // drain a trigger that arrived during the run
+    }
+  };
+  // « Effacer mes données Lingua » (add-lingua-privacy-controls): no sync may push between
+  // the server erasure and the local wipe, so new runs are held and a running one awaited.
+  const eraseLinguaData = async (): Promise<void> => {
+    erasing = true;
+    try {
+      if (syncTimer !== null) {
+        clearTimeout(syncTimer);
+        syncTimer = null;
+      }
+      if (syncRun) await syncRun;
+      await (await getSyncEngine()).eraseAll();
+    } finally {
+      erasing = false;
+      scheduleSync(0); // pull back anything created elsewhere since the erasure
     }
   };
 
@@ -238,6 +265,7 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
         ? native.providers()
         : availableProviders({ google: __GOOGLE_CLIENT_ID__, apple: __APPLE_CLIENT_ID__ }, chrome.identity),
     handOff,
+    eraseLinguaData,
     onSignedIn: () => scheduleSync(0),
   };
 

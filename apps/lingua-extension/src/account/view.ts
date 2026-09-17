@@ -20,6 +20,9 @@ export interface AccountActions {
   editHandle(candidate: string): void;
   commitHandle(): void;
   abandonHandle(): void;
+  askErase(): void;
+  cancelErase(): void;
+  eraseLinguaData(): void;
 }
 
 const HANDLE_HELP: Record<HandleStatus, string> = {
@@ -111,6 +114,57 @@ function messages(s: AccountViewState): HTMLElement[] {
     out.push(e);
   }
   return out;
+}
+
+function button(cls: string, label: string, disabled: boolean, onClick: () => void): HTMLButtonElement {
+  const b = h("button", cls, label);
+  b.type = "button";
+  b.disabled = disabled;
+  b.addEventListener("click", onClick);
+  return b;
+}
+
+/**
+ * « Tes données » (add-lingua-privacy-controls): erase Lingua only, after an explicit
+ * confirmation, or leave for the site to delete the whole Cymbra account.
+ */
+function dataSection(s: AccountViewState, a: AccountActions): HTMLElement {
+  const section = h("section", "account-data");
+  section.id = "data";
+  section.append(h("h3", "account-subtitle", "Tes données"));
+  if (s.confirmingErase) {
+    const warning = h(
+      "p",
+      "account-warning",
+      "Tes mots, ton niveau, ton deck et tes statistiques Lingua seront effacés sur le serveur et sur tous " +
+        "tes appareils. C'est définitif. Ton compte Cymbra et Cymbra Music ne sont pas touchés.",
+    );
+    warning.setAttribute("role", "alert");
+    section.append(
+      warning,
+      button("account-danger", "Oui, effacer mes données Lingua", s.busy, () => a.eraseLinguaData()),
+      button("account-secondary", "Annuler", s.busy, () => a.cancelErase()),
+    );
+  } else {
+    section.append(
+      h("p", "account-lead", "Efface ce que Lingua a enregistré pour ce compte, sans supprimer le compte."),
+      button("account-secondary", "Effacer mes données Lingua…", s.busy, () => a.askErase()),
+    );
+  }
+  section.append(
+    h(
+      "p",
+      "account-footnote",
+      "Supprimer ton compte Cymbra le supprime pour toutes les apps Cymbra, Music compris. " +
+        "Pour ne retirer que Lingua, utilise « Effacer mes données Lingua ».",
+    ),
+  );
+  const del = h("a", "account-link", "Supprimer mon compte Cymbra");
+  del.href = s.deleteAccountUrl;
+  del.target = "_blank";
+  del.rel = "noopener";
+  section.append(del);
+  return section;
 }
 
 export function renderAccount(root: HTMLElement, s: AccountViewState, a: AccountActions): void {
@@ -237,7 +291,7 @@ export function renderAccount(root: HTMLElement, s: AccountViewState, a: Account
       out.type = "button";
       out.disabled = s.busy;
       out.addEventListener("click", () => a.signOut());
-      card.append(out);
+      card.append(out, dataSection(s, a));
       break;
     }
   }

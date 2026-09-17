@@ -2,9 +2,10 @@ import type { Client } from "@connectrpc/connect";
 import type { CardOp, DeclaredLevelOp, LinguaPort, StatusChangeIn } from "../analyzer/port.ts";
 import type { DeckService } from "../gen/deck_pb.ts";
 import type { KnownWordsService } from "../gen/known_words_pb.ts";
+import type { LinguaDataService } from "../gen/lingua_data_pb.ts";
 import type { StatsService } from "../gen/stats_pb.ts";
-import { loadDailyStats } from "../state/dailystats.ts";
-import { type AsyncStorageArea, loadStored, saveBackup } from "../state/storage.ts";
+import { clearDailyStats, loadDailyStats } from "../state/dailystats.ts";
+import { type AsyncStorageArea, DEFAULT_CALIBRATION, loadStored, saveBackup } from "../state/storage.ts";
 
 // The extension sync engine (add-lingua-connected-clients §2). When signed in it pushes
 // the local word-statuses and deck to the cymbra.lingua.v1 services and pulls the merged
@@ -17,10 +18,17 @@ import { type AsyncStorageArea, loadStored, saveBackup } from "../state/storage.
 // are the server's monotonic sequence, stored as plain numbers (JSON-safe) and widened
 // to bigint per call. The push is a full idempotent upload (LWW server-side; replaying a
 // batch is a no-op), which makes first sign-in just a large push — not a special case.
+//
+// Privacy controls (add-lingua-privacy-controls): a card goes up without the page it was
+// captured from, and every sync first reads the account's erasure mark — a device whose
+// store predates a « Effacer mes données Lingua » empties itself before pushing, so it
+// cannot bring the erased data back (design D2/D3).
 
 const DEVICE_KEY = "cymbra-lingua-device";
 const STATUS_CURSOR_KEY = "cymbra-lingua-status-cursor";
 const CARD_CURSOR_KEY = "cymbra-lingua-card-cursor";
+/** The account erasure mark this device last acted on (server epoch millis). */
+const ERASED_AT_KEY = "cymbra-lingua-erased-at";
 /** Max ops per request (bounded batches; the server resumes by outbox offset). */
 const BATCH = 500;
 
@@ -28,6 +36,7 @@ export interface SyncClients {
   knownWords: Client<typeof KnownWordsService>;
   deck: Client<typeof DeckService>;
   stats: Client<typeof StatsService>;
+  data: Client<typeof LinguaDataService>;
 }
 
 export interface SyncDeps {
@@ -48,6 +57,9 @@ export interface SyncResult {
 }
 
 export class SyncEngine {
+  /** The account's erasure mark as of the current sync (0 = never erased). */
+  private erasedAt = 0;
+
   constructor(private readonly deps: SyncDeps) {}
 
   /**
@@ -57,6 +69,7 @@ export class SyncEngine {
    * local state yet. The caller guarantees a signed-in session.
    */
   async sync(): Promise<SyncResult | null> {
+    await this.checkErasure();
     const stored = await loadStored(this.deps.storage);
     if (stored.kind !== "v2") return null; // nothing local to sync yet
     await this.deps.port.restore(stored.backup);
@@ -93,6 +106,57 @@ export class SyncEngine {
     return { pushedStatuses, pushedCards, pulled };
   }
 
+  /**
+   * « Effacer mes données Lingua »: the server first, then this device, then the mark is
+   * remembered so the next sync does not wipe again. A failed call throws before anything
+   * local is touched. The caller serializes it with `sync()`.
+   */
+  async eraseAll(): Promise<void> {
+    const res = await this.deps.clients().data.eraseMyData({});
+    await this.wipeLocal();
+    await this.deps.storage.set({ [ERASED_AT_KEY]: Number(res.erasedAt) });
+    this.erasedAt = Number(res.erasedAt);
+  }
+
+  /**
+   * Read the account's erasure mark before anything is pushed. A mark newer than the one
+   * this device acted on means its store predates the erasure: empty it. A device with no
+   * recorded mark that never synced adopts the current one (its store never held the
+   * erased data); one that did sync before marks existed counts as never having seen any.
+   */
+  private async checkErasure(): Promise<void> {
+    const res = await this.deps.clients().data.getDataState({});
+    const mark = Number(res.erasedAt);
+    const recorded = (await this.deps.storage.get(ERASED_AT_KEY))[ERASED_AT_KEY];
+    const known = typeof recorded === "number" ? recorded : (await this.hasSynced()) ? 0 : mark;
+    if (mark > known) await this.wipeLocal();
+    if (recorded !== mark) await this.deps.storage.set({ [ERASED_AT_KEY]: mark });
+    this.erasedAt = mark;
+  }
+
+  private async hasSynced(): Promise<boolean> {
+    return (await this.loadCursor(STATUS_CURSOR_KEY)) > 0 || (await this.loadCursor(CARD_CURSOR_KEY)) > 0;
+  }
+
+  /**
+   * Empty this device's Lingua store — statuses, deck, level, calibration, exposure
+   * counters, local daily stats — and the pull cursors. The other contexts follow the
+   * saved backup through storage.onChanged.
+   */
+  private async wipeLocal(): Promise<void> {
+    const { port, storage } = this.deps;
+    await port.reset();
+    await port.setCalibration((await port.hasLevels()) ? 0 : DEFAULT_CALIBRATION);
+    await saveBackup(storage, await port.backup());
+    await clearDailyStats(storage);
+    await clearSyncCursors(storage);
+  }
+
+  /** An op made after an erasure is dated after its mark, whatever this device's clock says. */
+  private afterMark(ts: number): number {
+    return this.erasedAt > 0 ? Math.max(ts, this.erasedAt + 1) : ts;
+  }
+
   private async pushStatuses(): Promise<number> {
     const ops = await this.deps.port.exportStatusOps();
     for (const batch of chunk(ops, BATCH)) {
@@ -102,7 +166,7 @@ export class SyncEngine {
           lemma: o.lemma,
           status: o.status,
           provenance: o.provenance,
-          clientTs: BigInt(o.updated_at),
+          clientTs: BigInt(this.afterMark(o.updated_at)),
           deviceId: this.deps.deviceId,
         })),
       });
@@ -124,7 +188,7 @@ export class SyncEngine {
       declaredLevels: levels.map((l) => ({
         language: l.language,
         level: l.level,
-        clientTs: BigInt(l.updated_at),
+        clientTs: BigInt(this.afterMark(l.updated_at)),
         deviceId: this.deps.deviceId,
       })),
     });
@@ -139,11 +203,11 @@ export class SyncEngine {
           lemma: c.lemma,
           surfaceForm: c.surface_form,
           sourceSentence: c.source_sentence,
-          source: c.source,
+          // No `source`: the page a card was captured from stays on the device.
           gloss: c.gloss,
           fsrsState: c.fsrs_state,
           deleted: c.deleted,
-          clientTs: BigInt(c.client_ts),
+          clientTs: BigInt(this.afterMark(c.client_ts)),
           deviceId: this.deps.deviceId,
         })),
       });
@@ -205,7 +269,7 @@ export class SyncEngine {
         lemma: c.lemma,
         surface_form: c.surfaceForm,
         source_sentence: c.sourceSentence,
-        source: c.source,
+        source: "", // never on the wire; the local card keeps its own
         gloss: c.gloss,
         fsrs_state: c.fsrsState,
         deleted: c.deleted,

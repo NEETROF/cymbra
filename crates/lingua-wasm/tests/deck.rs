@@ -121,3 +121,35 @@ fn notice_and_licences_come_from_the_pack() {
     let licences: Vec<String> = serde_json::from_str(&e.licences()).expect("licences json");
     assert!(!licences.is_empty());
 }
+
+#[test]
+fn a_card_syncs_without_its_page_address_and_keeps_it_locally() {
+    // add-lingua-privacy-controls: the page stays on the device.
+    let mut e = engine();
+    e.add_card(
+        "seldom",
+        "seldom",
+        "They seldom ship.",
+        "https://example.com/article",
+        Some("rarement".into()),
+        100.0,
+    );
+    let ops: serde_json::Value = serde_json::from_str(&e.export_card_ops()).unwrap();
+    assert_eq!(ops[0]["source"], "");
+    assert_eq!(ops[0]["source_sentence"], "They seldom ship.");
+
+    // A later edit from another device arrives without an address…
+    let mut edited = ops[0].clone();
+    edited["surface_form"] = "Seldom".into();
+    edited["client_ts"] = (ops[0]["client_ts"].as_i64().unwrap() + 60_000).into();
+    let pulled = serde_json::Value::Array(vec![edited]).to_string();
+    match e.apply_card_ops(&pulled) {
+        Ok(changed) => assert_eq!(changed, 1),
+        Err(_) => panic!("pulled card applies"),
+    }
+    // …and the local backup still knows where the word was captured.
+    assert!(e.backup().contains("https://example.com/article"));
+    let again: serde_json::Value = serde_json::from_str(&e.export_card_ops()).unwrap();
+    assert_eq!(again[0]["surface_form"], "Seldom");
+    assert_eq!(again[0]["source"], "");
+}

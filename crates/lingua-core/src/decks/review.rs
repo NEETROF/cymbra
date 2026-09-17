@@ -29,7 +29,7 @@ use crate::analysis::language::StudiedLanguage;
 use crate::knowledge::state::KnowledgeState;
 use crate::knowledge::status::{KnownSource, Status};
 
-use super::card::Card;
+use super::card::{Card, EncounterSource};
 use super::fsrs::{FsrsParams, Rating};
 
 /// A deck of cards, keyed by studied language then lemma (nested maps keep the
@@ -172,11 +172,13 @@ impl Deck {
         if card.updated_at < existing_ts {
             return false;
         }
-        if let Some(captured_at) = self
-            .get(lang, &card.lemma)
-            .map(|c| c.provenance.captured_at)
-        {
-            card.provenance.captured_at = captured_at;
+        if let Some(existing) = self.get(lang, &card.lemma) {
+            card.provenance.captured_at = existing.provenance.captured_at;
+            // The page a card was captured from never travels (add-lingua-privacy-controls):
+            // a synced card arrives without one and keeps whatever this device recorded.
+            if matches!(&card.provenance.source, EncounterSource::Web { url } if url.is_empty()) {
+                card.provenance.source = existing.provenance.source.clone();
+            }
         }
         let changed = self.get(lang, &card.lemma) != Some(&card);
         self.upsert(lang, card);
@@ -268,7 +270,7 @@ impl ReviewSession {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::decks::card::{EncounterSource, Provenance};
+    use crate::decks::card::Provenance;
 
     const EN: StudiedLanguage = StudiedLanguage::English;
     const DAY: i64 = 86_400;
@@ -457,6 +459,37 @@ mod tests {
         assert_eq!(stored.encountered_form, "ran"); // the update landed
         assert_eq!(stored.provenance.captured_at, 1_000); // encounter time preserved
         assert_eq!(stored.updated_at, 5_000);
+    }
+
+    #[test]
+    fn apply_card_lww_keeps_the_local_page_address() {
+        // The page address never travels, so a synced edit arrives without one.
+        let mut deck = deck_of(&["run"]); // captured on https://example.com
+        let mut synced = card_at("run", 5_000);
+        synced.provenance.source = EncounterSource::Web { url: String::new() };
+        synced.encountered_form = "ran".to_owned();
+        assert!(deck.apply_card_lww(EN, synced));
+
+        let stored = deck.get(EN, "run").unwrap();
+        assert_eq!(stored.encountered_form, "ran");
+        assert_eq!(
+            stored.provenance.source,
+            EncounterSource::Web {
+                url: "https://example.com".to_owned()
+            }
+        );
+    }
+
+    #[test]
+    fn apply_card_lww_leaves_a_new_synced_card_without_an_address() {
+        let mut deck = Deck::new();
+        let mut synced = card_at("city", 10);
+        synced.provenance.source = EncounterSource::Web { url: String::new() };
+        assert!(deck.apply_card_lww(EN, synced));
+        assert_eq!(
+            deck.get(EN, "city").unwrap().provenance.source,
+            EncounterSource::Web { url: String::new() }
+        );
     }
 
     #[test]

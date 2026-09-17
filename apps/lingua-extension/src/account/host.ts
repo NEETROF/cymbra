@@ -38,6 +38,12 @@ export interface AccountHostDeps {
     /** The pending id_token, returned once; null when none is waiting. */
     take: () => Promise<HandedIdToken | null>;
   };
+  /**
+   * Erase the reader's Lingua data on the server and on this device
+   * (add-lingua-privacy-controls), serialized with the sync loop. Throws on failure,
+   * before anything local is touched.
+   */
+  eraseLinguaData: () => Promise<void>;
   /** Called after every successful sign-in (schedules a sync). */
   onSignedIn: () => void;
 }
@@ -106,6 +112,11 @@ export async function handleAccountMessage(msg: AccountMessage, deps: AccountHos
         // Read the account fresh so the write carries the current version and fields.
         const updated = await account.setHandle(msg.handle, await account.profile());
         return { ok: true, state: session.state(), handle: updated.handle };
+      }
+      case "account:eraseLinguaData": {
+        if (!session.state().signedIn) return { ok: false, error: "unauthenticated" };
+        await deps.eraseLinguaData();
+        return { ok: true, state: session.state() };
       }
       case "account:abandon": {
         // Music's rule (handle-onboarding): leaving the handle step deletes a handle-less

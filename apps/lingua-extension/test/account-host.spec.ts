@@ -36,6 +36,7 @@ function setup(overrides: Partial<AccountHostDeps["session"]> = {}) {
       deleteAccount: vi.fn(async () => {}),
     },
     providers: vi.fn(() => ({ google: true, apple: false })),
+    eraseLinguaData: vi.fn(async () => {}),
     onSignedIn: vi.fn(),
   };
   return { session, deps };
@@ -132,6 +133,34 @@ describe("handleAccountMessage", () => {
         state: { signedIn: false },
       });
       expect(session.signInWithIdToken).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("erasing Lingua data (add-lingua-privacy-controls)", () => {
+    it("erases for a signed-in reader and keeps them signed in", async () => {
+      const { deps, session } = setup();
+      await session.signInLocal("a@b.c", "pw");
+      const reply = await handleAccountMessage({ type: "account:eraseLinguaData" }, deps);
+      expect(deps.eraseLinguaData).toHaveBeenCalledOnce();
+      expect(reply).toEqual({ ok: true, state: { signedIn: true } });
+      expect(session.signOut).not.toHaveBeenCalled();
+    });
+
+    it("refuses a signed-out reader without calling the server", async () => {
+      const { deps } = setup();
+      const reply = await handleAccountMessage({ type: "account:eraseLinguaData" }, deps);
+      expect(reply).toEqual({ ok: false, error: "unauthenticated" });
+      expect(deps.eraseLinguaData).not.toHaveBeenCalled();
+    });
+
+    it("reports a failed erasure as a category", async () => {
+      const { deps, session } = setup();
+      await session.signInLocal("a@b.c", "pw");
+      deps.eraseLinguaData.mockRejectedValueOnce(new AccountError("unavailable"));
+      expect(await handleAccountMessage({ type: "account:eraseLinguaData" }, deps)).toEqual({
+        ok: false,
+        error: "unavailable",
+      });
     });
   });
 

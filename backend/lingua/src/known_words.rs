@@ -14,6 +14,8 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use cymbra_platform::Result;
 
+use crate::data::ErasureMarks;
+use crate::data_core::predates_erasure;
 use crate::known_words_core::clamp_ts;
 
 /// One status op from a client outbox (identity is the token's user, never here).
@@ -93,25 +95,31 @@ pub trait KnownWordsRepo: Send + Sync {
 /// Orchestrates status sync over a [`KnownWordsRepo`].
 pub struct KnownWordsModule {
     repo: Arc<dyn KnownWordsRepo>,
+    marks: Arc<dyn ErasureMarks>,
 }
 
 impl KnownWordsModule {
-    pub fn new(repo: Arc<dyn KnownWordsRepo>) -> Self {
-        Self { repo }
+    pub fn new(repo: Arc<dyn KnownWordsRepo>, marks: Arc<dyn ErasureMarks>) -> Self {
+        Self { repo, marks }
     }
 
-    /// Drain a client outbox: clamp each op's timestamp to `now`, apply LWW, and return
-    /// the number that changed state plus the new tip cursor. Idempotent (a replayed
-    /// batch changes nothing).
+    /// Drain a client outbox: clamp each op's timestamp to `now`, drop what predates the
+    /// user's erasure mark (add-lingua-privacy-controls), apply LWW, and return the number
+    /// that changed state plus the new tip cursor. Idempotent (a replayed batch changes
+    /// nothing); dropped ops still count as acknowledged.
     pub async fn push_ops(
         &self,
         user: &str,
         ops: Vec<StatusOpInput>,
         now: i64,
     ) -> Result<(u64, i64)> {
+        let erased_at = self.marks.erased_at(user).await?;
         let mut applied = 0u64;
         for mut op in ops {
             op.client_ts = clamp_ts(op.client_ts, now);
+            if predates_erasure(op.client_ts, erased_at) {
+                continue;
+            }
             if self.repo.apply_op(user, &op).await? {
                 applied += 1;
             }
@@ -128,9 +136,13 @@ impl KnownWordsModule {
         levels: Vec<DeclaredLevelOpInput>,
         now: i64,
     ) -> Result<(u64, i64)> {
+        let erased_at = self.marks.erased_at(user).await?;
         let mut applied = 0u64;
         for mut op in levels {
             op.client_ts = clamp_ts(op.client_ts, now);
+            if predates_erasure(op.client_ts, erased_at) {
+                continue;
+            }
             if self.repo.apply_level_op(user, &op).await? {
                 applied += 1;
             }
@@ -180,6 +192,7 @@ impl KnownWordsModule {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::data::MockErasureMarks;
     use crate::known_words_core::wins;
     use std::collections::HashMap;
     use std::sync::Mutex;
@@ -340,6 +353,16 @@ mod tests {
         }
     }
 
+    fn marks(erased_at: i64) -> Arc<dyn ErasureMarks> {
+        let mut marks = MockErasureMarks::new();
+        marks.expect_erased_at().returning(move |_| Ok(erased_at));
+        Arc::new(marks)
+    }
+
+    fn never_erased() -> Arc<dyn ErasureMarks> {
+        marks(0)
+    }
+
     fn op(lemma: &str, status: &str, ts: i64, device: &str) -> StatusOpInput {
         StatusOpInput {
             language: "en".into(),
@@ -353,7 +376,7 @@ mod tests {
 
     #[tokio::test]
     async fn push_then_pull_propagates() {
-        let module = KnownWordsModule::new(Arc::new(FakeKnownWordsRepo::default()));
+        let module = KnownWordsModule::new(Arc::new(FakeKnownWordsRepo::default()), never_erased());
         let (applied, cursor) = module
             .push_ops("u1", vec![op("seldom", "known", 100, "mac")], 1_000)
             .await
@@ -368,7 +391,7 @@ mod tests {
 
     #[tokio::test]
     async fn provenance_round_trips_on_pull() {
-        let module = KnownWordsModule::new(Arc::new(FakeKnownWordsRepo::default()));
+        let module = KnownWordsModule::new(Arc::new(FakeKnownWordsRepo::default()), never_erased());
         let mut exposure = op("run", "known", 100, "mac");
         exposure.provenance = "exposure".into();
         module.push_ops("u1", vec![exposure], 1_000).await.unwrap();
@@ -379,7 +402,7 @@ mod tests {
 
     #[tokio::test]
     async fn conflict_resolves_by_latest_timestamp_and_both_converge() {
-        let module = KnownWordsModule::new(Arc::new(FakeKnownWordsRepo::default()));
+        let module = KnownWordsModule::new(Arc::new(FakeKnownWordsRepo::default()), never_erased());
         // Mac marks known @100; iPhone marks learning @200 (later) — learning wins.
         module
             .push_ops("u1", vec![op("seldom", "known", 100, "mac")], 1_000)
@@ -398,7 +421,7 @@ mod tests {
 
     #[tokio::test]
     async fn replayed_batch_is_idempotent() {
-        let module = KnownWordsModule::new(Arc::new(FakeKnownWordsRepo::default()));
+        let module = KnownWordsModule::new(Arc::new(FakeKnownWordsRepo::default()), never_erased());
         let batch = vec![
             op("seldom", "known", 100, "mac"),
             op("city", "known", 100, "mac"),
@@ -412,7 +435,7 @@ mod tests {
 
     #[tokio::test]
     async fn future_timestamp_is_clamped_so_a_later_honest_op_can_win() {
-        let module = KnownWordsModule::new(Arc::new(FakeKnownWordsRepo::default()));
+        let module = KnownWordsModule::new(Arc::new(FakeKnownWordsRepo::default()), never_erased());
         // A skewed client pins @9999 but now=1000 → clamped to 1000.
         module
             .push_ops("u1", vec![op("seldom", "ignored", 9_999, "bad")], 1_000)
@@ -429,7 +452,7 @@ mod tests {
 
     #[tokio::test]
     async fn snapshot_etag_short_circuits_when_unchanged() {
-        let module = KnownWordsModule::new(Arc::new(FakeKnownWordsRepo::default()));
+        let module = KnownWordsModule::new(Arc::new(FakeKnownWordsRepo::default()), never_erased());
         module
             .push_ops("u1", vec![op("seldom", "known", 100, "mac")], 1_000)
             .await
@@ -443,7 +466,7 @@ mod tests {
 
     #[tokio::test]
     async fn incremental_pull_only_returns_new_changes() {
-        let module = KnownWordsModule::new(Arc::new(FakeKnownWordsRepo::default()));
+        let module = KnownWordsModule::new(Arc::new(FakeKnownWordsRepo::default()), never_erased());
         module
             .push_ops("u1", vec![op("seldom", "known", 100, "mac")], 1_000)
             .await
@@ -469,7 +492,7 @@ mod tests {
 
     #[tokio::test]
     async fn declared_level_push_then_pull_propagates() {
-        let module = KnownWordsModule::new(Arc::new(FakeKnownWordsRepo::default()));
+        let module = KnownWordsModule::new(Arc::new(FakeKnownWordsRepo::default()), never_erased());
         let (applied, cursor) = module
             .push_level_ops("u1", vec![level_op("B2", 100, "mac")], 1_000)
             .await
@@ -483,7 +506,7 @@ mod tests {
 
     #[tokio::test]
     async fn declared_level_conflict_resolves_by_latest_timestamp() {
-        let module = KnownWordsModule::new(Arc::new(FakeKnownWordsRepo::default()));
+        let module = KnownWordsModule::new(Arc::new(FakeKnownWordsRepo::default()), never_erased());
         module
             .push_level_ops("u1", vec![level_op("B1", 100, "mac")], 1_000)
             .await
@@ -499,7 +522,7 @@ mod tests {
 
     #[tokio::test]
     async fn debutant_syncs_as_an_empty_level() {
-        let module = KnownWordsModule::new(Arc::new(FakeKnownWordsRepo::default()));
+        let module = KnownWordsModule::new(Arc::new(FakeKnownWordsRepo::default()), never_erased());
         module
             .push_level_ops("u1", vec![level_op("", 100, "mac")], 1_000)
             .await
@@ -511,7 +534,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_level_change_advances_the_shared_cursor() {
-        let module = KnownWordsModule::new(Arc::new(FakeKnownWordsRepo::default()));
+        let module = KnownWordsModule::new(Arc::new(FakeKnownWordsRepo::default()), never_erased());
         // A status first, then a level: the level takes the later sequence, so a
         // client caught up on statuses still has the level waiting past its cursor.
         module
@@ -527,5 +550,44 @@ mod tests {
         let (levels, _) = module.pull_level_changes("u1", after_status).await.unwrap();
         assert_eq!(levels.len(), 1);
         assert_eq!(levels[0].level, "B2");
+    }
+
+    #[tokio::test]
+    async fn statuses_and_levels_before_the_erasure_are_not_stored() {
+        let module = KnownWordsModule::new(Arc::new(FakeKnownWordsRepo::default()), marks(500));
+        let (applied, _) = module
+            .push_ops("u1", vec![op("seldom", "known", 500, "mac")], 1_000)
+            .await
+            .unwrap();
+        assert_eq!(applied, 0);
+        let (applied, _) = module
+            .push_level_ops(
+                "u1",
+                vec![DeclaredLevelOpInput {
+                    language: "en".into(),
+                    level: "B2".into(),
+                    client_ts: 499,
+                    device_id: "mac".into(),
+                }],
+                1_000,
+            )
+            .await
+            .unwrap();
+        assert_eq!(applied, 0);
+        assert!(module.pull_changes("u1", 0).await.unwrap().0.is_empty());
+    }
+
+    #[tokio::test]
+    async fn a_decision_after_the_erasure_syncs() {
+        let module = KnownWordsModule::new(Arc::new(FakeKnownWordsRepo::default()), marks(500));
+        let (applied, _) = module
+            .push_ops("u1", vec![op("seldom", "known", 501, "mac")], 1_000)
+            .await
+            .unwrap();
+        assert_eq!(applied, 1);
+        assert_eq!(
+            module.pull_changes("u1", 0).await.unwrap().0[0].lemma,
+            "seldom"
+        );
     }
 }

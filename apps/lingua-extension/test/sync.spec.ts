@@ -33,7 +33,9 @@ function syncPort(over: {
   onApplyLevels?: (c: DeclaredLevelOp[]) => number;
 }) {
   const { port } = makeFakePort();
+  let wiped = false;
   const calls = {
+    resets: 0,
     restored: [] as string[],
     appliedStatuses: [] as StatusChangeIn[][],
     appliedCards: [] as CardOp[][],
@@ -41,9 +43,14 @@ function syncPort(over: {
   };
   port.restore = async (j) => void calls.restored.push(j);
   port.backup = async () => "MERGED-BACKUP";
-  port.exportStatusOps = async () => over.statusOps ?? [];
-  port.exportCardOps = async () => over.cardOps ?? [];
-  port.exportDeclaredLevels = async () => over.levelOps ?? [];
+  // A reset empties what the engine would export afterwards, like the real one.
+  port.reset = async () => {
+    wiped = true;
+    calls.resets += 1;
+  };
+  port.exportStatusOps = async () => (wiped ? [] : (over.statusOps ?? []));
+  port.exportCardOps = async () => (wiped ? [] : (over.cardOps ?? []));
+  port.exportDeclaredLevels = async () => (wiped ? [] : (over.levelOps ?? []));
   port.applyStatusChanges = async (c) => {
     calls.appliedStatuses.push(c);
     return over.onApplyStatuses?.(c) ?? 0;
@@ -95,12 +102,15 @@ function fakeClients() {
   }));
   const pullCards = vi.fn(async () => ({ cards: [] as WireCard[], cursor: 9n }));
   const upsertDailyStats = vi.fn(async () => ({ upserted: 0n }));
+  const getDataState = vi.fn(async () => ({ erasedAt: 0n }));
+  const eraseMyData = vi.fn(async () => ({ erasedAt: 0n }));
   const clients = {
     knownWords: { pushOps, pullChanges },
     deck: { pushCards, pullCards },
     stats: { upsertDailyStats },
+    data: { getDataState, eraseMyData },
   } as unknown as SyncClients;
-  return { clients, pushOps, pushCards, pullChanges, pullCards, upsertDailyStats };
+  return { clients, pushOps, pushCards, pullChanges, pullCards, upsertDailyStats, getDataState, eraseMyData };
 }
 
 beforeEach(() => vi.clearAllMocks());
@@ -161,7 +171,6 @@ describe("SyncEngine", () => {
           lemma: "seldom",
           surfaceForm: "seldom",
           sourceSentence: "s",
-          source: "https://x",
           gloss: "rarement",
           fsrsState: "{}",
           deleted: false,
@@ -266,6 +275,147 @@ describe("SyncEngine", () => {
     await engine.sync();
     // The pulled change is applied on top of the re-loaded latest backup, not B0.
     expect(calls.restored).toEqual(["B0", "B1-concurrent"]);
+  });
+});
+
+describe("SyncEngine privacy controls (add-lingua-privacy-controls)", () => {
+  const MARK = 5_000;
+  const localOps = {
+    statusOps: [{ language: "en", lemma: "run", status: "known", provenance: "manual", updated_at: 1_000 }],
+  };
+
+  it("never sends a card's page address and maps a pulled card to an empty source", async () => {
+    const f = fakeClients();
+    f.pullCards.mockResolvedValueOnce({
+      cards: [
+        {
+          clientId: "seldom",
+          lemma: "seldom",
+          surfaceForm: "seldom",
+          sourceSentence: "s",
+          source: "https://legacy.example",
+          gloss: "",
+          fsrsState: "{}",
+          deleted: false,
+          clientTs: 10n,
+          deviceId: "mac",
+        },
+      ],
+      cursor: 2n,
+    });
+    const { port, calls } = syncPort({
+      cardOps: [
+        {
+          client_id: "seldom",
+          language: "en",
+          lemma: "seldom",
+          surface_form: "seldom",
+          source_sentence: "s",
+          source: "https://page.example",
+          gloss: "",
+          fsrs_state: "{}",
+          deleted: false,
+          client_ts: 5,
+          device_id: "",
+        },
+      ],
+      onApplyCards: () => 1,
+    });
+    const engine = new SyncEngine({ port, storage: fakeArea(v2("B")), clients: () => f.clients, deviceId: "d" });
+    await engine.sync();
+    expect(f.pushCards.mock.calls[0]).not.toHaveProperty("0.cards.0.source");
+    expect(calls.appliedCards[0][0].source).toBe("");
+  });
+
+  it("empties a device whose store predates the erasure before pushing anything", async () => {
+    const f = fakeClients();
+    f.getDataState.mockResolvedValue({ erasedAt: BigInt(MARK) });
+    const { port, calls } = syncPort(localOps);
+    const storage = fakeArea({
+      ...v2("OLD"),
+      "cymbra-lingua-status-cursor": 42,
+      "cymbra-lingua-card-cursor": 7,
+      "cymbra-lingua-daily": { 20000: { exposures: 1, wordsLearned: 1, reviews: 1 } },
+    });
+    const engine = new SyncEngine({ port, storage, clients: () => f.clients, deviceId: "d" });
+    await engine.sync();
+    expect(calls.resets).toBe(1);
+    expect(f.pushOps).not.toHaveBeenCalled(); // nothing old goes back up
+    expect(f.upsertDailyStats).not.toHaveBeenCalled();
+    expect(storage.store["cymbra-lingua-daily"]).toEqual({});
+    expect(f.pullChanges).toHaveBeenCalledWith({ cursor: 0n }); // re-pulls from scratch
+    expect(storage.store["cymbra-lingua-erased-at"]).toBe(MARK);
+  });
+
+  it("adopts the mark without wiping on a device that never synced", async () => {
+    const f = fakeClients();
+    f.getDataState.mockResolvedValue({ erasedAt: BigInt(MARK) });
+    const { port, calls } = syncPort({});
+    const storage = fakeArea(v2("FRESH"));
+    const engine = new SyncEngine({ port, storage, clients: () => f.clients, deviceId: "d" });
+    await engine.sync();
+    expect(calls.resets).toBe(0);
+    expect(storage.store["cymbra-lingua-erased-at"]).toBe(MARK);
+  });
+
+  it("does not wipe again once the mark is known, and dates new decisions after it", async () => {
+    const f = fakeClients();
+    f.getDataState.mockResolvedValue({ erasedAt: BigInt(MARK) });
+    const { port, calls } = syncPort({
+      ...localOps,
+      levelOps: [{ language: "en", level: "B1", updated_at: 2_000 }],
+    });
+    const storage = fakeArea({ ...v2("NEW"), "cymbra-lingua-erased-at": MARK, "cymbra-lingua-status-cursor": 3 });
+    const engine = new SyncEngine({ port, storage, clients: () => f.clients, deviceId: "d" });
+    await engine.sync();
+    expect(calls.resets).toBe(0);
+    expect(f.pushOps).toHaveBeenCalledWith({
+      ops: [expect.objectContaining({ lemma: "run", clientTs: BigInt(MARK + 1) })],
+    });
+    expect(f.pushOps).toHaveBeenCalledWith({
+      ops: [],
+      declaredLevels: [expect.objectContaining({ level: "B1", clientTs: BigInt(MARK + 1) })],
+    });
+  });
+
+  it("keeps timestamps untouched when the account was never erased", async () => {
+    const f = fakeClients();
+    const { port } = syncPort(localOps);
+    const engine = new SyncEngine({ port, storage: fakeArea(v2("B")), clients: () => f.clients, deviceId: "d" });
+    await engine.sync();
+    expect(f.pushOps).toHaveBeenCalledWith({ ops: [expect.objectContaining({ clientTs: 1_000n })] });
+  });
+
+  it("erases on the server, then this device, and remembers the mark", async () => {
+    const f = fakeClients();
+    f.eraseMyData.mockResolvedValue({ erasedAt: BigInt(MARK) });
+    const { port, calls } = syncPort(localOps);
+    const storage = fakeArea({
+      ...v2("OLD"),
+      "cymbra-lingua-status-cursor": 42,
+      "cymbra-lingua-daily": { 20000: { exposures: 1, wordsLearned: 1, reviews: 1 } },
+    });
+    const engine = new SyncEngine({ port, storage, clients: () => f.clients, deviceId: "d" });
+    await engine.eraseAll();
+    expect(f.eraseMyData).toHaveBeenCalledOnce();
+    expect(calls.resets).toBe(1);
+    expect(storage.store[ROOT_KEY]).toEqual({ v: 2, backup: "MERGED-BACKUP" }); // the emptied engine, saved
+    expect(storage.store["cymbra-lingua-daily"]).toEqual({});
+    expect(storage.store["cymbra-lingua-status-cursor"]).toBe(0);
+    expect(storage.store["cymbra-lingua-erased-at"]).toBe(MARK);
+  });
+
+  it("touches nothing locally when the server erasure fails", async () => {
+    const f = fakeClients();
+    f.eraseMyData.mockRejectedValue(new Error("unavailable"));
+    const { port, calls } = syncPort(localOps);
+    const storage = fakeArea({ ...v2("KEEP"), "cymbra-lingua-status-cursor": 42 });
+    const engine = new SyncEngine({ port, storage, clients: () => f.clients, deviceId: "d" });
+    await expect(engine.eraseAll()).rejects.toThrow();
+    expect(calls.resets).toBe(0);
+    expect(storage.store[ROOT_KEY]).toEqual({ v: 2, backup: "KEEP" });
+    expect(storage.store["cymbra-lingua-status-cursor"]).toBe(42);
+    expect(storage.store["cymbra-lingua-erased-at"]).toBeUndefined();
   });
 });
 

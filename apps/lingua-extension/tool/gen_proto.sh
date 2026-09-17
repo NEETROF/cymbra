@@ -6,8 +6,9 @@
 # consumed by @connectrpc/connect's createClient). Run via `yarn gen:proto`.
 #
 # The auth service (sign in / refresh / logout), the user service (the account's handle —
-# add-lingua-account-parity) plus the three cymbra.lingua.v1 sync services (known words,
-# deck, stats) — the *client* side of add-lingua-connected-clients. The lingua admin
+# add-lingua-account-parity) plus the cymbra.lingua.v1 client services: the three sync
+# services (known words, deck, stats) of add-lingua-connected-clients and the reader's
+# data controls (add-lingua-privacy-controls). The lingua admin
 # service is NOT here: that is the back office's, not a client's.
 set -euo pipefail
 
@@ -41,6 +42,6 @@ protoc \
   --plugin=protoc-gen-es="$PLUGIN" \
   --es_out="$OUT_DIR" \
   --es_opt=target=ts \
-  auth.proto user.proto known_words.proto deck.proto stats.proto
+  auth.proto user.proto known_words.proto deck.proto stats.proto lingua_data.proto
 
 echo "Generated TS gRPC stubs into $OUT_DIR"

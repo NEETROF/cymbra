@@ -6,12 +6,14 @@
 
 //! End-to-end convergence (task 3.6): two simulated devices push through the three
 //! modules and converge on read — statuses, cards and stats — over in-memory repos that
-//! apply the same LWW rule the Postgres adapters do.
+//! apply the same LWW rule the Postgres adapters do — and, after a Lingua-only erasure
+//! (add-lingua-privacy-controls), refuse what a device re-uploads from before it.
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
+use cymbra_lingua::data::ErasureMarks;
 use cymbra_lingua::deck::{Card, DeckModule, DeckRepo};
 use cymbra_lingua::known_words::{
     DeclaredLevelChange, DeclaredLevelOpInput, KnownWordsModule, KnownWordsRepo, StatusChange,
@@ -22,6 +24,23 @@ use cymbra_lingua::stats::{DailyStat, StatsModule, StatsRepo};
 use cymbra_platform::Result;
 
 // --- Fakes (server state) --------------------------------------------------------
+
+/// Erasure marks per user (server epoch millis); absent = never erased.
+#[derive(Default)]
+struct Marks(Mutex<HashMap<String, i64>>);
+
+impl Marks {
+    fn erase(&self, user: &str, at: i64) {
+        self.0.lock().unwrap().insert(user.to_owned(), at);
+    }
+}
+
+#[async_trait]
+impl ErasureMarks for Marks {
+    async fn erased_at(&self, user: &str) -> Result<i64> {
+        Ok(self.0.lock().unwrap().get(user).copied().unwrap_or(0))
+    }
+}
 
 #[derive(Default)]
 struct StatusRow {
@@ -246,9 +265,10 @@ fn op(lemma: &str, status: &str, ts: i64, device: &str) -> StatusOpInput {
 #[tokio::test]
 async fn two_devices_converge_across_statuses_cards_and_stats() {
     const USER: &str = "user-1";
-    let words = KnownWordsModule::new(Arc::new(FakeStatuses::default()));
-    let deck = DeckModule::new(Arc::new(FakeDeck::default()));
-    let stats = StatsModule::new(Arc::new(FakeStats::default()));
+    let marks = Arc::new(Marks::default());
+    let words = KnownWordsModule::new(Arc::new(FakeStatuses::default()), marks.clone());
+    let deck = DeckModule::new(Arc::new(FakeDeck::default()), marks.clone());
+    let stats = StatsModule::new(Arc::new(FakeStats::default()), marks);
 
     // Statuses: Mac marks `seldom` known @100; iPhone marks it learning @200 (later wins).
     words
@@ -358,4 +378,87 @@ async fn two_devices_converge_across_statuses_cards_and_stats() {
     assert_eq!(consolidated.len(), 1);
     assert_eq!(consolidated[0].reviews_done, 30);
     assert_eq!(consolidated[0].words_learned, 3);
+}
+
+#[tokio::test]
+async fn a_device_that_missed_the_erasure_cannot_bring_the_data_back() {
+    const ERASED: &str = "reader";
+    const OTHER: &str = "someone-else";
+    const DAY_MS: i64 = 86_400_000;
+    let erased_at = 20_000 * DAY_MS;
+    let now = erased_at + 60_000;
+    let marks = Arc::new(Marks::default());
+    let words = KnownWordsModule::new(Arc::new(FakeStatuses::default()), marks.clone());
+    let deck = DeckModule::new(Arc::new(FakeDeck::default()), marks.clone());
+    let stats = StatsModule::new(Arc::new(FakeStats::default()), marks.clone());
+    // The server-side erasure (rows deleted by the repo, mark recorded).
+    marks.erase(ERASED, erased_at);
+
+    // An old extension on the Mac re-pushes its whole outbox, dated before the erasure.
+    let old_card = Card {
+        client_id: "c1".into(),
+        lemma: "seldom".into(),
+        updated_at: erased_at - 1_000,
+        device_id: "mac".into(),
+        ..Card::default()
+    };
+    let old_stat = DailyStat {
+        day: 19_999,
+        language: "en".into(),
+        device_id: "mac".into(),
+        exposures: 3,
+        words_learned: 1,
+        reviews_done: 4,
+    };
+    words
+        .push_ops(
+            ERASED,
+            vec![op("seldom", "known", erased_at - 1_000, "mac")],
+            now,
+        )
+        .await
+        .unwrap();
+    deck.push_cards(ERASED, vec![old_card.clone()], now)
+        .await
+        .unwrap();
+    stats
+        .upsert_stats(ERASED, vec![old_stat.clone()])
+        .await
+        .unwrap();
+    assert!(words.pull_changes(ERASED, 0).await.unwrap().0.is_empty());
+    assert!(deck.pull_cards(ERASED, 0).await.unwrap().0.is_empty());
+    assert!(
+        stats
+            .get_stats(ERASED, 19_990, 20_010, None)
+            .await
+            .unwrap()
+            .is_empty()
+    );
+
+    // What the reader learns after the erasure syncs again.
+    words
+        .push_ops(
+            ERASED,
+            vec![op("rarely", "known", erased_at + 1, "iphone")],
+            now,
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        words.pull_changes(ERASED, 0).await.unwrap().0[0].lemma,
+        "rarely"
+    );
+
+    // Another account is untouched by this reader's mark.
+    deck.push_cards(OTHER, vec![old_card], now).await.unwrap();
+    stats.upsert_stats(OTHER, vec![old_stat]).await.unwrap();
+    assert_eq!(deck.pull_cards(OTHER, 0).await.unwrap().0.len(), 1);
+    assert_eq!(
+        stats
+            .get_stats(OTHER, 19_990, 20_010, None)
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
 }
