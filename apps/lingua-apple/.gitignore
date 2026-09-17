@@ -6,3 +6,5 @@ DerivedData/
 # Swift package build output (LinguaSignIn)
 .build/
 .swiftpm/
+# Python bytecode (tool/)
+__pycache__/
