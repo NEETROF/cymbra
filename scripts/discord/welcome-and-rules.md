@@ -14,8 +14,11 @@ server locale (`en-US`); the FR copy exists because the project and its first us
 ```
 # Welcome to Cymbra 🎹
 
-Cymbra turns a MIDI keyboard into an interactive piano teacher: load a real score, play it,
-and get scored note by note. Free and open source (Apache-2.0).
+Free and open-source (Apache-2.0) learning tools:
+• **Cymbra Music** turns a MIDI keyboard into an interactive piano teacher: load a real
+score, play it, and get scored note by note.
+• **Cymbra Lingua** is a browser extension (Chrome, Firefox, Safari) that highlights the
+English words you don't know yet, right in the page you are reading.
 
 **Where to go**
 • **#general** — anything Cymbra, pianos, keyboards, music
@@ -24,6 +27,7 @@ and get scored note by note. Free and open source (Apache-2.0).
 • **#scores-and-soundfonts** — catalog additions, requests, licensing questions
 • **#music-ideas** / **#music-bugs** — one post per idea or bug
 • **#music-stats** / **#music-leaderboards** — automated reports, bot only
+• **#lingua-help** — Lingua questions; say which browser you use
 • **#id-help** — accounts, sign-in, linked identities
 • **#dev** — building Cymbra: PRs, engine internals
 
@@ -35,6 +39,7 @@ and get scored note by note. Free and open source (Apache-2.0).
 
 **Links**
 • Site: <https://cymbra.app>
+• Cymbra Music: <https://apps.apple.com/app/id6789557194> (iPhone, iPad, Mac) · <https://play.google.com/store/apps/details?id=com.cymbra.music>
 • Source: <https://github.com/NEETROF/cymbra>
 • Terms: <https://cymbra.app/en/terms/> · Privacy: <https://cymbra.app/en/privacy/>
 
@@ -48,8 +53,11 @@ Read the rules below before posting. Say hi in **#general** — we read everythi
 ```
 # Bienvenue sur Cymbra 🎹
 
-Cymbra transforme un clavier MIDI en professeur de piano interactif : tu charges une vraie
-partition, tu la joues, et tu es noté note par note. Gratuit et open source (Apache-2.0).
+Des outils d'apprentissage gratuits et open source (Apache-2.0) :
+• **Cymbra Music** transforme un clavier MIDI en professeur de piano interactif : tu charges
+une vraie partition, tu la joues, et tu es noté note par note.
+• **Cymbra Lingua** est une extension de navigateur (Chrome, Firefox, Safari) qui surligne
+les mots anglais que tu ne connais pas encore, directement dans la page que tu lis.
 
 **Où aller**
 • **#general** — tout ce qui touche Cymbra, les pianos, les claviers, la musique
@@ -58,6 +66,7 @@ partition, tu la joues, et tu es noté note par note. Gratuit et open source (Ap
 • **#scores-and-soundfonts** — ajouts au catalogue, demandes, questions de licence
 • **#music-ideas** / **#music-bugs** — un post par idée ou par bug
 • **#music-stats** / **#music-leaderboards** — rapports automatiques, bot uniquement
+• **#lingua-help** — questions sur Lingua ; précise ton navigateur
 • **#id-help** — comptes, connexion, identités liées
 • **#dev** — le développement de Cymbra : PRs, moteur
 
@@ -69,6 +78,7 @@ partition, tu la joues, et tu es noté note par note. Gratuit et open source (Ap
 
 **Liens**
 • Site : <https://cymbra.app>
+• Cymbra Music : <https://apps.apple.com/app/id6789557194> (iPhone, iPad, Mac) · <https://play.google.com/store/apps/details?id=com.cymbra.music>
 • Sources : <https://github.com/NEETROF/cymbra>
 • CGU : <https://cymbra.app/cgu/> · Confidentialité : <https://cymbra.app/confidentialite/>
 
