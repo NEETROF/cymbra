@@ -294,6 +294,12 @@ overwrites_for() { # overwrites_for <channel json> → JSON array
 ensure_channel() { # ensure_channel <channel json> <parent id|"">
   local ch="$1" parent="$2" name type tid body id ow
   name="$(jq -r '.name' <<<"$ch")"
+  # Same rule as a category (and the same jq trap): a channel declared with
+  # "enabled": false is not created until its section has something to post.
+  if [[ "$(jq -r 'if has("enabled") then .enabled else true end' <<<"$ch")" != true ]]; then
+    log "· $name (declared, disabled — flip \"enabled\" to create it)"
+    return 0
+  fi
   type="$(jq -r '.type // "text"' <<<"$ch")"
   tid="$(channel_type "$type")"
   ow="$(overwrites_for "$ch")"
