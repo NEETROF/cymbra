@@ -220,6 +220,10 @@ pub struct TokenConfig {
     pub kid: String,
     pub access_ttl: Duration,
     pub refresh_ttl: Duration,
+    /// How long a token that has just been replaced is still accepted, so a client killed
+    /// before it could store the rotated one is not mistaken for a thief (change:
+    /// fix-interrupted-refresh-signouts). Outside it, reuse detection is unchanged.
+    pub refresh_reuse_grace: Duration,
 }
 
 impl Config {
@@ -251,6 +255,7 @@ pub mod config_core {
                 kid: opt(m, "CYMBRA_TOKEN_SIGNING_KID", "k1"),
                 access_ttl: dur(m, "CYMBRA_ACCESS_TOKEN_TTL", "15m")?,
                 refresh_ttl: dur(m, "CYMBRA_REFRESH_TOKEN_TTL", "30d")?,
+                refresh_reuse_grace: dur(m, "CYMBRA_REFRESH_REUSE_GRACE", "60s")?,
             },
             password_min_length: num(m, "CYMBRA_PASSWORD_MIN_LENGTH", 12)?,
             signin_max_attempts: num(m, "CYMBRA_SIGNIN_MAX_ATTEMPTS", 5)?,
@@ -523,6 +528,7 @@ mod tests {
         assert_eq!(c.allowed_audiences, vec!["music", "live"]);
         assert_eq!(c.token.access_ttl, Duration::from_secs(15 * 60));
         assert_eq!(c.token.refresh_ttl, Duration::from_secs(30 * 24 * 3600));
+        assert_eq!(c.token.refresh_reuse_grace, Duration::from_secs(60));
         assert_eq!(c.password_min_length, 12);
         assert!(!c.otlp_enabled);
         // Web-auth cookie: no Domain by default, Secure fail-closed to true.
