@@ -436,6 +436,18 @@ mod tests {
         })
     }
 
+    /// The same, with the rotation grace already elapsed: a replay is theft again, which is
+    /// what the reuse test asserts (change: fix-interrupted-refresh-signouts).
+    fn auth_past_the_rotation_grace(email: &str) -> Arc<dyn AuthPort> {
+        let auth = FakeAuth {
+            sessions: FakeSessionStore::default(),
+            email: email.into(),
+            password: PW.into(),
+        };
+        auth.sessions.expire_reuse_grace();
+        Arc::new(auth)
+    }
+
     fn router(auth: Arc<dyn AuthPort>) -> Router {
         web_auth_router(auth, cfg())
     }
@@ -554,7 +566,7 @@ mod tests {
 
     #[tokio::test]
     async fn refresh_with_reused_cookie_401_and_clears() {
-        let auth = auth_with_verified_user("a@x.dev");
+        let auth = auth_past_the_rotation_grace("a@x.dev");
         let app = router(auth);
         let json =
             format!(r#"{{"kind":"local","email":"a@x.dev","password":"{PW}","audience":"music"}}"#);
@@ -569,7 +581,8 @@ mod tests {
                 .body(Body::empty())
                 .unwrap()
         };
-        // First rotation succeeds; replaying the now-rotated cookie is reuse → 401.
+        // First rotation succeeds; replaying the now-rotated cookie past the grace is
+        // reuse → 401 (inside the grace it would be served: an interrupted client).
         assert_eq!(
             app.clone().oneshot(refresh_req()).await.unwrap().status(),
             StatusCode::OK

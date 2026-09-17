@@ -86,16 +86,13 @@ async fn local_lifecycle_signup_verify_signin_refresh_reuse() -> Result<()> {
     let pair = m.sign_in_local(&email_addr, PW, "music", &client).await?;
     let rotated = m.refresh(&pair.refresh_token).await?;
 
-    // Replaying the original (now rotated) refresh token is reuse → rejected.
-    assert!(matches!(
-        m.refresh(&pair.refresh_token).await,
-        Err(AppError::Unauthenticated(_))
-    ));
-    // The whole family is revoked, so the rotated token is dead too.
-    assert!(matches!(
-        m.refresh(&rotated.refresh_token).await,
-        Err(AppError::Unauthenticated(_))
-    ));
+    // A client killed before it could store the rotated token retries with the one it
+    // still has. Inside the grace it is served, and the session survives (change:
+    // fix-interrupted-refresh-signouts); reuse past the grace is covered by
+    // `pg_session_store_lifecycle_and_reap`, which runs a zero-grace store.
+    let retried = m.refresh(&pair.refresh_token).await?;
+    assert_ne!(retried.refresh_token, rotated.refresh_token);
+    assert!(m.refresh(&retried.refresh_token).await.is_ok());
     Ok(())
 }
 
