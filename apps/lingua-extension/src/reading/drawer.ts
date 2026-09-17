@@ -29,6 +29,7 @@ export interface DrawerOptions {
 export class Drawer {
   private readonly host: HTMLElement;
   private readonly panel: HTMLElement;
+  private readonly lost: HTMLElement;
   private readonly reviewBody: HTMLElement;
   private readonly statsBody: HTMLElement;
   private readonly settingsBody: HTMLElement;
@@ -72,12 +73,17 @@ export class Drawer {
     close.addEventListener("click", () => this.hide());
     head.append(tabsRow, close);
 
+    this.lost = document.createElement("div");
+    this.lost.className = "drawer-lost";
+    this.lost.textContent = "Session expirée — reconnecte-toi depuis le menu de l'extension pour synchroniser.";
+    this.lost.hidden = true;
+
     this.reviewBody = document.createElement("div");
     this.statsBody = document.createElement("div");
     this.statsBody.hidden = true;
     this.settingsBody = document.createElement("div");
     this.settingsBody.hidden = true;
-    this.panel.append(head, this.reviewBody, this.statsBody, this.settingsBody);
+    this.panel.append(head, this.lost, this.reviewBody, this.statsBody, this.settingsBody);
     root.append(style, this.panel);
   }
 
@@ -97,6 +103,11 @@ export class Drawer {
     this.panel.hidden = false;
     void requestSync("surface");
     await this.switchTo(view);
+  }
+
+  /** Show (or hide) the banner for a session the server refused. */
+  setSessionLost(lost: boolean): void {
+    this.lost.hidden = !lost;
   }
 
   /**

@@ -3,7 +3,7 @@ import { Code, ConnectError, type Client } from "@connectrpc/connect";
 import type { AuthService } from "@/gen/auth_pb";
 import { AccountError } from "@/state/auth-errors.ts";
 import { isPersistedSignInError, Session, SIGNIN_ERROR_KEY } from "@/state/session.ts";
-import type { AsyncStorageArea } from "@/state/storage.ts";
+import { type AsyncStorageArea, SESSION_LOST_KEY } from "@/state/storage.ts";
 
 // A store-backed storage area (mirrors the one in storage.spec).
 function fakeArea(seed: Record<string, unknown> = {}): AsyncStorageArea & { store: Record<string, unknown> } {
@@ -71,6 +71,8 @@ function fakeAuth(
       call("signInOidc", req, pairs.oidc ?? { accessToken: "a-oidc", refreshToken: "r-oidc" }),
     async refresh(req: unknown) {
       calls.refresh(req);
+      const code = fail.refresh;
+      if (code != null) throw new ConnectError("refresh failed", code);
       if (pairs.refresh === "fail") throw new Error("refresh rejected");
       return pairs.refresh ?? { accessToken: "a-refreshed", refreshToken: "r-refreshed" };
     },
@@ -272,15 +274,50 @@ describe("Session", () => {
     expect(session.state().signedIn).toBe(false);
   });
 
-  it("purges the session when a refresh fails", async () => {
-    const { client } = fakeAuth({ refresh: "fail" });
-    const { session } = makeSession(client, {
+  it("purges the session, and marks it lost, when the server refuses the refresh token", async () => {
+    const { client } = fakeAuth({}, { refresh: Code.Unauthenticated });
+    const { session, localArea } = makeSession(client, {
       sessionSeed: { [ACCESS_KEY]: "OLD" },
       localSeed: { [REFRESH_KEY]: "R" },
     });
+    await session.resume();
+
     expect(await session.refresh()).toBe(false);
     expect(session.token()).toBeNull();
     expect(session.state().signedIn).toBe(false);
+    expect(localArea.store[SESSION_LOST_KEY]).toBe(true);
+  });
+
+  it("keeps the session when the refresh could not reach the server", async () => {
+    const { client } = fakeAuth({}, { refresh: Code.Unavailable });
+    const { session, localArea } = makeSession(client, { localSeed: { [REFRESH_KEY]: "R" } });
+    await session.resume();
+
+    expect(await session.refresh()).toBe(false); // this attempt failed…
+    expect(session.state().signedIn).toBe(true); // …but the session is still there
+    expect(localArea.store[REFRESH_KEY]).toBe("R");
+    expect(localArea.store[SESSION_LOST_KEY]).not.toBe(true);
+  });
+
+  it("refreshes once for concurrent callers, so a rotated token is never replayed", async () => {
+    const { client, calls } = fakeAuth({});
+    const { session } = makeSession(client, { localSeed: { [REFRESH_KEY]: "R" } });
+    await session.resume(); // one refresh: no cached access token
+
+    const [a, b] = await Promise.all([session.refresh(), session.refresh()]);
+
+    expect([a, b]).toEqual([true, true]);
+    expect(calls.refresh).toHaveBeenCalledTimes(2); // the resume's, then ONE for both callers
+    expect(calls.refresh).toHaveBeenLastCalledWith({ refreshToken: "r-refreshed" });
+  });
+
+  it("clears the lost mark on the next successful sign-in", async () => {
+    const { client } = fakeAuth({ local: { accessToken: "A", refreshToken: "R2" } });
+    const { session, localArea } = makeSession(client, { localSeed: { [SESSION_LOST_KEY]: true } });
+
+    await session.signInLocal("me@example.com", "pw");
+
+    expect(localArea.store[SESSION_LOST_KEY]).toBe(false);
   });
 
   it("revokes the refresh token and purges on sign-out", async () => {
