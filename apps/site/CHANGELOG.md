@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/NEETROF/cymbra/compare/site-v0.5.0...site-v0.6.0) (2026-09-17)
+
+
+### Features
+
+* **lingua:** erase Lingua data and keep card page addresses on the device ([#465](https://github.com/NEETROF/cymbra/issues/465)) ([d7a1a88](https://github.com/NEETROF/cymbra/commit/d7a1a88db637a7ce595eb7ce95d9e818e3770fbe))
+
 ## [0.5.0](https://github.com/NEETROF/cymbra/compare/site-v0.4.0...site-v0.5.0) (2026-09-13)
 
 

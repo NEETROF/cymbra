@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.0](https://github.com/NEETROF/cymbra/compare/backend-v0.29.0...backend-v0.30.0) (2026-09-17)
+
+
+### Features
+
+* **lingua:** erase Lingua data and keep card page addresses on the device ([#465](https://github.com/NEETROF/cymbra/issues/465)) ([d7a1a88](https://github.com/NEETROF/cymbra/commit/d7a1a88db637a7ce595eb7ce95d9e818e3770fbe))
+
 ## [0.29.0](https://github.com/NEETROF/cymbra/compare/backend-v0.28.0...backend-v0.29.0) (2026-09-16)
 
 
