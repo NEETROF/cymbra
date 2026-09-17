@@ -101,7 +101,10 @@ impl Deck {
             return false;
         };
         card.review.retire(now);
-        card.updated_at = now; // sync: retiring is a change
+        // Sync: retiring is a change. Never move the card's clock backwards — a status
+        // pulled from another device can be older than the last local edit, and a card
+        // stamped back in time would lose last-write-wins and keep coming due elsewhere.
+        card.updated_at = card.updated_at.max(now);
         true
     }
 
@@ -436,6 +439,28 @@ mod tests {
         // A card the deck never had is applied.
         assert!(deck.apply_card_lww(EN, card_at("city", 10)));
         assert!(deck.get(EN, "city").is_some());
+    }
+
+    #[test]
+    fn retiring_never_dates_a_card_backwards() {
+        // A status pulled from another device can be older than the last local edit; the
+        // retirement it triggers must not stamp the card back in time (it would then lose
+        // last-write-wins and keep coming due on the other devices).
+        let mut deck = Deck::new();
+        let mut card = card("run");
+        card.updated_at = 9_000;
+        deck.upsert(EN, card);
+
+        assert!(deck.retire(EN, "run", 2_000));
+
+        let stored = deck.get(EN, "run").unwrap();
+        assert_eq!(stored.updated_at, 9_000);
+        assert!(
+            !deck
+                .due_keys(10_000_000_000)
+                .iter()
+                .any(|(_, l)| l == "run")
+        ); // year 2286
     }
 
     #[test]

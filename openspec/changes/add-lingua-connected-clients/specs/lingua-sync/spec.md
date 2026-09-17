@@ -66,6 +66,21 @@ A signed-in device SHALL exchange with the server without the reader having to r
 - **WHEN** any of those moments happens on a signed-out device
 - **THEN** no request is sent
 
+### Requirement: A word reclassified on another device converges here
+Every decision about a word SHALL carry the time it was made, **including putting the word in the deck**, so two devices deciding differently converge on the later decision rather than on an undated one. When a pulled `known` or `ignored` wins for a word this device has carded, the card SHALL stop coming due here — the retirement the gesture performs on the device that decided, which that device could not perform for a card it did not hold. Retiring SHALL NOT date the card before its own last edit.
+
+#### Scenario: Deck on one device, known on the other
+- **WHEN** a reader puts a word in the deck on their Mac, then marks the same word known on their phone, and both devices sync
+- **THEN** both show it as known and its card no longer comes up for review, on either device
+
+#### Scenario: The deck wins when it comes last
+- **WHEN** the word was marked known first and put in the deck afterwards
+- **THEN** both devices show it as being learned, with its card
+
+#### Scenario: A card edited after the status it retires
+- **WHEN** a known dated before this device's last review of that card is pulled and wins the status
+- **THEN** the card is retired and keeps its own, later date, so the retirement reaches the other devices
+
 ### Requirement: Local store merged at first sign-in
 At the first sign-in of a device holding pre-account local state, the client SHALL push that state in full as operations preserving their original timestamps, then pull the merged state; the merge SHALL be the protocol's ordinary last-write-wins (no special case) and SHALL lose nothing: every local status, card or aggregate missing from the server is created.
 

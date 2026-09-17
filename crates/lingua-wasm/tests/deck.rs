@@ -153,3 +153,61 @@ fn a_card_syncs_without_its_page_address_and_keeps_it_locally() {
     assert_eq!(again[0]["surface_form"], "Seldom");
     assert_eq!(again[0]["source"], "");
 }
+
+#[test]
+fn adding_to_the_deck_stamps_the_learning_decision() {
+    // A word put in the deck is a dated decision: unstamped, it would lose last-write-wins
+    // to any decision made on another device, even an older one.
+    let mut e = engine();
+    e.add_card("seldom", "seldom", "They seldom ship.", "", None, 1_700.0);
+
+    let ops: serde_json::Value = serde_json::from_str(&e.export_status_ops()).unwrap();
+    let op = ops
+        .as_array()
+        .and_then(|a| a.iter().find(|o| o["lemma"] == "seldom"))
+        .expect("the status went to the outbox");
+    assert_eq!(op["status"], "learning");
+    assert_eq!(op["updated_at"], 1_700_000); // the capture time, in millis
+}
+
+#[test]
+fn a_word_marked_known_elsewhere_retires_its_card_here() {
+    // The device that marked it known had no card to retire; this one does.
+    let mut e = engine();
+    e.add_card("seldom", "seldom", "They seldom ship.", "", None, 1_700.0);
+    assert_eq!(e.due_count(2_000.0), 1);
+
+    let pulled = r#"[{"language":"en","lemma":"seldom","status":"known","updated_at":1800000}]"#;
+    match e.apply_status_changes(pulled) {
+        Ok(changed) => assert_eq!(changed, 1),
+        Err(_) => panic!("pulled status applies"),
+    }
+
+    assert_eq!(e.deck_count(), 1); // the card is kept…
+    assert_eq!(e.due_count(f64::from(i32::MAX)), 0); // …and never comes due again
+    let card: serde_json::Value = serde_json::from_str(&e.export_card_ops()).unwrap();
+    assert!(card[0]["client_ts"].as_i64().unwrap() >= 1_800_000); // the retirement syncs back
+}
+
+#[test]
+fn retiring_on_a_pulled_known_never_dates_the_card_backwards() {
+    // The card was edited here (a review) AFTER the status was last stamped, so a known
+    // pulled in between wins the status while being older than the card.
+    let mut e = engine();
+    e.add_card("seldom", "seldom", "They seldom ship.", "", None, 1_000.0);
+    e.start_review(9_000.0);
+    e.review_reveal();
+    e.review_grade("good", 9_000.0);
+    let before: serde_json::Value = serde_json::from_str(&e.export_card_ops()).unwrap();
+    assert_eq!(before[0]["client_ts"], 9_000_000);
+
+    let pulled = r#"[{"language":"en","lemma":"seldom","status":"known","updated_at":2000000}]"#;
+    match e.apply_status_changes(pulled) {
+        Ok(changed) => assert_eq!(changed, 1), // the status is newer than the local stamp
+        Err(_) => panic!("pulled status applies"),
+    }
+
+    let after: serde_json::Value = serde_json::from_str(&e.export_card_ops()).unwrap();
+    assert_eq!(after[0]["client_ts"], 9_000_000); // the card keeps its own, later date
+    assert_eq!(e.due_count(f64::from(i32::MAX)), 0); // and it is retired all the same
+}
