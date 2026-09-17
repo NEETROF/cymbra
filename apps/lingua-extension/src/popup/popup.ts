@@ -90,7 +90,9 @@ function renderAccount(state: AccountState | null): void {
 /** Say, above everything else, that a session this device held was refused by the server. */
 async function refreshSessionLost(): Promise<void> {
   const got = await storageArea.get(SESSION_LOST_KEY);
-  $("session-lost").hidden = got[SESSION_LOST_KEY] !== true;
+  // Signed in again (here or in another surface): whatever the mark still says, the
+  // session is not lost — say nothing rather than something stale.
+  $("session-lost").hidden = accountSignedIn || got[SESSION_LOST_KEY] !== true;
 }
 
 /**

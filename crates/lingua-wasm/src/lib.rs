@@ -40,6 +40,13 @@ use wasm_bindgen::prelude::*;
 /// multi-language model arrives with a later change).
 const EN: StudiedLanguage = StudiedLanguage::English;
 
+/// How long a lemma's exposure counter survives without being read again. Promotion wants
+/// reading spread over days; a word not met for a season is not on its way there.
+const EXPOSURE_KEEP_DAYS: i64 = 90;
+/// Ceiling on the counters kept (the most recently read win). It bounds the stored state,
+/// which every surface loads and the browser caps — far above a reader's working vocabulary.
+const EXPOSURE_MAX_LEMMAS: usize = 5_000;
+
 /// A loaded analysis + review engine: one pack, the whole local state, and an
 /// optional in-flight review session.
 #[wasm_bindgen]
@@ -213,8 +220,31 @@ impl LinguaEngine {
     pub fn record_exposures(&mut self, lemmas: Vec<String>, source: &str, at_ms: f64) {
         let secs = (at_ms as i64).div_euclid(1000); // exposure timestamps are epoch seconds
         for lemma in &lemmas {
+            // Only a lemma reading could still confirm is worth a counter. Counting every
+            // word ever met filled the extension's storage — ~200 bytes each, for nothing
+            // when no level is declared (dogfooding, TestFlight 70/71).
+            if !self
+                .state
+                .knowledge
+                .promotable_by_exposure(EN, lemma, &self.pack)
+            {
+                continue;
+            }
             self.state.exposure.record(EN, lemma, 1, source, secs);
         }
+        self.prune_exposures(secs);
+    }
+
+    /// Drop the counters that can no longer confirm anything, then bound what is left. Runs
+    /// on every recording and on restore, so a store saturated by an older build heals.
+    fn prune_exposures(&mut self, now_secs: i64) {
+        let cutoff_day = now_secs.div_euclid(86_400) - EXPOSURE_KEEP_DAYS;
+        let knowledge = &self.state.knowledge;
+        let pack = &self.pack;
+        self.state.exposure.retain(EN, |lemma, exposure| {
+            exposure.last_day >= cutoff_day && knowledge.promotable_by_exposure(EN, lemma, pack)
+        });
+        self.state.exposure.cap_by_recency(EN, EXPOSURE_MAX_LEMMAS);
     }
 
     /// Confirms presumed-known lemmas that reading has vouched for: below the
@@ -628,6 +658,18 @@ impl LinguaEngine {
     pub fn restore(&mut self, json: &str) -> Result<(), JsError> {
         self.state = LinguaState::from_backup(json).map_err(|e| JsError::new(&e.to_string()))?;
         self.session = None;
+        // A backup written by a build that counted every word can be megabytes: bound it
+        // here, so the first load after an update shrinks the store instead of failing to
+        // write it.
+        // No clock here: the store's own latest observation dates the window.
+        let latest = self
+            .state
+            .exposure
+            .lemmas(EN)
+            .map(|(_, e)| e.last_seen)
+            .max()
+            .unwrap_or(0);
+        self.prune_exposures(latest);
         Ok(())
     }
 

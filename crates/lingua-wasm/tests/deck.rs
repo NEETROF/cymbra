@@ -211,3 +211,63 @@ fn retiring_on_a_pulled_known_never_dates_the_card_backwards() {
     assert_eq!(after[0]["client_ts"], 9_000_000); // the card keeps its own, later date
     assert_eq!(e.due_count(f64::from(i32::MAX)), 0); // and it is retired all the same
 }
+
+#[test]
+fn reading_counts_nothing_without_a_declared_level() {
+    // Exposure counters exist only to confirm a presumed word by repeated reading, which
+    // never happens without a declared level. Counting anyway filled the browser's storage.
+    let mut e = engine();
+    let read: Vec<String> = (0..500).map(|i| format!("word{i}")).collect();
+
+    e.record_exposures(
+        read.clone(),
+        "reading:en.wikipedia.org",
+        1_700_000_000_000.0,
+    );
+
+    assert!(
+        e.backup().len() < 2_000,
+        "backup: {} bytes",
+        e.backup().len()
+    );
+}
+
+#[test]
+fn restoring_a_bloated_backup_prunes_it() {
+    // What an older build wrote: a counter for every word ever met, none of which any level
+    // presumed. Restoring must shrink it, so a saturated store heals on the first load.
+    let counters: serde_json::Map<String, serde_json::Value> = (0..2_000)
+        .map(|i| {
+            (
+                format!("word{i}"),
+                serde_json::json!({
+                    "occurrences": 3,
+                    "last_source": "reading:en.wikipedia.org",
+                    "last_seen": 1_700_000_000_i64,
+                    "last_day": 19_675,
+                    "distinct_days": 2
+                }),
+            )
+        })
+        .collect();
+    let mut backup: serde_json::Value = serde_json::from_str(&engine().backup()).unwrap();
+    backup["exposure"]["counters"] = serde_json::json!({ "English": counters });
+    let bloated = backup.to_string();
+    assert!(
+        bloated.len() > 200_000,
+        "the fixture is big: {}",
+        bloated.len()
+    );
+
+    let mut e = engine();
+    match e.restore(&bloated) {
+        Ok(()) => {}
+        Err(_) => panic!("the backup restores"),
+    }
+
+    assert!(
+        e.backup().len() < 5_000,
+        "pruned: {} bytes",
+        e.backup().len()
+    );
+}

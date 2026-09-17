@@ -311,6 +311,43 @@ describe("Session", () => {
     expect(calls.refresh).toHaveBeenLastCalledWith({ refreshToken: "r-refreshed" });
   });
 
+  it("does not let a doomed refresh purge the session a sign-in just created", async () => {
+    // The reader signs in while a refresh with the OLD token is still in flight. That
+    // refresh is bound to fail — its session is gone — but it belongs to the past.
+    let rejectRefresh!: (e: unknown) => void;
+    const client = {
+      refresh: () => new Promise((_resolve, reject) => (rejectRefresh = reject)),
+      signInLocal: async () => ({ accessToken: "A2", refreshToken: "R2" }),
+    } as unknown as Client<typeof AuthService>;
+    const { session, localArea } = makeSession(client, {
+      sessionSeed: { [ACCESS_KEY]: "A1" },
+      localSeed: { [REFRESH_KEY]: "R1" },
+    });
+    await session.resume();
+
+    const doomed = session.refresh();
+    await session.signInLocal("me@example.com", "pw");
+    rejectRefresh(new ConnectError("session gone", Code.Unauthenticated));
+
+    expect(await doomed).toBe(false);
+    expect(session.state().signedIn).toBe(true);
+    expect(session.token()).toBe("A2");
+    expect(localArea.store[REFRESH_KEY]).toBe("R2");
+    expect(localArea.store[SESSION_LOST_KEY]).not.toBe(true);
+  });
+
+  it("clears the lost mark when a cached access token still works", async () => {
+    const { client } = fakeAuth({});
+    const { session, localArea } = makeSession(client, {
+      sessionSeed: { [ACCESS_KEY]: "A" },
+      localSeed: { [REFRESH_KEY]: "R", [SESSION_LOST_KEY]: true },
+    });
+
+    expect(await session.resume()).toBe(true);
+
+    expect(localArea.store[SESSION_LOST_KEY]).toBe(false);
+  });
+
   it("clears the lost mark on the next successful sign-in", async () => {
     const { client } = fakeAuth({ local: { accessToken: "A", refreshToken: "R2" } });
     const { session, localArea } = makeSession(client, { localSeed: { [SESSION_LOST_KEY]: true } });

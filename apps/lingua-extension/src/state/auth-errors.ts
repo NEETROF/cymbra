@@ -6,6 +6,8 @@ import { Code, ConnectError } from "@connectrpc/connect";
 // (apps/music/lib/services/auth_service.dart).
 
 export type AuthErrorKind =
+  /** The browser refused a write: this device's extension storage is full. */
+  | "storageFull"
   | "unauthenticated"
   | "alreadyExists"
   | "rateLimited"
@@ -51,9 +53,23 @@ export class AccountError extends Error {
   }
 }
 
+/**
+ * Whether the browser refused a write because the extension's storage area is full. Every
+ * engine says so in its own words, and only in words — there is no code to test (Safari:
+ * "Exceeded storage quota", Chromium: "QUOTA_BYTES quota exceeded", Firefox:
+ * "QuotaExceededError").
+ */
+export function isStorageFull(e: unknown): boolean {
+  const name = (e as { name?: unknown } | null)?.name;
+  const message = (e as { message?: unknown } | null)?.message;
+  return name === "QuotaExceededError" || (typeof message === "string" && /quota/i.test(message));
+}
+
 /** Categorize anything a flow can throw. A failed fetch (offline) counts as unavailable. */
 export function authErrorOf(e: unknown): AuthErrorKind {
   if (e instanceof AccountError) return e.kind;
+  // Before the TypeError branch: a refused write is not an unreachable server.
+  if (isStorageFull(e)) return "storageFull";
   if (e instanceof ConnectError) {
     if (e.code === Code.Unknown && e.cause instanceof TypeError) return "unavailable";
     return authErrorFromCode(e.code);

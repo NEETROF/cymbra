@@ -19,9 +19,12 @@ export type FlowContext =
 const UNAVAILABLE = "Impossible de joindre Cymbra. Vérifie ta connexion et réessaie.";
 const RATE_LIMITED = "Trop de tentatives. Réessaie dans quelques minutes.";
 const GENERIC = "Une erreur est survenue. Réessaie.";
+const STORAGE_FULL =
+  "La mémoire de l’extension est pleine sur cet appareil. Réinitialise tes données locales dans Réglages, puis réessaie.";
 const BAD_CODE = "Code invalide ou expiré. Demande un nouveau code.";
 
 export function errorCopy(context: FlowContext, kind: AuthErrorKind): string {
+  if (kind === "storageFull") return STORAGE_FULL;
   if (kind === "unavailable") return UNAVAILABLE;
   if (kind === "rateLimited") return RATE_LIMITED;
   switch (context) {
