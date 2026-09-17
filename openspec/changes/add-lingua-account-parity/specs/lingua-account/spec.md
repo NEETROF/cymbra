@@ -113,6 +113,27 @@ The extension SHALL NOT write a password to any storage area or log, and SHALL k
 - **WHEN** a reader has signed up and is waiting on the code step
 - **THEN** `storage.local` and `storage.session` contain the pending email and no password
 
+### Requirement: A session survives everything but the server's refusal
+The extension SHALL refresh its token pair **once at a time**, whoever asks — the background's wake and a call that met UNAUTHENTICATED can ask together — because the server rotates refresh tokens and treats a replayed one as theft, revoking the whole family. It SHALL drop a session only when the server refuses the refresh token, never because the server could not be reached.
+
+When a session this device held is refused, the extension SHALL say so where the reader already looks — an alert mark on the toolbar icon, and a line in the popup and in the in-page panel — and SHALL keep every local word, card and statistic. Signing in again SHALL push that local state as usual, so nothing decided meanwhile is lost.
+
+#### Scenario: Two refreshes at once after an update
+- **WHEN** the extension restarts without its cached access token and a sync call meets UNAUTHENTICATED at the same moment
+- **THEN** a single refresh RPC is sent, the rotated token is never replayed, and the reader stays signed in
+
+#### Scenario: The server cannot be reached
+- **WHEN** a refresh fails with UNAVAILABLE or a deadline overrun
+- **THEN** the session and its refresh token are kept, and a later attempt can succeed
+
+#### Scenario: The session really is gone
+- **WHEN** the server refuses the refresh token
+- **THEN** the reader is signed out, the toolbar icon carries an alert mark, the popup and the panel say the session expired, and every local word, card and statistic is untouched
+
+#### Scenario: Marked words during a lost session
+- **WHEN** the reader marks words while signed out and then signs in again
+- **THEN** those decisions are pushed with their own timestamps and reach the account's other devices
+
 ### Requirement: Auth errors shown in plain words
 The extension SHALL map every auth failure to a category (unauthenticated, already exists, rate limited, failed precondition, invalid argument, unavailable, unknown — a deadline overrun counting as unavailable) and SHALL show the reader a message chosen by that category and the flow's context; a raw gRPC or Connect error string SHALL never be displayed.
 

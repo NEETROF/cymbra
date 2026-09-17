@@ -2,7 +2,7 @@ import type { Client } from "@connectrpc/connect";
 import type { AuthService } from "@/gen/auth_pb";
 import { AccountError, type AuthErrorKind, authErrorOf } from "./auth-errors.ts";
 import type { Provider } from "./oidc.ts";
-import type { AsyncStorageArea } from "./storage.ts";
+import { type AsyncStorageArea, SESSION_LOST_KEY } from "./storage.ts";
 
 // The account session (add-lingua-connected-clients §1, add-lingua-account-parity). Owns
 // the token pair and every AuthService flow: sign-in (email, Google, Apple), sign-up,
@@ -64,6 +64,8 @@ export type ProviderOutcome = "signedIn" | "cancelled";
 export class Session {
   private access: string | null = null;
   private refreshTok: string | null = null;
+  /** The refresh in flight, shared by every caller (see `refresh`). */
+  private refreshing: Promise<boolean> | null = null;
 
   constructor(private readonly deps: SessionDeps) {}
 
@@ -160,16 +162,32 @@ export class Session {
   }
 
   /**
-   * Refresh the access token from the refresh token (the transport's single retry path).
-   * A failed refresh means the session is truly gone, so it purges. Returns success.
+   * Refresh the access token from the refresh token (the transport's single retry path, and
+   * the wake path when the cached access token is gone). Returns success.
+   *
+   * ONE refresh at a time, whoever asks: the server rotates the refresh token and treats a
+   * replayed one as theft, revoking the whole family. Two callers refreshing the same token
+   * — the wake and a 401 arriving together, as after an app update — would sign the reader
+   * out for good (dogfooding, TestFlight 60/61).
+   *
+   * Only an UNAUTHENTICATED answer purges: the session is then really gone. An unreachable
+   * server or a timeout leaves the tokens in place, so a network blip is not a sign-out.
    */
-  async refresh(): Promise<boolean> {
-    if (!this.refreshTok) return false;
+  refresh(): Promise<boolean> {
+    if (!this.refreshTok) return Promise.resolve(false);
+    return (this.refreshing ??= this.refreshOnce().finally(() => {
+      this.refreshing = null;
+    }));
+  }
+
+  private async refreshOnce(): Promise<boolean> {
+    const token = this.refreshTok;
+    if (!token) return false;
     try {
-      await this.store(await this.deps.auth().refresh({ refreshToken: this.refreshTok }));
+      await this.store(await this.deps.auth().refresh({ refreshToken: token }));
       return true;
-    } catch {
-      await this.purge();
+    } catch (e) {
+      if (authErrorOf(e) === "unauthenticated") await this.purge({ lost: true });
       return false;
     }
   }
@@ -192,7 +210,7 @@ export class Session {
     this.refreshTok = pair.refreshToken;
     // Clear any stale sign-in error alongside the new access token (one success wipes it).
     await this.deps.sessionArea.set({ [ACCESS_KEY]: pair.accessToken, [SIGNIN_ERROR_KEY]: null });
-    await this.deps.localArea.set({ [REFRESH_KEY]: pair.refreshToken });
+    await this.deps.localArea.set({ [REFRESH_KEY]: pair.refreshToken, [SESSION_LOST_KEY]: false });
   }
 
   /** Persist a provider failure so the (possibly torn-down) popup can show it on reopen. */
@@ -204,11 +222,13 @@ export class Session {
     }
   }
 
-  private async purge(): Promise<void> {
+  /** Drop the session locally. `lost` marks one the server refused, as opposed to a sign-out. */
+  private async purge(opts: { lost?: boolean } = {}): Promise<void> {
+    const had = this.refreshTok != null;
     this.access = null;
     this.refreshTok = null;
     await this.deps.sessionArea.set({ [ACCESS_KEY]: null });
-    await this.deps.localArea.set({ [REFRESH_KEY]: null });
+    await this.deps.localArea.set({ [REFRESH_KEY]: null, [SESSION_LOST_KEY]: Boolean(opts.lost) && had });
   }
 }
 

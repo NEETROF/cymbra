@@ -3,7 +3,14 @@ import { type AccountReply, type AccountState, PENDING_EMAIL_KEY } from "../acco
 import type { Provider } from "../state/oidc.ts";
 import { hasShortcutEditor } from "../state/platform.ts";
 import { isPersistedSignInError, SIGNIN_ERROR_KEY } from "../state/session.ts";
-import { loadEnabled, loadHudHidden, ROOT_KEY, saveEnabled, saveHudHidden } from "../state/storage.ts";
+import {
+  loadEnabled,
+  loadHudHidden,
+  ROOT_KEY,
+  saveEnabled,
+  saveHudHidden,
+  SESSION_LOST_KEY,
+} from "../state/storage.ts";
 import { LAST_SYNC_KEY, loadLastSync, requestSync, syncNow } from "../sync/messages.ts";
 import { lastSyncLabel, syncErrorCopy } from "../sync/status.ts";
 import type { CefrLevel } from "../analyzer/types.ts";
@@ -78,6 +85,12 @@ function renderAccount(state: AccountState | null): void {
   if (signedIn) void renderHandle();
   else $("acct-handle-cta").hidden = true;
   void refreshSync();
+}
+
+/** Say, above everything else, that a session this device held was refused by the server. */
+async function refreshSessionLost(): Promise<void> {
+  const got = await storageArea.get(SESSION_LOST_KEY);
+  $("session-lost").hidden = got[SESSION_LOST_KEY] !== true;
 }
 
 /**
@@ -463,12 +476,14 @@ async function main(): Promise<void> {
   // Opening the popup asks for a sync. What it pulls changes the backup, which the page
   // restores: re-read the counts once the page has caught up.
   $("sync-now").addEventListener("click", () => void runSyncNow());
+  await refreshSessionLost();
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
     if (changes[ROOT_KEY]) {
       setTimeout(() => void applyEnabled(($("enabled") as HTMLInputElement).checked), 300);
     }
     if (changes[LAST_SYNC_KEY]) void refreshSync();
+    if (changes[SESSION_LOST_KEY]) void refreshSessionLost();
   });
   void requestSync("surface");
 }
