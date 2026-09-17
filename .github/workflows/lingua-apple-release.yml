@@ -1,0 +1,221 @@
+name: lingua-apple-release
+
+# Signs Cymbra Lingua — the Apple host app of the Safari extension (apps/lingua-apple) —
+# for the App Store and, when asked, delivers it to App Store Connect / TestFlight.
+#
+# Dispatch-only. A plain dispatch builds and signs both platforms from the selected branch
+# and keeps the .ipa and the .pkg as workflow artifacts; `deliver` also uploads them, which
+# consumes their build numbers.
+#
+# The bundled extension is the production build: the real EN→FR pack (sources cached
+# between runs) and LINGUA_GRPC_WEB_URL=https://api.cymbra.app — the archive's copy phase
+# refuses a bundle that still calls localhost.
+#
+# Build numbers: iOS and macOS share one App Store Connect record, whose build numbers
+# must increase across both platforms — iOS = run×10, macOS = run×10+1 (as music-release).
+#
+# Required secrets:
+#   IOS_DIST_CERT_BASE64 / IOS_DIST_CERT_PASSWORD
+#       Apple Distribution (.p12) — shared with music-release; signs both platforms.
+#   MAC_INSTALLER_CERT_BASE64 / MAC_INSTALLER_CERT_PASSWORD
+#       Mac Installer Distribution (.p12) — shared with music-release; signs the .pkg.
+#   LINGUA_IOS_APP_PROFILE_BASE64         App Store profile, com.cymbra.lingua (iOS)
+#   LINGUA_IOS_EXTENSION_PROFILE_BASE64   App Store profile, com.cymbra.lingua.Extension (iOS)
+#   LINGUA_MAC_APP_PROFILE_BASE64         Mac App Store profile, com.cymbra.lingua
+#   LINGUA_MAC_EXTENSION_PROFILE_BASE64   Mac App Store profile, com.cymbra.lingua.Extension
+#       Profiles created by hand in the developer portal (Xcode-managed "Team Store"
+#       profiles are refused by manual signing), with the Apple Distribution certificate.
+#   ASC_API_KEY_ID / ASC_API_ISSUER_ID / ASC_API_KEY_P8
+#       App Store Connect upload, shared with music-release (needed only with `deliver`).
+on:
+  workflow_dispatch:
+    inputs:
+      deliver:
+        description: "Upload both packages to App Store Connect / TestFlight (consumes their build numbers)."
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lingua-apple-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-latest
+    env:
+      TEAM_ID: VMFJ6KRW77
+      IOS_BUILD: ${{ github.run_number }}0
+      MACOS_BUILD: ${{ github.run_number }}1
+    steps:
+      - uses: actions/checkout@v5
+      - name: Check signing secrets
+        env:
+          DIST_CERT: ${{ secrets.IOS_DIST_CERT_BASE64 }}
+          INSTALLER_CERT: ${{ secrets.MAC_INSTALLER_CERT_BASE64 }}
+          IOS_APP: ${{ secrets.LINGUA_IOS_APP_PROFILE_BASE64 }}
+          IOS_EXT: ${{ secrets.LINGUA_IOS_EXTENSION_PROFILE_BASE64 }}
+          MAC_APP: ${{ secrets.LINGUA_MAC_APP_PROFILE_BASE64 }}
+          MAC_EXT: ${{ secrets.LINGUA_MAC_EXTENSION_PROFILE_BASE64 }}
+        run: |
+          missing=""
+          [ -n "${DIST_CERT:-}" ] || missing="$missing IOS_DIST_CERT_BASE64"
+          [ -n "${INSTALLER_CERT:-}" ] || missing="$missing MAC_INSTALLER_CERT_BASE64"
+          [ -n "${IOS_APP:-}" ] || missing="$missing LINGUA_IOS_APP_PROFILE_BASE64"
+          [ -n "${IOS_EXT:-}" ] || missing="$missing LINGUA_IOS_EXTENSION_PROFILE_BASE64"
+          [ -n "${MAC_APP:-}" ] || missing="$missing LINGUA_MAC_APP_PROFILE_BASE64"
+          [ -n "${MAC_EXT:-}" ] || missing="$missing LINGUA_MAC_EXTENSION_PROFILE_BASE64"
+          if [ -n "$missing" ]; then
+            echo "::error::signing secrets missing:$missing. See apps/lingua-apple/README.md (Release)."
+            exit 1
+          fi
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: taiki-e/install-action@wasm-pack
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Set up protoc (gRPC-web stubs)
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Enable Corepack (Yarn Berry)
+        run: corepack enable
+      # The real pack's upstream sources (~200 MB, mostly the kaikki extract). The build
+      # reuses whatever is present, so a cache hit skips the downloads.
+      - name: Cache the pack sources
+        uses: actions/cache@v4
+        with:
+          path: scripts/lingua-data/work
+          key: lingua-pack-sources-en-fr-${{ hashFiles('scripts/lingua-data/build.sh', 'scripts/lingua-data/reduce-en-fr.py') }}
+          restore-keys: lingua-pack-sources-en-fr-
+      - name: Build the extension for production
+        working-directory: apps/lingua-extension
+        run: |
+          set -euo pipefail
+          pip install --quiet wordfreq
+          yarn install --immutable
+          yarn gen:wasm
+          yarn gen:proto
+          yarn gen:pack:real
+          size=$(stat -f%z assets/pack.lingua)
+          if [ "$size" -lt 1000000 ]; then
+            echo "::error::assets/pack.lingua is ${size} bytes — not the real EN→FR pack."
+            exit 1
+          fi
+          LINGUA_GRPC_WEB_URL=https://api.cymbra.app yarn build:safari
+
+      - name: Signing tool tests
+        working-directory: apps/lingua-apple/tool
+        run: python3 -m unittest -v test_ci_release_signing
+      # Throwaway keychain with the two distribution identities (same sequence as
+      # music-release), then each platform's two App Store profiles.
+      - name: Import certificates and profiles
+        env:
+          DIST_CERT_BASE64: ${{ secrets.IOS_DIST_CERT_BASE64 }}
+          DIST_CERT_PASSWORD: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+          INSTALLER_CERT_BASE64: ${{ secrets.MAC_INSTALLER_CERT_BASE64 }}
+          INSTALLER_CERT_PASSWORD: ${{ secrets.MAC_INSTALLER_CERT_PASSWORD }}
+          IOS_APP: ${{ secrets.LINGUA_IOS_APP_PROFILE_BASE64 }}
+          IOS_EXT: ${{ secrets.LINGUA_IOS_EXTENSION_PROFILE_BASE64 }}
+          MAC_APP: ${{ secrets.LINGUA_MAC_APP_PROFILE_BASE64 }}
+          MAC_EXT: ${{ secrets.LINGUA_MAC_EXTENSION_PROFILE_BASE64 }}
+        run: |
+          set -euo pipefail
+          KEYCHAIN="$RUNNER_TEMP/build.keychain-db"
+          KEYCHAIN_PW="$(uuidgen)"
+          echo "$DIST_CERT_BASE64" | base64 --decode > "$RUNNER_TEMP/dist.p12"
+          echo "$INSTALLER_CERT_BASE64" | base64 --decode > "$RUNNER_TEMP/installer.p12"
+          security create-keychain -p "$KEYCHAIN_PW" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PW" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/dist.p12" -P "$DIST_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security import "$RUNNER_TEMP/installer.p12" -P "$INSTALLER_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security list-keychain -d user -s "$KEYCHAIN" login.keychain-db
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PW" "$KEYCHAIN" >/dev/null
+          rm -f "$RUNNER_TEMP/dist.p12" "$RUNNER_TEMP/installer.p12"
+          mkdir -p "$RUNNER_TEMP/profiles"
+          echo "$IOS_APP" | base64 --decode > "$RUNNER_TEMP/profiles/ios-app.mobileprovision"
+          echo "$IOS_EXT" | base64 --decode > "$RUNNER_TEMP/profiles/ios-extension.mobileprovision"
+          echo "$MAC_APP" | base64 --decode > "$RUNNER_TEMP/profiles/mac-app.provisionprofile"
+          echo "$MAC_EXT" | base64 --decode > "$RUNNER_TEMP/profiles/mac-extension.provisionprofile"
+      # CI-only project edit: the committed project keeps automatic development signing.
+      # The tool's docstring records why neither a command-line setting nor an unsigned
+      # archive re-signed at export can replace it.
+      - name: Switch Release to App Store signing
+        working-directory: apps/lingua-apple
+        run: |
+          set -euo pipefail
+          P="$RUNNER_TEMP/profiles"
+          python3 tool/ci_release_signing.py install "Cymbra Lingua.xcodeproj/project.pbxproj" \
+            --platform ios --team "$TEAM_ID" \
+            --profile "com.cymbra.lingua=$P/ios-app.mobileprovision" \
+            --profile "com.cymbra.lingua.Extension=$P/ios-extension.mobileprovision" \
+            --export-options "$RUNNER_TEMP/ExportOptions-ios.plist"
+          python3 tool/ci_release_signing.py install "Cymbra Lingua.xcodeproj/project.pbxproj" \
+            --platform macos --team "$TEAM_ID" \
+            --profile "com.cymbra.lingua=$P/mac-app.provisionprofile" \
+            --profile "com.cymbra.lingua.Extension=$P/mac-extension.provisionprofile" \
+            --export-options "$RUNNER_TEMP/ExportOptions-macos.plist"
+
+      - name: Archive and export (iOS)
+        working-directory: apps/lingua-apple
+        run: |
+          set -euo pipefail
+          xcodebuild -project "Cymbra Lingua.xcodeproj" -scheme "Cymbra Lingua (iOS)" \
+            -configuration Release -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/ios.xcarchive" CURRENT_PROJECT_VERSION="$IOS_BUILD" archive
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/ios.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions-ios.plist" -exportPath "$RUNNER_TEMP/export-ios"
+          python3 tool/ci_release_signing.py verify "$RUNNER_TEMP/export-ios/DistributionSummary.plist" --platform ios
+          cp "$RUNNER_TEMP"/export-ios/*.ipa "$GITHUB_WORKSPACE/cymbra-lingua-${IOS_BUILD}.ipa"
+      - name: Archive and export (macOS)
+        working-directory: apps/lingua-apple
+        run: |
+          set -euo pipefail
+          xcodebuild -project "Cymbra Lingua.xcodeproj" -scheme "Cymbra Lingua (macOS)" \
+            -configuration Release -destination 'generic/platform=macOS' \
+            -archivePath "$RUNNER_TEMP/macos.xcarchive" CURRENT_PROJECT_VERSION="$MACOS_BUILD" archive
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/macos.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions-macos.plist" -exportPath "$RUNNER_TEMP/export-macos"
+          python3 tool/ci_release_signing.py verify "$RUNNER_TEMP/export-macos/DistributionSummary.plist" --platform macos
+          cp "$RUNNER_TEMP"/export-macos/*.pkg "$GITHUB_WORKSPACE/cymbra-lingua-${MACOS_BUILD}.pkg"
+      # Workflow artifacts, private and short-lived: store packages users cannot install.
+      - name: Keep the packages
+        uses: actions/upload-artifact@v6
+        with:
+          name: cymbra-lingua-${{ github.run_number }}
+          path: |
+            cymbra-lingua-*.ipa
+            cymbra-lingua-*.pkg
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: Deliver to App Store Connect / TestFlight
+        if: ${{ inputs.deliver }}
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+        run: |
+          set -euo pipefail
+          if [ -z "${ASC_KEY_ID:-}" ] || [ -z "${ASC_ISSUER_ID:-}" ] || [ -z "${ASC_KEY_P8:-}" ]; then
+            echo "::error::App Store Connect API secrets missing (ASC_API_KEY_ID / ASC_API_ISSUER_ID / ASC_API_KEY_P8)."
+            exit 1
+          fi
+          # altool resolves the key from ~/private_keys/AuthKey_<KEYID>.p8
+          mkdir -p "$HOME/private_keys"
+          KEYFILE="$HOME/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+          echo "$ASC_KEY_P8" | base64 --decode > "$KEYFILE"
+          trap 'rm -f "$KEYFILE"' EXIT
+          xcrun altool --upload-app --type ios --file "cymbra-lingua-${IOS_BUILD}.ipa" \
+            --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
+          xcrun altool --upload-app --type macos --file "cymbra-lingua-${MACOS_BUILD}.pkg" \
+            --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"

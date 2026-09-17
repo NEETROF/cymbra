@@ -65,6 +65,37 @@ in the Safari extension.
 
 Tabs opened before the extension was enabled or updated need a reload to be highlighted.
 
+## Release (App Store / TestFlight)
+
+`lingua-apple-release` (dispatch-only) builds the production extension — real EN→FR pack,
+`https://api.cymbra.app` — archives both platforms, signs them for the App Store and keeps the
+`.ipa` and `.pkg` as workflow artifacts; tick **deliver** to upload them to App Store Connect.
+Build numbers are `run×10` (iOS) and `run×10+1` (macOS): the two platforms share one App Store
+Connect record, whose build numbers must increase across both.
+
+Signing is switched to manual in CI only (`tool/ci_release_signing.py install`), and every
+export is checked (`… verify`): Apple Distribution, a profile on each bundle, the App Group,
+the App Sandbox on macOS and Sign in with Apple on the app. The certificates and the App Store
+Connect key are the ones `music-release` uses; Lingua adds four **manually created** profiles
+(Xcode-managed « Team Store » profiles are refused by manual signing), each with the Apple
+Distribution certificate:
+
+| Secret | Profile |
+|---|---|
+| `LINGUA_IOS_APP_PROFILE_BASE64` | App Store Connect, iOS, `com.cymbra.lingua` |
+| `LINGUA_IOS_EXTENSION_PROFILE_BASE64` | App Store Connect, iOS, `com.cymbra.lingua.Extension` |
+| `LINGUA_MAC_APP_PROFILE_BASE64` | Mac App Store Connect, `com.cymbra.lingua` |
+| `LINGUA_MAC_EXTENSION_PROFILE_BASE64` | Mac App Store Connect, `com.cymbra.lingua.Extension` |
+
+```bash
+base64 -i profile.mobileprovision | gh secret set LINGUA_IOS_APP_PROFILE_BASE64
+```
+
+The App Store Connect record « Cymbra Lingua » (iOS + macOS, bundle `com.cymbra.lingua`) must
+exist before a delivery. The iOS app icon is the opaque, full-bleed render of
+`tool/gen_icons.sh` (App Store Connect refuses transparency); the macOS sizes keep the rounded
+mark.
+
 ## App Store privacy (Confidentialité de l'app)
 
 The answers for App Store Connect, from what Lingua actually sends
