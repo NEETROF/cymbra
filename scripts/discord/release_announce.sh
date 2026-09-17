@@ -49,8 +49,18 @@ if [[ -z "$WEBHOOK" && "$DRY_RUN" != 1 ]]; then
 fi
 
 # --- Product name from the release-please component prefix -----------------
+# STORES is the "Get it" field. One App Store id covers iPhone, iPad and Mac.
+# CI only hands the build to the stores (TestFlight, a Play *draft*): the public
+# update follows once someone submits it and review passes, so the field says so
+# rather than promise a version the store may not serve yet.
+STORES=""
 case "$TAG" in
-  music-v*)       PRODUCT="Cymbra Music" ;;
+  music-v*)
+    PRODUCT="Cymbra Music"
+    STORES="[App Store](https://apps.apple.com/app/id6789557194) — iPhone, iPad, Mac"
+    STORES+=$'\n'"[Google Play](https://play.google.com/store/apps/details?id=com.cymbra.music) — Android"
+    STORES+=$'\n'"_The store update follows once Apple and Google have reviewed it._"
+    ;;
   backend-v*)     PRODUCT="Cymbra Backend" ;;
   back-office-v*) PRODUCT="Cymbra Back Office" ;;
   site-v*)        PRODUCT="cymbra.app" ;;
@@ -82,8 +92,11 @@ description="$(
 description="${description}"$'\n\n'"[Full changelog and downloads](${url})"
 
 # --- Download links --------------------------------------------------------
+# .aab and .ipa are what CI hands to the stores; nobody installs them from a
+# link, and listing them next to the store field only invites the attempt.
 downloads="$(jq -r --argjson max "$MAX_DOWNLOADS_LEN" '
-  ((.assets // []) | map("[\(.name)](\(.url))")) as $links
+  ((.assets // []) | map(select(.name | test("\\.(aab|ipa)$") | not))
+    | map("[\(.name)](\(.url))")) as $links
   | ($links | length) as $n
   | (reduce range(0; $n) as $i ({kept: [], len: 0, stop: false};
        if .stop then .
@@ -100,6 +113,7 @@ payload="$(jq -n \
   --arg title "$PRODUCT $VERSION" \
   --arg url "$url" \
   --arg desc "$description" \
+  --arg stores "$STORES" \
   --arg downloads "$downloads" \
   --arg tag "$TAG" \
   --argjson color "$COLOR" '
@@ -110,9 +124,9 @@ payload="$(jq -n \
     embeds: [
       ({title: $title, url: $url, description: $desc, color: $color,
         footer: {text: $tag}}
-       + (if ($downloads | length) > 0
-          then {fields: [{name: "Downloads", value: $downloads}]}
-          else {} end))
+       + ([ (if ($stores | length) > 0 then {name: "Get it", value: $stores} else empty end),
+            (if ($downloads | length) > 0 then {name: "Downloads", value: $downloads} else empty end) ]
+          | if length > 0 then {fields: .} else {} end))
     ]
   }')"
 
