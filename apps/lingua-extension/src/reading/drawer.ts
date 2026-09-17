@@ -95,7 +95,7 @@ export class Drawer {
     if (!this.host.isConnected) document.documentElement.appendChild(this.host);
     this.open = true;
     this.panel.hidden = false;
-    void requestSync();
+    void requestSync("surface");
     await this.switchTo(view);
   }
 

@@ -44,15 +44,19 @@ On Safari, which has no `identity.launchWebAuthFlow`, the container app SHALL pr
 - **THEN** it happens in the extension's account page, with no native screen involved
 
 ### Requirement: Synchronisation keeps up with the reader
-A signed-in device SHALL exchange with the server without the reader having to restart their browser: after a local mutation, when a Lingua surface opens (popup, in-page drawer, side panel), when a page loads or the reader returns to a tab, and when the extension's background wakes. Those openings SHALL be throttled to at most one exchange a minute, counted from the last successful one, which SHALL survive a background restart. Réglages SHALL show when this device last synced and SHALL offer a manual exchange, reporting a failure by category, never as a raw message. No exchange SHALL happen while signed out.
+A signed-in device SHALL exchange with the server without the reader having to restart their browser: after a local mutation, when a Lingua surface opens (popup, in-page drawer, side panel), when a page loads or the reader returns to a tab, and when the extension's background wakes. Those triggers SHALL be throttled — at most one exchange every 10 s for a surface the reader opened, every 60 s for a page load — counted from the last successful one, which SHALL survive a background restart. A trigger SHALL be acknowledged only once its exchange is over, so the requesting surface keeps the background alive until then. Réglages SHALL show when this device last synced and SHALL offer a manual exchange, reporting a failure by category, never as a raw message. No exchange SHALL happen while signed out.
 
 #### Scenario: A card captured on another device
 - **WHEN** a reader adds a card on their phone, then opens the extension's panel on their Mac
 - **THEN** the Mac exchanges with the server without being restarted, and the panel shows the new card
 
 #### Scenario: Repeated openings
-- **WHEN** the reader opens the popup three times in a minute
+- **WHEN** the reader opens the popup three times within a few seconds
 - **THEN** a single exchange runs
+
+#### Scenario: A background the browser may suspend
+- **WHEN** a surface triggers an exchange
+- **THEN** it is told the exchange is done only when it is, and the exchange completes even though the browser suspends an idle background
 
 #### Scenario: Synchronising on demand
 - **WHEN** the reader chooses « Synchroniser maintenant » in Réglages while the server is unreachable

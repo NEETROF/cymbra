@@ -32,8 +32,8 @@ describe("sync messages", () => {
       throw new Error("Could not establish connection");
     });
 
-    await expect(requestSync(send)).resolves.toBeUndefined();
-    expect(send).toHaveBeenCalledWith({ type: "sync:request" });
+    await expect(requestSync("surface", send)).resolves.toBeUndefined();
+    expect(send).toHaveBeenCalledWith({ type: "sync:request", reason: "surface" });
   });
 
   it("forces a sync and carries back its category", async () => {

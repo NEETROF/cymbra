@@ -7,7 +7,10 @@ import type { AsyncStorageArea } from "../state/storage.ts";
 // a surface opens or a page loads; a forced one is « Synchroniser maintenant ». Replies carry
 // a category, never an error string.
 
-export type SyncMessage = { type: "sync:request"; force?: boolean };
+/** Why a sync was asked for: a surface the reader opened, or a page that loaded. */
+export type SyncReason = "surface" | "page";
+
+export type SyncMessage = { type: "sync:request"; force?: boolean; reason?: SyncReason };
 
 export interface SyncReply {
   ok: boolean;
@@ -26,10 +29,14 @@ export type RuntimeSend = (message: unknown) => Promise<unknown>;
 
 const runtimeSend: RuntimeSend = (message) => chrome.runtime.sendMessage(message);
 
-/** A surface opened or a page loaded: ask for a sync. Never fails the caller. */
-export async function requestSync(send: RuntimeSend = runtimeSend): Promise<void> {
+/**
+ * A surface opened or a page loaded: ask for a sync. Never fails the caller. The reply comes
+ * only once the exchange is over — awaiting it holds the message channel open, which is what
+ * keeps Safari's event page alive long enough to finish.
+ */
+export async function requestSync(reason: SyncReason, send: RuntimeSend = runtimeSend): Promise<void> {
   try {
-    await send({ type: "sync:request" } satisfies SyncMessage);
+    await send({ type: "sync:request", reason } satisfies SyncMessage);
   } catch {
     // The background is unreachable for now; the next trigger asks again.
   }

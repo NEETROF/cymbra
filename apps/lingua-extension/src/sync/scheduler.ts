@@ -2,12 +2,18 @@ import { type AuthErrorKind, authErrorOf } from "../state/auth-errors.ts";
 
 // When the background syncs (add-lingua-connected-clients §2.4). One run at a time; a burst of
 // mutations coalesces into one debounced run; a trigger arriving mid-run is drained after it.
-// Opening a surface or loading a page asks for a run, granted at most once a minute across
+// Opening a surface or loading a page asks for a run, granted once per interval across
 // event-page restarts (the last success is persisted); Réglages forces one and hears how it
 // went. The erasure holds every run while it clears the server and the device.
+//
+// `onOpen` resolves only once its run is over, so the caller's pending message response keeps
+// Safari's event page alive: answering first and syncing after had the page suspended
+// mid-exchange, and nothing ever arrived unless the reader pressed « Synchroniser maintenant ».
 
-/** A surface or page load does not start a run within this long of the previous one. */
-export const OPEN_INTERVAL_MS = 60_000;
+/** A surface the reader just opened (popup, drawer, side panel). */
+export const SURFACE_INTERVAL_MS = 10_000;
+/** A page load or a return to a tab — frequent, so a longer wait between runs. */
+export const PAGE_INTERVAL_MS = 60_000;
 
 export interface SchedulerDeps {
   /** One full exchange; throws on failure. */
@@ -45,11 +51,15 @@ export class SyncScheduler {
     }, delayMs);
   }
 
-  /** A surface opened or a page loaded: run unless one started or succeeded within the minute. */
-  async onOpen(): Promise<void> {
+  /**
+   * A surface opened or a page loaded: run now unless one started or succeeded within
+   * `minIntervalMs`. Resolves when the run is over (or at once when there is nothing to do),
+   * so the caller can hold its message response until then.
+   */
+  async onOpen(minIntervalMs: number = SURFACE_INTERVAL_MS): Promise<void> {
     const last = Math.max(this.lastAttempt, await this.deps.lastSynced());
-    if (this.deps.now() - last < OPEN_INTERVAL_MS) return;
-    this.schedule(0);
+    if (this.deps.now() - last < minIntervalMs) return;
+    await (this.start() ?? this.running ?? Promise.resolve());
   }
 
   /**

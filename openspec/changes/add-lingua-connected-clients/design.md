@@ -175,13 +175,21 @@ exchange:
 
 - **after a mutation**, debounced 2 s, as before (it pushes, then pulls);
 - **when a surface opens** — popup, in-page drawer, side panel — **when a page loads**, and
-  when the reader comes back to a tab; also on event-page wake. These are throttled to one
-  run a minute, counting the last success, which is persisted so an event page that
-  restarts constantly (Safari) does not sync on every wake;
+  when the reader comes back to a tab; also on event-page wake. A surface the reader opened
+  waits 10 s between runs, a page load 60 s, counting the last success, which is persisted so
+  an event page that restarts constantly (Safari) does not sync on every wake;
 - **on demand**, from Réglages → Synchronisation: « Synchronisé il y a 3 min. » and
   « Synchroniser maintenant », which reports a failure by category. No timer and no
   `chrome.alarms`: on iOS Safari suspends the extension anyway, and every trigger above is
   a moment the reader is actually looking at Lingua.
+
+**The caller waits for the exchange.** A request is answered only once its run is over, and
+the surface awaits that answer. Dogfooding TestFlight 50/51 showed why: answering first and
+syncing after left Safari free to suspend the event page mid-exchange, so nothing ever
+arrived unless the reader pressed « Synchroniser maintenant » (whose reply, held until the
+end, kept the page alive by accident). For the same reason the page asks for a run after its
+own mutations, rather than relying only on the background's 2 s debounce, whose timer dies
+with the suspended page.
 
 Nothing is sent while signed out, and the erasure still holds every run (D2 of
 `add-lingua-privacy-controls`).
