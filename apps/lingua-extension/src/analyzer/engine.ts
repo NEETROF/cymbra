@@ -94,6 +94,29 @@ const CLEAR = "clear";
 const dynamicGlue: GlueLoader = async () =>
   (await import(/* @vite-ignore */ chrome.runtime.getURL(GLUE_PATH))) as WasmModule;
 
+/**
+ * One initialisation per glue module, shared by every engine built on it. The glue's init()
+ * only short-circuits once it has finished, so two engines built at the same time — the
+ * background's reading and sync engines when the event page wakes — would each instantiate
+ * the module. The later instantiation replaces the module's memory, and the engine built on
+ * the earlier one then reads out of bounds or someone else's state.
+ */
+const initialised = new WeakMap<WasmModule, Promise<unknown>>();
+
+function initialise(mod: WasmModule): Promise<unknown> {
+  let ready = initialised.get(mod);
+  if (!ready) {
+    const attempt = fetch(chrome.runtime.getURL(WASM_PATH)).then((wasm) => mod.default(wasm));
+    // A failed initialisation is retried by the next engine rather than remembered.
+    attempt.catch(() => {
+      if (initialised.get(mod) === attempt) initialised.delete(mod);
+    });
+    initialised.set(mod, attempt);
+    ready = attempt;
+  }
+  return ready;
+}
+
 export class WasmAnalyzerPort implements LinguaPort {
   private enginePromise: Promise<WasmEngine> | null = null;
 
@@ -106,7 +129,7 @@ export class WasmAnalyzerPort implements LinguaPort {
 
   private async build(): Promise<WasmEngine> {
     const mod = await this.loadGlue();
-    await mod.default(await fetch(chrome.runtime.getURL(WASM_PATH)));
+    await initialise(mod);
     const packBytes = new Uint8Array(await (await fetch(chrome.runtime.getURL(PACK_PATH))).arrayBuffer());
     // Throws if the pack is malformed or built for an incompatible analyzer_version.
     return new mod.LinguaEngine(packBytes);
