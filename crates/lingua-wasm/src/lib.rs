@@ -325,13 +325,19 @@ impl LinguaEngine {
                 .get("updated_at")
                 .and_then(serde_json::Value::as_i64)
                 .unwrap_or(0);
-            if self.state.knowledge.apply_status_lww(
-                EN,
-                lemma,
-                Status::from_wire(kind, provenance),
-                updated_at,
-            ) {
+            let incoming = Status::from_wire(kind, provenance);
+            if self
+                .state
+                .knowledge
+                .apply_status_lww(EN, lemma, incoming, updated_at)
+            {
                 changed += 1;
+                // A word reclassified known/ignored elsewhere stops coming due here too —
+                // the same retirement the gesture performs on the device that made it,
+                // which that device could not do for a card it did not have yet.
+                if matches!(incoming, Some(Status::Known(_)) | Some(Status::Ignored)) {
+                    self.state.deck.retire(EN, lemma, updated_at / 1000);
+                }
             }
         }
         Ok(changed)
@@ -466,7 +472,15 @@ impl LinguaEngine {
         gloss: Option<String>,
         captured_at: f64,
     ) {
-        self.state.knowledge.set_status(EN, lemma, Status::Learning);
+        // Stamped, like every other decision: adding a word to the deck is one, and an
+        // unstamped "learning" would lose last-write-wins to any dated decision made on
+        // another device — even an older one (add-lingua-connected-clients §2).
+        self.state.knowledge.set_status_at(
+            EN,
+            lemma,
+            Status::Learning,
+            (captured_at as i64) * 1000,
+        );
         let card = Card::new(
             lemma,
             surface,
