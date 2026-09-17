@@ -58,8 +58,11 @@ async fn local_lifecycle_signup_verify_signin_refresh_reuse() -> Result<()> {
         Duration::from_secs(3600),
         None,
     );
-    let sessions: Arc<dyn SessionStore> =
-        Arc::new(PgSessionStore::new(auth_pool.clone(), cfg.refresh_ttl));
+    let sessions: Arc<dyn SessionStore> = Arc::new(PgSessionStore::new(
+        auth_pool.clone(),
+        cfg.refresh_ttl,
+        Duration::from_secs(60),
+    ));
     let pending: Arc<dyn cymbra_auth::PendingCredentialStore> =
         Arc::new(cymbra_auth::CachePendingStore::new(cache.clone()));
     let m = AuthModule::new(
@@ -105,21 +108,41 @@ async fn pg_session_store_lifecycle_and_reap() -> Result<()> {
     let auth_pool = PgPoolOptions::new().connect(&auth_url).await.unwrap();
     cymbra_auth::MIGRATOR.run(&auth_pool).await.unwrap();
 
-    let store = PgSessionStore::new(auth_pool.clone(), Duration::from_secs(3600));
+    let store = PgSessionStore::new(
+        auth_pool.clone(),
+        Duration::from_secs(3600),
+        Duration::from_secs(60),
+    );
     let uid = format!("u-{}", uuid::Uuid::new_v4());
 
-    // create → rotate → replay revokes the family.
+    // create → rotate → the token just replaced is served again: the client was killed
+    // before it could store the answer (change: fix-interrupted-refresh-signouts).
     let rt = store.create(&uid, "music").await?;
     assert_eq!(store.list_for_user(&uid).await?.len(), 1);
     let rot = store.rotate(&rt).await?;
     assert_eq!(rot.user_id, uid);
     assert_eq!(rot.audience, "music");
+    let retried = store.rotate(&rt).await?;
+    assert_ne!(retried.refresh_token, rot.refresh_token);
+    assert_eq!(
+        store.list_for_user(&uid).await?.len(),
+        1,
+        "family still live"
+    );
+    // The pair the retry received is the live one.
+    assert!(store.rotate(&retried.refresh_token).await.is_ok());
+    store.revoke_all(&uid).await?;
+
+    // With no grace, the same replay is theft and kills the family.
+    let strict = PgSessionStore::new(auth_pool.clone(), Duration::from_secs(3600), Duration::ZERO);
+    let srt = strict.create(&uid, "music").await?;
+    let srot = strict.rotate(&srt).await?;
     assert!(matches!(
-        store.rotate(&rt).await,
+        strict.rotate(&srt).await,
         Err(AppError::Unauthenticated(_))
     ));
     assert!(matches!(
-        store.rotate(&rot.refresh_token).await,
+        strict.rotate(&srot.refresh_token).await,
         Err(AppError::Unauthenticated(_))
     ));
     assert!(store.list_for_user(&uid).await?.is_empty());
@@ -139,14 +162,25 @@ async fn pg_session_store_lifecycle_and_reap() -> Result<()> {
     store.revoke_all(&uid).await?;
     assert!(store.list_for_user(&uid).await?.is_empty());
 
-    // concurrent rotate of the same token: exactly one succeeds.
+    // Concurrent rotate of the same token: one takes the current-token branch, the other
+    // finds it as the just-replaced one and is served by the grace. Both callers are the
+    // same client racing itself, and the family stays live.
     let rt3 = store.create(&uid, "music").await?;
     let (r1, r2) = tokio::join!(store.rotate(&rt3), store.rotate(&rt3));
-    let wins = [r1.is_ok(), r2.is_ok()].iter().filter(|b| **b).count();
-    assert_eq!(wins, 1, "exactly one concurrent rotate wins");
+    assert!(r1.is_ok() && r2.is_ok(), "both callers are served");
+    assert_eq!(
+        store.list_for_user(&uid).await?.len(),
+        1,
+        "family still live"
+    );
+    store.revoke_all(&uid).await?;
 
     // expired session is rejected on use and not listed, then reaped.
-    let expired = PgSessionStore::new(auth_pool.clone(), Duration::from_secs(0));
+    let expired = PgSessionStore::new(
+        auth_pool.clone(),
+        Duration::from_secs(0),
+        Duration::from_secs(60),
+    );
     let ert = expired.create(&uid, "music").await?;
     assert!(matches!(
         expired.rotate(&ert).await,

@@ -809,7 +809,8 @@ mod tests {
         let h = harness();
         let pair = h.m.sign_in_oidc("g1", "music").await.unwrap();
         let p2 = h.m.refresh(&pair.refresh_token).await.unwrap();
-        // replay the old refresh -> reuse detected
+        // replay the old refresh, past the grace -> reuse detected
+        h.sessions.expire_reuse_grace();
         assert!(matches!(
             h.m.refresh(&pair.refresh_token).await,
             Err(AppError::Unauthenticated(_))
@@ -819,6 +820,24 @@ mod tests {
             h.m.refresh(&p2.refresh_token).await,
             Err(AppError::Unauthenticated(_))
         ));
+    }
+
+    #[tokio::test]
+    async fn a_refresh_the_client_never_received_can_be_retried() {
+        // Safari suspends an extension's background page between the answer and the write,
+        // so the client retries with the token it still has. It must keep its session
+        // (change: fix-interrupted-refresh-signouts).
+        let h = harness();
+        let pair = h.m.sign_in_oidc("g1", "music").await.unwrap();
+        let _lost = h.m.refresh(&pair.refresh_token).await.unwrap();
+
+        let retried =
+            h.m.refresh(&pair.refresh_token)
+                .await
+                .expect("the retry is served");
+
+        // The pair it finally holds works, and nothing was revoked.
+        assert!(h.m.refresh(&retried.refresh_token).await.is_ok());
     }
 
     #[tokio::test]

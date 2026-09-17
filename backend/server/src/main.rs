@@ -81,8 +81,11 @@ async fn main() -> anyhow::Result<()> {
     // --- auth module ---
     let creds: Arc<dyn CredentialRepo> = Arc::new(PgCredentialRepo::new(auth_pool.clone()));
     // Durable session store on the auth pool (auth_svc owns `auth.sessions`).
-    let sessions: Arc<dyn SessionStore> =
-        Arc::new(PgSessionStore::new(auth_pool, cfg.token.refresh_ttl));
+    let sessions: Arc<dyn SessionStore> = Arc::new(PgSessionStore::new(
+        auth_pool,
+        cfg.token.refresh_ttl,
+        cfg.token.refresh_reuse_grace,
+    ));
     let providers: Vec<OidcProviderCfg> = cfg
         .oidc_providers
         .iter()
