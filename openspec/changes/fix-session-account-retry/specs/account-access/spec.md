@@ -14,7 +14,10 @@ Re-attempts SHALL use a bounded backoff with a maximum interval, so an
 unreachable backend is never hot-looped. Resolution SHALL be single-flight: at
 most one account resolution is in flight at a time, and a concurrent trigger
 joins the pending attempt rather than issuing a second call. Re-attempts SHALL
-stop as soon as the account resolves or the session ends.
+stop as soon as the account resolves or the session ends. A resolution still in
+flight when its session ends SHALL be discarded: its outcome MUST NOT restore the
+ended session, and a session that replaces it MUST issue its own resolution
+rather than join or inherit the stale one.
 
 A **terminal** failure encountered during a re-attempt (the session is revoked,
 or the account no longer exists) SHALL clear the stored session and route the
@@ -43,6 +46,14 @@ user to the entry screen, exactly as it does on the first attempt.
 #### Scenario: Re-attempts stop when the session ends
 - **WHEN** the user signs out, deletes the account, or the session is otherwise torn down while re-attempts are scheduled
 - **THEN** the pending re-attempt is cancelled and no further account resolution is issued
+
+#### Scenario: A resolution in flight when the session ends is discarded
+- **WHEN** the user signs out while an account resolution is in flight, and that resolution later completes
+- **THEN** the user stays signed out whatever its outcome, and no further account resolution is issued
+
+#### Scenario: A new session never inherits a stale resolution
+- **WHEN** the user signs out while an account resolution is in flight and signs in again before it completes
+- **THEN** the new session issues its own account resolution, and the stale one's outcome is neither applied to it nor able to sign it out
 
 #### Scenario: A terminal failure during a re-attempt signs the user out
 - **WHEN** a re-attempt fails because the session is revoked or the account no longer exists

@@ -66,6 +66,13 @@ class SessionNotifier extends _$SessionNotifier {
   /// `GetAccount` — same single-flight shape as [CoordinatedTokenRefresher].
   Future<void>? _resolving;
 
+  /// Bumped by every session teardown or replacement ([_endResolution]). A
+  /// resolution remembers the generation it started in and drops its result if
+  /// the session changed meanwhile: a `GetAccount` still in flight when the user
+  /// signs out must not revive the session, and one issued for a previous
+  /// session must never hand its account to the next.
+  int _generation = 0;
+
   /// Whether the app is in the foreground. Retries are armed only while true:
   /// a backgrounded desktop app keeps executing (unlike a frozen mobile
   /// process), so an ungated loop would spend battery and RPCs unseen.
@@ -119,11 +126,16 @@ class SessionNotifier extends _$SessionNotifier {
   }
 
   Future<void> _runResolve() async {
+    final generation = _generation;
     try {
       final account = await _account.getAccount();
+      if (generation != _generation) return; // the session ended meanwhile
       _stopAccountRetry(); // resolved: cancel the loop and reset the backoff
       state = SessionState.authenticated(account: account);
     } on AuthException catch (e) {
+      // Same guard: a stale failure must neither revive a signed-out session
+      // nor clear the tokens of the session that replaced it.
+      if (generation != _generation) return;
       // A revoked session (`unauthenticated`) or a deleted account (`notFound`:
       // the token still verifies by signature/expiry, but the user row is gone)
       // are both terminal — clear the local session and route to entry. This
@@ -168,11 +180,20 @@ class SessionNotifier extends _$SessionNotifier {
   }
 
   /// Cancel any pending re-attempt and reset the backoff to its first delay.
-  /// Called from every session teardown and from `ref.onDispose`.
   void _stopAccountRetry() {
     _accountRetry?.cancel();
     _accountRetry = null;
     _retryDelay = kAccountRetryInitialDelay;
+  }
+
+  /// The current session is over (signed out, deleted, replaced): stop the
+  /// loop, orphan any resolution still in flight, and let the next session
+  /// start its own instead of joining the stale one. Called first by every
+  /// teardown, before its first `await`.
+  void _endResolution() {
+    _stopAccountRetry();
+    _generation++;
+    _resolving = null;
   }
 
   Duration _nextRetryDelay(Duration current) {
@@ -202,14 +223,14 @@ class SessionNotifier extends _$SessionNotifier {
 
   /// Persist the guest choice and enter guest mode (no backend calls).
   Future<void> continueAsGuest() async {
-    _stopAccountRetry();
+    _endResolution();
     await _tokens.setGuest();
     state = const SessionState.guest();
   }
 
   /// Leave guest mode and return to the entry screen so the user can sign in.
   Future<void> leaveGuest() async {
-    _stopAccountRetry();
+    _endResolution();
     await _tokens.clear();
     state = const SessionState.unauthenticated();
   }
@@ -217,8 +238,9 @@ class SessionNotifier extends _$SessionNotifier {
   /// Adopt a freshly-obtained session (from any sign-in path): store the tokens
   /// and resolve the account (which gates handle onboarding).
   Future<void> onSignedIn(AuthTokens tokens) async {
-    // A new session never inherits the previous one's backoff.
-    _stopAccountRetry();
+    // A new session never inherits the previous one's backoff, nor joins a
+    // `GetAccount` still in flight for it.
+    _endResolution();
     await _tokens.writeTokens(tokens.toStored());
     state = const SessionState.unknown();
     await _resolveAuthenticated();
@@ -269,7 +291,7 @@ class SessionNotifier extends _$SessionNotifier {
   /// Shared local teardown: forget the cached OIDC account (best-effort, never
   /// blocks on the native SDK), clear the stored tokens, and return to entry.
   Future<void> _endLocalSession() async {
-    _stopAccountRetry();
+    _endResolution();
     try {
       await _oidc.signOut();
     } catch (_) {
@@ -308,7 +330,7 @@ class SessionNotifier extends _$SessionNotifier {
   }
 
   Future<void> onAccountDeleted() async {
-    _stopAccountRetry();
+    _endResolution();
     await _purgeOfflineData();
     await _tokens.clear();
     state = const SessionState.unauthenticated();
@@ -323,7 +345,7 @@ class SessionNotifier extends _$SessionNotifier {
   /// caller immediately adopts the existing account via [onSignedIn], so this
   /// deliberately does not route to the entry screen.
   Future<void> deleteOrphanForLink() async {
-    _stopAccountRetry();
+    _endResolution();
     await _account.deleteAccount();
     await _tokens.clear();
     state = const SessionState.unknown();
@@ -335,7 +357,7 @@ class SessionNotifier extends _$SessionNotifier {
   /// The local session is cleared regardless — even if the backend call cannot
   /// be reached (offline), the server-side reaper purges any orphan left behind.
   Future<void> abandonOnboarding() async {
-    _stopAccountRetry();
+    _endResolution();
     final session = state;
     final brandNew =
         session is SessionAuthenticated &&

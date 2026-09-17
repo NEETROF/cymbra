@@ -626,6 +626,127 @@ void main() {
       });
     });
 
+    group('a re-attempt still in flight at sign-out', () {
+      /// Degraded session whose scheduled re-attempt is hanging, then signed out
+      /// — the window the retry loop opens while the user is in the app.
+      (ProviderContainer, _HangingAfterFailure) signedOutMidFlight(
+        FakeAsync fa,
+      ) {
+        final acct = _HangingAfterFailure(account: account(handle: 'ada'));
+        final c = makeContainer(store: _signedInStore(), account: acct);
+        c.read(sessionNotifierProvider);
+        fa.flushMicrotasks();
+        fa.elapse(kAccountRetryInitialDelay);
+        fa.flushMicrotasks();
+        expect(acct.pending, hasLength(1));
+
+        unawaited(c.read(sessionNotifierProvider.notifier).signOut());
+        fa.flushMicrotasks();
+        expect(c.read(sessionNotifierProvider), isA<SessionUnauthenticated>());
+        return (c, acct);
+      }
+
+      test('does not revive the session when it fails transiently', () {
+        fakeAsync((fa) {
+          final (c, acct) = signedOutMidFlight(fa);
+
+          acct.pending.single.completeError(_transient);
+          fa.flushMicrotasks();
+          expect(
+            c.read(sessionNotifierProvider),
+            isA<SessionUnauthenticated>(),
+          );
+
+          fa.elapse(const Duration(minutes: 10));
+          fa.flushMicrotasks();
+          expect(
+            acct.attempts,
+            2,
+            reason: 'no loop re-armed for a dead session',
+          );
+        });
+      });
+
+      test('does not revive the session when it succeeds', () {
+        fakeAsync((fa) {
+          final (c, acct) = signedOutMidFlight(fa);
+
+          acct.pending.single.complete(account(handle: 'ada'));
+          fa.flushMicrotasks();
+
+          expect(
+            c.read(sessionNotifierProvider),
+            isA<SessionUnauthenticated>(),
+          );
+          expect(c.read(currentUserIdProvider), isNull);
+        });
+      });
+
+      test('never hands its account to the next session', () {
+        fakeAsync((fa) {
+          final (c, acct) = signedOutMidFlight(fa);
+
+          unawaited(
+            c
+                .read(sessionNotifierProvider.notifier)
+                .onSignedIn(
+                  const AuthTokens(accessToken: 'b', refreshToken: 's'),
+                ),
+          );
+          fa.flushMicrotasks();
+          expect(
+            acct.pending,
+            hasLength(2),
+            reason: 'the new session issues its own GetAccount',
+          );
+
+          // The previous user's answer lands first: it must be dropped.
+          acct.pending.first.complete(
+            const Account(userId: 'previous-user', version: 1, handle: 'bob'),
+          );
+          fa.flushMicrotasks();
+          expect(c.read(sessionNotifierProvider), isA<SessionUnknown>());
+
+          acct.pending.last.complete(account(handle: 'ada'));
+          fa.flushMicrotasks();
+          expect(c.read(currentUserIdProvider), 'user-1');
+        });
+      });
+
+      test('never signs the next session out on a stale rejection', () {
+        fakeAsync((fa) {
+          final store = _signedInStore();
+          final acct = _HangingAfterFailure(account: account(handle: 'ada'));
+          final c = makeContainer(store: store, account: acct);
+          final notifier = c.read(sessionNotifierProvider.notifier);
+          c.read(sessionNotifierProvider);
+          fa.flushMicrotasks();
+          fa.elapse(kAccountRetryInitialDelay);
+          fa.flushMicrotasks();
+
+          unawaited(notifier.signOut());
+          fa.flushMicrotasks();
+          unawaited(
+            notifier.onSignedIn(
+              const AuthTokens(accessToken: 'b', refreshToken: 's'),
+            ),
+          );
+          fa.flushMicrotasks();
+
+          // The old session's tokens were revoked by the sign-out.
+          acct.pending.first.completeError(
+            const AuthException(AuthError.unauthenticated),
+          );
+          fa.flushMicrotasks();
+          expect(store.tokens?.accessToken, 'b');
+
+          acct.pending.last.complete(account(handle: 'ada'));
+          fa.flushMicrotasks();
+          expect(c.read(currentUserHandleProvider), 'ada');
+        });
+      });
+    });
+
     test('a terminal failure inside a retry signs out and stops the loop', () {
       fakeAsync((fa) {
         final acct = FakeAccountService(account: account(handle: 'ada'))
