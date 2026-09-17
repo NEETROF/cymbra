@@ -3,6 +3,14 @@ import { CEFR_LEVELS, type CefrLevel } from "../analyzer/types.ts";
 import { needsLevelChoice } from "../state/level-choice.ts";
 import { hasShortcutEditor } from "../state/platform.ts";
 import { type AsyncStorageArea, loadHudHidden, saveHudHidden } from "../state/storage.ts";
+import {
+  LAST_SYNC_KEY,
+  loadLastSync,
+  syncAvailable,
+  syncNow as requestSyncNow,
+  type SyncReply,
+} from "../sync/messages.ts";
+import { lastSyncLabel, syncErrorCopy } from "../sync/status.ts";
 import { clearSyncCursors } from "../sync/sync.ts";
 
 // The Réglages view, built as plain DOM into a given container so ONE implementation
@@ -16,6 +24,34 @@ export interface SettingsOptions {
   persist: () => Promise<void>;
   /** Refresh the host's review/summary after a reset (the deck may have changed). */
   onReset?: () => Promise<void> | void;
+  /** The Synchronisation controls' seam; the background messages by default. */
+  sync?: SyncControls;
+}
+
+/** What the Synchronisation block needs from the background and the store. */
+export interface SyncControls {
+  /** Whether a Cymbra account is signed in (the block shows only then). */
+  available: () => Promise<boolean>;
+  /** Run one exchange now. */
+  syncNow: () => Promise<SyncReply>;
+  /** This device's last successful sync (epoch millis), or null. */
+  lastSync: () => Promise<number | null>;
+  now: () => number;
+  /** Call `onChange` whenever a sync completes elsewhere (the background). */
+  watch: (onChange: () => void) => void;
+}
+
+function runtimeSyncControls(area: AsyncStorageArea): SyncControls {
+  return {
+    available: () => syncAvailable(),
+    syncNow: () => requestSyncNow(),
+    lastSync: () => loadLastSync(area),
+    now: () => Date.now(),
+    watch: (onChange) =>
+      chrome.storage.onChanged.addListener((changes, areaName) => {
+        if (areaName === "local" && changes[LAST_SYNC_KEY]) onChange();
+      }),
+  };
 }
 
 export interface SettingsView {
@@ -117,6 +153,16 @@ export function mountSettings(
   scBlock.append(scList);
   if (hasShortcutEditor()) scBlock.append(scConfig);
 
+  // — Synchronisation (signed in only): when this device last synced, and a manual run —
+  const sync = opts.sync ?? runtimeSyncControls(area);
+  const syncBlock = settingBlock("Synchronisation");
+  syncBlock.hidden = true;
+  const syncStatus = el("div", "set-note");
+  const syncBtn = el("button", "set-reset", "Synchroniser maintenant");
+  syncBtn.type = "button";
+  const syncMsg = el("div", "set-note");
+  syncBlock.append(syncStatus, syncBtn, syncMsg);
+
   // — Réinitialisation (scope choice; a full wipe needs an extra confirm) —
   const resetBlock = settingBlock("Réinitialisation");
   resetBlock.append(el("div", "set-note", "Efface tes données locales. À n'utiliser qu'exceptionnellement."));
@@ -163,7 +209,7 @@ export function mountSettings(
     void doReset("full");
   });
 
-  container.append(levelBlock, barBlock, scBlock, resetBlock);
+  container.append(levelBlock, barBlock, scBlock, syncBlock, resetBlock);
 
   // — Live wiring —
   calib.addEventListener("input", () => {
@@ -176,6 +222,22 @@ export function mountSettings(
   toggle.addEventListener("change", async () => {
     await saveHudHidden(area, !toggle.checked);
   });
+  syncBtn.addEventListener("click", () => void runSync());
+  sync.watch(() => void refreshSync());
+
+  async function runSync(): Promise<void> {
+    syncBtn.disabled = true;
+    syncMsg.textContent = "Synchronisation…";
+    const reply = await sync.syncNow();
+    syncMsg.textContent = reply.ok ? "" : syncErrorCopy(reply.error);
+    syncBtn.disabled = false;
+    await refreshSync();
+  }
+
+  async function refreshSync(): Promise<void> {
+    syncBlock.hidden = !(await sync.available());
+    syncStatus.textContent = lastSyncLabel(await sync.lastSync(), sync.now());
+  }
 
   async function setLevel(level: CefrLevel | null): Promise<void> {
     await port.setDeclaredLevelAt(level, Date.now());
@@ -219,6 +281,7 @@ export function mountSettings(
       calibValue.textContent = String(cal);
     }
     toggle.checked = !(await loadHudHidden(area));
+    await refreshSync();
   }
 
   void refresh();

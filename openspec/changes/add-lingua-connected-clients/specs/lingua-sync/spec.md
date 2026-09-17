@@ -43,6 +43,25 @@ On Safari, which has no `identity.launchWebAuthFlow`, the container app SHALL pr
 - **WHEN** a Safari reader signs up, verifies an email or resets a password
 - **THEN** it happens in the extension's account page, with no native screen involved
 
+### Requirement: Synchronisation keeps up with the reader
+A signed-in device SHALL exchange with the server without the reader having to restart their browser: after a local mutation, when a Lingua surface opens (popup, in-page drawer, side panel), when a page loads or the reader returns to a tab, and when the extension's background wakes. Those openings SHALL be throttled to at most one exchange a minute, counted from the last successful one, which SHALL survive a background restart. Réglages SHALL show when this device last synced and SHALL offer a manual exchange, reporting a failure by category, never as a raw message. No exchange SHALL happen while signed out.
+
+#### Scenario: A card captured on another device
+- **WHEN** a reader adds a card on their phone, then opens the extension's panel on their Mac
+- **THEN** the Mac exchanges with the server without being restarted, and the panel shows the new card
+
+#### Scenario: Repeated openings
+- **WHEN** the reader opens the popup three times in a minute
+- **THEN** a single exchange runs
+
+#### Scenario: Synchronising on demand
+- **WHEN** the reader chooses « Synchroniser maintenant » in Réglages while the server is unreachable
+- **THEN** they see a categorized message and the displayed last-sync time is unchanged
+
+#### Scenario: Signed out
+- **WHEN** any of those moments happens on a signed-out device
+- **THEN** no request is sent
+
 ### Requirement: Local store merged at first sign-in
 At the first sign-in of a device holding pre-account local state, the client SHALL push that state in full as operations preserving their original timestamps, then pull the merged state; the merge SHALL be the protocol's ordinary last-write-wins (no special case) and SHALL lose nothing: every local status, card or aggregate missing from the server is created.
 

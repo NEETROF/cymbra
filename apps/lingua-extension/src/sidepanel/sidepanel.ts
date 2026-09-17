@@ -1,8 +1,9 @@
 import { createLinguaPort } from "../analyzer/create-port.ts";
 import { mountSettings, type SettingsView } from "../reading/settings-view.ts";
 import { mountReview, type ReviewPage } from "../review/review-page.ts";
-import { type AsyncStorageArea, hydrateEngine, saveBackup } from "../state/storage.ts";
+import { type AsyncStorageArea, hydrateEngine, ROOT_KEY, saveBackup } from "../state/storage.ts";
 import { mountStats } from "../stats/view.ts";
+import { requestSync } from "../sync/messages.ts";
 
 /** Transient key the popup / HUD set to open the panel straight on a view. */
 const PANEL_VIEW_KEY = "cymbra-lingua-panel-view";
@@ -27,17 +28,23 @@ function $(id: string): HTMLElement {
   return el;
 }
 
+/** The last backup this panel wrote, so its own storage.onChanged echo is ignored. */
+let lastBackup: string | null = null;
+
 async function persist(): Promise<void> {
-  await saveBackup(area, await port.backup());
+  lastBackup = await port.backup();
+  await saveBackup(area, lastBackup);
 }
 
 type PanelView = "review" | "stats" | "settings";
 
 let review: ReviewPage | null = null;
 let settings: SettingsView | null = null;
+let current: PanelView = "review";
 
 /** Switch views; each is (re)mounted/refreshed on show so it reflects the current state. */
 async function showView(view: PanelView): Promise<void> {
+  current = view;
   $("view-review").hidden = view !== "review";
   $("view-stats").hidden = view !== "stats";
   $("view-settings").hidden = view !== "settings";
@@ -75,7 +82,15 @@ async function main(): Promise<void> {
   };
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName === "session" && changes[PANEL_VIEW_KEY]) applyRequestedView(changes[PANEL_VIEW_KEY].newValue);
+    // A change made elsewhere (a reading gesture, a sync pull): Révision follows it on its
+    // own; Statistiques and Réglages are redrawn from the restored engine, unless a review
+    // is under way in the hidden Révision view.
+    const backup = (changes[ROOT_KEY]?.newValue as { backup?: string } | undefined)?.backup;
+    if (areaName !== "local" || typeof backup !== "string" || backup === lastBackup) return;
+    if (current === "review" || review?.reviewing()) return;
+    void port.restore(backup).then(() => showView(current));
   });
+  void requestSync();
   try {
     const sess = await chrome.storage.session.get(PANEL_VIEW_KEY);
     applyRequestedView(sess[PANEL_VIEW_KEY]);

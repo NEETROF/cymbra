@@ -166,11 +166,26 @@ pass (task 4.8) re-checks it on macOS and on a device.
    clients back to local-only — their default mode; the local schemas do not migrate
    destructively, so a "synced" client keeps working on its own.
 
+### D8 — When the extension syncs (settled by dogfooding)
+
+Both open questions below were answered by dogfooding the Safari build: with only "on wake
++ after a mutation", a device that changed nothing pulled nothing — on iPhone the deck
+caught up only when Safari was relaunched. The scheduler (`sync/scheduler.ts`) now runs an
+exchange:
+
+- **after a mutation**, debounced 2 s, as before (it pushes, then pulls);
+- **when a surface opens** — popup, in-page drawer, side panel — **when a page loads**, and
+  when the reader comes back to a tab; also on event-page wake. These are throttled to one
+  run a minute, counting the last success, which is persisted so an event page that
+  restarts constantly (Safari) does not sync on every wake;
+- **on demand**, from Réglages → Synchronisation: « Synchronisé il y a 3 min. » and
+  « Synchroniser maintenant », which reports a failure by category. No timer and no
+  `chrome.alarms`: on iOS Safari suspends the extension anyway, and every trigger above is
+  a moment the reader is actually looking at Lingua.
+
+Nothing is sent while signed out, and the erasure still holds every run (D2 of
+`add-lingua-privacy-controls`).
+
 ## Open Questions
 
-- The exact cadence of background sync in the extension (on service-worker wake +
-  `chrome.alarms`? an op threshold?) — to be measured during dogfooding, with no impact
-  on the protocol.
-- Should a "Sync now" button be exposed, or should it stay silent (a discreet indicator
-  only)? Leaning: an indicator plus a manual action in settings, never friction while
-  reading.
+None. The sync cadence and the manual action are settled in D8.

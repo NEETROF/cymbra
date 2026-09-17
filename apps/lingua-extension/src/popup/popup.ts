@@ -3,7 +3,9 @@ import { type AccountReply, type AccountState, PENDING_EMAIL_KEY } from "../acco
 import type { Provider } from "../state/oidc.ts";
 import { hasShortcutEditor } from "../state/platform.ts";
 import { isPersistedSignInError, SIGNIN_ERROR_KEY } from "../state/session.ts";
-import { loadEnabled, loadHudHidden, saveEnabled, saveHudHidden } from "../state/storage.ts";
+import { loadEnabled, loadHudHidden, ROOT_KEY, saveEnabled, saveHudHidden } from "../state/storage.ts";
+import { LAST_SYNC_KEY, loadLastSync, requestSync, syncNow } from "../sync/messages.ts";
+import { lastSyncLabel, syncErrorCopy } from "../sync/status.ts";
 import type { CefrLevel } from "../analyzer/types.ts";
 
 // Icon-popup controller (a surface the extension owns). It holds no engine and no
@@ -75,6 +77,28 @@ function renderAccount(state: AccountState | null): void {
   $("acct-error").hidden = true;
   if (signedIn) void renderHandle();
   else $("acct-handle-cta").hidden = true;
+  void refreshSync();
+}
+
+/**
+ * Réglages → Synchronisation: when this device last synced, shown only while signed in. The
+ * same block as the review panel's Réglages, which the popup does not host.
+ */
+async function refreshSync(): Promise<void> {
+  $("sync-block").hidden = !accountSignedIn;
+  if (!accountSignedIn) return;
+  $("sync-status").textContent = lastSyncLabel(await loadLastSync(storageArea), Date.now());
+}
+
+/** « Synchroniser maintenant »: one exchange, reported by category. */
+async function runSyncNow(): Promise<void> {
+  const button = $("sync-now") as HTMLButtonElement;
+  button.disabled = true;
+  $("sync-msg").textContent = "Synchronisation…";
+  const reply = await syncNow();
+  $("sync-msg").textContent = reply.ok ? "" : syncErrorCopy(reply.error);
+  button.disabled = false;
+  await refreshSync();
 }
 
 /**
@@ -435,6 +459,18 @@ async function main(): Promise<void> {
   renderAccount(((await sendRuntime({ type: "account:state" })) as AccountReply | null)?.state ?? null);
   await renderProviders();
   await surfaceSignInError(); // show a sign-in failure that happened after the popup closed
+
+  // Opening the popup asks for a sync. What it pulls changes the backup, which the page
+  // restores: re-read the counts once the page has caught up.
+  $("sync-now").addEventListener("click", () => void runSyncNow());
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local") return;
+    if (changes[ROOT_KEY]) {
+      setTimeout(() => void applyEnabled(($("enabled") as HTMLInputElement).checked), 300);
+    }
+    if (changes[LAST_SYNC_KEY]) void refreshSync();
+  });
+  void requestSync();
 }
 
 void main();

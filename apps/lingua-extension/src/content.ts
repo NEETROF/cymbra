@@ -32,6 +32,7 @@ import {
   ROOT_KEY,
   saveBackup,
 } from "./state/storage.ts";
+import { requestSync } from "./sync/messages.ts";
 import { clearSyncCursors } from "./sync/sync.ts";
 import drawerCss from "./styles/drawer.css";
 import hudCss from "./styles/hud.css";
@@ -224,6 +225,8 @@ class ReadingSession {
     // Flush pending reading exposures before the tab is hidden / navigated away.
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "hidden" && this.pendingExposure.size > 0) void this.flushExposure();
+      // Back on the tab (possibly after reading on another device): ask for a sync too.
+      if (document.visibilityState === "visible" && this.enabled) void requestSync();
     });
     // The word popup is position:fixed and anchored to a word's box; a scroll detaches it
     // (and near the page bottom it could sit half-off-screen). Dismiss it on scroll — a
@@ -272,6 +275,8 @@ class ReadingSession {
     this.syncHud();
     this.observers.start();
     this.exposure.start();
+    // A page load asks for a sync; the background runs at most one a minute.
+    void requestSync();
   }
 
   /** Reflect the HUD's current visibility: shown only while enabled and not user-hidden. */
@@ -609,6 +614,8 @@ class ReadingSession {
     }
     await this.persist();
     await this.repaint();
+    // An open drawer shows the deck and stats this gesture just changed.
+    await this.drawer.refresh();
   }
 
   private async onExternalChange(backup: string): Promise<void> {
@@ -617,6 +624,7 @@ class ReadingSession {
     this.calibration = await this.port.calibration();
     await this.refreshNeedsLevel(); // a level picked in another tab or the popup
     await this.repaint();
+    await this.drawer.refresh(); // e.g. cards a sync just pulled
   }
 
   /** A block was read (visible past the dwell): queue its lemmas and throttle a flush. */

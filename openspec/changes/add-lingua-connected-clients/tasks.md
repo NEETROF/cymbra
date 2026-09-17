@@ -12,7 +12,7 @@
 - [ ] 2.1 Local outbox (a versioned op-log in `chrome.storage.local`): every status/card mutation enqueues a timestamped op (device_id generated at install); drained in batches with offset resumption
 - [ ] 2.2 Cursor pull + application to the local store (client-side LWW symmetric to the server's); the existing cross-tab propagation (`storage.onChanged`) triggered by pulled changes
 - [ ] 2.3 First-sign-in merge: full push of the pre-account state (original timestamps preserved), then a pull of the merged snapshot; test the "two devices with disjoint local states" scenario
-- [ ] 2.4 Background orchestration: sync on service-worker wake, after a batch of mutations and on side-panel open; a discreet sync-state indicator + a manual action in settings; no request at all while signed out
+- [x] 2.4 Background orchestration: sync on service-worker wake, after a batch of mutations and on side-panel open; a discreet sync-state indicator + a manual action in settings; no request at all while signed out
 - [ ] 2.5 Stats: local aggregation per (day, language) → `UpsertDailyStats` with the device_id; vitest coverage (re-push idempotence)
 
 ## 3. Extension — stats screen

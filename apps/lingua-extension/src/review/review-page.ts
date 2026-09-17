@@ -18,6 +18,8 @@ export interface ReviewPageOptions {
 export interface ReviewPage {
   /** Re-sync the summary + review view from the engine (call each time it is shown). */
   refresh: () => Promise<void>;
+  /** Whether a review session is under way (a restore would end it). */
+  reviewing: () => boolean;
 }
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string): HTMLElementTagNameMap[K] {
@@ -153,6 +155,7 @@ export function mountReview(
       await refreshSummary();
       renderReview(review, controller.view(), actions);
     },
+    reviewing: () => controller.view().phase === "reviewing",
   };
 }
 
