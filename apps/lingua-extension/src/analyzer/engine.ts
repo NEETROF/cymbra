@@ -14,7 +14,7 @@ import type { CefrLevel, LemmaStatus, LevelRow, PageAnalysis, SeedOrder, Vocabul
 // lazily in the content script's isolated world (design D2). This is the only place
 // that touches the wasm-pack output; everything else consumes the LinguaPort seam.
 // The engine holds the whole lingua-core LinguaState (knowledge + deck + FSRS);
-// persistence across contexts is backup → chrome.storage.local → restore.
+// persistence across contexts is backup → the durable store (state/store.ts) → restore.
 //
 // MV3 loading notes: a classic content script cannot statically import the wasm-pack
 // ES module, and init()'s bare auto-fetch is unreliable under chrome-extension://, so

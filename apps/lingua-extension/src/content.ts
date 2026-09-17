@@ -29,10 +29,10 @@ import {
   hydrateEngine,
   loadEnabled,
   loadHudHidden,
-  ROOT_KEY,
   saveBackup,
   SESSION_LOST_KEY,
 } from "./state/storage.ts";
+import { messagedArea, watchBackup } from "./state/store.ts";
 import { requestSync } from "./sync/messages.ts";
 import { clearSyncCursors } from "./sync/sync.ts";
 import drawerCss from "./styles/drawer.css";
@@ -51,6 +51,10 @@ import tokensCss from "./styles/tokens.css";
 // only for dirty subtrees; analysis over the (cheap) block text is whole-document so
 // the language gate and the percentage stay page-correct.
 
+/** The reader's data (backup, statistics), owned by the background (design D1/D2). */
+const store: AsyncStorageArea = messagedArea();
+
+/** Preferences and marks, which every surface must read before any round-trip. */
 const storageArea: AsyncStorageArea = {
   get: (keys) => chrome.storage.local.get(keys),
   set: (items) => chrome.storage.local.set(items),
@@ -160,6 +164,7 @@ class ReadingSession {
       css: `${tokensCss}\n${reviewCss}\n${statsCss}\n${settingsCss}\n${drawerCss}`,
       port: this.port,
       area: storageArea,
+      store,
       now: nowSeconds,
       onChange: () => this.persist(),
     });
@@ -176,7 +181,7 @@ class ReadingSession {
   }
 
   async start(): Promise<void> {
-    await hydrateEngine(this.port, storageArea);
+    await hydrateEngine(this.port, store);
     this.calibration = await this.port.calibration();
     this.hudHidden = await loadHudHidden(storageArea);
     this.enabled = await loadEnabled(storageArea);
@@ -209,12 +214,10 @@ class ReadingSession {
     });
     // A multi-word mouse selection opens the whole-selection card directly (Alt+L too).
     document.addEventListener("mouseup", (e) => this.onMouseUp(e));
+    // The deck and statuses, when another surface changed them.
+    watchBackup(store, (backup) => void this.onExternalChange(backup));
     chrome.storage.onChanged.addListener((changes, areaName) => {
       if (areaName !== "local") return;
-      const root = changes[ROOT_KEY];
-      if (root && typeof (root.newValue as { backup?: string })?.backup === "string") {
-        void this.onExternalChange((root.newValue as { backup: string }).backup);
-      }
       const toggled = changes[ENABLED_KEY];
       if (toggled) void this.onEnabledChange(toggled.newValue !== false);
       const hudToggled = changes[HUD_HIDDEN_KEY];
@@ -341,7 +344,7 @@ class ReadingSession {
   private async persist(): Promise<void> {
     const backup = await this.port.backup();
     this.lastBackup = backup; // so our own storage.onChanged echo is ignored
-    await saveBackup(storageArea, backup);
+    await saveBackup(store, backup);
     // A level picked in the drawer's settings lands here (our own echo is ignored below).
     await this.refreshNeedsLevel();
     this.updateHud();
@@ -394,7 +397,7 @@ class ReadingSession {
     // Count studied-word exposures once per page load (§3 daily stats).
     if (this.stats.analysable && !this.exposuresRecorded && this.stats.counted > 0) {
       this.exposuresRecorded = true;
-      void recordExposures(storageArea, utcDay(Date.now()), this.stats.counted);
+      void recordExposures(store, utcDay(Date.now()), this.stats.counted);
     }
     // Re-assert the token sheet before painting: a single-page-app navigation
     // (GitHub's morphing) can strip our injected styles, which leaves highlights
@@ -615,7 +618,7 @@ class ReadingSession {
     } else {
       // Stamp the change so it orders correctly in cross-device sync (LWW).
       await this.port.setStatusAt(key, g.status, Date.now());
-      if (g.status === "known") void recordWordLearned(storageArea, utcDay(Date.now()));
+      if (g.status === "known") void recordWordLearned(store, utcDay(Date.now()));
       // Promoting a word that was in the deck (learning) to known/ignored must retire its
       // card so it stops coming due — a word you now treat as known/ignored shouldn't keep
       // being reviewed. No-op when there is no card. (Clearing → "à apprendre" keeps it.)
@@ -700,7 +703,7 @@ class ReadingSession {
       await this.port.resetStatuses();
     } else {
       await this.port.reset();
-      await clearSyncCursors(storageArea);
+      await clearSyncCursors(store);
     }
     // Option B: with CEFR data, presume nothing until the reader picks a level —
     // keep frequency calibration at 0 and let the popup re-prompt for a level.

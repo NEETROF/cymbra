@@ -89,7 +89,7 @@ export interface CardOp {
 // The full engine surface the review change drives (add-lingua-extension-review): the
 // reading AnalyzerPort plus deck building, an FSRS review session, lossless
 // backup/restore and pack attributions. The engine holds the whole lingua-core
-// LinguaState; persistence is backup → chrome.storage.local → restore in every context.
+// LinguaState; persistence is backup → the durable store → restore in every context.
 export interface LinguaPort extends AnalyzerPort {
   /** The current calibration threshold. */
   calibration(): Promise<number>;
