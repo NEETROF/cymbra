@@ -28,11 +28,18 @@ fn ttl_secs(ttl: Duration) -> f64 {
 pub struct PgSessionStore {
     pool: PgPool,
     ttl: Duration,
+    /// How long the token a rotation just replaced is still accepted (change:
+    /// fix-interrupted-refresh-signouts).
+    reuse_grace: Duration,
 }
 
 impl PgSessionStore {
-    pub fn new(pool: PgPool, ttl: Duration) -> Self {
-        Self { pool, ttl }
+    pub fn new(pool: PgPool, ttl: Duration, reuse_grace: Duration) -> Self {
+        Self {
+            pool,
+            ttl,
+            reuse_grace,
+        }
     }
 }
 
@@ -66,9 +73,11 @@ impl SessionStore for PgSessionStore {
         let mut tx = self.pool.begin().await.map_err(internal)?;
 
         // Atomic check-and-rotate: exactly one concurrent caller matches
-        // (id, old_hash) on a live row and slides the expiry.
+        // (id, old_hash) on a live row and slides the expiry. The token it replaces is
+        // remembered, with the time, for the grace branch below.
         let rotated = sqlx::query(
             "UPDATE sessions SET current_rt_hash = $1, \
+                 prev_rt_hash = current_rt_hash, prev_replaced_at = now(), \
                  expires_at = now() + make_interval(secs => $2) \
              WHERE id = $3 AND current_rt_hash = $4 AND expires_at > now() \
              RETURNING user_id, audience",
@@ -82,6 +91,36 @@ impl SessionStore for PgSessionStore {
         .map_err(internal)?;
 
         if let Some(row) = rotated {
+            tx.commit().await.map_err(internal)?;
+            return Ok(Rotated {
+                refresh_token: new_token,
+                user_id: row.get("user_id"),
+                audience: row.get("audience"),
+            });
+        }
+
+        // The token this family replaced a moment ago: the client never received the
+        // answer that carried its successor (design D2). Rotate again and hand it a
+        // usable pair rather than revoking what is, as far as anyone can tell, an
+        // honest client that was killed mid-call.
+        let regranted = sqlx::query(
+            "UPDATE sessions SET current_rt_hash = $1, \
+                 prev_rt_hash = current_rt_hash, prev_replaced_at = now(), \
+                 expires_at = now() + make_interval(secs => $2) \
+             WHERE id = $3 AND prev_rt_hash = $4 AND expires_at > now() \
+               AND prev_replaced_at > now() - make_interval(secs => $5) \
+             RETURNING user_id, audience",
+        )
+        .bind(&new_hash)
+        .bind(ttl_secs(self.ttl))
+        .bind(id)
+        .bind(&old_hash)
+        .bind(ttl_secs(self.reuse_grace))
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(internal)?;
+
+        if let Some(row) = regranted {
             tx.commit().await.map_err(internal)?;
             return Ok(Rotated {
                 refresh_token: new_token,

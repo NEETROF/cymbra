@@ -9,18 +9,21 @@ import { type AsyncStorageArea, SESSION_LOST_KEY } from "./storage.ts";
 // email verification, password reset, refresh and sign-out. Local-first: without a
 // session nothing changes, and signing out never touches the reader's own state.
 //
-// Tokens are split by volatility (design D1): the short-lived ACCESS token in
-// chrome.storage.session (in memory, gone when the browser closes, never on disk), the
-// rotating server-revocable REFRESH token in chrome.storage.local (so the session
-// survives a browser restart). A background service worker is ephemeral, so the access
-// token is also mirrored in memory for the transport's synchronous getter and rebuilt
-// from the refresh token on wake.
+// Both tokens live in chrome.storage.local, the access one with its expiry
+// (fix-interrupted-refresh-signouts). Keeping the access token in chrome.storage.session
+// meant a woken background page usually found nothing and refreshed — and every refresh
+// rotates the server's token, so every wake was a chance to be killed mid-rotation and
+// signed out. It is a 15-minute bearer sitting beside the 30-day refresh token that was
+// already there: whoever can read one can read the other, and pages can read neither.
+// The access token is also mirrored in memory for the transport's synchronous getter.
 //
 // Every failure is rethrown as an AccountError carrying a category (design D7): no
 // caller ever sees — or can display — a raw gRPC/Connect message.
 
-const ACCESS_KEY = "cymbra-lingua-access"; // chrome.storage.session
+const ACCESS_KEY = "cymbra-lingua-access"; // chrome.storage.local, with its expiry
 const REFRESH_KEY = "cymbra-lingua-refresh"; // chrome.storage.local
+/** Refresh this long before the access token expires, rather than on the failing call. */
+const EXPIRY_SKEW_MS = 30_000;
 /**
  * The last provider sign-in failure, in chrome.storage.session (transient, gone on browser
  * close). Chrome tears the browser-action popup down when the provider's auth window takes
@@ -93,8 +96,9 @@ export class Session {
    * Returns whether a usable session was restored.
    */
   async resume(): Promise<boolean> {
-    this.refreshTok = strOrNull((await this.deps.localArea.get(REFRESH_KEY))[REFRESH_KEY]);
-    this.access = strOrNull((await this.deps.sessionArea.get(ACCESS_KEY))[ACCESS_KEY]);
+    const stored = await this.deps.localArea.get([REFRESH_KEY, ACCESS_KEY]);
+    this.refreshTok = strOrNull(stored[REFRESH_KEY]);
+    this.access = usableAccess(stored[ACCESS_KEY], Date.now());
     if (this.access) {
       // A usable session: whatever a past failure recorded, it is not lost any more.
       await this.deps.localArea.set({ [SESSION_LOST_KEY]: false });
@@ -224,8 +228,12 @@ export class Session {
     this.access = pair.accessToken;
     this.refreshTok = pair.refreshToken;
     // Clear any stale sign-in error alongside the new access token (one success wipes it).
-    await this.deps.sessionArea.set({ [ACCESS_KEY]: pair.accessToken, [SIGNIN_ERROR_KEY]: null });
-    await this.deps.localArea.set({ [REFRESH_KEY]: pair.refreshToken, [SESSION_LOST_KEY]: false });
+    await this.deps.sessionArea.set({ [SIGNIN_ERROR_KEY]: null });
+    await this.deps.localArea.set({
+      [REFRESH_KEY]: pair.refreshToken,
+      [ACCESS_KEY]: { token: pair.accessToken, expiresAt: accessExpiry(pair.accessToken) },
+      [SESSION_LOST_KEY]: false,
+    });
   }
 
   /** Persist a provider failure so the (possibly torn-down) popup can show it on reopen. */
@@ -242,8 +250,11 @@ export class Session {
     const had = this.refreshTok != null;
     this.access = null;
     this.refreshTok = null;
-    await this.deps.sessionArea.set({ [ACCESS_KEY]: null });
-    await this.deps.localArea.set({ [REFRESH_KEY]: null, [SESSION_LOST_KEY]: Boolean(opts.lost) && had });
+    await this.deps.localArea.set({
+      [REFRESH_KEY]: null,
+      [ACCESS_KEY]: null,
+      [SESSION_LOST_KEY]: Boolean(opts.lost) && had,
+    });
   }
 }
 
@@ -254,6 +265,32 @@ async function categorized<T>(fn: () => Promise<T>): Promise<T> {
   } catch (e) {
     throw new AccountError(authErrorOf(e));
   }
+}
+
+/**
+ * The access token's expiry (epoch millis) read from its own `exp` claim, or null when it
+ * cannot be read — a token whose expiry is unknown is used until a call says otherwise.
+ */
+export function accessExpiry(token: string): number | null {
+  const payload = token.split(".")[1];
+  if (!payload) return null;
+  try {
+    const json = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
+    const exp = (JSON.parse(json) as { exp?: unknown }).exp;
+    return typeof exp === "number" ? exp * 1000 : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The stored access token, unless its own expiry says it is spent. */
+function usableAccess(stored: unknown, now: number): string | null {
+  const entry = stored as { token?: unknown; expiresAt?: unknown } | null;
+  const token = strOrNull(entry?.token);
+  if (!token) return null;
+  const expiresAt = entry?.expiresAt;
+  if (typeof expiresAt === "number" && expiresAt - EXPIRY_SKEW_MS <= now) return null;
+  return token;
 }
 
 function strOrNull(v: unknown): string | null {
