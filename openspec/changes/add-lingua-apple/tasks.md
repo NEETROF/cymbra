@@ -27,7 +27,7 @@
 
 - [x] 5.1 Scaffold `apps/lingua-apple` with `safari-web-extension-converter` (universal, Swift, bundle `com.cymbra.lingua`), commit the project, and point its extension resources at `apps/lingua-extension/dist-safari`
 - [x] 5.2 Activation guide (French copy): iOS steps (Settings → Apps → Safari → Extensions, allow websites, the address-bar menu, reload open tabs); macOS button → `SFSafariApplication.showPreferencesForExtension` and enabled state via `SFSafariExtensionManager`
-- [ ] 5.3 Signing + TestFlight lane cloned from the `ios` and `macos` jobs of `music-release` (App IDs `com.cymbra.lingua` and `.Extension`)
+- [x] 5.3 Signing + TestFlight lane cloned from the `ios` and `macos` jobs of `music-release` (App IDs `com.cymbra.lingua` and `.Extension`)
 - [x] 5.4 `lingua-apple-build` workflow (macOS runner: extension `safari` build, then unsigned `xcodebuild` for the iOS simulator and macOS); add `apps/lingua-apple` to the `ci-units` filter
 
 ## 6. Validation and release

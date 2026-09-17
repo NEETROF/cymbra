@@ -19,6 +19,8 @@ export function lastSyncLabel(at: number | null, now: number): string {
 
 export function syncErrorCopy(kind: AuthErrorKind | undefined): string {
   switch (kind) {
+    case "storageFull":
+      return "La mémoire de l’extension est pleine sur cet appareil — réinitialise tes données locales dans Réglages.";
     case "unavailable":
       return "Serveur injoignable — réessaie plus tard.";
     case "unauthenticated":

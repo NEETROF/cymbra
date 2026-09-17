@@ -291,6 +291,22 @@ impl KnowledgeState {
         before != incoming || self.is_withdrawn(lang, lemma) != was_withdrawn
     }
 
+    /// Whether reading `lemma` could still confirm it: the promotion rule minus the
+    /// distinct-day count — a declared level, and a lemma that resolves as presumed known
+    /// (below that level, with neither an explicit status nor a withdrawn one). Only these
+    /// are worth counting exposures for: without a declared level nothing is ever promoted,
+    /// and once the reader has decided about a word, reading it again changes nothing.
+    pub fn promotable_by_exposure(
+        &self,
+        lang: StudiedLanguage,
+        lemma: &str,
+        lexis: &(impl FrequencyRanks + CefrLevels),
+    ) -> bool {
+        self.declared_level(lang).is_some()
+            && self.resolve_lemma(lang, lemma, lexis)
+                == Some(Status::Known(KnownSource::Calibration))
+    }
+
     /// The explicit status of a lemma, if any.
     pub fn explicit_status(&self, lang: StudiedLanguage, lemma: &str) -> Option<Status> {
         self.statuses
@@ -547,19 +563,12 @@ impl KnowledgeState {
         threshold_days: u32,
         at_ms: i64,
     ) -> Vec<String> {
-        if self.declared_level(lang).is_none() {
-            return Vec::new();
-        }
         let mut promoted = Vec::new();
         for (lemma, exposure) in exposures.lemmas(lang) {
             if exposure.distinct_days < threshold_days {
                 continue;
             }
-            // Exactly the presumed lemmas: an explicit or withdrawn status, or a
-            // lemma at/above the declared level, resolves to something else.
-            if self.resolve_lemma(lang, lemma, lexis)
-                == Some(Status::Known(KnownSource::Calibration))
-            {
+            if self.promotable_by_exposure(lang, lemma, lexis) {
                 promoted.push(lemma.to_owned());
             }
         }
@@ -1005,6 +1014,28 @@ mod tests {
         assert_eq!(stats.presumed, 1);
         assert_eq!(stats.to_learn, 2);
         assert_eq!(stats.total(), 4);
+    }
+
+    #[test]
+    fn only_a_word_reading_could_confirm_is_worth_counting() {
+        // The predicate the extension filters exposures with: counting anything else fills
+        // the browser's storage for nothing (dogfooding, TestFlight 70/71).
+        let mut state = KnowledgeState::new();
+        let lexis = leveled();
+
+        // No declared level: nothing is ever promoted, so nothing is worth counting.
+        assert!(!state.promotable_by_exposure(EN, "cat", &lexis));
+
+        state.set_declared_level_at(EN, Some(CefrLevel::B1), 1_000);
+        assert!(state.promotable_by_exposure(EN, "cat", &lexis)); // A1, below B1: presumed
+        assert!(!state.promotable_by_exposure(EN, "city", &lexis)); // B1 itself: not below
+        assert!(!state.promotable_by_exposure(EN, "zyzzyva", &lexis)); // unlevelled: unknown
+
+        // Once the reader decides, reading changes nothing — including a withdrawal.
+        state.set_status_at(EN, "cat", Status::Learning, 2_000);
+        assert!(!state.promotable_by_exposure(EN, "cat", &lexis));
+        state.clear_status_at(EN, "cat", 3_000);
+        assert!(!state.promotable_by_exposure(EN, "cat", &lexis));
     }
 
     #[test]

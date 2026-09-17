@@ -66,6 +66,14 @@ export class Session {
   private refreshTok: string | null = null;
   /** The refresh in flight, shared by every caller (see `refresh`). */
   private refreshing: Promise<boolean> | null = null;
+  /**
+   * Bumped by every stored token pair. A failure that started before the current session
+   * belongs to an older one and must not purge it: the reader signing in while a doomed
+   * refresh was still in flight would otherwise end up signed in **in memory** and signed
+   * out **in storage** — syncing until the next restart, then silently signed out again
+   * (dogfooding, TestFlight 70/71).
+   */
+  private generation = 0;
 
   constructor(private readonly deps: SessionDeps) {}
 
@@ -87,7 +95,11 @@ export class Session {
   async resume(): Promise<boolean> {
     this.refreshTok = strOrNull((await this.deps.localArea.get(REFRESH_KEY))[REFRESH_KEY]);
     this.access = strOrNull((await this.deps.sessionArea.get(ACCESS_KEY))[ACCESS_KEY]);
-    if (this.access) return true;
+    if (this.access) {
+      // A usable session: whatever a past failure recorded, it is not lost any more.
+      await this.deps.localArea.set({ [SESSION_LOST_KEY]: false });
+      return true;
+    }
     if (this.refreshTok) return this.refresh();
     return false;
   }
@@ -183,11 +195,13 @@ export class Session {
   private async refreshOnce(): Promise<boolean> {
     const token = this.refreshTok;
     if (!token) return false;
+    const generation = this.generation;
     try {
       await this.store(await this.deps.auth().refresh({ refreshToken: token }));
       return true;
     } catch (e) {
-      if (authErrorOf(e) === "unauthenticated") await this.purge({ lost: true });
+      const stale = this.generation !== generation; // a sign-in landed meanwhile
+      if (!stale && authErrorOf(e) === "unauthenticated") await this.purge({ lost: true });
       return false;
     }
   }
@@ -206,6 +220,7 @@ export class Session {
   }
 
   private async store(pair: { accessToken: string; refreshToken: string }): Promise<void> {
+    this.generation += 1;
     this.access = pair.accessToken;
     this.refreshTok = pair.refreshToken;
     // Clear any stale sign-in error alongside the new access token (one success wipes it).

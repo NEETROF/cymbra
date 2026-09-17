@@ -105,6 +105,41 @@ impl ExposureCounters {
         }
     }
 
+    /// Keep only the lemmas `keep` accepts. Counters exist for one purpose — confirming a
+    /// presumed word by repeated reading — so one that can no longer be promoted (the reader
+    /// decided about the word, or the declared level moved) is dead weight in a store that
+    /// every surface loads.
+    pub fn retain(&mut self, lang: StudiedLanguage, mut keep: impl FnMut(&str, &Exposure) -> bool) {
+        if let Some(per_lang) = self.counters.get_mut(&lang) {
+            per_lang.retain(|lemma, exposure| keep(lemma, exposure));
+            if per_lang.is_empty() {
+                self.counters.remove(&lang);
+            }
+        }
+    }
+
+    /// Bound the counters to the `max` lemmas seen most recently, so a reader's store cannot
+    /// grow with every new word they ever meet. Dropping the least recent loses the least:
+    /// promotion needs reading spread over days, which a lemma not seen in a long time is
+    /// not accumulating.
+    pub fn cap_by_recency(&mut self, lang: StudiedLanguage, max: usize) {
+        let Some(per_lang) = self.counters.get_mut(&lang) else {
+            return;
+        };
+        if per_lang.len() <= max {
+            return;
+        }
+        let mut by_recency: Vec<(i64, String)> = per_lang
+            .iter()
+            .map(|(lemma, exp)| (exp.last_seen, lemma.clone()))
+            .collect();
+        // Most recent first; the lemma breaks ties so the result never depends on map order.
+        by_recency.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
+        for (_, lemma) in by_recency.into_iter().skip(max) {
+            per_lang.remove(&lemma);
+        }
+    }
+
     /// The exposure record for a lemma, if it has ever been seen.
     pub fn get(&self, lang: StudiedLanguage, lemma: &str) -> Option<&Exposure> {
         self.counters
@@ -192,5 +227,45 @@ mod tests {
         counters.record(EN, "apple", 1, "p", 0);
         let seen: Vec<&str> = counters.lemmas(EN).map(|(l, _)| l).collect();
         assert_eq!(seen, ["apple", "zebra"]);
+    }
+
+    #[test]
+    fn retain_drops_what_can_no_longer_be_promoted() {
+        let mut counters = ExposureCounters::new();
+        counters.record(StudiedLanguage::English, "cat", 1, "r", 1_000);
+        counters.record(StudiedLanguage::English, "run", 1, "r", 2_000);
+
+        counters.retain(StudiedLanguage::English, |lemma, _| lemma == "cat");
+
+        assert!(counters.get(StudiedLanguage::English, "cat").is_some());
+        assert!(counters.get(StudiedLanguage::English, "run").is_none());
+
+        // Emptying a language drops the language itself, so the state serialises to {}.
+        counters.retain(StudiedLanguage::English, |_, _| false);
+        assert_eq!(counters.tracked_len(), 0);
+    }
+
+    #[test]
+    fn cap_keeps_the_most_recently_read() {
+        let mut counters = ExposureCounters::new();
+        for (lemma, seen) in [("old", 1_000), ("newer", 3_000), ("newest", 5_000)] {
+            counters.record(StudiedLanguage::English, lemma, 1, "r", seen);
+        }
+
+        counters.cap_by_recency(StudiedLanguage::English, 2);
+
+        assert_eq!(counters.tracked_len(), 2);
+        assert!(counters.get(StudiedLanguage::English, "old").is_none());
+        assert!(counters.get(StudiedLanguage::English, "newest").is_some());
+    }
+
+    #[test]
+    fn cap_above_the_count_changes_nothing() {
+        let mut counters = ExposureCounters::new();
+        counters.record(StudiedLanguage::English, "cat", 1, "r", 1_000);
+
+        counters.cap_by_recency(StudiedLanguage::English, 10);
+
+        assert_eq!(counters.tracked_len(), 1);
     }
 }

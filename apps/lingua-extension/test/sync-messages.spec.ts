@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { isSyncMessage, LAST_SYNC_KEY, loadLastSync, requestSync, syncAvailable, syncNow } from "@/sync/messages.ts";
 import { lastSyncLabel, syncErrorCopy } from "@/sync/status.ts";
+import { authErrorOf } from "@/state/auth-errors.ts";
 import type { AsyncStorageArea } from "@/state/storage.ts";
 
 function fakeArea(): AsyncStorageArea & { store: Record<string, unknown> } {
@@ -81,6 +82,21 @@ describe("sync status copy", () => {
     expect(lastSyncLabel(now - 3 * 60_000, now)).toBe("Synchronisé il y a 3 min.");
     expect(lastSyncLabel(now - 5 * 3_600_000, now)).toBe("Synchronisé il y a 5 h.");
     expect(lastSyncLabel(now - 3 * 86_400_000, now)).toMatch(/^Dernière synchronisation le /);
+  });
+
+  it("names a full storage instead of blaming the network", () => {
+    // Safari says it in words and only in words; the reader gets an actionable sentence.
+    expect(authErrorOf(new Error("Invalid call to browser.storage.local.set(). Exceeded storage quota."))).toBe(
+      "storageFull",
+    );
+    expect(authErrorOf(new Error("QUOTA_BYTES quota exceeded"))).toBe("storageFull");
+    const quota = new Error("too big");
+    quota.name = "QuotaExceededError";
+    expect(authErrorOf(quota)).toBe("storageFull");
+    // An ordinary failed fetch is still an unreachable server.
+    expect(authErrorOf(new TypeError("Load failed"))).toBe("unavailable");
+
+    expect(syncErrorCopy("storageFull")).toMatch(/mémoire de l’extension est pleine/);
   });
 
   it("explains a failure by category, never by message", () => {
