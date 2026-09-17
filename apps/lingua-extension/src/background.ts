@@ -21,6 +21,15 @@ import {
 } from "./state/oidc.ts";
 import { Session } from "./state/session.ts";
 import { type AsyncStorageArea, hydrateEngine, ROOT_KEY, SESSION_LOST_KEY } from "./state/storage.ts";
+import {
+  idbArea,
+  isStoreMessage,
+  migrateStore,
+  openStore,
+  STORE_CHANGED_KEY,
+  type StoreChange,
+  type StoreReply,
+} from "./state/store.ts";
 import { isSyncMessage, LAST_SYNC_KEY, loadLastSync, type SyncReply } from "./sync/messages.ts";
 import { PAGE_INTERVAL_MS, SURFACE_INTERVAL_MS, SyncScheduler } from "./sync/scheduler.ts";
 import { getOrCreateDeviceId, SyncEngine } from "./sync/sync.ts";
@@ -110,6 +119,69 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
   else openTab();
 });
 
+// The reader's data — engine backup, daily statistics, sync cursors — lives in IndexedDB,
+// owned here (change: move-lingua-store-to-indexeddb). A content script cannot open the
+// extension's database (it runs in the visited page's origin), so every other surface asks
+// this listener, and follows the store through a marker in chrome.storage.local, the one
+// change channel that reaches every context and survives a suspended background page.
+const settingsArea: AsyncStorageArea = {
+  get: (keys) => chrome.storage.local.get(keys),
+  set: (items) => chrome.storage.local.set(items),
+};
+
+let storeRev = 0;
+
+/** Say which keys just changed; surfaces re-read what they care about. */
+function announceStoreChange(keys: string[]): void {
+  storeRev += 1;
+  void chrome.storage.local.set({ [STORE_CHANGED_KEY]: { rev: storeRev, keys } satisfies StoreChange }).catch(() => {});
+}
+
+/**
+ * The database, opened once, with the reader's data copied out of chrome.storage.local on
+ * the first start after the update. A database that will not open is not fatal: the
+ * settings area still holds a bounded state, so the reader keeps reading and reviewing.
+ */
+const storeArea: Promise<AsyncStorageArea> = (async () => {
+  try {
+    const area = idbArea(await openStore());
+    const moved = await migrateStore(settingsArea, area);
+    if (moved.length > 0) console.info(`[Cymbra Lingua] moved ${moved.length} keys into the durable store`);
+    void navigator.storage?.persist?.().catch(() => {});
+    return area;
+  } catch (e) {
+    console.warn("[Cymbra Lingua] durable store unavailable, staying on storage.local:", e);
+    return settingsArea;
+  }
+})();
+
+/** The owner's own handle: writes announce themselves, like a surface's would. */
+const ownedStore: AsyncStorageArea = {
+  get: async (keys) => (await storeArea).get(keys),
+  set: async (items) => {
+    await (await storeArea).set(items);
+    announceStoreChange(Object.keys(items));
+  },
+};
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (!isStoreMessage(message)) return undefined;
+  void (async () => {
+    const area = await storeArea;
+    if (message.type === "store:get") {
+      sendResponse({ ok: true, items: await area.get(message.keys) } satisfies StoreReply);
+      return;
+    }
+    await area.set(message.items);
+    announceStoreChange(Object.keys(message.items));
+    sendResponse({ ok: true } satisfies StoreReply);
+  })().catch((e: unknown) => {
+    console.warn("[Cymbra Lingua] store request failed:", e);
+    sendResponse({ ok: false } satisfies StoreReply);
+  });
+  return true; // async response
+});
+
 // Host the WASM engine here and serve the AnalyzerPort RPC. On Firefox (whose
 // content-script CSP always blocks WASM) this is the primary engine; on Chromium it is
 // the fallback for pages whose own CSP blocks the in-content engine (e.g. GitHub) — the
@@ -118,10 +190,7 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
 // page pays nothing. It self-hydrates from storage on wake, so a restarted worker
 // restores state before answering; the surfaces persist after their own mutations.
 {
-  const storage: AsyncStorageArea = {
-    get: (keys) => chrome.storage.local.get(keys),
-    set: (items) => chrome.storage.local.set(items),
-  };
+  const storage = ownedStore;
   const enginePort = new WasmAnalyzerPort(staticGlue);
   let hydrated: Promise<void> | null = null;
   const ensure = (): Promise<void> => (hydrated ??= hydrateEngine(enginePort, storage));
@@ -189,10 +258,10 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
   let deviceIdPromise: Promise<string> | null = null;
   let syncEngine: SyncEngine | null = null;
   const getSyncEngine = async (): Promise<SyncEngine> => {
-    deviceIdPromise ??= getOrCreateDeviceId(localStore);
+    deviceIdPromise ??= getOrCreateDeviceId(ownedStore);
     syncEngine ??= new SyncEngine({
       port: syncPort,
-      storage: localStore,
+      storage: ownedStore,
       clients: () => ({ knownWords: api().knownWords, deck: api().deck, stats: api().stats, data: api().data }),
       deviceId: await deviceIdPromise,
     });

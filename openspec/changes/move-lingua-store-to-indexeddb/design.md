@@ -35,9 +35,11 @@ The surfaces consume `get`/`set` today. They keep consuming it:
 
 Nothing in the reading, review, stats or sync code changes. The messaged implementation is also what keeps the background alive while it works, the way the sync request already does (`fix-…-signouts` reasoning: a pending response is what a suspended page needs).
 
-### D3 — Changes are pushed over a port, not observed
+### D3 — Changes are announced by a marker the surfaces already hear
 
-`storage.onChanged` fired because every surface wrote the same key. With one owner, the background announces: each surface opens a long-lived port (`chrome.runtime.connect`) and receives the keys that changed, filtered to the ones it asked for.
+`storage.onChanged` fired because every surface wrote the same key. With one owner, the background announces: after every write it bumps a small marker in `chrome.storage.local` naming the keys that changed, and the surfaces react to it as they already react to the reader's toggles.
+
+**Revised during implementation.** This design first called for a long-lived port (`chrome.runtime.connect`) per surface. The marker is better where it matters: `chrome.storage.onChanged` reaches **every** context, content scripts included, needs no permission, and — decisively — survives the background page being suspended, which a port does not: every suspension would tear every port down and need reconnect logic in five surfaces, on the one browser (Safari) where suspension is constant. The marker is a number and a list of key names, written where preferences already live.
 
 **Alternatives rejected:** `chrome.tabs.sendMessage` to every tab needs tab enumeration and a permission the extension does not have; polling wastes wakes on a browser that suspends the background.
 

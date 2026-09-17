@@ -18,8 +18,10 @@ export interface DrawerOptions {
   /** Combined token sheet + review + stats + settings + drawer styles, for the shadow. */
   css: string;
   port: LinguaPort;
-  /** chrome.storage.local surface (review deck, stats, the HUD-toggle in settings). */
+  /** Preferences surface (the HUD toggle, the last-sync time): chrome.storage.local. */
   area: AsyncStorageArea;
+  /** The reader's data (deck, statistics, cursors), owned by the background. */
+  store: AsyncStorageArea;
   /** Epoch-seconds clock (Date.now()/1000 in production). */
   now: () => number;
   /** Persist after a state-changing settings action (backup → storage). */
@@ -130,13 +132,14 @@ export class Drawer {
     this.settingsBody.hidden = view !== "settings";
     for (const [v, b] of this.tabs) b.classList.toggle("active", v === view);
     if (view === "review") {
-      this.reviewPage ??= mountReview(this.reviewBody, this.opts.port, this.opts.area, { now: this.opts.now });
+      this.reviewPage ??= mountReview(this.reviewBody, this.opts.port, this.opts.store, { now: this.opts.now });
       await this.reviewPage.refresh();
     } else if (view === "stats") {
-      await mountStats(this.statsBody, this.opts.port, this.opts.area);
+      await mountStats(this.statsBody, this.opts.port, this.opts.store);
     } else {
       this.settings ??= mountSettings(this.settingsBody, this.opts.port, this.opts.area, {
         persist: this.opts.onChange,
+        store: this.opts.store,
       });
       await this.settings.refresh();
     }

@@ -3,8 +3,8 @@ import type { LemmaStatus } from "../analyzer/types.ts";
 
 // Versioned local state (designs D4 + the review change). The authoritative state is
 // lingua-core's LinguaState, held by the WASM engine and persisted as its lossless
-// backup string under one root key in chrome.storage.local. Every context (content
-// script, side panel) restores from it and writes back through it, so the deck, FSRS
+// backup string under one root key in the durable store the background owns (see
+// `state/store.ts`). Every context restores from it and writes back through it, so the deck, FSRS
 // schedule, statuses and calibration stay in lockstep and a backup file is a byte-for-
 // byte export of the same thing.
 //
