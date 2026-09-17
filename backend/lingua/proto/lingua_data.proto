@@ -1,0 +1,33 @@
+// Copyright 2026 NEETROF
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+// this file except in compliance with the License. You may obtain a copy of the
+// License at http://www.apache.org/licenses/LICENSE-2.0
+
+syntax = "proto3";
+
+package cymbra.lingua.v1;
+
+// The reader's control over their own Lingua data (change: add-lingua-privacy-controls).
+// The caller's identity comes from the access token, never the body. Erasing Lingua data
+// never touches the Cymbra account: that is `DeleteAccount`, which serves every product.
+service LinguaDataService {
+  // Delete the caller's word statuses, declared levels, cards and daily stats, and record
+  // an erasure mark. Pushes dated at or before the mark are dropped from then on.
+  rpc EraseMyData(EraseMyDataRequest) returns (EraseMyDataResponse);
+  // The caller's erasure mark. A client reads it before every push: a mark newer than
+  // the one it last saw means its local store predates the erasure and must be emptied.
+  rpc GetDataState(GetDataStateRequest) returns (GetDataStateResponse);
+}
+
+message EraseMyDataRequest {}
+
+message EraseMyDataResponse {
+  int64 erased_at = 1; // the recorded mark (server epoch millis)
+}
+
+message GetDataStateRequest {}
+
+message GetDataStateResponse {
+  int64 erased_at = 1; // the latest erasure mark (server epoch millis); 0 = never erased
+}

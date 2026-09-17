@@ -5,7 +5,8 @@
 // License at http://www.apache.org/licenses/LICENSE-2.0
 
 //! Postgres adapter for [`DeckRepo`]. Thin sqlx glue — coverage-excluded; LWW logic is
-//! host-tested in `deck`. Media contents are never stored (allow-list): no media column.
+//! host-tested in `deck`. Media contents are never stored (allow-list): no media column,
+//! and no page address either (add-lingua-privacy-controls).
 
 use async_trait::async_trait;
 use cymbra_platform::{AppError, Result};
@@ -37,12 +38,12 @@ impl DeckRepo for PgDeckRepo {
     async fn apply_card(&self, user: &str, card: &Card) -> Result<bool> {
         let affected = sqlx::query(
             "INSERT INTO lingua.cards \
-               (user_id, client_id, lemma, surface_form, source_sentence, source, gloss, \
+               (user_id, client_id, lemma, surface_form, source_sentence, gloss, \
                 fsrs_state, deleted, updated_at, device_id, seq) \
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, nextval('lingua.change_seq')) \
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, nextval('lingua.change_seq')) \
              ON CONFLICT (user_id, client_id) DO UPDATE SET \
                lemma = excluded.lemma, surface_form = excluded.surface_form, \
-               source_sentence = excluded.source_sentence, source = excluded.source, \
+               source_sentence = excluded.source_sentence, \
                gloss = excluded.gloss, fsrs_state = excluded.fsrs_state, \
                deleted = excluded.deleted, updated_at = excluded.updated_at, \
                device_id = excluded.device_id, seq = nextval('lingua.change_seq') \
@@ -55,7 +56,6 @@ impl DeckRepo for PgDeckRepo {
         .bind(&card.lemma)
         .bind(&card.surface_form)
         .bind(&card.source_sentence)
-        .bind(&card.source)
         .bind(&card.gloss)
         .bind(&card.fsrs_state)
         .bind(card.deleted)
@@ -80,7 +80,7 @@ impl DeckRepo for PgDeckRepo {
 
     async fn changes_since(&self, user: &str, cursor: i64) -> Result<Vec<Card>> {
         let rows = sqlx::query(
-            "SELECT client_id, lemma, surface_form, source_sentence, source, gloss, fsrs_state, \
+            "SELECT client_id, lemma, surface_form, source_sentence, gloss, fsrs_state, \
                     deleted, updated_at, device_id, seq \
              FROM lingua.cards WHERE user_id = $1 AND seq > $2 ORDER BY seq",
         )
@@ -96,7 +96,6 @@ impl DeckRepo for PgDeckRepo {
                 lemma: r.get("lemma"),
                 surface_form: r.get("surface_form"),
                 source_sentence: r.get("source_sentence"),
-                source: r.get("source"),
                 gloss: r.get::<Option<String>, _>("gloss").unwrap_or_default(),
                 fsrs_state: r.get("fsrs_state"),
                 deleted: r.get("deleted"),

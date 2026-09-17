@@ -13,6 +13,8 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use cymbra_platform::Result;
 
+use crate::data::ErasureMarks;
+use crate::data_core::day_predates_erasure;
 use crate::stats_core::consolidate;
 pub use crate::stats_core::{ConsolidatedStat, DailyStat};
 
@@ -34,17 +36,24 @@ pub trait StatsRepo: Send + Sync {
 /// Orchestrates stats sync over a [`StatsRepo`].
 pub struct StatsModule {
     repo: Arc<dyn StatsRepo>,
+    marks: Arc<dyn ErasureMarks>,
 }
 
 impl StatsModule {
-    pub fn new(repo: Arc<dyn StatsRepo>) -> Self {
-        Self { repo }
+    pub fn new(repo: Arc<dyn StatsRepo>, marks: Arc<dyn ErasureMarks>) -> Self {
+        Self { repo, marks }
     }
 
-    /// Idempotent upsert of a batch of per-device daily rows; returns the count.
+    /// Idempotent upsert of a batch of per-device daily rows; returns how many were
+    /// stored. Rows for a day before the user's erasure are dropped
+    /// (add-lingua-privacy-controls) but the batch is still acknowledged.
     pub async fn upsert_stats(&self, user: &str, stats: Vec<DailyStat>) -> Result<u64> {
+        let erased_at = self.marks.erased_at(user).await?;
         let mut n = 0u64;
         for stat in stats {
+            if day_predates_erasure(stat.day, erased_at) {
+                continue;
+            }
             self.repo.upsert(user, &stat).await?;
             n += 1;
         }
@@ -67,6 +76,7 @@ impl StatsModule {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::data::MockErasureMarks;
     use std::collections::HashMap;
     use std::sync::Mutex;
 
@@ -107,6 +117,16 @@ mod tests {
         }
     }
 
+    fn marks(erased_at: i64) -> Arc<dyn ErasureMarks> {
+        let mut marks = MockErasureMarks::new();
+        marks.expect_erased_at().returning(move |_| Ok(erased_at));
+        Arc::new(marks)
+    }
+
+    fn never_erased() -> Arc<dyn ErasureMarks> {
+        marks(0)
+    }
+
     fn stat(day: i32, device: &str, reviews: u32) -> DailyStat {
         DailyStat {
             day,
@@ -120,7 +140,7 @@ mod tests {
 
     #[tokio::test]
     async fn two_devices_same_day_are_summed_on_read() {
-        let module = StatsModule::new(Arc::new(FakeStatsRepo::default()));
+        let module = StatsModule::new(Arc::new(FakeStatsRepo::default()), never_erased());
         module
             .upsert_stats(
                 "u1",
@@ -138,7 +158,7 @@ mod tests {
 
     #[tokio::test]
     async fn replayed_upsert_replaces_never_adds() {
-        let module = StatsModule::new(Arc::new(FakeStatsRepo::default()));
+        let module = StatsModule::new(Arc::new(FakeStatsRepo::default()), never_erased());
         module
             .upsert_stats("u1", vec![stat(20_000, "mac", 20)])
             .await
@@ -153,7 +173,7 @@ mod tests {
 
     #[tokio::test]
     async fn range_and_language_filter_apply() {
-        let module = StatsModule::new(Arc::new(FakeStatsRepo::default()));
+        let module = StatsModule::new(Arc::new(FakeStatsRepo::default()), never_erased());
         module
             .upsert_stats(
                 "u1",
@@ -174,5 +194,20 @@ mod tests {
             .unwrap();
         assert_eq!(en.len(), 1);
         assert_eq!(en[0].reviews_done, 5);
+    }
+
+    #[tokio::test]
+    async fn days_before_the_erasure_day_are_not_stored() {
+        // Erased at 01:00 UTC on day 20000: day 19999 is dropped, the erasure day is kept.
+        let erased_at = 20_000 * 86_400_000 + 3_600_000;
+        let module = StatsModule::new(Arc::new(FakeStatsRepo::default()), marks(erased_at));
+        let stored = module
+            .upsert_stats("u1", vec![stat(19_999, "mac", 7), stat(20_000, "mac", 2)])
+            .await
+            .unwrap();
+        assert_eq!(stored, 1);
+        let out = module.get_stats("u1", 19_990, 20_010, None).await.unwrap();
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].day, 20_000);
     }
 }
