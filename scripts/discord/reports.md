@@ -103,10 +103,12 @@ One embed, ranking in the **description**.
 
 - **Top 50 pieces of the week** — same query as the daily top 10, one week window, same
   catalog-only join. ~2300 characters, comfortably inside the 4096 limit.
-- **Top players** — blocked on the global board. `music.leaderboard_bests` is keyed
-  `(user_id, catalog_score_id, mode)`, i.e. **per-piece** bests; the difficulty-weighted global
-  ranking lives on the unmerged `add-global-leaderboard` branch. Until it lands, publish
-  **records set this week** (piece + mode + figure, name via the gate) instead of a global top 10.
+- **Top players** — top 10 of the current season's **global board** (difficulty-weighted
+  best-N, `add-global-leaderboard`, now on `main`: `music.global_season_bests`, read in
+  `backend/music/src/pg_global_leaderboard.rs`). Read it through that existing core rather than
+  re-deriving the aggregation — `music.leaderboard_bests` is keyed
+  `(user_id, catalog_score_id, mode)`, i.e. **per-piece** bests, and is the wrong source. Names
+  via the gate, else `Anonymous`.
 - **Season** — current 30-day window, days remaining, and the leader when the gate allows.
 
 ## 4. `/top50` — on demand
