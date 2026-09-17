@@ -90,6 +90,8 @@ office and the public site are untouched.
 - `apps/music/lib/main.dart` — `_AudioLifecycleObserver` gains the
   `paused`/`resumed` wiring. It already refreshes flags and the daily quota, so
   the "audio" name is now plainly wrong; rename it to `_AppLifecycleObserver`.
+  (`main` has since renamed it `_ForegroundLifecycleObserver`; the wiring slots
+  into that class.)
 - `apps/music/lib/screens/profile_screen.dart` — degraded self-view branch.
 - `apps/music/lib/l10n/app_{en,fr,es,it}.arb` — retry copy, all four aligned.
 

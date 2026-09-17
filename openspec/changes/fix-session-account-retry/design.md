@@ -101,6 +101,10 @@ name was already wrong — it refreshes flags and quota — and adding session
 recovery to a class called "audio" would make it actively misleading. It is
 private to `main.dart`, so the rename touches nothing else.
 
+*Amended during apply:* `keep-play-surfaces-awake` landed on `main` first and
+already renamed the class `_ForegroundLifecycleObserver`, for the same reason.
+The session calls slot into that class; no second rename.
+
 `detached` currently falls into the same branch as `paused`/`hidden` for audio;
 the session cancellation follows the same grouping. Any state that is not
 `resumed` means "do not retry".
@@ -155,6 +159,26 @@ This matters concretely: the user tapping *retry* on the profile screen while a
 timer-driven attempt is in flight, or a foreground event arriving during one,
 must not issue a second `GetAccount`.
 
+**Session generation (amended during apply).** Single-flight alone opens a hole
+the one-shot resolution never had: a re-attempt can now be in flight while the
+user is *in the app* — and signing out is exactly what a user stuck in the
+degraded state does. Without a guard, that stale call completing after the
+sign-out revives the session (degraded on a transient failure, fully signed in on
+a success), both with the tokens already cleared; and a sign-in arriving before
+it completes *joins* it, so the new session can receive the previous user's
+account, or be signed out by the previous session's rejection.
+
+So `SessionNotifier` keeps an `int _generation`. Every teardown or replacement
+(`_endLocalSession`, `onAccountDeleted`, `deleteOrphanForLink`,
+`abandonOnboarding`, `continueAsGuest`, `leaveGuest`, `onSignedIn`) calls
+`_endResolution()` before its first `await`: stop the timer, bump the
+generation, and drop `_resolving` so the next session starts its own call. A
+resolution captures the generation it started in and, when its `GetAccount`
+returns, touches neither `state`, the token store nor the timer if the
+generation moved. `onBackground()` deliberately does **not** bump it —
+backgrounding does not end the session, and an in-flight call finishing there
+must still apply.
+
 ### D5 — "Degraded" is a named predicate on `SessionState`
 
 `SessionState` gains a getter next to the existing `needsHandle`:
@@ -206,6 +230,10 @@ unconditionally without knowing the session shape — which is what lets
 - **A retry loop that outlives what it is retrying** → the timer is cancelled from
   one central `_stopAccountRetry()`, called from every teardown path and from
   `ref.onDispose`; a test asserts no attempt fires after sign-out.
+- **A resolution that outlives its session** → the session generation (D4) drops
+  the outcome of a `GetAccount` that returns after a teardown; tests cover a
+  stale success, a stale transient failure, a stale rejection, and a re-sign-in
+  racing the stale call.
 - **Retrying a session that is actually dead** → a terminal `AuthError`
   (`unauthenticated` / `notFound`) inside a re-attempt goes through the same
   branch as the first attempt: clear the session, route to entry. The loop cannot

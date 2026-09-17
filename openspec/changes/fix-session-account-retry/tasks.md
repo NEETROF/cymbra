@@ -12,11 +12,12 @@
 - [x] 2.5 Call `_stopAccountRetry()` from every teardown path — `_endLocalSession`, `onAccountDeleted`, `abandonOnboarding`, `deleteOrphanForLink`, `continueAsGuest` — and register it in `ref.onDispose` as the backstop.
 - [x] 2.6 Verify a terminal `AuthError` (`unauthenticated` / `notFound`) inside a retry still clears the session and routes to entry, and that the loop stops — the existing branch must not be bypassed by the retry path.
 - [x] 2.7 Delete the stale "handle onboarding is re-checked when back online" claim in `_resolveAuthenticated`'s doc comment and describe what the code now actually does.
+- [x] 2.8 **Added during apply.** Session generation (design D4): `int _generation` and `_endResolution()` (stop the timer, bump the generation, drop `_resolving`), called first by every teardown/replacement in 2.5 plus `leaveGuest` and `onSignedIn`. `_runResolve` drops its outcome when the generation moved, so a `GetAccount` returning after a sign-out neither revives the session nor reaches — or signs out — the session that replaced it.
 
 ## 3. Foreground gating
 
 - [x] 3.1 Add `onForeground()` (attempt immediately, reset the backoff) and `onBackground()` (cancel the pending timer, leave the session untouched) to `SessionNotifier` (design D1).
-- [x] 3.2 Rename `_AudioLifecycleObserver` to `_AppLifecycleObserver` in `lib/main.dart` — it already refreshes flags and the daily quota, so the audio-only name is wrong before this change and misleading after it.
+- [x] 3.2 ~~Rename `_AudioLifecycleObserver` to `_AppLifecycleObserver` in `lib/main.dart`~~ **Amended during apply:** `keep-play-surfaces-awake` already renamed it `_ForegroundLifecycleObserver` on `main`; the wiring below goes into that class, no second rename.
 - [x] 3.3 Wire the observer: `onBackground()` on `paused`/`hidden`/`detached` (the existing audio-cut branch), `onForeground()` on `resumed` alongside the existing flag and quota refreshes.
 
 ## 4. Own-profile recovery UI
@@ -38,6 +39,7 @@
 - [x] 5.9 `test/screens/profile_screen_test.dart`: a degraded self-view shows the retry affordance and not `profileUnavailable`; tapping it drives the notifier; the profile body appears once the account resolves.
 - [x] 5.10 `test/screens/profile_screen_test.dart`: another player's unavailable profile still shows `profileUnavailable` with no retry offered.
 - [x] 5.11 **Amended during apply.** Reuse and extend the existing hand fakes in `test/support/auth_fakes.dart` (added `FakeAccountService.getErrors`, a scripted per-call error list mirroring the `FakeAuthService.linkErrors` idiom) instead of introducing mockito. `session_notifier_test.dart` and the whole auth suite are already built on these shared fakes; mixing a second double style into the same container overrides would be worse than the `flutter-testing` default it would satisfy. Injection still goes through `ProviderContainer` overrides.
+- [x] 5.12 **Added during apply.** A re-attempt in flight at sign-out (2.8): a stale transient failure and a stale success both leave the user signed out with no loop re-armed; a re-sign-in issues its own `GetAccount` and ignores the previous user's late answer; a stale rejection does not clear the new session's tokens. All four fail without the generation guard.
 
 ## 6. Verification
 
