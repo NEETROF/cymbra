@@ -167,7 +167,8 @@ export function mountSettings(
 
   // — Réinitialisation (scope choice; a full wipe needs an extra confirm) —
   const resetBlock = settingBlock("Réinitialisation");
-  resetBlock.append(el("div", "set-note", "Efface tes données locales. À n'utiliser qu'exceptionnellement."));
+  const localNote = el("div", "set-note", "Efface tes données locales. À n'utiliser qu'exceptionnellement.");
+  resetBlock.append(localNote);
   const resetBtn = el("button", "set-reset", "Réinitialiser…");
   resetBtn.type = "button";
   const menu = el("div");
@@ -188,7 +189,33 @@ export function mountSettings(
   confirmNo.type = "button";
   confirm.append(warn, confirmYes, confirmNo);
   const resetMsg = el("div", "set-note");
-  resetBlock.append(resetBtn, menu, confirm, resetMsg);
+
+  // Signed in, erasing this device erases nothing: the next exchange pulls it all back —
+  // it even clears the cursors, which guarantees the return. So the same action is offered
+  // for what it actually is, and a real erasure is pointed at where it lives.
+  const localOnly = el("div");
+  localOnly.append(resetBtn, menu, confirm);
+  const synced = el("div");
+  synced.hidden = true;
+  const restartNote = el(
+    "div",
+    "set-note",
+    "Tes données sont sur ton compte. Vider cet appareil n'efface rien : la synchronisation les ramène. À utiliser si l'état local semble faux.",
+  );
+  const restartBtn = el("button", "set-reset", "Repartir du serveur");
+  restartBtn.type = "button";
+  const eraseNote = el(
+    "div",
+    "set-note",
+    "Pour effacer partout et définitivement, utilise « Effacer mes données Lingua » dans ton compte.",
+  );
+  const eraseLink = el("button", "linklike", "Gérer mes données");
+  eraseLink.type = "button";
+  eraseLink.addEventListener("click", () => {
+    void chrome.tabs.create({ url: chrome.runtime.getURL("account.html#data") });
+  });
+  synced.append(restartNote, restartBtn, eraseNote, eraseLink);
+  resetBlock.append(localOnly, synced, resetMsg);
 
   const showReset = (showMenu: boolean, showConfirm: boolean): void => {
     resetBtn.hidden = showMenu || showConfirm;
@@ -225,6 +252,7 @@ export function mountSettings(
     await saveHudHidden(area, !toggle.checked);
   });
   syncBtn.addEventListener("click", () => void runSync());
+  restartBtn.addEventListener("click", () => void restartFromServer());
   sync.watch(() => void refreshSync());
 
   async function runSync(): Promise<void> {
@@ -237,8 +265,23 @@ export function mountSettings(
   }
 
   async function refreshSync(): Promise<void> {
-    syncBlock.hidden = !(await sync.available());
+    const signedIn = await sync.available();
+    syncBlock.hidden = !signedIn;
+    localNote.hidden = signedIn;
+    localOnly.hidden = signedIn;
+    synced.hidden = !signedIn;
     syncStatus.textContent = lastSyncLabel(await sync.lastSync(), sync.now());
+  }
+
+  /** Empty this device and pull the account's state back. Nothing is lost by design. */
+  async function restartFromServer(): Promise<void> {
+    restartBtn.disabled = true;
+    resetMsg.textContent = "Reprise depuis le serveur…";
+    await doReset("full");
+    const reply = await sync.syncNow();
+    resetMsg.textContent = reply.ok ? "Repris depuis le serveur." : syncErrorCopy(reply.error);
+    restartBtn.disabled = false;
+    await refreshSync();
   }
 
   async function setLevel(level: CefrLevel | null): Promise<void> {
@@ -259,6 +302,7 @@ export function mountSettings(
     await opts.persist();
     await opts.onReset?.();
     await refresh();
+    if (!synced.hidden) return; // the signed-in path writes its own message
     resetMsg.textContent = scope === "partial" ? "Statuts et calibration réinitialisés." : "Données effacées.";
   }
 

@@ -7,6 +7,7 @@ import {
   MIGRATED_KEY,
   migrateStore,
   openStore,
+  ownerArea,
   STORE_KEYS,
   type StoreReply,
 } from "@/state/store.ts";
@@ -70,6 +71,45 @@ describe("the durable store", () => {
     const reopened = idbArea(await openStore(factory));
 
     expect(await reopened.get(ROOT_KEY)).toEqual({ [ROOT_KEY]: { v: 2, backup: "KEEP" } });
+  });
+});
+
+describe("the owner's handle", () => {
+  it("says which keys a write changed", async () => {
+    // Everything that must follow a mutation hangs off this: telling the surfaces, and
+    // scheduling the sync. The sync trigger used to watch a storage key the data has since
+    // left, and silently stopped firing (dogfooding: a level chosen on the phone never left it).
+    const announced: string[][] = [];
+    const backing = await freshStore();
+    const owner = ownerArea(backing, (keys) => announced.push(keys));
+
+    await owner.set({ [ROOT_KEY]: { v: 2, backup: "B" }, "cymbra-lingua-daily": {} });
+
+    expect(announced).toEqual([[ROOT_KEY, "cymbra-lingua-daily"]]);
+    expect(await backing.get(ROOT_KEY)).toEqual({ [ROOT_KEY]: { v: 2, backup: "B" } });
+  });
+
+  it("announces nothing when the write fails", async () => {
+    const announced: string[][] = [];
+    const owner = ownerArea(
+      {
+        get: async () => ({}),
+        set: async () => {
+          throw new Error("refused");
+        },
+      },
+      (keys) => announced.push(keys),
+    );
+
+    await expect(owner.set({ [ROOT_KEY]: "x" })).rejects.toThrow("refused");
+    expect(announced).toEqual([]);
+  });
+
+  it("reads straight through", async () => {
+    const backing = await freshStore();
+    await backing.set({ [ROOT_KEY]: "READ" });
+
+    expect(await ownerArea(backing, () => {}).get(ROOT_KEY)).toEqual({ [ROOT_KEY]: "READ" });
   });
 });
 
