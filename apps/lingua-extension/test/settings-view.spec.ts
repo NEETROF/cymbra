@@ -34,7 +34,11 @@ function mount(overrides: Partial<SyncControls> = {}) {
     watch: (onChange) => void watchers.push(onChange),
     ...overrides,
   };
-  const view = mountSettings(container, makeFakePort().port, fakeArea(), { persist: async () => {}, sync });
+  const view = mountSettings(container, makeFakePort().port, fakeArea(), {
+    persist: async () => {},
+    store: fakeArea(),
+    sync,
+  });
   const block = [...container.querySelectorAll<HTMLElement>(".set-block")].find((b) =>
     b.textContent?.startsWith("Synchronisation"),
   );

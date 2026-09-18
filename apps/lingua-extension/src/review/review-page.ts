@@ -1,6 +1,7 @@
 import type { LinguaPort } from "../analyzer/port.ts";
 import { dailyRecorder } from "../state/dailystats.ts";
-import { type AsyncStorageArea, ROOT_KEY, saveBackup } from "../state/storage.ts";
+import { type AsyncStorageArea, saveBackup } from "../state/storage.ts";
+import { watchBackup } from "../state/store.ts";
 import { ReviewController } from "./session.ts";
 import { type ReviewActions, renderReview } from "./view.ts";
 
@@ -138,10 +139,8 @@ export function mountReview(
   // Keep in sync with changes made elsewhere (a reading gesture, a reset in Réglages, or
   // another surface), unless mid-review or it is our own echo. The controller caches its
   // state, so it is rebuilt to reflect the restored engine.
-  chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName !== "local") return;
-    const backup = (changes[ROOT_KEY]?.newValue as { backup?: string } | undefined)?.backup;
-    if (typeof backup !== "string" || backup === lastBackup) return;
+  watchBackup(area, (backup) => {
+    if (backup === lastBackup) return;
     if (controller.view().phase === "reviewing") return;
     void port.restore(backup).then(() => {
       controller = new ReviewController(port, opts.now, dailyRecorder(area));

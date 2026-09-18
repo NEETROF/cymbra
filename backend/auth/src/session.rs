@@ -125,11 +125,14 @@ pub mod session_core {
 }
 
 /// In-memory [`SessionStore`] for unit tests (TTL/expiry ignored). Mirrors the
-/// rotation + theft-detection semantics of the durable store.
+/// rotation + theft-detection semantics of the durable store, including the grace on a
+/// token just replaced (change: fix-interrupted-refresh-signouts).
 #[derive(Default)]
 pub struct FakeSessionStore {
     fams: Mutex<HashMap<Uuid, FakeFam>>,
     audit: Mutex<Vec<AdminRevocation>>,
+    /// Set to expire the grace immediately, for the reuse-detection tests.
+    grace_elapsed: Mutex<bool>,
 }
 
 impl FakeSessionStore {
@@ -137,12 +140,20 @@ impl FakeSessionStore {
     pub fn admin_revocations(&self) -> Vec<AdminRevocation> {
         self.audit.lock().unwrap().clone()
     }
+
+    /// Pretend the grace period has passed, so a replay is theft again (test control —
+    /// the durable store compares `prev_replaced_at` against the clock).
+    pub fn expire_reuse_grace(&self) {
+        *self.grace_elapsed.lock().unwrap() = true;
+    }
 }
 
 struct FakeFam {
     user_id: String,
     audience: String,
     current_rt_hash: String,
+    /// The token this family last replaced, still accepted while the grace holds.
+    prev_rt_hash: Option<String>,
 }
 
 #[async_trait]
@@ -156,6 +167,7 @@ impl SessionStore for FakeSessionStore {
                 user_id: user_id.into(),
                 audience: audience.into(),
                 current_rt_hash: session_core::hash_token(&token),
+                prev_rt_hash: None,
             },
         );
         Ok(token)
@@ -166,8 +178,16 @@ impl SessionStore for FakeSessionStore {
         let mut fams = self.fams.lock().unwrap();
         match fams.get_mut(&id) {
             None => Err(AppError::Unauthenticated("invalid refresh token".into())),
-            Some(fam) if fam.current_rt_hash == session_core::hash_token(refresh_token) => {
+            // The current token, or — while the grace holds — the one it just replaced,
+            // whose rotation the client never received.
+            Some(fam)
+                if fam.current_rt_hash == session_core::hash_token(refresh_token)
+                    || (!*self.grace_elapsed.lock().unwrap()
+                        && fam.prev_rt_hash.as_deref()
+                            == Some(session_core::hash_token(refresh_token).as_str())) =>
+            {
                 let new_token = session_core::encode_token(id, &session_core::new_secret());
+                fam.prev_rt_hash = Some(fam.current_rt_hash.clone());
                 fam.current_rt_hash = session_core::hash_token(&new_token);
                 Ok(Rotated {
                     refresh_token: new_token,
@@ -282,7 +302,8 @@ mod tests {
         let rot = s.rotate(&rt).await.unwrap();
         assert_eq!(rot.user_id, "u1");
         assert_eq!(rot.audience, "music");
-        // Replay the original (now rotated) token → reuse detected.
+        // Past the grace, replaying the original (now rotated) token → reuse detected.
+        s.expire_reuse_grace();
         assert!(matches!(
             s.rotate(&rt).await,
             Err(AppError::Unauthenticated(_))
@@ -290,6 +311,39 @@ mod tests {
         // The family is revoked, so the rotated token is dead too.
         assert!(matches!(
             s.rotate(&rot.refresh_token).await,
+            Err(AppError::Unauthenticated(_))
+        ));
+    }
+
+    #[tokio::test]
+    async fn fake_replaying_inside_the_grace_keeps_the_session() {
+        // The client was killed before it could store the rotated token, so it comes back
+        // with the one it had (change: fix-interrupted-refresh-signouts).
+        let s = FakeSessionStore::default();
+        let rt = s.create("u1", "music").await.unwrap();
+        let lost = s.rotate(&rt).await.unwrap(); // this answer never reached the client
+
+        let again = s
+            .rotate(&rt)
+            .await
+            .expect("the interrupted client is served");
+
+        assert_eq!(again.user_id, "u1");
+        assert_ne!(again.refresh_token, lost.refresh_token);
+        // The pair it just received works, and the family is still live.
+        assert!(s.rotate(&again.refresh_token).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn fake_a_token_two_generations_back_is_theft() {
+        let s = FakeSessionStore::default();
+        let first = s.create("u1", "music").await.unwrap();
+        let second = s.rotate(&first).await.unwrap().refresh_token;
+        let _third = s.rotate(&second).await.unwrap().refresh_token;
+
+        // `first` is now older than the token the family last replaced: no grace for it.
+        assert!(matches!(
+            s.rotate(&first).await,
             Err(AppError::Unauthenticated(_))
         ));
     }

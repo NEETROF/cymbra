@@ -42,7 +42,7 @@ export interface SyncClients {
 export interface SyncDeps {
   /** A dedicated engine, hydrated from the local backup each sync. */
   port: LinguaPort;
-  /** chrome.storage.local-backed area (backup + cursors + device id). */
+  /** The reader's durable store (backup + cursors + device id), owned by the background. */
   storage: AsyncStorageArea;
   /** The gRPC-web clients, resolved lazily (only touched while signed in). */
   clients: () => SyncClients;

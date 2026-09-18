@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import { Code, ConnectError, type Client } from "@connectrpc/connect";
 import type { AuthService } from "@/gen/auth_pb";
 import { AccountError } from "@/state/auth-errors.ts";
-import { isPersistedSignInError, Session, SIGNIN_ERROR_KEY } from "@/state/session.ts";
+import { accessExpiry, isPersistedSignInError, Session, SIGNIN_ERROR_KEY } from "@/state/session.ts";
 import { type AsyncStorageArea, SESSION_LOST_KEY } from "@/state/storage.ts";
 
 // A store-backed storage area (mirrors the one in storage.spec).
@@ -20,6 +20,12 @@ function fakeArea(seed: Record<string, unknown> = {}): AsyncStorageArea & { stor
       Object.assign(store, items);
     },
   };
+}
+
+/** A JWT-shaped access token carrying an `exp` claim `secs` from now (payload only). */
+function jwtExpiringIn(secs: number): string {
+  const payload = btoa(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + secs }));
+  return `header.${payload}.signature`;
 }
 
 interface Pair {
@@ -115,13 +121,16 @@ beforeEach(() => {
 });
 
 describe("Session", () => {
-  it("stores the access token in the session area and the refresh token in local", async () => {
-    const { client } = fakeAuth({ local: { accessToken: "AAA", refreshToken: "RRR" } });
-    const { session, sessionArea, localArea } = makeSession(client);
+  it("stores both tokens, the access one with its expiry", async () => {
+    // Both live in local storage now: a woken background page finds the access token
+    // instead of refreshing, and every refresh rotates the server's token.
+    const { client } = fakeAuth({ local: { accessToken: jwtExpiringIn(900), refreshToken: "RRR" } });
+    const { session, localArea } = makeSession(client);
     await session.signInLocal("me@example.com", "pw");
-    expect(session.token()).toBe("AAA");
     expect(session.state().signedIn).toBe(true);
-    expect(sessionArea.store[ACCESS_KEY]).toBe("AAA");
+    const stored = localArea.store[ACCESS_KEY] as { token: string; expiresAt: number };
+    expect(stored.token).toBe(session.token());
+    expect(stored.expiresAt).toBeGreaterThan(Date.now());
     expect(localArea.store[REFRESH_KEY]).toBe("RRR");
   });
 
@@ -247,15 +256,34 @@ describe("Session", () => {
     await expect(session.resetPassword("bad", "pw")).rejects.toMatchObject({ kind: "invalidArgument" });
   });
 
-  it("resumes from a cached access token without refreshing", async () => {
+  it("resumes from a stored access token that is still live, without refreshing", async () => {
     const { client, calls } = fakeAuth({});
     const { session } = makeSession(client, {
-      sessionSeed: { [ACCESS_KEY]: "CACHED" },
-      localSeed: { [REFRESH_KEY]: "R" },
+      localSeed: { [REFRESH_KEY]: "R", [ACCESS_KEY]: { token: "CACHED", expiresAt: Date.now() + 600_000 } },
     });
+
     expect(await session.resume()).toBe(true);
+
     expect(session.token()).toBe("CACHED");
-    expect(calls.refresh).not.toHaveBeenCalled();
+    expect(calls.refresh).not.toHaveBeenCalled(); // no rotation, so nothing to be killed mid-way
+  });
+
+  it("refreshes on wake when the stored access token is spent", async () => {
+    const { client, calls } = fakeAuth({});
+    const { session } = makeSession(client, {
+      localSeed: { [REFRESH_KEY]: "R", [ACCESS_KEY]: { token: "OLD", expiresAt: Date.now() + 5_000 } },
+    });
+
+    // Inside the skew: treated as spent, so the call that follows does not 401.
+    expect(await session.resume()).toBe(true);
+
+    expect(calls.refresh).toHaveBeenCalledTimes(1);
+    expect(session.token()).toBe("a-refreshed");
+  });
+
+  it("reads the expiry from the token itself, and uses one whose expiry is unreadable", () => {
+    expect(accessExpiry(jwtExpiringIn(900))).toBeGreaterThan(Date.now());
+    expect(accessExpiry("not-a-jwt")).toBeNull();
   });
 
   it("resumes by minting a new access token when only the refresh token survived", async () => {
@@ -276,11 +304,8 @@ describe("Session", () => {
 
   it("purges the session, and marks it lost, when the server refuses the refresh token", async () => {
     const { client } = fakeAuth({}, { refresh: Code.Unauthenticated });
-    const { session, localArea } = makeSession(client, {
-      sessionSeed: { [ACCESS_KEY]: "OLD" },
-      localSeed: { [REFRESH_KEY]: "R" },
-    });
-    await session.resume();
+    const { session, localArea } = makeSession(client, { localSeed: { [REFRESH_KEY]: "R" } });
+    await session.resume(); // loads the refresh token; the refresh it triggers is the refusal
 
     expect(await session.refresh()).toBe(false);
     expect(session.token()).toBeNull();
@@ -320,8 +345,7 @@ describe("Session", () => {
       signInLocal: async () => ({ accessToken: "A2", refreshToken: "R2" }),
     } as unknown as Client<typeof AuthService>;
     const { session, localArea } = makeSession(client, {
-      sessionSeed: { [ACCESS_KEY]: "A1" },
-      localSeed: { [REFRESH_KEY]: "R1" },
+      localSeed: { [REFRESH_KEY]: "R1", [ACCESS_KEY]: { token: "A1", expiresAt: Date.now() + 600_000 } },
     });
     await session.resume();
 
@@ -339,8 +363,11 @@ describe("Session", () => {
   it("clears the lost mark when a cached access token still works", async () => {
     const { client } = fakeAuth({});
     const { session, localArea } = makeSession(client, {
-      sessionSeed: { [ACCESS_KEY]: "A" },
-      localSeed: { [REFRESH_KEY]: "R", [SESSION_LOST_KEY]: true },
+      localSeed: {
+        [REFRESH_KEY]: "R",
+        [ACCESS_KEY]: { token: "A", expiresAt: Date.now() + 600_000 },
+        [SESSION_LOST_KEY]: true,
+      },
     });
 
     expect(await session.resume()).toBe(true);

@@ -24,6 +24,8 @@ export interface SettingsOptions {
   persist: () => Promise<void>;
   /** Refresh the host's review/summary after a reset (the deck may have changed). */
   onReset?: () => Promise<void> | void;
+  /** The reader's data, for the reset that clears the sync cursors. */
+  store: AsyncStorageArea;
   /** The Synchronisation controls' seam; the background messages by default. */
   sync?: SyncControls;
 }
@@ -251,7 +253,7 @@ export function mountSettings(
       await port.resetStatuses();
     } else {
       await port.reset();
-      await clearSyncCursors(area);
+      await clearSyncCursors(opts.store);
     }
     await port.setCalibration((await port.hasLevels()) ? 0 : 3000);
     await opts.persist();

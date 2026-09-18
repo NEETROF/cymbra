@@ -11,6 +11,7 @@ import {
   saveHudHidden,
   SESSION_LOST_KEY,
 } from "../state/storage.ts";
+import { watchStore } from "../state/store.ts";
 import { LAST_SYNC_KEY, loadLastSync, requestSync, syncNow } from "../sync/messages.ts";
 import { lastSyncLabel, syncErrorCopy } from "../sync/status.ts";
 import type { CefrLevel } from "../analyzer/types.ts";
@@ -479,11 +480,15 @@ async function main(): Promise<void> {
   // restores: re-read the counts once the page has caught up.
   $("sync-now").addEventListener("click", () => void runSyncNow());
   await refreshSessionLost();
-  chrome.storage.onChanged.addListener((changes, area) => {
-    if (area !== "local") return;
-    if (changes[ROOT_KEY]) {
+  // What a sync pulled changes the store, which the page restores: re-read the counts
+  // once it has caught up.
+  watchStore((keys) => {
+    if (keys.includes(ROOT_KEY)) {
       setTimeout(() => void applyEnabled(($("enabled") as HTMLInputElement).checked), 300);
     }
+  });
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local") return;
     if (changes[LAST_SYNC_KEY]) void refreshSync();
     if (changes[SESSION_LOST_KEY]) void refreshSessionLost();
   });
