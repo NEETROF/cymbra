@@ -56,3 +56,10 @@ jobs:
         run: yarn test
       - name: Build
         run: yarn build
+      # After the build, not before: it asserts against `dist/`. A route a shipped
+      # Music build or a store listing field points at must survive the build, or the
+      # pull request fails here instead of the breakage reaching production — where
+      # the host answers 200 with the fallback page and nothing looks wrong.
+      # Source of truth: apps/site/src/lib/pinned-routes.ts
+      - name: Pinned routes survived the build
+        run: yarn check:routes

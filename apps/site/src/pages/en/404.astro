@@ -1,0 +1,24 @@
+---
+import Base from '../../layouts/Base.astro';
+
+// See the French counterpart: without a 404 page the host serves the home page with
+// a 200 for any unmatched path (change: pin-music-site-url-contract).
+---
+
+<Base title="Page not found — Cymbra" lang="en" noindex frHref="/404" enHref="/en/404">
+  <section class="hero container">
+    <p class="kicker">Error 404</p>
+    <h1>This page <span class="gradient">does not exist</span></h1>
+    <p class="tagline">
+      The link may be out of date, or the address may have a typo in it.
+    </p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="/en/">Home</a>
+      <a class="btn btn-ghost" href="/en/music">Cymbra Music</a>
+      <a class="btn btn-ghost" href="/en/lingua">Cymbra Lingua</a>
+    </div>
+    <p class="muted small hero-note">
+      Looking for something else? <a href="/en/support">Support</a>, <a href="/en/account">your account</a>, <a href="/en/privacy">privacy</a> or <a href="/en/terms">the terms</a>.
+    </p>
+  </section>
+</Base>

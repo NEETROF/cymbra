@@ -36,9 +36,45 @@ and macOS, so the three share one button.
 
 A page whose counterpart is not at the mirrored path (`/confidentialite` ↔
 `/en/privacy`) passes `frHref` / `enHref` to `Base.astro`: those props drive both
-the header's language switch and the `hreflang` pair. Astro trims the whitespace
-between a word and an inline `<a>` on the next source line — keep a link on the
-same line as the word it follows, or the space disappears from the build.
+the header's language switch and the `hreflang` pair. Astro trims the whitespace at a text/element
+boundary that falls on a source-line break — on **either** side, so both
+`word\n<a>…` and `</a>\nword` lose their space in the build. Keep a sentence
+containing inline links on one source line, and check the rendered HTML rather than
+the source.
+
+## Routes shipped clients depend on
+
+Some routes here are not the site's to move. A Cymbra Music build already installed
+on a device requests the path it was compiled with **for as long as it exists** — a
+user on 1.30 will ask for `/cgu/` long after the site has been redesigned twice — and
+a store listing field is read by reviewers and users without the site being consulted.
+Neither can be updated retroactively.
+
+The rule: a pinned route **may change what it serves, and may not move or disappear**.
+Rewriting `/` from the Music landing page into the two-product hub was fine; deleting
+`/en/privacy/` would not be. If one ever has to move, the `301` from the old path
+ships in the *same* change, in `public/_redirects` — host-side, because a native app
+opening an external browser never runs client-side script.
+
+**The list lives in [`src/lib/pinned-routes.ts`](src/lib/pinned-routes.ts)**, with the
+consumer pinning each route and where that consumer is declared. It is deliberately
+not restated here: two copies drift, and a route list nobody trusts is the failure the
+contract exists to prevent. `yarn check:routes` reads that file and asserts every
+route survived `yarn build`; `site-check` runs it right after the build step, so a
+deletion fails the pull request.
+
+Adding a page does **not** pin it — `/suppression-compte` is not in the list, because
+nothing shipped points at it. A route joins the day a client or a listing field starts
+requesting it, and the change that creates that consumer is the one that adds it.
+
+Why this is worth a gate rather than a note: the site answers an unmatched path with
+the **nearest `404.html`**, and until `pin-music-site-url-contract` there was none, so
+every unknown path returned the home page with a `200`. A dead `/en/privacy/` would
+have served French marketing copy to someone asking for the English privacy policy,
+with a status code no uptime check would flag. `src/pages/404.astro` and
+`src/pages/en/404.astro` now cover both locales — the English one is copied to
+`dist/en/404.html` by a small integration in `astro.config.mjs`, since Astro only
+gives the root `404.astro` its special filename.
 
 ## Account pages (change: add-site-account-pages)
 

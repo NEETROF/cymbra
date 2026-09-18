@@ -99,7 +99,7 @@ a:hover { text-decoration: underline; }
 
 /* Product hub (home) + product page headers */
 .hero .kicker { color: var(--muted); font-size: 0.85rem; letter-spacing: 0.1em; text-transform: uppercase; margin: 0 0 0.75rem; }
-.hero .soon { margin: 1rem auto 0; max-width: 540px; }
+.hero .hero-note { margin: 1rem auto 0; max-width: 540px; }
 .badge {
   display: inline-block; vertical-align: 0.05em; margin-left: 0.15rem;
   padding: 0.05rem 0.45rem; border-radius: 999px;
