@@ -1,0 +1,67 @@
+---
+import Base from '../layouts/Base.astro';
+import StoreButtons from '../components/StoreButtons.astro';
+import { musicStores } from '../lib/stores';
+---
+
+<Base
+  title="Cymbra Music — pratique et cours de musique connectés"
+  description="Branchez votre clavier MIDI et jouez : Cymbra Music suit la partition en temps réel, vous donne un retour immédiat et vous fait progresser leçon par leçon."
+  lang="fr"
+  frHref="/music"
+  enHref="/en/music"
+>
+  <section class="hero container">
+    <p class="kicker">Cymbra Music</p>
+    <h1>Apprenez la musique, <span class="gradient">connecté à votre instrument</span></h1>
+    <p class="tagline">
+      Cymbra transforme la pratique en une expérience guidée : suivez des cours,
+      jouez en temps réel avec votre instrument, et progressez pas à pas.
+    </p>
+    <StoreButtons links={musicStores('fr')} primary />
+  </section>
+
+  <section id="fonctionnalites" class="features container">
+    <div class="card">
+      <h3>🎹 Connecté à vos instruments</h3>
+      <p>Branchez n'importe quel clavier MIDI USB ou batterie électronique — ou jouez directement à l'écran.</p>
+    </div>
+    <div class="card">
+      <h3>👀 Deux façons de lire</h3>
+      <p>Partition classique sur la portée pour travailler la lecture, ou notes qui tombent façon cascade pour apprendre vite. On change de vue à tout moment.</p>
+    </div>
+    <div class="card">
+      <h3>⏸️ Mode Attente</h3>
+      <p>La partition se fige jusqu'à ce que vous jouiez la bonne note. Main gauche et main droite séparément, avec un code couleur par main.</p>
+    </div>
+    <div class="card">
+      <h3>🥁 La batterie aussi</h3>
+      <p>De vraies parties de batterie, sur la portée ou sur un kit animé. Associez vos pads une fois, isolez un élément pour travailler un groove.</p>
+    </div>
+    <div class="card">
+      <h3>🎯 Notation en temps réel</h3>
+      <p>Précision et timing notés pendant que vous jouez, avec un résumé de session à la fin de chaque passage.</p>
+    </div>
+    <div class="card">
+      <h3>📚 Une bibliothèque qui s'étoffe</h3>
+      <p>Partitions du domaine public du débutant à l'avancé, sons de piano de qualité, et vos propres SoundFonts si vous voulez.</p>
+    </div>
+    <div class="card">
+      <h3>🌍 Quatre langues</h3>
+      <p>Français, anglais, italien et espagnol.</p>
+    </div>
+    <div class="card">
+      <h3>🔒 Respect de votre vie privée</h3>
+      <p>Données hébergées en France (UE), aucune revente, aucun pisteur publicitaire.</p>
+    </div>
+  </section>
+
+  <section class="container closing">
+    <h2>Déjà un compte Cymbra&nbsp;?</h2>
+    <p class="muted">
+      Retrouvez votre formule, vos bêtas et la gestion de votre abonnement
+      sur <a href="/account">votre compte</a>. Un code d'accès reçu sur la
+      communauté&nbsp;? <a href="/redeem">Utilisez-le ici</a>.
+    </p>
+  </section>
+</Base>

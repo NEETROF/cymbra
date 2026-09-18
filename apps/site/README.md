@@ -19,6 +19,27 @@ the legal texts with the rest of the repo.
 | `yarn build` | production build → `dist/` |
 | `yarn preview` | preview the build |
 
+## Pages
+
+The landing side is a **hub + one page per product**, fr (default) and en:
+
+| Page (fr / en) | What it holds |
+|---|---|
+| `/`, `/en/` | The Cymbra hub: positioning, one card per product, what both apps share (one account, EU hosting, offline, immediate feedback) |
+| `/music`, `/en/music` | Cymbra Music — hero, store buttons, features. The copy mirrors `apps/music/store/copy/{fr,en}.md`, so the site and the store listings never claim different things |
+| `/lingua`, `/en/lingua` | Cymbra Lingua — the browser extension, still unpublished: disabled Chrome/Firefox/Safari buttons plus the community invite when `PUBLIC_DISCORD_URL` is set |
+
+Distribution links live in **one** place, `src/lib/stores.ts`, read by the product
+pages and by the post-checkout `Downloads` block. A channel is either `live: true`
+with a real URL, or dimmed — the App Store record `6789557194` covers iOS, iPadOS
+and macOS, so the three share one button.
+
+A page whose counterpart is not at the mirrored path (`/confidentialite` ↔
+`/en/privacy`) passes `frHref` / `enHref` to `Base.astro`: those props drive both
+the header's language switch and the `hreflang` pair. Astro trims the whitespace
+between a word and an inline `<a>` on the next source line — keep a link on the
+same line as the word it follows, or the space disappears from the build.
+
 ## Account pages (change: add-site-account-pages)
 
 Four pages are **interactive islands** (Astro + Vue, `client:load`), everything

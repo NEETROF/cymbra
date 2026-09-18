@@ -2,35 +2,60 @@
 import Base from '../layouts/Base.astro';
 ---
 
-<Base title="Cymbra — pratique et cours de musique connectés" lang="fr">
+<Base
+  title="Cymbra — apprendre en pratiquant, pas en révisant"
+  description="Cymbra conçoit deux applications : Music, pour apprendre la musique connecté à votre instrument, et Lingua, pour enrichir son vocabulaire en lisant le web."
+  lang="fr"
+  frHref="/"
+  enHref="/en/"
+>
   <section class="hero container">
-    <h1>Apprenez la musique, <span class="gradient">connecté à votre instrument</span></h1>
+    <h1>Apprendre en pratiquant, <span class="gradient">pas en révisant</span></h1>
     <p class="tagline">
-      Cymbra transforme la pratique en une expérience guidée : suivez des cours,
-      jouez en temps réel avec votre instrument, et progressez pas à pas.
+      Cymbra fait deux applications construites sur la même idée : on progresse dans
+      ce qu'on fait déjà. Devant votre instrument, ou devant une page web.
     </p>
-    <div class="cta-row">
-      <a class="btn btn-primary disabled" href="#">Bientôt sur l'App Store</a>
-      <a class="btn btn-ghost disabled" href="#">Bientôt sur Google Play</a>
-    </div>
+  </section>
+
+  <section id="produits" class="products-grid container">
+    <article class="product">
+      <p class="kicker">Cymbra Music · iOS, iPadOS, macOS, Android</p>
+      <h2>🎹 Music</h2>
+      <p>
+        Branchez votre clavier MIDI et jouez : l'application suit la partition en temps
+        réel, vous dit ce qui est juste et vous fait avancer leçon par leçon.
+      </p>
+      <a class="btn btn-primary" href="/music">Découvrir Music</a>
+    </article>
+
+    <article class="product">
+      <p class="kicker">Cymbra Lingua · extension navigateur <span class="badge">bêta</span></p>
+      <h2>📖 Lingua</h2>
+      <p>
+        Lisez le web en anglais, les mots que vous ne connaissez pas encore sont
+        surlignés sur place. Un pourcentage honnête par page, un clic pour la
+        traduction, et votre vocabulaire qui se construit tout seul.
+      </p>
+      <a class="btn btn-ghost" href="/lingua">Découvrir Lingua</a>
+    </article>
   </section>
 
   <section id="fonctionnalites" class="features container">
     <div class="card">
-      <h3>🎹 Connecté à vos instruments</h3>
-      <p>Branchez votre clavier ou instrument MIDI et jouez en temps réel avec l'application.</p>
-    </div>
-    <div class="card">
-      <h3>📚 Cours guidés</h3>
-      <p>Des leçons progressives pour apprendre à votre rythme, du débutant au confirmé.</p>
-    </div>
-    <div class="card">
-      <h3>🎯 Retour en temps réel</h3>
-      <p>Suivez la partition, voyez vos notes et progressez avec un retour immédiat.</p>
+      <h3>🪪 Un seul compte</h3>
+      <p>Le compte Cymbra vous suit d'une application à l'autre, sur tous vos appareils.</p>
     </div>
     <div class="card">
       <h3>🔒 Respect de votre vie privée</h3>
       <p>Données hébergées en France (UE), aucune revente, aucun pisteur publicitaire.</p>
+    </div>
+    <div class="card">
+      <h3>📴 Ça marche hors-ligne</h3>
+      <p>L'analyse et la lecture se font sur votre appareil : pas d'aller-retour serveur à chaque note ou à chaque mot.</p>
+    </div>
+    <div class="card">
+      <h3>🎯 Retour immédiat</h3>
+      <p>Pas de quiz déconnecté du réel : le retour arrive pendant que vous jouez ou pendant que vous lisez.</p>
     </div>
   </section>
 </Base>
