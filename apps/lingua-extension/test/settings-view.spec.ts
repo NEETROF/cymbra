@@ -62,6 +62,39 @@ describe("Réglages — Synchronisation", () => {
     expect(s.block.textContent).toContain("Synchronisé il y a 3 min.");
   });
 
+  it("offers to start again from the server, instead of a local wipe the sync undoes", async () => {
+    // Signed in, emptying this device erases nothing: the exchange pulls it all back. The
+    // action is offered for what it does, and a real erasure is pointed at the account.
+    const syncNow = vi.fn(async (): Promise<SyncReply> => ({ ok: true }));
+    const s = mount({ syncNow });
+    await settle();
+
+    const restart = [...s.block.parentElement!.querySelectorAll("button")].find(
+      (b) => b.textContent === "Repartir du serveur",
+    );
+    const wipe = [...s.block.parentElement!.querySelectorAll("button")].find((b) => b.textContent === "Réinitialiser…");
+    expect(restart?.closest("div")?.hidden).toBe(false);
+    expect(wipe?.closest("div")?.hidden).toBe(true); // the local wipe is not offered
+
+    restart?.click();
+    await settle();
+
+    expect(syncNow).toHaveBeenCalledTimes(1); // emptied, then pulled back
+    expect(s.block.parentElement?.textContent).toContain("Repris depuis le serveur.");
+  });
+
+  it("keeps the local reset for a reader with no account", async () => {
+    const s = mount({ available: async () => false });
+    await settle();
+
+    const buttons = [...s.block.parentElement!.querySelectorAll("button")].map((b) => b.textContent);
+    expect(buttons).toContain("Réinitialiser…");
+    const restart = [...s.block.parentElement!.querySelectorAll("button")].find(
+      (b) => b.textContent === "Repartir du serveur",
+    );
+    expect(restart?.closest("div")?.hidden).toBe(true);
+  });
+
   it("stays hidden while signed out", async () => {
     const s = mount({ available: async () => false });
     await settle();

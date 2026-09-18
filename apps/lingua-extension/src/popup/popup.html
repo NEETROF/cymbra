@@ -192,6 +192,17 @@
       <div class="setting-block">
         <div class="setting-label">Réinitialisation</div>
         <div class="note">Efface tes données locales. À n'utiliser qu'exceptionnellement.</div>
+        <div id="restart-box" hidden>
+          <div class="note">
+            Tes données sont sur ton compte. Vider cet appareil n'efface rien : la synchronisation les ramène. À
+            utiliser si l'état local semble faux.
+          </div>
+          <button class="reset" id="restart" type="button">Repartir du serveur</button>
+          <div class="note" id="restart-msg"></div>
+          <div class="note">
+            Pour effacer partout et définitivement, utilise « Effacer mes données Lingua » dans ton compte.
+          </div>
+        </div>
         <div id="reset-box">
           <button class="reset" id="reset">Réinitialiser…</button>
           <div id="reset-menu" hidden>

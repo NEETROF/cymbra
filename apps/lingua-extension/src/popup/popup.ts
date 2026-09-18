@@ -86,9 +86,32 @@ function renderAccount(state: AccountState | null): void {
   if (signedIn) void renderHandle();
   else $("acct-handle-cta").hidden = true;
   void refreshSync();
+  showResetForAccount();
 }
 
 /** Say, above everything else, that a session this device held was refused by the server. */
+/**
+ * Signed in, emptying this device erases nothing — the next exchange pulls it all back. So
+ * the reset flow gives way to the same action named for what it does, and a real erasure is
+ * pointed at the account page.
+ */
+function showResetForAccount(): void {
+  $("reset-box").hidden = accountSignedIn;
+  $("restart-box").hidden = !accountSignedIn;
+}
+
+/** Empty this device, then pull the account's state back. */
+async function restartFromServer(): Promise<void> {
+  const button = $("restart") as HTMLButtonElement;
+  button.disabled = true;
+  $("restart-msg").textContent = "Reprise depuis le serveur…";
+  await send({ type: "reset", scope: "full" });
+  const reply = await syncNow();
+  $("restart-msg").textContent = reply.ok ? "Repris depuis le serveur." : syncErrorCopy(reply.error);
+  button.disabled = false;
+  await refresh();
+}
+
 async function refreshSessionLost(): Promise<void> {
   const got = await storageArea.get(SESSION_LOST_KEY);
   // Signed in again (here or in another surface): whatever the mark still says, the
@@ -479,6 +502,7 @@ async function main(): Promise<void> {
   // Opening the popup asks for a sync. What it pulls changes the backup, which the page
   // restores: re-read the counts once the page has caught up.
   $("sync-now").addEventListener("click", () => void runSyncNow());
+  $("restart").addEventListener("click", () => void restartFromServer());
   await refreshSessionLost();
   // What a sync pulled changes the store, which the page restores: re-read the counts
   // once it has caught up.
