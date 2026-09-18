@@ -151,7 +151,7 @@ describe("moving the reader's data", () => {
     });
   });
 
-  it("copies the reader's data and leaves the previous copy in place", async () => {
+  it("copies the reader's data, then lets the previous copy go", async () => {
     const store = await freshStore();
 
     const moved = await migrateStore(previous, store);
@@ -159,11 +159,26 @@ describe("moving the reader's data", () => {
     expect(moved.sort()).toEqual([ROOT_KEY, "cymbra-lingua-daily", "cymbra-lingua-status-cursor"].sort());
     expect(await store.get(ROOT_KEY)).toEqual({ [ROOT_KEY]: { v: 2, backup: "DECK" } });
     expect(await store.get("cymbra-lingua-status-cursor")).toEqual({ "cymbra-lingua-status-cursor": 42 });
-    // A build that rolls back must still find a deck.
-    expect(previous.store[ROOT_KEY]).toEqual({ v: 2, backup: "DECK" });
-    // Preferences and tokens were not touched.
+    // The copy held space in the very area whose fullness the move escapes.
+    expect(previous.store[ROOT_KEY]).toBeNull();
+    // Preferences and tokens are not ours to touch.
+    expect(previous.store["cymbra-lingua-enabled"]).toBe(true);
+    expect(previous.store["cymbra-lingua-refresh"]).toBe("TOKEN");
     expect(await store.get("cymbra-lingua-enabled")).toEqual({});
-    expect(await store.get("cymbra-lingua-refresh")).toEqual({});
+  });
+
+  it("releases a copy an earlier build left behind", async () => {
+    // Devices that migrated while the copy was kept as a rollback path: the release it
+    // guarded is verified, so the next start hands the space back.
+    const store = await freshStore();
+    await store.set({ [ROOT_KEY]: { v: 2, backup: "DECK" } });
+    await previous.set({ [MIGRATED_KEY]: true });
+
+    expect(await migrateStore(previous, store)).toEqual([]);
+
+    expect(previous.store[ROOT_KEY]).toBeNull();
+    // What the store does not hold is left alone rather than lost.
+    expect(previous.store["cymbra-lingua-daily"]).toEqual({ 20000: { exposures: 3 } });
   });
 
   it("does nothing on a second start", async () => {

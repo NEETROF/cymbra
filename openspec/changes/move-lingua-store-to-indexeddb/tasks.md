@@ -16,6 +16,7 @@
 
 - [x] 3.1 On the background's first start after the update: copy the moved keys into the store, mark migrated last (idempotent, converges after a partial run), leave the `chrome.storage.local` copies in place
 - [x] 3.2 vitest: a fresh install, an install with state to move, a partly-migrated store, and a second start doing nothing
+- [x] 3.3 Once the move is verified on device (4.4), release the previous copy — key by key, only where the store holds it — including on devices that migrated while it was kept
 
 ## 4. Gates
 

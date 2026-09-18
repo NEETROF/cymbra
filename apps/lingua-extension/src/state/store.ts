@@ -146,9 +146,9 @@ export function messagedArea(send: RuntimeSend = runtimeSend): AsyncStorageArea 
 }
 
 /**
- * Copy the reader's data out of chrome.storage.local, once. The copies are normally LEFT in
- * place for one release, so a rollback still finds a deck (design D5); the mark is written
- * last, so a run cut short is simply redone.
+ * Copy the reader's data out of chrome.storage.local, once, then release the copy: it sat in
+ * the area whose fullness the move exists to escape, and it was only ever a rollback path
+ * for the release that has now been verified on device (design D5).
  *
  * Two things this has to survive, both seen on a reader's phone:
  * - **the area being full.** Its own copies are what fill it, and the mark cannot be
@@ -159,7 +159,10 @@ export function messagedArea(send: RuntimeSend = runtimeSend): AsyncStorageArea 
  */
 export async function migrateStore(from: AsyncStorageArea, to: AsyncStorageArea): Promise<string[]> {
   const marks = await from.get(MIGRATED_KEY);
-  if (marks[MIGRATED_KEY] === true) return [];
+  if (marks[MIGRATED_KEY] === true) {
+    await dropPreviousCopies(from, to);
+    return [];
+  }
   const previous = await from.get([...STORE_KEYS]);
   const already = await to.get([...STORE_KEYS]);
   const items = Object.fromEntries(Object.entries(previous).filter(([key]) => !(key in already)));
@@ -171,8 +174,23 @@ export async function migrateStore(from: AsyncStorageArea, to: AsyncStorageArea)
     if (!isStorageFull(e)) throw e;
     await from.set(Object.fromEntries([...STORE_KEYS].map((key) => [key, null])));
     await from.set({ [MIGRATED_KEY]: true });
+    return moved;
   }
+  await dropPreviousCopies(from, to);
   return moved;
+}
+
+/**
+ * Let go of what the previous area still holds, key by key, and only where the store has it:
+ * a copy is dropped because it is redundant, never because a mark says it should be.
+ */
+async function dropPreviousCopies(from: AsyncStorageArea, to: AsyncStorageArea): Promise<void> {
+  const left = await from.get([...STORE_KEYS]);
+  const names = Object.keys(left).filter((key) => left[key] != null);
+  if (names.length === 0) return;
+  const held = await to.get(names);
+  const redundant = names.filter((key) => key in held);
+  if (redundant.length > 0) await from.set(Object.fromEntries(redundant.map((key) => [key, null])));
 }
 
 /**
