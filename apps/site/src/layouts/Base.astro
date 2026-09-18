@@ -57,6 +57,13 @@ const site = 'https://cymbra.app';
     <header class="site-header">
       <div class="container">
         <a class="brand" href={home}>Cymbra</a>
+        {/* The mobile menu is CSS-only — the layout ships no JS. A focusable
+            checkbox drives the panel and the label is the visual target; every
+            entry is a full page load, so navigating closes the menu for free. */}
+        <input class="nav-toggle" type="checkbox" id="nav-toggle" aria-label="Menu" />
+        <label class="nav-burger" for="nav-toggle" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </label>
         <nav class="nav-links">
           {nav.map((l) => <a href={l.href}>{l.label}</a>)}
           <a href={otherLocale.href}>{otherLocale.label}</a>
