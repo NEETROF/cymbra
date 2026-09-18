@@ -46,5 +46,5 @@
 ## 8. Close out
 
 - [ ] 8.1 Run `openspec validate pin-music-site-url-contract --strict`.
-- [ ] 8.2 Answer the design's open question on renaming `store-distribution` to `music-store-distribution`, and either do it in this change or record the decision to defer.
+- [ ] 8.2 Open the follow-up for renaming `store-distribution` to `music-store-distribution` — deferred here on purpose (the rename is a folder move outside the delta mechanism, and it should settle the merge-or-split question with `music-macos-store-distribution` at the same time).
 - [ ] 8.3 Open the follow-up for build-output enforcement: assert in the site's gate that every pinned route exists in `dist/` after `yarn build`, so a deletion fails the pull request instead of being found in production.

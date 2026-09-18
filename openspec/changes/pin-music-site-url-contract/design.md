@@ -56,7 +56,8 @@ and `legal-links` is currently being modified by the in-flight
   mechanism for a future move, not created with entries now.
 - Automated enforcement of the route list. See the decision below. (The `404` page is
   in scope; a CI gate asserting each pinned route survives a build is not.)
-- Renaming the `store-distribution` capability. See Open Questions.
+- Renaming the `store-distribution` capability to `music-store-distribution`.
+  Deferred to its own change, with the sibling question — see Open Questions.
 - Lingua's own listing URLs. The extension is unpublished; it has no listing fields
   to pin.
 
@@ -145,12 +146,18 @@ and still describes Cymbra — the failure mode is the status quo, not a broken 
 
 ## Open Questions
 
-- **Should `store-distribution` be renamed to `music-store-distribution` here?**
-  `openspec/config.yaml` says legacy unprefixed capabilities are renamed "seulement
-  quand un change les touche déjà", and this change touches it. Against doing it now:
-  it widens a metadata change into a rename that also invites reconciling the sibling
-  `music-macos-store-distribution`, and the rename is orthogonal to the URLs. Left for
-  the reviewer to call; the delta as written does not depend on the answer.
+- ~~Should `store-distribution` be renamed to `music-store-distribution` here?~~
+  **Decided: deferred to its own change.** `openspec/config.yaml` renames a legacy
+  unprefixed capability "quand un change les touche déjà", and this change touches it,
+  so the trigger is real. Two reasons to hold anyway. First, OpenSpec deltas express
+  `RENAMED Requirements`, not a renamed *capability*: moving `openspec/specs/
+  store-distribution/` is a manual folder move outside the delta mechanism, which only
+  `archive` normally writes. Second, the rename makes `music-store-distribution` and
+  `music-macos-store-distribution` sit side by side with overlapping "listing assets"
+  requirements, which raises the merge-or-split question without answering it. The
+  follow-up change should settle both together. Cost of waiting is low: the only
+  references outside the spec are three archived changes from 2026-08-15, and no
+  in-flight change points at it.
 - **Is a Lingua marketing URL needed at publication time?** `/lingua` exists and is
   ready to be a store listing's website field, but the extension is unpublished, so
   there is no field to fill. Worth revisiting in the change that publishes it.
