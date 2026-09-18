@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.30.1](https://github.com/NEETROF/cymbra/compare/backend-v0.30.0...backend-v0.30.1) (2026-09-18)
+
+
+### Bug Fixes
+
+* **auth:** tolerate a client killed before it stored a rotated refresh token ([#477](https://github.com/NEETROF/cymbra/issues/477)) ([2303c42](https://github.com/NEETROF/cymbra/commit/2303c42b69d2b12fdcd458ba8a2a9801f534372d))
+* **lingua:** bound the reading counters, and keep a doomed refresh from purging a new session ([#473](https://github.com/NEETROF/cymbra/issues/473)) ([13d2df5](https://github.com/NEETROF/cymbra/commit/13d2df5d9aa701d4a354cf9bde1e2e060fca9721))
+
 ## [0.30.0](https://github.com/NEETROF/cymbra/compare/backend-v0.29.0...backend-v0.30.0) (2026-09-17)
 
 
