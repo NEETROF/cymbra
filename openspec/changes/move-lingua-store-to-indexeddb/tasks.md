@@ -22,4 +22,4 @@
 - [x] 4.1 vitest over the store, the messaged area, the migration and the subscription (fake IndexedDB + fake messaging)
 - [x] 4.2 `typecheck`, `lint`, `format:check`, `build`, `check:variants`
 - [x] 4.3 `openspec validate move-lingua-store-to-indexeddb --strict`
-- [ ] 4.4 On device (TestFlight): deck and statistics intact after the update, a sync, an erasure, and the panel following a change made in the page
+- [x] 4.4 On device (TestFlight): deck and statistics intact after the update, a sync, an erasure, and the panel following a change made in the page
