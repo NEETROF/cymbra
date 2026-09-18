@@ -63,6 +63,64 @@ writing UI code, and prefer confirming a UX fork with the user over guessing.
   blocks WASM); the content script reaches it over the `AnalyzerPort` messaging seam. On
   Chromium the engine runs in the content script. Don't assume the engine is local to a surface.
 
+## Which context am I in? (the family of bugs that compiles and does nothing)
+
+Three incidents in one dogfooding week shared one shape: **code valid in one context, running
+in another**. Each compiled, threw nothing, and silently did not work — no test saw it,
+because the wiring lived in the background, which no test covers.
+
+| Context | Runs where | May call | May NOT call |
+|---|---|---|---|
+| **Content script** (`content.ts`, `reading/`, `review/`, `stats/`) | the **visited page's** origin | `runtime.sendMessage/connect`, `storage.*`, `i18n` | `tabs`, `action`, `identity`, `sidePanel`, **the extension's `indexedDB`** (that one is the *site's*) |
+| **Extension page** (popup, side panel, account, onboarding) | the extension origin | the above **plus** `tabs`, `action`, `identity`, `sidePanel`, the extension's `indexedDB` | — |
+| **Background** (service worker / event page) | the extension origin, no DOM | everything, and owns the reader's store | `document`, `window`, dynamic `import()` on Chromium |
+
+The three that cost a build each:
+1. **`chrome.tabs.create` from the in-page drawer** — the API does not exist there, so the
+   link did nothing at all. Anything a page-context module needs from the extension goes
+   through a message: `state/open-page.ts` (`openPage`).
+2. **Two WASM engines racing** — the background hosts the reading engine *and* the sync
+   engine on one glue module; `init()` only short-circuits once it has *finished*, so a
+   concurrent second init replaced the module's memory and left the first engine reading out
+   of bounds. One initialisation per module, shared (`analyzer/engine.ts`).
+3. **A trigger watching a key that moved** — the sync fired "2 s after a mutation" by
+   listening for the backup key in `chrome.storage.local`. The data moved to IndexedDB; the
+   listener kept compiling and never fired again. **When data moves, hunt everything that
+   listened at its old address.**
+
+Two lint specs now fail the build on 1 and 3 (`test/lint-page-context.spec.ts`): a
+page-context module may not name `tabs`/`action`/`identity`/`sidePanel`, and nothing may
+watch a moved key through `storage.onChanged`. Extend the lists when you add either.
+
+## Where the reader's data lives (and how a surface follows it)
+
+- **The reader's data** — engine backup, daily statistics, sync cursors, device id — lives in
+  **IndexedDB, owned by the background** (`state/store.ts`). Surfaces read and write it
+  through the same `AsyncStorageArea` seam, whose calls become messages (`messagedArea`).
+  Never open the database from a surface, even one that could (an extension page): two
+  writers is the echo-suppression problem this design removes.
+- **Preferences, tokens and transient marks** stay in `chrome.storage.local`: the highlight
+  and pill toggles, the session tokens, the last-sync time, the lost-session mark. They are
+  small and must be readable before any round-trip.
+- **Following a change**: the owner bumps a marker (`STORE_CHANGED_KEY`) after every write;
+  surfaces subscribe with `watchStore` / `watchBackup`. Not a port — a port dies with the
+  background page Safari suspends constantly; `storage.onChanged` reaches every context,
+  needs no permission, and survives.
+- **Every write by the owner goes through `ownerArea`**, so the two consequences of a
+  mutation — telling the surfaces, and scheduling the sync — can never be forgotten separately.
+
+## Safari is a third target, and the harshest
+
+`build.mjs` also produces `dist-safari/`, bundled by the host app (`apps/lingua-apple`).
+Treat it as the worst case for everything above:
+- its background page is **suspended whenever idle**, so anything that must survive a
+  suspension cannot be a port, an in-memory cache or a pending timer;
+- a message whose response is still pending **keeps the page alive** — that is why a sync
+  request is answered only once its exchange is over;
+- `chrome.identity` does not exist: Apple and Google sign-in run in the host app and hand an
+  id_token back through the App Group (see `state/native-signin.ts`);
+- the reading engine runs in the background there, as on Firefox.
+
 ## One impl, N hosts — never duplicate a view
 
 Review, stats and settings each have **one** builder, rendered into whatever host needs it —

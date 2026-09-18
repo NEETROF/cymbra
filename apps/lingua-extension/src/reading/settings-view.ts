@@ -1,6 +1,7 @@
 import type { LinguaPort } from "../analyzer/port.ts";
 import { CEFR_LEVELS, type CefrLevel } from "../analyzer/types.ts";
 import { needsLevelChoice } from "../state/level-choice.ts";
+import { type OpenPage, openPageViaBackground } from "../state/open-page.ts";
 import { hasShortcutEditor } from "../state/platform.ts";
 import { type AsyncStorageArea, loadHudHidden, saveHudHidden } from "../state/storage.ts";
 import {
@@ -28,6 +29,8 @@ export interface SettingsOptions {
   store: AsyncStorageArea;
   /** The Synchronisation controls' seam; the background messages by default. */
   sync?: SyncControls;
+  /** Open an extension or browser page. The background does it: the drawer cannot. */
+  openPage?: OpenPage;
 }
 
 /** What the Synchronisation block needs from the background and the store. */
@@ -149,14 +152,14 @@ export function mountSettings(
   const scConfig = el("button", "linklike", "Configurer les raccourcis du navigateur");
   scConfig.type = "button";
   scConfig.addEventListener("click", () => {
-    const url = __TARGET__ === "firefox" ? "about:addons" : "chrome://extensions/shortcuts";
-    void chrome.tabs.create({ url });
+    openPage(__TARGET__ === "firefox" ? "about:addons" : "chrome://extensions/shortcuts");
   });
   scBlock.append(scList);
   if (hasShortcutEditor()) scBlock.append(scConfig);
 
   // — Synchronisation (signed in only): when this device last synced, and a manual run —
   const sync = opts.sync ?? runtimeSyncControls(area);
+  const openPage = opts.openPage ?? openPageViaBackground;
   const syncBlock = settingBlock("Synchronisation");
   syncBlock.hidden = true;
   const syncStatus = el("div", "set-note");
@@ -211,9 +214,7 @@ export function mountSettings(
   );
   const eraseLink = el("button", "linklike", "Gérer mes données");
   eraseLink.type = "button";
-  eraseLink.addEventListener("click", () => {
-    void chrome.tabs.create({ url: chrome.runtime.getURL("account.html#data") });
-  });
+  eraseLink.addEventListener("click", () => openPage("account.html#data"));
   synced.append(restartNote, restartBtn, eraseNote, eraseLink);
   resetBlock.append(localOnly, synced, resetMsg);
 
