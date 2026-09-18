@@ -41,7 +41,8 @@ and `legal-links` is currently being modified by the in-flight
 - Name the routes that shipped clients and store listings pin, and the consumer that
   pins each, somewhere a site author will actually look.
 - Make "moving a pinned route requires a redirect in the same change" a rule rather
-  than a thing the reviewer happens to notice.
+  than a thing the reviewer happens to notice, and give it a CI gate so deleting one
+  fails the pull request instead of reaching production.
 - State in the spec why the support URL is not free to retarget, so the guideline 1.5
   rejection is not re-earned by someone who never saw it.
 - Make a missing page fail visibly. The site has no `404` page, so the host answers
@@ -54,8 +55,9 @@ and `legal-links` is currently being modified by the in-flight
   change constrains them, it does not touch them.
 - Shipping live redirects. Nothing is moving. `public/_redirects` is specified as the
   mechanism for a future move, not created with entries now.
-- Automated enforcement of the route list. See the decision below. (The `404` page is
-  in scope; a CI gate asserting each pinned route survives a build is not.)
+- Enforcing the *content* of a pinned route. The gate proves the page was built, not
+  that it still says the right thing — a `/support/` emptied of support content passes.
+  That is a review concern, not a mechanical one.
 - Renaming the `store-distribution` capability to `music-store-distribution`.
   Deferred to its own change, with the sibling question — see Open Questions.
 - Lingua's own listing URLs. The extension is unpublished; it has no listing fields
@@ -82,19 +84,27 @@ marketing and support URLs are the same kind of artefact and belong in the same 
 it splits per-locale listing values across two files, and the copy files are what an
 operator has open while filling a console form.
 
-**A `404` page ships here; a CI gate does not.** The not-found page is three files
-and removes the silent-failure mode outright, so it belongs in the change that
-discovered it. A CI check that fetched every pinned route after deploy is buildable,
-but it would test the deployed site rather than the pull request, and a broken route
-would be found after it shipped. A build-time check that
-the expected `dist/**/index.html` files exist would catch a deletion in CI — cheap
-and worth doing, but it is a separate change with its own testing story, and adding
-it here would widen a documentation change into a tooling one.
+**The rule ships with its gate, and the list has exactly one home.** A contract that
+only exists in prose is one restructure away from being wrong, and this change exists
+because that is precisely what happened. So the pinned routes live in
+`apps/site/src/lib/pinned-routes.ts`, and `site-check` asserts after `yarn build` that
+each one produced its `dist/<path>/index.html`. A deletion then fails the pull request
+instead of reaching production.
 
-*Alternative considered:* asserting the route list in `apps/site/test/`. Tempting,
-since `stores.ts` already has a vitest file. Rejected for this change and recorded as
-the natural follow-up: the test would need the build output, not the source, so it is
-a different gate from the ones vitest currently runs.
+The single home is the load-bearing part. A list written both in `README.md` and in a
+check script is two lists: someone adds a route to one, and the drift reproduces the
+original failure one level down. The README points at the file rather than restating
+it — the same shape `stores.ts` took in PR #484, for the same reason.
+
+*Alternative considered:* a post-deploy check that fetches each URL from production.
+Rejected as the primary gate — it tests the deployed site rather than the pull
+request, so a broken route is found after it shipped. It is also useless while the
+host answers `200` for everything, which is the other half of this change.
+
+*Alternative considered:* a vitest file next to `stores.spec.ts`. Rejected on
+mechanics: `yarn test` runs against sources in jsdom and never sees `dist/`. The
+assertion needs the build output, so it is a script run after the build step, not a
+unit test.
 
 **`ADDED` rather than `MODIFIED` on `store-distribution`.** The existing
 "Store-listing copy" requirement covers description, subtitle, keywords and category.
@@ -117,10 +127,15 @@ nothing in CI can observe it. Mitigated by recording the expected value per loca
 the copy files, so the next audit is a comparison rather than a recollection, and by a
 task that verifies each store's live field after the edit.
 
-**A documented rule is still only a documented rule.** → A future change can delete
-`/support/` and pass every gate in this repo. Accepted for now; the build-output
-assertion described above is the follow-up that turns the rule into a gate. The `404`
-page at least makes the breakage visible to whoever hits it.
+**The gate proves a file exists, not that the page is still right.** → Emptying
+`/support/` of its content, or replacing it with a redirect stub, passes. Mitigated
+only by review; the spec states the intent so a reviewer has something to point at.
+
+**Adding a route to `pinned-routes.ts` is the step people will forget.** → The file is
+the gate's input, so a route added there is enforced immediately; the risk is a new
+*consumer* (a fresh hard-coded URL in the app, a new console field) whose route never
+gets added. The spec puts that obligation on the change that creates the consumer,
+which is the only moment anyone knows the pin exists.
 
 **Turning off the host's fallback may not be a repository change.** → If Cloudflare
 Pages is serving the home page because the project is in single-page-application

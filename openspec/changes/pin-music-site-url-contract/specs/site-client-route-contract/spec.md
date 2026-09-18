@@ -73,16 +73,44 @@ Cloudflare Pages reads redirects from `public/_redirects`. The site has no such 
 - **WHEN** a change moves a pinned route and defers its redirect to a later change
 - **THEN** the change SHALL be rejected, because the deployed gap would break installed clients for the whole interval
 
-### Requirement: The route contract is recorded in the repository
+### Requirement: The route contract has one machine-readable home
 
-The repository SHALL carry the list of client-facing routes and the consumer that pins each one, so that a person restructuring the site can see the obligation without reading the Flutter sources or opening a store console.
+The repository SHALL carry the list of client-facing routes, and the consumer pinning each one, in a single checked-in source that both the site's CI gate and its documentation read. Prose SHALL reference that source rather than restate it.
+
+Two copies of the list are two lists. One gains a route the other does not, and the drift reproduces the failure this capability exists to prevent, one level down.
 
 #### Scenario: Restructuring the site
 
 - **WHEN** an author plans a change to the site's page structure
-- **THEN** the repository SHALL let them enumerate the pinned routes and their consumers from checked-in documentation
+- **THEN** the repository SHALL let them enumerate the pinned routes and their consumers from that single source
+
+#### Scenario: The list is restated in prose
+
+- **WHEN** documentation reproduces the route list instead of pointing at the source
+- **THEN** the change SHALL be rejected, because the copy is free to drift from the list the gate enforces
 
 #### Scenario: A consumer starts pinning a new route
 
 - **WHEN** a change makes a shipped client or a store listing field point at a route not yet in the set
-- **THEN** that change SHALL add the route and its consumer to the recorded list
+- **THEN** that change SHALL add the route and its consumer to the single source
+
+### Requirement: The build gate SHALL fail on a missing pinned route
+
+The site's CI gate SHALL verify, after the production build, that every route in the single source produced its page in the build output, and SHALL fail the pull request when one is missing. The check SHALL read the route list from that source, not from a copy of it.
+
+The verification runs against the build output rather than against the deployed site, so a deletion is caught before it ships rather than reported after. It proves the page was built; it does not prove the page still says the right thing, which stays a review concern.
+
+#### Scenario: A pinned route stops being built
+
+- **WHEN** a change deletes the page behind a pinned route and the build output no longer contains it
+- **THEN** the site gate SHALL fail, naming the missing route
+
+#### Scenario: A page is added
+
+- **WHEN** a change adds a page that no client or listing field points at
+- **THEN** the gate SHALL pass, because the route is not in the source and carries no obligation
+
+#### Scenario: Every pinned route is present
+
+- **WHEN** the build output contains a page for each route in the source
+- **THEN** the gate SHALL pass

@@ -31,6 +31,11 @@ CI cannot fail on a deletion it has no reason to suspect.
 - Give the site a standing obligation: a route in that set is permanent. It may gain
   content, it may not move or disappear, and if one ever must move, a redirect ships
   in the same change that moves it.
+- Back that obligation with a CI gate rather than prose. The routes live in one
+  checked-in source (`apps/site/src/lib/pinned-routes.ts`); `site-check` asserts after
+  `yarn build` that each produced its page, and fails the pull request when one is
+  missing. The documentation points at that source instead of copying it — two copies
+  of the list would drift and reproduce the same failure one level down.
 - Make the site return a real `404`. Production currently answers **any** unmatched
   path with the French home page and status `200` — verified: `/route-qui-nexiste-pas/`
   returns `200` and the home page. A deleted `/en/privacy/` would not fail loudly; it
@@ -46,7 +51,8 @@ change exists partly to state that they are not free to edit.
 
 - `site-client-route-contract`: the routes `cymbra.app` must keep serving because
   shipped clients and store listings point at them, the rule that they are permanent,
-  the redirect obligation when one has to move, and the requirement that an unmatched
+  the redirect obligation when one has to move, the single machine-readable home for
+  the list plus the build gate that enforces it, and the requirement that an unmatched
   path answers `404` instead of impersonating the home page.
 
 ### Modified Capabilities
@@ -67,11 +73,13 @@ it is already being touched by the in-flight `open-app-without-sign-in-wall`.
 gain a documented reason not to drift. `apps/music/store/` gains the listing URL
 fields next to the copy it already versions. Both store consoles need a field edit.
 
-**Site** (new obligation, one new page): `apps/site` must honour the frozen routes.
-It ships no `_redirects` file today, so the redirect mechanism Cloudflare Pages
-expects (`public/_redirects`) does not yet exist and is introduced by this change only
-as the documented escape hatch, not as live redirects. It also has no `404` page,
-which is why the host falls back to the home page; this change adds one in each
+**Site** (new obligation, new pages, new gate): `apps/site` must honour the frozen
+routes. It gains `src/lib/pinned-routes.ts` (the single source), a script asserting
+them against `dist/`, and one step in `.github/workflows/site-check.yml` after the
+existing `yarn build`. It ships no `_redirects` file today, so the redirect mechanism
+Cloudflare Pages expects (`public/_redirects`) does not yet exist and is introduced
+here only as the documented escape hatch, not as live redirects. It also has no `404`
+page, which is why the host falls back to the home page; this change adds one in each
 locale.
 
 **Backend** (already pinned, recorded only): `CYMBRA_PADDLE_CHECKOUT_PAGE` points at
@@ -79,5 +87,5 @@ locale.
 (`apps/music/store/SUBSCRIPTIONS.md`), so those two routes are load-bearing for
 billing as well as for the app.
 
-**Not impacted**: Lingua, Live, the back office. No proto, no database, no CI job
-beyond the site's existing gate.
+**Not impacted**: Lingua, Live, the back office. No proto, no database, no new CI
+workflow — one step inside the site's existing gate, on an already-watched unit.
