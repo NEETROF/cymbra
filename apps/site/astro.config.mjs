@@ -13,6 +13,7 @@ function localised404() {
   return {
     name: 'cymbra:localised-404',
     hooks: {
+      /** @param {{ dir: URL }} ctx */
       'astro:build:done': ({ dir }) => {
         const root = fileURLToPath(dir);
         const built = `${root}en/404/index.html`;
