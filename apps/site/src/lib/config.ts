@@ -10,6 +10,8 @@ export interface SiteConfig {
   appleClientId: string | null;
   paddleEnv: "sandbox" | "production";
   paddleClientToken: string | null;
+  /** Community invite, surfaced on the Lingua page. Unset = no link at all. */
+  discordUrl: string | null;
 }
 
 function nonEmpty(v: string | undefined): string | null {
@@ -24,6 +26,7 @@ export function readConfig(env: ImportMetaEnv = import.meta.env): SiteConfig {
     appleClientId: nonEmpty(env.PUBLIC_APPLE_CLIENT_ID),
     paddleEnv: nonEmpty(env.PUBLIC_PADDLE_ENV) === "sandbox" ? "sandbox" : "production",
     paddleClientToken: nonEmpty(env.PUBLIC_PADDLE_CLIENT_TOKEN),
+    discordUrl: nonEmpty(env.PUBLIC_DISCORD_URL),
   };
 }
 

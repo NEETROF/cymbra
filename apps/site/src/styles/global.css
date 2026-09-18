@@ -62,6 +62,30 @@ a:hover { text-decoration: underline; }
 .btn-ghost:hover { text-decoration: none; border-color: var(--muted); }
 .btn.disabled { opacity: 0.5; pointer-events: none; }
 
+/* Product hub (home) + product page headers */
+.hero .kicker { color: var(--muted); font-size: 0.85rem; letter-spacing: 0.1em; text-transform: uppercase; margin: 0 0 0.75rem; }
+.hero .soon { margin: 1rem auto 0; max-width: 540px; }
+.badge {
+  display: inline-block; vertical-align: 0.05em; margin-left: 0.15rem;
+  padding: 0.05rem 0.45rem; border-radius: 999px;
+  border: 1px solid var(--accent); color: var(--accent);
+  font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase;
+}
+.products-grid { padding: 1rem 0 2rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.25rem; }
+.product {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  padding: 1.75rem; display: flex; flex-direction: column; gap: 0.7rem;
+}
+.product .kicker { color: var(--muted); font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; margin: 0; }
+.product h2 { margin: 0; font-size: 1.5rem; }
+.product p:not(.kicker) { margin: 0; color: var(--muted); }
+.product .btn { margin-top: auto; align-self: flex-start; }
+
+/* Closing block of a product page */
+.closing { padding: 1rem 0 2rem; }
+.closing h2 { font-size: 1.25rem; margin-bottom: 0.4rem; }
+.closing p { margin: 0; }
+
 /* Features */
 .features { padding: 3rem 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.4rem; }

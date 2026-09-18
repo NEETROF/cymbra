@@ -2,35 +2,60 @@
 import Base from '../../layouts/Base.astro';
 ---
 
-<Base title="Cymbra — connected music practice & lessons" lang="en">
+<Base
+  title="Cymbra — learn by doing, not by revising"
+  description="Cymbra builds two apps: Music, to learn music connected to your instrument, and Lingua, to grow your vocabulary while you read the web."
+  lang="en"
+  frHref="/"
+  enHref="/en/"
+>
   <section class="hero container">
-    <h1>Learn music, <span class="gradient">connected to your instrument</span></h1>
+    <h1>Learn by doing, <span class="gradient">not by revising</span></h1>
     <p class="tagline">
-      Cymbra turns practice into a guided experience: follow lessons, play along in
-      real time with your instrument, and progress step by step.
+      Cymbra makes two apps built on the same idea: you improve inside what you are
+      already doing. At your instrument, or on a web page.
     </p>
-    <div class="cta-row">
-      <a class="btn btn-primary disabled" href="#">Coming soon to the App Store</a>
-      <a class="btn btn-ghost disabled" href="#">Coming soon to Google Play</a>
-    </div>
+  </section>
+
+  <section id="products" class="products-grid container">
+    <article class="product">
+      <p class="kicker">Cymbra Music · iOS, iPadOS, macOS, Android</p>
+      <h2>🎹 Music</h2>
+      <p>
+        Plug in your MIDI keyboard and play: the app follows the score in real time,
+        tells you what landed, and moves you forward lesson by lesson.
+      </p>
+      <a class="btn btn-primary" href="/en/music">Discover Music</a>
+    </article>
+
+    <article class="product">
+      <p class="kicker">Cymbra Lingua · browser extension <span class="badge">beta</span></p>
+      <h2>📖 Lingua</h2>
+      <p>
+        Read the English web with the words you do not know yet highlighted in place.
+        An honest per-page percentage, one click for the meaning, and a vocabulary
+        that builds itself as you read.
+      </p>
+      <a class="btn btn-ghost" href="/en/lingua">Discover Lingua</a>
+    </article>
   </section>
 
   <section id="features" class="features container">
     <div class="card">
-      <h3>🎹 Connected to your instruments</h3>
-      <p>Plug in your MIDI keyboard or instrument and play along with the app in real time.</p>
-    </div>
-    <div class="card">
-      <h3>📚 Guided lessons</h3>
-      <p>Progressive lessons to learn at your own pace, from beginner to advanced.</p>
-    </div>
-    <div class="card">
-      <h3>🎯 Real-time feedback</h3>
-      <p>Follow the score, see your notes, and improve with immediate feedback.</p>
+      <h3>🪪 One account</h3>
+      <p>Your Cymbra account follows you from one app to the other, on every device.</p>
     </div>
     <div class="card">
       <h3>🔒 Privacy-first</h3>
       <p>Data hosted in France (EU), never sold, no advertising trackers.</p>
+    </div>
+    <div class="card">
+      <h3>📴 Works offline</h3>
+      <p>Analysis and playback run on your device: no server round-trip per note or per word.</p>
+    </div>
+    <div class="card">
+      <h3>🎯 Immediate feedback</h3>
+      <p>No quiz disconnected from the real thing: feedback arrives while you play, or while you read.</p>
     </div>
   </section>
 </Base>
