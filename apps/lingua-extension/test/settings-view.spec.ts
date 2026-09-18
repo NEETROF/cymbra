@@ -21,6 +21,8 @@ function fakeArea(): AsyncStorageArea {
 
 const NOW = Date.UTC(2026, 8, 17, 12, 0, 0);
 
+const opened: string[] = [];
+
 function mount(overrides: Partial<SyncControls> = {}) {
   const container = document.createElement("div");
   document.body.replaceChildren(container);
@@ -38,6 +40,7 @@ function mount(overrides: Partial<SyncControls> = {}) {
     persist: async () => {},
     store: fakeArea(),
     sync,
+    openPage: (url) => opened.push(url),
   });
   const block = [...container.querySelectorAll<HTMLElement>(".set-block")].find((b) =>
     b.textContent?.startsWith("Synchronisation"),
@@ -52,7 +55,10 @@ function mount(overrides: Partial<SyncControls> = {}) {
 const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe("Réglages — Synchronisation", () => {
-  beforeEach(() => document.body.replaceChildren());
+  beforeEach(() => {
+    document.body.replaceChildren();
+    opened.length = 0;
+  });
 
   it("shows when this device last synced", async () => {
     const s = mount();
@@ -93,6 +99,20 @@ describe("Réglages — Synchronisation", () => {
       (b) => b.textContent === "Repartir du serveur",
     );
     expect(restart?.closest("div")?.hidden).toBe(true);
+  });
+
+  it("opens the account page through the background, which the drawer cannot do itself", async () => {
+    // In the drawer this code runs in the visited page, where `chrome.tabs` does not exist:
+    // the link did nothing at all (dogfooding, build 100/101).
+    const s = mount();
+    await settle();
+
+    const link = [...s.block.parentElement!.querySelectorAll("button")].find(
+      (b) => b.textContent === "Gérer mes données",
+    );
+    link?.click();
+
+    expect(opened).toEqual(["account.html#data"]);
   });
 
   it("stays hidden while signed out", async () => {

@@ -19,6 +19,7 @@ import {
   type Provider,
   runAuthFlow,
 } from "./state/oidc.ts";
+import { isOpenPageMessage } from "./state/open-page.ts";
 import { Session } from "./state/session.ts";
 import { type AsyncStorageArea, hydrateEngine, ROOT_KEY, SESSION_LOST_KEY } from "./state/storage.ts";
 import {
@@ -118,6 +119,16 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
   const tabId = sender.tab?.id;
   if (chrome.sidePanel?.open && tabId != null) chrome.sidePanel.open({ tabId }).catch(openTab);
   else openTab();
+});
+
+// A surface that cannot open a tab asks here: a content script has no `chrome.tabs`, which
+// is why the in-page drawer's links did nothing (dogfooding, build 100/101). An extension
+// path is resolved; a browser page (about:addons, chrome://extensions/shortcuts) is opened
+// as given.
+chrome.runtime.onMessage.addListener((message: unknown) => {
+  if (!isOpenPageMessage(message)) return;
+  const url = /^[a-z-]+:/.test(message.url) ? message.url : chrome.runtime.getURL(message.url);
+  void chrome.tabs.create({ url }).catch(() => {});
 });
 
 // The reader's data — engine backup, daily statistics, sync cursors — lives in IndexedDB,
