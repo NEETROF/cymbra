@@ -49,11 +49,15 @@ Nothing in the reading, review, stats or sync code changes. The messaged impleme
 
 **Stays in `chrome.storage.local`**: the session tokens (their own reasoning, and they must be readable before the background answers anything), the highlighting and pill toggles, the last-sync time and the lost-session mark. They are a few hundred bytes, read by surfaces that must render before any round-trip, and several are written by the background itself.
 
-### D5 — Migration copies, and keeps the copy for one release
+### D5 — Migration copies, then releases the copy
 
-On the background's first start after the update, each moved key found in `chrome.storage.local` is written into IndexedDB, then marked migrated. The originals are **left in place** for one release: the state is small now, and a rollback to the previous build must still find a deck. A later change deletes them.
+On the background's first start after the update, each moved key found in `chrome.storage.local` is written into IndexedDB, then marked migrated.
+
+The originals were **kept for one release** — the state is small, and a rollback to the previous build had to find a deck. That release shipped and was verified on device (builds 90/91 → 110/111: deck and statistics intact, a sync, an erasure, a panel following a page gesture), so the copy is now **released as soon as the store holds it**, key by key: it was sitting in the very area whose fullness the move exists to escape. A copy is dropped because it is redundant — never because a mark says it should be — so a key the store does not hold survives.
 
 Migrating is idempotent, and a partly-migrated store converges: the mark is written last, after every key.
+
+**What this gives up:** a rollback to a build that predates the store now finds nothing locally. A signed-in reader pulls their deck back from the account; a reader without one relies on the panel's backup file, which is why the copy was kept until the move had been seen to work.
 
 ### D6 — A store that will not open must not take the extension down
 
