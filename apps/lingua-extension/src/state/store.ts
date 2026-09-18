@@ -110,6 +110,21 @@ export function idbArea(db: IDBDatabase): AsyncStorageArea {
   };
 }
 
+/**
+ * The owner's handle on its own store: every write says which keys changed. Both things
+ * that follow a mutation hang off this — telling the surfaces, and scheduling the sync —
+ * so neither can be forgotten when the store moves again.
+ */
+export function ownerArea(area: AsyncStorageArea, announce: (keys: string[]) => void): AsyncStorageArea {
+  return {
+    get: (keys) => area.get(keys),
+    set: async (items) => {
+      await area.set(items);
+      announce(Object.keys(items));
+    },
+  };
+}
+
 export type RuntimeSend = (message: unknown) => Promise<unknown>;
 
 const runtimeSend: RuntimeSend = (message) => chrome.runtime.sendMessage(message);

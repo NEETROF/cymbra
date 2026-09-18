@@ -26,6 +26,7 @@ import {
   isStoreMessage,
   migrateStore,
   openStore,
+  ownerArea,
   STORE_CHANGED_KEY,
   type StoreChange,
   type StoreReply,
@@ -131,10 +132,19 @@ const settingsArea: AsyncStorageArea = {
 
 let storeRev = 0;
 
+/**
+ * Set by the sync block: a change to the reader's own data schedules an exchange. The
+ * owner is what knows when that happens — the trigger used to watch the backup key in
+ * chrome.storage.local, which stopped firing the moment the data moved to the store
+ * (dogfooding: a level chosen right after an erasure never left the phone).
+ */
+let onReaderDataChanged: (() => void) | null = null;
+
 /** Say which keys just changed; surfaces re-read what they care about. */
 function announceStoreChange(keys: string[]): void {
   storeRev += 1;
   void chrome.storage.local.set({ [STORE_CHANGED_KEY]: { rev: storeRev, keys } satisfies StoreChange }).catch(() => {});
+  if (keys.includes(ROOT_KEY)) onReaderDataChanged?.();
 }
 
 /**
@@ -163,13 +173,13 @@ const storeArea: Promise<AsyncStorageArea> = (async () => {
 })();
 
 /** The owner's own handle: writes announce themselves, like a surface's would. */
-const ownedStore: AsyncStorageArea = {
-  get: async (keys) => (await storeArea).get(keys),
-  set: async (items) => {
-    await (await storeArea).set(items);
-    announceStoreChange(Object.keys(items));
+const ownedStore: AsyncStorageArea = ownerArea(
+  {
+    get: async (keys) => (await storeArea).get(keys),
+    set: async (items) => (await storeArea).set(items),
   },
-};
+  announceStoreChange,
+);
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (!isStoreMessage(message)) return undefined;
@@ -179,8 +189,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       sendResponse({ ok: true, items: await area.get(message.keys) } satisfies StoreReply);
       return;
     }
-    await area.set(message.items);
-    announceStoreChange(Object.keys(message.items));
+    await ownedStore.set(message.items); // announces, and schedules the sync
     sendResponse({ ok: true } satisfies StoreReply);
   })().catch((e: unknown) => {
     console.warn("[Cymbra Lingua] store request failed:", e);
@@ -338,10 +347,9 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (ok) await scheduler.onOpen(SURFACE_INTERVAL_MS);
     if (handOff) await collectHandedToken();
   });
-  // A mutation in any context persists the backup → debounced sync.
-  chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === "local" && changes[ROOT_KEY]) scheduler.schedule(2000);
-  });
+  // A mutation in any context persists the backup → debounced sync. The store's owner
+  // reports it, whether the store is IndexedDB or the settings-area fallback.
+  onReaderDataChanged = () => scheduler.schedule(2000);
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     // Every account:* message (sign-in, sign-up, verification, reset, providers) goes
