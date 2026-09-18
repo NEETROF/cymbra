@@ -143,16 +143,23 @@ function announceStoreChange(keys: string[]): void {
  * settings area still holds a bounded state, so the reader keeps reading and reviewing.
  */
 const storeArea: Promise<AsyncStorageArea> = (async () => {
+  let area: AsyncStorageArea;
   try {
-    const area = idbArea(await openStore());
-    const moved = await migrateStore(settingsArea, area);
-    if (moved.length > 0) console.info(`[Cymbra Lingua] moved ${moved.length} keys into the durable store`);
-    void navigator.storage?.persist?.().catch(() => {});
-    return area;
+    area = idbArea(await openStore());
   } catch (e) {
     console.warn("[Cymbra Lingua] durable store unavailable, staying on storage.local:", e);
     return settingsArea;
   }
+  // A migration that fails must not cost us the store: it is retried at the next start,
+  // and copying only what the store lacks makes that safe.
+  try {
+    const moved = await migrateStore(settingsArea, area);
+    if (moved.length > 0) console.info(`[Cymbra Lingua] moved ${moved.length} keys into the durable store`);
+  } catch (e) {
+    console.warn("[Cymbra Lingua] could not finish moving the previous state:", e);
+  }
+  void navigator.storage?.persist?.().catch(() => {});
+  return area;
 })();
 
 /** The owner's own handle: writes announce themselves, like a surface's would. */

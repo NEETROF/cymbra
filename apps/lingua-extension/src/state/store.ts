@@ -1,3 +1,4 @@
+import { isStorageFull } from "./auth-errors.ts";
 import { type AsyncStorageArea, loadStored, ROOT_KEY } from "./storage.ts";
 
 // Where the reader's own data lives (change: move-lingua-store-to-indexeddb). The engine
@@ -130,17 +131,32 @@ export function messagedArea(send: RuntimeSend = runtimeSend): AsyncStorageArea 
 }
 
 /**
- * Copy the reader's data out of chrome.storage.local, once. The copies are LEFT in place
- * for one release, so a rollback still finds a deck (design D5); the mark is written last,
- * so a run cut short is simply redone.
+ * Copy the reader's data out of chrome.storage.local, once. The copies are normally LEFT in
+ * place for one release, so a rollback still finds a deck (design D5); the mark is written
+ * last, so a run cut short is simply redone.
+ *
+ * Two things this has to survive, both seen on a reader's phone:
+ * - **the area being full.** Its own copies are what fill it, and the mark cannot be
+ *   written into a full area — which would leave the migration "unfinished" for ever. A
+ *   working extension beats a rollback path: the copies are dropped, then the mark lands.
+ * - **a second run after a partial one.** Only keys the store does not already hold are
+ *   copied, so a re-run can never put a stale copy over what the reader has done since.
  */
 export async function migrateStore(from: AsyncStorageArea, to: AsyncStorageArea): Promise<string[]> {
   const marks = await from.get(MIGRATED_KEY);
   if (marks[MIGRATED_KEY] === true) return [];
   const previous = await from.get([...STORE_KEYS]);
-  const moved = Object.keys(previous);
-  if (moved.length > 0) await to.set(previous);
-  await from.set({ [MIGRATED_KEY]: true });
+  const already = await to.get([...STORE_KEYS]);
+  const items = Object.fromEntries(Object.entries(previous).filter(([key]) => !(key in already)));
+  const moved = Object.keys(items);
+  if (moved.length > 0) await to.set(items);
+  try {
+    await from.set({ [MIGRATED_KEY]: true });
+  } catch (e) {
+    if (!isStorageFull(e)) throw e;
+    await from.set(Object.fromEntries([...STORE_KEYS].map((key) => [key, null])));
+    await from.set({ [MIGRATED_KEY]: true });
+  }
   return moved;
 }
 

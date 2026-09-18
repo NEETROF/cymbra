@@ -152,6 +152,46 @@ describe("moving the reader's data", () => {
     expect(previous.store[MIGRATED_KEY]).toBe(true);
   });
 
+  it("drops the previous copy rather than staying stuck when the area is full", async () => {
+    // What a reader's phone actually hit: the copies are what fill the area, and the mark
+    // cannot be written into a full one — so the move never finished and the extension fell
+    // back onto the very area that was full.
+    const store = await freshStore();
+    let isFull = true; // until the copies it holds are dropped
+    const full: AsyncStorageArea & { store: Record<string, unknown> } = {
+      store: previous.store,
+      get: (keys) => previous.get(keys),
+      set: async (items) => {
+        const freeing = Object.values(items).every((value) => value === null);
+        if (isFull && !freeing) {
+          throw new Error("Invalid call to browser.storage.local.set(). Exceeded storage quota.");
+        }
+        if (freeing) isFull = false; // the space the copies took is back
+        await previous.set(items);
+      },
+    };
+
+    const moved = await migrateStore(full, store);
+
+    expect(moved).toContain(ROOT_KEY);
+    expect(await store.get(ROOT_KEY)).toEqual({ [ROOT_KEY]: { v: 2, backup: "DECK" } });
+    expect(full.store[ROOT_KEY]).toBeNull(); // the space is back
+    expect(full.store[MIGRATED_KEY]).toBe(true); // and the move is done, not retried for ever
+    expect(full.store["cymbra-lingua-refresh"]).toBe("TOKEN"); // the session was not touched
+  });
+
+  it("never puts a stale copy over what the store already holds", async () => {
+    // A first run copied and was cut short before its mark; the reader kept working.
+    const store = await freshStore();
+    await store.set({ [ROOT_KEY]: { v: 2, backup: "NEWER" } });
+
+    await migrateStore(previous, store);
+
+    expect(await store.get(ROOT_KEY)).toEqual({ [ROOT_KEY]: { v: 2, backup: "NEWER" } });
+    // What the store did not have is still copied.
+    expect(await store.get("cymbra-lingua-status-cursor")).toEqual({ "cymbra-lingua-status-cursor": 42 });
+  });
+
   it("has nothing to move on a fresh install", async () => {
     const store = await freshStore();
 
