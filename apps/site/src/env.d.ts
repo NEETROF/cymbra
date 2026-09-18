@@ -11,6 +11,8 @@ interface ImportMetaEnv {
   readonly PUBLIC_PADDLE_ENV?: string;
   /** Paddle client-side token (public, per environment). */
   readonly PUBLIC_PADDLE_CLIENT_TOKEN?: string;
+  /** Discord community invite shown on /lingua; unset hides the link. */
+  readonly PUBLIC_DISCORD_URL?: string;
 }
 
 interface ImportMeta {

@@ -1,0 +1,76 @@
+---
+import Base from '../../layouts/Base.astro';
+import StoreButtons from '../../components/StoreButtons.astro';
+import { linguaStores } from '../../lib/stores';
+import { config } from '../../lib/config';
+---
+
+<Base
+  title="Cymbra Lingua — grow your vocabulary while you read the web"
+  description="A browser extension that highlights, on the page you are reading, the English words you do not know yet. Offline analysis, no account required."
+  lang="en"
+  frHref="/lingua"
+  enHref="/en/lingua"
+>
+  <section class="hero container">
+    <p class="kicker">Cymbra Lingua · <span class="badge">beta</span></p>
+    <h1>Your vocabulary, <span class="gradient">where you already read</span></h1>
+    <p class="tagline">
+      A browser extension that highlights the English words you do not know yet,
+      right on the page. No app to open, no revision session to schedule: you read,
+      you learn.
+    </p>
+    <StoreButtons links={linguaStores('en')} />
+    <p class="muted small soon">
+      Coming soon to Chrome, Firefox and Safari. The extension is in private beta.
+      {config.discordUrl && (
+        <>
+          {' '}<a href={config.discordUrl} rel="noopener">Join the community</a> to get in.
+        </>
+      )}
+    </p>
+  </section>
+
+  <section id="features" class="features container">
+    <div class="card">
+      <h3>🖍️ Highlighted in place</h3>
+      <p>Unknown words appear highlighted on the page itself — without breaking the site you are reading.</p>
+    </div>
+    <div class="card">
+      <h3>📊 An honest percentage</h3>
+      <p>The icon shows how much of the current page you actually know. One number per page, not an inflated score.</p>
+    </div>
+    <div class="card">
+      <h3>👆 One click to understand</h3>
+      <p>Click a highlighted word: its dictionary form, its meaning, its frequency in plain language, and three buttons — "I know it", "+ Deck", "Ignore".</p>
+    </div>
+    <div class="card">
+      <h3>🗂️ Deck and review</h3>
+      <p>Captured words and phrases become cards, carrying the sentence you met them in. Review them from the side panel.</p>
+    </div>
+    <div class="card">
+      <h3>📴 Offline by construction</h3>
+      <p>The analysis runs inside your browser, against a bundled dictionary. No page you read is ever sent anywhere.</p>
+    </div>
+    <div class="card">
+      <h3>📈 Your level, on the CEFR scale</h3>
+      <p>An estimate of your English vocabulary, anchored to A1→C2 rather than to a homemade badge.</p>
+    </div>
+    <div class="card">
+      <h3>🪪 Optional account</h3>
+      <p>Signed out, everything stays local. Signed in to Cymbra ID, your deck and word statuses follow you across devices.</p>
+    </div>
+    <div class="card">
+      <h3>🧭 English → French</h3>
+      <p>The first language pair. More will follow.</p>
+    </div>
+  </section>
+
+  <section class="container closing">
+    <h2>What about music?</h2>
+    <p class="muted">
+      Lingua shares its account, its philosophy and its respect for your data
+      with <a href="/en/music">Cymbra Music</a>, available on the App Store and Google Play.
+    </p>
+  </section>
+</Base>

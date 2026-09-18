@@ -1,0 +1,67 @@
+---
+import Base from '../../layouts/Base.astro';
+import StoreButtons from '../../components/StoreButtons.astro';
+import { musicStores } from '../../lib/stores';
+---
+
+<Base
+  title="Cymbra Music — connected music practice & lessons"
+  description="Plug in your MIDI keyboard and play: Cymbra Music follows the score in real time, gives immediate feedback, and moves you forward lesson by lesson."
+  lang="en"
+  frHref="/music"
+  enHref="/en/music"
+>
+  <section class="hero container">
+    <p class="kicker">Cymbra Music</p>
+    <h1>Learn music, <span class="gradient">connected to your instrument</span></h1>
+    <p class="tagline">
+      Cymbra turns practice into a guided experience: follow lessons, play along in
+      real time with your instrument, and progress step by step.
+    </p>
+    <StoreButtons links={musicStores('en')} primary />
+  </section>
+
+  <section id="features" class="features container">
+    <div class="card">
+      <h3>🎹 Connected to your instruments</h3>
+      <p>Connect any USB MIDI keyboard or electronic drum kit — or just play along on screen.</p>
+    </div>
+    <div class="card">
+      <h3>👀 Two ways to read</h3>
+      <p>Standard staff notation for reading practice, or Synthesia-style falling notes to learn quickly. Switch views anytime.</p>
+    </div>
+    <div class="card">
+      <h3>⏸️ Wait Mode</h3>
+      <p>The score pauses until you play the right note. Practise hands separately or together, with left/right colour coding.</p>
+    </div>
+    <div class="card">
+      <h3>🥁 Drums too</h3>
+      <p>Real drum parts, read on the staff or on an animated kit. Map your pads once, isolate one kit piece to drill a groove.</p>
+    </div>
+    <div class="card">
+      <h3>🎯 Real-time scoring</h3>
+      <p>Accuracy and timing rated while you play, with a session summary after every run.</p>
+    </div>
+    <div class="card">
+      <h3>📚 A growing library</h3>
+      <p>Public-domain scores from beginner to advanced, high-quality piano sounds, and your own SoundFonts if you want them.</p>
+    </div>
+    <div class="card">
+      <h3>🌍 Four languages</h3>
+      <p>English, French, Italian and Spanish.</p>
+    </div>
+    <div class="card">
+      <h3>🔒 Privacy-first</h3>
+      <p>Data hosted in France (EU), never sold, no advertising trackers.</p>
+    </div>
+  </section>
+
+  <section class="container closing">
+    <h2>Already have a Cymbra account?</h2>
+    <p class="muted">
+      Your plan, your betas and your subscription live
+      on <a href="/en/account">your account page</a>. Got an access code from the
+      community? <a href="/en/redeem">Redeem it here</a>.
+    </p>
+  </section>
+</Base>

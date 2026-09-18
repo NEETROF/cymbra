@@ -1,0 +1,26 @@
+---
+// A row of distribution links (`src/lib/stores.ts`). An unpublished channel is
+// dimmed and unclickable rather than hidden, so the platform coverage stays
+// readable while the listing is still in review.
+import type { StoreLink } from '../lib/stores';
+
+interface Props {
+  links: StoreLink[];
+  /** `true` on a hero (centred), `false` inside a page block (left-aligned). */
+  centered?: boolean;
+  primary?: boolean;
+}
+
+const { links, centered = true, primary = false } = Astro.props as Props;
+---
+
+<div class={`cta-row${centered ? '' : ' left'}`}>
+  {links.map((l, i) => (
+    <a
+      class={`btn ${primary && i === 0 && l.live ? 'btn-primary' : 'btn-ghost'}${l.live ? '' : ' disabled'}`}
+      href={l.href}
+      rel={l.live ? 'noopener' : undefined}
+      aria-disabled={l.live ? undefined : 'true'}
+    >{l.label}</a>
+  ))}
+</div>

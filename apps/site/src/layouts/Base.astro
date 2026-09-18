@@ -3,28 +3,36 @@ import '../styles/global.css';
 
 const {
   title,
-  description = 'Cymbra — pratique et cours de musique connectés à vos instruments.',
+  description = 'Cymbra — des apps qui apprennent avec vous : la musique connectée à votre instrument, le vocabulaire connecté à ce que vous lisez.',
   lang = 'fr',
   // Account / redeem / checkout pages are personal surfaces, not landing content.
   noindex = false,
+  // The same page in the other locale. The pair is NOT derivable from the path
+  // (`/confidentialite` ↔ `/en/privacy`), so each page that has a counterpart
+  // declares it: it drives both the header's language switch and `hreflang`.
+  frHref = '/',
+  enHref = '/en/',
 } = Astro.props;
 
 const isFr = lang === 'fr';
 const nav = isFr
   ? [
-      { href: '/#fonctionnalites', label: 'Fonctionnalités' },
+      { href: '/music', label: 'Music' },
+      { href: '/lingua', label: 'Lingua' },
       { href: '/confidentialite', label: 'Confidentialité' },
       { href: '/cgu', label: 'CGU' },
       { href: '/account', label: 'Mon compte' },
     ]
   : [
-      { href: '/en/#features', label: 'Features' },
+      { href: '/en/music', label: 'Music' },
+      { href: '/en/lingua', label: 'Lingua' },
       { href: '/en/privacy', label: 'Privacy' },
       { href: '/en/terms', label: 'Terms' },
       { href: '/en/account', label: 'Account' },
     ];
-const otherLocale = isFr ? { href: '/en/', label: 'EN' } : { href: '/', label: 'FR' };
+const otherLocale = isFr ? { href: enHref, label: 'EN' } : { href: frHref, label: 'FR' };
 const home = isFr ? '/' : '/en/';
+const site = 'https://cymbra.app';
 ---
 
 <!doctype html>
@@ -42,13 +50,20 @@ const home = isFr ? '/' : '/en/';
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
-    <link rel="alternate" hreflang="fr" href="https://cymbra.app/" />
-    <link rel="alternate" hreflang="en" href="https://cymbra.app/en/" />
+    <link rel="alternate" hreflang="fr" href={`${site}${frHref}`} />
+    <link rel="alternate" hreflang="en" href={`${site}${enHref}`} />
   </head>
   <body>
     <header class="site-header">
       <div class="container">
         <a class="brand" href={home}>Cymbra</a>
+        {/* The mobile menu is CSS-only — the layout ships no JS. A focusable
+            checkbox drives the panel and the label is the visual target; every
+            entry is a full page load, so navigating closes the menu for free. */}
+        <input class="nav-toggle" type="checkbox" id="nav-toggle" aria-label="Menu" />
+        <label class="nav-burger" for="nav-toggle" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </label>
         <nav class="nav-links">
           {nav.map((l) => <a href={l.href}>{l.label}</a>)}
           <a href={otherLocale.href}>{otherLocale.label}</a>
@@ -66,6 +81,8 @@ const home = isFr ? '/' : '/en/';
         <nav>
           {isFr ? (
             <>
+              <a href="/music">Music</a>
+              <a href="/lingua">Lingua</a>
               <a href="/support">Aide</a>
               <a href="/confidentialite">Confidentialité</a>
               <a href="/cgu">CGU</a>
@@ -76,6 +93,8 @@ const home = isFr ? '/' : '/en/';
             </>
           ) : (
             <>
+              <a href="/en/music">Music</a>
+              <a href="/en/lingua">Lingua</a>
               <a href="/en/support">Support</a>
               <a href="/en/privacy">Privacy</a>
               <a href="/en/terms">Terms</a>
