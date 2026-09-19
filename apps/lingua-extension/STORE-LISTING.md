@@ -28,8 +28,13 @@ Constants:
 
 > Lisez l'anglais sur le web : les mots inconnus surlignés, et un pourcentage honnête. Hors ligne, privé, sans compte requis.
 
-123 characters; Chrome's limit is 132. Changing it means changing `manifest.json` and
-uploading a new package, so it is worth getting right before a submission.
+105 characters. **The limit is 112, Apple's** — checked when the signed archive is uploaded to
+App Store Connect, which is where `lingua-apple-v1.1.0` died after a full build. Chrome allows
+132, so calibrating on Chrome produces an archive Apple refuses. `yarn check:version` holds the
+112 now.
+
+Changing it means changing `manifest.json` and shipping a new package, so it is worth getting
+right before a submission.
 
 It is in **French** because the extension is: its whole interface is French ("Analyser cette
 page", "Je connais", "Toujours surligner"), and it teaches English _to French speakers_. An

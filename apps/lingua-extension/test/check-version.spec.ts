@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { manifestProblem, versionProblem } from "../tool/check_version.mjs";
+import { manifestProblems, versionProblem } from "../tool/check_version.mjs";
 
 describe("the release version guard", () => {
   it("passes a version the stores accept", () => {
@@ -24,11 +24,32 @@ describe("the release version guard", () => {
     // build.mjs stamps package.json's version onto every variant. A copy here is a second
     // source that drifts — and it is what release-please used to rewrite, reformatting the
     // whole file and failing the Prettier gate.
-    expect(manifestProblem({ name: "Cymbra Lingua", version: "0.1.0" })).toContain("second source");
+    const problems = manifestProblems({ description: "ok", version: "0.1.0" });
+
+    expect(problems.join(" ")).toContain("second source");
+  });
+
+  it("refuses a description Apple would reject, which only the upload used to reveal", () => {
+    // 113 characters. Apple's limit is 112 and it is checked when the signed archive is
+    // uploaded — lingua-apple-v1.1.0 died there, after a full build. Chrome allows 132, so
+    // calibrating on Chrome is exactly how you get an archive Apple refuses.
+    const problems = manifestProblems({ description: "x".repeat(113) });
+
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain("113 characters");
+    expect(problems[0]).toContain("112");
+  });
+
+  it("accepts a description at the limit", () => {
+    expect(manifestProblems({ description: "x".repeat(112) })).toEqual([]);
+  });
+
+  it("refuses a manifest with no description at all", () => {
+    expect(manifestProblems({}).join(" ")).toContain("no description");
   });
 
   it("accepts a manifest that defers to package.json", () => {
-    expect(manifestProblem({ name: "Cymbra Lingua" })).toBeNull();
+    expect(manifestProblems({ description: "Lisez l'anglais sur le web." })).toEqual([]);
   });
 
   it("holds the files the repository actually ships", async () => {
@@ -38,6 +59,6 @@ describe("the release version guard", () => {
     const manifest = (await import("../manifest.json")) as unknown as Record<string, unknown>;
 
     expect(versionProblem(pkg.version)).toBeNull();
-    expect(manifestProblem(manifest)).toBeNull();
+    expect(manifestProblems(manifest)).toEqual([]);
   });
 });
