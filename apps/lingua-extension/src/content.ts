@@ -103,8 +103,13 @@ function caretAt(x: number, y: number): { node: Node; offset: number } | null {
   return null;
 }
 
-function rarityText(cls: TokenClass, calibration: number): string {
+export function rarityText(cls: TokenClass, calibration: number): string {
   if (cls === "Learning") return "Dans ton deck — en cours d'apprentissage.";
+  // A declared CEFR level pins the calibration to 0 on purpose (`onSetLevel`): the level
+  // becomes the only source of presumed-known. Rendering that 0 told every such reader they
+  // knew "tes 0 mots les plus courants" — and declaring a level is the normal path, not an
+  // edge case, so this was the first sentence most readers ever saw in a word popup.
+  if (calibration <= 0) return "Peu fréquent — au-delà de ton niveau.";
   return `Peu fréquent — au-delà de tes ${calibration.toLocaleString("fr-FR")} mots les plus courants.`;
 }
 
