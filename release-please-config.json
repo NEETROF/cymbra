@@ -21,8 +21,7 @@
     },
     "apps/lingua-extension": {
       "release-type": "node",
-      "component": "lingua-extension",
-      "release-as": "1.0.0"
+      "component": "lingua-extension"
     },
     "apps/lingua-apple": {
       "release-type": "simple",
