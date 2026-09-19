@@ -37,4 +37,5 @@
 - [ ] 5.2 Create the AMO listing for `lingua@cymbra.app`
 - [ ] 5.3 Create the credentials and store them as repository secrets: the Chrome Web Store OAuth client id/secret + refresh token and the item id; the AMO JWT issuer and secret
 - [ ] 5.4 Read the first Release PR's changelog before merging it (D9), then merge and verify both stores received the version and the GitHub Release carries both zips
+- [ ] 5.6 **Remove `release-as` from `apps/lingua-extension` in `release-please-config.json`** once `lingua-extension-v1.0.0` is tagged — it is sticky, and left in place it pins every later release to 1.0.0 (D10)
 - [ ] 5.5 Tag the Apple app and verify the delivered build reports the tag's version in App Store Connect
