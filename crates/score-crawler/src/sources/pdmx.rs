@@ -169,7 +169,8 @@ impl SourceAdapter for PdmxDatasetSource {
 
     async fn fetch(&self, item: &Item) -> Result<RawScore> {
         let path = self.score_path(&item.source_item_id);
-        let bytes = std::fs::read(&path)
+        let bytes = tokio::fs::read(&path)
+            .await
             .with_context(|| format!("reading extracted score {}", path.display()))?;
         Ok(RawScore {
             origin: OriginFormat::Mxl,
