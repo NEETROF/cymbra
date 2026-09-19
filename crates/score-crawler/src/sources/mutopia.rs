@@ -46,6 +46,30 @@ impl MutopiaSource {
         }
     }
 
+    /// The blocking half of `discover`: walk the checkout and read each `.ly`.
+    fn discover_blocking(&self) -> Result<Vec<Item>> {
+        let mut files = Vec::new();
+        collect_scores(&self.checkout, &mut files)
+            .with_context(|| format!("walking checkout {}", self.checkout.display()))?;
+        files.sort();
+        // A Mutopia repo holds real piece files (a `\header` with `license = …`)
+        // AND many `-lys/` includes + `contrib/templates` with no licence. Keep
+        // only the real pieces; skip the rest silently (they are not failures).
+        // Read each `.ly` once: the licence gates it in or out, and its `\header`
+        // supplies the real title/composer (the filename is only a fallback).
+        let items = files
+            .iter()
+            .filter_map(|p| {
+                let mut item = self.item_for(p)?;
+                let ly = std::fs::read_to_string(p).ok()?;
+                parse_ly_license(&ly)?; // real piece only
+                enrich_from_header(&mut item, &ly);
+                Some(item)
+            })
+            .collect();
+        Ok(items)
+    }
+
     fn item_for(&self, path: &Path) -> Option<Item> {
         // LilyPond sources only (ignore any bundled MIDI/PDF).
         if origin_from_ext(path) != Some(OriginFormat::LilyPond) {
@@ -112,33 +136,20 @@ impl SourceAdapter for MutopiaSource {
     }
 
     async fn discover(&self) -> Result<Vec<Item>> {
-        let mut files = Vec::new();
-        collect_scores(&self.checkout, &mut files)
-            .with_context(|| format!("walking checkout {}", self.checkout.display()))?;
-        files.sort();
-        // A Mutopia repo holds real piece files (a `\header` with `license = …`)
-        // AND many `-lys/` includes + `contrib/templates` with no licence. Keep
-        // only the real pieces; skip the rest silently (they are not failures).
-        // Read each `.ly` once: the licence gates it in or out, and its `\header`
-        // supplies the real title/composer (the filename is only a fallback).
-        let items = files
-            .iter()
-            .filter_map(|p| {
-                let mut item = self.item_for(p)?;
-                let ly = std::fs::read_to_string(p).ok()?;
-                parse_ly_license(&ly)?; // real piece only
-                enrich_from_header(&mut item, &ly);
-                Some(item)
-            })
-            .collect();
-        Ok(items)
+        // Walks the checkout and reads every `.ly` in it — thousands of blocking
+        // reads, so the whole sweep goes off the runtime, as `prepare` does.
+        let source = MutopiaSource::new(self.checkout.clone());
+        tokio::task::spawn_blocking(move || source.discover_blocking())
+            .await
+            .context("joining Mutopia discovery task")?
     }
 
     async fn extract_license(&self, item: &Item) -> Result<RawLicense> {
         // The licence lives in the (local, small) `.ly` header — a source-
         // authoritative field, so it is `verified`, gated per file.
         let path = self.checkout.join(&item.source_item_id);
-        let ly = std::fs::read_to_string(&path)
+        let ly = tokio::fs::read_to_string(&path)
+            .await
             .with_context(|| format!("reading {}", path.display()))?;
         let signal = parse_ly_license(&ly)
             .ok_or_else(|| anyhow!("no licence field in {}", item.source_item_id))?;
@@ -147,7 +158,9 @@ impl SourceAdapter for MutopiaSource {
 
     async fn fetch(&self, item: &Item) -> Result<RawScore> {
         let path = self.checkout.join(&item.source_item_id);
-        let bytes = std::fs::read(&path).with_context(|| format!("reading {}", path.display()))?;
+        let bytes = tokio::fs::read(&path)
+            .await
+            .with_context(|| format!("reading {}", path.display()))?;
         Ok(RawScore {
             origin: OriginFormat::LilyPond,
             bytes,

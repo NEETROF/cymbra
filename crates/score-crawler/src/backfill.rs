@@ -125,7 +125,7 @@ pub async fn run_mutopia_title_backfill(
         for row in rows {
             report.scanned += 1;
             let path = checkout.join(&row.source_item_id);
-            let ly = match std::fs::read_to_string(&path) {
+            let ly = match tokio::fs::read_to_string(&path).await {
                 Ok(t) => t,
                 Err(e) => {
                     tracing::warn!(id = %row.id, path = %path.display(), error = %e,
