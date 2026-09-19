@@ -77,10 +77,21 @@ one — a `Release-As:` footer on a commit touching only that component's path �
 lost: this repository squash-merges, and the footer has to survive into the squash commit's
 body, which is assembled from the pull request rather than from the branch. It did not.
 
-`release-as` is **sticky**: left in place it pins every later release to 1.0.0, which is worse
-than the problem it solves, and the failure is quiet — a Release PR that keeps proposing a
-version already tagged. Its removal is therefore task 5.6, not a note: the change cannot be
-archived while a task is open, so the repository itself holds the reminder.
+`release-as` is **sticky**: left in place it pins every later release to 1.0.0. Its removal was
+therefore task 5.6, not a note — the change cannot be archived while a task is open, so the
+repository itself held the reminder.
+
+It was needed, and the reminder was too. Once `lingua-extension-v1.0.0` was tagged, the next
+Release PR proposed 1.0.0 again — it bumped nothing, only a changelog — and merging it broke
+release-please for the whole repository:
+
+```
+release-please failed: Validation Failed:
+{"resource":"Release","code":"already_exists","field":"tag_name"}
+```
+
+Not quiet after all, which is better than expected, but it would have stayed red for every
+component on every merge until the line was removed. The line is gone.
 
 ## D11 — The version has one home, and it is not the manifest
 
