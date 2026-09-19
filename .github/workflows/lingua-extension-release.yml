@@ -1,0 +1,265 @@
+name: lingua-extension-release
+
+# Publishes Cymbra Lingua's browser extension (apps/lingua-extension).
+#
+# A `lingua-extension-v*` tag — pushed when the release-please "Release PR" is merged —
+# builds every variant from the production configuration, attaches the two distributable
+# zips to that tag's GitHub Release, and submits them: the chromium package to the Chrome
+# Web Store, the firefox package to addons.mozilla.org.
+#
+# A dispatch builds the same packages and publishes NOTHING, keeping them as workflow
+# artifacts. It is the only way to validate a source change before tagging it, since a
+# dispatch on an existing tag would build that tag's tree with this branch's YAML.
+#
+# The safari variant is not published here. It ships inside the Apple host app, built from
+# the same commit by lingua-apple-release — so this lane builds it (check:variants reads all
+# three) and distributes two.
+#
+# "Published" means SUBMITTED. Both stores review a new version, and a first submission is
+# read by a human; this lane stops at the store accepting the upload and says so. A rejected
+# review arrives days later by email and is answered in the dashboard, not here.
+#
+# Required secrets — a tag run stops and names the ones that are missing:
+#   CWS_EXTENSION_ID       Chrome Web Store item id. The listing must already exist: this
+#                          lane uploads a new version of an item, it does not create one.
+#   CWS_CLIENT_ID / CWS_CLIENT_SECRET / CWS_REFRESH_TOKEN
+#                          OAuth client (Chrome Web Store API enabled) and a refresh token
+#                          for the account that owns the item.
+#   AMO_JWT_ISSUER / AMO_JWT_SECRET
+#                          addons.mozilla.org API credentials, from the account that owns
+#                          the `lingua@cymbra.app` listing.
+on:
+  push:
+    tags:
+      - "lingua-extension-v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write # attach the packages to the tag's release
+
+concurrency:
+  group: lingua-extension-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/lingua-extension
+    env:
+      # The one thing that decides whether anything leaves this runner.
+      PUBLISHING: ${{ github.ref_type == 'tag' }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check publishing secrets
+        if: ${{ github.ref_type == 'tag' }}
+        env:
+          CWS_EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
+          CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: |
+          set -euo pipefail
+          missing=""
+          for name in CWS_EXTENSION_ID CWS_CLIENT_ID CWS_CLIENT_SECRET CWS_REFRESH_TOKEN \
+                      AMO_JWT_ISSUER AMO_JWT_SECRET; do
+            [ -n "${!name:-}" ] || missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::publishing secrets missing:$missing. See this workflow's header, and apps/lingua-extension/README.md (Release)."
+            exit 1
+          fi
+
+      # Before the toolchain, so a version no store would take costs seconds rather than a
+      # full wasm + pack build.
+      - name: Resolve and check the version
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./package.json').version")
+          manifest=$(node -p "require('./manifest.json').version")
+          if [ "$version" != "$manifest" ]; then
+            echo "::error::package.json says $version and manifest.json says $manifest. release-please writes both."
+            exit 1
+          fi
+          if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::version $version is not three plain integers; a store refuses a pre-release suffix at upload."
+            exit 1
+          fi
+          if [ "$PUBLISHING" = "true" ]; then
+            tagged="${GITHUB_REF_NAME#lingua-extension-v}"
+            if [ "$tagged" != "$version" ]; then
+              echo "::error::tag $GITHUB_REF_NAME does not match the tree's version $version."
+              exit 1
+            fi
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          echo "Releasing $version (publishing: $PUBLISHING)."
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: taiki-e/install-action@wasm-pack
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Set up protoc (gRPC-web stubs)
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Enable Corepack (Yarn Berry)
+        run: corepack enable
+      # The real pack's upstream sources (~200 MB, mostly the kaikki extract), shared with
+      # lingua-apple-release: the build reuses whatever is present.
+      - name: Cache the pack sources
+        uses: actions/cache@v4
+        with:
+          path: scripts/lingua-data/work
+          key: lingua-pack-sources-en-fr-${{ hashFiles('scripts/lingua-data/build.sh', 'scripts/lingua-data/reduce-en-fr.py') }}
+          restore-keys: lingua-pack-sources-en-fr-
+
+      - name: Build every variant for production
+        run: |
+          set -euo pipefail
+          pip install --quiet wordfreq
+          yarn install --immutable
+          yarn gen:wasm
+          yarn gen:proto
+          yarn gen:pack:real
+          size=$(stat -c%s assets/pack.lingua)
+          if [ "$size" -lt 1000000 ]; then
+            echo "::error::assets/pack.lingua is ${size} bytes — not the real EN→FR pack."
+            exit 1
+          fi
+          LINGUA_GRPC_WEB_URL=https://api.cymbra.app yarn build
+      # Each manifest carries what its browser needs, and each bundle kept only its own
+      # capability branches. The same gate the pull request runs, on the shipped bundles.
+      - name: Verify browser variants
+        run: yarn check:variants
+      # The backend origin lands in each manifest's host_permissions (build.mjs,
+      # LINGUA_GRPC_WEB_URL), which is what the Xcode copy phase greps too: a package that
+      # calls a local backend fails every sign-in on a reader's machine.
+      - name: Refuse a package that calls a local backend
+        run: |
+          set -euo pipefail
+          for target in chromium firefox safari; do
+            if grep -Eq '://(localhost|127[.]0[.]0[.]1)' "dist-$target/manifest.json"; then
+              echo "::error::dist-$target calls a local backend."
+              exit 1
+            fi
+            built=$(node -p "require('./dist-$target/manifest.json').version")
+            if [ "$built" != "$VERSION" ]; then
+              echo "::error::dist-$target reports version $built, expected $VERSION."
+              exit 1
+            fi
+          done
+
+      - name: Package the distributable variants
+        run: |
+          set -euo pipefail
+          for target in chromium firefox; do
+            (cd "dist-$target" && zip -qr "$GITHUB_WORKSPACE/cymbra-lingua-$target-$VERSION.zip" .)
+          done
+          ls -lh "$GITHUB_WORKSPACE"/cymbra-lingua-*.zip
+
+      # Mozilla requires the human-readable source whenever the reviewed code was generated
+      # by a build step. Lingua's is twice over: an esbuild bundle and a .wasm compiled from
+      # Rust. The pack is data, rebuilt by scripts/lingua-data/build.sh, and is not in git —
+      # REVIEWERS.md says so, because a file a reviewer cannot reproduce blocks the version.
+      - name: Build the source archive for review
+        working-directory: .
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/source"
+          git archive HEAD apps/lingua-extension crates/lingua-core crates/lingua-wasm \
+            scripts/lingua-data | tar -x -C "$RUNNER_TEMP/source"
+          cp apps/lingua-extension/REVIEWERS.md "$RUNNER_TEMP/source/README.md"
+          (cd "$RUNNER_TEMP/source" && zip -qr "$GITHUB_WORKSPACE/cymbra-lingua-source-$VERSION.zip" .)
+
+      # Private and short-lived, so a dispatch can be inspected without publishing anything.
+      - name: Keep the packages
+        uses: actions/upload-artifact@v6
+        with:
+          name: cymbra-lingua-extension-${{ github.run_number }}
+          path: cymbra-lingua-*.zip
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: Attach the packages to the release
+        if: ${{ github.ref_type == 'tag' }}
+        uses: softprops/action-gh-release@v3
+        with:
+          files: |
+            cymbra-lingua-chromium-${{ env.VERSION }}.zip
+            cymbra-lingua-firefox-${{ env.VERSION }}.zip
+
+      - name: Submit to the Chrome Web Store
+        if: ${{ github.ref_type == 'tag' }}
+        working-directory: .
+        env:
+          ITEM_ID: ${{ secrets.CWS_EXTENSION_ID }}
+          CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+        run: |
+          set -euo pipefail
+          token=$(curl -sS -X POST https://oauth2.googleapis.com/token \
+            -d "client_id=$CLIENT_ID" -d "client_secret=$CLIENT_SECRET" \
+            -d "refresh_token=$REFRESH_TOKEN" -d grant_type=refresh_token | jq -r '.access_token // empty')
+          if [ -z "$token" ]; then
+            echo "::error::the Chrome Web Store refused the refresh token (CWS_CLIENT_ID / CWS_CLIENT_SECRET / CWS_REFRESH_TOKEN)."
+            exit 1
+          fi
+          upload=$(curl -sS -X PUT -H "Authorization: Bearer $token" -H "x-goog-api-version: 2" \
+            -T "cymbra-lingua-chromium-$VERSION.zip" \
+            "https://www.googleapis.com/upload/chromewebstore/v1.1/items/$ITEM_ID")
+          echo "$upload" | jq .
+          if [ "$(echo "$upload" | jq -r '.uploadState // empty')" != "SUCCESS" ]; then
+            echo "::error::the Chrome Web Store rejected the upload (see the response above)."
+            exit 1
+          fi
+          publish=$(curl -sS -X POST -H "Authorization: Bearer $token" -H "x-goog-api-version: 2" \
+            -H "Content-Length: 0" \
+            "https://www.googleapis.com/chromewebstore/v1.1/items/$ITEM_ID/publish")
+          echo "$publish" | jq .
+          if ! echo "$publish" | jq -e '.status | index("OK")' >/dev/null; then
+            echo "::error::the Chrome Web Store refused to publish (see the response above)."
+            exit 1
+          fi
+
+      # --approval-timeout 0 is the design decision, not impatience: this lane's contract
+      # ends at the store accepting the version, and a listed review takes days.
+      - name: Submit to addons.mozilla.org
+        if: ${{ github.ref_type == 'tag' }}
+        env:
+          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: |
+          set -euo pipefail
+          yarn web-ext sign \
+            --source-dir dist-firefox \
+            --channel listed \
+            --api-key "$AMO_JWT_ISSUER" \
+            --api-secret "$AMO_JWT_SECRET" \
+            --upload-source-code "$GITHUB_WORKSPACE/cymbra-lingua-source-$VERSION.zip" \
+            --approval-timeout 0 \
+            --artifacts-dir "$RUNNER_TEMP/amo"
+
+      - name: Say where the release stands
+        if: ${{ always() && github.ref_type == 'tag' }}
+        run: |
+          {
+            echo "## Cymbra Lingua $VERSION"
+            echo
+            echo "Both packages are attached to [\`$GITHUB_REF_NAME\`](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/tag/${GITHUB_REF_NAME})."
+            echo
+            echo "The version is **in review** at the Chrome Web Store and at addons.mozilla.org."
+            echo "Readers do not have it yet: a listed review is read by a human and takes days."
+            echo "A rejection arrives by email and is answered in each dashboard, not by re-running this workflow."
+          } >> "$GITHUB_STEP_SUMMARY"

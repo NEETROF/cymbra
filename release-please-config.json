@@ -18,6 +18,15 @@
     "apps/site": {
       "release-type": "node",
       "component": "site"
+    },
+    "apps/lingua-extension": {
+      "release-type": "node",
+      "component": "lingua-extension",
+      "extra-files": [{ "type": "json", "path": "manifest.json", "jsonpath": "$.version" }]
+    },
+    "apps/lingua-apple": {
+      "release-type": "simple",
+      "component": "lingua-apple"
     }
   }
 }

@@ -185,6 +185,43 @@ bundle folds away the other variants' branches:
   add-on id. Distributed inside the host app `apps/lingua-apple`, whose Xcode project
   bundles `dist-safari/`.
 
+## Release
+
+The version lives in **`package.json`**, which release-please bumps from the Conventional
+Commits touching this app; the same run mirrors it into `manifest.json`, the single manifest
+`build.mjs` folds into all three variants. Nothing here is edited by hand: `yarn check:version`
+(a gate on every pull request) fails when the two disagree, and when the version is not three
+plain integers — a store refuses a `-rc.1` at upload, long after the tag is pushed.
+
+Merging the "Release PR" pushes a `lingua-extension-v*` tag, which runs
+`lingua-extension-release`:
+
+1. the production build of every variant — the real EN→FR pack, `https://api.cymbra.app`;
+   a package that still calls a local backend, or whose manifest reports another version,
+   fails the run;
+2. `cymbra-lingua-chromium-<version>.zip` and `cymbra-lingua-firefox-<version>.zip` attached
+   to the GitHub Release;
+3. the Chromium package submitted to the Chrome Web Store, the Firefox one to
+   addons.mozilla.org with the source archive Mozilla requires (see [REVIEWERS.md](REVIEWERS.md)).
+
+The **safari** variant is built here but published nowhere: it ships inside the Apple host
+app, which `lingua-apple-release` builds from the same commit under its own version.
+
+A **dispatch** does all of that except publishing, keeping the packages as workflow artifacts.
+It is the only way to validate a source change before tagging it.
+
+**Published means submitted.** Both stores review a new version, and a first submission is
+read by a human. The run stops at the store accepting the upload and says so; a rejection
+arrives by email days later and is answered in the dashboard, not by re-running the workflow.
+
+Secrets a tag run needs (it stops and names the ones that are missing):
+
+| Secret                                                    | What it is                                                                                    |
+| --------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `CWS_EXTENSION_ID`                                        | the Chrome Web Store item id — the listing must already exist                                 |
+| `CWS_CLIENT_ID`, `CWS_CLIENT_SECRET`, `CWS_REFRESH_TOKEN` | OAuth client with the Chrome Web Store API enabled, for the account that owns the item        |
+| `AMO_JWT_ISSUER`, `AMO_JWT_SECRET`                        | addons.mozilla.org API credentials, for the account that owns the `lingua@cymbra.app` listing |
+
 ## Scope
 
 Reading + review + the Chromium/Firefox/Safari variants ship here. The agent plugin is a

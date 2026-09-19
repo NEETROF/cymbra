@@ -67,11 +67,28 @@ Tabs opened before the extension was enabled or updated need a reload to be high
 
 ## Release (App Store / TestFlight)
 
-`lingua-apple-release` (dispatch-only) builds the production extension — real EN→FR pack,
+`lingua-apple-release` builds the production extension — real EN→FR pack,
 `https://api.cymbra.app` — archives both platforms, signs them for the App Store and keeps the
-`.ipa` and `.pkg` as workflow artifacts; tick **deliver** to upload them to App Store Connect.
+`.ipa` and `.pkg` as workflow artifacts. It runs two ways:
+
+- **On a `lingua-apple-v*` tag**, pushed when release-please's "Release PR" is merged: it
+  builds that tag and **delivers** both packages. That is what a release is.
+- **On a dispatch**, from the branch you dispatch from: it builds and signs, and uploads
+  nothing unless you tick **deliver**. This is how a source change is validated before it is
+  tagged.
+
 Build numbers are `run×10` (iOS) and `run×10+1` (macOS): the two platforms share one App Store
 Connect record, whose build numbers must increase across both.
+
+**The shipped version is `version.txt`**, which release-please maintains, stamped onto both
+archives as `MARKETING_VERSION` beside the build number. `MARKETING_VERSION` in
+`project.pbxproj` is never what ships — CI already rewrites that file for signing, and a
+second CI-owned edit there is a conflict waiting for the next signing change. On a tag,
+`version.txt` and the tag must agree or the run stops before building
+(`tool/release_version.py`, tested by `test_release_version.py`).
+
+The TestFlight builds of the dogfooding pass were delivered under version `1.0`, when the
+number was hand-written in the project. The first tagged release creates `1.0.0`.
 
 Signing is switched to manual in CI only (`tool/ci_release_signing.py install`), and every
 export is checked (`… verify`): Apple Distribution, a profile on each bundle, the App Group,

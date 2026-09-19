@@ -3,9 +3,16 @@ name: lingua-apple-release
 # Signs Cymbra Lingua — the Apple host app of the Safari extension (apps/lingua-apple) —
 # for the App Store and, when asked, delivers it to App Store Connect / TestFlight.
 #
-# Dispatch-only. A plain dispatch builds and signs both platforms from the selected branch
-# and keeps the .ipa and the .pkg as workflow artifacts; `deliver` also uploads them, which
-# consumes their build numbers.
+# A `lingua-apple-v*` tag — pushed when the release-please "Release PR" is merged — builds
+# that tag and delivers both platforms: that is what a release is for. A dispatch builds and
+# signs from the selected branch and keeps the .ipa and the .pkg as workflow artifacts;
+# `deliver` also uploads them, which consumes their build numbers.
+#
+# The shipped version comes from apps/lingua-apple/version.txt (release-please maintains it)
+# and is stamped onto both archives as MARKETING_VERSION, beside the build number. The Xcode
+# project's own MARKETING_VERSION is never what ships: CI already rewrites that file for
+# App Store signing, and a second CI-owned edit there is a conflict waiting to happen. On a
+# tag, version.txt and the tag must agree or the run stops.
 #
 # The bundled extension is the production build: the real EN→FR pack (sources cached
 # between runs) and LINGUA_GRPC_WEB_URL=https://api.cymbra.app — the archive's copy phase
@@ -28,6 +35,9 @@ name: lingua-apple-release
 #   ASC_API_KEY_ID / ASC_API_ISSUER_ID / ASC_API_KEY_P8
 #       App Store Connect upload, shared with music-release (needed only with `deliver`).
 on:
+  push:
+    tags:
+      - "lingua-apple-v*"
   workflow_dispatch:
     inputs:
       deliver:
@@ -51,6 +61,17 @@ jobs:
       MACOS_BUILD: ${{ github.run_number }}1
     steps:
       - uses: actions/checkout@v5
+      # The shipped version comes from apps/lingua-apple/version.txt, which release-please
+      # maintains — not from MARKETING_VERSION in the Xcode project, which CI already
+      # rewrites for App Store signing and should hold no release state.
+      - name: Resolve the marketing version
+        run: |
+          set -euo pipefail
+          version=$(python3 apps/lingua-apple/tool/release_version.py \
+            --version-file apps/lingua-apple/version.txt \
+            --ref-type "$GITHUB_REF_TYPE" --ref-name "$GITHUB_REF_NAME")
+          echo "MARKETING_VERSION=$version" >> "$GITHUB_ENV"
+          echo "Building $version (build numbers $IOS_BUILD / $MACOS_BUILD)."
       - name: Check signing secrets
         env:
           DIST_CERT: ${{ secrets.IOS_DIST_CERT_BASE64 }}
@@ -114,7 +135,7 @@ jobs:
 
       - name: Signing tool tests
         working-directory: apps/lingua-apple/tool
-        run: python3 -m unittest -v test_ci_release_signing
+        run: python3 -m unittest -v test_ci_release_signing test_release_version
       # Throwaway keychain with the two distribution identities (same sequence as
       # music-release), then each platform's two App Store profiles.
       - name: Import certificates and profiles
@@ -171,7 +192,8 @@ jobs:
           set -euo pipefail
           xcodebuild -project "Cymbra Lingua.xcodeproj" -scheme "Cymbra Lingua (iOS)" \
             -configuration Release -destination 'generic/platform=iOS' \
-            -archivePath "$RUNNER_TEMP/ios.xcarchive" CURRENT_PROJECT_VERSION="$IOS_BUILD" archive
+            -archivePath "$RUNNER_TEMP/ios.xcarchive" \
+            CURRENT_PROJECT_VERSION="$IOS_BUILD" MARKETING_VERSION="$MARKETING_VERSION" archive
           xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/ios.xcarchive" \
             -exportOptionsPlist "$RUNNER_TEMP/ExportOptions-ios.plist" -exportPath "$RUNNER_TEMP/export-ios"
           python3 tool/ci_release_signing.py verify "$RUNNER_TEMP/export-ios/DistributionSummary.plist" --platform ios
@@ -182,7 +204,8 @@ jobs:
           set -euo pipefail
           xcodebuild -project "Cymbra Lingua.xcodeproj" -scheme "Cymbra Lingua (macOS)" \
             -configuration Release -destination 'generic/platform=macOS' \
-            -archivePath "$RUNNER_TEMP/macos.xcarchive" CURRENT_PROJECT_VERSION="$MACOS_BUILD" archive
+            -archivePath "$RUNNER_TEMP/macos.xcarchive" \
+            CURRENT_PROJECT_VERSION="$MACOS_BUILD" MARKETING_VERSION="$MARKETING_VERSION" archive
           xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/macos.xcarchive" \
             -exportOptionsPlist "$RUNNER_TEMP/ExportOptions-macos.plist" -exportPath "$RUNNER_TEMP/export-macos"
           python3 tool/ci_release_signing.py verify "$RUNNER_TEMP/export-macos/DistributionSummary.plist" --platform macos
@@ -199,7 +222,7 @@ jobs:
           if-no-files-found: error
 
       - name: Deliver to App Store Connect / TestFlight
-        if: ${{ inputs.deliver }}
+        if: ${{ github.ref_type == 'tag' || inputs.deliver }}
         env:
           ASC_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
