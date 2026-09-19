@@ -294,7 +294,12 @@ jobs:
             cymbra-lingua-chromium-${{ env.VERSION }}.zip
             cymbra-lingua-firefox-${{ env.VERSION }}.zip
 
+      # `continue-on-error` so a refusal here does not skip the other store: the two are
+      # independent, and a failed job at the end reports both. The `id` is what lets the
+      # summary state the OUTCOME rather than whether credentials happened to exist.
       - name: Submit to the Chrome Web Store
+        id: cws
+        continue-on-error: true
         if: ${{ env.PUBLISHING == 'true' && env.CWS_READY == 'true' }}
         working-directory: .
         env:
@@ -331,6 +336,8 @@ jobs:
       # --approval-timeout 0 is the design decision, not impatience: this lane's contract
       # ends at the store accepting the version, and a listed review takes days.
       - name: Submit to addons.mozilla.org
+        id: amo
+        continue-on-error: true
         if: ${{ env.PUBLISHING == 'true' && env.AMO_READY == 'true' }}
         env:
           AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
@@ -348,6 +355,9 @@ jobs:
 
       - name: Say where the release stands
         if: ${{ always() && env.TAG_NAME != '' }}
+        env:
+          CWS_OUTCOME: ${{ steps.cws.outcome }}
+          AMO_OUTCOME: ${{ steps.amo.outcome }}
         run: |
           {
             echo "## Cymbra Lingua $VERSION"
@@ -357,16 +367,18 @@ jobs:
             if [ "$PUBLISHING" = "true" ]; then
               # One line per store, because they are reached independently: saying "published"
               # when only one was is exactly the claim this summary exists to prevent.
-              if [ "${CWS_READY:-false}" = "true" ]; then
-                echo "- **Chrome Web Store** — submitted, now in review."
-              else
-                echo "- **Chrome Web Store** — NOT submitted: its credentials are missing."
-              fi
-              if [ "${AMO_READY:-false}" = "true" ]; then
-                echo "- **addons.mozilla.org** — submitted, now in review."
-              else
-                echo "- **addons.mozilla.org** — NOT submitted: its credentials are missing."
-              fi
+              # The OUTCOME of each submission, never whether its credentials existed:
+              # a step can hold every key and still be refused (the Chrome Web Store
+              # rejects a publish until the dashboard's privacy answers are filled).
+              store_line() {
+                case "$2" in
+                  success) echo "- **$1** — submitted, now in review." ;;
+                  failure) echo "- **$1** — submission REFUSED. It does not have this version; the step's log above says why." ;;
+                  *)       echo "- **$1** — NOT submitted: its credentials are missing." ;;
+                esac
+              }
+              store_line "Chrome Web Store" "${CWS_OUTCOME:-skipped}"
+              store_line "addons.mozilla.org" "${AMO_OUTCOME:-skipped}"
               echo
               echo "A store that received the version has it **in review**, not in front of readers:"
               echo "a listed review is read by a human and takes days. A rejection arrives by email"
@@ -380,3 +392,10 @@ jobs:
               echo "separate, deliberate dispatch of this workflow with that tag and \`publish\` ticked."
             fi
           } >> "$GITHUB_STEP_SUMMARY"
+
+      # Last, so the summary is written first: a refusal must be visible, not just red.
+      - name: Fail when a store refused the submission
+        if: ${{ always() && (steps.cws.outcome == 'failure' || steps.amo.outcome == 'failure') }}
+        run: |
+          echo "::error::a store refused this version (Chrome Web Store: ${{ steps.cws.outcome }}, addons.mozilla.org: ${{ steps.amo.outcome }}). The run summary says which, and the step's log says why."
+          exit 1

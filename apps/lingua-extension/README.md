@@ -224,6 +224,11 @@ requiring both would make the slower one gate the faster one for ever. To catch 
 store up, dispatch the same tag again once its keys exist — the packages are rebuilt from that
 tag, so it receives bytes identical to the other store's.
 
+The summary reports what each submission **did** — accepted, refused, or never attempted — not
+whether its credentials existed. A store can hold every key and still refuse: the Chrome Web
+Store rejects a publish until the dashboard's Privacy practices tab is filled, and the upload
+succeeds first, so only the outcome tells you whether the store has the version.
+
 A **dispatch with no tag** builds the branch you dispatched from and publishes nothing — the
 only way to validate a source change before tagging it.
 
