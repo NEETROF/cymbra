@@ -214,6 +214,11 @@ It is the only way to validate a source change before tagging it.
 read by a human. The run stops at the store accepting the upload and says so; a rejection
 arrives by email days later and is answered in the dashboard, not by re-running the workflow.
 
+The listings themselves are filled once by hand — CI only uploads versions of an item that
+already exists. The copy for both dashboards, the permission justifications and the data
+disclosures live in [STORE-LISTING.md](STORE-LISTING.md), so they change in the same pull
+request as the behaviour they describe.
+
 Secrets a tag run needs (it stops and names the ones that are missing):
 
 | Secret                                                    | What it is                                                                                    |

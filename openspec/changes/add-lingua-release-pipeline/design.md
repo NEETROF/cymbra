@@ -65,3 +65,19 @@ Nobody should read the two version numbers as a matched pair. `lingua-extension-
 release-please assigns a commit to a component by the paths it touches, and neither component has a tag yet. Left alone, the first Release PR would fold every Lingua commit since the first line of the extension — the entire dogfooding pass — into one changelog, and pick a version from it.
 
 The components are therefore seeded in `.release-please-manifest.json` at the version the tree already carries, and the history is cut at the commit that introduces them. The first Release PR is read before it is merged; that is a task, not a hope, because this is the one run where the cut cannot be checked by a test.
+
+## D10 — The first published version is forced, and the forcing is temporary
+
+The extension has never shipped, so release-please's computed `0.2.0` would be its debut on
+two stores. `1.0.0` is the version a first public release should carry, and that is a product
+decision, not something the commit history can derive.
+
+The mechanism is `release-as` on the component in `release-please-config.json`. The intended
+one — a `Release-As:` footer on a commit touching only that component's path — was tried and
+lost: this repository squash-merges, and the footer has to survive into the squash commit's
+body, which is assembled from the pull request rather than from the branch. It did not.
+
+`release-as` is **sticky**: left in place it pins every later release to 1.0.0, which is worse
+than the problem it solves, and the failure is quiet — a Release PR that keeps proposing a
+version already tagged. Its removal is therefore task 5.6, not a note: the change cannot be
+archived while a task is open, so the repository itself holds the reminder.

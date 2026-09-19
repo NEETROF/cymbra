@@ -22,6 +22,7 @@
     "apps/lingua-extension": {
       "release-type": "node",
       "component": "lingua-extension",
+      "release-as": "1.0.0",
       "extra-files": [{ "type": "json", "path": "manifest.json", "jsonpath": "$.version" }]
     },
     "apps/lingua-apple": {
