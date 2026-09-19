@@ -81,3 +81,47 @@ body, which is assembled from the pull request rather than from the branch. It d
 than the problem it solves, and the failure is quiet — a Release PR that keeps proposing a
 version already tagged. Its removal is therefore task 5.6, not a note: the change cannot be
 archived while a task is open, so the repository itself holds the reminder.
+
+## D11 — The version has one home, and it is not the manifest
+
+`package.json` holds the version; `build.mjs` stamps it onto each variant's manifest at build
+time. `manifest.json` carries no `version` at all, so there is nothing to disagree with.
+
+D2 said the opposite — release-please would mirror the value into `manifest.json` through
+`extra-files` — and the first Release PR showed why that was wrong. release-please's JSON
+updater does not edit one value: it re-serialises the whole file in its own style, expanding
+every array, and the extension's Prettier gate refused the result. Every future Release PR
+would have failed the same way.
+
+Ignoring the file in Prettier would have hidden the symptom and kept the real defect: two
+files holding one value. `build.mjs` already rewrites the manifest three times per build —
+deleting keys, adding `host_permissions`, adding `key` for Chromium — so stamping the version
+there costs one line and removes the second source entirely.
+
+The guard changes shape with it: instead of "do the two files agree", `yarn check:version` now
+asks "is the version a shape the stores accept" and "has `manifest.json` grown a `version`
+back". The second half matters because a stale copy there would win over the stamp.
+
+`CHANGELOG.md` stays out of Prettier's way too — it is release-please's, in release-please's
+style, exactly as `apps/back-office` already declares.
+
+## D12 — A release is not a deployment
+
+A `lingua-extension-v*` tag builds every variant and attaches the two distributable packages
+to its GitHub Release. It submits nothing.
+
+Submitting is a separate dispatch of the same workflow, naming that tag and ticking `publish`.
+
+Two reasons, and the second is the one that decided it:
+
+- **Merging a Release PR must not put a version in front of readers.** The merge is a
+  versioning act; a store submission is a product decision, and the person making it should be
+  the person choosing the moment.
+- **A merge must not go red for a reason that has nothing to do with the merge.** Store
+  credentials live outside the repository and arrive on their own schedule. With publication
+  on the tag, merging the Release PR before they existed would have failed the run and left a
+  red cross on a release tag, recoverable only by re-running that exact run — a recovery path
+  nobody would guess.
+
+This is the shape `lingua-apple-release` already has, where delivery is an explicit input
+rather than a side effect, and it is why the safari variant was never published from here.

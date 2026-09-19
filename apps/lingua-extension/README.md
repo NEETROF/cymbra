@@ -188,28 +188,37 @@ bundle folds away the other variants' branches:
 
 ## Release
 
-The version lives in **`package.json`**, which release-please bumps from the Conventional
-Commits touching this app; the same run mirrors it into `manifest.json`, the single manifest
-`build.mjs` folds into all three variants. Nothing here is edited by hand: `yarn check:version`
-(a gate on every pull request) fails when the two disagree, and when the version is not three
-plain integers — a store refuses a `-rc.1` at upload, long after the tag is pushed.
+The version lives in **`package.json`** and nowhere else: release-please bumps it from the
+Conventional Commits touching this app, and `build.mjs` stamps it onto each variant's manifest
+at build time. `manifest.json` carries no `version` at all — a mirror is a second source that
+drifts, and the one we tried (release-please's `extra-files`) rewrote the whole file rather
+than the one value, expanding every array until the Prettier gate refused it.
 
-Merging the "Release PR" pushes a `lingua-extension-v*` tag, which runs
-`lingua-extension-release`:
+`yarn check:version`, a gate on every pull request, holds both halves: the version is three
+plain integers (a store refuses a `-rc.1` at upload, long after the tag is pushed), and
+`manifest.json` has not grown a `version` back.
 
-1. the production build of every variant — the real EN→FR pack, `https://api.cymbra.app`;
-   a package that still calls a local backend, or whose manifest reports another version,
-   fails the run;
-2. `cymbra-lingua-chromium-<version>.zip` and `cymbra-lingua-firefox-<version>.zip` attached
-   to the GitHub Release;
-3. the Chromium package submitted to the Chrome Web Store, the Firefox one to
-   addons.mozilla.org with the source archive Mozilla requires (see [REVIEWERS.md](REVIEWERS.md)).
+**A release is not a deployment.** Merging the "Release PR" pushes a `lingua-extension-v*` tag,
+which runs `lingua-extension-release` and does everything except reach a store:
 
-The **safari** variant is built here but published nowhere: it ships inside the Apple host
-app, which `lingua-apple-release` builds from the same commit under its own version.
+1. the production build of every variant — the real EN→FR pack, `https://api.cymbra.app`; a
+   package that still calls a local backend, or whose manifest reports another version, fails
+   the run;
+2. `cymbra-lingua-chromium-<version>.zip` and `cymbra-lingua-firefox-<version>.zip` attached to
+   the GitHub Release.
 
-A **dispatch** does all of that except publishing, keeping the packages as workflow artifacts.
-It is the only way to validate a source change before tagging it.
+**Submitting to the stores is a separate, deliberate act**: dispatch the same workflow with
+that tag in `tag` and `publish` ticked. It checks the tag out, rebuilds it, and submits the
+Chromium package to the Chrome Web Store and the Firefox one to addons.mozilla.org with the
+source archive Mozilla requires (see [REVIEWERS.md](REVIEWERS.md)). The shape is
+`lingua-apple-release`'s: what reaches readers is never a side effect of a merge, and a merge
+never goes red because store credentials are missing.
+
+A **dispatch with no tag** builds the branch you dispatched from and publishes nothing — the
+only way to validate a source change before tagging it.
+
+The **safari** variant is built here but published nowhere: it ships inside the Apple host app,
+which `lingua-apple-release` builds from the same commit under its own version.
 
 **Published means submitted.** Both stores review a new version, and a first submission is
 read by a human. The run stops at the store accepting the upload and says so; a rejection
