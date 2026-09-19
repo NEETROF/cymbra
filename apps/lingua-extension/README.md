@@ -217,6 +217,13 @@ source archive Mozilla requires (see [REVIEWERS.md](REVIEWERS.md)). The shape is
 `lingua-apple-release`'s: what reaches readers is never a side effect of a merge, and a merge
 never goes red because store credentials are missing.
 
+**Each store is answered on its own credentials.** One whose keys are missing is skipped with a
+warning and named as _not submitted_ in the run summary; the other still receives the version.
+Only a run that can reach neither store fails. The two are never ready at the same moment, so
+requiring both would make the slower one gate the faster one for ever. To catch the skipped
+store up, dispatch the same tag again once its keys exist — the packages are rebuilt from that
+tag, so it receives bytes identical to the other store's.
+
 A **dispatch with no tag** builds the branch you dispatched from and publishes nothing — the
 only way to validate a source change before tagging it.
 

@@ -26,7 +26,7 @@ It SHALL NOT submit them to any store. Naming a version is not putting it in fro
 
 Submitting SHALL be a separate act that names the tag it deploys, and SHALL refuse to run without one. It SHALL submit the Chromium package to the Chrome Web Store and the Firefox package to addons.mozilla.org, the latter carrying the human-readable source of the generated code, which that store requires. The safari variant SHALL NOT be submitted at all: it is distributed inside the Apple host application, built from the same commit.
 
-A submission SHALL stop with a message naming what is missing when a store's credentials are absent, rather than publishing part of a release. Success SHALL mean the store accepted the version for review; the run SHALL say so, and SHALL NOT claim readers have it.
+**Each store SHALL be answered on its own credentials.** A store whose credentials are absent SHALL be skipped, named as not submitted, and SHALL NOT prevent the other store from receiving the version; only a run that can reach no store at all SHALL fail. Success SHALL mean the store accepted the version for review; the run SHALL report each store separately, and SHALL NOT claim readers have it, nor that a skipped store received anything.
 
 #### Scenario: A tag builds and attaches, and stops there
 - **WHEN** an extension release tag is pushed
@@ -48,10 +48,18 @@ A submission SHALL stop with a message naming what is missing when a store's cre
 - **WHEN** the Firefox package is submitted
 - **THEN** an archive of the human-readable source, with the instructions to rebuild it, is submitted with it
 
-#### Scenario: Credentials not yet created
-- **WHEN** a store's credentials are absent and publication is asked for
-- **THEN** the run stops and names them, and nothing is published
+#### Scenario: One store's credentials are not yet created
+- **WHEN** publication is asked for and only one store's credentials exist
+- **THEN** that store receives the version, the other is named as not submitted, and the run succeeds
+
+#### Scenario: No store can be reached
+- **WHEN** publication is asked for and no store's credentials exist
+- **THEN** the run stops and names what is missing for each, and nothing is published
+
+#### Scenario: The skipped store, later
+- **WHEN** the same tag is submitted again once the missing credentials exist
+- **THEN** the store that was skipped receives the same version, rebuilt from that tag
 
 #### Scenario: What success means
-- **WHEN** both submissions are accepted
-- **THEN** the run reports the version as being in review at each store, not as delivered to readers
+- **WHEN** a submission is accepted
+- **THEN** the run reports that store as holding the version in review, not as having delivered it to readers

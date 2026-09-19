@@ -16,6 +16,13 @@ name: lingua-extension-release
 #      package to addons.mozilla.org. This is the same shape as lingua-apple-release, where
 #      delivery is also a deliberate act rather than a side effect of a merge.
 #
+#      EACH STORE IS ANSWERED ON ITS OWN CREDENTIALS. A store whose keys are missing is
+#      skipped with a warning and named as not submitted in the run summary; the other still
+#      receives the version. Only a run that can reach NEITHER store fails. The two stores
+#      are never ready at the same moment, and making the slower one gate the faster one
+#      would be a permanent tax, not a one-off. Dispatch the same tag again later and the
+#      skipped store gets bytes identical to the other's — the packages are rebuilt from it.
+#
 # The safari variant is not published here at all. It ships inside the Apple host app, built
 # from the same commit by lingua-apple-release — so this lane builds it (check:variants reads
 # all three) and distributes two.
@@ -24,7 +31,8 @@ name: lingua-extension-release
 # read by a human; this lane stops at the store accepting the upload and says so. A rejected
 # review arrives days later by email and is answered in the dashboard, not here.
 #
-# Required configuration — a publishing run stops and names whatever is missing.
+# Required configuration — a publishing run names whatever is missing, skips that store, and
+# fails only when no store at all can be reached.
 #
 # Repository VARIABLES (public values, like PUBLIC_GOOGLE_CLIENT_ID already is):
 #   CWS_EXTENSION_ID       Chrome Web Store item id; it is in the store URL. The listing must
@@ -86,7 +94,12 @@ jobs:
           echo "::error::publish was ticked without a tag. Dispatch again with the lingua-extension-v* tag you mean to submit."
           exit 1
 
-      - name: Check publishing secrets
+      # Each store is answered on its own credentials. They are never ready at the same
+      # moment — two dashboards, two review queues, two sets of keys that arrive weeks
+      # apart — so requiring all six would let the slower store hold the faster one back
+      # for ever, not just once. What must not happen is claiming to have published where
+      # nothing was sent; that is the summary's job, and it names each store separately.
+      - name: Decide which stores this run can reach
         if: ${{ env.PUBLISHING == 'true' }}
         env:
           CWS_EXTENSION_ID: ${{ vars.CWS_EXTENSION_ID }}
@@ -97,13 +110,25 @@ jobs:
           AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
         run: |
           set -euo pipefail
-          missing=""
-          for name in CWS_EXTENSION_ID CWS_CLIENT_ID CWS_CLIENT_SECRET CWS_REFRESH_TOKEN \
-                      AMO_JWT_ISSUER AMO_JWT_SECRET; do
-            [ -n "${!name:-}" ] || missing="$missing $name"
-          done
-          if [ -n "$missing" ]; then
-            echo "::error::publishing secrets missing:$missing. See this workflow's header, and apps/lingua-extension/README.md (Release)."
+          missing_for() {
+            local out=""
+            for name in "$@"; do [ -n "${!name:-}" ] || out="$out $name"; done
+            printf '%s' "$out"
+          }
+          cws_missing=$(missing_for CWS_EXTENSION_ID CWS_CLIENT_ID CWS_CLIENT_SECRET CWS_REFRESH_TOKEN)
+          amo_missing=$(missing_for AMO_JWT_ISSUER AMO_JWT_SECRET)
+
+          [ -z "$cws_missing" ] && cws=true || cws=false
+          [ -z "$amo_missing" ] && amo=true || amo=false
+          echo "CWS_READY=$cws" >> "$GITHUB_ENV"
+          echo "AMO_READY=$amo" >> "$GITHUB_ENV"
+
+          [ "$cws" = true ] || echo "::warning::Chrome Web Store skipped — missing:$cws_missing"
+          [ "$amo" = true ] || echo "::warning::addons.mozilla.org skipped — missing:$amo_missing"
+
+          # Publishing to neither store is not a partial release, it is a pointless run.
+          if [ "$cws" != true ] && [ "$amo" != true ]; then
+            echo "::error::no store can be reached. Chrome Web Store missing:$cws_missing. addons.mozilla.org missing:$amo_missing. See this workflow's header, and apps/lingua-extension/README.md (Release)."
             exit 1
           fi
 
@@ -270,7 +295,7 @@ jobs:
             cymbra-lingua-firefox-${{ env.VERSION }}.zip
 
       - name: Submit to the Chrome Web Store
-        if: ${{ env.PUBLISHING == 'true' }}
+        if: ${{ env.PUBLISHING == 'true' && env.CWS_READY == 'true' }}
         working-directory: .
         env:
           ITEM_ID: ${{ vars.CWS_EXTENSION_ID }}
@@ -306,7 +331,7 @@ jobs:
       # --approval-timeout 0 is the design decision, not impatience: this lane's contract
       # ends at the store accepting the version, and a listed review takes days.
       - name: Submit to addons.mozilla.org
-        if: ${{ env.PUBLISHING == 'true' }}
+        if: ${{ env.PUBLISHING == 'true' && env.AMO_READY == 'true' }}
         env:
           AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
           AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
@@ -330,9 +355,26 @@ jobs:
             echo "Both packages are attached to [\`$TAG_NAME\`](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/tag/${TAG_NAME})."
             echo
             if [ "$PUBLISHING" = "true" ]; then
-              echo "The version is **in review** at the Chrome Web Store and at addons.mozilla.org."
-              echo "Readers do not have it yet: a listed review is read by a human and takes days."
-              echo "A rejection arrives by email and is answered in each dashboard, not by re-running this workflow."
+              # One line per store, because they are reached independently: saying "published"
+              # when only one was is exactly the claim this summary exists to prevent.
+              if [ "${CWS_READY:-false}" = "true" ]; then
+                echo "- **Chrome Web Store** — submitted, now in review."
+              else
+                echo "- **Chrome Web Store** — NOT submitted: its credentials are missing."
+              fi
+              if [ "${AMO_READY:-false}" = "true" ]; then
+                echo "- **addons.mozilla.org** — submitted, now in review."
+              else
+                echo "- **addons.mozilla.org** — NOT submitted: its credentials are missing."
+              fi
+              echo
+              echo "A store that received the version has it **in review**, not in front of readers:"
+              echo "a listed review is read by a human and takes days. A rejection arrives by email"
+              echo "and is answered in that dashboard, not by re-running this workflow."
+              echo
+              echo "A store that was skipped simply never saw this version. Dispatch this workflow"
+              echo "again on the same tag once its credentials exist — the packages are rebuilt from"
+              echo "the tag, so what it receives is identical to what the other store already has."
             else
               echo "**Nothing was published.** A tag builds and attaches; submitting to the stores is a"
               echo "separate, deliberate dispatch of this workflow with that tag and \`publish\` ticked."
