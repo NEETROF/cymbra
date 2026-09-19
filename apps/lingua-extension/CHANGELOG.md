@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.0](https://github.com/NEETROF/cymbra/compare/lingua-extension-v1.0.0...lingua-extension-v1.0.0) (2026-09-19)
+
+
+### Bug Fixes
+
+* **lingua:** fit the manifest description in what Apple accepts, and gate it ([#495](https://github.com/NEETROF/cymbra/issues/495)) ([753e528](https://github.com/NEETROF/cymbra/commit/753e528aba877b6c24bf2a457f904fb6d68605fb))
+
 ## [1.0.0](https://github.com/NEETROF/cymbra/compare/lingua-extension-v0.1.0...lingua-extension-v1.0.0) (2026-09-19)
 
 
