@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.3](https://github.com/NEETROF/cymbra/compare/lingua-extension-v1.0.2...lingua-extension-v1.0.3) (2026-09-19)
+
+
+### Bug Fixes
+
+* **lingua:** answer each store on its own credentials ([#502](https://github.com/NEETROF/cymbra/issues/502)) ([2761cf6](https://github.com/NEETROF/cymbra/commit/2761cf6ee6488d9a7980a4917c61d73e51b8eb1b))
+
 ## [1.0.2](https://github.com/NEETROF/cymbra/compare/lingua-extension-v1.0.1...lingua-extension-v1.0.2) (2026-09-19)
 
 
