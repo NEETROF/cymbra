@@ -125,3 +125,18 @@ Two reasons, and the second is the one that decided it:
 
 This is the shape `lingua-apple-release` already has, where delivery is an explicit input
 rather than a side effect, and it is why the safari variant was never published from here.
+
+## D13 — The manifest must satisfy the strictest store, and a gate says so
+
+The bundled Safari extension's `manifest.json` is validated by Apple when the **signed archive
+is uploaded**, not when it is built. A description of 113 characters therefore costs a full
+signed build of both platforms, an upload, and a failed release before anything says why —
+which is exactly what `lingua-apple-v1.1.0` did.
+
+Apple allows 112 characters; Chrome allows 132. One manifest serves all three variants, so the
+binding limit is the smaller one, and calibrating on Chrome's is how the failure happened.
+
+`yarn check:version` now holds it, on every pull request: a description that is missing, not a
+string, or longer than 112. The same gate already refuses a version shape no store would take
+and a `version` copied back into the manifest — all three are properties that only surface at
+upload time, which is the wrong place to learn them.

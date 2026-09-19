@@ -29,23 +29,41 @@ export function versionProblem(version) {
   return null;
 }
 
-/** The source manifest must not carry a version: build.mjs stamps it, and a stale copy would win. */
-export function manifestProblem(manifest) {
-  return "version" in manifest
-    ? `manifest.json carries a version ("${manifest.version}"). It must not: build.mjs stamps package.json's version onto every variant, and a copy here would be a second source that drifts.`
-    : null;
+// Apple validates the bundled Safari extension's manifest when the archive is UPLOADED, so a
+// description one character too long costs a full signed build, an upload, and a failed
+// release — which is how this limit was found (lingua-apple-v1.1.0). Apple's 112 is stricter
+// than Chrome's 132, so 112 is the one that binds.
+const MAX_DESCRIPTION = 112;
+
+/** Everything wrong with the source manifest, as sentences. */
+export function manifestProblems(manifest) {
+  const problems = [];
+  if ("version" in manifest) {
+    problems.push(
+      `manifest.json carries a version ("${manifest.version}"). It must not: build.mjs stamps package.json's version onto every variant, and a copy here would be a second source that drifts.`,
+    );
+  }
+  const { description } = manifest;
+  if (typeof description !== "string" || description.length === 0) {
+    problems.push("manifest.json has no description. Apple refuses the upload without one, and both stores show it.");
+  } else if (description.length > MAX_DESCRIPTION) {
+    problems.push(
+      `the description is ${description.length} characters; Apple refuses more than ${MAX_DESCRIPTION} when the archive is uploaded (Chrome allows 132, so Apple's is the limit that binds).`,
+    );
+  }
+  return problems;
 }
 
 function main() {
   const root = join(dirname(fileURLToPath(import.meta.url)), "..");
   const read = (file) => JSON.parse(readFileSync(join(root, file), "utf8"));
   const version = read("package.json").version;
-  const problems = [versionProblem(version), manifestProblem(read("manifest.json"))].filter(Boolean);
+  const problems = [versionProblem(version), ...manifestProblems(read("manifest.json"))].filter(Boolean);
   if (problems.length > 0) {
     for (const problem of problems) console.error(`error: ${problem}`);
     process.exit(1);
   }
-  console.log(`Version ${version} is publishable, and manifest.json defers to it.`);
+  console.log(`Version ${version} is publishable, and manifest.json is one both stores accept.`);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();

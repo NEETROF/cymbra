@@ -194,9 +194,12 @@ at build time. `manifest.json` carries no `version` at all — a mirror is a sec
 drifts, and the one we tried (release-please's `extra-files`) rewrote the whole file rather
 than the one value, expanding every array until the Prettier gate refused it.
 
-`yarn check:version`, a gate on every pull request, holds both halves: the version is three
-plain integers (a store refuses a `-rc.1` at upload, long after the tag is pushed), and
-`manifest.json` has not grown a `version` back.
+`yarn check:version`, a gate on every pull request, holds what only an upload would otherwise
+reveal: the version is three plain integers (a store refuses a `-rc.1` at upload, long after
+the tag is pushed), `manifest.json` has not grown a `version` back, and its `description` fits
+**112 characters** — Apple's limit, validated when the signed archive reaches App Store
+Connect. Chrome allows 132; calibrating on Chrome is how `lingua-apple-v1.1.0` failed after a
+full build.
 
 **A release is not a deployment.** Merging the "Release PR" pushes a `lingua-extension-v*` tag,
 which runs `lingua-extension-release` and does everything except reach a store:
