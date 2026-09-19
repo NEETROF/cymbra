@@ -167,8 +167,9 @@ impl SourceAdapter for GitRepoSource {
         let path = self.checkout.join(&item.source_item_id);
         let origin = origin_from_ext(&path)
             .ok_or_else(|| anyhow!("unsupported score format: {}", item.source_item_id))?;
-        let bytes =
-            std::fs::read(&path).with_context(|| format!("reading score {}", path.display()))?;
+        let bytes = tokio::fs::read(&path)
+            .await
+            .with_context(|| format!("reading score {}", path.display()))?;
         Ok(RawScore { origin, bytes })
     }
 }
