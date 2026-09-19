@@ -26,7 +26,9 @@ It SHALL NOT submit them to any store. Naming a version is not putting it in fro
 
 Submitting SHALL be a separate act that names the tag it deploys, and SHALL refuse to run without one. It SHALL submit the Chromium package to the Chrome Web Store and the Firefox package to addons.mozilla.org, the latter carrying the human-readable source of the generated code, which that store requires. The safari variant SHALL NOT be submitted at all: it is distributed inside the Apple host application, built from the same commit.
 
-**Each store SHALL be answered on its own credentials.** A store whose credentials are absent SHALL be skipped, named as not submitted, and SHALL NOT prevent the other store from receiving the version; only a run that can reach no store at all SHALL fail. Success SHALL mean the store accepted the version for review; the run SHALL report each store separately, and SHALL NOT claim readers have it, nor that a skipped store received anything.
+**Each store SHALL be answered on its own credentials.** A store whose credentials are absent SHALL be skipped, named as not submitted, and SHALL NOT prevent the other store from receiving the version; only a run that can reach no store at all SHALL fail. A store that refuses the submission SHALL NOT prevent the other from receiving it either, and the run SHALL fail.
+
+The run SHALL report each store separately, on **what the submission did** rather than on whether its credentials existed — accepted, refused, or never attempted. It SHALL NOT claim readers have the version, nor that a store received anything it refused or never saw.
 
 #### Scenario: A tag builds and attaches, and stops there
 - **WHEN** an extension release tag is pushed
@@ -63,3 +65,7 @@ Submitting SHALL be a separate act that names the tag it deploys, and SHALL refu
 #### Scenario: What success means
 - **WHEN** a submission is accepted
 - **THEN** the run reports that store as holding the version in review, not as having delivered it to readers
+
+#### Scenario: A store holds every credential and still refuses
+- **WHEN** a store rejects the submission for a reason of its own, such as an unfinished listing
+- **THEN** the run reports that store as having refused the version rather than as having received it, still submits to the other store, and fails
