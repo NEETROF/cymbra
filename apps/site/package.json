@@ -12,6 +12,7 @@
     "astro": "astro",
     "check": "astro check",
     "test": "vitest run",
+    "check:routes": "vitest run --config vitest.build.config.ts",
     "test:watch": "vitest",
     "typecheck": "vue-tsc --noEmit -p tsconfig.vue.json"
   },
