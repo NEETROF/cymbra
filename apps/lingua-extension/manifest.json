@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Cymbra Lingua",
   "version": "0.1.0",
-  "description": "Read the web in place: unknown words highlighted, an honest per-page percentage. Offline, private.",
+  "description": "Lisez l'anglais sur le web : les mots inconnus surlignés, et un pourcentage honnête. Hors ligne, privé, sans compte requis.",
   "minimum_chrome_version": "116",
   "permissions": ["activeTab", "storage", "scripting", "sidePanel", "identity"],
   "optional_host_permissions": ["<all_urls>"],

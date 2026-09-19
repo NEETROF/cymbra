@@ -16,17 +16,25 @@ Constants:
 | Privacy policy    | `https://cymbra.app/confidentialite/` (EN: `https://cymbra.app/en/privacy/`) — Annex B covers Lingua |
 | Support           | `https://cymbra.app/support/`                                                                        |
 | Category          | Chrome: _Education_ · AMO: _Language support_                                                        |
+| Listing language  | French — the interface is French, and the product teaches English to French speakers                 |
 | Firefox add-on id | `lingua@cymbra.app`                                                                                  |
 
 ---
 
 ## Summary (short description)
 
-**FR** — Lisez l'anglais sur le web : les mots que vous ne connaissez pas sont surlignés, et
-un pourcentage honnête vous dit ce que vaut vraiment la page pour vous.
+**Not editable in the dashboards** — both stores take it from the package's `manifest.json`
+`description`, where it is:
 
-**EN** — Read English on the web: the words you do not know are highlighted, and an honest
-percentage tells you what the page is actually worth to you.
+> Lisez l'anglais sur le web : les mots inconnus surlignés, et un pourcentage honnête. Hors ligne, privé, sans compte requis.
+
+123 characters; Chrome's limit is 132. Changing it means changing `manifest.json` and
+uploading a new package, so it is worth getting right before a submission.
+
+It is in **French** because the extension is: its whole interface is French ("Analyser cette
+page", "Je connais", "Toujours surligner"), and it teaches English _to French speakers_. An
+English summary would send English speakers to an interface they cannot read. The listing's
+language field is French for the same reason.
 
 ## Description
 
