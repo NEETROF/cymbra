@@ -1,7 +1,7 @@
 {
   "name": "@cymbra/lingua-extension",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.0.2",
   "type": "module",
   "packageManager": "yarn@4.10.3",
   "description": "Cymbra Lingua — MV3 browser extension (Chromium, Firefox, Safari): reads the web in place, highlights unknown words, honest per-page percentage.",

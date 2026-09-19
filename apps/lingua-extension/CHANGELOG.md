@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2](https://github.com/NEETROF/cymbra/compare/lingua-extension-v1.0.1...lingua-extension-v1.0.2) (2026-09-19)
+
+
+### Bug Fixes
+
+* **lingua:** stop telling a reader they know zero words ([#500](https://github.com/NEETROF/cymbra/issues/500)) ([46d7d58](https://github.com/NEETROF/cymbra/commit/46d7d58019671e08195e92f78544f374c39b5fa2))
+
 ## [1.0.1](https://github.com/NEETROF/cymbra/compare/lingua-extension-v1.0.0...lingua-extension-v1.0.1) (2026-09-19)
 
 
