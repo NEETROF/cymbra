@@ -48,15 +48,26 @@ jobs:
             echo "No completed changes to archive."
             exit 0
           fi
+          # `openspec archive` exits 0 when it aborts — a MODIFIED delta naming a
+          # requirement the spec has since renamed prints "not found / Aborted. No files
+          # were changed." and stops there. Believing its exit code left a finished change
+          # sitting in openspec/changes through two green runs, listed in the commit
+          # message below as if it had been archived. The directory is the only honest
+          # answer: archiving removes it.
+          archived=""
+          failed=""
           for c in $changes; do
             echo "::group::archive $c"
             openspec archive "$c" -y
             echo "::endgroup::"
+            if [ -d "openspec/changes/$c" ]; then failed="$failed $c"; else archived="$archived $c"; fi
           done
           {
             echo "names<<EOF"
-            echo "$changes"
+            # shellcheck disable=SC2086
+            printf '%s\n' $archived
             echo "EOF"
+            echo "failed=$failed"
           } >> "$GITHUB_ENV"
 
       - name: Commit archived changes
@@ -74,3 +85,19 @@ jobs:
                      -m "$list" \
                      -m "[skip ci]"
           git push
+
+      # Last, so whatever did archive is already committed: a change left behind is a
+      # stale delta to repair, not a reason to hold the others back.
+      - name: Report changes the archive left behind
+        if: always()
+        run: |
+          set -euo pipefail
+          failed="${failed:-}"
+          if [ -z "${failed// /}" ]; then
+            echo "Every completed change was archived."
+            exit 0
+          fi
+          echo "::error::openspec archive left these changes in openspec/changes:${failed}. \
+          Read their group above — a MODIFIED delta usually names a requirement the spec \
+          has renamed. Retarget the delta; the next run archives it."
+          exit 1
