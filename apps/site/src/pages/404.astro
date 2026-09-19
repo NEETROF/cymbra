@@ -1,0 +1,25 @@
+---
+import Base from '../layouts/Base.astro';
+
+// Without this page the host answers every unmatched path with the home page and a
+// 200 (change: pin-music-site-url-contract), which turns a dead link — a legal page
+// a shipped app is asking for, say — into marketing copy nobody flags.
+---
+
+<Base title="Page introuvable — Cymbra" lang="fr" noindex frHref="/404" enHref="/en/404">
+  <section class="hero container">
+    <p class="kicker">Erreur 404</p>
+    <h1>Cette page <span class="gradient">n'existe pas</span></h1>
+    <p class="tagline">
+      Le lien est peut-être périmé, ou l'adresse comporte une faute de frappe.
+    </p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="/">Accueil</a>
+      <a class="btn btn-ghost" href="/music">Cymbra Music</a>
+      <a class="btn btn-ghost" href="/lingua">Cymbra Lingua</a>
+    </div>
+    <p class="muted small hero-note">
+      Vous cherchiez autre chose&nbsp;? <a href="/support">L'aide</a>, <a href="/account">votre compte</a>, <a href="/confidentialite">la confidentialité</a> ou <a href="/cgu">les CGU</a>.
+    </p>
+  </section>
+</Base>
