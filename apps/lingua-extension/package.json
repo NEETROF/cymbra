@@ -22,6 +22,7 @@
     "build:firefox": "node build.mjs firefox",
     "build:safari": "node build.mjs safari",
     "check:variants": "node tool/check_variants.mjs",
+    "check:version": "node tool/check_version.mjs",
     "start:firefox": "web-ext run --source-dir dist-firefox",
     "start:firefox-android": "web-ext run --target firefox-android --source-dir dist-firefox",
     "dogfood:firefox": "node build.mjs firefox && web-ext run --source-dir dist-firefox",

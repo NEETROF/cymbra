@@ -44,9 +44,9 @@ jobs:
       - name: Test the id_token hand-off (LinguaSignIn)
         working-directory: apps/lingua-apple/LinguaSignIn
         run: swift test
-      - name: Test the release signing tool (lingua-apple-release)
+      - name: Test the release tools (lingua-apple-release)
         working-directory: apps/lingua-apple/tool
-        run: python3 -m unittest -v test_ci_release_signing
+        run: python3 -m unittest -v test_ci_release_signing test_release_version
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown

@@ -61,6 +61,11 @@ jobs:
         run: corepack enable
       - name: Install dependencies
         run: yarn install --immutable
+      # First, because it needs nothing and it is the one failure a store reports back at
+      # you after the tag is pushed: package.json and manifest.json out of step, or a
+      # version shape no browser accepts.
+      - name: Version guard
+        run: yarn check:version
       # The reducer that builds the real pack bundled into the extension (gen:pack:real)
       # is not run here — it downloads ~200 MB — but its pure rules are unit-tested.
       - name: Pack reducer tests
