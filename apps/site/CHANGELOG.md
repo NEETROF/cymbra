@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.0](https://github.com/NEETROF/cymbra/compare/site-v0.6.0...site-v0.7.0) (2026-09-19)
+
+
+### Features
+
+* **site:** pin the routes shipped clients depend on, and fail the build without them ([#489](https://github.com/NEETROF/cymbra/issues/489)) ([864c31f](https://github.com/NEETROF/cymbra/commit/864c31f5d2d7b9fb4b256ab432389f6cf10f6c53))
+* **site:** show both apps, and link Music to its live store listings ([#484](https://github.com/NEETROF/cymbra/issues/484)) ([7e45787](https://github.com/NEETROF/cymbra/commit/7e45787250d20f8626632a57d4fdd67dae325406))
+
 ## [0.6.0](https://github.com/NEETROF/cymbra/compare/site-v0.5.0...site-v0.6.0) (2026-09-17)
 
 
