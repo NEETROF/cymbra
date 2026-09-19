@@ -38,5 +38,5 @@
 - [ ] 5.3 Create the credentials and store them as repository secrets: the Chrome Web Store OAuth client id/secret + refresh token and the item id; the AMO JWT issuer and secret
 - [ ] 5.7 Once the item exists, carry its id everywhere it is needed: `https://<id>.chromiumapp.org/` as a redirect URI on the Google OAuth client, `chrome-extension://<id>` in the production `CYMBRA_ALLOWED_WEB_ORIGINS`, and the two repository variables `LINGUA_GOOGLE_CLIENT_ID` / `LINGUA_APPLE_CLIENT_ID`
 - [ ] 5.4 Read the first Release PR's changelog before merging it (D9), then merge and verify the GitHub Release carries both zips; submitting to the stores is a separate dispatch with that tag and `publish` ticked (D12)
-- [ ] 5.6 **Remove `release-as` from `apps/lingua-extension` in `release-please-config.json`** once `lingua-extension-v1.0.0` is tagged — it is sticky, and left in place it pins every later release to 1.0.0 (D10)
+- [x] 5.6 **Remove `release-as` from `apps/lingua-extension` in `release-please-config.json`** once `lingua-extension-v1.0.0` is tagged — it is sticky, and left in place it pins every later release to 1.0.0 (D10)
 - [ ] 5.5 Tag the Apple app and verify the delivered build reports the tag's version in App Store Connect
