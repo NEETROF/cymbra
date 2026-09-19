@@ -16,10 +16,11 @@
 
 - [x] 3.1 On the background's first start after the update: copy the moved keys into the store, mark migrated last (idempotent, converges after a partial run), leave the `chrome.storage.local` copies in place
 - [x] 3.2 vitest: a fresh install, an install with state to move, a partly-migrated store, and a second start doing nothing
+- [x] 3.3 Once the move is verified on device (4.4), release the previous copy — key by key, only where the store holds it — including on devices that migrated while it was kept
 
 ## 4. Gates
 
 - [x] 4.1 vitest over the store, the messaged area, the migration and the subscription (fake IndexedDB + fake messaging)
 - [x] 4.2 `typecheck`, `lint`, `format:check`, `build`, `check:variants`
 - [x] 4.3 `openspec validate move-lingua-store-to-indexeddb --strict`
-- [ ] 4.4 On device (TestFlight): deck and statistics intact after the update, a sync, an erasure, and the panel following a change made in the page
+- [x] 4.4 On device (TestFlight): deck and statistics intact after the update, a sync, an erasure, and the panel following a change made in the page

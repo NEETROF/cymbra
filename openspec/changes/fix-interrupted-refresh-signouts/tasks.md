@@ -18,4 +18,4 @@
 
 - [x] 3.1 `cargo test -p cymbra-auth`, `cargo fmt --check`, `clippy -D warnings`; extension `typecheck`/`lint`/`test`/`build`
 - [x] 3.2 `openspec validate fix-interrupted-refresh-signouts --strict`
-- [ ] 3.3 Deploy the backend before shipping the extension build (the grace is inert for clients that never replay)
+- [x] 3.3 Deploy the backend before shipping the extension build (the grace is inert for clients that never replay)

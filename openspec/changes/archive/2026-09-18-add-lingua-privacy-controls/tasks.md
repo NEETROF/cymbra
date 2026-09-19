@@ -53,7 +53,7 @@
   - Purposes: app functionality for all of them, plus analytics for user ID and product interaction.
   - Not declared: no browsing history, no tracking.
 - [x] 5.2 Fill App Store Connect → Confidentialité de l’app from 5.1, and the privacy policy URL (`https://cymbra.app/confidentialite/`); published
-- [ ] 5.3 New TestFlight build (iOS + macOS, production extension) and a manual pass:
+- [x] 5.3 New TestFlight build (iOS + macOS, production extension) and a manual pass:
   - erase on the iPhone, then check the Mac wipes at its next sync;
   - the deletion link opens the site;
   - a new capture syncs without its address.
