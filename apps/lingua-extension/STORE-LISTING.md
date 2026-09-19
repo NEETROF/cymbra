@@ -115,21 +115,27 @@ the stats. Any capture can then be conformed to 1280×800 without alpha.
 
 ## Test instructions (for the reviewer)
 
-No account is needed to review this extension; sign-in only turns on sync between a reader's
-own devices.
+Paste this into the store's test-instructions field. **Step 1 is not optional**: on a fresh
+install `needsLevelChoice` is true (`src/state/level-choice.ts`), and until a level is picked
+the engine knows of no known word — every word is highlighted and the pill reads 0%. A
+reviewer who skips it sees what looks like a broken extension, not a missed step.
 
-1. Install the extension and open any English-language web page (a news article works well).
-2. Click the toolbar icon, then **Analyser cette page** ("Analyse this page"). The extension is
-   activeTab-first on Chrome: it reads a page only when asked, or after the optional
-   "Toujours surligner" permission is granted.
-3. Words you have not marked are highlighted, and the pill shows the share of the page you
-   already know.
-4. Click a highlighted word: a popup gives its translation, its dictionary form and how common
-   it is, with three actions — "Je connais", "+ Deck", "Ignorer".
-5. Press Alt+L on a multi-word selection to capture a phrase; Alt+Shift+S opens the review
-   panel.
+The field caps at 1000 characters; the text below is 973.
 
-The interface is in French: the extension teaches English to French speakers.
+```
+No account is needed: signing in only syncs a reader's vocabulary between their own devices. The interface is French — the extension teaches English to French speakers.
+
+1. Open the toolbar popup and pick a level at "Choisis ton niveau d'anglais" (B1 is a good default). This matters: with no level chosen the engine assumes zero known words, so every word is highlighted and the score reads 0%.
+2. Open an English-language article and click "Analyser cette page". The extension is activeTab-first on Chrome: it reads a page only when asked, or once the optional "Toujours surligner" permission is granted.
+3. Words above that level are highlighted; the pill shows the share of the page you already know.
+4. Click a highlighted word: a card gives its translation, its dictionary form and how common it is, with three actions — "Je connais", "+ Deck", "Ignorer".
+5. Alt+L captures a multi-word selection; Alt+Shift+S, or the popup's "Réviser" button, opens the review panel.
+```
+
+Every label above is quoted from the source, not from memory — `popup.html` for **Analyser
+cette page**, **Choisis ton niveau d'anglais** and **Réviser**, `src/reading/wordpopup.ts` for
+the three word actions. An approximate label sends the reviewer looking for a control that
+does not exist.
 
 ## Single purpose (Chrome Web Store)
 
