@@ -151,3 +151,27 @@ binding limit is the smaller one, and calibrating on Chrome's is how the failure
 string, or longer than 112. The same gate already refuses a version shape no store would take
 and a `version` copied back into the manifest — all three are properties that only surface at
 upload time, which is the wrong place to learn them.
+
+## D14 — Each store is answered on its own credentials
+
+A publishing run submits to whichever stores it can reach, names the ones it cannot, and fails
+only when it can reach none.
+
+The first shape was all-or-nothing: six credentials or nothing leaves the runner, so a release
+could never be half-published. That reasoning was about a *single* release. It ignored that the
+two stores are never ready at the same moment — two dashboards, two review queues, two sets of
+keys created weeks apart — so the rule does not prevent a half-release, it makes the slower
+store gate the faster one **permanently**.
+
+It showed up the first time it could: the Chrome Web Store listing was filled and its API
+credentials were in place, the AMO listing did not yet exist, and the guard refused to publish
+anything at all. Mozilla was blocking Chrome for a reason that concerned only Mozilla.
+
+What the original rule was actually protecting is narrower, and it survives intact: **a run must
+never claim to have published where it sent nothing.** That is the summary's job, and it now
+names each store on its own line — submitted and in review, or not submitted and why. A skipped
+store is re-submitted by dispatching the same tag again; the packages are rebuilt from that tag,
+so it receives bytes identical to what the other store already holds.
+
+Failing when no store can be reached is kept: that is not a partial release, it is a run with
+nothing to do, and it almost certainly means a dispatch was made before any credentials existed.
