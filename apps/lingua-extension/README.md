@@ -53,8 +53,9 @@ regardless; Google needs the client, and the backend must allow the extension or
 1. **Google OAuth client** (Web type) with the redirect
    `https://<extension-id>.chromiumapp.org/` — its client id goes into
    `LINGUA_GOOGLE_CLIENT_ID` here and into the backend's `CYMBRA_GOOGLE_AUDIENCE` CSV.
-   The published extension id is stable (manifest key); an unpacked dev build's id is
-   shown on `chrome://extensions`.
+   An unpacked dev build's id is pinned by the committed `LINGUA_EXT_KEY`
+   (`figfjglfdiffocldficbimecjnhnkhkh`); the **published** id is a different one, assigned
+   by the store, because a store package may not carry `key` at all (see Release).
 2. **Backend CORS**: add the extension origin `chrome-extension://<extension-id>` to
    `CYMBRA_ALLOWED_WEB_ORIGINS` in the **dev** environment only. (Firefox's
    `moz-extension://<uuid>` is per-install; use a fixed origin via
@@ -214,16 +215,41 @@ It is the only way to validate a source change before tagging it.
 read by a human. The run stops at the store accepting the upload and says so; a rejection
 arrives by email days later and is answered in the dashboard, not by re-running the workflow.
 
+A store build differs from a production build by three environment variables, and each one
+fails quietly if forgotten — the release lane sets all three and then proves it from the
+built bundles:
+
+| Variable                                            | Value                    | What forgetting it does                                                                                                  |
+| --------------------------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `LINGUA_GRPC_WEB_URL`                               | `https://api.cymbra.app` | every sign-in and sync calls localhost                                                                                   |
+| `LINGUA_EXT_KEY`                                    | **empty**                | the manifest keeps the unpacked dev id pin, and the Chrome Web Store rejects the upload ("the key field is not allowed") |
+| `LINGUA_GOOGLE_CLIENT_ID`, `LINGUA_APPLE_CLIENT_ID` | repository variables     | an empty id hides that sign-in button, so the extension ships with Google or Apple missing and no error anywhere         |
+
+Because `LINGUA_EXT_KEY` is empty for the store, **the published extension's id is assigned by
+the store** and is not the dev id `figfjglfdiffocldficbimecjnhnkhkh`. Once the item exists, its
+id has to reach two other places or signing in fails for every reader: the Google OAuth client
+needs `https://<id>.chromiumapp.org/` as a redirect URI, and the backend needs
+`chrome-extension://<id>` in `CYMBRA_ALLOWED_WEB_ORIGINS`. The published id is
+`lodgdmkjlbpieomelpdkfaifdbipfncd`.
+
 The listings themselves are filled once by hand — CI only uploads versions of an item that
 already exists. The copy for both dashboards, the permission justifications and the data
 disclosures live in [STORE-LISTING.md](STORE-LISTING.md), so they change in the same pull
 request as the behaviour they describe.
 
-Secrets a tag run needs (it stops and names the ones that are missing):
+What a tag run needs (it stops and names whatever is missing). Repository **variables**, for
+the public values, as `PUBLIC_GOOGLE_CLIENT_ID` already is:
+
+| Variable                  | What it is                                                                                                                    |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `CWS_EXTENSION_ID`        | the Chrome Web Store item id, `lodgdmkjlbpieomelpdkfaifdbipfncd` — it is in the store URL, and the listing must already exist |
+| `LINGUA_GOOGLE_CLIENT_ID` | the web OAuth client carrying the extension's redirect URI                                                                    |
+| `LINGUA_APPLE_CLIENT_ID`  | the Apple Services ID, the same one the site uses (`com.cymbra.bo.web`)                                                       |
+
+Repository **secrets**, for the credentials:
 
 | Secret                                                    | What it is                                                                                    |
 | --------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `CWS_EXTENSION_ID`                                        | the Chrome Web Store item id — the listing must already exist                                 |
 | `CWS_CLIENT_ID`, `CWS_CLIENT_SECRET`, `CWS_REFRESH_TOKEN` | OAuth client with the Chrome Web Store API enabled, for the account that owns the item        |
 | `AMO_JWT_ISSUER`, `AMO_JWT_SECRET`                        | addons.mozilla.org API credentials, for the account that owns the `lingua@cymbra.app` listing |
 

@@ -16,17 +16,25 @@ Constants:
 | Privacy policy    | `https://cymbra.app/confidentialite/` (EN: `https://cymbra.app/en/privacy/`) — Annex B covers Lingua |
 | Support           | `https://cymbra.app/support/`                                                                        |
 | Category          | Chrome: _Education_ · AMO: _Language support_                                                        |
+| Listing language  | French — the interface is French, and the product teaches English to French speakers                 |
 | Firefox add-on id | `lingua@cymbra.app`                                                                                  |
 
 ---
 
 ## Summary (short description)
 
-**FR** — Lisez l'anglais sur le web : les mots que vous ne connaissez pas sont surlignés, et
-un pourcentage honnête vous dit ce que vaut vraiment la page pour vous.
+**Not editable in the dashboards** — both stores take it from the package's `manifest.json`
+`description`, where it is:
 
-**EN** — Read English on the web: the words you do not know are highlighted, and an honest
-percentage tells you what the page is actually worth to you.
+> Lisez l'anglais sur le web : les mots inconnus surlignés, et un pourcentage honnête. Hors ligne, privé, sans compte requis.
+
+123 characters; Chrome's limit is 132. Changing it means changing `manifest.json` and
+uploading a new package, so it is worth getting right before a submission.
+
+It is in **French** because the extension is: its whole interface is French ("Analyser cette
+page", "Je connais", "Toujours surligner"), and it teaches English _to French speakers_. An
+English summary would send English speakers to an interface they cannot read. The listing's
+language field is French for the same reason.
 
 ## Description
 
@@ -77,6 +85,46 @@ without deleting your account.
 Cymbra Lingua is also on Firefox and on Safari (iPhone, iPad, Mac).
 
 ---
+
+## Graphics
+
+| Asset            | Requirement                                                             | Where it is                  |
+| ---------------- | ----------------------------------------------------------------------- | ---------------------------- |
+| Store icon       | 128×128                                                                 | `icons/icon-128.png`         |
+| Screenshots      | 1280×800 or 640×400, JPEG or 24-bit PNG **without alpha**, at least one | captured by hand — see below |
+| Small promo tile | 440×280, no alpha                                                       | optional                     |
+| Marquee          | 1400×560, no alpha                                                      | optional                     |
+
+Screenshots cannot be generated from the repository: they need the extension loaded in a
+browser, reading a real page. Load `dist-chromium` unpacked, open an English article, click
+**Analyser cette page**, and capture the highlighted page, the word popup, the review panel and
+the stats. Any capture can then be conformed to 1280×800 without alpha.
+
+## Extra fields
+
+| Field          | Value                                                                                                                                                                                              |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Homepage URL   | `https://cymbra.app/lingua/` — **only once the site is deployed**; the live site predates that page, and an unknown path there serves the home page rather than a 404, so it looks fine and is not |
+| Support URL    | `https://cymbra.app/support/`                                                                                                                                                                      |
+| Mature content | no                                                                                                                                                                                                 |
+
+## Test instructions (for the reviewer)
+
+No account is needed to review this extension; sign-in only turns on sync between a reader's
+own devices.
+
+1. Install the extension and open any English-language web page (a news article works well).
+2. Click the toolbar icon, then **Analyser cette page** ("Analyse this page"). The extension is
+   activeTab-first on Chrome: it reads a page only when asked, or after the optional
+   "Toujours surligner" permission is granted.
+3. Words you have not marked are highlighted, and the pill shows the share of the page you
+   already know.
+4. Click a highlighted word: a popup gives its translation, its dictionary form and how common
+   it is, with three actions — "Je connais", "+ Deck", "Ignorer".
+5. Press Alt+L on a multi-word selection to capture a phrase; Alt+Shift+S opens the review
+   panel.
+
+The interface is in French: the extension teaches English to French speakers.
 
 ## Single purpose (Chrome Web Store)
 
