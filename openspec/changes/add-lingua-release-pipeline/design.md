@@ -175,3 +175,21 @@ so it receives bytes identical to what the other store already holds.
 
 Failing when no store can be reached is kept: that is not a partial release, it is a run with
 nothing to do, and it almost certainly means a dispatch was made before any credentials existed.
+
+## D15 — The summary reports what a submission did, not what it was allowed to attempt
+
+Each submission step carries an id, and the summary reads that step's outcome: accepted,
+refused, or never attempted.
+
+The first version of D14's summary read the *readiness* flags instead — whether the store's
+credentials existed. The distinction looked academic until the first real publish: every Chrome
+Web Store credential was in place, the upload succeeded, and the publish call was refused
+because the dashboard's privacy answers were unfinished. The summary said **"submitted, now in
+review."** It was wrong, and it was wrong about precisely the thing D14 claims to protect.
+
+Readiness is a precondition. An outcome is a fact. Only the fact belongs in a report someone
+will read days later to decide whether a store has a version.
+
+Both submissions are `continue-on-error` so a refusal on one does not skip the other — the same
+independence D14 established for credentials, extended to outcomes. A final step then fails the
+run, after the summary is written, so a refusal is both visible and red.
