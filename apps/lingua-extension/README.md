@@ -229,18 +229,27 @@ Because `LINGUA_EXT_KEY` is empty for the store, **the published extension's id 
 the store** and is not the dev id `figfjglfdiffocldficbimecjnhnkhkh`. Once the item exists, its
 id has to reach two other places or signing in fails for every reader: the Google OAuth client
 needs `https://<id>.chromiumapp.org/` as a redirect URI, and the backend needs
-`chrome-extension://<id>` in `CYMBRA_ALLOWED_WEB_ORIGINS`.
+`chrome-extension://<id>` in `CYMBRA_ALLOWED_WEB_ORIGINS`. The published id is
+`lodgdmkjlbpieomelpdkfaifdbipfncd`.
 
 The listings themselves are filled once by hand — CI only uploads versions of an item that
 already exists. The copy for both dashboards, the permission justifications and the data
 disclosures live in [STORE-LISTING.md](STORE-LISTING.md), so they change in the same pull
 request as the behaviour they describe.
 
-Secrets a tag run needs (it stops and names the ones that are missing):
+What a tag run needs (it stops and names whatever is missing). Repository **variables**, for
+the public values, as `PUBLIC_GOOGLE_CLIENT_ID` already is:
+
+| Variable                  | What it is                                                                                                                    |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `CWS_EXTENSION_ID`        | the Chrome Web Store item id, `lodgdmkjlbpieomelpdkfaifdbipfncd` — it is in the store URL, and the listing must already exist |
+| `LINGUA_GOOGLE_CLIENT_ID` | the web OAuth client carrying the extension's redirect URI                                                                    |
+| `LINGUA_APPLE_CLIENT_ID`  | the Apple Services ID, the same one the site uses (`com.cymbra.bo.web`)                                                       |
+
+Repository **secrets**, for the credentials:
 
 | Secret                                                    | What it is                                                                                    |
 | --------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `CWS_EXTENSION_ID`                                        | the Chrome Web Store item id — the listing must already exist                                 |
 | `CWS_CLIENT_ID`, `CWS_CLIENT_SECRET`, `CWS_REFRESH_TOKEN` | OAuth client with the Chrome Web Store API enabled, for the account that owns the item        |
 | `AMO_JWT_ISSUER`, `AMO_JWT_SECRET`                        | addons.mozilla.org API credentials, for the account that owns the `lingua@cymbra.app` listing |
 

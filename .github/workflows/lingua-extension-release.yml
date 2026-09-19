@@ -19,9 +19,16 @@ name: lingua-extension-release
 # read by a human; this lane stops at the store accepting the upload and says so. A rejected
 # review arrives days later by email and is answered in the dashboard, not here.
 #
-# Required secrets — a tag run stops and names the ones that are missing:
-#   CWS_EXTENSION_ID       Chrome Web Store item id. The listing must already exist: this
-#                          lane uploads a new version of an item, it does not create one.
+# Required configuration — a tag run stops and names whatever is missing.
+#
+# Repository VARIABLES (public values, like PUBLIC_GOOGLE_CLIENT_ID already is):
+#   CWS_EXTENSION_ID       Chrome Web Store item id; it is in the store URL. The listing must
+#                          already exist — this lane uploads a new version of an item, it
+#                          does not create one.
+#   LINGUA_GOOGLE_CLIENT_ID / LINGUA_APPLE_CLIENT_ID
+#                          the OAuth client ids inlined into the package (see the build step).
+#
+# Repository SECRETS:
 #   CWS_CLIENT_ID / CWS_CLIENT_SECRET / CWS_REFRESH_TOKEN
 #                          OAuth client (Chrome Web Store API enabled) and a refresh token
 #                          for the account that owns the item.
@@ -56,7 +63,7 @@ jobs:
       - name: Check publishing secrets
         if: ${{ github.ref_type == 'tag' }}
         env:
-          CWS_EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
+          CWS_EXTENSION_ID: ${{ vars.CWS_EXTENSION_ID }}
           CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
           CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
           CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
@@ -243,7 +250,7 @@ jobs:
         if: ${{ github.ref_type == 'tag' }}
         working-directory: .
         env:
-          ITEM_ID: ${{ secrets.CWS_EXTENSION_ID }}
+          ITEM_ID: ${{ vars.CWS_EXTENSION_ID }}
           CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
           CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
           REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
