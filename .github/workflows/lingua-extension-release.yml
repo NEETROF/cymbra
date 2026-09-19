@@ -1,25 +1,30 @@
 name: lingua-extension-release
 
-# Publishes Cymbra Lingua's browser extension (apps/lingua-extension).
+# Builds and publishes Cymbra Lingua's browser extension (apps/lingua-extension).
 #
-# A `lingua-extension-v*` tag — pushed when the release-please "Release PR" is merged —
-# builds every variant from the production configuration, attaches the two distributable
-# zips to that tag's GitHub Release, and submits them: the chromium package to the Chrome
-# Web Store, the firefox package to addons.mozilla.org.
+# THREE WAYS TO RUN IT, and only the last one reaches a store:
 #
-# A dispatch builds the same packages and publishes NOTHING, keeping them as workflow
-# artifacts. It is the only way to validate a source change before tagging it, since a
-# dispatch on an existing tag would build that tag's tree with this branch's YAML.
+#   1. A `lingua-extension-v*` tag, pushed when the release-please "Release PR" is merged.
+#      It builds every variant from the production configuration and attaches the two
+#      distributable zips to that tag's GitHub Release. It publishes NOTHING. A release is
+#      not a deployment: merging a Release PR must never put a version in front of readers,
+#      and it must not go red because store credentials are missing.
+#   2. A dispatch with no tag: builds the branch you dispatched from, keeps the packages as
+#      artifacts, publishes nothing. The only way to validate a source change before tagging.
+#   3. A dispatch WITH a tag and `publish` ticked: the deployment. It checks out that tag,
+#      rebuilds it, and submits — the chromium package to the Chrome Web Store, the firefox
+#      package to addons.mozilla.org. This is the same shape as lingua-apple-release, where
+#      delivery is also a deliberate act rather than a side effect of a merge.
 #
-# The safari variant is not published here. It ships inside the Apple host app, built from
-# the same commit by lingua-apple-release — so this lane builds it (check:variants reads all
-# three) and distributes two.
+# The safari variant is not published here at all. It ships inside the Apple host app, built
+# from the same commit by lingua-apple-release — so this lane builds it (check:variants reads
+# all three) and distributes two.
 #
 # "Published" means SUBMITTED. Both stores review a new version, and a first submission is
 # read by a human; this lane stops at the store accepting the upload and says so. A rejected
 # review arrives days later by email and is answered in the dashboard, not here.
 #
-# Required configuration — a tag run stops and names whatever is missing.
+# Required configuration — a publishing run stops and names whatever is missing.
 #
 # Repository VARIABLES (public values, like PUBLIC_GOOGLE_CLIENT_ID already is):
 #   CWS_EXTENSION_ID       Chrome Web Store item id; it is in the store URL. The listing must
@@ -40,6 +45,14 @@ on:
     tags:
       - "lingua-extension-v*"
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing lingua-extension-v* tag to build. Empty = the branch you dispatched from (builds, publishes nothing)."
+        required: false
+      publish:
+        description: "Submit the packages to the Chrome Web Store and addons.mozilla.org. Needs a tag."
+        type: boolean
+        default: false
 
 permissions:
   contents: write # attach the packages to the tag's release
@@ -55,13 +68,26 @@ jobs:
       run:
         working-directory: apps/lingua-extension
     env:
-      # The one thing that decides whether anything leaves this runner.
-      PUBLISHING: ${{ github.ref_type == 'tag' }}
+      # The one thing that decides whether anything leaves this runner, and it is never a
+      # tag on its own: publishing is always a deliberate dispatch on a tag. See the header.
+      PUBLISHING: ${{ github.event_name == 'workflow_dispatch' && inputs.publish && inputs.tag != '' }}
+      # The tag this run is about, empty when there is none (a dispatch from a branch).
+      TAG_NAME: ${{ inputs.tag || (github.ref_type == 'tag' && github.ref_name) || '' }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      # Ticking `publish` without naming a tag would otherwise do nothing at all, quietly:
+      # a deployment must name what it deploys.
+      - name: Refuse to publish an unnamed version
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish && inputs.tag == '' }}
+        run: |
+          echo "::error::publish was ticked without a tag. Dispatch again with the lingua-extension-v* tag you mean to submit."
+          exit 1
 
       - name: Check publishing secrets
-        if: ${{ github.ref_type == 'tag' }}
+        if: ${{ env.PUBLISHING == 'true' }}
         env:
           CWS_EXTENSION_ID: ${{ vars.CWS_EXTENSION_ID }}
           CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
@@ -86,25 +112,21 @@ jobs:
       - name: Resolve and check the version
         run: |
           set -euo pipefail
+          # package.json is the version's only home; build.mjs stamps it onto each manifest.
           version=$(node -p "require('./package.json').version")
-          manifest=$(node -p "require('./manifest.json').version")
-          if [ "$version" != "$manifest" ]; then
-            echo "::error::package.json says $version and manifest.json says $manifest. release-please writes both."
-            exit 1
-          fi
           if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
             echo "::error::version $version is not three plain integers; a store refuses a pre-release suffix at upload."
             exit 1
           fi
-          if [ "$PUBLISHING" = "true" ]; then
-            tagged="${GITHUB_REF_NAME#lingua-extension-v}"
+          if [ -n "$TAG_NAME" ]; then
+            tagged="${TAG_NAME#lingua-extension-v}"
             if [ "$tagged" != "$version" ]; then
-              echo "::error::tag $GITHUB_REF_NAME does not match the tree's version $version."
+              echo "::error::tag $TAG_NAME does not match the tree's version $version."
               exit 1
             fi
           fi
           echo "VERSION=$version" >> "$GITHUB_ENV"
-          echo "Releasing $version (publishing: $PUBLISHING)."
+          echo "Building $version (tag: ${TAG_NAME:-none}, publishing: $PUBLISHING)."
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -239,15 +261,16 @@ jobs:
           if-no-files-found: error
 
       - name: Attach the packages to the release
-        if: ${{ github.ref_type == 'tag' }}
+        if: ${{ env.TAG_NAME != '' }}
         uses: softprops/action-gh-release@v3
         with:
+          tag_name: ${{ env.TAG_NAME }}
           files: |
             cymbra-lingua-chromium-${{ env.VERSION }}.zip
             cymbra-lingua-firefox-${{ env.VERSION }}.zip
 
       - name: Submit to the Chrome Web Store
-        if: ${{ github.ref_type == 'tag' }}
+        if: ${{ env.PUBLISHING == 'true' }}
         working-directory: .
         env:
           ITEM_ID: ${{ vars.CWS_EXTENSION_ID }}
@@ -283,7 +306,7 @@ jobs:
       # --approval-timeout 0 is the design decision, not impatience: this lane's contract
       # ends at the store accepting the version, and a listed review takes days.
       - name: Submit to addons.mozilla.org
-        if: ${{ github.ref_type == 'tag' }}
+        if: ${{ env.PUBLISHING == 'true' }}
         env:
           AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
           AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
@@ -299,14 +322,19 @@ jobs:
             --artifacts-dir "$RUNNER_TEMP/amo"
 
       - name: Say where the release stands
-        if: ${{ always() && github.ref_type == 'tag' }}
+        if: ${{ always() && env.TAG_NAME != '' }}
         run: |
           {
             echo "## Cymbra Lingua $VERSION"
             echo
-            echo "Both packages are attached to [\`$GITHUB_REF_NAME\`](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/tag/${GITHUB_REF_NAME})."
+            echo "Both packages are attached to [\`$TAG_NAME\`](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/tag/${TAG_NAME})."
             echo
-            echo "The version is **in review** at the Chrome Web Store and at addons.mozilla.org."
-            echo "Readers do not have it yet: a listed review is read by a human and takes days."
-            echo "A rejection arrives by email and is answered in each dashboard, not by re-running this workflow."
+            if [ "$PUBLISHING" = "true" ]; then
+              echo "The version is **in review** at the Chrome Web Store and at addons.mozilla.org."
+              echo "Readers do not have it yet: a listed review is read by a human and takes days."
+              echo "A rejection arrives by email and is answered in each dashboard, not by re-running this workflow."
+            else
+              echo "**Nothing was published.** A tag builds and attaches; submitting to the stores is a"
+              echo "separate, deliberate dispatch of this workflow with that tag and \`publish\` ticked."
+            fi
           } >> "$GITHUB_STEP_SUMMARY"

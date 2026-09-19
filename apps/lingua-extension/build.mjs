@@ -85,6 +85,12 @@ function assertWasmMatchesEngine() {
 assertWasmMatchesEngine();
 
 const baseManifest = JSON.parse(readFileSync(join(root, "manifest.json"), "utf8"));
+// The version has ONE home: package.json, which release-please bumps. It is stamped onto
+// each built manifest here rather than mirrored into manifest.json, because a mirror is a
+// second source that drifts — and release-please's JSON updater rewrites the whole file it
+// touches (it expanded every array, which the Prettier gate then refused). manifest.json
+// carries no `version` at all, so there is nothing to disagree with.
+const { version: VERSION } = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 
 // Backend gRPC-web origin + Google OAuth client id come from the environment so a
 // dogfooding/release build points at the right backend without editing source. The
@@ -232,6 +238,7 @@ for (const target of targets) {
   });
 
   const manifest = manifestFor[target](baseManifest);
+  manifest.version = VERSION;
   // Grant the configured backend origin so the sync transport's gRPC-web fetch is
   // allowed (the server must also allow the extension origin via CYMBRA_ALLOWED_WEB_ORIGINS).
   manifest.host_permissions = [...new Set([...(manifest.host_permissions ?? []), hostPattern(GRPC_WEB_URL)])];
