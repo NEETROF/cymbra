@@ -194,6 +194,32 @@ grant — the point is to reach the paywall and buy:
 The unmarked one is the half that proves something: a marked account unlocking
 shows the door opens, not that it was ever shut. Run both against the same build.
 
+## Listing URLs (decided)
+
+The per-locale fields — marketing, support, privacy — live with the rest of the
+listing text in `copy/<locale>.md`. Two values are console-level rather than
+per-locale:
+
+| Field | Value |
+|---|---|
+| Play — "Delete account" URL | `https://cymbra.app/en/delete-account/` |
+| Play — "Manage data" URL | `https://cymbra.app/en/delete-account/` — the **same** page, deliberately: the partial declaration is kept, and per-item deletion is genuinely offered inside the app |
+
+Two rules that are easy to break by accident:
+
+- **The support URL is a support page.** macOS 1.32.0 was rejected under guideline 1.5
+  for declaring the home page as the support URL. It stays `/support/` (fr) and
+  `/en/support/`; never the hub, never the marketing page.
+- **The marketing URL is the product page**, `/music/` and `/en/music/`. The site root
+  has been a two-product hub since 2026-09-18, so pointing there serves a chooser to
+  someone who already picked the app.
+
+The paths themselves are not free to move: the site treats them as pinned, and its
+CI gate fails a build that drops one. The list, and who pins each route, is in
+[`apps/site/src/lib/pinned-routes.ts`](../../site/src/lib/pinned-routes.ts); the rule
+is written up under "Routes shipped clients depend on" in
+[`apps/site/README.md`](../../site/README.md).
+
 ## Categories (decided)
 
 - App Store: primary **Education**, secondary **Music**. Same on macOS, and the

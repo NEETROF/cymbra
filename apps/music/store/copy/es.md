@@ -61,6 +61,25 @@ que termine el periodo. Gestiónala o cancélala en los ajustes de tu cuenta.
 Términos de uso (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
 Política de privacidad: https://cymbra.app/en/privacy/
 
+## Listing URLs
+
+Console-side values — editing one is a listing change, not a build. The paths are
+pinned: see `apps/site/src/lib/pinned-routes.ts`.
+
+| Field | Value |
+|---|---|
+| Marketing URL (ASC) / Website (Play) | `https://cymbra.app/en/music/` |
+| Support URL | `https://cymbra.app/en/support/` |
+| Privacy policy URL | `https://cymbra.app/en/privacy/` |
+
+The marketing URL points at the **product page**, not at `https://cymbra.app` — the
+site root is a two-product hub since 2026-09-18, so the root would serve a chooser to
+someone who already picked the app.
+
+The support URL must stay a **support page**. macOS 1.32.0 was rejected under
+guideline 1.5 for declaring the home page here; never point it at the hub or at the
+marketing page, however convenient.
+
 ## Categorías
 
 - App Store: principal **Educación**, secundaria **Música**
