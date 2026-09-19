@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.34.0](https://github.com/NEETROF/cymbra/compare/music-v1.33.2...music-v1.34.0) (2026-09-19)
+
+
+### Features
+
+* **site:** pin the routes shipped clients depend on, and fail the build without them ([#489](https://github.com/NEETROF/cymbra/issues/489)) ([864c31f](https://github.com/NEETROF/cymbra/commit/864c31f5d2d7b9fb4b256ab432389f6cf10f6c53))
+
 ## [1.33.2](https://github.com/NEETROF/cymbra/compare/music-v1.33.1...music-v1.33.2) (2026-09-13)
 
 
