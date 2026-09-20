@@ -34,10 +34,10 @@
 ## 5. First release (needs the store accounts)
 
 - [x] 5.1 Create the Chrome Web Store item and fill its listing (screenshots, description, privacy answers); note its item id — `lodgdmkjlbpieomelpdkfaifdbipfncd`
-- [ ] 5.2 Create the AMO listing for `lingua@cymbra.app`
-- [ ] 5.3 Create the credentials and store them as repository secrets
+- [x] 5.2 Create the AMO listing for `lingua@cymbra.app` — slug `cymbra-lingua`, created by the first `web-ext sign`, then completed in the dashboard (French and English, category, icon, four captioned screenshots)
+- [x] 5.3 Create the credentials and store them as repository secrets
   - [x] Chrome Web Store: `CWS_CLIENT_ID`, `CWS_CLIENT_SECRET`, `CWS_REFRESH_TOKEN`, and the `CWS_EXTENSION_ID` variable
-  - [ ] AMO: `AMO_JWT_ISSUER`, `AMO_JWT_SECRET`
+  - [x] AMO: `AMO_JWT_ISSUER`, `AMO_JWT_SECRET`
 - [x] 5.7 Once the item exists, carry its id everywhere it is needed: `https://<id>.chromiumapp.org/` as a redirect URI on the Google OAuth client, `chrome-extension://<id>` in the production `CYMBRA_ALLOWED_WEB_ORIGINS`, and the two repository variables `LINGUA_GOOGLE_CLIENT_ID` / `LINGUA_APPLE_CLIENT_ID`
 - [x] 5.4 Read the first Release PR's changelog before merging it (D9), then merge and verify the GitHub Release carries both zips; submitting to the stores is a separate dispatch with that tag and `publish` ticked (D12) — `lingua-extension-v1.0.2` carries both, and the dispatch that submitted it was separate
 - [x] 5.6 **Remove `release-as` from `apps/lingua-extension` in `release-please-config.json`** once `lingua-extension-v1.0.0` is tagged — it is sticky, and left in place it pins every later release to 1.0.0 (D10)
@@ -49,6 +49,13 @@
       (`publish` returned `status: ["OK"]`), and the dashboard shows the item as pending
       review. `<all_urls>` in `optional_host_permissions` puts it in the deep-review queue,
       so the verdict takes days and arrives by email — the lane stops at "submitted" (D12).
-- [ ] 6.2 addons.mozilla.org: nothing submitted yet; the listing and the JWT credentials do
-      not exist. Dispatch the same tag once they do — the packages are rebuilt from it, so
-      Firefox receives bytes identical to what Chrome already has (D14).
+- [x] 6.2 addons.mozilla.org: `lingua-extension-v1.0.2` submitted with its source archive,
+      from the same tag, so Firefox holds bytes identical to Chrome's (D14). It took three
+      refusals to get there, each naming exactly one missing field — licence, then category —
+      because AMO reveals its required fields one at a time, each only once the previous is
+      satisfied. The submission named `stores: firefox` (D16), so the Chrome version already
+      under review was never touched.
+- [x] 6.3 The listing itself: French for its readers, English as the default locale so anyone
+      else reads something they can act on, and four screenshots. Two were captured from the
+      page; the two showing the side panel had to come from a human, because a panel is
+      browser interface and no extension can photograph it.
