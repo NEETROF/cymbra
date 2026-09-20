@@ -379,11 +379,23 @@ jobs:
           AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
         run: |
           set -euo pipefail
+          # A listed version is refused outright without a license, and web-ext carries one
+          # only through --amo-metadata. It is written here rather than committed beside the
+          # manifest because this job checks out the TAG: a file added to main would be
+          # absent from every tag that predates it, which is how this was found. A license is
+          # release metadata anyway — it describes the terms a version is offered under, not
+          # the bytes readers install.
+          cat > "$RUNNER_TEMP/amo-metadata.json" <<'JSON'
+          {
+            "version": { "license": "all-rights-reserved" }
+          }
+          JSON
           yarn web-ext sign \
             --source-dir dist-firefox \
             --channel listed \
             --api-key "$AMO_JWT_ISSUER" \
             --api-secret "$AMO_JWT_SECRET" \
+            --amo-metadata "$RUNNER_TEMP/amo-metadata.json" \
             --upload-source-code "$GITHUB_WORKSPACE/cymbra-lingua-source-$VERSION.zip" \
             --approval-timeout 0 \
             --artifacts-dir "$RUNNER_TEMP/amo"

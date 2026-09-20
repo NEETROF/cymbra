@@ -221,3 +221,25 @@ the reader to skim warnings.
 
 The run still fails when **no named store** can be reached: asking for Firefox alone with no AMO
 credentials publishes nothing, and a green run would say otherwise.
+
+## D17 — A licence is release metadata, so it travels with the lane, not with the tag
+
+addons.mozilla.org refuses a *listed* version that names no licence:
+`"license": ["This field, or custom_license, is required for listed versions."]`. It is
+answered with `--amo-metadata`, whose `version` object is merged into the submission payload.
+
+The obvious home for that file is beside the manifest. It is the wrong one. This job checks out
+**the tag** — `ref: ${{ inputs.tag || github.ref }}` — while the workflow itself comes from the
+dispatched ref. A file committed to `main` is therefore absent from every tag that predates it,
+and the first submission of an older tag would fail on a missing file instead of a missing
+licence. The workflow writes it inline, so the fix reaches every tag that can still be
+submitted.
+
+That split is not a workaround; it is the right seam. A licence states the terms a version is
+offered under. It is not part of what readers install — the package is byte-identical with or
+without it — so it belongs to the act of submitting, which is what the lane is.
+
+`all-rights-reserved` preserves the status quo: the repository carries no `LICENSE`, so no
+rights are granted today, and a store listing is not the place to start granting them by
+accident. It is changed in the AMO dashboard, or here, whenever that becomes a decision rather
+than a default.
