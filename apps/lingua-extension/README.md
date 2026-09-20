@@ -232,6 +232,12 @@ be worse, replacing a package that is under review. A store left out is named as
 this submission_, distinctly from one whose keys are missing, and raises no warning: leaving it
 out was a decision. A run still fails when none of the stores it names can be reached.
 
+The summary also names **Safari**, which this act never reaches — that variant ships inside the
+Apple host app, on its own tag. An extension-only fix bumps `lingua-extension` and never
+`lingua-apple`, so Safari readers stay behind with nothing failing to say so; dispatch
+`lingua-apple-release` with `deliver` to send the same bytes to App Store Connect under the
+current marketing version.
+
 The summary reports what each submission **did** — accepted, refused, or never attempted — not
 whether its credentials existed. A store can hold every key and still refuse: the Chrome Web
 Store rejects a publish until the dashboard's Privacy practices tab is filled, and the upload

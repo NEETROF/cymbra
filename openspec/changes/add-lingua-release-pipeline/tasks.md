@@ -41,7 +41,7 @@
 - [x] 5.7 Once the item exists, carry its id everywhere it is needed: `https://<id>.chromiumapp.org/` as a redirect URI on the Google OAuth client, `chrome-extension://<id>` in the production `CYMBRA_ALLOWED_WEB_ORIGINS`, and the two repository variables `LINGUA_GOOGLE_CLIENT_ID` / `LINGUA_APPLE_CLIENT_ID`
 - [x] 5.4 Read the first Release PR's changelog before merging it (D9), then merge and verify the GitHub Release carries both zips; submitting to the stores is a separate dispatch with that tag and `publish` ticked (D12) — `lingua-extension-v1.0.2` carries both, and the dispatch that submitted it was separate
 - [x] 5.6 **Remove `release-as` from `apps/lingua-extension` in `release-please-config.json`** once `lingua-extension-v1.0.0` is tagged — it is sticky, and left in place it pins every later release to 1.0.0 (D10)
-- [ ] 5.5 Tag the Apple app and verify the delivered build reports the tag's version in App Store Connect
+- [x] 5.5 Tag the Apple app and verify the delivered build reports the tag's version in App Store Connect — builds 140 (iOS) and 141 (macOS) carry 1.1.0, confirmed in App Store Connect
 
 ## 6. Where the first release stands
 
@@ -59,3 +59,14 @@
       else reads something they can act on, and four screenshots. Two were captured from the
       page; the two showing the side panel had to come from a human, because a panel is
       browser interface and no extension can photograph it.
+- [x] 6.4 App Store Connect: `lingua-apple-v1.1.0` delivered both archives (`Building 1.1.0
+      (build numbers 140 / 141)`, both uploads clean), and App Store Connect shows 1.1.0 —
+      the version came from the tag, not from the `.pbxproj` the CI rewrites. A tag delivers
+      here without asking, because an upload to App Store Connect publishes nothing: a human
+      still submits it. The browser stores' `publish` call *is* the submission, which is why
+      that one is a deliberate dispatch (D12).
+
+      The tag had to be **moved** onto a deliverable commit: it pointed at one whose manifest
+      description was 123 characters against Apple's 112, fixed only afterwards under
+      `apps/lingua-extension`. That worked solely because 1.1.0 had never been delivered, and
+      it is not available again — see D18 for the cause and the route to use instead.

@@ -432,6 +432,13 @@ jobs:
               }
               store_line "Chrome Web Store" "${CWS_OUTCOME:-skipped}" "$CWS_WHY"
               store_line "addons.mozilla.org" "${AMO_OUTCOME:-skipped}" "$AMO_WHY"
+              # The product has THREE destinations; this lane reaches two. Naming only the two
+              # it reaches lets the third fall off a report whose whole job is to say who holds
+              # what — and it falls off silently, because nothing fails when Safari is forgotten.
+              echo "- **Safari** — does not have this version, whatever the two lines above say."
+              echo "  It ships inside the Apple host app, built from its own tag. Dispatch"
+              echo "  \`lingua-apple-release\` with \`deliver\` to send these bytes to App Store"
+              echo "  Connect under the current marketing version, with a fresh build number."
               echo
               echo "A store that received the version has it **in review**, not in front of readers:"
               echo "a listed review is read by a human and takes days. A rejection arrives by email"
