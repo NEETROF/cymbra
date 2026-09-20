@@ -237,9 +237,11 @@ whether its credentials existed. A store can hold every key and still refuse: th
 Store rejects a publish until the dashboard's Privacy practices tab is filled, and the upload
 succeeds first, so only the outcome tells you whether the store has the version.
 
-AMO refuses a listed version that names no **licence**, so the lane sends one with
-`--amo-metadata`: `all-rights-reserved`, which grants nothing, matching a repository that
-carries no `LICENSE`. It is written by the workflow rather than committed beside the manifest,
+AMO refuses a listed version that names no **licence** and an add-on that names no
+**category**, so the lane sends both with `--amo-metadata`: `all-rights-reserved`, which grants
+nothing, matching a repository that carries no `LICENSE`, and the `language-support` shelf.
+Expect the store to reveal such requirements one at a time — each is refused only once the
+previous one is satisfied. It is written by the workflow rather than committed beside the manifest,
 because this job checks out the _tag_ — a file added to `main` would be missing from every
 older tag. Change it in the AMO dashboard, or there, when it becomes a decision.
 
