@@ -28,6 +28,8 @@ Submitting SHALL be a separate act that names the tag it deploys, and SHALL refu
 
 **Each store SHALL be answered on its own credentials.** A store whose credentials are absent SHALL be skipped, named as not submitted, and SHALL NOT prevent the other store from receiving the version; only a run that can reach no store at all SHALL fail. A store that refuses the submission SHALL NOT prevent the other from receiving it either, and the run SHALL fail.
 
+A submission SHALL be able to name which stores it is for. Credentials answer whether a run *can* reach a store, never whether it *should*: a store that already holds the version would refuse a second submission of it, and that refusal is indistinguishable, in the report, from a store that never received it — while a submission that did not refuse would replace a package under review. A store left out SHALL be reported as deliberately omitted, distinctly from one whose credentials do not exist.
+
 The run SHALL report each store separately, on **what the submission did** rather than on whether its credentials existed — accepted, refused, or never attempted. It SHALL NOT claim readers have the version, nor that a store received anything it refused or never saw.
 
 #### Scenario: A tag builds and attaches, and stops there
@@ -55,12 +57,16 @@ The run SHALL report each store separately, on **what the submission did** rathe
 - **THEN** that store receives the version, the other is named as not submitted, and the run succeeds
 
 #### Scenario: No store can be reached
-- **WHEN** publication is asked for and no store's credentials exist
-- **THEN** the run stops and names what is missing for each, and nothing is published
+- **WHEN** publication is asked for and none of the stores it names can be reached
+- **THEN** the run stops and says why for each, and nothing is published
 
 #### Scenario: The skipped store, later
 - **WHEN** the same tag is submitted again once the missing credentials exist
 - **THEN** the store that was skipped receives the same version, rebuilt from that tag
+
+#### Scenario: Catching up one store while the other is still in review
+- **WHEN** that later submission names only the store that was skipped
+- **THEN** only that store is submitted to, and the store that already holds the version is reported as deliberately left out rather than as lacking it
 
 #### Scenario: What success means
 - **WHEN** a submission is accepted
