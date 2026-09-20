@@ -23,6 +23,13 @@ name: lingua-extension-release
 #      would be a permanent tax, not a one-off. Dispatch the same tag again later and the
 #      skipped store gets bytes identical to the other's — the packages are rebuilt from it.
 #
+#      NAME THE STORE when you do, with `stores`. Credentials answer "can this run reach the
+#      store"; they cannot answer "should it". A store that already holds the version would
+#      refuse a second submission of it, and that refusal is indistinguishable, in the
+#      summary, from a store that never received it — so catching Firefox up would report
+#      Chrome as not having a version it has had for days, and turn the run red for it.
+#      Worse, a submission that did NOT refuse would replace a package under review.
+#
 # The safari variant is not published here at all. It ships inside the Apple host app, built
 # from the same commit by lingua-apple-release — so this lane builds it (check:variants reads
 # all three) and distributes two.
@@ -61,6 +68,11 @@ on:
         description: "Submit the packages to the Chrome Web Store and addons.mozilla.org. Needs a tag."
         type: boolean
         default: false
+      stores:
+        description: "Which stores this submission is for. Leave 'both' unless one of them already has this version."
+        type: choice
+        options: [both, chrome, firefox]
+        default: both
 
 permissions:
   contents: write # attach the packages to the tag's release
@@ -102,6 +114,7 @@ jobs:
       - name: Decide which stores this run can reach
         if: ${{ env.PUBLISHING == 'true' }}
         env:
+          STORES: ${{ inputs.stores || 'both' }}
           CWS_EXTENSION_ID: ${{ vars.CWS_EXTENSION_ID }}
           CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
           CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
@@ -118,17 +131,39 @@ jobs:
           cws_missing=$(missing_for CWS_EXTENSION_ID CWS_CLIENT_ID CWS_CLIENT_SECRET CWS_REFRESH_TOKEN)
           amo_missing=$(missing_for AMO_JWT_ISSUER AMO_JWT_SECRET)
 
-          [ -z "$cws_missing" ] && cws=true || cws=false
-          [ -z "$amo_missing" ] && amo=true || amo=false
+          # Two different reasons not to submit, and the summary must not confuse them:
+          # a store can be left out ON PURPOSE (it already has this version), or it can be
+          # unreachable because its credentials do not exist yet. Only the second is a gap.
+          case "$STORES" in
+            chrome)  want_cws=true;  want_amo=false ;;
+            firefox) want_cws=false; want_amo=true  ;;
+            *)       want_cws=true;  want_amo=true  ;;
+          esac
+
+          decide() { # name, wanted, missing -> "<ready> <why>"
+            if [ "$2" != true ]; then printf 'false|not part of this submission (stores: %s)' "$STORES"
+            elif [ -n "$3" ]; then   printf 'false|its credentials are missing:%s' "$3"
+            else                     printf 'true|'
+            fi
+          }
+          cws_decision=$(decide "Chrome Web Store" "$want_cws" "$cws_missing")
+          amo_decision=$(decide "addons.mozilla.org" "$want_amo" "$amo_missing")
+          cws=${cws_decision%%|*}; cws_why=${cws_decision#*|}
+          amo=${amo_decision%%|*}; amo_why=${amo_decision#*|}
+
           echo "CWS_READY=$cws" >> "$GITHUB_ENV"
           echo "AMO_READY=$amo" >> "$GITHUB_ENV"
+          echo "CWS_WHY=$cws_why" >> "$GITHUB_ENV"
+          echo "AMO_WHY=$amo_why" >> "$GITHUB_ENV"
 
-          [ "$cws" = true ] || echo "::warning::Chrome Web Store skipped — missing:$cws_missing"
-          [ "$amo" = true ] || echo "::warning::addons.mozilla.org skipped — missing:$amo_missing"
+          # Warn only about a store this run MEANT to reach: leaving one out is a decision,
+          # not an accident, and a warning on it would train the reader to ignore warnings.
+          [ "$cws" = true ] || [ "$want_cws" != true ] || echo "::warning::Chrome Web Store skipped — missing:$cws_missing"
+          [ "$amo" = true ] || [ "$want_amo" != true ] || echo "::warning::addons.mozilla.org skipped — missing:$amo_missing"
 
           # Publishing to neither store is not a partial release, it is a pointless run.
           if [ "$cws" != true ] && [ "$amo" != true ]; then
-            echo "::error::no store can be reached. Chrome Web Store missing:$cws_missing. addons.mozilla.org missing:$amo_missing. See this workflow's header, and apps/lingua-extension/README.md (Release)."
+            echo "::error::no selected store can be reached. Chrome Web Store: $cws_why. addons.mozilla.org: $amo_why. See this workflow's header, and apps/lingua-extension/README.md (Release)."
             exit 1
           fi
 
@@ -358,6 +393,8 @@ jobs:
         env:
           CWS_OUTCOME: ${{ steps.cws.outcome }}
           AMO_OUTCOME: ${{ steps.amo.outcome }}
+          CWS_WHY: ${{ env.CWS_WHY }}
+          AMO_WHY: ${{ env.AMO_WHY }}
         run: |
           {
             echo "## Cymbra Lingua $VERSION"
@@ -374,11 +411,11 @@ jobs:
                 case "$2" in
                   success) echo "- **$1** — submitted, now in review." ;;
                   failure) echo "- **$1** — submission REFUSED. It does not have this version; the step's log above says why." ;;
-                  *)       echo "- **$1** — NOT submitted: its credentials are missing." ;;
+                  *)       echo "- **$1** — NOT submitted: ${3:-it was not attempted}." ;;
                 esac
               }
-              store_line "Chrome Web Store" "${CWS_OUTCOME:-skipped}"
-              store_line "addons.mozilla.org" "${AMO_OUTCOME:-skipped}"
+              store_line "Chrome Web Store" "${CWS_OUTCOME:-skipped}" "$CWS_WHY"
+              store_line "addons.mozilla.org" "${AMO_OUTCOME:-skipped}" "$AMO_WHY"
               echo
               echo "A store that received the version has it **in review**, not in front of readers:"
               echo "a listed review is read by a human and takes days. A rejection arrives by email"
@@ -387,6 +424,10 @@ jobs:
               echo "A store that was skipped simply never saw this version. Dispatch this workflow"
               echo "again on the same tag once its credentials exist — the packages are rebuilt from"
               echo "the tag, so what it receives is identical to what the other store already has."
+              echo
+              echo "Name that store in \`stores\` when you do. A store that already holds this version"
+              echo "would refuse it a second time, and the refusal would be reported here as a store"
+              echo "WITHOUT the version — false, and loud enough to bury the one that matters."
             else
               echo "**Nothing was published.** A tag builds and attaches; submitting to the stores is a"
               echo "separate, deliberate dispatch of this workflow with that tag and \`publish\` ticked."

@@ -224,6 +224,14 @@ requiring both would make the slower one gate the faster one for ever. To catch 
 store up, dispatch the same tag again once its keys exist — the packages are rebuilt from that
 tag, so it receives bytes identical to the other store's.
 
+**Name that store in `stores`** (`both`, `chrome`, `firefox`) when you do. Keys say which
+stores a run _can_ reach, never which it _should_: the store that already holds the version
+would refuse a second submission of it, and the summary would then report it as a store without
+the version — false, and the loudest line in the report. A submission that did not refuse would
+be worse, replacing a package that is under review. A store left out is named as _not part of
+this submission_, distinctly from one whose keys are missing, and raises no warning: leaving it
+out was a decision. A run still fails when none of the stores it names can be reached.
+
 The summary reports what each submission **did** — accepted, refused, or never attempted — not
 whether its credentials existed. A store can hold every key and still refuse: the Chrome Web
 Store rejects a publish until the dashboard's Privacy practices tab is filled, and the upload

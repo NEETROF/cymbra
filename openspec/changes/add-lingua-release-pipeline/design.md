@@ -193,3 +193,31 @@ will read days later to decide whether a store has a version.
 Both submissions are `continue-on-error` so a refusal on one does not skip the other — the same
 independence D14 established for credentials, extended to outcomes. A final step then fails the
 run, after the summary is written, so a refusal is both visible and red.
+
+## D16 — Credentials say what a run *can* reach; only the dispatch says what it *should*
+
+A publishing dispatch names the stores it is for: `both` (the default), `chrome`, or `firefox`.
+
+D14 decided each store on its credentials alone, and that was enough while the stores were
+unequal in only one way — one had keys, the other did not. The first accepted submission broke
+that symmetry. Chrome holds `1.0.2` and is reviewing it; AMO has no listing yet. Catching
+Firefox up means dispatching the same tag again, and with credentials as the only gate, Chrome
+would be submitted to a second time. Two outcomes, both wrong:
+
+- The store refuses the duplicate. The run goes red and the summary reads **"Chrome Web Store —
+  submission REFUSED. It does not have this version."** That sentence is false, and it is the
+  loudest line in a report whose one job is to say which store has what.
+- The store accepts it, and a package **under human review** is replaced.
+
+Readiness cannot express this. "Should this run submit here" is not a property of the keys; it
+is a fact about the store's current state, known to the person dispatching and to no one else.
+So the dispatch carries it.
+
+A store left out is reported distinctly from one whose credentials are missing — "not part of
+this submission" against "its credentials are missing" — because they are different facts and
+D15 exists to stop the report from blurring facts of different kinds. For the same reason, a
+store left out raises no warning: omitting it is a decision, and a warning on a decision teaches
+the reader to skim warnings.
+
+The run still fails when **no named store** can be reached: asking for Firefox alone with no AMO
+credentials publishes nothing, and a green run would say otherwise.
