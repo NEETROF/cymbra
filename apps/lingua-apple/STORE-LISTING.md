@@ -53,7 +53,8 @@ APRÈS L'INSTALLATION
 Cette app installe l'extension ; il reste à l'activer.
 1. Ouvrez Réglages > Apps > Safari > Extensions (sur Mac : Safari > Réglages > Extensions).
 2. Activez Cymbra Lingua, puis autorisez-la sur les sites que vous lisez.
-3. Ouvrez cette app une fois pour choisir votre niveau d'anglais — sans lui, l'extension considère que vous ne connaissez aucun mot.
+3. Dans Safari, ouvrez l'extension depuis le menu de la barre d'adresse et choisissez votre niveau d'anglais — sans lui, l'extension considère que vous ne connaissez aucun mot.
+Rechargez les onglets déjà ouverts pour qu'ils soient surlignés.
 
 LIRE
 Touchez un mot surligné : sa traduction, sa forme du dictionnaire et sa rareté en anglais courant. Puis décidez — « Je connais », « + Deck » pour le réviser plus tard, ou « Ignorer ». Sélectionnez plusieurs mots pour capturer une expression entière avec la phrase d'où elle vient.
@@ -91,9 +92,12 @@ explanatory screen: the extension must be enabled in Safari before anything happ
 
 1. Open Settings > Apps > Safari > Extensions (macOS: Safari > Settings > Extensions),
    enable "Cymbra Lingua", and allow it on the site you will test.
-2. Open the Cymbra Lingua app once and pick an English level (B1 is a good default).
-   This matters: with no level chosen the engine assumes zero known words, so every word
-   is highlighted and the score reads 0% — which looks like a broken extension.
+2. In SAFARI, not in the app, open the extension from the address-bar menu and pick an
+   English level (B1 is a good default). This matters: with no level chosen the engine
+   assumes zero known words, so every word is highlighted and the pill reads 0% — which
+   looks like a broken extension rather than an unconfigured one. A tab opened before the
+   extension was enabled, or before the level was picked, must be reloaded: the level
+   applies to pages analysed after it is set.
 3. In Safari, open any English-language page (a news article works well). Words above
    your level are highlighted and a pill shows the share of the page you already know.
 4. Tap a highlighted word: a card gives its translation, its dictionary form and how
@@ -117,3 +121,27 @@ Apple requires a set **per platform**, and the sizes are imposed:
 What they should show, in this order: a page being read with its highlighting and the pill, the
 word card open on a highlighted word, the review panel, and the statistics screen with the
 estimated vocabulary. The same four the browser listings use — they are what the product is.
+
+## What the app itself says, and why it settles the wording
+
+The host app's own first screen reads: *"Dans Safari, ouvre l'extension depuis le menu de la
+barre d'adresse et choisis ton niveau d'anglais."* An earlier draft of this listing said to open
+the app to pick the level. That was wrong — the app shows an explanatory screen and nothing
+else; the level lives in the extension, inside Safari. Copy that contradicts the product is
+worse than copy that says too little: the reader follows it, finds nothing, and concludes the
+app is broken.
+
+Found by running the app, not by reading the code.
+
+## Screenshots — what the slots actually asked for
+
+Captured from the simulators, at the sizes App Store Connect names on the page itself:
+
+| Slot | Accepted sizes | What was sent |
+|---|---|---|
+| iPhone 6.5" | 1242 x 2688, 1284 x 2778 | 1284 x 2778, rescaled from a 6.9" capture |
+| iPad 13" | 2064 x 2752, 2048 x 2732 | 2064 x 2752, captured natively |
+| macOS | 1280 x 800, 1440 x 900, 2560 x 1600, 2880 x 1800 | still to capture |
+
+A 6.9" capture (1320 x 2868) is **refused** by the 6.5" slot. The dashboard states its own
+sizes; read them there rather than assuming the newest device is the right one.
