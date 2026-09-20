@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.1.0](https://github.com/NEETROF/cymbra/compare/lingua-extension-v1.0.2...lingua-extension-v1.1.0) (2026-09-20)
+
+
+### Features
+
+* **lingua:** let a submission name the stores it is for ([#507](https://github.com/NEETROF/cymbra/issues/507)) ([47eb71d](https://github.com/NEETROF/cymbra/commit/47eb71dc0df5024b9b4a3eff78e92480d689f0ef))
+
+
+### Bug Fixes
+
+* **lingua:** answer each store on its own credentials ([#502](https://github.com/NEETROF/cymbra/issues/502)) ([2761cf6](https://github.com/NEETROF/cymbra/commit/2761cf6ee6488d9a7980a4917c61d73e51b8eb1b))
+* **lingua:** name a licence, which AMO refuses a listed version without ([#508](https://github.com/NEETROF/cymbra/issues/508)) ([3e55d1e](https://github.com/NEETROF/cymbra/commit/3e55d1e4705cb5f6742f12c07c2a3b406ee346c3))
+* **lingua:** name the shelf AMO puts a listed add-on on ([#509](https://github.com/NEETROF/cymbra/issues/509)) ([885da8e](https://github.com/NEETROF/cymbra/commit/885da8ec24fb073a9e4ad64c3fc2b7200d61a959))
+* **lingua:** report what a submission did, not what it was allowed to attempt ([#504](https://github.com/NEETROF/cymbra/issues/504)) ([f124cb2](https://github.com/NEETROF/cymbra/commit/f124cb2067320255f63ea53238ee6aba76632d55))
+
 ## [1.0.2](https://github.com/NEETROF/cymbra/compare/lingua-extension-v1.0.1...lingua-extension-v1.0.2) (2026-09-19)
 
 
