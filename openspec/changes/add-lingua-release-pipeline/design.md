@@ -243,3 +243,9 @@ without it — so it belongs to the act of submitting, which is what the lane is
 rights are granted today, and a store listing is not the place to start granting them by
 accident. It is changed in the AMO dashboard, or here, whenever that becomes a decision rather
 than a default.
+
+The same file carries the add-on's **category** (`language-support`), for the same reason and by
+the same route. AMO asks for these one at a time — the category was refused only once the
+licence was accepted — so the shape of this file is discovered by submitting, not by reading a
+schema. It stays inline for that: each answer must reach the tag already waiting to be
+submitted.

@@ -385,8 +385,12 @@ jobs:
           # absent from every tag that predates it, which is how this was found. A license is
           # release metadata anyway — it describes the terms a version is offered under, not
           # the bytes readers install.
+          # `categories` sits at the top level: it describes the ADD-ON, while `license`
+          # describes the version. language-support is the shelf a vocabulary reader belongs
+          # on — the store's own taxonomy for extensions that help with a language.
           cat > "$RUNNER_TEMP/amo-metadata.json" <<'JSON'
           {
+            "categories": ["language-support"],
             "version": { "license": "all-rights-reserved" }
           }
           JSON
