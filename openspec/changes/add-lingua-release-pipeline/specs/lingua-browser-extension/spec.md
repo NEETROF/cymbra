@@ -30,6 +30,8 @@ Submitting SHALL be a separate act that names the tag it deploys, and SHALL refu
 
 A submission SHALL be able to name which stores it is for. Credentials answer whether a run *can* reach a store, never whether it *should*: a store that already holds the version would refuse a second submission of it, and that refusal is indistinguishable, in the report, from a store that never received it — while a submission that did not refuse would replace a package under review. A store left out SHALL be reported as deliberately omitted, distinctly from one whose credentials do not exist.
 
+The report SHALL also name **Safari**, which this act never reaches: that variant ships inside the Apple host application, on its own tag. A report that names only the destinations an act can reach lets the one it cannot fall out of sight — and nothing fails when Safari is forgotten, so nothing else will raise it.
+
 The run SHALL report each store separately, on **what the submission did** rather than on whether its credentials existed — accepted, refused, or never attempted. It SHALL NOT claim readers have the version, nor that a store received anything it refused or never saw.
 
 #### Scenario: A tag builds and attaches, and stops there
@@ -71,6 +73,10 @@ The run SHALL report each store separately, on **what the submission did** rathe
 #### Scenario: What success means
 - **WHEN** a submission is accepted
 - **THEN** the run reports that store as holding the version in review, not as having delivered it to readers
+
+#### Scenario: The destination this act cannot reach
+- **WHEN** a submission is reported, whatever the stores answered
+- **THEN** the report also states that Safari does not have this version and how it is sent, rather than naming only the destinations this act reaches
 
 #### Scenario: A store holds every credential and still refuses
 - **WHEN** a store rejects the submission for a reason of its own, such as an unfinished listing

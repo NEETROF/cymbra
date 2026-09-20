@@ -249,3 +249,28 @@ the same route. AMO asks for these one at a time — the category was refused on
 licence was accepted — so the shape of this file is discovered by submitting, not by reading a
 schema. It stays inline for that: each answer must reach the tag already waiting to be
 submitted.
+
+## D18 — A report names every destination, including the one it cannot reach
+
+The publishing summary lists Chrome, AMO **and Safari** — the third as a destination that does
+not have this version, with the dispatch that sends it.
+
+The product has three destinations; this lane reaches two. The third is not missing by
+oversight: the safari variant deliberately ships inside the Apple host app, from its own tag
+(D2). But a report that names only what it can reach lets the rest disappear, and this one
+disappears in the worst way — **silently**. An extension-only fix bumps `lingua-extension`,
+never `lingua-apple`, because release-please attributes changes by path and the fix lives under
+`apps/lingua-extension`. No tag, no delivery, no failure. Safari readers simply stay behind,
+and the first sign is a version gap noticed weeks later.
+
+This was not theoretical. Getting `lingua-apple-v1.1.0` delivered at all required moving a
+published tag, because the fix Apple *required* (the 112-character description, D13) had landed
+under the extension and produced no Apple version to carry it. That manoeuvre worked only
+because 1.1.0 had never been delivered; it is not available a second time.
+
+The fix is a sentence, not a mechanism, and that is deliberate. Locking the two components to
+one version would make every Chromium-only fix consume an Apple build number — the coupling D2
+exists to avoid. The lane already has the right tool: a `deliver` dispatch builds `main` and
+uploads under the current marketing version with a fresh build number, which is exactly what an
+extension-only fix deserves. What was missing was anything that *says so* at the moment someone
+is looking at who holds what.
