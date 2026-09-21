@@ -301,14 +301,18 @@ jobs:
       # by a build step. Lingua's is twice over: an esbuild bundle and a .wasm compiled from
       # Rust. The pack is data, rebuilt by scripts/lingua-data/build.sh, and is not in git —
       # REVIEWERS.md says so, because a file a reviewer cannot reproduce blocks the version.
+      # The script owns what goes in (the check lane rebuilds the add-on from its output on
+      # every pull request), and writes the ids this package was built with into the
+      # archive's README: they come from repository variables, so git does not hold them.
       - name: Build the source archive for review
         working-directory: .
+        env:
+          LINGUA_GRPC_WEB_URL: https://api.cymbra.app
+          LINGUA_GOOGLE_CLIENT_ID: ${{ vars.LINGUA_GOOGLE_CLIENT_ID }}
+          LINGUA_APPLE_CLIENT_ID: ${{ vars.LINGUA_APPLE_CLIENT_ID }}
         run: |
           set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/source"
-          git archive HEAD apps/lingua-extension crates/lingua-core crates/lingua-wasm \
-            scripts/lingua-data | tar -x -C "$RUNNER_TEMP/source"
-          cp apps/lingua-extension/REVIEWERS.md "$RUNNER_TEMP/source/README.md"
+          apps/lingua-extension/tool/make_source_archive.sh "$RUNNER_TEMP/source"
           (cd "$RUNNER_TEMP/source" && zip -qr "$GITHUB_WORKSPACE/cymbra-lingua-source-$VERSION.zip" .)
 
       # Private and short-lived, so a dispatch can be inspected without publishing anything.
