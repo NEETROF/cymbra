@@ -36,6 +36,8 @@ jobs:
               - 'backend/lingua/proto/**'
               - 'crates/lingua-wasm/**'
               - 'crates/lingua-core/**'
+              # The pack builder the reviewer's archive runs (`yarn gen:pack`).
+              - 'crates/lingua-pack/**'
               - 'scripts/lingua-data/**'
               - '.github/workflows/lingua-extension-check.yml'
 
@@ -97,3 +99,19 @@ jobs:
       # capability branches (a misplaced __TARGET__ check type-checks but not this).
       - name: Verify browser variants
         run: yarn check:variants
+      # The archive Mozilla's reviewer receives has to build the add-on from itself alone.
+      # It is assembled outside the monorepo and the commands of REVIEWERS.md are run in it:
+      # a new input from outside apps/lingua-extension (a crate, a .proto, a workspace
+      # table) otherwise breaks the reviewer's build while the monorepo build above passes.
+      - name: Rebuild from the reviewer's source archive
+        run: |
+          set -euo pipefail
+          src="$RUNNER_TEMP/lingua-source"
+          tool/make_source_archive.sh "$src"
+          cd "$src/apps/lingua-extension"
+          yarn install --immutable
+          yarn gen:wasm
+          yarn gen:proto
+          yarn gen:pack
+          LINGUA_GRPC_WEB_URL=https://api.cymbra.app yarn build:firefox
+          test -f dist-firefox/manifest.json

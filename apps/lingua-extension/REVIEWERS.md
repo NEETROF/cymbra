@@ -12,7 +12,15 @@ and `wasm/lingua_wasm_bg.wasm` is compiled from the Rust in `crates/lingua-core`
 | `apps/lingua-extension/` | the add-on: `src/` (TypeScript), `manifest.json`, `build.mjs` |
 | `crates/lingua-core/`    | the analysis engine, in Rust                                  |
 | `crates/lingua-wasm/`    | the `wasm-bindgen` wrapper the add-on loads                   |
+| `crates/lingua-pack/`    | the builder that writes the language pack, in Rust            |
 | `scripts/lingua-data/`   | the pipeline that produces the bundled language pack          |
+| `backend/*/proto/`       | the `.proto` files the add-on's sync client is generated from |
+| `Cargo.toml`             | the Rust workspace root, reduced to the three crates above    |
+| `Cargo.lock`             | the dependency versions the submitted `.wasm` was built with  |
+
+The add-on lives in a larger repository. This archive is cut from it by
+`apps/lingua-extension/tool/make_source_archive.sh`, and every pull request rebuilds the
+add-on from the archive alone, with the commands below, so that they keep working.
 
 ## Build it
 
@@ -25,22 +33,21 @@ corepack enable
 yarn install --immutable
 yarn gen:wasm     # compiles crates/lingua-wasm → src/wasm/pkg
 yarn gen:proto    # generates the gRPC-web client stubs from the .proto files
+pip install wordfreq
+yarn gen:pack:real  # builds assets/pack.lingua from public corpora — see the next section
 LINGUA_GRPC_WEB_URL=https://api.cymbra.app yarn build:firefox
 ```
 
-The result is `dist-firefox/`, which is what was submitted.
+The result is `dist-firefox/`, which is what was submitted. The archive's copy of this file
+ends with the sign-in client ids the package was built with; without them the build is the
+same add-on with its sign-in buttons hidden.
 
-## The one file you cannot rebuild from this archive
+## The one file that is not in this archive
 
 `assets/pack.lingua` — the English→French language pack, about 1.2 MB of frequency and
-translation data. It is **generated, not authored**, and it is not kept in version control:
-
-```sh
-pip install wordfreq
-yarn gen:pack:real   # runs scripts/lingua-data/build.sh en-fr assets/pack.lingua
-```
-
-That script downloads its inputs from public corpora — Kaikki's French Wiktionary extract of
+translation data. It is **generated, not authored**, and it is not kept in version control.
+`yarn gen:pack:real` runs `scripts/lingua-data/build.sh en-fr assets/pack.lingua`, which
+downloads its inputs from public corpora — Kaikki's French Wiktionary extract of
 English entries, the `wordfreq` distribution, AGID's inflection list, and the CEFR-J and
 Octanove vocabulary profiles — then reduces them with `scripts/lingua-data/reduce-en-fr.py`,
 which is in this archive. The download is around 200 MB, so it takes a while on a cold cache.

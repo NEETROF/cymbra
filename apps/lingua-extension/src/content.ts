@@ -23,6 +23,7 @@ import {
   type CaptureKind,
   captureSelection,
   classifySelection,
+  packGlossKey,
   SelectionWatcher,
   sentenceAround,
 } from "./reading/selection.ts";
@@ -495,7 +496,8 @@ class ReadingSession {
       }
     }
     const isPhrase = kind === "phrase";
-    const gloss = isPhrase ? null : ((await this.port.gloss(cap.text.toLowerCase())) ?? null);
+    const key = packGlossKey(cap.text);
+    const gloss = key ? ((await this.port.gloss(key)) ?? null) : null;
     this.popup.show({
       headword: cap.text,
       surface: cap.text,

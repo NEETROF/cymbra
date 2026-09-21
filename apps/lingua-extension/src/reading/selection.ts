@@ -97,6 +97,13 @@ export function classifySelection(text: string): CaptureKind {
   return /[-\s]/.test(text) ? "phrase" : "word";
 }
 
+/** The pack entry a selection can be glossed from, or null when it has none. A hyphenated
+ *  compound is a phrase to the reader but one entry to the pack ("well-known"), so it is
+ *  looked up whole; several words are not an entry, and the pack is not asked. */
+export function packGlossKey(text: string): string | null {
+  return /\s/.test(text) ? null : text.toLowerCase();
+}
+
 /** Whether a node sits inside one of the reader's own injected surfaces (popup, drawer,
  *  HUD), which all carry the marker `blocks.ts` and `observer.ts` already honour. */
 function insideReaderUi(node: Node | null): boolean {
