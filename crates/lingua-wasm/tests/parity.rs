@@ -15,18 +15,24 @@
 //! Native/WASM parity (spec `lingua-analysis`, change `add-lingua-wasm`).
 //!
 //! The determinism contract says an equal `analyzer_version` and an equal pack
-//! MUST produce identical analysis output on every target. This one test is
+//! MUST produce identical analysis output on every target. These tests are
 //! compiled twice — once for the host (`cargo test`) and once for wasm
 //! (`wasm-pack test --node`) — and both assert the engine's JSON equals the
 //! same committed golden. If the two targets diverged, one of the runs would
 //! fail the shared golden, so passing on both *is* the parity proof.
 //!
-//! The pack and the golden are embedded with `include_bytes!`/`include_str!`,
+//! The pack and the goldens are embedded with `include_bytes!`/`include_str!`,
 //! which resolve at compile time and need no filesystem — so the wasm run
 //! under Node validates the very same bytes as the host run.
 //!
-//! Refresh the golden after an intended analyser change with:
-//! `LINGUA_UPDATE_GOLDEN=1 cargo test -p lingua-wasm --test parity`.
+//! Two goldens, each under its own update variable, so refreshing one can never
+//! rewrite the other in the same run (`add-lingua-phrase-gloss`, design D7):
+//! `golden.json` matching with no diff is the proof that the page analysis did
+//! not move when the phrase gloss was added.
+//!
+//! Refresh a golden after an intended analyser change with:
+//! `LINGUA_UPDATE_GOLDEN=1 cargo test -p lingua-wasm --test parity` for the
+//! page analysis, `LINGUA_UPDATE_PHRASE_GOLDEN=1 …` for the phrase gloss.
 
 use lingua_wasm::LinguaEngine;
 
@@ -37,8 +43,37 @@ use wasm_bindgen_test::wasm_bindgen_test;
 /// `lingua-pack` and committed so the test is hermetic.
 const PACK: &[u8] = include_bytes!("fixtures/pack.lingua");
 
-/// The expected canonical JSON. Regenerate with `LINGUA_UPDATE_GOLDEN=1`.
+/// The expected canonical JSON of the page analysis. Regenerate with
+/// `LINGUA_UPDATE_GOLDEN=1`.
 const GOLDEN: &str = include_str!("fixtures/golden.json");
+
+/// The expected phrase glosses of [`PHRASES`], one JSON line per selection.
+/// Regenerate with `LINGUA_UPDATE_PHRASE_GOLDEN=1`.
+const PHRASE_GOLDEN: &str = include_str!("fixtures/phrase_golden.json");
+
+/// Selections made of the fixture pack's own words: a known word (`city`, ranked
+/// below the calibration), an inflected form (`cities`), a known word's
+/// irregular form (`ran` → `run`), an unlisted hyphenated compound whose
+/// parts the pack glosses (`run-seldom`), a sentence-cased name the lexicon
+/// holds no form of, and a multi-word selection mixing pack words with words
+/// the pack has never heard of.
+const PHRASES: &[&str] = &[
+    "city",
+    "cities",
+    "ran",
+    "run-seldom",
+    "Jenkins",
+    "she seldom meets such a strange conundrum",
+];
+
+/// A calibrated reader with one lemma forced to `learning`: the state both
+/// goldens are produced under.
+fn fixture_engine() -> LinguaEngine {
+    let mut engine = LinguaEngine::new(PACK).expect("fixture pack loads");
+    engine.set_calibration(3_000);
+    engine.set_status("seldom", "learning");
+    engine
+}
 
 /// Builds the exact scenario both targets analyse: a calibrated reader, one
 /// lemma forced to `learning`, over English prose that mixes known words
@@ -47,41 +82,69 @@ const GOLDEN: &str = include_str!("fixtures/golden.json");
 /// hyphenated compounds — `city-run` (both parts known → one Known token) and
 /// `run-seldom` (a part above the threshold → weakest-link Unknown).
 fn analyse_fixture() -> String {
-    let mut engine = LinguaEngine::new(PACK).expect("fixture pack loads");
-    engine.set_calibration(3_000);
-    engine.set_status("seldom", "learning");
-    engine.analyse(vec![
+    fixture_engine().analyse(vec![
         "The runner runs through many cities every morning before work.".to_owned(),
         "She ran again today, yet she seldom meets such a strange conundrum.".to_owned(),
         "The city-run service runs well, yet the run-seldom rule holds here.".to_owned(),
     ])
 }
 
-/// Asserts the produced JSON equals the committed golden, or rewrites the
-/// golden when `LINGUA_UPDATE_GOLDEN` is set (host only — wasm has no
-/// filesystem here).
+/// Glosses every selection of [`PHRASES`] under the same reader as the page
+/// analysis. Each line is a JSON object holding the selection and the engine's
+/// JSON verbatim, so the golden stays readable and the comparison byte-exact.
+fn gloss_fixture_phrases() -> String {
+    let engine = fixture_engine();
+    let lines: Vec<String> = PHRASES
+        .iter()
+        .map(|text| {
+            let key = serde_json::to_string(text).expect("a JSON string");
+            format!("{{\"text\":{key},\"gloss\":{}}}", engine.phrase_gloss(text))
+        })
+        .collect();
+    format!("[\n{}\n]", lines.join(",\n"))
+}
+
+/// Asserts the produced JSON equals the committed golden `file` (embedded as
+/// `expected`), or rewrites that file when `update_var` is set (host only —
+/// wasm has no filesystem here).
 #[cfg(not(target_arch = "wasm32"))]
-fn assert_matches_golden(actual: &str) {
-    if std::env::var_os("LINGUA_UPDATE_GOLDEN").is_some() {
-        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/golden.json");
+fn assert_matches_golden(actual: &str, file: &str, expected: &str, update_var: &str) {
+    if std::env::var_os(update_var).is_some() {
+        let path = format!("{}/tests/fixtures/{file}", env!("CARGO_MANIFEST_DIR"));
         std::fs::write(path, format!("{actual}\n")).expect("write golden");
         return;
     }
     assert_eq!(
         actual,
-        GOLDEN.trim_end_matches('\n'),
-        "analysis output drifted from the golden — if intended, refresh with \
-         LINGUA_UPDATE_GOLDEN=1 cargo test -p lingua-wasm --test parity",
+        expected.trim_end_matches('\n'),
+        "output drifted from {file} — if intended, refresh with \
+         {update_var}=1 cargo test -p lingua-wasm --test parity",
     );
 }
 
 #[cfg(target_arch = "wasm32")]
-fn assert_matches_golden(actual: &str) {
-    assert_eq!(actual, GOLDEN.trim_end_matches('\n'));
+fn assert_matches_golden(actual: &str, _file: &str, expected: &str, _update_var: &str) {
+    assert_eq!(actual, expected.trim_end_matches('\n'));
 }
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
 #[cfg_attr(not(target_arch = "wasm32"), test)]
 fn analysis_matches_golden() {
-    assert_matches_golden(&analyse_fixture());
+    assert_matches_golden(
+        &analyse_fixture(),
+        "golden.json",
+        GOLDEN,
+        "LINGUA_UPDATE_GOLDEN",
+    );
+}
+
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+#[cfg_attr(not(target_arch = "wasm32"), test)]
+fn phrase_gloss_matches_golden() {
+    assert_matches_golden(
+        &gloss_fixture_phrases(),
+        "phrase_golden.json",
+        PHRASE_GOLDEN,
+        "LINGUA_UPDATE_PHRASE_GOLDEN",
+    );
 }

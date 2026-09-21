@@ -8,7 +8,15 @@ import type {
   StatusChangeIn,
   StatusOp,
 } from "./port.ts";
-import type { CefrLevel, LemmaStatus, LevelRow, PageAnalysis, SeedOrder, VocabularyEstimate } from "./types.ts";
+import type {
+  CefrLevel,
+  LemmaStatus,
+  LevelRow,
+  PageAnalysis,
+  PhraseGloss,
+  SeedOrder,
+  VocabularyEstimate,
+} from "./types.ts";
 
 // The Chromium LinguaPort implementation: the lingua-core WASM module instantiated
 // lazily in the content script's isolated world (design D2). This is the only place
@@ -27,6 +35,7 @@ interface WasmEngine {
   setStatus(lemma: string, status: string): void;
   analyse(blocks: string[]): string;
   gloss(lemma: string): string | undefined;
+  phraseGloss(text: string): string;
   trackedCount(): number;
   addCard(
     lemma: string,
@@ -153,6 +162,10 @@ export class WasmAnalyzerPort implements LinguaPort {
 
   async gloss(lemma: string): Promise<string | undefined> {
     return (await this.engine()).gloss(lemma);
+  }
+
+  async phraseGloss(text: string): Promise<PhraseGloss> {
+    return JSON.parse((await this.engine()).phraseGloss(text)) as PhraseGloss;
   }
 
   async trackedCount(): Promise<number> {

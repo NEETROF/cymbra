@@ -98,7 +98,13 @@ pub fn analyse_document(
 /// (`repo-wide`, `type-safe`) keeps the lowercased surface as its lemma — the
 /// single-word suffix cascade has no business stemming it — and carries its
 /// parts so the classifier can judge it by its weakest one.
-fn resolve_lemmas(token: &Token, lexicon: &(impl Lexicon + ?Sized)) -> (String, Vec<String>) {
+///
+/// Crate-visible so the phrase gloss (`engine::gloss_phrase`) resolves a
+/// selection's tokens exactly as a page's, without the gates above.
+pub(crate) fn resolve_lemmas(
+    token: &Token,
+    lexicon: &(impl Lexicon + ?Sized),
+) -> (String, Vec<String>) {
     if token.parts.is_empty() {
         return (lemmatize(&token.text, lexicon), Vec::new());
     }

@@ -3,7 +3,6 @@ import {
   captureSelection,
   classifySelection,
   MAX_SELECTION_LENGTH,
-  packGlossKey,
   SelectionWatcher,
   sentenceAround,
 } from "@/reading/selection.ts";
@@ -99,24 +98,13 @@ describe("classifySelection", () => {
     expect(classifySelection("seldom")).toBe("word");
   });
 
-  it("calls anything holding a space or a hyphen a phrase", () => {
+  it("calls anything holding whitespace a phrase", () => {
     expect(classifySelection("ship on Friday")).toBe("phrase");
-    // A compound is taken whole rather than reduced to the word a release landed on.
-    expect(classifySelection("repo-wide")).toBe("phrase");
-  });
-});
-
-describe("packGlossKey", () => {
-  it("looks a single word up in lower case", () => {
-    expect(packGlossKey("Seldom")).toBe("seldom");
+    expect(classifySelection("ship on")).toBe("phrase");
   });
 
-  it("looks a hyphenated compound up whole, since the pack holds it as one entry", () => {
-    expect(packGlossKey("Well-known")).toBe("well-known");
-  });
-
-  it("does not ask the pack for several words", () => {
-    expect(packGlossKey("ship on Friday")).toBeNull();
+  it("calls a hyphenated compound a word: one token to the analyser, so it opens the word card", () => {
+    expect(classifySelection("repo-wide")).toBe("word");
   });
 });
 

@@ -1,6 +1,6 @@
 import { resolveContentPort } from "./analyzer/create-port.ts";
 import type { LinguaPort } from "./analyzer/port.ts";
-import type { CefrLevel, LemmaStatus, TokenClass } from "./analyzer/types.ts";
+import type { CefrLevel } from "./analyzer/types.ts";
 import { type Block, collectBlocks } from "./reading/blocks.ts";
 import { Drawer, type DrawerView } from "./reading/drawer.ts";
 import { clear as clearHighlights, injectPageStyles, render } from "./reading/highlight.ts";
@@ -23,10 +23,10 @@ import {
   type CaptureKind,
   captureSelection,
   classifySelection,
-  packGlossKey,
   SelectionWatcher,
   sentenceAround,
 } from "./reading/selection.ts";
+import { decideClick, type PageHit, SelectionCards } from "./reading/selection-card.ts";
 import { type Gesture, WordPopup } from "./reading/wordpopup.ts";
 import { recordExposures, recordWordLearned, utcDay } from "./state/dailystats.ts";
 import { needsLevelChoice } from "./state/level-choice.ts";
@@ -75,21 +75,6 @@ function drawerView(v: unknown): DrawerView {
   return v === "stats" || v === "settings" ? v : "review";
 }
 
-/** The reader's current status for a token class, or null for a new/unknown word — drives
- *  which actions the popup offers when a word is reopened. */
-function statusOfClass(cls: TokenClass): LemmaStatus | null {
-  switch (cls) {
-    case "Known":
-      return "known";
-    case "Ignored":
-      return "ignored";
-    case "Learning":
-      return "learning";
-    default:
-      return null;
-  }
-}
-
 function caretAt(x: number, y: number): { node: Node; offset: number } | null {
   const doc = document as Document & {
     caretRangeFromPoint?: (x: number, y: number) => Range | null;
@@ -104,16 +89,6 @@ function caretAt(x: number, y: number): { node: Node; offset: number } | null {
     return p ? { node: p.offsetNode, offset: p.offset } : null;
   }
   return null;
-}
-
-export function rarityText(cls: TokenClass, calibration: number): string {
-  if (cls === "Learning") return "Dans ton deck — en cours d'apprentissage.";
-  // A declared CEFR level pins the calibration to 0 on purpose (`onSetLevel`): the level
-  // becomes the only source of presumed-known. Rendering that 0 told every such reader they
-  // knew "tes 0 mots les plus courants" — and declaring a level is the normal path, not an
-  // edge case, so this was the first sentence most readers ever saw in a word popup.
-  if (calibration <= 0) return "Peu fréquent — au-delà de ton niveau.";
-  return `Peu fréquent — au-delà de tes ${calibration.toLocaleString("fr-FR")} mots les plus courants.`;
 }
 
 const NOT_ANALYSABLE: ScanStats = statsFromAnalysis({
@@ -146,6 +121,8 @@ class ReadingSession {
   /** Daily exposures are counted once per page load (a re-scan does not re-count). */
   private exposuresRecorded = false;
   private readonly popup: WordPopup;
+  /** What a selection or a click opens — every decision lives there, tested; this class only wires it. */
+  private readonly cards: SelectionCards;
   private readonly drawer: Drawer;
   private readonly hud: LinguaHud;
   private readonly observers: ReadingObservers;
@@ -162,6 +139,11 @@ class ReadingSession {
   // page can hand us the messaging port instead of the in-content WASM engine.
   constructor(private readonly port: LinguaPort) {
     this.popup = new WordPopup({ css: `${tokensCss}\n${popupCss}`, onGesture: (g) => void this.onGesture(g) });
+    this.cards = new SelectionCards(
+      this.port,
+      { show: (content) => this.popup.show(content), generation: () => this.popup.generation() },
+      { calibration: () => this.calibration },
+    );
     this.drawer = new Drawer({
       css: `${tokensCss}\n${reviewCss}\n${statsCss}\n${settingsCss}\n${drawerCss}`,
       port: this.port,
@@ -180,7 +162,7 @@ class ReadingSession {
     });
     this.observers = new ReadingObservers({ onRescan: (containers) => void this.refresh(containers) });
     this.exposure = new ExposureTracker((lemmas) => this.onExposed(lemmas));
-    this.selection = new SelectionWatcher({ onCapture: (kind, cap) => void this.onCapture(kind, cap) });
+    this.selection = new SelectionWatcher({ onCapture: (kind, cap) => this.onCapture(kind, cap) });
   }
 
   async start(): Promise<void> {
@@ -197,11 +179,17 @@ class ReadingSession {
     // the platform's own press-and-hold / handle drag all emit `selectionchange`. A pointer
     // lift only flushes the pending debounce early — it is not a second capture path, which
     // is what the touch-less `mouseup` wiring used to be. The reader adds no gesture of its
-    // own here: on iOS, press-and-hold IS the selection gesture and cannot be shared.
+    // own here: on iOS, press-and-hold IS the selection gesture and cannot be shared. A
+    // pointer going down also starts a gesture for the cards: the click that ends it must
+    // leave alone the card the capture opened (`decideClick`).
     const pointer = { capture: true, passive: true } as const;
+    const pointerDown = (): void => {
+      this.cards.gestureStarted();
+      this.selection.hold();
+    };
     document.addEventListener("selectionchange", () => this.selection.notify(), { passive: true });
-    document.addEventListener("mousedown", () => this.selection.hold(), pointer);
-    document.addEventListener("touchstart", () => this.selection.hold(), pointer);
+    document.addEventListener("mousedown", pointerDown, pointer);
+    document.addEventListener("touchstart", pointerDown, pointer);
     document.addEventListener("mouseup", () => this.selection.release(), pointer);
     document.addEventListener("touchend", () => this.selection.release(), pointer);
     document.addEventListener("touchcancel", () => this.selection.release(), pointer);
@@ -239,7 +227,7 @@ class ReadingSession {
       // The mutating commands acknowledge only AFTER their repaint has settled
       // `this.stats`, so the popup's follow-up `getStats` reads the new
       // percentage — not the pre-change one it would catch if we acked eagerly.
-      if (msg?.type === "captureSelection") void this.onCaptureSelection();
+      if (msg?.type === "captureSelection") this.onCaptureSelection();
       else if (msg?.type === "toggleDrawer") void this.drawer.toggle();
       else if (msg?.type === "openDrawer") void this.drawer.openOn(drawerView(msg.view));
       else if (msg?.type === "setCalibration") {
@@ -424,28 +412,28 @@ class ReadingSession {
     const sel = window.getSelection();
     if (sel && !sel.isCollapsed && /[-\s]/.test(String(sel).trim())) return;
     const caret = caretAt(e.clientX, e.clientY);
-    if (!caret) {
-      if (this.popup.visible()) this.popup.hide();
-      return;
-    }
     // A plain click resolves only PAINTED words; a non-painted (Known/Ignored) word needs the
     // Alt/Option modifier, so a plain click never intercepts one (the page keeps it).
-    const hit = this.hitAt(caret.node, caret.offset, e.altKey);
-    if (!hit) {
-      if (this.popup.visible()) this.popup.hide();
-      return;
-    }
+    const hit = caret ? this.hitAt(caret.node, caret.offset, e.altKey) : null;
     const isLink = e.target instanceof Element && !!e.target.closest("a[href]");
     // Only an UNTREATED word (Unknown) blocks its link — "tant qu'un mot n'a pas été traité".
     // A treated (Learning/decked) word that is a link follows the link on a plain click; its
     // popup stays reachable by selecting it (Alt-click on a mouse). Alt-click reclassifies.
-    if (!e.altKey && hit.token.class === "Learning" && isLink) return;
-    this.showPopup(hit);
-    e.stopPropagation();
+    // The click that ends a selection gesture opens and hides nothing: the capture already
+    // opened the card it asked for.
+    const decision = decideClick({
+      gestureOpenedCard: this.cards.gestureOpenedCard(),
+      hitClass: hit?.token.class ?? null,
+      isLink,
+      altKey: e.altKey,
+    });
+    if (decision.card === "open" && hit) this.showPopup(hit);
+    else if (decision.card === "hide" && this.popup.visible()) this.popup.hide();
+    if (decision.stop) e.stopPropagation();
     // Suppress the default ONLY to block an untreated word's link, or for a deliberate
     // Alt-click — never otherwise, so a painted word inside a <label>/<summary>/<button>
     // keeps its native activation.
-    if (e.altKey || isLink) e.preventDefault();
+    if (decision.cancel) e.preventDefault();
   }
 
   /**
@@ -459,16 +447,17 @@ class ReadingSession {
 
   /** Show the word popup for a resolved hit (status-aware actions), anchored to its box. */
   private showPopup(hit: ResolvedToken): void {
+    this.cards.openForToken(this.pageHit(hit));
+  }
+
+  /** What the cards need from a resolved hit: the token, its box and its sentence, read off the range. */
+  private pageHit(hit: ResolvedToken): PageHit {
     const rect = hit.range.getBoundingClientRect();
-    this.popup.show({
-      headword: hit.token.lemma,
-      surface: hit.token.surface,
-      gloss: hit.token.gloss,
-      rarity: rarityText(hit.token.class, this.calibration),
-      sentence: sentenceAround(hit.range.startContainer, hit.token.surface),
-      status: statusOfClass(hit.token.class),
+    return {
+      token: hit.token,
       rect: { left: rect.left, top: rect.top, bottom: rect.bottom },
-    });
+      sentence: sentenceAround(hit.range.startContainer, hit.token.surface),
+    };
   }
 
   /** Hit-test a non-painted word (Known/Ignored) by resolving only its own block's tokens.
@@ -484,43 +473,30 @@ class ReadingSession {
 
   /** A settled selection, whatever the pointer that made it. One word resolves through the
    *  same hit-test Alt-click uses, so the popup offers the actions matching its real status
-   *  (an already-known word is not offered "Je connais" again); several words open the
-   *  whole-selection card. A word the analyser never saw falls back to that card too. */
-  private async onCapture(kind: CaptureKind, cap: Capture): Promise<void> {
+   *  (an already-known word is not offered "Je connais" again); a word the page analysis
+   *  never saw is read by the analyser instead; several words open the whole-selection
+   *  card. The cards decide, this only hands them the hit. */
+  private onCapture(kind: CaptureKind, cap: Capture): void {
     if (!this.enabled) return;
-    if (kind === "word") {
-      const hit = this.hitAt(cap.range.startContainer, cap.range.startOffset, true);
-      if (hit) {
-        this.showPopup(hit);
-        return;
-      }
-    }
-    const isPhrase = kind === "phrase";
-    const key = packGlossKey(cap.text);
-    const gloss = key ? ((await this.port.gloss(key)) ?? null) : null;
-    this.popup.show({
-      headword: cap.text,
-      surface: cap.text,
-      gloss,
-      rarity: isPhrase ? "Expression — la carte gardera sa phrase d’origine." : "Sélection.",
-      sentence: cap.sentence,
-      rect: cap.rect,
-      expression: isPhrase,
-    });
+    const hit = kind === "word" ? this.hitAt(cap.range.startContainer, cap.range.startOffset, true) : null;
+    this.cards.openForSelection(
+      { text: cap.text, sentence: cap.sentence, rect: cap.rect },
+      hit ? this.pageHit(hit) : null,
+    );
   }
 
   /** The keyboard shortcut: same routing as a pointer selection, so both produce the
    *  same panel for the same selection. */
-  private async onCaptureSelection(): Promise<void> {
+  private onCaptureSelection(): void {
     const cap = captureSelection();
     if (!cap) return;
-    await this.onCapture(classifySelection(cap.text), cap);
+    this.onCapture(classifySelection(cap.text), cap);
   }
 
   private async onGesture(g: Gesture): Promise<void> {
     const key = g.lemma.toLowerCase();
     if (g.status === "learning") {
-      const gloss = (await this.port.gloss(key)) ?? null;
+      const gloss = await this.cards.cardGloss(g);
       await this.port.addCard({
         lemma: key,
         surface: g.surface,

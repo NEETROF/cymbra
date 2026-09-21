@@ -25,6 +25,7 @@
 //! pack. Keep outputs order-stable (no iteration over unordered maps ends up
 //! in a result).
 
+pub mod function_words;
 pub mod language;
 pub mod lemmatize;
 pub mod lexicon;

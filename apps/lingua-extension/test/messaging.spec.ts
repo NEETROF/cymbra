@@ -31,6 +31,17 @@ describe("MessagingLinguaPort", () => {
     expect(send).toHaveBeenCalledWith("reviewGrade", ["good", 42]);
   });
 
+  it("forwards a selection to the engine's phrase gloss", async () => {
+    const answer = {
+      tokens: [{ surface: "gave", lemma: "give", class: "Known", gloss: "donner", function_word: false }],
+    };
+    const send = vi.fn(async (method: string) => (method === "phraseGloss" ? answer : undefined));
+    const port = new MessagingLinguaPort(send);
+
+    expect(await port.phraseGloss("gave up")).toBe(answer);
+    expect(send).toHaveBeenCalledWith("phraseGloss", ["gave up"]);
+  });
+
   it("forwards the sync methods", async () => {
     const send = vi.fn(async (method: string) =>
       method === "applyStatusChanges" || method === "applyCardOps" ? 2 : [],

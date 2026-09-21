@@ -29,7 +29,7 @@ use lingua_core::decks::backup::LinguaState;
 use lingua_core::decks::card::{Card, EncounterSource, Provenance};
 use lingua_core::decks::fsrs::{Rating, ReviewState};
 use lingua_core::decks::review::ReviewSession;
-use lingua_core::engine::analyse_page_json;
+use lingua_core::engine::{analyse_page_json, gloss_phrase_json};
 use lingua_core::knowledge::level::CefrLevel;
 use lingua_core::knowledge::state::{FrequencyRanks, KnowledgeState};
 use lingua_core::knowledge::status::{KnownSource, Status};
@@ -480,6 +480,15 @@ impl LinguaEngine {
     /// The native-language gloss for a form, if the pack carries one.
     pub fn gloss(&self, lemma: &str) -> Option<String> {
         self.pack.gloss(lemma).map(str::to_owned)
+    }
+
+    /// Glosses a reader's selection, returning the canonical JSON of the phrase
+    /// gloss: every token with its dictionary form, its class, its gloss whatever
+    /// the class, its function-word flag, and the parts of an unlisted compound.
+    /// No page gate applies — a selection is read as one block.
+    #[wasm_bindgen(js_name = phraseGloss)]
+    pub fn phrase_gloss(&self, text: &str) -> String {
+        gloss_phrase_json(text, EN, &self.pack, &self.state.knowledge)
     }
 
     /// Number of forms the reader has explicitly marked (any status).

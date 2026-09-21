@@ -42,7 +42,8 @@ export interface Capture {
   range: Range;
 }
 
-/** What a settled selection is: one word, or a bounded multi-word expression. */
+/** What a settled selection is: one word — a hyphenated compound included — or a bounded
+ *  multi-word expression. */
 export type CaptureKind = "word" | "phrase";
 
 /** A "word" character for snapping: letters, digits, apostrophes, hyphens — so a
@@ -91,17 +92,11 @@ export function captureSelection(maxLength: number = MAX_SELECTION_LENGTH): Capt
   return captureFrom(window.getSelection(), maxLength);
 }
 
-/** One word, or an expression: a space or a hyphen makes it a phrase, so "repo-wide" is
- *  taken whole rather than reduced to the word a release landed on. */
+/** One word, or an expression: whitespace makes a phrase, which is also what the core means
+ *  by an expression. A hyphen does not — "repo-wide" is one token to the analyser, so it
+ *  opens the word card, from its page token when there is one. */
 export function classifySelection(text: string): CaptureKind {
-  return /[-\s]/.test(text) ? "phrase" : "word";
-}
-
-/** The pack entry a selection can be glossed from, or null when it has none. A hyphenated
- *  compound is a phrase to the reader but one entry to the pack ("well-known"), so it is
- *  looked up whole; several words are not an entry, and the pack is not asked. */
-export function packGlossKey(text: string): string | null {
-  return /\s/.test(text) ? null : text.toLowerCase();
+  return /\s/.test(text) ? "phrase" : "word";
 }
 
 /** Whether a node sits inside one of the reader's own injected surfaces (popup, drawer,

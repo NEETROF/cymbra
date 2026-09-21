@@ -1,0 +1,8 @@
+[
+{"text":"city","gloss":{"tokens":[{"surface":"city","lemma":"city","class":"Known","gloss":"ville","function_word":false}]}},
+{"text":"cities","gloss":{"tokens":[{"surface":"cities","lemma":"city","class":"Known","gloss":"ville","function_word":false}]}},
+{"text":"ran","gloss":{"tokens":[{"surface":"ran","lemma":"run","class":"Known","gloss":"courir","function_word":false}]}},
+{"text":"run-seldom","gloss":{"tokens":[{"surface":"run-seldom","lemma":"run-seldom","class":"Learning","gloss":null,"function_word":false,"parts":[{"lemma":"run","class":"Known","gloss":"courir","function_word":false},{"lemma":"seldom","class":"Learning","gloss":"rarement","function_word":false}]}]}},
+{"text":"Jenkins","gloss":{"tokens":[{"surface":"Jenkins","lemma":"jenkin","class":"ProperNounOutOfLexicon","gloss":null,"function_word":false}]}},
+{"text":"she seldom meets such a strange conundrum","gloss":{"tokens":[{"surface":"she","lemma":"she","class":"Unknown","gloss":null,"function_word":true},{"surface":"seldom","lemma":"seldom","class":"Learning","gloss":"rarement","function_word":false},{"surface":"meets","lemma":"meet","class":"Unknown","gloss":null,"function_word":false},{"surface":"such","lemma":"such","class":"Unknown","gloss":null,"function_word":true},{"surface":"strange","lemma":"strange","class":"Unknown","gloss":null,"function_word":false},{"surface":"conundrum","lemma":"conundrum","class":"Unknown","gloss":"casse-tête","function_word":false}]}}
+]

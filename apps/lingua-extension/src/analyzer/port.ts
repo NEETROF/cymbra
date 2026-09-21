@@ -1,4 +1,12 @@
-import type { CefrLevel, LemmaStatus, LevelRow, PageAnalysis, SeedOrder, VocabularyEstimate } from "./types.ts";
+import type {
+  CefrLevel,
+  LemmaStatus,
+  LevelRow,
+  PageAnalysis,
+  PhraseGloss,
+  SeedOrder,
+  VocabularyEstimate,
+} from "./types.ts";
 
 // The AnalyzerPort seam (design D2). The content script consumes analysis exclusively
 // through this interface, never touching the WASM module directly. In this Chromium
@@ -16,6 +24,8 @@ export interface AnalyzerPort {
   setStatus(lemma: string, status: LemmaStatus | null): Promise<void>;
   /** The native-language gloss for a form, if the pack carries one. */
   gloss(lemma: string): Promise<string | undefined>;
+  /** Gloss a selection: every token with its dictionary form, class and gloss, no page gate. */
+  phraseGloss(text: string): Promise<PhraseGloss>;
 }
 
 /** An FSRS grade. */

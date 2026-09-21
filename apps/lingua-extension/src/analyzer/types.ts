@@ -40,6 +40,40 @@ export interface PageAnalysis {
   percent: number | null;
 }
 
+/** One part of a hyphenated compound the lexicon does not list, described like a token. */
+export interface PhrasePart {
+  /** The part's dictionary form. */
+  lemma: string;
+  /** Classification, on its own. */
+  class: TokenClass;
+  /** Native-language gloss whatever the class, or null when the pack has none. */
+  gloss: string | null;
+  /** Whether the dictionary form is a closed-class word of the studied language. */
+  function_word: boolean;
+}
+
+/** One token of a glossed selection — every class carries its gloss, unlike `AnalyzedToken`. */
+export interface PhraseToken {
+  /** Surface text, case preserved. */
+  surface: string;
+  /** The dictionary form. */
+  lemma: string;
+  /** Classification. */
+  class: TokenClass;
+  /** Native-language gloss whatever the class, or null when the pack has none. */
+  gloss: string | null;
+  /** Whether the dictionary form is a closed-class word of the studied language. */
+  function_word: boolean;
+  /** The parts of a hyphenated compound the lexicon does not list; absent otherwise. */
+  parts?: PhrasePart[];
+}
+
+/** The gloss of a short text — a selection — read without the page gates (`phraseGloss`). */
+export interface PhraseGloss {
+  /** Tokens in reading order. */
+  tokens: PhraseToken[];
+}
+
 /** The user's status for a dictionary form. Mirrors the WASM `setStatus` vocabulary. */
 export type LemmaStatus = "known" | "learning" | "ignored";
 
