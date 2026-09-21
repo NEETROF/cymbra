@@ -1,0 +1,42 @@
+## 1. The selection watcher (testable core)
+
+- [ ] 1.1 In `apps/lingua-extension/src/reading/selection.ts`, add a `SelectionWatcher` with injectable seams: a timer pair (`setTimeout`/`clearTimeout`), a selection reader (defaults to `window.getSelection`), and an `onCapture(kind, capture)` callback where `kind` is `"word" | "phrase"`.
+- [ ] 1.2 Implement the debounce: every `notify()` restarts a ~350 ms timer; `flush()` fires it immediately (the pointer-lift path); a collapsed or empty selection cancels the pending capture without emitting anything.
+- [ ] 1.3 Classify the settled selection — over `MAX_SELECTION_LENGTH` emits nothing, a text holding a space or a hyphen is `"phrase"`, anything else is `"word"` — reusing the existing `/[-\s]/` rule so the mouse behaviour is unchanged.
+- [ ] 1.4 Ignore selections anchored inside a `[data-cymbra-lingua-skip]` host, so the popup's and drawer's own shadow content never triggers a capture.
+- [ ] 1.5 Drop the re-selection in `captureSelection` (`sel.removeAllRanges()` / `sel.addRange(range)`): keep the word-boundary snap internal to the returned `Capture` and leave the page selection untouched. Expose the snapped `Range` on the `Capture` so callers can hit-test it.
+- [ ] 1.6 Unit-test the watcher in `test/selection.spec.ts` with fake timers: debounce coalescing, `flush()`, collapse-cancels, the three classifications, the skip-host guard, and that `captureSelection` no longer mutates the document selection.
+
+## 2. Wire it into the content script
+
+- [ ] 2.1 In `content.ts`, construct the watcher in `start()` and replace the `mouseup` listener with `document.addEventListener("selectionchange", …)` calling `notify()`.
+- [ ] 2.2 Keep `mouseup` and add `touchend` purely as `flush()` calls — no capture logic of their own.
+- [ ] 2.3 Route `kind === "word"`: resolve the snapped range through `hitAt(node, offset, true)` and render with `showPopup(hit)` (status-aware); fall back to the existing capture card on a miss.
+- [ ] 2.4 Route `kind === "phrase"` to the existing expression card path (`this.popup.show({ …, expression: true })`), unchanged.
+- [ ] 2.5 Make the `captureSelection` message handler (the keyboard shortcut, `background.ts:436`) go through the same routing so the shortcut and the pointer produce identical panels.
+- [ ] 2.6 Delete `onTouchStart`, `onTouchMove`, `onTouchEnd`, `onTouchCancel`, `cancelLongPress`, `fireLongPress`, the `longPress` / `longPressFired` / `suppressClickUntil` / `suppressSelection` fields, the `LONG_PRESS_MS` / `LONG_PRESS_MOVE_TOL` constants, and the four touch listeners in `start()`.
+- [ ] 2.7 Delete the `selectstart` and `contextmenu` suppressors (`content.ts:198`, `content.ts:205`) — they existed only for the long-press.
+- [ ] 2.8 Drop `onClick`'s `suppressClickUntil` early-return; keep its live-selection guard so a click landing during a drag does not open the wrong single-word popup ahead of the debounce.
+- [ ] 2.9 Grep the extension for remaining references to the removed fields and comments mentioning the long-press (`hitAt`'s doc comment, `showPopup`, `onClick`'s "Alt-click / long-press" notes) and correct them.
+
+## 3. Popup placement next to the native callout
+
+- [ ] 3.1 In `positionCard` (`reading/wordpopup.ts`), reserve a callout gutter when the card flips above the selection on a touch device, so it does not land under the platform's Copier/Rechercher bar.
+- [ ] 3.2 Cover the flip-with-gutter case in `test/wordpopup.spec.ts`.
+
+## 4. Gates
+
+- [ ] 4.1 `cd apps/lingua-extension && yarn typecheck && yarn lint && yarn test && yarn format:check`.
+- [ ] 4.2 `yarn build` (all variants) and grep `dist-chromium/`, `dist-firefox/` and `dist-safari/` to confirm no long-press code survived the bundle.
+- [ ] 4.3 Confirm coverage stays ≥ 80 % for the package; the deleted touch handlers should raise it, not lower it.
+- [ ] 4.4 `openspec validate fix-lingua-touch-selection --strict`.
+
+## 5. On-device passes
+
+- [ ] 5.1 iPhone / Safari (via `apps/lingua-apple`): select three words → the expression card opens and "+ Deck" creates the phrase card with its source sentence.
+- [ ] 5.2 iPhone: press-and-hold a single word → the native selection appears *and* the popup opens with the actions matching that word's status (including a word already marked Known or Ignored).
+- [ ] 5.3 iPhone: drag a native selection handle from one word to three → the panel follows and settles on the phrase, with no extra gesture.
+- [ ] 5.4 iPhone: confirm the popup and the native Copier/Rechercher bar do not overlap, near the top and near the bottom of the viewport.
+- [ ] 5.5 Firefox Android: the same three passes (phrase, single word, handle drag).
+- [ ] 5.6 Desktop Chromium and Firefox: a mouse drag still opens the expression card with no perceptible delay, a plain click on a painted word and Alt-click on a non-painted one are unchanged, and the keyboard shortcut still works.
+- [ ] 5.7 Confirm the debounce value on device and adjust the constant if 350 ms reads as laggy or as too eager (design's open question).
