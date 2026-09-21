@@ -186,9 +186,17 @@ function div(className: string): HTMLElement {
   return e;
 }
 
-/** Clearance (px) left for the platform's own selection callout (Copier / Rechercher),
- *  which iOS draws ABOVE the selection — exactly where a flipped card would land. The
- *  reader cannot suppress that bar, so it makes room for it instead. */
+/** Clearance (px) left for the platform's own selection callout (Copier / Chercher /
+ *  Traduire) on the FLIPPED branch only.
+ *
+ *  Measured on an iPhone: iOS has the same placement preference this card does — below the
+ *  selection when there is room, flipped above near the bottom of the viewport. So the two
+ *  DO collide in the common case, and a gutter on the below branch would fix it. That was
+ *  tried and rejected on device: pushing the card ~56 px down detaches it from the words it
+ *  describes, which costs more than the overlap does — the callout is one tap from gone,
+ *  and it only really shows over the taller multi-word card. The flipped branch keeps its
+ *  gutter because there the card would otherwise sit directly ON the bar with nothing to
+ *  dismiss it first. */
 const CALLOUT_GUTTER = 44;
 
 /**
@@ -196,7 +204,8 @@ const CALLOUT_GUTTER = 44;
  * when there isn't room below, and finally clamped so it is never clipped. Near the bottom
  * of the page an un-flipped card showed only partially and — being `position: fixed` —
  * could not be scrolled into view; the flip + clamp fix that. On a touch device the flip
- * also clears the platform's selection callout. Measured after the card is revealed so its
+ * also clears the platform's selection callout (see CALLOUT_GUTTER — the un-flipped branch
+ * deliberately does not). Measured after the card is revealed so its
  * real height/width drive the placement.
  */
 function positionCard(el: HTMLElement, rect: { left: number; top: number; bottom: number }): void {
