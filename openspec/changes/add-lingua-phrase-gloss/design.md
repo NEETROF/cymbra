@@ -240,8 +240,9 @@ analysis did not move.
 
 - [Word-by-word glosses are weak: pack glosses ignore part of speech and some read like
   definitions] → the label says what they are, known words and function words are left out,
-  the rows are bounded and never stored; the copy is settled on real pages with the real
-  pack before release. Removing the rows later would be a spec change of its own.
+  the rows are bounded and never stored; the founder approved the copy, and the rows are
+  judged on real pages with the real pack before release. Removing them later would be a
+  spec change of its own.
 - [Actions wait for one engine call on every card that needs an answer] → it is the price of
   buttons that do not move; the common card — a highlighted word, whose gloss came with the
   page analysis — needs no answer and is as immediate as today.
@@ -266,5 +267,7 @@ None. No stored data, contract, manifest or pack changes. Rollback is a revert.
 
 ## Open Questions
 
-- The exact French copy of the two lines in D5, to be read on a phone before release.
 - Whether 6 rows is the right bound once seen on real pages.
+
+The French copy of the two lines in D5 is settled: the founder approved both as written on
+2026-09-21.

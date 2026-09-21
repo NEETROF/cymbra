@@ -43,7 +43,7 @@
 
 - [ ] 7.1 With the real pack (`yarn gen:pack:real`) on Chrome macOS, with a mouse: a free combination, a phrasal verb whose words are known, an inflected word in an unanalysed block (the card is keyed by the dictionary form and the word turns "learning" on analysed pages), `don't`, a name, a listed and an unlisted compound on an analysed page, a compound inside a phrase, a known word's gloss, a double-click and a drag whose card survives the click, a double-click on an unknown word inside a link (card open, link not followed), and a click on a highlighted link word while an earlier selection is still live
 - [ ] 7.2 Firefox for Android, and Safari on iPhone from a local build of `apps/lingua-apple`: the pending card appears at once while the event page wakes, the answer and the actions arrive together, dragging a selection handle never shows a stale answer, closing a pending card keeps it closed, and tapping a highlighted word while an answer is pending leaves that word's card alone
-- [ ] 7.3 Read the two French lines of D5 on a phone with the founder and settle their wording
+- [ ] 7.3 The two French lines of D5, approved by the founder as written, fit the card on a phone without being cut
 
 ## 8. Close
 
