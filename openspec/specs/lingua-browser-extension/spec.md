@@ -47,15 +47,6 @@ immediately and propagate to the other tabs.
 - **WHEN** the user clicks "+ Deck" on a highlighted word
 - **THEN** the word switches to the "learning" highlight on this tab and on every other open tab, and a card is created with the source sentence
 
-### Requirement: Selection capture on a keyboard shortcut
-A keyboard shortcut SHALL capture the current selection (a word or a phrase, bounded in
-length) and open the panel with the source sentence extracted automatically, allowing the
-selection to be added to the deck as a phrase card.
-
-#### Scenario: Capturing a phrase
-- **WHEN** the user selects three words and presses the shortcut
-- **THEN** the panel shows the phrase and its source sentence, and "+ Deck" creates the card
-
 ### Requirement: Cymbra visual identity
 The UI surfaces the extension owns (icon popup, extension pages) SHALL apply the Cymbra
 visual identity — the "Sonic Luminescence" palette from
@@ -272,4 +263,50 @@ The run SHALL report each store separately, on **what the submission did** rathe
 #### Scenario: A store holds every credential and still refuses
 - **WHEN** a store rejects the submission for a reason of its own, such as an unfinished listing
 - **THEN** the run reports that store as having refused the version rather than as having received it, still submits to the other store, and fails
+
+### Requirement: Selection capture on any pointer
+Selecting text SHALL capture that selection on every pointer — mouse, touch and keyboard shortcut alike — and open the panel with the source sentence extracted automatically.
+The capture SHALL fire once the selection has settled, not on a particular input event, so
+that a touch selection adjusted with the platform's own handles is captured like a mouse
+drag. A selection of one word SHALL open that word's popup with the actions matching its
+current status; a selection of several words, bounded in length, SHALL open the
+whole-selection card, which "+ Deck" adds as a phrase card. A selection longer than the
+bound SHALL capture nothing.
+
+#### Scenario: Capturing a phrase on a phone
+- **WHEN** the reader selects three words on a touch device and lifts the finger
+- **THEN** the panel shows the phrase and its source sentence, and "+ Deck" creates the card
+
+#### Scenario: Adjusting a touch selection with the native handles
+- **WHEN** the reader drags a selection handle to extend a one-word selection to three words
+- **THEN** the panel follows the selection and ends on the three-word phrase, without any further gesture
+
+#### Scenario: Capturing a phrase with the keyboard shortcut
+- **WHEN** the user selects three words and presses the shortcut
+- **THEN** the panel shows the phrase and its source sentence, and "+ Deck" creates the card
+
+#### Scenario: Selecting a single already-known word
+- **WHEN** the reader selects one word whose status is "known"
+- **THEN** the popup opens for that word and does not offer "Je connais" again
+
+#### Scenario: An over-long selection captures nothing
+- **WHEN** the reader selects a passage longer than the phrase bound
+- **THEN** no panel opens and the page keeps its selection
+
+### Requirement: The reader never fights the platform's text selection
+The reader SHALL NOT clear, suppress or pre-empt the host platform's native text selection.
+It SHALL NOT cancel `selectstart`, SHALL NOT suppress the platform's selection callout or
+context menu, and SHALL NOT remove the document's ranges on its own. Where the platform's
+selection gesture and a reader gesture are the same physical gesture, the platform's
+selection SHALL win, and the reader SHALL derive its behaviour from the resulting selection.
+A platform-drawn selection menu appearing alongside the panel is accepted; the panel SHALL
+be positioned so it does not sit under that menu.
+
+#### Scenario: Press-and-hold on a phone
+- **WHEN** the reader presses and holds a word on a touch device
+- **THEN** the platform selects that word and its own menu appears, and the panel opens for that word with the actions matching its status
+
+#### Scenario: Reclassifying a non-highlighted word on a phone
+- **WHEN** the reader presses and holds a word marked "known" or "ignored"
+- **THEN** the popup opens offering to reclassify it, reached through the platform selection rather than a competing long-press gesture
 
