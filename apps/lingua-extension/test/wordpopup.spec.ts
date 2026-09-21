@@ -169,6 +169,23 @@ describe("word popup positioning", () => {
     expect(card.el.style.top).toBe("8px");
   });
 
+  it("leaves room for the platform's selection callout when it flips above on touch", () => {
+    // No room below (150+8+60 = 218 > 192) → flip above. On a mouse: 130-8-60 = 62.
+    // On a touch device the platform draws its Copier/Rechercher bar just above the
+    // selection, so the card clears it: 130-8-44-60 = 18.
+    const place = (coarse: boolean): string => {
+      vi.stubGlobal("matchMedia", () => ({ matches: coarse }) as MediaQueryList);
+      const card = createCard();
+      document.body.append(card.el);
+      stubSize(card, 260, 60);
+      card.show(content({ rect: { left: 40, top: 130, bottom: 150 } }), () => {});
+      return card.el.style.top;
+    };
+    expect(place(false)).toBe("62px");
+    expect(place(true)).toBe("18px");
+    vi.unstubAllGlobals();
+  });
+
   it("clamps the card's left edge within the viewport width", () => {
     const card = createCard();
     document.body.append(card.el);

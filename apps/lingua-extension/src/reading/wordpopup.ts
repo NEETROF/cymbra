@@ -1,4 +1,5 @@
 import type { LemmaStatus } from "../analyzer/types.ts";
+import { isTouchPrimary } from "../state/platform.ts";
 
 // The on-page word popup: a closed shadow root (isolated from page CSS and JS), showing
 // the dictionary form, the form as seen, the pack gloss, a plain-language rarity note,
@@ -185,18 +186,36 @@ function div(className: string): HTMLElement {
   return e;
 }
 
+/** Clearance (px) left for the platform's own selection callout (Copier / Chercher /
+ *  Traduire) on the FLIPPED branch only.
+ *
+ *  Measured on an iPhone: iOS has the same placement preference this card does — below the
+ *  selection when there is room, flipped above near the bottom of the viewport. So the two
+ *  DO collide in the common case, and a gutter on the below branch would fix it. That was
+ *  tried and rejected on device: pushing the card ~56 px down detaches it from the words it
+ *  describes, which costs more than the overlap does — the callout is one tap from gone,
+ *  and it only really shows over the taller multi-word card. The flipped branch keeps its
+ *  gutter because there the card would otherwise sit directly ON the bar with nothing to
+ *  dismiss it first. */
+const CALLOUT_GUTTER = 44;
+
 /**
  * Place the fixed card fully within the viewport: just below the word, flipped ABOVE it
  * when there isn't room below, and finally clamped so it is never clipped. Near the bottom
  * of the page an un-flipped card showed only partially and — being `position: fixed` —
- * could not be scrolled into view; the flip + clamp fix that. Measured after the card is
- * revealed so its real height/width drive the placement.
+ * could not be scrolled into view; the flip + clamp fix that. On a touch device the flip
+ * also clears the platform's selection callout (see CALLOUT_GUTTER — the un-flipped branch
+ * deliberately does not). Measured after the card is revealed so its
+ * real height/width drive the placement.
  */
 function positionCard(el: HTMLElement, rect: { left: number; top: number; bottom: number }): void {
   const r = el.getBoundingClientRect();
   el.style.left = `${clamp(rect.left, 8, viewportWidth() - r.width - 8)}px`;
-  let top = rect.bottom + 8; // prefer just below the word
-  if (top + r.height > viewportHeight() - 8) top = rect.top - 8 - r.height; // no room below → flip above
+  let top = rect.bottom + 8; // prefer just below the word (where no callout sits)
+  if (top + r.height > viewportHeight() - 8) {
+    const gutter = isTouchPrimary() ? CALLOUT_GUTTER : 0; // no room below → flip above the callout
+    top = rect.top - 8 - gutter - r.height;
+  }
   el.style.top = `${clamp(top, 8, viewportHeight() - r.height - 8)}px`; // keep it fully on screen
 }
 
