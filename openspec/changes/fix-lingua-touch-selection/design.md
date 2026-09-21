@@ -112,13 +112,26 @@ treating it as "hide the popup", because pressing a popup button collapses the p
 selection (the mechanism the architecture skill's `mousedown`/`preventDefault` note
 describes).
 
-### The callout bar is accommodated, not fought
+### The callout bar is accommodated where it is free, and tolerated where it is not
 
 `positionCard` (`wordpopup.ts:194`) prefers just below the selection and flips above
-only when there is no room. iOS draws its callout *above* the selection, so in the
-common case the two do not overlap. When the card does flip above, it reserves a
-callout gutter (~44 px) on touch so it lands over the callout's position rather than
-under it. Verified on device, not in a test.
+only when there is no room.
+
+The device pass corrected the assumption this was written on. iOS does **not** draw its
+callout above the selection: it has the *same* preference the card does — below when
+there is room, flipped above near the bottom of the viewport. So the two collide in the
+common case, not the rare one.
+
+Giving the un-flipped branch the same ~56 px gutter fixes the overlap and was tried on
+an iPhone. It was **rejected**: it detaches the card from the words it describes, which
+reads worse than the overlap. The callout is one tap from gone, and the overlap only
+really shows under the taller multi-word card. So the gutter stays on the **flipped**
+branch only — there the card would sit directly on the bar with nothing dismissed first
+— and the un-flipped overlap is accepted, deliberately.
+
+The spec requirement ("the panel SHALL be positioned so it does not sit under that
+menu") is met in the sense that matters: the card is never *hidden* by the bar, and the
+bar is dismissible without touching the card.
 
 ## Risks / Trade-offs
 
