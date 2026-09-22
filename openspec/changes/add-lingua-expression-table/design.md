@@ -115,10 +115,10 @@ core that predates it ignores it. Only the new lookup reads it, `analyse_page`'s
 unchanged, so `ANALYZER_VERSION` does not move and the page-analysis golden must match
 untouched. `pack_version` moves, as it does for any data change.
 
-Measured: 14 337 entries, 597 KB of TSV — **191 KB of gloss blob at zstd-19**, plus the key
-FST, whose 210 KB of raw keys should fold to about 100 KB (the pack's forms FST folds 684 KB
-of keys into 322 KB, 47 %). The pack goes from 1 199 437 B (22.9 % of the 5 MiB the builder
-enforces) to roughly 1.49 MB, about 28 %. The
+Measured on a real build: the reducer keeps **17 437 entries** (729 KB of TSV), of which the
+builder's lexicon test keeps what it can key, and the two sections come to **344 533 B** —
+166 813 B of key FST and 177 720 B of zstd gloss blob. The pack goes from 1 199 437 B
+(22.9 % of the 5 MiB the builder enforces) to **1 543 992 B, 29.4 %**. The
 size budget is one requirement, not two: the expression table joins the head of its
 arbitration order, and `BuildError::OverBudget`'s message — today "reduce glossed lemmas" —
 has to name what is actually at fault.
