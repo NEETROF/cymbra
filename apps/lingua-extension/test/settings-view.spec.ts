@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mountSettings, type SyncControls } from "@/reading/settings-view.ts";
+import type { LinguaPort } from "@/analyzer/port.ts";
 import type { AsyncStorageArea } from "@/state/storage.ts";
 import type { SyncReply } from "@/sync/messages.ts";
 import { makeFakePort } from "./helpers.ts";
@@ -23,7 +24,7 @@ const NOW = Date.UTC(2026, 8, 17, 12, 0, 0);
 
 const opened: string[] = [];
 
-function mount(overrides: Partial<SyncControls> = {}) {
+function mount(overrides: Partial<SyncControls> = {}, port?: LinguaPort, store: AsyncStorageArea = fakeArea()) {
   const container = document.createElement("div");
   document.body.replaceChildren(container);
   const watchers: (() => void)[] = [];
@@ -36,9 +37,9 @@ function mount(overrides: Partial<SyncControls> = {}) {
     watch: (onChange) => void watchers.push(onChange),
     ...overrides,
   };
-  const view = mountSettings(container, makeFakePort().port, fakeArea(), {
+  const view = mountSettings(container, port ?? makeFakePort().port, fakeArea(), {
     persist: async () => {},
-    store: fakeArea(),
+    store,
     sync,
     openPage: (url) => opened.push(url),
   });
@@ -48,7 +49,7 @@ function mount(overrides: Partial<SyncControls> = {}) {
   if (!block) throw new Error("no Synchronisation block");
   const button = [...block.querySelectorAll("button")].find((b) => b.textContent === "Synchroniser maintenant");
   if (!button) throw new Error("no sync button");
-  return { view, block, button, syncNow, notify: () => watchers.forEach((w) => w()) };
+  return { view, container, block, button, syncNow, notify: () => watchers.forEach((w) => w()) };
 }
 
 /** Let the view's floating promises settle. */
@@ -159,5 +160,207 @@ describe("Réglages — Synchronisation", () => {
     await settle();
 
     expect(s.block.textContent).toContain("Synchronisé à l'instant.");
+  });
+});
+
+describe("Réglages — Réinitialisation", () => {
+  beforeEach(() => {
+    document.body.replaceChildren();
+    opened.length = 0;
+  });
+
+  /** The sync cursor keys, spelled out: sync.ts keeps them private, and what a reset has
+   *  to clear is the stored KEY, not a symbol. */
+  const STATUS_CURSOR_KEY = "cymbra-lingua-status-cursor";
+  const CARD_CURSOR_KEY = "cymbra-lingua-card-cursor";
+
+  /** Signed out — the local-only reset flow. Signed in, the block offers "Repartir du
+   *  serveur" instead (covered above), because a local wipe erases nothing. */
+  const localOnly = { available: async () => false };
+
+  /** A port whose destructive calls are observable. */
+  function spyPort(over: Partial<LinguaPort> = {}) {
+    const base = makeFakePort().port;
+    return {
+      ...base,
+      reset: vi.fn(base.reset),
+      resetStatuses: vi.fn(base.resetStatuses),
+      setCalibration: vi.fn(base.setCalibration),
+      setDeclaredLevelAt: vi.fn(base.setDeclaredLevelAt),
+      ...over,
+    };
+  }
+
+  /** The button carrying exactly `label`, anywhere in the mounted settings. */
+  function button(container: HTMLElement, label: string): HTMLButtonElement {
+    const found = [...container.querySelectorAll("button")].find((b) => b.textContent === label);
+    if (!found) throw new Error(`no button "${label}"`);
+    return found;
+  }
+
+  const menuOf = (container: HTMLElement) => button(container, "Réinitialiser…").parentElement!;
+
+  it("keeps the destructive choices behind a first click", async () => {
+    const { container } = mount();
+    await settle();
+
+    expect(button(container, "Réinitialiser…").hidden).toBe(false);
+    expect(button(container, "Complète — tout effacer").closest("div")!.hidden).toBe(true);
+  });
+
+  it("offers the two scopes once opened, and takes them back on cancel", async () => {
+    const { container } = mount();
+    await settle();
+    const reset = button(container, "Réinitialiser…");
+
+    reset.click();
+    expect(reset.hidden).toBe(true);
+    expect(button(container, "Complète — tout effacer").closest("div")!.hidden).toBe(false);
+
+    button(container, "Annuler").click();
+    expect(reset.hidden).toBe(false);
+    expect(button(container, "Complète — tout effacer").closest("div")!.hidden).toBe(true);
+  });
+
+  it("runs a partial reset on one click: statuses and calibration, deck kept", async () => {
+    const port = spyPort();
+    const { container } = mount(localOnly, port);
+    await settle();
+
+    button(container, "Réinitialiser…").click();
+    button(container, "Partielle — statuts + calibration (garde le deck)").click();
+    await settle();
+
+    expect(port.resetStatuses).toHaveBeenCalledOnce();
+    expect(port.reset).not.toHaveBeenCalled(); // the deck survives a partial reset
+    expect(menuOf(container).parentElement!.textContent).toContain("Statuts et calibration réinitialisés.");
+  });
+
+  it("asks a second time before a full wipe, and destroys nothing until then", async () => {
+    const port = spyPort();
+    const { container } = mount(localOnly, port);
+    await settle();
+
+    button(container, "Réinitialiser…").click();
+    button(container, "Complète — tout effacer").click();
+    await settle();
+
+    expect(port.reset).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("Effacer statuts, deck de révision et progression ?");
+    expect(button(container, "Oui, confirmer").closest("div")!.hidden).toBe(false);
+  });
+
+  it("backs out of the confirmed wipe without touching anything", async () => {
+    const port = spyPort();
+    const { container } = mount(localOnly, port);
+    await settle();
+
+    button(container, "Réinitialiser…").click();
+    button(container, "Complète — tout effacer").click();
+    const yes = button(container, "Oui, confirmer");
+    [...container.querySelectorAll("button")]
+      .find((b) => b.textContent === "Annuler" && !b.closest("div")!.hidden)!
+      .click();
+    await settle();
+
+    expect(port.reset).not.toHaveBeenCalled();
+    expect(yes.closest("div")!.hidden).toBe(true);
+    expect(button(container, "Réinitialiser…").hidden).toBe(false);
+  });
+
+  it("clears the sync cursors along with the data, so a later sign-in pulls everything back", async () => {
+    // Wiping locally while the cursors say "already sent" would leave the server holding
+    // state this device can never see again.
+    const store = fakeArea();
+    await store.set({ [STATUS_CURSOR_KEY]: 42, [CARD_CURSOR_KEY]: 17 });
+    const port = spyPort();
+    const { container } = mount(localOnly, port, store);
+    await settle();
+
+    button(container, "Réinitialiser…").click();
+    button(container, "Complète — tout effacer").click();
+    button(container, "Oui, confirmer").click();
+    await settle();
+
+    expect(port.reset).toHaveBeenCalledOnce();
+    expect(await store.get([STATUS_CURSOR_KEY, CARD_CURSOR_KEY])).toEqual({
+      [STATUS_CURSOR_KEY]: 0,
+      [CARD_CURSOR_KEY]: 0,
+    });
+    expect(container.textContent).toContain("Données effacées.");
+  });
+
+  it("leaves the calibration slider out of the way when the pack has levels", async () => {
+    // With a level declared the reader is placed by CEFR, not by a frequency threshold:
+    // 0 disables the manual cut-off. Without levels it falls back to the default.
+    const withLevels = spyPort({ hasLevels: async () => true });
+    const a = mount(localOnly, withLevels);
+    await settle();
+    button(a.container, "Réinitialiser…").click();
+    button(a.container, "Partielle — statuts + calibration (garde le deck)").click();
+    await settle();
+    expect(withLevels.setCalibration).toHaveBeenCalledWith(0);
+
+    const noLevels = spyPort({ hasLevels: async () => false });
+    const b = mount(localOnly, noLevels);
+    await settle();
+    button(b.container, "Réinitialiser…").click();
+    button(b.container, "Partielle — statuts + calibration (garde le deck)").click();
+    await settle();
+    expect(noLevels.setCalibration).toHaveBeenCalledWith(3000);
+  });
+});
+
+describe("Réglages — Niveau d'anglais", () => {
+  beforeEach(() => {
+    document.body.replaceChildren();
+    opened.length = 0;
+  });
+
+  it("hands a chosen level to the engine and drops the manual calibration with it", async () => {
+    const base = makeFakePort().port;
+    const port = {
+      ...base,
+      setDeclaredLevelAt: vi.fn(base.setDeclaredLevelAt),
+      setCalibration: vi.fn(base.setCalibration),
+    };
+    const { container } = mount({}, port);
+    await settle();
+
+    const b1 = [...container.querySelectorAll("button")].find((b) => b.textContent === "B1");
+    expect(b1).toBeDefined();
+    b1!.click();
+    await settle();
+
+    expect(port.setDeclaredLevelAt).toHaveBeenCalledWith("B1", expect.any(Number));
+    expect(port.setCalibration).toHaveBeenCalledWith(0);
+  });
+});
+
+describe("Réglages — liens sortants", () => {
+  beforeEach(() => {
+    document.body.replaceChildren();
+    opened.length = 0;
+  });
+
+  it("sends the reader to the browser's own shortcut editor", async () => {
+    // A content script cannot open chrome:// itself — the background does it (open-page.ts).
+    const { container } = mount();
+    await settle();
+    const config = [...container.querySelectorAll("button")].find(
+      (b) => b.textContent === "Configurer les raccourcis du navigateur",
+    );
+    expect(config).toBeDefined();
+    config!.click();
+
+    expect(opened).toEqual(["chrome://extensions/shortcuts"]);
+  });
+
+  it("points a real erasure at the account, not at the local wipe", async () => {
+    const { container } = mount();
+    await settle();
+    [...container.querySelectorAll("button")].find((b) => b.textContent === "Gérer mes données")!.click();
+
+    expect(opened).toEqual(["account.html#data"]);
   });
 });

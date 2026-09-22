@@ -57,6 +57,32 @@ describe("MessagingLinguaPort", () => {
     expect(send).toHaveBeenCalledWith("exportCardOps", []);
     expect(await port.applyCardOps([])).toBe(2);
   });
+  // The host resolves a call by looking the method name up ON the port (`port[method]`),
+  // so the wire name has to BE the method name. Nothing else checks that: a forwarder
+  // sending "reviewMark" for reviewMarkKnown type-checks, and breaks only on the two
+  // browsers that host the engine in the event page. So walk every method there is.
+  it("forwards every method under its own name, with its arguments untouched", async () => {
+    const forwarded: Array<[string, unknown[]]> = [];
+    const send = vi.fn(async (method: string, args: unknown[]) => {
+      forwarded.push([method, args]);
+      return `answer:${method}`;
+    });
+    const port = new MessagingLinguaPort(send) as unknown as Record<string, (...args: unknown[]) => Promise<unknown>>;
+
+    const methods = Object.getOwnPropertyNames(MessagingLinguaPort.prototype).filter(
+      (m) => m !== "constructor" && m !== "rpc",
+    );
+    expect(methods.length).toBeGreaterThan(30); // the seam is wide; this guards the filter
+
+    for (const name of methods) {
+      forwarded.length = 0;
+      // Sentinels, not realistic values: what is under test is that they arrive in order.
+      const args = Array.from({ length: port[name]!.length }, (_, i) => `${name}#${i}`);
+      const answer = await port[name]!(...args);
+      expect([name, forwarded]).toEqual([name, [[name, args]]]);
+      expect(answer).toBe(`answer:${name}`);
+    }
+  });
 });
 
 describe("rpc host", () => {
