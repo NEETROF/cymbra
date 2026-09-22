@@ -352,3 +352,100 @@ describe("word popup positioning", () => {
     expect(card.el.style.left).toBe(`${1000 - 260 - 8}px`); // vw - width - 8
   });
 });
+
+describe("createCard — the translated sentence", () => {
+  const translation = {
+    sentence: "Elle a abandonné après la troisième tentative.",
+    marks: [{ start: 5, end: 16 }],
+  };
+  const expression = (over: Partial<WordPopupContent> = {}) =>
+    content({ headword: "gave up", surface: "gave up", expression: true, gloss: null, translation, ...over });
+
+  it("labels it as a machine translation and marks where the selection landed", () => {
+    const card = createCard();
+    card.show(expression(), () => {});
+    const block = card.el.querySelector(".translation") as HTMLElement;
+    expect(block.hidden).toBe(false);
+    expect(block.querySelector(".translation-label")!.textContent).toBe("Dans votre phrase — traduction automatique");
+    expect(block.querySelector(".translation-sentence")!.textContent).toBe(translation.sentence);
+    expect([...block.querySelectorAll("mark")].map((m) => m.textContent)).toEqual(["a abandonné"]);
+  });
+
+  it("marks every span when the engine split the selection across a reordering", () => {
+    const card = createCard();
+    card.show(
+      expression({
+        translation: {
+          sentence: "Il a dû supporter le bruit.",
+          marks: [
+            { start: 8, end: 17 },
+            { start: 0, end: 2 },
+          ],
+        },
+      }),
+      () => {},
+    );
+    expect([...card.el.querySelectorAll("mark")].map((m) => m.textContent)).toEqual(["Il", "supporter"]);
+    expect(card.el.querySelector(".translation-sentence")!.textContent).toBe("Il a dû supporter le bruit.");
+  });
+
+  it("keeps the page's markup characters as text — never as live markup", () => {
+    // The sentence came from the page, through the engine: as HTML it could carry anything.
+    const card = createCard();
+    const sentence = 'Utilisez <img src=x onerror="alert(1)"> et <b>ceci</b>.';
+    card.show(expression({ translation: { sentence, marks: [] } }), () => {});
+    const shown = card.el.querySelector(".translation-sentence")!;
+    expect(shown.textContent).toBe(sentence);
+    expect(shown.querySelector("img, b")).toBeNull();
+  });
+
+  it("does not claim the pack has no translation right above one", () => {
+    const card = createCard();
+    card.show(expression(), () => {});
+    expect((card.el.querySelector(".gloss") as HTMLElement).hidden).toBe(true);
+    expect(card.el.textContent).not.toContain("Pas de traduction dans le pack");
+  });
+
+  it("shows no word-by-word rows beside a translation", () => {
+    const card = createCard();
+    card.show(expression({ rows: [{ form: "give", gloss: "Donner" }] }), () => {});
+    expect(card.el.textContent).not.toContain("Mot à mot");
+  });
+
+  it("keeps an expression's dictionary gloss above the translation", () => {
+    const card = createCard();
+    card.show(expression({ headword: "give up", gloss: "Abandonner, renoncer", expression: false }), () => {});
+    expect(card.el.querySelector(".gloss")!.textContent).toBe("Abandonner, renoncer");
+    expect((card.el.querySelector(".translation") as HTMLElement).hidden).toBe(false);
+  });
+
+  it("shows no translation while the card is still waiting", () => {
+    const card = createCard();
+    card.show(expression({ pending: true }), () => {});
+    expect((card.el.querySelector(".translation") as HTMLElement).hidden).toBe(true);
+  });
+
+  it("clears the translation when the next card has none", () => {
+    const card = createCard();
+    card.show(expression(), () => {});
+    card.show(content(), () => {});
+    expect((card.el.querySelector(".translation") as HTMLElement).hidden).toBe(true);
+    expect(card.el.querySelectorAll("mark")).toHaveLength(0);
+  });
+
+  it("skips a mark it cannot place instead of breaking the card", () => {
+    const card = createCard();
+    card.show(expression({ translation: { sentence: "Court.", marks: [{ start: 2, end: 40 }] } }), () => {});
+    expect(card.el.querySelector(".translation-sentence")!.textContent).toBe("Court.");
+  });
+
+  it("gives + Deck no machine translation to store", () => {
+    const card = createCard();
+    const seen: Gesture[] = [];
+    card.show(expression(), (g) => seen.push(g));
+    button(card.el, "+ Deck").click();
+    expect(seen).toHaveLength(1);
+    expect(JSON.stringify(seen[0])).not.toContain("abandonné");
+    expect(seen[0]!.gloss).toBeNull();
+  });
+});

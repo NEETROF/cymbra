@@ -100,7 +100,10 @@ describe("sentenceAndSelection", () => {
     // `put` occurs inside `input` earlier in the same sentence; a search would mark `input`.
     const r = rangeOver("put it", "<p>Check the input and then put it away.</p>");
     const got = sentenceAndSelection(r);
-    expect(got.selection).toEqual({ start: "Check the input and then ".length, end: "Check the input and then put it".length });
+    expect(got.selection).toEqual({
+      start: "Check the input and then ".length,
+      end: "Check the input and then put it".length,
+    });
   });
 
   it("keeps the offsets right across collapsed whitespace and a leading blank", () => {

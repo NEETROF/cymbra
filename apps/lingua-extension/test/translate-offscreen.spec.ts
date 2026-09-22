@@ -30,7 +30,11 @@ describe("OffscreenEngine", () => {
 
     await expect(engine.translate("<b>gave up</b>")).resolves.toEqual({ ok: true, html: "<b>a abandonné</b>" });
     expect(created).toEqual([
-      { url: "offscreen.html", reasons: ["WORKERS"], justification: expect.stringContaining("off every thread that paints") },
+      {
+        url: "offscreen.html",
+        reasons: ["WORKERS"],
+        justification: expect.stringContaining("off every thread that paints"),
+      },
     ]);
     expect(send).toHaveBeenCalledWith({ type: OFFSCREEN_TYPE, markup: "<b>gave up</b>" });
   });
@@ -83,7 +87,10 @@ describe("OffscreenEngine", () => {
 
   it("treats a reply that is not an engine reply as no answer", async () => {
     const { offscreen } = api();
-    const engine = new OffscreenEngine(offscreen, vi.fn(async () => undefined));
+    const engine = new OffscreenEngine(
+      offscreen,
+      vi.fn(async () => undefined),
+    );
     await expect(engine.translate("a")).resolves.toMatchObject({ ok: false });
   });
 });

@@ -12,8 +12,9 @@ carried, and should not be reopened without new ones.
 
 The relevant existing shape: `LinguaPort` is the seam the reading code already talks to, and
 `create-port.ts` picks its implementation per target — in the content script on Chromium, in the
-event page on Firefox and Safari. `sentenceForRange` already returns the sentence a selection
-sits in, found by position, together with the selection's offsets inside it.
+event page on Firefox and Safari. `sentenceForRange` finds the sentence a selection sits in by
+position; it computed the selection's offsets inside it and discarded them, so this change keeps
+them (`sentenceAndSelection`, which `sentenceForRange` now delegates to).
 
 ## Goals / Non-Goals
 
@@ -133,6 +134,43 @@ hosting, its pinning and the setting that gates it are the next change.
 Measured at 64, 128 and 223 MiB: the working set settles at **195.4 MiB either way**. Below it
 the heap grows into that figure during the first translation, buying a copy and saving nothing.
 Mozilla's 234 291 200 is a pre-allocation, not a requirement, and is kept for that reason.
+
+### The card shows it; a slow engine never costs the pack's answer
+
+The proposal named no display, which left the development build showing nothing. The expression
+card now asks the pack and the engine together; neither can take the other down. The engine's
+wait is bounded at 2.5 s, **below** the card's own 3 s timeout, so a cold or slow engine ends in
+exactly the card the reader had before — and the engine keeps warming for the next selection.
+
+With a translation the card shows « Dans votre phrase — traduction automatique », the sentence
+with the selection in the answer colour, built from text nodes only (the sentence came from the
+page). It shows no word-by-word rows beside it — the existing requirement already says those
+appear only when the card has no better answer — and no "the pack has no translation" note
+above one. An expression's dictionary gloss stays. A single word keeps its dictionary card: only
+a selection of several words is translated. No gesture carries the translation, so no path can
+store it.
+
+### Measured in the built extension
+
+The figures above came from a throwaway harness. The same measurements were retaken on the
+extension this change builds (`LINGUA_TRANSLATION_ENGINE`, Chrome 153 headless, macOS ARM), with
+the real model, through the real path — content script or extension page, service worker,
+offscreen document, worker:
+
+| | worst | median |
+|---|---|---|
+| Analyser RPC (`lingua-rpc`), idle | 0.4 ms | 0.2 ms |
+| Analyser RPC during 20 back-to-back translations | 0.7 ms | 0.4 ms |
+| Reader's page frame gap, idle | 18 ms | |
+| Reader's page frame gap during 20 translations | 18 ms | |
+| Control: the page itself blocks 200 ms | 214 ms | |
+
+A first translation, cold (offscreen document, model load, wasm init), took 229 ms; warm ones
+24–47 ms. On a real page through the real content script, `gave up` came back
+`Elle [a abandonné] après la troisième tentative…` and `put up with` came back
+`Il a dû [supporter] le bruit…`. The page's own `<b>` and `<i>` came back as text. Built with the
+engine and no model, the same selections gave exactly the card they gave before the engine
+existed, with nothing reported to the reader.
 
 ## Risks / Trade-offs
 

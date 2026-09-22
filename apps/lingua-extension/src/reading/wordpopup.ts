@@ -1,3 +1,4 @@
+import type { MarkedTranslation } from "../translate/markup.ts";
 import type { LemmaStatus } from "../analyzer/types.ts";
 import { isTouchPrimary } from "../state/platform.ts";
 
@@ -61,6 +62,12 @@ export interface WordPopupContent {
   rows?: GlossRow[];
   /** A complete card that offers nothing to press (its key never arrived). */
   noActions?: boolean;
+  /**
+   * The reader's sentence, machine-translated, with where their selection landed — computed
+   * for display only (add-lingua-translation-engine). No gesture carries it, so it can never
+   * reach a card: only dictionary data is stored.
+   */
+  translation?: MarkedTranslation | null;
 }
 
 /** A card view: a detached element tree plus show/hide, independent of any shadow root. */
@@ -75,6 +82,7 @@ export interface CardView {
 }
 
 const ROWS_LABEL = "Mot à mot — ce n'est pas une traduction de l'expression.";
+const TRANSLATION_LABEL = "Dans votre phrase — traduction automatique";
 const WAITING = "Recherche dans le pack…";
 const NO_GLOSS = "Pas de traduction dans le pack.";
 const NO_GLOSS_EXPRESSION = "Pas de traduction dans le pack pour cette expression.";
@@ -89,8 +97,9 @@ export function createCard(): CardView {
   const seenEl = div("seen");
   const rarityEl = div("rarity");
   const glossEl = div("gloss");
+  const translationEl = div("translation");
   const actionsEl = div("actions");
-  el.append(headwordEl, seenEl, rarityEl, glossEl, actionsEl);
+  el.append(headwordEl, seenEl, rarityEl, glossEl, translationEl, actionsEl);
 
   let current: WordPopupContent | null = null;
   let generation = 0;
@@ -119,13 +128,24 @@ export function createCard(): CardView {
     return b;
   }
 
-  /** The answer slot: the waiting line, the labelled rows, the gloss, or the no-gloss note. */
+  /**
+   * The answer slot: the waiting line, the labelled rows, the gloss, or the no-gloss note. A
+   * translation is a better answer than word-by-word rows, so with one the rows never show —
+   * and neither does the note that the pack has no translation, which would sit, untrue,
+   * right above one.
+   */
   function renderAnswer(content: WordPopupContent): void {
     glossEl.replaceChildren();
     glossEl.classList.remove("empty", "waiting");
+    glossEl.hidden = false;
     if (content.pending) {
       glossEl.textContent = WAITING;
       glossEl.classList.add("waiting");
+      return;
+    }
+    if (content.translation) {
+      if (content.gloss) glossEl.textContent = content.gloss;
+      else glossEl.hidden = true;
       return;
     }
     if (content.rows && content.rows.length > 0) {
@@ -145,6 +165,32 @@ export function createCard(): CardView {
     }
     glossEl.textContent = content.expression ? NO_GLOSS_EXPRESSION : NO_GLOSS;
     glossEl.classList.add("empty");
+  }
+
+  /**
+   * The reader's sentence, translated, their selection's place marked. Built from text nodes
+   * only: the sentence came from the page and through the engine, so as markup it could carry
+   * anything the page held.
+   */
+  function renderTranslation(content: WordPopupContent): void {
+    translationEl.replaceChildren();
+    const t = content.pending ? null : content.translation;
+    translationEl.hidden = !t;
+    if (!t) return;
+    const label = div("translation-label");
+    label.textContent = TRANSLATION_LABEL;
+    const sentence = div("translation-sentence");
+    let at = 0;
+    for (const { start, end } of [...t.marks].sort((a, b) => a.start - b.start)) {
+      if (start < at || end > t.sentence.length) continue; // overlapping or out of range: skip, never throw
+      sentence.append(document.createTextNode(t.sentence.slice(at, start)));
+      const mark = document.createElement("mark");
+      mark.textContent = t.sentence.slice(start, end);
+      sentence.append(mark);
+      at = end;
+    }
+    sentence.append(document.createTextNode(t.sentence.slice(at)));
+    translationEl.append(label, sentence);
   }
 
   const view: CardView = {
@@ -168,6 +214,7 @@ export function createCard(): CardView {
       rarityEl.textContent = content.rarity;
 
       renderAnswer(content);
+      renderTranslation(content);
 
       // Actions depend on the word's current status: hide the one it already is. Offer
       // "Remettre à apprendre" (clear) only for an IGNORED word — ignored is always an

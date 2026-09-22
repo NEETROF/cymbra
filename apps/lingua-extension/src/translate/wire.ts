@@ -20,9 +20,6 @@ export function isTranslateMessage(message: unknown): message is TranslateMessag
   if (typeof sentence !== "string") return false;
   if (selection === null) return true;
   return (
-    !!selection &&
-    typeof selection === "object" &&
-    Number.isInteger(selection.start) &&
-    Number.isInteger(selection.end)
+    !!selection && typeof selection === "object" && Number.isInteger(selection.start) && Number.isInteger(selection.end)
   );
 }

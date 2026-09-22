@@ -1,3 +1,4 @@
+import { createTranslatorPort } from "./translate/create-port.ts";
 import { resolveContentPort } from "./analyzer/create-port.ts";
 import type { LinguaPort } from "./analyzer/port.ts";
 import type { CefrLevel } from "./analyzer/types.ts";
@@ -142,7 +143,9 @@ class ReadingSession {
     this.cards = new SelectionCards(
       this.port,
       { show: (content) => this.popup.show(content), generation: () => this.popup.generation() },
-      { calibration: () => this.calibration },
+      // The translator is none in every shipped build; a development build that side-loads a
+      // model gets the messaging port, which sends the request off this thread.
+      { calibration: () => this.calibration, translator: createTranslatorPort() },
     );
     this.drawer = new Drawer({
       css: `${tokensCss}\n${reviewCss}\n${statsCss}\n${settingsCss}\n${drawerCss}`,
@@ -483,7 +486,7 @@ class ReadingSession {
     if (!this.enabled) return;
     const hit = kind === "word" ? this.hitAt(cap.range.startContainer, cap.range.startOffset, true) : null;
     this.cards.openForSelection(
-      { text: cap.text, sentence: cap.sentence, rect: cap.rect },
+      { text: cap.text, sentence: cap.sentence, selection: cap.selection, rect: cap.rect },
       hit ? this.pageHit(hit) : null,
     );
   }

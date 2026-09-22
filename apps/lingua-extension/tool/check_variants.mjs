@@ -122,8 +122,14 @@ for (const target of ["chromium", "firefox", "safari"]) {
     manifests[target].permissions.includes("offscreen") === offscreen,
     `${target}: the "offscreen" permission should be ${offscreen ? "requested" : "absent"}`,
   );
-  expect(has(target, "engine-worker.js") === hosts, `${target}: engine-worker.js should be ${hosts ? "built" : "absent"}`);
-  expect(has(target, "offscreen.html") === offscreen, `${target}: offscreen.html should be ${offscreen ? "built" : "absent"}`);
+  expect(
+    has(target, "engine-worker.js") === hosts,
+    `${target}: engine-worker.js should be ${hosts ? "built" : "absent"}`,
+  );
+  expect(
+    has(target, "offscreen.html") === offscreen,
+    `${target}: offscreen.html should be ${offscreen ? "built" : "absent"}`,
+  );
   expect(
     has(target, "engine/bergamot-translator.wasm") === hosts,
     `${target}: the engine artefact should be ${hosts ? "bundled" : "absent"}`,
@@ -140,7 +146,10 @@ for (const target of ["chromium", "firefox", "safari"]) {
     // The background relays; which host it relays to is the variant's.
     const bg = read(target, "background.js");
     expect(bg.includes("lingua-translate"), `${target}/background.js: should relay translations`);
-    expect(bg.includes("offscreen.html") === offscreen, `${target}/background.js: offscreen host should be ${offscreen ? "present" : "folded away"}`);
+    expect(
+      bg.includes("offscreen.html") === offscreen,
+      `${target}/background.js: offscreen host should be ${offscreen ? "present" : "folded away"}`,
+    );
     // Whoever constructs the worker names its script: the event page on Firefox, the offscreen
     // document on Chromium — never Chromium's service worker, where `Worker` does not exist and
     // the call would throw at runtime.
@@ -159,4 +168,6 @@ if (failures.length > 0) {
   console.error(`Variant check failed:\n- ${failures.join("\n- ")}`);
   process.exit(1);
 }
-console.log(`Variant check passed: chromium, firefox, safari${ENGINE_BUILD ? " (development build with the engine)" : ""}.`);
+console.log(
+  `Variant check passed: chromium, firefox, safari${ENGINE_BUILD ? " (development build with the engine)" : ""}.`,
+);

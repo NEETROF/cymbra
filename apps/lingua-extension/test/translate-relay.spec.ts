@@ -19,7 +19,10 @@ const selection = { start: 4, end: 11 }; // "gave up"
 
 describe("relayTranslation", () => {
   it("marks the selection in its sentence and reads the translation back", async () => {
-    const { access, seen } = engine(() => ({ ok: true, html: "Elle <b>a abandonné</b> après la troisième tentative." }));
+    const { access, seen } = engine(() => ({
+      ok: true,
+      html: "Elle <b>a abandonné</b> après la troisième tentative.",
+    }));
     const result = await relayTranslation(access, { sentence, selection });
 
     expect(seen).toEqual(["She <b>gave up</b> after the third attempt."]);
@@ -59,7 +62,9 @@ describe("relayTranslation", () => {
 
   it("does not wake the engine for an empty sentence", async () => {
     const { access, seen } = engine(() => ({ ok: true, html: "x" }));
-    await expect(relayTranslation(access, { sentence: "   ", selection: null })).resolves.toEqual({ kind: "unavailable" });
+    await expect(relayTranslation(access, { sentence: "   ", selection: null })).resolves.toEqual({
+      kind: "unavailable",
+    });
     expect(seen).toEqual([]);
   });
 });

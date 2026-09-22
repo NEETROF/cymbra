@@ -6,6 +6,8 @@ import type {
   PhraseToken,
   TokenClass,
 } from "../analyzer/types.ts";
+import type { MarkedTranslation, Span } from "../translate/markup.ts";
+import type { TranslatorPort } from "../translate/port.ts";
 import type { Gesture, GlossRow, WordPopupContent } from "./wordpopup.ts";
 
 // What a selection opens, decided in one place with no DOM and injected ports, so that
@@ -23,6 +25,13 @@ import type { Gesture, GlossRow, WordPopupContent } from "./wordpopup.ts";
 export const ANSWER_TIMEOUT_MS = 3000;
 /** The most word-by-word rows a card shows. */
 export const MAX_ROWS = 6;
+
+/**
+ * How long the card waits for the translation engine. Under ANSWER_TIMEOUT_MS on purpose: a
+ * slow or cold engine must never cost the reader the pack's answer — past this, the card
+ * answers exactly as it would with no engine, and the engine keeps warming for the next one.
+ */
+export const TRANSLATION_WAIT_MS = 2500;
 
 const EXPRESSION_KIND = "Expression — la carte gardera sa phrase d’origine.";
 const SELECTION_KIND = "Sélection.";
@@ -81,6 +90,8 @@ export interface PageHit {
 export interface SelectionInput {
   text: string;
   sentence: string;
+  /** Where the selection sits in `sentence`, found by position — what the translator marks. */
+  selection?: Span | null;
   rect: WordPopupContent["rect"];
 }
 
@@ -236,7 +247,12 @@ export class SelectionCards {
   constructor(
     private readonly ports: SelectionCardPorts,
     private readonly surface: CardSurface,
-    private readonly opts: { calibration: () => number; clock?: Clock },
+    private readonly opts: {
+      calibration: () => number;
+      clock?: Clock;
+      /** The translation engine, when the build carries one — never in a shipped build yet. */
+      translator?: TranslatorPort | null;
+    },
   ) {
     this.clock = opts.clock ?? DEFAULT_CLOCK;
   }
@@ -320,27 +336,38 @@ export class SelectionCards {
       rect: sel.rect,
       expression: true,
     };
+    const translator = this.opts.translator ?? null;
     this.request(
       { ...base, pending: true },
-      () => this.ports.phraseGloss(sel.text),
-      (answer) => {
-        if (!answer) return { ...base, rows: [] };
-        const whole = wholeSelectionMatch(answer);
-        // An expression the pack knows is the answer, not a list of its words: the card is
-        // keyed by its dictionary form — so `gave up` and `give up` are one card — and
-        // offers a word's actions, the knowledge model treating it as a lemma of its own.
-        if (whole) {
-          return {
-            ...base,
-            expression: false,
-            headword: whole.key,
-            gloss: whole.gloss,
-            status: statusOfClass(whole.class),
-          };
-        }
-        return { ...base, rows: rowsFor(answer.tokens, answer.expressions) };
+      // Both at once, and neither can take the other down: a rejected gloss answers as a
+      // missing one always has, and the translator is bounded below the card's own timeout.
+      () =>
+        Promise.all([
+          this.ports.phraseGloss(sel.text).catch(() => null),
+          translator ? this.translateBounded(translator, sel) : null,
+        ]),
+      (answers) => {
+        const [answer, translation] = answers ?? [null, null];
+        const card = expressionCard(base, answer);
+        // A translation is a better answer than word-by-word rows, so they are not kept.
+        return translation ? { ...card, rows: undefined, translation } : card;
       },
     );
+  }
+
+  /** The engine's answer for this selection, or null — never later than TRANSLATION_WAIT_MS. */
+  private translateBounded(translator: TranslatorPort, sel: SelectionInput): Promise<MarkedTranslation | null> {
+    return new Promise((resolve) => {
+      const timer = this.clock.setTimeout(() => resolve(null), TRANSLATION_WAIT_MS);
+      const done = (translation: MarkedTranslation | null): void => {
+        this.clock.clearTimeout(timer);
+        resolve(translation);
+      };
+      translator.translate({ sentence: sel.sentence, selection: sel.selection ?? null }).then(
+        (result) => done(result.kind === "translated" ? result.translation : null),
+        () => done(null),
+      );
+    });
   }
 
   /**
@@ -407,4 +434,23 @@ export class SelectionCards {
       () => settle(null),
     );
   }
+}
+
+/** The card an expression gets from the pack alone — exactly what it was before the engine. */
+function expressionCard(base: WordPopupContent, answer: PhraseGloss | null): WordPopupContent {
+  if (!answer) return { ...base, rows: [] };
+  const whole = wholeSelectionMatch(answer);
+  // An expression the pack knows is the answer, not a list of its words: the card is keyed by
+  // its dictionary form — so `gave up` and `give up` are one card — and offers a word's
+  // actions, the knowledge model treating it as a lemma of its own.
+  if (whole) {
+    return {
+      ...base,
+      expression: false,
+      headword: whole.key,
+      gloss: whole.gloss,
+      status: statusOfClass(whole.class),
+    };
+  }
+  return { ...base, rows: rowsFor(answer.tokens, answer.expressions) };
 }

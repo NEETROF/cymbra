@@ -97,3 +97,39 @@ reported to the reader as an error.
 #### Scenario: No model available
 - **WHEN** the reader selects a phrase and no model is present
 - **THEN** the card answers from the pack exactly as it did before the engine existed, with no mention of a missing engine
+
+### Requirement: A slow engine never costs the reader the pack's answer
+A card that asks the engine SHALL bound its wait for it below the card's own answer timeout, and past that bound SHALL answer exactly as it would with no engine.
+The pack and the engine SHALL be asked together, and the failure of either SHALL NOT prevent the
+other's answer from being shown. A card SHALL NOT show word-by-word rows while it still waits for
+the engine.
+
+#### Scenario: The engine is still cold
+- **WHEN** the reader selects a phrase and the engine has not answered within its bound
+- **THEN** the card shows the pack's answer, as it would with no engine
+
+#### Scenario: The pack fails but the engine answers
+- **WHEN** the pack cannot answer a selection that the engine translates
+- **THEN** the card shows the translation
+
+#### Scenario: Waiting for the engine
+- **WHEN** the pack has answered and the engine has not yet
+- **THEN** the card still shows that it is waiting, not word-by-word rows the translation would replace
+
+### Requirement: The translation is shown as a machine translation, in the reader's sentence
+A card SHALL show a translation as the reader's sentence, labelled as a machine translation, with the selection's place in it marked, and SHALL render every part of it as text.
+Beside a translation the card SHALL show no word-by-word rows and no note that the pack has no
+translation; an expression's dictionary gloss SHALL remain. Only a selection of several words
+SHALL be translated: a single word keeps its dictionary card.
+
+#### Scenario: A translated phrase
+- **WHEN** the engine translates a selection of several words
+- **THEN** the card shows the sentence under a label saying it is a machine translation, with the selection's place marked
+
+#### Scenario: Markup from the page
+- **WHEN** the translated sentence contains characters that would read as markup
+- **THEN** the card shows them as text, and no element is created from them
+
+#### Scenario: A single word
+- **WHEN** the reader selects a single word
+- **THEN** the engine is not asked, and the card is the word's dictionary card

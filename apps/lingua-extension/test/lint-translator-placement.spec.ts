@@ -90,7 +90,8 @@ describe("the translation engine never runs on a thread that paints", () => {
       const offending: string[] = [];
       for (const file of reachable(entry)) {
         for (const line of codeLines(readFileSync(file, "utf8"))) {
-          if (/\bnew\s+Worker\s*\(/.test(line) || /\bloadBergamot\b/.test(line)) offending.push(`${rel(file)}: ${line.trim()}`);
+          if (/\bnew\s+Worker\s*\(/.test(line) || /\bloadBergamot\b/.test(line))
+            offending.push(`${rel(file)}: ${line.trim()}`);
         }
       }
       expect(offending, `${entry} would put the engine on its own thread`).toEqual([]);

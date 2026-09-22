@@ -1,0 +1,88 @@
+name: lingua-engine-build
+
+# Builds the Bergamot translation engine from source (add-lingua-translation-engine) and
+# publishes it as an artefact. Nothing ships from here: a developer downloads the artefact into
+# the directory LINGUA_TRANSLATION_ENGINE points at, with a model side-loaded by hand — see
+# apps/lingua-extension/TRANSLATION.md.
+#
+# It runs when this file changes (the pin lives here) and on demand, not on every pull request:
+# it takes about eight minutes and verifies nothing the extension's own gate does not.
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/lingua-engine-build.yml"]
+  pull_request:
+    paths: [".github/workflows/lingua-engine-build.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lingua-engine-build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The engine is PINNED. Every measurement taken on it — size, memory, latency, that the tag
+  # survives translation — holds for this commit and no other; moving the pin means re-taking
+  # them. mozilla/translations at this commit is Bergamot v0.6.0, emsdk 3.1.8.
+  TRANSLATIONS_COMMIT: a6310e24669df32a9098faadccbb1206448b51cb
+
+jobs:
+  build:
+    # Linux only. The upstream build script itself warns that it breaks on macOS AArch64, and a
+    # runner is already the clean container the script otherwise insists on (ALLOW_RUN_ON_HOST).
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out mozilla/translations at the pinned commit
+        uses: actions/checkout@v5
+        with:
+          repository: mozilla/translations
+          ref: ${{ env.TRANSLATIONS_COMMIT }}
+          submodules: recursive
+          path: translations
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build the engine
+        working-directory: translations
+        env:
+          ALLOW_RUN_ON_HOST: "1"
+        run: python3 inference/scripts/build-wasm.py
+
+      # A build that "succeeds" with an empty or truncated artefact must not pass. The bounds
+      # frame what the pinned commit produced when it was measured (wasm 4 963 402 B, glue
+      # 92 034 B); they are wide enough for a toolchain patch release, not for a different engine.
+      - name: Check the artefacts
+        working-directory: translations/inference/build-wasm
+        run: |
+          set -euo pipefail
+          check() {
+            local file=$1 min=$2 max=$3
+            test -f "$file" || { echo "::error::$file is missing"; exit 1; }
+            local size; size=$(wc -c < "$file")
+            if [ "$size" -lt "$min" ] || [ "$size" -gt "$max" ]; then
+              echo "::error::$file is $size bytes, outside [$min, $max] — not the engine this pin was measured on"
+              exit 1
+            fi
+            echo "$file: $size bytes (gzip $(gzip -9 -c "$file" | wc -c))"
+          }
+          check bergamot-translator.wasm 4000000 6000000
+          check bergamot-translator.js 60000 150000
+          # The extension's worker calls exactly this; the upstream script wraps the glue in it.
+          grep -q "^function loadBergamot(Module) {" bergamot-translator.js \
+            || { echo "::error::bergamot-translator.js does not define loadBergamot(Module)"; exit 1; }
+          echo "$TRANSLATIONS_COMMIT" > TRANSLATIONS_COMMIT
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lingua-translation-engine
+          path: |
+            translations/inference/build-wasm/bergamot-translator.js
+            translations/inference/build-wasm/bergamot-translator.wasm
+            translations/inference/build-wasm/TRANSLATIONS_COMMIT
+          if-no-files-found: error
+          retention-days: 90

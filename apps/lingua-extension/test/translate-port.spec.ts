@@ -17,7 +17,10 @@ describe("MessagingTranslatorPort", () => {
   it("sends the request to the background and returns its translation", async () => {
     const translation = { sentence: "Elle a abandonné.", marks: [{ start: 5, end: 16 }] };
     const send = vi.fn(async () => ({ kind: "translated", translation }));
-    await expect(new MessagingTranslatorPort(send).translate(request)).resolves.toEqual({ kind: "translated", translation });
+    await expect(new MessagingTranslatorPort(send).translate(request)).resolves.toEqual({
+      kind: "translated",
+      translation,
+    });
     expect(send).toHaveBeenCalledWith({ type: TRANSLATE_TYPE, request });
   });
 
@@ -30,7 +33,9 @@ describe("MessagingTranslatorPort", () => {
 
   it("answers unavailable for a reply it cannot read", async () => {
     for (const reply of [undefined, null, {}, { kind: "translated" }, { kind: "translated", translation: {} }]) {
-      await expect(new MessagingTranslatorPort(async () => reply).translate(request)).resolves.toEqual({ kind: "unavailable" });
+      await expect(new MessagingTranslatorPort(async () => reply).translate(request)).resolves.toEqual({
+        kind: "unavailable",
+      });
     }
   });
 
@@ -56,7 +61,9 @@ describe("isTranslateMessage", () => {
     expect(isTranslateMessage({ type: TRANSLATE_TYPE })).toBe(false);
     expect(isTranslateMessage({ type: TRANSLATE_TYPE, request: { selection: null } })).toBe(false);
     expect(isTranslateMessage({ type: TRANSLATE_TYPE, request: { sentence: "x" } })).toBe(false);
-    expect(isTranslateMessage({ type: TRANSLATE_TYPE, request: { sentence: "x", selection: { start: 1.5, end: 2 } } })).toBe(false);
+    expect(
+      isTranslateMessage({ type: TRANSLATE_TYPE, request: { sentence: "x", selection: { start: 1.5, end: 2 } } }),
+    ).toBe(false);
     expect(isTranslateMessage(null)).toBe(false);
   });
 });

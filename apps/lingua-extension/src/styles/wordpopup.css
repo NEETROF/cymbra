@@ -82,6 +82,43 @@
   font-size: 13px;
 }
 
+/* The reader's sentence, machine-translated: a label saying what it is, then the sentence with
+   their selection's place in the answer colour — the same colour a gloss is — so the eye goes
+   from what they selected to what it became. */
+.translation {
+  margin-top: 8px;
+}
+
+.translation[hidden] {
+  display: none;
+}
+
+.translation-label {
+  color: var(--cymbra-lingua-muted);
+  font-style: italic;
+  font-size: 12px;
+}
+
+.translation-sentence {
+  margin-top: 2px;
+  color: var(--cymbra-lingua-text);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.translation-sentence mark {
+  background: none;
+  color: var(--cymbra-lingua-accent);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--cymbra-lingua-accent-strong);
+  text-underline-offset: 2px;
+}
+
+.gloss[hidden] {
+  display: none;
+}
+
 .actions {
   display: flex;
   gap: 6px;

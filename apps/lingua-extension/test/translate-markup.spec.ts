@@ -13,7 +13,10 @@ describe("escapeText", () => {
 
 describe("markSelection", () => {
   const sentence = "She gave up after the third attempt.";
-  const at = (fragment: string) => ({ start: sentence.indexOf(fragment), end: sentence.indexOf(fragment) + fragment.length });
+  const at = (fragment: string) => ({
+    start: sentence.indexOf(fragment),
+    end: sentence.indexOf(fragment) + fragment.length,
+  });
 
   it("tags the selection inside its sentence", () => {
     expect(markSelection(sentence, at("gave up"))).toBe("She <b>gave up</b> after the third attempt.");

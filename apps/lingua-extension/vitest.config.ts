@@ -50,6 +50,12 @@ export default defineConfig({
         "src/analyzer/engine.ts",
         "src/analyzer/create-port.ts",
         "src/analyzer/rpc.ts",
+        // The translation engine's two entry points: the worker that loads Mozilla's glue and
+        // the model (it needs the real wasm, like analyzer/engine.ts), and the offscreen
+        // document that only owns that worker. Their logic lives in translate/host/channel.ts,
+        // relay.ts and offscreen-engine.ts, which are measured.
+        "src/translate/host/engine-worker.ts",
+        "src/translate/host/offscreen.ts",
         "**/*.d.ts",
       ],
     },
