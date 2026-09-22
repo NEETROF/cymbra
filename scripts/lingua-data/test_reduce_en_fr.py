@@ -389,5 +389,36 @@ class FormOfGlosses(unittest.TestCase):
         self.assertFalse(red._is_form_of({}, "Nombre."))
 
 
+class DanglingCoordinator(unittest.TestCase):
+    """A gloss must not open on a coordinator the extraction left hanging."""
+
+    def test_strips_a_lowercase_leading_coordinator(self):
+        # The five shapes the real corpus holds, one per affected entry kind.
+        for raw, want in (
+            ("ou Pluie", "Pluie"),  # rain
+            ("et Biochimie", "Biochimie"),  # biochemistry
+            ("ou Céder, abandonner", "Céder, abandonner"),  # cede
+            ("ou NEET", "NEET"),  # neet
+            ("et Égalité", "Égalité"),  # deuce
+        ):
+            self.assertEqual(red.clean_gloss(raw, 80), want, raw)
+
+    def test_keeps_a_capitalised_coordinator_that_is_the_translation(self):
+        # `etcetera` is glossed "Et cetera": here the coordinator IS the meaning.
+        self.assertEqual(red.clean_gloss("Et cetera", 80), "Et cetera")
+
+    def test_leaves_a_coordinator_inside_the_gloss_alone(self):
+        self.assertEqual(red.clean_gloss("Nom ou titre", 80), "Nom ou titre")
+        self.assertEqual(red.clean_gloss("Étalon et jument", 80), "Étalon et jument")
+
+    def test_leaves_a_word_that_merely_starts_with_those_letters(self):
+        for text in ("Outil", "Ouvrir", "Étrange", "Été"):
+            self.assertEqual(red.clean_gloss(text, 80), text)
+
+    def test_cuts_to_length_after_stripping(self):
+        # The cut counts the text the reader sees, not the coordinator that went.
+        self.assertEqual(red.clean_gloss("ou " + "a" * 50, 10), "a" * 10)
+
+
 if __name__ == "__main__":
     unittest.main()
