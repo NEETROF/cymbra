@@ -117,7 +117,10 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
   void chrome.storage.session.set({ [PANEL_VIEW_KEY]: view }).catch(() => {});
   const openTab = (): void => void chrome.tabs.create({ url: chrome.runtime.getURL("sidepanel.html") });
   const tabId = sender.tab?.id;
-  if (chrome.sidePanel?.open && tabId != null) chrome.sidePanel.open({ tabId }).catch(openTab);
+  // Gated on __REVIEW_IN_PAGE__ (not just the runtime chrome.sidePanel?.open check) so esbuild
+  // drops this call from the Firefox/Safari bundle: the API is unimplemented there, and the
+  // AMO linter flags any reference to it in the bundle text even when it is unreachable.
+  if (!__REVIEW_IN_PAGE__ && chrome.sidePanel?.open && tabId != null) chrome.sidePanel.open({ tabId }).catch(openTab);
   else openTab();
 });
 
@@ -436,8 +439,10 @@ chrome.commands.onCommand.addListener((command) => {
       void chrome.tabs.sendMessage(tabId, { type: "captureSelection" }).catch(() => {});
     } else if (command === "lingua-toggle-drawer") {
       void chrome.tabs.sendMessage(tabId, { type: "toggleDrawer" }).catch(() => {});
-    } else if (command === "lingua-side-panel") {
-      // Chromium only — Firefox was handled synchronously above.
+    } else if (command === "lingua-side-panel" && !__REVIEW_IN_PAGE__) {
+      // Chromium only — Firefox was handled synchronously above. The !__REVIEW_IN_PAGE__
+      // check is redundant with that early return, but it lets esbuild drop this call from
+      // the Firefox/Safari bundle so the AMO linter stops flagging the unimplemented API.
       void chrome.sidePanel.open({ tabId }).catch(() => {});
     }
   });
