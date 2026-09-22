@@ -49,7 +49,7 @@ export interface LinguaSeries {
 export function studiedLanguageOptions(byLanguage: readonly LanguageUsage[], selected: string): string[] {
   const languages = new Set(byLanguage.map((l) => l.language));
   if (selected) languages.add(selected);
-  return [...languages].sort();
+  return [...languages].sort((a, b) => a.localeCompare(b));
 }
 
 /** The window + optional studied-language filter. Empty language = every language. */
