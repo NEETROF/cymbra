@@ -40,6 +40,14 @@ pub mod section {
     /// a pack without it loads on any core and a pack with it loads on an older
     /// core that simply ignores the section.
     pub const LEVELS: &str = "levels";
+    /// Multi-word expressions: an FST mapping a key — the words' dictionary
+    /// forms, lowercase, joined by single spaces — to an expression id.
+    /// Optional and additive, like [`LEVELS`]: written only when the pair's
+    /// sources hold expressions, ignored by a core that does not read it.
+    pub const EXPR: &str = "expr";
+    /// zstd-compressed, offset-indexed expression glosses, in the layout
+    /// [`GLOSS_ZST`] uses, keyed by the id [`EXPR`] maps to.
+    pub const EXPR_ZST: &str = "expr.zst";
     /// The attribution NOTICE (UTF-8).
     pub const NOTICE: &str = "notice";
 }
