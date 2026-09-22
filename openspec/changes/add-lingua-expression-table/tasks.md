@@ -40,7 +40,7 @@
 
 ## 6. On real pages
 
-- [ ] 6.1 `yarn gen:pack:real`, then on Chrome macOS: `put up with`, `gave up`, `raining cats and dogs`, `starting point`, `in spite of`, an expression inside a longer selection, and "+ Deck" on `gave up` then on `give up` landing on one card
+- [x] 6.1 `yarn gen:pack:real`, then on Chrome macOS: `put up with`, `gave up`, `raining cats and dogs`, `starting point`, `in spite of`, an expression inside a longer selection, and "+ Deck" on `gave up` then on `give up` landing on one card
 - [x] 6.2 Record the real pack's size against the budget
 
 ## 7. Close
