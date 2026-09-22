@@ -3,7 +3,8 @@
 - [ ] 1.1 `reduce-en-fr.py`: emit `mwe.tsv` (headword TAB gloss, sorted) from the multi-word kaikki entries, reusing the existing `_FORM_OF` filter, the round-robin sense picker and the two cuts (42 characters per sense, 80 on the joined string) — dropping name-only entries, non-ASCII headwords and entries left senseless
 - [ ] 1.2 In the multi-word path only, drop a sense whose wording `_FORM_OF` lacks (`Présent`, `Futur`, `Conjugaison`, a bare `Graphie`), with a local pattern, so the shared filter and the single-word tables are untouched — assert in a test that `forms.tsv`, `freq.tsv` and `gloss.tsv` are byte-identical before and after this change
 - [ ] 1.3 Add `mwe.tsv` to `scripts/lingua-data/testdata/en-fr/` with a handful of expressions the other testdata words can reach, one of them reachable by two spellings
-- [ ] 1.4 Python tests for the new reduction, on the committed testdata, including a name-only entry and two spellings reaching one headword
+- [ ] 1.4 Bump `pack_version` in `scripts/lingua-data/testdata/en-fr/manifest.json` (`0.0.0-testdata` → `0.0.1-testdata`): the fixture pack's content moves, and the container requirement says a new table bumps it
+- [ ] 1.5 Python tests for the new reduction, on the committed testdata, including a name-only entry and two spellings reaching one headword
 
 ## 2. Pack builder
 
@@ -34,7 +35,7 @@
 - [ ] 5.1 `selection-card.ts`: a match covering the whole selection becomes the answer — headword and key = the expression's dictionary form, form seen = the words as selected, no rows passed (the card renders rows instead of the gloss line), and a word's actions
 - [ ] 5.2 The expression's gloss travels on the `Gesture` so `cardGloss` stores it instead of asking the single-lemma port, which cannot answer a key with a space
 - [ ] 5.3 A match covering part of the selection takes the place of the rows of the words it covers, in reading order and within the same bound, and gives no row when the reader has settled it
-- [ ] 5.4 Tests, one per scenario of the `lingua-browser-extension` delta, including the two "+ Deck" presses that must reach one card and the settled expression
+- [ ] 5.4 Tests, one per scenario of the ADDED requirement — including the two "+ Deck" presses that must reach one card and the settled expression — plus the amended `Nothing worth showing` scenario of the MODIFIED one; the other seven scenarios it carries are already covered by `add-lingua-phrase-gloss`
 - [ ] 5.5 `yarn lint`, `format:check`, `typecheck`, `test`, `build`, `check:variants`
 
 ## 6. On real pages

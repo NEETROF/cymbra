@@ -39,8 +39,9 @@ untouched.
 - **The pack gains an expression table.** A new optional section holds expressions keyed by
   their **dictionary-form sequence** (`gave up` and `give up` are one entry, `give up`) with
   one gloss each, built from the kaikki/Wiktionary source and licence already shipped.
-  Measured at 191 KB compressed for 14 337 entries; the pack goes from 1.20 MB to about
-  1.45 MB, a quarter of the 5 MiB the builder enforces.
+  Measured at 191 KB of compressed glosses for 14 337 entries, plus about 100 KB of key
+  index; the pack goes from 1.20 MB to about 1.49 MB, 28 % of the 5 MiB the builder
+  enforces.
 - **The core finds expressions in a selection.** The phrase gloss returns, beside its
   tokens, the expressions it recognises: the longest dictionary-form sequence that matches,
   over a bounded window, reported with the tokens it covers.

@@ -5,7 +5,7 @@ A pack built for a pair whose sources hold multi-word entries SHALL carry an exp
 The keys SHALL be produced by the core's own lemmatiser at build time, against the lexicon
 that build assembled, so that a key is exactly what the reader's analysis produces from the
 words on the page. An entry SHALL be left out when any of its words is absent from that
-lexicon, when its headword is not of the studied language's script, when it is a proper noun
+lexicon, when its headword falls outside the character set the pair's reducer accepts, when it is a proper noun
 only, or when no sense survives the source's form-of filtering. Where two entries reach one
 key, the entry whose headword already is the key SHALL keep it. The table is optional and
 additive: a pack without it loads, a pack with it loads on a core that does not read it, and
@@ -52,7 +52,7 @@ A pack SHALL be a single versioned container, keyed by pair (studied language �
 The (en → fr) pack embedded in the extension SHALL stay under 5 MiB (5 × 1024 × 1024 bytes, the figure the builder enforces), covering every table it carries: the FST, the frequencies, the compressed glosses and the optional level and expression tables. If it goes over, the build SHALL fail naming what to reduce, and the remedy SHALL take from the optional tables first — the expressions, longest entries then rarest — then from gloss coverage, never from the FST or the frequencies, which every page analysis depends on.
 
 #### Scenario: Arbitrating size
-- **WHEN** `gloss.zst` pushes the build past the budget
+- **WHEN** `gloss.zst` pushes a pack carrying no expression table past the budget
 - **THEN** the build fails, telling the operator to reduce the number of glossed lemmas
 
 #### Scenario: The expression table is what pushes the pack over

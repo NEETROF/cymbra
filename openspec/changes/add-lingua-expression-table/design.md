@@ -80,7 +80,7 @@ since the same regex feeds them. Those four are filtered in the multi-word path 
 ### D3 — Longest match, over a bounded window, non-overlapping
 
 Runs are tried longest first from each token; a token belongs to at most one match. The
-window is **five tokens**: 99.7 % of the table is five words or fewer (10 963 of two, 2 447
+window is **five tokens**: 98.9 % of the table is five words or fewer (10 963 of two, 2 447
 of three, 619 of four, 151 of five), and a selection is bounded at 120 characters anyway, so
 a lookup is a few dozen probes. 406 keys extend a shorter key (`look forward` /
 `look forward to`), which is why longest wins rather than first.
@@ -115,8 +115,10 @@ core that predates it ignores it. Only the new lookup reads it, `analyse_page`'s
 unchanged, so `ANALYZER_VERSION` does not move and the page-analysis golden must match
 untouched. `pack_version` moves, as it does for any data change.
 
-Measured: 14 337 entries, 597 KB of TSV, **191 KB at zstd-19**. The pack goes from
-1 199 437 B (22.9 % of the 5 MiB the builder enforces) to roughly 1.45 MB, about 28 %. The
+Measured: 14 337 entries, 597 KB of TSV — **191 KB of gloss blob at zstd-19**, plus the key
+FST, whose 210 KB of raw keys should fold to about 100 KB (the pack's forms FST folds 684 KB
+of keys into 322 KB, 47 %). The pack goes from 1 199 437 B (22.9 % of the 5 MiB the builder
+enforces) to roughly 1.49 MB, about 28 %. The
 size budget is one requirement, not two: the expression table joins the head of its
 arbitration order, and `BuildError::OverBudget`'s message — today "reduce glossed lemmas" —
 has to name what is actually at fault.
