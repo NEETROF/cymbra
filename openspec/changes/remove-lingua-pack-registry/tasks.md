@@ -28,5 +28,5 @@
 - [x] 4.1 `cargo fmt --all --check` and `cargo clippy --workspace --all-targets -- -D warnings`
 - [x] 4.2 `cargo llvm-cov --workspace --fail-under-lines 80` with the shared ignore regex
 - [x] 4.3 Back office: lint, typecheck, unit tests and the Playwright e2e suite
-- [ ] 4.4 The pull request title carries the breaking marker, and the `proto` workflow reports the removed RPC without failing
+- [x] 4.4 The pull request title carries the breaking marker, and the `proto` workflow reports the removed RPC without failing
 - [x] 4.5 `openspec validate remove-lingua-pack-registry --strict` passes
