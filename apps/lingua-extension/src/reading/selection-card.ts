@@ -148,6 +148,33 @@ export function rowsFor(tokens: PhraseToken[]): GlossRow[] {
   return rows;
 }
 
+/** How far outside a word's box a click still counts as being on it (px). */
+const CLICK_SLACK = 3;
+
+/**
+ * Whether the click actually landed ON the word, and not merely near it.
+ *
+ * `caretRangeFromPoint` snaps to the nearest text position, so a click in a page's empty
+ * margin — above, below or beside the column — resolves to the first or last word of a
+ * line and used to open that word's card. The reader dismisses a card by clicking the empty
+ * space; getting a card for a word they never pointed at is the opposite of that. The word's
+ * own boxes (a line-wrapped word has several) are the truth, with a few pixels of slack so
+ * clicking the edge of a letter still counts.
+ */
+export function clickIsOnWord(x: number, y: number, rects: Iterable<DOMRect>): boolean {
+  for (const r of rects) {
+    if (
+      x >= r.left - CLICK_SLACK &&
+      x <= r.right + CLICK_SLACK &&
+      y >= r.top - CLICK_SLACK &&
+      y <= r.bottom + CLICK_SLACK
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /**
  * What a click does to the card (design D4). A click on nothing hides the card — unless it
  * ends the gesture that opened one, in which case it leaves cards alone; so does a click on

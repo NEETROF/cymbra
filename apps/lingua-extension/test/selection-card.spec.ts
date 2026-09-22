@@ -4,6 +4,7 @@ import {
   ANSWER_TIMEOUT_MS,
   type CardSurface,
   type Clock,
+  clickIsOnWord,
   decideClick,
   MAX_ROWS,
   type PageHit,
@@ -662,6 +663,41 @@ describe("a card that waits for the engine", () => {
     h.hide(); // Escape, a scroll, the reader switched off
     h.elapse();
     expect(h.shows).toHaveLength(1);
+  });
+});
+
+describe("clickIsOnWord", () => {
+  const word = (): DOMRect[] => [{ left: 100, right: 160, top: 40, bottom: 58 } as DOMRect];
+
+  it("takes a click inside the word", () => {
+    expect(clickIsOnWord(130, 50, word())).toBe(true);
+  });
+
+  it("takes a click a couple of pixels off its edge", () => {
+    expect(clickIsOnWord(162, 59, word())).toBe(true);
+  });
+
+  it("refuses a click in the margin beside the line, where the caret would snap to the word", () => {
+    expect(clickIsOnWord(40, 50, word())).toBe(false);
+    expect(clickIsOnWord(400, 50, word())).toBe(false);
+  });
+
+  it("refuses a click above or below the line", () => {
+    expect(clickIsOnWord(130, 10, word())).toBe(false);
+    expect(clickIsOnWord(130, 200, word())).toBe(false);
+  });
+
+  it("takes a click on either box of a word broken across two lines", () => {
+    const wrapped = [
+      { left: 600, right: 640, top: 40, bottom: 58 },
+      { left: 20, right: 60, top: 60, bottom: 78 },
+    ] as DOMRect[];
+    expect(clickIsOnWord(30, 70, wrapped)).toBe(true);
+    expect(clickIsOnWord(300, 70, wrapped)).toBe(false);
+  });
+
+  it("refuses a word with no box at all", () => {
+    expect(clickIsOnWord(130, 50, [])).toBe(false);
   });
 });
 

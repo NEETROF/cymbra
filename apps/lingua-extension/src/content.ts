@@ -26,7 +26,7 @@ import {
   SelectionWatcher,
   sentenceAround,
 } from "./reading/selection.ts";
-import { decideClick, type PageHit, SelectionCards } from "./reading/selection-card.ts";
+import { clickIsOnWord, decideClick, type PageHit, SelectionCards } from "./reading/selection-card.ts";
 import { type Gesture, WordPopup } from "./reading/wordpopup.ts";
 import { recordExposures, recordWordLearned, utcDay } from "./state/dailystats.ts";
 import { needsLevelChoice } from "./state/level-choice.ts";
@@ -413,8 +413,11 @@ class ReadingSession {
     if (sel && !sel.isCollapsed && /[-\s]/.test(String(sel).trim())) return;
     const caret = caretAt(e.clientX, e.clientY);
     // A plain click resolves only PAINTED words; a non-painted (Known/Ignored) word needs the
-    // Alt/Option modifier, so a plain click never intercepts one (the page keeps it).
-    const hit = caret ? this.hitAt(caret.node, caret.offset, e.altKey) : null;
+    // Alt/Option modifier, so a plain click never intercepts one (the page keeps it). The
+    // caret snaps to the nearest text, so a click in the page's empty margin resolves to the
+    // first or last word of a line: the word's own boxes decide whether it was really clicked.
+    const near = caret ? this.hitAt(caret.node, caret.offset, e.altKey) : null;
+    const hit = near && clickIsOnWord(e.clientX, e.clientY, near.range.getClientRects()) ? near : null;
     const isLink = e.target instanceof Element && !!e.target.closest("a[href]");
     // Only an UNTREATED word (Unknown) blocks its link — "tant qu'un mot n'a pas été traité".
     // A treated (Learning/decked) word that is a link follows the link on a plain click; its
