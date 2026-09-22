@@ -130,7 +130,27 @@ function firefoxManifest(base) {
   // auto-open its native sidebar on install/reload (unwanted) and duplicate the drawer.
   delete m.side_panel;
   // Firefox requires an add-on id; it has no "sidePanel" permission.
-  m.browser_specific_settings = { gecko: { id: "lingua@cymbra.app", strict_min_version: "128.0" } };
+  //
+  // data_collection_permissions mirrors the privacy policy's Annex B (cymbra.app/confidentialite):
+  // everything here is OPTIONAL because signing in is optional (offline/anonymous use sends
+  // nothing at all — see REVIEWERS.md, "Where the add-on reaches the network"). Once signed in
+  // and syncing: authenticationInfo (the Cymbra account/session), personallyIdentifyingInfo (its
+  // email), websiteContent (the deck's stored source sentence — no URL, but still page text), and
+  // technicalAndInteraction (daily stats, the random install id; Mozilla requires this one to be
+  // optional regardless). No location/health/financial/communications/search/bookmarks data, and
+  // no browsingActivity — the page address never leaves the device (Annex B). Firefox only shows
+  // this consent UI from version 140; strict_min_version stays 128.0 for now (AMO currently only
+  // warns, not blocks, on a missing key), so this key alone isn't yet a full compliance story for
+  // Firefox 128–139 — see https://mzl.la/firefox-builtin-data-consent, "older Firefox versions".
+  m.browser_specific_settings = {
+    gecko: {
+      id: "lingua@cymbra.app",
+      strict_min_version: "128.0",
+      data_collection_permissions: {
+        optional: ["authenticationInfo", "personallyIdentifyingInfo", "websiteContent", "technicalAndInteraction"],
+      },
+    },
+  };
   m.permissions = (m.permissions ?? []).filter((p) => p !== "sidePanel");
   return m;
 }
