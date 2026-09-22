@@ -338,7 +338,7 @@ export class SelectionCards {
     };
     const translator = this.opts.translator ?? null;
     this.request(
-      { ...base, pending: true },
+      { ...base, pending: true, translating: !!translator },
       // Both at once, and neither can take the other down: a rejected gloss answers as a
       // missing one always has, and the translator is bounded below the card's own timeout.
       () =>

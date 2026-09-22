@@ -449,3 +449,18 @@ describe("createCard — the translated sentence", () => {
     expect(seen[0]!.gloss).toBeNull();
   });
 });
+
+describe("createCard — what a pending card says it waits for", () => {
+  it("says it is translating when the card asked the translation engine", () => {
+    const card = createCard();
+    card.show(content({ pending: true, translating: true }), () => {});
+    expect(card.el.querySelector(".gloss")!.textContent).toBe("Traduction en cours…");
+  });
+
+  it("keeps saying it searches the pack when there is no engine to wait for", () => {
+    // Every shipped build: the pending line is exactly what it was.
+    const card = createCard();
+    card.show(content({ pending: true }), () => {});
+    expect(card.el.querySelector(".gloss")!.textContent).toBe("Recherche dans le pack…");
+  });
+});

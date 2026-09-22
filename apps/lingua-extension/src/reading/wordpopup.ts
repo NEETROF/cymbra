@@ -58,6 +58,11 @@ export interface WordPopupContent {
   rect: { left: number; top: number; bottom: number };
   /** The card is waiting for the engine: a waiting line in place of the answer, no action. */
   pending?: boolean;
+  /**
+   * What the pending card waits on is a translation, not the pack: the pack answers in
+   * milliseconds, so a card that also asked the translation engine is waiting for THAT.
+   */
+  translating?: boolean;
   /** Word-by-word rows, shown under their label instead of the gloss line when non-empty. */
   rows?: GlossRow[];
   /** A complete card that offers nothing to press (its key never arrived). */
@@ -84,6 +89,7 @@ export interface CardView {
 const ROWS_LABEL = "Mot à mot — ce n'est pas une traduction de l'expression.";
 const TRANSLATION_LABEL = "Dans votre phrase — traduction automatique";
 const WAITING = "Recherche dans le pack…";
+const TRANSLATING = "Traduction en cours…";
 const NO_GLOSS = "Pas de traduction dans le pack.";
 const NO_GLOSS_EXPRESSION = "Pas de traduction dans le pack pour cette expression.";
 
@@ -139,7 +145,7 @@ export function createCard(): CardView {
     glossEl.classList.remove("empty", "waiting");
     glossEl.hidden = false;
     if (content.pending) {
-      glossEl.textContent = WAITING;
+      glossEl.textContent = content.translating ? TRANSLATING : WAITING;
       glossEl.classList.add("waiting");
       return;
     }

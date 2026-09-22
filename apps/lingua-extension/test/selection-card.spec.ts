@@ -1161,6 +1161,12 @@ describe("SelectionCards with the translation engine", () => {
     expect(view.last().pending).toBe(true); // the pack answered; the card still waits
   });
 
+  it("says the card is translating while it waits for the engine", () => {
+    const { cards, view } = setup();
+    cards.openForSelection(sel, null);
+    expect(view.last()).toMatchObject({ pending: true, translating: true });
+  });
+
   it("answers from the pack alone when the engine has nothing", async () => {
     const { cards, phraseGloss, asked, view } = setup();
     cards.openForSelection(sel, null);
@@ -1248,6 +1254,7 @@ describe("SelectionCards without the translation engine", () => {
     const cards = new SelectionCards(ports, view.surface, { calibration: () => CALIBRATION, clock, translator: null });
     cards.openForSelection(selection("gave up"), null);
     expect(armed()).not.toContain(TRANSLATION_WAIT_MS);
+    expect(view.last().translating).toBe(false); // the pending line stays "Recherche dans le pack…"
     phraseGloss[0]!.resolve({ tokens: [tok({ surface: "gave", lemma: "give", class: "Unknown", gloss: "Donner" })] });
     for (let i = 0; i < 10; i++) await Promise.resolve();
     expect(view.last().translation).toBeUndefined();
