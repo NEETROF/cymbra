@@ -39,15 +39,17 @@ export interface LinguaSeries {
   exposures: SeriesPoint[];
 }
 
-/** One published data pack in the read-only registry. */
-export interface DataPack {
-  studied: string;
-  native: string;
-  packVersion: string;
-  analyzerVersion: string;
-  builtAt: string;
-  sizeBytes: number;
-  notice: string;
+/**
+ * The studied-language filter's options: the languages of the usage report's per-language
+ * breakdown, plus the one currently selected — so a window with no activity in it never leaves
+ * the filter on a value it no longer offers. Not circular: the report takes only the window;
+ * the language filter applies to the per-day series alone. "" (every language) is the view's
+ * own first option and is not listed here.
+ */
+export function studiedLanguageOptions(byLanguage: readonly LanguageUsage[], selected: string): string[] {
+  const languages = new Set(byLanguage.map((l) => l.language));
+  if (selected) languages.add(selected);
+  return [...languages].sort();
 }
 
 /** The window + optional studied-language filter. Empty language = every language. */
@@ -72,7 +74,6 @@ export function defaultFilters(): LinguaFilters {
 export const useLinguaStore = defineStore("lingua", () => {
   const report = ref<Async<LinguaReport>>(idle);
   const series = ref<Async<LinguaSeries>>(idle);
-  const packs = ref<Async<DataPack[]>>(idle);
   const filters = reactive<LinguaFilters>(defaultFilters());
 
   function currentWindow() {
@@ -117,23 +118,5 @@ export const useLinguaStore = defineStore("lingua", () => {
     ]);
   }
 
-  /** Load the read-only pack registry. */
-  async function loadPacks() {
-    await run(packs, async () =>
-      (await api().lingua.adminListDataPacks({})).packs.map(
-        (p) =>
-          ({
-            studied: p.studied,
-            native: p.native,
-            packVersion: p.packVersion,
-            analyzerVersion: p.analyzerVersion,
-            builtAt: p.builtAt,
-            sizeBytes: Number(p.sizeBytes),
-            notice: p.notice,
-          }) satisfies DataPack,
-      ),
-    );
-  }
-
-  return { report, series, packs, filters, load, loadPacks };
+  return { report, series, filters, load };
 });

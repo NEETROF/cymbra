@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 import { setClientsForTest } from "@/lib/api";
 import type { Clients } from "@/lib/transport";
-import { useLinguaStore } from "@/stores/lingua";
+import { studiedLanguageOptions, useLinguaStore } from "@/stores/lingua";
 import en from "@/i18n/locales/en.json";
 import fr from "@/i18n/locales/fr.json";
 
@@ -35,19 +35,6 @@ function fakeLinguaClients(opts: { failUsage?: boolean } = {}) {
         seriesCalls.push(req);
         return { points: [{ day: "2026-09-10", value: 3n }] };
       },
-      adminListDataPacks: async () => ({
-        packs: [
-          {
-            studied: "en",
-            native: "fr",
-            packVersion: "0.0.0-testdata",
-            analyzerVersion: "1.0.0",
-            builtAt: "2026-09-11",
-            sizeBytes: 747n,
-            notice: "AGID; wordfreq; kaikki.",
-          },
-        ],
-      }),
     },
   } as unknown as Clients;
   return { clients, usageWindows, seriesCalls };
@@ -105,19 +92,30 @@ describe("lingua store", () => {
     expect(store.report.status).toBe("error");
     if (store.report.status === "error") expect(store.report.error).toBeTruthy();
   });
+});
 
-  it("loads the pack registry, converting the byte count", async () => {
-    const { clients } = fakeLinguaClients();
-    setClientsForTest(clients);
-    const store = useLinguaStore();
+// The studied-language filter used to list the languages of the registered data packs; the
+// registry described the test fixture and was removed (change: remove-lingua-pack-registry).
+// It now lists the languages of the usage report's per-language breakdown.
+describe("studiedLanguageOptions", () => {
+  const usage = (language: string) => ({ language, activeAccounts: 1, wordsLearned: 0, reviews: 0 });
 
-    await store.loadPacks();
+  it("lists the languages the usage report breaks down, once each, sorted", () => {
+    expect(studiedLanguageOptions([usage("es"), usage("en"), usage("es")], "")).toEqual(["en", "es"]);
+  });
 
-    expect(store.packs.status).toBe("success");
-    if (store.packs.status === "success") {
-      expect(store.packs.data[0].sizeBytes).toBe(747);
-      expect(store.packs.data[0].packVersion).toBe("0.0.0-testdata");
-    }
+  it("keeps the selected language when the new window holds no activity in it", () => {
+    // Without this a window change would leave the select on a value it no longer offers.
+    expect(studiedLanguageOptions([usage("es")], "en")).toEqual(["en", "es"]);
+  });
+
+  it("offers nothing but the selected language while the report is still empty", () => {
+    expect(studiedLanguageOptions([], "en")).toEqual(["en"]);
+    expect(studiedLanguageOptions([], "")).toEqual([]);
+  });
+
+  it("never lists every-language itself — that is the select's own first option", () => {
+    expect(studiedLanguageOptions([usage("en")], "")).not.toContain("");
   });
 });
 
