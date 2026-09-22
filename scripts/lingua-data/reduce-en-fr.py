@@ -397,8 +397,16 @@ def resolve_forms(pairs, ranks, targets=None, glossed=frozenset()):
     }
 
 
+# A sense left hanging on a coordinator: the Wiktionary line read "(Vieilli) ou Pluie" and
+# the parenthetical went, so the gloss opens on "ou". LOWERCASE only — `etcetera` is glossed
+# "Et cetera", where the coordinator IS the translation, and a capital is what tells them
+# apart across the 15 entries the corpus holds.
+_DANGLING_COORDINATOR = re.compile(r"^(?:ou|et)\s+")
+
+
 def clean_gloss(text, maxlen):
     g = re.sub(r"\s+", " ", text).strip().rstrip(".").strip()
+    g = _DANGLING_COORDINATOR.sub("", g)
     if len(g) > maxlen:
         g = g[:maxlen].rstrip()
     return g
