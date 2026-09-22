@@ -1,6 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AsyncStorageArea } from "@/state/storage.ts";
-import { loadDailyStats, recordExposures, recordReview, recordWordLearned, utcDay } from "@/state/dailystats.ts";
+import {
+  clearDailyStats,
+  dailyRecorder,
+  loadDailyStats,
+  recordExposures,
+  recordReview,
+  recordWordLearned,
+  utcDay,
+} from "@/state/dailystats.ts";
 
 function fakeArea(seed: Record<string, unknown> = {}): AsyncStorageArea & { store: Record<string, unknown> } {
   const store: Record<string, unknown> = { ...seed };
@@ -49,5 +57,58 @@ describe("daily counters", () => {
 
   it("returns an empty map for a fresh store", async () => {
     expect(await loadDailyStats(fakeArea())).toEqual({});
+  });
+});
+
+describe("dailyRecorder", () => {
+  afterEach(() => vi.useRealTimers());
+
+  /** The recorder is fire-and-forget, so let its write finish before reading it back.
+   *  One event at a time: two overlapping bumps may lose an increment, which the module
+   *  accepts on purpose — these are approximate activity counts, not state. */
+  const settle = async () => {
+    for (let i = 0; i < 5; i++) await Promise.resolve();
+  };
+
+  it("counts a grade as a review and a mark-known as a word learned, on today's UTC day", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-04T12:00:00Z"));
+    const day = utcDay(Date.parse("2026-03-04T12:00:00Z"));
+
+    const area = fakeArea();
+    const record = dailyRecorder(area);
+    record("review");
+    await settle();
+    record("learned");
+    await settle();
+    record("review");
+    await settle();
+
+    expect(await loadDailyStats(area)).toEqual({ [day]: { exposures: 0, wordsLearned: 1, reviews: 2 } });
+  });
+
+  it("files each event under the day it happened, across a UTC midnight", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-04T23:59:00Z"));
+    const area = fakeArea();
+    const record = dailyRecorder(area);
+    record("review");
+    await settle();
+    vi.setSystemTime(new Date("2026-03-05T00:01:00Z"));
+    record("review");
+    await settle();
+
+    const stats = await loadDailyStats(area);
+    expect(Object.keys(stats)).toHaveLength(2);
+  });
+});
+
+describe("clearDailyStats", () => {
+  it("drops every local count, as a Lingua-only erasure must", async () => {
+    const area = fakeArea();
+    await recordExposures(area, 5, 3);
+    await recordReview(area, 6);
+    await clearDailyStats(area);
+    expect(await loadDailyStats(area)).toEqual({});
   });
 });
