@@ -58,3 +58,16 @@ fn pipeline_output_round_trips_through_the_reader() {
     assert_eq!(pack.gloss("conundrum"), Some("casse-tête"));
     assert!(pack.notice().contains("CC BY-SA"));
 }
+
+#[test]
+fn pipeline_reads_the_optional_expression_table() {
+    let inputs = inputs_from_dir(&testdata_dir()).expect("read testdata");
+    // `mwe.tsv` reaches the builder as the reducer wrote it, spellings and all:
+    // `city running` is still a line of its own here, and only the builder,
+    // holding the lexicon, folds it into the key `city run`.
+    assert!(inputs.expressions.contains(&(
+        "city running".to_owned(),
+        "Course à pied en ville".to_owned()
+    )));
+    assert!(build_pack(&inputs).expect("build").len() < MAX_PACK_BYTES);
+}

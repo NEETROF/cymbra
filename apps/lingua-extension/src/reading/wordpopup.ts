@@ -28,6 +28,8 @@ export interface Gesture {
   status: LemmaStatus | null;
   /** Whether the card was a multi-word expression (its gloss is never asked of the pack). */
   expression: boolean;
+  /** The answer the card showed, so an expression's gloss reaches the card it creates. */
+  gloss: string | null;
 }
 
 /** One word-by-word row: a dictionary form the reader does not know, with its pack gloss. */
@@ -110,6 +112,7 @@ export function createCard(): CardView {
         sentence: current.sentence,
         status,
         expression: !!current.expression,
+        gloss: current.gloss,
       });
       view.hide();
     });

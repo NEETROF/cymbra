@@ -101,6 +101,12 @@ pub struct Pack {
     levels: Vec<u8>,
     /// Gloss per lemma id, for the lemmas that carry one.
     glosses: BTreeMap<u64, String>,
+    /// Expression key → expression id. `None` when the pack carries no
+    /// expression table.
+    expressions: Option<fst::Map<Vec<u8>>>,
+    /// Gloss per expression id, in the same layout as `glosses`. Empty when
+    /// the pack carries no expression table.
+    expression_glosses: BTreeMap<u64, String>,
     notice: String,
 }
 
@@ -137,7 +143,22 @@ impl Pack {
             None => Vec::new(),
         };
         let glosses = match sections.iter().find(|s| s.name == section::GLOSS_ZST) {
-            Some(s) => parse_glosses(&s.data)?,
+            Some(s) => parse_glosses(&s.data, section::GLOSS_ZST)?,
+            None => BTreeMap::new(),
+        };
+        // The expression table is two sections that travel together, both
+        // optional: a pair whose sources hold no expression ships neither, and
+        // a core that predates them ignores them. Each is parsed where it is
+        // found, so a half-written pack answers no expression rather than
+        // refusing to load at all.
+        let expressions = match sections.iter().find(|s| s.name == section::EXPR) {
+            Some(s) => Some(
+                fst::Map::new(s.data.clone()).map_err(|_| PackError::Malformed(section::EXPR))?,
+            ),
+            None => None,
+        };
+        let expression_glosses = match sections.iter().find(|s| s.name == section::EXPR_ZST) {
+            Some(s) => parse_glosses(&s.data, section::EXPR_ZST)?,
             None => BTreeMap::new(),
         };
         let notice = sections
@@ -152,6 +173,8 @@ impl Pack {
             freq,
             levels,
             glosses,
+            expressions,
+            expression_glosses,
             notice,
         })
     }
@@ -170,6 +193,21 @@ impl Pack {
     pub fn gloss(&self, lemma: &str) -> Option<&str> {
         let id = self.lexicon.id_of(lemma)?;
         self.glosses.get(&id).map(String::as_str)
+    }
+
+    /// The native-language gloss of a multi-word expression, keyed by its
+    /// dictionary form: the words' lemmas, lowercase, joined by single spaces
+    /// (`starting point` is looked up as `start point`). `None` when the pack
+    /// carries no expression table, or holds no such key.
+    pub fn expression(&self, key: &str) -> Option<&str> {
+        let id = self.expressions.as_ref()?.get(key.as_bytes())?;
+        self.expression_glosses.get(&id).map(String::as_str)
+    }
+
+    /// Whether the pack carries an expression table, so a caller can skip the
+    /// lookups entirely on a pair that has none.
+    pub fn has_expressions(&self) -> bool {
+        self.expressions.is_some()
     }
 
     /// The bundled attribution notice.
@@ -284,12 +322,15 @@ fn parse_levels(bytes: &[u8], lemma_count: usize) -> Result<Vec<u8>, PackError> 
     Ok(bytes.to_vec())
 }
 
-/// Decompresses the gloss blob and reads its index. Decompressed layout:
+/// Decompresses a gloss blob and reads its index. Decompressed layout:
 /// `count u32 | count*(id u32, off u32, len u32) | utf8 bytes`, offsets
-/// relative to the start of the utf8 payload.
-fn parse_glosses(zst: &[u8]) -> Result<BTreeMap<u64, String>, PackError> {
+/// relative to the start of the utf8 payload. The lemma glosses
+/// ([`section::GLOSS_ZST`]) and the expression glosses
+/// ([`section::EXPR_ZST`]) share it; `name` is the section a malformed blob
+/// is reported under, so the error names the table actually at fault.
+fn parse_glosses(zst: &[u8], name: &'static str) -> Result<BTreeMap<u64, String>, PackError> {
     let raw = zstd_decode(zst)?;
-    let bad = || PackError::Malformed(section::GLOSS_ZST);
+    let bad = || PackError::Malformed(name);
     let read_u32 = |cur: &mut usize| -> Result<u32, PackError> {
         let end = cur.checked_add(4).ok_or_else(bad)?;
         let slice = raw.get(*cur..end).ok_or_else(bad)?;
@@ -331,7 +372,7 @@ fn zstd_decode(zst: &[u8]) -> Result<Vec<u8>, PackError> {
 mod tests {
     use super::*;
     use crate::analysis::lexicon::build_lexicon_blobs;
-    use crate::packs::format::write_container;
+    use crate::packs::format::{read_container, write_container};
 
     // Builds a gloss.zst section from (lemma_id, gloss) pairs, using the
     // C-backed `zstd` dev-dependency (never in the WASM build).
@@ -352,6 +393,25 @@ mod tests {
         }
         raw.extend_from_slice(&payload);
         zstd::encode_all(raw.as_slice(), 19).expect("zstd encode")
+    }
+
+    // Builds the two sections of an expression table from (key, gloss) pairs:
+    // the key FST, byte-wise sorted as `fst::MapBuilder` demands, and the
+    // matching gloss blob — ids dense from 0, in that sorted order, which is
+    // what the builder emits.
+    fn build_expr_sections(entries: &[(&str, &str)]) -> (Vec<u8>, Vec<u8>) {
+        let mut sorted = entries.to_vec();
+        sorted.sort_unstable();
+        let mut keys = fst::MapBuilder::memory();
+        for (id, (key, _)) in sorted.iter().enumerate() {
+            keys.insert(key, id as u64).expect("sorted, unique keys");
+        }
+        let glosses: Vec<(u32, &str)> = sorted
+            .iter()
+            .enumerate()
+            .map(|(id, (_, gloss))| (id as u32, *gloss))
+            .collect();
+        (keys.into_inner().expect("fst"), build_gloss_zst(&glosses))
     }
 
     fn meta_json(analyzer: &str) -> Vec<u8> {
@@ -536,6 +596,97 @@ mod tests {
         assert!(matches!(
             Pack::load(&bytes),
             Err(PackError::Malformed(section::LEVELS))
+        ));
+    }
+
+    #[test]
+    fn a_pack_with_an_expression_table_answers_its_keys() {
+        let (forms, pool) =
+            build_lexicon_blobs(&[], &["give", "up", "start", "point"]).expect("lexicon");
+        let lex = FstLexicon::from_slices(forms.clone(), &pool).unwrap();
+        let freq_bytes = vec![0u8; lex.lemma_count() * 4]; // ranks irrelevant here
+        let (keys, glosses) = build_expr_sections(&[
+            ("give up", "Abandonner"),
+            ("start point", "Point de départ"),
+        ]);
+        let bytes = write_container(
+            &meta_json(ANALYZER_VERSION),
+            &[
+                (section::FORMS, &forms),
+                (section::LEMMAS, pool.as_bytes()),
+                (section::FREQ, &freq_bytes),
+                (section::EXPR, &keys),
+                (section::EXPR_ZST, &glosses),
+                (section::NOTICE, b"kaikki: CC BY-SA."),
+            ],
+        );
+        let pack = Pack::load(&bytes).expect("load");
+        assert!(pack.has_expressions());
+        assert_eq!(pack.expression("give up"), Some("Abandonner"));
+        assert_eq!(pack.expression("start point"), Some("Point de départ"));
+        // A key the table does not hold, and one of its words on its own.
+        assert_eq!(pack.expression("gave up"), None);
+        assert_eq!(pack.expression("give"), None);
+    }
+
+    #[test]
+    fn a_pack_without_the_expression_sections_answers_no_expression() {
+        let pack = Pack::load(&sample_pack_bytes(ANALYZER_VERSION)).expect("load");
+        assert!(!pack.has_expressions());
+        assert_eq!(pack.expression("give up"), None);
+        // The tables it does carry are untouched by their absence.
+        assert_eq!(pack.gloss("run"), Some("courir"));
+    }
+
+    #[test]
+    fn a_pack_carrying_an_unknown_section_loads_unchanged() {
+        // The additive contract the expression table rests on: the reader takes
+        // the sections it knows by name and ignores the rest, so a pack gaining
+        // a table loads on a core built before that table existed.
+        let original = sample_pack_bytes(ANALYZER_VERSION);
+        let (meta, sections) = read_container(&original).expect("read");
+        let mut with_extra: Vec<(&str, &[u8])> = sections
+            .iter()
+            .map(|s| (s.name.as_str(), s.data.as_slice()))
+            .collect();
+        with_extra.push(("table.from.the.future", b"\x00\x01\x02"));
+        let pack = Pack::load(&write_container(&meta, &with_extra)).expect("load");
+        assert_eq!(pack.gloss("run"), Some("courir"));
+        assert_eq!(pack.gloss("city"), Some("ville"));
+        assert_eq!(pack.rank("city"), Some(1_200));
+        assert!(pack.notice().contains("CC BY-SA"));
+        assert!(!pack.has_expressions());
+    }
+
+    #[test]
+    fn a_malformed_expression_table_is_refused() {
+        let (forms, pool) = build_lexicon_blobs(&[], &["give", "up"]).expect("lexicon");
+        let lex = FstLexicon::from_slices(forms.clone(), &pool).unwrap();
+        let freq_bytes = vec![0u8; lex.lemma_count() * 4];
+        let (keys, glosses) = build_expr_sections(&[("give up", "Abandonner")]);
+        let pack_with = |keys: &[u8], glosses: &[u8]| {
+            write_container(
+                &meta_json(ANALYZER_VERSION),
+                &[
+                    (section::FORMS, &forms),
+                    (section::LEMMAS, pool.as_bytes()),
+                    (section::FREQ, &freq_bytes),
+                    (section::EXPR, keys),
+                    (section::EXPR_ZST, glosses),
+                ],
+            )
+        };
+        // A key index that is not an FST at all.
+        assert!(matches!(
+            Pack::load(&pack_with(b"not an fst", &glosses)),
+            Err(PackError::Malformed(section::EXPR))
+        ));
+        // A blob announcing an entry it does not carry — reported under its own
+        // section name, not the lemma glosses' one.
+        let truncated = zstd::encode_all(&1u32.to_le_bytes()[..], 19).expect("zstd encode");
+        assert!(matches!(
+            Pack::load(&pack_with(&keys, &truncated)),
+            Err(PackError::Malformed(section::EXPR_ZST))
         ));
     }
 

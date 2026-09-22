@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AnalyzedToken, PhraseGloss, PhrasePart, PhraseToken } from "@/analyzer/types.ts";
+import type { AnalyzedToken, PhraseGloss, PhraseMatch, PhrasePart, PhraseToken } from "@/analyzer/types.ts";
 import {
   ANSWER_TIMEOUT_MS,
   type CardSurface,
@@ -11,6 +11,7 @@ import {
   rarityText,
   rowGloss,
   rowsFor,
+  wholeSelectionMatch,
   SelectionCards,
   type SelectionCardPorts,
   type SelectionInput,
@@ -28,6 +29,10 @@ const CALIBRATION = 3000;
 const tok = (over: Partial<PhraseToken> & Pick<PhraseToken, "surface" | "lemma" | "class">): PhraseToken => ({
   gloss: null,
   function_word: false,
+  ...over,
+});
+const match = (over: Partial<PhraseMatch> & Pick<PhraseMatch, "start" | "end" | "key" | "gloss">): PhraseMatch => ({
+  class: "Unknown",
   ...over,
 });
 const part = (over: Partial<PhrasePart> & Pick<PhrasePart, "lemma" | "class">): PhrasePart => ({
@@ -108,6 +113,18 @@ function fakeClock() {
       timers.clear();
       for (const [, t] of due) t.fn();
     },
+  };
+}
+
+/** The gesture a card's button emits, as `createCard` builds it from the content on screen. */
+function gesture(content: WordPopupContent) {
+  return {
+    lemma: content.headword,
+    surface: content.surface,
+    sentence: content.sentence,
+    status: null,
+    expression: !!content.expression,
+    gloss: content.gloss,
   };
 }
 
@@ -375,6 +392,7 @@ describe("word-by-word gloss is a labelled last resort", () => {
       sentence: "s",
       status: "learning",
       expression: true,
+      gloss: null,
     });
     expect(gloss).toBeNull();
     expect(h.gloss).toHaveLength(0); // the pack is not even asked
@@ -666,6 +684,169 @@ describe("a card that waits for the engine", () => {
   });
 });
 
+describe("an expression is the card's answer", () => {
+  /** `gave up`, as the analyser and the pack answer it. */
+  const gaveUp: PhraseGloss = {
+    tokens: [
+      tok({ surface: "gave", lemma: "give", class: "Known", gloss: "donner" }),
+      tok({ surface: "up", lemma: "up", class: "Known", gloss: "haut", function_word: true }),
+    ],
+    expressions: [match({ start: 0, end: 2, key: "give up", gloss: "Abandonner; Se rendre" })],
+  };
+
+  it("A phrasal verb whose words the reader knows", async () => {
+    const h = harness();
+    h.cards.openForSelection(selection("put up with"), null);
+    h.phraseGloss[0]!.resolve({
+      tokens: [
+        tok({ surface: "put", lemma: "put", class: "Known", gloss: "mettre" }),
+        tok({ surface: "up", lemma: "up", class: "Known", gloss: "haut", function_word: true }),
+        tok({ surface: "with", lemma: "with", class: "Known", gloss: "avec", function_word: true }),
+      ],
+      expressions: [match({ start: 0, end: 3, key: "put up with", gloss: "Supporter, subir; Faire avec" })],
+    });
+    await settle();
+    expect(h.last()).toMatchObject({ headword: "put up with", gloss: "Supporter, subir; Faire avec" });
+    expect(h.last().rows).toBeUndefined(); // the gloss line, not a list of its words
+  });
+
+  it("An inflected expression makes one card", async () => {
+    const h = harness();
+    h.cards.openForSelection(selection("gave up"), null);
+    h.phraseGloss[0]!.resolve(gaveUp);
+    await settle();
+    // The card is keyed by the headword, which `onGesture` lowercases into the card's key:
+    // selecting `give up` later reaches the same one.
+    expect(h.last().headword).toBe("give up");
+    expect(await h.cards.cardGloss({ ...gesture(h.last()), status: "learning" })).toBe("Abandonner; Se rendre");
+  });
+
+  it("The form as seen", async () => {
+    const h = harness();
+    h.cards.openForSelection(selection("gave up"), null);
+    h.phraseGloss[0]!.resolve(gaveUp);
+    await settle();
+    expect(h.last()).toMatchObject({ headword: "give up", surface: "gave up" });
+  });
+
+  it("offers a word's actions, « Je connais » included", async () => {
+    const h = harness();
+    h.cards.openForSelection(selection("gave up"), null);
+    h.phraseGloss[0]!.resolve(gaveUp);
+    await settle();
+    expect(h.last().expression).toBe(false); // an expression the pack keys is a word to the card
+    expect(h.last().status).toBeNull();
+  });
+
+  it("carries the status the reader gave the expression", async () => {
+    const h = harness();
+    h.cards.openForSelection(selection("gave up"), null);
+    h.phraseGloss[0]!.resolve({
+      ...gaveUp,
+      expressions: [match({ start: 0, end: 2, key: "give up", gloss: "Abandonner", class: "Learning" })],
+    });
+    await settle();
+    expect(h.last().status).toBe("learning");
+  });
+
+  it("An expression inside a phrase", async () => {
+    const h = harness();
+    h.cards.openForSelection(selection("a compelling starting point"), null);
+    h.phraseGloss[0]!.resolve({
+      tokens: [
+        tok({ surface: "a", lemma: "a", class: "Known", gloss: "un", function_word: true }),
+        tok({ surface: "compelling", lemma: "compel", class: "Unknown", gloss: "Contraindre" }),
+        tok({ surface: "starting", lemma: "start", class: "Unknown", gloss: "Commencer" }),
+        tok({ surface: "point", lemma: "point", class: "Unknown", gloss: "Point" }),
+      ],
+      expressions: [match({ start: 2, end: 4, key: "start point", gloss: "Point de départ" })],
+    });
+    await settle();
+    expect(h.last().rows).toEqual([
+      { form: "compel", gloss: "Contraindre" },
+      { form: "start point", gloss: "Point de départ" },
+    ]);
+    expect(h.last().gloss).toBeNull(); // still the expression card, not an answer of its own
+  });
+
+  it("An expression the reader has settled", async () => {
+    const h = harness();
+    h.cards.openForSelection(selection("a compelling starting point"), null);
+    h.phraseGloss[0]!.resolve({
+      tokens: [
+        tok({ surface: "a", lemma: "a", class: "Known", gloss: "un", function_word: true }),
+        tok({ surface: "compelling", lemma: "compel", class: "Unknown", gloss: "Contraindre" }),
+        tok({ surface: "starting", lemma: "start", class: "Unknown", gloss: "Commencer" }),
+        tok({ surface: "point", lemma: "point", class: "Unknown", gloss: "Point" }),
+      ],
+      expressions: [match({ start: 2, end: 4, key: "start point", gloss: "Point de départ", class: "Known" })],
+    });
+    await settle();
+    expect(h.last().rows).toEqual([{ form: "compel", gloss: "Contraindre" }]);
+  });
+
+  it("An idiom is not taken apart", async () => {
+    const h = harness();
+    h.cards.openForSelection(selection("raining cats and dogs"), null);
+    h.phraseGloss[0]!.resolve({
+      tokens: [
+        tok({ surface: "raining", lemma: "rain", class: "Unknown", gloss: "Pleuvoir" }),
+        tok({ surface: "cats", lemma: "cat", class: "Unknown", gloss: "Chat" }),
+        tok({ surface: "and", lemma: "and", class: "Known", gloss: "et", function_word: true }),
+        tok({ surface: "dogs", lemma: "dog", class: "Unknown", gloss: "Chien" }),
+      ],
+      expressions: [match({ start: 0, end: 4, key: "rain cat and dog", gloss: "Pleuvoir à verse" })],
+    });
+    await settle();
+    expect(h.last()).toMatchObject({ headword: "rain cat and dog", gloss: "Pleuvoir à verse" });
+    expect(h.last().rows).toBeUndefined();
+  });
+
+  it("No expression", async () => {
+    const h = harness();
+    h.cards.openForSelection(selection("a compelling argument"), null);
+    h.phraseGloss[0]!.resolve({
+      tokens: [
+        tok({ surface: "a", lemma: "a", class: "Known", gloss: "un", function_word: true }),
+        tok({ surface: "compelling", lemma: "compel", class: "Unknown", gloss: "Contraindre" }),
+        tok({ surface: "argument", lemma: "argument", class: "Known", gloss: "argument" }),
+      ],
+    });
+    await settle();
+    expect(h.last()).toMatchObject({ expression: true, gloss: null });
+    expect(h.last().rows).toEqual([{ form: "compel", gloss: "Contraindre" }]);
+  });
+});
+
+describe("wholeSelectionMatch", () => {
+  it("takes a match covering every token", () => {
+    const answer: PhraseGloss = {
+      tokens: [
+        tok({ surface: "gave", lemma: "give", class: "Known" }),
+        tok({ surface: "up", lemma: "up", class: "Known" }),
+      ],
+      expressions: [match({ start: 0, end: 2, key: "give up", gloss: "Abandonner" })],
+    };
+    expect(wholeSelectionMatch(answer)?.key).toBe("give up");
+  });
+
+  it("refuses one that covers only part of them", () => {
+    const answer: PhraseGloss = {
+      tokens: [
+        tok({ surface: "a", lemma: "a", class: "Known" }),
+        tok({ surface: "starting", lemma: "start", class: "Unknown" }),
+        tok({ surface: "point", lemma: "point", class: "Unknown" }),
+      ],
+      expressions: [match({ start: 1, end: 3, key: "start point", gloss: "Point de départ" })],
+    };
+    expect(wholeSelectionMatch(answer)).toBeNull();
+  });
+
+  it("refuses an answer with no token at all", () => {
+    expect(wholeSelectionMatch({ tokens: [], expressions: [] })).toBeNull();
+  });
+});
+
 describe("clickIsOnWord", () => {
   const word = (): DOMRect[] => [{ left: 100, right: 160, top: 40, bottom: 58 } as DOMRect];
 
@@ -848,6 +1029,7 @@ describe("cardGloss", () => {
       sentence: "s",
       status: "learning",
       expression: false,
+      gloss: null,
     });
     expect(h.gloss[0]!.lemma).toBe("seldom");
     h.gloss[0]!.resolve("rarement");
@@ -862,6 +1044,7 @@ describe("cardGloss", () => {
       sentence: "s",
       status: "learning",
       expression: false,
+      gloss: null,
     });
     h.gloss[0]!.resolve(undefined);
     expect(await pending).toBeNull();
@@ -876,6 +1059,7 @@ describe("cardGloss", () => {
         sentence: "s",
         status: "learning",
         expression: true,
+        gloss: null,
       }),
     ).toBeNull();
     expect(h.gloss).toHaveLength(0);

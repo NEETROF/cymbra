@@ -297,6 +297,90 @@ class ResolveForms(unittest.TestCase):
         self.assertEqual(forms["fulfilled"], "fulfil")  # "fulfill" has no gloss
 
 
+class ReduceExpressions(TempDir):
+    def kaikki(self, entries):
+        return self.file("kaikki.jsonl", "".join(json.dumps(e) + "\n" for e in entries) + "not json\n")
+
+    def test_only_multi_word_headwords_the_character_set_accepts(self):
+        path = self.kaikki(
+            [
+                {"word": "give up", "pos": "verb", "senses": [{"glosses": ["Abandonner."]}]},
+                {"word": "GIVE UP", "pos": "noun", "senses": [{"glosses": ["Abandon."]}]},
+                {"word": "abandon", "pos": "verb", "senses": [{"glosses": ["Abandonner."]}]},
+                {"word": "café au lait", "pos": "noun", "senses": [{"glosses": ["Café au lait."]}]},
+                {"word": "vitamin b12", "pos": "noun", "senses": [{"glosses": ["Vitamine B12."]}]},
+            ]
+        )
+        # One line per headword: the two spellings of "give up" are one entry, the
+        # single word is not an expression, and a headword `_TOKEN` rejects is dropped.
+        self.assertEqual(red.reduce_expressions(path, 80), {"give up": "Abandonner; Abandon"})
+
+    def test_the_four_wordings_the_shared_filter_lacks_are_dropped(self):
+        entries = [
+            {"word": "present tense", "pos": "noun", "senses": [{"glosses": ["Présent (temps grammatical)."]}]},
+            {"word": "will go", "pos": "verb", "senses": [{"glosses": ["Futur de go."]}]},
+            {"word": "to be", "pos": "verb", "senses": [{"glosses": ["Conjugaison du verbe be."]}]},
+            {"word": "douche bag", "pos": "noun", "senses": [{"glosses": ["Graphie alternative de douchebag."]}]},
+            # What `_FORM_OF` already covered on its own.
+            {"word": "gave up", "pos": "verb", "senses": [{"glosses": ["Prétérit de give up."]}]},
+            {"word": "given up", "pos": "verb", "senses": [{"glosses": ["Participe passé de give up."]}]},
+        ]
+        self.assertEqual(red.reduce_expressions(self.kaikki(entries), 80), {})
+
+    def test_the_shared_filter_is_untouched(self):
+        # The four extra wordings are dropped in the multi-word path ONLY: the same
+        # sense on a single-word entry still feeds gloss.tsv, so forms.tsv, freq.tsv
+        # and gloss.tsv come out of a rebuild byte-identical.
+        path = self.kaikki([{"word": "present", "pos": "noun", "senses": [{"glosses": ["Présent (temps grammatical)."]}]}])
+        self.assertEqual(red.reduce_gloss(path, {"present"}, 80), {"present": "Présent (temps grammatical)"})
+        self.assertFalse(red._is_form_of({}, "Présent progressif."))
+
+    def test_a_name_only_entry_is_dropped(self):
+        entries = [
+            {"word": "new york", "pos": "name", "senses": [{"glosses": ["New York."]}]},
+            # A headword that is a proper noun AND a common one keeps the common senses.
+            {"word": "big apple", "pos": "name", "senses": [{"glosses": ["New York."]}]},
+            {"word": "big apple", "pos": "noun", "senses": [{"glosses": ["Grosse pomme."]}]},
+        ]
+        self.assertEqual(red.reduce_expressions(self.kaikki(entries), 80), {"big apple": "Grosse pomme"})
+
+    def test_two_spellings_stay_two_lines(self):
+        # The builder resolves the collision — it is the one holding the lexicon that
+        # says both lemmatise to "break point".
+        entries = [
+            {"word": "break point", "pos": "noun", "senses": [{"glosses": ["Point d'arrêt."]}]},
+            {"word": "breaking point", "pos": "noun", "senses": [{"glosses": ["Point de rupture."]}]},
+        ]
+        self.assertEqual(
+            red.reduce_expressions(self.kaikki(entries), 80),
+            {"break point": "Point d'arrêt", "breaking point": "Point de rupture"},
+        )
+
+    def test_senses_are_cut_per_sense_then_on_the_joined_string(self):
+        entries = [
+            {
+                "word": "starting point",
+                "pos": "noun",
+                "senses": [
+                    {"glosses": ["Point de départ, origine, commencement, amorce, prémisse."]},
+                    {"glosses": ["Base de discussion."]},
+                    {"glosses": ["Repère."]},
+                    {"glosses": ["Une quatrième acception que personne ne verra."]},
+                ],
+            },
+        ]
+        path = self.kaikki(entries)
+        # 42 characters per sense, then three senses at most, then the joined cut.
+        self.assertEqual(
+            red.reduce_expressions(path, 80),
+            {"starting point": "Point de départ, origine, commencement, am; Base de discussion; Repère"},
+        )
+        self.assertEqual(
+            red.reduce_expressions(path, 40),
+            {"starting point": "Point de départ, origine, commencement,"},
+        )
+
+
 class FormOfGlosses(unittest.TestCase):
     def test_pointers_are_form_of(self):
         for gloss in ("Comparatif de numb.", "Superlatif de fore.", "Pluriel de datum.", "Passé de shrink."):

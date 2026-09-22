@@ -109,7 +109,17 @@ yarn lint && yarn format:check && yarn typecheck && yarn test
   the background event page on Firefox and Safari (`MessagingLinguaPort`), without
   touching the reading code. `analyse(blocks)` reads a page behind its gates (language,
   token count); `phraseGloss(text)` reads a selection without them, and returns every
-  token with its dictionary form, its status and its gloss whatever that status.
+  token with its dictionary form, its status and its gloss whatever that status, plus the
+  pack's **expressions** it finds in the text — the longest run of dictionary forms that
+  matches a key, over at most five tokens.
+- **What a selection opens** (`src/reading/selection-card.ts`, where every such decision
+  lives, so `content.ts` stays a thin caller): an expression the pack knows is the answer,
+  keyed by its dictionary form — `gave up` and `give up` are one card — and stored on the
+  card it creates, being dictionary data. Failing that, the card shows a word-by-word
+  gloss, labelled as not being a translation of the selection: only the words you do not
+  know, no function words, six rows at most, the first sense of each, and never stored. A
+  card that has to wait for the engine opens with no action and gains them with its
+  answer, so nothing you can press moves under your finger.
 - **Highlighting** uses the CSS Custom Highlight API — two registries
   (`cymbra-lingua-unknown`, `cymbra-lingua-learning`), **zero DOM mutation**
   (`src/reading/highlight.ts`, `blocks.ts`). Only the blocks within about one viewport of

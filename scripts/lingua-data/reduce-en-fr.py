@@ -16,7 +16,7 @@ and, from this repository, the analyser's irregular-form table (lingua-core lemm
 
 Outputs (into <work>/, consumed by lingua-pack-build):
   forms.tsv  (form<TAB>lemma) / freq.tsv (lemma<TAB>rank) / gloss.tsv (lemma<TAB>gloss)
-  / level.tsv (lemma<TAB>A1..C2) / NOTICE / manifest.json
+  / level.tsv (lemma<TAB>A1..C2) / mwe.tsv (expression<TAB>gloss) / NOTICE / manifest.json
 
 Key rules:
 1. Only CANONICAL LEMMAS (base forms) are ever treated as lemmas. An inflected form (e.g.
@@ -35,6 +35,11 @@ Key rules:
    wordfreq never ranks, inflections whose base was dropped ("boring" from "bore") — are
    added (`append_level_extras`), and a listed compound gets its inflections
    (`compound_inflections`), so the level table covers nearly all of the CEFR lists.
+5. MULTI-WORD entries ("give up", "starting point") are reduced on their own
+   (`reduce_expressions`): a lemma is one word, so the frequency lexicon can never hold
+   them and every rule above passes them by. They are emitted AS WRITTEN — keying them
+   is the builder's job, which lemmatises each word against the lexicon it has just
+   assembled, a cascade this script can only half mirror.
 
 Pack is scoped to the top-N canonical lemmas (+ those CEFR words) to fit the 5 MB budget.
 Output is sorted, so a rebuild from the same snapshots is byte-identical.
@@ -64,6 +69,13 @@ _FORM_OF = re.compile(
     r"variante|autre graphie|forme (de|du|d'|verbale|fl[ée]chie)|genre|orthographe)\b",
     re.IGNORECASE,
 )
+
+# Four more pointer wordings, applied in the MULTI-WORD path ONLY: "Présent progressif.",
+# "Graphie alternative de douchebag." name a tense or a spelling, not a meaning. They are
+# not in `_FORM_OF` because that regex also feeds forms.tsv, freq.tsv and gloss.tsv, which
+# this pair's single-word tables must keep producing byte for byte; the eight senses it
+# would cost there are not worth the risk.
+_MWE_FORM_OF = re.compile(r"^(pr[ée]sent|futur|conjugaison|graphie)\b", re.IGNORECASE)
 
 # The English word a form-of gloss points at: "Pluriel de datum.", "Prétérit du verbe to
 # find". Every candidate is collected; callers only test membership.
@@ -392,12 +404,34 @@ def clean_gloss(text, maxlen):
     return g
 
 
+def _join_senses(per_entry, maxlen, max_senses):
+    """One gloss out of a headword's per-entry sense lists, cut to `maxlen`.
+
+    Senses are taken one-per-entry, round-robin ACROSS the headword's POS entries, so a
+    verb meaning appears beside the noun (run -> "Course; Courir") rather than being
+    crowded out by the first entry's three.
+    """
+    picked = []
+    depth = 0
+    deepest = max(len(e) for e in per_entry)
+    while depth < deepest and len(picked) < max_senses:
+        for e in per_entry:
+            if depth < len(e) and e[depth] not in picked:
+                picked.append(e[depth])
+                if len(picked) >= max_senses:
+                    break
+        depth += 1
+    joined = "; ".join(picked)
+    if len(joined) > maxlen:
+        joined = joined[:maxlen].rstrip().rstrip(";").strip()
+    return joined
+
+
 def reduce_gloss(path, lemmas, maxlen, per_sense=42, max_senses=3):
     """Up to `max_senses` short French glosses per canonical lemma, joined by "; ".
 
-    Glosses are gathered one-per-sense, round-robin ACROSS a word's POS entries, so a
-    verb meaning appears beside the noun (run -> "Course; Courir") rather than being
-    crowded out. Form-of senses ("Pluriel de …") are skipped — they are not meanings.
+    Form-of senses ("Pluriel de …") are skipped — they are not meanings. The senses that
+    make the cut are picked by `_join_senses`.
     """
     entries = {}  # word -> [per-entry [gloss,...]]
     with open(path, encoding="utf-8", errors="replace") as f:
@@ -421,22 +455,54 @@ def reduce_gloss(path, lemmas, maxlen, per_sense=42, max_senses=3):
 
     glosses = {}
     for word, per_entry in entries.items():
-        picked = []
-        depth = 0
-        deepest = max(len(e) for e in per_entry)
-        while depth < deepest and len(picked) < max_senses:
-            for e in per_entry:
-                if depth < len(e) and e[depth] not in picked:
-                    picked.append(e[depth])
-                    if len(picked) >= max_senses:
-                        break
-            depth += 1
-        joined = "; ".join(picked)
-        if len(joined) > maxlen:
-            joined = joined[:maxlen].rstrip().rstrip(";").strip()
+        joined = _join_senses(per_entry, maxlen, max_senses)
         if joined:
             glosses[word] = joined
     return glosses
+
+
+def reduce_expressions(path, maxlen, per_sense=42, max_senses=3):
+    """Up to `max_senses` short French glosses per MULTI-WORD headword ("give up").
+
+    `reduce_gloss`'s reduction over the entries it can never reach: it is scoped to the
+    kept lemmas, a lemma is one word, so the 33 404 multi-word entries of the source were
+    dropped whole. Left out here: an entry whose part of speech is `name` (a proper noun,
+    which the card refuses to gloss anyway), a headword outside `_TOKEN`'s character set,
+    and an entry no sense survives.
+
+    NOT left out: an expression holding a word the pack's lexicon does not hold. That test
+    needs the lexicon, and only the builder has one.
+    """
+    entries = {}  # headword -> [per-entry [gloss, ...]]
+    with open(path, encoding="utf-8", errors="replace") as f:
+        for line in f:
+            try:
+                d = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            word = re.sub(r"\s+", " ", (d.get("word") or "").strip().lower())
+            if " " not in word or not all(_TOKEN.fullmatch(w) for w in word.split(" ")):
+                continue
+            if (d.get("pos") or "") == "name":
+                continue
+            senses = []
+            for sense in d.get("senses", []):
+                gg = sense.get("glosses") or []
+                gloss = gg[0].strip() if gg else ""
+                if not gloss or _is_form_of(sense, gloss) or _MWE_FORM_OF.match(gloss):
+                    continue
+                g = clean_gloss(gloss, per_sense)
+                if g:
+                    senses.append(g)
+            if senses:
+                entries.setdefault(word, []).append(senses)
+
+    expressions = {}
+    for word, per_entry in entries.items():
+        joined = _join_senses(per_entry, maxlen, max_senses)
+        if joined:
+            expressions[word] = joined
+    return expressions
 
 
 NOTICE = """\
@@ -533,6 +599,7 @@ def main():
 
     pairs |= compound_inflections(lemmas, pairs)
     glosses = reduce_gloss(kaikki, lemmas, a.max_gloss_len)
+    expressions = reduce_expressions(kaikki, a.max_gloss_len)
     forms = resolve_forms(pairs, ranks, targets, set(glosses))
     levels = reduce_levels(cefr, lemmas)
 
@@ -544,6 +611,7 @@ def main():
     )
     write(a.work, "gloss.tsv", "".join(f"{l}\t{g}\n" for l, g in sorted(glosses.items())))
     write(a.work, "level.tsv", "".join(f"{l}\t{lvl}\n" for l, lvl in sorted(levels.items())))
+    write(a.work, "mwe.tsv", "".join(f"{w}\t{g}\n" for w, g in sorted(expressions.items())))
     write(a.work, "NOTICE", NOTICE)
     manifest = {
         "meta": {
@@ -572,7 +640,7 @@ def main():
     print(
         f"reduced en-fr: forms={len(forms)} lemmas={len(ranks)} (ranked={ranked}, "
         f"cefr-added={len(ranks) - ranked}) own-words={len(own & lemmas)} "
-        f"gloss={len(glosses)} levels={len(levels)}"
+        f"gloss={len(glosses)} levels={len(levels)} expressions={len(expressions)}"
     )
 
 

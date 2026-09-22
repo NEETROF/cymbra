@@ -214,11 +214,84 @@ pub struct PhraseToken {
     pub parts: Vec<PhrasePart>,
 }
 
+/// One expression of the pack's table found in a selection.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct PhraseMatch {
+    /// Index of the first token covered, into [`PhraseGloss::tokens`].
+    pub start: usize,
+    /// Index just past the last token covered.
+    pub end: usize,
+    /// The expression's dictionary form — the covered tokens' lemmas joined by
+    /// single spaces — which is the pack's key and the card's.
+    pub key: String,
+    /// The expression's own status class, read on that key: the knowledge
+    /// model treats an expression as a lemma of its own, so the reader can
+    /// settle `give up` as they settle a word.
+    pub class: TokenClass,
+    /// The pack gloss of the expression.
+    pub gloss: String,
+}
+
 /// The gloss of a reader's selection: its tokens, in order.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct PhraseGloss {
     /// Every token of the text, whatever its class.
     pub tokens: Vec<PhraseToken>,
+    /// The expressions the pack recognised, in token order. Empty — and
+    /// omitted from the JSON — on a pack with no expression table, so such a
+    /// pack produces the bytes it produced before the table existed.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub expressions: Vec<PhraseMatch>,
+}
+
+/// How many tokens an expression may span. 98.9 % of the table is five words
+/// or fewer (`add-lingua-expression-table`, design D3), and every token of a
+/// selection pays for the ones beyond it.
+const EXPRESSION_WINDOW: usize = 5;
+
+/// Finds the pack's expressions in an already-glossed selection: from each
+/// token, the longest run whose dictionary forms are a key of the table wins,
+/// and the next run starts past it, so a token belongs to at most one match.
+/// Runs start at two tokens because every key holds a space — a single lemma
+/// is a word, not an expression, and could never be one.
+fn match_expressions(
+    tokens: &[PhraseToken],
+    studied: StudiedLanguage,
+    pack: &Pack,
+    knowledge: &KnowledgeState,
+) -> Vec<PhraseMatch> {
+    if !pack.has_expressions() {
+        return Vec::new();
+    }
+    let mut matches = Vec::new();
+    let mut start = 0;
+    while start < tokens.len() {
+        let longest = EXPRESSION_WINDOW.min(tokens.len() - start);
+        let hit = (2..=longest).rev().find_map(|len| {
+            let key = tokens[start..start + len]
+                .iter()
+                .map(|token| token.lemma.as_str())
+                .collect::<Vec<_>>()
+                .join(" ");
+            let gloss = pack.expression(&key)?.to_owned();
+            Some((len, key, gloss))
+        });
+        match hit {
+            Some((len, key, gloss)) => {
+                let class = knowledge.classify(studied, &[key.as_str()], pack);
+                matches.push(PhraseMatch {
+                    start,
+                    end: start + len,
+                    key,
+                    class,
+                    gloss,
+                });
+                start += len;
+            }
+            None => start += 1,
+        }
+    }
+    matches
 }
 
 /// Glosses a short text — a reader's selection — the way a page is read:
@@ -226,6 +299,10 @@ pub struct PhraseGloss {
 /// but as one block with neither the language detection nor the minimum
 /// token count, which exist to score pages. A text in another language simply
 /// comes back unglossed.
+///
+/// The expressions the pack recognises are reported beside the tokens, never
+/// instead of them: what the table holds cannot change what the selection is
+/// made of.
 pub fn gloss_phrase(
     text: &str,
     studied: StudiedLanguage,
@@ -233,7 +310,7 @@ pub fn gloss_phrase(
     knowledge: &KnowledgeState,
 ) -> PhraseGloss {
     let lexicon = pack.lexicon();
-    let tokens = tokenize(text, studied, lexicon)
+    let tokens: Vec<PhraseToken> = tokenize(text, studied, lexicon)
         .into_iter()
         .map(|token| {
             let (lemma, parts) = resolve_lemmas(&token, lexicon);
@@ -257,7 +334,11 @@ pub fn gloss_phrase(
             }
         })
         .collect();
-    PhraseGloss { tokens }
+    let expressions = match_expressions(&tokens, studied, pack, knowledge);
+    PhraseGloss {
+        tokens,
+        expressions,
+    }
 }
 
 /// The canonical JSON of a phrase gloss — like [`analyse_page_json`], the
@@ -302,14 +383,44 @@ mod tests {
         zstd::encode_all(raw.as_slice(), 19).expect("zstd")
     }
 
+    /// The two sections of an expression table, from (key, gloss) pairs: the
+    /// key FST, byte-wise sorted as `fst::MapBuilder` demands, and the gloss
+    /// blob its dense ids index into.
+    fn build_expr_sections(entries: &[(&str, &str)]) -> (Vec<u8>, Vec<u8>) {
+        let mut sorted = entries.to_vec();
+        sorted.sort_unstable();
+        let mut keys = fst::MapBuilder::memory();
+        for (id, (key, _)) in sorted.iter().enumerate() {
+            keys.insert(key, id as u64).expect("sorted, unique keys");
+        }
+        let glosses: Vec<(u32, &str)> = sorted
+            .iter()
+            .enumerate()
+            .map(|(id, (_, gloss))| (id as u32, *gloss))
+            .collect();
+        (keys.into_inner().expect("fst"), build_gloss_zst(&glosses))
+    }
+
     /// Assembles an en→fr pack holding exactly the forms, lemmas, ranks and
     /// glosses a test names — nothing else, so what a scenario finds in the
-    /// pack is what it put there.
+    /// pack is what it put there. No expression table, as most scenarios want.
     fn build_pack(
         forms: &[(&str, &str)],
         lemmas: &[&str],
         ranks: &[(&str, u32)],
         glosses: &[(&str, &str)],
+    ) -> Pack {
+        build_pack_with_expressions(forms, lemmas, ranks, glosses, &[])
+    }
+
+    /// [`build_pack`] plus an expression table, keyed as the builder keys it:
+    /// the words' dictionary forms joined by single spaces.
+    fn build_pack_with_expressions(
+        forms: &[(&str, &str)],
+        lemmas: &[&str],
+        ranks: &[(&str, u32)],
+        glosses: &[(&str, &str)],
+        expressions: &[(&str, &str)],
     ) -> Pack {
         let (forms, pool) = build_lexicon_blobs(forms, lemmas).expect("lexicon");
         let lex = FstLexicon::from_slices(forms.clone(), &pool).unwrap();
@@ -341,16 +452,22 @@ mod tests {
             licences: vec![],
         })
         .unwrap();
-        let bytes = write_container(
-            &meta,
-            &[
-                (section::FORMS, &forms),
-                (section::LEMMAS, pool.as_bytes()),
-                (section::FREQ, &freq_bytes),
-                (section::GLOSS_ZST, &gloss),
-            ],
-        );
-        Pack::load(&bytes).expect("load")
+        let mut sections: Vec<(&str, &[u8])> = vec![
+            (section::FORMS, &forms),
+            (section::LEMMAS, pool.as_bytes()),
+            (section::FREQ, &freq_bytes),
+            (section::GLOSS_ZST, &gloss),
+        ];
+        // Built out here so the sections outlive the borrow, but written only
+        // when there is a table — as the pack builder writes it, so a test
+        // that names no expression gets the pack it got before the table
+        // existed.
+        let (expr_keys, expr_glosses) = build_expr_sections(expressions);
+        if !expressions.is_empty() {
+            sections.push((section::EXPR, &expr_keys));
+            sections.push((section::EXPR_ZST, &expr_glosses));
+        }
+        Pack::load(&write_container(&meta, &sections)).expect("load")
     }
 
     fn sample_pack() -> Pack {
@@ -716,5 +833,181 @@ mod tests {
         assert!(a.contains(
             r#""lemma":"error-prone","class":"Unknown","gloss":null,"function_word":false,"parts":[{"lemma":"error","class":"Unknown","gloss":null,"function_word":false},{"lemma":"prone","class":"Unknown","gloss":"enclin","function_word":false}]}"#
         ));
+    }
+
+    // --- Expressions in a selection (spec `lingua-analysis`, "Expression
+    // lookup in a phrase gloss") ---
+
+    /// The spans a phrase gloss reports, as (first token, past the last, key).
+    fn spans(phrase: &PhraseGloss) -> Vec<(usize, usize, &str)> {
+        phrase
+            .expressions
+            .iter()
+            .map(|m| (m.start, m.end, m.key.as_str()))
+            .collect()
+    }
+
+    #[test]
+    fn spec_scenario_an_inflected_expression() {
+        let pack = build_pack_with_expressions(
+            &[("gave", "give")],
+            &["give", "up"],
+            &[],
+            &[("give", "donner")],
+            &[("give up", "Abandonner")],
+        );
+        let phrase = gloss_phrase("gave up", EN, &pack, &KnowledgeState::new());
+        assert_eq!(
+            phrase.expressions,
+            [PhraseMatch {
+                start: 0,
+                end: 2,
+                key: "give up".into(),
+                class: TokenClass::Unknown,
+                gloss: "Abandonner".into(),
+            }],
+            "matched on the dictionary forms, not the words as written"
+        );
+        // The tokens themselves are untouched by the match.
+        let surfaces: Vec<&str> = phrase.tokens.iter().map(|t| t.surface.as_str()).collect();
+        assert_eq!(surfaces, ["gave", "up"]);
+    }
+
+    #[test]
+    fn spec_scenario_the_longest_run_wins() {
+        let pack = build_pack_with_expressions(
+            &[],
+            &["look", "forward", "to", "it"],
+            &[],
+            &[],
+            &[
+                ("look forward", "Regarder devant"),
+                ("look forward to", "Attendre avec impatience"),
+            ],
+        );
+        let phrase = gloss_phrase("look forward to it", EN, &pack, &KnowledgeState::new());
+        assert_eq!(spans(&phrase), [(0, 3, "look forward to")]);
+        assert_eq!(phrase.expressions[0].gloss, "Attendre avec impatience");
+    }
+
+    #[test]
+    fn spec_scenario_an_expression_inside_a_longer_selection() {
+        let pack = build_pack_with_expressions(
+            &[("starting", "start")],
+            &["a", "compelling", "start", "point"],
+            &[],
+            &[("compelling", "convaincant")],
+            &[("start point", "Point de départ")],
+        );
+        let phrase = gloss_phrase(
+            "a compelling starting point",
+            EN,
+            &pack,
+            &KnowledgeState::new(),
+        );
+        assert_eq!(spans(&phrase), [(2, 4, "start point")]);
+        // Every word of the selection is still an ordinary token, `compelling`
+        // with its own gloss: the card decides what a match replaces.
+        let lemmas: Vec<&str> = phrase.tokens.iter().map(|t| t.lemma.as_str()).collect();
+        assert_eq!(lemmas, ["a", "compelling", "start", "point"]);
+        assert_eq!(phrase.tokens[1].gloss.as_deref(), Some("convaincant"));
+    }
+
+    #[test]
+    fn spec_scenario_nothing_matches() {
+        let pack = build_pack_with_expressions(
+            &[],
+            &["the", "city"],
+            &[],
+            &[("city", "ville")],
+            &[("give up", "Abandonner")],
+        );
+        let phrase = gloss_phrase("the city", EN, &pack, &KnowledgeState::new());
+        assert!(phrase.expressions.is_empty());
+        let lemmas: Vec<&str> = phrase.tokens.iter().map(|t| t.lemma.as_str()).collect();
+        assert_eq!(lemmas, ["the", "city"]);
+    }
+
+    #[test]
+    fn spec_scenario_a_pack_without_the_table() {
+        // The same selection under the same reader, with the table and without:
+        // no match, and tokens byte-for-byte what they were.
+        let lemmas: &[&str] = &["give", "up"];
+        let bare = build_pack(&[("gave", "give")], lemmas, &[], &[("give", "donner")]);
+        let with_table = build_pack_with_expressions(
+            &[("gave", "give")],
+            lemmas,
+            &[],
+            &[("give", "donner")],
+            &[("give up", "Abandonner")],
+        );
+        let knowledge = KnowledgeState::new();
+        assert!(!bare.has_expressions());
+        let phrase = gloss_phrase("gave up", EN, &bare, &knowledge);
+        assert!(phrase.expressions.is_empty());
+        assert_eq!(
+            phrase.tokens,
+            gloss_phrase("gave up", EN, &with_table, &knowledge).tokens
+        );
+        // And in the JSON the field is not there at all, so such a pack
+        // produces the bytes it produced before the table existed.
+        let json = gloss_phrase_json("gave up", EN, &bare, &knowledge);
+        assert!(!json.contains("expressions"));
+        assert!(json.ends_with(r#""function_word":true}]}"#));
+    }
+
+    #[test]
+    fn a_match_carries_the_status_the_reader_put_on_its_key() {
+        // The card keys an expression by its dictionary form and offers a
+        // word's actions on it, so the match has to say where the reader
+        // stands on that key.
+        let pack = build_pack_with_expressions(
+            &[("gave", "give")],
+            &["give", "up", "in", "spite", "of"],
+            &[],
+            &[],
+            &[("give up", "Abandonner"), ("in spite of", "En dépit de")],
+        );
+        let mut knowledge = KnowledgeState::new();
+        knowledge.set_status(EN, "give up", Status::Known(KnownSource::Manual));
+        let settled = gloss_phrase("gave up", EN, &pack, &knowledge);
+        assert_eq!(settled.expressions[0].class, TokenClass::Known);
+        let fresh = gloss_phrase("in spite of", EN, &pack, &knowledge);
+        assert_eq!(fresh.expressions[0].class, TokenClass::Unknown);
+    }
+
+    #[test]
+    fn a_token_belongs_to_at_most_one_match() {
+        let pack = build_pack_with_expressions(
+            &[],
+            &["give", "up", "with", "it"],
+            &[],
+            &[],
+            &[("give up", "Abandonner"), ("up with", "En haut avec")],
+        );
+        let phrase = gloss_phrase("give up with it", EN, &pack, &KnowledgeState::new());
+        assert_eq!(
+            spans(&phrase),
+            [(0, 2, "give up")],
+            "`up` is taken, so the run starting on it is never tried"
+        );
+    }
+
+    #[test]
+    fn a_key_longer_than_the_window_is_never_reached() {
+        // Runs stop at five tokens (design D3): a longer key would cost every
+        // selection probes that 98.9 % of the table cannot answer.
+        // Six words, each its own dictionary form, so the key the lookup would
+        // build is exactly the one the table holds.
+        let six = "give up on the whole thing";
+        let pack = build_pack_with_expressions(
+            &[],
+            &["give", "up", "on", "the", "whole", "thing"],
+            &[],
+            &[],
+            &[(six, "Tout laisser tomber")],
+        );
+        let phrase = gloss_phrase(six, EN, &pack, &KnowledgeState::new());
+        assert!(phrase.expressions.is_empty());
     }
 }
