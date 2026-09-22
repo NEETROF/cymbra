@@ -15,7 +15,7 @@
     "lint": "eslint .",
     "format:check": "prettier --check .",
     "format": "prettier --write .",
-    "test": "vitest run",
+    "test": "vitest run --coverage",
     "test:watch": "vitest",
     "build": "node build.mjs",
     "build:chromium": "node build.mjs chromium",
