@@ -4,28 +4,71 @@ import {
   classifySelection,
   MAX_SELECTION_LENGTH,
   SelectionWatcher,
-  sentenceAround,
+  sentenceForRange,
 } from "@/reading/selection.ts";
 
 beforeEach(() => {
   document.body.innerHTML = "";
 });
 
-describe("sentenceAround", () => {
-  it("returns the sentence containing the needle within the block", () => {
-    document.body.innerHTML = `<p>First sentence here. They seldom ship on Friday. A third one.</p>`;
-    const node = document.querySelector("p")!.firstChild!;
-    expect(sentenceAround(node, "seldom")).toBe("They seldom ship on Friday.");
+describe("sentenceForRange", () => {
+  /** A range over the first occurrence of `text` in the page's only paragraph. */
+  function rangeOver(text: string, html: string): Range {
+    document.body.innerHTML = html;
+    const p = document.querySelector("p")!;
+    const node = p.firstChild!;
+    const i = (node.textContent ?? "").indexOf(text);
+    const r = document.createRange();
+    r.setStart(node, i);
+    r.setEnd(node, i + text.length);
+    return r;
+  }
+
+  it("returns the sentence the range sits in", () => {
+    const r = rangeOver("seldom", `<p>First sentence here. They seldom ship on Friday. A third one.</p>`);
+    expect(sentenceForRange(r)).toBe("They seldom ship on Friday.");
   });
 
-  it("collapses whitespace and falls back to the whole block when no sentence matches", () => {
-    document.body.innerHTML = `<p>one   two\n  three</p>`;
-    const node = document.querySelector("p")!.firstChild!;
-    expect(sentenceAround(node, "absent")).toBe("one two three");
+  it("takes the sentence by POSITION, not by looking the word up in the text", () => {
+    // `put` occurs inside `input` one sentence earlier: the search this replaces returned
+    // "Check the input first." and the card kept that sentence.
+    const r = rangeOver("put it", `<p>Check the input first. Then put it away.</p>`);
+    expect(sentenceForRange(r)).toBe("Then put it away.");
   });
 
-  it("returns empty for a null node", () => {
-    expect(sentenceAround(null, "x")).toBe("");
+  it("holds both sentences when the range crosses from one into the next", () => {
+    const r = rangeOver("first. Then", `<p>Check the input first. Then put it away.</p>`);
+    expect(sentenceForRange(r)).toBe("Check the input first. Then put it away.");
+  });
+
+  it("collapses whitespace and falls back to the whole block when it holds no sentence end", () => {
+    const r = rangeOver("two", `<p>one   two\n  three</p>`);
+    expect(sentenceForRange(r)).toBe("one two three");
+  });
+
+  it("finds the sentence across inline markup inside the block", () => {
+    document.body.innerHTML = `<p>First one here. They <em>seldom</em> ship on <b>Friday</b>. A third.</p>`;
+    const em = document.querySelector("em")!.firstChild!;
+    const r = document.createRange();
+    r.setStart(em, 0);
+    r.setEnd(em, 6);
+    expect(sentenceForRange(r)).toBe("They seldom ship on Friday.");
+  });
+
+  it("stays in the block the range starts in when the selection leaves it", () => {
+    document.body.innerHTML = `<p>They seldom ship.</p><p>Another block here.</p>`;
+    const [first, second] = [...document.querySelectorAll("p")];
+    const r = document.createRange();
+    r.setStart(first!.firstChild!, 5);
+    r.setEnd(second!.firstChild!, 7);
+    expect(sentenceForRange(r)).toBe("They seldom ship.");
+  });
+
+  it("returns empty for a range in an empty block", () => {
+    document.body.innerHTML = `<p></p>`;
+    const r = document.createRange();
+    r.selectNodeContents(document.querySelector("p")!);
+    expect(sentenceForRange(r)).toBe("");
   });
 });
 

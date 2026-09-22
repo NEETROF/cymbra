@@ -21,16 +21,53 @@ export const SELECTION_SETTLE_MS = 350;
  *  selection-handle drag may never send the lift at all. */
 export const SELECTION_HELD_MS = 1200;
 
-/** Extract the sentence around `needle` within the block that contains `node`. */
-export function sentenceAround(node: Node | null, needle: string): string {
-  if (!node) return "";
+/** Collapse runs of whitespace WITHOUT trimming: every offset below counts on this text. */
+const collapse = (text: string): string => text.replace(/\s+/g, " ");
+
+/** The block a node belongs to — the unit a sentence is looked for in. */
+function blockOf(node: Node | null): Element | null {
+  if (!node) return null;
   const element = node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as Element);
-  const block = element?.closest?.(BLOCK_SELECTOR) ?? element ?? null;
-  const full = (block?.textContent ?? node.textContent ?? "").replace(/\s+/g, " ").trim();
-  if (!full) return "";
-  const parts = full.split(SENTENCE_SPLIT);
-  const hit = parts.find((p) => p.includes(needle));
-  return (hit ?? full).trim();
+  return element?.closest?.(BLOCK_SELECTOR) ?? element ?? null;
+}
+
+/**
+ * The sentence a range sits in, found by its POSITION in the block rather than by looking
+ * the words up in the text.
+ *
+ * Searching for the words is what it used to do, and a word that occurs inside an earlier
+ * one wins that search: in "Check the input first. Then put it away.", selecting `put`
+ * matched `input` and the card kept the wrong sentence — which is then synchronised as the
+ * card's own content. Offsets cannot be fooled that way. A range that leaves its block is
+ * clamped to the block it starts in, which is the sentence the reader pointed at.
+ */
+export function sentenceForRange(range: Range): string {
+  const block = blockOf(range.startContainer);
+  const full = collapse(block?.textContent ?? range.startContainer.textContent ?? "");
+  if (!full.trim()) return "";
+  if (!block) return full.trim();
+
+  // Where the range falls in that collapsed text: the text before it, collapsed the same way.
+  const before = range.cloneRange();
+  try {
+    before.setStart(block, 0);
+    before.setEnd(range.startContainer, range.startOffset);
+  } catch {
+    return full.trim(); // a range from another tree: the block text is the honest answer
+  }
+  const start = Math.min(collapse(before.toString()).length, full.length);
+  const end = Math.min(start + collapse(range.toString()).length, full.length);
+
+  // Walk the sentences, keeping each one's span, and take those the range touches.
+  let at = 0;
+  const touched: string[] = [];
+  for (const part of full.split(SENTENCE_SPLIT)) {
+    const from = full.indexOf(part, at);
+    const to = from + part.length;
+    at = to;
+    if (to > start && from < Math.max(end, start + 1)) touched.push(part);
+  }
+  return (touched.length > 0 ? touched.join(" ") : full).trim();
 }
 
 /** A captured selection: the text, its source sentence, an anchor rectangle, and the
@@ -82,8 +119,7 @@ export function captureFrom(sel: Selection | null, maxLength: number = MAX_SELEC
   if (!text || text.length > maxLength) return null;
   const box = typeof range.getBoundingClientRect === "function" ? range.getBoundingClientRect() : null;
   const rect = { left: box?.left ?? 0, top: box?.top ?? 0, bottom: box?.bottom ?? 0 };
-  const firstWord = text.split(" ")[0] ?? text;
-  const sentence = sentenceAround(range.startContainer, firstWord);
+  const sentence = sentenceForRange(range);
   return { text, sentence, rect, range };
 }
 

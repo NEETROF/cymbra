@@ -24,7 +24,7 @@ import {
   captureSelection,
   classifySelection,
   SelectionWatcher,
-  sentenceAround,
+  sentenceForRange,
 } from "./reading/selection.ts";
 import { clickIsOnWord, decideClick, type PageHit, SelectionCards } from "./reading/selection-card.ts";
 import { type Gesture, WordPopup } from "./reading/wordpopup.ts";
@@ -459,7 +459,7 @@ class ReadingSession {
     return {
       token: hit.token,
       rect: { left: rect.left, top: rect.top, bottom: rect.bottom },
-      sentence: sentenceAround(hit.range.startContainer, hit.token.surface),
+      sentence: sentenceForRange(hit.range),
     };
   }
 
