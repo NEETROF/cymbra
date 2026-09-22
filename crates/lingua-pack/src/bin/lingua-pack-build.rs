@@ -21,7 +21,8 @@
 //!
 //! The input directory holds `manifest.json` (PackMeta + sources),
 //! `forms.tsv` (`form<TAB>lemma`), `freq.tsv` (`lemma<TAB>rank`),
-//! `gloss.tsv` (`lemma<TAB>gloss`) and `NOTICE`.
+//! `gloss.tsv` (`lemma<TAB>gloss`) and `NOTICE`, plus the optional
+//! `level.tsv` (`lemma<TAB>A1..C2`) and `mwe.tsv` (`expression<TAB>gloss`).
 
 use std::path::Path;
 use std::process::ExitCode;

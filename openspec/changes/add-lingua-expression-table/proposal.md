@@ -11,8 +11,8 @@ entry only when its headword is in the frequency lexicon, and that lexicon is bu
 single-word list, so all 33 404 multi-word entries of the French Wiktionary's English
 section are dropped at build time.
 
-Measured on the current source snapshot, 14 337 of them survive every filter this change
-applies and hold only words the analysis can produce. They carry exactly what the
+Measured on the current source snapshot, 17 437 of them survive the reducer's filters, and
+the builder keeps those whose every word the pack's lexicon holds. They carry exactly what the
 word-by-word rows cannot say:
 
 | Selection | Today | With the table |
@@ -39,9 +39,9 @@ untouched.
 - **The pack gains an expression table.** A new optional section holds expressions keyed by
   their **dictionary-form sequence** (`gave up` and `give up` are one entry, `give up`) with
   one gloss each, built from the kaikki/Wiktionary source and licence already shipped.
-  Measured at 191 KB of compressed glosses for 14 337 entries, plus about 100 KB of key
-  index; the pack goes from 1.20 MB to about 1.49 MB, 28 % of the 5 MiB the builder
-  enforces.
+  Measured on a real build: 17 437 entries, 345 KB of sections (a 167 KB key index and a
+  178 KB compressed gloss blob); the pack goes from 1 199 437 B to 1 543 992 B, 29.4 % of
+  the 5 MiB the builder enforces.
 - **The core finds expressions in a selection.** The phrase gloss returns, beside its
   tokens, the expressions it recognises: the longest dictionary-form sequence that matches,
   over a bounded window, reported with the tokens it covers.

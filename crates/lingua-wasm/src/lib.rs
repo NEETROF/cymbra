@@ -484,7 +484,10 @@ impl LinguaEngine {
 
     /// Glosses a reader's selection, returning the canonical JSON of the phrase
     /// gloss: every token with its dictionary form, its class, its gloss whatever
-    /// the class, its function-word flag, and the parts of an unlisted compound.
+    /// the class, its function-word flag, and the parts of an unlisted compound —
+    /// beside them, the expressions the pack's table recognises, each with the
+    /// tokens it covers, its key, its class and its gloss (absent from the JSON
+    /// on a pack carrying no expression table).
     /// No page gate applies — a selection is read as one block.
     #[wasm_bindgen(js_name = phraseGloss)]
     pub fn phrase_gloss(&self, text: &str) -> String {

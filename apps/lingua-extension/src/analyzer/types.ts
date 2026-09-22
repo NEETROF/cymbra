@@ -69,9 +69,25 @@ export interface PhraseToken {
 }
 
 /** The gloss of a short text — a selection — read without the page gates (`phraseGloss`). */
+/** An expression of the pack found in a selection: the tokens it covers, and its own entry. */
+export interface PhraseMatch {
+  /** Index of the first token it covers. */
+  start: number;
+  /** Index after the last token it covers. */
+  end: number;
+  /** Its key: the covered tokens' dictionary forms, joined by single spaces. */
+  key: string;
+  /** Classification of the key itself — an expression is a dictionary form of its own. */
+  class: TokenClass;
+  /** Its native-language gloss. */
+  gloss: string;
+}
+
 export interface PhraseGloss {
   /** Tokens in reading order. */
   tokens: PhraseToken[];
+  /** The pack's expressions found in the text, in token order; absent when none. */
+  expressions?: PhraseMatch[];
 }
 
 /** The user's status for a dictionary form. Mirrors the WASM `setStatus` vocabulary. */

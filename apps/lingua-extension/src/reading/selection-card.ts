@@ -1,4 +1,11 @@
-import type { AnalyzedToken, LemmaStatus, PhraseGloss, PhraseToken, TokenClass } from "../analyzer/types.ts";
+import type {
+  AnalyzedToken,
+  LemmaStatus,
+  PhraseGloss,
+  PhraseMatch,
+  PhraseToken,
+  TokenClass,
+} from "../analyzer/types.ts";
 import type { Gesture, GlossRow, WordPopupContent } from "./wordpopup.ts";
 
 // What a selection opens, decided in one place with no DOM and injected ports, so that
@@ -121,31 +128,55 @@ export function rowGloss(gloss: string): string | null {
   return null;
 }
 
+/** Whether the reader has settled this class: a known or ignored word needs no row. */
+function settled(cls: TokenClass): boolean {
+  return cls === "Known" || cls === "Ignored";
+}
+
 /**
  * The word-by-word rows of a glossed text (design D5). The candidates are the tokens; a
- * compound the lexicon does not list is replaced by its parts — unless the reader marked the
- * compound itself known or ignored, in which case it gives nothing. A candidate makes a row
- * when the reader does not know it (unknown or learning), it is not a function word and the
- * pack glosses it with something to show; one row per dictionary form, in reading order, at
- * most MAX_ROWS.
+ * compound the lexicon does not list is replaced by its parts, and an expression of the pack
+ * by itself — unless the reader marked the compound or the expression known or ignored, in
+ * which case it gives nothing, its words included. A candidate makes a row when the reader
+ * does not know it (unknown or learning), it is not a function word and the pack glosses it
+ * with something to show; one row per dictionary form, in reading order, at most MAX_ROWS.
  */
-export function rowsFor(tokens: PhraseToken[]): GlossRow[] {
+export function rowsFor(tokens: PhraseToken[], matches: readonly PhraseMatch[] = []): GlossRow[] {
   const rows: GlossRow[] = [];
   const seen = new Set<string>();
-  for (const token of tokens) {
-    const settled = token.class === "Known" || token.class === "Ignored";
-    const candidates = token.parts && token.parts.length > 0 ? (settled ? [] : token.parts) : [token];
+  const add = (form: string, gloss: string | null): boolean => {
+    if (!gloss || seen.has(form)) return false;
+    const text = rowGloss(gloss);
+    if (!text) return false;
+    seen.add(form);
+    rows.push({ form, gloss: text });
+    return rows.length >= MAX_ROWS;
+  };
+  for (let i = 0; i < tokens.length;) {
+    // An expression covering these tokens answers for them all: it takes their place in the
+    // list, and a settled one leaves nothing behind — the reader has dealt with it.
+    const match = matches.find((m) => m.start === i);
+    if (match) {
+      if (!settled(match.class) && add(match.key, match.gloss)) return rows;
+      i = match.end;
+      continue;
+    }
+    const token = tokens[i]!;
+    const candidates = token.parts && token.parts.length > 0 ? (settled(token.class) ? [] : token.parts) : [token];
     for (const c of candidates) {
       if (c.class !== "Unknown" && c.class !== "Learning") continue;
-      if (c.function_word || !c.gloss || seen.has(c.lemma)) continue;
-      const gloss = rowGloss(c.gloss);
-      if (!gloss) continue;
-      seen.add(c.lemma);
-      rows.push({ form: c.lemma, gloss });
-      if (rows.length >= MAX_ROWS) return rows;
+      if (c.function_word) continue;
+      if (add(c.lemma, c.gloss)) return rows;
     }
+    i += 1;
   }
   return rows;
+}
+
+/** The expression covering the whole text, when one does: the card's answer and its key. */
+export function wholeSelectionMatch(answer: PhraseGloss): PhraseMatch | null {
+  const match = answer.expressions?.find((m) => m.start === 0 && m.end === answer.tokens.length);
+  return answer.tokens.length > 0 && match ? match : null;
 }
 
 /** How far outside a word's box a click still counts as being on it (px). */
@@ -244,7 +275,9 @@ export class SelectionCards {
           const first = answer?.tokens[0];
           // Only an unlisted compound rows itself: a listed one, whatever its class, has its
           // own gloss, which is the better answer — never a word-by-word row of itself.
-          return first ? { ...base, gloss: first.gloss, rows: first.parts?.length ? rowsFor([first]) : [] } : base;
+          return first
+            ? { ...base, gloss: first.gloss, rows: first.parts?.length ? rowsFor([first], answer.expressions) : [] }
+            : base;
         },
       );
     } else if (token.class === "Known" || token.class === "Ignored") {
@@ -260,7 +293,10 @@ export class SelectionCards {
 
   /** The gloss a created card carries: none for an expression, the pack's for a word. */
   async cardGloss(g: Gesture): Promise<string | null> {
-    if (g.expression) return null;
+    // A key holding a space is an expression, which the single-lemma port cannot answer:
+    // its gloss is the one the card showed, dictionary data worth keeping. A phrase the
+    // pack does not know shows no gloss, so it carries none.
+    if (g.lemma.includes(" ")) return g.gloss ?? null;
     return (await this.ports.gloss(g.lemma.toLowerCase())) ?? null;
   }
 
@@ -287,7 +323,23 @@ export class SelectionCards {
     this.request(
       { ...base, pending: true },
       () => this.ports.phraseGloss(sel.text),
-      (answer) => ({ ...base, rows: answer ? rowsFor(answer.tokens) : [] }),
+      (answer) => {
+        if (!answer) return { ...base, rows: [] };
+        const whole = wholeSelectionMatch(answer);
+        // An expression the pack knows is the answer, not a list of its words: the card is
+        // keyed by its dictionary form — so `gave up` and `give up` are one card — and
+        // offers a word's actions, the knowledge model treating it as a lemma of its own.
+        if (whole) {
+          return {
+            ...base,
+            expression: false,
+            headword: whole.key,
+            gloss: whole.gloss,
+            status: statusOfClass(whole.class),
+          };
+        }
+        return { ...base, rows: rowsFor(answer.tokens, answer.expressions) };
+      },
     );
   }
 
@@ -323,7 +375,7 @@ export class SelectionCards {
           sentence: sel.sentence,
           status: statusOfClass(t.class),
           rect: sel.rect,
-          rows: t.parts?.length ? rowsFor([t]) : undefined,
+          rows: t.parts?.length ? rowsFor([t], answer.expressions) : undefined,
         };
       },
     );

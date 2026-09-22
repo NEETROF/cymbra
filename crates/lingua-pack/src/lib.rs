@@ -17,7 +17,8 @@
 //! Assembles a versioned `pack.lingua` from the tables the pipeline derives
 //! from AGID (form→lemma), wordfreq (ranks) and kaikki (French glosses):
 //! builds the FST, quantises ranks, compresses the offset-indexed glosses
-//! with zstd, embeds the metadata and NOTICE, and enforces the licence
+//! with zstd, keys the multi-word expressions through the core's own
+//! lemmatiser, embeds the metadata and NOTICE, and enforces the licence
 //! denylist and the size budget. Native-only — the reader that consumes the
 //! output lives in `lingua-core` and stays WASM-clean.
 
@@ -26,7 +27,8 @@ pub mod manifest;
 
 use std::path::Path;
 
-use lingua_core::analysis::lexicon::{FstLexicon, build_lexicon_blobs};
+use lingua_core::analysis::lemmatize::lemmatize;
+use lingua_core::analysis::lexicon::{FstLexicon, Lexicon, build_lexicon_blobs};
 use lingua_core::knowledge::level::CefrLevel;
 use lingua_core::packs::format::write_container;
 use lingua_core::packs::meta::PackMeta;
@@ -34,7 +36,8 @@ use lingua_core::packs::pack::section;
 use serde::Deserialize;
 
 /// The maximum size, in bytes, of a pack embedded in the extension (design
-/// D4). Overshooting fails the build; the remedy is fewer glossed lemmas.
+/// D4). Overshooting fails the build; what to take from first is fixed by the
+/// size-budget requirement and reported by [`BuildError::OverBudget`].
 pub const MAX_PACK_BYTES: usize = 5 * 1024 * 1024;
 
 /// A pack's build manifest, alongside its derived tables on disk.
@@ -59,6 +62,11 @@ pub struct PackInputs {
     /// Lemma → CEFR level (CEFR-J A1–B2 + Octanove C1–C2), when the pair has
     /// licence-clean CEFR data. Empty otherwise (no level table is emitted).
     pub levels: Vec<(String, CefrLevel)>,
+    /// Multi-word headword → native-language gloss (kaikki-derived), as the
+    /// source spells it: `breaking point`, `gave up`. The builder is what keys
+    /// them, because only it holds the lexicon the cascade needs. Empty when
+    /// the pair's sources hold no expression (no expression table is emitted).
+    pub expressions: Vec<(String, String)>,
     /// The full attribution NOTICE text.
     pub notice: String,
     /// The sources actually used, for the licence guard.
@@ -75,8 +83,20 @@ pub enum BuildError {
     /// The FST could not be built from the form→lemma pairs.
     Fst(String),
     /// The assembled pack exceeds [`MAX_PACK_BYTES`].
-    OverBudget { size: usize, budget: usize },
+    OverBudget {
+        size: usize,
+        budget: usize,
+        /// What the operator must take from, in the arbitration order the
+        /// size-budget requirement fixes: the expression table when the pack
+        /// carries one, gloss coverage otherwise — never the FST or the
+        /// frequencies, which every page analysis depends on.
+        reduce: &'static str,
+    },
 }
+
+/// The remedies [`BuildError::OverBudget`] names, in arbitration order.
+const REDUCE_EXPRESSIONS: &str = "the expression table (longest entries, then rarest)";
+const REDUCE_GLOSSES: &str = "glossed lemmas";
 
 impl std::fmt::Display for BuildError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -88,9 +108,13 @@ impl std::fmt::Display for BuildError {
                 write!(f, "NOTICE is missing the attribution for {s:?}")
             }
             BuildError::Fst(e) => write!(f, "could not build the forms FST: {e}"),
-            BuildError::OverBudget { size, budget } => write!(
+            BuildError::OverBudget {
+                size,
+                budget,
+                reduce,
+            } => write!(
                 f,
-                "pack is {size} bytes, over the {budget}-byte budget; reduce glossed lemmas"
+                "pack is {size} bytes, over the {budget}-byte budget; reduce {reduce}"
             ),
         }
     }
@@ -114,6 +138,7 @@ pub fn inputs_from_dir(dir: &Path) -> std::io::Result<PackInputs> {
             .collect(),
         glosses: tsv_pairs(&read("gloss.tsv")?),
         levels: read_levels(dir)?,
+        expressions: read_expressions(dir)?,
         notice: read("NOTICE")?,
         sources: manifest.sources,
     })
@@ -127,6 +152,17 @@ fn read_levels(dir: &Path) -> std::io::Result<Vec<(String, CefrLevel)>> {
             .into_iter()
             .filter_map(|(lemma, label)| CefrLevel::from_label(&label).map(|lvl| (lemma, lvl)))
             .collect()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),
+        Err(e) => Err(e),
+    }
+}
+
+/// Reads the optional `mwe.tsv` (`headword<TAB>gloss`). A pair whose sources
+/// hold no multi-word entry simply has no file → no expressions, exactly as for
+/// `level.tsv`.
+fn read_expressions(dir: &Path) -> std::io::Result<Vec<(String, String)>> {
+    match std::fs::read_to_string(dir.join("mwe.tsv")) {
+        Ok(text) => Ok(tsv_pairs(&text)),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),
         Err(e) => Err(e),
     }
@@ -212,6 +248,52 @@ pub fn build_pack(inputs: &PackInputs) -> Result<Vec<u8>, BuildError> {
         levels
     };
 
+    // Expression table, keyed by the lexicon the build has just assembled, so a
+    // key is exactly what the reader's own cascade makes of the words on the
+    // page (design D1). Two sections, like the glosses: an FST of keys → dense
+    // ids, and the zstd-compressed glosses those ids index. Emitted ONLY when
+    // an entry survives, so a pack for a pair without expressions — or one whose
+    // entries the lexicon cannot reach — stays byte-for-byte what it was.
+    let mut keyed: Vec<(String, &str, &str)> = inputs
+        .expressions
+        .iter()
+        .filter_map(|(headword, gloss)| {
+            expression_key(headword, &lex).map(|key| (key, headword.as_str(), gloss.as_str()))
+        })
+        .collect();
+    // Sorted by key for the FST, and within a key by "is the key itself" first:
+    // `break point` keeps the key `breaking point` also reaches, so the gloss
+    // that survives is the dictionary spelling's (design D2). Alphabetical order
+    // settles the rest, so the winner never depends on the input's order.
+    keyed.sort_unstable_by(|a, b| {
+        a.0.cmp(&b.0)
+            .then_with(|| (a.1 != a.0).cmp(&(b.1 != b.0)))
+            .then_with(|| a.1.cmp(b.1))
+    });
+    keyed.dedup_by(|a, b| a.0 == b.0);
+    let (expr_fst, expr_zst) = if keyed.is_empty() {
+        (Vec::new(), Vec::new())
+    } else {
+        let mut builder = fst::MapBuilder::memory();
+        for (id, (key, _, _)) in keyed.iter().enumerate() {
+            // Byte-wise sorted and unique is all a `MapBuilder` asks of its
+            // input, and the sort above has just made the keys both. Unlike the
+            // forms FST, whose pairs come from a file, nothing here can fail.
+            builder
+                .insert(key, id as u64)
+                .expect("keys sorted and unique");
+        }
+        let entries: Vec<(u32, &str)> = keyed
+            .iter()
+            .enumerate()
+            .map(|(id, (_, _, gloss))| (id as u32, *gloss))
+            .collect();
+        (
+            builder.into_inner().expect("in-memory FST"),
+            compress_glosses(&entries),
+        )
+    };
+
     let meta_json = serde_json::to_vec(&inputs.meta).expect("PackMeta serialises");
     let mut sections: Vec<(&str, &[u8])> = vec![
         (section::FORMS, forms.as_slice()),
@@ -221,6 +303,10 @@ pub fn build_pack(inputs: &PackInputs) -> Result<Vec<u8>, BuildError> {
     if !levels_bytes.is_empty() {
         sections.push((section::LEVELS, levels_bytes.as_slice()));
     }
+    if !expr_fst.is_empty() {
+        sections.push((section::EXPR, expr_fst.as_slice()));
+        sections.push((section::EXPR_ZST, expr_zst.as_slice()));
+    }
     sections.push((section::GLOSS_ZST, gloss_zst.as_slice()));
     sections.push((section::NOTICE, inputs.notice.as_bytes()));
     let pack = write_container(&meta_json, &sections);
@@ -229,13 +315,39 @@ pub fn build_pack(inputs: &PackInputs) -> Result<Vec<u8>, BuildError> {
         return Err(BuildError::OverBudget {
             size: pack.len(),
             budget: MAX_PACK_BYTES,
+            reduce: if expr_fst.is_empty() {
+                REDUCE_GLOSSES
+            } else {
+                REDUCE_EXPRESSIONS
+            },
         });
     }
     Ok(pack)
 }
 
-/// Encodes the gloss index + payload and zstd-compresses it. Layout matches
-/// the reader: `count u32 | count*(id u32, off u32, len u32) | utf8`.
+/// An expression's key: its words' dictionary forms, lowercase, joined by
+/// single spaces (`starting point` → `start point`).
+///
+/// `None` when the lexicon does not hold one of those forms. `lemmatize` never
+/// fails — its last resort is the lowercased word itself — so this is not a
+/// failure to catch but the membership test the requirement asks for: a key no
+/// reading can produce would sit in the pack unreachable for ever.
+fn expression_key(headword: &str, lex: &impl Lexicon) -> Option<String> {
+    let mut words: Vec<String> = Vec::new();
+    for word in headword.split_whitespace() {
+        let lemma = lemmatize(word, lex);
+        if !lex.contains_lemma(&lemma) {
+            return None;
+        }
+        words.push(lemma);
+    }
+    (!words.is_empty()).then(|| words.join(" "))
+}
+
+/// Encodes a gloss index + payload and zstd-compresses it. Layout matches the
+/// reader: `count u32 | count*(id u32, off u32, len u32) | utf8`. Shared by the
+/// per-lemma glosses and the expression table, which is the same shape keyed by
+/// expression id.
 fn compress_glosses(entries: &[(u32, &str)]) -> Vec<u8> {
     let mut payload = Vec::new();
     let mut index = Vec::new();
@@ -305,9 +417,62 @@ mod tests {
                 ("city".into(), "ville".into()),
             ],
             levels: vec![],
+            expressions: vec![],
             notice: "AGID (permissive), wordfreq (CC BY-SA), kaikki (CC BY-SA).".into(),
             sources: sources(),
         }
+    }
+
+    /// The fixture plus the words an expression needs a lemma for: `start`
+    /// (reached from `starting`), `point`, and `break` (from `breaking`).
+    fn inputs_with_expression_words() -> PackInputs {
+        let mut inp = inputs();
+        inp.form_lemma.extend([
+            ("starting".into(), "start".into()),
+            ("breaking".into(), "break".into()),
+        ]);
+        inp.ranks.extend([
+            ("start".into(), 300),
+            ("point".into(), 400),
+            ("break".into(), 800),
+        ]);
+        inp
+    }
+
+    /// A built pack's expression table, as (key, gloss) pairs in key order.
+    /// Decoded here from the two sections rather than through the reader, which
+    /// is the other half of this change.
+    fn expressions_of(bytes: &[u8]) -> Vec<(String, String)> {
+        let (_, sections) = lingua_core::packs::format::read_container(bytes).expect("decode");
+        let find = |name: &str| {
+            sections
+                .iter()
+                .find(|s| s.name == name)
+                .map(|s| s.data.clone())
+        };
+        let (Some(keys), Some(blob)) = (find(section::EXPR), find(section::EXPR_ZST)) else {
+            return Vec::new();
+        };
+        let raw = zstd::decode_all(blob.as_slice()).expect("zstd decode");
+        let le = |at: usize| u32::from_le_bytes(raw[at..at + 4].try_into().unwrap()) as usize;
+        let count = le(0);
+        let payload = 4 + count * 12;
+        let glosses: std::collections::BTreeMap<u64, String> = (0..count)
+            .map(|i| {
+                let (id, off, len) = (le(4 + i * 12), le(8 + i * 12), le(12 + i * 12));
+                let text = String::from_utf8(raw[payload + off..payload + off + len].to_vec());
+                (id as u64, text.expect("utf-8 gloss"))
+            })
+            .collect();
+
+        let map = fst::Map::new(keys).expect("expression FST");
+        let mut out = Vec::new();
+        let mut stream = map.stream();
+        while let Some((key, id)) = fst::Streamer::next(&mut stream) {
+            let key = String::from_utf8(key.to_vec()).expect("utf-8 key");
+            out.push((key, glosses[&id].clone()));
+        }
+        out
     }
 
     #[test]
@@ -411,6 +576,78 @@ mod tests {
     }
 
     #[test]
+    fn an_expression_is_keyed_by_its_words_dictionary_forms() {
+        let mut inp = inputs_with_expression_words();
+        inp.expressions = vec![("starting point".into(), "Point de départ".into())];
+        let bytes = build_pack(&inp).expect("build");
+        assert_eq!(
+            expressions_of(&bytes),
+            vec![("start point".into(), "Point de départ".into())]
+        );
+    }
+
+    #[test]
+    fn the_dictionary_spelling_wins_a_key_two_entries_reach() {
+        let mut inp = inputs_with_expression_words();
+        // Both lemmatise to `break point`; the entry that IS the key keeps it,
+        // whichever order the source listed them in.
+        inp.expressions = vec![
+            ("breaking point".into(), "Point de rupture".into()),
+            ("break point".into(), "Point d'arrêt".into()),
+        ];
+        let first = build_pack(&inp).expect("build");
+        assert_eq!(
+            expressions_of(&first),
+            vec![("break point".into(), "Point d'arrêt".into())]
+        );
+        inp.expressions.reverse();
+        assert_eq!(build_pack(&inp).expect("build"), first);
+    }
+
+    #[test]
+    fn an_expression_holding_an_unknown_word_is_left_out() {
+        let mut inp = inputs_with_expression_words();
+        // `gun` is no lemma of this pack: the reader's analysis could never
+        // produce the key, so the entry would be unreachable.
+        inp.expressions = vec![("starting gun".into(), "Pistolet de départ".into())];
+        let bytes = build_pack(&inp).expect("build");
+        assert!(expressions_of(&bytes).is_empty());
+        assert_eq!(
+            bytes,
+            build_pack(&inputs_with_expression_words()).unwrap(),
+            "an entry nothing can reach must leave no trace in the pack"
+        );
+    }
+
+    #[test]
+    fn an_expression_less_pack_is_byte_identical_to_before_the_expression_section() {
+        // With no expression, no section is emitted — the guarantee that this
+        // feature does not disturb packs for pairs whose sources hold none.
+        let bytes = build_pack(&inputs()).unwrap();
+        let (_, sections) = lingua_core::packs::format::read_container(&bytes).expect("decode");
+        assert!(
+            sections
+                .iter()
+                .all(|s| s.name != section::EXPR && s.name != section::EXPR_ZST)
+        );
+    }
+
+    #[test]
+    fn expressions_need_no_new_source_and_leave_the_notice_alone() {
+        // The entries come from the kaikki dump the glosses already come from,
+        // so the licence guard has nothing new to clear.
+        let plain = inputs_with_expression_words();
+        let mut inp = inputs_with_expression_words();
+        inp.expressions = vec![("starting point".into(), "Point de départ".into())];
+        assert_eq!(inp.sources, plain.sources);
+        assert_eq!(inp.notice, plain.notice);
+
+        let bytes = build_pack(&inp).expect("build");
+        let pack = Pack::load(&bytes).expect("load");
+        assert_eq!(pack.notice(), plain.notice);
+    }
+
+    #[test]
     fn a_denied_source_licence_fails_the_build() {
         let mut inp = inputs();
         inp.sources.push(licence::Source {
@@ -433,11 +670,9 @@ mod tests {
         );
     }
 
-    #[test]
-    fn over_budget_fails_with_a_clear_error() {
-        let mut inp = inputs();
-        // A gloss that stays over 5 MB even after zstd: a pseudo-random,
-        // poorly-compressible byte soup rather than a repeating pattern.
+    /// A gloss that stays over 5 MB even after zstd: a pseudo-random,
+    /// poorly-compressible byte soup rather than a repeating pattern.
+    fn incompressible_gloss() -> String {
         let mut big = String::with_capacity(9_000_000);
         let mut x: u32 = 0x1234_5678;
         for _ in 0..9_000_000 {
@@ -446,11 +681,35 @@ mod tests {
             // so zstd cannot bring 9 MB back under the 5 MB budget.
             big.push(char::from(b' ' + (x >> 17) as u8 % 95));
         }
-        inp.glosses = vec![("run".into(), big)];
+        big
+    }
+
+    #[test]
+    fn over_budget_fails_with_a_clear_error() {
+        let mut inp = inputs();
+        inp.glosses = vec![("run".into(), incompressible_gloss())];
         match build_pack(&inp) {
-            Err(BuildError::OverBudget { budget, size }) => {
+            Err(e @ BuildError::OverBudget { budget, size, .. }) => {
                 assert_eq!(budget, MAX_PACK_BYTES);
                 assert!(size > budget);
+                // No expression table to give way: gloss coverage is what is at
+                // fault, and the FST and the frequencies are never named.
+                assert!(e.to_string().contains("glossed lemmas"), "{e}");
+            }
+            other => panic!("expected OverBudget, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn over_budget_names_the_expression_table_when_the_pack_carries_one() {
+        let mut inp = inputs();
+        // `run` and `city` are both lemmas here, so the entry reaches the table.
+        inp.expressions = vec![("run city".into(), incompressible_gloss())];
+        match build_pack(&inp) {
+            Err(e @ BuildError::OverBudget { .. }) => {
+                let msg = e.to_string();
+                assert!(msg.contains("expression table"), "{msg}");
+                assert!(!msg.contains("glossed lemmas"), "{msg}");
             }
             other => panic!("expected OverBudget, got {other:?}"),
         }

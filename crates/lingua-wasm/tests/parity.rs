@@ -57,6 +57,12 @@ const PHRASE_GOLDEN: &str = include_str!("fixtures/phrase_golden.json");
 /// parts the pack glosses (`run-seldom`), a sentence-cased name the lexicon
 /// holds no form of, and a multi-word selection mixing pack words with words
 /// the pack has never heard of.
+///
+/// One selection MUST reach the fixture pack's expression table once that
+/// table is there — see [`the_phrase_golden_exercises_the_expression_table`],
+/// which fails until one does. The testdata's keys are `city conundrum`,
+/// `city run` and `seldom run`, so a selection such as `the city runs daily`
+/// reaches one on its dictionary forms, which is the point.
 const PHRASES: &[&str] = &[
     "city",
     "cities",
@@ -64,6 +70,10 @@ const PHRASES: &[&str] = &[
     "run-seldom",
     "Jenkins",
     "she seldom meets such a strange conundrum",
+    // Reaches the expression table on DICTIONARY FORMS, not on the words as written:
+    // `runs` lemmatises to `run`, so the key `city run` matches where a surface
+    // comparison would not.
+    "the city runs daily",
 ];
 
 /// A calibrated reader with one lemma forced to `learning`: the state both
@@ -146,5 +156,27 @@ fn phrase_gloss_matches_golden() {
         "phrase_golden.json",
         PHRASE_GOLDEN,
         "LINGUA_UPDATE_PHRASE_GOLDEN",
+    );
+}
+
+/// A table no selection reaches is a table the golden would stop covering
+/// without anyone noticing, so the phrase golden must exercise the fixture
+/// pack's expressions (`add-lingua-expression-table`).
+///
+/// The assertion waits for the fixture: the committed `pack.lingua` predates
+/// the expression table, and rebuilding it from the testdata belongs to the
+/// data pipeline, not to this test. The day it carries one, this fails until
+/// [`PHRASES`] holds a selection that reaches it.
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+#[cfg_attr(not(target_arch = "wasm32"), test)]
+fn the_phrase_golden_exercises_the_expression_table() {
+    let pack = lingua_core::packs::Pack::load(PACK).expect("fixture pack loads");
+    if !pack.has_expressions() {
+        return;
+    }
+    assert!(
+        gloss_fixture_phrases().contains(r#""expressions":["#),
+        "the fixture pack carries an expression table no selection of PHRASES \
+         reaches — add one made of its words, then refresh the phrase golden",
     );
 }

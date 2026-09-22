@@ -56,6 +56,7 @@ describe("word popup card", () => {
       sentence: "They seldom ship on Friday.",
       status: "learning",
       expression: false,
+      gloss: "rarement",
     });
     expect(card.visible()).toBe(false); // hides after a gesture
   });
@@ -112,6 +113,19 @@ describe("word popup card", () => {
     ]);
   });
 
+  it("carries the answer on the gesture, so an expression's gloss reaches the card it creates", () => {
+    const onGesture = vi.fn();
+    const view = createCard();
+    // A card keyed by an expression: the single-lemma pack port could not answer `give up`,
+    // so the gloss travels with the gesture.
+    view.show(content({ headword: "give up", surface: "gave up", gloss: "Abandonner" }), onGesture);
+    const deck = [...view.el.querySelectorAll<HTMLButtonElement>(".actions button")].find(
+      (b) => b.textContent === "+ Deck",
+    )!;
+    deck.click();
+    expect(onGesture).toHaveBeenCalledWith(expect.objectContaining({ lemma: "give up", gloss: "Abandonner" }));
+  });
+
   it("emits a null status (clear → 'à apprendre') on 'Remettre à apprendre'", () => {
     const card = createCard();
     const spy = vi.fn<(g: Gesture) => void>();
@@ -123,6 +137,7 @@ describe("word popup card", () => {
       sentence: "They seldom ship on Friday.",
       status: null,
       expression: false,
+      gloss: "rarement",
     });
     expect(card.visible()).toBe(false);
   });
