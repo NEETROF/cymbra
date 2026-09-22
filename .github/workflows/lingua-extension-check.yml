@@ -86,6 +86,8 @@ jobs:
         run: yarn format:check
       - name: Typecheck
         run: yarn typecheck
+      # `yarn test` runs with coverage and fails under the repo's 80% line gate, so the
+      # number CI enforces is the one a developer sees locally.
       - name: Unit tests (Vitest)
         run: yarn test
       # Full build: testdata pack + esbuild bundle of every variant (chromium, firefox,
