@@ -42,10 +42,30 @@ function blockOf(node: Node | null): Element | null {
  * clamped to the block it starts in, which is the sentence the reader pointed at.
  */
 export function sentenceForRange(range: Range): string {
+  return sentenceAndSelection(range).sentence;
+}
+
+/** A sentence, and where in it the selection sits — as [start, end) offsets into `sentence`. */
+export interface SentenceSelection {
+  sentence: string;
+  /**
+   * The selection's span in `sentence`, tightened to its text (no surrounding blanks), or null
+   * when its position could not be established — a range with no block, or from another tree.
+   */
+  selection: { start: number; end: number } | null;
+}
+
+/**
+ * `sentenceForRange`, keeping the offsets it finds on the way. The translator marks the
+ * selection in its sentence by POSITION, for the same reason the sentence itself is found by
+ * position: a word occurring earlier in the sentence (`put` inside `input`) would otherwise
+ * take the mark.
+ */
+export function sentenceAndSelection(range: Range): SentenceSelection {
   const block = blockOf(range.startContainer);
   const full = collapse(block?.textContent ?? range.startContainer.textContent ?? "");
-  if (!full.trim()) return "";
-  if (!block) return full.trim();
+  if (!full.trim()) return { sentence: "", selection: null };
+  if (!block) return { sentence: full.trim(), selection: null };
 
   // Where the range falls in that collapsed text: the text before it, collapsed the same way.
   const before = range.cloneRange();
@@ -53,21 +73,36 @@ export function sentenceForRange(range: Range): string {
     before.setStart(block, 0);
     before.setEnd(range.startContainer, range.startOffset);
   } catch {
-    return full.trim(); // a range from another tree: the block text is the honest answer
+    return { sentence: full.trim(), selection: null }; // a range from another tree: no position to trust
   }
   const start = Math.min(collapse(before.toString()).length, full.length);
   const end = Math.min(start + collapse(range.toString()).length, full.length);
 
-  // Walk the sentences, keeping each one's span, and take those the range touches.
+  // Walk the sentences, keeping each one's span, and take those the range touches. They are
+  // contiguous and the text is collapsed, so the join is exactly the slice between the first
+  // and the last — which is what lets the offsets carry over.
   let at = 0;
-  const touched: string[] = [];
+  let first = -1;
+  let last = -1;
   for (const part of full.split(SENTENCE_SPLIT)) {
     const from = full.indexOf(part, at);
     const to = from + part.length;
     at = to;
-    if (to > start && from < Math.max(end, start + 1)) touched.push(part);
+    if (to > start && from < Math.max(end, start + 1)) {
+      if (first < 0) first = from;
+      last = to;
+    }
   }
-  return (touched.length > 0 ? touched.join(" ") : full).trim();
+  const [from, to] = first < 0 ? [0, full.length] : [first, last];
+  const raw = full.slice(from, to);
+  const sentence = raw.trim();
+  const shift = from + (raw.length - raw.trimStart().length);
+
+  let s = Math.max(0, Math.min(start - shift, sentence.length));
+  let e = Math.max(s, Math.min(end - shift, sentence.length));
+  while (s < e && /\s/.test(sentence.charAt(s))) s++;
+  while (e > s && /\s/.test(sentence.charAt(e - 1))) e--;
+  return { sentence, selection: e > s ? { start: s, end: e } : null };
 }
 
 /** A captured selection: the text, its source sentence, an anchor rectangle, and the
@@ -75,6 +110,8 @@ export function sentenceForRange(range: Range): string {
 export interface Capture {
   text: string;
   sentence: string;
+  /** Where the selection sits in `sentence`, found by position (null when unknown). */
+  selection: SentenceSelection["selection"];
   rect: { left: number; top: number; bottom: number };
   range: Range;
 }
@@ -119,8 +156,8 @@ export function captureFrom(sel: Selection | null, maxLength: number = MAX_SELEC
   if (!text || text.length > maxLength) return null;
   const box = typeof range.getBoundingClientRect === "function" ? range.getBoundingClientRect() : null;
   const rect = { left: box?.left ?? 0, top: box?.top ?? 0, bottom: box?.bottom ?? 0 };
-  const sentence = sentenceForRange(range);
-  return { text, sentence, rect, range };
+  const { sentence, selection } = sentenceAndSelection(range);
+  return { text, sentence, selection, rect, range };
 }
 
 /** The page selection, captured. */

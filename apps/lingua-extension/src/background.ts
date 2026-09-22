@@ -20,6 +20,11 @@ import {
   runAuthFlow,
 } from "./state/oidc.ts";
 import { isOpenPageMessage } from "./state/open-page.ts";
+import { EngineChannel, type WorkerLike } from "./translate/host/channel.ts";
+import type { EngineAccess } from "./translate/host/engine.ts";
+import { OffscreenEngine } from "./translate/host/offscreen-engine.ts";
+import { relayTranslation } from "./translate/host/relay.ts";
+import { isTranslateMessage } from "./translate/wire.ts";
 import { Session } from "./state/session.ts";
 import { type AsyncStorageArea, hydrateEngine, ROOT_KEY, SESSION_LOST_KEY } from "./state/storage.ts";
 import {
@@ -227,6 +232,23 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (!isRpcRequest(message)) return undefined;
     void handleRpc(enginePort, ensure, message).then(sendResponse);
+    return true; // async response
+  });
+}
+
+// The translation engine (add-lingua-translation-engine), built in only by a development
+// build that side-loads a model — every shipped build folds this block away. The background
+// relays and never translates itself: the engine runs in a worker of its own, so the analyser
+// RPC above keeps answering while a sentence is being translated. On Chromium that worker is
+// owned by an offscreen document, because a service worker cannot construct one.
+if (__TRANSLATION_HOST__ !== "none") {
+  const engine: EngineAccess =
+    __TRANSLATION_HOST__ === "offscreen"
+      ? new OffscreenEngine(chrome.offscreen, (message) => chrome.runtime.sendMessage(message))
+      : new EngineChannel(() => new Worker(chrome.runtime.getURL("engine-worker.js")) as unknown as WorkerLike);
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (!isTranslateMessage(message)) return undefined;
+    void relayTranslation(engine, message.request).then(sendResponse);
     return true; // async response
   });
 }

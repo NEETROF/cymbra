@@ -4,6 +4,7 @@ import {
   classifySelection,
   MAX_SELECTION_LENGTH,
   SelectionWatcher,
+  sentenceAndSelection,
   sentenceForRange,
 } from "@/reading/selection.ts";
 
@@ -69,6 +70,77 @@ describe("sentenceForRange", () => {
     const r = document.createRange();
     r.selectNodeContents(document.querySelector("p")!);
     expect(sentenceForRange(r)).toBe("");
+  });
+});
+
+describe("sentenceAndSelection", () => {
+  /** A range over the first occurrence of `text` in the page's only paragraph. */
+  function rangeOver(text: string, html: string): Range {
+    document.body.innerHTML = html;
+    const node = document.querySelector("p")!.firstChild!;
+    const i = (node.textContent ?? "").indexOf(text);
+    const r = document.createRange();
+    r.setStart(node, i);
+    r.setEnd(node, i + text.length);
+    return r;
+  }
+
+  /** The text the offsets point at — the only thing a caller does with them. */
+  const marked = ({ sentence, selection }: ReturnType<typeof sentenceAndSelection>) =>
+    selection ? sentence.slice(selection.start, selection.end) : null;
+
+  it("gives the selection's place in its sentence", () => {
+    const r = rangeOver("gave up", "<p>First one. She gave up after the third attempt. Last.</p>");
+    const got = sentenceAndSelection(r);
+    expect(got.sentence).toBe("She gave up after the third attempt.");
+    expect(marked(got)).toBe("gave up");
+  });
+
+  it("places the mark by POSITION, not by finding the words", () => {
+    // `put` occurs inside `input` earlier in the same sentence; a search would mark `input`.
+    const r = rangeOver("put it", "<p>Check the input and then put it away.</p>");
+    const got = sentenceAndSelection(r);
+    expect(got.selection).toEqual({ start: "Check the input and then ".length, end: "Check the input and then put it".length });
+  });
+
+  it("keeps the offsets right across collapsed whitespace and a leading blank", () => {
+    const r = rangeOver("gave", "<p>   Earlier.   She   gave   up.</p>");
+    const got = sentenceAndSelection(r);
+    expect(got.sentence).toBe("She gave up.");
+    expect(marked(got)).toBe("gave");
+  });
+
+  it("keeps the offsets right across inline markup", () => {
+    document.body.innerHTML = "<p>First one. They <em>seldom</em> ship on <b>Friday</b>. A third.</p>";
+    const em = document.querySelector("em")!.firstChild!;
+    const r = document.createRange();
+    r.setStart(em, 0);
+    r.setEnd(em, 6);
+    expect(marked(sentenceAndSelection(r))).toBe("seldom");
+  });
+
+  it("spans both sentences when the selection crosses into the next", () => {
+    const r = rangeOver("first. Then", "<p>Check the input first. Then put it away.</p>");
+    const got = sentenceAndSelection(r);
+    expect(got.sentence).toBe("Check the input first. Then put it away.");
+    expect(marked(got)).toBe("first. Then");
+  });
+
+  it("tightens a selection that took the blanks around a word", () => {
+    const r = rangeOver(" seldom ", "<p>They seldom ship.</p>");
+    expect(marked(sentenceAndSelection(r))).toBe("seldom");
+  });
+
+  it("gives no selection for an empty block", () => {
+    document.body.innerHTML = "<p></p>";
+    const r = document.createRange();
+    r.selectNodeContents(document.querySelector("p")!);
+    expect(sentenceAndSelection(r)).toEqual({ sentence: "", selection: null });
+  });
+
+  it("agrees with sentenceForRange on the sentence", () => {
+    const r = rangeOver("seldom", "<p>First sentence here. They seldom ship on Friday. A third one.</p>");
+    expect(sentenceAndSelection(r).sentence).toBe(sentenceForRange(r));
   });
 });
 
