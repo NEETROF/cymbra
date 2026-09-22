@@ -25,10 +25,17 @@ export default defineConfig({
       reporter: ["text", "lcov"],
       reportsDirectory: "coverage",
       include: ["src/**/*.ts"],
+      // The repo's gate, on the metric CLAUDE.md names: line coverage ≥ 80%, enforced
+      // by `yarn test` so it is the same number locally and in CI. It sat at 80.55% when
+      // it was set, a thin margin on purpose — the modules that keep it there are the
+      // untested ones listed below, not slack in what is measured.
+      thresholds: { lines: 80 },
       // Excluded from coverage: the wasm-bindgen glue and the thin MV3 entry points
-      // (service worker, content-script bootstrap, popup DOM wiring) — they need a
+      // (service worker, content-script bootstrap, and the tabs' DOM wiring) — they need a
       // real browser + the WASM module and are exercised by manual/e2e testing, not
       // vitest. The pure reading/state logic under src/reading and src/state stays measured.
+      // What every excluded entry point has in common: it reads the DOM, hydrates an
+      // engine and mounts a view that IS measured (`mountStats`, `mountReview`).
       exclude: [
         "src/wasm/**",
         "src/background.ts",
@@ -36,6 +43,8 @@ export default defineConfig({
         "src/popup/popup.ts",
         "src/account/account.ts",
         "src/sidepanel/sidepanel.ts",
+        "src/stats/stats.ts",
+        "src/onboarding/onboarding.ts",
         "src/reading/drawer.ts",
         "src/analyzer/engine.ts",
         "src/analyzer/create-port.ts",
