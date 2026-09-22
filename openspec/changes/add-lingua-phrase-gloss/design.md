@@ -183,6 +183,13 @@ until the expression table lands.
 unconditional. It is written as a rule so that the expression table and the translator can
 each add their answer ahead of it without rewriting it.
 
+A row shows only the **first sense** of its gloss (`rowGloss`). The reducer joins up to three
+senses and cuts the result at 80 characters, so 43 % of the pack's glosses carry several and
+8 % end mid-word — one such line is the price of a dictionary, six stacked are unreadable,
+and the reader is scanning a row for the meaning in this phrase. A sense saying the
+definition is missing (159 lemmas in the real pack) is skipped, and a gloss made only of
+those gives no row at all. The word card of a single word still shows the whole gloss.
+
 The rows are never stored, and that is decided in code that is tested, not left to what the
 pack happens to hold: `Gesture` gains `expression`, and the card's gloss is chosen by one
 function — nothing for an expression, `port.gloss(lemma)` for a word. Today the same result

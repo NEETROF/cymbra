@@ -8,6 +8,7 @@ import {
   MAX_ROWS,
   type PageHit,
   rarityText,
+  rowGloss,
   rowsFor,
   SelectionCards,
   type SelectionCardPorts,
@@ -664,7 +665,44 @@ describe("a card that waits for the engine", () => {
   });
 });
 
+describe("rowGloss", () => {
+  it("keeps the first sense, so a row never ends mid-word on the reducer's cut", () => {
+    // The real pack's `start`, cut at 80 characters: three senses, the last one truncated.
+    expect(rowGloss("Commencement, début, inauguration; Commencer, débuter, initier, entamer; Procédu")).toBe(
+      "Commencement, début, inauguration",
+    );
+  });
+
+  it("returns a one-sense gloss unchanged", () => {
+    expect(rowGloss("Astreindre, contraindre, forcer")).toBe("Astreindre, contraindre, forcer");
+  });
+
+  it("skips a sense that says the definition is missing", () => {
+    expect(rowGloss("Définition manquante ou à compléter; Erreur, faute")).toBe("Erreur, faute");
+  });
+
+  it("gives no row when every sense is missing its definition", () => {
+    expect(rowGloss("Définition manquante ou à compléter")).toBeNull();
+  });
+});
+
 describe("rowsFor", () => {
+  it("shows the first sense of a gloss, not the whole entry", () => {
+    expect(
+      rowsFor([
+        tok({ surface: "prone", lemma: "prone", class: "Unknown", gloss: "Susceptible, enclin; À plat ventre" }),
+      ]),
+    ).toEqual([{ form: "prone", gloss: "Susceptible, enclin" }]);
+  });
+
+  it("leaves out a word whose only gloss says the definition is missing", () => {
+    expect(
+      rowsFor([
+        tok({ surface: "zorb", lemma: "zorb", class: "Unknown", gloss: "Définition manquante ou à compléter" }),
+      ]),
+    ).toEqual([]);
+  });
+
   it("lists each dictionary form once, in reading order", () => {
     const rows = rowsFor([
       tok({ surface: "ships", lemma: "ship", class: "Unknown", gloss: "expédier" }),

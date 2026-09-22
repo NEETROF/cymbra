@@ -100,12 +100,34 @@ const DEFAULT_CLOCK: Clock = {
   clearTimeout: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
 };
 
+/** A gloss the reducer left with nothing in it: the Wiktionary entry had no definition. */
+const EMPTY_SENSE = /définition manquante/i;
+
+/**
+ * What a row shows of a pack gloss: its FIRST sense, senses being separated by `;`.
+ *
+ * A full gloss carries up to three senses and is cut at 80 characters by the reducer, so a
+ * third of them end mid-word ("Commencer, débuter, initier, entamer; Procédu"). One such
+ * line is the price of a dictionary; six stacked under one another are unreadable, and the
+ * reader is scanning the row for the meaning in THIS phrase, not reading the entry. Senses
+ * whose text says the definition is missing are skipped; a gloss made only of those gives
+ * no row. The word card of a single word still shows the whole gloss.
+ */
+export function rowGloss(gloss: string): string | null {
+  for (const sense of gloss.split(";")) {
+    const text = sense.trim();
+    if (text && !EMPTY_SENSE.test(text)) return text;
+  }
+  return null;
+}
+
 /**
  * The word-by-word rows of a glossed text (design D5). The candidates are the tokens; a
  * compound the lexicon does not list is replaced by its parts — unless the reader marked the
  * compound itself known or ignored, in which case it gives nothing. A candidate makes a row
  * when the reader does not know it (unknown or learning), it is not a function word and the
- * pack glosses it; one row per dictionary form, in reading order, at most MAX_ROWS.
+ * pack glosses it with something to show; one row per dictionary form, in reading order, at
+ * most MAX_ROWS.
  */
 export function rowsFor(tokens: PhraseToken[]): GlossRow[] {
   const rows: GlossRow[] = [];
@@ -116,8 +138,10 @@ export function rowsFor(tokens: PhraseToken[]): GlossRow[] {
     for (const c of candidates) {
       if (c.class !== "Unknown" && c.class !== "Learning") continue;
       if (c.function_word || !c.gloss || seen.has(c.lemma)) continue;
+      const gloss = rowGloss(c.gloss);
+      if (!gloss) continue;
       seen.add(c.lemma);
-      rows.push({ form: c.lemma, gloss: c.gloss });
+      rows.push({ form: c.lemma, gloss });
       if (rows.length >= MAX_ROWS) return rows;
     }
   }
