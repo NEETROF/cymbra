@@ -62,16 +62,35 @@
   font-size: 14px;
 }
 
-.gloss.empty {
+.gloss.empty,
+.gloss.waiting {
   color: var(--cymbra-lingua-faint);
   font-style: italic;
   font-size: 12px;
+}
+
+/* Word by word: a label saying what the rows are not, then one `form → gloss` line each. */
+.rows-label {
+  color: var(--cymbra-lingua-muted);
+  font-style: italic;
+  font-size: 12px;
+}
+
+.row {
+  margin-top: 2px;
+  color: var(--cymbra-lingua-accent);
+  font-size: 13px;
 }
 
 .actions {
   display: flex;
   gap: 6px;
   margin-top: 12px;
+}
+
+/* A pending card, or one whose key never arrived, offers nothing: the row takes no room. */
+.actions[hidden] {
+  display: none;
 }
 
 .actions button {

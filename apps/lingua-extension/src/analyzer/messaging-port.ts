@@ -8,7 +8,15 @@ import type {
   StatusChangeIn,
   StatusOp,
 } from "./port.ts";
-import type { CefrLevel, LemmaStatus, LevelRow, PageAnalysis, SeedOrder, VocabularyEstimate } from "./types.ts";
+import type {
+  CefrLevel,
+  LemmaStatus,
+  LevelRow,
+  PageAnalysis,
+  PhraseGloss,
+  SeedOrder,
+  VocabularyEstimate,
+} from "./types.ts";
 import { sendRpc } from "./rpc.ts";
 
 // The Firefox AnalyzerPort implementation: a thin LinguaPort that forwards every call
@@ -39,6 +47,9 @@ export class MessagingLinguaPort implements LinguaPort {
   }
   gloss(lemma: string): Promise<string | undefined> {
     return this.rpc("gloss", [lemma]);
+  }
+  phraseGloss(text: string): Promise<PhraseGloss> {
+    return this.rpc("phraseGloss", [text]);
   }
   trackedCount(): Promise<number> {
     return this.rpc("trackedCount");

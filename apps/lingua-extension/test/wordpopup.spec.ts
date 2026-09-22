@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createCard, type Gesture, type WordPopupContent } from "@/reading/wordpopup.ts";
+import { createCard, type Gesture, WordPopup, type WordPopupContent } from "@/reading/wordpopup.ts";
 
 beforeEach(() => {
   document.body.innerHTML = "";
@@ -55,8 +55,22 @@ describe("word popup card", () => {
       surface: "Seldom",
       sentence: "They seldom ship on Friday.",
       status: "learning",
+      expression: false,
     });
     expect(card.visible()).toBe(false); // hides after a gesture
+  });
+
+  it("marks the gesture of an expression card as an expression, and a word card's as not", () => {
+    const spy = vi.fn<(g: Gesture) => void>();
+    const phrase = createCard();
+    phrase.show(content({ headword: "ship on friday", surface: "ship on Friday", expression: true }), spy);
+    button(phrase.el, "+ Deck").click();
+    expect(spy).toHaveBeenLastCalledWith(expect.objectContaining({ lemma: "ship on friday", expression: true }));
+
+    const word = createCard();
+    word.show(content(), spy);
+    button(word.el, "Ignorer").click();
+    expect(spy).toHaveBeenLastCalledWith(expect.objectContaining({ lemma: "seldom", expression: false }));
   });
 
   it("offers Je connais / + Deck / Ignorer for a word, and hides Je connais for an expression", () => {
@@ -108,6 +122,7 @@ describe("word popup card", () => {
       surface: "Seldom",
       sentence: "They seldom ship on Friday.",
       status: null,
+      expression: false,
     });
     expect(card.visible()).toBe(false);
   });
@@ -132,6 +147,134 @@ describe("word popup card", () => {
     const card = createCard();
     card.show(content(), () => {});
     expect(card.el.textContent ?? "").not.toMatch(/lemm/i);
+    card.show(content({ rows: [{ form: "compelling", gloss: "convaincant" }], expression: true }), () => {});
+    expect(card.el.textContent ?? "").not.toMatch(/lemm/i);
+  });
+});
+
+describe("a card that waits for the engine", () => {
+  it("shows a pending card with the headword, the kind line and a waiting line, but no action", () => {
+    const card = createCard();
+    card.show(
+      content({ headword: "endeavors", surface: "endeavors", gloss: null, rarity: "Sélection.", pending: true }),
+      () => {},
+    );
+    expect(card.visible()).toBe(true);
+    expect(card.el.querySelector(".headword")!.textContent).toBe("endeavors");
+    expect(card.el.querySelector(".rarity")!.textContent).toBe("Sélection.");
+    expect(card.el.querySelector(".gloss")!.textContent).toBe("Recherche dans le pack…");
+    expect(card.el.querySelectorAll(".actions button")).toHaveLength(0);
+    expect((card.el.querySelector(".actions") as HTMLElement).hidden).toBe(true);
+  });
+
+  it("lets the reader close a pending card", () => {
+    const card = createCard();
+    card.show(content({ pending: true }), () => {});
+    (card.el.querySelector(".close") as HTMLButtonElement).click();
+    expect(card.visible()).toBe(false);
+  });
+
+  it("bumps the generation on show, on hide, on the close button and after an action", () => {
+    const card = createCard();
+    const g0 = card.generation();
+    const g1 = card.show(content({ pending: true }), () => {});
+    expect(g1).not.toBe(g0);
+    expect(card.generation()).toBe(g1);
+
+    card.hide();
+    const g2 = card.generation();
+    expect(g2).not.toBe(g1);
+
+    card.show(content(), () => {});
+    const g3 = card.generation();
+    (card.el.querySelector(".close") as HTMLButtonElement).click();
+    expect(card.generation()).not.toBe(g3);
+
+    card.show(content(), () => {});
+    const g4 = card.generation();
+    button(card.el, "+ Deck").click();
+    expect(card.generation()).not.toBe(g4);
+  });
+
+  it("completes a card by showing it again, its actions arriving with the answer", () => {
+    const card = createCard();
+    card.show(content({ headword: "endeavors", surface: "endeavors", gloss: null, pending: true }), () => {});
+    card.show(content({ headword: "endeavor", surface: "endeavors", gloss: "effort" }), () => {});
+    expect(card.el.querySelector(".headword")!.textContent).toBe("endeavor");
+    expect(card.el.querySelector(".seen")!.textContent).toContain("endeavors");
+    expect(card.el.querySelector(".gloss")!.textContent).toBe("effort");
+    expect(card.el.querySelectorAll(".actions button")).toHaveLength(3);
+    expect((card.el.querySelector(".actions") as HTMLElement).hidden).toBe(false);
+  });
+
+  it("offers nothing to press on a complete card whose key never arrived", () => {
+    const card = createCard();
+    card.show(content({ headword: "endeavors", surface: "endeavors", gloss: null, noActions: true }), () => {});
+    expect(card.el.querySelector(".gloss")!.textContent).toBe("Pas de traduction dans le pack.");
+    expect(card.el.querySelectorAll("button:not(.close)")).toHaveLength(0);
+    expect((card.el.querySelector(".actions") as HTMLElement).hidden).toBe(true);
+  });
+});
+
+describe("word by word", () => {
+  it("renders the rows under their label, instead of the gloss line", () => {
+    const card = createCard();
+    card.show(
+      content({
+        headword: "a compelling argument",
+        surface: "a compelling argument",
+        gloss: null,
+        expression: true,
+        rows: [
+          { form: "compelling", gloss: "convaincant" },
+          { form: "argument", gloss: "argument" },
+        ],
+      }),
+      () => {},
+    );
+    const answer = card.el.querySelector(".gloss")!;
+    expect(answer.querySelector(".rows-label")!.textContent).toBe(
+      "Mot à mot — ce n'est pas une traduction de l'expression.",
+    );
+    expect([...answer.querySelectorAll(".row")].map((r) => r.textContent)).toEqual([
+      "compelling → convaincant",
+      "argument → argument",
+    ]);
+    expect(answer.classList.contains("empty")).toBe(false);
+    expect(answer.textContent).not.toContain("Pas de traduction");
+  });
+
+  it("states that the pack has no translation for the expression when no row qualifies", () => {
+    const card = createCard();
+    card.show(
+      content({ headword: "put up with", surface: "put up with", gloss: null, expression: true, rows: [] }),
+      () => {},
+    );
+    const answer = card.el.querySelector(".gloss")!;
+    expect(answer.querySelectorAll(".row")).toHaveLength(0);
+    expect(answer.querySelector(".rows-label")).toBeNull();
+    expect(answer.textContent).toBe("Pas de traduction dans le pack pour cette expression.");
+    expect(answer.classList.contains("empty")).toBe(true);
+    // The expression card keeps its two actions: its key is the text, known without an answer.
+    expect([...card.el.querySelectorAll(".actions button")].map((b) => b.textContent)).toEqual(["+ Deck", "Ignorer"]);
+  });
+
+  it("keeps the plain no-translation note for a word", () => {
+    const card = createCard();
+    card.show(content({ gloss: null, rows: [] }), () => {});
+    expect(card.el.querySelector(".gloss")!.textContent).toBe("Pas de traduction dans le pack.");
+  });
+});
+
+describe("WordPopup", () => {
+  it("returns the card's generation from show and exposes it", () => {
+    const popup = new WordPopup({ css: "", onGesture: () => {} });
+    const g1 = popup.show(content());
+    expect(popup.generation()).toBe(g1);
+    expect(popup.visible()).toBe(true);
+    popup.hide();
+    expect(popup.generation()).not.toBe(g1);
+    expect(popup.show(content())).not.toBe(g1);
   });
 });
 

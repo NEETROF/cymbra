@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rarityText } from "@/content.ts";
+import { rarityText } from "@/reading/selection-card.ts";
 
 describe("what a word popup says about rarity", () => {
   it("speaks of the level when a level is what the reader declared", () => {

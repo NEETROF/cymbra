@@ -10,6 +10,11 @@ import { isTouchPrimary } from "../state/platform.ts";
 // The card view (createCard) is separated from the shadow host so the rendering and
 // gesture wiring can be unit-tested without a closed shadow root (which is unreachable
 // from outside by design).
+//
+// A card that waits for the engine is shown twice: pending (no action), then complete.
+// There is no in-place update — the only thing that ever changes a card is `show` — so
+// the gesture key is always the one on screen, and the view's generation, bumped by every
+// show and every hide, tells the caller whether an answer still has a card to land on.
 
 /** A gesture the user made on a word or phrase. */
 export interface Gesture {
@@ -21,6 +26,14 @@ export interface Gesture {
   sentence: string;
   /** The chosen status, or `null` to clear it ("Remettre à apprendre"). */
   status: LemmaStatus | null;
+  /** Whether the card was a multi-word expression (its gloss is never asked of the pack). */
+  expression: boolean;
+}
+
+/** One word-by-word row: a dictionary form the reader does not know, with its pack gloss. */
+export interface GlossRow {
+  form: string;
+  gloss: string;
 }
 
 export interface WordPopupContent {
@@ -40,15 +53,29 @@ export interface WordPopupContent {
   status?: LemmaStatus | null;
   /** Anchor rectangle in viewport coordinates (the word's box). */
   rect: { left: number; top: number; bottom: number };
+  /** The card is waiting for the engine: a waiting line in place of the answer, no action. */
+  pending?: boolean;
+  /** Word-by-word rows, shown under their label instead of the gloss line when non-empty. */
+  rows?: GlossRow[];
+  /** A complete card that offers nothing to press (its key never arrived). */
+  noActions?: boolean;
 }
 
 /** A card view: a detached element tree plus show/hide, independent of any shadow root. */
 export interface CardView {
   readonly el: HTMLElement;
-  show(content: WordPopupContent, onGesture: (g: Gesture) => void): void;
+  /** Render `content` and return the card's new generation. */
+  show(content: WordPopupContent, onGesture: (g: Gesture) => void): number;
   hide(): void;
   visible(): boolean;
+  /** A counter bumped by every show and every hide — the close button and a gesture included. */
+  generation(): number;
 }
+
+const ROWS_LABEL = "Mot à mot — ce n'est pas une traduction de l'expression.";
+const WAITING = "Recherche dans le pack…";
+const NO_GLOSS = "Pas de traduction dans le pack.";
+const NO_GLOSS_EXPRESSION = "Pas de traduction dans le pack pour cette expression.";
 
 /** Build the card view (no shadow root involved — testable in isolation). */
 export function createCard(): CardView {
@@ -64,6 +91,7 @@ export function createCard(): CardView {
   el.append(headwordEl, seenEl, rarityEl, glossEl, actionsEl);
 
   let current: WordPopupContent | null = null;
+  let generation = 0;
 
   function button(
     label: string,
@@ -76,20 +104,57 @@ export function createCard(): CardView {
     if (primary) b.classList.add("primary");
     b.addEventListener("click", () => {
       if (!current) return;
-      onGesture({ lemma: current.headword, surface: current.surface, sentence: current.sentence, status });
+      onGesture({
+        lemma: current.headword,
+        surface: current.surface,
+        sentence: current.sentence,
+        status,
+        expression: !!current.expression,
+      });
       view.hide();
     });
     return b;
   }
 
+  /** The answer slot: the waiting line, the labelled rows, the gloss, or the no-gloss note. */
+  function renderAnswer(content: WordPopupContent): void {
+    glossEl.replaceChildren();
+    glossEl.classList.remove("empty", "waiting");
+    if (content.pending) {
+      glossEl.textContent = WAITING;
+      glossEl.classList.add("waiting");
+      return;
+    }
+    if (content.rows && content.rows.length > 0) {
+      const label = div("rows-label");
+      label.textContent = ROWS_LABEL;
+      glossEl.append(label);
+      for (const r of content.rows) {
+        const row = div("row");
+        row.textContent = `${r.form} → ${r.gloss}`;
+        glossEl.append(row);
+      }
+      return;
+    }
+    if (content.gloss) {
+      glossEl.textContent = content.gloss;
+      return;
+    }
+    glossEl.textContent = content.expression ? NO_GLOSS_EXPRESSION : NO_GLOSS;
+    glossEl.classList.add("empty");
+  }
+
   const view: CardView = {
     el,
     visible: () => !el.hidden,
+    generation: () => generation,
     hide() {
+      generation++;
       el.hidden = true;
       current = null;
     },
     show(content, onGesture) {
+      generation++;
       current = content;
       headwordEl.textContent = content.headword;
 
@@ -99,28 +164,28 @@ export function createCard(): CardView {
 
       rarityEl.textContent = content.rarity;
 
-      if (content.gloss) {
-        glossEl.textContent = content.gloss;
-        glossEl.classList.remove("empty");
-      } else {
-        glossEl.textContent = "Pas de traduction dans le pack.";
-        glossEl.classList.add("empty");
-      }
+      renderAnswer(content);
 
       // Actions depend on the word's current status: hide the one it already is. Offer
       // "Remettre à apprendre" (clear) only for an IGNORED word — ignored is always an
       // explicit decision, and clearing withdraws it so the word is highlighted again. A
       // displayed "Known" may be merely presumed by level/frequency, so no clear there
-      // ("+ Deck" is the real "I want to learn this" for such a word).
+      // ("+ Deck" is the real "I want to learn this" for such a word). A pending card
+      // offers nothing yet — its key may change with the answer — and so does a complete
+      // card whose key never arrived.
       actionsEl.replaceChildren();
-      const st = content.status ?? null;
-      if (!content.expression && st !== "known") actionsEl.append(button("Je connais", "known", false, onGesture));
-      if (st !== "learning") actionsEl.append(button("+ Deck", "learning", true, onGesture));
-      if (st !== "ignored") actionsEl.append(button("Ignorer", "ignored", false, onGesture));
-      if (st === "ignored") actionsEl.append(button("Remettre à apprendre", null, false, onGesture));
+      if (!content.pending && !content.noActions) {
+        const st = content.status ?? null;
+        if (!content.expression && st !== "known") actionsEl.append(button("Je connais", "known", false, onGesture));
+        if (st !== "learning") actionsEl.append(button("+ Deck", "learning", true, onGesture));
+        if (st !== "ignored") actionsEl.append(button("Ignorer", "ignored", false, onGesture));
+        if (st === "ignored") actionsEl.append(button("Remettre à apprendre", null, false, onGesture));
+      }
+      actionsEl.hidden = actionsEl.childElementCount === 0;
 
       el.hidden = false; // reveal first so the card can be measured, then position it
       positionCard(el, content.rect);
+      return generation;
     },
   };
 
@@ -174,9 +239,15 @@ export class WordPopup {
     this.view.hide();
   }
 
-  show(content: WordPopupContent): void {
+  /** Render `content` and return the card's new generation (see `generation`). */
+  show(content: WordPopupContent): number {
     this.attach();
-    this.view.show(content, this.opts.onGesture);
+    return this.view.show(content, this.opts.onGesture);
+  }
+
+  /** The card view's generation: an answer for an earlier one has no card to land on. */
+  generation(): number {
+    return this.view.generation();
   }
 }
 

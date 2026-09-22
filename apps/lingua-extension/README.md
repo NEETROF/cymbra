@@ -107,7 +107,9 @@ yarn lint && yarn format:check && yarn typecheck && yarn test
 - **Analysis** goes through the `AnalyzerPort` seam (`src/analyzer/`): the WASM module
   runs in the content script's isolated world on Chromium (`WasmAnalyzerPort`), and in
   the background event page on Firefox and Safari (`MessagingLinguaPort`), without
-  touching the reading code.
+  touching the reading code. `analyse(blocks)` reads a page behind its gates (language,
+  token count); `phraseGloss(text)` reads a selection without them, and returns every
+  token with its dictionary form, its status and its gloss whatever that status.
 - **Highlighting** uses the CSS Custom Highlight API — two registries
   (`cymbra-lingua-unknown`, `cymbra-lingua-learning`), **zero DOM mutation**
   (`src/reading/highlight.ts`, `blocks.ts`). Only the blocks within about one viewport of
@@ -121,6 +123,18 @@ yarn lint && yarn format:check && yarn typecheck && yarn test
   actions (an ignored word offers `Remettre à apprendre` to un-ignore it). A plain click
   never intercepts a non-highlighted word, so the page's own click handling is untouched.
   `Alt+L` captures a multi-word selection as a phrase card.
+- **Selection** — selecting text opens a card, on every pointer. One word (a hyphenated
+  compound included) opens the word card of its page token, or — in a block the page
+  analysis skipped — of the dictionary form the analyser finds in it, so the card and the
+  status are keyed by that form, never by the text as written; a name outside the lexicon
+  keeps the card under the text as written. Several words open the expression card: with
+  nothing better to offer, it lists the pack glosses of the words you don't know — function
+  words left out, a few rows at most — under a line saying it is not a translation of the
+  expression. Those rows are a reading aid, never stored on a card. A card that needs the
+  engine opens **pending** (headword, waiting line, no action) and completes exactly once:
+  with the answer, or with a fallback after 3 s / on failure that offers actions only where
+  the key is known without the answer (`src/reading/selection-card.ts` owns these decisions;
+  `content.ts` only wires them).
 - **State** — statuses, the captured deck, calibration — lives in
   `chrome.storage.local` under a versioned schema with forward migration
   (`src/state/`). A gesture in one tab repaints every other via `storage.onChanged`.

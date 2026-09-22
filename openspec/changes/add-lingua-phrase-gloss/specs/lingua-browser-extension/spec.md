@@ -45,13 +45,19 @@ lexicon does not list is replaced by its parts, alone or inside a phrase, unless
 has marked the compound itself known or ignored, in which case it gives no row. The rows
 SHALL be limited to candidates the reader does not already know (unknown or learning),
 SHALL leave out function words and proper nouns, SHALL list each dictionary form once with
-its pack gloss, and SHALL be bounded in number. When no row qualifies, the card SHALL state
+the FIRST sense of its pack gloss — a gloss carries up to three, and a row is scanned, not
+read — skipping any sense that says the definition is missing, and SHALL be bounded in
+number. A word whose gloss holds no sense worth showing SHALL give no row. When no row qualifies, the card SHALL state
 that the pack has no translation for the expression, and SHALL show no row. The rows are a
 reading aid: they SHALL NOT be stored on a card, used as a card's gloss, or sent anywhere.
 
 #### Scenario: A free combination of words
 - **WHEN** the reader selects `a compelling argument`, knows `argument`, and the pack glosses `compelling`
 - **THEN** the card shows, under the word-by-word label, one row for `compelling` with its gloss, and no row for `a` or `argument`
+
+#### Scenario: A gloss carrying several senses
+- **WHEN** a row's word is glossed `Commencement, début, inauguration; Commencer, débuter, initier, entamer; Procédu`
+- **THEN** the row shows `Commencement, début, inauguration`, so it does not end mid-word
 
 #### Scenario: Nothing worth showing
 - **WHEN** the reader selects `put up with` and already knows `put`
