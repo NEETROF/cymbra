@@ -272,7 +272,7 @@ Install once per machine, then build the graphs:
 ```bash
 uv tool install graphifyy && graphify install   # once
 scripts/graphify.sh                              # build/refresh all three (~5s)
-scripts/graphify.sh install-hook                 # optional: background refresh after every commit
+scripts/graphify.sh install-hook                 # optional: background refresh after commit, checkout, merge/pull
 ```
 
 Three separate per-stack graphs (git-ignored, rebuilt locally):

@@ -15,12 +15,15 @@
 #   scripts/graphify.sh rust     # only the Rust workspace graph
 #   scripts/graphify.sh flutter  # only apps/music
 #   scripts/graphify.sh vue      # only apps/back-office
-#   scripts/graphify.sh install-hook    # opt-in: refresh graphs in the background after every commit
-#   scripts/graphify.sh uninstall-hook  # remove that hook
+#   scripts/graphify.sh install-hook    # opt-in: refresh graphs in the background after every
+#                                       # commit, branch checkout and merge/pull
+#   scripts/graphify.sh uninstall-hook  # remove those hooks
 #
-# The hook is per-machine (written to the shared .git/hooks, NOT committed) so it
-# never forces a rebuild on teammates who don't use the graph. It rebuilds in the
-# background, so commits return instantly. One install covers every worktree.
+# The hooks are per-machine (written to the shared .git/hooks, NOT committed) so they
+# never force a rebuild on teammates who don't use the graph. They rebuild in the
+# background, so git returns instantly. One install covers every worktree.
+# post-checkout and post-merge matter as much as post-commit: switching to main and
+# pulling creates no commit, and would otherwise leave the graphs on the old branch.
 #
 # Graphs are written to (all git-ignored):
 #   graphify-out/graph.json                    <- Rust workspace (backend + crates + apps/music/rust)
@@ -84,36 +87,61 @@ build_vue() {
   extract apps/back-office/src "$ROOT/apps/back-office"
 }
 
-hook_path() { echo "$(git rev-parse --git-common-dir)/hooks/post-commit"; }
+HOOKS="post-commit post-checkout post-merge"
+hooks_dir() { echo "$(git rev-parse --git-common-dir)/hooks"; }
 
 install_hook() {
-  local hook; hook="$(hook_path)"
-  if [ -e "$hook" ] && ! grep -q 'graphify auto-refresh' "$hook" 2>/dev/null; then
-    echo "error: a post-commit hook already exists at $hook — not overwriting." >&2
-    echo "       Add this line to it yourself: (\"\$(git rev-parse --show-toplevel)/scripts/graphify.sh\" all >/dev/null 2>&1 &)" >&2
-    exit 1
-  fi
-  mkdir -p "$(dirname "$hook")"
-  cat > "$hook" <<'HOOK'
+  local dir hook name; dir="$(hooks_dir)"
+  # Refuse up front rather than leave a half-installed set.
+  for name in $HOOKS; do
+    hook="$dir/$name"
+    if [ -e "$hook" ] && ! grep -q 'graphify auto-refresh' "$hook" 2>/dev/null; then
+      echo "error: a $name hook already exists at $hook — not overwriting." >&2
+      echo "       Add this line to it yourself: (\"\$(git rev-parse --show-toplevel)/scripts/graphify.sh\" all >/dev/null 2>&1 &)" >&2
+      exit 1
+    fi
+  done
+  mkdir -p "$dir"
+  for name in $HOOKS; do
+    hook="$dir/$name"
+    cat > "$hook" <<'HOOK'
 #!/usr/bin/env sh
 # graphify auto-refresh — rebuild code knowledge graphs in the background.
 # Installed by scripts/graphify.sh install-hook. Local only, not committed.
+# post-checkout passes $3=0 for a file checkout (`git checkout -- f`): no branch moved.
+[ "$(basename "$0")" = post-checkout ] && [ "${3:-1}" = 0 ] && exit 0
 ROOT="$(git rev-parse --show-toplevel)"
 [ -x "$ROOT/scripts/graphify.sh" ] || exit 0   # no-op where the script is absent
-( "$ROOT/scripts/graphify.sh" all >"${TMPDIR:-/tmp}/graphify-refresh.log" 2>&1 & ) >/dev/null 2>&1
+# One builder per worktree: a checkout followed by a pull must not run two builds
+# over the same files. A trigger that finds a build running leaves a mark, and the
+# builder goes round once more so the graphs end on the latest tree.
+GITDIR="$(git rev-parse --absolute-git-dir)"
+LOCK="$GITDIR/graphify-refresh.lock"; PENDING="$GITDIR/graphify-refresh.pending"
+touch "$PENDING"
+mkdir "$LOCK" 2>/dev/null || exit 0
+(
+  trap 'rmdir "$LOCK"' EXIT
+  while [ -e "$PENDING" ]; do
+    rm -f "$PENDING"
+    "$ROOT/scripts/graphify.sh" all
+  done >"${TMPDIR:-/tmp}/graphify-refresh.log" 2>&1
+) >/dev/null 2>&1 &
 exit 0
 HOOK
-  chmod +x "$hook"
-  echo "installed background post-commit hook at $hook (covers all worktrees; log: \${TMPDIR:-/tmp}/graphify-refresh.log)"
+    chmod +x "$hook"
+  done
+  echo "installed background $HOOKS hooks in $dir (covers all worktrees; log: \${TMPDIR:-/tmp}/graphify-refresh.log)"
 }
 
 uninstall_hook() {
-  local hook; hook="$(hook_path)"
-  if [ -e "$hook" ] && grep -q 'graphify auto-refresh' "$hook" 2>/dev/null; then
-    rm -f "$hook"; echo "removed $hook"
-  else
-    echo "no graphify post-commit hook to remove."
-  fi
+  local dir hook name removed=0; dir="$(hooks_dir)"
+  for name in $HOOKS; do
+    hook="$dir/$name"
+    if [ -e "$hook" ] && grep -q 'graphify auto-refresh' "$hook" 2>/dev/null; then
+      rm -f "$hook"; echo "removed $hook"; removed=1
+    fi
+  done
+  [ "$removed" = 1 ] || echo "no graphify hook to remove."
 }
 
 case "$TARGET" in
