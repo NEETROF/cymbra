@@ -85,3 +85,60 @@ describe("nothing watches a key that moved to the store", () => {
     });
   }
 });
+
+// The third of the same family, and the one that bit twice: a surface that builds its OWN
+// `chrome.storage.local` area and hands it to the reader's data. The store left that area
+// (change: move-lingua-store-to-indexeddb), so such a surface hydrates an EMPTY engine and
+// writes back where nothing reads — compiling, silent, and losing what the reader did. It
+// cost the welcome tab's level choice, and the standalone stats tab's whole view.
+//
+// Preferences and marks (the HUD toggle, the last sync, the lost-session mark) still live in
+// chrome.storage.local and are none of this rule's business: only the calls below are.
+
+/** Areas a file builds out of chrome.storage.local — fine for preferences, not for the store. */
+function settingsAreas(text: string): string[] {
+  const out: string[] = [];
+  const re = /const\s+(\w+)\s*:\s*AsyncStorageArea\s*=\s*\{([\s\S]*?)\}/g;
+  for (let m = re.exec(text); m; m = re.exec(text)) {
+    if (m[2].includes("chrome.storage.local")) out.push(m[1]);
+  }
+  return out;
+}
+
+/** Every call that reaches the reader's data, and where its area sits in the arguments. */
+const READER_DATA = [
+  { name: "hydrateEngine", re: /\bhydrateEngine\(\s*[^,()]+,\s*([\w.]+)/g },
+  { name: "saveBackup", re: /\bsaveBackup\(\s*([\w.]+)/g },
+  { name: "mountStats", re: /\bmountStats\(\s*[^,]+,\s*[^,]+,\s*([\w.]+)/g },
+  { name: "mountReview", re: /\bmountReview\(\s*[^,]+,\s*[^,]+,\s*([\w.]+)/g },
+];
+
+describe("the reader's data is asked of its owner, never of chrome.storage.local", () => {
+  const files = tsFiles(join(root, "src")).filter(
+    (f) => !f.includes("/wasm/") && !f.endsWith("state/store.ts") && !f.endsWith("state/storage.ts"),
+  );
+
+  it("still recognises a settings area where one exists", () => {
+    // Positive control: the side panel builds one for its preferences, and must keep passing
+    // `store` to the calls below. Without this, the rule could pass by seeing nothing at all.
+    const sidepanel = readFileSync(join(root, "src/sidepanel/sidepanel.ts"), "utf8");
+    expect(settingsAreas(sidepanel)).toContain("area");
+  });
+
+  for (const file of files) {
+    const rel = file.slice(root.length + 1);
+    const text = readFileSync(file, "utf8");
+    const areas = settingsAreas(text);
+    if (areas.length === 0) continue;
+    it(`hands the store, not its settings area: ${rel}`, () => {
+      for (const { name, re } of READER_DATA) {
+        for (let m = new RegExp(re).exec(text); m; m = re.exec(text)) {
+          expect(
+            areas,
+            `${rel} passes its chrome.storage.local area to ${name}() — the store moved; use messagedArea()`,
+          ).not.toContain(m[1]);
+        }
+      }
+    });
+  }
+});
