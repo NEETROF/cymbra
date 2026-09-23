@@ -1,15 +1,5 @@
 ## ADDED Requirements
 
-### Requirement: The page reader never reads the player's captions
-On YouTube the page reader SHALL exclude the player's caption area from scanning, highlighting and exposure, whether the caption mode is on or off.
-The rest of a watch page — title, description, comments — SHALL be read as any page is. The
-captions the player writes into the page are rewritten every few seconds; reading them as page text
-would repaint text already gone and count every rewrite as a new exposure.
-
-#### Scenario: Watching with the caption mode off
-- **WHEN** the page reader runs on a watch page whose native captions are showing and the caption mode is off
-- **THEN** no word of the native caption line is highlighted and no exposure is recorded from it, while the comments are highlighted as usual
-
 ### Requirement: The caption mode is offered where it can read captions in the studied language
 The extension SHALL offer the caption mode only on a desktop YouTube watch page (`/watch`) whose video has a caption track in the studied language, and SHALL NOT offer it anywhere else.
 Shorts, live streams and premieres in progress, and players embedded in other sites SHALL NOT be

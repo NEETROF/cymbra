@@ -54,14 +54,12 @@ honest source is the request the player makes for the video the reader is watchi
 
 ## Decisions
 
-### D0 — The page reader excludes the caption area, always
+### D0 — The page reader already excludes the caption area
 
-`.ytp-caption-window-container` (and the player's other caption containers) join the page
-reader's skip list — the same mechanism as `[data-cymbra-lingua-skip]` in `observer.ts` — on
-YouTube, whether the caption mode is on or not. This is a fix on its own: it removes the flicker
-and the over-counted exposures Firefox and Safari readers get today, and it lets the caption mode
-own captions without two readers competing for the same text. The rest of the watch page
-(description, comments) is still read as a page.
+`fix-lingua-dynamic-rescan` (#545) excludes `.ytp-caption-window-container` from page reading,
+mode on or off, because the rescan it repairs would otherwise read each new caption window. The
+caption mode builds on that exclusion: it owns the captions, and the page reader never competes
+for the same text. The rest of the watch page (description, comments) is still read as a page.
 
 ### D1 — The track comes from the player's own request, seen by a `PerformanceObserver`
 

@@ -13,9 +13,10 @@ kind of fact that should be on the record before the platform moves again.
 
 ## What Changes
 
-- **The page reader stops reading the player's captions.** On Firefox and Safari the reader already
-  runs on every page, YouTube included, and today it highlights the native caption line and counts
-  each rewrite as an exposure. The caption area is excluded from page reading, mode on or off.
+- **The page reader never reads the player's captions** — owned by `fix-lingua-dynamic-rescan`
+  (#545), which this change relies on. Measured on Firefox (2026-09-24): today the page reader does
+  **not** highlight the native caption line, but only because no content added after the first
+  paint is ever re-analysed; fixing that would start reading it, so the exclusion ships with the fix.
 - **A YouTube caption mode on desktop** (Chromium, Firefox desktop, Safari macOS). On a watch page
   with English captions, Lingua reads the **whole caption track**, analyses it once, and shows the
   video's **percentage known before it is played**. It starts when the reader asks for it on a

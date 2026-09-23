@@ -4,9 +4,9 @@
 - [ ] 1.2 In each variant, confirm a `world: "MAIN"` script can read `getPlayerResponse()` and select a caption track per video without flipping YouTube's sticky captions preference (D2, D8), or that the web-accessible `<script src>` fallback does
 - [ ] 1.3 Save anonymised json3 fixtures from the spike: a written track, an automatic track, a `tlang` track, and an empty body
 
-## 2. Stop reading the player's captions as page text (ships on its own)
+## 2. The page reader's exclusion
 
-- [ ] 2.1 Add the player's caption containers to the page reader's skip list on YouTube, mode on or off (D0); tests that no highlight or exposure comes from `.ytp-caption-segment` while comments are still read
+- [ ] 2.1 Confirm `fix-lingua-dynamic-rescan` (#545) is merged: the page reader excludes `.ytp-caption-window-container` (D0); nothing to build here
 
 ## 3. Track and sentences (pure, host-testable)
 
