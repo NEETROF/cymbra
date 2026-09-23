@@ -212,36 +212,58 @@ above one. An expression's dictionary gloss stays. A single word keeps its dicti
 a selection of several words is translated. No gesture carries the translation, so no path can
 store it.
 
-### The reader holds the engine's host loaded while it reads
+### The reader keeps the engine's host busy while it reads
 
-The device pass above showed the cost of not doing it: the event page is torn down after ~30 s
-idle, the Worker and the 36.7 MB model go with it, and the next selection pays a cold start the
-card will not wait for. A minute between selections is ordinary reading, so on that hardware
-nearly every selection fell back to the pack's word-by-word.
+The device pass above showed the cost of not doing it: the event page is torn down when idle,
+the Worker and the 36.7 MB model go with it, and the next selection pays a cold start the card
+will not wait for. A minute between selections is ordinary reading, so on that hardware nearly
+every selection fell back to the pack's word-by-word.
 
-An open port is what keeps an event page loaded, so the reader opens one for as long as it is on
-the page (`translate/keepalive.ts`). It carries no messages — its existence is the whole signal —
-and it closes with the page. The background's only job is to accept it.
+**An open port does not hold that page.** That was tried first, as the mechanism every platform
+note describes, and measured on the device: with two reader ports connected throughout and nobody
+touching the tablet, the background restarted every 8–24 s. Worse, reconnecting after each
+teardown woke it again, so the reader was restarting the background in a loop and keeping nothing.
 
-*Nothing is warmed eagerly.* The engine still loads on the first translation, so a reader who
-opens a page and selects nothing never pays the ~195 MiB. What this buys is that the model is not
-thrown away before the second selection. The first translation of a page is still cold, once.
+What holds it is **being answered**. The reader pings the background every 5 s — well inside the
+shortest gap measured — and the background replies. Re-measured the same way: **zero restarts in
+110 s at rest**, against a restart every 8–24 s before.
+
+*The pings start with the page's first translation, never before.* Until then the engine has never
+been loaded and there is nothing to keep, so a reader who opens a page and selects nothing never
+wakes the background and never pays the ~195 MiB. `keepWarm` wraps the translator port for exactly
+that: the first `translate()` starts the pings.
 
 *Rejected — warming the engine when the page opens.* It would make even the first selection warm,
-at the price of holding ~195 MiB on every page a reader visits, whether or not they ever translate
+at the price of holding ~195 MiB on every page a reader visits, whether or not they translate
 anything. On the tablet that showed the problem, that is the wrong trade.
 
-*Rejected — a periodic ping over the port.* A connected port is the documented mechanism on both
-engines (and Chrome, from the version this extension requires, resets its idle timer on port
-activity indefinitely). A timer that fires forever on a mobile device is a cost worth refusing
-until something measured asks for it.
-
 *Rejected — raising `TRANSLATION_WAIT_MS`.* The card waits for the pack and the engine together,
-so a longer bound delays the answer the reader would otherwise already have. The bound is not the
-problem; reloading a 36.7 MB model between two selections is.
+so a longer bound delays the answer the reader would otherwise already have. It is also not where
+the problem was: reloading a 36.7 MB model between two selections is.
 
-If the extension context goes away entirely, `connect` throws and the reader stops: the page is
-orphaned, nothing else in it works either, and there is nothing left to hold.
+A ping that fails means the extension context is gone — the page is orphaned, nothing else in it
+works either — so the reader stops rather than ping a dead background forever.
+
+### Measured on the device, after the fix
+
+Same tablet, real selections, timed in the background from the request arriving to the answer
+leaving:
+
+| | |
+|---|---|
+| First translation, background just started | 4 783 ms |
+| A second, after the background was killed again | 3 885 ms |
+| The next, engine loaded | 1 119 ms |
+| **70 s later, nothing touched in between** | **377 ms** |
+
+The last row is the fix: before it, a selection after that pause reloaded the model; now it finds
+it. No restart happened during that pause.
+
+The first row is what remains: a cold start on this hardware costs ~4.8 s, well past the card's
+2 500 ms, so the first selection after the background has died still falls back to word-by-word —
+once, rather than on nearly every selection. One restart was also seen *despite* the pings, right
+after a model load, which on a 4 GB tablet is most likely the system reclaiming memory rather than
+the idle timeout.
 
 ### Measured in the built extension
 

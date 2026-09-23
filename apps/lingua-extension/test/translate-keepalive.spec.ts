@@ -1,100 +1,124 @@
 import { describe, expect, it, vi } from "vitest";
-import { type KeepaliveDeps, type KeepalivePort, keepEngineWarm, RECONNECT_MS } from "@/translate/keepalive.ts";
+import { type KeepaliveDeps, keepEngineWarm, keepWarm, PING_MS } from "@/translate/keepalive.ts";
+import type { TranslationResult, TranslatorPort } from "@/translate/port.ts";
 
-/** A port whose disconnect the test fires by hand. */
-function fakePort(): KeepalivePort & { disconnect(): void } {
-  const listeners: (() => void)[] = [];
-  return {
-    onDisconnect: { addListener: (l) => listeners.push(l) },
-    disconnect: () => listeners.forEach((l) => l()),
-  };
-}
-
-/** `connect` answers from the queue, throwing an entry that is an Error. */
-function deps(answers: (KeepalivePort | Error)[]): KeepaliveDeps & { retries: number[]; opened: number } {
-  const retries: number[] = [];
-  const pending: (() => void)[] = [];
+/** A controllable timer and ping. */
+function deps(answers: (Promise<unknown> | Error)[] = []): KeepaliveDeps & {
+  tick(): Promise<void>;
+  pings: number;
+  stopped: boolean;
+  interval: number | null;
+} {
+  let fire: (() => void) | null = null;
   const self = {
-    opened: 0,
-    retries,
-    connect: () => {
-      const next = answers[self.opened++] ?? fakePort();
-      if (next instanceof Error) throw next;
-      return next;
+    pings: 0,
+    stopped: false,
+    interval: null as number | null,
+    ping: () => {
+      const next = answers[self.pings++];
+      if (next instanceof Error) return Promise.reject(next);
+      return next ?? Promise.resolve(true);
     },
-    schedule: (retry: () => void, ms: number) => {
-      retries.push(ms);
-      pending.push(retry);
+    every: (ms: number, cb: () => void) => {
+      self.interval = ms;
+      fire = cb;
+      return () => {
+        self.stopped = true;
+      };
     },
-    run: () => pending.splice(0).forEach((r) => r()),
+    tick: async () => {
+      fire?.();
+      await Promise.resolve();
+      await Promise.resolve();
+    },
   };
   return self;
 }
 
 describe("keepEngineWarm", () => {
-  it("opens a port at once, and holds it", () => {
-    const d = deps([]);
+  it("pings on a timer well inside the shortest idle gap measured on the device", () => {
+    const d = deps();
     keepEngineWarm(d);
-    expect(d.opened).toBe(1);
-    expect(d.retries).toEqual([]);
+    expect(d.interval).toBe(PING_MS);
+    expect(PING_MS).toBeLessThan(8_000);
+    expect(d.pings).toBe(0); // nothing before the first tick
   });
 
-  it("reopens after the background goes away anyway", () => {
-    const first = fakePort();
-    const d = deps([first]);
+  it("keeps pinging for as long as the page lives", async () => {
+    const d = deps();
     keepEngineWarm(d);
-
-    first.disconnect();
-    expect(d.retries).toEqual([RECONNECT_MS]);
-    expect(d.opened).toBe(1); // scheduled, not yet reopened
-    (d as unknown as { run(): void }).run();
-    expect(d.opened).toBe(2);
+    await d.tick();
+    await d.tick();
+    await d.tick();
+    expect(d.pings).toBe(3);
+    expect(d.stopped).toBe(false);
   });
 
-  it("keeps reopening for as long as the page lives", () => {
-    const ports = [fakePort(), fakePort(), fakePort()];
-    const d = deps(ports);
-    keepEngineWarm(d);
-    for (const port of ports) {
-      port.disconnect();
-      (d as unknown as { run(): void }).run();
-    }
-    expect(d.opened).toBe(4);
-  });
-
-  it("gives up when the extension context is gone — an orphaned page has nothing to hold", () => {
+  it("stops when the extension context is gone — an orphaned page has nothing to hold", async () => {
     const d = deps([new Error("Extension context invalidated")]);
-    expect(() => keepEngineWarm(d)).not.toThrow();
-    expect(d.opened).toBe(1);
-    expect(d.retries).toEqual([]);
-  });
-
-  it("stops retrying once reconnecting throws", () => {
-    const first = fakePort();
-    const d = deps([first, new Error("Extension context invalidated")]);
     keepEngineWarm(d);
-    first.disconnect();
-    (d as unknown as { run(): void }).run();
-    expect(d.opened).toBe(2);
-    expect(d.retries).toEqual([RECONNECT_MS]); // no second retry scheduled
+    await d.tick();
+    expect(d.stopped).toBe(true);
   });
 
-  it("defaults to a real runtime port, named so the background can tell it apart, and retries on a real timer", () => {
-    const ports = [fakePort(), fakePort()];
-    const connect = vi.fn(() => ports[connect.mock.calls.length - 1] ?? fakePort());
-    vi.stubGlobal("chrome", { runtime: { connect } });
+  it("survives a ping that throws synchronously", async () => {
+    const d = deps();
+    d.ping = () => {
+      throw new Error("no receiving end");
+    };
+    keepEngineWarm(d);
+    await expect(d.tick()).resolves.toBeUndefined();
+    expect(d.stopped).toBe(true);
+  });
+
+  it("defaults to a real interval and a real runtime message", () => {
+    const sendMessage = vi.fn(() => Promise.resolve(true));
+    vi.stubGlobal("chrome", { runtime: { sendMessage } });
     vi.useFakeTimers();
     try {
       keepEngineWarm();
-      expect(connect).toHaveBeenCalledWith({ name: "lingua-translate-keepalive" });
-
-      ports[0].disconnect();
-      expect(connect).toHaveBeenCalledOnce(); // scheduled, not immediate
-      vi.advanceTimersByTime(RECONNECT_MS);
-      expect(connect).toHaveBeenCalledTimes(2);
+      vi.advanceTimersByTime(PING_MS * 2);
+      expect(sendMessage).toHaveBeenCalledTimes(2);
+      expect(sendMessage).toHaveBeenCalledWith({ type: "lingua-translate-keepalive" });
     } finally {
       vi.useRealTimers();
       vi.unstubAllGlobals();
     }
+  });
+});
+
+describe("keepWarm", () => {
+  const request = { sentence: "They seldom ship.", selection: { start: 5, end: 11 } };
+  const answer: TranslationResult = { kind: "unavailable" };
+
+  function inner(): TranslatorPort & { calls: number } {
+    const port = {
+      calls: 0,
+      translate: () => {
+        port.calls++;
+        return Promise.resolve(answer);
+      },
+    };
+    return port;
+  }
+
+  it("holds nothing until the first translation — an unused engine has nothing to keep", () => {
+    const start = vi.fn();
+    keepWarm(inner(), start);
+    expect(start).not.toHaveBeenCalled();
+  });
+
+  it("starts pinging on the first translation, and only once", async () => {
+    const start = vi.fn();
+    const port = inner();
+    const warmed = keepWarm(port, start);
+    await warmed.translate(request);
+    await warmed.translate(request);
+    expect(start).toHaveBeenCalledOnce();
+    expect(port.calls).toBe(2);
+  });
+
+  it("passes the request through and answers what the port answered", async () => {
+    await expect(keepWarm(inner(), vi.fn()).translate(request)).resolves.toEqual(answer);
   });
 });

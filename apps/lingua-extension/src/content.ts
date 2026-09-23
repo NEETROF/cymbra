@@ -1,4 +1,4 @@
-import { createTranslatorPort, holdEngineWarm } from "./translate/create-port.ts";
+import { createTranslatorPort } from "./translate/create-port.ts";
 import { resolveContentPort } from "./analyzer/create-port.ts";
 import type { LinguaPort } from "./analyzer/port.ts";
 import type { CefrLevel } from "./analyzer/types.ts";
@@ -641,10 +641,6 @@ async function bootstrap(): Promise<void> {
   try {
     const port = await resolveContentPort();
     await new ReadingSession(port).start();
-    // Reading has started: hold the engine's host loaded until this page goes away, so a
-    // selection made minutes after the last one still finds the model in memory. Folded
-    // away entirely in every shipped build.
-    holdEngineWarm();
   } catch (e) {
     // Surface a legible failure rather than dying as a silent unhandled rejection,
     // and allow a retry on the next injection.

@@ -68,11 +68,11 @@ The tag's position is the engine's alignment, and on a real page it put `seldom`
 
 A Galaxy Tab S6 Lite pass showed the engine reloading between selections and losing the race.
 
-- [x] 7c.1 Hold a port open from the reader for as long as it is on the page, so the context hosting the engine is not torn down (`translate/keepalive.ts`); accept it in the background, and send nothing over it
-- [x] 7c.2 Warm nothing eagerly: the engine still loads on the first translation, so a page where nothing is selected never pays for it
-- [x] 7c.3 Reopen the port if the host goes away anyway, and stop when the extension context is gone — an orphaned page has nothing to hold
-- [x] 7c.4 Gate it exactly as the port is gated, as a folded expression, and confirm `check:variants` finds no trace of it in any shipped bundle
-- [x] 7c.5 Unit-test it, and re-measure on the device that showed the problem
+- [x] 7c.1 Keep the context hosting the engine busy while a page is read, so it is not torn down (`translate/keepalive.ts`) — measured on the device: an open port does NOT do it, a ping the background answers does
+- [x] 7c.2 Start the pings with the page's first translation, never before: until the engine has been loaded there is nothing to keep, and a page where nothing is selected must wake nothing
+- [x] 7c.3 Stop when the extension context is gone — an orphaned page has nothing to hold
+- [x] 7c.4 Gate it exactly as the translator port is gated, and confirm `check:variants` finds no trace of it in any shipped bundle
+- [x] 7c.5 Unit-test it, and re-measure on the device that showed the problem — zero restarts in 110 s at rest, and 377 ms for a selection made 70 s after the last one
 
 ## 8. Gates
 

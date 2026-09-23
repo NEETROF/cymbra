@@ -23,7 +23,7 @@ import { isOpenPageMessage } from "./state/open-page.ts";
 import { EngineChannel, type WorkerLike } from "./translate/host/channel.ts";
 import type { EngineAccess } from "./translate/host/engine.ts";
 import { OffscreenEngine } from "./translate/host/offscreen-engine.ts";
-import { KEEPALIVE_PORT } from "./translate/keepalive.ts";
+import { KEEPALIVE_PING } from "./translate/keepalive.ts";
 import { relayTranslation } from "./translate/host/relay.ts";
 import { isTranslateMessage } from "./translate/wire.ts";
 import { Session } from "./state/session.ts";
@@ -252,12 +252,13 @@ if (__TRANSLATION_HOST__ !== "none") {
     void relayTranslation(engine, message.request).then(sendResponse);
     return true; // async response
   });
-  // A reader page holds a port open for as long as it is being read (translate/keepalive.ts).
-  // Accepting it is the whole job — an open port is what keeps this page loaded, and with it
-  // the worker and the model it has already read, so the reader's next selection is not a cold
-  // start. Nothing is ever sent over it, and it closes with the page that opened it.
-  chrome.runtime.onConnect.addListener((port) => {
-    if (port.name !== KEEPALIVE_PORT) return;
+  // A reader page pings while it is being read (translate/keepalive.ts): answering is what
+  // keeps this page loaded, and with it the worker and the model it has already read, so the
+  // reader's next selection is not a cold start. An open port does not do it — measured.
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if ((message as { type?: unknown } | null)?.type !== KEEPALIVE_PING) return undefined;
+    sendResponse(true);
+    return false;
   });
 }
 
