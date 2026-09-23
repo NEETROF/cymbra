@@ -2,7 +2,7 @@ import { createTranslatorPort } from "./translate/create-port.ts";
 import { resolveContentPort } from "./analyzer/create-port.ts";
 import type { LinguaPort } from "./analyzer/port.ts";
 import type { CefrLevel } from "./analyzer/types.ts";
-import { type Block, collectBlocks } from "./reading/blocks.ts";
+import { type Block, mergeBlocks } from "./reading/blocks.ts";
 import { Drawer, type DrawerView } from "./reading/drawer.ts";
 import { clear as clearHighlights, injectPageStyles, render } from "./reading/highlight.ts";
 import { ExposureTracker } from "./reading/exposure-tracker.ts";
@@ -258,7 +258,7 @@ class ReadingSession {
   /** Paint the page and begin watching it for changes (the reader's "on" state). */
   private async activate(): Promise<void> {
     injectPageStyles(tokensCss);
-    await this.refresh([document.body]);
+    await this.refresh([document.body], true);
     // Mount the HUD only after a successful first paint, so a failed init (which resets
     // the injection guard and lets a retry create a fresh session) leaves no orphan host.
     this.hud.mount();
@@ -341,16 +341,14 @@ class ReadingSession {
     this.needsLevel = await needsLevelChoice(this.port);
   }
 
-  /** Re-walk the given dirty containers, then repaint from a fresh whole-doc analysis. */
-  private async refresh(dirtyRoots: Element[]): Promise<void> {
-    for (const root of dirtyRoots) {
-      for (const c of [...this.blocksByContainer.keys()]) {
-        if (c === root || root.contains(c) || !c.isConnected) this.blocksByContainer.delete(c);
-      }
-      for (const b of collectBlocks(root)) this.blocksByContainer.set(b.container, b);
-    }
-    for (const c of [...this.blocksByContainer.keys()]) if (!c.isConnected) this.blocksByContainer.delete(c);
-    await this.repaint();
+  /**
+   * Re-walk the given dirty containers, then repaint from a fresh whole-doc analysis — only when
+   * the walk changed a block (or `force`, for the first paint): a clock ticking in a watched
+   * container must not re-analyse the page every second.
+   */
+  private async refresh(dirtyRoots: Element[], force = false): Promise<void> {
+    const changed = mergeBlocks(this.blocksByContainer, dirtyRoots);
+    if (changed || force) await this.repaint();
     this.observers.track(this.blocksByContainer.keys());
   }
 

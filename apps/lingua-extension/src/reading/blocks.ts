@@ -8,6 +8,16 @@
 /** The host element id of the injected word popup (excluded from scanning). */
 export const HOST_ID = "cymbra-lingua-host";
 
+/**
+ * YouTube's player caption area. The player replaces its whole caption window at every line,
+ * every one or two seconds: read as page text, each line would be painted after it is gone and
+ * counted as a new block. The `ytp-` classes belong to YouTube's player, so no host check.
+ */
+export const PLAYER_CAPTIONS_SELECTOR = ".ytp-caption-window-container";
+
+/** What the reader never reads or watches: its own UI, opted-out subtrees, player captions. */
+export const READER_IGNORED_SELECTOR = [`#${HOST_ID}`, "[data-cymbra-lingua-skip]", PLAYER_CAPTIONS_SELECTOR].join(",");
+
 /** Ancestor selector: any text under these is never scanned. */
 const EXCLUDED_SELECTOR = [
   "script",
@@ -19,8 +29,7 @@ const EXCLUDED_SELECTOR = [
   "code",
   "pre",
   "[contenteditable]",
-  "[data-cymbra-lingua-skip]",
-  `#${HOST_ID}`,
+  READER_IGNORED_SELECTOR,
 ].join(",");
 
 /** Nearest "block" ancestor: text sharing one of these becomes one analysis block. */
@@ -102,6 +111,45 @@ export function collectBlocks(root: ParentNode & Node = document.body): Block[] 
   }
 
   return [...byContainer.values()].filter((b) => HAS_LETTER.test(b.text));
+}
+
+/** Whether two walks of one container found the same text over the same Text nodes. */
+function sameBlock(a: Block, b: Block): boolean {
+  if (a.text !== b.text || a.segments.length !== b.segments.length) return false;
+  return a.segments.every(
+    (seg, i) =>
+      seg.node === b.segments[i].node &&
+      seg.blockStart === b.segments[i].blockStart &&
+      seg.length === b.segments[i].length,
+  );
+}
+
+/**
+ * Re-walk `roots` into the page's block map (in place) and report whether anything changed: a
+ * container added or gone, a block's text, or the Text nodes it spans — a node replaced by one
+ * with the same text still needs its highlight moved. A change with no new text (a clock that
+ * shows only digits) reports false, so the caller can skip re-analysing the whole page.
+ */
+export function mergeBlocks(
+  blocks: Map<Element, Block>,
+  roots: Iterable<Element>,
+  collect: (root: Element) => Block[] = collectBlocks,
+): boolean {
+  // Compare against the map as it stood before this walk: roots arrive nested (a parent and the
+  // child just added to it), so a later root re-walks what an earlier one has just collected.
+  const before = new Map(blocks);
+  for (const root of roots) {
+    for (const c of [...blocks.keys()]) if (c === root || root.contains(c) || !c.isConnected) blocks.delete(c);
+    for (const b of collect(root)) blocks.set(b.container, b);
+  }
+  for (const c of [...blocks.keys()]) if (!c.isConnected) blocks.delete(c);
+
+  for (const [c, old] of before) {
+    const now = blocks.get(c);
+    if (!now || (now !== old && !sameBlock(old, now))) return true;
+  }
+  for (const c of blocks.keys()) if (!before.has(c)) return true;
+  return false;
 }
 
 /** UTF-8 byte length of a single code point. */

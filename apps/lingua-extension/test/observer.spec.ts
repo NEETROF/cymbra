@@ -239,13 +239,124 @@ describe("ReadingObservers — visibility priority", () => {
     expect(FakeObserver.last!.observed).toEqual([el("a"), el("b")]);
   });
 
-  it("tracks nothing before it has been started", () => {
-    document.body.innerHTML = `<p id="a">alpha</p>`;
+  it("observes, once started, what was tracked before it started", () => {
+    // The page's first scan runs before the observers exist (content.ts activate()).
+    document.body.innerHTML = `<p id="a">alpha</p><p id="b">beta</p>`;
     makeObservers();
 
+    obs.track([el("a"), el("b")]);
+    obs.start();
+
+    expect(FakeObserver.last!.observed).toEqual([el("a"), el("b")]);
+  });
+
+  it("rescans a change in a container tracked before it started", async () => {
+    document.body.innerHTML = `<p id="a">alpha</p>`;
+    makeObservers();
+    obs.track([el("a")]);
+    obs.start();
+    // Only an observed container gets intersection entries from a real browser.
+    expect(FakeObserver.last!.observed).toContain(el("a"));
+    FakeObserver.last!.fire([[el("a"), true]]);
+
+    retext("a", "alpha and more");
+    await settle(DEBOUNCE + 1);
+
+    expect(seen).toEqual([[el("a")]]);
+  });
+
+  it("does not observe a container tracked before start that left the DOM meanwhile", () => {
+    document.body.innerHTML = `<p id="a">alpha</p>`;
+    makeObservers();
+    const a = el("a");
+    obs.track([a]);
+    a.remove();
+
+    obs.start();
+
+    expect(FakeObserver.last!.observed).toEqual([]);
+  });
+
+  it("forgets on stop what was tracked before it started", () => {
+    document.body.innerHTML = `<p id="a">alpha</p>`;
+    makeObservers();
+    obs.track([el("a")]);
+    obs.stop();
+
+    obs.start();
+
+    expect(FakeObserver.last!.observed).toEqual([]);
+  });
+
+  it("watches every container again after a restart", () => {
+    document.body.innerHTML = `<p id="a">alpha</p>`;
+    makeObservers().start();
+    obs.track([el("a")]);
+    obs.stop();
+
+    obs.start();
     obs.track([el("a")]);
 
-    expect(FakeObserver.last).toBeNull();
+    expect(FakeObserver.last!.observed).toEqual([el("a")]);
+  });
+
+  it("observes a tracked container once, however often it is tracked", () => {
+    document.body.innerHTML = `<p id="a">alpha</p>`;
+    makeObservers().start();
+
+    obs.track([el("a")]);
+    obs.track([el("a")]);
+
+    expect(FakeObserver.last!.observed).toEqual([el("a")]);
+  });
+
+  it("watches a changed container it was never given, and rescans it once it is on screen", async () => {
+    // A section loaded later into a container that held no text at the first paint.
+    document.body.innerHTML = `<div id="feed"></div>`;
+    makeObservers().start();
+
+    const w = document.createElement("div");
+    w.id = "w";
+    const p = document.createElement("p");
+    p.textContent = "comments loaded on scroll";
+    w.append(p);
+    el("feed").append(w);
+    await settle(DEBOUNCE + 1);
+
+    expect(seen).toEqual([]);
+    expect(FakeObserver.last!.observed).toContain(el("w"));
+    FakeObserver.last!.fire([[el("w"), true]]);
+    expect(seen).toEqual([[el("w")]]);
+  });
+
+  it("keeps a never-tracked container queued while it stays off screen", async () => {
+    document.body.innerHTML = `<div id="feed"><p id="a">alpha</p></div>`;
+    makeObservers().start();
+
+    retext("a", "changed below the fold");
+    await settle(DEBOUNCE + 1);
+    FakeObserver.last!.fire([[el("a"), false]]);
+
+    expect(seen).toEqual([]);
+    FakeObserver.last!.fire([[el("a"), true]]);
+    expect(seen).toEqual([[el("a")]]);
+  });
+
+  it("ignores changes inside YouTube's player captions", async () => {
+    document.body.innerHTML = `<div id="player"><div class="ytp-caption-window-container" id="caps"></div></div>`;
+    makeObservers().start();
+
+    const w = document.createElement("div");
+    w.className = "caption-window";
+    const seg = document.createElement("span");
+    seg.className = "ytp-caption-segment";
+    seg.textContent = "I was a government major,";
+    w.append(seg);
+    el("caps").append(w);
+    await settle(DEBOUNCE + 1);
+
+    expect(seen).toEqual([]);
+    expect(FakeObserver.last!.observed).toEqual([]);
   });
 
   it("rescans an on-screen container straight away", async () => {

@@ -1,4 +1,4 @@
-import { HOST_ID } from "./blocks.ts";
+import { READER_IGNORED_SELECTOR } from "./blocks.ts";
 
 // Dynamic-content handling (task 1.4). A debounced MutationObserver turns DOM changes
 // into a set of dirty block-level containers — never a whole-page re-walk. An
@@ -34,7 +34,7 @@ const BLOCK_SELECTOR = [
 function blockOf(node: Node): Element | null {
   const el = node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as Element);
   if (!el) return null;
-  if (el.closest(`#${HOST_ID},[data-cymbra-lingua-skip]`)) return null; // ignore our own UI
+  if (el.closest(READER_IGNORED_SELECTOR)) return null; // our own UI, opted-out subtrees, player captions
   return el.closest(BLOCK_SELECTOR) ?? document.body;
 }
 
@@ -52,6 +52,10 @@ export class ReadingObservers {
   private readonly dirty = new Set<Element>();
   private readonly visible = new WeakSet<Element>();
   private readonly pending = new Set<Element>();
+  /** Containers the IntersectionObserver watches — a queued one must be among them to drain. */
+  private watched = new WeakSet<Element>();
+  /** Containers handed to `track()` before `start()`: observed as soon as it starts. */
+  private readonly early = new Set<Element>();
 
   constructor(private readonly opts: ReadingObserverOptions) {}
 
@@ -61,7 +65,9 @@ export class ReadingObservers {
     this.mo.observe(root, { childList: true, subtree: true, characterData: true });
     if (typeof IntersectionObserver !== "undefined") {
       this.io = new IntersectionObserver((entries) => this.onIntersections(entries));
+      for (const c of this.early) if (c.isConnected) this.watch(c);
     }
+    this.early.clear();
   }
 
   stop(): void {
@@ -69,12 +75,25 @@ export class ReadingObservers {
     this.io?.disconnect();
     if (this.timer !== null) clearTimeout(this.timer);
     this.mo = this.io = null;
+    this.early.clear();
+    this.watched = new WeakSet(); // a later start() creates a new observer that watches nothing yet
   }
 
-  /** Track a set of block containers for visibility (call after each scan). */
+  /**
+   * Track a set of block containers for visibility (call after each scan). Before `start()`
+   * they are kept and observed once it runs: the first scan happens before the observers exist.
+   */
   track(containers: Iterable<Element>): void {
-    if (!this.io) return;
-    for (const c of containers) this.io.observe(c);
+    for (const c of containers) {
+      if (this.io) this.watch(c);
+      else if (!this.mo) this.early.add(c);
+    }
+  }
+
+  private watch(c: Element): void {
+    if (!this.io || this.watched.has(c)) return;
+    this.watched.add(c);
+    this.io.observe(c);
   }
 
   private onMutations(records: MutationRecord[]): void {
@@ -96,9 +115,13 @@ export class ReadingObservers {
     const nowVisible: Element[] = [];
     for (const c of this.dirty) {
       if (!c.isConnected) continue;
-      // With no IntersectionObserver (or not yet observed) treat as visible.
+      // With no IntersectionObserver, everything counts as visible. Otherwise a container not
+      // known to be on screen waits — watched, so its first intersection drains it if it is.
       if (!this.io || this.visible.has(c)) nowVisible.push(c);
-      else this.pending.add(c);
+      else {
+        this.pending.add(c);
+        this.watch(c);
+      }
     }
     this.dirty.clear();
     if (nowVisible.length > 0) this.opts.onRescan(nowVisible);

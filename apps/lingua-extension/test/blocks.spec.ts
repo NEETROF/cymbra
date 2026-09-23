@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { byteToCharOffset, collectBlocks, rangeForToken } from "@/reading/blocks.ts";
+import { type Block, byteToCharOffset, collectBlocks, mergeBlocks, rangeForToken } from "@/reading/blocks.ts";
 
 beforeEach(() => {
   document.body.innerHTML = "";
@@ -29,6 +29,17 @@ describe("collectBlocks", () => {
     expect(block.text).toBe("hello brave world");
     // Three eligible text nodes: "hello ", "brave", " world".
     expect(block.segments.length).toBe(3);
+  });
+
+  it("never reads YouTube's player captions", () => {
+    document.body.innerHTML = `
+      <div id="movie_player"><div class="ytp-caption-window-container">
+        <div class="caption-window"><span class="captions-text"><span class="caption-visual-line">
+          <span class="ytp-caption-segment">I was a government major,</span></span></span></div>
+      </div></div>
+      <div id="comments"><p>What a brilliant talk.</p></div>`;
+    const texts = collectBlocks().map((b) => b.text.trim());
+    expect(texts).toEqual(["What a brilliant talk."]);
   });
 
   it("drops blocks with no letters", () => {
@@ -78,5 +89,123 @@ describe("rangeForToken", () => {
     // "café" is bytes [0, 5) (é = 2 bytes), i.e. chars [0, 4).
     const range = rangeForToken(block, 0, 5)!;
     expect(range.toString()).toBe("café");
+  });
+});
+
+describe("mergeBlocks", () => {
+  /** The page's block map after a first walk, as content.ts keeps it. */
+  function painted(): Map<Element, Block> {
+    const map = new Map<Element, Block>();
+    mergeBlocks(map, [document.body]);
+    return map;
+  }
+
+  function byId(id: string): Element {
+    return document.getElementById(id)!;
+  }
+
+  it("reports the first walk of a page as a change", () => {
+    document.body.innerHTML = `<p id="a">alpha words</p>`;
+    const map = new Map<Element, Block>();
+
+    expect(mergeBlocks(map, [document.body])).toBe(true);
+    expect([...map.keys()]).toEqual([byId("a")]);
+  });
+
+  it("reports no change when a clock of digits ticks", () => {
+    document.body.innerHTML = `<p id="a">alpha words</p><div id="clock"><span>0:14</span></div>`;
+    const map = painted();
+
+    (byId("clock").firstElementChild as HTMLElement).textContent = "0:15";
+
+    expect(mergeBlocks(map, [byId("clock")])).toBe(false);
+    expect([...map.keys()]).toEqual([byId("a")]);
+  });
+
+  it("reports no change when a walked block reads the same over the same nodes", () => {
+    document.body.innerHTML = `<p id="a">alpha words</p>`;
+    const map = painted();
+
+    expect(mergeBlocks(map, [byId("a")])).toBe(false);
+  });
+
+  it("reports a change when a painted block's text changes", () => {
+    document.body.innerHTML = `<p id="a">alpha words</p>`;
+    const map = painted();
+
+    byId("a").append(" and more words");
+
+    expect(mergeBlocks(map, [byId("a")])).toBe(true);
+    expect(map.get(byId("a"))!.text).toBe("alpha words and more words");
+  });
+
+  it("reports a change when the same text now sits on a new node", () => {
+    document.body.innerHTML = `<p id="a">alpha words</p>`;
+    const map = painted();
+
+    byId("a").replaceChildren(document.createTextNode("alpha words"));
+
+    expect(mergeBlocks(map, [byId("a")])).toBe(true);
+  });
+
+  it("reports a change when a block is added under a walked root", () => {
+    document.body.innerHTML = `<article id="art"><p id="a">alpha words</p></article>`;
+    const map = painted();
+
+    const p = document.createElement("p");
+    p.id = "b";
+    p.textContent = "beta words";
+    byId("art").append(p);
+
+    expect(mergeBlocks(map, [byId("art")])).toBe(true);
+    expect(map.has(byId("b"))).toBe(true);
+  });
+
+  it("reports a block added under a parent that is re-walked along with it", () => {
+    // The observer hands over both the mutated parent and the node added to it.
+    document.body.innerHTML = `<article id="art"><p id="a">alpha words</p></article>`;
+    const map = painted();
+
+    const p = document.createElement("p");
+    p.id = "b";
+    p.textContent = "beta words";
+    byId("art").append(p);
+
+    expect(mergeBlocks(map, [byId("art"), byId("b")])).toBe(true);
+    expect(map.has(byId("b"))).toBe(true);
+  });
+
+  it("reports a section loaded into an empty container, re-walked with its wrapper", () => {
+    document.body.innerHTML = `<p id="a">alpha words</p><div id="feed"></div>`;
+    const map = painted();
+
+    const w = document.createElement("div");
+    w.id = "w";
+    const p = document.createElement("p");
+    p.textContent = "comments loaded on scroll";
+    w.append(p);
+    byId("feed").append(w);
+
+    expect(mergeBlocks(map, [byId("feed"), byId("w")])).toBe(true);
+    expect([...map.values()].map((b) => b.text)).toContain("comments loaded on scroll");
+  });
+
+  it("reports a change when a painted block leaves the page", () => {
+    document.body.innerHTML = `<p id="a">alpha words</p><p id="b">beta words</p>`;
+    const map = painted();
+
+    byId("b").remove();
+
+    expect(mergeBlocks(map, [byId("a")])).toBe(true);
+    expect([...map.keys()]).toEqual([byId("a")]);
+  });
+
+  it("keeps the blocks outside every walked root as they were", () => {
+    document.body.innerHTML = `<p id="a">alpha words</p><div id="w"><p id="b">beta words</p></div>`;
+    const map = painted();
+    const kept = map.get(byId("a"));
+
+    expect(mergeBlocks(map, [byId("w")])).toBe(false);
+    expect(map.get(byId("a"))).toBe(kept);
   });
 });

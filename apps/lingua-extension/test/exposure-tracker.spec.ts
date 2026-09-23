@@ -111,13 +111,49 @@ describe("ExposureTracker", () => {
     expect(io().observed).toEqual([]);
   });
 
-  it("tracks nothing before it has been started", () => {
+  it("observes, once started, what was tracked before it started", () => {
+    // The page's first scan runs before the tracker starts (content.ts activate()).
     const a = block("a", ["run"]);
     makeTracker();
 
     tracker.track(new Map([[a, ["run"]]]));
+    tracker.start();
 
-    expect(FakeObserver.last).toBeNull();
+    expect(io().observed).toEqual([a]);
+  });
+
+  it("reports a container tracked before it started, once visible for the dwell", async () => {
+    const a = block("a", ["run", "walk"]);
+    makeTracker();
+    tracker.track(new Map([[a, ["run", "walk"]]]));
+    tracker.start();
+
+    io().fire([[a, true]]);
+    await vi.advanceTimersByTimeAsync(DWELL);
+
+    expect(reported).toEqual([["run", "walk"]]);
+  });
+
+  it("does not observe a container tracked before start that left the DOM meanwhile", () => {
+    const a = block("a", ["run"]);
+    makeTracker();
+    tracker.track(new Map([[a, ["run"]]]));
+    a.remove();
+
+    tracker.start();
+
+    expect(io().observed).toEqual([]);
+  });
+
+  it("forgets on stop what was tracked before it started", () => {
+    const a = block("a", ["run"]);
+    makeTracker();
+    tracker.track(new Map([[a, ["run"]]]));
+    tracker.stop();
+
+    tracker.start();
+
+    expect(io().observed).toEqual([]);
   });
 
   it("reports a container's lemmas once it has been visible for the dwell", async () => {

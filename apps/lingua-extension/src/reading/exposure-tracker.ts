@@ -10,6 +10,9 @@ export class ExposureTracker {
   private readonly lemmas = new WeakMap<Element, string[]>();
   private readonly timers = new WeakMap<Element, ReturnType<typeof setTimeout>>();
   private readonly exposed = new WeakSet<Element>();
+  /** Containers handed to `track()` before `start()`: observed as soon as it starts. */
+  private readonly early = new Set<Element>();
+  private started = false;
 
   constructor(
     private readonly onExposed: (lemmas: string[]) => void,
@@ -17,22 +20,31 @@ export class ExposureTracker {
   ) {}
 
   start(): void {
-    if (typeof IntersectionObserver === "undefined") return;
-    this.io = new IntersectionObserver((entries) => this.onIntersections(entries), { threshold: 0.5 });
+    this.started = true;
+    if (typeof IntersectionObserver !== "undefined") {
+      this.io = new IntersectionObserver((entries) => this.onIntersections(entries), { threshold: 0.5 });
+      for (const c of this.early) if (c.isConnected && !this.exposed.has(c)) this.io.observe(c);
+    }
+    this.early.clear();
   }
 
   stop(): void {
     this.io?.disconnect();
     this.io = null;
+    this.started = false;
+    this.early.clear();
   }
 
-  /** Observe each container for its lemmas; containers already exposed are skipped. */
+  /**
+   * Observe each container for its lemmas; containers already exposed are skipped. Before
+   * `start()` they are kept and observed once it runs: the page's first scan comes first.
+   */
   track(byContainer: Map<Element, string[]>): void {
-    if (!this.io) return;
     for (const [container, lemmas] of byContainer) {
       if (this.exposed.has(container) || lemmas.length === 0) continue;
       this.lemmas.set(container, lemmas);
-      this.io.observe(container);
+      if (this.io) this.io.observe(container);
+      else if (!this.started) this.early.add(container);
     }
   }
 
