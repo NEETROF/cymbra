@@ -26,7 +26,7 @@
 ## 5. Verification
 
 - [x] 5.1 `auth_entry_test.dart`: the entry screen is still shown after sign-out and after account deletion when no guest choice is stored
-- [ ] 5.2 Integration `app_test.dart`: a first run walks language → welcome → library as a guest
+- [x] 5.2 Integration `app_test.dart`: a first run walks language → welcome → library as a guest. The suite's other test could not stand in for this: it seeds a guest session, which is exactly what skips the welcome. The new one starts with no tokens and no guest choice, pages through the welcome, takes "Continue without an account", and asserts both that the library is reached and that the entry screen never appeared — plus that the guest choice was persisted with no tokens written, so a relaunch would not ask again.
 - [x] 5.3 `dart format` from the repo root, `melos run analyze`, `dart run custom_lint`, and `flutter test --coverage` at or above 80 %
 - [ ] 5.4 On device, on the iPhone and Mac store builds: fresh install → language → welcome → "Continue without an account" → library; open Subscription as a guest → sign in → purchase buttons with prices
 - [x] 5.5 `openspec validate open-app-without-sign-in-wall --strict`
