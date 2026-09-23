@@ -47,13 +47,6 @@ The Lingua console SHALL present aggregates only: no `LinguaAdminService` RPC SH
 - **WHEN** a lingua admin browses the "Lingua" screen
 - **THEN** no per-account search, no link to an account and no individual detail is offered
 
-### Requirement: Registry of data-pack versions
-The screen SHALL display a **read-only** registry of published data packs — `pack_version`, `analyzer_version`, the L2→L1 pair, CI build date, size, NOTICE — served by `AdminListDataPacks` from the manifest produced by the pack pipeline and versioned with the repo. Pack distribution SHALL stay bundled in the extension in v1: the registry is informational and paves the way for a future OTA, it drives no distribution.
-
-#### Scenario: Consulting the registry
-- **WHEN** a lingua admin opens the screen's packs section
-- **THEN** every published pack appears with its version, its `analyzer_version`, its L2→L1 pair, its CI build date, its size and its NOTICE available to read, with no write or publish action
-
 ### Requirement: Lingua flags through the existing console
 Lingua feature flags SHALL be keys declared in the backend registry (`KeyDef`, app `lingua`) and administered by the existing Feature flags console (`/admin/flags`) with its current gating; this change SHALL introduce no new flags interface.
 
@@ -62,9 +55,23 @@ Lingua feature flags SHALL be keys declared in the backend registry (`KeyDef`, a
 - **THEN** it is listed and administrable in the existing `/admin/flags` console, with no new screen or component
 
 ### Requirement: Localised async states on the screen
-Every asynchronous resource on the screen (aggregates, series, packs) SHALL be modelled as an exhaustively matched `Async<T>` discriminated union, loaded exclusively through a Pinia store behind the `api()` seam; an RPC failure SHALL yield a localised error message inside the union — never a raw gRPC code or exception on screen, and never an API call from a component.
+Every asynchronous resource on the screen (aggregates, series) SHALL be modelled as an exhaustively matched `Async<T>` discriminated union, loaded exclusively through a Pinia store behind the `api()` seam; an RPC failure SHALL yield a localised error message inside the union — never a raw gRPC code or exception on screen, and never an API call from a component.
 
 #### Scenario: An aggregates RPC fails
 - **WHEN** `AdminGetLinguaUsage` fails during loading
 - **THEN** the screen renders the error state with a localised message, the technical cause being logged only
+
+### Requirement: The studied-language filter lists the languages the usage report holds
+The screen's studied-language filter SHALL offer every studied language present in the per-language breakdown of the usage report for the current window, together with the language currently selected and the choice of every language.
+The breakdown is not itself filtered by language — only the per-day series are — so the filter
+SHALL be drawn from it. A change of window SHALL NOT leave the filter on a language it no longer
+offers.
+
+#### Scenario: A language with activity in the window
+- **WHEN** the usage report for the window breaks down activity for `en`
+- **THEN** the filter offers `en` alongside every language
+
+#### Scenario: The selected language has no activity in a new window
+- **WHEN** the admin has selected `en` and switches to a window whose breakdown holds no `en`
+- **THEN** the filter still offers `en`, and still shows it selected
 
