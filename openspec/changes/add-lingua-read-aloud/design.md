@@ -15,10 +15,14 @@ and Android (same zip), Safari macOS and iOS (`dist-safari/`, bundled by `apps/l
 Each of them exposes the Web Speech API's `speechSynthesis` to the content script, backed by the
 platform's voices. They differ in what they list: Chrome on macOS lists the Apple voices —
 alphabetically, so the novelty voices (`Albert`, `Bad News`, `Bubbles`…) and the Eloquence ones
-(`Eddy (English (US))`…) come before `Samantha` — plus Google voices that synthesise on Google's
-servers and say so with `localService: false`. Chrome often lists nothing until `voiceschanged`
-fires. Safari and Firefox on macOS expose Apple identifiers in `voiceURI`
-(`com.apple.voice.compact.en-US.Samantha`, `urn:moz-tts:osx:…`); Chrome only names.
+(`Eddy (English (United States))`…) come before `Samantha` — plus Google voices that synthesise
+on Google's servers and say so with `localService: false` (`Google US English`, `Google UK
+English Female`, `Google UK English Male`). Chrome often lists nothing until `voiceschanged`
+fires. Safari on macOS exposes Apple identifiers in `voiceURI`
+(`com.apple.voice.super-compact.en-US.Samantha`), lists no Eloquence voice, and marks **every**
+voice `default: true` — 68 out of 68 on the capture; Chrome marks one (the system voice, `Daniel`
+on the capture) and uses the name as `voiceURI`. Measured on 2026-09-24, captures in
+`apps/lingua-extension/test/fixtures/voices/`.
 
 ## Goals / Non-Goals
 
@@ -86,7 +90,8 @@ Android reports (task 1.2).
 `pickVoice(voices, lang, preferred)` is a pure function:
 
 1. the preferred voice (by `voiceURI`), if it is still listed and eligible;
-2. otherwise an eligible voice with `default === true`;
+2. otherwise the eligible voice marked `default`, only when it is the **only** voice of the whole
+   list so marked — Safari marks them all, which says nothing;
 3. otherwise the first eligible voice by tier — Apple's enhanced/premium voices, then ordinary
    voices, then the deprioritised ones — and within a tier `en-US`, then `en-GB`, then any other
    region, then the browser's order;
@@ -96,12 +101,19 @@ The deprioritised voices are Apple's novelty voices (`Albert`, `Bad News`, `Bahh
 `Boing`, `Bubbles`, `Cellos`, `Good News`, `Jester`, `Organ`, `Superstar`, `Trinoids`,
 `Whisper`, `Wobble`, `Zarvox`), the Eloquence voices (`Eddy`, `Flo`, `Grandma`, `Grandpa`,
 `Reed`, `Rocko`, `Sandy`, `Shelley`) and the legacy ones (`Fred`, `Junior`, `Kathy`, `Ralph`),
-matched on the name with any parenthesised suffix removed (Chrome's `Eddy (English (US))`), or on
-the Apple identifier inside `voiceURI` (`com.apple.speech.synthesis.voice.*`,
-`com.apple.eloquence.*`). Apple's list has not moved in years, it is only ever a ranking — a
+matched on the name with any parenthesised suffix removed (Chrome's `Eddy (English (United
+States))`), or on the prefix of the Apple identifier in `voiceURI`
+(`com.apple.speech.synthesis.voice.`, `com.apple.eloquence.`) — the prefix, not the name inside
+it, because Safari's identifiers do not always repeat the name (`Wobble` is `…voice.Deranged`,
+`Jester` `…voice.Hysterical`, `Superstar` `…voice.Princess`). Apple's list has not moved in years, it is only ever a ranking — a
 deprioritised voice still speaks when it is the only one — and the voice picker is the way out
 when a platform lists something the ranking gets wrong. The tests run the ranking over voice
 lists captured on real devices (task 1.1), not over lists imagined for the test.
+
+On the captures: Chrome macOS picks `Daniel` (its one default voice) among 41 eligible voices, 6
+of them ordinary; Safari macOS, where the default says nothing, picks `Samantha` among 25, 6 of
+them ordinary. The same Mac can therefore start on two different voices in two browsers; the
+picker settles it per browser.
 
 _Alternative considered._ An allow-list of known good names (`Samantha`, `Daniel`, `Microsoft
 David`…) — it fails closed on every platform nobody listed, where a deny-list only fails to

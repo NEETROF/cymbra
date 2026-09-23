@@ -83,13 +83,17 @@ and no network request of the extension's own, and SHALL work offline.
 Réglages SHALL show a read-aloud block listing the eligible voices, with an automatic choice
 selected by default and a way to hear each voice, and SHALL leave the block out when there is no
 eligible voice. The choice SHALL be kept on the device as a preference. The automatic choice
-SHALL prefer an eligible voice the browser marks as default, and otherwise SHALL never pick a
-novelty voice while an ordinary one exists. A chosen voice that is no longer listed SHALL fall
+SHALL prefer the eligible voice the browser marks as default when it is the only voice so
+marked, and otherwise SHALL never pick a novelty voice while an ordinary one exists. A chosen voice that is no longer listed SHALL fall
 back to the automatic choice.
 
 #### Scenario: The automatic choice on macOS
 - **WHEN** the eligible voices are listed with novelty voices such as "Albert" and "Bubbles" before an ordinary voice such as "Samantha"
 - **THEN** the automatic choice is the ordinary voice
+
+#### Scenario: Every voice marked default
+- **WHEN** the browser marks every voice as default and lists novelty voices before an ordinary one
+- **THEN** the automatic choice is the ordinary voice, not the first voice listed
 
 #### Scenario: A chosen voice
 - **WHEN** the reader chooses a voice in Réglages and then listens from a card
