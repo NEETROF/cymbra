@@ -1,5 +1,6 @@
 import type { LinguaPort } from "../analyzer/port.ts";
 import type { LemmaStatus } from "../analyzer/types.ts";
+import type { VoicePreference } from "../reading/speech.ts";
 
 // Versioned local state (designs D4 + the review change). The authoritative state is
 // lingua-core's LinguaState, held by the WASM engine and persisted as its lossless
@@ -36,6 +37,13 @@ export const HUD_HIDDEN_KEY = "cymbra-lingua-hud-hidden";
  * it on any successful sign-in or refresh, and when the reader signs out on purpose.
  */
 export const SESSION_LOST_KEY = "cymbra-lingua-session-lost";
+
+/**
+ * The voice the reader chose to hear read aloud, as its `voiceURI`; absent or null means the
+ * automatic choice. A preference, not the reader's data: voice identifiers are per platform, so
+ * it is never synchronised.
+ */
+export const VOICE_KEY = "cymbra-lingua-voice";
 
 /** The minimal async storage surface we need; chrome.storage.local satisfies it. */
 export interface AsyncStorageArea {
@@ -110,6 +118,32 @@ export async function loadHudHidden(area: AsyncStorageArea): Promise<boolean> {
 /** Set the HUD-hidden flag. */
 export async function saveHudHidden(area: AsyncStorageArea, hidden: boolean): Promise<void> {
   await area.set({ [HUD_HIDDEN_KEY]: hidden });
+}
+
+/** The chosen voice's `voiceURI`, or null for the automatic choice. */
+export async function loadVoice(area: AsyncStorageArea): Promise<string | null> {
+  const got = await area.get(VOICE_KEY);
+  const uri = got[VOICE_KEY];
+  return typeof uri === "string" && uri !== "" ? uri : null;
+}
+
+/** Keep a voice, or null to go back to the automatic choice. */
+export async function saveVoice(area: AsyncStorageArea, voiceURI: string | null): Promise<void> {
+  await area.set({ [VOICE_KEY]: voiceURI });
+}
+
+/** The voice preference in `area`, followed in every context through `storage.onChanged`. */
+export function storedVoicePreference(area: AsyncStorageArea): VoicePreference {
+  return {
+    load: () => loadVoice(area),
+    watch(onChange) {
+      chrome.storage.onChanged.addListener((changes, areaName) => {
+        const change = changes[VOICE_KEY];
+        if (areaName !== "local" || !change) return;
+        onChange(typeof change.newValue === "string" && change.newValue !== "" ? change.newValue : null);
+      });
+    },
+  };
 }
 
 /**

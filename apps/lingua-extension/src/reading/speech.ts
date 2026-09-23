@@ -1,0 +1,306 @@
+// Read-aloud (add-lingua-read-aloud): which voice may speak, which one does, and one speaker
+// that owns a single utterance at a time. No DOM here, and the browser's synthesiser sits behind
+// the `SpeechEngine` seam, so every decision is tested in jsdom — which has no synthesiser.
+//
+// The rule that matters most is eligibility. Chrome's desktop voice list mixes the operating
+// system's voices with Google's, which synthesise on Google's servers and say so with
+// `localService: false`. Page text must never reach one of those, so a voice speaks only when the
+// browser reports it on the device AND it is named explicitly on the utterance: a bare `lang`
+// lets the browser choose, and Chrome may choose a remote voice.
+//
+// The ranking was checked against voice lists captured on real browsers
+// (`test/fixtures/voices/`), which is where its two surprises came from: Safari marks every
+// voice as the default, and macOS lists its novelty voices (`Albert`, `Bubbles`…) before
+// `Samantha`.
+
+/** What this module reads of a voice. A `SpeechSynthesisVoice` has it, and so does a captured list. */
+export interface VoiceInfo {
+  readonly name: string;
+  readonly lang: string;
+  readonly localService: boolean;
+  readonly default: boolean;
+  readonly voiceURI: string;
+}
+
+/** The browser's synthesiser, as the speaker drives it. */
+export interface SpeechEngine<V extends VoiceInfo = VoiceInfo> {
+  /** The voices listed right now (Chrome lists none until `voiceschanged`). */
+  voices(): V[];
+  onVoicesChanged(listener: () => void): void;
+  /** Speak `text` with `voice`; `done` runs once, with null or the error code. */
+  speak(text: string, voice: V, done: (error: string | null) => void): void;
+  /** Stop everything queued in this frame. */
+  cancel(): void;
+}
+
+/** Where the reader's chosen voice is kept (a `voiceURI`, or null for the automatic choice). */
+export interface VoicePreference {
+  load(): Promise<string | null>;
+  watch(onChange: (voiceURI: string | null) => void): void;
+}
+
+/** What is being spoken: the caller's key (`selection`, `sentence`, `preview`) and the text. */
+export interface Speaking {
+  readonly key: string;
+  readonly text: string;
+}
+
+export interface Speaker {
+  /** The studied language it speaks (a primary subtag). */
+  readonly lang: string;
+  /** Whether a voice may speak now. Without one, nothing offers to listen. */
+  available(): boolean;
+  /** The eligible voices, in the browser's order. */
+  eligible(): VoiceInfo[];
+  /** The voice the automatic choice lands on, ignoring the reader's preference. */
+  automatic(): VoiceInfo | null;
+  /** The reader's preference as stored — possibly a voice no longer listed. */
+  preferred(): string | null;
+  speaking(): Speaking | null;
+  /**
+   * Stop whatever is speaking and speak `text`, with `voice` or the chosen one. Synchronous all
+   * the way to the synthesiser: the click that calls it is the user activation Chrome and
+   * Safari on iOS require, and anything awaited first would spend it.
+   */
+  speak(key: string, text: string, voice?: VoiceInfo): void;
+  stop(): void;
+  /** Called whenever `available`, the voices, the preference or `speaking` change. */
+  subscribe(listener: () => void): () => void;
+}
+
+/**
+ * Apple's novelty voices, its Eloquence voices and its legacy ones: real voices that no reader
+ * should land on by default. Chrome names them (`Eddy (English (United States))`), Safari and
+ * Firefox also carry an identifier whose family says it — and whose last part does not always
+ * repeat the name (`Wobble` is `…voice.Deranged`).
+ */
+const DEPRIORITISED_NAMES = new Set([
+  // novelty
+  "Albert",
+  "Bad News",
+  "Bahh",
+  "Bells",
+  "Boing",
+  "Bubbles",
+  "Cellos",
+  "Good News",
+  "Jester",
+  "Organ",
+  "Superstar",
+  "Trinoids",
+  "Whisper",
+  "Wobble",
+  "Zarvox",
+  // Eloquence
+  "Eddy",
+  "Flo",
+  "Grandma",
+  "Grandpa",
+  "Reed",
+  "Rocko",
+  "Sandy",
+  "Shelley",
+  // legacy
+  "Fred",
+  "Junior",
+  "Kathy",
+  "Ralph",
+]);
+const DEPRIORITISED_FAMILY = /com\.apple\.(speech\.synthesis\.voice|eloquence)\./;
+/** A voice the reader downloaded for its quality: Apple's identifiers, or Chrome's name suffix. */
+const ENHANCED = /com\.apple\.voice\.(premium|enhanced)\.|\((premium|enhanced)\)\s*$/i;
+/** Within a tier, the regions tried first, per studied language. */
+const PREFERRED_REGIONS: Record<string, readonly string[]> = { en: ["us", "gb"] };
+
+function subtags(lang: string): string[] {
+  return lang.toLowerCase().replace(/_/g, "-").split("-");
+}
+
+/** A voice may speak when the browser reports it on the device and it speaks the studied language. */
+export function isEligible(voice: VoiceInfo, lang: string): boolean {
+  return voice.localService === true && subtags(voice.lang)[0] === lang.toLowerCase();
+}
+
+/** The name without Chrome's parenthesised suffix: `Eddy (English (United States))` → `Eddy`. */
+function baseName(name: string): string {
+  const at = name.indexOf("(");
+  return (at < 0 ? name : name.slice(0, at)).trim();
+}
+
+/** Whether the voice is one of Apple's novelty, Eloquence or legacy voices. */
+export function isDeprioritised(voice: VoiceInfo): boolean {
+  return DEPRIORITISED_NAMES.has(baseName(voice.name)) || DEPRIORITISED_FAMILY.test(voice.voiceURI);
+}
+
+function tier(voice: VoiceInfo): number {
+  if (isDeprioritised(voice)) return 2;
+  return ENHANCED.test(voice.voiceURI) || ENHANCED.test(voice.name) ? 0 : 1;
+}
+
+function regionRank(voice: VoiceInfo, lang: string): number {
+  const preferred = PREFERRED_REGIONS[lang.toLowerCase()] ?? [];
+  const at = preferred.indexOf(subtags(voice.lang)[1] ?? "");
+  return at < 0 ? preferred.length : at;
+}
+
+/** Eligible voices best first: tier, then region, then the browser's order. */
+export function rankVoices<V extends VoiceInfo>(voices: readonly V[], lang: string): V[] {
+  return voices
+    .map((voice, index) => ({ voice, index }))
+    .filter(({ voice }) => isEligible(voice, lang))
+    .sort(
+      (a, b) =>
+        tier(a.voice) - tier(b.voice) || regionRank(a.voice, lang) - regionRank(b.voice, lang) || a.index - b.index,
+    )
+    .map(({ voice }) => voice);
+}
+
+/**
+ * The voice that speaks: the reader's choice while it is still listed and eligible; else the
+ * browser's default, only when it is the ONE voice so marked (Safari marks all of them, which
+ * says nothing); else the best-ranked eligible voice; else none.
+ */
+export function pickVoice<V extends VoiceInfo>(voices: readonly V[], lang: string, preferred: string | null): V | null {
+  if (preferred) {
+    const chosen = voices.find((v) => v.voiceURI === preferred && isEligible(v, lang));
+    if (chosen) return chosen;
+  }
+  const defaults = voices.filter((v) => v.default);
+  if (defaults.length === 1 && isEligible(defaults[0], lang)) return defaults[0];
+  return rankVoices(voices, lang)[0] ?? null;
+}
+
+/** The eligible voices as Réglages lists them: the ordinary ones, then the others, apart. */
+export function voiceGroups<V extends VoiceInfo>(voices: readonly V[], lang: string): { ordinary: V[]; others: V[] } {
+  const ranked = rankVoices(voices, lang);
+  return { ordinary: ranked.filter((v) => !isDeprioritised(v)), others: ranked.filter(isDeprioritised) };
+}
+
+/** A voice as Réglages names it: `Samantha — États-Unis`, the region in French. */
+export function voiceLabel(voice: VoiceInfo): string {
+  const region = subtags(voice.lang)[1]?.toUpperCase();
+  if (!region) return voice.name;
+  let place = region;
+  try {
+    place = new Intl.DisplayNames(["fr"], { type: "region" }).of(region) ?? region;
+  } catch {
+    // Not a region this runtime can name (or no Intl.DisplayNames): the code says enough.
+  }
+  return `${voice.name} — ${place}`;
+}
+
+/**
+ * Whether two texts would be heard as the same: the sentence button is left out when the
+ * sentence is the selection. Blanks collapsed, final punctuation and case ignored.
+ */
+export function sameSpokenText(a: string, b: string): boolean {
+  const norm = (s: string): string =>
+    s
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/[\s.!?…;:,"'”’»«“‘)]+$/u, "")
+      .toLowerCase();
+  return norm(a) === norm(b);
+}
+
+/** Errors that are the speaker's own doing (it cancelled), not a failure worth logging. */
+const OWN_ERRORS = new Set(["interrupted", "canceled"]);
+
+export function createSpeaker<V extends VoiceInfo>(
+  engine: SpeechEngine<V> | null,
+  lang: string,
+  preference: VoicePreference,
+): Speaker {
+  let voices: V[] = engine ? engine.voices() : [];
+  let preferred: string | null = null;
+  let current: (Speaking & { token: object }) | null = null;
+  const listeners = new Set<() => void>();
+  const notify = (): void => {
+    for (const listener of [...listeners]) listener();
+  };
+
+  engine?.onVoicesChanged(() => {
+    voices = engine.voices();
+    notify();
+  });
+  const follow = (uri: string | null): void => {
+    preferred = uri;
+    notify();
+  };
+  void preference.load().then(follow, () => {});
+  preference.watch(follow);
+
+  const chosen = (): V | null => pickVoice(voices, lang, preferred);
+
+  return {
+    lang,
+    available: () => chosen() !== null,
+    eligible: () => voices.filter((v) => isEligible(v, lang)),
+    automatic: () => pickVoice(voices, lang, null),
+    preferred: () => preferred,
+    speaking: () => (current ? { key: current.key, text: current.text } : null),
+    speak(key, text, voice) {
+      const v = (voice as V | undefined) ?? chosen();
+      if (!engine || !v || !isEligible(v, lang) || !text.trim()) return;
+      engine.cancel();
+      const token = {};
+      current = { key, text, token };
+      // `cancel` makes the previous utterance report its end later — on Chrome after this one
+      // has started — so an answer only counts for the utterance still current.
+      engine.speak(text, v, (error) => {
+        if (current?.token !== token) return;
+        current = null;
+        if (error && !OWN_ERRORS.has(error)) console.warn(`[lingua] read-aloud failed: ${error}`);
+        notify();
+      });
+      notify();
+    },
+    stop() {
+      // Only when something of ours speaks: `cancel` empties the frame's whole queue, the
+      // page's own utterances included.
+      if (!current) return;
+      current = null;
+      engine?.cancel();
+      notify();
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => void listeners.delete(listener);
+    },
+  };
+}
+
+/** The browser's `speechSynthesis` behind the seam, or null where there is none. */
+export function browserSpeechEngine(
+  synth: SpeechSynthesis | undefined = globalThis.speechSynthesis,
+): SpeechEngine<SpeechSynthesisVoice> | null {
+  if (!synth || typeof SpeechSynthesisUtterance === "undefined") return null;
+  // Chrome may collect an utterance nothing references before it ends, and then never reports
+  // the end: keep the live one.
+  let live: SpeechSynthesisUtterance | null = null;
+  return {
+    voices: () => synth.getVoices(),
+    onVoicesChanged(listener) {
+      // Never through `onvoiceschanged`: the page shares that object, and assigning its handler
+      // would replace the page's own.
+      if (typeof synth.addEventListener === "function") synth.addEventListener("voiceschanged", listener);
+    },
+    speak(text, voice, done) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.voice = voice;
+      utterance.lang = voice.lang;
+      let settled = false;
+      const finish = (error: string | null): void => {
+        if (settled) return;
+        settled = true;
+        if (live === utterance) live = null;
+        done(error);
+      };
+      utterance.onend = () => finish(null);
+      utterance.onerror = (e) => finish(e.error ?? "unknown");
+      live = utterance;
+      synth.speak(utterance);
+    },
+    cancel: () => synth.cancel(),
+  };
+}

@@ -1,7 +1,9 @@
 import { createLinguaPort } from "../analyzer/create-port.ts";
+import { STUDIED_LANGUAGE } from "../analyzer/types.ts";
 import { mountSettings, type SettingsView } from "../reading/settings-view.ts";
+import { browserSpeechEngine, createSpeaker } from "../reading/speech.ts";
 import { mountReview, type ReviewPage } from "../review/review-page.ts";
-import { type AsyncStorageArea, hydrateEngine, saveBackup } from "../state/storage.ts";
+import { type AsyncStorageArea, hydrateEngine, saveBackup, storedVoicePreference } from "../state/storage.ts";
 import { messagedArea, watchBackup } from "../state/store.ts";
 import { mountStats } from "../stats/view.ts";
 import { requestSync } from "../sync/messages.ts";
@@ -26,6 +28,8 @@ const store: AsyncStorageArea = messagedArea();
 
 const now = (): number => Math.floor(Date.now() / 1000);
 const port = createLinguaPort();
+/** This page's own synthesiser, for the Réglages voice preview. */
+const speaker = createSpeaker(browserSpeechEngine(), STUDIED_LANGUAGE, storedVoicePreference(area));
 
 function $(id: string): HTMLElement {
   const el = document.getElementById(id);
@@ -62,7 +66,7 @@ async function showView(view: PanelView): Promise<void> {
   } else if (view === "stats") {
     await mountStats($("view-stats"), port, store);
   } else {
-    settings ??= mountSettings($("view-settings"), port, area, { persist, store });
+    settings ??= mountSettings($("view-settings"), port, area, { persist, store, speaker });
     await settings.refresh();
   }
 }

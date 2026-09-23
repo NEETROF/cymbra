@@ -1,7 +1,7 @@
 import { createTranslatorPort } from "./translate/create-port.ts";
 import { resolveContentPort } from "./analyzer/create-port.ts";
 import type { LinguaPort } from "./analyzer/port.ts";
-import type { CefrLevel } from "./analyzer/types.ts";
+import { type CefrLevel, STUDIED_LANGUAGE } from "./analyzer/types.ts";
 import { type Block, collectBlocks } from "./reading/blocks.ts";
 import { Drawer, type DrawerView } from "./reading/drawer.ts";
 import { clear as clearHighlights, injectPageStyles, render } from "./reading/highlight.ts";
@@ -28,6 +28,7 @@ import {
   sentenceForRange,
 } from "./reading/selection.ts";
 import { clickIsOnWord, decideClick, type PageHit, SelectionCards } from "./reading/selection-card.ts";
+import { browserSpeechEngine, createSpeaker, type Speaker } from "./reading/speech.ts";
 import { type Gesture, WordPopup } from "./reading/wordpopup.ts";
 import { recordExposures, recordWordLearned, utcDay } from "./state/dailystats.ts";
 import { needsLevelChoice } from "./state/level-choice.ts";
@@ -40,6 +41,7 @@ import {
   loadHudHidden,
   saveBackup,
   SESSION_LOST_KEY,
+  storedVoicePreference,
 } from "./state/storage.ts";
 import { messagedArea, watchBackup } from "./state/store.ts";
 import { requestSync } from "./sync/messages.ts";
@@ -122,6 +124,12 @@ class ReadingSession {
   /** Daily exposures are counted once per page load (a re-scan does not re-count). */
   private exposuresRecorded = false;
   private readonly popup: WordPopup;
+  /** Reads a card's selection and sentence aloud, with a voice on this device only. */
+  private readonly speaker: Speaker = createSpeaker(
+    browserSpeechEngine(),
+    STUDIED_LANGUAGE,
+    storedVoicePreference(storageArea),
+  );
   /** What a selection or a click opens — every decision lives there, tested; this class only wires it. */
   private readonly cards: SelectionCards;
   private readonly drawer: Drawer;
@@ -139,7 +147,11 @@ class ReadingSession {
   // The port is resolved before construction (`resolveContentPort`) so a CSP-blocked
   // page can hand us the messaging port instead of the in-content WASM engine.
   constructor(private readonly port: LinguaPort) {
-    this.popup = new WordPopup({ css: `${tokensCss}\n${popupCss}`, onGesture: (g) => void this.onGesture(g) });
+    this.popup = new WordPopup({
+      css: `${tokensCss}\n${popupCss}`,
+      onGesture: (g) => void this.onGesture(g),
+      speaker: this.speaker,
+    });
     this.cards = new SelectionCards(
       this.port,
       { show: (content) => this.popup.show(content), generation: () => this.popup.generation() },
@@ -154,6 +166,7 @@ class ReadingSession {
       store,
       now: nowSeconds,
       onChange: () => this.persist(),
+      speaker: this.speaker,
     });
     this.hud = new LinguaHud({
       css: `${tokensCss}\n${hudCss}`,
@@ -213,6 +226,8 @@ class ReadingSession {
     // Flush pending reading exposures before the tab is hidden / navigated away.
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "hidden" && this.pendingExposure.size > 0) void this.flushExposure();
+      // Nothing keeps talking in a tab the reader left.
+      if (document.visibilityState === "hidden") this.speaker.stop();
       // Back on the tab (possibly after reading on another device): ask for a sync too.
       if (document.visibilityState === "visible" && this.enabled) void requestSync("page");
     });

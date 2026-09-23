@@ -3,7 +3,7 @@ import { CEFR_LEVELS, type CefrLevel } from "../analyzer/types.ts";
 import { needsLevelChoice } from "../state/level-choice.ts";
 import { type OpenPage, openPageViaBackground } from "../state/open-page.ts";
 import { hasShortcutEditor } from "../state/platform.ts";
-import { type AsyncStorageArea, loadHudHidden, saveHudHidden } from "../state/storage.ts";
+import { type AsyncStorageArea, loadHudHidden, saveHudHidden, saveVoice } from "../state/storage.ts";
 import {
   LAST_SYNC_KEY,
   loadLastSync,
@@ -13,6 +13,7 @@ import {
 } from "../sync/messages.ts";
 import { lastSyncLabel, syncErrorCopy } from "../sync/status.ts";
 import { clearSyncCursors } from "../sync/sync.ts";
+import { type Speaker, type VoiceInfo, voiceGroups, voiceLabel } from "./speech.ts";
 
 // The Réglages view, built as plain DOM into a given container so ONE implementation
 // serves two hosts: the native side panel and the in-page drawer (same pattern as review's
@@ -31,7 +32,14 @@ export interface SettingsOptions {
   sync?: SyncControls;
   /** Open an extension or browser page. The background does it: the drawer cannot. */
   openPage?: OpenPage;
+  /** The host's speaker: the read-aloud block lists its voices, and is absent without one. */
+  speaker?: Speaker;
 }
+
+/** The key the settings preview speaks under — not a card's, so no card silences it. */
+const PREVIEW_KEY = "preview";
+/** What the preview reads, in the studied language. */
+const PREVIEW_TEXT = "This is how your pages will sound when Lingua reads them aloud.";
 
 /** What the Synchronisation block needs from the background and the store. */
 export interface SyncControls {
@@ -140,6 +148,21 @@ export function mountSettings(
     el("div", "set-note", "Pastille discrète en bas de la page : pourcentage + accès au deck et aux réglages."),
   );
 
+  // — Lecture à voix haute (only when a voice on this device may speak) —
+  const speaker = opts.speaker;
+  const voiceBlock = settingBlock("Lecture à voix haute");
+  voiceBlock.hidden = true;
+  const voiceRow = el("div", "set-voice");
+  const voiceSelect = el("select");
+  voiceSelect.setAttribute("aria-label", "Voix de lecture");
+  const previewBtn = el("button", "set-reset", "▶ Écouter");
+  previewBtn.type = "button";
+  voiceRow.append(voiceSelect, previewBtn);
+  voiceBlock.append(
+    voiceRow,
+    el("div", "set-note", "Voix installées sur cet appareil : le texte lu ne quitte pas l'appareil."),
+  );
+
   // — Raccourcis & gestes —
   const scBlock = settingBlock("Raccourcis & gestes");
   const scList = el("ul", "set-shortcuts");
@@ -239,7 +262,7 @@ export function mountSettings(
     void doReset("full");
   });
 
-  container.append(levelBlock, barBlock, scBlock, syncBlock, resetBlock);
+  container.append(levelBlock, barBlock, voiceBlock, scBlock, syncBlock, resetBlock);
 
   // — Live wiring —
   calib.addEventListener("input", () => {
@@ -252,9 +275,53 @@ export function mountSettings(
   toggle.addEventListener("change", async () => {
     await saveHudHidden(area, !toggle.checked);
   });
+  voiceSelect.addEventListener("change", () => void saveVoice(area, voiceSelect.value || null));
+  previewBtn.addEventListener("click", () => {
+    if (!speaker) return;
+    if (speaker.speaking()?.key === PREVIEW_KEY) {
+      speaker.stop();
+      return;
+    }
+    // The select, not the stored preference: the change it just saved may not be back yet.
+    const voice = speaker.eligible().find((v) => v.voiceURI === voiceSelect.value) ?? speaker.automatic();
+    if (voice) speaker.speak(PREVIEW_KEY, PREVIEW_TEXT, voice);
+  });
+  speaker?.subscribe(() => renderVoices());
   syncBtn.addEventListener("click", () => void runSync());
   restartBtn.addEventListener("click", () => void restartFromServer());
   sync.watch(() => void refreshSync());
+
+  /**
+   * The automatic choice first, naming the voice it lands on; then the ordinary voices; then
+   * Apple's novelty, Eloquence and legacy voices apart, at the bottom — listed, out of the way.
+   * A chosen voice no longer listed shows the automatic choice, which is what speaks.
+   */
+  function renderVoices(): void {
+    const eligible = speaker?.eligible() ?? [];
+    voiceBlock.hidden = eligible.length === 0;
+    if (!speaker || eligible.length === 0) return;
+    const option = (value: string, label: string): HTMLOptionElement => {
+      const o = el("option", undefined, label);
+      o.value = value;
+      return o;
+    };
+    const voiceOption = (v: VoiceInfo): HTMLOptionElement => option(v.voiceURI, voiceLabel(v));
+    const { ordinary, others } = voiceGroups(eligible, speaker.lang);
+    const automatic = speaker.automatic();
+    voiceSelect.replaceChildren(
+      option("", automatic ? `Automatique (${automatic.name})` : "Automatique"),
+      ...ordinary.map(voiceOption),
+    );
+    if (others.length > 0) {
+      const group = el("optgroup");
+      group.label = "Autres voix";
+      group.append(...others.map(voiceOption));
+      voiceSelect.append(group);
+    }
+    const preferred = speaker.preferred();
+    voiceSelect.value = preferred && eligible.some((v) => v.voiceURI === preferred) ? preferred : "";
+    previewBtn.textContent = speaker.speaking()?.key === PREVIEW_KEY ? "■ Arrêter" : "▶ Écouter";
+  }
 
   async function runSync(): Promise<void> {
     syncBtn.disabled = true;
@@ -328,6 +395,7 @@ export function mountSettings(
       calibValue.textContent = String(cal);
     }
     toggle.checked = !(await loadHudHidden(area));
+    renderVoices();
     await refreshSync();
   }
 

@@ -1,6 +1,7 @@
 import type { MarkedTranslation } from "../translate/markup.ts";
 import type { LemmaStatus } from "../analyzer/types.ts";
 import { isTouchPrimary } from "../state/platform.ts";
+import { sameSpokenText, type Speaker, type Speaking } from "./speech.ts";
 
 // The on-page word popup: a closed shadow root (isolated from page CSS and JS), showing
 // the dictionary form, the form as seen, the pack gloss, a plain-language rarity note,
@@ -94,9 +95,36 @@ const WAITING = "Recherche dans le pack…";
 const TRANSLATING = "Traduction en cours…";
 const NO_GLOSS = "Pas de traduction dans le pack.";
 const NO_GLOSS_EXPRESSION = "Pas de traduction dans le pack pour cette expression.";
+const STOP = "■ Arrêter";
+const STOP_LABEL = "Arrêter la lecture";
 
-/** Build the card view (no shadow root involved — testable in isolation). */
-export function createCard(): CardView {
+/** One listen button: what it speaks, under which key, and how it is labelled. */
+interface Listen {
+  key: "selection" | "sentence";
+  text: string;
+  label: string;
+  aria: string;
+}
+
+/** The texts a card offers to hear: the selection as seen, and its sentence unless it is the selection. */
+function listensFor(content: WordPopupContent): Listen[] {
+  const selection = (content.surface || content.headword).trim();
+  if (!selection) return [];
+  const listens: Listen[] = [
+    content.expression
+      ? { key: "selection", text: selection, label: "▶ Sélection", aria: "Écouter la sélection" }
+      : { key: "selection", text: selection, label: "▶ Mot", aria: "Écouter le mot" },
+  ];
+  const sentence = content.sentence.trim();
+  if (sentence && !sameSpokenText(sentence, selection)) {
+    listens.push({ key: "sentence", text: sentence, label: "▶ Phrase", aria: "Écouter la phrase" });
+  }
+  return listens;
+}
+
+/** Build the card view (no shadow root involved — testable in isolation). With a `speaker`, the
+ *  card offers to hear the selection and its sentence (add-lingua-read-aloud). */
+export function createCard(speaker?: Speaker): CardView {
   const el = div("card");
   el.hidden = true;
   el.addEventListener("click", (e) => e.stopPropagation());
@@ -104,10 +132,12 @@ export function createCard(): CardView {
   const headwordEl = div("headword");
   const seenEl = div("seen");
   const rarityEl = div("rarity");
+  const listenEl = div("listen");
+  listenEl.hidden = true;
   const glossEl = div("gloss");
   const translationEl = div("translation");
   const actionsEl = div("actions");
-  el.append(headwordEl, seenEl, rarityEl, glossEl, translationEl, actionsEl);
+  el.append(headwordEl, seenEl, rarityEl, listenEl, glossEl, translationEl, actionsEl);
 
   let current: WordPopupContent | null = null;
   let generation = 0;
@@ -135,6 +165,46 @@ export function createCard(): CardView {
     });
     return b;
   }
+
+  /**
+   * The listen row, from the speaker's state: rebuilt on every show and on every change of the
+   * speaker — a voice list announced late, an utterance ending — so the card on screen always
+   * says what pressing does. It does not wait for the engine: a pending card offers it too.
+   */
+  function renderListen(): void {
+    listenEl.replaceChildren();
+    const listens = speaker && current && speaker.available() ? listensFor(current) : [];
+    listenEl.hidden = listens.length === 0;
+    if (!speaker) return;
+    const playing = speaker.speaking();
+    for (const listen of listens) {
+      const on = playing?.key === listen.key && playing.text === listen.text;
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = on ? STOP : listen.label;
+      b.setAttribute("aria-label", on ? STOP_LABEL : listen.aria);
+      b.classList.toggle("speaking", on);
+      // Keep the reader's selection (and on a touch device the platform's callout) as it was:
+      // a button's default on press is to take the focus and collapse the page selection.
+      b.addEventListener("pointerdown", (e) => e.preventDefault());
+      b.addEventListener("mousedown", (e) => e.preventDefault());
+      b.addEventListener("click", () => {
+        if (on) speaker.stop();
+        else speaker.speak(listen.key, listen.text);
+      });
+      listenEl.append(b);
+    }
+  }
+
+  /** Whether the speaker is reading one of this card's texts (a settings preview is not). */
+  function cardSpeaking(): Speaking | null {
+    const playing = speaker?.speaking() ?? null;
+    return playing && (playing.key === "selection" || playing.key === "sentence") ? playing : null;
+  }
+
+  speaker?.subscribe(() => {
+    if (!el.hidden) renderListen();
+  });
 
   /**
    * The answer slot: the waiting line, the labelled rows, the gloss, or the no-gloss note. A
@@ -223,9 +293,14 @@ export function createCard(): CardView {
       generation++;
       el.hidden = true;
       current = null;
+      // No speech outlives the control that stops it.
+      if (cardSpeaking()) speaker?.stop();
     },
     show(content, onGesture) {
       generation++;
+      // Another word silences the card; the same selection completing with its answer does not.
+      const playing = cardSpeaking();
+      if (playing && !listensFor(content).some((l) => l.text === playing.text)) speaker?.stop();
       current = content;
       headwordEl.textContent = content.headword;
 
@@ -235,6 +310,7 @@ export function createCard(): CardView {
 
       rarityEl.textContent = content.rarity;
 
+      renderListen();
       renderAnswer(content);
       renderTranslation(content);
 
@@ -277,14 +353,17 @@ export interface WordPopupOptions {
   css: string;
   /** Called when the user picks a gesture. */
   onGesture: (gesture: Gesture) => void;
+  /** Reads the selection and its sentence aloud; without one the card has no listen row. */
+  speaker?: Speaker;
 }
 
 export class WordPopup {
   /** The host element in the page (excluded from scanning by its id). */
   readonly host: HTMLElement;
-  private readonly view: CardView = createCard();
+  private readonly view: CardView;
 
   constructor(private readonly opts: WordPopupOptions) {
+    this.view = createCard(opts.speaker);
     this.host = document.createElement("div");
     this.host.id = "cymbra-lingua-host";
     this.host.setAttribute("data-cymbra-lingua-skip", "");

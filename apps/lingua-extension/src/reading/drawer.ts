@@ -4,6 +4,7 @@ import { type AsyncStorageArea } from "../state/storage.ts";
 import { mountStats } from "../stats/view.ts";
 import { requestSync } from "../sync/messages.ts";
 import { mountSettings, type SettingsView } from "./settings-view.ts";
+import type { Speaker } from "./speech.ts";
 
 // The injected in-page panel: a closed-shadow overlay with Révision / Statistiques /
 // Réglages, so the reader never has to LEAVE the page it is reading (design D1, extended).
@@ -26,6 +27,8 @@ export interface DrawerOptions {
   now: () => number;
   /** Persist after a state-changing settings action (backup → storage). */
   onChange: () => Promise<void>;
+  /** The page's speaker, whose voices Réglages lists. */
+  speaker?: Speaker;
 }
 
 export class Drawer {
@@ -140,6 +143,7 @@ export class Drawer {
       this.settings ??= mountSettings(this.settingsBody, this.opts.port, this.opts.area, {
         persist: this.opts.onChange,
         store: this.opts.store,
+        speaker: this.opts.speaker,
       });
       await this.settings.refresh();
     }

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   type AsyncStorageArea,
   classifyStored,
@@ -9,12 +9,16 @@ import {
   loadEnabled,
   loadHudHidden,
   loadStored,
+  loadVoice,
   ROOT_KEY,
   saveBackup,
   saveEnabled,
   saveHudHidden,
+  saveVoice,
   STORAGE_VERSION,
+  storedVoicePreference,
   type V1State,
+  VOICE_KEY,
 } from "@/state/storage.ts";
 import { makeFakePort } from "./helpers.ts";
 
@@ -170,5 +174,37 @@ describe("the HUD-hidden flag", () => {
     const area = fakeArea({ [ROOT_KEY]: { v: STORAGE_VERSION, backup: "BACKUP" } });
     await saveHudHidden(area, true);
     expect(area.store[ROOT_KEY]).toEqual({ v: STORAGE_VERSION, backup: "BACKUP" });
+  });
+});
+
+describe("the read-aloud voice preference", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("is the automatic choice until a voice is kept, and again once it is cleared", async () => {
+    const area = fakeArea();
+    expect(await loadVoice(area)).toBeNull();
+    await saveVoice(area, "Moira");
+    expect(area.store[VOICE_KEY]).toBe("Moira");
+    expect(await loadVoice(area)).toBe("Moira");
+    await saveVoice(area, null);
+    expect(await loadVoice(area)).toBeNull();
+    expect(await loadVoice(fakeArea({ [VOICE_KEY]: "" }))).toBeNull();
+    expect(await loadVoice(fakeArea({ [VOICE_KEY]: 42 }))).toBeNull();
+  });
+
+  it("follows a change made in another context, and nothing else", async () => {
+    let listener: ((changes: Record<string, { newValue?: unknown }>, areaName: string) => void) | null = null;
+    vi.stubGlobal("chrome", { storage: { onChanged: { addListener: (l: typeof listener) => (listener = l) } } });
+    const pref = storedVoicePreference(fakeArea({ [VOICE_KEY]: "Daniel" }));
+    expect(await pref.load()).toBe("Daniel");
+    const seen: (string | null)[] = [];
+    pref.watch((uri) => seen.push(uri));
+    listener!({ [VOICE_KEY]: { newValue: "Moira" } }, "local");
+    listener!({ [VOICE_KEY]: { newValue: null } }, "local");
+    listener!({ [VOICE_KEY]: { newValue: "Karen" } }, "sync");
+    listener!({ [HUD_HIDDEN_KEY]: { newValue: true } }, "local");
+    expect(seen).toEqual(["Moira", null]);
   });
 });
