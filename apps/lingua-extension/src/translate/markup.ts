@@ -28,17 +28,28 @@ export function escapeText(text: string): string {
  * all — the sentence is still worth translating.
  */
 export function markSelection(sentence: string, selection: Span | null): string {
-  if (!selection) return escapeText(sentence);
+  const span = clamp(sentence, selection);
+  if (!span) return escapeText(sentence);
+  return (
+    escapeText(sentence.slice(0, span.start)) +
+    OPEN +
+    escapeText(sentence.slice(span.start, span.end)) +
+    CLOSE +
+    escapeText(sentence.slice(span.end))
+  );
+}
+
+/** The selected text, clamped exactly as `markSelection` clamps it; null when it covers nothing. */
+export function selectedText(sentence: string, selection: Span | null): string | null {
+  const span = clamp(sentence, selection);
+  return span ? sentence.slice(span.start, span.end) : null;
+}
+
+function clamp(sentence: string, selection: Span | null): Span | null {
+  if (!selection) return null;
   const start = Math.max(0, Math.min(selection.start, sentence.length));
   const end = Math.max(start, Math.min(selection.end, sentence.length));
-  if (end === start) return escapeText(sentence);
-  return (
-    escapeText(sentence.slice(0, start)) +
-    OPEN +
-    escapeText(sentence.slice(start, end)) +
-    CLOSE +
-    escapeText(sentence.slice(end))
-  );
+  return end > start ? { start, end } : null;
 }
 
 const NAMED: Readonly<Record<string, string>> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };

@@ -19,13 +19,14 @@ const selection = { start: 4, end: 11 }; // "gave up"
 
 describe("relayTranslation", () => {
   it("marks the selection in its sentence and reads the translation back", async () => {
-    const { access, seen } = engine(() => ({
+    const { access, seen } = engine((markup) => ({
       ok: true,
-      html: "Elle <b>a abandonné</b> après la troisième tentative.",
+      html: markup === "gave up" ? "A abandonné" : "Elle <b>a abandonné</b> après la troisième tentative.",
     }));
     const result = await relayTranslation(access, { sentence, selection });
 
-    expect(seen).toEqual(["She <b>gave up</b> after the third attempt."]);
+    // The sentence with the selection tagged, then the selection alone — to check the tag.
+    expect(seen).toEqual(["She <b>gave up</b> after the third attempt.", "gave up"]);
     expect(result.kind).toBe("translated");
     if (result.kind !== "translated") return;
     const { sentence: fr, marks } = result.translation;
@@ -36,7 +37,13 @@ describe("relayTranslation", () => {
   it("escapes page text before it reaches the engine", async () => {
     const { access, seen } = engine(() => ({ ok: true, html: "x" }));
     await relayTranslation(access, { sentence: "a <b> b", selection: { start: 0, end: 1 } });
-    expect(seen).toEqual(["<b>a</b> &lt;b&gt; b"]);
+    expect(seen).toEqual(["<b>a</b> &lt;b&gt; b", "a"]);
+  });
+
+  it("escapes the selection it sends alone, too", async () => {
+    const { access, seen } = engine(() => ({ ok: true, html: "x" }));
+    await relayTranslation(access, { sentence: "a <b> b", selection: { start: 2, end: 5 } });
+    expect(seen).toEqual(["a <b>&lt;b&gt;</b> b", "&lt;b&gt;"]);
   });
 
   it("translates the sentence unmarked when the selection's place is unknown", async () => {
@@ -44,6 +51,33 @@ describe("relayTranslation", () => {
     const result = await relayTranslation(access, { sentence: "She gave up.", selection: null });
     expect(seen).toEqual(["She gave up."]);
     expect(result).toEqual({ kind: "translated", translation: { sentence: "Elle a abandonné.", marks: [] } });
+  });
+
+  describe("the check against the selection alone", () => {
+    const friday = "They seldom ship on Friday, even when the customer asks nicely.";
+    const seldom = { start: 5, end: 11 };
+    const tagged = "Ils <b>expédient</b> rarement le vendredi, même lorsque le client demande bien.";
+
+    const marked = async (alone: (markup: string) => EngineReply | Promise<EngineReply>) => {
+      const { access } = engine((markup) => (markup === "seldom" ? alone(markup) : { ok: true, html: tagged }));
+      const result = await relayTranslation(access, { sentence: friday, selection: seldom });
+      if (result.kind !== "translated") throw new Error("expected a translation");
+      const { sentence: fr, marks } = result.translation;
+      return marks.map((m) => fr.slice(m.start, m.end));
+    };
+
+    it("moves a mark the engine put on the wrong word", async () => {
+      // Measured: the tag lands on "expédient"; "seldom" alone is "rarement".
+      await expect(marked(() => ({ ok: true, html: "rarement" }))).resolves.toEqual(["rarement"]);
+    });
+
+    it("keeps the tag's own mark when the selection alone gets no translation", async () => {
+      await expect(marked(() => ({ ok: false, reason: "the translation timed out" }))).resolves.toEqual(["expédient"]);
+    });
+
+    it("keeps the tag's own mark when asking for the selection alone throws", async () => {
+      await expect(marked(() => Promise.reject(new Error("gone")))).resolves.toEqual(["expédient"]);
+    });
   });
 
   it("answers unavailable, and logs why, when the engine gives nothing", async () => {

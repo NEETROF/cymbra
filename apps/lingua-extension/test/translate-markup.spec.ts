@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { escapeText, markSelection, readMarked } from "@/translate/markup.ts";
+import { escapeText, markSelection, readMarked, selectedText } from "@/translate/markup.ts";
 
 describe("escapeText", () => {
   it("leaves ordinary text alone", () => {
@@ -8,6 +8,21 @@ describe("escapeText", () => {
 
   it("turns every markup character into text", () => {
     expect(escapeText("a < b && c > d")).toBe("a &lt; b &amp;&amp; c &gt; d");
+  });
+});
+
+describe("selectedText", () => {
+  const sentence = "She gave up after the third attempt.";
+
+  it("is the text markSelection tags, clamped the same way", () => {
+    expect(selectedText(sentence, { start: 4, end: 11 })).toBe("gave up");
+    expect(selectedText(sentence, { start: 22, end: 999 })).toBe("third attempt.");
+  });
+
+  it("is nothing when the selection covers nothing", () => {
+    expect(selectedText(sentence, null)).toBeNull();
+    expect(selectedText(sentence, { start: 4, end: 4 })).toBeNull();
+    expect(selectedText(sentence, { start: 50, end: 60 })).toBeNull();
   });
 });
 
