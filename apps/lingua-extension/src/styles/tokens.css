@@ -47,6 +47,11 @@
   --cymbra-lingua-unknown-fill: rgba(255, 180, 171, 0.3); /* coral #ffb4ab */
   --cymbra-lingua-unknown-underline: #d8502e;
 
+  /* The page of a book in the reader: paper and ink, whatever the chrome around it. A book
+     is typeset for a light page, and an e-ink screen shows black on white best. */
+  --cymbra-lingua-paper: #fbf9f4;
+  --cymbra-lingua-ink: #1a1a1a;
+
   /* Radii (identity) */
   --cymbra-lingua-radius: 12px;
   --cymbra-lingua-radius-lg: 18px;

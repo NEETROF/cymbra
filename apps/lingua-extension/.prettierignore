@@ -3,6 +3,8 @@ coverage/
 node_modules/
 src/wasm/pkg/
 src/gen/
+# Third-party code kept byte-for-byte at a pinned commit (vendor/VENDOR.md).
+vendor/foliate-js/
 assets/pack.lingua
 test/fixtures/
 *.lingua

@@ -3,7 +3,15 @@ import { CEFR_LEVELS, type CefrLevel } from "../analyzer/types.ts";
 import { needsLevelChoice } from "../state/level-choice.ts";
 import { type OpenPage, openPageViaBackground } from "../state/open-page.ts";
 import { hasShortcutEditor } from "../state/platform.ts";
-import { type AsyncStorageArea, loadHudHidden, saveAndroidVoices, saveHudHidden, saveVoice } from "../state/storage.ts";
+import {
+  type AsyncStorageArea,
+  loadHudHidden,
+  loadReaderFlow,
+  saveAndroidVoices,
+  saveHudHidden,
+  saveReaderFlow,
+  saveVoice,
+} from "../state/storage.ts";
 import {
   LAST_SYNC_KEY,
   loadLastSync,
@@ -177,6 +185,21 @@ export function mountSettings(
   );
   voiceBlock.append(androidRow, androidNote, voiceRow, onDeviceNote);
 
+  // — Livres — the reader page, whichever host this view is rendered in (add-lingua-reader D8).
+  const booksBlock = settingBlock("Livres");
+  const libraryBtn = el("button", "set-reset", "Ouvrir la bibliothèque");
+  libraryBtn.type = "button";
+  libraryBtn.addEventListener("click", () => openPage("reader.html"));
+  const flowRow = el("label", "set-toggle");
+  const flowToggle = el("input");
+  flowToggle.type = "checkbox";
+  flowRow.append(flowToggle, el("span", undefined, "Défilement continu (au lieu de pages)"));
+  booksBlock.append(
+    libraryBtn,
+    el("div", "set-note", "Tes livres EPUB sans DRM, lus hors ligne avec le surlignage. Ils restent sur cet appareil."),
+    flowRow,
+  );
+
   // — Raccourcis & gestes —
   const scBlock = settingBlock("Raccourcis & gestes");
   const scList = el("ul", "set-shortcuts");
@@ -276,7 +299,7 @@ export function mountSettings(
     void doReset("full");
   });
 
-  container.append(levelBlock, barBlock, voiceBlock, scBlock, syncBlock, resetBlock);
+  container.append(levelBlock, barBlock, voiceBlock, booksBlock, scBlock, syncBlock, resetBlock);
 
   // — Live wiring —
   calib.addEventListener("input", () => {
@@ -302,6 +325,9 @@ export function mountSettings(
     if (voice) speaker.speak(PREVIEW_KEY, PREVIEW_TEXT, voice);
   });
   speaker?.subscribe(() => renderVoices());
+  flowToggle.addEventListener("change", async () => {
+    await saveReaderFlow(area, flowToggle.checked ? "scrolled" : "paginated");
+  });
   syncBtn.addEventListener("click", () => void runSync());
   restartBtn.addEventListener("click", () => void restartFromServer());
   sync.watch(() => void refreshSync());
@@ -419,6 +445,7 @@ export function mountSettings(
     }
     toggle.checked = !(await loadHudHidden(area));
     renderVoices();
+    flowToggle.checked = (await loadReaderFlow(area)) === "scrolled";
     await refreshSync();
   }
 

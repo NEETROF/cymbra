@@ -20,6 +20,7 @@ import {
   runAuthFlow,
 } from "./state/oidc.ts";
 import { isOpenPageMessage } from "./state/open-page.ts";
+import { openOrFocusReader, READER_PAGE, type ReaderWhereMessage } from "./reader/locate.ts";
 import { EngineChannel, type WorkerLike } from "./translate/host/channel.ts";
 import type { EngineAccess } from "./translate/host/engine.ts";
 import { OffscreenEngine } from "./translate/host/offscreen-engine.ts";
@@ -137,6 +138,16 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
 chrome.runtime.onMessage.addListener((message: unknown) => {
   if (!isOpenPageMessage(message)) return;
   const url = /^[a-z-]+:/.test(message.url) ? message.url : chrome.runtime.getURL(message.url);
+  // The book reader is one tab: an entry point brings the open one forward (add-lingua-reader D8).
+  if (message.url === READER_PAGE) {
+    void openOrFocusReader(url, {
+      ask: () => chrome.runtime.sendMessage({ type: "reader:where" } satisfies ReaderWhereMessage),
+      focusTab: (tabId) => chrome.tabs.update(tabId, { active: true }),
+      focusWindow: (windowId) => chrome.windows.update(windowId, { focused: true }),
+      openTab: (target) => chrome.tabs.create({ url: target }),
+    }).catch(() => {});
+    return;
+  }
   void chrome.tabs.create({ url }).catch(() => {});
 });
 

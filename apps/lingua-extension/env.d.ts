@@ -61,3 +61,47 @@ declare module "@/wasm/pkg/lingua_wasm.js" {
     moduleOrPath?: { module_or_path: string | Request | Response | URL } | string | Request | Response | URL,
   ): Promise<unknown>;
 }
+
+// The vendored foliate-js (vendor/foliate-js, add-lingua-reader D2), resolved by build.mjs's
+// `foliate-js` alias. Plain JavaScript with no types of its own: only what the adapter in
+// src/reader/foliate.ts touches is declared here.
+declare module "foliate-js/epub.js" {
+  export class EPUB {
+    constructor(loader: {
+      loadText(name: string): Promise<string | null>;
+      loadBlob(name: string, type?: string): Promise<Blob | null>;
+      getSize(name: string): number;
+    });
+    init(): Promise<FoliateBook>;
+  }
+  export interface FoliateTocItem {
+    label?: string;
+    href?: string;
+    subitems?: FoliateTocItem[] | null;
+  }
+  export interface FoliateBook {
+    toc?: FoliateTocItem[];
+    sections: unknown[];
+  }
+}
+
+declare module "foliate-js/view.js" {
+  import type { FoliateBook } from "foliate-js/epub.js";
+  export interface FoliateRelocate {
+    cfi: string;
+    fraction: number;
+    tocItem?: { label?: string } | null;
+  }
+  export interface FoliatePaginator extends HTMLElement {
+    setStyles(styles: string | [string, string]): void;
+  }
+  export class View extends HTMLElement {
+    renderer: FoliatePaginator;
+    open(book: FoliateBook): Promise<void>;
+    init(options: { lastLocation?: string | null; showTextStart?: boolean }): Promise<void>;
+    goTo(target: string): Promise<unknown>;
+    next(): Promise<void>;
+    prev(): Promise<void>;
+    close(): void;
+  }
+}

@@ -43,6 +43,8 @@ export function renderReview(root: HTMLElement, view: ReviewView, actions: Revie
 
   if (card.gloss) root.append(line("gloss", card.gloss));
   if (card.sentence) root.append(line("sentence", `« ${card.sentence} »`));
+  const source = sourceLabel(card.source);
+  if (source) root.append(line("source", source));
 
   const grades = document.createElement("div");
   grades.className = "review-grades";
@@ -51,6 +53,22 @@ export function renderReview(root: HTMLElement, view: ReviewView, actions: Revie
     grades,
     button("Je connais ✓", () => actions.markKnown(), false),
   );
+}
+
+/**
+ * Where a card's word was met, short: a page by its site, a book by its title and chapter
+ * (add-lingua-reader). The source is a label the device kept, not a link — the page may be
+ * gone, the book deleted, and the card keeps it all the same.
+ */
+export function sourceLabel(source: string | undefined): string {
+  if (!source) return "";
+  try {
+    const url = new URL(source);
+    if (url.protocol === "http:" || url.protocol === "https:") return url.hostname.replace(/^www\./, "");
+  } catch {
+    // Not an address: a book's title and chapter, shown as they are.
+  }
+  return source;
 }
 
 function button(label: string, onClick: () => void, primary: boolean): HTMLButtonElement {

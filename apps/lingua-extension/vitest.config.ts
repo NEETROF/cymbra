@@ -56,6 +56,13 @@ export default defineConfig({
         // relay.ts and offscreen-engine.ts, which are measured.
         "src/translate/host/engine-worker.ts",
         "src/translate/host/offscreen.ts",
+        // The book reader's entry (the page's DOM wiring, like the other entry points) and
+        // its thin adapter over the vendored foliate-js, which needs a real browser to lay a
+        // book out — jsdom cannot host its iframes. The page they wire (reader/app.ts) is
+        // measured, on a fake renderer. vendor/foliate-js itself sits outside src/: third-party
+        // code kept byte-for-byte, never measured (vendor/VENDOR.md).
+        "src/reader/reader.ts",
+        "src/reader/foliate.ts",
         "**/*.d.ts",
       ],
     },

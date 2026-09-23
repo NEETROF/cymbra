@@ -51,6 +51,15 @@ export const VOICE_KEY = "cymbra-lingua-voice";
  */
 export const ANDROID_VOICES_KEY = "cymbra-lingua-android-voices";
 
+/**
+ * How the book reader lays a book out: `paginated` (the default — pages turned by tap, suited
+ * to e-ink) or `scrolled` (one continuous column, for a laptop). A preference, set in the
+ * Réglages view every host renders; the reader page follows its `storage.onChanged`.
+ */
+export const READER_FLOW_KEY = "cymbra-lingua-reader-flow";
+
+export type ReaderFlow = "paginated" | "scrolled";
+
 /** The minimal async storage surface we need; chrome.storage.local satisfies it. */
 export interface AsyncStorageArea {
   get(keys: string | string[] | null): Promise<Record<string, unknown>>;
@@ -164,6 +173,20 @@ export function storedVoicePreference(area: AsyncStorageArea): VoicePreference {
       });
     },
   };
+}
+
+/** A stored value read as a reader flow; anything but `scrolled` is the paginated default. */
+export function readerFlowOf(value: unknown): ReaderFlow {
+  return value === "scrolled" ? "scrolled" : "paginated";
+}
+
+/** How the book reader lays a book out; paginated unless the reader chose otherwise. */
+export async function loadReaderFlow(area: AsyncStorageArea): Promise<ReaderFlow> {
+  return readerFlowOf((await area.get(READER_FLOW_KEY))[READER_FLOW_KEY]);
+}
+
+export async function saveReaderFlow(area: AsyncStorageArea, flow: ReaderFlow): Promise<void> {
+  await area.set({ [READER_FLOW_KEY]: flow });
 }
 
 /**

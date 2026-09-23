@@ -18,6 +18,8 @@ import {
 } from "../state/storage.ts";
 import { messagedArea, watchStore } from "../state/store.ts";
 import { requestSync } from "../sync/messages.ts";
+import { isReaderUrl, READER_PAGE } from "../reader/locate.ts";
+import type { OpenPageMessage } from "../state/open-page.ts";
 
 // Icon-popup controller (a surface the extension owns). It asks the active tab's content
 // script for the page's stats, and writes the global enabled flag directly (a plain setting;
@@ -38,6 +40,8 @@ const storageArea: AsyncStorageArea = {
 const store: AsyncStorageArea = messagedArea();
 
 interface PageStats {
+  /** "book" when the tab is the extension's reader, showing a section of a book. */
+  surface?: "page" | "book";
   analysable: boolean;
   percent: number | null;
   counted: number;
@@ -62,6 +66,13 @@ function $(id: string): HTMLElement {
 async function activeTabId(): Promise<number | undefined> {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   return tab?.id;
+}
+
+/** Whether the active tab is the extension's book reader — an extension page, which the
+ *  popup cannot inject into and must not offer to analyse (add-lingua-reader D8). */
+async function activeTabIsReader(): Promise<boolean> {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  return isReaderUrl(tab?.url, chrome.runtime.getURL(READER_PAGE));
 }
 
 async function send(message: unknown): Promise<unknown> {
@@ -175,14 +186,20 @@ async function renderProviders(): Promise<void> {
   if (!google && !apple) document.querySelector<HTMLDetailsElement>(".acct-local")?.setAttribute("open", "");
 }
 
-function render(stats: PageStats | null): void {
+function render(stats: PageStats | null, onReader: boolean): void {
   const present = stats !== null;
-  $("setup").hidden = present;
+  // A reader tab is never analysed from here: the reader page reads its books itself.
+  $("setup").hidden = present || onReader;
   $("controls").hidden = !present;
   if (!stats) return;
 
+  const book = stats.surface === "book" || onReader;
+  $("pct-label").textContent = book ? "de mots connus dans ce chapitre" : "de mots connus sur cette page";
   $("analysed").hidden = !stats.analysable;
   $("note").hidden = stats.analysable;
+  $("note").textContent = book
+    ? "Ouvre un livre de ta bibliothèque pour voir ses chiffres."
+    : "Pas de texte anglais détecté sur cette page.";
   if (stats.analysable) {
     const pct = stats.percent ?? 0;
     $("pct").textContent = stats.percent == null ? "—" : `${pct}%`;
@@ -262,7 +279,7 @@ async function analyseCurrentPage(): Promise<void> {
 }
 
 async function refresh(): Promise<void> {
-  render((await send({ type: "getStats" })) as PageStats | null);
+  render((await send({ type: "getStats" })) as PageStats | null, await activeTabIsReader());
 }
 
 /** Reflect the global enabled flag: off hides the reader panels; on shows them. */
@@ -355,6 +372,12 @@ async function main(): Promise<void> {
   });
 
   $("open-stats").addEventListener("click", () => void openReviewSurface("stats"));
+  // The same destination as the settings' row: the background opens the reader, or brings
+  // forward the one already open.
+  $("open-library").addEventListener("click", async () => {
+    await sendRuntime({ type: "openPage", url: READER_PAGE } satisfies OpenPageMessage);
+    window.close();
+  });
 
   await applyEnabled(await loadEnabled(storageArea));
   // Safari: exchange an id_token the host app handed back before reading the account state;

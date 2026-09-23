@@ -36,6 +36,9 @@ export interface ReviewCard {
   headword: string;
   surface: string;
   sentence: string;
+  /** Where the word was met, as this device kept it — a page address, or a book and its
+   *  chapter. Local only: never synchronised (lingua-privacy). Absent from an older engine. */
+  source?: string;
   gloss: string | null;
   revealed: boolean;
   remaining: number;

@@ -31,7 +31,8 @@
   "dependencies": {
     "@bufbuild/protobuf": "^2.2.3",
     "@connectrpc/connect": "^2.0.1",
-    "@connectrpc/connect-web": "^2.0.1"
+    "@connectrpc/connect-web": "^2.0.1",
+    "@zip.js/zip.js": "2.8.22"
   },
   "devDependencies": {
     "@bufbuild/protoc-gen-es": "^2.2.3",

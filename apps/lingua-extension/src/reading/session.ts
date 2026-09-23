@@ -333,7 +333,8 @@ export class ReadingSession {
   async attach(host: ReadingHost): Promise<void> {
     this.detach();
     this.host = host;
-    const listeners = new AbortController();
+    // The section's own AbortController: an `addEventListener` signal is of its window's realm.
+    const listeners = new host.win.AbortController();
     this.hostListeners = listeners;
     const { doc } = host;
     const on = (type: string, fn: (e: Event) => void, opts: AddEventListenerOptions = {}): void =>
@@ -403,11 +404,6 @@ export class ReadingSession {
   /** Hide the word popup, if it shows: its word moved (a scroll, a page turn). */
   dismiss(): void {
     if (this.popup.visible()) this.popup.hide();
-  }
-
-  /** Open a view of the drawer (the reader's toolbar, where the side panel is not wanted). */
-  openDrawer(view: DrawerView): Promise<void> {
-    return this.drawer.openOn(view);
   }
 
   private watchSelection(win: Pick<Window, "getSelection">): SelectionWatcher {
