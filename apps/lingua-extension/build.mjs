@@ -113,6 +113,36 @@ const EXT_KEY =
   process.env.LINGUA_EXT_KEY ??
   "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmO6fyVYfGiE/aY3LTZ5RIZnwHslFqU5VEVPwehSSs7ah1g3L3LQby7Sg/UubpfrAiKzn/Y97la+j//5nLHGIR0R7+Mu4wuWJjqlb1JglazkjMgIKALmJehrPCb+0n5l+9WNerFSV3YCC76mm9XYeHlgrvrQsmAMq1hI5b264lL45akxRF3fR7QoPh/pzBVyociD4BOYCB0DsjDql8fghaH4hxoeQFwkdhcePO0I4S5KbuehMgIazk9DCh7eTVGGSUs9p0pRMYGydFkzTc9YBG3gL2OoBQ+p5lQMM5B3hNyDPni5BpJ02XW8ZhLdm009avnk3rbm1DBLWF5GcHsuUnQIDAQAB";
 
+// The translation engine (add-lingua-translation-engine) is built in ONLY when a developer
+// points LINGUA_TRANSLATION_ENGINE at a directory holding it — the engine artefact from the
+// lingua-engine-build workflow, and the model side-loaded by hand. Every shipped build leaves
+// it unset: no engine code, no offscreen permission, no engine file in the bundle, which
+// tool/check_variants.mjs verifies. Safari is out of scope for this change.
+const ENGINE_DIR = process.env.LINGUA_TRANSLATION_ENGINE ?? "";
+const ENGINE_FILES = ["bergamot-translator.js", "bergamot-translator.wasm"];
+const MODEL_FILES = ["model.bin", "lex.bin", "vocab.bin"];
+if (ENGINE_DIR) {
+  const missing = ENGINE_FILES.filter((f) => !existsSync(join(ENGINE_DIR, f)));
+  if (missing.length > 0) {
+    throw new Error(
+      `LINGUA_TRANSLATION_ENGINE=${ENGINE_DIR} lacks ${missing.join(", ")} — download the artefact of the ` +
+        "lingua-engine-build workflow into it (see apps/lingua-extension/TRANSLATION.md).",
+    );
+  }
+  const noModel = MODEL_FILES.filter((f) => !existsSync(join(ENGINE_DIR, f)));
+  if (noModel.length > 0) {
+    // Allowed on purpose: a build with the engine and no model is how the "engine present but
+    // unable to start" path is exercised. Every surface must then answer as it did before.
+    console.warn(`[build] no ${noModel.join(", ")} in ${ENGINE_DIR}: the engine will not start.`);
+  }
+}
+
+/** Where a variant hosts the translation engine: nowhere, unless a development build asks. */
+function translationHost(target) {
+  if (!ENGINE_DIR || target === "safari") return "none";
+  return target === "chromium" ? "offscreen" : "event-page";
+}
+
 /** `https://host/*` match pattern for the backend origin (host_permissions). */
 function hostPattern(url) {
   const u = new URL(url);
@@ -184,6 +214,7 @@ function capabilities(target) {
     __STATIC_READER__: JSON.stringify(eventPageFamily),
     // Safari only: Apple and Google come from the host app over native messaging.
     __NATIVE_PROVIDERS__: JSON.stringify(target === "safari"),
+    __TRANSLATION_HOST__: JSON.stringify(translationHost(target)),
   };
 }
 
@@ -257,8 +288,36 @@ for (const target of targets) {
     format: "esm",
   });
 
+  const host = translationHost(target);
+  if (host !== "none") {
+    // The engine's own thread: a CLASSIC worker, so Mozilla's glue — which assumes sloppy mode —
+    // runs unpatched under importScripts.
+    await build({
+      ...common,
+      entryPoints: { "engine-worker": join(root, "src/translate/host/engine-worker.ts") },
+      outdir: dist,
+      format: "iife",
+    });
+    if (host === "offscreen") {
+      await build({
+        ...common,
+        entryPoints: { offscreen: join(root, "src/translate/host/offscreen.ts") },
+        outdir: dist,
+        format: "iife",
+      });
+      cpSync(join(root, "src/translate/host/offscreen.html"), join(dist, "offscreen.html"));
+    }
+    mkdirSync(join(dist, "engine"), { recursive: true });
+    for (const f of [...ENGINE_FILES, ...MODEL_FILES]) {
+      if (existsSync(join(ENGINE_DIR, f))) cpSync(join(ENGINE_DIR, f), join(dist, "engine", f));
+    }
+  }
+
   const manifest = manifestFor[target](baseManifest);
   manifest.version = VERSION;
+  // Chromium's service worker cannot construct a Worker, so an offscreen document owns the
+  // engine's — and that needs the permission. Only a build that carries the engine asks for it.
+  if (host === "offscreen") manifest.permissions = [...manifest.permissions, "offscreen"];
   // Grant the configured backend origin so the sync transport's gRPC-web fetch is
   // allowed (the server must also allow the extension origin via CYMBRA_ALLOWED_WEB_ORIGINS).
   manifest.host_permissions = [...new Set([...(manifest.host_permissions ?? []), hostPattern(GRPC_WEB_URL)])];

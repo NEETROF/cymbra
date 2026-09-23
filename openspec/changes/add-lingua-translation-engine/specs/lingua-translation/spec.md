@@ -61,6 +61,47 @@ without the caller re-reading the source text.
 - **WHEN** a translation is returned
 - **THEN** the caller can show the translated sentence as well as the marked span
 
+### Requirement: The mark is checked against the selection translated alone
+Where the selection is marked SHALL be checked against a translation of the selection on its own, which SHALL only ever move, split or trim the marks and SHALL never be shown to the reader.
+The engine places the mark by its own alignment, which can land on a neighbouring word, and a
+single tag can only mark one run of words where the reader's words may be separated in the
+translation. The check SHALL NOT invent a mark where the engine placed none, and when the
+selection alone cannot be translated, the engine's mark SHALL stand as it is.
+
+#### Scenario: The engine marks the wrong word
+- **WHEN** the reader selects a word and the engine marks its neighbour in the translated sentence, while the selection's own translation stands exactly once elsewhere in it
+- **THEN** the mark is on the selection's own translation, and the neighbour is not marked
+
+#### Scenario: The reader's words are separated in the translation
+- **WHEN** the translated sentence puts a word the reader did not select between words they did
+- **THEN** the reader's words are marked as separate spans and the word between them is not marked
+
+#### Scenario: Words the sentence's grammar imposes stay marked
+- **WHEN** the marked span holds short words — an auxiliary, an article, a pronoun — that the selection translated alone does not contain
+- **THEN** they stay marked
+
+#### Scenario: The selection alone gets no translation
+- **WHEN** translating the selection on its own fails or times out
+- **THEN** the translation is still answered, with the engine's mark as it placed it
+
+### Requirement: The engine is not torn down between a reader's selections
+While a page is being read, the context hosting the engine SHALL be kept loaded, so that a selection made long after the previous one does not pay for loading the engine again.
+Holding it SHALL cost nothing until the engine is first used: the engine SHALL NOT be loaded
+before a translation is actually asked for. A shipped build, which carries no engine, SHALL hold
+nothing.
+
+#### Scenario: A selection made minutes after the last one
+- **WHEN** the reader selects a phrase long after the previous selection on the same page, on a target whose background context is otherwise torn down when idle
+- **THEN** the engine answers without reloading its model, and the card shows a translation rather than falling back
+
+#### Scenario: A page where nothing is ever translated
+- **WHEN** a reader opens a page and selects nothing
+- **THEN** the engine is never loaded, and the memory it would hold is never taken
+
+#### Scenario: The host goes away for its own reasons
+- **WHEN** the context hosting the engine is unloaded despite being held
+- **THEN** the reader's page holds it again, and translation keeps working without reloading the page
+
 ### Requirement: Page text is escaped before it is marked
 Text taken from the page SHALL be escaped before the selection's markup is placed in it.
 The engine is asked to preserve markup, so the sentence it receives is markup; page content that
@@ -97,3 +138,44 @@ reported to the reader as an error.
 #### Scenario: No model available
 - **WHEN** the reader selects a phrase and no model is present
 - **THEN** the card answers from the pack exactly as it did before the engine existed, with no mention of a missing engine
+
+### Requirement: A slow engine never costs the reader the pack's answer
+A card SHALL show what the pack knows as soon as the pack answers, whatever the engine is doing, and SHALL NOT wait for the engine before answering.
+While a translation is still on its way, the card SHALL say so alongside the pack's answer, so
+word-by-word rows are never read as the last word on the selection. When the translation lands it
+SHALL replace them; when it is known that none is coming, the card SHALL simply stop saying one is.
+A card the reader has since replaced, closed or acted on SHALL NOT be written over.
+
+#### Scenario: A cold engine on a slow device
+- **WHEN** the reader selects a phrase and the engine needs seconds to load its model
+- **THEN** the pack's answer is shown at once, with a line saying a translation is still coming
+
+#### Scenario: The translation arrives
+- **WHEN** the translation lands while the card is still the one the reader opened
+- **THEN** it replaces the word-by-word rows, and the card stops saying a translation is coming
+
+#### Scenario: No translation is coming after all
+- **WHEN** the engine answers nothing, or does not answer at all
+- **THEN** the card keeps the pack's answer and stops saying a translation is coming
+
+#### Scenario: The reader moved on
+- **WHEN** a translation lands after the reader has closed the card or opened another
+- **THEN** nothing is shown in its place
+
+### Requirement: The translation is shown as a machine translation, in the reader's sentence
+A card SHALL show a translation as the reader's sentence, labelled as a machine translation, with the selection's place in it marked, and SHALL render every part of it as text.
+Beside a translation the card SHALL show no word-by-word rows and no note that the pack has no
+translation; an expression's dictionary gloss SHALL remain. Only a selection of several words
+SHALL be translated: a single word keeps its dictionary card.
+
+#### Scenario: A translated phrase
+- **WHEN** the engine translates a selection of several words
+- **THEN** the card shows the sentence under a label saying it is a machine translation, with the selection's place marked
+
+#### Scenario: Markup from the page
+- **WHEN** the translated sentence contains characters that would read as markup
+- **THEN** the card shows them as text, and no element is created from them
+
+#### Scenario: A single word
+- **WHEN** the reader selects a single word
+- **THEN** the engine is not asked, and the card is the word's dictionary card

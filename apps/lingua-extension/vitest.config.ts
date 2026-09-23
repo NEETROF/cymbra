@@ -9,6 +9,7 @@ export default defineConfig({
     __REVIEW_IN_PAGE__: "false",
     __STATIC_READER__: "false",
     __NATIVE_PROVIDERS__: "false",
+    __TRANSLATION_HOST__: JSON.stringify("none"),
     __GRPC_WEB_URL__: JSON.stringify("http://localhost:50051"),
     __GOOGLE_CLIENT_ID__: JSON.stringify(""),
     __APPLE_CLIENT_ID__: JSON.stringify(""),
@@ -49,6 +50,12 @@ export default defineConfig({
         "src/analyzer/engine.ts",
         "src/analyzer/create-port.ts",
         "src/analyzer/rpc.ts",
+        // The translation engine's two entry points: the worker that loads Mozilla's glue and
+        // the model (it needs the real wasm, like analyzer/engine.ts), and the offscreen
+        // document that only owns that worker. Their logic lives in translate/host/channel.ts,
+        // relay.ts and offscreen-engine.ts, which are measured.
+        "src/translate/host/engine-worker.ts",
+        "src/translate/host/offscreen.ts",
         "**/*.d.ts",
       ],
     },

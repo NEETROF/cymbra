@@ -15,7 +15,9 @@ import {
   SelectionCards,
   type SelectionCardPorts,
   type SelectionInput,
+  TRANSLATION_WAIT_MS,
 } from "@/reading/selection-card.ts";
+import type { TranslationRequest, TranslationResult, TranslatorPort } from "@/translate/port.ts";
 import type { WordPopupContent } from "@/reading/wordpopup.ts";
 
 // The scenarios of specs/lingua-browser-extension/spec.md, driven through fakes: a card
@@ -112,6 +114,14 @@ function fakeClock() {
       const due = [...timers.entries()];
       timers.clear();
       for (const [, t] of due) t.fn();
+    },
+    /** Only the waits armed for `ms` elapse — the engine's, say, and not the card's. */
+    elapseOnly: (ms: number) => {
+      for (const [h, t] of [...timers.entries()]) {
+        if (t.ms !== ms) continue;
+        timers.delete(h);
+        t.fn();
+      }
     },
   };
 }
@@ -290,6 +300,7 @@ describe("word-by-word gloss is a labelled last resort", () => {
       rect: RECT,
       expression: true,
       rows: [{ form: "compelling", gloss: "convaincant" }],
+      translating: false,
     });
   });
 
@@ -576,6 +587,7 @@ describe("a card that waits for the engine", () => {
       rect: RECT,
       expression: true,
       rows: [],
+      translating: false,
     });
 
     // The engine failing outright completes the same card.
@@ -1063,5 +1075,234 @@ describe("cardGloss", () => {
       }),
     ).toBeNull();
     expect(h.gloss).toHaveLength(0);
+  });
+});
+
+describe("SelectionCards with the translation engine", () => {
+  /** A translator that records what it is asked and answers only when the test says so. */
+  function fakeTranslator() {
+    const asked: Array<Deferred<TranslationResult> & { request: TranslationRequest }> = [];
+    const translator: TranslatorPort = {
+      translate: (request) =>
+        new Promise<TranslationResult>((resolve, reject) => {
+          asked.push({ request, resolve, reject });
+        }),
+    };
+    return { translator, asked };
+  }
+
+  const flush = async () => {
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+  };
+
+  const sentence = "She gave up after the third attempt.";
+  const sel: SelectionInput = { text: "gave up", sentence, selection: { start: 4, end: 11 }, rect: RECT };
+  const translated: TranslationResult = {
+    kind: "translated",
+    translation: { sentence: "Elle a abandonné après la troisième tentative.", marks: [{ start: 5, end: 16 }] },
+  };
+
+  function setup() {
+    const { ports, phraseGloss } = fakePorts();
+    const view = fakeSurface();
+    const { clock, elapseOnly, armed } = fakeClock();
+    const { translator, asked } = fakeTranslator();
+    const cards = new SelectionCards(ports, view.surface, { calibration: () => CALIBRATION, clock, translator });
+    return { cards, phraseGloss, view, asked, elapseOnly, armed };
+  }
+
+  const noMatch: PhraseGloss = {
+    tokens: [tok({ surface: "gave", lemma: "give", class: "Unknown", gloss: "Donner" })],
+  };
+
+  it("asks the engine for the whole sentence, with the selection's place in it", async () => {
+    const { cards, asked } = setup();
+    cards.openForSelection(sel, null);
+    await flush();
+    expect(asked.map((a) => a.request)).toEqual([{ sentence, selection: { start: 4, end: 11 } }]);
+  });
+
+  it("shows the translation instead of word-by-word rows", async () => {
+    const { cards, phraseGloss, asked, view } = setup();
+    cards.openForSelection(sel, null);
+    await flush();
+    phraseGloss[0]!.resolve(noMatch);
+    asked[0]!.resolve(translated);
+    await flush();
+    const card = view.last();
+    expect(card.pending).toBeFalsy();
+    expect(card.translation).toEqual(translated.kind === "translated" ? translated.translation : null);
+    expect(card.rows).toBeUndefined();
+  });
+
+  it("keeps an expression's dictionary answer next to the translation", async () => {
+    const { cards, phraseGloss, asked, view } = setup();
+    cards.openForSelection(sel, null);
+    await flush();
+    phraseGloss[0]!.resolve({
+      tokens: [
+        tok({ surface: "gave", lemma: "give", class: "Unknown" }),
+        tok({ surface: "up", lemma: "up", class: "Known" }),
+      ],
+      expressions: [match({ start: 0, end: 2, key: "give up", gloss: "Abandonner, renoncer", class: "Unknown" })],
+    });
+    asked[0]!.resolve(translated);
+    await flush();
+    const card = view.last();
+    expect(card.headword).toBe("give up");
+    expect(card.gloss).toBe("Abandonner, renoncer");
+    expect(card.translation?.sentence).toBe("Elle a abandonné après la troisième tentative.");
+  });
+
+  it("shows the pack's answer at once, saying a translation is still coming", async () => {
+    // A cold engine costs seconds on a slow device (4.8 s, measured on a Galaxy Tab S6 Lite),
+    // and the reader must not sit through that to see what the pack knows. The rows are shown
+    // with `translating`, so they are never read as the last word on the selection.
+    const { cards, phraseGloss, view } = setup();
+    cards.openForSelection(sel, null);
+    await flush();
+    phraseGloss[0]!.resolve(noMatch);
+    await flush();
+    const card = view.last();
+    expect(card.pending).toBeFalsy();
+    expect(card.rows).toEqual([{ form: "give", gloss: "Donner" }]);
+    expect(card.translating).toBe(true);
+    expect(card.translation).toBeUndefined();
+  });
+
+  it("replaces the pack's rows when the translation lands, and stops saying it is coming", async () => {
+    const { cards, phraseGloss, asked, view } = setup();
+    cards.openForSelection(sel, null);
+    await flush();
+    phraseGloss[0]!.resolve(noMatch);
+    await flush();
+    asked[0]!.resolve({
+      kind: "translated",
+      translation: { sentence: "Elle a abandonné.", marks: [{ start: 5, end: 16 }] },
+    });
+    await flush();
+    const card = view.last();
+    expect(card.rows).toBeUndefined();
+    expect(card.translating).toBe(false);
+    expect(card.translation).toEqual({ sentence: "Elle a abandonné.", marks: [{ start: 5, end: 16 }] });
+  });
+
+  it("does not write over a card the reader has since replaced", async () => {
+    const { cards, phraseGloss, asked, view } = setup();
+    cards.openForSelection(sel, null);
+    await flush();
+    phraseGloss[0]!.resolve(noMatch);
+    await flush();
+    const before = view.shows.length;
+    view.hide(); // the reader closed it — every show and hide bumps the generation
+    asked[0]!.resolve({ kind: "translated", translation: { sentence: "Elle a abandonné.", marks: [] } });
+    await flush();
+    expect(view.shows.length).toBe(before);
+  });
+
+  it("says the card is translating while it waits for the engine", () => {
+    const { cards, view } = setup();
+    cards.openForSelection(sel, null);
+    expect(view.last()).toMatchObject({ pending: true, translating: true });
+  });
+
+  it("answers from the pack alone when the engine has nothing", async () => {
+    const { cards, phraseGloss, asked, view } = setup();
+    cards.openForSelection(sel, null);
+    await flush();
+    phraseGloss[0]!.resolve(noMatch);
+    asked[0]!.resolve({ kind: "unavailable" });
+    await flush();
+    const card = view.last();
+    expect(card.translation).toBeUndefined();
+    expect(card.rows).toEqual([{ form: "give", gloss: "Donner" }]);
+  });
+
+  it("never lets a slow engine cost the reader the pack's answer", async () => {
+    // The two are no longer raced: the pack's answer is shown as soon as it lands, whatever the
+    // engine is doing. The engine's bound is now only when the card stops expecting one, so it
+    // sits ABOVE the card's own timeout rather than below it.
+    const { cards, phraseGloss, view, elapseOnly, armed } = setup();
+    cards.openForSelection(sel, null);
+    await flush();
+    expect(TRANSLATION_WAIT_MS).toBeGreaterThan(ANSWER_TIMEOUT_MS);
+    expect(armed()).toContain(TRANSLATION_WAIT_MS);
+    phraseGloss[0]!.resolve(noMatch);
+    await flush();
+    expect(view.last().pending).toBeFalsy();
+    expect(view.last().rows).toEqual([{ form: "give", gloss: "Donner" }]);
+
+    // And when the engine never answers, the card simply stops saying one is coming.
+    elapseOnly(TRANSLATION_WAIT_MS);
+    await flush();
+    expect(view.last().translating).toBe(false);
+    expect(view.last().rows).toEqual([{ form: "give", gloss: "Donner" }]);
+  });
+
+  it("answers from the pack alone when reaching the engine fails", async () => {
+    const { cards, phraseGloss, asked, view } = setup();
+    cards.openForSelection(sel, null);
+    await flush();
+    phraseGloss[0]!.resolve(noMatch);
+    asked[0]!.reject(new Error("gone"));
+    await flush();
+    expect(view.last().rows).toEqual([{ form: "give", gloss: "Donner" }]);
+  });
+
+  it("still shows the translation when the pack itself fails", async () => {
+    const { cards, phraseGloss, asked, view } = setup();
+    cards.openForSelection(sel, null);
+    await flush();
+    phraseGloss[0]!.reject(new Error("engine down"));
+    asked[0]!.resolve(translated);
+    await flush();
+    expect(view.last().translation?.sentence).toBe("Elle a abandonné après la troisième tentative.");
+  });
+
+  it("translates the sentence unmarked when the selection's place is unknown", async () => {
+    const { cards, asked } = setup();
+    cards.openForSelection({ ...sel, selection: undefined }, null);
+    await flush();
+    expect(asked[0]!.request.selection).toBeNull();
+  });
+
+  it("never asks the engine for a single word, whose card is the dictionary's", async () => {
+    const { cards, asked } = setup();
+    cards.openForSelection(
+      { text: "seldom", sentence: "They seldom ship.", selection: { start: 5, end: 11 }, rect: RECT },
+      null,
+    );
+    await flush();
+    expect(asked).toEqual([]);
+  });
+
+  it("keeps the translation out of every gesture, so it can never reach a card", async () => {
+    // Only dictionary data is stored as a card's answer; a machine translation is display only.
+    const { cards, phraseGloss, asked, view } = setup();
+    cards.openForSelection(sel, null);
+    await flush();
+    phraseGloss[0]!.resolve(noMatch);
+    asked[0]!.resolve(translated);
+    await flush();
+    const g = gesture(view.last());
+    expect(JSON.stringify(g)).not.toContain("abandonné");
+    expect(Object.keys(g)).not.toContain("translation");
+  });
+});
+
+describe("SelectionCards without the translation engine", () => {
+  it("answers an expression exactly as it did before the engine existed", async () => {
+    // Every shipped build. No translator: no request, no wait, the same card as ever.
+    const { ports, phraseGloss } = fakePorts();
+    const view = fakeSurface();
+    const { clock, armed } = fakeClock();
+    const cards = new SelectionCards(ports, view.surface, { calibration: () => CALIBRATION, clock, translator: null });
+    cards.openForSelection(selection("gave up"), null);
+    expect(armed()).not.toContain(TRANSLATION_WAIT_MS);
+    expect(view.last().translating).toBe(false); // the pending line stays "Recherche dans le pack…"
+    phraseGloss[0]!.resolve({ tokens: [tok({ surface: "gave", lemma: "give", class: "Unknown", gloss: "Donner" })] });
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    expect(view.last().translation).toBeUndefined();
+    expect(view.last().rows).toEqual([{ form: "give", gloss: "Donner" }]);
   });
 });

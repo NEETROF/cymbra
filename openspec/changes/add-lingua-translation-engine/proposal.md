@@ -63,10 +63,10 @@ Nothing is consumed from Cymbra ID, Music, Live, the back office or the site, an
 implementations; an offscreen document and its Worker on Chromium, a Worker on Firefox; a
 development-only path that side-loads a model.
 
-**Consumed, not rebuilt.** `sentenceForRange` already returns the sentence a selection sits in
-*by position*, and the selection's offsets within it — which is exactly what placing the tag
-needs. The engine seam mirrors `LinguaPort` and its messaging port rather than inventing a
-second RPC shape.
+**Consumed, not rebuilt.** `sentenceForRange` already finds the sentence a selection sits in
+*by position*. It computed the selection's offsets on the way and discarded them; this change
+keeps them (`sentenceAndSelection`), which is exactly what placing the tag needs. The engine
+seam mirrors `LinguaPort` and its messaging port rather than inventing a second RPC shape.
 
 **Carried costs.** The offscreen document is a new surface on Chromium and needs the `offscreen`
 permission, which store review will see. The engine is a C++/emscripten build in a repository

@@ -2,12 +2,15 @@
 // browser needs, and each bundle kept only its own branches of the capability defines
 // (build.mjs `capabilities` + esbuild minifySyntax). A stray `__TARGET__ === "firefox"` left
 // where a capability belongs builds fine and type-checks — only the bundle shows it.
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const failures = [];
+// `--engine` checks a DEVELOPMENT build made with LINGUA_TRANSLATION_ENGINE; without it, this
+// checks what ships — and what ships must carry no trace of the translation engine.
+const ENGINE_BUILD = process.argv.includes("--engine");
 
 function read(target, file) {
   return readFileSync(join(root, `dist-${target}`, file), "utf8");
@@ -105,8 +108,66 @@ for (const target of ["chromium", "firefox", "safari"]) {
   }
 }
 
+// The translation engine (add-lingua-translation-engine). Shipped: absent, everywhere — no
+// permission, no file, no code. Development build: hosted off every thread that paints, by an
+// offscreen document on Chromium (whose service worker cannot construct a Worker) and by the
+// event page on Firefox; Safari is out of scope and carries none of it.
+const has = (target, file) => existsSync(join(root, `dist-${target}`, file));
+const ENGINE_MARKERS = ["lingua-translate", "engine-worker.js", "offscreen.html", "loadBergamot"];
+const hosting = ENGINE_BUILD ? ["chromium", "firefox"] : [];
+for (const target of ["chromium", "firefox", "safari"]) {
+  const hosts = hosting.includes(target);
+  const offscreen = hosts && target === "chromium";
+  expect(
+    manifests[target].permissions.includes("offscreen") === offscreen,
+    `${target}: the "offscreen" permission should be ${offscreen ? "requested" : "absent"}`,
+  );
+  expect(
+    has(target, "engine-worker.js") === hosts,
+    `${target}: engine-worker.js should be ${hosts ? "built" : "absent"}`,
+  );
+  expect(
+    has(target, "offscreen.html") === offscreen,
+    `${target}: offscreen.html should be ${offscreen ? "built" : "absent"}`,
+  );
+  expect(
+    has(target, "engine/bergamot-translator.wasm") === hosts,
+    `${target}: the engine artefact should be ${hosts ? "bundled" : "absent"}`,
+  );
+  if (!hosts) {
+    for (const file of ["background.js", "content.js", "popup.js", "sidepanel.js", "stats.js", "account.js"]) {
+      if (!has(target, file)) continue;
+      const bundle = read(target, file);
+      for (const marker of ENGINE_MARKERS) {
+        expect(!bundle.includes(marker), `${target}/${file}: "${marker}" must not ship without the engine`);
+      }
+    }
+  } else {
+    // The background relays; which host it relays to is the variant's.
+    const bg = read(target, "background.js");
+    expect(bg.includes("lingua-translate"), `${target}/background.js: should relay translations`);
+    expect(
+      bg.includes("offscreen.html") === offscreen,
+      `${target}/background.js: offscreen host should be ${offscreen ? "present" : "folded away"}`,
+    );
+    // Whoever constructs the worker names its script: the event page on Firefox, the offscreen
+    // document on Chromium — never Chromium's service worker, where `Worker` does not exist and
+    // the call would throw at runtime.
+    const owner = offscreen ? "offscreen.js" : "background.js";
+    expect(read(target, owner).includes("engine-worker.js"), `${target}/${owner}: should construct the engine worker`);
+    if (offscreen) {
+      expect(
+        !bg.includes("engine-worker.js"),
+        `${target}/background.js: a service worker cannot construct a Worker — the offscreen document must own it`,
+      );
+    }
+  }
+}
+
 if (failures.length > 0) {
   console.error(`Variant check failed:\n- ${failures.join("\n- ")}`);
   process.exit(1);
 }
-console.log("Variant check passed: chromium, firefox, safari.");
+console.log(
+  `Variant check passed: chromium, firefox, safari${ENGINE_BUILD ? " (development build with the engine)" : ""}.`,
+);

@@ -16,6 +16,13 @@ declare const __STATIC_READER__: boolean;
 // (add-lingua-connected-clients D6), since Safari has no identity.launchWebAuthFlow.
 declare const __NATIVE_PROVIDERS__: boolean;
 
+// Where the translation engine is hosted (add-lingua-translation-engine). "none" in every
+// shipped build: the engine is built in only by a development build that side-loads a model
+// (build.mjs, LINGUA_TRANSLATION_ENGINE). "offscreen" on Chromium, whose service worker cannot
+// construct a Worker; "event-page" on Firefox, whose background page can. Never on a thread
+// that paints — there is no value for that.
+declare const __TRANSLATION_HOST__: "none" | "offscreen" | "event-page";
+
 // Backend gRPC-web origin for the sync transport, injected by esbuild `define`
 // (build.mjs, from LINGUA_GRPC_WEB_URL). Defaults to the local backend for dogfooding.
 declare const __GRPC_WEB_URL__: string;
