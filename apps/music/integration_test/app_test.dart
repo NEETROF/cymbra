@@ -111,6 +111,84 @@ void main() {
       ? tester.pump(Duration(milliseconds: _watchMs))
       : Future.value();
 
+  // The first run of a real install, which no other test covers: the one above
+  // resumes a guest session, so it never sees the welcome. Here the routing has
+  // nothing stored, and the point is that what stands between a new user and the
+  // library is an OFFER, never a wall (change: open-app-without-sign-in-wall).
+  testWidgets('first run: language → welcome → library, without signing in', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final tokens = _FreshTokenStore();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          scoreCatalogProvider.overrideWithValue(const [kFixtureCatalogEntry]),
+          scoreAssetSourceProvider.overrideWithValue(
+            const FixtureScoreAssetSource(),
+          ),
+          // No tokens and no guest choice: the welcome is reached the way a new
+          // install reaches it, not by seeding a session that skips it.
+          tokenStoreProvider.overrideWithValue(tokens),
+          connectivityServiceProvider.overrideWithValue(
+            const _FakeConnectivity(),
+          ),
+          ..._englishLocaleOverrides(firstRunDone: false),
+        ],
+        child: const CymbraApp(),
+      ),
+    );
+    Future<void> settle([int frames = 8]) async {
+      for (var i = 0; i < frames; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+    }
+
+    await settle();
+
+    // Language first, as on any first launch.
+    expect(find.text('Choose your language'), findsOneWidget);
+    await watch(tester);
+    await tester.tap(find.byKey(const Key('onboarding-language-continue')));
+    await settle();
+
+    // Then the welcome — the screen the other test never reaches.
+    expect(find.byKey(const Key('welcome-pages')), findsOneWidget);
+    expect(
+      find.byKey(const Key('entry-guest')),
+      findsNothing,
+      reason: 'the entry screen is a wall; the first run must not hit it',
+    );
+
+    // Page to the end, where the three final choices are offered.
+    for (var i = 0; i < 4; i++) {
+      final next = find.byKey(const Key('welcome-next'));
+      if (next.evaluate().isEmpty) break;
+      await watch(tester);
+      await tester.tap(next);
+      await settle(4);
+    }
+    expect(find.byKey(const Key('welcome-try')), findsOneWidget);
+    expect(find.byKey(const Key('welcome-sign-in')), findsOneWidget);
+
+    // Take the third choice: no account.
+    expect(find.text('Continue without an account'), findsOneWidget);
+    await watch(tester);
+    await tester.tap(find.byKey(const Key('welcome-continue')));
+    await settle(12);
+
+    // The library, as a guest — and the choice was persisted, so a relaunch
+    // would not ask again.
+    expect(find.text('Cymbra — Score Library'), findsOneWidget);
+    expect(find.byKey(const Key('entry-guest')), findsNothing);
+    expect(await tokens.isGuest(), isTrue);
+    expect(await tokens.readTokens(), isNull);
+    await watch(tester);
+  });
+
   testWidgets('library → score → plays, keyboard input, render modes', (
     tester,
   ) async {
@@ -403,6 +481,29 @@ class _RecordingUpload implements ScoreUploadService {
 
 /// In-memory [TokenStore] reporting a persisted guest choice, so [SessionGate]
 /// routes straight to the library without touching platform secure storage.
+/// A genuinely fresh install: no tokens and no guest choice, so the routing has
+/// nothing to resume and the welcome is shown — which is the whole subject of the
+/// first-run test. Unlike [_GuestTokenStore] it RECORDS the guest choice, because
+/// "Continue without an account" writing it is what the test is checking.
+class _FreshTokenStore implements TokenStore {
+  bool _guest = false;
+
+  @override
+  Future<bool> isGuest() async => _guest;
+
+  @override
+  Future<StoredTokens?> readTokens() async => null;
+
+  @override
+  Future<void> writeTokens(StoredTokens tokens) async {}
+
+  @override
+  Future<void> setGuest() async => _guest = true;
+
+  @override
+  Future<void> clear() async => _guest = false;
+}
+
 class _GuestTokenStore implements TokenStore {
   const _GuestTokenStore();
 
