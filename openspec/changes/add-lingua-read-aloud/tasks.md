@@ -1,7 +1,7 @@
 ## 1. Voice lists from real devices
 
-- [ ] 1.1 Capture `speechSynthesis.getVoices()` after `voiceschanged` — `name`, `lang`, `localService`, `default`, `voiceURI` — from the content script's console on Chrome macOS, Safari macOS, Firefox macOS, Chrome Windows, Chrome Android, Firefox for Android and Safari on iPhone, into `apps/lingua-extension/test/fixtures/voices/<target>.json`; a target that exposes no `speechSynthesis` or lists nothing is recorded as such; the iOS Simulator's list (`safari-ios-simulator.json`) is the host Mac's Safari list voice for voice and does not stand in for an iPhone
-- [ ] 1.2 On Chrome Android, note which voices report `localService: false` and whether the device's TTS engine is set to use network voices; write the finding into the design's first risk before section 2 relies on it
+- [x] 1.1 Capture `speechSynthesis.getVoices()` after `voiceschanged` — `name`, `lang`, `localService`, `default`, `voiceURI` — on Chrome, Safari and Firefox for macOS, into `apps/lingua-extension/test/fixtures/voices/<target>.json`; the iOS Simulator's list (`safari-ios-simulator.json`) is kept, but it is the host Mac's Safari list voice for voice and does not stand in for an iPhone
+- [x] 1.2 Mobile lists are not captured ahead (founder's call, 2026-09-24): Chrome Android, Firefox for Android and a real iPhone are read during the on-device pass (6.3), which records what each lists and whether Chrome Android reports any voice as remote
 
 ## 2. The speaker
 
@@ -36,12 +36,12 @@
 
 - [ ] 6.1 Chrome macOS with the real pack (`yarn gen:pack:real`): a word, an inflected word (heard as seen), a phrase, the sentence, a selection that is its whole sentence (one button), stop, switch, close while speaking, Escape, scroll, another word while speaking, another tab while speaking, a pending card completing while speaking, the drag selection kept after a press; the automatic voice is not a novelty or Eloquence voice; the Google voices never speak (DevTools network panel quiet, and a remote voice chosen as the system default changes nothing)
 - [ ] 6.2 Offline on Chrome macOS: the word and the sentence are spoken
-- [ ] 6.3 Firefox for Android and Safari on iPhone from a local build of `apps/lingua-apple`: the row appears (or is absent where no voice exists, and the reason is written down), speech starts from the tap, switching works, the silent switch's effect is recorded
+- [ ] 6.3 Chrome Android, Firefox for Android and Safari on iPhone (a local build of `apps/lingua-apple`): run the capture one-liner of 1.1 and save each list as a fixture (Chrome Android: which voices report `localService: false`, and whether the device's TTS engine is set to use network voices — written into the design's first risk); then the row appears (or is absent where no voice exists, and the reason is written down), speech starts from the tap, switching works, the silent switch's effect is recorded
 - [ ] 6.4 Réglages in the side panel and in the drawer: choosing a voice changes the card's voice on another open tab, `▶ Écouter` plays the sample
 - [ ] 6.5 The French labels of D5 and the block's copy, approved by the founder as written, fit the card on a phone without being cut
 
 ## 7. Close
 
-- [ ] 7.1 `README.md` of the extension: read-aloud, on-device voices only and why, the Chrome desktop without a local English voice, the findings of 1.2 and 6.3
+- [ ] 7.1 `README.md` of the extension: read-aloud, on-device voices only and why, the Chrome desktop without a local English voice, the findings of 6.3
 - [ ] 7.2 `openspec validate add-lingua-read-aloud --strict`
 - [ ] 7.3 After the extension release, dispatch `lingua-apple-release` with `deliver`, so the Safari variant carries the same build

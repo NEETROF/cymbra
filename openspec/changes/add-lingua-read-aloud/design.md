@@ -85,7 +85,7 @@ host give it one constant (`"en"` today), so a second pack pair changes one call
 is precisely the case this rule exists for. For platform voices — Apple's, Windows', Android's
 engine — the platform synthesises, and whether that platform's engine reaches the network is the
 device owner's setting, outside a web page's reach. The on-device pass checks what Chrome on
-Android reports (task 1.2).
+Android reports (task 6.3).
 
 ### D3. The automatic choice, and the novelty voices
 
@@ -111,7 +111,8 @@ identifiers do not always repeat the name (`Wobble` is `…voice.Deranged`, `Jes
 `…voice.Hysterical`, `Superstar` `…voice.Princess`). Apple's list has not moved in years, it is only ever a ranking — a
 deprioritised voice still speaks when it is the only one — and the voice picker is the way out
 when a platform lists something the ranking gets wrong. The tests run the ranking over voice
-lists captured on real devices (task 1.1), not over lists imagined for the test.
+lists captured on real devices (task 1.1 for macOS, 6.3 for the phones), not over lists imagined
+for the test.
 
 On the captures: Chrome macOS picks `Daniel` (its one default voice) among 41 eligible voices, 6
 of them ordinary; Safari macOS, where the default says nothing, picks `Samantha` among 25, 6 of
@@ -211,7 +212,7 @@ synchronised across devices: voice identifiers are per platform.
 
 - [A platform reports a network voice as local] → The rule relies on `localService`. Chrome's
   remote voices report it correctly on desktop; Chrome on Android is checked on device (task
-  1.2). If it lists a voice that reaches the network as local, that voice goes on the
+  6.3). If it lists a voice that reaches the network as local, that voice goes on the
   deprioritised list and the finding is written into the extension README.
 - [No eligible voice on a desktop] → Chrome on Linux or ChromeOS can list only Google's remote
   voices: the row is absent there. This is the privacy promise working, and the README says how
@@ -241,5 +242,6 @@ None. Three choices this design makes were confirmed by the founder on 2026-09-2
 2. The voice picker is **in** this change, not a follow-up.
 3. **No rate control** in this change.
 
-What remains open is measured, not decided: what Chrome on Android reports (task 1.2), and
-Firefox for Android and the iPhone's silent switch (task 6.3).
+What remains open is measured, not decided: what the phones list and what Chrome on Android
+reports as remote, and the iPhone's silent switch — all read during the on-device pass (task 6.3),
+not captured ahead.
