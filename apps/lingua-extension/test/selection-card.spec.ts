@@ -300,6 +300,7 @@ describe("word-by-word gloss is a labelled last resort", () => {
       rect: RECT,
       expression: true,
       rows: [{ form: "compelling", gloss: "convaincant" }],
+      translating: false,
     });
   });
 
@@ -586,6 +587,7 @@ describe("a card that waits for the engine", () => {
       rect: RECT,
       expression: true,
       rows: [],
+      translating: false,
     });
 
     // The engine failing outright completes the same card.
@@ -1152,13 +1154,50 @@ describe("SelectionCards with the translation engine", () => {
     expect(card.translation?.sentence).toBe("Elle a abandonné après la troisième tentative.");
   });
 
-  it("waits for the engine rather than showing word-by-word rows it will replace", async () => {
+  it("shows the pack's answer at once, saying a translation is still coming", async () => {
+    // A cold engine costs seconds on a slow device (4.8 s, measured on a Galaxy Tab S6 Lite),
+    // and the reader must not sit through that to see what the pack knows. The rows are shown
+    // with `translating`, so they are never read as the last word on the selection.
     const { cards, phraseGloss, view } = setup();
     cards.openForSelection(sel, null);
     await flush();
     phraseGloss[0]!.resolve(noMatch);
     await flush();
-    expect(view.last().pending).toBe(true); // the pack answered; the card still waits
+    const card = view.last();
+    expect(card.pending).toBeFalsy();
+    expect(card.rows).toEqual([{ form: "give", gloss: "Donner" }]);
+    expect(card.translating).toBe(true);
+    expect(card.translation).toBeUndefined();
+  });
+
+  it("replaces the pack's rows when the translation lands, and stops saying it is coming", async () => {
+    const { cards, phraseGloss, asked, view } = setup();
+    cards.openForSelection(sel, null);
+    await flush();
+    phraseGloss[0]!.resolve(noMatch);
+    await flush();
+    asked[0]!.resolve({
+      kind: "translated",
+      translation: { sentence: "Elle a abandonné.", marks: [{ start: 5, end: 16 }] },
+    });
+    await flush();
+    const card = view.last();
+    expect(card.rows).toBeUndefined();
+    expect(card.translating).toBe(false);
+    expect(card.translation).toEqual({ sentence: "Elle a abandonné.", marks: [{ start: 5, end: 16 }] });
+  });
+
+  it("does not write over a card the reader has since replaced", async () => {
+    const { cards, phraseGloss, asked, view } = setup();
+    cards.openForSelection(sel, null);
+    await flush();
+    phraseGloss[0]!.resolve(noMatch);
+    await flush();
+    const before = view.shows.length;
+    view.hide(); // the reader closed it — every show and hide bumps the generation
+    asked[0]!.resolve({ kind: "translated", translation: { sentence: "Elle a abandonné.", marks: [] } });
+    await flush();
+    expect(view.shows.length).toBe(before);
   });
 
   it("says the card is translating while it waits for the engine", () => {
@@ -1180,18 +1219,24 @@ describe("SelectionCards with the translation engine", () => {
   });
 
   it("never lets a slow engine cost the reader the pack's answer", async () => {
-    // The engine is bounded BELOW the card's own timeout: past it, the card is the pack's.
+    // The two are no longer raced: the pack's answer is shown as soon as it lands, whatever the
+    // engine is doing. The engine's bound is now only when the card stops expecting one, so it
+    // sits ABOVE the card's own timeout rather than below it.
     const { cards, phraseGloss, view, elapseOnly, armed } = setup();
     cards.openForSelection(sel, null);
     await flush();
-    expect(TRANSLATION_WAIT_MS).toBeLessThan(ANSWER_TIMEOUT_MS);
+    expect(TRANSLATION_WAIT_MS).toBeGreaterThan(ANSWER_TIMEOUT_MS);
     expect(armed()).toContain(TRANSLATION_WAIT_MS);
     phraseGloss[0]!.resolve(noMatch);
+    await flush();
+    expect(view.last().pending).toBeFalsy();
+    expect(view.last().rows).toEqual([{ form: "give", gloss: "Donner" }]);
+
+    // And when the engine never answers, the card simply stops saying one is coming.
     elapseOnly(TRANSLATION_WAIT_MS);
     await flush();
-    const card = view.last();
-    expect(card.pending).toBeFalsy();
-    expect(card.rows).toEqual([{ form: "give", gloss: "Donner" }]);
+    expect(view.last().translating).toBe(false);
+    expect(view.last().rows).toEqual([{ form: "give", gloss: "Donner" }]);
   });
 
   it("answers from the pack alone when reaching the engine fails", async () => {

@@ -259,6 +259,51 @@ describe("word by word", () => {
     expect(answer.textContent).not.toContain("Pas de traduction");
   });
 
+  it("says a translation is still coming, under the pack's answer", () => {
+    // The card no longer makes the reader wait for a cold engine (4.8 s, measured on a Galaxy
+    // Tab S6 Lite): the pack answers first, and says its rows are not the last word.
+    const card = createCard();
+    card.show(
+      content({
+        headword: "a compelling argument",
+        surface: "a compelling argument",
+        gloss: null,
+        expression: true,
+        rows: [{ form: "compelling", gloss: "convaincant" }],
+        translating: true,
+      }),
+      () => {},
+    );
+    const answer = card.el.querySelector(".gloss")!;
+    expect(answer.querySelector(".rows-label")).not.toBeNull();
+    expect([...answer.querySelectorAll(".row")].map((r) => r.textContent)).toEqual(["compelling → convaincant"]);
+    expect(answer.querySelector(".translating-note")!.textContent).toBe("Traduction en cours…");
+  });
+
+  it("stops saying it once the translation is there, and once it is known there is none", () => {
+    const card = createCard();
+    const base = {
+      headword: "gave up",
+      surface: "gave up",
+      gloss: null,
+      expression: true,
+      rows: [{ form: "give", gloss: "Donner" }],
+    };
+    card.show(content({ ...base, translating: false }), () => {});
+    expect(card.el.querySelector(".translating-note")).toBeNull();
+
+    card.show(
+      content({
+        ...base,
+        rows: undefined,
+        translating: false,
+        translation: { sentence: "Elle a abandonné.", marks: [] },
+      }),
+      () => {},
+    );
+    expect(card.el.querySelector(".translating-note")).toBeNull();
+  });
+
   it("states that the pack has no translation for the expression when no row qualifies", () => {
     const card = createCard();
     card.show(

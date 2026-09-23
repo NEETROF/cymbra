@@ -197,20 +197,32 @@ Measured at 64, 128 and 223 MiB: the working set settles at **195.4 MiB either w
 the heap grows into that figure during the first translation, buying a copy and saving nothing.
 Mozilla's 234 291 200 is a pre-allocation, not a requirement, and is kept for that reason.
 
-### The card shows it; a slow engine never costs the pack's answer
+### The card answers from the pack at once, and upgrades
 
-The proposal named no display, which left the development build showing nothing. The expression
-card now asks the pack and the engine together; neither can take the other down. The engine's
-wait is bounded at 2.5 s, **below** the card's own 3 s timeout, so a cold or slow engine ends in
-exactly the card the reader had before — and the engine keeps warming for the next selection.
+*Revised during device testing.* The card used to ask the pack and the engine together and wait
+for both, with the engine bounded at 2 500 ms — below the card's own 3 000 ms — so a slow engine
+could never cost the reader the pack's answer. On a Galaxy Tab S6 Lite a cold engine takes
+**4 783 ms**, so that bound could never be met: the reader waited 2.5 s and then got the *lesser*
+answer. The worst of both.
 
-With a translation the card shows « Dans votre phrase — traduction automatique », the sentence
-with the selection in the answer colour, built from text nodes only (the sentence came from the
-page). It shows no word-by-word rows beside it — the existing requirement already says those
-appear only when the card has no better answer — and no "the pack has no translation" note
-above one. An expression's dictionary gloss stays. A single word keeps its dictionary card: only
-a selection of several words is translated. No gesture carries the translation, so no path can
-store it.
+They are no longer raced. The pack answers first and is shown immediately, with a quiet line
+saying a translation is still coming; when the translation lands it replaces the word-by-word rows,
+and when it is known that none is coming the line simply goes away. `TRANSLATION_WAIT_MS` stops
+being a wait the reader sits through and becomes when the card stops expecting one — now 15 s,
+above the engine's own start bound rather than below the card's.
+
+Showing the completed card bumps the generation, so the upgrade is measured against *that* card: a
+card the reader has closed, replaced or acted on is never written over.
+
+*Rejected — waiting longer.* Raising both bounds past 4.8 s would have meant five seconds of
+"Traduction en cours…" with nothing else on the card, on the device least able to afford it, and it
+would have delayed the pack's answer for everyone.
+
+*Rejected — showing the rows silently and swapping them.* The rows would have read as the answer,
+which is what the original decision refused. The line saying a translation is coming is what makes
+the upgrade honest rather than a surprise.
+
+On Chromium none of this shows: a cold translation there is 270 ms.
 
 ### The reader keeps the engine's host busy while it reads
 

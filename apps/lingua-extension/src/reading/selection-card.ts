@@ -27,11 +27,14 @@ export const ANSWER_TIMEOUT_MS = 3000;
 export const MAX_ROWS = 6;
 
 /**
- * How long the card waits for the translation engine. Under ANSWER_TIMEOUT_MS on purpose: a
- * slow or cold engine must never cost the reader the pack's answer — past this, the card
- * answers exactly as it would with no engine, and the engine keeps warming for the next one.
+ * How long the card keeps its offer to upgrade open. The card no longer waits for the engine
+ * before answering — the pack's answer is shown as soon as it arrives and the translation
+ * replaces it when it lands — so this is not a wait the reader sits through; it is when the
+ * card stops expecting one. Set above the engine's own start bound (START_TIMEOUT_MS), which
+ * is what a cold engine is really bounded by: measured at 4.8 s on a Galaxy Tab S6 Lite, far
+ * past anything the reader should have been made to wait for.
  */
-export const TRANSLATION_WAIT_MS = 2500;
+export const TRANSLATION_WAIT_MS = 15_000;
 
 const EXPRESSION_KIND = "Expression — la carte gardera sa phrase d’origine.";
 const SELECTION_KIND = "Sélection.";
@@ -337,21 +340,26 @@ export class SelectionCards {
       expression: true,
     };
     const translator = this.opts.translator ?? null;
+    // Asked now, answered whenever. The two are no longer raced: a cold engine costs seconds on
+    // a slow device (4.8 s, measured), and the reader must not sit through that to see what the
+    // pack knows. The pack's answer is shown as soon as it lands, saying a translation is on its
+    // way, and the translation replaces it when it arrives.
+    const translation = translator ? this.translateBounded(translator, sel) : null;
     this.request(
       { ...base, pending: true, translating: !!translator },
-      // Both at once, and neither can take the other down: a rejected gloss answers as a
-      // missing one always has, and the translator is bounded below the card's own timeout.
-      () =>
-        Promise.all([
-          this.ports.phraseGloss(sel.text).catch(() => null),
-          translator ? this.translateBounded(translator, sel) : null,
-        ]),
-      (answers) => {
-        const [answer, translation] = answers ?? [null, null];
-        const card = expressionCard(base, answer);
-        // A translation is a better answer than word-by-word rows, so they are not kept.
-        return translation ? { ...card, rows: undefined, translation } : card;
-      },
+      () => this.ports.phraseGloss(sel.text).catch(() => null),
+      (answer) => ({ ...expressionCard(base, answer), translating: !!translator }),
+      translation
+        ? {
+            later: translation,
+            // A translation is a better answer than word-by-word rows, so they are not kept.
+            // Without one, the card simply stops saying a translation is coming.
+            apply: (card, answer) =>
+              answer
+                ? { ...card, rows: undefined, translating: false, translation: answer }
+                : { ...card, translating: false },
+          }
+        : undefined,
     );
   }
 
@@ -414,10 +422,16 @@ export class SelectionCards {
    * the card view still shows the pending card: a card opened for something else, closed
    * or already completed makes the answer land nowhere.
    */
-  private request<T>(
+  private request<T, U>(
     pending: WordPopupContent,
     ask: () => Promise<T>,
     complete: (answer: T | null) => WordPopupContent,
+    upgrade?: {
+      /** A second, slower answer. It never delays the first one. */
+      later: Promise<U | null>;
+      /** The completed card, once that answer lands — or once it is known there is none. */
+      apply: (card: WordPopupContent, answer: U | null) => WordPopupContent;
+    },
   ): void {
     const generation = this.surface.show(pending);
     let settled = false;
@@ -426,7 +440,18 @@ export class SelectionCards {
       settled = true;
       this.clock.clearTimeout(timer);
       if (this.surface.generation() !== generation) return;
-      this.surface.show(complete(answer));
+      const card = complete(answer);
+      // Showing bumps the generation: the upgrade must be measured against THIS card, so that a
+      // card the reader has since replaced, closed or acted on is never written over.
+      const shown = this.surface.show(card);
+      if (!upgrade) return;
+      void upgrade.later.then(
+        (late) => {
+          if (this.surface.generation() !== shown) return;
+          this.surface.show(upgrade.apply(card, late));
+        },
+        () => undefined,
+      );
     };
     const timer = this.clock.setTimeout(() => settle(null), ANSWER_TIMEOUT_MS);
     new Promise<T>((resolve) => resolve(ask())).then(

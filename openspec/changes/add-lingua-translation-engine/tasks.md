@@ -41,7 +41,7 @@ The proposal had no task that displayed anything, which left the development bui
 nothing and 7.4 without an object.
 
 - [x] 6.1 Carry the selection's offsets from the capture to the card (`Capture.selection`, `SelectionInput.selection`)
-- [x] 6.2 Ask the pack and the engine together for a selection of several words, neither able to take the other down; bound the engine's wait (`TRANSLATION_WAIT_MS`, 2.5 s) below the card's own timeout, so a slow or cold engine never costs the reader the pack's answer
+- [x] 6.2 Ask the pack and the engine for a selection of several words, neither able to take the other down; **do not race them** — show the pack's answer as soon as it lands, saying a translation is still coming, and let the translation replace it (revised during device testing: a cold engine costs 4.8 s on a Galaxy Tab S6 Lite, which no reader should wait through)
 - [x] 6.3 Render « Dans votre phrase — traduction automatique », the translated sentence with the selection's place in the answer colour, from text nodes only — the sentence came from the page, so as markup it could carry anything
 - [x] 6.4 With a translation, show no word-by-word rows and no "the pack has no translation" note above it; keep an expression's dictionary gloss
 - [x] 6.5 Keep a single word on its dictionary card: only a selection of several words is translated

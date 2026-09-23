@@ -82,6 +82,15 @@
   font-size: 13px;
 }
 
+/* The pack has answered, the engine has not yet: a quiet line under the answer saying so, so the
+   rows above it are never read as the last word on the selection. */
+.translating-note {
+  margin-top: 6px;
+  color: var(--cymbra-lingua-faint);
+  font-style: italic;
+  font-size: 12px;
+}
+
 /* The reader's sentence, machine-translated: a label saying what it is, then the sentence with
    their selection's place in the answer colour — the same colour a gloss is — so the eye goes
    from what they selected to what it became. */

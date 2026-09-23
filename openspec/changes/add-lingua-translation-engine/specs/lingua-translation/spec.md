@@ -140,22 +140,27 @@ reported to the reader as an error.
 - **THEN** the card answers from the pack exactly as it did before the engine existed, with no mention of a missing engine
 
 ### Requirement: A slow engine never costs the reader the pack's answer
-A card that asks the engine SHALL bound its wait for it below the card's own answer timeout, and past that bound SHALL answer exactly as it would with no engine.
-The pack and the engine SHALL be asked together, and the failure of either SHALL NOT prevent the
-other's answer from being shown. A card SHALL NOT show word-by-word rows while it still waits for
-the engine.
+A card SHALL show what the pack knows as soon as the pack answers, whatever the engine is doing, and SHALL NOT wait for the engine before answering.
+While a translation is still on its way, the card SHALL say so alongside the pack's answer, so
+word-by-word rows are never read as the last word on the selection. When the translation lands it
+SHALL replace them; when it is known that none is coming, the card SHALL simply stop saying one is.
+A card the reader has since replaced, closed or acted on SHALL NOT be written over.
 
-#### Scenario: The engine is still cold
-- **WHEN** the reader selects a phrase and the engine has not answered within its bound
-- **THEN** the card shows the pack's answer, as it would with no engine
+#### Scenario: A cold engine on a slow device
+- **WHEN** the reader selects a phrase and the engine needs seconds to load its model
+- **THEN** the pack's answer is shown at once, with a line saying a translation is still coming
 
-#### Scenario: The pack fails but the engine answers
-- **WHEN** the pack cannot answer a selection that the engine translates
-- **THEN** the card shows the translation
+#### Scenario: The translation arrives
+- **WHEN** the translation lands while the card is still the one the reader opened
+- **THEN** it replaces the word-by-word rows, and the card stops saying a translation is coming
 
-#### Scenario: Waiting for the engine
-- **WHEN** the pack has answered and the engine has not yet
-- **THEN** the card still shows that it is waiting, not word-by-word rows the translation would replace
+#### Scenario: No translation is coming after all
+- **WHEN** the engine answers nothing, or does not answer at all
+- **THEN** the card keeps the pack's answer and stops saying a translation is coming
+
+#### Scenario: The reader moved on
+- **WHEN** a translation lands after the reader has closed the card or opened another
+- **THEN** nothing is shown in its place
 
 ### Requirement: The translation is shown as a machine translation, in the reader's sentence
 A card SHALL show a translation as the reader's sentence, labelled as a machine translation, with the selection's place in it marked, and SHALL render every part of it as text.

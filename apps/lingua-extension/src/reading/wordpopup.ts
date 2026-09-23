@@ -59,8 +59,10 @@ export interface WordPopupContent {
   /** The card is waiting for the engine: a waiting line in place of the answer, no action. */
   pending?: boolean;
   /**
-   * What the pending card waits on is a translation, not the pack: the pack answers in
-   * milliseconds, so a card that also asked the translation engine is waiting for THAT.
+   * A translation is still on its way. On a pending card it says what is being waited for — the
+   * pack answers in milliseconds, so a card that also asked the engine is waiting for THAT. On a
+   * completed card it says the pack's answer is not the last word: the engine is slower (seconds,
+   * on a cold device) and its answer will replace it.
    */
   translating?: boolean;
   /** Word-by-word rows, shown under their label instead of the gloss line when non-empty. */
@@ -149,6 +151,20 @@ export function createCard(): CardView {
       glossEl.classList.add("waiting");
       return;
     }
+    renderPackAnswer(content);
+    // The pack has answered and the engine has not. Say so under its answer: a reader looking at
+    // word-by-word rows must know a translation is still coming, so the rows are never mistaken
+    // for the last word on their selection.
+    if (content.translating && !content.translation) {
+      const note = div("translating-note");
+      note.textContent = TRANSLATING;
+      glossEl.hidden = false;
+      glossEl.append(note);
+    }
+  }
+
+  /** What the pack alone has to say: the translated sentence's own gloss, rows, or neither. */
+  function renderPackAnswer(content: WordPopupContent): void {
     if (content.translation) {
       if (content.gloss) glossEl.textContent = content.gloss;
       else glossEl.hidden = true;
