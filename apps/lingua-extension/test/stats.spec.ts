@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { CefrLevel, LevelRow, VocabularyEstimate } from "@/analyzer/types.ts";
-import { barChartSvg } from "@/stats/chart.ts";
-import { ladderHtml, vocabularyHtml } from "@/stats/ladder.ts";
+import { barChartElement } from "@/stats/chart.ts";
+import { ladderView, vocabularyView } from "@/stats/ladder.ts";
 import {
   buildSeries,
   consolidatedToMap,
@@ -32,18 +32,21 @@ describe("cumulativeTotals", () => {
   });
 });
 
-describe("ladderHtml", () => {
+describe("ladderView", () => {
   it("shows each level's own words next to the running total up to that level", () => {
-    const html = ladderHtml(bands([986, 1122, 1945, 2148, 726, 566], 10), "A2");
-    expect(html).toContain(`${fr(10)} / ${fr(1122)}`); // A2's own band
-    expect(html).toContain(`<span class="ladder-cum">${fr(2108)}</span>`); // A1 + A2
-    expect(html).toContain(`<span class="ladder-cum">${fr(7493)}</span>`); // the whole list
-    expect(html).toContain("cumulé");
-    expect(html.match(/ladder-row--here/g)).toHaveLength(1);
+    const view = ladderView(bands([986, 1122, 1945, 2148, 726, 566], 10), "A2");
+    expect(view.textContent).toContain(`${fr(10)} / ${fr(1122)}`); // A2's own band
+    const cums = [...view.querySelectorAll(".ladder-cum")].map((e) => e.textContent);
+    expect(cums).toContain(fr(2108)); // A1 + A2
+    expect(cums).toContain(fr(7493)); // the whole list
+    expect(view.textContent).toContain("cumulé");
+    expect(view.querySelectorAll(".ladder-row--here")).toHaveLength(1);
   });
 
   it("explains that a level counts only its own base words", () => {
-    expect(ladderHtml(bands([1, 1, 1, 1, 1, 1]), null)).toContain("Chaque niveau compte les mots qu'il introduit");
+    expect(ladderView(bands([1, 1, 1, 1, 1, 1]), null).textContent).toContain(
+      "Chaque niveau compte les mots qu'il introduit",
+    );
   });
 });
 
@@ -60,7 +63,7 @@ describe("roughCount", () => {
   });
 });
 
-describe("vocabularyHtml", () => {
+describe("vocabularyView", () => {
   const est = (
     estimated: number,
     confirmed: number,
@@ -73,35 +76,37 @@ describe("vocabularyHtml", () => {
   });
 
   it("shows a rounded, extrapolated figure with what it rests on", () => {
-    const html = vocabularyHtml(est(15823, 120), true);
-    expect(html).toContain(`≈&nbsp;${fr(16000)} mots`);
-    expect(html).toContain("D'après ton niveau déclaré");
-    expect(html).toContain(`${fr(25009)} mots du dictionnaire (dont ${fr(120)} confirmés)`);
-    expect(vocabularyHtml(est(2959, 0, "frequency"), true)).toContain("ton réglage des mots les plus courants");
+    const view = vocabularyView(est(15823, 120), true);
+    expect(view?.textContent).toContain(`≈\u00A0${fr(16000)} mots`);
+    expect(view?.textContent).toContain("D'après ton niveau déclaré");
+    expect(view?.textContent).toContain(`${fr(25009)} mots du dictionnaire (dont ${fr(120)} confirmés)`);
+    expect(vocabularyView(est(2959, 0, "frequency"), true)?.textContent).toContain(
+      "ton réglage des mots les plus courants",
+    );
   });
 
   it("never rounds below the words confirmed", () => {
-    expect(vocabularyHtml(est(1049, 1040), true)).toContain(`≈&nbsp;${fr(1040)} mots`);
+    expect(vocabularyView(est(1049, 1040), true)?.textContent).toContain(`≈\u00A0${fr(1040)} mots`);
   });
 
   it("gives the exact count, not an estimate, when only marked words are known", () => {
-    const html = vocabularyHtml(est(1249, 1249, "marked"), true);
-    expect(html).toContain(`>${fr(1249)} mots<`);
-    expect(html).toContain("Vocabulaire connu");
-    expect(html).not.toContain("≈");
-    expect(html).not.toContain("extrapolé");
+    const view = vocabularyView(est(1249, 1249, "marked"), true);
+    expect(view?.querySelector(".vocab-n")?.textContent).toBe(`${fr(1249)} mots`);
+    expect(view?.textContent).toContain("Vocabulaire connu");
+    expect(view?.textContent).not.toContain("≈");
+    expect(view?.textContent).not.toContain("extrapolé");
   });
 
   it("asks for what is missing before there is anything to estimate", () => {
-    expect(vocabularyHtml(est(0, 0, "level"), true)).toContain("marque ceux que tu connais");
-    expect(vocabularyHtml(est(0, 0, "level"), true)).not.toContain("déclare ton niveau");
-    expect(vocabularyHtml(est(0, 0, "marked"), true)).toContain("déclare ton niveau");
-    expect(vocabularyHtml(est(0, 0, "marked"), false)).toContain("règle les mots courants");
-    expect(vocabularyHtml({ ...est(0, 0), universe: 0 }, true)).toBe("");
+    expect(vocabularyView(est(0, 0, "level"), true)?.textContent).toContain("marque ceux que tu connais");
+    expect(vocabularyView(est(0, 0, "level"), true)?.textContent).not.toContain("déclare ton niveau");
+    expect(vocabularyView(est(0, 0, "marked"), true)?.textContent).toContain("déclare ton niveau");
+    expect(vocabularyView(est(0, 0, "marked"), false)?.textContent).toContain("règle les mots courants");
+    expect(vocabularyView({ ...est(0, 0), universe: 0 }, true)).toBeNull();
   });
 
   it("omits the confirmed count when there is none", () => {
-    expect(vocabularyHtml(est(3200, 0), true)).not.toContain("confirmés");
+    expect(vocabularyView(est(3200, 0), true)?.textContent).not.toContain("confirmés");
   });
 });
 
@@ -173,19 +178,21 @@ describe("consolidatedToMap", () => {
   });
 });
 
-describe("barChartSvg", () => {
+describe("barChartElement", () => {
   it("draws one rect per positive value, with a baseline and accessible label", () => {
-    const svg = barChartSvg([2, 0, 5, 1], "var(--cymbra-lingua-teal)", "Mots rencontrés");
-    expect(svg).toContain('role="img"');
-    expect(svg).toContain('aria-label="Mots rencontrés"');
-    expect((svg.match(/<rect /g) ?? []).length).toBe(3); // the zero draws no bar
-    expect(svg).toContain("var(--cymbra-lingua-teal)");
+    const svg = barChartElement([2, 0, 5, 1], "var(--cymbra-lingua-teal)", "Mots rencontrés");
+    expect(svg.getAttribute("role")).toBe("img");
+    expect(svg.getAttribute("aria-label")).toBe("Mots rencontrés");
+    expect(svg.querySelectorAll("rect").length).toBe(3); // the zero draws no bar
+    expect([...svg.querySelectorAll("rect")].every((r) => r.getAttribute("fill") === "var(--cymbra-lingua-teal)")).toBe(
+      true,
+    );
   });
 
   it("handles an all-zero series without dividing by zero", () => {
-    const svg = barChartSvg([0, 0, 0], "var(--cymbra-lingua-green)", "x");
-    expect((svg.match(/<rect /g) ?? []).length).toBe(0);
-    expect(svg).toContain("<line"); // baseline still drawn
+    const svg = barChartElement([0, 0, 0], "var(--cymbra-lingua-green)", "x");
+    expect(svg.querySelectorAll("rect").length).toBe(0);
+    expect(svg.querySelector("line")).not.toBeNull(); // baseline still drawn
   });
 });
 
