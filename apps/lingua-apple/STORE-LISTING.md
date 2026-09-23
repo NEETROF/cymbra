@@ -21,7 +21,7 @@ platforms in an App Store description invites scrutiny it does not have to invit
 | Name | 30 | `Cymbra Lingua` (13) |
 | Subtitle | 30 | `Vocabulaire anglais en lisant` (29) |
 | Promotional text | 170 | 140 characters, below |
-| Description | 4000 | 1838 characters, below |
+| Description | 4000 | 2116 characters, below |
 | Keywords | 100 | 83 characters, below |
 | Support URL | — | `https://cymbra.app/support/` |
 | Marketing URL | — | `https://cymbra.app/lingua/` |
@@ -44,7 +44,11 @@ category are already indexed, so neither appears here.
 anglais,vocabulaire,lecture,traduction,extension,apprendre,mots,révision,CECRL,deck
 ```
 
-## Description (1838 / 4000)
+## Description (2116 / 4000)
+
+**LIRE VOS LIVRES** describes the book reader (`add-lingua-reader`). Paste it only once that
+change's iPhone measurement (task 1.5) has kept the reader in the Safari variant; if it has
+not, the paragraph goes and the count drops back to 1947 (the 1838 this file used to state was stale).
 
 ```
 Cymbra Lingua est une extension Safari qui surligne, sur la page que vous lisez, les mots d'anglais que vous ne connaissez pas encore — sans rien changer à la mise en page. Une pastille vous dit quelle part du texte vous est familière, calculée sur ce que vous avez réellement marqué, pas sur une estimation.
@@ -61,6 +65,9 @@ Touchez un mot surligné : sa traduction, sa forme du dictionnaire et sa rareté
 
 RÉVISER
 Les cartes que vous créez se révisent dans un panneau, à côté de votre lecture, avec une répétition espacée qui décide toute seule du bon moment. Un écran de statistiques estime votre vocabulaire niveau par niveau, du A1 au C2, à partir des mots que vous avez marqués.
+
+LIRE VOS LIVRES
+Importez vos livres EPUB sans DRM dans la bibliothèque de l'extension et lisez-les hors ligne, avec le même surlignage. Ils restent sur votre appareil.
 
 VOTRE LECTURE RESTE À VOUS
 Le dictionnaire et le moteur d'analyse sont dans l'app. Aucune page que vous lisez n'est envoyée nulle part, et tout fonctionne hors ligne. Sans compte, l'extension ne fait aucune requête réseau.
