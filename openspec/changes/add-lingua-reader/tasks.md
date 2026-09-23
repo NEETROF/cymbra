@@ -47,6 +47,7 @@
 - [ ] 6.2 Chrome desktop: import a novel and a technical book, read offline (network disabled in DevTools), highlights, popup, selection card, drawer, deck count; the badge and the popup on the reader tab; a second "Bibliothèque" click focuses the tab
   - Headless Chromium: both books imported, read with every request held to the extension (dead proxy: 0 left it), highlights, word popup, selection card, « + Deck » with the book as source, badge, `getStats` on the reader tab, second « Bibliothèque » focusing the tab, reopening at the saved position. Pending: a headed pass for the Side Panel opened from the reader's toolbar and the toolbar popup as it renders on a reader tab.
 - [ ] 6.3 Firefox desktop and the Galaxy Tab S6 Lite: the same pass, plus airplane mode on the tablet; the picker on Android; one paint per page turn observed
+  - Firefox 156 desktop (macOS), unpacked build via web-ext: a book imported, read, and translated in the reader (2026-09-23). Pending: the rest of the pass on Firefox desktop, then the Galaxy Tab S6 Lite with airplane mode.
 - [ ] 6.4 Safari macOS and an iPhone, if 1.5 kept the reader in the variant: the same pass; the file picker from the Files app; memory on the largest book
 - [x] 6.5 Protected book refused (an ADEPT sample), an obfuscated-font book accepted (a Standard Ebooks title), a file renamed without `.epub` accepted
   - Samples built from a real book: an ADEPT declaration + `rights.xml` (refused with the sentence), an IDPF font declaration (imported, rendered), the file with no extension (imported).
