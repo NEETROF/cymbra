@@ -1,6 +1,6 @@
 ## 1. Voice lists from real devices
 
-- [ ] 1.1 Capture `speechSynthesis.getVoices()` after `voiceschanged` — `name`, `lang`, `localService`, `default`, `voiceURI` — from the content script's console on Chrome macOS, Safari macOS, Firefox macOS, Chrome Windows, Chrome Android, Firefox for Android and Safari on iPhone, into `apps/lingua-extension/test/fixtures/voices/<target>.json`; a target that exposes no `speechSynthesis` or lists nothing is recorded as such
+- [ ] 1.1 Capture `speechSynthesis.getVoices()` after `voiceschanged` — `name`, `lang`, `localService`, `default`, `voiceURI` — from the content script's console on Chrome macOS, Safari macOS, Firefox macOS, Chrome Windows, Chrome Android, Firefox for Android and Safari on iPhone, into `apps/lingua-extension/test/fixtures/voices/<target>.json`; a target that exposes no `speechSynthesis` or lists nothing is recorded as such; the iOS Simulator's list (`safari-ios-simulator.json`) is the host Mac's Safari list voice for voice and does not stand in for an iPhone
 - [ ] 1.2 On Chrome Android, note which voices report `localService: false` and whether the device's TTS engine is set to use network voices; write the finding into the design's first risk before section 2 relies on it
 
 ## 2. The speaker
