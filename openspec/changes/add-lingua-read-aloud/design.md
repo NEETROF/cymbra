@@ -21,7 +21,9 @@ English Female`, `Google UK English Male`). Chrome often lists nothing until `vo
 fires. Safari on macOS exposes Apple identifiers in `voiceURI`
 (`com.apple.voice.super-compact.en-US.Samantha`), lists no Eloquence voice, and marks **every**
 voice `default: true` — 68 out of 68 on the capture; Chrome marks one (the system voice, `Daniel`
-on the capture) and uses the name as `voiceURI`. Measured on 2026-09-24, captures in
+on the capture) and uses the name as `voiceURI`. Firefox on macOS marks one too, lists no novelty
+and no Eloquence voice — only the legacy `Fred`, `Junior`, `Kathy`, `Ralph` — and wraps the Apple
+identifier in its own URN (`urn:moz-tts:osx:com.apple.voice.super-compact.en-US.Samantha`). Measured on 2026-09-24, captures in
 `apps/lingua-extension/test/fixtures/voices/`.
 
 ## Goals / Non-Goals
@@ -102,17 +104,19 @@ The deprioritised voices are Apple's novelty voices (`Albert`, `Bad News`, `Bahh
 `Whisper`, `Wobble`, `Zarvox`), the Eloquence voices (`Eddy`, `Flo`, `Grandma`, `Grandpa`,
 `Reed`, `Rocko`, `Sandy`, `Shelley`) and the legacy ones (`Fred`, `Junior`, `Kathy`, `Ralph`),
 matched on the name with any parenthesised suffix removed (Chrome's `Eddy (English (United
-States))`), or on the prefix of the Apple identifier in `voiceURI`
-(`com.apple.speech.synthesis.voice.`, `com.apple.eloquence.`) — the prefix, not the name inside
-it, because Safari's identifiers do not always repeat the name (`Wobble` is `…voice.Deranged`,
-`Jester` `…voice.Hysterical`, `Superstar` `…voice.Princess`). Apple's list has not moved in years, it is only ever a ranking — a
+States))`), or on the family of the Apple identifier in `voiceURI`
+(`com.apple.speech.synthesis.voice.`, `com.apple.eloquence.`) wherever it sits — Firefox wraps it
+as `urn:moz-tts:osx:com.apple…` — and on the family, not the name inside it, because Safari's
+identifiers do not always repeat the name (`Wobble` is `…voice.Deranged`, `Jester`
+`…voice.Hysterical`, `Superstar` `…voice.Princess`). Apple's list has not moved in years, it is only ever a ranking — a
 deprioritised voice still speaks when it is the only one — and the voice picker is the way out
 when a platform lists something the ranking gets wrong. The tests run the ranking over voice
 lists captured on real devices (task 1.1), not over lists imagined for the test.
 
 On the captures: Chrome macOS picks `Daniel` (its one default voice) among 41 eligible voices, 6
 of them ordinary; Safari macOS, where the default says nothing, picks `Samantha` among 25, 6 of
-them ordinary. The same Mac can therefore start on two different voices in two browsers; the
+them ordinary; Firefox macOS picks `Daniel` (its one default voice) among 10, 6 of them ordinary.
+The same Mac can therefore start on two different voices in two browsers; the
 picker settles it per browser.
 
 _Alternative considered._ An allow-list of known good names (`Samantha`, `Daniel`, `Microsoft
