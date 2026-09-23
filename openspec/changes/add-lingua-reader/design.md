@@ -186,6 +186,73 @@ monochrome screen they are the same grey dots. "Learning" keeps the dotted under
 "unknown" takes a solid one. The tints stay, so a colour screen loses nothing, and every page
 the content script highlights benefits — the change is in the token sheet, not in the reader.
 
+## Measurements (spike, §1)
+
+Taken on the implementation itself rather than a throwaway branch — the refactor of D3 was
+bounded as hoped — with the real en-fr pack (40 704 lemmas), no level declared (every word
+unknown: the worst case for painting), in Playwright's Chromium on a MacBook (Apple silicon),
+extension loaded unpacked. The e-ink tablet, Firefox and the iPhone are still to measure.
+
+**1.2 — the document parameter.** The sites touched stayed inside `src/reading/` and the
+session: `blocks.ts` (derives its document from the root), `highlight.ts` (one painter per
+document, on that window's `CSS.highlights`), `observer.ts` and `exposure-tracker.ts` (the
+root's window's observers), `selection.ts` (the window's selection; `instanceof Element`
+replaced by a node-type test — a section's nodes are of another realm), and `caretAt`, now in
+`session.ts`. One more cross-realm detail surfaced in the tests: a listener's `AbortSignal`
+must come from the section's own window. Highlights, the word popup (anchored through the
+frame's offset) and the selection card work inside a section.
+
+**1.3 — paint times (laptop, Chromium, engine in the page).**
+
+| Section | Words | Ranges | Hidden (load → painted) |
+|---|---|---|---|
+| Chapter (Hound of the Baskervilles, SE) | ~3–4 000 | 2 208–4 028 | 26–34 ms |
+| Front matter (Pro Git) | a few hundred | 35–597 | 1–12 ms |
+| Whole novel in one section (Pride and Prejudice, Gutenberg) | 20 484 | 20 149 | 185 ms |
+
+A page turn inside a section re-registers nothing (the highlight objects are the same before
+and after) and never hides the book; it reaches the second frame in 6–35 ms. The cap is set
+at **1 500 ms** (`REVEAL_CAP_MS`) until the tablet's numbers: the laptop is an order of
+magnitude under it even for the largest section, and Firefox adds a message round trip to the
+event page.
+
+**Finding: a section is not always a chapter.** Gutenberg's edition of *Pride and Prejudice*
+holds the whole novel in one XHTML file: 20 149 ranges painted at once, more than the ~15 000
+that stalled Safari in the Apple spike. Chromium takes it in stride; it is what 1.5 must
+measure on the iPhone. If Safari stalls, the viewport window comes back for the reader on
+Safari only (`paintWhole` is a per-host flag), at the cost of a second paint there.
+
+**1.4 — storage (Chromium).** Three books (0.5 MB novel, 13.3 MB Pro Git, 23.7 MB illustrated
+novel) occupy 41.2 MB of a 10.8 GB quota: `unlimitedStorage` is not needed for room.
+`navigator.storage.persist()` is **refused** for the extension's origin, so the library shows
+its notice on Chromium. Asking for `unlimitedStorage` would exempt the library from eviction,
+at the price of a new permission to justify — left as a decision (see Open Questions);
+Firefox is still to measure.
+
+**Offline.** With every request sent to a dead proxy, opening and reading the 23.7 MB book made
+52 requests, all `chrome-extension:` or `blob:` — none left the extension; its 36 illustrations
+loaded.
+
+**Entry points.** `tabs.sendMessage` from the popup reaches the reader page in its tab on
+Chromium (MDN documents the same on Firefox), so the popup's `getStats` works unchanged and the
+page answers `surface: "book"`. A second "Bibliothèque" focuses the open reader tab.
+
+**Book scripts.** Pro Git's chapters carry inline scripts; the sections inherit the extension
+pages' CSP and every one of them is refused. That is the intended outcome — a book's script
+would otherwise run with the extension's privileges — and `test/reader-csp.spec.ts` keeps the
+policy from being loosened.
+
+**What review shows.** Review showed no source at all before this change, page or book. The
+engine's review card now carries the card's local source, and review shows it once the answer
+is revealed — a page by its site, a book by its title and chapter — so a card from a deleted
+book still says where it came from.
+
+**Platform gaps closed along the way.** foliate-js uses `Object.groupBy`/`Map.groupBy`, missing
+from Chrome 116 and from Safari before 17.4 (the Apple app targets iOS 17.2): the reader page
+installs both where absent. Its zip reader is the npm package it builds from, at the version it
+locks (2.8.22), taken at `lib/zip-core.js` — the package's `exports` would otherwise hand
+esbuild its WebAssembly variant.
+
 ## Risks / Trade-offs
 
 - **foliate-js changes its API** → pinned commit, a seam, and the vendored tree is refreshed
@@ -222,9 +289,13 @@ a library left behind by a reverted build is harmless and reclaimed by a full re
 
 ## Open Questions
 
-- Whether Chromium's default quota for the extension origin holds a realistic library without
-  `unlimitedStorage` (spike, D5).
-- Whether a section painted whole stays fluid on an iPhone, and what the largest EPUB the
-  Safari extension process can open is (spike, D4).
-- Whether the reveal cap should be one value or scale with the section's length; the spike's
-  numbers on the tablet and the laptop decide.
+- ~~Whether Chromium's default quota holds a realistic library without `unlimitedStorage`~~ —
+  it does (10.8 GB). Still open: whether to ask for `unlimitedStorage` anyway, because
+  Chromium refuses `persist()` to the extension and the library is therefore evictable there
+  (a new permission and a store-listing justification, against a notice every Chrome reader
+  sees).
+- Whether a section painted whole stays fluid on an iPhone — now with a known worst case, a
+  20 000-word section — and what the largest EPUB the Safari extension process can open is
+  (1.5).
+- Whether the reveal cap should be one value or scale with the section's length: the laptop
+  scales roughly linearly (30 ms per chapter, 185 ms for 20 000 words); the tablet decides.

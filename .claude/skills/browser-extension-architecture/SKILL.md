@@ -72,7 +72,8 @@ because the wiring lived in the background, which no test covers.
 | Context | Runs where | May call | May NOT call |
 |---|---|---|---|
 | **Content script** (`content.ts`, `reading/`, `review/`, `stats/`) | the **visited page's** origin | `runtime.sendMessage/connect`, `storage.*`, `i18n` | `tabs`, `action`, `identity`, `sidePanel`, **the extension's `indexedDB`** (that one is the *site's*) |
-| **Extension page** (popup, side panel, account, onboarding) | the extension origin | the above **plus** `tabs`, `action`, `identity`, `sidePanel`, the extension's `indexedDB` | — |
+| **Extension page** (popup, side panel, account, onboarding, **reader**) | the extension origin | the above **plus** `tabs`, `action`, `identity`, `sidePanel`, the extension's `indexedDB` | — |
+| **A book section** (in the reader page, foliate-js's `blob:` iframe) | the extension origin, under the extension pages' CSP | nothing: it is a *document* the reading session reads, not a context that runs our code | our code *from* it — reach it as `host.doc`/`host.win`; its scripts are inert by CSP |
 | **Background** (service worker / event page) | the extension origin, no DOM | everything, and owns the reader's store | `document`, `window`, dynamic `import()` on Chromium |
 
 The three that cost a build each:
@@ -99,6 +100,11 @@ watch a moved key through `storage.onChanged`. Extend the lists when you add eit
   through the same `AsyncStorageArea` seam, whose calls become messages (`messagedArea`).
   Never open the database from a surface, even one that could (an extension page): two
   writers is the echo-suppression problem this design removes.
+- **The one exception is not state: books.** The reader page (`reader.html`) owns a second
+  database, `cymbra-lingua-library` (`src/reader/library.ts`) — the imported EPUB files and
+  their reading positions. A 40 MB blob must not cross a message, and the library has one
+  writer (the reader page), so it opens that database itself. Don't put reader *state* there,
+  and don't route books through the store.
 - **Preferences, tokens and transient marks** stay in `chrome.storage.local`: the highlight
   and pill toggles, the session tokens, the last-sync time, the lost-session mark. They are
   small and must be readable before any round-trip.
@@ -122,6 +128,14 @@ Treat it as the worst case for everything above:
 - the reading engine runs in the background there, as on Firefox.
 
 ## One impl, N hosts — never duplicate a view
+
+The reading module is the first example: **one `ReadingSession`** (`src/reading/session.ts`)
+reads a web page in the content script and each section of a book in the reader page. It takes
+the document it reads as a `ReadingHost` (`doc`, `win`, paint mode, box mapping, card source);
+the surfaces it hangs off (popup, card, drawer, HUD or the reader's toolbar) mount in the
+context's own `document`. A read-side module under `src/reading/` never reaches for the global
+`document`/`window` or `instanceof Element` (another realm's nodes fail it) — lint-enforced in
+`test/lint-page-context.spec.ts`. Create listener signals and observers from `host.win`.
 
 Review, stats and settings each have **one** builder, rendered into whatever host needs it —
 the native side panel, the in-page drawer **and** (for Réglages) the toolbar popup:

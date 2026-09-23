@@ -18,6 +18,12 @@ and `wasm/lingua_wasm_bg.wasm` is compiled from the Rust in `crates/lingua-core`
 | `Cargo.toml`             | the Rust workspace root, reduced to the three crates above    |
 | `Cargo.lock`             | the dependency versions the submitted `.wasm` was built with  |
 
+Inside the add-on, `apps/lingua-extension/vendor/foliate-js/` is third-party source, unmodified:
+the EPUB renderer of the book reader ([foliate-js](https://github.com/johnfactotum/foliate-js),
+MIT), vendored at the commit `vendor/VENDOR.md` records because it publishes no release. It is
+bundled by the same esbuild step; its zip reader comes from the npm package `@zip.js/zip.js`
+(`yarn.lock`), not from a prebuilt copy.
+
 The add-on lives in a larger repository. This archive is cut from it by
 `apps/lingua-extension/tool/make_source_archive.sh`, and every pull request rebuilds the
 add-on from the archive alone, with the commands below, so that they keep working.
@@ -58,7 +64,8 @@ exercise it without the download.
 ## Where the add-on reaches the network
 
 The analysis is local: the pack and the WebAssembly engine run in the browser, and no page
-content ever leaves the machine. A reader who never signs in makes no request at all.
+content ever leaves the machine. A reader who never signs in makes no request at all. The book
+reader (`reader.html`) opens the reader's own files from the device and requests nothing.
 
 There are three origins, all of them in the source:
 
