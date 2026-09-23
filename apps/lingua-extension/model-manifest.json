@@ -1,0 +1,37 @@
+{
+  "version": "en-fr/base-memory/2.0",
+  "from": "en",
+  "to": "fr",
+  "licence": "MPL-2.0",
+  "base": "https://models.cymbra.app/",
+  "files": {
+    "model": {
+      "path": "en-fr/base-memory/2.0/6322e296d4fecfe395a8d5723da4ec37ecbe6d7613bb1dfcf4b28e2a47498b68/model.bin.gz",
+      "size": 23045432,
+      "sha256": "6322e296d4fecfe395a8d5723da4ec37ecbe6d7613bb1dfcf4b28e2a47498b68",
+      "source": {
+        "path": "models/en-fr/retrain_hr_NLIxDbE1TBGyOTI-zwZagw/exported/model.enfr.intgemm.alphas.bin.gz",
+        "sha256": "22cdaf3dc9a1da6e5818b5576737182467f3cd97e6fd6f94e4273eb7b56d1e3f"
+      }
+    },
+    "lex": {
+      "path": "en-fr/base-memory/2.0/2585ed98d3af0bc949865aedeb390493d591f56870814376e73e4144c41ed059/lex.bin.gz",
+      "size": 2297334,
+      "sha256": "2585ed98d3af0bc949865aedeb390493d591f56870814376e73e4144c41ed059",
+      "source": {
+        "path": "models/en-fr/retrain_hr_NLIxDbE1TBGyOTI-zwZagw/exported/lex.50.50.enfr.s2t.bin.gz",
+        "sha256": "055987f0b585b61c4914fb4469e2392fda0b25d3f7784275974f920e7b631997"
+      }
+    },
+    "vocab": {
+      "path": "en-fr/base-memory/2.0/783abf3abe075afdf8d85d233994bef2c3a064e935ab1bed946820aff6ac002a/vocab.spm.gz",
+      "size": 409706,
+      "sha256": "783abf3abe075afdf8d85d233994bef2c3a064e935ab1bed946820aff6ac002a",
+      "source": {
+        "path": "models/en-fr/retrain_hr_NLIxDbE1TBGyOTI-zwZagw/exported/vocab.enfr.spm.gz",
+        "sha256": "5dcadaad8191fb4eb7677bce07098a20221dec95976a4db796f3a17cc82b4541"
+      }
+    }
+  },
+  "sourceBase": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/"
+}

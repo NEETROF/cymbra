@@ -11,6 +11,8 @@
     "gen:pack": "bash tool/gen_pack.sh assets/pack.lingua",
     "gen:pack:real": "bash ../../scripts/lingua-data/build.sh en-fr assets/pack.lingua",
     "gen:fixtures": "bash tool/gen_pack.sh test/fixtures/en-fr.testdata.lingua",
+    "fetch:engine": "bash tool/fetch_engine.sh",
+    "build:engine": "bash tool/build_engine.sh",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "format:check": "prettier --check .",

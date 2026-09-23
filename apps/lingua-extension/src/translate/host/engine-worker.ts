@@ -9,8 +9,15 @@
 // Everything below mirrors mozilla/translations
 // inference/wasm/tests/engine/translations-engine.worker.mjs — the file alignments, the marian
 // configuration, the model bytes handed over as `wasmBinary` — rather than rediscovering them.
+//
+// The engine is part of the package; the model is not (add-lingua-translation-delivery D1). It is
+// read from the `lingua-model` database the download filled, by the sha256 the package's manifest
+// pins — so only verified bytes ever reach the engine. Without them it does not start, and every
+// surface answers as it does without it.
 
-import type { WorkerRequest, WorkerResponse } from "./engine.ts";
+import { NO_MODEL, type WorkerRequest, type WorkerResponse } from "./engine.ts";
+import { modelDb } from "./model-db.ts";
+import { loadBundledManifest } from "./model-manifest.ts";
 
 /** What the glue exposes, as much of it as this worker calls. */
 interface BergamotModule {
@@ -42,14 +49,11 @@ interface VectorResponse extends Deletable {
 
 declare function loadBergamot(module: Record<string, unknown>): BergamotModule;
 
-/** Where a development build puts the engine and the model it side-loads (build.mjs). */
+/** Where the package carries the engine (build.mjs). */
 const ENGINE_DIR = "engine";
 const FILES = {
   glue: `${ENGINE_DIR}/bergamot-translator.js`,
   wasm: `${ENGINE_DIR}/bergamot-translator.wasm`,
-  model: `${ENGINE_DIR}/model.bin`,
-  lex: `${ENGINE_DIR}/lex.bin`,
-  vocab: `${ENGINE_DIR}/vocab.bin`,
 };
 
 /** Mozilla's alignment for each file the model is made of. */
@@ -110,15 +114,26 @@ function aligned(bergamot: BergamotModule, data: Uint8Array, alignment: number):
   return memory;
 }
 
+/** The model's three files, as the download stored them — or null when any is missing. */
+async function storedModel(): Promise<{ model: Uint8Array; lex: Uint8Array; vocab: Uint8Array } | null> {
+  const { files } = await loadBundledManifest();
+  const db = modelDb();
+  const [model, lex, vocab] = await Promise.all([
+    db.get(files.model.sha256),
+    db.get(files.lex.sha256),
+    db.get(files.vocab.sha256),
+  ]);
+  return model && lex && vocab ? { model, lex, vocab } : null;
+}
+
 async function load(): Promise<void> {
   if (engine) return;
+  // The model first: without it, nothing of the engine is worth loading.
+  const stored = await storedModel();
+  if (!stored) throw new Error(NO_MODEL);
+  const { model, lex, vocab } = stored;
   importScripts(FILES.glue);
-  const [wasm, model, lex, vocab] = await Promise.all([
-    bytes(FILES.wasm),
-    bytes(FILES.model),
-    bytes(FILES.lex),
-    bytes(FILES.vocab),
-  ]);
+  const wasm = await bytes(FILES.wasm);
   const bergamot = await new Promise<BergamotModule>((resolve, reject) => {
     const instance: BergamotModule = loadBergamot({
       INITIAL_MEMORY,

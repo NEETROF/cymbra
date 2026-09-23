@@ -24,7 +24,7 @@ import {
   captureSelection,
   classifySelection,
   SelectionWatcher,
-  sentenceForRange,
+  sentenceAndSelection,
 } from "./selection.ts";
 import { clickIsOnWord, decideClick, type PageHit, SelectionCards } from "./selection-card.ts";
 import { browserSpeechEngine, createSpeaker, type Speaker } from "./speech.ts";
@@ -242,8 +242,8 @@ export class ReadingSession {
     this.cards = new SelectionCards(
       this.port,
       { show: (content) => this.popup.show(content), generation: () => this.popup.generation() },
-      // The translator is none in every shipped build; a development build that side-loads a
-      // model gets the messaging port, which sends the request off this thread.
+      // None unless the reader turned « Traduction étendue » on and its model is on the device;
+      // then the messaging port, which sends the request off this thread.
       { calibration: () => this.calibration, translator: createTranslatorPort() },
     );
     this.drawer = new Drawer({
@@ -637,13 +637,15 @@ export class ReadingSession {
     this.cards.openForToken(this.pageHit(hit));
   }
 
-  /** What the cards need from a resolved hit: the token, its box and its sentence, read off the range. */
+  /** What the cards need from a resolved hit: the token, its box, its sentence and its place there. */
   private pageHit(hit: ResolvedToken): PageHit {
     const rect = hit.range.getBoundingClientRect();
+    const { sentence, selection } = sentenceAndSelection(hit.range);
     return {
       token: hit.token,
       rect: this.toSurface({ left: rect.left, top: rect.top, bottom: rect.bottom }),
-      sentence: sentenceForRange(hit.range),
+      sentence,
+      selection,
     };
   }
 

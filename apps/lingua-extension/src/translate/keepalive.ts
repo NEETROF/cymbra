@@ -43,14 +43,16 @@ const REAL: KeepaliveDeps = {
 };
 
 /**
- * Keep the engine's host busy for the life of this page.
+ * Keep the engine's host busy for the life of this page — or until the returned stop is called.
+ * `when` skips a tick without stopping: the setting pings only while it is on screen.
  *
  * A ping that fails means the extension context is gone — the page is orphaned, nothing else in
  * it works either, and there is nothing left to hold. Stop there rather than ping a dead
  * background forever.
  */
-export function keepEngineWarm(deps: KeepaliveDeps = REAL): void {
+export function keepEngineWarm(deps: KeepaliveDeps = REAL, when: () => boolean = () => true): () => void {
   const stop = deps.every(PING_MS, () => {
+    if (!when()) return;
     void (async () => {
       try {
         await deps.ping();
@@ -59,13 +61,14 @@ export function keepEngineWarm(deps: KeepaliveDeps = REAL): void {
       }
     })();
   });
+  return stop;
 }
 
 /**
  * A translator that keeps the host busy from its first request onwards. Before that first
  * request the engine has never been loaded, so there is nothing to keep and nothing is sent.
  */
-export function keepWarm(port: TranslatorPort, start: () => void = keepEngineWarm): TranslatorPort {
+export function keepWarm(port: TranslatorPort, start: () => void = () => void keepEngineWarm()): TranslatorPort {
   let started = false;
   return {
     translate(request: TranslationRequest): Promise<TranslationResult> {

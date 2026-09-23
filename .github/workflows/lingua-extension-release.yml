@@ -76,6 +76,7 @@ on:
 
 permissions:
   contents: write # attach the packages to the tag's release
+  actions: read # the translation engine is another workflow's artefact (tool/fetch_engine.sh)
 
 concurrency:
   group: lingua-extension-release
@@ -212,6 +213,15 @@ jobs:
           path: scripts/lingua-data/work
           key: lingua-pack-sources-en-fr-${{ hashFiles('scripts/lingua-data/build.sh', 'scripts/lingua-data/reduce-en-fr.py') }}
           restore-keys: lingua-pack-sources-en-fr-
+
+      # The Chromium and Firefox packages carry the translation engine
+      # (add-lingua-translation-delivery D1): lingua-engine-build's artefact, kept only if every file
+      # matches engine-pin.json — and build.mjs refuses to package anything else. The model is never
+      # packaged; readers download it from Cymbra once they turn « Traduction étendue » on.
+      - name: Fetch the translation engine
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: yarn fetch:engine
 
       # A store build is not a production build plus luck: three env vars separate them, and
       # every one of them fails quietly if forgotten (dogfooding, first Chrome Web Store

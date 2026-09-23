@@ -1,0 +1,77 @@
+name: lingua-model-deploy
+
+# Deploys the static host that serves Cymbra Lingua's translation model
+# (add-lingua-translation-delivery D3) to Cloudflare Pages — models.cymbra.app, the base URL
+# apps/lingua-extension/model-manifest.json names and every Chromium and Firefox package carries.
+#
+# What it serves is decided by the package, not here: tool/assemble_model_site.mjs takes each file
+# the manifest names from Mozilla's model registry and keeps it only if both its digests match —
+# the gzip file as Mozilla publishes it, and its decompressed bytes, which the extension checks
+# again after downloading. Paths are content-addressed and never change meaning, hence
+# `Cache-Control: immutable`; `Access-Control-Allow-Origin: *` because the extension fetches under
+# CORS (a host permission would disable the installed extension until the reader accepted it); a
+# 404 page, because a Pages project without one answers every unknown path with 200.
+#
+# MANUAL ONLY. Deploying is a decision, like site-deploy. It is needed once per model version —
+# before the first release whose manifest names that version reaches a store.
+#
+# Dormant until configured: gated on the CF_PAGES_MODELS_PROJECT repo variable. One-time setup,
+# in the Cloudflare dashboard: create the Pages project (Direct Upload), attach models.cymbra.app
+# as its custom domain, and set CF_PAGES_MODELS_PROJECT to its name.
+#
+# Required repo VARIABLES: CF_PAGES_MODELS_PROJECT
+# Required repo SECRETS:  CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID (shared with site-deploy)
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lingua-model-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: ${{ vars.CF_PAGES_MODELS_PROJECT != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Assemble the model site from Mozilla's registry, both digests checked
+        run: node apps/lingua-extension/tool/assemble_model_site.mjs "$RUNNER_TEMP/models"
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy ${{ runner.temp }}/models --project-name=${{ vars.CF_PAGES_MODELS_PROJECT }} --branch=main
+
+      # What a reader's extension will meet, checked from outside: each file at its address, the
+      # bytes the package pins, served under CORS; and an unknown path that is not a 200.
+      - name: Check what the host serves
+        run: |
+          set -euo pipefail
+          manifest=apps/lingua-extension/model-manifest.json
+          base=$(node -p "require('./$manifest').base")
+          for role in model lex vocab; do
+            path=$(node -p "require('./$manifest').files.$role.path")
+            want=$(node -p "require('./$manifest').files.$role.sha256")
+            headers=$(mktemp)
+            got=$(curl -fsS -D "$headers" -H "Origin: chrome-extension://check" "$base$path" | gunzip -c | sha256sum | cut -d' ' -f1)
+            if [ "$got" != "$want" ]; then
+              echo "::error::$base$path does not decompress to the pinned $role (sha256 $got)"; exit 1
+            fi
+            grep -qi '^access-control-allow-origin: \*' "$headers" || { echo "::error::$role is served without CORS"; exit 1; }
+            grep -qi '^cache-control:.*immutable' "$headers" || { echo "::error::$role is served without Cache-Control: immutable"; exit 1; }
+            echo "$role: ok"
+          done
+          status=$(curl -s -o /dev/null -w '%{http_code}' "${base}this-path-does-not-exist")
+          if [ "$status" = "200" ]; then
+            echo "::error::an unknown path answers 200 — the extension would still refuse it, but the host must not"; exit 1
+          fi
+          echo "Unknown path: $status. The model is served as the extension expects." >> "$GITHUB_STEP_SUMMARY"

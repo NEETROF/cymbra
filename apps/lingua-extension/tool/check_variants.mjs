@@ -2,15 +2,13 @@
 // browser needs, and each bundle kept only its own branches of the capability defines
 // (build.mjs `capabilities` + esbuild minifySyntax). A stray `__TARGET__ === "firefox"` left
 // where a capability belongs builds fine and type-checks — only the bundle shows it.
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { engineProblems } from "./engine_pin.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const failures = [];
-// `--engine` checks a DEVELOPMENT build made with LINGUA_TRANSLATION_ENGINE; without it, this
-// checks what ships — and what ships must carry no trace of the translation engine.
-const ENGINE_BUILD = process.argv.includes("--engine");
 
 function read(target, file) {
   return readFileSync(join(root, `dist-${target}`, file), "utf8");
@@ -111,32 +109,67 @@ for (const target of ["chromium", "firefox", "safari"]) {
   }
 }
 
-// The translation engine (add-lingua-translation-engine). Shipped: absent, everywhere — no
-// permission, no file, no code. Development build: hosted off every thread that paints, by an
-// offscreen document on Chromium (whose service worker cannot construct a Worker) and by the
-// event page on Firefox; Safari is out of scope and carries none of it.
+// The translation engine (add-lingua-translation-delivery D9). Chromium and Firefox CARRY it —
+// the pinned build, hosted off every thread that paints: by an offscreen document on Chromium
+// (whose service worker cannot construct a Worker), by the event page on Firefox — together with
+// the manifest of the model it may download. Safari carries none of it. No package carries a
+// model file, and nothing in any package fetches code: the only thing downloaded is data.
 const has = (target, file) => existsSync(join(root, `dist-${target}`, file));
-const ENGINE_MARKERS = ["lingua-translate", "engine-worker.js", "offscreen.html", "loadBergamot"];
-const hosting = ENGINE_BUILD ? ["chromium", "firefox"] : [];
+const ENGINE_MARKERS = ["lingua-translate", "engine-worker.js", "model-worker.js", "offscreen.html", "loadBergamot"];
+const committedModel = JSON.parse(readFileSync(join(root, "model-manifest.json"), "utf8"));
+
+/** Every file under dist-<target>, relative. */
+function filesOf(target) {
+  const base = join(root, `dist-${target}`);
+  const out = [];
+  const walk = (dir) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) walk(path);
+      else out.push(relative(base, path));
+    }
+  };
+  walk(base);
+  return out;
+}
+
 for (const target of ["chromium", "firefox", "safari"]) {
-  const hosts = hosting.includes(target);
-  const offscreen = hosts && target === "chromium";
+  const hosts = target !== "safari";
+  const offscreen = target === "chromium";
   expect(
     manifests[target].permissions.includes("offscreen") === offscreen,
     `${target}: the "offscreen" permission should be ${offscreen ? "requested" : "absent"}`,
   );
-  expect(
-    has(target, "engine-worker.js") === hosts,
-    `${target}: engine-worker.js should be ${hosts ? "built" : "absent"}`,
-  );
-  expect(
-    has(target, "offscreen.html") === offscreen,
-    `${target}: offscreen.html should be ${offscreen ? "built" : "absent"}`,
-  );
+  for (const [file, wanted] of [
+    ["engine-worker.js", hosts],
+    ["model-worker.js", hosts],
+    ["model-manifest.json", hosts],
+    ["offscreen.html", offscreen],
+  ]) {
+    expect(has(target, file) === wanted, `${target}: ${file} should be ${wanted ? "built" : "absent"}`);
+  }
   expect(
     has(target, "engine/bergamot-translator.wasm") === hosts,
-    `${target}: the engine artefact should be ${hosts ? "bundled" : "absent"}`,
+    `${target}: the engine should be ${hosts ? "packaged" : "absent"}`,
   );
+
+  // No model file, whatever it is called: the model is fetched once the reader asks, never shipped.
+  for (const file of filesOf(target)) {
+    const size = statSync(join(root, `dist-${target}`, file)).size;
+    expect(
+      !/\.(bin|spm)(\.gz)?$/.test(file),
+      `${target}: ${file} looks like a model file — the model is never packaged`,
+    );
+    expect(size < 8_000_000, `${target}: ${file} is ${size} bytes — no packaged file is that large but a model`);
+  }
+
+  // No code fetched at run time: no bundle holds the address of a remote script or WebAssembly
+  // module as a string (an address in a library's comment is not one).
+  for (const file of filesOf(target).filter((f) => f.endsWith(".js"))) {
+    const remote = read(target, file).match(/["'`]https?:\/\/[^"'`\s]+\.(?:m?js|wasm)(?:[?#][^"'`]*)?["'`]/);
+    expect(!remote, `${target}/${file}: names remote code (${remote?.[0]}) — only the model may be fetched`);
+  }
+
   if (!hosts) {
     for (const file of ["background.js", "content.js", "popup.js", "sidepanel.js", "stats.js", "account.js"]) {
       if (!has(target, file)) continue;
@@ -145,23 +178,48 @@ for (const target of ["chromium", "firefox", "safari"]) {
         expect(!bundle.includes(marker), `${target}/${file}: "${marker}" must not ship without the engine`);
       }
     }
-  } else {
-    // The background relays; which host it relays to is the variant's.
-    const bg = read(target, "background.js");
-    expect(bg.includes("lingua-translate"), `${target}/background.js: should relay translations`);
+    continue;
+  }
+
+  // The pinned engine, byte for byte.
+  for (const problem of engineProblems(join(root, `dist-${target}`, "engine"))) {
+    expect(false, `${target}: packaged engine — ${problem}`);
+  }
+
+  // The bundled manifest is the committed one, at the production host, and names only data.
+  const model = JSON.parse(read(target, "model-manifest.json"));
+  expect(
+    model.base === committedModel.base,
+    `${target}: the model is fetched from ${model.base}, not ${committedModel.base} — a development build (LINGUA_MODEL_BASE_URL)`,
+  );
+  expect(model.version === committedModel.version, `${target}: model-manifest.json is not the committed model`);
+  for (const [role, file] of Object.entries(committedModel.files)) {
+    const got = model.files?.[role];
     expect(
-      bg.includes("offscreen.html") === offscreen,
-      `${target}/background.js: offscreen host should be ${offscreen ? "present" : "folded away"}`,
+      got?.path === file.path && got.sha256 === file.sha256 && got.size === file.size,
+      `${target}: model-manifest.json's ${role} differs from the committed one`,
     );
-    // Whoever constructs the worker names its script: the event page on Firefox, the offscreen
-    // document on Chromium — never Chromium's service worker, where `Worker` does not exist and
-    // the call would throw at runtime.
-    const owner = offscreen ? "offscreen.js" : "background.js";
-    expect(read(target, owner).includes("engine-worker.js"), `${target}/${owner}: should construct the engine worker`);
+    expect(/\.gz$/.test(file.path) && /^[0-9a-f]{64}$/.test(file.sha256), `${target}: ${role} must be pinned data`);
+  }
+  expect(/^https:\/\//.test(model.base), `${target}: the model must be fetched over https`);
+
+  // The background relays; which host it relays to is the variant's.
+  const bg = read(target, "background.js");
+  expect(bg.includes("lingua-translate"), `${target}/background.js: should relay translations`);
+  expect(
+    bg.includes("offscreen.html") === offscreen,
+    `${target}/background.js: offscreen host should be ${offscreen ? "present" : "folded away"}`,
+  );
+  // Whoever constructs the workers names their scripts: the event page on Firefox, the offscreen
+  // document on Chromium — never Chromium's service worker, where `Worker` does not exist and
+  // the call would throw at runtime.
+  const owner = offscreen ? "offscreen.js" : "background.js";
+  for (const worker of ["engine-worker.js", "model-worker.js"]) {
+    expect(read(target, owner).includes(worker), `${target}/${owner}: should construct ${worker}`);
     if (offscreen) {
       expect(
-        !bg.includes("engine-worker.js"),
-        `${target}/background.js: a service worker cannot construct a Worker — the offscreen document must own it`,
+        !bg.includes(worker),
+        `${target}/background.js: a service worker cannot construct a Worker — the offscreen document must own ${worker}`,
       );
     }
   }
@@ -205,6 +263,4 @@ if (failures.length > 0) {
   console.error(`Variant check failed:\n- ${failures.join("\n- ")}`);
   process.exit(1);
 }
-console.log(
-  `Variant check passed: chromium, firefox, safari${ENGINE_BUILD ? " (development build with the engine)" : ""}.`,
-);
+console.log("Variant check passed: chromium, firefox, safari.");

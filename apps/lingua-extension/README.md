@@ -2,9 +2,10 @@
 
 The first user-facing Lingua surface: read the English web **in place**, with unknown
 words highlighted, an honest per-page percentage, an offline word popup, phrase capture
-and deck creation — **no account, no network**. Framework-free TypeScript, MV3, Yarn
-Berry. It consumes the shared `lingua-core` analysis engine compiled to WASM
-(`crates/lingua-wasm`).
+and deck creation — **no account, no network** (until the reader signs in, or turns on
+« Traduction étendue », which downloads its model once — [TRANSLATION.md](TRANSLATION.md)).
+Framework-free TypeScript, MV3, Yarn Berry. It consumes the shared `lingua-core` analysis
+engine compiled to WASM (`crates/lingua-wasm`).
 
 ## Develop
 
@@ -175,7 +176,8 @@ yarn lint && yarn format:check && yarn typecheck && yarn test
 - **Permissions** — on Chromium, `activeTab` by default (the popup's _Analyser cette
   page_) with `<all_urls>` optional (_Toujours surligner_, granted once); on Firefox and
   Safari the reader is a static content script on every page (see the injection note
-  above). No network requests at all; the pack and glosses are local assets.
+  above). No network request unless the reader signs in or turns on « Traduction étendue »
+  (its model, once); the pack, the glosses and the translation engine are local assets.
 - **Identity** — one token sheet (`src/styles/tokens.css`) mirrors the Cymbra
   "Sonic Luminescence" palette; no colour literal lives anywhere else (lint-enforced).
 
