@@ -61,6 +61,29 @@ without the caller re-reading the source text.
 - **WHEN** a translation is returned
 - **THEN** the caller can show the translated sentence as well as the marked span
 
+### Requirement: The mark is checked against the selection translated alone
+Where the selection is marked SHALL be checked against a translation of the selection on its own, which SHALL only ever move, split or trim the marks and SHALL never be shown to the reader.
+The engine places the mark by its own alignment, which can land on a neighbouring word, and a
+single tag can only mark one run of words where the reader's words may be separated in the
+translation. The check SHALL NOT invent a mark where the engine placed none, and when the
+selection alone cannot be translated, the engine's mark SHALL stand as it is.
+
+#### Scenario: The engine marks the wrong word
+- **WHEN** the reader selects a word and the engine marks its neighbour in the translated sentence, while the selection's own translation stands exactly once elsewhere in it
+- **THEN** the mark is on the selection's own translation, and the neighbour is not marked
+
+#### Scenario: The reader's words are separated in the translation
+- **WHEN** the translated sentence puts a word the reader did not select between words they did
+- **THEN** the reader's words are marked as separate spans and the word between them is not marked
+
+#### Scenario: Words the sentence's grammar imposes stay marked
+- **WHEN** the marked span holds short words — an auxiliary, an article, a pronoun — that the selection translated alone does not contain
+- **THEN** they stay marked
+
+#### Scenario: The selection alone gets no translation
+- **WHEN** translating the selection on its own fails or times out
+- **THEN** the translation is still answered, with the engine's mark as it placed it
+
 ### Requirement: Page text is escaped before it is marked
 Text taken from the page SHALL be escaped before the selection's markup is placed in it.
 The engine is asked to preserve markup, so the sentence it receives is markup; page content that

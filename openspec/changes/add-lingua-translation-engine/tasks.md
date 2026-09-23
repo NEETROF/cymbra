@@ -55,6 +55,15 @@ nothing and 7.4 without an object.
 - [x] 7.4 Verify that a card created from a translated selection holds no machine translation
 - [x] 7.5 Record all measurements in the change, replacing any estimate carried from the roadmap
 
+## 7b. The mark is checked (added during device testing)
+
+The tag's position is the engine's alignment, and on a real page it put `seldom` on the verb.
+
+- [x] 7b.1 Ask the engine for the selection alone next to the tagged sentence, from the relay, as a check that is never a dependency: when it fails, the tag's marks stand
+- [x] 7b.2 Check the marks against it in a pure module, `translate/reconcile.ts`: move a mark the lone translation places elsewhere, split or trim it word by word, never invent one and never remove every one
+- [x] 7b.3 Unit-test it on the engine's real answers — the misplaced tag, the separated words, the inflected form, the elided clitic, the grammar's short words, a synonym, the stray article
+- [x] 7b.4 Measure it on 100 sentences with the real engine, judged by hand, and record the result in the design
+
 ## 8. Gates
 
 - [x] 8.1 `yarn lint`, `yarn format:check`, `yarn typecheck` clean from `apps/lingua-extension`

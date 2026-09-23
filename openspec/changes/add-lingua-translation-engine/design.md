@@ -108,7 +108,7 @@ the fragment's place in the French for free. Measured:
 |---|---|---|
 | `<b>the effects of inflation</b>` | `<b>les effets de l'inflation</b>` | 136 ms |
 | `<b>put up with</b>` | `<b>supporter</b>` | 18 ms |
-| `<b>seldom</b>` | `<b>rarement</b>` | 11 ms |
+| `<b>seldom</b>` (in "They seldom ship on Friday.") | `<b>rarement</b>` | 11 ms |
 | `<b>gave up</b>` | `<b>a abandonné</b>` | 24 ms |
 
 The last is the case that justifies the whole design: alone, the fragment yields an infinitive;
@@ -117,6 +117,68 @@ words collapsing to one French word with the tag still correct.
 
 *Consequence:* the page's text becomes HTML input, so it must be escaped before the tag is
 placed. An unescaped `<` in a page breaks the call.
+
+### The tag's position is checked against the selection translated alone
+
+*Added during device testing.* The tag is placed by the engine's alignment, and the alignment
+can be wrong. The `seldom` row above holds in its short sentence; in a longer one, "They
+<b>seldom</b> ship on Friday, even when the customer asks nicely." came back "Ils
+<b>expédient</b> rarement…" — a right translation with the mark on the verb. And one tag can only
+mark one run of words, where the reader's may land apart: "They seldom" is "Ils … rarement", with
+"expédient", which is *ship*, between.
+
+So the relay makes a second request, the selection alone, and `translate/reconcile.ts` checks
+the tag's marks against it. The lone translation has lost the context's grammar — that is why it
+is never shown — but it says which target words belong to the selection:
+
+1. Found exactly once in the sentence, clear of the tag's marks: the tag landed on a neighbour,
+   and the lone translation's place replaces it (`seldom` → "rarement").
+2. Otherwise the marks are checked word by word, within the tagged words and the full neighbouring
+   words the lone translation also contains. A tagged word stays when the lone translation
+   contains it, when it is short (under four letters: an article, an auxiliary, a pronoun takes
+   its form from the sentence, so the fragment alone is no evidence against it), or when the lone
+   translation is not wholly found (it may have used a synonym). An untagged word joins on the
+   lone translation's evidence, or — if short — only as the glue between two kept words. A stray
+   run of short words the lone translation lacks is dropped. Words compare case-folded, with an
+   elided clitic removed (`s'attendait` = `attendait`), and as the same word when they share a
+   prefix of at least five letters covering 70 % of the shorter (`expédient` / `expédiés`).
+3. Sharing no word with the marks, the lone translation says nothing about them, and they stand.
+
+Marks may therefore be several spans: "They seldom" → "[Ils] expédient [rarement]". The check
+never invents a mark where the engine placed none, and never removes every mark. It is a check,
+not a dependency: if the lone request fails or times out, the tag's marks stand as they were.
+
+*Rejected — one contiguous span, grown to cover the lone translation.* It turned "They seldom"
+into "[Ils expédient rarement]", marking *ship*, which the reader did not select.
+
+*Rejected — keeping every word inside the region when the lone translation is not wholly found.*
+It turned "[Nous] rendons [souvent]" (*We often*), which was right, into one mark over
+"rendons". An untagged word is never admitted on the ground that the evidence fell short.
+
+*Cost:* one more short request, to the same worker, right behind the sentence. Measured in the
+Safari spike, which batched the two into one engine call: a median 28 ms (max 129 ms) on the iOS
+simulator.
+
+**Measured on 100 sentences** (en→fr, the real engine in Safari on the iOS simulator, each with
+one selection: phrasal verbs, adverbs, adjective–noun inversions, noun phrases, idioms,
+discontinuous selections, auxiliaries and negation, single words, clauses), replayed through this
+module and judged by hand:
+
+| | tag alone | tag, checked |
+|---|---|---|
+| Marks right, of 87 the model translated correctly | 77 | 83 |
+| Marks made wrong by the check | — | 0 |
+| Split marks joined into one over their short glue words | — | 5 |
+
+The 13 left out are the model's own mistranslations, which no mark can make right: nine of ten
+idioms rendered word for word ("mordre la balle", "au-dessus de la lune"), and four sentences
+("savé", "récupérer" for *back up*, "ont été menées" for *fell through*, a garbled "should
+have"). The four still wrong after the check: `go up` marked on an article, `look forward to` on
+"se" alone, `hardly ever` still holding "regardons", and `used to` with no mark (the imperfect
+"jouais" absorbs it — the clean failure).
+
+The thresholds were set on French. A second target language should be measured the same way
+before it relies on them.
 
 ### The model is side-loaded, and nothing is downloaded
 
