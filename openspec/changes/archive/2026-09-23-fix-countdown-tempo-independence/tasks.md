@@ -14,4 +14,4 @@
 ## 3. Spec
 
 - [x] 3.1 Delta spec: `gamified-feedback` / Pre-Start Countdown corrected to 3…2…1…GO and given the wall-clock requirement + scenario.
-- [ ] 3.2 Archive after review/merge (`/opsx:archive fix-countdown-tempo-independence`).
+- [x] 3.2 Archive after review/merge (`/opsx:archive fix-countdown-tempo-independence`).
