@@ -19,12 +19,10 @@ use tonic::{Request, Response, Status};
 use crate::admin::LinguaAdminModule;
 use crate::admin_core::SeriesMetric;
 use crate::grpc_util::identity;
-use crate::pack_registry::DataPack;
 use crate::proto::lingua_admin_service_server::LinguaAdminService;
 use crate::proto::{
     AdminGetLinguaUsageRequest, AdminGetLinguaUsageResponse, AdminGetLinguaUsageSeriesRequest,
-    AdminGetLinguaUsageSeriesResponse, AdminListDataPacksRequest, AdminListDataPacksResponse,
-    LinguaDataPack, LinguaLanguageUsage, LinguaSeriesPoint,
+    AdminGetLinguaUsageSeriesResponse, LinguaLanguageUsage, LinguaSeriesPoint,
 };
 
 pub struct LinguaAdminGrpc {
@@ -51,18 +49,6 @@ fn metric_from_proto(v: i32) -> SeriesMetric {
 fn window(w: Option<crate::proto::LinguaWindow>) -> Result<(String, String), Status> {
     let w = w.ok_or_else(|| Status::invalid_argument("window is required"))?;
     Ok((w.from_day, w.to_day))
-}
-
-fn pack_to_proto(p: &DataPack) -> LinguaDataPack {
-    LinguaDataPack {
-        studied: p.studied.clone(),
-        native: p.native.clone(),
-        pack_version: p.pack_version.clone(),
-        analyzer_version: p.analyzer_version.clone(),
-        built_at: p.built_at.clone(),
-        size_bytes: p.size_bytes,
-        notice: p.notice.clone(),
-    }
 }
 
 #[tonic::async_trait]
@@ -117,16 +103,6 @@ impl LinguaAdminService for LinguaAdminGrpc {
                 .collect(),
         }))
     }
-
-    async fn admin_list_data_packs(
-        &self,
-        req: Request<AdminListDataPacksRequest>,
-    ) -> Result<Response<AdminListDataPacksResponse>, Status> {
-        require_admin_in_scope(&identity(&req)?, LINGUA_SCOPE)?;
-        Ok(Response::new(AdminListDataPacksResponse {
-            packs: self.module.list_packs().iter().map(pack_to_proto).collect(),
-        }))
-    }
 }
 
 #[cfg(test)]
@@ -159,9 +135,7 @@ mod tests {
     }
 
     fn grpc() -> LinguaAdminGrpc {
-        LinguaAdminGrpc::new(Arc::new(
-            LinguaAdminModule::new(Arc::new(QuietRepo)).expect("manifest parses"),
-        ))
+        LinguaAdminGrpc::new(Arc::new(LinguaAdminModule::new(Arc::new(QuietRepo))))
     }
 
     /// A request carrying an identity with the given `scope -> roles`.

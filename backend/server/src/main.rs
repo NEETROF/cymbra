@@ -811,11 +811,10 @@ async fn main() -> anyhow::Result<()> {
             ));
             let data = std::sync::Arc::new(cymbra_lingua::DataModule::new(data_repo));
             // Ops console (change: add-lingua-back-office): gated by `admin` in the
-            // `lingua` scope. `new` parses the embedded pack registry — an invalid
-            // committed manifest fails the boot here rather than a request.
+            // `lingua` scope.
             let admin = std::sync::Arc::new(cymbra_lingua::LinguaAdminModule::new(
                 std::sync::Arc::new(cymbra_lingua::PgLinguaAdminRepo::new(pool.clone())),
-            )?);
+            ));
             (
                 Some(cymbra_lingua::proto::known_words_service_server::KnownWordsServiceServer::with_interceptor(
                     cymbra_lingua::KnownWordsGrpc::new(known_words),

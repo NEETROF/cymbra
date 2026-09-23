@@ -124,15 +124,7 @@
     "reviews": "Révisions",
     "exposures": "Expositions",
     "byLanguage": "Par langue étudiée",
-    "noData": "Aucune donnée pour cette période",
-    "packsTitle": "Packs de données",
-    "pair": "Paire",
-    "packVersion": "Version du pack",
-    "analyzerVersion": "Version de l’analyseur",
-    "builtAt": "Compilé",
-    "size": "Taille",
-    "notice": "Attributions",
-    "viewNotice": "Voir les attributions"
+    "noData": "Aucune donnée pour cette période"
   },
   "jobs": {
     "title": "Jobs",

@@ -23,8 +23,6 @@ service LinguaAdminService {
   rpc AdminGetLinguaUsage(AdminGetLinguaUsageRequest) returns (AdminGetLinguaUsageResponse);
   // A per-day series for one metric over a window (optionally one studied language).
   rpc AdminGetLinguaUsageSeries(AdminGetLinguaUsageSeriesRequest) returns (AdminGetLinguaUsageSeriesResponse);
-  // The read-only registry of published data-pack versions.
-  rpc AdminListDataPacks(AdminListDataPacksRequest) returns (AdminListDataPacksResponse);
 }
 
 // A closed UTC-day window, inclusive both ends (yyyy-mm-dd, the /usage convention).
@@ -74,22 +72,4 @@ message LinguaSeriesPoint {
 
 message AdminGetLinguaUsageSeriesResponse {
   repeated LinguaSeriesPoint points = 1;
-}
-
-message AdminListDataPacksRequest {}
-
-// One published pack in the registry (a build artefact versioned with the repo). No
-// account data — pack metadata only.
-message LinguaDataPack {
-  string studied = 1;          // studied-language code
-  string native = 2;           // native / gloss language code
-  string pack_version = 3;     // the pack's content revision
-  string analyzer_version = 4; // the analyser generation it was built for
-  string built_at = 5;         // CI build date (yyyy-mm-dd)
-  int64 size_bytes = 6;
-  string notice = 7;           // the pack's NOTICE (licences/attribution), verbatim
-}
-
-message AdminListDataPacksResponse {
-  repeated LinguaDataPack packs = 1;
 }

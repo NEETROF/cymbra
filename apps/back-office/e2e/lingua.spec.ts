@@ -2,11 +2,11 @@ import { test, expect, seed } from "./fixtures";
 
 // Change: add-lingua-back-office. Drives the "Lingua" ops console in a real browser
 // against the gated fake seam (no backend): the aggregate tiles, the per-day series,
-// the per-language breakdown and the read-only pack registry — plus the scope gate
+// the per-language breakdown and the studied-language filter it feeds — plus the scope gate
 // (only a `lingua`-scope admin reaches it; a moderator and a music-only admin do not).
 
 test.describe("lingua ops console", () => {
-  test("a lingua admin sees the tiles, series and pack registry", async ({ page }) => {
+  test("a lingua admin sees the tiles, series and language breakdown", async ({ page }) => {
     await seed(page, {
       loginAs: "lingua-admin",
       data: {
@@ -17,17 +17,6 @@ test.describe("lingua ops console", () => {
           exposures: 900,
           byLanguage: [{ language: "en", activeAccounts: 42, wordsLearned: 120, reviews: 300 }],
         },
-        linguaPacks: [
-          {
-            studied: "en",
-            native: "fr",
-            packVersion: "0.0.0-testdata",
-            analyzerVersion: "1.0.0",
-            builtAt: "2026-09-11",
-            sizeBytes: 747,
-            notice: "AGID; wordfreq; kaikki.",
-          },
-        ],
       },
     });
     await page.goto("/lingua/overview");
@@ -39,9 +28,12 @@ test.describe("lingua ops console", () => {
     await expect(page.getByTestId("reviews")).toContainText("300");
     // The per-day series render on canvas.
     await expect(page.locator("canvas").first()).toBeVisible();
-    // The per-language breakdown and the read-only pack registry.
+    // The per-language breakdown, and the studied-language filter drawn from it (change:
+    // remove-lingua-pack-registry — the filter used to list the registered packs).
     await expect(page.getByTestId("language-row")).toContainText("en");
-    await expect(page.getByTestId("pack-row")).toContainText("0.0.0-testdata");
+    await expect(page.getByTestId("language").locator("option")).toHaveText([/./, "en"]);
+    // The pack registry is gone from the screen.
+    await expect(page.getByTestId("pack-row")).toHaveCount(0);
     // The "synced accounts" bias is stated on screen.
     await expect(page.getByText(/only accounts that sync/i)).toBeVisible();
   });
