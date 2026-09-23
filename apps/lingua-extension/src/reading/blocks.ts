@@ -66,13 +66,26 @@ export interface Block {
 
 const HAS_LETTER = /\p{L}/u;
 
+/** The document a node lives in — itself, for a document. Every DOM call here goes through
+ *  it, so the same code reads a web page and a book section rendered in an iframe. */
+export function docOf(node: Node): Document {
+  return node.ownerDocument ?? (node as Document);
+}
+
+/** Whether a node is an element — by its type, not `instanceof`, which is false for a node
+ *  of another document's realm (a book section's iframe). */
+export function isElement(node: Node | null | undefined): node is Element {
+  return node?.nodeType === 1;
+}
+
 /**
  * Collect analysis blocks under `root` (default document.body), preserving the
  * Text-node provenance of every character. Whitespace-only nodes are kept so
  * inter-word spacing survives concatenation; blocks with no letters are dropped.
  */
 export function collectBlocks(root: ParentNode & Node = document.body): Block[] {
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+  const doc = docOf(root);
+  const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
     acceptNode(node: Node): number {
       const parent = (node as Text).parentElement;
       if (!parent) return NodeFilter.FILTER_REJECT;
@@ -83,7 +96,7 @@ export function collectBlocks(root: ParentNode & Node = document.body): Block[] 
   });
 
   const byContainer = new Map<Element, Block>();
-  const rootEl = root instanceof Element ? root : document.body;
+  const rootEl = isElement(root) ? root : doc.body;
 
   for (let n = walker.nextNode(); n; n = walker.nextNode()) {
     const text = n as Text;
@@ -150,7 +163,7 @@ export function rangeForToken(block: Block, byteStart: number, byteEnd: number):
   const endSeg = segmentAt(block, charEnd, true);
   if (!startSeg || !endSeg) return null;
   try {
-    const range = document.createRange();
+    const range = docOf(startSeg.node).createRange();
     range.setStart(startSeg.node, charStart - startSeg.blockStart);
     range.setEnd(endSeg.node, charEnd - endSeg.blockStart);
     return range;

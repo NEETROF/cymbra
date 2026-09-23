@@ -1,4 +1,4 @@
-import { HOST_ID } from "./blocks.ts";
+import { docOf, HOST_ID } from "./blocks.ts";
 
 // Dynamic-content handling (task 1.4). A debounced MutationObserver turns DOM changes
 // into a set of dirty block-level containers — never a whole-page re-walk. An
@@ -30,12 +30,12 @@ const BLOCK_SELECTOR = [
   "div",
 ].join(",");
 
-/** Nearest block-level container of a node, or the body. */
+/** Nearest block-level container of a node, or its document's body. */
 function blockOf(node: Node): Element | null {
   const el = node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as Element);
   if (!el) return null;
   if (el.closest(`#${HOST_ID},[data-cymbra-lingua-skip]`)) return null; // ignore our own UI
-  return el.closest(BLOCK_SELECTOR) ?? document.body;
+  return el.closest(BLOCK_SELECTOR) ?? docOf(el).body;
 }
 
 export interface ReadingObserverOptions {
@@ -55,12 +55,14 @@ export class ReadingObservers {
 
   constructor(private readonly opts: ReadingObserverOptions) {}
 
-  /** Begin observing mutations under `root` for dynamic re-analysis. */
+  /** Begin observing mutations under `root` for dynamic re-analysis. The observers are
+   *  the root's own window's, so a book section's iframe is watched by its own. */
   start(root: Node = document.body): void {
-    this.mo = new MutationObserver((records) => this.onMutations(records));
+    const win = (docOf(root).defaultView ?? window) as Window & typeof globalThis;
+    this.mo = new win.MutationObserver((records) => this.onMutations(records));
     this.mo.observe(root, { childList: true, subtree: true, characterData: true });
-    if (typeof IntersectionObserver !== "undefined") {
-      this.io = new IntersectionObserver((entries) => this.onIntersections(entries));
+    if (typeof win.IntersectionObserver !== "undefined") {
+      this.io = new win.IntersectionObserver((entries) => this.onIntersections(entries));
     }
   }
 

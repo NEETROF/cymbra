@@ -160,9 +160,12 @@ export function captureFrom(sel: Selection | null, maxLength: number = MAX_SELEC
   return { text, sentence, selection, rect, range };
 }
 
-/** The page selection, captured. */
-export function captureSelection(maxLength: number = MAX_SELECTION_LENGTH): Capture | null {
-  return captureFrom(window.getSelection(), maxLength);
+/** The selection of a window — the page's by default, or a book section's — captured. */
+export function captureSelection(
+  maxLength: number = MAX_SELECTION_LENGTH,
+  win: Pick<Window, "getSelection"> = window,
+): Capture | null {
+  return captureFrom(win.getSelection(), maxLength);
 }
 
 /** One word, or an expression: whitespace makes a phrase, which is also what the core means
@@ -175,7 +178,9 @@ export function classifySelection(text: string): CaptureKind {
 /** Whether a node sits inside one of the reader's own injected surfaces (popup, drawer,
  *  HUD), which all carry the marker `blocks.ts` and `observer.ts` already honour. */
 function insideReaderUi(node: Node | null): boolean {
-  const el = node instanceof Element ? node : (node?.parentElement ?? null);
+  // By node type, not `instanceof Element`: a node of a book section's iframe belongs to
+  // another realm, and would never be an instance of this window's Element.
+  const el = node?.nodeType === Node.ELEMENT_NODE ? (node as Element) : (node?.parentElement ?? null);
   return !!el?.closest?.("[data-cymbra-lingua-skip]");
 }
 
@@ -184,6 +189,9 @@ export interface SelectionWatcherOptions {
   onCapture: (kind: CaptureKind, capture: Capture) => void;
   /** Read the current selection (injected in tests). */
   read?: () => Selection | null;
+  /** The window whose selection is read when `read` is not given: the page's by default,
+   *  a book section's in the reader. */
+  win?: Pick<Window, "getSelection">;
   settleMs?: number;
   heldMs?: number;
   maxLength?: number;
@@ -255,7 +263,7 @@ export class SelectionWatcher {
   }
 
   private selection(): Selection | null {
-    return this.opts.read ? this.opts.read() : window.getSelection();
+    return this.opts.read ? this.opts.read() : (this.opts.win ?? window).getSelection();
   }
 
   /** A selection worth waiting on: non-empty, and not inside the reader's own UI. */

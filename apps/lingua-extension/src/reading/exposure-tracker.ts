@@ -16,9 +16,11 @@ export class ExposureTracker {
     private readonly dwellMs = 1500,
   ) {}
 
-  start(): void {
-    if (typeof IntersectionObserver === "undefined") return;
-    this.io = new IntersectionObserver((entries) => this.onIntersections(entries), { threshold: 0.5 });
+  /** Begin watching, with the observer of the window the blocks live in (a book section's
+   *  iframe has its own); the page's by default. */
+  start(win: Window & typeof globalThis = window): void {
+    if (typeof win.IntersectionObserver === "undefined") return;
+    this.io = new win.IntersectionObserver((entries) => this.onIntersections(entries), { threshold: 0.5 });
   }
 
   stop(): void {
