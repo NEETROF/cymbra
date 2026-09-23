@@ -2,6 +2,7 @@ import type { AccountReply } from "../account/messages.ts";
 import { createLinguaPort } from "../analyzer/create-port.ts";
 import type { CefrLevel } from "../analyzer/types.ts";
 import { type AsyncStorageArea, hydrateEngine, saveBackup } from "../state/storage.ts";
+import { messagedArea } from "../state/store.ts";
 
 // First-run welcome tab, opened on install (Chromium/Firefox; a best-effort bonus —
 // the popup's level call-to-action is the portable equivalent). It hydrates its own
@@ -9,10 +10,13 @@ import { type AsyncStorageArea, hydrateEngine, saveBackup } from "../state/stora
 // If the pack carries no CEFR data the level step is hidden. Excluded from coverage
 // (DOM wiring; the engine/model are tested elsewhere).
 
-const area: AsyncStorageArea = {
-  get: (keys) => chrome.storage.local.get(keys),
-  set: (items) => chrome.storage.local.set(items),
-};
+/**
+ * The reader's data, owned by the background — never `chrome.storage.local`, which the store
+ * left (change: move-lingua-store-to-indexeddb). Reading the backup from the old address gave
+ * this tab an empty engine, and writing the chosen level back put it where nothing reads: the
+ * level the reader picked here was lost.
+ */
+const store: AsyncStorageArea = messagedArea();
 
 function $(id: string): HTMLElement {
   const el = document.getElementById(id);
@@ -45,7 +49,7 @@ async function showAccountOffer(): Promise<void> {
 async function main(): Promise<void> {
   void showAccountOffer();
   const port = createLinguaPort();
-  await hydrateEngine(port, area);
+  await hydrateEngine(port, store);
 
   if (!(await port.hasLevels())) return; // no CEFR data → welcome text only
 
@@ -63,7 +67,7 @@ async function main(): Promise<void> {
       await port.setDeclaredLevelAt(level, Date.now()); // stamp for cross-device LWW
       // With a declared level, presumption comes only from it (option B).
       await port.setCalibration(0);
-      await saveBackup(area, await port.backup());
+      await saveBackup(store, await port.backup());
       mark(level);
       const confirm = $("level-confirm");
       confirm.hidden = false;

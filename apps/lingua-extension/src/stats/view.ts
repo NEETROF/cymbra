@@ -2,8 +2,8 @@ import type { LinguaPort } from "../analyzer/port.ts";
 import { type CefrLevel, CEFR_LEVELS, type SeedOrder } from "../analyzer/types.ts";
 import { loadDailyStats, utcDay } from "../state/dailystats.ts";
 import { type AsyncStorageArea, saveBackup } from "../state/storage.ts";
-import { barChartSvg } from "./chart.ts";
-import { ladderHtml, vocabularyHtml } from "./ladder.ts";
+import { barChartElement } from "./chart.ts";
+import { ladderView, vocabularyView } from "./ladder.ts";
 import {
   buildSeries,
   consolidatedToMap,
@@ -77,37 +77,113 @@ const MARKED_SECTIONS: { origin: MarkedOrigin; label: string; note: string | nul
   },
 ];
 
-function seedControlHtml(): string {
-  const levels = CEFR_LEVELS.map((l) => `<option value="${l}">${l}</option>`).join("");
-  return (
-    `<div class="seed"><div class="mlabel">Renforcer un niveau</div>` +
-    `<div class="seed-note">Ajoute des mots d'un niveau à ton deck de révision, sans attendre de les croiser en lisant.</div>` +
-    `<div class="seed-controls">` +
-    `<select class="seed-sel" id="seed-level" aria-label="Niveau">${levels}</select>` +
-    `<input class="seed-num" id="seed-count" type="number" min="1" max="${SEED_CAP}" step="1" value="20" aria-label="Nombre de mots" />` +
-    `<select class="seed-sel" id="seed-order" aria-label="Ordre">` +
-    `<option value="common">courants d'abord</option><option value="rare">rares d'abord</option>` +
-    `</select></div>` +
-    `<button class="seed-btn" id="seed-go">Ajouter au deck</button>` +
-    `<div class="note seed-result" id="seed-result" hidden></div></div>`
-  );
+function buildSeedControl(): HTMLElement {
+  const wrap = document.createElement("div");
+  wrap.className = "seed";
+
+  const label = document.createElement("div");
+  label.className = "mlabel";
+  label.textContent = "Renforcer un niveau";
+  wrap.append(label);
+
+  const note = document.createElement("div");
+  note.className = "seed-note";
+  note.textContent = "Ajoute des mots d'un niveau à ton deck de révision, sans attendre de les croiser en lisant.";
+  wrap.append(note);
+
+  const controls = document.createElement("div");
+  controls.className = "seed-controls";
+  wrap.append(controls);
+
+  const levelSel = document.createElement("select");
+  levelSel.className = "seed-sel";
+  levelSel.id = "seed-level";
+  levelSel.setAttribute("aria-label", "Niveau");
+  for (const l of CEFR_LEVELS) {
+    const opt = document.createElement("option");
+    opt.value = l;
+    opt.textContent = l;
+    levelSel.append(opt);
+  }
+  controls.append(levelSel);
+
+  const countInput = document.createElement("input");
+  countInput.className = "seed-num";
+  countInput.id = "seed-count";
+  countInput.type = "number";
+  countInput.min = "1";
+  countInput.max = String(SEED_CAP);
+  countInput.step = "1";
+  countInput.value = "20";
+  countInput.setAttribute("aria-label", "Nombre de mots");
+  controls.append(countInput);
+
+  const orderSel = document.createElement("select");
+  orderSel.className = "seed-sel";
+  orderSel.id = "seed-order";
+  orderSel.setAttribute("aria-label", "Ordre");
+  const commonOpt = document.createElement("option");
+  commonOpt.value = "common";
+  commonOpt.textContent = "courants d'abord";
+  const rareOpt = document.createElement("option");
+  rareOpt.value = "rare";
+  rareOpt.textContent = "rares d'abord";
+  orderSel.append(commonOpt, rareOpt);
+  controls.append(orderSel);
+
+  const btn = document.createElement("button");
+  btn.className = "seed-btn";
+  btn.id = "seed-go";
+  btn.textContent = "Ajouter au deck";
+  wrap.append(btn);
+
+  const result = document.createElement("div");
+  result.className = "note seed-result";
+  result.id = "seed-result";
+  result.hidden = true;
+  wrap.append(result);
+
+  return wrap;
 }
 
 /** Render the whole stats view (ladder + seed control + daily cards) into `root`. */
 export async function mountStats(root: HTMLElement, port: LinguaPort, area: AsyncStorageArea): Promise<void> {
   let range: Range = 30;
   root.classList.add("stats");
-  root.innerHTML =
-    `<div class="vocab-slot"></div>` +
-    `<div class="ladder-slot"></div>` +
-    `<div class="seed-slot"></div>` +
-    `<div class="marked-slot"></div>` +
-    `<div class="topline"><span class="scope">…</span>` +
-    `<div class="ranges">` +
-    RANGES.map((r) => `<button data-range="${r}"${r === range ? ' class="active"' : ""}>${r} j</button>`).join("") +
-    `</div></div>` +
-    `<div class="cards"></div>` +
-    `<p class="note">Les sessions d'agent IA (plugin Claude Code) ne sont pas comptées ici.</p>`;
+
+  const vocabSlot = document.createElement("div");
+  vocabSlot.className = "vocab-slot";
+  const ladderSlot = document.createElement("div");
+  ladderSlot.className = "ladder-slot";
+  const seedSlot = document.createElement("div");
+  seedSlot.className = "seed-slot";
+  const markedSlot = document.createElement("div");
+  markedSlot.className = "marked-slot";
+
+  const topline = document.createElement("div");
+  topline.className = "topline";
+  const scopeSpan = document.createElement("span");
+  scopeSpan.className = "scope";
+  scopeSpan.textContent = "…";
+  const ranges = document.createElement("div");
+  ranges.className = "ranges";
+  for (const r of RANGES) {
+    const btn = document.createElement("button");
+    btn.dataset.range = String(r);
+    if (r === range) btn.className = "active";
+    btn.textContent = `${r} j`;
+    ranges.append(btn);
+  }
+  topline.append(scopeSpan, ranges);
+
+  const cards = document.createElement("div");
+  cards.className = "cards";
+
+  const trailingNote = document.createElement("p");
+  trailingNote.className = "note";
+  trailingNote.textContent = "Les sessions d'agent IA (plugin Claude Code) ne sont pas comptées ici.";
+
+  root.replaceChildren(vocabSlot, ladderSlot, seedSlot, markedSlot, topline, cards, trailingNote);
 
   const pick = <T extends HTMLElement>(sel: string): T => {
     const el = root.querySelector<T>(sel);
@@ -118,13 +194,16 @@ export async function mountStats(root: HTMLElement, port: LinguaPort, area: Asyn
   // The ladder and the estimate do not depend on the range; re-rendered after a seed.
   const renderLadder = async (): Promise<void> => {
     const hasLevels = await port.hasLevels();
-    pick(".vocab-slot").innerHTML = vocabularyHtml(await port.vocabularyEstimate(), hasLevels);
+    const vocab = vocabularyView(await port.vocabularyEstimate(), hasLevels);
+    pick(".vocab-slot").replaceChildren(...(vocab ? [vocab] : []));
     if (hasLevels) {
       const [rows, declared] = [await port.levelLadder(), await port.declaredLevel()];
-      pick(".ladder-slot").innerHTML = ladderHtml(rows, declared);
+      pick(".ladder-slot").replaceChildren(ladderView(rows, declared));
     } else {
-      pick(".ladder-slot").innerHTML =
-        `<div class="note">Niveaux CEFR indisponibles pour cette langue (pack sans données CEFR).</div>`;
+      const note = document.createElement("div");
+      note.className = "note";
+      note.textContent = "Niveaux CEFR indisponibles pour cette langue (pack sans données CEFR).";
+      pick(".ladder-slot").replaceChildren(note);
     }
   };
   await renderLadder();
@@ -132,7 +211,7 @@ export async function mountStats(root: HTMLElement, port: LinguaPort, area: Asyn
   // "Renforcer un niveau" — only meaningful with CEFR data. Rendered once (stable
   // listener); a seed persists, reports, and refreshes the ladder.
   if (await port.hasLevels()) {
-    pick(".seed-slot").innerHTML = seedControlHtml();
+    pick(".seed-slot").replaceChildren(buildSeedControl());
     const declared = await port.declaredLevel();
     if (declared) pick<HTMLSelectElement>("#seed-level").value = declared;
     pick<HTMLButtonElement>("#seed-go").addEventListener("click", async () => {
@@ -262,16 +341,29 @@ export async function mountStats(root: HTMLElement, port: LinguaPort, area: Asyn
     const { fromDay, toDay } = dayWindow(utcDay(Date.now()), range);
     const series = buildSeries(byDay, fromDay, toDay);
     pick(".scope").textContent = scope;
-    const cards = pick(".cards");
-    cards.replaceChildren();
+    const cardsEl = pick(".cards");
+    cardsEl.replaceChildren();
     for (const m of METRICS) {
       const card = document.createElement("div");
       card.className = "card";
-      card.innerHTML =
-        `<div class="metric"><span class="mlabel">${m.label}</span>` +
-        `<b class="mtotal">${series.totals[m.key]}</b></div>` +
-        `<div class="chart">${barChartSvg(series[m.key], m.color, m.label)}</div>`;
-      cards.append(card);
+
+      const metric = document.createElement("div");
+      metric.className = "metric";
+      const label = document.createElement("span");
+      label.className = "mlabel";
+      label.textContent = m.label;
+      const total = document.createElement("b");
+      total.className = "mtotal";
+      total.textContent = String(series.totals[m.key]);
+      metric.append(label, total);
+      card.append(metric);
+
+      const chart = document.createElement("div");
+      chart.className = "chart";
+      chart.append(barChartElement(series[m.key], m.color, m.label));
+      card.append(chart);
+
+      cardsEl.append(card);
     }
   };
 

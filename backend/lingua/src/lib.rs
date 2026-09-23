@@ -40,12 +40,11 @@ pub mod data_core;
 pub mod data_grpc;
 pub mod pg_data;
 
-// The back office's ops console (change: add-lingua-back-office): aggregates + the
-// read-only pack registry, gated by `admin` in the `lingua` scope.
+// The back office's ops console (change: add-lingua-back-office): aggregates, gated by
+// `admin` in the `lingua` scope.
 pub mod admin;
 pub mod admin_core;
 pub mod admin_grpc;
-pub mod pack_registry;
 pub mod pg_admin;
 
 pub use data::{DataModule, DataRepo, ErasureMarks};

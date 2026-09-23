@@ -2,12 +2,12 @@
 import { computed, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 import { match } from "ts-pattern";
-import { type SeriesPoint, type LinguaReport, useLinguaStore } from "@/stores/lingua";
+import { type SeriesPoint, type LinguaReport, studiedLanguageOptions, useLinguaStore } from "@/stores/lingua";
 import { currentLocale } from "@/i18n";
 import UsageLineChart from "@/components/UsageLineChart.vue";
 
 // The back-office "Lingua" screen (change: add-lingua-back-office, task 5.3). OPS only:
-// aggregates + the read-only pack registry, never a per-account view. It NEVER calls the
+// aggregates, never a per-account view. It NEVER calls the
 // API directly — the Pinia store does, behind the injectable client seam — and each
 // async resource is a single ts-pattern union, matched exhaustively. Scope-gated by the
 // router (meta.adminScope = "lingua"); every RPC is re-gated server-side.
@@ -16,7 +16,6 @@ const store = useLinguaStore();
 const { t } = useI18n();
 
 onMounted(() => {
-  void store.loadPacks();
   void store.load();
 });
 
@@ -62,26 +61,10 @@ const wordsChart = computed(() => toChart(seriesData.value.wordsLearned, t("ling
 const reviewsChart = computed(() => toChart(seriesData.value.reviews, t("lingua.reviews")));
 const exposuresChart = computed(() => toChart(seriesData.value.exposures, t("lingua.exposures")));
 
-// The studied-language filter list is data-driven from the published packs (stable
-// regardless of the usage window), plus "" = every language.
-const languageOptions = computed(() =>
-  match(store.packs)
-    .with({ status: "success" }, ({ data }) => [...new Set(data.map((p) => p.studied))].sort())
-    .otherwise(() => [] as string[]),
-);
-
-const packs = computed(() =>
-  match(store.packs)
-    .with({ status: "success" }, ({ data }) => data)
-    .otherwise(() => []),
-);
-
-/** A compact human byte size (the pack budget is a few MB at most). */
-function fmtSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-}
+// The studied-language filter lists the languages the usage report holds, plus the selected
+// one (change: remove-lingua-pack-registry — it used to list the registered packs). "" = every
+// language is the select's own first option.
+const languageOptions = computed(() => studiedLanguageOptions(vm.value.data.byLanguage, store.filters.language));
 
 function apply() {
   void store.load();
@@ -187,41 +170,6 @@ function apply() {
           </tbody>
         </table>
       </div>
-
-      <!-- Read-only registry of published data packs (informational; no publish action). -->
-      <div class="panel">
-        <h2>{{ t("lingua.packsTitle") }}</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>{{ t("lingua.pair") }}</th>
-              <th>{{ t("lingua.packVersion") }}</th>
-              <th>{{ t("lingua.analyzerVersion") }}</th>
-              <th>{{ t("lingua.builtAt") }}</th>
-              <th class="n">{{ t("lingua.size") }}</th>
-              <th>{{ t("lingua.notice") }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="p in packs" :key="`${p.studied}-${p.native}-${p.packVersion}`" data-testid="pack-row">
-              <td>{{ p.studied }}→{{ p.native }}</td>
-              <td>{{ p.packVersion }}</td>
-              <td>{{ p.analyzerVersion }}</td>
-              <td>{{ p.builtAt }}</td>
-              <td class="n">{{ fmtSize(p.sizeBytes) }}</td>
-              <td>
-                <details>
-                  <summary>{{ t("lingua.viewNotice") }}</summary>
-                  <pre class="notice">{{ p.notice }}</pre>
-                </details>
-              </td>
-            </tr>
-            <tr v-if="packs.length === 0">
-              <td colspan="6" class="muted">{{ t("lingua.noData") }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
     </template>
   </section>
 </template>
@@ -311,12 +259,6 @@ td.n {
 }
 .muted {
   opacity: 0.6;
-}
-.notice {
-  white-space: pre-wrap;
-  font-size: 0.8rem;
-  margin: 0.5rem 0 0;
-  opacity: 0.85;
 }
 .state {
   opacity: 0.8;
