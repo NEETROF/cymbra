@@ -64,6 +64,16 @@ The tag's position is the engine's alignment, and on a real page it put `seldom`
 - [x] 7b.3 Unit-test it on the engine's real answers — the misplaced tag, the separated words, the inflected form, the elided clitic, the grammar's short words, a synonym, the stray article
 - [x] 7b.4 Measure it on 100 sentences with the real engine, judged by hand, and record the result in the design
 
+## 7c. The engine is kept loaded between selections (found in device testing)
+
+A Galaxy Tab S6 Lite pass showed the engine reloading between selections and losing the race.
+
+- [x] 7c.1 Hold a port open from the reader for as long as it is on the page, so the context hosting the engine is not torn down (`translate/keepalive.ts`); accept it in the background, and send nothing over it
+- [x] 7c.2 Warm nothing eagerly: the engine still loads on the first translation, so a page where nothing is selected never pays for it
+- [x] 7c.3 Reopen the port if the host goes away anyway, and stop when the extension context is gone — an orphaned page has nothing to hold
+- [x] 7c.4 Gate it exactly as the port is gated, as a folded expression, and confirm `check:variants` finds no trace of it in any shipped bundle
+- [x] 7c.5 Unit-test it, and re-measure on the device that showed the problem
+
 ## 8. Gates
 
 - [x] 8.1 `yarn lint`, `yarn format:check`, `yarn typecheck` clean from `apps/lingua-extension`

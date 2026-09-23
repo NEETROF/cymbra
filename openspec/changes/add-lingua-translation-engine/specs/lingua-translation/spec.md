@@ -84,6 +84,24 @@ selection alone cannot be translated, the engine's mark SHALL stand as it is.
 - **WHEN** translating the selection on its own fails or times out
 - **THEN** the translation is still answered, with the engine's mark as it placed it
 
+### Requirement: The engine is not torn down between a reader's selections
+While a page is being read, the context hosting the engine SHALL be kept loaded, so that a selection made long after the previous one does not pay for loading the engine again.
+Holding it SHALL cost nothing until the engine is first used: the engine SHALL NOT be loaded
+before a translation is actually asked for. A shipped build, which carries no engine, SHALL hold
+nothing.
+
+#### Scenario: A selection made minutes after the last one
+- **WHEN** the reader selects a phrase long after the previous selection on the same page, on a target whose background context is otherwise torn down when idle
+- **THEN** the engine answers without reloading its model, and the card shows a translation rather than falling back
+
+#### Scenario: A page where nothing is ever translated
+- **WHEN** a reader opens a page and selects nothing
+- **THEN** the engine is never loaded, and the memory it would hold is never taken
+
+#### Scenario: The host goes away for its own reasons
+- **WHEN** the context hosting the engine is unloaded despite being held
+- **THEN** the reader's page holds it again, and translation keeps working without reloading the page
+
 ### Requirement: Page text is escaped before it is marked
 Text taken from the page SHALL be escaped before the selection's markup is placed in it.
 The engine is asked to preserve markup, so the sentence it receives is markup; page content that

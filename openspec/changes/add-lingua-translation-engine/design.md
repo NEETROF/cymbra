@@ -212,6 +212,37 @@ above one. An expression's dictionary gloss stays. A single word keeps its dicti
 a selection of several words is translated. No gesture carries the translation, so no path can
 store it.
 
+### The reader holds the engine's host loaded while it reads
+
+The device pass above showed the cost of not doing it: the event page is torn down after ~30 s
+idle, the Worker and the 36.7 MB model go with it, and the next selection pays a cold start the
+card will not wait for. A minute between selections is ordinary reading, so on that hardware
+nearly every selection fell back to the pack's word-by-word.
+
+An open port is what keeps an event page loaded, so the reader opens one for as long as it is on
+the page (`translate/keepalive.ts`). It carries no messages — its existence is the whole signal —
+and it closes with the page. The background's only job is to accept it.
+
+*Nothing is warmed eagerly.* The engine still loads on the first translation, so a reader who
+opens a page and selects nothing never pays the ~195 MiB. What this buys is that the model is not
+thrown away before the second selection. The first translation of a page is still cold, once.
+
+*Rejected — warming the engine when the page opens.* It would make even the first selection warm,
+at the price of holding ~195 MiB on every page a reader visits, whether or not they ever translate
+anything. On the tablet that showed the problem, that is the wrong trade.
+
+*Rejected — a periodic ping over the port.* A connected port is the documented mechanism on both
+engines (and Chrome, from the version this extension requires, resets its idle timer on port
+activity indefinitely). A timer that fires forever on a mobile device is a cost worth refusing
+until something measured asks for it.
+
+*Rejected — raising `TRANSLATION_WAIT_MS`.* The card waits for the pack and the engine together,
+so a longer bound delays the answer the reader would otherwise already have. The bound is not the
+problem; reloading a 36.7 MB model between two selections is.
+
+If the extension context goes away entirely, `connect` throws and the reader stops: the page is
+orphaned, nothing else in it works either, and there is nothing left to hold.
+
 ### Measured in the built extension
 
 The figures above came from a throwaway harness. The same measurements were retaken on the
@@ -273,12 +304,9 @@ artefact ships. Backing the change out is deleting a workflow and an unused seam
   translated; a third, after a minute's pause, fell back again. The teardown takes the Worker and
   the loaded model with it, and rebuilding them on that hardware costs more than the card's
   `TRANSLATION_WAIT_MS`. Nothing keeps the page alive — by design, there is no heartbeat here.
-  This is the change's first Android data point, and it is enough to say the engine cannot be
-  delivered to Firefox Android as it stands: in real reading, a minute between selections is
-  ordinary, so nearly every selection would pay a cold start. The fix belongs to the change that
-  lets readers enable the engine — keeping the engine warm while a reader page is open is the
-  candidate that addresses the cause, at the cost of holding ~195 MiB. Chromium is unaffected in
-  the same way: its worker lives in an offscreen document, which Chrome may still close, but that
-  was not what this pass measured.
+  This is the change's first Android data point. *Fixed here, in this change* — see below;
+  the measurement stands as the reason. Chromium is unaffected in the same way: its worker lives
+  in an offscreen document, which Chrome may still close, but that was not what this pass
+  measured.
 - **Safari.** Whether it takes this engine or Apple's translation is decided in its own change,
   after `add-lingua-apple` is archived.
