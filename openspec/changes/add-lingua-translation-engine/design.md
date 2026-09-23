@@ -267,8 +267,18 @@ artefact ships. Backing the change out is deleting a workflow and an unused seam
 
 - **When is the Worker torn down?** Deliberately unanswered here — it only matters once readers
   can enable the engine.
-- **Does Firefox's event page survive a translation?** The event page is torn down after 30 s of
-  inactivity; a translation is far shorter, but the Worker's lifetime against that teardown is
-  not measured.
+- **Does Firefox's event page survive a translation?** *Answered by a device pass, and the answer
+  is no.* On a Galaxy Tab S6 Lite (SM-P610, Firefox), three selections in order: the first fell
+  back to word-by-word and a retry of the same one translated; a second, made straight after,
+  translated; a third, after a minute's pause, fell back again. The teardown takes the Worker and
+  the loaded model with it, and rebuilding them on that hardware costs more than the card's
+  `TRANSLATION_WAIT_MS`. Nothing keeps the page alive — by design, there is no heartbeat here.
+  This is the change's first Android data point, and it is enough to say the engine cannot be
+  delivered to Firefox Android as it stands: in real reading, a minute between selections is
+  ordinary, so nearly every selection would pay a cold start. The fix belongs to the change that
+  lets readers enable the engine — keeping the engine warm while a reader page is open is the
+  candidate that addresses the cause, at the cost of holding ~195 MiB. Chromium is unaffected in
+  the same way: its worker lives in an offscreen document, which Chrome may still close, but that
+  was not what this pass measured.
 - **Safari.** Whether it takes this engine or Apple's translation is decided in its own change,
   after `add-lingua-apple` is archived.
