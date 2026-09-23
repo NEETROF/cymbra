@@ -84,8 +84,9 @@ Réglages SHALL show a read-aloud block listing the eligible voices, with an aut
 selected by default and a way to hear each voice, and SHALL leave the block out when there is no
 eligible voice. The choice SHALL be kept on the device as a preference. The automatic choice
 SHALL prefer the eligible voice the browser marks as default when it is the only voice so
-marked, and otherwise SHALL never pick a novelty voice while an ordinary one exists. A chosen voice that is no longer listed SHALL fall
-back to the automatic choice.
+marked, and otherwise SHALL never pick a novelty voice while an ordinary one exists. The block
+SHALL list the ordinary voices first and the novelty voices after them, in a group of their own.
+A chosen voice that is no longer listed SHALL fall back to the automatic choice.
 
 #### Scenario: The automatic choice on macOS
 - **WHEN** the eligible voices are listed with novelty voices such as "Albert" and "Bubbles" before an ordinary voice such as "Samantha"
@@ -94,6 +95,10 @@ back to the automatic choice.
 #### Scenario: Every voice marked default
 - **WHEN** the browser marks every voice as default and lists novelty voices before an ordinary one
 - **THEN** the automatic choice is the ordinary voice, not the first voice listed
+
+#### Scenario: Novelty voices out of the way
+- **WHEN** the eligible voices include novelty voices
+- **THEN** Réglages lists the ordinary voices first and the novelty voices in an "Autres voix" group at the bottom
 
 #### Scenario: A chosen voice
 - **WHEN** the reader chooses a voice in Réglages and then listens from a card

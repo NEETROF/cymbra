@@ -22,9 +22,9 @@
 
 ## 4. Réglages
 
-- [ ] 4.1 `SettingsOptions.speaker`; the "Lecture à voix haute" block in `mountSettings`: `Automatique (<voice>)` then each eligible voice as `<name> — <region>`, `▶ Écouter` speaking a fixed English sample with the selected voice, saving through `saveVoice`; no block without an eligible voice
+- [ ] 4.1 `SettingsOptions.speaker`; the "Lecture à voix haute" block in `mountSettings`: `Automatique (<voice>)`, the ordinary eligible voices as `<name> — <region>`, then the deprioritised ones in an `Autres voix` group at the bottom, `▶ Écouter` speaking a fixed English sample with the selected voice, saving through `saveVoice`; no block without an eligible voice
 - [ ] 4.2 Styles in `settings.css` from `tokens.css` only
-- [ ] 4.3 Tests next to the existing settings tests: the block's options, the automatic label, saving and clearing the preference, the removed voice showing the automatic choice selected, no block without a voice
+- [ ] 4.3 Tests next to the existing settings tests: the block's options (on the Chrome macOS fixture: 6 ordinary voices, then the 35 others under `Autres voix`; no group when there are none, as on a list without novelty voices), the automatic label, saving and clearing the preference, the removed voice showing the automatic choice selected, no block without a voice
 
 ## 5. Wiring
 

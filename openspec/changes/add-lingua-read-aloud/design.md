@@ -179,8 +179,11 @@ gloss.
 `mountSettings` gains a "Lecture à voix haute" block, built by the same function in the side
 panel and the in-page drawer, from a speaker the host passes in (`SettingsOptions.speaker`):
 
-- a select whose first option is `Automatique (<voice name>)` — the voice D3 would pick — and
-  then every eligible voice as `<name> — <region>`;
+- a select whose first option is `Automatique (<voice name>)` — the voice D3 would pick — then
+  the ordinary eligible voices as `<name> — <region>`, then the deprioritised ones of D3 in a
+  group `Autres voix` at the bottom: listed, since a reader may want one, but out of the way —
+  on the Chrome macOS capture they are 35 of 41, and in the browser's order they would bury
+  `Samantha` under `Bubbles` (group chosen by the founder on 2026-09-24 over hiding them);
 - a button `▶ Écouter` that speaks a fixed English sample with the selected voice;
 - no block at all when no voice is eligible (the Firefox and Chrome desktops without a local
   English voice, for instance).
