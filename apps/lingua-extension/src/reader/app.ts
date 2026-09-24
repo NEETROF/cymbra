@@ -339,7 +339,6 @@ export class ReaderApp {
   private closeBook(): void {
     this.cancelReveal();
     this.revealed = true;
-    this.bookHost.style.visibility = "";
     this.session?.detach();
     this.renderer?.close();
     this.renderer = null;
@@ -364,10 +363,19 @@ export class ReaderApp {
     });
   }
 
+  /**
+   * What is hidden while a section paints: the book's content, not its page. Hiding the whole
+   * area showed the dark page behind it — a black flash at every chapter; the paper stays.
+   */
+  private content(): HTMLElement | null {
+    return this.renderer?.element ?? null;
+  }
+
   private hideUntilPainted(): void {
     this.cancelReveal();
     this.revealed = false;
-    this.bookHost.style.visibility = "hidden";
+    const content = this.content();
+    if (content) content.style.visibility = "hidden";
     const cap = this.deps.revealCapMs ?? REVEAL_CAP_MS;
     const reveal = (): void => this.reveal();
     this.revealTimer = this.deps.setTimer ? this.deps.setTimer(reveal, cap) : setTimeout(reveal, cap);
@@ -377,7 +385,8 @@ export class ReaderApp {
     if (this.revealed) return;
     this.revealed = true;
     this.cancelReveal();
-    this.bookHost.style.visibility = "";
+    const content = this.content();
+    if (content) content.style.visibility = "";
   }
 
   private cancelReveal(): void {

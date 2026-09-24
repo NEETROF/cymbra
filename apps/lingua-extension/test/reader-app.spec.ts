@@ -180,10 +180,11 @@ describe("a book open", () => {
     expect(r.calls).toContain("goTo:c1.xhtml");
   });
 
-  it("hides each section until it is painted, then shows it once", async () => {
+  it("hides each section until it is painted, then shows it once — its page stays", async () => {
     const { a, session } = await withBook();
     await openFirst();
-    const book = $(".reading-book");
+    const book = renderers[0].element;
+    expect($(".reading-book").style.visibility).toBe(""); // the paper, never the dark page behind it
     expect(session.hosts).toHaveLength(1);
     expect(book.style.visibility).toBe("hidden");
     a.painted();
