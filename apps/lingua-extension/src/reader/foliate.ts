@@ -10,6 +10,24 @@ import { type LoadableSection, routeSections, workerServesSections } from "./sec
 // needs a real browser to lay a book out (vitest.config.ts); the page drives it through the
 // BookRenderer seam, which its tests fake.
 
+/**
+ * The book's base style, after foliate-js's own reader (reader.js `getCSS`, MIT): a page of
+ * paper and ink whatever the system theme, readable lines, and code, images and tables held to
+ * their column where the book allows it — what overflows a column is drawn over the next page.
+ * Its notes stay in the text: foliate's reader hides them for a popup this reader does not have.
+ */
+const BOOK_CSS = `
+  html { color-scheme: light; }
+  p, li, blockquote, dd {
+    line-height: 1.45;
+    -webkit-hyphens: auto;
+    hyphens: auto;
+    widows: 2;
+  }
+  pre { white-space: pre-wrap !important; overflow-wrap: anywhere; }
+  img, svg, video, table { max-width: 100%; }
+`;
+
 function tocOf(items: FoliateTocItem[] | null | undefined): TocEntry[] {
   return (items ?? [])
     .filter((it) => it.href)
@@ -51,6 +69,7 @@ export class FoliateRenderer implements BookRenderer {
       });
     }
     await this.element.open(book);
+    this.element.renderer.setStyles(BOOK_CSS);
     this.setFlow(flow);
     try {
       await this.element.init({ lastLocation: at, showTextStart: true });

@@ -244,18 +244,24 @@ button {
   color: var(--cymbra-lingua-muted);
 }
 
-/* The book: paper and ink, filling what the bars leave. foliate-js draws into it. */
+/* The book: paper and ink, filling what the bars leave. foliate-js draws into it. Light, like
+   the book's own documents: a frame whose scheme differs from its embedder's gets an opaque
+   canvas, a white sheet laid over the paper. */
 .reading-book {
   flex: 1;
   min-height: 0;
   background: var(--cymbra-lingua-paper);
   color: var(--cymbra-lingua-ink);
+  color-scheme: light;
 }
 
+/* A layer of its own for the renderer: without it, WebKit on iOS and iPadOS lays out a
+   section's frame and never paints it — a blank page, until a later turn half-repaints it. */
 .reading-book > * {
   display: block;
   width: 100%;
   height: 100%;
+  transform: translateZ(0);
 }
 
 .reading-toc {

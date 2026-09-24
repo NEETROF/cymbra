@@ -270,6 +270,19 @@ engine's review card now carries the card's local source, and review shows it on
 is revealed — a page by its site, a book by its title and chapter — so a card from a deleted
 book still says where it came from.
 
+**Safari on iOS and iPadOS (simulator, iPad).** The first passes there opened some sections
+blank — the page's paper, the chapter's title in the bar, no text — and half-shifted pages
+after a few turns. The section was loaded, laid out and painted by the session (its frame in
+place, its text dark on transparent, 203 ranges registered, nothing over it): WebKit simply
+never drew the frame. The same foliate-js, bundled alone and served to the simulator's
+Safari, drew it, with or without the hiding, the highlights and a dark embedding page. Giving
+the renderer's element a compositing layer of its own (`transform: translateZ(0)`) makes the
+frame draw at once, at every turn and every section change; it costs nothing on Chromium.
+Two cosmetic defects came out of the same passes: the reader page is dark and the book light,
+so each section's frame got an opaque white canvas over the paper (the book area now declares
+itself light), and hiding the whole book area while a section paints showed the dark page for
+an instant at every chapter (only the renderer is hidden now; the paper stays).
+
 **Platform gaps closed along the way.** foliate-js uses `Object.groupBy`/`Map.groupBy`, missing
 from Chrome 116 and from Safari before 17.4 (the Apple app targets iOS 17.2): the reader page
 installs both where absent. Its zip reader is the npm package it builds from, at the version it
