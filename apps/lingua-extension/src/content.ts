@@ -1,7 +1,7 @@
 import { createTranslatorPort } from "./translate/create-port.ts";
 import { resolveContentPort } from "./analyzer/create-port.ts";
 import type { LinguaPort } from "./analyzer/port.ts";
-import { type CefrLevel, STUDIED_LANGUAGE } from "./analyzer/types.ts";
+import { STUDIED_LANGUAGE } from "./analyzer/types.ts";
 import { type Block, collectBlocks } from "./reading/blocks.ts";
 import { Drawer, type DrawerView } from "./reading/drawer.ts";
 import { clear as clearHighlights, injectPageStyles, render } from "./reading/highlight.ts";
@@ -45,7 +45,6 @@ import {
 } from "./state/storage.ts";
 import { messagedArea, watchBackup } from "./state/store.ts";
 import { requestSync } from "./sync/messages.ts";
-import { clearSyncCursors } from "./sync/sync.ts";
 import drawerCss from "./styles/drawer.css";
 import hudCss from "./styles/hud.css";
 import popupCss from "./styles/wordpopup.css";
@@ -242,22 +241,13 @@ class ReadingSession {
       { capture: true, passive: true },
     );
     chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-      // The mutating commands acknowledge only AFTER their repaint has settled
-      // `this.stats`, so the popup's follow-up `getStats` reads the new
-      // percentage — not the pre-change one it would catch if we acked eagerly.
+      // No settings travel here: Réglages, wherever they are shown, are `mountSettings` on
+      // that surface's own engine port, and reach this page as a changed backup
+      // (`onExternalChange`).
       if (msg?.type === "captureSelection") this.onCaptureSelection();
       else if (msg?.type === "toggleDrawer") void this.drawer.toggle();
       else if (msg?.type === "openDrawer") void this.drawer.openOn(drawerView(msg.view));
-      else if (msg?.type === "setCalibration") {
-        void this.onSetCalibration(Number(msg.value)).then(() => sendResponse(true));
-        return true;
-      } else if (msg?.type === "setLevel") {
-        void this.onSetLevel((msg.value as CefrLevel) || null).then(() => sendResponse(true));
-        return true;
-      } else if (msg?.type === "reset") {
-        void this.onReset(msg.scope === "partial" ? "partial" : "full").then(() => sendResponse(true));
-        return true;
-      } else if (msg?.type === "getStats") {
+      else if (msg?.type === "getStats") {
         void this.statsMessage().then(sendResponse);
         return true; // async response
       }
@@ -572,58 +562,6 @@ class ReadingSession {
     const promoted = await this.port.promoteByExposure(EXPOSURE_PROMOTE_DAYS, now);
     await this.persist();
     if (promoted > 0) await this.repaint(); // words became known → refresh highlights
-  }
-
-  private async onSetCalibration(value: number): Promise<void> {
-    if (!Number.isFinite(value)) return;
-    await this.port.setCalibration(value);
-    this.calibration = value;
-    await this.persist();
-    await this.repaint();
-  }
-
-  /**
-   * Declare (or clear, with `null` = "débutant / from zero") the reader's CEFR
-   * level. With a level in play the frequency calibration must presume nothing —
-   * the level is the only source of presumed-known (design: no silent
-   * presumption) — so it is pinned to 0. Below-level words then stop being
-   * highlighted; at/above stay highlighted.
-   */
-  private async onSetLevel(level: CefrLevel | null): Promise<void> {
-    // Stamp the decision so it wins cross-device last-write-wins when it syncs.
-    await this.port.setDeclaredLevelAt(level, Date.now());
-    await this.port.setCalibration(0);
-    this.calibration = 0;
-    await this.persist();
-    await this.repaint();
-  }
-
-  /**
-   * `full` wipes everything (statuses, exposure, deck + FSRS); `partial` clears
-   * statuses/calibration/level but KEEPS the deck and exposure. Both restore the
-   * default calibration. The popup gates this behind an explicit scope choice and
-   * a confirmation, so a single stray click can never wipe a deck.
-   *
-   * A `full` reset also clears the sync cursors, so the next sync re-pulls the
-   * whole server state: for a signed-in user the statuses + deck re-download
-   * (a repair), rather than being gone. A `partial` reset leaves the cursors
-   * alone — it is a deliberate local clear of statuses, not a re-pull.
-   */
-  private async onReset(scope: "full" | "partial"): Promise<void> {
-    if (scope === "partial") {
-      await this.port.resetStatuses();
-    } else {
-      await this.port.reset();
-      await clearSyncCursors(store);
-    }
-    // Option B: with CEFR data, presume nothing until the reader picks a level —
-    // keep frequency calibration at 0 and let the popup re-prompt for a level.
-    // Without CEFR data, restore the default frequency calibration.
-    const cal = (await this.port.hasLevels()) ? 0 : 3000;
-    await this.port.setCalibration(cal);
-    this.calibration = cal;
-    await this.persist();
-    await this.repaint();
   }
 
   private async statsMessage() {

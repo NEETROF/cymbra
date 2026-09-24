@@ -25,6 +25,7 @@
 - [x] 4.1 `SettingsOptions.speaker`; the "Lecture à voix haute" block in `mountSettings`: `Automatique (<voice>)`, the ordinary eligible voices as `<name> — <region>`, then the deprioritised ones in an `Autres voix` group at the bottom, `▶ Écouter` speaking a fixed English sample with the selected voice, saving through `saveVoice`; no block without an eligible voice
 - [x] 4.2 Styles in `settings.css` from `tokens.css` only
 - [x] 4.3 Tests next to the existing settings tests: the block's options (on the Chrome macOS fixture: 6 ordinary voices, then the 35 others under `Autres voix`; no group when there are none, as on a list without novelty voices), the automatic label, saving and clearing the preference, the removed voice showing the automatic choice selected, no block without a voice
+- [x] 4.4 The toolbar popup's Réglages are `mountSettings` on an engine port of the popup (created when Réglages first open), not its hand copy: `popup.html`/`popup.ts`/`popup.css` lose the copy, the content script loses `setLevel`/`setCalibration`/`reset`, and `test/lint-settings-hosts.spec.ts` refuses a host without `mountSettings` or a page/module with a Réglages block of its own
 
 ## 5. Wiring
 

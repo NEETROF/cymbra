@@ -178,7 +178,8 @@ gloss.
 ### D6. The voice in Réglages
 
 `mountSettings` gains a "Lecture à voix haute" block, built by the same function in the side
-panel and the in-page drawer, from a speaker the host passes in (`SettingsOptions.speaker`):
+panel, the in-page drawer and the toolbar popup, from a speaker the host passes in
+(`SettingsOptions.speaker`):
 
 - a select whose first option is `Automatique (<voice name>)` — the voice D3 would pick — then
   the ordinary eligible voices as `<name> — <region>`, then the deprioritised ones of D3 in a
@@ -193,6 +194,17 @@ The preference is the chosen `voiceURI`, or nothing for the automatic choice, in
 `chrome.storage.local` under a new key (`cymbra-lingua-voice`): a preference like the HUD
 toggle, small and read before any round-trip, never in the reader's IndexedDB store. It is not
 synchronised across devices: voice identifiers are per platform.
+
+**The toolbar popup had its own Réglages.** Dogfooding found the block missing there: the popup
+carried a hand copy — markup in `popup.html`, wiring in `popup.ts` sending `setLevel`,
+`setCalibration` and `reset` to the tab's content script — and every block added to the
+shared view since was absent from it. The popup now mounts `mountSettings` like the side
+panel: with an engine port of its own, created the first time Réglages open, persisting the
+backup to the store, which the tab restores (`onExternalChange`) exactly as it does after a
+change in the side panel. The copy, its styles and the three content-script messages only it
+sent are removed, and `test/lint-settings-hosts.spec.ts` fails the build when a host stops
+calling `mountSettings` or a page or module holds a Réglages block of its own (recognised by
+the builder's block titles).
 
 ### D7. Tests
 

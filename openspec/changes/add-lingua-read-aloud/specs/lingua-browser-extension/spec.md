@@ -79,6 +79,19 @@ and no network request of the extension's own, and SHALL work offline.
 - **WHEN** the browser lists its voices only after the card has opened
 - **THEN** the listen row appears on that card once an eligible voice is listed, without the reader reopening it
 
+### Requirement: One Réglages on every surface
+Réglages SHALL be built by a single implementation that every surface renders — the side
+panel, the in-page drawer and the toolbar popup — so that a setting added to Réglages appears
+on all of them at once. No surface SHALL keep a Réglages block of its own.
+
+#### Scenario: The toolbar popup
+- **WHEN** the reader opens Réglages from the toolbar popup
+- **THEN** it shows the same blocks as the side panel and the in-page drawer, the read-aloud block included
+
+#### Scenario: A block added later
+- **WHEN** a block is added to Réglages
+- **THEN** the side panel, the in-page drawer and the toolbar popup all show it, with no change to any of them
+
 ### Requirement: The reader chooses the voice
 Réglages SHALL show a read-aloud block listing the eligible voices, with an automatic choice
 selected by default and a way to hear each voice, and SHALL leave the block out when there is no

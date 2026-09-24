@@ -52,8 +52,9 @@ _None._
 ### Modified Capabilities
 
 - `lingua-browser-extension`: new requirements for reading the selection and its sentence
-  aloud from the card, for read-aloud never leaving the device, and for the voice choice in
-  Réglages. Every delta is ADDED. "Word popup on click", "Minimal permission posture" and "No
+  aloud from the card, for read-aloud never leaving the device, for the voice choice in
+  Réglages, and for one Réglages on every surface (the toolbar popup carried its own copy).
+  Every delta is ADDED. "Word popup on click", "Minimal permission posture" and "No
   network requests" keep their text and stay true: the popup still shows everything it did, no
   permission is added, and no voice that would issue a request is ever used.
 
@@ -63,7 +64,8 @@ _None._
   a speaker that owns one utterance at a time — with the browser's synthesiser behind an
   injected seam, so it is tested in jsdom (which has none) and stays inside the 80 % gate.
   `src/reading/wordpopup.ts` gains the listen row, `src/reading/settings-view.ts` the voice
-  block (one builder for the side panel and the in-page drawer), `src/state/storage.ts` the
+  block (one builder for the side panel, the in-page drawer and — replacing the hand copy it
+  carried until dogfooding found the block missing — the toolbar popup), `src/state/storage.ts` the
   voice preference, `src/styles/wordpopup.css` and `settings.css` their styles from
   `tokens.css`, and `src/content.ts` the wiring as a thin caller.
 - **Background**: untouched. Speech runs where the card runs, in the content script, on every

@@ -1,32 +1,41 @@
 import { errorCopy } from "../account/copy.ts";
 import { type AccountReply, type AccountState, PENDING_EMAIL_KEY } from "../account/messages.ts";
+import { createLinguaPort } from "../analyzer/create-port.ts";
+import { type CefrLevel, STUDIED_LANGUAGE } from "../analyzer/types.ts";
+import { mountSettings, type SettingsView } from "../reading/settings-view.ts";
+import { browserSpeechEngine, createSpeaker } from "../reading/speech.ts";
 import type { Provider } from "../state/oidc.ts";
-import { hasShortcutEditor } from "../state/platform.ts";
 import { isPersistedSignInError, SIGNIN_ERROR_KEY } from "../state/session.ts";
 import {
+  type AsyncStorageArea,
+  hydrateEngine,
   loadEnabled,
-  loadHudHidden,
   ROOT_KEY,
+  saveBackup,
   saveEnabled,
-  saveHudHidden,
   SESSION_LOST_KEY,
+  storedVoicePreference,
 } from "../state/storage.ts";
-import { watchStore } from "../state/store.ts";
-import { LAST_SYNC_KEY, loadLastSync, requestSync, syncNow } from "../sync/messages.ts";
-import { lastSyncLabel, syncErrorCopy } from "../sync/status.ts";
-import type { CefrLevel } from "../analyzer/types.ts";
+import { messagedArea, watchStore } from "../state/store.ts";
+import { requestSync } from "../sync/messages.ts";
 
-// Icon-popup controller (a surface the extension owns). It holds no engine and no
-// storage of its own: it asks the active tab's content script for stats and drives
-// calibration / reset / review through messages, so the content script (which owns the
-// engine and persists) stays the single writer. The one thing it writes directly is the
-// global enabled flag (a plain setting, not engine state); content scripts react to it
-// via storage.onChanged. Excluded from coverage (DOM wiring).
+// Icon-popup controller (a surface the extension owns). It asks the active tab's content
+// script for the page's stats, and writes the global enabled flag directly (a plain setting;
+// content scripts react via storage.onChanged). Its Réglages are NOT its own: they are
+// `mountSettings`, the same builder the side panel and the in-page drawer render, driven —
+// like the side panel — by an engine port of this page, created the first time Réglages
+// open. A hand copy lived here once, and each block added to the shared view since was
+// missing from it (the read-aloud voice, found in dogfooding); `test/lint-settings-hosts.spec.ts`
+// now refuses one.
+// Excluded from coverage (DOM wiring).
 
-const storageArea = {
-  get: (keys: string | string[] | null) => chrome.storage.local.get(keys),
-  set: (items: Record<string, unknown>) => chrome.storage.local.set(items),
+const storageArea: AsyncStorageArea = {
+  get: (keys) => chrome.storage.local.get(keys),
+  set: (items) => chrome.storage.local.set(items),
 };
+
+/** The reader's data, owned by the background (Réglages persist the engine's backup there). */
+const store: AsyncStorageArea = messagedArea();
 
 interface PageStats {
   analysable: boolean;
@@ -74,7 +83,7 @@ async function sendRuntime(message: unknown): Promise<unknown> {
   }
 }
 
-/** Whether a Cymbra ID session is active — decides the reset warning's wording. */
+/** Whether a Cymbra ID session is active — a lost-session mark or a sign-in error then no longer applies. */
 let accountSignedIn = false;
 
 function renderAccount(state: AccountState | null): void {
@@ -85,59 +94,14 @@ function renderAccount(state: AccountState | null): void {
   $("acct-error").hidden = true;
   if (signedIn) void renderHandle();
   else $("acct-handle-cta").hidden = true;
-  void refreshSync();
-  showResetForAccount();
 }
 
 /** Say, above everything else, that a session this device held was refused by the server. */
-/**
- * Signed in, emptying this device erases nothing — the next exchange pulls it all back. So
- * the reset flow gives way to the same action named for what it does, and a real erasure is
- * pointed at the account page.
- */
-function showResetForAccount(): void {
-  $("reset-box").hidden = accountSignedIn;
-  $("restart-box").hidden = !accountSignedIn;
-}
-
-/** Empty this device, then pull the account's state back. */
-async function restartFromServer(): Promise<void> {
-  const button = $("restart") as HTMLButtonElement;
-  button.disabled = true;
-  $("restart-msg").textContent = "Reprise depuis le serveur…";
-  await send({ type: "reset", scope: "full" });
-  const reply = await syncNow();
-  $("restart-msg").textContent = reply.ok ? "Repris depuis le serveur." : syncErrorCopy(reply.error);
-  button.disabled = false;
-  await refresh();
-}
-
 async function refreshSessionLost(): Promise<void> {
   const got = await storageArea.get(SESSION_LOST_KEY);
   // Signed in again (here or in another surface): whatever the mark still says, the
   // session is not lost — say nothing rather than something stale.
   $("session-lost").hidden = accountSignedIn || got[SESSION_LOST_KEY] !== true;
-}
-
-/**
- * Réglages → Synchronisation: when this device last synced, shown only while signed in. The
- * same block as the review panel's Réglages, which the popup does not host.
- */
-async function refreshSync(): Promise<void> {
-  $("sync-block").hidden = !accountSignedIn;
-  if (!accountSignedIn) return;
-  $("sync-status").textContent = lastSyncLabel(await loadLastSync(storageArea), Date.now());
-}
-
-/** « Synchroniser maintenant »: one exchange, reported by category. */
-async function runSyncNow(): Promise<void> {
-  const button = $("sync-now") as HTMLButtonElement;
-  button.disabled = true;
-  $("sync-msg").textContent = "Synchronisation…";
-  const reply = await syncNow();
-  $("sync-msg").textContent = reply.ok ? "" : syncErrorCopy(reply.error);
-  button.disabled = false;
-  await refreshSync();
 }
 
 /**
@@ -232,34 +196,34 @@ function render(stats: PageStats | null): void {
   $("deck").textContent = String(stats.deckCount);
   $("due").textContent = String(stats.dueCount);
 
-  // With CEFR data, the reader declares a level (the frequency slider is the
-  // fallback for language packs without CEFR levels).
-  if (stats.hasLevels) {
-    // The picker lives in Réglages; the main panel gets a compact reminder, or a
-    // call-to-action until a level has been chosen (asked at first use).
-    $("level-block").hidden = false;
-    $("calib-block").hidden = true;
-    // « Débutant » is a decision (no level, but chosen): only a missing decision asks again.
-    const current = stats.needsLevel ? null : (stats.declaredLevel ?? "");
-    for (const b of document.querySelectorAll<HTMLButtonElement>("#level-chips .lvl")) {
-      b.classList.toggle("active", (b.dataset.lvl ?? "") === current);
-    }
-    $("level-hint").textContent = stats.declaredLevel
-      ? `Les mots sous ${stats.declaredLevel} ne sont plus surlignés.`
-      : stats.needsLevel
-        ? "Choisis ton niveau — rien n'est présumé connu pour l'instant."
-        : "Débutant — rien n'est présumé connu.";
-    $("level-cta").hidden = !stats.needsLevel;
-    $("level-indicator").hidden = stats.needsLevel;
-    $("level-current").textContent = stats.declaredLevel ?? "Débutant";
-  } else {
-    $("level-block").hidden = true;
-    $("calib-block").hidden = false;
-    ($("calib") as HTMLInputElement).value = String(stats.calibration);
-    $("calibv").textContent = String(stats.calibration);
-    $("level-cta").hidden = true;
-    $("level-indicator").hidden = true;
+  // With CEFR data, the reader declares a level in Réglages; the main panel gets a compact
+  // reminder, or a call-to-action until a level has been chosen (asked at first use).
+  // « Débutant » is a decision (no level, but chosen): only a missing decision asks again.
+  $("level-cta").hidden = !stats.hasLevels || !stats.needsLevel;
+  $("level-indicator").hidden = !stats.hasLevels || stats.needsLevel;
+  $("level-current").textContent = stats.declaredLevel ?? "Débutant";
+}
+
+let settings: SettingsView | null = null;
+
+/**
+ * Réglages: the shared view, mounted the first time they open. Its engine port and speaker
+ * are this page's own, as the side panel's are: a level, a calibration or a reset chosen here
+ * is persisted to the store, which every page restores — the popup never reaches into a tab.
+ */
+async function showSettings(): Promise<void> {
+  $("main-view").hidden = true;
+  $("settings-view").hidden = false;
+  if (!settings) {
+    const port = createLinguaPort();
+    await hydrateEngine(port, store);
+    settings = mountSettings($("settings-body"), port, storageArea, {
+      persist: async () => saveBackup(store, await port.backup()),
+      store,
+      speaker: createSpeaker(browserSpeechEngine(), STUDIED_LANGUAGE, storedVoicePreference(storageArea)),
+    });
   }
+  await settings.refresh();
 }
 
 /**
@@ -290,19 +254,6 @@ async function openReviewSurface(view: "review" | "stats"): Promise<void> {
   window.close();
 }
 
-/** Open the browser's per-extension keyboard-shortcut editor (Chrome) / add-ons page (Firefox). */
-async function openShortcutsConfig(): Promise<void> {
-  // Extensions may open these internal pages via tabs.create; Firefox has no direct
-  // shortcuts URL, so about:addons (its editor lives under the gear menu) is the target.
-  const url = __TARGET__ === "firefox" ? "about:addons" : "chrome://extensions/shortcuts";
-  try {
-    await chrome.tabs.create({ url });
-  } catch {
-    // Some builds block internal URLs; nothing actionable to show in the popup.
-  }
-  window.close();
-}
-
 async function analyseCurrentPage(): Promise<void> {
   const tabId = await activeTabId();
   if (tabId == null) return;
@@ -328,93 +279,17 @@ async function applyEnabled(enabled: boolean): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  const calib = $("calib") as HTMLInputElement;
-  calib.addEventListener("input", () => {
-    $("calibv").textContent = calib.value;
-  });
-  calib.addEventListener("change", async () => {
-    await send({ type: "setCalibration", value: Number(calib.value) });
-    await refresh(); // the calibration moves the known-word percentage; reflect it now
-  });
-
-  // CEFR level picker: a chip declares the level; "Débutant" (empty value) clears
-  // it — nothing presumed known. The content script sets it on the engine.
-  for (const chip of document.querySelectorAll<HTMLButtonElement>("#level-chips .lvl")) {
-    chip.addEventListener("click", async () => {
-      await send({ type: "setLevel", value: chip.dataset.lvl ?? "" });
-      await refresh();
-    });
-  }
-
-  // Reset flow — a small wizard whose steps REPLACE one another, so the popup
-  // shows exactly one thing at a time:
-  //   rest    → only the "Réinitialiser…" button
-  //   scope   → the button is hidden; the two scope choices + Annuler
-  //   confirm → the warning + Oui, confirmer + Annuler (scope choices hidden)
-  // Any "Annuler" (and confirming) returns to rest — just the button. A stray
-  // click can never wipe the deck (choose scope, then confirm). `pendingScope`
-  // carries the choice from the scope step to the confirm step.
-  let pendingScope: "full" | "partial" | null = null;
-  const showRest = (): void => {
-    $("reset-menu").hidden = true;
-    $("reset").hidden = false;
-    $("reset-scope").hidden = false; // ready for the next open
-    $("reset-confirm").hidden = true;
-    pendingScope = null;
-  };
-  $("reset").addEventListener("click", () => {
-    $("reset").hidden = true;
-    $("reset-menu").hidden = false;
-    $("reset-scope").hidden = false;
-    $("reset-confirm").hidden = true;
-    pendingScope = null;
-  });
-  $("reset-cancel").addEventListener("click", showRest);
-  const askConfirm = (scope: "full" | "partial"): void => {
-    pendingScope = scope;
-    let warn: string;
-    if (scope === "partial") {
-      warn = "Effacer tes statuts et ta calibration ? Ton deck de révision est conservé.";
-    } else if (accountSignedIn) {
-      warn =
-        "Effacer les données de cet appareil (statuts, deck, progression) ? " +
-        "Comme tu es connecté, elles seront re-téléchargées depuis le serveur à la prochaine synchronisation.";
-    } else {
-      warn =
-        "⚠️ Effacer DÉFINITIVEMENT tes statuts, ton deck de révision et ta progression ? " +
-        "Tu n'es pas connecté : cette action est irréversible.";
-    }
-    $("reset-warn").textContent = warn;
-    // Replace the scope step with the confirmation.
-    $("reset-scope").hidden = true;
-    $("reset-confirm").hidden = false;
-  };
-  $("reset-partial").addEventListener("click", () => askConfirm("partial"));
-  $("reset-full").addEventListener("click", () => askConfirm("full"));
-  $("reset-no").addEventListener("click", showRest); // Annuler = exit the whole flow
-  $("reset-yes").addEventListener("click", async () => {
-    if (!pendingScope) return;
-    const scope = pendingScope;
-    showRest();
-    await send({ type: "reset", scope });
-    await refresh();
-  });
-
-  // Settings view (gear icon): the level picker + the destructive reset live
-  // here, off the main page. Opening or leaving it returns the reset flow to
-  // rest. The main-panel level CTA / "Modifier" also route here.
-  const openSettings = (): void => {
-    showRest();
-    $("main-view").hidden = true;
-    $("settings-view").hidden = false;
-  };
+  // Settings view (gear icon), also reached from the main panel's level call-to-action and
+  // « Modifier ». Leaving it re-reads the page's stats: a level or a calibration chosen there
+  // moves the percentage.
+  const openSettings = (): void => void showSettings();
   $("settings-open").addEventListener("click", openSettings);
   $("level-cta").addEventListener("click", openSettings);
   $("level-edit").addEventListener("click", openSettings);
   $("settings-back").addEventListener("click", () => {
-    showRest();
     $("settings-view").hidden = true;
     $("main-view").hidden = false;
+    void refresh();
   });
 
   $("review").addEventListener("click", () => void openReviewSurface("review"));
@@ -480,16 +355,6 @@ async function main(): Promise<void> {
   });
 
   $("open-stats").addEventListener("click", () => void openReviewSurface("stats"));
-  const shortcutsConfig = $("shortcuts-config");
-  shortcutsConfig.hidden = !hasShortcutEditor();
-  shortcutsConfig.addEventListener("click", () => void openShortcutsConfig());
-
-  // In-page HUD visibility: checked = shown. The content script reacts via storage.onChanged.
-  const hudToggle = $("hud-toggle") as HTMLInputElement;
-  hudToggle.checked = !(await loadHudHidden(storageArea));
-  hudToggle.addEventListener("change", async () => {
-    await saveHudHidden(storageArea, !hudToggle.checked);
-  });
 
   await applyEnabled(await loadEnabled(storageArea));
   // Safari: exchange an id_token the host app handed back before reading the account state;
@@ -501,8 +366,6 @@ async function main(): Promise<void> {
 
   // Opening the popup asks for a sync. What it pulls changes the backup, which the page
   // restores: re-read the counts once the page has caught up.
-  $("sync-now").addEventListener("click", () => void runSyncNow());
-  $("restart").addEventListener("click", () => void restartFromServer());
   await refreshSessionLost();
   // What a sync pulled changes the store, which the page restores: re-read the counts
   // once it has caught up.
@@ -513,7 +376,6 @@ async function main(): Promise<void> {
   });
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
-    if (changes[LAST_SYNC_KEY]) void refreshSync();
     if (changes[SESSION_LOST_KEY]) void refreshSessionLost();
   });
   void requestSync("surface");

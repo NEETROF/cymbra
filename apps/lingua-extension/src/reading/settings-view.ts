@@ -16,10 +16,11 @@ import { clearSyncCursors } from "../sync/sync.ts";
 import { type Speaker, type VoiceInfo, voiceGroups, voiceLabel } from "./speech.ts";
 
 // The Réglages view, built as plain DOM into a given container so ONE implementation
-// serves two hosts: the native side panel and the in-page drawer (same pattern as review's
+// serves every host: the native side panel, the in-page drawer and the toolbar popup (same pattern as review's
 // renderReview). It drives the host's own port and persists via `persist`, so every other
 // surface reacts through storage.onChanged; `onReset` lets the host refresh its review
-// after a wipe. Level + calibration mirror the content script's onSetLevel / onReset.
+// after a wipe. It is the ONLY Réglages: the toolbar popup mounts it too, and
+// `test/lint-settings-hosts.spec.ts` refuses a host that builds its own.
 
 export interface SettingsOptions {
   /** Persist engine state after a change (backup → storage). */
