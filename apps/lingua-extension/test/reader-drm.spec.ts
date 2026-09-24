@@ -81,6 +81,21 @@ describe("protectionOf", () => {
     expect(protectionOf(xml, [])).toBe("unknown");
   });
 
+  it("names a scheme from the declaration's structure, not from its text", () => {
+    const mention = encryption({
+      algorithm: AES,
+      uri: "OEBPS/chapter1.xhtml",
+      keyInfo: "<!-- http://ns.adobe.com/adept -->",
+    });
+    expect(protectionOf(mention, [])).toBe("unknown");
+    const fontsWithMention = encryption({
+      algorithm: IDPF_FONT,
+      uri: "a.otf",
+      keyInfo: "<!-- http://ns.adobe.com/adept -->",
+    });
+    expect(protectionOf(fontsWithMention, [])).toBeNull();
+  });
+
   it("refuses a declaration no parser can read", () => {
     expect(protectionOf("<encryption><EncryptedData>", [])).toBe("unknown");
   });
