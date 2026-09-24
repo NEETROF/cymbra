@@ -238,7 +238,10 @@ Réglages view (drawer and side panel); a second opening brings the open reader 
   (`reader-section/…`, `section-server.ts`) rather than from foliate's `blob:` URL: a Chrome
   field trial on V8 isolates `blob:` documents in another process, where the page cannot reach
   them. Playwright disables field trials — test the reader with them on (Chrome for Testing as
-  it launches by default), or you will not see it.
+  it launches by default), or you will not see it. After rebuilding `background.js` without a
+  version change, **reload the extension** (↻ in `chrome://extensions`): Chrome keeps an
+  unpacked extension's previous worker across a restart, and the reader then falls back to
+  `blob:` sections (the page asks the worker first, `reader-section/probe`).
 - **The reading module takes a document** — `ReadingSession` (`src/reading/session.ts`)
   reads a `ReadingHost`: the document it analyses, highlights and listens to, its window (own
   selection, own `CSS.highlights` registry, own observers), how to map a box to the page the

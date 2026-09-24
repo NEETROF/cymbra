@@ -23,6 +23,12 @@ export const SECTION_CACHE = "cymbra-lingua-sections";
  */
 export const SECTION_CSP = "script-src 'none'; object-src 'none'";
 
+/** The address the page asks to learn whether the worker serves sections at all. */
+export const SECTION_PROBE = "reader-section/probe";
+
+/** The header the worker marks its answer to the probe with. */
+const SERVED_HEADER = "x-cymbra-lingua-sections";
+
 /** Cache Storage refuses `chrome-extension:` URLs as keys: a section is kept under this origin. */
 const KEY_ORIGIN = "https://lingua.invalid/";
 
@@ -44,6 +50,10 @@ export interface SectionFetchEvent {
 export function serveSection(event: SectionFetchEvent, caches: CacheStorage): boolean {
   const url = new URL(event.request.url);
   if (!url.pathname.startsWith(`/${SECTION_PATH}`)) return false;
+  if (url.pathname === `/${SECTION_PROBE}`) {
+    event.respondWith(Promise.resolve(new Response(null, { status: 204, headers: { [SERVED_HEADER]: "1" } })));
+    return true;
+  }
   event.respondWith(
     caches
       .open(SECTION_CACHE)
@@ -66,8 +76,8 @@ export interface SectionHost {
   fetch: (url: string) => Promise<Response>;
   /** The page's URL for an extension path (`chrome.runtime.getURL`). */
   pageUrl: (path: string) => string;
-  /** Whether a service worker controls the page — without one, nothing would answer. */
-  controlled: () => boolean;
+  /** Whether the worker answers for sections (`workerServesSections`), asked once per book. */
+  served: () => Promise<boolean>;
   /** Unique to this opening of a book, so two reader tabs never share a section. */
   token: string;
 }
@@ -84,7 +94,7 @@ export function routeSections(sections: LoadableSection[], host: SectionHost): v
     const path = `${SECTION_PATH}${host.token}/${index}`;
     section.load = async () => {
       const blobUrl = await load();
-      if (!host.controlled()) return blobUrl;
+      if (!(await host.served())) return blobUrl;
       try {
         const blob = await (await host.fetch(blobUrl)).blob();
         const cache = await host.caches.open(SECTION_CACHE);
@@ -106,6 +116,23 @@ export function routeSections(sections: LoadableSection[], host: SectionHost): v
         .catch(() => {});
     };
   });
+}
+
+/**
+ * Whether a worker answers for sections, asked of the worker itself: a page can be controlled by
+ * an older worker without the route — Chrome keeps an unpacked extension's worker across a
+ * restart when its version did not change — and a frame pointed at an address nobody serves
+ * shows an error page. Without the answer, sections keep foliate's blob URL. Never throws.
+ */
+export async function workerServesSections(
+  fetchUrl: (url: string) => Promise<Response>,
+  pageUrl: (path: string) => string,
+): Promise<boolean> {
+  try {
+    return (await fetchUrl(pageUrl(SECTION_PROBE))).headers.get(SERVED_HEADER) === "1";
+  } catch {
+    return false;
+  }
 }
 
 /** Forget every section an earlier reading left behind (a closed tab, a crash). Never throws. */

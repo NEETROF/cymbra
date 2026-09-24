@@ -5,10 +5,12 @@ import {
   routeSections,
   SECTION_CACHE,
   SECTION_CSP,
+  SECTION_PROBE,
   sectionKey,
   type SectionFetchEvent,
   type SectionHost,
   serveSection,
+  workerServesSections,
 } from "@/reader/section-server.ts";
 import { useNodeBlob } from "./epub-fixtures.ts";
 
@@ -59,7 +61,7 @@ beforeEach(() => {
     caches,
     fetch: async (url) => new Response(blobs.get(url)),
     pageUrl: (path) => `chrome-extension://id/${path}`,
-    controlled: () => true,
+    served: async () => true,
     token: "t0k",
   };
 });
@@ -82,6 +84,32 @@ describe("the worker's side", () => {
     const miss = event("chrome-extension://id/reader-section/t0k/9");
     serveSection(miss, caches);
     expect((await miss.answer!).status).toBe(404);
+  });
+});
+
+describe("asking whether the worker serves sections", () => {
+  it("answers the probe itself, marked", async () => {
+    const probe = event(`chrome-extension://id/${SECTION_PROBE}`);
+    expect(serveSection(probe, caches)).toBe(true);
+    const answer = await probe.answer!;
+    expect(answer.status).toBe(204);
+    const fetchUrl = async () => answer;
+    expect(await workerServesSections(fetchUrl, (p) => p)).toBe(true);
+  });
+
+  it("says no to an unmarked answer, and to no answer at all (an older worker, no worker)", async () => {
+    expect(
+      await workerServesSections(
+        async () => new Response("file"),
+        (p) => p,
+      ),
+    ).toBe(false);
+    expect(
+      await workerServesSections(
+        async () => Promise.reject(new Error("ERR_FILE_NOT_FOUND")),
+        (p) => p,
+      ),
+    ).toBe(false);
   });
 });
 
@@ -108,9 +136,9 @@ describe("the reader page's side", () => {
     );
   });
 
-  it("keeps foliate's blob URL where no worker controls the page, or the route fails", async () => {
+  it("keeps foliate's blob URL where no worker serves sections, or the route fails", async () => {
     const a: LoadableSection = { load: async () => "blob:ext/1" };
-    routeSections([a], { ...host, controlled: () => false });
+    routeSections([a], { ...host, served: async () => false });
     expect(await a.load!()).toBe("blob:ext/1");
     const b: LoadableSection = { load: async () => "blob:ext/1" };
     routeSections([b], { ...host, fetch: async () => Promise.reject(new Error("revoked")) });
