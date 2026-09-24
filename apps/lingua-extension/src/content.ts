@@ -35,10 +35,14 @@ import {
   type AsyncStorageArea,
   ENABLED_KEY,
   HUD_HIDDEN_KEY,
+  HUD_POSITION_KEY,
   hydrateEngine,
   loadEnabled,
   loadHudHidden,
+  loadHudPosition,
+  parseHudPosition,
   saveBackup,
+  saveHudPosition,
   SESSION_LOST_KEY,
 } from "./state/storage.ts";
 import { messagedArea, watchBackup } from "./state/store.ts";
@@ -161,6 +165,7 @@ class ReadingSession {
         onReview: () => this.openReviewSurface("review"),
         onStats: () => this.openReviewSurface("stats"),
         onSettings: () => this.openReviewSurface("settings"),
+        onMoved: (position) => void saveHudPosition(storageArea, position),
       },
     });
     this.observers = new ReadingObservers({ onRescan: (containers) => void this.refresh(containers) });
@@ -172,6 +177,7 @@ class ReadingSession {
     await hydrateEngine(this.port, store);
     this.calibration = await this.port.calibration();
     this.hudHidden = await loadHudHidden(storageArea);
+    this.hud.setPosition(await loadHudPosition(storageArea));
     this.enabled = await loadEnabled(storageArea);
     await this.refreshNeedsLevel();
     document.addEventListener("click", (e) => this.onClick(e), true);
@@ -207,6 +213,9 @@ class ReadingSession {
         this.hudHidden = hudToggled.newValue === true;
         this.syncHud();
       }
+      // Dragged in another tab (or our own drop echoing back, which changes nothing).
+      const moved = changes[HUD_POSITION_KEY];
+      if (moved) this.hud.setPosition(parseHudPosition(moved.newValue));
       const lost = changes[SESSION_LOST_KEY];
       if (lost) this.drawer.setSessionLost(lost.newValue === true);
     });

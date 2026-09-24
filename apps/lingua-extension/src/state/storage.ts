@@ -31,6 +31,24 @@ export const ENABLED_KEY = "cymbra-lingua-enabled";
 export const HUD_HIDDEN_KEY = "cymbra-lingua-hud-hidden";
 
 /**
+ * Where the reader dragged the in-page HUD pill. One position for every site (a preference,
+ * not per-page state), kept beside the hidden flag for the same reasons; every tab follows
+ * its `storage.onChanged`. Absent means the default, bottom-right.
+ */
+export const HUD_POSITION_KEY = "cymbra-lingua-hud-position";
+
+/**
+ * The pill rests against a side edge; `y` is its height as a fraction of the distance it can
+ * travel (0 = top, 1 = bottom), so it keeps its place when the viewport is resized or rotated.
+ */
+export interface HudPosition {
+  side: "left" | "right";
+  y: number;
+}
+
+export const DEFAULT_HUD_POSITION: HudPosition = { side: "right", y: 1 };
+
+/**
  * Set when a session this device held was refused by the server (expired or revoked), so
  * every surface can say so at a glance instead of silently not syncing. The Session clears
  * it on any successful sign-in or refresh, and when the reader signs out on purpose.
@@ -110,6 +128,27 @@ export async function loadHudHidden(area: AsyncStorageArea): Promise<boolean> {
 /** Set the HUD-hidden flag. */
 export async function saveHudHidden(area: AsyncStorageArea, hidden: boolean): Promise<void> {
   await area.set({ [HUD_HIDDEN_KEY]: hidden });
+}
+
+/** Coerce a stored (untrusted) value to a HUD position; anything malformed is the default. */
+export function parseHudPosition(raw: unknown): HudPosition {
+  if (raw == null || typeof raw !== "object") return DEFAULT_HUD_POSITION;
+  const { side, y } = raw as Record<string, unknown>;
+  if ((side !== "left" && side !== "right") || typeof y !== "number" || !Number.isFinite(y)) {
+    return DEFAULT_HUD_POSITION;
+  }
+  return { side, y: Math.min(1, Math.max(0, y)) };
+}
+
+/** Where the reader left the HUD pill; absent or malformed means bottom-right. */
+export async function loadHudPosition(area: AsyncStorageArea): Promise<HudPosition> {
+  const got = await area.get(HUD_POSITION_KEY);
+  return parseHudPosition(got[HUD_POSITION_KEY]);
+}
+
+/** Remember where the reader left the HUD pill. */
+export async function saveHudPosition(area: AsyncStorageArea, position: HudPosition): Promise<void> {
+  await area.set({ [HUD_POSITION_KEY]: position });
 }
 
 /**
