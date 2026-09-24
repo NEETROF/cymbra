@@ -2,12 +2,14 @@
 
 - [ ] 1.1 Vendor foliate-js at a pinned commit under `apps/lingua-extension/vendor/foliate-js/` and open a real EPUB in a bare `reader.html` extension page on Chrome desktop, then on the Galaxy Tab S6 Lite under Firefox for Android (`yarn dogfood:firefox-android`, real pack via `gen:pack:real`, `--user 0` to see Firefox): the file picker returns the file, the book paginates, the tap zones turn pages
   - Chrome desktop: done on the implementation branch (Playwright's Chromium, unpacked build) — picker, pagination, tap zones. Pending: the Galaxy Tab S6 Lite under Firefox for Android.
+  - Galaxy Tab S6 Lite, Firefox for Android (release, temporary add-on via web-ext, real pack, 2026-09-24): EPUBs picked from the Android picker, opened and read. Files pushed with `adb` show in the picker only once MediaStore has scanned them (`content call --method scan_volume --uri content://media --arg external_primary`). Pending: the tap zones confirmed on the tablet.
 - [x] 1.2 Do the document-parameter refactor of D3 on the spike branch, mount `ReadingSession` on the section document delivered by foliate-js's `load` event, and confirm highlights, the word popup and the selection card work inside the section; list every `document.`/`window.` site touched — if the list reaches beyond `src/reading/`, `content.ts` and the selection helpers, stop and revise the design
 - [ ] 1.3 Measure on the tablet and the laptop: analysis time of a chapter-sized section, time from `load` to painted highlights, and whether a section painted whole (no viewport window) turns pages with one paint; record the numbers in design.md and pick the reveal cap from them
   - Laptop (Chromium): recorded in design.md, « Measurements » — cap set at 1 500 ms. Pending: the tablet, and Firefox (engine in the event page).
 - [ ] 1.4 Measure storage: import three books of realistic size on Chrome and Firefox, check the quota reported by `navigator.storage.estimate()`, whether `navigator.storage.persist()` is granted, and whether Chromium needs `unlimitedStorage` — record the answer in design.md D5
   - Chrome: recorded in design.md — 3 books = 41 MB of a 10.8 GB quota, `persist()` refused, `unlimitedStorage` not needed for room (open question: for eviction). Pending: Firefox.
 - [ ] 1.5 Build the safari variant of the spike, open the largest EPUB at hand in Safari on an iPhone, and note memory (`phys_footprint`) and whether a whole-section paint stays fluid; record it in design.md and decide whether the Safari variant ships the reader
+  - iOS simulator and an iPad (Safari, 2026-09-24): the reader opens, reads and turns pages once two WebKit defects were fixed — a section frame never drawn without a compositing layer, and a cover lost when its record was written back (design.md, « Measurements » and D5). Pending: the iPhone, its memory on the largest book.
 
 ## 2. The reading module takes a document
 
