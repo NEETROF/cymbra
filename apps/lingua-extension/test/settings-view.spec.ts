@@ -1,13 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mountSettings, type SyncControls } from "@/reading/settings-view.ts";
 import type { LinguaPort } from "@/analyzer/port.ts";
-import type { AsyncStorageArea } from "@/state/storage.ts";
+import { ANDROID_VOICES_KEY, type AsyncStorageArea, VOICE_KEY } from "@/state/storage.ts";
+import { createSpeaker, type SpeechSettings, type VoiceInfo } from "@/reading/speech.ts";
 import type { SyncReply } from "@/sync/messages.ts";
-import { makeFakePort } from "./helpers.ts";
+import { makeFakePort, makeFakeSpeech, voiceFixture } from "./helpers.ts";
 
-function fakeArea(): AsyncStorageArea {
+function fakeArea(): AsyncStorageArea & { store: Record<string, unknown> } {
   const store: Record<string, unknown> = {};
   return {
+    store,
     async get(keys) {
       const list = keys == null ? Object.keys(store) : Array.isArray(keys) ? keys : [keys];
       const out: Record<string, unknown> = {};
@@ -21,6 +23,14 @@ function fakeArea(): AsyncStorageArea {
 }
 
 const NOW = Date.UTC(2026, 8, 17, 12, 0, 0);
+
+const samantha: VoiceInfo = {
+  name: "Samantha",
+  lang: "en-US",
+  localService: true,
+  default: false,
+  voiceURI: "Samantha",
+};
 
 const opened: string[] = [];
 
@@ -362,5 +372,163 @@ describe("Réglages — liens sortants", () => {
     [...container.querySelectorAll("button")].find((b) => b.textContent === "Gérer mes données")!.click();
 
     expect(opened).toEqual(["account.html#data"]);
+  });
+});
+
+describe("Réglages — Lecture à voix haute", () => {
+  function mountVoices(voices: VoiceInfo[], initial: Partial<SpeechSettings> = {}) {
+    const fake = makeFakeSpeech(voices, initial);
+    const speaker = createSpeaker(fake.engine, "en", fake.preference);
+    const container = document.createElement("div");
+    document.body.replaceChildren(container);
+    const area = fakeArea();
+    mountSettings(container, makeFakePort().port, area, {
+      persist: async () => {},
+      store: fakeArea(),
+      sync: {
+        available: async () => false,
+        syncNow: async () => ({ ok: true }),
+        lastSync: async () => null,
+        now: () => NOW,
+        watch: () => {},
+      },
+      openPage: () => {},
+      speaker,
+    });
+    const block = [...container.querySelectorAll<HTMLElement>(".set-block")].find((b) =>
+      b.textContent?.startsWith("Lecture à voix haute"),
+    );
+    if (!block) throw new Error("no read-aloud block");
+    const select = block.querySelector("select") as HTMLSelectElement;
+    const preview = [...block.querySelectorAll("button")][0] as HTMLButtonElement;
+    return { fake, speaker, area, block, select, preview };
+  }
+
+  const ordinaryLabels = (select: HTMLSelectElement): string[] =>
+    [...select.children].filter((c) => c.tagName === "OPTION").map((o) => o.textContent ?? "");
+
+  it("lists the automatic choice, the ordinary voices, then the others apart at the bottom", async () => {
+    const s = mountVoices(voiceFixture("chrome-macos"));
+    await settle();
+    expect(s.block.hidden).toBe(false);
+    expect(ordinaryLabels(s.select)).toEqual([
+      "Automatique (Daniel)",
+      "Samantha — États-Unis",
+      "Daniel — Royaume-Uni",
+      "Karen — Australie",
+      "Moira — Irlande",
+      "Rishi — Inde",
+      "Tessa — Afrique du Sud",
+    ]);
+    const group = s.select.querySelector("optgroup")!;
+    expect(group.label).toBe("Autres voix");
+    expect(group.children).toHaveLength(35);
+    expect(s.select.lastElementChild).toBe(group);
+    expect(s.select.value).toBe("");
+  });
+
+  it("has no Autres voix group when every eligible voice is ordinary", async () => {
+    const s = mountVoices([samantha]);
+    await settle();
+    expect(s.select.querySelector("optgroup")).toBeNull();
+  });
+
+  it("is absent without an eligible voice, and appears when one is announced", async () => {
+    const s = mountVoices([
+      { ...samantha, name: "Google US English", voiceURI: "Google US English", localService: false },
+    ]);
+    await settle();
+    expect(s.block.hidden).toBe(true);
+    s.fake.list([samantha]);
+    expect(s.block.hidden).toBe(false);
+  });
+
+  it("keeps the chosen voice, and the automatic choice as no voice at all", async () => {
+    const s = mountVoices(voiceFixture("chrome-macos"));
+    await settle();
+    s.select.value = "Moira";
+    s.select.dispatchEvent(new Event("change"));
+    await settle();
+    expect(s.area.store[VOICE_KEY]).toBe("Moira");
+    s.select.value = "";
+    s.select.dispatchEvent(new Event("change"));
+    await settle();
+    expect(s.area.store[VOICE_KEY]).toBeNull();
+  });
+
+  it("shows the stored choice, and the automatic one when that voice is gone", async () => {
+    const kept = mountVoices(voiceFixture("chrome-macos"), { voice: "Moira" });
+    await settle();
+    expect(kept.select.value).toBe("Moira");
+    const gone = mountVoices(voiceFixture("chrome-macos"), { voice: "Ava (Premium)" });
+    await settle();
+    expect(gone.select.value).toBe("");
+  });
+
+  const androidParts = (block: HTMLElement) => {
+    const toggle = block.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
+    const notes = [...block.querySelectorAll<HTMLElement>(".set-note")];
+    return {
+      toggle,
+      row: toggle.closest("label")!,
+      voiceRow: block.querySelector<HTMLElement>(".set-voice")!,
+      androidNote: notes.find((n) => n.textContent?.includes("voix d'Android"))!,
+      onDeviceNote: notes.find((n) => n.textContent?.startsWith("Voix installées"))!,
+    };
+  };
+
+  it("on Firefox for Android, offers Android's voices behind a switch, off, saying why", async () => {
+    const s = mountVoices(voiceFixture("firefox-android"));
+    await settle();
+    const p = androidParts(s.block);
+    expect(s.block.hidden).toBe(false);
+    expect(p.row.hidden).toBe(false);
+    expect(p.toggle.checked).toBe(false);
+    expect(p.androidNote.hidden).toBe(false);
+    expect(p.voiceRow.hidden).toBe(true); // nothing to choose from yet
+    expect(p.onDeviceNote.hidden).toBe(true);
+    p.toggle.checked = true;
+    p.toggle.dispatchEvent(new Event("change"));
+    await settle();
+    expect(s.area.store[ANDROID_VOICES_KEY]).toBe(true);
+  });
+
+  it("once Android's voices are allowed, lists them — and no longer promises they stay on the device", async () => {
+    const s = mountVoices(voiceFixture("firefox-android"), { androidVoices: true });
+    await settle();
+    const p = androidParts(s.block);
+    expect(p.toggle.checked).toBe(true);
+    expect(p.voiceRow.hidden).toBe(false);
+    expect(p.onDeviceNote.hidden).toBe(true);
+    expect(ordinaryLabels(s.select)).toEqual([
+      "Automatique (anglais (USA,DEFAULT))",
+      "anglais (USA,DEFAULT) — États-Unis",
+      "anglais (USA,f00) — États-Unis",
+      "anglais (GBR,DEFAULT) — Royaume-Uni",
+      "anglais (GBR,f00) — Royaume-Uni",
+    ]);
+  });
+
+  it("shows no Android switch where the browser offers no Android voice", async () => {
+    const s = mountVoices(voiceFixture("chrome-macos"));
+    await settle();
+    const p = androidParts(s.block);
+    expect(p.row.hidden).toBe(true);
+    expect(p.androidNote.hidden).toBe(true);
+    expect(p.onDeviceNote.hidden).toBe(false);
+  });
+
+  it("previews the selected voice, then stops", async () => {
+    const s = mountVoices(voiceFixture("chrome-macos"));
+    await settle();
+    s.preview.click();
+    expect(s.fake.spoken[0].voice.name).toBe("Daniel"); // the automatic choice
+    expect(s.preview.textContent).toBe("■ Arrêter");
+    s.preview.click();
+    expect(s.speaker.speaking()).toBeNull();
+    expect(s.preview.textContent).toBe("▶ Écouter");
+    s.select.value = "Moira";
+    s.preview.click();
+    expect(s.fake.spoken[1].voice.name).toBe("Moira");
   });
 });

@@ -33,6 +33,10 @@ office, the site and the backend are untouched: no `.proto`, no migration, no fl
 - **Silence follows the card.** Closing the card — its close button, Escape, a click off it, a
   gesture, the scroll that dismisses it — stops the speech, and so does leaving the page or its
   tab. A pending card completing with its answer does not interrupt a reading already started.
+- **Firefox for Android, on the reader's say-so.** Firefox reports every voice of Android's
+  engine as not local, for want of knowing where it synthesises. Those voices speak only once
+  the reader switches on "Utiliser la voix d'Android" in Réglages, next to a note saying the
+  text may then leave the device depending on Android's engine; by default, nothing is read.
 - **A voice choice in Réglages.** A "Lecture à voix haute" block lists the eligible voices, with
   an automatic choice by default and a way to hear each one; it is absent when there is none.
   The automatic choice never lands on a novelty voice (macOS ships en-US voices such as
@@ -52,8 +56,9 @@ _None._
 ### Modified Capabilities
 
 - `lingua-browser-extension`: new requirements for reading the selection and its sentence
-  aloud from the card, for read-aloud never leaving the device, and for the voice choice in
-  Réglages. Every delta is ADDED. "Word popup on click", "Minimal permission posture" and "No
+  aloud from the card, for read-aloud never leaving the device, for the voice choice in
+  Réglages, and for one Réglages on every surface (the toolbar popup carried its own copy).
+  Every delta is ADDED. "Word popup on click", "Minimal permission posture" and "No
   network requests" keep their text and stay true: the popup still shows everything it did, no
   permission is added, and no voice that would issue a request is ever used.
 
@@ -63,7 +68,8 @@ _None._
   a speaker that owns one utterance at a time — with the browser's synthesiser behind an
   injected seam, so it is tested in jsdom (which has none) and stays inside the 80 % gate.
   `src/reading/wordpopup.ts` gains the listen row, `src/reading/settings-view.ts` the voice
-  block (one builder for the side panel and the in-page drawer), `src/state/storage.ts` the
+  block (one builder for the side panel, the in-page drawer and — replacing the hand copy it
+  carried until dogfooding found the block missing — the toolbar popup), `src/state/storage.ts` the
   voice preference, `src/styles/wordpopup.css` and `settings.css` their styles from
   `tokens.css`, and `src/content.ts` the wiring as a thin caller.
 - **Background**: untouched. Speech runs where the card runs, in the content script, on every
@@ -74,7 +80,7 @@ _None._
   voice never talks over the soundtrack, and closing the card silences it before the video
   resumes.
 - **Dogfooding**: the voice lists differ by device — macOS Chrome (novelty voices, Google remote
-  voices), Windows, Chrome on Android, Firefox for Android (GeckoView), Safari on iPhone (the
+  voices), Windows, Firefox for Android (GeckoView, Android's engine), Safari on iPhone (the
   ring/silent switch) — and none of them exists in jsdom, so the on-device pass is part of the
   change, not an afterthought.
 - **Release**: an ordinary extension release on the two stores, then a dispatch of

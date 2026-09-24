@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createCard, type Gesture, WordPopup, type WordPopupContent } from "@/reading/wordpopup.ts";
+import { createSpeaker, type VoiceInfo } from "@/reading/speech.ts";
+import { makeFakeSpeech } from "./helpers.ts";
 
 beforeEach(() => {
   document.body.innerHTML = "";
@@ -507,5 +509,177 @@ describe("createCard — what a pending card says it waits for", () => {
     const card = createCard();
     card.show(content({ pending: true }), () => {});
     expect(card.el.querySelector(".gloss")!.textContent).toBe("Recherche dans le pack…");
+  });
+});
+
+describe("read-aloud on the card", () => {
+  const samantha: VoiceInfo = {
+    name: "Samantha",
+    lang: "en-US",
+    localService: true,
+    default: false,
+    voiceURI: "Samantha",
+  };
+
+  function speaking(voices: VoiceInfo[] = [samantha]) {
+    const fake = makeFakeSpeech(voices);
+    const speaker = createSpeaker(fake.engine, "en", fake.preference);
+    const card = createCard(speaker);
+    document.body.append(card.el);
+    return { fake, speaker, card };
+  }
+
+  const listenRow = (card: { el: HTMLElement }): HTMLElement => card.el.querySelector(".listen") as HTMLElement;
+  const labels = (card: { el: HTMLElement }): string[] =>
+    [...listenRow(card).querySelectorAll("button")].map((b) => b.textContent ?? "");
+
+  it("has no listen row without a speaker, or without a voice", () => {
+    const plain = createCard();
+    plain.show(content(), () => {});
+    expect(listenRow(plain).hidden).toBe(true);
+    const { card } = speaking([]);
+    card.show(content(), () => {});
+    expect(listenRow(card).hidden).toBe(true);
+  });
+
+  it("adds the row to the open card when the voices are announced late", () => {
+    const { fake, card } = speaking([]);
+    card.show(content(), () => {});
+    fake.list([samantha]);
+    expect(listenRow(card).hidden).toBe(false);
+    expect(labels(card)).toEqual(["▶ Mot", "▶ Phrase"]);
+  });
+
+  it("speaks a word as seen on the page, not its dictionary form", () => {
+    const { fake, card } = speaking();
+    card.show(content({ headword: "run", surface: "ran", sentence: "She ran home." }), () => {});
+    button(card.el, "▶ Mot").click();
+    expect(fake.spoken.map((u) => u.text)).toEqual(["ran"]);
+    expect(button(card.el, "■ Arrêter").getAttribute("aria-label")).toBe("Arrêter la lecture");
+  });
+
+  it("speaks the selected words of an expression card as one utterance", () => {
+    const { fake, card } = speaking();
+    card.show(content({ headword: "ship on friday", surface: "ship on Friday", expression: true }), () => {});
+    expect(labels(card)).toEqual(["▶ Sélection", "▶ Phrase"]);
+    expect(button(card.el, "▶ Sélection").getAttribute("aria-label")).toBe("Écouter la sélection");
+    button(card.el, "▶ Sélection").click();
+    expect(fake.spoken.map((u) => u.text)).toEqual(["ship on Friday"]);
+  });
+
+  it("speaks the whole sentence the selection was taken from", () => {
+    const { fake, card } = speaking();
+    card.show(content(), () => {});
+    expect(button(card.el, "▶ Phrase").getAttribute("aria-label")).toBe("Écouter la phrase");
+    button(card.el, "▶ Phrase").click();
+    expect(fake.spoken.map((u) => u.text)).toEqual(["They seldom ship on Friday."]);
+  });
+
+  it("offers no sentence button when the selection is its whole sentence, or there is none", () => {
+    const { card } = speaking();
+    card.show(
+      content({ headword: "they seldom ship on friday", surface: "They seldom ship on Friday", expression: true }),
+      () => {},
+    );
+    expect(labels(card)).toEqual(["▶ Sélection"]);
+    card.show(content({ sentence: "" }), () => {});
+    expect(labels(card)).toEqual(["▶ Mot"]);
+  });
+
+  it("stops when the speaking button is pressed, and offers to listen again", () => {
+    const { fake, card } = speaking();
+    card.show(content(), () => {});
+    button(card.el, "▶ Mot").click();
+    expect(button(card.el, "■ Arrêter").classList.contains("speaking")).toBe(true);
+    button(card.el, "■ Arrêter").click();
+    expect(fake.cancels()).toBe(2);
+    expect(labels(card)).toEqual(["▶ Mot", "▶ Phrase"]);
+  });
+
+  it("switches from the sentence to the selection", () => {
+    const { fake, speaker, card } = speaking();
+    card.show(content(), () => {});
+    button(card.el, "▶ Phrase").click();
+    button(card.el, "▶ Mot").click();
+    expect(speaker.speaking()).toEqual({ key: "selection", text: "Seldom" });
+    expect(labels(card)).toEqual(["■ Arrêter", "▶ Phrase"]);
+    fake.spoken[1].done(null);
+    expect(labels(card)).toEqual(["▶ Mot", "▶ Phrase"]);
+  });
+
+  it("offers the row on a pending card, and keeps speaking when the answer completes it", () => {
+    const { speaker, card } = speaking();
+    card.show(content({ pending: true, gloss: null }), () => {});
+    expect(labels(card)).toEqual(["▶ Mot", "▶ Phrase"]);
+    button(card.el, "▶ Phrase").click();
+    card.show(content(), () => {});
+    expect(speaker.speaking()?.key).toBe("sentence");
+    expect(labels(card)).toEqual(["▶ Mot", "■ Arrêter"]);
+  });
+
+  it("falls silent when the card closes, by its close button or by a gesture", () => {
+    const { speaker, card } = speaking();
+    card.show(content(), () => {});
+    button(card.el, "▶ Phrase").click();
+    button(card.el, "✕").click();
+    expect(speaker.speaking()).toBeNull();
+    card.show(content(), () => {});
+    button(card.el, "▶ Mot").click();
+    button(card.el, "+ Deck").click();
+    expect(speaker.speaking()).toBeNull();
+  });
+
+  it("falls silent when another word's card opens", () => {
+    const { speaker, card } = speaking();
+    card.show(content(), () => {});
+    button(card.el, "▶ Mot").click();
+    card.show(content({ headword: "ship", surface: "ship", sentence: "Ships sail." }), () => {});
+    expect(speaker.speaking()).toBeNull();
+  });
+
+  it("leaves a settings preview alone: it is not the card's", () => {
+    const { speaker, card } = speaking();
+    card.show(content(), () => {});
+    speaker.speak("preview", "This is how your pages will sound.");
+    card.hide();
+    card.show(content({ headword: "ship", surface: "ship" }), () => {});
+    expect(speaker.speaking()?.key).toBe("preview");
+  });
+
+  it("keeps the page selection: pressing a listen button prevents the press's default", () => {
+    const { card } = speaking();
+    card.show(content(), () => {});
+    const b = button(card.el, "▶ Mot");
+    const down = new Event("pointerdown", { cancelable: true });
+    const mouse = new MouseEvent("mousedown", { cancelable: true });
+    b.dispatchEvent(down);
+    b.dispatchEvent(mouse);
+    expect(down.defaultPrevented).toBe(true);
+    expect(mouse.defaultPrevented).toBe(true);
+  });
+
+  it("adds the row to the open card once the reader allows Android's voices", async () => {
+    const android: VoiceInfo = {
+      name: "anglais (USA,DEFAULT)",
+      lang: "eng-USA-default",
+      localService: false,
+      default: false,
+      voiceURI: "moz-tts:android:eng_USA_default",
+    };
+    const { fake, card } = speaking([android]);
+    card.show(content(), () => {});
+    expect(listenRow(card).hidden).toBe(true);
+    fake.prefer({ androidVoices: true });
+    expect(labels(card)).toEqual(["▶ Mot", "▶ Phrase"]);
+  });
+
+  it("hands the speaker to the page's popup, whose hide silences it", () => {
+    const fake = makeFakeSpeech([samantha]);
+    const speaker = createSpeaker(fake.engine, "en", fake.preference);
+    const popup = new WordPopup({ css: "", onGesture: () => {}, speaker });
+    popup.show(content());
+    speaker.speak("selection", "Seldom");
+    popup.hide();
+    expect(speaker.speaking()).toBeNull();
   });
 });

@@ -1,5 +1,15 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { LinguaPort, NewCard, Rating, ReviewCard } from "@/analyzer/port.ts";
 import type { PageAnalysis } from "@/analyzer/types.ts";
+import {
+  DEFAULT_SPEECH_SETTINGS,
+  type SpeechEngine,
+  type SpeechSettings,
+  type VoiceInfo,
+  type VoicePreference,
+} from "@/reading/speech.ts";
 
 /** A deck entry for the fake review session. */
 export interface FakeCard {
@@ -111,4 +121,57 @@ export function makeFakePort(deck: FakeCard[] = []): { port: LinguaPort; calls: 
     seedLevel: async () => 0,
   };
   return { port, calls };
+}
+
+/** A voice list captured on a real browser (`test/fixtures/voices/<target>.json`). */
+export function voiceFixture(target: string): VoiceInfo[] {
+  const path = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "voices", `${target}.json`);
+  return (JSON.parse(readFileSync(path, "utf8")) as { voices: VoiceInfo[] }).voices;
+}
+
+/** One utterance the fake synthesiser was asked to speak; `done` ends it as the browser would. */
+export interface FakeUtterance {
+  text: string;
+  voice: VoiceInfo;
+  done: (error: string | null) => void;
+}
+
+/**
+ * A scripted synthesiser: records what it is asked to speak, and lets a test announce a voice
+ * list late (`list`) and end an utterance in whatever order the browsers do (`spoken[i].done`).
+ * jsdom has no `speechSynthesis`, and the orders matter more here than the calls.
+ */
+export function makeFakeSpeech(voices: VoiceInfo[] = [], initial: Partial<SpeechSettings> = {}) {
+  let listed = voices;
+  let settings: SpeechSettings = { ...DEFAULT_SPEECH_SETTINGS, ...initial };
+  const changed: (() => void)[] = [];
+  const watchers: ((settings: SpeechSettings) => void)[] = [];
+  const spoken: FakeUtterance[] = [];
+  let cancels = 0;
+  const engine: SpeechEngine = {
+    voices: () => listed,
+    onVoicesChanged: (listener) => void changed.push(listener),
+    speak: (text, voice, done) => void spoken.push({ text, voice, done }),
+    cancel: () => void cancels++,
+  };
+  const preference: VoicePreference = {
+    load: async () => settings,
+    watch: (onChange) => void watchers.push(onChange),
+  };
+  return {
+    engine,
+    preference,
+    spoken,
+    cancels: () => cancels,
+    /** The browser announces its voices (Chrome: after the first `getVoices()`). */
+    list(next: VoiceInfo[]) {
+      listed = next;
+      for (const listener of changed) listener();
+    },
+    /** The stored settings changed in another context. */
+    prefer(next: Partial<SpeechSettings>) {
+      settings = { ...settings, ...next };
+      for (const watcher of watchers) watcher(settings);
+    },
+  };
 }

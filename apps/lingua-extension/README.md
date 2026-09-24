@@ -145,6 +145,29 @@ yarn lint && yarn format:check && yarn typecheck && yarn test
   with the answer, or with a fallback after 3 s / on failure that offers actions only where
   the key is known without the answer (`src/reading/selection-card.ts` owns these decisions;
   `content.ts` only wires them).
+- **Read-aloud** (`src/reading/speech.ts`) — the card offers `▶ Mot` / `▶ Sélection` (the
+  selection as seen on the page, `ran` not `run`) and `▶ Phrase` (its sentence, left out when
+  the selection is the whole sentence); the speaking button becomes `■ Arrêter`. It uses the
+  page's Web Speech API from the content script — `speak()` runs inside the click, which is
+  the user activation Chrome and Safari on iOS require — with **on-device voices only**:
+  `localService: true` in the studied language, the voice always named on the utterance.
+  Chrome's desktop "Google …" voices synthesise on Google's servers and are never used, even
+  as the default; where only those exist (Chrome on Linux or ChromeOS without a system
+  voice), the row is simply absent — install an English system voice to get it. The automatic
+  choice trusts a default voice only when it is the only one marked (Safari marks them all),
+  and never lands on Apple's novelty, Eloquence or legacy voices (`Bubbles`, `Eddy`, `Fred`…)
+  while an ordinary one exists; Réglages lists them apart under _Autres voix_ and keeps the
+  reader's choice per device (`cymbra-lingua-voice`, never synced). Closing the card, opening
+  another word or leaving the tab stops the speech. The ranking is tested on voice lists
+  captured from real browsers (`test/fixtures/voices/`). An iPhone set to French names the
+  novelty voices in French (`Bulles`, `Murmure`) — they are recognised by their identifier, not
+  their name — and lists some voices twice in two qualities, shown once. On iOS the ring/silent
+  mode mutes the voice and it resumes when silent mode is turned off; nothing the extension can
+  change. **Firefox for Android** reports every voice of Android's engine (Samsung TTS, Google
+  TTS…) as not local, in three-letter codes (`eng-GBR-default`): it cannot tell where that engine
+  synthesises. There the row is absent until the reader switches on _Utiliser la voix d'Android_
+  in Réglages, which says the text may then leave the device depending on Android's engine
+  (`cymbra-lingua-android-voices`, per device). Chrome on Android runs no extension.
 - **State** — statuses, the captured deck, calibration — lives in
   `chrome.storage.local` under a versioned schema with forward migration
   (`src/state/`). A gesture in one tab repaints every other via `storage.onChanged`.

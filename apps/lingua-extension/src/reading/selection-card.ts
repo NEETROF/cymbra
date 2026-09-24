@@ -56,7 +56,7 @@ export function statusOfClass(cls: TokenClass): LemmaStatus | null {
 
 export function rarityText(cls: TokenClass, calibration: number): string {
   if (cls === "Learning") return "Dans ton deck — en cours d'apprentissage.";
-  // A declared CEFR level pins the calibration to 0 on purpose (`onSetLevel`): the level
+  // A declared CEFR level pins the calibration to 0 on purpose (`setLevel` in Réglages): the level
   // becomes the only source of presumed-known. Rendering that 0 told every such reader they
   // knew "tes 0 mots les plus courants" — and declaring a level is the normal path, not an
   // edge case, so this was the first sentence most readers ever saw in a word popup.

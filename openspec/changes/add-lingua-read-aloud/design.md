@@ -15,10 +15,16 @@ and Android (same zip), Safari macOS and iOS (`dist-safari/`, bundled by `apps/l
 Each of them exposes the Web Speech API's `speechSynthesis` to the content script, backed by the
 platform's voices. They differ in what they list: Chrome on macOS lists the Apple voices —
 alphabetically, so the novelty voices (`Albert`, `Bad News`, `Bubbles`…) and the Eloquence ones
-(`Eddy (English (US))`…) come before `Samantha` — plus Google voices that synthesise on Google's
-servers and say so with `localService: false`. Chrome often lists nothing until `voiceschanged`
-fires. Safari and Firefox on macOS expose Apple identifiers in `voiceURI`
-(`com.apple.voice.compact.en-US.Samantha`, `urn:moz-tts:osx:…`); Chrome only names.
+(`Eddy (English (United States))`…) come before `Samantha` — plus Google voices that synthesise
+on Google's servers and say so with `localService: false` (`Google US English`, `Google UK
+English Female`, `Google UK English Male`). Chrome often lists nothing until `voiceschanged`
+fires. Safari on macOS exposes Apple identifiers in `voiceURI`
+(`com.apple.voice.super-compact.en-US.Samantha`), lists no Eloquence voice, and marks **every**
+voice `default: true` — 68 out of 68 on the capture; Chrome marks one (the system voice, `Daniel`
+on the capture) and uses the name as `voiceURI`. Firefox on macOS marks one too, lists no novelty
+and no Eloquence voice — only the legacy `Fred`, `Junior`, `Kathy`, `Ralph` — and wraps the Apple
+identifier in its own URN (`urn:moz-tts:osx:com.apple.voice.super-compact.en-US.Samantha`). Measured on 2026-09-24, captures in
+`apps/lingua-extension/test/fixtures/voices/`.
 
 ## Goals / Non-Goals
 
@@ -78,15 +84,17 @@ host give it one constant (`"en"` today), so a second pack pair changes one call
 `localService` is what the browser reports. For Chrome's own Google voices it is `false`, which
 is precisely the case this rule exists for. For platform voices — Apple's, Windows', Android's
 engine — the platform synthesises, and whether that platform's engine reaches the network is the
-device owner's setting, outside a web page's reach. The on-device pass checks what Chrome on
-Android reports (task 1.2).
+device owner's setting, outside a web page's reach. The on-device pass checks what Firefox for
+Android reports (task 6.3) — it speaks through Android's engine; Chrome on Android runs no
+extension, so it is no target here.
 
 ### D3. The automatic choice, and the novelty voices
 
 `pickVoice(voices, lang, preferred)` is a pure function:
 
 1. the preferred voice (by `voiceURI`), if it is still listed and eligible;
-2. otherwise an eligible voice with `default === true`;
+2. otherwise the eligible voice marked `default`, only when it is the **only** voice of the whole
+   list so marked — Safari marks them all, which says nothing;
 3. otherwise the first eligible voice by tier — Apple's enhanced/premium voices, then ordinary
    voices, then the deprioritised ones — and within a tier `en-US`, then `en-GB`, then any other
    region, then the browser's order;
@@ -96,12 +104,32 @@ The deprioritised voices are Apple's novelty voices (`Albert`, `Bad News`, `Bahh
 `Boing`, `Bubbles`, `Cellos`, `Good News`, `Jester`, `Organ`, `Superstar`, `Trinoids`,
 `Whisper`, `Wobble`, `Zarvox`), the Eloquence voices (`Eddy`, `Flo`, `Grandma`, `Grandpa`,
 `Reed`, `Rocko`, `Sandy`, `Shelley`) and the legacy ones (`Fred`, `Junior`, `Kathy`, `Ralph`),
-matched on the name with any parenthesised suffix removed (Chrome's `Eddy (English (US))`), or on
-the Apple identifier inside `voiceURI` (`com.apple.speech.synthesis.voice.*`,
-`com.apple.eloquence.*`). Apple's list has not moved in years, it is only ever a ranking — a
+matched on the name with any parenthesised suffix removed (Chrome's `Eddy (English (United
+States))`), or on the family of the Apple identifier in `voiceURI`
+(`com.apple.speech.synthesis.voice.`, `com.apple.eloquence.`) wherever it sits — Firefox wraps it
+as `urn:moz-tts:osx:com.apple…` — and on the family, not the name inside it, because Safari's
+identifiers do not always repeat the name (`Wobble` is `…voice.Deranged`, `Jester`
+`…voice.Hysterical`, `Superstar` `…voice.Princess`). Apple's list has not moved in years, it is only ever a ranking — a
 deprioritised voice still speaks when it is the only one — and the voice picker is the way out
 when a platform lists something the ranking gets wrong. The tests run the ranking over voice
-lists captured on real devices (task 1.1), not over lists imagined for the test.
+lists captured on real devices (task 1.1 for macOS, 6.3 for the phones), not over lists imagined
+for the test.
+
+An iPhone (iOS 27.2, set to French) added two findings. It **translates the novelty voices'
+names** — `Bulles`, `Murmure`, `Cloches`, `Mauvaises nouvelles`, `Trinoïdes` — so a list of
+English names would have let all of them through; the identifier family catches every one. And
+it **lists one voice in two qualities** — `Daniel` as `com.apple.voice.compact…` and
+`…super-compact…` — which Réglages would have shown as two identical lines: voices sharing a
+name and a language are one voice to the reader, and the best quality (`premium` > `enhanced` >
+`compact` > `super-compact`) is kept, at the place of the first.
+
+On the captures: Chrome macOS picks `Daniel` (its one default voice) among 41 eligible voices, 6
+of them ordinary; Safari macOS, where the default says nothing, picks `Samantha` among 25, 6 of
+them ordinary; Firefox macOS picks `Daniel` (its one default voice) among 10, 6 of them ordinary;
+the iPhone, all voices marked default again, picks `Samantha` among 25, 6 of them ordinary once
+`Daniel` counts once.
+The same Mac can therefore start on two different voices in two browsers; the
+picker settles it per browser.
 
 _Alternative considered._ An allow-list of known good names (`Samantha`, `Daniel`, `Microsoft
 David`…) — it fails closed on every platform nobody listed, where a deny-list only fails to
@@ -161,10 +189,14 @@ gloss.
 ### D6. The voice in Réglages
 
 `mountSettings` gains a "Lecture à voix haute" block, built by the same function in the side
-panel and the in-page drawer, from a speaker the host passes in (`SettingsOptions.speaker`):
+panel, the in-page drawer and the toolbar popup, from a speaker the host passes in
+(`SettingsOptions.speaker`):
 
-- a select whose first option is `Automatique (<voice name>)` — the voice D3 would pick — and
-  then every eligible voice as `<name> — <region>`;
+- a select whose first option is `Automatique (<voice name>)` — the voice D3 would pick — then
+  the ordinary eligible voices as `<name> — <region>`, then the deprioritised ones of D3 in a
+  group `Autres voix` at the bottom: listed, since a reader may want one, but out of the way —
+  on the Chrome macOS capture they are 35 of 41, and in the browser's order they would bury
+  `Samantha` under `Bubbles` (group chosen by the founder on 2026-09-24 over hiding them);
 - a button `▶ Écouter` that speaks a fixed English sample with the selected voice;
 - no block at all when no voice is eligible (the Firefox and Chrome desktops without a local
   English voice, for instance).
@@ -173,6 +205,38 @@ The preference is the chosen `voiceURI`, or nothing for the automatic choice, in
 `chrome.storage.local` under a new key (`cymbra-lingua-voice`): a preference like the HUD
 toggle, small and read before any round-trip, never in the reader's IndexedDB store. It is not
 synchronised across devices: voice identifiers are per platform.
+
+**The toolbar popup had its own Réglages.** Dogfooding found the block missing there: the popup
+carried a hand copy — markup in `popup.html`, wiring in `popup.ts` sending `setLevel`,
+`setCalibration` and `reset` to the tab's content script — and every block added to the
+shared view since was absent from it. The popup now mounts `mountSettings` like the side
+panel: with an engine port of its own, created the first time Réglages open, persisting the
+backup to the store, which the tab restores (`onExternalChange`) exactly as it does after a
+change in the side panel. The copy, its styles and the three content-script messages only it
+sent are removed, and `test/lint-settings-hosts.spec.ts` fails the build when a host stops
+calling `mountSettings` or a page or module holds a Réglages block of its own (recognised by
+the builder's block titles).
+
+### D8. Firefox for Android: Android's voices on the reader's say-so
+
+Measured on a Galaxy Tab S6 Lite (Android 13, Firefox 156, Samsung TTS and Google TTS
+installed): Firefox lists 18 voices, one per locale of Android's engine
+(`moz-tts:android:eng_GBR_default`), languages in three letters (`eng-GBR-default`), and **every
+one `localService: false`** — the French ones too. Firefox cannot tell where Android's engine
+synthesises, and says so the only way the API allows. Under D2 the row was therefore absent on
+Firefox for Android, twice over (the language did not match either).
+
+Three answers were weighed with the founder (2026-09-24): keep the rule and ship nothing on
+Android; trust Android's engine like Apple's; or let the reader allow it. **Chosen: the reader
+allows it.** By default nothing changes — no row, the promise holds. Réglages then shows a switch,
+"Utiliser la voix d'Android", only where the browser lists such voices, with a note that the text
+read may leave the device depending on the engine chosen in Android; while it is on, the "voix
+installées sur cet appareil" line is not shown, since it would no longer be true. The choice is a
+per-device preference (`cymbra-lingua-android-voices`), never synchronised.
+
+The allowance is narrow: it admits voices whose identifier is Android's (`moz-tts:android:`), and
+nothing else — a remote Chrome voice stays refused whatever the switch says. Languages and
+regions are read in both forms (`eng` → `en`, `GBR` → `GB`) wherever voices are compared or named.
 
 ### D7. Tests
 
@@ -191,8 +255,8 @@ synchronised across devices: voice identifiers are per platform.
 ## Risks / Trade-offs
 
 - [A platform reports a network voice as local] → The rule relies on `localService`. Chrome's
-  remote voices report it correctly on desktop; Chrome on Android is checked on device (task
-  1.2). If it lists a voice that reaches the network as local, that voice goes on the
+  remote voices report it correctly on desktop; Firefox for Android, which speaks through
+  Android's engine, is checked on device (task 6.3). If it lists a voice that reaches the network as local, that voice goes on the
   deprioritised list and the finding is written into the extension README.
 - [No eligible voice on a desktop] → Chrome on Linux or ChromeOS can list only Google's remote
   voices: the row is absent there. This is the privacy promise working, and the README says how
@@ -222,5 +286,6 @@ None. Three choices this design makes were confirmed by the founder on 2026-09-2
 2. The voice picker is **in** this change, not a follow-up.
 3. **No rate control** in this change.
 
-What remains open is measured, not decided: what Chrome on Android reports (task 1.2), and
-Firefox for Android and the iPhone's silent switch (task 6.3).
+What remains open is measured, not decided: what the phones list and what Firefox for Android
+reports as remote, and the iPhone's silent switch — all read during the on-device pass (task 6.3),
+not captured ahead.

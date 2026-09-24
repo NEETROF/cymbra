@@ -1,0 +1,440 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  browserSpeechEngine,
+  createSpeaker,
+  isDeprioritised,
+  isAndroidVoice,
+  isEligible,
+  pickVoice,
+  rankVoices,
+  sameSpokenText,
+  type VoiceInfo,
+  voiceGroups,
+  voiceLabel,
+} from "@/reading/speech.ts";
+import { makeFakeSpeech, voiceFixture } from "./helpers.ts";
+
+const voice = (over: Partial<VoiceInfo> & { name: string }): VoiceInfo => ({
+  lang: "en-US",
+  localService: true,
+  default: false,
+  voiceURI: over.name,
+  ...over,
+});
+
+const samantha = voice({ name: "Samantha" });
+const daniel = voice({ name: "Daniel", lang: "en-GB" });
+const googleUs = voice({ name: "Google US English", localService: false });
+
+/** Let the speaker's preference load settle. */
+const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
+
+describe("which voice may speak", () => {
+  it("refuses a voice that synthesises remotely, even as the browser's default", () => {
+    expect(isEligible({ ...googleUs, default: true }, "en")).toBe(false);
+    expect(pickVoice([{ ...googleUs, default: true }, samantha], "en", null)).toBe(samantha);
+  });
+
+  it("offers nothing when every voice of the studied language is remote", () => {
+    expect(pickVoice([googleUs, voice({ name: "Thomas", lang: "fr-FR" })], "en", null)).toBeNull();
+  });
+
+  it("reads the language by its primary subtag, whatever its case or separator", () => {
+    expect(isEligible(voice({ name: "English United States", lang: "en_US" }), "en")).toBe(true);
+    expect(isEligible(voice({ name: "Moira", lang: "EN-ie" }), "en")).toBe(true);
+    expect(isEligible(voice({ name: "Thomas", lang: "fr-FR" }), "en")).toBe(false);
+  });
+
+  it("refuses every Google voice of the Chrome macOS capture", () => {
+    const remote = voiceFixture("chrome-macos").filter((v) => v.name.startsWith("Google"));
+    expect(remote.length).toBeGreaterThan(0);
+    expect(remote.some((v) => isEligible(v, "en"))).toBe(false);
+  });
+});
+
+describe("the automatic choice, on the captured lists", () => {
+  it("Chrome macOS: the one default voice, Daniel", () => {
+    expect(pickVoice(voiceFixture("chrome-macos"), "en", null)?.name).toBe("Daniel");
+  });
+
+  it("Chrome macOS without an English default: Samantha, not Albert or Bubbles listed before her", () => {
+    const voices = voiceFixture("chrome-macos").map((v) => ({ ...v, default: false }));
+    expect(pickVoice(voices, "en", null)?.name).toBe("Samantha");
+  });
+
+  it("Safari marks every voice default, which says nothing: Samantha, not the first voice listed", () => {
+    const voices = voiceFixture("safari-macos");
+    expect(voices.every((v) => v.default)).toBe(true);
+    expect(pickVoice(voices, "en", null)?.name).toBe("Samantha");
+    expect(pickVoice(voiceFixture("safari-ios-simulator"), "en", null)?.name).toBe("Samantha");
+  });
+
+  it("Firefox macOS: the one default voice, Daniel", () => {
+    expect(pickVoice(voiceFixture("firefox-macos"), "en", null)?.name).toBe("Daniel");
+  });
+
+  it("iPhone in French: Samantha, though every voice is marked default and the novelty ones speak French names", () => {
+    expect(pickVoice(voiceFixture("safari-ios"), "en", null)?.name).toBe("Samantha");
+  });
+
+  it.each(["chrome-macos", "safari-macos", "firefox-macos", "safari-ios-simulator", "safari-ios"])(
+    "%s: never a novelty, Eloquence or legacy voice while an ordinary one exists",
+    (target) => {
+      const voices = voiceFixture(target).map((v) => ({ ...v, default: false }));
+      const picked = pickVoice(voices, "en", null);
+      expect(picked).not.toBeNull();
+      expect(isDeprioritised(picked!)).toBe(false);
+    },
+  );
+
+  it("follows a single default voice even when it is one the ranking would put last", () => {
+    const zarvox = voice({ name: "Zarvox", default: true });
+    expect(pickVoice([samantha, zarvox], "en", null)).toBe(zarvox);
+  });
+
+  it("still speaks with a deprioritised voice when it is the only one", () => {
+    const fred = voice({ name: "Fred" });
+    expect(pickVoice([fred], "en", null)).toBe(fred);
+  });
+
+  it("prefers a voice downloaded for its quality, named by Chrome or identified by Safari", () => {
+    const chromeAva = voice({ name: "Ava (Premium)" });
+    expect(pickVoice([samantha, chromeAva], "en", null)).toBe(chromeAva);
+    const safariAva = voice({ name: "Ava", voiceURI: "com.apple.voice.enhanced.en-US.Ava" });
+    expect(pickVoice([samantha, safariAva], "en", null)).toBe(safariAva);
+  });
+
+  it("tries en-US, then en-GB, then the other regions, then the browser's order", () => {
+    const karen = voice({ name: "Karen", lang: "en-AU" });
+    expect(rankVoices([karen, daniel, samantha], "en")).toEqual([samantha, daniel, karen]);
+    expect(rankVoices([karen, daniel], "en")).toEqual([daniel, karen]);
+    const tessa = voice({ name: "Tessa", lang: "en-ZA" });
+    expect(rankVoices([tessa, karen], "en")).toEqual([tessa, karen]);
+    expect(rankVoices([voice({ name: "Anna", lang: "de-DE" })], "de")).toHaveLength(1);
+  });
+});
+
+describe("the reader's choice", () => {
+  it("speaks with the chosen voice while it is listed and eligible", () => {
+    const voices = voiceFixture("chrome-macos");
+    expect(pickVoice(voices, "en", "Moira")?.name).toBe("Moira");
+  });
+
+  it("falls back to the automatic choice when the chosen voice is gone", () => {
+    expect(pickVoice(voiceFixture("chrome-macos"), "en", "Ava (Premium)")?.name).toBe("Daniel");
+  });
+
+  it("never follows a choice onto a remote voice", () => {
+    expect(pickVoice(voiceFixture("chrome-macos"), "en", "Google US English")?.name).toBe("Daniel");
+  });
+});
+
+describe("the voices apart", () => {
+  it("recognises Apple's families by name, and by identifier wherever it sits", () => {
+    expect(isDeprioritised(voice({ name: "Eddy (English (United States))" }))).toBe(true);
+    // Safari's identifiers do not always repeat the name, and Firefox wraps them in its own URN.
+    expect(
+      isDeprioritised(voice({ name: "Hysterical", voiceURI: "com.apple.speech.synthesis.voice.Hysterical" })),
+    ).toBe(true);
+    expect(isDeprioritised(voice({ name: "X", voiceURI: "urn:moz-tts:osx:com.apple.eloquence.en-US.Flo" }))).toBe(true);
+    expect(isDeprioritised(samantha)).toBe(false);
+    expect(isDeprioritised(voice({ name: "Samantha (Enhanced)" }))).toBe(false);
+  });
+
+  it("groups Chrome macOS: 6 ordinary voices, Samantha first, then the 35 others", () => {
+    const { ordinary, others } = voiceGroups(voiceFixture("chrome-macos"), "en");
+    expect(ordinary.map((v) => v.name)).toEqual(["Samantha", "Daniel", "Karen", "Moira", "Rishi", "Tessa"]);
+    expect(others).toHaveLength(35);
+    expect(others.every(isDeprioritised)).toBe(true);
+  });
+
+  it("groups an iPhone in French: the novelty voices apart by identifier, whatever their name", () => {
+    const { ordinary, others } = voiceGroups(voiceFixture("safari-ios"), "en");
+    expect(ordinary.map((v) => v.name)).toEqual(["Samantha", "Daniel", "Karen", "Moira", "Rishi", "Tessa"]);
+    expect(others).toHaveLength(19);
+    expect(others.map((v) => v.name)).toEqual(expect.arrayContaining(["Bulles", "Murmure", "Trinoïdes", "Bouffon"]));
+  });
+
+  it("lists a voice offered in two qualities once, keeping the better one where the first was", () => {
+    // The iPhone lists Daniel compact AND super-compact: one line in Réglages, the compact one.
+    const daniel = voiceGroups(voiceFixture("safari-ios"), "en").ordinary.filter((v) => v.name === "Daniel");
+    expect(daniel.map((v) => v.voiceURI)).toEqual(["com.apple.voice.compact.en-GB.Daniel"]);
+    const superCompact = voice({ name: "Ava", voiceURI: "com.apple.voice.super-compact.en-US.Ava" });
+    const premium = voice({ name: "Ava", voiceURI: "com.apple.voice.premium.en-US.Ava" });
+    const enhanced = voice({ name: "Ava", voiceURI: "com.apple.voice.enhanced.en-US.Ava" });
+    expect(rankVoices([superCompact, samantha, premium, enhanced], "en")).toEqual([premium, samantha]);
+    // Same name, another language: another voice.
+    const avaGb = voice({ name: "Ava", lang: "en-GB", voiceURI: "com.apple.voice.compact.en-GB.Ava" });
+    expect(rankVoices([superCompact, avaGb], "en")).toEqual([superCompact, avaGb]);
+  });
+
+  it("groups Firefox macOS: no novelty voice, only the four legacy ones apart", () => {
+    const { ordinary, others } = voiceGroups(voiceFixture("firefox-macos"), "en");
+    expect(ordinary).toHaveLength(6);
+    expect(others.map((v) => v.name)).toEqual(["Fred", "Junior", "Kathy", "Ralph"]);
+  });
+});
+
+describe("Firefox for Android: Android's own voices, on the reader's say-so", () => {
+  const android = (name: string, lang: string): VoiceInfo =>
+    voice({ name, lang, localService: false, voiceURI: `moz-tts:android:${lang.replace(/-/g, "_")}` });
+
+  it("reports every voice of Android's engine as not local, in three-letter codes (the capture)", () => {
+    const voices = voiceFixture("firefox-android");
+    expect(voices.every((v) => !v.localService && isAndroidVoice(v))).toBe(true);
+    expect(voices.map((v) => v.lang)).toContain("eng-GBR-default");
+  });
+
+  it("refuses them until the reader allows them", () => {
+    const voices = voiceFixture("firefox-android");
+    expect(rankVoices(voices, "en")).toEqual([]);
+    expect(pickVoice(voices, "en", null)).toBeNull();
+  });
+
+  it("once allowed, speaks English with them, en-US first", () => {
+    const voices = voiceFixture("firefox-android");
+    expect(rankVoices(voices, "en", true).map((v) => v.name)).toEqual([
+      "anglais (USA,DEFAULT)",
+      "anglais (USA,f00)",
+      "anglais (GBR,DEFAULT)",
+      "anglais (GBR,f00)",
+    ]);
+    expect(pickVoice(voices, "en", null, true)?.name).toBe("anglais (USA,DEFAULT)");
+  });
+
+  it("reads three-letter languages and regions", () => {
+    expect(isEligible(android("anglais (GBR,f00)", "eng-GBR-f00"), "en", true)).toBe(true);
+    expect(isEligible(android("français (FRA,DEFAULT)", "fra-FRA-default"), "en", true)).toBe(false);
+    expect(voiceLabel(android("anglais (GBR,DEFAULT)", "eng-GBR-default"))).toBe("anglais (GBR,DEFAULT) — Royaume-Uni");
+  });
+
+  it("never lets the allowance reach a remote voice that is not Android's", () => {
+    expect(isEligible(googleUs, "en", true)).toBe(false);
+  });
+
+  it("tells whether the browser offers them at all, allowed or not", async () => {
+    const fake = makeFakeSpeech(voiceFixture("firefox-android"));
+    const s = createSpeaker(fake.engine, "en", fake.preference);
+    await settle();
+    expect(s.offersAndroidVoices()).toBe(true);
+    expect(s.androidVoices()).toBe(false);
+    expect(s.available()).toBe(false);
+    fake.prefer({ androidVoices: true });
+    expect(s.available()).toBe(true);
+    s.speak("selection", "seldom");
+    expect(fake.spoken[0].voice.name).toBe("anglais (USA,DEFAULT)");
+    const mac = makeFakeSpeech(voiceFixture("chrome-macos"));
+    expect(createSpeaker(mac.engine, "en", mac.preference).offersAndroidVoices()).toBe(false);
+  });
+});
+
+describe("labels and texts", () => {
+  it("names a voice with its region in French", () => {
+    expect(voiceLabel(samantha)).toBe("Samantha — États-Unis");
+    expect(voiceLabel(voice({ name: "Daniel", lang: "en_GB" }))).toBe("Daniel — Royaume-Uni");
+    expect(voiceLabel(voice({ name: "Plain", lang: "en" }))).toBe("Plain");
+    // Not a region code: said as it is, never thrown.
+    expect(voiceLabel(voice({ name: "Odd", lang: "en-Latn" }))).toBe("Odd — LATN");
+  });
+
+  it("hears a sentence and its selection as the same text regardless of case, blanks and final punctuation", () => {
+    expect(sameSpokenText("They seldom ship on Friday.", "they  seldom ship on friday")).toBe(true);
+    expect(sameSpokenText("« Go away! »", "« Go away")).toBe(true);
+    expect(sameSpokenText("They seldom ship.", "seldom")).toBe(false);
+  });
+});
+
+describe("the speaker", () => {
+  it("offers nothing without a synthesiser", () => {
+    const s = createSpeaker(null, "en", makeFakeSpeech().preference);
+    expect(s.available()).toBe(false);
+    expect(s.eligible()).toEqual([]);
+    s.speak("selection", "seldom");
+    s.stop();
+    expect(s.speaking()).toBeNull();
+  });
+
+  it("appears when the browser announces its voices late", () => {
+    const fake = makeFakeSpeech([]);
+    const s = createSpeaker(fake.engine, "en", fake.preference);
+    const listener = vi.fn();
+    s.subscribe(listener);
+    expect(s.available()).toBe(false);
+    fake.list([samantha]);
+    expect(listener).toHaveBeenCalled();
+    expect(s.available()).toBe(true);
+  });
+
+  it("names the chosen voice on the utterance, and says what it is speaking", () => {
+    const fake = makeFakeSpeech([googleUs, samantha]);
+    const s = createSpeaker(fake.engine, "en", fake.preference);
+    s.speak("sentence", "They seldom ship on Friday.");
+    expect(fake.spoken).toHaveLength(1);
+    expect(fake.spoken[0].voice).toBe(samantha);
+    expect(s.speaking()).toEqual({ key: "sentence", text: "They seldom ship on Friday." });
+    fake.spoken[0].done(null);
+    expect(s.speaking()).toBeNull();
+  });
+
+  it("switches: the previous utterance is cancelled, and its late end does not clear the new one", () => {
+    const fake = makeFakeSpeech([samantha]);
+    const s = createSpeaker(fake.engine, "en", fake.preference);
+    s.speak("sentence", "They seldom ship on Friday.");
+    s.speak("selection", "seldom");
+    expect(fake.cancels()).toBe(2);
+    fake.spoken[0].done("interrupted"); // Chrome reports it after the new one has started
+    expect(s.speaking()).toEqual({ key: "selection", text: "seldom" });
+    fake.spoken[1].done(null);
+    expect(s.speaking()).toBeNull();
+  });
+
+  it("stops what it speaks, and leaves the frame alone when it speaks nothing", () => {
+    const fake = makeFakeSpeech([samantha]);
+    const s = createSpeaker(fake.engine, "en", fake.preference);
+    s.stop();
+    expect(fake.cancels()).toBe(0); // the page's own speech is not ours to cancel
+    s.speak("selection", "seldom");
+    s.stop();
+    expect(fake.cancels()).toBe(2);
+    expect(s.speaking()).toBeNull();
+  });
+
+  it("stays silent on its own cancellations and logs a real failure", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const fake = makeFakeSpeech([samantha]);
+    const s = createSpeaker(fake.engine, "en", fake.preference);
+    s.speak("selection", "seldom");
+    fake.spoken[0].done("canceled");
+    expect(warn).not.toHaveBeenCalled();
+    s.speak("selection", "seldom");
+    fake.spoken[1].done("synthesis-failed");
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("synthesis-failed"));
+    expect(s.speaking()).toBeNull();
+    warn.mockRestore();
+  });
+
+  it("follows the stored preference, and its changes from another context", async () => {
+    const fake = makeFakeSpeech([samantha, daniel], { voice: "Daniel" });
+    const s = createSpeaker(fake.engine, "en", fake.preference);
+    await settle();
+    expect(s.preferred()).toBe("Daniel");
+    s.speak("selection", "seldom");
+    expect(fake.spoken[0].voice).toBe(daniel);
+    expect(s.automatic()).toBe(samantha); // the automatic choice ignores the preference
+    const listener = vi.fn();
+    s.subscribe(listener);
+    fake.prefer({ voice: null });
+    expect(listener).toHaveBeenCalled();
+    s.speak("selection", "seldom");
+    expect(fake.spoken[1].voice).toBe(samantha);
+  });
+
+  it("keeps working when the preference cannot be read", async () => {
+    const fake = makeFakeSpeech([samantha]);
+    const s = createSpeaker(fake.engine, "en", { load: () => Promise.reject(new Error("gone")), watch: () => {} });
+    await settle();
+    expect(s.preferred()).toBeNull();
+    expect(s.available()).toBe(true);
+  });
+
+  it("speaks with a voice passed explicitly (the settings preview), never an ineligible one, never nothing", () => {
+    const fake = makeFakeSpeech([samantha, daniel, googleUs]);
+    const s = createSpeaker(fake.engine, "en", fake.preference);
+    s.speak("preview", "Hello.", daniel);
+    expect(fake.spoken[0].voice).toBe(daniel);
+    s.speak("preview", "Hello.", googleUs);
+    s.speak("preview", "   ");
+    expect(fake.spoken).toHaveLength(1);
+  });
+
+  it("stops calling a listener once it unsubscribed", () => {
+    const fake = makeFakeSpeech([samantha]);
+    const s = createSpeaker(fake.engine, "en", fake.preference);
+    const listener = vi.fn();
+    const unsubscribe = s.subscribe(listener);
+    unsubscribe();
+    s.speak("selection", "seldom");
+    expect(listener).not.toHaveBeenCalled();
+    expect(s.lang).toBe("en");
+  });
+});
+
+describe("the browser's synthesiser behind the seam", () => {
+  class FakeUtterance {
+    voice: SpeechSynthesisVoice | null = null;
+    lang = "";
+    onend: (() => void) | null = null;
+    onerror: ((e: { error?: string }) => void) | null = null;
+    constructor(readonly text: string) {}
+  }
+
+  function fakeSynth(withEvents = true) {
+    const utterances: FakeUtterance[] = [];
+    const listeners: (() => void)[] = [];
+    const synth = {
+      getVoices: vi.fn(() => [samantha]),
+      speak: vi.fn((u: FakeUtterance) => void utterances.push(u)),
+      cancel: vi.fn(),
+      ...(withEvents ? { addEventListener: (_type: string, l: () => void) => void listeners.push(l) } : {}),
+    };
+    return { synth: synth as unknown as SpeechSynthesis, raw: synth, utterances, listeners };
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("is absent where the page has no synthesiser", () => {
+    expect(browserSpeechEngine()).toBeNull(); // jsdom has none
+    expect(browserSpeechEngine(fakeSynth().synth)).toBeNull(); // nor an utterance constructor
+  });
+
+  it("names the voice and its language on the utterance, and reports its end once", () => {
+    vi.stubGlobal("SpeechSynthesisUtterance", FakeUtterance);
+    const f = fakeSynth();
+    const engine = browserSpeechEngine(f.synth)!;
+    const done = vi.fn();
+    engine.speak("seldom", samantha as SpeechSynthesisVoice, done);
+    const u = f.utterances[0];
+    expect(u.text).toBe("seldom");
+    expect(u.voice).toBe(samantha);
+    expect(u.lang).toBe("en-US");
+    u.onend?.();
+    u.onend?.();
+    expect(done).toHaveBeenCalledTimes(1);
+    expect(done).toHaveBeenCalledWith(null);
+  });
+
+  it("reports an error with its code", () => {
+    vi.stubGlobal("SpeechSynthesisUtterance", FakeUtterance);
+    const f = fakeSynth();
+    const engine = browserSpeechEngine(f.synth)!;
+    const done = vi.fn();
+    engine.speak("seldom", samantha as SpeechSynthesisVoice, done);
+    f.utterances[0].onerror?.({ error: "interrupted" });
+    engine.speak("seldom", samantha as SpeechSynthesisVoice, done);
+    f.utterances[1].onerror?.({});
+    expect(done.mock.calls).toEqual([["interrupted"], ["unknown"]]);
+  });
+
+  it("lists, cancels and follows the voice list through the synthesiser", () => {
+    vi.stubGlobal("SpeechSynthesisUtterance", FakeUtterance);
+    const f = fakeSynth();
+    const engine = browserSpeechEngine(f.synth)!;
+    expect(engine.voices()).toEqual([samantha]);
+    engine.cancel();
+    expect(f.raw.cancel).toHaveBeenCalled();
+    const listener = vi.fn();
+    engine.onVoicesChanged(listener);
+    f.listeners.forEach((l) => l());
+    expect(listener).toHaveBeenCalled();
+  });
+
+  it("does not touch the page's handler when the synthesiser has no addEventListener", () => {
+    vi.stubGlobal("SpeechSynthesisUtterance", FakeUtterance);
+    const f = fakeSynth(false);
+    const engine = browserSpeechEngine(f.synth)!;
+    expect(() => engine.onVoicesChanged(() => {})).not.toThrow();
+    expect((f.raw as Record<string, unknown>).onvoiceschanged).toBeUndefined();
+  });
+});

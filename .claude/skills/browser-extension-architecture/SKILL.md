@@ -124,14 +124,22 @@ Treat it as the worst case for everything above:
 ## One impl, N hosts — never duplicate a view
 
 Review, stats and settings each have **one** builder, rendered into whatever host needs it —
-the native side panel **and** the in-page drawer:
+the native side panel, the in-page drawer **and** (for Réglages) the toolbar popup:
 `mountReview` (`src/review/review-page.ts`), `mountStats` (`src/stats/view.ts`),
 `mountSettings` (`src/reading/settings-view.ts`), plus `renderReview` for the widget itself.
 Each builds its own DOM into a passed container and returns a `refresh()`. When you add a view
 or a host, extend/reuse these — do **not** copy markup or logic into a second file, and put the
 shared CSS where every host loads it (`review.css` / `settings.css`, imported into the drawer's
-shadow via `content.ts` and `<link>`ed by `sidepanel.html`). If content differs between two
+shadow via `content.ts` and `<link>`ed by `sidepanel.html` and `popup.html`). If content differs between two
 hosts, that is the bug.
+
+The popup is the host that gets forgotten: it carried a hand copy of Réglages (markup in
+`popup.html`, wiring in `popup.ts` messaging the tab) until dogfooding found the read-aloud
+voice block missing from it — every block added to `mountSettings` since the copy was made was
+absent there. It now mounts `mountSettings` on an engine port of its own, created when Réglages
+first open, like the side panel. `test/lint-settings-hosts.spec.ts` fails the build when a host
+stops calling `mountSettings`, or when any page or module holds a Réglages block title of its
+own; a new surface that shows Réglages goes in its `HOSTS` list.
 
 ## Injected-surface mechanics (checklist)
 

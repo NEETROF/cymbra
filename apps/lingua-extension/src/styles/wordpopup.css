@@ -56,6 +56,40 @@
   font-size: 12px;
 }
 
+/* Read-aloud: hear the selection and its sentence. Pills, lighter than the actions below, so the
+   row reads as part of the headword rather than as a decision about it. */
+.listen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.listen[hidden] {
+  display: none;
+}
+
+.listen button {
+  cursor: pointer;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--cymbra-lingua-border-2);
+  background: transparent;
+  color: var(--cymbra-lingua-muted);
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.listen button:hover {
+  background: var(--cymbra-lingua-panel-2);
+  color: var(--cymbra-lingua-text);
+}
+
+.listen button.speaking {
+  border-color: var(--cymbra-lingua-accent-strong);
+  color: var(--cymbra-lingua-accent);
+}
+
 .gloss {
   margin-top: 8px;
   color: var(--cymbra-lingua-accent);
