@@ -222,6 +222,19 @@ describe("a book open", () => {
     await vi.waitFor(async () => expect((await library.get(hash))?.location).toBe("epubcfi(/6/8)"));
   });
 
+  it("leaves the card open when the page settles where it was: a finger lift is not a move", async () => {
+    const { session } = await withBook();
+    await openFirst();
+    const save = vi.spyOn(library, "savePosition");
+    const here = { cfi: "epubcfi(/6/8)", fraction: 0.426, section: "II. The Hound" };
+    renderers[0].relocate(here);
+    renderers[0].relocate(here);
+    expect(session.dismissed).toBe(1);
+    expect(save).toHaveBeenCalledOnce();
+    renderers[0].relocate({ ...here, cfi: "epubcfi(/6/10)" });
+    expect(session.dismissed).toBe(2);
+  });
+
   it("turns the page by its outer thirds, by the arrows and by the keys, in the paginated flow", async () => {
     const { a } = await withBook();
     await openFirst();

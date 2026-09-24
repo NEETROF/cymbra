@@ -111,6 +111,8 @@ export class ReaderApp {
   private renderer: BookRenderer | null = null;
   private book: BookRecord | null = null;
   private section: string | null = null;
+  /** Where the page last was (a CFI), to tell a real move from foliate settling in place. */
+  private at: string | null = null;
   private flow: ReaderFlow = "paginated";
   /** Whether the section on screen was revealed yet (design D4: once per section). */
   private revealed = true;
@@ -313,6 +315,7 @@ export class ReaderApp {
     this.closeBook();
     this.book = book;
     this.section = null;
+    this.at = null;
     this.bookTitle.textContent = book.title;
     this.sectionTitle.textContent = "";
     this.progress.textContent = "";
@@ -402,6 +405,11 @@ export class ReaderApp {
     this.section = location.section;
     this.sectionTitle.textContent = location.section ?? "";
     this.progress.textContent = `${Math.round(location.fraction * 100)} %`;
+    // foliate-js settles the page after every lift of a finger — a tap, a press-and-hold — and
+    // reports it even when nothing moved; closing the card then would close the one that lift
+    // just opened. Only a real move dismisses it and is worth writing down.
+    if (location.cfi === this.at) return;
+    this.at = location.cfi;
     // The word popup is anchored to a word that just moved.
     this.session?.dismiss();
     void this.deps.library.savePosition(book.hash, location.cfi, this.now());
