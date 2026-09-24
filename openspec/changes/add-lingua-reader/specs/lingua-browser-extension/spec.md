@@ -35,7 +35,9 @@ positioned so it does not sit under that menu.
 
 On Safari, once the user's finger lifts from a selection of several words, the reader SHALL
 remove that selection after capturing it, so the platform's callout does not cover the
-expression card; the card keeps what was captured. A single-word selection SHALL be kept, with
+expression card; the card keeps what was captured. It SHALL do so only while the reader is
+switched on and has analysed the page — where the card is shown in the callout's place — and
+SHALL otherwise leave the selection as the platform made it. A single-word selection SHALL be kept, with
 its handles, so it can still be extended into a phrase. A mouse lift SHALL keep the selection.
 Safari reports the lift after a handle drag, which is what makes the end of the gesture known;
 Firefox for Android does not, and there the selection SHALL stay as the platform left it.
@@ -55,6 +57,10 @@ Firefox for Android does not, and there the selection SHALL stay as the platform
 #### Scenario: A word selected on Safari stays extensible
 - **WHEN** the user presses and holds a word on Safari and lifts the finger
 - **THEN** the word stays selected with its handles, and dragging a handle extends it
+
+#### Scenario: Safari with the reader switched off
+- **WHEN** the reader is switched off, or the page could not be analysed, and the user selects several words on Safari
+- **THEN** the selection and the platform's callout stay in place
 
 #### Scenario: Firefox for Android keeps the selection
 - **WHEN** the user selects several words on Firefox for Android

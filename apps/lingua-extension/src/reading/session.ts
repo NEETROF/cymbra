@@ -116,6 +116,8 @@ export interface SessionOptions {
   onPainted?: () => void;
   /** A click on nothing — no word, no link, no card to dismiss: the reader turns the page. */
   onBlankClick?: (e: MouseEvent) => void;
+  /** Drop a phrase's selection once a finger lifts from it (`SelectionWatcher`): Safari's build. */
+  dropPhraseOnLift?: boolean;
 }
 
 /** The figures the popup asks for with `getStats`. */
@@ -410,7 +412,10 @@ export class ReadingSession {
     return new SelectionWatcher({
       onCapture: (kind, cap) => this.onCapture(kind, cap),
       win,
-      dropPhraseOnLift: __TARGET__ === "safari",
+      // Only where the card is shown in the callout's place: the reader switched on, the page
+      // analysed. Anywhere else the platform's selection is left exactly as it is.
+      dropPhraseOnLift: () =>
+        (this.opts.dropPhraseOnLift ?? __TARGET__ === "safari") && this.enabled && this.stats.analysable,
     });
   }
 

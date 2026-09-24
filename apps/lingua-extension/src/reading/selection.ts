@@ -6,8 +6,9 @@
 // the page selection while it is being made — on iOS the platform's own press-and-hold IS the
 // selection gesture, and fighting it is what made phrase capture unreachable on a phone.
 //
-// One exception, on Safari: once a finger lifts from a selection of several words, the
-// selection is dropped, and the callout drawn over the expression card goes with it. Safari
+// One exception, on Safari and only where the reader is at work on the page (switched on, the
+// page analysed): once a finger lifts from a selection of several words, the selection is
+// dropped, and the callout drawn over the expression card goes with it. Safari
 // reports that lift even after a handle drag (`touchend`), so the moment is known; a single
 // word is kept, handles and all, so it can still grow into a phrase. Firefox for Android
 // reports no lift after a handle drag, so there the selection stays.
@@ -203,8 +204,8 @@ export interface SelectionWatcherOptions {
   maxLength?: number;
   setTimer?: (fn: () => void, ms: number) => unknown;
   clearTimer?: (handle: unknown) => void;
-  /** Drop a phrase's selection when a finger lifts from it (Safari: see the module header). */
-  dropPhraseOnLift?: boolean;
+  /** Asked when a finger lifts from a phrase: drop its selection? (Safari: see the header.) */
+  dropPhraseOnLift?: () => boolean;
 }
 
 /** What ended a pointer gesture: a finger lifting, or anything else (a mouse, a cancel). */
@@ -254,7 +255,7 @@ export class SelectionWatcher {
       return;
     }
     this.emit();
-    if (lift === "finger" && this.opts.dropPhraseOnLift && this.phraseSelected()) {
+    if (lift === "finger" && this.opts.dropPhraseOnLift?.() && this.phraseSelected()) {
       this.selection()?.removeAllRanges();
     }
   }

@@ -225,3 +225,60 @@ describe("a session attached to a book section", () => {
     expect(sent).toContainEqual({ type: "stats", pct: null, disabled: true });
   });
 });
+
+// Safari removes a phrase's selection once a finger lifts from it, so its callout stops covering
+// the expression card — only where that card is shown: the reader on, the page analysed.
+describe("a phrase a finger lifts from", () => {
+  /** Select `text` in the section, then lift a finger from it. */
+  function liftFrom(host: ReadingHost, text: string): Selection {
+    const node = host.doc.querySelector("p")!.firstChild!;
+    const at = node.textContent!.indexOf(text);
+    const range = host.doc.createRange();
+    range.setStart(node, at);
+    range.setEnd(node, at + text.length);
+    const sel = host.win.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(range);
+    host.doc.body.dispatchEvent(new host.win.Event("touchend", { bubbles: true }));
+    return sel;
+  }
+
+  it("loses its selection where the reader is at work: switched on, the page analysed", async () => {
+    const { s } = session({ dropPhraseOnLift: true });
+    await s.start(null);
+    const { host } = section("<p>It was a dark night.</p>");
+    await s.attach(host);
+    expect(liftFrom(host, "a dark").isCollapsed).toBe(true);
+  });
+
+  it("keeps it on a page the reader could not analyse", async () => {
+    const { s } = session({ dropPhraseOnLift: true });
+    await s.start(null);
+    const { host } = section("<p>Il faisait nuit noire.</p>");
+    await s.attach(host);
+    expect(liftFrom(host, "nuit noire").isCollapsed).toBe(false);
+  });
+
+  it("keeps it while the reader is switched off", async () => {
+    vi.stubGlobal("chrome", {
+      ...(globalThis as unknown as { chrome: object }).chrome,
+      storage: {
+        local: { get: async () => ({ "cymbra-lingua-enabled": false }), set: async () => {} },
+        onChanged: { addListener: () => {} },
+      },
+    });
+    const { s } = session({ dropPhraseOnLift: true });
+    await s.start(null);
+    const { host } = section("<p>It was a dark night.</p>");
+    await s.attach(host);
+    expect(liftFrom(host, "a dark").isCollapsed).toBe(false);
+  });
+
+  it("keeps it outside Safari's build", async () => {
+    const { s } = session();
+    await s.start(null);
+    const { host } = section("<p>It was a dark night.</p>");
+    await s.attach(host);
+    expect(liftFrom(host, "a dark").isCollapsed).toBe(false);
+  });
+});

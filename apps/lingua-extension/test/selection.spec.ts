@@ -385,7 +385,7 @@ describe("SelectionWatcher", () => {
   describe("dropping a phrase on a finger lift", () => {
     it("drops a phrase's selection once the finger lifts, after capturing it", () => {
       select("seldom ship");
-      const { w, captures } = watcher({ dropPhraseOnLift: true });
+      const { w, captures } = watcher({ dropPhraseOnLift: () => true });
       w.hold();
       w.notify();
       w.release("finger");
@@ -395,7 +395,7 @@ describe("SelectionWatcher", () => {
 
     it("keeps a single word selected, so its handles can still extend it", () => {
       select("seldom");
-      const { w, captures } = watcher({ dropPhraseOnLift: true });
+      const { w, captures } = watcher({ dropPhraseOnLift: () => true });
       w.hold();
       w.notify();
       w.release("finger");
@@ -405,7 +405,7 @@ describe("SelectionWatcher", () => {
 
     it("drops a phrase the held timer already captured mid-gesture", () => {
       select("seldom ship");
-      const { w, captures, settle } = watcher({ dropPhraseOnLift: true });
+      const { w, captures, settle } = watcher({ dropPhraseOnLift: () => true });
       w.hold();
       w.notify();
       settle();
@@ -416,16 +416,18 @@ describe("SelectionWatcher", () => {
 
     it("keeps the selection after any other lift, and wherever the option is off", () => {
       select("seldom ship");
-      watcher({ dropPhraseOnLift: true }).w.release("other");
+      watcher({ dropPhraseOnLift: () => true }).w.release("other");
       expect(String(window.getSelection())).toBe("seldom ship");
       watcher().w.release("finger");
+      expect(String(window.getSelection())).toBe("seldom ship");
+      watcher({ dropPhraseOnLift: () => false }).w.release("finger");
       expect(String(window.getSelection())).toBe("seldom ship");
     });
 
     it("keeps a selection too long to be a phrase: no card was opened for it", () => {
       const long = "word ".repeat(40).trim();
       select(long, long);
-      const { w, captures } = watcher({ dropPhraseOnLift: true });
+      const { w, captures } = watcher({ dropPhraseOnLift: () => true });
       w.release("finger");
       expect(captures).toEqual([]);
       expect(window.getSelection()!.isCollapsed).toBe(false);

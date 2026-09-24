@@ -293,8 +293,9 @@ an instant at every chapter (only the renderer is hidden now; the paper stays).
 card. It cannot be hidden while a selection exists, and removing the selection is the only way
 to dismiss it: measured on the Galaxy Tab, Firefox for Android sends the page no touch event at
 all during a handle drag (so the end of one is unknowable), while Safari sends `touchend` after
-it — on the simulator and on an iPad. So on Safari only, a phrase's selection is removed once
-the finger lifts from it, and a single word's is kept so its handles still extend it (the
+it — on the simulator and on an iPad. So on Safari only, and only while the reader is switched on and
+has analysed the page (where its card takes the callout's place), a phrase's selection is
+removed once the finger lifts from it, and a single word's is kept so its handles still extend it (the
 `lingua-browser-extension` requirement is amended accordingly). In the reader two foliate-js
 behaviours stood in the way, both on Safari: its finger pan follows every `touchmove` in a
 section and cancels it, so a handle drag slid the page instead of growing the selection
