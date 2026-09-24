@@ -23,6 +23,7 @@ button {
   font-family: inherit;
   font-size: 13px;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 [hidden] {
@@ -105,6 +106,7 @@ button {
   background: none;
   color: inherit;
   text-align: left;
+  white-space: normal; /* a long title wraps under its cover */
 }
 
 .lib-cover {
@@ -298,7 +300,18 @@ button {
   color: var(--cymbra-lingua-muted);
 }
 
+/* A phone: the way back and the book's title on the first row, the actions on the next, so
+   none of them is cut off at the edge. */
 @media (max-width: 600px) {
+  .reading-bar {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+
+  .reading-titles {
+    flex: 1 1 55%;
+  }
+
   .reading-action {
     padding: 6px 7px;
   }
