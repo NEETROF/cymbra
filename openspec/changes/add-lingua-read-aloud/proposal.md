@@ -76,7 +76,7 @@ _None._
   voice never talks over the soundtrack, and closing the card silences it before the video
   resumes.
 - **Dogfooding**: the voice lists differ by device — macOS Chrome (novelty voices, Google remote
-  voices), Windows, Chrome on Android, Firefox for Android (GeckoView), Safari on iPhone (the
+  voices), Windows, Firefox for Android (GeckoView, Android's engine), Safari on iPhone (the
   ring/silent switch) — and none of them exists in jsdom, so the on-device pass is part of the
   change, not an afterthought.
 - **Release**: an ordinary extension release on the two stores, then a dispatch of

@@ -84,8 +84,9 @@ host give it one constant (`"en"` today), so a second pack pair changes one call
 `localService` is what the browser reports. For Chrome's own Google voices it is `false`, which
 is precisely the case this rule exists for. For platform voices — Apple's, Windows', Android's
 engine — the platform synthesises, and whether that platform's engine reaches the network is the
-device owner's setting, outside a web page's reach. The on-device pass checks what Chrome on
-Android reports (task 6.3).
+device owner's setting, outside a web page's reach. The on-device pass checks what Firefox for
+Android reports (task 6.3) — it speaks through Android's engine; Chrome on Android runs no
+extension, so it is no target here.
 
 ### D3. The automatic choice, and the novelty voices
 
@@ -223,8 +224,8 @@ the builder's block titles).
 ## Risks / Trade-offs
 
 - [A platform reports a network voice as local] → The rule relies on `localService`. Chrome's
-  remote voices report it correctly on desktop; Chrome on Android is checked on device (task
-  6.3). If it lists a voice that reaches the network as local, that voice goes on the
+  remote voices report it correctly on desktop; Firefox for Android, which speaks through
+  Android's engine, is checked on device (task 6.3). If it lists a voice that reaches the network as local, that voice goes on the
   deprioritised list and the finding is written into the extension README.
 - [No eligible voice on a desktop] → Chrome on Linux or ChromeOS can list only Google's remote
   voices: the row is absent there. This is the privacy promise working, and the README says how
@@ -254,6 +255,6 @@ None. Three choices this design makes were confirmed by the founder on 2026-09-2
 2. The voice picker is **in** this change, not a follow-up.
 3. **No rate control** in this change.
 
-What remains open is measured, not decided: what the phones list and what Chrome on Android
+What remains open is measured, not decided: what the phones list and what Firefox for Android
 reports as remote, and the iPhone's silent switch — all read during the on-device pass (task 6.3),
 not captured ahead.
