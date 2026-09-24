@@ -3,8 +3,14 @@
 // context. The selection itself is the trigger, on every pointer: SelectionWatcher debounces
 // `selectionchange` (the one event a mouse drag, a keyboard shortcut and a touch handle drag
 // all emit) and classifies what settled. The reader never clears, re-applies or suppresses
-// the page selection — on iOS the platform's own press-and-hold IS the selection gesture, and
-// fighting it is what made phrase capture unreachable on a phone.
+// the page selection while it is being made — on iOS the platform's own press-and-hold IS the
+// selection gesture, and fighting it is what made phrase capture unreachable on a phone.
+//
+// One exception, on Safari: once a finger lifts from a selection of several words, the
+// selection is dropped, and the callout drawn over the expression card goes with it. Safari
+// reports that lift even after a handle drag (`touchend`), so the moment is known; a single
+// word is kept, handles and all, so it can still grow into a phrase. Firefox for Android
+// reports no lift after a handle drag, so there the selection stays.
 
 const SENTENCE_SPLIT = /(?<=[.!?])\s+/;
 const BLOCK_SELECTOR = "p,li,td,th,blockquote,h1,h2,h3,h4,h5,h6,figcaption,article,section,div";
@@ -197,7 +203,12 @@ export interface SelectionWatcherOptions {
   maxLength?: number;
   setTimer?: (fn: () => void, ms: number) => unknown;
   clearTimer?: (handle: unknown) => void;
+  /** Drop a phrase's selection when a finger lifts from it (Safari: see the module header). */
+  dropPhraseOnLift?: boolean;
 }
+
+/** What ended a pointer gesture: a finger lifting, or anything else (a mouse, a cancel). */
+export type Lift = "finger" | "other";
 
 /**
  * Debounces `selectionchange` into a single capture: `notify()` on every selection event,
@@ -235,11 +246,23 @@ export class SelectionWatcher {
   }
 
   /** The pointer lifted (or its gesture was cancelled): the selection is final. */
-  release(): void {
+  release(lift: Lift = "other"): void {
     this.held = false;
     this.cancel();
-    if (this.usable()) this.emit();
-    else this.lastKey = null;
+    if (!this.usable()) {
+      this.lastKey = null;
+      return;
+    }
+    this.emit();
+    if (lift === "finger" && this.opts.dropPhraseOnLift && this.phraseSelected()) {
+      this.selection()?.removeAllRanges();
+    }
+  }
+
+  /** Whether the selection is a capturable phrase — not a word, not past the length cap. */
+  private phraseSelected(): boolean {
+    const cap = captureFrom(this.selection(), this.opts.maxLength ?? MAX_SELECTION_LENGTH);
+    return !!cap && classifySelection(cap.text) === "phrase";
   }
 
   private arm(): void {

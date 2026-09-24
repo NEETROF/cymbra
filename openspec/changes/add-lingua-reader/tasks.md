@@ -36,6 +36,7 @@
 - [x] 4.7 Push the section's percentage to the badge with the `stats` message; make the popup recognise a reader tab by URL and show the section's figures without the "Analyser cette page" button
 - [x] 4.8 Entry points: a "Bibliothèque" button in the popup and a row in the settings view (drawer and side panel), both sending `openPage("reader.html")`; the background focuses an existing reader tab instead of opening another
 - [x] 4.9 Every string in French with the existing wording conventions (never "lemme"; a plain sentence for the protected-book refusal, the persistence refusal and an unreadable file), and no colour literal outside `tokens.css` (lint)
+- [x] 4.10 On Safari, drop a phrase's selection when the finger lifts from it (`SelectionWatcher`, `dropPhraseOnLift` on the Safari build only), keep a single word's; measured first on the platforms: Safari (simulator and iPad) reports the lift after a handle drag, Firefox for Android does not. In the reader, foliate-js's finger pan kept from a touch working the selection (`touch-guard.ts`, Safari), and the card dismissed only on a real move, not when foliate settles the page in place after a lift
 
 ## 5. Two underline styles
 

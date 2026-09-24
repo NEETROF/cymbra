@@ -357,7 +357,7 @@ export class ReadingSession {
     on("mousedown", pointerDown, pointer);
     on("touchstart", pointerDown, pointer);
     on("mouseup", () => this.selection.release(), pointer);
-    on("touchend", () => this.selection.release(), pointer);
+    on("touchend", () => this.selection.release("finger"), pointer);
     on("touchcancel", () => this.selection.release(), pointer);
     if (doc !== this.surfaceDoc) {
       // A book section has its own keyboard focus and scrolls in its own window (the
@@ -407,7 +407,11 @@ export class ReadingSession {
   }
 
   private watchSelection(win: Pick<Window, "getSelection">): SelectionWatcher {
-    return new SelectionWatcher({ onCapture: (kind, cap) => this.onCapture(kind, cap), win });
+    return new SelectionWatcher({
+      onCapture: (kind, cap) => this.onCapture(kind, cap),
+      win,
+      dropPhraseOnLift: __TARGET__ === "safari",
+    });
   }
 
   /** Paint the read document and begin watching it for changes (the reader's "on" state). */

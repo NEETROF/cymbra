@@ -4,6 +4,7 @@ import type { ReaderFlow } from "../state/storage.ts";
 import { openArchive } from "./archive.ts";
 import type { BookLocation, BookRenderer, OpenedBook, SectionReady, TocEntry } from "./renderer.ts";
 import { type LoadableSection, routeSections, workerServesSections } from "./section-server.ts";
+import { guardSelectionTouches } from "./touch-guard.ts";
 
 // The thin adapter over foliate-js (add-lingua-reader D2): the only file that knows its
 // element, its events and its options. Excluded from coverage with the vendored tree — it
@@ -45,6 +46,8 @@ export class FoliateRenderer implements BookRenderer {
     // Listened to before the book opens: the first section loads during `init`.
     this.element.addEventListener("load", (e) => {
       const { doc, index } = (e as CustomEvent<SectionReady>).detail;
+      // Only Safari hands a selection's handle drag to the page as touch events (touch-guard.ts).
+      if (__TARGET__ === "safari") guardSelectionTouches(doc);
       for (const l of this.ready) l({ doc, index });
     });
     this.element.addEventListener("relocate", (e) => {

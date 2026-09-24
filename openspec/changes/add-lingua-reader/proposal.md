@@ -51,6 +51,9 @@ deck, formats other than EPUB.
 
 - `lingua-browser-extension`: **Cymbra visual identity** — highlight tints must stay
   distinguishable without colour (two underline styles), not only by tint.
+- `lingua-browser-extension`: **The reader never fights the platform's text selection** — on
+  Safari, a finished phrase selection is removed once the finger lifts, so the platform's
+  callout stops covering the expression card (found reading a book on an iPad).
 - `lingua-decks-review`: **Card schema with provenance** — the source of an encounter may be a
   book (title and chapter), next to a page address or an agent session.
 - `lingua-privacy`: **A card's page address stays on the device** — the same guarantee is

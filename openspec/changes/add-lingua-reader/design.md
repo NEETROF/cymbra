@@ -289,6 +289,19 @@ so each section's frame got an opaque white canvas over the paper (the book area
 itself light), and hiding the whole book area while a section paints showed the dark page for
 an instant at every chapter (only the renderer is hidden now; the paper stays).
 
+**Selecting on Safari (simulator and iPad).** The platform's callout covered the expression
+card. It cannot be hidden while a selection exists, and removing the selection is the only way
+to dismiss it: measured on the Galaxy Tab, Firefox for Android sends the page no touch event at
+all during a handle drag (so the end of one is unknowable), while Safari sends `touchend` after
+it — on the simulator and on an iPad. So on Safari only, a phrase's selection is removed once
+the finger lifts from it, and a single word's is kept so its handles still extend it (the
+`lingua-browser-extension` requirement is amended accordingly). In the reader two foliate-js
+behaviours stood in the way, both on Safari: its finger pan follows every `touchmove` in a
+section and cancels it, so a handle drag slid the page instead of growing the selection
+(`touch-guard.ts` keeps the moves of a touch working the selection away from it); and it settles
+the page after every lift, reporting a `relocate` even when nothing moved, which closed the card
+that lift had just opened (the reader now dismisses only on a real move).
+
 **Platform gaps closed along the way.** foliate-js uses `Object.groupBy`/`Map.groupBy`, missing
 from Chrome 116 and from Safari before 17.4 (the Apple app targets iOS 17.2): the reader page
 installs both where absent. Its zip reader is the npm package it builds from, at the version it
