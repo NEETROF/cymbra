@@ -159,7 +159,15 @@ yarn lint && yarn format:check && yarn typecheck && yarn test
   while an ordinary one exists; Réglages lists them apart under _Autres voix_ and keeps the
   reader's choice per device (`cymbra-lingua-voice`, never synced). Closing the card, opening
   another word or leaving the tab stops the speech. The ranking is tested on voice lists
-  captured from real browsers (`test/fixtures/voices/`).
+  captured from real browsers (`test/fixtures/voices/`). An iPhone set to French names the
+  novelty voices in French (`Bulles`, `Murmure`) — they are recognised by their identifier, not
+  their name — and lists some voices twice in two qualities, shown once. On iOS the ring/silent
+  mode mutes the voice and it resumes when silent mode is turned off; nothing the extension can
+  change. **Firefox for Android** reports every voice of Android's engine (Samsung TTS, Google
+  TTS…) as not local, in three-letter codes (`eng-GBR-default`): it cannot tell where that engine
+  synthesises. There the row is absent until the reader switches on _Utiliser la voix d'Android_
+  in Réglages, which says the text may then leave the device depending on Android's engine
+  (`cymbra-lingua-android-voices`, per device). Chrome on Android runs no extension.
 - **State** — statuses, the captured deck, calibration — lives in
   `chrome.storage.local` under a versioned schema with forward migration
   (`src/state/`). A gesture in one tab repaints every other via `storage.onChanged`.

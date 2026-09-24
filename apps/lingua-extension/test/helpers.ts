@@ -3,7 +3,13 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { LinguaPort, NewCard, Rating, ReviewCard } from "@/analyzer/port.ts";
 import type { PageAnalysis } from "@/analyzer/types.ts";
-import type { SpeechEngine, VoiceInfo, VoicePreference } from "@/reading/speech.ts";
+import {
+  DEFAULT_SPEECH_SETTINGS,
+  type SpeechEngine,
+  type SpeechSettings,
+  type VoiceInfo,
+  type VoicePreference,
+} from "@/reading/speech.ts";
 
 /** A deck entry for the fake review session. */
 export interface FakeCard {
@@ -135,10 +141,11 @@ export interface FakeUtterance {
  * list late (`list`) and end an utterance in whatever order the browsers do (`spoken[i].done`).
  * jsdom has no `speechSynthesis`, and the orders matter more here than the calls.
  */
-export function makeFakeSpeech(voices: VoiceInfo[] = [], preferred: string | null = null) {
+export function makeFakeSpeech(voices: VoiceInfo[] = [], initial: Partial<SpeechSettings> = {}) {
   let listed = voices;
+  let settings: SpeechSettings = { ...DEFAULT_SPEECH_SETTINGS, ...initial };
   const changed: (() => void)[] = [];
-  const watchers: ((uri: string | null) => void)[] = [];
+  const watchers: ((settings: SpeechSettings) => void)[] = [];
   const spoken: FakeUtterance[] = [];
   let cancels = 0;
   const engine: SpeechEngine = {
@@ -148,7 +155,7 @@ export function makeFakeSpeech(voices: VoiceInfo[] = [], preferred: string | nul
     cancel: () => void cancels++,
   };
   const preference: VoicePreference = {
-    load: async () => preferred,
+    load: async () => settings,
     watch: (onChange) => void watchers.push(onChange),
   };
   return {
@@ -161,9 +168,10 @@ export function makeFakeSpeech(voices: VoiceInfo[] = [], preferred: string | nul
       listed = next;
       for (const listener of changed) listener();
     },
-    /** The stored preference changed in another context. */
-    prefer(uri: string | null) {
-      for (const watcher of watchers) watcher(uri);
+    /** The stored settings changed in another context. */
+    prefer(next: Partial<SpeechSettings>) {
+      settings = { ...settings, ...next };
+      for (const watcher of watchers) watcher(settings);
     },
   };
 }

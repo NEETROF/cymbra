@@ -1,6 +1,6 @@
 import type { LinguaPort } from "../analyzer/port.ts";
 import type { LemmaStatus } from "../analyzer/types.ts";
-import type { VoicePreference } from "../reading/speech.ts";
+import type { SpeechSettings, VoicePreference } from "../reading/speech.ts";
 
 // Versioned local state (designs D4 + the review change). The authoritative state is
 // lingua-core's LinguaState, held by the WASM engine and persisted as its lossless
@@ -44,6 +44,12 @@ export const SESSION_LOST_KEY = "cymbra-lingua-session-lost";
  * it is never synchronised.
  */
 export const VOICE_KEY = "cymbra-lingua-voice";
+
+/**
+ * Whether the reader allowed Android's own voices (Firefox for Android, which cannot tell whether
+ * that engine synthesises on the device). Absent means not allowed. Per device, never synchronised.
+ */
+export const ANDROID_VOICES_KEY = "cymbra-lingua-android-voices";
 
 /** The minimal async storage surface we need; chrome.storage.local satisfies it. */
 export interface AsyncStorageArea {
@@ -132,15 +138,29 @@ export async function saveVoice(area: AsyncStorageArea, voiceURI: string | null)
   await area.set({ [VOICE_KEY]: voiceURI });
 }
 
-/** The voice preference in `area`, followed in every context through `storage.onChanged`. */
+/** Whether Android's own voices may speak; absent means not allowed. */
+export async function loadAndroidVoices(area: AsyncStorageArea): Promise<boolean> {
+  const got = await area.get(ANDROID_VOICES_KEY);
+  return got[ANDROID_VOICES_KEY] === true;
+}
+
+/** Allow or refuse Android's own voices. */
+export async function saveAndroidVoices(area: AsyncStorageArea, allowed: boolean): Promise<void> {
+  await area.set({ [ANDROID_VOICES_KEY]: allowed });
+}
+
+/** The read-aloud settings in `area`, followed in every context through `storage.onChanged`. */
 export function storedVoicePreference(area: AsyncStorageArea): VoicePreference {
+  const load = async (): Promise<SpeechSettings> => ({
+    voice: await loadVoice(area),
+    androidVoices: await loadAndroidVoices(area),
+  });
   return {
-    load: () => loadVoice(area),
+    load,
     watch(onChange) {
       chrome.storage.onChanged.addListener((changes, areaName) => {
-        const change = changes[VOICE_KEY];
-        if (areaName !== "local" || !change) return;
-        onChange(typeof change.newValue === "string" && change.newValue !== "" ? change.newValue : null);
+        if (areaName !== "local" || !(changes[VOICE_KEY] || changes[ANDROID_VOICES_KEY])) return;
+        void load().then(onChange);
       });
     },
   };

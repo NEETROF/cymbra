@@ -165,3 +165,9 @@ kbd {
   margin-top: 0;
   white-space: nowrap;
 }
+
+/* Both rows are flex, and an author `display` beats the UA's `[hidden]`: say it again. */
+.set-voice[hidden],
+.set-toggle[hidden] {
+  display: none;
+}

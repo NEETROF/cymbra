@@ -3,7 +3,7 @@ import { CEFR_LEVELS, type CefrLevel } from "../analyzer/types.ts";
 import { needsLevelChoice } from "../state/level-choice.ts";
 import { type OpenPage, openPageViaBackground } from "../state/open-page.ts";
 import { hasShortcutEditor } from "../state/platform.ts";
-import { type AsyncStorageArea, loadHudHidden, saveHudHidden, saveVoice } from "../state/storage.ts";
+import { type AsyncStorageArea, loadHudHidden, saveAndroidVoices, saveHudHidden, saveVoice } from "../state/storage.ts";
 import {
   LAST_SYNC_KEY,
   loadLastSync,
@@ -159,10 +159,23 @@ export function mountSettings(
   const previewBtn = el("button", "set-reset", "▶ Écouter");
   previewBtn.type = "button";
   voiceRow.append(voiceSelect, previewBtn);
-  voiceBlock.append(
-    voiceRow,
-    el("div", "set-note", "Voix installées sur cet appareil : le texte lu ne quitte pas l'appareil."),
+  const onDeviceNote = el(
+    "div",
+    "set-note",
+    "Voix installées sur cet appareil : le texte lu ne quitte pas l'appareil.",
   );
+  // Firefox for Android cannot say whether Android's engine synthesises on the device, so its
+  // voices speak only once the reader allows them here, told what that means.
+  const androidRow = el("label", "set-toggle");
+  const androidToggle = el("input");
+  androidToggle.type = "checkbox";
+  androidRow.append(androidToggle, el("span", undefined, "Utiliser la voix d'Android"));
+  const androidNote = el(
+    "div",
+    "set-note",
+    "Firefox ne peut pas garantir que la voix d'Android reste sur l'appareil : selon le moteur choisi dans les réglages d'Android, le texte lu peut passer par le réseau.",
+  );
+  voiceBlock.append(androidRow, androidNote, voiceRow, onDeviceNote);
 
   // — Raccourcis & gestes —
   const scBlock = settingBlock("Raccourcis & gestes");
@@ -277,6 +290,7 @@ export function mountSettings(
     await saveHudHidden(area, !toggle.checked);
   });
   voiceSelect.addEventListener("change", () => void saveVoice(area, voiceSelect.value || null));
+  androidToggle.addEventListener("change", () => void saveAndroidVoices(area, androidToggle.checked));
   previewBtn.addEventListener("click", () => {
     if (!speaker) return;
     if (speaker.speaking()?.key === PREVIEW_KEY) {
@@ -299,15 +313,23 @@ export function mountSettings(
    */
   function renderVoices(): void {
     const eligible = speaker?.eligible() ?? [];
-    voiceBlock.hidden = eligible.length === 0;
-    if (!speaker || eligible.length === 0) return;
+    const offersAndroid = speaker?.offersAndroidVoices() ?? false;
+    voiceBlock.hidden = eligible.length === 0 && !offersAndroid;
+    if (!speaker || voiceBlock.hidden) return;
+    androidRow.hidden = !offersAndroid;
+    androidNote.hidden = !offersAndroid;
+    androidToggle.checked = speaker.androidVoices();
+    // Where Android's voices are allowed, the promise below would not hold: the note above says why.
+    onDeviceNote.hidden = eligible.length === 0 || (offersAndroid && speaker.androidVoices());
+    voiceRow.hidden = eligible.length === 0;
+    if (eligible.length === 0) return;
     const option = (value: string, label: string): HTMLOptionElement => {
       const o = el("option", undefined, label);
       o.value = value;
       return o;
     };
     const voiceOption = (v: VoiceInfo): HTMLOptionElement => option(v.voiceURI, voiceLabel(v));
-    const { ordinary, others } = voiceGroups(eligible, speaker.lang);
+    const { ordinary, others } = voiceGroups(eligible, speaker.lang, speaker.androidVoices());
     const automatic = speaker.automatic();
     voiceSelect.replaceChildren(
       option("", automatic ? `Automatique (${automatic.name})` : "Automatique"),

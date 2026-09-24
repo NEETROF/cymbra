@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mountSettings, type SyncControls } from "@/reading/settings-view.ts";
 import type { LinguaPort } from "@/analyzer/port.ts";
-import { type AsyncStorageArea, VOICE_KEY } from "@/state/storage.ts";
-import { createSpeaker, type VoiceInfo } from "@/reading/speech.ts";
+import { ANDROID_VOICES_KEY, type AsyncStorageArea, VOICE_KEY } from "@/state/storage.ts";
+import { createSpeaker, type SpeechSettings, type VoiceInfo } from "@/reading/speech.ts";
 import type { SyncReply } from "@/sync/messages.ts";
 import { makeFakePort, makeFakeSpeech, voiceFixture } from "./helpers.ts";
 
@@ -376,8 +376,8 @@ describe("Réglages — liens sortants", () => {
 });
 
 describe("Réglages — Lecture à voix haute", () => {
-  function mountVoices(voices: VoiceInfo[], preferred: string | null = null) {
-    const fake = makeFakeSpeech(voices, preferred);
+  function mountVoices(voices: VoiceInfo[], initial: Partial<SpeechSettings> = {}) {
+    const fake = makeFakeSpeech(voices, initial);
     const speaker = createSpeaker(fake.engine, "en", fake.preference);
     const container = document.createElement("div");
     document.body.replaceChildren(container);
@@ -457,12 +457,65 @@ describe("Réglages — Lecture à voix haute", () => {
   });
 
   it("shows the stored choice, and the automatic one when that voice is gone", async () => {
-    const kept = mountVoices(voiceFixture("chrome-macos"), "Moira");
+    const kept = mountVoices(voiceFixture("chrome-macos"), { voice: "Moira" });
     await settle();
     expect(kept.select.value).toBe("Moira");
-    const gone = mountVoices(voiceFixture("chrome-macos"), "Ava (Premium)");
+    const gone = mountVoices(voiceFixture("chrome-macos"), { voice: "Ava (Premium)" });
     await settle();
     expect(gone.select.value).toBe("");
+  });
+
+  const androidParts = (block: HTMLElement) => {
+    const toggle = block.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
+    const notes = [...block.querySelectorAll<HTMLElement>(".set-note")];
+    return {
+      toggle,
+      row: toggle.closest("label")!,
+      voiceRow: block.querySelector<HTMLElement>(".set-voice")!,
+      androidNote: notes.find((n) => n.textContent?.includes("voix d'Android"))!,
+      onDeviceNote: notes.find((n) => n.textContent?.startsWith("Voix installées"))!,
+    };
+  };
+
+  it("on Firefox for Android, offers Android's voices behind a switch, off, saying why", async () => {
+    const s = mountVoices(voiceFixture("firefox-android"));
+    await settle();
+    const p = androidParts(s.block);
+    expect(s.block.hidden).toBe(false);
+    expect(p.row.hidden).toBe(false);
+    expect(p.toggle.checked).toBe(false);
+    expect(p.androidNote.hidden).toBe(false);
+    expect(p.voiceRow.hidden).toBe(true); // nothing to choose from yet
+    expect(p.onDeviceNote.hidden).toBe(true);
+    p.toggle.checked = true;
+    p.toggle.dispatchEvent(new Event("change"));
+    await settle();
+    expect(s.area.store[ANDROID_VOICES_KEY]).toBe(true);
+  });
+
+  it("once Android's voices are allowed, lists them — and no longer promises they stay on the device", async () => {
+    const s = mountVoices(voiceFixture("firefox-android"), { androidVoices: true });
+    await settle();
+    const p = androidParts(s.block);
+    expect(p.toggle.checked).toBe(true);
+    expect(p.voiceRow.hidden).toBe(false);
+    expect(p.onDeviceNote.hidden).toBe(true);
+    expect(ordinaryLabels(s.select)).toEqual([
+      "Automatique (anglais (USA,DEFAULT))",
+      "anglais (USA,DEFAULT) — États-Unis",
+      "anglais (USA,f00) — États-Unis",
+      "anglais (GBR,DEFAULT) — Royaume-Uni",
+      "anglais (GBR,f00) — Royaume-Uni",
+    ]);
+  });
+
+  it("shows no Android switch where the browser offers no Android voice", async () => {
+    const s = mountVoices(voiceFixture("chrome-macos"));
+    await settle();
+    const p = androidParts(s.block);
+    expect(p.row.hidden).toBe(true);
+    expect(p.androidNote.hidden).toBe(true);
+    expect(p.onDeviceNote.hidden).toBe(false);
   });
 
   it("previews the selected voice, then stops", async () => {

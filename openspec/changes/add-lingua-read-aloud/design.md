@@ -217,6 +217,27 @@ sent are removed, and `test/lint-settings-hosts.spec.ts` fails the build when a 
 calling `mountSettings` or a page or module holds a Réglages block of its own (recognised by
 the builder's block titles).
 
+### D8. Firefox for Android: Android's voices on the reader's say-so
+
+Measured on a Galaxy Tab S6 Lite (Android 13, Firefox 156, Samsung TTS and Google TTS
+installed): Firefox lists 18 voices, one per locale of Android's engine
+(`moz-tts:android:eng_GBR_default`), languages in three letters (`eng-GBR-default`), and **every
+one `localService: false`** — the French ones too. Firefox cannot tell where Android's engine
+synthesises, and says so the only way the API allows. Under D2 the row was therefore absent on
+Firefox for Android, twice over (the language did not match either).
+
+Three answers were weighed with the founder (2026-09-24): keep the rule and ship nothing on
+Android; trust Android's engine like Apple's; or let the reader allow it. **Chosen: the reader
+allows it.** By default nothing changes — no row, the promise holds. Réglages then shows a switch,
+"Utiliser la voix d'Android", only where the browser lists such voices, with a note that the text
+read may leave the device depending on the engine chosen in Android; while it is on, the "voix
+installées sur cet appareil" line is not shown, since it would no longer be true. The choice is a
+per-device preference (`cymbra-lingua-android-voices`), never synchronised.
+
+The allowance is narrow: it admits voices whose identifier is Android's (`moz-tts:android:`), and
+nothing else — a remote Chrome voice stays refused whatever the switch says. Languages and
+regions are read in both forms (`eng` → `en`, `GBR` → `GB`) wherever voices are compared or named.
+
 ### D7. Tests
 
 - `test/speech.spec.ts` drives `speech.ts` through a hand-written synthesiser double — jsdom has

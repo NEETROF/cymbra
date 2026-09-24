@@ -1,0 +1,134 @@
+{
+ "target": "firefox-android",
+ "capturedAt": "2026-09-24",
+ "note": "Galaxy Tab S6 Lite (SM-P610), Android 13, Firefox 156; ISO 639-2 language codes and every voice localService:false",
+ "ua": "Mozilla/5.0 (Android 13; Mobile; rv:156.0) Gecko/156.0 Firefox/156.0",
+ "voices": [
+  {
+   "name": "français (FRA,DEFAULT)",
+   "lang": "fra-FRA-default",
+   "localService": false,
+   "default": false,
+   "voiceURI": "moz-tts:android:fra_FRA_default"
+  },
+  {
+   "name": "italien (ITA,DEFAULT)",
+   "lang": "ita-ITA-default",
+   "localService": false,
+   "default": false,
+   "voiceURI": "moz-tts:android:ita_ITA_default"
+  },
+  {
+   "name": "italien (ITA,f00)",
+   "lang": "ita-ITA-f00",
+   "localService": false,
+   "default": false,
+   "voiceURI": "moz-tts:android:ita_ITA_f00"
+  },
+  {
+   "name": "allemand (DEU,DEFAULT)",
+   "lang": "deu-DEU-default",
+   "localService": false,
+   "default": false,
+   "voiceURI": "moz-tts:android:deu_DEU_default"
+  },
+  {
+   "name": "russe (RUS,DEFAULT)",
+   "lang": "rus-RUS-default",
+   "localService": false,
+   "default": false,
+   "voiceURI": "moz-tts:android:rus_RUS_default"
+  },
+  {
+   "name": "anglais (GBR,DEFAULT)",
+   "lang": "eng-GBR-default",
+   "localService": false,
+   "default": false,
+   "voiceURI": "moz-tts:android:eng_GBR_default"
+  },
+  {
+   "name": "anglais (GBR,f00)",
+   "lang": "eng-GBR-f00",
+   "localService": false,
+   "default": false,
+   "voiceURI": "moz-tts:android:eng_GBR_f00"
+  },
+  {
+   "name": "portugais (BRA,f00)",
+   "lang": "por-BRA-f00",
+   "localService": false,
+   "default": false,
+   "voiceURI": "moz-tts:android:por_BRA_f00"
+  },
+  {
+   "name": "anglais (USA,DEFAULT)",
+   "lang": "eng-USA-default",
+   "localService": false,
+   "default": false,
+   "voiceURI": "moz-tts:android:eng_USA_default"
+  },
+  {
+   "name": "russe (RUS,f00)",
+   "lang": "rus-RUS-f00",
+   "localService": false,
+   "default": false,
+   "voiceURI": "moz-tts:android:rus_RUS_f00"
+  },
+  {
+   "name": "espagnol (ESP,DEFAULT)",
+   "lang": "spa-ESP-default",
+   "localService": false,
+   "default": false,
+   "voiceURI": "moz-tts:android:spa_ESP_default"
+  },
+  {
+   "name": "allemand (DEU,f00)",
+   "lang": "deu-DEU-f00",
+   "localService": false,
+   "default": false,
+   "voiceURI": "moz-tts:android:deu_DEU_f00"
+  },
+  {
+   "name": "espagnol (ESP,f00)",
+   "lang": "spa-ESP-f00",
+   "localService": false,
+   "default": false,
+   "voiceURI": "moz-tts:android:spa_ESP_f00"
+  },
+  {
+   "name": "espagnol (MEX,DEFAULT)",
+   "lang": "spa-MEX-default",
+   "localService": false,
+   "default": false,
+   "voiceURI": "moz-tts:android:spa_MEX_default"
+  },
+  {
+   "name": "anglais (USA,f00)",
+   "lang": "eng-USA-f00",
+   "localService": false,
+   "default": false,
+   "voiceURI": "moz-tts:android:eng_USA_f00"
+  },
+  {
+   "name": "espagnol (MEX,f00)",
+   "lang": "spa-MEX-f00",
+   "localService": false,
+   "default": false,
+   "voiceURI": "moz-tts:android:spa_MEX_f00"
+  },
+  {
+   "name": "portugais (BRA,DEFAULT)",
+   "lang": "por-BRA-default",
+   "localService": false,
+   "default": false,
+   "voiceURI": "moz-tts:android:por_BRA_default"
+  },
+  {
+   "name": "français (FRA,f00)",
+   "lang": "fra-FRA-f00",
+   "localService": false,
+   "default": false,
+   "voiceURI": "moz-tts:android:fra_FRA_f00"
+  }
+ ]
+}

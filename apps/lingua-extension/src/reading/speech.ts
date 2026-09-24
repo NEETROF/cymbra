@@ -12,7 +12,10 @@
 // (`test/fixtures/voices/`), which is where its surprises came from: Safari marks every voice
 // as the default; macOS lists its novelty voices (`Albert`, `Bubbles`…) before `Samantha`; an
 // iPhone in French names them in French (`Bulles`, `Murmure`), so only their identifier tells;
-// and it lists the same voice twice, in two qualities (`Daniel`, compact and super-compact).
+// it lists the same voice twice, in two qualities (`Daniel`, compact and super-compact); and
+// Firefox for Android writes languages in three letters (`eng-GBR-default`) and reports every
+// voice of Android's engine as not local — it cannot tell where that engine synthesises. Those
+// voices speak only once the reader has allowed them in Réglages, knowing why.
 
 /** What this module reads of a voice. A `SpeechSynthesisVoice` has it, and so does a captured list. */
 export interface VoiceInfo {
@@ -34,10 +37,20 @@ export interface SpeechEngine<V extends VoiceInfo = VoiceInfo> {
   cancel(): void;
 }
 
-/** Where the reader's chosen voice is kept (a `voiceURI`, or null for the automatic choice). */
+/** The reader's read-aloud settings, kept on the device. */
+export interface SpeechSettings {
+  /** The chosen voice's `voiceURI`, or null for the automatic choice. */
+  readonly voice: string | null;
+  /** Whether Android's own voices may speak, though the browser cannot say they stay on the device. */
+  readonly androidVoices: boolean;
+}
+
+export const DEFAULT_SPEECH_SETTINGS: SpeechSettings = { voice: null, androidVoices: false };
+
+/** Where those settings are kept, and how a change made in another context reaches this one. */
 export interface VoicePreference {
-  load(): Promise<string | null>;
-  watch(onChange: (voiceURI: string | null) => void): void;
+  load(): Promise<SpeechSettings>;
+  watch(onChange: (settings: SpeechSettings) => void): void;
 }
 
 /** What is being spoken: the caller's key (`selection`, `sentence`, `preview`) and the text. */
@@ -57,6 +70,10 @@ export interface Speaker {
   automatic(): VoiceInfo | null;
   /** The reader's preference as stored — possibly a voice no longer listed. */
   preferred(): string | null;
+  /** Whether the reader allowed Android's own voices. */
+  androidVoices(): boolean;
+  /** Whether this browser offers Android's own voices in the studied language — allowed or not. */
+  offersAndroidVoices(): boolean;
   speaking(): Speaking | null;
   /**
    * Stop whatever is speaking and speak `text`, with `voice` or the chosen one. Synchronous all
@@ -117,14 +134,66 @@ const QUALITIES = ["super-compact", "compact", "enhanced", "premium"];
 const QUALITY = /com\.apple\.voice\.(super-compact|compact|enhanced|premium)\./;
 /** Within a tier, the regions tried first, per studied language. */
 const PREFERRED_REGIONS: Record<string, readonly string[]> = { en: ["us", "gb"] };
+/** Android's engine as Firefox for Android exposes it: one voice per locale, place unknown. */
+const ANDROID_VOICE = /^moz-tts:android:/;
+/** Firefox for Android writes ISO 639-2 languages and ISO 3166 alpha-3 regions (`eng-GBR`). */
+const THREE_LETTER_LANGUAGES: Record<string, string> = {
+  eng: "en",
+  fra: "fr",
+  fre: "fr",
+  deu: "de",
+  ger: "de",
+  spa: "es",
+  ita: "it",
+  por: "pt",
+  rus: "ru",
+  nld: "nl",
+  dut: "nl",
+  jpn: "ja",
+  kor: "ko",
+  zho: "zh",
+  chi: "zh",
+};
+const THREE_LETTER_REGIONS: Record<string, string> = {
+  usa: "us",
+  gbr: "gb",
+  aus: "au",
+  irl: "ie",
+  ind: "in",
+  zaf: "za",
+  can: "ca",
+  nzl: "nz",
+};
 
 function subtags(lang: string): string[] {
   return lang.toLowerCase().replace(/_/g, "-").split("-");
 }
 
-/** A voice may speak when the browser reports it on the device and it speaks the studied language. */
-export function isEligible(voice: VoiceInfo, lang: string): boolean {
-  return voice.localService === true && subtags(voice.lang)[0] === lang.toLowerCase();
+/** The voice's language as a two-letter code (`eng-GBR-default` → `en`). */
+function language(lang: string): string {
+  const primary = subtags(lang)[0];
+  return THREE_LETTER_LANGUAGES[primary] ?? primary;
+}
+
+/** The voice's region as a two-letter code (`eng-GBR-default` → `gb`), or none. */
+function region(lang: string): string | undefined {
+  const second = subtags(lang)[1];
+  return second ? (THREE_LETTER_REGIONS[second] ?? second) : undefined;
+}
+
+/** A voice of Android's own engine, which Firefox for Android cannot place. */
+export function isAndroidVoice(voice: VoiceInfo): boolean {
+  return ANDROID_VOICE.test(voice.voiceURI);
+}
+
+/**
+ * A voice may speak when it speaks the studied language and the browser reports it on the
+ * device — or, only once the reader allowed them, when it is Android's own (Firefox for Android
+ * reports all of those as not local, for want of knowing).
+ */
+export function isEligible(voice: VoiceInfo, lang: string, androidVoices = false): boolean {
+  if (language(voice.lang) !== lang.toLowerCase()) return false;
+  return voice.localService === true || (androidVoices && isAndroidVoice(voice));
 }
 
 /** The name without Chrome's parenthesised suffix: `Eddy (English (United States))` → `Eddy`. */
@@ -145,7 +214,7 @@ function tier(voice: VoiceInfo): number {
 
 function regionRank(voice: VoiceInfo, lang: string): number {
   const preferred = PREFERRED_REGIONS[lang.toLowerCase()] ?? [];
-  const at = preferred.indexOf(subtags(voice.lang)[1] ?? "");
+  const at = preferred.indexOf(region(voice.lang) ?? "");
   return at < 0 ? preferred.length : at;
 }
 
@@ -172,8 +241,8 @@ function distinctVoices<V extends VoiceInfo>(voices: readonly V[]): { voice: V; 
 }
 
 /** Eligible voices best first, each once: tier, then region, then the browser's order. */
-export function rankVoices<V extends VoiceInfo>(voices: readonly V[], lang: string): V[] {
-  return distinctVoices(voices.filter((voice) => isEligible(voice, lang)))
+export function rankVoices<V extends VoiceInfo>(voices: readonly V[], lang: string, androidVoices = false): V[] {
+  return distinctVoices(voices.filter((voice) => isEligible(voice, lang, androidVoices)))
     .sort(
       (a, b) =>
         tier(a.voice) - tier(b.voice) || regionRank(a.voice, lang) - regionRank(b.voice, lang) || a.index - b.index,
@@ -186,29 +255,38 @@ export function rankVoices<V extends VoiceInfo>(voices: readonly V[], lang: stri
  * browser's default, only when it is the ONE voice so marked (Safari marks all of them, which
  * says nothing); else the best-ranked eligible voice; else none.
  */
-export function pickVoice<V extends VoiceInfo>(voices: readonly V[], lang: string, preferred: string | null): V | null {
+export function pickVoice<V extends VoiceInfo>(
+  voices: readonly V[],
+  lang: string,
+  preferred: string | null,
+  androidVoices = false,
+): V | null {
   if (preferred) {
-    const chosen = voices.find((v) => v.voiceURI === preferred && isEligible(v, lang));
+    const chosen = voices.find((v) => v.voiceURI === preferred && isEligible(v, lang, androidVoices));
     if (chosen) return chosen;
   }
   const defaults = voices.filter((v) => v.default);
-  if (defaults.length === 1 && isEligible(defaults[0], lang)) return defaults[0];
-  return rankVoices(voices, lang)[0] ?? null;
+  if (defaults.length === 1 && isEligible(defaults[0], lang, androidVoices)) return defaults[0];
+  return rankVoices(voices, lang, androidVoices)[0] ?? null;
 }
 
 /** The eligible voices as Réglages lists them: the ordinary ones, then the others, apart. */
-export function voiceGroups<V extends VoiceInfo>(voices: readonly V[], lang: string): { ordinary: V[]; others: V[] } {
-  const ranked = rankVoices(voices, lang);
+export function voiceGroups<V extends VoiceInfo>(
+  voices: readonly V[],
+  lang: string,
+  androidVoices = false,
+): { ordinary: V[]; others: V[] } {
+  const ranked = rankVoices(voices, lang, androidVoices);
   return { ordinary: ranked.filter((v) => !isDeprioritised(v)), others: ranked.filter(isDeprioritised) };
 }
 
 /** A voice as Réglages names it: `Samantha — États-Unis`, the region in French. */
 export function voiceLabel(voice: VoiceInfo): string {
-  const region = subtags(voice.lang)[1]?.toUpperCase();
-  if (!region) return voice.name;
-  let place = region;
+  const code = region(voice.lang)?.toUpperCase();
+  if (!code) return voice.name;
+  let place = code;
   try {
-    place = new Intl.DisplayNames(["fr"], { type: "region" }).of(region) ?? region;
+    place = new Intl.DisplayNames(["fr"], { type: "region" }).of(code) ?? code;
   } catch {
     // Not a region this runtime can name (or no Intl.DisplayNames): the code says enough.
   }
@@ -238,7 +316,7 @@ export function createSpeaker<V extends VoiceInfo>(
   preference: VoicePreference,
 ): Speaker {
   let voices: V[] = engine ? engine.voices() : [];
-  let preferred: string | null = null;
+  let settings: SpeechSettings = DEFAULT_SPEECH_SETTINGS;
   let current: (Speaking & { token: object }) | null = null;
   const listeners = new Set<() => void>();
   const notify = (): void => {
@@ -249,25 +327,27 @@ export function createSpeaker<V extends VoiceInfo>(
     voices = engine.voices();
     notify();
   });
-  const follow = (uri: string | null): void => {
-    preferred = uri;
+  const follow = (next: SpeechSettings): void => {
+    settings = next;
     notify();
   };
   void preference.load().then(follow, () => {});
   preference.watch(follow);
 
-  const chosen = (): V | null => pickVoice(voices, lang, preferred);
+  const chosen = (): V | null => pickVoice(voices, lang, settings.voice, settings.androidVoices);
 
   return {
     lang,
     available: () => chosen() !== null,
-    eligible: () => voices.filter((v) => isEligible(v, lang)),
-    automatic: () => pickVoice(voices, lang, null),
-    preferred: () => preferred,
+    eligible: () => voices.filter((v) => isEligible(v, lang, settings.androidVoices)),
+    automatic: () => pickVoice(voices, lang, null, settings.androidVoices),
+    preferred: () => settings.voice,
+    androidVoices: () => settings.androidVoices,
+    offersAndroidVoices: () => voices.some((v) => isAndroidVoice(v) && isEligible(v, lang, true)),
     speaking: () => (current ? { key: current.key, text: current.text } : null),
     speak(key, text, voice) {
       const v = (voice as V | undefined) ?? chosen();
-      if (!engine || !v || !isEligible(v, lang) || !text.trim()) return;
+      if (!engine || !v || !isEligible(v, lang, settings.androidVoices) || !text.trim()) return;
       engine.cancel();
       const token = {};
       current = { key, text, token };

@@ -3,6 +3,7 @@ import {
   browserSpeechEngine,
   createSpeaker,
   isDeprioritised,
+  isAndroidVoice,
   isEligible,
   pickVoice,
   rankVoices,
@@ -174,6 +175,59 @@ describe("the voices apart", () => {
   });
 });
 
+describe("Firefox for Android: Android's own voices, on the reader's say-so", () => {
+  const android = (name: string, lang: string): VoiceInfo =>
+    voice({ name, lang, localService: false, voiceURI: `moz-tts:android:${lang.replace(/-/g, "_")}` });
+
+  it("reports every voice of Android's engine as not local, in three-letter codes (the capture)", () => {
+    const voices = voiceFixture("firefox-android");
+    expect(voices.every((v) => !v.localService && isAndroidVoice(v))).toBe(true);
+    expect(voices.map((v) => v.lang)).toContain("eng-GBR-default");
+  });
+
+  it("refuses them until the reader allows them", () => {
+    const voices = voiceFixture("firefox-android");
+    expect(rankVoices(voices, "en")).toEqual([]);
+    expect(pickVoice(voices, "en", null)).toBeNull();
+  });
+
+  it("once allowed, speaks English with them, en-US first", () => {
+    const voices = voiceFixture("firefox-android");
+    expect(rankVoices(voices, "en", true).map((v) => v.name)).toEqual([
+      "anglais (USA,DEFAULT)",
+      "anglais (USA,f00)",
+      "anglais (GBR,DEFAULT)",
+      "anglais (GBR,f00)",
+    ]);
+    expect(pickVoice(voices, "en", null, true)?.name).toBe("anglais (USA,DEFAULT)");
+  });
+
+  it("reads three-letter languages and regions", () => {
+    expect(isEligible(android("anglais (GBR,f00)", "eng-GBR-f00"), "en", true)).toBe(true);
+    expect(isEligible(android("français (FRA,DEFAULT)", "fra-FRA-default"), "en", true)).toBe(false);
+    expect(voiceLabel(android("anglais (GBR,DEFAULT)", "eng-GBR-default"))).toBe("anglais (GBR,DEFAULT) — Royaume-Uni");
+  });
+
+  it("never lets the allowance reach a remote voice that is not Android's", () => {
+    expect(isEligible(googleUs, "en", true)).toBe(false);
+  });
+
+  it("tells whether the browser offers them at all, allowed or not", async () => {
+    const fake = makeFakeSpeech(voiceFixture("firefox-android"));
+    const s = createSpeaker(fake.engine, "en", fake.preference);
+    await settle();
+    expect(s.offersAndroidVoices()).toBe(true);
+    expect(s.androidVoices()).toBe(false);
+    expect(s.available()).toBe(false);
+    fake.prefer({ androidVoices: true });
+    expect(s.available()).toBe(true);
+    s.speak("selection", "seldom");
+    expect(fake.spoken[0].voice.name).toBe("anglais (USA,DEFAULT)");
+    const mac = makeFakeSpeech(voiceFixture("chrome-macos"));
+    expect(createSpeaker(mac.engine, "en", mac.preference).offersAndroidVoices()).toBe(false);
+  });
+});
+
 describe("labels and texts", () => {
   it("names a voice with its region in French", () => {
     expect(voiceLabel(samantha)).toBe("Samantha — États-Unis");
@@ -260,7 +314,7 @@ describe("the speaker", () => {
   });
 
   it("follows the stored preference, and its changes from another context", async () => {
-    const fake = makeFakeSpeech([samantha, daniel], "Daniel");
+    const fake = makeFakeSpeech([samantha, daniel], { voice: "Daniel" });
     const s = createSpeaker(fake.engine, "en", fake.preference);
     await settle();
     expect(s.preferred()).toBe("Daniel");
@@ -269,7 +323,7 @@ describe("the speaker", () => {
     expect(s.automatic()).toBe(samantha); // the automatic choice ignores the preference
     const listener = vi.fn();
     s.subscribe(listener);
-    fake.prefer(null);
+    fake.prefer({ voice: null });
     expect(listener).toHaveBeenCalled();
     s.speak("selection", "seldom");
     expect(fake.spoken[1].voice).toBe(samantha);

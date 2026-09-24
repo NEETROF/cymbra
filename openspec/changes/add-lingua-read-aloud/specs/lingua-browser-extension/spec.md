@@ -61,7 +61,12 @@ The extension SHALL speak only with a voice that the browser reports as running 
 and whose language is the studied language, and SHALL never pass page text to a voice that
 synthesises remotely, even when that voice is the browser's default or the only one available.
 With no eligible voice the card SHALL show no listen row. Read-aloud SHALL add no permission
-and no network request of the extension's own, and SHALL work offline.
+and no network request of the extension's own, and SHALL work offline. The language SHALL be
+recognised in its two- and three-letter forms (`en`, `eng`).
+
+#### Scenario: Three-letter language codes
+- **WHEN** a browser lists a voice as `eng-GBR-default`
+- **THEN** it is a voice of the studied language, from the United Kingdom
 
 #### Scenario: A remote voice is the default
 - **WHEN** the browser's default voice for the studied language synthesises remotely and an on-device voice for it exists
@@ -78,6 +83,26 @@ and no network request of the extension's own, and SHALL work offline.
 #### Scenario: Voices announced late
 - **WHEN** the browser lists its voices only after the card has opened
 - **THEN** the listen row appears on that card once an eligible voice is listed, without the reader reopening it
+
+### Requirement: Android's own voices speak only on the reader's say-so
+Android's own voices SHALL speak only once the reader has allowed them in Réglages, never by
+default: Firefox for Android reports every voice of Android's engine as not local, because it
+cannot tell where that engine synthesises. Réglages SHALL offer that switch only where the
+browser lists such voices, SHALL say beside it that the text read may then leave the device
+depending on the engine chosen in Android, and SHALL no longer claim that the voices stay on the
+device while it is on. The choice SHALL be kept on the device and never synchronised.
+
+#### Scenario: By default
+- **WHEN** a reader on Firefox for Android opens a card
+- **THEN** the card shows no listen row, and Réglages offers "Utiliser la voix d'Android", off, with the note saying why
+
+#### Scenario: Allowed
+- **WHEN** the reader switches "Utiliser la voix d'Android" on
+- **THEN** the cards offer the listen row, speaking with Android's English voices, and Réglages lists those voices
+
+#### Scenario: Elsewhere
+- **WHEN** the browser lists no voice of Android's engine
+- **THEN** Réglages shows no such switch
 
 ### Requirement: One Réglages on every surface
 Réglages SHALL be built by a single implementation that every surface renders — the side

@@ -33,6 +33,10 @@ office, the site and the backend are untouched: no `.proto`, no migration, no fl
 - **Silence follows the card.** Closing the card — its close button, Escape, a click off it, a
   gesture, the scroll that dismisses it — stops the speech, and so does leaving the page or its
   tab. A pending card completing with its answer does not interrupt a reading already started.
+- **Firefox for Android, on the reader's say-so.** Firefox reports every voice of Android's
+  engine as not local, for want of knowing where it synthesises. Those voices speak only once
+  the reader switches on "Utiliser la voix d'Android" in Réglages, next to a note saying the
+  text may then leave the device depending on Android's engine; by default, nothing is read.
 - **A voice choice in Réglages.** A "Lecture à voix haute" block lists the eligible voices, with
   an automatic choice by default and a way to hear each one; it is absent when there is none.
   The automatic choice never lands on a novelty voice (macOS ships en-US voices such as

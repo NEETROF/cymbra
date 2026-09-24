@@ -658,6 +658,21 @@ describe("read-aloud on the card", () => {
     expect(mouse.defaultPrevented).toBe(true);
   });
 
+  it("adds the row to the open card once the reader allows Android's voices", async () => {
+    const android: VoiceInfo = {
+      name: "anglais (USA,DEFAULT)",
+      lang: "eng-USA-default",
+      localService: false,
+      default: false,
+      voiceURI: "moz-tts:android:eng_USA_default",
+    };
+    const { fake, card } = speaking([android]);
+    card.show(content(), () => {});
+    expect(listenRow(card).hidden).toBe(true);
+    fake.prefer({ androidVoices: true });
+    expect(labels(card)).toEqual(["▶ Mot", "▶ Phrase"]);
+  });
+
   it("hands the speaker to the page's popup, whose hide silences it", () => {
     const fake = makeFakeSpeech([samantha]);
     const speaker = createSpeaker(fake.engine, "en", fake.preference);
