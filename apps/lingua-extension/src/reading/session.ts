@@ -36,10 +36,15 @@ import {
   type AsyncStorageArea,
   ENABLED_KEY,
   HUD_HIDDEN_KEY,
+  HUD_POSITION_KEY,
+  type HudPosition,
   hydrateEngine,
   loadEnabled,
   loadHudHidden,
+  loadHudPosition,
+  parseHudPosition,
   saveBackup,
+  saveHudPosition,
   SESSION_LOST_KEY,
   storedVoicePreference,
 } from "../state/storage.ts";
@@ -104,6 +109,8 @@ export interface ReadingIndicator {
   mount(): void;
   update(state: HudState): void;
   setHidden(hidden: boolean): void;
+  /** Place it where the reader dragged it: only the in-page pill moves, not the reader's toolbar. */
+  setPosition?(position: HudPosition): void;
 }
 
 export interface SessionOptions {
@@ -265,7 +272,13 @@ export class ReadingSession {
       onStats: () => this.openReviewSurface("stats"),
       onSettings: () => this.openReviewSurface("settings"),
     };
-    this.indicator = opts.indicator?.(actions) ?? new LinguaHud({ css: opts.css.hud, actions });
+    this.indicator =
+      opts.indicator?.(actions) ??
+      new LinguaHud({
+        css: opts.css.hud,
+        actions,
+        onMoved: (position) => void saveHudPosition(storageArea, position),
+      });
     this.observers = new ReadingObservers({ onRescan: (containers) => void this.refresh(containers) });
     this.exposure = new ExposureTracker((lemmas) => this.onExposed(lemmas));
     this.selection = this.watchSelection(this.surfaceWin);
@@ -276,6 +289,7 @@ export class ReadingSession {
     await hydrateEngine(this.port, store);
     this.calibration = await this.port.calibration();
     this.hudHidden = await loadHudHidden(storageArea);
+    this.indicator.setPosition?.(await loadHudPosition(storageArea));
     this.enabled = await loadEnabled(storageArea);
     await this.refreshNeedsLevel();
     this.surfaceDoc.addEventListener("keydown", (e) => {
@@ -292,6 +306,9 @@ export class ReadingSession {
         this.hudHidden = hudToggled.newValue === true;
         this.syncHud();
       }
+      // Dragged in another tab (or our own drop echoing back, which changes nothing).
+      const moved = changes[HUD_POSITION_KEY];
+      if (moved) this.indicator.setPosition?.(parseHudPosition(moved.newValue));
       const lost = changes[SESSION_LOST_KEY];
       if (lost) this.drawer.setSessionLost(lost.newValue === true);
     });

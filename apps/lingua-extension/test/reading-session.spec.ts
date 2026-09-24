@@ -3,6 +3,7 @@ import type { PageAnalysis } from "@/analyzer/types.ts";
 import { HL_UNKNOWN } from "@/reading/highlight.ts";
 import type { Gesture } from "@/reading/wordpopup.ts";
 import { type ReadingHost, ReadingSession, type SessionOptions } from "@/reading/session.ts";
+import { HUD_POSITION_KEY, type HudPosition } from "@/state/storage.ts";
 import { makeFakePort } from "./helpers.ts";
 
 // The reading session reads the document it is given (add-lingua-reader D3). A book section
@@ -109,6 +110,26 @@ function indicator() {
     }),
   };
 }
+
+describe("the indicator's position", () => {
+  it("is placed where the reader left the pill, and follows a drag in another tab", async () => {
+    type Changed = (changes: Record<string, { newValue?: unknown }>, area: string) => void;
+    const changed: Changed[] = [];
+    const storage = (globalThis as unknown as { chrome: { storage: Record<string, Record<string, unknown>> } }).chrome
+      .storage;
+    storage.local.get = async (key: string) => (key === HUD_POSITION_KEY ? { [key]: { side: "left", y: 0.25 } } : {});
+    storage.onChanged.addListener = (fn: Changed) => void changed.push(fn);
+    const placed: HudPosition[] = [];
+    const { s } = session({
+      indicator: () => ({ mount() {}, update() {}, setHidden() {}, setPosition: (p) => void placed.push(p) }),
+    });
+    await s.start(null);
+    expect(placed).toEqual([{ side: "left", y: 0.25 }]);
+
+    for (const fn of changed) fn({ [HUD_POSITION_KEY]: { newValue: { side: "right", y: 0.5 } } }, "local");
+    expect(placed.at(-1)).toEqual({ side: "right", y: 0.5 });
+  });
+});
 
 describe("a session attached to a book section", () => {
   it("paints the section in the section's own registry, whole, and says it painted", async () => {
