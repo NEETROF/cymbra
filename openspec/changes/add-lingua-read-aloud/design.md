@@ -115,9 +115,19 @@ when a platform lists something the ranking gets wrong. The tests run the rankin
 lists captured on real devices (task 1.1 for macOS, 6.3 for the phones), not over lists imagined
 for the test.
 
+An iPhone (iOS 27.2, set to French) added two findings. It **translates the novelty voices'
+names** — `Bulles`, `Murmure`, `Cloches`, `Mauvaises nouvelles`, `Trinoïdes` — so a list of
+English names would have let all of them through; the identifier family catches every one. And
+it **lists one voice in two qualities** — `Daniel` as `com.apple.voice.compact…` and
+`…super-compact…` — which Réglages would have shown as two identical lines: voices sharing a
+name and a language are one voice to the reader, and the best quality (`premium` > `enhanced` >
+`compact` > `super-compact`) is kept, at the place of the first.
+
 On the captures: Chrome macOS picks `Daniel` (its one default voice) among 41 eligible voices, 6
 of them ordinary; Safari macOS, where the default says nothing, picks `Samantha` among 25, 6 of
-them ordinary; Firefox macOS picks `Daniel` (its one default voice) among 10, 6 of them ordinary.
+them ordinary; Firefox macOS picks `Daniel` (its one default voice) among 10, 6 of them ordinary;
+the iPhone, all voices marked default again, picks `Samantha` among 25, 6 of them ordinary once
+`Daniel` counts once.
 The same Mac can therefore start on two different voices in two browsers; the
 picker settles it per browser.
 

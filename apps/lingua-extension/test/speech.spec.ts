@@ -72,7 +72,11 @@ describe("the automatic choice, on the captured lists", () => {
     expect(pickVoice(voiceFixture("firefox-macos"), "en", null)?.name).toBe("Daniel");
   });
 
-  it.each(["chrome-macos", "safari-macos", "firefox-macos", "safari-ios-simulator"])(
+  it("iPhone in French: Samantha, though every voice is marked default and the novelty ones speak French names", () => {
+    expect(pickVoice(voiceFixture("safari-ios"), "en", null)?.name).toBe("Samantha");
+  });
+
+  it.each(["chrome-macos", "safari-macos", "firefox-macos", "safari-ios-simulator", "safari-ios"])(
     "%s: never a novelty, Eloquence or legacy voice while an ordinary one exists",
     (target) => {
       const voices = voiceFixture(target).map((v) => ({ ...v, default: false }));
@@ -141,6 +145,26 @@ describe("the voices apart", () => {
     expect(ordinary.map((v) => v.name)).toEqual(["Samantha", "Daniel", "Karen", "Moira", "Rishi", "Tessa"]);
     expect(others).toHaveLength(35);
     expect(others.every(isDeprioritised)).toBe(true);
+  });
+
+  it("groups an iPhone in French: the novelty voices apart by identifier, whatever their name", () => {
+    const { ordinary, others } = voiceGroups(voiceFixture("safari-ios"), "en");
+    expect(ordinary.map((v) => v.name)).toEqual(["Samantha", "Daniel", "Karen", "Moira", "Rishi", "Tessa"]);
+    expect(others).toHaveLength(19);
+    expect(others.map((v) => v.name)).toEqual(expect.arrayContaining(["Bulles", "Murmure", "Trinoïdes", "Bouffon"]));
+  });
+
+  it("lists a voice offered in two qualities once, keeping the better one where the first was", () => {
+    // The iPhone lists Daniel compact AND super-compact: one line in Réglages, the compact one.
+    const daniel = voiceGroups(voiceFixture("safari-ios"), "en").ordinary.filter((v) => v.name === "Daniel");
+    expect(daniel.map((v) => v.voiceURI)).toEqual(["com.apple.voice.compact.en-GB.Daniel"]);
+    const superCompact = voice({ name: "Ava", voiceURI: "com.apple.voice.super-compact.en-US.Ava" });
+    const premium = voice({ name: "Ava", voiceURI: "com.apple.voice.premium.en-US.Ava" });
+    const enhanced = voice({ name: "Ava", voiceURI: "com.apple.voice.enhanced.en-US.Ava" });
+    expect(rankVoices([superCompact, samantha, premium, enhanced], "en")).toEqual([premium, samantha]);
+    // Same name, another language: another voice.
+    const avaGb = voice({ name: "Ava", lang: "en-GB", voiceURI: "com.apple.voice.compact.en-GB.Ava" });
+    expect(rankVoices([superCompact, avaGb], "en")).toEqual([superCompact, avaGb]);
   });
 
   it("groups Firefox macOS: no novelty voice, only the four legacy ones apart", () => {

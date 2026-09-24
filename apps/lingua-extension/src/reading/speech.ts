@@ -9,9 +9,10 @@
 // lets the browser choose, and Chrome may choose a remote voice.
 //
 // The ranking was checked against voice lists captured on real browsers
-// (`test/fixtures/voices/`), which is where its two surprises came from: Safari marks every
-// voice as the default, and macOS lists its novelty voices (`Albert`, `Bubbles`…) before
-// `Samantha`.
+// (`test/fixtures/voices/`), which is where its surprises came from: Safari marks every voice
+// as the default; macOS lists its novelty voices (`Albert`, `Bubbles`…) before `Samantha`; an
+// iPhone in French names them in French (`Bulles`, `Murmure`), so only their identifier tells;
+// and it lists the same voice twice, in two qualities (`Daniel`, compact and super-compact).
 
 /** What this module reads of a voice. A `SpeechSynthesisVoice` has it, and so does a captured list. */
 export interface VoiceInfo {
@@ -72,7 +73,9 @@ export interface Speaker {
  * Apple's novelty voices, its Eloquence voices and its legacy ones: real voices that no reader
  * should land on by default. Chrome names them (`Eddy (English (United States))`), Safari and
  * Firefox also carry an identifier whose family says it — and whose last part does not always
- * repeat the name (`Wobble` is `…voice.Deranged`).
+ * repeat the name (`Wobble` is `…voice.Deranged`). The names are English on a Mac, but an
+ * iPhone translates them into its own language (`Bubbles` is `Bulles` in French): there, the
+ * family is the only thing to go by.
  */
 const DEPRIORITISED_NAMES = new Set([
   // novelty
@@ -109,6 +112,9 @@ const DEPRIORITISED_NAMES = new Set([
 const DEPRIORITISED_FAMILY = /com\.apple\.(speech\.synthesis\.voice|eloquence)\./;
 /** A voice the reader downloaded for its quality: Apple's identifiers, or Chrome's name suffix. */
 const ENHANCED = /com\.apple\.voice\.(premium|enhanced)\.|\((premium|enhanced)\)\s*$/i;
+/** Apple's qualities, worst first, as its identifiers name them. */
+const QUALITIES = ["super-compact", "compact", "enhanced", "premium"];
+const QUALITY = /com\.apple\.voice\.(super-compact|compact|enhanced|premium)\./;
 /** Within a tier, the regions tried first, per studied language. */
 const PREFERRED_REGIONS: Record<string, readonly string[]> = { en: ["us", "gb"] };
 
@@ -143,11 +149,31 @@ function regionRank(voice: VoiceInfo, lang: string): number {
   return at < 0 ? preferred.length : at;
 }
 
-/** Eligible voices best first: tier, then region, then the browser's order. */
+/** Apple's quality of a voice, or -1 where the identifier does not say (two such voices tie). */
+function quality(voice: VoiceInfo): number {
+  const named = QUALITY.exec(voice.voiceURI)?.[1];
+  return named ? QUALITIES.indexOf(named) : -1;
+}
+
+/**
+ * One entry per voice as the reader hears it: an iPhone lists `Daniel` twice, compact and
+ * super-compact, which a picker would show as two identical lines. Same name and same language
+ * are one voice — the best quality is kept, in the place the browser listed the first.
+ */
+function distinctVoices<V extends VoiceInfo>(voices: readonly V[]): { voice: V; index: number }[] {
+  const kept = new Map<string, { voice: V; index: number }>();
+  voices.forEach((voice, index) => {
+    const key = `${voice.name}|${subtags(voice.lang).join("-")}`;
+    const seen = kept.get(key);
+    if (!seen) kept.set(key, { voice, index });
+    else if (quality(voice) > quality(seen.voice)) kept.set(key, { voice, index: seen.index });
+  });
+  return [...kept.values()];
+}
+
+/** Eligible voices best first, each once: tier, then region, then the browser's order. */
 export function rankVoices<V extends VoiceInfo>(voices: readonly V[], lang: string): V[] {
-  return voices
-    .map((voice, index) => ({ voice, index }))
-    .filter(({ voice }) => isEligible(voice, lang))
+  return distinctVoices(voices.filter((voice) => isEligible(voice, lang)))
     .sort(
       (a, b) =>
         tier(a.voice) - tier(b.voice) || regionRank(a.voice, lang) - regionRank(b.voice, lang) || a.index - b.index,

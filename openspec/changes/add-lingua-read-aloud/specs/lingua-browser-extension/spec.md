@@ -98,7 +98,9 @@ selected by default and a way to hear each voice, and SHALL leave the block out 
 eligible voice. The choice SHALL be kept on the device as a preference. The automatic choice
 SHALL prefer the eligible voice the browser marks as default when it is the only voice so
 marked, and otherwise SHALL never pick a novelty voice while an ordinary one exists. The block
-SHALL list the ordinary voices first and the novelty voices after them, in a group of their own.
+SHALL list the ordinary voices first and the novelty voices after them, in a group of their own,
+whatever language the device names them in. A voice the device offers in several qualities
+SHALL be listed once, in its best quality.
 A chosen voice that is no longer listed SHALL fall back to the automatic choice.
 
 #### Scenario: The automatic choice on macOS
@@ -112,6 +114,14 @@ A chosen voice that is no longer listed SHALL fall back to the automatic choice.
 #### Scenario: Novelty voices out of the way
 - **WHEN** the eligible voices include novelty voices
 - **THEN** Réglages lists the ordinary voices first and the novelty voices in an "Autres voix" group at the bottom
+
+#### Scenario: Novelty voices named in the reader's language
+- **WHEN** an iPhone set to French names its novelty voices "Bulles", "Murmure" or "Cloches"
+- **THEN** they are listed under "Autres voix" and the automatic choice is still an ordinary voice
+
+#### Scenario: One voice in two qualities
+- **WHEN** the device lists the same voice twice, in a compact and a super-compact quality
+- **THEN** Réglages lists it once, and the compact one is the voice that speaks when chosen
 
 #### Scenario: A chosen voice
 - **WHEN** the reader chooses a voice in Réglages and then listens from a card
