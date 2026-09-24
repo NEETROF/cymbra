@@ -1,4 +1,4 @@
-import { IDBFactory } from "fake-indexeddb";
+import { IDBFactory, IDBObjectStore } from "fake-indexeddb";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type BookRecord, Library, LIBRARY_DB, sha256Hex, titleFromName } from "@/reader/library.ts";
 import { epub3Entries, pickedFile, useNodeBlob, zip } from "./epub-fixtures.ts";
@@ -44,10 +44,13 @@ describe("the library database", () => {
     await lib.add(record("h1", { title: "One" }), file);
     expect((await lib.get("h1"))?.title).toBe("One");
     expect(await (await lib.file("h1"))?.text()).toBe("book bytes");
+    await lib.savePosition("h1", "epubcfi(/6/2)", 5);
     await lib.remove("h1");
     expect(await lib.get("h1")).toBeNull();
     expect(await lib.file("h1")).toBeNull();
     expect(await lib.list()).toEqual([]);
+    await lib.add(record("h1"), file);
+    expect(await lib.get("h1")).toMatchObject({ location: null, locationAt: 0 });
   });
 
   it("lists the book read last first, then the newest import", async () => {
@@ -66,6 +69,39 @@ describe("the library database", () => {
     expect(await lib.savePosition("h", "later", 200)).toBe(true);
     expect(await lib.savePosition("h", "earlier", 100)).toBe(false);
     expect(await lib.get("h")).toMatchObject({ location: "later", locationAt: 200 });
+  });
+
+  it("never writes a book back when the reader moves: WebKit would lose its cover", async () => {
+    const lib = await library();
+    const cover = new Blob(["png bytes"], { type: "image/png" });
+    await lib.add(record("h", { cover }), new Blob(["x"]));
+    const put = vi.spyOn(IDBObjectStore.prototype, "put");
+    await lib.savePosition("h", "epubcfi(/6/2)", 1);
+    await lib.savePosition("h", "epubcfi(/6/4)", 2);
+    expect(put.mock.contexts.map((store) => (store as IDBObjectStore).name)).toEqual(["positions", "positions"]);
+    expect(await (await lib.get("h"))?.cover?.text()).toBe("png bytes");
+  });
+
+  it("keeps the positions of a library from version 1, which held them in the book", async () => {
+    const factory = new IDBFactory();
+    const v1 = await new Promise<IDBDatabase>((resolve) => {
+      const open = factory.open(LIBRARY_DB, 1);
+      open.onupgradeneeded = () => {
+        open.result.createObjectStore("books", { keyPath: "hash" });
+        open.result.createObjectStore("files", { keyPath: "hash" });
+      };
+      open.onsuccess = () => resolve(open.result);
+    });
+    const tx = v1.transaction("books", "readwrite");
+    tx.objectStore("books").put(record("read", { location: "epubcfi(/6/8)", locationAt: 7 }));
+    tx.objectStore("books").put(record("unread"));
+    await new Promise((resolve) => (tx.oncomplete = resolve));
+    v1.close();
+
+    const lib = await Library.open(factory);
+    expect(await lib.get("read")).toMatchObject({ location: "epubcfi(/6/8)", locationAt: 7 });
+    expect(await lib.get("unread")).toMatchObject({ location: null, locationAt: 0 });
+    expect((await lib.list()).map((b) => b.hash)).toEqual(["read", "unread"]);
   });
 
   it("does not invent a book for a position", async () => {

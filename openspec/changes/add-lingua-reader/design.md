@@ -153,12 +153,18 @@ available as a setting for the laptop.
 ### D5. The library is its own database, opened by the reader page
 
 Book files go in a second IndexedDB database (`cymbra-lingua-library`), distinct from the
-background-owned state store, with two object stores: `books` (the hash as key; title,
-authors, language, cover, size, added-at, the last location and its updated-at) and `files`
-(the hash as key; the `Blob`). The reader page opens it directly: a 40 MB file must not cross a
+background-owned state store, with three object stores, each keyed by the hash: `books` (title,
+authors, language, cover, size, added-at), `files` (the `Blob`) and `positions` (the last
+location and its updated-at). The reader page opens it directly: a 40 MB file must not cross a
 message, and the single-owner rule exists to keep surfaces agreeing on *state* — the library
 has one writer, the reader page, and its only concurrent writes are positions, resolved by
 their timestamp.
+
+A book's record is written once, at import; a position, at every page turn. They were one
+record at first, and WebKit loses a `Blob` read back from IndexedDB when its record is written
+again with it: on iOS and iPadOS the cover of the book just read came back unreadable
+(`NotFoundError`). The position has its own store since (database version 2, whose upgrade
+copies the positions the first dogfood builds kept in `books`).
 
 The key is the SHA-256 of the file: importing the same file twice yields one book, and the hash
 is what a later change would synchronise a position against. The OPF's `dc:identifier` is

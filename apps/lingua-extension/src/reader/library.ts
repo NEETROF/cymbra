@@ -8,14 +8,20 @@ import { isEpubArchive, readEpubMeta } from "./epub-meta.ts";
 // which must not cross a message, and the library has one writer anyway — the reader page.
 // Its only concurrent writes are reading positions from two tabs, settled by their time.
 //
+// A book's record is written once, at import; its position lives in a store of its own. WebKit
+// loses a Blob read back from IndexedDB when the record holding it is written again with it —
+// the cover of the book just read came back unreadable (`NotFoundError`) on iOS and iPadOS — and
+// a position is written at every page turn.
+//
 // A book is keyed by the SHA-256 of its file: importing the same file twice yields one book,
 // and a later change can match a position against the same key on another device. The OPF's
 // identifier is kept as metadata only — publishers reuse it across editions.
 
 export const LIBRARY_DB = "cymbra-lingua-library";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const BOOKS = "books";
 const FILES = "files";
+const POSITIONS = "positions";
 
 export interface BookRecord {
   /** SHA-256 of the file, hex: the book's key. */
@@ -35,9 +41,27 @@ export interface BookRecord {
   locationAt: number;
 }
 
+/** A book as its store keeps it: everything but where the reader is. */
+type StoredBook = Omit<BookRecord, "location" | "locationAt">;
+
 interface FileRecord {
   hash: string;
   file: Blob;
+}
+
+interface PositionRecord {
+  hash: string;
+  location: string;
+  locationAt: number;
+}
+
+function stored(book: BookRecord): StoredBook {
+  const { hash, title, authors, language, identifier, cover, size, addedAt } = book;
+  return { hash, title, authors, language, identifier, cover, size, addedAt };
+}
+
+function withPosition(book: StoredBook, position: PositionRecord | undefined): BookRecord {
+  return { ...book, location: position?.location ?? null, locationAt: position?.locationAt ?? 0 };
 }
 
 /** Why a file was not added: each maps to one plain sentence (copy.ts). */
@@ -61,14 +85,29 @@ function committed(tx: IDBTransaction): Promise<void> {
   });
 }
 
-/** Open the library database, creating its two object stores on first use. */
+/**
+ * Open the library database, creating its object stores on first use. Version 1 kept the
+ * position inside the book's record: the upgrade copies it to its own store, reading the books
+ * without writing one back.
+ */
 export function openLibraryDb(factory: IDBFactory = indexedDB): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = factory.open(LIBRARY_DB, DB_VERSION);
-    request.onupgradeneeded = () => {
+    request.onupgradeneeded = (event) => {
       const db = request.result;
       if (!db.objectStoreNames.contains(BOOKS)) db.createObjectStore(BOOKS, { keyPath: "hash" });
       if (!db.objectStoreNames.contains(FILES)) db.createObjectStore(FILES, { keyPath: "hash" });
+      if (db.objectStoreNames.contains(POSITIONS)) return;
+      const positions = db.createObjectStore(POSITIONS, { keyPath: "hash" });
+      if (event.oldVersion !== 1) return;
+      const cursor = request.transaction!.objectStore(BOOKS).openCursor();
+      cursor.onsuccess = () => {
+        const row = cursor.result;
+        if (!row) return;
+        const { hash, location, locationAt } = row.value as BookRecord;
+        if (location) positions.put({ hash, location, locationAt } satisfies PositionRecord);
+        row.continue();
+      };
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error ?? new Error("cannot open the Lingua library"));
@@ -97,12 +136,24 @@ export class Library {
 
   /** Every book, the one read most recently first, then the newest import. */
   async list(): Promise<BookRecord[]> {
-    const books = await promised<BookRecord[]>(this.db.transaction(BOOKS).objectStore(BOOKS).getAll());
-    return books.sort((a, b) => b.locationAt - a.locationAt || b.addedAt - a.addedAt);
+    const tx = this.db.transaction([BOOKS, POSITIONS]);
+    const [books, positions] = await Promise.all([
+      promised<StoredBook[]>(tx.objectStore(BOOKS).getAll()),
+      promised<PositionRecord[]>(tx.objectStore(POSITIONS).getAll()),
+    ]);
+    const at = new Map(positions.map((p) => [p.hash, p]));
+    return books
+      .map((b) => withPosition(b, at.get(b.hash)))
+      .sort((a, b) => b.locationAt - a.locationAt || b.addedAt - a.addedAt);
   }
 
   async get(hash: string): Promise<BookRecord | null> {
-    return (await promised<BookRecord | undefined>(this.db.transaction(BOOKS).objectStore(BOOKS).get(hash))) ?? null;
+    const tx = this.db.transaction([BOOKS, POSITIONS]);
+    const [book, position] = await Promise.all([
+      promised<StoredBook | undefined>(tx.objectStore(BOOKS).get(hash)),
+      promised<PositionRecord | undefined>(tx.objectStore(POSITIONS).get(hash)),
+    ]);
+    return book ? withPosition(book, position) : null;
   }
 
   /** The book's file, as it was imported. */
@@ -116,22 +167,26 @@ export class Library {
    * already kept stays as it is, reading position included, and is returned.
    */
   async add(book: BookRecord, file: Blob): Promise<{ book: BookRecord; existed: boolean }> {
-    const tx = this.db.transaction([BOOKS, FILES], "readwrite");
+    const tx = this.db.transaction([BOOKS, FILES, POSITIONS], "readwrite");
     const books = tx.objectStore(BOOKS);
-    const kept = await promised<BookRecord | undefined>(books.get(book.hash));
+    const [kept, position] = await Promise.all([
+      promised<StoredBook | undefined>(books.get(book.hash)),
+      promised<PositionRecord | undefined>(tx.objectStore(POSITIONS).get(book.hash)),
+    ]);
     if (!kept) {
-      books.put(book);
+      books.put(stored(book));
       tx.objectStore(FILES).put({ hash: book.hash, file } satisfies FileRecord);
     }
     await committed(tx);
-    return kept ? { book: kept, existed: true } : { book, existed: false };
+    return kept ? { book: withPosition(kept, position), existed: true } : { book, existed: false };
   }
 
   /** Forget a book and its file. The cards captured from it keep their own copy of its name. */
   async remove(hash: string): Promise<void> {
-    const tx = this.db.transaction([BOOKS, FILES], "readwrite");
+    const tx = this.db.transaction([BOOKS, FILES, POSITIONS], "readwrite");
     tx.objectStore(BOOKS).delete(hash);
     tx.objectStore(FILES).delete(hash);
+    tx.objectStore(POSITIONS).delete(hash);
     await committed(tx);
   }
 
@@ -140,11 +195,14 @@ export class Library {
    * `at`) is the one kept, whatever order the writes land in. Returns whether it was kept.
    */
   async savePosition(hash: string, location: string, at: number): Promise<boolean> {
-    const tx = this.db.transaction(BOOKS, "readwrite");
-    const books = tx.objectStore(BOOKS);
-    const book = await promised<BookRecord | undefined>(books.get(hash));
-    const newer = !!book && at >= book.locationAt;
-    if (book && newer) books.put({ ...book, location, locationAt: at });
+    const tx = this.db.transaction([BOOKS, POSITIONS], "readwrite");
+    const positions = tx.objectStore(POSITIONS);
+    const [known, position] = await Promise.all([
+      promised<number>(tx.objectStore(BOOKS).count(hash)),
+      promised<PositionRecord | undefined>(positions.get(hash)),
+    ]);
+    const newer = known > 0 && at >= (position?.locationAt ?? 0);
+    if (newer) positions.put({ hash, location, locationAt: at } satisfies PositionRecord);
     await committed(tx);
     return newer;
   }
