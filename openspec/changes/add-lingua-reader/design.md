@@ -113,6 +113,23 @@ Alternative: render sections inline into the page's own DOM instead of iframes. 
 the parameter, but foliate-js does not offer it and writing that renderer is the thing this
 change refuses to write.
 
+**Amended during implementation — Chromium serves sections from its service worker.** A
+`blob:` document is *not* always reachable from the extension page that made it. Chrome's
+migration to "block the V8 optimizer on unfamiliar sites"
+(`MigrateToBlockV8OptimizerOnUnfamiliarSites`, a field trial) places such a document in a
+process of its own: its origin is still the extension's, yet the page gets a `SecurityError`
+and foliate-js stops before painting (`contentDocument` is null) — a blank book. It is on in
+Chrome for Testing's default configuration, and can reach any Chrome in the trial's arm.
+Playwright launches Chrome with `--disable-field-trial-config`, which is why the automated
+passes never saw it. The Chromium variant therefore routes every section through the
+background service worker (`src/reader/section-server.ts`): what foliate-js produced for the
+section, resources already rewritten to `blob:` URLs, is put in Cache Storage and the frame is
+pointed at `chrome-extension://<id>/reader-section/…`, which the worker answers — a plain
+extension URL, kept in the page's process. The section is served with `script-src 'none'`.
+foliate-js is not modified: the adapter wraps each section's `load`/`unload`. Firefox keeps
+the `blob:` path (its event page is no service worker, and the reader works there); Safari's
+event page is none either — if Safari splits `blob:` documents too, it needs another answer.
+
 ### D4. One paint per page turn
 
 Two things paint a highlighted page twice today, and an e-ink screen shows both:
@@ -232,6 +249,12 @@ Firefox is still to measure.
 **Offline.** With every request sent to a dead proxy, opening and reading the 23.7 MB book made
 52 requests, all `chrome-extension:` or `blob:` — none left the extension; its 36 illustrations
 loaded.
+
+**What the automated passes could not see.** They ran Playwright's Chromium, which disables
+Chrome's field trials. With them on — Chrome for Testing's defaults, and the first manual pass
+on the laptop — a Packt EPUB opened blank; the cause and the service-worker route are in D3.
+Re-run with the field trials on, the same four books open and paint (a chapter of 512 to 2 208
+ranges, the illustrated Gutenberg edition with its images).
 
 **Entry points.** `tabs.sendMessage` from the popup reaches the reader page in its tab on
 Chromium (MDN documents the same on Firefox), so the popup's `getStats` works unchanged and the

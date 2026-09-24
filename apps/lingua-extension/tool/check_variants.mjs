@@ -69,6 +69,9 @@ const markers = [
   { file: "content.js", text: "drawer.openOn(view)", chromium: false },
   // Dynamic reader registration — Chromium only.
   { file: "background.js", text: "registerContentScripts(", chromium: true },
+  // The book reader's sections served by the service worker — Chromium only (section-server.ts).
+  { file: "background.js", text: "reader-section/", chromium: true },
+  { file: "reader.js", text: "reader-section/", chromium: true },
 ];
 for (const { file, text, chromium: inChromium } of markers) {
   for (const target of ["chromium", "firefox", "safari"]) {

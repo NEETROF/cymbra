@@ -9,6 +9,7 @@ export default defineConfig({
     __REVIEW_IN_PAGE__: "false",
     __STATIC_READER__: "false",
     __NATIVE_PROVIDERS__: "false",
+    __SECTIONS_FROM_WORKER__: "false",
     __TRANSLATION_HOST__: JSON.stringify("none"),
     __GRPC_WEB_URL__: JSON.stringify("http://localhost:50051"),
     __GOOGLE_CLIENT_ID__: JSON.stringify(""),

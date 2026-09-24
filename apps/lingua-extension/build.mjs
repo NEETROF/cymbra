@@ -214,6 +214,9 @@ function capabilities(target) {
     __STATIC_READER__: JSON.stringify(eventPageFamily),
     // Safari only: Apple and Google come from the host app over native messaging.
     __NATIVE_PROVIDERS__: JSON.stringify(target === "safari"),
+    // Chromium only: the book reader's sections are served by the background service worker,
+    // not from blob: URLs Chrome may isolate in another process (src/reader/section-server.ts).
+    __SECTIONS_FROM_WORKER__: JSON.stringify(target === "chromium"),
     __TRANSLATION_HOST__: JSON.stringify(translationHost(target)),
   };
 }

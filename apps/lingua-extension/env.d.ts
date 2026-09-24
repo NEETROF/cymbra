@@ -15,6 +15,9 @@ declare const __STATIC_READER__: boolean;
 // Safari only: Apple and Google sign-in come from the host app over native messaging
 // (add-lingua-connected-clients D6), since Safari has no identity.launchWebAuthFlow.
 declare const __NATIVE_PROVIDERS__: boolean;
+// Chromium only: the book reader loads each section from the background service worker
+// (src/reader/section-server.ts) — a blob: document may land in another process there.
+declare const __SECTIONS_FROM_WORKER__: boolean;
 
 // Where the translation engine is hosted (add-lingua-translation-engine). "none" in every
 // shipped build: the engine is built in only by a development build that side-loads a model

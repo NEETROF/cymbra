@@ -21,6 +21,7 @@ import {
 } from "./state/oidc.ts";
 import { isOpenPageMessage } from "./state/open-page.ts";
 import { openOrFocusReader, READER_PAGE, type ReaderWhereMessage } from "./reader/locate.ts";
+import { serveSection } from "./reader/section-server.ts";
 import { EngineChannel, type WorkerLike } from "./translate/host/channel.ts";
 import type { EngineAccess } from "./translate/host/engine.ts";
 import { OffscreenEngine } from "./translate/host/offscreen-engine.ts";
@@ -130,6 +131,16 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
   if (!__REVIEW_IN_PAGE__ && chrome.sidePanel?.open && tabId != null) chrome.sidePanel.open({ tabId }).catch(openTab);
   else openTab();
 });
+
+// The book reader's sections, on Chromium (src/reader/section-server.ts): the reader page puts
+// each one in Cache Storage and points its frame at reader-section/…, answered here, so the
+// section's document stays in the page's process. Every other request is left untouched. The
+// worker claims the pages already open, so a reader opened before it started is served too.
+if (__SECTIONS_FROM_WORKER__) {
+  const worker = self as unknown as ServiceWorkerGlobalScope;
+  worker.addEventListener("fetch", (event) => void serveSection(event, caches));
+  worker.addEventListener("activate", (event) => event.waitUntil(worker.clients.claim()));
+}
 
 // A surface that cannot open a tab asks here: a content script has no `chrome.tabs`, which
 // is why the in-page drawer's links did nothing (dogfooding, build 100/101). An extension

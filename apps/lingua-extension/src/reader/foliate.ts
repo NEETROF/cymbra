@@ -3,6 +3,7 @@ import { type FoliateRelocate, View } from "foliate-js/view.js";
 import type { ReaderFlow } from "../state/storage.ts";
 import { openArchive } from "./archive.ts";
 import type { BookLocation, BookRenderer, OpenedBook, SectionReady, TocEntry } from "./renderer.ts";
+import { type LoadableSection, routeSections } from "./section-server.ts";
 
 // The thin adapter over foliate-js (add-lingua-reader D2): the only file that knows its
 // element, its events and its options. Excluded from coverage with the vendored tree — it
@@ -37,6 +38,16 @@ export class FoliateRenderer implements BookRenderer {
 
   async open(file: Blob, at: string | null, flow: ReaderFlow): Promise<OpenedBook> {
     const book = await new EPUB(await openArchive(file)).init();
+    if (__SECTIONS_FROM_WORKER__) {
+      // Chromium: each section from the service worker, never a blob: document (section-server.ts).
+      routeSections(book.sections as LoadableSection[], {
+        caches,
+        fetch: (url) => fetch(url),
+        pageUrl: (path) => chrome.runtime.getURL(path),
+        controlled: () => !!navigator.serviceWorker?.controller,
+        token: crypto.randomUUID(),
+      });
+    }
     await this.element.open(book);
     this.setFlow(flow);
     try {

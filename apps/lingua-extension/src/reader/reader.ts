@@ -8,6 +8,7 @@ import { FoliateRenderer } from "./foliate.ts";
 import { Library } from "./library.ts";
 import { isReaderWhere, type ReaderWhereReply } from "./locate.ts";
 import { requestPersistence } from "./persist.ts";
+import { clearSections } from "./section-server.ts";
 
 // The reader page's entry (add-lingua-reader): an extension page, so it loads from the
 // installed bundle and never from the network; the engine is the one every extension page
@@ -29,6 +30,7 @@ async function main(): Promise<void> {
   installGroupBy();
   const root = document.getElementById("reader-root");
   if (!root) return;
+  if (__SECTIONS_FROM_WORKER__) await clearSections(caches);
   const library = await Library.open();
   const app = new ReaderApp(root, {
     library,
