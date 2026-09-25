@@ -319,7 +319,10 @@ export class ReaderApp {
     this.displayView = mountBookDisplay(this.displayPanel, this.deps.displayArea);
     // A tap on the page's margins lands in this document, not in the section's: same zones.
     this.bookHost.addEventListener("click", (e) => this.turnByZone(e.clientX));
-    this.readingView.append(bar, this.bookHost, foot, this.tocPanel, this.displayPanel);
+    // The book, and the panels laid over it: they start under the bar, however many rows it takes.
+    const stage = el("div", "reading-stage");
+    stage.append(this.bookHost, this.tocPanel, this.displayPanel);
+    this.readingView.append(bar, stage, foot);
     this.root.ownerDocument.addEventListener("keydown", (e) => this.onKey(e));
   }
 
