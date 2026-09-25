@@ -54,13 +54,43 @@ jobs:
           # sitting in openspec/changes through two green runs, listed in the commit
           # message below as if it had been archived. The directory is the only honest
           # answer: archiving removes it.
+          #
+          # A change may modify a requirement that another change, still open, adds: it then
+          # archives after that one (add-lingua-expression-table after add-lingua-phrase-gloss).
+          # The archive would abort on it exactly as on a renamed requirement, so the order is
+          # read first (scripts/openspec_archive_order.py, exit 10 = waits). Archiving goes in
+          # passes: a change waiting for one archived in this very run is taken on the next.
           archived=""
           failed=""
-          for c in $changes; do
-            echo "::group::archive $c"
-            openspec archive "$c" -y
-            echo "::endgroup::"
-            if [ -d "openspec/changes/$c" ]; then failed="$failed $c"; else archived="$archived $c"; fi
+          waiting=""
+          pending="$changes"
+          while :; do
+            next=""
+            progress=0
+            for c in $pending; do
+              order=0
+              python3 scripts/openspec_archive_order.py "$c" > /dev/null || order=$?
+              if [ "$order" -eq 10 ]; then
+                next="$next $c"
+                continue
+              fi
+              echo "::group::archive $c"
+              openspec archive "$c" -y
+              echo "::endgroup::"
+              if [ -d "openspec/changes/$c" ]; then
+                failed="$failed $c"
+              else
+                archived="$archived $c"
+                progress=1
+              fi
+            done
+            pending="$next"
+            if [ -z "${pending// /}" ] || [ "$progress" -eq 0 ]; then break; fi
+          done
+          for c in $pending; do
+            after=$(python3 scripts/openspec_archive_order.py "$c" | paste -sd, - || true)
+            echo "::notice::$c is complete and archives after ${after}, still open."
+            waiting="$waiting $c"
           done
           {
             echo "names<<EOF"
@@ -68,6 +98,7 @@ jobs:
             printf '%s\n' $archived
             echo "EOF"
             echo "failed=$failed"
+            echo "waiting=$waiting"
           } >> "$GITHUB_ENV"
 
       - name: Commit archived changes
@@ -93,8 +124,13 @@ jobs:
         run: |
           set -euo pipefail
           failed="${failed:-}"
+          waiting="${waiting:-}"
           if [ -z "${failed// /}" ]; then
-            echo "Every completed change was archived."
+            if [ -n "${waiting// /}" ]; then
+              echo "Every completed change was archived, except those waiting for a change still open:${waiting}."
+            else
+              echo "Every completed change was archived."
+            fi
             exit 0
           fi
           echo "::error::openspec archive left these changes in openspec/changes:${failed}. \
