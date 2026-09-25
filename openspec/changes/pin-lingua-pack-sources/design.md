@@ -48,9 +48,10 @@ drift is detected monthly and adopted on demand.
   The gain either way is the plurals of recent words AGID lacks (*smartphones*, *influencers*,
   *apps*, *datasets*…), which kaikki — already downloaded — links to their lemma. ESDB brings more
   lemma changes, regressions that need the reducer's rules re-tuned, and a format its own release
-  notes call unstable. So: AGID stays (pinned, D3), and using kaikki's `form_of` is a reducer
-  change of its own, applied through re-reduce (D4) so its `forms.tsv` diff is reviewed, with a
-  carry-over of statuses for the lemmas it merges.
+  notes call unstable. Combined, ESDB + kaikki `form_of` does best of all (+353 glosses, +65
+  resolved tokens, 671 tokens changing lemma). The product owner chose the maintained source:
+  `switch-lingua-inflections-to-esdb` makes that switch, through this change's re-reduce (D4), with
+  a carry-over of statuses for the lemmas it merges. Until it lands, AGID is pinned here (D3).
 
 ## Decisions
 
