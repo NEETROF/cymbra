@@ -313,6 +313,15 @@ and its engine, most likely), the extension's native process at 2.8 MB; a phone 
 a foreground page well above that. A snapshot, not a curve: Instruments only reached the phone
 for a few seconds. Storage: a 39 322 MB quota, not persisted.
 
+**Safari on macOS (the 6.4 pass).** The extension's pages run in one WebKit process, sampled
+every 5 s with `footprint` during the pass: 50 MB before a book, 154 – 196 MB reading *Pro Git*,
+244 – 250 MB with *Pride and Prejudice* open, and a peak of 338 MB while its whole-novel section
+painted — the same order as the iPhone. Two dogfooding defects surfaced on the way and are
+fixed: the toolbar popup could not be scrolled once Safari had cut it to fit (it now scrolls
+itself within 600 px on a desktop), and an incremental Xcode build left the extension's
+signature invalid, which Safari answers by dropping the extension from its list without a word
+(a clean build restores it; the copy phase is to be fixed apart).
+
 **1.4 — storage (Firefox for Android, the tablet).** Four books (0.5, 6.6, 13.3 and 23.7 MB,
 44.1 MB of files) occupy 46 MB of a 5 345 MB quota; `navigator.storage.persisted()` is false
 there too, and the library shows its notice. Room is not the constraint on either browser;
