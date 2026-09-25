@@ -211,6 +211,21 @@ longer remove.
   path 145 times (assertion messages) — 4 characters longer, 580 bytes more — and the glue shifted
   with it. `tool/build_engine.sh` therefore builds where the pinned bytes were built,
   `/home/runner/work/cymbra/cymbra/translations`, and says so to a reviewer building elsewhere.
+- **What could disappear, and what then still works** (reviewed after the first CI runs):
+  - *The engine's sources* (mozilla/translations, ~15 third-party submodules, the Emscripten SDK
+    3.1.8, a runner whose CMake 4 already refuses sentencepiece's `cmake_minimum_required(3.1)`):
+    the pinned engine is kept as a GitHub Release, which never expires, and `fetch_engine.sh` takes
+    it first; the 90-day artefact is only the fallback. The rebuild pins `ubuntu-24.04` and CMake
+    3.31.6, and is a proof that the recipe still reproduces the pin, no longer a condition of every
+    build.
+  - *The model's source at Mozilla*: the host is filled from Mozilla, else our own copy (a release),
+    else the deployed host, each file under both digests.
+  - *The host itself*: an installed model keeps working; ticking, or downloading again after the
+    browser evicted it, fails — with « le serveur ne répond pas » when the device is online, not a
+    false « pas de connexion ». The release refuses to submit a package while the host does not
+    serve the pinned model.
+  - *The dictionary's sources* are not this change's: they are downloaded unpinned at every release
+    today, and a change of their own pins them.
 - **Storage.** 36.7 MB in IndexedDB is far inside the default quota of an extension origin on both
   browsers; `unlimitedStorage` is not needed. `navigator.storage.persist()` exists only in a
   document, so the offscreen document (Chromium) and the event page (Firefox) ask it when a

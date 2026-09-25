@@ -169,6 +169,22 @@ describe("downloadModel", () => {
     await expect(downloadModel(manifest, deps(fetch).deps)).resolves.toMatchObject({ ok: false, reason: "network" });
   });
 
+  it("blames the host, not the connection, when the device is online — an unknown name, a host down", async () => {
+    // models.cymbra.app not deployed yet answered ENOTFOUND: "pas de connexion" would have been false.
+    const fetch = vi.fn(async () => {
+      throw new TypeError("Failed to fetch");
+    }) as unknown as typeof globalThis.fetch;
+    const { deps: d } = deps(fetch);
+    await expect(downloadModel(manifest, { ...d, online: () => true })).resolves.toMatchObject({
+      ok: false,
+      reason: "unavailable",
+    });
+    await expect(downloadModel(manifest, { ...d, online: () => false })).resolves.toMatchObject({
+      ok: false,
+      reason: "network",
+    });
+  });
+
   it("reports a body cut mid-way as the network", async () => {
     const fetch = vi.fn(
       async () =>

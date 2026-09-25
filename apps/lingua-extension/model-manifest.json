@@ -33,5 +33,6 @@
       }
     }
   },
-  "sourceBase": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/"
+  "sourceBase": "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/",
+  "mirror": "https://github.com/NEETROF/cymbra/releases/download/lingua-model-en-fr-base-memory-2.0/"
 }

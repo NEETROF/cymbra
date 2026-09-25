@@ -24,6 +24,7 @@ scope.onmessage = (event) => {
         digest: sha256Hex,
         gunzip: () => new DecompressionStream("gzip") as unknown as TransformStream<Uint8Array, Uint8Array>,
         onProgress: (received, total) => scope.postMessage({ kind: "progress", received, total }),
+        online: () => navigator.onLine,
       });
       scope.postMessage(
         outcome.ok ? { kind: "done" } : { kind: "failed", reason: outcome.reason, detail: outcome.detail },

@@ -6,7 +6,8 @@
 // The pin holds because the build is reproducible: three runs of lingua-engine-build a day apart
 // produced byte-identical files. An engine that does not match was built from something else.
 //
-// CLI: node tool/engine_pin.mjs <dir>   exits 1, naming each problem, unless <dir> matches.
+// CLI: node tool/engine_pin.mjs <dir>          exits 1, naming each problem, unless <dir> matches.
+//      node tool/engine_pin.mjs --release-tag  prints the GitHub Release that keeps the pinned engine.
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -22,6 +23,15 @@ export function enginePin() {
 /** The files the extension packages, in the order they are copied. */
 export function engineFiles() {
   return Object.keys(enginePin().files);
+}
+
+/**
+ * The GitHub Release that keeps the pinned engine for good (lingua-engine-build publishes it):
+ * artefacts expire after 90 days, a release asset does not, and the packages must still build the
+ * day upstream can no longer be rebuilt.
+ */
+export function engineReleaseTag() {
+  return `lingua-engine-${enginePin().translationsCommit.slice(0, 12)}`;
 }
 
 export function sha256(path) {
@@ -55,7 +65,9 @@ export function engineProblems(dir) {
   return problems;
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (process.argv[1] === fileURLToPath(import.meta.url) && process.argv[2] === "--release-tag") {
+  console.log(engineReleaseTag());
+} else if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const dir = process.argv[2];
   if (!dir) {
     console.error("usage: node tool/engine_pin.mjs <engine-dir>");

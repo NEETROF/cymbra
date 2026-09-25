@@ -299,6 +299,19 @@ jobs:
             done
           fi
 
+      # The Chromium and Firefox packages offer « Traduction étendue », whose model they download
+      # from the host model-manifest.json names. A package submitted while that host does not
+      # serve the pinned model offers a setting that fails for every reader who ticks it — so a
+      # submission is refused, and a build that publishes nothing only warns.
+      - name: Refuse to submit a package whose translation model cannot be downloaded
+        run: |
+          if node tool/check_model_host.mjs; then exit 0; fi
+          if [ "$PUBLISHING" = "true" ]; then
+            echo "::error::the model host does not serve the pinned model. Dispatch lingua-model-deploy first (apps/lingua-extension/TRANSLATION.md)."
+            exit 1
+          fi
+          echo "::warning::the model host does not serve the pinned model yet; fine for a build, not for a submission."
+
       - name: Package the distributable variants
         run: |
           set -euo pipefail

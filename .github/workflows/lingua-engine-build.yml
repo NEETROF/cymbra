@@ -12,9 +12,13 @@ name: lingua-engine-build
 # over, the .wasm differed by the source paths it embeds, and nothing else. A run that no longer
 # reproduces the pinned bytes fails here, loudly, rather than ship something else.
 #
-# It runs when the pin or the recipe changes, on demand, and once a month: artefacts are kept 90
-# days, and the lanes that package the engine need one to exist. It does not run on every pull
-# request: it takes about eight minutes and verifies nothing the extension's own gate does not.
+# It runs when the pin or the recipe changes, on demand, and once a month. From main, it also
+# publishes the pinned engine as a GitHub Release (`node tool/engine_pin.mjs --release-tag`), once:
+# that is what fetch_engine.sh takes first, and it never expires. The 90-day artefact is only the
+# fallback until then, and the monthly run is only a proof that the recipe still reproduces the
+# pin — the day it no longer does (a submodule gone, the Emscripten SDK withdrawn), the packages
+# still build. It does not run on every pull request: it takes about eight minutes and verifies
+# nothing the extension's own gate does not.
 on:
   push:
     branches: [main]
@@ -44,7 +48,10 @@ jobs:
   build:
     # Linux only. The upstream build script itself warns that it breaks on macOS AArch64, and a
     # runner is already the clean container the script otherwise insists on (ALLOW_RUN_ON_HOST).
-    runs-on: ubuntu-latest
+    # The image is PINNED, like the tools below: the pin is a hash, and the host's CMake configures
+    # the build. ubuntu-24.04 already carries CMake 4 beside 3.31, and CMake 4 refuses the
+    # `cmake_minimum_required(3.1)` of the sentencepiece submodule outright.
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
@@ -55,6 +62,13 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: "22"
+      # The CMake the pinned bytes were built with; the image's default can move to 4.x any day.
+      - name: Pin CMake
+        run: |
+          set -euo pipefail
+          pip install --quiet cmake==3.31.6
+          cmake --version | head -1 | grep -qx 'cmake version 3.31.6' \
+            || { echo "::error::cmake on PATH is $(cmake --version | head -1), not 3.31.6"; exit 1; }
 
       # The engine is PINNED (engine-pin.json): the upstream commit, and the sha256 of each file it
       # must produce. Every measurement taken on it — size, memory, latency, that the tag survives
@@ -81,3 +95,51 @@ jobs:
             ${{ runner.temp }}/engine/TRANSLATIONS_COMMIT
           if-no-files-found: error
           retention-days: 90
+
+  # The pinned engine, kept for good: a GitHub Release per pin, published once from main. Its
+  # assets are exactly the files the build just checked against engine-pin.json.
+  publish:
+    needs: build
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - uses: actions/download-artifact@v4
+        with:
+          name: lingua-translation-engine
+          path: ${{ runner.temp }}/engine
+      - name: Publish the pinned engine as a release, unless it already is
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          engine="$RUNNER_TEMP/engine"
+          node apps/lingua-extension/tool/engine_pin.mjs "$engine"
+          tag=$(node apps/lingua-extension/tool/engine_pin.mjs --release-tag)
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "$tag already holds the pinned engine." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          commit=$(cat "$engine/TRANSLATIONS_COMMIT")
+          {
+            echo "The Bergamot translation engine that Cymbra Lingua's Chromium and Firefox packages carry,"
+            echo "built unmodified from [mozilla/translations@${commit:0:12}](https://github.com/mozilla/translations/tree/$commit)"
+            echo "by \`apps/lingua-extension/tool/build_engine.sh\` (Mozilla Public License 2.0)."
+            echo
+            echo "Kept here because workflow artefacts expire; \`tool/fetch_engine.sh\` takes these files first,"
+            echo "and every consumer checks them against \`apps/lingua-extension/engine-pin.json\`:"
+            echo
+            echo '```'
+            (cd "$engine" && sha256sum bergamot-translator.js bergamot-translator.wasm)
+            echo '```'
+          } > "$RUNNER_TEMP/notes.md"
+          gh release create "$tag" \
+            "$engine/bergamot-translator.js" "$engine/bergamot-translator.wasm" "$engine/TRANSLATIONS_COMMIT" \
+            --target "$GITHUB_SHA" --title "Lingua translation engine ${commit:0:12}" \
+            --notes-file "$RUNNER_TEMP/notes.md" --latest=false
+          echo "Published $tag." >> "$GITHUB_STEP_SUMMARY"

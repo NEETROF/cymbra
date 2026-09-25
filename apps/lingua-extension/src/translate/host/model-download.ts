@@ -32,6 +32,11 @@ export interface DownloadDeps {
   /** Bytes received so far, of the total the manifest states. At most every PROGRESS_EVERY_MS. */
   onProgress(received: number, total: number): void;
   now?: () => number;
+  /**
+   * Whether the device has a network (navigator.onLine). A request that fails while it does is the
+   * HOST's failure — an unknown name, a host down, a refused CORS — not the reader's connection.
+   */
+  online?: () => boolean;
 }
 
 /** How often progress is reported at most: every report crosses a thread and lands in storage. */
@@ -95,12 +100,12 @@ async function decompressed(body: Uint8Array, deps: DownloadDeps): Promise<Uint8
   }
 }
 
-function classify(e: unknown, signal: AbortSignal | undefined): Failure {
+function classify(e: unknown, deps: DownloadDeps): Failure {
   if (e instanceof Failure) return e;
-  if (signal?.aborted || (e as { name?: string } | null)?.name === "AbortError") {
+  if (deps.signal?.aborted || (e as { name?: string } | null)?.name === "AbortError") {
     return new Failure("cancelled", "cancelled");
   }
-  return new Failure("network", String(e));
+  return new Failure(deps.online?.() === true ? "unavailable" : "network", String(e));
 }
 
 /**
@@ -137,7 +142,7 @@ export async function downloadModel(manifest: ModelManifest, deps: DownloadDeps)
           signal: deps.signal,
         });
       } catch (e) {
-        throw classify(e, deps.signal);
+        throw classify(e, deps);
       }
       if (!response.ok || !response.body) {
         throw new Failure("unavailable", `${role}: HTTP ${response.status}`);
@@ -151,7 +156,7 @@ export async function downloadModel(manifest: ModelManifest, deps: DownloadDeps)
           report(false);
         });
       } catch (e) {
-        throw classify(e, deps.signal);
+        throw classify(e, deps);
       }
       const bytes = await decompressed(body, deps);
       if ((await deps.digest(bytes)) !== file.sha256) {

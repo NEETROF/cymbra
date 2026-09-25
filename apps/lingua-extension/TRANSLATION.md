@@ -19,7 +19,8 @@ the model travels.
 ## 1. The engine
 
 `build.mjs` refuses to build Chromium or Firefox without it, and refuses any bytes but the pinned
-ones. Fetch the artefact of the `lingua-engine-build` workflow:
+ones. Fetch it — from the GitHub Release `lingua-engine-build` publishes once per pin (it never
+expires), or, until that release exists, from the workflow's 90-day artefact:
 
 ```bash
 cd apps/lingua-extension
@@ -48,8 +49,12 @@ no cookie and no referrer, decompresses it, and stores it in the `lingua-model` 
 only if its sha256 matches. A file that does not — the static site's 200-with-the-home-page trap
 included — is discarded. Unticking deletes the database.
 
-The host, `models.cymbra.app`, is filled by the `lingua-model-deploy` workflow from Mozilla's
-registry with `tool/assemble_model_site.mjs`, which checks both digests of every file.
+The host, `models.cymbra.app`, is filled by the `lingua-model-deploy` workflow with
+`tool/assemble_model_site.mjs`, which checks both digests of every file and takes it from Mozilla's
+registry, else from our own copy (a GitHub Release the same workflow creates once), else from the
+deployed host itself — Mozilla has moved these files once already. `tool/check_model_host.mjs`
+then checks the host from outside, and `lingua-extension-release` runs the same check before it
+submits a package: a package whose model cannot be downloaded is never sent to a store.
 
 ### Before that host exists, or to test a download
 
