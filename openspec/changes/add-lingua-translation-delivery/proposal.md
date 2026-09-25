@@ -13,7 +13,7 @@ introduces) and the device mode of `add-lingua-youtube-captions`.
 ## What Changes
 
 - **A per-device "Traduction étendue" setting**, off by default, in the extension's settings. It
-  is stored on the device and never synced: turning it on on the Mac does not start a 25.6 MiB
+  is stored on the device and never synced: turning it on on the Mac does not start a 25.8 MB
   download on the tablet. Its stored value is a choice of host (`none` / `local`), shown today as
   one checkbox, so that `add-lingua-remote-translation` adds its third state without migrating it.
 - **The model is downloaded only when the reader turns the setting on**, once, from a Cymbra static

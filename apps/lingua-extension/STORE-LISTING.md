@@ -62,7 +62,13 @@ encre électronique comprise. Vos livres restent sur votre appareil.
 
 **L'analyse est locale.** Le dictionnaire et le moteur tournent dans votre navigateur : aucune
 page que vous lisez n'est envoyée nulle part, et l'extension fonctionne hors ligne. Sans
-compte, elle ne fait aucune requête réseau.
+compte ni traduction étendue, elle ne fait aucune requête réseau.
+
+**Traduction étendue** (facultative, désactivée par défaut, sur Chrome et Firefox pour
+ordinateur) : votre sélection est traduite dans sa phrase, sur votre appareil, par le moteur de
+Firefox Translations. L'activer télécharge une fois le modèle de traduction (25,8 Mo) depuis
+Cymbra ; le texte des pages ne quitte toujours pas votre appareil. La désactiver supprime le
+modèle.
 
 Créez un compte Cymbra si — et seulement si — vous voulez retrouver vos mots et vos cartes sur
 vos autres appareils. C'est la seule chose qui quitte votre machine, et vous pouvez effacer ces
@@ -88,8 +94,13 @@ them offline with the same highlighting, page by page — on an e-ink tablet as 
 stay on your device.
 
 **The analysis is local.** The dictionary and the engine run in your browser: no page you read
-is ever sent anywhere, and the extension works offline. With no account, it makes no network
-request at all.
+is ever sent anywhere, and the extension works offline. With no account and no extended
+translation, it makes no network request at all.
+
+**Extended translation** (optional, off by default, on desktop Chrome and Firefox): your
+selection is translated in its sentence, on your device, by the Firefox Translations engine.
+Turning it on downloads the translation model (25.8 MB) from Cymbra once; the text of the pages
+you read still never leaves your device. Turning it off deletes the model.
 
 Create a Cymbra account if — and only if — you want your words and cards on your other
 devices. That is the only thing that leaves your machine, and you can erase it from Settings
@@ -187,6 +198,13 @@ Google or Apple sign-in flow and returns to `chrome.identity.getRedirectURL()`
 (`src/background.ts:251`). The extension never sees a password. A reader who does not sign in
 never reaches this code.
 
+**`offscreen`** — Only for « Traduction étendue », an optional setting that is off by default.
+The translation engine and the download of its model run in a dedicated worker, off every
+thread that paints; a Manifest V3 service worker cannot start a worker itself, so an offscreen
+document (reason `WORKERS`) owns it. It is created when the reader turns the setting on or asks
+for a translation, and closed once idle (`src/translate/host/offscreen-engine.ts`,
+`src/translate/host/offscreen.ts`).
+
 **`<all_urls>` (optional, not requested at install)** — Offered behind "Toujours surligner" for
 readers who want highlighting on every page without clicking the toolbar each time. It is
 requested by `chrome.permissions.request` from a user gesture (`src/popup/popup.ts:424`) and
@@ -194,11 +212,16 @@ can be revoked at any time. The extension is fully usable without it.
 
 ## Remote code
 
-None. Everything the extension runs ships inside the package, including the WebAssembly
-analysis engine, the language pack and the book renderer (foliate-js, vendored under
-`vendor/`). No script is fetched at runtime; the content security policy is
-`script-src 'self' 'wasm-unsafe-eval'`. A book's own scripts never run: its pages are rendered
-under that same policy (`test/reader-csp.spec.ts`).
+None. Everything the extension runs ships inside the package, including both WebAssembly
+engines — the analysis engine and the translation engine — the language pack and the book
+renderer (foliate-js, vendored under `vendor/`). No script and no WebAssembly is fetched at
+runtime; the content security policy is `script-src 'self' 'wasm-unsafe-eval'`. A book's own
+scripts never run: its pages are rendered under that same policy (`test/reader-csp.spec.ts`).
+
+The one file downloaded at runtime is **data**: the translation model's weights, fetched from
+`https://models.cymbra.app` only after the reader turns on « Traduction étendue », and used only
+once its sha256 matches the hash the package carries (`model-manifest.json`,
+`src/translate/host/model-download.ts`). Nothing in it is executed.
 
 ## Data usage disclosures (Chrome Web Store)
 
@@ -210,7 +233,9 @@ What is collected, and only for a signed-in reader: the email address used to cr
 account, and the reader's own vocabulary state (word statuses, cards, review history) sent to
 `https://api.cymbra.app` so their devices agree. Reading activity, page content and browsing
 history are **not** collected — the analysis never leaves the browser. Nor are the books a
-reader imports, their text or where the reader is in them: they stay on the device.
+reader imports, their text or where the reader is in them: they stay on the device. Turning on
+« Traduction étendue » downloads a model from Cymbra; that request carries nothing of the
+reader's (no cookie, no identifier, no page text) and is not tied to an account.
 
 Tick the three certifications: the data is not sold to third parties, it is not used or
 transferred for a purpose unrelated to the item's single purpose, and it is not used or
@@ -218,8 +243,9 @@ transferred to determine creditworthiness or for lending.
 
 ## Source code (addons.mozilla.org)
 
-AMO requires the human-readable source because the package is built (esbuild bundle, and a
-`.wasm` compiled from Rust). `lingua-extension-release` attaches it automatically; its build
+AMO requires the human-readable source because the package is built (esbuild bundle, a `.wasm`
+compiled from Rust, and the translation engine compiled from `mozilla/translations` with
+Emscripten — its recipe is `tool/build_engine.sh`, pinned by `engine-pin.json`). `lingua-extension-release` attaches it automatically; its build
 instructions are in [REVIEWERS.md](REVIEWERS.md), which becomes the archive's `README.md`.
 
 License to declare on AMO: **Apache-2.0** (the repository's, see `LICENSE`).

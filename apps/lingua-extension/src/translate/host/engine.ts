@@ -10,6 +10,9 @@ export interface EngineAccess {
   translate(markup: string): Promise<EngineReply>;
 }
 
+/** The worker's answer to `load` when the model is not on the device: off, or never finished. */
+export const NO_MODEL = "the model is not on this device";
+
 /** The engine worker's protocol. Requests carry an id so replies can arrive in any order. */
 export type WorkerRequest = { id: number; op: "load" } | { id: number; op: "translate"; markup: string };
 export type WorkerResponse = { id: number; ok: true; html?: string } | { id: number; ok: false; error: string };

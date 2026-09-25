@@ -76,6 +76,7 @@ on:
 
 permissions:
   contents: write # attach the packages to the tag's release
+  actions: read # the translation engine is another workflow's artefact (tool/fetch_engine.sh)
 
 concurrency:
   group: lingua-extension-release
@@ -213,6 +214,15 @@ jobs:
           key: lingua-pack-sources-en-fr-${{ hashFiles('scripts/lingua-data/build.sh', 'scripts/lingua-data/reduce-en-fr.py') }}
           restore-keys: lingua-pack-sources-en-fr-
 
+      # The Chromium and Firefox packages carry the translation engine
+      # (add-lingua-translation-delivery D1): lingua-engine-build's artefact, kept only if every file
+      # matches engine-pin.json — and build.mjs refuses to package anything else. The model is never
+      # packaged; readers download it from Cymbra once they turn « Traduction étendue » on.
+      - name: Fetch the translation engine
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: yarn fetch:engine
+
       # A store build is not a production build plus luck: three env vars separate them, and
       # every one of them fails quietly if forgotten (dogfooding, first Chrome Web Store
       # upload). LINGUA_EXT_KEY must be EMPTY — build.mjs otherwise pins the unpacked dev id
@@ -288,6 +298,19 @@ jobs:
               done
             done
           fi
+
+      # The Chromium and Firefox packages offer « Traduction étendue », whose model they download
+      # from the host model-manifest.json names. A package submitted while that host does not
+      # serve the pinned model offers a setting that fails for every reader who ticks it — so a
+      # submission is refused, and a build that publishes nothing only warns.
+      - name: Refuse to submit a package whose translation model cannot be downloaded
+        run: |
+          if node tool/check_model_host.mjs; then exit 0; fi
+          if [ "$PUBLISHING" = "true" ]; then
+            echo "::error::the model host does not serve the pinned model. Dispatch lingua-model-deploy first (apps/lingua-extension/TRANSLATION.md)."
+            exit 1
+          fi
+          echo "::warning::the model host does not serve the pinned model yet; fine for a build, not for a submission."
 
       - name: Package the distributable variants
         run: |

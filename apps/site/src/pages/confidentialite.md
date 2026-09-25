@@ -2,7 +2,7 @@
 layout: ../layouts/Legal.astro
 title: Politique de confidentialité
 lang: fr
-updated: 17/09/2026
+updated: 24/09/2026
 ---
 
 La présente politique explique quelles données personnelles les **services Cymbra**
@@ -148,6 +148,17 @@ lisez, les mots anglais que vous ne connaissez pas encore. En complément du §2
 n'est jamais envoyé. Restent aussi sur l'appareil : le détail de vos lectures (quels mots
 vous avez rencontrés, sur quelles pages), l'**adresse de la page** où vous ajoutez un mot à
 votre deck et, si vous n'êtes pas connecté, l'ensemble de vos données Lingua.
+
+**Traduction étendue.** Ce réglage, désactivé par défaut et propre à chaque appareil (il
+n'est pas synchronisé), traduit sur votre appareil la phrase où se trouve votre sélection.
+Quand vous l'activez, l'extension télécharge **une fois** un modèle de traduction (25,8 Mo,
+le modèle de Firefox Translations publié par Mozilla sous licence MPL 2.0) depuis
+`models.cymbra.app` ; la traduction se fait ensuite **sur votre appareil**, et le texte des
+pages n'est toujours jamais envoyé. Ce téléchargement ne contient ni texte des pages, ni
+données Lingua, ni jeton de compte, ni identifiant d'installation, et Cymbra ne l'associe à
+aucun compte ni à aucune installation. Comme pour toute page web, l'hébergeur de ces fichiers
+(Cloudflare) voit l'adresse IP de l'appareil qui les demande. Désactiver le réglage supprime
+le modèle de l'appareil.
 
 **Ce qui est synchronisé si vous êtes connecté** à votre compte Cymbra :
 

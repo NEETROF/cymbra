@@ -71,6 +71,27 @@ describe("keepEngineWarm", () => {
     expect(d.stopped).toBe(true);
   });
 
+  it("stops when told to — the setting pings only while a download runs", async () => {
+    const d = deps();
+    const stop = keepEngineWarm(d);
+    await d.tick();
+    stop();
+    expect(d.stopped).toBe(true);
+  });
+
+  it("skips a tick while `when` says no, without stopping", async () => {
+    // The setting's view may be hidden (the drawer closed) and shown again during one download.
+    const d = deps();
+    let onScreen = false;
+    keepEngineWarm(d, () => onScreen);
+    await d.tick();
+    expect(d.pings).toBe(0);
+    onScreen = true;
+    await d.tick();
+    expect(d.pings).toBe(1);
+    expect(d.stopped).toBe(false);
+  });
+
   it("defaults to a real interval and a real runtime message", () => {
     const sendMessage = vi.fn(() => Promise.resolve(true));
     vi.stubGlobal("chrome", { runtime: { sendMessage } });

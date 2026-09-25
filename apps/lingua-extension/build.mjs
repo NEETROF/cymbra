@@ -10,6 +10,7 @@ import { build } from "esbuild";
 import { existsSync, cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { engineFiles, engineProblems } from "./tool/engine_pin.mjs";
 
 const root = dirname(fileURLToPath(import.meta.url));
 const requested = process.argv.slice(2).filter((a) => !a.startsWith("-"));
@@ -113,34 +114,54 @@ const EXT_KEY =
   process.env.LINGUA_EXT_KEY ??
   "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmO6fyVYfGiE/aY3LTZ5RIZnwHslFqU5VEVPwehSSs7ah1g3L3LQby7Sg/UubpfrAiKzn/Y97la+j//5nLHGIR0R7+Mu4wuWJjqlb1JglazkjMgIKALmJehrPCb+0n5l+9WNerFSV3YCC76mm9XYeHlgrvrQsmAMq1hI5b264lL45akxRF3fR7QoPh/pzBVyociD4BOYCB0DsjDql8fghaH4hxoeQFwkdhcePO0I4S5KbuehMgIazk9DCh7eTVGGSUs9p0pRMYGydFkzTc9YBG3gL2OoBQ+p5lQMM5B3hNyDPni5BpJ02XW8ZhLdm009avnk3rbm1DBLWF5GcHsuUnQIDAQAB";
 
-// The translation engine (add-lingua-translation-engine) is built in ONLY when a developer
-// points LINGUA_TRANSLATION_ENGINE at a directory holding it — the engine artefact from the
-// lingua-engine-build workflow, and the model side-loaded by hand. Every shipped build leaves
-// it unset: no engine code, no offscreen permission, no engine file in the bundle, which
-// tool/check_variants.mjs verifies. Safari is out of scope for this change.
-const ENGINE_DIR = process.env.LINGUA_TRANSLATION_ENGINE ?? "";
-const ENGINE_FILES = ["bergamot-translator.js", "bergamot-translator.wasm"];
-const MODEL_FILES = ["model.bin", "lex.bin", "vocab.bin"];
-if (ENGINE_DIR) {
-  const missing = ENGINE_FILES.filter((f) => !existsSync(join(ENGINE_DIR, f)));
-  if (missing.length > 0) {
+// The translation engine (add-lingua-translation-delivery D1) is PART of the Chromium and Firefox
+// packages: the stores count WebAssembly loaded from anywhere else as remote code, so only the
+// model — data — is ever downloaded, and only once the reader turns « Traduction étendue » on.
+// The engine comes from the lingua-engine-build workflow (`yarn fetch:engine`) or from source
+// (`tool/build_engine.sh`), into engine/ unless LINGUA_TRANSLATION_ENGINE says otherwise, and a
+// build of either variant refuses anything but the pinned bytes (engine-pin.json). Safari carries
+// none of it: its engine is a change of its own.
+const ENGINE_DIR = process.env.LINGUA_TRANSLATION_ENGINE || join(root, "engine");
+const ENGINE_FILES = engineFiles();
+
+/** Where a variant hosts the translation engine. Never on a thread that paints. */
+function translationHost(target) {
+  if (target === "safari") return "none";
+  return target === "chromium" ? "offscreen" : "event-page";
+}
+
+if (targets.some((t) => translationHost(t) !== "none")) {
+  const problems = engineProblems(ENGINE_DIR);
+  if (problems.length > 0) {
     throw new Error(
-      `LINGUA_TRANSLATION_ENGINE=${ENGINE_DIR} lacks ${missing.join(", ")} — download the artefact of the ` +
-        "lingua-engine-build workflow into it (see apps/lingua-extension/TRANSLATION.md).",
+      `The Chromium and Firefox packages carry the translation engine, and ${ENGINE_DIR} does not hold ` +
+        `the pinned one: ${problems.join("; ")}. Fetch it with \`yarn fetch:engine\` (or build it on ` +
+        "Linux with tool/build_engine.sh) — see apps/lingua-extension/TRANSLATION.md.",
     );
-  }
-  const noModel = MODEL_FILES.filter((f) => !existsSync(join(ENGINE_DIR, f)));
-  if (noModel.length > 0) {
-    // Allowed on purpose: a build with the engine and no model is how the "engine present but
-    // unable to start" path is exercised. Every surface must then answer as it did before.
-    console.warn(`[build] no ${noModel.join(", ")} in ${ENGINE_DIR}: the engine will not start.`);
   }
 }
 
-/** Where a variant hosts the translation engine: nowhere, unless a development build asks. */
-function translationHost(target) {
-  if (!ENGINE_DIR || target === "safari") return "none";
-  return target === "chromium" ? "offscreen" : "event-page";
+// The model's manifest (D3): where each file is, its size, and the sha256 its bytes must have.
+// It is bundled, so the reviewed package decides what is accepted — the host only serves bytes.
+// LINGUA_MODEL_BASE_URL points a DEVELOPMENT build at another host serving the same paths (a local
+// server, before the real one exists); check_variants.mjs refuses a package built that way.
+const MODEL_MANIFEST = JSON.parse(readFileSync(join(root, "model-manifest.json"), "utf8"));
+const MODEL_BASE_URL = process.env.LINGUA_MODEL_BASE_URL ?? "";
+if (MODEL_BASE_URL) console.warn(`[build] the model is fetched from ${MODEL_BASE_URL}: a development build.`);
+
+/** The manifest a package carries: the runtime needs no deployment details, only what to fetch. */
+function bundledModelManifest() {
+  const { version, from, to, licence, files } = MODEL_MANIFEST;
+  return {
+    version,
+    from,
+    to,
+    licence,
+    base: MODEL_BASE_URL || MODEL_MANIFEST.base,
+    files: Object.fromEntries(
+      Object.entries(files).map(([role, { path, size, sha256 }]) => [role, { path, size, sha256 }]),
+    ),
+  };
 }
 
 /** `https://host/*` match pattern for the backend origin (host_permissions). */
@@ -329,10 +350,14 @@ for (const target of targets) {
   const host = translationHost(target);
   if (host !== "none") {
     // The engine's own thread: a CLASSIC worker, so Mozilla's glue — which assumes sloppy mode —
-    // runs unpatched under importScripts.
+    // runs unpatched under importScripts. Beside it, the worker that downloads the model: it
+    // lives in the same host, and only for as long as a download does.
     await build({
       ...common,
-      entryPoints: { "engine-worker": join(root, "src/translate/host/engine-worker.ts") },
+      entryPoints: {
+        "engine-worker": join(root, "src/translate/host/engine-worker.ts"),
+        "model-worker": join(root, "src/translate/host/model-worker.ts"),
+      },
       outdir: dist,
       format: "iife",
     });
@@ -345,16 +370,16 @@ for (const target of targets) {
       });
       cpSync(join(root, "src/translate/host/offscreen.html"), join(dist, "offscreen.html"));
     }
+    // The engine's two files, never the model: whatever else ENGINE_DIR holds stays there.
     mkdirSync(join(dist, "engine"), { recursive: true });
-    for (const f of [...ENGINE_FILES, ...MODEL_FILES]) {
-      if (existsSync(join(ENGINE_DIR, f))) cpSync(join(ENGINE_DIR, f), join(dist, "engine", f));
-    }
+    for (const f of ENGINE_FILES) cpSync(join(ENGINE_DIR, f), join(dist, "engine", f));
+    writeFileSync(join(dist, "model-manifest.json"), `${JSON.stringify(bundledModelManifest(), null, 2)}\n`);
   }
 
   const manifest = manifestFor[target](baseManifest);
   manifest.version = VERSION;
   // Chromium's service worker cannot construct a Worker, so an offscreen document owns the
-  // engine's — and that needs the permission. Only a build that carries the engine asks for it.
+  // engine's — and that needs the permission. The variant that carries the engine asks for it.
   if (host === "offscreen") manifest.permissions = [...manifest.permissions, "offscreen"];
   // Grant the configured backend origin so the sync transport's gRPC-web fetch is
   // allowed (the server must also allow the extension origin via CYMBRA_ALLOWED_WEB_ORIGINS).

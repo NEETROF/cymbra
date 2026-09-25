@@ -1,23 +1,33 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  isOffscreenMessage,
+  isOffscreenEvent,
+  isOffscreenRequest,
+  OFFSCREEN_EVENT,
   OFFSCREEN_TYPE,
   type OffscreenApi,
   OffscreenEngine,
+  offscreenIdle,
+  type OffscreenParts,
+  serveOffscreen,
 } from "@/translate/host/offscreen-engine.ts";
 
 function api(over: Partial<OffscreenApi> = {}) {
   const created: Array<{ url: string; reasons: string[]; justification: string }> = [];
   let exists = false;
+  let closed = 0;
   const offscreen: OffscreenApi = {
     hasDocument: vi.fn(async () => exists),
     createDocument: vi.fn(async (p) => {
       created.push(p);
       exists = true;
     }),
+    closeDocument: vi.fn(async () => {
+      closed++;
+      exists = false;
+    }),
     ...over,
   };
-  return { offscreen, created, setExists: (v: boolean) => (exists = v) };
+  return { offscreen, created, setExists: (v: boolean) => (exists = v), closed: () => closed };
 }
 
 const answering = () => vi.fn(async () => ({ ok: true, html: "<b>a abandonné</b>" }));
@@ -36,13 +46,13 @@ describe("OffscreenEngine", () => {
         justification: expect.stringContaining("off every thread that paints"),
       },
     ]);
-    expect(send).toHaveBeenCalledWith({ type: OFFSCREEN_TYPE, markup: "<b>gave up</b>" });
+    expect(send).toHaveBeenCalledWith({ type: OFFSCREEN_TYPE, op: "translate", markup: "<b>gave up</b>" });
   });
 
   it("creates one document however many requests arrive while it is being made", async () => {
     const { offscreen, created } = api();
     const engine = new OffscreenEngine(offscreen, answering());
-    await Promise.all([engine.translate("a"), engine.translate("b"), engine.translate("c")]);
+    await Promise.all([engine.translate("a"), engine.translate("b"), engine.startDownload()]);
     expect(created).toHaveLength(1);
   });
 
@@ -93,13 +103,123 @@ describe("OffscreenEngine", () => {
     );
     await expect(engine.translate("a")).resolves.toMatchObject({ ok: false });
   });
+
+  it("starts a download in the document, creating it when needed", async () => {
+    const { offscreen, created } = api();
+    const send = vi.fn(async () => true);
+    await new OffscreenEngine(offscreen, send).startDownload();
+    expect(created).toHaveLength(1);
+    expect(send).toHaveBeenCalledWith({ type: OFFSCREEN_TYPE, op: "download" });
+  });
+
+  it("asks the document whether a download runs — and without one, none does", async () => {
+    const { offscreen, setExists } = api();
+    const send = vi.fn(async () => true);
+    const engine = new OffscreenEngine(offscreen, send);
+    await expect(engine.downloading()).resolves.toBe(false);
+    expect(send).not.toHaveBeenCalled(); // no document is created just to ask
+
+    setExists(true);
+    await expect(engine.downloading()).resolves.toBe(true);
+    expect(send).toHaveBeenCalledWith({ type: OFFSCREEN_TYPE, op: "downloading" });
+
+    send.mockRejectedValueOnce(new Error("gone"));
+    await expect(engine.downloading()).resolves.toBe(false);
+  });
+
+  it("cancels a download only in a document that exists, and never throws doing it", async () => {
+    const { offscreen, setExists } = api();
+    const send = vi.fn(async () => true);
+    const engine = new OffscreenEngine(offscreen, send);
+    await engine.cancelDownload();
+    expect(send).not.toHaveBeenCalled();
+
+    setExists(true);
+    send.mockRejectedValueOnce(new Error("gone"));
+    await expect(engine.cancelDownload()).resolves.toBeUndefined();
+    expect(send).toHaveBeenCalledWith({ type: OFFSCREEN_TYPE, op: "cancel" });
+  });
+
+  it("closes the document to give the engine's memory back, and makes a new one next time", async () => {
+    const { offscreen, created, closed } = api();
+    const engine = new OffscreenEngine(offscreen, answering());
+    await engine.translate("a");
+    await engine.close();
+    expect(closed()).toBe(1);
+    await engine.close(); // nothing left to close
+    expect(closed()).toBe(1);
+    await engine.translate("b");
+    expect(created).toHaveLength(2);
+  });
 });
 
-describe("isOffscreenMessage", () => {
-  it("recognises the offscreen document's own messages only", () => {
-    expect(isOffscreenMessage({ type: OFFSCREEN_TYPE, markup: "x" })).toBe(true);
-    expect(isOffscreenMessage({ type: OFFSCREEN_TYPE })).toBe(false);
-    expect(isOffscreenMessage({ type: "lingua-translate", request: {} })).toBe(false);
-    expect(isOffscreenMessage(null)).toBe(false);
+describe("serveOffscreen — the document's side", () => {
+  function parts(over: Partial<{ engine: boolean; download: boolean }> = {}) {
+    const state = { engine: false, download: false, ...over };
+    const p = {
+      channel: {
+        translate: vi.fn(async (markup: string) => ({ ok: true as const, html: `<b>${markup}</b>` })),
+        running: () => state.engine,
+      },
+      downloads: {
+        start: vi.fn(() => void (state.download = true)),
+        cancel: vi.fn(() => void (state.download = false)),
+        running: () => state.download,
+      },
+      persist: vi.fn(),
+    } satisfies OffscreenParts;
+    return { p, state };
+  }
+
+  it("relays a translation to the engine's channel and answers later", async () => {
+    const { p } = parts();
+    const sendResponse = vi.fn();
+    expect(serveOffscreen({ type: OFFSCREEN_TYPE, op: "translate", markup: "x" }, p, sendResponse)).toBe(true);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(sendResponse).toHaveBeenCalledWith({ ok: true, html: "<b>x</b>" });
+  });
+
+  it("starts a download, asking the browser to keep what it stores, and answers at once", () => {
+    const { p } = parts();
+    const sendResponse = vi.fn();
+    expect(serveOffscreen({ type: OFFSCREEN_TYPE, op: "download" }, p, sendResponse)).toBe(false);
+    expect(p.persist).toHaveBeenCalled();
+    expect(p.downloads.start).toHaveBeenCalled();
+    expect(sendResponse).toHaveBeenCalledWith(true);
+  });
+
+  it("cancels, and says whether a download runs", () => {
+    const { p } = parts({ download: true });
+    const said = vi.fn();
+    serveOffscreen({ type: OFFSCREEN_TYPE, op: "downloading" }, p, said);
+    serveOffscreen({ type: OFFSCREEN_TYPE, op: "cancel" }, p, vi.fn());
+    serveOffscreen({ type: OFFSCREEN_TYPE, op: "downloading" }, p, said);
+    expect(said.mock.calls).toEqual([[true], [false]]);
+  });
+
+  it("is idle only when it holds neither the engine nor a download", () => {
+    expect(offscreenIdle(parts().p)).toBe(true);
+    expect(offscreenIdle(parts({ engine: true }).p)).toBe(false);
+    expect(offscreenIdle(parts({ download: true }).p)).toBe(false);
+  });
+});
+
+describe("offscreen messages", () => {
+  it("recognises the document's own requests only", () => {
+    expect(isOffscreenRequest({ type: OFFSCREEN_TYPE, op: "translate", markup: "x" })).toBe(true);
+    expect(isOffscreenRequest({ type: OFFSCREEN_TYPE, op: "download" })).toBe(true);
+    expect(isOffscreenRequest({ type: OFFSCREEN_TYPE, op: "translate" })).toBe(false);
+    expect(isOffscreenRequest({ type: OFFSCREEN_TYPE, op: "explode" })).toBe(false);
+    expect(isOffscreenRequest({ type: "lingua-translate", request: {} })).toBe(false);
+    expect(isOffscreenRequest(null)).toBe(false);
+  });
+
+  it("recognises what the document reports", () => {
+    expect(isOffscreenEvent({ type: OFFSCREEN_EVENT, idle: true })).toBe(true);
+    expect(isOffscreenEvent({ type: OFFSCREEN_EVENT, event: { kind: "done" } })).toBe(true);
+    expect(isOffscreenEvent({ type: OFFSCREEN_EVENT })).toBe(false);
+    expect(isOffscreenEvent({ type: OFFSCREEN_TYPE, op: "download" })).toBe(false);
+    expect(isOffscreenEvent(undefined)).toBe(false);
   });
 });

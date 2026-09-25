@@ -70,6 +70,14 @@ LINGUA_GOOGLE_CLIENT_ID=${LINGUA_GOOGLE_CLIENT_ID:-}
 LINGUA_APPLE_CLIENT_ID=${LINGUA_APPLE_CLIENT_ID:-}
 LINGUA_EXT_KEY=
 \`\`\`
+
+Its translation engine is the build of mozilla/translations
+$(node -p "require('$REPO_ROOT/apps/lingua-extension/engine-pin.json').translationsCommit") that
+\`tool/build_engine.sh\` reproduces:
+
+\`\`\`
+$(node -e "const p=require('$REPO_ROOT/apps/lingua-extension/engine-pin.json'); for (const [f,h] of Object.entries(p.files)) console.log(h+'  engine/'+f)")
+\`\`\`
 EOF
 
 echo "Source archive assembled in $OUT"
