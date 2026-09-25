@@ -34,6 +34,13 @@ drift is detected monthly and adopted on demand.
 - The testdata pack (`yarn gen:pack`), already committed.
 - Other language pairs (the layout is keyed by pair; a second pair is a second folder, later).
 - `apps/lingua-agent`, which builds from test data.
+- Replacing AGID. Its last release is 2016.01.19 — the bytes fetched today are exactly that
+  release — and there is no newer one: its maintainer moved inflections into ESDB (the English
+  Speller Database, formerly SCOWLv2; release `rel-2026.02.25`, 1,800+ newer words such as
+  *tokenize*, *influencer*, *doomscrolling*; permissive licence). Switching is a change of its own,
+  measured first — forms newly lemmatised on real reading, and forms whose lemma would change,
+  since a reader's statuses are keyed by lemma — and it goes through the update process this change
+  creates, as a reviewable diff of `forms.tsv`.
 
 ## Decisions
 
