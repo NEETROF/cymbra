@@ -36,9 +36,11 @@ the other lacks; together they do best on every count.
 - **The regressions the measurement found are fixed before release**, each with a test: *fewer*,
   *des*, *dis*, *renowned*, *vested*, *roses* — and the rule that today drops AGID's
   numbered variants by accident is made explicit.
-- **No migration of readers' data.** Lingua has no readers yet (product owner, 2026-09-25), so a
-  status or a deck card keyed by a lemma that moves (*smartphones* → *smartphone*) is not carried
-  over; the update report lists every such move for review.
+- **No migration of readers' data in this change.** Lingua has no readers as of 2026-09-25 — it
+  will certainly have some after that date. A status or a deck card keyed by a lemma that moves
+  (*smartphones* → *smartphone*) is not carried over here; the update report lists every such move,
+  and if readers are there when this lands, carrying their data over is decided then, as a change
+  of its own.
 - **The notices follow the source**: ESDB's copyright notice replaces AGID's in every pack and on
   the attributions page.
 
@@ -67,5 +69,5 @@ untouched.
 switch as a change of its own.
 
 **Readers.** About 0.38 % of tokens get a different lemma, most of them merges of a plural into its
-singular. There are no readers whose statuses or deck this could disturb; were that to change before
-this lands, a carry-over would be a change of its own.
+singular. No reader's statuses or deck exist to disturb as of 2026-09-25; readers are expected soon
+after, so whether a carry-over is needed is checked when this lands.

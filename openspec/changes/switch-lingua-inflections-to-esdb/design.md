@@ -27,8 +27,9 @@ POS, alternatives in parentheses, each prefixed by per-spelling variant levels
 **Non-Goals:**
 - Using ESDB's word list, sizes or spelling-variant tables for anything but inflections.
 - Changing `own_words`, `canonical_ranks` or the lemma set's source (wordfreq).
-- Migrating readers' statuses or deck cards to the lemmas forms move to: Lingua has no readers yet
-  (product owner, 2026-09-25). The pack format, the builder and the core stay as they are.
+- Migrating readers' statuses or deck cards to the lemmas forms move to: Lingua has no readers as
+  of 2026-09-25 (product owner), though it will certainly have some after that date. The pack
+  format, the builder and the core stay as they are.
 
 ## Decisions
 
@@ -87,9 +88,10 @@ the distributed database is under the permissive notice above.
   commit; an update to a later ESDB is a reviewed update, and the parser's tests pin the grammar.
 - **[A sample of 160 Wikipedia articles]** — a formal register. → The update report runs on every
   update; a blog or tech sample is added to the measurement (task 1.2).
-- **[Readers arrive before this lands]** — their statuses on a lemma that moves would stop applying
-  to the forms that moved. → Revisit then: a carry-over (a merges list in the pack, applied once by
-  the core) is a change of its own.
+- **[Readers arrive before this lands]** — expected: readers are anticipated right after
+  2026-09-25. Their statuses on a lemma that moves would stop applying to the forms that moved. →
+  Checked when this lands: the update report lists every move; if readers exist, a carry-over (a
+  merges list in the pack, applied once by the core) is a change of its own, landed first.
 
 ## Migration Plan
 
@@ -98,4 +100,5 @@ Land the parser and the rules behind the re-reduce mode; run the re-reduce; revi
 
 ## Open Questions
 
-None. (Carrying readers' data over was settled: not needed, there are no readers yet.)
+- Whether readers exist when this lands, and so whether a carry-over change must land first
+  (none as of 2026-09-25; some are expected soon after).
