@@ -11,16 +11,42 @@ export const HL_LEARNING = "cymbra-lingua-learning";
 
 const STYLE_ID = "cymbra-lingua-style";
 
-/** Whether the CSS Custom Highlight API is available in this browser. */
-export function highlightsSupported(): boolean {
-  return typeof CSS !== "undefined" && !!CSS.highlights;
+/** A window with its own highlight registry: the page's, or a book section's iframe. */
+type HighlightWindow = Window & typeof globalThis;
+
+/** Where highlights are painted. `CSS.highlights` is per window: a book section rendered in an
+ *  iframe paints through the iframe's registry, not the page's. */
+export interface PaintTarget {
+  /** The document whose ranges are painted. */
+  doc: Document;
+  /**
+   * Paint only the blocks within a viewport of the visible area — a long web page, which
+   * stalls Safari otherwise. Off in the reader: a book section is painted whole, so turning
+   * a page inside it paints nothing new (add-lingua-reader D4).
+   */
+  window: boolean;
 }
 
-/** The constructable sheet, built once from the token text, re-adopted cheaply. */
-let adoptedSheet: CSSStyleSheet | null = null;
+/** The page the content script reads, painted by viewport window. */
+function pageTarget(): PaintTarget {
+  return { doc: document, window: true };
+}
+
+function windowOf(doc: Document): HighlightWindow | null {
+  return (doc.defaultView as HighlightWindow | null) ?? null;
+}
+
+/** Whether the CSS Custom Highlight API is available in this browser. */
+export function highlightsSupported(win: HighlightWindow | null = window): boolean {
+  return !!win && typeof win.CSS !== "undefined" && !!win.CSS.highlights;
+}
+
+/** The constructable sheet of each document, built once from the token text, re-adopted cheaply.
+ *  One per document: a sheet can only be adopted by the document whose window constructed it. */
+const adoptedSheets = new WeakMap<Document, CSSStyleSheet>();
 
 function canAdopt(doc: Document): boolean {
-  return "adoptedStyleSheets" in doc && typeof CSSStyleSheet === "function";
+  return "adoptedStyleSheets" in doc && typeof windowOf(doc)?.CSSStyleSheet === "function";
 }
 
 /**
@@ -41,12 +67,14 @@ function canAdopt(doc: Document): boolean {
 export function injectPageStyles(cssText: string, doc: Document = document): void {
   if (canAdopt(doc)) {
     try {
-      if (!adoptedSheet) {
-        adoptedSheet = new CSSStyleSheet();
-        adoptedSheet.replaceSync(cssText);
+      let sheet = adoptedSheets.get(doc);
+      if (!sheet) {
+        sheet = new (windowOf(doc)!.CSSStyleSheet)();
+        sheet.replaceSync(cssText);
+        adoptedSheets.set(doc, sheet);
       }
-      if (!doc.adoptedStyleSheets.includes(adoptedSheet)) {
-        doc.adoptedStyleSheets = [...doc.adoptedStyleSheets, adoptedSheet];
+      if (!doc.adoptedStyleSheets.includes(sheet)) {
+        doc.adoptedStyleSheets = [...doc.adoptedStyleSheets, sheet];
       }
       return;
     } catch {
@@ -63,82 +91,110 @@ export function injectPageStyles(cssText: string, doc: Document = document): voi
 /** How far past the viewport a block still gets painted: one viewport above and below. */
 const WINDOW_MARGIN = "100% 0px";
 
-/** The painted tokens grouped by their block container, and the containers near the viewport. */
-let byContainer = new Map<Element, ResolvedToken[]>();
-const nearViewport = new Set<Element>();
-let windowObserver: IntersectionObserver | null = null;
-let paintFrame = 0;
+/** One document's painting: its tokens by block container, and the containers near the viewport. */
+class Painter {
+  private byContainer = new Map<Element, ResolvedToken[]>();
+  private readonly nearViewport = new Set<Element>();
+  private windowObserver: IntersectionObserver | null = null;
+  private paintFrame = 0;
 
-function paintRanges(tokens: Iterable<ResolvedToken>): void {
-  const learning: Range[] = [];
-  const unknown: Range[] = [];
-  for (const r of tokens) {
-    if (!r.range) continue;
-    (r.token.class === "Learning" ? learning : unknown).push(r.range);
+  constructor(private readonly win: HighlightWindow) {}
+
+  private paintRanges(tokens: Iterable<ResolvedToken>): void {
+    const learning: Range[] = [];
+    const unknown: Range[] = [];
+    for (const r of tokens) {
+      if (!r.range) continue;
+      (r.token.class === "Learning" ? learning : unknown).push(r.range);
+    }
+    // The registry and the Highlight constructor of the document's own window.
+    this.win.CSS.highlights.set(HL_LEARNING, new this.win.Highlight(...learning));
+    this.win.CSS.highlights.set(HL_UNKNOWN, new this.win.Highlight(...unknown));
   }
-  CSS.highlights.set(HL_LEARNING, new Highlight(...learning));
-  CSS.highlights.set(HL_UNKNOWN, new Highlight(...unknown));
+
+  private *nearTokens(): Generator<ResolvedToken> {
+    for (const c of this.nearViewport) yield* this.byContainer.get(c) ?? [];
+  }
+
+  private schedulePaint(): void {
+    if (this.paintFrame) return;
+    this.paintFrame = this.win.requestAnimationFrame(() => {
+      this.paintFrame = 0;
+      this.paintRanges(this.nearTokens());
+    });
+  }
+
+  render(resolved: ResolvedToken[], windowed: boolean): void {
+    this.stopWindow();
+    if (!windowed || typeof this.win.IntersectionObserver === "undefined") {
+      this.paintRanges(resolved);
+      return;
+    }
+    for (const r of resolved) {
+      const container = r.container ?? r.range.startContainer.parentElement;
+      if (!container) continue;
+      const list = this.byContainer.get(container);
+      if (list) list.push(r);
+      else this.byContainer.set(container, [r]);
+    }
+    const observer = new this.win.IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) this.nearViewport.add(e.target);
+          else this.nearViewport.delete(e.target);
+        }
+        this.schedulePaint();
+      },
+      { rootMargin: WINDOW_MARGIN },
+    );
+    this.windowObserver = observer;
+    // The observer reports every target once on observe, which paints the first window.
+    for (const c of this.byContainer.keys()) observer.observe(c);
+    if (this.byContainer.size === 0) this.paintRanges([]);
+  }
+
+  clear(): void {
+    this.stopWindow();
+    this.win.CSS.highlights.delete(HL_LEARNING);
+    this.win.CSS.highlights.delete(HL_UNKNOWN);
+  }
+
+  private stopWindow(): void {
+    this.windowObserver?.disconnect();
+    this.windowObserver = null;
+    this.nearViewport.clear();
+    this.byContainer = new Map();
+    if (this.paintFrame) this.win.cancelAnimationFrame(this.paintFrame);
+    this.paintFrame = 0;
+  }
 }
 
-function* nearTokens(): Generator<ResolvedToken> {
-  for (const c of nearViewport) yield* byContainer.get(c) ?? [];
-}
+const painters = new WeakMap<Document, Painter>();
 
-function schedulePaint(): void {
-  if (paintFrame) return;
-  paintFrame = requestAnimationFrame(() => {
-    paintFrame = 0;
-    paintRanges(nearTokens());
-  });
+function painterFor(doc: Document): Painter | null {
+  const win = windowOf(doc);
+  if (!highlightsSupported(win)) return null;
+  let painter = painters.get(doc);
+  if (!painter) {
+    painter = new Painter(win!);
+    painters.set(doc, painter);
+  }
+  return painter;
 }
 
 /**
- * Paint the resolved tokens into the two highlight registries by class. No-op when
- * the API is missing. Only the blocks within a viewport of the visible area are painted:
- * WebKit re-evaluates every registered range on each rendering update, so a long page
- * (15 000 ranges) stalls Safari for seconds. An IntersectionObserver keeps the painted
- * window following the scroll; without one, everything is painted at once.
+ * Paint the resolved tokens into the two highlight registries of the target's window, by
+ * class. No-op when the API is missing. On a web page only the blocks within a viewport of
+ * the visible area are painted: WebKit re-evaluates every registered range on each rendering
+ * update, so a long page (15 000 ranges) stalls Safari for seconds. An IntersectionObserver
+ * keeps the painted window following the scroll; without one — or with `window: false`, as
+ * the reader asks — everything is painted at once.
  */
-export function render(resolved: ResolvedToken[]): void {
-  if (!highlightsSupported()) return;
-  windowObserver?.disconnect();
-  nearViewport.clear();
-  byContainer = new Map();
-  if (typeof IntersectionObserver === "undefined") {
-    paintRanges(resolved);
-    return;
-  }
-  for (const r of resolved) {
-    const container = r.container ?? r.range.startContainer.parentElement;
-    if (!container) continue;
-    const list = byContainer.get(container);
-    if (list) list.push(r);
-    else byContainer.set(container, [r]);
-  }
-  windowObserver = new IntersectionObserver(
-    (entries) => {
-      for (const e of entries) {
-        if (e.isIntersecting) nearViewport.add(e.target);
-        else nearViewport.delete(e.target);
-      }
-      schedulePaint();
-    },
-    { rootMargin: WINDOW_MARGIN },
-  );
-  // The observer reports every target once on observe, which paints the first window.
-  for (const c of byContainer.keys()) windowObserver.observe(c);
-  if (byContainer.size === 0) paintRanges([]);
+export function render(resolved: ResolvedToken[], target: PaintTarget = pageTarget()): void {
+  painterFor(target.doc)?.render(resolved, target.window);
 }
 
-/** Remove both highlight registries. */
-export function clear(): void {
-  if (!highlightsSupported()) return;
-  windowObserver?.disconnect();
-  windowObserver = null;
-  nearViewport.clear();
-  byContainer = new Map();
-  if (paintFrame) cancelAnimationFrame(paintFrame);
-  paintFrame = 0;
-  CSS.highlights.delete(HL_LEARNING);
-  CSS.highlights.delete(HL_UNKNOWN);
+/** Remove both highlight registries of the target's window. */
+export function clear(target: Pick<PaintTarget, "doc"> = pageTarget()): void {
+  painterFor(target.doc)?.clear();
 }

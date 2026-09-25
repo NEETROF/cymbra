@@ -6,6 +6,7 @@
     <meta name="color-scheme" content="dark" />
     <title>Cymbra Lingua</title>
     <link rel="stylesheet" href="tokens.css" />
+    <link rel="stylesheet" href="settings.css" />
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
@@ -54,7 +55,7 @@
       <div id="controls" hidden>
         <div id="analysed">
           <div class="pct"><span id="pct">—</span></div>
-          <div class="pct-label">de mots connus sur cette page</div>
+          <div class="pct-label" id="pct-label">de mots connus sur cette page</div>
           <div class="bar"><span id="bar" style="width: 0%"></span></div>
 
           <div class="row"><span>Mots analysés</span><b id="counted">0</b></div>
@@ -102,6 +103,7 @@
         </div>
       </div>
 
+      <button class="reset" id="open-library">Bibliothèque (livres EPUB)</button>
       <button class="reset" id="open-stats">Statistiques d'apprentissage</button>
     </div>
 
@@ -125,103 +127,8 @@
         <span class="settings-title">Réglages</span>
       </div>
 
-      <div class="setting-block">
-        <div class="setting-label">Niveau d'anglais</div>
-        <div id="level-block" class="level">
-          <div id="level-chips" class="level-chips">
-            <button class="lvl" data-lvl="A1">A1</button>
-            <button class="lvl" data-lvl="A2">A2</button>
-            <button class="lvl" data-lvl="B1">B1</button>
-            <button class="lvl" data-lvl="B2">B2</button>
-            <button class="lvl" data-lvl="C1">C1</button>
-            <button class="lvl" data-lvl="C2">C2</button>
-            <button class="lvl lvl-beginner" data-lvl="">Débutant</button>
-          </div>
-          <div id="level-hint" class="note"></div>
-        </div>
-
-        <div id="calib-block" class="calib">
-          <label>Je connais les <b id="calibv">3000</b> mots les plus courants</label>
-          <input type="range" id="calib" min="500" max="10000" step="100" value="3000" />
-        </div>
-      </div>
-
-      <div class="setting-block">
-        <div class="setting-label">Barre sur la page</div>
-        <div class="toggle-row">
-          <label class="switch">
-            <input type="checkbox" id="hud-toggle" />
-            <span class="slider"></span>
-          </label>
-          <span>Afficher la pastille de pourcentage</span>
-        </div>
-        <div class="note">
-          Une pastille discrète en bas de la page : pourcentage de mots connus + accès au deck, à la capture et au
-          niveau. Un tap la déplie.
-        </div>
-      </div>
-
-      <div class="setting-block">
-        <div class="setting-label">Raccourcis &amp; gestes</div>
-        <details class="shortcuts">
-          <summary>Voir les raccourcis</summary>
-          <ul class="shortcuts-list">
-            <li><kbd>Alt</kbd>+<kbd>Maj</kbd>+<kbd>S</kbd> — panneau latéral de révision</li>
-            <li><kbd>Alt</kbd>+<kbd>Maj</kbd>+<kbd>D</kbd> — panneau de révision sur la page</li>
-            <li><kbd>Alt</kbd>+<kbd>L</kbd> — capturer la sélection (mot ou expression)</li>
-            <li>
-              <kbd>Alt</kbd>/<kbd>Option</kbd>-clic (ou appui long sur tactile) sur un mot — le rouvrir pour le
-              reclasser
-            </li>
-          </ul>
-          <div class="note">
-            Sur tablette (sans clavier), ouvre ton deck avec le bouton « Réviser » du panneau, reclasse un mot par appui
-            long, et retrouve tes mots marqués dans les Statistiques.
-          </div>
-          <button class="linklike" id="shortcuts-config" type="button">Configurer les raccourcis du navigateur</button>
-        </details>
-      </div>
-
-      <div class="setting-block" id="sync-block" hidden>
-        <div class="setting-label">Synchronisation</div>
-        <div class="note" id="sync-status"></div>
-        <button class="reset" id="sync-now" type="button">Synchroniser maintenant</button>
-        <div class="note" id="sync-msg"></div>
-      </div>
-
-      <div class="setting-block">
-        <div class="setting-label">Réinitialisation</div>
-        <div class="note">Efface tes données locales. À n'utiliser qu'exceptionnellement.</div>
-        <div id="restart-box" hidden>
-          <div class="note">
-            Tes données sont sur ton compte. Vider cet appareil n'efface rien : la synchronisation les ramène. À
-            utiliser si l'état local semble faux.
-          </div>
-          <button class="reset" id="restart" type="button">Repartir du serveur</button>
-          <div class="note" id="restart-msg"></div>
-          <div class="note">
-            Pour effacer partout et définitivement, utilise « Effacer mes données Lingua » dans ton compte.
-          </div>
-        </div>
-        <div id="reset-box">
-          <button class="reset" id="reset">Réinitialiser…</button>
-          <div id="reset-menu" hidden>
-            <div id="reset-scope">
-              <div class="reset-note">
-                Choisis la portée. La réinitialisation complète efface ton deck de révision — c'est définitif.
-              </div>
-              <button class="reset" id="reset-partial">Partielle — statuts + calibration (garde le deck)</button>
-              <button class="danger" id="reset-full">Complète — tout effacer (statuts, deck, progression)</button>
-              <button class="reset" id="reset-cancel">Annuler</button>
-            </div>
-            <div id="reset-confirm" class="reset-confirm" hidden>
-              <div class="reset-warn" id="reset-warn"></div>
-              <button class="danger" id="reset-yes">Oui, confirmer</button>
-              <button class="reset" id="reset-no">Annuler</button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <!-- Built by mountSettings — the same Réglages as the side panel and the in-page drawer. -->
+      <div id="settings-body" class="settings-body"></div>
     </div>
 
     <script type="module" src="popup.js"></script>

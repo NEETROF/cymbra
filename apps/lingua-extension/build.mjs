@@ -8,7 +8,7 @@
 // Firefox and Safari.
 import { build } from "esbuild";
 import { existsSync, cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = dirname(fileURLToPath(import.meta.url));
@@ -214,11 +214,43 @@ function capabilities(target) {
     __STATIC_READER__: JSON.stringify(eventPageFamily),
     // Safari only: Apple and Google come from the host app over native messaging.
     __NATIVE_PROVIDERS__: JSON.stringify(target === "safari"),
+    // Chromium only: the book reader's sections are served by the background service worker,
+    // not from blob: URLs Chrome may isolate in another process (src/reader/section-server.ts).
+    __SECTIONS_FROM_WORKER__: JSON.stringify(target === "chromium"),
     __TRANSLATION_HOST__: JSON.stringify(translationHost(target)),
   };
 }
 
 const manifestFor = { chromium: structuredClone, firefox: firefoxManifest, safari: safariManifest };
+
+// The book reader's renderer, foliate-js, is vendored at a pinned commit (vendor/VENDOR.md) and
+// imported as `foliate-js/…`. Its zip reader is the npm package foliate builds its own copy
+// from, taken at the entry foliate bundles — `lib/zip-core.js`: no worker, no WebAssembly, the
+// browser's DecompressionStream inflates. (The package's `exports` map would send that path to
+// its WebAssembly variant, hence the explicit file.)
+const ALIASES = {
+  "foliate-js": "./vendor/foliate-js",
+  "@zip.js/zip.js": "./node_modules/@zip.js/zip.js/lib/zip-core.js",
+};
+
+// view.js loads the other formats and features on demand — PDF, MOBI, FB2, CBZ, search, text
+// to speech. The reader reads EPUB only, and none of those is vendored: each import resolves to
+// a module that refuses, so esbuild bundles none of them.
+const FOLIATE_UNSHIPPED = /^\.\/(pdf|mobi|fb2|comic-book|search|tts|vendor\/fflate)\.js$/;
+const foliateEpubOnly = {
+  name: "foliate-epub-only",
+  setup(b) {
+    b.onResolve({ filter: FOLIATE_UNSHIPPED }, (args) =>
+      args.importer.includes(`${sep}vendor${sep}foliate-js${sep}`)
+        ? { path: args.path, namespace: "foliate-unshipped" }
+        : undefined,
+    );
+    b.onLoad({ filter: /.*/, namespace: "foliate-unshipped" }, (args) => ({
+      contents: `throw new Error(${JSON.stringify(`Cymbra Lingua reads EPUB only: ${args.path} is not bundled`)});`,
+      loader: "js",
+    }));
+  },
+};
 
 const staticCopies = [
   ["src/popup/popup.html", "popup.html"],
@@ -231,6 +263,8 @@ const staticCopies = [
   ["src/onboarding/onboarding.css", "onboarding.css"],
   ["src/account/account.html", "account.html"],
   ["src/account/account.css", "account.css"],
+  ["src/reader/reader.html", "reader.html"],
+  ["src/reader/reader.css", "reader.css"],
   ["src/styles/tokens.css", "tokens.css"],
   ["src/styles/review.css", "review.css"],
   ["src/styles/settings.css", "settings.css"],
@@ -246,6 +280,9 @@ for (const target of targets) {
   mkdirSync(join(dist, "assets"), { recursive: true });
 
   const common = {
+    absWorkingDir: root,
+    alias: ALIASES,
+    plugins: [foliateEpubOnly],
     bundle: true,
     sourcemap: false,
     // Fold the define'd constants and drop the branches they disable, so each variant ships
@@ -274,7 +311,7 @@ for (const target of targets) {
     format: target === "chromium" ? "esm" : "iife",
   });
 
-  // Popup + side panel + stats → ES modules (loaded as <script type="module">).
+  // Popup + side panel + stats + the book reader → ES modules (loaded as <script type="module">).
   await build({
     ...common,
     entryPoints: {
@@ -283,6 +320,7 @@ for (const target of targets) {
       stats: join(root, "src/stats/stats.ts"),
       onboarding: join(root, "src/onboarding/onboarding.ts"),
       account: join(root, "src/account/account.ts"),
+      reader: join(root, "src/reader/reader.ts"),
     },
     outdir: dist,
     format: "esm",

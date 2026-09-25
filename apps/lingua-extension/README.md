@@ -125,8 +125,9 @@ yarn lint && yarn format:check && yarn typecheck && yarn test
   (`src/reading/highlight.ts`, `blocks.ts`). Only the blocks within about one viewport of
   the visible area are painted, following the scroll: WebKit re-evaluates every registered
   range on each rendering update, and ~15 000 ranges on a long article stalled Safari for
-  seconds. Dynamic pages are re-analysed per mutated subtree, visible content first
-  (`observer.ts`).
+  seconds (the book reader paints a section whole instead — see below). Dynamic pages are
+  re-analysed per mutated subtree, visible content first (`observer.ts`). Learning words are
+  underlined dotted, unknown words solid: the two statuses stay apart on a monochrome screen.
 - **Gestures** — a plain click on a highlighted (unknown/learning) word opens the popup
   (`Je connais` / `+ Deck` / `Ignorer`). A word you already marked isn't highlighted, so
   to change your mind **Alt/Option-click** it: the popup reopens with the status-aware
@@ -145,6 +146,29 @@ yarn lint && yarn format:check && yarn typecheck && yarn test
   with the answer, or with a fallback after 3 s / on failure that offers actions only where
   the key is known without the answer (`src/reading/selection-card.ts` owns these decisions;
   `content.ts` only wires them).
+- **Read-aloud** (`src/reading/speech.ts`) — the card offers `▶ Mot` / `▶ Sélection` (the
+  selection as seen on the page, `ran` not `run`) and `▶ Phrase` (its sentence, left out when
+  the selection is the whole sentence); the speaking button becomes `■ Arrêter`. It uses the
+  page's Web Speech API from the content script — `speak()` runs inside the click, which is
+  the user activation Chrome and Safari on iOS require — with **on-device voices only**:
+  `localService: true` in the studied language, the voice always named on the utterance.
+  Chrome's desktop "Google …" voices synthesise on Google's servers and are never used, even
+  as the default; where only those exist (Chrome on Linux or ChromeOS without a system
+  voice), the row is simply absent — install an English system voice to get it. The automatic
+  choice trusts a default voice only when it is the only one marked (Safari marks them all),
+  and never lands on Apple's novelty, Eloquence or legacy voices (`Bubbles`, `Eddy`, `Fred`…)
+  while an ordinary one exists; Réglages lists them apart under _Autres voix_ and keeps the
+  reader's choice per device (`cymbra-lingua-voice`, never synced). Closing the card, opening
+  another word or leaving the tab stops the speech. The ranking is tested on voice lists
+  captured from real browsers (`test/fixtures/voices/`). An iPhone set to French names the
+  novelty voices in French (`Bulles`, `Murmure`) — they are recognised by their identifier, not
+  their name — and lists some voices twice in two qualities, shown once. On iOS the ring/silent
+  mode mutes the voice and it resumes when silent mode is turned off; nothing the extension can
+  change. **Firefox for Android** reports every voice of Android's engine (Samsung TTS, Google
+  TTS…) as not local, in three-letter codes (`eng-GBR-default`): it cannot tell where that engine
+  synthesises. There the row is absent until the reader switches on _Utiliser la voix d'Android_
+  in Réglages, which says the text may then leave the device depending on Android's engine
+  (`cymbra-lingua-android-voices`, per device). Chrome on Android runs no extension.
 - **State** — statuses, the captured deck, calibration — lives in
   `chrome.storage.local` under a versioned schema with forward migration
   (`src/state/`). A gesture in one tab repaints every other via `storage.onChanged`.
@@ -189,6 +213,55 @@ State authority: the WASM engine holds lingua-core's whole `LinguaState` (knowle
 deck + FSRS); it is persisted as its lossless backup string in `chrome.storage.local`,
 so a gesture or a graded card in one context repaints every other via
 `storage.onChanged`, and the backup file is a byte-for-byte export of the same thing.
+
+## Book reader (reader page)
+
+`reader.html` — an **extension page**, every variant — reads the reader's own DRM-free EPUB
+files, offline, with the same highlighting, popup, selection card, drawer and statistics as a
+web page (change `add-lingua-reader`). It opens from the popup (_Bibliothèque_) and from the
+Réglages view (drawer and side panel); a second opening brings the open reader tab forward
+(`reader:where`, `src/reader/locate.ts`) instead of opening another.
+
+- **Library** — its own IndexedDB database, `cymbra-lingua-library` (`books` + `files`,
+  keyed by the file's **SHA-256**), opened by the reader page itself: a book is a blob that
+  must not cross a message, not reader state, so the background-owned store is not the place.
+  Import (`library.ts`) recognises an EPUB by its content (the zip's `mimetype`), refuses a
+  protected book (`drm.ts`: ADEPT, LCP, FairPlay; font obfuscation passes), reads title,
+  authors, language and cover (`epub-meta.ts`), and stores nothing on a refusal. The page asks
+  once for persistent storage and says so when the browser refuses (`persist.ts`).
+- **Rendering** — [foliate-js](https://github.com/johnfactotum/foliate-js), vendored at a
+  pinned commit under `vendor/` (see `vendor/VENDOR.md`, refreshed by `tool/vendor_foliate.sh`),
+  behind the `BookRenderer` seam (`renderer.ts`; the thin adapter is `foliate.ts`). EPUB only:
+  `build.mjs` refuses foliate's other formats at build time. Its zip reader is
+  `@zip.js/zip.js`'s `lib/zip-core.js`, the entry foliate bundles — no worker, no WebAssembly.
+  On **Chromium**, each section is served by the background service worker from Cache Storage
+  (`reader-section/…`, `section-server.ts`) rather than from foliate's `blob:` URL: a Chrome
+  field trial on V8 isolates `blob:` documents in another process, where the page cannot reach
+  them. Playwright disables field trials — test the reader with them on (Chrome for Testing as
+  it launches by default), or you will not see it. After rebuilding `background.js` without a
+  version change, **reload the extension** (↻ in `chrome://extensions`): Chrome keeps an
+  unpacked extension's previous worker across a restart, and the reader then falls back to
+  `blob:` sections (the page asks the worker first, `reader-section/probe`).
+- **The reading module takes a document** — `ReadingSession` (`src/reading/session.ts`)
+  reads a `ReadingHost`: the document it analyses, highlights and listens to, its window (own
+  selection, own `CSS.highlights` registry, own observers), how to map a box to the page the
+  surfaces live in, and a card's source. The content script passes the page
+  (`pageHost()`); the reader page attaches one session to each section foliate-js loads in its
+  iframe, and detaches it on the next. The popup, the card, the drawer and the toolbar stay in
+  the reader page's own document. `test/lint-page-context.spec.ts` keeps the read side of
+  `src/reading/` off the global `document`/`window` and off cross-realm `instanceof`.
+- **One paint per page turn** — the reader hides a section from the moment it loads until
+  the session has painted it (or `REVEAL_CAP_MS`, so a slow engine never blanks the book),
+  and paints a section **whole** rather than by viewport window, so turning a page inside it
+  paints nothing new. Paginated with tap zones (outer thirds) and no animation; the scrolled
+  flow is a Réglages setting. Measured on a laptop (Chromium): a 3–4 000-word chapter is hidden
+  26–34 ms, a 20 000-word section 185 ms; a page turn inside a section re-registers nothing.
+- **Cards** captured in a book keep `« <book> · <chapter> »` as their local source, shown in
+  review and pushed empty like a page address. Deleting a book leaves its cards intact.
+- **Book scripts stay inert** — sections are frames of the extension's origin; the extension
+  pages' CSP (`script-src 'self'`) is what blocks a book's scripts (`test/reader-csp.spec.ts`).
+- **Position** — kept per book on the device after every move; the address
+  (`reader.html#book=<hash>`) reopens the book there. Not synchronised.
 
 ## Browser variants
 

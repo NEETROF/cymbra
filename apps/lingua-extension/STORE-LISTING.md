@@ -56,6 +56,10 @@ sur Alt+L pour capturer une expression entière avec sa phrase.
 Les cartes que vous créez se révisent dans un panneau, à côté de votre lecture ou dans la barre
 latérale, avec une répétition espacée qui décide toute seule du bon moment.
 
+Lisez aussi vos livres : importez vos fichiers EPUB sans DRM dans la bibliothèque de
+l'extension et lisez-les, hors ligne, avec le même surlignage, page par page — une tablette à
+encre électronique comprise. Vos livres restent sur votre appareil.
+
 **L'analyse est locale.** Le dictionnaire et le moteur tournent dans votre navigateur : aucune
 page que vous lisez n'est envoyée nulle part, et l'extension fonctionne hors ligne. Sans
 compte, elle ne fait aucune requête réseau.
@@ -78,6 +82,10 @@ whole phrase with the sentence it came from.
 
 The cards you build are reviewed in a panel, beside your reading or in the sidebar, with
 spaced repetition that picks the moment for you.
+
+Read your own books too: import your DRM-free EPUB files into the extension's library and read
+them offline with the same highlighting, page by page — on an e-ink tablet as well. Your books
+stay on your device.
 
 **The analysis is local.** The dictionary and the engine run in your browser: no page you read
 is ever sent anywhere, and the extension works offline. With no account, it makes no network
@@ -139,14 +147,20 @@ does not exist.
 
 ## Single purpose (Chrome Web Store)
 
-Cymbra Lingua has one purpose: helping a reader understand and learn English vocabulary on the
-page they are already reading. Every feature serves it — highlighting unknown words, showing a
-word's translation on click, capturing words and phrases into a deck, and reviewing that deck.
+Cymbra Lingua has one purpose: helping a reader understand and learn English vocabulary in what
+they are already reading. Every feature serves it — highlighting unknown words, showing a
+word's translation on click, capturing words and phrases into a deck, and reviewing that deck —
+on the web page they are reading, and in the books they import themselves (DRM-free EPUB files,
+read in the extension's own reader page, with the same highlighting).
 
 ## Permission justifications (Chrome Web Store)
 
 Each answer names the user-visible feature and the code path, because that is what a reviewer
 checks against the bundle.
+
+The book reader (`reader.html`, `src/reader/`) **added no permission**: the file picker, the
+IndexedDB database that keeps the books and an extension page of its own need none, and nothing
+is injected into it. `tool/check_variants.mjs` fails a build whose manifest asks for more.
 
 **`activeTab`** — The reader is injected only into the tab the user is looking at, when they
 click "Analyser cette page" in the toolbar popup. This is the extension's default mode on
@@ -161,7 +175,8 @@ optional `<all_urls>` permission, so highlighting survives a page reload
 
 **`storage`** — The reader's own data, kept on their machine: which words they marked as known,
 learning or ignored, the cards they captured, their review history and their preferences. No
-page content is stored. `src/state/`, and IndexedDB for the parts that grow.
+page content is stored. `src/state/`, and IndexedDB for the parts that grow. The books a reader
+imports are kept in IndexedDB too (`src/reader/library.ts`), on the device only.
 
 **`sidePanel`** — The review panel, opened by the user from the popup or the Alt+Shift+S
 shortcut, so they can review cards beside the page instead of over it.
@@ -180,8 +195,10 @@ can be revoked at any time. The extension is fully usable without it.
 ## Remote code
 
 None. Everything the extension runs ships inside the package, including the WebAssembly
-analysis engine and the language pack. No script is fetched at runtime; the content security
-policy is `script-src 'self' 'wasm-unsafe-eval'`.
+analysis engine, the language pack and the book renderer (foliate-js, vendored under
+`vendor/`). No script is fetched at runtime; the content security policy is
+`script-src 'self' 'wasm-unsafe-eval'`. A book's own scripts never run: its pages are rendered
+under that same policy (`test/reader-csp.spec.ts`).
 
 ## Data usage disclosures (Chrome Web Store)
 
@@ -192,7 +209,8 @@ information, personal communications, location, web history, user activity, webs
 What is collected, and only for a signed-in reader: the email address used to create the
 account, and the reader's own vocabulary state (word statuses, cards, review history) sent to
 `https://api.cymbra.app` so their devices agree. Reading activity, page content and browsing
-history are **not** collected — the analysis never leaves the browser.
+history are **not** collected — the analysis never leaves the browser. Nor are the books a
+reader imports, their text or where the reader is in them: they stay on the device.
 
 Tick the three certifications: the data is not sold to third parties, it is not used or
 transferred for a purpose unrelated to the item's single purpose, and it is not used or

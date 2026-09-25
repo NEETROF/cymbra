@@ -95,3 +95,19 @@ The library SHALL be reachable from the popup and from the settings view rendere
 #### Scenario: Opening the library twice
 - **WHEN** the reader opens the library from the popup while a reader tab already exists
 - **THEN** that tab is focused and no second reader tab is created
+
+### Requirement: The reader sets the text size and the page
+The reader page SHALL let the reader enlarge or reduce the text of a book in steps, and SHALL let them read on a paper page, in the book's own colours, or on a dark page, where the book's text and background colours are replaced so its text stays legible. The choice SHALL apply to every book, SHALL be kept on the device, and SHALL be offered both in the reader's toolbar and in the settings.
+
+#### Scenario: Enlarging the text
+- **WHEN** the reader enlarges the text of an open book
+- **THEN** the book's text grows, including text the book sizes in absolute units, and the book reopens at that size later
+
+#### Scenario: Reading on a dark page
+- **WHEN** the reader switches to the dark page
+- **THEN** the page turns dark and the book's text light, whatever colours the book sets for its text, and pictures keep their own
+
+#### Scenario: One choice, two places
+- **WHEN** the reader changes the text size in the settings while a book is open
+- **THEN** the open book follows it, and the reader's toolbar panel shows the same size
+

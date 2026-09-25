@@ -38,12 +38,27 @@
   --cymbra-lingua-coral: #ffb4ab; /* CymbraColors.error — "unknown" */
 
   /* Highlight tints, derived from amber (learning) and coral (unknown). Translucent
-     fills tint the text background; the dotted underline keeps them distinguishable
-     on both light and dark pages while leaving the page text in its own colour. */
+     fills tint the text background; the underline keeps them distinguishable on both
+     light and dark pages while leaving the page text in its own colour — and its STYLE
+     (dotted for learning, solid for unknown) keeps them apart without colour at all, on a
+     monochrome e-ink screen where both tints are the same grey (add-lingua-reader D9). */
   --cymbra-lingua-learning-fill: rgba(255, 180, 84, 0.28); /* amber #ffb454 */
   --cymbra-lingua-learning-underline: #e0930f;
   --cymbra-lingua-unknown-fill: rgba(255, 180, 171, 0.3); /* coral #ffb4ab */
   --cymbra-lingua-unknown-underline: #d8502e;
+
+  /* The page of a book in the reader: paper and ink, whatever the chrome around it. A book
+     is typeset for a light page, and an e-ink screen shows black on white best. */
+  --cymbra-lingua-paper: #fbf9f4;
+  --cymbra-lingua-ink: #1a1a1a;
+  /* The same page in the reader's dark theme: the deepest navy of the palette, so the word
+     popup and the reader's panels (--cymbra-lingua-panel) still stand out laid over it; a text a
+     little softer than the chrome's for long reading, the identity's lilac for links. The book's
+     own colours are replaced there — a book typeset for paper sets dark text. */
+  --cymbra-lingua-night: #060e20;
+  --cymbra-lingua-night-ink: #cfd6ea;
+  --cymbra-lingua-night-link: #d2bbff;
+  --cymbra-lingua-night-rule: #2d3449;
 
   /* Radii (identity) */
   --cymbra-lingua-radius: 12px;
@@ -74,5 +89,5 @@
 
 ::highlight(cymbra-lingua-unknown) {
   background-color: var(--cymbra-lingua-unknown-fill);
-  text-decoration: underline dotted var(--cymbra-lingua-unknown-underline);
+  text-decoration: underline solid var(--cymbra-lingua-unknown-underline);
 }

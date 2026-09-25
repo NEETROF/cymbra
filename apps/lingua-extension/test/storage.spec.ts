@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  ANDROID_VOICES_KEY,
   type AsyncStorageArea,
   classifyStored,
   ENABLED_KEY,
@@ -8,13 +9,23 @@ import {
   HUD_HIDDEN_KEY,
   loadEnabled,
   loadHudHidden,
+  loadReaderDisplay,
+  READER_DISPLAY_KEY,
+  readerDisplayOf,
+  saveReaderDisplay,
   loadStored,
+  loadAndroidVoices,
+  loadVoice,
   ROOT_KEY,
   saveBackup,
   saveEnabled,
   saveHudHidden,
+  saveAndroidVoices,
+  saveVoice,
   STORAGE_VERSION,
+  storedVoicePreference,
   type V1State,
+  VOICE_KEY,
 } from "@/state/storage.ts";
 import { makeFakePort } from "./helpers.ts";
 
@@ -170,5 +181,79 @@ describe("the HUD-hidden flag", () => {
     const area = fakeArea({ [ROOT_KEY]: { v: STORAGE_VERSION, backup: "BACKUP" } });
     await saveHudHidden(area, true);
     expect(area.store[ROOT_KEY]).toEqual({ v: STORAGE_VERSION, backup: "BACKUP" });
+  });
+});
+
+describe("the read-aloud voice preference", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("is the automatic choice until a voice is kept, and again once it is cleared", async () => {
+    const area = fakeArea();
+    expect(await loadVoice(area)).toBeNull();
+    await saveVoice(area, "Moira");
+    expect(area.store[VOICE_KEY]).toBe("Moira");
+    expect(await loadVoice(area)).toBe("Moira");
+    await saveVoice(area, null);
+    expect(await loadVoice(area)).toBeNull();
+    expect(await loadVoice(fakeArea({ [VOICE_KEY]: "" }))).toBeNull();
+    expect(await loadVoice(fakeArea({ [VOICE_KEY]: 42 }))).toBeNull();
+  });
+
+  it("keeps Android's voices refused until they are allowed", async () => {
+    const area = fakeArea();
+    expect(await loadAndroidVoices(area)).toBe(false);
+    await saveAndroidVoices(area, true);
+    expect(area.store[ANDROID_VOICES_KEY]).toBe(true);
+    expect(await loadAndroidVoices(area)).toBe(true);
+    expect(await loadAndroidVoices(fakeArea({ [ANDROID_VOICES_KEY]: "yes" }))).toBe(false);
+  });
+
+  it("follows a change of either setting made in another context, and nothing else", async () => {
+    let listener: ((changes: Record<string, { newValue?: unknown }>, areaName: string) => void) | null = null;
+    vi.stubGlobal("chrome", { storage: { onChanged: { addListener: (l: typeof listener) => (listener = l) } } });
+    const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
+    const area = fakeArea({ [VOICE_KEY]: "Daniel" });
+    const pref = storedVoicePreference(area);
+    expect(await pref.load()).toEqual({ voice: "Daniel", androidVoices: false });
+    const seen: unknown[] = [];
+    pref.watch((settings) => seen.push(settings));
+    area.store[VOICE_KEY] = "Moira";
+    listener!({ [VOICE_KEY]: { newValue: "Moira" } }, "local");
+    await settle();
+    area.store[ANDROID_VOICES_KEY] = true;
+    listener!({ [ANDROID_VOICES_KEY]: { newValue: true } }, "local");
+    await settle();
+    listener!({ [VOICE_KEY]: { newValue: "Karen" } }, "sync");
+    listener!({ [HUD_HIDDEN_KEY]: { newValue: true } }, "local");
+    await settle();
+    expect(seen).toEqual([
+      { voice: "Moira", androidVoices: false },
+      { voice: "Moira", androidVoices: true },
+    ]);
+  });
+});
+
+// How the book reader shows a book (add-lingua-reader D10): a size on the offered steps, a page
+// it knows — whatever the store holds.
+describe("the reader's display", () => {
+  it("defaults to the book's own size on paper", async () => {
+    expect(await loadReaderDisplay(fakeArea())).toEqual({ textScale: 100, theme: "paper" });
+  });
+
+  it("keeps a size on the offered steps, within bounds, and a known page", () => {
+    expect(readerDisplayOf({ textScale: 134, theme: "dark" })).toEqual({ textScale: 130, theme: "dark" });
+    expect(readerDisplayOf({ textScale: 20, theme: "sepia" })).toEqual({ textScale: 80, theme: "paper" });
+    expect(readerDisplayOf({ textScale: 900 })).toEqual({ textScale: 200, theme: "paper" });
+    expect(readerDisplayOf({ textScale: Number.NaN })).toEqual({ textScale: 100, theme: "paper" });
+    expect(readerDisplayOf("garbage")).toEqual({ textScale: 100, theme: "paper" });
+  });
+
+  it("stores what it is given, made safe", async () => {
+    const area = fakeArea();
+    await saveReaderDisplay(area, { textScale: 215, theme: "dark" });
+    expect(area.store[READER_DISPLAY_KEY]).toEqual({ textScale: 200, theme: "dark" });
+    expect(await loadReaderDisplay(area)).toEqual({ textScale: 200, theme: "dark" });
   });
 });

@@ -62,6 +62,29 @@ fn review_session_walks_due_cards() {
 }
 
 #[test]
+fn review_card_shows_where_the_word_was_met() {
+    let mut e = engine();
+    e.add_card(
+        "seldom",
+        "seldom",
+        "They seldom ship.",
+        "The Hound of the Baskervilles · I: Mr. Sherlock Holmes",
+        None,
+        0.0,
+    );
+    e.start_review(10.0);
+    let view: serde_json::Value = match e.review_current().map(|j| serde_json::from_str(&j)) {
+        Some(Ok(v)) => v,
+        _ => panic!("a card is under review"),
+    };
+    assert_eq!(
+        view["source"],
+        "The Hound of the Baskervilles · I: Mr. Sherlock Holmes"
+    );
+    assert_eq!(view["sentence"], "They seldom ship.");
+}
+
+#[test]
 fn mark_known_retires_the_card() {
     let mut e = engine();
     e.add_card("seldom", "seldom", "s", "https://x", None, 0.0);

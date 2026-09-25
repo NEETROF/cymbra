@@ -1,8 +1,10 @@
 /* Icon-popup styles (a surface the extension owns → full Cymbra identity). Colours
-   come only from tokens.css (loaded before this sheet). No colour literals here. */
+   come only from tokens.css (loaded before this sheet). No colour literals here.
+   Réglages are styled by settings.css, shared with the side panel and the drawer: nothing
+   here targets their classes, or the popup's Réglages would drift from the others. */
 
 /* The `hidden` attribute must always win: an id/class rule that sets `display`
-   (e.g. #reset-menu { display: flex }) otherwise overrides the UA `[hidden]`
+   (e.g. .level-indicator { display: flex }) otherwise overrides the UA `[hidden]`
    rule, so a toggled flex/grid block stays visible. Toggle visibility via
    `el.hidden`, and this keeps it honest. */
 [hidden] {
@@ -17,6 +19,25 @@ body {
   color: var(--cymbra-lingua-text);
   font-family: var(--cymbra-lingua-font);
   font-size: 13px;
+}
+
+/* On a desktop the popup scrolls itself, within the 600 px Chrome and Firefox allow a popup.
+   Safari sizes its popover from the content, at open and again as the account block fills
+   in: once the content outgrows what the popover can show, Safari cuts it off while the page
+   inside believes it is all on screen, and nothing scrolls — the library and statistics
+   buttons out of reach. Capped here, the popover never has to cut. The root keeps no
+   overflow of its own, or the body's would move up to the window and cap nothing. */
+@media (pointer: fine) {
+  html {
+    overflow: hidden;
+  }
+
+  body {
+    box-sizing: border-box;
+    max-height: 600px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
 }
 
 /* On a touch-primary device the popup is either a sheet or page of imposed width (Safari on
@@ -75,18 +96,6 @@ h1 {
 .settings-title {
   font-size: 14px;
   font-weight: 600;
-}
-
-.setting-block {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.setting-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--cymbra-lingua-text);
 }
 
 /* Master on/off toggle (a real checkbox styled as a switch). */
@@ -208,16 +217,6 @@ h1 {
   font-size: 12px;
 }
 
-.setting-block + .setting-block {
-  margin-top: 18px;
-}
-
-.level {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
 /* Compact level reminder shown on the main panel (the picker lives in Réglages). */
 .level-indicator {
   display: flex;
@@ -244,56 +243,13 @@ h1 {
   text-decoration: underline;
 }
 
+/* settings.css (loaded for Réglages) gives .linklike a top margin meant for its blocks. */
+#main-view .linklike {
+  margin-top: 0;
+}
+
 #level-cta {
   margin: 12px 0;
-}
-
-.level-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.lvl {
-  cursor: pointer;
-  padding: 6px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--cymbra-lingua-border-2);
-  background: var(--cymbra-lingua-panel-2);
-  color: var(--cymbra-lingua-muted);
-  font-family: inherit;
-  font-size: 12px;
-}
-
-.lvl:hover {
-  background: var(--cymbra-lingua-panel-3);
-  color: var(--cymbra-lingua-text);
-}
-
-.lvl.active {
-  background: var(--cymbra-lingua-accent-strong);
-  border-color: var(--cymbra-lingua-accent-strong);
-  color: var(--cymbra-lingua-accent-ink);
-  font-weight: 600;
-}
-
-.lvl-beginner {
-  flex-basis: 100%;
-}
-
-.calib label {
-  display: block;
-  color: var(--cymbra-lingua-muted);
-  margin-bottom: 6px;
-}
-
-.calib b {
-  color: var(--cymbra-lingua-text);
-}
-
-.calib input[type="range"] {
-  width: 100%;
-  accent-color: var(--cymbra-lingua-accent-strong);
 }
 
 .deck {
@@ -336,57 +292,6 @@ button.primary:hover {
   filter: brightness(1.08);
 }
 
-button.danger {
-  width: 100%;
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 10px;
-  border: 1px solid var(--cymbra-lingua-coral);
-  background: var(--cymbra-lingua-panel-2);
-  color: var(--cymbra-lingua-coral);
-  font-family: inherit;
-  font-size: 12px;
-}
-
-button.danger:hover {
-  background: var(--cymbra-lingua-unknown-fill);
-  color: var(--cymbra-lingua-text);
-}
-
-#reset-menu {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 6px;
-  padding: 10px;
-  border: 1px solid var(--cymbra-lingua-border);
-  border-radius: 12px;
-  background: var(--cymbra-lingua-panel);
-}
-
-#reset-scope {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.reset-note,
-.reset-warn {
-  font-size: 11px;
-  line-height: 1.4;
-  color: var(--cymbra-lingua-muted);
-}
-
-.reset-warn {
-  color: var(--cymbra-lingua-coral);
-}
-
-.reset-confirm {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
 /* Account & sync section (add-lingua-connected-clients §1). */
 .account {
   margin-top: 14px;
@@ -395,7 +300,8 @@ button.danger:hover {
 }
 
 /* Signed in: the account row, the handle call to action and sign-out stack with one gap,
-   and the stats button below keeps the same breathing room (`[hidden]` still wins). */
+   and the library and stats buttons below keep the same breathing room (`[hidden]` still
+   wins). */
 #acct-in {
   display: flex;
   flex-direction: column;
@@ -406,6 +312,7 @@ button.danger:hover {
   margin-bottom: 0;
 }
 
+#open-library,
 #open-stats {
   margin-top: 8px;
 }
@@ -450,31 +357,4 @@ button.danger:hover {
   margin-top: 6px;
   color: var(--cymbra-lingua-coral);
   font-size: 12px;
-}
-
-.shortcuts summary {
-  cursor: pointer;
-  color: var(--cymbra-lingua-muted);
-  font-size: 12px;
-}
-
-.shortcuts-list {
-  list-style: none;
-  margin: 8px 0 4px;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--cymbra-lingua-text);
-}
-
-.shortcuts-list kbd {
-  font-family: inherit;
-  font-size: 11px;
-  padding: 1px 5px;
-  border-radius: 5px;
-  border: 1px solid var(--cymbra-lingua-border-2);
-  background: var(--cymbra-lingua-panel-2);
-  color: var(--cymbra-lingua-muted);
 }

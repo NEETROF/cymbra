@@ -8,7 +8,8 @@ import globals from "globals";
 export default tseslint.config(
   {
     name: "ext/ignores",
-    ignores: ["dist/**", "dist-*/**", "coverage/**", "src/wasm/pkg/**", "src/gen/**", "assets/**"],
+    // vendor/: third-party code kept byte-for-byte at a pinned commit (vendor/VENDOR.md).
+    ignores: ["dist/**", "dist-*/**", "coverage/**", "src/wasm/pkg/**", "src/gen/**", "assets/**", "vendor/**"],
   },
   js.configs.recommended,
   tseslint.configs.recommended,

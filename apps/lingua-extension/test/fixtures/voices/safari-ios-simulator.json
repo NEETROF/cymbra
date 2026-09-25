@@ -1,0 +1,484 @@
+{
+ "target": "safari-ios-simulator",
+ "capturedAt": "2026-09-24",
+ "note": "iOS Simulator, not a device: voices of a real iPhone may differ",
+ "ua": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.5 Mobile/15E148 Safari/604.1",
+ "voices": [
+  {
+   "name": "Daniel",
+   "lang": "en-GB",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.en-GB.Daniel"
+  },
+  {
+   "name": "Karen",
+   "lang": "en-AU",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.en-AU.Karen"
+  },
+  {
+   "name": "Moira",
+   "lang": "en-IE",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.en-IE.Moira"
+  },
+  {
+   "name": "Rishi",
+   "lang": "en-IN",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.en-IN.Rishi"
+  },
+  {
+   "name": "Samantha",
+   "lang": "en-US",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.en-US.Samantha"
+  },
+  {
+   "name": "Tessa",
+   "lang": "en-ZA",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.en-ZA.Tessa"
+  },
+  {
+   "name": "Albert",
+   "lang": "en-US",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.speech.synthesis.voice.Albert"
+  },
+  {
+   "name": "Bad News",
+   "lang": "en-US",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.speech.synthesis.voice.BadNews"
+  },
+  {
+   "name": "Bahh",
+   "lang": "en-US",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.speech.synthesis.voice.Bahh"
+  },
+  {
+   "name": "Bells",
+   "lang": "en-US",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.speech.synthesis.voice.Bells"
+  },
+  {
+   "name": "Boing",
+   "lang": "en-US",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.speech.synthesis.voice.Boing"
+  },
+  {
+   "name": "Bubbles",
+   "lang": "en-US",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.speech.synthesis.voice.Bubbles"
+  },
+  {
+   "name": "Cellos",
+   "lang": "en-US",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.speech.synthesis.voice.Cellos"
+  },
+  {
+   "name": "Wobble",
+   "lang": "en-US",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.speech.synthesis.voice.Deranged"
+  },
+  {
+   "name": "Fred",
+   "lang": "en-US",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.speech.synthesis.voice.Fred"
+  },
+  {
+   "name": "Good News",
+   "lang": "en-US",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.speech.synthesis.voice.GoodNews"
+  },
+  {
+   "name": "Jester",
+   "lang": "en-US",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.speech.synthesis.voice.Hysterical"
+  },
+  {
+   "name": "Junior",
+   "lang": "en-US",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.speech.synthesis.voice.Junior"
+  },
+  {
+   "name": "Kathy",
+   "lang": "en-US",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.speech.synthesis.voice.Kathy"
+  },
+  {
+   "name": "Organ",
+   "lang": "en-US",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.speech.synthesis.voice.Organ"
+  },
+  {
+   "name": "Superstar",
+   "lang": "en-US",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.speech.synthesis.voice.Princess"
+  },
+  {
+   "name": "Ralph",
+   "lang": "en-US",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.speech.synthesis.voice.Ralph"
+  },
+  {
+   "name": "Trinoids",
+   "lang": "en-US",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.speech.synthesis.voice.Trinoids"
+  },
+  {
+   "name": "Whisper",
+   "lang": "en-US",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.speech.synthesis.voice.Whisper"
+  },
+  {
+   "name": "Zarvox",
+   "lang": "en-US",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.speech.synthesis.voice.Zarvox"
+  },
+  {
+   "name": "Alice",
+   "lang": "it-IT",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.it-IT.Alice"
+  },
+  {
+   "name": "Alva",
+   "lang": "sv-SE",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.sv-SE.Alva"
+  },
+  {
+   "name": "Amélie",
+   "lang": "fr-CA",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.fr-CA.Amelie"
+  },
+  {
+   "name": "Amira",
+   "lang": "ms-MY",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.ms-MY.Amira"
+  },
+  {
+   "name": "Anna",
+   "lang": "de-DE",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.de-DE.Anna"
+  },
+  {
+   "name": "Carmit",
+   "lang": "he-IL",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.he-IL.Carmit"
+  },
+  {
+   "name": "Damayanti",
+   "lang": "id-ID",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.id-ID.Damayanti"
+  },
+  {
+   "name": "Daria",
+   "lang": "bg-BG",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.bg-BG.Daria"
+  },
+  {
+   "name": "Ellen",
+   "lang": "nl-BE",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.nl-BE.Ellen"
+  },
+  {
+   "name": "Ioana",
+   "lang": "ro-RO",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.ro-RO.Ioana"
+  },
+  {
+   "name": "Joana",
+   "lang": "pt-PT",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.pt-PT.Joana"
+  },
+  {
+   "name": "Kanya",
+   "lang": "th-TH",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.th-TH.Kanya"
+  },
+  {
+   "name": "Kyoko",
+   "lang": "ja-JP",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.ja-JP.Kyoko"
+  },
+  {
+   "name": "Lana",
+   "lang": "hr-HR",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.hr-HR.Lana"
+  },
+  {
+   "name": "Laura",
+   "lang": "sk-SK",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.sk-SK.Laura"
+  },
+  {
+   "name": "Lekha",
+   "lang": "hi-IN",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.hi-IN.Lekha"
+  },
+  {
+   "name": "Lesya",
+   "lang": "uk-UA",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.uk-UA.Lesya"
+  },
+  {
+   "name": "Linh",
+   "lang": "vi-VN",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.vi-VN.Linh"
+  },
+  {
+   "name": "Luciana",
+   "lang": "pt-BR",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.pt-BR.Luciana"
+  },
+  {
+   "name": "Majed",
+   "lang": "ar-001",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.ar-001.Maged"
+  },
+  {
+   "name": "Tünde",
+   "lang": "hu-HU",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.hu-HU.Mariska"
+  },
+  {
+   "name": "Meijia",
+   "lang": "zh-TW",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.zh-TW.Meijia"
+  },
+  {
+   "name": "Melina",
+   "lang": "el-GR",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.el-GR.Melina"
+  },
+  {
+   "name": "Milena",
+   "lang": "ru-RU",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.ru-RU.Milena"
+  },
+  {
+   "name": "Mónica",
+   "lang": "es-ES",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.es-ES.Monica"
+  },
+  {
+   "name": "Montse",
+   "lang": "ca-ES",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.ca-ES.Montserrat"
+  },
+  {
+   "name": "Nora",
+   "lang": "nb-NO",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.nb-NO.Nora"
+  },
+  {
+   "name": "Paulina",
+   "lang": "es-MX",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.es-MX.Paulina"
+  },
+  {
+   "name": "Sara",
+   "lang": "da-DK",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.da-DK.Sara"
+  },
+  {
+   "name": "Satu",
+   "lang": "fi-FI",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.fi-FI.Satu"
+  },
+  {
+   "name": "Sinji",
+   "lang": "yue-HK",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.zh-HK.Sinji"
+  },
+  {
+   "name": "Thomas",
+   "lang": "fr-FR",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.fr-FR.Thomas"
+  },
+  {
+   "name": "Tina",
+   "lang": "sl-SI",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.sl-SI.Tina"
+  },
+  {
+   "name": "Tingting",
+   "lang": "zh-CN",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.zh-CN.Tingting"
+  },
+  {
+   "name": "Xander",
+   "lang": "nl-NL",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.nl-NL.Xander"
+  },
+  {
+   "name": "Yelda",
+   "lang": "tr-TR",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.tr-TR.Yelda"
+  },
+  {
+   "name": "Yuna",
+   "lang": "ko-KR",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.ko-KR.Yuna"
+  },
+  {
+   "name": "Zosia",
+   "lang": "pl-PL",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.pl-PL.Zosia"
+  },
+  {
+   "name": "Zuzana",
+   "lang": "cs-CZ",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.cs-CZ.Zuzana"
+  },
+  {
+   "name": "Vani",
+   "lang": "ta-IN",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.super-compact.ta-IN.Vani"
+  },
+  {
+   "name": "Soumya",
+   "lang": "kn-IN",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.compact.kn-IN.Alpana"
+  },
+  {
+   "name": "Geeta",
+   "lang": "te-IN",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.compact.te-IN.Geeta"
+  },
+  {
+   "name": "Piya",
+   "lang": "bn-IN",
+   "localService": true,
+   "default": true,
+   "voiceURI": "com.apple.voice.compact.bn-IN.Paya"
+  }
+ ]
+}

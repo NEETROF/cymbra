@@ -113,6 +113,23 @@ Alternative: render sections inline into the page's own DOM instead of iframes. 
 the parameter, but foliate-js does not offer it and writing that renderer is the thing this
 change refuses to write.
 
+**Amended during implementation — Chromium serves sections from its service worker.** A
+`blob:` document is *not* always reachable from the extension page that made it. Chrome's
+migration to "block the V8 optimizer on unfamiliar sites"
+(`MigrateToBlockV8OptimizerOnUnfamiliarSites`, a field trial) places such a document in a
+process of its own: its origin is still the extension's, yet the page gets a `SecurityError`
+and foliate-js stops before painting (`contentDocument` is null) — a blank book. It is on in
+Chrome for Testing's default configuration, and can reach any Chrome in the trial's arm.
+Playwright launches Chrome with `--disable-field-trial-config`, which is why the automated
+passes never saw it. The Chromium variant therefore routes every section through the
+background service worker (`src/reader/section-server.ts`): what foliate-js produced for the
+section, resources already rewritten to `blob:` URLs, is put in Cache Storage and the frame is
+pointed at `chrome-extension://<id>/reader-section/…`, which the worker answers — a plain
+extension URL, kept in the page's process. The section is served with `script-src 'none'`.
+foliate-js is not modified: the adapter wraps each section's `load`/`unload`. Firefox keeps
+the `blob:` path (its event page is no service worker, and the reader works there); Safari's
+event page is none either — if Safari splits `blob:` documents too, it needs another answer.
+
 ### D4. One paint per page turn
 
 Two things paint a highlighted page twice today, and an e-ink screen shows both:
@@ -131,17 +148,27 @@ inside a section then paint nothing new: the ranges are already there. Between s
 next one is not pre-rendered (foliate-js loads on demand); the reveal rule covers it.
 
 The flow is paginated by default with tap zones to turn and no transition; scrolled flow stays
-available as a setting for the laptop.
+available as a setting for the laptop. foliate-js scrolls one section at a time, so the wheel or
+the finger stopped dead at the end of a chapter — found on the first headed pass, where a short
+chapter made the setting look broken. A push past the edge that starts there now crosses into
+the adjacent section (`scroll-edges.ts`, through foliate's own `next`/`prev`); the inertia that
+carried the view to the edge does not count, so a chapter is never skipped on arrival.
 
 ### D5. The library is its own database, opened by the reader page
 
 Book files go in a second IndexedDB database (`cymbra-lingua-library`), distinct from the
-background-owned state store, with two object stores: `books` (the hash as key; title,
-authors, language, cover, size, added-at, the last location and its updated-at) and `files`
-(the hash as key; the `Blob`). The reader page opens it directly: a 40 MB file must not cross a
+background-owned state store, with three object stores, each keyed by the hash: `books` (title,
+authors, language, cover, size, added-at), `files` (the `Blob`) and `positions` (the last
+location and its updated-at). The reader page opens it directly: a 40 MB file must not cross a
 message, and the single-owner rule exists to keep surfaces agreeing on *state* — the library
 has one writer, the reader page, and its only concurrent writes are positions, resolved by
 their timestamp.
+
+A book's record is written once, at import; a position, at every page turn. They were one
+record at first, and WebKit loses a `Blob` read back from IndexedDB when its record is written
+again with it: on iOS and iPadOS the cover of the book just read came back unreadable
+(`NotFoundError`). The position has its own store since (database version 2, whose upgrade
+copies the positions the first dogfood builds kept in `books`).
 
 The key is the SHA-256 of the file: importing the same file twice yields one book, and the hash
 is what a later change would synchronise a position against. The OPF's `dc:identifier` is
@@ -186,6 +213,181 @@ monochrome screen they are the same grey dots. "Learning" keeps the dotted under
 "unknown" takes a solid one. The tints stay, so a colour screen loses nothing, and every page
 the content script highlights benefits — the change is in the token sheet, not in the reader.
 
+### D10. The text size and the page, from an "Aa" panel
+
+Added after the first device passes: a reader needs to set the size of the text and to read on
+a dark page. Both are one preference for every book (`chrome.storage.local`, read by the reader
+page like the flow), set from an "Aa" button in the reader's toolbar — a small panel beside the
+contents — and from the Livres block of Réglages, by one builder (`book-display-view.ts`).
+Buttons step the size by 10 % from 80 % to 200 %: a tap is one step, which an e-ink screen
+redraws once.
+
+The size scales the book's text, not its page. CSS `zoom` would be the one rule that reaches
+everything, and was measured and rejected: in WebKit the boxes of a zoomed page are reported
+at their unzoomed size (a word's box landed two words early, and pagination came out short),
+so the word popup and the tap zones would miss. Instead the root's size is set in the sheet
+foliate-js places before the book's own — every size in em, rem or % follows it, and a book
+that sets its own root keeps it — and, as each of the book's style sheets loads (foliate-js's
+`transformTarget`), a size in an absolute unit, or one set on the root, is rewritten to
+`calc(size × factor)`. *Let's Go* sets its text in px: without the rewrite it would not grow.
+
+The dark page replaces the book's colours rather than adding to them: a book typeset for paper
+sets dark text (*Let's Go* again), which would vanish on a dark page. Text takes the night
+ink, links the identity's lilac, backgrounds go, pictures keep their colours. The colours come
+from the token sheet, read off the reader page and passed into the section's style, since a
+section's document only sees the tokens once the reading module has attached to it.
+
+## Measurements (spike, §1)
+
+Taken on the implementation itself rather than a throwaway branch — the refactor of D3 was
+bounded as hoped — with the real en-fr pack (40 704 lemmas), no level declared (every word
+unknown: the worst case for painting), in Playwright's Chromium on a MacBook (Apple silicon),
+extension loaded unpacked; then on the Galaxy Tab S6 Lite under Firefox for Android (below).
+The e-ink tablet and the iPhone are still to measure.
+
+**1.2 — the document parameter.** The sites touched stayed inside `src/reading/` and the
+session: `blocks.ts` (derives its document from the root), `highlight.ts` (one painter per
+document, on that window's `CSS.highlights`), `observer.ts` and `exposure-tracker.ts` (the
+root's window's observers), `selection.ts` (the window's selection; `instanceof Element`
+replaced by a node-type test — a section's nodes are of another realm), and `caretAt`, now in
+`session.ts`. One more cross-realm detail surfaced in the tests: a listener's `AbortSignal`
+must come from the section's own window. Highlights, the word popup (anchored through the
+frame's offset) and the selection card work inside a section.
+
+**1.3 — paint times (laptop, Chromium, engine in the page).**
+
+| Section | Words | Ranges | Hidden (load → painted) |
+|---|---|---|---|
+| Chapter (Hound of the Baskervilles, SE) | ~3–4 000 | 2 208–4 028 | 26–34 ms |
+| Front matter (Pro Git) | a few hundred | 35–597 | 1–12 ms |
+| Whole novel in one section (Pride and Prejudice, Gutenberg) | 20 484 | 20 149 | 185 ms |
+
+A page turn inside a section re-registers nothing (the highlight objects are the same before
+and after) and never hides the book; it reaches the second frame in 6–35 ms. The cap is set
+at **1 500 ms** (`REVEAL_CAP_MS`) until the tablet's numbers: the laptop is an order of
+magnitude under it even for the largest section, and Firefox adds a message round trip to the
+event page.
+
+**Finding: a section is not always a chapter.** Gutenberg's edition of *Pride and Prejudice*
+holds the whole novel in one XHTML file: 20 149 ranges painted at once, more than the ~15 000
+that stalled Safari in the Apple spike. Chromium takes it in stride; it is what 1.5 must
+measure on the iPhone. If Safari stalls, the viewport window comes back for the reader on
+Safari only (`paintWhole` is a per-host flag), at the cost of a second paint there.
+
+**1.3 — the tablet (Galaxy Tab S6 Lite, Firefox 156 for Android).** The engine runs in the
+event page there, so the analysis is a message round trip; measured in the reader page itself
+(a debug build reporting over `adb reverse`), no level declared, airplane mode on.
+
+| Section | Characters | Ranges | Analysis (round trip) | Load → painted |
+|---|---|---|---|---|
+| Chapter (Hound of the Baskervilles, SE) | 12 466 | 2 208 | 271 ms | 355 ms |
+| Front matter (Pro Git) | 283 – 3 268 | 35 – 597 | 73 – 82 ms | 80 – 114 ms |
+| Chapter (Let's Go) | 1 870 – 3 847 | 319 – 621 | 79 ms; 972 ms first after opening | 94 – 991 ms |
+| Whole novel (Pride and Prejudice) | 114 513 | 20 149 | 1 747 – 2 595 ms, then 744 ms to paint | revealed by the cap, painted ≈ 2.5 s after the request |
+
+About 70 ms of every analysis is the message round trip; the first analysis after the reader
+opens pays for the event page waking and restoring the engine (972 ms for a 3 847-character
+section). A page turn inside a section re-registers nothing and never hides the book: 55 – 82 ms
+to the second frame in a chapter, about 100 ms with 20 149 ranges (one turn at 653 ms). The
+cap stays at **1 500 ms**: every chapter-sized section, cold event page included, paints under
+it in one refresh; only the whole-novel section overshoots, and it is better shown unpainted at
+1.5 s and painted a second later than left blank for close to three.
+
+**1.4 — storage (Chromium).** Three books (0.5 MB novel, 13.3 MB Pro Git, 23.7 MB illustrated
+novel) occupy 41.2 MB of a 10.8 GB quota: `unlimitedStorage` is not needed for room.
+`navigator.storage.persist()` is **refused** for the extension's origin, so the library shows
+its notice on Chromium. Asking for `unlimitedStorage` would exempt the library from eviction,
+at the price of a new permission to justify — left as a decision (see Open Questions).
+
+**1.5 — Safari on an iPhone (iPhone 15 Pro Max, iOS 27.2).** Measured in the reader page
+itself (a debug build reporting over the local network), no level declared. A chapter paints
+and turns as on the laptop: a page turn reaches its second frame in 125 – 141 ms with 176 to
+2 208 ranges. The whole-novel section of *Pride and Prejudice* (20 149 ranges) is shown painted
+702 ms after it loads, with one frame of 588 ms while it paints; a later section of the same
+edition (29 761 ranges) takes 1 734 ms, with the page unresponsive for 1.5 s once. Turning a
+page in those sections costs 110 – 320 ms to the second frame (two turns at 674 and 730 ms),
+with frames of 100 – 170 ms here and there — slower than a chapter, never the stall of the
+Apple spike. So Safari keeps the reader, and the section is still painted whole; the viewport
+window stays an option for the reader on Safari if a longer section proves worse. Over both
+books the page was never reloaded, which it would have been had the system reclaimed its
+process for memory. Memory, sampled by Instruments (Activity Monitor) right after the pass, the
+reader still open on *Pride and Prejudice*: the busiest WebKit content process — the reader page,
+by elimination — at 247 – 255 MB of physical footprint, another at 90 MB (the background page
+and its engine, most likely), the extension's native process at 2.8 MB; a phone with 8 GB keeps
+a foreground page well above that. A snapshot, not a curve: Instruments only reached the phone
+for a few seconds. Storage: a 39 322 MB quota, not persisted.
+
+**Safari on macOS (the 6.4 pass).** The extension's pages run in one WebKit process, sampled
+every 5 s with `footprint` during the pass: 50 MB before a book, 154 – 196 MB reading *Pro Git*,
+244 – 250 MB with *Pride and Prejudice* open, and a peak of 338 MB while its whole-novel section
+painted — the same order as the iPhone. Two dogfooding defects surfaced on the way and are
+fixed: the toolbar popup could not be scrolled once Safari had cut it to fit (it now scrolls
+itself within 600 px on a desktop), and an incremental Xcode build left the extension's
+signature invalid, which Safari answers by dropping the extension from its list without a word
+(a clean build restores it; the copy phase is to be fixed apart).
+
+**1.4 — storage (Firefox for Android, the tablet).** Four books (0.5, 6.6, 13.3 and 23.7 MB,
+44.1 MB of files) occupy 46 MB of a 5 345 MB quota; `navigator.storage.persisted()` is false
+there too, and the library shows its notice. Room is not the constraint on either browser;
+eviction is the same open question.
+
+**Offline.** With every request sent to a dead proxy, opening and reading the 23.7 MB book made
+52 requests, all `chrome-extension:` or `blob:` — none left the extension; its 36 illustrations
+loaded.
+
+**What the automated passes could not see.** They ran Playwright's Chromium, which disables
+Chrome's field trials. With them on — Chrome for Testing's defaults, and the first manual pass
+on the laptop — a Packt EPUB opened blank; the cause and the service-worker route are in D3.
+Re-run with the field trials on, the same four books open and paint (a chapter of 512 to 2 208
+ranges, the illustrated Gutenberg edition with its images).
+
+**Entry points.** `tabs.sendMessage` from the popup reaches the reader page in its tab on
+Chromium (MDN documents the same on Firefox), so the popup's `getStats` works unchanged and the
+page answers `surface: "book"`. A second "Bibliothèque" focuses the open reader tab.
+
+**Book scripts.** Pro Git's chapters carry inline scripts; the sections inherit the extension
+pages' CSP and every one of them is refused. That is the intended outcome — a book's script
+would otherwise run with the extension's privileges — and `test/reader-csp.spec.ts` keeps the
+policy from being loosened.
+
+**What review shows.** Review showed no source at all before this change, page or book. The
+engine's review card now carries the card's local source, and review shows it once the answer
+is revealed — a page by its site, a book by its title and chapter — so a card from a deleted
+book still says where it came from.
+
+**Safari on iOS and iPadOS (simulator, iPad).** The first passes there opened some sections
+blank — the page's paper, the chapter's title in the bar, no text — and half-shifted pages
+after a few turns. The section was loaded, laid out and painted by the session (its frame in
+place, its text dark on transparent, 203 ranges registered, nothing over it): WebKit simply
+never drew the frame. The same foliate-js, bundled alone and served to the simulator's
+Safari, drew it, with or without the hiding, the highlights and a dark embedding page. Giving
+the renderer's element a compositing layer of its own (`transform: translateZ(0)`) makes the
+frame draw at once, at every turn and every section change; it costs nothing on Chromium.
+Two cosmetic defects came out of the same passes: the reader page is dark and the book light,
+so each section's frame got an opaque white canvas over the paper (the book area now declares
+itself light), and hiding the whole book area while a section paints showed the dark page for
+an instant at every chapter (only the renderer is hidden now; the paper stays).
+
+**Selecting on Safari (simulator and iPad).** The platform's callout covered the expression
+card. It cannot be hidden while a selection exists, and removing the selection is the only way
+to dismiss it: measured on the Galaxy Tab, Firefox for Android sends the page no touch event at
+all during a handle drag (so the end of one is unknowable), while Safari sends `touchend` after
+it — on the simulator and on an iPad. So on Safari only, and only while the reader is switched on and
+has analysed the page (where its card takes the callout's place), a phrase's selection is
+removed once the finger lifts from it, and a single word's is kept so its handles still extend it (the
+`lingua-browser-extension` requirement is amended accordingly). In the reader two foliate-js
+behaviours stood in the way, both on Safari: its finger pan follows every `touchmove` in a
+section and cancels it, so a handle drag slid the page instead of growing the selection
+(`touch-guard.ts` keeps the moves of a touch working the selection away from it); and it settles
+the page after every lift, reporting a `relocate` even when nothing moved, which closed the card
+that lift had just opened (the reader now dismisses only on a real move).
+
+**Platform gaps closed along the way.** foliate-js uses `Object.groupBy`/`Map.groupBy`, missing
+from Chrome 116 and from Safari before 17.4 (the Apple app targets iOS 17.2): the reader page
+installs both where absent. Its zip reader is the npm package it builds from, at the version it
+locks (2.8.22), taken at `lib/zip-core.js` — the package's `exports` would otherwise hand
+esbuild its WebAssembly variant.
+
 ## Risks / Trade-offs
 
 - **foliate-js changes its API** → pinned commit, a seam, and the vendored tree is refreshed
@@ -222,9 +424,13 @@ a library left behind by a reverted build is harmless and reclaimed by a full re
 
 ## Open Questions
 
-- Whether Chromium's default quota for the extension origin holds a realistic library without
-  `unlimitedStorage` (spike, D5).
-- Whether a section painted whole stays fluid on an iPhone, and what the largest EPUB the
-  Safari extension process can open is (spike, D4).
-- Whether the reveal cap should be one value or scale with the section's length; the spike's
-  numbers on the tablet and the laptop decide.
+- ~~Whether Chromium's default quota holds a realistic library without `unlimitedStorage`~~ —
+  it does (10.8 GB). Still open: whether to ask for `unlimitedStorage` anyway, because
+  Chromium refuses `persist()` to the extension and the library is therefore evictable there
+  (a new permission and a store-listing justification, against a notice every Chrome reader
+  sees).
+- Whether a section painted whole stays fluid on an iPhone — now with a known worst case, a
+  20 000-word section — and what the largest EPUB the Safari extension process can open is
+  (1.5).
+- Whether the reveal cap should be one value or scale with the section's length: the laptop
+  scales roughly linearly (30 ms per chapter, 185 ms for 20 000 words); the tablet decides.

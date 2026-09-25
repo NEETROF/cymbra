@@ -1,0 +1,1400 @@
+{
+ "target": "chrome-macos",
+ "capturedAt": "2026-09-24",
+ "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36",
+ "voices": [
+  {
+   "name": "Daniel",
+   "lang": "en-GB",
+   "localService": true,
+   "default": true,
+   "voiceURI": "Daniel"
+  },
+  {
+   "name": "Albert",
+   "lang": "en-US",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Albert"
+  },
+  {
+   "name": "Alice",
+   "lang": "it-IT",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Alice"
+  },
+  {
+   "name": "Alva",
+   "lang": "sv-SE",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Alva"
+  },
+  {
+   "name": "Amélie",
+   "lang": "fr-CA",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Amélie"
+  },
+  {
+   "name": "Amira",
+   "lang": "ms-MY",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Amira"
+  },
+  {
+   "name": "Anna",
+   "lang": "de-DE",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Anna"
+  },
+  {
+   "name": "Bad News",
+   "lang": "en-US",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Bad News"
+  },
+  {
+   "name": "Bahh",
+   "lang": "en-US",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Bahh"
+  },
+  {
+   "name": "Bells",
+   "lang": "en-US",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Bells"
+  },
+  {
+   "name": "Boing",
+   "lang": "en-US",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Boing"
+  },
+  {
+   "name": "Bubbles",
+   "lang": "en-US",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Bubbles"
+  },
+  {
+   "name": "Carmit",
+   "lang": "he-IL",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Carmit"
+  },
+  {
+   "name": "Cellos",
+   "lang": "en-US",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Cellos"
+  },
+  {
+   "name": "Damayanti",
+   "lang": "id-ID",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Damayanti"
+  },
+  {
+   "name": "Daria",
+   "lang": "bg-BG",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Daria"
+  },
+  {
+   "name": "Eddy (English (United Kingdom))",
+   "lang": "en-GB",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Eddy (English (United Kingdom))"
+  },
+  {
+   "name": "Eddy (English (United States))",
+   "lang": "en-US",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Eddy (English (United States))"
+  },
+  {
+   "name": "Eddy (Chinese (China mainland))",
+   "lang": "zh-CN",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Eddy (Chinese (China mainland))"
+  },
+  {
+   "name": "Eddy (Chinese (Taiwan))",
+   "lang": "zh-TW",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Eddy (Chinese (Taiwan))"
+  },
+  {
+   "name": "Eddy (German (Germany))",
+   "lang": "de-DE",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Eddy (German (Germany))"
+  },
+  {
+   "name": "Eddy (Spanish (Spain))",
+   "lang": "es-ES",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Eddy (Spanish (Spain))"
+  },
+  {
+   "name": "Eddy (Spanish (Mexico))",
+   "lang": "es-MX",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Eddy (Spanish (Mexico))"
+  },
+  {
+   "name": "Eddy (Finnish (Finland))",
+   "lang": "fi-FI",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Eddy (Finnish (Finland))"
+  },
+  {
+   "name": "Eddy (French (Canada))",
+   "lang": "fr-CA",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Eddy (French (Canada))"
+  },
+  {
+   "name": "Eddy (French (France))",
+   "lang": "fr-FR",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Eddy (French (France))"
+  },
+  {
+   "name": "Eddy (Italian (Italy))",
+   "lang": "it-IT",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Eddy (Italian (Italy))"
+  },
+  {
+   "name": "Eddy (Japanese (Japan))",
+   "lang": "ja-JP",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Eddy (Japanese (Japan))"
+  },
+  {
+   "name": "Eddy (Korean (South Korea))",
+   "lang": "ko-KR",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Eddy (Korean (South Korea))"
+  },
+  {
+   "name": "Eddy (Portuguese (Brazil))",
+   "lang": "pt-BR",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Eddy (Portuguese (Brazil))"
+  },
+  {
+   "name": "Ellen",
+   "lang": "nl-BE",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Ellen"
+  },
+  {
+   "name": "Flo (English (United Kingdom))",
+   "lang": "en-GB",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Flo (English (United Kingdom))"
+  },
+  {
+   "name": "Flo (English (United States))",
+   "lang": "en-US",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Flo (English (United States))"
+  },
+  {
+   "name": "Flo (Chinese (China mainland))",
+   "lang": "zh-CN",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Flo (Chinese (China mainland))"
+  },
+  {
+   "name": "Flo (Chinese (Taiwan))",
+   "lang": "zh-TW",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Flo (Chinese (Taiwan))"
+  },
+  {
+   "name": "Flo (German (Germany))",
+   "lang": "de-DE",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Flo (German (Germany))"
+  },
+  {
+   "name": "Flo (Spanish (Spain))",
+   "lang": "es-ES",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Flo (Spanish (Spain))"
+  },
+  {
+   "name": "Flo (Spanish (Mexico))",
+   "lang": "es-MX",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Flo (Spanish (Mexico))"
+  },
+  {
+   "name": "Flo (Finnish (Finland))",
+   "lang": "fi-FI",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Flo (Finnish (Finland))"
+  },
+  {
+   "name": "Flo (French (Canada))",
+   "lang": "fr-CA",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Flo (French (Canada))"
+  },
+  {
+   "name": "Flo (French (France))",
+   "lang": "fr-FR",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Flo (French (France))"
+  },
+  {
+   "name": "Flo (Italian (Italy))",
+   "lang": "it-IT",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Flo (Italian (Italy))"
+  },
+  {
+   "name": "Flo (Japanese (Japan))",
+   "lang": "ja-JP",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Flo (Japanese (Japan))"
+  },
+  {
+   "name": "Flo (Korean (South Korea))",
+   "lang": "ko-KR",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Flo (Korean (South Korea))"
+  },
+  {
+   "name": "Flo (Portuguese (Brazil))",
+   "lang": "pt-BR",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Flo (Portuguese (Brazil))"
+  },
+  {
+   "name": "Fred",
+   "lang": "en-US",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Fred"
+  },
+  {
+   "name": "Geeta",
+   "lang": "te-IN",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Geeta"
+  },
+  {
+   "name": "Good News",
+   "lang": "en-US",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Good News"
+  },
+  {
+   "name": "Grandma (English (United Kingdom))",
+   "lang": "en-GB",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Grandma (English (United Kingdom))"
+  },
+  {
+   "name": "Grandma (English (United States))",
+   "lang": "en-US",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Grandma (English (United States))"
+  },
+  {
+   "name": "Grandma (Chinese (China mainland))",
+   "lang": "zh-CN",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Grandma (Chinese (China mainland))"
+  },
+  {
+   "name": "Grandma (Chinese (Taiwan))",
+   "lang": "zh-TW",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Grandma (Chinese (Taiwan))"
+  },
+  {
+   "name": "Grandma (German (Germany))",
+   "lang": "de-DE",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Grandma (German (Germany))"
+  },
+  {
+   "name": "Grandma (Spanish (Spain))",
+   "lang": "es-ES",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Grandma (Spanish (Spain))"
+  },
+  {
+   "name": "Grandma (Spanish (Mexico))",
+   "lang": "es-MX",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Grandma (Spanish (Mexico))"
+  },
+  {
+   "name": "Grandma (Finnish (Finland))",
+   "lang": "fi-FI",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Grandma (Finnish (Finland))"
+  },
+  {
+   "name": "Grandma (French (Canada))",
+   "lang": "fr-CA",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Grandma (French (Canada))"
+  },
+  {
+   "name": "Grandma (French (France))",
+   "lang": "fr-FR",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Grandma (French (France))"
+  },
+  {
+   "name": "Grandma (Italian (Italy))",
+   "lang": "it-IT",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Grandma (Italian (Italy))"
+  },
+  {
+   "name": "Grandma (Japanese (Japan))",
+   "lang": "ja-JP",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Grandma (Japanese (Japan))"
+  },
+  {
+   "name": "Grandma (Korean (South Korea))",
+   "lang": "ko-KR",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Grandma (Korean (South Korea))"
+  },
+  {
+   "name": "Grandma (Portuguese (Brazil))",
+   "lang": "pt-BR",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Grandma (Portuguese (Brazil))"
+  },
+  {
+   "name": "Grandpa (English (United Kingdom))",
+   "lang": "en-GB",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Grandpa (English (United Kingdom))"
+  },
+  {
+   "name": "Grandpa (English (United States))",
+   "lang": "en-US",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Grandpa (English (United States))"
+  },
+  {
+   "name": "Grandpa (Chinese (China mainland))",
+   "lang": "zh-CN",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Grandpa (Chinese (China mainland))"
+  },
+  {
+   "name": "Grandpa (Chinese (Taiwan))",
+   "lang": "zh-TW",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Grandpa (Chinese (Taiwan))"
+  },
+  {
+   "name": "Grandpa (German (Germany))",
+   "lang": "de-DE",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Grandpa (German (Germany))"
+  },
+  {
+   "name": "Grandpa (Spanish (Spain))",
+   "lang": "es-ES",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Grandpa (Spanish (Spain))"
+  },
+  {
+   "name": "Grandpa (Spanish (Mexico))",
+   "lang": "es-MX",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Grandpa (Spanish (Mexico))"
+  },
+  {
+   "name": "Grandpa (Finnish (Finland))",
+   "lang": "fi-FI",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Grandpa (Finnish (Finland))"
+  },
+  {
+   "name": "Grandpa (French (Canada))",
+   "lang": "fr-CA",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Grandpa (French (Canada))"
+  },
+  {
+   "name": "Grandpa (French (France))",
+   "lang": "fr-FR",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Grandpa (French (France))"
+  },
+  {
+   "name": "Grandpa (Italian (Italy))",
+   "lang": "it-IT",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Grandpa (Italian (Italy))"
+  },
+  {
+   "name": "Grandpa (Japanese (Japan))",
+   "lang": "ja-JP",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Grandpa (Japanese (Japan))"
+  },
+  {
+   "name": "Grandpa (Korean (South Korea))",
+   "lang": "ko-KR",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Grandpa (Korean (South Korea))"
+  },
+  {
+   "name": "Grandpa (Portuguese (Brazil))",
+   "lang": "pt-BR",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Grandpa (Portuguese (Brazil))"
+  },
+  {
+   "name": "Ioana",
+   "lang": "ro-RO",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Ioana"
+  },
+  {
+   "name": "Jacques",
+   "lang": "fr-FR",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Jacques"
+  },
+  {
+   "name": "Jester",
+   "lang": "en-US",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Jester"
+  },
+  {
+   "name": "Joana",
+   "lang": "pt-PT",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Joana"
+  },
+  {
+   "name": "Junior",
+   "lang": "en-US",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Junior"
+  },
+  {
+   "name": "Kanya",
+   "lang": "th-TH",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Kanya"
+  },
+  {
+   "name": "Karen",
+   "lang": "en-AU",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Karen"
+  },
+  {
+   "name": "Kathy",
+   "lang": "en-US",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Kathy"
+  },
+  {
+   "name": "Kyoko",
+   "lang": "ja-JP",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Kyoko"
+  },
+  {
+   "name": "Lana",
+   "lang": "hr-HR",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Lana"
+  },
+  {
+   "name": "Laura",
+   "lang": "sk-SK",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Laura"
+  },
+  {
+   "name": "Lekha",
+   "lang": "hi-IN",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Lekha"
+  },
+  {
+   "name": "Lesya",
+   "lang": "uk-UA",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Lesya"
+  },
+  {
+   "name": "Linh",
+   "lang": "vi-VN",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Linh"
+  },
+  {
+   "name": "Luciana",
+   "lang": "pt-BR",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Luciana"
+  },
+  {
+   "name": "Majed",
+   "lang": "ar-001",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Majed"
+  },
+  {
+   "name": "Meijia",
+   "lang": "zh-TW",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Meijia"
+  },
+  {
+   "name": "Melina",
+   "lang": "el-GR",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Melina"
+  },
+  {
+   "name": "Milena",
+   "lang": "ru-RU",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Milena"
+  },
+  {
+   "name": "Moira",
+   "lang": "en-IE",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Moira"
+  },
+  {
+   "name": "Montse",
+   "lang": "ca-ES",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Montse"
+  },
+  {
+   "name": "Mónica",
+   "lang": "es-ES",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Mónica"
+  },
+  {
+   "name": "Nora",
+   "lang": "nb-NO",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Nora"
+  },
+  {
+   "name": "Organ",
+   "lang": "en-US",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Organ"
+  },
+  {
+   "name": "Paulina",
+   "lang": "es-MX",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Paulina"
+  },
+  {
+   "name": "Piya",
+   "lang": "bn-IN",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Piya"
+  },
+  {
+   "name": "Ralph",
+   "lang": "en-US",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Ralph"
+  },
+  {
+   "name": "Reed (English (United Kingdom))",
+   "lang": "en-GB",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Reed (English (United Kingdom))"
+  },
+  {
+   "name": "Reed (English (United States))",
+   "lang": "en-US",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Reed (English (United States))"
+  },
+  {
+   "name": "Reed (Chinese (China mainland))",
+   "lang": "zh-CN",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Reed (Chinese (China mainland))"
+  },
+  {
+   "name": "Reed (Chinese (Taiwan))",
+   "lang": "zh-TW",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Reed (Chinese (Taiwan))"
+  },
+  {
+   "name": "Reed (German (Germany))",
+   "lang": "de-DE",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Reed (German (Germany))"
+  },
+  {
+   "name": "Reed (Spanish (Spain))",
+   "lang": "es-ES",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Reed (Spanish (Spain))"
+  },
+  {
+   "name": "Reed (Spanish (Mexico))",
+   "lang": "es-MX",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Reed (Spanish (Mexico))"
+  },
+  {
+   "name": "Reed (Finnish (Finland))",
+   "lang": "fi-FI",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Reed (Finnish (Finland))"
+  },
+  {
+   "name": "Reed (French (Canada))",
+   "lang": "fr-CA",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Reed (French (Canada))"
+  },
+  {
+   "name": "Reed (Italian (Italy))",
+   "lang": "it-IT",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Reed (Italian (Italy))"
+  },
+  {
+   "name": "Reed (Japanese (Japan))",
+   "lang": "ja-JP",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Reed (Japanese (Japan))"
+  },
+  {
+   "name": "Reed (Korean (South Korea))",
+   "lang": "ko-KR",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Reed (Korean (South Korea))"
+  },
+  {
+   "name": "Reed (Portuguese (Brazil))",
+   "lang": "pt-BR",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Reed (Portuguese (Brazil))"
+  },
+  {
+   "name": "Rishi",
+   "lang": "en-IN",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Rishi"
+  },
+  {
+   "name": "Rocko (English (United Kingdom))",
+   "lang": "en-GB",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Rocko (English (United Kingdom))"
+  },
+  {
+   "name": "Rocko (English (United States))",
+   "lang": "en-US",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Rocko (English (United States))"
+  },
+  {
+   "name": "Rocko (Chinese (China mainland))",
+   "lang": "zh-CN",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Rocko (Chinese (China mainland))"
+  },
+  {
+   "name": "Rocko (Chinese (Taiwan))",
+   "lang": "zh-TW",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Rocko (Chinese (Taiwan))"
+  },
+  {
+   "name": "Rocko (German (Germany))",
+   "lang": "de-DE",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Rocko (German (Germany))"
+  },
+  {
+   "name": "Rocko (Spanish (Spain))",
+   "lang": "es-ES",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Rocko (Spanish (Spain))"
+  },
+  {
+   "name": "Rocko (Spanish (Mexico))",
+   "lang": "es-MX",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Rocko (Spanish (Mexico))"
+  },
+  {
+   "name": "Rocko (Finnish (Finland))",
+   "lang": "fi-FI",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Rocko (Finnish (Finland))"
+  },
+  {
+   "name": "Rocko (French (Canada))",
+   "lang": "fr-CA",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Rocko (French (Canada))"
+  },
+  {
+   "name": "Rocko (French (France))",
+   "lang": "fr-FR",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Rocko (French (France))"
+  },
+  {
+   "name": "Rocko (Italian (Italy))",
+   "lang": "it-IT",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Rocko (Italian (Italy))"
+  },
+  {
+   "name": "Rocko (Japanese (Japan))",
+   "lang": "ja-JP",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Rocko (Japanese (Japan))"
+  },
+  {
+   "name": "Rocko (Korean (South Korea))",
+   "lang": "ko-KR",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Rocko (Korean (South Korea))"
+  },
+  {
+   "name": "Rocko (Portuguese (Brazil))",
+   "lang": "pt-BR",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Rocko (Portuguese (Brazil))"
+  },
+  {
+   "name": "Samantha",
+   "lang": "en-US",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Samantha"
+  },
+  {
+   "name": "Sandy (English (United Kingdom))",
+   "lang": "en-GB",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Sandy (English (United Kingdom))"
+  },
+  {
+   "name": "Sandy (English (United States))",
+   "lang": "en-US",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Sandy (English (United States))"
+  },
+  {
+   "name": "Sandy (Chinese (China mainland))",
+   "lang": "zh-CN",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Sandy (Chinese (China mainland))"
+  },
+  {
+   "name": "Sandy (Chinese (Taiwan))",
+   "lang": "zh-TW",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Sandy (Chinese (Taiwan))"
+  },
+  {
+   "name": "Sandy (German (Germany))",
+   "lang": "de-DE",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Sandy (German (Germany))"
+  },
+  {
+   "name": "Sandy (Spanish (Spain))",
+   "lang": "es-ES",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Sandy (Spanish (Spain))"
+  },
+  {
+   "name": "Sandy (Spanish (Mexico))",
+   "lang": "es-MX",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Sandy (Spanish (Mexico))"
+  },
+  {
+   "name": "Sandy (Finnish (Finland))",
+   "lang": "fi-FI",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Sandy (Finnish (Finland))"
+  },
+  {
+   "name": "Sandy (French (Canada))",
+   "lang": "fr-CA",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Sandy (French (Canada))"
+  },
+  {
+   "name": "Sandy (French (France))",
+   "lang": "fr-FR",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Sandy (French (France))"
+  },
+  {
+   "name": "Sandy (Italian (Italy))",
+   "lang": "it-IT",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Sandy (Italian (Italy))"
+  },
+  {
+   "name": "Sandy (Japanese (Japan))",
+   "lang": "ja-JP",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Sandy (Japanese (Japan))"
+  },
+  {
+   "name": "Sandy (Korean (South Korea))",
+   "lang": "ko-KR",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Sandy (Korean (South Korea))"
+  },
+  {
+   "name": "Sandy (Portuguese (Brazil))",
+   "lang": "pt-BR",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Sandy (Portuguese (Brazil))"
+  },
+  {
+   "name": "Sara",
+   "lang": "da-DK",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Sara"
+  },
+  {
+   "name": "Satu",
+   "lang": "fi-FI",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Satu"
+  },
+  {
+   "name": "Shelley (English (United Kingdom))",
+   "lang": "en-GB",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Shelley (English (United Kingdom))"
+  },
+  {
+   "name": "Shelley (English (United States))",
+   "lang": "en-US",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Shelley (English (United States))"
+  },
+  {
+   "name": "Shelley (Chinese (China mainland))",
+   "lang": "zh-CN",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Shelley (Chinese (China mainland))"
+  },
+  {
+   "name": "Shelley (Chinese (Taiwan))",
+   "lang": "zh-TW",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Shelley (Chinese (Taiwan))"
+  },
+  {
+   "name": "Shelley (German (Germany))",
+   "lang": "de-DE",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Shelley (German (Germany))"
+  },
+  {
+   "name": "Shelley (Spanish (Spain))",
+   "lang": "es-ES",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Shelley (Spanish (Spain))"
+  },
+  {
+   "name": "Shelley (Spanish (Mexico))",
+   "lang": "es-MX",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Shelley (Spanish (Mexico))"
+  },
+  {
+   "name": "Shelley (Finnish (Finland))",
+   "lang": "fi-FI",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Shelley (Finnish (Finland))"
+  },
+  {
+   "name": "Shelley (French (Canada))",
+   "lang": "fr-CA",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Shelley (French (Canada))"
+  },
+  {
+   "name": "Shelley (French (France))",
+   "lang": "fr-FR",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Shelley (French (France))"
+  },
+  {
+   "name": "Shelley (Italian (Italy))",
+   "lang": "it-IT",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Shelley (Italian (Italy))"
+  },
+  {
+   "name": "Shelley (Japanese (Japan))",
+   "lang": "ja-JP",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Shelley (Japanese (Japan))"
+  },
+  {
+   "name": "Shelley (Korean (South Korea))",
+   "lang": "ko-KR",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Shelley (Korean (South Korea))"
+  },
+  {
+   "name": "Shelley (Portuguese (Brazil))",
+   "lang": "pt-BR",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Shelley (Portuguese (Brazil))"
+  },
+  {
+   "name": "Sinji",
+   "lang": "yue-HK",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Sinji"
+  },
+  {
+   "name": "Soumya",
+   "lang": "kn-IN",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Soumya"
+  },
+  {
+   "name": "Superstar",
+   "lang": "en-US",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Superstar"
+  },
+  {
+   "name": "Tessa",
+   "lang": "en-ZA",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Tessa"
+  },
+  {
+   "name": "Thomas",
+   "lang": "fr-FR",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Thomas"
+  },
+  {
+   "name": "Tina",
+   "lang": "sl-SI",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Tina"
+  },
+  {
+   "name": "Tingting",
+   "lang": "zh-CN",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Tingting"
+  },
+  {
+   "name": "Trinoids",
+   "lang": "en-US",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Trinoids"
+  },
+  {
+   "name": "Tünde",
+   "lang": "hu-HU",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Tünde"
+  },
+  {
+   "name": "Vani",
+   "lang": "ta-IN",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Vani"
+  },
+  {
+   "name": "Whisper",
+   "lang": "en-US",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Whisper"
+  },
+  {
+   "name": "Wobble",
+   "lang": "en-US",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Wobble"
+  },
+  {
+   "name": "Xander",
+   "lang": "nl-NL",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Xander"
+  },
+  {
+   "name": "Yelda",
+   "lang": "tr-TR",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Yelda"
+  },
+  {
+   "name": "Yuna",
+   "lang": "ko-KR",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Yuna"
+  },
+  {
+   "name": "Zarvox",
+   "lang": "en-US",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Zarvox"
+  },
+  {
+   "name": "Zosia",
+   "lang": "pl-PL",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Zosia"
+  },
+  {
+   "name": "Zuzana",
+   "lang": "cs-CZ",
+   "localService": true,
+   "default": false,
+   "voiceURI": "Zuzana"
+  },
+  {
+   "name": "Google Deutsch",
+   "lang": "de-DE",
+   "localService": false,
+   "default": false,
+   "voiceURI": "Google Deutsch"
+  },
+  {
+   "name": "Google US English",
+   "lang": "en-US",
+   "localService": false,
+   "default": false,
+   "voiceURI": "Google US English"
+  },
+  {
+   "name": "Google UK English Female",
+   "lang": "en-GB",
+   "localService": false,
+   "default": false,
+   "voiceURI": "Google UK English Female"
+  },
+  {
+   "name": "Google UK English Male",
+   "lang": "en-GB",
+   "localService": false,
+   "default": false,
+   "voiceURI": "Google UK English Male"
+  },
+  {
+   "name": "Google español",
+   "lang": "es-ES",
+   "localService": false,
+   "default": false,
+   "voiceURI": "Google español"
+  },
+  {
+   "name": "Google español de Estados Unidos",
+   "lang": "es-US",
+   "localService": false,
+   "default": false,
+   "voiceURI": "Google español de Estados Unidos"
+  },
+  {
+   "name": "Google français",
+   "lang": "fr-FR",
+   "localService": false,
+   "default": false,
+   "voiceURI": "Google français"
+  },
+  {
+   "name": "Google हिन्दी",
+   "lang": "hi-IN",
+   "localService": false,
+   "default": false,
+   "voiceURI": "Google हिन्दी"
+  },
+  {
+   "name": "Google Bahasa Indonesia",
+   "lang": "id-ID",
+   "localService": false,
+   "default": false,
+   "voiceURI": "Google Bahasa Indonesia"
+  },
+  {
+   "name": "Google italiano",
+   "lang": "it-IT",
+   "localService": false,
+   "default": false,
+   "voiceURI": "Google italiano"
+  },
+  {
+   "name": "Google 日本語",
+   "lang": "ja-JP",
+   "localService": false,
+   "default": false,
+   "voiceURI": "Google 日本語"
+  },
+  {
+   "name": "Google 한국의",
+   "lang": "ko-KR",
+   "localService": false,
+   "default": false,
+   "voiceURI": "Google 한국의"
+  },
+  {
+   "name": "Google Nederlands",
+   "lang": "nl-NL",
+   "localService": false,
+   "default": false,
+   "voiceURI": "Google Nederlands"
+  },
+  {
+   "name": "Google polski",
+   "lang": "pl-PL",
+   "localService": false,
+   "default": false,
+   "voiceURI": "Google polski"
+  },
+  {
+   "name": "Google português do Brasil",
+   "lang": "pt-BR",
+   "localService": false,
+   "default": false,
+   "voiceURI": "Google português do Brasil"
+  },
+  {
+   "name": "Google русский",
+   "lang": "ru-RU",
+   "localService": false,
+   "default": false,
+   "voiceURI": "Google русский"
+  },
+  {
+   "name": "Google 普通话（中国大陆）",
+   "lang": "zh-CN",
+   "localService": false,
+   "default": false,
+   "voiceURI": "Google 普通话（中国大陆）"
+  },
+  {
+   "name": "Google 粤語（香港）",
+   "lang": "zh-HK",
+   "localService": false,
+   "default": false,
+   "voiceURI": "Google 粤語（香港）"
+  },
+  {
+   "name": "Google 國語（臺灣）",
+   "lang": "zh-TW",
+   "localService": false,
+   "default": false,
+   "voiceURI": "Google 國語（臺灣）"
+  }
+ ]
+}

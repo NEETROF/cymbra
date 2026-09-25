@@ -327,6 +327,34 @@ describe("SyncEngine privacy controls (add-lingua-privacy-controls)", () => {
     expect(calls.appliedCards[0][0].source).toBe("");
   });
 
+  it("never sends the book a card was captured from either (add-lingua-reader)", async () => {
+    const f = fakeClients();
+    const { port } = syncPort({
+      cardOps: [
+        {
+          client_id: "seldom",
+          language: "en",
+          lemma: "seldom",
+          surface_form: "seldom",
+          source_sentence: "They seldom spoke of it.",
+          source: "The Hound of the Baskervilles · I: Mr. Sherlock Holmes",
+          gloss: "",
+          fsrs_state: "{}",
+          deleted: false,
+          client_ts: 5,
+          device_id: "",
+        },
+      ],
+    });
+    const engine = new SyncEngine({ port, storage: fakeArea(v2("B")), clients: () => f.clients, deviceId: "d" });
+    await engine.sync();
+    const [request] = f.pushCards.mock.calls[0] as unknown as [{ cards: Record<string, unknown>[] }];
+    const pushed = request.cards[0];
+    expect(pushed).not.toHaveProperty("source");
+    expect(JSON.stringify(pushed, (_, v) => (typeof v === "bigint" ? String(v) : v))).not.toContain("Baskervilles");
+    expect(pushed.sourceSentence).toBe("They seldom spoke of it.");
+  });
+
   it("empties a device whose store predates the erasure before pushing anything", async () => {
     const f = fakeClients();
     f.getDataState.mockResolvedValue({ erasedAt: BigInt(MARK) });

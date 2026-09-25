@@ -61,7 +61,12 @@ The extension SHALL speak only with a voice that the browser reports as running 
 and whose language is the studied language, and SHALL never pass page text to a voice that
 synthesises remotely, even when that voice is the browser's default or the only one available.
 With no eligible voice the card SHALL show no listen row. Read-aloud SHALL add no permission
-and no network request of the extension's own, and SHALL work offline.
+and no network request of the extension's own, and SHALL work offline. The language SHALL be
+recognised in its two- and three-letter forms (`en`, `eng`).
+
+#### Scenario: Three-letter language codes
+- **WHEN** a browser lists a voice as `eng-GBR-default`
+- **THEN** it is a voice of the studied language, from the United Kingdom
 
 #### Scenario: A remote voice is the default
 - **WHEN** the browser's default voice for the studied language synthesises remotely and an on-device voice for it exists
@@ -79,17 +84,69 @@ and no network request of the extension's own, and SHALL work offline.
 - **WHEN** the browser lists its voices only after the card has opened
 - **THEN** the listen row appears on that card once an eligible voice is listed, without the reader reopening it
 
+### Requirement: Android's own voices speak only on the reader's say-so
+Android's own voices SHALL speak only once the reader has allowed them in Réglages, never by
+default: Firefox for Android reports every voice of Android's engine as not local, because it
+cannot tell where that engine synthesises. Réglages SHALL offer that switch only where the
+browser lists such voices, SHALL say beside it that the text read may then leave the device
+depending on the engine chosen in Android, and SHALL no longer claim that the voices stay on the
+device while it is on. The choice SHALL be kept on the device and never synchronised.
+
+#### Scenario: By default
+- **WHEN** a reader on Firefox for Android opens a card
+- **THEN** the card shows no listen row, and Réglages offers "Utiliser la voix d'Android", off, with the note saying why
+
+#### Scenario: Allowed
+- **WHEN** the reader switches "Utiliser la voix d'Android" on
+- **THEN** the cards offer the listen row, speaking with Android's English voices, and Réglages lists those voices
+
+#### Scenario: Elsewhere
+- **WHEN** the browser lists no voice of Android's engine
+- **THEN** Réglages shows no such switch
+
+### Requirement: One Réglages on every surface
+Réglages SHALL be built by a single implementation that every surface renders — the side
+panel, the in-page drawer and the toolbar popup — so that a setting added to Réglages appears
+on all of them at once. No surface SHALL keep a Réglages block of its own.
+
+#### Scenario: The toolbar popup
+- **WHEN** the reader opens Réglages from the toolbar popup
+- **THEN** it shows the same blocks as the side panel and the in-page drawer, the read-aloud block included
+
+#### Scenario: A block added later
+- **WHEN** a block is added to Réglages
+- **THEN** the side panel, the in-page drawer and the toolbar popup all show it, with no change to any of them
+
 ### Requirement: The reader chooses the voice
 Réglages SHALL show a read-aloud block listing the eligible voices, with an automatic choice
 selected by default and a way to hear each voice, and SHALL leave the block out when there is no
 eligible voice. The choice SHALL be kept on the device as a preference. The automatic choice
-SHALL prefer an eligible voice the browser marks as default, and otherwise SHALL never pick a
-novelty voice while an ordinary one exists. A chosen voice that is no longer listed SHALL fall
-back to the automatic choice.
+SHALL prefer the eligible voice the browser marks as default when it is the only voice so
+marked, and otherwise SHALL never pick a novelty voice while an ordinary one exists. The block
+SHALL list the ordinary voices first and the novelty voices after them, in a group of their own,
+whatever language the device names them in. A voice the device offers in several qualities
+SHALL be listed once, in its best quality.
+A chosen voice that is no longer listed SHALL fall back to the automatic choice.
 
 #### Scenario: The automatic choice on macOS
 - **WHEN** the eligible voices are listed with novelty voices such as "Albert" and "Bubbles" before an ordinary voice such as "Samantha"
 - **THEN** the automatic choice is the ordinary voice
+
+#### Scenario: Every voice marked default
+- **WHEN** the browser marks every voice as default and lists novelty voices before an ordinary one
+- **THEN** the automatic choice is the ordinary voice, not the first voice listed
+
+#### Scenario: Novelty voices out of the way
+- **WHEN** the eligible voices include novelty voices
+- **THEN** Réglages lists the ordinary voices first and the novelty voices in an "Autres voix" group at the bottom
+
+#### Scenario: Novelty voices named in the reader's language
+- **WHEN** an iPhone set to French names its novelty voices "Bulles", "Murmure" or "Cloches"
+- **THEN** they are listed under "Autres voix" and the automatic choice is still an ordinary voice
+
+#### Scenario: One voice in two qualities
+- **WHEN** the device lists the same voice twice, in a compact and a super-compact quality
+- **THEN** Réglages lists it once, and the compact one is the voice that speaks when chosen
 
 #### Scenario: A chosen voice
 - **WHEN** the reader chooses a voice in Réglages and then listens from a card

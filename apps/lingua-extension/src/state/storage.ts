@@ -1,5 +1,6 @@
 import type { LinguaPort } from "../analyzer/port.ts";
 import type { LemmaStatus } from "../analyzer/types.ts";
+import type { SpeechSettings, VoicePreference } from "../reading/speech.ts";
 
 // Versioned local state (designs D4 + the review change). The authoritative state is
 // lingua-core's LinguaState, held by the WASM engine and persisted as its lossless
@@ -36,6 +37,47 @@ export const HUD_HIDDEN_KEY = "cymbra-lingua-hud-hidden";
  * it on any successful sign-in or refresh, and when the reader signs out on purpose.
  */
 export const SESSION_LOST_KEY = "cymbra-lingua-session-lost";
+
+/**
+ * The voice the reader chose to hear read aloud, as its `voiceURI`; absent or null means the
+ * automatic choice. A preference, not the reader's data: voice identifiers are per platform, so
+ * it is never synchronised.
+ */
+export const VOICE_KEY = "cymbra-lingua-voice";
+
+/**
+ * Whether the reader allowed Android's own voices (Firefox for Android, which cannot tell whether
+ * that engine synthesises on the device). Absent means not allowed. Per device, never synchronised.
+ */
+export const ANDROID_VOICES_KEY = "cymbra-lingua-android-voices";
+
+/**
+ * How the book reader lays a book out: `paginated` (the default — pages turned by tap, suited
+ * to e-ink) or `scrolled` (one continuous column, for a laptop). A preference, set in the
+ * Réglages view every host renders; the reader page follows its `storage.onChanged`.
+ */
+export const READER_FLOW_KEY = "cymbra-lingua-reader-flow";
+
+export type ReaderFlow = "paginated" | "scrolled";
+
+/** How the book reader shows a book's text: its size and the colour of its page. */
+export const READER_DISPLAY_KEY = "cymbra-lingua-reader-display";
+
+/** Paper (the book's own colours, on a light page) or dark (light text on the night page). */
+export type ReaderTheme = "paper" | "dark";
+
+export interface ReaderDisplay {
+  /** The text size, in percent of the book's own. */
+  textScale: number;
+  theme: ReaderTheme;
+}
+
+/** The text sizes offered, in percent: small steps, none so large a line holds three words. */
+export const TEXT_SCALE_MIN = 80;
+export const TEXT_SCALE_MAX = 200;
+export const TEXT_SCALE_STEP = 10;
+
+export const DEFAULT_READER_DISPLAY: ReaderDisplay = { textScale: 100, theme: "paper" };
 
 /** The minimal async storage surface we need; chrome.storage.local satisfies it. */
 export interface AsyncStorageArea {
@@ -110,6 +152,80 @@ export async function loadHudHidden(area: AsyncStorageArea): Promise<boolean> {
 /** Set the HUD-hidden flag. */
 export async function saveHudHidden(area: AsyncStorageArea, hidden: boolean): Promise<void> {
   await area.set({ [HUD_HIDDEN_KEY]: hidden });
+}
+
+/** The chosen voice's `voiceURI`, or null for the automatic choice. */
+export async function loadVoice(area: AsyncStorageArea): Promise<string | null> {
+  const got = await area.get(VOICE_KEY);
+  const uri = got[VOICE_KEY];
+  return typeof uri === "string" && uri !== "" ? uri : null;
+}
+
+/** Keep a voice, or null to go back to the automatic choice. */
+export async function saveVoice(area: AsyncStorageArea, voiceURI: string | null): Promise<void> {
+  await area.set({ [VOICE_KEY]: voiceURI });
+}
+
+/** Whether Android's own voices may speak; absent means not allowed. */
+export async function loadAndroidVoices(area: AsyncStorageArea): Promise<boolean> {
+  const got = await area.get(ANDROID_VOICES_KEY);
+  return got[ANDROID_VOICES_KEY] === true;
+}
+
+/** Allow or refuse Android's own voices. */
+export async function saveAndroidVoices(area: AsyncStorageArea, allowed: boolean): Promise<void> {
+  await area.set({ [ANDROID_VOICES_KEY]: allowed });
+}
+
+/** The read-aloud settings in `area`, followed in every context through `storage.onChanged`. */
+export function storedVoicePreference(area: AsyncStorageArea): VoicePreference {
+  const load = async (): Promise<SpeechSettings> => ({
+    voice: await loadVoice(area),
+    androidVoices: await loadAndroidVoices(area),
+  });
+  return {
+    load,
+    watch(onChange) {
+      chrome.storage.onChanged.addListener((changes, areaName) => {
+        if (areaName !== "local" || !(changes[VOICE_KEY] || changes[ANDROID_VOICES_KEY])) return;
+        void load().then(onChange);
+      });
+    },
+  };
+}
+
+/** A stored value read as a reader flow; anything but `scrolled` is the paginated default. */
+export function readerFlowOf(value: unknown): ReaderFlow {
+  return value === "scrolled" ? "scrolled" : "paginated";
+}
+
+/** How the book reader lays a book out; paginated unless the reader chose otherwise. */
+export async function loadReaderFlow(area: AsyncStorageArea): Promise<ReaderFlow> {
+  return readerFlowOf((await area.get(READER_FLOW_KEY))[READER_FLOW_KEY]);
+}
+
+export async function saveReaderFlow(area: AsyncStorageArea, flow: ReaderFlow): Promise<void> {
+  await area.set({ [READER_FLOW_KEY]: flow });
+}
+
+/** A stored display, made safe: a size on the offered steps, a theme the reader knows. */
+export function readerDisplayOf(value: unknown): ReaderDisplay {
+  const v = (value ?? {}) as Partial<ReaderDisplay>;
+  const raw = typeof v.textScale === "number" && Number.isFinite(v.textScale) ? v.textScale : 100;
+  const stepped = Math.round(raw / TEXT_SCALE_STEP) * TEXT_SCALE_STEP;
+  return {
+    textScale: Math.min(TEXT_SCALE_MAX, Math.max(TEXT_SCALE_MIN, stepped)),
+    theme: v.theme === "dark" ? "dark" : "paper",
+  };
+}
+
+/** How the book reader shows text; the book's own size on paper unless the reader chose otherwise. */
+export async function loadReaderDisplay(area: AsyncStorageArea): Promise<ReaderDisplay> {
+  return readerDisplayOf((await area.get(READER_DISPLAY_KEY))[READER_DISPLAY_KEY]);
+}
+
+export async function saveReaderDisplay(area: AsyncStorageArea, display: ReaderDisplay): Promise<void> {
+  await area.set({ [READER_DISPLAY_KEY]: readerDisplayOf(display) });
 }
 
 /**

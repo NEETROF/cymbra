@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReviewView } from "@/review/session.ts";
-import { type ReviewActions, renderReview } from "@/review/view.ts";
+import { type ReviewActions, renderReview, sourceLabel } from "@/review/view.ts";
 
 let root: HTMLElement;
 let actions: ReviewActions;
@@ -60,8 +60,29 @@ describe("renderReview", () => {
     expect(actions.markKnown).toHaveBeenCalledOnce();
   });
 
+  it("shows where the word was met once revealed: a book as it is, a page by its site", () => {
+    const book = "The Hound of the Baskervilles · I: Mr. Sherlock Holmes";
+    renderReview(root, { phase: "reviewing", card: card({ source: book }) }, actions);
+    expect(root.querySelector(".review-source")).toBeNull(); // part of the answer
+    renderReview(root, { phase: "reviewing", card: card({ revealed: true, source: book }) }, actions);
+    expect(root.querySelector(".review-source")!.textContent).toBe(book);
+    renderReview(root, { phase: "reviewing", card: card({ revealed: true, source: "" }) }, actions);
+    expect(root.querySelector(".review-source")).toBeNull();
+  });
+
   it("never renders the word 'lemma'/'lemme'", () => {
     renderReview(root, { phase: "reviewing", card: card({ revealed: true }) }, actions);
     expect(root.textContent ?? "").not.toMatch(/lemm/i);
+  });
+});
+
+describe("sourceLabel", () => {
+  it("names a page by its site, keeps a book's title and chapter, and nothing as nothing", () => {
+    expect(sourceLabel("https://www.theguardian.com/world/2026/sep/01/x")).toBe("theguardian.com");
+    expect(sourceLabel("http://example.org/")).toBe("example.org");
+    expect(sourceLabel("Emma · Chapter 3")).toBe("Emma · Chapter 3");
+    expect(sourceLabel("mailto:someone@example.org")).toBe("mailto:someone@example.org");
+    expect(sourceLabel("")).toBe("");
+    expect(sourceLabel(undefined)).toBe("");
   });
 });
