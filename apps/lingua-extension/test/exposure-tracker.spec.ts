@@ -111,13 +111,55 @@ describe("ExposureTracker", () => {
     expect(io().observed).toEqual([]);
   });
 
-  it("tracks nothing before it has been started", () => {
+  it("observes, once started, what was tracked before — reading counts from the first paint", async () => {
+    // The first paint tracks its blocks before start() creates the observer. Dropping them meant
+    // a reader who made no gesture never had a block recorded as read.
     const a = block("a", ["run"]);
     makeTracker();
 
+    tracker.track(new Map([[a, ["run", "walk"]]]));
+    expect(FakeObserver.last).toBeNull();
+
+    tracker.start();
+    expect(io().observed).toEqual([a]);
+    io().fire([[a, true]]);
+    await vi.advanceTimersByTimeAsync(DWELL);
+    expect(reported).toEqual([["run", "walk"]]);
+  });
+
+  it("does not observe, on start, a block that left the page meanwhile", () => {
+    const a = block("a", ["run"]);
+    makeTracker();
+    tracker.track(new Map([[a, ["run"]]]));
+    a.remove();
+
+    tracker.start();
+    expect(io().observed).toEqual([]);
+  });
+
+  it("skips, tracked before a restart, a block it has already reported", async () => {
+    const a = block("a", ["run"]);
+    makeTracker().start();
+    tracker.track(new Map([[a, ["run"]]]));
+    io().fire([[a, true]]);
+    await vi.advanceTimersByTimeAsync(DWELL);
+
+    tracker.stop();
+    tracker.track(new Map([[a, ["run"]]]));
+    tracker.start();
+
+    expect(io().observed).toEqual([]);
+    expect(reported).toEqual([["run"]]);
+  });
+
+  it("forgets, when stopped, what was tracked before it started", () => {
+    const a = block("a", ["run"]);
+    makeTracker();
     tracker.track(new Map([[a, ["run"]]]));
 
-    expect(FakeObserver.last).toBeNull();
+    tracker.stop();
+    tracker.start();
+    expect(io().observed).toEqual([]);
   });
 
   it("reports a container's lemmas once it has been visible for the dwell", async () => {
