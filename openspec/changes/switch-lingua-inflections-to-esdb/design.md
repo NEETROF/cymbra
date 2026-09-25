@@ -23,12 +23,12 @@ POS, alternatives in parentheses, each prefixed by per-spelling variant levels
 - Inflections from a maintained source, pinned like every other.
 - The measured gain (+353 glosses, +65 resolved tokens on the sample) with none of the measured
   regressions.
-- No reader loses a status because a form now belongs to another lemma.
 
 **Non-Goals:**
 - Using ESDB's word list, sizes or spelling-variant tables for anything but inflections.
 - Changing `own_words`, `canonical_ranks` or the lemma set's source (wordfreq).
-- Migrating deck cards: a card keeps the key it was created with.
+- Migrating readers' statuses or deck cards to the lemmas forms move to: Lingua has no readers yet
+  (product owner, 2026-09-25). The pack format, the builder and the core stay as they are.
 
 ## Decisions
 
@@ -70,29 +70,11 @@ to *nanny*, *stocks* to *mot*, *coats* to *coast* and *born* to *bear*; with it,
 
 (*les* and *os*, which AGID sends to *le* and *o*, come out right: ESDB keeps them whole.)
 
-The general rules behind them (a lemma of one or two letters is never the target of a merge; an
+The general rules behind them (a longer form is never sent to a lemma of one or two letters; an
 adjective a dictionary lists as a word of its own stays one) go into the reducer with tests; the
 update report (from `pin-lingua-pack-sources`) lists every remaining change for review.
 
-### D5 — Statuses follow a merged form
-
-The update computes, from the old and new tables, the **merges**: a form that was its own lemma
-(or another word's form) and now belongs to a different lemma. The pack carries them as an optional
-section (`old lemma → new lemma`), built by `lingua-pack-build` from a `merges.tsv` table the reducer
-writes.
-
-The core, loading a pack whose `pack_version` it has not applied merges for, sets for each merge
-the new lemma's status to the old lemma's — only when the reader gave the old one an explicit status
-and the new one has none — as an ordinary status change at that moment, then records the version.
-It synchronises like any status; a device still on the previous pack receives a status for a lemma
-it also knows, which changes nothing there.
-
-*Rejected — no carry-over:* the reader re-marks the words, and the percentage counts the merged
-forms as unknown until they do: small (0.38 % of tokens) but visible exactly to the readers who
-used the product most. *Rejected — rewriting the old keys:* a status keyed by the old lemma may be
-the other device's truth; adding to the new lemma never contradicts anything.
-
-### D6 — Notices
+### D5 — Notices
 
 ESDB's copyright notice (Kevin Atkinson, permissive, notice required in copies) replaces AGID's in
 the pack's NOTICE and on the attributions page; the licence list of **Licence hygiene** names ESDB.
@@ -105,16 +87,15 @@ the distributed database is under the permissive notice above.
   commit; an update to a later ESDB is a reviewed update, and the parser's tests pin the grammar.
 - **[A sample of 160 Wikipedia articles]** — a formal register. → The update report runs on every
   update; a blog or tech sample is added to the measurement (task 1.2).
-- **[Merges misfire]** — a wrong merge carries a status to the wrong word. → Only an explicit status
-  moves, only onto a lemma without one; the merges list is part of the reviewed diff.
+- **[Readers arrive before this lands]** — their statuses on a lemma that moves would stop applying
+  to the forms that moved. → Revisit then: a carry-over (a merges list in the pack, applied once by
+  the core) is a change of its own.
 
 ## Migration Plan
 
-Land the parser, the rules and the merges section behind the re-reduce mode; run the re-reduce;
-review its `forms.tsv` and `merges.tsv` diff; merge. Rollback: re-reduce with AGID (still pinned),
-whose merges back are applied the same way.
+Land the parser and the rules behind the re-reduce mode; run the re-reduce; review its
+`forms.tsv` and `freq.tsv` diff; merge. Rollback: re-reduce with AGID, still pinned.
 
 ## Open Questions
 
-- Should the merges also move deck cards (re-key *smartphones*' card to *smartphone*) when the new
-  lemma has no card? Proposed: no (non-goal); to revisit with readers' decks.
+None. (Carrying readers' data over was settled: not needed, there are no readers yet.)

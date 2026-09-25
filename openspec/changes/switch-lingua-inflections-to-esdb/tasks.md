@@ -12,19 +12,12 @@
 - [ ] 2.4 kaikki `form_of` relations, regular inflections only (D3); tests including *occupied*, *stocks*, *coats*, *born*
 - [ ] 2.5 The regressions of D4 fixed by general rules, each with a test; the update report shows no other change the reviewer has not accepted
 
-## 3. Merges and the reader's statuses
+## 3. Notices and data
 
-- [ ] 3.1 The reducer writes `merges.tsv` from the previous and the new tables; no one- or two-letter target
-- [ ] 3.2 `lingua-pack-build` writes an optional merges section; the pack format stays readable by the current core (absent section = no merge); `cargo test -p lingua-pack`
-- [ ] 3.3 `lingua-core` applies merges once per `pack_version`: explicit status only, onto a lemma without one, as a status change at that time; the applied version recorded in the state; tests per scenario of `lingua-knowledge-model`
-- [ ] 3.4 The extension and the Safari app carry the change through their existing engine; sync tests: a carried-over status reaches another device like any other
+- [ ] 3.1 ESDB's notice in the reducer's NOTICE and the pack; the attributions page shows it; `SOURCES.md` updated (ESDB, kaikki `form_of`, AGID retired)
+- [ ] 3.2 Re-reduce with ESDB + kaikki; review the `forms.tsv` and `freq.tsv` diff; merge it through the update flow of `pin-lingua-pack-sources`
 
-## 4. Notices and data
+## 4. Gates
 
-- [ ] 4.1 ESDB's notice in the reducer's NOTICE and the pack; the attributions page shows it; `SOURCES.md` updated (ESDB, kaikki `form_of`, AGID retired)
-- [ ] 4.2 Re-reduce with ESDB + kaikki; review the `forms.tsv`, `freq.tsv` and `merges.tsv` diff; merge it through the update flow of `pin-lingua-pack-sources`
-
-## 5. Gates
-
-- [ ] 5.1 `openspec validate switch-lingua-inflections-to-esdb --strict`
-- [ ] 5.2 Reducer tests, `cargo test -p lingua-pack -p lingua-core`, extension check lane green; the measurement re-run on the committed tables matches the design's figures
+- [ ] 4.1 `openspec validate switch-lingua-inflections-to-esdb --strict`
+- [ ] 4.2 Reducer tests, `cargo test -p lingua-pack`, extension check lane green; the measurement re-run on the committed tables matches the design's figures

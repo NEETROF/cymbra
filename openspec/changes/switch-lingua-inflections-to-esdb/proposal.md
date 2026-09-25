@@ -36,9 +36,9 @@ the other lacks; together they do best on every count.
 - **The regressions the measurement found are fixed before release**, each with a test: *fewer*,
   *des*, *dis*, *renowned*, *vested*, *roses* — and the rule that today drops AGID's
   numbered variants by accident is made explicit.
-- **What a reader marked follows the word.** When the new tables merge a form into another lemma
-  (*smartphones* into *smartphone*), a status the reader gave the old lemma carries over to the new
-  one if it has none — once per pack version, as an ordinary status change, so it synchronises.
+- **No migration of readers' data.** Lingua has no readers yet (product owner, 2026-09-25), so a
+  status or a deck card keyed by a lemma that moves (*smartphones* → *smartphone*) is not carried
+  over; the update report lists every such move for review.
 - **The notices follow the source**: ESDB's copyright notice replaces AGID's in every pack and on
   the attributions page.
 
@@ -51,23 +51,21 @@ None.
 ### Modified Capabilities
 
 - `lingua-data-packs`: **modified** — **Licence hygiene** (ESDB instead of AGID, its notice
-  embedded). **Added** — **A pack lists the lemmas it merges** (the merges an update makes, carried
-  in the pack).
-- `lingua-knowledge-model`: **added** — **A dictionary update keeps what the reader marked**.
+  embedded; archaic and rarer variants are not inflections).
 
 ## Impact
 
-**Products.** Cymbra Lingua only: every package's pack (Chromium, Firefox, Safari), the reducer,
-the pack builder and reader (`crates/lingua-pack`, `crates/lingua-core`) for the merges section, and
-the attributions page. ID, Music, Live, the back office and the site are untouched.
+**Products.** Cymbra Lingua only: every package's pack (Chromium, Firefox, Safari), the reducer and
+the attributions page. The pack format, the builder and the core are unchanged. ID, Music, Live, the back office and the site are untouched.
 
 **Consumed, not redeclared.** The pinned sources, committed tables, re-reduce and update modes of
 `pin-lingua-pack-sources` — this change is applied through them, so its `forms.tsv` diff is
 reviewed line by line. Knowledge stays keyed by `(language, lemma)`; sync, statuses and the deck are
-unchanged in shape.
+untouched.
 
 **Ordering.** Archives after `pin-lingua-pack-sources`, whose design records AGID as pinned and a
 switch as a change of its own.
 
 **Readers.** About 0.38 % of tokens get a different lemma, most of them merges of a plural into its
-singular. A card in the deck keeps its key; statuses carry over as above.
+singular. There are no readers whose statuses or deck this could disturb; were that to change before
+this lands, a carry-over would be a change of its own.
