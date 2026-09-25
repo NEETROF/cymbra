@@ -1,37 +1,44 @@
 ## 1. Before any code
 
-- [ ] 1.1 Decide the open questions of design.md: the refresh opens the pull request itself or prints the pin; a raw-source snapshot or none; a refresh cadence or on demand
-- [ ] 1.2 Confirm the builder's determinism across machines: build the current tables on macOS and on `ubuntu-24.04`, compare the pack sha256 (zstd level 19, `Cargo.lock` versions)
+- [ ] 1.1 Confirm the builder's determinism across machines: build the same tables on macOS and on `ubuntu-24.04`, compare the pack sha256 (zstd level 19, `Cargo.lock` versions)
+- [ ] 1.2 Check that the reducer's output is itself deterministic: two reductions of the same raw sources give identical tables (ordering, floating point, dict iteration)
 
-## 2. The pin and the pinned build
+## 2. Pinned raw sources and the record
 
-- [ ] 2.1 `scripts/lingua-data/pack-pin.json` (design D2), empty for `en-fr` until the first snapshot; a small reader shared by the build and the checks
-- [ ] 2.2 `build.sh` pinned mode (D3): fetch the tables asset of the pinned release, check its sha256, unpack, run `lingua-pack-build`, check the pack's sha256; clear errors naming the release and the expected hashes
-- [ ] 2.3 `build.sh --live` mode (D3): today's fetch and reduce, recording each source's url, date, Last-Modified, size and sha256; `--pack-version <snapshot>` passed to the reducer (D5)
-- [ ] 2.4 `yarn gen:pack:real` runs the pinned mode; a separate script runs the live mode; `yarn gen:pack` (testdata) unchanged
-- [ ] 2.5 Tests: the pinned mode refuses a tables asset or a pack whose sha256 differs; the live mode records the provenance
+- [ ] 2.1 `scripts/lingua-data/tables/en-fr/pin.json` (design D2) and a small reader shared by `build.sh` and the checks
+- [ ] 2.2 AGID, CEFR-J and Octanove fetched at a commit (not a branch) and checked by sha256 (D3)
+- [ ] 2.3 `requirements-reduce.txt`: `wordfreq==3.1.1` and its dependencies, hash-pinned; a fixed Python version for every mode that reduces
+- [ ] 2.4 kaikki snapshot: zstd-compressed, published as release `lingua-pack-sources-en-fr-<snapshot>` (never replacing one), notes carrying its licence; fetched back and checked by sha256 in re-reduce mode
 
-## 3. The refresh
+## 3. The three modes of `build.sh`
 
-- [ ] 3.1 `requirements-refresh.txt` with `wordfreq==3.1.1` and its dependencies, hash-pinned; the refresh pins its Python version
-- [ ] 3.2 A diff report between two table sets: lemmas, glosses, levels, expressions added / removed / changed (counts and samples), pack size against the 5 MB budget; tests on small fixtures
-- [ ] 3.3 `lingua-pack-refresh` workflow (manual): live build, report in the run summary, new release `lingua-pack-en-fr-<date>` (never replacing one), pin change proposed as decided in 1.1
-- [ ] 3.4 Add the workflow to `scripts/check_ci_units.py`'s view if it watches a unit; name it per the repository's `<target>-<verb>` convention
+- [ ] 3.1 Build mode (D4): `lingua-pack-build` on `tables/en-fr/`, pack sha256 checked against `pin.json`; `yarn gen:pack:real` runs it; offline, no Python
+- [ ] 3.2 Re-reduce mode: pinned raw sources → reducer → tables; `pack` and `reducer` updated in `pin.json`
+- [ ] 3.3 Update mode: live sources recorded in `pin.json`, new kaikki snapshot, reduce → tables
+- [ ] 3.4 `--pack-version <snapshot>` passed to the reducer instead of the constant `1.0.0` (D8)
+- [ ] 3.5 Tests: Build mode refuses a pack whose sha256 differs; re-reduce refuses a raw source whose sha256 differs; the record round-trips
 
-## 4. Every lane uses the pin
+## 4. Update workflow and monthly check
 
-- [ ] 4.1 `lingua-extension-release`: pinned `gen:pack:real`; remove the raw-source `actions/cache` and `pip install wordfreq`; replace the "at least 1 MB" guard by the pack sha256
-- [ ] 4.2 `lingua-apple-release`: the same
-- [ ] 4.3 `lingua-extension-check`: the pinned asset exists and matches; `reduce-en-fr.py` matches `reducer.sha256` (fails asking for a refresh)
-- [ ] 4.4 `make_source_archive.sh` carries the pinned `tables.tgz`; `REVIEWERS.md` rebuilds the pack from it with no download and states the expected sha256; the check lane's archive rebuild does exactly that and compares the hash
+- [ ] 4.1 A diff report between two table sets: lemmas, glosses, levels, expressions added / removed / changed (counts and samples), pack size against the 5 MB budget; tests on small fixtures
+- [ ] 4.2 `lingua-pack-update` workflow, manual (`mode`: `update` | `reduce`): pinned environment, kaikki release when new, branch `lingua-pack/<snapshot>` with the tables and `pin.json`, report and "open the pull request" link in the summary; never opens or approves a pull request (D6)
+- [ ] 4.3 Monthly schedule in dry mode (D7): report only; fails when a source cannot be fetched, the reducer fails, or a table loses more than the threshold (set from the first runs)
+- [ ] 4.4 Name per the `<target>-<verb>` convention; `python3 scripts/check_ci_units.py` still passes
 
-## 5. First snapshot
+## 5. Every lane uses the committed tables
 
-- [ ] 5.1 Dispatch the refresh once; review its report (first snapshot = what the current pipeline produces)
-- [ ] 5.2 Merge the pin change; switch both release lanes to the pinned mode if not done in 4.x
-- [ ] 5.3 Update `scripts/lingua-data/SOURCES.md` and the extension's README: sources are read only by the refresh; where the snapshot lives
+- [ ] 5.1 `lingua-extension-release`: Build mode; remove the raw-source `actions/cache`, `pip install wordfreq` and the "at least 1 MB" guard
+- [ ] 5.2 `lingua-apple-release`: the same
+- [ ] 5.3 `lingua-extension-check`: Build mode on every pull request touching the extension or the pipeline (sha256 and budget); fails when `reduce-en-fr.py` no longer matches `reducer.sha256`; keeps the testdata pack for the extension's tests
+- [ ] 5.4 `REVIEWERS.md`: the pack rebuilds from the committed tables with no download, expected sha256 stated; the check lane's archive rebuild does exactly that and compares the hash
 
-## 6. Gates
+## 6. First tables
 
-- [ ] 6.1 `openspec validate pin-lingua-pack-sources --strict`
-- [ ] 6.2 Reducer unit tests, `cargo test -p lingua-pack`, extension check lane green; a release dry run (dispatch without tag) builds the pinned pack with no request to kaikki, GitHub raw or PyPI
+- [ ] 6.1 Dispatch the update once (first snapshot = what the current pipeline produces that day); open and merge its pull request
+- [ ] 6.2 `scripts/lingua-data/tables/en-fr/README.md` (licences of the tables); `.gitignore` and `SOURCES.md` updated: raw sources and packs never committed, tables committed, sources read only by the update and the monthly check
+- [ ] 6.3 The extension's README section on the data pack (the real pack builds offline from the committed tables; packs themselves still never committed) and the comment of `scripts/lingua-data/.gitignore` ("only testdata/ and the scripts are tracked")
+
+## 7. Gates
+
+- [ ] 7.1 `openspec validate pin-lingua-pack-sources --strict`
+- [ ] 7.2 Reducer unit tests, `cargo test -p lingua-pack`, extension check lane green; a release dry run (dispatch without tag) builds the committed pack with no request to kaikki, GitHub raw or PyPI
