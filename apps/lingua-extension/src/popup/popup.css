@@ -281,7 +281,8 @@ button.primary:hover {
 }
 
 /* Signed in: the account row, the handle call to action and sign-out stack with one gap,
-   and the stats button below keeps the same breathing room (`[hidden]` still wins). */
+   and the library and stats buttons below keep the same breathing room (`[hidden]` still
+   wins). */
 #acct-in {
   display: flex;
   flex-direction: column;
@@ -292,6 +293,7 @@ button.primary:hover {
   margin-bottom: 0;
 }
 
+#open-library,
 #open-stats {
   margin-top: 8px;
 }
