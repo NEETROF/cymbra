@@ -1,4 +1,5 @@
 import { keepEngineWarm } from "../translate/keepalive.ts";
+import { isElement } from "./blocks.ts";
 import { askModel, type ModelCommand, type ModelStatus } from "../translate/model-messages.ts";
 import {
   loadTranslationSetting,
@@ -93,22 +94,27 @@ export function stateText(state: ModelState): string {
   }
 }
 
-/** Whether `node` is on screen as far as the DOM says: attached, and no ancestor hidden. */
+/**
+ * Whether `node` is on screen as far as the DOM says: attached, and no ancestor hidden — through
+ * a shadow root to its host. Node types, not `instanceof`: the view may live in another realm.
+ */
 export function shown(node: Element): boolean {
   if (!node.isConnected) return false;
   for (let n: Node | null = node; n;) {
-    if (n instanceof HTMLElement && n.hidden) return false;
-    n = n.parentNode instanceof ShadowRoot ? n.parentNode.host : n.parentNode;
+    if (isElement(n) && (n as HTMLElement).hidden) return false;
+    const parent: Node | null = n.parentNode;
+    n = parent?.nodeType === Node.DOCUMENT_FRAGMENT_NODE && "host" in parent ? (parent as ShadowRoot).host : parent;
   }
   return true;
 }
 
 function el<K extends keyof HTMLElementTagNameMap>(
+  doc: Document,
   tag: K,
   className?: string,
   text?: string,
 ): HTMLElementTagNameMap[K] {
-  const node = document.createElement(tag);
+  const node = doc.createElement(tag);
   if (className) node.className = className;
   if (text != null) node.textContent = text;
   return node;
@@ -119,19 +125,21 @@ export interface TranslationSettingView {
   refresh(): Promise<void>;
 }
 
-/** Mount the row into `block` (the settings view's "Traduction" block). */
+/** Mount the row into `block`, the settings view's block for translation. */
 export function mountTranslationSetting(block: HTMLElement, controls: TranslationControls): TranslationSettingView {
   block.hidden = true; // until the background says the setting is offered here
-  const row = el("label", "set-toggle");
-  const box = el("input");
+  // The document the view is mounted in: a panel's, the popup's or a drawer's shadow.
+  const doc = block.ownerDocument;
+  const row = el(doc, "label", "set-toggle");
+  const box = el(doc, "input");
   box.type = "checkbox";
-  row.append(box, el("span", undefined, COPY.toggle));
-  const cost = el("div", "set-note", COPY.cost);
-  const attribution = el("div", "set-note", COPY.attribution);
-  const line = el("div", "set-note");
+  row.append(box, el(doc, "span", undefined, COPY.toggle));
+  const cost = el(doc, "div", "set-note", COPY.cost);
+  const attribution = el(doc, "div", "set-note", COPY.attribution);
+  const line = el(doc, "div", "set-note");
   line.setAttribute("role", "status");
-  const bar = el("progress", "set-progress");
-  const action = el("button", "set-reset");
+  const bar = el(doc, "progress", "set-progress");
+  const action = el(doc, "button", "set-reset");
   action.type = "button";
   block.append(row, cost, attribution, bar, line, action);
 

@@ -10,7 +10,16 @@ export default tseslint.config(
     name: "ext/ignores",
     // vendor/: third-party code kept byte-for-byte at a pinned commit (vendor/VENDOR.md).
     // engine/: Mozilla's translation engine, fetched pinned (tool/fetch_engine.sh), never ours to lint.
-    ignores: ["dist/**", "dist-*/**", "coverage/**", "src/wasm/pkg/**", "src/gen/**", "assets/**", "vendor/**", "engine/**"],
+    ignores: [
+      "dist/**",
+      "dist-*/**",
+      "coverage/**",
+      "src/wasm/pkg/**",
+      "src/gen/**",
+      "assets/**",
+      "vendor/**",
+      "engine/**",
+    ],
   },
   js.configs.recommended,
   tseslint.configs.recommended,

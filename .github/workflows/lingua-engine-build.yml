@@ -7,9 +7,10 @@ name: lingua-engine-build
 # matches apps/lingua-extension/engine-pin.json.
 #
 # The build is the reviewer's recipe, tool/build_engine.sh, run as it is — so what Mozilla's
-# reviewers are told to run is what CI runs. And it is REPRODUCIBLE: three runs a day apart gave
-# byte-identical files, which is what lets the pin be a hash. A run that no longer reproduces the
-# pinned bytes fails here, loudly, rather than ship something else.
+# reviewers are told to run is what CI runs. And it is REPRODUCIBLE at a given path: three runs a
+# day apart gave byte-identical files, which is what lets the pin be a hash; built one directory
+# over, the .wasm differed by the source paths it embeds, and nothing else. A run that no longer
+# reproduces the pinned bytes fails here, loudly, rather than ship something else.
 #
 # It runs when the pin or the recipe changes, on demand, and once a month: artefacts are kept 90
 # days, and the lanes that package the engine need one to exist. It does not run on every pull
@@ -60,10 +61,16 @@ jobs:
       # translation — holds for those bytes and no others; moving the pin means re-taking them.
       # mozilla/translations at the pinned commit is Bergamot v0.6.0, emsdk 3.1.8. On a mismatch
       # the script names the hash it got, which is what a deliberate move of the pin records.
+      #
+      # It builds under the workspace, $GITHUB_WORKSPACE/translations — the path the pinned bytes
+      # were built at, which the .wasm embeds (see the script's header). Built elsewhere, the same
+      # sources give an engine that differs by those path strings, and the pin refuses it.
       - name: Build the engine and check it against the pin
-        env:
-          ENGINE_WORK_DIR: ${{ runner.temp }}/engine-work
-        run: apps/lingua-extension/tool/build_engine.sh "$RUNNER_TEMP/engine"
+        run: |
+          set -euo pipefail
+          test "$GITHUB_WORKSPACE" = /home/runner/work/cymbra/cymbra \
+            || { echo "::error::the workspace is $GITHUB_WORKSPACE; the pinned engine was built under /home/runner/work/cymbra/cymbra"; exit 1; }
+          apps/lingua-extension/tool/build_engine.sh "$RUNNER_TEMP/engine"
 
       - uses: actions/upload-artifact@v4
         with:

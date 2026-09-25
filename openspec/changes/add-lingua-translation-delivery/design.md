@@ -203,10 +203,14 @@ longer remove.
   Storage (`db/models.json`): the `en→fr` `base-memory` `.gz` files there are **byte-identical** to
   the LFS objects (same sha256, same sizes) and decompress to the hashes `TRANSLATION.md` pinned.
   `model-manifest.json` records both digests and the registry path; the deploy checks both.
-- **The engine build is reproducible.** Three runs of `lingua-engine-build` a day apart produced
-  byte-identical `.js` and `.wasm`. The release therefore pins sha256 hashes (`engine-pin.json`)
-  rather than a run: an expired artefact is replaced by running the workflow again, which now also
-  runs monthly and fails if it stops reproducing the pin.
+- **The engine build is reproducible — at a given path.** Three runs of `lingua-engine-build` a day
+  apart produced byte-identical `.js` and `.wasm`. The release therefore pins sha256 hashes
+  (`engine-pin.json`) rather than a run: an expired artefact is replaced by running the workflow
+  again, which now also runs monthly and fails if it stops reproducing the pin. The first run of the
+  recipe from a temporary directory did NOT reproduce it: the `.wasm` embeds its sources' absolute
+  path 145 times (assertion messages) — 4 characters longer, 580 bytes more — and the glue shifted
+  with it. `tool/build_engine.sh` therefore builds where the pinned bytes were built,
+  `/home/runner/work/cymbra/cymbra/translations`, and says so to a reviewer building elsewhere.
 - **Storage.** 36.7 MB in IndexedDB is far inside the default quota of an extension origin on both
   browsers; `unlimitedStorage` is not needed. `navigator.storage.persist()` exists only in a
   document, so the offscreen document (Chromium) and the event page (Firefox) ask it when a

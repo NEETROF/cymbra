@@ -29,7 +29,9 @@ yarn fetch:engine          # → engine/, checked against engine-pin.json
 Or build it from source on Linux (the upstream script warns that it breaks on macOS AArch64):
 `yarn build:engine` runs `tool/build_engine.sh`, the same recipe CI and Mozilla's reviewers use.
 The build is reproducible — three CI runs a day apart gave identical bytes — which is why the pin
-is a hash. To move it, change `translationsCommit` in `engine-pin.json`: the build names the hashes
+is a hash. At the same path only: the `.wasm` embeds its sources' absolute path, so the script
+builds under `/home/runner/work/cymbra/cymbra`, where CI built the pinned bytes; one directory over,
+the output differs by those strings. To move it, change `translationsCommit` in `engine-pin.json`: the build names the hashes
 it got, and every measurement taken on the engine (size, memory, latency, the mark) has to be
 taken again.
 

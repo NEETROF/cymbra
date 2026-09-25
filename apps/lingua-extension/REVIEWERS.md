@@ -79,9 +79,12 @@ v0.6.0, Emscripten 3.1.8, pinned by the upstream submodules), with Mozilla's own
 no patch. `tool/build_engine.sh` is the whole recipe: it fetches that commit, runs
 `inference/scripts/build-wasm.py`, and checks the result against the sha256 in `engine-pin.json`.
 The build is reproducible — CI runs the same script and gets the same bytes — and `build.mjs`
-refuses to package any engine whose files do not match those hashes. It needs Linux x86-64 (the
-upstream script warns that macOS AArch64 breaks it), Python 3.11, cmake and a C++ toolchain, and
-takes about eight minutes.
+refuses to package any engine whose files do not match those hashes. One condition: the `.wasm`
+embeds the absolute path of its sources (145 times, in assertion messages), so the exact bytes
+come out only when the sources sit where CI put them, `/home/runner/work/cymbra/cymbra/translations`
+— the script builds there by default. Built anywhere else, the engine differs by those path strings
+and nothing else. It needs Linux x86-64 (the upstream script warns that macOS AArch64 breaks it),
+Python 3.11, cmake and a C++ toolchain, and takes about eight minutes.
 
 The engine runs in a dedicated worker (`src/translate/host/engine-worker.ts`), started by the event
 page only when the reader asks for a translation, and stopped after ten idle minutes.
