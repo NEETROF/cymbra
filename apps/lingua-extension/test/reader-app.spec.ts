@@ -14,7 +14,7 @@ import { COPY } from "@/reader/copy.ts";
 import { Library } from "@/reader/library.ts";
 import type { TocEntry } from "@/reader/renderer.ts";
 import type { ReadingHost } from "@/reading/session.ts";
-import type { ReaderFlow } from "@/state/storage.ts";
+import { type AsyncStorageArea, READER_DISPLAY_KEY, type ReaderDisplay, type ReaderFlow } from "@/state/storage.ts";
 import { epub3Entries, pickedFile, useNodeBlob } from "./epub-fixtures.ts";
 import { FakeRenderer } from "./fake-renderer.ts";
 
@@ -30,6 +30,23 @@ let library: Library;
 let renderers: FakeRenderer[];
 let timers: { fn: () => void; ms: number; cleared: boolean }[];
 let flowListeners: ((f: ReaderFlow) => void)[];
+let displayListeners: ((d: ReaderDisplay) => void)[];
+let displayArea: AsyncStorageArea & { store: Record<string, unknown> };
+
+/** chrome.storage.local, in memory: the "Aa" panel writes the display there. */
+function memoryArea(): AsyncStorageArea & { store: Record<string, unknown> } {
+  const store: Record<string, unknown> = {};
+  return {
+    store,
+    async get(keys) {
+      const list = keys == null ? Object.keys(store) : Array.isArray(keys) ? keys : [keys];
+      return Object.fromEntries(list.filter((k) => k in store).map((k) => [k, store[k]]));
+    },
+    async set(items) {
+      Object.assign(store, items);
+    },
+  };
+}
 
 function fakeSession() {
   const hosts: ReadingHost[] = [];
@@ -55,6 +72,8 @@ function app(over: Partial<ReaderDeps> = {}): ReaderApp {
     persistence: async () => "granted",
     loadFlow: async () => "paginated",
     watchFlow: (fn) => void flowListeners.push(fn),
+    displayArea,
+    watchDisplay: (fn) => void displayListeners.push(fn),
     now: () => 1000,
     objectUrl: () => "blob:cover",
     revokeUrl: () => {},
@@ -104,6 +123,8 @@ beforeEach(async () => {
   renderers = [];
   timers = [];
   flowListeners = [];
+  displayListeners = [];
+  displayArea = memoryArea();
   history.replaceState(null, "", "/reader.html");
 });
 
@@ -260,6 +281,36 @@ describe("a book open", () => {
     expect(renderers[0].flow).toBe("scrolled");
     a.blankClick(new MouseEvent("click", { clientX: 5 }));
     expect(renderers[0].calls).toEqual([]);
+  });
+
+  it("opens a book at the stored text size and page, and follows a change made anywhere", async () => {
+    displayArea.store[READER_DISPLAY_KEY] = { textScale: 130, theme: "dark" };
+    await withBook();
+    await openFirst();
+    expect(renderers[0].display).toEqual({ textScale: 130, theme: "dark" });
+    expect($(".reading-book").dataset.theme).toBe("dark");
+    displayListeners.forEach((l) => l({ textScale: 90, theme: "paper" }));
+    expect(renderers[0].display).toEqual({ textScale: 90, theme: "paper" });
+    expect($(".reading-book").dataset.theme).toBe("paper");
+  });
+
+  it("offers the text size and the page in its Aa panel, apart from the contents", async () => {
+    await withBook();
+    await openFirst();
+    const aa = $$(".reading-action").find((b) => b.textContent === COPY.display)!;
+    const toc = $$(".reading-action").find((b) => b.textContent === COPY.toc)!;
+    expect($(".reading-display").hidden).toBe(true);
+    aa.click();
+    expect($(".reading-display").hidden).toBe(false);
+    $<HTMLButtonElement>(".reading-display [aria-label='Agrandir le texte']").click();
+    await vi.waitFor(() => expect(displayArea.store[READER_DISPLAY_KEY]).toEqual({ textScale: 110, theme: "paper" }));
+    toc.click();
+    expect($(".reading-display").hidden).toBe(true);
+    expect($(".reading-toc").hidden).toBe(false);
+    aa.click();
+    expect($(".reading-toc").hidden).toBe(true);
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect($(".reading-display").hidden).toBe(true);
   });
 
   it("shows the section's percentage through the session's indicator, and routes its actions", async () => {

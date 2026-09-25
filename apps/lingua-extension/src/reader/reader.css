@@ -255,6 +255,14 @@ button {
   color-scheme: light;
 }
 
+/* The dark page (the "Aa" panel): the night behind the book, its text lightened by the book's
+   own style sheet (book-style.ts). Dark like the section documents, so no frame paints a canvas. */
+.reading-book[data-theme="dark"] {
+  background: var(--cymbra-lingua-night);
+  color: var(--cymbra-lingua-night-ink);
+  color-scheme: dark;
+}
+
 /* A layer of its own for the renderer: without it, WebKit on iOS and iPadOS lays out a
    section's frame and never paints it — a blank page, until a later turn half-repaints it. */
 .reading-book > * {
@@ -299,6 +307,17 @@ button {
 
 .reading-toc-entry:hover {
   background: var(--cymbra-lingua-panel-3);
+}
+
+.reading-display {
+  position: absolute;
+  top: 48px;
+  right: 10px;
+  width: min(320px, calc(100% - 20px));
+  padding: 4px 12px 12px;
+  border: 1px solid var(--cymbra-lingua-border-2);
+  border-radius: var(--cymbra-lingua-radius);
+  background: var(--cymbra-lingua-panel);
 }
 
 .reading-toc-empty {

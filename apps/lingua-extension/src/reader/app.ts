@@ -1,6 +1,13 @@
+import { type BookDisplayView, mountBookDisplay } from "../reading/book-display-view.ts";
 import type { HudActions, HudState } from "../reading/hud.ts";
 import type { Box, ReadingHost, ReadingIndicator } from "../reading/session.ts";
-import type { ReaderFlow } from "../state/storage.ts";
+import {
+  type AsyncStorageArea,
+  DEFAULT_READER_DISPLAY,
+  loadReaderDisplay,
+  type ReaderDisplay,
+  type ReaderFlow,
+} from "../state/storage.ts";
 import { COPY } from "./copy.ts";
 import type { BookRecord, ImportResult, Library } from "./library.ts";
 import type { Persistence } from "./persist.ts";
@@ -32,6 +39,10 @@ export interface ReaderDeps {
   loadFlow: () => Promise<ReaderFlow>;
   /** Call back when the reader changes the flow in the settings, wherever they are rendered. */
   watchFlow: (onFlow: (flow: ReaderFlow) => void) => void;
+  /** Where the text size and the page are kept: the "Aa" panel writes there, the book follows. */
+  displayArea: AsyncStorageArea;
+  /** Call back when the text size or the page changes, from this page or from Réglages. */
+  watchDisplay: (onDisplay: (display: ReaderDisplay) => void) => void;
   now?: () => number;
   /** The longest a section stays hidden waiting for its first paint. */
   revealCapMs?: number;
@@ -104,6 +115,9 @@ export class ReaderApp {
   private readonly bookHost = el("div", "reading-book");
   private readonly progress = el("span", "reading-progress");
   private readonly tocPanel = el("nav", "reading-toc");
+  private readonly displayPanel = el("div", "reading-display");
+  private displayView: BookDisplayView | null = null;
+  private display: ReaderDisplay = DEFAULT_READER_DISPLAY;
 
   private covers: string[] = [];
   private session: ReaderSession | null = null;
@@ -136,6 +150,8 @@ export class ReaderApp {
       this.flow = flow;
       this.renderer?.setFlow(flow);
     });
+    this.applyDisplay(await loadReaderDisplay(this.deps.displayArea));
+    this.deps.watchDisplay((display) => this.applyDisplay(display));
     const persistence = await this.deps.persistence();
     this.notice.hidden = persistence !== "refused";
     this.notice.textContent = persistence === "refused" ? COPY.persistenceRefused : "";
@@ -287,6 +303,7 @@ export class ReaderApp {
       titles,
       this.percent,
       button("reading-action", COPY.toc, () => this.toggleToc()),
+      button("reading-action reading-display-toggle", COPY.display, () => this.toggleDisplay(), COPY.displayTitle),
       act(COPY.review, (a) => a.onReview),
       act(COPY.stats, (a) => a.onStats),
       act(COPY.settings, (a) => a.onSettings),
@@ -298,9 +315,11 @@ export class ReaderApp {
       button("reading-turn", "›", () => void this.renderer?.next(), COPY.next),
     );
     this.tocPanel.hidden = true;
+    this.displayPanel.hidden = true;
+    this.displayView = mountBookDisplay(this.displayPanel, this.deps.displayArea);
     // A tap on the page's margins lands in this document, not in the section's: same zones.
     this.bookHost.addEventListener("click", (e) => this.turnByZone(e.clientX));
-    this.readingView.append(bar, this.bookHost, foot, this.tocPanel);
+    this.readingView.append(bar, this.bookHost, foot, this.tocPanel, this.displayPanel);
     this.root.ownerDocument.addEventListener("keydown", (e) => this.onKey(e));
   }
 
@@ -327,6 +346,7 @@ export class ReaderApp {
 
     const renderer = this.deps.createRenderer();
     this.renderer = renderer;
+    renderer.setDisplay(this.display);
     this.bookHost.replaceChildren(renderer.element);
     renderer.onSectionReady((s) => void this.onSection(s));
     renderer.onRelocate((l) => this.onRelocate(l));
@@ -347,6 +367,7 @@ export class ReaderApp {
     this.renderer = null;
     this.book = null;
     this.tocPanel.hidden = true;
+    this.displayPanel.hidden = true;
     this.bookHost.replaceChildren();
   }
 
@@ -436,14 +457,32 @@ export class ReaderApp {
 
   private toggleToc(): void {
     this.tocPanel.hidden = !this.tocPanel.hidden;
+    if (!this.tocPanel.hidden) this.displayPanel.hidden = true;
+  }
+
+  /** The "Aa" panel: the text size and the page, shown as they are stored now. */
+  private toggleDisplay(): void {
+    this.displayPanel.hidden = !this.displayPanel.hidden;
+    if (this.displayPanel.hidden) return;
+    this.tocPanel.hidden = true;
+    void this.displayView?.refresh();
+  }
+
+  /** Show the book at this size, on this page: the paper or night behind it, and its text. */
+  private applyDisplay(display: ReaderDisplay): void {
+    this.display = display;
+    this.bookHost.dataset.theme = display.theme;
+    this.renderer?.setDisplay(display);
   }
 
   private onKey(e: KeyboardEvent): void {
     if (!this.renderer || this.readingView.hidden || e.altKey || e.ctrlKey || e.metaKey) return;
     if (e.key === "ArrowLeft" || e.key === "PageUp") void this.renderer.prev();
     else if (e.key === "ArrowRight" || e.key === "PageDown") void this.renderer.next();
-    else if (e.key === "Escape" && !this.tocPanel.hidden) this.tocPanel.hidden = true;
-    else return;
+    else if (e.key === "Escape" && !(this.tocPanel.hidden && this.displayPanel.hidden)) {
+      this.tocPanel.hidden = true;
+      this.displayPanel.hidden = true;
+    } else return;
     e.preventDefault();
   }
 

@@ -1,7 +1,8 @@
 import { EPUB, type FoliateTocItem } from "foliate-js/epub.js";
 import { type FoliateRelocate, View } from "foliate-js/view.js";
-import type { ReaderFlow } from "../state/storage.ts";
+import { DEFAULT_READER_DISPLAY, type ReaderDisplay, type ReaderFlow } from "../state/storage.ts";
 import { openArchive } from "./archive.ts";
+import { bookStyles, nightColoursOf, scaleFontSizes } from "./book-style.ts";
 import type { BookLocation, BookRenderer, OpenedBook, SectionReady, TocEntry } from "./renderer.ts";
 import { type LoadableSection, routeSections, workerServesSections } from "./section-server.ts";
 import { guardSelectionTouches } from "./touch-guard.ts";
@@ -10,24 +11,6 @@ import { guardSelectionTouches } from "./touch-guard.ts";
 // element, its events and its options. Excluded from coverage with the vendored tree — it
 // needs a real browser to lay a book out (vitest.config.ts); the page drives it through the
 // BookRenderer seam, which its tests fake.
-
-/**
- * The book's base style, after foliate-js's own reader (reader.js `getCSS`, MIT): a page of
- * paper and ink whatever the system theme, readable lines, and code, images and tables held to
- * their column where the book allows it — what overflows a column is drawn over the next page.
- * Its notes stay in the text: foliate's reader hides them for a popup this reader does not have.
- */
-const BOOK_CSS = `
-  html { color-scheme: light; }
-  p, li, blockquote, dd {
-    line-height: 1.45;
-    -webkit-hyphens: auto;
-    hyphens: auto;
-    widows: 2;
-  }
-  pre { white-space: pre-wrap !important; overflow-wrap: anywhere; }
-  img, svg, video, table { max-width: 100%; }
-`;
 
 function tocOf(items: FoliateTocItem[] | null | undefined): TocEntry[] {
   return (items ?? [])
@@ -41,6 +24,7 @@ export class FoliateRenderer implements BookRenderer {
   private readonly ready: ((s: SectionReady) => void)[] = [];
   private readonly moved: ((l: BookLocation) => void)[] = [];
   private last: BookLocation | null = null;
+  private display: ReaderDisplay = DEFAULT_READER_DISPLAY;
 
   constructor() {
     // Listened to before the book opens: the first section loads during `init`.
@@ -59,6 +43,12 @@ export class FoliateRenderer implements BookRenderer {
 
   async open(file: Blob, at: string | null, flow: ReaderFlow): Promise<OpenedBook> {
     const book = await new EPUB(await openArchive(file)).init();
+    // Each style sheet of the book, as it loads: its absolute font sizes follow the text size.
+    book.transformTarget?.addEventListener("data", (e) => {
+      const detail = (e as CustomEvent<{ type: string; data: unknown }>).detail;
+      if (detail.type !== "text/css") return;
+      detail.data = Promise.resolve(detail.data).then((css) => (typeof css === "string" ? scaleFontSizes(css) : css));
+    });
     if (__SECTIONS_FROM_WORKER__) {
       // Chromium: each section from the service worker, never a blob: document (section-server.ts).
       const pageUrl = (path: string): string => chrome.runtime.getURL(path);
@@ -72,7 +62,7 @@ export class FoliateRenderer implements BookRenderer {
       });
     }
     await this.element.open(book);
-    this.element.renderer.setStyles(BOOK_CSS);
+    this.applyDisplay();
     this.setFlow(flow);
     try {
       await this.element.init({ lastLocation: at, showTextStart: true });
@@ -93,6 +83,15 @@ export class FoliateRenderer implements BookRenderer {
 
   prev(): Promise<void> {
     return this.element.prev();
+  }
+
+  setDisplay(display: ReaderDisplay): void {
+    this.display = display;
+    this.applyDisplay();
+  }
+
+  private applyDisplay(): void {
+    this.element.renderer?.setStyles(bookStyles(this.display, nightColoursOf(this.element.ownerDocument)));
   }
 
   setFlow(flow: ReaderFlow): void {

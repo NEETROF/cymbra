@@ -51,6 +51,13 @@
      is typeset for a light page, and an e-ink screen shows black on white best. */
   --cymbra-lingua-paper: #fbf9f4;
   --cymbra-lingua-ink: #1a1a1a;
+  /* The same page in the reader's dark theme: the chrome's navy one step up, a text a little
+     softer than the chrome's for long reading, the identity's lilac for links. The book's own
+     colours are replaced there — a book typeset for paper sets dark text. */
+  --cymbra-lingua-night: #131b2e;
+  --cymbra-lingua-night-ink: #cfd6ea;
+  --cymbra-lingua-night-link: #d2bbff;
+  --cymbra-lingua-night-rule: #2d3449;
 
   /* Radii (identity) */
   --cymbra-lingua-radius: 12px;

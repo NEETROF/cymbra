@@ -2,7 +2,14 @@ import { installGroupBy } from "./polyfill.ts";
 import { createLinguaPort } from "../analyzer/create-port.ts";
 import { ReadingSession } from "../reading/session.ts";
 import { SURFACE_CSS } from "../reading/surface-css.ts";
-import { type AsyncStorageArea, loadReaderFlow, READER_FLOW_KEY, readerFlowOf } from "../state/storage.ts";
+import {
+  type AsyncStorageArea,
+  loadReaderFlow,
+  READER_DISPLAY_KEY,
+  READER_FLOW_KEY,
+  readerDisplayOf,
+  readerFlowOf,
+} from "../state/storage.ts";
 import { ReaderApp } from "./app.ts";
 import { FoliateRenderer } from "./foliate.ts";
 import { Library } from "./library.ts";
@@ -44,6 +51,12 @@ async function main(): Promise<void> {
     watchFlow: (onFlow) =>
       chrome.storage.onChanged.addListener((changes, area) => {
         if (area === "local" && changes[READER_FLOW_KEY]) onFlow(readerFlowOf(changes[READER_FLOW_KEY].newValue));
+      }),
+    displayArea: settings,
+    watchDisplay: (onDisplay) =>
+      chrome.storage.onChanged.addListener((changes, area) => {
+        const changed = changes[READER_DISPLAY_KEY];
+        if (area === "local" && changed) onDisplay(readerDisplayOf(changed.newValue));
       }),
   });
 

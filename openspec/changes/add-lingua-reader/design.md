@@ -209,6 +209,30 @@ monochrome screen they are the same grey dots. "Learning" keeps the dotted under
 "unknown" takes a solid one. The tints stay, so a colour screen loses nothing, and every page
 the content script highlights benefits — the change is in the token sheet, not in the reader.
 
+### D10. The text size and the page, from an "Aa" panel
+
+Added after the first device passes: a reader needs to set the size of the text and to read on
+a dark page. Both are one preference for every book (`chrome.storage.local`, read by the reader
+page like the flow), set from an "Aa" button in the reader's toolbar — a small panel beside the
+contents — and from the Livres block of Réglages, by one builder (`book-display-view.ts`).
+Buttons step the size by 10 % from 80 % to 200 %: a tap is one step, which an e-ink screen
+redraws once.
+
+The size scales the book's text, not its page. CSS `zoom` would be the one rule that reaches
+everything, and was measured and rejected: in WebKit the boxes of a zoomed page are reported
+at their unzoomed size (a word's box landed two words early, and pagination came out short),
+so the word popup and the tap zones would miss. Instead the root's size is set in the sheet
+foliate-js places before the book's own — every size in em, rem or % follows it, and a book
+that sets its own root keeps it — and, as each of the book's style sheets loads (foliate-js's
+`transformTarget`), a size in an absolute unit, or one set on the root, is rewritten to
+`calc(size × factor)`. *Let's Go* sets its text in px: without the rewrite it would not grow.
+
+The dark page replaces the book's colours rather than adding to them: a book typeset for paper
+sets dark text (*Let's Go* again), which would vanish on a dark page. Text takes the night
+ink, links the identity's lilac, backgrounds go, pictures keep their colours. The colours come
+from the token sheet, read off the reader page and passed into the section's style, since a
+section's document only sees the tokens once the reading module has attached to it.
+
 ## Measurements (spike, §1)
 
 Taken on the implementation itself rather than a throwaway branch — the refactor of D3 was

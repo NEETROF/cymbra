@@ -1,5 +1,5 @@
 import type { BookLocation, BookRenderer, OpenedBook, SectionReady, TocEntry } from "@/reader/renderer.ts";
-import type { ReaderFlow } from "@/state/storage.ts";
+import type { ReaderDisplay, ReaderFlow } from "@/state/storage.ts";
 
 /**
  * A renderer for tests: each "section" is a document of its own, built from the given HTML,
@@ -10,6 +10,7 @@ export class FakeRenderer implements BookRenderer {
   readonly element: HTMLElement = document.createElement("div");
   readonly calls: string[] = [];
   flow: ReaderFlow | null = null;
+  display: ReaderDisplay | null = null;
   openedWith: { file: Blob; at: string | null } | null = null;
   closed = false;
   private readyListeners: ((s: SectionReady) => void)[] = [];
@@ -54,6 +55,10 @@ export class FakeRenderer implements BookRenderer {
 
   setFlow(flow: ReaderFlow): void {
     this.flow = flow;
+  }
+
+  setDisplay(display: ReaderDisplay): void {
+    this.display = display;
   }
 
   onSectionReady(listener: (section: SectionReady) => void): void {

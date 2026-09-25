@@ -45,7 +45,8 @@ deck, formats other than EPUB.
 
 - `lingua-reader`: the extension's own book reader — the library, import and deletion, offline
   opening, paginated rendering suited to e-ink, the reading module mounted on the book, the
-  local reading position, the refusal of protected books, where the reader opens from.
+  local reading position, the refusal of protected books, where the reader opens from, the
+  text size and the paper or dark page.
 
 ### Modified Capabilities
 

@@ -21,6 +21,7 @@ import {
 } from "../sync/messages.ts";
 import { lastSyncLabel, syncErrorCopy } from "../sync/status.ts";
 import { clearSyncCursors } from "../sync/sync.ts";
+import { mountBookDisplay } from "./book-display-view.ts";
 import { type Speaker, type VoiceInfo, voiceGroups, voiceLabel } from "./speech.ts";
 
 // The Réglages view, built as plain DOM into a given container so ONE implementation
@@ -199,6 +200,8 @@ export function mountSettings(
     el("div", "set-note", "Tes livres EPUB sans DRM, lus hors ligne avec le surlignage. Ils restent sur cet appareil."),
     flowRow,
   );
+  // The text size and the page: the same controls as the reader's own "Aa" panel.
+  const bookDisplay = mountBookDisplay(booksBlock, area);
 
   // — Raccourcis & gestes —
   const scBlock = settingBlock("Raccourcis & gestes");
@@ -446,6 +449,7 @@ export function mountSettings(
     toggle.checked = !(await loadHudHidden(area));
     renderVoices();
     flowToggle.checked = (await loadReaderFlow(area)) === "scrolled";
+    await bookDisplay.refresh();
     await refreshSync();
   }
 

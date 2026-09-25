@@ -85,6 +85,9 @@ declare module "foliate-js/epub.js" {
   export interface FoliateBook {
     toc?: FoliateTocItem[];
     sections: unknown[];
+    /** Dispatches `data` for each resource the loader is about to hand a section: its content
+     *  (`detail.data`, a string or a promise of one) may be replaced before it is used. */
+    transformTarget?: EventTarget;
   }
 }
 

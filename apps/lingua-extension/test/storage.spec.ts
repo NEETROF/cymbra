@@ -9,6 +9,10 @@ import {
   HUD_HIDDEN_KEY,
   loadEnabled,
   loadHudHidden,
+  loadReaderDisplay,
+  READER_DISPLAY_KEY,
+  readerDisplayOf,
+  saveReaderDisplay,
   loadStored,
   loadAndroidVoices,
   loadVoice,
@@ -228,5 +232,28 @@ describe("the read-aloud voice preference", () => {
       { voice: "Moira", androidVoices: false },
       { voice: "Moira", androidVoices: true },
     ]);
+  });
+});
+
+// How the book reader shows a book (add-lingua-reader D10): a size on the offered steps, a page
+// it knows — whatever the store holds.
+describe("the reader's display", () => {
+  it("defaults to the book's own size on paper", async () => {
+    expect(await loadReaderDisplay(fakeArea())).toEqual({ textScale: 100, theme: "paper" });
+  });
+
+  it("keeps a size on the offered steps, within bounds, and a known page", () => {
+    expect(readerDisplayOf({ textScale: 134, theme: "dark" })).toEqual({ textScale: 130, theme: "dark" });
+    expect(readerDisplayOf({ textScale: 20, theme: "sepia" })).toEqual({ textScale: 80, theme: "paper" });
+    expect(readerDisplayOf({ textScale: 900 })).toEqual({ textScale: 200, theme: "paper" });
+    expect(readerDisplayOf({ textScale: Number.NaN })).toEqual({ textScale: 100, theme: "paper" });
+    expect(readerDisplayOf("garbage")).toEqual({ textScale: 100, theme: "paper" });
+  });
+
+  it("stores what it is given, made safe", async () => {
+    const area = fakeArea();
+    await saveReaderDisplay(area, { textScale: 215, theme: "dark" });
+    expect(area.store[READER_DISPLAY_KEY]).toEqual({ textScale: 200, theme: "dark" });
+    expect(await loadReaderDisplay(area)).toEqual({ textScale: 200, theme: "dark" });
   });
 });

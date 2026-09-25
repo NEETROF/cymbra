@@ -27,6 +27,8 @@ export const COPY = {
   openFailed: "Ce livre n'a pas pu être ouvert.",
   back: "Bibliothèque",
   toc: "Sommaire",
+  display: "Aa",
+  displayTitle: "Taille du texte et page",
   noToc: "Ce livre n'a pas de sommaire.",
   review: "Réviser",
   stats: "Stats",

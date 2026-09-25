@@ -1,4 +1,4 @@
-import type { ReaderFlow } from "../state/storage.ts";
+import type { ReaderDisplay, ReaderFlow } from "../state/storage.ts";
 
 // The seam between the reader page and the engine that draws a book (add-lingua-reader D2).
 // foliate-js sits behind it (foliate.ts, a thin adapter); the page only ever sees this
@@ -44,6 +44,8 @@ export interface BookRenderer {
   next(): Promise<void>;
   prev(): Promise<void>;
   setFlow(flow: ReaderFlow): void;
+  /** Show the text at this size, on this page: at once, and for every section after. */
+  setDisplay(display: ReaderDisplay): void;
   /** Called with each section's document as soon as it is loaded — before it is laid out. */
   onSectionReady(listener: (section: SectionReady) => void): void;
   /** Called after every move: a page turned, a link followed, a section opened. */
