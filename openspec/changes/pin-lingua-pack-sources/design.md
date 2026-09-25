@@ -36,11 +36,21 @@ drift is detected monthly and adopted on demand.
 - `apps/lingua-agent`, which builds from test data.
 - Replacing AGID. Its last release is 2016.01.19 — the bytes fetched today are exactly that
   release — and there is no newer one: its maintainer moved inflections into ESDB (the English
-  Speller Database, formerly SCOWLv2; release `rel-2026.02.25`, 1,800+ newer words such as
-  *tokenize*, *influencer*, *doomscrolling*; permissive licence). Switching is a change of its own,
-  measured first — forms newly lemmatised on real reading, and forms whose lemma would change,
-  since a reader's statuses are keyed by lemma — and it goes through the update process this change
-  creates, as a reviewable diff of `forms.tsv`.
+  Speller Database, formerly SCOWLv2; `rel-2026.02.25`). Measured on 2026-09-25 — the real engine
+  on 160 Wikipedia articles (177,902 tokens), the same raw sources, only the inflection source
+  changed:
+
+  | vs AGID today | glosses shown | tokens changing lemma |
+  |---|---|---|
+  | ESDB instead of AGID (best rules found) | +270 (+0.15 %) | 761 (0.43 %) |
+  | AGID + kaikki `form_of`, regular inflections only | **+324 (+0.20 %)** | **354 (0.20 %)** |
+
+  The gain either way is the plurals of recent words AGID lacks (*smartphones*, *influencers*,
+  *apps*, *datasets*…), which kaikki — already downloaded — links to their lemma. ESDB brings more
+  lemma changes, regressions that need the reducer's rules re-tuned, and a format its own release
+  notes call unstable. So: AGID stays (pinned, D3), and using kaikki's `form_of` is a reducer
+  change of its own, applied through re-reduce (D4) so its `forms.tsv` diff is reviewed, with a
+  carry-over of statuses for the lemmas it merges.
 
 ## Decisions
 
