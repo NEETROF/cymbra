@@ -100,6 +100,11 @@ declare module "foliate-js/view.js" {
   }
   export interface FoliatePaginator extends HTMLElement {
     setStyles(styles: string | [string, string]): void;
+    /** Whether the flow is scrolled, and where the view is in the section (px). */
+    readonly scrolled: boolean;
+    readonly start: number;
+    readonly end: number;
+    readonly viewSize: number;
   }
   export class View extends HTMLElement {
     renderer: FoliatePaginator;

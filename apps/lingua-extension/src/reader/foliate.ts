@@ -4,6 +4,7 @@ import { DEFAULT_READER_DISPLAY, type ReaderDisplay, type ReaderFlow } from "../
 import { openArchive } from "./archive.ts";
 import { bookStyles, nightColoursOf, scaleFontSizes } from "./book-style.ts";
 import type { BookLocation, BookRenderer, OpenedBook, SectionReady, TocEntry } from "./renderer.ts";
+import { continueAtEdges, type ScrollEdges } from "./scroll-edges.ts";
 import { type LoadableSection, routeSections, workerServesSections } from "./section-server.ts";
 import { guardSelectionTouches } from "./touch-guard.ts";
 
@@ -26,12 +27,27 @@ export class FoliateRenderer implements BookRenderer {
   private last: BookLocation | null = null;
   private display: ReaderDisplay = DEFAULT_READER_DISPLAY;
 
+  /** The view's edges in the scrolled flow, to read on into the next section (scroll-edges.ts). */
+  private readonly edges: ScrollEdges = {
+    scrolled: () => !!this.element.renderer?.scrolled,
+    atTop: () => (this.element.renderer?.start ?? 0) <= 1,
+    atBottom: () => {
+      const r = this.element.renderer;
+      return !!r && r.viewSize - r.end <= 2;
+    },
+    next: () => void this.next(),
+    prev: () => void this.prev(),
+  };
+
   constructor() {
+    // A push over the book's margins lands on the element, over its text in the section's document.
+    continueAtEdges(this.element, this.edges);
     // Listened to before the book opens: the first section loads during `init`.
     this.element.addEventListener("load", (e) => {
       const { doc, index } = (e as CustomEvent<SectionReady>).detail;
       // Only Safari hands a selection's handle drag to the page as touch events (touch-guard.ts).
       if (__TARGET__ === "safari") guardSelectionTouches(doc);
+      continueAtEdges(doc, this.edges);
       for (const l of this.ready) l({ doc, index });
     });
     this.element.addEventListener("relocate", (e) => {

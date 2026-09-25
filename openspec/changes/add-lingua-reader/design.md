@@ -148,7 +148,11 @@ inside a section then paint nothing new: the ranges are already there. Between s
 next one is not pre-rendered (foliate-js loads on demand); the reveal rule covers it.
 
 The flow is paginated by default with tap zones to turn and no transition; scrolled flow stays
-available as a setting for the laptop.
+available as a setting for the laptop. foliate-js scrolls one section at a time, so the wheel or
+the finger stopped dead at the end of a chapter — found on the first headed pass, where a short
+chapter made the setting look broken. A push past the edge that starts there now crosses into
+the adjacent section (`scroll-edges.ts`, through foliate's own `next`/`prev`); the inertia that
+carried the view to the edge does not count, so a chapter is never skipped on arrival.
 
 ### D5. The library is its own database, opened by the reader page
 
