@@ -306,8 +306,12 @@ with frames of 100 – 170 ms here and there — slower than a chapter, never th
 Apple spike. So Safari keeps the reader, and the section is still painted whole; the viewport
 window stays an option for the reader on Safari if a longer section proves worse. Over both
 books the page was never reloaded, which it would have been had the system reclaimed its
-process for memory; its footprint itself is still to measure — Instruments reaches the phone
-over USB only, and it was attached over the network. Storage: a 39 322 MB quota, not persisted.
+process for memory. Memory, sampled by Instruments (Activity Monitor) right after the pass, the
+reader still open on *Pride and Prejudice*: the busiest WebKit content process — the reader page,
+by elimination — at 247 – 255 MB of physical footprint, another at 90 MB (the background page
+and its engine, most likely), the extension's native process at 2.8 MB; a phone with 8 GB keeps
+a foreground page well above that. A snapshot, not a curve: Instruments only reached the phone
+for a few seconds. Storage: a 39 322 MB quota, not persisted.
 
 **1.4 — storage (Firefox for Android, the tablet).** Four books (0.5, 6.6, 13.3 and 23.7 MB,
 44.1 MB of files) occupy 46 MB of a 5 345 MB quota; `navigator.storage.persisted()` is false
