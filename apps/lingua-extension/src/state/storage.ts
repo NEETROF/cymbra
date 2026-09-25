@@ -51,6 +51,34 @@ export const VOICE_KEY = "cymbra-lingua-voice";
  */
 export const ANDROID_VOICES_KEY = "cymbra-lingua-android-voices";
 
+/**
+ * How the book reader lays a book out: `paginated` (the default — pages turned by tap, suited
+ * to e-ink) or `scrolled` (one continuous column, for a laptop). A preference, set in the
+ * Réglages view every host renders; the reader page follows its `storage.onChanged`.
+ */
+export const READER_FLOW_KEY = "cymbra-lingua-reader-flow";
+
+export type ReaderFlow = "paginated" | "scrolled";
+
+/** How the book reader shows a book's text: its size and the colour of its page. */
+export const READER_DISPLAY_KEY = "cymbra-lingua-reader-display";
+
+/** Paper (the book's own colours, on a light page) or dark (light text on the night page). */
+export type ReaderTheme = "paper" | "dark";
+
+export interface ReaderDisplay {
+  /** The text size, in percent of the book's own. */
+  textScale: number;
+  theme: ReaderTheme;
+}
+
+/** The text sizes offered, in percent: small steps, none so large a line holds three words. */
+export const TEXT_SCALE_MIN = 80;
+export const TEXT_SCALE_MAX = 200;
+export const TEXT_SCALE_STEP = 10;
+
+export const DEFAULT_READER_DISPLAY: ReaderDisplay = { textScale: 100, theme: "paper" };
+
 /** The minimal async storage surface we need; chrome.storage.local satisfies it. */
 export interface AsyncStorageArea {
   get(keys: string | string[] | null): Promise<Record<string, unknown>>;
@@ -164,6 +192,40 @@ export function storedVoicePreference(area: AsyncStorageArea): VoicePreference {
       });
     },
   };
+}
+
+/** A stored value read as a reader flow; anything but `scrolled` is the paginated default. */
+export function readerFlowOf(value: unknown): ReaderFlow {
+  return value === "scrolled" ? "scrolled" : "paginated";
+}
+
+/** How the book reader lays a book out; paginated unless the reader chose otherwise. */
+export async function loadReaderFlow(area: AsyncStorageArea): Promise<ReaderFlow> {
+  return readerFlowOf((await area.get(READER_FLOW_KEY))[READER_FLOW_KEY]);
+}
+
+export async function saveReaderFlow(area: AsyncStorageArea, flow: ReaderFlow): Promise<void> {
+  await area.set({ [READER_FLOW_KEY]: flow });
+}
+
+/** A stored display, made safe: a size on the offered steps, a theme the reader knows. */
+export function readerDisplayOf(value: unknown): ReaderDisplay {
+  const v = (value ?? {}) as Partial<ReaderDisplay>;
+  const raw = typeof v.textScale === "number" && Number.isFinite(v.textScale) ? v.textScale : 100;
+  const stepped = Math.round(raw / TEXT_SCALE_STEP) * TEXT_SCALE_STEP;
+  return {
+    textScale: Math.min(TEXT_SCALE_MAX, Math.max(TEXT_SCALE_MIN, stepped)),
+    theme: v.theme === "dark" ? "dark" : "paper",
+  };
+}
+
+/** How the book reader shows text; the book's own size on paper unless the reader chose otherwise. */
+export async function loadReaderDisplay(area: AsyncStorageArea): Promise<ReaderDisplay> {
+  return readerDisplayOf((await area.get(READER_DISPLAY_KEY))[READER_DISPLAY_KEY]);
+}
+
+export async function saveReaderDisplay(area: AsyncStorageArea, display: ReaderDisplay): Promise<void> {
+  await area.set({ [READER_DISPLAY_KEY]: readerDisplayOf(display) });
 }
 
 /**

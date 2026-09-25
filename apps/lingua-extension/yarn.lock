@@ -212,6 +212,7 @@ __metadata:
     "@types/chrome": "npm:^0.2.9"
     "@types/node": "npm:^22.10.0"
     "@vitest/coverage-v8": "npm:^4.1.11"
+    "@zip.js/zip.js": "npm:2.8.22"
     esbuild: "npm:^0.28.1"
     eslint: "npm:^10.8.0"
     fake-indexeddb: "npm:^6.2.5"
@@ -1211,6 +1212,13 @@ __metadata:
     convert-source-map: "npm:^2.0.0"
     tinyrainbow: "npm:^3.1.0"
   checksum: 10c0/a2c1ddc64333458c3e031465c1ee0440a7660fd1b298c54ccbf865ef1e5cf3ebdd6c5c75a5ea235d8a672498b394e7121f992b096f021f45014ab25e9abd1b52
+  languageName: node
+  linkType: hard
+
+"@zip.js/zip.js@npm:2.8.22":
+  version: 2.8.22
+  resolution: "@zip.js/zip.js@npm:2.8.22"
+  checksum: 10c0/dc604b9ad872ccbac39ddef92c69fd71b5b06cdde1e05a09df300ccae88412ed3cde6f3314820bb0b056332d4cb8ccc57b1352fdd38dab47426d298a69e72e53
   languageName: node
   linkType: hard
 

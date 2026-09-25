@@ -69,6 +69,9 @@ const markers = [
   { file: "content.js", text: "drawer.openOn(view)", chromium: false },
   // Dynamic reader registration — Chromium only.
   { file: "background.js", text: "registerContentScripts(", chromium: true },
+  // The book reader's sections served by the service worker — Chromium only (section-server.ts).
+  { file: "background.js", text: "reader-section/", chromium: true },
+  { file: "reader.js", text: "reader-section/", chromium: true },
 ];
 for (const { file, text, chromium: inChromium } of markers) {
   for (const target of ["chromium", "firefox", "safari"]) {
@@ -162,6 +165,40 @@ for (const target of ["chromium", "firefox", "safari"]) {
       );
     }
   }
+}
+
+// The book reader (add-lingua-reader): the same page in every variant, with the EPUB renderer
+// only — view.js's other formats are refused at build time (build.mjs) and must not ship — and
+// no new permission: the file picker, IndexedDB and an extension page need none. The zip reader
+// is foliate's own entry, with no WebAssembly variant pulled in through the package's exports.
+const READER_FILES = ["reader.html", "reader.js", "reader.css"];
+const READER_PERMISSIONS = { chromium: ["activeTab", "storage", "scripting", "sidePanel", "identity"] };
+READER_PERMISSIONS.firefox = READER_PERMISSIONS.chromium.filter((p) => p !== "sidePanel");
+READER_PERMISSIONS.safari = [...READER_PERMISSIONS.firefox.filter((p) => p !== "identity"), "nativeMessaging"];
+for (const target of ["chromium", "firefox", "safari"]) {
+  for (const file of READER_FILES) expect(has(target, file), `${target}: ${file} should be built`);
+  if (!has(target, "reader.js")) continue;
+  const reader = read(target, "reader.js");
+  expect(reader.includes("foliate-view"), `${target}/reader.js: should carry the foliate-js renderer`);
+  expect(reader.includes("Cymbra Lingua reads EPUB only"), `${target}/reader.js: other formats should be refused`);
+  // The modules themselves, by the paths esbuild notes above each: pdf.js's engine, and the
+  // zip package's own codecs (JavaScript or WebAssembly) and inline workers.
+  for (const marker of [
+    "pdfjs",
+    "GlobalWorkerOptions",
+    "lib/core/streams/zlib-js/",
+    "lib/core/streams/zlib-wasm/",
+    "lib/core/web-worker-inline",
+  ]) {
+    expect(!reader.includes(marker), `${target}/reader.js: "${marker}" must not ship (EPUB only, no zip codec)`);
+  }
+  const extra = manifests[target].permissions.filter(
+    (p) => !READER_PERMISSIONS[target].includes(p) && p !== "offscreen",
+  );
+  expect(
+    extra.length === 0,
+    `${target}: the reader added no permission, but the manifest asks for ${extra.join(", ")}`,
+  );
 }
 
 if (failures.length > 0) {

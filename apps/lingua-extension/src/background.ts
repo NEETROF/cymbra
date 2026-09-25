@@ -20,6 +20,8 @@ import {
   runAuthFlow,
 } from "./state/oidc.ts";
 import { isOpenPageMessage } from "./state/open-page.ts";
+import { openOrFocusReader, READER_PAGE, type ReaderWhereMessage } from "./reader/locate.ts";
+import { serveSection } from "./reader/section-server.ts";
 import { EngineChannel, type WorkerLike } from "./translate/host/channel.ts";
 import type { EngineAccess } from "./translate/host/engine.ts";
 import { OffscreenEngine } from "./translate/host/offscreen-engine.ts";
@@ -130,6 +132,16 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
   else openTab();
 });
 
+// The book reader's sections, on Chromium (src/reader/section-server.ts): the reader page puts
+// each one in Cache Storage and points its frame at reader-section/…, answered here, so the
+// section's document stays in the page's process. Every other request is left untouched. The
+// worker claims the pages already open, so a reader opened before it started is served too.
+if (__SECTIONS_FROM_WORKER__) {
+  const worker = self as unknown as ServiceWorkerGlobalScope;
+  worker.addEventListener("fetch", (event) => void serveSection(event, caches));
+  worker.addEventListener("activate", (event) => event.waitUntil(worker.clients.claim()));
+}
+
 // A surface that cannot open a tab asks here: a content script has no `chrome.tabs`, which
 // is why the in-page drawer's links did nothing (dogfooding, build 100/101). An extension
 // path is resolved; a browser page (about:addons, chrome://extensions/shortcuts) is opened
@@ -137,6 +149,16 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
 chrome.runtime.onMessage.addListener((message: unknown) => {
   if (!isOpenPageMessage(message)) return;
   const url = /^[a-z-]+:/.test(message.url) ? message.url : chrome.runtime.getURL(message.url);
+  // The book reader is one tab: an entry point brings the open one forward (add-lingua-reader D8).
+  if (message.url === READER_PAGE) {
+    void openOrFocusReader(url, {
+      ask: () => chrome.runtime.sendMessage({ type: "reader:where" } satisfies ReaderWhereMessage),
+      focusTab: (tabId) => chrome.tabs.update(tabId, { active: true }),
+      focusWindow: (windowId) => chrome.windows.update(windowId, { focused: true }),
+      openTab: (target) => chrome.tabs.create({ url: target }),
+    }).catch(() => {});
+    return;
+  }
   void chrome.tabs.create({ url }).catch(() => {});
 });
 

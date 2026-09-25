@@ -45,12 +45,16 @@ deck, formats other than EPUB.
 
 - `lingua-reader`: the extension's own book reader — the library, import and deletion, offline
   opening, paginated rendering suited to e-ink, the reading module mounted on the book, the
-  local reading position, the refusal of protected books, where the reader opens from.
+  local reading position, the refusal of protected books, where the reader opens from, the
+  text size and the paper or dark page.
 
 ### Modified Capabilities
 
 - `lingua-browser-extension`: **Cymbra visual identity** — highlight tints must stay
   distinguishable without colour (two underline styles), not only by tint.
+- `lingua-browser-extension`: **The reader never fights the platform's text selection** — on
+  Safari, a finished phrase selection is removed once the finger lifts, so the platform's
+  callout stops covering the expression card (found reading a book on an iPad).
 - `lingua-decks-review`: **Card schema with provenance** — the source of an encounter may be a
   book (title and chapter), next to a page address or an agent session.
 - `lingua-privacy`: **A card's page address stays on the device** — the same guarantee is

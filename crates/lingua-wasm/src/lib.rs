@@ -604,16 +604,22 @@ impl LinguaEngine {
     }
 
     /// The current card as a JSON view model — `{ headword, surface, sentence,
-    /// gloss, revealed, remaining }` — or `null` when the session is finished or
-    /// not started.
+    /// source, gloss, revealed, remaining }` — or `null` when the session is finished
+    /// or not started. `source` is where the word was met, as the device kept it: a
+    /// page address, or a book and its chapter (`add-lingua-reader`); empty when none.
     #[wasm_bindgen(js_name = reviewCurrent)]
     pub fn review_current(&self) -> Option<String> {
         let session = self.session.as_ref()?;
         let card = session.current(&self.state.deck)?;
+        let source = match &card.provenance.source {
+            EncounterSource::Web { url } => url.as_str(),
+            EncounterSource::AgentSession { .. } | EncounterSource::Import => "",
+        };
         let view = serde_json::json!({
             "headword": card.lemma,
             "surface": card.encountered_form,
             "sentence": card.provenance.sentence,
+            "source": source,
             "gloss": card.gloss,
             "revealed": session.is_revealed(),
             "remaining": session.remaining(),

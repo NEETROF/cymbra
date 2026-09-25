@@ -142,3 +142,55 @@ describe("the reader's data is asked of its owner, never of chrome.storage.local
     });
   }
 });
+
+// The fourth of the same family, the one the book reader brought (add-lingua-reader D3): code
+// reading the WRONG DOCUMENT. The reading module reads a web page in the content script, and
+// each section of a book in the reader page — a document in foliate-js's iframe, whose window
+// has its own selection, highlight registry and observers. A module that reaches for the global
+// `document` or `window` reads the reader page's chrome instead of the book: it compiles, throws
+// nothing, and paints or hears nothing. Same trap with `instanceof Element`: a node of the
+// iframe belongs to another realm and is never an instance of this window's classes.
+//
+// So a module under src/reading reaches the read document through a parameter or a node
+// (`docOf(node)`, `host.doc`, `host.win`), and a default of the global (`= document.body`,
+// `= window`) keeps the content script's call sites unchanged. Only the modules that BUILD the
+// surfaces — which mount in the reader page's own document, as they mount in the web page —
+// may use the global document, and they are named here with that reason.
+
+/** The modules that build a surface (popup, drawer, HUD, settings) in this context's own document. */
+const SURFACE_MODULES = ["drawer.ts", "hud.ts", "settings-view.ts", "wordpopup.ts"];
+
+const GLOBAL_DOM = [
+  { re: /\bdocument\./, why: "read the document through a parameter or a node (docOf), not the global" },
+  { re: /\bwindow\./, why: "read the window through a parameter (host.win), not the global" },
+  {
+    re: /\binstanceof\s+(Element|HTMLElement|Node|Text|Range|Document)\b/,
+    why: "test the node type (isElement): a node of a book section's iframe is of another realm",
+  },
+];
+
+/** A default parameter falling back on the global is how the content script's calls stay as they were. */
+const DEFAULT_TO_GLOBAL = /=\s*(document\.body|document|window)\b(?=\s*[,)])/g;
+
+describe("the reading module reads the document it was given", () => {
+  const dir = join(root, "src/reading");
+  const readSide = readdirSync(dir).filter((f) => f.endsWith(".ts") && !SURFACE_MODULES.includes(f));
+
+  it("still classifies the surface modules it names", () => {
+    // Positive control: every named surface module exists and does use the global document,
+    // so the exemption is still needed — and a rename cannot silently widen the rule's hole.
+    for (const f of SURFACE_MODULES) expect(readFileSync(join(dir, f), "utf8")).toMatch(/\bdocument\./);
+    expect(readSide.length).toBeGreaterThan(5);
+  });
+
+  for (const file of readSide) {
+    it(`no global document, window or cross-realm instanceof: src/reading/${file}`, () => {
+      const offending = readFileSync(join(dir, file), "utf8")
+        .split("\n")
+        .filter((line) => !/^\s*(\/\/|\/\*|\*)/.test(line))
+        .map((line) => line.replace(DEFAULT_TO_GLOBAL, ""))
+        .flatMap((line) => GLOBAL_DOM.filter(({ re }) => re.test(line)).map(({ why }) => `${line.trim()} — ${why}`));
+      expect(offending, `src/reading/${file}`).toEqual([]);
+    });
+  }
+});

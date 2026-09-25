@@ -15,6 +15,9 @@ declare const __STATIC_READER__: boolean;
 // Safari only: Apple and Google sign-in come from the host app over native messaging
 // (add-lingua-connected-clients D6), since Safari has no identity.launchWebAuthFlow.
 declare const __NATIVE_PROVIDERS__: boolean;
+// Chromium only: the book reader loads each section from the background service worker
+// (src/reader/section-server.ts) — a blob: document may land in another process there.
+declare const __SECTIONS_FROM_WORKER__: boolean;
 
 // Where the translation engine is hosted (add-lingua-translation-engine). "none" in every
 // shipped build: the engine is built in only by a development build that side-loads a model
@@ -60,4 +63,56 @@ declare module "@/wasm/pkg/lingua_wasm.js" {
   export default function init(
     moduleOrPath?: { module_or_path: string | Request | Response | URL } | string | Request | Response | URL,
   ): Promise<unknown>;
+}
+
+// The vendored foliate-js (vendor/foliate-js, add-lingua-reader D2), resolved by build.mjs's
+// `foliate-js` alias. Plain JavaScript with no types of its own: only what the adapter in
+// src/reader/foliate.ts touches is declared here.
+declare module "foliate-js/epub.js" {
+  export class EPUB {
+    constructor(loader: {
+      loadText(name: string): Promise<string | null>;
+      loadBlob(name: string, type?: string): Promise<Blob | null>;
+      getSize(name: string): number;
+    });
+    init(): Promise<FoliateBook>;
+  }
+  export interface FoliateTocItem {
+    label?: string;
+    href?: string;
+    subitems?: FoliateTocItem[] | null;
+  }
+  export interface FoliateBook {
+    toc?: FoliateTocItem[];
+    sections: unknown[];
+    /** Dispatches `data` for each resource the loader is about to hand a section: its content
+     *  (`detail.data`, a string or a promise of one) may be replaced before it is used. */
+    transformTarget?: EventTarget;
+  }
+}
+
+declare module "foliate-js/view.js" {
+  import type { FoliateBook } from "foliate-js/epub.js";
+  export interface FoliateRelocate {
+    cfi: string;
+    fraction: number;
+    tocItem?: { label?: string } | null;
+  }
+  export interface FoliatePaginator extends HTMLElement {
+    setStyles(styles: string | [string, string]): void;
+    /** Whether the flow is scrolled, and where the view is in the section (px). */
+    readonly scrolled: boolean;
+    readonly start: number;
+    readonly end: number;
+    readonly viewSize: number;
+  }
+  export class View extends HTMLElement {
+    renderer: FoliatePaginator;
+    open(book: FoliateBook): Promise<void>;
+    init(options: { lastLocation?: string | null; showTextStart?: boolean }): Promise<void>;
+    goTo(target: string): Promise<unknown>;
+    next(): Promise<void>;
+    prev(): Promise<void>;
+    close(): void;
+  }
 }
