@@ -21,6 +21,25 @@ body {
   font-size: 13px;
 }
 
+/* On a desktop the popup scrolls itself, within the 600 px Chrome and Firefox allow a popup.
+   Safari sizes its popover from the content, at open and again as the account block fills
+   in: once the content outgrows what the popover can show, Safari cuts it off while the page
+   inside believes it is all on screen, and nothing scrolls — the library and statistics
+   buttons out of reach. Capped here, the popover never has to cut. The root keeps no
+   overflow of its own, or the body's would move up to the window and cap nothing. */
+@media (pointer: fine) {
+  html {
+    overflow: hidden;
+  }
+
+  body {
+    box-sizing: border-box;
+    max-height: 600px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
 /* On a touch-primary device the popup is either a sheet or page of imposed width (Safari on
    iPhone, Firefox for Android) or a popover sized from its content (Safari on iPad). `auto`
    fills the imposed width instead of a narrow desktop column; the minimum keeps the iPad
