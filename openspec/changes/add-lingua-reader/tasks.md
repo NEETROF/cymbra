@@ -10,6 +10,7 @@
   - Firefox for Android (the tablet, 2026-09-25): 4 books = 46 MB of a 5 345 MB quota, not persisted, the notice shown.
   - Chrome: recorded in design.md — 3 books = 41 MB of a 10.8 GB quota, `persist()` refused, `unlimitedStorage` not needed for room (open question: for eviction). Pending: Firefox.
 - [ ] 1.5 Build the safari variant of the spike, open the largest EPUB at hand in Safari on an iPhone, and note memory (`phys_footprint`) and whether a whole-section paint stays fluid; record it in design.md and decide whether the Safari variant ships the reader
+  - iPhone 15 Pro Max, iOS 27.2 (2026-09-25): recorded in design.md — whole sections of 20 149 and 29 761 ranges paint in 0.7 and 1.7 s (one 1.5 s freeze), turns in them cost 110–320 ms, no reload of the page over both books; Safari keeps the reader. Pending: the memory footprint (Instruments needs the phone on USB).
   - iOS simulator and an iPad (Safari, 2026-09-24): the reader opens, reads and turns pages once two WebKit defects were fixed — a section frame never drawn without a compositing layer, and a cover lost when its record was written back (design.md, « Measurements » and D5). Pending: the iPhone, its memory on the largest book.
 
 ## 2. The reading module takes a document

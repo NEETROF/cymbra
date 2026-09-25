@@ -295,6 +295,20 @@ novel) occupy 41.2 MB of a 10.8 GB quota: `unlimitedStorage` is not needed for r
 its notice on Chromium. Asking for `unlimitedStorage` would exempt the library from eviction,
 at the price of a new permission to justify — left as a decision (see Open Questions).
 
+**1.5 — Safari on an iPhone (iPhone 15 Pro Max, iOS 27.2).** Measured in the reader page
+itself (a debug build reporting over the local network), no level declared. A chapter paints
+and turns as on the laptop: a page turn reaches its second frame in 125 – 141 ms with 176 to
+2 208 ranges. The whole-novel section of *Pride and Prejudice* (20 149 ranges) is shown painted
+702 ms after it loads, with one frame of 588 ms while it paints; a later section of the same
+edition (29 761 ranges) takes 1 734 ms, with the page unresponsive for 1.5 s once. Turning a
+page in those sections costs 110 – 320 ms to the second frame (two turns at 674 and 730 ms),
+with frames of 100 – 170 ms here and there — slower than a chapter, never the stall of the
+Apple spike. So Safari keeps the reader, and the section is still painted whole; the viewport
+window stays an option for the reader on Safari if a longer section proves worse. Over both
+books the page was never reloaded, which it would have been had the system reclaimed its
+process for memory; its footprint itself is still to measure — Instruments reaches the phone
+over USB only, and it was attached over the network. Storage: a 39 322 MB quota, not persisted.
+
 **1.4 — storage (Firefox for Android, the tablet).** Four books (0.5, 6.6, 13.3 and 23.7 MB,
 44.1 MB of files) occupy 46 MB of a 5 345 MB quota; `navigator.storage.persisted()` is false
 there too, and the library shows its notice. Room is not the constraint on either browser;
