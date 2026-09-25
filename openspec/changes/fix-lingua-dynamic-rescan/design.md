@@ -115,6 +115,22 @@ the rule also covers the player on `m.youtube.com`.
 and skips `repaint()` when nothing changed, still handing the (unchanged) containers to
 `track()`.
 
+### Implementation notes
+
+- Since `add-lingua-reader` (#542) the reading code this design places in `content.ts` lives in
+  `src/reading/session.ts` (`ReadingSession`), which the page and the reader page both mount;
+  `refresh()` and `activate()` changed there.
+- D3 with one exception: the **first** paint always repaints, even when the merge reports no
+  change — it is that repaint which sets the badge, the indicator and `onPainted` for a page with
+  no text at all (`refresh(roots, { firstPaint: true })` from `activate()`).
+- Measured on Chrome 153 (headless, the dev build with the static reader, a local probe page that
+  appends a sentence to a painted paragraph, a paragraph to a painted article, a comment into a
+  container empty at load, and a caption window; level B2 declared): on `main`, none of the added
+  text is highlighted, even after scrolling, and a 15 s read with no gesture records no exposure;
+  with this change, all of it is highlighted — the comment once scrolled on screen — the caption
+  line never, and the read records exposures (`committee`, `harbour`, `fisherman`… with the
+  `reading:` provenance).
+
 ## Risks / Trade-offs
 
 - **[Dynamic sites now rescan]** → The mechanism that was designed for this, visible-first

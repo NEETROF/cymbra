@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { byteToCharOffset, collectBlocks, rangeForToken } from "@/reading/blocks.ts";
+import { type Block, byteToCharOffset, collectBlocks, mergeBlocks, rangeForToken } from "@/reading/blocks.ts";
 
 beforeEach(() => {
   document.body.innerHTML = "";
@@ -29,6 +29,16 @@ describe("collectBlocks", () => {
     expect(block.text).toBe("hello brave world");
     // Three eligible text nodes: "hello ", "brave", " world".
     expect(block.segments.length).toBe(3);
+  });
+
+  it("never reads a video player's caption line, and reads the rest of the page", () => {
+    document.body.innerHTML = `
+      <div class="ytp-caption-window-container">
+        <div class="caption-window"><span class="ytp-caption-segment">We shall never surrender</span></div>
+      </div>
+      <p>The comments are read as usual.</p>`;
+    const texts = collectBlocks().map((b) => b.text.trim());
+    expect(texts).toEqual(["The comments are read as usual."]);
   });
 
   it("drops blocks with no letters", () => {
@@ -78,5 +88,75 @@ describe("rangeForToken", () => {
     // "café" is bytes [0, 5) (é = 2 bytes), i.e. chars [0, 4).
     const range = rangeForToken(block, 0, 5)!;
     expect(range.toString()).toBe("café");
+  });
+});
+
+describe("mergeBlocks — what a rescan changed", () => {
+  /** The page's block map after a first scan of the whole body. */
+  function painted(): Map<Element, Block> {
+    const blocks = new Map<Element, Block>();
+    mergeBlocks(blocks, [document.body]);
+    return blocks;
+  }
+  const $ = (id: string) => document.getElementById(id)!;
+
+  it("reports the first scan of a page with text", () => {
+    document.body.innerHTML = `<p id="a">The runner runs.</p>`;
+    const blocks = new Map<Element, Block>();
+    expect(mergeBlocks(blocks, [document.body])).toBe(true);
+    expect([...blocks.keys()]).toEqual([$("a")]);
+  });
+
+  it("reports nothing when a clock of digits ticks — the player's 0:15 every second", () => {
+    document.body.innerHTML = `<p id="a">The runner runs.</p><div id="clock"><span>0:14</span></div>`;
+    const blocks = painted();
+    ($("clock").firstElementChild!.firstChild as Text).data = "0:15";
+    expect(mergeBlocks(blocks, [$("clock")])).toBe(false);
+  });
+
+  it("reports nothing when a rescanned block kept its text and its nodes", () => {
+    document.body.innerHTML = `<p id="a">The runner runs.</p>`;
+    const blocks = painted();
+    expect(mergeBlocks(blocks, [$("a")])).toBe(false);
+  });
+
+  it("reports a block whose text changed", () => {
+    document.body.innerHTML = `<p id="a">The runner runs.</p>`;
+    const blocks = painted();
+    ($("a").firstChild as Text).data = "The runner runs, and the walker walks.";
+    expect(mergeBlocks(blocks, [$("a")])).toBe(true);
+    expect(blocks.get($("a"))!.text).toBe("The runner runs, and the walker walks.");
+  });
+
+  it("reports the same text on a new node — its highlight has to move", () => {
+    document.body.innerHTML = `<p id="a">The runner runs.</p>`;
+    const blocks = painted();
+    $("a").replaceChildren(document.createTextNode("The runner runs."));
+    expect(mergeBlocks(blocks, [$("a")])).toBe(true);
+  });
+
+  it("reports a paragraph added to an article", () => {
+    document.body.innerHTML = `<article id="art"><p>The runner runs.</p></article>`;
+    const blocks = painted();
+    const p = document.createElement("p");
+    p.textContent = "Unprecedented circumstances demanded extraordinary measures.";
+    $("art").append(p);
+    expect(mergeBlocks(blocks, [$("art"), p])).toBe(true);
+    expect(blocks.has(p)).toBe(true);
+  });
+
+  it("reports a container that left the page", () => {
+    document.body.innerHTML = `<div id="wrap"><p id="a">The runner runs.</p><p id="b">The walker walks.</p></div>`;
+    const blocks = painted();
+    $("a").remove();
+    expect(mergeBlocks(blocks, [$("wrap")])).toBe(true);
+    expect(blocks.size).toBe(1);
+  });
+
+  it("reports a container gone even when the rescan named another one", () => {
+    document.body.innerHTML = `<p id="a">The runner runs.</p><p id="b">The walker walks.</p>`;
+    const blocks = painted();
+    $("b").remove();
+    expect(mergeBlocks(blocks, [$("a")])).toBe(true);
   });
 });

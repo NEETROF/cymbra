@@ -8,8 +8,14 @@
 /** The host element id of the injected word popup (excluded from scanning). */
 export const HOST_ID = "cymbra-lingua-host";
 
-/** Ancestor selector: any text under these is never scanned. */
-const EXCLUDED_SELECTOR = [
+/**
+ * Ancestor selector: any text under these is never scanned. What the reader never reads — code,
+ * form fields, editable areas, our own UI, and a video player's caption line, which YouTube
+ * rewrites every one or two seconds (fix-lingua-dynamic-rescan D4; the caption mode belongs to
+ * add-lingua-youtube-captions). The rescan observer ignores the same areas, so a change there
+ * does not even schedule a rescan.
+ */
+export const EXCLUDED_SELECTOR = [
   "script",
   "style",
   "noscript",
@@ -21,6 +27,7 @@ const EXCLUDED_SELECTOR = [
   "[contenteditable]",
   "[data-cymbra-lingua-skip]",
   `#${HOST_ID}`,
+  ".ytp-caption-window-container",
 ].join(",");
 
 /** Nearest "block" ancestor: text sharing one of these becomes one analysis block. */
@@ -115,6 +122,45 @@ export function collectBlocks(root: ParentNode & Node = document.body): Block[] 
   }
 
   return [...byContainer.values()].filter((b) => HAS_LETTER.test(b.text));
+}
+
+/**
+ * Re-walk the containers a rescan names into the page's block map, in place, and say whether
+ * anything a repaint depends on changed: a container added or removed, a block's text, or the
+ * text nodes it spans — a node replaced by one with the same text still needs its highlight moved
+ * (fix-lingua-dynamic-rescan D3).
+ *
+ * Once rescans run, a page's own churn — a player's clock ticking every second, a counter — must
+ * not re-analyse the whole page each time: a change that leaves every block as it was reports
+ * nothing. A digits-only clock produces no block at all.
+ */
+export function mergeBlocks(blocks: Map<Element, Block>, dirtyRoots: Iterable<Element>): boolean {
+  const before = new Map(blocks);
+  for (const root of dirtyRoots) {
+    for (const c of [...blocks.keys()]) {
+      if (c === root || root.contains(c) || !c.isConnected) blocks.delete(c);
+    }
+    for (const b of collectBlocks(root)) blocks.set(b.container, b);
+  }
+  for (const c of [...blocks.keys()]) if (!c.isConnected) blocks.delete(c);
+
+  if (blocks.size !== before.size) return true;
+  for (const [container, block] of blocks) {
+    const was = before.get(container);
+    if (!was || !sameBlock(was, block)) return true;
+  }
+  return false;
+}
+
+function sameBlock(a: Block, b: Block): boolean {
+  if (a === b) return true;
+  if (a.text !== b.text || a.segments.length !== b.segments.length) return false;
+  return a.segments.every(
+    (s, i) =>
+      s.node === b.segments[i]!.node &&
+      s.blockStart === b.segments[i]!.blockStart &&
+      s.length === b.segments[i]!.length,
+  );
 }
 
 /** UTF-8 byte length of a single code point. */

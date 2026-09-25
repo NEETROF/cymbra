@@ -1,7 +1,7 @@
 import { createTranslatorPort } from "../translate/create-port.ts";
 import type { LinguaPort } from "../analyzer/port.ts";
 import { type CefrLevel, STUDIED_LANGUAGE } from "../analyzer/types.ts";
-import { type Block, collectBlocks, isElement } from "./blocks.ts";
+import { type Block, isElement, mergeBlocks } from "./blocks.ts";
 import { Drawer, type DrawerView } from "./drawer.ts";
 import { clear as clearHighlights, injectPageStyles, render } from "./highlight.ts";
 import { ExposureTracker } from "./exposure-tracker.ts";
@@ -424,7 +424,7 @@ export class ReadingSession {
     const host = this.host;
     if (!host) return;
     injectPageStyles(this.opts.css.tokens, host.doc);
-    await this.refresh([host.doc.body]);
+    await this.refresh([host.doc.body], { firstPaint: true });
     // Mount the indicator only after a successful first paint, so a failed init (which resets
     // the injection guard and lets a retry create a fresh session) leaves no orphan host.
     if (!this.indicatorMounted) {
@@ -510,17 +510,16 @@ export class ReadingSession {
     this.needsLevel = await needsLevelChoice(this.port);
   }
 
-  /** Re-walk the given dirty containers, then repaint from a fresh whole-doc analysis. */
-  private async refresh(dirtyRoots: Element[]): Promise<void> {
+  /**
+   * Re-walk the given dirty containers, then repaint from a fresh whole-doc analysis — only when a
+   * block changed (fix-lingua-dynamic-rescan D3): a player's clock ticking every second must not
+   * re-analyse the page. The first paint always repaints: it is what sets the badge, the indicator
+   * and `onPainted`, even for a page with no text.
+   */
+  private async refresh(dirtyRoots: Element[], opts: { firstPaint?: boolean } = {}): Promise<void> {
     const host = this.host;
-    for (const root of dirtyRoots) {
-      for (const c of [...this.blocksByContainer.keys()]) {
-        if (c === root || root.contains(c) || !c.isConnected) this.blocksByContainer.delete(c);
-      }
-      for (const b of collectBlocks(root)) this.blocksByContainer.set(b.container, b);
-    }
-    for (const c of [...this.blocksByContainer.keys()]) if (!c.isConnected) this.blocksByContainer.delete(c);
-    await this.repaint();
+    const changed = mergeBlocks(this.blocksByContainer, dirtyRoots);
+    if (changed || opts.firstPaint) await this.repaint();
     // The document may have been detached while the analysis ran (a page turned to the next section).
     if (this.host === host) this.observers.track(this.blocksByContainer.keys());
   }
