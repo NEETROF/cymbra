@@ -214,7 +214,8 @@ the content script highlights benefits — the change is in the token sheet, not
 Taken on the implementation itself rather than a throwaway branch — the refactor of D3 was
 bounded as hoped — with the real en-fr pack (40 704 lemmas), no level declared (every word
 unknown: the worst case for painting), in Playwright's Chromium on a MacBook (Apple silicon),
-extension loaded unpacked. The e-ink tablet, Firefox and the iPhone are still to measure.
+extension loaded unpacked; then on the Galaxy Tab S6 Lite under Firefox for Android (below).
+The e-ink tablet and the iPhone are still to measure.
 
 **1.2 — the document parameter.** The sites touched stayed inside `src/reading/` and the
 session: `blocks.ts` (derives its document from the root), `highlight.ts` (one painter per
@@ -245,12 +246,35 @@ that stalled Safari in the Apple spike. Chromium takes it in stride; it is what 
 measure on the iPhone. If Safari stalls, the viewport window comes back for the reader on
 Safari only (`paintWhole` is a per-host flag), at the cost of a second paint there.
 
+**1.3 — the tablet (Galaxy Tab S6 Lite, Firefox 156 for Android).** The engine runs in the
+event page there, so the analysis is a message round trip; measured in the reader page itself
+(a debug build reporting over `adb reverse`), no level declared, airplane mode on.
+
+| Section | Characters | Ranges | Analysis (round trip) | Load → painted |
+|---|---|---|---|---|
+| Chapter (Hound of the Baskervilles, SE) | 12 466 | 2 208 | 271 ms | 355 ms |
+| Front matter (Pro Git) | 283 – 3 268 | 35 – 597 | 73 – 82 ms | 80 – 114 ms |
+| Chapter (Let's Go) | 1 870 – 3 847 | 319 – 621 | 79 ms; 972 ms first after opening | 94 – 991 ms |
+| Whole novel (Pride and Prejudice) | 114 513 | 20 149 | 1 747 – 2 595 ms, then 744 ms to paint | revealed by the cap, painted ≈ 2.5 s after the request |
+
+About 70 ms of every analysis is the message round trip; the first analysis after the reader
+opens pays for the event page waking and restoring the engine (972 ms for a 3 847-character
+section). A page turn inside a section re-registers nothing and never hides the book: 55 – 82 ms
+to the second frame in a chapter, about 100 ms with 20 149 ranges (one turn at 653 ms). The
+cap stays at **1 500 ms**: every chapter-sized section, cold event page included, paints under
+it in one refresh; only the whole-novel section overshoots, and it is better shown unpainted at
+1.5 s and painted a second later than left blank for close to three.
+
 **1.4 — storage (Chromium).** Three books (0.5 MB novel, 13.3 MB Pro Git, 23.7 MB illustrated
 novel) occupy 41.2 MB of a 10.8 GB quota: `unlimitedStorage` is not needed for room.
 `navigator.storage.persist()` is **refused** for the extension's origin, so the library shows
 its notice on Chromium. Asking for `unlimitedStorage` would exempt the library from eviction,
-at the price of a new permission to justify — left as a decision (see Open Questions);
-Firefox is still to measure.
+at the price of a new permission to justify — left as a decision (see Open Questions).
+
+**1.4 — storage (Firefox for Android, the tablet).** Four books (0.5, 6.6, 13.3 and 23.7 MB,
+44.1 MB of files) occupy 46 MB of a 5 345 MB quota; `navigator.storage.persisted()` is false
+there too, and the library shows its notice. Room is not the constraint on either browser;
+eviction is the same open question.
 
 **Offline.** With every request sent to a dead proxy, opening and reading the 23.7 MB book made
 52 requests, all `chrome-extension:` or `blob:` — none left the extension; its 36 illustrations
