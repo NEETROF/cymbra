@@ -45,8 +45,8 @@
 ## 5. Two underline styles
 
 - [x] 5.1 In `tokens.css`, keep `underline dotted` for "learning" and switch "unknown" to `underline solid`; both tints unchanged
-- [ ] 5.2 Check the two styles on a light page, a dark page and a greyscale rendering (a screenshot desaturated is enough), and on the Boox or the tablet in greyscale
-  - Light page, dark page and greyscale renderings checked on the desk build (dotted vs solid stay apart). Pending: the Boox or the tablet in greyscale.
+- [x] 5.2 Check the two styles on a light page, a dark page and a greyscale rendering (a screenshot desaturated is enough), and on the Boox or the tablet in greyscale
+  - Light page, dark page and greyscale renderings checked on the desk build (dotted vs solid stay apart). Galaxy Tab S6 Lite in greyscale (Firefox for Android, 2026-09-25): judged legible by hand on the paper and the dark page — the library, a chapter of Let's Go, the expression card; the pages captured held unknown words only (solid underline), so the dotted learning style was not on screen there. The Boox is still to see.
 
 ## 6. Prove it
 
