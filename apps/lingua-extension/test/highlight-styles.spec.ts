@@ -33,3 +33,18 @@ describe("highlight statuses without colour", () => {
     expect(decoration(HL_UNKNOWN)).toContain("var(--cymbra-lingua-unknown-underline)");
   });
 });
+
+/** A token's value in the sheet. */
+function token(name: string): string {
+  return TOKENS.match(new RegExp(`--cymbra-lingua-${name}:\\s*([^;]+);`))?.[1]?.trim() ?? "";
+}
+
+// The reader's dark page (add-lingua-reader D10) sits under the word popup and the reader's
+// panels: were it their colour, a card would vanish into the page — as it did at first.
+describe("the dark page under the reading surfaces", () => {
+  it("is not the colour of any surface laid over it", () => {
+    const night = token("night").toLowerCase();
+    expect(night).toMatch(/^#[0-9a-f]{6}$/);
+    for (const surface of ["panel", "panel-2", "panel-3"]) expect(token(surface).toLowerCase()).not.toBe(night);
+  });
+});
