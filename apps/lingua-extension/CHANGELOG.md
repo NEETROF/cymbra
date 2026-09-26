@@ -1,5 +1,33 @@
 # Changelog
 
+## [1.2.0](https://github.com/NEETROF/cymbra/compare/lingua-extension-v1.1.0...lingua-extension-v1.2.0) (2026-09-26)
+
+
+### Features
+
+* **lingua:** answer a selection from the pack ([#520](https://github.com/NEETROF/cymbra/issues/520)) ([114d3cf](https://github.com/NEETROF/cymbra/commit/114d3cf348133ce4b3a0dfe8c12ed358770a5adf))
+* **lingua:** answer a selection with the pack's expressions ([#522](https://github.com/NEETROF/cymbra/issues/522)) ([df87d44](https://github.com/NEETROF/cymbra/commit/df87d4457ae916290888458319e54edd637589f3))
+* **lingua:** build the dictionary pack from committed, pinned tables ([#558](https://github.com/NEETROF/cymbra/issues/558)) ([00a42f7](https://github.com/NEETROF/cymbra/commit/00a42f7b86b6558e11926715b846df47ddbfe621))
+* **lingua:** capture a selection on any pointer, not just the mouse ([#516](https://github.com/NEETROF/cymbra/issues/516)) ([ef63828](https://github.com/NEETROF/cymbra/commit/ef6382848c6533031d9a7debe1da126c39dbbed3))
+* **lingua:** deliver extended translation on Chromium and Firefox ([#546](https://github.com/NEETROF/cymbra/issues/546)) ([6379301](https://github.com/NEETROF/cymbra/commit/6379301ca2f511051d41e944d52f00d568ae3d05))
+* **lingua:** offer extended translation in Safari ([#556](https://github.com/NEETROF/cymbra/issues/556)) ([c17d1e3](https://github.com/NEETROF/cymbra/commit/c17d1e31de6b7eeb9a8267e9fef0328aaefdfdc9))
+* **lingua:** offer extended translation on Firefox for Android ([#553](https://github.com/NEETROF/cymbra/issues/553)) ([a59c02a](https://github.com/NEETROF/cymbra/commit/a59c02ae5c07d9f6e6d6e10c090aa2b87e292a3e))
+* **lingua:** read EPUB books in the extension's own reader page ([#542](https://github.com/NEETROF/cymbra/issues/542)) ([93dc747](https://github.com/NEETROF/cymbra/commit/93dc747f5a7b821ae8c9172f03b25f7222ec1ace))
+* **lingua:** read the selection and its sentence aloud ([#547](https://github.com/NEETROF/cymbra/issues/547)) ([76de2cd](https://github.com/NEETROF/cymbra/commit/76de2cd945fe6a62534d34d0038f8aa5a47e4777))
+* **lingua:** translate the reader's sentence, off every thread that paints ([#532](https://github.com/NEETROF/cymbra/issues/532)) ([0fdea14](https://github.com/NEETROF/cymbra/commit/0fdea1405f84952601f7c96b9b89c3ad4bb24d2c))
+
+
+### Bug Fixes
+
+* **lingua:** ask the owner's store from the welcome and stats tabs ([#536](https://github.com/NEETROF/cymbra/issues/536)) ([ace4b7e](https://github.com/NEETROF/cymbra/commit/ace4b7eb9ce7f3bcc73d87f0c14ccd3d06e9e369))
+* **lingua:** declare data_collection_permissions for Firefox ([#529](https://github.com/NEETROF/cymbra/issues/529)) ([cec2104](https://github.com/NEETROF/cymbra/commit/cec2104ae61aa23ec242fbb9b6ae8523715147be))
+* **lingua:** drop sidePanel.open from the Firefox/Safari bundle ([#526](https://github.com/NEETROF/cymbra/issues/526)) ([c4ff4bd](https://github.com/NEETROF/cymbra/commit/c4ff4bdf1b825122acbb0a86c3ffcab522fafd34))
+* **lingua:** name Safari in the summary, the destination this lane cannot reach ([#513](https://github.com/NEETROF/cymbra/issues/513)) ([fc1670f](https://github.com/NEETROF/cymbra/commit/fc1670fa3fb4937581eae02ef10cba005f361012))
+* **lingua:** read what a page adds after its first paint, and count plain reading ([#551](https://github.com/NEETROF/cymbra/issues/551)) ([36cb3e2](https://github.com/NEETROF/cymbra/commit/36cb3e295d15e1b86f003955c331626cb615c69e))
+* **lingua:** render the stats view without innerHTML ([#530](https://github.com/NEETROF/cymbra/issues/530)) ([f8a9a04](https://github.com/NEETROF/cymbra/commit/f8a9a0421bfcdfb81cd25264c10350b29ea9e7a1))
+* **lingua:** send Mozilla a source archive that builds, and gloss a hyphenated selection ([#518](https://github.com/NEETROF/cymbra/issues/518)) ([7c951f3](https://github.com/NEETROF/cymbra/commit/7c951f375b2888eea9c22f0c3a8083d2cd900840))
+* **lingua:** take a card's sentence from where the selection sits ([#523](https://github.com/NEETROF/cymbra/issues/523)) ([d5c63dd](https://github.com/NEETROF/cymbra/commit/d5c63dd22c307b8d538ee809bbcc8dd891bccb43))
+
 ## [1.1.0](https://github.com/NEETROF/cymbra/compare/lingua-extension-v1.0.2...lingua-extension-v1.1.0) (2026-09-20)
 
 
