@@ -54,18 +54,25 @@ The result is `dist-firefox/`, which is what was submitted. The archive's copy o
 ends with the sign-in client ids the package was built with; without them the build is the
 same add-on with its sign-in buttons hidden.
 
-## The one file that is not in this archive
+## The language pack
 
-`assets/pack.lingua` — the English→French language pack, about 1.2 MB of frequency and
-translation data. It is **generated, not authored**, and it is not kept in version control.
-`yarn gen:pack:real` runs `scripts/lingua-data/build.sh en-fr assets/pack.lingua`, which
-downloads its inputs from public corpora — Kaikki's French Wiktionary extract of
-English entries, the `wordfreq` distribution, AGID's inflection list, and the CEFR-J and
-Octanove vocabulary profiles — then reduces them with `scripts/lingua-data/reduce-en-fr.py`,
-which is in this archive. The download is around 200 MB, so it takes a while on a cold cache.
+`assets/pack.lingua` — the English→French language pack, about 1.5 MB of frequency and
+translation data. It is **generated, not authored**: the built file is not in the archive, but
+everything it is built from is. `yarn gen:pack:real` runs `scripts/lingua-data/build.sh en-fr
+assets/pack.lingua`, which builds it from the reduced tables in
+`scripts/lingua-data/tables/en-fr/` — **offline, with no download and no Python** — and checks
+the result against the sha256 recorded in `tables/en-fr/pin.json` (also printed at the end of
+this README): the build fails unless it produces the very bytes the package carries.
+
+Those tables were reduced from public corpora — Kaikki's French Wiktionary extract of English
+entries, the `wordfreq` distribution, AGID's inflection list, and the CEFR-J and Octanove
+vocabulary profiles — by `scripts/lingua-data/reduce-en-fr.py`, also in this archive.
+`pin.json` names each raw source at a fixed commit or snapshot, with its sha256, so the
+tables can be reduced again from the same bytes (`build.sh --reduce`); the reviewer does not
+need to.
 
 `yarn gen:pack` builds a small test pack instead, which is enough to load the add-on and
-exercise it without the download.
+exercise it.
 
 ## The translation engine
 

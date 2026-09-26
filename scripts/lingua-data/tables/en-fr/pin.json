@@ -1,0 +1,36 @@
+{
+  "snapshot": "2026.09.26",
+  "pack": {
+    "sha256": "1f6b9931406c7a3f91f9e80f2ccce1b91cc55df31bee0f7e298b5a0a3dd927b7",
+    "size": 1543744
+  },
+  "reducer": {
+    "sha256": "ca5067990e544e329260e725a4a4d81872c47978fc5b680b3b6bc94266bf009e"
+  },
+  "sources": {
+    "agid": {
+      "url": "https://raw.githubusercontent.com/en-wl/wordlist/464bea8cca4f606d9e271600b7718818fdd6507c/agid/infl.txt",
+      "sha256": "df0c8f6edd4193d823abfad9e4ff6f42b4526211516649e1c73d4533aef749fa"
+    },
+    "cefrj": {
+      "url": "https://raw.githubusercontent.com/openlanguageprofiles/olp-en-cefrj/d4e45b75b38f27b30dfc5c44d8c571aec7e7092f/cefrj-vocabulary-profile-1.5.csv",
+      "sha256": "b0dd3c635f1c9a4fdf1490c7e5b7c48e8bbe55b652ad0c9860a95f98e10ae498"
+    },
+    "octanove": {
+      "url": "https://raw.githubusercontent.com/openlanguageprofiles/olp-en-cefrj/d4e45b75b38f27b30dfc5c44d8c571aec7e7092f/octanove-vocabulary-profile-c1c2-1.0.csv",
+      "sha256": "18c33a407f2f89f7b8de9671c6d45fe3ea0bce45e7d2d7dcaab48d73e0f7b380"
+    },
+    "kaikki": {
+      "release": "lingua-pack-sources-en-fr-2026.09.26",
+      "asset": "kaikki-Anglais.jsonl.zst",
+      "sha256": "3cf029e999dd59c75533d66e8ccb804740548473090df8472ec3e292458968cf",
+      "size": 201084572,
+      "fetched": "2026-09-26",
+      "last_modified": "Thu, 24 Sep 2026 00:04:03 GMT",
+      "url": "https://kaikki.org/frwiktionary/Anglais/kaikki.org-dictionary-Anglais.jsonl"
+    },
+    "wordfreq": {
+      "version": "3.1.1"
+    }
+  }
+}

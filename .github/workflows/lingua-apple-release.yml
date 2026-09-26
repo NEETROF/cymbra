@@ -110,32 +110,20 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Enable Corepack (Yarn Berry)
         run: corepack enable
-      # The real pack's upstream sources (~200 MB, mostly the kaikki extract). The build
-      # reuses whatever is present, so a cache hit skips the downloads.
-      - name: Cache the pack sources
-        uses: actions/cache@v4
-        with:
-          path: scripts/lingua-data/work
-          key: lingua-pack-sources-en-fr-${{ hashFiles('scripts/lingua-data/build.sh', 'scripts/lingua-data/reduce-en-fr.py') }}
-          restore-keys: lingua-pack-sources-en-fr-
       - name: Build the extension for production
         working-directory: apps/lingua-extension
         run: |
           set -euo pipefail
-          pip install --quiet wordfreq
           yarn install --immutable
           yarn gen:wasm
           yarn gen:proto
+          # The real pack, from the committed tables and checked against pin.json — the same bytes
+          # lingua-extension-release ships, and no upstream source read (pin-lingua-pack-sources).
           yarn gen:pack:real
           # The Safari package carries the translation engine, like Chromium's and Firefox's
           # (add-lingua-translation-safari): lingua-engine-build's artefact, kept only if every
           # file matches engine-pin.json — build.mjs refuses to package anything else.
           yarn fetch:engine
-          size=$(stat -f%z assets/pack.lingua)
-          if [ "$size" -lt 1000000 ]; then
-            echo "::error::assets/pack.lingua is ${size} bytes — not the real EN→FR pack."
-            exit 1
-          fi
           LINGUA_GRPC_WEB_URL=https://api.cymbra.app yarn build:safari
         env:
           GH_TOKEN: ${{ github.token }}

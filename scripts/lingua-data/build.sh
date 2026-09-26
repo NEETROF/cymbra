@@ -5,65 +5,115 @@
 # use this file except in compliance with the License. You may obtain a copy of
 # the License at http://www.apache.org/licenses/LICENSE-2.0
 #
-# Reproducible offline build of a Cymbra Lingua data pack.
+# Reproducible build of a Cymbra Lingua data pack (pin-lingua-pack-sources D4).
 #
-#   scripts/lingua-data/build.sh <pair> <out.lingua>
-#   scripts/lingua-data/build.sh en-fr dist/en-fr.lingua        # real sources
-#   scripts/lingua-data/build.sh --testdata en-fr /tmp/t.lingua # tiny fixture
+#   scripts/lingua-data/build.sh en-fr <out.lingua>            # Build: the committed tables
+#   scripts/lingua-data/build.sh --reduce en-fr <out.lingua>   # Re-reduce: the pinned raw sources
+#   scripts/lingua-data/build.sh --update en-fr <out.lingua>   # Update: today's raw sources
+#   scripts/lingua-data/build.sh --dry en-fr <out.lingua>      # Update into a scratch folder
+#   scripts/lingua-data/build.sh --testdata en-fr <out>        # the tiny fixture
 #
-# The pack is NEVER committed; CI rebuilds it and caches it (see the reproducibility
-# test in crates/lingua-pack). Raw sources are downloaded into a git-ignored work
-# dir, dated, and reduced to the four TSV tables the builder consumes.
+# Build mode is what every release and every pull request runs: lingua-pack-build on
+# tables/<pair>/, then the pack's sha256 against tables/<pair>/pin.json. It reads nothing from the
+# network and needs no Python. The other modes reduce raw sources into tables again — the pinned
+# bytes when the reduction rules change, today's bytes to take in upstream changes — and are run by
+# a person, or by the lingua-pack-update workflow; they write tables/<pair>/ and pin.json, and the
+# result reaches a release only through a pull request (see tables/<pair>/README.md).
+#
+# Raw sources and packs are never committed; the reduced tables are.
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PYTHON="${LINGUA_PYTHON:-python3}"
+TABLE_FILES=(forms.tsv freq.tsv gloss.tsv level.tsv mwe.tsv NOTICE manifest.json)
 
-# fetch_and_reduce: download the dated upstream sources into $2 (work dir) and reduce
-# them to forms.tsv / freq.tsv / gloss.tsv / NOTICE / manifest.json. Only sources
-# cleared by scripts/lingua-data/SOURCES.md are pulled (the licence denylist is also
-# enforced in the builder). Raw downloads go under work/ (git-ignored), never committed;
-# an already-downloaded snapshot is reused so a rebuild does not re-fetch.
-# Override the scope/version with LINGUA_MAX_LEMMAS / LINGUA_PACK_VERSION.
-fetch_and_reduce() {
-  local pair="$1" work="$2"
-  case "$pair" in
-    en-fr)
-      mkdir -p "$work"
-      # AGID inflection database (permissive) — form -> lemma. ~3.4 MB.
-      [[ -f "$work/agid-infl.txt" ]] || curl -sSL --fail -o "$work/agid-infl.txt" \
-        "https://raw.githubusercontent.com/en-wl/wordlist/master/agid/infl.txt"
-      # kaikki frwiktionary "Anglais" extract (CC BY-SA + GFDL) — FR glosses of EN words. ~188 MB.
-      [[ -f "$work/kaikki-Anglais.jsonl" ]] || curl -sSL --fail --compressed -o "$work/kaikki-Anglais.jsonl" \
-        "https://kaikki.org/frwiktionary/Anglais/kaikki.org-dictionary-Anglais.jsonl"
-      # wordfreq (CC BY-SA) — the package IS the frequency source.
-      python3 -c "import wordfreq" 2>/dev/null || pip3 install --user --quiet wordfreq
-      # CEFR levels: CEFR-J Wordlist v1.5 (A1-B2, commercial OK + citation) and
-      # Octanove Vocabulary Profile C1/C2 v1.0 (C1-C2, CC BY-SA 4.0), both from the
-      # Open Language Profiles repo. ~0.4 MB together. Absence => no level.tsv.
-      [[ -f "$work/cefrj-vocabulary-profile-1.5.csv" ]] || curl -sSL --fail -o "$work/cefrj-vocabulary-profile-1.5.csv" \
-        "https://raw.githubusercontent.com/openlanguageprofiles/olp-en-cefrj/master/cefrj-vocabulary-profile-1.5.csv"
-      [[ -f "$work/octanove-vocabulary-profile-c1c2-1.0.csv" ]] || curl -sSL --fail -o "$work/octanove-vocabulary-profile-c1c2-1.0.csv" \
-        "https://raw.githubusercontent.com/openlanguageprofiles/olp-en-cefrj/master/octanove-vocabulary-profile-c1c2-1.0.csv"
-      python3 "$here/reduce-en-fr.py" --work "$work" \
-        --max-lemmas "${LINGUA_MAX_LEMMAS:-40000}" \
-        --built-at "$(date -u +%F)" --pack-version "${LINGUA_PACK_VERSION:-1.0.0}"
-      ;;
-    *)
-      echo "error: real-source fetch for '$pair' is not wired (see SOURCES.md)." >&2
-      exit 2 ;;
-  esac
+sha256_of() {
+  if command -v sha256sum >/dev/null; then sha256sum "$1" | cut -d' ' -f1; else shasum -a 256 "$1" | cut -d' ' -f1; fi
 }
 
-if [[ "${1:-}" == "--testdata" ]]; then
-  pair="${2:?pair, e.g. en-fr}"; out="${3:?output path}"
-  input="$here/testdata/$pair"
-else
-  pair="${1:?pair, e.g. en-fr}"; out="${2:?output path}"
-  input="$here/work/$pair"
-  fetch_and_reduce "$pair" "$input"
-fi
+# The pack's sha256 as pin.json records it — read without Python: the file is written by
+# pack_sources.py, which puts `"sha256"` on its own line inside `"pack"`.
+recorded_pack_sha256() {
+  sed -n '/"pack": {/,/}/s/.*"sha256": *"\([0-9a-f]\{64\}\)".*/\1/p' "$1" | head -n1
+}
 
-# The builder writes the file but not its folder, which a fresh checkout may lack
-# (apps/lingua-extension/assets/ holds only the git-ignored pack).
-mkdir -p "$(dirname "$out")"
-cargo run --quiet --release -p lingua-pack --bin lingua-pack-build -- "$input" "$out"
+build_pack() {
+  local input="$1" out="$2"
+  # The builder writes the file but not its folder, which a fresh checkout may lack.
+  mkdir -p "$(dirname "$out")"
+  cargo run --quiet --release -p lingua-pack --bin lingua-pack-build -- "$input" "$out"
+}
+
+# reduce <pair> <work> <snapshot>: the reducer over the raw sources in <work>, tables left in <work>.
+reduce() {
+  local pair="$1" work="$2" snapshot="$3"
+  "$PYTHON" "$here/reduce-$pair.py" --work "$work" \
+    --max-lemmas "${LINGUA_MAX_LEMMAS:-40000}" \
+    --built-at "${snapshot//./-}" --pack-version "$snapshot"
+}
+
+copy_tables() {
+  local from="$1" to="$2"
+  mkdir -p "$to"
+  for f in "${TABLE_FILES[@]}"; do
+    if [[ -f "$from/$f" ]]; then cp "$from/$f" "$to/$f"; else rm -f "$to/$f"; fi
+  done
+}
+
+mode=build
+case "${1:-}" in
+  --testdata | --reduce | --update | --dry) mode="${1#--}"; shift ;;
+esac
+pair="${1:?pair, e.g. en-fr}"
+out="${2:?output path}"
+tables="$here/tables/$pair"
+pin="$tables/pin.json"
+work="$here/work/$pair"
+
+case "$mode" in
+  testdata)
+    build_pack "$here/testdata/$pair" "$out"
+    ;;
+
+  build)
+    [[ -f "$pin" ]] || { echo "error: no committed tables for $pair ($pin)." >&2; exit 2; }
+    build_pack "$tables" "$out"
+    want="$(recorded_pack_sha256 "$pin")"
+    got="$(sha256_of "$out")"
+    if [[ "$got" != "$want" ]]; then
+      echo "error: $out has sha256 $got, but the committed tables build $want (pin.json)." >&2
+      echo "  The builder or a dependency changed the pack; if that is intended, update pack.sha256 in the same pull request." >&2
+      exit 1
+    fi
+    echo "Built $out from the committed $pair tables (sha256 $got)."
+    ;;
+
+  reduce)
+    # The reduction rules changed: the same raw bytes, reduced again. The diff is the rules alone.
+    rm -rf "$work" && mkdir -p "$work"
+    "$PYTHON" "$here/pack_sources.py" fetch-pinned --pin "$pin" --work "$work"
+    snapshot="$("$PYTHON" "$here/pack_sources.py" get --pin "$pin" snapshot)"
+    reduce "$pair" "$work" "$snapshot"
+    copy_tables "$work" "$tables"
+    build_pack "$tables" "$out"
+    "$PYTHON" "$here/pack_sources.py" record-build --pin "$pin" --pack "$out" --reducer "$here/reduce-$pair.py"
+    ;;
+
+  update | dry)
+    # Today's sources. A dry run reduces into a scratch copy and leaves the committed tables alone.
+    snapshot="${LINGUA_SNAPSHOT:-$(date -u +%Y.%m.%d)}"
+    if [[ "$mode" == dry ]]; then
+      tables="${LINGUA_DRY_TABLES:-$here/work/dry/$pair}"
+      rm -rf "$tables" && mkdir -p "$tables"
+      [[ -f "$pin" ]] && cp "$pin" "$tables/pin.json"
+      pin="$tables/pin.json"
+    fi
+    rm -rf "$work" && mkdir -p "$work"
+    "$PYTHON" "$here/pack_sources.py" fetch-live --pin "$pin" --work "$work" --snapshot "$snapshot"
+    reduce "$pair" "$work" "$snapshot"
+    copy_tables "$work" "$tables"
+    build_pack "$tables" "$out"
+    "$PYTHON" "$here/pack_sources.py" record-build --pin "$pin" --pack "$out" --reducer "$here/reduce-$pair.py"
+    echo "Reduced today's $pair sources into $tables (snapshot $snapshot)."
+    ;;
+esac

@@ -15,7 +15,8 @@ corepack enable
 yarn install
 yarn gen:wasm     # build the wasm bindings from crates/lingua-wasm  → src/wasm/pkg/ (gitignored)
 yarn gen:proto    # build the gRPC-web/protobuf stubs (auth + sync)  → src/gen/ (gitignored)
-yarn gen:pack     # build the EN→FR data pack                        → assets/pack.lingua (gitignored)
+yarn gen:pack     # build the tiny test data pack                    → assets/pack.lingua (gitignored)
+yarn gen:pack:real  # build the real EN→FR pack from the committed tables, offline → assets/pack.lingua
 yarn build        # bundle every browser variant → dist-chromium/, dist-firefox/, dist-safari/
 ```
 
@@ -183,13 +184,18 @@ yarn lint && yarn format:check && yarn typecheck && yarn test
 
 ## The data pack (important)
 
-Real EN→FR packs are **never committed** and are built by `scripts/lingua-data`. In this
-checkout the real-source fetch is still a stub, so `yarn gen:pack` builds from the tiny
-committed **testdata** sources (`scripts/lingua-data/testdata/en-fr`): a four-word
-lexicon (`run`, `city`, `seldom`, `conundrum`). That is enough to exercise the whole
-pipeline end-to-end, but it means a real article will show almost everything as unknown
-until the full pack is wired. `test/fixtures/en-fr.testdata.lingua` is the committed
-fixture the tests load.
+Packs themselves are **never committed**; what they are built from is.
+`yarn gen:pack:real` builds the real EN→FR pack from the reduced tables committed under
+`scripts/lingua-data/tables/en-fr/` — offline, in seconds — and checks it against the sha256
+in `pin.json`, the record of which raw sources those tables came from
+(pin-lingua-pack-sources). Changing the dictionary is a pull request with new tables: see
+`scripts/lingua-data/tables/en-fr/README.md`.
+
+`yarn gen:pack` builds from the tiny committed **testdata** sources
+(`scripts/lingua-data/testdata/en-fr`): a four-word lexicon (`run`, `city`, `seldom`,
+`conundrum`), enough to exercise the pipeline, but a real article then shows almost
+everything as unknown. `test/fixtures/en-fr.testdata.lingua` is the committed fixture the
+tests load.
 
 ## Manual verification (pending, task 1.4)
 

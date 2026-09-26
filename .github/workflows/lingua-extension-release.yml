@@ -205,15 +205,6 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Enable Corepack (Yarn Berry)
         run: corepack enable
-      # The real pack's upstream sources (~200 MB, mostly the kaikki extract), shared with
-      # lingua-apple-release: the build reuses whatever is present.
-      - name: Cache the pack sources
-        uses: actions/cache@v4
-        with:
-          path: scripts/lingua-data/work
-          key: lingua-pack-sources-en-fr-${{ hashFiles('scripts/lingua-data/build.sh', 'scripts/lingua-data/reduce-en-fr.py') }}
-          restore-keys: lingua-pack-sources-en-fr-
-
       # The Chromium and Firefox packages carry the translation engine
       # (add-lingua-translation-delivery D1): lingua-engine-build's artefact, kept only if every file
       # matches engine-pin.json — and build.mjs refuses to package anything else. The model is never
@@ -245,16 +236,13 @@ jobs:
               echo "::warning::$message"
             fi
           done
-          pip install --quiet wordfreq
           yarn install --immutable
           yarn gen:wasm
           yarn gen:proto
+          # The real pack, from the committed tables and checked against pin.json — no upstream
+          # source is read on release day (pin-lingua-pack-sources); lingua-apple-release builds
+          # the same bytes for Safari.
           yarn gen:pack:real
-          size=$(stat -c%s assets/pack.lingua)
-          if [ "$size" -lt 1000000 ]; then
-            echo "::error::assets/pack.lingua is ${size} bytes — not the real EN→FR pack."
-            exit 1
-          fi
           yarn build
       # Each manifest carries what its browser needs, and each bundle kept only its own
       # capability branches. The same gate the pull request runs, on the shipped bundles.
@@ -322,8 +310,9 @@ jobs:
 
       # Mozilla requires the human-readable source whenever the reviewed code was generated
       # by a build step. Lingua's is twice over: an esbuild bundle and a .wasm compiled from
-      # Rust. The pack is data, rebuilt by scripts/lingua-data/build.sh, and is not in git —
-      # REVIEWERS.md says so, because a file a reviewer cannot reproduce blocks the version.
+      # Rust. The pack is data, rebuilt by scripts/lingua-data/build.sh from the tables committed
+      # under scripts/lingua-data/tables/ — REVIEWERS.md says so, because a file a reviewer cannot
+      # reproduce blocks the version.
       # The script owns what goes in (the check lane rebuilds the add-on from its output on
       # every pull request), and writes the ids this package was built with into the
       # archive's README: they come from repository variables, so git does not hold them.
