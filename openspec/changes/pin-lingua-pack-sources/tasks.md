@@ -35,10 +35,11 @@
 ## 6. First tables
 
 - [ ] 6.1 Dispatch the update once (first snapshot = what the current pipeline produces that day); open and merge its pull request
+  - The workflow can only be dispatched once it is on `main`, and the release lanes switch to the committed tables in this same pull request — so the first snapshot (2026.09.26) was produced by the same Update mode run locally (Python 3.12, `requirements-reduce.txt`), and its kaikki snapshot is published as the release the workflow would have created. Every later update goes through `lingua-pack-update`.
 - [x] 6.2 `scripts/lingua-data/tables/en-fr/README.md` (licences of the tables); `.gitignore` and `SOURCES.md` updated: raw sources and packs never committed, tables committed, sources read only by the update and the monthly check
 - [x] 6.3 The extension's README section on the data pack (the real pack builds offline from the committed tables; packs themselves still never committed) and the comment of `scripts/lingua-data/.gitignore` ("only testdata/ and the scripts are tracked")
 
 ## 7. Gates
 
-- [ ] 7.1 `openspec validate pin-lingua-pack-sources --strict`
+- [x] 7.1 `openspec validate pin-lingua-pack-sources --strict`
 - [ ] 7.2 Reducer unit tests, `cargo test -p lingua-pack`, extension check lane green; a release dry run (dispatch without tag) builds the committed pack with no request to kaikki, GitHub raw or PyPI
