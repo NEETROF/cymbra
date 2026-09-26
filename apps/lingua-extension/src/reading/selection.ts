@@ -194,6 +194,12 @@ function insideReaderUi(node: Node | null): boolean {
 export interface SelectionWatcherOptions {
   /** Called once a usable selection has settled. */
   onCapture: (kind: CaptureKind, capture: Capture) => void;
+  /**
+   * Called on the first usable selection of a gesture, before it settles — once, until the
+   * selection collapses or a pointer goes down again. A card is coming: whatever it will need can
+   * start now (the translation engine: add-lingua-translation-android D2).
+   */
+  onBegin?: () => void;
   /** Read the current selection (injected in tests). */
   read?: () => Selection | null;
   /** The window whose selection is read when `read` is not given: the page's by default,
@@ -222,6 +228,8 @@ export class SelectionWatcher {
   private timer: unknown = null;
   /** Whether a pointer is currently down (a drag in progress). */
   private held = false;
+  /** Whether this gesture's selection has been announced to `onBegin`. */
+  private begun = false;
   /** The last selection emitted, so a repeated event does not re-render the popup. */
   private lastKey: string | null = null;
 
@@ -232,7 +240,12 @@ export class SelectionWatcher {
     this.cancel();
     if (!this.usable()) {
       this.lastKey = null; // a collapsed selection re-arms the same text next time
+      this.begun = false;
       return;
+    }
+    if (!this.begun) {
+      this.begun = true;
+      this.opts.onBegin?.();
     }
     this.arm();
   }
@@ -240,6 +253,7 @@ export class SelectionWatcher {
   /** A pointer went down: a drag is starting, so give the selection room to grow. */
   hold(): void {
     this.held = true;
+    this.begun = false; // a new gesture: its selection, when there is one, is announced again
     if (this.timer !== null) {
       this.cancel();
       this.arm();
@@ -252,6 +266,7 @@ export class SelectionWatcher {
     this.cancel();
     if (!this.usable()) {
       this.lastKey = null;
+      this.begun = false;
       return;
     }
     this.emit();

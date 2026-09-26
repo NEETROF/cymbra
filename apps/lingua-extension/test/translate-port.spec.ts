@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import { createTranslatorPort } from "@/translate/create-port.ts";
 import { isEngineReply } from "@/translate/host/engine.ts";
 import { MessagingTranslatorPort } from "@/translate/messaging-port.ts";
-import { isTranslateMessage, TRANSLATE_TYPE } from "@/translate/wire.ts";
+import { KEEPALIVE_PING } from "@/translate/keepalive.ts";
+import { isTranslateMessage, isWarmMessage, TRANSLATE_TYPE, WARM_TYPE } from "@/translate/wire.ts";
 
 const request = { sentence: "She gave up.", selection: { start: 4, end: 11 } };
 
@@ -49,6 +50,24 @@ describe("MessagingTranslatorPort", () => {
   });
 });
 
+describe("MessagingTranslatorPort.warm (add-lingua-translation-android D2)", () => {
+  it("sends a warm and waits for nothing", () => {
+    const send = vi.fn(async () => true);
+    new MessagingTranslatorPort(send).warm();
+    expect(send).toHaveBeenCalledWith({ type: WARM_TYPE });
+  });
+
+  it("never throws: no listener, or no extension context left", async () => {
+    const rejecting = vi.fn(async () => Promise.reject(new Error("Could not establish connection")));
+    expect(() => new MessagingTranslatorPort(rejecting).warm()).not.toThrow();
+    const throwing = vi.fn(() => {
+      throw new Error("Extension context invalidated");
+    });
+    expect(() => new MessagingTranslatorPort(throwing).warm()).not.toThrow();
+    await Promise.resolve();
+  });
+});
+
 describe("isTranslateMessage", () => {
   it("accepts a request with a selection or with none", () => {
     expect(isTranslateMessage({ type: TRANSLATE_TYPE, request })).toBe(true);
@@ -66,6 +85,19 @@ describe("isTranslateMessage", () => {
       isTranslateMessage({ type: TRANSLATE_TYPE, request: { sentence: "x", selection: { start: 1.5, end: 2 } } }),
     ).toBe(false);
     expect(isTranslateMessage(null)).toBe(false);
+  });
+});
+
+describe("isWarmMessage", () => {
+  it("is its own message: not a translation, not the analyser, not the keep-warm ping", () => {
+    expect(isWarmMessage({ type: WARM_TYPE })).toBe(true);
+    expect(new Set([WARM_TYPE, TRANSLATE_TYPE, KEEPALIVE_PING, "lingua-rpc"]).size).toBe(4);
+    expect(isWarmMessage({ type: TRANSLATE_TYPE, request })).toBe(false);
+    expect(isWarmMessage({ type: KEEPALIVE_PING })).toBe(false);
+    expect(isWarmMessage({ type: "lingua-rpc", method: "analyse", args: [] })).toBe(false);
+    expect(isWarmMessage(null)).toBe(false);
+    // …and a translation guard never takes a warm for a request.
+    expect(isTranslateMessage({ type: WARM_TYPE })).toBe(false);
   });
 });
 

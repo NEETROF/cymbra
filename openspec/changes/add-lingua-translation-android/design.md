@@ -99,11 +99,13 @@ again next time. The memory is the page's: it goes with the page, is never store
 crosses tabs.
 
 It covers what the handles do when they come back to a span already answered, and a card reopened
-on the same selection. It does not merge different spans of the same sentence: the engine marks
+on the same selection. An identical request made while the first is still being answered waits for
+that answer: measured, the first selection of a visit sent the same request twice while the engine
+was loading (4.7 s and 3.1 s, both paid). It does not merge different spans of the same sentence: the engine marks
 the selection inside its answer, so a different span is a different answer.
 
-*Alternative:* drop a queued request superseded by a newer one. Not needed: the measured repeats
-were sequential, each answered before the next was asked.
+*Alternative:* drop a queued request superseded by a newer one. Not needed: apart from that double,
+the measured repeats were sequential, each answered before the next was asked.
 
 ### D5 — What does not change
 

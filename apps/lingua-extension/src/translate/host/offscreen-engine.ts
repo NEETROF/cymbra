@@ -19,12 +19,12 @@ export const OFFSCREEN_JUSTIFICATION =
 
 export type OffscreenRequest =
   | { type: typeof OFFSCREEN_TYPE; op: "translate"; markup: string }
-  | { type: typeof OFFSCREEN_TYPE; op: "download" | "cancel" | "downloading" };
+  | { type: typeof OFFSCREEN_TYPE; op: "warm" | "download" | "cancel" | "downloading" };
 
 export type OffscreenEvent =
   { type: typeof OFFSCREEN_EVENT; event: DownloadEvent } | { type: typeof OFFSCREEN_EVENT; idle: true };
 
-const OPS = ["translate", "download", "cancel", "downloading"];
+const OPS = ["translate", "warm", "download", "cancel", "downloading"];
 
 export function isOffscreenRequest(message: unknown): message is OffscreenRequest {
   const m = message as { type?: unknown; op?: unknown; markup?: unknown } | null;
@@ -67,6 +67,21 @@ export class OffscreenEngine implements EngineAccess {
       // The document went away (Chrome may close it). Forget it, so the next request makes one.
       this.ready = null;
       return { ok: false, reason: "the offscreen document is gone" };
+    }
+  }
+
+  /** Load the engine in the document, creating it when needed; translate nothing. */
+  async warm(): Promise<boolean> {
+    try {
+      await this.ensure();
+    } catch {
+      return false;
+    }
+    try {
+      return (await this.send({ type: OFFSCREEN_TYPE, op: "warm" })) === true;
+    } catch {
+      this.ready = null; // gone: the next request makes another
+      return false;
     }
   }
 
@@ -121,7 +136,7 @@ export class OffscreenEngine implements EngineAccess {
 
 /** What the document owns: the engine's channel and the download's host. */
 export interface OffscreenParts {
-  channel: { translate(markup: string): Promise<EngineReply>; running(): boolean };
+  channel: { translate(markup: string): Promise<EngineReply>; warm(): Promise<boolean>; running(): boolean };
   downloads: { start(): void; cancel(): void; running(): boolean };
   /** Ask the browser to keep the model's storage: only a document can (navigator.storage.persist). */
   persist?: () => void;
@@ -139,6 +154,9 @@ export function serveOffscreen(
   switch (message.op) {
     case "translate":
       void parts.channel.translate(message.markup).then(sendResponse);
+      return true;
+    case "warm":
+      void parts.channel.warm().then(sendResponse);
       return true;
     case "download":
       parts.persist?.();
