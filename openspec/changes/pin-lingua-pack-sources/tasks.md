@@ -44,4 +44,5 @@
 ## 7. Gates
 
 - [x] 7.1 `openspec validate pin-lingua-pack-sources --strict`
-- [ ] 7.2 Reducer unit tests, `cargo test -p lingua-pack`, extension check lane green; a release dry run (dispatch without tag) builds the committed pack with no request to kaikki, GitHub raw or PyPI
+- [x] 7.2 Reducer unit tests, `cargo test -p lingua-pack`, extension check lane green; a release dry run (dispatch without tag) builds the committed pack with no request to kaikki, GitHub raw or PyPI
+  - Dry run of `lingua-extension-release` (run 36247823790, 2026-09-26): the pack built from the committed tables (sha256 `1f6b9931…`), no request to kaikki, GitHub raw or PyPI in the log. The first dry run, on `main`, stopped earlier on a lane bug from #546 — `yarn fetch:engine` before `yarn install` — fixed in the same pull request as this tick.
