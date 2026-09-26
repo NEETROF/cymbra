@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: read
+  actions: read # the translation engine is another workflow's artefact (tool/fetch_engine.sh)
 
 concurrency:
   group: lingua-apple-${{ github.ref }}
@@ -62,11 +63,15 @@ jobs:
         run: corepack enable
       - name: Build the extension's safari variant
         working-directory: apps/lingua-extension
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           yarn install --immutable
           yarn gen:wasm
           yarn gen:proto
           yarn gen:pack
+          # The Safari package carries the pinned translation engine (add-lingua-translation-safari).
+          yarn fetch:engine
           yarn build:safari
       - name: Build the iOS app (simulator, unsigned)
         working-directory: apps/lingua-apple

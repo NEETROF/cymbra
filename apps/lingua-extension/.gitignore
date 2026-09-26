@@ -24,3 +24,7 @@ src/gen/
 # Shipped/dogfooding data pack (built by `yarn gen:pack`; real packs are never committed).
 # The tiny testdata pack under test/fixtures/ IS committed as a vitest fixture.
 assets/pack.lingua
+
+# The translation engine (`yarn fetch:engine` or `tool/build_engine.sh`): bergamot-translator.js
+# and .wasm, checked against engine-pin.json by build.mjs. Never committed.
+/engine/

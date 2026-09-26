@@ -1,7 +1,7 @@
-import { createTranslatorPort } from "../translate/create-port.ts";
+import { createTranslatorPort, type TranslatorSource } from "../translate/create-port.ts";
 import type { LinguaPort } from "../analyzer/port.ts";
 import { type CefrLevel, STUDIED_LANGUAGE } from "../analyzer/types.ts";
-import { type Block, collectBlocks, isElement } from "./blocks.ts";
+import { type Block, isElement, mergeBlocks } from "./blocks.ts";
 import { Drawer, type DrawerView } from "./drawer.ts";
 import { clear as clearHighlights, injectPageStyles, render } from "./highlight.ts";
 import { ExposureTracker } from "./exposure-tracker.ts";
@@ -24,7 +24,7 @@ import {
   captureSelection,
   classifySelection,
   SelectionWatcher,
-  sentenceForRange,
+  sentenceAndSelection,
 } from "./selection.ts";
 import { clickIsOnWord, decideClick, type PageHit, SelectionCards } from "./selection-card.ts";
 import { browserSpeechEngine, createSpeaker, type Speaker } from "./speech.ts";
@@ -118,6 +118,8 @@ export interface SessionOptions {
   onBlankClick?: (e: MouseEvent) => void;
   /** Drop a phrase's selection once a finger lifts from it (`SelectionWatcher`): Safari's build. */
   dropPhraseOnLift?: boolean;
+  /** The translator, asked per selection: « Traduction étendue » when on and ready (injected in tests). */
+  translator?: TranslatorSource;
 }
 
 /** The figures the popup asks for with `getStats`. */
@@ -208,6 +210,8 @@ export class ReadingSession {
   );
   /** What a selection or a click opens — every decision lives there, tested; this class only wires it. */
   private readonly cards: SelectionCards;
+  /** The translator for this selection, or none: « Traduction étendue » off or its model not ready. */
+  private readonly translator: TranslatorSource;
   private readonly drawer: Drawer;
   private readonly indicator: ReadingIndicator;
   private indicatorMounted = false;
@@ -234,6 +238,7 @@ export class ReadingSession {
     private readonly port: LinguaPort,
     private readonly opts: SessionOptions,
   ) {
+    this.translator = opts.translator ?? createTranslatorPort();
     this.popup = new WordPopup({
       css: opts.css.popup,
       onGesture: (g) => void this.onGesture(g),
@@ -242,9 +247,9 @@ export class ReadingSession {
     this.cards = new SelectionCards(
       this.port,
       { show: (content) => this.popup.show(content), generation: () => this.popup.generation() },
-      // The translator is none in every shipped build; a development build that side-loads a
-      // model gets the messaging port, which sends the request off this thread.
-      { calibration: () => this.calibration, translator: createTranslatorPort() },
+      // None unless the reader turned « Traduction étendue » on and its model is on the device;
+      // then the messaging port, which sends the request off this thread.
+      { calibration: () => this.calibration, translator: this.translator },
     );
     this.drawer = new Drawer({
       css: opts.css.drawer,
@@ -411,6 +416,9 @@ export class ReadingSession {
   private watchSelection(win: Pick<Window, "getSelection">): SelectionWatcher {
     return new SelectionWatcher({
       onCapture: (kind, cap) => this.onCapture(kind, cap),
+      // A card is coming: the engine loads while the handles move, not after (android D2). Only
+      // with a translator — no model ready, nothing is sent.
+      onBegin: () => this.translator()?.warm?.(),
       win,
       // Only where the card is shown in the callout's place: the reader switched on, the page
       // analysed. Anywhere else the platform's selection is left exactly as it is.
@@ -424,7 +432,7 @@ export class ReadingSession {
     const host = this.host;
     if (!host) return;
     injectPageStyles(this.opts.css.tokens, host.doc);
-    await this.refresh([host.doc.body]);
+    await this.refresh([host.doc.body], { firstPaint: true });
     // Mount the indicator only after a successful first paint, so a failed init (which resets
     // the injection guard and lets a retry create a fresh session) leaves no orphan host.
     if (!this.indicatorMounted) {
@@ -510,17 +518,16 @@ export class ReadingSession {
     this.needsLevel = await needsLevelChoice(this.port);
   }
 
-  /** Re-walk the given dirty containers, then repaint from a fresh whole-doc analysis. */
-  private async refresh(dirtyRoots: Element[]): Promise<void> {
+  /**
+   * Re-walk the given dirty containers, then repaint from a fresh whole-doc analysis — only when a
+   * block changed (fix-lingua-dynamic-rescan D3): a player's clock ticking every second must not
+   * re-analyse the page. The first paint always repaints: it is what sets the badge, the indicator
+   * and `onPainted`, even for a page with no text.
+   */
+  private async refresh(dirtyRoots: Element[], opts: { firstPaint?: boolean } = {}): Promise<void> {
     const host = this.host;
-    for (const root of dirtyRoots) {
-      for (const c of [...this.blocksByContainer.keys()]) {
-        if (c === root || root.contains(c) || !c.isConnected) this.blocksByContainer.delete(c);
-      }
-      for (const b of collectBlocks(root)) this.blocksByContainer.set(b.container, b);
-    }
-    for (const c of [...this.blocksByContainer.keys()]) if (!c.isConnected) this.blocksByContainer.delete(c);
-    await this.repaint();
+    const changed = mergeBlocks(this.blocksByContainer, dirtyRoots);
+    if (changed || opts.firstPaint) await this.repaint();
     // The document may have been detached while the analysis ran (a page turned to the next section).
     if (this.host === host) this.observers.track(this.blocksByContainer.keys());
   }
@@ -638,13 +645,15 @@ export class ReadingSession {
     this.cards.openForToken(this.pageHit(hit));
   }
 
-  /** What the cards need from a resolved hit: the token, its box and its sentence, read off the range. */
+  /** What the cards need from a resolved hit: the token, its box, its sentence and its place there. */
   private pageHit(hit: ResolvedToken): PageHit {
     const rect = hit.range.getBoundingClientRect();
+    const { sentence, selection } = sentenceAndSelection(hit.range);
     return {
       token: hit.token,
       rect: this.toSurface({ left: rect.left, top: rect.top, bottom: rect.bottom }),
-      sentence: sentenceForRange(hit.range),
+      sentence,
+      selection,
     };
   }
 

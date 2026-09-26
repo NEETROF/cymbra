@@ -8,7 +8,16 @@ export type EngineReply = { ok: true; html: string } | { ok: false; reason: stri
 /** Where the engine is, as the background sees it: something that turns markup into markup. */
 export interface EngineAccess {
   translate(markup: string): Promise<EngineReply>;
+  /**
+   * Load the engine without translating, because a translation is coming — a selection has begun,
+   * a page that was translating is back (add-lingua-translation-android D2, D3). It arms the idle
+   * release as a translation does. True once the engine is loaded.
+   */
+  warm(): Promise<boolean>;
 }
+
+/** The worker's answer to `load` when the model is not on the device: off, or never finished. */
+export const NO_MODEL = "the model is not on this device";
 
 /** The engine worker's protocol. Requests carry an id so replies can arrive in any order. */
 export type WorkerRequest = { id: number; op: "load" } | { id: number; op: "translate"; markup: string };

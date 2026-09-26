@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   type ChannelClock,
   EngineChannel,
@@ -7,6 +7,7 @@ import {
   type WorkerLike,
 } from "@/translate/host/channel.ts";
 import type { WorkerRequest, WorkerResponse } from "@/translate/host/engine.ts";
+import { ENGINE_IDLE_MS } from "@/translate/port.ts";
 
 /** A worker that records what it is sent and answers only when the test says so. */
 class FakeWorker implements WorkerLike {
@@ -58,7 +59,7 @@ const flush = async () => {
   for (let i = 0; i < 10; i++) await Promise.resolve();
 };
 
-function setup() {
+function setup(onIdle?: () => void) {
   const workers: FakeWorker[] = [];
   const { clock, elapse, pending } = manualClock();
   const channel = new EngineChannel(
@@ -67,7 +68,7 @@ function setup() {
       workers.push(w);
       return w;
     },
-    { clock },
+    { clock, onIdle },
   );
   return { channel, workers, elapse, pending };
 }
@@ -210,5 +211,149 @@ describe("EngineChannel", () => {
     elapse(START_TIMEOUT_MS);
     await answer;
     expect(() => late.reply(0, { ok: true })).not.toThrow();
+  });
+});
+
+describe("EngineChannel — the engine is released when reading stops (D6)", () => {
+  /** One translation, answered: the engine is loaded and idle from here on. */
+  async function translated(h: ReturnType<typeof setup>) {
+    const answer = h.channel.translate("x");
+    await flush();
+    const w = h.workers.at(-1)!;
+    if (w.sent.length === 1) w.reply(0, { ok: true }); // the load
+    await flush();
+    w.reply(w.sent.length - 1, { ok: true, html: "y" });
+    await answer;
+  }
+
+  it("puts the worker down ten minutes after the last translation asked, and says so", async () => {
+    const onIdle = vi.fn();
+    const h = setup(onIdle);
+    await translated(h);
+    expect(h.channel.running()).toBe(true);
+    expect(ENGINE_IDLE_MS).toBe(10 * 60_000);
+
+    h.elapse(ENGINE_IDLE_MS);
+    expect(h.workers[0]!.terminated).toBe(true);
+    expect(h.channel.running()).toBe(false);
+    expect(onIdle).toHaveBeenCalledOnce();
+  });
+
+  describe("warm (add-lingua-translation-android D2, D3)", () => {
+    it("loads the engine and translates nothing", async () => {
+      const h = setup();
+      const warmed = h.channel.warm();
+      await flush();
+      expect(h.workers).toHaveLength(1);
+      expect(h.workers[0]!.sent.map((r) => r.op)).toEqual(["load"]);
+      h.workers[0]!.reply(0, { ok: true });
+      await expect(warmed).resolves.toBe(true);
+      expect(h.channel.running()).toBe(true);
+    });
+
+    it("the translation that follows uses the warmed engine: no second load", async () => {
+      const h = setup();
+      const warmed = h.channel.warm();
+      await flush();
+      const answer = h.channel.translate("<b>gave up</b>"); // asked while the model loads
+      await flush();
+      h.workers[0]!.reply(0, { ok: true });
+      await warmed;
+      await flush();
+      expect(h.workers).toHaveLength(1);
+      expect(h.workers[0]!.sent.map((r) => r.op)).toEqual(["load", "translate"]);
+      h.workers[0]!.reply(1, { ok: true, html: "a abandonné" });
+      await expect(answer).resolves.toEqual({ ok: true, html: "a abandonné" });
+    });
+
+    it("counts as asking: an engine warmed for nothing is released after the idle period", async () => {
+      const onIdle = vi.fn();
+      const h = setup(onIdle);
+      const warmed = h.channel.warm();
+      await flush();
+      h.workers[0]!.reply(0, { ok: true });
+      await warmed;
+      expect(h.pending()).toBe(1);
+      h.elapse(ENGINE_IDLE_MS);
+      expect(h.workers[0]!.terminated).toBe(true);
+      expect(onIdle).toHaveBeenCalledOnce();
+    });
+
+    it("on a warm engine it loads nothing again and restarts the countdown", async () => {
+      const h = setup();
+      await translated(h);
+      await expect(h.channel.warm()).resolves.toBe(true);
+      expect(h.workers).toHaveLength(1);
+      expect(h.workers[0]!.sent.map((r) => r.op)).toEqual(["load", "translate"]);
+      expect(h.pending()).toBe(1); // one countdown, not two
+    });
+
+    it("a start that fails leaves nothing behind, and the next warm tries afresh", async () => {
+      const h = setup();
+      const warmed = h.channel.warm();
+      await flush();
+      h.workers[0]!.reply(0, { ok: false, error: "the model is not on this device" });
+      await expect(warmed).resolves.toBe(false);
+      expect(h.workers[0]!.terminated).toBe(true);
+      expect(h.channel.running()).toBe(false);
+      expect(h.pending()).toBe(0);
+      void h.channel.warm();
+      await flush();
+      expect(h.workers).toHaveLength(2);
+    });
+  });
+
+  it("counts from the LAST translation: each one restarts the countdown", async () => {
+    const h = setup();
+    await translated(h);
+    const answer = h.channel.translate("again");
+    await flush();
+    h.workers[0]!.reply(2, { ok: true, html: "encore" });
+    await answer;
+    expect(h.pending()).toBe(1); // one countdown, not two
+  });
+
+  it("the next translation after a release loads the engine again", async () => {
+    const h = setup();
+    await translated(h);
+    h.elapse(ENGINE_IDLE_MS);
+    const answer = h.channel.translate("x");
+    await flush();
+    expect(h.workers).toHaveLength(2);
+    expect(h.workers[1]!.sent.map((r) => r.op)).toEqual(["load"]);
+    h.workers[1]!.reply(0, { ok: true });
+    await flush();
+    h.workers[1]!.reply(1, { ok: true, html: "y" });
+    await expect(answer).resolves.toEqual({ ok: true, html: "y" });
+  });
+
+  it("does not release an engine that is still answering", async () => {
+    const onIdle = vi.fn();
+    const h = setup(onIdle);
+    await translated(h);
+    const slow = h.channel.translate("slow"); // asked, not answered yet
+    await flush();
+    h.elapse(ENGINE_IDLE_MS); // the countdown armed by the first one
+    expect(h.workers[0]!.terminated).toBe(false);
+    expect(onIdle).not.toHaveBeenCalled();
+    h.workers[0]!.reply(2, { ok: true, html: "lent" });
+    await expect(slow).resolves.toEqual({ ok: true, html: "lent" });
+  });
+
+  it("arms nothing when the engine never started — there is nothing to release", async () => {
+    const h = setup();
+    const answer = h.channel.translate("x");
+    await flush();
+    h.elapse(START_TIMEOUT_MS);
+    await answer;
+    expect(h.pending()).toBe(0);
+  });
+
+  it("shuts down at once when the setting is turned off", async () => {
+    const h = setup();
+    await translated(h);
+    h.channel.shutDown();
+    expect(h.workers[0]!.terminated).toBe(true);
+    expect(h.pending()).toBe(0);
   });
 });

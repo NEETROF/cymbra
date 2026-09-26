@@ -23,6 +23,12 @@ import { lastSyncLabel, syncErrorCopy } from "../sync/status.ts";
 import { clearSyncCursors } from "../sync/sync.ts";
 import { mountBookDisplay } from "./book-display-view.ts";
 import { type Speaker, type VoiceInfo, voiceGroups, voiceLabel } from "./speech.ts";
+import {
+  mountTranslationSetting,
+  runtimeTranslationControls,
+  type TranslationControls,
+  type TranslationSettingView,
+} from "./translation-setting.ts";
 
 // The Réglages view, built as plain DOM into a given container so ONE implementation
 // serves every host: the native side panel, the in-page drawer and the toolbar popup (same pattern as review's
@@ -44,6 +50,11 @@ export interface SettingsOptions {
   openPage?: OpenPage;
   /** The host's speaker: the read-aloud block lists its voices, and is absent without one. */
   speaker?: Speaker;
+  /**
+   * « Traduction étendue »'s seam; the background by default, in a variant that carries the
+   * engine. Null: no such setting (Safari).
+   */
+  translation?: TranslationControls | null;
 }
 
 /** The key the settings preview speaks under — not a card's, so no card silences it. */
@@ -203,6 +214,19 @@ export function mountSettings(
   // The text size and the page: the same controls as the reader's own "Aa" panel.
   const bookDisplay = mountBookDisplay(booksBlock, area);
 
+  // — Traduction (the variants that carry the engine; the background says whether it is offered) —
+  const translationBlock = settingBlock("Traduction");
+  const translationControls =
+    opts.translation !== undefined
+      ? opts.translation
+      : __TRANSLATION_HOST__ !== "none"
+        ? runtimeTranslationControls()
+        : null;
+  const translation: TranslationSettingView | null = translationControls
+    ? mountTranslationSetting(translationBlock, translationControls)
+    : null;
+  if (!translation) translationBlock.hidden = true;
+
   // — Raccourcis & gestes —
   const scBlock = settingBlock("Raccourcis & gestes");
   const scList = el("ul", "set-shortcuts");
@@ -302,7 +326,7 @@ export function mountSettings(
     void doReset("full");
   });
 
-  container.append(levelBlock, barBlock, voiceBlock, booksBlock, scBlock, syncBlock, resetBlock);
+  container.append(levelBlock, barBlock, voiceBlock, translationBlock, booksBlock, scBlock, syncBlock, resetBlock);
 
   // — Live wiring —
   calib.addEventListener("input", () => {
@@ -450,7 +474,7 @@ export function mountSettings(
     renderVoices();
     flowToggle.checked = (await loadReaderFlow(area)) === "scrolled";
     await bookDisplay.refresh();
-    await refreshSync();
+    await Promise.all([refreshSync(), translation?.refresh()]);
   }
 
   void refresh();

@@ -14,6 +14,17 @@ change stays in openspec/changes. Two very different things look alike there:
 The openspec-archive workflow reported both as errors, on every push to main. This tells them
 apart, by reading the delta files, before any archive runs.
 
+One order cannot be read from the deltas: two open changes that both MODIFY the same requirement.
+Whichever archives last wins, since a MODIFIED block replaces the requirement whole — and the
+workflow walks changes newest first. A change that must follow another says so in its
+`.openspec.yaml`, as a list the `openspec` CLI ignores:
+
+    archiveAfter:
+      - add-lingua-translation-android
+
+A listed change still in openspec/changes/ is waited for exactly as an ADDED dependency is
+(add-lingua-translation-safari, design D5).
+
 Usage: openspec_archive_order.py <change> [--root DIR]
 Exit status: 0 ready, 10 waits for another open change (their names on stdout, one per line),
 1 names a requirement no spec and no open change holds (the headers on stdout).
@@ -53,6 +64,25 @@ def delta_headers(spec: Path) -> dict[str, set[str]]:
     return ops
 
 
+def archive_after(change_dir: Path) -> list[str]:
+    """The changes `.openspec.yaml` says this one archives after (a flat YAML list, read by hand)."""
+    meta = change_dir / ".openspec.yaml"
+    if not meta.is_file():
+        return []
+    names: list[str] = []
+    listing = False
+    for line in meta.read_text(encoding="utf-8").splitlines():
+        if re.match(r"^archiveAfter:\s*$", line):
+            listing = True
+            continue
+        if listing:
+            if m := re.match(r"^\s+-\s*['\"]?([\w.-]+)['\"]?\s*$", line):
+                names.append(m.group(1))
+            elif line.strip():
+                listing = False
+    return names
+
+
 def spec_headers(spec: Path) -> set[str]:
     if not spec.is_file():
         return set()
@@ -85,6 +115,7 @@ def check(root: Path, change: str) -> tuple[int, list[str]]:
                 stale.append(f"{capability}: {name}")
     if stale:
         return STALE, stale
+    providers.update(name for name in archive_after(changes / change) if (changes / name).is_dir())
     if providers:
         return WAITS, sorted(providers)
     return READY, []

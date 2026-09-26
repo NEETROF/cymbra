@@ -7,7 +7,7 @@ import type {
   TokenClass,
 } from "../analyzer/types.ts";
 import type { MarkedTranslation, Span } from "../translate/markup.ts";
-import type { TranslatorPort } from "../translate/port.ts";
+import type { TranslationRequest, TranslatorPort } from "../translate/port.ts";
 import type { Gesture, GlossRow, WordPopupContent } from "./wordpopup.ts";
 
 // What a selection opens, decided in one place with no DOM and injected ports, so that
@@ -20,6 +20,12 @@ import type { Gesture, GlossRow, WordPopupContent } from "./wordpopup.ts";
 // A card that needs the engine opens pending, then completes exactly once — with the answer,
 // or with a fallback when the engine fails or stays silent — and only if the card view still
 // shows the card that asked: its generation is the whole staleness story.
+//
+// The translation engine, when the reader has it (« Traduction étendue », a model on the device),
+// answers a selection of several words — and a single word only where the pack is silent: no gloss,
+// and not a proper noun outside the lexicon, whose translation is noise. Even then the word is
+// translated in its sentence, marked, never alone (add-lingua-translation-delivery D7). Without
+// the engine, every card is exactly what it was before it existed.
 
 /** How long a pending card waits for the engine before its fallback completes it. */
 export const ANSWER_TIMEOUT_MS = 3000;
@@ -87,6 +93,8 @@ export interface PageHit {
   token: AnalyzedToken;
   rect: WordPopupContent["rect"];
   sentence: string;
+  /** Where the token sits in `sentence`, found by position — what the translator marks. */
+  selection?: Span | null;
 }
 
 /** A settled selection: its text, its source sentence and its anchor box. */
@@ -253,8 +261,11 @@ export class SelectionCards {
     private readonly opts: {
       calibration: () => number;
       clock?: Clock;
-      /** The translation engine, when the build carries one — never in a shipped build yet. */
-      translator?: TranslatorPort | null;
+      /**
+       * The translation engine as it is right now — asked per card, since the reader can turn it
+       * on or off, and its model can arrive or go, while the page is open. Null: no engine.
+       */
+      translator?: () => TranslatorPort | null;
     },
   ) {
     this.clock = opts.clock ?? DEFAULT_CLOCK;
@@ -286,6 +297,8 @@ export class SelectionCards {
       status: statusOfClass(token.class),
       rect: hit.rect,
     };
+    const inSentence = (card: WordPopupContent, cls: TokenClass) =>
+      this.wordEngine(card, cls, { sentence: hit.sentence, selection: hit.selection ?? null });
     if (needsPhraseGloss(token)) {
       this.request(
         { ...base, pending: true },
@@ -295,18 +308,21 @@ export class SelectionCards {
           // Only an unlisted compound rows itself: a listed one, whatever its class, has its
           // own gloss, which is the better answer — never a word-by-word row of itself.
           return first
-            ? { ...base, gloss: first.gloss, rows: first.parts?.length ? rowsFor([first], answer.expressions) : [] }
-            : base;
+            ? inSentence(
+                { ...base, gloss: first.gloss, rows: first.parts?.length ? rowsFor([first], answer.expressions) : [] },
+                first.class,
+              )
+            : inSentence(base, token.class);
         },
       );
     } else if (token.class === "Known" || token.class === "Ignored") {
       this.request(
         { ...base, pending: true },
         () => this.ports.gloss(token.lemma),
-        (answer) => ({ ...base, gloss: answer ?? null }),
+        (answer) => inSentence({ ...base, gloss: answer ?? null }, token.class),
       );
     } else {
-      this.surface.show({ ...base, gloss: token.gloss });
+      this.show(inSentence({ ...base, gloss: token.gloss }, token.class));
     }
   }
 
@@ -339,39 +355,47 @@ export class SelectionCards {
       rect: sel.rect,
       expression: true,
     };
-    const translator = this.opts.translator ?? null;
+    const translator = this.translator();
     // Asked now, answered whenever. The two are no longer raced: a cold engine costs seconds on
     // a slow device (4.8 s, measured), and the reader must not sit through that to see what the
     // pack knows. The pack's answer is shown as soon as it lands, saying a translation is on its
     // way, and the translation replaces it when it arrives.
-    const translation = translator ? this.translateBounded(translator, sel) : null;
+    const later = translator
+      ? this.translateBounded(translator, { sentence: sel.sentence, selection: sel.selection ?? null })
+      : null;
     this.request(
-      { ...base, pending: true, translating: !!translator },
+      { ...base, pending: true, translating: !!later },
       () => this.ports.phraseGloss(sel.text).catch(() => null),
-      (answer) => ({ ...expressionCard(base, answer), translating: !!translator }),
-      translation
-        ? {
-            later: translation,
-            // A translation is a better answer than word-by-word rows, so they are not kept.
-            // Without one, the card simply stops saying a translation is coming.
-            apply: (card, answer) =>
-              answer
-                ? { ...card, rows: undefined, translating: false, translation: answer }
-                : { ...card, translating: false },
-          }
-        : undefined,
+      (answer) => ({ ...expressionCard(base, answer), translating: !!later, later }),
     );
   }
 
-  /** The engine's answer for this selection, or null — never later than TRANSLATION_WAIT_MS. */
-  private translateBounded(translator: TranslatorPort, sel: SelectionInput): Promise<MarkedTranslation | null> {
+  /**
+   * A single word's card, and whether the engine is asked for it: only when there is one, the
+   * pack has no gloss to show, the word is not a proper noun outside the lexicon, and its place in
+   * its sentence is known — it is marked there, never translated alone. A word the pack glosses
+   * keeps its dictionary card.
+   */
+  private wordEngine(card: WordPopupContent, cls: TokenClass, request: TranslationRequest): PendingCard {
+    const translator = this.translator();
+    if (!translator || card.gloss || cls === "ProperNounOutOfLexicon") return card;
+    if (!request.selection || !request.sentence.trim()) return card;
+    return { ...card, translating: true, later: this.translateBounded(translator, request) };
+  }
+
+  private translator(): TranslatorPort | null {
+    return this.opts.translator?.() ?? null;
+  }
+
+  /** The engine's answer for this request, or null — never later than TRANSLATION_WAIT_MS. */
+  private translateBounded(translator: TranslatorPort, request: TranslationRequest): Promise<MarkedTranslation | null> {
     return new Promise((resolve) => {
       const timer = this.clock.setTimeout(() => resolve(null), TRANSLATION_WAIT_MS);
       const done = (translation: MarkedTranslation | null): void => {
         this.clock.clearTimeout(timer);
         resolve(translation);
       };
-      translator.translate({ sentence: sel.sentence, selection: sel.selection ?? null }).then(
+      translator.translate(request).then(
         (result) => done(result.kind === "translated" ? result.translation : null),
         () => done(null),
       );
@@ -402,16 +426,20 @@ export class SelectionCards {
         if (!answer) return { ...raw, noActions: true };
         const t = answer.tokens[0];
         if (!t || t.class === "ProperNounOutOfLexicon") return raw;
-        return {
-          headword: t.lemma,
-          surface: t.surface,
-          gloss: t.gloss,
-          rarity: rarityText(t.class, this.opts.calibration()),
-          sentence: sel.sentence,
-          status: statusOfClass(t.class),
-          rect: sel.rect,
-          rows: t.parts?.length ? rowsFor([t], answer.expressions) : undefined,
-        };
+        return this.wordEngine(
+          {
+            headword: t.lemma,
+            surface: t.surface,
+            gloss: t.gloss,
+            rarity: rarityText(t.class, this.opts.calibration()),
+            sentence: sel.sentence,
+            status: statusOfClass(t.class),
+            rect: sel.rect,
+            rows: t.parts?.length ? rowsFor([t], answer.expressions) : undefined,
+          },
+          t.class,
+          { sentence: sel.sentence, selection: sel.selection ?? null },
+        );
       },
     );
   }
@@ -422,16 +450,10 @@ export class SelectionCards {
    * the card view still shows the pending card: a card opened for something else, closed
    * or already completed makes the answer land nowhere.
    */
-  private request<T, U>(
+  private request<T>(
     pending: WordPopupContent,
     ask: () => Promise<T>,
-    complete: (answer: T | null) => WordPopupContent,
-    upgrade?: {
-      /** A second, slower answer. It never delays the first one. */
-      later: Promise<U | null>;
-      /** The completed card, once that answer lands — or once it is known there is none. */
-      apply: (card: WordPopupContent, answer: U | null) => WordPopupContent;
-    },
+    complete: (answer: T | null) => PendingCard,
   ): void {
     const generation = this.surface.show(pending);
     let settled = false;
@@ -440,18 +462,7 @@ export class SelectionCards {
       settled = true;
       this.clock.clearTimeout(timer);
       if (this.surface.generation() !== generation) return;
-      const card = complete(answer);
-      // Showing bumps the generation: the upgrade must be measured against THIS card, so that a
-      // card the reader has since replaced, closed or acted on is never written over.
-      const shown = this.surface.show(card);
-      if (!upgrade) return;
-      void upgrade.later.then(
-        (late) => {
-          if (this.surface.generation() !== shown) return;
-          this.surface.show(upgrade.apply(card, late));
-        },
-        () => undefined,
-      );
+      this.show(complete(answer));
     };
     const timer = this.clock.setTimeout(() => settle(null), ANSWER_TIMEOUT_MS);
     new Promise<T>((resolve) => resolve(ask())).then(
@@ -459,7 +470,31 @@ export class SelectionCards {
       () => settle(null),
     );
   }
+
+  /**
+   * Show a completed card and, when a translation is on its way, upgrade it once it lands — or
+   * once it is known there is none. Showing bumps the generation: the upgrade is measured against
+   * THIS card, so a card the reader has since replaced, closed or acted on is never written over.
+   */
+  private show({ later, ...card }: PendingCard): void {
+    const shown = this.surface.show(card);
+    if (!later) return;
+    void later.then(
+      (translation) => {
+        if (this.surface.generation() !== shown) return;
+        // A translation is a better answer than word-by-word rows, so they are not kept. Without
+        // one, the card simply stops saying a translation is coming.
+        this.surface.show(
+          translation ? { ...card, rows: undefined, translating: false, translation } : { ...card, translating: false },
+        );
+      },
+      () => undefined,
+    );
+  }
 }
+
+/** A completed card, and the translation that will upgrade it, when one was asked. */
+type PendingCard = WordPopupContent & { later?: Promise<MarkedTranslation | null> | null };
 
 /** The card an expression gets from the pack alone — exactly what it was before the engine. */
 function expressionCard(base: WordPopupContent, answer: PhraseGloss | null): WordPopupContent {

@@ -4,12 +4,18 @@
 // reached must not count). It is a proxy, not eye-tracking: combined with the engine's
 // distinct-day threshold and below-level-only promotion, it is a conservative signal.
 // Each container fires at most once; the caller batches the lemmas and feeds the engine.
+//
+// Containers tracked before `start()` — the first paint tracks them before the observer exists —
+// are remembered and observed on start (fix-lingua-dynamic-rescan D1): reading counts from the
+// first paint, whatever order the caller works in.
 
 export class ExposureTracker {
   private io: IntersectionObserver | null = null;
   private readonly lemmas = new WeakMap<Element, string[]>();
   private readonly timers = new WeakMap<Element, ReturnType<typeof setTimeout>>();
   private readonly exposed = new WeakSet<Element>();
+  /** Tracked before `start()`: observed once there is an observer. */
+  private readonly early = new Set<Element>();
 
   constructor(
     private readonly onExposed: (lemmas: string[]) => void,
@@ -19,22 +25,27 @@ export class ExposureTracker {
   /** Begin watching, with the observer of the window the blocks live in (a book section's
    *  iframe has its own); the page's by default. */
   start(win: Window & typeof globalThis = window): void {
+    const early = [...this.early];
+    this.early.clear();
     if (typeof win.IntersectionObserver === "undefined") return;
     this.io = new win.IntersectionObserver((entries) => this.onIntersections(entries), { threshold: 0.5 });
+    for (const c of early) if (c.isConnected && !this.exposed.has(c)) this.io.observe(c);
   }
 
   stop(): void {
     this.io?.disconnect();
     this.io = null;
+    this.early.clear();
   }
 
-  /** Observe each container for its lemmas; containers already exposed are skipped. */
+  /** Observe each container for its lemmas; containers already exposed are skipped. Before
+   *  `start()`, they are remembered and observed as soon as it runs. */
   track(byContainer: Map<Element, string[]>): void {
-    if (!this.io) return;
     for (const [container, lemmas] of byContainer) {
       if (this.exposed.has(container) || lemmas.length === 0) continue;
       this.lemmas.set(container, lemmas);
-      this.io.observe(container);
+      if (this.io) this.io.observe(container);
+      else this.early.add(container);
     }
   }
 

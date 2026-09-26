@@ -70,8 +70,12 @@ technically (`wasmBinary`) and is exactly what the policy names.
 `translationHost: "none" | "local"`, absent meaning `"none"`. The settings view shows one
 checkbox, **« Traduction étendue »**, with its cost stated before it is ticked:
 
-> Traduit vos phrases sur cet appareil, sans rien envoyer. Télécharge 25,6 Mo une fois, puis
+> Traduit tes phrases sur cet appareil, sans rien envoyer. Télécharge 25,8 Mo une fois, puis
 > utilise environ 200 Mo de mémoire pendant la traduction. Réglage propre à cet appareil.
+
+(Implemented as written but for two corrections: 25 752 472 B is **25,8 Mo** — the 25,6 carried
+over from an earlier estimate — and the Réglages view addresses the reader as *tu* everywhere
+else, so the row does too.)
 
 `add-lingua-remote-translation` widens the union with `"remote"` and turns the checkbox into a
 choice; no stored value has to migrate. `createTranslatorPort()` becomes a function of this value
@@ -184,13 +188,65 @@ side-loaded the model keep working through the override. Rollback is a release t
 setting and deletes the `lingua-model` database on start, so no reader keeps 37 MB they can no
 longer remove.
 
+## Found while implementing
+
+- **Licence (task 1.1).** `mozilla/firefox-translations-models` is licensed **MPL-2.0** (repository
+  licence; no per-model licence in `metadata.json`), and so is `mozilla/translations`, the
+  engine's source. Redistributing both unmodified is allowed on MPL terms: recipients are told the
+  licence and where the source is, and no notice is removed. Done in three places — the setting
+  credits « Firefox Translations (Mozilla), licence MPL 2.0 »; the model host serves a
+  `NOTICE.txt` beside the files (`tool/assemble_model_site.mjs`); `REVIEWERS.md`, the AMO source
+  archive's README, names the upstream commit and the recipe. MPL imposes no attribution text
+  beyond that; this is a reading of the licence, not legal advice.
+- **The model moved.** The repository above is archived (December 2025) and its Git LFS objects
+  answer **410 Gone**. Mozilla now publishes the same files in its model registry on Google Cloud
+  Storage (`db/models.json`): the `en→fr` `base-memory` `.gz` files there are **byte-identical** to
+  the LFS objects (same sha256, same sizes) and decompress to the hashes `TRANSLATION.md` pinned.
+  `model-manifest.json` records both digests and the registry path; the deploy checks both.
+- **The engine build is reproducible — at a given path.** Three runs of `lingua-engine-build` a day
+  apart produced byte-identical `.js` and `.wasm`. The release therefore pins sha256 hashes
+  (`engine-pin.json`) rather than a run: an expired artefact is replaced by running the workflow
+  again, which now also runs monthly and fails if it stops reproducing the pin. The first run of the
+  recipe from a temporary directory did NOT reproduce it: the `.wasm` embeds its sources' absolute
+  path 145 times (assertion messages) — 4 characters longer, 580 bytes more — and the glue shifted
+  with it. `tool/build_engine.sh` therefore builds where the pinned bytes were built,
+  `/home/runner/work/cymbra/cymbra/translations`, and says so to a reviewer building elsewhere.
+- **What could disappear, and what then still works** (reviewed after the first CI runs):
+  - *The engine's sources* (mozilla/translations, ~15 third-party submodules, the Emscripten SDK
+    3.1.8, a runner whose CMake 4 already refuses sentencepiece's `cmake_minimum_required(3.1)`):
+    the pinned engine is kept as a GitHub Release, which never expires, and `fetch_engine.sh` takes
+    it first; the 90-day artefact is only the fallback. The rebuild pins `ubuntu-24.04` and CMake
+    3.31.6, and is a proof that the recipe still reproduces the pin, no longer a condition of every
+    build.
+  - *The model's source at Mozilla*: the host is filled from Mozilla, else our own copy (a release),
+    else the deployed host, each file under both digests.
+  - *The host itself*: an installed model keeps working; ticking, or downloading again after the
+    browser evicted it, fails — with « le serveur ne répond pas » when the device is online, not a
+    false « pas de connexion ». The release refuses to submit a package while the host does not
+    serve the pinned model.
+  - *The dictionary's sources* are not this change's: they are downloaded unpinned at every release
+    today, and a change of their own pins them.
+- **Storage.** 36.7 MB in IndexedDB is far inside the default quota of an extension origin on both
+  browsers; `unlimitedStorage` is not needed. `navigator.storage.persist()` exists only in a
+  document, so the offscreen document (Chromium) and the event page (Firefox) ask it when a
+  download starts.
+- **Measured end to end** in Chrome 153 (headless, isolated profile, the dev build pointed at a
+  local copy of the host): off by default with no offscreen document; tick → download → verified →
+  ready; the offscreen document closes once idle; phrase translated in 227 ms cold, 19 ms warm;
+  `disambiguation` translated in its sentence and marked; a deleted database reported *removed*
+  with nothing fetched; untick deletes the database and closes the document. The requests carried
+  no cookie and no referrer.
+
 ## Open Questions
 
 - **Which origin serves the model?** Candidates: the site's static deployment (`cymbra.app`,
   already on Cloudflare, but model files are never committed, so its build would have to fetch
   them), or a dedicated static bucket (for example `models.cymbra.app`) filled by a workflow from
-  Mozilla's LFS sources. Recommendation: a dedicated origin, so the site's deploys and its
-  200-for-everything fallback never touch the model.
+  Mozilla's sources. Recommendation: a dedicated origin, so the site's deploys and its
+  200-for-everything fallback never touch the model. *Implemented with that recommendation —
+  `models.cymbra.app`, a Cloudflare Pages project deployed by `lingua-model-deploy` — pending the
+  product owner's confirmation; another origin is one line of `model-manifest.json` and the
+  deploy step.*
 - The mark evaluation's threshold for release — to be set by the product owner from the result.
-- Whether `unlimitedStorage` is needed on either browser for 37 MB, or the default quota suffices.
+- ~~Whether `unlimitedStorage` is needed~~ — no (see *Found while implementing*).
 - Ten idle minutes (D6) — to be checked against real reading.

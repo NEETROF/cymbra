@@ -2,9 +2,9 @@
 // owns the engine off every thread that paints. See port.ts for why there is no other.
 
 import { type TranslationRequest, type TranslationResult, type TranslatorPort, UNAVAILABLE } from "./port.ts";
-import { TRANSLATE_TYPE, type TranslateMessage } from "./wire.ts";
+import { TRANSLATE_TYPE, type TranslateMessage, WARM_TYPE, type WarmMessage } from "./wire.ts";
 
-export type TranslateSend = (message: TranslateMessage) => Promise<unknown>;
+export type TranslateSend = (message: TranslateMessage | WarmMessage) => Promise<unknown>;
 
 const runtimeSend: TranslateSend = (message) => chrome.runtime.sendMessage(message);
 
@@ -27,6 +27,15 @@ export class MessagingTranslatorPort implements TranslatorPort {
       // No listener (the engine is not built in), a torn-down background, a closed port:
       // all of them mean the same thing to the reader — there is no translation right now.
       return UNAVAILABLE;
+    }
+  }
+
+  /** Ask the background to load the engine; it does only when a model is ready. Nothing to wait for. */
+  warm(): void {
+    try {
+      void this.send({ type: WARM_TYPE }).catch(() => {});
+    } catch {
+      // No extension context left: nothing to warm.
     }
   }
 }

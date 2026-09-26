@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { type KeepaliveDeps, keepEngineWarm, keepWarm, PING_MS } from "@/translate/keepalive.ts";
-import type { TranslationResult, TranslatorPort } from "@/translate/port.ts";
+import { type KeepaliveDeps, keepEngineWarm, keepWarm, PING_MS, type RestoreDeps } from "@/translate/keepalive.ts";
+import { ENGINE_IDLE_MS, type TranslationResult, type TranslatorPort } from "@/translate/port.ts";
 
 /** A controllable timer and ping. */
 function deps(answers: (Promise<unknown> | Error)[] = []): KeepaliveDeps & {
@@ -71,6 +71,27 @@ describe("keepEngineWarm", () => {
     expect(d.stopped).toBe(true);
   });
 
+  it("stops when told to — the setting pings only while a download runs", async () => {
+    const d = deps();
+    const stop = keepEngineWarm(d);
+    await d.tick();
+    stop();
+    expect(d.stopped).toBe(true);
+  });
+
+  it("skips a tick while `when` says no, without stopping", async () => {
+    // The setting's view may be hidden (the drawer closed) and shown again during one download.
+    const d = deps();
+    let onScreen = false;
+    keepEngineWarm(d, () => onScreen);
+    await d.tick();
+    expect(d.pings).toBe(0);
+    onScreen = true;
+    await d.tick();
+    expect(d.pings).toBe(1);
+    expect(d.stopped).toBe(false);
+  });
+
   it("defaults to a real interval and a real runtime message", () => {
     const sendMessage = vi.fn(() => Promise.resolve(true));
     vi.stubGlobal("chrome", { runtime: { sendMessage } });
@@ -120,5 +141,82 @@ describe("keepWarm", () => {
 
   it("passes the request through and answers what the port answered", async () => {
     await expect(keepWarm(inner(), vi.fn()).translate(request)).resolves.toEqual(answer);
+  });
+
+  it("passes a warm through to the port (android D2)", () => {
+    const port = { ...inner(), warm: vi.fn() };
+    keepWarm(port, vi.fn()).warm?.();
+    expect(port.warm).toHaveBeenCalledOnce();
+  });
+
+  describe("back to the page (add-lingua-translation-android D3)", () => {
+    /** A clock the test moves, and a page it makes visible again. */
+    function page() {
+      let now = 1_000_000;
+      const visible: Array<() => void> = [];
+      const restore: RestoreDeps = { now: () => now, onVisible: (fn) => void visible.push(fn) };
+      return {
+        restore,
+        later: (ms: number) => void (now += ms),
+        show: () => visible.forEach((fn) => fn()),
+        listeners: () => visible.length,
+      };
+    }
+
+    it("asks for the engine again when a page that translated recently comes back", async () => {
+      const p = page();
+      const port = { ...inner(), warm: vi.fn() };
+      const translator = keepWarm(port, vi.fn(), p.restore);
+      await translator.translate(request);
+      p.later(60_000); // a minute in another app
+      p.show();
+      expect(port.warm).toHaveBeenCalledOnce();
+    });
+
+    it("counts from the LAST translation, and not past the idle period", async () => {
+      const p = page();
+      const port = { ...inner(), warm: vi.fn() };
+      const translator = keepWarm(port, vi.fn(), p.restore);
+      await translator.translate(request);
+      p.later(ENGINE_IDLE_MS - 1_000);
+      await translator.translate(request); // the window starts again here
+      p.later(ENGINE_IDLE_MS - 1_000);
+      p.show();
+      expect(port.warm).toHaveBeenCalledOnce();
+      p.later(1_000); // the idle period has now passed since the last translation
+      p.show();
+      expect(port.warm).toHaveBeenCalledOnce();
+    });
+
+    it("listens for nothing on a page that never translated, and listens once", async () => {
+      const p = page();
+      const port = { ...inner(), warm: vi.fn() };
+      const translator = keepWarm(port, vi.fn(), p.restore);
+      expect(p.listeners()).toBe(0);
+      await translator.translate(request);
+      await translator.translate(request);
+      expect(p.listeners()).toBe(1);
+    });
+
+    it("a port that cannot warm is left alone", async () => {
+      const p = page();
+      const translator = keepWarm(inner(), vi.fn(), p.restore);
+      await translator.translate(request);
+      expect(() => p.show()).not.toThrow();
+    });
+
+    it("follows the document's visibility by default", async () => {
+      const port = { ...inner(), warm: vi.fn() };
+      const translator = keepWarm(port, vi.fn());
+      await translator.translate(request);
+      const state = vi.spyOn(document, "visibilityState", "get");
+      state.mockReturnValue("hidden");
+      document.dispatchEvent(new Event("visibilitychange"));
+      expect(port.warm).not.toHaveBeenCalled();
+      state.mockReturnValue("visible");
+      document.dispatchEvent(new Event("visibilitychange"));
+      expect(port.warm).toHaveBeenCalledOnce();
+      state.mockRestore();
+    });
   });
 });

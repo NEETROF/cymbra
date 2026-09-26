@@ -51,11 +51,13 @@ export default defineConfig({
         "src/analyzer/engine.ts",
         "src/analyzer/create-port.ts",
         "src/analyzer/rpc.ts",
-        // The translation engine's two entry points: the worker that loads Mozilla's glue and
-        // the model (it needs the real wasm, like analyzer/engine.ts), and the offscreen
-        // document that only owns that worker. Their logic lives in translate/host/channel.ts,
-        // relay.ts and offscreen-engine.ts, which are measured.
+        // The translation engine's entry points: the worker that loads Mozilla's glue and the
+        // model (it needs the real wasm, like analyzer/engine.ts), the worker that downloads the
+        // model, and the offscreen document that only owns them. Their logic lives in
+        // translate/host/channel.ts, relay.ts, downloads.ts, model-download.ts, model-db.ts and
+        // offscreen-engine.ts, which are measured.
         "src/translate/host/engine-worker.ts",
+        "src/translate/host/model-worker.ts",
         "src/translate/host/offscreen.ts",
         // The book reader's entry (the page's DOM wiring, like the other entry points) and
         // its thin adapter over the vendored foliate-js, which needs a real browser to lay a

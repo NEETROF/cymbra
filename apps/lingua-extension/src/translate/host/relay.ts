@@ -17,7 +17,7 @@ export type RelayLog = (message: string, detail?: unknown) => void;
 const LOG: RelayLog = (message, detail) => console.warn(`[Cymbra Lingua] ${message}`, detail ?? "");
 
 export async function relayTranslation(
-  engine: EngineAccess,
+  engine: Pick<EngineAccess, "translate">,
   request: TranslationRequest,
   log: RelayLog = LOG,
 ): Promise<TranslationResult> {
@@ -39,4 +39,30 @@ export async function relayTranslation(
     log("translation failed:", e);
     return UNAVAILABLE;
   }
+}
+
+/**
+ * A warm (add-lingua-translation-android D2, D3), answered only where a translation could be: with
+ * no model ready nothing is loaded, not even to find the model missing. A model said to be ready
+ * that the engine cannot load calls `onFailed`, so the background can see whether it is still
+ * there — as it does after a translation that got no answer.
+ */
+export async function relayWarm(
+  ready: () => Promise<boolean>,
+  engine: Pick<EngineAccess, "warm">,
+  onFailed: () => void = () => {},
+  log: RelayLog = LOG,
+): Promise<boolean> {
+  try {
+    if (!(await ready())) return false;
+  } catch {
+    return false;
+  }
+  try {
+    if (await engine.warm()) return true;
+  } catch (e: unknown) {
+    log("the engine could not be warmed:", e);
+  }
+  onFailed();
+  return false;
 }

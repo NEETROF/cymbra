@@ -1,0 +1,100 @@
+name: lingua-model-deploy
+
+# Deploys the static host that serves Cymbra Lingua's translation model
+# (add-lingua-translation-delivery D3) to Cloudflare Pages — models.cymbra.app, the base URL
+# apps/lingua-extension/model-manifest.json names and every Chromium and Firefox package carries.
+#
+# What it serves is decided by the package, not here: tool/assemble_model_site.mjs takes each file
+# the manifest names and keeps it only if both its digests match — the gzip file as Mozilla
+# publishes it, and its decompressed bytes, which the extension checks again after downloading.
+# It takes them from Mozilla's model registry, else from our own copy (the `mirror` release this
+# workflow fills once, so a model Mozilla moves or withdraws can still be served), else from the
+# deployed host itself. Paths are content-addressed and never change meaning, hence
+# `Cache-Control: immutable`; `Access-Control-Allow-Origin: *` because the extension fetches under
+# CORS (a host permission would disable the installed extension until the reader accepted it); a
+# 404 page, because a Pages project without one answers every unknown path with 200.
+#
+# MANUAL ONLY. Deploying is a decision, like site-deploy. It is needed once per model version —
+# before the first release whose manifest names that version reaches a store.
+#
+# The mirror job runs on every dispatch and needs no configuration. The deploy job is dormant
+# until configured: gated on the CF_PAGES_MODELS_PROJECT repo variable. One-time setup,
+# in the Cloudflare dashboard: create the Pages project (Direct Upload), attach models.cymbra.app
+# as its custom domain, and set CF_PAGES_MODELS_PROJECT to its name.
+#
+# Required repo VARIABLES: CF_PAGES_MODELS_PROJECT
+# Required repo SECRETS:  CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID (shared with site-deploy)
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lingua-model-deploy
+  cancel-in-progress: false
+
+jobs:
+  # Our own copy of the model, for good: a GitHub Release holding Mozilla's exact files, created
+  # once and never replaced. It is the second source of every later assembly.
+  mirror:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: Assemble the model, both digests checked
+        run: node apps/lingua-extension/tool/assemble_model_site.mjs "$RUNNER_TEMP/models"
+      - name: Keep a copy as a release, unless one exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          manifest=apps/lingua-extension/model-manifest.json
+          tag=$(node -p "new URL(require('./$manifest').mirror).pathname.split('/').filter(Boolean).at(-1)")
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "$tag already holds the model." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          version=$(node -p "require('./$manifest').version")
+          files=()
+          for role in model lex vocab; do
+            files+=("$RUNNER_TEMP/models/$(node -p "require('./$manifest').files.$role.path")")
+          done
+          files+=("$RUNNER_TEMP/models/$version/NOTICE.txt")
+          {
+            echo "Mozilla's Firefox Translations \`$version\` model, unmodified (Mozilla Public License 2.0),"
+            echo "kept by Cymbra as a second source for \`models.cymbra.app\`. Every consumer checks each file"
+            echo "against the sha256 in \`apps/lingua-extension/model-manifest.json\`."
+          } > "$RUNNER_TEMP/notes.md"
+          gh release create "$tag" "${files[@]}" --target "$GITHUB_SHA" \
+            --title "Lingua translation model $version" --notes-file "$RUNNER_TEMP/notes.md" --latest=false
+          echo "Published $tag." >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    needs: mirror
+    if: ${{ vars.CF_PAGES_MODELS_PROJECT != '' }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Assemble the model site, both digests checked
+        run: node apps/lingua-extension/tool/assemble_model_site.mjs "$RUNNER_TEMP/models"
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy ${{ runner.temp }}/models --project-name=${{ vars.CF_PAGES_MODELS_PROJECT }} --branch=main
+
+      # What a reader's extension will meet, checked from outside — the same check the release
+      # runs before submitting a package.
+      - name: Check what the host serves
+        run: node apps/lingua-extension/tool/check_model_host.mjs

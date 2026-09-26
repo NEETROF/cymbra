@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   captureSelection,
   classifySelection,
@@ -378,6 +378,63 @@ describe("SelectionWatcher", () => {
     w.notify(); // the platform keeps firing selectionchange while the magnifier is up
     settle();
     expect(captures).toHaveLength(1);
+  });
+
+  describe("onBegin — a card is coming (add-lingua-translation-android D2)", () => {
+    it("announces the first usable selection of a gesture before it settles, once", () => {
+      select("seldom ship");
+      const onBegin = vi.fn();
+      const { w, captures, settle } = watcher({ onBegin });
+      w.notify();
+      expect(onBegin).toHaveBeenCalledOnce();
+      expect(captures).toEqual([]); // announced before the capture
+      w.notify(); // the handles move
+      w.notify();
+      settle();
+      w.notify(); // still the same selection, after its card
+      expect(onBegin).toHaveBeenCalledOnce();
+    });
+
+    it("says nothing for a collapsed selection, or one inside the reader's own UI", () => {
+      const onBegin = vi.fn();
+      const { w } = watcher({ onBegin });
+      w.notify(); // nothing selected
+      document.body.innerHTML = `<div data-cymbra-lingua-skip><p>They seldom ship on Friday.</p></div>`;
+      const node = document.querySelector("p")!.firstChild!;
+      const range = document.createRange();
+      range.setStart(node, 5);
+      range.setEnd(node, 11);
+      window.getSelection()!.removeAllRanges();
+      window.getSelection()!.addRange(range);
+      w.notify();
+      expect(onBegin).not.toHaveBeenCalled();
+    });
+
+    it("announces again after the selection collapsed", () => {
+      const onBegin = vi.fn();
+      const { w } = watcher({ onBegin });
+      select("seldom");
+      w.notify();
+      window.getSelection()!.removeAllRanges();
+      w.notify();
+      select("ship");
+      w.notify();
+      expect(onBegin).toHaveBeenCalledTimes(2);
+    });
+
+    it("announces again for a new pointer gesture, and not for a lift that leaves nothing", () => {
+      const onBegin = vi.fn();
+      const { w } = watcher({ onBegin });
+      select("seldom");
+      w.notify();
+      w.hold(); // a new gesture starts over the old selection
+      select("seldom ship");
+      w.notify();
+      expect(onBegin).toHaveBeenCalledTimes(2);
+      window.getSelection()!.removeAllRanges();
+      w.release();
+      expect(onBegin).toHaveBeenCalledTimes(2);
+    });
   });
 
   // Safari only (dropPhraseOnLift): a finger lifting from several words drops the selection,
