@@ -1,0 +1,1225 @@
+{
+ "about": "The documents the inflection measurement reads (switch-lingua-inflections-to-esdb): titles only. fetch_corpus.py gets their text; nothing of it is committed.",
+ "documents": [
+  {
+   "source": "wikipedia",
+   "kind": "modern",
+   "title": "ChatGPT",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "modern",
+   "title": "Large language model",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "modern",
+   "title": "Influencer marketing",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "modern",
+   "title": "Doomscrolling",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "modern",
+   "title": "Remote work",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "modern",
+   "title": "Streaming media",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "modern",
+   "title": "Cryptocurrency",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "modern",
+   "title": "Smartphone",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "modern",
+   "title": "Social media",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "modern",
+   "title": "COVID-19 vaccine",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "2010 Copa Constitució",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Robert H. Felix",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "2023–24 ACB season",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Laini Taylor",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Streptomyces tendae",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Robb Austin",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Chapman Piloting",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Michel-Antoine David",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Taranis",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Operation Askari",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Cave Lake State Park",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Blackwall railway station",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "List of Malpighiales of South Africa",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "SN2 reaction",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "María Concepción of the Nativity and the Perpetual Help of Mary",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Xenotropic and polytropic retrovirus receptor 1",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "MBS Media Holdings",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Gerard Crole",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Chapungu Sculpture Park",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Murphys Estates, South Carolina",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "James S. White",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "WJCP",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Index of computing articles",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Frank Sinatra School of the Arts",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Tuff Monks",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Calamian deer",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Chad Readler",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Les Mureaux 3",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Barbara Skarga",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Freaky Deaky (song)",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Patrick H. Kelly",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Amol Sarva",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "P. Govinda Pillai",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Exchange matrix",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Robert P. Jackson",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "James McKeen Cattell",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Hallie Parrish Hinges",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "List of tallest buildings in Amsterdam",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Window of opportunity",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Topyster Muga",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Terry Baddoo",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Sebastián Cancelliere",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "William J. Sutherland",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Kamal (name)",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Love Street (song)",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Microtonality",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Goldie (disambiguation)",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "High Level Assembly",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Edward Janiak",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "King Faraday",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Tropical Andes",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "The Last Match (album)",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Lovelace: A Rock Musical",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Pycnolemma",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Yahoo Inc. (2017–present)",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Joan Klein Weidman",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "No End in Sight",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Mary Jane Godwin",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Advanced Extension Award",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Vehicle inspection in Australia",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Dear Jassi",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Price of anarchy",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Padideh Bolourizadeh",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Paul McGinn",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Brian Sternberg",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "CCGS Griffon",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Portrait of Galeazzo Sanvitale",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Secrets of a Model",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "The Seven Brides of Lance-Corporal Zbruyev",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Buddy Vedder",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Fishing and Hunting Club",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Glomus (fungus)",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Armed Forces Special Operations Division",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Turkey Brook",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "The Aspones",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Igor Fruman",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Bram Dijkstra",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "List of Biantidae species",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Tacoma (video game)",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Chrysopelea taprobanica",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Flatfoot (film)",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Ronnie McCollum",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Mazoku",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Warrenton, Indiana",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Sinnott Memorial Observation Station",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Frank Colyer",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Only in Dreams (Dum Dum Girls album)",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Artemi Panarin",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Tears for Dolphy",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Andrew Antoniolli",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Ministry of Higher Education (Oman)",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Planck postulate",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "List of investigational narcolepsy and hypersomnia drugs",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Riondel",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "A. K. M. Asaduzzaman",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Three Hands in the Fountain",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Tirari Desert",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Downs Station",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "The Australian Jewish News",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Dayle Rooney",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Edward the Exile",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Spook Ranch",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Luis Rosa",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Matsu-class destroyer",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Julianne Aguilar",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "King (crater)",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Clara Knight (nanny)",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Orchard Pond Parkway",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Epifanio Méndez Fleitas",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Joel Crothers",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "The Subway (song)",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "The Crossley Heath School",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Southeastern conifer forests",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Lanedo",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Tamina, Texas",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Saltwater Creek Railway Bridge",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Lynnette Haozous",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Alastair Reynolds",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Anna-Maja Kazarian",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Frank Hasbrouck",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Minimoog",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Wexford county football team",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "BSA M20",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Numenius of Apamea",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Sahodhari",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Supreme Court of Norfolk Island",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Pyotr Georgyevich Novikov",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "San Antonio Express-News",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Farag",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "1184",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Deberny & Peignot",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Mineko Iwasaki",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Mia Kusakabe",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Past Life (TV series)",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Execution of Amirhossein Hatami",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Wildwood Lake, Tennessee",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Antoni Arabí",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Huyi, Xi'an",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Gono Adalat",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "4 ft 6 in gauge railway",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Only the Greatest",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Greenhill (surname)",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "81st Regiment Infantry U.S. Colored Troops",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Marvin C. Alkin",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Ergi",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Transcranial direct stimulation in Parkinson's disease gait rehabilitation",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Monoclonal gammopathy of renal significance",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Pioneers F.C. (Dublin)",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "St Louis gate",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikipedia",
+   "kind": "random",
+   "title": "Airlock",
+   "fetched": "2026-09-25"
+  },
+  {
+   "source": "wikinews",
+   "kind": "news",
+   "title": "Pope Leo XIV visits four nations in Africa",
+   "fetched": "2026-09-26"
+  },
+  {
+   "source": "wikinews",
+   "kind": "news",
+   "title": "United States announces blockade on the Strait of Hormuz",
+   "fetched": "2026-09-26"
+  },
+  {
+   "source": "wikinews",
+   "kind": "news",
+   "title": "Musique Libre Femmes plays for Women's History Month at Tompkins Square Library in New York City",
+   "fetched": "2026-09-26"
+  },
+  {
+   "source": "wikinews",
+   "kind": "news",
+   "title": "South Korean military halts small firearms drills after stray bullet strikes young girl on playground",
+   "fetched": "2026-09-26"
+  },
+  {
+   "source": "wikinews",
+   "kind": "news",
+   "title": "\"One Battle After Another\" wins 6 Oscars including Best Picture",
+   "fetched": "2026-09-26"
+  },
+  {
+   "source": "wikinews",
+   "kind": "news",
+   "title": "Caloundra win round 3 game in Australian soccer's Football Queensland Premier League 2 competition",
+   "fetched": "2026-09-26"
+  },
+  {
+   "source": "wikinews",
+   "kind": "news",
+   "title": "Boats carrying Kyoto students capsize off Okinawa, fatalities reported",
+   "fetched": "2026-09-26"
+  },
+  {
+   "source": "wikinews",
+   "kind": "news",
+   "title": "Australian Minister for Energy lowers fuel standards for 60 days amid rising oil prices, panic buying",
+   "fetched": "2026-09-26"
+  },
+  {
+   "source": "wikinews",
+   "kind": "news",
+   "title": "US president Donald Trump demands the unconditional surrender of Iran",
+   "fetched": "2026-09-26"
+  },
+  {
+   "source": "wikinews",
+   "kind": "news",
+   "title": "NSW government proposes rezoning to create residences midway between Sydney and Parramatta",
+   "fetched": "2026-09-26"
+  },
+  {
+   "source": "wikinews",
+   "kind": "news",
+   "title": "PM of Australia sends E-7A Wedgetail and air-to-air missiles to UAE",
+   "fetched": "2026-09-26"
+  },
+  {
+   "source": "wikinews",
+   "kind": "news",
+   "title": "Former Major League Baseball pitcher Julio Teherán retires",
+   "fetched": "2026-09-26"
+  },
+  {
+   "source": "wikinews",
+   "kind": "news",
+   "title": "Caloundra lose round 2 game in Australian soccer's Football Queensland Premier League 2 competition",
+   "fetched": "2026-09-26"
+  },
+  {
+   "source": "wikinews",
+   "kind": "news",
+   "title": "Australia grants refuge to five Iranian women's national soccer team players",
+   "fetched": "2026-09-26"
+  },
+  {
+   "source": "wikinews",
+   "kind": "news",
+   "title": "Moreton Bay illegally evicted homeless campers, Queensland Supreme Court rules",
+   "fetched": "2026-09-26"
+  },
+  {
+   "source": "wikinews",
+   "kind": "news",
+   "title": "Monta publishes its 2025 EV charger ranking, including hardware performance",
+   "fetched": "2026-09-26"
+  },
+  {
+   "source": "wikinews",
+   "kind": "news",
+   "title": "US President Donald Trump appears to wear makeup after apparent rash breaks out on neck, reports say",
+   "fetched": "2026-09-26"
+  },
+  {
+   "source": "wikinews",
+   "kind": "news",
+   "title": "Randwick City Council opens public consultation about parking near beaches: ''To pay or not to pay?''",
+   "fetched": "2026-09-26"
+  },
+  {
+   "source": "wikinews",
+   "kind": "news",
+   "title": "Caloundra wins first game in Australian soccer's Football Queensland Premier League 2 competition",
+   "fetched": "2026-09-26"
+  },
+  {
+   "source": "wikinews",
+   "kind": "news",
+   "title": "Max Scherzer signs deal to return to Toronto Blue Jays",
+   "fetched": "2026-09-26"
+  },
+  {
+   "source": "mdn",
+   "kind": "tech",
+   "title": "web/javascript/guide/introduction",
+   "commit": "313dacc8f2ba0db400da341d596d16ebdc2e114c",
+   "fetched": "2026-09-26"
+  },
+  {
+   "source": "mdn",
+   "kind": "tech",
+   "title": "web/javascript/guide/grammar_and_types",
+   "commit": "313dacc8f2ba0db400da341d596d16ebdc2e114c",
+   "fetched": "2026-09-26"
+  },
+  {
+   "source": "mdn",
+   "kind": "tech",
+   "title": "web/javascript/guide/functions",
+   "commit": "313dacc8f2ba0db400da341d596d16ebdc2e114c",
+   "fetched": "2026-09-26"
+  },
+  {
+   "source": "mdn",
+   "kind": "tech",
+   "title": "web/javascript/guide/using_promises",
+   "commit": "313dacc8f2ba0db400da341d596d16ebdc2e114c",
+   "fetched": "2026-09-26"
+  },
+  {
+   "source": "mdn",
+   "kind": "tech",
+   "title": "web/javascript/guide/modules",
+   "commit": "313dacc8f2ba0db400da341d596d16ebdc2e114c",
+   "fetched": "2026-09-26"
+  },
+  {
+   "source": "mdn",
+   "kind": "tech",
+   "title": "web/http/guides/overview",
+   "commit": "313dacc8f2ba0db400da341d596d16ebdc2e114c",
+   "fetched": "2026-09-26"
+  },
+  {
+   "source": "mdn",
+   "kind": "tech",
+   "title": "web/http/guides/caching",
+   "commit": "313dacc8f2ba0db400da341d596d16ebdc2e114c",
+   "fetched": "2026-09-26"
+  },
+  {
+   "source": "mdn",
+   "kind": "tech",
+   "title": "web/http/guides/cors",
+   "commit": "313dacc8f2ba0db400da341d596d16ebdc2e114c",
+   "fetched": "2026-09-26"
+  },
+  {
+   "source": "mdn",
+   "kind": "tech",
+   "title": "web/http/guides/cookies",
+   "commit": "313dacc8f2ba0db400da341d596d16ebdc2e114c",
+   "fetched": "2026-09-26"
+  },
+  {
+   "source": "mdn",
+   "kind": "tech",
+   "title": "web/api/fetch_api/using_fetch",
+   "commit": "313dacc8f2ba0db400da341d596d16ebdc2e114c",
+   "fetched": "2026-09-26"
+  },
+  {
+   "source": "mdn",
+   "kind": "tech",
+   "title": "web/api/web_workers_api/using_web_workers",
+   "commit": "313dacc8f2ba0db400da341d596d16ebdc2e114c",
+   "fetched": "2026-09-26"
+  },
+  {
+   "source": "mdn",
+   "kind": "tech",
+   "title": "web/api/service_worker_api/using_service_workers",
+   "commit": "313dacc8f2ba0db400da341d596d16ebdc2e114c",
+   "fetched": "2026-09-26"
+  },
+  {
+   "source": "mdn",
+   "kind": "tech",
+   "title": "web/css/guides/grid_layout/basic_concepts",
+   "commit": "313dacc8f2ba0db400da341d596d16ebdc2e114c",
+   "fetched": "2026-09-26"
+  },
+  {
+   "source": "mdn",
+   "kind": "tech",
+   "title": "web/css/guides/flexible_box_layout/basic_concepts",
+   "commit": "313dacc8f2ba0db400da341d596d16ebdc2e114c",
+   "fetched": "2026-09-26"
+  },
+  {
+   "source": "mdn",
+   "kind": "tech",
+   "title": "web/accessibility",
+   "commit": "313dacc8f2ba0db400da341d596d16ebdc2e114c",
+   "fetched": "2026-09-26"
+  },
+  {
+   "source": "mdn",
+   "kind": "tech",
+   "title": "web/performance",
+   "commit": "313dacc8f2ba0db400da341d596d16ebdc2e114c",
+   "fetched": "2026-09-26"
+  },
+  {
+   "source": "mdn",
+   "kind": "tech",
+   "title": "web/security",
+   "commit": "313dacc8f2ba0db400da341d596d16ebdc2e114c",
+   "fetched": "2026-09-26"
+  },
+  {
+   "source": "mdn",
+   "kind": "tech",
+   "title": "web/progressive_web_apps/guides/what_is_a_progressive_web_app",
+   "commit": "313dacc8f2ba0db400da341d596d16ebdc2e114c",
+   "fetched": "2026-09-26"
+  },
+  {
+   "source": "mdn",
+   "kind": "tech",
+   "title": "web/api/indexeddb_api/using_indexeddb",
+   "commit": "313dacc8f2ba0db400da341d596d16ebdc2e114c",
+   "fetched": "2026-09-26"
+  },
+  {
+   "source": "mdn",
+   "kind": "tech",
+   "title": "web/html/guides/responsive_images",
+   "commit": "313dacc8f2ba0db400da341d596d16ebdc2e114c",
+   "fetched": "2026-09-26"
+  }
+ ]
+}
