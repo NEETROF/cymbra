@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.0.0](https://github.com/NEETROF/cymbra/compare/backend-v0.30.1...backend-v1.0.0) (2026-09-26)
+
+
+### ⚠ BREAKING CHANGES
+
+* **lingua:** the LinguaAdminService RPC AdminListDataPacks is removed. Its only client is the back office, which stops calling it in this change and deploys on merge, ahead of the backend.
+
+### Features
+
+* **lingua:** answer a selection with the pack's expressions ([#522](https://github.com/NEETROF/cymbra/issues/522)) ([df87d44](https://github.com/NEETROF/cymbra/commit/df87d4457ae916290888458319e54edd637589f3))
+
+
+### Code Refactoring
+
+* **lingua:** remove the back office's data-pack registry ([#534](https://github.com/NEETROF/cymbra/issues/534)) ([d27a30b](https://github.com/NEETROF/cymbra/commit/d27a30bac0b787ce91ec2b0e6f0ba8155d398a0f))
+
 ## [0.30.1](https://github.com/NEETROF/cymbra/compare/backend-v0.30.0...backend-v0.30.1) (2026-09-18)
 
 
