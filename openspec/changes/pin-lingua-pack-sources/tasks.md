@@ -8,7 +8,8 @@
 - [x] 2.1 `scripts/lingua-data/tables/en-fr/pin.json` (design D2) and a small reader shared by `build.sh` and the checks
 - [x] 2.2 AGID, CEFR-J and Octanove fetched at a commit (not a branch) and checked by sha256 (D3)
 - [x] 2.3 `requirements-reduce.txt`: `wordfreq==3.1.1` and its dependencies, hash-pinned; a fixed Python version for every mode that reduces
-- [ ] 2.4 kaikki snapshot: zstd-compressed, published as release `lingua-pack-sources-en-fr-<snapshot>` (never replacing one), notes carrying its licence; fetched back and checked by sha256 in re-reduce mode
+- [x] 2.4 kaikki snapshot: zstd-compressed, published as release `lingua-pack-sources-en-fr-<snapshot>` (never replacing one), notes carrying its licence; fetched back and checked by sha256 in re-reduce mode
+  - `lingua-pack-sources-en-fr-2026.09.26` published (14.2 MB, decompresses to the recorded sha256). Re-reduce mode run from a clean work folder: every pinned source fetched and checked, tables and pack byte-identical to the committed ones.
 
 ## 3. The three modes of `build.sh`
 
@@ -34,7 +35,7 @@
 
 ## 6. First tables
 
-- [ ] 6.1 Dispatch the update once (first snapshot = what the current pipeline produces that day); open and merge its pull request
+- [x] 6.1 Dispatch the update once (first snapshot = what the current pipeline produces that day); open and merge its pull request
   - The workflow can only be dispatched once it is on `main`, and the release lanes switch to the committed tables in this same pull request — so the first snapshot (2026.09.26) was produced by the same Update mode run locally (Python 3.12, `requirements-reduce.txt`), and its kaikki snapshot is published as the release the workflow would have created. Every later update goes through `lingua-pack-update`.
 - [x] 6.2 `scripts/lingua-data/tables/en-fr/README.md` (licences of the tables); `.gitignore` and `SOURCES.md` updated: raw sources and packs never committed, tables committed, sources read only by the update and the monthly check
 - [x] 6.3 The extension's README section on the data pack (the real pack builds offline from the committed tables; packs themselves still never committed) and the comment of `scripts/lingua-data/.gitignore` ("only testdata/ and the scripts are tracked")
