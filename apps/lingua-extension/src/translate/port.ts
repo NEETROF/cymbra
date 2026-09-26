@@ -26,6 +26,22 @@ export type TranslationResult = { kind: "translated"; translation: MarkedTransla
 
 export interface TranslatorPort {
   translate(request: TranslationRequest): Promise<TranslationResult>;
+  /**
+   * A translation is coming — a selection has begun (add-lingua-translation-android D2): have the
+   * engine load now, answer nothing. A hint, never a condition: a port without it translates the
+   * same, only colder.
+   */
+  warm?(): void;
 }
 
 export const UNAVAILABLE: TranslationResult = { kind: "unavailable" };
+
+/**
+ * How long the engine stays loaded after the last translation asked. A starting value: long
+ * enough to cover a pause in reading, short enough not to hold ~200 MiB for an afternoon.
+ *
+ * Here, not beside the engine's worker, because a page reads it too: a page that translated
+ * within this period asks for the engine again when it comes back (add-lingua-translation-android
+ * D3) — it restores only an engine that would still be loaded had the tab not been frozen.
+ */
+export const ENGINE_IDLE_MS = 10 * 60_000;

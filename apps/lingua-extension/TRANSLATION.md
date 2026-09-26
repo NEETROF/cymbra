@@ -98,15 +98,27 @@ engine's host.
 The worker is **classic**, not a module: Mozilla's glue assumes sloppy mode, so under
 `importScripts` the artefact runs as built, unpatched.
 
-It is loaded on the first translation asked — never when the setting is ticked or the download
-ends — and put down ten minutes after the last translation asked, giving its ~195 MiB back; on
-Chromium the offscreen document then closes too. A reading tab's keep-warm ping keeps Firefox's
-event page (and the loaded engine) alive between two selections, but it is not a translation: it
-never holds the engine past those ten minutes.
+It is loaded when a translation is coming — never when the setting is ticked, the download ends
+or a page opens — and put down ten minutes after the last one, giving its ~195 MiB back; on
+Chromium the offscreen document then closes too. "Coming" means one of three things
+(add-lingua-translation-android): a translation asked; a selection that **begins**, so the cold
+start runs while the handles move rather than after them (`SelectionWatcher.onBegin` → `warm`);
+and a page that translated within those ten minutes becoming **visible again**, because Firefox
+for Android tears the engine down while a tab is frozen in the background (`keepWarm`). A warm
+loads the engine and translates nothing, and only with a model ready. A reading tab's keep-warm
+ping keeps Firefox's event page (and the loaded engine) alive between two selections, but it is not
+a translation: it never holds the engine past those ten minutes.
+
+A page keeps the translations it has received (`answer-memory.ts`, 32 of them, never stored): the
+same sentence with the same selection is not asked twice — not while the handles come back to it,
+and not while the first request is still being answered.
+
+Measured on a Galaxy Tab S6 Lite (Firefox for Android, 4 GB): a cold start costs 4.1–4.7 s there
+(0.2–0.3 s on a Mac), a warm translation 0.4–1 s, and the loaded engine about 180 MB.
 
 ## What never happens
 
 - No code is fetched: the engine is in the package.
 - Nothing is downloaded for a reader who does not tick the setting, and the setting is not offered
-  on Firefox for Android (hidden at run time) or Safari (no engine).
+  on Safari (no engine). Firefox for Android offers it exactly as Firefox desktop does.
 - A machine translation is never stored: no gesture carries it, so it cannot reach a card.

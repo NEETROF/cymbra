@@ -7,21 +7,18 @@
 // indistinguishable from a slow one, and a card waits on it indefinitely.
 //
 // The worker holds ~195 MiB once the engine has loaded, so it is put down when reading stops
-// (add-lingua-translation-delivery D6): ten minutes after the last translation ASKED. Nothing else
-// counts — a reading tab's keep-warm ping never reaches this channel — so a forgotten tab does not
-// hold the engine for the afternoon, and the next translation simply pays a cold start.
+// (add-lingua-translation-delivery D6): ten minutes after the last translation ASKED — or the last
+// warm, which says one is coming (a selection begun, a translating page back: android D2, D3).
+// Nothing else counts — a reading tab's keep-warm ping never reaches this channel — so a forgotten
+// tab does not hold the engine for the afternoon, and the next translation simply pays a cold start.
 
 import type { EngineAccess, EngineReply, WorkerRequest, WorkerResponse } from "./engine.ts";
+import { ENGINE_IDLE_MS } from "../port.ts";
 
 /** Loading ~37 MB of model and instantiating the wasm. Measured at ~200 ms; the bound is generous. */
 export const START_TIMEOUT_MS = 15_000;
 /** One sentence. Measured at 11–136 ms in the worker; past this, the worker is stuck. */
 export const TRANSLATE_TIMEOUT_MS = 10_000;
-/**
- * How long the engine stays loaded after the last translation asked. A starting value: long
- * enough to cover a pause in reading, short enough not to hold ~200 MiB for an afternoon.
- */
-export const ENGINE_IDLE_MS = 10 * 60_000;
 
 /** The worker, as much of it as the channel uses — a test hands in a fake. */
 export interface WorkerLike {
@@ -77,6 +74,15 @@ export class EngineChannel implements EngineAccess {
   async translate(markup: string): Promise<EngineReply> {
     try {
       return await this.translateNow(markup);
+    } finally {
+      this.armIdle();
+    }
+  }
+
+  /** Load the engine now, translate nothing; a warm engine is left as it is, its countdown restarted. */
+  async warm(): Promise<boolean> {
+    try {
+      return await this.start();
     } finally {
       this.armIdle();
     }

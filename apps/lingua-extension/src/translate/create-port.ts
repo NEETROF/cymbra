@@ -5,8 +5,10 @@
 // its way. A variant without the engine (Safari) never has one.
 //
 // When there is one, it is the messaging port — and only ever that one, wherever the caller runs —
-// wrapped so that using it keeps the engine's host loaded between selections (keepalive.ts).
+// wrapped so that using it keeps the engine's host loaded between selections (keepalive.ts), and
+// so that the page does not ask twice for what it has already been answered (answer-memory.ts).
 
+import { rememberAnswers } from "./answer-memory.ts";
 import { keepWarm } from "./keepalive.ts";
 import { MessagingTranslatorPort } from "./messaging-port.ts";
 import type { TranslatorPort } from "./port.ts";
@@ -34,7 +36,7 @@ const REAL: () => TranslatorSourceDeps = () => ({
     chrome.storage.onChanged.addListener((changes, areaName) => {
       if (areaName === "local" && keys.some((k) => k in changes)) onChange();
     }),
-  port: () => keepWarm(new MessagingTranslatorPort()),
+  port: () => rememberAnswers(keepWarm(new MessagingTranslatorPort())),
 });
 
 /**

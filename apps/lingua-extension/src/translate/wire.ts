@@ -23,3 +23,18 @@ export function isTranslateMessage(message: unknown): message is TranslateMessag
     !!selection && typeof selection === "object" && Number.isInteger(selection.start) && Number.isInteger(selection.end)
   );
 }
+
+/**
+ * Load the engine now, translate nothing (add-lingua-translation-android D2, D3): a selection has
+ * begun, or a page that was translating is back. Its own type, like the keep-warm ping's — the
+ * background answers it only when a model is ready, and loading is all it does.
+ */
+export const WARM_TYPE = "lingua-translate-warm";
+
+export interface WarmMessage {
+  type: typeof WARM_TYPE;
+}
+
+export function isWarmMessage(message: unknown): message is WarmMessage {
+  return (message as Partial<WarmMessage> | null)?.type === WARM_TYPE;
+}

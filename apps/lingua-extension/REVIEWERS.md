@@ -87,7 +87,10 @@ and nothing else. It needs Linux x86-64 (the upstream script warns that macOS AA
 Python 3.11, cmake and a C++ toolchain, and takes about eight minutes.
 
 The engine runs in a dedicated worker (`src/translate/host/engine-worker.ts`), started by the event
-page only when the reader asks for a translation, and stopped after ten idle minutes.
+page only when a translation is coming — the reader asks for one, begins a selection, or returns to
+a page that translated in the last ten minutes — and only once the reader has turned the setting on
+and its model is on the device; it is stopped after ten idle minutes. Firefox for Android offers
+the setting exactly as Firefox desktop does.
 
 **No code is fetched.** The worker loads the glue with `importScripts` and the `.wasm` with
 `fetch`, both from the package's own files. The only thing the setting downloads is the model —

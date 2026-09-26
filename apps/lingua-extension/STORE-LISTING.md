@@ -64,8 +64,8 @@ encre électronique comprise. Vos livres restent sur votre appareil.
 page que vous lisez n'est envoyée nulle part, et l'extension fonctionne hors ligne. Sans
 compte ni traduction étendue, elle ne fait aucune requête réseau.
 
-**Traduction étendue** (facultative, désactivée par défaut, sur Chrome et Firefox pour
-ordinateur) : votre sélection est traduite dans sa phrase, sur votre appareil, par le moteur de
+**Traduction étendue** (facultative, désactivée par défaut, sur Chrome, et sur Firefox pour
+ordinateur et Android) : votre sélection est traduite dans sa phrase, sur votre appareil, par le moteur de
 Firefox Translations. L'activer télécharge une fois le modèle de traduction (25,8 Mo) depuis
 Cymbra ; le texte des pages ne quitte toujours pas votre appareil. La désactiver supprime le
 modèle.
@@ -97,8 +97,8 @@ stay on your device.
 is ever sent anywhere, and the extension works offline. With no account and no extended
 translation, it makes no network request at all.
 
-**Extended translation** (optional, off by default, on desktop Chrome and Firefox): your
-selection is translated in its sentence, on your device, by the Firefox Translations engine.
+**Extended translation** (optional, off by default, on Chrome, and on Firefox for desktop and
+Android): your selection is translated in its sentence, on your device, by the Firefox Translations engine.
 Turning it on downloads the translation model (25.8 MB) from Cymbra once; the text of the pages
 you read still never leaves your device. Turning it off deletes the model.
 
