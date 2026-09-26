@@ -1,8 +1,8 @@
 ## 1. Before any code
 
 - [x] 1.1 Confirm the licence and attribution terms of `mozilla/firefox-translations-models` for redistributing the `en→fr` `base-memory` files from a Cymbra host; record them in design.md
-- [ ] 1.2 Run the mark evaluation corpus on the shipping engine artefact with `reconcile.ts`; record right / wrong / withheld marks; the product owner sets the release threshold from it
-  - Waiting on the corpus: #532's 100 sentences (83/87 marks right with the check) were judged by hand and are not committed. Re-run on the pinned artefact (sha256 in `engine-pin.json`), then the product owner sets the threshold.
+- [x] 1.2 Run the mark evaluation corpus on the shipping engine artefact with `reconcile.ts`; record right / wrong / withheld marks; the product owner sets the release threshold from it
+  - Threshold set by the product owner on 2026-09-26 from #532's measurement, as it stands: **83 of 87 marks right (95 %)** on the sentences the model translated correctly, 0 made wrong by the check. The 13 mistranslations (9 of 10 idioms rendered word for word, 4 sentences) are the model's and are accepted: the card labels the answer « traduction automatique » and shows the pack's gloss first. Not re-run on the pinned artefact: the corpus was judged by hand and is not committed.
 - [ ] 1.3 Choose the model's origin (design, Open Questions) and set up its deployment: content-addressed paths, `Cache-Control: immutable`, `Access-Control-Allow-Origin: *`, files as Mozilla publishes them
   - Implemented with the recommendation (`models.cymbra.app`, Cloudflare Pages, `lingua-model-deploy` + `tool/assemble_model_site.mjs`), pending the product owner's confirmation. Remaining: create the Pages project, attach the domain, set `CF_PAGES_MODELS_PROJECT`, dispatch the workflow.
 - [x] 1.4 Draft the new copy **before** code: the setting row (fr), the Lingua annex (fr + en), the three store listings ("sans compte ni traduction étendue, aucune requête réseau"; page text still never leaves the device)
