@@ -1,6 +1,7 @@
 ## 1. Before any code
 
-- [ ] 1.1 Confirm the builder's determinism across machines: build the same tables on macOS and on `ubuntu-24.04`, compare the pack sha256 (zstd level 19, `Cargo.lock` versions)
+- [x] 1.1 Confirm the builder's determinism across machines: build the same tables on macOS and on `ubuntu-24.04`, compare the pack sha256 (zstd level 19, `Cargo.lock` versions)
+  - Same sha256 (`1f6b9931…`) built on macOS (arm64) and by the check lane on `ubuntu-24.04` (x86_64), from the monorepo and from the reviewer's archive.
 - [x] 1.2 Check that the reducer's output is itself deterministic: two reductions of the same raw sources give identical tables (ordering, floating point, dict iteration)
 
 ## 2. Pinned raw sources and the record
