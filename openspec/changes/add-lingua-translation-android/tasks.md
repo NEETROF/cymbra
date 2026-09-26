@@ -23,8 +23,8 @@
 
 ## 5. Measured on the device
 
-- [ ] 5.1 SM-P610, Firefox release, a build of this change: first selection of a visit, a selection after a one-minute return from another app, handles adjusted over one sentence, memory over a ten-minute read; record the times against the 2026-09-26 baseline (cold 4.1–4.7 s) in design.md
-- [ ] 5.2 Firefox desktop and Chrome: the same pass, headless (`e2e546` harness), nothing regressed; warming with no model sends nothing
+- [x] 5.1 SM-P610, Firefox release, a build of this change: first selection of a visit, a selection after a one-minute return from another app, handles adjusted over one sentence, memory over a ten-minute read; record the times against the 2026-09-26 baseline (cold 4.1–4.7 s) in design.md
+- [x] 5.2 Firefox desktop and Chrome: the same pass, headless (`e2e546` harness), nothing regressed; warming with no model sends nothing
 
 ## 6. Copy and documentation
 
