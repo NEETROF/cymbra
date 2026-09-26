@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/NEETROF/cymbra/compare/site-v0.7.0...site-v0.8.0) (2026-09-26)
+
+
+### Features
+
+* **lingua:** deliver extended translation on Chromium and Firefox ([#546](https://github.com/NEETROF/cymbra/issues/546)) ([6379301](https://github.com/NEETROF/cymbra/commit/6379301ca2f511051d41e944d52f00d568ae3d05))
+
 ## [0.7.0](https://github.com/NEETROF/cymbra/compare/site-v0.6.0...site-v0.7.0) (2026-09-19)
 
 
