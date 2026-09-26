@@ -104,6 +104,48 @@ describe("OffscreenEngine", () => {
     await expect(engine.translate("a")).resolves.toMatchObject({ ok: false });
   });
 
+  describe("warm (add-lingua-translation-android D2, D3)", () => {
+    it("creates the document when needed and asks it to load the engine, translating nothing", async () => {
+      const { offscreen, created } = api();
+      const send = vi.fn(async () => true);
+      const engine = new OffscreenEngine(offscreen, send);
+      await expect(engine.warm()).resolves.toBe(true);
+      expect(created).toHaveLength(1);
+      expect(send).toHaveBeenCalledWith({ type: OFFSCREEN_TYPE, op: "warm" });
+      expect(send).toHaveBeenCalledOnce();
+    });
+
+    it("says false when the document cannot be made, or went away, and makes another next time", async () => {
+      const { offscreen, created } = api({ createDocument: vi.fn(async () => Promise.reject(new Error("no"))) });
+      await expect(
+        new OffscreenEngine(
+          offscreen,
+          vi.fn(async () => true),
+        ).warm(),
+      ).resolves.toBe(false);
+      expect(created).toHaveLength(0);
+
+      const second = api();
+      const send = vi.fn<() => Promise<unknown>>(async () => Promise.reject(new Error("Receiving end does not exist")));
+      const engine = new OffscreenEngine(second.offscreen, send);
+      await expect(engine.warm()).resolves.toBe(false);
+      second.setExists(false);
+      send.mockResolvedValueOnce(true);
+      await expect(engine.warm()).resolves.toBe(true);
+      expect(second.created).toHaveLength(2);
+    });
+
+    it("treats anything but true as not loaded", async () => {
+      const { offscreen } = api();
+      await expect(
+        new OffscreenEngine(
+          offscreen,
+          vi.fn(async () => ({ ok: true })),
+        ).warm(),
+      ).resolves.toBe(false);
+    });
+  });
+
   it("starts a download in the document, creating it when needed", async () => {
     const { offscreen, created } = api();
     const send = vi.fn(async () => true);
@@ -159,6 +201,10 @@ describe("serveOffscreen — the document's side", () => {
     const p = {
       channel: {
         translate: vi.fn(async (markup: string) => ({ ok: true as const, html: `<b>${markup}</b>` })),
+        warm: vi.fn(async () => {
+          state.engine = true;
+          return true;
+        }),
         running: () => state.engine,
       },
       downloads: {
@@ -178,6 +224,18 @@ describe("serveOffscreen — the document's side", () => {
     await Promise.resolve();
     await Promise.resolve();
     expect(sendResponse).toHaveBeenCalledWith({ ok: true, html: "<b>x</b>" });
+  });
+
+  it("warms the engine's channel and answers once it has loaded", async () => {
+    const { p, state } = parts();
+    const sendResponse = vi.fn();
+    expect(serveOffscreen({ type: OFFSCREEN_TYPE, op: "warm" }, p, sendResponse)).toBe(true);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(p.channel.warm).toHaveBeenCalledOnce();
+    expect(p.channel.translate).not.toHaveBeenCalled();
+    expect(sendResponse).toHaveBeenCalledWith(true);
+    expect(state.engine).toBe(true);
   });
 
   it("starts a download, asking the browser to keep what it stores, and answers at once", () => {
@@ -209,6 +267,7 @@ describe("offscreen messages", () => {
   it("recognises the document's own requests only", () => {
     expect(isOffscreenRequest({ type: OFFSCREEN_TYPE, op: "translate", markup: "x" })).toBe(true);
     expect(isOffscreenRequest({ type: OFFSCREEN_TYPE, op: "download" })).toBe(true);
+    expect(isOffscreenRequest({ type: OFFSCREEN_TYPE, op: "warm" })).toBe(true);
     expect(isOffscreenRequest({ type: OFFSCREEN_TYPE, op: "translate" })).toBe(false);
     expect(isOffscreenRequest({ type: OFFSCREEN_TYPE, op: "explode" })).toBe(false);
     expect(isOffscreenRequest({ type: "lingua-translate", request: {} })).toBe(false);

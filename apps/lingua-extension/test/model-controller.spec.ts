@@ -30,9 +30,7 @@ function memoryArea(seed: Record<string, unknown> = {}): SettingArea & { store: 
   };
 }
 
-function setup(
-  opts: { seed?: Record<string, unknown>; offered?: boolean; stored?: boolean; downloading?: boolean } = {},
-) {
+function setup(opts: { seed?: Record<string, unknown>; stored?: boolean; downloading?: boolean } = {}) {
   const area = memoryArea(opts.seed);
   let downloading = opts.downloading ?? false;
   let stored = opts.stored ?? false;
@@ -52,7 +50,6 @@ function setup(
     host,
     db,
     manifest: async () => manifest,
-    offered: async () => opts.offered ?? true,
     log,
   });
   return {
@@ -124,11 +121,15 @@ describe("ModelController", () => {
       expect(setting().state).toEqual({ phase: "failed", reason: "unknown" });
     });
 
-    it("does nothing where the setting is not offered — Firefox for Android (D8)", async () => {
-      const { controller, host, setting } = setup({ offered: false });
-      await expect(controller.enable()).resolves.toMatchObject({ offered: false, host: "none" });
-      expect(host.startDownload).not.toHaveBeenCalled();
-      expect(setting().host).toBeUndefined();
+    it("is offered in every state it answers — Firefox for Android included (android D1)", async () => {
+      const { controller } = setup();
+      const answers = [
+        await controller.status(),
+        await controller.enable(),
+        await controller.resume(),
+        await controller.disable(),
+      ];
+      expect(answers.map((a) => a.offered)).toEqual([true, true, true, true]);
     });
 
     it("does not start a second download when it is already on", async () => {
@@ -309,7 +310,6 @@ describe("ModelController", () => {
       host: { startDownload: vi.fn(async () => {}), cancelDownload: vi.fn(), downloading: vi.fn(), shutDown: vi.fn() },
       db: { complete: vi.fn(), erase: vi.fn() },
       manifest: async () => Promise.reject(new Error("missing")),
-      offered: async () => true,
     });
     await controller.enable();
     expect(area.store[MODEL_STATE_KEY]).toEqual({ phase: "downloading", received: 0, total: 0 });

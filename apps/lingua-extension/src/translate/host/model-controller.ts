@@ -1,4 +1,4 @@
-// « Traduction étendue », as the background runs it (add-lingua-translation-delivery D2–D5, D8).
+// « Traduction étendue », as the background runs it (add-lingua-translation-delivery D2–D5).
 // The only writer of the setting and of where its model stands: surfaces ask (model-messages.ts)
 // and follow the two storage keys (setting.ts).
 //
@@ -10,6 +10,8 @@
 // - Whatever went wrong is recorded for the setting to explain, and nothing restarts on its own:
 //   a download its host dropped is "interrupted", a model the browser removed is "removed", and
 //   both wait for the reader to ask (A model the browser removed is not fetched again unasked).
+// - It is offered wherever it runs: the controller exists only in a variant that carries the engine,
+//   Firefox for Android included (add-lingua-translation-android D1).
 //
 // Commands and reports run one at a time, in the order they came: "off" right after "on" must not
 // be overtaken by the download's first report.
@@ -43,8 +45,6 @@ export interface ModelControllerDeps {
   host: ModelHostAccess;
   db: Pick<ModelDb, "complete" | "erase">;
   manifest: () => Promise<ModelManifest>;
-  /** Whether this browser offers the setting (runtime.getPlatformInfo: not on Android). */
-  offered: () => Promise<boolean>;
   log?: (message: string, detail?: unknown) => void;
 }
 
@@ -82,11 +82,10 @@ export class ModelController {
 
   enable(): Promise<ModelStatus> {
     return this.serial(async () => {
-      if (!(await this.deps.offered())) return this.reconcile();
       const current = await loadTranslationSetting(this.deps.area);
       if (current.host === "local") return this.reconcile();
       await this.download();
-      return this.current(true);
+      return this.current();
     });
   }
 
@@ -96,7 +95,7 @@ export class ModelController {
       await this.quietly("stop the download", () => this.deps.host.cancelDownload());
       await this.quietly("stop the engine", () => this.deps.host.shutDown());
       await this.quietly("delete the model", () => this.deps.db.erase());
-      return this.current(await this.deps.offered());
+      return this.current();
     });
   }
 
@@ -104,12 +103,12 @@ export class ModelController {
   resume(): Promise<ModelStatus> {
     return this.serial(async () => {
       const { host, state } = await loadTranslationSetting(this.deps.area);
-      if (host !== "local" || !(await this.deps.offered())) return this.reconcile();
+      if (host !== "local") return this.reconcile();
       if (state.phase === "ready" || (state.phase === "downloading" && (await this.deps.host.downloading()))) {
         return this.reconcile();
       }
       await this.download();
-      return this.current(true);
+      return this.current();
     });
   }
 
@@ -146,15 +145,14 @@ export class ModelController {
   }
 
   private async reconcile(): Promise<ModelStatus> {
-    const offered = await this.deps.offered();
     const { host, state } = await loadTranslationSetting(this.deps.area);
     if (host === "none") {
       if (state.phase !== "absent") await saveTranslationSetting(this.deps.area, { state: ABSENT });
-      return { offered, host, state: ABSENT };
+      return { offered: true, host, state: ABSENT };
     }
     const next = await this.observed(state);
     if (next !== state) await saveTranslationSetting(this.deps.area, { state: next });
-    return { offered, host, state: next };
+    return { offered: true, host, state: next };
   }
 
   /** What the recorded state really is: a download nobody runs, a model nobody stores. */
@@ -184,9 +182,9 @@ export class ModelController {
     }
   }
 
-  private async current(offered: boolean): Promise<ModelStatus> {
+  private async current(): Promise<ModelStatus> {
     const setting: TranslationSetting = await loadTranslationSetting(this.deps.area);
-    return { offered, ...setting };
+    return { offered: true, ...setting };
   }
 
   private async quietly(what: string, action: () => Promise<void>): Promise<void> {

@@ -11,7 +11,9 @@ extension (see `openspec/changes/add-lingua-apple`).
 - **The extension is not copied into this project.** A _Copy Lingua extension_ build
   phase on both extension targets copies `apps/lingua-extension/dist-safari/` into the
   `.appex` at build time, so the bundled extension is always the current build and a new
-  file in the extension is never silently left out.
+  file in the extension is never silently left out. It does not delete: a file that left
+  `dist-safari` stays in the `.appex` of an incremental build. After switching a local build
+  between variants, delete its DerivedData; a release builds clean.
 - **Activation page** — `Shared (App)/Resources/Base.lproj/Main.html` (French copy),
   driven by `Shared (App)/ViewController.swift`: iOS shows the steps (no state API
   there); macOS shows the real state (`SFSafariExtensionManager`) and opens Safari's
@@ -34,9 +36,11 @@ hand to replace its copied resources with the build phase above.
 
 ```bash
 # 1. The extension (see apps/lingua-extension/README.md for gen:wasm / gen:proto / gen:pack).
+#    It carries the pinned translation engine (add-lingua-translation-safari): fetch it once.
 #    The bundle is copied as built: for a device or a release, point it at production,
 #    otherwise it calls http://localhost:50051 and every sign-in fails.
-cd apps/lingua-extension && LINGUA_GRPC_WEB_URL=https://api.cymbra.app yarn build:safari
+cd apps/lingua-extension && yarn fetch:engine
+LINGUA_GRPC_WEB_URL=https://api.cymbra.app yarn build:safari
 
 # 2. The app — Xcode, or from the command line:
 cd ../lingua-apple

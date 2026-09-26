@@ -340,3 +340,56 @@ describe("a phrase a finger lifts from", () => {
     expect(liftFrom(host, "a dark").isCollapsed).toBe(false);
   });
 });
+
+// A selection that begins asks for the engine (add-lingua-translation-android D2): the cold start
+// runs while the handles move. Only with a translator — no model ready, nothing is sent.
+describe("a selection that begins", () => {
+  function select(host: ReadingHost, text: string): void {
+    const node = host.doc.querySelector("p")!.firstChild!;
+    const at = node.textContent!.indexOf(text);
+    const range = host.doc.createRange();
+    range.setStart(node, at);
+    range.setEnd(node, at + text.length);
+    const sel = host.win.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(range);
+    host.doc.dispatchEvent(new host.win.Event("selectionchange"));
+  }
+  function collapse(host: ReadingHost): void {
+    host.win.getSelection()!.removeAllRanges();
+    host.doc.dispatchEvent(new host.win.Event("selectionchange"));
+  }
+
+  it("warms the translator once per selection, before the card", async () => {
+    const warm = vi.fn();
+    const translate = vi.fn(async () => ({ kind: "unavailable" as const }));
+    const { s } = session({ translator: () => ({ translate, warm }) });
+    await s.start(null);
+    const { host } = section("<p>It was a dark night.</p>");
+    await s.attach(host);
+    select(host, "a dark");
+    select(host, "a dark night"); // a handle moved
+    expect(warm).toHaveBeenCalledOnce();
+    expect(translate).not.toHaveBeenCalled(); // nothing settled yet
+    collapse(host);
+    select(host, "night");
+    expect(warm).toHaveBeenCalledTimes(2);
+    s.detach();
+  });
+
+  it("sends nothing without a translator: extended translation off, or its model not ready", async () => {
+    let ready = false;
+    const warm = vi.fn();
+    const { s } = session({ translator: () => (ready ? { translate: vi.fn(), warm } : null) });
+    await s.start(null);
+    const { host } = section("<p>It was a dark night.</p>");
+    await s.attach(host);
+    select(host, "a dark");
+    expect(warm).not.toHaveBeenCalled();
+    collapse(host);
+    ready = true;
+    select(host, "a dark");
+    expect(warm).toHaveBeenCalledOnce();
+    s.detach();
+  });
+});

@@ -54,7 +54,8 @@ of its own.
 
 ### Requirement: A selection already translated on the page is not translated again
 A page SHALL keep the translations it has received, and SHALL answer a request identical to one already answered — the same sentence and the same selection within it — from them, without asking the engine.
-Only translations SHALL be kept, not the absence of one. The kept answers SHALL belong to the page:
+An identical request made while the first is still being answered SHALL wait for that answer
+instead of asking again. Only translations SHALL be kept, not the absence of one. The kept answers SHALL belong to the page:
 they SHALL NOT be stored, SHALL NOT be shared with another tab, and SHALL go when the page goes. A
 different selection in the same sentence SHALL be asked for, since the engine marks the selection
 in its answer.
@@ -62,6 +63,10 @@ in its answer.
 #### Scenario: Handles back on a span already answered
 - **WHEN** the reader adjusts the selection handles and comes back to a selection translated a moment ago on the same page
 - **THEN** the card shows that translation without the engine running again
+
+#### Scenario: The same request twice while the engine loads
+- **WHEN** the same sentence and selection are asked for a second time before the first answer arrives
+- **THEN** the engine is asked once, and both get its answer
 
 #### Scenario: A different span of the same sentence
 - **WHEN** the reader selects other words of a sentence already translated on the page

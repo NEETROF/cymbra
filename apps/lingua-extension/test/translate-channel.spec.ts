@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   type ChannelClock,
-  ENGINE_IDLE_MS,
   EngineChannel,
   START_TIMEOUT_MS,
   TRANSLATE_TIMEOUT_MS,
   type WorkerLike,
 } from "@/translate/host/channel.ts";
 import type { WorkerRequest, WorkerResponse } from "@/translate/host/engine.ts";
+import { ENGINE_IDLE_MS } from "@/translate/port.ts";
 
 /** A worker that records what it is sent and answers only when the test says so. */
 class FakeWorker implements WorkerLike {
@@ -237,6 +237,70 @@ describe("EngineChannel — the engine is released when reading stops (D6)", () 
     expect(h.workers[0]!.terminated).toBe(true);
     expect(h.channel.running()).toBe(false);
     expect(onIdle).toHaveBeenCalledOnce();
+  });
+
+  describe("warm (add-lingua-translation-android D2, D3)", () => {
+    it("loads the engine and translates nothing", async () => {
+      const h = setup();
+      const warmed = h.channel.warm();
+      await flush();
+      expect(h.workers).toHaveLength(1);
+      expect(h.workers[0]!.sent.map((r) => r.op)).toEqual(["load"]);
+      h.workers[0]!.reply(0, { ok: true });
+      await expect(warmed).resolves.toBe(true);
+      expect(h.channel.running()).toBe(true);
+    });
+
+    it("the translation that follows uses the warmed engine: no second load", async () => {
+      const h = setup();
+      const warmed = h.channel.warm();
+      await flush();
+      const answer = h.channel.translate("<b>gave up</b>"); // asked while the model loads
+      await flush();
+      h.workers[0]!.reply(0, { ok: true });
+      await warmed;
+      await flush();
+      expect(h.workers).toHaveLength(1);
+      expect(h.workers[0]!.sent.map((r) => r.op)).toEqual(["load", "translate"]);
+      h.workers[0]!.reply(1, { ok: true, html: "a abandonné" });
+      await expect(answer).resolves.toEqual({ ok: true, html: "a abandonné" });
+    });
+
+    it("counts as asking: an engine warmed for nothing is released after the idle period", async () => {
+      const onIdle = vi.fn();
+      const h = setup(onIdle);
+      const warmed = h.channel.warm();
+      await flush();
+      h.workers[0]!.reply(0, { ok: true });
+      await warmed;
+      expect(h.pending()).toBe(1);
+      h.elapse(ENGINE_IDLE_MS);
+      expect(h.workers[0]!.terminated).toBe(true);
+      expect(onIdle).toHaveBeenCalledOnce();
+    });
+
+    it("on a warm engine it loads nothing again and restarts the countdown", async () => {
+      const h = setup();
+      await translated(h);
+      await expect(h.channel.warm()).resolves.toBe(true);
+      expect(h.workers).toHaveLength(1);
+      expect(h.workers[0]!.sent.map((r) => r.op)).toEqual(["load", "translate"]);
+      expect(h.pending()).toBe(1); // one countdown, not two
+    });
+
+    it("a start that fails leaves nothing behind, and the next warm tries afresh", async () => {
+      const h = setup();
+      const warmed = h.channel.warm();
+      await flush();
+      h.workers[0]!.reply(0, { ok: false, error: "the model is not on this device" });
+      await expect(warmed).resolves.toBe(false);
+      expect(h.workers[0]!.terminated).toBe(true);
+      expect(h.channel.running()).toBe(false);
+      expect(h.pending()).toBe(0);
+      void h.channel.warm();
+      await flush();
+      expect(h.workers).toHaveLength(2);
+    });
   });
 
   it("counts from the LAST translation: each one restarts the countdown", async () => {

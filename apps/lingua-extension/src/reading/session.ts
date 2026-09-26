@@ -1,4 +1,4 @@
-import { createTranslatorPort } from "../translate/create-port.ts";
+import { createTranslatorPort, type TranslatorSource } from "../translate/create-port.ts";
 import type { LinguaPort } from "../analyzer/port.ts";
 import { type CefrLevel, STUDIED_LANGUAGE } from "../analyzer/types.ts";
 import { type Block, isElement, mergeBlocks } from "./blocks.ts";
@@ -118,6 +118,8 @@ export interface SessionOptions {
   onBlankClick?: (e: MouseEvent) => void;
   /** Drop a phrase's selection once a finger lifts from it (`SelectionWatcher`): Safari's build. */
   dropPhraseOnLift?: boolean;
+  /** The translator, asked per selection: « Traduction étendue » when on and ready (injected in tests). */
+  translator?: TranslatorSource;
 }
 
 /** The figures the popup asks for with `getStats`. */
@@ -208,6 +210,8 @@ export class ReadingSession {
   );
   /** What a selection or a click opens — every decision lives there, tested; this class only wires it. */
   private readonly cards: SelectionCards;
+  /** The translator for this selection, or none: « Traduction étendue » off or its model not ready. */
+  private readonly translator: TranslatorSource;
   private readonly drawer: Drawer;
   private readonly indicator: ReadingIndicator;
   private indicatorMounted = false;
@@ -234,6 +238,7 @@ export class ReadingSession {
     private readonly port: LinguaPort,
     private readonly opts: SessionOptions,
   ) {
+    this.translator = opts.translator ?? createTranslatorPort();
     this.popup = new WordPopup({
       css: opts.css.popup,
       onGesture: (g) => void this.onGesture(g),
@@ -244,7 +249,7 @@ export class ReadingSession {
       { show: (content) => this.popup.show(content), generation: () => this.popup.generation() },
       // None unless the reader turned « Traduction étendue » on and its model is on the device;
       // then the messaging port, which sends the request off this thread.
-      { calibration: () => this.calibration, translator: createTranslatorPort() },
+      { calibration: () => this.calibration, translator: this.translator },
     );
     this.drawer = new Drawer({
       css: opts.css.drawer,
@@ -411,6 +416,9 @@ export class ReadingSession {
   private watchSelection(win: Pick<Window, "getSelection">): SelectionWatcher {
     return new SelectionWatcher({
       onCapture: (kind, cap) => this.onCapture(kind, cap),
+      // A card is coming: the engine loads while the handles move, not after (android D2). Only
+      // with a translator — no model ready, nothing is sent.
+      onBegin: () => this.translator()?.warm?.(),
       win,
       // Only where the card is shown in the callout's place: the reader switched on, the page
       // analysed. Anywhere else the platform's selection is left exactly as it is.

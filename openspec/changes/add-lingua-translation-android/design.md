@@ -99,11 +99,13 @@ again next time. The memory is the page's: it goes with the page, is never store
 crosses tabs.
 
 It covers what the handles do when they come back to a span already answered, and a card reopened
-on the same selection. It does not merge different spans of the same sentence: the engine marks
+on the same selection. An identical request made while the first is still being answered waits for
+that answer: measured, the first selection of a visit sent the same request twice while the engine
+was loading (4.7 s and 3.1 s, both paid). It does not merge different spans of the same sentence: the engine marks
 the selection inside its answer, so a different span is a different answer.
 
-*Alternative:* drop a queued request superseded by a newer one. Not needed: the measured repeats
-were sequential, each answered before the next was asked.
+*Alternative:* drop a queued request superseded by a newer one. Not needed: apart from that double,
+the measured repeats were sequential, each answered before the next was asked.
 
 ### D5 — What does not change
 
@@ -141,7 +143,31 @@ No data to migrate: the setting's stored value and the model database are the de
 Firefox for Android reader who updates sees the setting, off. Rollback: restore the platform check;
 a model already downloaded on Android stays until the setting is turned off.
 
+## Measured with this change (task 5)
+
+**SM-P610, Firefox release, 2026-09-26** — a build of this change with the same temporary probes
+(never committed), the model from `models.cymbra.app`:
+
+| What | Before (2026-09-26 baseline) | With this change |
+|---|---|---|
+| Engine load, counted from the warm | — | 3.3–3.9 s (four loads), translating nothing |
+| First selection of a visit, after it settles | 4.1–4.7 s | 0.8–1.4 s: the load ran during the long-press and the handles; the reader who lifts at once waits about 3 s |
+| Return after a minute in another app | 4.4 s | warm sent at the very return (the event page restarted with it), engine ready 3.7 s later; the selection made 10 s after the return answered in 1.0 s |
+| Warm translation | 0.4–1 s | 0.6–0.9 s |
+| Warm on an engine already loaded | — | 6–24 ms, nothing loaded |
+| Memory, extension process | +180 MB | 360–420 MB with the engine; 148 MB while the tab was frozen (the engine went with the event page) |
+
+Adjusting the handles over one sentence gave three different spans in five seconds, each asked for
+once; no identical request reached the background. Each settled span is still translated (0.9 s
+of CPU each on the tablet) — debouncing the handles is a possible follow-up, not this change.
+
+**Chrome 153 and Firefox 156, headless** (the `add-lingua-translation-delivery` pass against a
+local host, extended): nothing regressed. With the setting off, a selection that begins loads
+nothing and asks nothing of the host. After the idle release, returning to a page whose last
+translation is older than the idle period restores nothing, and a selection that begins loads the
+engine without translating; the next translation took 145 ms on Chrome (225 ms before) and 144 ms
+on Firefox (299 ms before).
+
 ## Open Questions
 
-- The measured gain of D2 and D3 on the SM-P610 is recorded by this change's device pass (task 5),
-  not assumed.
+- None left from the device pass. A device with less memory than the SM-P610 remains unmeasured.

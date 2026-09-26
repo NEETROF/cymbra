@@ -2,11 +2,13 @@
 // turned « Traduction étendue » on for this device AND its model is on the device
 // (add-lingua-translation-delivery): off, downloading, failed, interrupted or removed, every
 // surface answers exactly as it did before the engine existed — no line saying a translation is on
-// its way. A variant without the engine (Safari) never has one.
+// its way. A build without the engine (`__TRANSLATION_HOST__` "none") never has one.
 //
 // When there is one, it is the messaging port — and only ever that one, wherever the caller runs —
-// wrapped so that using it keeps the engine's host loaded between selections (keepalive.ts).
+// wrapped so that using it keeps the engine's host loaded between selections (keepalive.ts), and
+// so that the page does not ask twice for what it has already been answered (answer-memory.ts).
 
+import { rememberAnswers } from "./answer-memory.ts";
 import { keepWarm } from "./keepalive.ts";
 import { MessagingTranslatorPort } from "./messaging-port.ts";
 import type { TranslatorPort } from "./port.ts";
@@ -34,7 +36,7 @@ const REAL: () => TranslatorSourceDeps = () => ({
     chrome.storage.onChanged.addListener((changes, areaName) => {
       if (areaName === "local" && keys.some((k) => k in changes)) onChange();
     }),
-  port: () => keepWarm(new MessagingTranslatorPort()),
+  port: () => rememberAnswers(keepWarm(new MessagingTranslatorPort())),
 });
 
 /**
@@ -63,6 +65,6 @@ export function translatorSource(deps: TranslatorSourceDeps): TranslatorSource {
 
 export function createTranslatorPort(): TranslatorSource {
   // A ternary, not an early return: esbuild drops a folded branch's references only in this form,
-  // and Safari's bundle must not keep the messaging port (check_variants.mjs).
+  // and a build without the engine must not keep the messaging port.
   return __TRANSLATION_HOST__ === "none" ? () => null : translatorSource(REAL());
 }
