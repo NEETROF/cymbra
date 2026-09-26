@@ -422,3 +422,206 @@ class DanglingCoordinator(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# — ESDB, the inflection source (switch-lingua-inflections-to-esdb) —
+
+# Real lines of ESDB rel-2026.02.25's scowl.txt, groups separated by a blank line as there.
+ESDB_LINES = """\
+35: run <n_v>: ran, run, running, runs, run's
+
+35: go <v>: went, gone, going, goes
+35: go <aj>
+
+35: be <v>: (was | @: wast), were, been, being, am, (are | @: art), is, are
+
+35: bear <n>: (bear | bears*), bear's
+
+35: bear <v>: bore, (borne | ~: born), bearing, bears
+
+35: lie <v> {fib}: lied, lying, lies
+35: lie <v> {recline}: lay, lain, lying, lies
+
+35: saw <n_v>: sawed, (sawed | ~: sawn), sawing, saws, saw's
+
+35: focus <n>: (focuses | ~: foci)
+35: focus <v>: (A B: focused | AV Bv: focussed), (A B: focusing | AV Bv: focussing), (focuses | ~: focusses)
+
+35: learn <v>: (A B= Z: learned | B Zv: learnt), learning, learns
+
+35: datum <n>: data
+35: datum <n> {reference point}
+
+35: leaf <n>: leaves†, leaf's
+
+35: few <d>: fewer, fewest
+
+35: that <d>: those
+
+80: -renown <v>: renowned, renowning, renowns
+
+35: renowned <aj>
+
+35: A B: tire <n_v> {exhausted}: tired, tiring, tires, tire's
+35: A B: tired <aj>: tireder, tiredest
+
+60 [brif] 70 [3of6] 80: aah <v>
+80: - <v>: aahed-, aahing-, aahs-
+
+85 [ukacd]: abacination <n>: abacinations
+"""
+
+
+class Esdb(TempDir):
+    def relations(self, text=ESDB_LINES, **kwargs):
+        path = os.path.join(self.dir, "scowl.txt")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(text)
+        return red.parse_esdb_relations(path, **kwargs)
+
+    def test_same_structure_as_agid(self):
+        pairs, relations = self.relations()
+        self.assertIn(("ran", "run"), pairs)
+        self.assertIn(("run", "run"), pairs)
+        self.assertEqual(relations["went"], {("go", "V")})
+        self.assertEqual(relations["runs"], {("run", "N"), ("run", "V")})  # a noun-verb's -s form is both
+        self.assertEqual(relations["running"], {("run", "V")})
+
+    def test_irregular_verbs(self):
+        _, relations = self.relations()
+        for form in ("was", "were", "been", "am", "is", "are"):
+            self.assertEqual(relations[form], {("be", "V")}, form)
+        self.assertEqual(relations["lay"], {("lie", "V")})
+        self.assertEqual(relations["lain"], {("lie", "V")})
+        self.assertEqual(relations["bore"], {("bear", "V")})
+        self.assertEqual(relations["borne"], {("bear", "V")})
+        self.assertEqual(relations["data"], {("datum", "N")})
+        self.assertEqual(relations["leaves"], {("leaf", "N")})  # the annotation mark is not the word
+
+    def test_lesser_variants_are_no_inflections(self):
+        _, relations = self.relations()
+        for form in ("born", "art", "wast", "sawn", "focussed", "focussing", "focusses", "foci"):
+            self.assertNotIn(form, relations, form)
+        # A primary or equal spelling in some region is kept, US and UK alike.
+        self.assertEqual(relations["focused"], {("focus", "V")})
+        self.assertEqual(relations["learned"], {("learn", "V")})
+        self.assertEqual(relations["learnt"], {("learn", "V")})
+
+    def test_possessives_are_never_inflections(self):
+        pairs, relations = self.relations()
+        self.assertFalse(any(form.endswith("'s") for form, _ in pairs))
+        self.assertNotIn("bear's", relations)
+
+    def test_a_determiner_only_for_its_comparisons(self):
+        _, relations = self.relations()
+        self.assertEqual(relations["fewer"], {("few", "A")})
+        self.assertEqual(relations["fewest"], {("few", "A")})
+        self.assertNotIn("those", relations)  # a word of its own, not a form of "that"
+
+    def test_an_adjective_of_its_own_commoner_than_its_derivation(self):
+        pairs, relations = self.relations()
+        self.assertNotIn("renowned", relations)  # an adjective at 35, a verb form only at 80
+        self.assertNotIn(("renowned", "renown"), pairs)
+        self.assertIn(("renowning", "renown"), pairs)
+        # At an equal size the derivation stands, as it always has.
+        self.assertEqual(relations["tired"], {("tire", "V")})
+
+    def test_sizes_and_groups(self):
+        pairs, relations = self.relations()
+        self.assertEqual(relations["aahed"], {("aah", "V")})  # "-" is the group's lemma
+        self.assertNotIn("abacinations", relations)  # 85: past "a valid word in current usage"
+        _, wider = self.relations(max_size=95)
+        self.assertIn("abacinations", wider)
+
+    def test_lesser_variant_levels(self):
+        self.assertTrue(red.lesser_variant("~"))
+        self.assertTrue(red.lesser_variant("@"))
+        self.assertTrue(red.lesser_variant("AV Bv"))
+        self.assertFalse(red.lesser_variant("A B"))
+        self.assertFalse(red.lesser_variant("B Zv"))
+        self.assertFalse(red.lesser_variant("A B= Z"))
+        self.assertTrue(red.lesser_variant("D"))  # Australian only: a copyright of its own
+
+
+class AgidLesserVariants(unittest.TestCase):
+    def test_a_numbered_variant_is_no_inflection(self):
+        # The same rule as ESDB's, for AGID, explicit rather than a side effect of the token pattern.
+        self.assertEqual(red.agid_forms("bore | borne, born 1 | bearing | bears"), ["bore", "borne", "bearing", "bears"])
+        self.assertEqual(red.agid_forms("was, wast 2 | were | been"), ["was", "were", "been"])
+        self.assertEqual(red.agid_forms("littler, less 1, lesser 1.1 | littlest, least 1"), ["littler", "littlest"])
+
+
+def kaikki_line(word, gloss, target, pos="noun"):
+    return json.dumps(
+        {"word": word, "pos": pos, "senses": [{"glosses": [gloss], "form_of": [{"word": target}], "tags": ["form-of"]}]}
+    )
+
+
+class FormOf(TempDir):
+    def add(self, *lines, pairs=None, relations=None):
+        path = os.path.join(self.dir, "kaikki.jsonl")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines) + "\n")
+        pairs = set() if pairs is None else pairs
+        relations = {} if relations is None else relations
+        added = red.form_of_relations(path, pairs, relations)
+        return added, pairs, relations
+
+    def test_recent_plurals_come_from_wiktionary(self):
+        added, pairs, relations = self.add(
+            kaikki_line("smartphones", "Pluriel de smartphone.", "smartphone"),
+            kaikki_line("influencers", "Pluriel de influencer.", "influencer"),
+            kaikki_line("datasets", "Pluriel de dataset.", "dataset"),
+        )
+        self.assertEqual(added, 3)
+        self.assertEqual(relations["smartphones"], {("smartphone", "N")})
+        self.assertIn(("dataset", "dataset"), pairs)
+
+    def test_only_regular_inflections(self):
+        # Without the condition, kaikki's form links made these (measured, 2026-09-25).
+        added, _, relations = self.add(
+            kaikki_line("occupied", "Participe passé de nanny.", "nanny", "verb"),
+            kaikki_line("stocks", "Pluriel de mot.", "mot"),
+            kaikki_line("coats", "Pluriel de coast.", "coast"),
+            kaikki_line("born", "Participe passé de bear.", "bear", "verb"),
+        )
+        self.assertEqual(added, 0)
+        self.assertEqual(relations, {})
+
+    def test_never_to_a_one_or_two_letter_word(self):
+        added, _, relations = self.add(
+            kaikki_line("des", "Pluriel de de.", "de"),
+            kaikki_line("dis", "Pluriel de di.", "di"),
+        )
+        self.assertEqual((added, relations), (0, {}))
+
+    def test_verb_and_comparison_links(self):
+        _, _, relations = self.add(
+            kaikki_line("texting", "Participe présent de to text.", "to text", "verb"),
+            kaikki_line("nicer", "Comparatif de nice.", "nice", "adj"),
+        )
+        self.assertEqual(relations["texting"], {("text", "V")})
+        self.assertEqual(relations["nicer"], {("nice", "A")})
+
+    def test_a_link_already_known_adds_nothing(self):
+        added, pairs, _ = self.add(
+            kaikki_line("apps", "Pluriel de app.", "app"), pairs={("apps", "app")}, relations={"apps": {("app", "N")}}
+        )
+        self.assertEqual(added, 0)
+        self.assertIn(("apps", "app"), pairs)
+
+
+class OrphanedForms(unittest.TestCase):
+    def test_a_form_with_no_kept_lemma_behind_it_is_a_word_of_its_own(self):
+        pairs = {
+            ("greed", "gree"),  # ESDB: a rare "gree", never kept
+            ("grandkids", "grandkid"),
+            ("buildings", "building"), ("building", "build"),  # a chain to a kept lemma
+            ("runs", "run"),
+        }
+        inflected = {"greed", "grandkids", "buildings", "building", "runs"}
+        ranks = {"build": 10, "run": 20}
+        self.assertEqual(red.orphaned_forms(inflected, pairs, ranks), {"greed", "grandkids"})
+
+    def test_nothing_is_orphaned_when_every_base_is_kept(self):
+        self.assertEqual(red.orphaned_forms({"runs"}, {("runs", "run")}, {"run": 1}), set())
