@@ -9,7 +9,7 @@ What ships, and what does not:
 
 |                                                 | Where it comes from                                                    | In the package?                                         |
 | ----------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------- |
-| The engine — `bergamot-translator.js` + `.wasm` | built from `mozilla/translations` at the commit `engine-pin.json` pins | **yes**, Chromium and Firefox; never Safari             |
+| The engine — `bergamot-translator.js` + `.wasm` | built from `mozilla/translations` at the commit `engine-pin.json` pins | **yes**, every variant: Chromium, Firefox and Safari    |
 | The model — `en→fr` `base-memory` 2.0           | Mozilla's registry, re-served by Cymbra (`model-manifest.json`)        | **never**: downloaded once the reader ticks the setting |
 
 The stores count WebAssembly loaded from anywhere but the package as remote code, which a Manifest
@@ -119,6 +119,7 @@ Measured on a Galaxy Tab S6 Lite (Firefox for Android, 4 GB): a cold start costs
 ## What never happens
 
 - No code is fetched: the engine is in the package.
-- Nothing is downloaded for a reader who does not tick the setting, and the setting is not offered
-  on Safari (no engine). Firefox for Android offers it exactly as Firefox desktop does.
+- Nothing is downloaded for a reader who does not tick the setting. Every variant offers it the
+  same way: Chromium, Firefox desktop and Android, and Safari on iPhone, iPad and Mac
+  (add-lingua-translation-safari), whose event page hosts the engine as Firefox's does.
 - A machine translation is never stored: no gesture carries it, so it cannot reach a card.

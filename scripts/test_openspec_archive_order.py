@@ -52,6 +52,25 @@ class ArchiveOrder(unittest.TestCase):
         self.delta("stale", "## MODIFIED Requirements\n\n### Requirement: Renamed away\nText.\n")
         self.assertEqual(check(self.root, "stale"), (STALE, ["cap: Renamed away"]))
 
+    def test_waits_for_a_change_it_declares_it_archives_after(self) -> None:
+        # Two open changes modifying the same requirement: the deltas cannot say which wins.
+        self.delta("android", "## MODIFIED Requirements\n\n### Requirement: Existing rule\nA.\n")
+        self.delta("safari", "## MODIFIED Requirements\n\n### Requirement: Existing rule\nA and B.\n")
+        self.assertEqual(check(self.root, "safari"), (READY, []))
+        write(
+            self.root,
+            "openspec/changes/safari/.openspec.yaml",
+            "schema: spec-driven\ncreated: 2026-09-26\narchiveAfter:\n  - android\n  - 'gone'\nother: x\n",
+        )
+        self.assertEqual(check(self.root, "safari"), (WAITS, ["android"]))  # "gone" is not open
+        self.assertEqual(check(self.root, "android"), (READY, []))
+
+    def test_a_declared_order_never_hides_a_stale_delta(self) -> None:
+        self.delta("android", "## ADDED Requirements\n\n### Requirement: Other rule\nA.\n")
+        self.delta("safari", "## MODIFIED Requirements\n\n### Requirement: Renamed away\nText.\n")
+        write(self.root, "openspec/changes/safari/.openspec.yaml", "archiveAfter:\n  - android\n")
+        self.assertEqual(check(self.root, "safari"), (STALE, ["cap: Renamed away"]))
+
     def test_an_archived_change_provides_nothing(self) -> None:
         write(
             self.root,

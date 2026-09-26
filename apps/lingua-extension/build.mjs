@@ -114,19 +114,19 @@ const EXT_KEY =
   process.env.LINGUA_EXT_KEY ??
   "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmO6fyVYfGiE/aY3LTZ5RIZnwHslFqU5VEVPwehSSs7ah1g3L3LQby7Sg/UubpfrAiKzn/Y97la+j//5nLHGIR0R7+Mu4wuWJjqlb1JglazkjMgIKALmJehrPCb+0n5l+9WNerFSV3YCC76mm9XYeHlgrvrQsmAMq1hI5b264lL45akxRF3fR7QoPh/pzBVyociD4BOYCB0DsjDql8fghaH4hxoeQFwkdhcePO0I4S5KbuehMgIazk9DCh7eTVGGSUs9p0pRMYGydFkzTc9YBG3gL2OoBQ+p5lQMM5B3hNyDPni5BpJ02XW8ZhLdm009avnk3rbm1DBLWF5GcHsuUnQIDAQAB";
 
-// The translation engine (add-lingua-translation-delivery D1) is PART of the Chromium and Firefox
-// packages: the stores count WebAssembly loaded from anywhere else as remote code, so only the
+// The translation engine (add-lingua-translation-delivery D1) is PART of every package — Chromium,
+// Firefox and, since add-lingua-translation-safari, Safari: the stores count WebAssembly loaded from anywhere else as remote code, so only the
 // model — data — is ever downloaded, and only once the reader turns « Traduction étendue » on.
 // The engine comes from the lingua-engine-build workflow (`yarn fetch:engine`) or from source
 // (`tool/build_engine.sh`), into engine/ unless LINGUA_TRANSLATION_ENGINE says otherwise, and a
-// build of either variant refuses anything but the pinned bytes (engine-pin.json). Safari carries
-// none of it: its engine is a change of its own.
+// build refuses anything but the pinned bytes (engine-pin.json).
 const ENGINE_DIR = process.env.LINGUA_TRANSLATION_ENGINE || join(root, "engine");
 const ENGINE_FILES = engineFiles();
 
 /** Where a variant hosts the translation engine. Never on a thread that paints. */
 function translationHost(target) {
-  if (target === "safari") return "none";
+  // Safari's event page hosts it as Firefox's does (measured on iPhone, iPad and Mac:
+  // add-lingua-translation-safari D1).
   return target === "chromium" ? "offscreen" : "event-page";
 }
 
@@ -134,7 +134,7 @@ if (targets.some((t) => translationHost(t) !== "none")) {
   const problems = engineProblems(ENGINE_DIR);
   if (problems.length > 0) {
     throw new Error(
-      `The Chromium and Firefox packages carry the translation engine, and ${ENGINE_DIR} does not hold ` +
+      `Every package carries the translation engine, and ${ENGINE_DIR} does not hold ` +
         `the pinned one: ${problems.join("; ")}. Fetch it with \`yarn fetch:engine\` (or build it on ` +
         "Linux with tool/build_engine.sh) — see apps/lingua-extension/TRANSLATION.md.",
     );

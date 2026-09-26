@@ -282,8 +282,9 @@ bundle folds away the other variants' branches:
   Published to AMO (desktop + Android, the same zip).
 - **Safari** (`safari`, macOS + iOS): the Firefox path with a **non-persistent** event
   page (iOS refuses a persistent one), no `sidePanel` / `identity` permission, and no
-  add-on id. Distributed inside the host app `apps/lingua-apple`, whose Xcode project
-  bundles `dist-safari/`.
+  add-on id. Like Firefox, its event page hosts the translation engine (« Traduction
+  étendue », measured on iPhone, iPad and Mac). Distributed inside the host app
+  `apps/lingua-apple`, whose Xcode project bundles `dist-safari/`.
 
 ## Release
 
