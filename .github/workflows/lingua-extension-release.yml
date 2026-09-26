@@ -205,7 +205,11 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Enable Corepack (Yarn Berry)
         run: corepack enable
-      # The Chromium and Firefox packages carry the translation engine
+      # Before any `yarn <script>`: Yarn Berry refuses to run one without an install (the first
+      # dry run of this lane after add-lingua-translation-delivery stopped on the engine fetch).
+      - name: Install dependencies
+        run: yarn install --immutable
+      # Every package carries the translation engine
       # (add-lingua-translation-delivery D1): lingua-engine-build's artefact, kept only if every file
       # matches engine-pin.json — and build.mjs refuses to package anything else. The model is never
       # packaged; readers download it from Cymbra once they turn « Traduction étendue » on.
@@ -236,7 +240,6 @@ jobs:
               echo "::warning::$message"
             fi
           done
-          yarn install --immutable
           yarn gen:wasm
           yarn gen:proto
           # The real pack, from the committed tables and checked against pin.json — no upstream
