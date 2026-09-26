@@ -5,11 +5,13 @@
 # this file except in compliance with the License. You may obtain a copy of the
 # License at http://www.apache.org/licenses/LICENSE-2.0
 
-"""Reduce the raw EN->FR sources (AGID + wordfreq + kaikki + CEFR lists) into the pack tables.
+"""Reduce the raw EN->FR sources (ESDB + wordfreq + kaikki + CEFR lists) into the pack tables.
 
-Inputs (downloaded into <work>/ by build.sh, git-ignored):
-  - agid-infl.txt          AGID inflection database  (lemma <POS>: forms)
-  - kaikki-Anglais.jsonl   kaikki frwiktionary "Anglais" extract (FR glosses of EN words)
+Inputs (fetched into <work>/ by build.sh, git-ignored; pinned in tables/<pair>/pin.json):
+  - scowl.txt              ESDB export, the inflections (SIZE: LEMMA <POS>: forms)
+  - kaikki-Anglais.jsonl   kaikki frwiktionary "Anglais" extract (FR glosses of EN words, and the
+                           form links that complete ESDB)
+  - agid-infl.txt          AGID, retired: read only with --inflections agid
   - wordfreq (pip)         English frequency ranks
   - cefrj-*.csv / octanove-*.csv   CEFR levels (optional)
 and, from this repository, the analyser's irregular-form table (lingua-core lemmatize.rs).
@@ -24,9 +26,10 @@ Key rules:
    given a rank or a gloss of its own — otherwise it becomes a spurious pool lemma that
    (a) carries a useless "Pluriel de …" form-of gloss and (b) collides with its base
    lemma's entry.
-2. AGID is not always right about what an inflection is: it lists "butter" as the
-   comparative of "but", "number" as the comparative of "numb", "his" as the plural of
-   "hi". A form that is really a word of its own (`own_words`) stays a canonical lemma.
+2. The inflection source is not always right about what an inflection is — AGID, the source
+   before ESDB, listed "butter" as the comparative of "but", "number" as the comparative of
+   "numb", "his" as the plural of "hi". A form that is really a word of its own (`own_words`)
+   stays a canonical lemma.
 3. Every form maps to exactly ONE lemma (`resolve_forms`): itself when it is a kept word of
    its own, otherwise the base Wiktionary names, one with a gloss, the most frequent. The
    pack's FST keeps a single lemma per form and, left to choose, keeps the alphabetically
@@ -102,12 +105,19 @@ _CEFR_BASE_POS = {
 }
 
 
+# An AGID variant level after a form ("born 1", "lesser 1.1"): a lesser spelling, archaic or rarer
+# form — the AGID side of `lesser_variant`.
+_AGID_VARIANT = re.compile(r"\S+\s+\d+(?:\.\d+)?")
+
+
 def agid_forms(inflections):
-    """Cleaned inflected forms from an AGID right-hand side."""
+    """Cleaned inflected forms from an AGID right-hand side, lesser variants out ("born 1")."""
     cleaned = re.sub(r"\{[^}]*\}", " ", inflections)
     out = []
     for tok in re.split(r"[|,]", cleaned):
         tok = tok.strip().strip("?!~").strip()
+        if _AGID_VARIANT.fullmatch(tok):
+            continue
         if _TOKEN.fullmatch(tok):
             out.append(tok.lower())
     return out
@@ -142,6 +152,194 @@ def parse_agid_relations(path):
                 if form != lemma:
                     relations.setdefault(form, set()).add((lemma, kind))
     return pairs, relations
+
+
+# — ESDB, the inflection source (switch-lingua-inflections-to-esdb) —
+#
+# ESDB (the English Speller Database, en-wl/wordlist, formerly SCOWLv2) is the maintained successor
+# of AGID, whose last release is 2016. Its `scowl.txt` holds one group per sense, a line
+#   SIZE [tags]: [VARIANT-INFO: ] LEMMA <POS[/class]> [{sense}]: DERIVED, DERIVED, …
+# where a derived entry may be a set of alternatives, `(focuses | ~: focusses)`, each prefixed by
+# its spellings' variant levels. `parse_esdb_relations` returns what `parse_agid_relations` does,
+# so everything downstream reads it unchanged.
+
+# The parts of speech whose derived forms are inflections, and the relation kind they make.
+# `d`, a determiner, only for its comparisons ("few": "fewer", "fewest"): its other derived forms
+# are words of their own ("that": "those").
+_ESDB_KIND = {"n": "N", "v": "V", "m": "V", "n_v": "V", "aj": "A", "av": "A", "a": "A", "aj_av": "A", "d": "A"}
+# "A valid word in current usage" per ESDB's own scale; larger sizes hold rare and obscure words.
+_ESDB_MAX_SIZE = 80
+_ESDB_ANNOTATIONS = "*-@~!†"
+# A spelling item of a variant level that counts: a spelling (A American, B British "-ise",
+# Z British "-ize", C Canadian, `_` all of them) with a primary level, alone or marked equal (`.`
+# or `=`). Not D, Australian: that code carries a copyright of its own (ESDB's `Copyright`, "=== AU").
+_ESDB_SPELLING = re.compile(r"[ABZC_]+[.=]?")
+_ESDB_LINE = re.compile(r"\s*(\d+)")
+_ESDB_LEMMA = re.compile(r"\s*(.*?)\s*<([a-z_]+)?(?:/[^>]*)?>")
+
+
+def lesser_variant(levels):
+    """Whether an ESDB alternative is only ever a lesser spelling — never an inflection to take.
+
+    `levels` is what precedes the form (`"AV Bv"` in `AV Bv: focussed`, `"~"` in `~: born`). An
+    alternative counts when at least one of its spellings is primary or equal (`A B: focused`,
+    `B Zv: learnt`, `A B= Z: learned`); it does not when every spelling is a lesser level: a variant
+    (`AV Bv: focussed`), an archaic or rarer form (`~: born`, `@: art`). Taking `born` for a form of
+    `bear` would send 123 tokens of the measured sample to the wrong word.
+    """
+    return not any(_ESDB_SPELLING.fullmatch(item) for item in levels.split())
+
+
+def esdb_forms(entries):
+    """The inflected forms of an ESDB derived-entries field, lesser variants and annotations out."""
+    out = []
+    for entry in entries.split(", "):
+        entry = entry.strip()
+        alternatives = entry[1:-1].split("|") if entry.startswith("(") and entry.endswith(")") else [entry]
+        for alt in alternatives:
+            alt = alt.strip()
+            if ": " in alt:
+                levels, alt = alt.split(": ", 1)
+                if lesser_variant(levels):
+                    continue
+            alt = alt.strip().rstrip(_ESDB_ANNOTATIONS).strip()
+            if alt and alt != "-":
+                out.append(alt)
+    return out
+
+
+def _esdb_kinds(pos, form, base):
+    """The relation kinds a derived form makes: a noun-verb's `-s` form is both a plural and a verb form."""
+    if pos == "n_v":
+        return {"N", "V"} if form.endswith("s") else {"V"}
+    if pos == "d":
+        return {"A"} if form in ("more", "most", "less", "least") or regular_inflection(form, base, "A") else set()
+    return {_ESDB_KIND[pos]}
+
+
+def parse_esdb_relations(path, max_size=_ESDB_MAX_SIZE):
+    """All (form, lemma) pairs from ESDB's `scowl.txt`, and each inflected form's (lemma, kind) relations.
+
+    Kept: the parts of speech of `_ESDB_KIND`, sizes up to `max_size`, primary and equal spellings.
+    Never a possessive (the tokenizer splits them; AGID lists none). Never a form ESDB also lists as
+    an adjective of its own in a commoner size than the line deriving it: "renowned" (an adjective
+    at 35) is no verb form of "renown" (a verb only at 80) — `own_adjectives`.
+    """
+    pairs, relations = set(), {}
+    derived_at = {}  # (form, lemma) -> the smallest size of a line deriving it
+    adjectives = {}  # headword -> the smallest size ESDB lists it at as an adjective
+    group = None  # the lemma a `-` stands for, within a group
+    with open(path, encoding="utf-8") as f:
+        for raw in f:
+            line = raw.split("#", 1)[0].rstrip("\n")
+            if not line.strip():
+                group = None
+                continue
+            parts = line.split(": ")
+            size = _ESDB_LINE.match(parts[0])
+            if not size:
+                continue
+            at = next((i for i in range(1, len(parts)) if "<" in parts[i] or (i == 1 == len(parts) - 1)), None)
+            if at is None:
+                continue
+            head = _ESDB_LEMMA.match(parts[at])
+            word = (head.group(1) if head else parts[at]).strip()
+            pos = head.group(2) if head else None
+            if word != "-":
+                word = word.lstrip("-@!").rstrip(_ESDB_ANNOTATIONS).strip()
+            if word == "-":
+                if group is None:
+                    continue
+                word = group
+            else:
+                group = word
+            level = int(size.group(1))
+            if level > max_size or pos not in _ESDB_KIND:
+                continue
+            lemma = word.lower()
+            if not _TOKEN.fullmatch(lemma):
+                continue
+            if pos == "aj":
+                adjectives[lemma] = min(level, adjectives.get(lemma, level))
+            pairs.add((lemma, lemma))
+            for form in (f.lower() for f in esdb_forms(": ".join(parts[at + 1 :]))):
+                if form.endswith(("'s", "s'", "'")) or not _TOKEN.fullmatch(form):
+                    continue
+                if form == lemma:
+                    continue
+                kinds = _esdb_kinds(pos, form, lemma)
+                if not kinds:
+                    continue
+                pairs.add((form, lemma))
+                derived_at[(form, lemma)] = min(level, derived_at.get((form, lemma), level))
+                for kind in kinds:
+                    relations.setdefault(form, set()).add((lemma, kind))
+    for form, lemma in own_adjectives(derived_at, adjectives):
+        pairs.discard((form, lemma))
+        rels = {rel for rel in relations.get(form, ()) if rel[0] != lemma}
+        if rels:
+            relations[form] = rels
+        else:
+            relations.pop(form, None)
+    return pairs, relations
+
+
+def own_adjectives(derived_at, adjectives):
+    """The (form, lemma) derivations to drop: the form is an adjective of its own, commoner than the derivation.
+
+    ESDB sizes say how common a line is (35 the commonest words, 80 the rarer valid ones). A form
+    it lists as an adjective at a smaller size than the line that derives it is read as that
+    adjective ("renowned", 35, over "renown <v>: renowned", 80). At an equal size the derivation
+    stands: "tired" stays a form of "tire", as it always has.
+    """
+    return {(form, lemma) for (form, lemma), level in derived_at.items() if adjectives.get(form, level) < level}
+
+
+# kaikki's form-of links, for the recent words ESDB lacks (smartphones, influencers, datasets).
+_FORM_OF_KIND = (
+    (re.compile(r"^pluriel", re.IGNORECASE), "N"),
+    (re.compile(r"pr[ée]t[ée]rit|participe|personne du pr[ée]sent|pr[ée]sent simple", re.IGNORECASE), "V"),
+    (re.compile(r"comparatif|superlatif", re.IGNORECASE), "A"),
+)
+
+
+def form_of_relations(path, pairs, relations):
+    """Add kaikki's form-of links to `pairs` and `relations`, regular inflections only.
+
+    A link counts only when the form is the regular inflection of its target (`regular_inflection`):
+    without that condition kaikki sends "occupied" to "nanny", "stocks" to "mot", "coats" to
+    "coast" and "born" to "bear". Never to a one- or two-letter target ("des" is no plural of "de"
+    in English text): the irregular forms of such words ("goes", "is") come from ESDB. Returns the
+    number of pairs added.
+    """
+    added = 0
+    with open(path, encoding="utf-8", errors="replace") as f:
+        for line in f:
+            if '"form_of"' not in line:
+                continue
+            try:
+                d = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            form = (d.get("word") or "").strip().lower()
+            if not _TOKEN.fullmatch(form):
+                continue
+            for sense in d.get("senses", []):
+                gloss = " ".join(sense.get("glosses") or [])
+                kind = next((k for pattern, k in _FORM_OF_KIND if pattern.search(gloss)), None)
+                if kind is None:
+                    continue
+                for ref in sense.get("form_of") or ():
+                    lemma = re.sub(r"^to ", "", (ref.get("word") or "").strip()).lower() if isinstance(ref, dict) else ""
+                    if lemma == form or len(lemma) <= 2 or not _TOKEN.fullmatch(lemma):
+                        continue
+                    if not regular_inflection(form, lemma, kind):
+                        continue
+                    if (form, lemma) not in pairs:
+                        added += 1
+                    pairs.update({(form, lemma), (lemma, lemma)})
+                    relations.setdefault(form, set()).add((lemma, kind))
+    return added
 
 
 def analyser_irregulars(path=_LEMMATIZE_RS):
@@ -308,6 +506,29 @@ def canonical_ranks(inflected, want):
         if len(ranks) >= want:
             break
     return ranks
+
+
+def orphaned_forms(inflected, pairs, ranks):
+    """Inflected forms with no kept lemma behind them: read as words of their own.
+
+    A form is left out of the lemmas because its base stands for it; when no base is kept — nor
+    any base of a base — nothing does, and the word drops out of the pack. ESDB knows rare bases
+    AGID did not ("grandkid", "policymaker", "uprise", "gree", "crowdfund"), and wordfreq ranks
+    their forms far above them: without this, "grandkids", "policymakers", "uprising", "greed" and
+    "crowdfunding" would vanish. A form whose base is itself a form of a kept lemma ("buildings",
+    of "building", of "build") is not orphaned: it reads as that chain always did.
+    """
+    bases = {}
+    for form, lemma in pairs:
+        if form != lemma:
+            bases.setdefault(form, set()).add(lemma)
+    kept = ranks.keys()
+
+    def behind(form):
+        direct = bases.get(form, set())
+        return direct | set().union(*(bases.get(base, set()) for base in direct))
+
+    return {form for form in inflected if not behind(form) & kept}
 
 
 def append_level_extras(ranks, cefr, inflected, frequency, lemma_of):
@@ -516,14 +737,30 @@ def reduce_expressions(path, maxlen, per_sense=42, max_senses=3):
 NOTICE = """\
 Cymbra Lingua data pack — EN->FR attributions.
 
-AGID (Automatically Generated Inflection Database), from the SCOWL / aspell family
-(en-wl/wordlist): permission to use, copy, modify, distribute and sell, with the
-upstream notices retained (WordNet, 2of12id, ENABLE).
+ESDB (English Speller Database, SCOWLv2, en-wl/wordlist): the inflections.
+Copyright 2000-2026 by Kevin Atkinson. Permission to use, copy, modify, distribute, and
+sell any part of SCOWLv2, or word lists created from it, is hereby granted without fee,
+provided that the above copyright notice appears in all copies and that both the above
+copyright notice and this notice appear in supporting documentation. Kevin Atkinson
+makes no representations about the suitability of this database for any purpose. It is
+provided "as is" without express or implied warranty.
+
+WordNet, used by ESDB for its initial part-of-speech assignment: WordNet 1.6 Copyright
+1997 by Princeton University. All rights reserved. Permission to use, copy, modify and
+distribute this software and database and its documentation for any purpose and without
+fee or royalty is hereby granted, provided that this copyright notice and these
+statements, including the disclaimer, appear on all copies. THIS SOFTWARE AND DATABASE
+IS PROVIDED "AS IS" AND PRINCETON UNIVERSITY MAKES NO REPRESENTATIONS OR WARRANTIES,
+EXPRESS OR IMPLIED. The name of Princeton University or Princeton may not be used in
+advertising or publicity pertaining to distribution of the software and/or database.
+Title to copyright in this software, database and any associated documentation shall at
+all times remain with Princeton University.
 
 wordfreq (English frequency list): CC BY-SA 4.0 (includes SUBTLEX with Brysbaert's
 permission).
 
-kaikki.org extract of the French Wiktionary (frwiktionary): CC BY-SA 4.0 + GFDL.
+kaikki.org extract of the French Wiktionary (frwiktionary): CC BY-SA 4.0 + GFDL — the
+glosses, the expressions, and the form links completing ESDB's inflections.
 
 CEFR-J: The CEFR-J Wordlist Version 1.5. Compiled by Yukio Tono, Tokyo University of
 Foreign Studies. Used for research and commercial purposes with acknowledgement of the
@@ -581,13 +818,23 @@ def main():
     ap.add_argument("--max-gloss-len", type=int, default=80)
     ap.add_argument("--built-at", required=True, help="yyyy-mm-dd (source snapshot date)")
     ap.add_argument("--pack-version", required=True)
+    ap.add_argument(
+        "--inflections",
+        choices=("esdb", "agid"),
+        default="esdb",
+        help="ESDB's scowl.txt with kaikki's form-of links, or AGID's infl.txt (retired)",
+    )
     a = ap.parse_args()
 
     from wordfreq import zipf_frequency
 
     zipf = functools.lru_cache(maxsize=None)(lambda w: zipf_frequency(w, "en"))
     kaikki = os.path.join(a.work, "kaikki-Anglais.jsonl")
-    pairs, relations = parse_agid_relations(os.path.join(a.work, "agid-infl.txt"))
+    if a.inflections == "agid":
+        pairs, relations = parse_agid_relations(os.path.join(a.work, "agid-infl.txt"))
+    else:
+        pairs, relations = parse_esdb_relations(os.path.join(a.work, "scowl.txt"))
+        form_of_relations(kaikki, pairs, relations)
     cefr = read_cefr(
         [
             os.path.join(a.work, "cefrj-vocabulary-profile-1.5.csv"),
@@ -599,6 +846,10 @@ def main():
     own = own_words(relations, meanings, targets, cefr, zipf, never=set(analyser_irregulars()))
     inflected = {form for form, lemma in pairs if form != lemma} - own
     ranks = canonical_ranks(inflected, a.max_lemmas)
+    orphans = orphaned_forms(inflected, pairs, ranks)
+    if orphans:
+        inflected -= orphans
+        ranks = canonical_ranks(inflected, a.max_lemmas)
     ranked = len(ranks)
     if cefr:
         ranked_forms = resolve_forms(pairs, ranks, targets)
@@ -628,7 +879,7 @@ def main():
             "pack_version": a.pack_version,
             "analyzer_version": "1.1.0",
             "licences": [
-                "AGID (permissive, commercial use allowed)",
+                "ESDB / SCOWLv2 (permissive, commercial use allowed; WordNet notice)",
                 "wordfreq (CC BY-SA 4.0)",
                 "kaikki / frwiktionary (CC BY-SA 4.0 + GFDL)",
                 "CEFR-J Wordlist v1.5 (commercial use allowed with attribution)",
@@ -636,7 +887,7 @@ def main():
             ],
         },
         "sources": [
-            {"name": "AGID", "licence": "Permissive"},
+            {"name": "ESDB", "licence": "Permissive"},
             {"name": "wordfreq", "licence": "CcBySa"},
             {"name": "kaikki", "licence": "CcBySa"},
             {"name": "CEFR-J", "licence": "Permissive"},

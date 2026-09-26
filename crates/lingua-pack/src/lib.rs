@@ -15,7 +15,7 @@
 //! The offline pack builder (spec `lingua-data-packs`).
 //!
 //! Assembles a versioned `pack.lingua` from the tables the pipeline derives
-//! from AGID (form→lemma), wordfreq (ranks) and kaikki (French glosses):
+//! from ESDB and kaikki (form→lemma), wordfreq (ranks) and kaikki (French glosses):
 //! builds the FST, quantises ranks, compresses the offset-indexed glosses
 //! with zstd, keys the multi-word expressions through the core's own
 //! lemmatiser, embeds the metadata and NOTICE, and enforces the licence
@@ -52,7 +52,7 @@ pub struct Manifest {
 pub struct PackInputs {
     /// The pair + versions + declared licences.
     pub meta: PackMeta,
-    /// Inflected form → lemma pairs (AGID-derived).
+    /// Inflected form → lemma pairs (ESDB-derived, completed by kaikki's form links).
     pub form_lemma: Vec<(String, String)>,
     /// Lemmas that carry a frequency rank (wordfreq-derived); 1 = commonest.
     pub ranks: Vec<(String, u32)>,

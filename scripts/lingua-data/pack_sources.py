@@ -11,8 +11,9 @@
 - `snapshot`: the day the sources were read (`2026.09.26`); it is also the pack's `pack_version`.
 - `pack`: sha256 and size of the pack the tables build — every lane must obtain exactly that.
 - `reducer`: sha256 of the `reduce-<pair>.py` the tables were reduced with.
-- `sources`: each raw source, pinned — AGID, CEFR-J and Octanove at a commit of their own
-  repository and by sha256; kaikki (regenerated upstream every day) as our own snapshot, a
+- `sources`: each raw source, pinned — CEFR-J and Octanove at a commit of their own repository
+  and by sha256; ESDB (the inflections) built at a commit of en-wl/wordlist, by the sha256 of its
+  exported `scowl.txt`; kaikki (regenerated upstream every day) as our own snapshot, a
   zstd-compressed GitHub Release asset, checked by the sha256 of its decompressed bytes; wordfreq
   by version (it is its own snapshot; requirements-reduce.txt pins it by hash).
 
@@ -40,16 +41,11 @@ from pathlib import Path
 REPOSITORY = "NEETROF/cymbra"
 
 # The sources of the en-fr pair, at the commits read on 2026-09-25/26. The URLs name a commit,
-# never a branch: the AGID URL the pipeline used named `master`, a branch en-wl/wordlist no longer
-# has, and worked through a leftover redirect. At a commit, a URL means the same bytes for as long
-# as the repository exists.
+# never a branch: the AGID URL the pipeline once used named `master`, a branch en-wl/wordlist no
+# longer has, and worked through a leftover redirect. At a commit, a URL means the same bytes for
+# as long as the repository exists.
 PINNED = {
     "en-fr": {
-        "agid": {
-            "file": "agid-infl.txt",
-            "url": "https://raw.githubusercontent.com/en-wl/wordlist/"
-            "464bea8cca4f606d9e271600b7718818fdd6507c/agid/infl.txt",
-        },
         "cefrj": {
             "file": "cefrj-vocabulary-profile-1.5.csv",
             "url": "https://raw.githubusercontent.com/openlanguageprofiles/olp-en-cefrj/"
@@ -60,6 +56,17 @@ PINNED = {
             "url": "https://raw.githubusercontent.com/openlanguageprofiles/olp-en-cefrj/"
             "d4e45b75b38f27b30dfc5c44d8c571aec7e7092f/octanove-vocabulary-profile-c1c2-1.0.csv",
         },
+    }
+}
+# ESDB, the English Speller Database (switch-lingua-inflections-to-esdb): not a file but a database
+# its repository builds; `scowl.txt` is its export. Built at the commit of `rel-2026.02.25`, with
+# the pinned interpreter — the repository's Makefile would call /usr/bin/python3, whatever it is.
+ESDB = {
+    "en-fr": {
+        "file": "scowl.txt",
+        "repository": "https://github.com/en-wl/wordlist.git",
+        "tag": "rel-2026.02.25",
+        "commit": "7e99edab8e32f9f9ea2b15f249ca8d4d67237410",
     }
 }
 KAIKKI = {
@@ -138,6 +145,23 @@ def download(url: str, dest: Path, *, compressed: bool = False) -> dict[str, str
     return headers
 
 
+def build_esdb(spec: dict, work: Path) -> Path:
+    """Export ESDB's `scowl.txt` from its repository at the pinned commit, into `work`."""
+    repo = work / "esdb-wordlist"
+    if repo.exists():
+        subprocess.run(["rm", "-rf", str(repo)], check=True)
+    repo.mkdir(parents=True)
+    git = ["git", "-C", str(repo)]
+    subprocess.run([*git, "init", "-q"], check=True)
+    subprocess.run([*git, "fetch", "-q", "--depth", "1", spec["repository"], spec["commit"]], check=True)
+    subprocess.run([*git, "checkout", "-q", "FETCH_HEAD"], check=True)
+    subprocess.run([sys.executable, "combine.py", "create-db", "scowl.db"], cwd=repo, check=True, capture_output=True)
+    out = work / spec["file"]
+    with open(out, "wb") as f:
+        subprocess.run([sys.executable, "scowl", "export", "--db", "scowl.db"], cwd=repo, check=True, stdout=f)
+    return out
+
+
 def check_python() -> None:
     if sys.version_info[:2] != PYTHON:
         raise PinError(
@@ -155,11 +179,26 @@ def wordfreq_version() -> str:
         raise PinError(f"wordfreq is not installed: {e}") from e
 
 
-def fetch_pinned(pin: Path, work: Path, *, fetch=download) -> None:
+def fetch_pinned(pin: Path, work: Path, *, fetch=download, build=build_esdb) -> None:
     """Every raw source as recorded, into `work`, each checked by sha256 (re-reduce mode)."""
     record = load(pin)
     pair = pair_of(pin)
     sources = get(record, "sources")
+    esdb = ESDB[pair]
+    if "esdb" not in sources:
+        # A source the code now reads and the record does not know yet: it is pinned at a commit,
+        # so recording what that commit exports is the same act as reading it.
+        sources["esdb"] = {k: esdb[k] for k in ("repository", "tag", "commit")}
+        sources["esdb"]["sha256"] = sha256(build(esdb, work))
+        print(f"note: ESDB recorded in pin.json at {esdb['tag']}", file=sys.stderr)
+    else:
+        got = sha256(build({**esdb, **sources["esdb"]}, work))
+        if got != sources["esdb"]["sha256"]:
+            raise PinError(f"esdb: scowl.txt has sha256 {got}, pin.json records {sources['esdb']['sha256']}")
+    for retired in [name for name in sources if name not in (*PINNED[pair], "esdb", "kaikki", "wordfreq")]:
+        del sources[retired]
+        print(f"note: {retired} is no longer read; removed from pin.json", file=sys.stderr)
+    save(pin, record)
     for name, spec in PINNED[pair].items():
         entry = sources.get(name) or {}
         dest = work / spec["file"]
@@ -180,11 +219,11 @@ def fetch_pinned(pin: Path, work: Path, *, fetch=download) -> None:
         raise PinError(f"wordfreq {installed} is installed, pin.json records {get(record, 'sources.wordfreq.version')}")
 
 
-def fetch_live(pin: Path, work: Path, snapshot: str, *, fetch=download, today=None) -> dict:
+def fetch_live(pin: Path, work: Path, snapshot: str, *, fetch=download, build=build_esdb, today=None) -> dict:
     """Today's raw sources into `work`, recorded in `pin` as a new snapshot (update mode).
 
-    AGID, CEFR-J and Octanove stay at their pinned commits — a newer commit is a deliberate edit
-    of PINNED. kaikki is read live, recorded by the sha256 of its bytes, and compressed beside
+    CEFR-J, Octanove and ESDB stay at their pinned commits — a newer commit is a deliberate edit
+    of PINNED or ESDB. kaikki is read live, recorded by the sha256 of its bytes, and compressed beside
     them for the release that keeps it.
     """
     record = load(pin)
@@ -194,6 +233,9 @@ def fetch_live(pin: Path, work: Path, snapshot: str, *, fetch=download, today=No
         dest = work / spec["file"]
         fetch(spec["url"], dest)
         sources[name] = {"url": spec["url"], "sha256": sha256(dest)}
+    esdb = ESDB[pair]
+    sources["esdb"] = {k: esdb[k] for k in ("repository", "tag", "commit")}
+    sources["esdb"]["sha256"] = sha256(build(esdb, work))
     raw = work / KAIKKI[pair]["file"]
     headers = fetch(KAIKKI[pair]["url"], raw, compressed=True) or {}
     asset = raw.name + ".zst"

@@ -71,6 +71,7 @@ acknowledgement	B1
 acknowledgment	B1
 acoustic	C1
 acoustically	C1
+acoustics	C1
 acquaintance	B1
 acquire	B1
 acquisition	B2
@@ -494,7 +495,6 @@ at	A1
 athlete	A2
 athletic	B1
 athleticism	C2
-athletics	B2
 atlantic	B1
 atmosphere	B1
 atmospheric	C1
@@ -1199,7 +1199,6 @@ chin	A2
 chip	B2
 chirp	A2
 chisel	C1
-chiselled	C1
 chocolate	A1
 choice	A2
 choir	B1
@@ -2702,6 +2701,7 @@ eyebrow	B2
 eyelash	B2
 eyelid	B2
 eyesight	B1
+fabled	C2
 fabric	B2
 fabricate	C2
 fabrication	C2
@@ -4202,7 +4202,6 @@ length	B1
 lengthen	B2
 lengthy	B2
 leopard	B2
-less	A2
 lessen	B1
 lesson	A1
 lest	B2
@@ -4444,6 +4443,7 @@ math	A1
 mathematical	B2
 mathematician	B1
 mathematics	B1
+maths	A1
 matter	A1
 mature	B2
 mausoleum	B2
@@ -4703,6 +4703,8 @@ movement	B1
 mover	B2
 movie	A1
 mr	A1
+mrs	A1
+ms	A2
 much	A1
 mud	B1
 muddy	B2
@@ -5077,6 +5079,7 @@ outdistance	B2
 outdo	B2
 outdoor	B1
 outdoors	B1
+outer	B1
 outfit	B2
 outgrow	B2
 outing	B2
@@ -5156,6 +5159,7 @@ paint	A1
 paintbrush	B2
 painter	A2
 pair	A1
+pajamas	B2
 pal	A2
 palace	A1
 palatable	C2
@@ -7128,7 +7132,6 @@ such	A2
 suck	B2
 sudden	A2
 suddenly	B1
-suds	C1
 sue	B2
 suffer	B1
 suffice	C1

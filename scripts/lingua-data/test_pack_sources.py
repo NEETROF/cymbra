@@ -36,9 +36,17 @@ class Pinned(unittest.TestCase):
         # What "upstream" serves, by URL.
         self.served = {spec["url"]: f"{name} bytes\n".encode() for name, spec in ps.PINNED["en-fr"].items()}
         self.served[ps.KAIKKI["en-fr"]["url"]] = b'{"word": "harbour"}\n'
+        self.esdb_export = "35: run <n_v>: ran, run, running, runs, run's\n"
 
     def tearDown(self):
         self._tmp.cleanup()
+
+    def build(self, spec, work):
+        """ESDB's export, as its pinned commit gives it (no git, no build here)."""
+        out = Path(work) / spec["file"]
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(self.esdb_export, encoding="utf-8")
+        return out
 
     def fetch(self, url, dest, compressed=False):
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -53,15 +61,19 @@ class Pinned(unittest.TestCase):
         import unittest.mock as mock
 
         with mock.patch.object(ps, "wordfreq_version", return_value=ps.WORDFREQ):
-            return ps.fetch_live(self.pin, self.work, snapshot, fetch=self.fetch, today=datetime.date(2026, 9, 26))
+            return ps.fetch_live(
+                self.pin, self.work, snapshot, fetch=self.fetch, build=self.build, today=datetime.date(2026, 9, 26)
+            )
 
     @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
     def test_update_records_every_source_and_keeps_kaikki(self):
         record = self.update()
         self.assertEqual(record["snapshot"], "2026.09.26")
         sources = record["sources"]
-        self.assertEqual(set(sources), {"agid", "cefrj", "octanove", "kaikki", "wordfreq"})
-        for name in ("agid", "cefrj", "octanove"):
+        self.assertEqual(set(sources), {"esdb", "cefrj", "octanove", "kaikki", "wordfreq"})
+        self.assertEqual(sources["esdb"]["commit"], ps.ESDB["en-fr"]["commit"])
+        self.assertRegex(sources["esdb"]["sha256"], r"^[0-9a-f]{64}$")
+        for name in ("cefrj", "octanove"):
             self.assertRegex(sources[name]["url"], r"/[0-9a-f]{40}/", f"{name} must be read at a commit")
             self.assertRegex(sources[name]["sha256"], r"^[0-9a-f]{64}$")
         kaikki = sources["kaikki"]
@@ -83,12 +95,17 @@ class Pinned(unittest.TestCase):
         again = self.root / "again"
         self.work = again
         with mock.patch.object(ps, "wordfreq_version", return_value="3.1.1"):
-            ps.fetch_pinned(self.pin, again, fetch=self.fetch)
+            ps.fetch_pinned(self.pin, again, fetch=self.fetch, build=self.build)
             self.assertEqual((again / "kaikki-Anglais.jsonl").read_bytes(), b'{"word": "harbour"}\n')
             # Upstream changed the bytes behind a pinned address.
-            self.served[ps.PINNED["en-fr"]["agid"]["url"]] = b"something else\n"
-            with self.assertRaisesRegex(ps.PinError, "agid"):
-                ps.fetch_pinned(self.pin, again, fetch=self.fetch)
+            self.served[ps.PINNED["en-fr"]["cefrj"]["url"]] = b"something else\n"
+            with self.assertRaisesRegex(ps.PinError, "cefrj"):
+                ps.fetch_pinned(self.pin, again, fetch=self.fetch, build=self.build)
+            # ESDB's export changed at the same commit.
+            self.served[ps.PINNED["en-fr"]["cefrj"]["url"]] = b"cefrj bytes\n"
+            self.esdb_export += "35: go <v>: went, gone, going, goes\n"
+            with self.assertRaisesRegex(ps.PinError, "esdb"):
+                ps.fetch_pinned(self.pin, again, fetch=self.fetch, build=self.build)
 
     @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
     def test_reduce_refuses_another_wordfreq(self):
@@ -100,7 +117,27 @@ class Pinned(unittest.TestCase):
         shutil.copy(self.work / "kaikki-Anglais.jsonl.zst", released / "kaikki-Anglais.jsonl.zst")
         with mock.patch.object(ps, "wordfreq_version", return_value="3.2.0"):
             with self.assertRaisesRegex(ps.PinError, "wordfreq"):
-                ps.fetch_pinned(self.pin, self.root / "again", fetch=self.fetch)
+                ps.fetch_pinned(self.pin, self.root / "again", fetch=self.fetch, build=self.build)
+
+
+    @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
+    def test_a_record_from_before_esdb_takes_it_in_and_drops_agid(self):
+        import unittest.mock as mock
+
+        self.update()
+        record = ps.load(self.pin)
+        del record["sources"]["esdb"]
+        record["sources"]["agid"] = {"url": "https://raw.githubusercontent.com/en-wl/wordlist/464bea8c/agid/infl.txt", "sha256": "0" * 64}
+        ps.save(self.pin, record)
+        released = self.root / "released"
+        released.mkdir()
+        shutil.copy(self.work / "kaikki-Anglais.jsonl.zst", released / "kaikki-Anglais.jsonl.zst")
+        with mock.patch.object(ps, "wordfreq_version", return_value="3.1.1"):
+            ps.fetch_pinned(self.pin, self.root / "again", fetch=self.fetch, build=self.build)
+        sources = ps.load(self.pin)["sources"]
+        self.assertNotIn("agid", sources)
+        self.assertEqual(sources["esdb"]["tag"], "rel-2026.02.25")
+        self.assertEqual(sources["esdb"]["sha256"], ps.sha256(self.root / "again" / "scowl.txt"))
 
 
 class Record(unittest.TestCase):

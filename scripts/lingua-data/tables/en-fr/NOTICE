@@ -1,13 +1,29 @@
 Cymbra Lingua data pack — EN->FR attributions.
 
-AGID (Automatically Generated Inflection Database), from the SCOWL / aspell family
-(en-wl/wordlist): permission to use, copy, modify, distribute and sell, with the
-upstream notices retained (WordNet, 2of12id, ENABLE).
+ESDB (English Speller Database, SCOWLv2, en-wl/wordlist): the inflections.
+Copyright 2000-2026 by Kevin Atkinson. Permission to use, copy, modify, distribute, and
+sell any part of SCOWLv2, or word lists created from it, is hereby granted without fee,
+provided that the above copyright notice appears in all copies and that both the above
+copyright notice and this notice appear in supporting documentation. Kevin Atkinson
+makes no representations about the suitability of this database for any purpose. It is
+provided "as is" without express or implied warranty.
+
+WordNet, used by ESDB for its initial part-of-speech assignment: WordNet 1.6 Copyright
+1997 by Princeton University. All rights reserved. Permission to use, copy, modify and
+distribute this software and database and its documentation for any purpose and without
+fee or royalty is hereby granted, provided that this copyright notice and these
+statements, including the disclaimer, appear on all copies. THIS SOFTWARE AND DATABASE
+IS PROVIDED "AS IS" AND PRINCETON UNIVERSITY MAKES NO REPRESENTATIONS OR WARRANTIES,
+EXPRESS OR IMPLIED. The name of Princeton University or Princeton may not be used in
+advertising or publicity pertaining to distribution of the software and/or database.
+Title to copyright in this software, database and any associated documentation shall at
+all times remain with Princeton University.
 
 wordfreq (English frequency list): CC BY-SA 4.0 (includes SUBTLEX with Brysbaert's
 permission).
 
-kaikki.org extract of the French Wiktionary (frwiktionary): CC BY-SA 4.0 + GFDL.
+kaikki.org extract of the French Wiktionary (frwiktionary): CC BY-SA 4.0 + GFDL — the
+glosses, the expressions, and the form links completing ESDB's inflections.
 
 CEFR-J: The CEFR-J Wordlist Version 1.5. Compiled by Yukio Tono, Tokyo University of
 Foreign Studies. Used for research and commercial purposes with acknowledgement of the

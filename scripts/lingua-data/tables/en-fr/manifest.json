@@ -5,7 +5,7 @@
     "pack_version": "2026.09.26",
     "analyzer_version": "1.1.0",
     "licences": [
-      "AGID (permissive, commercial use allowed)",
+      "ESDB / SCOWLv2 (permissive, commercial use allowed; WordNet notice)",
       "wordfreq (CC BY-SA 4.0)",
       "kaikki / frwiktionary (CC BY-SA 4.0 + GFDL)",
       "CEFR-J Wordlist v1.5 (commercial use allowed with attribution)",
@@ -14,7 +14,7 @@
   },
   "sources": [
     {
-      "name": "AGID",
+      "name": "ESDB",
       "licence": "Permissive"
     },
     {

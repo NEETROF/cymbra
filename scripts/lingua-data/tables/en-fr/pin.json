@@ -1,17 +1,13 @@
 {
   "snapshot": "2026.09.26",
   "pack": {
-    "sha256": "1f6b9931406c7a3f91f9e80f2ccce1b91cc55df31bee0f7e298b5a0a3dd927b7",
-    "size": 1543744
+    "sha256": "45d35f4bb95b54064bea7b0c8a1955202d033c59559e8a966e40f9164f049ba0",
+    "size": 1543687
   },
   "reducer": {
-    "sha256": "ca5067990e544e329260e725a4a4d81872c47978fc5b680b3b6bc94266bf009e"
+    "sha256": "1dff19c4bf6fddde56b74ac52c384afd67f1711adec86dc799fbe13706ce6e60"
   },
   "sources": {
-    "agid": {
-      "url": "https://raw.githubusercontent.com/en-wl/wordlist/464bea8cca4f606d9e271600b7718818fdd6507c/agid/infl.txt",
-      "sha256": "df0c8f6edd4193d823abfad9e4ff6f42b4526211516649e1c73d4533aef749fa"
-    },
     "cefrj": {
       "url": "https://raw.githubusercontent.com/openlanguageprofiles/olp-en-cefrj/d4e45b75b38f27b30dfc5c44d8c571aec7e7092f/cefrj-vocabulary-profile-1.5.csv",
       "sha256": "b0dd3c635f1c9a4fdf1490c7e5b7c48e8bbe55b652ad0c9860a95f98e10ae498"
@@ -31,6 +27,12 @@
     },
     "wordfreq": {
       "version": "3.1.1"
+    },
+    "esdb": {
+      "repository": "https://github.com/en-wl/wordlist.git",
+      "tag": "rel-2026.02.25",
+      "commit": "7e99edab8e32f9f9ea2b15f249ca8d4d67237410",
+      "sha256": "3da811b80d7163069e9676537845c49161a33505f24ad6bfcead92fe2cf10e41"
     }
   }
 }

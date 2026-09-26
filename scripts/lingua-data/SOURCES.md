@@ -19,16 +19,33 @@ are allowed; the builder additionally enforces the denylist and refuses to build
 
 | Table | Upstream source | Licence | Reduction |
 |---|---|---|---|
-| `forms.tsv` (`form → lemma`) | **AGID** (Automatically Generated Inflection Database, SCOWL/aspell family) | Permissive — "use, copy, modify, distribute and sell", notices retained (WordNet, 2of12id, ENABLE, … upstream) | invert `infl.txt` to form→lemma pairs, **one lemma per form**: a kept lemma maps to itself, any other form to the base Wiktionary names, else one with a gloss, else the most frequent (see *Words AGID gets wrong*); a listed hyphenated compound also gets its inflections (`t-shirts`, `mothers-in-law`) |
+| `forms.tsv` (`form → lemma`) | **ESDB** (English Speller Database, SCOWLv2, `en-wl/wordlist` `rel-2026.02.25`, the maintained successor of AGID), completed by **kaikki.org**'s Wiktionary form links | ESDB: permissive, Kevin Atkinson's notice and WordNet's (used by ESDB for parts of speech) in every copy; kaikki: CC BY-SA 4.0 + GFDL | ESDB's derived forms of `n`, `v`, `m`, `n_v`, `aj`, `av`, `a` and the comparisons of `d`, sizes ≤ 80, primary and equal spellings only (never a lesser variant: `born` is no form of `bear`, `art` none of `be`), no possessive; kaikki's form links only where the inflection is regular and the target is longer than two letters (recent plurals ESDB lacks: `smartphones`, `influencers`, `apps`). Then **one lemma per form**: a kept lemma maps to itself, any other form to the base Wiktionary names, else one with a gloss, else the most frequent (see *Words the inflection source gets wrong*); a listed hyphenated compound also gets its inflections (`t-shirts`, `mothers-in-law`) |
 | `freq.tsv` (`lemma → rank`) | **wordfreq** English large list | CC BY-SA 4.0 (incl. SUBTLEX with Brysbaert's permission) | top 40k canonical lemmas, dense rank; CEFR words the pack would otherwise lack are added too — a hyphenated compound at its rarest part's rank, any other word with the lemmas of its frequency (after the list when rarer than all of them) |
 | `gloss.tsv` (`lemma → gloss`) | **kaikki.org** extract of the French Wiktionary (`frwiktionary`) | CC BY-SA 4.0 + GFDL | one short French gloss per lemma, top ~20–30k lemmas (arbitrated by the 5 MB budget) |
 | `level.tsv` (`lemma → CEFR`) *(optional)* | **CEFR-J Wordlist v1.5** (A1–B2, Tono Lab / TUFS) + **Octanove Vocabulary Profile C1/C2 v1.0** (C1–C2, Octanove Labs), both from the Open Language Profiles repo | CEFR-J: commercial use allowed with acknowledgement; Octanove: CC BY-SA 4.0 | lowest CEFR level per kept lemma across POS rows; the only pairing that covers A1→C2 with commercial-redistribution rights (Octanove was built to extend CEFR-J past B2) |
 | `mwe.tsv` (`expression → gloss`) *(optional)* | **kaikki.org** extract of the French Wiktionary (`frwiktionary`), its multi-word entries | CC BY-SA 4.0 + GFDL | the same sense picker and cuts as `gloss.tsv`, over the entries whose headword holds a space; proper-noun-only entries and form-of senses dropped. The **keys are computed by the builder**, not here: each word goes through lingua-core's own lemmatiser against the lexicon that build assembled (`starting point` → `start point`), so a key is what the reader's cascade produces. Python cannot do it — it mirrors the analyser's irregulars but not its morphy rules or its out-of-lexicon plural. |
 | `NOTICE` | all of the above | — | the full attribution stack, embedded in the pack and shown on the extension's Attributions page |
 
-### Words AGID gets wrong
+### Words the inflection source gets wrong
 
-AGID generates inflections mechanically, so some "inflections" are words of their own: it
+Inflections replaced AGID (last release 2016) with ESDB on 2026-09-26
+(switch-lingua-inflections-to-esdb). Two rules were added for ESDB, the rest predates it:
+
+- **An adjective of its own**: a form ESDB lists as an adjective in a commoner size class than the
+  line deriving it is no inflection (`renowned`, an adjective at 35, is no form of the verb
+  `renown`, listed at 80; `sophisticated`, `outstanding`, `situated` likewise). At an equal size the
+  derivation stands (`tired` stays a form of `tire`).
+- **No lemma behind it**: a form none of whose bases — nor any base of a base — is a kept lemma
+  reads as a word of its own. ESDB knows rare bases AGID did not (`grandkid`, `policymaker`,
+  `uprise`, `gree`), whose forms wordfreq ranks far above them: `grandkids`, `policymakers`,
+  `uprising`, `greed` would otherwise drop out of the pack.
+
+Measured on 200 documents (150 random and 10 recent Wikipedia articles, 20 Wikinews articles, 20
+MDN pages; `measure/`): +411 glosses shown, +134 tokens resolved, 0.41 % of tokens changing lemma
+— `header` no longer read as a comparison of `head` (AGID's), recent plurals resolved, UK
+spellings joined to their lemma (`travelled`, `realised`).
+
+What follows was written for AGID and holds for ESDB. AGID generated inflections mechanically, so some "inflections" are words of their own: it
 lists `butter` as the comparative of `but`, `number` of `numb`, `his` as the plural of `hi`.
 Other inflections are real but are the word readers actually meet (`ground` is far commoner
 than the past of `grind`). Treated as inflections, those words never became lemmas, so
@@ -64,7 +81,7 @@ The CEFR level table is **optional and additive**: a pair without licence-clean 
 
 ## Allowed vs denied licences
 
-- **Allowed** (commercial use OK): permissive (AGID/WordNet family), CC BY, CC BY-SA (the derived tables are published, satisfying share-alike).
+- **Allowed** (commercial use OK): permissive (ESDB/SCOWL and WordNet), CC BY, CC BY-SA (the derived tables are published, satisfying share-alike).
 - **Denied** (never enter a pack): **GPL / AGPL** (viral — e.g. Apertium, FreeLing dictionaries), **any non-commercial** (CC BY-NC-*, e.g. Lemlat, LatMor, SUBTLEX-ESP as distributed, UD Italian-ISDT).
 
 The denylist is code, not just prose: `lingua_pack::licence::is_denied` fails the build on `Gpl`/`Agpl`/`NonCommercial`, and the build also fails if a source is missing from the `NOTICE`.
