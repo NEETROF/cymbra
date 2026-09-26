@@ -154,5 +154,5 @@ Land the parser and the rules behind the re-reduce mode; run the re-reduce; revi
 
 ## Open Questions
 
-- Whether readers exist when this lands, and so whether a carry-over change must land first
-  (none as of 2026-09-25; some are expected soon after).
+- ~~Whether readers exist when this lands~~ — none on 2026-09-26 (product owner), so no carry-over
+  change is needed first. The next change that moves lemmas asks again: readers are expected soon.
