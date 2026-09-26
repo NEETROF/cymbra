@@ -1,0 +1,37 @@
+{
+  "meta": {
+    "studied": "en",
+    "native": "fr",
+    "pack_version": "2026.09.26",
+    "analyzer_version": "1.1.0",
+    "licences": [
+      "AGID (permissive, commercial use allowed)",
+      "wordfreq (CC BY-SA 4.0)",
+      "kaikki / frwiktionary (CC BY-SA 4.0 + GFDL)",
+      "CEFR-J Wordlist v1.5 (commercial use allowed with attribution)",
+      "Octanove Vocabulary Profile C1/C2 v1.0 (CC BY-SA 4.0)"
+    ]
+  },
+  "sources": [
+    {
+      "name": "AGID",
+      "licence": "Permissive"
+    },
+    {
+      "name": "wordfreq",
+      "licence": "CcBySa"
+    },
+    {
+      "name": "kaikki",
+      "licence": "CcBySa"
+    },
+    {
+      "name": "CEFR-J",
+      "licence": "Permissive"
+    },
+    {
+      "name": "Octanove",
+      "licence": "CcBySa"
+    }
+  ]
+}

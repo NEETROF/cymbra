@@ -80,4 +80,15 @@ $(node -e "const p=require('$REPO_ROOT/apps/lingua-extension/engine-pin.json'); 
 \`\`\`
 EOF
 
+pin="$REPO_ROOT/scripts/lingua-data/tables/en-fr/pin.json"
+cat >>"$OUT/README.md" <<EOF
+
+Its data pack is built from the tables in \`scripts/lingua-data/tables/en-fr/\` (snapshot
+$(node -p "require('$pin').snapshot")) by \`yarn gen:pack:real\`, offline, and checked against:
+
+\`\`\`
+$(node -p "require('$pin').pack.sha256")  apps/lingua-extension/assets/pack.lingua
+\`\`\`
+EOF
+
 echo "Source archive assembled in $OUT"

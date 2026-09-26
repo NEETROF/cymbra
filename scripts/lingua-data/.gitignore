@@ -1,6 +1,7 @@
-# Raw downloaded sources and built packs are never committed (spec:
-# add-lingua-data-pack). Only testdata/ (a tiny hand-made fixture) and the
-# scripts are tracked.
+# Raw downloaded sources and built packs are never committed. Tracked: the scripts, testdata/
+# (a tiny hand-made fixture) and tables/<pair>/ — the reduced tables every release builds its
+# pack from, with pin.json (pin-lingua-pack-sources).
 work/
 dist/
 *.lingua
+__pycache__/

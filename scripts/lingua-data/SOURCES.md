@@ -1,9 +1,19 @@
 # Cymbra Lingua data-pack sources
 
-The offline pipeline (`build.sh` → `lingua-pack-build`) turns three upstream
-datasets into one versioned `pack.lingua` per language pair. Only sources whose
-licence permits commercial use are allowed; the builder additionally enforces
-the denylist and refuses to build on a denied source.
+The pipeline turns upstream datasets into one versioned `pack.lingua` per language pair, in two
+stages (pin-lingua-pack-sources):
+
+1. **Reduce** (`reduce-<pair>.py`): the raw sources become the tables of `tables/<pair>/`, which
+   are **committed** with `pin.json` — the record of each raw source (at a commit and by sha256,
+   or as our own snapshot for kaikki, which upstream regenerates daily) and of the pack they
+   build. Only `build.sh --update` (today's sources), `--reduce` (the pinned sources, after a
+   change to the rules) and `--dry` (the monthly check) read raw sources, and only the
+   `lingua-pack-update` workflow or a person runs them.
+2. **Build** (`lingua-pack-build`): the committed tables become the pack, offline, checked against
+   `pin.json`. That is all a release or a pull request runs.
+
+Raw sources and built packs are never committed. Only sources whose licence permits commercial use
+are allowed; the builder additionally enforces the denylist and refuses to build on a denied source.
 
 ## EN → FR (the MVP pair)
 

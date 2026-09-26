@@ -1,0 +1,131 @@
+name: lingua-pack-update
+
+# Proposes new tables for Cymbra Lingua's en→fr data pack (pin-lingua-pack-sources D6, D7).
+#
+# Releases never read upstream: they build the pack from the tables committed under
+# scripts/lingua-data/tables/en-fr/ and check it against pin.json. This workflow is the only place
+# the upstream sources are read, and nothing it produces reaches a release without a person:
+#
+# - dispatch, mode `update`: today's sources (kaikki live; AGID, CEFR-J, Octanove at their pinned
+#   commits), kept as a new snapshot — kaikki's bytes published as the release
+#   lingua-pack-sources-en-fr-<snapshot>, never replaced — reduced, and pushed to the branch
+#   lingua-pack/<snapshot>.
+# - dispatch, mode `reduce`: the PINNED sources reduced again, after the reduction rules changed —
+#   the branch's diff is the rules' effect alone.
+# - monthly: `update` in dry mode. Nothing is committed or published; the run reports how far
+#   upstream has drifted and FAILS when a source cannot be fetched, the reduction fails, or a table
+#   collapses (an upstream format change shows as lost rows, not as an error).
+#
+# It never opens the pull request: the repository setting that would allow it also lets workflows
+# approve pull requests, and a pull request opened with this token would run none of its required
+# checks. The run summary carries the report and the link that opens it.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "update = today's sources, new snapshot; reduce = the pinned sources, after a change to the reduction rules."
+        type: choice
+        options: [update, reduce]
+        default: update
+  schedule:
+    - cron: "17 5 3 * *" # the 3rd of every month, 05:17 UTC — dry run
+
+permissions:
+  contents: write # push the branch lingua-pack/<snapshot>, publish the kaikki snapshot release
+
+concurrency:
+  group: lingua-pack-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-24.04
+    env:
+      MODE: ${{ github.event_name == 'schedule' && 'dry' || inputs.mode }}
+      # A monthly run fails when a table loses more than this share of its rows (D7). A starting
+      # value, to set from the first runs.
+      MAX_LOSS: "0.2"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      # The reducer's interpreter and its one dependency are pinned: the same raw bytes give the
+      # same tables (requirements-reduce.txt, hash-checked).
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install the reducer's pinned dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet --require-hashes -r scripts/lingua-data/requirements-reduce.txt
+          sudo apt-get install -y --no-install-recommends zstd >/dev/null
+
+      - name: Reduce
+        env:
+          LINGUA_PYTHON: python
+        run: |
+          set -euo pipefail
+          snapshot=$(date -u +%Y.%m.%d)
+          echo "SNAPSHOT=$snapshot" >> "$GITHUB_ENV"
+          cp -r scripts/lingua-data/tables/en-fr "$RUNNER_TEMP/committed"
+          LINGUA_SNAPSHOT=$snapshot scripts/lingua-data/build.sh --"$MODE" en-fr "$RUNNER_TEMP/pack.lingua"
+
+      - name: Report against the committed tables
+        run: |
+          set -euo pipefail
+          new=scripts/lingua-data/tables/en-fr
+          [ "$MODE" = dry ] && new=scripts/lingua-data/work/dry/en-fr
+          status=0
+          python scripts/lingua-data/pack_report.py "$RUNNER_TEMP/committed" "$new" \
+            --pack "$RUNNER_TEMP/pack.lingua" --max-loss "$MAX_LOSS" > "$RUNNER_TEMP/report.md" || status=$?
+          cat "$RUNNER_TEMP/report.md" >> "$GITHUB_STEP_SUMMARY"
+          exit $status
+
+      - name: Keep kaikki's bytes as the snapshot's release
+        if: env.MODE == 'update'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          pin=scripts/lingua-data/tables/en-fr/pin.json
+          tag=$(python scripts/lingua-data/pack_sources.py get --pin "$pin" sources.kaikki.release)
+          asset=$(python scripts/lingua-data/pack_sources.py get --pin "$pin" sources.kaikki.asset)
+          sha=$(python scripts/lingua-data/pack_sources.py get --pin "$pin" sources.kaikki.sha256)
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "::error::$tag already exists; a snapshot is never replaced. Dispatch again tomorrow."
+            exit 1
+          fi
+          cat > "$RUNNER_TEMP/notes.md" <<EOF
+          The kaikki.org extract of the French Wiktionary's English entries, as it was on $SNAPSHOT —
+          one of the raw sources of Cymbra Lingua's en→fr data pack, kept because upstream regenerates it
+          every day. zstd-compressed; decompressed, its sha256 is \`$sha\`
+          (\`scripts/lingua-data/tables/en-fr/pin.json\`).
+
+          Licence: Wiktionary content, CC BY-SA 4.0 and GFDL — https://kaikki.org, https://fr.wiktionary.org.
+          EOF
+          gh release create "$tag" "scripts/lingua-data/work/en-fr/$asset" --target "$GITHUB_SHA" \
+            --title "Lingua pack sources en-fr $SNAPSHOT" --notes-file "$RUNNER_TEMP/notes.md" --latest=false
+
+      - name: Push the tables to a branch
+        if: env.MODE != 'dry'
+        run: |
+          set -euo pipefail
+          branch="lingua-pack/$SNAPSHOT"
+          [ "$MODE" = reduce ] && branch="lingua-pack/$SNAPSHOT-reduce"
+          if git diff --quiet -- scripts/lingua-data/tables; then
+            echo "The tables did not change: nothing to propose." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add scripts/lingua-data/tables
+          message="chore(lingua): dictionary tables $SNAPSHOT"
+          [ "$MODE" = reduce ] && message="chore(lingua): reduce the dictionary tables again ($SNAPSHOT)"
+          git commit -q -m "$message"
+          git push -q origin "$branch"
+          {
+            echo ""
+            echo "Branch **$branch** is pushed. Nothing reaches a release until a person opens and merges its pull request:"
+            echo "https://github.com/$GITHUB_REPOSITORY/compare/main...$branch?expand=1"
+          } >> "$GITHUB_STEP_SUMMARY"
