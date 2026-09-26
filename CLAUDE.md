@@ -237,7 +237,7 @@ declaration moved between files (generated Dart/TS imports follow file names).
 
 **Breaking on purpose.** Mark the pull request title with the Conventional Commits
 breaking marker — `feat(music)!: …`. The gate then reports the break without failing,
-commitlint already validates that title, and release-please turns it into a major bump,
+commitlint already validates that title, and release-please turns it into a major bump (a minor one while a component is below 1.0 — `bump-minor-pre-major`; reaching 1.0 is a decision, made with `Release-As`),
 so the break lands in the changelog instead of being buried in a CI override. Nothing
 has to be remembered and undone afterwards.
 
