@@ -266,7 +266,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 }
 
 // The translation engine (add-lingua-translation-engine) and « Traduction étendue », which puts it
-// in the reader's hands (add-lingua-translation-delivery). Safari's variant carries no engine and
+// in the reader's hands (add-lingua-translation-delivery). Every variant carries the engine
+// (Safari since add-lingua-translation-safari); a build without it (`__TRANSLATION_HOST__` "none")
 // folds this block away. The background relays and never translates itself: the engine runs in a
 // worker of its own, so the analyser RPC above keeps answering while a sentence is being
 // translated. On Chromium that worker — and the model download's — is owned by an offscreen

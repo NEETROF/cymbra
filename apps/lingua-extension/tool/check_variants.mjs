@@ -109,13 +109,12 @@ for (const target of ["chromium", "firefox", "safari"]) {
   }
 }
 
-// The translation engine (add-lingua-translation-delivery D9). Chromium and Firefox CARRY it —
-// the pinned build, hosted off every thread that paints: by an offscreen document on Chromium
-// (whose service worker cannot construct a Worker), by the event page on Firefox — together with
-// the manifest of the model it may download. Safari carries none of it. No package carries a
-// model file, and nothing in any package fetches code: the only thing downloaded is data.
+// The translation engine (add-lingua-translation-delivery D9). Every package CARRIES it — the pinned
+// build, hosted off every thread that paints: by an offscreen document on Chromium (whose service
+// worker cannot construct a Worker), by the event page on Firefox and Safari
+// (add-lingua-translation-safari) — together with the manifest of the model it may download. No
+// package carries a model file, and nothing in any package fetches code: only data is downloaded.
 const has = (target, file) => existsSync(join(root, `dist-${target}`, file));
-const ENGINE_MARKERS = ["lingua-translate", "engine-worker.js", "model-worker.js", "offscreen.html", "loadBergamot"];
 const committedModel = JSON.parse(readFileSync(join(root, "model-manifest.json"), "utf8"));
 
 /** Every file under dist-<target>, relative. */
@@ -134,24 +133,20 @@ function filesOf(target) {
 }
 
 for (const target of ["chromium", "firefox", "safari"]) {
-  const hosts = target !== "safari";
   const offscreen = target === "chromium";
   expect(
     manifests[target].permissions.includes("offscreen") === offscreen,
     `${target}: the "offscreen" permission should be ${offscreen ? "requested" : "absent"}`,
   );
   for (const [file, wanted] of [
-    ["engine-worker.js", hosts],
-    ["model-worker.js", hosts],
-    ["model-manifest.json", hosts],
+    ["engine-worker.js", true],
+    ["model-worker.js", true],
+    ["model-manifest.json", true],
     ["offscreen.html", offscreen],
   ]) {
     expect(has(target, file) === wanted, `${target}: ${file} should be ${wanted ? "built" : "absent"}`);
   }
-  expect(
-    has(target, "engine/bergamot-translator.wasm") === hosts,
-    `${target}: the engine should be ${hosts ? "packaged" : "absent"}`,
-  );
+  expect(has(target, "engine/bergamot-translator.wasm"), `${target}: the engine should be packaged`);
 
   // No model file, whatever it is called: the model is fetched once the reader asks, never shipped.
   for (const file of filesOf(target)) {
@@ -168,17 +163,6 @@ for (const target of ["chromium", "firefox", "safari"]) {
   for (const file of filesOf(target).filter((f) => f.endsWith(".js"))) {
     const remote = read(target, file).match(/["'`]https?:\/\/[^"'`\s]+\.(?:m?js|wasm)(?:[?#][^"'`]*)?["'`]/);
     expect(!remote, `${target}/${file}: names remote code (${remote?.[0]}) — only the model may be fetched`);
-  }
-
-  if (!hosts) {
-    for (const file of ["background.js", "content.js", "popup.js", "sidepanel.js", "stats.js", "account.js"]) {
-      if (!has(target, file)) continue;
-      const bundle = read(target, file);
-      for (const marker of ENGINE_MARKERS) {
-        expect(!bundle.includes(marker), `${target}/${file}: "${marker}" must not ship without the engine`);
-      }
-    }
-    continue;
   }
 
   // The pinned engine, byte for byte.

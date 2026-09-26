@@ -44,11 +44,11 @@ category are already indexed, so neither appears here.
 anglais,vocabulaire,lecture,traduction,extension,apprendre,mots,révision,CECRL,deck
 ```
 
-## Description (2116 / 4000)
+## Description (2486 / 4000)
 
 **LIRE VOS LIVRES** describes the book reader (`add-lingua-reader`). Paste it only once that
 change's iPhone measurement (task 1.5) has kept the reader in the Safari variant; if it has
-not, the paragraph goes and the count drops back to 1947 (the 1838 this file used to state was stale).
+not, the paragraph goes and the count drops back to 2317.
 
 ```
 Cymbra Lingua est une extension Safari qui surligne, sur la page que vous lisez, les mots d'anglais que vous ne connaissez pas encore — sans rien changer à la mise en page. Une pastille vous dit quelle part du texte vous est familière, calculée sur ce que vous avez réellement marqué, pas sur une estimation.
@@ -69,8 +69,11 @@ Les cartes que vous créez se révisent dans un panneau, à côté de votre lect
 LIRE VOS LIVRES
 Importez vos livres EPUB sans DRM dans la bibliothèque de l'extension et lisez-les hors ligne, avec le même surlignage. Ils restent sur votre appareil.
 
+TRADUCTION ÉTENDUE (FACULTATIVE)
+Votre sélection est traduite dans sa phrase, sur votre appareil, par le moteur de Firefox Translations, inclus dans l'app. L'activer télécharge une fois le modèle de traduction (25,8 Mo) depuis Cymbra ; le texte des pages ne quitte toujours pas votre appareil. La désactiver supprime le modèle.
+
 VOTRE LECTURE RESTE À VOUS
-Le dictionnaire et le moteur d'analyse sont dans l'app. Aucune page que vous lisez n'est envoyée nulle part, et tout fonctionne hors ligne. Sans compte, l'extension ne fait aucune requête réseau.
+Le dictionnaire et les moteurs d'analyse et de traduction sont dans l'app. Aucune page que vous lisez n'est envoyée nulle part, et tout fonctionne hors ligne. Sans compte ni traduction étendue, l'extension ne fait aucune requête réseau.
 
 UN COMPTE, SI VOUS EN VOULEZ UN
 Créez un compte Cymbra si — et seulement si — vous voulez retrouver vos mots et vos cartes sur vos autres appareils. C'est la seule chose qui quitte votre machine, et vous pouvez effacer ces données depuis les réglages sans supprimer votre compte.
@@ -111,6 +114,13 @@ explanatory screen: the extension must be enabled in Safari before anything happ
    common it is, with three actions — "Je connais", "+ Deck", "Ignorer".
 5. Open the extension's panel to review the cards you captured, and the statistics
    screen for the estimated vocabulary.
+
+OPTIONAL — "Traduction étendue", off by default, in the extension's settings (gear icon).
+The translation engine (Mozilla's Firefox Translations, WebAssembly) is part of the app
+bundle; nothing executable is ever downloaded. Turning the setting on downloads a data
+file once — the translation model, 25.8 MB, from models.cymbra.app, checked against a
+pinned sha256 — and the selected sentence is then translated on the device. No page text,
+account or device identifier is sent. Turning it off deletes the model.
 
 The interface is in French: the app teaches English to French speakers.
 ```

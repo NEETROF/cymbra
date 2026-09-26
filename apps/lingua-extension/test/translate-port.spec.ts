@@ -8,8 +8,8 @@ import { isTranslateMessage, isWarmMessage, TRANSLATE_TYPE, WARM_TYPE } from "@/
 const request = { sentence: "She gave up.", selection: { start: 4, end: 11 } };
 
 describe("createTranslatorPort", () => {
-  it("gives no translator at all in a variant that does not carry the engine", () => {
-    // Safari's. The surfaces then answer exactly as they did before it existed. What the others
+  it("gives no translator at all in a build that does not carry the engine", () => {
+    // The unit tests' define ("none"). The surfaces then answer exactly as they did before it existed. What the others
     // give depends on the reader's setting: test/translate-setting.spec.ts.
     expect(createTranslatorPort()()).toBeNull();
   });
