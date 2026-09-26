@@ -3,8 +3,8 @@
 - [x] 1.1 Confirm the licence and attribution terms of `mozilla/firefox-translations-models` for redistributing the `en→fr` `base-memory` files from a Cymbra host; record them in design.md
 - [x] 1.2 Run the mark evaluation corpus on the shipping engine artefact with `reconcile.ts`; record right / wrong / withheld marks; the product owner sets the release threshold from it
   - Threshold set by the product owner on 2026-09-26 from #532's measurement, as it stands: **83 of 87 marks right (95 %)** on the sentences the model translated correctly, 0 made wrong by the check. The 13 mistranslations (9 of 10 idioms rendered word for word, 4 sentences) are the model's and are accepted: the card labels the answer « traduction automatique » and shows the pack's gloss first. Not re-run on the pinned artefact: the corpus was judged by hand and is not committed.
-- [ ] 1.3 Choose the model's origin (design, Open Questions) and set up its deployment: content-addressed paths, `Cache-Control: immutable`, `Access-Control-Allow-Origin: *`, files as Mozilla publishes them
-  - Implemented with the recommendation (`models.cymbra.app`, Cloudflare Pages, `lingua-model-deploy` + `tool/assemble_model_site.mjs`), pending the product owner's confirmation. Remaining: create the Pages project, attach the domain, set `CF_PAGES_MODELS_PROJECT`, dispatch the workflow.
+- [x] 1.3 Choose the model's origin (design, Open Questions) and set up its deployment: content-addressed paths, `Cache-Control: immutable`, `Access-Control-Allow-Origin: *`, files as Mozilla publishes them
+  - Done 2026-09-26: Cloudflare Pages project `cymbra-models` (Direct Upload), custom domain `models.cymbra.app` (CNAME, proxied), repo variable `CF_PAGES_MODELS_PROJECT`; `lingua-model-deploy` green (mirror release `lingua-model-en-fr-base-memory-2.0` created), `check_model_host.mjs` OK from outside.
 - [x] 1.4 Draft the new copy **before** code: the setting row (fr), the Lingua annex (fr + en), the three store listings ("sans compte ni traduction étendue, aucune requête réseau"; page text still never leaves the device)
 
 ## 2. The engine in the package
@@ -44,14 +44,15 @@
 
 ## 7. Disclosure and release
 
-- [ ] 7.1 Publish the Lingua annex (fr + en) on the site before the first release that can download
-  - Text written (fr + en, Annex B); published by the next `site-deploy` dispatch.
+- [x] 7.1 Publish the Lingua annex (fr + en) on the site before the first release that can download
+  - Published 2026-09-26 by `site-deploy` (fr + en, « Traduction étendue » / « Extended translation »).
 - [ ] 7.2 Update the Chrome Web Store and AMO listings (and `STORE-LISTING.md`)
   - `STORE-LISTING.md` updated (description fr + en, `offscreen` justification, remote code, data usage); the two dashboards are pasted by hand.
 - [ ] 7.3 Update from the published version on Chromium and Firefox: extension stays enabled with the `offscreen` permission added; setting off; no request made
-- [ ] 7.4 Manual pass Chrome + Firefox desktop: tick, download, cancel, retry after a cut network, translate a phrase and an unknown single word, idle release after ten minutes, untick deletes the model, offline translation after download
-  - Measured headless on Chrome 153 against a local copy of the host (design, *Found while implementing*); the pass on a real profile and on Firefox desktop remains.
-- [ ] 7.5 Manual pass Firefox for Android: no setting, no download, cards unchanged
+- [x] 7.4 Manual pass Chrome + Firefox desktop: tick, download, cancel, retry after a cut network, translate a phrase and an unknown single word, idle release after ten minutes, untick deletes the model, offline translation after download
+  - Passed 2026-09-26: headless Chrome 153 + Firefox 156 against a throttled local host (cancel, network cut + retry, phrase and unknown word through the card, offline, 10-minute idle release, background-only download, untick), then the product owner on a real Chrome and a real Firefox against `models.cymbra.app`.
+- [x] 7.5 Manual pass Firefox for Android: no setting, no download, cards unchanged
+  - Passed 2026-09-26 on a Galaxy Tab S6 Lite (product owner): no setting, no download. Superseded since by `add-lingua-translation-android` (#553), which offers the setting there.
 
 ## 8. Gates
 
