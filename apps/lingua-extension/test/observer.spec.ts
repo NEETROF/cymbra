@@ -188,6 +188,25 @@ describe("ReadingObservers — dirty block containers", () => {
     expect(seen).toEqual([[el("article")]]);
   });
 
+  it("schedules nothing for a change inside a video player's caption line", async () => {
+    // YouTube replaces its caption window at every line, one or two seconds apart: never read.
+    document.body.innerHTML =
+      `<div class="ytp-caption-window-container"><div><span id="cue">We shall never surrender</span></div></div>` +
+      `<p id="comment">Great talk.</p>`;
+    makeObservers().start();
+
+    retext("cue", "Thank you all for coming");
+    const next = document.createElement("span");
+    next.textContent = "and good night";
+    document.querySelector(".ytp-caption-window-container")!.append(next);
+    await settle(DEBOUNCE * 10);
+    expect(seen).toEqual([]);
+
+    retext("comment", "Great talk, thanks.");
+    await settle(DEBOUNCE + 1);
+    expect(seen).toEqual([[el("comment")]]);
+  });
+
   it("schedules nothing at all when only the reader's own UI changed", async () => {
     document.body.innerHTML = `<div id="${HOST_ID}"><p id="hud">12%</p></div>`;
     makeObservers().start();
@@ -239,13 +258,47 @@ describe("ReadingObservers — visibility priority", () => {
     expect(FakeObserver.last!.observed).toEqual([el("a"), el("b")]);
   });
 
-  it("tracks nothing before it has been started", () => {
-    document.body.innerHTML = `<p id="a">alpha</p>`;
+  it("observes, once started, what was tracked before", () => {
+    // The first paint tracks the painted containers BEFORE start() creates the observer — the
+    // order the reading session works in. Dropping them left every later change queued forever.
+    document.body.innerHTML = `<p id="a">alpha</p><p id="b">beta</p>`;
     makeObservers();
 
+    obs.track([el("a"), el("b")]);
+    expect(FakeObserver.last).toBeNull();
+
+    obs.start();
+    expect(FakeObserver.last!.observed).toEqual([el("a"), el("b")]);
+  });
+
+  it("does not observe, on start, a container that left the page meanwhile", () => {
+    document.body.innerHTML = `<p id="a">alpha</p><p id="b">beta</p>`;
+    makeObservers();
+    obs.track([el("a"), el("b")]);
+    el("a").remove();
+
+    obs.start();
+    expect(FakeObserver.last!.observed).toEqual([el("b")]);
+  });
+
+  it("forgets, when stopped, what was tracked before it started", () => {
+    document.body.innerHTML = `<p id="a">alpha</p>`;
+    makeObservers();
     obs.track([el("a")]);
 
-    expect(FakeObserver.last).toBeNull();
+    obs.stop();
+    obs.start();
+    expect(FakeObserver.last!.observed).toEqual([]);
+  });
+
+  it("observes a container once, however often it is tracked", () => {
+    document.body.innerHTML = `<p id="a">alpha</p>`;
+    makeObservers().start();
+
+    obs.track([el("a")]);
+    obs.track([el("a")]); // every rescan tracks the page's containers again
+
+    expect(FakeObserver.last!.observed).toEqual([el("a")]);
   });
 
   it("rescans an on-screen container straight away", async () => {
@@ -311,6 +364,47 @@ describe("ReadingObservers — visibility priority", () => {
     FakeObserver.last!.fire([[el("a"), true]]);
 
     expect(seen).toEqual([]);
+  });
+
+  it("observes a changed container it was never handed, and rescans it once it is on screen", async () => {
+    // Comments loaded on scroll into a container that held no text at first paint: the first
+    // scan never tracked it, so without observing it here it would stay queued for ever.
+    document.body.innerHTML = `<div id="comments"></div>`;
+    makeObservers().start();
+    const io = FakeObserver.last!;
+
+    const post = document.createElement("p");
+    post.textContent = "a comment loaded on scroll";
+    el("comments").append(post);
+    await settle(DEBOUNCE + 1);
+
+    expect(seen).toEqual([]); // not yet known to be on screen
+    expect(io.observed).toEqual([el("comments"), post]);
+
+    io.fire([
+      [el("comments"), true],
+      [post, true],
+    ]);
+    expect(seen).toEqual([[el("comments"), post]]);
+  });
+
+  it("keeps such a container queued while it is off screen", async () => {
+    document.body.innerHTML = `<div id="feed"></div>`;
+    makeObservers().start();
+    const io = FakeObserver.last!;
+
+    const item = document.createElement("p");
+    item.textContent = "an item far below the fold";
+    el("feed").append(item);
+    await settle(DEBOUNCE + 1);
+    io.fire([
+      [el("feed"), false],
+      [item, false],
+    ]);
+    expect(seen).toEqual([]);
+
+    io.fire([[item, true]]); // scrolled into view
+    expect(seen).toEqual([[item]]);
   });
 
   it("treats every container as on-screen where IntersectionObserver is unavailable", async () => {

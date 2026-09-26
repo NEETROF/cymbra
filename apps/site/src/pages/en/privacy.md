@@ -2,7 +2,7 @@
 layout: ../../layouts/Legal.astro
 title: Privacy Policy
 lang: en
-updated: 17/09/2026
+updated: 24/09/2026
 ---
 
 This policy explains what personal data the **Cymbra services** (published by
@@ -142,6 +142,16 @@ the English words you do not know yet. In addition to §2:
 Also kept on the device: the detail of your reading (which words you met, on which pages),
 the **address of the page** where you add a word to your deck and, when you are not signed
 in, all of your Lingua data.
+
+**Extended translation.** This setting, off by default and specific to each device (it is not
+synced), translates on your device the sentence your selection is in. When you turn it on, the
+extension downloads a translation model **once** (25.8 MB, the Firefox Translations model
+published by Mozilla under the MPL 2.0) from `models.cymbra.app`; translation then happens **on
+your device**, and page text is still never sent. The download carries no page text, no Lingua
+data, no account token and no installation identifier, and Cymbra does not associate it with an
+account or an installation. As with any web page, the host of these files (Cloudflare) sees the
+IP address of the device asking for them. Turning the setting off deletes the model from the
+device.
 
 **What is synced when you are signed in** to your Cymbra account:
 

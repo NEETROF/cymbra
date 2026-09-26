@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: read
+  actions: read # the translation engine is another workflow's artefact (tool/fetch_engine.sh)
 
 concurrency:
   group: lingua-extension-${{ github.ref }}
@@ -90,6 +91,14 @@ jobs:
       # number CI enforces is the one a developer sees locally.
       - name: Unit tests (Vitest)
         run: yarn test
+      # The Chromium and Firefox packages carry the translation engine, built by the
+      # lingua-engine-build workflow and kept only if it matches engine-pin.json. Fetched rather
+      # than built here: eight minutes of Emscripten on every pull request would verify nothing
+      # the pin does not.
+      - name: Fetch the translation engine
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: yarn fetch:engine
       # Full build: testdata pack + esbuild bundle of every variant (chromium, firefox,
       # safari; the wasm bindings were generated above). Proves the loadable extension
       # assembles, not just that it typechecks.
@@ -105,11 +114,15 @@ jobs:
       # It is assembled outside the monorepo and the commands of REVIEWERS.md are run in it:
       # a new input from outside apps/lingua-extension (a crate, a .proto, a workspace
       # table) otherwise breaks the reviewer's build while the monorepo build above passes.
+      # The one step not rerun is the engine's: the reviewer builds it with tool/build_engine.sh
+      # (eight minutes, and exactly what lingua-engine-build runs); here the fetched copy — the
+      # same pinned bytes — stands in for it.
       - name: Rebuild from the reviewer's source archive
         run: |
           set -euo pipefail
           src="$RUNNER_TEMP/lingua-source"
           tool/make_source_archive.sh "$src"
+          cp -R engine "$src/apps/lingua-extension/engine"
           cd "$src/apps/lingua-extension"
           yarn install --immutable
           yarn gen:wasm

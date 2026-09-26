@@ -1103,12 +1103,16 @@ describe("SelectionCards with the translation engine", () => {
   };
 
   function setup() {
-    const { ports, phraseGloss } = fakePorts();
+    const { ports, phraseGloss, gloss } = fakePorts();
     const view = fakeSurface();
     const { clock, elapseOnly, armed } = fakeClock();
     const { translator, asked } = fakeTranslator();
-    const cards = new SelectionCards(ports, view.surface, { calibration: () => CALIBRATION, clock, translator });
-    return { cards, phraseGloss, view, asked, elapseOnly, armed };
+    const cards = new SelectionCards(ports, view.surface, {
+      calibration: () => CALIBRATION,
+      clock,
+      translator: () => translator,
+    });
+    return { cards, phraseGloss, gloss, view, asked, elapseOnly, armed };
   }
 
   const noMatch: PhraseGloss = {
@@ -1266,14 +1270,149 @@ describe("SelectionCards with the translation engine", () => {
     expect(asked[0]!.request.selection).toBeNull();
   });
 
-  it("never asks the engine for a single word, whose card is the dictionary's", async () => {
-    const { cards, asked } = setup();
-    cards.openForSelection(
-      { text: "seldom", sentence: "They seldom ship.", selection: { start: 5, end: 11 }, rect: RECT },
-      null,
-    );
+  describe("a single word (D7)", () => {
+    const wiki = "See the disambiguation page for other uses.";
+    const span = { start: 8, end: 22 };
+    const selected: SelectionInput = { text: "disambiguation", sentence: wiki, selection: span, rect: RECT };
+    const unglossed: PhraseGloss = {
+      tokens: [tok({ surface: "disambiguation", lemma: "disambiguation", class: "Unknown", gloss: null })],
+    };
+    const answer: TranslationResult = {
+      kind: "translated",
+      translation: { sentence: "Voir la page d'homonymie pour d'autres usages.", marks: [{ start: 17, end: 26 }] },
+    };
+
+    it("keeps its dictionary card when the pack glosses it — the engine is not asked", async () => {
+      const { cards, phraseGloss, asked, view } = setup();
+      cards.openForSelection(
+        { text: "seldom", sentence: "They seldom ship.", selection: { start: 5, end: 11 }, rect: RECT },
+        null,
+      );
+      phraseGloss[0]!.resolve({
+        tokens: [tok({ surface: "seldom", lemma: "seldom", class: "Unknown", gloss: "Rarement" })],
+      });
+      await flush();
+      expect(asked).toEqual([]);
+      expect(view.last()).toMatchObject({ headword: "seldom", gloss: "Rarement" });
+      expect(view.last().translating).toBeFalsy();
+    });
+
+    it("is translated in its sentence, marked, when the pack has nothing — 'disambiguation'", async () => {
+      const { cards, phraseGloss, asked, view } = setup();
+      cards.openForSelection(selected, null);
+      phraseGloss[0]!.resolve(unglossed);
+      await flush();
+      // Never the word alone: its sentence, with its place in it.
+      expect(asked.map((a) => a.request)).toEqual([{ sentence: wiki, selection: span }]);
+      expect(view.last()).toMatchObject({ headword: "disambiguation", gloss: null, translating: true });
+
+      asked[0]!.resolve(answer);
+      await flush();
+      expect(view.last()).toMatchObject({
+        translating: false,
+        translation: answer.kind === "translated" && answer.translation,
+      });
+    });
+
+    it("never sends a proper noun outside the lexicon to the engine", async () => {
+      const { cards, phraseGloss, asked, view } = setup();
+      cards.openForSelection({ ...selected, text: "Zorblax" }, null);
+      phraseGloss[0]!.resolve({
+        tokens: [tok({ surface: "Zorblax", lemma: "zorblax", class: "ProperNounOutOfLexicon" })],
+      });
+      await flush();
+      expect(asked).toEqual([]);
+      expect(view.last().headword).toBe("Zorblax");
+      expect(view.last().translating).toBeFalsy();
+    });
+
+    it("is translated when a word the pack cannot answer is clicked", () => {
+      const { cards, asked, view } = setup();
+      const token = pageToken({ surface: "disambiguation", lemma: "disambiguation", class: "Unknown", gloss: null });
+      cards.openForToken({ token, rect: RECT, sentence: wiki, selection: span });
+      expect(asked.map((a) => a.request)).toEqual([{ sentence: wiki, selection: span }]);
+      expect(view.last()).toMatchObject({ gloss: null, translating: true });
+    });
+
+    it("is never translated alone when its place in the sentence is unknown", () => {
+      const { cards, asked, view } = setup();
+      const token = pageToken({ surface: "disambiguation", lemma: "disambiguation", class: "Unknown", gloss: null });
+      cards.openForToken({ token, rect: RECT, sentence: wiki });
+      expect(asked).toEqual([]);
+      expect(view.last().translating).toBeFalsy();
+    });
+
+    it("keeps a clicked word's gloss when the pack has one", () => {
+      const { cards, asked, view } = setup();
+      const token = pageToken({ surface: "ambiguity", lemma: "ambiguity", class: "Learning", gloss: "Ambiguïté" });
+      cards.openForToken({ token, rect: RECT, sentence: wiki, selection: span });
+      expect(asked).toEqual([]);
+      expect(view.last()).toMatchObject({ gloss: "Ambiguïté" });
+    });
+
+    it("asks the engine for a known word only once the pack says it has no gloss", async () => {
+      const { cards, gloss, asked, view } = setup();
+      const token = pageToken({ surface: "wiki", lemma: "wiki", class: "Known" });
+      cards.openForToken({ token, rect: RECT, sentence: "A wiki page.", selection: { start: 2, end: 6 } });
+      expect(asked).toEqual([]); // the pack first
+      gloss[0]!.resolve(undefined);
+      await flush();
+      expect(asked.map((a) => a.request)).toEqual([{ sentence: "A wiki page.", selection: { start: 2, end: 6 } }]);
+      expect(view.last()).toMatchObject({ status: "known", translating: true });
+    });
+
+    it("answers from the pack alone when the engine has nothing for the word", async () => {
+      const { cards, phraseGloss, asked, view } = setup();
+      cards.openForSelection(selected, null);
+      phraseGloss[0]!.resolve(unglossed);
+      await flush();
+      asked[0]!.resolve({ kind: "unavailable" });
+      await flush();
+      expect(view.last()).toMatchObject({ gloss: null, translating: false });
+      expect(view.last().translation).toBeUndefined();
+    });
+
+    it("translates an unlisted hyphenated compound the pack has no gloss for", async () => {
+      const { cards, phraseGloss, asked, view } = setup();
+      const token = pageToken({ surface: "re-disambiguation", lemma: "re-disambiguation", class: "Unknown" });
+      cards.openForToken({ token, rect: RECT, sentence: wiki, selection: span });
+      phraseGloss[0]!.resolve({
+        tokens: [
+          tok({
+            surface: "re-disambiguation",
+            lemma: "re-disambiguation",
+            class: "Unknown",
+            parts: [part({ lemma: "disambiguation", class: "Unknown", gloss: null })],
+          }),
+        ],
+      });
+      await flush();
+      expect(asked).toHaveLength(1);
+      expect(view.last().translating).toBe(true);
+    });
+  });
+
+  it("asks for the translator per card: a model that arrives mid-page is used from the next one", async () => {
+    const { ports, phraseGloss } = fakePorts();
+    const view = fakeSurface();
+    const { clock } = fakeClock();
+    const { translator, asked } = fakeTranslator();
+    let ready = false;
+    const cards = new SelectionCards(ports, view.surface, {
+      calibration: () => CALIBRATION,
+      clock,
+      translator: () => (ready ? translator : null),
+    });
+    cards.openForSelection(sel, null);
+    expect(view.last().translating).toBe(false);
+    phraseGloss[0]!.resolve(noMatch);
     await flush();
     expect(asked).toEqual([]);
+
+    ready = true; // the download finished
+    cards.openForSelection(sel, null);
+    expect(view.last().translating).toBe(true);
+    expect(asked).toHaveLength(1);
   });
 
   it("keeps the translation out of every gesture, so it can never reach a card", async () => {
@@ -1290,13 +1429,28 @@ describe("SelectionCards with the translation engine", () => {
   });
 });
 
-describe("SelectionCards without the translation engine", () => {
+describe("SelectionCards without a model ready", () => {
+  it("answers a word the pack cannot gloss exactly as before — no line saying a translation is coming", () => {
+    const { ports } = fakePorts();
+    const view = fakeSurface();
+    const cards = new SelectionCards(ports, view.surface, { calibration: () => CALIBRATION, translator: () => null });
+    const token = pageToken({ surface: "disambiguation", lemma: "disambiguation", class: "Unknown", gloss: null });
+    cards.openForToken({ token, rect: RECT, sentence: "The disambiguation page.", selection: { start: 4, end: 18 } });
+    expect(view.last().translating).toBeUndefined();
+    expect(view.last().gloss).toBeNull();
+  });
+
   it("answers an expression exactly as it did before the engine existed", async () => {
-    // Every shipped build. No translator: no request, no wait, the same card as ever.
+    // Off, downloading, failed, interrupted, removed — or no engine in the variant: no request,
+    // no wait, no line saying a translation is on its way. The same card as ever.
     const { ports, phraseGloss } = fakePorts();
     const view = fakeSurface();
     const { clock, armed } = fakeClock();
-    const cards = new SelectionCards(ports, view.surface, { calibration: () => CALIBRATION, clock, translator: null });
+    const cards = new SelectionCards(ports, view.surface, {
+      calibration: () => CALIBRATION,
+      clock,
+      translator: () => null,
+    });
     cards.openForSelection(selection("gave up"), null);
     expect(armed()).not.toContain(TRANSLATION_WAIT_MS);
     expect(view.last().translating).toBe(false); // the pending line stays "Recherche dans le pack…"

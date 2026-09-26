@@ -23,11 +23,17 @@ import { isOpenPageMessage } from "./state/open-page.ts";
 import { openOrFocusReader, READER_PAGE, type ReaderWhereMessage } from "./reader/locate.ts";
 import { serveSection } from "./reader/section-server.ts";
 import { EngineChannel, type WorkerLike } from "./translate/host/channel.ts";
+import { type DownloadEvent, DownloadHost, type DownloadWorkerLike } from "./translate/host/downloads.ts";
 import type { EngineAccess } from "./translate/host/engine.ts";
-import { OffscreenEngine } from "./translate/host/offscreen-engine.ts";
+import { ModelController, type ModelHostAccess } from "./translate/host/model-controller.ts";
+import { modelDb } from "./translate/host/model-db.ts";
+import { loadBundledManifest } from "./translate/host/model-manifest.ts";
+import { isOffscreenEvent, OffscreenEngine } from "./translate/host/offscreen-engine.ts";
 import { KEEPALIVE_PING } from "./translate/keepalive.ts";
-import { relayTranslation } from "./translate/host/relay.ts";
-import { isTranslateMessage } from "./translate/wire.ts";
+import { isModelMessage } from "./translate/model-messages.ts";
+import { UNAVAILABLE } from "./translate/port.ts";
+import { relayTranslation, relayWarm } from "./translate/host/relay.ts";
+import { isTranslateMessage, isWarmMessage } from "./translate/wire.ts";
 import { Session } from "./state/session.ts";
 import { type AsyncStorageArea, hydrateEngine, ROOT_KEY, SESSION_LOST_KEY } from "./state/storage.ts";
 import {
@@ -259,24 +265,96 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   });
 }
 
-// The translation engine (add-lingua-translation-engine), built in only by a development
-// build that side-loads a model — every shipped build folds this block away. The background
-// relays and never translates itself: the engine runs in a worker of its own, so the analyser
-// RPC above keeps answering while a sentence is being translated. On Chromium that worker is
-// owned by an offscreen document, because a service worker cannot construct one.
+// The translation engine (add-lingua-translation-engine) and « Traduction étendue », which puts it
+// in the reader's hands (add-lingua-translation-delivery). Every variant carries the engine
+// (Safari since add-lingua-translation-safari); a build without it (`__TRANSLATION_HOST__` "none")
+// folds this block away. The background relays and never translates itself: the engine runs in a
+// worker of its own, so the analyser RPC above keeps answering while a sentence is being
+// translated. On Chromium that worker — and the model download's — is owned by an offscreen
+// document, because a service worker cannot construct one; on Firefox the event page owns them.
 if (__TRANSLATION_HOST__ !== "none") {
-  const engine: EngineAccess =
-    __TRANSLATION_HOST__ === "offscreen"
-      ? new OffscreenEngine(chrome.offscreen, (message) => chrome.runtime.sendMessage(message))
-      : new EngineChannel(() => new Worker(chrome.runtime.getURL("engine-worker.js")) as unknown as WorkerLike);
+  let controller: ModelController | null = null;
+  const report = (event: DownloadEvent): void => void controller?.onEvent(event);
+
+  let engine: EngineAccess;
+  let host: ModelHostAccess;
+  if (__TRANSLATION_HOST__ === "offscreen") {
+    const offscreen = new OffscreenEngine(chrome.offscreen, (message) => chrome.runtime.sendMessage(message));
+    engine = offscreen;
+    host = {
+      startDownload: () => offscreen.startDownload(),
+      cancelDownload: () => offscreen.cancelDownload(),
+      downloading: () => offscreen.downloading(),
+      shutDown: () => offscreen.close(),
+    };
+    // The document reports on its own: a download's progress, or that it holds nothing any more —
+    // then it is closed, and the ~195 MiB of an idle engine go with it (D6).
+    chrome.runtime.onMessage.addListener((message: unknown) => {
+      if (!isOffscreenEvent(message)) return undefined;
+      if ("event" in message) report(message.event);
+      else void offscreen.downloading().then((busy) => (busy ? undefined : offscreen.close()));
+      return undefined;
+    });
+  } else {
+    const spawn = (script: string): unknown => new Worker(chrome.runtime.getURL(script));
+    const channel = new EngineChannel(() => spawn("engine-worker.js") as WorkerLike);
+    const downloads = new DownloadHost(() => spawn("model-worker.js") as DownloadWorkerLike, report);
+    engine = channel;
+    host = {
+      startDownload: async () => {
+        void navigator.storage?.persist?.().catch(() => {});
+        downloads.start();
+      },
+      cancelDownload: async () => downloads.cancel(),
+      downloading: async () => downloads.running(),
+      shutDown: async () => channel.shutDown(),
+    };
+  }
+
+  const model = new ModelController({
+    area: settingsArea,
+    host,
+    db: modelDb(),
+    manifest: () => loadBundledManifest((input, init) => fetch(chrome.runtime.getURL(String(input)), init)),
+  });
+  controller = model;
+  // What was recorded before this background started may no longer be true: a download that
+  // died with the previous event page, a model the browser removed while nobody looked.
+  void model.status();
+
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (!isTranslateMessage(message)) return undefined;
-    void relayTranslation(engine, message.request).then(sendResponse);
+    void (async () => {
+      // Off, or no model: the engine is never started — not even to find the model missing.
+      if (!(await model.ready())) return UNAVAILABLE;
+      const result = await relayTranslation(engine, message.request);
+      // No answer from a model said to be ready: see whether it still is, so the next card
+      // stops announcing a translation that cannot come.
+      if (result.kind === "unavailable") void model.status();
+      return result;
+    })().then(sendResponse);
     return true; // async response
   });
-  // A reader page pings while it is being read (translate/keepalive.ts): answering is what
-  // keeps this page loaded, and with it the worker and the model it has already read, so the
-  // reader's next selection is not a cold start. An open port does not do it — measured.
+  // A selection has begun, or a page that was translating is back (add-lingua-translation-android
+  // D2, D3): load the engine before the translation is asked. Only with a model ready; a warm is
+  // "asked" for the idle release, and translates nothing.
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (!isWarmMessage(message)) return undefined;
+    void relayWarm(
+      () => model.ready(),
+      engine,
+      () => void model.status(),
+    ).then(sendResponse);
+    return true; // async response
+  });
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (!isModelMessage(message)) return undefined;
+    void model.handle(message.op).then(sendResponse);
+    return true; // async response
+  });
+  // A reader page pings while it is being read (translate/keepalive.ts), and so does the setting
+  // while a download runs: answering is what keeps this page loaded, and with it the workers — the
+  // model already read, the download under way. An open port does not do it — measured.
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if ((message as { type?: unknown } | null)?.type !== KEEPALIVE_PING) return undefined;
     sendResponse(true);

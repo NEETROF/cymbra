@@ -226,6 +226,64 @@ describe("a session attached to a book section", () => {
   });
 });
 
+// Content that changes after the first paint (fix-lingua-dynamic-rescan): what reaches the page is
+// read, and a change that leaves every block's text as it was costs no analysis. The section's own
+// MutationObserver runs for real; jsdom has no IntersectionObserver, so every change counts as on
+// screen.
+describe("a page that changes after its first paint", () => {
+  const DEBOUNCE = 250;
+  const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  async function painted(html: string) {
+    const { s, port } = session();
+    const analysed: string[][] = [];
+    port.analyse = async (blocks) => {
+      analysed.push(blocks);
+      return analysis(blocks);
+    };
+    await s.start(null);
+    const sec = section(html);
+    await s.attach(sec.host);
+    return { s, analysed, ...sec };
+  }
+
+  it("does not analyse the page again when only a clock of digits ticks", async () => {
+    const { s, analysed, host } = await painted(`<p>It was a dark night.</p><div id="clock"><span>0:14</span></div>`);
+    expect(analysed).toHaveLength(1);
+
+    (host.doc.querySelector("#clock span")!.firstChild as Text).data = "0:15";
+    await pause(DEBOUNCE + 150);
+
+    expect(analysed).toHaveLength(1);
+    s.detach();
+  });
+
+  it("reads a sentence appended to a paragraph already painted", async () => {
+    const { s, analysed, host, registry } = await painted(`<p id="p">It was a night.</p>`);
+    expect([...(registry.get(HL_UNKNOWN) ?? [])]).toEqual([]); // nothing unknown yet
+
+    host.doc.getElementById("p")!.append(" Then a dark wind rose.");
+    await vi.waitFor(() => expect(analysed).toHaveLength(2), { timeout: 2000 });
+
+    expect(analysed[1]).toEqual(["It was a night. Then a dark wind rose."]);
+    await vi.waitFor(() => expect([...(registry.get(HL_UNKNOWN) ?? [])].map((r) => r.toString())).toEqual(["dark"]));
+    s.detach();
+  });
+
+  it("never analyses a video player's caption line", async () => {
+    const { s, analysed, host } = await painted(
+      `<div class="ytp-caption-window-container"><span id="cue">a dark line</span></div><p>It was a night.</p>`,
+    );
+    expect(analysed[0]).toEqual(["It was a night."]);
+
+    (host.doc.getElementById("cue")!.firstChild as Text).data = "another dark line";
+    await pause(DEBOUNCE + 150);
+
+    expect(analysed).toHaveLength(1);
+    s.detach();
+  });
+});
+
 // Safari removes a phrase's selection once a finger lifts from it, so its callout stops covering
 // the expression card — only where that card is shown: the reader on, the page analysed.
 describe("a phrase a finger lifts from", () => {
@@ -280,5 +338,58 @@ describe("a phrase a finger lifts from", () => {
     const { host } = section("<p>It was a dark night.</p>");
     await s.attach(host);
     expect(liftFrom(host, "a dark").isCollapsed).toBe(false);
+  });
+});
+
+// A selection that begins asks for the engine (add-lingua-translation-android D2): the cold start
+// runs while the handles move. Only with a translator — no model ready, nothing is sent.
+describe("a selection that begins", () => {
+  function select(host: ReadingHost, text: string): void {
+    const node = host.doc.querySelector("p")!.firstChild!;
+    const at = node.textContent!.indexOf(text);
+    const range = host.doc.createRange();
+    range.setStart(node, at);
+    range.setEnd(node, at + text.length);
+    const sel = host.win.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(range);
+    host.doc.dispatchEvent(new host.win.Event("selectionchange"));
+  }
+  function collapse(host: ReadingHost): void {
+    host.win.getSelection()!.removeAllRanges();
+    host.doc.dispatchEvent(new host.win.Event("selectionchange"));
+  }
+
+  it("warms the translator once per selection, before the card", async () => {
+    const warm = vi.fn();
+    const translate = vi.fn(async () => ({ kind: "unavailable" as const }));
+    const { s } = session({ translator: () => ({ translate, warm }) });
+    await s.start(null);
+    const { host } = section("<p>It was a dark night.</p>");
+    await s.attach(host);
+    select(host, "a dark");
+    select(host, "a dark night"); // a handle moved
+    expect(warm).toHaveBeenCalledOnce();
+    expect(translate).not.toHaveBeenCalled(); // nothing settled yet
+    collapse(host);
+    select(host, "night");
+    expect(warm).toHaveBeenCalledTimes(2);
+    s.detach();
+  });
+
+  it("sends nothing without a translator: extended translation off, or its model not ready", async () => {
+    let ready = false;
+    const warm = vi.fn();
+    const { s } = session({ translator: () => (ready ? { translate: vi.fn(), warm } : null) });
+    await s.start(null);
+    const { host } = section("<p>It was a dark night.</p>");
+    await s.attach(host);
+    select(host, "a dark");
+    expect(warm).not.toHaveBeenCalled();
+    collapse(host);
+    ready = true;
+    select(host, "a dark");
+    expect(warm).toHaveBeenCalledOnce();
+    s.detach();
   });
 });

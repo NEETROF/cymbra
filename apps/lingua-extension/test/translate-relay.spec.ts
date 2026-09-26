@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import type { EngineAccess, EngineReply } from "@/translate/host/engine.ts";
-import { relayTranslation } from "@/translate/host/relay.ts";
+import { relayTranslation, relayWarm } from "@/translate/host/relay.ts";
 
 /** An engine that records the markup it is handed and answers what the test says. */
 function engine(answer: (markup: string) => EngineReply | Promise<EngineReply>) {
   const seen: string[] = [];
-  const access: EngineAccess = {
+  const access: Pick<EngineAccess, "translate"> = {
     translate: async (markup) => {
       seen.push(markup);
       return answer(markup);
@@ -89,7 +89,7 @@ describe("relayTranslation", () => {
 
   it("answers unavailable when reaching the engine throws", async () => {
     const log = vi.fn();
-    const access: EngineAccess = { translate: () => Promise.reject(new Error("gone")) };
+    const access: Pick<EngineAccess, "translate"> = { translate: () => Promise.reject(new Error("gone")) };
     await expect(relayTranslation(access, { sentence, selection }, log)).resolves.toEqual({ kind: "unavailable" });
     expect(log).toHaveBeenCalledOnce();
   });
@@ -100,5 +100,43 @@ describe("relayTranslation", () => {
       kind: "unavailable",
     });
     expect(seen).toEqual([]);
+  });
+});
+
+describe("relayWarm (add-lingua-translation-android D2, D3)", () => {
+  const warmEngine = (loaded: boolean | Error) => ({
+    warm: vi.fn(async () => {
+      if (loaded instanceof Error) throw loaded;
+      return loaded;
+    }),
+  });
+
+  it("loads nothing when no model is ready — not even to find the model missing", async () => {
+    const engine = warmEngine(true);
+    const onFailed = vi.fn();
+    await expect(relayWarm(async () => false, engine, onFailed)).resolves.toBe(false);
+    expect(engine.warm).not.toHaveBeenCalled();
+    expect(onFailed).not.toHaveBeenCalled();
+  });
+
+  it("warms the engine when the model is ready", async () => {
+    const engine = warmEngine(true);
+    await expect(relayWarm(async () => true, engine)).resolves.toBe(true);
+    expect(engine.warm).toHaveBeenCalledOnce();
+  });
+
+  it("reports a ready model the engine could not load, and a warm that threw", async () => {
+    const onFailed = vi.fn();
+    const log = vi.fn();
+    await expect(relayWarm(async () => true, warmEngine(false), onFailed, log)).resolves.toBe(false);
+    await expect(relayWarm(async () => true, warmEngine(new Error("gone")), onFailed, log)).resolves.toBe(false);
+    expect(onFailed).toHaveBeenCalledTimes(2);
+    expect(log).toHaveBeenCalledOnce();
+  });
+
+  it("an unreadable setting counts as not ready", async () => {
+    const engine = warmEngine(true);
+    await expect(relayWarm(async () => Promise.reject(new Error("storage")), engine)).resolves.toBe(false);
+    expect(engine.warm).not.toHaveBeenCalled();
   });
 });

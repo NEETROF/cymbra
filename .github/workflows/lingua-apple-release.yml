@@ -47,6 +47,7 @@ on:
 
 permissions:
   contents: read
+  actions: read # the translation engine is another workflow's artefact (tool/fetch_engine.sh)
 
 concurrency:
   group: lingua-apple-release
@@ -126,12 +127,18 @@ jobs:
           yarn gen:wasm
           yarn gen:proto
           yarn gen:pack:real
+          # The Safari package carries the translation engine, like Chromium's and Firefox's
+          # (add-lingua-translation-safari): lingua-engine-build's artefact, kept only if every
+          # file matches engine-pin.json — build.mjs refuses to package anything else.
+          yarn fetch:engine
           size=$(stat -f%z assets/pack.lingua)
           if [ "$size" -lt 1000000 ]; then
             echo "::error::assets/pack.lingua is ${size} bytes — not the real EN→FR pack."
             exit 1
           fi
           LINGUA_GRPC_WEB_URL=https://api.cymbra.app yarn build:safari
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Signing tool tests
         working-directory: apps/lingua-apple/tool
@@ -220,6 +227,18 @@ jobs:
             cymbra-lingua-*.pkg
           retention-days: 7
           if-no-files-found: error
+
+      # The app offers « Traduction étendue », whose model readers download from the host
+      # model-manifest.json names. A build delivered while that host does not serve the pinned
+      # model offers a setting that fails for every reader who ticks it — the same refusal as the
+      # extension release's submission.
+      - name: Refuse to deliver an app whose translation model cannot be downloaded
+        if: ${{ github.ref_type == 'tag' || inputs.deliver }}
+        working-directory: apps/lingua-extension
+        run: |
+          if node tool/check_model_host.mjs; then exit 0; fi
+          echo "::error::the model host does not serve the pinned model. Dispatch lingua-model-deploy first (apps/lingua-extension/TRANSLATION.md)."
+          exit 1
 
       - name: Deliver to App Store Connect / TestFlight
         if: ${{ github.ref_type == 'tag' || inputs.deliver }}

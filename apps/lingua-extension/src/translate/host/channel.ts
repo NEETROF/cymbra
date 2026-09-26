@@ -5,8 +5,15 @@
 // init throws — as it does if it is ever loaded as a module, where `this` is undefined — the
 // promise it would have resolved stays pending FOREVER. Without a bound, a broken engine is
 // indistinguishable from a slow one, and a card waits on it indefinitely.
+//
+// The worker holds ~195 MiB once the engine has loaded, so it is put down when reading stops
+// (add-lingua-translation-delivery D6): ten minutes after the last translation ASKED — or the last
+// warm, which says one is coming (a selection begun, a translating page back: android D2, D3).
+// Nothing else counts — a reading tab's keep-warm ping never reaches this channel — so a forgotten
+// tab does not hold the engine for the afternoon, and the next translation simply pays a cold start.
 
 import type { EngineAccess, EngineReply, WorkerRequest, WorkerResponse } from "./engine.ts";
+import { ENGINE_IDLE_MS } from "../port.ts";
 
 /** Loading ~37 MB of model and instantiating the wasm. Measured at ~200 ms; the bound is generous. */
 export const START_TIMEOUT_MS = 15_000;
@@ -41,15 +48,47 @@ export class EngineChannel implements EngineAccess {
   private seq = 0;
   private readonly waiting = new Map<number, Waiter>();
   private readonly clock: ChannelClock;
+  private idleTimer: unknown = null;
 
   constructor(
     private readonly spawn: () => WorkerLike,
-    opts: { clock?: ChannelClock } = {},
+    private readonly opts: {
+      clock?: ChannelClock;
+      /** Called once the idle worker has been put down (the offscreen document may then close). */
+      onIdle?: () => void;
+    } = {},
   ) {
     this.clock = opts.clock ?? REAL_CLOCK;
   }
 
+  /** Whether the engine's worker is alive (and, once loaded, holding its memory). */
+  running(): boolean {
+    return this.worker !== null;
+  }
+
+  /** Put the worker down now: the setting was turned off. */
+  shutDown(): void {
+    this.reset();
+  }
+
   async translate(markup: string): Promise<EngineReply> {
+    try {
+      return await this.translateNow(markup);
+    } finally {
+      this.armIdle();
+    }
+  }
+
+  /** Load the engine now, translate nothing; a warm engine is left as it is, its countdown restarted. */
+  async warm(): Promise<boolean> {
+    try {
+      return await this.start();
+    } finally {
+      this.armIdle();
+    }
+  }
+
+  private async translateNow(markup: string): Promise<EngineReply> {
     if (!(await this.start())) return { ok: false, reason: "the engine did not start" };
     const reply = await this.call({ op: "translate", markup }, TRANSLATE_TIMEOUT_MS);
     if (!reply) {
@@ -118,7 +157,26 @@ export class EngineChannel implements EngineAccess {
     this.reset();
   }
 
+  /** Restart the idle countdown from this translation — if there is a worker left to put down. */
+  private armIdle(): void {
+    this.disarmIdle();
+    if (!this.worker) return;
+    this.idleTimer = this.clock.setTimeout(() => {
+      this.idleTimer = null;
+      if (this.waiting.size > 0) return this.armIdle(); // still answering: not idle
+      this.reset();
+      this.opts.onIdle?.();
+    }, ENGINE_IDLE_MS);
+  }
+
+  private disarmIdle(): void {
+    if (this.idleTimer === null) return;
+    this.clock.clearTimeout(this.idleTimer);
+    this.idleTimer = null;
+  }
+
   private reset(): void {
+    this.disarmIdle();
     this.worker?.terminate();
     this.worker = null;
     this.started = null;
