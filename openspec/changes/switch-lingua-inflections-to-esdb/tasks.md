@@ -11,7 +11,7 @@
 - [x] 2.3 The rule that drops lesser variants made explicit and tested for AGID too (D2)
 - [x] 2.4 kaikki `form_of` relations, regular inflections only (D3); tests including *occupied*, *stocks*, *coats*, *born*
 - [x] 2.5 The regressions of D4 fixed by general rules, each with a test; the update report shows no other change the reviewer has not accepted
-  - The reviewer (product owner, 2026-09-26) accepted what remains: `vested → vest`, `roses → ros` (2 tokens) and the rarest lemmas the D7 rule pushes past the 40,000 cut (acronyms and names; `initialize`, `tiktok`).
+  - The reviewer (product owner, 2026-09-26) accepted what remains: `vested → vest`, `athletics → athletic` (its B2 level goes with it: CEFR counts 8,299 → 8,302), `roses → ros` (2 tokens) and the rarest lemmas the D7 rule pushes past the 40,000 cut (acronyms and names; `initialize`, `tiktok`).
 
 ## 3. Notices and data
 
