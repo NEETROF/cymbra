@@ -1,18 +1,43 @@
 /* Injected in-page HUD — the discreet, expandable percentage pill — scoped to its closed
    shadow root. tokens.css sets the --cymbra-lingua-* properties on :host; no colour
    literals here (lint-enforced). */
+/* The band the pill travels in: a zero-width column down one side of the viewport, inset
+   from the edges (and the notch / home indicator). It lets every click through; only the
+   pill takes them. The pill sits in it at --hud-y (0 = top, 1 = bottom, set from hud.ts),
+   so a resize or a rotation keeps it in place with no script. Default: bottom-right. */
 .hud {
   position: fixed;
-  right: 12px;
-  bottom: 12px;
+  top: calc(12px + env(safe-area-inset-top, 0px));
   bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  right: calc(12px + env(safe-area-inset-right, 0px));
+  width: 0;
+  pointer-events: none;
   z-index: 2147483645;
   font-family: var(--cymbra-lingua-font);
   font-size: 13px;
   color: var(--cymbra-lingua-text);
 }
 
+.hud[data-side="left"] {
+  right: auto;
+  left: calc(12px + env(safe-area-inset-left, 0px));
+}
+
+/* Anchored to its side, the pill opens its actions towards the middle of the page. `top` and
+   the `transform` together put its top edge at the top of the band for 0 and its bottom
+   edge at the bottom for 1. `translate` is left to the drag, and glides back to 0 on drop. */
 .hud-pill {
+  position: absolute;
+  right: 0;
+  top: calc(var(--hud-y, 1) * 100%);
+  transform: translateY(calc(var(--hud-y, 1) * -100%));
+  width: max-content;
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+  transition: translate 0.18s ease-out;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -21,6 +46,24 @@
   border: 1px solid var(--cymbra-lingua-border);
   border-radius: 999px;
   box-shadow: var(--cymbra-lingua-shadow);
+}
+
+.hud[data-side="left"] .hud-pill {
+  right: auto;
+  left: 0;
+}
+
+/* Following the pointer: no lag behind it. */
+.hud-pill.dragging,
+.hud-pill.dragging * {
+  cursor: grabbing;
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud-pill {
+    transition: none;
+  }
 }
 
 .hud-pct {

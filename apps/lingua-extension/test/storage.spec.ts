@@ -3,10 +3,12 @@ import {
   ANDROID_VOICES_KEY,
   type AsyncStorageArea,
   classifyStored,
+  DEFAULT_HUD_POSITION,
   ENABLED_KEY,
   hydrateEngine,
   hydrateFromV1,
   HUD_HIDDEN_KEY,
+  HUD_POSITION_KEY,
   loadEnabled,
   loadHudHidden,
   loadReaderDisplay,
@@ -16,11 +18,14 @@ import {
   loadStored,
   loadAndroidVoices,
   loadVoice,
+  loadHudPosition,
+  parseHudPosition,
   ROOT_KEY,
   saveBackup,
   saveEnabled,
   saveHudHidden,
   saveAndroidVoices,
+  saveHudPosition,
   saveVoice,
   STORAGE_VERSION,
   storedVoicePreference,
@@ -255,5 +260,33 @@ describe("the reader's display", () => {
     await saveReaderDisplay(area, { textScale: 215, theme: "dark" });
     expect(area.store[READER_DISPLAY_KEY]).toEqual({ textScale: 200, theme: "dark" });
     expect(await loadReaderDisplay(area)).toEqual({ textScale: 200, theme: "dark" });
+  });
+});
+
+describe("the HUD position", () => {
+  it("starts bottom-right, then remembers where the pill was left", async () => {
+    const area = fakeArea();
+    expect(await loadHudPosition(area)).toEqual({ side: "right", y: 1 });
+    await saveHudPosition(area, { side: "left", y: 0.25 });
+    expect(area.store[HUD_POSITION_KEY]).toEqual({ side: "left", y: 0.25 });
+    expect(await loadHudPosition(area)).toEqual({ side: "left", y: 0.25 });
+  });
+
+  it("falls back to the default for anything malformed", () => {
+    for (const raw of [null, "left", 3, {}, { side: "top", y: 0.5 }, { side: "left" }, { side: "left", y: "0.5" }]) {
+      expect(parseHudPosition(raw)).toEqual(DEFAULT_HUD_POSITION);
+    }
+    expect(parseHudPosition({ side: "left", y: Number.NaN })).toEqual(DEFAULT_HUD_POSITION);
+  });
+
+  it("keeps a stored height inside the band", () => {
+    expect(parseHudPosition({ side: "left", y: -2 })).toEqual({ side: "left", y: 0 });
+    expect(parseHudPosition({ side: "right", y: 7 })).toEqual({ side: "right", y: 1 });
+  });
+
+  it("stays out of the state backup", async () => {
+    const area = fakeArea({ [ROOT_KEY]: { v: STORAGE_VERSION, backup: "BACKUP" } });
+    await saveHudPosition(area, { side: "left", y: 0.5 });
+    expect(area.store[ROOT_KEY]).toEqual({ v: STORAGE_VERSION, backup: "BACKUP" });
   });
 });
