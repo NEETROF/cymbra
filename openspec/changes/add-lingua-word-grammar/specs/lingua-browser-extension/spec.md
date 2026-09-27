@@ -2,16 +2,19 @@
 
 ### Requirement: The word card says what the form is
 The word card SHALL say what the form the reader met is, in words of the interface language and never as a grammatical code: its readings as the card's dictionary form, the other dictionary forms it may also be, and, for a word the analyser split, the pieces it was split into.
-- **The form as seen, with its readings.** Several readings of one form SHALL be joined into one
-  statement. A form spelled like its dictionary form SHALL show this line only when the pack gives
-  it a reading other than the dictionary form itself, and SHALL present that reading as a
-  possibility.
+- **What the form is.** Its readings as the card's dictionary form, beside the form as seen,
+  SHALL be joined into one statement. A form spelled like its dictionary form SHALL show this
+  statement only when the pack gives it a reading other than the dictionary form itself, and SHALL
+  present that reading as a possibility.
 - **Other dictionary forms.** Each SHALL be named, with its reading, as another possibility. It
   SHALL be text only: it SHALL NOT open a card, and it SHALL NOT change the key of this card,
   its status or its actions.
 - **Pieces.** A word the analyser split SHALL show as its pieces joined.
 - **Nothing to say.** A form with no reading, no other dictionary form and no pieces SHALL show
   the card as it is shown today.
+
+These lines SHALL sit below the controls that read the word aloud and above the actions, so that a
+card completing its answer moves nothing the reader can press.
 
 The names of parts of speech, gender, number and person SHALL be the interface's own. A name that
 depends on the studied language, such as the name of a tense, SHALL be provided for English.
@@ -75,8 +78,9 @@ SHALL keep taking the first sense of each gloss.
 ### Requirement: A card holding its gloss waits only briefly for its grammar
 A word card SHALL ask for the word's grammar when it opens, and a card that already holds the pack's gloss for its word SHALL NOT wait for that answer beyond a short bound: past it, the card SHALL complete as it would with no grammar, and an answer arriving afterwards SHALL be dropped.
 The card SHALL become complete exactly once, so nothing the reader can press moves or changes
-meaning afterwards. A card whose answer arrives before it would first be drawn SHALL NOT be drawn
-pending. A card that holds no gloss yet SHALL receive its gloss in the same answer as its grammar,
+meaning afterwards. A card that already holds its gloss SHALL NOT be drawn pending: it is drawn
+once, complete, when its grammar arrives or the bound passes. A card that holds no gloss yet SHALL
+receive its gloss in the same answer as its grammar,
 under the wait and fallback that already apply to it. Examples are a known word, whose gloss the page
 analysis withholds, and a word outside the page analysis.
 

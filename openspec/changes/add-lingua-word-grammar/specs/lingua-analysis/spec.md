@@ -4,7 +4,8 @@
 The core SHALL answer, for a word as written and the dictionary form its card is keyed by, that word's grammar from the pack: the readings of the form as that dictionary form, the other dictionary forms the form is also a reading of, the pieces the studied language's pre-pass split the written word into, and the dictionary form's gloss with its senses grouped by part of speech.
 It SHALL read the written word through the tokeniser and pre-pass the page analysis uses, and SHALL
 take its readings from the piece whose dictionary form is the one asked about. It SHALL report
-pieces only when the pre-pass split the written word into more than one. With a pack that carries
+pieces only when the pre-pass split the written word into more than one, and SHALL then name no
+other dictionary form: the split has already settled what the piece is. With a pack that carries
 no grammar tables it SHALL still answer:
 - the gloss, as one group of senses with no part of speech;
 - the pieces, which come from the pre-pass and not from the pack;
@@ -24,7 +25,7 @@ leave the page analysis's output unchanged.
 
 #### Scenario: A contraction
 - **WHEN** the core is asked about `doesn't` for `do`
-- **THEN** it answers the pieces `does` and `not`, and the reading of `does` as a verb in the present tense, third person singular
+- **THEN** it answers the pieces `does` and `not`, the reading of `does` as a verb in the present tense, third person singular, and no other dictionary form, although `does` alone may be the plural of `doe`
 
 #### Scenario: A form of another dictionary form too
 - **WHEN** the core is asked about `leaves` for `leave`, and the pack holds `leaf`

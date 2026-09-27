@@ -99,7 +99,7 @@ these:
 | `Mood` | `Ind`, `Sub`, `Cnd`, `Imp` |
 | `VerbForm` | `Fin`, `Inf`, `Part`, `Ger` |
 | `Degree` | `Pos`, `Cmp`, `Sup` |
-| `Case` | `Nom`, `Acc`, `Dat` |
+| `Case` | `Nom`, `Acc`, `Dat`, `Com` |
 | `Reflex` | `Yes` |
 | `PronType` | `Prs`, `Art`, `Dem`, `Int`, `Rel`, `Ind` |
 | `Definite` | `Def`, `Ind` |
@@ -124,9 +124,12 @@ vocabulary, not by English:
 | clitic pronoun (*me*, *lo*, *se*, *gli*) | `PRON\|Case=…\|Person=…\|PronType=Prs` (+ `Reflex=Yes`) |
 | contracted article (*del*, *au*, *do*) | pieces from the pre-pass (D5): `ADP` + `DET\|Definite=Def\|PronType=Art` |
 
-These follow the features UD's French, Spanish, Italian and Portuguese treebanks use. A task
-checks each row against their documentation. A row that differs corrects this table, not the
-format.
+These follow the features UD's French, Spanish, Italian and Portuguese treebanks use, checked on
+2026-09-27 against the UD documentation and the feature statistics of fr_gsd, es_gsd, it_isdt and
+pt_bosque (the sources, row by row, are in `SOURCES.md`). The check added `Case=Com` (Spanish
+`conmigo`). It also found es_gsd giving `me`, `te`, `nos` and `os` the multi-value `Case=Acc,Dat`:
+the parser reads one value per feature, so a Spanish pack writes such a form as two readings, or
+the parser learns UD's comma-separated values then. Neither is a container change.
 
 **How new and unknown features are handled.**
 
@@ -168,9 +171,10 @@ conventions:
 | | -ing | `VERB\|VerbForm=Ger` |
 | | -s | `VERB\|Mood=Ind\|Number=Sing\|Person=3\|Tense=Pres\|VerbForm=Fin` |
 | `<v>`, 3 entries | past and past participle, then -ing, then -s | the two past tags on the first entry |
-| `<m>` | past (`could`, `would`) | `AUX\|Mood=Ind\|Tense=Past\|VerbForm=Fin` |
+| modal `<v>` (`could, -, can`) | past only: no -ing, so no participle; its -s slot, spelled like the modal, is no reading | `VERB\|Mood=Ind\|Tense=Past\|VerbForm=Fin` |
+| `<m>` (a noun/verb ESDB could not tell apart) | read as `<v>` | the verb tags |
 | `<n>` | plural | `NOUN\|Number=Plur` |
-| `<n_v>` | -s | both the plural and the -s verb tag, as `_esdb_kinds` already says |
+| `<n_v>` | the verb's slots, then possessives (dropped); its -s | both the plural and the -s verb tag, as `_esdb_kinds` already says |
 | `<aj>`, `<av>`, `<d>` | comparative, superlative | `ADJ`/`ADV`/`DET` with `Degree=Cmp`, then `Degree=Sup` |
 | `be <v>` | eight slots | named by an explicit table, since only `be` has them |
 
@@ -207,8 +211,8 @@ It is what the page already counted.
 | Section | Holds |
 |---|---|
 | `tags` | the tag pool: UTF-8, one tag per line, id = line index |
-| `paradigms` | zstd blob in the offset-indexed layout of `gloss.zst`, keyed by lemma id. Per dictionary form, a list of **readings** (the form, a tag id) and **also** entries (a form the analysis resolves to this dictionary form, and the id of another dictionary form it is also a reading of). |
-| `senses` | zstd blob in the same layout, keyed by lemma id: the runs of the gloss (tag id, number of senses), in gloss order |
+| `paradigms.zst` | zstd blob in the offset-indexed layout of `gloss.zst`, keyed by lemma id. Per dictionary form, a list of **readings** (the form, a tag id) and **also** entries (a form the analysis resolves to this dictionary form, and the id of another dictionary form it is also a reading of). |
+| `senses.zst` | zstd blob in the same layout, keyed by lemma id: the runs of the gloss (tag id, number of senses), in gloss order |
 
 **How a form is stored.** A form is written as an **edit of its dictionary form**: the number of
 characters (Unicode scalar values) to strip from its end, and the suffix to append. For example,
@@ -307,7 +311,9 @@ pub fn word_grammar(written: &str, lemma: &str, studied: StudiedLanguage, pack: 
    none matches. Its readings come from `lemma`'s paradigm: the entries whose form equals the
    piece, lowercased.
 3. **Other dictionary forms.** They come from `lemma`'s "also" entries for that piece, each
-   read from the other dictionary form's own paradigm.
+   read from the other dictionary form's own paradigm. A word the pre-pass split names none: the
+   split has settled what the piece is. Without this rule, `does` in `doesn't` would be offered
+   as the plural of `doe`, as the real pack showed.
 4. **Senses.** They come from splitting the flat gloss on `; ` and applying the runs. With no
    runs, or runs that disagree with the gloss (which the build forbids), the answer is one group
    with no tag and the whole gloss. The same holds when the pack has no `senses` section.
@@ -344,18 +350,21 @@ means `ANALYZER_VERSION`.
 source span. The two halves of a contraction share that span, so `do` in `don't` asks about
 `don't`. For a selection, `written` is the selected text.
 
-**Timing.** The layout puts the actions last. If the grammar line and the grouped gloss were
+**Timing.** The layout puts the actions last. If the grammar lines and the grouped gloss were
 inserted late, they would push the actions down while the reader aims at them, which the
 engine-waiting rule forbids. So a card that already holds its gloss (a highlighted word) waits
-for the answer up to `GRAMMAR_WAIT_MS = 250`:
+for the answer up to `GRAMMAR_WAIT_MS = 250`, and **is never drawn pending**:
 
-- It is **drawn pending only if the answer has not arrived by the next animation frame**. On
-  Chromium's in-process engine it never is.
-- **Past the bound**, it completes with the page token's gloss and no grammar, which is exactly
+- It is drawn once, complete, when the answer arrives. On Chromium's in-process engine that is
+  the next microtask.
+- **Past the bound**, it is drawn with the page token's gloss and no grammar, which is exactly
   today's card.
-- **A late answer** is dropped by the request-generation check `request()` already applies.
+- **A late answer** lands nowhere: the card compares the view's generation with the one it asked
+  under, as `request()` does, so a card shown, hidden or replaced meanwhile is never written over.
 
-Cards that hold no gloss keep their existing wait and fallback.
+A first implementation drew the card pending when the answer missed the next frame. It was dropped:
+the pending card's waiting line replaced a gloss the card already held, for a wait of at most
+250 ms. Cards that hold no gloss keep their existing wait and fallback.
 
 _Alternatives considered:_
 
@@ -367,16 +376,18 @@ _Alternatives considered:_
 
 **Rendering (`wordpopup.ts`).**
 
-- **The `.seen` line** becomes the grammar line. With no reading it keeps today's
-  `forme vue : « went »`. Everything is set through `textContent` and created nodes, never
-  markup.
+- **A grammar block** sits between the listen row and the gloss, one line per statement. It is
+  placed there because a pending card offers the listen buttons: had the grammar gone into the
+  `.seen` line above them, a known word's card completing its answer would push those buttons
+  down. The `.seen` line keeps `forme vue : « went »` as today. Everything is set through text
+  nodes, the studied language's words in `<em>`, never markup.
 
   | Case | Line |
   |---|---|
-  | Readings | `« went » : prétérit de go`, or `« walked » : prétérit et participe passé de walk` |
+  | Readings | `prétérit de go`, or `prétérit et participe passé de walk` |
   | Same spelling, other reading | `peut aussi être le prétérit et le participe passé de put` |
   | Other dictionary form | `peut aussi être le pluriel de leaf` (text only) |
-  | Pieces | `« don't » = do + not` |
+  | Pieces | `« doesn't » = does + not` |
 
 - **The gloss block** renders one line per group: the heading (the part of speech, plus the
   gender when there is one) in italics, then the group's senses. A group tagged `SYM`, `X`,
