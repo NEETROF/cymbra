@@ -122,7 +122,10 @@
     "activeAccounts": "Comptes actifs",
     "wordsLearned": "Mots appris",
     "reviews": "Révisions",
-    "exposures": "Expositions",
+    "wordsRead": "Mots lus",
+    "newWordsSeen": "Mots nouveaux vus",
+    "comprehension": "Compréhension",
+    "unavailable": "—",
     "byLanguage": "Par langue étudiée",
     "noData": "Aucune donnée pour cette période"
   },

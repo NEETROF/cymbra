@@ -11,7 +11,8 @@ import {
   clickableByContainer,
   findTokenAt,
   findTokenInBlock,
-  lemmasByContainer,
+  type BlockReading,
+  readingByContainer,
   type ResolvedToken,
   resolveTokens,
   type ScanStats,
@@ -30,7 +31,7 @@ import { clickIsOnWord, decideClick, type PageHit, SelectionCards } from "./sele
 import { browserSpeechEngine, createSpeaker, type Speaker } from "./speech.ts";
 import type { SurfaceCss } from "./surface-css.ts";
 import { type Gesture, WordPopup } from "./wordpopup.ts";
-import { recordExposures, recordWordLearned, utcDay } from "../state/dailystats.ts";
+import { recordReading, recordWordLearned, utcDay } from "../state/dailystats.ts";
 import { needsLevelChoice } from "../state/level-choice.ts";
 import {
   type AsyncStorageArea,
@@ -206,8 +207,6 @@ export class ReadingSession {
   private hudHidden = false;
   /** Global master switch. When off the reader does not analyse, paint or pop up. */
   private enabled = true;
-  /** Daily exposures are counted once per document read (a re-scan does not re-count). */
-  private exposuresRecorded = false;
   private readonly popup: WordPopup;
   /** Reads a card's selection and sentence aloud, with a voice on this device only. */
   private readonly speaker: Speaker = createSpeaker(
@@ -223,9 +222,13 @@ export class ReadingSession {
   private readonly indicator: ReadingIndicator;
   private indicatorMounted = false;
   private readonly observers: ReadingObservers;
-  /** Viewport-gated reading exposure (slice 5c): lemmas whose block was actually read. */
-  private readonly exposure: ExposureTracker;
+  /** Viewport-gated reading exposure (slice 5c): blocks actually read, with their lemmas and
+   *  counts. One signal for the per-word counters and the daily reading stats. */
+  private readonly exposure: ExposureTracker<BlockReading>;
   private readonly pendingExposure = new Set<string>();
+  /** Words read / new words seen in blocks confirmed read, not yet added to the day's stats. */
+  private pendingRead = 0;
+  private pendingUnknown = 0;
   private exposureFlushTimer: ReturnType<typeof setTimeout> | null = null;
   /** The last backup we wrote, to ignore our own storage.onChanged echo. */
   private lastBackup: string | null = null;
@@ -280,7 +283,11 @@ export class ReadingSession {
         onMoved: (position) => void saveHudPosition(storageArea, position),
       });
     this.observers = new ReadingObservers({ onRescan: (containers) => void this.refresh(containers) });
-    this.exposure = new ExposureTracker((lemmas) => this.onExposed(lemmas));
+    this.exposure = new ExposureTracker<BlockReading>(
+      (reading) => this.onExposed(reading),
+      undefined,
+      (reading) => reading.read === 0 && reading.lemmas.length === 0,
+    );
     this.selection = this.watchSelection(this.surfaceWin);
   }
 
@@ -315,7 +322,7 @@ export class ReadingSession {
     // Flush pending reading exposures before the tab is hidden / navigated away.
     const surface = this.surfaceDoc;
     surface.addEventListener("visibilitychange", () => {
-      if (surface.visibilityState === "hidden" && this.pendingExposure.size > 0) void this.flushExposure();
+      if (surface.visibilityState === "hidden" && this.hasPendingExposure()) void this.flushExposure();
       // Nothing keeps talking in a tab the reader left.
       if (surface.visibilityState === "hidden") this.speaker.stop();
       // Back on the tab (possibly after reading on another device): ask for a sync too.
@@ -408,7 +415,7 @@ export class ReadingSession {
   detach(): void {
     const host = this.host;
     if (!host) return;
-    if (this.pendingExposure.size > 0) void this.flushExposure();
+    if (this.hasPendingExposure()) void this.flushExposure();
     this.hostListeners?.abort();
     this.hostListeners = null;
     this.selection.cancel();
@@ -421,7 +428,6 @@ export class ReadingSession {
     this.resolved = [];
     this.clickable.clear();
     this.stats = NOT_ANALYSABLE;
-    this.exposuresRecorded = false;
     this.updateHud();
   }
 
@@ -508,6 +514,7 @@ export class ReadingSession {
       if (this.exposureFlushTimer !== null) clearTimeout(this.exposureFlushTimer);
       this.exposureFlushTimer = null;
       this.pendingExposure.clear();
+      this.flushReading(); // what was read before switching off stays read
       this.popup.hide();
       this.resolved = [];
       this.clickable.clear();
@@ -575,12 +582,8 @@ export class ReadingSession {
     this.clickable = clickableByContainer(blocks, analysis);
     this.stats = statsFromAnalysis(analysis);
     // Track which blocks the reader actually sees, to confirm below-level words by reading.
-    if (this.stats.analysable) this.exposure.track(lemmasByContainer(blocks, analysis));
-    // Count studied-word exposures once per document read (§3 daily stats).
-    if (this.stats.analysable && !this.exposuresRecorded && this.stats.counted > 0) {
-      this.exposuresRecorded = true;
-      void recordExposures(store, utcDay(Date.now()), this.stats.counted);
-    }
+    // The daily reading stats ride the same signal: a block counts when it is seen, once.
+    if (this.stats.analysable) this.exposure.track(readingByContainer(blocks, analysis));
     // Re-assert the token sheet before painting: a single-page-app navigation
     // (GitHub's morphing) can strip our injected styles, which leaves highlights
     // unpainted even though clicks still resolve. injectPageStyles is idempotent
@@ -749,9 +752,11 @@ export class ReadingSession {
     await this.drawer.refresh(); // e.g. cards a sync just pulled
   }
 
-  /** A block was read (visible past the dwell): queue its lemmas and throttle a flush. */
-  private onExposed(lemmas: string[]): void {
-    for (const lemma of lemmas) this.pendingExposure.add(lemma);
+  /** A block was read (visible past the dwell): queue its lemmas and counts, throttle a flush. */
+  private onExposed(reading: BlockReading): void {
+    for (const lemma of reading.lemmas) this.pendingExposure.add(lemma);
+    this.pendingRead += reading.read;
+    this.pendingUnknown += reading.unknown;
     if (this.exposureFlushTimer !== null) return; // a flush is already scheduled
     this.exposureFlushTimer = setTimeout(() => void this.flushExposure(), EXPOSURE_FLUSH_MS);
   }
@@ -764,6 +769,7 @@ export class ReadingSession {
   private async flushExposure(): Promise<void> {
     if (this.exposureFlushTimer !== null) clearTimeout(this.exposureFlushTimer);
     this.exposureFlushTimer = null;
+    this.flushReading();
     if (this.pendingExposure.size === 0) return;
     const lemmas = [...this.pendingExposure];
     this.pendingExposure.clear();
@@ -772,6 +778,18 @@ export class ReadingSession {
     const promoted = await this.port.promoteByExposure(EXPOSURE_PROMOTE_DAYS, now);
     await this.persist();
     if (promoted > 0) await this.repaint(); // words became known → refresh highlights
+  }
+
+  private hasPendingExposure(): boolean {
+    return this.pendingExposure.size > 0 || this.pendingRead > 0;
+  }
+
+  /** Add the words read / new words seen since the last flush to today's stats. */
+  private flushReading(): void {
+    if (this.pendingRead === 0) return;
+    void recordReading(store, utcDay(Date.now()), this.pendingRead, this.pendingUnknown);
+    this.pendingRead = 0;
+    this.pendingUnknown = 0;
   }
 
   private async statsMessage(): Promise<SessionStats> {

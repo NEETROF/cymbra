@@ -180,9 +180,9 @@ describe("consolidatedToMap", () => {
 
 describe("barChartElement", () => {
   it("draws one rect per positive value, with a baseline and accessible label", () => {
-    const svg = barChartElement([2, 0, 5, 1], "var(--cymbra-lingua-teal)", "Mots rencontrés");
+    const svg = barChartElement([2, 0, 5, 1], "var(--cymbra-lingua-teal)", "Mots lus");
     expect(svg.getAttribute("role")).toBe("img");
-    expect(svg.getAttribute("aria-label")).toBe("Mots rencontrés");
+    expect(svg.getAttribute("aria-label")).toBe("Mots lus");
     expect(svg.querySelectorAll("rect").length).toBe(3); // the zero draws no bar
     expect([...svg.querySelectorAll("rect")].every((r) => r.getAttribute("fill") === "var(--cymbra-lingua-teal)")).toBe(
       true,

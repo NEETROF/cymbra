@@ -6,7 +6,7 @@ import {
   clickableByContainer,
   findTokenAt,
   findTokenInBlock,
-  lemmasByContainer,
+  readingByContainer,
   resolveTokens,
   scan,
   statsFromAnalysis,
@@ -152,7 +152,7 @@ describe("findTokenInBlock", () => {
   });
 });
 
-describe("lemmasByContainer", () => {
+describe("readingByContainer", () => {
   it("groups distinct lemmas by block container, skipping proper nouns", () => {
     document.body.innerHTML = `<p>alpha</p><p>beta</p>`;
     const blocks = collectBlocks(document.body);
@@ -162,15 +162,46 @@ describe("lemmasByContainer", () => {
       tok({ block: 0, start: 0, end: 5, surface: "Paris", lemma: "paris", class: "ProperNounOutOfLexicon" }),
       tok({ block: 1, start: 0, end: 4, surface: "city", lemma: "city", class: "Known" }), // below-level presumed
     ]);
-    const map = lemmasByContainer(blocks, a);
-    expect(map.get(blocks[0].container)).toEqual(["run"]); // deduped, proper noun dropped
-    expect(map.get(blocks[1].container)).toEqual(["city"]); // Known (presumed) still counts as read
+    const map = readingByContainer(blocks, a);
+    expect(map.get(blocks[0].container)?.lemmas).toEqual(["run"]); // deduped, proper noun dropped
+    expect(map.get(blocks[1].container)?.lemmas).toEqual(["city"]); // Known (presumed) still counts as read
+  });
+
+  it("counts occurrences read and, among them, the unknown and learning ones", () => {
+    document.body.innerHTML = `<p>alpha</p><p>beta</p>`;
+    const blocks = collectBlocks(document.body);
+    const a = analysis([
+      tok({ block: 0, start: 0, end: 3, surface: "run", lemma: "run", class: "Unknown" }),
+      tok({ block: 0, start: 4, end: 8, surface: "runs", lemma: "run", class: "Unknown" }), // every occurrence
+      tok({ block: 0, start: 9, end: 13, surface: "seek", lemma: "seek", class: "Learning" }),
+      tok({ block: 0, start: 14, end: 17, surface: "the", lemma: "the", class: "Known" }),
+      tok({ block: 0, start: 18, end: 21, surface: "lol", lemma: "lol", class: "Ignored" }),
+      tok({ block: 0, start: 22, end: 27, surface: "Paris", lemma: "paris", class: "ProperNounOutOfLexicon" }),
+      tok({ block: 1, start: 0, end: 4, surface: "city", lemma: "city", class: "Known" }),
+    ]);
+    const map = readingByContainer(blocks, a);
+    expect(map.get(blocks[0].container)).toMatchObject({ read: 5, unknown: 3 }); // proper noun not read
+    expect(map.get(blocks[1].container)).toMatchObject({ read: 1, unknown: 0 });
+  });
+
+  it("adds up to the page's counted occurrences when every block is read", () => {
+    document.body.innerHTML = `<p>alpha</p><p>beta</p>`;
+    const blocks = collectBlocks(document.body);
+    const tokens = [
+      tok({ block: 0, start: 0, end: 3, surface: "run", lemma: "run", class: "Unknown" }),
+      tok({ block: 0, start: 4, end: 7, surface: "the", lemma: "the", class: "Known" }),
+      tok({ block: 1, start: 0, end: 5, surface: "Paris", lemma: "paris", class: "ProperNounOutOfLexicon" }),
+      tok({ block: 1, start: 6, end: 10, surface: "city", lemma: "city", class: "Learning" }),
+    ];
+    const a = analysis(tokens, { counted: 3, known: 1 });
+    const total = [...readingByContainer(blocks, a).values()].reduce((n, r) => n + r.read, 0);
+    expect(total).toBe(a.counted);
   });
 
   it("ignores tokens whose block index is out of range", () => {
     document.body.innerHTML = `<p>alpha</p>`;
     const blocks = collectBlocks(document.body);
     const a = analysis([tok({ block: 9, start: 0, end: 3, surface: "x", lemma: "x", class: "Unknown" })]);
-    expect(lemmasByContainer(blocks, a).size).toBe(0);
+    expect(readingByContainer(blocks, a).size).toBe(0);
   });
 });

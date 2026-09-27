@@ -37,6 +37,7 @@ import { isTranslateMessage, isWarmMessage } from "./translate/wire.ts";
 import { Session } from "./state/session.ts";
 import { type AsyncStorageArea, hydrateEngine, ROOT_KEY, SESSION_LOST_KEY } from "./state/storage.ts";
 import {
+  dropRetiredKeys,
   idbArea,
   isStoreMessage,
   migrateStore,
@@ -206,6 +207,7 @@ const storeArea: Promise<AsyncStorageArea> = (async () => {
     area = idbArea(await openStore());
   } catch (e) {
     console.warn("[Cymbra Lingua] durable store unavailable, staying on storage.local:", e);
+    await dropRetiredKeys(settingsArea).catch(() => {});
     return settingsArea;
   }
   // A migration that fails must not cost us the store: it is retried at the next start,
@@ -216,6 +218,9 @@ const storeArea: Promise<AsyncStorageArea> = (async () => {
   } catch (e) {
     console.warn("[Cymbra Lingua] could not finish moving the previous state:", e);
   }
+  await dropRetiredKeys(area, settingsArea).catch((e: unknown) => {
+    console.warn("[Cymbra Lingua] could not drop the retired keys:", e);
+  });
   void navigator.storage?.persist?.().catch(() => {});
   return area;
 })();

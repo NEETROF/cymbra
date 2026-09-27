@@ -215,12 +215,35 @@ describe("SyncEngine", () => {
     const f = fakeClients();
     const storage = fakeArea({
       ...v2("BACKUP"),
-      "cymbra-lingua-daily": { 20000: { exposures: 12, wordsLearned: 3, reviews: 5 } },
+      "cymbra-lingua-daily-v2": {
+        20000: { exposures: 12, unknownSeen: 4, wordsLearned: 3, reviews: 5 },
+        20001: { exposures: 0, wordsLearned: 1, reviews: 0 }, // written before any reading: 0 new words
+      },
     });
     const engine = new SyncEngine({ port, storage, clients: () => f.clients, deviceId: "dev-2" });
     await engine.sync();
+    // unknownSeen is always set — its presence is what the server stores a stat on.
     expect(f.upsertDailyStats).toHaveBeenCalledWith({
-      stats: [{ day: 20000, language: "en", deviceId: "dev-2", exposures: 12, wordsLearned: 3, reviewsDone: 5 }],
+      stats: [
+        {
+          day: 20000,
+          language: "en",
+          deviceId: "dev-2",
+          exposures: 12,
+          unknownSeen: 4,
+          wordsLearned: 3,
+          reviewsDone: 5,
+        },
+        {
+          day: 20001,
+          language: "en",
+          deviceId: "dev-2",
+          exposures: 0,
+          unknownSeen: 0,
+          wordsLearned: 1,
+          reviewsDone: 0,
+        },
+      ],
     });
   });
 
@@ -363,14 +386,14 @@ describe("SyncEngine privacy controls (add-lingua-privacy-controls)", () => {
       ...v2("OLD"),
       "cymbra-lingua-status-cursor": 42,
       "cymbra-lingua-card-cursor": 7,
-      "cymbra-lingua-daily": { 20000: { exposures: 1, wordsLearned: 1, reviews: 1 } },
+      "cymbra-lingua-daily-v2": { 20000: { exposures: 1, wordsLearned: 1, reviews: 1 } },
     });
     const engine = new SyncEngine({ port, storage, clients: () => f.clients, deviceId: "d" });
     await engine.sync();
     expect(calls.resets).toBe(1);
     expect(f.pushOps).not.toHaveBeenCalled(); // nothing old goes back up
     expect(f.upsertDailyStats).not.toHaveBeenCalled();
-    expect(storage.store["cymbra-lingua-daily"]).toEqual({});
+    expect(storage.store["cymbra-lingua-daily-v2"]).toEqual({});
     expect(f.pullChanges).toHaveBeenCalledWith({ cursor: 0n }); // re-pulls from scratch
     expect(storage.store["cymbra-lingua-erased-at"]).toBe(MARK);
   });
@@ -421,14 +444,14 @@ describe("SyncEngine privacy controls (add-lingua-privacy-controls)", () => {
     const storage = fakeArea({
       ...v2("OLD"),
       "cymbra-lingua-status-cursor": 42,
-      "cymbra-lingua-daily": { 20000: { exposures: 1, wordsLearned: 1, reviews: 1 } },
+      "cymbra-lingua-daily-v2": { 20000: { exposures: 1, wordsLearned: 1, reviews: 1 } },
     });
     const engine = new SyncEngine({ port, storage, clients: () => f.clients, deviceId: "d" });
     await engine.eraseAll();
     expect(f.eraseMyData).toHaveBeenCalledOnce();
     expect(calls.resets).toBe(1);
     expect(storage.store[ROOT_KEY]).toEqual({ v: 2, backup: "MERGED-BACKUP" }); // the emptied engine, saved
-    expect(storage.store["cymbra-lingua-daily"]).toEqual({});
+    expect(storage.store["cymbra-lingua-daily-v2"]).toEqual({});
     expect(storage.store["cymbra-lingua-status-cursor"]).toBe(0);
     expect(storage.store["cymbra-lingua-erased-at"]).toBe(MARK);
   });

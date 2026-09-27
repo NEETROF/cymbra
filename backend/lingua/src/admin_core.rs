@@ -50,6 +50,7 @@ pub enum SeriesMetric {
     WordsLearned,
     Reviews,
     Exposures,
+    UnknownSeen,
 }
 
 /// One studied language's aggregates within a window (counts only).
@@ -59,6 +60,8 @@ pub struct LanguageUsage {
     pub active_accounts: i64,
     pub words_learned: i64,
     pub reviews: i64,
+    pub words_read: i64,
+    pub new_words_seen: i64,
 }
 
 /// The console's tile + breakdown aggregate for a window (no account data).
@@ -67,6 +70,8 @@ pub struct Usage {
     pub active_accounts: i64,
     pub words_learned: i64,
     pub reviews: i64,
+    pub words_read: i64,
+    pub new_words_seen: i64,
     pub by_language: Vec<LanguageUsage>,
 }
 

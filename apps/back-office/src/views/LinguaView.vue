@@ -2,7 +2,13 @@
 import { computed, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 import { match } from "ts-pattern";
-import { type SeriesPoint, type LinguaReport, studiedLanguageOptions, useLinguaStore } from "@/stores/lingua";
+import {
+  comprehension,
+  type SeriesPoint,
+  type LinguaReport,
+  studiedLanguageOptions,
+  useLinguaStore,
+} from "@/stores/lingua";
 import { currentLocale } from "@/i18n";
 import UsageLineChart from "@/components/UsageLineChart.vue";
 
@@ -19,7 +25,14 @@ onMounted(() => {
   void store.load();
 });
 
-const empty: LinguaReport = { activeAccounts: 0, wordsLearned: 0, reviews: 0, byLanguage: [] };
+const empty: LinguaReport = {
+  activeAccounts: 0,
+  wordsLearned: 0,
+  reviews: 0,
+  wordsRead: 0,
+  newWordsSeen: 0,
+  byLanguage: [],
+};
 
 const vm = computed(() =>
   match(store.report)
@@ -31,6 +44,13 @@ const vm = computed(() =>
 );
 
 const num = (v: number) => v.toLocaleString(currentLocale());
+/** Comprehension as a whole percentage, or "—" when nothing was read. */
+const pct = (read: number, fresh: number) => {
+  const c = comprehension(read, fresh);
+  return c === null
+    ? t("lingua.unavailable")
+    : c.toLocaleString(currentLocale(), { style: "percent", maximumFractionDigits: 0 });
+};
 
 /** Inclusive list of ISO days [from, to] (UTC) — the shared x-axis. */
 function dayRange(from: string, to: string): string[] {
@@ -51,7 +71,12 @@ function toChart(points: SeriesPoint[], label: string) {
   return { days, datasets: [{ label, values: days.map((d) => byDay.get(d) ?? 0) }] };
 }
 
-const emptySeries = { wordsLearned: [] as SeriesPoint[], reviews: [] as SeriesPoint[], exposures: [] as SeriesPoint[] };
+const emptySeries = {
+  wordsLearned: [] as SeriesPoint[],
+  reviews: [] as SeriesPoint[],
+  wordsRead: [] as SeriesPoint[],
+  newWordsSeen: [] as SeriesPoint[],
+};
 const seriesData = computed(() =>
   match(store.series)
     .with({ status: "success" }, ({ data }) => data)
@@ -59,7 +84,8 @@ const seriesData = computed(() =>
 );
 const wordsChart = computed(() => toChart(seriesData.value.wordsLearned, t("lingua.wordsLearned")));
 const reviewsChart = computed(() => toChart(seriesData.value.reviews, t("lingua.reviews")));
-const exposuresChart = computed(() => toChart(seriesData.value.exposures, t("lingua.exposures")));
+const wordsReadChart = computed(() => toChart(seriesData.value.wordsRead, t("lingua.wordsRead")));
+const newWordsChart = computed(() => toChart(seriesData.value.newWordsSeen, t("lingua.newWordsSeen")));
 
 // The studied-language filter lists the languages the usage report holds, plus the selected
 // one (change: remove-lingua-pack-registry — it used to list the registered packs). "" = every
@@ -102,7 +128,8 @@ function apply() {
     <p v-else-if="vm.error" class="state error" data-testid="error">{{ vm.error }}</p>
 
     <template v-else>
-      <!-- Tiles: distinct synced accounts, words learned, reviews (over the window). -->
+      <!-- Tiles over the window: distinct synced accounts, words learned, reviews, and the
+           reading figures (words read in blocks seen, new words among them, comprehension). -->
       <div class="kpis">
         <div class="kpi" data-testid="active-accounts">
           <span class="kpi-value">{{ num(vm.data.activeAccounts) }}</span>
@@ -115,6 +142,18 @@ function apply() {
         <div class="kpi" data-testid="reviews">
           <span class="kpi-value">{{ num(vm.data.reviews) }}</span>
           <span class="kpi-label">{{ t("lingua.reviews") }}</span>
+        </div>
+        <div class="kpi" data-testid="words-read">
+          <span class="kpi-value">{{ num(vm.data.wordsRead) }}</span>
+          <span class="kpi-label">{{ t("lingua.wordsRead") }}</span>
+        </div>
+        <div class="kpi" data-testid="new-words-seen">
+          <span class="kpi-value">{{ num(vm.data.newWordsSeen) }}</span>
+          <span class="kpi-label">{{ t("lingua.newWordsSeen") }}</span>
+        </div>
+        <div class="kpi" data-testid="comprehension">
+          <span class="kpi-value">{{ pct(vm.data.wordsRead, vm.data.newWordsSeen) }}</span>
+          <span class="kpi-label">{{ t("lingua.comprehension") }}</span>
         </div>
       </div>
 
@@ -136,11 +175,19 @@ function apply() {
           />
         </div>
         <div class="panel">
-          <h2>{{ t("lingua.exposures") }}</h2>
+          <h2>{{ t("lingua.wordsRead") }}</h2>
           <UsageLineChart
-            :labels="exposuresChart.days"
-            :datasets="exposuresChart.datasets"
-            :y-label="t('lingua.exposures')"
+            :labels="wordsReadChart.days"
+            :datasets="wordsReadChart.datasets"
+            :y-label="t('lingua.wordsRead')"
+          />
+        </div>
+        <div class="panel">
+          <h2>{{ t("lingua.newWordsSeen") }}</h2>
+          <UsageLineChart
+            :labels="newWordsChart.days"
+            :datasets="newWordsChart.datasets"
+            :y-label="t('lingua.newWordsSeen')"
           />
         </div>
       </div>
@@ -155,6 +202,9 @@ function apply() {
               <th class="n">{{ t("lingua.activeAccounts") }}</th>
               <th class="n">{{ t("lingua.wordsLearned") }}</th>
               <th class="n">{{ t("lingua.reviews") }}</th>
+              <th class="n">{{ t("lingua.wordsRead") }}</th>
+              <th class="n">{{ t("lingua.newWordsSeen") }}</th>
+              <th class="n">{{ t("lingua.comprehension") }}</th>
             </tr>
           </thead>
           <tbody>
@@ -163,9 +213,12 @@ function apply() {
               <td class="n">{{ num(l.activeAccounts) }}</td>
               <td class="n">{{ num(l.wordsLearned) }}</td>
               <td class="n">{{ num(l.reviews) }}</td>
+              <td class="n">{{ num(l.wordsRead) }}</td>
+              <td class="n">{{ num(l.newWordsSeen) }}</td>
+              <td class="n">{{ pct(l.wordsRead, l.newWordsSeen) }}</td>
             </tr>
             <tr v-if="vm.data.byLanguage.length === 0">
-              <td colspan="4" class="muted">{{ t("lingua.noData") }}</td>
+              <td colspan="7" class="muted">{{ t("lingua.noData") }}</td>
             </tr>
           </tbody>
         </table>

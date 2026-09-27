@@ -2,11 +2,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AsyncStorageArea } from "@/state/storage.ts";
 import {
   clearDailyStats,
+  DAILY_KEY,
   dailyRecorder,
   loadDailyStats,
-  recordExposures,
+  recordReading,
   recordReview,
   recordWordLearned,
+  RETIRED_DAILY_KEY,
   utcDay,
 } from "@/state/dailystats.ts";
 
@@ -37,22 +39,35 @@ describe("utcDay", () => {
 describe("daily counters", () => {
   it("accumulate per day and per field, defaulting missing fields to zero", async () => {
     const area = fakeArea();
-    await recordExposures(area, 10, 4);
-    await recordExposures(area, 10, 6);
+    await recordReading(area, 10, 4, 1);
+    await recordReading(area, 10, 6, 2);
     await recordWordLearned(area, 10);
     await recordReview(area, 10);
     await recordReview(area, 11); // a different day is separate
 
     const stats = await loadDailyStats(area);
-    expect(stats[10]).toEqual({ exposures: 10, wordsLearned: 1, reviews: 1 });
-    expect(stats[11]).toEqual({ exposures: 0, wordsLearned: 0, reviews: 1 });
+    expect(stats[10]).toEqual({ exposures: 10, unknownSeen: 3, wordsLearned: 1, reviews: 1 });
+    expect(stats[11]).toEqual({ exposures: 0, unknownSeen: 0, wordsLearned: 0, reviews: 1 });
   });
 
-  it("ignores a non-positive exposure count", async () => {
+  it("ignores a reading with nothing read", async () => {
     const area = fakeArea();
-    await recordExposures(area, 5, 0);
-    await recordExposures(area, 5, -3);
+    await recordReading(area, 5, 0, 0);
+    await recordReading(area, 5, -3, 1);
     expect(await loadDailyStats(area)).toEqual({});
+  });
+
+  it("keeps its counts under the v2 key, never the retired whole-document one", async () => {
+    const area = fakeArea({ [RETIRED_DAILY_KEY]: { 5: { exposures: 90_000, wordsLearned: 0, reviews: 0 } } });
+    expect(await loadDailyStats(area)).toEqual({});
+    await recordReading(area, 5, 12, 2);
+    expect(area.store[DAILY_KEY]).toEqual({ 5: { exposures: 12, unknownSeen: 2, wordsLearned: 0, reviews: 0 } });
+  });
+
+  it("reads a day stored without new words seen as zero new words", async () => {
+    const area = fakeArea({ [DAILY_KEY]: { 5: { exposures: 3, wordsLearned: 0, reviews: 0 } } });
+    await recordReview(area, 5);
+    expect((await loadDailyStats(area))[5]).toEqual({ exposures: 3, unknownSeen: 0, wordsLearned: 0, reviews: 1 });
   });
 
   it("returns an empty map for a fresh store", async () => {
@@ -84,7 +99,9 @@ describe("dailyRecorder", () => {
     record("review");
     await settle();
 
-    expect(await loadDailyStats(area)).toEqual({ [day]: { exposures: 0, wordsLearned: 1, reviews: 2 } });
+    expect(await loadDailyStats(area)).toEqual({
+      [day]: { exposures: 0, unknownSeen: 0, wordsLearned: 1, reviews: 2 },
+    });
   });
 
   it("files each event under the day it happened, across a UTC midnight", async () => {
@@ -106,7 +123,7 @@ describe("dailyRecorder", () => {
 describe("clearDailyStats", () => {
   it("drops every local count, as a Lingua-only erasure must", async () => {
     const area = fakeArea();
-    await recordExposures(area, 5, 3);
+    await recordReading(area, 5, 3, 1);
     await recordReview(area, 6);
     await clearDailyStats(area);
     expect(await loadDailyStats(area)).toEqual({});

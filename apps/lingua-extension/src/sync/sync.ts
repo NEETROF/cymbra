@@ -223,6 +223,8 @@ export class SyncEngine {
       language: "en",
       deviceId: this.deps.deviceId,
       exposures: s.exposures,
+      // Always set (0 included): its presence is what the server stores a stat on.
+      unknownSeen: s.unknownSeen ?? 0,
       wordsLearned: s.wordsLearned,
       reviewsDone: s.reviews,
     }));
