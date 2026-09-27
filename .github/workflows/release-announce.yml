@@ -1,0 +1,79 @@
+name: release-announce
+
+# Announces an EXISTING release on Discord, by hand: the tag you name, posted to
+# #announcements exactly as the release workflows post it at the end of a tag run.
+# For a release that came out before the Discord server existed, or one whose
+# automatic announcement was skipped (webhook missing, Discord down).
+#
+# Repo-wide (no target prefix) because it serves every announced product. Only Cymbra
+# Music and Cymbra Lingua are announced — music-v*, lingua-extension-v*,
+# lingua-apple-v* — and scripts/discord/release_announce.sh refuses any other tag.
+#
+# `publish` unticked (the default) only renders the message into the run log, so the
+# text, the store links and the downloads can be read before anything is public. Tick
+# `already_on_stores` for a version the stores already serve: the announcement then
+# drops its "update follows review" line, which is written for a fresh tag.
+# There is no memory of what was already posted: publishing the same tag twice posts
+# it twice.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to announce, e.g. music-v1.34.0, lingua-extension-v1.2.1, lingua-apple-v1.2.0."
+        required: true
+      publish:
+        description: "Post it to #announcements. Unticked = preview in the run log only."
+        type: boolean
+        default: false
+      already_on_stores:
+        description: "The stores already serve this version: drop the 'update follows review' line."
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  announce:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      # The inputs reach the shell through env, never interpolated into the script: a
+      # tag is free text typed into a form.
+      - name: Check the request
+        env:
+          TAG: ${{ inputs.tag }}
+          PUBLISH: ${{ inputs.publish }}
+          HAS_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_ANNOUNCEMENTS != '' }}
+        run: |
+          # The whole value, not one line of it (grep would accept a multi-line value);
+          # and it is not echoed back: it is free text, and a workflow command line is no
+          # place for it.
+          tag_re='^(music|lingua-extension|lingua-apple)-v[0-9]+\.[0-9]+\.[0-9]+$'
+          if ! [[ "$TAG" =~ $tag_re ]]; then
+            echo "::error::not an announced release tag — expected music-vX.Y.Z, lingua-extension-vX.Y.Z or lingua-apple-vX.Y.Z."
+            exit 1
+          fi
+          # The release workflows skip quietly without the secret, so a release never
+          # goes red over Discord. Here someone asked for a post: a green run that posted
+          # nothing would be a lie.
+          if [ "$PUBLISH" = true ] && [ "$HAS_WEBHOOK" != true ]; then
+            echo "::error::DISCORD_WEBHOOK_ANNOUNCEMENTS is not set — nothing can be posted. Add it with 'gh secret set DISCORD_WEBHOOK_ANNOUNCEMENTS'."
+            exit 1
+          fi
+      - name: Preview the announcement
+        if: ${{ !inputs.publish }}
+        env:
+          TAG: ${{ inputs.tag }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          STORE_LIVE: ${{ inputs.already_on_stores && '1' || '0' }}
+          DRY_RUN: "1"
+        run: bash scripts/discord/release_announce.sh
+      - name: Post the announcement to #announcements
+        if: ${{ inputs.publish }}
+        env:
+          TAG: ${{ inputs.tag }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          STORE_LIVE: ${{ inputs.already_on_stores && '1' || '0' }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_ANNOUNCEMENTS }}
+        run: bash scripts/discord/release_announce.sh
