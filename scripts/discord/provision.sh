@@ -465,7 +465,9 @@ else
     var="DISCORD_WEBHOOK_$(printf '%s' "$ch" | tr '[:lower:]-' '[:upper:]_')"
     printf '%s=https://discord.com/api/webhooks/%s/%s\n' "$var" "$hid" "$htoken" >>"$WEBHOOKS_OUT"
   done < <(jq -c '.webhooks[]?' "$MANIFEST")
-  log "written to $WEBHOOKS_OUT (mode 0600) — move these into the backend environment"
+  log "written to $WEBHOOKS_OUT (mode 0600) — move these into the backend environment;"
+  log "DISCORD_WEBHOOK_ANNOUNCEMENTS also goes to GitHub: gh secret set DISCORD_WEBHOOK_ANNOUNCEMENTS"
+  log "(the release workflows read it from CI; without it every release announcement is skipped)"
 fi
 
 echo

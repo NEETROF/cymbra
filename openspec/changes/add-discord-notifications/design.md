@@ -157,17 +157,18 @@ the existing `purge_user` erasure job.
 
 `discord_notify` handles the immediate tier (accepted catalog item, season record). **Releases
 are not in it**: release-please already produces the version and its notes in CI, so CI posts the
-announcement (`scripts/discord/release_announce.sh`). Music and the Lingua browser extension are
-announced by their own release workflows (`music-release.yml`, `lingua-extension-release.yml`, tag
-run only) once their packages are attached — announcing at release-creation time would link a page
-with no downloads. Backend, back office, site and `lingua-apple` have nothing to attach and are
-announced by `release-announce.yml` on `release: published`, through an allow-list of those tag
-prefixes. Music goes to `#announcements`; everything else goes to `#dev`, both Lingua components
-included, because a Lingua tag reaches no reader (the store submission, or the App Store release,
-is the reader-facing event). Routing that through
+announcement (`scripts/discord/release_announce.sh`). **Only the products readers install are
+announced — Cymbra Music and Cymbra Lingua**; backend, back office and site releases are not
+(maintainer decision, 2026-09-27), and the script refuses any other tag rather than guess a name.
+Each product announces itself from its own release workflow, as a final step on the tag run:
+`music-release.yml` once the platform jobs have attached their files, `lingua-extension-release.yml`
+once its two packages are attached, `lingua-apple-release.yml` once both builds reached App Store
+Connect — announcing at release-creation time would link a page with no downloads. All three post
+to `#announcements` with their store links, and say that the store update follows review, since no
+tag puts a version in front of readers on its own. Routing that through
 the backend would mean opening an authenticated ingress for CI and would gain nothing; the
 trade-off accepted is that the back-office kill-switch does not cover release announcements,
-whose off switch is the repository secret or the job itself.
+whose off switch is the repository secret `DISCORD_WEBHOOK_ANNOUNCEMENTS` or the step itself.
 `discord_digest` is a **scheduled** job (seed in `backend/jobs/migrations/…_seed_discord_digest_schedule.sql`,
 following the existing schedule seeds) that aggregates the previous closed period and posts one
 message **per product**, into that product's stats channel. A run publishes only the products whose
@@ -297,7 +298,9 @@ state → Discord role); a claim command is explicit, auditable and works before
 2. Apply the additive migrations (`discord` schema, user consent column, digest schedule seed).
    All additive; no destructive step, no backfill.
 3. Create the Discord application and webhooks; put the webhook URLs, bot token and application
-   public key in the deployment environment; register the interactions endpoint URL with the
+   public key in the deployment environment, and the `#announcements` webhook also in the repository
+   Actions secret `DISCORD_WEBHOOK_ANNOUNCEMENTS` (`gh secret set`), which the release workflows
+   read — without it every release announcement is skipped with a warning; register the interactions endpoint URL with the
    application.
 4. Enable **one** immediate category, observe message volume and content for a few days.
 5. Enable the digest, then the remaining categories one at a time.

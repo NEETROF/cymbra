@@ -6,14 +6,16 @@
 # Discord and post them. The backend is not involved and never learns about
 # releases.
 #
-# Called from three places:
-#   - .github/workflows/music-release.yml, as a final job that waits for every
-#     platform to attach its artifacts — announcing earlier would link a release
-#     page with no downloads on it;
-#   - .github/workflows/lingua-extension-release.yml, as a step after it attaches
-#     the two packages, on the tag run only (a tag publishes nothing to a store);
-#   - .github/workflows/release-announce.yml, for the components that have no
-#     artifacts to wait for (backend, back-office, site, lingua-apple).
+# Only the products readers install are announced — Cymbra Music and Cymbra Lingua.
+# Backend, back office and site releases are not (decided 2026-09-27); any other tag
+# is refused rather than posted under a guessed name. Called from three places, each
+# a final step once its release has something to show:
+#   - .github/workflows/music-release.yml, after every platform attached its files;
+#   - .github/workflows/lingua-extension-release.yml, after it attached the two
+#     packages, on the tag run only;
+#   - .github/workflows/lingua-apple-release.yml, after both builds reached App Store
+#     Connect, on the tag run only.
+# All three post to #announcements.
 #
 # Environment:
 #   TAG                   release tag, e.g. music-v1.2.0            (required)
@@ -52,9 +54,10 @@ fi
 
 # --- Product name from the release-please component prefix -----------------
 # STORES is the "Get it" field. One App Store id covers iPhone, iPad and Mac.
-# CI only hands the build to the stores (TestFlight, a Play *draft*): the public
-# update follows once someone submits it and review passes, so the field says so
-# rather than promise a version the store may not serve yet.
+# CI only hands the build to the stores (TestFlight, a Play *draft*) or to nobody
+# (the Lingua extension's tag submits nothing): the public update follows once
+# someone submits it and review passes, so the field says so rather than promise a
+# version the store may not serve yet.
 STORES=""
 case "$TAG" in
   music-v*)
@@ -63,12 +66,31 @@ case "$TAG" in
     STORES+=$'\n'"[Google Play](https://play.google.com/store/apps/details?id=com.cymbra.music) — Android"
     STORES+=$'\n'"_The store update follows once Apple and Google have reviewed it._"
     ;;
-  backend-v*)     PRODUCT="Cymbra Backend" ;;
-  back-office-v*) PRODUCT="Cymbra Back Office" ;;
-  site-v*)        PRODUCT="cymbra.app" ;;
-  lingua-extension-v*) PRODUCT="Cymbra Lingua (browser extension)" ;;
-  lingua-apple-v*)     PRODUCT="Cymbra Lingua (Safari app)" ;;
-  *)              PRODUCT="Cymbra" ;;
+  lingua-extension-v*)
+    PRODUCT="Cymbra Lingua"
+    STORES="[Chrome Web Store](https://chromewebstore.google.com/detail/cymbra-lingua/lodgdmkjlbpieomelpdkfaifdbipfncd) — Chrome, Edge and other Chromium browsers"
+    STORES+=$'\n'"[Firefox Add-ons](https://addons.mozilla.org/firefox/addon/cymbra-lingua/) — Firefox"
+    STORES+=$'\n'"_Each store gets this version once it has been submitted there and reviewed; until then its listing shows the previous one._"
+    ;;
+  lingua-apple-v*)
+    PRODUCT="Cymbra Lingua for Safari"
+    # The listing (App Store id 6813053825) was not public yet on 2026-09-27. A
+    # public announcement must never carry a dead link, so ask the iTunes lookup
+    # API, which answers JSON by id; any error or timeout counts as "not live"
+    # and never fails the announcement.
+    live="$(curl -sf --max-time 10 "https://itunes.apple.com/lookup?id=6813053825&country=fr" \
+      | jq -r '.resultCount // 0' 2>/dev/null || echo 0)"
+    if [[ "$live" == 1 ]]; then
+      STORES="[App Store](https://apps.apple.com/app/id6813053825) — iPhone, iPad, Mac"
+      STORES+=$'\n'"_The App Store update follows once Apple has reviewed it._"
+    else
+      STORES="_Coming to the App Store (iPhone, iPad, Mac) once Apple has reviewed it._"
+    fi
+    ;;
+  *)
+    echo "error: $TAG is not an announced component (only music-v*, lingua-extension-v*, lingua-apple-v*)" >&2
+    exit 1
+    ;;
 esac
 VERSION="${TAG##*-v}"
 
@@ -93,13 +115,14 @@ description="$(
           print; len += length($0) + 1 }'
 )"
 [[ -n "${description//[[:space:]]/}" ]] || description="_No release notes._"
-description="${description}"$'\n\n'"[Full changelog and downloads](${url})"
 
 # --- Download links --------------------------------------------------------
-# .aab and .ipa are what CI hands to the stores; nobody installs them from a
-# link, and listing them next to the store field only invites the attempt.
+# .aab, .ipa and the Lingua extension packages are what CI hands to the stores;
+# nobody should install them from a link (an unsigned Firefox package, a Chromium
+# one needing developer mode), and listing them next to the store field only
+# invites the attempt. A Lingua announcement therefore carries no Downloads field.
 downloads="$(jq -r --argjson max "$MAX_DOWNLOADS_LEN" '
-  ((.assets // []) | map(select(.name | test("\\.(aab|ipa)$") | not))
+  ((.assets // []) | map(select(.name | test("\\.(aab|ipa)$|^cymbra-lingua-") | not))
     | map("[\(.name)](\(.url))")) as $links
   | ($links | length) as $n
   | (reduce range(0; $n) as $i ({kept: [], len: 0, stop: false};
@@ -112,6 +135,12 @@ downloads="$(jq -r --argjson max "$MAX_DOWNLOADS_LEN" '
   | ($r.kept | join(" · "))
     + (if ($r.kept | length) < $n then " · +\($n - ($r.kept | length)) more" else "" end)
 ' <<<"$release")"
+
+# The link's label follows what the release page offers the reader: a Lingua
+# release holds only store packages (filtered out above), so it gets no "downloads".
+link_label="Full changelog"
+[[ -n "$downloads" ]] && link_label="Full changelog and downloads"
+description="${description}"$'\n\n'"[${link_label}](${url})"
 
 payload="$(jq -n \
   --arg title "$PRODUCT $VERSION" \
