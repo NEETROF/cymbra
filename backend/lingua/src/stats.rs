@@ -15,8 +15,8 @@ use cymbra_platform::Result;
 
 use crate::data::ErasureMarks;
 use crate::data_core::day_predates_erasure;
-use crate::stats_core::consolidate;
 pub use crate::stats_core::{ConsolidatedStat, DailyStat};
+use crate::stats_core::{consolidate, reports_reading};
 
 /// Storage port for daily stats.
 #[async_trait]
@@ -46,12 +46,14 @@ impl StatsModule {
 
     /// Idempotent upsert of a batch of per-device daily rows; returns how many were
     /// stored. Rows for a day before the user's erasure are dropped
-    /// (add-lingua-privacy-controls) but the batch is still acknowledged.
+    /// (add-lingua-privacy-controls), and so are rows from a client that predates the
+    /// new-words-seen counter (refine-lingua-reading-stats); the batch is still
+    /// acknowledged.
     pub async fn upsert_stats(&self, user: &str, stats: Vec<DailyStat>) -> Result<u64> {
         let erased_at = self.marks.erased_at(user).await?;
         let mut n = 0u64;
         for stat in stats {
-            if day_predates_erasure(stat.day, erased_at) {
+            if !reports_reading(&stat) || day_predates_erasure(stat.day, erased_at) {
                 continue;
             }
             self.repo.upsert(user, &stat).await?;
@@ -135,6 +137,7 @@ mod tests {
             exposures: 0,
             words_learned: 0,
             reviews_done: reviews,
+            unknown_seen: Some(0),
         }
     }
 
@@ -209,5 +212,26 @@ mod tests {
         let out = module.get_stats("u1", 19_990, 20_010, None).await.unwrap();
         assert_eq!(out.len(), 1);
         assert_eq!(out[0].day, 20_000);
+    }
+
+    #[tokio::test]
+    async fn a_stat_without_new_words_seen_is_acknowledged_not_stored() {
+        let module = StatsModule::new(Arc::new(FakeStatsRepo::default()), never_erased());
+        let outdated = DailyStat {
+            unknown_seen: None,
+            ..stat(20_000, "old", 9)
+        };
+        let quiet = DailyStat {
+            unknown_seen: Some(0),
+            ..stat(20_000, "new", 2)
+        };
+        let stored = module
+            .upsert_stats("u1", vec![outdated, quiet])
+            .await
+            .unwrap();
+        assert_eq!(stored, 1);
+        let out = module.get_stats("u1", 20_000, 20_000, None).await.unwrap();
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].reviews_done, 2); // the outdated device's 9 never reached the store
     }
 }

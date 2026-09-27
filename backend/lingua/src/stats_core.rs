@@ -19,6 +19,14 @@ pub struct DailyStat {
     pub exposures: u32,
     pub words_learned: u32,
     pub reviews_done: u32,
+    /// New words seen; `None` when the client predates the counter (then not stored).
+    pub unknown_seen: Option<u32>,
+}
+
+/// Whether a pushed stat comes from a client that counts reading in blocks seen — the
+/// only ones stored (refine-lingua-reading-stats D3).
+pub fn reports_reading(stat: &DailyStat) -> bool {
+    stat.unknown_seen.is_some()
 }
 
 /// A consolidated aggregate, summed across every device.
@@ -64,7 +72,17 @@ mod tests {
             exposures: 0,
             words_learned: 0,
             reviews_done: reviews,
+            unknown_seen: Some(0),
         }
+    }
+
+    #[test]
+    fn only_stats_carrying_new_words_seen_report_reading() {
+        assert!(reports_reading(&stat(20_000, "mac", 1)));
+        assert!(!reports_reading(&DailyStat {
+            unknown_seen: None,
+            ..stat(20_000, "mac", 1)
+        }));
     }
 
     #[test]

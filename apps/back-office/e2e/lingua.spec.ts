@@ -14,8 +14,11 @@ test.describe("lingua ops console", () => {
           activeAccounts: 42,
           wordsLearned: 120,
           reviews: 300,
-          exposures: 900,
-          byLanguage: [{ language: "en", activeAccounts: 42, wordsLearned: 120, reviews: 300 }],
+          wordsRead: 1000,
+          newWordsSeen: 50,
+          byLanguage: [
+            { language: "en", activeAccounts: 42, wordsLearned: 120, reviews: 300, wordsRead: 1000, newWordsSeen: 50 },
+          ],
         },
       },
     });
@@ -26,6 +29,11 @@ test.describe("lingua ops console", () => {
     await expect(page.getByTestId("active-accounts")).toContainText("42");
     await expect(page.getByTestId("words-learned")).toContainText("120");
     await expect(page.getByTestId("reviews")).toContainText("300");
+    // The reading figures: words read, new words among them, and the comprehension they give.
+    await expect(page.getByTestId("words-read")).toContainText(/1[,\s\u202f]?000/);
+    await expect(page.getByTestId("new-words-seen")).toContainText("50");
+    await expect(page.getByTestId("comprehension")).toContainText("95");
+    await expect(page.getByTestId("language-row")).toContainText("95");
     // The per-day series render on canvas.
     await expect(page.locator("canvas").first()).toBeVisible();
     // The per-language breakdown, and the studied-language filter drawn from it (change:
@@ -36,6 +44,16 @@ test.describe("lingua ops console", () => {
     await expect(page.getByTestId("pack-row")).toHaveCount(0);
     // The "synced accounts" bias is stated on screen.
     await expect(page.getByText(/only accounts that sync/i)).toBeVisible();
+  });
+
+  test("comprehension is unavailable while nothing was read", async ({ page }) => {
+    await seed(page, {
+      loginAs: "lingua-admin",
+      data: { linguaUsage: { activeAccounts: 1, wordsLearned: 2, reviews: 3 } },
+    });
+    await page.goto("/lingua/overview");
+    await expect(page.getByTestId("comprehension")).toContainText("—");
+    await expect(page.getByTestId("comprehension")).not.toContainText("%");
   });
 
   test("a non-admin moderator has neither the link nor access", async ({ page }) => {

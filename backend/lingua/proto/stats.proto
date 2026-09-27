@@ -27,9 +27,16 @@ message DailyStat {
   int32 day = 1; // UTC day key (days since the Unix epoch)
   string language = 2;
   string device_id = 3; // part of the upsert key so two devices never clobber each other
+  // Words read: the counted word occurrences of the text blocks the reader actually saw
+  // (on screen past the reading dwell), not of every page opened
+  // (refine-lingua-reading-stats).
   uint32 exposures = 4;
   uint32 words_learned = 5;
   uint32 reviews_done = 6;
+  // New words seen: among `exposures`, the occurrences classed unknown or being learned.
+  // Its PRESENCE marks a client that counts reading this way: a stat pushed without it
+  // (an extension that predates the change) is acknowledged and not stored.
+  optional uint32 unknown_seen = 7;
 }
 
 message UpsertDailyStatsRequest {

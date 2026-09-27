@@ -39,7 +39,9 @@ impl LinguaAdminRepo for PgLinguaAdminRepo {
         let tiles = sqlx::query(
             "SELECT COUNT(DISTINCT user_id) AS active, \
                     COALESCE(SUM(words_learned), 0)::bigint AS words, \
-                    COALESCE(SUM(reviews_done), 0)::bigint AS reviews \
+                    COALESCE(SUM(reviews_done), 0)::bigint AS reviews, \
+                    COALESCE(SUM(exposures), 0)::bigint AS read, \
+                    COALESCE(SUM(unknown_seen), 0)::bigint AS new_seen \
              FROM lingua.daily_stats WHERE day >= $1 AND day <= $2",
         )
         .bind(from_day)
@@ -53,7 +55,9 @@ impl LinguaAdminRepo for PgLinguaAdminRepo {
             "SELECT language, \
                     COUNT(DISTINCT user_id) AS active, \
                     COALESCE(SUM(words_learned), 0)::bigint AS words, \
-                    COALESCE(SUM(reviews_done), 0)::bigint AS reviews \
+                    COALESCE(SUM(reviews_done), 0)::bigint AS reviews, \
+                    COALESCE(SUM(exposures), 0)::bigint AS read, \
+                    COALESCE(SUM(unknown_seen), 0)::bigint AS new_seen \
              FROM lingua.daily_stats WHERE day >= $1 AND day <= $2 \
              GROUP BY language ORDER BY language",
         )
@@ -67,6 +71,8 @@ impl LinguaAdminRepo for PgLinguaAdminRepo {
             active_accounts: tiles.get::<i64, _>("active"),
             words_learned: tiles.get::<i64, _>("words"),
             reviews: tiles.get::<i64, _>("reviews"),
+            words_read: tiles.get::<i64, _>("read"),
+            new_words_seen: tiles.get::<i64, _>("new_seen"),
             by_language: rows
                 .iter()
                 .map(|r| LanguageUsage {
@@ -74,6 +80,8 @@ impl LinguaAdminRepo for PgLinguaAdminRepo {
                     active_accounts: r.get::<i64, _>("active"),
                     words_learned: r.get::<i64, _>("words"),
                     reviews: r.get::<i64, _>("reviews"),
+                    words_read: r.get::<i64, _>("read"),
+                    new_words_seen: r.get::<i64, _>("new_seen"),
                 })
                 .collect(),
         })
@@ -91,6 +99,7 @@ impl LinguaAdminRepo for PgLinguaAdminRepo {
             SeriesMetric::WordsLearned => "COALESCE(SUM(words_learned), 0)::bigint",
             SeriesMetric::Reviews => "COALESCE(SUM(reviews_done), 0)::bigint",
             SeriesMetric::Exposures => "COALESCE(SUM(exposures), 0)::bigint",
+            SeriesMetric::UnknownSeen => "COALESCE(SUM(unknown_seen), 0)::bigint",
         };
         let sql = format!(
             "SELECT day, {agg} AS value FROM lingua.daily_stats \

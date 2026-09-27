@@ -122,7 +122,10 @@
     "activeAccounts": "Active accounts",
     "wordsLearned": "Words learned",
     "reviews": "Reviews",
-    "exposures": "Exposures",
+    "wordsRead": "Words read",
+    "newWordsSeen": "New words seen",
+    "comprehension": "Comprehension",
+    "unavailable": "—",
     "byLanguage": "By studied language",
     "noData": "No data for this period"
   },

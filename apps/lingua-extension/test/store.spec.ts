@@ -8,6 +8,7 @@ import {
   migrateStore,
   openStore,
   ownerArea,
+  dropRetiredKeys,
   STORE_KEYS,
   type StoreReply,
 } from "@/state/store.ts";
@@ -46,7 +47,7 @@ describe("the durable store", () => {
       "cymbra-lingua-device": "dev-1",
     });
     // A key that was never written simply is not there.
-    expect(await area.get("cymbra-lingua-daily")).toEqual({});
+    expect(await area.get("cymbra-lingua-daily-v2")).toEqual({});
 
     await area.set({ "cymbra-lingua-device": null });
     expect(await area.get("cymbra-lingua-device")).toEqual({});
@@ -83,9 +84,9 @@ describe("the owner's handle", () => {
     const backing = await freshStore();
     const owner = ownerArea(backing, (keys) => announced.push(keys));
 
-    await owner.set({ [ROOT_KEY]: { v: 2, backup: "B" }, "cymbra-lingua-daily": {} });
+    await owner.set({ [ROOT_KEY]: { v: 2, backup: "B" }, "cymbra-lingua-daily-v2": {} });
 
-    expect(announced).toEqual([[ROOT_KEY, "cymbra-lingua-daily"]]);
+    expect(announced).toEqual([[ROOT_KEY, "cymbra-lingua-daily-v2"]]);
     expect(await backing.get(ROOT_KEY)).toEqual({ [ROOT_KEY]: { v: 2, backup: "B" } });
   });
 
@@ -144,7 +145,7 @@ describe("moving the reader's data", () => {
   beforeEach(() => {
     previous = fakeArea({
       [ROOT_KEY]: { v: 2, backup: "DECK" },
-      "cymbra-lingua-daily": { 20000: { exposures: 3 } },
+      "cymbra-lingua-daily-v2": { 20000: { exposures: 3 } },
       "cymbra-lingua-status-cursor": 42,
       "cymbra-lingua-enabled": true, // a preference: it stays where it is
       "cymbra-lingua-refresh": "TOKEN", // as does the session
@@ -156,7 +157,7 @@ describe("moving the reader's data", () => {
 
     const moved = await migrateStore(previous, store);
 
-    expect(moved.sort()).toEqual([ROOT_KEY, "cymbra-lingua-daily", "cymbra-lingua-status-cursor"].sort());
+    expect(moved.sort()).toEqual([ROOT_KEY, "cymbra-lingua-daily-v2", "cymbra-lingua-status-cursor"].sort());
     expect(await store.get(ROOT_KEY)).toEqual({ [ROOT_KEY]: { v: 2, backup: "DECK" } });
     expect(await store.get("cymbra-lingua-status-cursor")).toEqual({ "cymbra-lingua-status-cursor": 42 });
     // The copy held space in the very area whose fullness the move escapes.
@@ -178,7 +179,7 @@ describe("moving the reader's data", () => {
 
     expect(previous.store[ROOT_KEY]).toBeNull();
     // What the store does not hold is left alone rather than lost.
-    expect(previous.store["cymbra-lingua-daily"]).toEqual({ 20000: { exposures: 3 } });
+    expect(previous.store["cymbra-lingua-daily-v2"]).toEqual({ 20000: { exposures: 3 } });
   });
 
   it("does nothing on a second start", async () => {
@@ -256,7 +257,47 @@ describe("moving the reader's data", () => {
   it("moves every key it claims to own", async () => {
     // The list is the contract between the owner and the surfaces: keep it honest.
     expect(STORE_KEYS).toContain(ROOT_KEY);
-    expect(STORE_KEYS).toContain("cymbra-lingua-daily");
+    expect(STORE_KEYS).toContain("cymbra-lingua-daily-v2");
     expect(STORE_KEYS).toContain("cymbra-lingua-card-cursor");
+  });
+});
+
+describe("the retired keys", () => {
+  it("drops the whole-document daily counts everywhere, and keeps the rest of the reader's data", async () => {
+    const store = await freshStore();
+    await store.set({
+      "cymbra-lingua-daily": { 20000: { exposures: 90_000 } },
+      "cymbra-lingua-daily-v2": { 20001: { exposures: 12, unknownSeen: 2 } },
+      [ROOT_KEY]: { v: 2, backup: "B" },
+      "cymbra-lingua-status-cursor": 7,
+    });
+    const settings = fakeArea({ "cymbra-lingua-daily": { 19999: { exposures: 5 } }, other: 1 });
+
+    await dropRetiredKeys(store, settings);
+
+    expect(await store.get("cymbra-lingua-daily")).toEqual({});
+    expect(await store.get(["cymbra-lingua-daily-v2", ROOT_KEY, "cymbra-lingua-status-cursor"])).toEqual({
+      "cymbra-lingua-daily-v2": { 20001: { exposures: 12, unknownSeen: 2 } },
+      [ROOT_KEY]: { v: 2, backup: "B" },
+      "cymbra-lingua-status-cursor": 7,
+    });
+    expect(settings.store["cymbra-lingua-daily"]).toBeNull();
+    expect(settings.store.other).toBe(1);
+  });
+
+  it("has nothing to do once they are gone, so today's counts survive a restart", async () => {
+    const store = await freshStore();
+    await store.set({ "cymbra-lingua-daily-v2": { 20001: { exposures: 12 } } });
+    const writes = vi.spyOn(store, "set");
+    await dropRetiredKeys(store);
+    await dropRetiredKeys(store);
+    expect(writes).not.toHaveBeenCalled();
+    expect(await store.get("cymbra-lingua-daily-v2")).toEqual({
+      "cymbra-lingua-daily-v2": { 20001: { exposures: 12 } },
+    });
+  });
+
+  it("is never a key the store claims to own", () => {
+    expect(STORE_KEYS).not.toContain("cymbra-lingua-daily");
   });
 });

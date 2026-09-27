@@ -80,27 +80,42 @@ export function statsFromAnalysis(a: PageAnalysis): ScanStats {
 }
 
 /** Resolve the paintable tokens (Learning/Unknown) to DOM Ranges (pure). */
+/** What reading one block container amounts to, handed over once the reader has seen it. */
+export interface BlockReading {
+  /** Distinct lemmas, for the per-word exposure counters. */
+  lemmas: string[];
+  /** Occurrences that enter the percentage — the day's "words read". */
+  read: number;
+  /** Among them, the Unknown and Learning ones — the day's "new words seen". */
+  unknown: number;
+}
+
 /**
- * Distinct lemmas per block container, from the FULL analysis (every class except
- * proper nouns — not just painted tokens). Feeds viewport-gated exposure so that
- * below-level "presumed known" words, which are never painted, still count as read
- * when their container is on screen (add-lingua-cefr-levels, slice 5c).
+ * Per block container, from the FULL analysis (every class except proper nouns — not just
+ * painted tokens): its distinct lemmas and its read / new-word occurrence counts. Feeds
+ * viewport-gated exposure so that below-level "presumed known" words, which are never
+ * painted, still count as read when their container is on screen (add-lingua-cefr-levels,
+ * slice 5c), and the daily reading stats count only what was seen
+ * (refine-lingua-reading-stats). `read` follows the engine's `counted` rule, so a page
+ * read to the end adds exactly its `counted`.
  */
-export function lemmasByContainer(blocks: Block[], a: PageAnalysis): Map<Element, string[]> {
-  const sets = new Map<Element, Set<string>>();
+export function readingByContainer(blocks: Block[], a: PageAnalysis): Map<Element, BlockReading> {
+  const acc = new Map<Element, { lemmas: Set<string>; read: number; unknown: number }>();
   for (const token of a.tokens) {
     if (token.class === "ProperNounOutOfLexicon") continue;
     const block = blocks[token.block];
     if (!block) continue;
-    let set = sets.get(block.container);
-    if (!set) {
-      set = new Set();
-      sets.set(block.container, set);
+    let entry = acc.get(block.container);
+    if (!entry) {
+      entry = { lemmas: new Set(), read: 0, unknown: 0 };
+      acc.set(block.container, entry);
     }
-    set.add(token.lemma);
+    entry.lemmas.add(token.lemma);
+    entry.read++;
+    if (token.class === "Unknown" || token.class === "Learning") entry.unknown++;
   }
-  const out = new Map<Element, string[]>();
-  for (const [container, set] of sets) out.set(container, [...set]);
+  const out = new Map<Element, BlockReading>();
+  for (const [container, e] of acc) out.set(container, { lemmas: [...e.lemmas], read: e.read, unknown: e.unknown });
   return out;
 }
 

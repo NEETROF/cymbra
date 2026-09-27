@@ -1,4 +1,5 @@
 import { isStorageFull } from "./auth-errors.ts";
+import { DAILY_KEY, RETIRED_DAILY_KEY } from "./dailystats.ts";
 import { type AsyncStorageArea, loadStored, ROOT_KEY } from "./storage.ts";
 
 // Where the reader's own data lives (change: move-lingua-store-to-indexeddb). The engine
@@ -20,7 +21,7 @@ const OBJECT_STORE = "state";
 /** The reader's data, moved out of chrome.storage.local. */
 export const STORE_KEYS = [
   ROOT_KEY,
-  "cymbra-lingua-daily",
+  DAILY_KEY,
   "cymbra-lingua-device",
   "cymbra-lingua-status-cursor",
   "cymbra-lingua-card-cursor",
@@ -191,6 +192,22 @@ async function dropPreviousCopies(from: AsyncStorageArea, to: AsyncStorageArea):
   const held = await to.get(names);
   const redundant = names.filter((key) => key in held);
   if (redundant.length > 0) await from.set(Object.fromEntries(redundant.map((key) => [key, null])));
+}
+
+/** Keys the reader's data no longer lives under: dropped wherever they are left. */
+export const RETIRED_KEYS = [RETIRED_DAILY_KEY] as const;
+
+/**
+ * Forget the retired keys in every area that may still hold them — the whole-document daily
+ * counts (refine-lingua-reading-stats), so no sync ever pushes them. Idempotent: nothing
+ * writes a retired key, so after the first start there is nothing left to drop.
+ */
+export async function dropRetiredKeys(...areas: AsyncStorageArea[]): Promise<void> {
+  for (const area of areas) {
+    const left = await area.get([...RETIRED_KEYS]);
+    const names = Object.keys(left);
+    if (names.length > 0) await area.set(Object.fromEntries(names.map((key) => [key, null])));
+  }
 }
 
 /**

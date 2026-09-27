@@ -13,7 +13,7 @@ import { makeFakePort } from "./helpers.ts";
 
 const NOW_MS = Date.UTC(2026, 8, 17, 12, 0, 0);
 const DAY = utcDay(NOW_MS);
-const DAILY_KEY = "cymbra-lingua-daily";
+const DAILY_KEY = "cymbra-lingua-daily-v2";
 
 /** A count as the view prints it (French grouping), so the assertions are locale-proof. */
 const fr = (n: number): string => n.toLocaleString("fr-FR");
@@ -135,7 +135,7 @@ describe("Statistiques — the view", () => {
     expect(pick(".ladder-row--here .ladder-lvl").textContent).toBe("A2"); // the declared level
     expect(pick(".ladder-pos").textContent).toContain("A1"); // the frontier the ladder implies
     expect(root.querySelectorAll(".card")).toHaveLength(3);
-    expect(total("Mots rencontrés")).toBe("4");
+    expect(total("Mots lus")).toBe("4");
     expect(total("Mots appris")).toBe("2");
     expect(total("Révisions")).toBe("1");
     expect(pick(".scope").textContent).toBe("Cet appareil");
@@ -334,12 +334,12 @@ describe("Statistiques — the view", () => {
       },
     });
     await mountStats(root, levelledPort(), area);
-    expect(total("Mots rencontrés")).toBe("10");
+    expect(total("Mots lus")).toBe("10");
 
     rangeButton("7 j").click();
     await settle();
 
-    expect(total("Mots rencontrés")).toBe("4");
+    expect(total("Mots lus")).toBe("4");
     expect(rangeButton("7 j").classList.contains("active")).toBe(true);
     expect(rangeButton("30 j").classList.contains("active")).toBe(false);
   });
@@ -356,7 +356,7 @@ describe("Statistiques — the view", () => {
     await mountStats(root, levelledPort(), area);
 
     expect(pick(".scope").textContent).toBe("Tous tes appareils");
-    expect(total("Mots rencontrés")).toBe("12"); // the server's figure, not this device's
+    expect(total("Mots lus")).toBe("12"); // the server's figure, not this device's
     expect(sent[1]).toEqual({ type: "stats:get", fromDay: DAY - 29, toDay: DAY });
   });
 
@@ -370,7 +370,7 @@ describe("Statistiques — the view", () => {
     await mountStats(root, levelledPort(), area);
 
     expect(pick(".scope").textContent).toBe("Cet appareil");
-    expect(total("Mots rencontrés")).toBe("4");
+    expect(total("Mots lus")).toBe("4");
   });
 
   it("still renders where no background answers at all (the drawer, on a dead page)", async () => {
@@ -387,6 +387,6 @@ describe("Statistiques — the view", () => {
     await mountStats(root, levelledPort(), area);
 
     expect(pick(".scope").textContent).toBe("Cet appareil");
-    expect(total("Mots rencontrés")).toBe("7");
+    expect(total("Mots lus")).toBe("7");
   });
 });

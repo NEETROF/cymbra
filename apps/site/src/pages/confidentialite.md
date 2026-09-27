@@ -2,7 +2,7 @@
 layout: ../layouts/Legal.astro
 title: Politique de confidentialité
 lang: fr
-updated: 24/09/2026
+updated: 27/09/2026
 ---
 
 La présente politique explique quelles données personnelles les **services Cymbra**
@@ -166,7 +166,7 @@ le modèle de l'appareil.
 |---|---|---|
 | Statut de chaque mot (connu, en apprentissage, ignoré) et niveau d'anglais déclaré | vous | retrouver votre progression sur vos appareils |
 | Deck de révision : le mot, la phrase où vous l'avez trouvé, sa traduction et son état de révision — **sans** l'adresse de la page | vous | réviser sur tous vos appareils |
-| Statistiques par jour (mots appris, révisions, nombre de mots rencontrés) | calculées sur l'appareil | afficher vos statistiques ; chiffres d'usage **agrégés** pour faire fonctionner le service |
+| Statistiques par jour (mots appris, révisions, nombre de mots lus et, parmi eux, de mots nouveaux) | calculées sur l'appareil | afficher vos statistiques ; chiffres d'usage **agrégés** pour faire fonctionner le service |
 | Identifiant d'installation aléatoire | généré par l'extension | départager deux appareils lors de la synchronisation |
 
 - **Base légale** : exécution du contrat (fourniture de la synchronisation).

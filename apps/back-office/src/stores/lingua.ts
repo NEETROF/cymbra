@@ -18,13 +18,28 @@ export interface LanguageUsage {
   activeAccounts: number;
   wordsLearned: number;
   reviews: number;
+  wordsRead: number;
+  newWordsSeen: number;
 }
 /** The tiles + per-language breakdown for a window. */
 export interface LinguaReport {
   activeAccounts: number;
   wordsLearned: number;
   reviews: number;
+  wordsRead: number;
+  newWordsSeen: number;
   byLanguage: LanguageUsage[];
+}
+
+/**
+ * Reading comprehension: the share of words read that were not new, 0–1 — or null when
+ * nothing was read, shown as unavailable rather than 0 % or 100 % (change:
+ * refine-lingua-reading-stats). Words read and new words seen come only from extensions that
+ * count reading in blocks seen: the backend drops the others.
+ */
+export function comprehension(wordsRead: number, newWordsSeen: number): number | null {
+  if (wordsRead <= 0) return null;
+  return Math.min(1, Math.max(0, 1 - newWordsSeen / wordsRead));
 }
 
 /** One point of a per-day time series. */
@@ -32,11 +47,12 @@ export interface SeriesPoint {
   day: string; // ISO yyyy-mm-dd
   value: number;
 }
-/** The three per-day series that back the line charts. */
+/** The per-day series that back the line charts. */
 export interface LinguaSeries {
   wordsLearned: SeriesPoint[];
   reviews: SeriesPoint[];
-  exposures: SeriesPoint[];
+  wordsRead: SeriesPoint[];
+  newWordsSeen: SeriesPoint[];
 }
 
 /**
@@ -80,7 +96,7 @@ export const useLinguaStore = defineStore("lingua", () => {
     return { fromDay: filters.fromDay, toDay: filters.toDay };
   }
 
-  /** Load the tiles/breakdown + the three per-day series for the current filters. */
+  /** Load the tiles/breakdown + the per-day series for the current filters. */
   async function load(next: Partial<LinguaFilters> = {}) {
     Object.assign(filters, next);
     const language = filters.language; // "" => every studied language
@@ -91,11 +107,15 @@ export const useLinguaStore = defineStore("lingua", () => {
           activeAccounts: Number(r.activeAccounts),
           wordsLearned: Number(r.wordsLearned),
           reviews: Number(r.reviews),
+          wordsRead: Number(r.wordsRead),
+          newWordsSeen: Number(r.newWordsSeen),
           byLanguage: r.byLanguage.map((l) => ({
             language: l.language,
             activeAccounts: Number(l.activeAccounts),
             wordsLearned: Number(l.wordsLearned),
             reviews: Number(l.reviews),
+            wordsRead: Number(l.wordsRead),
+            newWordsSeen: Number(l.newWordsSeen),
           })),
         } satisfies LinguaReport;
       }),
@@ -104,15 +124,17 @@ export const useLinguaStore = defineStore("lingua", () => {
           pts.map((p) => ({ day: p.day, value: Number(p.value) }));
         const one = (metric: LinguaSeriesMetric) =>
           api().lingua.adminGetLinguaUsageSeries({ window: currentWindow(), metric, language });
-        const [w, rv, ex] = await Promise.all([
+        const [w, rv, read, fresh] = await Promise.all([
           one(LinguaSeriesMetric.LINGUA_SERIES_WORDS_LEARNED),
           one(LinguaSeriesMetric.LINGUA_SERIES_REVIEWS),
-          one(LinguaSeriesMetric.LINGUA_SERIES_EXPOSURES),
+          one(LinguaSeriesMetric.LINGUA_SERIES_EXPOSURES), // words read (the wire name predates it)
+          one(LinguaSeriesMetric.LINGUA_SERIES_UNKNOWN_SEEN),
         ]);
         return {
           wordsLearned: mapPoints(w.points),
           reviews: mapPoints(rv.points),
-          exposures: mapPoints(ex.points),
+          wordsRead: mapPoints(read.points),
+          newWordsSeen: mapPoints(fresh.points),
         } satisfies LinguaSeries;
       }),
     ]);
