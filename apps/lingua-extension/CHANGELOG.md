@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/NEETROF/cymbra/compare/lingua-extension-v1.3.0...lingua-extension-v1.3.1) (2026-09-27)
+
+
+### Bug Fixes
+
+* **site:** link Cymbra Lingua's live store listings ([#573](https://github.com/NEETROF/cymbra/issues/573)) ([1642f96](https://github.com/NEETROF/cymbra/commit/1642f961f7b0e3f350779a94fc8fe9cc9e6c4c8b))
+
 ## [1.3.0](https://github.com/NEETROF/cymbra/compare/lingua-extension-v1.2.1...lingua-extension-v1.3.0) (2026-09-27)
 
 
