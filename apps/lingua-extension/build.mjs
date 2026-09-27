@@ -198,6 +198,8 @@ function firefoxManifest(base) {
       id: "lingua@cymbra.app",
       strict_min_version: "128.0",
       data_collection_permissions: {
+        // AMO refuses the key without `required`; "none" says nothing is collected unasked.
+        required: ["none"],
         optional: ["authenticationInfo", "personallyIdentifyingInfo", "websiteContent", "technicalAndInteraction"],
       },
     },

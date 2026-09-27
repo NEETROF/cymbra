@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/NEETROF/cymbra/compare/lingua-extension-v1.2.0...lingua-extension-v1.2.1) (2026-09-26)
+
+
+### Bug Fixes
+
+* **lingua:** declare the required data collection AMO now insists on ([#564](https://github.com/NEETROF/cymbra/issues/564)) ([a0aee54](https://github.com/NEETROF/cymbra/commit/a0aee5429a226b272d8b7bf1247a9916a1d4df22))
+
 ## [1.2.0](https://github.com/NEETROF/cymbra/compare/lingua-extension-v1.1.0...lingua-extension-v1.2.0) (2026-09-26)
 
 

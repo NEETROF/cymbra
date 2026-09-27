@@ -3,6 +3,6 @@
   "backend": "0.31.0",
   "apps/back-office": "0.19.0",
   "apps/site": "0.8.0",
-  "apps/lingua-extension": "1.2.0",
+  "apps/lingua-extension": "1.2.1",
   "apps/lingua-apple": "1.2.0"
 }

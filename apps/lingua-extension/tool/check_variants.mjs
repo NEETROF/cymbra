@@ -30,6 +30,12 @@ expect(chromium.permissions.includes("sidePanel"), "chromium: needs the sidePane
 
 expect(firefox.background?.scripts, "firefox: background must be an event page");
 expect(firefox.browser_specific_settings?.gecko?.id, "firefox: needs a gecko add-on id");
+// AMO's server-side linter refuses data_collection_permissions without `required`; the linter
+// bundled with web-ext (what a local lint runs) did not know yet, so the refusal came at submission.
+expect(
+  firefox.browser_specific_settings?.gecko?.data_collection_permissions?.required?.length,
+  'firefox: data_collection_permissions needs `required` ("none" when nothing is collected unasked)',
+);
 expect(firefox.content_scripts?.length, "firefox: needs the static content script");
 expect(!firefox.key, "firefox: must not carry the Chromium key");
 
