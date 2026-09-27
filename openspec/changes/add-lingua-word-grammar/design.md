@@ -1,0 +1,475 @@
+## Context
+
+The pack maps a written form to one dictionary form through the `forms` FST, and each
+dictionary form to one flat gloss of at most three senses (`gloss.zst`). Nothing in it says
+what a form *is*. This is not because the sources are silent: `reduce-en-fr.py` throws the
+information away.
+
+- **ESDB** (`scowl.txt`, pinned at `rel-2026.02.25`) lists a word's derived forms in fixed
+  slots, which the reducer's own fixtures show:
+  - `go <v>: went, gone, going, goes`
+  - `lie <v> {fib}: lied, lying, lies`: the past participle slot is folded into the past slot
+    when the two are spelled the same;
+  - `be <v>: (was | @: wast), were, been, being, am, (are | @: art), is, are`;
+  - `datum <n>: data`.
+
+  `parse_esdb_relations` keeps only a coarse kind per form (`N`, `V` or `A`), and
+  `resolve_forms` then keeps one lemma per form.
+- **kaikki** gives every entry a `pos` (`noun`, `verb`, `adj`, `adv`, `name`, `prep`,
+  `conj`, `det`, `pron`, `intj`, `particle`, `character`, `symbol`, affixes…).
+  `_join_senses` picks one sense per entry in turn, so a verb meaning appears beside the noun,
+  and then drops the label.
+
+Measured with the current reduction rules on the 2026-09-21 kaikki snapshot:
+
+- 5 218 of 24 420 glossed words mix senses of several parts of speech;
+- 465 picked senses hold a `;` of their own, the character that already separates senses.
+
+The PR gives the exact figures on the pinned snapshot.
+
+The engine answers the card through `AnalyzerPort`. Where the engine runs depends on the target:
+
+- in the content script on Chromium, synchronously;
+- in the event page on Firefox and Safari, through a message round trip;
+- in the event page on Chromium too, as a fallback, when a page's CSP refuses WASM.
+
+The word card (`reading/selection-card.ts`, `reading/wordpopup.ts`) lays out, top to bottom:
+the headword, the form seen, the rarity, the listen button, the gloss, the translation, and the
+actions. A highlighted word's card opens complete from its page token. A known or ignored word's
+card opens pending and asks `gloss(lemma)`, under the wait-and-fallback rule
+`add-lingua-phrase-gloss` introduced: a pending card offers no action, and completes exactly
+once.
+
+The next packs are Romance languages. The exploration recorded their sources: Morphalou for
+fr, morph-it! for it, MorphoBr for pt, kaikki for es. Every one of them already attaches full
+morphology to each form.
+
+## Goals / Non-Goals
+
+**Goals:**
+
+- The word card says what the form is, lists the other dictionary forms it may be, and shows
+  the pieces of a split word.
+- The word card shows the gloss under the part of speech of its senses, with a noun's gender
+  where a language has one.
+- One grammatical vocabulary that a Romance pack fills without any change to the container,
+  the core API or the card's code, needing only new label wording.
+- Stay additive:
+  - no move of `ANALYZER_VERSION`, and `analyse_page` output unchanged byte for byte;
+  - no change to the card model, the review, the sync or the `.proto`;
+  - no new source, licence or permission.
+
+**Non-Goals:**
+
+- Choosing a reading from context. That needs a part-of-speech tagger, which is a separate
+  change. The vocabulary here is the one such a tagger would emit (D1).
+- Grammar as something to learn: grammar points, exposure counts per tense, review.
+- Opening another reading's card from the card, and highlighting or counting by reading.
+- Grammar on the review card or in the word-by-word rows.
+- Tense names for a studied language other than English (D7).
+- Fixing the senses a gloss picks. The measurement shows `a` and `i` glossed by their letter
+  senses. Grouping makes this visible, but it is a reducer-quality change of its own.
+
+## Decisions
+
+### D1 — The vocabulary: Universal Dependencies tags, as text, in a closed subset
+
+A **tag** is a Universal Dependencies part of speech (UPOS), optionally followed by features in
+UD's `FEATS` notation, sorted by name as UD requires:
+
+```text
+VERB|Mood=Ind|Tense=Past|VerbForm=Fin
+NOUN|Number=Plur
+NOUN|Gender=Fem
+PRON|Case=Dat|Number=Sing|Person=1|PronType=Prs
+```
+
+The pack stores each distinct tag once, as text in a pool (D3). Records point into the pool by
+index.
+
+The vocabulary is the 17 UPOS tags plus this closed subset of features. This change reads only
+these:
+
+| Feature | Values |
+|---|---|
+| `Gender` | `Masc`, `Fem`, `Neut`, `Com` |
+| `Number` | `Sing`, `Plur` |
+| `Person` | `1`, `2`, `3` |
+| `Tense` | `Pres`, `Past`, `Imp`, `Fut`, `Pqp` |
+| `Mood` | `Ind`, `Sub`, `Cnd`, `Imp` |
+| `VerbForm` | `Fin`, `Inf`, `Part`, `Ger` |
+| `Degree` | `Pos`, `Cmp`, `Sup` |
+| `Case` | `Nom`, `Acc`, `Dat` |
+| `Reflex` | `Yes` |
+| `PronType` | `Prs`, `Art`, `Dem`, `Int`, `Rel`, `Ind` |
+| `Definite` | `Def`, `Ind` |
+
+The vocabulary covers the Romance categories. This is the hard constraint, and it is met by the
+vocabulary, not by English:
+
+| What the learner meets | Tag (features) |
+|---|---|
+| passé simple, pretérito indefinido, passato remoto | `Mood=Ind\|Tense=Past\|VerbForm=Fin` |
+| imparfait, imperfecto, imperfetto | `Mood=Ind\|Tense=Imp\|VerbForm=Fin` |
+| subjonctif présent | `Mood=Sub\|Tense=Pres` |
+| subjonctif imparfait (*dijéramos*) | `Mood=Sub\|Tense=Imp` |
+| futur du subjonctif (pt *quando eu for*) | `Mood=Sub\|Tense=Fut` |
+| plus-que-parfait synthétique (pt *fizera*) | `Mood=Ind\|Tense=Pqp` |
+| conditionnel | `Mood=Cnd` |
+| impératif | `Mood=Imp` |
+| infinitif personnel (pt *fazermos*) | `VerbForm=Inf\|Number=Plur\|Person=1` |
+| gérondif, gerundio | `VerbForm=Ger` |
+| agreed participle (*escrita*) | `Gender=Fem\|Number=Sing\|Tense=Past\|VerbForm=Part` |
+| gender unlike French (*la leche*) | `NOUN\|Gender=Fem` |
+| clitic pronoun (*me*, *lo*, *se*, *gli*) | `PRON\|Case=…\|Person=…\|PronType=Prs` (+ `Reflex=Yes`) |
+| contracted article (*del*, *au*, *do*) | pieces from the pre-pass (D5): `ADP` + `DET\|Definite=Def\|PronType=Art` |
+
+These follow the features UD's French, Spanish, Italian and Portuguese treebanks use. A task
+checks each row against their documentation. A row that differs corrects this table, not the
+format.
+
+**How new and unknown features are handled.**
+
+- **Adding a feature.** The container never enumerates features, so adding one is a change to
+  the core's list and to the labels, never to the container. `Polite` is a candidate, for
+  *usted* and *Lei*.
+- **In the core.** The core parses a tag into a typed value when it looks one up, and skips a
+  feature it does not know. A pack from a later vocabulary still loads and shows what it can.
+- **In the builder.** The builder runs the same parser in strict mode and fails on an unknown
+  part of speech, feature or value, naming it. A typo in the reducer therefore never ships.
+
+_Why UD._ It is the one tagset that every planned Romance source already has a mapping to: the
+UD treebanks for these languages were converted from the same traditions. A later contextual
+tagger trained on UD treebanks would emit exactly these tags, so the pack and the tagger would
+speak one language with no translation table between them. Only the tag names come from UD, and
+no data.
+
+_Alternatives considered:_
+
+- **An English-shaped enum** (the reducer's `N`/`V`/`A`, or slot names such as `PAST`, `PP`,
+  `ING`, `S`). Rejected: the first Romance pack would change the format, which is the very thing
+  the constraint forbids.
+- **Penn Treebank tags** (`VBD`, `VBN`, `NNS`). Rejected: they are English-only, with no mood
+  and no gender.
+- **Each source's own tags** (morph-it!'s `VER:ind+pres+1+s`, Morphalou's attributes).
+  Rejected: the core and the card would have to learn one tagset per language.
+- **Binary feature codes.** Rejected: they save a few hundred bytes, but a feature added later
+  would change the layout.
+
+### D2 — Where the English readings come from
+
+The reducer keeps the slot of every ESDB derived form. English tags follow UD English
+conventions:
+
+| ESDB | Slot | Tag |
+|---|---|---|
+| `<v>`, 4 entries | past | `VERB\|Mood=Ind\|Tense=Past\|VerbForm=Fin` |
+| | past participle | `VERB\|Tense=Past\|VerbForm=Part` |
+| | -ing | `VERB\|VerbForm=Ger` |
+| | -s | `VERB\|Mood=Ind\|Number=Sing\|Person=3\|Tense=Pres\|VerbForm=Fin` |
+| `<v>`, 3 entries | past and past participle, then -ing, then -s | the two past tags on the first entry |
+| `<m>` | past (`could`, `would`) | `AUX\|Mood=Ind\|Tense=Past\|VerbForm=Fin` |
+| `<n>` | plural | `NOUN\|Number=Plur` |
+| `<n_v>` | -s | both the plural and the -s verb tag, as `_esdb_kinds` already says |
+| `<aj>`, `<av>`, `<d>` | comparative, superlative | `ADJ`/`ADV`/`DET` with `Degree=Cmp`, then `Degree=Sup` |
+| `be <v>` | eight slots | named by an explicit table, since only `be` has them |
+
+Other rules for the readings:
+
+- **One tag for -ing.** The pack cannot tell a gerund from a present participle outside a
+  sentence, so an -ing form carries a single reading, labelled « forme en -ing ».
+- **Spelling alternatives.** Alternatives inside one slot (`(A B: focused | AV Bv: focussed)`)
+  share that slot's tag. Lesser variants stay excluded, as they are today.
+- **Forms added from kaikki.** Kaikki's form-of links add regular inflections only. The tag of
+  such a form follows the ending that `regular_inflection` already checks: -ing, -ed or -d (both
+  past tags), -s (verb or noun, by the relation's kind), -er or -est. The French wording of the
+  link (« Prétérit de … ») is not parsed: the shape is enough for a regular form, and one source
+  of truth is enough.
+- **Forms spelled like their dictionary form.** `put` as its own past, or `sheep` as its own
+  plural, carry readings although the reducer skips them as pairs today.
+
+**Which relations become readings.** Every relation that survives the reducer's existing
+filters becomes a reading of its own dictionary form: lesser, archaic, doubtful and
+questionable variants stay out, and so does a possessive. A relation is named as *another*
+dictionary form of a written form only when the reducer finds it **believable**, by the
+`believable` test `own_words` already applies:
+
+- the base has the right part of speech, and
+- the form is its regular inflection, or Wiktionary names the base as what the form is a form
+  of.
+
+This keeps `uses` from naming `us`, and lets `leaves` name `leaf`, `lives` name `live`, and
+`bored` name `bore`. The reading the analysis itself chose is always shown, believable or not.
+It is what the page already counted.
+
+### D3 — Three additive sections, keyed by dictionary form, no second form index
+
+| Section | Holds |
+|---|---|
+| `tags` | the tag pool: UTF-8, one tag per line, id = line index |
+| `paradigms` | zstd blob in the offset-indexed layout of `gloss.zst`, keyed by lemma id. Per dictionary form, a list of **readings** (the form, a tag id) and **also** entries (a form the analysis resolves to this dictionary form, and the id of another dictionary form it is also a reading of). |
+| `senses` | zstd blob in the same layout, keyed by lemma id: the runs of the gloss (tag id, number of senses), in gloss order |
+
+**How a form is stored.** A form is written as an **edit of its dictionary form**: the number of
+characters (Unicode scalar values) to strip from its end, and the suffix to append. For example,
+`hablar` → `hablábamos` is strip 2, append `ábamos`, and `go` → `went` is strip 2, append
+`went`.
+
+**How the builder fills `paradigms`.** The builder resolves every form through
+`lingua_core::analysis::lemmatize` against the lexicon it has just assembled, which is how the
+expression table is keyed. It then files the "also" entries under the dictionary form the
+analysis will actually put on the card. The reducer never needs to know how the analysis
+resolves a form.
+
+**Why keyed by dictionary form.** The obvious alternative is a second FST keyed by form, as the
+expression table does, which gives an O(1) lookup by form. It duplicates the form index, though:
+the `forms` FST already holds every form. In a Romance pack, forms dominate the size (about fifty
+per verb), and a second FST would roughly double the largest section.
+
+Keyed by dictionary form, each form costs a short suffix. The suffixes repeat across a
+conjugation class, which zstd compresses well. An English irregular form costs its full spelling,
+which is what it is. Every dictionary form also gets its paradigm, which a later conjugation table
+can show with no format change.
+
+The lookup always has the card's dictionary form in hand, and a paradigm holds tens of entries at
+most, so a scan by form is cheap.
+
+_Alternative considered:_ packing a reading into the `forms` FST's value (lemma id plus tag).
+Rejected: it changes what an older core reads from a required section, so it is not additive.
+
+**Memory.** A section is decompressed once at load and kept as bytes with its index. Records are
+decoded per lookup, never all at load. The analyser runs inside each Chromium tab's content
+script, so decoding every paradigm up front would cost every tab. The build is deterministic,
+like the other sections: the order is the lemma id, then the form, then the tag.
+
+### D4 — The reducer: senses grouped, one separator, two new tables
+
+`_join_senses` receives each sense with the part of speech of its entry. The selection does not
+change: the same round-robin, the same three senses, the same cuts at 42 and 80 characters.
+
+1. After picking, the senses are grouped by part of speech, stably, in the order each part of
+   speech first appears.
+2. A `;` inside a sense becomes `,`.
+3. The gloss is joined and cut as today.
+4. The runs are counted from the senses that survived the cut.
+
+The multi-word path (`reduce_expressions`) is untouched: a test asserts that `mwe.tsv` is
+byte-identical. `forms.tsv` and `freq.tsv` are asserted byte-identical too. Only `gloss.tsv`
+moves, and the pull request's report counts the reordered glosses and the changed separators.
+
+**kaikki `pos` → UPOS.**
+
+| kaikki `pos` | UPOS |
+|---|---|
+| `noun` | `NOUN` |
+| `verb` | `VERB` |
+| `adj` | `ADJ` |
+| `adv` | `ADV` |
+| `name` | `PROPN` |
+| `pron` | `PRON` |
+| `prep`, `postp` | `ADP` |
+| `conj` | `CCONJ` for the seven coordinators (`and`, `or`, `but`, `nor`, `yet`, `so`, `for`), `SCONJ` otherwise |
+| `det`, `article` | `DET` |
+| `particle` | `PART` |
+| `intj`, `onomatopoeia` | `INTJ` |
+| `num` | `NUM` |
+| `character`, `symbol` | `SYM` |
+| anything else (affixes, `phrase`, `typographic variant`) | `X` |
+
+**The committed tables.**
+
+- `grammar.tsv`: `form<TAB>lemma<TAB>tag`, one line per reading, sorted. It also carries the
+  believability mark of D2 as a fourth column (`other` when the relation may be named as
+  another dictionary form).
+- `senses.tsv`: `lemma<TAB>tag:count[<TAB>tag:count…]`, one line per glossed lemma, runs in
+  gloss order. For example: `can<TAB>NOUN:1<TAB>VERB:2`.
+
+A tag never holds `:`, a tab or a newline, so the lines split unambiguously. Both tables derive
+from ESDB and kaikki and carry their licences (CC BY-SA 4.0 for the Wiktionary part), exactly as
+`forms.tsv` does. The README and `SOURCES.md` list them.
+
+### D5 — The core: `word_grammar(written, lemma)`
+
+```rust
+pub struct WordGrammar {
+    pub gloss: Option<String>,        // Pack::gloss(lemma), the flat text, unchanged
+    pub senses: Vec<SenseGroup>,      // { tag: Option<Tag>, text: String }
+    pub readings: Vec<Tag>,           // the piece's readings as `lemma`
+    pub others: Vec<OtherReading>,    // { lemma: String, readings: Vec<Tag> }
+    pub pieces: Vec<String>,          // pre-pass surfaces, only when there are 2 or more
+}
+pub fn word_grammar(written: &str, lemma: &str, studied: StudiedLanguage, pack: &Pack) -> WordGrammar
+```
+
+1. **Pieces.** `written` is the word as it stands on the page. It goes through `tokenize`, with
+   the studied language's pre-pass, and `resolve_lemmas`, as in the page analysis.
+2. **The piece.** The piece whose dictionary form is `lemma` is taken, or the first piece if
+   none matches. Its readings come from `lemma`'s paradigm: the entries whose form equals the
+   piece, lowercased.
+3. **Other dictionary forms.** They come from `lemma`'s "also" entries for that piece, each
+   read from the other dictionary form's own paradigm.
+4. **Senses.** They come from splitting the flat gloss on `; ` and applying the runs. With no
+   runs, or runs that disagree with the gloss (which the build forbids), the answer is one group
+   with no tag and the whole gloss. The same holds when the pack has no `senses` section.
+
+The JSON serialises a tag as `{ "pos": "VERB", "features": { "Tense": "Past", … } }` from
+ordered maps, so it is deterministic. Unknown features are skipped (D1).
+
+It is exposed in three places:
+
+- `lingua-wasm` as `wordGrammar(written, lemma)`;
+- `AnalyzerPort` as `wordGrammar(written, lemma): Promise<WordGrammar>`, through
+  `WasmAnalyzerPort`, `MessagingLinguaPort` and `rpc-host`;
+- `analyzer/types.ts`, which mirrors the types.
+
+`gloss(lemma)` stays for `cardGloss` and the other callers. `analyse_page` does not call any of
+this, so `golden.json` does not move. A new `grammar_golden.json` pins the answers for the parity
+test.
+
+_Alternative considered:_ attach the grammar to every page token. Rejected: it grows every page's
+payload for cards that are mostly never opened, and it changes `analyse_page`'s output, which
+means `ANALYZER_VERSION`.
+
+### D6 — The card: one answer, a short bound, nothing moves
+
+**Which call a card makes.** Every word card asks `wordGrammar` once:
+
+| Card | Call |
+|---|---|
+| Highlighted word | the new call |
+| Known or ignored word | replaces the `gloss(lemma)` call; the answer carries the gloss |
+| Word outside the page analysis | after `phraseGloss` has resolved it |
+
+**What `written` is.** For a page token, `PageHit` gains `written`, the text of the token's
+source span. The two halves of a contraction share that span, so `do` in `don't` asks about
+`don't`. For a selection, `written` is the selected text.
+
+**Timing.** The layout puts the actions last. If the grammar line and the grouped gloss were
+inserted late, they would push the actions down while the reader aims at them, which the
+engine-waiting rule forbids. So a card that already holds its gloss (a highlighted word) waits
+for the answer up to `GRAMMAR_WAIT_MS = 250`:
+
+- It is **drawn pending only if the answer has not arrived by the next animation frame**. On
+  Chromium's in-process engine it never is.
+- **Past the bound**, it completes with the page token's gloss and no grammar, which is exactly
+  today's card.
+- **A late answer** is dropped by the request-generation check `request()` already applies.
+
+Cards that hold no gloss keep their existing wait and fallback.
+
+_Alternatives considered:_
+
+- **Show at once, then insert the grammar.** Rejected: the actions move.
+- **Reserve the space.** Rejected: the height depends on the number of readings and groups.
+- **Prefetch the grammar of a page's highlighted words after the analysis.** This is static pack
+  data, so a cache would never go stale. Kept as the follow-up if the Safari measurement (see
+  Risks) shows the bound is often missed on a cold engine.
+
+**Rendering (`wordpopup.ts`).**
+
+- **The `.seen` line** becomes the grammar line. With no reading it keeps today's
+  `forme vue : « went »`. Everything is set through `textContent` and created nodes, never
+  markup.
+
+  | Case | Line |
+  |---|---|
+  | Readings | `« went » : prétérit de go`, or `« walked » : prétérit et participe passé de walk` |
+  | Same spelling, other reading | `peut aussi être le prétérit et le participe passé de put` |
+  | Other dictionary form | `peut aussi être le pluriel de leaf` (text only) |
+  | Pieces | `« don't » = do + not` |
+
+- **The gloss block** renders one line per group: the heading (the part of speech, plus the
+  gender when there is one) in italics, then the group's senses. A group tagged `SYM`, `X`,
+  `PUNCT` or with no tag has no heading.
+
+### D7 — Labels: generic names here, tense names per studied language
+
+A new module `reading/grammar-labels.ts`, in the `COPY` style of `reader/copy.ts`, turns a tag
+into French words:
+
+- **Parts of speech:** nom, verbe, auxiliaire, adjectif, adverbe, préposition, conjonction
+  (both `CCONJ` and `SCONJ`), pronom, déterminant, interjection, nombre, particule, nom propre.
+- **Gender:** masculin, féminin, neutre, commun.
+- **Number and person:** « pluriel », « 3e personne du singulier ».
+- **Degree:** comparatif, superlatif.
+- **Verb forms**, for English: prétérit (`Tense=Past|VerbForm=Fin`), participe passé, forme en
+  -ing, and « 3e personne du singulier du présent ».
+
+The same code names a different tense per language (`Tense=Past` is the prétérit in English and
+the passé simple in Spanish), so the verb-form names are keyed by studied language, and only the
+English table ships now. A tag the labeller cannot name is not shown. A card never shows a code,
+and a test asserts it alongside the existing "lemme" lint.
+
+### D8 — What stays flat, and `pack_version`
+
+**What stays flat.** None of these move:
+
+- the gloss stored on a card, and hence the review, the sync ops and seeded cards;
+- the word-by-word rows' first-sense rule. Grouping is stable by first appearance, so a gloss's
+  first sense stays first.
+
+New cards store the regrouped text, and existing cards keep theirs. There is no migration.
+
+**`pack_version`.** The grammar tables come from a re-reduction of the pinned snapshot, and
+`build.sh --reduce` stamps `pack_version` with the *source* snapshot (`2026.09.26`). The ESDB
+switch (#560) re-reduced the same way and kept that version. Yet two requirements call for a new
+version whenever the tables change:
+
+- "A pack says which dictionary it is" (an updated dictionary reports a different
+  `pack_version`);
+- the container requirement (adding an additive table bumps it).
+
+This change makes the practice meet the requirements. A re-reduction stamps
+`<snapshot>+<first 7 hex digits of the reducer's sha256>`, taken from `pin.json`, which already
+records it. An update from live sources keeps the bare snapshot. No counter needs storing, and
+nothing reads `pack_version` except reports and humans. _Alternative:_ keep the #560 practice and
+reword both requirements. Rejected: a version that does not change when the dictionary does
+identifies nothing.
+
+### D9 — Archive order
+
+`add-lingua-phrase-gloss`, then `add-lingua-expression-table`, then this change. The MODIFIED
+container and size-budget requirements here are written over the wording
+`add-lingua-expression-table` gives them. Archived first, this change would restore the older
+text under the same headers, and the expression-table archive would then overwrite it.
+
+## Risks / Trade-offs
+
+- **[A cold engine on Safari misses the 250 ms bound, so the first cards show no grammar]** →
+  The card is then exactly today's. Measure on device (iPhone and Mac Safari, engine suspended
+  and awake). If the bound is missed on most first opens, add the page-level prefetch of D6.
+- **[Readings expose the pack's single-lemma choices]** (`leaves` → `leave` in a sentence about
+  trees) → This is the honest view of what the page counted. The "peut aussi être" line tells
+  the reader. Choosing by context is the tagger's change, not this one.
+- **[Grouping makes weak glosses visible]** (`a`, `i` glossed by letter senses, under no
+  heading) → Recorded as a follow-up for the reducer. Grouping does not make them worse.
+- **[Size]** → Estimate for English: about 45 000 readings, roughly a few hundred KB compressed,
+  against 1.54 MB and a budget of 5 MiB. The build measures it, and the budget's arbitration
+  (readings of the rarest dictionary forms, after expressions) is enforced by the builder, with
+  a test that drives it over.
+- **[A Romance pack is larger by nature]** → The layout (D3) is chosen for it: suffix edits under
+  the dictionary form rather than a second form index. The real figure comes with the first
+  Romance pack, whose budget is its own.
+- **[UD's Romance conventions differ from the D1 table on some point]** → The task checks each
+  row against the UD documentation. A difference changes a mapping row, never the container.
+
+## Migration Plan
+
+Pure addition:
+
+- The pack gains three optional sections and takes a new `pack_version`.
+- The extension ships the core, the WASM and the card together, as every release does.
+- Rollback is a revert: an older extension ignores the sections.
+
+No reader data moves. Statuses, cards and decks keep their keys and shapes, so no report of
+statuses is needed. Lingua has no readers yet (confirmed on 2026-09-26); that is worth checking
+again before merge, but nothing here depends on it.
+
+## Open Questions
+
+- The exact bound (250 ms) is a first value. The Safari measurement decides whether to keep it,
+  or whether prefetch replaces the bound.
+- Whether the modal pasts (`could`, `would`, `should`, `might`) should read as pasts of their
+  modal at all. They are taught as words of their own, and `own_words` already keeps them as
+  dictionary forms. As readings they would add « peut aussi être le prétérit de can ». The
+  first implementation keeps them, and the dogfooding decides.
