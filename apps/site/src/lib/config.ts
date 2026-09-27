@@ -10,7 +10,8 @@ export interface SiteConfig {
   appleClientId: string | null;
   paddleEnv: "sandbox" | "production";
   paddleClientToken: string | null;
-  /** Community invite, surfaced on the Lingua page. Unset = no link at all. */
+  /** Community invite (Discord): header, footer, a band on home/Music/Lingua, the
+   *  Lingua hero note. Unset = no link anywhere. */
   discordUrl: string | null;
 }
 

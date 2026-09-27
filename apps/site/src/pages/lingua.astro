@@ -1,5 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
+import Community from '../components/Community.astro';
 import StoreButtons from '../components/StoreButtons.astro';
 import { linguaStores } from '../lib/stores';
 import { config } from '../lib/config';
@@ -66,6 +67,8 @@ import { config } from '../lib/config';
       <p>La première paire de langues. D'autres suivront.</p>
     </div>
   </section>
+
+  <Community lang="fr" />
 
   <section class="container closing">
     <h2>Et la musique&nbsp;?</h2>

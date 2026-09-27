@@ -1,0 +1,27 @@
+---
+// The community server, as a band of its own: heading, one line, one button.
+// Rendered only when PUBLIC_DISCORD_URL is set, like every other Discord link.
+import { config } from '../lib/config';
+
+const { lang = 'fr' } = Astro.props;
+const isFr = lang === 'fr';
+const url = config.discordUrl;
+---
+
+{url && (
+  <section class="container community" aria-labelledby="community-title">
+    <div class="community-band">
+      <div>
+        <h2 id="community-title">{isFr ? 'Rejoignez la communauté Cymbra' : 'Join the Cymbra community'}</h2>
+        <p>
+          {isFr
+            ? "Questions, idées, bugs, nouveautés de Music et de Lingua : tout se passe sur le serveur Discord."
+            : 'Questions, ideas, bugs, and what is new in Music and Lingua: it all happens on the Discord server.'}
+        </p>
+      </div>
+      <a class="btn btn-discord" href={url} rel="noopener">
+        {isFr ? 'Rejoindre le Discord' : 'Join the Discord'}
+      </a>
+    </div>
+  </section>
+)}
