@@ -415,6 +415,7 @@
   "profileTooYoung": "Aún no tienes la edad necesaria para hacer público tu perfil.",
   "profileVisibilityError": "No se pudo actualizar la visibilidad de tu perfil. Inténtalo de nuevo.",
   "profileUnavailable": "Este perfil no está disponible.",
+  "profileIdentityUnresolved": "Todavía no se han podido cargar los datos de tu cuenta. Comprueba tu conexión e inténtalo de nuevo.",
   "profilePublicHint": "Tu perfil es visible para otros jugadores conectados.",
   "connectedAccountsTitle": "Cuentas conectadas",
   "connectedAccountsManage": "Cuentas conectadas",
