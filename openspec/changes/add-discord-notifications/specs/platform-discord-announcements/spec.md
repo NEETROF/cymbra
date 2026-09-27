@@ -36,7 +36,7 @@ product's section.
 
 #### Scenario: A product's statistics go to that product's channel
 
-- **WHEN** the daily report for one product is published
+- **WHEN** a product's periodic report is published
 - **THEN** it is posted in that product's own statistics channel and in no other product's channel
 
 #### Scenario: An unmapped product/category publishes nothing
@@ -152,7 +152,7 @@ name one person implicitly, which MUST be suppressed below a configured minimum.
 
 #### Scenario: Digest reports counts only
 
-- **WHEN** the daily digest is published
+- **WHEN** a product's digest is published
 - **THEN** it contains counts and non-identifying figures, and no name, handle, identifier, or email
 
 #### Scenario: Too-small aggregate is suppressed
@@ -186,6 +186,31 @@ the public profile field set.
 
 - **WHEN** a user signs up, signs in, or signs out
 - **THEN** no Discord message is produced
+
+### Requirement: Each product's digest follows that product's own cadence
+
+Each product's digest SHALL be published at that product's own cadence, read from a per-product
+flag at publication time (defaults: Music daily, ID and Lingua weekly), and SHALL cover only the
+previous **closed** period of that cadence. A product whose figures reach the server by device
+sync (Lingua) SHALL be reported by the second daily run after its period ends, not the first, so
+days synced by then are counted — a day synced after the report is published is not added later,
+so the figures are lower bounds;
+a product whose data source is not configured SHALL publish no digest while the others still do.
+
+#### Scenario: A weekly product posts once a week
+
+- **WHEN** the Lingua cadence is weekly, the digest runs every day, and the previous closed week has at least one publishable figure
+- **THEN** exactly one Lingua digest covering that week is posted, and none on the other days; a week with nothing publishable follows the rule that a report with nothing to say is not published
+
+#### Scenario: A device-synced product is reported a day late
+
+- **WHEN** the digest runs on the first UTC day after a Lingua week's last day (the Monday after that Sunday)
+- **THEN** that week is not reported yet, and the run on the following day (Tuesday) reports it, exactly once
+
+#### Scenario: An unconfigured product source is skipped
+
+- **WHEN** the digest runs and the Lingua data source is not configured
+- **THEN** no Lingua digest is posted, the skip is logged, and the other products' digests are published
 
 ### Requirement: High-frequency activity is digested, not streamed
 

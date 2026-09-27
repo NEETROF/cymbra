@@ -137,7 +137,7 @@
       "channels": [
         { "name": "lingua-announcements", "type": "text", "topic": "Cymbra Lingua news.", "readonly": true },
         { "name": "lingua-help",          "type": "text", "topic": "Cymbra Lingua questions. Say which browser you use." },
-        { "name": "lingua-stats",         "type": "text", "topic": "Cymbra Lingua report. Bot only.", "readonly": true }
+        { "name": "lingua-stats",         "type": "text", "topic": "Weekly Cymbra Lingua report: active accounts, words read, words learned, reviews. Bot only.", "readonly": true }
       ]
     },
     {

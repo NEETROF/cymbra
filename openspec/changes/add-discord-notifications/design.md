@@ -113,8 +113,9 @@ re-evaluate consent, listability, flags and throttle **at publication time** (a 
 requirement). A pre-rendered message would freeze a consent snapshot that may be stale by the
 time the job runs.
 
-Consequence: the worker needs read access to the data it renders from (music aggregates, user
-profiles) through the existing in-process module/port seams — no new cross-schema writes.
+Consequence: the worker needs read access to the data it renders from (music aggregates, Lingua
+day aggregates through `LinguaAdminRepo` on a `lingua_svc` pool, user profiles) through the existing
+in-process module/port seams — no new cross-schema writes.
 
 ### D5 — Idempotency by dedup key in a `discord` schema
 
@@ -155,16 +156,23 @@ the existing `purge_user` erasure job.
 ### D7 — Two tiers, one digest, one throttle, one aggregate minimum
 
 `discord_notify` handles the immediate tier (accepted catalog item, season record). **Releases
-are not in it**: release-please already produces the version and its notes in CI, so the
-announcement is posted by the workflow that builds the release
-(`scripts/discord/release_announce.sh`), after the platform jobs have attached their artifacts —
-announcing at release-creation time would link a page with no downloads. Routing that through
+are not in it**: release-please already produces the version and its notes in CI, so CI posts the
+announcement (`scripts/discord/release_announce.sh`). Music and the Lingua browser extension are
+announced by their own release workflows (`music-release.yml`, `lingua-extension-release.yml`, tag
+run only) once their packages are attached — announcing at release-creation time would link a page
+with no downloads. Backend, back office, site and `lingua-apple` have nothing to attach and are
+announced by `release-announce.yml` on `release: published`, through an allow-list of those tag
+prefixes. Music goes to `#announcements`; everything else goes to `#dev`, both Lingua components
+included, because a Lingua tag reaches no reader (the store submission, or the App Store release,
+is the reader-facing event). Routing that through
 the backend would mean opening an authenticated ingress for CI and would gain nothing; the
 trade-off accepted is that the back-office kill-switch does not cover release announcements,
 whose off switch is the repository secret or the job itself.
 `discord_digest` is a **scheduled** job (seed in `backend/jobs/migrations/…_seed_discord_digest_schedule.sql`,
 following the existing schedule seeds) that aggregates the previous closed period and posts one
-message **per product**, into that product's stats channel. The **cadence is per product and
+message **per product**, into that product's stats channel. A run publishes only the products whose
+period has closed; Lingua's week is reported one day after it closes, because its figures are
+computed on devices and reach the server only when they sync. The **cadence is per product and
 flag-driven**, not global: a product with little traffic reports weekly and one with real volume
 reports daily, so a channel never publishes "3 players today". Long rankings are **pulled, not
 pushed** — the digest carries a top 10, the full top 50 goes to the product's leaderboard channel
@@ -187,8 +195,9 @@ otherwise hide.
 ### D8 — Flags: kill-switch **defaults off**, one flag per category
 
 `FlagService` carries a global `discord.enabled` (default **off**, so the code deploys dark) plus
-one flag per **product-namespaced** category (`discord.music.daily_report`,
-`discord.id.weekly_report`, …), read at publication time. The namespacing means one product's feed
+one flag per **product-namespaced** category (`discord.music.report`, `discord.id.report`,
+`discord.lingua.report`, …) and one cadence flag per product (defaults: Music daily, ID and Lingua
+weekly), read at publication time. The namespacing means one product's feed
 can be muted without touching another's — the operational unit matches the server's sections. Turning the kill-switch off suppresses jobs
 that are already enqueued.
 
@@ -301,10 +310,8 @@ are inert if the code is reverted; the consent column keeps its `false` default.
 
 - Which slash commands ship in v1 beyond linking? A stats/leaderboard lookup is the obvious
   candidate, but each command adds a public disclosure surface subject to D6's gate.
-- Which channel receives which category, and how many channels the server starts with — depends
-  on the server structure, which is decided outside this change.
+- The `(product, category) → channel` routing is fixed by D2; the concrete channel list lives in
+  `scripts/discord/server.json`, and provisioning the server stays out of scope (Non-Goals).
 - Should the season-record announcement name the player at all, or only the piece and the
   figure? Naming is the point of a community feed, but the piece-only variant needs no consent
   at all and could ship before the toggle.
-- Does the digest belong in a public channel or a low-traffic "stats" channel? A daily bot
-  message in the main channel competes with human conversation.

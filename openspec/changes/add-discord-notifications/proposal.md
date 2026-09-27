@@ -24,10 +24,12 @@ consent + rate discipline that make it safe.
 - **Announcements are enqueued, never inline**: producers enqueue a `discord_notify` job
   through the existing `Enqueuer` port **in the same transaction** as the domain write, so a
   rolled-back write can never produce a phantom announcement, and retries/DLQ come for free.
-  A scheduled `discord_digest` job folds high-frequency activity into one daily message.
+  A scheduled `discord_digest` job folds high-frequency activity into one message per product,
+  at a per-product cadence (Music daily, ID and Lingua weekly).
 - **Two event tiers, one explicit deny-list**:
   - *immediate*: score/soundfont **accepted** into the public catalog, season record beaten;
-  - *daily digest*: session counts, new-player counts, best tempo of the day;
+  - *periodic digest, per product*: Music play counts and records, ID account counts, Lingua
+    reading and learning aggregates;
   - **never announced**: sign-ins, `pending`/`rejected` moderation state, emails, raw ids.
 - **A dedicated Discord-visibility consent**, separate from profile visibility. A player is
   named on Discord only when they opted in to Discord **and** are publicly listable
@@ -76,20 +78,38 @@ consent + rate discipline that make it safe.
 
 ## Impact
 
+**Products impacted** (consumed vs new):
+- **Cymbra Music** — consumed: moderation, leaderboards, play aggregates; new: the consent toggle
+  and the community entry point in the app.
+- **Cymbra ID** — consumed: `listable_profiles`, account counts; new: the Discord-consent column.
+- **Cymbra Lingua** — consumed: the `lingua.daily_stats` aggregate, read under the `lingua_svc`
+  role; new: `LinguaAdminRepo::usage()` gains per-column contributor counts in its
+  identifier-free totals query — no new stored data, no new telemetry, nothing new on the wire.
+- **Cymbra Live** — none (its section stays declared but disabled).
+- **Back office** — consumed: the existing flags console; new: the flag descriptions.
+- **Site** — new: the `/discord` redirect and the privacy-policy edits of task 8.1.
+
+
 - **New crate**: `backend/discord` (`cymbra-discord`) — a workspace member, so it counts
   toward `cargo llvm-cov --workspace --fail-under-lines 80`; the HTTP glue stays thin and is
   added to the coverage ignore regex, the selection/rendering core is fully tested.
 - **Existing backend**: a job-name constant and `Channel` in `cymbra_jobs::registry`; two
   handlers plus an optional `discord` field in `WorkerCtx` (absent configuration = no-op,
   mirroring `storage`); one scheduled job; one new HTTP route on the server; producer call
-  sites in the score/soundfont moderation and leaderboard-season paths.
+  sites in the score/soundfont moderation and leaderboard-season paths. For the Lingua report the
+  `backend/lingua` `usage()` totals query and the `Usage` struct gain contributor counts, and the
+  worker gains an optional `CYMBRA_LINGUA_DATABASE_URL` (today only the server reads it), a
+  `lingua_svc` pool opened only when it is set, and a runtime dependency on `cymbra-lingua`, which
+  it deliberately keeps as a dev-dependency today.
 - **Data**: one migration adding the Discord-consent column to the `user_account` schema,
   purged by the existing `purge_user` erasure job.
 - **App (`apps/music`)**: a consent toggle plus its explanatory copy, the community entry
   point, and ARB strings for the four locales (en/fr/es/it).
 - **Back office**: the new flags appear in the existing flags console; no new screen.
-- **Legal**: the Discord publication and its irreversibility must be documented in
-  `docs/legal/politique-de-confidentialite.md` and `docs/legal/privacy-policy.md`.
+- **Legal**: the published privacy policy (`apps/site/src/pages/confidentialite.md`,
+  `apps/site/src/pages/en/privacy.md`) must document the Music naming consent and its
+  irreversibility, and that anonymous aggregate figures of every product — Lingua's included —
+  are published on the community server.
 - **Secrets/ops**: per-channel webhook URLs, the bot token, and the application public key as
   environment variables documented in `backend/.env.example` — never in code. Deployment must
   register the interactions endpoint URL with the Discord application.
@@ -103,5 +123,5 @@ consent + rate discipline that make it safe.
   interactions endpoint, linking and roles do not depend on it at all. The Discord change
   records the `discord_user_id → code` claim so the cohort of beta testers is known without any
   Cymbra account link. `CampaignKind::Feature` (membership only, no end date) is product-
-  agnostic, so a beta campaign for a product with no backend of its own — a Lingua browser
-  extension, distributed outside any store — works through this command unchanged.
+  agnostic, so a beta campaign for any product — the Lingua browser extension included — works
+  through this command unchanged.

@@ -26,9 +26,8 @@ English words you don't know yet, right in the page you are reading.
 • **#music-help** — stuck? tell us your platform and MIDI device
 • **#scores-and-soundfonts** — catalog additions, requests, licensing questions
 • **#music-ideas** / **#music-bugs** — one post per idea or bug
-• **#music-stats** / **#music-leaderboards** — automated reports, bot only
 • **#lingua-help** — Lingua questions; say which browser you use
-• **#lingua-stats** — automated report, bot only
+• **#music-stats** / **#music-leaderboards** / **#lingua-stats** / **#id-stats** — automated reports, bot only
 • **#id-help** — accounts, sign-in, linked identities
 • **#dev** — building Cymbra: PRs, engine internals
 
@@ -66,9 +65,8 @@ les mots anglais que tu ne connais pas encore, directement dans la page que tu l
 • **#music-help** — bloqué ? précise ta plateforme et ton clavier MIDI
 • **#scores-and-soundfonts** — ajouts au catalogue, demandes, questions de licence
 • **#music-ideas** / **#music-bugs** — un post par idée ou par bug
-• **#music-stats** / **#music-leaderboards** — rapports automatiques, bot uniquement
 • **#lingua-help** — questions sur Lingua ; précise ton navigateur
-• **#lingua-stats** — rapport automatique, bot uniquement
+• **#music-stats** / **#music-leaderboards** / **#lingua-stats** / **#id-stats** — rapports automatiques, bot uniquement
 • **#id-help** — comptes, connexion, identités liées
 • **#dev** — le développement de Cymbra : PRs, moteur
 

@@ -23,7 +23,8 @@ in the **description** (a 50-line list is ~2300 characters), never in 50 fields.
   rank and the figure still show, so a board is never empty.
 
 **Day boundary**: reports bucket by **UTC day**. `play_sessions` carries `tz_offset_minutes` for
-the app's *local-day* heatmap; reusing that here would double-count players around midnight.
+the app's *local-day* heatmap; reusing that here would double-count players around midnight. A
+**week** is the ISO week, Monday 00:00 to Sunday 24:00 UTC.
 
 ---
 
@@ -101,32 +102,72 @@ admin surface.
 
 Weekly, for the same reason as Cymbra ID. Title `Cymbra Lingua — week of <date>`.
 
-Every figure comes from the **ops aggregate that already exists**:
-`LinguaAdminRepo::usage(from_day, to_day)` and `series(..., SeriesMetric::Exposures, None)` over
-`lingua.daily_stats` ([pg_admin.rs](../../backend/lingua/src/pg_admin.rs), change
-`add-lingua-backend`) — a `COUNT(DISTINCT user_id)` / `SUM(...)` grouped by day and studied
-language that returns no account identifier. Reuse it; do not write a second query.
+**One call to the ops aggregate that already exists**: `LinguaAdminRepo::usage(from_day, to_day)`
+over `lingua.daily_stats` (table from change `add-lingua-backend`, aggregate from the back-office
+ops console, change `add-lingua-back-office`, [pg_admin.rs](../../backend/lingua/src/pg_admin.rs)).
+Its totals are **one** `COUNT(DISTINCT user_id)` + `SUM(...)` over the whole window, so a reader
+active on several days counts once; `by_language` is the same, per language over the window; only
+`series()` groups by day, and the report does not need it. No account identifier comes back.
+
+That query needs one addition, in the **totals** statement of `usage()` (the `by_language` breakdown
+is untouched) and still identifier-free: a **contributor
+count per summed column**, `COUNT(DISTINCT user_id) FILTER (WHERE <column> > 0)`. Without it the
+only available gate is the active-account count, and five active accounts of which one reviewed
+would publish that one person's review total. Extend `usage()`; do not write a second query.
 
 | Field | Source | Suppression |
 |---|---|---|
-| **Readers active** | `Usage.active_accounts` | `—` if `< k` |
-| **Words learned** | `Usage.words_learned` | `—` if readers `< k` |
-| **Reviews done** | `Usage.reviews` | `—` if readers `< k` |
-| **Words met while reading** | `SeriesMetric::Exposures` summed over the week | `—` if readers `< k` |
-| **Languages studied** | `Usage.by_language`, top 3 by `active_accounts` | a language under `k` accounts drops off the list |
+| **Active accounts** | `Usage.active_accounts` | `—` if `< k` |
+| **Words read** | `Usage.words_read` — occurrences read in passages actually seen, **not** distinct words (definition from `refine-lingua-reading-stats`) | `—` if accounts that read `< k` |
+| **Words learned** | `Usage.words_learned` | `—` if accounts that learned a word `< k` |
+| **Reviews done** | `Usage.reviews` | `—` if accounts that reviewed `< k` |
+| **Languages studied** | `Usage.by_language`, **accounts only** (never its per-language sums) | see below |
 
-**Nobody is ever named here, and the naming gate never applies.** Lingua has no public profile,
-and `lingua`'s own privacy allow-list stops at day-grained aggregates: `word_statuses` and `cards`
-are per-account rows and stay out of any report. So there is no "top reader" line to gate — which
-also means a Lingua figure can never leak an identity the way a ranking can.
+**Languages studied** is rendered only when **two or more** languages each reach `k` accounts. The
+repository returns languages alphabetically, so the pure core drops those under `k`, sorts by
+`active_accounts` descending (language ascending on ties) and keeps at most three. There is **no
+`other` line**: `by_language` holds one distinct count per language, and summing several of them
+counts an account once per language it studies, so no honest remainder can be built from it.
+Active accounts minus the sum of the lines shown is at best a lower bound on the accounts outside
+them, and negative when an account studies two shown languages; it is accepted because it names
+neither a language nor a person. Today the extension syncs every day as
+`en` ([sync.ts](../../apps/lingua-extension/src/sync/sync.ts)), so the row is omitted: a single
+`en — N` would only repeat Active accounts.
+
+Footer: `Counts signed-in accounts whose activity this week has reached the server · figures covering fewer than 5 accounts are hidden`
+
+**What is counted, honestly.** A daily stat is computed on the device and reaches the server only
+when a signed-in extension syncs, so:
+
+- signed-out readers and devices kept local are **not** counted — the back office states the same
+  bias on screen, and the report has to say it too (the footer);
+- an account that only reviewed cards that week is active without having read, hence
+  "Active accounts", not "readers";
+- stats from an extension older than `refine-lingua-reading-stats` are dropped at sync, so an
+  outdated extension counts nowhere until it updates;
+- the figures are **lower bounds**: a day synced after its week's report went out is not added
+  later, since a published report is never re-emitted (D5). The Lingua week is therefore reported
+  one day after it closes (see *Cadence*), which shrinks that loss; a device offline for longer is
+  still missed.
+
+**Deliberately not published: new words seen and comprehension.** `Usage.new_words_seen` exists,
+but its change decided the counter is for the back office only (maintainer decision,
+`refine-lingua-reading-stats`, 2026-09-27). Publishing it is that capability's decision to
+revisit, not this report's to take.
+
+**Nobody is ever named here, and the naming gate never applies.** Lingua has no public profile, and
+the report reads only the ops aggregate, whose own privacy allow-list returns counts and never an
+account identifier (`backend/lingua/src/admin.rs`). `word_statuses` and `cards` are per-account
+rows and stay out of any report. A single heavy reader can still dominate a sum such as Words
+read; that is accepted, because nothing published says who they are.
 
 **Expect silence at first, and let it be silent.** With `k = 5` the whole section is suppressed
-until five people read in the same week, and "nothing to say ⇒ nothing posted" then keeps the
-channel empty rather than publishing zeroes.
+until five synced accounts are active in the same week, and "nothing to say ⇒ nothing posted" then
+keeps the channel empty rather than publishing zeroes.
 
-**Erasure needs no special handling**: `LinguaDataService.EraseMyData` removes a user's rows, so
-later reports stop counting them, and an already-published aggregate carries no identity to
-retract.
+**Erasure needs no special handling**: `LinguaDataService.EraseMyData` and the account erasure job
+both delete the user's `daily_stats` rows, so later reports stop counting them, and an
+already-published aggregate carries no identity to retract.
 
 ---
 
@@ -154,7 +195,9 @@ ranking core is shared with the digest — one implementation, three surfaces.
 
 ## Cadence, per product
 
-Each product carries its own cadence flag (`discord.music.*`, `discord.id.*`, `discord.lingua.*`). Start Music
+Each product carries its own cadence flag (`discord.music.*`, `discord.id.*`, `discord.lingua.*`).
+Defaults: Music **daily**, ID and Lingua **weekly**. Each run reports only a closed period, and the
+Lingua week is due one day after it closes, since its figures arrive by device sync. Start Music
 **weekly** too if the first week's numbers look thin, then switch to daily from the back office —
 no redeploy. Suppressed and throttled figures are counted in the logs, so a quiet report is
 distinguishable from a broken one.
