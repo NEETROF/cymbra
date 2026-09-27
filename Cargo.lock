@@ -1007,6 +1007,7 @@ dependencies = [
  "sqlx",
  "tokio",
  "tonic 0.12.3",
+ "tracing",
  "uuid",
 ]
 

@@ -7,7 +7,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use chrono::NaiveDate;
 use cymbra_jobs::{EnqueueRequest, Enqueuer, PURGE_USER};
-use cymbra_platform::{AppError, Result};
+use cymbra_platform::{APP_SCOPES, AppError, Result};
 use cymbra_user_port::{Account, AccountPage, Identity, PlayerProfile, UserPort, Visibility};
 use serde::Serialize;
 
@@ -35,6 +35,22 @@ pub(crate) use cymbra_platform::SCOPES;
 /// table in one call.
 const DEFAULT_PAGE: i64 = 25;
 const MAX_PAGE: i64 = 100;
+
+/// Validate and de-duplicate a directory app filter (change: add-directory-app-usage).
+/// The SQL matches "a row for every listed app" by counting, so a repeated value would
+/// make every account miss; an unknown one is a caller error, not an empty page.
+fn app_filter(apps: &[String]) -> Result<Vec<String>> {
+    let mut out: Vec<String> = Vec::with_capacity(apps.len());
+    for app in apps {
+        if !APP_SCOPES.contains(&app.as_str()) {
+            return Err(AppError::InvalidArgument(format!("unknown app `{app}`")));
+        }
+        if !out.contains(app) {
+            out.push(app.clone());
+        }
+    }
+    Ok(out)
+}
 
 /// Payload for the `purge_user` job: only the user id (the erasure worker resolves
 /// the email inside its own transaction, so it never transits the queue).
@@ -281,7 +297,7 @@ impl<R: UserRepo> UserPort for UserModule<R> {
             crate::handle_core::normalize(query)
         };
         self.repo
-            .list_accounts(query, &handle_key, limit, offset, scopes, &[], &[])
+            .list_accounts(query, &handle_key, limit, offset, scopes, &[], &[], &[])
             .await
     }
 
@@ -303,6 +319,7 @@ impl<R: UserRepo> UserPort for UserModule<R> {
         } else {
             crate::handle_core::normalize(&filter.query)
         };
+        let apps = app_filter(&filter.apps)?;
         self.repo
             .list_accounts(
                 &filter.query,
@@ -312,8 +329,17 @@ impl<R: UserRepo> UserPort for UserModule<R> {
                 scopes,
                 &filter.ids,
                 &filter.exclude_ids,
+                &apps,
             )
             .await
+    }
+
+    async fn record_app_use(&self, user_id: &str, audience: &str) -> Result<()> {
+        // Only an app scope is an app: `back-office` and `web` are not recorded.
+        if !APP_SCOPES.contains(&audience) {
+            return Ok(());
+        }
+        self.repo.touch_app(user_id, audience).await
     }
 
     async fn get_player_profile(
@@ -1093,6 +1119,120 @@ mod tests {
         // limit <= 0 falls back to the default window rather than returning nothing.
         let page = m.list_accounts("", 0, 0, &sc(&["music"])).await.unwrap();
         assert_eq!(page.entries.len(), 1);
+    }
+
+    // --- Apps an account signed in to (change: add-directory-app-usage) -------
+
+    #[tokio::test]
+    async fn record_app_use_records_app_scopes_only() {
+        let m = module();
+        let u = m.resolve_or_provision("google", "a").await.unwrap();
+        for aud in ["lingua", "music", "back-office", "web", "music"] {
+            m.record_app_use(&u, aud).await.unwrap();
+        }
+        let page = m.list_accounts("", 25, 0, &sc(&["music"])).await.unwrap();
+        let apps: Vec<&str> = page.entries[0]
+            .apps
+            .iter()
+            .map(|a| a.app.as_str())
+            .collect();
+        // App order, one row per app, and neither the console nor the site.
+        assert_eq!(apps, vec!["lingua", "music"]);
+        assert!(page.entries[0].apps.iter().all(|a| a.last_seen_at > 0));
+    }
+
+    #[tokio::test]
+    async fn list_accounts_filters_by_every_listed_app() {
+        use cymbra_user_port::AccountFilter;
+        let m = module();
+        let both = m.resolve_or_provision("google", "both").await.unwrap();
+        let music = m.resolve_or_provision("google", "music").await.unwrap();
+        let none = m.resolve_or_provision("google", "none").await.unwrap();
+        m.record_app_use(&both, "music").await.unwrap();
+        m.record_app_use(&both, "lingua").await.unwrap();
+        m.record_app_use(&music, "music").await.unwrap();
+
+        let ids = |apps: &[&str]| {
+            let filter = AccountFilter {
+                apps: sc(apps),
+                ..Default::default()
+            };
+            let m = &m;
+            async move {
+                let page = m
+                    .list_accounts_filtered(&filter, 25, 0, &sc(&["music"]))
+                    .await
+                    .unwrap();
+                assert_eq!(page.total as usize, page.entries.len());
+                let mut v: Vec<String> = page.entries.into_iter().map(|e| e.user_id).collect();
+                v.sort();
+                v
+            }
+        };
+        let sorted = |mut v: Vec<String>| {
+            v.sort();
+            v
+        };
+        assert_eq!(
+            ids(&["music"]).await,
+            sorted(vec![both.clone(), music.clone()])
+        );
+        assert_eq!(ids(&["lingua"]).await, vec![both.clone()]);
+        assert_eq!(ids(&["music", "lingua"]).await, vec![both.clone()]);
+        // A repeated value must not make every account miss.
+        assert_eq!(ids(&["lingua", "lingua"]).await, vec![both.clone()]);
+        // No criterion lists everyone.
+        assert_eq!(ids(&[]).await, sorted(vec![both, music, none]));
+    }
+
+    #[tokio::test]
+    async fn list_accounts_refuses_an_unknown_app() {
+        let m = module();
+        let err = m
+            .list_accounts_filtered(
+                &cymbra_user_port::AccountFilter {
+                    apps: sc(&["chess"]),
+                    ..Default::default()
+                },
+                25,
+                0,
+                &sc(&["music"]),
+            )
+            .await
+            .unwrap_err();
+        assert!(matches!(err, AppError::InvalidArgument(_)));
+    }
+
+    #[tokio::test]
+    async fn deleting_an_account_forgets_its_apps() {
+        let m = module();
+        let u = m.resolve_or_provision("google", "a").await.unwrap();
+        m.record_app_use(&u, "music").await.unwrap();
+        m.repo.delete_account(&u).await.unwrap();
+        let again = m.resolve_or_provision("google", "b").await.unwrap();
+        let page = m.list_accounts("", 25, 0, &sc(&["music"])).await.unwrap();
+        assert_eq!(page.entries.len(), 1);
+        assert_eq!(page.entries[0].user_id, again);
+        assert!(page.entries[0].apps.is_empty());
+    }
+
+    /// The table's CHECK restates the app scopes; adding an app in only one place
+    /// fails here (same idea as the role-vocabulary drift test).
+    #[test]
+    fn the_app_migration_constrains_exactly_the_app_scopes() {
+        let sql = include_str!("../migrations/0011_account_apps.sql");
+        let sql = sql.split_whitespace().collect::<Vec<_>>().join(" ");
+        let after = "CHECK (app IN (";
+        let at = sql.find(after).expect("the CHECK is still there");
+        let body = &sql[at + after.len()..];
+        let mut listed: Vec<&str> = body[..body.find(')').unwrap()]
+            .split(',')
+            .map(|v| v.trim().trim_matches('\''))
+            .collect();
+        listed.sort();
+        let mut scopes = APP_SCOPES.to_vec();
+        scopes.sort();
+        assert_eq!(listed, scopes);
     }
 
     // --- Preferred locale (change: persist-user-locale) -----------------------

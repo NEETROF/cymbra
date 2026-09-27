@@ -21,7 +21,7 @@ platforms in an App Store description invites scrutiny it does not have to invit
 | Name | 30 | `Cymbra Lingua` (13) |
 | Subtitle | 30 | `Vocabulaire anglais en lisant` (29) |
 | Promotional text | 170 | 140 characters, below |
-| Description | 4000 | 2116 characters, below |
+| Description | 4000 | 2486 characters, below |
 | Keywords | 100 | 83 characters, below |
 | Support URL | — | `https://cymbra.app/support/` |
 | Marketing URL | — | `https://cymbra.app/lingua/` |
@@ -45,10 +45,6 @@ anglais,vocabulaire,lecture,traduction,extension,apprendre,mots,révision,CECRL,
 ```
 
 ## Description (2486 / 4000)
-
-**LIRE VOS LIVRES** describes the book reader (`add-lingua-reader`). Paste it only once that
-change's iPhone measurement (task 1.5) has kept the reader in the Safari variant; if it has
-not, the paragraph goes and the count drops back to 2317.
 
 ```
 Cymbra Lingua est une extension Safari qui surligne, sur la page que vous lisez, les mots d'anglais que vous ne connaissez pas encore — sans rien changer à la mise en page. Une pastille vous dit quelle part du texte vous est familière, calculée sur ce que vous avez réellement marqué, pas sur une estimation.
@@ -93,36 +89,37 @@ Vos données restent sur l'appareil ; le compte Cymbra est facultatif et ne sert
 
 ## Review notes (App Review Information)
 
+Apple's first review (2026-09-22, iOS 1.1.0) was a Guideline 2.1 "Information Needed": an
+account with little review history is asked, in reply **and** in this field for every later
+submission, for a screen recording on a physical device (from launch, with sign-in and account
+deletion), the app's purpose and audience, setup steps, external services, regional differences
+and third-party material. The notes below answer all of it; the recording goes with the reply.
+
+Paste only what is inside the block: text around it has been pasted into App Store Connect
+before.
+
 ```
-No account is needed to review this app. Signing in only synchronises a reader's own
-vocabulary between their devices; every other feature works signed out.
+No account is needed to review this app: every feature works signed out. The Cymbra account is what saves the learner's progress in learning the language - known words, deck, level and statistics - so that it survives deleting and reinstalling the app, or replacing or resetting the device, and is the same on all their devices (iPhone, iPad, Mac). Without an account, that progress lives only on this device and is lost if the app is deleted. To test it, create an account from the extension (panel > Compte) with Sign in with Apple or Google - no invitation is needed.
 
-IMPORTANT — the app is a Safari extension host. Installing it shows only a short
-explanatory screen: the extension must be enabled in Safari before anything happens.
+IMPORTANT - this app is a Safari extension host. Installing it shows only a short explanatory screen: the extension must be enabled in Safari before anything happens.
 
-1. Open Settings > Apps > Safari > Extensions (macOS: Safari > Settings > Extensions),
-   enable "Cymbra Lingua", and allow it on the site you will test.
-2. In SAFARI, not in the app, open the extension from the address-bar menu and pick an
-   English level (B1 is a good default). This matters: with no level chosen the engine
-   assumes zero known words, so every word is highlighted and the pill reads 0% — which
-   looks like a broken extension rather than an unconfigured one. A tab opened before the
-   extension was enabled, or before the level was picked, must be reloaded: the level
-   applies to pages analysed after it is set.
-3. In Safari, open any English-language page (a news article works well). Words above
-   your level are highlighted and a pill shows the share of the page you already know.
-4. Tap a highlighted word: a card gives its translation, its dictionary form and how
-   common it is, with three actions — "Je connais", "+ Deck", "Ignorer".
-5. Open the extension's panel to review the cards you captured, and the statistics
-   screen for the estimated vocabulary.
+1. Settings > Apps > Safari > Extensions (macOS: Safari > Settings > Extensions): enable "Cymbra Lingua", then set "Other Websites" to Allow.
+2. In SAFARI (not in the app), open the extension from the address-bar menu and pick an English level - B1 is a good default. With no level chosen the engine assumes zero known words, so every word is highlighted and the pill reads 0%, which looks broken rather than unconfigured.
+3. Open any English-language page. A tab opened BEFORE the extension was enabled, or before the level was picked, must be reloaded.
+4. Words above your level are highlighted and the pill shows the share of the page you already know. Tap a highlighted word: a card gives its translation, dictionary form and frequency, with "Je connais" (I know this), "+ Deck" (add to deck), "Ignorer" (ignore).
+5. Tap the pill to open the panel: Revision, Stats (estimated vocabulary, A1 to C2), Settings, Compte (account).
 
-OPTIONAL — "Traduction étendue", off by default, in the extension's settings (gear icon).
-The translation engine (Mozilla's Firefox Translations, WebAssembly) is part of the app
-bundle; nothing executable is ever downloaded. Turning the setting on downloads a data
-file once — the translation model, 25.8 MB, from models.cymbra.app, checked against a
-pinned sha256 — and the selected sentence is then translated on the device. No page text,
-account or device identifier is sent. Turning it off deletes the model.
+Account deletion: panel > Compte, signed in. "Effacer mes données Lingua" erases the reader's Lingua data on the server and every device, keeping the account. "Supprimer mon compte Cymbra" opens https://cymbra.app/suppression-compte/, where the account (shared by Cymbra's apps) is deleted after signing in.
 
-The interface is in French: the app teaches English to French speakers.
+OPTIONAL - "Traduction étendue", off by default (Settings). The translation engine (Mozilla's Firefox Translations, WebAssembly) ships inside the app; nothing executable is downloaded. Turning it on downloads one data file - the translation model, 25.8 MB, from https://models.cymbra.app, checked against a pinned sha256 - and the selected sentence is then translated on the device. No page text, account or device identifier is sent. Turning it off deletes the model.
+
+Purpose & audience: Cymbra Lingua helps French speakers learn English by reading real web pages and their own DRM-free EPUB books: unknown words are highlighted in place, looked up offline, captured into a deck reviewed with spaced repetition, and the reader's CEFR level (A1-C2) is estimated from the words they marked.
+
+External services: none by default - highlighting, lookup, the level estimate and translation run on the device (bundled WebAssembly engines + offline dictionary). No AI/LLM API, no analytics, no ads. Only on the reader's action: https://models.cymbra.app serves the translation model when "Traduction étendue" is turned on; https://api.cymbra.app (our backend) syncs the word list when signed in; Sign in with Apple / Google authenticate (the app never sees a password). No payment processor: the app is free, with no in-app purchase.
+
+Regional differences: none - the app behaves identically everywhere it is available. The interface is in French: it teaches English to French speakers.
+
+Third-party material: the bundled dictionary combines sources licensed for commercial use - ESDB (the English Speller Database from the SCOWL project) for inflections, the wordfreq frequency list, a kaikki.org extract of the French Wiktionary, and the CEFR-J and Octanove vocabulary-level lists - credited in the extension's "Sources & confidentialité" panel. The translation model is Mozilla's (MPL 2.0). The app does not operate in a regulated industry.
 ```
 
 ## Screenshots
