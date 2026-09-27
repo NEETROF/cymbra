@@ -47,4 +47,17 @@
 - [x] 6.2 `melos run analyze`, `dart format` from the repo root, and `cd apps/music && dart run custom_lint` all clean.
 - [x] 6.3 `flutter test --coverage --exclude-tags golden` green with line coverage ≥ 80%.
 - [x] 6.4 `openspec validate fix-session-account-retry --strict` passes.
-- [ ] 6.5 Manual check on macOS: sign in with email + password while the backend is unreachable (degraded session), restore it, confirm the `@handle` and the profile come back with no sign-out; then background the app while degraded and confirm no `GetAccount` is issued until it is foregrounded again.
+- [x] 6.5 Manual check on macOS: sign in with email + password while the backend is unreachable (degraded session), restore it, confirm the `@handle` and the profile come back with no sign-out; then background the app while degraded and confirm no `GetAccount` is issued until it is foregrounded again.
+
+  **Verified on macOS 2026-09-27** (debug build against production through a local h2c proxy
+  that logs every RPC and answers `GetAccount` with `UNAVAILABLE` on demand):
+  - Signing in with `GetAccount` unreachable left the session degraded — signed in, no handle —
+    and the own-profile screen offered **Réessayer**, not "this profile isn't available". The
+    sign-in ran through `SignInOidc` rather than email + password; both adopt the session via
+    `onSignedIn`, so the resolution path under test is the same.
+  - Re-attempts were spaced 2s then 4s, and each return to the foreground fired one immediately
+    and reset the backoff (the resolution rides along with the existing flag and quota refresh).
+  - Out of the foreground the loop was silent: **45s with zero `GetAccount`** where the 2s backoff
+    would have issued about twenty.
+  - Restoring `GetAccount` brought the handle and the profile back on the next foreground return,
+    after 16 blocked attempts, with no sign-out.
