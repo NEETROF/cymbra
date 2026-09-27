@@ -189,6 +189,8 @@ interface DirectoryAccount {
   roles?: string[];
   /** Roles grouped by scope (`global`/`music`/`live`); scope-aware role admin. */
   rolesByScope?: Record<string, string[]>;
+  /** Apps signed in to, with the last use as ISO time (change: add-directory-app-usage). */
+  apps?: Record<string, string>;
 }
 
 declare global {
@@ -260,13 +262,17 @@ export function installE2EClients(): void {
   const optionalBig = (v: number | undefined) => (v === undefined ? undefined : BigInt(v));
   // Mutable per-scope copy so grant/revoke change roles in the right scope and the
   // next listAccounts reflects it. A seed's flat `roles` is treated as `music`.
-  const byScope: { userId: string; handle?: string; displayName?: string; roles: Record<string, string[]> }[] = (
-    data.accounts ?? []
-  ).map((a) => {
+  const byScope: {
+    userId: string;
+    handle?: string;
+    displayName?: string;
+    roles: Record<string, string[]>;
+    apps: Record<string, string>;
+  }[] = (data.accounts ?? []).map((a) => {
     const roles: Record<string, string[]> = {};
     const src = a.rolesByScope ?? { music: a.roles ?? [] };
     for (const [scope, rs] of Object.entries(src)) roles[scope] = [...rs];
-    return { userId: a.userId, handle: a.handle, displayName: a.displayName, roles };
+    return { userId: a.userId, handle: a.handle, displayName: a.displayName, roles, apps: a.apps ?? {} };
   });
 
   /** Append a row to the `role_grants` audit listing, as the server does on every
@@ -550,11 +556,14 @@ export function installE2EClients(): void {
         if (req.locale) data.accountLocale = req.locale; // reflect the write
         return { userId: "u1", locale: data.accountLocale };
       },
-      listAccounts: async (req: { query: string; limit: number; offset: number; ids?: string[] }) => {
+      listAccounts: async (req: { query: string; limit: number; offset: number; ids?: string[]; apps?: string[] }) => {
         failIfSet("listAccounts");
         const q = (req.query ?? "").toLowerCase();
-        // `ids` (pre-resolved by the plan service) narrows the directory like the server.
-        const scoped = req.ids && req.ids.length > 0 ? byScope.filter((a) => req.ids!.includes(a.userId)) : byScope;
+        // `ids` (pre-resolved by the plan service) narrows the directory like the server;
+        // so does `apps` — an account must have used every listed app.
+        const scoped = byScope
+          .filter((a) => !req.ids?.length || req.ids.includes(a.userId))
+          .filter((a) => (req.apps ?? []).every((app) => app in a.apps));
         const filtered = q
           ? scoped.filter(
               (a) => (a.handle ?? "").toLowerCase().includes(q) || (a.displayName ?? "").toLowerCase().includes(q),
@@ -565,6 +574,9 @@ export function installE2EClients(): void {
           handle: a.handle,
           displayName: a.displayName,
           rolesByScope: Object.entries(a.roles).map(([scope, roles]) => ({ scope, roles })),
+          apps: Object.entries(a.apps)
+            .sort(([x], [y]) => x.localeCompare(y))
+            .map(([app, at]) => ({ app, lastSeenAt: BigInt(Math.floor(Date.parse(at) / 1000)) })),
         }));
         return { accounts: page, total: filtered.length };
       },

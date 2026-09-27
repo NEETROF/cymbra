@@ -10,6 +10,22 @@ import type { CuratorReliability } from "@/gen/score_pb";
 /** Directory page size (mirrors the server's default window). */
 export const PAGE_SIZE = 25;
 
+/** The directory's app criterion (change: add-directory-app-usage): accounts that
+ *  signed in to that app — `both` means Music AND Lingua. */
+export type AppFilter = "any" | "music" | "lingua" | "both";
+
+/** The `apps` a criterion sends: the server keeps accounts that used EVERY one. */
+export function appsFor(filter: AppFilter): string[] {
+  switch (filter) {
+    case "any":
+      return [];
+    case "both":
+      return ["music", "lingua"];
+    default:
+      return [filter];
+  }
+}
+
 export interface AccountDirectory {
   accounts: AccountRow[];
   total: number;
@@ -26,6 +42,8 @@ export interface DirectoryParams {
   beta: string;
   /** Restrict to accounts whose sandbox store purchases are honoured. */
   sandboxAccounts: boolean;
+  /** Apps the account signed in to — an identity fact, filtered by the directory itself. */
+  apps: AppFilter;
 }
 
 // Admin-only role administration. The server enforces scope-matched authorization
@@ -46,7 +64,14 @@ export const useRolesStore = defineStore("roles", () => {
   const reliability = ref<Async<CuratorReliability>>(idle);
   const op = ref<Async<void>>(idle);
   // Current directory criteria, so a grant/revoke can re-list the same page.
-  const params = reactive<DirectoryParams>({ query: "", offset: 0, plan: "any", beta: "", sandboxAccounts: false });
+  const params = reactive<DirectoryParams>({
+    query: "",
+    offset: 0,
+    plan: "any",
+    beta: "",
+    sandboxAccounts: false,
+    apps: "any",
+  });
 
   /** Whether the caller may see plan data at all: a music-scope admin only. A
    *  moderator or another scope's admin gets neither badges nor filters, and the batch
@@ -56,15 +81,17 @@ export const useRolesStore = defineStore("roles", () => {
   /** Load a page of the account directory (empty query lists all). A plan/beta filter
    *  is pre-resolved into ids by the plan service; an empty resolved set is an empty
    *  page (total 0) without calling the directory. The page's plan badges are then
-   *  fetched in one batch call. */
+   *  fetched in one batch call. The app criterion is not pre-resolved: which apps an
+   *  account uses is an identity fact, so the directory filters on it directly. */
   async function list(
     query = params.query,
     offset = params.offset,
     plan = params.plan,
     beta = params.beta,
     sandboxAccounts = params.sandboxAccounts,
+    apps = params.apps,
   ) {
-    Object.assign(params, { query, offset, plan, beta, sandboxAccounts });
+    Object.assign(params, { query, offset, plan, beta, sandboxAccounts, apps });
     const plans = usePlansStore();
     const outcome = await run(directory, async () => {
       let ids: string[] = [];
@@ -72,7 +99,7 @@ export const useRolesStore = defineStore("roles", () => {
         ids = await plans.accountIdsByPlan(plan, beta, sandboxAccounts);
         if (ids.length === 0) return { accounts: [], total: 0 };
       }
-      const resp = await api().user.listAccounts({ query, limit: PAGE_SIZE, offset, ids });
+      const resp = await api().user.listAccounts({ query, limit: PAGE_SIZE, offset, ids, apps: appsFor(apps) });
       return { accounts: resp.accounts, total: resp.total };
     });
     if (outcome.status === "success" && plansVisible()) {

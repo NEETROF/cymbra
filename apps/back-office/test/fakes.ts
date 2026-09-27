@@ -34,7 +34,7 @@ export interface FakeState {
   getCatalogScoreCalls: number;
   grantCalls: { userId: string; scope: string; role: string }[];
   revokeCalls: { userId: string; scope: string; role: string }[];
-  listAccountsCalls: { query: string; limit: number; offset: number; ids?: string[] }[];
+  listAccountsCalls: { query: string; limit: number; offset: number; ids?: string[]; apps?: string[] }[];
   reliabilityCalls: string[];
   /** Per-account audit listings requested, by target user id. */
   listRoleGrantsCalls: string[];
@@ -208,14 +208,14 @@ export function makeFakeClients(state: Partial<FakeState> = {}): { clients: Clie
         s.listRoleGrantsCalls.push(req.userId);
         return { grants: s.grants };
       },
-      listAccounts: async (req: { query: string; limit: number; offset: number; ids?: string[] }) => {
+      listAccounts: async (req: { query: string; limit: number; offset: number; ids?: string[]; apps?: string[] }) => {
         s.listAccountsCalls.push(req);
         // `ids` (pre-resolved by the plan service, or a single account for the detail
-        // page) narrows the directory like the server does.
-        const scoped =
-          req.ids && req.ids.length > 0
-            ? s.accounts.filter((a) => req.ids!.includes((a as { userId: string }).userId))
-            : s.accounts;
+        // page) narrows the directory like the server does; so does `apps` (every one).
+        const appsOf = (a: unknown) => ((a as { apps?: { app: string }[] }).apps ?? []).map((x) => x.app);
+        const scoped = s.accounts
+          .filter((a) => !req.ids?.length || req.ids.includes((a as { userId: string }).userId))
+          .filter((a) => (req.apps ?? []).every((app) => appsOf(a).includes(app)));
         return { accounts: scoped, total: scoped.length };
       },
       getAccount: async () => ({ userId: "u1", locale: s.accountLocale }),

@@ -630,7 +630,7 @@ impl cymbra_plans::HandleResolver for UserPortHandles {
                 &cymbra_user_port::AccountFilter {
                     query: String::new(),
                     ids: ids.to_vec(),
-                    exclude_ids: Vec::new(),
+                    ..Default::default()
                 },
                 ids.len() as i64,
                 0,

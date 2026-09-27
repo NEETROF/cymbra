@@ -10,13 +10,14 @@ use std::sync::Arc;
 
 use cymbra_platform::AuthIdentity;
 use cymbra_user_port::proto::{
-    Account, AccountRow, CheckHandleAvailabilityRequest, CheckHandleAvailabilityResponse,
-    DeleteAccountRequest, DeleteAccountResponse, GetAccountRequest, GetPlayerProfileRequest,
-    GrantRoleRequest, GrantRoleResponse, Identity, ListAccountsRequest, ListAccountsResponse,
-    ListIdentitiesRequest, ListIdentitiesResponse, ListRoleGrantsRequest, ListRoleGrantsResponse,
-    PlayerProfile as ProtoPlayerProfile, RevokeRoleRequest, RevokeRoleResponse,
-    RoleGrant as ProtoRoleGrant, ScopeRoles as ProtoScopeRoles, SetLocaleRequest,
-    SetProfileVisibilityRequest, SetProfileVisibilityResponse, UpdateAccountRequest,
+    Account, AccountApp as ProtoAccountApp, AccountRow, CheckHandleAvailabilityRequest,
+    CheckHandleAvailabilityResponse, DeleteAccountRequest, DeleteAccountResponse,
+    GetAccountRequest, GetPlayerProfileRequest, GrantRoleRequest, GrantRoleResponse, Identity,
+    ListAccountsRequest, ListAccountsResponse, ListIdentitiesRequest, ListIdentitiesResponse,
+    ListRoleGrantsRequest, ListRoleGrantsResponse, PlayerProfile as ProtoPlayerProfile,
+    RevokeRoleRequest, RevokeRoleResponse, RoleGrant as ProtoRoleGrant,
+    ScopeRoles as ProtoScopeRoles, SetLocaleRequest, SetProfileVisibilityRequest,
+    SetProfileVisibilityResponse, UpdateAccountRequest,
     user_service_server::{UserService, UserServiceServer},
 };
 use cymbra_user_port::{UserPort, Visibility};
@@ -242,6 +243,7 @@ impl<P: UserPort + 'static> UserService for UserGrpc<P> {
                     query: r.query,
                     ids: r.ids,
                     exclude_ids: r.exclude_ids,
+                    apps: r.apps,
                 },
                 r.limit as i64,
                 r.offset as i64,
@@ -261,6 +263,14 @@ impl<P: UserPort + 'static> UserService for UserGrpc<P> {
                     .map(|sr| ProtoScopeRoles {
                         scope: sr.scope,
                         roles: sr.roles,
+                    })
+                    .collect(),
+                apps: a
+                    .apps
+                    .into_iter()
+                    .map(|app| ProtoAccountApp {
+                        app: app.app,
+                        last_seen_at: app.last_seen_at,
                     })
                     .collect(),
             })
@@ -545,6 +555,38 @@ mod tests {
             .into_inner();
         assert_eq!(resp.total, 1);
         assert_eq!(resp.accounts[0].handle.as_deref(), Some("ada"));
+    }
+
+    #[tokio::test]
+    async fn list_accounts_carries_and_filters_by_apps() {
+        let (g, module) = grpc();
+        let reader = module.resolve_or_provision("google", "r").await.unwrap();
+        module.resolve_or_provision("google", "x").await.unwrap();
+        module.record_app_use(&reader, "lingua").await.unwrap();
+        let list = |apps: &[&str]| {
+            authed(
+                ListAccountsRequest {
+                    limit: 25,
+                    apps: apps.iter().map(|a| a.to_string()).collect(),
+                    ..Default::default()
+                },
+                "admin1",
+                &["user", "admin"],
+            )
+        };
+        let resp = g
+            .list_accounts(list(&["lingua"]))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(resp.total, 1);
+        assert_eq!(resp.accounts[0].user_id, reader);
+        assert_eq!(resp.accounts[0].apps.len(), 1);
+        assert_eq!(resp.accounts[0].apps[0].app, "lingua");
+        assert!(resp.accounts[0].apps[0].last_seen_at > 0);
+
+        let err = g.list_accounts(list(&["chess"])).await.unwrap_err();
+        assert_eq!(err.code(), tonic::Code::InvalidArgument);
     }
 
     #[tokio::test]

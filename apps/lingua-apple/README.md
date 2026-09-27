@@ -113,9 +113,9 @@ base64 -i profile.mobileprovision | gh secret set LINGUA_IOS_APP_PROFILE_BASE64
 ```
 
 The App Store Connect record « Cymbra Lingua » (iOS + macOS, bundle `com.cymbra.lingua`) must
-exist before a delivery. The iOS app icon is the opaque, full-bleed render of
-`tool/gen_icons.sh` (App Store Connect refuses transparency); the macOS sizes keep the rounded
-mark.
+exist before a delivery. Every icon here is rendered from `apps/lingua-extension/assets/icon.svg`
+by `tool/gen_icons.sh` — never edit the PNGs by hand. The iOS app icon is the opaque, full-bleed
+render (App Store Connect refuses transparency); the macOS sizes keep the rounded mark.
 
 ## App Store privacy (Confidentialité de l'app)
 

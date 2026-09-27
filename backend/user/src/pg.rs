@@ -3,7 +3,9 @@
 
 use async_trait::async_trait;
 use cymbra_platform::{AppError, Result};
-use cymbra_user_port::{Account, AccountPage, AccountSummary, Identity, RoleGrant, ScopeRoles};
+use cymbra_user_port::{
+    Account, AccountApp, AccountPage, AccountSummary, Identity, RoleGrant, ScopeRoles,
+};
 use sqlx::{PgPool, Row};
 
 use crate::repo::UserRepo;
@@ -390,18 +392,22 @@ impl UserRepo for PgUserRepo {
         scopes: &[String],
         ids: &[String],
         exclude_ids: &[String],
+        apps: &[String],
     ) -> Result<AccountPage> {
         // Filter predicate (shared by count + page): empty query = all; else a
         // handle-key prefix OR a `local` identity email equal to the query; an
         // explicit id set ($3, empty = any) and exclusion set ($4) narrow further
-        // (change: add-premium-subscription).
+        // (change: add-premium-subscription); so does the app set ($5): the account
+        // must have a row for EVERY listed app (change: add-directory-app-usage).
         const WHERE: &str = "($1 = '' \
             OR ($2 <> '' AND u.handle_key LIKE $2 || '%') \
             OR EXISTS (SELECT 1 FROM user_identities i \
                        WHERE i.user_id = u.id AND i.provider = 'local' \
                          AND lower(i.subject) = lower($1))) \
             AND (cardinality($3::uuid[]) = 0 OR u.id = ANY($3::uuid[])) \
-            AND NOT (u.id = ANY($4::uuid[]))";
+            AND NOT (u.id = ANY($4::uuid[])) \
+            AND (SELECT count(*) FROM account_apps a \
+                 WHERE a.user_id = u.id AND a.app = ANY($5::text[])) = cardinality($5::text[])";
         let parse_ids = |v: &[String]| -> Result<Vec<uuid::Uuid>> {
             v.iter()
                 .map(|s| {
@@ -418,6 +424,7 @@ impl UserRepo for PgUserRepo {
             .bind(handle_key)
             .bind(&id_set)
             .bind(&excl_set)
+            .bind(apps)
             .fetch_one(&self.pool)
             .await
             .map_err(internal)?;
@@ -428,12 +435,13 @@ impl UserRepo for PgUserRepo {
              FROM users u \
              WHERE {WHERE} \
              ORDER BY u.handle ASC NULLS LAST, u.created_at, u.id \
-             LIMIT $5 OFFSET $6"
+             LIMIT $6 OFFSET $7"
         ))
         .bind(query)
         .bind(handle_key)
         .bind(&id_set)
         .bind(&excl_set)
+        .bind(apps)
         .bind(limit)
         .bind(offset)
         .fetch_all(&self.pool)
@@ -471,6 +479,28 @@ impl UserRepo for PgUserRepo {
             }
         }
 
+        // … and this page's apps (not scope-restricted: they are not roles).
+        let mut apps_map: HashMap<uuid::Uuid, Vec<AccountApp>> = HashMap::new();
+        if !ids.is_empty() {
+            let app_rows = sqlx::query(
+                "SELECT user_id, app, extract(epoch FROM last_seen_at)::bigint AS last_seen \
+                 FROM account_apps WHERE user_id = ANY($1) ORDER BY app",
+            )
+            .bind(&ids)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(internal)?;
+            for r in app_rows {
+                apps_map
+                    .entry(r.get("user_id"))
+                    .or_default()
+                    .push(AccountApp {
+                        app: r.get("app"),
+                        last_seen_at: r.get("last_seen"),
+                    });
+            }
+        }
+
         let entries = rows
             .into_iter()
             .map(|r| {
@@ -490,10 +520,26 @@ impl UserRepo for PgUserRepo {
                     handle: r.get("handle"),
                     display_name: r.get("display_name"),
                     roles_by_scope,
+                    apps: apps_map.remove(&uid).unwrap_or_default(),
                 }
             })
             .collect();
         Ok(AccountPage { entries, total })
+    }
+
+    async fn touch_app(&self, user_id: &str, app: &str) -> Result<()> {
+        // Throttled upsert (design D2): a refresh inside the hour writes nothing.
+        sqlx::query(
+            "INSERT INTO account_apps (user_id, app) VALUES ($1, $2) \
+             ON CONFLICT (user_id, app) DO UPDATE SET last_seen_at = now() \
+             WHERE account_apps.last_seen_at < now() - interval '1 hour'",
+        )
+        .bind(parse_uuid(user_id)?)
+        .bind(app)
+        .execute(&self.pool)
+        .await
+        .map_err(internal)?;
+        Ok(())
     }
 
     async fn profile_row(&self, user_id: &str) -> Result<crate::repo::ProfileRow> {
