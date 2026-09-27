@@ -179,7 +179,8 @@ api() { # api METHOD PATH [JSON_BODY] → response body on stdout
       attempts=$((attempts + 1))
       ((attempts <= 5)) || die "rate limited five times on $method $path — give it a minute"
       wait="$(jq -r '.retry_after // 2' <<<"$resp" 2>/dev/null || echo 2)"
-      log "rate limited, waiting ${wait}s"
+      # stderr: api()'s stdout is the response body, captured by its callers.
+      log "rate limited, waiting ${wait}s" >&2
       sleep "$wait"
       continue
     fi
