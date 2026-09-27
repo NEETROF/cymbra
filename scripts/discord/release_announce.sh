@@ -8,14 +8,17 @@
 #
 # Only the products readers install are announced — Cymbra Music and Cymbra Lingua.
 # Backend, back office and site releases are not (decided 2026-09-27); any other tag
-# is refused rather than posted under a guessed name. Called from three places, each
-# a final step once its release has something to show:
+# is refused rather than posted under a guessed name. Called automatically from three
+# places, each a final step once its release has something to show:
 #   - .github/workflows/music-release.yml, after every platform attached its files;
 #   - .github/workflows/lingua-extension-release.yml, after it attached the two
 #     packages, on the tag run only;
 #   - .github/workflows/lingua-apple-release.yml, after both builds reached App Store
-#     Connect, on the tag run only.
-# All three post to #announcements.
+#     Connect, on the tag run only;
+# and by hand from .github/workflows/release-announce.yml, for any existing Music or
+# Lingua release tag
+# (a release older than the Discord server, or a skipped announcement).
+# All of them post to #announcements.
 #
 # Environment:
 #   TAG                   release tag, e.g. music-v1.2.0            (required)
@@ -23,11 +26,14 @@
 #   GH_TOKEN              token for `gh release view`               (required)
 #   GITHUB_REPOSITORY     owner/repo (defaults to NEETROF/cymbra)
 #   DRY_RUN=1             print the payload instead of posting it
+#   STORE_LIVE=1          the stores already serve this version: drop the "update
+#                         follows review" line (a release announced after the fact)
 #
 # The webhook URL is a secret: it is never printed, not even on failure.
 set -euo pipefail
 
 TAG="${TAG:-}"
+STORE_LIVE="${STORE_LIVE:-0}"
 WEBHOOK="${DISCORD_WEBHOOK_URL:-}"
 REPO="${GITHUB_REPOSITORY:-NEETROF/cymbra}"
 DRY_RUN="${DRY_RUN:-0}"
@@ -42,6 +48,13 @@ MAX_DOWNLOADS_LEN=950
 COLOR=5793266
 
 [[ -n "$TAG" ]] || { echo "error: TAG is required (e.g. music-v1.2.0)" >&2; exit 1; }
+# The whole value, not a line of it: a tag can arrive from a form. Only the products
+# readers install are announced, and the value is never echoed back.
+tag_re='^(music|lingua-extension|lingua-apple)-v[0-9]+\.[0-9]+\.[0-9]+$'
+[[ "$TAG" =~ $tag_re ]] || {
+  echo "error: not an announced release tag (music-vX.Y.Z, lingua-extension-vX.Y.Z or lingua-apple-vX.Y.Z)" >&2
+  exit 1
+}
 command -v jq >/dev/null 2>&1 || { echo "error: jq is required" >&2; exit 1; }
 command -v gh >/dev/null 2>&1 || { echo "error: gh is required" >&2; exit 1; }
 
@@ -64,13 +77,15 @@ case "$TAG" in
     PRODUCT="Cymbra Music"
     STORES="[App Store](https://apps.apple.com/app/id6789557194) — iPhone, iPad, Mac"
     STORES+=$'\n'"[Google Play](https://play.google.com/store/apps/details?id=com.cymbra.music) — Android"
-    STORES+=$'\n'"_The store update follows once Apple and Google have reviewed it._"
+    [[ "$STORE_LIVE" == 1 ]] ||
+      STORES+=$'\n'"_The store update follows once Apple and Google have reviewed it._"
     ;;
   lingua-extension-v*)
     PRODUCT="Cymbra Lingua"
     STORES="[Chrome Web Store](https://chromewebstore.google.com/detail/cymbra-lingua/lodgdmkjlbpieomelpdkfaifdbipfncd) — Chrome, Edge and other Chromium browsers"
     STORES+=$'\n'"[Firefox Add-ons](https://addons.mozilla.org/firefox/addon/cymbra-lingua/) — Firefox"
-    STORES+=$'\n'"_Each store gets this version once it has been submitted there and reviewed; until then its listing shows the previous one._"
+    [[ "$STORE_LIVE" == 1 ]] ||
+      STORES+=$'\n'"_Each store gets this version once it has been submitted there and reviewed; until then its listing shows the previous one._"
     ;;
   lingua-apple-v*)
     PRODUCT="Cymbra Lingua for Safari"
@@ -82,13 +97,14 @@ case "$TAG" in
       | jq -r '.resultCount // 0' 2>/dev/null || echo 0)"
     if [[ "$live" == 1 ]]; then
       STORES="[App Store](https://apps.apple.com/app/id6813053825) — iPhone, iPad, Mac"
-      STORES+=$'\n'"_The App Store update follows once Apple has reviewed it._"
+      [[ "$STORE_LIVE" == 1 ]] ||
+        STORES+=$'\n'"_The App Store update follows once Apple has reviewed it._"
     else
       STORES="_Coming to the App Store (iPhone, iPad, Mac) once Apple has reviewed it._"
     fi
     ;;
   *)
-    echo "error: $TAG is not an announced component (only music-v*, lingua-extension-v*, lingua-apple-v*)" >&2
+    echo "error: not an announced component" >&2   # unreachable past tag_re; kept as a guard
     exit 1
     ;;
 esac
@@ -117,12 +133,17 @@ description="$(
 [[ -n "${description//[[:space:]]/}" ]] || description="_No release notes._"
 
 # --- Download links --------------------------------------------------------
-# .aab, .ipa and the Lingua extension packages are what CI hands to the stores;
-# nobody should install them from a link (an unsigned Firefox package, a Chromium
-# one needing developer mode), and listing them next to the store field only
-# invites the attempt. A Lingua announcement therefore carries no Downloads field.
+# Only what the site offers as a download is announced as one:
+#   - .aab, .ipa and the Lingua extension packages are what CI hands to the stores;
+#     nobody should install them from a link (an unsigned Firefox package, a Chromium
+#     one needing developer mode);
+#   - the Music APK and the Windows / Linux builds are preview builds while
+#     apps/site/src/lib/stores.ts shows desktop as "soon" and Android goes through
+#     Google Play. Drop `apk` and `-(windows|linux)-` from this filter in the pull
+#     request that marks them live there.
+# Today no asset passes, so no announcement carries a Downloads field.
 downloads="$(jq -r --argjson max "$MAX_DOWNLOADS_LEN" '
-  ((.assets // []) | map(select(.name | test("\\.(aab|ipa)$|^cymbra-lingua-") | not))
+  ((.assets // []) | map(select(.name | test("\\.(aab|ipa|apk)$|-(windows|linux)-|^cymbra-lingua-") | not))
     | map("[\(.name)](\(.url))")) as $links
   | ($links | length) as $n
   | (reduce range(0; $n) as $i ({kept: [], len: 0, stop: false};

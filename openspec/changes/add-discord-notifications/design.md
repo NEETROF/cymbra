@@ -165,7 +165,10 @@ Each product announces itself from its own release workflow, as a final step on 
 once its two packages are attached, `lingua-apple-release.yml` once both builds reached App Store
 Connect — announcing at release-creation time would link a page with no downloads. All three post
 to `#announcements` with their store links, and say that the store update follows review, since no
-tag puts a version in front of readers on its own. Routing that through
+tag puts a version in front of readers on its own. A manual `release-announce.yml` dispatch
+announces any existing Music or Lingua release tag the same way (preview by default, `publish` to
+post, `already_on_stores` to drop the review line) — for releases older than the server, or an
+announcement that was skipped. Routing that through
 the backend would mean opening an authenticated ingress for CI and would gain nothing; the
 trade-off accepted is that the back-office kill-switch does not cover release announcements,
 whose off switch is the repository secret `DISCORD_WEBHOOK_ANNOUNCEMENTS` or the step itself.
