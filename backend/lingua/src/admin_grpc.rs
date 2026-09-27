@@ -41,6 +41,7 @@ fn metric_from_proto(v: i32) -> SeriesMetric {
     match v {
         1 => SeriesMetric::Reviews,
         2 => SeriesMetric::Exposures,
+        3 => SeriesMetric::UnknownSeen,
         _ => SeriesMetric::WordsLearned,
     }
 }
@@ -64,6 +65,8 @@ impl LinguaAdminService for LinguaAdminGrpc {
             active_accounts: u.active_accounts,
             words_learned: u.words_learned,
             reviews: u.reviews,
+            words_read: u.words_read,
+            new_words_seen: u.new_words_seen,
             by_language: u
                 .by_language
                 .into_iter()
@@ -72,6 +75,8 @@ impl LinguaAdminService for LinguaAdminGrpc {
                     active_accounts: l.active_accounts,
                     words_learned: l.words_learned,
                     reviews: l.reviews,
+                    words_read: l.words_read,
+                    new_words_seen: l.new_words_seen,
                 })
                 .collect(),
         }))
@@ -205,5 +210,14 @@ mod tests {
         let req = Request::new(AdminGetLinguaUsageRequest { window: None });
         let err = grpc().admin_get_lingua_usage(req).await.unwrap_err();
         assert_eq!(err.code(), Code::Unauthenticated);
+    }
+
+    #[test]
+    fn every_series_metric_maps_from_the_wire() {
+        assert_eq!(metric_from_proto(0), SeriesMetric::WordsLearned);
+        assert_eq!(metric_from_proto(1), SeriesMetric::Reviews);
+        assert_eq!(metric_from_proto(2), SeriesMetric::Exposures);
+        assert_eq!(metric_from_proto(3), SeriesMetric::UnknownSeen);
+        assert_eq!(metric_from_proto(99), SeriesMetric::WordsLearned);
     }
 }

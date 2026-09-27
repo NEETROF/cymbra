@@ -110,11 +110,15 @@ mod tests {
                 active_accounts: 4,
                 words_learned: 20,
                 reviews: 30,
+                words_read: 1_000,
+                new_words_seen: 50,
                 by_language: vec![LanguageUsage {
                     language: "en".into(),
                     active_accounts: 4,
                     words_learned: 20,
                     reviews: 30,
+                    words_read: 1_000,
+                    new_words_seen: 50,
                 }],
             },
             ..Default::default()
@@ -123,6 +127,8 @@ mod tests {
         let u = m.get_usage("2026-09-01", "2026-09-30").await.unwrap();
         assert_eq!(u.active_accounts, 4);
         assert_eq!(u.by_language[0].language, "en");
+        assert_eq!((u.words_read, u.new_words_seen), (1_000, 50));
+        assert_eq!(u.by_language[0].new_words_seen, 50);
         // A backwards window never reaches the repo.
         assert!(matches!(
             m.get_usage("2026-09-30", "2026-09-01").await,

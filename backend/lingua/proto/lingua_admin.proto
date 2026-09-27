@@ -41,6 +41,8 @@ message LinguaLanguageUsage {
   int64 active_accounts = 2;   // distinct accounts that synced stats in this language
   int64 words_learned = 3;
   int64 reviews = 4;
+  int64 words_read = 5;        // words read in blocks seen (refine-lingua-reading-stats)
+  int64 new_words_seen = 6;    // among them, words unknown or being learned
 }
 
 message AdminGetLinguaUsageResponse {
@@ -48,6 +50,8 @@ message AdminGetLinguaUsageResponse {
   int64 words_learned = 2;     // words learned in the window (summed synced daily stats)
   int64 reviews = 3;           // reviews done in the window (summed synced daily stats)
   repeated LinguaLanguageUsage by_language = 4;
+  int64 words_read = 5;        // words read in blocks seen, summed over the window
+  int64 new_words_seen = 6;    // among them, words unknown or being learned
 }
 
 // Which per-day metric a series returns. Chosen server-side from this enum, never a
@@ -55,7 +59,8 @@ message AdminGetLinguaUsageResponse {
 enum LinguaSeriesMetric {
   LINGUA_SERIES_WORDS_LEARNED = 0;
   LINGUA_SERIES_REVIEWS = 1;
-  LINGUA_SERIES_EXPOSURES = 2;
+  LINGUA_SERIES_EXPOSURES = 2; // words read (the wire name predates the label)
+  LINGUA_SERIES_UNKNOWN_SEEN = 3; // new words seen
 }
 
 message AdminGetLinguaUsageSeriesRequest {

@@ -39,6 +39,7 @@ fn from_proto(s: ProtoDaily) -> DailyStat {
         exposures: s.exposures,
         words_learned: s.words_learned,
         reviews_done: s.reviews_done,
+        unknown_seen: s.unknown_seen,
     }
 }
 

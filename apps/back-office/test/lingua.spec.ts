@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 import { setClientsForTest } from "@/lib/api";
 import type { Clients } from "@/lib/transport";
-import { studiedLanguageOptions, useLinguaStore } from "@/stores/lingua";
+import { comprehension, studiedLanguageOptions, useLinguaStore } from "@/stores/lingua";
 import en from "@/i18n/locales/en.json";
 import fr from "@/i18n/locales/fr.json";
 
@@ -28,7 +28,18 @@ function fakeLinguaClients(opts: { failUsage?: boolean } = {}) {
           activeAccounts: 4n,
           wordsLearned: 20n,
           reviews: 30n,
-          byLanguage: [{ language: "en", activeAccounts: 4n, wordsLearned: 20n, reviews: 30n }],
+          wordsRead: 1000n,
+          newWordsSeen: 50n,
+          byLanguage: [
+            {
+              language: "en",
+              activeAccounts: 4n,
+              wordsLearned: 20n,
+              reviews: 30n,
+              wordsRead: 1000n,
+              newWordsSeen: 50n,
+            },
+          ],
         };
       },
       adminGetLinguaUsageSeries: async (req: SeriesReq) => {
@@ -43,7 +54,7 @@ function fakeLinguaClients(opts: { failUsage?: boolean } = {}) {
 describe("lingua store", () => {
   beforeEach(() => setActivePinia(createPinia()));
 
-  it("loads the report + three series into success unions, bigint→number", async () => {
+  it("loads the report + the four series into success unions, bigint→number", async () => {
     const { clients, seriesCalls } = fakeLinguaClients();
     setClientsForTest(clients);
     const store = useLinguaStore();
@@ -54,18 +65,21 @@ describe("lingua store", () => {
     if (store.report.status === "success") {
       expect(store.report.data.activeAccounts).toBe(4);
       expect(store.report.data.wordsLearned).toBe(20);
+      expect(store.report.data.wordsRead).toBe(1000);
+      expect(store.report.data.newWordsSeen).toBe(50);
       expect(store.report.data.byLanguage).toEqual([
-        { language: "en", activeAccounts: 4, wordsLearned: 20, reviews: 30 },
+        { language: "en", activeAccounts: 4, wordsLearned: 20, reviews: 30, wordsRead: 1000, newWordsSeen: 50 },
       ]);
     }
     expect(store.series.status).toBe("success");
     if (store.series.status === "success") {
       expect(store.series.data.wordsLearned).toEqual([{ day: "2026-09-10", value: 3 }]);
       expect(store.series.data.reviews.length).toBe(1);
-      expect(store.series.data.exposures.length).toBe(1);
+      expect(store.series.data.wordsRead.length).toBe(1);
+      expect(store.series.data.newWordsSeen.length).toBe(1);
     }
-    // The three series metrics (words=0, reviews=1, exposures=2) are all requested.
-    expect(seriesCalls.map((c) => c.metric).sort()).toEqual([0, 1, 2]);
+    // Every series metric (words=0, reviews=1, words read=2, new words seen=3) is requested.
+    expect(seriesCalls.map((c) => c.metric).sort()).toEqual([0, 1, 2, 3]);
   });
 
   it("composes the window + studied-language filter into every request", async () => {
@@ -98,7 +112,14 @@ describe("lingua store", () => {
 // registry described the test fixture and was removed (change: remove-lingua-pack-registry).
 // It now lists the languages of the usage report's per-language breakdown.
 describe("studiedLanguageOptions", () => {
-  const usage = (language: string) => ({ language, activeAccounts: 1, wordsLearned: 0, reviews: 0 });
+  const usage = (language: string) => ({
+    language,
+    activeAccounts: 1,
+    wordsLearned: 0,
+    reviews: 0,
+    wordsRead: 0,
+    newWordsSeen: 0,
+  });
 
   it("lists the languages the usage report breaks down, once each, sorted", () => {
     expect(studiedLanguageOptions([usage("es"), usage("en"), usage("es")], "")).toEqual(["en", "es"]);
@@ -119,6 +140,21 @@ describe("studiedLanguageOptions", () => {
   });
 });
 
+describe("comprehension", () => {
+  it("is the share of words read that were not new", () => {
+    expect(comprehension(1000, 50)).toBeCloseTo(0.95);
+    expect(comprehension(10, 0)).toBe(1);
+  });
+
+  it("is unavailable when nothing was read, never 0 % or 100 %", () => {
+    expect(comprehension(0, 0)).toBeNull();
+  });
+
+  it("stays within 0–1 whatever the counts", () => {
+    expect(comprehension(10, 12)).toBe(0);
+  });
+});
+
 describe("lingua vocabulary", () => {
   // The plain-language rule: no Lingua UI string says "lemma" (say "words learned",
   // "distinct words", "dictionary form"). The screen renders every label through
@@ -128,5 +164,9 @@ describe("lingua vocabulary", () => {
       const linguaStrings = JSON.stringify(json.lingua) + json.nav.linguaOverview + json.nav.sections.lingua;
       expect(/lemm/i.test(linguaStrings)).toBe(false);
     }
+  });
+
+  it("labels the reading figures as words read, never exposures", () => {
+    for (const json of [en, fr]) expect(/expos/i.test(JSON.stringify(json.lingua))).toBe(false);
   });
 });

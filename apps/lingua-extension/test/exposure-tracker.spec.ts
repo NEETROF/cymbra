@@ -329,3 +329,37 @@ describe("ExposureTracker", () => {
     expect(reported).toEqual([["run"]]);
   });
 });
+
+describe("ExposureTracker with a reading payload", () => {
+  it("hands over the latest payload of a block once it is read, and skips an empty one", () => {
+    const got: { lemmas: string[]; read: number }[] = [];
+    const t = new ExposureTracker<{ lemmas: string[]; read: number }>(
+      (p) => void got.push(p),
+      DWELL,
+      (p) => p.read === 0 && p.lemmas.length === 0,
+    );
+    t.start();
+    const a = block("pa", ["run"]);
+    const empty = block("pe", []);
+    t.track(
+      new Map([
+        [a, { lemmas: ["run"], read: 3 }],
+        [empty, { lemmas: [], read: 0 }],
+      ]),
+    );
+    // A re-analysis before the dwell ends replaces the payload (a word marked known meanwhile).
+    t.track(new Map([[a, { lemmas: ["run"], read: 4 }]]));
+    FakeObserver.last!.fire([
+      [a, true],
+      [empty, true],
+    ]);
+    vi.advanceTimersByTime(DWELL);
+    expect(got).toEqual([{ lemmas: ["run"], read: 4 }]);
+    // Seen once: a later re-track of the same block reports nothing more.
+    t.track(new Map([[a, { lemmas: ["run"], read: 9 }]]));
+    FakeObserver.last!.fire([[a, true]]);
+    vi.advanceTimersByTime(DWELL);
+    expect(got).toHaveLength(1);
+    t.stop();
+  });
+});

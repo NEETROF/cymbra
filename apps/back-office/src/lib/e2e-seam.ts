@@ -75,8 +75,16 @@ export interface E2EData {
     activeAccounts?: number;
     wordsLearned?: number;
     reviews?: number;
-    exposures?: number;
-    byLanguage?: { language: string; activeAccounts: number; wordsLearned: number; reviews: number }[];
+    wordsRead?: number;
+    newWordsSeen?: number;
+    byLanguage?: {
+      language: string;
+      activeAccounts: number;
+      wordsLearned: number;
+      reviews: number;
+      wordsRead?: number;
+      newWordsSeen?: number;
+    }[];
   };
   /** Declared flag/config keys for the "Notifications" panel (change:
    * add-push-notifications), which is a filtered view over the flag registry.
@@ -630,11 +638,15 @@ export function installE2EClients(): void {
           activeAccounts: BigInt(u.activeAccounts ?? 0),
           wordsLearned: BigInt(u.wordsLearned ?? 0),
           reviews: BigInt(u.reviews ?? 0),
+          wordsRead: BigInt(u.wordsRead ?? 0),
+          newWordsSeen: BigInt(u.newWordsSeen ?? 0),
           byLanguage: (u.byLanguage ?? []).map((l) => ({
             language: l.language,
             activeAccounts: BigInt(l.activeAccounts),
             wordsLearned: BigInt(l.wordsLearned),
             reviews: BigInt(l.reviews),
+            wordsRead: BigInt(l.wordsRead ?? 0),
+            newWordsSeen: BigInt(l.newWordsSeen ?? 0),
           })),
         };
       },
@@ -642,8 +654,9 @@ export function installE2EClients(): void {
         failIfSet("adminGetLinguaUsageSeries");
         const today = new Date().toISOString().slice(0, 10);
         const u = data.linguaUsage ?? {};
-        // metric: 0 = words learned, 1 = reviews, 2 = exposures.
-        const total = req.metric === 1 ? u.reviews : req.metric === 2 ? u.exposures : u.wordsLearned;
+        // metric: 0 = words learned, 1 = reviews, 2 = words read, 3 = new words seen.
+        const totals = [u.wordsLearned, u.reviews, u.wordsRead, u.newWordsSeen];
+        const total = totals[req.metric] ?? u.wordsLearned;
         return { points: [{ day: today, value: BigInt(total ?? 0) }] };
       },
     },

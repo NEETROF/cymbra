@@ -24,7 +24,7 @@ import {
 // a port. Excluded from coverage (DOM wiring; model + chart are unit-tested).
 
 const METRICS = [
-  { key: "exposures", label: "Mots rencontrés", color: "var(--cymbra-lingua-teal)" },
+  { key: "exposures", label: "Mots lus", color: "var(--cymbra-lingua-teal)" },
   { key: "wordsLearned", label: "Mots appris", color: "var(--cymbra-lingua-green)" },
   { key: "reviews", label: "Révisions", color: "var(--cymbra-lingua-amber)" },
 ] as const;

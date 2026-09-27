@@ -194,7 +194,12 @@ describe("Révision — the page", () => {
     expect(calls.grades).toEqual(["good"]);
     // A grade changes the engine, so the whole state is written back for every surface.
     expect(m.area.raw[ROOT_KEY]).toEqual({ v: STORAGE_VERSION, backup: "{}" });
-    expect((await loadDailyStats(m.area))[utcDay(NOW_MS)]).toEqual({ exposures: 0, wordsLearned: 0, reviews: 1 });
+    expect((await loadDailyStats(m.area))[utcDay(NOW_MS)]).toEqual({
+      exposures: 0,
+      unknownSeen: 0,
+      wordsLearned: 0,
+      reviews: 1,
+    });
     expect(text(m.container, ".review-headword")).toBe("dwell"); // moved on to the next card
   });
 
@@ -212,7 +217,12 @@ describe("Révision — the page", () => {
 
     expect(calls.markKnown).toBe(1);
     expect(m.area.raw[ROOT_KEY]).toEqual({ v: STORAGE_VERSION, backup: "{}" });
-    expect((await loadDailyStats(m.area))[utcDay(NOW_MS)]).toEqual({ exposures: 0, wordsLearned: 1, reviews: 0 });
+    expect((await loadDailyStats(m.area))[utcDay(NOW_MS)]).toEqual({
+      exposures: 0,
+      unknownSeen: 0,
+      wordsLearned: 1,
+      reviews: 0,
+    });
   });
 
   it("says there is nothing to review when nothing is due", async () => {
