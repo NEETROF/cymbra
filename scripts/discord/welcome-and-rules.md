@@ -14,11 +14,12 @@ server locale (`en-US`); the FR copy exists because the project and its first us
 ```
 # Welcome to Cymbra 🎹
 
-Free and open-source (Apache-2.0) learning tools:
+Open-source (Apache-2.0) learning tools:
 • **Cymbra Music** turns a MIDI keyboard into an interactive piano teacher: load a real
 score, play it, and get scored note by note.
 • **Cymbra Lingua** is a browser extension (Chrome, Firefox, Safari) that highlights the
-English words you don't know yet, right in the page you are reading.
+English words you don't know yet, right in the page you are reading — made for French
+speakers learning English.
 
 **Where to go**
 • **#general** — anything Cymbra, pianos, keyboards, music
@@ -53,7 +54,7 @@ Read the rules below before posting. Say hi in **#general** — we read everythi
 ```
 # Bienvenue sur Cymbra 🎹
 
-Des outils d'apprentissage gratuits et open source (Apache-2.0) :
+Des outils d'apprentissage open source (Apache-2.0) :
 • **Cymbra Music** transforme un clavier MIDI en professeur de piano interactif : tu charges
 une vraie partition, tu la joues, et tu es noté note par note.
 • **Cymbra Lingua** est une extension de navigateur (Chrome, Firefox, Safari) qui surligne
