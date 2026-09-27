@@ -99,7 +99,7 @@ Paste only what is inside the block: text around it has been pasted into App Sto
 before.
 
 ```
-No account is needed to review this app: every feature works signed out. Signing in only synchronises a reader's own vocabulary between their devices. To test it, create an account from the extension (panel > Compte) with Sign in with Apple or Google - no invitation is needed.
+No account is needed to review this app: every feature works signed out. The Cymbra account is what saves the learner's progress in learning the language - known words, deck, level and statistics - so that it survives deleting and reinstalling the app, or replacing or resetting the device, and is the same on all their devices (iPhone, iPad, Mac). Without an account, that progress lives only on this device and is lost if the app is deleted. To test it, create an account from the extension (panel > Compte) with Sign in with Apple or Google - no invitation is needed.
 
 IMPORTANT - this app is a Safari extension host. Installing it shows only a short explanatory screen: the extension must be enabled in Safari before anything happens.
 
