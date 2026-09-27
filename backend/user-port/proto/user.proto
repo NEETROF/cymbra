@@ -100,6 +100,10 @@ message ListAccountsRequest {
   // identity service never learns the criterion.
   repeated string ids = 4;
   repeated string exclude_ids = 5;
+  // Only accounts that signed in to EVERY listed app (change:
+  // add-directory-app-usage). Values: music | live | lingua; any other value is
+  // INVALID_ARGUMENT. Empty = no app criterion.
+  repeated string apps = 6;
 }
 // Roles an account holds in one scope (change: scope-aware-role-admin).
 message ScopeRoles {
@@ -112,6 +116,14 @@ message AccountRow {
   optional string display_name = 3;
   // Roles grouped by scope, restricted to the scopes the caller may administer.
   repeated ScopeRoles roles_by_scope = 4;
+  // The apps the account has signed in to, by app name (change:
+  // add-directory-app-usage). Not scope-restricted: they are not roles.
+  repeated AccountApp apps = 5;
+}
+// An app an account has signed in to (change: add-directory-app-usage).
+message AccountApp {
+  string app = 1;          // music | live | lingua
+  int64 last_seen_at = 2;  // unix seconds, coarsened to the hour
 }
 message ListAccountsResponse {
   repeated AccountRow accounts = 1;
