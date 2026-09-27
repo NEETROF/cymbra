@@ -18,9 +18,10 @@
 - [ ] 3.1 `scan.ts`: pure `readingByContainer(blocks, analysis)` → per container `{ lemmas, read, unknown }` (read = tokens entering the percentage, unknown = `Unknown` + `Learning`); unit tests incl. "fully seen page ⇒ Σ read = stats.counted"
 - [ ] 3.2 `exposure-tracker.ts`: carry the payload; `confirm()` passes it; update tests (dwell, fast scroll, once per container, re-track overwrites payload before confirmation)
 - [ ] 3.3 `session.ts`: feed lemmas to the per-word path unchanged; accumulate `read`/`unknown` and flush with the existing exposure flush; remove the whole-document `recordExposures` call and `exposuresRecorded`
-- [ ] 3.4 `state/dailystats.ts`: `unknownSeen` field (missing in stored entries ⇒ 0), `recordReading(area, day, read, unknown)`; rewrite the definitions comment
-- [ ] 3.5 `sync/sync.ts`: push `unknownSeen` for every day; regenerate `src/gen/stats_pb.ts`
-- [ ] 3.6 Session tests: long page read at the top only, fast scroll, content arriving later, re-analysis does not recount (spec scenarios)
+- [ ] 3.4 `state/dailystats.ts`: key `cymbra-lingua-daily-v2`, `unknownSeen` field, `recordReading(area, day, read, unknown)`; rewrite the definitions comment
+- [ ] 3.5 `state/store.ts`: own the v2 key; the owner removes the old `cymbra-lingua-daily` on start (IndexedDB and settings-storage fallback); tests: old key gone, statuses/deck/level/cursors kept, today's v2 counts survive a restart
+- [ ] 3.6 `sync/sync.ts`: push `unknownSeen` for every day; regenerate `src/gen/stats_pb.ts`
+- [ ] 3.7 Session tests: long page read at the top only, fast scroll, content arriving later, re-analysis does not recount (spec scenarios)
 
 ## 4. Extension — stats screen
 

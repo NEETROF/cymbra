@@ -32,3 +32,14 @@ The extension SHALL keep, per UTC day and studied language, a count of the **wor
 #### Scenario: The stats screen shows words read only
 - **WHEN** a reader opens the stats view
 - **THEN** it shows « Mots lus », « Mots appris » and « Révisions », with no new-words-seen card and no occurrence of "exposition" or "lemma"
+
+### Requirement: Daily statistics counted the old way are discarded once
+The first time an extension that counts reading this way starts, it SHALL discard the daily statistics it stored under the previous whole-document counting, so that none of them is ever pushed; every other piece of the reader's state — word statuses, deck, declared level, calibration, per-word exposure counters, sync cursors — SHALL be kept.
+
+#### Scenario: Updating an extension with local history
+- **WHEN** a reader who has daily statistics from the previous counting updates the extension and it starts
+- **THEN** its local daily statistics are empty, its word statuses, deck, level and calibration are unchanged, and the next sync pushes no day from before the update
+
+#### Scenario: The reset happens once
+- **WHEN** the updated extension has recorded words read today and restarts
+- **THEN** today's counts are still there
