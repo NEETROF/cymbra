@@ -10,7 +10,7 @@
 
 ## 2. Consent + gate (D6)
 
-- [ ] 2.1 Write `backend/user/migrations/0011_discord_visibility.sql`: additive `NOT NULL DEFAULT false` consent column on the user profile (`0008`–`0010` are taken on `main` by push notifications, the role vocabulary and the Lingua role scope; renumber again if another branch lands first)
+- [ ] 2.1 Write `backend/user/migrations/0012_discord_visibility.sql`: additive `NOT NULL DEFAULT false` consent column on the user profile (`0008`–`0011` are taken on `main` by push notifications, the role vocabulary, the Lingua role scope and the account apps; renumber again if another branch lands first)
 - [ ] 2.2 Add the single fail-closed `UserPort` method returning the subset of ids **nameable on Discord** (consent ON **and** publicly listable **and** age-eligible, UTC with the existing one-day margin); implement it in the Postgres repo
 - [ ] 2.3 Unit-test the gate exhaustively: consent-only, listable-only, both, unknown id, private profile, not-yet-eligible, eligible-today boundary — each asserting exclusion by default
 - [ ] 2.4 Expose read/write of the consent on the account RPC surface (proto + service + tests); writing it MUST NOT change profile visibility, and vice versa
