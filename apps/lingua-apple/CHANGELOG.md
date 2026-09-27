@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/NEETROF/cymbra/compare/lingua-apple-v1.2.0...lingua-apple-v1.3.0) (2026-09-27)
+
+
+### Features
+
+* **lingua:** give Lingua its own icon — the Cymbra C with an open A / 文 book ([#571](https://github.com/NEETROF/cymbra/issues/571)) ([007bb1a](https://github.com/NEETROF/cymbra/commit/007bb1ad07071509124233feabbbb1cc10342c87))
+
 ## [1.2.0](https://github.com/NEETROF/cymbra/compare/lingua-apple-v1.1.0...lingua-apple-v1.2.0) (2026-09-26)
 
 

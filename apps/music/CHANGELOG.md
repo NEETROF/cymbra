@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.34.1](https://github.com/NEETROF/cymbra/compare/music-v1.34.0...music-v1.34.1) (2026-09-27)
+
+
+### Bug Fixes
+
+* **music:** recover a session whose account never resolved ([#434](https://github.com/NEETROF/cymbra/issues/434)) ([f7159d4](https://github.com/NEETROF/cymbra/commit/f7159d4e44999d82afca4cc0f61290373bc740c5))
+
 ## [1.34.0](https://github.com/NEETROF/cymbra/compare/music-v1.33.2...music-v1.34.0) (2026-09-19)
 
 
