@@ -348,6 +348,22 @@ jobs:
             cymbra-lingua-chromium-${{ env.VERSION }}.zip
             cymbra-lingua-firefox-${{ env.VERSION }}.zip
 
+      # Tell #dev about the new version once its packages are on the release page —
+      # announcing on the release event itself would link a page with no downloads yet.
+      # The tag run only: a store dispatch re-runs this job on the same tag and must not
+      # announce it twice. #dev, not a public channel, because a tag reaches no reader;
+      # the store submission is the dispatch. `continue-on-error`: the packages are
+      # already attached, and a Discord outage must not turn the release red.
+      - name: Post the release to Discord (#dev)
+        if: ${{ github.event_name == 'push' && env.TAG_NAME != '' }}
+        continue-on-error: true
+        working-directory: .
+        env:
+          TAG: ${{ env.TAG_NAME }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_DEV }}
+        run: bash scripts/discord/release_announce.sh
+
       # `continue-on-error` so a refusal here does not skip the other store: the two are
       # independent, and a failed job at the end reports both. The `id` is what lets the
       # summary state the OUTCOME rather than whether credentials happened to exist.

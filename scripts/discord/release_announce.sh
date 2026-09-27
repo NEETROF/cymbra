@@ -6,12 +6,14 @@
 # Discord and post them. The backend is not involved and never learns about
 # releases.
 #
-# Called from two places:
+# Called from three places:
 #   - .github/workflows/music-release.yml, as a final job that waits for every
 #     platform to attach its artifacts — announcing earlier would link a release
 #     page with no downloads on it;
+#   - .github/workflows/lingua-extension-release.yml, as a step after it attaches
+#     the two packages, on the tag run only (a tag publishes nothing to a store);
 #   - .github/workflows/release-announce.yml, for the components that have no
-#     artifacts to wait for (backend, back-office, site).
+#     artifacts to wait for (backend, back-office, site, lingua-apple).
 #
 # Environment:
 #   TAG                   release tag, e.g. music-v1.2.0            (required)
@@ -64,6 +66,8 @@ case "$TAG" in
   backend-v*)     PRODUCT="Cymbra Backend" ;;
   back-office-v*) PRODUCT="Cymbra Back Office" ;;
   site-v*)        PRODUCT="cymbra.app" ;;
+  lingua-extension-v*) PRODUCT="Cymbra Lingua (browser extension)" ;;
+  lingua-apple-v*)     PRODUCT="Cymbra Lingua (Safari app)" ;;
   *)              PRODUCT="Cymbra" ;;
 esac
 VERSION="${TAG##*-v}"

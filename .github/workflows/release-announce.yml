@@ -1,11 +1,16 @@
 name: release-announce
 
 # Announces on Discord the releases that have NO build artifacts to wait for —
-# backend, back-office and site. Repo-wide (no target prefix) because it serves
-# every such component. The music app is announced by music-release.yml instead,
-# as a final job that waits for the five platform builds to attach their files;
-# doing it here as well would post a link to a release page whose downloads are
-# still being uploaded.
+# backend, back-office, site and lingua-apple. Repo-wide (no target prefix) because it
+# serves every such component. The music app and the Lingua browser extension are
+# announced by music-release.yml and lingua-extension-release.yml instead, as a final
+# step once their packages are attached; doing it here as well would post a link to a
+# release page whose downloads are still being uploaded.
+#
+# All of these go to #dev. For lingua-apple that is not because it is infrastructure: its
+# tag uploads both builds to App Store Connect / TestFlight, but nothing reaches a reader
+# until a build is submitted for review and released by hand, so the tag is news for
+# maintainers only.
 on:
   release:
     types: [published]
@@ -15,9 +20,15 @@ permissions:
 
 jobs:
   announce:
-    # release-please tags every component (music-v*, backend-v*, back-office-v*, site-v*).
-    # Skip music: music-release.yml owns that announcement.
-    if: ${{ !startsWith(github.event.release.tag_name, 'music-v') }}
+    # An allow-list of release-please components, not a deny-list: other releases are
+    # published too (Lingua packs, engine and models) and must never post "Cymbra
+    # <tag>" to Discord. Music and lingua-extension are absent on purpose: their own
+    # release workflows announce them once the packages are attached.
+    if: >-
+      startsWith(github.event.release.tag_name, 'backend-v') ||
+      startsWith(github.event.release.tag_name, 'back-office-v') ||
+      startsWith(github.event.release.tag_name, 'site-v') ||
+      startsWith(github.event.release.tag_name, 'lingua-apple-v')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -25,7 +36,7 @@ jobs:
         env:
           TAG: ${{ github.event.release.tag_name }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Infrastructure releases go to #dev: they interest maintainers, not
-          # players. Absent ⇒ the script warns and skips.
+          # Maintainer-facing releases go to #dev: infrastructure, and Lingua tags that
+          # reach no reader on their own. Absent ⇒ the script warns and skips.
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_DEV }}
         run: bash scripts/discord/release_announce.sh
