@@ -282,7 +282,9 @@ overwrites_for() { # overwrites_for <channel json> → JSON array
       '[{id: $id, type: 0, deny: $deny, allow: "0"}]')"
     while IFS= read -r role; do
       rid="$(role_id "$role")"
-      [[ -n "$rid" ]] || { log "! role '$role' not found yet, skipping its overwrite"; continue; }
+      # stderr: this function's stdout IS its JSON result, and a warning printed there
+      # breaks the caller's --argjson (a dry run never creates the roles it names).
+      [[ -n "$rid" ]] || { log "! role '$role' not found yet, skipping its overwrite" >&2; continue; }
       arr="$(jq --arg id "$rid" \
         --arg allow "$(perms_sum VIEW_CHANNEL SEND_MESSAGES READ_MESSAGE_HISTORY)" \
         '. + [{id: $id, type: 0, allow: $allow, deny: "0"}]' <<<"$arr")"
