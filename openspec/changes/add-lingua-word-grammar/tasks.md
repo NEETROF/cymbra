@@ -76,7 +76,7 @@
 ## 6. Real tables and the pack
 
 - [x] 6.1 Re-reduce `tables/en-fr` from the pinned sources (`build.sh --reduce en-fr`). Commit `grammar.tsv`, `senses.tsv` and the regrouped `gloss.tsv`, with `pin.json`'s reducer sha256, pack sha256 and size, and the new `pack_version`.
-- [ ] 6.2 Record in the PR:
+- [x] 6.2 Record in the PR:
   - the number of readings, other dictionary forms and runs;
   - the glosses reordered and the separators rewritten;
   - the size of each new section, against 1.54 MB and the 5 MiB budget;
