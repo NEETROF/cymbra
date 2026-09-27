@@ -179,7 +179,8 @@ api() { # api METHOD PATH [JSON_BODY] → response body on stdout
       attempts=$((attempts + 1))
       ((attempts <= 5)) || die "rate limited five times on $method $path — give it a minute"
       wait="$(jq -r '.retry_after // 2' <<<"$resp" 2>/dev/null || echo 2)"
-      log "rate limited, waiting ${wait}s"
+      # stderr: api()'s stdout is the response body, captured by its callers.
+      log "rate limited, waiting ${wait}s" >&2
       sleep "$wait"
       continue
     fi
@@ -282,7 +283,9 @@ overwrites_for() { # overwrites_for <channel json> → JSON array
       '[{id: $id, type: 0, deny: $deny, allow: "0"}]')"
     while IFS= read -r role; do
       rid="$(role_id "$role")"
-      [[ -n "$rid" ]] || { log "! role '$role' not found yet, skipping its overwrite"; continue; }
+      # stderr: this function's stdout IS its JSON result, and a warning printed there
+      # breaks the caller's --argjson (a dry run never creates the roles it names).
+      [[ -n "$rid" ]] || { log "! role '$role' not found yet, skipping its overwrite" >&2; continue; }
       arr="$(jq --arg id "$rid" \
         --arg allow "$(perms_sum VIEW_CHANNEL SEND_MESSAGES READ_MESSAGE_HISTORY)" \
         '. + [{id: $id, type: 0, allow: $allow, deny: "0"}]' <<<"$arr")"
