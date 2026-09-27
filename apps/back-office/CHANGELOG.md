@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.20.0](https://github.com/NEETROF/cymbra/compare/back-office-v0.19.0...back-office-v0.20.0) (2026-09-27)
+
+
+### Features
+
+* **back-office:** show and filter the apps each account uses in the users directory ([#568](https://github.com/NEETROF/cymbra/issues/568)) ([4313ed1](https://github.com/NEETROF/cymbra/commit/4313ed18ec19dd0572f118aacfa613cc10125b7e))
+* **lingua:** count words read in blocks seen and report new words seen to the back office ([#572](https://github.com/NEETROF/cymbra/issues/572)) ([fcc0189](https://github.com/NEETROF/cymbra/commit/fcc018953ec1d1668a32e190d74022f72647c452))
+
 ## [0.19.0](https://github.com/NEETROF/cymbra/compare/back-office-v0.18.0...back-office-v0.19.0) (2026-09-26)
 
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.0](https://github.com/NEETROF/cymbra/compare/site-v0.8.0...site-v0.9.0) (2026-09-27)
+
+
+### Features
+
+* **lingua:** count words read in blocks seen and report new words seen to the back office ([#572](https://github.com/NEETROF/cymbra/issues/572)) ([fcc0189](https://github.com/NEETROF/cymbra/commit/fcc018953ec1d1668a32e190d74022f72647c452))
+
 ## [0.8.0](https://github.com/NEETROF/cymbra/compare/site-v0.7.0...site-v0.8.0) (2026-09-26)
 
 
