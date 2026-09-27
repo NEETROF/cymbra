@@ -4,8 +4,8 @@ Post these **once**, when the server opens, as **separate messages** in `#announ
 order: (1) Cymbra Music EN, (2) Cymbra Music FR, (3) Cymbra Lingua EN, (4) Cymbra Lingua FR. Then
 press **Publish** on each so servers following the channel receive them.
 
-**Before posting** — every block ends with "new versions are announced right here", which is true
-only once:
+**Before posting** — every block ends with "new versions are announced right here" (and warns that
+the stores follow a few days later, after their review), which is true only once:
 
 1. the pull request adding the release announcements is merged (the announce steps of
    `music-release`, `lingua-extension-release` and `lingua-apple-release`, and the manual
@@ -67,7 +67,7 @@ Learn music connected to your instrument. Plug in a USB MIDI keyboard — or pla
 • **#music-ideas** / **#music-bugs** — one post per idea or bug
 • **#scores-and-soundfonts** — catalog requests and additions
 
-New versions are announced right here.
+New versions are announced right here as soon as they are released. The stores publish them after their review, which can take a few days, so a store may still show the previous version for a while.
 ```
 
 ---
@@ -98,7 +98,7 @@ Apprends la musique connecté à ton instrument. Branche un clavier MIDI USB —
 • **#music-ideas** / **#music-bugs** — un post par idée ou par bug
 • **#scores-and-soundfonts** — demandes et ajouts au catalogue
 
-Les nouvelles versions sont annoncées ici même.
+Les nouvelles versions sont annoncées ici dès leur sortie. Les stores les publient après leur validation, ce qui peut prendre quelques jours : un store peut donc encore proposer la version précédente pendant un moment.
 ```
 
 ---
@@ -127,7 +127,7 @@ Read the English web and grow your vocabulary as you go. Cymbra Lingua is a brow
 **Here on Discord**
 • **#lingua-help** — questions and bugs; say which browser you use
 
-New versions are announced right here.
+New versions are announced right here as soon as they are released. The stores publish them after their review, which can take a few days, so a store may still show the previous version for a while.
 ```
 
 ---
@@ -156,5 +156,5 @@ Enrichis ton vocabulaire anglais en lisant le web. Cymbra Lingua est une extensi
 **Ici, sur Discord**
 • **#lingua-help** — questions et bugs ; précise ton navigateur
 
-Les nouvelles versions sont annoncées ici même.
+Les nouvelles versions sont annoncées ici dès leur sortie. Les stores les publient après leur validation, ce qui peut prendre quelques jours : un store peut donc encore proposer la version précédente pendant un moment.
 ```

@@ -78,14 +78,14 @@ case "$TAG" in
     STORES="[App Store](https://apps.apple.com/app/id6789557194) — iPhone, iPad, Mac"
     STORES+=$'\n'"[Google Play](https://play.google.com/store/apps/details?id=com.cymbra.music) — Android"
     [[ "$STORE_LIVE" == 1 ]] ||
-      STORES+=$'\n'"_The store update follows once Apple and Google have reviewed it._"
+      STORES+=$'\n'"_The stores publish each version after their review, which can take a few days — until then they may still serve the previous one._"
     ;;
   lingua-extension-v*)
     PRODUCT="Cymbra Lingua"
     STORES="[Chrome Web Store](https://chromewebstore.google.com/detail/cymbra-lingua/lodgdmkjlbpieomelpdkfaifdbipfncd) — Chrome, Edge and other Chromium browsers"
     STORES+=$'\n'"[Firefox Add-ons](https://addons.mozilla.org/firefox/addon/cymbra-lingua/) — Firefox"
     [[ "$STORE_LIVE" == 1 ]] ||
-      STORES+=$'\n'"_Each store gets this version once it has been submitted there and reviewed; until then its listing shows the previous one._"
+      STORES+=$'\n'"_The stores publish each version after their review, which can take a few days — until then they may still serve the previous one._"
     ;;
   lingua-apple-v*)
     PRODUCT="Cymbra Lingua for Safari"
@@ -98,9 +98,9 @@ case "$TAG" in
     if [[ "$live" == 1 ]]; then
       STORES="[App Store](https://apps.apple.com/app/id6813053825) — iPhone, iPad, Mac"
       [[ "$STORE_LIVE" == 1 ]] ||
-        STORES+=$'\n'"_The App Store update follows once Apple has reviewed it._"
+        STORES+=$'\n'"_The App Store publishes each version after Apple's review, which can take a few days — until then it may still serve the previous one._"
     else
-      STORES="_Coming to the App Store (iPhone, iPad, Mac) once Apple has reviewed it._"
+      STORES="_Coming to the App Store (iPhone, iPad, Mac) once Apple has reviewed it — this can take a few days._"
     fi
     ;;
   *)
