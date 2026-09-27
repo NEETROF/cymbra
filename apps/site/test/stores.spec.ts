@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { linguaStores, musicStores, MUSIC_APP_STORE, MUSIC_GOOGLE_PLAY } from "../src/lib/stores";
+import {
+  LINGUA_CHROME_WEB_STORE,
+  LINGUA_FIREFOX_ADDONS,
+  linguaStores,
+  musicStores,
+  MUSIC_APP_STORE,
+  MUSIC_GOOGLE_PLAY,
+} from "../src/lib/stores";
 
 describe("store links", () => {
   it("points Music at the published listings", () => {
@@ -17,7 +24,12 @@ describe("store links", () => {
     for (const l of dead) expect(l.href).toBe("#");
   });
 
-  it("keeps the Lingua extension unpublished for now", () => {
-    expect(linguaStores("fr").every((l) => !l.live)).toBe(true);
+  it("points Lingua at its published listings and keeps Safari pending", () => {
+    const links = linguaStores("fr");
+    expect(links.filter((l) => l.live).map((l) => l.href)).toEqual([
+      LINGUA_CHROME_WEB_STORE,
+      LINGUA_FIREFOX_ADDONS,
+    ]);
+    expect(links.find((l) => !l.live)?.label).toContain("Safari");
   });
 });

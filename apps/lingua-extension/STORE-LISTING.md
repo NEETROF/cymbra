@@ -65,7 +65,7 @@ page que vous lisez n'est envoyée nulle part, et l'extension fonctionne hors li
 compte ni traduction étendue, elle ne fait aucune requête réseau.
 
 **Traduction étendue** (facultative, désactivée par défaut, sur Chrome, Firefox pour ordinateur
-et Android, et Safari) : votre sélection est traduite dans sa phrase, sur votre appareil, par le
+et Safari) : votre sélection est traduite dans sa phrase, sur votre appareil, par le
 moteur de Firefox Translations. L'activer télécharge une fois le modèle de traduction (25,8 Mo) depuis
 Cymbra ; le texte des pages ne quitte toujours pas votre appareil. La désactiver supprime le
 modèle.
@@ -74,7 +74,7 @@ Créez un compte Cymbra si — et seulement si — vous voulez retrouver vos mot
 vos autres appareils. C'est la seule chose qui quitte votre machine, et vous pouvez effacer ces
 données depuis les Réglages sans supprimer votre compte.
 
-Cymbra Lingua existe aussi sur Firefox et sur Safari (iPhone, iPad, Mac).
+Cymbra Lingua est disponible sur Chrome et sur Firefox pour ordinateur ; l'app Safari (iPhone, iPad, Mac) arrive bientôt.
 
 **EN**
 
@@ -97,7 +97,7 @@ stay on your device.
 is ever sent anywhere, and the extension works offline. With no account and no extended
 translation, it makes no network request at all.
 
-**Extended translation** (optional, off by default, on Chrome, Firefox for desktop and Android,
+**Extended translation** (optional, off by default, on Chrome, Firefox for desktop,
 and Safari): your selection is translated in its sentence, on your device, by the Firefox
 Translations engine.
 Turning it on downloads the translation model (25.8 MB) from Cymbra once; the text of the pages
@@ -107,7 +107,7 @@ Create a Cymbra account if — and only if — you want your words and cards on 
 devices. That is the only thing that leaves your machine, and you can erase it from Settings
 without deleting your account.
 
-Cymbra Lingua is also on Firefox and on Safari (iPhone, iPad, Mac).
+Cymbra Lingua is available on Chrome and on Firefox for desktop; the Safari app (iPhone, iPad, Mac) is coming soon.
 
 ---
 

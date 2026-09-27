@@ -36,8 +36,9 @@ Each block stays under Discord's 2000-character cap. What the copy deliberately 
   it is live. Chrome 1.0.2 does not yet analyse content a page adds after it loads (fixed in
   1.2.0, #551) nor translate a selected phrase (#520, #522) — worth knowing in `#lingua-help`, not
   worth a disclaimer here; better, put 1.2.1 on the Chrome Web Store first.
-- **The site's Lingua page** still says "coming soon / private beta" with its store buttons
-  disabled. Post the Lingua blocks only once it agrees, or the two contradict each other.
+- **The site's Lingua page** links the Chrome and Firefox listings and no longer mentions a private
+  beta, from the site release that carries that change. Post the Lingua blocks once that release
+  is deployed, or the page and the announcement contradict each other.
 
 ---
 
