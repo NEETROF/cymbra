@@ -198,9 +198,20 @@ impl AuthModule {
         .await
     }
 
+    /// Record that `user_id` uses the app behind `audience` (change:
+    /// add-directory-app-usage) — the fact the back-office directory shows. Best effort:
+    /// a missing icon is not worth refusing a sign-in, so a failure is only logged. The
+    /// user module ignores the non-app audiences.
+    async fn record_app_use(&self, user_id: &str, audience: &str) {
+        if let Err(e) = self.user.record_app_use(user_id, audience).await {
+            tracing::warn!(error = %e, audience, "could not record app use");
+        }
+    }
+
     /// Mint an access (signed) + refresh (session) token pair for `audience`.
     async fn issue(&self, user_id: &str, audience: &str) -> Result<TokenPair> {
         let claims = self.access_claims(user_id, audience).await?;
+        self.record_app_use(user_id, audience).await;
         let access = token::sign(&claims, &self.kid, &self.signing_key)?;
         let refresh = self.sessions.create(user_id, audience).await?;
         Ok(TokenPair {
@@ -422,6 +433,7 @@ impl AuthPort for AuthModule {
         // audience, so a role change takes effect on the next refresh and a
         // back-office session stays multi-scope (change: scope-aware-role-admin).
         let claims = self.access_claims(&rot.user_id, &rot.audience).await?;
+        self.record_app_use(&rot.user_id, &rot.audience).await;
         let access = token::sign(&claims, &self.kid, &self.signing_key)?;
         Ok(TokenPair {
             access_token: access,
@@ -610,7 +622,10 @@ mod tests {
     }
 
     fn harness_with(limits: AuthLimits) -> Harness {
-        let user: Arc<dyn UserPort> = Arc::new(UserModule::new(FakeUserRepo::default()));
+        harness_with_user(limits, Arc::new(UserModule::new(FakeUserRepo::default())))
+    }
+
+    fn harness_with_user(limits: AuthLimits, user: Arc<dyn UserPort>) -> Harness {
         let creds = Arc::new(FakeCredentialRepo::default());
         let cache: Arc<dyn Cache> = Arc::new(FakeCache::default());
         let pending = Arc::new(crate::pending_setpw::FakePendingStore::default());
@@ -655,6 +670,64 @@ mod tests {
             sessions,
             user,
         }
+    }
+
+    /// The apps `uid` is recorded as using (change: add-directory-app-usage).
+    async fn apps_of(h: &Harness, uid: &str) -> Vec<String> {
+        let page = h
+            .user
+            .list_accounts_filtered(
+                &cymbra_user_port::AccountFilter {
+                    ids: vec![uid.to_string()],
+                    ..Default::default()
+                },
+                1,
+                0,
+                &[],
+            )
+            .await
+            .unwrap();
+        page.entries[0].apps.iter().map(|a| a.app.clone()).collect()
+    }
+
+    #[tokio::test]
+    async fn app_sign_in_and_refresh_record_the_app_but_the_console_does_not() {
+        let h = harness();
+        let bo =
+            h.m.sign_in_oidc("g-apps", cymbra_platform::BACKOFFICE_AUDIENCE)
+                .await
+                .unwrap();
+        let uid = sub_of(&bo.access_token, cymbra_platform::BACKOFFICE_AUDIENCE);
+        h.m.refresh(&bo.refresh_token).await.unwrap();
+        assert!(apps_of(&h, &uid).await.is_empty());
+
+        let live = h.m.sign_in_oidc("g-apps", "live").await.unwrap();
+        assert_eq!(apps_of(&h, &uid).await, vec!["live".to_string()]);
+        h.m.refresh(&live.refresh_token).await.unwrap();
+        assert_eq!(apps_of(&h, &uid).await, vec!["live".to_string()]);
+    }
+
+    #[tokio::test]
+    async fn a_failed_app_record_does_not_block_sign_in() {
+        let mut user = cymbra_user_port::MockUserPort::new();
+        user.expect_resolve_or_provision()
+            .returning(|_, _| Ok("u-1".into()));
+        user.expect_scoped_effective_roles()
+            .returning(|_, _| Ok(Default::default()));
+        user.expect_record_app_use()
+            .times(1)
+            .returning(|_, _| Err(AppError::Internal(anyhow::anyhow!("db down"))));
+        let h = harness_with_user(
+            AuthLimits::with_default_ceilings(
+                3,
+                Duration::from_secs(60),
+                5,
+                Duration::from_secs(3600),
+            ),
+            Arc::new(user),
+        );
+        let pair = h.m.sign_in_oidc("g-1", "music").await.unwrap();
+        assert_eq!(sub_of(&pair.access_token, "music"), "u-1");
     }
 
     fn keys() -> HashMap<String, DecodingKey> {

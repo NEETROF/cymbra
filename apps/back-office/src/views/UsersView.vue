@@ -3,13 +3,15 @@ import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { match } from "ts-pattern";
-import { PAGE_SIZE, useRolesStore } from "@/stores/roles";
+import { type AppFilter, PAGE_SIZE, useRolesStore } from "@/stores/roles";
 import { type PlanFilter, usePlansStore } from "@/stores/plans";
 import { useAuthStore } from "@/stores/auth";
 import type { Scope } from "@/lib/jwt";
 import { roleLabel } from "@/lib/roles";
 import type { AccountRow } from "@/gen/user_pb";
 import AppTag from "@/components/AppTag.vue";
+import { APP_BADGES } from "@/lib/icons";
+import { currentLocale } from "@/i18n";
 
 // Admin-only (route- + server-guarded). A paginated directory of accounts with their
 // roles, plan and betas. It is a surface for FINDING an account, not for acting on one
@@ -30,6 +32,9 @@ const betaFilter = ref("");
 // Sandbox purchases are honoured for these accounts only; the filter makes the
 // list of them a question anyone can answer instead of tribal knowledge.
 const sandboxAccountFilter = ref(false);
+// Which apps an account signed in to (change: add-directory-app-usage). Shown to every
+// directory admin: it is an identity fact, not a role, so it is not scope-restricted.
+const appFilter = ref<AppFilter>("any");
 const showPlans = computed(() => auth.adminScopes.includes("music"));
 const openCampaigns = computed(() => plans.openCampaigns);
 const badges = computed(() =>
@@ -66,6 +71,17 @@ function rolesOf(account: AccountRow): { key: string; label: string }[] {
   );
 }
 
+/** The app icons of a row, in display order, each with its tooltip (last use). */
+function appsOf(account: AccountRow) {
+  return APP_BADGES.flatMap((badge) => {
+    const used = account.apps.find((a) => a.app === badge.app);
+    if (!used) return [];
+    const name = t(badge.label);
+    const when = new Date(Number(used.lastSeenAt) * 1000).toLocaleDateString(currentLocale());
+    return [{ ...badge, name, title: t("users.appLastUse", { app: name, when }) }];
+  });
+}
+
 const vm = computed(() =>
   match(store.directory)
     .with({ status: "success" }, ({ data }) => ({
@@ -89,10 +105,10 @@ const from = computed(() => (vm.value.total === 0 ? 0 : offset.value + 1));
 const to = computed(() => Math.min(offset.value + PAGE_SIZE, vm.value.total));
 const canPrev = computed(() => offset.value > 0);
 const canNext = computed(() => offset.value + PAGE_SIZE < vm.value.total);
-const colCount = computed(() => (showPlans.value ? 5 : 3));
+const colCount = computed(() => (showPlans.value ? 6 : 4));
 
 function search() {
-  store.list(filter.value.trim(), 0, planFilter.value, betaFilter.value, sandboxAccountFilter.value);
+  store.list(filter.value.trim(), 0, planFilter.value, betaFilter.value, sandboxAccountFilter.value, appFilter.value);
 }
 function prev() {
   if (canPrev.value) store.list(store.params.query, Math.max(0, offset.value - PAGE_SIZE));
@@ -111,7 +127,7 @@ function openRow(event: MouseEvent, userId: string) {
 }
 
 onMounted(() => {
-  store.list("", 0, "any", "");
+  store.list("", 0, "any", "", false, "any");
   if (showPlans.value) plans.loadCampaigns();
 });
 </script>
@@ -128,6 +144,15 @@ onMounted(() => {
       :aria-label="$t('users.searchPlaceholder')"
       @keyup.enter="search"
     />
+    <label class="scope-picker">
+      {{ $t("users.appFilter") }}
+      <select v-model="appFilter" data-testid="app-filter" :aria-label="$t('users.appFilter')" @change="search">
+        <option value="any">{{ $t("users.appAny") }}</option>
+        <option value="music">{{ $t("users.appMusic") }}</option>
+        <option value="lingua">{{ $t("users.appLingua") }}</option>
+        <option value="both">{{ $t("users.appBoth") }}</option>
+      </select>
+    </label>
     <template v-if="showPlans">
       <label class="scope-picker">
         {{ $t("users.planFilter") }}
@@ -168,6 +193,7 @@ onMounted(() => {
         <tr>
           <th>{{ $t("users.colHandle") }}</th>
           <th>{{ $t("users.colName") }}</th>
+          <th>{{ $t("users.colApps") }}</th>
           <th>{{ $t("users.colRoles") }}</th>
           <th v-if="showPlans">{{ $t("users.colPlan") }}</th>
           <th v-if="showPlans">{{ $t("users.colBeta") }}</th>
@@ -181,6 +207,33 @@ onMounted(() => {
             </RouterLink>
           </td>
           <td>{{ a.displayName || "—" }}</td>
+          <td>
+            <div class="apps" data-testid="apps">
+              <span
+                v-for="app in appsOf(a)"
+                :key="app.app"
+                class="app-icon"
+                :class="`app-${app.app}`"
+                role="img"
+                :aria-label="app.name"
+                :title="app.title"
+                :data-app="app.app"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path :d="app.icon" />
+                </svg>
+              </span>
+              <span v-if="appsOf(a).length === 0" class="muted">—</span>
+            </div>
+          </td>
           <td>
             <div class="rolechips">
               <AppTag v-for="r in rolesOf(a)" :key="r.key" variant="accent" cap>{{ r.label }}</AppTag>
@@ -266,6 +319,29 @@ onMounted(() => {
   gap: 0.3rem;
   flex-wrap: wrap;
   align-items: center;
+}
+.apps {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+.app-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 0.4rem;
+  background: var(--panel-2);
+  color: var(--accent);
+}
+/* Two apps, two tints, so a both-apps row reads at a glance. */
+.app-lingua {
+  color: var(--teal);
+}
+.app-icon svg {
+  width: 1rem;
+  height: 1rem;
 }
 .plan-cell {
   display: flex;

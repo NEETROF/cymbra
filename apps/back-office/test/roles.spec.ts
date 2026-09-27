@@ -17,7 +17,7 @@ describe("roles store", () => {
 
     await store.list("ada", 0);
 
-    expect(state.listAccountsCalls).toEqual([{ query: "ada", limit: PAGE_SIZE, offset: 0, ids: [] }]);
+    expect(state.listAccountsCalls).toEqual([{ query: "ada", limit: PAGE_SIZE, offset: 0, ids: [], apps: [] }]);
     expect(store.directory.status).toBe("success");
     if (store.directory.status === "success") {
       expect(store.directory.data.total).toBe(1);
@@ -115,7 +115,7 @@ describe("roles store", () => {
     await store.list("", 0, "trial", "");
 
     expect(state.idsByPlanCalls).toEqual([{ plan: "trial", betaCampaignKey: "", sandboxAccountsOnly: false }]);
-    expect(state.listAccountsCalls).toEqual([{ query: "", limit: PAGE_SIZE, offset: 0, ids: ["u1", "u9"] }]);
+    expect(state.listAccountsCalls).toEqual([{ query: "", limit: PAGE_SIZE, offset: 0, ids: ["u1", "u9"], apps: [] }]);
     expect(store.params).toMatchObject({ plan: "trial", beta: "" });
   });
 
@@ -132,7 +132,7 @@ describe("roles store", () => {
     // "any" plan and no beta would normally skip the pre-resolve entirely: the
     // sandbox filter has to trigger it on its own, or it would silently do nothing.
     expect(state.idsByPlanCalls).toEqual([{ plan: "any", betaCampaignKey: "", sandboxAccountsOnly: true }]);
-    expect(state.listAccountsCalls).toEqual([{ query: "", limit: PAGE_SIZE, offset: 0, ids: ["u1"] }]);
+    expect(state.listAccountsCalls).toEqual([{ query: "", limit: PAGE_SIZE, offset: 0, ids: ["u1"], apps: [] }]);
     expect(store.params).toMatchObject({ sandboxAccounts: true });
   });
 
@@ -144,6 +144,31 @@ describe("roles store", () => {
     await store.list("", 0, "premium", "", true);
 
     expect(state.idsByPlanCalls).toEqual([{ plan: "premium", betaCampaignKey: "", sandboxAccountsOnly: true }]);
+  });
+
+  // The app criterion (change: add-directory-app-usage) is an identity fact: it goes
+  // straight to the directory and never consults the plan service.
+  it.each([
+    ["music", ["music"]],
+    ["lingua", ["lingua"]],
+    ["both", ["music", "lingua"]],
+  ] as const)("the %s app filter is sent to listAccounts as %j", async (filter, apps) => {
+    const accounts = [
+      { userId: "u1", handle: "ada", rolesByScope: [], apps: [{ app: "music" }, { app: "lingua" }] },
+      { userId: "u2", handle: "bob", rolesByScope: [], apps: [{ app: "music" }] },
+    ];
+    const { clients, state } = makeFakeClients({ accounts });
+    setClientsForTest(clients);
+    const store = useRolesStore();
+
+    await store.list("", 0, "any", "", false, filter);
+
+    expect(state.idsByPlanCalls).toEqual([]);
+    expect(state.listAccountsCalls).toEqual([{ query: "", limit: PAGE_SIZE, offset: 0, ids: [], apps }]);
+    expect(store.params.apps).toBe(filter);
+    // Paging keeps the criterion.
+    await store.list(store.params.query, PAGE_SIZE);
+    expect(state.listAccountsCalls[1]?.apps).toEqual(apps);
   });
 
   it("a beta filter with an empty resolved set is an empty page without calling listAccounts", async () => {
