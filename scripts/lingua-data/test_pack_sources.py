@@ -199,7 +199,13 @@ class Record(unittest.TestCase):
         self.assertRegex(record["pack"]["sha256"], r"^[0-9a-f]{64}$")
         self.assertEqual(record["reducer"]["sha256"], ps.sha256(HERE / "reduce-en-fr.py"), "tables reduced by these rules")
         manifest = json.loads((pin.parent / "manifest.json").read_text())
-        self.assertEqual(manifest["meta"]["pack_version"], record["snapshot"], "the pack says which dictionary it is")
+        # The pack says which dictionary it is: the snapshot for tables an update reduced, the
+        # snapshot and the rules for tables a re-reduction made from the same sources.
+        self.assertIn(
+            manifest["meta"]["pack_version"],
+            (record["snapshot"], f"{record['snapshot']}+{record['reducer']['sha256'][:7]}"),
+            "the pack says which dictionary it is",
+        )
 
 
 if __name__ == "__main__":

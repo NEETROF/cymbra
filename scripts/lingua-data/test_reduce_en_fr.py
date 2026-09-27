@@ -625,3 +625,231 @@ class OrphanedForms(unittest.TestCase):
 
     def test_nothing_is_orphaned_when_every_base_is_kept(self):
         self.assertEqual(red.orphaned_forms({"runs"}, {("runs", "run")}, {"run": 1}), set())
+
+
+# — Word grammar (add-lingua-word-grammar) —
+
+PAST = "VERB|Mood=Ind|Tense=Past|VerbForm=Fin"
+PARTICIPLE = "VERB|Tense=Past|VerbForm=Part"
+ING = "VERB|VerbForm=Ger"
+THIRD = "VERB|Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin"
+PLURAL = "NOUN|Number=Plur"
+
+MODAL_LINES = """\
+35: can <v> {be able}: could, -, (can | @: canst)
+"""
+
+
+class EsdbSlots(TempDir):
+    def readings(self, text=ESDB_LINES):
+        path = self.file("scowl.txt", text)
+        readings = {}
+        red.parse_esdb_relations(path, readings=readings)
+        return readings
+
+    def test_a_verb_with_four_slots(self):
+        r = self.readings()
+        self.assertEqual(r[("went", "go")], {PAST})
+        self.assertEqual(r[("gone", "go")], {PARTICIPLE})
+        self.assertEqual(r[("going", "go")], {ING})
+        self.assertEqual(r[("goes", "go")], {THIRD})
+        self.assertEqual(r[("lay", "lie")], {PAST})
+        self.assertEqual(r[("lain", "lie")], {PARTICIPLE})
+
+    def test_a_verb_whose_participle_is_spelled_like_its_past(self):
+        r = self.readings()
+        self.assertEqual(r[("lied", "lie")], {PAST, PARTICIPLE})
+        self.assertEqual(r[("learned", "learn")], {PAST, PARTICIPLE})
+        self.assertEqual(r[("learnt", "learn")], {PAST, PARTICIPLE})
+        self.assertEqual(r[("lies", "lie")], {THIRD})
+
+    def test_be_has_eight_slots(self):
+        r = self.readings()
+        self.assertEqual(r[("was", "be")], {PAST})
+        self.assertEqual(r[("were", "be")], {PAST})
+        self.assertEqual(r[("been", "be")], {PARTICIPLE})
+        self.assertEqual(r[("being", "be")], {ING})
+        self.assertEqual(r[("am", "be")], {"VERB|Mood=Ind|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin"})
+        self.assertEqual(r[("are", "be")], {"VERB|Mood=Ind|Tense=Pres|VerbForm=Fin"})
+        self.assertEqual(r[("is", "be")], {THIRD})
+
+    def test_a_noun_verb_and_a_form_spelled_like_its_lemma(self):
+        r = self.readings()
+        self.assertEqual(r[("ran", "run")], {PAST})
+        self.assertEqual(r[("run", "run")], {PARTICIPLE})  # "have run"
+        self.assertEqual(r[("runs", "run")], {THIRD, PLURAL})
+        self.assertEqual(r[("tired", "tire")], {PAST, PARTICIPLE})
+
+    def test_nouns_and_comparisons(self):
+        r = self.readings()
+        self.assertEqual(r[("data", "datum")], {PLURAL})
+        self.assertEqual(r[("leaves", "leaf")], {PLURAL})
+        self.assertEqual(r[("fewer", "few")], {"DET|Degree=Cmp"})
+        self.assertEqual(r[("fewest", "few")], {"DET|Degree=Sup"})
+        self.assertEqual(r[("tireder", "tired")], {"ADJ|Degree=Cmp"})
+        self.assertNotIn(("those", "that"), r)
+
+    def test_what_is_no_inflection_carries_no_reading(self):
+        r = self.readings()
+        for form, lemma in [("born", "bear"), ("art", "be"), ("sawn", "saw"), ("renowned", "renown")]:
+            self.assertNotIn((form, lemma), r, form)
+        self.assertFalse(any(form.endswith("'s") for form, _ in r))
+        self.assertFalse(any(lemma == "abacination" for _, lemma in r))  # beyond the kept sizes
+
+    def test_a_modal_past_is_no_participle_and_its_s_slot_no_reading(self):
+        r = self.readings(MODAL_LINES)
+        self.assertEqual(r[("could", "can")], {PAST})
+        self.assertNotIn(("can", "can"), r)
+
+    def test_every_reading_is_a_pair_the_relations_keep(self):
+        path = self.file("scowl.txt", ESDB_LINES)
+        readings = {}
+        pairs, _ = red.parse_esdb_relations(path, readings=readings)
+        self.assertTrue(readings)
+        self.assertTrue(set(readings) <= pairs)
+
+
+class RegularTags(unittest.TestCase):
+    def test_by_ending(self):
+        self.assertEqual(red._regular_tags("smartphones", "N"), (PLURAL,))
+        self.assertEqual(red._regular_tags("texting", "V"), (ING,))
+        self.assertEqual(red._regular_tags("walked", "V"), (PAST, PARTICIPLE))
+        self.assertEqual(red._regular_tags("tried", "V"), (PAST, PARTICIPLE))
+        self.assertEqual(red._regular_tags("walks", "V"), (THIRD,))
+        self.assertEqual(red._regular_tags("nicer", "A"), ("ADJ|Degree=Cmp",))
+        self.assertEqual(red._regular_tags("nicest", "A"), ("ADJ|Degree=Sup",))
+
+    def test_kind_of_a_tag(self):
+        self.assertEqual(red._kind_of(PLURAL), "N")
+        self.assertEqual(red._kind_of(PAST), "V")
+        self.assertEqual(red._kind_of("ADV|Degree=Sup"), "A")
+
+
+class FormOfReadings(TempDir):
+    def test_a_link_adds_the_readings_of_its_ending(self):
+        path = self.file(
+            "kaikki.jsonl",
+            "\n".join(
+                [
+                    kaikki_line("smartphones", "Pluriel de smartphone.", "smartphone"),
+                    kaikki_line("texting", "Participe présent de to text.", "to text", "verb"),
+                    kaikki_line("apps", "Pluriel de app.", "app"),
+                ]
+            )
+            + "\n",
+        )
+        readings = {("apps", "app"): {"FROM-ESDB"}}
+        red.form_of_relations(path, {("apps", "app")}, {}, readings)
+        self.assertEqual(readings[("smartphones", "smartphone")], {PLURAL})
+        self.assertEqual(readings[("texting", "text")], {ING})
+        self.assertEqual(readings[("apps", "app")], {"FROM-ESDB"}, "a pair ESDB gave keeps ESDB's slots")
+
+    def test_one_form_linked_twice_takes_both_readings(self):
+        path = self.file(
+            "kaikki.jsonl",
+            json.dumps(
+                {
+                    "word": "cooks",
+                    "pos": "verb",
+                    "senses": [
+                        {"glosses": ["Pluriel de cook."], "form_of": [{"word": "cook"}]},
+                        {"glosses": ["Présent simple de cook."], "form_of": [{"word": "cook"}]},
+                    ],
+                }
+            )
+            + "\n",
+        )
+        readings = {}
+        red.form_of_relations(path, set(), {}, readings)
+        self.assertEqual(readings[("cooks", "cook")], {PLURAL, THIRD})
+
+
+class CompoundReadings(unittest.TestCase):
+    def test_a_compound_form_is_what_its_part_is(self):
+        pairs = {("shirts", "shirt"), ("shirt", "shirt")}
+        readings = {("shirts", "shirt"): {PLURAL}}
+        red.compound_inflections({"t-shirt"}, pairs, readings)
+        self.assertEqual(readings[("t-shirts", "t-shirt")], {PLURAL})
+
+
+class SensesByPartOfSpeech(unittest.TestCase):
+    def test_senses_of_one_part_of_speech_are_grouped_in_first_appearance_order(self):
+        joined, runs = red._join_senses_by_pos([["À"], ["Particule"], ["Vers"]], ["ADP", "PART", "ADP"], 80, 3)
+        self.assertEqual(joined, "À; Vers; Particule")
+        self.assertEqual(runs, [("ADP", 2), ("PART", 1)])
+
+    def test_the_same_senses_are_picked_as_before(self):
+        per_entry = [["Course", "Parcours"], ["Courir"]]
+        joined, runs = red._join_senses_by_pos(per_entry, ["NOUN", "VERB"], 80, 3)
+        self.assertEqual(sorted(joined.split("; ")), sorted(red._join_senses(per_entry, 80, 3).split("; ")))
+        self.assertEqual(runs, [("NOUN", 2), ("VERB", 1)])
+
+    def test_a_separator_inside_a_sense_becomes_a_comma(self):
+        joined, runs = red._join_senses_by_pos([["Lettre; caractère"]], ["SYM"], 80, 3)
+        self.assertEqual(joined, "Lettre, caractère")
+        self.assertEqual(runs, [("SYM", 1)])
+        # French typography spaces the semicolon; the comma it becomes is not spaced before.
+        joined, _ = red._join_senses_by_pos([["Indigène ; qui est d'ici ;"]], ["ADJ"], 80, 3)
+        self.assertEqual(joined, "Indigène, qui est d'ici")
+
+    def test_runs_count_the_senses_that_survive_the_cut(self):
+        joined, runs = red._join_senses_by_pos([["a" * 30], ["b" * 30], ["c" * 30]], ["NOUN", "VERB", "VERB"], 62, 3)
+        self.assertEqual(joined, "a" * 30 + "; " + "b" * 30)
+        self.assertEqual(runs, [("NOUN", 1), ("VERB", 1)])
+        joined, runs = red._join_senses_by_pos([["a" * 30], ["b" * 30]], ["NOUN", "VERB"], 32, 3)
+        self.assertEqual(joined, "a" * 30)
+        self.assertEqual(runs, [("NOUN", 1)])
+
+    def test_kaikki_parts_of_speech(self):
+        self.assertEqual(red.kaikki_upos("noun", "cat"), "NOUN")
+        self.assertEqual(red.kaikki_upos("conj", "and"), "CCONJ")
+        self.assertEqual(red.kaikki_upos("conj", "because"), "SCONJ")
+        self.assertEqual(red.kaikki_upos("article", "the"), "DET")
+        self.assertEqual(red.kaikki_upos("suffix", "-al"), "X")
+        self.assertEqual(red.kaikki_upos("", "odd"), "X")
+
+
+class ReduceGlossRuns(TempDir):
+    def test_a_gloss_and_its_runs(self):
+        path = self.file(
+            "kaikki.jsonl",
+            "\n".join(
+                [
+                    json.dumps({"word": "can", "pos": "noun", "senses": [{"glosses": ["Boîte de conserve."]}]}),
+                    json.dumps({"word": "can", "pos": "verb", "senses": [{"glosses": ["Pouvoir."]}, {"glosses": ["Savoir; connaître."]}]}),
+                ]
+            )
+            + "\n",
+        )
+        runs = {}
+        glosses = red.reduce_gloss(path, {"can"}, 80, runs=runs)
+        self.assertEqual(glosses["can"], "Boîte de conserve; Pouvoir; Savoir, connaître")
+        self.assertEqual(runs["can"], [("NOUN", 1), ("VERB", 2)])
+
+
+class GrammarRows(unittest.TestCase):
+    def test_rows_and_which_may_be_named_as_another_word(self):
+        readings = {
+            ("leaves", "leaf"): {PLURAL},
+            ("leaves", "leave"): {THIRD},
+            ("put", "put"): {PAST},
+            ("uses", "us"): {PLURAL},
+            ("swam", "swim"): {PAST},  # swim is not a kept lemma
+        }
+        rows = red.grammar_rows(
+            readings,
+            forms={"leaves": "leave", "uses": "use"},
+            lemmas={"leaf", "leave", "put", "us", "use"},
+            meanings={"leaf": {"noun"}, "leave": {"verb"}, "us": {"pron"}},
+            targets={"leaves": {"leaf"}},
+            cefr={},
+        )
+        self.assertEqual(
+            rows,
+            [
+                ("leaves", "leaf", PLURAL, "other"),
+                ("leaves", "leave", THIRD, "other"),
+                ("put", "put", PAST, "-"),
+                ("uses", "us", PLURAL, "-"),
+            ],
+        )

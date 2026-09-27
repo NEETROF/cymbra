@@ -77,6 +77,42 @@ not shipped and nothing is built from them.
 
 The expression table is **optional and additive** in the same way: a pair whose sources hold no multi-word entry ships no `mwe.tsv`, the builder emits no `expr`/`expr.zst` section, and the reader reports no expression. Only a new interface reads it, so it does **not** bump `analyzer_version`; it does bump `pack_version`, as any data change does. Measured on the 2026-09-22 snapshot: 17 437 entries, 345 KB of sections, a pack of 1 543 992 B (29.4 % of the 5 MiB budget).
 
+The grammar tables are **optional and additive** too (add-lingua-word-grammar). `grammar.tsv` says
+what each inflected form is — `form<TAB>lemma<TAB>tag<TAB>other|-` — from the slot ESDB lists it in
+(its README, "The derived forms are as follows": a verb's past, past participle, -ing and -s, the
+participle left out when spelled like the past; a noun's plural; an adjective's comparative then
+superlative) and, for the regular forms kaikki's links add, from their ending. `senses.tsv` gives
+the part of speech of each run of a gloss's senses, from kaikki's `pos`; the reducer groups a
+gloss's senses by it and turns a `;` inside a sense into a comma, so "; " only ever separates
+senses. The fourth field of `grammar.tsv` marks the relations `is_believable` accepts: only those
+may be named on a card as another reading of a form the analysis reads as something else. No new
+source and no new licence: the tables derive from ESDB and kaikki. Neither moves
+`analyzer_version`. Measured on the 2026-09-26 snapshot: 45 684 readings and 30 149 runs, a pack of
+1 705 147 B (32.5 % of the 5 MiB budget) against 1 543 687 B before.
+
+The tags are **Universal Dependencies** part-of-speech tags and features — tag names only, no UD
+data. The vocabulary (`lingua-core` `packs::grammar`) was checked on 2026-09-27 against the UD
+documentation and the feature statistics of the Romance treebanks, so that a Romance pack fits it
+with no change to the container:
+
+| What the learner meets | Tag | Checked against |
+|---|---|---|
+| passé simple, pretérito indefinido, passato remoto | `Mood=Ind\|Tense=Past` | `u/feat/Tense` ("the simple past … `Tense=Past`"); fr_gsd (`fut`, `firent`); it_isdt (`fu`, `ebbe`) |
+| imparfait, imperfecto, imperfetto | `Mood=Ind\|Tense=Imp` | fr_gsd (`était`); es_gsd (`tenía`, `era`); it_isdt (`era`, `aveva`) |
+| subjonctif imparfait | `Mood=Sub\|Tense=Imp` | es_gsd (`tuviera`, `tuviese`, `fuera`) |
+| futur du subjonctif | `Mood=Sub\|Tense=Fut` | pt_bosque (`for`, `fôr`) |
+| plus-que-parfait synthétique | `Tense=Pqp` | `u/feat/Tense` ("applies e.g. to Portuguese"); pt_bosque (`fora`, `fizera`) |
+| conditionnel | `Mood=Cnd` | fr_gsd (`serait`, `pourrait`); pt_bosque |
+| infinitif personnel | `VerbForm=Inf` with `Person`, `Number` | pt_bosque (`termos`, `terem`) |
+| gérondif | `VerbForm=Ger` | `u/feat/VerbForm`; pt_bosque |
+| clitic pronoun | `PRON\|PronType=Prs` with `Case`, `Person`, `Number`, `Reflex=Yes` for *se* | es_gsd (`lo` Acc, `le` Dat, `se` Reflex) |
+
+Two points the check raised, neither a container change. es_gsd also marks the comitative
+(`conmigo`: `Case=Com`), now in the vocabulary. And it gives `me`, `te`, `nos`, `os` the multi-value
+`Case=Acc,Dat`; the vocabulary reads one value per feature, so a Spanish pack writes such a form as
+two readings, one per case — or the parser learns UD's comma-separated values when that pack is
+built. Either way the container stays as it is.
+
 The CEFR level table is **optional and additive**: a pair without licence-clean CEFR data ships no `level.tsv`, the builder emits no `levels` section, and the reader falls back to frequency bands. Adding the section does **not** bump `analyzer_version` — it is behaviour-preserving (level-based presumed-known only activates once the user declares a level), so old cores load a level-bearing pack and simply ignore the section.
 
 ## Allowed vs denied licences

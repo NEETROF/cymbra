@@ -19,9 +19,10 @@
 //! `pack_version`, the compatible `analyzer_version`, licences), a
 //! form→lemma FST + its lemma pool, a frequency table (ranks keyed by lemma
 //! id), zstd-compressed French glosses (offset-indexed by lemma id), a
-//! NOTICE, and two optional tables a core that does not read them ignores:
-//! per-lemma CEFR levels, and multi-word expressions (an FST of
-//! dictionary-form keys over their own gloss blob). This module is the **reader** only: it decodes the container from
+//! NOTICE, and optional tables a core that does not read them ignores:
+//! per-lemma CEFR levels, multi-word expressions (an FST of dictionary-form
+//! keys over their own gloss blob), and word grammar ([`grammar`]: a tag pool,
+//! paradigms and gloss runs keyed by lemma id). This module is the **reader** only: it decodes the container from
 //! an `include_bytes!`-compatible byte slice, refuses a pack built for an
 //! incompatible analyser generation, and exposes the pack's contents to the
 //! analysis and knowledge layers. Gloss decompression uses the pure-Rust
@@ -30,6 +31,7 @@
 //! low-level writer both it and the tests use.
 
 pub mod format;
+pub mod grammar;
 pub mod meta;
 pub mod pack;
 

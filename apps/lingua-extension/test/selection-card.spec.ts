@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
-import type { AnalyzedToken, PhraseGloss, PhraseMatch, PhrasePart, PhraseToken } from "@/analyzer/types.ts";
+import type {
+  AnalyzedToken,
+  PhraseGloss,
+  PhraseMatch,
+  PhrasePart,
+  PhraseToken,
+  WordGrammar,
+} from "@/analyzer/types.ts";
 import {
   ANSWER_TIMEOUT_MS,
+  GRAMMAR_WAIT_MS,
   type CardSurface,
   type Clock,
   clickIsOnWord,
@@ -59,9 +67,15 @@ interface Deferred<T> {
   reject: (reason: unknown) => void;
 }
 
-function fakePorts() {
+/**
+ * The engine's ports. A word's grammar is answered at once by default, with nothing to say — the
+ * engine in the content script (Chromium) — so a test about something else never waits on it;
+ * `grammar: "manual"` lets a test answer it, reject it or leave it silent.
+ */
+function fakePorts(opts: { grammar?: "auto" | "manual" } = {}) {
   const phraseGloss: Array<Deferred<PhraseGloss> & { text: string }> = [];
   const gloss: Array<Deferred<string | undefined> & { lemma: string }> = [];
+  const wordGrammar: Array<Deferred<WordGrammar> & { written: string; lemma: string }> = [];
   const ports: SelectionCardPorts = {
     phraseGloss: (text) =>
       new Promise<PhraseGloss>((resolve, reject) => {
@@ -71,9 +85,24 @@ function fakePorts() {
       new Promise<string | undefined>((resolve, reject) => {
         gloss.push({ lemma, resolve, reject });
       }),
+    wordGrammar: (written, lemma) =>
+      new Promise<WordGrammar>((resolve, reject) => {
+        wordGrammar.push({ written, lemma, resolve, reject });
+        if (opts.grammar !== "manual") resolve(grammarOf());
+      }),
   };
-  return { ports, phraseGloss, gloss };
+  return { ports, phraseGloss, gloss, wordGrammar };
 }
+
+/** A grammar answer: nothing to say but the gloss, unless a test says more. */
+const grammarOf = (over: Partial<WordGrammar> = {}): WordGrammar => ({
+  gloss: null,
+  senses: [],
+  readings: [],
+  others: [],
+  pieces: [],
+  ...over,
+});
 
 function fakeSurface() {
   const shows: WordPopupContent[] = [];
@@ -141,8 +170,8 @@ function gesture(content: WordPopupContent) {
 /** Let the engine's answer (a promise) reach the card. */
 const settle = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
-function harness() {
-  const ports = fakePorts();
+function harness(opts: { grammar?: "auto" | "manual" } = {}) {
+  const ports = fakePorts(opts);
   const view = fakeSurface();
   const clock = fakeClock();
   const cards = new SelectionCards(ports.ports, view.surface, { calibration: () => CALIBRATION, clock: clock.clock });
@@ -192,10 +221,11 @@ describe("a selected word resolves to its dictionary form", () => {
     expect(h.last()).toMatchObject({ headword: "do", surface: "don't", gloss: "faire", status: "known" });
   });
 
-  it("A compound the pack lists", () => {
+  it("A compound the pack lists", async () => {
     const h = harness();
     const token = pageToken({ surface: "well-known", lemma: "well-known", class: "Unknown", gloss: "bien connu" });
     h.cards.openForSelection(selection("well-known"), hitOf(token));
+    await settle();
     expect(h.shows).toHaveLength(1);
     expect(h.last()).toEqual({
       headword: "well-known",
@@ -424,13 +454,15 @@ describe("word-by-word gloss is a labelled last resort", () => {
 
 describe("a known word shows its gloss", () => {
   it("Opening a known word", async () => {
-    const h = harness();
+    const h = harness({ grammar: "manual" });
     const token = pageToken({ surface: "cities", lemma: "city", class: "Known", gloss: null });
     h.cards.openForToken(hitOf(token));
     expect(h.last()).toMatchObject({ headword: "city", surface: "cities", status: "known", pending: true });
-    expect(h.gloss[0]!.lemma).toBe("city");
+    // One answer brings the gloss the page analysis withholds, with the word's grammar.
+    expect(h.wordGrammar[0]).toMatchObject({ written: "cities", lemma: "city" });
+    expect(h.gloss).toHaveLength(0);
 
-    h.gloss[0]!.resolve("ville");
+    h.wordGrammar[0]!.resolve(grammarOf({ gloss: "ville" }));
     await settle();
     expect(h.last()).toEqual({
       headword: "city",
@@ -445,19 +477,20 @@ describe("a known word shows its gloss", () => {
   });
 
   it("Opening a known word: an ignored word asks the pack too", async () => {
-    const h = harness();
+    const h = harness({ grammar: "manual" });
     h.cards.openForToken(hitOf(pageToken({ surface: "ok", lemma: "ok", class: "Ignored" })));
-    expect(h.gloss[0]!.lemma).toBe("ok");
-    h.gloss[0]!.resolve(undefined);
+    expect(h.wordGrammar[0]!.lemma).toBe("ok");
+    h.wordGrammar[0]!.resolve(grammarOf());
     await settle();
     expect(h.last()).toMatchObject({ status: "ignored", gloss: null });
     expect(h.last().pending).toBeFalsy();
   });
 
-  it("opens a highlighted word complete at once, its gloss having come with the page analysis", () => {
+  it("opens a highlighted word complete, never pending, its gloss having come with the page analysis", async () => {
     const h = harness();
     const token = pageToken({ surface: "Seldom", lemma: "seldom", class: "Learning", gloss: "rarement" });
     h.cards.openForToken(hitOf(token));
+    await settle();
     expect(h.shows).toHaveLength(1);
     expect(h.last()).toEqual({
       headword: "seldom",
@@ -552,6 +585,7 @@ describe("a card that waits for the engine", () => {
     h.cards.openForSelection(selection("seldom ship"), null);
     const word = pageToken({ surface: "conundrum", lemma: "conundrum", class: "Unknown", gloss: "énigme" });
     h.cards.openForToken(hitOf(word)); // the reader clicked a highlighted word
+    await settle();
     expect(h.last().headword).toBe("conundrum");
 
     h.phraseGloss[0]!.resolve({
@@ -613,9 +647,9 @@ describe("a card that waits for the engine", () => {
       rect: RECT,
     });
 
-    const failed = harness();
+    const failed = harness({ grammar: "manual" });
     failed.cards.openForToken(hitOf(pageToken({ surface: "cities", lemma: "city", class: "Known" })));
-    failed.gloss[0]!.reject(new Error("event page gone"));
+    failed.wordGrammar[0]!.reject(new Error("event page gone"));
     await settle();
     expect(failed.last()).toMatchObject({ headword: "city", status: "known", gloss: null });
     expect(failed.last().noActions).toBeFalsy();
@@ -693,6 +727,174 @@ describe("a card that waits for the engine", () => {
     h.hide(); // Escape, a scroll, the reader switched off
     h.elapse();
     expect(h.shows).toHaveLength(1);
+  });
+});
+
+describe("a word card asks its word's grammar (add-lingua-word-grammar)", () => {
+  const PAST = { pos: "VERB", features: { Mood: "Ind", Tense: "Past", VerbForm: "Fin" } };
+  const went = pageToken({ surface: "went", lemma: "go", class: "Unknown", gloss: "Aller" });
+  const says = grammarOf({ gloss: "Aller", readings: [PAST], senses: [{ tag: { pos: "VERB" }, text: "Aller" }] });
+
+  it("asks about the word as written, keyed by its dictionary form", async () => {
+    const h = harness({ grammar: "manual" });
+    h.cards.openForToken({ ...hitOf(went), written: "went" });
+    expect(h.wordGrammar.map(({ written, lemma }) => [written, lemma])).toEqual([["went", "go"]]);
+    h.wordGrammar[0]!.resolve(says);
+    await settle();
+    expect(h.last()).toMatchObject({ headword: "go", surface: "went", gloss: "Aller", grammar: says });
+  });
+
+  it("An engine that answers in the page: complete at once, with its grammar, never pending", async () => {
+    const h = harness({ grammar: "manual" });
+    h.cards.openForToken(hitOf(went));
+    h.wordGrammar[0]!.resolve(says); // answered before anything is drawn
+    await settle();
+    expect(h.shows).toHaveLength(1);
+    expect(h.last().pending).toBeFalsy();
+    expect(h.last().grammar).toEqual(says);
+    expect(h.armed()).toEqual([]);
+  });
+
+  it("An awake engine in the event page: its grammar, its gloss and its actions together, once", async () => {
+    const h = harness({ grammar: "manual" });
+    h.cards.openForToken(hitOf(went));
+    expect(h.shows).toHaveLength(0); // never drawn pending while the grammar is on its way
+    expect(h.armed()).toEqual([GRAMMAR_WAIT_MS]);
+    h.wordGrammar[0]!.resolve(says);
+    await settle();
+    expect(h.shows).toHaveLength(1);
+    expect(h.last()).toMatchObject({ gloss: "Aller", status: null, grammar: says });
+  });
+
+  it("A cold engine: past the bound, the card of before; the late answer changes nothing", async () => {
+    const h = harness({ grammar: "manual" });
+    h.cards.openForToken(hitOf(went));
+    h.elapseOnly(GRAMMAR_WAIT_MS);
+    await settle();
+    expect(h.shows).toHaveLength(1);
+    expect(h.last()).toEqual({
+      headword: "go",
+      surface: "went",
+      gloss: "Aller",
+      rarity: rarityText("Unknown", CALIBRATION),
+      sentence: "They went on Friday.",
+      status: null,
+      rect: RECT,
+    });
+    h.wordGrammar[0]!.resolve(says);
+    await settle();
+    expect(h.shows).toHaveLength(1);
+  });
+
+  it("an engine that fails costs the grammar, never the card", async () => {
+    const h = harness({ grammar: "manual" });
+    h.cards.openForToken(hitOf(went));
+    h.wordGrammar[0]!.reject(new Error("event page gone"));
+    await settle();
+    expect(h.shows).toHaveLength(1);
+    expect(h.last()).toMatchObject({ gloss: "Aller", status: null });
+    expect(h.last().grammar).toBeUndefined();
+  });
+
+  it("A known word: its gloss and its grammar in one answer, the card completing once", async () => {
+    const h = harness({ grammar: "manual" });
+    const cities = pageToken({ surface: "cities", lemma: "city", class: "Known" });
+    h.cards.openForToken(hitOf(cities));
+    expect(h.last().pending).toBe(true);
+    const plural = grammarOf({
+      gloss: "Ville",
+      readings: [{ pos: "NOUN", features: { Number: "Plur" } }],
+      senses: [{ tag: { pos: "NOUN" }, text: "Ville" }],
+    });
+    h.wordGrammar[0]!.resolve(plural);
+    await settle();
+    expect(h.shows).toHaveLength(2);
+    expect(h.last()).toMatchObject({ gloss: "Ville", status: "known", grammar: plural });
+    expect(h.last().pending).toBeFalsy();
+  });
+
+  it("the half of a contraction asks about the word as written", async () => {
+    const h = harness({ grammar: "manual" });
+    const doToken = pageToken({ surface: "do", lemma: "do", class: "Unknown", gloss: "Faire" });
+    h.cards.openForToken({ ...hitOf(doToken), written: "don't" });
+    expect(h.wordGrammar[0]).toMatchObject({ written: "don't", lemma: "do" });
+    const split = grammarOf({ gloss: "Faire", pieces: ["do", "not"] });
+    h.wordGrammar[0]!.resolve(split);
+    await settle();
+    expect(h.last()).toMatchObject({ headword: "do", surface: "do", written: "don't", grammar: split });
+  });
+
+  it("a word outside the page analysis asks its grammar once the analyser has read it", async () => {
+    const h = harness({ grammar: "manual" });
+    h.cards.openForSelection(selection("went"), null);
+    h.phraseGloss[0]!.resolve({ tokens: [tok({ surface: "went", lemma: "go", class: "Unknown", gloss: "Aller" })] });
+    await settle();
+    expect(h.wordGrammar[0]).toMatchObject({ written: "went", lemma: "go" });
+    expect(h.last().pending).toBe(true); // still the one pending card
+    h.wordGrammar[0]!.resolve(says);
+    await settle();
+    expect(h.shows).toHaveLength(2);
+    expect(h.last()).toMatchObject({ headword: "go", gloss: "Aller", grammar: says });
+  });
+
+  it("a word outside the page analysis whose grammar stays silent completes without it", async () => {
+    const h = harness({ grammar: "manual" });
+    h.cards.openForSelection(selection("went"), null);
+    h.phraseGloss[0]!.resolve({ tokens: [tok({ surface: "went", lemma: "go", class: "Unknown", gloss: "Aller" })] });
+    await settle();
+    h.elapseOnly(GRAMMAR_WAIT_MS);
+    await settle();
+    expect(h.last()).toMatchObject({ headword: "go", gloss: "Aller" });
+    expect(h.last().grammar).toBeUndefined();
+  });
+
+  it("never asks the grammar of a name outside the lexicon", async () => {
+    const h = harness({ grammar: "manual" });
+    h.cards.openForSelection(selection("Jenkins"), null);
+    h.phraseGloss[0]!.resolve({
+      tokens: [tok({ surface: "Jenkins", lemma: "jenkin", class: "ProperNounOutOfLexicon" })],
+    });
+    await settle();
+    expect(h.wordGrammar).toHaveLength(0);
+  });
+
+  it("a hyphenated page token asks its grammar under the dictionary form the analyser found", async () => {
+    const h = harness({ grammar: "manual" });
+    h.cards.openForToken(hitOf(pageToken({ surface: "T-shirts", lemma: "t-shirts", class: "Unknown" })));
+    h.phraseGloss[0]!.resolve({
+      tokens: [tok({ surface: "T-shirts", lemma: "t-shirt", class: "Unknown", gloss: "Tee-shirt" })],
+    });
+    await settle();
+    expect(h.wordGrammar[0]).toMatchObject({ written: "T-shirts", lemma: "t-shirt" });
+    const plural = grammarOf({ gloss: "Tee-shirt", readings: [{ pos: "NOUN", features: { Number: "Plur" } }] });
+    h.wordGrammar[0]!.resolve(plural);
+    await settle();
+    expect(h.last()).toMatchObject({ headword: "t-shirts", gloss: "Tee-shirt", grammar: plural });
+  });
+
+  it("a card the reader closed, or replaced, while its grammar was on its way is never shown", async () => {
+    const h = harness({ grammar: "manual" });
+    h.cards.openForToken(hitOf(went));
+    h.hide();
+    h.wordGrammar[0]!.resolve(says);
+    await settle();
+    expect(h.shows).toHaveLength(0);
+
+    const replaced = harness({ grammar: "manual" });
+    replaced.cards.openForToken(hitOf(went));
+    replaced.cards.openForSelection(selection("seldom ship"), null); // another card, pending
+    replaced.wordGrammar[0]!.resolve(says);
+    await settle();
+    expect(replaced.shows).toHaveLength(1);
+    expect(replaced.last().headword).toBe("seldom ship");
+  });
+
+  it("attaches no grammar that has nothing to say, so such a card is the card of before", async () => {
+    const h = harness({ grammar: "manual" });
+    h.cards.openForToken(hitOf(went));
+    h.wordGrammar[0]!.resolve(grammarOf({ gloss: "Aller", senses: [{ text: "Aller" }] }));
+    await settle();
+    expect(h.last().grammar).toBeUndefined();
   });
 });
 
@@ -1326,36 +1528,38 @@ describe("SelectionCards with the translation engine", () => {
       expect(view.last().translating).toBeFalsy();
     });
 
-    it("is translated when a word the pack cannot answer is clicked", () => {
+    it("is translated when a word the pack cannot answer is clicked", async () => {
       const { cards, asked, view } = setup();
       const token = pageToken({ surface: "disambiguation", lemma: "disambiguation", class: "Unknown", gloss: null });
       cards.openForToken({ token, rect: RECT, sentence: wiki, selection: span });
+      await flush();
       expect(asked.map((a) => a.request)).toEqual([{ sentence: wiki, selection: span }]);
       expect(view.last()).toMatchObject({ gloss: null, translating: true });
     });
 
-    it("is never translated alone when its place in the sentence is unknown", () => {
+    it("is never translated alone when its place in the sentence is unknown", async () => {
       const { cards, asked, view } = setup();
       const token = pageToken({ surface: "disambiguation", lemma: "disambiguation", class: "Unknown", gloss: null });
       cards.openForToken({ token, rect: RECT, sentence: wiki });
+      await flush();
       expect(asked).toEqual([]);
       expect(view.last().translating).toBeFalsy();
     });
 
-    it("keeps a clicked word's gloss when the pack has one", () => {
+    it("keeps a clicked word's gloss when the pack has one", async () => {
       const { cards, asked, view } = setup();
       const token = pageToken({ surface: "ambiguity", lemma: "ambiguity", class: "Learning", gloss: "Ambiguïté" });
       cards.openForToken({ token, rect: RECT, sentence: wiki, selection: span });
+      await flush();
       expect(asked).toEqual([]);
       expect(view.last()).toMatchObject({ gloss: "Ambiguïté" });
     });
 
     it("asks the engine for a known word only once the pack says it has no gloss", async () => {
-      const { cards, gloss, asked, view } = setup();
+      const { cards, asked, view } = setup();
       const token = pageToken({ surface: "wiki", lemma: "wiki", class: "Known" });
       cards.openForToken({ token, rect: RECT, sentence: "A wiki page.", selection: { start: 2, end: 6 } });
-      expect(asked).toEqual([]); // the pack first
-      gloss[0]!.resolve(undefined);
+      expect(asked).toEqual([]); // the pack first: its answer, with no gloss, has not landed yet
       await flush();
       expect(asked.map((a) => a.request)).toEqual([{ sentence: "A wiki page.", selection: { start: 2, end: 6 } }]);
       expect(view.last()).toMatchObject({ status: "known", translating: true });
@@ -1430,12 +1634,13 @@ describe("SelectionCards with the translation engine", () => {
 });
 
 describe("SelectionCards without a model ready", () => {
-  it("answers a word the pack cannot gloss exactly as before — no line saying a translation is coming", () => {
+  it("answers a word the pack cannot gloss exactly as before — no line saying a translation is coming", async () => {
     const { ports } = fakePorts();
     const view = fakeSurface();
     const cards = new SelectionCards(ports, view.surface, { calibration: () => CALIBRATION, translator: () => null });
     const token = pageToken({ surface: "disambiguation", lemma: "disambiguation", class: "Unknown", gloss: null });
     cards.openForToken({ token, rect: RECT, sentence: "The disambiguation page.", selection: { start: 4, end: 18 } });
+    await settle();
     expect(view.last().translating).toBeUndefined();
     expect(view.last().gloss).toBeNull();
   });

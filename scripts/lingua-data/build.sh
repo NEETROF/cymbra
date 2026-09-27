@@ -25,7 +25,7 @@ set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PYTHON="${LINGUA_PYTHON:-python3}"
-TABLE_FILES=(forms.tsv freq.tsv gloss.tsv level.tsv mwe.tsv NOTICE manifest.json)
+TABLE_FILES=(forms.tsv freq.tsv gloss.tsv level.tsv mwe.tsv grammar.tsv senses.tsv NOTICE manifest.json)
 
 sha256_of() {
   if command -v sha256sum >/dev/null; then sha256sum "$1" | cut -d' ' -f1; else shasum -a 256 "$1" | cut -d' ' -f1; fi
@@ -44,12 +44,13 @@ build_pack() {
   cargo run --quiet --release -p lingua-pack --bin lingua-pack-build -- "$input" "$out"
 }
 
-# reduce <pair> <work> <snapshot>: the reducer over the raw sources in <work>, tables left in <work>.
+# reduce <pair> <work> <snapshot> [<pack version>]: the reducer over the raw sources in <work>,
+# tables left in <work>. The pack version defaults to the snapshot (an update from live sources).
 reduce() {
-  local pair="$1" work="$2" snapshot="$3"
+  local pair="$1" work="$2" snapshot="$3" version="${4:-$3}"
   "$PYTHON" "$here/reduce-$pair.py" --work "$work" \
     --max-lemmas "${LINGUA_MAX_LEMMAS:-40000}" \
-    --built-at "${snapshot//./-}" --pack-version "$snapshot"
+    --built-at "${snapshot//./-}" --pack-version "$version"
 }
 
 copy_tables() {
@@ -93,7 +94,10 @@ case "$mode" in
     rm -rf "$work" && mkdir -p "$work"
     "$PYTHON" "$here/pack_sources.py" fetch-pinned --pin "$pin" --work "$work"
     snapshot="$("$PYTHON" "$here/pack_sources.py" get --pin "$pin" snapshot)"
-    reduce "$pair" "$work" "$snapshot"
+    # New tables from the same sources are a new dictionary: the version names the snapshot AND
+    # the rules that reduced it (add-lingua-word-grammar, design D8).
+    rules="$(sha256_of "$here/reduce-$pair.py")"
+    reduce "$pair" "$work" "$snapshot" "$snapshot+${rules:0:7}"
     copy_tables "$work" "$tables"
     build_pack "$tables" "$out"
     "$PYTHON" "$here/pack_sources.py" record-build --pin "$pin" --pack "$out" --reducer "$here/reduce-$pair.py"

@@ -90,10 +90,42 @@
   color: var(--cymbra-lingua-accent);
 }
 
+/* What the form is (add-lingua-word-grammar): quiet lines between the listen row and the gloss,
+   the studied language's words set apart. */
+.grammar {
+  margin-top: 8px;
+  color: var(--cymbra-lingua-muted);
+  font-size: 12px;
+}
+
+.grammar[hidden] {
+  display: none;
+}
+
+.grammar-line + .grammar-line {
+  margin-top: 2px;
+}
+
+.grammar em {
+  color: var(--cymbra-lingua-accent);
+  font-style: italic;
+}
+
 .gloss {
   margin-top: 8px;
   color: var(--cymbra-lingua-accent);
   font-size: 14px;
+}
+
+/* A gloss laid out by part of speech: one line per part of speech, its name first. */
+.sense-group + .sense-group {
+  margin-top: 3px;
+}
+
+.sense-group .pos {
+  color: var(--cymbra-lingua-muted);
+  font-size: 12px;
+  font-style: italic;
 }
 
 .gloss.empty,

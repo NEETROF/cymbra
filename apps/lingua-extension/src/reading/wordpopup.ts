@@ -1,5 +1,6 @@
 import type { MarkedTranslation } from "../translate/markup.ts";
-import type { LemmaStatus } from "../analyzer/types.ts";
+import type { LemmaStatus, WordGrammar } from "../analyzer/types.ts";
+import { grammarLines, senseHeading } from "./grammar-labels.ts";
 import { isTouchPrimary } from "../state/platform.ts";
 import { sameSpokenText, type Speaker, type Speaking } from "./speech.ts";
 
@@ -76,6 +77,14 @@ export interface WordPopupContent {
    * reach a card: only dictionary data is stored.
    */
   translation?: MarkedTranslation | null;
+  /**
+   * The word's grammar, when the engine answered it (add-lingua-word-grammar): what the form is,
+   * what else it may be, the pieces of a split word, and the gloss laid out by part of speech.
+   * Display only — a created card stores the flat gloss, exactly as before.
+   */
+  grammar?: WordGrammar | null;
+  /** The word as it stands on the page (`don't` for its `do`); defaults to `surface`. */
+  written?: string;
 }
 
 /** A card view: a detached element tree plus show/hide, independent of any shadow root. */
@@ -134,10 +143,14 @@ export function createCard(speaker?: Speaker): CardView {
   const rarityEl = div("rarity");
   const listenEl = div("listen");
   listenEl.hidden = true;
+  // Below the listen row and above the actions: a pending card offers the listen buttons, and
+  // what its answer adds here moves nothing the reader can press (add-lingua-word-grammar D6).
+  const grammarEl = div("grammar");
+  grammarEl.hidden = true;
   const glossEl = div("gloss");
   const translationEl = div("translation");
   const actionsEl = div("actions");
-  el.append(headwordEl, seenEl, rarityEl, listenEl, glossEl, translationEl, actionsEl);
+  el.append(headwordEl, seenEl, rarityEl, listenEl, grammarEl, glossEl, translationEl, actionsEl);
 
   let current: WordPopupContent | null = null;
   let generation = 0;
@@ -233,6 +246,57 @@ export function createCard(speaker?: Speaker): CardView {
     }
   }
 
+  /**
+   * What the form is, what else it may be, and the pieces of a split word — one line each, the
+   * words of the studied language set apart. Built from text nodes only.
+   */
+  function renderGrammar(content: WordPopupContent): void {
+    grammarEl.replaceChildren();
+    const lines =
+      content.grammar && !content.pending && !content.expression
+        ? grammarLines(content.grammar, content.headword, content.surface, content.written ?? content.surface)
+        : [];
+    grammarEl.hidden = lines.length === 0;
+    for (const line of lines) {
+      const lineEl = div("grammar-line");
+      for (const segment of line) {
+        if (typeof segment === "string") {
+          lineEl.append(document.createTextNode(segment));
+        } else {
+          const word = document.createElement("em");
+          word.textContent = segment.word;
+          lineEl.append(word);
+        }
+      }
+      grammarEl.append(lineEl);
+    }
+  }
+
+  /**
+   * The gloss, laid out by part of speech when the grammar answered it: one line per part of
+   * speech, its name first. The groups are the same senses, so they are only used when they
+   * make up exactly the gloss the card holds.
+   */
+  function renderGloss(content: WordPopupContent, gloss: string): void {
+    const groups = content.grammar?.senses ?? [];
+    if (groups.length === 0 || groups.map((g) => g.text).join("; ") !== gloss) {
+      glossEl.textContent = gloss;
+      return;
+    }
+    for (const group of groups) {
+      const groupEl = div("sense-group");
+      const heading = senseHeading(group.tag);
+      if (heading) {
+        const pos = document.createElement("span");
+        pos.className = "pos";
+        pos.textContent = heading;
+        groupEl.append(pos, document.createTextNode(" "));
+      }
+      groupEl.append(document.createTextNode(group.text));
+      glossEl.append(groupEl);
+    }
+  }
+
   /** What the pack alone has to say: the translated sentence's own gloss, rows, or neither. */
   function renderPackAnswer(content: WordPopupContent): void {
     if (content.translation) {
@@ -252,7 +316,7 @@ export function createCard(speaker?: Speaker): CardView {
       return;
     }
     if (content.gloss) {
-      glossEl.textContent = content.gloss;
+      renderGloss(content, content.gloss);
       return;
     }
     glossEl.textContent = content.expression ? NO_GLOSS_EXPRESSION : NO_GLOSS;
@@ -311,6 +375,7 @@ export function createCard(speaker?: Speaker): CardView {
       rarityEl.textContent = content.rarity;
 
       renderListen();
+      renderGrammar(content);
       renderAnswer(content);
       renderTranslation(content);
 
