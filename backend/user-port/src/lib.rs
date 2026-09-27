@@ -119,6 +119,18 @@ pub struct AccountSummary {
     /// Roles grouped by scope (only the caller's authorized scopes), ordered by the
     /// scope list the caller was authorized for.
     pub roles_by_scope: Vec<ScopeRoles>,
+    /// The apps the account has signed in to (change: add-directory-app-usage), in
+    /// app-name order. Not scope-restricted: they are not roles.
+    pub apps: Vec<AccountApp>,
+}
+
+/// An app an account has signed in to (change: add-directory-app-usage).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AccountApp {
+    /// An app scope (`music` | `live` | `lingua`).
+    pub app: String,
+    /// Last token minted for that app, unix seconds (coarsened to the hour).
+    pub last_seen_at: i64,
 }
 
 /// Directory filter (change: add-premium-subscription): the free-text `query`
@@ -132,6 +144,9 @@ pub struct AccountFilter {
     pub ids: Vec<String>,
     /// Never these accounts.
     pub exclude_ids: Vec<String>,
+    /// When non-empty, only accounts that signed in to EVERY one of these apps
+    /// (change: add-directory-app-usage).
+    pub apps: Vec<String>,
 }
 
 /// A page of the admin account directory plus the total matching count.
@@ -239,6 +254,12 @@ pub trait UserPort: Send + Sync {
     /// granted/revoked which role, and when", independent of current role state.
     async fn list_role_grants(&self, user_id: &str) -> Result<Vec<RoleGrant>>;
 
+    /// Record that `user_id` obtained an access token for `audience` (change:
+    /// add-directory-app-usage). Only an app scope (`music` | `live` | `lingua`) is
+    /// recorded; any other audience (`back-office`, `web`) is a no-op, so callers pass
+    /// every audience and the rule lives here.
+    async fn record_app_use(&self, user_id: &str, audience: &str) -> Result<()>;
+
     /// A page of the admin account directory (change: add-admin-account-directory):
     /// accounts with their roles **grouped by `scopes`**, plus the total matching
     /// count. Only roles in `scopes` are returned, so the caller passes exactly the
@@ -265,13 +286,13 @@ pub trait UserPort: Send + Sync {
         offset: i64,
         scopes: &[String],
     ) -> Result<AccountPage> {
-        if filter.ids.is_empty() && filter.exclude_ids.is_empty() {
+        if filter.ids.is_empty() && filter.exclude_ids.is_empty() && filter.apps.is_empty() {
             return self
                 .list_accounts(&filter.query, limit, offset, scopes)
                 .await;
         }
         Err(AppError::FailedPrecondition(
-            "id filtering is not supported by this account directory".into(),
+            "id / app filtering is not supported by this account directory".into(),
         ))
     }
 

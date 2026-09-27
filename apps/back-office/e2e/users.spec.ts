@@ -74,6 +74,42 @@ test.describe("users directory (admin only)", () => {
     await expect(page.getByRole("heading", { name: "ada" })).toBeVisible();
   });
 
+  // Change: add-directory-app-usage — which apps an account signed in to, as icons, and
+  // a filter on it that goes to the directory itself (not through the plan service).
+  test("rows show the apps each account uses, and the App filter narrows to them", async ({ page }) => {
+    const accounts = [
+      { ...ada, apps: { music: "2026-09-20T10:00:00Z", lingua: "2026-09-26T10:00:00Z" } },
+      { ...bob, apps: { music: "2026-09-25T10:00:00Z" } },
+      cleo,
+    ];
+    await seed(page, { loginAs: "admin", data: { accounts } });
+    await page.goto("/admin/users");
+
+    const adaRow = page.getByRole("row", { name: /Ada Lovelace/ });
+    await expect(adaRow.getByRole("img", { name: "Cymbra Music" })).toBeVisible();
+    await expect(adaRow.getByRole("img", { name: "Cymbra Lingua" })).toBeVisible();
+    await expect(adaRow.getByRole("img", { name: "Cymbra Lingua" })).toHaveAttribute("title", /last used/);
+    const bobRow = page.getByRole("row", { name: /Bob Ross/ });
+    await expect(bobRow.getByRole("img", { name: "Cymbra Music" })).toBeVisible();
+    await expect(bobRow.getByRole("img", { name: "Cymbra Lingua" })).toHaveCount(0);
+    await expect(page.getByRole("row", { name: /Cleo/ }).getByTestId("apps")).toHaveText("—");
+
+    const filter = page.getByRole("combobox", { name: "App" });
+    await filter.selectOption("lingua");
+    await expect(page.getByRole("row", { name: /Ada Lovelace/ })).toBeVisible();
+    await expect(page.getByRole("row", { name: /Bob Ross/ })).toHaveCount(0);
+    await expect(page.getByRole("row", { name: /Cleo/ })).toHaveCount(0);
+
+    await filter.selectOption("music");
+    await expect(page.getByRole("row", { name: /Bob Ross/ })).toBeVisible();
+    await expect(page.getByRole("row", { name: /Cleo/ })).toHaveCount(0);
+
+    await filter.selectOption("both");
+    await expect(page.getByRole("row", { name: /Ada Lovelace/ })).toBeVisible();
+    await expect(page.getByRole("row", { name: /Bob Ross/ })).toHaveCount(0);
+    await expect(page.getByText("1–1 of 1")).toBeVisible();
+  });
+
   test("clicking anywhere on the row opens that account too", async ({ page }) => {
     await seed(page, { loginAs: "admin", data: { accounts: [ada, bob] } });
     await page.goto("/admin/users");

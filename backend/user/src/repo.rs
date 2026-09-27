@@ -7,7 +7,9 @@
 use async_trait::async_trait;
 use chrono::NaiveDate;
 use cymbra_platform::{AppError, Result};
-use cymbra_user_port::{Account, AccountPage, AccountSummary, Identity, RoleGrant, ScopeRoles};
+use cymbra_user_port::{
+    Account, AccountApp, AccountPage, AccountSummary, Identity, RoleGrant, ScopeRoles,
+};
 use std::collections::HashMap;
 use std::sync::Mutex;
 
@@ -101,7 +103,13 @@ pub trait UserRepo: Send + Sync {
         scopes: &[String],
         ids: &[String],
         exclude_ids: &[String],
+        apps: &[String],
     ) -> Result<AccountPage>;
+
+    /// Record that `user_id` obtained a token for app `app` (change:
+    /// add-directory-app-usage): insert, or bump `last_seen_at` when it is over an hour
+    /// old. `app` is already validated as an app scope by the module.
+    async fn touch_app(&self, user_id: &str, app: &str) -> Result<()>;
 
     /// Read the profile row (identity + visibility + eligibility) for `user_id`
     /// (change: add-play-activity-profile). `NotFound` when the account is gone.
@@ -158,6 +166,7 @@ struct State {
     identities: Vec<(String, String, String)>, // (user_id, provider, subject)
     roles: Vec<(String, String, String)>,      // (user_id, scope, role)
     role_grants: Vec<RoleGrant>,               // append-only audit (oldest first)
+    apps: Vec<(String, String, i64)>,          // (user_id, app, last_seen_at)
 }
 
 /// In-memory [`UserRepo`] for unit tests (no Postgres; `updated_at` is fixed).
@@ -323,6 +332,7 @@ impl UserRepo for FakeUserRepo {
         s.users.remove(user_id);
         s.identities.retain(|(u, _, _)| u != user_id);
         s.roles.retain(|(u, _, _)| u != user_id);
+        s.apps.retain(|(u, _, _)| u != user_id);
         Ok(())
     }
 
@@ -340,6 +350,7 @@ impl UserRepo for FakeUserRepo {
             s.users.remove(uid);
             s.identities.retain(|(u, _, _)| u != uid);
             s.roles.retain(|(u, _, _)| u != uid);
+            s.apps.retain(|(u, _, _)| u != uid);
         }
         Ok(victims.len() as u64)
     }
@@ -430,8 +441,10 @@ impl UserRepo for FakeUserRepo {
         scopes: &[String],
         ids: &[String],
         exclude_ids: &[String],
+        apps: &[String],
     ) -> Result<AccountPage> {
         let s = self.state.lock().unwrap();
+        let has_app = |uid: &str, app: &str| s.apps.iter().any(|(u, a, _)| u == uid && a == app);
         let email = query.to_lowercase();
         // Filter: empty query = all; else a handle-key prefix OR a `local` identity
         // whose email equals the query (case-insensitive) — mirrors the SQL. An
@@ -441,6 +454,7 @@ impl UserRepo for FakeUserRepo {
                 .iter()
                 .filter(|(uid, _)| ids.is_empty() || ids.contains(uid))
                 .filter(|(uid, _)| !exclude_ids.contains(uid))
+                .filter(|(uid, _)| apps.iter().all(|a| has_app(uid, a)))
                 .filter(|(uid, row)| {
                     if query.is_empty() {
                         return true;
@@ -492,9 +506,37 @@ impl UserRepo for FakeUserRepo {
                             .collect(),
                     })
                     .collect(),
+                apps: {
+                    let mut v: Vec<AccountApp> = s
+                        .apps
+                        .iter()
+                        .filter(|(u, _, _)| u == uid)
+                        .map(|(_, app, at)| AccountApp {
+                            app: app.clone(),
+                            last_seen_at: *at,
+                        })
+                        .collect();
+                    v.sort_by(|a, b| a.app.cmp(&b.app));
+                    v
+                },
             })
             .collect();
         Ok(AccountPage { entries, total })
+    }
+
+    async fn touch_app(&self, user_id: &str, app: &str) -> Result<()> {
+        let mut s = self.state.lock().unwrap();
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as i64;
+        match s.apps.iter_mut().find(|(u, a, _)| u == user_id && a == app) {
+            // Mirror the SQL throttle: only rewrite an hour-old stamp.
+            Some(row) if row.2 < now - 3600 => row.2 = now,
+            Some(_) => {}
+            None => s.apps.push((user_id.to_string(), app.to_string(), now)),
+        }
+        Ok(())
     }
 
     async fn profile_row(&self, user_id: &str) -> Result<ProfileRow> {
