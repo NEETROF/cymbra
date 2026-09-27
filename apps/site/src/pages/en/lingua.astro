@@ -22,10 +22,12 @@ import { config } from '../../lib/config';
     </p>
     <StoreButtons links={linguaStores('en')} />
     <p class="muted small hero-note">
-      Coming soon to Chrome, Firefox and Safari. The extension is in private beta.
+      Available on Chrome, Edge and other Chromium browsers, and on Firefox (desktop).
+      Safari (iPhone, iPad, Mac) is coming soon. Made for French speakers learning English:
+      the interface and the translations are in French.
       {config.discordUrl && (
         <>
-          {' '}<a href={config.discordUrl} rel="noopener">Join the community</a> to get in.
+          {' '}<a href={config.discordUrl} rel="noopener">Join the community</a> to talk about it.
         </>
       )}
     </p>
@@ -42,7 +44,7 @@ import { config } from '../../lib/config';
     </div>
     <div class="card">
       <h3>👆 One click to understand</h3>
-      <p>Click a highlighted word: its dictionary form, its meaning, its frequency in plain language, and three buttons — "I know it", "+ Deck", "Ignore".</p>
+      <p>Click a highlighted word: its dictionary form, its French translation, its frequency in plain language, and three buttons to mark it known, add it to your deck, or ignore it — « Je connais », « + Deck », « Ignorer ».</p>
     </div>
     <div class="card">
       <h3>🗂️ Deck and review</h3>
