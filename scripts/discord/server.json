@@ -137,7 +137,7 @@
       "channels": [
         { "name": "lingua-announcements", "type": "text", "topic": "Cymbra Lingua news.", "readonly": true },
         { "name": "lingua-help",          "type": "text", "topic": "Cymbra Lingua questions. Say which browser you use." },
-        { "name": "lingua-stats",         "type": "text", "topic": "Cymbra Lingua report. Bot only.", "readonly": true, "enabled": false }
+        { "name": "lingua-stats",         "type": "text", "topic": "Cymbra Lingua report. Bot only.", "readonly": true }
       ]
     },
     {
@@ -173,6 +173,7 @@
     { "channel": "music-stats",           "name": "Cymbra backend" },
     { "channel": "music-leaderboards",    "name": "Cymbra backend" },
     { "channel": "id-stats",              "name": "Cymbra backend" },
+    { "channel": "lingua-stats",          "name": "Cymbra backend" },
     { "channel": "dev",                   "name": "Cymbra CI" }
   ]
 }

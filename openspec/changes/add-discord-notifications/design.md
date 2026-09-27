@@ -73,9 +73,9 @@ rendering, throttle/aggregate-minimum arithmetic. Tests double the port with `mo
 generated mocks (per the `rust-testing` convention); the HTTP adapters go into the
 `--ignore-filename-regex` list like `api/audio.rs` and the SMTP sender.
 
-**Categories are product-namespaced** (`music.*`, `id.*`, later `live.*`), because the Discord
-server groups channels **by product**: statistics live in the section of the product they
-describe (`#music-stats`, `#id-stats`), not in one global stats section. The routing key is
+**Categories are product-namespaced** (`music.*`, `id.*`, `lingua.*`, later `live.*`), because the
+Discord server groups channels **by product**: statistics live in the section of the product they
+describe (`#music-stats`, `#id-stats`, `#lingua-stats`), not in one global stats section. The routing key is
 therefore `(product, category) → channel`, which keeps a second product from ever landing in the
 first one's channels and makes "mute one product's feed" expressible (D8). An unmapped pair
 stays a no-op — never a fallback to some default channel, which would silently cross products.

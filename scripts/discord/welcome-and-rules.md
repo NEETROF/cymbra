@@ -28,6 +28,7 @@ English words you don't know yet, right in the page you are reading.
 • **#music-ideas** / **#music-bugs** — one post per idea or bug
 • **#music-stats** / **#music-leaderboards** — automated reports, bot only
 • **#lingua-help** — Lingua questions; say which browser you use
+• **#lingua-stats** — automated report, bot only
 • **#id-help** — accounts, sign-in, linked identities
 • **#dev** — building Cymbra: PRs, engine internals
 
@@ -67,6 +68,7 @@ les mots anglais que tu ne connais pas encore, directement dans la page que tu l
 • **#music-ideas** / **#music-bugs** — un post par idée ou par bug
 • **#music-stats** / **#music-leaderboards** — rapports automatiques, bot uniquement
 • **#lingua-help** — questions sur Lingua ; précise ton navigateur
+• **#lingua-stats** — rapport automatique, bot uniquement
 • **#id-help** — comptes, connexion, identités liées
 • **#dev** — le développement de Cymbra : PRs, moteur
 

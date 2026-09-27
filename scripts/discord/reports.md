@@ -1,6 +1,6 @@
 # Automated reports — field-by-field specification
 
-The content contract for the `discord_digest` job (tasks 3.6–3.8 of
+The content contract for the `discord_digest` job (tasks 3.6–3.9 of
 `openspec/changes/add-discord-notifications`). Every figure below names its source table and its
 suppression rule, so the implementation has nothing left to invent.
 
@@ -97,7 +97,40 @@ admin surface.
 
 ---
 
-## 3. `#music-leaderboards` — weekly (Cymbra Music)
+## 3. `#lingua-stats` — weekly (Cymbra Lingua)
+
+Weekly, for the same reason as Cymbra ID. Title `Cymbra Lingua — week of <date>`.
+
+Every figure comes from the **ops aggregate that already exists**:
+`LinguaAdminRepo::usage(from_day, to_day)` and `series(..., SeriesMetric::Exposures, None)` over
+`lingua.daily_stats` ([pg_admin.rs](../../backend/lingua/src/pg_admin.rs), change
+`add-lingua-backend`) — a `COUNT(DISTINCT user_id)` / `SUM(...)` grouped by day and studied
+language that returns no account identifier. Reuse it; do not write a second query.
+
+| Field | Source | Suppression |
+|---|---|---|
+| **Readers active** | `Usage.active_accounts` | `—` if `< k` |
+| **Words learned** | `Usage.words_learned` | `—` if readers `< k` |
+| **Reviews done** | `Usage.reviews` | `—` if readers `< k` |
+| **Words met while reading** | `SeriesMetric::Exposures` summed over the week | `—` if readers `< k` |
+| **Languages studied** | `Usage.by_language`, top 3 by `active_accounts` | a language under `k` accounts drops off the list |
+
+**Nobody is ever named here, and the naming gate never applies.** Lingua has no public profile,
+and `lingua`'s own privacy allow-list stops at day-grained aggregates: `word_statuses` and `cards`
+are per-account rows and stay out of any report. So there is no "top reader" line to gate — which
+also means a Lingua figure can never leak an identity the way a ranking can.
+
+**Expect silence at first, and let it be silent.** With `k = 5` the whole section is suppressed
+until five people read in the same week, and "nothing to say ⇒ nothing posted" then keeps the
+channel empty rather than publishing zeroes.
+
+**Erasure needs no special handling**: `LinguaDataService.EraseMyData` removes a user's rows, so
+later reports stop counting them, and an already-published aggregate carries no identity to
+retract.
+
+---
+
+## 4. `#music-leaderboards` — weekly (Cymbra Music)
 
 One embed, ranking in the **description**.
 
@@ -111,9 +144,9 @@ One embed, ranking in the **description**.
   via the gate, else `Anonymous`.
 - **Season** — current 30-day window, days remaining, and the leader when the gate allows.
 
-## 4. `/top50` — on demand
+## 5. `/top50` — on demand
 
-The same ranking as §3, answered by the interactions endpoint. **Ephemeral by default** (visible
+The same ranking as §4, answered by the interactions endpoint. **Ephemeral by default** (visible
 only to the requester) so a pull does not push 50 lines into the channel for everyone. The
 ranking core is shared with the digest — one implementation, three surfaces.
 
@@ -121,7 +154,7 @@ ranking core is shared with the digest — one implementation, three surfaces.
 
 ## Cadence, per product
 
-Each product carries its own cadence flag (`discord.music.*`, `discord.id.*`). Start Music
+Each product carries its own cadence flag (`discord.music.*`, `discord.id.*`, `discord.lingua.*`). Start Music
 **weekly** too if the first week's numbers look thin, then switch to daily from the back office —
 no redeploy. Suppressed and throttled figures are counted in the logs, so a quiet report is
 distinguishable from a broken one.
