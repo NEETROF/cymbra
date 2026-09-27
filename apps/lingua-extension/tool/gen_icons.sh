@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Render the extension icons from the Cymbra brand mark (apps/site/public/favicon.svg) into
-# icons/ — committed, so builds need no SVG renderer. Rerun when the mark changes; a
-# dedicated Lingua icon replaces the source here without touching the manifest.
+# Render the extension icons from the Lingua icon (assets/icon.svg: the Cymbra mark plus an
+# open book reading "A / 文") into icons/ — committed, so builds need no SVG renderer. Rerun
+# when the icon changes; it also refreshes every copy the Safari host app carries.
 # Needs rsvg-convert (brew: librsvg).
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-SOURCE="$APP_DIR/../site/public/favicon.svg"
+SOURCE="$APP_DIR/assets/icon.svg"
 OUT="$APP_DIR/icons"
 
 command -v rsvg-convert >/dev/null 2>&1 || {
@@ -42,6 +42,17 @@ echo "Rendered the alert variants (icon-alert-16/32/48.png)"
 # The host app's iOS icon: iOS draws its own rounded mask, and App Store Connect refuses an
 # icon with transparency or an alpha channel — so the mark goes full-bleed on an opaque square.
 # The macOS sizes keep the rounded mark (macOS draws icons as they are).
-IOS_ICON="$APP_DIR/../lingua-apple/Shared (App)/Assets.xcassets/AppIcon.appiconset/universal-icon-1024@1x.png"
+APPLE="$APP_DIR/../lingua-apple/Shared (App)"
+IOS_ICON="$APPLE/Assets.xcassets/AppIcon.appiconset/universal-icon-1024@1x.png"
 sed -E 's/rx="[0-9.]+" ry="[0-9.]+"/rx="0" ry="0"/' "$SOURCE" | rsvg-convert --width 1024 --height 1024 | magick - -alpha off "PNG24:$IOS_ICON"
 echo "Rendered the opaque iOS app icon into apps/lingua-apple"
+
+# The host app's other copies: the macOS icon sizes, the page its window shows (Icon.png) and
+# the iOS launch screen (LargeIcon).
+for size in 16 32 128 256 512; do
+  rsvg-convert --width "$size" --height "$size" "$SOURCE" --output "$APPLE/Assets.xcassets/AppIcon.appiconset/mac-icon-$size@1x.png"
+  rsvg-convert --width "$(( size * 2 ))" --height "$(( size * 2 ))" "$SOURCE" --output "$APPLE/Assets.xcassets/AppIcon.appiconset/mac-icon-$size@2x.png"
+done
+cp "$OUT/icon-512.png" "$APPLE/Resources/Icon.png"
+cp "$OUT/icon-256.png" "$APPLE/Assets.xcassets/LargeIcon.imageset/icon-256.png"
+echo "Rendered the macOS icon sizes, Icon.png and LargeIcon into apps/lingua-apple"
