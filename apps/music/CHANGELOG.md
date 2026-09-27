@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.34.2](https://github.com/NEETROF/cymbra/compare/music-v1.34.1...music-v1.34.2) (2026-09-27)
+
+
+### Bug Fixes
+
+* **music:** declare the four app languages to the App Store ([#575](https://github.com/NEETROF/cymbra/issues/575)) ([72c07b7](https://github.com/NEETROF/cymbra/commit/72c07b74f01e3776e0d713bc9e12310da78d610d))
+
 ## [1.34.1](https://github.com/NEETROF/cymbra/compare/music-v1.34.0...music-v1.34.1) (2026-09-27)
 
 
