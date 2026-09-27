@@ -1,5 +1,6 @@
 ---
 import '../styles/global.css';
+import { config } from '../lib/config';
 
 const {
   title,
@@ -33,6 +34,8 @@ const nav = isFr
 const otherLocale = isFr ? { href: enHref, label: 'EN' } : { href: frHref, label: 'FR' };
 const home = isFr ? '/' : '/en/';
 const site = 'https://cymbra.app';
+// The community server, on every page — header and footer — when an invite is set.
+const discordUrl = config.discordUrl;
 ---
 
 <!doctype html>
@@ -57,6 +60,9 @@ const site = 'https://cymbra.app';
     <header class="site-header">
       <div class="container">
         <a class="brand" href={home}>Cymbra</a>
+        {/* Phones collapse the nav into the burger: the community button stays in
+            the bar itself, outside the panel, so it is visible without a tap. */}
+        {discordUrl && <a class="header-discord" href={discordUrl} rel="noopener">Discord</a>}
         {/* The mobile menu is CSS-only — the layout ships no JS. A focusable
             checkbox drives the panel and the label is the visual target; every
             entry is a full page load, so navigating closes the menu for free. */}
@@ -66,6 +72,7 @@ const site = 'https://cymbra.app';
         </label>
         <nav class="nav-links">
           {nav.map((l) => <a href={l.href}>{l.label}</a>)}
+          {discordUrl && <a class="nav-discord" href={discordUrl} rel="noopener">Discord</a>}
           <a href={otherLocale.href}>{otherLocale.label}</a>
         </nav>
       </div>
@@ -84,6 +91,7 @@ const site = 'https://cymbra.app';
               <a href="/music">Music</a>
               <a href="/lingua">Lingua</a>
               <a href="/support">Aide</a>
+              {discordUrl && <a href={discordUrl} rel="noopener">Discord</a>}
               <a href="/confidentialite">Confidentialité</a>
               <a href="/cgu">CGU</a>
               <a href="/account">Mon compte</a>
@@ -96,6 +104,7 @@ const site = 'https://cymbra.app';
               <a href="/en/music">Music</a>
               <a href="/en/lingua">Lingua</a>
               <a href="/en/support">Support</a>
+              {discordUrl && <a href={discordUrl} rel="noopener">Discord</a>}
               <a href="/en/privacy">Privacy</a>
               <a href="/en/terms">Terms</a>
               <a href="/en/account">Account</a>
