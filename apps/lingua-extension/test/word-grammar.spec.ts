@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { GrammarTag, WordGrammar } from "@/analyzer/types.ts";
 import { createCard, type WordPopupContent } from "@/reading/wordpopup.ts";
 import { grammarLines, joinFrench, lineText, readingName, senseHeading } from "@/reading/grammar-labels.ts";
+import { glossPages, PAGE_CHARS, pageText } from "@/reading/gloss-pages.ts";
 
 // The scenarios of the two card requirements add-lingua-word-grammar adds to
 // lingua-browser-extension ("The word card says what the form is", "The word card lays its
@@ -237,6 +238,134 @@ describe("the word card lays its gloss out by part of speech", () => {
     deck.click();
     expect(gestures[0]!.gloss).toBe("Boîte de conserve; Pouvoir, savoir");
     expect(Object.keys(gestures[0]!)).not.toContain("grammar");
+  });
+});
+
+describe("the word card pages a long gloss", () => {
+  // `be` as the re-reduced pack glosses it (five whole senses, more than a page), with a noun
+  // sense added so that a page holds two parts of speech.
+  const BE = [
+    "Être",
+    "Être. Auxiliaire pour former le passif avec un participe passé",
+    "Être en train de. Auxiliaire pour former le progressif avec un participe présent",
+    "Aller. Auxiliaire pour former le futur proche avec un infinitif",
+    "Avoir l’habitude de. Auxiliaire marquant l’aspect habituel",
+    "Existence",
+  ];
+  const FIRST_PAGE = BE.slice(0, 3).join("; ");
+  const beCard = () =>
+    shown({
+      headword: "be",
+      surface: "be",
+      gloss: BE.join("; "),
+      grammar: grammar({
+        senses: [
+          { tag: { pos: "VERB" }, text: BE.slice(0, 5).join("; ") },
+          { tag: { pos: "NOUN" }, text: BE[5]! },
+        ],
+      }),
+    });
+  const texts = (card: ReturnType<typeof shown>["card"]) => ({
+    groups: [...card.el.querySelectorAll(".sense-group")].map((g) => g.textContent),
+    count: card.el.querySelector(".page-count")?.textContent ?? null,
+    previous: card.el.querySelector<HTMLButtonElement>('.gloss-nav button[aria-label="Sens précédents"]'),
+    next: card.el.querySelector<HTMLButtonElement>('.gloss-nav button[aria-label="Sens suivants"]'),
+  });
+
+  it("A word with more senses than one page holds", () => {
+    const { card } = beCard();
+    const page = texts(card);
+    expect(page.groups).toEqual([`verbe ${FIRST_PAGE}`]);
+    expect(page.count).toBe("1/2");
+    expect(page.previous!.disabled).toBe(true);
+    expect(page.next!.disabled).toBe(false);
+    expect(page.next!.textContent).toBe("Suivant ›");
+  });
+
+  it("Moving to the next page, and back", () => {
+    const { card } = beCard();
+    const actions = () => [...card.el.querySelectorAll(".actions button")].map((b) => b.textContent);
+    const before = actions();
+    texts(card).next!.click();
+    let page = texts(card);
+    // The part of speech is said again on the page where its senses continue.
+    expect(page.groups).toEqual([`verbe ${BE[3]}; ${BE[4]}`, `nom ${BE[5]}`]);
+    expect(page.count).toBe("2/2");
+    expect(page.next!.disabled).toBe(true);
+    expect(page.previous!.disabled).toBe(false);
+    expect(actions()).toEqual(before);
+    expect(card.visible()).toBe(true);
+    page.previous!.click();
+    page = texts(card);
+    expect(page.count).toBe("1/2");
+  });
+
+  it("a paging press keeps the reader's selection", () => {
+    const { card } = beCard();
+    const down = new Event("mousedown", { cancelable: true });
+    texts(card).next!.dispatchEvent(down);
+    expect(down.defaultPrevented).toBe(true);
+  });
+
+  it("A card opened again starts on its first page", () => {
+    const { card } = beCard();
+    texts(card).next!.click();
+    card.show(
+      content({ headword: "be", surface: "be", gloss: BE.join("; "), grammar: grammar({ senses: [] }) }),
+      () => {},
+    );
+    expect(texts(card).count).toBe("1/2");
+    expect(card.el.querySelector(".gloss-page")!.textContent).toBe(FIRST_PAGE);
+  });
+
+  it("A gloss that fits shows no paging control", () => {
+    const { card } = shown({ gloss: "Aller" });
+    expect(card.el.querySelector(".gloss-nav")).toBeNull();
+  });
+
+  it("a card created from a paged gloss stores its first page, as one text", () => {
+    const { card } = beCard();
+    const gestures: Array<{ gloss: string | null }> = [];
+    card.show(
+      content({
+        headword: "be",
+        surface: "be",
+        gloss: BE.join("; "),
+        grammar: grammar({ senses: [{ tag: { pos: "AUX" }, text: BE.join("; ") }] }),
+      }),
+      (g) => gestures.push(g),
+    );
+    texts(card).next!.click();
+    [...card.el.querySelectorAll("button")].find((b) => b.textContent === "+ Deck")!.click();
+    expect(gestures[0]!.gloss).toBe(FIRST_PAGE);
+  });
+});
+
+describe("glossPages", () => {
+  it("fills a page with whole senses up to its size", () => {
+    const pages = glossPages("aaaa; bbbb; cccc", [], 10);
+    expect(pages.map(pageText)).toEqual(["aaaa; bbbb", "cccc"]);
+    expect(pages[0]![0]!.tagged).toBe(false);
+  });
+
+  it("puts a sense longer than a page on a page of its own, whole", () => {
+    const long = "x".repeat(PAGE_CHARS + 20);
+    expect(glossPages(`Court; ${long}; Fin`).map(pageText)).toEqual(["Court", long, "Fin"]);
+  });
+
+  it("uses the grammar's groups only when they make up the gloss", () => {
+    const tagged = glossPages("Boîte; Pouvoir", [
+      { tag: { pos: "NOUN" }, text: "Boîte" },
+      { tag: { pos: "VERB" }, text: "Pouvoir" },
+    ]);
+    expect(tagged).toEqual([
+      [
+        { tagged: true, tag: { pos: "NOUN" }, senses: ["Boîte"] },
+        { tagged: true, tag: { pos: "VERB" }, senses: ["Pouvoir"] },
+      ],
+    ]);
+    const stale = glossPages("Boîte; Pouvoir", [{ tag: { pos: "NOUN" }, text: "Boîte" }]);
+    expect(stale).toEqual([[{ tagged: false, senses: ["Boîte", "Pouvoir"] }]]);
   });
 });
 

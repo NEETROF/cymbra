@@ -886,6 +886,42 @@ class ReduceGlossRuns(TempDir):
             {"be": "Être; Être. Auxiliaire pour former le passif…"},
         )
 
+    def test_the_wiktionary_notes_to_its_readers_are_left_out(self):
+        # Seen in Safari: `there` read « Y avoir. → voir there be », and 164 glosses held the
+        # placeholder of an unfinished page.
+        placeholder = "Définition manquante ou à compléter. (Ajouter)"
+        path = self.file(
+            "kaikki.jsonl",
+            "\n".join(
+                json.dumps(entry)
+                for entry in [
+                    {"word": "there", "pos": "adv", "senses": [{"glosses": ["Là, là-bas, y."]}]},
+                    {"word": "there", "pos": "verb", "senses": [{"glosses": ["Y avoir. → voir there be"]}]},
+                    {"word": "because", "pos": "conj", "senses": [{"glosses": ["Parce que."]}]},
+                    {"word": "because", "pos": "adv", "senses": [{"glosses": [placeholder + " → voir because of"]}]},
+                    {"word": "pig", "pos": "verb", "senses": [{"glosses": ["Vivre dans la saleté. " + placeholder]}]},
+                    {"word": "adviser", "pos": "noun", "senses": [{"glosses": ["→ voir advisor"]}]},
+                ]
+            )
+            + "\n",
+        )
+        runs = {}
+        glosses = red.reduce_gloss(path, {"there", "because", "pig", "adviser"}, 160, runs=runs)
+        self.assertEqual(glosses["there"], "Là, là-bas, y; Y avoir")
+        self.assertEqual(glosses["because"], "Parce que")
+        self.assertEqual(runs["because"], [("SCONJ", 1)])
+        self.assertEqual(glosses["pig"], "Vivre dans la saleté")
+        # Nothing but a pointer: no gloss at all rather than a dead link.
+        self.assertNotIn("adviser", glosses)
+
+    def test_a_word_keeps_many_short_senses(self):
+        senses = [{"glosses": [f"Sens {i}."]} for i in range(1, 11)]
+        path = self.file("kaikki.jsonl", json.dumps({"word": "get", "pos": "verb", "senses": senses}) + "\n")
+        runs = {}
+        glosses = red.reduce_gloss(path, {"get"}, 800, per_sense=300, max_senses=8, runs=runs)
+        self.assertEqual(glosses["get"], "; ".join(f"Sens {i}" for i in range(1, 9)))
+        self.assertEqual(runs["get"], [("VERB", 8)])
+
     def test_what_an_acronym_is(self):
         self.assertTrue(red._acronym("AND"))
         self.assertTrue(red._acronym("B2B"))
@@ -909,6 +945,24 @@ class CutAtWord(unittest.TestCase):
 
     def test_one_long_word_is_cut_where_the_room_ends(self):
         self.assertEqual(red.cut_at_word("a" * 50, 20), "a" * 19 + "…")
+
+    def test_notes_go_wherever_they_sit(self):
+        for raw, want in (
+            ("Banquette → voir seat of a car et car seat.", "Banquette"),
+            ("→ voir hand-off ; Raffut, action de repousser de la main.", "Raffut, action de repousser de la main"),
+            ("Moelle (→ voir bone marrow).", "Moelle"),
+            ("Suffixe. (→ Comparer avec -ative)", "Suffixe"),
+            ("Délictuel. → Voir Responsabilité délictuelle", "Délictuel"),
+            ("(Définition manquante ou à compléter. (Ajouter)) Désinvestir.", "Désinvestir"),
+            ("Chutes Victoria : Définition manquante ou à compléter. (Ajouter)", "Chutes Victoria"),
+            ("Désémantisation. Définition manquante ou à co", "Désémantisation"),
+            ("Homme élevant des chiens. Étymologie manquante ou incomplète. Si vous la connaissez, vous pouvez l’ajouter en cliquant ici.", "Homme élevant des chiens"),
+            ("Définition manquante ou à compléter. (Ajouter)…", ""),
+        ):
+            self.assertEqual(red.clean_gloss(raw, 300, whole_words=True), want, raw)
+
+    def test_an_arrow_that_is_no_pointer_stays(self):
+        self.assertEqual(red.clean_gloss("Le plus. Ex. hard → hardest.", 80), "Le plus. Ex. hard → hardest")
 
     def test_an_expression_keeps_the_plain_cut(self):
         self.assertEqual(red.clean_gloss("Initiales de Automobile Association", 15), "Initiales de Au")

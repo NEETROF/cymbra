@@ -18,6 +18,7 @@ import {
   type PageHit,
   rarityText,
   rowGloss,
+  ROW_SENSE_CHARS,
   rowsFor,
   wholeSelectionMatch,
   SelectionCards,
@@ -1114,6 +1115,15 @@ describe("rowGloss", () => {
 
   it("gives no row when every sense is missing its definition", () => {
     expect(rowGloss("Définition manquante ou à compléter")).toBeNull();
+  });
+
+  it("cuts a long whole sense after a whole word, as the pack cut it before", () => {
+    const sense =
+      "Se rapporter (se rapporter à = to refer to), concerner, être en relation avec quelque chose ou quelqu’un";
+    const row = rowGloss(`${sense}; Diriger`)!;
+    expect(row.length).toBeLessThanOrEqual(ROW_SENSE_CHARS);
+    expect(row).toBe("Se rapporter (se rapporter à = to refer to), concerner, être en relation avec…");
+    expect(rowGloss("a".repeat(100))).toBe(`${"a".repeat(79)}…`);
   });
 });
 

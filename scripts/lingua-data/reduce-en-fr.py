@@ -763,13 +763,32 @@ def resolve_forms(pairs, ranks, targets=None, glossed=frozenset()):
 _DANGLING_COORDINATOR = re.compile(r"^(?:ou|et)\s+")
 
 
+# What the Wiktionary writes for its own readers, not a translation: a pointer to another page
+# ("Y avoir. → voir there be", "(→ voir bone marrow)", "(→ Comparer avec -ative)") — a link on the
+# wiki, dead text on a card — and the placeholders of an unfinished page ("Définition manquante ou
+# à compléter. (Ajouter)", an invitation to contributors), wherever they sit in the sense.
+_WIKI_NOTES = re.compile(
+    r"\s*\(→[^)]*\)"
+    r"|\s*→\s*(?:voir|comparer)\b[^;]*"
+    r"|\s*\(?Définition manquante ou à co.*?(?:\(Ajouter\)\)?|$)[.…]*"
+    r"|\s*Étymologie manquante ou incomplète.*?(?:cliquant ici\.|$)",
+    re.IGNORECASE,
+)
+
+
+def strip_wiki_notes(text):
+    """`text` without the Wiktionary's pointers and placeholders (`_WIKI_NOTES`)."""
+    return _WIKI_NOTES.sub("", text)
+
+
 def clean_gloss(text, maxlen, whole_words=False):
     """A sense, tidied and held within `maxlen` characters.
 
     The expressions keep the plain cut. A word's senses (`whole_words`) are cut at a word
     boundary and end with an ellipsis (`cut_at_word`), since the word card shows them in full.
+    A sense that is nothing but a pointer or a placeholder comes out empty, and is left out.
     """
-    g = re.sub(r"\s+", " ", text).strip().rstrip(".").strip()
+    g = re.sub(r"\s+", " ", strip_wiki_notes(text)).strip(" ;,").rstrip(".:").strip()
     g = _DANGLING_COORDINATOR.sub("", g)
     if len(g) > maxlen:
         g = cut_at_word(g, maxlen) if whole_words else g[:maxlen].rstrip()
@@ -1097,10 +1116,11 @@ def main():
     ap.add_argument("--work", required=True)
     ap.add_argument("--max-lemmas", type=int, default=40000)
     ap.add_argument("--max-gloss-len", type=int, default=80, help="an expression's gloss")
-    # A word's gloss is shown in full on its card, one line per part of speech: room for its
-    # senses to end (add-lingua-word-grammar), 38 KB of pack for 80/160 against 42/80.
-    ap.add_argument("--max-word-gloss-len", type=int, default=160)
-    ap.add_argument("--max-word-sense-len", type=int, default=80)
+    # A word's gloss is paged on its card, one line per part of speech (add-lingua-word-grammar):
+    # room for eight whole senses, 91 KB of pack for 8 x 300 / 800 against 3 x 80 / 160.
+    ap.add_argument("--max-word-gloss-len", type=int, default=800)
+    ap.add_argument("--max-word-sense-len", type=int, default=300)
+    ap.add_argument("--max-word-senses", type=int, default=8)
     ap.add_argument("--built-at", required=True, help="yyyy-mm-dd (source snapshot date)")
     ap.add_argument("--pack-version", required=True)
     ap.add_argument(
@@ -1144,7 +1164,9 @@ def main():
 
     pairs |= compound_inflections(lemmas, pairs, readings)
     runs = {}
-    glosses = reduce_gloss(kaikki, lemmas, a.max_word_gloss_len, per_sense=a.max_word_sense_len, runs=runs)
+    glosses = reduce_gloss(
+        kaikki, lemmas, a.max_word_gloss_len, per_sense=a.max_word_sense_len, max_senses=a.max_word_senses, runs=runs
+    )
     expressions = reduce_expressions(kaikki, a.max_gloss_len)
     forms = resolve_forms(pairs, ranks, targets, set(glosses))
     levels = reduce_levels(cefr, lemmas)

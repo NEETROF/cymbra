@@ -144,25 +144,37 @@ const DEFAULT_CLOCK: Clock = {
   clearTimeout: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
 };
 
-/** A gloss the reducer left with nothing in it: the Wiktionary entry had no definition. */
+/** A gloss the reducer left with nothing in it: the Wiktionary entry had no definition (older packs). */
 const EMPTY_SENSE = /définition manquante/i;
+
+/** The longest sense a row shows: what a sense held before the pack kept them whole. */
+export const ROW_SENSE_CHARS = 80;
 
 /**
  * What a row shows of a pack gloss: its FIRST sense, senses being separated by `;`.
  *
- * A full gloss carries up to three senses and is cut at 80 characters by the reducer, so a
- * third of them end mid-word ("Commencer, débuter, initier, entamer; Procédu"). One such
- * line is the price of a dictionary; six stacked under one another are unreadable, and the
- * reader is scanning the row for the meaning in THIS phrase, not reading the entry. Senses
- * whose text says the definition is missing are skipped; a gloss made only of those gives
- * no row. The word card of a single word still shows the whole gloss.
+ * A full gloss carries up to eight whole senses, which the word card pages. One sense is the
+ * price of a dictionary; eight stacked under one another are unreadable, and the reader is
+ * scanning the row for the meaning in THIS phrase, not reading the entry. A sense longer than
+ * `ROW_SENSE_CHARS` is cut after a whole word, with an ellipsis. Senses whose text says the
+ * definition is missing are skipped; a gloss made only of those gives no row. The word card of a
+ * single word still shows the whole gloss.
  */
 export function rowGloss(gloss: string): string | null {
   for (const sense of gloss.split(";")) {
     const text = sense.trim();
-    if (text && !EMPTY_SENSE.test(text)) return text;
+    if (text && !EMPTY_SENSE.test(text)) return cutAtWord(text, ROW_SENSE_CHARS);
   }
   return null;
+}
+
+/** `text` within `max` characters, the ellipsis included, ending on a whole word when it can. */
+function cutAtWord(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const room = max - 1;
+  const space = text.lastIndexOf(" ", room);
+  const cut = space > room / 2 ? text.slice(0, space) : text.slice(0, room);
+  return `${cut.replace(/[\s,;:(«[\-–—/]+$/, "")}…`;
 }
 
 /** Whether the reader has settled this class: a known or ignored word needs no row. */
