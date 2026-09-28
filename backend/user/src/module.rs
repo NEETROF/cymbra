@@ -1015,6 +1015,17 @@ mod tests {
         assert!(none.entries.is_empty());
     }
 
+    /// The directory row carries the account's creation time (change:
+    /// add-directory-account-dates).
+    #[tokio::test]
+    async fn list_accounts_carries_created_at() {
+        let m = module();
+        let a = m.resolve_or_provision("google", "a").await.unwrap();
+        m.repo.set_created_at(&a, 1_772_409_600);
+        let page = m.list_accounts("", 25, 0, &sc(&["music"])).await.unwrap();
+        assert_eq!(page.entries[0].created_at, 1_772_409_600);
+    }
+
     /// Explicit id set / exclusion set (change: add-premium-subscription): the
     /// directory can be restricted to pre-resolved ids, combined with the handle
     /// query, without the identity module learning why.

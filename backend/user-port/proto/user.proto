@@ -119,6 +119,8 @@ message AccountRow {
   // The apps the account has signed in to, by app name (change:
   // add-directory-app-usage). Not scope-restricted: they are not roles.
   repeated AccountApp apps = 5;
+  // When the account was created, unix seconds (change: add-directory-account-dates).
+  int64 created_at = 6;
 }
 // An app an account has signed in to (change: add-directory-app-usage).
 message AccountApp {

@@ -122,6 +122,8 @@ pub struct AccountSummary {
     /// The apps the account has signed in to (change: add-directory-app-usage), in
     /// app-name order. Not scope-restricted: they are not roles.
     pub apps: Vec<AccountApp>,
+    /// When the account was created, unix seconds (change: add-directory-account-dates).
+    pub created_at: i64,
 }
 
 /// An app an account has signed in to (change: add-directory-app-usage).

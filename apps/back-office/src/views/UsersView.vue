@@ -12,6 +12,7 @@ import type { AccountRow } from "@/gen/user_pb";
 import AppTag from "@/components/AppTag.vue";
 import { APP_BADGES } from "@/lib/icons";
 import { currentLocale } from "@/i18n";
+import { formatUnixDate, lastSignIn } from "@/lib/accountDates";
 
 // Admin-only (route- + server-guarded). A paginated directory of accounts with their
 // roles, plan and betas. It is a surface for FINDING an account, not for acting on one
@@ -77,9 +78,18 @@ function appsOf(account: AccountRow) {
     const used = account.apps.find((a) => a.app === badge.app);
     if (!used) return [];
     const name = t(badge.label);
-    const when = new Date(Number(used.lastSeenAt) * 1000).toLocaleDateString(currentLocale());
+    const when = formatUnixDate(used.lastSeenAt, currentLocale());
     return [{ ...badge, name, title: t("users.appLastUse", { app: name, when }) }];
   });
+}
+
+/** Sign-up and last sign-in of a row, as dates; `null` when never signed in to an app. */
+function datesOf(account: AccountRow) {
+  const last = lastSignIn(account.apps);
+  return {
+    signedUp: formatUnixDate(account.createdAt, currentLocale()),
+    lastSignIn: last === null ? null : formatUnixDate(last, currentLocale()),
+  };
 }
 
 const vm = computed(() =>
@@ -105,7 +115,7 @@ const from = computed(() => (vm.value.total === 0 ? 0 : offset.value + 1));
 const to = computed(() => Math.min(offset.value + PAGE_SIZE, vm.value.total));
 const canPrev = computed(() => offset.value > 0);
 const canNext = computed(() => offset.value + PAGE_SIZE < vm.value.total);
-const colCount = computed(() => (showPlans.value ? 6 : 4));
+const colCount = computed(() => (showPlans.value ? 8 : 6));
 
 function search() {
   store.list(filter.value.trim(), 0, planFilter.value, betaFilter.value, sandboxAccountFilter.value, appFilter.value);
@@ -194,6 +204,8 @@ onMounted(() => {
           <th>{{ $t("users.colHandle") }}</th>
           <th>{{ $t("users.colName") }}</th>
           <th>{{ $t("users.colApps") }}</th>
+          <th>{{ $t("users.colSignedUp") }}</th>
+          <th>{{ $t("users.colLastSignIn") }}</th>
           <th>{{ $t("users.colRoles") }}</th>
           <th v-if="showPlans">{{ $t("users.colPlan") }}</th>
           <th v-if="showPlans">{{ $t("users.colBeta") }}</th>
@@ -233,6 +245,11 @@ onMounted(() => {
               </span>
               <span v-if="appsOf(a).length === 0" class="muted">—</span>
             </div>
+          </td>
+          <td class="date" data-testid="signed-up">{{ datesOf(a).signedUp }}</td>
+          <td class="date" data-testid="last-sign-in">
+            <template v-if="datesOf(a).lastSignIn">{{ datesOf(a).lastSignIn }}</template>
+            <span v-else class="muted">—</span>
           </td>
           <td>
             <div class="rolechips">
@@ -310,6 +327,9 @@ onMounted(() => {
 }
 .row-link {
   cursor: pointer;
+}
+.date {
+  white-space: nowrap;
 }
 .row-link:hover {
   background: var(--panel-2);

@@ -273,6 +273,7 @@ impl<P: UserPort + 'static> UserService for UserGrpc<P> {
                         last_seen_at: app.last_seen_at,
                     })
                     .collect(),
+                created_at: a.created_at,
             })
             .collect();
         Ok(Response::new(ListAccountsResponse {
@@ -584,6 +585,17 @@ mod tests {
         assert_eq!(resp.accounts[0].apps.len(), 1);
         assert_eq!(resp.accounts[0].apps[0].app, "lingua");
         assert!(resp.accounts[0].apps[0].last_seen_at > 0);
+        // The sign-up time rides on the same row (change: add-directory-account-dates).
+        let summary = module
+            .list_accounts("", 25, 0, &["music".into()])
+            .await
+            .unwrap();
+        let created = summary
+            .entries
+            .iter()
+            .find(|e| e.user_id == reader)
+            .unwrap();
+        assert_eq!(resp.accounts[0].created_at, created.created_at);
 
         let err = g.list_accounts(list(&["chess"])).await.unwrap_err();
         assert_eq!(err.code(), tonic::Code::InvalidArgument);

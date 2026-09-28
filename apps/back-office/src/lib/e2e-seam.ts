@@ -199,6 +199,8 @@ interface DirectoryAccount {
   rolesByScope?: Record<string, string[]>;
   /** Apps signed in to, with the last use as ISO time (change: add-directory-app-usage). */
   apps?: Record<string, string>;
+  /** Sign-up as ISO time (change: add-directory-account-dates); a fixed date by default. */
+  createdAt?: string;
 }
 
 declare global {
@@ -276,11 +278,19 @@ export function installE2EClients(): void {
     displayName?: string;
     roles: Record<string, string[]>;
     apps: Record<string, string>;
+    createdAt: string;
   }[] = (data.accounts ?? []).map((a) => {
     const roles: Record<string, string[]> = {};
     const src = a.rolesByScope ?? { music: a.roles ?? [] };
     for (const [scope, rs] of Object.entries(src)) roles[scope] = [...rs];
-    return { userId: a.userId, handle: a.handle, displayName: a.displayName, roles, apps: a.apps ?? {} };
+    return {
+      userId: a.userId,
+      handle: a.handle,
+      displayName: a.displayName,
+      roles,
+      apps: a.apps ?? {},
+      createdAt: a.createdAt ?? "2026-01-15T12:00:00Z",
+    };
   });
 
   /** Append a row to the `role_grants` audit listing, as the server does on every
@@ -585,6 +595,7 @@ export function installE2EClients(): void {
           apps: Object.entries(a.apps)
             .sort(([x], [y]) => x.localeCompare(y))
             .map(([app, at]) => ({ app, lastSeenAt: BigInt(Math.floor(Date.parse(at) / 1000)) })),
+          createdAt: BigInt(Math.floor(Date.parse(a.createdAt) / 1000)),
         }));
         return { accounts: page, total: filtered.length };
       },

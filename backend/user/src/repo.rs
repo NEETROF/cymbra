@@ -519,6 +519,7 @@ impl UserRepo for FakeUserRepo {
                     v.sort_by(|a, b| a.app.cmp(&b.app));
                     v
                 },
+                created_at: row.created_at,
             })
             .collect();
         Ok(AccountPage { entries, total })

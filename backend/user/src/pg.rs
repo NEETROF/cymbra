@@ -431,7 +431,8 @@ impl UserRepo for PgUserRepo {
 
         // Page the matching accounts first (identity only) …
         let rows = sqlx::query(&format!(
-            "SELECT u.id, u.handle, u.display_name \
+            "SELECT u.id, u.handle, u.display_name, \
+                    extract(epoch FROM u.created_at)::bigint AS created_at \
              FROM users u \
              WHERE {WHERE} \
              ORDER BY u.handle ASC NULLS LAST, u.created_at, u.id \
@@ -521,6 +522,7 @@ impl UserRepo for PgUserRepo {
                     display_name: r.get("display_name"),
                     roles_by_scope,
                     apps: apps_map.remove(&uid).unwrap_or_default(),
+                    created_at: r.get("created_at"),
                 }
             })
             .collect();
