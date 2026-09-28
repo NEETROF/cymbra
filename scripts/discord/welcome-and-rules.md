@@ -125,8 +125,7 @@ Breaking these gets a warning, then a mute, then a ban — faster if it is delib
 
 **4. Pas d'arnaques, pas de pub.** Pas de "free nitro", pas de crypto, pas d'échange d'invitations, pas d'autopromotion hors sujet. Ton jeu, tes arrangements, tes outils : bienvenue.
 
-**5. Respecte le sujet des salons.** Les bugs et les idées vont dans les forums de chaque app (#music-bugs, #music-ideas, #lingua-bugs, #lingua-ideas), un post par sujet. Les salons de statistiques sont réservés au bot — réagis-y, discute dans
-#general.
+**5. Respecte le sujet des salons.** Les bugs et les idées vont dans les forums de chaque app (#music-bugs, #music-ideas, #lingua-bugs, #lingua-ideas), un post par sujet. Les salons de statistiques sont réservés au bot — réagis-y, discute dans #general.
 
 **6. Vie privée des autres.** Ne publie ni nom réel, ni adresse, ni email, ni messages privés de quelqu'un d'autre. Le bot ne nomme que les joueurs qui ont donné leur accord.
 
