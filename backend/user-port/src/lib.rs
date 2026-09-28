@@ -122,6 +122,8 @@ pub struct AccountSummary {
     /// The apps the account has signed in to (change: add-directory-app-usage), in
     /// app-name order. Not scope-restricted: they are not roles.
     pub apps: Vec<AccountApp>,
+    /// When the account was created, unix seconds (change: add-directory-account-dates).
+    pub created_at: i64,
 }
 
 /// An app an account has signed in to (change: add-directory-app-usage).
@@ -147,6 +149,37 @@ pub struct AccountFilter {
     /// When non-empty, only accounts that signed in to EVERY one of these apps
     /// (change: add-directory-app-usage).
     pub apps: Vec<String>,
+    /// Page order (change: add-directory-account-dates); by handle by default.
+    pub sort: AccountSort,
+    /// Reverse [`Self::sort`]. Accounts with no value for the key still come last.
+    pub descending: bool,
+}
+
+/// The key the directory is ordered by (change: add-directory-account-dates). Ties,
+/// and accounts with no value for the key, fall back to creation time then id, so
+/// paging is stable.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum AccountSort {
+    #[default]
+    Handle,
+    DisplayName,
+    /// When the account was created.
+    CreatedAt,
+    /// The latest last use among the account's apps.
+    LastSignIn,
+}
+
+impl AccountSort {
+    /// Parse the wire value; `""` is the default order, anything unknown is `None`.
+    pub fn parse(value: &str) -> Option<Self> {
+        match value {
+            "" | "handle" => Some(Self::Handle),
+            "display_name" => Some(Self::DisplayName),
+            "created_at" => Some(Self::CreatedAt),
+            "last_sign_in" => Some(Self::LastSignIn),
+            _ => None,
+        }
+    }
 }
 
 /// A page of the admin account directory plus the total matching count.
@@ -286,13 +319,18 @@ pub trait UserPort: Send + Sync {
         offset: i64,
         scopes: &[String],
     ) -> Result<AccountPage> {
-        if filter.ids.is_empty() && filter.exclude_ids.is_empty() && filter.apps.is_empty() {
+        if filter.ids.is_empty()
+            && filter.exclude_ids.is_empty()
+            && filter.apps.is_empty()
+            && filter.sort == AccountSort::default()
+            && !filter.descending
+        {
             return self
                 .list_accounts(&filter.query, limit, offset, scopes)
                 .await;
         }
         Err(AppError::FailedPrecondition(
-            "id / app filtering is not supported by this account directory".into(),
+            "id / app filtering and sorting are not supported by this account directory".into(),
         ))
     }
 
@@ -373,4 +411,28 @@ pub trait UserPort: Send + Sync {
         user_ids: &[String],
         today: NaiveDate,
     ) -> Result<Vec<PlayerProfile>>;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::AccountSort;
+
+    #[test]
+    fn account_sort_parses_the_wire_values() {
+        assert_eq!(AccountSort::parse(""), Some(AccountSort::Handle));
+        assert_eq!(AccountSort::parse("handle"), Some(AccountSort::Handle));
+        assert_eq!(
+            AccountSort::parse("display_name"),
+            Some(AccountSort::DisplayName)
+        );
+        assert_eq!(
+            AccountSort::parse("created_at"),
+            Some(AccountSort::CreatedAt)
+        );
+        assert_eq!(
+            AccountSort::parse("last_sign_in"),
+            Some(AccountSort::LastSignIn)
+        );
+        assert_eq!(AccountSort::parse("email"), None);
+    }
 }

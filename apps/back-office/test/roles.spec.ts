@@ -6,6 +6,9 @@ import { useAuthStore } from "@/stores/auth";
 import { setClientsForTest } from "@/lib/api";
 import { makeFakeClients, makeJwt } from "./fakes";
 
+/** The directory's default order, sent on every directory call. */
+const byHandle = { sort: "handle", descending: false };
+
 describe("roles store", () => {
   beforeEach(() => setActivePinia(createPinia()));
 
@@ -17,12 +20,36 @@ describe("roles store", () => {
 
     await store.list("ada", 0);
 
-    expect(state.listAccountsCalls).toEqual([{ query: "ada", limit: PAGE_SIZE, offset: 0, ids: [], apps: [] }]);
+    expect(state.listAccountsCalls).toEqual([
+      { query: "ada", limit: PAGE_SIZE, offset: 0, ids: [], apps: [], ...byHandle },
+    ]);
     expect(store.directory.status).toBe("success");
     if (store.directory.status === "success") {
       expect(store.directory.data.total).toBe(1);
       expect(store.directory.data.accounts).toHaveLength(1);
     }
+  });
+
+  // Change: add-directory-account-dates. The directory is paginated, so the server sorts.
+  it("sorting re-lists from the first page; the same column flips, another starts in its own direction", async () => {
+    const { clients, state } = makeFakeClients({ accounts: [] });
+    setClientsForTest(clients);
+    const store = useRolesStore();
+    await store.list("ada", 50);
+
+    await store.sortBy("created_at");
+    await store.sortBy("created_at");
+    await store.sortBy("display_name");
+
+    expect(
+      state.listAccountsCalls
+        .slice(1)
+        .map(({ query, offset, sort, descending }) => ({ query, offset, sort, descending })),
+    ).toEqual([
+      { query: "ada", offset: 0, sort: "created_at", descending: true },
+      { query: "ada", offset: 0, sort: "created_at", descending: false },
+      { query: "ada", offset: 0, sort: "display_name", descending: false },
+    ]);
   });
 
   it("grants a role in the given scope then re-lists the current page", async () => {
@@ -115,7 +142,9 @@ describe("roles store", () => {
     await store.list("", 0, "trial", "");
 
     expect(state.idsByPlanCalls).toEqual([{ plan: "trial", betaCampaignKey: "", sandboxAccountsOnly: false }]);
-    expect(state.listAccountsCalls).toEqual([{ query: "", limit: PAGE_SIZE, offset: 0, ids: ["u1", "u9"], apps: [] }]);
+    expect(state.listAccountsCalls).toEqual([
+      { query: "", limit: PAGE_SIZE, offset: 0, ids: ["u1", "u9"], apps: [], ...byHandle },
+    ]);
     expect(store.params).toMatchObject({ plan: "trial", beta: "" });
   });
 
@@ -132,7 +161,9 @@ describe("roles store", () => {
     // "any" plan and no beta would normally skip the pre-resolve entirely: the
     // sandbox filter has to trigger it on its own, or it would silently do nothing.
     expect(state.idsByPlanCalls).toEqual([{ plan: "any", betaCampaignKey: "", sandboxAccountsOnly: true }]);
-    expect(state.listAccountsCalls).toEqual([{ query: "", limit: PAGE_SIZE, offset: 0, ids: ["u1"], apps: [] }]);
+    expect(state.listAccountsCalls).toEqual([
+      { query: "", limit: PAGE_SIZE, offset: 0, ids: ["u1"], apps: [], ...byHandle },
+    ]);
     expect(store.params).toMatchObject({ sandboxAccounts: true });
   });
 
@@ -164,7 +195,7 @@ describe("roles store", () => {
     await store.list("", 0, "any", "", false, filter);
 
     expect(state.idsByPlanCalls).toEqual([]);
-    expect(state.listAccountsCalls).toEqual([{ query: "", limit: PAGE_SIZE, offset: 0, ids: [], apps }]);
+    expect(state.listAccountsCalls).toEqual([{ query: "", limit: PAGE_SIZE, offset: 0, ids: [], apps, ...byHandle }]);
     expect(store.params.apps).toBe(filter);
     // Paging keeps the criterion.
     await store.list(store.params.query, PAGE_SIZE);

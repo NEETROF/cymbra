@@ -18,12 +18,16 @@ const ada = {
   handle: "ada",
   displayName: "Ada Lovelace",
   rolesByScope: [{ scope: "music", roles: [] as string[] }],
+  apps: [],
+  createdAt: 0n,
 };
 const bob = {
   userId: "u-bob",
   handle: "bob",
   displayName: "Bob Ross",
   rolesByScope: [{ scope: "music", roles: [] as string[] }],
+  apps: [],
+  createdAt: 0n,
 };
 
 /** Sign in as an admin of the given scopes (the plan surfaces are `music`-only). */

@@ -297,7 +297,18 @@ impl<R: UserRepo> UserPort for UserModule<R> {
             crate::handle_core::normalize(query)
         };
         self.repo
-            .list_accounts(query, &handle_key, limit, offset, scopes, &[], &[], &[])
+            .list_accounts(
+                query,
+                &handle_key,
+                limit,
+                offset,
+                scopes,
+                &[],
+                &[],
+                &[],
+                cymbra_user_port::AccountSort::default(),
+                false,
+            )
             .await
     }
 
@@ -330,6 +341,8 @@ impl<R: UserRepo> UserPort for UserModule<R> {
                 &filter.ids,
                 &filter.exclude_ids,
                 &apps,
+                filter.sort,
+                filter.descending,
             )
             .await
     }
@@ -1013,6 +1026,71 @@ mod tests {
             .unwrap();
         assert_eq!(none.total, 0);
         assert!(none.entries.is_empty());
+    }
+
+    /// The directory row carries the account's creation time (change:
+    /// add-directory-account-dates).
+    #[tokio::test]
+    async fn list_accounts_carries_created_at() {
+        let m = module();
+        let a = m.resolve_or_provision("google", "a").await.unwrap();
+        m.repo.set_created_at(&a, 1_772_409_600);
+        let page = m.list_accounts("", 25, 0, &sc(&["music"])).await.unwrap();
+        assert_eq!(page.entries[0].created_at, 1_772_409_600);
+    }
+
+    /// The directory can be ordered by handle, name, sign-up or last sign-in, either
+    /// way; an account with no value for the key comes last in both directions
+    /// (change: add-directory-account-dates).
+    #[tokio::test]
+    async fn list_accounts_sorts_by_every_key_with_missing_values_last() {
+        use cymbra_user_port::{AccountFilter, AccountSort};
+        let m = module();
+        let a = m.resolve_or_provision("google", "a").await.unwrap();
+        m.update_account(&a, Some("Zoe".into()), Some("ada".into()), "{}", 1)
+            .await
+            .unwrap();
+        let b = m.resolve_or_provision("google", "b").await.unwrap();
+        m.update_account(&b, Some("alan".into()), Some("bob".into()), "{}", 1)
+            .await
+            .unwrap();
+        // No handle, no name, never used an app.
+        let c = m.resolve_or_provision("google", "c").await.unwrap();
+        m.repo.set_created_at(&a, 300);
+        m.repo.set_created_at(&b, 100);
+        m.repo.set_created_at(&c, 200);
+        m.repo.set_app_seen(&a, "music", 1_000);
+        m.repo.set_app_seen(&b, "music", 500);
+        m.repo.set_app_seen(&b, "lingua", 2_000);
+
+        let order = |sort, descending| {
+            let filter = AccountFilter {
+                sort,
+                descending,
+                ..Default::default()
+            };
+            let m = &m;
+            async move {
+                m.list_accounts_filtered(&filter, 25, 0, &sc(&["music"]))
+                    .await
+                    .unwrap()
+                    .entries
+                    .into_iter()
+                    .map(|e| e.user_id)
+                    .collect::<Vec<_>>()
+            }
+        };
+        assert_eq!(order(AccountSort::Handle, false).await, [&*a, &*b, &*c]);
+        assert_eq!(order(AccountSort::Handle, true).await, [&*b, &*a, &*c]);
+        assert_eq!(
+            order(AccountSort::DisplayName, false).await,
+            [&*b, &*a, &*c]
+        );
+        assert_eq!(order(AccountSort::CreatedAt, false).await, [&*b, &*c, &*a]);
+        assert_eq!(order(AccountSort::CreatedAt, true).await, [&*a, &*c, &*b]);
+        // b's latest use (lingua, 2000) beats a's (music, 1000); c never signed in.
+        assert_eq!(order(AccountSort::LastSignIn, true).await, [&*b, &*a, &*c]);
+        assert_eq!(order(AccountSort::LastSignIn, false).await, [&*a, &*b, &*c]);
     }
 
     /// Explicit id set / exclusion set (change: add-premium-subscription): the

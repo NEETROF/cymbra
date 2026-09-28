@@ -34,7 +34,15 @@ export interface FakeState {
   getCatalogScoreCalls: number;
   grantCalls: { userId: string; scope: string; role: string }[];
   revokeCalls: { userId: string; scope: string; role: string }[];
-  listAccountsCalls: { query: string; limit: number; offset: number; ids?: string[]; apps?: string[] }[];
+  listAccountsCalls: {
+    query: string;
+    limit: number;
+    offset: number;
+    ids?: string[];
+    apps?: string[];
+    sort?: string;
+    descending?: boolean;
+  }[];
   reliabilityCalls: string[];
   /** Per-account audit listings requested, by target user id. */
   listRoleGrantsCalls: string[];
@@ -208,7 +216,15 @@ export function makeFakeClients(state: Partial<FakeState> = {}): { clients: Clie
         s.listRoleGrantsCalls.push(req.userId);
         return { grants: s.grants };
       },
-      listAccounts: async (req: { query: string; limit: number; offset: number; ids?: string[]; apps?: string[] }) => {
+      listAccounts: async (req: {
+        query: string;
+        limit: number;
+        offset: number;
+        ids?: string[];
+        apps?: string[];
+        sort?: string;
+        descending?: boolean;
+      }) => {
         s.listAccountsCalls.push(req);
         // `ids` (pre-resolved by the plan service, or a single account for the detail
         // page) narrows the directory like the server does; so does `apps` (every one).
