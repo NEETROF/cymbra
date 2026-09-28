@@ -28,8 +28,9 @@ office, the site and the backend are untouched: no `.proto`, no migration, no fl
   button; pressing the other one switches to it.
 - **On-device voices only.** The card speaks only with a voice the browser reports as running
   on the device, in the studied language. A voice that synthesises remotely is never used, even
-  when it is the browser's default and the only one available. With no eligible voice, the card
-  shows no listen row: nothing is offered that would not work or would leak the page.
+  when it is the browser's default — unless the reader allows it as a fallback (below). With no
+  eligible voice, the card shows no listen row: nothing is offered that would not work or would
+  leak the page.
 - **Silence follows the card.** Closing the card — its close button, Escape, a click off it, a
   gesture, the scroll that dismisses it — stops the speech, and so does leaving the page or its
   tab. A pending card completing with its answer does not interrupt a reading already started.
@@ -37,15 +38,23 @@ office, the site and the backend are untouched: no `.proto`, no migration, no fl
   engine as not local, for want of knowing where it synthesises. Those voices speak only once
   the reader switches on "Utiliser la voix d'Android" in Réglages, next to a note saying the
   text may then leave the device depending on Android's engine; by default, nothing is read.
+- **Remote voices as a fallback, on the reader's say-so.** Chrome on a Windows set to French
+  lists no English voice of its own, only Google's remote ones — and a reader cannot be asked to
+  switch their system to English. Where no English voice is on the device, Réglages says so, with
+  a tooltip on how to install one (no change of language needed), and offers "Utiliser les voix
+  en ligne du navigateur", off by default, next to a note saying the text read then goes to the
+  voice's provider. An installed voice takes over as soon as it exists.
 - **A voice choice in Réglages.** A "Lecture à voix haute" block lists the eligible voices, with
-  an automatic choice by default and a way to hear each one; it is absent when there is none.
+  an automatic choice by default and a way to hear each one; where the browser lists voices but
+  none on the device in the studied language, it says so instead of disappearing.
   The automatic choice never lands on a novelty voice (macOS ships en-US voices such as
   "Bubbles" and "Zarvox" that sort before the real ones).
 
 Not in this change: a slower speaking rate, highlighting the words in the page as they are
 spoken, listen buttons on the review cards of the deck, a voice bundled with the extension, and
-any remote voice, even opt-in — each is its own change if wanted. No manifest, permission, store
-listing, privacy text, card model or sync contract changes.
+a remote voice next to an on-device one — each is its own change if wanted. No manifest,
+permission, store listing, card model or sync contract changes; the privacy policy gains a
+paragraph on read-aloud and its opt-in fallback.
 
 ## Capabilities
 

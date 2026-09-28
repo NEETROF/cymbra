@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mountSettings, type SyncControls } from "@/reading/settings-view.ts";
 import type { LinguaPort } from "@/analyzer/port.ts";
-import { ANDROID_VOICES_KEY, type AsyncStorageArea, VOICE_KEY } from "@/state/storage.ts";
+import { ANDROID_VOICES_KEY, type AsyncStorageArea, REMOTE_VOICES_KEY, VOICE_KEY } from "@/state/storage.ts";
 import { createSpeaker, type SpeechSettings, type VoiceInfo } from "@/reading/speech.ts";
 import type { SyncReply } from "@/sync/messages.ts";
 import { makeFakePort, makeFakeSpeech, voiceFixture } from "./helpers.ts";
@@ -457,6 +457,57 @@ describe("Réglages — Lecture à voix haute", () => {
     s.fake.list([...voiceFixture("chrome-windows"), samantha]);
     expect(noVoiceNote(s.block).hidden).toBe(true);
     expect(p.voiceRow.hidden).toBe(false);
+  });
+
+  const remoteParts = (block: HTMLElement) => {
+    const toggle = [...block.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')].find((t) =>
+      t.closest("label")?.textContent?.includes("voix en ligne"),
+    )!;
+    return {
+      toggle,
+      row: toggle.closest("label")!,
+      note: [...block.querySelectorAll<HTMLElement>(".set-note")].find((n) => n.textContent?.startsWith("En secours"))!,
+      info: block.querySelector<HTMLElement>(".set-info")!,
+    };
+  };
+
+  it("on a French Windows, offers the remote voices as a stand-in, off, with how to install one", async () => {
+    const s = mountVoices(voiceFixture("chrome-windows"));
+    await settle();
+    const r = remoteParts(s.block);
+    expect(r.row.hidden).toBe(false);
+    expect(r.toggle.checked).toBe(false);
+    expect(r.note.hidden).toBe(false);
+    expect(r.info.title).toContain("Paramètres › Heure et langue › Voix");
+    expect(r.info.getAttribute("aria-label")).toBe(r.info.title);
+    r.toggle.checked = true;
+    r.toggle.dispatchEvent(new Event("change"));
+    await settle();
+    expect(s.area.store[REMOTE_VOICES_KEY]).toBe(true);
+  });
+
+  it("once remote voices are allowed, lists them — and never claims the text stays on the device", async () => {
+    const s = mountVoices(voiceFixture("chrome-windows"), { remoteVoices: true });
+    await settle();
+    const p = androidParts(s.block);
+    expect(remoteParts(s.block).toggle.checked).toBe(true);
+    expect(noVoiceNote(s.block).hidden).toBe(false);
+    expect(p.voiceRow.hidden).toBe(false);
+    expect(p.onDeviceNote.hidden).toBe(true);
+    expect(ordinaryLabels(s.select)).toEqual([
+      "Automatique (Google US English)",
+      "Google US English — États-Unis",
+      "Google UK English Female — Royaume-Uni",
+      "Google UK English Male — Royaume-Uni",
+    ]);
+  });
+
+  it("offers no remote stand-in where a voice is on the device", async () => {
+    const s = mountVoices(voiceFixture("chrome-macos"), { remoteVoices: true });
+    await settle();
+    expect(remoteParts(s.block).row.hidden).toBe(true);
+    expect(remoteParts(s.block).note.hidden).toBe(true);
+    expect(androidParts(s.block).onDeviceNote.hidden).toBe(false);
   });
 
   it("keeps the chosen voice, and the automatic choice as no voice at all", async () => {

@@ -2,7 +2,7 @@
 layout: ../layouts/Legal.astro
 title: Politique de confidentialité
 lang: fr
-updated: 27/09/2026
+updated: 29/09/2026
 ---
 
 La présente politique explique quelles données personnelles les **services Cymbra**
@@ -159,6 +159,13 @@ données Lingua, ni jeton de compte, ni identifiant d'installation, et Cymbra ne
 aucun compte ni à aucune installation. Comme pour toute page web, l'hébergeur de ces fichiers
 (Cloudflare) voit l'adresse IP de l'appareil qui les demande. Désactiver le réglage supprime
 le modèle de l'appareil.
+
+**Lecture à voix haute.** La lecture à voix haute utilise les voix installées sur votre
+appareil : le texte lu ne le quitte pas. Si aucune voix anglaise n'y est installée, vous pouvez
+activer en secours les voix en ligne de votre navigateur (réglage désactivé par défaut, propre
+à chaque appareil) : le texte lu est alors envoyé par **votre navigateur** au fournisseur de
+ces voix (Google, pour Chrome), selon les conditions de ce fournisseur. Cymbra ne reçoit pas ce
+texte. Dès qu'une voix anglaise est installée sur l'appareil, elle est utilisée à la place.
 
 **Ce qui est synchronisé si vous êtes connecté** à votre compte Cymbra :
 

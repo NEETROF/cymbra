@@ -229,3 +229,15 @@ kbd {
   background: var(--cymbra-lingua-accent-strong);
   color: var(--cymbra-lingua-accent-ink);
 }
+
+/* Lecture à voix haute: the "how to install a voice" hint, a tooltip on hover or focus. */
+.set-info {
+  cursor: help;
+  color: var(--cymbra-lingua-text);
+  border-radius: 50%;
+}
+
+.set-info:focus-visible {
+  outline: 2px solid var(--cymbra-lingua-border-2);
+  outline-offset: 2px;
+}
