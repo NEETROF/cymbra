@@ -685,14 +685,15 @@ mod tests {
     /// point of the seam, asserted end to end through the handler.
     #[tokio::test]
     async fn beta_membership_from_the_plan_source_reaches_the_evaluated_set() {
-        async fn drums_enabled_for(betas: Vec<String>) -> bool {
+        async fn gated_flag_for(betas: Vec<String>) -> bool {
             let mut store = MockFlagStore::new();
-            // A `beta:midi-drums` override: on for members, code default for
-            // everyone else.
+            // A beta-scoped override on a flag that defaults off: on for
+            // members, the code default (off) for everyone else. (Not
+            // `drums.enabled`: it defaults on since graduate-drums-from-beta.)
             store.expect_load_all().returning(|| {
                 Ok(vec![crate::store::StoredOverride {
                     app: APP_MUSIC.into(),
-                    key: "drums.enabled".into(),
+                    key: crate::registry::ACOUSTIC_INPUT_ENABLED.into(),
                     value_type: crate::ValueType::Bool,
                     value: FlagValue::Bool(true),
                     rollout: crate::RolloutScope::Beta("midi-drums".into()),
@@ -729,17 +730,17 @@ mod tests {
                 .into_inner();
             resp.flags
                 .iter()
-                .find(|f| f.key == "drums.enabled")
+                .find(|f| f.key == crate::registry::ACOUSTIC_INPUT_ENABLED)
                 .and_then(|f| f.value.as_ref())
                 .map(|v| matches!(v.kind, Some(proto::flag_value::Kind::BoolValue(true))))
                 .unwrap_or(false)
         }
         assert!(
-            drums_enabled_for(vec!["midi-drums".to_string()]).await,
+            gated_flag_for(vec!["midi-drums".to_string()]).await,
             "an enrolled member sees the beta flag"
         );
         assert!(
-            !drums_enabled_for(vec![]).await,
+            !gated_flag_for(vec![]).await,
             "someone in no campaign does not"
         );
     }

@@ -17,6 +17,8 @@ const FR: Record<string, string> = {
   "leaderboard.per_piece.enabled": "Classements de performance par morceau.",
   "leaderboard.global.enabled": "Le classement de performance global.",
   "onboarding.enabled": "Parcours d’accueil (onboarding).",
+  "drums.enabled":
+    "Coupe-circuit de la batterie MIDI : activé (par défaut), tous les joueurs voient et peuvent envoyer des partitions de batterie ; désactivé, elles sont masquées pour tout le monde, staff compris.",
   "platform.maintenance": "Coupe-circuit partagé : bascule toutes les apps en mode maintenance.",
   "rating.review.min_votes": "Nombre de votes requis avant qu’une note de partition soit ré-évaluée.",
   "rating.review.threshold": "Seuil de note moyenne en dessous duquel une partition est signalée pour révision.",
