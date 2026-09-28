@@ -65,12 +65,13 @@ takes only tag names from Universal Dependencies, and no data.
 
 ### Requirement: A gloss groups its senses by part of speech
 A pack's gloss SHALL list its senses grouped by part of speech, each group in the order its part of speech first appears among the senses picked, and SHALL NOT hold the sense separator inside a sense.
-The senses picked SHALL be the ones the pack picked before this change, but for the acronyms the next
-requirement leaves out. They are only reordered so that the senses of one part of speech are
-adjacent, and a separator inside a sense becomes a comma. A word's gloss SHALL hold each sense within
-80 characters and all of them within 160. A cut SHALL fall on a word boundary and end with an
-ellipsis, never mid-word, and a sense that would keep fewer than 20 characters SHALL be left out
-rather than cut. An expression's gloss keeps its own limits. The part-of-speech table SHALL account
+The senses SHALL be picked as the pack picked them before this change, one per entry in turn, up to
+eight for a word, but for the acronyms and the Wiktionary's notes the next requirements leave out.
+They are then reordered so that the senses of one part of speech are adjacent, and a separator
+inside a sense becomes a comma. A word's gloss SHALL hold each sense within 300 characters and all
+of them within 800: the card pages it, so its length is no longer what one card can show. A cut SHALL
+fall on a word boundary and end with an ellipsis, never mid-word, and a sense that would keep fewer
+than 20 characters SHALL be left out rather than cut. An expression's gloss keeps its own limits. The part-of-speech table SHALL account
 for exactly the senses the final gloss holds, and the build SHALL fail when the two disagree.
 
 #### Scenario: Senses picked across parts of speech
@@ -80,6 +81,10 @@ for exactly the senses the final gloss holds, and the build SHALL fail when the 
 #### Scenario: A separator inside a sense
 - **WHEN** a picked sense reads « Lettre; caractère »
 - **THEN** the gloss holds it as « Lettre, caractère », one sense
+
+#### Scenario: A word with many senses
+- **WHEN** the dictionary gives a word six senses of a few words each
+- **THEN** its gloss holds all six
 
 #### Scenario: A long sense ends on a whole word
 - **WHEN** a word's sense is longer than the room its gloss has left for it
@@ -106,6 +111,24 @@ lowercases into it: grouped by part of speech, the logic operator `AND` made the
 #### Scenario: A capitalised word is no acronym
 - **WHEN** the dictionary holds `He`, capitalised, beside `he`
 - **THEN** the gloss of `he` holds the senses of both
+
+### Requirement: A gloss holds none of the Wiktionary's notes to its readers
+A gloss SHALL NOT hold what the Wiktionary writes for its own readers rather than as a translation: a pointer to another page, such as « → voir there be » or « (→ voir bone marrow) », and the placeholder of an unfinished page, such as « Définition manquante ou à compléter. (Ajouter) ».
+The note SHALL be taken out wherever it sits in a sense, and the rest of the sense kept. A sense
+that is nothing but notes SHALL be left out, and a word left with no sense SHALL have no gloss. This
+holds for the glosses of words and of expressions alike.
+
+#### Scenario: A pointer after a translation
+- **WHEN** the dictionary glosses `there` « Y avoir. → voir there be »
+- **THEN** the gloss of `there` holds « Y avoir » and no pointer
+
+#### Scenario: A placeholder after a translation
+- **WHEN** the dictionary glosses a sense of `pig` « Vivre dans la promiscuité et la saleté. Définition manquante ou à compléter. (Ajouter) »
+- **THEN** that sense reads « Vivre dans la promiscuité et la saleté »
+
+#### Scenario: A sense that is only notes
+- **WHEN** the dictionary glosses `because` « Parce que » and « Définition manquante ou à compléter. (Ajouter) → voir because of »
+- **THEN** the gloss of `because` is « Parce que »
 
 ## MODIFIED Requirements
 

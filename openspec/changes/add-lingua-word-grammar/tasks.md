@@ -109,9 +109,16 @@
 - [x] 7.7 Extend `lint-lemma.spec.ts`, or add a sibling test, so no UD code (`VERB`, `Tense=`, …) can reach a rendered card.
 - [x] 7.8 `yarn lint`, `format:check`, `typecheck`, `test`, `build`, `check:variants`.
 
+## 7b. Dogfooding follow-ups: the Wiktionary's notes, and a paged gloss
+
+- [x] 7b.1 `strip_wiki_notes` in the reducer: pointers (`→ voir`, `→ Comparer`, bracketed or not) and the page placeholders go, the rest of a sense stays, an empty sense is dropped; tests on the real shapes (`there`, `because`, `pig`, `adviser`, `divest`, a truncated placeholder, an arrow that is no pointer).
+- [x] 7b.2 Up to eight senses per word, 300 / 800 (`--max-word-senses`, `--max-word-sense-len`, `--max-word-gloss-len`); measure the pack against 3 × 80 / 160; re-reduce and re-pin.
+- [x] 7b.3 `reading/gloss-pages.ts` (`glossPages`, `pageText`) and the paging control in `wordpopup.ts`; a created card stores the first page; `rowGloss` cuts a row's sense at 80 on a whole word.
+- [x] 7b.4 Tests: a gloss over a page, next and previous, actions unchanged, the selection kept, a card opened again starts on page 1, a gloss that fits has no control, the stored first page; `glossPages` unit cases.
+
 ## 8. Validation and dogfooding
 
 - [x] 8.1 `openspec validate add-lingua-word-grammar --strict`.
 - [ ] 8.2 Dogfood on Chrome desktop, Firefox desktop and Safari (macOS and iOS), on an English article:
-  - open `went`, `leaves`, `don't`, `can` and a known word;
+  - open `went`, `leaves`, `don't`, `can`, a known word, and page through `be`;
   - measure on Safari how often a first card misses the 250 ms bound with the event page suspended and awake, and record the result in the design (keep the bound, or open the prefetch follow-up).
