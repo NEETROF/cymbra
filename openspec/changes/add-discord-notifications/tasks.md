@@ -1,5 +1,5 @@
 Delivered in tranches (design, "Delivery in tranches"): **1** announcements — groups 1, 3.1–3.5,
-3.10, 3.12, 4, 5.1–5.3, 8.2; **2** reports — 1.6, 3.6–3.9, 3.11, 3.13, 5.4; **3** bot — 6; **4** naming —
+3.10, 3.12, 4 (incl. 4.6), 5.1–5.3, 8.2; **2** reports — 1.6, 3.6–3.9, 3.11, 3.13, 5.4; **3** bot — 6; **4** naming —
 2, 7.1–7.2, 7.4, 8.1. 7.3 and 7.5 ship with whichever tranche first needs the community link.
 
 ## 1. Crate skeleton + pure core (D1)
@@ -43,6 +43,7 @@ Delivered in tranches (design, "Delivery in tranches"): **1** announcements — 
 - [x] 4.3 Enqueue `discord_notify` when a season record is beaten, reusing the existing season-best ingest hook
 - [x] 4.4 Prove a rolled-back domain write leaves no enqueued announcement — on `enqueue_notify`, the one helper every producer calls (`backend/discord/tests/pg_it.rs`), plus a per-producer integration test of the committed path (`backend/music/tests/discord_producers_it.rs`) and a proof that a refused enqueue never aborts the domain write (savepoint)
 - [x] 4.5 No producer performs Discord I/O on the request path: the only seam they call is `cymbra_discord::pg::enqueue_notify` (a `jobs.enqueue` inside their transaction); the sender exists only in the worker
+- [x] 4.6 Group catalog acceptances (design D7b): enqueue with a 10-minute delay, announce in one message every recently accepted item not yet announced (batch claim of their dedup keys), keep the detailed message for a lone item, name the first ten and sum up the rest; unit-test a 500-item burst and the later jobs of a burst posting nothing, integration-test the batch claim and the delay
 
 ## 5. Flags (D8)
 

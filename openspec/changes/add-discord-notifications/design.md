@@ -210,6 +210,29 @@ suppressed. Every skip is logged and counted with its reason, so "nothing happen
 distinguishable from "the digest is broken", which is exactly the failure mode silence would
 otherwise hide.
 
+### D7b — Catalog acceptances are grouped, not streamed
+
+Moderation happens in bursts: a curator clearing the crawler's queue accepts hundreds of
+scores in one sitting, and one message per acceptance would bury the channel. Each catalog
+acceptance therefore enqueues its `discord_notify` job **10 minutes later**, and the job does
+not announce "its" item: it announces, in **one** message, every score and SoundFont accepted
+in the last 24 hours that is still accepted and not yet announced. It claims all their dedup
+keys in one statement — keys already settled, or held by a concurrent job, are left out — so
+the first job of a burst posts once and every later one finds nothing to say. A lone
+acceptance keeps its detailed single-item message; several are counted, the first ten named
+(fewer if long names would pass Discord's 2000-character cap), the rest summed up.
+
+The window is a constant, not a flag: the delay is chosen at enqueue time, inside the music
+module's moderation transaction, which has no flag service — making it tunable would mean
+threading flags into the repositories for a value that has no reason to move. The 24-hour
+look-back exceeds the delay plus the job's whole retry horizon, so a retried job still finds
+its item; the price is that the first acceptance after deploying (or after turning the
+category on) also announces what was accepted in the previous 24 hours.
+
+*Alternatives rejected*: a fixed daily catalog digest (loses the "just added" moment, and is
+what the tranche-2 report already does); a rate cap dropping messages beyond N per hour
+(silently loses announcements).
+
 ### D8 — Flags: kill-switch **defaults off**, one flag per category
 
 `FlagService` carries a global `discord.enabled` (default **off**, so the code deploys dark) plus

@@ -20,7 +20,7 @@
 //! **escaped**, so a title cannot inject a link, a heading or a mention; the
 //! sender also disables mention parsing and link embeds on top of it.
 
-use crate::event::RecordMode;
+use crate::event::{AnnouncementEvent, RecordMode};
 
 /// The server locale (design D9): one per server, English by default.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -188,9 +188,269 @@ pub fn season_record(
     Some(Message { content })
 }
 
+/// An item accepted into the catalog, as the grouped announcement lists it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CatalogItem {
+    Score { id: String, card: ScoreCard },
+    SoundFont { id: String, card: SoundFontCard },
+}
+
+impl CatalogItem {
+    /// The same key as the item's own [`AnnouncementEvent`], so an item is
+    /// announced once in its life whichever message carries it.
+    pub fn dedup_key(&self) -> String {
+        match self {
+            CatalogItem::Score { id, .. } => AnnouncementEvent::ScoreAccepted {
+                catalog_score_id: id.clone(),
+            }
+            .dedup_key(),
+            CatalogItem::SoundFont { id, .. } => AnnouncementEvent::SoundFontAccepted {
+                soundfont_id: id.clone(),
+            }
+            .dedup_key(),
+        }
+    }
+
+    /// Whether the item has a name to show; one without is never announced.
+    pub fn is_displayable(&self) -> bool {
+        match self {
+            CatalogItem::Score { card, .. } => piece(card).is_some(),
+            CatalogItem::SoundFont { card, .. } => field(Some(&card.label)).is_some(),
+        }
+    }
+
+    fn line(&self, locale: Locale) -> Option<String> {
+        match self {
+            CatalogItem::Score { card, .. } => piece(card).map(|p| format!("• {p}")),
+            CatalogItem::SoundFont { card, .. } => {
+                let label = field(Some(&card.label))?;
+                Some(match locale {
+                    Locale::En => format!("• 🎹 **{label}** (sound)"),
+                    Locale::Fr => format!("• 🎹 **{label}** (son)"),
+                })
+            }
+        }
+    }
+}
+
+/// How many items a grouped announcement lists by name before "…and N more".
+pub const MAX_LISTED: usize = 10;
+
+/// Room kept for the heading and footer under Discord's 2000-character cap.
+const LIST_BUDGET_CHARS: usize = 1700;
+
+fn count(n: usize, one: &str, many: &str) -> String {
+    format!("{n} {}", if n == 1 { one } else { many })
+}
+
+/// One message for every item accepted in a grouping window: a single item keeps
+/// its own detailed message; several are counted, the first [`MAX_LISTED`] named
+/// (fewer if their names are long), the rest summed up. `None` when no item has
+/// a name to show.
+pub fn catalog_batch(items: &[CatalogItem], locale: Locale) -> Option<Message> {
+    let shown: Vec<&CatalogItem> = items.iter().filter(|i| i.is_displayable()).collect();
+    match shown.as_slice() {
+        [] => return None,
+        [CatalogItem::Score { card, .. }] => return score_accepted(card, locale),
+        [CatalogItem::SoundFont { card, .. }] => return soundfont_accepted(card, locale),
+        _ => {}
+    }
+    let scores = shown
+        .iter()
+        .filter(|i| matches!(i, CatalogItem::Score { .. }))
+        .count();
+    let sounds = shown.len() - scores;
+    let heading = match locale {
+        Locale::En => {
+            let parts: Vec<String> = [
+                (scores > 0).then(|| count(scores, "new score", "new scores")),
+                (sounds > 0).then(|| count(sounds, "new sound", "new sounds")),
+            ]
+            .into_iter()
+            .flatten()
+            .collect();
+            format!("🎼 **{} in the catalog**", parts.join(" and "))
+        }
+        Locale::Fr => {
+            let parts: Vec<String> = [
+                (scores > 0).then(|| count(scores, "nouvelle partition", "nouvelles partitions")),
+                (sounds > 0).then(|| count(sounds, "nouveau son", "nouveaux sons")),
+            ]
+            .into_iter()
+            .flatten()
+            .collect();
+            format!("🎼 **{} au catalogue**", parts.join(" et "))
+        }
+    };
+    let mut lines = vec![heading];
+    let mut used = 0;
+    let mut listed = 0;
+    for item in shown.iter().take(MAX_LISTED) {
+        let Some(line) = item.line(locale) else {
+            continue;
+        };
+        if used + line.chars().count() > LIST_BUDGET_CHARS {
+            break;
+        }
+        used += line.chars().count() + 1;
+        lines.push(line);
+        listed += 1;
+    }
+    let more = shown.len() - listed;
+    if more > 0 {
+        lines.push(match locale {
+            Locale::En => format!("…and {more} more."),
+            Locale::Fr => format!("… et {more} autres."),
+        });
+    }
+    lines.push(
+        match locale {
+            Locale::En => "Play them now in Cymbra Music.",
+            Locale::Fr => "À découvrir dès maintenant dans Cymbra Music.",
+        }
+        .into(),
+    );
+    Some(Message {
+        content: lines.join("\n"),
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn score_item(id: &str, title: &str) -> CatalogItem {
+        CatalogItem::Score {
+            id: id.into(),
+            card: ScoreCard {
+                title: Some(title.into()),
+                composer: Some("Bach".into()),
+            },
+        }
+    }
+
+    fn font_item(id: &str) -> CatalogItem {
+        CatalogItem::SoundFont {
+            id: id.into(),
+            card: font(),
+        }
+    }
+
+    #[test]
+    fn a_single_item_keeps_its_detailed_message() {
+        assert_eq!(
+            catalog_batch(&[score_item("c1", "Air")], Locale::En),
+            score_accepted(
+                &ScoreCard {
+                    title: Some("Air".into()),
+                    composer: Some("Bach".into())
+                },
+                Locale::En
+            )
+        );
+        assert_eq!(
+            catalog_batch(&[font_item("f")], Locale::Fr),
+            soundfont_accepted(&font(), Locale::Fr)
+        );
+        assert_eq!(catalog_batch(&[], Locale::En), None);
+    }
+
+    #[test]
+    fn several_items_are_counted_and_listed() {
+        let items = [
+            score_item("a", "Air"),
+            score_item("b", "Gavotte"),
+            font_item("f"),
+        ];
+        let en = catalog_batch(&items, Locale::En).unwrap().content;
+        assert_eq!(
+            en,
+            "🎼 **2 new scores and 1 new sound in the catalog**\n• **Air** — Bach\n• **Gavotte** — Bach\n• 🎹 **Upright Piano KW** (sound)\nPlay them now in Cymbra Music."
+        );
+        let fr = catalog_batch(&items, Locale::Fr).unwrap().content;
+        assert!(fr.starts_with("🎼 **2 nouvelles partitions et 1 nouveau son au catalogue**"));
+        assert!(
+            fr.contains("(son)") && fr.ends_with("À découvrir dès maintenant dans Cymbra Music.")
+        );
+        let sounds = catalog_batch(&[font_item("f"), font_item("g")], Locale::Fr)
+            .unwrap()
+            .content;
+        assert!(sounds.starts_with("🎼 **2 nouveaux sons au catalogue**"));
+        let one_score = catalog_batch(&[score_item("a", "Air"), font_item("f")], Locale::En)
+            .unwrap()
+            .content;
+        assert!(one_score.starts_with("🎼 **1 new score and 1 new sound"));
+    }
+
+    #[test]
+    fn a_long_batch_names_ten_and_sums_up_the_rest() {
+        let items: Vec<CatalogItem> = (0..500)
+            .map(|i| score_item(&i.to_string(), &format!("Piece {i}")))
+            .collect();
+        let en = catalog_batch(&items, Locale::En).unwrap().content;
+        assert!(en.starts_with("🎼 **500 new scores in the catalog**"));
+        assert_eq!(en.matches("• ").count(), MAX_LISTED);
+        assert!(en.contains("…and 490 more."));
+        let fr = catalog_batch(&items, Locale::Fr).unwrap().content;
+        assert!(fr.contains("… et 490 autres."));
+    }
+
+    #[test]
+    fn long_names_list_fewer_items_to_stay_under_the_cap() {
+        let items: Vec<CatalogItem> = (0..30)
+            .map(|i| score_item(&i.to_string(), &format!("{i}{}", "-".repeat(400))))
+            .collect();
+        let msg = catalog_batch(&items, Locale::En).unwrap().content;
+        assert!(msg.chars().count() < 2000);
+        assert!(msg.matches("• ").count() < MAX_LISTED);
+    }
+
+    #[test]
+    fn nameless_items_are_neither_listed_nor_counted() {
+        let untitled = CatalogItem::Score {
+            id: "u".into(),
+            card: ScoreCard {
+                title: None,
+                composer: None,
+            },
+        };
+        assert!(!untitled.is_displayable());
+        let mut blank = font();
+        blank.label = " ".into();
+        let blank = CatalogItem::SoundFont {
+            id: "b".into(),
+            card: blank,
+        };
+        assert!(!blank.is_displayable());
+        assert_eq!(
+            catalog_batch(&[untitled.clone(), blank.clone()], Locale::En),
+            None
+        );
+        let msg = catalog_batch(
+            &[
+                untitled,
+                blank,
+                score_item("a", "Air"),
+                score_item("b", "Aria"),
+            ],
+            Locale::En,
+        )
+        .unwrap()
+        .content;
+        assert!(msg.starts_with("🎼 **2 new scores in the catalog**"));
+    }
+
+    #[test]
+    fn an_item_shares_its_events_dedup_key() {
+        assert_eq!(
+            score_item("c1", "Air").dedup_key(),
+            "discord:music.score_accepted:c1"
+        );
+        assert_eq!(
+            font_item("f1").dedup_key(),
+            "discord:music.soundfont_accepted:f1"
+        );
+    }
 
     fn font() -> SoundFontCard {
         SoundFontCard {

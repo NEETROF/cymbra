@@ -19,7 +19,7 @@
 
 use async_trait::async_trait;
 
-use crate::render::{Message, ScoreCard, SoundFontCard};
+use crate::render::{CatalogItem, Message, ScoreCard};
 
 #[cfg(any(test, feature = "mock"))]
 use mockall::automock;
@@ -70,28 +70,41 @@ pub enum Claim {
     InFlight,
 }
 
-/// The idempotency ledger (design D5): claim → post → settle.
+/// The idempotency ledger (design D5): claim → post → settle. One message may
+/// carry several announcements (a grouped catalog message), so settling takes
+/// every key the message carried.
 #[cfg_attr(any(test, feature = "mock"), automock)]
 #[async_trait]
 pub trait AnnouncementLedger: Send + Sync {
     /// Claim `key`. A claim left unsettled longer than `stale_after_secs` (a crash
     /// between claim and post) can be claimed again.
     async fn claim(&self, key: &str, stale_after_secs: i64) -> anyhow::Result<Claim>;
+    /// Claim every free key of `keys` at once (same stale rule) and return the
+    /// ones won. Keys settled, or claimed by a concurrent attempt, are left out:
+    /// that attempt announces them.
+    async fn claim_batch(
+        &self,
+        keys: &[String],
+        stale_after_secs: i64,
+    ) -> anyhow::Result<Vec<String>>;
     /// The post went through.
-    async fn mark_posted(&self, key: &str) -> anyhow::Result<()>;
+    async fn mark_posted(&self, keys: &[String]) -> anyhow::Result<()>;
     /// The post failed for good; `reason` is kept for the operator.
-    async fn mark_failed(&self, key: &str, reason: &str) -> anyhow::Result<()>;
-    /// Give the claim back: nothing was posted and the job will retry.
-    async fn release(&self, key: &str) -> anyhow::Result<()>;
+    async fn mark_failed(&self, keys: &[String], reason: &str) -> anyhow::Result<()>;
+    /// Give the claims back: nothing was posted and the job will retry.
+    async fn release(&self, keys: &[String]) -> anyhow::Result<()>;
 }
 
-/// Reads the public fields of an announcement's subject at publication time.
-/// Returns `None` when the subject is no longer public (rejected again, deleted).
+/// Reads the public fields of announcement subjects at publication time.
 #[cfg_attr(any(test, feature = "mock"), automock)]
 #[async_trait]
 pub trait AnnouncementSource: Send + Sync {
-    async fn accepted_soundfont(&self, id: &str) -> anyhow::Result<Option<SoundFontCard>>;
+    /// A catalog score, or `None` when it is no longer accepted (rejected again,
+    /// deleted).
     async fn accepted_score(&self, id: &str) -> anyhow::Result<Option<ScoreCard>>;
+    /// Every score and SoundFont accepted in the last `within_hours` and still
+    /// accepted, oldest first — the candidates of a grouped catalog message.
+    async fn recently_accepted(&self, within_hours: i64) -> anyhow::Result<Vec<CatalogItem>>;
 }
 
 /// The back-office flags, read at publication time (design D8).

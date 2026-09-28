@@ -158,6 +158,20 @@ async fn accepting_a_score_announces_it_and_rejecting_does_not() {
     let jobs = queued(&worker, "catalog_score_id", &accepted).await;
     assert_eq!(jobs.len(), 1);
     assert_eq!(jobs[0]["kind"], "score_accepted");
+    // It waits for the grouping window, so a burst of acceptances shares a message.
+    let waits: bool = sqlx::query_scalar(
+        "SELECT m.attempt_at > now() + interval '9 minutes' \
+         FROM jobs.mq_msgs m JOIN jobs.mq_payloads p ON p.id = m.id \
+         WHERE p.name = 'discord_notify' AND p.payload_json->>'catalog_score_id' = $1",
+    )
+    .bind(&accepted)
+    .fetch_one(&worker)
+    .await
+    .unwrap();
+    assert!(
+        waits,
+        "the catalog announcement is delayed by the grouping window"
+    );
 }
 
 #[tokio::test]
@@ -237,12 +251,21 @@ async fn the_worker_reads_only_accepted_subjects() {
     .execute(&music)
     .await
     .unwrap();
-    let card = source.accepted_soundfont(&font).await.unwrap().unwrap();
-    assert_eq!(card.label, "Test font");
-    assert_eq!(card.instrument, "keyboard");
-    assert_eq!(card.attribution.as_deref(), Some("Someone"));
-    assert_eq!(
-        source.accepted_soundfont("test-missing").await.unwrap(),
-        None
-    );
+    // The grouped catalog message's candidates: accepted items only.
+    let recent = source.recently_accepted(24).await.unwrap();
+    let keys: Vec<String> = recent.iter().map(|i| i.dedup_key()).collect();
+    assert!(keys.contains(&format!("discord:music.score_accepted:{accepted}")));
+    assert!(!keys.contains(&format!("discord:music.score_accepted:{pending}")));
+    let font_item = recent
+        .iter()
+        .find(|i| i.dedup_key() == format!("discord:music.soundfont_accepted:{font}"))
+        .expect("the accepted SoundFont is a candidate");
+    match font_item {
+        cymbra_discord::CatalogItem::SoundFont { card, .. } => {
+            assert_eq!(card.label, "Test font");
+            assert_eq!(card.instrument, "keyboard");
+            assert_eq!(card.attribution.as_deref(), Some("Someone"));
+        }
+        other => panic!("not a SoundFont: {other:?}"),
+    }
 }

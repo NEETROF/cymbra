@@ -12,17 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! The publication sequence of one announcement (change: add-discord-notifications,
-//! design D4, D5, D8).
+//! The publication sequence of one announcement job (change:
+//! add-discord-notifications, design D4, D5, D8).
 //!
 //! Everything that decides **whether** and **what** to post runs here, against
-//! the ports, in this order: kill-switch → category flag → channel configured →
-//! subject still public → something to say → claim the dedup key → post →
-//! settle. Every check before the claim is re-run on each attempt, so a flag
-//! turned off after the enqueue silences the announcement.
+//! the ports: kill-switch → category flag → channel configured → load → claim the
+//! dedup keys → post → settle. Every check before the claim is re-run on each
+//! attempt, so a flag turned off after the enqueue silences the announcement.
+//!
+//! **Catalog acceptances are grouped.** Their job is enqueued with a delay
+//! ([`CATALOG_GROUPING_DELAY`]); when it runs it announces, in **one** message,
+//! every item accepted recently and not announced yet. A moderator accepting 500
+//! scores in a row yields one or two messages, and every later job of that burst
+//! finds nothing left to say. A season record is announced on its own.
 //!
 //! `Err` is returned **only** when a later attempt can succeed — that is what
 //! makes the job engine retry. A terminal failure is recorded and returns `Ok`.
+
+use std::time::Duration;
 
 use crate::event::AnnouncementEvent;
 use crate::flags::{DISCORD_ENABLED, category_flag};
@@ -37,6 +44,15 @@ use crate::routing::Routing;
 /// shorter than the job's retry horizon.
 pub const CLAIM_STALE_AFTER_SECS: i64 = 600;
 
+/// How long a catalog acceptance waits before it is announced, so the
+/// acceptances of one moderation session share a message.
+pub const CATALOG_GROUPING_DELAY: Duration = Duration::from_secs(600);
+
+/// How far back a grouped catalog message looks for items not yet announced.
+/// Well beyond the grouping delay plus the job's whole retry horizon, so an item
+/// whose job was retried for a while is still picked up.
+pub const CATALOG_LOOKBACK_HOURS: i64 = 24;
+
 /// Why nothing was posted, for the logs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Skip {
@@ -48,17 +64,19 @@ pub enum Skip {
     NoChannel,
     /// The subject is no longer public (rejected again, deleted).
     NotPublic,
-    /// The subject has nothing to show (no title).
+    /// Nothing to show: no title, or no catalog item left to announce.
     NothingToSay,
 }
 
 /// What an attempt did.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Outcome {
+    /// One message posted, carrying `announcements` announcements.
     Posted {
         channel: &'static str,
+        announcements: usize,
     },
-    /// An earlier attempt already settled this announcement.
+    /// Earlier attempts already settled everything this one would have said.
     AlreadySettled,
     Skipped(Skip),
     /// Failed for good; recorded in the ledger, not retried.
@@ -80,6 +98,10 @@ pub struct Publisher<'a> {
     pub sender: &'a dyn DiscordSender,
 }
 
+fn load(e: anyhow::Error) -> Retry {
+    Retry(format!("load announcement subject: {e}"))
+}
+
 impl Publisher<'_> {
     pub async fn publish(&self, event: &AnnouncementEvent) -> Result<Outcome, Retry> {
         let category = event.category();
@@ -96,78 +118,9 @@ impl Publisher<'_> {
         else {
             return Ok(Outcome::Skipped(Skip::NoChannel));
         };
-        let message = match self.render(event).await? {
-            Ok(message) => message,
-            Err(skip) => return Ok(Outcome::Skipped(skip)),
-        };
-
-        let key = event.dedup_key();
-        let claim = self
-            .ledger
-            .claim(&key, CLAIM_STALE_AFTER_SECS)
-            .await
-            .map_err(|e| Retry(format!("claim {key}: {e}")))?;
-        match claim {
-            Claim::Settled => return Ok(Outcome::AlreadySettled),
-            Claim::InFlight => {
-                return Err(Retry(format!("{key} is being posted by another attempt")));
-            }
-            Claim::Claimed => {}
-        }
-
-        match self.sender.publish(channel, &message).await {
-            Ok(()) => {
-                // Posted: a failure to record it only risks a repost after the
-                // stale window if this job ran again — it will not, it succeeds.
-                if let Err(e) = self.ledger.mark_posted(&key).await {
-                    tracing::warn!(key, error = %e, "discord announcement posted but not recorded");
-                }
-                Ok(Outcome::Posted { channel })
-            }
-            Err(SendError::Retryable(why)) => {
-                if let Err(e) = self.ledger.release(&key).await {
-                    // The claim goes stale and is re-claimed after the window.
-                    tracing::warn!(key, error = %e, "discord claim not released");
-                }
-                Err(Retry(why))
-            }
-            Err(SendError::Ambiguous(why) | SendError::Terminal(why)) => {
-                tracing::error!(key, channel, reason = %why, "discord announcement failed for good");
-                if let Err(e) = self.ledger.mark_failed(&key, &why).await {
-                    tracing::warn!(key, error = %e, "discord failure not recorded");
-                }
-                Ok(Outcome::Failed(why))
-            }
-        }
-    }
-
-    /// Load the subject and render it; the inner `Err` is a skip.
-    async fn render(&self, event: &AnnouncementEvent) -> Result<Result<Message, Skip>, Retry> {
-        let locale = self.locale;
-        let load = |e: anyhow::Error| Retry(format!("load announcement subject: {e}"));
-        let rendered = match event {
-            AnnouncementEvent::SoundFontAccepted { soundfont_id } => {
-                let Some(card) = self
-                    .source
-                    .accepted_soundfont(soundfont_id)
-                    .await
-                    .map_err(load)?
-                else {
-                    return Ok(Err(Skip::NotPublic));
-                };
-                render::soundfont_accepted(&card, locale)
-            }
-            AnnouncementEvent::ScoreAccepted { catalog_score_id } => {
-                let Some(card) = self
-                    .source
-                    .accepted_score(catalog_score_id)
-                    .await
-                    .map_err(load)?
-                else {
-                    return Ok(Err(Skip::NotPublic));
-                };
-                render::score_accepted(&card, locale)
-            }
+        match event {
+            AnnouncementEvent::SoundFontAccepted { .. }
+            | AnnouncementEvent::ScoreAccepted { .. } => self.publish_catalog(channel).await,
             AnnouncementEvent::SeasonRecord {
                 catalog_score_id,
                 mode,
@@ -180,12 +133,99 @@ impl Publisher<'_> {
                     .await
                     .map_err(load)?
                 else {
-                    return Ok(Err(Skip::NotPublic));
+                    return Ok(Outcome::Skipped(Skip::NotPublic));
                 };
-                render::season_record(&card, *mode, *subscore, locale)
+                let Some(message) = render::season_record(&card, *mode, *subscore, self.locale)
+                else {
+                    return Ok(Outcome::Skipped(Skip::NothingToSay));
+                };
+                let key = event.dedup_key();
+                let claim = self
+                    .ledger
+                    .claim(&key, CLAIM_STALE_AFTER_SECS)
+                    .await
+                    .map_err(|e| Retry(format!("claim {key}: {e}")))?;
+                match claim {
+                    Claim::Settled => Ok(Outcome::AlreadySettled),
+                    Claim::InFlight => {
+                        Err(Retry(format!("{key} is being posted by another attempt")))
+                    }
+                    Claim::Claimed => self.post(channel, &message, &[key]).await,
+                }
             }
+        }
+    }
+
+    /// One message for every recently accepted item nobody announced yet. The
+    /// event that triggered the job only says "something was accepted": the item
+    /// itself is among the candidates, unless it was rejected again since.
+    async fn publish_catalog(&self, channel: &'static str) -> Result<Outcome, Retry> {
+        let candidates: Vec<_> = self
+            .source
+            .recently_accepted(CATALOG_LOOKBACK_HOURS)
+            .await
+            .map_err(load)?
+            .into_iter()
+            .filter(|item| item.is_displayable())
+            .collect();
+        if candidates.is_empty() {
+            return Ok(Outcome::Skipped(Skip::NothingToSay));
+        }
+        let keys: Vec<String> = candidates.iter().map(|i| i.dedup_key()).collect();
+        let won = self
+            .ledger
+            .claim_batch(&keys, CLAIM_STALE_AFTER_SECS)
+            .await
+            .map_err(|e| Retry(format!("claim catalog announcements: {e}")))?;
+        if won.is_empty() {
+            return Ok(Outcome::AlreadySettled);
+        }
+        let mine: Vec<_> = candidates
+            .into_iter()
+            .filter(|item| won.contains(&item.dedup_key()))
+            .collect();
+        let Some(message) = render::catalog_batch(&mine, self.locale) else {
+            // Unreachable (every candidate is displayable), but never hold claims.
+            let _ = self.ledger.release(&won).await;
+            return Ok(Outcome::Skipped(Skip::NothingToSay));
         };
-        Ok(rendered.ok_or(Skip::NothingToSay))
+        self.post(channel, &message, &won).await
+    }
+
+    /// Post `message`, which carries the claimed `keys`, and settle them.
+    async fn post(
+        &self,
+        channel: &'static str,
+        message: &Message,
+        keys: &[String],
+    ) -> Result<Outcome, Retry> {
+        match self.sender.publish(channel, message).await {
+            Ok(()) => {
+                // Posted: a failure to record it only risks a repost after the
+                // stale window if this job ran again — it will not, it succeeds.
+                if let Err(e) = self.ledger.mark_posted(keys).await {
+                    tracing::warn!(?keys, error = %e, "discord announcement posted but not recorded");
+                }
+                Ok(Outcome::Posted {
+                    channel,
+                    announcements: keys.len(),
+                })
+            }
+            Err(SendError::Retryable(why)) => {
+                if let Err(e) = self.ledger.release(keys).await {
+                    // The claims go stale and are re-claimed after the window.
+                    tracing::warn!(?keys, error = %e, "discord claims not released");
+                }
+                Err(Retry(why))
+            }
+            Err(SendError::Ambiguous(why) | SendError::Terminal(why)) => {
+                tracing::error!(?keys, channel, reason = %why, "discord announcement failed for good");
+                if let Err(e) = self.ledger.mark_failed(keys, &why).await {
+                    tracing::warn!(?keys, error = %e, "discord failure not recorded");
+                }
+                Ok(Outcome::Failed(why))
+            }
+        }
     }
 }
 
@@ -199,7 +239,7 @@ mod tests {
     use crate::ports::{
         MockAnnouncementLedger, MockAnnouncementSource, MockDiscordSender, MockFlagView,
     };
-    use crate::render::{ScoreCard, SoundFontCard};
+    use crate::render::{CatalogItem, ScoreCard, SoundFontCard};
 
     fn flags_on() -> MockFlagView {
         let mut f = MockFlagView::new();
@@ -213,39 +253,64 @@ mod tests {
         s
     }
 
-    fn source_with_score() -> MockAnnouncementSource {
+    fn score(id: &str, title: &str) -> CatalogItem {
+        CatalogItem::Score {
+            id: id.into(),
+            card: ScoreCard {
+                title: Some(title.into()),
+                composer: Some("Debussy".into()),
+            },
+        }
+    }
+
+    fn font(id: &str) -> CatalogItem {
+        CatalogItem::SoundFont {
+            id: id.into(),
+            card: SoundFontCard {
+                label: "Grand".into(),
+                instrument: "keyboard".into(),
+                license: "CC0".into(),
+                attribution: None,
+            },
+        }
+    }
+
+    fn source_with(items: Vec<CatalogItem>) -> MockAnnouncementSource {
         let mut s = MockAnnouncementSource::new();
+        s.expect_recently_accepted()
+            .with(eq(CATALOG_LOOKBACK_HOURS))
+            .returning(move |_| Ok(items.clone()));
         s.expect_accepted_score().returning(|_| {
             Ok(Some(ScoreCard {
                 title: Some("Clair de lune".into()),
                 composer: Some("Debussy".into()),
             }))
         });
-        s.expect_accepted_soundfont().returning(|_| {
-            Ok(Some(SoundFontCard {
-                label: "Grand".into(),
-                instrument: "keyboard".into(),
-                license: "CC0".into(),
-                attribution: None,
-            }))
-        });
         s
     }
 
-    fn claiming(claim: Claim) -> MockAnnouncementLedger {
+    /// A ledger where every key is free.
+    fn ledger_all_free() -> MockAnnouncementLedger {
         let mut l = MockAnnouncementLedger::new();
-        l.expect_claim()
-            .with(
-                eq("discord:music.score_accepted:c1"),
-                eq(CLAIM_STALE_AFTER_SECS),
-            )
-            .returning(move |_, _| Ok(claim));
+        l.expect_claim().returning(|_, _| Ok(Claim::Claimed));
+        l.expect_claim_batch()
+            .returning(|keys, _| Ok(keys.to_vec()));
         l
     }
 
     fn score_event() -> AnnouncementEvent {
         AnnouncementEvent::ScoreAccepted {
             catalog_score_id: "c1".into(),
+        }
+    }
+
+    fn record_event() -> AnnouncementEvent {
+        AnnouncementEvent::SeasonRecord {
+            season_id: "s".into(),
+            catalog_score_id: "c1".into(),
+            mode: RecordMode::Tempo,
+            subscore: 99.0,
+            achieved_on: NaiveDate::from_ymd_opt(2026, 9, 1).unwrap(),
         }
     }
 
@@ -270,20 +335,32 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn posts_once_and_records_it() {
-        let mut ledger = claiming(Claim::Claimed);
-        ledger.expect_mark_posted().times(1).returning(|_| Ok(()));
+    async fn a_burst_of_acceptances_becomes_one_message() {
+        let items: Vec<CatalogItem> = (0..500)
+            .map(|i| score(&format!("c{i}"), &format!("Piece {i}")))
+            .chain([font("f1")])
+            .collect();
+        let mut ledger = ledger_all_free();
+        ledger
+            .expect_mark_posted()
+            .withf(|keys| keys.len() == 501)
+            .times(1)
+            .returning(|_| Ok(()));
         let mut sender = sender_serving_all();
         sender
             .expect_publish()
             .withf(|channel, msg| {
-                channel == "scores-and-soundfonts" && msg.content.contains("Clair de lune")
+                channel == "scores-and-soundfonts"
+                    && msg
+                        .content
+                        .starts_with("🎼 **500 new scores and 1 new sound")
+                    && msg.content.contains("…and 491 more.")
             })
             .times(1)
             .returning(|_, _| Ok(()));
         let out = run(
             &flags_on(),
-            &source_with_score(),
+            &source_with(items),
             &ledger,
             &sender,
             &score_event(),
@@ -292,19 +369,102 @@ mod tests {
         assert_eq!(
             out.unwrap(),
             Outcome::Posted {
-                channel: "scores-and-soundfonts"
+                channel: "scores-and-soundfonts",
+                announcements: 501
             }
         );
     }
 
     #[tokio::test]
-    async fn a_settled_key_is_not_posted_again() {
-        let ledger = claiming(Claim::Settled);
+    async fn only_the_items_not_yet_announced_are_posted() {
+        let items = vec![
+            score("c1", "Air"),
+            score("c2", "Gavotte"),
+            score("c3", "Menuet"),
+        ];
+        let mut ledger = MockAnnouncementLedger::new();
+        // c1 was announced by an earlier job of the burst.
+        ledger.expect_claim_batch().returning(|keys, _| {
+            Ok(keys
+                .iter()
+                .filter(|k| !k.ends_with(":c1"))
+                .cloned()
+                .collect())
+        });
+        ledger
+            .expect_mark_posted()
+            .withf(|keys| keys.len() == 2)
+            .times(1)
+            .returning(|_| Ok(()));
+        let mut sender = sender_serving_all();
+        sender
+            .expect_publish()
+            .withf(|_, msg| {
+                msg.content.starts_with("🎼 **2 new scores")
+                    && !msg.content.contains("Air")
+                    && msg.content.contains("Menuet")
+            })
+            .times(1)
+            .returning(|_, _| Ok(()));
+        let out = run(
+            &flags_on(),
+            &source_with(items),
+            &ledger,
+            &sender,
+            &score_event(),
+        )
+        .await;
+        assert!(matches!(
+            out.unwrap(),
+            Outcome::Posted {
+                announcements: 2,
+                ..
+            }
+        ));
+    }
+
+    #[tokio::test]
+    async fn a_single_acceptance_gets_its_detailed_message() {
+        let mut ledger = ledger_all_free();
+        ledger.expect_mark_posted().times(1).returning(|_| Ok(()));
+        let mut sender = sender_serving_all();
+        sender
+            .expect_publish()
+            .withf(|_, msg| {
+                msg.content
+                    .starts_with("🎹 **New sound in the catalog: Grand**")
+            })
+            .times(1)
+            .returning(|_, _| Ok(()));
+        let event = AnnouncementEvent::SoundFontAccepted {
+            soundfont_id: "f1".into(),
+        };
+        let out = run(
+            &flags_on(),
+            &source_with(vec![font("f1")]),
+            &ledger,
+            &sender,
+            &event,
+        )
+        .await;
+        assert!(matches!(
+            out.unwrap(),
+            Outcome::Posted {
+                announcements: 1,
+                ..
+            }
+        ));
+    }
+
+    #[tokio::test]
+    async fn the_later_jobs_of_a_burst_post_nothing() {
+        let mut ledger = MockAnnouncementLedger::new();
+        ledger.expect_claim_batch().returning(|_, _| Ok(vec![]));
         let mut sender = sender_serving_all();
         sender.expect_publish().never();
         let out = run(
             &flags_on(),
-            &source_with_score(),
+            &source_with(vec![score("c1", "Air")]),
             &ledger,
             &sender,
             &score_event(),
@@ -314,16 +474,159 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn an_in_flight_claim_is_retried_later_without_posting() {
-        let ledger = claiming(Claim::InFlight);
+    async fn nothing_accepted_or_nothing_nameable_posts_nothing() {
+        let untitled = CatalogItem::Score {
+            id: "u".into(),
+            card: ScoreCard {
+                title: None,
+                composer: None,
+            },
+        };
+        for items in [vec![], vec![untitled]] {
+            let mut ledger = MockAnnouncementLedger::new();
+            ledger.expect_claim_batch().never();
+            let mut sender = sender_serving_all();
+            sender.expect_publish().never();
+            let out = run(
+                &flags_on(),
+                &source_with(items),
+                &ledger,
+                &sender,
+                &score_event(),
+            )
+            .await;
+            assert_eq!(out.unwrap(), Outcome::Skipped(Skip::NothingToSay));
+        }
+    }
+
+    #[tokio::test]
+    async fn a_catalog_source_or_ledger_error_is_retried() {
+        let mut source = MockAnnouncementSource::new();
+        source
+            .expect_recently_accepted()
+            .returning(|_| Err(anyhow::anyhow!("db down")));
+        let out = run(
+            &flags_on(),
+            &source,
+            &MockAnnouncementLedger::new(),
+            &sender_serving_all(),
+            &score_event(),
+        )
+        .await;
+        assert!(out.unwrap_err().0.contains("db down"));
+
+        let mut ledger = MockAnnouncementLedger::new();
+        ledger
+            .expect_claim_batch()
+            .returning(|_, _| Err(anyhow::anyhow!("pool closed")));
         let mut sender = sender_serving_all();
         sender.expect_publish().never();
         let out = run(
             &flags_on(),
-            &source_with_score(),
+            &source_with(vec![score("c1", "Air")]),
             &ledger,
             &sender,
             &score_event(),
+        )
+        .await;
+        assert!(out.is_err());
+    }
+
+    #[tokio::test]
+    async fn a_record_is_posted_once_and_recorded() {
+        let mut ledger = MockAnnouncementLedger::new();
+        ledger
+            .expect_claim()
+            .with(
+                eq("discord:music.season_record:s:c1:tempo:2026-09-01"),
+                eq(CLAIM_STALE_AFTER_SECS),
+            )
+            .returning(|_, _| Ok(Claim::Claimed));
+        ledger
+            .expect_mark_posted()
+            .withf(|keys| keys == ["discord:music.season_record:s:c1:tempo:2026-09-01"])
+            .times(1)
+            .returning(|_| Ok(()));
+        let mut sender = sender_serving_all();
+        sender
+            .expect_publish()
+            .withf(|c, m| c == "music-leaderboards" && m.content.contains("Clair de lune"))
+            .times(1)
+            .returning(|_, _| Ok(()));
+        let out = run(
+            &flags_on(),
+            &source_with(vec![]),
+            &ledger,
+            &sender,
+            &record_event(),
+        )
+        .await;
+        assert_eq!(
+            out.unwrap(),
+            Outcome::Posted {
+                channel: "music-leaderboards",
+                announcements: 1
+            }
+        );
+    }
+
+    #[tokio::test]
+    async fn a_settled_record_is_not_posted_again_and_an_in_flight_one_retries() {
+        for (claim, retried) in [(Claim::Settled, false), (Claim::InFlight, true)] {
+            let mut ledger = MockAnnouncementLedger::new();
+            ledger.expect_claim().returning(move |_, _| Ok(claim));
+            let mut sender = sender_serving_all();
+            sender.expect_publish().never();
+            let out = run(
+                &flags_on(),
+                &source_with(vec![]),
+                &ledger,
+                &sender,
+                &record_event(),
+            )
+            .await;
+            if retried {
+                assert!(out.is_err());
+            } else {
+                assert_eq!(out.unwrap(), Outcome::AlreadySettled);
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn a_record_on_a_piece_no_longer_public_or_untitled_is_skipped() {
+        let mut gone = MockAnnouncementSource::new();
+        gone.expect_accepted_score().returning(|_| Ok(None));
+        let mut untitled = MockAnnouncementSource::new();
+        untitled.expect_accepted_score().returning(|_| {
+            Ok(Some(ScoreCard {
+                title: None,
+                composer: None,
+            }))
+        });
+        let mut errored = MockAnnouncementSource::new();
+        errored
+            .expect_accepted_score()
+            .returning(|_| Err(anyhow::anyhow!("db down")));
+        let mut ledger = MockAnnouncementLedger::new();
+        ledger.expect_claim().never();
+        let sender = sender_serving_all();
+        let out = run(&flags_on(), &gone, &ledger, &sender, &record_event()).await;
+        assert_eq!(out.unwrap(), Outcome::Skipped(Skip::NotPublic));
+        let out = run(&flags_on(), &untitled, &ledger, &sender, &record_event()).await;
+        assert_eq!(out.unwrap(), Outcome::Skipped(Skip::NothingToSay));
+        let out = run(&flags_on(), &errored, &ledger, &sender, &record_event()).await;
+        assert!(out.is_err());
+        let mut failing = MockAnnouncementLedger::new();
+        failing
+            .expect_claim()
+            .returning(|_, _| Err(anyhow::anyhow!("pool closed")));
+        let out = run(
+            &flags_on(),
+            &source_with(vec![]),
+            &failing,
+            &sender,
+            &record_event(),
         )
         .await;
         assert!(out.is_err());
@@ -336,14 +639,12 @@ mod tests {
             .expect_enabled()
             .with(eq(DISCORD_ENABLED))
             .return_const(false);
-        let mut ledger = MockAnnouncementLedger::new();
-        ledger.expect_claim().never();
         let mut sender = MockDiscordSender::new();
         sender.expect_publish().never();
         let out = run(
             &flags,
             &MockAnnouncementSource::new(),
-            &ledger,
+            &MockAnnouncementLedger::new(),
             &sender,
             &score_event(),
         )
@@ -357,13 +658,6 @@ mod tests {
         flags
             .expect_enabled()
             .returning(|k| k != "discord.music.records");
-        let record = AnnouncementEvent::SeasonRecord {
-            season_id: "s".into(),
-            catalog_score_id: "c1".into(),
-            mode: RecordMode::Tempo,
-            subscore: 90.0,
-            achieved_on: NaiveDate::from_ymd_opt(2026, 9, 1).unwrap(),
-        };
         let mut sender = sender_serving_all();
         sender.expect_publish().never();
         let out = run(
@@ -371,19 +665,18 @@ mod tests {
             &MockAnnouncementSource::new(),
             &MockAnnouncementLedger::new(),
             &sender,
-            &record,
+            &record_event(),
         )
         .await;
         assert_eq!(out.unwrap(), Outcome::Skipped(Skip::CategoryDisabled));
 
-        // The catalog category still posts under the same flags.
-        let mut ledger = claiming(Claim::Claimed);
+        let mut ledger = ledger_all_free();
         ledger.expect_mark_posted().returning(|_| Ok(()));
         let mut sender = sender_serving_all();
         sender.expect_publish().times(1).returning(|_, _| Ok(()));
         let out = run(
             &flags,
-            &source_with_score(),
+            &source_with(vec![score("c1", "Air")]),
             &ledger,
             &sender,
             &score_event(),
@@ -393,7 +686,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn an_unconfigured_channel_is_a_no_op() {
+    async fn an_unconfigured_or_unrouted_channel_is_a_no_op() {
         let mut sender = MockDiscordSender::new();
         sender
             .expect_serves()
@@ -409,10 +702,7 @@ mod tests {
         )
         .await;
         assert_eq!(out.unwrap(), Outcome::Skipped(Skip::NoChannel));
-    }
 
-    #[tokio::test]
-    async fn an_unrouted_category_is_a_no_op() {
         let routing = Routing::from_routes([]);
         let mut sender = sender_serving_all();
         sender.expect_publish().never();
@@ -431,101 +721,22 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn a_subject_no_longer_public_is_skipped() {
-        let mut source = MockAnnouncementSource::new();
-        source.expect_accepted_score().returning(|_| Ok(None));
-        source.expect_accepted_soundfont().returning(|_| Ok(None));
-        let mut ledger = MockAnnouncementLedger::new();
-        ledger.expect_claim().never();
-        let sender = sender_serving_all();
-        for event in [
-            score_event(),
-            AnnouncementEvent::SoundFontAccepted {
-                soundfont_id: "f".into(),
-            },
-            AnnouncementEvent::SeasonRecord {
-                season_id: "s".into(),
-                catalog_score_id: "c1".into(),
-                mode: RecordMode::Reaction,
-                subscore: 90.0,
-                achieved_on: NaiveDate::from_ymd_opt(2026, 9, 1).unwrap(),
-            },
-        ] {
-            let out = run(&flags_on(), &source, &ledger, &sender, &event).await;
-            assert_eq!(out.unwrap(), Outcome::Skipped(Skip::NotPublic));
-        }
-    }
-
-    #[tokio::test]
-    async fn an_untitled_piece_has_nothing_to_say() {
-        let mut source = MockAnnouncementSource::new();
-        source.expect_accepted_score().returning(|_| {
-            Ok(Some(ScoreCard {
-                title: None,
-                composer: None,
-            }))
-        });
-        let mut ledger = MockAnnouncementLedger::new();
-        ledger.expect_claim().never();
-        let out = run(
-            &flags_on(),
-            &source,
-            &ledger,
-            &sender_serving_all(),
-            &score_event(),
-        )
-        .await;
-        assert_eq!(out.unwrap(), Outcome::Skipped(Skip::NothingToSay));
-    }
-
-    #[tokio::test]
-    async fn a_source_error_is_retried() {
-        let mut source = MockAnnouncementSource::new();
-        source
-            .expect_accepted_score()
-            .returning(|_| Err(anyhow::anyhow!("db down")));
-        let out = run(
-            &flags_on(),
-            &source,
-            &MockAnnouncementLedger::new(),
-            &sender_serving_all(),
-            &score_event(),
-        )
-        .await;
-        assert!(out.unwrap_err().0.contains("db down"));
-    }
-
-    #[tokio::test]
-    async fn a_ledger_error_is_retried_without_posting() {
-        let mut ledger = MockAnnouncementLedger::new();
+    async fn a_retryable_failure_releases_every_claim_and_retries() {
+        let mut ledger = ledger_all_free();
         ledger
-            .expect_claim()
-            .returning(|_, _| Err(anyhow::anyhow!("pool closed")));
-        let mut sender = sender_serving_all();
-        sender.expect_publish().never();
-        let out = run(
-            &flags_on(),
-            &source_with_score(),
-            &ledger,
-            &sender,
-            &score_event(),
-        )
-        .await;
-        assert!(out.is_err());
-    }
-
-    #[tokio::test]
-    async fn a_retryable_failure_releases_the_claim_and_retries() {
-        let mut ledger = claiming(Claim::Claimed);
-        ledger.expect_release().times(1).returning(|_| Ok(()));
+            .expect_release()
+            .withf(|keys| keys.len() == 2)
+            .times(1)
+            .returning(|_| Err(anyhow::anyhow!("still retried")));
         ledger.expect_mark_failed().never();
         let mut sender = sender_serving_all();
         sender
             .expect_publish()
             .returning(|_, _| Err(SendError::Retryable("discord answered 503".into())));
+        let items = vec![score("c1", "Air"), score("c2", "Aria")];
         let out = run(
             &flags_on(),
-            &source_with_score(),
+            &source_with(items),
             &ledger,
             &sender,
             &score_event(),
@@ -535,33 +746,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn a_release_failure_still_retries() {
-        let mut ledger = claiming(Claim::Claimed);
-        ledger
-            .expect_release()
-            .returning(|_| Err(anyhow::anyhow!("gone")));
-        let mut sender = sender_serving_all();
-        sender
-            .expect_publish()
-            .returning(|_, _| Err(SendError::Retryable("timeout before send".into())));
-        let out = run(
-            &flags_on(),
-            &source_with_score(),
-            &ledger,
-            &sender,
-            &score_event(),
-        )
-        .await;
-        assert!(out.is_err());
-    }
-
-    #[tokio::test]
     async fn terminal_and_ambiguous_failures_are_recorded_not_retried() {
         for err in [
             SendError::Terminal("discord answered 404".into()),
             SendError::Ambiguous("timed out after sending".into()),
         ] {
-            let mut ledger = claiming(Claim::Claimed);
+            let mut ledger = ledger_all_free();
             ledger.expect_release().never();
             ledger
                 .expect_mark_failed()
@@ -574,7 +764,7 @@ mod tests {
                 .returning(move |_, _| Err(e.clone()));
             let out = run(
                 &flags_on(),
-                &source_with_score(),
+                &source_with(vec![score("c1", "Air")]),
                 &ledger,
                 &sender,
                 &score_event(),
@@ -586,7 +776,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_post_whose_record_fails_still_succeeds() {
-        let mut ledger = claiming(Claim::Claimed);
+        let mut ledger = ledger_all_free();
         ledger
             .expect_mark_posted()
             .returning(|_| Err(anyhow::anyhow!("lost")));
@@ -594,45 +784,12 @@ mod tests {
         sender.expect_publish().times(1).returning(|_, _| Ok(()));
         let out = run(
             &flags_on(),
-            &source_with_score(),
+            &source_with(vec![]),
             &ledger,
             &sender,
-            &score_event(),
+            &record_event(),
         )
         .await;
         assert!(matches!(out.unwrap(), Outcome::Posted { .. }));
-    }
-
-    #[tokio::test]
-    async fn soundfonts_and_records_render_from_their_subject() {
-        let mut ledger = MockAnnouncementLedger::new();
-        ledger.expect_claim().returning(|_, _| Ok(Claim::Claimed));
-        ledger.expect_mark_posted().returning(|_| Ok(()));
-        let mut sender = sender_serving_all();
-        sender
-            .expect_publish()
-            .withf(|c, m| c == "scores-and-soundfonts" && m.content.contains("Grand"))
-            .times(1)
-            .returning(|_, _| Ok(()));
-        sender
-            .expect_publish()
-            .withf(|c, m| c == "music-leaderboards" && m.content.contains("Clair de lune"))
-            .times(1)
-            .returning(|_, _| Ok(()));
-        let source = source_with_score();
-        let sf = AnnouncementEvent::SoundFontAccepted {
-            soundfont_id: "f".into(),
-        };
-        let record = AnnouncementEvent::SeasonRecord {
-            season_id: "s".into(),
-            catalog_score_id: "c1".into(),
-            mode: RecordMode::Tempo,
-            subscore: 99.0,
-            achieved_on: NaiveDate::from_ymd_opt(2026, 9, 1).unwrap(),
-        };
-        for e in [sf, record] {
-            let out = run(&flags_on(), &source, &ledger, &sender, &e).await;
-            assert!(matches!(out.unwrap(), Outcome::Posted { .. }));
-        }
     }
 }

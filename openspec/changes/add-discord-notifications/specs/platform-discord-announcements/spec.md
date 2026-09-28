@@ -184,7 +184,12 @@ the public profile field set.
 #### Scenario: Accepted catalog item is announced
 
 - **WHEN** a proposed score or soundfont is accepted into the public catalog
-- **THEN** an immediate announcement is published for it
+- **THEN** an announcement is published for it within the grouping window, once in the item's life
+
+#### Scenario: A burst of acceptances is announced as one message
+
+- **WHEN** a moderator accepts many catalog items within a few minutes
+- **THEN** they are announced together in one message that counts them and names the first ones, instead of one message per item
 
 #### Scenario: A season record is announced without the player
 

@@ -112,7 +112,10 @@ async fn the_ledger_claims_once_and_settles() {
     assert_eq!(ledger.claim(&key, 600).await.unwrap(), Claim::Claimed);
     // A second attempt while the first holds it: retry later, do not post.
     assert_eq!(ledger.claim(&key, 600).await.unwrap(), Claim::InFlight);
-    ledger.mark_posted(&key).await.unwrap();
+    ledger
+        .mark_posted(std::slice::from_ref(&key))
+        .await
+        .unwrap();
     assert_eq!(ledger.claim(&key, 600).await.unwrap(), Claim::Settled);
     // Even past any stale window, a posted key is never claimed again.
     assert_eq!(ledger.claim(&key, 0).await.unwrap(), Claim::Settled);
@@ -125,7 +128,10 @@ async fn a_released_or_abandoned_claim_can_be_taken_again() {
 
     let released = format!("discord:test:{}", uuid::Uuid::new_v4());
     assert_eq!(ledger.claim(&released, 600).await.unwrap(), Claim::Claimed);
-    ledger.release(&released).await.unwrap();
+    ledger
+        .release(std::slice::from_ref(&released))
+        .await
+        .unwrap();
     assert_eq!(ledger.claim(&released, 600).await.unwrap(), Claim::Claimed);
 
     // A crash between claim and post: the claim goes stale and is taken over.
@@ -137,11 +143,50 @@ async fn a_released_or_abandoned_claim_can_be_taken_again() {
     let failed = format!("discord:test:{}", uuid::Uuid::new_v4());
     assert_eq!(ledger.claim(&failed, 600).await.unwrap(), Claim::Claimed);
     ledger
-        .mark_failed(&failed, "discord answered 404")
+        .mark_failed(std::slice::from_ref(&failed), "discord answered 404")
         .await
         .unwrap();
     assert_eq!(ledger.claim(&failed, 0).await.unwrap(), Claim::Settled);
     // release never undoes a settled key.
-    ledger.release(&failed).await.unwrap();
+    ledger.release(std::slice::from_ref(&failed)).await.unwrap();
     assert_eq!(ledger.claim(&failed, 0).await.unwrap(), Claim::Settled);
+}
+
+#[tokio::test]
+#[ignore = "needs docker compose (Postgres) with per-module roles"]
+async fn a_batch_claim_wins_only_the_free_keys() {
+    let ledger = PgAnnouncementLedger::new(worker().await);
+    let key = || format!("discord:test:{}", uuid::Uuid::new_v4());
+    let (posted, held, free_a, free_b) = (key(), key(), key(), key());
+    assert_eq!(ledger.claim(&posted, 600).await.unwrap(), Claim::Claimed);
+    ledger
+        .mark_posted(std::slice::from_ref(&posted))
+        .await
+        .unwrap();
+    assert_eq!(ledger.claim(&held, 600).await.unwrap(), Claim::Claimed);
+
+    let all = vec![
+        posted.clone(),
+        held.clone(),
+        free_a.clone(),
+        free_b.clone(),
+        free_a.clone(),
+    ];
+    let mut won = ledger.claim_batch(&all, 600).await.unwrap();
+    won.sort();
+    let mut expected = vec![free_a.clone(), free_b.clone()];
+    expected.sort();
+    assert_eq!(
+        won, expected,
+        "settled and live claims are left out, duplicates once"
+    );
+
+    // A second job of the same burst wins nothing.
+    assert!(ledger.claim_batch(&all, 600).await.unwrap().is_empty());
+    // Settling the batch settles each key.
+    ledger.mark_posted(&won).await.unwrap();
+    assert_eq!(ledger.claim(&free_a, 0).await.unwrap(), Claim::Settled);
+    // A stale live claim is taken over by a batch.
+    tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    assert_eq!(ledger.claim_batch(&all, 0).await.unwrap(), vec![held]);
 }

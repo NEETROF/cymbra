@@ -11,6 +11,13 @@ Release announcements are **not** here — CI posts them (`scripts/discord/relea
 | A SoundFont accepted into the public catalog | `music.catalog` | `#scores-and-soundfonts` | name, keyboard/drum kit, licence, credit |
 | A season record beaten on a catalog piece | `music.records` | `#music-leaderboards` | piece, mode, figure — **never the player** |
 
+**Catalog acceptances are grouped.** Each acceptance enqueues its job 10 minutes later; the
+job announces, in **one** message, every item accepted in the last 24 hours that nobody
+announced yet. Accepting 500 scores in a row yields one or two messages ("🎼 500 new scores
+in the catalog", the first ten named, "…and 490 more"); every later job of the burst finds
+nothing left. A lone acceptance keeps its detailed message. Each item is still announced
+once in its life, whichever message carries it.
+
 A record is announced only when a result beats a best held by **another** player: the first
 result on a piece is not a record (the start of a season would flood the channel), and a
 holder improving their own record has not beaten anyone. At most one record message per
@@ -24,9 +31,10 @@ Naming players needs a dedicated Discord consent — a later tranche.
 
 ```
 music write ──(same transaction, savepoint)──▶ discord_notify job ──▶ Publisher
-                                                                        │
-  kill-switch → category flag → channel configured → subject still accepted
-  → something to say → claim dedup key → post → settle
+                          (catalog: +10 min)                            │
+  kill-switch → category flag → channel configured
+  → catalog: every recent accepted item not yet announced / record: its piece
+  → claim the dedup keys → one post → settle them all
 ```
 
 - **Port / core split.** `event`, `routing`, `render`, `flags` and `publish` are pure and
