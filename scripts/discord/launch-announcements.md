@@ -21,8 +21,8 @@ If any of these is not done, drop that last line from each block rather than pro
 
 Each block stays under Discord's 2000-character cap. What the copy deliberately says, and why:
 
-- **Drums** are behind the `drums.enabled` flag during their beta, so the electronic kit appears
-  only in the Drums bullet, marked beta. The microphone input and the leaderboards are
+- **Drums** were a beta behind the `drums.enabled` flag; they are open to every player in
+  production, so the bullet no longer says beta. The microphone input and the leaderboards are
   flag-gated too and are left out.
 - **Windows and Linux** are "coming soon", as on the site (`apps/site/src/lib/stores.ts`). The
   GitHub releases carry preview builds, but the automatic announcements do not list them either
@@ -57,7 +57,7 @@ Learn music connected to your instrument. Plug in a USB MIDI keyboard — or pla
 • **Wait Mode** — the score waits for the right note; practise hands separately or together
 • **Real-time scoring** — accuracy and timing while you play, a summary after every run
 • **A growing library** — public-domain scores from beginner to advanced, high-quality piano sounds, and your own SoundFonts
-• **Drums** — plug in an electronic drum kit and play real drum parts, on the staff or on an animated kit (beta — ask in #general)
+• **Drums** — plug in an electronic drum kit and play real drum parts, on the staff or on an animated kit
 • English, French, Italian and Spanish
 • Data hosted in France (EU), never sold, no advertising trackers
 
@@ -88,7 +88,7 @@ Apprends la musique connecté à ton instrument. Branche un clavier MIDI USB —
 • **Mode Attente** — la partition attend la bonne note ; main gauche, main droite ou les deux
 • **Score en temps réel** — justesse et rythme pendant que tu joues, un bilan après chaque passage
 • **Une bibliothèque qui grandit** — des partitions du domaine public, du débutant au confirmé, des sons de piano de qualité, et tes propres SoundFonts
-• **Batterie** — branche une batterie électronique et joue de vraies parties, sur la portée ou sur un kit animé (bêta — demande dans #general)
+• **Batterie** — branche une batterie électronique et joue de vraies parties, sur la portée ou sur un kit animé
 • Français, anglais, italien et espagnol
 • Données hébergées en France (UE), aucune revente, aucun pisteur publicitaire
 
