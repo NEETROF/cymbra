@@ -134,6 +134,32 @@ test.describe("users directory (admin only)", () => {
     await expect(cleoRow.getByTestId("last-sign-in")).toHaveText("—");
   });
 
+  test("clicking a column header sorts the directory, and again reverses it", async ({ page }) => {
+    const accounts = [
+      { ...ada, createdAt: "2026-03-02T12:00:00Z", apps: { music: "2026-09-20T12:00:00Z" } },
+      { ...bob, createdAt: "2026-05-01T12:00:00Z", apps: { lingua: "2026-09-25T12:00:00Z" } },
+      { ...cleo, createdAt: "2026-01-10T12:00:00Z" },
+    ];
+    await seed(page, { loginAs: "admin", data: { accounts } });
+    await page.goto("/admin/users");
+    const handles = page.locator("tbody td.handle");
+    await expect(handles).toHaveText(["ada", "bob", "cleo"]);
+    await expect(page.getByRole("columnheader", { name: "Handle" })).toHaveAttribute("aria-sort", "ascending");
+
+    // A date column starts newest first.
+    await page.getByTestId("sort-created_at").click();
+    await expect(handles).toHaveText(["bob", "ada", "cleo"]);
+    await expect(page.getByRole("columnheader", { name: "Signed up" })).toHaveAttribute("aria-sort", "descending");
+    await page.getByTestId("sort-created_at").click();
+    await expect(handles).toHaveText(["cleo", "ada", "bob"]);
+
+    // Never signed in: last in both directions.
+    await page.getByTestId("sort-last_sign_in").click();
+    await expect(handles).toHaveText(["bob", "ada", "cleo"]);
+    await page.getByTestId("sort-last_sign_in").click();
+    await expect(handles).toHaveText(["ada", "bob", "cleo"]);
+  });
+
   test("clicking anywhere on the row opens that account too", async ({ page }) => {
     await seed(page, { loginAs: "admin", data: { accounts: [ada, bob] } });
     await page.goto("/admin/users");

@@ -14,8 +14,14 @@
 - [x] 2.5 en/fr strings, aligned
 - [x] 2.6 e2e seam: accounts carry `createdAt`; Playwright asserts both dates in the table and on the account page
 
-## 3. Gates
+## 3. Sorting
 
-- [x] 3.1 `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, user crate tests
-- [x] 3.2 Back office: lint, type-check, vitest, Playwright
-- [x] 3.3 `openspec validate add-directory-account-dates --strict`
+- [x] 3.1 `user.proto`: `ListAccountsRequest.sort = 7`, `descending = 8`; `AccountSort` + `AccountFilter.sort` / `descending` in `user-port` (the default port path refuses a non-default order)
+- [x] 3.2 Postgres: whitelisted `ORDER BY` per key, `NULLS LAST`, ties by creation then id; fake repo mirrors it; gRPC refuses an unknown key; tests for every key, both directions, and the refusal
+- [x] 3.3 Back office: `sort` / `descending` in the roles store + `sortBy` (flip on same column, text A→Z, dates newest first, back to page 1); sortable headers with `aria-sort`; e2e seam sorts; vitest + Playwright
+
+## 4. Gates
+
+- [x] 4.1 `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, user crate tests
+- [x] 4.2 Back office: lint, type-check, vitest, Playwright
+- [x] 4.3 `openspec validate add-directory-account-dates --strict`

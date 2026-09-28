@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { match } from "ts-pattern";
-import { type AppFilter, PAGE_SIZE, useRolesStore } from "@/stores/roles";
+import { type AppFilter, type DirectorySort, PAGE_SIZE, useRolesStore } from "@/stores/roles";
 import { type PlanFilter, usePlansStore } from "@/stores/plans";
 import { useAuthStore } from "@/stores/auth";
 import type { Scope } from "@/lib/jwt";
@@ -117,6 +117,24 @@ const canPrev = computed(() => offset.value > 0);
 const canNext = computed(() => offset.value + PAGE_SIZE < vm.value.total);
 const colCount = computed(() => (showPlans.value ? 8 : 6));
 
+/** The columns before the plan ones, in table order; those with a `sort` are sortable
+ *  (change: add-directory-account-dates). The directory is paginated, so the server
+ *  sorts: a click re-lists from the first page. */
+const columns: { label: string; sort?: DirectorySort }[] = [
+  { label: "users.colHandle", sort: "handle" },
+  { label: "users.colName", sort: "display_name" },
+  { label: "users.colApps" },
+  { label: "users.colSignedUp", sort: "created_at" },
+  { label: "users.colLastSignIn", sort: "last_sign_in" },
+  { label: "users.colRoles" },
+];
+/** `aria-sort` of a column: only the active one carries a direction. */
+function ariaSort(sort: DirectorySort) {
+  if (store.params.sort !== sort) return "none";
+  return store.params.descending ? "descending" : "ascending";
+}
+const sortMark = (sort: DirectorySort) => ({ ascending: "▲", descending: "▼", none: "" })[ariaSort(sort)];
+
 function search() {
   store.list(filter.value.trim(), 0, planFilter.value, betaFilter.value, sandboxAccountFilter.value, appFilter.value);
 }
@@ -201,12 +219,18 @@ onMounted(() => {
     <table>
       <thead>
         <tr>
-          <th>{{ $t("users.colHandle") }}</th>
-          <th>{{ $t("users.colName") }}</th>
-          <th>{{ $t("users.colApps") }}</th>
-          <th>{{ $t("users.colSignedUp") }}</th>
-          <th>{{ $t("users.colLastSignIn") }}</th>
-          <th>{{ $t("users.colRoles") }}</th>
+          <th v-for="c in columns" :key="c.label" :aria-sort="c.sort ? ariaSort(c.sort) : undefined">
+            <button
+              v-if="c.sort"
+              type="button"
+              class="sort"
+              :data-testid="`sort-${c.sort}`"
+              @click="store.sortBy(c.sort)"
+            >
+              {{ $t(c.label) }}<span class="sort-mark" aria-hidden="true">{{ sortMark(c.sort) }}</span>
+            </button>
+            <template v-else>{{ $t(c.label) }}</template>
+          </th>
           <th v-if="showPlans">{{ $t("users.colPlan") }}</th>
           <th v-if="showPlans">{{ $t("users.colBeta") }}</th>
         </tr>
@@ -330,6 +354,26 @@ onMounted(() => {
 }
 .date {
   white-space: nowrap;
+}
+/* A header that sorts is a button, dressed as the header it replaces. */
+.sort {
+  all: unset;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sort:hover,
+.sort:focus-visible {
+  color: var(--accent);
+}
+.sort:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.sort-mark {
+  display: inline-block;
+  width: 1em;
+  margin-left: 0.25rem;
+  font-size: 0.7em;
 }
 .row-link:hover {
   background: var(--panel-2);

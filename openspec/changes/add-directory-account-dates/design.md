@@ -9,9 +9,11 @@ call (`ids = [userId]`), so one row shape feeds both screens.
 
 **Goals:** show sign-up date and last sign-in in the Users table and on the account page.
 
+Also: sort the Users table by handle, name, sign-up and last sign-in.
+
 **Non-Goals:** a true interactive sign-in timestamp (the auth module would have to write
-a new field, with no history); sorting or filtering by these dates; backfilling the
-sign-up date of pre-`0003` accounts.
+a new field, with no history); filtering by these dates; sorting by apps, roles, plan or
+betas; backfilling the sign-up date of pre-`0003` accounts.
 
 ## Decisions
 
@@ -25,6 +27,16 @@ sign-up date of pre-`0003` accounts.
 - **D3 — One date helper.** Both views format a unix-seconds `bigint` the same way
   (`toLocaleDateString(currentLocale())`, as the app tooltip already does); the helper
   lives in `src/lib/` and the tooltip uses it too.
+
+- **D4 — The server sorts.** The directory is paginated (25 rows); a client-side sort
+  would only reorder the visible page. `ListAccounts` takes `sort` + `descending`; the
+  Postgres adapter maps the parsed `AccountSort` onto fixed `ORDER BY` fragments — the
+  caller's text never reaches the SQL. Last sign-in sorts on a correlated
+  `max(account_apps.last_seen_at)`: it runs over the matching set, which is a few
+  thousand accounts at most, and `account_apps`' primary key starts with `user_id`.
+  `NULLS LAST` in both directions keeps never-signed-in and handle-less accounts at the
+  bottom, where an operator does not look for them. Plan and betas are not sortable:
+  they live in the plan service and are fetched per page.
 
 ## Risks / Trade-offs
 

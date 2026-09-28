@@ -4,7 +4,7 @@
 use async_trait::async_trait;
 use cymbra_platform::{AppError, Result};
 use cymbra_user_port::{
-    Account, AccountApp, AccountPage, AccountSummary, Identity, RoleGrant, ScopeRoles,
+    Account, AccountApp, AccountPage, AccountSort, AccountSummary, Identity, RoleGrant, ScopeRoles,
 };
 use sqlx::{PgPool, Row};
 
@@ -393,6 +393,8 @@ impl UserRepo for PgUserRepo {
         ids: &[String],
         exclude_ids: &[String],
         apps: &[String],
+        sort: AccountSort,
+        descending: bool,
     ) -> Result<AccountPage> {
         // Filter predicate (shared by count + page): empty query = all; else a
         // handle-key prefix OR a `local` identity email equal to the query; an
@@ -429,13 +431,26 @@ impl UserRepo for PgUserRepo {
             .await
             .map_err(internal)?;
 
+        // The order is picked from fixed fragments, never from caller text. A missing
+        // value (no handle, no name, no app used) sorts last in both directions; ties
+        // fall back to creation then id, so paging is stable.
+        let key = match sort {
+            AccountSort::Handle => "u.handle",
+            AccountSort::DisplayName => "lower(u.display_name)",
+            AccountSort::CreatedAt => "u.created_at",
+            AccountSort::LastSignIn => {
+                "(SELECT max(a.last_seen_at) FROM account_apps a WHERE a.user_id = u.id)"
+            }
+        };
+        let dir = if descending { "DESC" } else { "ASC" };
+
         // Page the matching accounts first (identity only) …
         let rows = sqlx::query(&format!(
             "SELECT u.id, u.handle, u.display_name, \
                     extract(epoch FROM u.created_at)::bigint AS created_at \
              FROM users u \
              WHERE {WHERE} \
-             ORDER BY u.handle ASC NULLS LAST, u.created_at, u.id \
+             ORDER BY {key} {dir} NULLS LAST, u.created_at, u.id \
              LIMIT $6 OFFSET $7"
         ))
         .bind(query)

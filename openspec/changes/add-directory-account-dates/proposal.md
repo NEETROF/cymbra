@@ -16,6 +16,12 @@ is visible today, buried in the tooltip of each app icon.
   the row: no new storage and no new field. It is coarsened to the hour and counts token
   refreshes, so it reads "last signed-in activity"; an account with no app record shows a
   dash.
+- The Users table can be **sorted** by handle, name, sign-up date or last sign-in, both
+  ways, by clicking the column header. The directory is paginated, so `ListAccounts`
+  sorts: it gains `sort` (`handle` | `display_name` | `created_at` | `last_sign_in`,
+  empty = handle, anything else `INVALID_ARGUMENT`) and `descending`. Accounts with no
+  value for the key come last in both directions. Apps, roles, plan and betas are not
+  sortable: they are sets, or live in another service.
 - No backfill. Accounts created before `users.created_at` existed (2026-06-29) carry the
   migration time as their sign-up date; they are few and accepted as is. `account_apps`
   started on 2026-09-27, so an account idle since then shows no last sign-in until it
@@ -37,13 +43,16 @@ None.
 - **ID** — new: `created_at` on the directory row (`user-port` `AccountSummary`, the
   Postgres query, `user.proto`). Consumed: `users.created_at` and `account_apps`,
   unchanged.
-- **Back office** — new: two columns on `/admin/users`, two dates on
+- **Back office** — new: two columns and sortable headers on `/admin/users`, two dates on
   `/admin/users/{id}`. Consumed: `ListAccounts`.
 - **Music / Lingua / Live / Site** — not affected.
 
 ## Impact
 
-- `backend/user-port`: `AccountSummary.created_at`; `user.proto` `AccountRow.created_at = 6`.
-- `backend/user`: directory query selects `created_at`; fake repo mirrors it; gRPC maps it.
+- `backend/user-port`: `AccountSummary.created_at`, `AccountFilter.sort` / `descending`
+  (`AccountSort`); `user.proto` `AccountRow.created_at = 6`, `ListAccountsRequest.sort = 7`
+  and `descending = 8`.
+- `backend/user`: directory query selects `created_at` and orders by the requested key;
+  fake repo mirrors both; gRPC maps and validates.
 - `apps/back-office`: regenerated stubs, `UsersView.vue`, `UserDetailView.vue`, a shared
   date helper, the e2e seam, en/fr strings, tests.

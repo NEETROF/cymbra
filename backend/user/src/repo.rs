@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use chrono::NaiveDate;
 use cymbra_platform::{AppError, Result};
 use cymbra_user_port::{
-    Account, AccountApp, AccountPage, AccountSummary, Identity, RoleGrant, ScopeRoles,
+    Account, AccountApp, AccountPage, AccountSort, AccountSummary, Identity, RoleGrant, ScopeRoles,
 };
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -104,6 +104,8 @@ pub trait UserRepo: Send + Sync {
         ids: &[String],
         exclude_ids: &[String],
         apps: &[String],
+        sort: AccountSort,
+        descending: bool,
     ) -> Result<AccountPage>;
 
     /// Record that `user_id` obtained a token for app `app` (change:
@@ -183,6 +185,15 @@ impl FakeUserRepo {
         if let Some(row) = s.users.get_mut(user_id) {
             row.created_at = created_at_unix;
         }
+    }
+
+    /// Test helper: record that `user_id` last used `app` at `last_seen_unix`
+    /// (the real repo stamps `now()`).
+    pub fn set_app_seen(&self, user_id: &str, app: &str, last_seen_unix: i64) {
+        let mut s = self.state.lock().unwrap();
+        s.apps.retain(|(u, a, _)| !(u == user_id && a == app));
+        s.apps
+            .push((user_id.to_string(), app.to_string(), last_seen_unix));
     }
 
     fn account(row: &AccountRow, user_id: &str) -> Account {
@@ -442,6 +453,8 @@ impl UserRepo for FakeUserRepo {
         ids: &[String],
         exclude_ids: &[String],
         apps: &[String],
+        sort: AccountSort,
+        descending: bool,
     ) -> Result<AccountPage> {
         let s = self.state.lock().unwrap();
         let has_app = |uid: &str, app: &str| s.apps.iter().any(|(u, a, _)| u == uid && a == app);
@@ -471,10 +484,35 @@ impl UserRepo for FakeUserRepo {
                     handle_hit || email_hit
                 })
                 .collect();
-        // Order by handle (nulls last, case-insensitive), then creation, then id.
+        // Order by the sort key (a missing value last in either direction), then
+        // creation, then id — mirrors the SQL.
+        #[derive(PartialEq, Eq, PartialOrd, Ord)]
+        enum Key {
+            Text(String),
+            Time(i64),
+        }
+        let last_sign_in = |uid: &str| {
+            s.apps
+                .iter()
+                .filter(|(u, _, _)| u == uid)
+                .map(|(_, _, at)| *at)
+                .max()
+        };
+        let key = |uid: &str, row: &AccountRow| -> Option<Key> {
+            match sort {
+                AccountSort::Handle => row.handle.as_deref().map(|h| Key::Text(h.to_lowercase())),
+                AccountSort::DisplayName => row
+                    .display_name
+                    .as_deref()
+                    .map(|n| Key::Text(n.to_lowercase())),
+                AccountSort::CreatedAt => Some(Key::Time(row.created_at)),
+                AccountSort::LastSignIn => last_sign_in(uid).map(Key::Time),
+            }
+        };
         matched.sort_by(|(ua, a), (ub, b)| {
-            match (a.handle.as_deref(), b.handle.as_deref()) {
-                (Some(x), Some(y)) => x.to_lowercase().cmp(&y.to_lowercase()),
+            match (key(ua, a), key(ub, b)) {
+                (Some(x), Some(y)) if descending => y.cmp(&x),
+                (Some(x), Some(y)) => x.cmp(&y),
                 (Some(_), None) => std::cmp::Ordering::Less,
                 (None, Some(_)) => std::cmp::Ordering::Greater,
                 (None, None) => std::cmp::Ordering::Equal,

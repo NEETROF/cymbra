@@ -574,7 +574,15 @@ export function installE2EClients(): void {
         if (req.locale) data.accountLocale = req.locale; // reflect the write
         return { userId: "u1", locale: data.accountLocale };
       },
-      listAccounts: async (req: { query: string; limit: number; offset: number; ids?: string[]; apps?: string[] }) => {
+      listAccounts: async (req: {
+        query: string;
+        limit: number;
+        offset: number;
+        ids?: string[];
+        apps?: string[];
+        sort?: string;
+        descending?: boolean;
+      }) => {
         failIfSet("listAccounts");
         const q = (req.query ?? "").toLowerCase();
         // `ids` (pre-resolved by the plan service) narrows the directory like the server;
@@ -587,6 +595,27 @@ export function installE2EClients(): void {
               (a) => (a.handle ?? "").toLowerCase().includes(q) || (a.displayName ?? "").toLowerCase().includes(q),
             )
           : scoped;
+        // Ordered like the server: by the sort key, a missing value last either way.
+        const lastUse = (a: (typeof byScope)[number]) =>
+          Object.values(a.apps).reduce<number | undefined>((m, at) => Math.max(m ?? 0, Date.parse(at)), undefined);
+        const keyOf = (a: (typeof byScope)[number]): string | number | undefined => {
+          switch (req.sort) {
+            case "display_name":
+              return a.displayName?.toLowerCase();
+            case "created_at":
+              return Date.parse(a.createdAt);
+            case "last_sign_in":
+              return lastUse(a);
+            default:
+              return a.handle?.toLowerCase();
+          }
+        };
+        filtered.sort((x, y) => {
+          const [kx, ky] = [keyOf(x), keyOf(y)];
+          if (kx === undefined || ky === undefined) return (kx === undefined ? 1 : 0) - (ky === undefined ? 1 : 0);
+          const c = kx < ky ? -1 : kx > ky ? 1 : 0;
+          return req.descending ? -c : c;
+        });
         const page = filtered.slice(req.offset ?? 0, (req.offset ?? 0) + (req.limit ?? 25)).map((a) => ({
           userId: a.userId,
           handle: a.handle,
