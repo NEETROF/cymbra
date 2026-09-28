@@ -18,7 +18,9 @@
 //! turns it into a message in the server's configured locale. Every field that
 //! came from a user (a proposed score's title, an uploaded font's name) is
 //! **escaped**, so a title cannot inject a link, a heading or a mention; the
-//! sender also disables mention parsing and link embeds on top of it.
+//! sender also disables mention parsing and link embeds on top of it. The only
+//! link in a message is ours: the Cymbra Music page of the site, in the server's
+//! locale.
 
 use crate::event::{AnnouncementEvent, RecordMode};
 
@@ -121,7 +123,7 @@ pub fn soundfont_accepted(card: &SoundFontCard, locale: Locale) -> Option<Messag
             if let Some(c) = credit {
                 lines.push(format!("Credit: {c}"));
             }
-            lines.push("Available now in Cymbra Music.".into());
+            lines.push("Available now in [Cymbra Music](https://cymbra.app/en/music/).".into());
         }
         Locale::Fr => {
             lines.push(format!("🎹 **Nouveau son au catalogue : {label}**"));
@@ -132,7 +134,9 @@ pub fn soundfont_accepted(card: &SoundFontCard, locale: Locale) -> Option<Messag
             if let Some(c) = credit {
                 lines.push(format!("Crédit : {c}"));
             }
-            lines.push("Disponible dès maintenant dans Cymbra Music.".into());
+            lines.push(
+                "Disponible dès maintenant dans [Cymbra Music](https://cymbra.app/music/).".into(),
+            );
         }
     }
     Some(Message {
@@ -145,10 +149,12 @@ pub fn score_accepted(card: &ScoreCard, locale: Locale) -> Option<Message> {
     let piece = piece(card)?;
     let content = match locale {
         Locale::En => {
-            format!("🎼 **New score in the catalog:** {piece}\nPlay it now in Cymbra Music.")
+            format!(
+                "🎼 **New score in the catalog:** {piece}\nPlay it now in [Cymbra Music](https://cymbra.app/en/music/)."
+            )
         }
         Locale::Fr => format!(
-            "🎼 **Nouvelle partition au catalogue :** {piece}\nÀ jouer dès maintenant dans Cymbra Music."
+            "🎼 **Nouvelle partition au catalogue :** {piece}\nÀ jouer dès maintenant dans [Cymbra Music](https://cymbra.app/music/)."
         ),
     };
     Some(Message { content })
@@ -171,7 +177,7 @@ pub fn season_record(
                 RecordMode::Reaction => "Wait Mode",
             };
             format!(
-                "🏆 **New season record** on {piece}\n{mode}: **{figure:.1} %**\nThink you can beat it? Play it in Cymbra Music."
+                "🏆 **New season record** on {piece}\n{mode}: **{figure:.1} %**\nThink you can beat it? Play it in [Cymbra Music](https://cymbra.app/en/music/)."
             )
         }
         Locale::Fr => {
@@ -181,7 +187,7 @@ pub fn season_record(
             };
             let figure = format!("{figure:.1}").replace('.', ",");
             format!(
-                "🏆 **Nouveau record de la saison** sur {piece}\n{mode} : **{figure} %**\nTu peux faire mieux ? Joue-la dans Cymbra Music."
+                "🏆 **Nouveau record de la saison** sur {piece}\n{mode} : **{figure} %**\nTu peux faire mieux ? Joue-la dans [Cymbra Music](https://cymbra.app/music/)."
             )
         }
     };
@@ -305,8 +311,10 @@ pub fn catalog_batch(items: &[CatalogItem], locale: Locale) -> Option<Message> {
     }
     lines.push(
         match locale {
-            Locale::En => "Play them now in Cymbra Music.",
-            Locale::Fr => "À découvrir dès maintenant dans Cymbra Music.",
+            Locale::En => "Play them now in [Cymbra Music](https://cymbra.app/en/music/).",
+            Locale::Fr => {
+                "À découvrir dès maintenant dans [Cymbra Music](https://cymbra.app/music/)."
+            }
         }
         .into(),
     );
@@ -365,12 +373,15 @@ mod tests {
         let en = catalog_batch(&items, Locale::En).unwrap().content;
         assert_eq!(
             en,
-            "🎼 **2 new scores and 1 new sound in the catalog**\n• **Air** — Bach\n• **Gavotte** — Bach\n• 🎹 **Upright Piano KW** (sound)\nPlay them now in Cymbra Music."
+            "🎼 **2 new scores and 1 new sound in the catalog**\n• **Air** — Bach\n• **Gavotte** — Bach\n• 🎹 **Upright Piano KW** (sound)\nPlay them now in [Cymbra Music](https://cymbra.app/en/music/)."
         );
         let fr = catalog_batch(&items, Locale::Fr).unwrap().content;
         assert!(fr.starts_with("🎼 **2 nouvelles partitions et 1 nouveau son au catalogue**"));
         assert!(
-            fr.contains("(son)") && fr.ends_with("À découvrir dès maintenant dans Cymbra Music.")
+            fr.contains("(son)")
+                && fr.ends_with(
+                    "À découvrir dès maintenant dans [Cymbra Music](https://cymbra.app/music/)."
+                )
         );
         let sounds = catalog_batch(&[font_item("f"), font_item("g")], Locale::Fr)
             .unwrap()
@@ -441,6 +452,42 @@ mod tests {
     }
 
     #[test]
+    fn every_message_links_the_music_page_in_its_locale() {
+        let en = [
+            score_accepted(&score(), Locale::En),
+            soundfont_accepted(&font(), Locale::En),
+            season_record(&score(), RecordMode::Tempo, 90.0, Locale::En),
+            catalog_batch(
+                &[score_item("a", "Air"), score_item("b", "Aria")],
+                Locale::En,
+            ),
+        ];
+        for msg in en {
+            let content = msg.unwrap().content;
+            assert!(
+                content.ends_with("[Cymbra Music](https://cymbra.app/en/music/)."),
+                "{content}"
+            );
+        }
+        let fr = [
+            score_accepted(&score(), Locale::Fr),
+            soundfont_accepted(&font(), Locale::Fr),
+            season_record(&score(), RecordMode::Tempo, 90.0, Locale::Fr),
+            catalog_batch(
+                &[score_item("a", "Air"), score_item("b", "Aria")],
+                Locale::Fr,
+            ),
+        ];
+        for msg in fr {
+            let content = msg.unwrap().content;
+            assert!(
+                content.ends_with("[Cymbra Music](https://cymbra.app/music/)."),
+                "{content}"
+            );
+        }
+    }
+
+    #[test]
     fn an_item_shares_its_events_dedup_key() {
         assert_eq!(
             score_item("c1", "Air").dedup_key(),
@@ -499,7 +546,7 @@ mod tests {
         let msg = soundfont_accepted(&font(), Locale::En).unwrap();
         assert_eq!(
             msg.content,
-            "🎹 **New sound in the catalog: Upright Piano KW**\nKeyboard\nLicence: CC0 1.0\nAvailable now in Cymbra Music."
+            "🎹 **New sound in the catalog: Upright Piano KW**\nKeyboard\nLicence: CC0 1.0\nAvailable now in [Cymbra Music](https://cymbra.app/en/music/)."
         );
         let mut drums = font();
         drums.instrument = "percussion".into();
@@ -524,7 +571,7 @@ mod tests {
         let en = score_accepted(&score(), Locale::En).unwrap().content;
         assert_eq!(
             en,
-            "🎼 **New score in the catalog:** **Gymnopédie No.1** — Erik Satie\nPlay it now in Cymbra Music."
+            "🎼 **New score in the catalog:** **Gymnopédie No.1** — Erik Satie\nPlay it now in [Cymbra Music](https://cymbra.app/en/music/)."
         );
         let fr = score_accepted(&score(), Locale::Fr).unwrap().content;
         assert!(fr.starts_with("🎼 **Nouvelle partition au catalogue :**"));
