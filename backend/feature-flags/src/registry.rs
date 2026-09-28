@@ -32,11 +32,11 @@ pub const PROFILES_PUBLIC_ENABLED: &str = "profiles.public.enabled";
 pub const LEADERBOARD_PER_PIECE_ENABLED: &str = "leaderboard.per_piece.enabled";
 pub const LEADERBOARD_GLOBAL_ENABLED: &str = "leaderboard.global.enabled";
 pub const ONBOARDING_ENABLED: &str = "onboarding.enabled";
-/// The drum feature (change: add-drums-access). Intended rollout:
-/// `beta:midi-drums` during the beta, then `global` at general availability —
-/// widen the scope FIRST, close the campaign SECOND, and keep the flag as a
-/// kill-switch afterwards. The backend `music` module enforces it on every
-/// path that can disclose or accept a percussion score.
+/// The drum feature (changes: add-drums-access, graduate-drums-from-beta). It
+/// was a `beta:midi-drums` beta; it is now open to every player and **defaults
+/// on**, kept as the feature's kill-switch: turning it off hides the drums from
+/// every caller, staff included, with no release. The backend `music` module
+/// enforces it on every path that can disclose or accept a percussion score.
 pub const DRUMS_ENABLED: &str = "drums.enabled";
 
 /// Acoustic piano input over the microphone (change:
@@ -337,9 +337,9 @@ pub fn builtin() -> Vec<KeyDef> {
         flag(
             DRUMS_ENABLED,
             APP_MUSIC,
+            true,
             false,
-            false,
-            "MIDI drums: percussion scores are visible/acceptable for the caller.",
+            "MIDI drums kill-switch: on (default) every player sees and can upload percussion scores; off hides them from everyone, staff included.",
         ),
         flag(
             ACOUSTIC_INPUT_ENABLED,

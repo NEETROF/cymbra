@@ -559,11 +559,13 @@ every score back from the store, classifies it with the shared parser, and persi
 the family. The migration that added the column defaults every existing row to
 `unknown`.
 
-> ⚠️ **Run this pass BEFORE switching a `drums.enabled` override on.** The gate serves
-> `unknown` to everyone: until the pass has completed, real percussion rows still read
-> `unknown` and the gate is not a boundary — the corpus already holds percussion that
-> was ingested despite the old keyboard-only gate (~29 pure drum parts on prod). The
-> flag looks like it is protecting something; it is not.
+> ⚠️ **Run this pass before the drum gate is relied upon.** The gate serves `unknown` to
+> everyone: until the pass has completed, real percussion rows still read `unknown` and
+> the gate is not a boundary — the corpus already holds percussion that was ingested
+> despite the old keyboard-only gate (~29 pure drum parts on prod). Production ran it
+> before the drum beta opened; `drums.enabled` now **defaults on**
+> (`graduate-drums-from-beta`), so on a **new** environment run the pass before its
+> first deploy, and turning the kill-switch off only hides rows already classified.
 
 ```bash
 cd /opt/cymbra/backend/deploy
@@ -689,8 +691,14 @@ If you do get the order wrong, it is recoverable: reopen the campaign from the P
 screen (`ReopenCampaign`) and every non-revoked member is active again — closing writes
 `closed_at` and touches no membership. Revoked members stay revoked, which is the point.
 
-The live example is the drum beta: flag `drums.enabled` (app `music`), campaign
-`midi-drums`, opened in production on 2026-08-25.
+The worked example is the drum beta: flag `drums.enabled` (app `music`), campaign
+`midi-drums`, opened in production on 2026-08-25 and taken to general availability in
+September 2026 (`graduate-drums-from-beta`). There the code default itself moved to
+**on**, which goes one step further than a `global` override: a leftover `beta:` scope
+then no longer restricts anyone (outside its scope the default applies), so the
+override can simply be deleted and closing the campaign is a no-op whatever the order.
+The flag stays as the kill-switch — a `global` **off** override hides the drums from
+every caller, staff included.
 
 ## Enabling SoundFont delivery (`/soundfonts/*`)
 

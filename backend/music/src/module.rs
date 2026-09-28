@@ -283,6 +283,10 @@ impl PlayerOpen {
     }
 }
 
+/// The `drums.enabled` default the drum gate evaluates with (change:
+/// graduate-drums-from-beta): on — every player — and equal to the registry's.
+const DRUMS_DEFAULT: bool = true;
+
 impl ScoreModule {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -352,14 +356,16 @@ impl ScoreModule {
         self
     }
 
-    /// The drum-audience predicate (change: add-drums-access): whether the drum
-    /// feature is in effect for this caller — staff, or an active `midi-drums`
-    /// campaign member, resolved through the declared `drums.enabled` flag with
-    /// its `beta:midi-drums` rollout. **Fails closed on every uncertainty about
-    /// the caller**: an unwired flag service, an unwired plan seam, or an
-    /// unresolvable membership snapshot each mean "not eligible" (staff keep the
-    /// feature through the staff match whenever the flag service is present).
-    /// Never influenced by any request field.
+    /// The drum-audience predicate (changes: add-drums-access,
+    /// graduate-drums-from-beta): whether the drum feature is in effect for this
+    /// caller, resolved through the declared `drums.enabled` flag. The feature is
+    /// open to every player — the flag **defaults on** and is the kill-switch: a
+    /// global off override hides the drums from everyone, staff included. An
+    /// unreachable flag store keeps the last-known value, else the default (on);
+    /// an **unwired** flag service is a deployment defect and stays closed.
+    /// Memberships are still passed to the evaluation so the flag keeps honouring
+    /// any rollout scope an operator sets, but none is required any more. Never
+    /// influenced by any request field.
     ///
     /// Mirrors `notifications/src/dispatch.rs`: the flag read hits the hot
     /// in-memory store, and every unreadable value resolves to disabled.
@@ -386,7 +392,14 @@ impl ScoreModule {
                 }
             }
         }
-        flags.bool(cymbra_feature_flags::registry::DRUMS_ENABLED, false, &ctx)
+        // The default passed here IS the one applied when no override reaches
+        // the caller — `FlagService::bool` does not read the registry's — so it
+        // must match the registry's `drums.enabled` default (pinned by a test).
+        flags.bool(
+            cymbra_feature_flags::registry::DRUMS_ENABLED,
+            DRUMS_DEFAULT,
+            &ctx,
+        )
     }
 
     /// Override the per-plan quota source (the server's flag-backed one; tests).
@@ -4655,62 +4668,80 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn drum_gate_predicate_fails_closed_and_resolves_the_beta_scope() {
+    async fn drum_gate_is_open_to_every_player_behind_a_kill_switch() {
         use cymbra_feature_flags::resolver::MockAdminScopeResolver;
         use cymbra_feature_flags::store::MockFlagStore;
         use cymbra_feature_flags::{
             FlagService, FlagValue, NoopBus, Registry, RolloutScope, StoredOverride, ValueType,
         };
+        fn flags_with(overrides: Vec<StoredOverride>) -> Arc<FlagService> {
+            let mut store = MockFlagStore::new();
+            store
+                .expect_load_all()
+                .returning(move || Ok(overrides.clone()));
+            Arc::new(FlagService::new(
+                Registry::default(),
+                Some(Arc::new(store)),
+                Arc::new(NoopBus),
+                Arc::new(MockAdminScopeResolver::new()),
+            ))
+        }
+        fn drums(value: bool, rollout: RolloutScope) -> StoredOverride {
+            StoredOverride {
+                app: "music".into(),
+                key: "drums.enabled".into(),
+                value_type: ValueType::Bool,
+                value: FlagValue::Bool(value),
+                rollout,
+                sensitive: false,
+                updated_by: "test".into(),
+                updated_at: chrono::Utc::now(),
+            }
+        }
+
+        // The gate's default is the registry's: they cannot drift apart.
+        assert_eq!(
+            Registry::default()
+                .get_by_key(cymbra_feature_flags::registry::DRUMS_ENABLED)
+                .unwrap()
+                .default,
+            FlagValue::Bool(DRUMS_DEFAULT)
+        );
+
         // Unwired flag service ⇒ closed for everyone, staff included.
         let (m, _c) = drum_module().await;
         assert!(!m.caller_may_see_percussion("u1", true).await);
 
-        // Wired, with the drums flag ON under its `beta:midi-drums` rollout.
-        let overrides = vec![StoredOverride {
-            app: "music".into(),
-            key: "drums.enabled".into(),
-            value_type: ValueType::Bool,
-            value: FlagValue::Bool(true),
-            rollout: RolloutScope::Beta("midi-drums".into()),
-            sensitive: false,
-            updated_by: "test".into(),
-            updated_at: chrono::Utc::now(),
-        }];
-        let mut store = MockFlagStore::new();
-        store
-            .expect_load_all()
-            .returning(move || Ok(overrides.clone()));
-        let flags = FlagService::new(
-            Registry::default(),
-            Some(Arc::new(store)),
-            Arc::new(NoopBus),
-            Arc::new(MockAdminScopeResolver::new()),
-        );
-        flags.refresh().await.unwrap();
-        let flags = Arc::new(flags);
-
+        // No override (or an unreachable store before any load): every player,
+        // with no membership and no plan seam at all.
         let (m, _c) = drum_module().await;
-        let m = m.with_flags(flags.clone());
-        // Staff match every beta scope (no plan seam needed).
-        assert!(m.caller_may_see_percussion("staff-1", true).await);
-        // A non-member non-staff caller does not.
-        assert!(!m.caller_may_see_percussion("u1", false).await);
+        let m = m.with_flags(flags_with(vec![]));
+        assert!(m.caller_may_see_percussion("u1", false).await);
 
-        // An active `midi-drums` member reaches it, whatever their plan.
+        // A plan snapshot that cannot be resolved changes nothing either.
         let mut plans = cymbra_plans::ports::MockPlanSource::new();
-        plans.expect_snapshot().returning(|_, _| {
-            let mut snap = cymbra_plans::PlanSnapshot::free();
-            snap.betas.push(cymbra_plans::BetaInfo {
-                campaign_key: "midi-drums".into(),
-                campaign_name: "MIDI drums".into(),
-                kind: cymbra_plans::CampaignKind::Feature,
-                joined_at: chrono::Utc::now(),
-                ends_at: None,
-            });
-            Ok(snap)
-        });
+        plans
+            .expect_snapshot()
+            .returning(|_, _| Err(AppError::Internal(anyhow::anyhow!("plans down"))));
         let (m, _c) = drum_module().await;
-        let m = m.with_flags(flags).with_plans(Arc::new(plans));
-        assert!(m.caller_may_see_percussion("member-1", false).await);
+        let m = m.with_flags(flags_with(vec![])).with_plans(Arc::new(plans));
+        assert!(m.caller_may_see_percussion("u1", false).await);
+
+        // A leftover `beta:midi-drums` override no longer restricts anyone:
+        // outside its scope the default (on) applies — so closing the campaign
+        // is a no-op.
+        let f = flags_with(vec![drums(true, RolloutScope::Beta("midi-drums".into()))]);
+        f.refresh().await.unwrap();
+        let (m, _c) = drum_module().await;
+        let m = m.with_flags(f);
+        assert!(m.caller_may_see_percussion("u1", false).await);
+
+        // The kill-switch: a global off override hides the drums from everyone.
+        let f = flags_with(vec![drums(false, RolloutScope::Global)]);
+        f.refresh().await.unwrap();
+        let (m, _c) = drum_module().await;
+        let m = m.with_flags(f);
+        assert!(!m.caller_may_see_percussion("u1", false).await);
+        assert!(!m.caller_may_see_percussion("staff-1", true).await);
     }
 }

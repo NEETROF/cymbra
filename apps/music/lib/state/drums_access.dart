@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:cymbra_flags/cymbra_flags.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -28,10 +29,18 @@ const String kDrumsEnabledFlag = 'drums.enabled';
 /// same message in the UI, never a raw technical string.
 const String kDrumsNotAvailableCode = 'drums_not_available';
 
+/// Whether the fetched flags show the drums (change: graduate-drums-from-beta).
+/// The drums are open to every player: `drums.enabled` defaults **on** and is
+/// the kill-switch, so a snapshot that does not carry the key yet — before the
+/// first fetch, or offline with no cache — shows them, and only an explicit
+/// `false` from the server hides them.
+bool drumsEnabledIn(FlagSnapshot flags) =>
+    flags.getBool(kDrumsEnabledFlag, or: true);
+
 /// Whether the drum feature is visible to this caller (`drums.enabled`,
-/// evaluated server-side — staff + the `beta:midi-drums` campaign). Plain
-/// `false` by default so tests never build the flag client; `main.dart`
-/// overrides it with the remote flag. Hiding here is defence in depth only —
-/// the backend independently enforces the drum audience on every path.
+/// evaluated server-side). Plain `false` by default so tests never build the
+/// flag client; `main.dart` overrides it with [drumsEnabledIn] over the remote
+/// flags. Hiding here is defence in depth only — the backend independently
+/// enforces the drum audience on every path.
 @Riverpod(keepAlive: true)
 bool drumsEnabled(Ref ref) => false;

@@ -79,10 +79,11 @@ Future<void> main() async {
       plansEnabledProvider.overrideWith(
         (ref) => ref.watch(flagsProvider).getBool('plans.enabled', or: false),
       ),
-      // Drum-feature visibility (change: add-drums-access): plain `false` in
-      // tests, the remote server-evaluated `drums.enabled` flag in the app.
+      // Drum-feature visibility (changes: add-drums-access,
+      // graduate-drums-from-beta): plain `false` in tests, the remote
+      // `drums.enabled` flag in the app — shown until the server says off.
       drumsEnabledProvider.overrideWith(
-        (ref) => ref.watch(flagsProvider).getBool(kDrumsEnabledFlag, or: false),
+        (ref) => drumsEnabledIn(ref.watch(flagsProvider)),
       ),
       // Microphone input visibility (change: add-acoustic-piano-input): plain
       // `false` in tests, the remote `acoustic_input.enabled` flag in the app.
