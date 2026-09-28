@@ -248,8 +248,9 @@ like the other sections: the order is the lemma id, then the form, then the tag.
 
 ### D4 — The reducer: senses grouped, one separator, two new tables
 
-`_join_senses` receives each sense with the part of speech of its entry. The selection does not
-change: the same round-robin, the same three senses. The cuts do (see "Cuts that end on a word").
+`_join_senses` receives each sense with the part of speech of its entry. The selection keeps the
+same round-robin; how many senses it keeps and how they are cut change (see "Cuts that end on a
+word" and "Eight whole senses, paged").
 
 1. After picking, the senses are grouped by part of speech, stably, in the order each part of
    speech first appears.
@@ -286,11 +287,36 @@ pour former l'as » and `is` « …le passif ave »: every sense was cut at 42 c
 A word's gloss now takes 80 characters per sense and 160 in all (mean length 31 → 37). What is
 still too long is cut on a word boundary with an ellipsis (`cut_at_word`). The next sense is kept
 whole while it fits; it is cut when at least 20 characters of room remain, and left out below that.
-Expressions keep 42 / 80 and the plain cut, so `mwe.tsv` does not move.
+Expressions keep 42 / 80 and the plain cut.
 
-The multi-word path (`reduce_expressions`) is untouched: a test asserts that `mwe.tsv` is
-byte-identical. `forms.tsv` and `freq.tsv` are asserted byte-identical too. Only `gloss.tsv`
-moves, and the pull request's report counts the reordered glosses and the changed separators.
+**Eight whole senses, paged.** A second round of dogfooding asked for the rest of a long gloss
+rather than a better cut: « plutôt que coupé, un bouton suivant ». The pack now keeps up to eight
+senses of a word, each within 300 characters and all within 800, and the card pages them (D6).
+Most words have fewer senses than that, so the cost is small. Measured on real packs:
+
+| Senses × sense / gloss | Pack | Glosses with a cut sense |
+|---|---|---|
+| 3 × 80 / 160, before | 1 739 035 B | 1 208 |
+| 6 × 200 / 400 | 1 812 923 B | 165 |
+| 8 × 300 / 800, chosen | 1 830 370 B | 88 |
+| 12 × 400 / 2 000 | 1 842 943 B | 81 |
+
+Word-by-word rows keep one sense and cut it at 80 characters on a whole word, as the pack did
+before (`rowGloss`), and a card created from a word's card stores the first page, not eight senses.
+
+**The Wiktionary's notes to its readers.** The same dogfooding showed `there` reading « Y avoir.
+→ voir there be »: a link on the wiki, dead text on a card. 20 word glosses and 9 expressions held
+such a pointer, and 164 word glosses and 46 expressions the placeholder of an unfinished page,
+« Définition manquante ou à compléter. (Ajouter) », often after a real translation (`pig`
+« Vivre dans la promiscuité et la saleté. Définition manquante… »). `strip_wiki_notes` takes out a
+pointer (`→ voir`, `→ Comparer`, with or without brackets) up to the end of its sense, a
+placeholder wherever it sits, and the etymology placeholder; the rest of the sense is kept, and a
+sense left empty is dropped. An arrow that is no pointer (« hard → hardest ») stays. 13 words had
+nothing else and lose their gloss: their card says the pack has no translation, which is true.
+It applies to expressions too, so `mwe.tsv` moves for those 55 entries and no others.
+
+`forms.tsv` and `freq.tsv` are asserted byte-identical. `gloss.tsv` moves, and the pull request's
+report counts the reordered glosses and the changed separators.
 
 **kaikki `pos` → UPOS.**
 
@@ -423,6 +449,13 @@ _Alternatives considered:_
 - **The gloss block** renders one line per group: the heading (the part of speech, plus the
   gender when there is one) in italics, then the group's senses. A group tagged `SYM`, `X`,
   `PUNCT` or with no tag has no heading.
+- **Pages** (`reading/gloss-pages.ts`). A gloss longer than `PAGE_CHARS = 160` — what a card
+  showed before — is cut into pages of whole senses, at least one per page, and a group that runs
+  across two pages is headed again on the second. A control under the gloss reads « ‹ 1/3 Suivant › »;
+  it is absent when the gloss fits. Its buttons keep the reader's selection, as the listen
+  buttons do, and a page change redraws only the gloss and re-anchors the card. Every `show`
+  starts on the first page, which is also what a created card stores (`pageText`), so the deck
+  never holds eight senses and does not depend on the page the reader was on.
 
 ### D7 — Labels: generic names here, tense names per studied language
 

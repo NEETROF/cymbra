@@ -52,8 +52,8 @@ The word card SHALL show a gloss whose senses the pack groups by part of speech 
 A group whose part of speech has no name for the reader, such as a symbol, an affix or an
 unclassified entry, SHALL show without a heading. Until the grammar answer has arrived, and when it
 does not come, the card SHALL show the gloss as a single text, as it does today. A card created from
-this card SHALL store the gloss as the pack writes it, one text, exactly as before. Word-by-word rows
-SHALL keep taking the first sense of each gloss.
+this card SHALL store as one text, as before, the senses the card shows first (the next requirement
+pages them). Word-by-word rows SHALL keep taking the first sense of each gloss.
 
 #### Scenario: A word with a noun sense and verb senses
 - **WHEN** the reader opens the card of `can`
@@ -74,6 +74,25 @@ SHALL keep taking the first sense of each gloss.
 #### Scenario: The stored gloss does not change shape
 - **WHEN** the reader presses "+ Deck" on the card of `can`
 - **THEN** the card is created with the pack's gloss for `can` as one text
+
+### Requirement: The word card pages a long gloss
+The word card SHALL show a gloss longer than one page — 160 characters, what a card showed before — one page at a time, each page holding whole senses under their part-of-speech heading, and SHALL let the reader move to the next and the previous page.
+A page SHALL hold at least one sense, however long. The card SHALL say which page it shows out of
+how many, and a gloss that fits on one page SHALL show no paging control. Moving between pages SHALL
+change only the gloss: the card keeps its word, its status and its actions, and keeps the reader's
+selection on the page. A card opened again starts on its first page.
+
+#### Scenario: A word with more senses than one page holds
+- **WHEN** the reader opens the card of a word whose senses take more than 160 characters
+- **THEN** the card shows the first senses, says it is on page 1 of its pages, and offers the next page
+
+#### Scenario: Moving to the next page
+- **WHEN** the reader presses the next-page control
+- **THEN** the card shows the following senses under their headings, offers the previous page, and its actions are unchanged
+
+#### Scenario: A gloss that fits
+- **WHEN** the reader opens the card of `can`
+- **THEN** the card shows its whole gloss and no paging control
 
 ### Requirement: A card holding its gloss waits only briefly for its grammar
 A word card SHALL ask for the word's grammar when it opens, and a card that already holds the pack's gloss for its word SHALL NOT wait for that answer beyond a short bound: past it, the card SHALL complete as it would with no grammar, and an answer arriving afterwards SHALL be dropped.
