@@ -65,11 +65,13 @@ takes only tag names from Universal Dependencies, and no data.
 
 ### Requirement: A gloss groups its senses by part of speech
 A pack's gloss SHALL list its senses grouped by part of speech, each group in the order its part of speech first appears among the senses picked, and SHALL NOT hold the sense separator inside a sense.
-The senses picked, and the cuts applied to each sense and to the whole gloss, SHALL be the ones the
-pack applied before this change, but for the acronyms the next requirement leaves out. The senses
-are only reordered so that the senses of one part of speech are adjacent, and a separator inside a
-sense becomes a comma. The part-of-speech table SHALL account for exactly the senses the final gloss
-holds after its cuts, and the build SHALL fail when the two disagree.
+The senses picked SHALL be the ones the pack picked before this change, but for the acronyms the next
+requirement leaves out. They are only reordered so that the senses of one part of speech are
+adjacent, and a separator inside a sense becomes a comma. A word's gloss SHALL hold each sense within
+80 characters and all of them within 160. A cut SHALL fall on a word boundary and end with an
+ellipsis, never mid-word, and a sense that would keep fewer than 20 characters SHALL be left out
+rather than cut. An expression's gloss keeps its own limits. The part-of-speech table SHALL account
+for exactly the senses the final gloss holds, and the build SHALL fail when the two disagree.
 
 #### Scenario: Senses picked across parts of speech
 - **WHEN** the senses picked for a word are a preposition sense, a particle sense and a second preposition sense, in that order
@@ -78,6 +80,10 @@ holds after its cuts, and the build SHALL fail when the two disagree.
 #### Scenario: A separator inside a sense
 - **WHEN** a picked sense reads « Lettre; caractère »
 - **THEN** the gloss holds it as « Lettre, caractère », one sense
+
+#### Scenario: A long sense ends on a whole word
+- **WHEN** a word's sense is longer than the room its gloss has left for it
+- **THEN** the gloss holds it cut after a whole word and ended with « … », never mid-word, or leaves it out when fewer than 20 characters of room remain
 
 #### Scenario: A table that disagrees with its gloss
 - **WHEN** the part-of-speech table records a different number of senses than a word's gloss holds

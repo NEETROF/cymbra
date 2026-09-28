@@ -249,7 +249,7 @@ like the other sections: the order is the lemma id, then the form, then the tag.
 ### D4 — The reducer: senses grouped, one separator, two new tables
 
 `_join_senses` receives each sense with the part of speech of its entry. The selection does not
-change: the same round-robin, the same three senses, the same cuts at 42 and 80 characters.
+change: the same round-robin, the same three senses. The cuts do (see "Cuts that end on a word").
 
 1. After picking, the senses are grouped by part of speech, stably, in the order each part of
    speech first appears.
@@ -271,6 +271,22 @@ capitalised headword is no acronym: `He` still glosses `he`. The cost is the acr
 context: `US` in "the US economy" opens the card of `us`, which no longer says « États-Unis ». That
 is the same card as before, and such a reading is far rarer than the pronoun. `wiktionary_signals`
 is left as it is, so the inflection rules, `forms.tsv` and `freq.tsv` do not move.
+
+**Cuts that end on a word.** Dogfooding in Safari showed `has` read « Avoir. Auxiliaire utilisé
+pour former l'as » and `is` « …le passif ave »: every sense was cut at 42 characters and the gloss at
+80, mid-word. That was already so in the flat gloss; one line per part of speech made it plain.
+4 405 of the 24 420 glosses held a cut sense. Measured on real packs:
+
+| Limits (sense / gloss) | Pack | Glosses with a cut sense |
+|---|---|---|
+| 42 / 80, before | 1 703 229 B | 4 405 |
+| 60 / 120 | 1 728 725 B | 2 443 |
+| 80 / 160, chosen | 1 741 714 B | 1 105 |
+
+A word's gloss now takes 80 characters per sense and 160 in all (mean length 31 → 37). What is
+still too long is cut on a word boundary with an ellipsis (`cut_at_word`). The next sense is kept
+whole while it fits; it is cut when at least 20 characters of room remain, and left out below that.
+Expressions keep 42 / 80 and the plain cut, so `mwe.tsv` does not move.
 
 The multi-word path (`reduce_expressions`) is untouched: a test asserts that `mwe.tsv` is
 byte-identical. `forms.tsv` and `freq.tsv` are asserted byte-identical too. Only `gloss.tsv`
