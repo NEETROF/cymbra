@@ -763,12 +763,36 @@ def resolve_forms(pairs, ranks, targets=None, glossed=frozenset()):
 _DANGLING_COORDINATOR = re.compile(r"^(?:ou|et)\s+")
 
 
-def clean_gloss(text, maxlen):
+def clean_gloss(text, maxlen, whole_words=False):
+    """A sense, tidied and held within `maxlen` characters.
+
+    The expressions keep the plain cut. A word's senses (`whole_words`) are cut at a word
+    boundary and end with an ellipsis (`cut_at_word`), since the word card shows them in full.
+    """
     g = re.sub(r"\s+", " ", text).strip().rstrip(".").strip()
     g = _DANGLING_COORDINATOR.sub("", g)
     if len(g) > maxlen:
-        g = g[:maxlen].rstrip()
+        g = cut_at_word(g, maxlen) if whole_words else g[:maxlen].rstrip()
     return g
+
+
+# What a cut sense may not end on before its ellipsis: a separator or an opening mark.
+_CUT_TRAIL = " ,;:(«[\"'’-–—/"
+
+
+def cut_at_word(text, maxlen):
+    """`text` within `maxlen` characters, the ellipsis included, never ending mid-word.
+
+    The cut falls on the last space the room allows; a text with no space in the second half of
+    that room — one long word, a URL — is cut where the room ends. Separators and opening marks
+    left dangling before the ellipsis go ("former le passif (…" → "former le passif…").
+    """
+    if len(text) <= maxlen:
+        return text
+    room = maxlen - 1  # the ellipsis
+    space = text.rfind(" ", 0, room + 1)
+    cut = text[:space] if space > room // 2 else text[:room]
+    return cut.rstrip(_CUT_TRAIL) + "…"
 
 
 def _join_senses(per_entry, maxlen, max_senses):
@@ -827,14 +851,20 @@ def kaikki_upos(pos, word):
     return _KAIKKI_UPOS.get(pos, "X")
 
 
+# The fewest characters a sense cut to fit a word's gloss may keep: below, it says nothing.
+_MIN_CUT_SENSE = 20
+
+
 def _join_senses_by_pos(per_entry, poses, maxlen, max_senses):
     """`_join_senses`, with the senses grouped by part of speech (add-lingua-word-grammar, D4).
 
     The same senses are picked, by the same round-robin across the headword's entries; they are
     then grouped by the part of speech of the entry each came from, stably, in the order the parts
     of speech first appear, so that the senses of one part of speech are adjacent. A `;` inside a
-    sense becomes `,`, so that "; " only ever separates senses. The gloss is cut as `_join_senses`
-    cuts it, and the runs — [(part of speech, senses)] — count the senses that survive the cut.
+    sense becomes `,`, so that "; " only ever separates senses. The gloss keeps whole senses while
+    they fit in `maxlen`; the next is cut at a word boundary with an ellipsis when at least
+    `_MIN_CUT_SENSE` characters of room are left, and left out otherwise — never cut mid-word.
+    The runs — [(part of speech, senses)] — count the senses the gloss holds.
     """
     picked = []  # (sense, part of speech)
     depth = 0
@@ -850,12 +880,23 @@ def _join_senses_by_pos(per_entry, poses, maxlen, max_senses):
     grouped = [
         (_INNER_SEPARATOR.sub(", ", sense).strip(" ,"), pos) for first in order for sense, pos in picked if pos == first
     ]
-    joined = "; ".join(sense for sense, _ in grouped)
-    if len(joined) > maxlen:
-        joined = joined[:maxlen].rstrip().rstrip(";").strip()
-    kept = len(joined.split("; ")) if joined else 0
+    # Whole senses while they fit; the next one cut at a word boundary when enough room is left
+    # for it to say something, left out otherwise. The gloss never ends mid-word.
+    kept = []
+    length = 0
+    for sense, _ in grouped:
+        gap = 2 if kept else 0
+        if length + gap + len(sense) <= maxlen:
+            kept.append(sense)
+            length += gap + len(sense)
+            continue
+        room = maxlen - length - gap
+        if room >= _MIN_CUT_SENSE:
+            kept.append(cut_at_word(sense, room))
+        break
+    joined = "; ".join(kept)
     runs = []
-    for _, pos in grouped[:kept]:
+    for _, pos in grouped[: len(kept)]:
         if runs and runs[-1][0] == pos:
             runs[-1][1] += 1
         else:
@@ -868,7 +909,7 @@ def _acronym(headword):
     return len(headword) > 1 and headword.isupper()
 
 
-def reduce_gloss(path, lemmas, maxlen, per_sense=42, max_senses=3, runs=None):
+def reduce_gloss(path, lemmas, maxlen, per_sense=80, max_senses=3, runs=None):
     """Up to `max_senses` short French glosses per canonical lemma, joined by "; ".
 
     Form-of senses ("Pluriel de …") are skipped — they are not meanings. An acronym's
@@ -894,7 +935,7 @@ def reduce_gloss(path, lemmas, maxlen, per_sense=42, max_senses=3, runs=None):
             for sense in d.get("senses", []):
                 gg = sense.get("glosses") or []
                 if gg and not _is_form_of(sense, gg[0].strip()):
-                    g = clean_gloss(gg[0], per_sense)
+                    g = clean_gloss(gg[0], per_sense, whole_words=True)
                     if g:
                         senses.append(g)
             if senses:
@@ -1055,7 +1096,11 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--work", required=True)
     ap.add_argument("--max-lemmas", type=int, default=40000)
-    ap.add_argument("--max-gloss-len", type=int, default=80)
+    ap.add_argument("--max-gloss-len", type=int, default=80, help="an expression's gloss")
+    # A word's gloss is shown in full on its card, one line per part of speech: room for its
+    # senses to end (add-lingua-word-grammar), 38 KB of pack for 80/160 against 42/80.
+    ap.add_argument("--max-word-gloss-len", type=int, default=160)
+    ap.add_argument("--max-word-sense-len", type=int, default=80)
     ap.add_argument("--built-at", required=True, help="yyyy-mm-dd (source snapshot date)")
     ap.add_argument("--pack-version", required=True)
     ap.add_argument(
@@ -1099,7 +1144,7 @@ def main():
 
     pairs |= compound_inflections(lemmas, pairs, readings)
     runs = {}
-    glosses = reduce_gloss(kaikki, lemmas, a.max_gloss_len, runs=runs)
+    glosses = reduce_gloss(kaikki, lemmas, a.max_word_gloss_len, per_sense=a.max_word_sense_len, runs=runs)
     expressions = reduce_expressions(kaikki, a.max_gloss_len)
     forms = resolve_forms(pairs, ranks, targets, set(glosses))
     levels = reduce_levels(cefr, lemmas)

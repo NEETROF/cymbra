@@ -89,9 +89,11 @@ may be named on a card as another reading of a form the analysis reads as someth
 acronym's entries (`AND`, `WHO`, `US`: headwords all in capitals) no longer gloss the common word
 the reducer lowercases them into when that word has an entry of its own — the card of `and` read
 « verbe Faire le ET de » — and keep glossing it when they are its only entries (`nato` « OTAN »).
-No new source and no new licence: the tables derive from ESDB and kaikki. Neither moves
-`analyzer_version`. Measured on the 2026-09-26 snapshot: 45 684 readings and 30 082 runs, a pack of
-1 703 229 B (32.5 % of the 5 MiB budget) against 1 543 687 B before.
+A word's gloss holds each sense within 80 characters and all of them within 160 — the card shows it
+in full — and a cut falls on a word boundary with an ellipsis, never mid-word (`cut_at_word`);
+expressions keep 42 / 80. No new source and no new licence: the tables derive from ESDB and kaikki.
+Neither moves `analyzer_version`. Measured on the 2026-09-26 snapshot: 45 684 readings and 30 240
+runs, a pack of 1 741 076 B (33.2 % of the 5 MiB budget) against 1 543 687 B before.
 
 The tags are **Universal Dependencies** part-of-speech tags and features — tag names only, no UD
 data. The vocabulary (`lingua-core` `packs::grammar`) was checked on 2026-09-27 against the UD

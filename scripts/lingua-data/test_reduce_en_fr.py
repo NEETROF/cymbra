@@ -800,6 +800,19 @@ class SensesByPartOfSpeech(unittest.TestCase):
         self.assertEqual(joined, "a" * 30)
         self.assertEqual(runs, [("NOUN", 1)])
 
+    def test_a_word_gloss_never_ends_mid_word(self):
+        # « Être; Être. Auxiliaire pour former le passif ave » was the card of `is`.
+        senses = [["Être", "Être. Auxiliaire pour former le passif avec un participe passé"]]
+        joined, runs = red._join_senses_by_pos(senses, ["VERB"], 50, 3)
+        self.assertEqual(joined, "Être; Être. Auxiliaire pour former le passif avec…")
+        self.assertLessEqual(len(joined), 50)
+        self.assertEqual(runs, [("VERB", 2)])
+
+    def test_a_sense_left_too_little_room_is_left_out_rather_than_cut(self):
+        joined, runs = red._join_senses_by_pos([["a" * 30], ["Courir vite dans les bois"]], ["NOUN", "VERB"], 45, 3)
+        self.assertEqual(joined, "a" * 30)
+        self.assertEqual(runs, [("NOUN", 1)])
+
     def test_kaikki_parts_of_speech(self):
         self.assertEqual(red.kaikki_upos("noun", "cat"), "NOUN")
         self.assertEqual(red.kaikki_upos("conj", "and"), "CCONJ")
@@ -857,12 +870,49 @@ class ReduceGlossRuns(TempDir):
         self.assertEqual(glosses["nato"], "OTAN")
         self.assertEqual(runs["nato"], [("PROPN", 1)])
 
+    def test_a_word_keeps_long_senses_whole_up_to_its_own_limits(self):
+        long_sense = "Être. Auxiliaire pour former le passif avec un participe passé."
+        path = self.file(
+            "kaikki.jsonl",
+            json.dumps({"word": "be", "pos": "verb", "senses": [{"glosses": ["Être."]}, {"glosses": [long_sense]}]}) + "\n",
+        )
+        self.assertEqual(
+            red.reduce_gloss(path, {"be"}, 160),
+            {"be": "Être; Être. Auxiliaire pour former le passif avec un participe passé"},
+        )
+        # Tighter limits cut at a word boundary, with an ellipsis.
+        self.assertEqual(
+            red.reduce_gloss(path, {"be"}, 160, per_sense=42),
+            {"be": "Être; Être. Auxiliaire pour former le passif…"},
+        )
+
     def test_what_an_acronym_is(self):
         self.assertTrue(red._acronym("AND"))
         self.assertTrue(red._acronym("B2B"))
         self.assertFalse(red._acronym("I"))  # one letter is a word ("I", "A")
         self.assertFalse(red._acronym("He"))
         self.assertFalse(red._acronym("and"))
+
+
+class CutAtWord(unittest.TestCase):
+    def test_a_text_that_fits_is_untouched(self):
+        self.assertEqual(red.cut_at_word("Courir", 10), "Courir")
+
+    def test_the_cut_falls_on_a_space_and_ends_with_an_ellipsis(self):
+        cut = red.cut_at_word("Avoir. Auxiliaire utilisé pour former l’aspect accompli", 42)
+        self.assertEqual(cut, "Avoir. Auxiliaire utilisé pour former…")
+        self.assertLessEqual(len(cut), 42)
+
+    def test_no_separator_or_opening_mark_dangles_before_the_ellipsis(self):
+        self.assertEqual(red.cut_at_word("Passif, (avec un participe passé)", 12), "Passif…")
+        self.assertEqual(red.cut_at_word("Marcher ; courir", 11), "Marcher…")
+
+    def test_one_long_word_is_cut_where_the_room_ends(self):
+        self.assertEqual(red.cut_at_word("a" * 50, 20), "a" * 19 + "…")
+
+    def test_an_expression_keeps_the_plain_cut(self):
+        self.assertEqual(red.clean_gloss("Initiales de Automobile Association", 15), "Initiales de Au")
+        self.assertEqual(red.clean_gloss("Initiales de Automobile Association", 15, whole_words=True), "Initiales de…")
 
 
 class GrammarRows(unittest.TestCase):
