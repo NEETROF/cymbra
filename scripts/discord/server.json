@@ -173,10 +173,10 @@
   "webhooks": [
     { "channel": "music-announcements",   "name": "Cymbra releases" },
     { "channel": "lingua-announcements",  "name": "Cymbra releases" },
-    { "channel": "scores-and-soundfonts", "name": "Cymbra backend" },
-    { "channel": "music-stats",           "name": "Cymbra backend" },
-    { "channel": "music-leaderboards",    "name": "Cymbra backend" },
-    { "channel": "id-stats",              "name": "Cymbra backend" },
-    { "channel": "lingua-stats",          "name": "Cymbra backend" }
+    { "channel": "scores-and-soundfonts", "name": "Cymbra" },
+    { "channel": "music-stats",           "name": "Cymbra" },
+    { "channel": "music-leaderboards",    "name": "Cymbra" },
+    { "channel": "id-stats",              "name": "Cymbra" },
+    { "channel": "lingua-stats",          "name": "Cymbra" }
   ]
 }
