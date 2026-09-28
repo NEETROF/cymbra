@@ -163,15 +163,18 @@ announced — Cymbra Music and Cymbra Lingua**; backend, back office and site re
 Each product announces itself from its own release workflow, as a final step on the tag run:
 `music-release.yml` once the platform jobs have attached their files, `lingua-extension-release.yml`
 once its two packages are attached, `lingua-apple-release.yml` once both builds reached App Store
-Connect — announcing at release-creation time would link a page with no downloads. All three post
-to `#announcements` with their store links, and say that the store update follows review, since no
+Connect — announcing at release-creation time would link a page with no downloads. Each posts to
+its **product's own announcements channel** — `#music-announcements`, `#lingua-announcements` — with
+its store links, so a member follows only the product they use (the server-wide `#announcements`
+keeps Cymbra-wide news), and say that the store update follows review, since no
 tag puts a version in front of readers on its own. A manual `release-announce.yml` dispatch
 announces any existing Music or Lingua release tag the same way (preview by default, `publish` to
 post, `already_on_stores` to drop the review line) — for releases older than the server, or an
 announcement that was skipped. Routing that through
 the backend would mean opening an authenticated ingress for CI and would gain nothing; the
 trade-off accepted is that the back-office kill-switch does not cover release announcements,
-whose off switch is the repository secret `DISCORD_WEBHOOK_ANNOUNCEMENTS` or the step itself.
+whose off switch is the repository secret (`DISCORD_WEBHOOK_MUSIC_ANNOUNCEMENTS`,
+`DISCORD_WEBHOOK_LINGUA_ANNOUNCEMENTS`) or the step itself.
 `discord_digest` is a **scheduled** job (seed in `backend/jobs/migrations/…_seed_discord_digest_schedule.sql`,
 following the existing schedule seeds) that aggregates the previous closed period and posts one
 message **per product**, into that product's stats channel. A run publishes only the products whose
@@ -301,9 +304,9 @@ state → Discord role); a claim command is explicit, auditable and works before
 2. Apply the additive migrations (`discord` schema, user consent column, digest schedule seed).
    All additive; no destructive step, no backfill.
 3. Create the Discord application and webhooks; put the webhook URLs, bot token and application
-   public key in the deployment environment, and the `#announcements` webhook also in the repository
-   Actions secret `DISCORD_WEBHOOK_ANNOUNCEMENTS` (`gh secret set`), which the release workflows
-   read — without it every release announcement is skipped with a warning; register the interactions endpoint URL with the
+   public key in the deployment environment, and the two product announcement webhooks also in the
+   repository Actions secrets `DISCORD_WEBHOOK_MUSIC_ANNOUNCEMENTS` and
+   `DISCORD_WEBHOOK_LINGUA_ANNOUNCEMENTS` (`gh secret set`), which the release workflows read — without it every release announcement is skipped with a warning; register the interactions endpoint URL with the
    application.
 4. Enable **one** immediate category, observe message volume and content for a few days.
 5. Enable the digest, then the remaining categories one at a time.

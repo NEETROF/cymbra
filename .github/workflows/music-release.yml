@@ -731,5 +731,5 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Absent ⇒ the script warns and skips, like the optional signing steps.
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_ANNOUNCEMENTS }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_MUSIC_ANNOUNCEMENTS }}
         run: bash scripts/discord/release_announce.sh

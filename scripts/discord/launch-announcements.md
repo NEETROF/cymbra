@@ -1,8 +1,10 @@
-# `#announcements` — introducing each app / présenter chaque app
+# Introducing each app / présenter chaque app
 
-Post these **once**, when the server opens, as **separate messages** in `#announcements`, in this
-order: (1) Cymbra Music EN, (2) Cymbra Music FR, (3) Cymbra Lingua EN, (4) Cymbra Lingua FR. Then
-press **Publish** on each so servers following the channel receive them.
+Post these **once**, when the server opens, as **separate messages**: (1) and (2) — Cymbra Music EN
+then FR — in `#music-announcements`, (3) and (4) — Cymbra Lingua EN then FR — in
+`#lingua-announcements`, and (5) in the server-wide `#announcements`. Then press **Publish** on each
+so servers following the channel receive them. Releases go to the same product channels, so a
+member follows only the product they use.
 
 **Before posting** — every block ends with "new versions are announced right here" (and warns that
 the stores follow a few days later, after their review), which is true only once:
@@ -10,8 +12,9 @@ the stores follow a few days later, after their review), which is true only once
 1. the pull request adding the release announcements is merged (the announce steps of
    `music-release`, `lingua-extension-release` and `lingua-apple-release`, and the manual
    `release-announce` workflow);
-2. the repository secret `DISCORD_WEBHOOK_ANNOUNCEMENTS` holds the `#announcements` webhook —
-   without it every announcement is skipped with a warning, silently for readers;
+2. the repository secrets `DISCORD_WEBHOOK_MUSIC_ANNOUNCEMENTS` and
+   `DISCORD_WEBHOOK_LINGUA_ANNOUNCEMENTS` hold those channels' webhooks — without them every
+   announcement is skipped with a warning, silently for readers;
 3. a `release-announce` preview (`publish` unticked) of the latest Music tag renders correctly.
 
 If any of these is not done, drop that last line from each block rather than promise it.
@@ -158,4 +161,20 @@ Enrichis ton vocabulaire anglais en lisant le web. Cymbra Lingua est une extensi
 • **#lingua-help** — questions et bugs ; précise ton navigateur
 
 Les nouvelles versions sont annoncées ici dès leur sortie. Les stores les publient après leur validation, ce qui peut prendre quelques jours : un store peut donc encore proposer la version précédente pendant un moment.
+```
+
+---
+
+## 5. `#announcements` — where the news is (EN + FR, one message)
+
+```
+# 📣 Where Cymbra news lives
+
+Each app has its own announcements channel, with every new version as it ships:
+• **#music-announcements** — Cymbra Music
+• **#lingua-announcements** — Cymbra Lingua
+
+**Follow** the one you use to get its news in your own server. This channel keeps Cymbra-wide news only: a new app, the server itself.
+
+Chaque app a son propre salon d'annonces, avec chaque nouvelle version dès sa sortie : **#music-announcements** pour Cymbra Music, **#lingua-announcements** pour Cymbra Lingua. **Suis** celui que tu utilises pour recevoir ses nouvelles sur ton propre serveur. Ce salon-ci ne garde que les nouvelles de Cymbra en général.
 ```

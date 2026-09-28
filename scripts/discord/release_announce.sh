@@ -18,7 +18,7 @@
 # and by hand from .github/workflows/release-announce.yml, for any existing Music or
 # Lingua release tag
 # (a release older than the Discord server, or a skipped announcement).
-# All of them post to #announcements.
+# Each posts to its product's channel: #music-announcements or #lingua-announcements.
 #
 # Environment:
 #   TAG                   release tag, e.g. music-v1.2.0            (required)
