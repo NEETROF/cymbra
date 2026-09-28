@@ -34,7 +34,7 @@ Open-source (Apache-2.0) learning tools:
 **Roles**
 • **Curator** — you rate scores and help the catalog converge
 • **Contributor** — you shipped code or scores
-• **Beta** — you want pre-release builds (ask in #general)
+• **Beta** — early access: preview builds and features still hidden in the released apps (ask in #general)
 • **Verified** — your Discord account is linked to your Cymbra account
 
 **Links**
@@ -54,10 +54,10 @@ Read the rules below before posting. Say hi in **#general** — we read everythi
 
 Des outils d'apprentissage open source (Apache-2.0) :
 • **Cymbra Music** transforme un clavier MIDI en professeur de piano interactif : tu charges une vraie partition, tu la joues, et tu es noté note par note.
-• **Cymbra Lingua** est une extension de navigateur (Chrome, Firefox, Safari) qui surligne les mots anglais que tu ne connais pas encore, directement dans la page que tu lis.
+• **Cymbra Lingua** est une extension de navigateur (Chrome, Firefox, Safari) qui surligne, dans la page que tu lis, les mots anglais que tu ne connais pas encore.
 
 **Où aller**
-• **#general** — tout ce qui touche Cymbra, les pianos, les claviers, la musique
+• **#general** — Cymbra, pianos, claviers, musique
 • **#show-your-play** — tes extraits et tes runs réussis
 • **#music-help** — bloqué ? précise ta plateforme et ton clavier MIDI
 • **#scores-and-soundfonts** — ajouts au catalogue, demandes, questions de licence
@@ -66,12 +66,12 @@ Des outils d'apprentissage open source (Apache-2.0) :
 • **#music-announcements** / **#lingua-announcements** — les nouvelles versions, par app
 • **#music-stats** / **#music-leaderboards** / **#lingua-stats** / **#id-stats** — rapports automatiques, bot uniquement
 • **#id-help** — Cymbra ID, ton compte commun à toutes les apps : connexion, identités
-• **#dev** — le développement de Cymbra : PRs, moteur
+• **#dev** — développement de Cymbra : PRs, moteur
 
 **Rôles**
 • **Curator** — tu notes des partitions et fais converger le catalogue
 • **Contributor** — tu as contribué du code ou des partitions
-• **Beta** — tu veux les builds en avant-première (demande dans #general)
+• **Beta** — accès anticipé : builds de test et fonctionnalités encore cachées dans les apps publiées (demande dans #general)
 • **Verified** — ton compte Discord est lié à ton compte Cymbra
 
 **Liens**
