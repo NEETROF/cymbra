@@ -35,6 +35,12 @@ const FR: Record<string, string> = {
     "Nombre de jours de conservation des événements d’usage bruts avant leur purge (les agrégats permanents ne sont pas touchés).",
   "analytics.collection.enabled":
     "Interrupteur général de la collecte d’usage (actif par défaut ; couper stoppe l’émission des événements par tous les clients sans nouvelle version).",
+  "discord.enabled":
+    "Coupe-circuit des annonces Discord : désactivé, rien n’est publié sur le serveur communautaire, y compris les annonces déjà en file.",
+  "discord.music.catalog":
+    "Annonce chaque partition et chaque SoundFont acceptées au catalogue de Cymbra Music dans #scores-and-soundfonts.",
+  "discord.music.records":
+    "Annonce les records de saison battus sur les pièces du catalogue dans #music-leaderboards — la pièce et le score, jamais le joueur ; au plus une fois par pièce et par mode chaque jour.",
   "notifications.enabled": "Coupe-circuit global des notifications push : désactivé, aucune catégorie n’envoie.",
   "notifications.category.practice_streak.enabled":
     "Rappel du soir aux joueurs dont la série de pratique est sur le point de se rompre.",

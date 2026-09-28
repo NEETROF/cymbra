@@ -65,7 +65,8 @@ would force a per-user shape onto a broadcast surface and create a merge depende
 
 ### D1 — Outbound port + pure core, mirroring `EmailSender`
 
-`DiscordSender` (trait) exposes `publish(channel, message)` and `grant_role`/`revoke_role`.
+`DiscordSender` (trait) exposes `publish(channel, message)` — and, with the bot tranche,
+`grant_role`/`revoke_role`.
 Implementations: `WebhookDiscordSender` (announcements) and `BotRestDiscordSender` (roles) —
 both thin `reqwest` adapters. Everything that decides *whether* and *what* to publish lives in a
 pure `discord_core` module: event → category, category → channel, gate application, message
@@ -117,16 +118,23 @@ Consequence: the worker needs read access to the data it renders from (music agg
 day aggregates through `LinguaAdminRepo` on a `lingua_svc` pool, user profiles) through the existing
 in-process module/port seams — no new cross-schema writes.
 
-### D5 — Idempotency by dedup key in a `discord` schema
+### D5 — Idempotency by dedup key in a ledger the worker owns
 
-`backend/discord/migrations/0001_init.sql` creates a `discord` schema with a
-`published_announcements` table keyed by a **unique dedup key** derived from event identity
-(e.g. `score_accepted:<id>`), plus a status and timestamps — the same "own crate, own schema,
-own migrations" shape as `cymbra-analytics`. Publication is: claim the key
-(`INSERT … ON CONFLICT DO NOTHING`; zero rows ⇒ already handled ⇒ stop), post, mark published. A
-crash between claim and post leaves a stale claim that becomes re-claimable after a configured
-grace period, so at-least-once delivery converges without ever double-posting in the normal
-case.
+`backend/jobs/migrations/0020_discord_announcements.sql` creates `jobs.discord_announcements`,
+keyed by a **unique dedup key** derived from event identity (e.g.
+`discord:music.score_accepted:<id>`), plus a status (`claimed`/`posted`/`failed`), timestamps
+and the failure reason. Publication is: claim the key (`INSERT … ON CONFLICT` — a fresh key,
+or a claim left unsettled past the grace window, is won; a settled key stops the attempt; a
+recent claim makes it retry later), post, settle. A crash between claim and post leaves a stale
+claim that becomes re-claimable after the grace period, so at-least-once delivery converges
+without double-posting in the normal case.
+
+*Alternative considered (and first written here)*: a `discord` schema of its own, as
+`cymbra-analytics` has. Rejected at implementation: the worker is the table's only reader and
+writer, `worker_svc` already owns `jobs`, and a dedicated schema would have needed a new role,
+password, pool, environment variable and a production bootstrap re-run for one table. Should the
+bot tranche add Discord-owned state the server writes (account links, `/beta` claims), that is
+the moment to give Discord its schema and role — and to move this table with it.
 
 *Alternative considered*: relying on the job engine's exactly-once illusion. Rejected: sqlxmq is
 at-least-once by contract; the spec forbids duplicate messages.
@@ -134,12 +142,15 @@ at-least-once by contract; the spec forbids duplicate messages.
 **Failure classification drives the retry.** The handler returns `Err` — which is what makes the
 job engine retry with its backoff — only for failures that a later attempt can fix: a network
 error, a timeout, a `429`, or a `5xx` from Discord. A `400` (malformed embed), a `404` (the
-webhook was deleted in the Discord UI) or a `401/403` are **terminal**: the handler marks the
+webhook was deleted in the Discord UI) or a `401/403` are **terminal**, and so is a timeout
+**after** the request was sent — the webhook API has no idempotency key, so whether that post
+landed cannot be checked, and retrying it could post twice (a missed announcement is the
+lesser harm): the handler marks the
 claim failed with the reason and returns `Ok`, so the job stops instead of burning its retry
 budget on something no attempt will fix. Terminal failures are logged at `error` and counted, so
-a deleted webhook surfaces as an alert rather than as silence. The retry itself can never
-double-post: the claim row already holds the dedup key, so a re-attempt of a request that
-actually reached Discord stops at the claim.
+a deleted webhook surfaces as an alert rather than as silence. A retried attempt releases its
+claim first — its failure proves nothing was posted — and a settled key stops every later
+attempt, so a retry cannot double-post.
 
 ### D6 — One port method returns the **already-gated** subset
 
@@ -198,6 +209,29 @@ element survives — an accepted catalog item counts, since an item is not a per
 suppressed. Every skip is logged and counted with its reason, so "nothing happened" stays
 distinguishable from "the digest is broken", which is exactly the failure mode silence would
 otherwise hide.
+
+### D7b — Catalog acceptances are grouped, not streamed
+
+Moderation happens in bursts: a curator clearing the crawler's queue accepts hundreds of
+scores in one sitting, and one message per acceptance would bury the channel. Each catalog
+acceptance therefore enqueues its `discord_notify` job **10 minutes later**, and the job does
+not announce "its" item: it announces, in **one** message, every score and SoundFont accepted
+in the last 24 hours that is still accepted and not yet announced. It claims all their dedup
+keys in one statement — keys already settled, or held by a concurrent job, are left out — so
+the first job of a burst posts once and every later one finds nothing to say. A lone
+acceptance keeps its detailed single-item message; several are counted, the first ten named
+(fewer if long names would pass Discord's 2000-character cap), the rest summed up.
+
+The window is a constant, not a flag: the delay is chosen at enqueue time, inside the music
+module's moderation transaction, which has no flag service — making it tunable would mean
+threading flags into the repositories for a value that has no reason to move. The 24-hour
+look-back exceeds the delay plus the job's whole retry horizon, so a retried job still finds
+its item; the price is that the first acceptance after deploying (or after turning the
+category on) also announces what was accepted in the previous 24 hours.
+
+*Alternatives rejected*: a fixed daily catalog digest (loses the "just added" moment, and is
+what the tranche-2 report already does); a rate cap dropping messages beyond N per hour
+(silently loses announcements).
 
 ### D8 — Flags: kill-switch **defaults off**, one flag per category
 
@@ -301,7 +335,7 @@ state → Discord role); a claim command is explicit, auditable and works before
 1. Land the code with `discord.enabled` **off** and no Discord configuration in the
    environment: every announcement path is a no-op, the interactions route rejects everything it
    cannot verify. Fully inert.
-2. Apply the additive migrations (`discord` schema, user consent column, digest schedule seed).
+2. Apply the additive migrations (`jobs.discord_announcements`, user consent column, digest schedule seed).
    All additive; no destructive step, no backfill.
 3. Create the Discord application and webhooks; put the webhook URLs, bot token and application
    public key in the deployment environment, and the two product announcement webhooks also in the
@@ -322,6 +356,15 @@ are inert if the code is reverted; the consent column keeps its `false` default.
   candidate, but each command adds a public disclosure surface subject to D6's gate.
 - The `(product, category) → channel` routing is fixed by D2; the concrete channel list lives in
   `scripts/discord/server.json`, and provisioning the server stays out of scope (Non-Goals).
-- Should the season-record announcement name the player at all, or only the piece and the
-  figure? Naming is the point of a community feed, but the piece-only variant needs no consent
-  at all and could ship before the toggle.
+- ~~Should the season-record announcement name the player at all?~~ **Decided (2026-09-28)**:
+  tranche 1 ships the piece-only variant — piece, mode and figure, no player — which needs no
+  consent. Naming arrives with the dedicated Discord consent (D6) in a later tranche.
+
+## Delivery in tranches (decided 2026-09-28)
+
+1. **Announcements** — this crate, the ledger, `discord_notify`, the three producers (score and
+   SoundFont accepted, anonymous season record), flags off by default. No bot, no consent.
+2. **Reports** — `discord_digest`, per-product cadences and aggregate minimum (3.6–3.9, 3.11).
+3. **Bot** — interactions endpoint and `/beta` for **feature betas per app** (Music, Lingua); no
+   `/top50` and no account link in its first version. No beta channel before the bot exists.
+4. **Naming** — the dedicated Discord consent (D6), then named records and top lists.

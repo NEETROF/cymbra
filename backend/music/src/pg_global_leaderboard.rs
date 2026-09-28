@@ -56,6 +56,27 @@ impl GlobalLeaderboardRepo for PgGlobalLeaderboardRepo {
         let catalog_score_id = uuid::Uuid::parse_str(&best.catalog_score_id)
             .map_err(|_| AppError::InvalidArgument("invalid catalog score id".into()))?;
         let achieved_at = to_datetime(best.achieved_at_ms)?;
+        let mut tx = self.pool.begin().await.map_err(internal)?;
+        // The record before this result, read in the upsert's transaction: the
+        // best of the other players and this player's own (change:
+        // add-discord-notifications, task 4.3). Concurrent ingests on the same
+        // piece can both see a record beaten; the announcement's per-day dedup
+        // key folds them into one message.
+        let prior = sqlx::query(
+            "SELECT max(best_subscore) FILTER (WHERE user_id <> $1) AS others, \
+                    max(best_subscore) FILTER (WHERE user_id = $1) AS own \
+             FROM music.global_season_bests \
+             WHERE season_id = $2 AND catalog_score_id = $3 AND mode = $4",
+        )
+        .bind(user_id)
+        .bind(&best.season_id)
+        .bind(catalog_score_id)
+        .bind(best.mode.as_str())
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(internal)?;
+        let others: Option<f32> = prior.get("others");
+        let own: Option<f32> = prior.get("own");
         // Monotonic: raise the season best only when the new result is STRICTLY
         // better (higher sub-score; ties by an earlier achieved_at). A worse/equal
         // replay is a no-op — idempotent under at-least-once ingest.
@@ -76,9 +97,13 @@ impl GlobalLeaderboardRepo for PgGlobalLeaderboardRepo {
         .bind(best.mode.as_str())
         .bind(best.subscore)
         .bind(achieved_at)
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await
         .map_err(internal)?;
+        if let Some(event) = crate::global_leaderboard::record_announcement(best, others, own) {
+            cymbra_discord::pg::enqueue_notify(&mut tx, &event).await;
+        }
+        tx.commit().await.map_err(internal)?;
         Ok(())
     }
 
