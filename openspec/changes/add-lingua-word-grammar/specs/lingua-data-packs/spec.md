@@ -66,10 +66,10 @@ takes only tag names from Universal Dependencies, and no data.
 ### Requirement: A gloss groups its senses by part of speech
 A pack's gloss SHALL list its senses grouped by part of speech, each group in the order its part of speech first appears among the senses picked, and SHALL NOT hold the sense separator inside a sense.
 The senses picked, and the cuts applied to each sense and to the whole gloss, SHALL be the ones the
-pack applies today. The senses are only reordered so that the senses of one part of speech are
-adjacent, and a separator inside a sense becomes a comma. The part-of-speech table SHALL account
-for exactly the senses the final gloss holds after its cuts, and the build SHALL fail when the two
-disagree.
+pack applied before this change, but for the acronyms the next requirement leaves out. The senses
+are only reordered so that the senses of one part of speech are adjacent, and a separator inside a
+sense becomes a comma. The part-of-speech table SHALL account for exactly the senses the final gloss
+holds after its cuts, and the build SHALL fail when the two disagree.
 
 #### Scenario: Senses picked across parts of speech
 - **WHEN** the senses picked for a word are a preposition sense, a particle sense and a second preposition sense, in that order
@@ -82,6 +82,24 @@ disagree.
 #### Scenario: A table that disagrees with its gloss
 - **WHEN** the part-of-speech table records a different number of senses than a word's gloss holds
 - **THEN** the build fails and names the word
+
+### Requirement: An acronym does not gloss the word it is spelled like
+A word's gloss SHALL NOT take senses from an entry whose headword is written all in capitals — an acronym such as `AND`, `WHO` or `US` — when the word has an entry of its own in lower case, and an acronym with no such word SHALL keep its gloss.
+The part of speech of a word the reader meets is its own, not that of an acronym the dictionary
+lowercases into it: grouped by part of speech, the logic operator `AND` made the card of `and` read
+« verbe Faire le ET de ».
+
+#### Scenario: A common word and its acronym
+- **WHEN** the dictionary holds `and`, a conjunction, and `AND`, the logic operator, as a noun and a verb
+- **THEN** the gloss of `and` holds only the conjunction's sense, under one part of speech
+
+#### Scenario: An acronym with no common word
+- **WHEN** the dictionary holds `NATO` and no lower-case `nato`
+- **THEN** the gloss of `nato` is the one `NATO` gives
+
+#### Scenario: A capitalised word is no acronym
+- **WHEN** the dictionary holds `He`, capitalised, beside `he`
+- **THEN** the gloss of `he` holds the senses of both
 
 ## MODIFIED Requirements
 
