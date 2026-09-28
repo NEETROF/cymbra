@@ -119,8 +119,10 @@ on all of them at once. No surface SHALL keep a Réglages block of its own.
 
 ### Requirement: The reader chooses the voice
 Réglages SHALL show a read-aloud block listing the eligible voices, with an automatic choice
-selected by default and a way to hear each voice, and SHALL leave the block out when there is no
-eligible voice. The choice SHALL be kept on the device as a preference. The automatic choice
+selected by default and a way to hear each voice. When the browser lists voices but none is
+eligible, the block SHALL stay and say that no voice of the studied language is installed on
+the device and how to add one; it SHALL be left out only while the browser lists no voice at
+all. The choice SHALL be kept on the device as a preference. The automatic choice
 SHALL prefer the eligible voice the browser marks as default when it is the only voice so
 marked, and otherwise SHALL never pick a novelty voice while an ordinary one exists. The block
 SHALL list the ordinary voices first and the novelty voices after them, in a group of their own,
@@ -151,6 +153,10 @@ A chosen voice that is no longer listed SHALL fall back to the automatic choice.
 #### Scenario: A chosen voice
 - **WHEN** the reader chooses a voice in Réglages and then listens from a card
 - **THEN** that voice speaks, on every page of that browser
+
+#### Scenario: No voice of the studied language on the device
+- **WHEN** the browser lists only voices of other languages on the device and remote voices of the studied language, as Chrome does on a Windows set to French
+- **THEN** Réglages shows the read-aloud block with no voice to choose, saying that no English voice is installed and how to add one, and the card shows no listen row
 
 #### Scenario: A chosen voice removed
 - **WHEN** the voice the reader chose is no longer installed

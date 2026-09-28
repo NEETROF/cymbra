@@ -66,6 +66,8 @@ export interface Speaker {
   available(): boolean;
   /** The eligible voices, in the browser's order. */
   eligible(): VoiceInfo[];
+  /** Whether the browser lists any voice at all, eligible or not (Chrome lists none at first). */
+  listsVoices(): boolean;
   /** The voice the automatic choice lands on, ignoring the reader's preference. */
   automatic(): VoiceInfo | null;
   /** The reader's preference as stored — possibly a voice no longer listed. */
@@ -340,6 +342,7 @@ export function createSpeaker<V extends VoiceInfo>(
     lang,
     available: () => chosen() !== null,
     eligible: () => voices.filter((v) => isEligible(v, lang, settings.androidVoices)),
+    listsVoices: () => voices.length > 0,
     automatic: () => pickVoice(voices, lang, null, settings.androidVoices),
     preferred: () => settings.voice,
     androidVoices: () => settings.androidVoices,

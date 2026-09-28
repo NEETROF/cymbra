@@ -259,8 +259,12 @@ regions are read in both forms (`eng` → `en`, `GBR` → `GB`) wherever voices 
   Android's engine, is checked on device (task 6.3). If it lists a voice that reaches the network as local, that voice goes on the
   deprioritised list and the finding is written into the extension README.
 - [No eligible voice on a desktop] → Chrome on Linux or ChromeOS can list only Google's remote
-  voices: the row is absent there. This is the privacy promise working, and the README says how
-  to install a system voice.
+  voices, and so does Chrome on a Windows set to French, whose own voices are French only
+  (captured 2026-09-29, `chrome-windows.json`): the row is absent there. This is the privacy
+  promise working, but a block that silently never shows reads as a bug, so Réglages keeps its
+  read-aloud block and says that no voice of the studied language is installed and how to add
+  one. The block stays out only while the browser lists no voice at all — no synthesiser, or
+  Chrome before it announces its voices.
 - [Firefox for Android without Web Speech] → If GeckoView does not expose `speechSynthesis`, or
   lists no voice, the row is simply absent (D1). Checked on device.
 - [Safari on iPhone and the silent switch] → Web Speech may follow the ring/silent switch. The

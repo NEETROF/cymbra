@@ -169,7 +169,7 @@ export function mountSettings(
     el("div", "set-note", "Pastille discrète en bas de la page : pourcentage + accès au deck et aux réglages."),
   );
 
-  // — Lecture à voix haute (only when a voice on this device may speak) —
+  // — Lecture à voix haute (once the browser lists its voices) —
   const speaker = opts.speaker;
   const voiceBlock = settingBlock("Lecture à voix haute");
   voiceBlock.hidden = true;
@@ -195,7 +195,14 @@ export function mountSettings(
     "set-note",
     "Firefox ne peut pas garantir que la voix d'Android reste sur l'appareil : selon le moteur choisi dans les réglages d'Android, le texte lu peut passer par le réseau.",
   );
-  voiceBlock.append(androidRow, androidNote, voiceRow, onDeviceNote);
+  // A French Windows lists only French voices of its own: Chrome's English ones are Google's,
+  // remote, and never speak. Said here, rather than a block that silently never shows.
+  const noVoiceNote = el(
+    "div",
+    "set-note",
+    "Aucune voix anglaise n'est installée sur cet appareil. Les voix en ligne du navigateur ne sont pas utilisées : le texte lu quitterait l'appareil. Ajoute une voix anglaise dans les réglages de voix du système (Windows : Paramètres › Heure et langue › Voix), puis relance le navigateur.",
+  );
+  voiceBlock.append(androidRow, androidNote, voiceRow, onDeviceNote, noVoiceNote);
 
   // — Livres — the reader page, whichever host this view is rendered in (add-lingua-reader D8).
   const booksBlock = settingBlock("Livres");
@@ -367,8 +374,10 @@ export function mountSettings(
   function renderVoices(): void {
     const eligible = speaker?.eligible() ?? [];
     const offersAndroid = speaker?.offersAndroidVoices() ?? false;
-    voiceBlock.hidden = eligible.length === 0 && !offersAndroid;
+    // No voice listed at all is no synthesiser, or Chrome before it announces its voices.
+    voiceBlock.hidden = eligible.length === 0 && !offersAndroid && !speaker?.listsVoices();
     if (!speaker || voiceBlock.hidden) return;
+    noVoiceNote.hidden = eligible.length > 0 || offersAndroid;
     androidRow.hidden = !offersAndroid;
     androidNote.hidden = !offersAndroid;
     androidToggle.checked = speaker.androidVoices();

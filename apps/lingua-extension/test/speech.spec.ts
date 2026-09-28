@@ -50,6 +50,12 @@ describe("which voice may speak", () => {
     expect(remote.length).toBeGreaterThan(0);
     expect(remote.some((v) => isEligible(v, "en"))).toBe(false);
   });
+
+  it("finds no eligible voice on a French Windows: its own voices are French, its English ones Google's", () => {
+    const voices = voiceFixture("chrome-windows");
+    expect(voices.filter((v) => isEligible(v, "en"))).toEqual([]);
+    expect(pickVoice(voices, "en", null)).toBeNull();
+  });
 });
 
 describe("the automatic choice, on the captured lists", () => {

@@ -433,14 +433,30 @@ describe("Réglages — Lecture à voix haute", () => {
     expect(s.select.querySelector("optgroup")).toBeNull();
   });
 
-  it("is absent without an eligible voice, and appears when one is announced", async () => {
-    const s = mountVoices([
-      { ...samantha, name: "Google US English", voiceURI: "Google US English", localService: false },
-    ]);
+  const noVoiceNote = (block: HTMLElement) =>
+    [...block.querySelectorAll<HTMLElement>(".set-note")].find((n) => n.textContent?.startsWith("Aucune voix"))!;
+
+  it("is absent while the browser lists no voice at all, and appears when one is announced", async () => {
+    const s = mountVoices([]);
     await settle();
     expect(s.block.hidden).toBe(true);
     s.fake.list([samantha]);
     expect(s.block.hidden).toBe(false);
+    expect(noVoiceNote(s.block).hidden).toBe(true);
+  });
+
+  it("on a French Windows, says no English voice is installed instead of offering Google's", async () => {
+    const s = mountVoices(voiceFixture("chrome-windows"));
+    await settle();
+    const p = androidParts(s.block);
+    expect(s.block.hidden).toBe(false);
+    expect(noVoiceNote(s.block).hidden).toBe(false);
+    expect(p.voiceRow.hidden).toBe(true);
+    expect(p.onDeviceNote.hidden).toBe(true);
+    expect(p.row.hidden).toBe(true);
+    s.fake.list([...voiceFixture("chrome-windows"), samantha]);
+    expect(noVoiceNote(s.block).hidden).toBe(true);
+    expect(p.voiceRow.hidden).toBe(false);
   });
 
   it("keeps the chosen voice, and the automatic choice as no voice at all", async () => {
