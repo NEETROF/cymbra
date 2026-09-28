@@ -114,7 +114,7 @@
     {
       "name": "CYMBRA ID",
       "channels": [
-        { "name": "id-help", "type": "text", "topic": "Accounts, sign-in, linked identities, account deletion." },
+        { "name": "id-help", "type": "text", "topic": "Cymbra ID is the one account behind every Cymbra app. Sign-in, linked identities, account deletion. Never post your email or a code here." },
         {
           "name": "id-stats",
           "type": "text",
@@ -138,6 +138,8 @@
       "channels": [
         { "name": "lingua-announcements", "type": "announcement", "topic": "New Cymbra Lingua versions and news. Follow this channel to get them in your own server.", "readonly": true },
         { "name": "lingua-help",          "type": "text", "topic": "Cymbra Lingua questions. Say which browser you use." },
+        { "name": "lingua-ideas",         "type": "forum", "topic": "One post per idea. React to support one." },
+        { "name": "lingua-bugs",          "type": "forum", "topic": "One post per bug. Say your browser and its version. Confirmed ones move to GitHub issues." },
         { "name": "lingua-stats",         "type": "text", "topic": "Weekly Cymbra Lingua report: active accounts, words read, words learned, reviews. Bot only.", "readonly": true }
       ]
     },
