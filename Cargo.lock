@@ -1024,6 +1024,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "cymbra-discord"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "cymbra-jobs",
+ "mockall",
+ "reqwest 0.12.23",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "cymbra-feature-flags"
 version = "0.1.0"
 dependencies = [
@@ -1113,6 +1132,7 @@ dependencies = [
  "axum",
  "chrono",
  "chrono-tz",
+ "cymbra-discord",
  "cymbra-feature-flags",
  "cymbra-jobs",
  "cymbra-musicxml-core",
@@ -1350,6 +1370,7 @@ dependencies = [
  "chrono",
  "cymbra-analytics",
  "cymbra-auth",
+ "cymbra-discord",
  "cymbra-feature-flags",
  "cymbra-jobs",
  "cymbra-lingua",

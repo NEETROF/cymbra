@@ -6,6 +6,7 @@
 //! enqueues; this binary is what actually runs background work.
 
 mod config;
+mod discord;
 mod flags;
 mod handlers;
 mod health;
@@ -187,6 +188,26 @@ async fn main() -> anyhow::Result<()> {
         }
     };
 
+    // Discord announcements (change: add-discord-notifications). Wired only when a
+    // webhook is configured; the `discord.enabled` flag (default off) still gates
+    // every post, so configuring webhooks alone publishes nothing.
+    let discord =
+        match cymbra_discord::webhook::WebhookDiscordSender::new(cfg.discord_webhooks.0.clone())? {
+            Some(sender) => {
+                tracing::info!(channels = ?cfg.discord_webhooks, "discord announcements wired");
+                Some(Arc::new(discord::Announcer::new(
+                    sender,
+                    cymbra_discord::Locale::parse(&cfg.discord_locale),
+                    queue_pool.clone(),
+                    admin_pool.clone(),
+                )))
+            }
+            None => {
+                tracing::info!("discord announcements disabled (no DISCORD_WEBHOOK_* set)");
+                None
+            }
+        };
+
     let ctx = WorkerCtx {
         email,
         user,
@@ -204,6 +225,7 @@ async fn main() -> anyhow::Result<()> {
         plan_paywall: Arc::new(flags::WorkerPaywallConfig::new(flag_service.clone())),
         web_cancel,
         rc_erase,
+        discord,
     };
 
     // --- sqlxmq runner: executes queued jobs (event-driven; design D7) ---

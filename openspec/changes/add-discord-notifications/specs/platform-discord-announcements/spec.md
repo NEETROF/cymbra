@@ -85,18 +85,22 @@ re-delivered job MUST NOT publish a second message for the same event.
 
 ### Requirement: Transient delivery failures are retried, terminal ones are abandoned
 
-A failed delivery SHALL be **retried** with backoff whenever a later attempt could fix it — a
-network error, a timeout, `429`, or any `5xx` — until it succeeds or exhausts its retry budget,
-at which point it lands in the dead-letter queue. A failure no attempt can fix — a malformed
-payload (`400`), a deleted webhook (`404`), or a rejected credential (`401`/`403`) — SHALL NOT be
-retried: it is recorded with its reason and abandoned.
+A failed delivery SHALL be **retried** with backoff whenever a later attempt could fix it and
+nothing was posted — a connection that could not be established, `429`, or any `5xx` — until it
+succeeds or exhausts its retry budget, at which point it lands in the dead-letter queue. A
+failure no attempt can fix — a malformed payload (`400`), a deleted webhook (`404`), or a
+rejected credential (`401`/`403`) — SHALL NOT be retried: it is recorded with its reason and
+abandoned.
 Retrying MUST NOT produce a duplicate message when the failed attempt had in fact reached
-Discord. Both outcomes SHALL be logged and counted, so a permanently broken channel raises an
-alert instead of going quiet.
+Discord. A webhook post carries no idempotency key, so an attempt whose request was sent but
+whose response never came (a timeout after sending) cannot be checked afterwards: it SHALL be
+recorded as uncertain and abandoned rather than retried — a missed announcement is preferred to
+a duplicate one. All three outcomes SHALL be logged and counted, so a permanently broken channel
+raises an alert instead of going quiet.
 
 #### Scenario: Discord is unreachable
 
-- **WHEN** the Discord request fails with a network error, a timeout, `429`, or a `5xx`
+- **WHEN** the Discord request cannot connect, or Discord answers `429` or a `5xx`
 - **THEN** the job is retried with backoff until it succeeds or is dead-lettered, and the announcement is not lost
 
 #### Scenario: A deleted webhook is not retried forever
@@ -109,10 +113,15 @@ alert instead of going quiet.
 - **WHEN** Discord rejects the payload with `400`
 - **THEN** the failure is recorded and the job stops instead of consuming its retry budget
 
-#### Scenario: A retry after an uncertain failure does not double-post
+#### Scenario: An uncertain failure does not double-post
 
-- **WHEN** an attempt reaches Discord but its response is lost, and the job is retried
-- **THEN** the retry detects the announcement as already handled and posts nothing
+- **WHEN** an attempt's request was sent to Discord but its response was lost
+- **THEN** the announcement is recorded as uncertain and not retried, so the channel never shows it twice
+
+#### Scenario: A redelivery after a crash between claim and post
+
+- **WHEN** a job claimed an announcement and stopped before posting it, and the job is delivered again
+- **THEN** the claim is taken over once it is older than the grace window, and the announcement is posted once
 
 ### Requirement: A named announcement requires the cumulative consent gate
 
@@ -176,6 +185,16 @@ the public profile field set.
 
 - **WHEN** a proposed score or soundfont is accepted into the public catalog
 - **THEN** an immediate announcement is published for it
+
+#### Scenario: A season record is announced without the player
+
+- **WHEN** a result on a catalog piece beats the season's best held by another player
+- **THEN** the announcement names the piece, the mode and the figure, never the player, and a piece yields at most one record announcement per mode and UTC day
+
+#### Scenario: A first result or a holder's own improvement is not a record
+
+- **WHEN** a result is the first on a piece this season, or improves the best its player already held
+- **THEN** no record is announced
 
 #### Scenario: Pending and rejected items are never announced
 

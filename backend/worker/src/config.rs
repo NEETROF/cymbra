@@ -71,6 +71,24 @@ pub struct WorkerConfig {
     /// notifications). `None` leaves the `push_dispatch` job inert (it logs and
     /// completes) so a deployment without a Firebase project simply sends nothing.
     pub fcm_service_account_json: Option<String>,
+    /// One webhook per Discord channel, from the `DISCORD_WEBHOOK_<CHANNEL>`
+    /// variables `scripts/discord/provision.sh` writes (change: add-discord-
+    /// notifications). Empty leaves the `discord_notify` job inert.
+    pub discord_webhooks: DiscordWebhooks,
+    /// The Discord server's locale (`CYMBRA_DISCORD_LOCALE`, `en` or `fr`; design
+    /// D9). Default English.
+    pub discord_locale: String,
+}
+
+/// Channel name → webhook URL. The URLs are secrets: `Debug` prints the channel
+/// names only, so logging the configuration never leaks one.
+#[derive(Clone, PartialEq, Eq, Default)]
+pub struct DiscordWebhooks(pub std::collections::BTreeMap<String, String>);
+
+impl std::fmt::Debug for DiscordWebhooks {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_list().entries(self.0.keys()).finish()
+    }
 }
 
 impl WorkerConfig {
@@ -82,7 +100,7 @@ impl WorkerConfig {
 
 /// Pure parsing/validation over a key/value map.
 pub mod core {
-    use super::{Duration, HashMap, WorkerConfig};
+    use super::{DiscordWebhooks, Duration, HashMap, WorkerConfig};
 
     pub fn parse(m: &HashMap<String, String>) -> Result<WorkerConfig, String> {
         let concurrency_max = num(m, "CYMBRA_WORKER_CONCURRENCY_MAX", 16)?;
@@ -135,6 +153,10 @@ pub mod core {
                 .get("CYMBRA_FCM_SERVICE_ACCOUNT_JSON")
                 .filter(|v| !v.is_empty())
                 .cloned(),
+            discord_webhooks: DiscordWebhooks(cymbra_discord::webhooks_from_env(
+                m.iter().map(|(k, v)| (k.as_str(), v.as_str())),
+            )),
+            discord_locale: opt(m, "CYMBRA_DISCORD_LOCALE", "en"),
         })
     }
 
@@ -268,6 +290,31 @@ mod tests {
         // An empty value is the same as unset.
         m.insert("CYMBRA_FCM_SERVICE_ACCOUNT_JSON".into(), String::new());
         assert_eq!(core::parse(&m).unwrap().fcm_service_account_json, None);
+    }
+
+    #[test]
+    fn discord_webhooks_are_optional_and_never_printed() {
+        let c = core::parse(&base()).unwrap();
+        assert!(c.discord_webhooks.0.is_empty());
+        assert_eq!(c.discord_locale, "en");
+        let mut m = base();
+        m.insert(
+            "DISCORD_WEBHOOK_SCORES_AND_SOUNDFONTS".into(),
+            "https://discord.com/api/webhooks/1/secret-token".into(),
+        );
+        m.insert("CYMBRA_DISCORD_LOCALE".into(), "fr".into());
+        let c = core::parse(&m).unwrap();
+        assert_eq!(
+            c.discord_webhooks
+                .0
+                .get("scores-and-soundfonts")
+                .map(String::as_str),
+            Some("https://discord.com/api/webhooks/1/secret-token")
+        );
+        assert_eq!(c.discord_locale, "fr");
+        let printed = format!("{c:?}");
+        assert!(printed.contains("scores-and-soundfonts"));
+        assert!(!printed.contains("secret-token"));
     }
 
     #[test]

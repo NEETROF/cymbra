@@ -119,7 +119,8 @@ code needs tests. CI fails under 80% and also reports to SonarCloud (decoration)
   thin MusicXML FFI seam in `api/musicxml.rs`, and the cpal/rustysynth audio glue
   in `api/audio.rs`, `api/renderer.rs` and `api/platform_log.rs` (`api/android_output.rs`
   is cfg-gated off the host build already), and the thin Postgres/HTTP adapters of the
-  backend crates (`pg*.rs`, `grpc.rs`, provider webhook glue), and the lingua
+  backend crates (`pg*.rs`, `grpc.rs`, provider webhook glue, the Discord webhook
+  sender `discord/src/webhook.rs` and its worker wiring `worker/src/discord.rs`), and the lingua
   wasm-bindgen glue (`lingua-wasm/`, `lingua-core/src/wasm` — reserved by
   `add-lingua-analysis`, filled by `add-lingua-wasm`).
   Keep pure, testable logic in host-testable modules like `api/midi_core.rs`,

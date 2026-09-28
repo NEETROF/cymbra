@@ -196,6 +196,15 @@ pub const NOTIFICATIONS_KEY_PREFIX: &str = "notifications.";
 /// never result in messaging users.
 pub const NOTIFICATIONS_ENABLED: &str = "notifications.enabled";
 
+/// Discord announcements kill-switch (change: add-discord-notifications, design
+/// D8). Off = nothing is posted to the community server, including announcements
+/// already enqueued. Defaults off: merging the code posts nothing.
+pub const DISCORD_ENABLED: &str = "discord.enabled";
+/// Discord category: scores and SoundFonts accepted into the public catalog.
+pub const DISCORD_MUSIC_CATALOG: &str = "discord.music.catalog";
+/// Discord category: season records beaten on catalog pieces (anonymous).
+pub const DISCORD_MUSIC_RECORDS: &str = "discord.music.records";
+
 /// The per-category enable key for `category`, e.g.
 /// `notifications.category.practice_streak.enabled`.
 pub fn category_enabled_key(category: &str) -> String {
@@ -396,6 +405,31 @@ pub fn builtin() -> Vec<KeyDef> {
             false,
             false,
             "Surface the streak reminder in-app when it arrives with the app open.",
+        ),
+        // Discord announcements (change: add-discord-notifications, design D8).
+        // Server-side, evaluated by the worker at publication time — APP_ALL like
+        // the push keys. All off: deploying posts nothing until an operator opts
+        // in, one category at a time.
+        flag(
+            DISCORD_ENABLED,
+            APP_ALL,
+            false,
+            false,
+            "Discord announcements kill-switch: off posts nothing on the community server, including announcements already queued.",
+        ),
+        flag(
+            DISCORD_MUSIC_CATALOG,
+            APP_ALL,
+            false,
+            false,
+            "Announce each score and SoundFont accepted into the Cymbra Music catalog in #scores-and-soundfonts.",
+        ),
+        flag(
+            DISCORD_MUSIC_RECORDS,
+            APP_ALL,
+            false,
+            false,
+            "Announce season records beaten on catalog pieces in #music-leaderboards — the piece and the figure, never the player; at most one per piece and mode per day.",
         ),
         // -- config tunables --
         cfg(
@@ -782,6 +816,9 @@ mod tests {
             ONBOARDING_ENABLED,
             PLATFORM_MAINTENANCE,
             NOTIFICATIONS_ENABLED,
+            DISCORD_ENABLED,
+            DISCORD_MUSIC_CATALOG,
+            DISCORD_MUSIC_RECORDS,
         ] {
             assert_eq!(r.get_by_key(key).unwrap().default, FlagValue::Bool(false));
         }

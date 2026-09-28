@@ -44,6 +44,32 @@ pub struct GlobalSeasonBest {
     pub achieved_at_ms: i64,
 }
 
+/// The Discord announcement a new season best earns, if it **beat a record**
+/// another player held (change: add-discord-notifications, task 4.3). Anonymous:
+/// the piece, the mode and the figure — never the player. `others_best` is the
+/// best of every other player on the same season, piece and mode, `own_previous`
+/// this player's best before `best`; both read in the upsert's transaction.
+pub fn record_announcement(
+    best: &GlobalSeasonBest,
+    others_best: Option<f32>,
+    own_previous: Option<f32>,
+) -> Option<cymbra_discord::AnnouncementEvent> {
+    if !cymbra_discord::beats_record(others_best, own_previous, best.subscore) {
+        return None;
+    }
+    let achieved_on = chrono::DateTime::from_timestamp_millis(best.achieved_at_ms)?.date_naive();
+    Some(cymbra_discord::AnnouncementEvent::SeasonRecord {
+        season_id: best.season_id.clone(),
+        catalog_score_id: best.catalog_score_id.clone(),
+        mode: match best.mode {
+            Mode::Tempo => cymbra_discord::RecordMode::Tempo,
+            Mode::Reaction => cymbra_discord::RecordMode::Reaction,
+        },
+        subscore: best.subscore,
+        achieved_on,
+    })
+}
+
 /// A stored season best as read back for aggregation, joined with the piece's
 /// catalog `level` (the difficulty-weight input). No sensitive fields: display
 /// handles are resolved separately through the [`cymbra_user_port::UserPort`].
@@ -255,5 +281,70 @@ impl GlobalLeaderboardRepo for FakeGlobalLeaderboardRepo {
         seasons.dedup();
         seasons.reverse(); // most recent first (ids sort chronologically)
         Ok(seasons)
+    }
+}
+
+#[cfg(test)]
+mod record_announcement_tests {
+    use super::*;
+
+    fn best(mode: Mode, subscore: f32) -> GlobalSeasonBest {
+        GlobalSeasonBest {
+            user_id: "u1".into(),
+            season_id: "2026-09".into(),
+            catalog_score_id: "p1".into(),
+            mode,
+            subscore,
+            // 2026-09-28T21:30:00Z
+            achieved_at_ms: 1_790_631_000_000,
+        }
+    }
+
+    #[test]
+    fn beating_another_players_record_is_announced_anonymously() {
+        let event = record_announcement(&best(Mode::Reaction, 95.0), Some(90.0), None).unwrap();
+        assert_eq!(
+            event,
+            cymbra_discord::AnnouncementEvent::SeasonRecord {
+                season_id: "2026-09".into(),
+                catalog_score_id: "p1".into(),
+                mode: cymbra_discord::RecordMode::Reaction,
+                subscore: 95.0,
+                achieved_on: chrono::NaiveDate::from_ymd_opt(2026, 9, 28).unwrap(),
+            }
+        );
+        let json = serde_json::to_string(&event).unwrap();
+        assert!(!json.contains("u1"), "the player never reaches the payload");
+        let tempo = record_announcement(&best(Mode::Tempo, 95.0), Some(90.0), None).unwrap();
+        assert!(matches!(
+            tempo,
+            cymbra_discord::AnnouncementEvent::SeasonRecord {
+                mode: cymbra_discord::RecordMode::Tempo,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn no_announcement_without_a_record_beaten() {
+        assert_eq!(
+            record_announcement(&best(Mode::Tempo, 95.0), None, None),
+            None
+        );
+        assert_eq!(
+            record_announcement(&best(Mode::Tempo, 85.0), Some(90.0), None),
+            None
+        );
+        assert_eq!(
+            record_announcement(&best(Mode::Tempo, 99.0), Some(90.0), Some(96.0)),
+            None
+        );
+    }
+
+    #[test]
+    fn an_impossible_timestamp_announces_nothing() {
+        let mut b = best(Mode::Tempo, 95.0);
+        b.achieved_at_ms = i64::MAX;
+        assert_eq!(record_announcement(&b, Some(90.0), None), None);
     }
 }

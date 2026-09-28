@@ -596,6 +596,18 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
                 "score preview render not enqueued on accept (backfill will cover it)"
             );
         }
+        // Same transaction, same best-effort rule: the acceptance is announced on
+        // Discord iff it commits (change: add-discord-notifications, task 4.2). A
+        // re-acceptance enqueues again and stops at the announcement's dedup key.
+        if updated && status == "accepted" {
+            cymbra_discord::pg::enqueue_notify(
+                &mut tx,
+                &cymbra_discord::AnnouncementEvent::ScoreAccepted {
+                    catalog_score_id: score_id.to_string(),
+                },
+            )
+            .await;
+        }
         tx.commit().await.map_err(search_internal)?;
         Ok(updated)
     }
@@ -696,11 +708,25 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
             .bind(&entry.content_fingerprint)
             .bind(status)
             .bind(proposer);
+        // An admin's proposal lands accepted: announce it in the same transaction
+        // as the insert (change: add-discord-notifications, task 4.2).
+        let mut tx = self.pool.begin().await.map_err(search_internal)?;
         let result = bind_meta(q, &entry.meta)
-            .execute(&self.pool)
+            .execute(&mut *tx)
             .await
             .map_err(search_internal)?;
-        Ok(result.rows_affected() > 0)
+        let inserted = result.rows_affected() > 0;
+        if inserted && accepted {
+            cymbra_discord::pg::enqueue_notify(
+                &mut tx,
+                &cymbra_discord::AnnouncementEvent::ScoreAccepted {
+                    catalog_score_id: id.to_string(),
+                },
+            )
+            .await;
+        }
+        tx.commit().await.map_err(search_internal)?;
+        Ok(inserted)
     }
 
     async fn reopen_rejected(

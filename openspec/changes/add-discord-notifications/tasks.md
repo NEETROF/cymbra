@@ -1,12 +1,16 @@
+Delivered in tranches (design, "Delivery in tranches"): **1** announcements — groups 1, 3.1–3.5,
+3.10, 3.12, 4, 5.1–5.3, 8.2; **2** reports — 1.6, 3.6–3.9, 3.11, 3.13, 5.4; **3** bot — 6; **4** naming —
+2, 7.1–7.2, 7.4, 8.1. 7.3 and 7.5 ship with whichever tranche first needs the community link.
+
 ## 1. Crate skeleton + pure core (D1)
 
-- [ ] 1.1 Create `backend/discord` (`cymbra-discord`) as a workspace member: `Cargo.toml` with workspace deps (`async-trait`, `serde`, `thiserror`, `tracing`, `reqwest`, `sqlx`), Apache header, and a `README.md` stating the port/core split
-- [ ] 1.2 Define the event model in a pure module: `AnnouncementEvent` (kind + subject ids + dedup key) and `EventCategory` (immediate tiers + digest), with the **deny-list encoded in the type** so authentication and non-accepted moderation states are not representable
-- [ ] 1.3 Define the `DiscordSender` port (`publish`, `grant_role`, `revoke_role`) + error type; add `#[automock]` for test doubles per the `rust-testing` convention
-- [ ] 1.4 Implement pure `(product, category) → channel` routing over a configuration map with product-namespaced categories (`music.*`, `id.*`, `lingua.*`, later `live.*`); an unmapped pair resolves to "no channel" (no-op), never to a default channel, so one product can never post in another's section
-- [ ] 1.5 Implement pure message rendering per event kind, locale-parameterised (D9), with a rendering test per kind asserting no id/email leaks into the body
+- [x] 1.1 Create `backend/discord` (`cymbra-discord`) as a workspace member: `Cargo.toml` with workspace deps (`async-trait`, `serde`, `thiserror`, `tracing`, `reqwest`, `sqlx`), Apache header, and a `README.md` stating the port/core split
+- [x] 1.2 Define the event model in a pure module: `AnnouncementEvent` (kind + subject ids + dedup key) and `EventCategory` (immediate tiers + digest), with the **deny-list encoded in the type** so authentication and non-accepted moderation states are not representable
+- [x] 1.3 Define the `DiscordSender` port (`publish`, plus `serves` so an unconfigured channel is a no-op) + its `SendError` classification; add `#[automock]` for test doubles per the `rust-testing` convention. `grant_role`/`revoke_role` join the port with the bot (6.4)
+- [x] 1.4 Implement pure `(product, category) → channel` routing over a configuration map with product-namespaced categories (`music.*`, `id.*`, `lingua.*`, later `live.*`); an unmapped pair resolves to "no channel" (no-op), never to a default channel, so one product can never post in another's section
+- [x] 1.5 Implement pure message rendering per event kind, locale-parameterised (D9), with a rendering test per kind asserting no id/email leaks into the body
 - [ ] 1.6 Implement the pure throttle + aggregate-minimum arithmetic (per-player window, minimum player count below which a figure is omitted) with unit tests on the boundaries
-- [ ] 1.7 Unit-test the pure core to the coverage bar and add the HTTP adapter paths to `.github/coverage-ignore-regex.txt` — the **single** source read by both the `rust` 80% gate and `sonar` (it used to be two inline copies and they had drifted); mirror the addition in the CLAUDE.md coverage paragraph
+- [x] 1.7 Unit-test the pure core to the coverage bar and add the HTTP adapter paths to `.github/coverage-ignore-regex.txt` — the **single** source read by both the `rust` 80% gate and `sonar` (it used to be two inline copies and they had drifted); mirror the addition in the CLAUDE.md coverage paragraph
 
 ## 2. Consent + gate (D6)
 
@@ -18,32 +22,35 @@
 
 ## 3. Publication pipeline (D4, D5)
 
-- [ ] 3.1 Create `backend/discord/migrations/0001_init.sql`: `discord` schema + `published_announcements` (unique dedup key, status, timestamps) and the role the worker uses to write it
-- [ ] 3.2 Implement the claim → post → mark-published sequence over that table, including re-claim of a stale claim after the grace period; integration-test the double-execution and crash-between-claim-and-post paths
-- [ ] 3.3 Add `DISCORD_NOTIFY` and `DISCORD_DIGEST` name constants + `JobSpec`s + their `Channel` to `cymbra_jobs::registry`
-- [ ] 3.4 Implement `WebhookDiscordSender` (reqwest, per-channel webhook URLs, no secret in logs or errors) behind the port
-- [ ] 3.5 Add `discord: Option<Arc<dyn DiscordSender>>` to `WorkerCtx` and the `#[sqlxmq::job("discord_notify")]` handler: load event → re-evaluate flags + gate → render → publish; `None` sender or missing channel = successful no-op. The body runs inside `cymbra_jobs::tracked`, like every other handler, so the back-office jobs history records its attempts (same for `discord_digest` and the role job of 6.5)
+- [x] 3.1 Create the announcement ledger `backend/jobs/migrations/0020_discord_announcements.sql`: `jobs.discord_announcements` (unique dedup key, status, timestamps, failure reason), owned by `worker_svc` like the rest of `jobs` (design D5 records why not a `discord` schema)
+- [x] 3.2 Implement the claim → post → mark-published sequence over that table, including re-claim of a stale claim after the grace period; integration-test the double-execution and crash-between-claim-and-post paths
+- [x] 3.3 Add the `DISCORD_NOTIFY` name constant + `JobSpec` + its `Channel` to `cymbra_jobs::registry` (`DISCORD_DIGEST` lands with 3.6)
+- [x] 3.4 Implement `WebhookDiscordSender` (reqwest, per-channel webhook URLs, no secret in logs or errors) behind the port
+- [x] 3.5 Add `discord: Option<Arc<…>>` to `WorkerCtx` and the `#[sqlxmq::job("discord_notify")]` handler: load event → re-evaluate flags (+ the gate, once named events exist) → render → publish; `None` sender or missing channel = successful no-op. The body runs inside `cymbra_jobs::tracked`, like every other handler, so the back-office jobs history records its attempts (same for `discord_digest` and the role job of 6.5)
 - [ ] 3.6 Implement the `discord_digest` handler: one message **per product** into that product's stats channel, at that product's flag-driven cadence, from each product's existing aggregates (Music and ID day aggregates, Lingua through 3.8), with the aggregate minimum applied; seed its schedule in `backend/jobs/migrations/`. Each run reports only the previous **closed** period of each product's cadence; the Lingua week is due one day after it closes, because its figures arrive by device sync
 - [ ] 3.7 Build the Music report content: active players, sessions, new accounts, scores rated (and how many reached consensus), catalog items accepted, top 10 pieces played — the top-pieces query MUST join `music.catalog_scores` and count only accepted catalog pieces, since `play_sessions.score_id` also holds **user** score ids and would otherwise publish a private upload's identity
 - [ ] 3.8 Build the Lingua weekly report per `scripts/discord/reports.md` §3: active accounts, words read, words learned, reviews done, and up to three studied languages shown only once two or more each reach `k` (no `other` line) — all from **one** call to the existing `LinguaAdminRepo::usage` (`backend/lingua/src/pg_admin.rs`, over `lingua.daily_stats`), whose query gains an identifier-free contributor count per summed column (`COUNT(DISTINCT user_id) FILTER (WHERE <col> > 0)`) so each figure is gated on the accounts that contributed to it — in the **totals** statement of `usage()` only (the `by_language` breakdown is untouched, since the languages row gates on its existing per-language `active_accounts`), carried on `Usage` and kept **off** `AdminGetLinguaUsageResponse` (no proto, back-office or `admin-lingua-console` delta), with the literal `Usage { … }` in the `admin.rs` tests updated and an `#[ignore]`d Postgres test beside `backend/lingua/tests/pg_data_it.rs` proving the counts (five active accounts of which one reviewed ⇒ a reviews contributor count of 1). `new_words_seen` stays unpublished (back office only, per `refine-lingua-reading-stats`). Behind a narrow port declared in `backend/discord`, adapted over `PgLinguaAdminRepo` in the worker composition root. Wiring the worker does not exist yet: add an optional `lingua_database_url` to `WorkerConfig` read from `CYMBRA_LINGUA_DATABASE_URL` (mirroring `plans_database_url`, with a config test), open a small `lingua_svc` pool only when it is set and **never** run the lingua migrator (the server owns that schema), add `lingua_usage: Option<Arc<dyn …>>` to `WorkerCtx` (`None` = Lingua section skipped and logged), move `cymbra-lingua` from `[dev-dependencies]` to `[dependencies]` in `backend/worker/Cargo.toml` and rewrite its comment there, and say in `backend/.env.example` that the worker reads the variable too. Never query `word_statuses`/`cards`, and never name anyone: Lingua has no public profile
 - [ ] 3.9 Build the top-50 surfaces: weekly post in the product's leaderboard channel and an on-demand slash command, both reusing the same pure ranking core as the top 10. The weekly post also carries the current season's global top 10 players, read through the existing global-leaderboard core (`add-global-leaderboard`), names through the D6 gate
-- [ ] 3.10 Classify Discord failures in the sender: network/timeout/`429`/`5xx` → return `Err` so the job engine retries with backoff; `400`/`401`/`403`/`404` → record the reason, log at `error`, count it, and return `Ok` so a deleted webhook cannot burn the retry budget forever
+- [x] 3.10 Classify Discord failures in the sender: refused connection/`429`/`5xx` → return `Err` so the job engine retries with backoff; `400`/`401`/`403`/`404`, and a timeout after the request was sent (uncertain: retrying could double-post) → record the reason, log at `error`, count it, and return `Ok` so a deleted webhook cannot burn the retry budget forever
 - [ ] 3.11 Implement the "nothing to say" rule in the **pure core**: a report whose every element is zero or suppressed returns "no message", the handler posts nothing and logs the skip with its reason
-- [ ] 3.12 Test handler idempotency, the flag-disabled-after-enqueue path, the gate-revoked-after-enqueue path, per-product routing (a product's event or report never resolves another product's channel — Music, ID, Lingua), a digest run with no Lingua source configured (no Lingua message, no sender call for it, the other products still published), the first run after a Lingua week ends (Monday) publishing nothing for it and the Tuesday run publishing it exactly once, the languages row omitted with a single language and with two languages of which one is under `k`, retry on `5xx`/timeout, no-retry on `400`/`404`, no double-post when a retried attempt had already reached Discord, and the empty/all-suppressed report producing no call to the sender at all
+- [x] 3.12 Test the `discord_notify` path: idempotency (settled key, in-flight claim, stale claim taken over), the flag-disabled-after-enqueue path, the subject-no-longer-public path, per-product routing (a route outside its product's section is refused), retry on `429`/`5xx`/refused connection, no retry on `400`/`404` or on a timeout after sending, and no second post of a settled key. The gate-revoked-after-enqueue path lands with the first named event (tranche 4)
+- [ ] 3.13 Test the digest: a digest run with no Lingua source configured (no Lingua message, no sender call for it, the other products still published), the first run after a Lingua week ends (Monday) publishing nothing for it and the Tuesday run publishing it exactly once, the languages row omitted with a single language and with two languages of which one is under `k`, retry on `5xx`/timeout, no-retry on `400`/`404`, no double-post when a retried attempt had already reached Discord, and the empty/all-suppressed report producing no call to the sender at all
 
 ## 4. Producers (D4)
 
-- [ ] 4.1 Enqueue `discord_notify` on soundfont acceptance, **inside the existing transaction**, and assert no announcement is enqueued for propose/reject transitions
-- [ ] 4.2 Enqueue `discord_notify` on score-proposal acceptance, same transactional guarantee and same negative assertions
-- [ ] 4.3 Enqueue `discord_notify` when a season record is beaten, reusing the existing season-best ingest hook
-- [ ] 4.4 Add a rollback test per producer proving a rolled-back domain write leaves no enqueued announcement
-- [ ] 4.5 Assert no producer performs Discord I/O on the request path (the `Enqueuer` port is the only seam used)
+- [x] 4.1 Enqueue `discord_notify` on soundfont acceptance, **inside the existing transaction**, and assert no announcement is enqueued for propose/reject transitions
+- [x] 4.2 Enqueue `discord_notify` on score-proposal acceptance, same transactional guarantee and same negative assertions
+- [x] 4.3 Enqueue `discord_notify` when a season record is beaten, reusing the existing season-best ingest hook
+- [x] 4.4 Prove a rolled-back domain write leaves no enqueued announcement — on `enqueue_notify`, the one helper every producer calls (`backend/discord/tests/pg_it.rs`), plus a per-producer integration test of the committed path (`backend/music/tests/discord_producers_it.rs`) and a proof that a refused enqueue never aborts the domain write (savepoint)
+- [x] 4.5 No producer performs Discord I/O on the request path: the only seam they call is `cymbra_discord::pg::enqueue_notify` (a `jobs.enqueue` inside their transaction); the sender exists only in the worker
 
 ## 5. Flags (D8)
 
-- [ ] 5.1 Register the `discord.enabled` kill-switch (**default off**) and one flag per product-namespaced category (`discord.music.*`, `discord.id.*`, `discord.lingua.*`) plus each product's report cadence (daily/weekly) in the flag definitions — defaults Music daily, ID weekly, Lingua weekly (`scripts/discord/reports.md`)
-- [ ] 5.2 Read the flags at publication time in both handlers; kill-switch off suppresses every category, a category flag off suppresses only its own
-- [ ] 5.3 Add the flag descriptions/copy so they are self-explanatory in the back-office flags console (no new screen): the English `doc` in `backend/feature-flags/src/registry.rs`, the French one in `apps/back-office/src/i18n/flag-descriptions.ts`
+- [x] 5.1 Register the `discord.enabled` kill-switch (**default off**) and one flag per product-namespaced category — `discord.music.catalog`, `discord.music.records` for the announcements; the report categories (`discord.music.report`, `discord.id.report`, `discord.lingua.report`) land with 5.4
+- [x] 5.2 Read the flags at publication time in both handlers (`discord_notify` now, `discord_digest` with 3.6); kill-switch off suppresses every category, a category flag off suppresses only its own
+- [x] 5.3 Add the flag descriptions/copy so they are self-explanatory in the back-office flags console (no new screen): the English `doc` in `backend/feature-flags/src/registry.rs`, the French one in `apps/back-office/src/i18n/flag-descriptions.ts`
+
+- [ ] 5.4 Register the report flags: one per product (`discord.music.report`, `discord.id.report`, `discord.lingua.report`) plus each product's report cadence (daily/weekly) — defaults Music daily, ID weekly, Lingua weekly (`scripts/discord/reports.md`) — with their English and French descriptions
 
 ## 6. Bot: interactions endpoint + roles (D3, D10)
 
@@ -71,12 +78,12 @@
 ## 8. Legal + docs
 
 - [ ] 8.1 Document in the **published** privacy policy (`apps/site/src/pages/confidentialite.md`, `apps/site/src/pages/en/privacy.md` — the source of truth; the `docs/legal/*` drafts predate the annexes and have no Lingua text) (a) in Annex A, the Music naming consent and its forward-only irreversibility, with consent added to Annex A's legal-basis bullet beside the existing contract basis; (b) in §2 and §3, one cross-product disclosure that anonymous aggregate figures (no identity, hidden below 5 people) are published on Cymbra's public community channels, on the basis of legitimate interest; (c) in Annex B, that purpose added to the daily-statistics row, which today states only internal aggregate use ("aggregated usage figures to run the service"), and legitimate interest added to Annex B's legal-basis bullet, which today names only the contract (providing sync)
-- [ ] 8.2 Write `backend/discord/README.md`: event categories, the deny-list, the gate, the flags, and the operational runbook (rotate a webhook, hard-kill, read the DLQ)
+- [x] 8.2 Write `backend/discord/README.md`: event categories, the deny-list, the flags, and the operational runbook (rotate a webhook, hard-kill, read the failures); the gate section joins it with tranche 4
 
 ## 9. Verification
 
 - [ ] 9.1 `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, and `cargo llvm-cov --workspace --fail-under-lines 80` green with the new crate included
 - [ ] 9.2 `melos run analyze`, `dart run custom_lint`, `dart format`, and `flutter test --coverage` green with the app changes
-- [ ] 9.3 `openspec validate add-discord-notifications --strict` passes
+- [x] 9.3 `openspec validate add-discord-notifications --strict` passes
 - [ ] 9.4 Manual: deploy dark (flags off, no config) and confirm every announcement path is inert and the interactions route rejects unverified requests
 - [ ] 9.5 Manual: configure a test Discord server, enable one immediate category, verify the message content, then verify the digest and the throttle over a day

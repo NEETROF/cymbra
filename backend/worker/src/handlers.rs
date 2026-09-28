@@ -77,6 +77,10 @@ pub struct WorkerCtx {
     /// swap-store-billing-to-revenuecat, D6): the account's aggregator customer is
     /// deleted before its plan rows are erased. `None` when unconfigured.
     pub rc_erase: Option<Arc<dyn cymbra_plans::StoreCustomerEraser>>,
+    /// Discord announcements for the `discord_notify` job (change: add-discord-
+    /// notifications). `None` when no `DISCORD_WEBHOOK_*` is configured — the job
+    /// then completes as a no-op.
+    pub discord: Option<Arc<crate::discord::Announcer>>,
 }
 
 /// Payload of the `score_preview_render` job (change: add-score-daily-access-rewards).
@@ -629,10 +633,43 @@ pub async fn plans_withdraw(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), B
     .await
 }
 
+/// Announce one event on Discord (change: add-discord-notifications, design D4/D5).
+/// The payload is the event identity; the publisher re-checks the flags and the
+/// subject now, claims the dedup key and posts at most once. `Err` — hence a retry
+/// — only for a failure a later attempt can fix (rate limit, 5xx, database).
+#[sqlxmq::job("discord_notify")]
+pub async fn discord_notify(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxError> {
+    let span = tracing::info_span!("job.discord_notify", job_id = %job.id());
+    let (pool, id, name) = (job.pool().clone(), job.id(), job.name().to_owned());
+    tracked(&pool, id, &name, async move {
+        let event: cymbra_discord::AnnouncementEvent =
+            job.json()?.ok_or("discord_notify: missing JSON payload")?;
+        match &ctx.discord {
+            Some(announcer) => {
+                // Pick up a back-office flag change made since the last job
+                // (best-effort; a store outage keeps last-known/defaults — off).
+                if let Err(e) = ctx.flags.refresh().await {
+                    tracing::warn!(error = %e, "discord_notify flag refresh failed; using last-known/default");
+                }
+                let outcome = announcer.publish(&ctx.flags, &event).await?;
+                tracing::info!(key = %event.dedup_key(), ?outcome, "discord announcement handled");
+            }
+            None => tracing::info!(
+                key = %event.dedup_key(),
+                "discord_notify skipped: no Discord webhook configured"
+            ),
+        }
+        job.complete().await?;
+        Ok(())
+    })
+    .instrument(span)
+    .await
+}
+
 /// Every handler the worker runs — one list for the registry and for the test that
 /// pins it to `cymbra_jobs::registry::builtin()`, so a kind the console lists always
 /// has a handler, and a handler always has a kind (change: add-admin-jobs-console).
-fn all_jobs() -> [&'static sqlxmq::NamedJob; 16] {
+fn all_jobs() -> [&'static sqlxmq::NamedJob; 17] {
     [
         verification_email,
         orphan_reap,
@@ -650,6 +687,7 @@ fn all_jobs() -> [&'static sqlxmq::NamedJob; 16] {
         streak_reminder,
         plans_reconcile,
         plans_withdraw,
+        discord_notify,
     ]
 }
 

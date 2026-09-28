@@ -1,0 +1,30 @@
+[package]
+name = "cymbra-discord"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Cymbra Discord announcements — the event model producers enqueue, the host-testable publication core (routing, rendering, flags, idempotency), the mockable DiscordSender port and its webhook implementation (change: add-discord-notifications)."
+
+[dependencies]
+async-trait.workspace = true
+tracing.workspace = true
+serde = { workspace = true }
+serde_json.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+chrono = { workspace = true, features = ["serde"] }
+sqlx.workspace = true
+uuid.workspace = true
+reqwest.workspace = true
+# The job name + spec the producers enqueue under, and the transactional enqueue.
+cymbra-jobs = { path = "../jobs" }
+mockall = { workspace = true, optional = true }
+
+[features]
+mock = ["dep:mockall"]
+
+[dev-dependencies]
+tokio = { workspace = true }
+uuid = { workspace = true, features = ["v4"] }
+mockall = { workspace = true }

@@ -67,6 +67,10 @@ cymbra-sf2-meta = { path = "../../crates/sf2-meta" }
 # reaching into the `user_account` schema directly.
 cymbra-user-port = { path = "../user-port" }
 cymbra-jobs = { path = "../jobs" }
+# The Discord announcement event + its transactional enqueue (change:
+# add-discord-notifications): accepting a catalog item or beating a season record
+# announces it.
+cymbra-discord = { path = "../discord" }
 # Plan seams (change: add-premium-subscription): the daily-access `SubscriptionSource`,
 # the shop `owned` input and the per-plan quotas consume `PlanSource`/`Unlock` from the
 # plans crate — a port dependency; `plans` never depends on `music`.
