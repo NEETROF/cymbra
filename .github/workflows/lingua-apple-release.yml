@@ -250,7 +250,7 @@ jobs:
           xcrun altool --upload-app --type macos --file "cymbra-lingua-${MACOS_BUILD}.pkg" \
             --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
 
-      # Announce the new version in #announcements, LAST, once both builds reached App Store
+      # Announce the new version in #lingua-announcements, LAST, once both builds reached App Store
       # Connect: a failed delivery announces nothing. The tag run only — a dispatch with
       # `deliver` is a re-delivery, not a release. The App Store update itself waits for
       # review and a manual release, which the announcement's store field says
@@ -263,5 +263,5 @@ jobs:
           TAG: ${{ github.ref_name }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Absent ⇒ the script warns and skips.
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_ANNOUNCEMENTS }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_LINGUA_ANNOUNCEMENTS }}
         run: bash scripts/discord/release_announce.sh
