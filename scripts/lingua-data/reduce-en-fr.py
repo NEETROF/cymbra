@@ -863,22 +863,31 @@ def _join_senses_by_pos(per_entry, poses, maxlen, max_senses):
     return joined, [tuple(run) for run in runs]
 
 
+def _acronym(headword):
+    """Whether a headword is written all in capitals, as an acronym is ("AND", "WHO", "US")."""
+    return len(headword) > 1 and headword.isupper()
+
+
 def reduce_gloss(path, lemmas, maxlen, per_sense=42, max_senses=3, runs=None):
     """Up to `max_senses` short French glosses per canonical lemma, joined by "; ".
 
-    Form-of senses ("Pluriel de …") are skipped — they are not meanings. The senses that
-    make the cut are picked by `_join_senses_by_pos`, which groups them by part of speech;
-    `runs`, when given, gets each gloss's runs: lemma -> [(part of speech, senses)].
+    Form-of senses ("Pluriel de …") are skipped — they are not meanings. An acronym's
+    entries do not gloss the common word spelled like it in lower case when that word has an
+    entry of its own: "AND", the logic operator, gave "and" a noun "ET" and a verb "Faire le
+    ET de"; "WHO" gave "who" « OMS », "FOR" gave "for" « Franco wagon ». An acronym with no
+    such word keeps its gloss: "NATO" still glosses "nato". The senses that make the cut are
+    picked by `_join_senses_by_pos`, which groups them by part of speech; `runs`, when given,
+    gets each gloss's runs: lemma -> [(part of speech, senses)].
     """
-    entries = {}  # word -> [per-entry [gloss,...]]
-    poses = {}  # word -> [per-entry part of speech]
+    entries = {}  # word -> [(an acronym's entry, part of speech, [gloss, ...])], in source order
     with open(path, encoding="utf-8", errors="replace") as f:
         for line in f:
             try:
                 d = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            word = (d.get("word") or "").strip().lower()
+            headword = (d.get("word") or "").strip()
+            word = headword.lower()
             if not word or word not in lemmas:
                 continue
             senses = []
@@ -889,12 +898,13 @@ def reduce_gloss(path, lemmas, maxlen, per_sense=42, max_senses=3, runs=None):
                     if g:
                         senses.append(g)
             if senses:
-                entries.setdefault(word, []).append(senses)
-                poses.setdefault(word, []).append(kaikki_upos(d.get("pos") or "", word))
+                entries.setdefault(word, []).append((_acronym(headword), kaikki_upos(d.get("pos") or "", word), senses))
 
     glosses = {}
-    for word, per_entry in entries.items():
-        joined, word_runs = _join_senses_by_pos(per_entry, poses[word], maxlen, max_senses)
+    for word, found in entries.items():
+        kept = [entry for entry in found if not entry[0]] or found
+        per_entry = [senses for _, _, senses in kept]
+        joined, word_runs = _join_senses_by_pos(per_entry, [pos for _, pos, _ in kept], maxlen, max_senses)
         if joined:
             glosses[word] = joined
             if runs is not None:

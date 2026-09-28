@@ -85,10 +85,13 @@ superlative) and, for the regular forms kaikki's links add, from their ending. `
 the part of speech of each run of a gloss's senses, from kaikki's `pos`; the reducer groups a
 gloss's senses by it and turns a `;` inside a sense into a comma, so "; " only ever separates
 senses. The fourth field of `grammar.tsv` marks the relations `is_believable` accepts: only those
-may be named on a card as another reading of a form the analysis reads as something else. No new
-source and no new licence: the tables derive from ESDB and kaikki. Neither moves
-`analyzer_version`. Measured on the 2026-09-26 snapshot: 45 684 readings and 30 149 runs, a pack of
-1 705 147 B (32.5 % of the 5 MiB budget) against 1 543 687 B before.
+may be named on a card as another reading of a form the analysis reads as something else. An
+acronym's entries (`AND`, `WHO`, `US`: headwords all in capitals) no longer gloss the common word
+the reducer lowercases them into when that word has an entry of its own — the card of `and` read
+« verbe Faire le ET de » — and keep glossing it when they are its only entries (`nato` « OTAN »).
+No new source and no new licence: the tables derive from ESDB and kaikki. Neither moves
+`analyzer_version`. Measured on the 2026-09-26 snapshot: 45 684 readings and 30 082 runs, a pack of
+1 703 229 B (32.5 % of the 5 MiB budget) against 1 543 687 B before.
 
 The tags are **Universal Dependencies** part-of-speech tags and features — tag names only, no UD
 data. The vocabulary (`lingua-core` `packs::grammar`) was checked on 2026-09-27 against the UD

@@ -826,6 +826,44 @@ class ReduceGlossRuns(TempDir):
         self.assertEqual(glosses["can"], "Boîte de conserve; Pouvoir; Savoir, connaître")
         self.assertEqual(runs["can"], [("NOUN", 1), ("VERB", 2)])
 
+    def test_an_acronym_does_not_gloss_the_common_word(self):
+        # The French Wiktionary's "AND", the logic operator, is a noun and a verb: lowercased
+        # into "and", it made the card read « verbe Faire le ET de ».
+        path = self.file(
+            "kaikki.jsonl",
+            "\n".join(
+                json.dumps(entry)
+                for entry in [
+                    {"word": "and", "pos": "conj", "senses": [{"glosses": ["Et."]}]},
+                    {"word": "AND", "pos": "noun", "senses": [{"glosses": ["ET."], "topics": ["logic"]}]},
+                    {"word": "AND", "pos": "verb", "senses": [{"glosses": ["Faire le ET de."]}]},
+                    {"word": "WHO", "pos": "name", "senses": [{"glosses": ["OMS, Organisation mondiale de la santé."]}]},
+                    {"word": "who", "pos": "pron", "senses": [{"glosses": ["Qui."]}]},
+                    {"word": "He", "pos": "pron", "senses": [{"glosses": ["Il (Dieu)."]}]},
+                    {"word": "he", "pos": "pron", "senses": [{"glosses": ["Il."]}]},
+                    {"word": "NATO", "pos": "name", "senses": [{"glosses": ["OTAN."]}]},
+                ]
+            )
+            + "\n",
+        )
+        runs = {}
+        glosses = red.reduce_gloss(path, {"and", "who", "he", "nato"}, 80, runs=runs)
+        self.assertEqual(glosses["and"], "Et")
+        self.assertEqual(runs["and"], [("CCONJ", 1)])
+        self.assertEqual(glosses["who"], "Qui")
+        # A capitalised word is no acronym: it still glosses its lower-case twin.
+        self.assertEqual(glosses["he"], "Il (Dieu); Il")
+        # An acronym with no common word of its own keeps its gloss.
+        self.assertEqual(glosses["nato"], "OTAN")
+        self.assertEqual(runs["nato"], [("PROPN", 1)])
+
+    def test_what_an_acronym_is(self):
+        self.assertTrue(red._acronym("AND"))
+        self.assertTrue(red._acronym("B2B"))
+        self.assertFalse(red._acronym("I"))  # one letter is a word ("I", "A")
+        self.assertFalse(red._acronym("He"))
+        self.assertFalse(red._acronym("and"))
+
 
 class GrammarRows(unittest.TestCase):
     def test_rows_and_which_may_be_named_as_another_word(self):

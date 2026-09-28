@@ -1,5 +1,5 @@
 a	SYM:1	NOUN:2
-aa	NOUN:2	PROPN:1
+aa	NOUN:2
 aaa	PROPN:1
 aac	NOUN:1
 aachen	PROPN:1
@@ -7,8 +7,8 @@ aah	INTJ:1	NOUN:1	VERB:1
 aar	NOUN:1
 aarhus	PROPN:1
 aaron	PROPN:2
-ab	NOUN:2	ADJ:1
-aba	NOUN:1	PROPN:1
+ab	NOUN:1
+aba	NOUN:1
 aback	ADV:2	NOUN:1
 abacus	NOUN:3
 abalone	NOUN:1
@@ -122,14 +122,14 @@ abusive	ADJ:1
 abut	VERB:2
 abysmal	ADJ:2
 abyss	NOUN:1
-ac	NOUN:2	ADJ:1
+ac	NOUN:1
 acacia	NOUN:1
 academic	ADJ:2	NOUN:1
 academically	ADV:1
 academy	NOUN:2
 acadia	PROPN:1
 acb	NOUN:1
-acc	NOUN:2
+acc	NOUN:1
 accede	VERB:1
 accelerate	VERB:1
 acceleration	NOUN:2
@@ -255,7 +255,7 @@ acumen	NOUN:2
 acupuncture	NOUN:1
 acute	ADJ:1
 acutely	ADV:1
-ad	NOUN:1	ADJ:1
+ad	NOUN:1
 ad-lib	VERB:1
 ada	NOUN:1
 adage	NOUN:3
@@ -273,7 +273,7 @@ adapter	NOUN:1
 adaptive	ADJ:1
 adaptor	NOUN:1
 adc	NOUN:1
-add	VERB:2	NOUN:1
+add	VERB:2
 addendum	NOUN:1
 adder	NOUN:2
 addict	NOUN:2
@@ -527,7 +527,7 @@ aground	ADJ:1	ADV:1
 ah	INTJ:2	PRON:1
 aha	INTJ:2
 ahead	ADV:1
-ai	NOUN:3
+ai	NOUN:1
 aid	NOUN:2	VERB:1
 aidan	PROPN:1
 aide	NOUN:1
@@ -572,11 +572,11 @@ ait	NOUN:1
 ajar	ADV:1
 ajax	NOUN:1
 ak	NOUN:1
-aka	ADJ:1	ADV:1
+aka	ADJ:1
 ake	NOUN:1	VERB:1
 akin	ADJ:2
 al	PROPN:2
-ala	NOUN:2
+ala	NOUN:1
 alabama	PROPN:2
 alabaster	NOUN:1	ADJ:1	PROPN:1
 alan	PROPN:1
@@ -787,7 +787,7 @@ american	ADJ:2	NOUN:1
 americano	NOUN:1
 ames	PROPN:1
 amethyst	NOUN:2	ADJ:1
-amex	PROPN:2
+amex	PROPN:1
 amg	NOUN:1
 amherst	PROPN:3
 amiable	ADJ:1
@@ -884,7 +884,7 @@ anchorage	NOUN:1	PROPN:1
 anchovy	NOUN:1
 ancient	ADJ:1
 ancillary	ADJ:1
-and	CCONJ:1	NOUN:1	VERB:1
+and	CCONJ:1
 andalusia	PROPN:1
 andalusian	ADJ:1	NOUN:1
 anderson	PROPN:2
@@ -1178,7 +1178,7 @@ april	PROPN:2
 apron	NOUN:2
 apropos	ADV:1
 aps	NOUN:1
-apt	ADJ:1	PROPN:1	NOUN:1
+apt	ADJ:2	PROPN:1
 aptitude	NOUN:1
 aptly	ADV:1
 apu	NOUN:1
@@ -1252,7 +1252,7 @@ arduously	ADV:1
 area	NOUN:3
 arena	NOUN:1
 arf	INTJ:1
-arg	NOUN:2
+arg	NOUN:1
 argent	NOUN:1	ADJ:1
 argentina	PROPN:1
 argentine	ADJ:1	NOUN:1	PROPN:1
@@ -1266,7 +1266,7 @@ argumentation	NOUN:1
 argumentative	ADJ:2
 argyle	NOUN:1
 argyll	PROPN:1
-aria	NOUN:2
+aria	NOUN:1
 ariadne	PROPN:1
 arid	ADJ:2
 ariel	PROPN:2
@@ -1404,7 +1404,7 @@ aside	ADV:1	ADP:1
 asinine	ADJ:2
 ask	VERB:2	NOUN:1
 askew	ADJ:1	ADV:1
-asl	INTJ:1	PROPN:1
+asl	INTJ:1
 asleep	ADJ:1
 asm	NOUN:3
 asme	NOUN:1
@@ -1496,7 +1496,7 @@ asymmetry	NOUN:1
 asymptomatic	ADJ:1
 asymptotic	ADJ:1
 asynchronous	ADJ:1
-at	ADP:1	NOUN:1	ADJ:1
+at	ADP:2	NOUN:1
 ata	NOUN:1
 atari	NOUN:1
 ataxia	NOUN:1
@@ -1520,7 +1520,7 @@ atlanta	PROPN:1
 atlantic	ADJ:1	NOUN:1
 atlantis	PROPN:1
 atlas	NOUN:1	PROPN:2
-atm	NOUN:3
+atm	ADV:1
 atmosphere	NOUN:2
 atmospheric	ADJ:1
 atoll	NOUN:1
@@ -1930,7 +1930,7 @@ bare	ADJ:2	VERB:1
 bareback	ADV:2
 barefoot	ADJ:1	ADV:1
 barely	ADV:2
-barf	NOUN:2	VERB:1
+barf	NOUN:1	VERB:1
 bargain	NOUN:2	VERB:1
 barge	NOUN:1	VERB:1
 bari	PROPN:1
@@ -1989,7 +1989,7 @@ baseline	NOUN:2
 basement	NOUN:1
 bash	NOUN:1	VERB:1	PROPN:1
 bashful	ADJ:1
-basic	ADJ:1	PROPN:1
+basic	ADJ:1
 basically	ADV:1
 basil	NOUN:2	PROPN:1
 basildon	PROPN:2
@@ -2050,12 +2050,12 @@ bbl	INTJ:1
 bbq	NOUN:1
 bbs	NOUN:1
 bbw	NOUN:2
-bc	ADJ:1	SCONJ:1
+bc	SCONJ:1
 bcc	NOUN:1
 bce	ADJ:2
 bcm	NOUN:1
 bdsm	NOUN:1
-be	VERB:2	NOUN:1
+be	VERB:3
 beach	NOUN:1	VERB:2
 beachside	ADJ:1
 beacon	NOUN:3
@@ -2267,7 +2267,7 @@ betterment	NOUN:1
 betty	PROPN:1
 between	ADP:1
 beulah	PROPN:3
-bev	SYM:1	PROPN:1
+bev	SYM:1
 bevel	NOUN:2	VERB:1
 beverage	NOUN:1
 beverley	PROPN:1
@@ -2483,7 +2483,7 @@ blitz	NOUN:1	VERB:1
 blitzkrieg	NOUN:1
 blizzard	NOUN:1
 bloat	NOUN:1	VERB:1
-blob	NOUN:2
+blob	NOUN:1
 bloc	NOUN:1
 block	NOUN:2	VERB:1
 blockade	NOUN:1	VERB:1
@@ -2563,7 +2563,7 @@ bobby	PROPN:1	NOUN:1
 bobcat	NOUN:1
 bobo	NOUN:1
 bobsleigh	NOUN:1
-bod	NOUN:2
+bod	NOUN:1
 bodega	NOUN:1
 bodhi	PROPN:1
 bodice	NOUN:1
@@ -2662,7 +2662,7 @@ bootstrap	VERB:1	NOUN:1
 booty	NOUN:3
 booze	NOUN:1	VERB:1
 boozer	NOUN:1
-bop	NOUN:2	VERB:1
+bop	NOUN:1	VERB:1
 borax	NOUN:1
 bordeaux	PROPN:1
 borden	PROPN:1
@@ -2691,7 +2691,7 @@ boss	ADJ:1	NOUN:2
 bossy	ADJ:1
 boston	ADJ:1	PROPN:2
 boswell	PROPN:1
-bot	NOUN:3
+bot	NOUN:2
 botanic	ADJ:1
 botanical	ADJ:1
 botanist	NOUN:1
@@ -3177,8 +3177,8 @@ byte	NOUN:1
 byzantine	ADJ:2	NOUN:1
 byzantium	PROPN:2	NOUN:1
 c	SYM:1	NOUN:1	PROPN:1
-ca	ADP:1	NOUN:1
-cab	NOUN:3
+ca	ADP:1
+cab	NOUN:2
 cabal	NOUN:1
 cabaret	NOUN:1
 cabbage	NOUN:2
@@ -3263,7 +3263,7 @@ calvin	PROPN:1
 calvinism	NOUN:1
 calvinist	ADJ:1
 calypso	PROPN:1
-cam	NOUN:3
+cam	NOUN:2	PROPN:1
 camaraderie	NOUN:1
 camber	NOUN:1	PROPN:1
 cambodia	PROPN:1
@@ -3611,7 +3611,7 @@ cdm	NOUN:3
 cdma	NOUN:1
 cdn	NOUN:1
 cdna	NOUN:1
-cdo	NOUN:3
+cdo	NOUN:1
 cdr	NOUN:2	VERB:1
 ce	ADJ:2
 cea	NOUN:1
@@ -4265,8 +4265,8 @@ cocky	ADJ:1	NOUN:1
 cocoa	NOUN:2	ADJ:1
 coconut	NOUN:3
 cocoon	NOUN:1	VERB:1
-cod	NOUN:2
-coda	NOUN:2
+cod	NOUN:1
+coda	NOUN:1
 code	NOUN:1	VERB:2
 codec	NOUN:1
 codeine	NOUN:1
@@ -5321,7 +5321,7 @@ crucible	NOUN:1
 crucifix	NOUN:1
 crucifixion	NOUN:2
 crucify	VERB:2
-crud	NOUN:3
+crud	NOUN:2
 crude	ADJ:3
 crudely	ADJ:1
 cruel	ADJ:1
@@ -5371,7 +5371,7 @@ csr	NOUN:1
 css	NOUN:3
 cst	NOUN:1
 csv	NOUN:2
-ct	NOUN:2
+ct	NOUN:1
 cte	NOUN:1
 cthulhu	PROPN:1
 cto	NOUN:2
@@ -5583,7 +5583,7 @@ damp	ADJ:1	NOUN:1	VERB:1
 dampen	VERB:3
 dampness	NOUN:1
 damsel	NOUN:1
-dan	NOUN:1	PROPN:2
+dan	NOUN:1	PROPN:1
 danbury	PROPN:2
 dance	NOUN:2	VERB:1
 dancehall	NOUN:2
@@ -6377,7 +6377,7 @@ disgruntled	ADJ:1
 disguise	NOUN:2	VERB:1
 disgust	NOUN:1	VERB:2
 disgustingly	ADV:1
-dish	NOUN:2	PROPN:1
+dish	NOUN:3
 disheveled	ADJ:1
 dishonest	ADJ:1
 dishonesty	NOUN:1
@@ -6576,7 +6576,7 @@ doctrine	NOUN:1
 document	NOUN:2	VERB:1
 documentary	NOUN:1
 documentation	NOUN:1
-dod	NOUN:3
+dod	NOUN:2
 dodd	PROPN:1
 dodge	NOUN:2	VERB:1
 dodgeball	NOUN:1
@@ -6586,7 +6586,7 @@ dodo	NOUN:1
 doe	NOUN:2	PROPN:1
 doer	NOUN:1
 dog	NOUN:2
-doge	NOUN:3
+doge	NOUN:2
 dogfight	NOUN:2
 doggy	ADJ:2
 doghouse	NOUN:2
@@ -6642,7 +6642,7 @@ donor	NOUN:1
 donovan	PROPN:2
 doobie	NOUN:1
 doodle	NOUN:1	VERB:2
-doom	NOUN:1	VERB:1	ADJ:1
+doom	NOUN:2	VERB:1
 doomsday	NOUN:2
 door	NOUN:2	VERB:1
 doorbell	NOUN:1
@@ -6656,7 +6656,7 @@ doozy	NOUN:1	ADJ:1
 dopamine	NOUN:1
 dope	NOUN:1	VERB:1	ADJ:1
 dopey	ADJ:1
-dora	PROPN:1	NOUN:1
+dora	PROPN:1
 dorchester	PROPN:2
 dordrecht	PROPN:1
 dorian	NOUN:1	PROPN:1
@@ -6729,7 +6729,7 @@ dp	NOUN:1
 dpa	NOUN:2
 dpi	NOUN:1
 dprk	PROPN:1
-dr	NOUN:2
+dr	NOUN:1
 drab	NOUN:1	ADJ:2
 draco	PROPN:1
 draconian	ADJ:2
@@ -6743,7 +6743,7 @@ dragoon	NOUN:2	VERB:1
 drain	NOUN:2	VERB:1
 drainage	NOUN:1
 drake	NOUN:2	PROPN:1
-dram	NOUN:3
+dram	NOUN:2
 drama	NOUN:3
 dramatic	ADJ:2
 dramatically	ADV:1
@@ -6853,7 +6853,7 @@ duffel	NOUN:1
 duffield	PROPN:1
 dugout	ADJ:1	NOUN:2
 duh	INTJ:2
-dui	NOUN:2
+dui	NOUN:1
 duke	NOUN:2
 dull	ADJ:1	VERB:1	PROPN:1
 dulwich	PROPN:2
@@ -7067,7 +7067,7 @@ eek	INTJ:1
 eel	NOUN:1
 eerie	ADJ:2
 eerily	ADV:1
-ef	NOUN:2
+ef	NOUN:1
 eff	VERB:1
 effect	NOUN:2	VERB:1
 effective	ADJ:3
@@ -7120,7 +7120,7 @@ ejection	NOUN:1
 ejector	NOUN:1
 eke	VERB:1
 ekg	NOUN:1
-el	NOUN:1	PROPN:1
+el	PROPN:1
 elaborate	ADJ:1	VERB:1
 elaine	PROPN:1
 elam	PROPN:1
@@ -7220,7 +7220,7 @@ elusive	ADJ:1
 elvis	PROPN:1	NOUN:1
 ely	PROPN:3
 elysian	ADJ:1
-em	NOUN:1	PROPN:1	ADJ:1
+em	NOUN:1	PROPN:2
 emaciated	ADJ:1
 email	NOUN:1	VERB:1
 emanate	VERB:1
@@ -7543,8 +7543,8 @@ equitable	ADJ:1
 equity	NOUN:3
 equivalence	NOUN:1
 equivalent	ADJ:1
-er	INTJ:1	VERB:1	NOUN:1
-era	NOUN:3
+er	INTJ:1	VERB:1
+era	NOUN:1
 eradicate	VERB:1
 eradication	NOUN:1
 erase	VERB:2
@@ -7564,7 +7564,7 @@ eric	PROPN:1
 erika	PROPN:1
 eris	PROPN:2
 eritrea	PROPN:1
-erm	INTJ:1	NOUN:1
+erm	INTJ:1
 ermine	NOUN:1
 ernest	PROPN:1
 erode	VERB:2
@@ -7588,7 +7588,7 @@ erupt	VERB:1
 eruption	NOUN:2
 erwin	PROPN:1
 esa	NOUN:1	PROPN:1
-esc	NOUN:3
+esc	NOUN:1
 escalate	VERB:2
 escalation	NOUN:1
 escalator	NOUN:1
@@ -7640,7 +7640,7 @@ estrangement	NOUN:2
 estrogen	NOUN:1
 estuary	NOUN:2
 et	PROPN:1	NOUN:1
-eta	NOUN:3
+eta	NOUN:1
 etc	NOUN:1
 etcetera	ADV:1
 etch	VERB:2
@@ -7675,7 +7675,7 @@ eton	PROPN:1
 etruscan	NOUN:1	ADJ:1	PROPN:1
 etude	NOUN:1
 etymology	NOUN:1
-eu	PROPN:2
+eu	PROPN:1
 eucalyptus	NOUN:1
 eucharist	NOUN:1
 eucharistic	ADJ:1
@@ -7995,7 +7995,7 @@ eyewitness	NOUN:1
 ez	ADJ:2
 ezekiel	PROPN:1
 f	SYM:2	INTJ:1
-fa	NOUN:3
+fa	NOUN:2
 fab	ADJ:1
 fabian	ADJ:1	NOUN:1	PROPN:1
 fable	NOUN:1
@@ -8076,7 +8076,7 @@ falsely	ADV:1
 falsify	VERB:1
 falter	VERB:2	NOUN:1
 fam	PROPN:1
-fame	NOUN:2	VERB:1
+fame	NOUN:1	VERB:1
 familial	ADJ:1
 familiar	ADJ:1	NOUN:1
 familiarise	VERB:1
@@ -8214,7 +8214,7 @@ fedex	VERB:1
 fedora	NOUN:1
 fee	NOUN:2
 feeble	ADJ:1
-feed	VERB:1	NOUN:2
+feed	VERB:2	NOUN:1
 feedback	NOUN:2
 feeder	NOUN:3
 feedstock	NOUN:1
@@ -8290,7 +8290,7 @@ feverishly	ADV:1
 few	ADJ:1
 fey	ADJ:3
 fez	NOUN:1	PROPN:1
-ffs	INTJ:2
+ffs	INTJ:1
 fft	NOUN:1
 fiasco	NOUN:1
 fiat	NOUN:2	ADJ:1
@@ -8388,7 +8388,7 @@ finnegan	PROPN:1
 finnish	ADJ:1	NOUN:1	PROPN:1
 fintech	NOUN:1
 fiona	PROPN:1
-fir	NOUN:3
+fir	NOUN:1
 fire	NOUN:1	VERB:1	INTJ:1
 firearm	NOUN:1
 fireball	NOUN:2
@@ -8574,7 +8574,7 @@ flux	NOUN:1	VERB:2
 fly	NOUN:2	VERB:1
 flyer	NOUN:2
 flywheel	NOUN:1
-fm	SYM:1	NOUN:1
+fm	SYM:1
 foal	NOUN:1	VERB:1
 foam	NOUN:2	VERB:1
 fob	NOUN:3
@@ -8600,7 +8600,7 @@ follow	VERB:3
 follower	NOUN:3
 folly	NOUN:2
 fomo	NOUN:1
-fon	PROPN:1	NOUN:1
+fon	PROPN:1
 fond	ADJ:3
 fondant	NOUN:1
 fondle	VERB:1
@@ -8630,7 +8630,7 @@ footpath	NOUN:1
 footprint	NOUN:1
 footwear	NOUN:1
 footwork	NOUN:2
-for	ADP:1	CCONJ:1	ADV:1
+for	ADP:2	CCONJ:1
 forage	VERB:1	NOUN:1
 foray	NOUN:1
 forbearance	NOUN:1
@@ -9033,7 +9033,7 @@ gamification	NOUN:1
 gamma	NOUN:1
 gammon	NOUN:2
 gamut	NOUN:3
-gan	NOUN:2
+gan	NOUN:1
 gander	NOUN:3
 gang	NOUN:2	VERB:1
 ganga	PROPN:1
@@ -9306,7 +9306,7 @@ giver	NOUN:1
 giza	PROPN:1
 gizmo	NOUN:2
 gj	INTJ:1
-gl	NOUN:1	INTJ:1
+gl	INTJ:1
 gla	NOUN:2	PROPN:1
 glabrous	ADJ:1
 glacial	ADJ:1
@@ -9392,7 +9392,7 @@ gnome	NOUN:2
 gnostic	ADJ:1
 gnu	NOUN:1
 go	VERB:1	NOUN:2
-goa	PROPN:1	NOUN:1
+goa	PROPN:1
 goad	NOUN:2	VERB:1
 goal	NOUN:2
 goalie	NOUN:1
@@ -10365,7 +10365,7 @@ historically	ADV:1
 historiography	NOUN:1
 history	NOUN:1
 histrionic	ADJ:1
-hit	VERB:1	NOUN:2
+hit	VERB:2	NOUN:1
 hitch	VERB:1	NOUN:2
 hitchhiker	NOUN:1
 hitchhiking	NOUN:1
@@ -10382,7 +10382,7 @@ hm	PROPN:1
 hmm	INTJ:1
 hmo	NOUN:2
 hms	NOUN:1
-ho	INTJ:1	NOUN:2
+ho	INTJ:1	NOUN:1
 hoa	NOUN:1
 hoard	NOUN:2	VERB:1
 hoarder	NOUN:1
@@ -10598,7 +10598,7 @@ howler	NOUN:2
 hoy	NOUN:1	INTJ:1	VERB:1
 hp	NOUN:1
 hq	NOUN:1
-hr	NOUN:2	PROPN:1
+hr	NOUN:1
 hrs	NOUN:1
 hs	NOUN:2
 hss	NOUN:2
@@ -10786,7 +10786,7 @@ icebreaker	NOUN:1
 iceland	PROPN:1
 icelandic	ADJ:1	PROPN:1
 icf	NOUN:1
-ich	PRON:1	NOUN:1
+ich	PRON:1
 icky	ADJ:1
 icm	NOUN:1
 ico	NOUN:1	PROPN:1
@@ -10795,7 +10795,7 @@ iconic	ADJ:2
 iconography	NOUN:1
 ict	NOUN:1
 icy	NOUN:1
-id	NOUN:3
+id	NOUN:1
 ida	PROPN:1
 idaho	PROPN:1
 idc	NOUN:1	INTJ:1
@@ -10837,10 +10837,10 @@ idyllic	ADJ:1
 ie	PROPN:1
 iec	NOUN:1
 ied	NOUN:1
-if	SCONJ:1	NOUN:2
+if	SCONJ:2
 ifc	NOUN:1
 ife	NOUN:1
-iff	SCONJ:1	NOUN:1
+iff	SCONJ:1
 iffy	ADJ:3
 ifr	NOUN:2
 ig	X:1
@@ -11692,7 +11692,7 @@ ionian	NOUN:1	ADJ:1
 ionic	ADJ:1
 ionization	NOUN:1
 ionosphere	NOUN:1
-ios	PROPN:3
+ios	PROPN:2
 iot	NOUN:1
 iota	NOUN:2
 iowa	PROPN:1
@@ -11938,7 +11938,7 @@ jetpack	NOUN:1
 jettison	VERB:2	NOUN:1
 jetty	ADJ:1	NOUN:1
 jew	NOUN:1
-jewel	NOUN:2	PROPN:1
+jewel	NOUN:1	PROPN:1
 jeweler	NOUN:1
 jeweller	NOUN:1
 jewellery	NOUN:2
@@ -12150,7 +12150,7 @@ kayleigh	PROPN:1
 kazakh	NOUN:1	PROPN:1
 kazakhstan	PROPN:1
 kazan	PROPN:1	NOUN:1
-kb	SYM:2
+kb	SYM:1
 kc	PROPN:2	NOUN:1
 kea	NOUN:1	PROPN:2
 kearney	PROPN:1
@@ -12372,7 +12372,7 @@ kyrgyzstan	PROPN:1
 kyrie	NOUN:1
 kyushu	PROPN:1
 l	SYM:2
-la	NOUN:2	PROPN:1
+la	NOUN:2
 lab	NOUN:2	ADJ:1
 label	NOUN:2	VERB:1
 labor	NOUN:2	VERB:1
@@ -12428,7 +12428,7 @@ lame	ADJ:3
 lament	NOUN:2	VERB:1
 lamentable	ADJ:1
 laminate	VERB:2
-lamp	NOUN:1	VERB:1	PROPN:1
+lamp	NOUN:2	VERB:1
 lan	NOUN:1
 lana	PROPN:1
 lanarkshire	PROPN:1
@@ -12692,7 +12692,7 @@ lesser	NOUN:1
 lesson	NOUN:1	VERB:1
 lest	SCONJ:1
 lester	PROPN:1
-let	VERB:1	NOUN:2
+let	VERB:2	NOUN:1
 lethal	ADJ:1	NOUN:1
 lethargic	ADJ:2
 lethargy	NOUN:1
@@ -12953,7 +12953,7 @@ loan	NOUN:1	VERB:1
 loath	ADJ:1
 loathe	VERB:1
 loathsome	ADJ:1
-lob	NOUN:2	VERB:1
+lob	NOUN:1	VERB:1
 lobby	NOUN:2	VERB:1
 lobbyist	NOUN:1
 lobster	NOUN:1
@@ -13118,7 +13118,7 @@ ludicrous	ADJ:1
 ludicrously	ADV:1
 ludlow	PROPN:1
 ludo	NOUN:1
-lug	VERB:1	NOUN:2
+lug	VERB:2	NOUN:1
 lugano	PROPN:1
 luge	NOUN:2	VERB:1
 luger	NOUN:1	PROPN:1
@@ -13194,12 +13194,12 @@ lyrically	ADV:1
 lyricism	NOUN:1
 lyricist	NOUN:1
 m	SYM:2
-ma	NOUN:2
-maa	NOUN:2	VERB:1
+ma	NOUN:1
+maa	NOUN:1	VERB:1
 maastricht	PROPN:1
 mab	PROPN:2
 mabel	PROPN:1
-mac	NOUN:3
+mac	NOUN:2	X:1
 macabre	ADJ:3
 macadamia	NOUN:1
 macao	PROPN:1
@@ -13220,7 +13220,7 @@ machine	NOUN:2	VERB:1
 machinery	NOUN:2
 machinist	NOUN:1
 machismo	NOUN:1
-macho	ADJ:1	NOUN:2
+macho	ADJ:1	NOUN:1
 macintosh	PROPN:2
 mackenzie	PROPN:2
 mackerel	NOUN:1
@@ -13232,7 +13232,7 @@ macro	NOUN:2
 macroeconomics	NOUN:1
 macron	NOUN:1
 macroscopic	ADJ:1
-mad	ADJ:2	NOUN:1
+mad	ADJ:2
 madagascar	PROPN:2
 madam	NOUN:3
 madden	VERB:2
@@ -13651,10 +13651,10 @@ mayonnaise	NOUN:1
 mayor	NOUN:1
 mazda	PROPN:2	NOUN:1
 maze	NOUN:1
-mb	SYM:1	PROPN:1	INTJ:1
+mb	INTJ:1
 mba	NOUN:1
 mbs	NOUN:1	PROPN:1
-mc	NOUN:2	X:1
+mc	X:1
 mcc	PROPN:1
 mccarthy	PROPN:1
 mccarthyism	PROPN:1	NOUN:1
@@ -13674,7 +13674,7 @@ mcu	PROPN:1
 md	NOUN:3
 mda	NOUN:1
 mdr	NOUN:2
-me	PRON:1	NOUN:1
+me	PRON:1
 mead	NOUN:2	PROPN:1
 meadow	NOUN:2
 meager	ADJ:1
@@ -13740,8 +13740,8 @@ meekly	ADV:1
 meerkat	NOUN:1
 meet	VERB:3
 meetup	NOUN:1
-meg	NOUN:2	PROPN:1
-mega	ADJ:2	NOUN:1
+meg	NOUN:1	PROPN:1
+mega	ADJ:2
 megan	PROPN:1
 megaphone	NOUN:1
 megawatt	NOUN:1
@@ -13906,7 +13906,7 @@ mfc	NOUN:2
 mgm	NOUN:1
 mhc	NOUN:1
 mi	NOUN:2	SYM:1
-mia	NOUN:1	ADJ:1
+mia	NOUN:1
 miami	PROPN:1
 mic	NOUN:1	VERB:1
 mica	NOUN:1
@@ -14157,7 +14157,7 @@ mmm	INTJ:1
 mmorpg	NOUN:1
 mms	NOUN:1	VERB:1
 mnemonic	ADJ:1	NOUN:1
-mo	NOUN:3
+mo	NOUN:1
 moa	NOUN:2
 moan	NOUN:1	VERB:1
 moana	PROPN:2
@@ -14417,7 +14417,7 @@ motorway	NOUN:1
 motown	PROPN:1
 mottled	ADJ:1
 motto	NOUN:2
-mou	NOUN:2
+mou	NOUN:1
 mould	NOUN:2	VERB:1
 moulin	NOUN:1
 moulton	PROPN:3
@@ -14627,7 +14627,7 @@ nail	NOUN:1	VERB:2
 nairn	PROPN:2
 nairobi	PROPN:1
 naive	ADJ:1
-nak	NOUN:2
+nak	NOUN:1
 naked	ADJ:3
 nakedness	NOUN:1
 name	NOUN:2	VERB:1
@@ -14755,7 +14755,7 @@ necromancer	NOUN:1
 necrosis	NOUN:1
 nectar	NOUN:1
 ned	PROPN:1
-nee	ADJ:1	INTJ:1
+nee	ADJ:2	INTJ:1
 need	NOUN:1	VERB:2
 needful	ADJ:1
 needham	PROPN:2
@@ -15018,7 +15018,7 @@ nook	NOUN:3
 noon	NOUN:3
 noose	NOUN:1	VERB:1
 nope	INTJ:1	NOUN:1
-nor	CCONJ:1	NOUN:1
+nor	CCONJ:1
 nora	PROPN:1
 norbert	PROPN:1
 nordic	ADJ:1
@@ -15058,7 +15058,7 @@ nostalgia	NOUN:1
 nostalgic	ADJ:1
 nostril	NOUN:2
 nosy	ADJ:1
-not	ADV:1	SCONJ:1	NOUN:1
+not	ADV:1	SCONJ:1
 notable	ADJ:1
 notably	ADV:1
 notary	NOUN:1
@@ -15103,7 +15103,7 @@ nowhere	ADV:1
 nox	NOUN:1
 noxious	ADJ:1
 nozzle	NOUN:2
-np	NOUN:1	INTJ:1
+np	INTJ:1
 npa	NOUN:1
 npc	NOUN:2
 npr	NOUN:1
@@ -15181,7 +15181,7 @@ oasis	NOUN:1
 oat	NOUN:2
 oath	NOUN:2	VERB:1
 oatmeal	NOUN:2
-ob	PROPN:1	NOUN:2
+ob	PROPN:1
 obama	PROPN:2
 oban	PROPN:1
 obe	NOUN:1
@@ -15214,7 +15214,7 @@ oblivious	ADJ:2
 oblong	ADJ:1	NOUN:2
 obnoxious	ADJ:3
 oboe	PROPN:1	NOUN:1
-obs	NOUN:2	ADJ:1
+obs	ADJ:1	NOUN:1
 obscenity	NOUN:1
 obscure	ADJ:1	VERB:2
 obscurity	NOUN:1
@@ -15280,7 +15280,7 @@ ode	NOUN:1
 odell	PROPN:1
 oder	PROPN:1
 odessa	PROPN:1
-odin	PROPN:1	NOUN:1
+odin	PROPN:1
 odious	ADJ:1
 odor	NOUN:1
 odorless	ADJ:1
@@ -15392,7 +15392,7 @@ ooo	NOUN:1
 oop	NOUN:1
 oops	INTJ:1
 ooze	NOUN:2
-op	NOUN:2
+op	NOUN:1	VERB:1
 opacity	NOUN:1
 opal	NOUN:1
 opaque	ADJ:1
@@ -15459,7 +15459,7 @@ orb	NOUN:2	VERB:1
 orbit	NOUN:1	VERB:1
 orbital	ADJ:1	NOUN:2
 orbiter	NOUN:1
-orc	NOUN:3
+orc	NOUN:1
 orca	NOUN:1
 orchard	NOUN:2	PROPN:1
 orchestra	NOUN:2
@@ -15714,7 +15714,7 @@ ovulation	NOUN:1
 ow	INTJ:1
 owe	VERB:1
 owen	PROPN:2
-owl	NOUN:2
+owl	NOUN:1
 own	ADJ:1	VERB:2
 owner	NOUN:2
 ownership	NOUN:1
@@ -15737,7 +15737,7 @@ ozone	NOUN:1
 ozzie	NOUN:1
 ozzy	NOUN:1
 p	SYM:2
-pa	NOUN:2	PROPN:1
+pa	NOUN:2
 pac	NOUN:3
 pace	NOUN:1	VERB:1	ADJ:1
 pacemaker	NOUN:3
@@ -15789,7 +15789,7 @@ pajamas	NOUN:1
 paki	NOUN:1
 pakistan	PROPN:1
 pakistani	ADJ:1	NOUN:1
-pal	NOUN:2	VERB:1
+pal	NOUN:1	VERB:1
 palace	NOUN:1
 paladin	NOUN:1
 palatable	ADJ:2
@@ -15819,7 +15819,7 @@ palpable	ADJ:1
 palsy	NOUN:1	VERB:1
 paltrow	PROPN:1
 paltry	ADJ:1
-pam	NOUN:2
+pam	PROPN:1
 pamela	PROPN:1
 pamper	VERB:1
 pamphlet	NOUN:2
@@ -16071,7 +16071,7 @@ payoff	NOUN:1
 payroll	NOUN:2
 paywall	NOUN:1	VERB:1
 pb	NOUN:3
-pc	NOUN:3
+pc	NOUN:2
 pcb	NOUN:3
 pcc	NOUN:1
 pce	NOUN:1
@@ -16191,12 +16191,12 @@ pentium	NOUN:1
 penultimate	ADJ:1
 penzance	PROPN:1
 peony	NOUN:1
-pep	VERB:1	NOUN:2
+pep	VERB:1	NOUN:1
 pepper	NOUN:3
 peppermint	NOUN:2
 pepperoni	NOUN:2
 peppy	ADJ:1
-per	ADP:2	NOUN:1
+per	ADP:3
 perceive	VERB:1
 percent	NOUN:1
 percentage	NOUN:1
@@ -16328,7 +16328,7 @@ pesticide	NOUN:1
 pestilence	NOUN:1
 pestle	NOUN:1	VERB:1
 pesto	NOUN:1
-pet	NOUN:2	VERB:1
+pet	NOUN:1	VERB:2
 petal	NOUN:1
 pete	PROPN:1
 peter	VERB:1	PROPN:1
@@ -16473,7 +16473,7 @@ pictorial	ADJ:2	NOUN:1
 picture	NOUN:2	VERB:1
 picturesque	ADJ:1
 pidgin	NOUN:1
-pie	NOUN:2
+pie	NOUN:1
 piece	NOUN:2	VERB:1
 piecemeal	ADJ:1	ADV:1
 piedmont	PROPN:2
@@ -16521,7 +16521,7 @@ pint	NOUN:2
 pioneer	NOUN:1	VERB:1
 pious	ADJ:1	NOUN:1
 pip	NOUN:3
-pipe	NOUN:2
+pipe	NOUN:2	VERB:1
 pipeline	NOUN:3
 piper	NOUN:3
 pique	NOUN:1	VERB:1
@@ -16536,7 +16536,7 @@ pistachio	NOUN:3
 pistol	NOUN:1
 piston	NOUN:1
 pit	NOUN:2	VERB:1
-pita	NOUN:2
+pita	NOUN:1
 pitch	VERB:2	NOUN:1
 pitcher	NOUN:2
 pitchfork	NOUN:1
@@ -16908,7 +16908,7 @@ pout	NOUN:1	VERB:2
 poutine	NOUN:1
 pov	NOUN:1
 poverty	NOUN:2
-pow	NOUN:2	INTJ:1
+pow	INTJ:1	NOUN:2
 powder	NOUN:2	VERB:1
 powell	PROPN:1
 power	NOUN:2	VERB:1
@@ -16921,16 +16921,16 @@ powerlifting	NOUN:1
 powerpoint	PROPN:1
 powershell	PROPN:1
 powys	PROPN:1
-pox	NOUN:3
+pox	NOUN:2
 pp	NOUN:3
 ppa	PROPN:2	NOUN:1
 ppb	NOUN:1
 ppe	NOUN:1
 ppg	NOUN:1
 ppl	NOUN:2
-ppm	NOUN:3
+ppm	NOUN:1
 ppp	NOUN:1
-ppt	NOUN:2
+ppt	NOUN:1
 pq	NOUN:2
 pr	NOUN:2
 practicable	ADJ:1
@@ -17692,7 +17692,7 @@ raf	PROPN:1
 raffle	NOUN:1
 raft	NOUN:2	VERB:1
 rafter	NOUN:2	VERB:1
-rag	NOUN:2
+rag	NOUN:2	VERB:1
 rage	NOUN:1	VERB:2
 raggedy	ADJ:2
 raglan	NOUN:1
@@ -18512,7 +18512,7 @@ rhythmically	ADV:1
 ria	NOUN:1
 rib	NOUN:2	VERB:1
 ribbon	NOUN:2	VERB:1
-rice	NOUN:3
+rice	NOUN:2
 rich	ADJ:1	NOUN:1	PROPN:1
 richard	PROPN:1
 richardson	PROPN:1
@@ -18566,7 +18566,7 @@ rink	NOUN:1
 rinse	VERB:2	NOUN:1
 riot	NOUN:1	VERB:1
 riotous	ADJ:1
-rip	INTJ:1	NOUN:1	PROPN:1
+rip	VERB:2	NOUN:1
 ripe	ADJ:1	VERB:1
 ripen	VERB:1
 ripley	PROPN:2
@@ -18794,7 +18794,7 @@ ruin	NOUN:1	VERB:2
 ruinous	ADJ:1
 rule	NOUN:2	VERB:1
 ruler	NOUN:2
-rum	ADJ:1	NOUN:2
+rum	ADJ:2	NOUN:1
 rumba	NOUN:1
 rumble	NOUN:1	VERB:2
 ruminate	VERB:1
@@ -18858,7 +18858,7 @@ sacred	ADJ:1
 sacrifice	VERB:1	NOUN:1
 sacrificial	ADJ:1
 sacrilege	NOUN:1
-sad	ADJ:2	NOUN:1
+sad	ADJ:3
 saddle	NOUN:1	VERB:2
 sadism	NOUN:1
 sadist	NOUN:1
@@ -18929,7 +18929,7 @@ salvage	NOUN:1	VERB:1
 salvation	NOUN:1
 salvo	NOUN:1
 salzburg	PROPN:1
-sam	PROPN:2	NOUN:1
+sam	PROPN:1
 samantha	PROPN:1
 samara	PROPN:1
 samaria	PROPN:1
@@ -18979,7 +18979,7 @@ santa	PROPN:1
 santiago	PROPN:2
 santorini	PROPN:1
 santorum	NOUN:1
-sao	PROPN:2
+sao	PROPN:1
 sap	NOUN:2	VERB:1
 sapling	NOUN:1
 sapphire	NOUN:1	ADJ:1	PROPN:1
@@ -19313,7 +19313,7 @@ seduce	VERB:1
 seduction	NOUN:1
 seductive	ADJ:2
 seductively	ADV:1
-see	VERB:1	NOUN:2
+see	VERB:2	NOUN:1
 seed	NOUN:2	VERB:1
 seedling	NOUN:1
 seedy	ADJ:1
@@ -19513,7 +19513,7 @@ sf	NOUN:2
 sfc	NOUN:1
 sfr	NOUN:1
 sgt	NOUN:1
-sh	NOUN:2	VERB:1
+sh	NOUN:1	VERB:1
 shabbat	NOUN:1
 shabby	ADJ:2
 shack	NOUN:1
@@ -19555,7 +19555,7 @@ shanghai	PROPN:1
 shank	NOUN:2	VERB:1
 shannon	PROPN:3
 shanty	NOUN:2	ADJ:1
-shape	NOUN:1	VERB:1	PROPN:1
+shape	NOUN:1	VERB:1
 shapely	ADJ:1
 shaper	NOUN:2
 shapiro	PROPN:1
@@ -19843,7 +19843,7 @@ sincere	ADJ:1
 sincerely	ADV:1	INTJ:1
 sincerity	NOUN:1
 sindh	PROPN:1
-sine	NOUN:2
+sine	NOUN:1
 sinful	ADJ:2
 sing	VERB:2	NOUN:1
 singapore	PROPN:1
@@ -20048,7 +20048,7 @@ smack	NOUN:1	VERB:2
 small	ADJ:1	NOUN:1
 smallpox	NOUN:1
 smallwood	PROPN:1
-smart	ADJ:1	VERB:1	NOUN:1
+smart	ADJ:1	VERB:1
 smartly	ADV:3
 smartphone	NOUN:1
 smartwatch	NOUN:2
@@ -20171,7 +20171,7 @@ sob	NOUN:1	INTJ:1	VERB:1
 soba	NOUN:1
 sober	ADJ:1
 sobriety	NOUN:1
-soc	NOUN:2
+soc	NOUN:1
 socal	PROPN:1
 soccer	NOUN:1
 sochi	PROPN:1
@@ -20207,7 +20207,7 @@ softly	ADV:2
 softness	NOUN:2
 software	NOUN:1
 soggy	ADJ:3
-soho	PROPN:2	NOUN:1
+soho	PROPN:2
 soi	NOUN:1
 soil	NOUN:1	VERB:1
 sojourn	NOUN:1	VERB:1
@@ -20225,7 +20225,7 @@ solenoid	NOUN:1
 solicit	VERB:2
 solicitation	NOUN:2
 solicitor	NOUN:3
-solid	ADJ:1	ADV:1	NOUN:1
+solid	ADJ:2	ADV:1
 solidarity	NOUN:1
 solidify	VERB:1
 solidity	NOUN:1
@@ -20345,7 +20345,7 @@ sox	NOUN:1
 soya	NOUN:1
 soybean	NOUN:1
 sp	NOUN:1
-spa	NOUN:2	PROPN:1
+spa	NOUN:1	PROPN:1
 space	NOUN:1	VERB:1
 spacecraft	NOUN:1
 spaceport	NOUN:1
@@ -20576,9 +20576,9 @@ squishy	ADJ:1
 sra	NOUN:1
 src	NOUN:1
 sriracha	NOUN:1
-srs	ADJ:1	NOUN:2
+srs	ADJ:1
 srsly	ADV:1
-ss	SYM:1	NOUN:2
+ss	SYM:2
 ssa	NOUN:1
 ssb	NOUN:1
 ssd	NOUN:1
@@ -20589,7 +20589,7 @@ ssm	NOUN:1
 ssp	NOUN:1
 ssr	NOUN:2
 sst	NOUN:1
-st	NOUN:2
+st	NOUN:3
 stab	NOUN:2	VERB:1
 stabilise	VERB:1
 stability	NOUN:2
@@ -20773,7 +20773,7 @@ steward	NOUN:3
 stewardess	NOUN:1
 stewardship	NOUN:1
 stewart	PROPN:2
-stfu	INTJ:2
+stfu	INTJ:1
 sth	PRON:1
 sti	PROPN:1
 stick	NOUN:2	VERB:1
@@ -20962,7 +20962,7 @@ stunningly	ADV:2
 stunt	NOUN:2	VERB:1
 stuntman	NOUN:1
 stupendous	ADJ:2
-stupid	ADJ:1	NOUN:1
+stupid	ADJ:1
 stupidity	NOUN:1
 stupidly	ADV:2
 stupor	NOUN:1
@@ -21158,7 +21158,7 @@ sunscreen	NOUN:1
 sunset	NOUN:1	VERB:1
 sunshine	NOUN:2
 sunspot	NOUN:1
-sup	INTJ:1	VERB:1	NOUN:1
+sup	INTJ:1	VERB:1
 super	ADJ:1	ADV:1	INTJ:1
 superb	ADJ:1
 superbly	ADV:1
@@ -21299,7 +21299,7 @@ swanson	PROPN:1
 swap	NOUN:2	VERB:1
 swarm	NOUN:2	VERB:1
 swastika	NOUN:1
-swat	NOUN:2	VERB:1
+swat	VERB:1	NOUN:2
 swatch	NOUN:1
 swath	NOUN:1
 sway	NOUN:1	VERB:1
@@ -21578,7 +21578,7 @@ tay	PROPN:1
 taylor	PROPN:3
 taz	NOUN:1
 tb	SYM:1
-tba	X:1	NOUN:2
+tba	X:1
 tbd	X:1
 tbh	ADV:1
 tbilisi	PROPN:1
@@ -21767,7 +21767,7 @@ texture	NOUN:1
 tf	PRON:1
 tfa	NOUN:3
 tfw	X:1
-tg	PROPN:1	NOUN:1
+tg	PROPN:1
 thaddeus	PROPN:1
 thai	ADJ:1	NOUN:1
 thailand	PROPN:1
@@ -22007,7 +22007,7 @@ timor	PROPN:1
 timothy	PROPN:1
 timur	PROPN:1
 tin	NOUN:1	ADJ:1	VERB:1
-tina	PROPN:1	X:1
+tina	PROPN:1
 tincture	NOUN:2
 tinder	NOUN:1
 tine	NOUN:2
@@ -22042,11 +22042,11 @@ tittle	NOUN:2
 tivoli	PROPN:1
 tko	NOUN:1
 tlc	NOUN:1
-tm	NOUN:2	PROPN:1
+tm	NOUN:2
 tmi	INTJ:2
 tnt	NOUN:1
 to	ADP:2	PART:1
-toad	NOUN:3
+toad	NOUN:2
 toast	NOUN:1	VERB:1	ADJ:1
 toaster	NOUN:1
 tobacco	NOUN:2
@@ -22177,7 +22177,7 @@ tournament	NOUN:1
 tourney	NOUN:1
 tourniquet	NOUN:1
 tout	NOUN:2	VERB:1
-tow	NOUN:2	VERB:1
+tow	NOUN:1	VERB:2
 toward	ADP:2	PROPN:1
 towards	ADP:2
 towel	NOUN:1	VERB:1
@@ -23088,7 +23088,7 @@ urge	NOUN:1	VERB:2
 urgency	NOUN:2
 urgent	ADJ:1
 urgently	ADV:1
-uri	PROPN:2	NOUN:1
+uri	PROPN:2
 urinal	NOUN:3
 urinary	ADJ:1
 urinate	VERB:1
@@ -23102,14 +23102,14 @@ urquhart	PROPN:1
 ursula	PROPN:1
 uruguay	PROPN:1
 uruguayan	ADJ:1	NOUN:1
-us	PRON:1	PROPN:2
+us	PRON:1
 usa	PROPN:1
 usability	NOUN:1
 usable	ADJ:1
 usage	NOUN:1
 usain	PROPN:1
 usb	NOUN:1
-use	NOUN:1	VERB:1	PROPN:1
+use	NOUN:1	VERB:1
 useful	ADJ:1
 usefulness	NOUN:1
 useless	ADJ:1
@@ -23213,7 +23213,7 @@ vapid	ADJ:2
 vapor	NOUN:1
 vaporize	VERB:1
 vapour	NOUN:1
-var	NOUN:2
+var	NOUN:1
 variability	NOUN:1
 variable	ADJ:2
 variance	NOUN:2
@@ -23235,7 +23235,7 @@ vassal	NOUN:1
 vast	ADJ:1
 vastly	ADV:1
 vastness	NOUN:1
-vat	NOUN:2
+vat	NOUN:1
 vatican	PROPN:1
 vaudeville	NOUN:1
 vault	NOUN:2	VERB:1
@@ -23483,7 +23483,7 @@ vitamin	NOUN:1
 vitreous	ADJ:1
 vitriol	NOUN:3
 vitriolic	ADJ:1
-viv	PROPN:1	NOUN:1
+viv	PROPN:1
 vivacious	ADJ:1
 vivian	PROPN:1
 vivid	ADJ:2
@@ -23575,7 +23575,7 @@ wadi	NOUN:1
 wadsworth	PROPN:1
 wafer	NOUN:3
 waffle	NOUN:1	VERB:2
-wag	VERB:1	NOUN:2
+wag	VERB:2	NOUN:1
 wage	NOUN:2	VERB:1
 wager	NOUN:1	VERB:1
 wagon	NOUN:3
@@ -23622,7 +23622,7 @@ walter	PROPN:1
 waltham	PROPN:3
 walton	PROPN:3
 waltz	NOUN:1	VERB:1
-wan	ADJ:2	NOUN:1
+wan	ADJ:3
 wand	PROPN:1	NOUN:2
 wanda	PROPN:1
 wander	VERB:1
@@ -23656,7 +23656,7 @@ warlord	NOUN:1
 warm	ADJ:2	VERB:1
 warmly	ADV:2
 warmth	NOUN:1
-warn	VERB:1	NOUN:1
+warn	VERB:1
 warner	PROPN:2	NOUN:1
 warp	VERB:1	NOUN:2
 warrant	NOUN:2	VERB:1
@@ -23680,7 +23680,7 @@ washington	PROPN:2
 washout	NOUN:3
 washroom	NOUN:2
 washy	ADJ:1
-wasp	NOUN:2
+wasp	NOUN:1
 wastage	NOUN:1
 waste	NOUN:1	ADJ:1	VERB:1
 wasteful	ADJ:1
@@ -23909,7 +23909,7 @@ whittle	VERB:1
 whitworth	PROPN:1
 whiz	NOUN:2	VERB:1
 whizz	NOUN:2	VERB:1
-who	PRON:2	PROPN:1
+who	PRON:3
 whoa	INTJ:2
 whoever	PRON:1
 whole	ADJ:1	ADV:1	NOUN:1
@@ -23995,7 +23995,7 @@ wilton	PROPN:2
 wiltshire	PROPN:1
 wily	ADJ:1
 wimbledon	PROPN:2
-wimp	NOUN:2
+wimp	NOUN:1
 wimpy	ADJ:1
 win	VERB:1	NOUN:2
 wince	VERB:2	NOUN:1
@@ -24044,7 +24044,7 @@ wirral	PROPN:2
 wiry	ADJ:2
 wisconsin	PROPN:2
 wisdom	NOUN:1
-wise	ADJ:1	PROPN:2
+wise	ADJ:2	PROPN:1
 wisely	ADV:1
 wish	NOUN:1	VERB:1
 wishbone	NOUN:2
@@ -24253,7 +24253,7 @@ xs	ADJ:1
 xxl	ADJ:1
 xyz	NOUN:1	INTJ:1
 y	SYM:2	NOUN:1
-ya	PRON:1	INTJ:1	ADJ:1
+ya	PRON:1	INTJ:1
 yacht	NOUN:1
 yadda	INTJ:1	NOUN:1
 yahoo	NOUN:1	INTJ:1
