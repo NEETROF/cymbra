@@ -24,10 +24,11 @@ Open-source (Apache-2.0) learning tools:
 • **#show-your-play** — clips and runs you are proud of
 • **#music-help** — stuck? tell us your platform and MIDI device
 • **#scores-and-soundfonts** — catalog additions, requests, licensing questions
-• **#music-ideas** / **#music-bugs** — one post per idea or bug
 • **#lingua-help** — Lingua questions; say which browser you use
+• **#music-ideas** / **#music-bugs** / **#lingua-ideas** / **#lingua-bugs** — one post per idea or bug
+• **#music-announcements** / **#lingua-announcements** — new versions; follow the one you use
 • **#music-stats** / **#music-leaderboards** / **#lingua-stats** / **#id-stats** — automated reports, bot only
-• **#id-help** — accounts, sign-in, linked identities
+• **#id-help** — Cymbra ID, the one account behind every Cymbra app: sign-in, linked identities
 • **#dev** — building Cymbra: PRs, engine internals
 
 **Roles**
@@ -38,7 +39,6 @@ Open-source (Apache-2.0) learning tools:
 
 **Links**
 • Site: <https://cymbra.app>
-• Cymbra Music: <https://apps.apple.com/app/id6789557194> (iPhone, iPad, Mac) · <https://play.google.com/store/apps/details?id=com.cymbra.music>
 • Source: <https://github.com/NEETROF/cymbra>
 • Terms: <https://cymbra.app/en/terms/> · Privacy: <https://cymbra.app/en/privacy/>
 
@@ -61,10 +61,11 @@ Des outils d'apprentissage open source (Apache-2.0) :
 • **#show-your-play** — tes extraits et tes runs réussis
 • **#music-help** — bloqué ? précise ta plateforme et ton clavier MIDI
 • **#scores-and-soundfonts** — ajouts au catalogue, demandes, questions de licence
-• **#music-ideas** / **#music-bugs** — un post par idée ou par bug
 • **#lingua-help** — questions sur Lingua ; précise ton navigateur
+• **#music-ideas** / **#music-bugs** / **#lingua-ideas** / **#lingua-bugs** — un post par idée ou par bug
+• **#music-announcements** / **#lingua-announcements** — les nouvelles versions, par app
 • **#music-stats** / **#music-leaderboards** / **#lingua-stats** / **#id-stats** — rapports automatiques, bot uniquement
-• **#id-help** — comptes, connexion, identités liées
+• **#id-help** — Cymbra ID, ton compte commun à toutes les apps : connexion, identités
 • **#dev** — le développement de Cymbra : PRs, moteur
 
 **Rôles**
@@ -75,7 +76,6 @@ Des outils d'apprentissage open source (Apache-2.0) :
 
 **Liens**
 • Site : <https://cymbra.app>
-• Cymbra Music : <https://apps.apple.com/app/id6789557194> (iPhone, iPad, Mac) · <https://play.google.com/store/apps/details?id=com.cymbra.music>
 • Sources : <https://github.com/NEETROF/cymbra>
 • CGU : <https://cymbra.app/cgu/> · Confidentialité : <https://cymbra.app/confidentialite/>
 
@@ -97,7 +97,7 @@ Lis les règles ci-dessous avant de poster. Viens dire bonjour dans **#general**
 
 **4. No scams, no ads.** No "free nitro", no crypto, no invite-trading, no unrelated self-promotion. Your own playing, your own arrangements, your own tools: welcome.
 
-**5. Keep channels on topic.** Bugs in #music-bugs, ideas in #music-ideas, one post each. The stats channels are bot-only — react there, discuss in #general.
+**5. Keep channels on topic.** Bugs and ideas go in each app's forums (#music-bugs, #music-ideas, #lingua-bugs, #lingua-ideas), one post each. The stats channels are bot-only — react there, discuss in #general.
 
 **6. Others' privacy.** Do not post someone's real name, address, email, or private messages. The bot only ever names players who opted in.
 
@@ -125,7 +125,7 @@ Breaking these gets a warning, then a mute, then a ban — faster if it is delib
 
 **4. Pas d'arnaques, pas de pub.** Pas de "free nitro", pas de crypto, pas d'échange d'invitations, pas d'autopromotion hors sujet. Ton jeu, tes arrangements, tes outils : bienvenue.
 
-**5. Respecte le sujet des salons.** Les bugs dans #music-bugs, les idées dans #music-ideas, un post par sujet. Les salons de statistiques sont réservés au bot — réagis-y, discute dans
+**5. Respecte le sujet des salons.** Les bugs et les idées vont dans les forums de chaque app (#music-bugs, #music-ideas, #lingua-bugs, #lingua-ideas), un post par sujet. Les salons de statistiques sont réservés au bot — réagis-y, discute dans
 #general.
 
 **6. Vie privée des autres.** Ne publie ni nom réel, ni adresse, ni email, ni messages privés de quelqu'un d'autre. Le bot ne nomme que les joueurs qui ont donné leur accord.
@@ -151,3 +151,20 @@ Enfreindre ces règles vaut un avertissement, puis un mute, puis un ban — plus
 - If you enable **Onboarding** (Server Settings → Onboarding), Discord shows the rules as a
   gate before a member can post — that is where the `Beta` and `Curator` roles should be
   offered as self-select options.
+
+---
+
+## 5. `#id-help` — what Cymbra ID is (post it there, then pin it)
+
+```
+# 🪪 Cymbra ID
+
+Cymbra ID is your Cymbra account: one sign-in — Google, Apple or email — for every Cymbra app, Music and Lingua alike.
+• Both apps work without an account to start. Signing in keeps your plan, your progress and your Lingua deck across your devices.
+• Your account page: <https://cymbra.app/en/account/>
+• Deleting your account, and every app's data with it: <https://cymbra.app/en/delete-account/>
+
+Ask here about signing in, linked identities or deleting your account. **Never post your email address or a code in this channel** — DM a mod instead.
+
+Cymbra ID, c'est ton compte Cymbra : une seule connexion — Google, Apple ou e-mail — pour toutes les apps Cymbra, Music comme Lingua. Les deux apps s'utilisent sans compte pour commencer ; te connecter garde ta formule, ta progression et ton deck Lingua sur tous tes appareils. Ton compte : <https://cymbra.app/account/> · le supprimer : <https://cymbra.app/suppression-compte/>. **Ne poste jamais ton adresse e-mail ni un code ici** — écris à un modérateur en privé.
+```

@@ -129,7 +129,8 @@ Read the English web and grow your vocabulary as you go. Cymbra Lingua is a brow
 • Safari on iPhone, iPad and Mac: coming soon
 
 **Here on Discord**
-• **#lingua-help** — questions and bugs; say which browser you use
+• **#lingua-help** — questions; say which browser you use
+• **#lingua-ideas** / **#lingua-bugs** — one post per idea or bug
 
 New versions are announced right here as soon as they are released. The stores publish them after their review, which can take a few days, so a store may still show the previous version for a while.
 ```
@@ -158,7 +159,8 @@ Enrichis ton vocabulaire anglais en lisant le web. Cymbra Lingua est une extensi
 • Safari sur iPhone, iPad et Mac : bientôt
 
 **Ici, sur Discord**
-• **#lingua-help** — questions et bugs ; précise ton navigateur
+• **#lingua-help** — questions ; précise ton navigateur
+• **#lingua-ideas** / **#lingua-bugs** — un post par idée ou par bug
 
 Les nouvelles versions sont annoncées ici dès leur sortie. Les stores les publient après leur validation, ce qui peut prendre quelques jours : un store peut donc encore proposer la version précédente pendant un moment.
 ```
