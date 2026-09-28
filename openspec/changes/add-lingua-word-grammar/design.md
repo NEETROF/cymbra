@@ -257,6 +257,21 @@ change: the same round-robin, the same three senses, the same cuts at 42 and 80 
 3. The gloss is joined and cut as today.
 4. The runs are counted from the senses that survived the cut.
 
+**Acronyms stay out of a common word's gloss.** The reducer lowercases every headword, so the
+entries of an acronym merged into the common word spelled like it. Dogfooding in Safari showed the
+card of `and` reading « *verbe* Faire le ET de »: the French Wiktionary's `AND`, the logic
+operator, is a noun and a verb. The flat gloss already said « Et; ET; Faire le ET de »; grouping by
+part of speech made it glaring. It was not isolated: 246 glossed words mixed an all-capitals
+headword with their own, among them `for` « Franco wagon », `be` « Meilleure estimation », `me`
+« Médecin légiste », `who` « OMS », `us` « États-Unis » and `if` « Indice de citations ».
+
+So an entry whose headword is written all in capitals (two letters or more) is left out of a word
+that has an entry of its own, and kept when it is the only one (`NATO` still glosses `nato`). A
+capitalised headword is no acronym: `He` still glosses `he`. The cost is the acronym read in
+context: `US` in "the US economy" opens the card of `us`, which no longer says « États-Unis ». That
+is the same card as before, and such a reading is far rarer than the pronoun. `wiktionary_signals`
+is left as it is, so the inflection rules, `forms.tsv` and `freq.tsv` do not move.
+
 The multi-word path (`reduce_expressions`) is untouched: a test asserts that `mwe.tsv` is
 byte-identical. `forms.tsv` and `freq.tsv` are asserted byte-identical too. Only `gloss.tsv`
 moves, and the pull request's report counts the reordered glosses and the changed separators.
