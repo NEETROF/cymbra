@@ -121,4 +121,5 @@
 - [ ] 8.1 `openspec validate add-lingua-word-grammar --strict`.
 - [ ] 8.2 Dogfood on Chrome desktop, Firefox desktop and Safari (macOS and iOS), on an English article:
   - open `went`, `leaves`, `don't`, `can`, a known word, and page through `be`;
+  - on a phone and a tablet, check that the paging arrows are large enough to tap (about 23 × 27 px today, under the 44 pt a touch target wants);
   - measure on Safari how often a first card misses the 250 ms bound with the event page suspended and awake, and record the result in the design (keep the bound, or open the prefetch follow-up).
