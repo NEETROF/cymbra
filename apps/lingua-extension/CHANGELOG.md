@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.4.0](https://github.com/NEETROF/cymbra/compare/lingua-extension-v1.3.1...lingua-extension-v1.4.0) (2026-09-29)
+
+
+### Features
+
+* **lingua:** read-aloud fallback to remote voices where no English voice is installed ([#595](https://github.com/NEETROF/cymbra/issues/595)) ([946b06e](https://github.com/NEETROF/cymbra/commit/946b06ed55780d5be6a330c36f0b1bbdcca23635))
+* **lingua:** say what a word's form is, and lay its gloss out by part of speech ([#600](https://github.com/NEETROF/cymbra/issues/600)) ([7e4ae00](https://github.com/NEETROF/cymbra/commit/7e4ae0056159a4cde07412a93654fb67895e7fd7))
+* **lingua:** show taught and estimated words per CEFR level ([#598](https://github.com/NEETROF/cymbra/issues/598)) ([4e407ba](https://github.com/NEETROF/cymbra/commit/4e407ba4d3b410f67c51132c7e24f10c7a16015b))
+
+
+### Bug Fixes
+
+* **lingua:** offer the add-on on Firefox for Android ([#599](https://github.com/NEETROF/cymbra/issues/599)) ([2ada142](https://github.com/NEETROF/cymbra/commit/2ada14210e1f28c23670f5cf707c9bc705ed1fd9))
+* **lingua:** record the Windows read-aloud pass and fix the voice-install tooltip ([#605](https://github.com/NEETROF/cymbra/issues/605)) ([646c53c](https://github.com/NEETROF/cymbra/commit/646c53cf7f2cbf6bf824dfa26ffac0c8ab5851be))
+
 ## [1.3.1](https://github.com/NEETROF/cymbra/compare/lingua-extension-v1.3.0...lingua-extension-v1.3.1) (2026-09-27)
 
 

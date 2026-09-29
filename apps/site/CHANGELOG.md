@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.0](https://github.com/NEETROF/cymbra/compare/site-v0.10.0...site-v0.11.0) (2026-09-29)
+
+
+### Features
+
+* **lingua:** read-aloud fallback to remote voices where no English voice is installed ([#595](https://github.com/NEETROF/cymbra/issues/595)) ([946b06e](https://github.com/NEETROF/cymbra/commit/946b06ed55780d5be6a330c36f0b1bbdcca23635))
+
 ## [0.10.0](https://github.com/NEETROF/cymbra/compare/site-v0.9.2...site-v0.10.0) (2026-09-27)
 
 
