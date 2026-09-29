@@ -2,7 +2,7 @@ import type { GrammarTag, SenseGroup } from "../analyzer/types.ts";
 
 // A word's gloss, cut into the pages its card shows one at a time (add-lingua-word-grammar). The
 // pack keeps up to eight whole senses of a word; a page holds what a card showed before — about
-// 160 characters — so the most common senses come first and the rest wait behind « Suivant ».
+// 160 characters — so the most common senses come first and the rest wait behind « › ».
 // A page holds whole senses only, and at least one however long it is.
 
 /** What a page holds, as a card showed a whole gloss before the pack kept more senses. */

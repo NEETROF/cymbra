@@ -279,7 +279,7 @@ describe("the word card pages a long gloss", () => {
     expect(page.count).toBe("1/2");
     expect(page.previous!.disabled).toBe(true);
     expect(page.next!.disabled).toBe(false);
-    expect(page.next!.textContent).toBe("Suivant ›");
+    expect(page.next!.textContent).toBe("›");
   });
 
   it("Moving to the next page, and back", () => {
