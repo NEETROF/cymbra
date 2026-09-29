@@ -8,7 +8,9 @@
 
 `tables/<pair>/pin.json` records where the committed tables came from and what they build:
 
-- `snapshot`: the day the sources were read (`2026.09.26`); it is also the pack's `pack_version`.
+- `snapshot`: the day the sources were read (`2026.09.26`); it is also the pack's `pack_version`
+  when the tables come from an update, and names it with the reducer's rules when they come from a
+  re-reduction of the same sources (`2026.09.26+1dff19c`).
 - `pack`: sha256 and size of the pack the tables build — every lane must obtain exactly that.
 - `reducer`: sha256 of the `reduce-<pair>.py` the tables were reduced with.
 - `sources`: each raw source, pinned — CEFR-J and Octanove at a commit of their own repository

@@ -29,10 +29,11 @@ use lingua_core::decks::backup::LinguaState;
 use lingua_core::decks::card::{Card, EncounterSource, Provenance};
 use lingua_core::decks::fsrs::{Rating, ReviewState};
 use lingua_core::decks::review::ReviewSession;
-use lingua_core::engine::{analyse_page_json, gloss_phrase_json};
+use lingua_core::engine::{analyse_page_json, gloss_phrase_json, word_grammar_json};
 use lingua_core::knowledge::level::CefrLevel;
 use lingua_core::knowledge::state::{FrequencyRanks, KnowledgeState};
 use lingua_core::knowledge::status::{KnownSource, Status};
+use lingua_core::knowledge::vocabulary::level_vocabulary;
 use lingua_core::packs::Pack;
 use wasm_bindgen::prelude::*;
 
@@ -54,6 +55,9 @@ pub struct LinguaEngine {
     pack: Pack,
     state: LinguaState,
     session: Option<ReviewSession>,
+    /// Per level A1..C2, the vocabulary typical of a reader at it — a property of the
+    /// pack alone, so computed once, on the first ladder.
+    level_vocabularies: std::cell::OnceCell<[usize; 6]>,
 }
 
 #[wasm_bindgen]
@@ -67,6 +71,7 @@ impl LinguaEngine {
             pack,
             state: LinguaState::default(),
             session: None,
+            level_vocabularies: std::cell::OnceCell::new(),
         })
     }
 
@@ -172,17 +177,23 @@ impl LinguaEngine {
     }
 
     /// The CEFR progression ladder as JSON — an array of
-    /// `{level, confirmed, presumed, toLearn, total}`, one row per level A1..C2,
-    /// folded over the pack's lemmas at each level. `[]` when the pack carries no
-    /// CEFR data.
+    /// `{level, confirmed, presumed, toLearn, total, typicalVocabulary}`, one row per
+    /// level A1..C2, folded over the pack's lemmas at each level; `typicalVocabulary` is
+    /// the vocabulary size of a reader at the level (see `level_vocabulary`;
+    /// 0 at A1, which presumes nothing). `[]` when the pack carries no CEFR data.
     #[wasm_bindgen(js_name = levelLadder)]
     pub fn level_ladder(&self) -> String {
         if !self.pack.has_levels() {
             return "[]".to_owned();
         }
+        let typical = self.level_vocabularies.get_or_init(|| {
+            let words = self.pack.dictionary_words();
+            CefrLevel::ALL.map(|level| level_vocabulary(level, words.iter().copied(), &self.pack))
+        });
         let rows: Vec<serde_json::Value> = CefrLevel::ALL
             .iter()
-            .map(|&level| {
+            .zip(typical)
+            .map(|(&level, &typical)| {
                 let lemmas = self.pack.lemmas_at_level(level);
                 let stats =
                     self.state
@@ -194,6 +205,7 @@ impl LinguaEngine {
                     "presumed": stats.presumed,
                     "toLearn": stats.to_learn,
                     "total": stats.total(),
+                    "typicalVocabulary": typical,
                 })
             })
             .collect();
@@ -492,6 +504,19 @@ impl LinguaEngine {
     #[wasm_bindgen(js_name = phraseGloss)]
     pub fn phrase_gloss(&self, text: &str) -> String {
         gloss_phrase_json(text, EN, &self.pack, &self.state.knowledge)
+    }
+
+    /// A word card's grammar, as canonical JSON: the dictionary form's gloss,
+    /// the same gloss grouped by part of speech, the readings of the word as
+    /// written as that dictionary form, the other dictionary forms it is also
+    /// a reading of, and the pieces the pre-pass split it into
+    /// (`add-lingua-word-grammar`). `written` is the word as it stands on the
+    /// page — both halves of `don't` pass `don't` — and `lemma` the dictionary
+    /// form the card is keyed by. Pure pack data: the reader's state plays no
+    /// part.
+    #[wasm_bindgen(js_name = wordGrammar)]
+    pub fn word_grammar(&self, written: &str, lemma: &str) -> String {
+        word_grammar_json(written, lemma, EN, &self.pack)
     }
 
     /// Number of forms the reader has explicitly marked (any status).

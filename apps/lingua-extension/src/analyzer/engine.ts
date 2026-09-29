@@ -16,6 +16,7 @@ import type {
   PhraseGloss,
   SeedOrder,
   VocabularyEstimate,
+  WordGrammar,
 } from "./types.ts";
 
 // The Chromium LinguaPort implementation: the lingua-core WASM module instantiated
@@ -36,6 +37,7 @@ interface WasmEngine {
   analyse(blocks: string[]): string;
   gloss(lemma: string): string | undefined;
   phraseGloss(text: string): string;
+  wordGrammar(written: string, lemma: string): string;
   trackedCount(): number;
   addCard(
     lemma: string,
@@ -166,6 +168,10 @@ export class WasmAnalyzerPort implements LinguaPort {
 
   async phraseGloss(text: string): Promise<PhraseGloss> {
     return JSON.parse((await this.engine()).phraseGloss(text)) as PhraseGloss;
+  }
+
+  async wordGrammar(written: string, lemma: string): Promise<WordGrammar> {
+    return JSON.parse((await this.engine()).wordGrammar(written, lemma)) as WordGrammar;
   }
 
   async trackedCount(): Promise<number> {

@@ -28,7 +28,11 @@ TABLES = {
     "gloss.tsv": "lemma → gloss",
     "level.tsv": "lemma → CEFR level",
     "mwe.tsv": "expression → gloss",
+    "grammar.tsv": "form lemma reading → may be named as another word",
+    "senses.tsv": "lemma → parts of speech of its senses",
 }
+# Tables with several lines per first field: the key is every field but the last.
+MULTI_KEYED = {"grammar.tsv"}
 BUDGET = 5 * 1024 * 1024  # the pack's size budget (lingua-data-packs)
 SAMPLES = 8
 # Ranks move by one for every lemma above an insertion: a rank change is news past this.
@@ -40,7 +44,11 @@ def read_table(path: Path) -> dict[str, str]:
     if not path.is_file():
         return rows
     for line in path.read_text(encoding="utf-8").splitlines():
-        key, sep, value = line.partition("\t")
+        if path.name in MULTI_KEYED:
+            key, sep, value = line.rpartition("\t")
+            key = key.replace("\t", " ")
+        else:
+            key, sep, value = line.partition("\t")
         if sep:
             rows[key] = value
     return rows

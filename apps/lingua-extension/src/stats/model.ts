@@ -26,8 +26,8 @@ export function estimatedPosition(rows: LevelRow[]): CefrLevel | null {
 
 /**
  * Running totals of the ladder's band sizes: each level's words plus those of every
- * level below it. A band only counts the words introduced at its level, so this is
- * the figure comparable with overall vocabulary-size estimates per level.
+ * level below it — the words taught up to the level. A teaching list stops where courses
+ * stop, so this stays well below a reader's vocabulary (`LevelRow.typicalVocabulary`).
  */
 export function cumulativeTotals(rows: LevelRow[]): number[] {
   let sum = 0;

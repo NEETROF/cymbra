@@ -108,7 +108,8 @@
 }
 
 .ladder-frac,
-.ladder-cum {
+.ladder-cum,
+.ladder-est {
   text-align: right;
   font-size: 11px;
   color: var(--cymbra-lingua-muted);
@@ -121,12 +122,17 @@
 }
 
 .ladder-cum {
-  width: 44px;
+  width: 48px;
 }
 
-/* Column captions above the rows: "ce niveau" / "cumulé". */
+.ladder-est {
+  width: 56px;
+}
+
+/* Column captions above the rows: "ce niveau" / "enseignés" / "estimés". */
 .ladder-cols .ladder-frac,
-.ladder-cols .ladder-cum {
+.ladder-cols .ladder-cum,
+.ladder-cols .ladder-est {
   font-size: 10px;
 }
 
