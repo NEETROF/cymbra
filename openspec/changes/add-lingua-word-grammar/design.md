@@ -456,6 +456,10 @@ _Alternatives considered:_
   buttons do, and a page change redraws only the gloss and re-anchors the card. Every `show`
   starts on the first page, which is also what a created card stores (`pageText`), so the deck
   never holds eight senses and does not depend on the page the reader was on.
+  Dogfooding showed a short last page shrinking the card under the pointer: `refer`'s « Se référer
+  à » alone narrowed it until « Je connais » wrapped, and moved « ‹ » up. So a paged card is
+  measured on every page when shown and keeps the widest width and the tallest page height
+  (`holdPageSize`); nothing moves while paging.
 
 ### D7 — Labels: generic names here, tense names per studied language
 

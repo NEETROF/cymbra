@@ -80,7 +80,8 @@ The word card SHALL show a gloss longer than one page — 160 characters, what a
 A page SHALL hold at least one sense, however long. The card SHALL say which page it shows out of
 how many, and a gloss that fits on one page SHALL show no paging control. Moving between pages SHALL
 change only the gloss: the card keeps its word, its status and its actions, and keeps the reader's
-selection on the page. A card opened again starts on its first page.
+selection on the page. A paged card SHALL keep one size, that of its largest page, so that no page
+moves the paging control or the actions. A card opened again starts on its first page.
 
 #### Scenario: A word with more senses than one page holds
 - **WHEN** the reader opens the card of a word whose senses take more than 160 characters
@@ -89,6 +90,10 @@ selection on the page. A card opened again starts on its first page.
 #### Scenario: Moving to the next page
 - **WHEN** the reader presses the next-page control
 - **THEN** the card shows the following senses under their headings, offers the previous page, and its actions are unchanged
+
+#### Scenario: A last page shorter than the first
+- **WHEN** the reader moves to a page that holds one short sense
+- **THEN** the card keeps its size, and the paging control and the actions stay where they were
 
 #### Scenario: A gloss that fits
 - **WHEN** the reader opens the card of `can`
