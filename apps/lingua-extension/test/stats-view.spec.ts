@@ -45,6 +45,7 @@ function ladder(confirmed: number): LevelRow[] {
     presumed: 0,
     toLearn: 100 - (i === 0 ? confirmed : 0),
     total: 100,
+    typicalVocabulary: 1_000 * (i + 1),
   }));
 }
 
