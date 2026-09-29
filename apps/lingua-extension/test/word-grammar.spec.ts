@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { GrammarTag, WordGrammar } from "@/analyzer/types.ts";
 import { createCard, type WordPopupContent } from "@/reading/wordpopup.ts";
 import { grammarLines, joinFrench, lineText, readingName, senseHeading } from "@/reading/grammar-labels.ts";
@@ -316,6 +316,33 @@ describe("the word card pages a long gloss", () => {
     );
     expect(texts(card).count).toBe("1/2");
     expect(card.el.querySelector(".gloss-page")!.textContent).toBe(FIRST_PAGE);
+  });
+
+  it("a paged card keeps the size of its largest page, so paging moves nothing", () => {
+    // jsdom lays nothing out: a box as wide and as tall as the text it holds stands in for it.
+    const rect = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      const chars = this.classList.contains("card")
+        ? (this.querySelector(".gloss-page")?.textContent?.length ?? 0)
+        : (this.textContent?.length ?? 0);
+      return { width: 100 + chars, height: chars / 2, top: 0, left: 0, bottom: 0, right: 0, x: 0, y: 0 } as DOMRect;
+    });
+    try {
+      const { card } = beCard();
+      const second = `verbe ${BE[3]}; ${BE[4]}nom ${BE[5]}`.length;
+      const first = `verbe ${FIRST_PAGE}`.length;
+      const page = card.el.querySelector<HTMLElement>(".gloss-page")!;
+      expect(card.el.style.minWidth).toBe(`${100 + Math.max(first, second)}px`);
+      expect(page.style.minHeight).toBe(`${Math.ceil(Math.max(first, second) / 2)}px`);
+      // Measured on every page, it still opens on the first.
+      expect(texts(card).count).toBe("1/2");
+      // Another word starts from its own size.
+      card.show(content({ gloss: "Aller" }), () => {});
+      expect(card.el.style.minWidth).toBe("");
+    } finally {
+      rect.mockRestore();
+    }
   });
 
   it("A gloss that fits shows no paging control", () => {

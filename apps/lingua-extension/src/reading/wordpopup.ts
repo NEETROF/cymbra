@@ -164,6 +164,7 @@ export function createCard(speaker?: Speaker): CardView {
   let pages: GlossPage[] = [];
   let pageIndex = 0;
   let storedGloss: string | null = null;
+  let paged: { pageEl: HTMLElement; nav: PageNav } | null = null;
 
   function button(
     label: string,
@@ -241,6 +242,7 @@ export function createCard(speaker?: Speaker): CardView {
     pages = [];
     pageIndex = 0;
     storedGloss = null;
+    paged = null;
     glossEl.hidden = false;
     if (content.pending) {
       glossEl.textContent = content.translating ? TRANSLATING : WAITING;
@@ -298,6 +300,32 @@ export function createCard(speaker?: Speaker): CardView {
     const pageEl = div("gloss-page");
     glossEl.append(pageEl);
     const nav = pages.length > 1 ? pageNav(pageEl) : null;
+    if (nav) paged = { pageEl, nav };
+    renderPage(pageEl, nav);
+  }
+
+  /**
+   * Give a paged card the size of its largest page, so that moving between pages moves nothing:
+   * a shorter page would shrink the card under the reader's pointer, shift the paging buttons and,
+   * on a card flipped above its word, the whole card. Measured on the card as shown, every page
+   * in turn: the widest first, then the tallest at that width.
+   */
+  function holdPageSize(): void {
+    if (!paged) return;
+    const { pageEl, nav } = paged;
+    let width = 0;
+    for (pageIndex = 0; pageIndex < pages.length; pageIndex++) {
+      renderPage(pageEl, nav);
+      width = Math.max(width, el.getBoundingClientRect().width);
+    }
+    if (width > 0) el.style.minWidth = `${Math.ceil(width)}px`;
+    let height = 0;
+    for (pageIndex = 0; pageIndex < pages.length; pageIndex++) {
+      renderPage(pageEl, nav);
+      height = Math.max(height, pageEl.getBoundingClientRect().height);
+    }
+    if (height > 0) pageEl.style.minHeight = `${Math.ceil(height)}px`;
+    pageIndex = 0;
     renderPage(pageEl, nav);
   }
 
@@ -425,6 +453,7 @@ export function createCard(speaker?: Speaker): CardView {
     },
     show(content, onGesture) {
       generation++;
+      el.style.minWidth = "";
       // Another word silences the card; the same selection completing with its answer does not.
       const playing = cardSpeaking();
       if (playing && !listensFor(content).some((l) => l.text === playing.text)) speaker?.stop();
@@ -460,6 +489,7 @@ export function createCard(speaker?: Speaker): CardView {
       actionsEl.hidden = actionsEl.childElementCount === 0;
 
       el.hidden = false; // reveal first so the card can be measured, then position it
+      holdPageSize();
       positionCard(el, content.rect);
       return generation;
     },
