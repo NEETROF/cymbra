@@ -154,19 +154,31 @@ SHALL either be omitted from the message or represented only inside an anonymous
 
 ### Requirement: Aggregate announcements never identify a player
 
-An aggregate announcement SHALL contain only counts and non-identifying figures. It MUST NOT
-contain display names, handles, account identifiers, email addresses, or any value from which a
-single player could be re-identified — including an aggregate whose count is small enough to
-name one person implicitly, which MUST be suppressed below a configured minimum.
+An aggregate announcement SHALL contain only figures about **activity** — counts of things done
+(sessions, words read, reviews, ratings, plays of a piece), averages, rankings and percentages. It
+MUST NOT contain display names, handles, account identifiers or email addresses, and it SHALL NOT
+state **how many people** were involved: no count of players, accounts, readers, new accounts,
+verifications or linked identities, and a breakdown by language or sign-in method is shown as a
+ranking or as percentages, never as head counts.
+A figure SHALL be dropped when its contributing accounts are fewer than a **minimum** read from a
+runtime flag at publication time. The default minimum is **1** — no figure is dropped — by
+maintainer decision (2026-09-29): while the community is small, a published figure can be one
+person's activity, and that is accepted; raising the minimum takes effect at the next report
+without a release.
 
-#### Scenario: Digest reports counts only
+#### Scenario: Digest reports activity, not people
 
 - **WHEN** a product's digest is published
-- **THEN** it contains counts and non-identifying figures, and no name, handle, identifier, or email
+- **THEN** it contains activity figures and no name, handle, identifier, email, or count of people
 
-#### Scenario: Too-small aggregate is suppressed
+#### Scenario: The default minimum drops nothing
 
-- **WHEN** an aggregate figure covers fewer players than the configured minimum
+- **WHEN** the minimum holds its default and one account contributed to a figure
+- **THEN** that figure is published
+
+#### Scenario: A raised minimum drops a small figure
+
+- **WHEN** an operator has raised the minimum and a figure's contributing accounts are fewer
 - **THEN** that figure is omitted rather than published
 
 ### Requirement: Only allow-listed event categories are announceable
@@ -277,7 +289,7 @@ reason, so an intentional silence stays distinguishable from a broken digest.
 
 #### Scenario: All-suppressed figures also produce no message
 
-- **WHEN** every figure of the period falls below the aggregate minimum and is therefore suppressed
+- **WHEN** every figure of the period falls below a raised minimum and is therefore suppressed
 - **THEN** nothing is posted, rather than a report full of dashes
 
 #### Scenario: One substantive element is enough to publish
