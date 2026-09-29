@@ -315,6 +315,16 @@ sense left empty is dropped. An arrow that is no pointer (« hard → hardest »
 nothing else and lose their gloss: their card says the pack has no translation, which is true.
 It applies to expressions too, so `mwe.tsv` moves for those 55 entries and no others.
 
+**A word that is only a form of another.** `catacombs` had no gloss: the word list keeps it as a
+word of its own, and the Wiktionary only says « Pluriel de catacomb », a form-of sense the reducer
+skips. 718 kept words have only such senses. A second pass reads the bases they name and lends
+their senses in the same part of speech, so the plural of a noun takes the noun's senses and an
+archaic participle the verb's (`holden` « Tenir », not the noun « Prise »). Without that condition
+`hearted` took the noun `heart` « Cœur »; a base shorter than three letters lends nothing (`fs`
+would read « Sixième lettre »). 392 words gain a gloss — `bacteria` « Bactérie », `footsteps`,
+`algae`, `millennia`, `dwarves` — and no other line of any table moves; the pack grows to
+1 835 497 B.
+
 `forms.tsv` and `freq.tsv` are asserted byte-identical. `gloss.tsv` moves, and the pull request's
 report counts the reordered glosses and the changed separators.
 
@@ -460,6 +470,9 @@ _Alternatives considered:_
   à » alone narrowed it until « Je connais » wrapped, and moved « ‹ » up. So a paged card is
   measured on every page when shown and keeps the widest width and the tallest page height
   (`holdPageSize`); nothing moves while paging.
+  On a touch-first device (`pointer: coarse`, as `isTouchPrimary`) each arrow is a 44 × 44 button
+  drawing the same 30 × 24 pill as a `::before`: the target is in the flow, because a hit area
+  overflowing the button would lie over the actions below it.
 
 ### D7 — Labels: generic names here, tense names per studied language
 

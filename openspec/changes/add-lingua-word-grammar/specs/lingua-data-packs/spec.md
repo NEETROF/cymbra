@@ -130,6 +130,22 @@ holds for the glosses of words and of expressions alike.
 - **WHEN** the dictionary glosses `because` « Parce que » and « Définition manquante ou à compléter. (Ajouter) → voir because of »
 - **THEN** the gloss of `because` is « Parce que »
 
+### Requirement: A word that is only a form of another takes that word's gloss
+A dictionary form the pack keeps whose every sense in the dictionary only says which word it is a form of SHALL be glossed with the senses of that word in the same part of speech, and SHALL have no gloss when that word has none in that part of speech.
+The word list keeps some forms as words of their own — `catacombs`, `bacteria`, `footsteps` — and
+the dictionary glosses them only as « Pluriel de catacomb »; without this, their card has no
+translation. When the senses name several words, the first one that has senses in that part of
+speech gives them. A word of fewer than three letters, such as a letter of the alphabet, gives none.
+A form that has a meaning of its own keeps it.
+
+#### Scenario: A plural kept as a word
+- **WHEN** the dictionary glosses `catacombs` only as the plural of `catacomb`, and `catacomb` as « Catacombe »
+- **THEN** the gloss of `catacombs` is « Catacombe », a noun sense
+
+#### Scenario: A word only in another part of speech
+- **WHEN** the dictionary glosses the adjective `hearted` only as a form of `heart`, which is only a noun
+- **THEN** `hearted` has no gloss
+
 ## MODIFIED Requirements
 
 ### Requirement: Versioned pack container, keyed by language pair
