@@ -26,7 +26,7 @@ use serde::Serialize;
 
 use crate::analysis::language::StudiedLanguage;
 
-use super::level::CefrLevels;
+use super::level::{CefrLevel, CefrLevels};
 use super::state::{FrequencyRanks, KnowledgeState};
 use super::status::Status;
 
@@ -88,6 +88,82 @@ impl Band {
     }
 }
 
+/// What the engine holds about one word of the estimate's universe.
+enum Opinion {
+    /// Left out of the universe, as a vocabulary size counts neither names nor noise.
+    Ignored,
+    /// In the universe, but no evidence either way.
+    Silent,
+    /// Known — `confirmed` when the reader said so rather than presumed.
+    Known {
+        confirmed: bool,
+    },
+    NotKnown,
+}
+
+/// Groups `words` in frequency bands and sums each band's estimate (see [`Band`]), the
+/// `opinion` on each word deciding what it counts as.
+fn estimate_over<'a>(
+    words: impl IntoIterator<Item = (&'a str, u32)>,
+    basis: VocabularyBasis,
+    mut opinion: impl FnMut(&str) -> Opinion,
+) -> VocabularyEstimate {
+    let mut bands: BTreeMap<u32, Band> = BTreeMap::new();
+    for (lemma, rank) in words {
+        let opinion = opinion(lemma);
+        if matches!(opinion, Opinion::Ignored) {
+            continue;
+        }
+        let band = bands.entry(rank.saturating_sub(1) / BAND).or_default();
+        band.words += 1;
+        match opinion {
+            Opinion::Ignored | Opinion::Silent => {}
+            Opinion::Known { confirmed } => {
+                band.evidence += 1;
+                band.known += 1;
+                band.confirmed += usize::from(confirmed);
+            }
+            Opinion::NotKnown => band.evidence += 1,
+        }
+    }
+    bands.values().fold(
+        VocabularyEstimate {
+            basis,
+            ..VocabularyEstimate::default()
+        },
+        |mut total, band| {
+            total.universe += band.words;
+            total.confirmed += band.confirmed;
+            total.estimated += band.estimated();
+            total
+        },
+    )
+}
+
+/// The vocabulary size typical of a reader at `level`, over `words` — dictionary words
+/// with their frequency rank.
+///
+/// The CEFR lists are teaching lists: they stop at the words a course introduces, so their
+/// running total stays far below the vocabulary a reader of the level actually has. This is
+/// [`KnowledgeState::vocabulary_estimate`] for a reader who declared `level` and marked
+/// nothing: every listed word below the level known, none at or above it, each band's
+/// known share among its leveled words extrapolated to the band. It depends on the pack
+/// only, not on the reader — and, the lowest level presuming nothing, it is 0 at A1.
+pub fn level_vocabulary<'a>(
+    level: CefrLevel,
+    words: impl IntoIterator<Item = (&'a str, u32)>,
+    lexis: &impl CefrLevels,
+) -> usize {
+    estimate_over(words, VocabularyBasis::Level, |lemma| {
+        match lexis.level(lemma) {
+            Some(l) if l < level => Opinion::Known { confirmed: false },
+            Some(_) => Opinion::NotKnown,
+            None => Opinion::Silent,
+        }
+    })
+    .estimated
+}
+
 impl KnowledgeState {
     /// Estimates how many of `words` — dictionary words with their frequency rank — the
     /// reader knows.
@@ -115,51 +191,25 @@ impl KnowledgeState {
         } else {
             VocabularyBasis::Marked
         };
-        let mut bands: BTreeMap<u32, Band> = BTreeMap::new();
-        for (lemma, rank) in words {
-            let explicit = self.explicit_status(lang, lemma);
-            if explicit == Some(Status::Ignored) {
-                continue;
-            }
-            let band = bands.entry(rank.saturating_sub(1) / BAND).or_default();
-            band.words += 1;
-            let known = match explicit {
-                Some(Status::Known(_)) => {
-                    band.confirmed += 1;
-                    Some(true)
-                }
-                Some(_) => Some(false),
+        estimate_over(words, basis, |lemma| {
+            match self.explicit_status(lang, lemma) {
+                Some(Status::Ignored) => Opinion::Ignored,
+                Some(Status::Known(_)) => Opinion::Known { confirmed: true },
+                Some(_) => Opinion::NotKnown,
                 // A declared level says nothing about a word the CEFR lists do not hold.
-                None if declared && lexis.level(lemma).is_none() => None,
-                None => Some(matches!(
-                    self.resolve_lemma(lang, lemma, lexis),
-                    Some(status) if status.counts_as_known()
-                )),
-            };
-            if let Some(known) = known {
-                band.evidence += 1;
-                band.known += usize::from(known);
+                None if declared && lexis.level(lemma).is_none() => Opinion::Silent,
+                None => match self.resolve_lemma(lang, lemma, lexis) {
+                    Some(status) if status.counts_as_known() => Opinion::Known { confirmed: false },
+                    _ => Opinion::NotKnown,
+                },
             }
-        }
-        bands.values().fold(
-            VocabularyEstimate {
-                basis,
-                ..VocabularyEstimate::default()
-            },
-            |mut total, band| {
-                total.universe += band.words;
-                total.confirmed += band.confirmed;
-                total.estimated += band.estimated();
-                total
-            },
-        )
+        })
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::knowledge::level::CefrLevel;
     use crate::knowledge::state::MapFrequencyRanks;
     use crate::knowledge::status::KnownSource;
 
@@ -288,5 +338,32 @@ mod tests {
             KnowledgeState::new().vocabulary_estimate(EN, Vec::new(), &lexis),
             VocabularyEstimate::default()
         );
+    }
+
+    #[test]
+    fn a_levels_vocabulary_extrapolates_the_listed_words_below_it() {
+        let (words, lexis) = words(100, 40);
+        assert_eq!(level_vocabulary(CefrLevel::A1, words.clone(), &lexis), 0);
+        // B1: the 20 A1 words known, the 20 B2 not — half of 100 words.
+        assert_eq!(level_vocabulary(CefrLevel::B1, words.clone(), &lexis), 50);
+        assert_eq!(level_vocabulary(CefrLevel::B2, words.clone(), &lexis), 50);
+        // C1: every listed word known — the whole band.
+        assert_eq!(level_vocabulary(CefrLevel::C1, words, &lexis), 100);
+    }
+
+    #[test]
+    fn a_levels_vocabulary_is_a_fresh_reader_declared_at_it() {
+        let (words, lexis) = words(3_000, 1_200);
+        for level in CefrLevel::ALL {
+            let mut state = KnowledgeState::new();
+            state.set_declared_level(EN, level);
+            assert_eq!(
+                level_vocabulary(level, words.clone(), &lexis),
+                state
+                    .vocabulary_estimate(EN, words.clone(), &lexis)
+                    .estimated,
+                "{level:?}"
+            );
+        }
     }
 }
