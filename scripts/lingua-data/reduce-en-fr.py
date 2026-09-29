@@ -928,6 +928,48 @@ def _acronym(headword):
     return len(headword) > 1 and headword.isupper()
 
 
+def _read_entries(path, words, per_sense, pointers=None):
+    """The glossed kaikki entries of `words`: word -> [(an acronym's entry, part of speech, [gloss])].
+
+    With `pointers`, also the words a word's form-of senses point at, with the part of speech of
+    the entry that points: word -> [(base, part of speech)], in source order.
+    """
+    entries = {}
+    with open(path, encoding="utf-8", errors="replace") as f:
+        for line in f:
+            try:
+                d = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            headword = (d.get("word") or "").strip()
+            word = headword.lower()
+            if not word or word not in words:
+                continue
+            pos = kaikki_upos(d.get("pos") or "", word)
+            senses = []
+            for sense in d.get("senses", []):
+                gg = sense.get("glosses") or []
+                if not gg:
+                    continue
+                if not _is_form_of(sense, gg[0].strip()):
+                    g = clean_gloss(gg[0], per_sense, whole_words=True)
+                    if g:
+                        senses.append(g)
+                elif pointers is not None:
+                    for target in sense.get("form_of") or []:
+                        base = (target.get("word") or "").strip().lower()
+                        if len(base) >= _MIN_BASE and base != word and (base, pos) not in pointers.get(word, []):
+                            pointers.setdefault(word, []).append((base, pos))
+            if senses:
+                entries.setdefault(word, []).append((_acronym(headword), pos, senses))
+    return entries
+
+
+# The shortest base a form-of sense may lend its gloss from: "fs" is the plural of the letter "f",
+# and a letter's gloss says nothing about the word.
+_MIN_BASE = 3
+
+
 def reduce_gloss(path, lemmas, maxlen, per_sense=80, max_senses=3, runs=None):
     """Up to `max_senses` short French glosses per canonical lemma, joined by "; ".
 
@@ -938,30 +980,18 @@ def reduce_gloss(path, lemmas, maxlen, per_sense=80, max_senses=3, runs=None):
     such word keeps its gloss: "NATO" still glosses "nato". The senses that make the cut are
     picked by `_join_senses_by_pos`, which groups them by part of speech; `runs`, when given,
     gets each gloss's runs: lemma -> [(part of speech, senses)].
-    """
-    entries = {}  # word -> [(an acronym's entry, part of speech, [gloss, ...])], in source order
-    with open(path, encoding="utf-8", errors="replace") as f:
-        for line in f:
-            try:
-                d = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            headword = (d.get("word") or "").strip()
-            word = headword.lower()
-            if not word or word not in lemmas:
-                continue
-            senses = []
-            for sense in d.get("senses", []):
-                gg = sense.get("glosses") or []
-                if gg and not _is_form_of(sense, gg[0].strip()):
-                    g = clean_gloss(gg[0], per_sense, whole_words=True)
-                    if g:
-                        senses.append(g)
-            if senses:
-                entries.setdefault(word, []).append((_acronym(headword), kaikki_upos(d.get("pos") or "", word), senses))
 
+    A lemma whose only senses are form-of senses borrows the gloss of the base they name, in the
+    same part of speech: the word list keeps "catacombs" as a word of its own, and the Wiktionary
+    only says it is the plural of "catacomb", so its card had no translation; it now reads
+    « Catacombe ». The first base, in source order, that has senses in that part of speech lends
+    them; a base in another part of speech lends nothing ("hearted" is no form of the noun "heart").
+    """
+    pointers = {}
+    entries = _read_entries(path, lemmas, per_sense, pointers)
     glosses = {}
-    for word, found in entries.items():
+
+    def gloss(word, found):
         kept = [entry for entry in found if not entry[0]] or found
         per_entry = [senses for _, _, senses in kept]
         joined, word_runs = _join_senses_by_pos(per_entry, [pos for _, pos, _ in kept], maxlen, max_senses)
@@ -969,6 +999,17 @@ def reduce_gloss(path, lemmas, maxlen, per_sense=80, max_senses=3, runs=None):
             glosses[word] = joined
             if runs is not None:
                 runs[word] = word_runs
+
+    for word, found in entries.items():
+        gloss(word, found)
+    borrowing = {word: bases for word, bases in pointers.items() if word not in glosses}
+    lenders = _read_entries(path, {base for bases in borrowing.values() for base, _ in bases}, per_sense)
+    for word, bases in borrowing.items():
+        for base, pos in bases:
+            lent = [entry for entry in lenders.get(base, []) if entry[1] == pos and not entry[0]]
+            if lent:
+                gloss(word, lent)
+                break
     return glosses
 
 

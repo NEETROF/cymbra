@@ -160,6 +160,39 @@
   opacity: 0.4;
 }
 
+/* On a touch-first device an arrow is a 44 × 44 target (Apple's minimum; Material asks 48 dp),
+   drawn as the same small pill: the button is the target, its ::before the pill. The target is
+   in the flow rather than an overflowing hit area, which would lie over the actions below. */
+@media (pointer: coarse) {
+  .gloss-nav {
+    gap: 2px;
+    margin-top: 0;
+    margin-left: -7px; /* the first pill, not its target, lines up with the gloss */
+  }
+
+  .gloss-nav button {
+    position: relative;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+    border-color: transparent;
+    background: transparent;
+  }
+
+  .gloss-nav button::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 30px;
+    height: 24px;
+    box-sizing: border-box;
+    transform: translate(-50%, -50%);
+    border: 1px solid var(--cymbra-lingua-border-2);
+    border-radius: 999px;
+  }
+}
+
 .gloss.empty,
 .gloss.waiting {
   color: var(--cymbra-lingua-faint);

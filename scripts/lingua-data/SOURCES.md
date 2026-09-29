@@ -93,9 +93,11 @@ A word's gloss holds up to eight senses, each within 300 characters and all of t
 the card pages it — and a cut falls on a word boundary with an ellipsis, never mid-word
 (`cut_at_word`); expressions keep 42 / 80. The Wiktionary's notes to its own readers — a pointer
 « → voir … » and the placeholder « Définition manquante ou à compléter. (Ajouter) » — are taken out
-of every sense (`strip_wiki_notes`), and a sense made of nothing else is left out. No new source and
+of every sense (`strip_wiki_notes`), and a sense made of nothing else is left out. A kept word
+whose every sense only says which word it is a form of (`catacombs`, « Pluriel de catacomb ») takes
+the senses of that word in the same part of speech. No new source and
 no new licence: the tables derive from ESDB and kaikki. Neither moves `analyzer_version`. Measured
-on the 2026-09-26 snapshot: 45 684 readings and 30 406 runs, a pack of 1 830 387 B (34.9 % of the
+on the 2026-09-26 snapshot: 45 684 readings and 30 798 runs, a pack of 1 835 497 B (35.0 % of the
 5 MiB budget) against 1 543 687 B before.
 
 The tags are **Universal Dependencies** part-of-speech tags and features — tag names only, no UD

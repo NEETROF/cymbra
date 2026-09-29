@@ -914,6 +914,45 @@ class ReduceGlossRuns(TempDir):
         # Nothing but a pointer: no gloss at all rather than a dead link.
         self.assertNotIn("adviser", glosses)
 
+    def test_a_word_that_is_only_a_form_borrows_its_base_gloss(self):
+        # Seen in Safari: the word list keeps `catacombs` as a word of its own, and the Wiktionary
+        # only says it is the plural of `catacomb`, so its card had no translation.
+        def form_of(word, pos, base, text):
+            return {"word": word, "pos": pos, "senses": [{"glosses": [text], "form_of": [{"word": base}]}]}
+
+        path = self.file(
+            "kaikki.jsonl",
+            "\n".join(
+                json.dumps(entry)
+                for entry in [
+                    form_of("catacombs", "noun", "catacomb", "Pluriel de catacomb."),
+                    {"word": "catacomb", "pos": "noun", "senses": [{"glosses": ["Catacombe."]}]},
+                    form_of("holden", "verb", "hold", "Participe passé archaïque de hold."),
+                    {"word": "hold", "pos": "noun", "senses": [{"glosses": ["Prise."]}]},
+                    {"word": "hold", "pos": "verb", "senses": [{"glosses": ["Tenir."]}]},
+                    form_of("hearted", "adj", "heart", "Forme de heart."),
+                    {"word": "heart", "pos": "noun", "senses": [{"glosses": ["Cœur."]}]},
+                    form_of("fs", "noun", "f", "Pluriel de f."),
+                    {"word": "f", "pos": "noun", "senses": [{"glosses": ["Sixième lettre."]}]},
+                    form_of("bars", "noun", "bar", "Pluriel de bar."),
+                    {"word": "bars", "pos": "noun", "senses": [{"glosses": ["Barres parallèles."]}]},
+                    {"word": "bar", "pos": "noun", "senses": [{"glosses": ["Bar."]}]},
+                ]
+            )
+            + "\n",
+        )
+        runs = {}
+        glosses = red.reduce_gloss(path, {"catacombs", "holden", "hearted", "fs", "bars"}, 160, runs=runs)
+        self.assertEqual(glosses["catacombs"], "Catacombe")
+        self.assertEqual(runs["catacombs"], [("NOUN", 1)])
+        # In the part of speech of the form: a verb form borrows the verb's senses.
+        self.assertEqual(glosses["holden"], "Tenir")
+        # A base only in another part of speech lends nothing, and neither does a letter.
+        self.assertNotIn("hearted", glosses)
+        self.assertNotIn("fs", glosses)
+        # A word with a meaning of its own keeps it.
+        self.assertEqual(glosses["bars"], "Barres parallèles")
+
     def test_a_word_keeps_many_short_senses(self):
         senses = [{"glosses": [f"Sens {i}."]} for i in range(1, 11)]
         path = self.file("kaikki.jsonl", json.dumps({"word": "get", "pos": "verb", "senses": senses}) + "\n")
