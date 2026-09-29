@@ -530,6 +530,9 @@ text under the same headers, and the expression-table archive would then overwri
 - **[A cold engine on Safari misses the 250 ms bound, so the first cards show no grammar]** →
   The card is then exactly today's. Measure on device (iPhone and Mac Safari, engine suspended
   and awake). If the bound is missed on most first opens, add the page-level prefetch of D6.
+  Measured on 2026-09-29 by opening first cards after a minute idle, then at once: on Safari
+  macOS and Safari on an iPad Air (M2), no card missed its grammar, suspended or awake. The bound
+  stays at 250 ms, and the prefetch is not needed.
 - **[Readings expose the pack's single-lemma choices]** (`leaves` → `leave` in a sentence about
   trees) → This is the honest view of what the page counted. The "peut aussi être" line tells
   the reader. Choosing by context is the tagger's change, not this one.
@@ -559,8 +562,8 @@ again before merge, but nothing here depends on it.
 
 ## Open Questions
 
-- The exact bound (250 ms) is a first value. The Safari measurement decides whether to keep it,
-  or whether prefetch replaces the bound.
+- ~~The exact bound (250 ms) is a first value.~~ Settled on 2026-09-29: Safari on macOS and on an
+  iPad met it on every first card, so the bound stays and no prefetch is added (see Risks).
 - Whether the modal pasts (`could`, `would`, `should`, `might`) should read as pasts of their
   modal at all. They are taught as words of their own, and `own_words` already keeps them as
   dictionary forms. As readings they would add « peut aussi être le prétérit de can ». The

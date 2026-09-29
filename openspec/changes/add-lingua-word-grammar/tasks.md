@@ -124,3 +124,4 @@
     Chrome, Firefox and Safari on macOS, 2026-09-29: OK, the paged card keeping its size and `catacombs` glossed;
   - on a phone and a tablet, check that the paging arrows are large enough to tap (27 × 21 px drawn; 44 × 44 targets on a touch-first device). iPhone 15 Pro Max, Safari, 2026-09-29: OK, with the card keeping its size across pages and `catacombs` glossed; the tablet is still to check;
   - measure on Safari how often a first card misses the 250 ms bound with the event page suspended and awake, and record the result in the design (keep the bound, or open the prefetch follow-up).
+    Safari macOS and iPad Air (M2), 2026-09-29: no first card missed the bound, suspended or awake; the bound is kept (design, Risks).
