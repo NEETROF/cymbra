@@ -36,6 +36,9 @@ expect(
   firefox.browser_specific_settings?.gecko?.data_collection_permissions?.required?.length,
   'firefox: data_collection_permissions needs `required` ("none" when nothing is collected unasked)',
 );
+// AMO derives the version's Android compatibility from this key alone; without it the listing
+// greys out "Add to Firefox" on Firefox for Android.
+expect(firefox.browser_specific_settings?.gecko_android, "firefox: needs gecko_android to be offered on Android");
 expect(firefox.content_scripts?.length, "firefox: needs the static content script");
 expect(!firefox.key, "firefox: must not carry the Chromium key");
 

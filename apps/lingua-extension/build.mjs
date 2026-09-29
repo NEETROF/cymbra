@@ -203,6 +203,12 @@ function firefoxManifest(base) {
         optional: ["authenticationInfo", "personallyIdentifyingInfo", "websiteContent", "technicalAndInteraction"],
       },
     },
+    // AMO marks a version compatible with Firefox for Android only when the manifest says so:
+    // without this key every upload was desktop-only and AMO greyed out "Add to Firefox" on
+    // Android, although the same package runs there (yarn dogfood:firefox-android).
+    gecko_android: {
+      strict_min_version: "128.0",
+    },
   };
   m.permissions = (m.permissions ?? []).filter((p) => p !== "sidePanel");
   return m;
