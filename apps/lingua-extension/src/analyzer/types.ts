@@ -157,6 +157,12 @@ export interface LevelRow {
   toLearn: number;
   /** Band size (confirmed + presumed + toLearn). */
   total: number;
+  /**
+   * The vocabulary size typical of a reader at the level — the listed words below it
+   * extrapolated over the dictionary, as `vocabularyEstimate()` does for a reader who
+   * declared it. A property of the pack, not the reader; 0 at A1, which presumes nothing.
+   */
+  typicalVocabulary: number;
 }
 
 /** The reader's estimated vocabulary size, from `vocabularyEstimate()`. */

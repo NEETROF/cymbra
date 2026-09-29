@@ -66,9 +66,9 @@ export function vocabularyView(est: VocabularyEstimate, hasLevels: boolean): HTM
 
 /**
  * One row per level: how many of that level's own words are known (confirmed +
- * presumed), and the running word count up to that level. A level only counts the
- * words it introduces, so the running total is the figure comparable with the usual
- * "about 1,500 words at A2" vocabulary-size estimates.
+ * presumed), the words taught up to that level (running total of the teaching lists),
+ * and the vocabulary a reader at that level typically has — the figure comparable
+ * with the usual "about 16,000 words at C2" estimates, which the teaching lists are not.
  */
 export function ladderView(rows: LevelRow[], declared: CefrLevel | null): HTMLElement {
   const pos = estimatedPosition(rows);
@@ -105,8 +105,11 @@ export function ladderView(rows: LevelRow[], declared: CefrLevel | null): HTMLEl
   colsFrac.textContent = "ce niveau";
   const colsCum = document.createElement("span");
   colsCum.className = "ladder-cum";
-  colsCum.textContent = "cumulé";
-  cols.append(colsLvl, colsSpacer, colsFrac, colsCum);
+  colsCum.textContent = "enseignés";
+  const colsEst = document.createElement("span");
+  colsEst.className = "ladder-est";
+  colsEst.textContent = "estimés";
+  cols.append(colsLvl, colsSpacer, colsFrac, colsCum, colsEst);
   ladder.append(cols);
 
   rows.forEach((r, i) => {
@@ -143,6 +146,11 @@ export function ladderView(rows: LevelRow[], declared: CefrLevel | null): HTMLEl
     cum.textContent = fmt(cumulative[i]);
     row.append(cum);
 
+    const est = document.createElement("span");
+    est.className = "ladder-est";
+    est.textContent = r.typicalVocabulary ? `≈\u00A0${fmt(roughCount(r.typicalVocabulary))}` : "–";
+    row.append(est);
+
     ladder.append(row);
   });
 
@@ -152,13 +160,14 @@ export function ladderView(rows: LevelRow[], declared: CefrLevel | null): HTMLEl
   ladder.append(legend);
 
   // French punctuation keeps its spaces unbreakable (narrow no-break space, U+202F, and
-  // regular no-break space, U+00A0), so « cumulé » never wraps away from its guillemets
+  // regular no-break space, U+00A0), so « enseignés » never wraps away from its guillemets
   // in the narrow drawer.
   const scope = document.createElement("div");
   scope.className = "note ladder-scope";
   scope.textContent =
-    "Chaque niveau compte les mots qu'il introduit\u202F; «\u202Fcumulé\u202F» ajoute ceux des niveaux précédents. " +
-    "Ce sont les mots de base de chaque niveau\u00A0: un lecteur de ce niveau en connaît en général bien davantage.";
+    "«\u202Fenseignés\u202F»\u00A0: les mots de base introduits jusqu'à ce niveau par les listes d'enseignement. " +
+    "«\u202Festimés\u202F»\u00A0: le vocabulaire qu'a en général un lecteur de ce niveau, " +
+    "extrapolé des mots des niveaux inférieurs sur tout le dictionnaire.";
   ladder.append(scope);
 
   return ladder;
