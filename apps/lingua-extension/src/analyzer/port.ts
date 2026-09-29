@@ -6,6 +6,7 @@ import type {
   PhraseGloss,
   SeedOrder,
   VocabularyEstimate,
+  WordGrammar,
 } from "./types.ts";
 
 // The AnalyzerPort seam (design D2). The content script consumes analysis exclusively
@@ -26,6 +27,11 @@ export interface AnalyzerPort {
   gloss(lemma: string): Promise<string | undefined>;
   /** Gloss a selection: every token with its dictionary form, class and gloss, no page gate. */
   phraseGloss(text: string): Promise<PhraseGloss>;
+  /**
+   * A word card's grammar: its gloss, grouped by part of speech, what the word as written is as
+   * `lemma`, what else it may be, and the pieces the pre-pass split it into. Pure pack data.
+   */
+  wordGrammar(written: string, lemma: string): Promise<WordGrammar>;
 }
 
 /** An FSRS grade. */

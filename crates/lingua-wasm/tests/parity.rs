@@ -32,7 +32,8 @@
 //!
 //! Refresh a golden after an intended analyser change with:
 //! `LINGUA_UPDATE_GOLDEN=1 cargo test -p lingua-wasm --test parity` for the
-//! page analysis, `LINGUA_UPDATE_PHRASE_GOLDEN=1 …` for the phrase gloss.
+//! page analysis, `LINGUA_UPDATE_PHRASE_GOLDEN=1 …` for the phrase gloss,
+//! `LINGUA_UPDATE_GRAMMAR_GOLDEN=1 …` for a word card's grammar.
 
 use lingua_wasm::LinguaEngine;
 
@@ -76,6 +77,25 @@ const PHRASES: &[&str] = &[
     "the city runs daily",
 ];
 
+/// The expected grammar of [`WORDS`], one JSON line per word. Regenerate with
+/// `LINGUA_UPDATE_GRAMMAR_GOLDEN=1` (`add-lingua-word-grammar`).
+const GRAMMAR_GOLDEN: &str = include_str!("fixtures/grammar_golden.json");
+
+/// Word cards over the fixture pack's grammar, `(word as written, dictionary
+/// form)`: an irregular past, a form with two readings, a form spelled like its
+/// dictionary form, a form of two dictionary forms, a contraction whose piece
+/// is itself inflected, a word whose gloss mixes two parts of speech, and a
+/// word the grammar tables say nothing about.
+const WORDS: &[(&str, &str)] = &[
+    ("went", "go"),
+    ("walked", "walk"),
+    ("put", "put"),
+    ("leaves", "leave"),
+    ("doesn't", "do"),
+    ("can", "can"),
+    ("conundrum", "conundrum"),
+];
+
 /// A calibrated reader with one lemma forced to `learning`: the state both
 /// goldens are produced under.
 fn fixture_engine() -> LinguaEngine {
@@ -109,6 +129,21 @@ fn gloss_fixture_phrases() -> String {
         .map(|text| {
             let key = serde_json::to_string(text).expect("a JSON string");
             format!("{{\"text\":{key},\"gloss\":{}}}", engine.phrase_gloss(text))
+        })
+        .collect();
+    format!("[\n{}\n]", lines.join(",\n"))
+}
+
+/// Answers every word of [`WORDS`], one JSON line each, as the phrase golden
+/// is laid out.
+fn word_grammar_fixture() -> String {
+    let engine = fixture_engine();
+    let lines: Vec<String> = WORDS
+        .iter()
+        .map(|(written, lemma)| {
+            let key = serde_json::to_string(written).expect("a JSON string");
+            let grammar = engine.word_grammar(written, lemma);
+            format!("{{\"written\":{key},\"grammar\":{grammar}}}")
         })
         .collect();
     format!("[\n{}\n]", lines.join(",\n"))
@@ -156,6 +191,32 @@ fn phrase_gloss_matches_golden() {
         "phrase_golden.json",
         PHRASE_GOLDEN,
         "LINGUA_UPDATE_PHRASE_GOLDEN",
+    );
+}
+
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+#[cfg_attr(not(target_arch = "wasm32"), test)]
+fn word_grammar_matches_golden() {
+    assert_matches_golden(
+        &word_grammar_fixture(),
+        "grammar_golden.json",
+        GRAMMAR_GOLDEN,
+        "LINGUA_UPDATE_GRAMMAR_GOLDEN",
+    );
+}
+
+/// The fixture pack must carry the grammar the golden covers: a golden of
+/// empty answers would pass on every target and prove nothing.
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+#[cfg_attr(not(target_arch = "wasm32"), test)]
+fn the_grammar_golden_exercises_the_grammar_tables() {
+    let golden = word_grammar_fixture();
+    assert!(golden.contains(r#""readings":[{"pos":"VERB""#), "{golden}");
+    assert!(golden.contains(r#""others":[{"lemma":"leaf""#), "{golden}");
+    assert!(golden.contains(r#""pieces":["does","not"]"#), "{golden}");
+    assert!(
+        golden.contains(r#"{"tag":{"pos":"NOUN"},"text":"Boîte de conserve"}"#),
+        "{golden}"
     );
 }
 

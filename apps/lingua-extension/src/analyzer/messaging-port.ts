@@ -16,6 +16,7 @@ import type {
   PhraseGloss,
   SeedOrder,
   VocabularyEstimate,
+  WordGrammar,
 } from "./types.ts";
 import { sendRpc } from "./rpc.ts";
 
@@ -50,6 +51,9 @@ export class MessagingLinguaPort implements LinguaPort {
   }
   phraseGloss(text: string): Promise<PhraseGloss> {
     return this.rpc("phraseGloss", [text]);
+  }
+  wordGrammar(written: string, lemma: string): Promise<WordGrammar> {
+    return this.rpc("wordGrammar", [written, lemma]);
   }
   trackedCount(): Promise<number> {
     return this.rpc("trackedCount");
