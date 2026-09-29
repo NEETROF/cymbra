@@ -1,0 +1,9 @@
+[
+{"written":"went","grammar":{"gloss":"Aller","senses":[{"tag":{"pos":"VERB"},"text":"Aller"}],"readings":[{"pos":"VERB","features":{"Mood":"Ind","Tense":"Past","VerbForm":"Fin"}}],"others":[],"pieces":[]}},
+{"written":"walked","grammar":{"gloss":null,"senses":[],"readings":[{"pos":"VERB","features":{"Mood":"Ind","Tense":"Past","VerbForm":"Fin"}},{"pos":"VERB","features":{"Tense":"Past","VerbForm":"Part"}}],"others":[],"pieces":[]}},
+{"written":"put","grammar":{"gloss":"Mettre","senses":[{"tag":{"pos":"VERB"},"text":"Mettre"}],"readings":[{"pos":"VERB","features":{"Mood":"Ind","Tense":"Past","VerbForm":"Fin"}},{"pos":"VERB","features":{"Tense":"Past","VerbForm":"Part"}}],"others":[],"pieces":[]}},
+{"written":"leaves","grammar":{"gloss":"Partir; Congé","senses":[{"tag":{"pos":"VERB"},"text":"Partir"},{"tag":{"pos":"NOUN"},"text":"Congé"}],"readings":[{"pos":"VERB","features":{"Mood":"Ind","Number":"Sing","Person":"3","Tense":"Pres","VerbForm":"Fin"}}],"others":[{"lemma":"leaf","readings":[{"pos":"NOUN","features":{"Number":"Plur"}}]}],"pieces":[]}},
+{"written":"doesn't","grammar":{"gloss":null,"senses":[],"readings":[{"pos":"VERB","features":{"Mood":"Ind","Number":"Sing","Person":"3","Tense":"Pres","VerbForm":"Fin"}}],"others":[],"pieces":["does","not"]}},
+{"written":"can","grammar":{"gloss":"Boîte de conserve; Pouvoir, savoir","senses":[{"tag":{"pos":"NOUN"},"text":"Boîte de conserve"},{"tag":{"pos":"VERB"},"text":"Pouvoir, savoir"}],"readings":[],"others":[],"pieces":[]}},
+{"written":"conundrum","grammar":{"gloss":"casse-tête","senses":[{"tag":{"pos":"NOUN"},"text":"casse-tête"}],"readings":[],"others":[],"pieces":[]}}
+]

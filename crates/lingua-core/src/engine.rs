@@ -24,7 +24,8 @@
 //!
 //! The same file glosses a reader's selection ([`gloss_phrase`]): the same
 //! tokeniser, lemma cascade and classification as the page, without the gates
-//! that exist to score pages (`add-lingua-phrase-gloss`).
+//! that exist to score pages (`add-lingua-phrase-gloss`), and answers a word
+//! card's grammar ([`word_grammar`], `add-lingua-word-grammar`).
 
 use serde::Serialize;
 
@@ -38,6 +39,7 @@ use crate::analysis::pipeline::{DocumentAnalysis, analyse_document, resolve_lemm
 use crate::analysis::tokenize::tokenize;
 use crate::knowledge::state::KnowledgeState;
 use crate::packs::Pack;
+use crate::packs::grammar::Tag;
 
 /// One analysed token, ready for the surface to highlight and, on click,
 /// gloss.
@@ -351,6 +353,138 @@ pub fn gloss_phrase_json(
 ) -> String {
     serde_json::to_string(&gloss_phrase(text, studied, pack, knowledge))
         .expect("PhraseGloss serialises")
+}
+
+/// The separator between the senses of a pack gloss. The reducer guarantees
+/// no sense holds it (`add-lingua-word-grammar`, design D4).
+const SENSE_SEPARATOR: &str = "; ";
+
+/// The senses of a gloss that share a part of speech.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct SenseGroup {
+    /// The part of speech of the group, with the features the word carries in
+    /// it (a noun's gender); `None` — and omitted from the JSON — when the
+    /// pack does not say, or says it in a tag this core cannot read.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tag: Option<Tag>,
+    /// The group's senses, as the gloss writes them.
+    pub text: String,
+}
+
+/// Another dictionary form a written form is also a reading of.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct OtherReading {
+    /// That dictionary form.
+    pub lemma: String,
+    /// The form's readings as that dictionary form.
+    pub readings: Vec<Tag>,
+}
+
+/// A word card's grammar: what the form is, what else it may be, the pieces
+/// the pre-pass split it into, and the gloss laid out by part of speech.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct WordGrammar {
+    /// The dictionary form's pack gloss, one text, exactly as a card stores it.
+    pub gloss: Option<String>,
+    /// The same gloss, grouped by part of speech. One untagged group when the
+    /// pack carries no runs for the word; empty when there is no gloss.
+    pub senses: Vec<SenseGroup>,
+    /// The readings of the form as the card's dictionary form.
+    pub readings: Vec<Tag>,
+    /// The other dictionary forms the form is also a reading of — none for a word
+    /// the pre-pass split, whose pieces the split has already settled.
+    pub others: Vec<OtherReading>,
+    /// The pieces the studied language's pre-pass split the written word into
+    /// (`don't` → `do`, `not`), as written; empty when it was not split.
+    pub pieces: Vec<String>,
+}
+
+/// Answers a word card's grammar from the pack, for the word as written on the
+/// page and the dictionary form the card is keyed by.
+///
+/// The written word goes through the page's tokeniser and pre-pass; the piece
+/// whose dictionary form is `lemma` — or the first, when none is — is the one
+/// whose readings are answered. The page analysis never calls this, so its
+/// output, and `ANALYZER_VERSION`, stay where they are.
+pub fn word_grammar(
+    written: &str,
+    lemma: &str,
+    studied: StudiedLanguage,
+    pack: &Pack,
+) -> WordGrammar {
+    let lexicon = pack.lexicon();
+    let lemma = lemma.to_lowercase();
+    let tokens = tokenize(written, studied, lexicon);
+    let piece = tokens
+        .iter()
+        .find(|token| resolve_lemmas(token, lexicon).0 == lemma)
+        .or_else(|| tokens.first())
+        .map(|token| token.text.replace('\u{2019}', "'").to_lowercase())
+        .unwrap_or_else(|| written.trim().to_lowercase());
+    let pieces = if tokens.len() > 1 {
+        tokens.into_iter().map(|token| token.text).collect()
+    } else {
+        Vec::new()
+    };
+    let gloss = pack.gloss(&lemma).map(str::to_owned);
+    let senses = gloss
+        .as_deref()
+        .map(|gloss| group_senses(gloss, &pack.sense_runs(&lemma)))
+        .unwrap_or_default();
+    // A word the pre-pass split is already settled: `does` in `doesn't` is the verb, and naming
+    // the plural of `doe` beside it would be noise.
+    let others = if pieces.is_empty() {
+        pack.other_readings(&lemma, &piece)
+            .into_iter()
+            .map(|(lemma, readings)| OtherReading { lemma, readings })
+            .collect()
+    } else {
+        Vec::new()
+    };
+    WordGrammar {
+        readings: pack.readings(&lemma, &piece),
+        others,
+        pieces,
+        senses,
+        gloss,
+    }
+}
+
+/// Lays a gloss out by its runs. Runs that do not account for exactly the
+/// gloss's senses — which the builder refuses to write — give one untagged
+/// group, as a pack without runs does: the reader still gets the whole gloss.
+fn group_senses(gloss: &str, runs: &[(Option<&Tag>, usize)]) -> Vec<SenseGroup> {
+    let senses: Vec<&str> = gloss.split(SENSE_SEPARATOR).collect();
+    let covered: usize = runs.iter().map(|(_, count)| count).sum();
+    if runs.is_empty() || covered != senses.len() || runs.iter().any(|(_, count)| *count == 0) {
+        return vec![SenseGroup {
+            tag: None,
+            text: gloss.to_owned(),
+        }];
+    }
+    let mut at = 0;
+    runs.iter()
+        .map(|(tag, count)| {
+            let text = senses[at..at + count].join(SENSE_SEPARATOR);
+            at += count;
+            SenseGroup {
+                tag: tag.cloned(),
+                text,
+            }
+        })
+        .collect()
+}
+
+/// The canonical JSON of a word's grammar — like [`analyse_page_json`], the
+/// exact string both the native and WASM targets must produce.
+pub fn word_grammar_json(
+    written: &str,
+    lemma: &str,
+    studied: StudiedLanguage,
+    pack: &Pack,
+) -> String {
+    serde_json::to_string(&word_grammar(written, lemma, studied, pack))
+        .expect("WordGrammar serialises")
 }
 
 #[cfg(test)]
@@ -1009,5 +1143,335 @@ mod tests {
         );
         let phrase = gloss_phrase(six, EN, &pack, &KnowledgeState::new());
         assert!(phrase.expressions.is_empty());
+    }
+
+    // — word grammar (`add-lingua-word-grammar`) —
+
+    /// A reading as a test states it: the form, its dictionary form, its tag.
+    type Reading<'a> = (&'a str, &'a str, &'a str);
+    /// Another dictionary form filed under the one the analysis reads the
+    /// form as: (form, filed under, other dictionary form).
+    type Also<'a> = (&'a str, &'a str, &'a str);
+    /// A gloss's runs: (dictionary form, [(tag, senses)]).
+    type Runs<'a> = (&'a str, &'a [(&'a str, u8)]);
+
+    /// [`build_pack`] plus grammar tables, laid out as the builder lays them:
+    /// a sorted tag pool, and paradigms and runs keyed by lemma id, each
+    /// zstd-compressed.
+    fn build_pack_with_grammar(
+        forms: &[(&str, &str)],
+        lemmas: &[&str],
+        glosses: &[(&str, &str)],
+        readings: &[Reading],
+        also: &[Also],
+        runs: &[Runs],
+    ) -> Pack {
+        use crate::packs::grammar::{
+            FormEdit, ParadigmEntry, SenseRun, encode_indexed, encode_paradigm, encode_runs,
+            encode_tag_pool,
+        };
+        use std::collections::BTreeMap;
+        let (form_bytes, pool) = build_lexicon_blobs(forms, lemmas).expect("lexicon");
+        let lex = FstLexicon::from_slices(form_bytes.clone(), &pool).unwrap();
+        let id = |lemma: &str| lex.id_of(lemma).expect("listed") as u32;
+        let mut tags: Vec<String> = readings
+            .iter()
+            .map(|(_, _, tag)| (*tag).to_owned())
+            .chain(
+                runs.iter()
+                    .flat_map(|(_, r)| r.iter().map(|(t, _)| (*t).to_owned())),
+            )
+            .collect();
+        tags.sort_unstable();
+        tags.dedup();
+        let tag_id = |tag: &str| tags.binary_search(&tag.to_owned()).unwrap() as u16;
+        let mut paradigms: BTreeMap<u32, Vec<ParadigmEntry>> = BTreeMap::new();
+        for (form, lemma, tag) in readings {
+            paradigms
+                .entry(id(lemma))
+                .or_default()
+                .push(ParadigmEntry::Reading {
+                    form: FormEdit::between(lemma, form).unwrap(),
+                    tag: tag_id(tag),
+                });
+        }
+        for (form, under, other) in also {
+            paradigms
+                .entry(id(under))
+                .or_default()
+                .push(ParadigmEntry::Also {
+                    form: FormEdit::between(under, form).unwrap(),
+                    other: id(other),
+                });
+        }
+        let paradigms: Vec<(u32, Vec<u8>)> = paradigms
+            .into_iter()
+            .map(|(id, entries)| (id, encode_paradigm(&entries)))
+            .collect();
+        let mut run_entries: Vec<(u32, Vec<u8>)> = runs
+            .iter()
+            .map(|(lemma, r)| {
+                let r: Vec<SenseRun> = r
+                    .iter()
+                    .map(|(tag, count)| SenseRun {
+                        tag: tag_id(tag),
+                        count: *count,
+                    })
+                    .collect();
+                (id(lemma), encode_runs(&r))
+            })
+            .collect();
+        run_entries.sort_unstable_by_key(|(id, _)| *id);
+        let gloss_entries: Vec<(u32, &str)> = glosses.iter().map(|(l, g)| (id(l), *g)).collect();
+        let freq_bytes = vec![0u8; lex.lemma_count() * 4];
+        let meta = serde_json::to_vec(&PackMeta {
+            studied: "en".into(),
+            native: "fr".into(),
+            pack_version: "t".into(),
+            analyzer_version: ANALYZER_VERSION.into(),
+            licences: vec![],
+        })
+        .unwrap();
+        let gloss = build_gloss_zst(&gloss_entries);
+        let tag_pool = encode_tag_pool(&tags);
+        let paradigm_zst = zstd::encode_all(encode_indexed(&paradigms).as_slice(), 19).unwrap();
+        let runs_zst = zstd::encode_all(encode_indexed(&run_entries).as_slice(), 19).unwrap();
+        let sections: Vec<(&str, &[u8])> = vec![
+            (section::FORMS, &form_bytes),
+            (section::LEMMAS, pool.as_bytes()),
+            (section::FREQ, &freq_bytes),
+            (section::GLOSS_ZST, &gloss),
+            (section::TAGS, &tag_pool),
+            (section::PARADIGMS_ZST, &paradigm_zst),
+            (section::SENSES_ZST, &runs_zst),
+        ];
+        Pack::load(&write_container(&meta, &sections)).expect("load")
+    }
+
+    const PAST: &str = "VERB|Mood=Ind|Tense=Past|VerbForm=Fin";
+    const PARTICIPLE: &str = "VERB|Tense=Past|VerbForm=Part";
+    const THIRD_SINGULAR: &str = "VERB|Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin";
+    const PLURAL: &str = "NOUN|Number=Plur";
+
+    fn ud(tags: &[Tag]) -> Vec<String> {
+        tags.iter().map(Tag::to_ud).collect()
+    }
+
+    /// One pack for the `lingua-analysis` scenarios.
+    fn grammar_pack() -> Pack {
+        build_pack_with_grammar(
+            &[
+                ("went", "go"),
+                ("walked", "walk"),
+                ("leaves", "leave"),
+                ("does", "do"),
+            ],
+            &[
+                "go", "walk", "leave", "leaf", "do", "doe", "not", "can", "put",
+            ],
+            &[
+                ("go", "Aller"),
+                ("can", "Boîte de conserve; Pouvoir, savoir; Mettre en boîte"),
+                ("put", "Mettre"),
+            ],
+            &[
+                ("went", "go", PAST),
+                ("walked", "walk", PAST),
+                ("walked", "walk", PARTICIPLE),
+                ("leaves", "leave", THIRD_SINGULAR),
+                ("leaves", "leaf", PLURAL),
+                ("does", "do", THIRD_SINGULAR),
+                ("does", "doe", PLURAL),
+                ("put", "put", PAST),
+                ("put", "put", PARTICIPLE),
+            ],
+            &[("leaves", "leave", "leaf"), ("does", "do", "doe")],
+            &[
+                ("can", &[("NOUN", 1), ("VERB", 2)]),
+                ("put", &[("VERB", 1)]),
+            ],
+        )
+    }
+
+    #[test]
+    fn spec_scenario_an_irregular_form() {
+        let grammar = word_grammar("went", "go", EN, &grammar_pack());
+        assert_eq!(ud(&grammar.readings), [PAST]);
+        assert!(grammar.pieces.is_empty());
+        assert!(grammar.others.is_empty());
+    }
+
+    #[test]
+    fn spec_scenario_a_form_with_two_readings() {
+        let grammar = word_grammar("walked", "walk", EN, &grammar_pack());
+        assert_eq!(ud(&grammar.readings), [PAST, PARTICIPLE]);
+    }
+
+    #[test]
+    fn spec_scenario_a_contraction() {
+        let grammar = word_grammar("doesn't", "do", EN, &grammar_pack());
+        assert_eq!(grammar.pieces, ["does", "not"]);
+        assert_eq!(ud(&grammar.readings), [THIRD_SINGULAR]);
+        assert!(
+            grammar.others.is_empty(),
+            "the split settled `does`: no plural of `doe` beside it"
+        );
+        // Written alone, `does` may well be that plural.
+        let alone = word_grammar("does", "do", EN, &grammar_pack());
+        assert_eq!(alone.others.len(), 1);
+        assert_eq!(alone.others[0].lemma, "doe");
+    }
+
+    #[test]
+    fn a_contraction_keeps_the_case_it_was_written_in() {
+        let grammar = word_grammar("Doesn\u{2019}t", "do", EN, &grammar_pack());
+        assert_eq!(grammar.pieces, ["Does", "not"]);
+        assert_eq!(ud(&grammar.readings), [THIRD_SINGULAR]);
+    }
+
+    #[test]
+    fn spec_scenario_a_form_of_another_dictionary_form_too() {
+        let grammar = word_grammar("leaves", "leave", EN, &grammar_pack());
+        assert_eq!(ud(&grammar.readings), [THIRD_SINGULAR]);
+        assert_eq!(grammar.others.len(), 1);
+        assert_eq!(grammar.others[0].lemma, "leaf");
+        assert_eq!(ud(&grammar.others[0].readings), [PLURAL]);
+    }
+
+    #[test]
+    fn spec_scenario_senses_grouped_by_part_of_speech() {
+        let grammar = word_grammar("can", "can", EN, &grammar_pack());
+        let groups: Vec<(Option<String>, &str)> = grammar
+            .senses
+            .iter()
+            .map(|g| (g.tag.as_ref().map(Tag::to_ud), g.text.as_str()))
+            .collect();
+        assert_eq!(
+            groups,
+            [
+                (Some("NOUN".to_owned()), "Boîte de conserve"),
+                (Some("VERB".to_owned()), "Pouvoir, savoir; Mettre en boîte"),
+            ]
+        );
+        assert_eq!(
+            grammar.gloss.as_deref(),
+            Some("Boîte de conserve; Pouvoir, savoir; Mettre en boîte"),
+            "the flat gloss a card stores is untouched"
+        );
+    }
+
+    #[test]
+    fn a_form_spelled_like_its_dictionary_form_carries_its_other_readings() {
+        let grammar = word_grammar("Put", "put", EN, &grammar_pack());
+        assert_eq!(ud(&grammar.readings), [PAST, PARTICIPLE]);
+    }
+
+    #[test]
+    fn spec_scenario_a_pack_without_grammar_tables() {
+        let pack = build_pack(&[("went", "go")], &["go"], &[], &[("go", "Aller")]);
+        assert!(!pack.has_grammar());
+        let grammar = word_grammar("went", "go", EN, &pack);
+        assert!(grammar.readings.is_empty());
+        assert!(grammar.others.is_empty());
+        assert_eq!(
+            grammar.senses,
+            [SenseGroup {
+                tag: None,
+                text: "Aller".into()
+            }]
+        );
+        // The pieces come from the pre-pass, not from the pack.
+        assert_eq!(word_grammar("don't", "do", EN, &pack).pieces, ["do", "not"]);
+    }
+
+    #[test]
+    fn a_word_with_no_gloss_has_no_senses() {
+        let grammar = word_grammar("walked", "walk", EN, &grammar_pack());
+        assert_eq!(grammar.gloss, None);
+        assert!(grammar.senses.is_empty());
+    }
+
+    #[test]
+    fn runs_that_disagree_with_the_gloss_give_one_untagged_group() {
+        let pack = build_pack_with_grammar(
+            &[],
+            &["run"],
+            &[("run", "Course; Courir")],
+            &[],
+            &[],
+            &[("run", &[("NOUN", 1)])],
+        );
+        let grammar = word_grammar("run", "run", EN, &pack);
+        assert_eq!(
+            grammar.senses,
+            [SenseGroup {
+                tag: None,
+                text: "Course; Courir".into()
+            }]
+        );
+    }
+
+    #[test]
+    fn a_word_that_is_not_a_word_answers_nothing_but_its_gloss() {
+        let grammar = word_grammar("42", "go", EN, &grammar_pack());
+        assert!(grammar.readings.is_empty());
+        assert!(grammar.pieces.is_empty());
+        assert_eq!(grammar.gloss.as_deref(), Some("Aller"));
+    }
+
+    #[test]
+    fn spec_scenario_the_page_analysis_does_not_move() {
+        let forms = [("went", "go"), ("teams", "team")];
+        let lemmas = ["go", "team", "the", "home", "early", "and", "code"];
+        let glosses = [("go", "Aller"), ("team", "Équipe")];
+        let with = build_pack_with_grammar(
+            &forms,
+            &lemmas,
+            &glosses,
+            &[("went", "go", PAST), ("teams", "team", PLURAL)],
+            &[],
+            &[("go", &[("VERB", 1)])],
+        );
+        let without = build_pack_with_grammar(&forms, &lemmas, &glosses, &[], &[], &[]);
+        let blocks = ["The teams went home early and the teams code the code at home."];
+        let knowledge = KnowledgeState::new();
+        let a = analyse_page_json(&blocks, EN, &with, &knowledge);
+        assert_eq!(a, analyse_page_json(&blocks, EN, &without, &knowledge));
+        assert!(a.contains("\"analyzer_version\":\"1.1.0\""));
+    }
+
+    #[test]
+    fn the_json_names_parts_of_speech_and_features_never_codes_of_its_own() {
+        let json = word_grammar_json("leaves", "leave", EN, &grammar_pack());
+        assert_eq!(
+            json,
+            r#"{"gloss":null,"senses":[],"readings":[{"pos":"VERB","features":{"Mood":"Ind","Number":"Sing","Person":"3","Tense":"Pres","VerbForm":"Fin"}}],"others":[{"lemma":"leaf","readings":[{"pos":"NOUN","features":{"Number":"Plur"}}]}],"pieces":[]}"#
+        );
+    }
+
+    #[test]
+    fn an_unknown_feature_is_skipped_and_an_unreadable_tag_drops_its_reading() {
+        let pack = build_pack_with_grammar(
+            &[("went", "go")],
+            &["go", "gone"],
+            &[("go", "Aller; Tour")],
+            &[
+                ("went", "go", "VERB|Polite=Form|Tense=Past"),
+                ("went", "gone", "WORD"),
+            ],
+            &[("went", "go", "gone")],
+            &[("go", &[("SPEECH", 1), ("NOUN", 1)])],
+        );
+        let grammar = word_grammar("went", "go", EN, &pack);
+        assert_eq!(ud(&grammar.readings), ["VERB|Tense=Past"]);
+        assert!(
+            grammar.others.is_empty(),
+            "a dictionary form with no reading this core can name is left out"
+        );
+        assert_eq!(grammar.senses[0].tag, None);
+        assert_eq!(
+            grammar.senses[1].tag.as_ref().map(Tag::to_ud),
+            Some("NOUN".into())
+        );
     }
 }

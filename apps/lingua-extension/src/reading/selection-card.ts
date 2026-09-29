@@ -5,6 +5,7 @@ import type {
   PhraseMatch,
   PhraseToken,
   TokenClass,
+  WordGrammar,
 } from "../analyzer/types.ts";
 import type { MarkedTranslation, Span } from "../translate/markup.ts";
 import type { TranslationRequest, TranslatorPort } from "../translate/port.ts";
@@ -26,9 +27,20 @@ import type { Gesture, GlossRow, WordPopupContent } from "./wordpopup.ts";
 // and not a proper noun outside the lexicon, whose translation is noise. Even then the word is
 // translated in its sentence, marked, never alone (add-lingua-translation-delivery D7). Without
 // the engine, every card is exactly what it was before it existed.
+//
+// Every word card also asks its word's grammar (add-lingua-word-grammar): what the form is, what
+// else it may be, and its gloss by part of speech. A card that already holds its gloss — a
+// highlighted word — waits for that answer only briefly and is never drawn pending: past the
+// bound it is exactly the card it was before, and a late answer lands nowhere.
 
 /** How long a pending card waits for the engine before its fallback completes it. */
 export const ANSWER_TIMEOUT_MS = 3000;
+/**
+ * How long a word card waits for its grammar before completing without it. Short: the card holds
+ * its gloss already, and an engine that is awake answers in milliseconds — this only bounds a
+ * cold one (Safari suspends the event page), which then costs the grammar, never the card.
+ */
+export const GRAMMAR_WAIT_MS = 250;
 /** The most word-by-word rows a card shows. */
 export const MAX_ROWS = 6;
 
@@ -70,10 +82,11 @@ export function rarityText(cls: TokenClass, calibration: number): string {
   return `Peu fréquent — au-delà de tes ${calibration.toLocaleString("fr-FR")} mots les plus courants.`;
 }
 
-/** The two engine calls a card may need. */
+/** The engine calls a card may need. */
 export interface SelectionCardPorts {
   phraseGloss(text: string): Promise<PhraseGloss>;
   gloss(lemma: string): Promise<string | undefined>;
+  wordGrammar(written: string, lemma: string): Promise<WordGrammar>;
 }
 
 /** The card view, as this module sees it: show returns a generation, and every show or hide bumps it. */
@@ -93,6 +106,8 @@ export interface PageHit {
   token: AnalyzedToken;
   rect: WordPopupContent["rect"];
   sentence: string;
+  /** The word as it stands on the page — `don't` for its `do` — when the DOM range gave it. */
+  written?: string;
   /** Where the token sits in `sentence`, found by position — what the translator marks. */
   selection?: Span | null;
 }
@@ -129,25 +144,37 @@ const DEFAULT_CLOCK: Clock = {
   clearTimeout: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
 };
 
-/** A gloss the reducer left with nothing in it: the Wiktionary entry had no definition. */
+/** A gloss the reducer left with nothing in it: the Wiktionary entry had no definition (older packs). */
 const EMPTY_SENSE = /définition manquante/i;
+
+/** The longest sense a row shows: what a sense held before the pack kept them whole. */
+export const ROW_SENSE_CHARS = 80;
 
 /**
  * What a row shows of a pack gloss: its FIRST sense, senses being separated by `;`.
  *
- * A full gloss carries up to three senses and is cut at 80 characters by the reducer, so a
- * third of them end mid-word ("Commencer, débuter, initier, entamer; Procédu"). One such
- * line is the price of a dictionary; six stacked under one another are unreadable, and the
- * reader is scanning the row for the meaning in THIS phrase, not reading the entry. Senses
- * whose text says the definition is missing are skipped; a gloss made only of those gives
- * no row. The word card of a single word still shows the whole gloss.
+ * A full gloss carries up to eight whole senses, which the word card pages. One sense is the
+ * price of a dictionary; eight stacked under one another are unreadable, and the reader is
+ * scanning the row for the meaning in THIS phrase, not reading the entry. A sense longer than
+ * `ROW_SENSE_CHARS` is cut after a whole word, with an ellipsis. Senses whose text says the
+ * definition is missing are skipped; a gloss made only of those gives no row. The word card of a
+ * single word still shows the whole gloss.
  */
 export function rowGloss(gloss: string): string | null {
   for (const sense of gloss.split(";")) {
     const text = sense.trim();
-    if (text && !EMPTY_SENSE.test(text)) return text;
+    if (text && !EMPTY_SENSE.test(text)) return cutAtWord(text, ROW_SENSE_CHARS);
   }
   return null;
+}
+
+/** `text` within `max` characters, the ellipsis included, ending on a whole word when it can. */
+function cutAtWord(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const room = max - 1;
+  const space = text.lastIndexOf(" ", room);
+  const cut = space > room / 2 ? text.slice(0, space) : text.slice(0, room);
+  return `${cut.replace(/[\s,;:(«[\-–—/]+$/, "")}…`;
 }
 
 /** Whether the reader has settled this class: a known or ignored word needs no row. */
@@ -288,6 +315,7 @@ export class SelectionCards {
    */
   openForToken(hit: PageHit): void {
     const { token } = hit;
+    const written = hit.written?.trim() || token.surface;
     const base: WordPopupContent = {
       headword: token.lemma,
       surface: token.surface,
@@ -296,34 +324,80 @@ export class SelectionCards {
       sentence: hit.sentence,
       status: statusOfClass(token.class),
       rect: hit.rect,
+      ...(written !== token.surface ? { written } : {}),
     };
     const inSentence = (card: WordPopupContent, cls: TokenClass) =>
       this.wordEngine(card, cls, { sentence: hit.sentence, selection: hit.selection ?? null });
     if (needsPhraseGloss(token)) {
       this.request(
         { ...base, pending: true },
-        () => this.ports.phraseGloss(token.surface),
-        (answer) => {
-          const first = answer?.tokens[0];
+        () =>
+          this.ports.phraseGloss(token.surface).then(async (answer) => ({
+            answer,
+            grammar: answer.tokens[0] ? await this.grammarBounded(written, answer.tokens[0].lemma) : null,
+          })),
+        (reply) => {
+          const first = reply?.answer.tokens[0];
           // Only an unlisted compound rows itself: a listed one, whatever its class, has its
           // own gloss, which is the better answer — never a word-by-word row of itself.
           return first
             ? inSentence(
-                { ...base, gloss: first.gloss, rows: first.parts?.length ? rowsFor([first], answer.expressions) : [] },
+                {
+                  ...base,
+                  gloss: first.gloss,
+                  rows: first.parts?.length ? rowsFor([first], reply.answer.expressions) : [],
+                  ...grammarOf(reply.grammar),
+                },
                 first.class,
               )
             : inSentence(base, token.class);
         },
       );
     } else if (token.class === "Known" || token.class === "Ignored") {
+      // The page analysis withholds a known word's gloss: the grammar answer brings it.
       this.request(
         { ...base, pending: true },
-        () => this.ports.gloss(token.lemma),
-        (answer) => inSentence({ ...base, gloss: answer ?? null }, token.class),
+        () => this.ports.wordGrammar(written, token.lemma),
+        (answer) => inSentence({ ...base, gloss: answer?.gloss ?? null, ...grammarOf(answer) }, token.class),
       );
     } else {
-      this.show(inSentence({ ...base, gloss: token.gloss }, token.class));
+      this.completeWithGrammar({ ...base, gloss: token.gloss }, written, token.lemma, (card) =>
+        inSentence(card, token.class),
+      );
     }
+  }
+
+  /**
+   * Complete a card that holds its gloss with its word's grammar: once the grammar arrives, or
+   * once GRAMMAR_WAIT_MS has passed without it — whichever comes first — and never drawn pending
+   * meanwhile. Nothing is shown if another card was shown, or this one hidden, in between.
+   */
+  private completeWithGrammar(
+    card: WordPopupContent,
+    written: string,
+    lemma: string,
+    finish: (card: WordPopupContent) => PendingCard,
+  ): void {
+    const asked = this.surface.generation();
+    void this.grammarBounded(written, lemma).then((grammar) => {
+      if (this.surface.generation() !== asked) return;
+      this.show(finish({ ...card, ...grammarOf(grammar) }));
+    });
+  }
+
+  /** The word's grammar, or null when the engine fails or stays silent past GRAMMAR_WAIT_MS. */
+  private grammarBounded(written: string, lemma: string): Promise<WordGrammar | null> {
+    return new Promise((resolve) => {
+      let done = false;
+      const finish = (grammar: WordGrammar | null): void => {
+        if (done) return;
+        done = true;
+        this.clock.clearTimeout(timer);
+        resolve(grammar);
+      };
+      const timer = this.clock.setTimeout(() => finish(null), GRAMMAR_WAIT_MS);
+      new Promise<WordGrammar>((ok) => ok(this.ports.wordGrammar(written, lemma))).then(finish, () => finish(null));
+    });
   }
 
   /** The gloss a created card carries: none for an expression, the pack's for a word. */
@@ -419,11 +493,18 @@ export class SelectionCards {
       sentence: sel.sentence,
       rect: sel.rect,
     };
+    const written = sel.text.trim();
     this.request(
       { ...raw, pending: true },
-      () => this.ports.phraseGloss(sel.text),
-      (answer) => {
-        if (!answer) return { ...raw, noActions: true };
+      () =>
+        this.ports.phraseGloss(sel.text).then(async (answer) => {
+          const t = answer.tokens[0];
+          const named = t && t.class !== "ProperNounOutOfLexicon";
+          return { answer, grammar: named ? await this.grammarBounded(written, t.lemma) : null };
+        }),
+      (reply) => {
+        if (!reply) return { ...raw, noActions: true };
+        const { answer } = reply;
         const t = answer.tokens[0];
         if (!t || t.class === "ProperNounOutOfLexicon") return raw;
         return this.wordEngine(
@@ -436,6 +517,8 @@ export class SelectionCards {
             status: statusOfClass(t.class),
             rect: sel.rect,
             rows: t.parts?.length ? rowsFor([t], answer.expressions) : undefined,
+            ...(written !== t.surface ? { written } : {}),
+            ...grammarOf(reply.grammar),
           },
           t.class,
           { sentence: sel.sentence, selection: sel.selection ?? null },
@@ -495,6 +578,21 @@ export class SelectionCards {
 
 /** A completed card, and the translation that will upgrade it, when one was asked. */
 type PendingCard = WordPopupContent & { later?: Promise<MarkedTranslation | null> | null };
+
+/**
+ * The grammar a card shows, as a spreadable field: nothing at all without an answer, or with one
+ * that has nothing to say — no reading, no other word, no pieces, no part of speech to name — so
+ * such a card is exactly the card it was before the grammar existed.
+ */
+function grammarOf(grammar: WordGrammar | null | undefined): Pick<WordPopupContent, "grammar"> {
+  if (!grammar) return {};
+  const says =
+    grammar.readings.length > 0 ||
+    grammar.others.length > 0 ||
+    grammar.pieces.length > 1 ||
+    grammar.senses.some((group) => group.tag !== undefined);
+  return says ? { grammar } : {};
+}
 
 /** The card an expression gets from the pack alone — exactly what it was before the engine. */
 function expressionCard(base: WordPopupContent, answer: PhraseGloss | null): WordPopupContent {

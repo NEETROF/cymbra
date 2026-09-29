@@ -29,7 +29,7 @@ use lingua_core::decks::backup::LinguaState;
 use lingua_core::decks::card::{Card, EncounterSource, Provenance};
 use lingua_core::decks::fsrs::{Rating, ReviewState};
 use lingua_core::decks::review::ReviewSession;
-use lingua_core::engine::{analyse_page_json, gloss_phrase_json};
+use lingua_core::engine::{analyse_page_json, gloss_phrase_json, word_grammar_json};
 use lingua_core::knowledge::level::CefrLevel;
 use lingua_core::knowledge::state::{FrequencyRanks, KnowledgeState};
 use lingua_core::knowledge::status::{KnownSource, Status};
@@ -492,6 +492,19 @@ impl LinguaEngine {
     #[wasm_bindgen(js_name = phraseGloss)]
     pub fn phrase_gloss(&self, text: &str) -> String {
         gloss_phrase_json(text, EN, &self.pack, &self.state.knowledge)
+    }
+
+    /// A word card's grammar, as canonical JSON: the dictionary form's gloss,
+    /// the same gloss grouped by part of speech, the readings of the word as
+    /// written as that dictionary form, the other dictionary forms it is also
+    /// a reading of, and the pieces the pre-pass split it into
+    /// (`add-lingua-word-grammar`). `written` is the word as it stands on the
+    /// page — both halves of `don't` pass `don't` — and `lemma` the dictionary
+    /// form the card is keyed by. Pure pack data: the reader's state plays no
+    /// part.
+    #[wasm_bindgen(js_name = wordGrammar)]
+    pub fn word_grammar(&self, written: &str, lemma: &str) -> String {
+        word_grammar_json(written, lemma, EN, &self.pack)
     }
 
     /// Number of forms the reader has explicitly marked (any status).
