@@ -4,11 +4,11 @@
 TBD - created by archiving change add-lingua-data-pack. Update Purpose after archive.
 ## Requirements
 ### Requirement: Versioned pack container, keyed by language pair
-A pack SHALL be a single versioned container, keyed by pair (studied language → native language), holding: metadata (the pair, `pack_version`, the compatible `analyzer_version`, licences), a form→lemma FST, a frequency table (ranks), compressed glosses indexed by lemma, an optional per-lemma CEFR level table (present for pairs that have licence-clean CEFR data, absent otherwise), and a NOTICE file. The core SHALL refuse a pack whose analyser version is incompatible. Adding the CEFR level table changes the pack format and bumps `analyzer_version`.
+A pack SHALL be a single versioned container, keyed by pair (studied language → native language), holding: metadata (the pair, `pack_version`, the compatible `analyzer_version`, licences), a form→lemma FST, a frequency table (ranks), compressed glosses indexed by lemma, an optional per-lemma CEFR level table (present for pairs that have licence-clean CEFR data, absent otherwise), an optional multi-word expression table, optional grammar tables, and a NOTICE file. The core SHALL refuse a pack whose analyser version is incompatible. A table that only a new interface reads is additive: it SHALL be optional, a core that does not know it SHALL ignore it, and adding it SHALL bump `pack_version` and leave `analyzer_version` alone.
 
 #### Scenario: Loading the EN→FR pack
 - **WHEN** the extension starts with the (en → fr) pack embedded
-- **THEN** the core exposes lemmatisation, frequency ranks, French glosses and CEFR levels for English
+- **THEN** the core exposes lemmatisation, frequency ranks, French glosses, CEFR levels, expressions and word grammar for English
 
 #### Scenario: Pair without CEFR data
 - **WHEN** a pack for a pair with no licence-clean CEFR data is loaded
@@ -17,6 +17,14 @@ A pack SHALL be a single versioned container, keyed by pair (studied language �
 #### Scenario: Incompatible pack
 - **WHEN** a pack declares an `analyzer_version` incompatible with the core
 - **THEN** loading fails with an explicit error and no partial analysis is produced
+
+#### Scenario: A pack whose only new table is additive
+- **WHEN** a pack is rebuilt with an expression table and no other change
+- **THEN** its `analyzer_version` is the one the core already accepted, and its `pack_version` is new
+
+#### Scenario: A pack whose new tables are grammar tables
+- **WHEN** a pack is rebuilt with grammar tables and no other change
+- **THEN** its `analyzer_version` is the one the core already accepted, and its `pack_version` is new
 
 ### Requirement: Licence hygiene
 The build pipeline SHALL accept only sources whose licence permits commercial use (ESDB, WordNet, wordfreq CC BY-SA, kaikki CC BY-SA) and SHALL reject any GPL, AGPL or non-commercial source (documented denylist). Every pack SHALL embed the complete stack of notices, and the user interface SHALL expose an attributions page.
@@ -67,11 +75,19 @@ fail, whether in a release or in a pull request's checks.
 - **THEN** its checks fail, before any release
 
 ### Requirement: Size budget
-The (en → fr) pack embedded in the extension SHALL stay under 5 MB (FST + frequencies + compressed glosses). If it goes over, the build SHALL fail, and the remedy SHALL reduce gloss coverage, never the FST or the frequencies.
+The (en → fr) pack embedded in the extension SHALL stay under 5 MiB (5 × 1024 × 1024 bytes, the figure the builder enforces), covering every table it carries: the FST, the frequencies, the compressed glosses and the optional level, expression and grammar tables. If it goes over, the build SHALL fail naming what to reduce, and the remedy SHALL take from the optional tables first — the expressions, longest entries then rarest, then the readings of the rarest dictionary forms — then from gloss coverage, never from the FST or the frequencies, which every page analysis depends on. The part of speech of a gloss's senses follows its gloss, and SHALL leave the pack only with it.
 
 #### Scenario: Arbitrating size
-- **WHEN** `gloss.zst` pushes the build past 5 MB
+- **WHEN** `gloss.zst` pushes a pack carrying no expression or grammar table past the budget
 - **THEN** the build fails, telling the operator to reduce the number of glossed lemmas
+
+#### Scenario: The expression table is what pushes the pack over
+- **WHEN** the expression table takes a pack past the budget
+- **THEN** the build fails and names the expression table as what must be reduced
+
+#### Scenario: The grammar readings are what push the pack over
+- **WHEN** a pack carrying no expression table is taken past the budget by its grammar readings
+- **THEN** the build fails and names the readings of the rarest dictionary forms as what must be reduced
 
 ### Requirement: CEFR level source and enumeration by band
 The English pack's CEFR levels SHALL be built from licence-clean sources — CEFR-J Wordlist
@@ -93,11 +109,12 @@ frequency-rank band when no CEFR data exists.
 
 ### Requirement: A dictionary update is a reviewed decision
 Live upstream sources SHALL be read only to propose new tables, and new tables SHALL reach a release only through a pull request a person opens and merges.
-The proposal SHALL come with a report, against the committed tables, of the lemmas, glosses, levels
-and expressions added, removed and changed, and of the pack's size against its budget. No workflow
-SHALL open or approve that pull request. A change to the reduction rules SHALL be applied to the
-pinned raw sources, so that its diff shows the rule change and no upstream change; tables whose
-recorded reduction rules differ from the repository's SHALL fail the checks.
+The proposal SHALL come with a report, against the committed tables, of the lemmas, glosses, levels,
+expressions, grammar readings and parts of speech of senses added, removed and changed, and of the
+pack's size against its budget. No workflow SHALL open or approve that pull request. A change to the
+reduction rules SHALL be applied to the pinned raw sources, so that its diff shows the rule change
+and no upstream change; tables whose recorded reduction rules differ from the repository's SHALL
+fail the checks.
 
 #### Scenario: Updating the dictionary
 - **WHEN** a maintainer runs the update
@@ -106,6 +123,10 @@ recorded reduction rules differ from the repository's SHALL fail the checks.
 #### Scenario: Reduction rules changed
 - **WHEN** the reducer is edited
 - **THEN** the checks fail until the tables are reduced again from the pinned raw sources, and that pull request's diff holds only what the edit changes
+
+#### Scenario: The report covers the grammar
+- **WHEN** an update changes the readings of a form or the part of speech of a word's senses
+- **THEN** the report lists that form or that word among the changes
 
 ### Requirement: Upstream breakage is detected before it is needed
 The upstream sources SHALL be checked on a monthly schedule without changing anything, and a source that cannot be fetched, a reduction that fails, or a table that collapses SHALL fail that check visibly.
@@ -120,6 +141,9 @@ The upstream sources SHALL be checked on a monthly schedule without changing any
 
 ### Requirement: A pack says which dictionary it is
 A pack's `pack_version` SHALL identify the snapshot of tables it was built from.
+Tables reduced again from the same pinned sources under changed reduction rules SHALL be a new
+snapshot of tables: their `pack_version` SHALL still name the source snapshot, and SHALL also name
+the reduction rules that produced them.
 
 #### Scenario: Two releases, one dictionary
 - **WHEN** two releases are built from the same committed tables
@@ -128,4 +152,154 @@ A pack's `pack_version` SHALL identify the snapshot of tables it was built from.
 #### Scenario: An updated dictionary
 - **WHEN** a release is built after new tables were merged
 - **THEN** its pack reports a different `pack_version`
+
+#### Scenario: The same sources reduced under new rules
+- **WHEN** the tables are reduced again from the pinned sources of snapshot `2026.09.26` after the reducer changed
+- **THEN** the pack reports a `pack_version` that names `2026.09.26` and differs from the one built before the change
+
+### Requirement: Grammar tables
+A pack built for a pair whose sources describe their words' grammar SHALL carry grammar tables, drawn from the same licence-clean sources as its forms and glosses and written in one closed vocabulary: the Universal Dependencies part-of-speech tags and a named subset of the Universal Dependencies morphological features.
+The tables SHALL hold:
+- the **readings** of every inflected form whose dictionary form the pack holds: that dictionary
+  form, a part of speech and features. A form spelled like its dictionary form SHALL carry a
+  reading too when it is also another form of it, as `put` is its own prétérit;
+- for every written form the core's own analysis reads as one dictionary form, the **other
+  dictionary forms** the pack holds that the form is believably a reading of. A believable
+  dictionary form has the part of speech the relation needs, and the form either inflects it
+  regularly or is one the dictionary names as a form of it;
+- for every glossed dictionary form, the **part of speech of each sense** of its gloss, with the
+  features the word carries in that part of speech whatever its form, such as a noun's gender.
+
+A reading SHALL come only from a relation the reducer already accepts as an inflection, so a form
+it rejects as archaic, rarer or doubtful SHALL NOT be read as that inflection.
+
+The vocabulary SHALL name at least tense, mood, person, number, gender, verb form, degree, and a
+personal pronoun's case and reflexivity, so that a pack for a Romance language fits it with no
+change to the container. The vocabulary is closed on both sides:
+- A table SHALL NOT carry a code outside the vocabulary, and the build SHALL fail on one, naming
+  it.
+- A core SHALL ignore a feature it does not know rather than refuse the pack.
+
+The tables are optional and additive: a pack without them loads, a pack with them loads on a core
+that does not read them, and their presence SHALL NOT change `analyzer_version`. The vocabulary
+takes only tag names from Universal Dependencies, and no data.
+
+#### Scenario: An irregular verb
+- **WHEN** the (en → fr) pack is built
+- **THEN** `went` reads as `go`, a verb in the past tense, finite, and `gone` reads as `go`, a verb as past participle
+
+#### Scenario: A regular verb
+- **WHEN** the (en → fr) pack is built
+- **THEN** `walked` carries two readings of `walk`: past tense, finite, and past participle
+
+#### Scenario: A form spelled like its dictionary form
+- **WHEN** the (en → fr) pack is built
+- **THEN** `put` carries readings of `put` as past tense and as past participle
+
+#### Scenario: A form of two dictionary forms
+- **WHEN** the analysis reads `leaves` as `leave`, and the pack holds `leaf`
+- **THEN** the tables name `leaf` as another dictionary form of `leaves`, whose reading is a plural noun
+
+#### Scenario: A relation that is not believable is not named
+- **WHEN** the analysis reads `uses` as `use`
+- **THEN** the tables do not name `us` as another dictionary form of `uses`
+
+#### Scenario: A rejected variant carries no reading
+- **WHEN** the (en → fr) pack is built
+- **THEN** `born` carries no reading of `bear`
+
+#### Scenario: A Romance pack fits the vocabulary
+- **WHEN** a test pack gives `dijéramos` as `decir`, a verb in the imperfect subjunctive, first person plural, finite; `leche` as a feminine noun; and `me` as a personal pronoun, first person singular, dative
+- **THEN** it builds with the container this change defines, and the core reads every one of those features back
+
+#### Scenario: A code outside the vocabulary
+- **WHEN** the reduced tables carry a feature or a part of speech the vocabulary does not name
+- **THEN** the build fails and names it
+
+#### Scenario: An older core reads a pack that has the tables
+- **WHEN** a core built before this change loads a pack carrying the grammar tables
+- **THEN** the pack loads and behaves as it did, the tables being ignored
+
+### Requirement: A gloss groups its senses by part of speech
+A pack's gloss SHALL list its senses grouped by part of speech, each group in the order its part of speech first appears among the senses picked, and SHALL NOT hold the sense separator inside a sense.
+The senses SHALL be picked as the pack picked them before this change, one per entry in turn, up to
+eight for a word, but for the acronyms and the Wiktionary's notes the next requirements leave out.
+They are then reordered so that the senses of one part of speech are adjacent, and a separator
+inside a sense becomes a comma. A word's gloss SHALL hold each sense within 300 characters and all
+of them within 800: the card pages it, so its length is no longer what one card can show. A cut SHALL
+fall on a word boundary and end with an ellipsis, never mid-word, and a sense that would keep fewer
+than 20 characters SHALL be left out rather than cut. An expression's gloss keeps its own limits. The part-of-speech table SHALL account
+for exactly the senses the final gloss holds, and the build SHALL fail when the two disagree.
+
+#### Scenario: Senses picked across parts of speech
+- **WHEN** the senses picked for a word are a preposition sense, a particle sense and a second preposition sense, in that order
+- **THEN** its gloss holds the two preposition senses, then the particle sense, and the table records two preposition senses followed by one particle sense
+
+#### Scenario: A separator inside a sense
+- **WHEN** a picked sense reads « Lettre; caractère »
+- **THEN** the gloss holds it as « Lettre, caractère », one sense
+
+#### Scenario: A word with many senses
+- **WHEN** the dictionary gives a word six senses of a few words each
+- **THEN** its gloss holds all six
+
+#### Scenario: A long sense ends on a whole word
+- **WHEN** a word's sense is longer than the room its gloss has left for it
+- **THEN** the gloss holds it cut after a whole word and ended with « … », never mid-word, or leaves it out when fewer than 20 characters of room remain
+
+#### Scenario: A table that disagrees with its gloss
+- **WHEN** the part-of-speech table records a different number of senses than a word's gloss holds
+- **THEN** the build fails and names the word
+
+### Requirement: An acronym does not gloss the word it is spelled like
+A word's gloss SHALL NOT take senses from an entry whose headword is written all in capitals — an acronym such as `AND`, `WHO` or `US` — when the word has an entry of its own in lower case, and an acronym with no such word SHALL keep its gloss.
+The part of speech of a word the reader meets is its own, not that of an acronym the dictionary
+lowercases into it: grouped by part of speech, the logic operator `AND` made the card of `and` read
+« verbe Faire le ET de ».
+
+#### Scenario: A common word and its acronym
+- **WHEN** the dictionary holds `and`, a conjunction, and `AND`, the logic operator, as a noun and a verb
+- **THEN** the gloss of `and` holds only the conjunction's sense, under one part of speech
+
+#### Scenario: An acronym with no common word
+- **WHEN** the dictionary holds `NATO` and no lower-case `nato`
+- **THEN** the gloss of `nato` is the one `NATO` gives
+
+#### Scenario: A capitalised word is no acronym
+- **WHEN** the dictionary holds `He`, capitalised, beside `he`
+- **THEN** the gloss of `he` holds the senses of both
+
+### Requirement: A gloss holds none of the Wiktionary's notes to its readers
+A gloss SHALL NOT hold what the Wiktionary writes for its own readers rather than as a translation: a pointer to another page, such as « → voir there be » or « (→ voir bone marrow) », and the placeholder of an unfinished page, such as « Définition manquante ou à compléter. (Ajouter) ».
+The note SHALL be taken out wherever it sits in a sense, and the rest of the sense kept. A sense
+that is nothing but notes SHALL be left out, and a word left with no sense SHALL have no gloss. This
+holds for the glosses of words and of expressions alike.
+
+#### Scenario: A pointer after a translation
+- **WHEN** the dictionary glosses `there` « Y avoir. → voir there be »
+- **THEN** the gloss of `there` holds « Y avoir » and no pointer
+
+#### Scenario: A placeholder after a translation
+- **WHEN** the dictionary glosses a sense of `pig` « Vivre dans la promiscuité et la saleté. Définition manquante ou à compléter. (Ajouter) »
+- **THEN** that sense reads « Vivre dans la promiscuité et la saleté »
+
+#### Scenario: A sense that is only notes
+- **WHEN** the dictionary glosses `because` « Parce que » and « Définition manquante ou à compléter. (Ajouter) → voir because of »
+- **THEN** the gloss of `because` is « Parce que »
+
+### Requirement: A word that is only a form of another takes that word's gloss
+A dictionary form the pack keeps whose every sense in the dictionary only says which word it is a form of SHALL be glossed with the senses of that word in the same part of speech, and SHALL have no gloss when that word has none in that part of speech.
+The word list keeps some forms as words of their own — `catacombs`, `bacteria`, `footsteps` — and
+the dictionary glosses them only as « Pluriel de catacomb »; without this, their card has no
+translation. When the senses name several words, the first one that has senses in that part of
+speech gives them. A word of fewer than three letters, such as a letter of the alphabet, gives none.
+A form that has a meaning of its own keeps it.
+
+#### Scenario: A plural kept as a word
+- **WHEN** the dictionary glosses `catacombs` only as the plural of `catacomb`, and `catacomb` as « Catacombe »
+- **THEN** the gloss of `catacombs` is « Catacombe », a noun sense
+
+#### Scenario: A word only in another part of speech
+- **WHEN** the dictionary glosses the adjective `hearted` only as a form of `heart`, which is only a noun
+- **THEN** `hearted` has no gloss
 
