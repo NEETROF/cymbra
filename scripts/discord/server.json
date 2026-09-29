@@ -76,7 +76,7 @@
         {
           "name": "announcements",
           "type": "announcement",
-          "topic": "Releases and news, all Cymbra products. Low traffic by design.",
+          "topic": "Cymbra-wide news: a new product, the server itself. Releases live in each product's own announcements channel.",
           "readonly": true
         }
       ]
@@ -92,6 +92,7 @@
     {
       "name": "CYMBRA MUSIC",
       "channels": [
+        { "name": "music-announcements",   "type": "announcement", "topic": "New Cymbra Music versions and news. Follow this channel to get them in your own server.", "readonly": true },
         { "name": "music-help",            "type": "text",  "topic": "Stuck? Ask here. Your platform + MIDI device helps a lot." },
         { "name": "scores-and-soundfonts", "type": "text",  "topic": "Catalog additions, requests, licensing questions." },
         { "name": "music-ideas",           "type": "forum", "topic": "One post per idea. React to support one." },
@@ -113,7 +114,7 @@
     {
       "name": "CYMBRA ID",
       "channels": [
-        { "name": "id-help", "type": "text", "topic": "Accounts, sign-in, linked identities, account deletion." },
+        { "name": "id-help", "type": "text", "topic": "Cymbra ID is the one account behind every Cymbra app. Sign-in, linked identities, account deletion. Never post your email or a code here." },
         {
           "name": "id-stats",
           "type": "text",
@@ -126,7 +127,7 @@
       "name": "CYMBRA LIVE",
       "enabled": false,
       "channels": [
-        { "name": "live-announcements", "type": "text", "topic": "Cymbra Live news.", "readonly": true },
+        { "name": "live-announcements", "type": "announcement", "topic": "New Cymbra Live versions and news.", "readonly": true },
         { "name": "live-help",          "type": "text", "topic": "Cymbra Live questions." },
         { "name": "live-stats",         "type": "text", "topic": "Cymbra Live report. Bot only.", "readonly": true }
       ]
@@ -135,8 +136,10 @@
       "name": "CYMBRA LINGUA",
       "enabled": true,
       "channels": [
-        { "name": "lingua-announcements", "type": "text", "topic": "Cymbra Lingua news.", "readonly": true },
+        { "name": "lingua-announcements", "type": "announcement", "topic": "New Cymbra Lingua versions and news. Follow this channel to get them in your own server.", "readonly": true },
         { "name": "lingua-help",          "type": "text", "topic": "Cymbra Lingua questions. Say which browser you use." },
+        { "name": "lingua-ideas",         "type": "forum", "topic": "One post per idea. React to support one." },
+        { "name": "lingua-bugs",          "type": "forum", "topic": "One post per bug. Say your browser and its version. Confirmed ones move to GitHub issues." },
         { "name": "lingua-stats",         "type": "text", "topic": "Weekly Cymbra Lingua report: active accounts, words read, words learned, reviews. Bot only.", "readonly": true }
       ]
     },
@@ -168,11 +171,12 @@
   },
 
   "webhooks": [
-    { "channel": "announcements",         "name": "Cymbra backend" },
-    { "channel": "scores-and-soundfonts", "name": "Cymbra backend" },
-    { "channel": "music-stats",           "name": "Cymbra backend" },
-    { "channel": "music-leaderboards",    "name": "Cymbra backend" },
-    { "channel": "id-stats",              "name": "Cymbra backend" },
-    { "channel": "lingua-stats",          "name": "Cymbra backend" }
+    { "channel": "music-announcements",   "name": "Cymbra releases" },
+    { "channel": "lingua-announcements",  "name": "Cymbra releases" },
+    { "channel": "scores-and-soundfonts", "name": "Cymbra" },
+    { "channel": "music-stats",           "name": "Cymbra" },
+    { "channel": "music-leaderboards",    "name": "Cymbra" },
+    { "channel": "id-stats",              "name": "Cymbra" },
+    { "channel": "lingua-stats",          "name": "Cymbra" }
   ]
 }

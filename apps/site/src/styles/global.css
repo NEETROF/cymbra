@@ -46,6 +46,12 @@ a:hover { text-decoration: underline; }
 .nav-links a:hover { color: var(--text); text-decoration: none; }
 /* Burger + its checkbox exist only under the breakpoint below. */
 .nav-toggle, .nav-burger { display: none; }
+/* The community link stands out from the rest of the nav: Discord's own colour. */
+.nav-links a.nav-discord {
+  color: #fff; background: #5865f2; padding: 0.35rem 0.8rem; border-radius: 999px; font-weight: 600;
+}
+.nav-links a.nav-discord:hover { opacity: 0.9; }
+.header-discord { display: none; }
 
 /* Mobile menu. The nav is six entries wide: left inline it overflows the
    viewport and scrolls the whole page sideways, so below this width it
@@ -78,6 +84,14 @@ a:hover { text-decoration: underline; }
   }
   .nav-toggle:checked ~ .nav-links { display: flex; }
   .nav-links a { color: var(--text); padding: 0.8rem 0; border-top: 1px solid var(--border); }
+  /* On phones the bar carries it (.header-discord); the panel does not repeat it. */
+  .nav-links a.nav-discord { display: none; }
+  .header-discord {
+    display: inline-block; margin-left: auto; margin-right: 0.75rem;
+    color: #fff; background: #5865f2; padding: 0.35rem 0.8rem; border-radius: 999px;
+    font-weight: 600; font-size: 0.9rem;
+  }
+  .header-discord:hover { text-decoration: none; opacity: 0.9; }
 }
 
 /* Hero */
@@ -118,6 +132,19 @@ a:hover { text-decoration: underline; }
 
 /* Closing block of a product page */
 .closing { padding-block: 1rem 2rem; }
+
+/* Community band (components/Community.astro) */
+.community { padding-block: 2rem; }
+.community-band {
+  display: flex; flex-wrap: wrap; gap: 1.25rem; align-items: center; justify-content: space-between;
+  padding: 1.6rem 1.8rem; border-radius: 16px;
+  background: linear-gradient(135deg, rgba(88, 101, 242, 0.22), rgba(124, 92, 255, 0.12));
+  border: 1px solid rgba(88, 101, 242, 0.55);
+}
+.community-band h2 { margin: 0 0 0.35rem; font-size: 1.35rem; }
+.community-band p { margin: 0; color: var(--muted); max-width: 520px; }
+.btn-discord { background: #5865f2; color: #fff; border-color: transparent; white-space: nowrap; }
+.btn-discord:hover { text-decoration: none; opacity: 0.92; }
 .closing h2 { font-size: 1.25rem; margin-bottom: 0.4rem; }
 .closing p { margin: 0; }
 

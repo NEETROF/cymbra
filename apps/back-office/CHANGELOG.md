@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.21.0](https://github.com/NEETROF/cymbra/compare/back-office-v0.20.0...back-office-v0.21.0) (2026-09-28)
+
+
+### Features
+
+* **discord:** announce accepted catalog items and season records ([#586](https://github.com/NEETROF/cymbra/issues/586)) ([48bf420](https://github.com/NEETROF/cymbra/commit/48bf420906aa3fad9060e16ec96c9399162289b0))
+
 ## [0.20.0](https://github.com/NEETROF/cymbra/compare/back-office-v0.19.0...back-office-v0.20.0) (2026-09-27)
 
 

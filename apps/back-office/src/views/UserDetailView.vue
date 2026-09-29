@@ -15,6 +15,8 @@ import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import IdBadge from "@/components/IdBadge.vue";
 import type { RoleGrant } from "@/gen/user_pb";
 import { canOpenRoute } from "@/lib/navigation";
+import { formatUnixDate, lastSignIn } from "@/lib/accountDates";
+import { currentLocale } from "@/i18n";
 
 // One account, one address (change: restructure-back-office-users-console). Everything
 // the console knows and can do about this person: subscription, roles in every scope the
@@ -80,6 +82,16 @@ const grants = computed(() =>
 const grantsLoading = computed(() => store.grants.status === "loading" || store.grants.status === "idle");
 const acting = computed(() => store.op.status === "loading" || sessions.op.status === "loading");
 const title = computed(() => vm.value.account?.handle || vm.value.account?.displayName || "");
+/** When the account signed up and last signed in (change: add-directory-account-dates). */
+const dates = computed(() => {
+  const account = vm.value.account;
+  if (!account) return null;
+  const last = lastSignIn(account.apps);
+  return {
+    signedUp: formatUnixDate(account.createdAt, currentLocale()),
+    lastSignIn: last === null ? null : formatUnixDate(last, currentLocale()),
+  };
+});
 
 // Read-only curator reliability, loaded on demand (it is an extra call, and an operator
 // asks for it rather than always reading it). Informational only — it never triggers a
@@ -159,6 +171,12 @@ watch(
       <span v-if="vm.account.displayName && vm.account.handle" class="muted">{{ vm.account.displayName }}</span>
       <IdBadge :id="vm.account.userId" />
     </div>
+    <p v-if="dates" class="dates muted" data-testid="account-dates">
+      <span>{{ $t("users.signedUpOn", { when: dates.signedUp }) }}</span>
+      <span>{{
+        dates.lastSignIn ? $t("users.lastSignInOn", { when: dates.lastSignIn }) : $t("users.neverSignedIn")
+      }}</span>
+    </p>
     <div class="head-actions">
       <RouterLink
         v-if="showPrivateScores"
@@ -246,6 +264,13 @@ watch(
 }
 .identity .page-title {
   margin: 0;
+}
+.dates {
+  display: flex;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  margin: 0.4rem 0 0;
+  font-size: 0.9rem;
 }
 .tabs {
   display: flex;

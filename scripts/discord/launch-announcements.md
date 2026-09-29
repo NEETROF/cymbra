@@ -1,8 +1,10 @@
-# `#announcements` — introducing each app / présenter chaque app
+# Introducing each app / présenter chaque app
 
-Post these **once**, when the server opens, as **separate messages** in `#announcements`, in this
-order: (1) Cymbra Music EN, (2) Cymbra Music FR, (3) Cymbra Lingua EN, (4) Cymbra Lingua FR. Then
-press **Publish** on each so servers following the channel receive them.
+Post these **once**, when the server opens, as **separate messages**: (1) and (2) — Cymbra Music EN
+then FR — in `#music-announcements`, (3) and (4) — Cymbra Lingua EN then FR — in
+`#lingua-announcements`, and (5) in the server-wide `#announcements`. Then press **Publish** on each
+so servers following the channel receive them. Releases go to the same product channels, so a
+member follows only the product they use.
 
 **Before posting** — every block ends with "new versions are announced right here" (and warns that
 the stores follow a few days later, after their review), which is true only once:
@@ -10,16 +12,17 @@ the stores follow a few days later, after their review), which is true only once
 1. the pull request adding the release announcements is merged (the announce steps of
    `music-release`, `lingua-extension-release` and `lingua-apple-release`, and the manual
    `release-announce` workflow);
-2. the repository secret `DISCORD_WEBHOOK_ANNOUNCEMENTS` holds the `#announcements` webhook —
-   without it every announcement is skipped with a warning, silently for readers;
+2. the repository secrets `DISCORD_WEBHOOK_MUSIC_ANNOUNCEMENTS` and
+   `DISCORD_WEBHOOK_LINGUA_ANNOUNCEMENTS` hold those channels' webhooks — without them every
+   announcement is skipped with a warning, silently for readers;
 3. a `release-announce` preview (`publish` unticked) of the latest Music tag renders correctly.
 
 If any of these is not done, drop that last line from each block rather than promise it.
 
 Each block stays under Discord's 2000-character cap. What the copy deliberately says, and why:
 
-- **Drums** are behind the `drums.enabled` flag during their beta, so the electronic kit appears
-  only in the Drums bullet, marked beta. The microphone input and the leaderboards are
+- **Drums** were a beta behind the `drums.enabled` flag; they are open to every player in
+  production, so the bullet no longer says beta. The microphone input and the leaderboards are
   flag-gated too and are left out.
 - **Windows and Linux** are "coming soon", as on the site (`apps/site/src/lib/stores.ts`). The
   GitHub releases carry preview builds, but the automatic announcements do not list them either
@@ -54,7 +57,7 @@ Learn music connected to your instrument. Plug in a USB MIDI keyboard — or pla
 • **Wait Mode** — the score waits for the right note; practise hands separately or together
 • **Real-time scoring** — accuracy and timing while you play, a summary after every run
 • **A growing library** — public-domain scores from beginner to advanced, high-quality piano sounds, and your own SoundFonts
-• **Drums** — plug in an electronic drum kit and play real drum parts, on the staff or on an animated kit (beta — ask in #general)
+• **Drums** — plug in an electronic drum kit and play real drum parts, on the staff or on an animated kit
 • English, French, Italian and Spanish
 • Data hosted in France (EU), never sold, no advertising trackers
 
@@ -85,7 +88,7 @@ Apprends la musique connecté à ton instrument. Branche un clavier MIDI USB —
 • **Mode Attente** — la partition attend la bonne note ; main gauche, main droite ou les deux
 • **Score en temps réel** — justesse et rythme pendant que tu joues, un bilan après chaque passage
 • **Une bibliothèque qui grandit** — des partitions du domaine public, du débutant au confirmé, des sons de piano de qualité, et tes propres SoundFonts
-• **Batterie** — branche une batterie électronique et joue de vraies parties, sur la portée ou sur un kit animé (bêta — demande dans #general)
+• **Batterie** — branche une batterie électronique et joue de vraies parties, sur la portée ou sur un kit animé
 • Français, anglais, italien et espagnol
 • Données hébergées en France (UE), aucune revente, aucun pisteur publicitaire
 
@@ -126,7 +129,8 @@ Read the English web and grow your vocabulary as you go. Cymbra Lingua is a brow
 • Safari on iPhone, iPad and Mac: coming soon
 
 **Here on Discord**
-• **#lingua-help** — questions and bugs; say which browser you use
+• **#lingua-help** — questions; say which browser you use
+• **#lingua-ideas** / **#lingua-bugs** — one post per idea or bug
 
 New versions are announced right here as soon as they are released. The stores publish them after their review, which can take a few days, so a store may still show the previous version for a while.
 ```
@@ -155,7 +159,24 @@ Enrichis ton vocabulaire anglais en lisant le web. Cymbra Lingua est une extensi
 • Safari sur iPhone, iPad et Mac : bientôt
 
 **Ici, sur Discord**
-• **#lingua-help** — questions et bugs ; précise ton navigateur
+• **#lingua-help** — questions ; précise ton navigateur
+• **#lingua-ideas** / **#lingua-bugs** — un post par idée ou par bug
 
 Les nouvelles versions sont annoncées ici dès leur sortie. Les stores les publient après leur validation, ce qui peut prendre quelques jours : un store peut donc encore proposer la version précédente pendant un moment.
+```
+
+---
+
+## 5. `#announcements` — where the news is (EN + FR, one message)
+
+```
+# 📣 Where Cymbra news lives
+
+Each app has its own announcements channel, with every new version as it ships:
+• **#music-announcements** — Cymbra Music
+• **#lingua-announcements** — Cymbra Lingua
+
+**Follow** the one you use to get its news in your own server. This channel keeps Cymbra-wide news only: a new app, the server itself.
+
+Chaque app a son propre salon d'annonces, avec chaque nouvelle version dès sa sortie : **#music-announcements** pour Cymbra Music, **#lingua-announcements** pour Cymbra Lingua. **Suis** celui que tu utilises pour recevoir ses nouvelles sur ton propre serveur. Ce salon-ci ne garde que les nouvelles de Cymbra en général.
 ```

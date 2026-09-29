@@ -26,6 +26,14 @@ export function appsFor(filter: AppFilter): string[] {
   }
 }
 
+/** A sortable directory column (change: add-directory-account-dates); the wire value. */
+export type DirectorySort = "handle" | "display_name" | "created_at" | "last_sign_in";
+
+/** The direction a column starts in: A→Z for text, newest first for dates. */
+export function defaultDescending(sort: DirectorySort): boolean {
+  return sort === "created_at" || sort === "last_sign_in";
+}
+
 export interface AccountDirectory {
   accounts: AccountRow[];
   total: number;
@@ -44,6 +52,9 @@ export interface DirectoryParams {
   sandboxAccounts: boolean;
   /** Apps the account signed in to — an identity fact, filtered by the directory itself. */
   apps: AppFilter;
+  /** The column the directory is ordered by, server-side (it is paginated). */
+  sort: DirectorySort;
+  descending: boolean;
 }
 
 // Admin-only role administration. The server enforces scope-matched authorization
@@ -71,6 +82,8 @@ export const useRolesStore = defineStore("roles", () => {
     beta: "",
     sandboxAccounts: false,
     apps: "any",
+    sort: "handle",
+    descending: false,
   });
 
   /** Whether the caller may see plan data at all: a music-scope admin only. A
@@ -99,12 +112,28 @@ export const useRolesStore = defineStore("roles", () => {
         ids = await plans.accountIdsByPlan(plan, beta, sandboxAccounts);
         if (ids.length === 0) return { accounts: [], total: 0 };
       }
-      const resp = await api().user.listAccounts({ query, limit: PAGE_SIZE, offset, ids, apps: appsFor(apps) });
+      const resp = await api().user.listAccounts({
+        query,
+        limit: PAGE_SIZE,
+        offset,
+        ids,
+        apps: appsFor(apps),
+        sort: params.sort,
+        descending: params.descending,
+      });
       return { accounts: resp.accounts, total: resp.total };
     });
     if (outcome.status === "success" && plansVisible()) {
       await plans.plansForAccounts(outcome.data.accounts.map((a) => a.userId));
     }
+  }
+
+  /** Order the directory by `sort`, from the first page: the same column again flips
+   *  the direction, another column starts in its natural one. The other criteria stay. */
+  async function sortBy(sort: DirectorySort) {
+    const descending = sort === params.sort ? !params.descending : defaultDescending(sort);
+    Object.assign(params, { sort, descending });
+    await list(params.query, 0);
   }
 
   /** Load a single account by id, so `/admin/users/{id}` stands on its own: a deep link, a
@@ -178,6 +207,7 @@ export const useRolesStore = defineStore("roles", () => {
     op,
     params,
     list,
+    sortBy,
     loadAccount,
     resetAccount,
     listGrants,

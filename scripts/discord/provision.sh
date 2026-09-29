@@ -179,7 +179,8 @@ api() { # api METHOD PATH [JSON_BODY] → response body on stdout
       attempts=$((attempts + 1))
       ((attempts <= 5)) || die "rate limited five times on $method $path — give it a minute"
       wait="$(jq -r '.retry_after // 2' <<<"$resp" 2>/dev/null || echo 2)"
-      log "rate limited, waiting ${wait}s"
+      # stderr: api()'s stdout is the response body, captured by its callers.
+      log "rate limited, waiting ${wait}s" >&2
       sleep "$wait"
       continue
     fi
@@ -282,7 +283,9 @@ overwrites_for() { # overwrites_for <channel json> → JSON array
       '[{id: $id, type: 0, deny: $deny, allow: "0"}]')"
     while IFS= read -r role; do
       rid="$(role_id "$role")"
-      [[ -n "$rid" ]] || { log "! role '$role' not found yet, skipping its overwrite"; continue; }
+      # stderr: this function's stdout IS its JSON result, and a warning printed there
+      # breaks the caller's --argjson (a dry run never creates the roles it names).
+      [[ -n "$rid" ]] || { log "! role '$role' not found yet, skipping its overwrite" >&2; continue; }
       arr="$(jq --arg id "$rid" \
         --arg allow "$(perms_sum VIEW_CHANNEL SEND_MESSAGES READ_MESSAGE_HISTORY)" \
         '. + [{id: $id, type: 0, allow: $allow, deny: "0"}]' <<<"$arr")"
@@ -313,7 +316,17 @@ ensure_channel() { # ensure_channel <channel json> <parent id|"">
      | if $parent != "" then . + {parent_id: $parent} else . end')"
   id="$(channel_id "$name")"
   if [[ -n "$id" ]]; then
-    # PATCH rejects `type` on an existing channel; drop it.
+    # PATCH refuses `type` on an existing channel — except the one conversion Discord
+    # allows, text <-> announcement (Community servers). Keep it only for that, so a
+    # channel declared as announcement after it was created as text is converted.
+    local cur
+    cur="$(jq -r --arg id "$id" 'map(select(.id == $id)) | .[0].type // empty' <<<"$CHANNELS_JSON")"
+    if [[ "$cur" != "$tid" && " $cur $tid " == *" $CHANNEL_TYPE_text "* && " $cur $tid " == *" $CHANNEL_TYPE_announcement "* ]]; then
+      api PATCH "/channels/$id" "$body" >/dev/null
+      log "~ $name (converted to $type)"
+      [[ "$DRY_RUN" == 1 ]] || load_channels
+      return 0
+    fi
     api PATCH "/channels/$id" "$(jq 'del(.type)' <<<"$body")" >/dev/null
     log "~ $name ($type)"
   else
@@ -466,8 +479,9 @@ else
     printf '%s=https://discord.com/api/webhooks/%s/%s\n' "$var" "$hid" "$htoken" >>"$WEBHOOKS_OUT"
   done < <(jq -c '.webhooks[]?' "$MANIFEST")
   log "written to $WEBHOOKS_OUT (mode 0600) — move these into the backend environment;"
-  log "DISCORD_WEBHOOK_ANNOUNCEMENTS also goes to GitHub: gh secret set DISCORD_WEBHOOK_ANNOUNCEMENTS"
-  log "(the release workflows read it from CI; without it every release announcement is skipped)"
+  log "the two product announcement webhooks also go to GitHub, read by the release workflows"
+  log "(without them every release announcement is skipped):"
+  log "  gh secret set DISCORD_WEBHOOK_MUSIC_ANNOUNCEMENTS   gh secret set DISCORD_WEBHOOK_LINGUA_ANNOUNCEMENTS"
 fi
 
 echo

@@ -87,6 +87,8 @@ jobs:
           PUBLIC_APPLE_CLIENT_ID: ${{ vars.PUBLIC_APPLE_CLIENT_ID }}
           PUBLIC_PADDLE_ENV: ${{ vars.PUBLIC_PADDLE_ENV }}
           PUBLIC_PADDLE_CLIENT_TOKEN: ${{ vars.PUBLIC_PADDLE_CLIENT_TOKEN }}
+          # The community server's permanent invite; empty = no "join the community" link.
+          PUBLIC_DISCORD_URL: ${{ vars.PUBLIC_DISCORD_URL }}
         run: yarn build
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v4

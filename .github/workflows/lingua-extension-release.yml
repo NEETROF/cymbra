@@ -348,7 +348,7 @@ jobs:
             cymbra-lingua-chromium-${{ env.VERSION }}.zip
             cymbra-lingua-firefox-${{ env.VERSION }}.zip
 
-      # Announce the new version in #announcements once its packages are on the release
+      # Announce the new version in #lingua-announcements once its packages are on the release
       # page — announcing on the release event itself would link a page with no downloads
       # yet. The tag run only: a store dispatch re-runs this job on the same tag and must
       # not announce it twice. The tag submits nothing to a store, so the announcement's
@@ -362,7 +362,7 @@ jobs:
         env:
           TAG: ${{ env.TAG_NAME }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_ANNOUNCEMENTS }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_LINGUA_ANNOUNCEMENTS }}
         run: bash scripts/discord/release_announce.sh
 
       # `continue-on-error` so a refusal here does not skip the other store: the two are

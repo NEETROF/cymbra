@@ -1,7 +1,8 @@
 name: release-announce
 
 # Announces an EXISTING release on Discord, by hand: the tag you name, posted to
-# #announcements exactly as the release workflows post it at the end of a tag run.
+# its product's announcements channel (#music-announcements, #lingua-announcements) exactly
+# as the release workflows post it at the end of a tag run.
 # For a release that came out before the Discord server existed, or one whose
 # automatic announcement was skipped (webhook missing, Discord down).
 #
@@ -22,7 +23,7 @@ on:
         description: "Release tag to announce, e.g. music-v1.34.0, lingua-extension-v1.2.1, lingua-apple-v1.2.0."
         required: true
       publish:
-        description: "Post it to #announcements. Unticked = preview in the run log only."
+        description: "Post it to the product's announcements channel. Unticked = preview in the run log only."
         type: boolean
         default: false
       already_on_stores:
@@ -44,7 +45,9 @@ jobs:
         env:
           TAG: ${{ inputs.tag }}
           PUBLISH: ${{ inputs.publish }}
-          HAS_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_ANNOUNCEMENTS != '' }}
+          # Each product posts to its own channel: Music to #music-announcements, both Lingua
+          # components to #lingua-announcements.
+          HAS_WEBHOOK: ${{ (startsWith(inputs.tag, 'music-v') && secrets.DISCORD_WEBHOOK_MUSIC_ANNOUNCEMENTS || secrets.DISCORD_WEBHOOK_LINGUA_ANNOUNCEMENTS) != '' }}
         run: |
           # The whole value, not one line of it (grep would accept a multi-line value);
           # and it is not echoed back: it is free text, and a workflow command line is no
@@ -58,7 +61,7 @@ jobs:
           # goes red over Discord. Here someone asked for a post: a green run that posted
           # nothing would be a lie.
           if [ "$PUBLISH" = true ] && [ "$HAS_WEBHOOK" != true ]; then
-            echo "::error::DISCORD_WEBHOOK_ANNOUNCEMENTS is not set — nothing can be posted. Add it with 'gh secret set DISCORD_WEBHOOK_ANNOUNCEMENTS'."
+            echo "::error::this product's announcements webhook is not set — nothing can be posted. Add it with 'gh secret set DISCORD_WEBHOOK_MUSIC_ANNOUNCEMENTS' or 'gh secret set DISCORD_WEBHOOK_LINGUA_ANNOUNCEMENTS'."
             exit 1
           fi
       - name: Preview the announcement
@@ -69,11 +72,11 @@ jobs:
           STORE_LIVE: ${{ inputs.already_on_stores && '1' || '0' }}
           DRY_RUN: "1"
         run: bash scripts/discord/release_announce.sh
-      - name: Post the announcement to #announcements
+      - name: Post the announcement to the product's channel
         if: ${{ inputs.publish }}
         env:
           TAG: ${{ inputs.tag }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           STORE_LIVE: ${{ inputs.already_on_stores && '1' || '0' }}
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_ANNOUNCEMENTS }}
+          DISCORD_WEBHOOK_URL: ${{ startsWith(inputs.tag, 'music-v') && secrets.DISCORD_WEBHOOK_MUSIC_ANNOUNCEMENTS || secrets.DISCORD_WEBHOOK_LINGUA_ANNOUNCEMENTS }}
         run: bash scripts/discord/release_announce.sh

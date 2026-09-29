@@ -2,7 +2,8 @@
 
 Post these as **separate messages** in `#welcome`, then pin them. Discord caps a message at
 2000 characters; each block below stays under it. Discord renders `#`/`##` headings, `**bold**`
-and bullets, so paste them as-is.
+and bullets, so paste them as-is. Each paragraph and bullet is ONE line on purpose: Discord keeps
+every line break, so a line wrapped for this file would show up cut in the middle of a sentence.
 
 Order: (1) welcome EN, (2) welcome FR, (3) rules EN, (4) rules FR. Keeping EN first matches the
 server locale (`en-US`); the FR copy exists because the project and its first users are French.
@@ -15,32 +16,29 @@ server locale (`en-US`); the FR copy exists because the project and its first us
 # Welcome to Cymbra 🎹
 
 Open-source (Apache-2.0) learning tools:
-• **Cymbra Music** turns a MIDI keyboard into an interactive piano teacher: load a real
-score, play it, and get scored note by note.
-• **Cymbra Lingua** is a browser extension (Chrome, Firefox, Safari) that highlights the
-English words you don't know yet, right in the page you are reading — made for French
-speakers learning English.
+• **Cymbra Music** turns a MIDI keyboard into an interactive piano teacher: load a real score, play it, and get scored note by note.
+• **Cymbra Lingua** is a browser extension (Chrome, Firefox, Safari) that highlights the English words you don't know yet, right in the page you are reading — made for French speakers learning English.
 
 **Where to go**
 • **#general** — anything Cymbra, pianos, keyboards, music
 • **#show-your-play** — clips and runs you are proud of
 • **#music-help** — stuck? tell us your platform and MIDI device
 • **#scores-and-soundfonts** — catalog additions, requests, licensing questions
-• **#music-ideas** / **#music-bugs** — one post per idea or bug
 • **#lingua-help** — Lingua questions; say which browser you use
+• **#music-ideas** / **#music-bugs** / **#lingua-ideas** / **#lingua-bugs** — one post per idea or bug
+• **#music-announcements** / **#lingua-announcements** — new versions; follow the one you use
 • **#music-stats** / **#music-leaderboards** / **#lingua-stats** / **#id-stats** — automated reports, bot only
-• **#id-help** — accounts, sign-in, linked identities
+• **#id-help** — Cymbra ID, the one account behind every Cymbra app: sign-in, linked identities
 • **#dev** — building Cymbra: PRs, engine internals
 
 **Roles**
 • **Curator** — you rate scores and help the catalog converge
 • **Contributor** — you shipped code or scores
-• **Beta** — you want pre-release builds (ask in #general)
+• **Beta** — early access: preview builds and features still hidden in the released apps (ask in #general)
 • **Verified** — your Discord account is linked to your Cymbra account
 
 **Links**
 • Site: <https://cymbra.app>
-• Cymbra Music: <https://apps.apple.com/app/id6789557194> (iPhone, iPad, Mac) · <https://play.google.com/store/apps/details?id=com.cymbra.music>
 • Source: <https://github.com/NEETROF/cymbra>
 • Terms: <https://cymbra.app/en/terms/> · Privacy: <https://cymbra.app/en/privacy/>
 
@@ -55,31 +53,29 @@ Read the rules below before posting. Say hi in **#general** — we read everythi
 # Bienvenue sur Cymbra 🎹
 
 Des outils d'apprentissage open source (Apache-2.0) :
-• **Cymbra Music** transforme un clavier MIDI en professeur de piano interactif : tu charges
-une vraie partition, tu la joues, et tu es noté note par note.
-• **Cymbra Lingua** est une extension de navigateur (Chrome, Firefox, Safari) qui surligne
-les mots anglais que tu ne connais pas encore, directement dans la page que tu lis.
+• **Cymbra Music** transforme un clavier MIDI en professeur de piano interactif : tu charges une vraie partition, tu la joues, et tu es noté note par note.
+• **Cymbra Lingua** est une extension de navigateur (Chrome, Firefox, Safari) qui surligne, dans la page que tu lis, les mots anglais que tu ne connais pas encore.
 
 **Où aller**
-• **#general** — tout ce qui touche Cymbra, les pianos, les claviers, la musique
+• **#general** — Cymbra, pianos, claviers, musique
 • **#show-your-play** — tes extraits et tes runs réussis
 • **#music-help** — bloqué ? précise ta plateforme et ton clavier MIDI
 • **#scores-and-soundfonts** — ajouts au catalogue, demandes, questions de licence
-• **#music-ideas** / **#music-bugs** — un post par idée ou par bug
 • **#lingua-help** — questions sur Lingua ; précise ton navigateur
+• **#music-ideas** / **#music-bugs** / **#lingua-ideas** / **#lingua-bugs** — un post par idée ou par bug
+• **#music-announcements** / **#lingua-announcements** — les nouvelles versions, par app
 • **#music-stats** / **#music-leaderboards** / **#lingua-stats** / **#id-stats** — rapports automatiques, bot uniquement
-• **#id-help** — comptes, connexion, identités liées
-• **#dev** — le développement de Cymbra : PRs, moteur
+• **#id-help** — Cymbra ID, ton compte commun à toutes les apps : connexion, identités
+• **#dev** — développement de Cymbra : PRs, moteur
 
 **Rôles**
 • **Curator** — tu notes des partitions et fais converger le catalogue
 • **Contributor** — tu as contribué du code ou des partitions
-• **Beta** — tu veux les builds en avant-première (demande dans #general)
+• **Beta** — accès anticipé : builds de test et fonctionnalités encore cachées dans les apps publiées (demande dans #general)
 • **Verified** — ton compte Discord est lié à ton compte Cymbra
 
 **Liens**
 • Site : <https://cymbra.app>
-• Cymbra Music : <https://apps.apple.com/app/id6789557194> (iPhone, iPad, Mac) · <https://play.google.com/store/apps/details?id=com.cymbra.music>
 • Sources : <https://github.com/NEETROF/cymbra>
 • CGU : <https://cymbra.app/cgu/> · Confidentialité : <https://cymbra.app/confidentialite/>
 
@@ -93,36 +89,25 @@ Lis les règles ci-dessous avant de poster. Viens dire bonjour dans **#general**
 ```
 ## Rules
 
-**1. Be decent.** No harassment, hate speech, slurs, or personal attacks. Disagree about music
-theory all you like; do it without contempt.
+**1. Be decent.** No harassment, hate speech, slurs, or personal attacks. Disagree about music theory all you like; do it without contempt.
 
-**2. 13 and over.** Discord's own terms require it, and a higher minimum may apply in your
-country. Appearing by name in the stats channels is separate: it requires an explicit opt-in in
-the app and a minimum age of 16.
+**2. 13 and over.** Discord's own terms require it, and a higher minimum may apply in your country. Appearing by name in the stats channels is separate: it requires an explicit opt-in in the app and a minimum age of 16.
 
-**3. Respect copyright.** Share only sheet music and instrument sounds you are allowed to
-distribute — your own work, or public domain, or an explicit licence. No links to pirated
-scores or soundfonts. You are responsible for what you upload; see the Terms.
+**3. Respect copyright.** Share only sheet music and instrument sounds you are allowed to distribute — your own work, or public domain, or an explicit licence. No links to pirated scores or soundfonts. You are responsible for what you upload; see the Terms.
 
-**4. No scams, no ads.** No "free nitro", no crypto, no invite-trading, no unrelated
-self-promotion. Your own playing, your own arrangements, your own tools: welcome.
+**4. No scams, no ads.** No "free nitro", no crypto, no invite-trading, no unrelated self-promotion. Your own playing, your own arrangements, your own tools: welcome.
 
-**5. Keep channels on topic.** Bugs in #music-bugs, ideas in #music-ideas, one post each. The
-stats channels are bot-only — react there, discuss in #general.
+**5. Keep channels on topic.** Bugs and ideas go in each app's forums (#music-bugs, #music-ideas, #lingua-bugs, #lingua-ideas), one post each. The stats channels are bot-only — react there, discuss in #general.
 
-**6. Others' privacy.** Do not post someone's real name, address, email, or private messages.
-The bot only ever names players who opted in.
+**6. Others' privacy.** Do not post someone's real name, address, email, or private messages. The bot only ever names players who opted in.
 
-**7. Security issues are never public.** Found a vulnerability? Follow SECURITY.md in the
-repository, not a channel here.
+**7. Security issues are never public.** Found a vulnerability? Follow SECURITY.md in the repository, not a channel here.
 
-**8. Moderation.** Mods can delete, mute, or ban. If you think a decision is wrong, DM a mod —
-do not argue it in public. Ban evasion is permanent.
+**8. Moderation.** Mods can delete, mute, or ban. If you think a decision is wrong, DM a mod — do not argue it in public. Ban evasion is permanent.
 
 Breaking these gets a warning, then a mute, then a ban — faster if it is deliberate.
 
-*"Cymbra" and its logo are trademarks of NEETROF; the code is Apache-2.0, the brand is not
-licensed.*
+*"Cymbra" and its logo are trademarks of NEETROF; the code is Apache-2.0, the brand is not licensed.*
 ```
 
 ---
@@ -132,41 +117,25 @@ licensed.*
 ```
 ## Règles
 
-**1. Sois correct.** Pas de harcèlement, de discours haineux, d'insultes ni d'attaques
-personnelles. Tu peux être en désaccord sur la théorie musicale autant que tu veux — sans
-mépris.
+**1. Sois correct.** Pas de harcèlement, de discours haineux, d'insultes ni d'attaques personnelles. Tu peux être en désaccord sur la théorie musicale autant que tu veux — sans mépris.
 
-**2. 13 ans minimum.** Les conditions de Discord l'exigent, et ton pays peut imposer plus. Être
-nommé dans les salons de statistiques est autre chose : ça demande un consentement explicite
-dans l'application et 16 ans minimum.
+**2. 13 ans minimum.** Les conditions de Discord l'exigent, et ton pays peut imposer plus. Être nommé dans les salons de statistiques est autre chose : ça demande un consentement explicite dans l'application et 16 ans minimum.
 
-**3. Respecte le droit d'auteur.** Ne partage que des partitions et des sons d'instrument que tu
-as le droit de diffuser — tes créations, le domaine public, ou une licence explicite. Aucun lien
-vers des partitions ou soundfonts piratées. Tu es responsable de ce que tu envoies : voir les
-CGU.
+**3. Respecte le droit d'auteur.** Ne partage que des partitions et des sons d'instrument que tu as le droit de diffuser — tes créations, le domaine public, ou une licence explicite. Aucun lien vers des partitions ou soundfonts piratées. Tu es responsable de ce que tu envoies : voir les CGU.
 
-**4. Pas d'arnaques, pas de pub.** Pas de "free nitro", pas de crypto, pas d'échange
-d'invitations, pas d'autopromotion hors sujet. Ton jeu, tes arrangements, tes outils : bienvenue.
+**4. Pas d'arnaques, pas de pub.** Pas de "free nitro", pas de crypto, pas d'échange d'invitations, pas d'autopromotion hors sujet. Ton jeu, tes arrangements, tes outils : bienvenue.
 
-**5. Respecte le sujet des salons.** Les bugs dans #music-bugs, les idées dans #music-ideas, un
-post par sujet. Les salons de statistiques sont réservés au bot — réagis-y, discute dans
-#general.
+**5. Respecte le sujet des salons.** Les bugs et les idées vont dans les forums de chaque app (#music-bugs, #music-ideas, #lingua-bugs, #lingua-ideas), un post par sujet. Les salons de statistiques sont réservés au bot — réagis-y, discute dans #general.
 
-**6. Vie privée des autres.** Ne publie ni nom réel, ni adresse, ni email, ni messages privés de
-quelqu'un d'autre. Le bot ne nomme que les joueurs qui ont donné leur accord.
+**6. Vie privée des autres.** Ne publie ni nom réel, ni adresse, ni email, ni messages privés de quelqu'un d'autre. Le bot ne nomme que les joueurs qui ont donné leur accord.
 
-**7. Une faille ne se publie jamais.** Tu as trouvé une vulnérabilité ? Suis SECURITY.md dans le
-dépôt, pas un salon ici.
+**7. Une faille ne se publie jamais.** Tu as trouvé une vulnérabilité ? Suis SECURITY.md dans le dépôt, pas un salon ici.
 
-**8. Modération.** Les modérateurs peuvent supprimer, muter ou bannir. Si tu juges une décision
-injuste, écris à un modérateur en privé — pas de débat en public. Contourner un ban est
-définitif.
+**8. Modération.** Les modérateurs peuvent supprimer, muter ou bannir. Si tu juges une décision injuste, écris à un modérateur en privé — pas de débat en public. Contourner un ban est définitif.
 
-Enfreindre ces règles vaut un avertissement, puis un mute, puis un ban — plus vite si c'est
-délibéré.
+Enfreindre ces règles vaut un avertissement, puis un mute, puis un ban — plus vite si c'est délibéré.
 
-*« Cymbra » et son logo sont des marques de NEETROF ; le code est sous Apache-2.0, la marque ne
-l'est pas.*
+*« Cymbra » et son logo sont des marques de NEETROF ; le code est sous Apache-2.0, la marque ne l'est pas.*
 ```
 
 ---
@@ -181,3 +150,20 @@ l'est pas.*
 - If you enable **Onboarding** (Server Settings → Onboarding), Discord shows the rules as a
   gate before a member can post — that is where the `Beta` and `Curator` roles should be
   offered as self-select options.
+
+---
+
+## 5. `#id-help` — what Cymbra ID is (post it there, then pin it)
+
+```
+# 🪪 Cymbra ID
+
+Cymbra ID is your Cymbra account: one sign-in — Google, Apple or email — for every Cymbra app, Music and Lingua alike.
+• Both apps work without an account to start. Signing in keeps your plan, your progress and your Lingua deck across your devices.
+• Your account page: <https://cymbra.app/en/account/>
+• Deleting your account, and every app's data with it: <https://cymbra.app/en/delete-account/>
+
+Ask here about signing in, linked identities or deleting your account. **Never post your email address or a code in this channel** — DM a mod instead.
+
+Cymbra ID, c'est ton compte Cymbra : une seule connexion — Google, Apple ou e-mail — pour toutes les apps Cymbra, Music comme Lingua. Les deux apps s'utilisent sans compte pour commencer ; te connecter garde ta formule, ta progression et ton deck Lingua sur tous tes appareils. Ton compte : <https://cymbra.app/account/> · le supprimer : <https://cymbra.app/suppression-compte/>. **Ne poste jamais ton adresse e-mail ni un code ici** — écris à un modérateur en privé.
+```

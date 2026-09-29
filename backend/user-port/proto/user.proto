@@ -104,6 +104,12 @@ message ListAccountsRequest {
   // add-directory-app-usage). Values: music | live | lingua; any other value is
   // INVALID_ARGUMENT. Empty = no app criterion.
   repeated string apps = 6;
+  // Page order (change: add-directory-account-dates): handle | display_name |
+  // created_at | last_sign_in; empty = handle. Any other value is INVALID_ARGUMENT.
+  // Accounts with no value for the key (no handle, never signed in…) come last in
+  // both directions.
+  string sort = 7;
+  bool descending = 8;
 }
 // Roles an account holds in one scope (change: scope-aware-role-admin).
 message ScopeRoles {
@@ -119,6 +125,8 @@ message AccountRow {
   // The apps the account has signed in to, by app name (change:
   // add-directory-app-usage). Not scope-restricted: they are not roles.
   repeated AccountApp apps = 5;
+  // When the account was created, unix seconds (change: add-directory-account-dates).
+  int64 created_at = 6;
 }
 // An app an account has signed in to (change: add-directory-app-usage).
 message AccountApp {

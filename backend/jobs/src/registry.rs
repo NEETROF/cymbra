@@ -94,6 +94,12 @@ pub const PLANS_RECONCILE: &str = "plans_reconcile";
 /// whose plan lapsed past grace and is not yet withdrawn, rotates the offline
 /// cache secret once and stamps the rows. Idempotent by the `withdrawn_at` claim.
 pub const PLANS_WITHDRAW: &str = "plans_withdraw";
+/// Stable name of the Discord announcement job (change: add-discord-notifications,
+/// design D4). Payload: a `cymbra_discord::AnnouncementEvent` — the event identity,
+/// never a rendered message. Enqueued by the music module in the transaction that
+/// accepts a catalog item or records a season best; the handler re-checks the flags
+/// and the subject at publication time and posts at most once (dedup ledger).
+pub const DISCORD_NOTIFY: &str = "discord_notify";
 
 /// Static description of one job type.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -262,6 +268,15 @@ pub fn builtin() -> Vec<JobSpec> {
             PLANS_WITHDRAW,
             Channel::ordered("plans", "maintenance"),
             RetryPolicy::new(3, Duration::from_secs(60), Duration::from_secs(3600)),
+        ),
+        JobSpec::new(
+            DISCORD_NOTIFY,
+            // Announcements are independent of each other; the dedup ledger, not
+            // ordering, keeps a retry from posting twice.
+            Channel::parallel("discord", "notify"),
+            // Only a rate limit, a 5xx or a refused connection is retried; an hour
+            // of backoff rides out a Discord incident without piling up.
+            RetryPolicy::new(5, Duration::from_secs(60), Duration::from_secs(3600)),
         ),
     ]
 }

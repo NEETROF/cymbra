@@ -41,6 +41,30 @@ const plans: NonNullable<E2EData["plans"]> = {
 
 const data: E2EData = { accounts: [ada, bob], campaigns, plans };
 
+// Change: add-directory-account-dates.
+test.describe("account detail: dates", () => {
+  test("the page shows when the account signed up and last signed in", async ({ page }) => {
+    const dated = {
+      ...ada,
+      createdAt: "2026-03-02T12:00:00Z",
+      apps: { music: "2026-09-20T12:00:00Z", lingua: "2026-09-25T12:00:00Z" },
+    };
+    await seed(page, { loginAs: "admin", data: { ...data, accounts: [dated, bob] } });
+    await page.goto("/admin/users/u-ada");
+
+    const dates = page.getByTestId("account-dates");
+    await expect(dates).toContainText("Signed up 3/2/2026");
+    await expect(dates).toContainText("Last sign-in 9/25/2026");
+  });
+
+  test("an account that never used an app says so", async ({ page }) => {
+    await seed(page, { loginAs: "admin", data });
+    await page.goto("/admin/users/u-bob");
+
+    await expect(page.getByTestId("account-dates")).toContainText("No sign-in yet");
+  });
+});
+
 test.describe("account detail: subscription", () => {
   test("a deep link shows the trial row, the beta membership and the effective plan", async ({ page }) => {
     await seed(page, { loginAs: "admin", data });

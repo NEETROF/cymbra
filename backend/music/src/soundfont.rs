@@ -522,6 +522,14 @@ impl SoundFontRepo for PgSoundFontRepo {
         let Ok(reviewer) = uuid::Uuid::parse_str(reviewer_id) else {
             return Ok(false);
         };
+        // The acceptance is announced on Discord in the same transaction (change:
+        // add-discord-notifications, task 4.1): the job exists iff the status
+        // commits, and a failed enqueue never blocks the decision (savepoint).
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .context("begin soundfont moderation")?;
         let r = sqlx::query(
             "UPDATE music.soundfonts \
              SET moderation_status = $2, reviewed_by = $3, reviewed_at = now(), \
@@ -532,10 +540,21 @@ impl SoundFontRepo for PgSoundFontRepo {
         .bind(status)
         .bind(reviewer)
         .bind(reason)
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await
         .context("set soundfont moderation status")?;
-        Ok(r.rows_affected() > 0)
+        let updated = r.rows_affected() > 0;
+        if updated && status == "accepted" {
+            cymbra_discord::pg::enqueue_notify(
+                &mut tx,
+                &cymbra_discord::AnnouncementEvent::SoundFontAccepted {
+                    soundfont_id: id.to_string(),
+                },
+            )
+            .await;
+        }
+        tx.commit().await.context("commit soundfont moderation")?;
+        Ok(updated)
     }
 
     async fn reopen_rejected(&self, id: &str, uploader_id: &str, note: &str) -> Result<bool> {

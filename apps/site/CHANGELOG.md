@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.10.0](https://github.com/NEETROF/cymbra/compare/site-v0.9.2...site-v0.10.0) (2026-09-27)
+
+
+### Features
+
+* **site:** make the Discord community visible on every page ([#579](https://github.com/NEETROF/cymbra/issues/579)) ([a401bbf](https://github.com/NEETROF/cymbra/commit/a401bbf16f133a2bdf81fc18de6adfe0557e1a41))
+
+## [0.9.2](https://github.com/NEETROF/cymbra/compare/site-v0.9.1...site-v0.9.2) (2026-09-27)
+
+
+### Bug Fixes
+
+* **discord:** provision.sh output fixes, and the site's Discord link ([#577](https://github.com/NEETROF/cymbra/issues/577)) ([8928943](https://github.com/NEETROF/cymbra/commit/89289431ea852294d7381cd924931cc3f1bfae20))
+
 ## [0.9.1](https://github.com/NEETROF/cymbra/compare/site-v0.9.0...site-v0.9.1) (2026-09-27)
 
 

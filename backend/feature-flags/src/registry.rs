@@ -32,11 +32,11 @@ pub const PROFILES_PUBLIC_ENABLED: &str = "profiles.public.enabled";
 pub const LEADERBOARD_PER_PIECE_ENABLED: &str = "leaderboard.per_piece.enabled";
 pub const LEADERBOARD_GLOBAL_ENABLED: &str = "leaderboard.global.enabled";
 pub const ONBOARDING_ENABLED: &str = "onboarding.enabled";
-/// The drum feature (change: add-drums-access). Intended rollout:
-/// `beta:midi-drums` during the beta, then `global` at general availability —
-/// widen the scope FIRST, close the campaign SECOND, and keep the flag as a
-/// kill-switch afterwards. The backend `music` module enforces it on every
-/// path that can disclose or accept a percussion score.
+/// The drum feature (changes: add-drums-access, graduate-drums-from-beta). It
+/// was a `beta:midi-drums` beta; it is now open to every player and **defaults
+/// on**, kept as the feature's kill-switch: turning it off hides the drums from
+/// every caller, staff included, with no release. The backend `music` module
+/// enforces it on every path that can disclose or accept a percussion score.
 pub const DRUMS_ENABLED: &str = "drums.enabled";
 
 /// Acoustic piano input over the microphone (change:
@@ -196,6 +196,15 @@ pub const NOTIFICATIONS_KEY_PREFIX: &str = "notifications.";
 /// never result in messaging users.
 pub const NOTIFICATIONS_ENABLED: &str = "notifications.enabled";
 
+/// Discord announcements kill-switch (change: add-discord-notifications, design
+/// D8). Off = nothing is posted to the community server, including announcements
+/// already enqueued. Defaults off: merging the code posts nothing.
+pub const DISCORD_ENABLED: &str = "discord.enabled";
+/// Discord category: scores and SoundFonts accepted into the public catalog.
+pub const DISCORD_MUSIC_CATALOG: &str = "discord.music.catalog";
+/// Discord category: season records beaten on catalog pieces (anonymous).
+pub const DISCORD_MUSIC_RECORDS: &str = "discord.music.records";
+
 /// The per-category enable key for `category`, e.g.
 /// `notifications.category.practice_streak.enabled`.
 pub fn category_enabled_key(category: &str) -> String {
@@ -328,9 +337,9 @@ pub fn builtin() -> Vec<KeyDef> {
         flag(
             DRUMS_ENABLED,
             APP_MUSIC,
+            true,
             false,
-            false,
-            "MIDI drums: percussion scores are visible/acceptable for the caller.",
+            "MIDI drums kill-switch: on (default) every player sees and can upload percussion scores; off hides them from everyone, staff included.",
         ),
         flag(
             ACOUSTIC_INPUT_ENABLED,
@@ -396,6 +405,31 @@ pub fn builtin() -> Vec<KeyDef> {
             false,
             false,
             "Surface the streak reminder in-app when it arrives with the app open.",
+        ),
+        // Discord announcements (change: add-discord-notifications, design D8).
+        // Server-side, evaluated by the worker at publication time — APP_ALL like
+        // the push keys. All off: deploying posts nothing until an operator opts
+        // in, one category at a time.
+        flag(
+            DISCORD_ENABLED,
+            APP_ALL,
+            false,
+            false,
+            "Discord announcements kill-switch: off posts nothing on the community server, including announcements already queued.",
+        ),
+        flag(
+            DISCORD_MUSIC_CATALOG,
+            APP_ALL,
+            false,
+            false,
+            "Announce each score and SoundFont accepted into the Cymbra Music catalog in #scores-and-soundfonts.",
+        ),
+        flag(
+            DISCORD_MUSIC_RECORDS,
+            APP_ALL,
+            false,
+            false,
+            "Announce season records beaten on catalog pieces in #music-leaderboards — the piece and the figure, never the player; at most one per piece and mode per day.",
         ),
         // -- config tunables --
         cfg(
@@ -782,6 +816,9 @@ mod tests {
             ONBOARDING_ENABLED,
             PLATFORM_MAINTENANCE,
             NOTIFICATIONS_ENABLED,
+            DISCORD_ENABLED,
+            DISCORD_MUSIC_CATALOG,
+            DISCORD_MUSIC_RECORDS,
         ] {
             assert_eq!(r.get_by_key(key).unwrap().default, FlagValue::Bool(false));
         }

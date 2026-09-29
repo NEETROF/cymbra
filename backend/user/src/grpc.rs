@@ -236,6 +236,8 @@ impl<P: UserPort + 'static> UserService for UserGrpc<P> {
             return Err(Status::permission_denied("requires `admin` in a scope"));
         }
         let r = req.into_inner();
+        let sort = cymbra_user_port::AccountSort::parse(&r.sort)
+            .ok_or_else(|| Status::invalid_argument(format!("unknown sort: {}", r.sort)))?;
         let page = self
             .port
             .list_accounts_filtered(
@@ -244,6 +246,8 @@ impl<P: UserPort + 'static> UserService for UserGrpc<P> {
                     ids: r.ids,
                     exclude_ids: r.exclude_ids,
                     apps: r.apps,
+                    sort,
+                    descending: r.descending,
                 },
                 r.limit as i64,
                 r.offset as i64,
@@ -273,6 +277,7 @@ impl<P: UserPort + 'static> UserService for UserGrpc<P> {
                         last_seen_at: app.last_seen_at,
                     })
                     .collect(),
+                created_at: a.created_at,
             })
             .collect();
         Ok(Response::new(ListAccountsResponse {
@@ -584,9 +589,43 @@ mod tests {
         assert_eq!(resp.accounts[0].apps.len(), 1);
         assert_eq!(resp.accounts[0].apps[0].app, "lingua");
         assert!(resp.accounts[0].apps[0].last_seen_at > 0);
+        // The sign-up time rides on the same row (change: add-directory-account-dates).
+        let summary = module
+            .list_accounts("", 25, 0, &["music".into()])
+            .await
+            .unwrap();
+        let created = summary
+            .entries
+            .iter()
+            .find(|e| e.user_id == reader)
+            .unwrap();
+        assert_eq!(resp.accounts[0].created_at, created.created_at);
 
         let err = g.list_accounts(list(&["chess"])).await.unwrap_err();
         assert_eq!(err.code(), tonic::Code::InvalidArgument);
+
+        // An unknown sort key is refused, a known one is passed through
+        // (change: add-directory-account-dates).
+        let sorted = |sort: &str| {
+            authed(
+                ListAccountsRequest {
+                    limit: 25,
+                    sort: sort.into(),
+                    descending: true,
+                    ..Default::default()
+                },
+                "admin1",
+                &["user", "admin"],
+            )
+        };
+        let err = g.list_accounts(sorted("email")).await.unwrap_err();
+        assert_eq!(err.code(), tonic::Code::InvalidArgument);
+        let resp = g
+            .list_accounts(sorted("last_sign_in"))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(resp.accounts[0].user_id, reader, "the only app user first");
     }
 
     #[tokio::test]
