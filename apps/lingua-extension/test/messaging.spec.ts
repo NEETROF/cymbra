@@ -42,6 +42,15 @@ describe("MessagingLinguaPort", () => {
     expect(send).toHaveBeenCalledWith("phraseGloss", ["gave up"]);
   });
 
+  it("forwards a word card's grammar question: the word as written and its dictionary form", async () => {
+    const answer = { gloss: "Aller", senses: [], readings: [{ pos: "VERB" }], others: [], pieces: [] };
+    const send = vi.fn(async (method: string) => (method === "wordGrammar" ? answer : undefined));
+    const port = new MessagingLinguaPort(send);
+
+    expect(await port.wordGrammar("went", "go")).toBe(answer);
+    expect(send).toHaveBeenCalledWith("wordGrammar", ["went", "go"]);
+  });
+
   it("forwards the sync methods", async () => {
     const send = vi.fn(async (method: string) =>
       method === "applyStatusChanges" || method === "applyCardOps" ? 2 : [],

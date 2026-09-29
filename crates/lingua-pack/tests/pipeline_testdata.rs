@@ -71,3 +71,26 @@ fn pipeline_reads_the_optional_expression_table() {
     )));
     assert!(build_pack(&inputs).expect("build").len() < MAX_PACK_BYTES);
 }
+
+#[test]
+fn pipeline_reads_the_optional_grammar_tables() {
+    // `grammar.tsv` and `senses.tsv` reach the builder as the reducer wrote
+    // them; the builder files `leaves`' reading of `leaf` under `leave`, the
+    // dictionary form the analysis reads `leaves` as.
+    let mut inputs = inputs_from_dir(&testdata_dir()).expect("read testdata");
+    inputs.meta.analyzer_version = ANALYZER_VERSION.to_owned();
+    assert!(!inputs.readings.is_empty() && !inputs.senses.is_empty());
+    let pack = Pack::load(&build_pack(&inputs).expect("build")).expect("load");
+    assert!(pack.has_grammar());
+    assert_eq!(
+        pack.readings("go", "went")
+            .iter()
+            .map(|t| t.to_ud())
+            .collect::<Vec<_>>(),
+        ["VERB|Mood=Ind|Tense=Past|VerbForm=Fin"]
+    );
+    let others = pack.other_readings("leave", "leaves");
+    assert_eq!(others.len(), 1);
+    assert_eq!(others[0].0, "leaf");
+    assert_eq!(pack.sense_runs("can").len(), 2);
+}
