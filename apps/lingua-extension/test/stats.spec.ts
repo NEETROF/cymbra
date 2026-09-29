@@ -16,8 +16,15 @@ import {
 const CEFR: readonly CefrLevel[] = ["A1", "A2", "B1", "B2", "C1", "C2"];
 
 /** A ladder with the given band sizes, `known` of each band presumed known. */
-function bands(totals: number[], known = 0): LevelRow[] {
-  return totals.map((total, i) => ({ level: CEFR[i], confirmed: 0, presumed: known, toLearn: total - known, total }));
+function bands(totals: number[], known = 0, typical: number[] = []): LevelRow[] {
+  return totals.map((total, i) => ({
+    level: CEFR[i],
+    confirmed: 0,
+    presumed: known,
+    toLearn: total - known,
+    total,
+    typicalVocabulary: typical[i] ?? 0,
+  }));
 }
 
 const fr = (n: number): string => n.toLocaleString("fr-FR");
@@ -33,20 +40,33 @@ describe("cumulativeTotals", () => {
 });
 
 describe("ladderView", () => {
-  it("shows each level's own words next to the running total up to that level", () => {
+  it("shows each level's own words next to the words taught up to that level", () => {
     const view = ladderView(bands([986, 1122, 1945, 2148, 726, 566], 10), "A2");
     expect(view.textContent).toContain(`${fr(10)} / ${fr(1122)}`); // A2's own band
     const cums = [...view.querySelectorAll(".ladder-cum")].map((e) => e.textContent);
     expect(cums).toContain(fr(2108)); // A1 + A2
     expect(cums).toContain(fr(7493)); // the whole list
-    expect(view.textContent).toContain("cumulé");
+    expect(cums[0]).toBe("enseignés");
     expect(view.querySelectorAll(".ladder-row--here")).toHaveLength(1);
   });
 
-  it("explains that a level counts only its own base words", () => {
-    expect(ladderView(bands([1, 1, 1, 1, 1, 1]), null).textContent).toContain(
-      "Chaque niveau compte les mots qu'il introduit",
-    );
+  it("shows the vocabulary typical of each level, rounded as an estimate", () => {
+    const typical = [1_285, 3_312, 7_904, 15_823, 19_950, 21_004];
+    const view = ladderView(bands([1, 1, 1, 1, 1, 1], 0, typical), null);
+    const ests = [...view.querySelectorAll(".ladder-est")].map((e) => e.textContent);
+    expect(ests[0]).toBe("estimés");
+    expect(ests.slice(1)).toEqual([1_300, 3_300, 7_900, 16_000, 20_000, 21_000].map((n) => `≈\u00A0${fr(n)}`));
+  });
+
+  it("shows a dash where the pack gives no typical vocabulary", () => {
+    const ests = [...ladderView(bands([1, 1, 1, 1, 1, 1]), null).querySelectorAll(".ladder-est")];
+    expect(ests.slice(1).map((e) => e.textContent)).toEqual(Array(6).fill("–"));
+  });
+
+  it("explains both columns", () => {
+    const text = ladderView(bands([1, 1, 1, 1, 1, 1]), null).textContent;
+    expect(text).toContain("les mots de base introduits jusqu'à ce niveau");
+    expect(text).toContain("le vocabulaire qu'a en général un lecteur de ce niveau");
   });
 });
 
@@ -114,7 +134,7 @@ describe("vocabularyView", () => {
 function ladder(known: Partial<Record<CefrLevel, number>>, total = 100): LevelRow[] {
   return CEFR.map((level) => {
     const confirmed = Math.round((known[level] ?? 0) * total);
-    return { level, confirmed, presumed: 0, toLearn: total - confirmed, total };
+    return { level, confirmed, presumed: 0, toLearn: total - confirmed, total, typicalVocabulary: 0 };
   });
 }
 
@@ -125,7 +145,7 @@ describe("estimatedPosition", () => {
 
   it("counts confirmed + presumed toward mastery", () => {
     const rows = ladder({ A1: 1 });
-    rows[1] = { level: "A2", confirmed: 50, presumed: 45, toLearn: 5, total: 100 }; // 95% → cleared
+    rows[1] = { level: "A2", confirmed: 50, presumed: 45, toLearn: 5, total: 100, typicalVocabulary: 0 }; // 95% → cleared
     expect(estimatedPosition(rows)).toBe("B1"); // first not-cleared after A1/A2
   });
 

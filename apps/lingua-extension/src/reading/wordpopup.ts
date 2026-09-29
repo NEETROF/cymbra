@@ -1,5 +1,7 @@
 import type { MarkedTranslation } from "../translate/markup.ts";
-import type { LemmaStatus } from "../analyzer/types.ts";
+import type { LemmaStatus, WordGrammar } from "../analyzer/types.ts";
+import { grammarLines, senseHeading } from "./grammar-labels.ts";
+import { glossPages, pageText, type GlossPage } from "./gloss-pages.ts";
 import { isTouchPrimary } from "../state/platform.ts";
 import { sameSpokenText, type Speaker, type Speaking } from "./speech.ts";
 
@@ -76,6 +78,14 @@ export interface WordPopupContent {
    * reach a card: only dictionary data is stored.
    */
   translation?: MarkedTranslation | null;
+  /**
+   * The word's grammar, when the engine answered it (add-lingua-word-grammar): what the form is,
+   * what else it may be, the pieces of a split word, and the gloss laid out by part of speech.
+   * Display only — a created card stores the flat gloss, exactly as before.
+   */
+  grammar?: WordGrammar | null;
+  /** The word as it stands on the page (`don't` for its `do`); defaults to `surface`. */
+  written?: string;
 }
 
 /** A card view: a detached element tree plus show/hide, independent of any shadow root. */
@@ -95,6 +105,10 @@ const WAITING = "Recherche dans le pack…";
 const TRANSLATING = "Traduction en cours…";
 const NO_GLOSS = "Pas de traduction dans le pack.";
 const NO_GLOSS_EXPRESSION = "Pas de traduction dans le pack pour cette expression.";
+const PREVIOUS_PAGE = "‹";
+const PREVIOUS_PAGE_LABEL = "Sens précédents";
+const NEXT_PAGE = "›";
+const NEXT_PAGE_LABEL = "Sens suivants";
 const STOP = "■ Arrêter";
 const STOP_LABEL = "Arrêter la lecture";
 
@@ -134,13 +148,23 @@ export function createCard(speaker?: Speaker): CardView {
   const rarityEl = div("rarity");
   const listenEl = div("listen");
   listenEl.hidden = true;
+  // Below the listen row and above the actions: a pending card offers the listen buttons, and
+  // what its answer adds here moves nothing the reader can press (add-lingua-word-grammar D6).
+  const grammarEl = div("grammar");
+  grammarEl.hidden = true;
   const glossEl = div("gloss");
   const translationEl = div("translation");
   const actionsEl = div("actions");
-  el.append(headwordEl, seenEl, rarityEl, listenEl, glossEl, translationEl, actionsEl);
+  el.append(headwordEl, seenEl, rarityEl, listenEl, grammarEl, glossEl, translationEl, actionsEl);
 
   let current: WordPopupContent | null = null;
   let generation = 0;
+  // A paged gloss: its pages, the one on screen, and what a card created from it stores — the
+  // first page, one text, as the pack writes a gloss (null: the gloss as the content holds it).
+  let pages: GlossPage[] = [];
+  let pageIndex = 0;
+  let storedGloss: string | null = null;
+  let paged: { pageEl: HTMLElement; nav: PageNav } | null = null;
 
   function button(
     label: string,
@@ -159,7 +183,7 @@ export function createCard(speaker?: Speaker): CardView {
         sentence: current.sentence,
         status,
         expression: !!current.expression,
-        gloss: current.gloss,
+        gloss: storedGloss ?? current.gloss,
       });
       view.hide();
     });
@@ -215,6 +239,10 @@ export function createCard(speaker?: Speaker): CardView {
   function renderAnswer(content: WordPopupContent): void {
     glossEl.replaceChildren();
     glossEl.classList.remove("empty", "waiting");
+    pages = [];
+    pageIndex = 0;
+    storedGloss = null;
+    paged = null;
     glossEl.hidden = false;
     if (content.pending) {
       glossEl.textContent = content.translating ? TRANSLATING : WAITING;
@@ -233,10 +261,137 @@ export function createCard(speaker?: Speaker): CardView {
     }
   }
 
+  /**
+   * What the form is, what else it may be, and the pieces of a split word — one line each, the
+   * words of the studied language set apart. Built from text nodes only.
+   */
+  function renderGrammar(content: WordPopupContent): void {
+    grammarEl.replaceChildren();
+    const lines =
+      content.grammar && !content.pending && !content.expression
+        ? grammarLines(content.grammar, content.headword, content.surface, content.written ?? content.surface)
+        : [];
+    grammarEl.hidden = lines.length === 0;
+    for (const line of lines) {
+      const lineEl = div("grammar-line");
+      for (const segment of line) {
+        if (typeof segment === "string") {
+          lineEl.append(document.createTextNode(segment));
+        } else {
+          const word = document.createElement("em");
+          word.textContent = segment.word;
+          lineEl.append(word);
+        }
+      }
+      grammarEl.append(lineEl);
+    }
+  }
+
+  /**
+   * The gloss, laid out by part of speech when the grammar answered it: one line per part of
+   * speech, its name first. The groups are the same senses, so they are only used when they
+   * make up exactly the gloss the card holds. A gloss longer than a page shows one page at a time,
+   * with a control to move between them.
+   */
+  function renderGloss(content: WordPopupContent, gloss: string): void {
+    pages = glossPages(gloss, content.grammar?.senses ?? []);
+    pageIndex = 0;
+    storedGloss = pages.length > 1 ? pageText(pages[0]!) : null;
+    const pageEl = div("gloss-page");
+    glossEl.append(pageEl);
+    const nav = pages.length > 1 ? pageNav(pageEl) : null;
+    if (nav) paged = { pageEl, nav };
+    renderPage(pageEl, nav);
+  }
+
+  /**
+   * Give a paged card the size of its largest page, so that moving between pages moves nothing:
+   * a shorter page would shrink the card under the reader's pointer, shift the paging buttons and,
+   * on a card flipped above its word, the whole card. Measured on the card as shown, every page
+   * in turn: the widest first, then the tallest at that width.
+   */
+  function holdPageSize(): void {
+    if (!paged) return;
+    const { pageEl, nav } = paged;
+    let width = 0;
+    for (pageIndex = 0; pageIndex < pages.length; pageIndex++) {
+      renderPage(pageEl, nav);
+      width = Math.max(width, el.getBoundingClientRect().width);
+    }
+    if (width > 0) el.style.minWidth = `${Math.ceil(width)}px`;
+    let height = 0;
+    for (pageIndex = 0; pageIndex < pages.length; pageIndex++) {
+      renderPage(pageEl, nav);
+      height = Math.max(height, pageEl.getBoundingClientRect().height);
+    }
+    if (height > 0) pageEl.style.minHeight = `${Math.ceil(height)}px`;
+    pageIndex = 0;
+    renderPage(pageEl, nav);
+  }
+
+  /** The page on screen, and the paging control's state. */
+  function renderPage(pageEl: HTMLElement, nav: PageNav | null): void {
+    pageEl.replaceChildren();
+    for (const group of pages[pageIndex] ?? []) {
+      const text = group.senses.join("; ");
+      if (!group.tagged) {
+        pageEl.append(document.createTextNode(text));
+        continue;
+      }
+      const groupEl = div("sense-group");
+      const heading = senseHeading(group.tag);
+      if (heading) {
+        const pos = document.createElement("span");
+        pos.className = "pos";
+        pos.textContent = heading;
+        groupEl.append(pos, document.createTextNode(" "));
+      }
+      groupEl.append(document.createTextNode(text));
+      pageEl.append(groupEl);
+    }
+    if (!nav) return;
+    nav.previous.disabled = pageIndex === 0;
+    nav.next.disabled = pageIndex === pages.length - 1;
+    nav.count.textContent = `${pageIndex + 1}/${pages.length}`;
+  }
+
+  /** The control that moves between a gloss's pages: previous, « n/m », next. */
+  function pageNav(pageEl: HTMLElement): PageNav {
+    const navEl = div("gloss-nav");
+    const count = document.createElement("span");
+    count.className = "page-count";
+    const nav: PageNav = {
+      previous: pageButton(PREVIOUS_PAGE, PREVIOUS_PAGE_LABEL, -1),
+      next: pageButton(NEXT_PAGE, NEXT_PAGE_LABEL, 1),
+      count,
+    };
+    navEl.append(nav.previous, count, nav.next);
+    glossEl.append(navEl);
+    return nav;
+
+    function pageButton(label: string, aria: string, step: number): HTMLButtonElement {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = label;
+      b.setAttribute("aria-label", aria);
+      // As the listen buttons: keep the reader's selection on the page.
+      b.addEventListener("pointerdown", (e) => e.preventDefault());
+      b.addEventListener("mousedown", (e) => e.preventDefault());
+      b.addEventListener("click", () => {
+        const next = pageIndex + step;
+        if (next < 0 || next >= pages.length) return;
+        pageIndex = next;
+        renderPage(pageEl, nav);
+        if (current) positionCard(el, current.rect);
+      });
+      return b;
+    }
+  }
+
   /** What the pack alone has to say: the translated sentence's own gloss, rows, or neither. */
   function renderPackAnswer(content: WordPopupContent): void {
     if (content.translation) {
-      if (content.gloss) glossEl.textContent = content.gloss;
+      if (content.gloss) renderGloss(content, content.gloss);
       else glossEl.hidden = true;
       return;
     }
@@ -252,7 +407,7 @@ export function createCard(speaker?: Speaker): CardView {
       return;
     }
     if (content.gloss) {
-      glossEl.textContent = content.gloss;
+      renderGloss(content, content.gloss);
       return;
     }
     glossEl.textContent = content.expression ? NO_GLOSS_EXPRESSION : NO_GLOSS;
@@ -298,6 +453,7 @@ export function createCard(speaker?: Speaker): CardView {
     },
     show(content, onGesture) {
       generation++;
+      el.style.minWidth = "";
       // Another word silences the card; the same selection completing with its answer does not.
       const playing = cardSpeaking();
       if (playing && !listensFor(content).some((l) => l.text === playing.text)) speaker?.stop();
@@ -311,6 +467,7 @@ export function createCard(speaker?: Speaker): CardView {
       rarityEl.textContent = content.rarity;
 
       renderListen();
+      renderGrammar(content);
       renderAnswer(content);
       renderTranslation(content);
 
@@ -332,6 +489,7 @@ export function createCard(speaker?: Speaker): CardView {
       actionsEl.hidden = actionsEl.childElementCount === 0;
 
       el.hidden = false; // reveal first so the card can be measured, then position it
+      holdPageSize();
       positionCard(el, content.rect);
       return generation;
     },
@@ -400,6 +558,13 @@ export class WordPopup {
   generation(): number {
     return this.view.generation();
   }
+}
+
+/** The parts of a paging control a page change updates. */
+interface PageNav {
+  previous: HTMLButtonElement;
+  next: HTMLButtonElement;
+  count: HTMLElement;
 }
 
 function div(className: string): HTMLElement {

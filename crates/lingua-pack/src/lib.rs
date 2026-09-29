@@ -18,18 +18,23 @@
 //! from ESDB and kaikki (form→lemma), wordfreq (ranks) and kaikki (French glosses):
 //! builds the FST, quantises ranks, compresses the offset-indexed glosses
 //! with zstd, keys the multi-word expressions through the core's own
-//! lemmatiser, embeds the metadata and NOTICE, and enforces the licence
-//! denylist and the size budget. Native-only — the reader that consumes the
+//! lemmatiser, files each form's grammar under its dictionary form, embeds the
+//! metadata and NOTICE, and enforces the licence denylist and the size budget. Native-only — the reader that consumes the
 //! output lives in `lingua-core` and stays WASM-clean.
 
 pub mod licence;
 
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use lingua_core::analysis::lemmatize::lemmatize;
 use lingua_core::analysis::lexicon::{FstLexicon, Lexicon, build_lexicon_blobs};
 use lingua_core::knowledge::level::CefrLevel;
 use lingua_core::packs::format::write_container;
+use lingua_core::packs::grammar::{
+    FormEdit, ParadigmEntry, SenseRun, Tag, encode_indexed, encode_paradigm, encode_runs,
+    encode_tag_pool,
+};
 use lingua_core::packs::meta::PackMeta;
 use lingua_core::packs::pack::section;
 use serde::Deserialize;
@@ -66,10 +71,36 @@ pub struct PackInputs {
     /// them, because only it holds the lexicon the cascade needs. Empty when
     /// the pair's sources hold no expression (no expression table is emitted).
     pub expressions: Vec<(String, String)>,
+    /// The readings of inflected forms (`grammar.tsv`, ESDB- and
+    /// kaikki-derived). Empty when the pair's sources describe no grammar (no
+    /// grammar table is emitted).
+    pub readings: Vec<GrammarReading>,
+    /// The part of speech of each run of senses of a gloss (`senses.tsv`,
+    /// kaikki-derived).
+    pub senses: Vec<GlossRuns>,
     /// The full attribution NOTICE text.
     pub notice: String,
     /// The sources actually used, for the licence guard.
     pub sources: Vec<licence::Source>,
+}
+
+/// A gloss's runs, as `senses.tsv` states them: the dictionary form, then
+/// `(tag, senses)` for each run of consecutive senses, in gloss order.
+pub type GlossRuns = (String, Vec<(String, u8)>);
+
+/// One reading, as `grammar.tsv` states it: `form<TAB>lemma<TAB>tag<TAB>other|-`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GrammarReading {
+    /// The written form, lowercase.
+    pub form: String,
+    /// The dictionary form it is a reading of.
+    pub lemma: String,
+    /// The Universal Dependencies tag, as the reducer writes it.
+    pub tag: String,
+    /// Whether the reducer finds the relation believable, so that the pack may
+    /// name `lemma` as another dictionary form of a form the analysis reads as
+    /// something else (`add-lingua-word-grammar`, design D2).
+    pub other: bool,
 }
 
 /// Why a build was refused.
@@ -81,6 +112,8 @@ pub enum BuildError {
     NoticeIncomplete(String),
     /// The FST could not be built from the form→lemma pairs.
     Fst(String),
+    /// A grammar table is outside the vocabulary or disagrees with the glosses.
+    Grammar(String),
     /// The assembled pack exceeds [`MAX_PACK_BYTES`].
     OverBudget {
         size: usize,
@@ -95,6 +128,7 @@ pub enum BuildError {
 
 /// The remedies [`BuildError::OverBudget`] names, in arbitration order.
 const REDUCE_EXPRESSIONS: &str = "the expression table (longest entries, then rarest)";
+const REDUCE_READINGS: &str = "the grammar readings (those of the rarest dictionary forms first)";
 const REDUCE_GLOSSES: &str = "glossed lemmas";
 
 impl std::fmt::Display for BuildError {
@@ -107,6 +141,7 @@ impl std::fmt::Display for BuildError {
                 write!(f, "NOTICE is missing the attribution for {s:?}")
             }
             BuildError::Fst(e) => write!(f, "could not build the forms FST: {e}"),
+            BuildError::Grammar(e) => write!(f, "grammar tables: {e}"),
             BuildError::OverBudget {
                 size,
                 budget,
@@ -138,6 +173,8 @@ pub fn inputs_from_dir(dir: &Path) -> std::io::Result<PackInputs> {
         glosses: tsv_pairs(&read("gloss.tsv")?),
         levels: read_levels(dir)?,
         expressions: read_expressions(dir)?,
+        readings: read_readings(dir)?,
+        senses: read_senses(dir)?,
         notice: read("NOTICE")?,
         sources: manifest.sources,
     })
@@ -165,6 +202,83 @@ fn read_expressions(dir: &Path) -> std::io::Result<Vec<(String, String)>> {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),
         Err(e) => Err(e),
     }
+}
+
+/// Reads an optional table: its text, or `None` when the pair has no such file.
+fn read_optional(dir: &Path, name: &str) -> std::io::Result<Option<String>> {
+    match std::fs::read_to_string(dir.join(name)) {
+        Ok(text) => Ok(Some(text)),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(e),
+    }
+}
+
+fn invalid(name: &str, line: usize, what: &str) -> std::io::Error {
+    std::io::Error::new(
+        std::io::ErrorKind::InvalidData,
+        format!("{name} line {line}: {what}"),
+    )
+}
+
+/// Reads the optional `grammar.tsv` (`form<TAB>lemma<TAB>tag<TAB>other|-`).
+/// A pair without grammar has no file → no readings. A malformed line fails
+/// the read: the reducer writes this file, so a bad line is a bug to see.
+fn read_readings(dir: &Path) -> std::io::Result<Vec<GrammarReading>> {
+    let Some(text) = read_optional(dir, "grammar.tsv")? else {
+        return Ok(Vec::new());
+    };
+    let mut out = Vec::new();
+    for (i, line) in text.lines().enumerate().filter(|(_, l)| !l.is_empty()) {
+        let fields: Vec<&str> = line.split('\t').collect();
+        let [form, lemma, tag, other] = fields[..] else {
+            return Err(invalid("grammar.tsv", i + 1, "expected 4 fields"));
+        };
+        let other = match other {
+            "other" => true,
+            "-" => false,
+            _ => {
+                return Err(invalid(
+                    "grammar.tsv",
+                    i + 1,
+                    "the 4th field is `other` or `-`",
+                ));
+            }
+        };
+        out.push(GrammarReading {
+            form: form.to_owned(),
+            lemma: lemma.to_owned(),
+            tag: tag.to_owned(),
+            other,
+        });
+    }
+    Ok(out)
+}
+
+/// Reads the optional `senses.tsv` (`lemma<TAB>tag:count[<TAB>tag:count…]`).
+fn read_senses(dir: &Path) -> std::io::Result<Vec<GlossRuns>> {
+    let Some(text) = read_optional(dir, "senses.tsv")? else {
+        return Ok(Vec::new());
+    };
+    let mut out = Vec::new();
+    for (i, line) in text.lines().enumerate().filter(|(_, l)| !l.is_empty()) {
+        let mut fields = line.split('\t');
+        let lemma = fields.next().unwrap_or_default().to_owned();
+        let mut runs = Vec::new();
+        for field in fields {
+            let parsed = field
+                .rsplit_once(':')
+                .and_then(|(tag, count)| Some((tag.to_owned(), count.parse::<u8>().ok()?)));
+            let Some(run) = parsed else {
+                return Err(invalid("senses.tsv", i + 1, "a run is `tag:count`"));
+            };
+            runs.push(run);
+        }
+        if lemma.is_empty() || runs.is_empty() {
+            return Err(invalid("senses.tsv", i + 1, "expected a word and its runs"));
+        }
+        out.push((lemma, runs));
+    }
+    Ok(out)
 }
 
 /// Parses `a<TAB>b` lines, skipping blank lines and lines without a tab.
@@ -293,6 +407,8 @@ pub fn build_pack(inputs: &PackInputs) -> Result<Vec<u8>, BuildError> {
         )
     };
 
+    let grammar = grammar_sections(inputs, &lex)?;
+
     let meta_json = serde_json::to_vec(&inputs.meta).expect("PackMeta serialises");
     let mut sections: Vec<(&str, &[u8])> = vec![
         (section::FORMS, forms.as_slice()),
@@ -306,6 +422,15 @@ pub fn build_pack(inputs: &PackInputs) -> Result<Vec<u8>, BuildError> {
         sections.push((section::EXPR, expr_fst.as_slice()));
         sections.push((section::EXPR_ZST, expr_zst.as_slice()));
     }
+    if !grammar.tags.is_empty() {
+        sections.push((section::TAGS, grammar.tags.as_slice()));
+    }
+    if !grammar.paradigms.is_empty() {
+        sections.push((section::PARADIGMS_ZST, grammar.paradigms.as_slice()));
+    }
+    if !grammar.senses.is_empty() {
+        sections.push((section::SENSES_ZST, grammar.senses.as_slice()));
+    }
     sections.push((section::GLOSS_ZST, gloss_zst.as_slice()));
     sections.push((section::NOTICE, inputs.notice.as_bytes()));
     let pack = write_container(&meta_json, &sections);
@@ -314,14 +439,176 @@ pub fn build_pack(inputs: &PackInputs) -> Result<Vec<u8>, BuildError> {
         return Err(BuildError::OverBudget {
             size: pack.len(),
             budget: MAX_PACK_BYTES,
-            reduce: if expr_fst.is_empty() {
-                REDUCE_GLOSSES
-            } else {
+            reduce: if !expr_fst.is_empty() {
                 REDUCE_EXPRESSIONS
+            } else if !grammar.paradigms.is_empty() {
+                REDUCE_READINGS
+            } else {
+                REDUCE_GLOSSES
             },
         });
     }
     Ok(pack)
+}
+
+/// The three grammar sections, empty when the inputs carry no grammar.
+#[derive(Default)]
+struct GrammarSections {
+    tags: Vec<u8>,
+    paradigms: Vec<u8>,
+    senses: Vec<u8>,
+}
+
+/// Files the grammar tables under the lexicon the build has just assembled
+/// (`add-lingua-word-grammar`, design D3).
+///
+/// Every tag is parsed strictly, so a code outside the vocabulary fails the
+/// build by name. A reading is filed under its own dictionary form; a
+/// believable reading of another dictionary form is also filed, as such,
+/// under the one the core's own cascade reads the form as — which is what the
+/// card will be keyed by. Readings whose dictionary form the lexicon does not
+/// hold are dropped. Each run must cover exactly its word's gloss.
+fn grammar_sections(
+    inputs: &PackInputs,
+    lex: &FstLexicon<&[u8]>,
+) -> Result<GrammarSections, BuildError> {
+    if inputs.readings.is_empty() && inputs.senses.is_empty() {
+        return Ok(GrammarSections::default());
+    }
+    let fail = |what: String| BuildError::Grammar(what);
+
+    // The tag pool: every tag, canonical and strictly parsed, sorted.
+    let canonical = |text: &str| -> Result<String, BuildError> {
+        Tag::parse_strict(text)
+            .map(|tag| tag.to_ud())
+            .map_err(|e| fail(format!("tag {text:?}: {e}")))
+    };
+    let mut pool = BTreeSet::new();
+    for reading in &inputs.readings {
+        pool.insert(canonical(&reading.tag)?);
+    }
+    for (_, runs) in &inputs.senses {
+        for (tag, _) in runs {
+            pool.insert(canonical(tag)?);
+        }
+    }
+    let pool: Vec<String> = pool.into_iter().collect();
+    if pool.len() > u16::MAX as usize {
+        return Err(fail(format!(
+            "{} distinct tags, over {}",
+            pool.len(),
+            u16::MAX
+        )));
+    }
+    let tag_id = |text: &str| -> Result<u16, BuildError> {
+        let ud = canonical(text)?;
+        Ok(pool.binary_search(&ud).expect("pooled above") as u16)
+    };
+    let lemma_id = |lemma: &str| -> Option<u32> {
+        if !lex.contains_lemma(lemma) {
+            return None;
+        }
+        lex.id_of(lemma).and_then(|id| u32::try_from(id).ok())
+    };
+    let edit = |base: &str, form: &str| {
+        FormEdit::between(base, form)
+            .ok_or_else(|| fail(format!("form {form:?} is too far from {base:?} to store")))
+    };
+
+    let mut paradigms: BTreeMap<u32, BTreeSet<ParadigmEntry>> = BTreeMap::new();
+    let mut by_form: BTreeMap<&str, Vec<&GrammarReading>> = BTreeMap::new();
+    for reading in &inputs.readings {
+        let Some(id) = lemma_id(&reading.lemma) else {
+            continue;
+        };
+        paradigms
+            .entry(id)
+            .or_default()
+            .insert(ParadigmEntry::Reading {
+                form: edit(&reading.lemma, &reading.form)?,
+                tag: tag_id(&reading.tag)?,
+            });
+        by_form
+            .entry(reading.form.as_str())
+            .or_default()
+            .push(reading);
+    }
+    for (form, readings) in &by_form {
+        let resolved = lemmatize(form, lex);
+        let Some(under) = lemma_id(&resolved) else {
+            continue;
+        };
+        for reading in readings {
+            if !reading.other || reading.lemma == resolved {
+                continue;
+            }
+            let Some(other) = lemma_id(&reading.lemma) else {
+                continue;
+            };
+            paradigms
+                .entry(under)
+                .or_default()
+                .insert(ParadigmEntry::Also {
+                    form: edit(&resolved, form)?,
+                    other,
+                });
+        }
+    }
+    let paradigms: Vec<(u32, Vec<u8>)> = paradigms
+        .into_iter()
+        .map(|(id, entries)| {
+            (
+                id,
+                encode_paradigm(&entries.into_iter().collect::<Vec<_>>()),
+            )
+        })
+        .collect();
+
+    let glosses: BTreeMap<&str, &str> = inputs
+        .glosses
+        .iter()
+        .map(|(l, g)| (l.as_str(), g.as_str()))
+        .collect();
+    let mut runs_by_id: BTreeMap<u32, Vec<u8>> = BTreeMap::new();
+    for (lemma, runs) in &inputs.senses {
+        let Some(gloss) = glosses.get(lemma.as_str()) else {
+            return Err(fail(format!("runs for {lemma:?}, which has no gloss")));
+        };
+        let senses = gloss.split("; ").count();
+        let covered: usize = runs.iter().map(|(_, count)| *count as usize).sum();
+        if covered != senses || runs.iter().any(|(_, count)| *count == 0) {
+            return Err(fail(format!(
+                "the runs of {lemma:?} cover {covered} senses, its gloss holds {senses}"
+            )));
+        }
+        let Some(id) = lemma_id(lemma) else {
+            continue;
+        };
+        let encoded = runs
+            .iter()
+            .map(|(tag, count)| {
+                Ok(SenseRun {
+                    tag: tag_id(tag)?,
+                    count: *count,
+                })
+            })
+            .collect::<Result<Vec<_>, BuildError>>()?;
+        runs_by_id.insert(id, encode_runs(&encoded));
+    }
+    let runs: Vec<(u32, Vec<u8>)> = runs_by_id.into_iter().collect();
+
+    let compress = |entries: &[(u32, Vec<u8>)]| {
+        if entries.is_empty() {
+            Vec::new()
+        } else {
+            zstd::encode_all(encode_indexed(entries).as_slice(), 19).expect("zstd encode")
+        }
+    };
+    Ok(GrammarSections {
+        tags: encode_tag_pool(&pool),
+        paradigms: compress(&paradigms),
+        senses: compress(&runs),
+    })
 }
 
 /// An expression's key: its words' dictionary forms, lowercase, joined by
@@ -417,6 +704,8 @@ mod tests {
             ],
             levels: vec![],
             expressions: vec![],
+            readings: vec![],
+            senses: vec![],
             notice: "AGID (permissive), wordfreq (CC BY-SA), kaikki (CC BY-SA).".into(),
             sources: sources(),
         }
@@ -668,6 +957,273 @@ mod tests {
                 assert!(!msg.contains("glossed lemmas"), "{msg}");
             }
             other => panic!("expected OverBudget, got {other:?}"),
+        }
+    }
+
+    // — grammar tables (`add-lingua-word-grammar`) —
+
+    fn reading(form: &str, lemma: &str, tag: &str, other: bool) -> GrammarReading {
+        GrammarReading {
+            form: form.into(),
+            lemma: lemma.into(),
+            tag: tag.into(),
+            other,
+        }
+    }
+
+    const PAST: &str = "VERB|Mood=Ind|Tense=Past|VerbForm=Fin";
+    const THIRD_SINGULAR: &str = "VERB|Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin";
+
+    /// The fixture plus `leave`/`leaf`, and the readings the scenarios need.
+    fn inputs_with_grammar() -> PackInputs {
+        let mut inp = inputs();
+        inp.form_lemma.push(("leaves".into(), "leave".into()));
+        inp.ranks
+            .extend([("leave".into(), 371), ("leaf".into(), 3_465)]);
+        inp.glosses.push(("leave".into(), "Partir; Congé".into()));
+        inp.readings = vec![
+            reading("ran", "run", PAST, true),
+            reading("running", "run", "VERB|VerbForm=Ger", true),
+            reading("cities", "city", "NOUN|Number=Plur", true),
+            reading("leaves", "leave", THIRD_SINGULAR, false),
+            reading("leaves", "leaf", "NOUN|Number=Plur", true),
+        ];
+        inp.senses = vec![
+            ("run".into(), vec![("VERB".into(), 1)]),
+            ("leave".into(), vec![("VERB".into(), 1), ("NOUN".into(), 1)]),
+        ];
+        inp
+    }
+
+    fn ud(tags: &[lingua_core::packs::grammar::Tag]) -> Vec<String> {
+        tags.iter().map(|t| t.to_ud()).collect()
+    }
+
+    #[test]
+    fn a_pack_built_with_grammar_answers_readings_and_runs() {
+        let bytes = build_pack(&inputs_with_grammar()).expect("build");
+        let pack = Pack::load(&bytes).expect("load");
+        assert!(pack.has_grammar());
+        assert_eq!(ud(&pack.readings("run", "ran")), [PAST]);
+        assert_eq!(ud(&pack.readings("leave", "leaves")), [THIRD_SINGULAR]);
+        let runs: Vec<(String, usize)> = pack
+            .sense_runs("leave")
+            .into_iter()
+            .map(|(t, n)| (t.unwrap().to_ud(), n))
+            .collect();
+        assert_eq!(runs, [("VERB".to_owned(), 1), ("NOUN".to_owned(), 1)]);
+    }
+
+    #[test]
+    fn a_believable_reading_of_another_word_is_filed_under_the_word_the_analysis_reads() {
+        let pack = Pack::load(&build_pack(&inputs_with_grammar()).unwrap()).unwrap();
+        let others = pack.other_readings("leave", "leaves");
+        assert_eq!(others.len(), 1);
+        assert_eq!(others[0].0, "leaf");
+        assert_eq!(ud(&others[0].1), ["NOUN|Number=Plur"]);
+    }
+
+    #[test]
+    fn a_reading_that_is_not_believable_is_never_named_as_another_word() {
+        let mut inp = inputs_with_grammar();
+        for r in &mut inp.readings {
+            r.other = false;
+        }
+        let pack = Pack::load(&build_pack(&inp).unwrap()).unwrap();
+        assert!(pack.other_readings("leave", "leaves").is_empty());
+        // Its own reading is still there.
+        assert_eq!(ud(&pack.readings("leaf", "leaves")), ["NOUN|Number=Plur"]);
+    }
+
+    #[test]
+    fn a_reading_of_a_word_the_lexicon_does_not_hold_is_dropped() {
+        let mut inp = inputs_with_grammar();
+        inp.readings.push(reading("swam", "swim", PAST, true));
+        let pack = Pack::load(&build_pack(&inp).unwrap()).unwrap();
+        assert!(pack.readings("swim", "swam").is_empty());
+    }
+
+    #[test]
+    fn a_code_outside_the_vocabulary_fails_the_build_by_name() {
+        let mut inp = inputs_with_grammar();
+        inp.readings
+            .push(reading("ran", "run", "VERB|Aspect=Perf", false));
+        match build_pack(&inp) {
+            Err(BuildError::Grammar(msg)) => assert!(msg.contains("Aspect"), "{msg}"),
+            other => panic!("expected a grammar error, got {other:?}"),
+        }
+        let mut inp = inputs_with_grammar();
+        inp.senses.push(("city".into(), vec![("NOM".into(), 1)]));
+        match build_pack(&inp) {
+            Err(e @ BuildError::Grammar(_)) => assert!(e.to_string().contains("NOM"), "{e}"),
+            other => panic!("expected a grammar error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn runs_that_disagree_with_their_gloss_fail_the_build_by_word() {
+        let mut inp = inputs_with_grammar();
+        inp.senses = vec![("leave".into(), vec![("VERB".into(), 1)])];
+        match build_pack(&inp) {
+            Err(BuildError::Grammar(msg)) => {
+                assert!(msg.contains("\"leave\""), "{msg}");
+                assert!(msg.contains("cover 1") && msg.contains("holds 2"), "{msg}");
+            }
+            other => panic!("expected a grammar error, got {other:?}"),
+        }
+        let mut inp = inputs_with_grammar();
+        inp.senses = vec![("leaf".into(), vec![("NOUN".into(), 1)])];
+        match build_pack(&inp) {
+            Err(BuildError::Grammar(msg)) => assert!(msg.contains("no gloss"), "{msg}"),
+            other => panic!("expected a grammar error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_grammar_less_pack_is_byte_identical_to_before_the_grammar_sections() {
+        let bytes = build_pack(&inputs()).unwrap();
+        let (_, sections) = lingua_core::packs::format::read_container(&bytes).expect("decode");
+        assert!(sections.iter().all(|s| {
+            s.name != section::TAGS
+                && s.name != section::PARADIGMS_ZST
+                && s.name != section::SENSES_ZST
+        }));
+    }
+
+    #[test]
+    fn a_pack_with_grammar_is_rebuilt_byte_for_byte() {
+        assert_eq!(
+            build_pack(&inputs_with_grammar()).unwrap(),
+            build_pack(&inputs_with_grammar()).unwrap()
+        );
+    }
+
+    #[test]
+    fn grammar_needs_no_new_source_and_leaves_the_notice_alone() {
+        let plain = inputs();
+        let inp = inputs_with_grammar();
+        assert_eq!(inp.sources, plain.sources);
+        let pack = Pack::load(&build_pack(&inp).unwrap()).unwrap();
+        assert_eq!(pack.notice(), plain.notice);
+    }
+
+    #[test]
+    fn spec_scenario_a_romance_pack_fits_the_vocabulary() {
+        let mut inp = inputs();
+        inp.meta.studied = "es".into();
+        inp.form_lemma = vec![("dijéramos".into(), "decir".into())];
+        inp.ranks = vec![
+            ("decir".into(), 50),
+            ("leche".into(), 900),
+            ("yo".into(), 10),
+            ("me".into(), 30),
+        ];
+        inp.glosses = vec![("leche".into(), "Lait".into())];
+        inp.readings = vec![
+            reading(
+                "dijéramos",
+                "decir",
+                "VERB|Mood=Sub|Number=Plur|Person=1|Tense=Imp|VerbForm=Fin",
+                true,
+            ),
+            reading(
+                "me",
+                "yo",
+                "PRON|Case=Dat|Number=Sing|Person=1|PronType=Prs",
+                true,
+            ),
+        ];
+        inp.senses = vec![("leche".into(), vec![("NOUN|Gender=Fem".into(), 1)])];
+        let pack = Pack::load(&build_pack(&inp).expect("build")).expect("load");
+        assert_eq!(
+            ud(&pack.readings("decir", "dijéramos")),
+            ["VERB|Mood=Sub|Number=Plur|Person=1|Tense=Imp|VerbForm=Fin"]
+        );
+        assert_eq!(
+            ud(&pack.readings("yo", "me")),
+            ["PRON|Case=Dat|Number=Sing|Person=1|PronType=Prs"]
+        );
+        let runs: Vec<String> = pack
+            .sense_runs("leche")
+            .into_iter()
+            .map(|(t, _)| t.unwrap().to_ud())
+            .collect();
+        assert_eq!(runs, ["NOUN|Gender=Fem"]);
+    }
+
+    #[test]
+    fn inputs_from_dir_reads_the_grammar_tables_and_refuses_a_malformed_line() {
+        let dir = std::env::temp_dir().join(format!("lingua-grammar-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let manifest = serde_json::json!({
+            "meta": {"studied": "en", "native": "fr", "pack_version": "t",
+                     "analyzer_version": ANALYZER_VERSION, "licences": []},
+            "sources": []
+        });
+        std::fs::write(dir.join("manifest.json"), manifest.to_string()).unwrap();
+        for (name, text) in [
+            ("forms.tsv", "ran\trun\n"),
+            ("freq.tsv", "run\t1\n"),
+            ("gloss.tsv", "run\tCourir; Course\n"),
+            ("NOTICE", "notice"),
+            ("grammar.tsv", format!("ran\trun\t{PAST}\tother\n").as_str()),
+            ("senses.tsv", "run\tVERB:1\tNOUN:1\n"),
+        ] {
+            std::fs::write(dir.join(name), text).unwrap();
+        }
+        let inp = inputs_from_dir(&dir).expect("read");
+        assert_eq!(inp.readings, [reading("ran", "run", PAST, true)]);
+        assert_eq!(
+            inp.senses,
+            [(
+                "run".to_owned(),
+                vec![("VERB".to_owned(), 1), ("NOUN".to_owned(), 1)]
+            )]
+        );
+        std::fs::write(dir.join("grammar.tsv"), "ran\trun\n").unwrap();
+        assert!(inputs_from_dir(&dir).is_err());
+        std::fs::write(
+            dir.join("grammar.tsv"),
+            format!("ran\trun\t{PAST}\tmaybe\n"),
+        )
+        .unwrap();
+        assert!(inputs_from_dir(&dir).is_err());
+        std::fs::write(dir.join("grammar.tsv"), "").unwrap();
+        std::fs::write(dir.join("senses.tsv"), "run\tVERB\n").unwrap();
+        assert!(inputs_from_dir(&dir).is_err());
+        std::fs::write(dir.join("senses.tsv"), "run\n").unwrap();
+        assert!(inputs_from_dir(&dir).is_err());
+        std::fs::remove_file(dir.join("senses.tsv")).unwrap();
+        std::fs::remove_file(dir.join("grammar.tsv")).unwrap();
+        let inp = inputs_from_dir(&dir).expect("tables are optional");
+        assert!(inp.readings.is_empty() && inp.senses.is_empty());
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn over_budget_names_the_grammar_readings_when_they_push_the_pack_over() {
+        let mut inp = inputs();
+        let mut x: u32 = 0x9e37_79b9;
+        inp.readings = (0..40_000)
+            .map(|i| {
+                // Near-uniform printable ASCII, as `incompressible_gloss`, up to
+                // the 255 bytes a stored suffix may hold.
+                let mut form = format!("run{i}");
+                for _ in 0..240 {
+                    x = x.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+                    form.push(char::from(b' ' + (x >> 17) as u8 % 95));
+                }
+                reading(&form, "run", PAST, false)
+            })
+            .collect();
+        match build_pack(&inp) {
+            Err(e @ BuildError::OverBudget { .. }) => {
+                let msg = e.to_string();
+                assert!(msg.contains("grammar readings"), "{msg}");
+                assert!(!msg.contains("glossed lemmas"), "{msg}");
+            }
+            Err(other) => panic!("expected OverBudget, got {other:?}"),
+            Ok(pack) => panic!("expected OverBudget, got a {}-byte pack", pack.len()),
         }
     }
 }
