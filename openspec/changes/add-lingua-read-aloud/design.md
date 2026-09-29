@@ -249,7 +249,10 @@ without changing its display language), but it is a step many readers will not t
 Chosen with the founder (2026-09-29), on the model of D8: **the reader allows it, off by
 default.** Where the studied language has remote voices and none on the device, Réglages says no
 English voice is installed — the procedure in an ⓘ tooltip (`title` and `aria-label`, focusable)
-that says no language changes — and offers "Utiliser les voix en ligne du navigateur", with a note
+that says no language changes, through « Langue et région › Ajouter une langue » (« Voix ›
+Ajouter des voix » did nothing on the founder's Windows 11, and the install itself failed there
+with 0x800F0950, so where the remote voices can stand in the tooltip ends by pointing to them) —
+and offers "Utiliser les voix en ligne du navigateur", with a note
 saying the text read then goes to the voice's provider (Google, for Chrome). While it is on, the
 remote voices are the usable ones and the "voix installées" line is not shown.
 

@@ -62,9 +62,15 @@ export interface SettingsOptions {
 const PREVIEW_KEY = "preview";
 /** What the preview reads, in the studied language. */
 const PREVIEW_TEXT = "This is how your pages will sound when Lingua reads them aloud.";
-/** How to install a voice on the device — a system voice, not a change of language. */
+/**
+ * How to install a voice on the device — a system voice, not a change of language. On Windows,
+ * through « Langue et région »: « Voix › Ajouter des voix » did nothing on a French Windows 11
+ * (2026-09-29), and that install can fail outright (0x800F0950), hence the pointer to the fallback.
+ */
 const INSTALL_VOICE_HELP =
-  "Pour une voix sur l'appareil, sans changer la langue du système ni du navigateur : sous Windows, Paramètres › Heure et langue › Voix › Ajouter des voix › Anglais (États-Unis) ; sous macOS, Réglages Système › Accessibilité › Contenu énoncé › Voix du système › Gérer les voix › Anglais. Relance ensuite le navigateur.";
+  "Pour une voix sur l'appareil, sans changer la langue du système ni du navigateur : sous Windows, Paramètres › Heure et langue › Langue et région › Ajouter une langue › Anglais (États-Unis), sans la définir comme langue d'affichage, avec la synthèse vocale ; sous macOS, Réglages Système › Accessibilité › Contenu énoncé › Voix du système › Gérer les voix › Anglais. Relance ensuite le navigateur.";
+/** Added where the remote voices can stand in. */
+const INSTALL_VOICE_FALLBACK = " Si l'installation échoue, active les voix en ligne ci-dessous.";
 
 /** What the Synchronisation block needs from the background and the store. */
 export interface SyncControls {
@@ -204,10 +210,8 @@ export function mountSettings(
   // rather than a block that silently never shows.
   const noVoiceNote = el("div", "set-note", "Aucune voix anglaise n'est installée sur cet appareil. ");
   const installInfo = el("span", "set-info", "ⓘ");
-  installInfo.title = INSTALL_VOICE_HELP;
   installInfo.tabIndex = 0;
   installInfo.setAttribute("role", "img");
-  installInfo.setAttribute("aria-label", INSTALL_VOICE_HELP);
   noVoiceNote.append(installInfo);
   // Where the only voices of the studied language are remote, they may stand in — never by
   // default, and saying where the text then goes.
@@ -399,6 +403,9 @@ export function mountSettings(
     if (!speaker || voiceBlock.hidden) return;
     const remote = offersRemote && speaker.remoteVoices();
     noVoiceNote.hidden = (eligible.length > 0 && !remote) || offersAndroid;
+    const help = INSTALL_VOICE_HELP + (offersRemote ? INSTALL_VOICE_FALLBACK : "");
+    installInfo.title = help;
+    installInfo.setAttribute("aria-label", help);
     remoteRow.hidden = !offersRemote;
     remoteNote.hidden = !offersRemote;
     remoteToggle.checked = speaker.remoteVoices();
