@@ -195,11 +195,23 @@ async fn main() -> anyhow::Result<()> {
         match cymbra_discord::webhook::WebhookDiscordSender::new(cfg.discord_webhooks.0.clone())? {
             Some(sender) => {
                 tracing::info!(channels = ?cfg.discord_webhooks, "discord announcements wired");
+                // The Lingua report reads the ops aggregate over its own role; the
+                // worker never migrates that schema (the server owns it).
+                let lingua_pool = match cfg.lingua_database_url.as_deref() {
+                    Some(url) => Some(db::connect(url, 2).await?),
+                    None => {
+                        tracing::info!(
+                            "discord Lingua report inert (CYMBRA_LINGUA_DATABASE_URL unset)"
+                        );
+                        None
+                    }
+                };
                 Some(Arc::new(discord::Announcer::new(
                     sender,
                     cymbra_discord::Locale::parse(&cfg.discord_locale),
                     queue_pool.clone(),
                     admin_pool.clone(),
+                    lingua_pool,
                 )))
             }
             None => {

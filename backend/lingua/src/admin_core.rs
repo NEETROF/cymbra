@@ -73,6 +73,14 @@ pub struct Usage {
     pub words_read: i64,
     pub new_words_seen: i64,
     pub by_language: Vec<LanguageUsage>,
+    /// Accounts that read, learned a word, or reviewed in the window — the
+    /// contributors behind `words_read`, `words_learned` and `reviews`, so a
+    /// published figure can be gated on the accounts that made it (change:
+    /// add-discord-notifications, task 3.8). Identifier-free counts, kept off
+    /// the admin RPC.
+    pub readers: i64,
+    pub learners: i64,
+    pub reviewers: i64,
 }
 
 /// One point of a per-day series: a day and a count.

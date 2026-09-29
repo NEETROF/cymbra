@@ -67,6 +67,11 @@ pub struct WorkerConfig {
     /// erasure's web-subscription cancellation. `None` leaves those jobs inert.
     /// Mirrors the server's `CYMBRA_PLANS_DATABASE_URL`.
     pub plans_database_url: Option<String>,
+    /// `lingua_svc` connection for the Cymbra Lingua Discord report (change:
+    /// add-discord-notifications, task 3.8). `None` skips that report (logged).
+    /// The worker never migrates the `lingua` schema. Mirrors the server's
+    /// `CYMBRA_LINGUA_DATABASE_URL`.
+    pub lingua_database_url: Option<String>,
     /// Firebase service-account key JSON for the FCM sender (change: add-push-
     /// notifications). `None` leaves the `push_dispatch` job inert (it logs and
     /// completes) so a deployment without a Firebase project simply sends nothing.
@@ -147,6 +152,10 @@ pub mod core {
                 .cloned(),
             plans_database_url: m
                 .get("CYMBRA_PLANS_DATABASE_URL")
+                .filter(|v| !v.is_empty())
+                .cloned(),
+            lingua_database_url: m
+                .get("CYMBRA_LINGUA_DATABASE_URL")
                 .filter(|v| !v.is_empty())
                 .cloned(),
             fcm_service_account_json: m
@@ -290,6 +299,19 @@ mod tests {
         // An empty value is the same as unset.
         m.insert("CYMBRA_FCM_SERVICE_ACCOUNT_JSON".into(), String::new());
         assert_eq!(core::parse(&m).unwrap().fcm_service_account_json, None);
+    }
+
+    #[test]
+    fn lingua_database_is_optional_but_read_when_set() {
+        assert_eq!(core::parse(&base()).unwrap().lingua_database_url, None);
+        let mut m = base();
+        m.insert("CYMBRA_LINGUA_DATABASE_URL".into(), "postgres://l".into());
+        assert_eq!(
+            core::parse(&m).unwrap().lingua_database_url.as_deref(),
+            Some("postgres://l")
+        );
+        m.insert("CYMBRA_LINGUA_DATABASE_URL".into(), String::new());
+        assert_eq!(core::parse(&m).unwrap().lingua_database_url, None);
     }
 
     #[test]

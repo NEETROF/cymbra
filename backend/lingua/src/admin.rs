@@ -120,6 +120,9 @@ mod tests {
                     words_read: 1_000,
                     new_words_seen: 50,
                 }],
+                readers: 4,
+                learners: 3,
+                reviewers: 1,
             },
             ..Default::default()
         };

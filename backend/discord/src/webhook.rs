@@ -31,6 +31,9 @@ use crate::render::Message;
 /// Discord's `SUPPRESS_EMBEDS` message flag: a link in a title never unfurls.
 const SUPPRESS_EMBEDS: u32 = 1 << 2;
 
+/// The Cymbra violet, as the embed's side colour.
+const BRAND_COLOR: u32 = 0x7C_3A_ED;
+
 /// Posts through one webhook per channel.
 pub struct WebhookDiscordSender {
     client: reqwest::Client,
@@ -71,12 +74,27 @@ impl DiscordSender for WebhookDiscordSender {
         let Some(url) = self.hooks.get(channel) else {
             return Err(SendError::Terminal(format!("no webhook for #{channel}")));
         };
-        let body = serde_json::json!({
+        let mut body = serde_json::json!({
             "content": message.content,
             // Never ping anyone, whatever the text contains.
             "allowed_mentions": { "parse": [] },
-            "flags": SUPPRESS_EMBEDS,
         });
+        match &message.embed {
+            // Our own embed: link previews are still off (they are separate
+            // embeds Discord would add under it).
+            Some(embed) => {
+                let mut e = serde_json::json!({
+                    "title": embed.title,
+                    "description": embed.description,
+                    "color": BRAND_COLOR,
+                });
+                if let Some(footer) = &embed.footer {
+                    e["footer"] = serde_json::json!({ "text": footer });
+                }
+                body["embeds"] = serde_json::json!([e]);
+            }
+            None => body["flags"] = serde_json::json!(SUPPRESS_EMBEDS),
+        }
         let response = self
             .client
             .post(url)

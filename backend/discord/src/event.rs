@@ -32,12 +32,16 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Product {
     Music,
+    Id,
+    Lingua,
 }
 
 impl Product {
     pub fn as_str(self) -> &'static str {
         match self {
             Product::Music => "music",
+            Product::Id => "id",
+            Product::Lingua => "lingua",
         }
     }
 }
@@ -50,15 +54,43 @@ pub enum Category {
     MusicCatalog,
     /// A season record beaten on a catalog piece (anonymous).
     MusicRecords,
+    /// The Cymbra Music activity report (daily by default).
+    MusicReport,
+    /// The weekly top pieces of Cymbra Music.
+    MusicTopPieces,
+    /// The Cymbra ID activity report (weekly by default).
+    IdReport,
+    /// The Cymbra Lingua activity report (weekly by default).
+    LinguaReport,
 }
 
 impl Category {
     /// Every category, for exhaustive routing and flag tests.
-    pub const ALL: [Category; 2] = [Category::MusicCatalog, Category::MusicRecords];
+    pub const ALL: [Category; 6] = [
+        Category::MusicCatalog,
+        Category::MusicRecords,
+        Category::MusicReport,
+        Category::MusicTopPieces,
+        Category::IdReport,
+        Category::LinguaReport,
+    ];
+
+    /// The periodic reports, in the order a digest run publishes them.
+    pub const REPORTS: [Category; 4] = [
+        Category::MusicReport,
+        Category::MusicTopPieces,
+        Category::IdReport,
+        Category::LinguaReport,
+    ];
 
     pub fn product(self) -> Product {
         match self {
-            Category::MusicCatalog | Category::MusicRecords => Product::Music,
+            Category::MusicCatalog
+            | Category::MusicRecords
+            | Category::MusicReport
+            | Category::MusicTopPieces => Product::Music,
+            Category::IdReport => Product::Id,
+            Category::LinguaReport => Product::Lingua,
         }
     }
 
@@ -67,6 +99,10 @@ impl Category {
         match self {
             Category::MusicCatalog => "music.catalog",
             Category::MusicRecords => "music.records",
+            Category::MusicReport => "music.report",
+            Category::MusicTopPieces => "music.top_pieces",
+            Category::IdReport => "id.report",
+            Category::LinguaReport => "lingua.report",
         }
     }
 }
@@ -196,9 +232,11 @@ mod tests {
             Category::MusicRecords
         );
         for c in Category::ALL {
-            assert_eq!(c.product(), Product::Music);
-            assert!(c.key().starts_with(c.product().as_str()));
+            assert!(c.key().starts_with(&format!("{}.", c.product().as_str())));
         }
+        assert_eq!(Category::IdReport.product(), Product::Id);
+        assert_eq!(Category::LinguaReport.product(), Product::Lingua);
+        assert_eq!(Category::MusicTopPieces.product(), Product::Music);
     }
 
     #[test]
