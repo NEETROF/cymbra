@@ -158,8 +158,10 @@ yarn lint && yarn format:check && yarn typecheck && yarn test
   as the default; where only those exist (Chrome on Linux or ChromeOS without a system
   voice, and Chrome on a Windows set to French, whose own voices are French only —
   `chrome-windows.json`), the row is absent and Réglages says no English voice is installed —
-  how to add one in an ⓘ tooltip (Windows: Settings › Time & language › Speech › Add voices, no
-  change of language, then restart the browser) — and offers _Utiliser les voix en ligne du
+  how to add one in an ⓘ tooltip (Windows: Settings › Time & language › Language & region ›
+  Add a language › English (United States), not as display language, with text-to-speech, then
+  restart the browser — _Speech › Add voices_ did nothing on a French Windows 11, and the install
+  itself can fail with 0x800F0950, so the tooltip then points to the online voices) — and offers _Utiliser les voix en ligne du
   navigateur_, off by default (`cymbra-lingua-remote-voices`, per device): once on, Google's
   voices read, the text going to Google through Chrome, until an English voice is installed,
   which takes over at once. The automatic

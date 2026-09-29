@@ -478,7 +478,9 @@ describe("Réglages — Lecture à voix haute", () => {
     expect(r.row.hidden).toBe(false);
     expect(r.toggle.checked).toBe(false);
     expect(r.note.hidden).toBe(false);
-    expect(r.info.title).toContain("Paramètres › Heure et langue › Voix");
+    expect(r.info.title).toContain("Paramètres › Heure et langue › Langue et région › Ajouter une langue");
+    expect(r.info.title).toContain("sans la définir comme langue d'affichage");
+    expect(r.info.title).toMatch(/active les voix en ligne ci-dessous\.$/);
     expect(r.info.getAttribute("aria-label")).toBe(r.info.title);
     r.toggle.checked = true;
     r.toggle.dispatchEvent(new Event("change"));
@@ -500,6 +502,18 @@ describe("Réglages — Lecture à voix haute", () => {
       "Google UK English Female — Royaume-Uni",
       "Google UK English Male — Royaume-Uni",
     ]);
+  });
+
+  it("points to the online voices from the tooltip only where they can stand in", async () => {
+    const s = mountVoices([
+      { name: "Microsoft Hortense", lang: "fr-FR", localService: true, default: true, voiceURI: "Hortense" },
+    ]);
+    await settle();
+    const info = s.block.querySelector<HTMLElement>(".set-info")!;
+    expect(noVoiceNote(s.block).hidden).toBe(false);
+    expect(remoteParts(s.block).row.hidden).toBe(true);
+    expect(info.title).toContain("Langue et région");
+    expect(info.title).not.toContain("voix en ligne");
   });
 
   it("offers no remote stand-in where a voice is on the device", async () => {
