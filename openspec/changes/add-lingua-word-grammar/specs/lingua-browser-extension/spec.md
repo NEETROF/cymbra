@@ -81,7 +81,9 @@ A page SHALL hold at least one sense, however long. The card SHALL say which pag
 how many, and a gloss that fits on one page SHALL show no paging control. Moving between pages SHALL
 change only the gloss: the card keeps its word, its status and its actions, and keeps the reader's
 selection on the page. A paged card SHALL keep one size, that of its largest page, so that no page
-moves the paging control or the actions. A card opened again starts on its first page.
+moves the paging control or the actions. On a touch-first device each paging control SHALL be a
+target of at least 44 × 44 CSS pixels, however small it is drawn. A card opened again starts on its
+first page.
 
 #### Scenario: A word with more senses than one page holds
 - **WHEN** the reader opens the card of a word whose senses take more than 160 characters
@@ -90,6 +92,10 @@ moves the paging control or the actions. A card opened again starts on its first
 #### Scenario: Moving to the next page
 - **WHEN** the reader presses the next-page control
 - **THEN** the card shows the following senses under their headings, offers the previous page, and its actions are unchanged
+
+#### Scenario: Paging on a phone
+- **WHEN** the reader opens a paged card on a phone or a tablet
+- **THEN** each paging control can be pressed anywhere in a 44 × 44 area
 
 #### Scenario: A last page shorter than the first
 - **WHEN** the reader moves to a page that holds one short sense
