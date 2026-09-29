@@ -194,17 +194,22 @@ computed on devices and reach the server only when they sync. The **cadence is p
 flag-driven**, not global: a product with little traffic reports weekly and one with real volume
 reports daily, so a channel never publishes "3 players today". Long rankings are **pulled, not
 pushed** — the digest carries a top 10, the full top 50 goes to the product's leaderboard channel
-on a weekly cadence and to a slash command on demand (D3). Named announcements are throttled per player over a flag-configured window; aggregate
-figures below a flag-configured minimum player count are omitted, so an aggregate can never
-implicitly identify one person. Suppressions are counted/logged — never silent.
+on a weekly cadence and to a slash command on demand (D3). Named announcements are throttled per player over a flag-configured window.
+**No report states how many people** were active — players, accounts, readers, new accounts —
+only what was done (maintainer decision, 2026-09-29). A figure is dropped when its contributing
+accounts fall below `discord.reports.min_contributors`, whose default is **1**: nothing is dropped,
+and while the community is small a figure can be one person's activity — accepted by the
+maintainer, who expects to be the heaviest reader at first. The flag is the lever if that stops
+being acceptable. Suppressions are counted/logged — never silent.
 
 **An empty report is not published at all.** The rendering core answers "is there anything to
 say?" *before* the sender is called: if every publishable element is zero or suppressed, the job
 completes successfully having posted nothing. This is a **product** rule, not a technical one — a
 channel showing "0 players, 0 sessions" week after week actively discourages the community it
 exists to grow, and a dash-filled table is worse than silence. The corollary is that the
-`aggregate minimum` and this rule compose: with `k = 5`, a period where 3 players played yields
-all-suppressed figures, hence no message. A report is published as soon as **one** substantive
+minimum and this rule compose: with the minimum raised to 5, a period where 3 players played
+yields all-suppressed figures, hence no message; at the default of 1 only a period with no activity
+at all is silent. A report is published as soon as **one** substantive
 element survives — an accepted catalog item counts, since an item is not a person and is never
 suppressed. Every skip is logged and counted with its reason, so "nothing happened" stays
 distinguishable from "the digest is broken", which is exactly the failure mode silence would
@@ -302,7 +307,10 @@ state → Discord role); a claim command is explicit, auditable and works before
   minimum + kill-switch defaulting to off; volume is reviewed after the first enabled category
   before enabling the next.
 - **Re-identification through small aggregates** ("1 new player today" next to a visible
-  arrival) → configured minimum player count below which a figure is omitted.
+  arrival) → no report publishes a count of people, and a per-figure minimum of contributors is a
+  runtime flag. Its default of 1 accepts the residual risk that a small figure is one person's
+  activity (maintainer decision, 2026-09-29); the privacy policy says figures carry no name and no
+  head count, not that small ones are hidden.
 - **Leaked webhook URL lets anyone post as Cymbra** → treated as a secret (env only, never
   logged, never in error messages), one URL per channel so the blast radius is one channel,
   rotation is a config change with no redeploy.

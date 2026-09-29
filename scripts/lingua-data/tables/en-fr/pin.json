@@ -1,11 +1,11 @@
 {
   "snapshot": "2026.09.26",
   "pack": {
-    "sha256": "45d35f4bb95b54064bea7b0c8a1955202d033c59559e8a966e40f9164f049ba0",
-    "size": 1543687
+    "sha256": "fd3d935157a6b2d046cab66995e768c0072513432e3c9ebe60f0f5c4902eadfd",
+    "size": 1835497
   },
   "reducer": {
-    "sha256": "1dff19c4bf6fddde56b74ac52c384afd67f1711adec86dc799fbe13706ce6e60"
+    "sha256": "0a30d4c1e38ecadeca6e6777618a9bb9f50d5ec70a0a5cab33476b99c3413761"
   },
   "sources": {
     "cefrj": {

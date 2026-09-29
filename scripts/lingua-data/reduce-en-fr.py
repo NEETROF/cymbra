@@ -18,7 +18,9 @@ and, from this repository, the analyser's irregular-form table (lingua-core lemm
 
 Outputs (into <work>/, consumed by lingua-pack-build):
   forms.tsv  (form<TAB>lemma) / freq.tsv (lemma<TAB>rank) / gloss.tsv (lemma<TAB>gloss)
-  / level.tsv (lemma<TAB>A1..C2) / mwe.tsv (expression<TAB>gloss) / NOTICE / manifest.json
+  / level.tsv (lemma<TAB>A1..C2) / mwe.tsv (expression<TAB>gloss)
+  / grammar.tsv (form<TAB>lemma<TAB>tag<TAB>other|-) / senses.tsv (lemma<TAB>tag:count…)
+  / NOTICE / manifest.json
 
 Key rules:
 1. Only CANONICAL LEMMAS (base forms) are ever treated as lemmas. An inflected form (e.g.
@@ -38,6 +40,10 @@ Key rules:
    wordfreq never ranks, inflections whose base was dropped ("boring" from "bore") — are
    added (`append_level_extras`), and a listed compound gets its inflections
    (`compound_inflections`), so the level table covers nearly all of the CEFR lists.
+6. GRAMMAR (add-lingua-word-grammar) is kept, not thrown away: what each inflected form is,
+   from ESDB's slots and the ending of kaikki's regular form links (`esdb_slot_tags`,
+   `_regular_tags`), in Universal Dependencies tags; and the part of speech of each sense of a
+   gloss, whose senses are grouped by it (`_join_senses_by_pos`).
 5. MULTI-WORD entries ("give up", "starting point") are reduced on their own
    (`reduce_expressions`): a lemma is one word, so the frequency lexicon can never hold
    them and every rule above passes them by. They are emitted AS WRITTEN — keying them
@@ -217,13 +223,114 @@ def _esdb_kinds(pos, form, base):
     return {_ESDB_KIND[pos]}
 
 
-def parse_esdb_relations(path, max_size=_ESDB_MAX_SIZE):
+# — Word grammar (add-lingua-word-grammar) —
+#
+# Universal Dependencies tags (design D1) for what a form is, as ESDB's slots and kaikki's regular
+# form links say, and for the part of speech of each sense of a gloss. The builder checks every
+# tag against the core's closed vocabulary and fails on anything else.
+_PAST = "VERB|Mood=Ind|Tense=Past|VerbForm=Fin"
+_PARTICIPLE = "VERB|Tense=Past|VerbForm=Part"
+_ING = "VERB|VerbForm=Ger"
+_THIRD = "VERB|Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin"
+_PRESENT = "VERB|Mood=Ind|Tense=Pres|VerbForm=Fin"
+_PLURAL = "NOUN|Number=Plur"
+# `be`, the one verb with eight slots: vd vd2 vn vg vs vs2 vs3 vs4 in ESDB's README.
+_BE_SLOTS = (
+    (_PAST,),  # was
+    (_PAST,),  # were
+    (_PARTICIPLE,),  # been
+    (_ING,),  # being
+    ("VERB|Mood=Ind|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin",),  # am
+    (_PRESENT,),  # are
+    (_THIRD,),  # is
+    (_PRESENT,),  # are
+)
+# The parts of speech whose slots are the comparative then the superlative.
+_DEGREE_UPOS = {"aj": "ADJ", "a": "ADJ", "aj_av": "ADJ", "av": "ADV", "d": "DET"}
+_POSSESSIVE = ("'s", "s'", "'")
+
+
+def _possessive(forms):
+    return bool(forms) and all(form.endswith(_POSSESSIVE) for form in forms)
+
+
+def esdb_slot_tags(pos, lemma, field):
+    """What each derived form of an ESDB line is: [(form, tag)], by its slot.
+
+    The slots are ESDB's own (its README, "The derived forms are as follows"). A verb's are past,
+    past participle, -ing and -s, the participle left out when it is spelled like the past; `be`
+    has eight. A noun-verb's -s slot is both the plural and the -s verb form (as `_esdb_kinds`
+    says). A noun's first slot is its plural; an adjective's, adverb's or determiner's are the
+    comparative then the superlative, and a determiner with one slot has only a plural ("those"),
+    a word of its own. A modal ("could, -, can") has no -ing, so its past is no participle, and its
+    -s slot, spelled like the modal, is no reading. Possessives, trailing, are never readings.
+    """
+    slots = [esdb_forms(entry) for entry in field.split(", ")] if field.strip() else []
+    while slots and _possessive(slots[-1]):
+        slots.pop()
+    if pos in ("v", "m", "n_v"):
+        if lemma == "be" and len(slots) == 8:
+            tags = _BE_SLOTS
+        elif len(slots) == 4:
+            tags = ((_PAST,), (_PARTICIPLE,), (_ING,), (_THIRD,))
+        elif len(slots) == 3:
+            tags = ((_PAST, _PARTICIPLE) if slots[1] else (_PAST,), (_ING,), (_THIRD,))
+        else:
+            return []
+        if pos == "n_v":
+            tags = tags[:-1] + ((_THIRD, _PLURAL),)
+    elif pos == "n":
+        tags = ((_PLURAL,),)
+    elif pos in _DEGREE_UPOS and not (pos == "d" and len(slots) < 2):
+        upos = _DEGREE_UPOS[pos]
+        tags = ((f"{upos}|Degree=Cmp",), (f"{upos}|Degree=Sup",))
+    else:
+        return []
+    out = []
+    for forms, slot_tags in zip(slots, tags):
+        for form in (f.lower() for f in forms):
+            if form.endswith(_POSSESSIVE) or not _TOKEN.fullmatch(form):
+                continue
+            for tag in slot_tags:
+                if tag == _THIRD and form == lemma:
+                    continue  # a modal's -s slot: "can" does not inflect
+                if tag == _PLURAL and pos == "n_v" and not form.endswith("s"):
+                    continue
+                out.append((form, tag))
+    return out
+
+
+def _regular_tags(form, kind):
+    """What a regular inflection of `kind` is, by its ending (kaikki's form links; design D2)."""
+    if kind == "N":
+        return (_PLURAL,)
+    if kind == "A":
+        return ("ADJ|Degree=Sup",) if form.endswith("st") else ("ADJ|Degree=Cmp",)
+    if form.endswith("ing"):
+        return (_ING,)
+    if form.endswith("d"):
+        return (_PAST, _PARTICIPLE)
+    return (_THIRD,)
+
+
+def _kind_of(tag):
+    """The relation kind a reading's tag makes: N, V or A."""
+    if tag.startswith("NOUN"):
+        return "N"
+    return "A" if "|Degree=" in tag else "V"
+
+
+def parse_esdb_relations(path, max_size=_ESDB_MAX_SIZE, readings=None):
     """All (form, lemma) pairs from ESDB's `scowl.txt`, and each inflected form's (lemma, kind) relations.
 
     Kept: the parts of speech of `_ESDB_KIND`, sizes up to `max_size`, primary and equal spellings.
     Never a possessive (the tokenizer splits them; AGID lists none). Never a form ESDB also lists as
     an adjective of its own in a commoner size than the line deriving it: "renowned" (an adjective
     at 35) is no verb form of "renown" (a verb only at 80) — `own_adjectives`.
+
+    `readings`, when given, is filled with what each kept form is: (form, lemma) -> {tag}, by
+    `esdb_slot_tags`, for the pairs this returns — a form spelled like its lemma included ("put" is
+    its own past), since (lemma, lemma) is always a pair.
     """
     pairs, relations = set(), {}
     derived_at = {}  # (form, lemma) -> the smallest size of a line deriving it
@@ -274,6 +381,9 @@ def parse_esdb_relations(path, max_size=_ESDB_MAX_SIZE):
                 derived_at[(form, lemma)] = min(level, derived_at.get((form, lemma), level))
                 for kind in kinds:
                     relations.setdefault(form, set()).add((lemma, kind))
+            if readings is not None:
+                for form, tag in esdb_slot_tags(pos, lemma, ": ".join(parts[at + 1 :])):
+                    readings.setdefault((form, lemma), set()).add(tag)
     for form, lemma in own_adjectives(derived_at, adjectives):
         pairs.discard((form, lemma))
         rels = {rel for rel in relations.get(form, ()) if rel[0] != lemma}
@@ -281,6 +391,9 @@ def parse_esdb_relations(path, max_size=_ESDB_MAX_SIZE):
             relations[form] = rels
         else:
             relations.pop(form, None)
+    if readings is not None:
+        for key in [key for key in readings if key not in pairs]:
+            del readings[key]
     return pairs, relations
 
 
@@ -303,7 +416,7 @@ _FORM_OF_KIND = (
 )
 
 
-def form_of_relations(path, pairs, relations):
+def form_of_relations(path, pairs, relations, readings=None):
     """Add kaikki's form-of links to `pairs` and `relations`, regular inflections only.
 
     A link counts only when the form is the regular inflection of its target (`regular_inflection`):
@@ -311,8 +424,12 @@ def form_of_relations(path, pairs, relations):
     "coast" and "born" to "bear". Never to a one- or two-letter target ("des" is no plural of "de"
     in English text): the irregular forms of such words ("goes", "is") come from ESDB. Returns the
     number of pairs added.
+
+    `readings`, when given, gets what each pair it adds is, by its ending (`_regular_tags`); a pair
+    ESDB already gave keeps ESDB's slots.
     """
     added = 0
+    linked = set()  # the pairs these links add, which take their readings from them
     with open(path, encoding="utf-8", errors="replace") as f:
         for line in f:
             if '"form_of"' not in line:
@@ -337,8 +454,11 @@ def form_of_relations(path, pairs, relations):
                         continue
                     if (form, lemma) not in pairs:
                         added += 1
+                        linked.add((form, lemma))
                     pairs.update({(form, lemma), (lemma, lemma)})
                     relations.setdefault(form, set()).add((lemma, kind))
+                    if readings is not None and (form, lemma) in linked:
+                        readings.setdefault((form, lemma), set()).update(_regular_tags(form, kind))
     return added
 
 
@@ -430,6 +550,24 @@ def regular_inflection(form, base, kind):
     return form in made
 
 
+def _taught(cefr, word):
+    return {pos for pos, _ in cefr.get(word, ())}
+
+
+def is_believable(form, base, kind, meanings, targets, cefr):
+    """Whether `form` is believably a `kind` form of `base`.
+
+    The base has the part of speech the relation needs — a meaning under it in Wiktionary, or a CEFR
+    list teaching it so — and the form is its regular inflection, or one Wiktionary names as a form
+    of it. `own_words` asks it of every relation; the grammar table marks with it which dictionary
+    forms may be named as another reading of a form (add-lingua-word-grammar, design D2).
+    """
+    return bool(
+        (meanings.get(base, set()) & _WIKT_BASE_POS.get(kind, set()) or _taught(cefr, base) & _CEFR_BASE_POS.get(kind, set()))
+        and (regular_inflection(form, base, kind) or base in targets.get(form, set()))
+    )
+
+
 def own_words(relations, meanings, targets, cefr, frequency, never=frozenset()):
     """The AGID-inflected forms that are really words of their own and must stay lemmas.
 
@@ -459,7 +597,7 @@ def own_words(relations, meanings, targets, cefr, frequency, never=frozenset()):
     """
 
     def taught(word):
-        return {pos for pos, _ in cefr.get(word, ())}
+        return _taught(cefr, word)
 
     out = set()
     for form, rels in relations.items():
@@ -476,11 +614,7 @@ def own_words(relations, meanings, targets, cefr, frequency, never=frozenset()):
         meaningful = bool(meanings.get(form))
         named = targets.get(form, set())
         unattested = meaningful and not any(base in named for base, _ in rels)
-        believable = any(
-            (meanings.get(base, set()) & _WIKT_BASE_POS.get(kind, set()) or taught(base) & _CEFR_BASE_POS.get(kind, set()))
-            and (regular_inflection(form, base, kind) or base in named)
-            for base, kind in rels
-        )
+        believable = any(is_believable(form, base, kind, meanings, targets, cefr) for base, kind in rels)
         vouched = bool(taught(form)) or not any(
             len(base) <= 2 or (base in cefr and not regular_inflection(form, base, kind)) for base, kind in rels
         )
@@ -570,12 +704,13 @@ def append_level_extras(ranks, cefr, inflected, frequency, lemma_of):
     return out
 
 
-def compound_inflections(lemmas, pairs):
+def compound_inflections(lemmas, pairs, readings=None):
     """(form, compound) pairs inflecting each hyphenated lemma: "t-shirts", "mothers-in-law".
 
     AGID has no hyphenated headwords and the analyser looks a compound up whole, so without
     these a listed compound's plural would still be judged part by part. The first and the
-    last part each take their AGID forms; the odd nonsense combination is never read.
+    last part each take their AGID forms; the odd nonsense combination is never read. A compound
+    form is what its inflected part is: `readings`, when given, gets the part's tags.
     """
     forms_of = {}
     for form, lemma in pairs:
@@ -588,7 +723,10 @@ def compound_inflections(lemmas, pairs):
             continue
         for i in {0, len(parts) - 1}:
             for form in forms_of.get(parts[i], ()):
-                out.add(("-".join(parts[:i] + [form] + parts[i + 1 :]), lemma))
+                whole = "-".join(parts[:i] + [form] + parts[i + 1 :])
+                out.add((whole, lemma))
+                if readings is not None and (form, parts[i]) in readings:
+                    readings.setdefault((whole, lemma), set()).update(readings[(form, parts[i])])
     return out
 
 
@@ -625,12 +763,55 @@ def resolve_forms(pairs, ranks, targets=None, glossed=frozenset()):
 _DANGLING_COORDINATOR = re.compile(r"^(?:ou|et)\s+")
 
 
-def clean_gloss(text, maxlen):
-    g = re.sub(r"\s+", " ", text).strip().rstrip(".").strip()
+# What the Wiktionary writes for its own readers, not a translation: a pointer to another page
+# ("Y avoir. → voir there be", "(→ voir bone marrow)", "(→ Comparer avec -ative)") — a link on the
+# wiki, dead text on a card — and the placeholders of an unfinished page ("Définition manquante ou
+# à compléter. (Ajouter)", an invitation to contributors), wherever they sit in the sense.
+_WIKI_NOTES = re.compile(
+    r"\s*\(→[^)]*\)"
+    r"|\s*→\s*(?:voir|comparer)\b[^;]*"
+    r"|\s*\(?Définition manquante ou à co.*?(?:\(Ajouter\)\)?|$)[.…]*"
+    r"|\s*Étymologie manquante ou incomplète.*?(?:cliquant ici\.|$)",
+    re.IGNORECASE,
+)
+
+
+def strip_wiki_notes(text):
+    """`text` without the Wiktionary's pointers and placeholders (`_WIKI_NOTES`)."""
+    return _WIKI_NOTES.sub("", text)
+
+
+def clean_gloss(text, maxlen, whole_words=False):
+    """A sense, tidied and held within `maxlen` characters.
+
+    The expressions keep the plain cut. A word's senses (`whole_words`) are cut at a word
+    boundary and end with an ellipsis (`cut_at_word`), since the word card shows them in full.
+    A sense that is nothing but a pointer or a placeholder comes out empty, and is left out.
+    """
+    g = re.sub(r"\s+", " ", strip_wiki_notes(text)).strip(" ;,").rstrip(".:").strip()
     g = _DANGLING_COORDINATOR.sub("", g)
     if len(g) > maxlen:
-        g = g[:maxlen].rstrip()
+        g = cut_at_word(g, maxlen) if whole_words else g[:maxlen].rstrip()
     return g
+
+
+# What a cut sense may not end on before its ellipsis: a separator or an opening mark.
+_CUT_TRAIL = " ,;:(«[\"'’-–—/"
+
+
+def cut_at_word(text, maxlen):
+    """`text` within `maxlen` characters, the ellipsis included, never ending mid-word.
+
+    The cut falls on the last space the room allows; a text with no space in the second half of
+    that room — one long word, a URL — is cut where the room ends. Separators and opening marks
+    left dangling before the ellipsis go ("former le passif (…" → "former le passif…").
+    """
+    if len(text) <= maxlen:
+        return text
+    room = maxlen - 1  # the ellipsis
+    space = text.rfind(" ", 0, room + 1)
+    cut = text[:space] if space > room // 2 else text[:room]
+    return cut.rstrip(_CUT_TRAIL) + "…"
 
 
 def _join_senses(per_entry, maxlen, max_senses):
@@ -656,38 +837,198 @@ def _join_senses(per_entry, maxlen, max_senses):
     return joined
 
 
-def reduce_gloss(path, lemmas, maxlen, per_sense=42, max_senses=3):
-    """Up to `max_senses` short French glosses per canonical lemma, joined by "; ".
+# kaikki's `pos` in Universal Dependencies parts of speech (design D4). A conjunction is
+# coordinating when it is one of the seven coordinators, subordinating otherwise; anything that is
+# no part of speech of a word (an affix, a phrase, a typographic variant) is `X`.
+_KAIKKI_UPOS = {
+    "noun": "NOUN",
+    "verb": "VERB",
+    "adj": "ADJ",
+    "adv": "ADV",
+    "name": "PROPN",
+    "pron": "PRON",
+    "prep": "ADP",
+    "postp": "ADP",
+    "det": "DET",
+    "article": "DET",
+    "particle": "PART",
+    "intj": "INTJ",
+    "onomatopoeia": "INTJ",
+    "num": "NUM",
+    "character": "SYM",
+    "symbol": "SYM",
+}
+_COORDINATORS = frozenset({"and", "or", "but", "nor", "yet", "so", "for"})
+# A `;` inside a sense, with the spaces French typography puts around it ("Indigène ; qui…").
+_INNER_SEPARATOR = re.compile(r"\s*;\s*")
 
-    Form-of senses ("Pluriel de …") are skipped — they are not meanings. The senses that
-    make the cut are picked by `_join_senses`.
+
+def kaikki_upos(pos, word):
+    """The UD part of speech of a kaikki entry of `word`."""
+    if pos == "conj":
+        return "CCONJ" if word in _COORDINATORS else "SCONJ"
+    return _KAIKKI_UPOS.get(pos, "X")
+
+
+# The fewest characters a sense cut to fit a word's gloss may keep: below, it says nothing.
+_MIN_CUT_SENSE = 20
+
+
+def _join_senses_by_pos(per_entry, poses, maxlen, max_senses):
+    """`_join_senses`, with the senses grouped by part of speech (add-lingua-word-grammar, D4).
+
+    The same senses are picked, by the same round-robin across the headword's entries; they are
+    then grouped by the part of speech of the entry each came from, stably, in the order the parts
+    of speech first appear, so that the senses of one part of speech are adjacent. A `;` inside a
+    sense becomes `,`, so that "; " only ever separates senses. The gloss keeps whole senses while
+    they fit in `maxlen`; the next is cut at a word boundary with an ellipsis when at least
+    `_MIN_CUT_SENSE` characters of room are left, and left out otherwise — never cut mid-word.
+    The runs — [(part of speech, senses)] — count the senses the gloss holds.
     """
-    entries = {}  # word -> [per-entry [gloss,...]]
+    picked = []  # (sense, part of speech)
+    depth = 0
+    deepest = max(len(e) for e in per_entry)
+    while depth < deepest and len(picked) < max_senses:
+        for senses, pos in zip(per_entry, poses):
+            if depth < len(senses) and senses[depth] not in [sense for sense, _ in picked]:
+                picked.append((senses[depth], pos))
+                if len(picked) >= max_senses:
+                    break
+        depth += 1
+    order = list(dict.fromkeys(pos for _, pos in picked))
+    grouped = [
+        (_INNER_SEPARATOR.sub(", ", sense).strip(" ,"), pos) for first in order for sense, pos in picked if pos == first
+    ]
+    # Whole senses while they fit; the next one cut at a word boundary when enough room is left
+    # for it to say something, left out otherwise. The gloss never ends mid-word.
+    kept = []
+    length = 0
+    for sense, _ in grouped:
+        gap = 2 if kept else 0
+        if length + gap + len(sense) <= maxlen:
+            kept.append(sense)
+            length += gap + len(sense)
+            continue
+        room = maxlen - length - gap
+        if room >= _MIN_CUT_SENSE:
+            kept.append(cut_at_word(sense, room))
+        break
+    joined = "; ".join(kept)
+    runs = []
+    for _, pos in grouped[: len(kept)]:
+        if runs and runs[-1][0] == pos:
+            runs[-1][1] += 1
+        else:
+            runs.append([pos, 1])
+    return joined, [tuple(run) for run in runs]
+
+
+def _acronym(headword):
+    """Whether a headword is written all in capitals, as an acronym is ("AND", "WHO", "US")."""
+    return len(headword) > 1 and headword.isupper()
+
+
+def _read_entries(path, words, per_sense, pointers=None):
+    """The glossed kaikki entries of `words`: word -> [(an acronym's entry, part of speech, [gloss])].
+
+    With `pointers`, also the words a word's form-of senses point at, with the part of speech of
+    the entry that points: word -> [(base, part of speech)], in source order.
+    """
+    entries = {}
     with open(path, encoding="utf-8", errors="replace") as f:
         for line in f:
             try:
                 d = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            word = (d.get("word") or "").strip().lower()
-            if not word or word not in lemmas:
+            headword = (d.get("word") or "").strip()
+            word = headword.lower()
+            if not word or word not in words:
                 continue
+            pos = kaikki_upos(d.get("pos") or "", word)
             senses = []
             for sense in d.get("senses", []):
                 gg = sense.get("glosses") or []
-                if gg and not _is_form_of(sense, gg[0].strip()):
-                    g = clean_gloss(gg[0], per_sense)
+                if not gg:
+                    continue
+                if not _is_form_of(sense, gg[0].strip()):
+                    g = clean_gloss(gg[0], per_sense, whole_words=True)
                     if g:
                         senses.append(g)
+                elif pointers is not None:
+                    for target in sense.get("form_of") or []:
+                        base = (target.get("word") or "").strip().lower()
+                        if len(base) >= _MIN_BASE and base != word and (base, pos) not in pointers.get(word, []):
+                            pointers.setdefault(word, []).append((base, pos))
             if senses:
-                entries.setdefault(word, []).append(senses)
+                entries.setdefault(word, []).append((_acronym(headword), pos, senses))
+    return entries
 
+
+# The shortest base a form-of sense may lend its gloss from: "fs" is the plural of the letter "f",
+# and a letter's gloss says nothing about the word.
+_MIN_BASE = 3
+
+
+def reduce_gloss(path, lemmas, maxlen, per_sense=80, max_senses=3, runs=None):
+    """Up to `max_senses` short French glosses per canonical lemma, joined by "; ".
+
+    Form-of senses ("Pluriel de …") are skipped — they are not meanings. An acronym's
+    entries do not gloss the common word spelled like it in lower case when that word has an
+    entry of its own: "AND", the logic operator, gave "and" a noun "ET" and a verb "Faire le
+    ET de"; "WHO" gave "who" « OMS », "FOR" gave "for" « Franco wagon ». An acronym with no
+    such word keeps its gloss: "NATO" still glosses "nato". The senses that make the cut are
+    picked by `_join_senses_by_pos`, which groups them by part of speech; `runs`, when given,
+    gets each gloss's runs: lemma -> [(part of speech, senses)].
+
+    A lemma whose only senses are form-of senses borrows the gloss of the base they name, in the
+    same part of speech: the word list keeps "catacombs" as a word of its own, and the Wiktionary
+    only says it is the plural of "catacomb", so its card had no translation; it now reads
+    « Catacombe ». The first base, in source order, that has senses in that part of speech lends
+    them; a base in another part of speech lends nothing ("hearted" is no form of the noun "heart").
+    """
+    pointers = {}
+    entries = _read_entries(path, lemmas, per_sense, pointers)
     glosses = {}
-    for word, per_entry in entries.items():
-        joined = _join_senses(per_entry, maxlen, max_senses)
+
+    def gloss(word, found):
+        kept = [entry for entry in found if not entry[0]] or found
+        per_entry = [senses for _, _, senses in kept]
+        joined, word_runs = _join_senses_by_pos(per_entry, [pos for _, pos, _ in kept], maxlen, max_senses)
         if joined:
             glosses[word] = joined
+            if runs is not None:
+                runs[word] = word_runs
+
+    for word, found in entries.items():
+        gloss(word, found)
+    borrowing = {word: bases for word, bases in pointers.items() if word not in glosses}
+    lenders = _read_entries(path, {base for bases in borrowing.values() for base, _ in bases}, per_sense)
+    for word, bases in borrowing.items():
+        for base, pos in bases:
+            lent = [entry for entry in lenders.get(base, []) if entry[1] == pos and not entry[0]]
+            if lent:
+                gloss(word, lent)
+                break
     return glosses
+
+
+def grammar_rows(readings, forms, lemmas, meanings, targets, cefr):
+    """The lines of `grammar.tsv`: (form, lemma, tag, "other"|"-"), sorted.
+
+    Kept: the readings of a dictionary form the pack keeps, for a form the pack can read — one
+    `forms.tsv` maps, or a kept lemma itself. The fourth field marks a relation `is_believable`
+    finds believable: only such a dictionary form may be named as another reading of a form the
+    analysis reads as something else (design D2).
+    """
+    rows = []
+    for (form, lemma), tags in readings.items():
+        if lemma not in lemmas or not (form in forms or form in lemmas):
+            continue
+        for tag in tags:
+            other = form != lemma and is_believable(form, lemma, _kind_of(tag), meanings, targets, cefr)
+            rows.append((form, lemma, tag, "other" if other else "-"))
+    return sorted(rows)
 
 
 def reduce_expressions(path, maxlen, per_sense=42, max_senses=3):
@@ -815,7 +1156,12 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--work", required=True)
     ap.add_argument("--max-lemmas", type=int, default=40000)
-    ap.add_argument("--max-gloss-len", type=int, default=80)
+    ap.add_argument("--max-gloss-len", type=int, default=80, help="an expression's gloss")
+    # A word's gloss is paged on its card, one line per part of speech (add-lingua-word-grammar):
+    # room for eight whole senses, 91 KB of pack for 8 x 300 / 800 against 3 x 80 / 160.
+    ap.add_argument("--max-word-gloss-len", type=int, default=800)
+    ap.add_argument("--max-word-sense-len", type=int, default=300)
+    ap.add_argument("--max-word-senses", type=int, default=8)
     ap.add_argument("--built-at", required=True, help="yyyy-mm-dd (source snapshot date)")
     ap.add_argument("--pack-version", required=True)
     ap.add_argument(
@@ -830,11 +1176,12 @@ def main():
 
     zipf = functools.lru_cache(maxsize=None)(lambda w: zipf_frequency(w, "en"))
     kaikki = os.path.join(a.work, "kaikki-Anglais.jsonl")
+    readings = {}  # (form, lemma) -> {tag}; AGID, retired, carries none
     if a.inflections == "agid":
         pairs, relations = parse_agid_relations(os.path.join(a.work, "agid-infl.txt"))
     else:
-        pairs, relations = parse_esdb_relations(os.path.join(a.work, "scowl.txt"))
-        form_of_relations(kaikki, pairs, relations)
+        pairs, relations = parse_esdb_relations(os.path.join(a.work, "scowl.txt"), readings=readings)
+        form_of_relations(kaikki, pairs, relations, readings)
     cefr = read_cefr(
         [
             os.path.join(a.work, "cefrj-vocabulary-profile-1.5.csv"),
@@ -856,8 +1203,11 @@ def main():
         ranks = append_level_extras(ranks, cefr, inflected, zipf, ranked_forms.get)
     lemmas = set(ranks)
 
-    pairs |= compound_inflections(lemmas, pairs)
-    glosses = reduce_gloss(kaikki, lemmas, a.max_gloss_len)
+    pairs |= compound_inflections(lemmas, pairs, readings)
+    runs = {}
+    glosses = reduce_gloss(
+        kaikki, lemmas, a.max_word_gloss_len, per_sense=a.max_word_sense_len, max_senses=a.max_word_senses, runs=runs
+    )
     expressions = reduce_expressions(kaikki, a.max_gloss_len)
     forms = resolve_forms(pairs, ranks, targets, set(glosses))
     levels = reduce_levels(cefr, lemmas)
@@ -871,6 +1221,15 @@ def main():
     write(a.work, "gloss.tsv", "".join(f"{l}\t{g}\n" for l, g in sorted(glosses.items())))
     write(a.work, "level.tsv", "".join(f"{l}\t{lvl}\n" for l, lvl in sorted(levels.items())))
     write(a.work, "mwe.tsv", "".join(f"{w}\t{g}\n" for w, g in sorted(expressions.items())))
+    grammar = grammar_rows(readings, forms, lemmas, meanings, targets, cefr)
+    write(a.work, "grammar.tsv", "".join("\t".join(row) + "\n" for row in grammar))
+    write(
+        a.work,
+        "senses.tsv",
+        "".join(
+            f"{w}\t" + "\t".join(f"{pos}:{n}" for pos, n in r) + "\n" for w, r in sorted(runs.items()) if w in glosses
+        ),
+    )
     write(a.work, "NOTICE", NOTICE)
     manifest = {
         "meta": {
@@ -899,7 +1258,8 @@ def main():
     print(
         f"reduced en-fr: forms={len(forms)} lemmas={len(ranks)} (ranked={ranked}, "
         f"cefr-added={len(ranks) - ranked}) own-words={len(own & lemmas)} "
-        f"gloss={len(glosses)} levels={len(levels)} expressions={len(expressions)}"
+        f"gloss={len(glosses)} levels={len(levels)} expressions={len(expressions)} "
+        f"readings={len(grammar)} runs={sum(len(r) for r in runs.values())}"
     )
 
 

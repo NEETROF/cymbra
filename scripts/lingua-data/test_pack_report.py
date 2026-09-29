@@ -63,6 +63,26 @@ class Report(unittest.TestCase):
         self.assertNotIn("`boat`: 900 → 950", report)
         self.assertIn("- `harbour`: 3000 → 9000", report)
 
+    def test_the_grammar_tables_are_reported_reading_by_reading(self):
+        tables(
+            self.old,
+            grammar_tsv="leaves\tleaf\tNOUN|Number=Plur\tother\nleaves\tleave\tVERB|Tense=Pres\t-\n",
+            senses_tsv="can\tNOUN:1\tVERB:2\n",
+        )
+        new = tables(
+            self.root / "new",
+            **{k: (self.old / k.replace("_", ".", 1)).read_text() for k in ("gloss_tsv", "freq_tsv", "level_tsv")},
+            grammar_tsv="leaves\tleaf\tNOUN|Number=Plur\t-\nwent\tgo\tVERB|Tense=Past\tother\n",
+            senses_tsv="can\tNOUN:1\tVERB:1\n",
+        )
+        code, report = self.run_report(new)
+        self.assertEqual(code, 0)
+        self.assertIn("| `grammar.tsv` (form lemma reading → may be named as another word) | 2 → 2 | 1 | 1 | 1 |", report)
+        self.assertIn("Added: `went go VERB|Tense=Past`", report)
+        self.assertIn("Removed: `leaves leave VERB|Tense=Pres`", report)
+        self.assertIn("- `leaves leaf NOUN|Number=Plur`: other → -", report)
+        self.assertIn("- `can`: NOUN:1\tVERB:2 → NOUN:1\tVERB:1", report)
+
     def test_a_collapsed_table_fails(self):
         new = tables(self.root / "new", gloss_tsv="boat\tbateau\n", freq_tsv="the\t1\nboat\t900\nharbour\t3000\n")
         code, report = self.run_report(new, "--max-loss", "0.2")

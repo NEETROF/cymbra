@@ -11,6 +11,8 @@ request whose diff shows it (pin-lingua-pack-sources).
 | `gloss.tsv` | lemma → French gloss | kaikki.org extract of the French Wiktionary (CC BY-SA 4.0 + GFDL) |
 | `level.tsv` | lemma → CEFR level | CEFR-J Wordlist v1.5 (commercial use with citation) + Octanove Vocabulary Profile C1/C2 v1.0 (CC BY-SA 4.0) |
 | `mwe.tsv` | expression → French gloss | kaikki.org extract of the French Wiktionary (CC BY-SA 4.0 + GFDL) |
+| `grammar.tsv` | form → its readings: dictionary form, Universal Dependencies tag, and whether it may be named as another word | ESDB's slots (permissive) and kaikki's form links (CC BY-SA 4.0 + GFDL) |
+| `senses.tsv` | lemma → part of speech of each run of its gloss's senses | kaikki.org extract of the French Wiktionary (CC BY-SA 4.0 + GFDL) |
 | `NOTICE` | the attribution stack, embedded in the pack | — |
 | `manifest.json` | the pack's metadata; `pack_version` is the snapshot | — |
 | `pin.json` | the raw sources these tables came from, and the pack they build | — |
@@ -18,8 +20,8 @@ request whose diff shows it (pin-lingua-pack-sources).
 ## Licences
 
 The repository is Apache-2.0; **these files are not**. They are derived from the sources above and
-carry their licences: the Wiktionary-derived tables (`gloss.tsv`, `mwe.tsv`, and the Wiktionary
-signals in `forms.tsv`) under CC BY-SA 4.0 and the GFDL, `freq.tsv` under CC BY-SA 4.0, `level.tsv`
+carry their licences: the Wiktionary-derived tables (`gloss.tsv`, `mwe.tsv`, `senses.tsv`, and the
+Wiktionary signals in `forms.tsv` and `grammar.tsv`) under CC BY-SA 4.0 and the GFDL, `freq.tsv` under CC BY-SA 4.0, `level.tsv`
 under CEFR-J's terms (commercial use allowed with citation) and CC BY-SA 4.0, AGID's relations under
 its permissive licence. `NOTICE` gives the full attribution. See `../../SOURCES.md`.
 
