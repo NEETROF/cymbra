@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.35.0](https://github.com/NEETROF/cymbra/compare/music-v1.34.2...music-v1.35.0) (2026-09-29)
+
+
+### Features
+
+* **music:** open the drums to every player, keep drums.enabled as kill-switch ([#594](https://github.com/NEETROF/cymbra/issues/594)) ([7de5df7](https://github.com/NEETROF/cymbra/commit/7de5df76db8484c675d6a2de58a02d9bc2637059))
+
 ## [1.34.2](https://github.com/NEETROF/cymbra/compare/music-v1.34.1...music-v1.34.2) (2026-09-27)
 
 

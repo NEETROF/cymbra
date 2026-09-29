@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.34.0](https://github.com/NEETROF/cymbra/compare/backend-v0.33.0...backend-v0.34.0) (2026-09-29)
+
+
+### Features
+
+* **back-office:** show account dates and sort the users directory ([#592](https://github.com/NEETROF/cymbra/issues/592)) ([397e080](https://github.com/NEETROF/cymbra/commit/397e080f5513820812bba6650d59f5131012afb2))
+* **discord:** link the Cymbra Music page from announcements ([#589](https://github.com/NEETROF/cymbra/issues/589)) ([14841a7](https://github.com/NEETROF/cymbra/commit/14841a7ba7be80867aee44c998d23038227909ee))
+* **music:** open the drums to every player, keep drums.enabled as kill-switch ([#594](https://github.com/NEETROF/cymbra/issues/594)) ([7de5df7](https://github.com/NEETROF/cymbra/commit/7de5df76db8484c675d6a2de58a02d9bc2637059))
+
 ## [0.33.0](https://github.com/NEETROF/cymbra/compare/backend-v0.32.0...backend-v0.33.0) (2026-09-28)
 
 

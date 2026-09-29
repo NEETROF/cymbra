@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.22.0](https://github.com/NEETROF/cymbra/compare/back-office-v0.21.0...back-office-v0.22.0) (2026-09-29)
+
+
+### Features
+
+* **back-office:** show account dates and sort the users directory ([#592](https://github.com/NEETROF/cymbra/issues/592)) ([397e080](https://github.com/NEETROF/cymbra/commit/397e080f5513820812bba6650d59f5131012afb2))
+* **music:** open the drums to every player, keep drums.enabled as kill-switch ([#594](https://github.com/NEETROF/cymbra/issues/594)) ([7de5df7](https://github.com/NEETROF/cymbra/commit/7de5df76db8484c675d6a2de58a02d9bc2637059))
+
 ## [0.21.0](https://github.com/NEETROF/cymbra/compare/back-office-v0.20.0...back-office-v0.21.0) (2026-09-28)
 
 
