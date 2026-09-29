@@ -30,6 +30,7 @@ function fakePort(analysis: PageAnalysis): AnalyzerPort {
     setStatus: async () => {},
     gloss: async () => undefined,
     phraseGloss: async () => ({ tokens: [] }),
+    wordGrammar: async () => ({ gloss: null, senses: [], readings: [], others: [], pieces: [] }),
   };
 }
 

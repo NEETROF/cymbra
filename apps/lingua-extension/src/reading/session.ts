@@ -674,6 +674,8 @@ export class ReadingSession {
       rect: this.toSurface({ left: rect.left, top: rect.top, bottom: rect.bottom }),
       sentence,
       selection,
+      // The source word, as written: the two halves of `don't` share its range.
+      written: hit.range.toString(),
     };
   }
 

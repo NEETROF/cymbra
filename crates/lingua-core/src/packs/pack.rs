@@ -23,6 +23,9 @@ use crate::knowledge::level::{CefrLevel, CefrLevels};
 use crate::knowledge::state::FrequencyRanks;
 
 use super::format::{FormatError, read_container};
+use super::grammar::{
+    IndexedBlob, ParadigmEntry, Tag, decode_paradigm, decode_runs, decode_tag_pool,
+};
 use super::meta::PackMeta;
 
 /// Canonical section names in a `pack.lingua`.
@@ -48,6 +51,17 @@ pub mod section {
     /// zstd-compressed, offset-indexed expression glosses, in the layout
     /// [`GLOSS_ZST`] uses, keyed by the id [`EXPR`] maps to.
     pub const EXPR_ZST: &str = "expr.zst";
+    /// The grammar tag pool: one Universal Dependencies tag per line, id =
+    /// line index (`add-lingua-word-grammar`). Optional and additive, like
+    /// [`LEVELS`]; the two grammar blobs point into it.
+    pub const TAGS: &str = "tags";
+    /// zstd-compressed paradigms, keyed by lemma id: each dictionary form's
+    /// readings (a form and its tag) and the other dictionary forms a form the
+    /// analysis files under it is also a reading of.
+    pub const PARADIGMS_ZST: &str = "paradigms.zst";
+    /// zstd-compressed gloss runs, keyed by lemma id: the tag of each run of
+    /// consecutive senses of the lemma's gloss, in gloss order.
+    pub const SENSES_ZST: &str = "senses.zst";
     /// The attribution NOTICE (UTF-8).
     pub const NOTICE: &str = "notice";
 }
@@ -107,7 +121,19 @@ pub struct Pack {
     /// Gloss per expression id, in the same layout as `glosses`. Empty when
     /// the pack carries no expression table.
     expression_glosses: BTreeMap<u64, String>,
+    /// The grammar tables, when the pack carries them.
+    grammar: Grammar,
     notice: String,
+}
+
+/// The three grammar sections, read leniently: an absent or unreadable
+/// section answers nothing rather than refusing the pack.
+#[derive(Default)]
+struct Grammar {
+    /// Tag pool, `None` where a line is outside the vocabulary this core knows.
+    tags: Vec<Option<Tag>>,
+    paradigms: Option<IndexedBlob>,
+    senses: Option<IndexedBlob>,
 }
 
 impl Pack {
@@ -166,6 +192,7 @@ impl Pack {
             .find(|s| s.name == section::NOTICE)
             .map(|s| String::from_utf8_lossy(&s.data).into_owned())
             .unwrap_or_default();
+        let grammar = parse_grammar(&sections)?;
 
         Ok(Self {
             meta,
@@ -175,6 +202,7 @@ impl Pack {
             glosses,
             expressions,
             expression_glosses,
+            grammar,
             notice,
         })
     }
@@ -213,6 +241,79 @@ impl Pack {
     /// The bundled attribution notice.
     pub fn notice(&self) -> &str {
         &self.notice
+    }
+
+    /// Whether the pack carries grammar tables.
+    pub fn has_grammar(&self) -> bool {
+        self.grammar.paradigms.is_some() || self.grammar.senses.is_some()
+    }
+
+    /// The paradigm filed under a dictionary form, decoded; empty when the
+    /// pack has none for it.
+    fn paradigm(&self, lemma: &str) -> Vec<ParadigmEntry> {
+        let Some(blob) = &self.grammar.paradigms else {
+            return Vec::new();
+        };
+        self.lexicon
+            .id_of(lemma)
+            .and_then(|id| blob.get(u32::try_from(id).ok()?))
+            .and_then(decode_paradigm)
+            .unwrap_or_default()
+    }
+
+    fn tag(&self, id: u16) -> Option<&Tag> {
+        self.grammar.tags.get(id as usize)?.as_ref()
+    }
+
+    /// The readings of `form` (lowercase) as the dictionary form `lemma`, in
+    /// the pack's order. Empty when the pack carries no grammar, holds no
+    /// such form, or reads none of its tags.
+    pub fn readings(&self, lemma: &str, form: &str) -> Vec<Tag> {
+        self.paradigm(lemma)
+            .into_iter()
+            .filter_map(|entry| match entry {
+                ParadigmEntry::Reading { form: edit, tag } if edit.apply(lemma) == form => {
+                    self.tag(tag).cloned()
+                }
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// The other dictionary forms `form` (lowercase) is also a reading of, as
+    /// the pack files them under `lemma` — the dictionary form the analysis
+    /// reads `form` as — each with its readings of `form`. A dictionary form
+    /// whose readings this core cannot name is left out.
+    pub fn other_readings(&self, lemma: &str, form: &str) -> Vec<(String, Vec<Tag>)> {
+        self.paradigm(lemma)
+            .into_iter()
+            .filter_map(|entry| match entry {
+                ParadigmEntry::Also { form: edit, other } if edit.apply(lemma) == form => {
+                    let other = self.lexicon.lemma_at(other as u64)?.to_owned();
+                    let readings = self.readings(&other, form);
+                    (!readings.is_empty()).then_some((other, readings))
+                }
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// The runs of a dictionary form's gloss: consecutive senses sharing a
+    /// part of speech, each with its tag (`None` when this core cannot read
+    /// it) and the number of senses it covers. Empty when the pack carries
+    /// no runs for the word.
+    pub fn sense_runs(&self, lemma: &str) -> Vec<(Option<&Tag>, usize)> {
+        let Some(blob) = &self.grammar.senses else {
+            return Vec::new();
+        };
+        self.lexicon
+            .id_of(lemma)
+            .and_then(|id| blob.get(u32::try_from(id).ok()?))
+            .and_then(decode_runs)
+            .unwrap_or_default()
+            .into_iter()
+            .map(|run| (self.tag(run.tag), run.count as usize))
+            .collect()
     }
 
     /// The lemmas whose frequency rank is within `[lo, hi]` inclusive, each with
@@ -356,6 +457,30 @@ fn parse_glosses(zst: &[u8], name: &'static str) -> Result<BTreeMap<u64, String>
         glosses.insert(id, text.to_owned());
     }
     Ok(glosses)
+}
+
+/// Reads the grammar sections. They are additive: each one is optional, and
+/// a pack carrying a blob this core cannot index is refused like any other
+/// malformed section, so a corrupt pack never answers half its grammar.
+fn parse_grammar(sections: &[super::format::Section]) -> Result<Grammar, PackError> {
+    let find = |name: &str| sections.iter().find(|s| s.name == name);
+    let tags = match find(section::TAGS) {
+        Some(s) => decode_tag_pool(&s.data).ok_or(PackError::Malformed(section::TAGS))?,
+        None => Vec::new(),
+    };
+    let blob = |name: &'static str| -> Result<Option<IndexedBlob>, PackError> {
+        match find(name) {
+            Some(s) => IndexedBlob::parse(zstd_decode(&s.data)?)
+                .map(Some)
+                .ok_or(PackError::Malformed(name)),
+            None => Ok(None),
+        }
+    };
+    Ok(Grammar {
+        tags,
+        paradigms: blob(section::PARADIGMS_ZST)?,
+        senses: blob(section::SENSES_ZST)?,
+    })
 }
 
 fn zstd_decode(zst: &[u8]) -> Result<Vec<u8>, PackError> {
@@ -687,6 +812,98 @@ mod tests {
         assert!(matches!(
             Pack::load(&pack_with(&keys, &truncated)),
             Err(PackError::Malformed(section::EXPR_ZST))
+        ));
+    }
+
+    /// The sample pack plus whatever grammar sections a test names.
+    fn sample_pack_with(extra: &[(&str, &[u8])]) -> Vec<u8> {
+        let (meta, mut sections) = read_container(&sample_pack_bytes(ANALYZER_VERSION)).unwrap();
+        let owned: Vec<(String, Vec<u8>)> = sections
+            .drain(..)
+            .map(|s| (s.name, s.data))
+            .chain(extra.iter().map(|(n, d)| ((*n).to_owned(), d.to_vec())))
+            .collect();
+        let borrowed: Vec<(&str, &[u8])> = owned
+            .iter()
+            .map(|(n, d)| (n.as_str(), d.as_slice()))
+            .collect();
+        write_container(&meta, &borrowed)
+    }
+
+    #[test]
+    fn a_pack_without_grammar_answers_no_reading_and_no_run() {
+        let pack = Pack::load(&sample_pack_bytes(ANALYZER_VERSION)).expect("load");
+        assert!(!pack.has_grammar());
+        assert!(pack.readings("run", "ran").is_empty());
+        assert!(pack.other_readings("run", "ran").is_empty());
+        assert!(pack.sense_runs("run").is_empty());
+    }
+
+    #[test]
+    fn a_pack_with_grammar_reads_readings_and_runs_by_dictionary_form() {
+        use super::super::grammar::{
+            FormEdit, ParadigmEntry, SenseRun, encode_indexed, encode_paradigm, encode_runs,
+            encode_tag_pool,
+        };
+        let lex = Pack::load(&sample_pack_bytes(ANALYZER_VERSION)).expect("load");
+        let run = lex.lexicon.id_of("run").unwrap() as u32;
+        let tags = encode_tag_pool(&[
+            "VERB".into(),
+            "VERB|Mood=Ind|Tense=Past|VerbForm=Fin".into(),
+        ]);
+        let paradigm = encode_paradigm(&[ParadigmEntry::Reading {
+            form: FormEdit::between("run", "ran").unwrap(),
+            tag: 1,
+        }]);
+        let paradigms =
+            zstd::encode_all(encode_indexed(&[(run, paradigm)]).as_slice(), 19).unwrap();
+        let runs = encode_runs(&[SenseRun { tag: 0, count: 1 }]);
+        let senses = zstd::encode_all(encode_indexed(&[(run, runs)]).as_slice(), 19).unwrap();
+        let pack = Pack::load(&sample_pack_with(&[
+            (section::TAGS, &tags),
+            (section::PARADIGMS_ZST, &paradigms),
+            (section::SENSES_ZST, &senses),
+        ]))
+        .expect("load");
+        assert!(pack.has_grammar());
+        let readings: Vec<String> = pack
+            .readings("run", "ran")
+            .iter()
+            .map(|t| t.to_ud())
+            .collect();
+        assert_eq!(readings, ["VERB|Mood=Ind|Tense=Past|VerbForm=Fin"]);
+        assert!(pack.readings("run", "running").is_empty());
+        assert!(
+            pack.readings("city", "cities").is_empty(),
+            "no paradigm for city"
+        );
+        let runs: Vec<(Option<String>, usize)> = pack
+            .sense_runs("run")
+            .into_iter()
+            .map(|(t, n)| (t.map(|t| t.to_ud()), n))
+            .collect();
+        assert_eq!(runs, [(Some("VERB".to_owned()), 1)]);
+        assert!(pack.sense_runs("unlisted").is_empty());
+    }
+
+    #[test]
+    fn a_malformed_grammar_section_is_refused_under_its_own_name() {
+        assert!(matches!(
+            Pack::load(&sample_pack_with(&[(section::TAGS, &[0xff, 0xfe])])),
+            Err(PackError::Malformed(section::TAGS))
+        ));
+        let truncated = zstd::encode_all(&1u32.to_le_bytes()[..], 19).expect("zstd encode");
+        assert!(matches!(
+            Pack::load(&sample_pack_with(&[(section::PARADIGMS_ZST, &truncated)])),
+            Err(PackError::Malformed(section::PARADIGMS_ZST))
+        ));
+        assert!(matches!(
+            Pack::load(&sample_pack_with(&[(section::SENSES_ZST, &truncated)])),
+            Err(PackError::Malformed(section::SENSES_ZST))
+        ));
+        assert!(matches!(
+            Pack::load(&sample_pack_with(&[(section::SENSES_ZST, b"not zstd")])),
+            Err(PackError::Decompress)
         ));
     }
 

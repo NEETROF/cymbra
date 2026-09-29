@@ -90,6 +90,45 @@ export interface PhraseGloss {
   expressions?: PhraseMatch[];
 }
 
+/**
+ * A Universal Dependencies part of speech and its features, as the pack stores them
+ * (add-lingua-word-grammar). Codes, never shown: `reading/grammar-labels.ts` names them.
+ */
+export interface GrammarTag {
+  /** The UD part of speech (`NOUN`, `VERB`, …). */
+  pos: string;
+  /** The UD features (`{ Tense: "Past", VerbForm: "Part" }`); absent when there are none. */
+  features?: Record<string, string>;
+}
+
+/** The senses of a gloss that share a part of speech. */
+export interface SenseGroup {
+  /** The part of speech, with what the word carries in it (a noun's gender); absent when unknown. */
+  tag?: GrammarTag;
+  /** The group's senses, as the gloss writes them. */
+  text: string;
+}
+
+/** Another dictionary form a written form is also a reading of. */
+export interface OtherReading {
+  lemma: string;
+  readings: GrammarTag[];
+}
+
+/** A word card's grammar, mirroring lingua-core's `WordGrammar` (the WASM `wordGrammar()` JSON). */
+export interface WordGrammar {
+  /** The dictionary form's pack gloss, one text — what a created card stores. */
+  gloss: string | null;
+  /** The same gloss grouped by part of speech; empty without a gloss. */
+  senses: SenseGroup[];
+  /** What the form is, as the card's dictionary form. */
+  readings: GrammarTag[];
+  /** What else it may be — none for a word the pre-pass split. */
+  others: OtherReading[];
+  /** The pieces the pre-pass split the written word into (`don't` → `do`, `not`); empty otherwise. */
+  pieces: string[];
+}
+
 /** The user's status for a dictionary form. Mirrors the WASM `setStatus` vocabulary. */
 export type LemmaStatus = "known" | "learning" | "ignored";
 
