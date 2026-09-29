@@ -59,8 +59,9 @@ No speech SHALL outlive the control that stops it.
 ### Requirement: Read-aloud never leaves the device
 The extension SHALL speak only with a voice that the browser reports as running on the device
 and whose language is the studied language, and SHALL never pass page text to a voice that
-synthesises remotely, even when that voice is the browser's default or the only one available.
-With no eligible voice the card SHALL show no listen row. Read-aloud SHALL add no permission
+synthesises remotely, even when that voice is the browser's default — except as the fallback the
+reader allowed, when no voice of the studied language is on the device. With no voice that may
+speak the card SHALL show no listen row. Read-aloud SHALL add no permission
 and no network request of the extension's own, and SHALL work offline. The language SHALL be
 recognised in its two- and three-letter forms (`en`, `eng`).
 
@@ -73,7 +74,7 @@ recognised in its two- and three-letter forms (`en`, `eng`).
 - **THEN** the on-device voice speaks, and the remote voice never receives the text
 
 #### Scenario: Only remote voices
-- **WHEN** every voice the browser offers for the studied language synthesises remotely
+- **WHEN** every voice the browser offers for the studied language synthesises remotely and the reader has not allowed them
 - **THEN** the card shows no listen row
 
 #### Scenario: Offline
@@ -104,6 +105,34 @@ device while it is on. The choice SHALL be kept on the device and never synchron
 - **WHEN** the browser lists no voice of Android's engine
 - **THEN** Réglages shows no such switch
 
+### Requirement: Remote voices stand in only on the reader's say-so
+Réglages SHALL offer remote voices as a fallback only where the browser lists voices of the
+studied language that synthesise remotely and none on the device. There it SHALL say that no
+voice of the studied language is installed, with a tooltip on
+how to install one that says no change of the system's or the browser's language is needed, and
+SHALL offer a switch "Utiliser les voix en ligne du navigateur", off by default, next to a note
+saying that the text read is then sent to the voice's provider. While it is on, the cards SHALL
+speak with those voices and Réglages SHALL list them and SHALL NOT claim the text stays on the
+device. A remote voice SHALL never speak while a voice of the studied language is on the device,
+switch on or off, and the switch SHALL NOT be offered then. Android's own voices are not remote
+voices in this sense. The choice SHALL be kept on the device and never synchronised.
+
+#### Scenario: Chrome on a Windows set to French
+- **WHEN** the browser lists French voices on the device and only Google's remote voices in English
+- **THEN** the card shows no listen row, and Réglages says no English voice is installed, with the tooltip, and offers "Utiliser les voix en ligne du navigateur", off, with its note
+
+#### Scenario: Allowed
+- **WHEN** the reader switches "Utiliser les voix en ligne du navigateur" on
+- **THEN** the cards offer the listen row, speaking with the remote English voices, and Réglages lists those voices without saying the text stays on the device
+
+#### Scenario: A voice installed later
+- **WHEN** the switch is on and an English voice is then installed on the device
+- **THEN** that voice speaks, the remote voices are no longer listed nor used, and the switch is no longer offered
+
+#### Scenario: A voice on the device
+- **WHEN** the browser lists an English voice on the device and remote English voices
+- **THEN** Réglages offers no such switch, and a remote voice never speaks
+
 ### Requirement: One Réglages on every surface
 Réglages SHALL be built by a single implementation that every surface renders — the side
 panel, the in-page drawer and the toolbar popup — so that a setting added to Réglages appears
@@ -119,8 +148,10 @@ on all of them at once. No surface SHALL keep a Réglages block of its own.
 
 ### Requirement: The reader chooses the voice
 Réglages SHALL show a read-aloud block listing the eligible voices, with an automatic choice
-selected by default and a way to hear each voice, and SHALL leave the block out when there is no
-eligible voice. The choice SHALL be kept on the device as a preference. The automatic choice
+selected by default and a way to hear each voice. When the browser lists voices but none is
+eligible, the block SHALL stay and say that no voice of the studied language is installed on
+the device, with how to add one in a tooltip; it SHALL be left out only while the browser lists
+no voice at all. The choice SHALL be kept on the device as a preference. The automatic choice
 SHALL prefer the eligible voice the browser marks as default when it is the only voice so
 marked, and otherwise SHALL never pick a novelty voice while an ordinary one exists. The block
 SHALL list the ordinary voices first and the novelty voices after them, in a group of their own,
@@ -151,6 +182,10 @@ A chosen voice that is no longer listed SHALL fall back to the automatic choice.
 #### Scenario: A chosen voice
 - **WHEN** the reader chooses a voice in Réglages and then listens from a card
 - **THEN** that voice speaks, on every page of that browser
+
+#### Scenario: No voice of the studied language on the device
+- **WHEN** the browser lists only voices of other languages on the device and remote voices of the studied language, as Chrome does on a Windows set to French
+- **THEN** Réglages shows the read-aloud block with no voice to choose, saying that no English voice is installed with how to add one in a tooltip, and the card shows no listen row
 
 #### Scenario: A chosen voice removed
 - **WHEN** the voice the reader chose is no longer installed

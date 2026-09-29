@@ -2,7 +2,7 @@
 layout: ../../layouts/Legal.astro
 title: Privacy Policy
 lang: en
-updated: 27/09/2026
+updated: 29/09/2026
 ---
 
 This policy explains what personal data the **Cymbra services** (published by
@@ -152,6 +152,13 @@ data, no account token and no installation identifier, and Cymbra does not assoc
 account or an installation. As with any web page, the host of these files (Cloudflare) sees the
 IP address of the device asking for them. Turning the setting off deletes the model from the
 device.
+
+**Read aloud.** Read aloud uses the voices installed on your device: the text read does not
+leave it. If no English voice is installed there, you can turn on your browser's online voices
+as a fallback (a setting off by default, specific to each device): the text read is then sent
+by **your browser** to the provider of those voices (Google, for Chrome), under that provider's
+terms. Cymbra does not receive this text. As soon as an English voice is installed on the
+device, it is used instead.
 
 **What is synced when you are signed in** to your Cymbra account:
 

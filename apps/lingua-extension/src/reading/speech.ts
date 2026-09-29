@@ -15,7 +15,10 @@
 // it lists the same voice twice, in two qualities (`Daniel`, compact and super-compact); and
 // Firefox for Android writes languages in three letters (`eng-GBR-default`) and reports every
 // voice of Android's engine as not local — it cannot tell where that engine synthesises. Those
-// voices speak only once the reader has allowed them in Réglages, knowing why.
+// voices speak only once the reader has allowed them in Réglages, knowing why. Chrome's remote
+// voices are the same bargain in the open: on a Windows set to French, the only English voices
+// are Google's, so they may stand in — only where no English voice is on the device, and only
+// once the reader has allowed them, told that the text then leaves it.
 
 /** What this module reads of a voice. A `SpeechSynthesisVoice` has it, and so does a captured list. */
 export interface VoiceInfo {
@@ -43,9 +46,11 @@ export interface SpeechSettings {
   readonly voice: string | null;
   /** Whether Android's own voices may speak, though the browser cannot say they stay on the device. */
   readonly androidVoices: boolean;
+  /** Whether remote voices may stand in where no voice of the studied language is on the device. */
+  readonly remoteVoices: boolean;
 }
 
-export const DEFAULT_SPEECH_SETTINGS: SpeechSettings = { voice: null, androidVoices: false };
+export const DEFAULT_SPEECH_SETTINGS: SpeechSettings = { voice: null, androidVoices: false, remoteVoices: false };
 
 /** Where those settings are kept, and how a change made in another context reaches this one. */
 export interface VoicePreference {
@@ -64,8 +69,10 @@ export interface Speaker {
   readonly lang: string;
   /** Whether a voice may speak now. Without one, nothing offers to listen. */
   available(): boolean;
-  /** The eligible voices, in the browser's order. */
+  /** The voices that may speak — on the device, or the allowed stand-ins — in the browser's order. */
   eligible(): VoiceInfo[];
+  /** Whether the browser lists any voice at all, eligible or not (Chrome lists none at first). */
+  listsVoices(): boolean;
   /** The voice the automatic choice lands on, ignoring the reader's preference. */
   automatic(): VoiceInfo | null;
   /** The reader's preference as stored — possibly a voice no longer listed. */
@@ -74,6 +81,10 @@ export interface Speaker {
   androidVoices(): boolean;
   /** Whether this browser offers Android's own voices in the studied language — allowed or not. */
   offersAndroidVoices(): boolean;
+  /** Whether the reader allowed remote voices to stand in. */
+  remoteVoices(): boolean;
+  /** Whether remote voices could stand in: some in the studied language, none on the device. */
+  offersRemoteVoices(): boolean;
   speaking(): Speaking | null;
   /**
    * Stop whatever is speaking and speak `text`, with `voice` or the chosen one. Synchronous all
@@ -196,6 +207,26 @@ export function isEligible(voice: VoiceInfo, lang: string, androidVoices = false
   return voice.localService === true || (androidVoices && isAndroidVoice(voice));
 }
 
+/** A voice of the studied language that synthesises off the device: Chrome's `Google …` voices. */
+export function isRemoteVoice(voice: VoiceInfo, lang: string): boolean {
+  return language(voice.lang) === lang.toLowerCase() && voice.localService !== true && !isAndroidVoice(voice);
+}
+
+/**
+ * The voices that may speak: the eligible ones whenever there is one; else, once the reader
+ * allowed them, the remote ones — a stand-in, never a choice next to a voice on the device.
+ */
+export function usableVoices<V extends VoiceInfo>(
+  voices: readonly V[],
+  lang: string,
+  androidVoices = false,
+  remoteVoices = false,
+): V[] {
+  const onDevice = voices.filter((voice) => isEligible(voice, lang, androidVoices));
+  if (onDevice.length > 0 || !remoteVoices) return onDevice;
+  return voices.filter((voice) => isRemoteVoice(voice, lang));
+}
+
 /** The name without Chrome's parenthesised suffix: `Eddy (English (United States))` → `Eddy`. */
 function baseName(name: string): string {
   const at = name.indexOf("(");
@@ -240,9 +271,14 @@ function distinctVoices<V extends VoiceInfo>(voices: readonly V[]): { voice: V; 
   return [...kept.values()];
 }
 
-/** Eligible voices best first, each once: tier, then region, then the browser's order. */
-export function rankVoices<V extends VoiceInfo>(voices: readonly V[], lang: string, androidVoices = false): V[] {
-  return distinctVoices(voices.filter((voice) => isEligible(voice, lang, androidVoices)))
+/** Usable voices best first, each once: tier, then region, then the browser's order. */
+export function rankVoices<V extends VoiceInfo>(
+  voices: readonly V[],
+  lang: string,
+  androidVoices = false,
+  remoteVoices = false,
+): V[] {
+  return distinctVoices(usableVoices(voices, lang, androidVoices, remoteVoices))
     .sort(
       (a, b) =>
         tier(a.voice) - tier(b.voice) || regionRank(a.voice, lang) - regionRank(b.voice, lang) || a.index - b.index,
@@ -260,14 +296,16 @@ export function pickVoice<V extends VoiceInfo>(
   lang: string,
   preferred: string | null,
   androidVoices = false,
+  remoteVoices = false,
 ): V | null {
+  const usable = usableVoices(voices, lang, androidVoices, remoteVoices);
   if (preferred) {
-    const chosen = voices.find((v) => v.voiceURI === preferred && isEligible(v, lang, androidVoices));
+    const chosen = usable.find((v) => v.voiceURI === preferred);
     if (chosen) return chosen;
   }
   const defaults = voices.filter((v) => v.default);
-  if (defaults.length === 1 && isEligible(defaults[0], lang, androidVoices)) return defaults[0];
-  return rankVoices(voices, lang, androidVoices)[0] ?? null;
+  if (defaults.length === 1 && usable.includes(defaults[0])) return defaults[0];
+  return rankVoices(voices, lang, androidVoices, remoteVoices)[0] ?? null;
 }
 
 /** The eligible voices as Réglages lists them: the ordinary ones, then the others, apart. */
@@ -275,8 +313,9 @@ export function voiceGroups<V extends VoiceInfo>(
   voices: readonly V[],
   lang: string,
   androidVoices = false,
+  remoteVoices = false,
 ): { ordinary: V[]; others: V[] } {
-  const ranked = rankVoices(voices, lang, androidVoices);
+  const ranked = rankVoices(voices, lang, androidVoices, remoteVoices);
   return { ordinary: ranked.filter((v) => !isDeprioritised(v)), others: ranked.filter(isDeprioritised) };
 }
 
@@ -334,20 +373,25 @@ export function createSpeaker<V extends VoiceInfo>(
   void preference.load().then(follow, () => {});
   preference.watch(follow);
 
-  const chosen = (): V | null => pickVoice(voices, lang, settings.voice, settings.androidVoices);
+  const usable = (): V[] => usableVoices(voices, lang, settings.androidVoices, settings.remoteVoices);
+  const chosen = (): V | null => pickVoice(voices, lang, settings.voice, settings.androidVoices, settings.remoteVoices);
 
   return {
     lang,
     available: () => chosen() !== null,
-    eligible: () => voices.filter((v) => isEligible(v, lang, settings.androidVoices)),
-    automatic: () => pickVoice(voices, lang, null, settings.androidVoices),
+    eligible: usable,
+    listsVoices: () => voices.length > 0,
+    automatic: () => pickVoice(voices, lang, null, settings.androidVoices, settings.remoteVoices),
     preferred: () => settings.voice,
     androidVoices: () => settings.androidVoices,
     offersAndroidVoices: () => voices.some((v) => isAndroidVoice(v) && isEligible(v, lang, true)),
+    remoteVoices: () => settings.remoteVoices,
+    offersRemoteVoices: () =>
+      voices.some((v) => isRemoteVoice(v, lang)) && !voices.some((v) => isEligible(v, lang, settings.androidVoices)),
     speaking: () => (current ? { key: current.key, text: current.text } : null),
     speak(key, text, voice) {
       const v = (voice as V | undefined) ?? chosen();
-      if (!engine || !v || !isEligible(v, lang, settings.androidVoices) || !text.trim()) return;
+      if (!engine || !v || !usable().some((u) => u.voiceURI === v.voiceURI) || !text.trim()) return;
       engine.cancel();
       const token = {};
       current = { key, text, token };

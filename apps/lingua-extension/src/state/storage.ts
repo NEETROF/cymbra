@@ -70,6 +70,13 @@ export const VOICE_KEY = "cymbra-lingua-voice";
 export const ANDROID_VOICES_KEY = "cymbra-lingua-android-voices";
 
 /**
+ * Whether the reader allowed the browser's remote voices (Chrome's `Google …`) to stand in where
+ * no voice of the studied language is on the device. Absent means not allowed. Per device, never
+ * synchronised.
+ */
+export const REMOTE_VOICES_KEY = "cymbra-lingua-remote-voices";
+
+/**
  * How the book reader lays a book out: `paginated` (the default — pages turned by tap, suited
  * to e-ink) or `scrolled` (one continuous column, for a laptop). A preference, set in the
  * Réglages view every host renders; the reader page follows its `storage.onChanged`.
@@ -195,17 +202,30 @@ export async function saveAndroidVoices(area: AsyncStorageArea, allowed: boolean
   await area.set({ [ANDROID_VOICES_KEY]: allowed });
 }
 
+/** Whether remote voices may stand in; absent means not allowed. */
+export async function loadRemoteVoices(area: AsyncStorageArea): Promise<boolean> {
+  const got = await area.get(REMOTE_VOICES_KEY);
+  return got[REMOTE_VOICES_KEY] === true;
+}
+
+/** Allow or refuse remote voices as a stand-in. */
+export async function saveRemoteVoices(area: AsyncStorageArea, allowed: boolean): Promise<void> {
+  await area.set({ [REMOTE_VOICES_KEY]: allowed });
+}
+
 /** The read-aloud settings in `area`, followed in every context through `storage.onChanged`. */
 export function storedVoicePreference(area: AsyncStorageArea): VoicePreference {
   const load = async (): Promise<SpeechSettings> => ({
     voice: await loadVoice(area),
     androidVoices: await loadAndroidVoices(area),
+    remoteVoices: await loadRemoteVoices(area),
   });
   return {
     load,
     watch(onChange) {
       chrome.storage.onChanged.addListener((changes, areaName) => {
-        if (areaName !== "local" || !(changes[VOICE_KEY] || changes[ANDROID_VOICES_KEY])) return;
+        if (areaName !== "local" || !(changes[VOICE_KEY] || changes[ANDROID_VOICES_KEY] || changes[REMOTE_VOICES_KEY]))
+          return;
         void load().then(onChange);
       });
     },

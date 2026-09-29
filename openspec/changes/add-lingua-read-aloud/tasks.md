@@ -47,3 +47,6 @@
 - [x] 7.1 `README.md` of the extension: read-aloud, on-device voices only and why, the Chrome desktop without a local English voice, the findings of 6.3
 - [x] 7.2 `openspec validate add-lingua-read-aloud --strict`
 - [ ] 7.3 After the extension release, dispatch `lingua-apple-release` with `deliver`, so the Safari variant carries the same build
+- [x] 7.4 Chrome on a Windows set to French lists no English voice of its own: its list captured as `chrome-windows.json`, and Réglages says no English voice is installed and how to add one instead of hiding the block (2026-09-29)
+- [x] 7.5 D9: where no English voice is on the device, remote voices stand in once the reader allows them ("Utiliser les voix en ligne du navigateur", off by default, `cymbra-lingua-remote-voices`), the install procedure in a tooltip; privacy policy (fr/en) gains the read-aloud paragraph
+- [ ] 7.6 Chrome on the French Windows: the switch off reads nothing and the tooltip shows on hover; on, the card speaks with Google US English; an English voice installed then takes over and the switch disappears

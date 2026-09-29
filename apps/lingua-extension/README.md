@@ -156,7 +156,13 @@ yarn lint && yarn format:check && yarn typecheck && yarn test
   `localService: true` in the studied language, the voice always named on the utterance.
   Chrome's desktop "Google …" voices synthesise on Google's servers and are never used, even
   as the default; where only those exist (Chrome on Linux or ChromeOS without a system
-  voice), the row is simply absent — install an English system voice to get it. The automatic
+  voice, and Chrome on a Windows set to French, whose own voices are French only —
+  `chrome-windows.json`), the row is absent and Réglages says no English voice is installed —
+  how to add one in an ⓘ tooltip (Windows: Settings › Time & language › Speech › Add voices, no
+  change of language, then restart the browser) — and offers _Utiliser les voix en ligne du
+  navigateur_, off by default (`cymbra-lingua-remote-voices`, per device): once on, Google's
+  voices read, the text going to Google through Chrome, until an English voice is installed,
+  which takes over at once. The automatic
   choice trusts a default voice only when it is the only one marked (Safari marks them all),
   and never lands on Apple's novelty, Eloquence or legacy voices (`Bubbles`, `Eddy`, `Fred`…)
   while an ordinary one exists; Réglages lists them apart under _Autres voix_ and keeps the

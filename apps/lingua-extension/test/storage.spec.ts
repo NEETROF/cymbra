@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ANDROID_VOICES_KEY,
+  REMOTE_VOICES_KEY,
   type AsyncStorageArea,
   classifyStored,
   DEFAULT_HUD_POSITION,
@@ -17,6 +18,7 @@ import {
   saveReaderDisplay,
   loadStored,
   loadAndroidVoices,
+  loadRemoteVoices,
   loadVoice,
   loadHudPosition,
   parseHudPosition,
@@ -25,6 +27,7 @@ import {
   saveEnabled,
   saveHudHidden,
   saveAndroidVoices,
+  saveRemoteVoices,
   saveHudPosition,
   saveVoice,
   STORAGE_VERSION,
@@ -215,13 +218,22 @@ describe("the read-aloud voice preference", () => {
     expect(await loadAndroidVoices(fakeArea({ [ANDROID_VOICES_KEY]: "yes" }))).toBe(false);
   });
 
-  it("follows a change of either setting made in another context, and nothing else", async () => {
+  it("keeps remote voices refused until they are allowed", async () => {
+    const area = fakeArea();
+    expect(await loadRemoteVoices(area)).toBe(false);
+    await saveRemoteVoices(area, true);
+    expect(area.store[REMOTE_VOICES_KEY]).toBe(true);
+    expect(await loadRemoteVoices(area)).toBe(true);
+    expect(await loadRemoteVoices(fakeArea({ [REMOTE_VOICES_KEY]: "yes" }))).toBe(false);
+  });
+
+  it("follows a change of any read-aloud setting made in another context, and nothing else", async () => {
     let listener: ((changes: Record<string, { newValue?: unknown }>, areaName: string) => void) | null = null;
     vi.stubGlobal("chrome", { storage: { onChanged: { addListener: (l: typeof listener) => (listener = l) } } });
     const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
     const area = fakeArea({ [VOICE_KEY]: "Daniel" });
     const pref = storedVoicePreference(area);
-    expect(await pref.load()).toEqual({ voice: "Daniel", androidVoices: false });
+    expect(await pref.load()).toEqual({ voice: "Daniel", androidVoices: false, remoteVoices: false });
     const seen: unknown[] = [];
     pref.watch((settings) => seen.push(settings));
     area.store[VOICE_KEY] = "Moira";
@@ -230,12 +242,16 @@ describe("the read-aloud voice preference", () => {
     area.store[ANDROID_VOICES_KEY] = true;
     listener!({ [ANDROID_VOICES_KEY]: { newValue: true } }, "local");
     await settle();
+    area.store[REMOTE_VOICES_KEY] = true;
+    listener!({ [REMOTE_VOICES_KEY]: { newValue: true } }, "local");
+    await settle();
     listener!({ [VOICE_KEY]: { newValue: "Karen" } }, "sync");
     listener!({ [HUD_HIDDEN_KEY]: { newValue: true } }, "local");
     await settle();
     expect(seen).toEqual([
-      { voice: "Moira", androidVoices: false },
-      { voice: "Moira", androidVoices: true },
+      { voice: "Moira", androidVoices: false, remoteVoices: false },
+      { voice: "Moira", androidVoices: true, remoteVoices: false },
+      { voice: "Moira", androidVoices: true, remoteVoices: true },
     ]);
   });
 });

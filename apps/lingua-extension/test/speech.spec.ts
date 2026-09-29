@@ -5,6 +5,8 @@ import {
   isDeprioritised,
   isAndroidVoice,
   isEligible,
+  isRemoteVoice,
+  usableVoices,
   pickVoice,
   rankVoices,
   sameSpokenText,
@@ -49,6 +51,12 @@ describe("which voice may speak", () => {
     const remote = voiceFixture("chrome-macos").filter((v) => v.name.startsWith("Google"));
     expect(remote.length).toBeGreaterThan(0);
     expect(remote.some((v) => isEligible(v, "en"))).toBe(false);
+  });
+
+  it("finds no eligible voice on a French Windows: its own voices are French, its English ones Google's", () => {
+    const voices = voiceFixture("chrome-windows");
+    expect(voices.filter((v) => isEligible(v, "en"))).toEqual([]);
+    expect(pickVoice(voices, "en", null)).toBeNull();
   });
 });
 
@@ -225,6 +233,47 @@ describe("Firefox for Android: Android's own voices, on the reader's say-so", ()
     expect(fake.spoken[0].voice.name).toBe("anglais (USA,DEFAULT)");
     const mac = makeFakeSpeech(voiceFixture("chrome-macos"));
     expect(createSpeaker(mac.engine, "en", mac.preference).offersAndroidVoices()).toBe(false);
+  });
+});
+
+describe("remote voices as a stand-in", () => {
+  it("are Chrome's Google voices of the studied language, never Android's nor another language's", () => {
+    const windows = voiceFixture("chrome-windows");
+    expect(windows.filter((v) => isRemoteVoice(v, "en")).map((v) => v.name)).toEqual([
+      "Google US English",
+      "Google UK English Female",
+      "Google UK English Male",
+    ]);
+    expect(voiceFixture("firefox-android").some((v) => isRemoteVoice(v, "en"))).toBe(false);
+  });
+
+  it("stand in only once allowed, and only where no voice is on the device", () => {
+    const windows = voiceFixture("chrome-windows");
+    expect(usableVoices(windows, "en")).toEqual([]);
+    expect(pickVoice(windows, "en", null, false, true)?.name).toBe("Google US English");
+    const mac = voiceFixture("chrome-macos");
+    expect(usableVoices(mac, "en", false, true).some((v) => !v.localService)).toBe(false);
+    expect(pickVoice(mac, "en", "Google US English", false, true)?.name).toBe("Daniel");
+  });
+
+  it("speak through the speaker once allowed, and step aside when a voice is installed", async () => {
+    const fake = makeFakeSpeech(voiceFixture("chrome-windows"));
+    const s = createSpeaker(fake.engine, "en", fake.preference);
+    await settle();
+    expect(s.offersRemoteVoices()).toBe(true);
+    expect(s.remoteVoices()).toBe(false);
+    expect(s.available()).toBe(false);
+    s.speak("selection", "seldom");
+    expect(fake.spoken).toHaveLength(0);
+    fake.prefer({ remoteVoices: true });
+    expect(s.available()).toBe(true);
+    s.speak("selection", "seldom");
+    expect(fake.spoken[0].voice.name).toBe("Google US English");
+    fake.list([...voiceFixture("chrome-windows"), samantha]);
+    expect(s.offersRemoteVoices()).toBe(false);
+    expect(s.eligible()).toEqual([samantha]);
+    s.speak("selection", "seldom", voiceFixture("chrome-windows")[4]);
+    expect(fake.spoken).toHaveLength(1);
   });
 });
 

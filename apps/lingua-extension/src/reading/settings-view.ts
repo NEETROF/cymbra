@@ -9,6 +9,7 @@ import {
   loadReaderFlow,
   saveAndroidVoices,
   saveHudHidden,
+  saveRemoteVoices,
   saveReaderFlow,
   saveVoice,
 } from "../state/storage.ts";
@@ -61,6 +62,9 @@ export interface SettingsOptions {
 const PREVIEW_KEY = "preview";
 /** What the preview reads, in the studied language. */
 const PREVIEW_TEXT = "This is how your pages will sound when Lingua reads them aloud.";
+/** How to install a voice on the device — a system voice, not a change of language. */
+const INSTALL_VOICE_HELP =
+  "Pour une voix sur l'appareil, sans changer la langue du système ni du navigateur : sous Windows, Paramètres › Heure et langue › Voix › Ajouter des voix › Anglais (États-Unis) ; sous macOS, Réglages Système › Accessibilité › Contenu énoncé › Voix du système › Gérer les voix › Anglais. Relance ensuite le navigateur.";
 
 /** What the Synchronisation block needs from the background and the store. */
 export interface SyncControls {
@@ -169,7 +173,7 @@ export function mountSettings(
     el("div", "set-note", "Pastille discrète en bas de la page : pourcentage + accès au deck et aux réglages."),
   );
 
-  // — Lecture à voix haute (only when a voice on this device may speak) —
+  // — Lecture à voix haute (once the browser lists its voices) —
   const speaker = opts.speaker;
   const voiceBlock = settingBlock("Lecture à voix haute");
   voiceBlock.hidden = true;
@@ -195,7 +199,28 @@ export function mountSettings(
     "set-note",
     "Firefox ne peut pas garantir que la voix d'Android reste sur l'appareil : selon le moteur choisi dans les réglages d'Android, le texte lu peut passer par le réseau.",
   );
-  voiceBlock.append(androidRow, androidNote, voiceRow, onDeviceNote);
+  // A French Windows lists only French voices of its own: Chrome's English ones are Google's,
+  // remote. Said here, with how to install one (the reader need not change any language for it),
+  // rather than a block that silently never shows.
+  const noVoiceNote = el("div", "set-note", "Aucune voix anglaise n'est installée sur cet appareil. ");
+  const installInfo = el("span", "set-info", "ⓘ");
+  installInfo.title = INSTALL_VOICE_HELP;
+  installInfo.tabIndex = 0;
+  installInfo.setAttribute("role", "img");
+  installInfo.setAttribute("aria-label", INSTALL_VOICE_HELP);
+  noVoiceNote.append(installInfo);
+  // Where the only voices of the studied language are remote, they may stand in — never by
+  // default, and saying where the text then goes.
+  const remoteRow = el("label", "set-toggle");
+  const remoteToggle = el("input");
+  remoteToggle.type = "checkbox";
+  remoteRow.append(remoteToggle, el("span", undefined, "Utiliser les voix en ligne du navigateur"));
+  const remoteNote = el(
+    "div",
+    "set-note",
+    "En secours : le texte lu est envoyé aux serveurs du fournisseur de la voix (Google, pour Chrome) et quitte l'appareil. Une voix installée le remplace dès qu'elle est là.",
+  );
+  voiceBlock.append(androidRow, androidNote, noVoiceNote, remoteRow, remoteNote, voiceRow, onDeviceNote);
 
   // — Livres — the reader page, whichever host this view is rendered in (add-lingua-reader D8).
   const booksBlock = settingBlock("Livres");
@@ -341,6 +366,7 @@ export function mountSettings(
   });
   voiceSelect.addEventListener("change", () => void saveVoice(area, voiceSelect.value || null));
   androidToggle.addEventListener("change", () => void saveAndroidVoices(area, androidToggle.checked));
+  remoteToggle.addEventListener("change", () => void saveRemoteVoices(area, remoteToggle.checked));
   previewBtn.addEventListener("click", () => {
     if (!speaker) return;
     if (speaker.speaking()?.key === PREVIEW_KEY) {
@@ -367,13 +393,20 @@ export function mountSettings(
   function renderVoices(): void {
     const eligible = speaker?.eligible() ?? [];
     const offersAndroid = speaker?.offersAndroidVoices() ?? false;
-    voiceBlock.hidden = eligible.length === 0 && !offersAndroid;
+    const offersRemote = speaker?.offersRemoteVoices() ?? false;
+    // No voice listed at all is no synthesiser, or Chrome before it announces its voices.
+    voiceBlock.hidden = eligible.length === 0 && !offersAndroid && !speaker?.listsVoices();
     if (!speaker || voiceBlock.hidden) return;
+    const remote = offersRemote && speaker.remoteVoices();
+    noVoiceNote.hidden = (eligible.length > 0 && !remote) || offersAndroid;
+    remoteRow.hidden = !offersRemote;
+    remoteNote.hidden = !offersRemote;
+    remoteToggle.checked = speaker.remoteVoices();
     androidRow.hidden = !offersAndroid;
     androidNote.hidden = !offersAndroid;
     androidToggle.checked = speaker.androidVoices();
     // Where Android's voices are allowed, the promise below would not hold: the note above says why.
-    onDeviceNote.hidden = eligible.length === 0 || (offersAndroid && speaker.androidVoices());
+    onDeviceNote.hidden = eligible.length === 0 || (offersAndroid && speaker.androidVoices()) || remote;
     voiceRow.hidden = eligible.length === 0;
     if (eligible.length === 0) return;
     const option = (value: string, label: string): HTMLOptionElement => {
@@ -382,7 +415,7 @@ export function mountSettings(
       return o;
     };
     const voiceOption = (v: VoiceInfo): HTMLOptionElement => option(v.voiceURI, voiceLabel(v));
-    const { ordinary, others } = voiceGroups(eligible, speaker.lang, speaker.androidVoices());
+    const { ordinary, others } = voiceGroups(eligible, speaker.lang, speaker.androidVoices(), speaker.remoteVoices());
     const automatic = speaker.automatic();
     voiceSelect.replaceChildren(
       option("", automatic ? `Automatique (${automatic.name})` : "Automatique"),

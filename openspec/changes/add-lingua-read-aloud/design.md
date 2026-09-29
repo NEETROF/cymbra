@@ -238,6 +238,28 @@ The allowance is narrow: it admits voices whose identifier is Android's (`moz-tt
 nothing else — a remote Chrome voice stays refused whatever the switch says. Languages and
 regions are read in both forms (`eng` → `en`, `GBR` → `GB`) wherever voices are compared or named.
 
+### D9. Remote voices as a fallback, on the reader's say-so
+
+Measured on Chrome for Windows set to French (2026-09-29, `chrome-windows.json`): three voices on
+the device, all `fr-FR` (Hortense, Julie, Paul), and the English ones only Google's,
+`localService: false`. Under D2 nothing is read there — and a reader cannot be asked to switch
+their system to English. Installing an English voice does not require that (Windows adds a voice
+without changing its display language), but it is a step many readers will not take.
+
+Chosen with the founder (2026-09-29), on the model of D8: **the reader allows it, off by
+default.** Where the studied language has remote voices and none on the device, Réglages says no
+English voice is installed — the procedure in an ⓘ tooltip (`title` and `aria-label`, focusable)
+that says no language changes — and offers "Utiliser les voix en ligne du navigateur", with a note
+saying the text read then goes to the voice's provider (Google, for Chrome). While it is on, the
+remote voices are the usable ones and the "voix installées" line is not shown.
+
+The fallback is narrow: remote voices are usable only while **no** voice of the studied language
+is on the device (`usableVoices`). An English voice installed later takes over at once, the switch
+disappears, and a stored remote choice falls back to the automatic one. Android's voices are not
+remote voices here — they keep D8's own switch. The extension still sends nothing itself: Chrome's
+synthesiser does, which the privacy policy now says. The setting is per device
+(`cymbra-lingua-remote-voices`), never synchronised.
+
 ### D7. Tests
 
 - `test/speech.spec.ts` drives `speech.ts` through a hand-written synthesiser double — jsdom has
@@ -259,8 +281,12 @@ regions are read in both forms (`eng` → `en`, `GBR` → `GB`) wherever voices 
   Android's engine, is checked on device (task 6.3). If it lists a voice that reaches the network as local, that voice goes on the
   deprioritised list and the finding is written into the extension README.
 - [No eligible voice on a desktop] → Chrome on Linux or ChromeOS can list only Google's remote
-  voices: the row is absent there. This is the privacy promise working, and the README says how
-  to install a system voice.
+  voices, and so does Chrome on a Windows set to French, whose own voices are French only
+  (captured 2026-09-29, `chrome-windows.json`): the row is absent there. This is the privacy
+  promise working, but a block that silently never shows reads as a bug, so Réglages keeps its
+  read-aloud block and says that no voice of the studied language is installed, with how to add
+  one — and offers the remote voices as an opt-in fallback (D9). The block stays out only while
+  the browser lists no voice at all — no synthesiser, or Chrome before it announces its voices.
 - [Firefox for Android without Web Speech] → If GeckoView does not expose `speechSynthesis`, or
   lists no voice, the row is simply absent (D1). Checked on device.
 - [Safari on iPhone and the silent switch] → Web Speech may follow the ring/silent switch. The
