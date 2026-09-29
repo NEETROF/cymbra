@@ -64,9 +64,10 @@ words, so `analyse_page` is untouched.
 ### Modified Capabilities
 
 - `lingua-data-packs`: an ADDED requirement for the expression table (its source, its keys,
-  its licence, its optionality), and two MODIFIED — the container's contents, whose present
-  wording also claims that adding the level table bumped `analyzer_version`, which it did
-  not; and the size budget, whose arbitration order the table joins at the head.
+  its licence, its optionality). It also changed the container's contents and the size budget;
+  those two requirements reached `openspec/specs/` first through `add-lingua-word-grammar`, archived
+  before this change on 2026-09-29, whose text already names the expression table. Its MODIFIED
+  copies were removed so that archiving this change cannot put back the older wording.
 - `lingua-analysis`: an ADDED requirement for expression lookup inside a phrase gloss.
 - `lingua-browser-extension`: an ADDED requirement for an expression as the card's answer
   and as its key, and one MODIFIED — the word-by-word requirement, whose `put up with`
