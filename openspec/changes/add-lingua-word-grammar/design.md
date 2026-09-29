@@ -451,7 +451,7 @@ _Alternatives considered:_
   `PUNCT` or with no tag has no heading.
 - **Pages** (`reading/gloss-pages.ts`). A gloss longer than `PAGE_CHARS = 160` — what a card
   showed before — is cut into pages of whole senses, at least one per page, and a group that runs
-  across two pages is headed again on the second. A control under the gloss reads « ‹ 1/3 Suivant › »;
+  across two pages is headed again on the second. A control under the gloss reads « ‹ 1/3 › », two bare arrows, as quiet as each other;
   it is absent when the gloss fits. Its buttons keep the reader's selection, as the listen
   buttons do, and a page change redraws only the gloss and re-anchors the card. Every `show`
   starts on the first page, which is also what a created card stores (`pageText`), so the deck
