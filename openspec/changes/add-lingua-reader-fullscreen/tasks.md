@@ -20,7 +20,8 @@
   - 2026-09-30, by hand (Guillaume): fullscreen entered and left from the control on Firefox desktop, Chrome for Testing and Safari macOS (the macOS app built from this branch).
 - [x] 3.2 Headed Chrome: Réviser from fullscreen leaves it and the side panel opens
   - 2026-09-30, Chrome for Testing with the unpacked build, by hand: OK.
-- [ ] 3.3 Firefox for Android (Tab S6 Lite or the Boox): the control is shown and works in the extension page, or is absent
+- [x] 3.3 Firefox for Android (Tab S6 Lite or the Boox): the control is shown and works in the extension page, or is absent
+  - 2026-09-30, Galaxy Tab S6 Lite (SM-P610), Firefox release, temporary add-on built from this branch: the control is shown and works (Guillaume). The Boox is still to see, with the release.
 - [x] 3.4 Safari iPad: fullscreen, safe area, word selection and page turns; Safari iPhone: no control
   - 2026-09-30, iPad Air 13" (M2), iPadOS 26, the iOS app built from this branch: **Safari exposes no Fullscreen API to the extension's reader page** — `requestFullscreen`, `webkitRequestFullscreen`, `fullscreenEnabled` and `webkitFullscreenEnabled` are all `undefined` (read by a throwaway diagnostic build). The control is absent, as specified; the reader works as before.
   - Safari's own "Masquer la barre d'outils" (page menu) is not offered on the reader page either, while it is on a website's page: Safari on iPadOS treats the extension's pages as its own, with neither the web's Fullscreen API nor its toolbar hiding (Safari on macOS offers both: the control works, and "Masquer la barre d'outils" is in its menu on the reader page too). On iPad the bars stay; hiding them would need the reader outside an extension page (a site, or the Safari host app's own view) — out of this change.
