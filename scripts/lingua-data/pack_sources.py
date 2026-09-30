@@ -186,8 +186,12 @@ def fetch_pinned(pin: Path, work: Path, *, fetch=download, build=build_esdb) -> 
     record = load(pin)
     pair = pair_of(pin)
     sources = get(record, "sources")
-    esdb = ESDB[pair]
-    if "esdb" not in sources:
+    if pair not in KAIKKI:
+        raise PinError(f"no source registry for {pair}: add it to PINNED / ESDB / KAIKKI in pack_sources.py")
+    esdb = ESDB.get(pair)
+    if esdb is None:
+        pass  # a pair whose inflections come from another source (ESDB is English)
+    elif "esdb" not in sources:
         # A source the code now reads and the record does not know yet: it is pinned at a commit,
         # so recording what that commit exports is the same act as reading it.
         sources["esdb"] = {k: esdb[k] for k in ("repository", "tag", "commit")}
@@ -197,11 +201,12 @@ def fetch_pinned(pin: Path, work: Path, *, fetch=download, build=build_esdb) -> 
         got = sha256(build({**esdb, **sources["esdb"]}, work))
         if got != sources["esdb"]["sha256"]:
             raise PinError(f"esdb: scowl.txt has sha256 {got}, pin.json records {sources['esdb']['sha256']}")
-    for retired in [name for name in sources if name not in (*PINNED[pair], "esdb", "kaikki", "wordfreq")]:
+    read = (*PINNED.get(pair, {}), *(("esdb",) if esdb else ()), "kaikki", "wordfreq")
+    for retired in [name for name in sources if name not in read]:
         del sources[retired]
         print(f"note: {retired} is no longer read; removed from pin.json", file=sys.stderr)
     save(pin, record)
-    for name, spec in PINNED[pair].items():
+    for name, spec in PINNED.get(pair, {}).items():
         entry = sources.get(name) or {}
         dest = work / spec["file"]
         fetch(entry.get("url") or spec["url"], dest)
@@ -230,14 +235,17 @@ def fetch_live(pin: Path, work: Path, snapshot: str, *, fetch=download, build=bu
     """
     record = load(pin)
     pair = pair_of(pin)
+    if pair not in KAIKKI:
+        raise PinError(f"no source registry for {pair}: add it to PINNED / ESDB / KAIKKI in pack_sources.py")
     sources: dict = {}
-    for name, spec in PINNED[pair].items():
+    for name, spec in PINNED.get(pair, {}).items():
         dest = work / spec["file"]
         fetch(spec["url"], dest)
         sources[name] = {"url": spec["url"], "sha256": sha256(dest)}
-    esdb = ESDB[pair]
-    sources["esdb"] = {k: esdb[k] for k in ("repository", "tag", "commit")}
-    sources["esdb"]["sha256"] = sha256(build(esdb, work))
+    esdb = ESDB.get(pair)
+    if esdb is not None:
+        sources["esdb"] = {k: esdb[k] for k in ("repository", "tag", "commit")}
+        sources["esdb"]["sha256"] = sha256(build(esdb, work))
     raw = work / KAIKKI[pair]["file"]
     headers = fetch(KAIKKI[pair]["url"], raw, compressed=True) or {}
     asset = raw.name + ".zst"
@@ -264,10 +272,26 @@ def fetch_live(pin: Path, work: Path, snapshot: str, *, fetch=download, build=bu
 # — what the tables build —
 
 
+def rule_files(reducer: Path) -> list[Path]:
+    """The files a pair's tables are reduced by: its own `reduce-<pair>.py` and every shared
+    `reduce_*.py` beside it (generalise-lingua-pack-reducer). Shared rules are named with an
+    underscore, a pair's with a hyphen, so a new pair never enters another pair's rule set."""
+    return [reducer, *sorted(p for p in reducer.parent.glob("reduce_*.py") if p != reducer)]
+
+
+def rules_sha256(reducer: Path) -> str:
+    """One digest for a pair's reduction rules: every rule file's name and sha256, in order. A
+    change to a shared module moves every pair's digest, so each is asked to reduce again."""
+    digest = hashlib.sha256()
+    for path in rule_files(reducer):
+        digest.update(f"{path.name}\0{sha256(path)}\n".encode())
+    return digest.hexdigest()
+
+
 def record_build(pin: Path, pack: Path, reducer: Path) -> None:
     record = load(pin)
     record["pack"] = {"sha256": sha256(pack), "size": pack.stat().st_size}
-    record["reducer"] = {"sha256": sha256(reducer)}
+    record["reducer"] = {"sha256": rules_sha256(reducer), "files": [p.name for p in rule_files(reducer)]}
     save(pin, {k: record[k] for k in ("snapshot", "pack", "reducer", "sources") if k in record})
 
 
@@ -283,10 +307,12 @@ def check_pack(pin: Path, pack: Path) -> None:
 
 def check_reducer(pin: Path, reducer: Path) -> None:
     want = get(load(pin), "reducer.sha256")
-    got = sha256(reducer)
+    got = rules_sha256(reducer)
     if got != want:
+        names = ", ".join(p.name for p in rule_files(reducer))
         raise PinError(
-            f"{reducer.name} changed since the committed tables were reduced (sha256 {got}, pin.json has {want}). "
+            f"The reduction rules ({names}) changed since the committed tables were reduced "
+            f"(sha256 {got}, pin.json has {want}). "
             "Reduce them again from the pinned sources: scripts/lingua-data/build.sh --reduce "
             f"{pair_of(pin)} <out> (or dispatch lingua-pack-update with mode=reduce)."
         )
@@ -295,16 +321,16 @@ def check_reducer(pin: Path, reducer: Path) -> None:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
-    for name in ("fetch-pinned", "fetch-live", "record-build", "check-pack", "check-reducer", "get"):
+    for name in ("fetch-pinned", "fetch-live", "record-build", "check-pack", "check-reducer", "rules", "get"):
         p = sub.add_parser(name)
-        p.add_argument("--pin", type=Path, required=True)
+        p.add_argument("--pin", type=Path, required=name != "rules")
         if name in ("fetch-pinned", "fetch-live"):
             p.add_argument("--work", type=Path, required=True)
         if name == "fetch-live":
             p.add_argument("--snapshot", default=datetime.date.today().strftime("%Y.%m.%d"))
         if name in ("record-build", "check-pack"):
             p.add_argument("--pack", type=Path, required=True)
-        if name in ("record-build", "check-reducer"):
+        if name in ("record-build", "check-reducer", "rules"):
             p.add_argument("--reducer", type=Path, required=True)
         if name == "get":
             p.add_argument("key")
@@ -322,6 +348,8 @@ def main(argv: list[str] | None = None) -> int:
             check_pack(a.pin, a.pack)
         elif a.cmd == "check-reducer":
             check_reducer(a.pin, a.reducer)
+        elif a.cmd == "rules":
+            print(rules_sha256(a.reducer))
         elif a.cmd == "get":
             print(get(load(a.pin), a.key))
     except (PinError, subprocess.CalledProcessError) as e:
