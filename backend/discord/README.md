@@ -43,9 +43,10 @@ to say. Field-by-field contract: `scripts/discord/reports.md`.
 
 - **No count of people, ever** — no players, accounts, readers or new-account totals; head counts
   only order rankings and apply the minimum.
-- **`discord.reports.min_contributors`** (default **1**): a figure backed by fewer accounts is
-  dropped. At 1 nothing is dropped and a figure can be one person's activity — a maintainer
-  decision (2026-09-29), disclosed in the privacy policy (§2).
+- **`discord.reports.min_contributors`** (default **3**, maintainer decision 2026-09-30): a figure
+  backed by fewer accounts is dropped, so no published figure is one or two people's activity.
+  Adjustable from the back office without a release; the privacy policy (§2) promises no name and
+  no head count, not a particular threshold.
 - The top-pieces query **joins the accepted catalog**: `play_sessions.score_id` also holds private
   user-score ids, which must never be ranked.
 - Lingua figures come from the ops aggregate over an optional `lingua_svc` pool
@@ -98,7 +99,7 @@ music write ──(same transaction, savepoint)──▶ discord_notify job ─�
 | `discord.music.catalog`, `discord.music.records` | back-office flags | **off** |
 | `discord.music.report`, `discord.music.top_pieces`, `discord.id.report`, `discord.lingua.report` | back-office flags | **off** |
 | `discord.<product>.report.cadence` | back-office flags | `daily` (Music), `weekly` (ID, Lingua) |
-| `discord.reports.min_contributors` | back-office flags | `1` |
+| `discord.reports.min_contributors` | back-office flags | `3` |
 
 ## Runbook
 

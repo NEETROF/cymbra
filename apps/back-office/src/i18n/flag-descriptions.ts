@@ -57,7 +57,7 @@ const FR: Record<string, string> = {
   "discord.lingua.report.cadence":
     "Rythme du rapport Cymbra Lingua : weekly (publié le mardi, un jour après la fin de la semaine, pour compter les synchronisations) ou daily (avec un jour de retard).",
   "discord.reports.min_contributors":
-    "Nombre minimum de comptes derrière un chiffre pour qu’un rapport Discord le publie. 1 (par défaut) publie tout, même l’activité d’une seule personne ; à relever pour masquer les petits chiffres.",
+    "Nombre minimum de comptes derrière un chiffre pour qu’un rapport Discord le publie (3 par défaut) : un chiffre issu de moins de comptes est omis. À 1, tout est publié, même l’activité d’une seule personne.",
   "notifications.enabled": "Coupe-circuit global des notifications push : désactivé, aucune catégorie n’envoie.",
   "notifications.category.practice_streak.enabled":
     "Rappel du soir aux joueurs dont la série de pratique est sur le point de se rompre.",

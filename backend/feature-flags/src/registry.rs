@@ -210,8 +210,8 @@ pub const DISCORD_MUSIC_REPORT: &str = "discord.music.report";
 pub const DISCORD_MUSIC_TOP_PIECES: &str = "discord.music.top_pieces";
 pub const DISCORD_ID_REPORT: &str = "discord.id.report";
 pub const DISCORD_LINGUA_REPORT: &str = "discord.lingua.report";
-/// Minimum contributing accounts behind a published report figure. Default 1:
-/// nothing dropped (maintainer decision, 2026-09-29).
+/// Minimum contributing accounts behind a published report figure. Default 3
+/// (maintainer decision, 2026-09-30).
 pub const DISCORD_REPORTS_MIN_CONTRIBUTORS: &str = "discord.reports.min_contributors";
 
 /// The per-category enable key for `category`, e.g.
@@ -492,9 +492,9 @@ pub fn builtin() -> Vec<KeyDef> {
         cfg(
             DISCORD_REPORTS_MIN_CONTRIBUTORS,
             APP_ALL,
-            FlagValue::Int(1),
+            FlagValue::Int(3),
             false,
-            "Minimum accounts behind a figure for a Discord report to publish it. 1 (default) publishes every figure, even one person's activity; raise it to hide small figures.",
+            "Minimum accounts behind a figure for a Discord report to publish it (default 3): a figure made by fewer accounts is left out. 1 publishes everything, even one person's activity.",
         ),
         // -- config tunables --
         cfg(

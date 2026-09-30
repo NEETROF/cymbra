@@ -41,7 +41,7 @@ pub fn cadence_flag(category: Category) -> Option<String> {
 }
 
 /// The minimum number of contributing accounts below which a report figure is
-/// dropped. **Default 1 — nothing dropped** (maintainer decision, 2026-09-29).
+/// dropped. **Default 3** (maintainer decision, 2026-09-30).
 pub const REPORTS_MIN_CONTRIBUTORS: &str = "discord.reports.min_contributors";
 
 #[cfg(test)]

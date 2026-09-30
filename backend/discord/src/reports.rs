@@ -22,7 +22,7 @@
 //!   read, ratings…), never how many players or accounts did it; head counts
 //!   are read only to apply the minimum and to order rankings;
 //! - a figure whose contributing accounts are fewer than `k`
-//!   (`discord.reports.min_contributors`, default **1**) is dropped;
+//!   (`discord.reports.min_contributors`, default **3**) is dropped;
 //! - **nothing to say ⇒ nothing posted**: `None` rather than zeroes.
 
 use chrono::{Datelike, Duration, NaiveDate, Weekday};
@@ -656,6 +656,8 @@ mod tests {
         assert_eq!(Figure::new(12, 1).shown(1), Some(12));
         assert_eq!(Figure::new(12, 1).shown(0), Some(12));
         assert_eq!(Figure::new(12, 2).shown(3), None);
+        // The default minimum (3): two accounts are not enough, three are.
+        assert_eq!(Figure::new(12, 3).shown(3), Some(12));
         assert_eq!(Figure::new(0, 4).shown(1), None);
     }
 
@@ -725,7 +727,7 @@ mod tests {
             top: vec![piece("Air", 3, 1)],
         };
         assert!(music_report(&f, &day(d(2026, 8, 7)), 5, Locale::En).is_none());
-        // At the default of 1 the same figures are published.
+        // At a minimum of 1 the same figures are published.
         let (_, body, _) = content(music_report(&f, &day(d(2026, 8, 7)), 1, Locale::En));
         assert!(body.contains("**Sessions** 3") && body.contains("**Scores rated** 2\n"));
         let fr = content(music_report(&f, &day(d(2026, 8, 7)), 1, Locale::Fr)).1;

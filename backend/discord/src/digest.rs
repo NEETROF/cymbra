@@ -37,8 +37,9 @@ use crate::reports::{
 };
 use crate::routing::Routing;
 
-/// Default of `discord.reports.min_contributors`: nothing is dropped.
-pub const DEFAULT_MIN_CONTRIBUTORS: i64 = 1;
+/// Default of `discord.reports.min_contributors`: a figure behind fewer than three
+/// accounts is dropped (maintainer decision, 2026-09-30).
+pub const DEFAULT_MIN_CONTRIBUTORS: i64 = 3;
 
 /// A report's default cadence (Music daily, ID and Lingua weekly) and whether
 /// it is flag-driven. The weekly top pieces always run weekly.
