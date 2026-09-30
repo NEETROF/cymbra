@@ -89,6 +89,17 @@ outbox. After that the model stays **local-first**: the UI always reads the loca
 syncing is a background exchange (on service-worker wake, after a batch of mutations, on
 side-panel open). Signing out stops syncing without touching local state.
 
+
+### As built (2026-09-30) — a full idempotent upload instead of an outbox
+D4 and the risk list above speak of an outbox with offset resumption. What shipped is
+simpler: every sync uploads the whole local state (statuses, declared level, deck) in
+bounded batches, and the server's LWW makes a replay a no-op (`apps/lingua-extension/src/sync/sync.ts`).
+Nothing is queued between syncs, so there is no op-log to version or to resume; an
+interrupted upload is simply run again. The behaviour the requirements describe (push in
+full with original timestamps, ordinary LWW merge, nothing lost) holds; only the mechanism
+changed. Daily stats go up per day with the language fixed to `en` — the per-language key
+is left to the studied-language programme.
+
 ### D5 — The Claude Code plugin stays local-only — restated, not forgotten
 The `~/.lingua/` store gains **no** network path in this change: transcripts are employer
 code, and the "no network connection" invariant of `add-lingua-agent` (the
