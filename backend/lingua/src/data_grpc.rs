@@ -48,6 +48,10 @@ impl LinguaDataService for DataGrpc {
     ) -> Result<Response<GetDataStateResponse>, Status> {
         let user = caller(&req)?;
         let erased_at = self.module.data_state(&user).await?;
-        Ok(Response::new(GetDataStateResponse { erased_at }))
+        Ok(Response::new(GetDataStateResponse {
+            erased_at,
+            // This server keys cards by studied language (add-lingua-card-language).
+            card_language: true,
+        }))
     }
 }

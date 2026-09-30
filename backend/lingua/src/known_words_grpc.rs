@@ -18,6 +18,7 @@ use crate::grpc_util::{caller, now_ms};
 use crate::known_words::{
     DeclaredLevelChange, DeclaredLevelOpInput, KnownWordsModule, StatusChange, StatusOpInput,
 };
+use crate::language_core::normalise;
 use crate::proto::known_words_service_server::KnownWordsService;
 use crate::proto::{
     DeclaredLevelChange as ProtoLevelChange, GetSnapshotRequest, GetSnapshotResponse,
@@ -67,7 +68,7 @@ impl KnownWordsService for KnownWordsGrpc {
             .ops
             .into_iter()
             .map(|o| StatusOpInput {
-                language: o.language,
+                language: normalise(&o.language),
                 lemma: o.lemma,
                 status: o.status,
                 provenance: o.provenance,
@@ -79,7 +80,7 @@ impl KnownWordsService for KnownWordsGrpc {
             .declared_levels
             .into_iter()
             .map(|o| DeclaredLevelOpInput {
-                language: o.language,
+                language: normalise(&o.language),
                 level: o.level,
                 client_ts: o.client_ts,
                 device_id: o.device_id,

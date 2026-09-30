@@ -14,6 +14,7 @@ use std::sync::Arc;
 use tonic::{Request, Response, Status};
 
 use crate::grpc_util::caller;
+use crate::language_core::normalise;
 use crate::proto::stats_service_server::StatsService;
 use crate::proto::{
     ConsolidatedStat as ProtoConsolidated, DailyStat as ProtoDaily, GetStatsRequest,
@@ -34,7 +35,7 @@ impl StatsGrpc {
 fn from_proto(s: ProtoDaily) -> DailyStat {
     DailyStat {
         day: s.day,
-        language: s.language,
+        language: normalise(&s.language),
         device_id: s.device_id,
         exposures: s.exposures,
         words_learned: s.words_learned,
@@ -71,14 +72,15 @@ impl StatsService for StatsGrpc {
     ) -> Result<Response<GetStatsResponse>, Status> {
         let user = caller(&req)?;
         let r = req.into_inner();
-        let language = if r.language.is_empty() {
+        // Empty still means every language; a named one is normalised like on the way in.
+        let language = if r.language.trim().is_empty() {
             None
         } else {
-            Some(r.language.as_str())
+            Some(normalise(&r.language))
         };
         let stats = self
             .module
-            .get_stats(&user, r.from_day, r.to_day, language)
+            .get_stats(&user, r.from_day, r.to_day, language.as_deref())
             .await?;
         Ok(Response::new(GetStatsResponse {
             stats: stats.into_iter().map(to_proto).collect(),
