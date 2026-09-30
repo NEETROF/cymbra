@@ -154,6 +154,21 @@ class Record(unittest.TestCase):
     def tearDown(self):
         self._tmp.cleanup()
 
+    def test_a_shared_rule_module_is_part_of_every_pair_s_rules(self):
+        ps.record_build(self.pin, self.pack, self.reducer)
+        shared = self.root / "reduce_common.py"
+        shared.write_text("# shared rules\n")
+        with self.assertRaises(ps.PinError):
+            ps.check_reducer(self.pin, self.reducer)
+        ps.record_build(self.pin, self.pack, self.reducer)
+        self.assertEqual(ps.load(self.pin)["reducer"]["files"], ["reduce-en-fr.py", "reduce_common.py"])
+        ps.check_reducer(self.pin, self.reducer)
+
+    def test_another_pair_s_reducer_is_not_part_of_this_pair_s_rules(self):
+        ps.record_build(self.pin, self.pack, self.reducer)
+        (self.root / "reduce-es-fr.py").write_text("# another pair\n")
+        ps.check_reducer(self.pin, self.reducer)
+
     def test_record_build_then_check(self):
         ps.record_build(self.pin, self.pack, self.reducer)
         record = ps.load(self.pin)
@@ -197,7 +212,8 @@ class Record(unittest.TestCase):
         record = ps.load(pin)
         self.assertRegex(record["snapshot"], r"^\d{4}\.\d{2}\.\d{2}$")
         self.assertRegex(record["pack"]["sha256"], r"^[0-9a-f]{64}$")
-        self.assertEqual(record["reducer"]["sha256"], ps.sha256(HERE / "reduce-en-fr.py"), "tables reduced by these rules")
+        self.assertEqual(record["reducer"]["sha256"], ps.rules_sha256(HERE / "reduce-en-fr.py"), "tables reduced by these rules")
+        self.assertEqual(record["reducer"]["files"], [p.name for p in ps.rule_files(HERE / "reduce-en-fr.py")])
         manifest = json.loads((pin.parent / "manifest.json").read_text())
         # The pack says which dictionary it is: the snapshot for tables an update reduced, the
         # snapshot and the rules for tables a re-reduction made from the same sources.
