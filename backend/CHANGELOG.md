@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.35.0](https://github.com/NEETROF/cymbra/compare/backend-v0.34.0...backend-v0.35.0) (2026-09-30)
+
+
+### Features
+
+* **lingua:** key deck cards by studied language, server first ([#609](https://github.com/NEETROF/cymbra/issues/609)) ([fec1584](https://github.com/NEETROF/cymbra/commit/fec15840173fe91b727725232dfcdb49182d5c3c))
+
 ## [0.34.0](https://github.com/NEETROF/cymbra/compare/backend-v0.33.0...backend-v0.34.0) (2026-09-29)
 
 
