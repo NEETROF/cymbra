@@ -18,6 +18,8 @@
 //! without deleting their account ([`LinguaDataService`](data_grpc::DataGrpc)).
 
 pub mod grpc_util;
+// One rule for every studied-language value received (change: add-lingua-card-language).
+pub mod language_core;
 
 pub mod known_words;
 pub mod known_words_core;

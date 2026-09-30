@@ -16,6 +16,7 @@ use tonic::{Request, Response, Status};
 
 use crate::deck::{Card, DeckModule};
 use crate::grpc_util::{caller, now_ms};
+use crate::language_core::normalise;
 use crate::proto::deck_service_server::DeckService;
 use crate::proto::{
     CardOp, PullCardsRequest, PullCardsResponse, PushCardsRequest, PushCardsResponse,
@@ -33,6 +34,8 @@ impl DeckGrpc {
 
 fn from_proto(o: CardOp) -> Card {
     Card {
+        // Empty from a client that predates the field: read as English.
+        language: normalise(&o.language),
         client_id: o.client_id,
         lemma: o.lemma,
         surface_form: o.surface_form,
@@ -61,6 +64,7 @@ fn to_proto(c: Card) -> CardOp {
         deleted: c.deleted,
         client_ts: c.updated_at,
         device_id: c.device_id,
+        language: c.language,
     }
 }
 
@@ -81,9 +85,11 @@ impl DeckService for DeckGrpc {
         req: Request<PullCardsRequest>,
     ) -> Result<Response<PullCardsResponse>, Status> {
         let user = caller(&req)?;
+        let r = req.into_inner();
+        // An empty list is a client that predates card languages: English only.
         let (cards, cursor) = self
             .module
-            .pull_cards(&user, req.into_inner().cursor)
+            .pull_cards(&user, r.cursor, &r.languages)
             .await?;
         Ok(Response::new(PullCardsResponse {
             cards: cards.into_iter().map(to_proto).collect(),
