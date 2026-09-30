@@ -15,12 +15,13 @@ exactly that, from the extension page as it is.
   same button leaves it. The browser's own ways out (Escape, Safari's close control, Android's
   back gesture) are followed: the button always says what pressing it will do.
 - The button is **absent where the browser cannot put a page in fullscreen** — Safari on
-  iPhone, which only lets a video go fullscreen. Nothing is shown there that cannot work.
+  iPhone and iPad, which expose no Fullscreen API to the extension's page (measured on iPadOS
+  26). Nothing is shown there that cannot work.
 - Everything the reader shows stays **on screen in fullscreen**: the toolbar, the word popup,
   the table of contents, the "Aa" panel, the in-page drawer (Firefox, Safari). On Chromium,
   where Réviser / Stats / Réglages open the browser's side panel — which fullscreen hides —
   the page **leaves fullscreen first**, so the panel is seen.
-- On a screen with rounded corners or a home indicator (iPad), the toolbar and the footer stay
+- On a screen with rounded corners or a home indicator, the toolbar and the footer stay
   inside the **safe area** once the browser's bars are gone.
 - Fullscreen is **never entered by itself**: browsers only grant it to a gesture, so it is not
   remembered or restored when a book is opened.

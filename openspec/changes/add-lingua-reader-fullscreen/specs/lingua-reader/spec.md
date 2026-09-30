@@ -16,7 +16,7 @@ The reader page SHALL offer, in its reading toolbar, a control that puts the pag
 
 #### Scenario: A browser without fullscreen
 
-- **WHEN** the reader page opens in a browser that cannot put a page in fullscreen, such as Safari on iPhone
+- **WHEN** the reader page opens in a browser that cannot put a page in fullscreen, such as Safari on iPhone or iPad
 - **THEN** the toolbar shows no fullscreen control
 
 #### Scenario: A word looked up in fullscreen

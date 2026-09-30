@@ -15,11 +15,14 @@
 
 ## 3. On the devices
 
-- [ ] 3.1 Chromium (built extension, Playwright): the control enters and leaves fullscreen, the word popup opens in fullscreen
+- [x] 3.1 Chromium (built extension, Playwright): the control enters and leaves fullscreen, the word popup opens in fullscreen
   - 2026-09-30, built `dist-chromium` under Playwright: the control shows in the reading toolbar with its label, and the reader's surfaces hang from `documentElement`. The grant itself cannot be driven there — Chromium under automation answers "not granted" to any page, a plain web page included, once its window is not focused — so it is checked by hand with 3.2.
-- [ ] 3.2 Headed Chrome: Réviser from fullscreen leaves it and the side panel opens
+  - 2026-09-30, by hand (Guillaume): fullscreen entered and left from the control on Firefox desktop, Chrome for Testing and Safari macOS (the macOS app built from this branch).
+- [x] 3.2 Headed Chrome: Réviser from fullscreen leaves it and the side panel opens
+  - 2026-09-30, Chrome for Testing with the unpacked build, by hand: OK.
 - [ ] 3.3 Firefox for Android (Tab S6 Lite or the Boox): the control is shown and works in the extension page, or is absent
 - [ ] 3.4 Safari iPad: fullscreen, safe area, word selection and page turns; Safari iPhone: no control
+  - 2026-09-30, iPad Air 13" (M2), iPadOS 26, the iOS app built from this branch: **Safari exposes no Fullscreen API to the extension's reader page** — `requestFullscreen`, `webkitRequestFullscreen`, `fullscreenEnabled` and `webkitFullscreenEnabled` are all `undefined` (read by a throwaway diagnostic build). The control is absent, as specified; the reader works as before. iPhone not checked yet.
 
 ## 4. Release
 

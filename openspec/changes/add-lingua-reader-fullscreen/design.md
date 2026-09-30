@@ -10,12 +10,12 @@ Stats / Réglages call the session's `HudActions`: the in-page drawer on Firefox
 
 Browser support of the Fullscreen API on an arbitrary element, as the reader will meet it:
 
-| Host                                          | Element fullscreen                                     |
-| --------------------------------------------- | ------------------------------------------------------ |
-| Chrome / Edge / Firefox desktop, Safari macOS | yes                                                    |
-| Safari iPadOS                                 | yes (`webkit`-prefixed before 16.4)                    |
-| Firefox for Android                           | yes (to verify on the device, in an extension page)    |
-| Safari iOS (iPhone)                           | no — video elements only; `fullscreenEnabled` is false |
+| Host                                          | Element fullscreen                                                        |
+| --------------------------------------------- | ------------------------------------------------------------------------- |
+| Chrome / Edge / Firefox desktop, Safari macOS | yes                                                                       |
+| Safari iPadOS 26, extension page              | **no** — measured: no Fullscreen API at all on the reader page (task 3.4) |
+| Firefox for Android                           | yes (to verify on the device, in an extension page)                       |
+| Safari iOS (iPhone)                           | no — video elements only; `fullscreenEnabled` is false                    |
 
 ## Goals / Non-Goals
 
@@ -27,8 +27,8 @@ Browser support of the Fullscreen API on an arbitrary element, as the reader wil
 
 **Non-Goals:**
 
-- iPhone. No web API hides Safari's bars around a page there; an installed web app would, but
-  that is the PWA D1 rejected.
+- iPhone and iPad. Safari exposes no Fullscreen API to the extension's page there (measured on
+  iPadOS 26); an installed web app would hide the bars, but that is the PWA D1 rejected.
 - Entering fullscreen automatically, or restoring it when a book opens: browsers refuse
   fullscreen outside a user gesture.
 - A keyboard shortcut. The browser's own (F11, ⌃⌘F) already hide its bars on desktop; the
