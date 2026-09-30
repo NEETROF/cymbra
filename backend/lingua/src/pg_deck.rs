@@ -6,7 +6,8 @@
 
 //! Postgres adapter for [`DeckRepo`]. Thin sqlx glue — coverage-excluded; LWW logic is
 //! host-tested in `deck`. Media contents are never stored (allow-list): no media column,
-//! and no page address either (add-lingua-privacy-controls).
+//! and no page address either (add-lingua-privacy-controls). A card is keyed by
+//! (user, language, client id) since add-lingua-card-language.
 
 use async_trait::async_trait;
 use cymbra_platform::{AppError, Result};
@@ -38,10 +39,10 @@ impl DeckRepo for PgDeckRepo {
     async fn apply_card(&self, user: &str, card: &Card) -> Result<bool> {
         let affected = sqlx::query(
             "INSERT INTO lingua.cards \
-               (user_id, client_id, lemma, surface_form, source_sentence, gloss, \
+               (user_id, language, client_id, lemma, surface_form, source_sentence, gloss, \
                 fsrs_state, deleted, updated_at, device_id, seq) \
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, nextval('lingua.change_seq')) \
-             ON CONFLICT (user_id, client_id) DO UPDATE SET \
+             VALUES ($1, $11, $2, $3, $4, $5, $6, $7, $8, $9, $10, nextval('lingua.change_seq')) \
+             ON CONFLICT (user_id, language, client_id) DO UPDATE SET \
                lemma = excluded.lemma, surface_form = excluded.surface_form, \
                source_sentence = excluded.source_sentence, \
                gloss = excluded.gloss, fsrs_state = excluded.fsrs_state, \
@@ -61,6 +62,7 @@ impl DeckRepo for PgDeckRepo {
         .bind(card.deleted)
         .bind(card.updated_at)
         .bind(&card.device_id)
+        .bind(&card.language)
         .execute(&self.pool)
         .await
         .map_err(internal)?
@@ -78,20 +80,28 @@ impl DeckRepo for PgDeckRepo {
         Ok(row.get::<i64, _>("c"))
     }
 
-    async fn changes_since(&self, user: &str, cursor: i64) -> Result<Vec<Card>> {
+    async fn changes_since(
+        &self,
+        user: &str,
+        cursor: i64,
+        languages: &[String],
+    ) -> Result<Vec<Card>> {
         let rows = sqlx::query(
-            "SELECT client_id, lemma, surface_form, source_sentence, gloss, fsrs_state, \
-                    deleted, updated_at, device_id, seq \
-             FROM lingua.cards WHERE user_id = $1 AND seq > $2 ORDER BY seq",
+            "SELECT language, client_id, lemma, surface_form, source_sentence, gloss, \
+                    fsrs_state, deleted, updated_at, device_id, seq \
+             FROM lingua.cards \
+             WHERE user_id = $1 AND seq > $2 AND language = ANY($3) ORDER BY seq",
         )
         .bind(uid(user)?)
         .bind(cursor)
+        .bind(languages)
         .fetch_all(&self.pool)
         .await
         .map_err(internal)?;
         Ok(rows
             .iter()
             .map(|r| Card {
+                language: r.get("language"),
                 client_id: r.get("client_id"),
                 lemma: r.get("lemma"),
                 surface_form: r.get("surface_form"),

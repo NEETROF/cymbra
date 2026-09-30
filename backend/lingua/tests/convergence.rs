@@ -175,7 +175,7 @@ impl KnownWordsRepo for FakeStatuses {
 
 #[derive(Default)]
 struct FakeDeck {
-    rows: Mutex<HashMap<String, Card>>,
+    rows: Mutex<HashMap<(String, String), Card>>, // (language, client_id) -> card
     seq: Mutex<i64>,
 }
 
@@ -183,7 +183,8 @@ struct FakeDeck {
 impl DeckRepo for FakeDeck {
     async fn apply_card(&self, _user: &str, card: &Card) -> Result<bool> {
         let mut rows = self.rows.lock().unwrap();
-        if let Some(e) = rows.get(&card.client_id)
+        let key = (card.language.clone(), card.client_id.clone());
+        if let Some(e) = rows.get(&key)
             && !wins(e.updated_at, &e.device_id, card.updated_at, &card.device_id)
         {
             return Ok(false);
@@ -192,7 +193,7 @@ impl DeckRepo for FakeDeck {
         *seq += 1;
         let mut stored = card.clone();
         stored.sequence = *seq;
-        rows.insert(card.client_id.clone(), stored);
+        rows.insert(key, stored);
         Ok(true)
     }
     async fn tip_cursor(&self, _user: &str) -> Result<i64> {
@@ -205,11 +206,16 @@ impl DeckRepo for FakeDeck {
             .max()
             .unwrap_or(0))
     }
-    async fn changes_since(&self, _user: &str, cursor: i64) -> Result<Vec<Card>> {
+    async fn changes_since(
+        &self,
+        _user: &str,
+        cursor: i64,
+        languages: &[String],
+    ) -> Result<Vec<Card>> {
         let rows = self.rows.lock().unwrap();
         let mut out: Vec<Card> = rows
             .values()
-            .filter(|c| c.sequence > cursor)
+            .filter(|c| c.sequence > cursor && languages.contains(&c.language))
             .cloned()
             .collect();
         out.sort_by_key(|c| c.sequence);
@@ -325,6 +331,7 @@ async fn two_devices_converge_across_statuses_cards_and_stats() {
 
     // Cards: iPhone creates a card; Mac pulls it, edits it later; iPhone pulls the edit.
     let mut card = Card {
+        language: "en".into(),
         client_id: "c1".into(),
         source_sentence: "They seldom ship.".into(),
         updated_at: 100,
@@ -333,9 +340,10 @@ async fn two_devices_converge_across_statuses_cards_and_stats() {
     };
     card.lemma = "seldom".into();
     deck.push_cards(USER, vec![card], 1_000).await.unwrap();
-    let (mac_cards, _) = deck.pull_cards(USER, 0).await.unwrap();
+    let (mac_cards, _) = deck.pull_cards(USER, 0, &[]).await.unwrap();
     assert_eq!(mac_cards[0].source_sentence, "They seldom ship.");
     let edited = Card {
+        language: "en".into(),
         client_id: "c1".into(),
         source_sentence: "They rarely ship.".into(),
         updated_at: 300,
@@ -343,7 +351,7 @@ async fn two_devices_converge_across_statuses_cards_and_stats() {
         ..Card::default()
     };
     deck.push_cards(USER, vec![edited], 1_000).await.unwrap();
-    let (iphone_cards, _) = deck.pull_cards(USER, 0).await.unwrap();
+    let (iphone_cards, _) = deck.pull_cards(USER, 0, &[]).await.unwrap();
     assert_eq!(iphone_cards[0].source_sentence, "They rarely ship."); // the later edit won
 
     // Stats: both devices upsert the same day; the consolidated read sums them.
@@ -398,6 +406,7 @@ async fn a_device_that_missed_the_erasure_cannot_bring_the_data_back() {
 
     // An old extension on the Mac re-pushes its whole outbox, dated before the erasure.
     let old_card = Card {
+        language: "en".into(),
         client_id: "c1".into(),
         lemma: "seldom".into(),
         updated_at: erased_at - 1_000,
@@ -430,7 +439,7 @@ async fn a_device_that_missed_the_erasure_cannot_bring_the_data_back() {
         .await
         .unwrap();
     assert!(words.pull_changes(ERASED, 0).await.unwrap().0.is_empty());
-    assert!(deck.pull_cards(ERASED, 0).await.unwrap().0.is_empty());
+    assert!(deck.pull_cards(ERASED, 0, &[]).await.unwrap().0.is_empty());
     assert!(
         stats
             .get_stats(ERASED, 19_990, 20_010, None)
@@ -456,7 +465,7 @@ async fn a_device_that_missed_the_erasure_cannot_bring_the_data_back() {
     // Another account is untouched by this reader's mark.
     deck.push_cards(OTHER, vec![old_card], now).await.unwrap();
     stats.upsert_stats(OTHER, vec![old_stat]).await.unwrap();
-    assert_eq!(deck.pull_cards(OTHER, 0).await.unwrap().0.len(), 1);
+    assert_eq!(deck.pull_cards(OTHER, 0, &[]).await.unwrap().0.len(), 1);
     assert_eq!(
         stats
             .get_stats(OTHER, 19_990, 20_010, None)

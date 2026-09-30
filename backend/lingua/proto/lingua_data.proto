@@ -30,4 +30,8 @@ message GetDataStateRequest {}
 
 message GetDataStateResponse {
   int64 erased_at = 1; // the latest erasure mark (server epoch millis); 0 = never erased
+  // Whether this server keys deck cards by studied language (add-lingua-card-language).
+  // A client holding non-English cards pushes them only when this is true; a server that
+  // predates the field answers false (proto3 default) and receives English cards only.
+  bool card_language = 2;
 }
