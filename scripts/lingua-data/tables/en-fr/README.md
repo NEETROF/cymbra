@@ -31,9 +31,10 @@ Never by hand.
 
 - **Take in upstream changes**: dispatch `lingua-pack-update` with `mode=update`. It reads today's
   sources, keeps kaikki's bytes as the release `lingua-pack-sources-en-fr-<snapshot>`, reduces,
-  pushes the branch `lingua-pack/<snapshot>`, and writes a report of what changes. Open the pull
+  pushes the branch `lingua-pack/en-fr/<snapshot>`, and writes a report of what changes. Open the pull
   request from the link in its summary; releases keep these tables until it is merged.
-- **After editing `reduce-en-fr.py`**: the check lane fails until the tables are reduced again
+- **After editing the reduction rules** — `reduce-en-fr.py`, or `reduce_common.py`, which every
+  pair shares (`pin.json` lists both under `reducer.files`): the check lane fails until the tables are reduced again
   from the pinned sources — `scripts/lingua-data/build.sh --reduce en-fr <out>` (Python 3.12,
   `requirements-reduce.txt`), or `lingua-pack-update` with `mode=reduce`. The diff is then the
   rules' effect alone.

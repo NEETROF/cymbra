@@ -96,7 +96,8 @@ case "$mode" in
     snapshot="$("$PYTHON" "$here/pack_sources.py" get --pin "$pin" snapshot)"
     # New tables from the same sources are a new dictionary: the version names the snapshot AND
     # the rules that reduced it (add-lingua-word-grammar, design D8).
-    rules="$(sha256_of "$here/reduce-$pair.py")"
+    # The rule set: reduce-<pair>.py and the shared reduce_*.py modules (pack_sources.py `rules`).
+    rules="$("$PYTHON" "$here/pack_sources.py" rules --reducer "$here/reduce-$pair.py")"
     reduce "$pair" "$work" "$snapshot" "$snapshot+${rules:0:7}"
     copy_tables "$work" "$tables"
     build_pack "$tables" "$out"

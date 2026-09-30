@@ -1034,3 +1034,15 @@ class GrammarRows(unittest.TestCase):
                 ("uses", "us", PLURAL, "-"),
             ],
         )
+
+
+class Notice(unittest.TestCase):
+    def test_wordfreq_is_credited_to_its_author_by_the_name_its_licence_requires(self):
+        # wordfreq's NOTICE: crediting Robyn Speer by another name voids the permission.
+        self.assertIn("wordfreq", red.NOTICE)
+        self.assertIn("by Robyn Speer", red.NOTICE)
+
+    def test_the_manifest_carries_the_core_s_analyser_version(self):
+        self.assertRegex(red.analyser_version(), r"^\d+\.\d+\.\d+$")
+        manifest = json.loads(open(os.path.join(_HERE, "tables", "en-fr", "manifest.json"), encoding="utf-8").read())
+        self.assertEqual(manifest["meta"]["analyzer_version"], red.analyser_version())

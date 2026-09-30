@@ -79,11 +79,16 @@ jobs:
       - name: Build the real pack from the committed tables
         run: |
           set -euo pipefail
-          bash ../../scripts/lingua-data/build.sh en-fr "$RUNNER_TEMP/pack.lingua"
-          # Tables reduced by other rules than the repository's: reduce them again from the
-          # pinned sources (build.sh --reduce, or lingua-pack-update with mode=reduce).
-          python3 ../../scripts/lingua-data/pack_sources.py check-reducer \
-            --pin ../../scripts/lingua-data/tables/en-fr/pin.json --reducer ../../scripts/lingua-data/reduce-en-fr.py
+          # Every pair with committed tables (generalise-lingua-pack-reducer).
+          for tables in ../../scripts/lingua-data/tables/*/; do
+            pair="$(basename "$tables")"
+            bash ../../scripts/lingua-data/build.sh "$pair" "$RUNNER_TEMP/pack-$pair.lingua"
+            # Tables reduced by other rules than the repository's — the pair's reducer or a shared
+            # reduce_*.py module: reduce them again from the pinned sources (build.sh --reduce, or
+            # lingua-pack-update with mode=reduce).
+            python3 ../../scripts/lingua-data/pack_sources.py check-reducer \
+              --pin "$tables/pin.json" --reducer "../../scripts/lingua-data/reduce-$pair.py"
+          done
       # Both the wasm glue (statically imported by the service worker) and the gRPC-web
       # protobuf stubs (imported by the sync transport) are gitignored and generated, so
       # typecheck needs them present — produce both before lint/typecheck, not only at
@@ -141,6 +146,6 @@ jobs:
           # The real pack, as the reviewer builds it: from the archive's committed tables, with no
           # network, checked against pin.json — and so the very bytes the release ships.
           yarn gen:pack:real
-          cmp assets/pack.lingua "$RUNNER_TEMP/pack.lingua"
+          cmp assets/pack.lingua "$RUNNER_TEMP/pack-en-fr.lingua"
           LINGUA_GRPC_WEB_URL=https://api.cymbra.app yarn build:firefox
           test -f dist-firefox/manifest.json
