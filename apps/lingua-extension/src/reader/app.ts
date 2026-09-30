@@ -9,6 +9,7 @@ import {
   type ReaderFlow,
 } from "../state/storage.ts";
 import { COPY } from "./copy.ts";
+import type { FullscreenHost } from "./fullscreen.ts";
 import type { BookRecord, ImportResult, Library } from "./library.ts";
 import type { Persistence } from "./persist.ts";
 import type { BookLocation, BookRenderer, SectionReady, TocEntry } from "./renderer.ts";
@@ -43,6 +44,13 @@ export interface ReaderDeps {
   displayArea: AsyncStorageArea;
   /** Call back when the text size or the page changes, from this page or from Réglages. */
   watchDisplay: (onDisplay: (display: ReaderDisplay) => void) => void;
+  /** The browser's fullscreen, for the toolbar's control; none: no control. */
+  fullscreen?: FullscreenHost;
+  /**
+   * Whether Réviser / Stats / Réglages open outside the page (Chromium's side panel), which a
+   * page in fullscreen hides: the page then leaves fullscreen first.
+   */
+  reviewOutsidePage?: boolean;
   now?: () => number;
   /** The longest a section stays hidden waiting for its first paint. */
   revealCapMs?: number;
@@ -116,6 +124,7 @@ export class ReaderApp {
   private readonly progress = el("span", "reading-progress");
   private readonly tocPanel = el("nav", "reading-toc");
   private readonly displayPanel = el("div", "reading-display");
+  private fullscreenToggle: HTMLButtonElement | null = null;
   private displayView: BookDisplayView | null = null;
   private display: ReaderDisplay = DEFAULT_READER_DISPLAY;
 
@@ -296,7 +305,9 @@ export class ReaderApp {
     this.percent.title = COPY.percentTitle;
     const act = (text: string, pick: (a: HudActions) => () => void): HTMLButtonElement =>
       button("reading-action", text, () => {
-        if (this.actions) pick(this.actions)();
+        if (!this.actions) return;
+        this.leaveFullscreenForPanel();
+        pick(this.actions)();
       });
     bar.append(
       button("reading-back", `‹ ${COPY.back}`, () => void this.showLibrary()),
@@ -308,6 +319,13 @@ export class ReaderApp {
       act(COPY.stats, (a) => a.onStats),
       act(COPY.settings, (a) => a.onSettings),
     );
+    const fullscreen = this.deps.fullscreen;
+    if (fullscreen?.available) {
+      this.fullscreenToggle = button("reading-action reading-fullscreen", "⛶", () => this.toggleFullscreen());
+      bar.append(this.fullscreenToggle);
+      fullscreen.onChange(() => this.showFullscreen());
+      this.showFullscreen();
+    }
     const foot = el("footer", "reading-foot");
     foot.append(
       button("reading-turn", "‹", () => void this.renderer?.prev(), COPY.prev),
@@ -469,6 +487,35 @@ export class ReaderApp {
     if (this.displayPanel.hidden) return;
     this.tocPanel.hidden = true;
     void this.displayView?.refresh();
+  }
+
+  /** Enter or leave fullscreen; the control follows the browser's answer, not this click. */
+  private toggleFullscreen(): void {
+    const fullscreen = this.deps.fullscreen;
+    if (!fullscreen) return;
+    // A refusal (no gesture, a policy) changes nothing: the control still says the truth.
+    (fullscreen.active() ? fullscreen.exit() : fullscreen.enter()).catch(() => {});
+  }
+
+  /** Say what the fullscreen control does now: enter, or leave. */
+  private showFullscreen(): void {
+    const toggle = this.fullscreenToggle;
+    if (!toggle || !this.deps.fullscreen) return;
+    const active = this.deps.fullscreen.active();
+    const label = active ? COPY.leaveFullscreen : COPY.fullscreen;
+    toggle.title = label;
+    toggle.setAttribute("aria-label", label);
+    toggle.setAttribute("aria-pressed", String(active));
+  }
+
+  /**
+   * The side panel is the browser's, and a page in fullscreen shows none of the browser: leave
+   * fullscreen first. Not awaited — the action must run inside the click, whose gesture the
+   * background needs to open the panel.
+   */
+  private leaveFullscreenForPanel(): void {
+    const fullscreen = this.deps.fullscreen;
+    if (this.deps.reviewOutsidePage && fullscreen?.active()) fullscreen.exit().catch(() => {});
   }
 
   /** Show the book at this size, on this page: the paper or night behind it, and its text. */

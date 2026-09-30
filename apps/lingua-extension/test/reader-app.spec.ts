@@ -373,6 +373,116 @@ describe("a book open", () => {
   });
 });
 
+/** The browser's fullscreen, in memory: `answer` decides whether a request is granted. */
+function fakeFullscreen(available = true) {
+  const listeners: (() => void)[] = [];
+  const host = {
+    on: false,
+    refuse: false,
+    available,
+    active: () => host.on,
+    enter: vi.fn(async () => {
+      if (host.refuse) throw new TypeError("Permissions check failed");
+      host.browser(true);
+    }),
+    exit: vi.fn(async () => host.browser(false)),
+    onChange: (listener: () => void) => void listeners.push(listener),
+    /** The browser entering or leaving fullscreen, whoever asked (Escape, its close control). */
+    browser(on: boolean) {
+      host.on = on;
+      for (const l of listeners) l();
+    },
+  };
+  return host;
+}
+
+describe("fullscreen (add-lingua-reader-fullscreen)", () => {
+  const toggle = (): HTMLButtonElement | null => root.querySelector<HTMLButtonElement>(".reading-fullscreen");
+
+  it("shows no control where the browser cannot put the page in fullscreen, or has no fullscreen", () => {
+    app({ fullscreen: fakeFullscreen(false) });
+    expect(toggle()).toBeNull();
+    document.body.innerHTML = "";
+    root = document.createElement("main");
+    document.body.append(root);
+    app();
+    expect(toggle()).toBeNull();
+  });
+
+  it("enters and leaves fullscreen from the toolbar, the control saying what it does", async () => {
+    const fullscreen = fakeFullscreen();
+    app({ fullscreen });
+    expect(toggle()!.getAttribute("aria-label")).toBe(COPY.fullscreen);
+    expect(toggle()!.getAttribute("aria-pressed")).toBe("false");
+    toggle()!.click();
+    await settle();
+    expect(fullscreen.enter).toHaveBeenCalledOnce();
+    expect(toggle()!.getAttribute("aria-label")).toBe(COPY.leaveFullscreen);
+    expect(toggle()!.title).toBe(COPY.leaveFullscreen);
+    expect(toggle()!.getAttribute("aria-pressed")).toBe("true");
+    toggle()!.click();
+    await settle();
+    expect(fullscreen.exit).toHaveBeenCalledOnce();
+    expect(toggle()!.getAttribute("aria-label")).toBe(COPY.fullscreen);
+  });
+
+  it("follows the browser when the reader leaves through it, and a refused request changes nothing", async () => {
+    const fullscreen = fakeFullscreen();
+    app({ fullscreen });
+    fullscreen.browser(true);
+    expect(toggle()!.getAttribute("aria-pressed")).toBe("true");
+    fullscreen.browser(false);
+    expect(toggle()!.getAttribute("aria-label")).toBe(COPY.fullscreen);
+    fullscreen.refuse = true;
+    toggle()!.click();
+    await settle();
+    expect(fullscreen.enter).toHaveBeenCalledOnce();
+    expect(toggle()!.getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("leaves fullscreen before opening a panel outside the page, in the same click", () => {
+    const fullscreen = fakeFullscreen();
+    const a = app({ fullscreen, reviewOutsidePage: true });
+    const order: string[] = [];
+    fullscreen.exit.mockImplementation(async () => void order.push("exit"));
+    const actions = { onReview: vi.fn(() => void order.push("review")), onStats: vi.fn(), onSettings: vi.fn() };
+    a.indicator(actions);
+    fullscreen.browser(true);
+    $$(".reading-action")
+      .find((b) => b.textContent === COPY.review)!
+      .click();
+    expect(order).toEqual(["exit", "review"]);
+    fullscreen.browser(false);
+    $$(".reading-action")
+      .find((b) => b.textContent === COPY.stats)!
+      .click();
+    expect(fullscreen.exit).toHaveBeenCalledOnce();
+    expect(actions.onStats).toHaveBeenCalledOnce();
+  });
+
+  it("keeps fullscreen for a panel drawn in the page", () => {
+    const fullscreen = fakeFullscreen();
+    const a = app({ fullscreen, reviewOutsidePage: false });
+    const actions = { onReview: vi.fn(), onStats: vi.fn(), onSettings: vi.fn() };
+    a.indicator(actions);
+    fullscreen.browser(true);
+    $$(".reading-action")
+      .find((b) => b.textContent === COPY.settings)!
+      .click();
+    expect(fullscreen.exit).not.toHaveBeenCalled();
+    expect(actions.onSettings).toHaveBeenCalledOnce();
+  });
+
+  it("never enters fullscreen by itself when a book opens", async () => {
+    const fullscreen = fakeFullscreen();
+    const a = app({ fullscreen });
+    await a.start(fakeSession());
+    await pick(await pickedFile(epub3Entries(), "hound.epub"));
+    await openFirst();
+    expect(fullscreen.enter).not.toHaveBeenCalled();
+  });
+});
+
 describe("the reader page's helpers", () => {
   it("names a card's source by the book and its chapter", () => {
     expect(bookSource("Emma", "Chapter 3")).toBe("Emma · Chapter 3");
