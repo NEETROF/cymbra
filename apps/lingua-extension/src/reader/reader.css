@@ -191,6 +191,20 @@ button {
   border-bottom: 0;
 }
 
+/* Clear of rounded corners and the home indicator once the browser's bars are gone (fullscreen
+   on an iPad; `viewport-fit=cover` in reader.html). Zero insets elsewhere: nothing moves. */
+.reading-bar {
+  padding-top: max(6px, env(safe-area-inset-top));
+  padding-left: max(10px, env(safe-area-inset-left));
+  padding-right: max(10px, env(safe-area-inset-right));
+}
+
+.reading-foot {
+  padding-bottom: max(6px, env(safe-area-inset-bottom));
+  padding-left: max(10px, env(safe-area-inset-left));
+  padding-right: max(10px, env(safe-area-inset-right));
+}
+
 .reading-titles {
   flex: 1;
   min-width: 0;

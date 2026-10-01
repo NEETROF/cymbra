@@ -29,6 +29,8 @@ export const COPY = {
   toc: "Sommaire",
   display: "Aa",
   displayTitle: "Taille du texte et page",
+  fullscreen: "Plein écran",
+  leaveFullscreen: "Quitter le plein écran",
   noToc: "Ce livre n'a pas de sommaire.",
   review: "Réviser",
   stats: "Stats",

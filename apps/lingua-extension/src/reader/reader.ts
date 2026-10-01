@@ -12,6 +12,7 @@ import {
 } from "../state/storage.ts";
 import { ReaderApp } from "./app.ts";
 import { FoliateRenderer } from "./foliate.ts";
+import { documentFullscreen } from "./fullscreen.ts";
 import { Library } from "./library.ts";
 import { isReaderWhere, type ReaderWhereReply } from "./locate.ts";
 import { requestPersistence } from "./persist.ts";
@@ -58,6 +59,8 @@ async function main(): Promise<void> {
         const changed = changes[READER_DISPLAY_KEY];
         if (area === "local" && changed) onDisplay(readerDisplayOf(changed.newValue));
       }),
+    fullscreen: documentFullscreen(document),
+    reviewOutsidePage: !__REVIEW_IN_PAGE__,
   });
 
   // Answer the background looking for an open reader, so a second "Bibliothèque" focuses
