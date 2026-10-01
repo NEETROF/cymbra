@@ -3,7 +3,8 @@ import type { LinguaPort } from "../analyzer/port.ts";
 import { type CefrLevel, STUDIED_LANGUAGE } from "../analyzer/types.ts";
 import { type Block, isElement, mergeBlocks } from "./blocks.ts";
 import { Drawer, type DrawerView } from "./drawer.ts";
-import { clear as clearHighlights, injectPageStyles, render } from "./highlight.ts";
+import { colourCss } from "./colours.ts";
+import { applyColourSheet, clear as clearHighlights, injectPageStyles, render } from "./highlight.ts";
 import { ExposureTracker } from "./exposure-tracker.ts";
 import { ReadingObservers } from "./observer.ts";
 import {
@@ -35,11 +36,15 @@ import { recordReading, recordWordLearned, utcDay } from "../state/dailystats.ts
 import { needsLevelChoice } from "../state/level-choice.ts";
 import {
   type AsyncStorageArea,
+  type ColourPreference,
+  COLOURS_KEY,
+  colourPreferenceOf,
   ENABLED_KEY,
   HUD_HIDDEN_KEY,
   HUD_POSITION_KEY,
   type HudPosition,
   hydrateEngine,
+  loadColourPreference,
   loadEnabled,
   loadHudHidden,
   loadHudPosition,
@@ -236,6 +241,8 @@ export class ReadingSession {
   private needsLevel = false;
   /** The document being read, or none (the reader's library, between two sections). */
   private host: ReadingHost | null = null;
+  /** The reader's colour sheet (`colourCss`), painted after the token sheet; empty for Cymbra. */
+  private colourSheet = "";
   /** Removes the listeners of the read document when it is detached. */
   private hostListeners: AbortController | null = null;
   /** Where the popup, the drawer and the indicator live: this context's own document. */
@@ -298,6 +305,7 @@ export class ReadingSession {
     this.hudHidden = await loadHudHidden(storageArea);
     this.indicator.setPosition?.(await loadHudPosition(storageArea));
     this.enabled = await loadEnabled(storageArea);
+    this.colourSheet = colourCss(await loadColourPreference(storageArea));
     await this.refreshNeedsLevel();
     this.surfaceDoc.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && this.popup.visible()) this.popup.hide();
@@ -318,6 +326,9 @@ export class ReadingSession {
       if (moved) this.indicator.setPosition?.(parseHudPosition(moved.newValue));
       const lost = changes[SESSION_LOST_KEY];
       if (lost) this.drawer.setSessionLost(lost.newValue === true);
+      // The reader's colours, chosen here or in any other surface: repaint the read document.
+      const colours = changes[COLOURS_KEY];
+      if (colours) this.onColoursChange(colourPreferenceOf(colours.newValue));
     });
     // Flush pending reading exposures before the tab is hidden / navigated away.
     const surface = this.surfaceDoc;
@@ -450,11 +461,23 @@ export class ReadingSession {
     });
   }
 
+  /** The sheets highlights paint with: the token sheet, then the reader's colours over it. */
+  private paintStyles(doc: Document): void {
+    injectPageStyles(this.opts.css.tokens, doc);
+    applyColourSheet(doc, this.colourSheet);
+  }
+
+  /** The reader chose other colours: the read document follows at once, without a reload. */
+  private onColoursChange(preference: ColourPreference): void {
+    this.colourSheet = colourCss(preference);
+    if (this.host) applyColourSheet(this.host.doc, this.colourSheet);
+  }
+
   /** Paint the read document and begin watching it for changes (the reader's "on" state). */
   private async activate(): Promise<void> {
     const host = this.host;
     if (!host) return;
-    injectPageStyles(this.opts.css.tokens, host.doc);
+    this.paintStyles(host.doc);
     await this.refresh([host.doc.body], { firstPaint: true });
     // Mount the indicator only after a successful first paint, so a failed init (which resets
     // the injection guard and lets a retry create a fresh session) leaves no orphan host.
@@ -588,7 +611,7 @@ export class ReadingSession {
     // (GitHub's morphing) can strip our injected styles, which leaves highlights
     // unpainted even though clicks still resolve. injectPageStyles is idempotent
     // and self-healing, so this restores them on the first paint after a nav.
-    injectPageStyles(this.opts.css.tokens, host.doc);
+    this.paintStyles(host.doc);
     render(this.resolved, { doc: host.doc, window: !host.paintWhole });
     this.pushBadge();
     this.updateHud();

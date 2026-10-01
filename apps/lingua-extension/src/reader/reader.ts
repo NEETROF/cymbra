@@ -2,8 +2,12 @@ import { installGroupBy } from "./polyfill.ts";
 import { createLinguaPort } from "../analyzer/create-port.ts";
 import { ReadingSession } from "../reading/session.ts";
 import { SURFACE_CSS } from "../reading/surface-css.ts";
+import { colourCss } from "../reading/colours.ts";
 import {
   type AsyncStorageArea,
+  COLOURS_KEY,
+  colourPreferenceOf,
+  loadColourPreference,
   loadReaderFlow,
   READER_DISPLAY_KEY,
   READER_FLOW_KEY,
@@ -58,6 +62,12 @@ async function main(): Promise<void> {
       chrome.storage.onChanged.addListener((changes, area) => {
         const changed = changes[READER_DISPLAY_KEY];
         if (area === "local" && changed) onDisplay(readerDisplayOf(changed.newValue));
+      }),
+    loadColours: async () => colourCss(await loadColourPreference(settings)),
+    watchColours: (onColours) =>
+      chrome.storage.onChanged.addListener((changes, area) => {
+        const changed = changes[COLOURS_KEY];
+        if (area === "local" && changed) onColours(colourCss(colourPreferenceOf(changed.newValue)));
       }),
     fullscreen: documentFullscreen(document),
     reviewOutsidePage: !__REVIEW_IN_PAGE__,

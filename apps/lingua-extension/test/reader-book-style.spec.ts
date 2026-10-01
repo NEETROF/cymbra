@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { bookStyles, nightColoursOf, scaleFontSizes, TEXT_SCALE_VAR } from "@/reader/book-style.ts";
+import { bookStyles, pageColoursOf, scaleFontSizes, TEXT_SCALE_VAR } from "@/reader/book-style.ts";
 
 // The styles laid over a book (add-lingua-reader D10): the text size scales the book's text —
 // its absolute sizes included, which a root size alone would not reach — and the dark page
 // replaces the book's colours, from the token sheet.
 
-const NIGHT = { ink: "rgb(1, 2, 3)", link: "rgb(4, 5, 6)", rule: "rgb(7, 8, 9)" };
+const NIGHT = { ink: "rgb(1, 2, 3)", link: "rgb(4, 5, 6)", rule: "rgb(7, 8, 9)", paperInk: "" };
 const scaled = (size: string): string => `calc(${size} * var(${TEXT_SCALE_VAR}, 1))`;
 
 describe("scaleFontSizes", () => {
@@ -53,6 +53,14 @@ describe("bookStyles", () => {
     expect(after).toContain("hyphens: auto");
   });
 
+  it("replaces the book's text colour on paper when the reader chose one, keeping its backgrounds", () => {
+    const [, after] = bookStyles({ textScale: 100, theme: "paper" }, { ...NIGHT, paperInk: "#000000" });
+    expect(after).toContain("color-scheme: light");
+    expect(after).toContain("color: #000000 !important");
+    expect(after).toContain("color: inherit !important");
+    expect(after).not.toContain("background");
+  });
+
   it("replaces them on the dark page, with the token sheet's colours", () => {
     const [, after] = bookStyles({ textScale: 100, theme: "dark" }, NIGHT);
     expect(after).toContain("color-scheme: dark");
@@ -63,13 +71,15 @@ describe("bookStyles", () => {
   });
 });
 
-describe("nightColoursOf", () => {
-  it("reads the dark page's colours off the page's token sheet", () => {
+describe("pageColoursOf", () => {
+  it("reads the page's colours off the token sheet, as the reader's colour sheet sets them", () => {
     const root = document.documentElement;
-    root.style.setProperty("--cymbra-lingua-night-ink", " #cfd6ea");
+    root.style.setProperty("--cymbra-lingua-page-night-ink", " #cfd6ea");
     root.style.setProperty("--cymbra-lingua-night-link", "#d2bbff");
     root.style.setProperty("--cymbra-lingua-night-rule", "#2d3449");
-    expect(nightColoursOf(document)).toEqual({ ink: "#cfd6ea", link: "#d2bbff", rule: "#2d3449" });
+    expect(pageColoursOf(document)).toEqual({ ink: "#cfd6ea", link: "#d2bbff", rule: "#2d3449", paperInk: "" });
+    root.style.setProperty("--cymbra-lingua-page-paper-ink", "#111111");
+    expect(pageColoursOf(document).paperInk).toBe("#111111");
     root.removeAttribute("style");
   });
 });

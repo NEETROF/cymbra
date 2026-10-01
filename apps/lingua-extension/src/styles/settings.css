@@ -241,3 +241,97 @@ kbd {
   outline: 2px solid var(--cymbra-lingua-border-2);
   outline-offset: 2px;
 }
+
+/* Couleurs (colour-settings-view.ts, add-lingua-colour-settings): the presets, a preview painted
+   with the reader's choice, and each colour by hand. The preview's colours are the reader's own,
+   set inline — none here. */
+.set-colours {
+  display: grid;
+  gap: 10px;
+}
+
+.set-colour-presets {
+  flex-wrap: wrap;
+}
+
+.set-colour-presets .set-segment {
+  flex: 1 1 auto;
+}
+
+.set-colour-preview {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--cymbra-lingua-border-2);
+  border-radius: 10px;
+  background: var(--cymbra-lingua-paper);
+  color: var(--cymbra-lingua-ink);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.set-colour-warning[hidden] {
+  display: none;
+}
+
+.set-colour-details summary {
+  cursor: pointer;
+  color: var(--cymbra-lingua-accent);
+  font-size: 13px;
+}
+
+.set-colour-group {
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  border: 1px solid var(--cymbra-lingua-border-2);
+  border-radius: 10px;
+}
+
+.set-colour-group legend {
+  padding: 0 4px;
+  color: var(--cymbra-lingua-muted);
+  font-size: 12px;
+}
+
+.set-colour-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin: 6px 0;
+  color: var(--cymbra-lingua-text);
+  font-size: 13px;
+}
+
+.set-colour-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.set-colour-pick {
+  width: 36px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--cymbra-lingua-border-2);
+  border-radius: 8px;
+  background: none;
+  cursor: pointer;
+}
+
+.set-colour-pick:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.set-colour-select {
+  min-height: 30px;
+  padding: 2px 6px;
+  border: 1px solid var(--cymbra-lingua-border-2);
+  border-radius: 8px;
+  background: var(--cymbra-lingua-panel-2);
+  color: var(--cymbra-lingua-text);
+  font-family: inherit;
+  font-size: 13px;
+}

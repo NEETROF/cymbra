@@ -1,4 +1,5 @@
 import { type BookDisplayView, mountBookDisplay } from "../reading/book-display-view.ts";
+import { applyColourSheet } from "../reading/highlight.ts";
 import type { HudActions, HudState } from "../reading/hud.ts";
 import type { Box, ReadingHost, ReadingIndicator } from "../reading/session.ts";
 import {
@@ -44,6 +45,10 @@ export interface ReaderDeps {
   displayArea: AsyncStorageArea;
   /** Call back when the text size or the page changes, from this page or from Réglages. */
   watchDisplay: (onDisplay: (display: ReaderDisplay) => void) => void;
+  /** The reader's colour sheet (`colourCss`) as stored now; none: the token sheet's colours. */
+  loadColours?: () => Promise<string>;
+  /** Call back with the new colour sheet when the reader changes the colours, wherever. */
+  watchColours?: (onColours: (css: string) => void) => void;
   /** The browser's fullscreen, for the toolbar's control; none: no control. */
   fullscreen?: FullscreenHost;
   /**
@@ -161,6 +166,8 @@ export class ReaderApp {
     });
     this.applyDisplay(await loadReaderDisplay(this.deps.displayArea));
     this.deps.watchDisplay((display) => this.applyDisplay(display));
+    if (this.deps.loadColours) this.applyColours(await this.deps.loadColours());
+    this.deps.watchColours?.((css) => this.applyColours(css));
     const persistence = await this.deps.persistence();
     this.notice.hidden = persistence !== "refused";
     this.notice.textContent = persistence === "refused" ? COPY.persistenceRefused : "";
@@ -516,6 +523,15 @@ export class ReaderApp {
   private leaveFullscreenForPanel(): void {
     const fullscreen = this.deps.fullscreen;
     if (this.deps.reviewOutsidePage && fullscreen?.active()) fullscreen.exit().catch(() => {});
+  }
+
+  /**
+   * The reader's colours: the page behind the book (this document's page tokens), and the open
+   * book's own sheet, which reads them when it is styled (add-lingua-colour-settings D4).
+   */
+  private applyColours(css: string): void {
+    applyColourSheet(this.root.ownerDocument, css);
+    this.renderer?.setDisplay(this.display);
   }
 
   /** Show the book at this size, on this page: the paper or night behind it, and its text. */

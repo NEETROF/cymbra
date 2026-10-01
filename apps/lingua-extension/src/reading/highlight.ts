@@ -88,6 +88,46 @@ export function injectPageStyles(cssText: string, doc: Document = document): voi
   doc.documentElement.appendChild(style);
 }
 
+const COLOUR_STYLE_ID = "cymbra-lingua-colours";
+
+/** The reader's colour sheet of each document, replaced in place on every change. */
+const colourSheets = new WeakMap<Document, CSSStyleSheet>();
+
+/**
+ * Apply the reader's colour choice (`colourCss`, add-lingua-colour-settings D3) to a document:
+ * a second sheet, after the token sheet, so its rules and custom properties win. Replaced in
+ * place when the choice changes; an empty text (the Cymbra default) leaves an empty sheet, or
+ * none at all where none was made. Adopted like the token sheet — call it after
+ * `injectPageStyles`, and again after a morphing navigation, which may drop a `<style>` node.
+ */
+export function applyColourSheet(doc: Document, cssText: string): void {
+  if (canAdopt(doc)) {
+    try {
+      let sheet = colourSheets.get(doc);
+      if (!sheet) {
+        if (!cssText) return;
+        sheet = new (windowOf(doc)!.CSSStyleSheet)();
+        colourSheets.set(doc, sheet);
+      }
+      sheet.replaceSync(cssText);
+      // Last in the list, after the token sheet: at equal specificity, the later sheet wins.
+      doc.adoptedStyleSheets = [...doc.adoptedStyleSheets.filter((s) => s !== sheet), sheet];
+      return;
+    } catch {
+      // Constructable sheets misbehaved — fall through to the <style> node.
+    }
+  }
+  let style = doc.getElementById(COLOUR_STYLE_ID);
+  if (!style) {
+    if (!cssText) return;
+    style = doc.createElement("style");
+    style.id = COLOUR_STYLE_ID;
+  }
+  style.textContent = cssText;
+  // After the token sheet's node, wherever that one is.
+  doc.documentElement.appendChild(style);
+}
+
 /** How far past the viewport a block still gets painted: one viewport above and below. */
 const WINDOW_MARGIN = "100% 0px";
 

@@ -23,6 +23,7 @@ import {
 import { lastSyncLabel, syncErrorCopy } from "../sync/status.ts";
 import { clearSyncCursors } from "../sync/sync.ts";
 import { mountBookDisplay } from "./book-display-view.ts";
+import { mountColourSettings } from "./colour-settings-view.ts";
 import { type Speaker, type VoiceInfo, voiceGroups, voiceLabel } from "./speech.ts";
 import {
   mountTranslationSetting,
@@ -243,6 +244,10 @@ export function mountSettings(
   // The text size and the page: the same controls as the reader's own "Aa" panel.
   const bookDisplay = mountBookDisplay(booksBlock, area);
 
+  // — Couleurs — how unknown and learning words are marked, everywhere (add-lingua-colour-settings).
+  const coloursBlock = settingBlock("Couleurs");
+  const colours = mountColourSettings(coloursBlock, area);
+
   // — Traduction (the variants that carry the engine; the background says whether it is offered) —
   const translationBlock = settingBlock("Traduction");
   const translationControls =
@@ -355,7 +360,17 @@ export function mountSettings(
     void doReset("full");
   });
 
-  container.append(levelBlock, barBlock, voiceBlock, translationBlock, booksBlock, scBlock, syncBlock, resetBlock);
+  container.append(
+    levelBlock,
+    barBlock,
+    coloursBlock,
+    voiceBlock,
+    translationBlock,
+    booksBlock,
+    scBlock,
+    syncBlock,
+    resetBlock,
+  );
 
   // — Live wiring —
   calib.addEventListener("input", () => {
@@ -513,7 +528,7 @@ export function mountSettings(
     toggle.checked = !(await loadHudHidden(area));
     renderVoices();
     flowToggle.checked = (await loadReaderFlow(area)) === "scrolled";
-    await bookDisplay.refresh();
+    await Promise.all([bookDisplay.refresh(), colours.refresh()]);
     await Promise.all([refreshSync(), translation?.refresh()]);
   }
 

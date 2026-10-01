@@ -3,7 +3,7 @@ import type { PageAnalysis } from "@/analyzer/types.ts";
 import { HL_UNKNOWN } from "@/reading/highlight.ts";
 import type { Gesture } from "@/reading/wordpopup.ts";
 import { type ReadingHost, ReadingSession, type SessionOptions } from "@/reading/session.ts";
-import { HUD_POSITION_KEY, type HudPosition } from "@/state/storage.ts";
+import { COLOURS_KEY, HUD_POSITION_KEY, type HudPosition } from "@/state/storage.ts";
 import { makeFakePort } from "./helpers.ts";
 
 // The reading session reads the document it is given (add-lingua-reader D3). A book section
@@ -128,6 +128,38 @@ describe("the indicator's position", () => {
 
     for (const fn of changed) fn({ [HUD_POSITION_KEY]: { newValue: { side: "right", y: 0.5 } } }, "local");
     expect(placed.at(-1)).toEqual({ side: "right", y: 0.5 });
+  });
+});
+
+describe("the reader's colours (add-lingua-colour-settings)", () => {
+  type Changed = (changes: Record<string, { newValue?: unknown }>, area: string) => void;
+
+  it("paints the section with the stored choice, and repaints it when the choice changes", async () => {
+    const changed: Changed[] = [];
+    const storage = (globalThis as unknown as { chrome: { storage: Record<string, Record<string, unknown>> } }).chrome
+      .storage;
+    storage.local.get = async (key: string) => (key === COLOURS_KEY ? { [key]: { preset: "eink-mono" } } : {});
+    storage.onChanged.addListener = (fn: Changed) => void changed.push(fn);
+    const { s } = session();
+    await s.start(null);
+    const { host } = section("<p>It was a dark night.</p>");
+    await s.attach(host);
+    const sheet = (): string => host.doc.getElementById("cymbra-lingua-colours")?.textContent ?? "";
+    expect(sheet()).toContain("var(--cymbra-lingua-eink-black)");
+
+    for (const fn of changed) fn({ [COLOURS_KEY]: { newValue: { preset: "eink-colour" } } }, "local");
+    expect(sheet()).toContain("var(--cymbra-lingua-eink-red)");
+    // Back to Cymbra: the token sheet alone paints, the colour sheet is emptied in place.
+    for (const fn of changed) fn({ [COLOURS_KEY]: { newValue: { preset: "cymbra" } } }, "local");
+    expect(sheet()).toBe("");
+  });
+
+  it("adds no colour sheet at all for the Cymbra default", async () => {
+    const { s } = session();
+    await s.start(null);
+    const { host } = section("<p>It was a dark night.</p>");
+    await s.attach(host);
+    expect(host.doc.getElementById("cymbra-lingua-colours")).toBeNull();
   });
 });
 

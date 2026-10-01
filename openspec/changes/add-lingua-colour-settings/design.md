@@ -84,9 +84,14 @@ already does for the night colours). The result is stored as `custom`.
 ### D3. A second sheet, generated, adopted after the token sheet
 
 `colourCss(preference): string` is a pure function. It returns:
-- `:root { … }` overriding `--cymbra-lingua-{unknown,learning}-*`, `--cymbra-lingua-paper`,
-  `--cymbra-lingua-night`, `--cymbra-lingua-night-ink` and a new
-  `--cymbra-lingua-paper-ink` (unset by default);
+- `:root, :host { … }` overriding the **page tokens** `--cymbra-lingua-page-paper`,
+  `--cymbra-lingua-page-night`, `--cymbra-lingua-page-night-ink`, and setting
+  `--cymbra-lingua-page-paper-ink` (unset in the token sheet: the book keeps its own text on
+  paper). The token sheet defaults each page token to the identity's colour
+  (`--cymbra-lingua-page-paper: var(--cymbra-lingua-paper)`), and the reader page and the book
+  read only the page tokens. *As built:* the sheet first overrode the identity tokens themselves,
+  but the Cymbra preset is *made of* those tokens, so editing from Cymbra after a custom choice
+  read the custom values back. The identity tokens are never overridden;
 - the two `::highlight()` rules in full. At equal specificity a later sheet wins, so these
   replace the token sheet's for every property they set. `color` is emitted only when a text
   colour is chosen, `text-decoration-thickness` only for "thick".
@@ -106,11 +111,10 @@ today (both call sites of `injectPageStyles`). It re-applies to every attached d
 `storage.onChanged` for the key, through the same `AsyncStorageArea` seam plus a
 `watchColours` callback, so tests need no `chrome`.
 
-The reader page applies the sheet to its own document, for `--cymbra-lingua-paper` and
-`--cymbra-lingua-night` behind the book. It also calls `renderer.setDisplay` again, so that
+The reader page applies the sheet to its own document, for the page tokens behind the book. It also calls `renderer.setDisplay` again, so that
 `bookStyles` re-reads the page colours.
 
-`bookStyles` gains the paper text: when `--cymbra-lingua-paper-ink` resolves to a colour, the
+`bookStyles` gains the paper text: when `--cymbra-lingua-page-paper-ink` resolves to a colour, the
 paper page's sheet sets `html, body { color: … !important }`, as the dark page does. Otherwise
 it keeps the book's colours. `NightColours` becomes `PageColours`, read the same way.
 
@@ -140,15 +144,20 @@ The **warning** appears under the fieldsets when the two underline styles are eq
 
 ### D6. Measured, not assumed: what a highlight paints on each engine
 
-`text-decoration-thickness` and the `wavy` / `double` styles inside `::highlight()` are not
-uniformly implemented. A spike (task 1.1) paints each property in a highlight on Chromium,
-Firefox and WebKit through Playwright, samples the pixels and records the result here. Unsupported
-settings are compiled out per variant (`__HIGHLIGHT_THICKNESS__`, `__HIGHLIGHT_STYLES__` in
-`build.mjs`): the option is not offered rather than offered and ignored (spec: "A setting that
-the browser cannot paint … SHALL NOT be offered").
+`text-decoration-thickness` and the `wavy` / `double` styles inside `::highlight()` were not
+known to be uniformly implemented. A spike (task 1.1) painted each property in a highlight on
+Chromium, Firefox and WebKit through Playwright and compared the pixels with an unpainted word,
+and with a plain solid underline.
 
-If no engine thickens a highlight's underline, the e-ink presets get their weight from what does
-paint — a text colour on the word and a stronger fill — and "thickness" leaves the model.
+**Measured 2026-10-01** — Chromium 151, Firefox 153, WebKit 26.5 (Safari's engine): every
+engine paints `background-color`, `color`, `text-decoration` in every style (solid, dotted,
+dashed, wavy, double), `text-decoration-thickness` and `text-underline-offset` inside a
+highlight. Firefox draws the default underline thinner than the others (a hairline, which is
+the Kaleido problem itself), so the thickness setting matters most there.
+
+So nothing is compiled out per variant: no `__HIGHLIGHT_*__` constants. The rule stands for a
+future engine (spec: "A setting that the browser cannot paint … SHALL NOT be offered"); none of
+today's needs it.
 
 ### D7. The presets, provisional until the Boox
 
@@ -183,6 +192,5 @@ archives after it.
 
 ## Open Questions
 
-- Which highlight properties each engine paints (D6) — answered by task 1.1 before the
-  settings are built.
+- ~~Which highlight properties each engine paints (D6)~~ — answered: all of them (task 1.1).
 - The e-ink presets' exact values (D7) — answered on the Boox.

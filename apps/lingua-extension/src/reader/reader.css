@@ -273,16 +273,16 @@ button {
   flex: 1;
   min-width: 0;
   min-height: 0;
-  background: var(--cymbra-lingua-paper);
-  color: var(--cymbra-lingua-ink);
+  background: var(--cymbra-lingua-page-paper);
+  color: var(--cymbra-lingua-page-paper-ink, var(--cymbra-lingua-ink));
   color-scheme: light;
 }
 
 /* The dark page (the "Aa" panel): the night behind the book, its text lightened by the book's
    own style sheet (book-style.ts). Dark like the section documents, so no frame paints a canvas. */
 .reading-book[data-theme="dark"] {
-  background: var(--cymbra-lingua-night);
-  color: var(--cymbra-lingua-night-ink);
+  background: var(--cymbra-lingua-page-night);
+  color: var(--cymbra-lingua-page-night-ink);
   color-scheme: dark;
 }
 

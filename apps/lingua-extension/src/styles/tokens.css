@@ -60,6 +60,25 @@
   --cymbra-lingua-night-link: #d2bbff;
   --cymbra-lingua-night-rule: #2d3449;
 
+  /* The reader's page as the reader chose it (add-lingua-colour-settings D3): the identity's
+     paper and night by default, overridden by the colour sheet. The reader page and the book's
+     sections read these, never the identity tokens above, which the presets are made of.
+     `--cymbra-lingua-page-paper-ink`, the paper page's text, is deliberately left unset here:
+     the book keeps its own colours on paper unless the reader chose one. */
+  --cymbra-lingua-page-paper: var(--cymbra-lingua-paper);
+  --cymbra-lingua-page-night: var(--cymbra-lingua-night);
+  --cymbra-lingua-page-night-ink: var(--cymbra-lingua-night-ink);
+
+  /* The e-ink presets (add-lingua-colour-settings D7). A monochrome panel shows only greys, so
+     its preset marks with weight: a mid-grey fill, a thick black line. A colour e-ink panel
+     (Kaleido) washes pastels and yellows out and draws colour at half the resolution of black:
+     its preset puts a dark, saturated ink on the word itself. Tuned on the Boox Go Color 7 Gen 2. */
+  --cymbra-lingua-eink-black: #000000;
+  --cymbra-lingua-eink-white: #ffffff;
+  --cymbra-lingua-eink-grey: #8c8c8c;
+  --cymbra-lingua-eink-red: #b0001e;
+  --cymbra-lingua-eink-blue: #0a3a8c;
+
   /* Radii (identity) */
   --cymbra-lingua-radius: 12px;
   --cymbra-lingua-radius-lg: 18px;

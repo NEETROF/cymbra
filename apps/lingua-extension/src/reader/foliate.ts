@@ -2,7 +2,7 @@ import { EPUB, type FoliateTocItem } from "foliate-js/epub.js";
 import { type FoliateRelocate, View } from "foliate-js/view.js";
 import { DEFAULT_READER_DISPLAY, type ReaderDisplay, type ReaderFlow } from "../state/storage.ts";
 import { openArchive } from "./archive.ts";
-import { bookStyles, nightColoursOf, scaleFontSizes } from "./book-style.ts";
+import { bookStyles, pageColoursOf, scaleFontSizes } from "./book-style.ts";
 import type { BookLocation, BookRenderer, OpenedBook, SectionReady, TocEntry } from "./renderer.ts";
 import { continueAtEdges, type ScrollEdges } from "./scroll-edges.ts";
 import { type LoadableSection, routeSections, workerServesSections } from "./section-server.ts";
@@ -107,7 +107,7 @@ export class FoliateRenderer implements BookRenderer {
   }
 
   private applyDisplay(): void {
-    this.element.renderer?.setStyles(bookStyles(this.display, nightColoursOf(this.element.ownerDocument)));
+    this.element.renderer?.setStyles(bookStyles(this.display, pageColoursOf(this.element.ownerDocument)));
   }
 
   setFlow(flow: ReaderFlow): void {
