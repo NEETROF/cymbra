@@ -28,3 +28,6 @@ serde_json = { workspace = true }
 # C-backed zstd for high-ratio gloss compression. Native-only: this crate is
 # never targeted to WASM (the reader in lingua-core uses pure-Rust ruzstd).
 zstd = { workspace = true }
+
+[lints]
+workspace = true

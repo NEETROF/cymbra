@@ -32,3 +32,6 @@ cymbra-auth-port = { path = "../auth-port", features = ["mock"] }
 # `MockUserPort`, to fail the app-use record (change: add-directory-app-usage).
 cymbra-user-port = { path = "../user-port", features = ["mock"] }
 mockall = { workspace = true }
+
+[lints]
+workspace = true

@@ -21,8 +21,9 @@ use async_trait::async_trait;
 use sqlx::{Connection, PgConnection, PgPool, Row};
 
 use crate::event::AnnouncementEvent;
-use crate::ports::{AnnouncementLedger, AnnouncementSource, Claim};
+use crate::ports::{AnnouncementLedger, AnnouncementSource, Claim, ReportSource};
 use crate::render::{CatalogItem, ScoreCard, SoundFontCard};
+use crate::reports::{DAILY_TOP, Figure, IdFigures, MusicFigures, Period, PieceStat};
 
 /// Enqueue `discord_notify` for `event` inside the caller's transaction.
 ///
@@ -242,5 +243,170 @@ impl AnnouncementSource for PgAnnouncementSource {
             .collect();
         items.sort_by_key(|(at, _)| *at);
         Ok(items.into_iter().map(|(_, item)| item).collect())
+    }
+}
+
+/// The Music and Cymbra ID report figures (change: add-discord-notifications,
+/// D7). Takes the worker's **`admin_svc` pool** — the only worker role that
+/// reads `music` and `user_account` — with schema-qualified names. Returns
+/// counts only; no account identifier leaves these queries.
+pub struct PgReportSource {
+    pool: PgPool,
+}
+
+impl PgReportSource {
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
+    }
+}
+
+type Utc = chrono::DateTime<chrono::Utc>;
+
+/// `[start, end)` of a period as UTC instants.
+fn bounds(period: &Period) -> (Utc, Utc) {
+    let at = |d: chrono::NaiveDate| d.and_hms_opt(0, 0, 0).unwrap().and_utc();
+    (at(period.start), at(period.end))
+}
+
+#[async_trait]
+impl ReportSource for PgReportSource {
+    async fn music(&self, period: &Period) -> anyhow::Result<MusicFigures> {
+        let (from, to) = bounds(period);
+        let plays = sqlx::query(
+            "SELECT count(*)::bigint AS sessions, count(DISTINCT user_id)::bigint AS players, \
+                    avg(overall_sync_pct)::float8 AS accuracy \
+             FROM music.play_sessions WHERE played_at >= $1 AND played_at < $2",
+        )
+        .bind(from)
+        .bind(to)
+        .fetch_one(&self.pool)
+        .await?;
+        let ratings = sqlx::query(
+            "SELECT count(*)::bigint AS ratings, count(DISTINCT user_id)::bigint AS raters \
+             FROM music.score_ratings WHERE updated_at >= $1 AND updated_at < $2",
+        )
+        .bind(from)
+        .bind(to)
+        .fetch_one(&self.pool)
+        .await?;
+        let consensus: i64 = sqlx::query_scalar(
+            "SELECT count(*)::bigint FROM music.score_consensus_settlements \
+             WHERE settled_at >= $1 AND settled_at < $2",
+        )
+        .bind(from)
+        .bind(to)
+        .fetch_one(&self.pool)
+        .await?;
+        // Items accepted in the period, oldest first. An admin's proposal,
+        // accepted on insert, has no review time and uses its creation time.
+        let accepted: Vec<String> = sqlx::query_scalar(
+            "SELECT name FROM ( \
+               SELECT title || CASE WHEN coalesce(composer, '') <> '' \
+                                    THEN ' — ' || composer ELSE '' END AS name, \
+                      COALESCE(reviewed_at, created_at) AS at \
+               FROM music.catalog_scores \
+               WHERE moderation_status = 'accepted' AND coalesce(title, '') <> '' \
+                 AND COALESCE(reviewed_at, created_at) >= $1 \
+                 AND COALESCE(reviewed_at, created_at) < $2 \
+               UNION ALL \
+               SELECT label, COALESCE(reviewed_at, created_at) \
+               FROM music.soundfonts \
+               WHERE moderation_status = 'accepted' \
+                 AND COALESCE(reviewed_at, created_at) >= $1 \
+                 AND COALESCE(reviewed_at, created_at) < $2 \
+             ) accepted ORDER BY at, name",
+        )
+        .bind(from)
+        .bind(to)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(MusicFigures {
+            sessions: Figure::new(plays.get("sessions"), plays.get("players")),
+            accuracy_pct: plays.get("accuracy"),
+            ratings: Figure::new(ratings.get("ratings"), ratings.get("raters")),
+            consensus,
+            accepted,
+            top: self.top_pieces(period, DAILY_TOP).await?,
+        })
+    }
+
+    async fn top_pieces(&self, period: &Period, limit: usize) -> anyhow::Result<Vec<PieceStat>> {
+        let (from, to) = bounds(period);
+        // The join is the privacy boundary, not an optimisation:
+        // `play_sessions.score_id` also holds USER score ids, and ranking it
+        // directly would publish the title of a private upload.
+        let rows = sqlx::query(
+            "SELECT cs.title, cs.composer, count(*)::bigint AS plays, \
+                    count(DISTINCT ps.user_id)::bigint AS players \
+             FROM music.play_sessions ps \
+             JOIN music.catalog_scores cs ON cs.id::text = ps.score_id \
+             WHERE cs.moderation_status = 'accepted' \
+               AND ps.played_at >= $1 AND ps.played_at < $2 \
+             GROUP BY cs.id, cs.title, cs.composer \
+             ORDER BY plays DESC, cs.title NULLS LAST \
+             LIMIT $3",
+        )
+        .bind(from)
+        .bind(to)
+        .bind(limit as i64)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows
+            .iter()
+            .map(|r| PieceStat {
+                card: ScoreCard {
+                    title: r.get("title"),
+                    composer: r.get("composer"),
+                },
+                plays: r.get("plays"),
+                players: r.get("players"),
+            })
+            .collect())
+    }
+
+    async fn id(&self, period: &Period) -> anyhow::Result<IdFigures> {
+        let (from, to) = bounds(period);
+        let new_accounts: i64 = sqlx::query_scalar(
+            "SELECT count(*)::bigint FROM user_account.users \
+             WHERE created_at >= $1 AND created_at < $2",
+        )
+        .bind(from)
+        .bind(to)
+        .fetch_one(&self.pool)
+        .await?;
+        // The first identity linked to each new account is how it signed up.
+        let methods = sqlx::query(
+            "SELECT provider, count(*)::bigint AS n FROM ( \
+               SELECT DISTINCT ON (i.user_id) i.provider \
+               FROM user_account.user_identities i \
+               JOIN user_account.users u ON u.id = i.user_id \
+               WHERE u.created_at >= $1 AND u.created_at < $2 \
+               ORDER BY i.user_id, i.linked_at \
+             ) first GROUP BY provider",
+        )
+        .bind(from)
+        .bind(to)
+        .fetch_all(&self.pool)
+        .await?;
+        let locales = sqlx::query(
+            "SELECT coalesce(locale, '') AS locale, count(*)::bigint AS n \
+             FROM user_account.users WHERE created_at >= $1 AND created_at < $2 \
+             GROUP BY 1",
+        )
+        .bind(from)
+        .bind(to)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(IdFigures {
+            new_accounts,
+            methods: methods
+                .iter()
+                .map(|r| (r.get("provider"), r.get("n")))
+                .collect(),
+            locales: locales
+                .iter()
+                .map(|r| (r.get("locale"), r.get("n")))
+                .collect(),
+        })
     }
 }

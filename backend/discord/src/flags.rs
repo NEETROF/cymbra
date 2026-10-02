@@ -28,9 +28,43 @@ pub fn category_flag(category: Category) -> String {
     format!("discord.{}", category.key())
 }
 
+/// A report's cadence flag — `discord.<product>.report.cadence`, `daily` or
+/// `weekly` (change: add-discord-notifications, D7). `None` for a category
+/// whose rhythm is fixed (the weekly top pieces) or that is not a report.
+pub fn cadence_flag(category: Category) -> Option<String> {
+    match category {
+        Category::MusicReport | Category::IdReport | Category::LinguaReport => {
+            Some(format!("discord.{}.cadence", category.key()))
+        }
+        _ => None,
+    }
+}
+
+/// The minimum number of contributing accounts below which a report figure is
+/// dropped. **Default 3** (maintainer decision, 2026-09-30).
+pub const REPORTS_MIN_CONTRIBUTORS: &str = "discord.reports.min_contributors";
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_reports_have_a_cadence_flag() {
+        assert_eq!(
+            cadence_flag(Category::MusicReport).as_deref(),
+            Some("discord.music.report.cadence")
+        );
+        assert_eq!(
+            cadence_flag(Category::LinguaReport).as_deref(),
+            Some("discord.lingua.report.cadence")
+        );
+        assert_eq!(
+            cadence_flag(Category::IdReport).as_deref(),
+            Some("discord.id.report.cadence")
+        );
+        assert_eq!(cadence_flag(Category::MusicTopPieces), None);
+        assert_eq!(cadence_flag(Category::MusicCatalog), None);
+    }
 
     #[test]
     fn category_flags_are_product_namespaced() {

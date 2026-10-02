@@ -28,3 +28,6 @@ mock = ["dep:mockall"]
 tokio = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
 mockall = { workspace = true }
+
+[lints]
+workspace = true

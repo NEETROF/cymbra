@@ -666,10 +666,47 @@ pub async fn discord_notify(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), B
     .await
 }
 
+/// Post every Discord report whose closed period is due today (change:
+/// add-discord-notifications, D7). Scheduled daily. Each report is decided and
+/// claimed on its own; `Err` — hence a retry — when one failed in a way a later
+/// attempt can fix, and the reports already posted then stop at their claim.
+#[sqlxmq::job("discord_digest")]
+pub async fn discord_digest(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxError> {
+    let span = tracing::info_span!("job.discord_digest", job_id = %job.id());
+    let (pool, id, name) = (job.pool().clone(), job.id(), job.name().to_owned());
+    tracked(&pool, id, &name, async move {
+        match &ctx.discord {
+            Some(announcer) => {
+                if let Err(e) = ctx.flags.refresh().await {
+                    tracing::warn!(error = %e, "discord_digest flag refresh failed; using last-known/default");
+                }
+                let mut retry = None;
+                for (category, outcome) in announcer.digest(&ctx.flags, chrono::Utc::now()).await {
+                    match outcome {
+                        Ok(o) => tracing::info!(report = category.key(), outcome = ?o, "discord report handled"),
+                        Err(e) => {
+                            tracing::warn!(report = category.key(), error = %e, "discord report will be retried");
+                            retry = Some(e);
+                        }
+                    }
+                }
+                if let Some(e) = retry {
+                    return Err(e.into());
+                }
+            }
+            None => tracing::info!("discord_digest skipped: no Discord webhook configured"),
+        }
+        job.complete().await?;
+        Ok(())
+    })
+    .instrument(span)
+    .await
+}
+
 /// Every handler the worker runs — one list for the registry and for the test that
 /// pins it to `cymbra_jobs::registry::builtin()`, so a kind the console lists always
 /// has a handler, and a handler always has a kind (change: add-admin-jobs-console).
-fn all_jobs() -> [&'static sqlxmq::NamedJob; 17] {
+fn all_jobs() -> [&'static sqlxmq::NamedJob; 18] {
     [
         verification_email,
         orphan_reap,
@@ -688,6 +725,7 @@ fn all_jobs() -> [&'static sqlxmq::NamedJob; 17] {
         plans_reconcile,
         plans_withdraw,
         discord_notify,
+        discord_digest,
     ]
 }
 

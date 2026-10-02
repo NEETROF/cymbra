@@ -20,11 +20,11 @@ in the **description** (a 50-line list is ~2300 characters), never in 50 fields.
   (maintainer decision, 2026-09-29): it publishes what was *done* — sessions, words read, reviews,
   ratings, pieces — never how many did it. Languages and sign-in methods appear as a ranking or as
   percentages, never as head counts.
-- **Minimum contributors `k` — a flag, default `1`** (`discord.reports.min_contributors`): a figure
-  whose contributing accounts are fewer than `k` is dropped from the message. At `1` nothing is
-  dropped: the maintainer accepts that, while the community is small, a figure can be one
-  person's activity — often his own (2026-09-29). Raising it from the back office takes effect at
-  the next report, with no release; every rule below is written against `k` so it keeps working.
+- **Minimum contributors `k` — a flag, default `3`** (`discord.reports.min_contributors`,
+  maintainer decision 2026-09-30): a figure whose contributing accounts are fewer than `k` is
+  dropped from the message, so no published figure is one or two people's activity. Changing it
+  from the back office takes effect at the next report, with no release; every rule below is
+  written against `k`.
 - **Naming gate**: a player is named only when their Discord opt-in is on **and** they are
   publicly listable (public profile + age-eligible). Otherwise the line reads `Anonymous` — the
   rank and the figure still show, so a board is never empty.
@@ -125,7 +125,7 @@ would publish that one person's review total. Extend `usage()`; do not write a s
 | **Reviews done** | `Usage.reviews` | dropped if accounts that reviewed `< k` |
 | **Languages studied** | `Usage.by_language`, ranked by accounts, **names only** (never a count, never its per-language sums) | see below |
 
-`Usage.active_accounts` is read (it gates nothing at `k = 1`) but **never published**.
+`Usage.active_accounts` is read but **never published**.
 
 **Languages studied** is rendered only when **two or more** languages each reach `k` accounts. The
 repository returns languages alphabetically, so the pure core drops those under `k`, sorts by
@@ -160,9 +160,9 @@ account identifier (`backend/lingua/src/admin.rs`). `word_statuses` and `cards` 
 rows and stay out of any report. A single heavy reader can still dominate a sum such as Words
 read; that is accepted, because nothing published says who they are.
 
-**Expect small numbers at first.** With `k = 1` a week in which one synced account read is
-published, and its figures are that account's activity; a week in which nobody synced posts
-nothing ("nothing to say ⇒ nothing posted"), rather than zeroes.
+**Expect silence at first.** With `k = 3` a figure is published once three synced accounts
+contributed to it in the week; until then the report posts nothing ("nothing to say ⇒ nothing
+posted"), rather than zeroes or dashes.
 
 **Erasure needs no special handling**: `LinguaDataService.EraseMyData` and the account erasure job
 both delete the user's `daily_stats` rows, so later reports stop counting them, and an

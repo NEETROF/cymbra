@@ -27,12 +27,14 @@
 //!
 //! Release announcements are not here: CI posts them (`scripts/discord/`).
 
+pub mod digest;
 pub mod event;
 pub mod flags;
 pub mod pg;
 pub mod ports;
 pub mod publish;
 pub mod render;
+pub mod reports;
 pub mod routing;
 pub mod webhook;
 
@@ -56,7 +58,7 @@ pub fn notify_request(event: &AnnouncementEvent) -> anyhow::Result<EnqueueReques
     let request = EnqueueRequest::for_job(&spec, event, None)?;
     Ok(match event.category() {
         Category::MusicCatalog => request.with_delay(CATALOG_GROUPING_DELAY),
-        Category::MusicRecords => request,
+        _ => request,
     })
 }
 

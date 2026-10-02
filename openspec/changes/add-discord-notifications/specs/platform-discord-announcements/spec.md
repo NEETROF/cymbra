@@ -161,25 +161,24 @@ state **how many people** were involved: no count of players, accounts, readers,
 verifications or linked identities, and a breakdown by language or sign-in method is shown as a
 ranking or as percentages, never as head counts.
 A figure SHALL be dropped when its contributing accounts are fewer than a **minimum** read from a
-runtime flag at publication time. The default minimum is **1** — no figure is dropped — by
-maintainer decision (2026-09-29): while the community is small, a published figure can be one
-person's activity, and that is accepted; raising the minimum takes effect at the next report
-without a release.
+runtime flag at publication time. The default minimum is **3** (maintainer decision,
+2026-09-30), so no published figure is the activity of one or two accounts; changing the minimum
+takes effect at the next report without a release.
 
 #### Scenario: Digest reports activity, not people
 
 - **WHEN** a product's digest is published
 - **THEN** it contains activity figures and no name, handle, identifier, email, or count of people
 
-#### Scenario: The default minimum drops nothing
+#### Scenario: The default minimum drops a one- or two-account figure
 
-- **WHEN** the minimum holds its default and one account contributed to a figure
-- **THEN** that figure is published
-
-#### Scenario: A raised minimum drops a small figure
-
-- **WHEN** an operator has raised the minimum and a figure's contributing accounts are fewer
+- **WHEN** the minimum holds its default and two accounts contributed to a figure
 - **THEN** that figure is omitted rather than published
+
+#### Scenario: A figure behind enough accounts is published
+
+- **WHEN** the minimum holds its default and three accounts contributed to a figure
+- **THEN** that figure is published
 
 ### Requirement: Only allow-listed event categories are announceable
 

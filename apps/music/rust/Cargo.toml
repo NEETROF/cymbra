@@ -40,3 +40,7 @@ ndk-context = "0.1"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
+
+[lints.clippy]
+# See the workspace `[workspace.lints.clippy]` note (clippy 1.99 vs async_trait).
+double_must_use = "allow"

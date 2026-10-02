@@ -5,8 +5,9 @@
 # The add-on's crates inherit their edition and dependency versions from the workspace root
 # (`edition.workspace = true`), so they do not build without a root Cargo.toml — and the real
 # one globs `backend/*` and `apps/*/rust`, which are not in the archive. The archive carries a
-# reduced root manifest instead: the same [workspace.package] and [workspace.dependencies]
-# tables, with only the three Lingua crates as members. `yarn gen:proto` reads the .proto
+# reduced root manifest instead: the same [workspace.package], [workspace.dependencies] and
+# [workspace.lints.*] tables (members inherit `[lints] workspace = true`, which fails to parse
+# without them), with only the three Lingua crates as members. `yarn gen:proto` reads the .proto
 # files of three backend crates, and `yarn gen:pack:real` runs the lingua-pack builder, so
 # those come along too.
 #
@@ -42,7 +43,7 @@ git -C "$REPO_ROOT" archive HEAD "${PATHS[@]}" | tar -x -C "$OUT"
 # The reduced workspace root: the shared tables verbatim, the members cut down to what is here.
 {
   echo "# Reduced from the Cymbra monorepo's root manifest by make_source_archive.sh: the same"
-  echo "# shared package and dependency tables, with only the crates in this archive as members."
+  echo "# shared package, dependency and lint tables, with only the crates in this archive as members."
   echo "[workspace]"
   echo 'resolver = "2"'
   echo "members = [$MEMBERS]"
@@ -51,7 +52,7 @@ git -C "$REPO_ROOT" archive HEAD "${PATHS[@]}" | tar -x -C "$OUT"
   # that header says whether it is kept.
   awk '
     /^[[:space:]]*(#|$)/ { held = held $0 "\n"; next }
-    /^\[/ { keep = ($0 ~ /^\[workspace\.(package|dependencies)/) }
+    /^\[/ { keep = ($0 ~ /^\[workspace\.(package|dependencies|lints)/) }
     { if (keep) printf "%s%s\n", held, $0; held = "" }
   ' "$REPO_ROOT/Cargo.toml"
 } >"$OUT/Cargo.toml"

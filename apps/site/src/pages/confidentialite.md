@@ -37,12 +37,22 @@ donnée, et n'utilisons pas de publicité tierce ni de traceurs publicitaires. N
 recevons et ne stockons **jamais** vos numéros de carte, adresses de facturation ni
 factures : ils sont traités exclusivement par le canal d'achat (Apple, Google, Paddle).
 
+**Chiffres publiés sur la communauté Cymbra.** Nous publions sur les salons publics de la
+communauté Cymbra (serveur Discord) des chiffres d'activité **agrégés**, calculés à partir
+de l'usage des services : par exemple le nombre de parties jouées, la précision moyenne,
+les partitions notées et les pièces les plus jouées de Cymbra Music, les mots lus, appris
+et révisés dans Cymbra Lingua, ou la part de chaque méthode de connexion parmi les nouveaux
+comptes. Ces chiffres ne comportent **ni nom, ni pseudo, ni identifiant, ni nombre de
+personnes**. Tant que la communauté est petite, un chiffre peut toutefois ne refléter
+l'activité que de très peu de personnes.
+
 ## 3. Bases légales (RGPD art. 6)
 
 - **Exécution du contrat** : création et gestion de votre compte, fourniture de
   l'application.
 - **Intérêt légitime** : sécurité, prévention de la fraude/des abus, limitation de
-  débit, bon fonctionnement.
+  débit, bon fonctionnement, publication de chiffres d'activité agrégés sur les canaux
+  de la communauté Cymbra (voir §2).
 - **Consentement** : connexion via Google/Apple (vous choisissez ce mode).
 
 ## 4. Sous-traitants et tiers
@@ -173,10 +183,11 @@ texte. Dès qu'une voix anglaise est installée sur l'appareil, elle est utilis�
 |---|---|---|
 | Statut de chaque mot (connu, en apprentissage, ignoré) et niveau d'anglais déclaré | vous | retrouver votre progression sur vos appareils |
 | Deck de révision : le mot, la phrase où vous l'avez trouvé, sa traduction et son état de révision — **sans** l'adresse de la page | vous | réviser sur tous vos appareils |
-| Statistiques par jour (mots appris, révisions, nombre de mots lus et, parmi eux, de mots nouveaux) | calculées sur l'appareil | afficher vos statistiques ; chiffres d'usage **agrégés** pour faire fonctionner le service |
+| Statistiques par jour (mots appris, révisions, nombre de mots lus et, parmi eux, de mots nouveaux) | calculées sur l'appareil | afficher vos statistiques ; chiffres d'usage **agrégés** pour faire fonctionner le service et, sans nom ni nombre de personnes, publiés sur les canaux de la communauté Cymbra (voir §2) |
 | Identifiant d'installation aléatoire | généré par l'extension | départager deux appareils lors de la synchronisation |
 
-- **Base légale** : exécution du contrat (fourniture de la synchronisation).
+- **Base légale** : exécution du contrat (fourniture de la synchronisation) ; intérêt
+  légitime pour la publication de chiffres agrégés (voir §2).
 - **Conservation** : tant que votre compte existe, ou jusqu'à ce que vous effaciez vos
   données Lingua.
 - **Effacer vos données Lingua sans supprimer votre compte** : dans l'extension,

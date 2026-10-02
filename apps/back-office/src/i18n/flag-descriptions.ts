@@ -43,6 +43,21 @@ const FR: Record<string, string> = {
     "Annonce chaque partition et chaque SoundFont acceptées au catalogue de Cymbra Music dans #scores-and-soundfonts.",
   "discord.music.records":
     "Annonce les records de saison battus sur les pièces du catalogue dans #music-leaderboards — la pièce et le score, jamais le joueur ; au plus une fois par pièce et par mode chaque jour.",
+  "discord.music.report":
+    "Publie le rapport d’activité de Cymbra Music dans #music-stats : parties, précision moyenne, notations, nouveautés du catalogue, pièces les plus jouées — jamais un nombre de joueurs.",
+  "discord.music.report.cadence":
+    "Rythme du rapport Cymbra Music : daily (la veille, jour UTC) ou weekly (la semaine ISO précédente, publié le lundi).",
+  "discord.music.top_pieces":
+    "Publie chaque lundi dans #music-leaderboards les 50 pièces du catalogue les plus jouées de la semaine, avec les jours restants de la saison.",
+  "discord.id.report":
+    "Publie le rapport Cymbra ID dans #id-stats : méthodes de connexion des nouveaux comptes en pourcentage et leurs langues principales — jamais un nombre de comptes.",
+  "discord.id.report.cadence": "Rythme du rapport Cymbra ID : daily ou weekly (publié le lundi).",
+  "discord.lingua.report":
+    "Publie le rapport Cymbra Lingua dans #lingua-stats : mots lus, mots appris, révisions — jamais un nombre de lecteurs. Nécessite CYMBRA_LINGUA_DATABASE_URL sur le worker.",
+  "discord.lingua.report.cadence":
+    "Rythme du rapport Cymbra Lingua : weekly (publié le mardi, un jour après la fin de la semaine, pour compter les synchronisations) ou daily (avec un jour de retard).",
+  "discord.reports.min_contributors":
+    "Nombre minimum de comptes derrière un chiffre pour qu’un rapport Discord le publie (3 par défaut) : un chiffre issu de moins de comptes est omis. À 1, tout est publié, même l’activité d’une seule personne.",
   "notifications.enabled": "Coupe-circuit global des notifications push : désactivé, aucune catégorie n’envoie.",
   "notifications.category.practice_streak.enabled":
     "Rappel du soir aux joueurs dont la série de pratique est sur le point de se rompre.",

@@ -43,10 +43,39 @@ impl Locale {
     }
 }
 
-/// A rendered Discord message — plain `content`, under Discord's 2000-char cap.
+/// A rendered Discord message: plain `content` (under Discord's 2000-character
+/// cap) and/or one embed (the periodic reports).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Message {
     pub content: String,
+    pub embed: Option<Embed>,
+}
+
+/// A Discord embed: a title, a description (up to 4096 characters — room for a
+/// ranking) and an optional footer.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Embed {
+    pub title: String,
+    pub description: String,
+    pub footer: Option<String>,
+}
+
+impl Message {
+    /// A plain-text message.
+    pub fn text(content: impl Into<String>) -> Self {
+        Self {
+            content: content.into(),
+            embed: None,
+        }
+    }
+
+    /// A message made of one embed and no text.
+    pub fn embed(embed: Embed) -> Self {
+        Self {
+            content: String::new(),
+            embed: Some(embed),
+        }
+    }
 }
 
 /// The public fields of an accepted SoundFont.
@@ -139,9 +168,7 @@ pub fn soundfont_accepted(card: &SoundFontCard, locale: Locale) -> Option<Messag
             );
         }
     }
-    Some(Message {
-        content: lines.join("\n"),
-    })
+    Some(Message::text(lines.join("\n")))
 }
 
 /// A score accepted into the catalog. `None` when it has no title to show.
@@ -157,7 +184,7 @@ pub fn score_accepted(card: &ScoreCard, locale: Locale) -> Option<Message> {
             "🎼 **Nouvelle partition au catalogue :** {piece}\nÀ jouer dès maintenant dans [Cymbra Music](https://cymbra.app/music/)."
         ),
     };
-    Some(Message { content })
+    Some(Message::text(content))
 }
 
 /// A season record beaten on a catalog piece — anonymous: the piece, the mode and
@@ -191,7 +218,7 @@ pub fn season_record(
             )
         }
     };
-    Some(Message { content })
+    Some(Message::text(content))
 }
 
 /// An item accepted into the catalog, as the grouped announcement lists it.
@@ -318,9 +345,7 @@ pub fn catalog_batch(items: &[CatalogItem], locale: Locale) -> Option<Message> {
         }
         .into(),
     );
-    Some(Message {
-        content: lines.join("\n"),
-    })
+    Some(Message::text(lines.join("\n")))
 }
 
 #[cfg(test)]

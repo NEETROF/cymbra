@@ -64,8 +64,13 @@ pub enum Skip {
     NoChannel,
     /// The subject is no longer public (rejected again, deleted).
     NotPublic,
-    /// Nothing to show: no title, or no catalog item left to announce.
+    /// Nothing to show: no title, no catalog item left to announce, or a
+    /// report whose every figure is zero or below the minimum.
     NothingToSay,
+    /// A report whose period is not due today (cadence).
+    NotDue,
+    /// A report whose data source is not configured (Lingua without its pool).
+    NoSource,
 }
 
 /// What an attempt did.
@@ -199,32 +204,44 @@ impl Publisher<'_> {
         message: &Message,
         keys: &[String],
     ) -> Result<Outcome, Retry> {
-        match self.sender.publish(channel, message).await {
-            Ok(()) => {
-                // Posted: a failure to record it only risks a repost after the
-                // stale window if this job ran again — it will not, it succeeds.
-                if let Err(e) = self.ledger.mark_posted(keys).await {
-                    tracing::warn!(?keys, error = %e, "discord announcement posted but not recorded");
-                }
-                Ok(Outcome::Posted {
-                    channel,
-                    announcements: keys.len(),
-                })
+        deliver(self.ledger, self.sender, channel, message, keys).await
+    }
+}
+
+/// Post `message`, which carries the claimed `keys`, and settle them in the
+/// ledger: posted, released for a retry, or failed for good (design D5).
+pub(crate) async fn deliver(
+    ledger: &dyn AnnouncementLedger,
+    sender: &dyn DiscordSender,
+    channel: &'static str,
+    message: &Message,
+    keys: &[String],
+) -> Result<Outcome, Retry> {
+    match sender.publish(channel, message).await {
+        Ok(()) => {
+            // Posted: a failure to record it only risks a repost after the
+            // stale window if this job ran again — it will not, it succeeds.
+            if let Err(e) = ledger.mark_posted(keys).await {
+                tracing::warn!(?keys, error = %e, "discord announcement posted but not recorded");
             }
-            Err(SendError::Retryable(why)) => {
-                if let Err(e) = self.ledger.release(keys).await {
-                    // The claims go stale and are re-claimed after the window.
-                    tracing::warn!(?keys, error = %e, "discord claims not released");
-                }
-                Err(Retry(why))
+            Ok(Outcome::Posted {
+                channel,
+                announcements: keys.len(),
+            })
+        }
+        Err(SendError::Retryable(why)) => {
+            if let Err(e) = ledger.release(keys).await {
+                // The claims go stale and are re-claimed after the window.
+                tracing::warn!(?keys, error = %e, "discord claims not released");
             }
-            Err(SendError::Ambiguous(why) | SendError::Terminal(why)) => {
-                tracing::error!(?keys, channel, reason = %why, "discord announcement failed for good");
-                if let Err(e) = self.ledger.mark_failed(keys, &why).await {
-                    tracing::warn!(?keys, error = %e, "discord failure not recorded");
-                }
-                Ok(Outcome::Failed(why))
+            Err(Retry(why))
+        }
+        Err(SendError::Ambiguous(why) | SendError::Terminal(why)) => {
+            tracing::error!(?keys, channel, reason = %why, "discord announcement failed for good");
+            if let Err(e) = ledger.mark_failed(keys, &why).await {
+                tracing::warn!(?keys, error = %e, "discord failure not recorded");
             }
+            Ok(Outcome::Failed(why))
         }
     }
 }
@@ -717,7 +734,7 @@ mod tests {
         .publish(&score_event())
         .await;
         assert_eq!(out.unwrap(), Outcome::Skipped(Skip::NoChannel));
-        assert_eq!(Category::ALL.len(), 2);
+        assert_eq!(Category::ALL.len(), 6);
     }
 
     #[tokio::test]
