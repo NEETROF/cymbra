@@ -23,3 +23,6 @@ anyhow.workspace = true
 # Public-profile age gate (change: add-play-activity-profile): derive
 # `share_eligible_from` from a DOB and compare against the current UTC date.
 chrono.workspace = true
+
+[lints]
+workspace = true

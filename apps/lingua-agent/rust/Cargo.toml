@@ -33,3 +33,6 @@ lingua-core = { path = "../../../crates/lingua-core" }
 rusqlite = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+
+[lints]
+workspace = true

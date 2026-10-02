@@ -35,3 +35,6 @@ ruzstd = { workspace = true }
 # zstd (C-backed) builds fixture packs in tests only; as a dev-dependency it is
 # never compiled into the WASM build.
 zstd = { workspace = true }
+
+[lints]
+workspace = true

@@ -65,3 +65,6 @@ humantime.workspace = true
 tokio = { workspace = true }
 # The plans mocks (mockall) for the erasure seams in the purge IT.
 cymbra-plans = { path = "../plans", features = ["mock"] }
+
+[lints]
+workspace = true

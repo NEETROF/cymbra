@@ -26,3 +26,6 @@ tonic-build.workspace = true
 [dev-dependencies]
 tokio = { workspace = true }
 mockall = { workspace = true }
+
+[lints]
+workspace = true

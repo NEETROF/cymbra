@@ -41,3 +41,6 @@ mock = ["dep:mockall"]
 [dev-dependencies]
 tokio = { workspace = true }
 mockall = { workspace = true }
+
+[lints]
+workspace = true

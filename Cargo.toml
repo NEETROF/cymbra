@@ -43,6 +43,14 @@ opt-level = 3
 # Declaring them here keeps versions consistent; a crate only compiles a dep when
 # it opts in via `dep.workspace = true`. The OpenTelemetry stack versions are
 # validated when the observability group (6) wires them.
+[workspace.lints.clippy]
+# clippy 1.99 flags the `#[must_use]` that `async_trait` (and the tonic server
+# stubs it generates) put on every trait method, whose boxed future is already
+# must-use — hundreds of hits in code we do not write. Every member opts in with
+# `[lints] workspace = true`; `apps/music/rust` repeats it locally (it has its
+# own `[lints.rust]`, which cannot be mixed with the inherited table).
+double_must_use = "allow"
+
 [workspace.dependencies]
 # gRPC + HTTP
 tonic = "0.12"
