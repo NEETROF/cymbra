@@ -11,6 +11,9 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 /// Minimal key/value cache surface used across the backend.
+// clippy 1.99 flags the `#[must_use]` `async_trait` puts on these methods
+// (the boxed future is already must-use); nothing to fix on our side.
+#[allow(clippy::double_must_use)]
 #[async_trait]
 pub trait Cache: Send + Sync {
     /// Atomically increment `key`, setting its TTL on first creation. Returns the

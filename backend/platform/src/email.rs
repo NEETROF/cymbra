@@ -25,6 +25,9 @@ pub const SEND_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// Sends transactional email (verification, password reset) as multipart HTML +
 /// plain text.
+// clippy 1.99 flags the `#[must_use]` `async_trait` puts on this method (the
+// boxed future is already must-use); nothing to fix on our side.
+#[allow(clippy::double_must_use)]
 #[async_trait]
 pub trait EmailSender: Send + Sync {
     async fn send(&self, to: &str, email: &RenderedEmail) -> Result<()>;
