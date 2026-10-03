@@ -22,8 +22,8 @@ function appWith(packs: unknown): string {
 }
 
 describe("the shipped pairs", () => {
-  it("ships en-fr, the default language first", () => {
-    expect(shippedPairs()).toEqual(["en-fr"]);
+  it("ships en-fr then es-fr, the default language first (enable-lingua-spanish)", () => {
+    expect(shippedPairs()).toEqual(["en-fr", "es-fr"]);
   });
 
   it("refuses a list it could not build from", () => {
