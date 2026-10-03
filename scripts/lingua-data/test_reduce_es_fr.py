@@ -207,6 +207,111 @@ class Treebank(unittest.TestCase):
         self.assertNotIn(("x", "x"), counts)
 
 
+PAST = "VERB|Mood=Ind|Number=Sing|Person=3|Tense=Past|VerbForm=Fin"
+
+
+def readings(*entries):
+    """The entries' readings, by (form, lemma), as the reducer collects them."""
+    collected = red.Readings()
+    for e in entries:
+        red.read_readings(e, collected)
+    return collected
+
+
+class VerbReadings(unittest.TestCase):
+    def test_verb_forms_read_as_ud_spanish_writes_them(self):
+        cases = {
+            ("first-person", "indicative", "present", "singular"): "VERB|Mood=Ind|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin",
+            ("first-person", "imperfect", "indicative", "plural"): "VERB|Mood=Ind|Number=Plur|Person=1|Tense=Imp|VerbForm=Fin",
+            ("indicative", "preterite", "singular", "third-person"): PAST,
+            ("imperfect", "imperfect-se", "singular", "subjunctive", "third-person"): "VERB|Mood=Sub|Number=Sing|Person=3|Tense=Imp|VerbForm=Fin",
+            ("future", "plural", "subjunctive", "third-person"): "VERB|Mood=Sub|Number=Plur|Person=3|Tense=Fut|VerbForm=Fin",
+            # kaikki tags the conditional indicative too; UD Spanish makes it a mood.
+            ("conditional", "first-person", "indicative", "singular"): "VERB|Mood=Cnd|Number=Sing|Person=1|VerbForm=Fin",
+            ("imperative", "plural", "second-person"): "VERB|Mood=Imp|Number=Plur|Person=2|VerbForm=Fin",
+            # usted: a third person, whatever it means.
+            ("formal", "imperative", "second-person-semantically", "singular", "third-person"): "VERB|Mood=Imp|Number=Sing|Person=3|VerbForm=Fin",
+            ("indicative", "informal", "present", "second-person", "singular", "vos-form"): "VERB|Mood=Ind|Number=Sing|Person=2|Tense=Pres|VerbForm=Fin",
+            ("infinitive",): "VERB|VerbForm=Inf",
+            ("gerund",): "VERB|VerbForm=Ger",
+            ("feminine", "participle", "past", "singular"): "VERB|Gender=Fem|Number=Sing|Tense=Past|VerbForm=Part",
+        }
+        for tags, want in cases.items():
+            self.assertEqual(red.ud_tag("VERB", red.verb_features(set(tags))), want, tags)
+
+    def test_rows_that_are_no_reading_of_their_own(self):
+        # The negative imperative is the present subjunctive, listed as such.
+        self.assertIsNone(red.verb_features({"imperative", "negative", "second-person", "singular"}))
+        # The bare participle repeats the masculine singular.
+        self.assertIsNone(red.verb_features({"participle", "past"}))
+        # No tense, or no person: nothing to say.
+        self.assertIsNone(red.verb_features({"subjunctive", "singular", "first-person"}))
+        self.assertIsNone(red.verb_features({"indicative", "present", "singular"}))
+
+
+class NominalReadings(unittest.TestCase):
+    def test_a_form_takes_its_own_gender_or_the_lemmas(self):
+        self.assertEqual(red.nominal_features({"feminine"}), [{"Number": "Sing", "Gender": "Fem"}])
+        self.assertEqual(red.nominal_features({"feminine", "masculine", "plural"}), [{"Number": "Plur"}])
+        self.assertEqual(red.nominal_features({"plural"}, ("Fem",)), [{"Number": "Plur", "Gender": "Fem"}])
+        self.assertEqual(len(red.nominal_features({"plural"}, ("Masc", "Fem"))), 2)
+        self.assertEqual(red.nominal_features({"superlative"}), [{"Number": "Sing", "Degree": "Sup"}])
+
+    def test_noun_genders_from_the_head_template_else_the_senses(self):
+        def head(arg):
+            return {"head_templates": [{"name": "es-noun", "args": {"1": arg}}]}
+
+        self.assertEqual(red.noun_genders(head("f")), (("Fem",), False))
+        self.assertEqual(red.noun_genders(head("f-p")), (("Fem",), True))
+        self.assertEqual(red.noun_genders(head("mfbysense")), (("Masc", "Fem"), False))
+        self.assertEqual(red.noun_genders({"senses": [{"tags": ["masculine"]}]}), (("Masc",), False))
+        self.assertEqual(red.noun_genders({"senses": [{"glosses": ["x"]}]}), ((), False))
+
+    def test_a_noun_reads_its_gender_on_its_own_form_and_on_its_plural(self):
+        casa = entry("casa", forms=[("casas", ["plural"])])
+        casa["head_templates"] = [{"name": "es-noun", "args": {"1": "f"}}]
+        gafas = entry("gafas")
+        gafas["head_templates"] = [{"name": "es-noun", "args": {"1": "f-p"}}]
+        got = readings(casa, gafas, form_of("casas", "casa", pos="noun", tags=("form-of", "plural"))).pairs()
+        self.assertEqual(got[("casa", "casa")], {"NOUN|Gender=Fem|Number=Sing"})
+        # The table's reading wins over the form entry's, which knows no gender.
+        self.assertEqual(got[("casas", "casa")], {"NOUN|Gender=Fem|Number=Plur"})
+        self.assertEqual(got[("gafas", "gafas")], {"NOUN|Gender=Fem|Number=Plur"})
+
+    def test_an_adjective_agrees_or_takes_one_form_for_both_genders(self):
+        rapido = entry("rápido", pos="adj", forms=[("rápida", ["feminine"]), ("rápidos", ["masculine", "plural"])])
+        grande = entry("grande", pos="adj", forms=[("grandes", ["feminine", "masculine", "plural"])])
+        got = readings(rapido, grande).pairs()
+        self.assertEqual(got[("rápido", "rápido")], {"ADJ|Gender=Masc|Number=Sing"})
+        self.assertEqual(got[("rápida", "rápido")], {"ADJ|Gender=Fem|Number=Sing"})
+        self.assertEqual(got[("rápidos", "rápido")], {"ADJ|Gender=Masc|Number=Plur"})
+        self.assertEqual(got[("grande", "grande")], {"ADJ|Number=Sing"})
+        self.assertEqual(got[("grandes", "grande")], {"ADJ|Number=Plur"})
+
+
+class GrammarRows(unittest.TestCase):
+    def test_a_pronominal_form_reads_from_its_own_entry_and_a_combined_form_not_at_all(self):
+        dar = entry("dar", pos="verb", forms=[("dámelo", ["combined-form", "imperative"]), ("es-conj", ["inflection-template"])])
+        got = readings(
+            form_of("azotarse", "azotar", tags=("form-of", "infinitive", "reflexive")),
+            form_of("dámelo", "dar", tags=CLITIC_SENSE),
+            dar,
+        ).pairs()
+        self.assertEqual(got[("azotarse", "azotar")], {"VERB|VerbForm=Inf"})
+        self.assertNotIn(("dámelo", "dar"), got)
+        self.assertNotIn(("es-conj", "dar"), got)
+
+    def test_rows_hold_the_tables_forms_and_mark_another_lemma(self):
+        third = ["indicative", "preterite", "singular", "third-person"]
+        ser = entry("ser", pos="verb", forms=[("fue", third)])
+        ir = entry("ir", pos="verb", forms=[("fue", third), ("fuéramos", ["first-person", "imperfect", "plural", "subjunctive"])])
+        bajar = entry("bajar", pos="verb", forms=[("bajo", ["first-person", "indicative", "present", "singular"])])
+        forms = {"fue": "ser", "ser": "ser", "ir": "ir", "bajo": "bajo"}
+        rows = red.grammar_rows(readings(ser, ir, bajar), forms, {"ser": 1, "ir": 2, "bajo": 3})
+        # `fuéramos` is not in the table; `bajar` is not kept.
+        self.assertEqual(rows, [f"fue\tir\t{PAST}\tother\n", f"fue\tser\t{PAST}\t-\n"])
+
+
 class Manifest(unittest.TestCase):
     def test_the_spanish_analyser_version_is_read_from_the_core(self):
         with tempfile.TemporaryDirectory() as d:

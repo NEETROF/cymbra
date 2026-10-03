@@ -9,6 +9,7 @@ pack yet: that is `enable-lingua-spanish`.
 |---|---|---|
 | `forms.tsv` | form → lemma | kaikki.org extract of the English Wiktionary, Spanish section (CC BY-SA 4.0 + GFDL), with UD Spanish-GSD's counts to choose between lemmas (CC BY-SA 4.0) |
 | `freq.tsv` | lemma → frequency rank | wordfreq 3.1.1 (CC BY-SA 4.0) |
+| `grammar.tsv` | form → its readings: dictionary form, Universal Dependencies tag, and whether it may be named as another word | kaikki's tags (CC BY-SA 4.0 + GFDL) |
 | `gloss.tsv` | lemma → French gloss | empty until `add-lingua-spanish-gloss-tables` |
 | `NOTICE` | the attribution stack, embedded in the pack | — |
 | `manifest.json` | the pack's metadata: Spanish, the Spanish analyser's version, and `pack_version` (the snapshot, and the rules that reduced it) | — |
@@ -28,6 +29,13 @@ pack yet: that is `enable-lingua-spanish`.
   2. GSD's counts (`fue` → *ser*);
   3. the form's own entry (`casa` → *casa*);
   4. the commoner lemma (`luces` → *luz*).
+- **Grammar**: 149,279 readings of 111,945 forms, in 88 Universal Dependencies tags, read from
+  kaikki's tags (add-lingua-spanish-grammar-tables). Every verb form says its mood, tense, person
+  and number (`hablábamos`: indicative imperfect, first person plural). A participle, an adjective,
+  a determiner or a pronoun says its agreement (`escrita`, `rápidas`). A noun says its gender on
+  its own form and on its plural: 99.7 % of the nouns have one (`casa`, `casas`: feminine). A form
+  of another kept lemma is marked `other`, so the card names it: `vino` is also *venir*'s
+  preterite, `fue` *ir*'s.
 
 ## Measured
 
@@ -41,13 +49,14 @@ and proper nouns are left out. On the 2026-10-03 tables:
 | content words taking PUD's lemma | 95.92 % of 9,439 | 93.5 % |
 | auxiliaries taking PUD's lemma | 97.95 % of 634 | 97 % |
 
-The pack is 1,307,728 B.
+The pack is 1,507,108 B, the grammar included.
 
 ## Licences
 
 The repository is Apache-2.0; **these files are not**. They are derived from the sources above and
 carry their licences:
 - `forms.tsv`: CC BY-SA 4.0 and the GFDL (kaikki), and CC BY-SA 4.0 (GSD's counts);
+- `grammar.tsv`: CC BY-SA 4.0 and the GFDL (kaikki);
 - `freq.tsv`: CC BY-SA 4.0.
 
 `NOTICE` gives the full attribution. See `../../SOURCES.md`.
