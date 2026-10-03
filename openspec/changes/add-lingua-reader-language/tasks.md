@@ -7,11 +7,13 @@
 
 ## 2. The book's language
 
-- [ ] 2.1 `ReadingHost.language`; the session's hint falls back to it (design D2). Specs, with en-fr and es-fr shipped:
-  - a section declaring nothing, in a book declaring `es`, is asked with the hint `es`;
-  - a section's own declaration wins over the book's;
+- [ ] 2.1 `reader/app.ts`: before attaching a section, declare the open book's language on its root element when the section declares none (design D2). Specs in `reader-app.spec.ts`:
+  - a section declaring nothing takes the book's `es`;
+  - a section's own declaration (`lang` or `xml:lang`) is kept;
+  - a book declaring nothing leaves the section as it is.
+- [ ] 2.2 Specs with the reading session, with en-fr and es-fr shipped:
+  - a section of a book declaring Spanish, with no text to vote, is read in Spanish;
   - with one accepted language, nothing is detected.
-- [ ] 2.2 `reader/app.ts`: the section host declares the open book's language. Spec in `reader-app.spec.ts`.
 
 ## 3. Gates
 

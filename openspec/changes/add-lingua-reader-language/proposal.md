@@ -24,8 +24,9 @@ reader studies English alone, so no detection is asked and nothing changes for t
 
   It is reduced to the primary subtag. `eng` and `spa`, the three-letter codes some packages use for
   the shipped languages, read as `en` and `es`.
-- **The book's declared language is the hint of a section that declares none.** The reader page
-  hands the session the open book's `dc:language`. The vote still decides as for a page:
+- **A section that declares no language takes the book's.** The reader page declares the open
+  book's `dc:language` on it, so the session reads it as the section's hint. The vote still decides
+  as for a page:
   - a section in English in a Spanish book is read in English;
   - a section with too little text to vote is read in the book's language, when it is one of the
     reader's.
@@ -46,7 +47,7 @@ None.
 
 - **Products.** Cymbra Lingua's browser extension only:
   - the reading session's language hint (`src/reading/session.ts`);
-  - the reader page's section host (`src/reader/app.ts`).
+  - the reader page, which declares the book's language on a section (`src/reader/app.ts`).
 
   It consumes the routing of `add-lingua-language-routing` and the book metadata the library
   already keeps. No engine, pack, server or proto change. ID, Music, Live, the back office and the
