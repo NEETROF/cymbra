@@ -257,7 +257,8 @@ describe("moving the reader's data", () => {
   it("moves every key it claims to own", async () => {
     // The list is the contract between the owner and the surfaces: keep it honest.
     expect(STORE_KEYS).toContain(ROOT_KEY);
-    expect(STORE_KEYS).toContain("cymbra-lingua-daily-v2");
+    expect(STORE_KEYS).toContain("cymbra-lingua-daily-v3");
+    expect(STORE_KEYS).toContain("cymbra-lingua-daily-v2"); // read as English until the first v3 write
     expect(STORE_KEYS).toContain("cymbra-lingua-card-cursor");
   });
 });

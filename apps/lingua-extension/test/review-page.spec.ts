@@ -11,6 +11,19 @@ import { type FakeCard, makeFakePort, type FakePort } from "./helpers.ts";
 // pinned in view.spec.ts and the session in session.spec.ts — what is pinned here is the
 // mounting: what the page asks the port, what it saves, and when it rebuilds itself.
 
+// The bundle's pairs are a build-time constant: the pairs the page consults are set per test.
+const packs = vi.hoisted(() => ({ shipped: ["en-fr"] }));
+vi.mock("@/analyzer/pairs.ts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/analyzer/pairs.ts")>();
+  return {
+    ...actual,
+    readingLanguage: (port: Parameters<typeof actual.readingLanguage>[0]) =>
+      actual.readingLanguage(port, packs.shipped),
+    acceptedLanguages: (port: Parameters<typeof actual.acceptedLanguages>[0]) =>
+      actual.acceptedLanguages(port, packs.shipped),
+  };
+});
+
 const NOW_SECONDS = 1_770_000_000; // the injected clock (epoch seconds)
 const NOW_MS = NOW_SECONDS * 1000; // Date.now(), which only the daily recorder reads
 
@@ -65,6 +78,7 @@ if (typeof Blob.prototype.text !== "function") {
 }
 
 beforeEach(() => {
+  packs.shipped = ["en-fr"];
   listeners.length = 0;
   blobs.length = 0;
   downloads.length = 0;
@@ -195,10 +209,7 @@ describe("Révision — the page", () => {
     // A grade changes the engine, so the whole state is written back for every surface.
     expect(m.area.raw[ROOT_KEY]).toEqual({ v: STORAGE_VERSION, backup: "{}" });
     expect((await loadDailyStats(m.area))[utcDay(NOW_MS)]).toEqual({
-      exposures: 0,
-      unknownSeen: 0,
-      wordsLearned: 0,
-      reviews: 1,
+      en: { exposures: 0, unknownSeen: 0, wordsLearned: 0, reviews: 1 },
     });
     expect(text(m.container, ".review-headword")).toBe("dwell"); // moved on to the next card
   });
@@ -218,10 +229,7 @@ describe("Révision — the page", () => {
     expect(calls.markKnown).toBe(1);
     expect(m.area.raw[ROOT_KEY]).toEqual({ v: STORAGE_VERSION, backup: "{}" });
     expect((await loadDailyStats(m.area))[utcDay(NOW_MS)]).toEqual({
-      exposures: 0,
-      unknownSeen: 0,
-      wordsLearned: 1,
-      reviews: 0,
+      en: { exposures: 0, unknownSeen: 0, wordsLearned: 1, reviews: 0 },
     });
   });
 
@@ -406,5 +414,114 @@ describe("Révision — the page", () => {
 
     expect(calls.restored).toEqual([]);
     expect(text(m.container, ".review-headword")).toBe("seldom"); // the card is still there
+  });
+});
+
+describe("Révision — a reader of several languages", () => {
+  const MIXED: FakeCard[] = [
+    { headword: "seldom", surface: "seldom", sentence: "They seldom ship.", gloss: "rarement", language: "en" },
+    { headword: "faro", surface: "faro", sentence: "El faro brilla.", gloss: "phare", language: "es" },
+  ];
+
+  /** A reader of English then Spanish, with both pairs shipped. */
+  async function bilingual(deck: FakeCard[] = MIXED) {
+    packs.shipped = ["en-fr", "es-fr"];
+    const fake = makeFakePort(deck);
+    await fake.port.setStudiedLanguages(["en", "es"]);
+    return fake;
+  }
+
+  const filter = (container: HTMLElement): HTMLElement | null => container.querySelector(".review-languages");
+  const choices = (container: HTMLElement): string[] =>
+    [...container.querySelectorAll(".review-languages button")].map((b) => b.textContent ?? "");
+  const chosen = (container: HTMLElement): string =>
+    container.querySelector(".review-languages button.active")?.textContent ?? "";
+
+  it("shows no filter, and no language on the card, to a reader of one language", async () => {
+    const { port, calls } = makeFakePort([{ ...DECK[0], language: "en" }]);
+    const m = mount(port);
+    await m.page.refresh();
+
+    expect(filter(m.container)?.hidden).toBe(true);
+    button(m.container, "Réviser").click();
+    await settle();
+
+    expect(m.container.querySelector(".review-language")).toBeNull();
+    expect(calls.reviewLanguages).toEqual([undefined, undefined]); // the count and the session: every card
+  });
+
+  it("offers every language at once, then each one, starting with all of them", async () => {
+    const { port, calls } = await bilingual();
+    const m = mount(port);
+    await m.page.refresh();
+
+    expect(filter(m.container)?.hidden).toBe(false);
+    expect(choices(m.container)).toEqual(["Toutes", "Anglais", "Espagnol"]);
+    expect(chosen(m.container)).toBe("Toutes");
+    expect(calls.reviewLanguages).toEqual([undefined]);
+  });
+
+  it("counts and reviews only the Spanish cards once Spanish is chosen", async () => {
+    const { port, calls } = await bilingual();
+    const m = mount(port);
+    await m.page.refresh();
+
+    button(m.container, "Espagnol").click();
+    await settle();
+    expect(chosen(m.container)).toBe("Espagnol");
+    button(m.container, "Réviser").click();
+    await settle();
+
+    expect(calls.reviewLanguages).toEqual([undefined, ["es"], ["es"]]); // first count, then the count and session
+    expect(text(m.container, ".review-headword")).toBe("faro");
+    expect(text(m.container, ".remaining")).toBe("1 carte(s) à revoir");
+
+    button(m.container, "Toutes").click(); // a session under way keeps its queue
+    await settle();
+    expect(chosen(m.container)).toBe("Espagnol");
+  });
+
+  it("says each card's language, and counts its grade and its word learned in it", async () => {
+    const { port } = await bilingual([MIXED[1], MIXED[0]]);
+    const m = mount(port);
+    await m.page.refresh();
+    button(m.container, "Réviser").click();
+    await settle();
+
+    expect(text(m.container, ".review-language")).toBe("Espagnol");
+    button(m.container, "Afficher la réponse").click();
+    await settle();
+    button(m.container, "Correct").click();
+    await settle();
+    expect(text(m.container, ".review-language")).toBe("Anglais");
+    button(m.container, "Afficher la réponse").click();
+    await settle();
+    button(m.container, "Je connais ✓").click();
+    await settle();
+
+    expect((await loadDailyStats(m.area))[utcDay(NOW_MS)]).toEqual({
+      es: { exposures: 0, unknownSeen: 0, wordsLearned: 0, reviews: 1 },
+      en: { exposures: 0, unknownSeen: 0, wordsLearned: 1, reviews: 0 },
+    });
+  });
+
+  it("goes back to every language when the chosen one leaves the reader's languages", async () => {
+    const { port, calls } = await bilingual();
+    // The state another context stores keeps English alone.
+    port.restore = async (backup) => {
+      calls.restored.push(backup);
+      await port.setStudiedLanguages(["en"]);
+    };
+    const m = mount(port);
+    await m.page.refresh();
+    button(m.container, "Espagnol").click();
+    await settle();
+
+    await m.area.set({ [ROOT_KEY]: { v: STORAGE_VERSION, backup: '{"from":"elsewhere"}' } });
+    announce([ROOT_KEY]);
+    await settle();
+
+    expect(filter(m.container)?.hidden).toBe(true);
+    expect(calls.reviewLanguages.at(-1)).toBeUndefined(); // the count is of every card again
   });
 });

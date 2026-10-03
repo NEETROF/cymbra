@@ -55,9 +55,10 @@ interface WasmEngine {
   ): void;
   retireCard(lemma: string, now: number, language?: string | null): void;
   deckCount(): number;
-  dueCount(now: number): number;
-  startReview(now: number): number;
+  dueCount(now: number, languages?: string[] | null): number;
+  startReview(now: number, languages?: string[] | null): number;
   reviewCurrent(): string | undefined;
+  reviewCurrentLanguage(): string | undefined;
   reviewReveal(): void;
   reviewGrade(rating: string, now: number): void;
   reviewMarkKnown(now: number): void;
@@ -242,17 +243,21 @@ export class WasmAnalyzerPort implements LinguaPort {
     return (await this.engine()).deckCount();
   }
 
-  async dueCount(now: number): Promise<number> {
-    return (await this.engine()).dueCount(now);
+  async dueCount(now: number, languages?: StudiedLanguage[]): Promise<number> {
+    return (await this.engine()).dueCount(now, languages ?? null);
   }
 
-  async startReview(now: number): Promise<number> {
-    return (await this.engine()).startReview(now);
+  async startReview(now: number, languages?: StudiedLanguage[]): Promise<number> {
+    return (await this.engine()).startReview(now, languages ?? null);
   }
 
   async reviewCurrent(): Promise<ReviewCard | null> {
-    const json = (await this.engine()).reviewCurrent();
-    return json ? (JSON.parse(json) as ReviewCard) : null;
+    const engine = await this.engine();
+    const json = engine.reviewCurrent();
+    if (!json) return null;
+    // The card's view stays as the English baseline pins it; its language is a call of its own.
+    const language = engine.reviewCurrentLanguage() as StudiedLanguage | undefined;
+    return { ...(JSON.parse(json) as ReviewCard), ...(language ? { language } : {}) };
   }
 
   async reviewReveal(): Promise<void> {

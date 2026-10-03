@@ -54,6 +54,27 @@ describe("ReviewController", () => {
     expect(calls.markKnown).toBe(1);
   });
 
+  it("starts over the languages it is given, or every language", async () => {
+    const { port, calls } = makeFakePort([...deck, { ...deck[0], headword: "faro", language: "es" }]);
+    const c = new ReviewController(port, clock);
+    expect((await c.start(["es"])).card?.headword).toBe("faro");
+    await c.start();
+    expect(calls.reviewLanguages).toEqual([["es"], undefined]);
+  });
+
+  it("records each grade and each word learned in the card's language, English by default", async () => {
+    const recorded: [string, string | undefined][] = [];
+    const { port } = makeFakePort([{ ...deck[0], language: "es" }, deck[1]]);
+    const c = new ReviewController(port, clock, (event, language) => void recorded.push([event, language]));
+    await c.start();
+    await c.grade("good");
+    await c.markKnown();
+    expect(recorded).toEqual([
+      ["review", "es"],
+      ["learned", "en"], // a card that does not say its language is English
+    ]);
+  });
+
   it("is done immediately when the deck is empty", async () => {
     const { port } = makeFakePort([]);
     const view = await new ReviewController(port, clock).start();

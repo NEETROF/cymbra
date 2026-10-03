@@ -294,6 +294,33 @@ fn spec_scenario_a_document_is_read_in_its_own_language() {
 }
 
 #[test]
+fn spec_scenario_a_review_across_languages_or_within_one() {
+    let mut engine = two_language_engine();
+    engine
+        .add_card("city", "city", "The city sleeps.", "", None, 1.0, None)
+        .unwrap();
+    engine
+        .add_card("faro", "faro", "El faro brilla.", "", None, 1.0, es())
+        .unwrap();
+    assert_eq!(engine.due_count(10.0, None), 2);
+    assert_eq!(engine.due_count(10.0, Some(vec!["es".to_owned()])), 1);
+    // A tag the core does not know filters nothing.
+    assert_eq!(engine.due_count(10.0, Some(vec!["pt".to_owned()])), 2);
+
+    assert_eq!(engine.start_review(10.0, Some(vec!["es".to_owned()])), 1);
+    assert_eq!(engine.review_current_language().as_deref(), Some("es"));
+    assert_eq!(engine.start_review(10.0, None), 2);
+    assert!(engine.review_current_language().is_some());
+    engine.review_mark_known(10.0);
+    engine.review_mark_known(10.0);
+    assert_eq!(
+        engine.review_current_language(),
+        None,
+        "no card shown, no language"
+    );
+}
+
+#[test]
 fn spec_scenario_the_studied_languages_live_in_the_backup() {
     let mut engine = english_engine();
     assert_eq!(engine.studied_languages(), r#"["en"]"#);

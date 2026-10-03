@@ -1,4 +1,5 @@
 import type { LinguaPort, Rating, ReviewCard } from "../analyzer/port.ts";
+import type { StudiedLanguage } from "../analyzer/types.ts";
 
 // The review session — one module both surfaces (the side panel and the injected
 // drawer) render (design D1: two rendering hosts over one logic). It drives the
@@ -25,12 +26,12 @@ export class ReviewController {
   constructor(
     private readonly port: LinguaPort,
     private readonly now: () => number,
-    private readonly record: (event: "review" | "learned") => void = () => {},
+    private readonly record: (event: "review" | "learned", language?: string) => void = () => {},
   ) {}
 
-  /** Start a session over everything due now. */
-  async start(): Promise<ReviewView> {
-    await this.port.startReview(this.now());
+  /** Start a session over everything due now, in `languages` or in every language. */
+  async start(languages?: StudiedLanguage[]): Promise<ReviewView> {
+    await this.port.startReview(this.now(), languages);
     this.started = true;
     this.card = await this.port.reviewCurrent();
     return this.view();
@@ -45,16 +46,18 @@ export class ReviewController {
 
   /** Grade the current card and move to the next. */
   async grade(rating: Rating): Promise<ReviewView> {
+    const language = this.card?.language ?? "en"; // counted in the card's language
     await this.port.reviewGrade(rating, this.now());
-    this.record("review");
+    this.record("review", language);
     this.card = await this.port.reviewCurrent();
     return this.view();
   }
 
   /** Mark the current card known (retire it) and move to the next. */
   async markKnown(): Promise<ReviewView> {
+    const language = this.card?.language ?? "en";
     await this.port.reviewMarkKnown(this.now());
-    this.record("learned");
+    this.record("learned", language);
     this.card = await this.port.reviewCurrent();
     return this.view();
   }

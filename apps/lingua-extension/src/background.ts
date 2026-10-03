@@ -530,13 +530,13 @@ if (__TRANSLATION_HOST__ !== "none") {
     switch (msg?.type) {
       case "stats:get": {
         // Consolidated stats for the stats screen (summed across the account's devices).
-        const range = message as { fromDay?: number; toDay?: number };
+        const range = message as { fromDay?: number; toDay?: number; language?: string };
         if (!session.state().signedIn) {
           sendResponse({ ok: false });
           return false;
         }
         api()
-          .stats.getStats({ fromDay: range.fromDay ?? 0, toDay: range.toDay ?? 0, language: "" })
+          .stats.getStats({ fromDay: range.fromDay ?? 0, toDay: range.toDay ?? 0, language: range.language ?? "" })
           .then(
             (res) =>
               sendResponse({
