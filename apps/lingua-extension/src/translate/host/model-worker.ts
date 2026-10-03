@@ -1,12 +1,13 @@
 // The model download's own thread (add-lingua-translation-delivery D4): spawned by the engine's
-// host when a download starts, terminated when it ends or is cancelled. It reads the package's
-// manifest, fetches what the device lacks and stores it verified. The logic is model-download.ts;
-// this only wires it to the browser.
+// host when a download starts, terminated when it ends or is cancelled. It reads the model the
+// package's catalogue routes the default language through, fetches what the device lacks and stores
+// it verified. The logic is model-download.ts; this only wires it to the browser.
 
+import { DEFAULT_LANGUAGE } from "../../analyzer/pairs.ts";
 import type { ModelWorkerEvent, ModelWorkerRequest } from "./downloads.ts";
 import { modelDb } from "./model-db.ts";
 import { downloadModel, sha256Hex } from "./model-download.ts";
-import { loadBundledManifest } from "./model-manifest.ts";
+import { loadTranslationModel } from "./model-manifest.ts";
 
 const scope = self as unknown as {
   onmessage: ((event: MessageEvent<ModelWorkerRequest>) => void) | null;
@@ -17,7 +18,7 @@ scope.onmessage = (event) => {
   if (event.data?.op !== "download") return;
   void (async () => {
     try {
-      const manifest = await loadBundledManifest();
+      const manifest = await loadTranslationModel(DEFAULT_LANGUAGE);
       const outcome = await downloadModel(manifest, {
         fetch: (input, init) => fetch(input, init),
         db: modelDb(),

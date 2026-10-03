@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mountSettings } from "@/reading/settings-view.ts";
 import {
   COPY,
+  costText,
   megabytes,
   mountTranslationSetting,
   runtimeTranslationControls,
@@ -20,8 +21,10 @@ const flush = async () => {
   for (let i = 0; i < 10; i++) await Promise.resolve();
 };
 
-const OFF: ModelStatus = { offered: true, host: "none", state: { phase: "absent" } };
-const on = (state: ModelState): ModelStatus => ({ offered: true, host: "local", state });
+/** What the en-fr model costs, as the background reads it from the catalogue. */
+const COST = { download: 25_752_472, stored: 36_749_127 };
+const OFF: ModelStatus = { offered: true, host: "none", state: { phase: "absent" }, cost: COST };
+const on = (state: ModelState): ModelStatus => ({ offered: true, host: "local", state, cost: COST });
 
 function controls(initial: ModelStatus, next: Partial<Record<string, ModelStatus>> = {}) {
   let push: ((s: TranslationSetting) => void) | null = null;
@@ -74,6 +77,17 @@ describe("the Traduction étendue setting", () => {
     expect(v.line.hidden).toBe(true);
     expect(v.action.hidden).toBe(true);
     expect(v.bar.hidden).toBe(true);
+  });
+
+  it("states its cost without a size when the background could not read the catalogue", async () => {
+    const v = await mount({ offered: true, host: "none", state: { phase: "absent" } });
+    expect(v.text()).toContain("Télécharge le modèle une fois");
+    expect(v.text()).not.toContain("Mo une fois");
+  });
+
+  it("sizes a storage failure from the catalogue", async () => {
+    const v = await mount(on({ phase: "failed", reason: "storage" }));
+    expect(v.line.textContent).toBe("Pas assez de place sur cet appareil pour le modèle (36,7 Mo).");
   });
 
   it("ticking it asks the background to turn it on", async () => {
@@ -202,6 +216,15 @@ describe("helpers", () => {
   it("writes sizes as the reader reads them", () => {
     expect(megabytes(25_752_472)).toBe("25,8 Mo");
     expect(megabytes(0)).toBe("0,0 Mo");
+  });
+
+  it("states the cost from the catalogue's sizes, or none without them", () => {
+    expect(costText(COST)).toContain("Télécharge 25,8 Mo une fois");
+    expect(costText()).toContain("Télécharge le modèle une fois");
+    expect(stateText({ phase: "failed", reason: "storage" }, COST)).toContain("(36,7 Mo)");
+    expect(stateText({ phase: "failed", reason: "storage" })).toBe(
+      "Pas assez de place sur cet appareil pour le modèle.",
+    );
   });
 
   it("says nothing about an absent model, and leaves out an unknown total", () => {
