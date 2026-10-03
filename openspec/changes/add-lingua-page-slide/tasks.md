@@ -14,8 +14,9 @@
 
 - [x] 3.1 Chromium (built extension, Chrome for Testing): Glissée slides a page turned by tap; Directe jumps
   - 2026-10-03, by hand (Guillaume): OK.
-- [ ] 3.2 A touch device (Tab S6 Lite or iPad): the page follows the finger on a swipe with Glissée; a selection's handle drag on Safari still selects (`touch-guard.ts`)
-  - 2026-10-03, Boox Go 10.3 Lumi, Firefox 157, temporary add-on built from this branch: OK by hand (Guillaume). Safari's selection drag is still to see.
+- [x] 3.2 A touch device (Tab S6 Lite or iPad): the page follows the finger on a swipe with Glissée; a selection's handle drag on Safari still selects (`touch-guard.ts`)
+  - 2026-10-03, Boox Go 10.3 Lumi, Firefox 157, temporary add-on built from this branch: OK by hand (Guillaume).
+  - 2026-10-03, iPad Air 13" (M2), iPadOS 26, the iOS app built from this branch: Glissée and Directe OK by hand (Guillaume).
 - [x] 3.3 The Boox: Directe unchanged, one refresh per turn
   - 2026-10-03, Boox Go 10.3 Lumi, Firefox 157, temporary add-on built from this branch: OK by hand (Guillaume).
 
