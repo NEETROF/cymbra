@@ -348,3 +348,47 @@ kbd {
   flex-wrap: wrap;
   gap: calc(6px * var(--cymbra-lingua-ui-scale, 1)) calc(14px * var(--cymbra-lingua-ui-scale, 1));
 }
+
+/* Réglages' sub-tabs (mountTabs): underlined, a level below the drawer's and side panel's own
+   segmented tabs. One row where the four labels fit (the side panel, the drawer), two by two
+   where they do not (the popup, an enlarged interface): below the threshold the basis turns
+   huge and the max-width keeps two per row; above it the basis is 0 and each tab grows from its
+   label. The threshold grows with the text. */
+.set-tabs {
+  --set-tabs-threshold: calc(330px * var(--cymbra-lingua-ui-scale, 1));
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 4px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--cymbra-lingua-border-2);
+}
+
+.set-tab {
+  flex: 1 1 calc((var(--set-tabs-threshold) - 100%) * 999);
+  max-width: calc(50% - 2px);
+  cursor: pointer;
+  margin-bottom: -1px;
+  padding: 8px 6px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--cymbra-lingua-muted);
+  font-family: inherit;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
+  white-space: nowrap;
+}
+
+.set-tab:hover {
+  color: var(--cymbra-lingua-text);
+}
+
+.set-tab.active {
+  border-bottom-color: var(--cymbra-lingua-accent-strong);
+  color: var(--cymbra-lingua-text);
+  font-weight: 600;
+}
+
+.set-tab:focus-visible {
+  outline: 2px solid var(--cymbra-lingua-accent);
+  outline-offset: -2px;
+}
