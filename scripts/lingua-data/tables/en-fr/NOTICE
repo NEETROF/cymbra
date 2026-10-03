@@ -19,8 +19,9 @@ advertising or publicity pertaining to distribution of the software and/or datab
 Title to copyright in this software, database and any associated documentation shall at
 all times remain with Princeton University.
 
-wordfreq (English frequency list): CC BY-SA 4.0 (includes SUBTLEX with Brysbaert's
-permission).
+wordfreq (English frequency list), by Robyn Speer (https://github.com/rspeer/wordfreq):
+data under CC BY-SA 4.0 (includes SUBTLEX with Brysbaert's permission, and data from the
+Google Books Ngram Viewer, http://books.google.com/ngrams).
 
 kaikki.org extract of the French Wiktionary (frwiktionary): CC BY-SA 4.0 + GFDL — the
 glosses, the expressions, and the form links completing ESDB's inflections.

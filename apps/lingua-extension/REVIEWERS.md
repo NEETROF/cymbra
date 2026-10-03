@@ -65,8 +65,9 @@ the result against the sha256 recorded in `tables/en-fr/pin.json` (also printed 
 this README): the build fails unless it produces the very bytes the package carries.
 
 Those tables were reduced from public corpora — Kaikki's French Wiktionary extract of English
-entries, the `wordfreq` distribution, AGID's inflection list, and the CEFR-J and Octanove
-vocabulary profiles — by `scripts/lingua-data/reduce-en-fr.py`, also in this archive.
+entries, the `wordfreq` distribution, ESDB's inflections (SCOWLv2), and the CEFR-J and Octanove
+vocabulary profiles — by `scripts/lingua-data/reduce-en-fr.py` and the shared rules it imports,
+`scripts/lingua-data/reduce_common.py`, both in this archive.
 `pin.json` names each raw source at a fixed commit or snapshot, with its sha256, so the
 tables can be reduced again from the same bytes (`build.sh --reduce`); the reviewer does not
 need to.

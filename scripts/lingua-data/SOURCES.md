@@ -3,7 +3,8 @@
 The pipeline turns upstream datasets into one versioned `pack.lingua` per language pair, in two
 stages (pin-lingua-pack-sources):
 
-1. **Reduce** (`reduce-<pair>.py`): the raw sources become the tables of `tables/<pair>/`, which
+1. **Reduce** (`reduce-<pair>.py`, with the rules every `<studied>->FR` pair shares in
+   `reduce_common.py`): the raw sources become the tables of `tables/<pair>/`, which
    are **committed** with `pin.json` — the record of each raw source (at a commit and by sha256,
    or as our own snapshot for kaikki, which upstream regenerates daily) and of the pack they
    build. Only `build.sh --update` (today's sources), `--reduce` (the pinned sources, after a
@@ -136,6 +137,6 @@ The denylist is code, not just prose: `lingua_pack::licence::is_denied` fails th
 
 - **Raw sources are never committed.** They download into `scripts/lingua-data/work/` (git-ignored), dated.
 - **The pack is never committed.** CI rebuilds it and caches it; the reproducibility test (`crates/lingua-pack/tests/pipeline_testdata.rs`) proves two builds over the same tables are byte-identical.
-- **Adding a pair is data, not code**: drop a new pair's tables + manifest and build; the format and reader are already pair-keyed. Candidate sources for the Romance pairs: Morphalou (fr, LGPL-LR), morph-it! (it, CC BY-SA 2.0/LGPL), MorphoBr (pt, Apache-2.0), kaikki/frwiktionary glosses.
+- **Adding a pair is a reducer, not a format change**: the container and the builder are pair-keyed, and what a `<studied>->FR` pair does with the French Wiktionary and with its forms is shared (`reduce_common.py`, driven by a `Studied` — the language's word pattern, form-of target wording, coordinators and wordfreq code). A new pair writes `reduce-<pair>.py` for its own inflection and level sources and registers its sources in `pack_sources.py`; the analyser must also know the language (lingua-core). Candidate sources for the Romance pairs: Morphalou (fr, LGPL-LR), morph-it! (it, CC BY-SA 2.0/LGPL), MorphoBr (pt, Apache-2.0), kaikki/frwiktionary glosses.
 
 `testdata/en-fr/` holds a tiny hand-made fixture (a few lines, not real source data) so the pipeline and its reproducibility test run in CI without any download.
