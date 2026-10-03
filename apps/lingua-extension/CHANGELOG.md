@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.6.0](https://github.com/NEETROF/cymbra/compare/lingua-extension-v1.5.0...lingua-extension-v1.6.0) (2026-10-03)
+
+
+### Features
+
+* **lingua:** a Spanish voice from Spain by default ([#671](https://github.com/NEETROF/cymbra/issues/671)) ([4976031](https://github.com/NEETROF/cymbra/commit/4976031341dea973dec17fd749e7de7e1772e0ef))
+* **lingua:** estimated CEFR levels for Spanish ([#667](https://github.com/NEETROF/cymbra/issues/667)) ([2300186](https://github.com/NEETROF/cymbra/commit/2300186c470e19c93dd37a21e4d4615c53d5b047))
+* **lingua:** let book pages slide as they turn ([#636](https://github.com/NEETROF/cymbra/issues/636)) ([d0b8c17](https://github.com/NEETROF/cymbra/commit/d0b8c177f2c3ea954b03c2dcc44450f191742b8d))
+* **lingua:** let the reader choose the languages they study ([#643](https://github.com/NEETROF/cymbra/issues/643)) ([9a18e80](https://github.com/NEETROF/cymbra/commit/9a18e800424c711ca48cb297fe22ea2c861ec8be))
+* **lingua:** one catalogue of translation models, a route per language ([#651](https://github.com/NEETROF/cymbra/issues/651)) ([9ba2c71](https://github.com/NEETROF/cymbra/commit/9ba2c713e97064c909fb6baff613dc6ca3c31913))
+* **lingua:** read a book in its own language ([#650](https://github.com/NEETROF/cymbra/issues/650)) ([7993ab0](https://github.com/NEETROF/cymbra/commit/7993ab0a885aed1f6318498babe7f721ecdf5b60))
+* **lingua:** read each document in its own language ([#641](https://github.com/NEETROF/cymbra/issues/641)) ([05158d6](https://github.com/NEETROF/cymbra/commit/05158d69ab0a047f0ac1ea5a3ab3de7f4baee94f))
+* **lingua:** review and count each studied language ([#646](https://github.com/NEETROF/cymbra/issues/646)) ([3e9ccc1](https://github.com/NEETROF/cymbra/commit/3e9ccc1d548bea97634ec96cab439b4d68ac01e0))
+* **lingua:** sync each card in its own language ([#638](https://github.com/NEETROF/cymbra/issues/638)) ([749d10c](https://github.com/NEETROF/cymbra/commit/749d10c9e5c236e271d53976b9e4d3f6b473d915))
+* **lingua:** the translation models follow the reader's languages ([#653](https://github.com/NEETROF/cymbra/issues/653)) ([19141cf](https://github.com/NEETROF/cymbra/commit/19141cf7d039dfb3c4076659eb4cd5b872180ca6))
+
+
+### Bug Fixes
+
+* **lingua:** keep the iPad popup wide and scrolling ([#645](https://github.com/NEETROF/cymbra/issues/645)) ([40ca824](https://github.com/NEETROF/cymbra/commit/40ca8244759f75b067df74a484e759ce346fea9f))
+
 ## [1.5.0](https://github.com/NEETROF/cymbra/compare/lingua-extension-v1.4.0...lingua-extension-v1.5.0) (2026-10-03)
 
 
