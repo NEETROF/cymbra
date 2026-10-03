@@ -309,7 +309,12 @@ export class ReadingSession {
       { show: (content) => this.popup.show(content), generation: () => this.popup.generation() },
       // None unless the reader turned « Traduction étendue » on and its model is on the device;
       // then the messaging port, which sends the request off this thread.
-      { calibration: () => this.calibration, translator: this.translator },
+      {
+        calibration: () => this.calibration,
+        // In the document's language: its route, and nothing while its models are missing.
+        translator: () => this.translator(this.language),
+        language: () => this.language,
+      },
     );
     this.drawer = new Drawer({
       css: opts.css.drawer,
@@ -504,7 +509,7 @@ export class ReadingSession {
       onCapture: (kind, cap) => this.onCapture(kind, cap),
       // A card is coming: the engine loads while the handles move, not after (android D2). Only
       // with a translator — no model ready, nothing is sent.
-      onBegin: () => this.translator()?.warm?.(),
+      onBegin: () => this.translator(this.language)?.warm?.(this.language),
       win,
       // Only where the card is shown in the callout's place: the reader switched on, the page
       // analysed. Anywhere else the platform's selection is left exactly as it is.

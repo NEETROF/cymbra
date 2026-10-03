@@ -6,7 +6,11 @@ import type { TranslationRequest, TranslationResult, TranslatorPort } from "@/tr
 // D4): measured, the handles asked for the same sentence five times in six seconds.
 
 const sentence = "She gave up after the third attempt.";
-const at = (start: number, end: number): TranslationRequest => ({ sentence, selection: { start, end } });
+const at = (start: number, end: number, language = "en"): TranslationRequest => ({
+  sentence,
+  selection: { start, end },
+  language,
+});
 const translated = (text: string): TranslationResult => ({
   kind: "translated",
   translation: { sentence: text, marks: [{ start: 5, end: 16 }] },
@@ -33,8 +37,16 @@ describe("rememberAnswers", () => {
     const page = rememberAnswers(port);
     await page.translate(at(4, 11));
     await page.translate(at(4, 17));
-    await page.translate({ sentence, selection: null });
+    await page.translate({ sentence, selection: null, language: "en" });
     expect(port.translate).toHaveBeenCalledTimes(3);
+  });
+
+  it("asks again for the same sentence read in another language: another route, another answer", async () => {
+    const port = engine(() => translated("Elle a abandonné après la troisième tentative."));
+    const page = rememberAnswers(port);
+    await page.translate(at(4, 11, "en"));
+    await page.translate(at(4, 11, "es"));
+    expect(port.translate).toHaveBeenCalledTimes(2);
   });
 
   it("an identical request made while the first is being answered waits for that answer", async () => {
@@ -94,7 +106,7 @@ describe("rememberAnswers", () => {
 
   it("passes a warm through", () => {
     const port = engine(() => translated("x"));
-    rememberAnswers(port).warm?.();
-    expect(port.warm).toHaveBeenCalledOnce();
+    rememberAnswers(port).warm?.("es");
+    expect(port.warm).toHaveBeenCalledWith("es");
   });
 });

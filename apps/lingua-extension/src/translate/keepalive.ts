@@ -98,17 +98,20 @@ export function keepWarm(
   restore: RestoreDeps = REAL_RESTORE,
 ): TranslatorPort {
   let last: number | null = null;
+  /** The language of the last translation asked: the route to have loaded again on a return. */
+  let language = "";
   return {
     translate(request: TranslationRequest): Promise<TranslationResult> {
       if (last === null) {
         start();
         restore.onVisible(() => {
-          if (last !== null && restore.now() - last < ENGINE_IDLE_MS) port.warm?.();
+          if (last !== null && restore.now() - last < ENGINE_IDLE_MS) port.warm?.(language);
         });
       }
       last = restore.now();
+      language = request.language;
       return port.translate(request);
     },
-    warm: () => port.warm?.(),
+    warm: (language) => port.warm?.(language),
   };
 }

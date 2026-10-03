@@ -40,11 +40,12 @@ const REAL_CLOCK: ChannelClock = {
 
 type Waiter = (response: WorkerResponse | null) => void;
 
-type RequestBody = { op: "load" } | { op: "translate"; markup: string };
+type RequestBody = { op: "load"; language: string } | { op: "translate"; markup: string; language: string };
 
 export class EngineChannel implements EngineAccess {
   private worker: WorkerLike | null = null;
-  private started: Promise<boolean> | null = null;
+  /** Each language's route, loading or loaded in the worker (model-state D5). */
+  private readonly loads = new Map<string, Promise<boolean>>();
   private seq = 0;
   private readonly waiting = new Map<number, Waiter>();
   private readonly clock: ChannelClock;
@@ -71,26 +72,26 @@ export class EngineChannel implements EngineAccess {
     this.reset();
   }
 
-  async translate(markup: string): Promise<EngineReply> {
+  async translate(markup: string, language: string): Promise<EngineReply> {
     try {
-      return await this.translateNow(markup);
+      return await this.translateNow(markup, language);
     } finally {
       this.armIdle();
     }
   }
 
-  /** Load the engine now, translate nothing; a warm engine is left as it is, its countdown restarted. */
-  async warm(): Promise<boolean> {
+  /** Load the engine and `language`'s route now, translate nothing; a warm engine is left as it is, its countdown restarted. */
+  async warm(language: string): Promise<boolean> {
     try {
-      return await this.start();
+      return await this.start(language);
     } finally {
       this.armIdle();
     }
   }
 
-  private async translateNow(markup: string): Promise<EngineReply> {
-    if (!(await this.start())) return { ok: false, reason: "the engine did not start" };
-    const reply = await this.call({ op: "translate", markup }, TRANSLATE_TIMEOUT_MS);
+  private async translateNow(markup: string, language: string): Promise<EngineReply> {
+    if (!(await this.start(language))) return { ok: false, reason: "the engine did not start" };
+    const reply = await this.call({ op: "translate", markup, language }, TRANSLATE_TIMEOUT_MS);
     if (!reply) {
       // A synchronous wasm call cannot be interrupted: a worker past its bound is stuck in one,
       // and everything sent after would queue behind it. Put it down; the next request starts
@@ -102,26 +103,38 @@ export class EngineChannel implements EngineAccess {
     return typeof reply.html === "string" ? { ok: true, html: reply.html } : { ok: false, reason: "empty answer" };
   }
 
-  /** Spawn the worker and load the model, once; a failure leaves nothing behind to retry against. */
-  private start(): Promise<boolean> {
-    this.started ??= this.boot().then((ok) => {
-      if (!ok) this.reset();
-      return ok;
-    });
-    return this.started;
+  /**
+   * Spawn the worker if there is none and load `language`'s route, once. A failed load is forgotten,
+   * so the next request asks again; with no other route loaded, the worker is put down with it.
+   */
+  private start(language: string): Promise<boolean> {
+    let loading = this.loads.get(language);
+    if (!loading) {
+      loading = this.load(language).then((ok) => {
+        if (!ok && this.loads.get(language) === loading) {
+          this.loads.delete(language);
+          if (this.loads.size === 0) this.reset();
+        }
+        return ok;
+      });
+      this.loads.set(language, loading);
+    }
+    return loading;
   }
 
-  private async boot(): Promise<boolean> {
-    let worker: WorkerLike;
-    try {
-      worker = this.spawn();
-    } catch {
-      return false;
+  private async load(language: string): Promise<boolean> {
+    if (!this.worker) {
+      let worker: WorkerLike;
+      try {
+        worker = this.spawn();
+      } catch {
+        return false;
+      }
+      worker.onmessage = (event) => this.settle(event.data);
+      worker.onerror = () => this.failAll();
+      this.worker = worker;
     }
-    worker.onmessage = (event) => this.settle(event.data);
-    worker.onerror = () => this.failAll();
-    this.worker = worker;
-    const loaded = await this.call({ op: "load" }, START_TIMEOUT_MS);
+    const loaded = await this.call({ op: "load", language }, START_TIMEOUT_MS);
     return loaded?.ok === true;
   }
 
@@ -179,6 +192,6 @@ export class EngineChannel implements EngineAccess {
     this.disarmIdle();
     this.worker?.terminate();
     this.worker = null;
-    this.started = null;
+    this.loads.clear();
   }
 }
