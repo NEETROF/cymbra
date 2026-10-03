@@ -4,7 +4,7 @@ import { createLinguaPort } from "../analyzer/create-port.ts";
 import { chooseLevelPrompt, levelTitle, noTextDetected } from "../analyzer/language-labels.ts";
 import { DEFAULT_LANGUAGE, readingLanguage } from "../analyzer/pairs.ts";
 import type { CefrLevel, StudiedLanguage } from "../analyzer/types.ts";
-import { mountSettings, type SettingsView } from "../reading/settings-view.ts";
+import { mountSettings, type SettingsTab, type SettingsView } from "../reading/settings-view.ts";
 import { browserSpeechEngine, createSpeaker } from "../reading/speech.ts";
 import type { Provider } from "../state/oidc.ts";
 import { isPersistedSignInError, SIGNIN_ERROR_KEY } from "../state/session.ts";
@@ -243,7 +243,7 @@ let settings: SettingsView | null = null;
  * are this page's own, as the side panel's are: a level, a calibration or a reset chosen here
  * is persisted to the store, which every page restores — the popup never reaches into a tab.
  */
-async function showSettings(): Promise<void> {
+async function showSettings(tab?: SettingsTab): Promise<void> {
   $("main-view").hidden = true;
   $("settings-view").hidden = false;
   if (!settings) {
@@ -255,6 +255,7 @@ async function showSettings(): Promise<void> {
       speaker: createSpeaker(browserSpeechEngine(), await readingLanguage(port), storedVoicePreference(storageArea)),
     });
   }
+  if (tab) settings.show(tab);
   await settings.refresh();
 }
 
@@ -314,10 +315,11 @@ async function main(): Promise<void> {
   // Settings view (gear icon), also reached from the main panel's level call-to-action and
   // « Modifier ». Leaving it re-reads the page's stats: a level or a calibration chosen there
   // moves the percentage.
-  const openSettings = (): void => void showSettings();
-  $("settings-open").addEventListener("click", openSettings);
-  $("level-cta").addEventListener("click", openSettings);
-  $("level-edit").addEventListener("click", openSettings);
+  $("settings-open").addEventListener("click", () => void showSettings());
+  // The level is what these two lead to: its tab, whichever one the reader left open.
+  const openLevel = (): void => void showSettings("language");
+  $("level-cta").addEventListener("click", openLevel);
+  $("level-edit").addEventListener("click", openLevel);
   $("settings-back").addEventListener("click", () => {
     $("settings-view").hidden = true;
     $("main-view").hidden = false;
