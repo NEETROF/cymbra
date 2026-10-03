@@ -1685,3 +1685,24 @@ describe("SelectionCards without a model ready", () => {
     expect(view.last().rows).toEqual([{ form: "give", gloss: "Donner" }]);
   });
 });
+
+describe("a word card names the forms of its document's language (add-lingua-spanish-word-card)", () => {
+  it("carries a Spanish document's language, and says nothing for an English one", async () => {
+    const ports = fakePorts();
+    const view = fakeSurface();
+    const clock = fakeClock();
+    const cards = new SelectionCards(ports.ports, view.surface, {
+      calibration: () => CALIBRATION,
+      clock: clock.clock,
+      language: () => "es",
+    });
+    cards.openForToken(hitOf(pageToken({ surface: "hablaba", lemma: "hablar", class: "Unknown", gloss: "Parler" })));
+    await settle();
+    expect(view.shows.every((shown) => shown.language === "es")).toBe(true);
+
+    const english = harness();
+    english.cards.openForToken(hitOf(pageToken({ surface: "went", lemma: "go", class: "Unknown", gloss: "Aller" })));
+    await settle();
+    expect(english.shows.some((shown) => "language" in shown)).toBe(false);
+  });
+});

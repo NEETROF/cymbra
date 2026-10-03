@@ -11,7 +11,7 @@ pack yet: that is `enable-lingua-spanish`.
 | `freq.tsv` | lemma → frequency rank | wordfreq 3.1.1 (CC BY-SA 4.0) |
 | `grammar.tsv` | form → its readings: dictionary form, Universal Dependencies tag, and whether it may be named as another word | kaikki's tags (CC BY-SA 4.0 + GFDL) |
 | `gloss.tsv` | lemma → French gloss | the French Wiktionary's Spanish entries; else the Spanish Wiktionary's French translations; else the French Wiktionary's translation tables, read backwards (all CC BY-SA 4.0 + GFDL, through kaikki) |
-| `senses.tsv` | lemma → part of speech of each run of its gloss's senses | the same |
+| `senses.tsv` | lemma → part of speech of each run of its gloss's senses, a noun's with its gender | the same, the gender from `forms.tsv`'s source |
 | `mwe.tsv` | expression → French gloss | the same sources, for multi-word headwords |
 | `level.tsv` | lemma → estimated CEFR level | derived from `freq.tsv` and `gloss.tsv` (no source of its own) |
 | `NOTICE` | the attribution stack, embedded in the pack | — |
@@ -57,6 +57,10 @@ pack yet: that is `enable-lingua-spanish`.
   Expressions: 2,952 from the French Wiktionary's Spanish entries, 12,181 from the translations.
   The builder keeps those whose words the lexicon holds. `LOCUTIONS` in `reduce-es-fr.py`, for the
   verbal locutions no source glosses (`hay que`), is empty: its glosses are written by a person.
+- **A noun's gender in its sense runs** (add-lingua-spanish-word-card): `casa	NOUN|Gender=Fem:1`,
+  so the card's heading reads « nom féminin ». It is the gender the English Wiktionary's `es-noun`
+  head gives, the one the readings carry; a noun of both genders (`estudiante`) keeps `NOUN`. 12,050
+  runs carry one.
 - **Estimated levels** for 8,302 lemmas (add-lingua-spanish-levels). No Spanish CEFR list can be
   shipped, so the levels are derived from frequency, and the manifest says `levels_estimated`;
   the extension labels them « estimé ». The commonest lemmas, in rank order, take the sizes of
@@ -80,7 +84,7 @@ and proper nouns are left out. On the 2026-10-03 tables:
 | content words taking PUD's lemma | 95.92 % of 9,439 | 93.5 % |
 | auxiliaries taking PUD's lemma | 97.95 % of 634 | 97 % |
 
-The pack is 2,186,617 B, with the grammar, the glosses and the levels.
+The pack is 2,190,036 B, with the grammar, the glosses and the levels.
 
 ## Licences
 

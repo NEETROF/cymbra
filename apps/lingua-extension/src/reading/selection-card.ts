@@ -330,6 +330,7 @@ export class SelectionCards {
       sentence: hit.sentence,
       status: statusOfClass(token.class),
       rect: hit.rect,
+      ...this.languageOfCard(),
       ...(written !== token.surface ? { written } : {}),
     };
     const inSentence = (card: WordPopupContent, cls: TokenClass) =>
@@ -480,6 +481,15 @@ export class SelectionCards {
     return this.opts.language?.() ?? "en";
   }
 
+  /**
+   * The language a card names its forms in (add-lingua-spanish-word-card): said only when it is
+   * not English, so an English card's content is what it always was.
+   */
+  private languageOfCard(): Pick<WordPopupContent, "language"> {
+    const language = this.language();
+    return language === "en" ? {} : { language };
+  }
+
   /** The engine's answer for this request, or null — never later than TRANSLATION_WAIT_MS. */
   private translateBounded(translator: TranslatorPort, request: TranslationRequest): Promise<MarkedTranslation | null> {
     return new Promise((resolve) => {
@@ -535,6 +545,7 @@ export class SelectionCards {
             sentence: sel.sentence,
             status: statusOfClass(t.class),
             rect: sel.rect,
+            ...this.languageOfCard(),
             rows: t.parts?.length ? rowsFor([t], answer.expressions) : undefined,
             ...(written !== t.surface ? { written } : {}),
             ...grammarOf(reply.grammar),

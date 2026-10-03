@@ -117,27 +117,17 @@ fn a_spanish_card_reads_its_french_gloss() {
     let gloss = |word: &str| word_grammar(word, word, StudiedLanguage::Spanish, &pack);
 
     // The French Wiktionary's Spanish entry.
+    let heading = |word: &str| gloss(word).senses[0].tag.as_ref().map(|tag| tag.to_ud());
     let casa = gloss("casa");
     assert_eq!(casa.gloss.as_deref(), Some("Maison"));
-    assert_eq!(
-        casa.senses[0]
-            .tag
-            .as_ref()
-            .map(|tag| tag.to_ud())
-            .as_deref(),
-        Some("NOUN")
-    );
+    // The run carries the noun's gender (add-lingua-spanish-word-card), for « nom féminin ».
+    assert_eq!(heading("casa").as_deref(), Some("NOUN|Gender=Fem"));
     // No Spanish entry there: the Spanish Wiktionary's French translation.
     let sector = gloss("sector");
     assert_eq!(sector.gloss.as_deref(), Some("Secteur"));
-    assert_eq!(
-        sector.senses[0]
-            .tag
-            .as_ref()
-            .map(|tag| tag.to_ud())
-            .as_deref(),
-        Some("NOUN")
-    );
+    assert_eq!(heading("sector").as_deref(), Some("NOUN|Gender=Masc"));
+    // A noun of both genders keeps a run without one.
+    assert_eq!(heading("estudiante").as_deref(), Some("NOUN"));
 
     // An expression a translation glosses.
     let phrase = gloss_phrase(

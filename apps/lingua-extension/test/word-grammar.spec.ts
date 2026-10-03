@@ -458,3 +458,82 @@ describe("grammar labels", () => {
     expect(lines).toEqual(["peut aussi être le prétérit d’ate", "peut aussi être le participe passé d’eat"]);
   });
 });
+
+// add-lingua-spanish-word-card: a Spanish card names its forms as French schools do.
+const verb = (features: Record<string, string>): GrammarTag => ({ pos: "VERB", features });
+const fin = (Mood: string, Person: string, Number: string, Tense?: string): GrammarTag =>
+  verb({ Mood, Number, Person, ...(Tense ? { Tense } : {}), VerbForm: "Fin" });
+
+describe("a Spanish card names its forms as French schools do", () => {
+  const spanish = (headword: string, surface: string, readings: GrammarTag[], others: WordGrammar["others"] = []) =>
+    shown({ language: "es", headword, surface, grammar: grammar({ readings, others }) }).lines;
+
+  it("A form of two persons", () => {
+    const lines = spanish("hablar", "hablaba", [fin("Ind", "1", "Sing", "Imp"), fin("Ind", "3", "Sing", "Imp")]);
+    expect(lines).toEqual(["1re et 3e personnes du singulier de l’imparfait de l’indicatif de hablar"]);
+  });
+
+  it("A subjunctive and an imperative, in one statement, in the grammars' order", () => {
+    // The pack gives the imperative first (its tags sort so); the subjunctive is named first.
+    const lines = spanish("hablar", "hable", [
+      fin("Imp", "3", "Sing"),
+      fin("Sub", "1", "Sing", "Pres"),
+      fin("Sub", "3", "Sing", "Pres"),
+    ]);
+    expect(lines).toEqual([
+      "1re et 3e personnes du singulier du présent du subjonctif et 3e personne du singulier de l’impératif de hablar",
+    ]);
+  });
+
+  it("An adjective's agreement", () => {
+    const fem = { pos: "ADJ", features: { Gender: "Fem", Number: "Plur" } };
+    expect(spanish("rápido", "rápidas", [fem])).toEqual(["féminin pluriel de rápido"]);
+    expect(spanish("grande", "grandes", [{ pos: "ADJ", features: { Number: "Plur" } }])).toEqual(["pluriel de grande"]);
+  });
+
+  it("The dictionary form itself: no line", () => {
+    expect(spanish("hablar", "hablar", [verb({ VerbForm: "Inf" })])).toEqual([]);
+    expect(spanish("casa", "casa", [{ pos: "NOUN", features: { Gender: "Fem", Number: "Sing" } }])).toEqual([]);
+    expect(spanish("rápido", "rápido", [{ pos: "ADJ", features: { Gender: "Masc", Number: "Sing" } }])).toEqual([]);
+    // The other dictionary form is still named.
+    expect(
+      spanish(
+        "vino",
+        "vino",
+        [{ pos: "NOUN", features: { Gender: "Masc", Number: "Sing" } }],
+        [{ lemma: "venir", readings: [fin("Ind", "3", "Sing", "Past")] }],
+      ),
+    ).toEqual(["peut aussi être la 3e personne du singulier du passé simple de venir"]);
+  });
+
+  it("Elision before an accented vowel, and not before h", () => {
+    const ella = spanish("él", "ella", [{ pos: "PRON", features: { Gender: "Fem", Number: "Sing" } }]);
+    expect(ella).toEqual(["féminin singulier d’él"]);
+    expect(spanish("hablar", "hablando", [verb({ VerbForm: "Ger" })])).toEqual(["gérondif de hablar"]);
+  });
+
+  it("names every mood and tense, and a participle's agreement", () => {
+    const name = (tag: GrammarTag) => readingName(tag, "es");
+    expect(name(fin("Ind", "1", "Plur", "Pres"))?.name).toBe("1re personne du pluriel du présent de l’indicatif");
+    expect(name(fin("Ind", "3", "Sing", "Past"))?.name).toBe("3e personne du singulier du passé simple");
+    expect(name(fin("Ind", "2", "Sing", "Fut"))?.name).toBe("2e personne du singulier du futur");
+    expect(name(fin("Cnd", "1", "Sing"))?.name).toBe("1re personne du singulier du conditionnel");
+    expect(name(fin("Sub", "3", "Plur", "Imp"))?.name).toBe("3e personne du pluriel de l’imparfait du subjonctif");
+    expect(name(fin("Sub", "1", "Sing", "Fut"))?.name).toBe("1re personne du singulier du futur du subjonctif");
+    expect(name(verb({ VerbForm: "Inf" }))).toEqual({ article: "l’", name: "infinitif" });
+    const part = (features: Record<string, string>) =>
+      name(verb({ Tense: "Past", VerbForm: "Part", ...features }))?.name;
+    expect(part({ Gender: "Masc", Number: "Sing" })).toBe("participe passé");
+    expect(part({ Gender: "Fem", Number: "Sing" })).toBe("participe passé féminin");
+    expect(part({ Gender: "Fem", Number: "Plur" })).toBe("participe passé féminin pluriel");
+  });
+
+  it("A card with no language names English forms, as before", () => {
+    const { lines } = shown({
+      headword: "hablar",
+      surface: "hablaba",
+      grammar: grammar({ readings: [fin("Ind", "1", "Sing", "Imp")] }),
+    });
+    expect(lines).toEqual([]);
+  });
+});
