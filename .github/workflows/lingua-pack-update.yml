@@ -102,22 +102,25 @@ jobs:
           set -euo pipefail
           pin="scripts/lingua-data/tables/$PAIR/pin.json"
           tag=$(python scripts/lingua-data/pack_sources.py get --pin "$pin" sources.kaikki.release)
-          asset=$(python scripts/lingua-data/pack_sources.py get --pin "$pin" sources.kaikki.asset)
-          sha=$(python scripts/lingua-data/pack_sources.py get --pin "$pin" sources.kaikki.sha256)
           url=$(python scripts/lingua-data/pack_sources.py get --pin "$pin" sources.kaikki.url)
           if gh release view "$tag" >/dev/null 2>&1; then
             echo "::error::$tag already exists; a snapshot is never replaced. Dispatch again tomorrow."
             exit 1
           fi
+          # The extract, then each file the pair derives from a whole Wiktionary dump (pack_sources.py DUMPS).
+          files=()
+          while IFS= read -r asset; do
+            files+=("scripts/lingua-data/work/$PAIR/$asset")
+          done < <(python scripts/lingua-data/pack_sources.py assets --pin "$pin")
           cat > "$RUNNER_TEMP/notes.md" <<EOF
-          The kaikki.org extract read for Cymbra Lingua's $PAIR data pack ($url), as it was on
-          $SNAPSHOT — one of the pack's raw sources, kept because upstream regenerates it every day.
-          zstd-compressed; decompressed, its sha256 is \`$sha\`
-          (\`scripts/lingua-data/tables/$PAIR/pin.json\`).
+          The kaikki.org data read for Cymbra Lingua's $PAIR data pack, as it was on $SNAPSHOT: the
+          extract ($url), and the files derived from whole Wiktionary dumps, if the pair reads any.
+          They are the pack's raw sources, kept because upstream regenerates them every day. Each is
+          zstd-compressed; decompressed, its sha256 is in \`scripts/lingua-data/tables/$PAIR/pin.json\`.
 
           Licence: Wiktionary content, CC BY-SA 4.0 and GFDL — https://kaikki.org, https://www.wiktionary.org.
           EOF
-          gh release create "$tag" "scripts/lingua-data/work/$PAIR/$asset" --target "$GITHUB_SHA" \
+          gh release create "$tag" "${files[@]}" --target "$GITHUB_SHA" \
             --title "Lingua pack sources $PAIR $SNAPSHOT" --notes-file "$RUNNER_TEMP/notes.md" --latest=false
 
       - name: Push the tables to a branch

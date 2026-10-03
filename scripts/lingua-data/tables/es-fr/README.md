@@ -10,7 +10,9 @@ pack yet: that is `enable-lingua-spanish`.
 | `forms.tsv` | form → lemma | kaikki.org extract of the English Wiktionary, Spanish section (CC BY-SA 4.0 + GFDL), with UD Spanish-GSD's counts to choose between lemmas (CC BY-SA 4.0) |
 | `freq.tsv` | lemma → frequency rank | wordfreq 3.1.1 (CC BY-SA 4.0) |
 | `grammar.tsv` | form → its readings: dictionary form, Universal Dependencies tag, and whether it may be named as another word | kaikki's tags (CC BY-SA 4.0 + GFDL) |
-| `gloss.tsv` | lemma → French gloss | empty until `add-lingua-spanish-gloss-tables` |
+| `gloss.tsv` | lemma → French gloss | the French Wiktionary's Spanish entries; else the Spanish Wiktionary's French translations; else the French Wiktionary's translation tables, read backwards (all CC BY-SA 4.0 + GFDL, through kaikki) |
+| `senses.tsv` | lemma → part of speech of each run of its gloss's senses | the same |
+| `mwe.tsv` | expression → French gloss | the same sources, for multi-word headwords |
 | `NOTICE` | the attribution stack, embedded in the pack | — |
 | `manifest.json` | the pack's metadata: Spanish, the Spanish analyser's version, and `pack_version` (the snapshot, and the rules that reduced it) | — |
 | `pin.json` | the raw sources these tables came from, and the pack they build | — |
@@ -36,6 +38,24 @@ pack yet: that is `enable-lingua-spanish`.
   its own form and on its plural: 99.7 % of the nouns have one (`casa`, `casas`: feminine). A form
   of another kept lemma is marked `other`, so the card names it: `vino` is also *venir*'s
   preterite, `fue` *ir*'s.
+- **French glosses** for 22,826 lemmas, and 15,133 expressions (add-lingua-spanish-gloss-tables).
+  The French Wiktionary's Spanish entries come first, through the rules every pair shares: up to
+  eight senses, grouped by part of speech. Where they say nothing, people's translations fill
+  the gap. First, the French words the Spanish Wiktionary lists (`sector` « Secteur »). Then the
+  French entries whose translation tables list the word, the commonest first (`decreto`
+  « Arrêté »). A gloss is never English and never a machine translation, and a proper noun's
+  translation glosses nothing. The share of the commonest lemmas glossed:
+
+  | Lemmas | French Wiktionary | with the translations |
+  |---|---|---|
+  | top 5,000 | 82.9 % | 87.7 % |
+  | top 10,000 | 69.6 % | 77.3 % |
+  | top 20,000 | 54.4 % | 63.8 % |
+  | all 60,000 | 29.0 % | 38.0 % |
+
+  Expressions: 2,952 from the French Wiktionary's Spanish entries, 12,181 from the translations.
+  The builder keeps those whose words the lexicon holds. `LOCUTIONS` in `reduce-es-fr.py`, for the
+  verbal locutions no source glosses (`hay que`), is empty: its glosses are written by a person.
 
 ## Measured
 
@@ -49,14 +69,14 @@ and proper nouns are left out. On the 2026-10-03 tables:
 | content words taking PUD's lemma | 95.92 % of 9,439 | 93.5 % |
 | auxiliaries taking PUD's lemma | 97.95 % of 634 | 97 % |
 
-The pack is 1,507,108 B, the grammar included.
+The pack is 2,126,574 B, the grammar and the glosses included.
 
 ## Licences
 
 The repository is Apache-2.0; **these files are not**. They are derived from the sources above and
 carry their licences:
 - `forms.tsv`: CC BY-SA 4.0 and the GFDL (kaikki), and CC BY-SA 4.0 (GSD's counts);
-- `grammar.tsv`: CC BY-SA 4.0 and the GFDL (kaikki);
+- `grammar.tsv`, `gloss.tsv`, `senses.tsv`, `mwe.tsv`: CC BY-SA 4.0 and the GFDL (kaikki);
 - `freq.tsv`: CC BY-SA 4.0.
 
 `NOTICE` gives the full attribution. See `../../SOURCES.md`.
@@ -68,10 +88,12 @@ Never by hand.
 - **Take in upstream changes**: dispatch `lingua-pack-update` with `pair=es-fr` and `mode=update`.
   It works as for en-fr:
   1. reads today's sources;
-  2. keeps kaikki's bytes as the release `lingua-pack-sources-es-fr-<snapshot>`;
+  2. keeps kaikki's bytes as the release `lingua-pack-sources-es-fr-<snapshot>`: the extract, and
+     the three files derived from the French and Spanish Wiktionaries' dumps (`pack_sources.py
+     DUMPS`);
   3. reduces;
   4. pushes the branch `lingua-pack/es-fr/<snapshot>`.
-- **After editing the reduction rules** — `reduce-es-fr.py`, the override list included, or
+- **After editing the reduction rules** — `reduce-es-fr.py`, the override and locution lists included, or
   `reduce_common.py`, which every pair shares (`pin.json` lists both under `reducer.files`): the
   check lane fails until the tables are reduced again from the pinned sources. Run
   `scripts/lingua-data/build.sh --reduce es-fr <out>` (Python 3.12, `requirements-reduce.txt`), or
