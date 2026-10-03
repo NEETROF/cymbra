@@ -126,6 +126,29 @@ built. Either way the container stays as it is.
 
 The CEFR level table is **optional and additive**: a pair without licence-clean CEFR data ships no `level.tsv`, the builder emits no `levels` section, and the reader falls back to frequency bands. Adding the section does **not** bump `analyzer_version` — it is behaviour-preserving (level-based presumed-known only activates once the user declares a level), so old cores load a level-bearing pack and simply ignore the section.
 
+## ES → FR
+
+Reduced by `reduce-es-fr.py` (add-lingua-spanish-forms-tables), for the Spanish programme
+(`docs/lingua/spanish-programme.md`). No extension package carries the pack yet
+(`enable-lingua-spanish`).
+
+| Table | Upstream source | Licence | Reduction |
+|---|---|---|---|
+| `forms.tsv` (`form → lemma`) | **kaikki.org** extract of the English Wiktionary (`enwiktionary`), Spanish section — our snapshot of its 2026-09-28 dump; **UD Spanish-GSD** (train and dev, at a commit) for homographs | kaikki: CC BY-SA 4.0 + GFDL; GSD: CC BY-SA 4.0, read for counts only | the inflections a lemma's entry lists and the form-of links of a form's own entry: lowercased, NFC, single Spanish words. Never a verb with its clitics — a `combined-form`, or a sense naming the pronoun (`object-…` tags); the analyser's enclitic rule reads those — but a string that is also a plain form keeps it (`principales` → *principal*). **One lemma per form**: a reviewed override (`OVERRIDES` in the reducer, each with its reason; none yet, since an override takes the other lemma out of the pack), then GSD's counts of the form under each lemma, then the form's own entry, then the lemma's frequency, then the alphabet. Only the forms of kept lemmas that wordfreq attests, and every lemma's own form |
+| `freq.tsv` (`lemma → rank`) | **wordfreq** Spanish list | CC BY-SA 4.0 | the top 60k canonical lemmas, dense rank; inflected forms, and combined forms that are no word of their own, skipped |
+| `gloss.tsv` | — | — | empty: the French glosses are `add-lingua-spanish-gloss-tables` |
+| `NOTICE` | all of the above | — | the attribution stack, embedded in the pack |
+
+**Measured on UD Spanish-PUD** (CC BY-SA 3.0), never committed and never read by the reduction.
+`measure/es-pud.sh` fetches it at a commit, builds the pack from the committed tables, and runs the
+real analyser over it (`lingua-pack-measure`). Punctuation, numbers, symbols, foreign words and
+proper nouns are left out. The 2026-10-03 tables pass the programme's gates:
+- 99.38 % of 19,276 words resolve in the lexicon (gate 98.5 %);
+- 95.92 % of 9,439 content words take PUD's lemma (gate 93.5 %);
+- 97.95 % of 634 auxiliaries take PUD's lemma (gate 97 %).
+
+The pack is 1,307,728 B.
+
 ## Allowed vs denied licences
 
 - **Allowed** (commercial use OK): permissive (ESDB/SCOWL and WordNet), CC BY, CC BY-SA (the derived tables are published, satisfying share-alike).

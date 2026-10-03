@@ -23,6 +23,7 @@
 //! output lives in `lingua-core` and stays WASM-clean.
 
 pub mod licence;
+pub mod measure;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;

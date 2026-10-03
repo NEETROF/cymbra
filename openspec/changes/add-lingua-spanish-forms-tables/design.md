@@ -72,10 +72,12 @@ When a form has several candidates, the first rule that decides wins:
 
 S1 on common homographs: `fue` → *ser* (GSD 1,458 against 0), `casa` → *casa*, `como` → *como*,
 `luces` → *luz*, `río` → *río*, `cuenta` → *contar*, `vino` → *vino*. `vino` is the noun by GSD
-(20 against 4 for *venir*). Narrative text meets *venir* more often, and the override list is where
-that judgement goes, with its reason: the list starts with that one row, `vino` → *venir*. It costs
-one agreement on PUD (two nouns against one preterite), a news treebank like GSD. The card shows
-the other reading either way, from the grammar tables.
+(20 against 4 for *venir*), though narrative text meets *venir* more often.
+
+An override is not free. The pack keys every lemma by its own form, so a lemma's form always reads
+as itself. Sending `vino` to *venir* would therefore take the noun out of the pack altogether: no
+card, gloss or review for an A1 word. The list starts empty. `vino` stays the noun, and the card
+names *venir* as the other reading, from the grammar tables (`add-lingua-spanish-grammar-tables`).
 
 *Rejected — keep every reading.* One form, one lemma is the pack's contract, which the analyser,
 the knowledge model and the sync all read. The programme keeps the multi-lemma format as a costed
@@ -103,14 +105,14 @@ S1, with the dictionary lookup alone:
 | **60k lemmas, attested** | **107,647** | **2.0 MB** | **98.39 %** | **93.90 %** | **97.95 %** |
 
 The harness (D5) measures with the analyser's rules too, which resolve the combined forms the table
-leaves out. That is the figure the gates hold to. The reducer as built (D1 and D3, 144,804 rows,
-2.5 MB) measures 99.38 % resolved, 95.91 % of content lemmas and 97.95 % of auxiliaries.
+leaves out. That is the figure the gates hold to. The reducer as built (D1 and D3, 144,805 rows,
+2.6 MB) measures 99.38 % resolved, 95.92 % of content lemmas and 97.95 % of auxiliaries.
 
 ### D4 — The tables, in git
 
 `tables/es-fr/` holds `forms.tsv`, `freq.tsv`, `gloss.tsv` (empty), `NOTICE`, `manifest.json`,
 `pin.json` and a `README.md`, as en-fr's do. `manifest.json` names Spanish and the Spanish
-analyser version read from `analysis/mod.rs`, so `Pack::load` accepts it. About 3.3 MB of text is
+analyser version read from `analysis/mod.rs`, so `Pack::load` accepts it. About 3.5 MB of text is
 committed, far under the ≈10 MB the programme set as the threshold for a snapshot outside git.
 
 ### D5 — The measurement harness
@@ -153,8 +155,9 @@ kaikki bytes. `--update` and every build work.
 
 ## Risks / Trade-offs
 
-- **A homograph GSD gets wrong for narrative text** (`vino`) → the override list, reviewed in the
-  pull request, with a reason per row.
+- **A homograph GSD gets wrong for narrative text** (`vino`) → the card names the other reading,
+  from the grammar tables. The override list, reviewed in the pull request with a reason per row,
+  stays for a case worth taking the other lemma out of the pack.
 - **GSD's counts are sparse beyond common words** → steps 3 to 5 of D2 decide. They err towards the
   word's own entry, the reading a learner looks up.
 - **kaikki regenerates daily** → the snapshot pins the bytes, the tables are what releases read, and

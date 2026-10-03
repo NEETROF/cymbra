@@ -17,10 +17,10 @@ The programme fixed the sources and the gates (`docs/lingua/spanish-programme.md
 
 A prototype run on 2026-10-03 (S1) settles the size question the programme left open. With the
 combined clitic forms left out, which the enclitic rule resolves, the 60,000 commonest lemmas and
-their forms attested in wordfreq make a forms table of 144,804 rows, 2.5 MB. That is far under the
+their forms attested in wordfreq make a forms table of 144,805 rows, 2.6 MB. That is far under the
 ≈10 MB that would have called for a snapshot outside git, so the tables are committed like
 en-fr's. With the real analyser, the pack passes the gates on PUD: 99.38 % of tokens resolved,
-95.91 % of content lemmas and 97.95 % of auxiliaries.
+95.92 % of content lemmas and 97.95 % of auxiliaries.
 
 This is change 20, in G1, the internal Spanish build. No package ships the es-fr pack yet; that is
 `enable-lingua-spanish`.
