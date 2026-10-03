@@ -183,6 +183,10 @@ Kaleido panels render saturated dark colours best and wash out yellows and paste
 on the word rather than a tint behind it. The values are tuned on the Go Color 7 Gen 2 (task
 5.2) before release, and the tuned values are recorded here.
 
+On 2026-10-03, on a Boox Go 10.3 Lumi (monochrome, 300 ppi), *E-ink contrasté* was validated as
+shipped, with the surfaces themed black on white (D8) and sized with the text (D9). *E-ink couleur*
+still waits for the Go Color 7.
+
 ### D8. The surfaces' theme: the e-ink presets, else the page
 
 `surface-look.ts` decides one of three palettes from the two preferences:
