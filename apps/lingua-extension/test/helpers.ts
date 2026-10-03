@@ -29,6 +29,8 @@ export type FakePort = LinguaPort & LanguagePort;
 export interface FakeCalls {
   /** The studied languages `for` was asked, in order (generalise-lingua-extension-port). */
   languages: StudiedLanguage[];
+  /** Every document-language question: its candidates and hint (add-lingua-language-routing). */
+  detections: { candidates: StudiedLanguage[]; hint: string | null }[];
   setCalibration: number[];
   setStatus: [string, string | null][];
   addCard: NewCard[];
@@ -42,6 +44,7 @@ export interface FakeCalls {
 export function makeFakePort(deck: FakeCard[] = []): { port: FakePort; calls: FakeCalls } {
   const calls: FakeCalls = {
     languages: [],
+    detections: [],
     setCalibration: [],
     setStatus: [],
     addCard: [],
@@ -66,6 +69,11 @@ export function makeFakePort(deck: FakeCard[] = []): { port: FakePort; calls: Fa
     studiedLanguages: async () => [...studied],
     setStudiedLanguages: async (languages) => {
       studied = [...languages];
+    },
+    // The first candidate, like a document with nothing to detect and no hint.
+    detectLanguage: async (_blocks, candidates, hint) => {
+      calls.detections.push({ candidates: [...candidates], hint });
+      return candidates[0];
     },
     analyse: async (): Promise<PageAnalysis> => ({
       analyzer_version: "1.0.0",

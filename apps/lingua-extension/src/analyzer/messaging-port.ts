@@ -52,6 +52,9 @@ export class MessagingLinguaPort implements LinguaPort {
   setStudiedLanguages(languages: StudiedLanguage[]): Promise<void> {
     return this.rpc("setStudiedLanguages", [languages]);
   }
+  detectLanguage(blocks: string[], candidates: StudiedLanguage[], hint: string | null): Promise<StudiedLanguage> {
+    return this.rpc("detectLanguage", [blocks, candidates, hint]);
+  }
   trackedCount(): Promise<number> {
     return this.rpc("trackedCount");
   }
