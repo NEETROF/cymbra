@@ -385,6 +385,27 @@ class GlossFallbacks(unittest.TestCase):
             self.assertTrue(gloss and gloss[0].isupper(), expression)
 
 
+class EstimatedLevels(unittest.TestCase):
+    def test_bands_go_in_rank_order_to_the_lemmas_a_cefr_list_would_hold(self):
+        ranks = {"de": 1, "the": 2, "madrid": 3, "casa": 4, "rosa": 5, "perro": 6, "gato": 7}
+        glosses = {"de", "madrid", "casa", "rosa", "perro", "gato"}
+        runs = {
+            "de": [("ADP", 1)],
+            "madrid": [("PROPN", 1)],  # only a place
+            "casa": [("NOUN", 1)],
+            "rosa": [("NOUN", 1), ("PROPN", 1)],  # a flower too
+            "perro": [("NOUN", 1)],
+            "gato": [("NOUN", 1)],
+        }
+        got = red.estimated_levels(ranks, glosses, runs, bands=(("A1", 2), ("A2", 2), ("B1", 5)))
+        # `the` has no gloss and `madrid` only a proper noun's: neither takes a level.
+        self.assertEqual(got, {"de": "A1", "casa": "A1", "rosa": "A2", "perro": "A2", "gato": "B1"})
+
+    def test_english_bands_hold_its_8302_cefr_lemmas(self):
+        self.assertEqual([level for level, _ in red.ENGLISH_BANDS], ["A1", "A2", "B1", "B2", "C1", "C2"])
+        self.assertEqual(sum(size for _, size in red.ENGLISH_BANDS), 8302)
+
+
 class Manifest(unittest.TestCase):
     def test_the_spanish_analyser_version_is_read_from_the_core(self):
         with tempfile.TemporaryDirectory() as d:
