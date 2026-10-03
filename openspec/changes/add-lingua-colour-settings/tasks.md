@@ -28,12 +28,14 @@
 
 ## 5. On the devices
 
-- [ ] 5.1 Chromium (built extension): preset change repaints an open web page and an open book
+- [x] 5.1 Chromium (built extension): preset change repaints an open web page and an open book
   - 2026-10-01, `dist-chromium` under Playwright: an open book is repainted at once by E-ink contrasté then E-ink couleur (the section's colour sheet adopted last); the Couleurs block renders in the side panel with its preview. A web page is still to see by hand — the content script needs the toolbar click on Chromium.
-- [ ] 5.2 Boox Go Color 7 Gen 2 (Firefox for Android): tune the two e-ink presets until unknown and learning words read at a glance; record the values in design D7
+- [x] 5.2 Boox Go Color 7 Gen 2 (Firefox for Android): tune the two e-ink presets until unknown and learning words read at a glance; record the values in design D7
   - 2026-10-03, Boox Go 10.3 Lumi (monochrome), Firefox 157: Guillaume validates *E-ink contrasté* as shipped. *E-ink couleur* still to see on the Go Color 7, whose colour layer this panel does not have.
-- [ ] 5.3 Safari iPad: the colour pickers from the drawer; the preview
-- [ ] 5.4 Firefox desktop: the block in the sidebar, a web page repainted
+  - 2026-10-03: no colour e-ink panel is available. Guillaume accepts *E-ink couleur* as shipped (design D7).
+- [x] 5.3 Safari iPad: the colour pickers from the drawer; the preview
+- [x] 5.4 Firefox desktop: the block in the sidebar, a web page repainted
+  - 2026-10-03: 5.1, 5.3 and 5.4 validated by Guillaume, with the surfaces' themes and text size (tasks 7.x).
 
 ## 7. The surfaces on a large e-ink screen (dogfood, Boox Go 10.3 Lumi, 2026-10-03)
 
