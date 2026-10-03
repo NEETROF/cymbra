@@ -26,6 +26,8 @@ import { followSurfaceLook } from "../reading/surface-look.ts";
 
 // This page is a surface: it follows the reader's colours and text size (add-lingua-colour-settings D8, D9).
 followSurfaceLook(document.documentElement);
+// Safari shows this page in a popover sized from its content (popup.css caps it on an iPad).
+if (__TARGET__ === "safari") document.documentElement.dataset.popover = "";
 
 // Icon-popup controller (a surface the extension owns). It asks the active tab's content
 // script for the page's stats, and writes the global enabled flag directly (a plain setting;
