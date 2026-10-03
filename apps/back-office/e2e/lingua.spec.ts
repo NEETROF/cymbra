@@ -38,8 +38,9 @@ test.describe("lingua ops console", () => {
     await expect(page.locator("canvas").first()).toBeVisible();
     // The per-language breakdown, and the studied-language filter drawn from it (change:
     // remove-lingua-pack-registry — the filter used to list the registered packs).
-    await expect(page.getByTestId("language-row")).toContainText("en");
-    await expect(page.getByTestId("language").locator("option")).toHaveText([/./, "en"]);
+    // Named in the console's language, not as a code (change: add-admin-lingua-language-labels).
+    await expect(page.getByTestId("language-row")).toContainText("English");
+    await expect(page.getByTestId("language").locator("option")).toHaveText([/./, "English"]);
     // The pack registry is gone from the screen.
     await expect(page.getByTestId("pack-row")).toHaveCount(0);
     // The "synced accounts" bias is stated on screen.

@@ -3,6 +3,7 @@ import { createPinia, setActivePinia } from "pinia";
 import { setClientsForTest } from "@/lib/api";
 import type { Clients } from "@/lib/transport";
 import { comprehension, studiedLanguageOptions, useLinguaStore } from "@/stores/lingua";
+import { languageLabel } from "@/i18n/language-label";
 import en from "@/i18n/locales/en.json";
 import fr from "@/i18n/locales/fr.json";
 
@@ -168,5 +169,37 @@ describe("lingua vocabulary", () => {
 
   it("labels the reading figures as words read, never exposures", () => {
     for (const json of [en, fr]) expect(/expos/i.test(JSON.stringify(json.lingua))).toBe(false);
+  });
+});
+
+describe("languageLabel (change: add-admin-lingua-language-labels)", () => {
+  /** vue-i18n's `t` and `te` over one locale's messages. */
+  const lookup = (messages: Record<string, unknown>) => {
+    const get = (key: string): unknown =>
+      key
+        .split(".")
+        .reduce<unknown>(
+          (v, k) => (v && typeof v === "object" ? (v as Record<string, unknown>)[k] : undefined),
+          messages,
+        );
+    return { t: (key: string) => String(get(key)), te: (key: string) => typeof get(key) === "string" };
+  };
+
+  it("names the studied languages in each of the console's languages", () => {
+    const f = lookup(fr);
+    const e = lookup(en);
+    expect(languageLabel("en", f.t, f.te)).toBe("Anglais");
+    expect(languageLabel("es", f.t, f.te)).toBe("Espagnol");
+    expect(languageLabel("en", e.t, e.te)).toBe("English");
+    expect(languageLabel("es", e.t, e.te)).toBe("Spanish");
+  });
+
+  it("keeps the code of a language the console has no name for", () => {
+    const f = lookup(fr);
+    expect(languageLabel("de", f.t, f.te)).toBe("de");
+  });
+
+  it("names the same languages in both locales", () => {
+    expect(Object.keys(fr.lingua.languages).sort()).toEqual(Object.keys(en.lingua.languages).sort());
   });
 });
