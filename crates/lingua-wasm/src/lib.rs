@@ -129,6 +129,40 @@ impl LinguaEngine {
         serde_json::to_string(&tags).unwrap_or_else(|_| "[]".to_owned())
     }
 
+    /// The reader's studied languages, from their profile, as a JSON array of ISO
+    /// 639-1 tags, the primary first (add-lingua-studied-language-profile). Not the
+    /// packs held (`languages`): a reader may study a language whose pack is not
+    /// loaded yet.
+    #[wasm_bindgen(js_name = studiedLanguages)]
+    pub fn studied_languages(&self) -> String {
+        let tags: Vec<&str> = self
+            .state
+            .profile
+            .studied_languages
+            .iter()
+            .map(|language| language.tag())
+            .collect();
+        serde_json::to_string(&tags).unwrap_or_else(|_| "[]".to_owned())
+    }
+
+    /// Sets the reader's studied languages from ISO 639-1 tags, the primary first.
+    /// Errors on an unknown tag, an empty list or a language named twice, leaving
+    /// the current ones in place.
+    #[wasm_bindgen(js_name = setStudiedLanguages)]
+    pub fn set_studied_languages(&mut self, tags: Vec<String>) -> Result<(), JsError> {
+        let languages = tags
+            .iter()
+            .map(|tag| {
+                StudiedLanguage::from_tag(tag)
+                    .ok_or_else(|| JsError::new(&format!("unknown studied language \"{tag}\"")))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        self.state
+            .profile
+            .set_studied_languages(languages)
+            .map_err(|e| JsError::new(&e.to_string()))
+    }
+
     // --- Knowledge + analysis (the reading surface; signatures unchanged) ---
 
     /// Sets the calibration threshold ("I know the N most common words").

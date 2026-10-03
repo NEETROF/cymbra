@@ -1,6 +1,7 @@
 import { createTranslatorPort, type TranslatorSource } from "../translate/create-port.ts";
+import { DEFAULT_LANGUAGE, readingLanguage } from "../analyzer/pairs.ts";
 import type { LanguagePort, LinguaPort } from "../analyzer/port.ts";
-import { type CefrLevel, STUDIED_LANGUAGE } from "../analyzer/types.ts";
+import type { CefrLevel, StudiedLanguage } from "../analyzer/types.ts";
 import { type Block, isElement, mergeBlocks } from "./blocks.ts";
 import { Drawer, type DrawerView } from "./drawer.ts";
 import { clear as clearHighlights, injectPageStyles, render } from "./highlight.ts";
@@ -208,10 +209,16 @@ export class ReadingSession {
   /** Global master switch. When off the reader does not analyse, paint or pop up. */
   private enabled = true;
   private readonly popup: WordPopup;
+  /**
+   * The language this session reads in: the reader's first studied language the package ships
+   * (add-lingua-studied-language-profile). Read after every restore, its own and another
+   * context's.
+   */
+  private language: StudiedLanguage = DEFAULT_LANGUAGE;
   /** Reads a card's selection and sentence aloud, with a voice on this device only. */
   private readonly speaker: Speaker = createSpeaker(
     browserSpeechEngine(),
-    STUDIED_LANGUAGE,
+    () => this.language,
     storedVoicePreference(storageArea),
   );
   /** What a selection or a click opens — every decision lives there, tested; this class only wires it. */
@@ -255,7 +262,12 @@ export class ReadingSession {
       speaker: this.speaker,
     });
     this.cards = new SelectionCards(
-      this.lang,
+      // Asked at each call, so a card follows the session's language.
+      {
+        phraseGloss: (text) => this.lang.phraseGloss(text),
+        gloss: (lemma) => this.lang.gloss(lemma),
+        wordGrammar: (written, lemma) => this.lang.wordGrammar(written, lemma),
+      },
       { show: (content) => this.popup.show(content), generation: () => this.popup.generation() },
       // None unless the reader turned « Traduction étendue » on and its model is on the device;
       // then the messaging port, which sends the request off this thread.
@@ -291,15 +303,16 @@ export class ReadingSession {
     this.selection = this.watchSelection(this.surfaceWin);
   }
 
-  /** The engine's view in the studied language: every language-bound call goes through it
+  /** The engine's view in the session's language: every language-bound call goes through it
    *  (generalise-lingua-extension-port). A view holds nothing, so asking for it is free. */
   private get lang(): LanguagePort {
-    return this.port.for(STUDIED_LANGUAGE);
+    return this.port.for(this.language);
   }
 
   /** Restore the engine, wire the surfaces, then read `host` (none: the reader's library). */
   async start(host: ReadingHost | null): Promise<void> {
     await hydrateEngine(this.port, store);
+    this.language = await readingLanguage(this.port);
     this.calibration = await this.lang.calibration();
     this.hudHidden = await loadHudHidden(storageArea);
     this.indicator.setPosition?.(await loadHudPosition(storageArea));
@@ -545,7 +558,7 @@ export class ReadingSession {
 
   /** Whether the reader still has to choose a level (« Débutant » counts as a choice). */
   private async refreshNeedsLevel(): Promise<void> {
-    this.needsLevel = await needsLevelChoice(this.port, STUDIED_LANGUAGE);
+    this.needsLevel = await needsLevelChoice(this.port, this.language);
   }
 
   /**
@@ -754,6 +767,7 @@ export class ReadingSession {
   private async onExternalChange(backup: string): Promise<void> {
     if (backup === this.lastBackup) return; // our own write echoed back — nothing to do
     await this.port.restore(backup);
+    this.language = await readingLanguage(this.port); // the profile came with the backup
     this.calibration = await this.lang.calibration();
     await this.refreshNeedsLevel(); // a level picked in another tab or the popup
     await this.repaint();
@@ -812,7 +826,7 @@ export class ReadingSession {
       calibration: this.calibration,
       declaredLevel: await this.lang.declaredLevel(),
       hasLevels: await this.lang.hasLevels(),
-      needsLevel: await needsLevelChoice(this.port, STUDIED_LANGUAGE),
+      needsLevel: await needsLevelChoice(this.port, this.language),
       trackedCount: await this.port.trackedCount(),
       deckCount: await this.port.deckCount(),
       dueCount: await this.port.dueCount(now),

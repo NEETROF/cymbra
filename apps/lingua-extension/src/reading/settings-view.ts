@@ -1,5 +1,6 @@
-import type { LinguaPort } from "../analyzer/port.ts";
-import { CEFR_LEVELS, type CefrLevel, STUDIED_LANGUAGE } from "../analyzer/types.ts";
+import { DEFAULT_LANGUAGE, readingLanguage } from "../analyzer/pairs.ts";
+import type { LanguagePort, LinguaPort } from "../analyzer/port.ts";
+import { CEFR_LEVELS, type CefrLevel, type StudiedLanguage } from "../analyzer/types.ts";
 import { needsLevelChoice } from "../state/level-choice.ts";
 import { type OpenPage, openPageViaBackground } from "../state/open-page.ts";
 import { hasShortcutEditor } from "../state/platform.ts";
@@ -138,6 +139,10 @@ export function mountSettings(
   opts: SettingsOptions,
 ): SettingsView {
   container.replaceChildren();
+  // The reader's language (add-lingua-studied-language-profile), read again on every refresh
+  // and after a reset, which returns the profile to its default.
+  let language: StudiedLanguage = DEFAULT_LANGUAGE;
+  const lang = (): LanguagePort => port.for(language);
 
   // — Niveau d'anglais —
   const levelBlock = settingBlock("Niveau d'anglais");
@@ -362,7 +367,7 @@ export function mountSettings(
     calibValue.textContent = calib.value;
   });
   calib.addEventListener("change", async () => {
-    await port.for(STUDIED_LANGUAGE).setCalibration(Number(calib.value));
+    await lang().setCalibration(Number(calib.value));
     await opts.persist();
   });
   toggle.addEventListener("change", async () => {
@@ -469,8 +474,8 @@ export function mountSettings(
   }
 
   async function setLevel(level: CefrLevel | null): Promise<void> {
-    await port.for(STUDIED_LANGUAGE).setDeclaredLevelAt(level, Date.now());
-    await port.for(STUDIED_LANGUAGE).setCalibration(0);
+    await lang().setDeclaredLevelAt(level, Date.now());
+    await lang().setCalibration(0);
     await opts.persist();
     await refresh();
   }
@@ -482,7 +487,8 @@ export function mountSettings(
       await port.reset();
       await clearSyncCursors(opts.store);
     }
-    await port.for(STUDIED_LANGUAGE).setCalibration((await port.for(STUDIED_LANGUAGE).hasLevels()) ? 0 : 3000);
+    language = await readingLanguage(port);
+    await lang().setCalibration((await lang().hasLevels()) ? 0 : 3000);
     await opts.persist();
     await opts.onReset?.();
     await refresh();
@@ -491,10 +497,11 @@ export function mountSettings(
   }
 
   async function refresh(): Promise<void> {
+    language = await readingLanguage(port);
     const [hasLevels, declared, needsChoice] = [
-      await port.for(STUDIED_LANGUAGE).hasLevels(),
-      await port.for(STUDIED_LANGUAGE).declaredLevel(),
-      await needsLevelChoice(port, STUDIED_LANGUAGE),
+      await lang().hasLevels(),
+      await lang().declaredLevel(),
+      await needsLevelChoice(port, language),
     ];
     // Nothing is highlighted as chosen until a decision exists (« Débutant » is one).
     const current = needsChoice ? null : (declared ?? "");
@@ -506,7 +513,7 @@ export function mountSettings(
         : "Débutant — rien n'est présumé connu.";
     calibBlock.hidden = hasLevels;
     if (!hasLevels) {
-      const cal = await port.for(STUDIED_LANGUAGE).calibration();
+      const cal = await lang().calibration();
       calib.value = String(cal);
       calibValue.textContent = String(cal);
     }

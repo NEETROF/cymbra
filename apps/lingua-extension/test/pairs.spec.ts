@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { packPath, pairFor, SHIPPED_PAIRS } from "@/analyzer/pairs.ts";
+import { DEFAULT_LANGUAGE, packPath, pairFor, readingLanguage, SHIPPED_PAIRS } from "@/analyzer/pairs.ts";
+import type { StudiedLanguage } from "@/analyzer/types.ts";
 import { packFile, shippedPairs } from "../tool/packs.mjs";
+import { makeFakePort } from "./helpers.ts";
 
 describe("the pair that serves a language", () => {
   it("is the first listed pair that studies it", () => {
@@ -17,6 +19,37 @@ describe("the pair that serves a language", () => {
 
   it("is read from the bundle's list by default", () => {
     expect(pairFor("en")).toBe("en-fr");
+  });
+});
+
+describe("the language a surface reads in", () => {
+  const reader = async (studied: StudiedLanguage[]) => {
+    const { port } = makeFakePort();
+    await port.setStudiedLanguages(studied);
+    return port;
+  };
+
+  it("is the reader's first studied language a shipped pair studies", async () => {
+    expect(await readingLanguage(await reader(["es", "en"]), ["en-fr", "es-fr"])).toBe("es");
+    expect(await readingLanguage(await reader(["es", "en"]), ["en-fr"])).toBe("en");
+    expect(await readingLanguage(await reader(["en", "es"]), ["en-fr", "es-fr"])).toBe("en");
+  });
+
+  it("is the default pair's when none of them is shipped", async () => {
+    expect(await readingLanguage(await reader(["es"]), ["en-fr"])).toBe("en");
+    expect(await readingLanguage(await reader(["en"]), ["es-fr", "en-fr"])).toBe("en");
+    expect(await readingLanguage(await reader(["es"]), ["es-fr"])).toBe("es");
+  });
+
+  it("reads the bundle's list by default, which starts in English", async () => {
+    expect(DEFAULT_LANGUAGE).toBe("en");
+    expect(await readingLanguage(await reader(["es", "en"]))).toBe("en");
+  });
+
+  it("only reads the reader's studied languages", async () => {
+    const port = await reader(["es", "en"]);
+    await readingLanguage(port, ["en-fr"]);
+    expect(await port.studiedLanguages()).toEqual(["es", "en"]);
   });
 });
 

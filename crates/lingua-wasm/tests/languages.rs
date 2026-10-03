@@ -251,6 +251,33 @@ fn pack_bound_answers_follow_the_language() {
 }
 
 #[test]
+fn spec_scenario_the_studied_languages_live_in_the_backup() {
+    let mut engine = english_engine();
+    assert_eq!(engine.studied_languages(), r#"["en"]"#);
+    assert!(engine.backup().starts_with("{\n  \"schema_version\": 1,"));
+
+    // A reader may study a language whose pack the engine does not hold.
+    engine
+        .set_studied_languages(vec!["es".to_owned(), "en".to_owned()])
+        .unwrap();
+    assert_eq!(engine.studied_languages(), r#"["es","en"]"#);
+    assert_eq!(engine.languages(), r#"["en"]"#);
+    let backup = engine.backup();
+    assert!(backup.starts_with("{\n  \"schema_version\": 2,"));
+
+    let mut restored = english_engine();
+    restored.restore(&backup).unwrap();
+    assert_eq!(restored.studied_languages(), r#"["es","en"]"#);
+
+    // Resetting statuses keeps the profile; erasing everything returns it to English.
+    restored.reset_statuses();
+    assert_eq!(restored.studied_languages(), r#"["es","en"]"#);
+    restored.reset();
+    assert_eq!(restored.studied_languages(), r#"["en"]"#);
+    assert!(restored.backup().starts_with("{\n  \"schema_version\": 1,"));
+}
+
+#[test]
 fn a_two_language_state_round_trips_and_an_engine_without_the_pack_keeps_it() {
     let mut engine = two_language_engine();
     engine.set_status_at("haber", "known", T_MS, es()).unwrap();

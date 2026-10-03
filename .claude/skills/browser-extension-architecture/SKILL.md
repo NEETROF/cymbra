@@ -66,6 +66,10 @@ writing UI code, and prefer confirming a UX fork with the user over guessing.
   pair's pack is added the first time a call names its language, or a synced record does
   (`analyzer/engine.ts`, `analyzer/pairs.ts`). A language no listed pair studies is refused before
   the engine. Never fetch a pack anywhere else.
+- A surface asks the engine in its reading language, `readingLanguage(port)` (`analyzer/pairs.ts`):
+  the reader's first studied language that the package ships, from the profile kept in their
+  backup (never synced). Never a constant, and read it again after every restore, since another
+  context may have changed the profile.
 
 ## Which context am I in? (the family of bugs that compiles and does nothing)
 

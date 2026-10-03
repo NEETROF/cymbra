@@ -6,7 +6,7 @@ import type { LinguaDataService } from "../gen/lingua_data_pb.ts";
 import type { StatsService } from "../gen/stats_pb.ts";
 import { clearDailyStats, loadDailyStats } from "../state/dailystats.ts";
 import { type AsyncStorageArea, DEFAULT_CALIBRATION, loadStored, saveBackup } from "../state/storage.ts";
-import { STUDIED_LANGUAGE } from "../analyzer/types.ts";
+import { readingLanguage } from "../analyzer/pairs.ts";
 
 // The extension sync engine (add-lingua-connected-clients §2). When signed in it pushes
 // the local word-statuses and deck to the cymbra.lingua.v1 services and pulls the merged
@@ -147,9 +147,9 @@ export class SyncEngine {
   private async wipeLocal(): Promise<void> {
     const { port, storage } = this.deps;
     await port.reset();
-    await port
-      .for(STUDIED_LANGUAGE)
-      .setCalibration((await port.for(STUDIED_LANGUAGE).hasLevels()) ? 0 : DEFAULT_CALIBRATION);
+    // The reset returned the profile to its default: calibrate the language it reads in.
+    const lang = port.for(await readingLanguage(port));
+    await lang.setCalibration((await lang.hasLevels()) ? 0 : DEFAULT_CALIBRATION);
     await saveBackup(storage, await port.backup());
     await clearDailyStats(storage);
     await clearSyncCursors(storage);

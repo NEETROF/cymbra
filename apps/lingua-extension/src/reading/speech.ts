@@ -349,11 +349,16 @@ export function sameSpokenText(a: string, b: string): boolean {
 /** Errors that are the speaker's own doing (it cancelled), not a failure worth logging. */
 const OWN_ERRORS = new Set(["interrupted", "canceled"]);
 
+/**
+ * `language`: the studied language it speaks, or a getter read at each use, so a surface can
+ * create its speaker before it knows the reader's language (add-lingua-studied-language-profile).
+ */
 export function createSpeaker<V extends VoiceInfo>(
   engine: SpeechEngine<V> | null,
-  lang: string,
+  language: string | (() => string),
   preference: VoicePreference,
 ): Speaker {
+  const langOf = typeof language === "function" ? language : () => language;
   let voices: V[] = engine ? engine.voices() : [];
   let settings: SpeechSettings = DEFAULT_SPEECH_SETTINGS;
   let current: (Speaking & { token: object }) | null = null;
@@ -373,21 +378,25 @@ export function createSpeaker<V extends VoiceInfo>(
   void preference.load().then(follow, () => {});
   preference.watch(follow);
 
-  const usable = (): V[] => usableVoices(voices, lang, settings.androidVoices, settings.remoteVoices);
-  const chosen = (): V | null => pickVoice(voices, lang, settings.voice, settings.androidVoices, settings.remoteVoices);
+  const usable = (): V[] => usableVoices(voices, langOf(), settings.androidVoices, settings.remoteVoices);
+  const chosen = (): V | null =>
+    pickVoice(voices, langOf(), settings.voice, settings.androidVoices, settings.remoteVoices);
 
   return {
-    lang,
+    get lang() {
+      return langOf();
+    },
     available: () => chosen() !== null,
     eligible: usable,
     listsVoices: () => voices.length > 0,
-    automatic: () => pickVoice(voices, lang, null, settings.androidVoices, settings.remoteVoices),
+    automatic: () => pickVoice(voices, langOf(), null, settings.androidVoices, settings.remoteVoices),
     preferred: () => settings.voice,
     androidVoices: () => settings.androidVoices,
-    offersAndroidVoices: () => voices.some((v) => isAndroidVoice(v) && isEligible(v, lang, true)),
+    offersAndroidVoices: () => voices.some((v) => isAndroidVoice(v) && isEligible(v, langOf(), true)),
     remoteVoices: () => settings.remoteVoices,
     offersRemoteVoices: () =>
-      voices.some((v) => isRemoteVoice(v, lang)) && !voices.some((v) => isEligible(v, lang, settings.androidVoices)),
+      voices.some((v) => isRemoteVoice(v, langOf())) &&
+      !voices.some((v) => isEligible(v, langOf(), settings.androidVoices)),
     speaking: () => (current ? { key: current.key, text: current.text } : null),
     speak(key, text, voice) {
       const v = (voice as V | undefined) ?? chosen();

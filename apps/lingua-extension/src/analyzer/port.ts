@@ -165,6 +165,11 @@ export interface LinguaPort {
   for(language: StudiedLanguage): LanguagePort;
   /** The studied languages the engine holds a pack for, the default first. */
   languages(): Promise<StudiedLanguage[]>;
+  /** The reader's studied languages, from their profile, the primary first
+   *  (add-lingua-studied-language-profile). Not the packs held: see `languages`. */
+  studiedLanguages(): Promise<StudiedLanguage[]>;
+  /** Set the reader's studied languages, the primary first; throws on an empty list or a duplicate. */
+  setStudiedLanguages(languages: StudiedLanguage[]): Promise<void>;
   /** How many forms are explicitly marked (any status). */
   trackedCount(): Promise<number>;
   /** Total cards in the deck. */

@@ -21,24 +21,31 @@
 //! its inverse — a lossless round trip. Because every field is serialisable,
 //! an Anki-format export (deferred) stays a plain serialiser over the same
 //! data.
+//!
+//! The file carries a schema version, which belongs to the file rather than to
+//! the state (add-lingua-studied-language-profile). Version 1 is a state with the
+//! default profile and English records only, written exactly as builds wrote it
+//! before the profile was stored; version 2 is any other state. A backup is
+//! written in the oldest version that holds it, so a build released before
+//! version 2 keeps reading an English reader's backup.
 
 use serde::{Deserialize, Serialize};
 
+use crate::analysis::language::StudiedLanguage;
 use crate::knowledge::exposure::ExposureCounters;
+use crate::knowledge::profile::Profile;
 use crate::knowledge::state::KnowledgeState;
 
 use super::fsrs::FsrsParams;
 use super::review::Deck;
 
-/// The current backup schema version. Bumped when the shape changes; a
-/// restore refuses a version it does not understand.
-pub const BACKUP_SCHEMA_VERSION: u32 = 1;
+/// The newest backup schema version this build reads and writes. A restore
+/// reads every version from 1 up to it, and refuses any other.
+pub const BACKUP_SCHEMA_VERSION: u32 = 2;
 
 /// The complete local state of the product.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct LinguaState {
-    /// The backup schema version (see [`BACKUP_SCHEMA_VERSION`]).
-    pub schema_version: u32,
     /// Word statuses and calibration.
     pub knowledge: KnowledgeState,
     /// Exposure counters (encounter history).
@@ -47,18 +54,42 @@ pub struct LinguaState {
     pub deck: Deck,
     /// The FSRS scheduler parameters.
     pub fsrs: FsrsParams,
+    /// The reader's language profile: the studied languages, the primary first,
+    /// and the native language. Kept in the backup only, never synced. Left out
+    /// while it is the default, so an English backup does not move; a backup
+    /// without it restores the default.
+    #[serde(
+        default = "Profile::english_for_french",
+        skip_serializing_if = "Profile::is_default"
+    )]
+    pub profile: Profile,
 }
 
 impl Default for LinguaState {
     fn default() -> Self {
         Self {
-            schema_version: BACKUP_SCHEMA_VERSION,
             knowledge: KnowledgeState::new(),
             exposure: ExposureCounters::new(),
             deck: Deck::new(),
             fsrs: FsrsParams::default(),
+            profile: Profile::english_for_french(),
         }
     }
+}
+
+/// The file [`LinguaState::to_backup`] writes: its schema version first, then
+/// the state's own fields, in the order a version 1 file has always had.
+#[derive(Serialize)]
+struct Written<'a> {
+    schema_version: u32,
+    #[serde(flatten)]
+    state: &'a LinguaState,
+}
+
+/// What [`LinguaState::from_backup`] reads before anything else.
+#[derive(Deserialize)]
+struct Header {
+    schema_version: u32,
 }
 
 /// Why a restore was refused.
@@ -77,7 +108,7 @@ impl std::fmt::Display for RestoreError {
             RestoreError::UnsupportedVersion { found, supported } => {
                 write!(
                     f,
-                    "backup schema v{found} is not supported (this build reads v{supported})"
+                    "backup schema v{found} is not supported (this build reads v1 to v{supported})"
                 )
             }
         }
@@ -88,22 +119,43 @@ impl std::error::Error for RestoreError {}
 
 impl LinguaState {
     /// Serialises the whole state to a backup string (pretty JSON, stable
-    /// key order thanks to the ordered maps within).
+    /// key order thanks to the ordered maps within), in the oldest schema
+    /// version that holds it.
     pub fn to_backup(&self) -> String {
-        serde_json::to_string_pretty(self).expect("LinguaState is always serialisable")
+        let written = Written {
+            schema_version: self.backup_version(),
+            state: self,
+        };
+        serde_json::to_string_pretty(&written).expect("LinguaState is always serialisable")
     }
 
-    /// Restores a state from a backup string, refusing an unknown schema
-    /// version so a newer file is never silently half-read.
+    /// The schema version a backup of this state is written in: 1 while the
+    /// profile is the default and every record is English, 2 otherwise. A
+    /// build released before version 2 cannot read another language.
+    pub fn backup_version(&self) -> u32 {
+        let english_only = self.profile.is_default()
+            && self
+                .knowledge
+                .languages()
+                .into_iter()
+                .chain(self.exposure.languages())
+                .chain(self.deck.languages())
+                .all(|language| language == StudiedLanguage::English);
+        if english_only { 1 } else { 2 }
+    }
+
+    /// Restores a state from a backup string. The schema version is read
+    /// first, so a version this build does not know is refused as such, never
+    /// half-read and never reported as malformed.
     pub fn from_backup(json: &str) -> Result<Self, RestoreError> {
-        let state: LinguaState = serde_json::from_str(json).map_err(RestoreError::Malformed)?;
-        if state.schema_version != BACKUP_SCHEMA_VERSION {
+        let header: Header = serde_json::from_str(json).map_err(RestoreError::Malformed)?;
+        if !(1..=BACKUP_SCHEMA_VERSION).contains(&header.schema_version) {
             return Err(RestoreError::UnsupportedVersion {
-                found: state.schema_version,
+                found: header.schema_version,
                 supported: BACKUP_SCHEMA_VERSION,
             });
         }
-        Ok(state)
+        serde_json::from_str(json).map_err(RestoreError::Malformed)
     }
 }
 
@@ -114,9 +166,11 @@ mod tests {
     use crate::decks::card::{Card, EncounterSource, Provenance};
     use crate::decks::fsrs::Rating;
     use crate::decks::review::ReviewSession;
+    use crate::knowledge::profile::Profile;
     use crate::knowledge::status::{KnownSource, Status};
 
     const EN: StudiedLanguage = StudiedLanguage::English;
+    const ES: StudiedLanguage = StudiedLanguage::Spanish;
 
     fn populated_state() -> LinguaState {
         let mut state = LinguaState::default();
@@ -217,19 +271,134 @@ mod tests {
         );
     }
 
+    /// A backup as `to_backup` wrote it, with its version replaced.
+    fn with_version(backup: &str, version: u32) -> String {
+        let mut file: serde_json::Value = serde_json::from_str(backup).expect("a backup");
+        file["schema_version"] = version.into();
+        file.to_string()
+    }
+
     #[test]
     fn a_future_schema_version_is_refused_not_half_read() {
-        let state = LinguaState {
-            schema_version: BACKUP_SCHEMA_VERSION + 1,
-            ..Default::default()
-        };
-        let err = LinguaState::from_backup(&state.to_backup()).unwrap_err();
-        assert!(matches!(err, RestoreError::UnsupportedVersion { .. }));
+        let future = with_version(
+            &LinguaState::default().to_backup(),
+            BACKUP_SCHEMA_VERSION + 1,
+        );
+        let err = LinguaState::from_backup(&future).unwrap_err();
+        assert!(matches!(
+            err,
+            RestoreError::UnsupportedVersion {
+                found: 3,
+                supported: 2
+            }
+        ));
+        assert_eq!(
+            err.to_string(),
+            "backup schema v3 is not supported (this build reads v1 to v2)"
+        );
+        let none = with_version(&LinguaState::default().to_backup(), 0);
+        assert!(matches!(
+            LinguaState::from_backup(&none),
+            Err(RestoreError::UnsupportedVersion { found: 0, .. })
+        ));
+    }
+
+    #[test]
+    fn the_version_is_read_before_the_records() {
+        // A later version is refused as such even when its records would not
+        // parse here: it is never reported as malformed.
+        let future = r#"{"schema_version": 3, "knowledge": {"statuses": {"Klingon": {}}}}"#;
+        assert!(matches!(
+            LinguaState::from_backup(future),
+            Err(RestoreError::UnsupportedVersion { found: 3, .. })
+        ));
     }
 
     #[test]
     fn malformed_backup_is_refused() {
         let err = LinguaState::from_backup("{ not json").unwrap_err();
         assert!(matches!(err, RestoreError::Malformed(_)));
+        assert!(err.to_string().starts_with("malformed backup: "));
+        // A file without a version is malformed, not of some version.
+        let err = LinguaState::from_backup(r#"{"knowledge": {}}"#).unwrap_err();
+        assert!(matches!(err, RestoreError::Malformed(_)));
+    }
+
+    #[test]
+    fn an_english_state_is_written_as_version_1_without_a_profile() {
+        let state = populated_state();
+        assert_eq!(state.backup_version(), 1);
+        let backup = state.to_backup();
+        assert!(backup.starts_with("{\n  \"schema_version\": 1,\n  \"knowledge\""));
+        assert!(!backup.contains("\"profile\""));
+        assert_eq!(
+            LinguaState::from_backup(&backup).expect("restore").profile,
+            Profile::english_for_french()
+        );
+    }
+
+    #[test]
+    fn another_studied_language_is_written_as_version_2_and_restored() {
+        // Ungraded, so no computed f64 is normalised on the first write.
+        let mut state = LinguaState::default();
+        state.knowledge.set_status(EN, "harbour", Status::Learning);
+        state
+            .profile
+            .set_studied_languages(vec![ES, EN])
+            .expect("two languages");
+        assert_eq!(state.backup_version(), 2);
+        let backup = state.to_backup();
+        assert!(backup.starts_with("{\n  \"schema_version\": 2,"));
+        let restored = LinguaState::from_backup(&backup).expect("restore");
+        assert_eq!(restored.profile.studied_languages, vec![ES, EN]);
+        assert_eq!(restored, state, "a version 2 round trip is lossless");
+    }
+
+    #[test]
+    fn a_record_in_another_language_is_written_as_version_2() {
+        let lighthouse = || {
+            Card::new(
+                "faro",
+                "faros",
+                Provenance {
+                    sentence: "Los faros brillan.".to_owned(),
+                    source: EncounterSource::Web {
+                        url: "https://example.es".to_owned(),
+                    },
+                    captured_at: 1,
+                },
+                None,
+            )
+        };
+        let mut deck = LinguaState::default();
+        deck.deck.upsert(ES, lighthouse());
+        let mut statuses = LinguaState::default();
+        statuses.knowledge.set_status(ES, "faro", Status::Learning);
+        let mut exposure = LinguaState::default();
+        exposure.exposure.record(ES, "faro", 1, "web", 1);
+        let mut calibration = LinguaState::default();
+        calibration.knowledge.set_calibration(ES, 100);
+        for state in [deck, statuses, exposure, calibration] {
+            assert!(state.profile.is_default());
+            assert_eq!(state.backup_version(), 2);
+            let restored = LinguaState::from_backup(&state.to_backup()).expect("restore");
+            assert_eq!(restored, state);
+        }
+        assert_eq!(LinguaState::default().backup_version(), 1);
+    }
+
+    #[test]
+    fn a_version_1_file_carrying_a_profile_is_read() {
+        // Nothing writes it, but a version 1 file is read with the version 2 shape.
+        let mut state = LinguaState::default();
+        state.profile.set_studied_languages(vec![ES]).expect("one");
+        let as_v1 = with_version(&state.to_backup(), 1);
+        assert_eq!(
+            LinguaState::from_backup(&as_v1)
+                .expect("restore")
+                .profile
+                .studied_languages,
+            vec![ES]
+        );
     }
 }

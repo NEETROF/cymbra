@@ -112,6 +112,13 @@ describe("WasmAnalyzerPort language views", () => {
         received.push(["addPack", []]);
         return "es";
       }
+      studiedLanguages(...args: unknown[]): string {
+        received.push(["studiedLanguages", args]);
+        return '["es","en"]';
+      }
+      setStudiedLanguages(...args: unknown[]): void {
+        received.push(["setStudiedLanguages", args]);
+      }
     }
     const mod = { default: async () => {}, LinguaEngine } as unknown as WasmModule;
     return { load: async () => mod, received };
@@ -132,6 +139,19 @@ describe("WasmAnalyzerPort language views", () => {
       ["gloss", ["city", "en"]],
       ["exportStatusOps", []],
       ["languages", []],
+    ]);
+  });
+
+  it("forwards the reader's studied languages as whole-reader calls, loading no pack", async () => {
+    const glue = recordingGlue();
+    const port = new WasmAnalyzerPort(glue.load, ["en-fr", "es-fr"]);
+
+    expect(await port.studiedLanguages()).toEqual(["es", "en"]);
+    await port.setStudiedLanguages(["es", "en"]);
+
+    expect(glue.received).toEqual([
+      ["studiedLanguages", []],
+      ["setStudiedLanguages", [["es", "en"]]],
     ]);
   });
 

@@ -162,6 +162,19 @@ impl KnowledgeState {
         Self::default()
     }
 
+    /// Every language this state holds a record for, in any of its maps — what a
+    /// backup must be able to name (add-lingua-studied-language-profile).
+    pub fn languages(&self) -> BTreeSet<StudiedLanguage> {
+        self.statuses
+            .keys()
+            .chain(self.calibration.keys())
+            .chain(self.declared_level.keys())
+            .chain(self.declared_level_at.keys())
+            .chain(self.updated.keys())
+            .copied()
+            .collect()
+    }
+
     /// Sets a lemma's explicit status (no sync timestamp — internal/test use;
     /// the timestamp defaults to 0, which loses to any real one in LWW).
     pub fn set_status(&mut self, lang: StudiedLanguage, lemma: &str, status: Status) {

@@ -22,7 +22,7 @@
 //! reading. The clock lives outside the core: callers pass the timestamp, so
 //! the module stays deterministic and host-testable.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
@@ -67,6 +67,11 @@ impl ExposureCounters {
     /// Empty counters.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Every language a counter is kept for.
+    pub fn languages(&self) -> BTreeSet<StudiedLanguage> {
+        self.counters.keys().copied().collect()
     }
 
     /// Records `count` new occurrences of `lemma`, updating the last source

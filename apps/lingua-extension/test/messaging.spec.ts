@@ -174,6 +174,28 @@ describe("rpc host", () => {
     expect(glue).not.toHaveBeenCalled();
   });
 
+  it("forwards the reader's studied languages as whole-reader calls", async () => {
+    const send = vi.fn(async (method: string) => (method === "studiedLanguages" ? ["es", "en"] : undefined));
+    const port = new MessagingLinguaPort(send);
+
+    expect(await port.studiedLanguages()).toEqual(["es", "en"]);
+    await port.setStudiedLanguages(["en"]);
+
+    expect(send.mock.calls).toEqual([
+      ["studiedLanguages", []],
+      ["setStudiedLanguages", [["en"]]],
+    ]);
+    const { port: engine } = makeFakePort();
+    expect(await handleRpc(engine, async () => {}, req("setStudiedLanguages", [["es", "en"]]))).toEqual({
+      ok: true,
+      result: undefined,
+    });
+    expect(await handleRpc(engine, async () => {}, req("studiedLanguages"))).toEqual({
+      ok: true,
+      result: ["es", "en"],
+    });
+  });
+
   it("captures a thrown error as a failed result", async () => {
     const { port } = makeFakePort();
     const boom = async () => {

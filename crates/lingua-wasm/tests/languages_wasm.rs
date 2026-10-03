@@ -49,6 +49,26 @@ fn spec_scenario_a_language_without_a_pack_is_refused() {
 }
 
 #[wasm_bindgen_test]
+fn spec_scenario_an_invalid_choice_of_studied_languages_is_refused() {
+    let mut engine = LinguaEngine::new(PACK).unwrap();
+    engine
+        .set_studied_languages(vec!["es".to_owned(), "en".to_owned()])
+        .unwrap();
+    assert!(engine.set_studied_languages(vec![]).is_err());
+    assert!(
+        engine
+            .set_studied_languages(vec!["en".to_owned(), "en".to_owned()])
+            .is_err()
+    );
+    assert!(engine.set_studied_languages(vec!["pt".to_owned()]).is_err());
+    assert_eq!(
+        engine.studied_languages(),
+        r#"["es","en"]"#,
+        "a refused choice leaves the current one"
+    );
+}
+
+#[wasm_bindgen_test]
 fn spec_scenario_one_pack_per_language() {
     let mut engine = LinguaEngine::new(PACK).unwrap();
     assert!(engine.add_pack(PACK).is_err());
