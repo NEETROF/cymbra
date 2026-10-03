@@ -417,6 +417,26 @@ def _tags(upos, tags, genders=()):
     return out
 
 
+def noun_class_runs(runs, readings):
+    """`runs` with a noun's class — its grammatical gender, `Gender=Fem` — in its noun runs
+    (add-lingua-spanish-word-card D6), so the card's heading reads « nom féminin ». The class is the
+    one the noun's own readings carry, when it has only one: `estudiante`, of both by the person,
+    keeps `NOUN`. The runs' parts of speech stay the French Wiktionary's."""
+    classes = {}
+    for (form, lemma), tags in readings.table.items():
+        if form != lemma:
+            continue
+        for tag in tags:
+            found = re.search(r"\|Gender=(\w+)", tag) if tag.startswith("NOUN|") else None
+            if found:
+                classes.setdefault(lemma, set()).add(found.group(1))
+    out = {}
+    for lemma, lemma_runs in runs.items():
+        only = next(iter(classes[lemma])) if len(classes.get(lemma, ())) == 1 else None
+        out[lemma] = [(f"NOUN|Gender={only}" if pos == "NOUN" and only else pos, n) for pos, n in lemma_runs]
+    return out
+
+
 def grammar_rows(readings, forms, ranks):
     """`grammar.tsv`'s rows, sorted: the readings of the forms the table holds, under the lemmas the
     pack keeps. A reading of another lemma than the one its form maps to is marked `other`: every
@@ -654,6 +674,7 @@ def main():
         glosses[lemma], runs[lemma] = gloss, gloss_runs
     expressions.update(fallback_expressions(expressions, sources))
     expressions.update(LOCUTIONS)
+    runs = noun_class_runs(runs, readings)
     common.write(a.work, "gloss.tsv", "".join(f"{l}\t{g}\n" for l, g in sorted(glosses.items())))
     common.write(
         a.work,
