@@ -10,12 +10,17 @@ import { MODEL_STATE_KEY, type SettingArea, TRANSLATION_HOST_KEY } from "@/trans
 const manifest: ModelManifest = {
   version: "en-fr/base-memory/2.0",
   base: "https://models.example/",
+  from: "en",
+  to: "fr",
   files: {
-    model: { path: "m.gz", size: 700, sha256: "a".repeat(64) },
-    lex: { path: "l.gz", size: 200, sha256: "b".repeat(64) },
-    vocab: { path: "v.gz", size: 100, sha256: "c".repeat(64) },
+    model: { path: "m.gz", size: 700, unpacked: 900, sha256: "a".repeat(64) },
+    lex: { path: "l.gz", size: 200, unpacked: 300, sha256: "b".repeat(64) },
+    vocab: { path: "v.gz", size: 100, unpacked: 150, sha256: "c".repeat(64) },
   },
 };
+
+/** What the model costs, from the catalogue: its files as served, and decompressed. */
+const COST = { download: 1000, stored: 1350 };
 
 function memoryArea(seed: Record<string, unknown> = {}): SettingArea & { store: Record<string, unknown> } {
   const store: Record<string, unknown> = { ...seed };
@@ -30,7 +35,14 @@ function memoryArea(seed: Record<string, unknown> = {}): SettingArea & { store: 
   };
 }
 
-function setup(opts: { seed?: Record<string, unknown>; stored?: boolean; downloading?: boolean } = {}) {
+function setup(
+  opts: {
+    seed?: Record<string, unknown>;
+    stored?: boolean;
+    downloading?: boolean;
+    manifest?: () => Promise<ModelManifest>;
+  } = {},
+) {
   const area = memoryArea(opts.seed);
   let downloading = opts.downloading ?? false;
   let stored = opts.stored ?? false;
@@ -49,7 +61,7 @@ function setup(opts: { seed?: Record<string, unknown>; stored?: boolean; downloa
     area,
     host,
     db,
-    manifest: async () => manifest,
+    manifest: opts.manifest ?? (async () => manifest),
     log,
   });
   return {
@@ -69,9 +81,29 @@ const ON_READY = { [TRANSLATION_HOST_KEY]: "local", [MODEL_STATE_KEY]: { phase: 
 describe("ModelController", () => {
   it("is off on a fresh install, and says nothing is downloaded", async () => {
     const { controller, host } = setup();
-    await expect(controller.status()).resolves.toEqual({ offered: true, host: "none", state: { phase: "absent" } });
+    await expect(controller.status()).resolves.toEqual({
+      offered: true,
+      host: "none",
+      state: { phase: "absent" },
+      cost: COST,
+    });
     expect(host.startDownload).not.toHaveBeenCalled();
     expect(await controller.ready()).toBe(false);
+  });
+
+  it("states what the model costs, from the catalogue (generalise-lingua-translation-catalogue)", async () => {
+    const { controller } = setup();
+    expect((await controller.status()).cost).toEqual(COST);
+  });
+
+  it("states no cost when the catalogue cannot be read", async () => {
+    const { controller } = setup({
+      manifest: async () => {
+        throw new Error("model-manifest.json: 404");
+      },
+    });
+    const status = await controller.status();
+    expect(status).toEqual({ offered: true, host: "none", state: { phase: "absent" } });
   });
 
   describe("turning it on", () => {
@@ -148,7 +180,7 @@ describe("ModelController", () => {
       expect(host.shutDown).toHaveBeenCalled();
       expect(db.erase).toHaveBeenCalled();
       expect(setting()).toEqual({ host: "none", state: { phase: "absent" } });
-      expect(status).toEqual({ offered: true, host: "none", state: { phase: "absent" } });
+      expect(status).toEqual({ offered: true, host: "none", state: { phase: "absent" }, cost: COST });
     });
 
     it("cancelling a download keeps nothing and leaves the setting off", async () => {
@@ -216,7 +248,12 @@ describe("ModelController", () => {
 
     it("a model the browser removed is reported removed, and nothing is fetched", async () => {
       const { controller, host, setting } = setup({ seed: ON_READY, stored: false });
-      await expect(controller.status()).resolves.toEqual({ offered: true, host: "local", state: { phase: "removed" } });
+      await expect(controller.status()).resolves.toEqual({
+        offered: true,
+        host: "local",
+        state: { phase: "removed" },
+        cost: COST,
+      });
       expect(setting().state).toEqual({ phase: "removed" });
       expect(host.startDownload).not.toHaveBeenCalled();
       expect(await controller.ready()).toBe(false);

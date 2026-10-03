@@ -26,6 +26,17 @@ describe("model messages", () => {
     expect(asModelStatus({ host: "local" })).toEqual(NOT_OFFERED);
   });
 
+  it("keeps the cost the catalogue gives, and drops one it cannot read", () => {
+    const off = { offered: true, host: "none", state: { phase: "absent" } };
+    expect(asModelStatus({ ...off, cost: { download: 25_752_472, stored: 36_749_127 } })).toEqual({
+      ...off,
+      cost: { download: 25_752_472, stored: 36_749_127 },
+    });
+    for (const cost of [null, { download: 1 }, { download: "25", stored: 3 }, { download: 0, stored: 3 }]) {
+      expect(asModelStatus({ ...off, cost })).toEqual(off);
+    }
+  });
+
   it("asks the background, and treats a background that cannot answer as offering nothing", async () => {
     const send = vi.fn(async () => ({ offered: true, host: "none", state: { phase: "absent" } }));
     await expect(askModel("enable", send)).resolves.toMatchObject({ offered: true });

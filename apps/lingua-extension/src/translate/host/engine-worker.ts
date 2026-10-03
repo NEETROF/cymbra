@@ -11,13 +11,15 @@
 // configuration, the model bytes handed over as `wasmBinary` — rather than rediscovering them.
 //
 // The engine is part of the package; the model is not (add-lingua-translation-delivery D1). It is
-// read from the `lingua-model` database the download filled, by the sha256 the package's manifest
+// read from the `lingua-model` database the download filled, by the sha256 the package's catalogue
 // pins — so only verified bytes ever reach the engine. Without them it does not start, and every
-// surface answers as it does without it.
+// surface answers as it does without it. The languages it translates between are the model's
+// (generalise-lingua-translation-catalogue D3).
 
+import { DEFAULT_LANGUAGE } from "../../analyzer/pairs.ts";
 import { NO_MODEL, type WorkerRequest, type WorkerResponse } from "./engine.ts";
 import { modelDb } from "./model-db.ts";
-import { loadBundledManifest } from "./model-manifest.ts";
+import { loadTranslationModel } from "./model-manifest.ts";
 
 /** What the glue exposes, as much of it as this worker calls. */
 interface BergamotModule {
@@ -114,16 +116,22 @@ function aligned(bergamot: BergamotModule, data: Uint8Array, alignment: number):
   return memory;
 }
 
-/** The model's three files, as the download stored them — or null when any is missing. */
-async function storedModel(): Promise<{ model: Uint8Array; lex: Uint8Array; vocab: Uint8Array } | null> {
-  const { files } = await loadBundledManifest();
+/** The model's languages and three files, as the download stored them — or null when any is missing. */
+async function storedModel(): Promise<{
+  from: string;
+  to: string;
+  model: Uint8Array;
+  lex: Uint8Array;
+  vocab: Uint8Array;
+} | null> {
+  const { from, to, files } = await loadTranslationModel(DEFAULT_LANGUAGE);
   const db = modelDb();
   const [model, lex, vocab] = await Promise.all([
     db.get(files.model.sha256),
     db.get(files.lex.sha256),
     db.get(files.vocab.sha256),
   ]);
-  return model && lex && vocab ? { model, lex, vocab } : null;
+  return model && lex && vocab ? { from, to, model, lex, vocab } : null;
 }
 
 async function load(): Promise<void> {
@@ -131,7 +139,7 @@ async function load(): Promise<void> {
   // The model first: without it, nothing of the engine is worth loading.
   const stored = await storedModel();
   if (!stored) throw new Error(NO_MODEL);
-  const { model, lex, vocab } = stored;
+  const { from, to, model, lex, vocab } = stored;
   importScripts(FILES.glue);
   const wasm = await bytes(FILES.wasm);
   const bergamot = await new Promise<BergamotModule>((resolve, reject) => {
@@ -148,8 +156,8 @@ async function load(): Promise<void> {
   engine = {
     bergamot,
     model: new bergamot.TranslationModel(
-      "en",
-      "fr",
+      from,
+      to,
       textConfig(MARIAN_CONFIG),
       aligned(bergamot, model, ALIGNMENT.model),
       aligned(bergamot, lex, ALIGNMENT.lex),

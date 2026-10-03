@@ -11,6 +11,7 @@ import { existsSync, cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } fr
 import { dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { engineFiles, engineProblems } from "./tool/engine_pin.mjs";
+import { bundledCatalogue, readCatalogue } from "./tool/model-catalogue.mjs";
 import { coreAnalyzerVersion, packFile, packMeta, shippedPairs, studiedOf } from "./tool/packs.mjs";
 
 const root = dirname(fileURLToPath(import.meta.url));
@@ -147,28 +148,14 @@ if (targets.some((t) => translationHost(t) !== "none")) {
   }
 }
 
-// The model's manifest (D3): where each file is, its size, and the sha256 its bytes must have.
-// It is bundled, so the reviewed package decides what is accepted — the host only serves bytes.
+// The models' catalogue (D3, generalise-lingua-translation-catalogue): where each file is, its size,
+// and the sha256 its bytes must have, and the route of models for each studied language. It is
+// bundled, so the reviewed package decides what is accepted — the host only serves bytes.
 // LINGUA_MODEL_BASE_URL points a DEVELOPMENT build at another host serving the same paths (a local
 // server, before the real one exists); check_variants.mjs refuses a package built that way.
-const MODEL_MANIFEST = JSON.parse(readFileSync(join(root, "model-manifest.json"), "utf8"));
+const MODEL_CATALOGUE = readCatalogue();
 const MODEL_BASE_URL = process.env.LINGUA_MODEL_BASE_URL ?? "";
-if (MODEL_BASE_URL) console.warn(`[build] the model is fetched from ${MODEL_BASE_URL}: a development build.`);
-
-/** The manifest a package carries: the runtime needs no deployment details, only what to fetch. */
-function bundledModelManifest() {
-  const { version, from, to, licence, files } = MODEL_MANIFEST;
-  return {
-    version,
-    from,
-    to,
-    licence,
-    base: MODEL_BASE_URL || MODEL_MANIFEST.base,
-    files: Object.fromEntries(
-      Object.entries(files).map(([role, { path, size, sha256 }]) => [role, { path, size, sha256 }]),
-    ),
-  };
-}
+if (MODEL_BASE_URL) console.warn(`[build] the models are fetched from ${MODEL_BASE_URL}: a development build.`);
 
 /** `https://host/*` match pattern for the backend origin (host_permissions). */
 function hostPattern(url) {
@@ -390,7 +377,8 @@ for (const target of targets) {
     // The engine's two files, never the model: whatever else ENGINE_DIR holds stays there.
     mkdirSync(join(dist, "engine"), { recursive: true });
     for (const f of ENGINE_FILES) cpSync(join(ENGINE_DIR, f), join(dist, "engine", f));
-    writeFileSync(join(dist, "model-manifest.json"), `${JSON.stringify(bundledModelManifest(), null, 2)}\n`);
+    const bundled = bundledCatalogue(MODEL_CATALOGUE, MODEL_BASE_URL || MODEL_CATALOGUE.base);
+    writeFileSync(join(dist, "model-manifest.json"), `${JSON.stringify(bundled, null, 2)}\n`);
   }
 
   const manifest = manifestFor[target](baseManifest);

@@ -19,7 +19,7 @@ esbuild, `wasm/lingua_wasm_bg.wasm` is compiled from the Rust in `crates/lingua-
 | `backend/*/proto/`                           | the `.proto` files the add-on's sync client is generated from        |
 | `apps/lingua-extension/engine-pin.json`      | the translation engine's upstream commit and the sha256 of each file |
 | `apps/lingua-extension/tool/build_engine.sh` | how the translation engine is built from that commit                 |
-| `apps/lingua-extension/model-manifest.json`  | the translation model's files: address, size, sha256                 |
+| `apps/lingua-extension/model-manifest.json`  | the translation models' files (address, size, sha256), and routes    |
 | `Cargo.toml`                                 | the Rust workspace root, reduced to the three crates above           |
 | `Cargo.lock`                                 | the dependency versions the submitted `.wasm` was built with         |
 
@@ -103,8 +103,8 @@ the setting exactly as Firefox desktop does.
 
 **No code is fetched.** The worker loads the glue with `importScripts` and the `.wasm` with
 `fetch`, both from the package's own files. The only thing the setting downloads is the model —
-the network's weights, which are data: three files listed in `model-manifest.json` with the sha256
-of their contents, checked before anything uses them (`src/translate/host/model-download.ts`).
+the network's weights, which are data: a model's three files, listed in `model-manifest.json` with
+the sha256 of their contents, checked before anything uses them (`src/translate/host/model-download.ts`).
 Nothing in the model is executed; it is read by the engine as a parameter file.
 
 The model is Mozilla's `en→fr` `base-memory` model from `mozilla/firefox-translations-models`,

@@ -1,4 +1,5 @@
 import { type GlueLoader, WasmAnalyzerPort, type WasmModule } from "./analyzer/engine.ts";
+import { DEFAULT_LANGUAGE } from "./analyzer/pairs.ts";
 import { handleRpc, isRpcRequest } from "./analyzer/rpc-host.ts";
 import { type AccountHostDeps, handleAccountMessage } from "./account/host.ts";
 import { userServicePort } from "./account/profile.ts";
@@ -27,7 +28,7 @@ import { type DownloadEvent, DownloadHost, type DownloadWorkerLike } from "./tra
 import type { EngineAccess } from "./translate/host/engine.ts";
 import { ModelController, type ModelHostAccess } from "./translate/host/model-controller.ts";
 import { modelDb } from "./translate/host/model-db.ts";
-import { loadBundledManifest } from "./translate/host/model-manifest.ts";
+import { loadTranslationModel } from "./translate/host/model-manifest.ts";
 import { isOffscreenEvent, OffscreenEngine } from "./translate/host/offscreen-engine.ts";
 import { KEEPALIVE_PING } from "./translate/keepalive.ts";
 import { isModelMessage } from "./translate/model-messages.ts";
@@ -320,7 +321,8 @@ if (__TRANSLATION_HOST__ !== "none") {
     area: settingsArea,
     host,
     db: modelDb(),
-    manifest: () => loadBundledManifest((input, init) => fetch(chrome.runtime.getURL(String(input)), init)),
+    manifest: () =>
+      loadTranslationModel(DEFAULT_LANGUAGE, (input, init) => fetch(chrome.runtime.getURL(String(input)), init)),
   });
   controller = model;
   // What was recorded before this background started may no longer be true: a download that

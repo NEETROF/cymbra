@@ -16,11 +16,21 @@ export interface ModelMessage {
   op: ModelCommand;
 }
 
+/** What the setting costs, in bytes, from the package's catalogue (generalise-lingua-translation-catalogue D4). */
+export interface ModelCost {
+  /** Downloaded once: the model's files as served. */
+  download: number;
+  /** Kept on the device: its files decompressed. */
+  stored: number;
+}
+
 export interface ModelStatus {
   /** Whether this browser offers the setting at all (not on Firefox for Android — D8). */
   offered: boolean;
   host: TranslationHost;
   state: ModelState;
+  /** Absent when the background could not read the catalogue: the setting then states no size. */
+  cost?: ModelCost;
 }
 
 export const NOT_OFFERED: ModelStatus = { offered: false, host: "none", state: ABSENT };
@@ -30,11 +40,20 @@ export function isModelMessage(message: unknown): message is ModelMessage {
   return m?.type === MODEL_MESSAGE && COMMANDS.includes(m.op as ModelCommand);
 }
 
+const positive = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n) && n > 0;
+
+/** A cost, or none when either size is missing or not a size. */
+function asCost(raw: unknown): ModelCost | undefined {
+  const c = raw as Partial<ModelCost> | null | undefined;
+  return c && positive(c.download) && positive(c.stored) ? { download: c.download, stored: c.stored } : undefined;
+}
+
 /** A reply, read defensively: anything unreadable means the setting is not offered here. */
 export function asModelStatus(reply: unknown): ModelStatus {
   const r = reply as Partial<ModelStatus> | null | undefined;
   if (!r || typeof r.offered !== "boolean") return NOT_OFFERED;
-  return { offered: r.offered, host: parseHost(r.host), state: parseModelState(r.state) };
+  const cost = asCost(r.cost);
+  return { offered: r.offered, host: parseHost(r.host), state: parseModelState(r.state), ...(cost ? { cost } : {}) };
 }
 
 export type ModelSend = (message: ModelMessage) => Promise<unknown>;
