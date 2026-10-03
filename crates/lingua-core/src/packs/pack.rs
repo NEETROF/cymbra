@@ -378,6 +378,12 @@ impl Pack {
         !self.levels.is_empty()
     }
 
+    /// Whether those levels are estimated from word frequency rather than taken
+    /// from a CEFR list (add-lingua-spanish-levels): the pack's metadata says so.
+    pub fn levels_estimated(&self) -> bool {
+        self.has_levels() && self.meta.levels_estimated
+    }
+
     /// The pack's dictionary words with their frequency rank: the ranked lemmas that
     /// carry a gloss or a CEFR level, in ascending lemma-id order. A ranked token with
     /// neither is mostly a name or noise ("london", "www"), which a vocabulary size does
@@ -569,6 +575,7 @@ pub(crate) mod tests {
             native: "fr".into(),
             pack_version: "2026.09.1".into(),
             analyzer_version: analyzer.into(),
+            levels_estimated: false,
             licences: vec![
                 "AGID".into(),
                 "wordfreq CC BY-SA".into(),

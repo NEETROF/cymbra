@@ -171,6 +171,9 @@ class MessagingLanguagePort implements LanguagePort {
   hasLevels(): Promise<boolean> {
     return this.rpc("hasLevels");
   }
+  levelsEstimated(): Promise<boolean> {
+    return this.rpc("levelsEstimated");
+  }
   levelLadder(): Promise<LevelRow[]> {
     return this.rpc("levelLadder");
   }

@@ -79,6 +79,7 @@ interface WasmEngine {
   exportDeclaredLevels(): string;
   applyDeclaredLevelChanges(json: string): number;
   hasLevels(language?: string | null): boolean;
+  levelsEstimated(language?: string | null): boolean;
   levelLadder(language?: string | null): string;
   vocabularyEstimate(language?: string | null): string;
   recordExposures(lemmas: string[], source: string, atMs: number, language?: string | null): void;
@@ -393,6 +394,10 @@ class WasmLanguagePort implements LanguagePort {
 
   async hasLevels(): Promise<boolean> {
     return (await this.engine()).hasLevels(this.language);
+  }
+
+  async levelsEstimated(): Promise<boolean> {
+    return (await this.engine()).levelsEstimated(this.language);
   }
 
   async levelLadder(): Promise<LevelRow[]> {

@@ -492,3 +492,12 @@ fn the_corpus_reads_as_expected() {
         "every reader page exists"
     );
 }
+
+/// English's levels come from CEFR-J and Octanove, never from frequency
+/// (add-lingua-spanish-levels): the real pack does not call them estimated.
+#[test]
+fn english_levels_are_not_estimated() {
+    let engine = engine(&real_pack());
+    assert!(engine.has_levels(None).expect("levels"));
+    assert!(!engine.levels_estimated(None).expect("estimated"));
+}

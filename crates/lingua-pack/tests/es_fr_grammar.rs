@@ -155,3 +155,16 @@ fn a_spanish_card_reads_its_french_gloss() {
         ["Prendre en compte, tenir compte de"]
     );
 }
+
+#[test]
+fn spanish_levels_are_estimated_and_follow_frequency() {
+    use lingua_core::knowledge::level::{CefrLevel, CefrLevels};
+
+    let pack = es_fr_pack();
+    // Derived from frequency (add-lingua-spanish-levels): the pack says so.
+    assert!(pack.levels_estimated());
+    assert_eq!(pack.level("de"), Some(CefrLevel::A1));
+    assert_eq!(pack.level("casa"), Some(CefrLevel::A1));
+    // Glossed only as a place, as a CEFR list would leave it out.
+    assert_eq!(pack.level("madrid"), None);
+}

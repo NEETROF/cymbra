@@ -58,6 +58,8 @@ interface PageStats {
   calibration: number;
   declaredLevel: CefrLevel | null;
   hasLevels: boolean;
+  /** Levels estimated from word frequency (add-lingua-spanish-levels); absent from an older build. */
+  levelsEstimated?: boolean;
   /** No level decision yet (« Débutant » is a decision): show the call to action. */
   needsLevel: boolean;
   trackedCount: number;
@@ -233,7 +235,7 @@ function render(stats: PageStats | null, onReader: boolean): void {
   $("level-indicator").hidden = !stats.hasLevels || stats.needsLevel;
   $("level-current").textContent = stats.declaredLevel ?? "Débutant";
   $("level-cta").textContent = chooseLevelPrompt(language);
-  $("level-label").textContent = levelTitle(language);
+  $("level-label").textContent = levelTitle(language, stats.levelsEstimated ?? false);
 }
 
 let settings: SettingsView | null = null;

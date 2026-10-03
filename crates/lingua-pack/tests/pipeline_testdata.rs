@@ -57,6 +57,8 @@ fn pipeline_output_round_trips_through_the_reader() {
     assert_eq!(pack.rank("run"), Some(500));
     assert_eq!(pack.gloss("conundrum"), Some("casse-tête"));
     assert!(pack.notice().contains("CC BY-SA"));
+    // A manifest that says nothing of its levels: not estimated.
+    assert!(!pack.meta().levels_estimated);
 }
 
 #[test]
