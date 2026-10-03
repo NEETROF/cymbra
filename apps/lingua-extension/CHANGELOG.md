@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.5.0](https://github.com/NEETROF/cymbra/compare/lingua-extension-v1.4.0...lingua-extension-v1.5.0) (2026-10-03)
+
+
+### Features
+
+* **discord:** post periodic activity reports without head counts ([#603](https://github.com/NEETROF/cymbra/issues/603)) ([601a72d](https://github.com/NEETROF/cymbra/commit/601a72d0a69da9ed095ee37b17b5fe1eb62abe83))
+* **lingua:** analyse by studied language, with English unmoved ([#624](https://github.com/NEETROF/cymbra/issues/624)) ([974aa48](https://github.com/NEETROF/cymbra/commit/974aa4839cdb5e1ee0916c8ab111695773f6d7a7))
+* **lingua:** build a pack per shipped pair from one list ([#630](https://github.com/NEETROF/cymbra/issues/630)) ([3b6a0ae](https://github.com/NEETROF/cymbra/commit/3b6a0aecefe081a17efa2e048039f045f3b237ef))
+* **lingua:** keep the reader's studied languages in their profile ([#634](https://github.com/NEETROF/cymbra/issues/634)) ([77a383b](https://github.com/NEETROF/cymbra/commit/77a383b16f666cd8d8deb97e5197a813643a3bae))
+* **lingua:** let the book reader go fullscreen ([#613](https://github.com/NEETROF/cymbra/issues/613)) ([6c78bf7](https://github.com/NEETROF/cymbra/commit/6c78bf7e28a45376e948ad64db87ddb0b504e215))
+* **lingua:** let the reader choose the highlight and page colours ([#616](https://github.com/NEETROF/cymbra/issues/616)) ([0bf8c80](https://github.com/NEETROF/cymbra/commit/0bf8c8070fb1a45de50aa846d406726546ed2ee1))
+* **lingua:** load a pair's pack the first time its language is needed ([#632](https://github.com/NEETROF/cymbra/issues/632)) ([dfbb2ce](https://github.com/NEETROF/cymbra/commit/dfbb2ce147be9688f9f9b5331af7ea503e7a35b5))
+* **lingua:** name the studied language on every language-bound call ([#628](https://github.com/NEETROF/cymbra/issues/628)) ([fe93ccc](https://github.com/NEETROF/cymbra/commit/fe93cccad55171ff1749cb0adbe6950819fab871))
+* **lingua:** share the French-side reduction rules across language pairs ([#619](https://github.com/NEETROF/cymbra/issues/619)) ([01452ff](https://github.com/NEETROF/cymbra/commit/01452ff46c41eb07fc661285de88280e2d41be78))
+
 ## [1.4.0](https://github.com/NEETROF/cymbra/compare/lingua-extension-v1.3.1...lingua-extension-v1.4.0) (2026-09-29)
 
 
