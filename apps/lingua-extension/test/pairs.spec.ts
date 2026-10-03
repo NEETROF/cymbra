@@ -48,9 +48,12 @@ describe("the language a surface reads in", () => {
     expect(await readingLanguage(await reader(["es"]), ["es-fr"])).toBe("es");
   });
 
-  it("reads the bundle's list by default, which starts in English", async () => {
+  it("reads the bundle's list by default, which starts in English and ships Spanish (enable-lingua-spanish)", async () => {
     expect(DEFAULT_LANGUAGE).toBe("en");
-    expect(await readingLanguage(await reader(["es", "en"]))).toBe("en");
+    // Spanish ships: a reader who put it first reads in it.
+    expect(await readingLanguage(await reader(["es", "en"]))).toBe("es");
+    // A reader with no language of their own starts in the default.
+    expect(await readingLanguage(await reader([]))).toBe("en");
   });
 
   it("only reads the reader's studied languages", async () => {
