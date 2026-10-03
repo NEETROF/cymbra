@@ -34,7 +34,9 @@ pub mod format;
 pub mod grammar;
 pub mod meta;
 pub mod pack;
+pub mod set;
 
 pub use format::{FormatError, Section, read_container, write_container};
 pub use meta::PackMeta;
 pub use pack::{Pack, PackError};
+pub use set::{PackSet, PackSetError};

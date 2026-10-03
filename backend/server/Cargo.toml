@@ -70,3 +70,6 @@ mockall.workspace = true
 tower.workspace = true
 # Implement the `AuthPort` test double (a fake, no signing key) for the handler tests.
 async-trait.workspace = true
+
+[lints]
+workspace = true

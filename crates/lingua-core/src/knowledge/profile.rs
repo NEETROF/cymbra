@@ -56,9 +56,7 @@ impl NativeLanguage {
 
 /// ISO-639-1 tag of a studied language, for pair keys and pack file names.
 pub fn studied_tag(studied: StudiedLanguage) -> &'static str {
-    match studied {
-        StudiedLanguage::English => "en",
-    }
+    studied.tag()
 }
 
 /// A studied→native pair: the key under which a pack, a gloss set and the
@@ -80,6 +78,28 @@ impl LanguagePair {
     }
 }
 
+/// Why a choice of studied languages was refused.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProfileError {
+    /// No language: a reader always studies at least one.
+    Empty,
+    /// A language named twice.
+    Duplicate(StudiedLanguage),
+}
+
+impl std::fmt::Display for ProfileError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ProfileError::Empty => write!(f, "a reader studies at least one language"),
+            ProfileError::Duplicate(language) => {
+                write!(f, "\"{}\" is named twice", language.tag())
+            }
+        }
+    }
+}
+
+impl std::error::Error for ProfileError {}
+
 /// The user's language profile.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Profile {
@@ -96,6 +116,30 @@ impl Profile {
             native_language: NativeLanguage::French,
             studied_languages: vec![StudiedLanguage::English],
         }
+    }
+
+    /// Whether this is the MVP profile, the one every reader starts with. A
+    /// backup leaves it out (add-lingua-studied-language-profile).
+    pub fn is_default(&self) -> bool {
+        *self == Self::english_for_french()
+    }
+
+    /// Sets the studied languages, the primary first. Refuses an empty list or
+    /// a language named twice, leaving the current ones in place.
+    pub fn set_studied_languages(
+        &mut self,
+        languages: Vec<StudiedLanguage>,
+    ) -> Result<(), ProfileError> {
+        if languages.is_empty() {
+            return Err(ProfileError::Empty);
+        }
+        for (i, language) in languages.iter().enumerate() {
+            if languages[..i].contains(language) {
+                return Err(ProfileError::Duplicate(*language));
+            }
+        }
+        self.studied_languages = languages;
+        Ok(())
     }
 
     /// The pair for one studied language, or `None` if it is not in the
@@ -143,6 +187,46 @@ mod tests {
             native: NativeLanguage::Spanish,
         };
         assert_eq!(pair.key(), "en->es");
+    }
+
+    #[test]
+    fn studied_languages_keep_their_order_and_refuse_a_bad_choice() {
+        let mut profile = Profile::english_for_french();
+        assert!(profile.is_default());
+        profile
+            .set_studied_languages(vec![StudiedLanguage::Spanish, StudiedLanguage::English])
+            .expect("two languages");
+        assert_eq!(
+            profile.studied_languages,
+            vec![StudiedLanguage::Spanish, StudiedLanguage::English]
+        );
+        assert!(!profile.is_default());
+
+        assert_eq!(
+            profile.set_studied_languages(vec![]),
+            Err(ProfileError::Empty)
+        );
+        assert_eq!(
+            profile.set_studied_languages(vec![
+                StudiedLanguage::English,
+                StudiedLanguage::Spanish,
+                StudiedLanguage::English
+            ]),
+            Err(ProfileError::Duplicate(StudiedLanguage::English))
+        );
+        assert_eq!(
+            profile.studied_languages,
+            vec![StudiedLanguage::Spanish, StudiedLanguage::English],
+            "a refused choice leaves the current one"
+        );
+        assert_eq!(
+            ProfileError::Duplicate(StudiedLanguage::Spanish).to_string(),
+            "\"es\" is named twice"
+        );
+        assert_eq!(
+            ProfileError::Empty.to_string(),
+            "a reader studies at least one language"
+        );
     }
 
     #[test]

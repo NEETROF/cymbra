@@ -4,7 +4,7 @@ import { mountReview } from "@/review/review-page.ts";
 import { loadDailyStats, utcDay } from "@/state/dailystats.ts";
 import { type AsyncStorageArea, ROOT_KEY, STORAGE_VERSION } from "@/state/storage.ts";
 import { STORE_CHANGED_KEY } from "@/state/store.ts";
-import { type FakeCard, makeFakePort } from "./helpers.ts";
+import { type FakeCard, makeFakePort, type FakePort } from "./helpers.ts";
 
 // The Révision page as a WHOLE: the summary, the FSRS widget, backup/restore, the pack's
 // credits, and the reaction to a state written by another surface. The render itself is
@@ -332,18 +332,21 @@ describe("Révision — the page", () => {
   });
 
   it("credits the pack's sources and shows its notice", async () => {
-    const m = mount(makeFakePort(DECK).port);
+    const { port, calls } = makeFakePort(DECK);
+    const m = mount(port);
 
     await settle(); // the credits are loaded on mount, not on refresh
 
     expect(m.container.querySelector("details")?.textContent).toContain("Sources : L1");
     expect(text(m.container, ".notice")).toBe("NOTICE");
     expect(text(m.container, ".privacy")).toContain("Rien ne quitte votre appareil");
+    expect(new Set(calls.languages)).toEqual(new Set(["en"])); // the English pack's credits
   });
 
   it("leaves the credit line out for a pack that names no source", async () => {
     const { port } = makeFakePort(DECK);
-    const m = mount({ ...port, licences: async () => [] });
+    const withoutSources: FakePort = { ...port, licences: async () => [] };
+    const m = mount(withoutSources);
 
     await settle();
 

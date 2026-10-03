@@ -1,5 +1,6 @@
 import { createLinguaPort } from "../analyzer/create-port.ts";
-import { STUDIED_LANGUAGE } from "../analyzer/types.ts";
+import { DEFAULT_LANGUAGE, readingLanguage } from "../analyzer/pairs.ts";
+import type { StudiedLanguage } from "../analyzer/types.ts";
 import { mountSettings, type SettingsView } from "../reading/settings-view.ts";
 import { browserSpeechEngine, createSpeaker } from "../reading/speech.ts";
 import { mountReview, type ReviewPage } from "../review/review-page.ts";
@@ -28,8 +29,10 @@ const store: AsyncStorageArea = messagedArea();
 
 const now = (): number => Math.floor(Date.now() / 1000);
 const port = createLinguaPort();
+/** The reader's language (add-lingua-studied-language-profile), read after every restore. */
+let language: StudiedLanguage = DEFAULT_LANGUAGE;
 /** This page's own synthesiser, for the Réglages voice preview. */
-const speaker = createSpeaker(browserSpeechEngine(), STUDIED_LANGUAGE, storedVoicePreference(area));
+const speaker = createSpeaker(browserSpeechEngine(), () => language, storedVoicePreference(area));
 
 function $(id: string): HTMLElement {
   const el = document.getElementById(id);
@@ -73,6 +76,7 @@ async function showView(view: PanelView): Promise<void> {
 
 async function main(): Promise<void> {
   await hydrateEngine(port, store);
+  language = await readingLanguage(port);
   await showView("review");
 
   for (const b of document.querySelectorAll<HTMLButtonElement>("#views button")) {
@@ -98,7 +102,10 @@ async function main(): Promise<void> {
   watchBackup(store, (backup) => {
     if (backup === lastBackup) return;
     if (current === "review" || review?.reviewing()) return;
-    void port.restore(backup).then(() => showView(current));
+    void port.restore(backup).then(async () => {
+      language = await readingLanguage(port);
+      await showView(current);
+    });
   });
   void requestSync("surface");
   try {

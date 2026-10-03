@@ -204,6 +204,15 @@ pub const DISCORD_ENABLED: &str = "discord.enabled";
 pub const DISCORD_MUSIC_CATALOG: &str = "discord.music.catalog";
 /// Discord category: season records beaten on catalog pieces (anonymous).
 pub const DISCORD_MUSIC_RECORDS: &str = "discord.music.records";
+/// Discord reports (change: add-discord-notifications, D7): one flag per report,
+/// all off — no report states how many people were active.
+pub const DISCORD_MUSIC_REPORT: &str = "discord.music.report";
+pub const DISCORD_MUSIC_TOP_PIECES: &str = "discord.music.top_pieces";
+pub const DISCORD_ID_REPORT: &str = "discord.id.report";
+pub const DISCORD_LINGUA_REPORT: &str = "discord.lingua.report";
+/// Minimum contributing accounts behind a published report figure. Default 3
+/// (maintainer decision, 2026-09-30).
+pub const DISCORD_REPORTS_MIN_CONTRIBUTORS: &str = "discord.reports.min_contributors";
 
 /// The per-category enable key for `category`, e.g.
 /// `notifications.category.practice_streak.enabled`.
@@ -430,6 +439,62 @@ pub fn builtin() -> Vec<KeyDef> {
             false,
             false,
             "Announce season records beaten on catalog pieces in #music-leaderboards — the piece and the figure, never the player; at most one per piece and mode per day.",
+        ),
+        flag(
+            DISCORD_MUSIC_REPORT,
+            APP_ALL,
+            false,
+            false,
+            "Post the Cymbra Music activity report in #music-stats: sessions, average accuracy, ratings, catalog additions, most played pieces — never a count of players.",
+        ),
+        cfg(
+            "discord.music.report.cadence",
+            APP_ALL,
+            FlagValue::String("daily".into()),
+            false,
+            "Cadence of the Cymbra Music report: daily (the previous UTC day) or weekly (the previous ISO week, posted on Monday).",
+        ),
+        flag(
+            DISCORD_MUSIC_TOP_PIECES,
+            APP_ALL,
+            false,
+            false,
+            "Post the week's 50 most played catalog pieces in #music-leaderboards every Monday, with the season's remaining days.",
+        ),
+        flag(
+            DISCORD_ID_REPORT,
+            APP_ALL,
+            false,
+            false,
+            "Post the Cymbra ID report in #id-stats: sign-in methods of new accounts as percentages and their top languages — never a count of accounts.",
+        ),
+        cfg(
+            "discord.id.report.cadence",
+            APP_ALL,
+            FlagValue::String("weekly".into()),
+            false,
+            "Cadence of the Cymbra ID report: daily or weekly (posted on Monday).",
+        ),
+        flag(
+            DISCORD_LINGUA_REPORT,
+            APP_ALL,
+            false,
+            false,
+            "Post the Cymbra Lingua report in #lingua-stats: words read, words learned, reviews — never a count of readers. Needs CYMBRA_LINGUA_DATABASE_URL on the worker.",
+        ),
+        cfg(
+            "discord.lingua.report.cadence",
+            APP_ALL,
+            FlagValue::String("weekly".into()),
+            false,
+            "Cadence of the Cymbra Lingua report: weekly (posted on Tuesday, one day after the week closes, so device syncs are counted) or daily (one day late).",
+        ),
+        cfg(
+            DISCORD_REPORTS_MIN_CONTRIBUTORS,
+            APP_ALL,
+            FlagValue::Int(3),
+            false,
+            "Minimum accounts behind a figure for a Discord report to publish it (default 3): a figure made by fewer accounts is left out. 1 publishes everything, even one person's activity.",
         ),
         // -- config tunables --
         cfg(
@@ -819,6 +884,10 @@ mod tests {
             DISCORD_ENABLED,
             DISCORD_MUSIC_CATALOG,
             DISCORD_MUSIC_RECORDS,
+            DISCORD_MUSIC_REPORT,
+            DISCORD_MUSIC_TOP_PIECES,
+            DISCORD_ID_REPORT,
+            DISCORD_LINGUA_REPORT,
         ] {
             assert_eq!(r.get_by_key(key).unwrap().default, FlagValue::Bool(false));
         }

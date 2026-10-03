@@ -49,7 +49,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["wasm/lingua_wasm.js", "wasm/lingua_wasm_bg.wasm", "assets/pack.lingua"],
+      "resources": ["wasm/lingua_wasm.js", "wasm/lingua_wasm_bg.wasm"],
       "matches": ["<all_urls>"]
     }
   ]

@@ -34,6 +34,14 @@ pub fn section(product: Product) -> &'static [&'static str] {
             "music-stats",
             "music-leaderboards",
         ],
+        Product::Id => &["id-help", "id-stats"],
+        Product::Lingua => &[
+            "lingua-announcements",
+            "lingua-help",
+            "lingua-ideas",
+            "lingua-bugs",
+            "lingua-stats",
+        ],
     }
 }
 
@@ -45,11 +53,16 @@ pub struct Routing {
 
 impl Default for Routing {
     /// The production routes: accepted catalog items in `#scores-and-soundfonts`,
-    /// season records in `#music-leaderboards`.
+    /// season records and the weekly top pieces in `#music-leaderboards`, and each
+    /// product's report in its own stats channel.
     fn default() -> Self {
         Self::from_routes([
             (Category::MusicCatalog, "scores-and-soundfonts"),
             (Category::MusicRecords, "music-leaderboards"),
+            (Category::MusicReport, "music-stats"),
+            (Category::MusicTopPieces, "music-leaderboards"),
+            (Category::IdReport, "id-stats"),
+            (Category::LinguaReport, "lingua-stats"),
         ])
     }
 }
@@ -180,5 +193,8 @@ mod tests {
         // `lingua-stats` belongs to Cymbra Lingua's section.
         let routing = Routing::from_routes([(Category::MusicRecords, "lingua-stats")]);
         assert_eq!(routing.resolve(Category::MusicRecords), None);
+        // …and a Lingua report cannot land in a Music channel.
+        let routing = Routing::from_routes([(Category::LinguaReport, "music-stats")]);
+        assert_eq!(routing.resolve(Category::LinguaReport), None);
     }
 }

@@ -30,3 +30,11 @@ serde_json = { workspace = true }
 
 [dev-dependencies]
 wasm-bindgen-test = { workspace = true }
+
+# The English invariance baseline (tests/english_baseline.rs) builds the real en-fr pack from
+# the committed tables. Host only: the builder uses C zstd and is never compiled to wasm.
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+lingua-pack = { path = "../lingua-pack" }
+
+[lints]
+workspace = true

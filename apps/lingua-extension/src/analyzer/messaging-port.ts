@@ -1,6 +1,7 @@
 import type {
   CardOp,
   DeclaredLevelOp,
+  LanguagePort,
   LinguaPort,
   NewCard,
   Rating,
@@ -15,6 +16,7 @@ import type {
   PageAnalysis,
   PhraseGloss,
   SeedOrder,
+  StudiedLanguage,
   VocabularyEstimate,
   WordGrammar,
 } from "./types.ts";
@@ -24,8 +26,12 @@ import { sendRpc } from "./rpc.ts";
 // to the WASM engine hosted in the event page (background.ts), over runtime messaging.
 // The reading code and side panel consume the same LinguaPort seam, unaware of where
 // the engine runs. `send` is injected so the RPC transport can be faked in tests.
+//
+// A call that depends on the studied language goes through the view `for(language)`
+// returns, and its request carries the language; the host answers it on its own view of
+// that language (generalise-lingua-extension-port). Whole-reader calls carry none.
 
-export type RpcSend = (method: string, args: unknown[]) => Promise<unknown>;
+export type RpcSend = (method: string, args: unknown[], language?: StudiedLanguage) => Promise<unknown>;
 
 export class MessagingLinguaPort implements LinguaPort {
   constructor(private readonly send: RpcSend = sendRpc) {}
@@ -34,35 +40,20 @@ export class MessagingLinguaPort implements LinguaPort {
     return this.send(method, args) as Promise<T>;
   }
 
-  analyse(blocks: string[]): Promise<PageAnalysis> {
-    return this.rpc("analyse", [blocks]);
+  for(language: StudiedLanguage): LanguagePort {
+    return new MessagingLanguagePort(this.send, language);
   }
-  setCalibration(threshold: number): Promise<void> {
-    return this.rpc("setCalibration", [threshold]);
+  languages(): Promise<StudiedLanguage[]> {
+    return this.rpc("languages");
   }
-  calibration(): Promise<number> {
-    return this.rpc("calibration");
+  studiedLanguages(): Promise<StudiedLanguage[]> {
+    return this.rpc("studiedLanguages");
   }
-  setStatus(lemma: string, status: Parameters<LinguaPort["setStatus"]>[1]): Promise<void> {
-    return this.rpc("setStatus", [lemma, status]);
-  }
-  gloss(lemma: string): Promise<string | undefined> {
-    return this.rpc("gloss", [lemma]);
-  }
-  phraseGloss(text: string): Promise<PhraseGloss> {
-    return this.rpc("phraseGloss", [text]);
-  }
-  wordGrammar(written: string, lemma: string): Promise<WordGrammar> {
-    return this.rpc("wordGrammar", [written, lemma]);
+  setStudiedLanguages(languages: StudiedLanguage[]): Promise<void> {
+    return this.rpc("setStudiedLanguages", [languages]);
   }
   trackedCount(): Promise<number> {
     return this.rpc("trackedCount");
-  }
-  addCard(card: NewCard): Promise<void> {
-    return this.rpc("addCard", [card]);
-  }
-  retireCard(lemma: string, now: number): Promise<void> {
-    return this.rpc("retireCard", [lemma, now]);
   }
   deckCount(): Promise<number> {
     return this.rpc("deckCount");
@@ -97,15 +88,6 @@ export class MessagingLinguaPort implements LinguaPort {
   resetStatuses(): Promise<void> {
     return this.rpc("resetStatuses");
   }
-  notice(): Promise<string> {
-    return this.rpc("notice");
-  }
-  licences(): Promise<string[]> {
-    return this.rpc("licences");
-  }
-  setStatusAt(lemma: string, status: LemmaStatus | null, atMs: number): Promise<void> {
-    return this.rpc("setStatusAt", [lemma, status, atMs]);
-  }
   exportStatusOps(): Promise<StatusOp[]> {
     return this.rpc("exportStatusOps");
   }
@@ -118,6 +100,62 @@ export class MessagingLinguaPort implements LinguaPort {
   applyCardOps(ops: CardOp[]): Promise<number> {
     return this.rpc("applyCardOps", [ops]);
   }
+  exportDeclaredLevels(): Promise<DeclaredLevelOp[]> {
+    return this.rpc("exportDeclaredLevels");
+  }
+  applyDeclaredLevelChanges(changes: DeclaredLevelOp[]): Promise<number> {
+    return this.rpc("applyDeclaredLevelChanges", [changes]);
+  }
+}
+
+/** The calls of `MessagingLinguaPort` that depend on the studied language: every request
+ *  carries `language`. Holds nothing but the transport and the language. */
+class MessagingLanguagePort implements LanguagePort {
+  constructor(
+    private readonly send: RpcSend,
+    readonly language: StudiedLanguage,
+  ) {}
+
+  private rpc<T>(method: string, args: unknown[] = []): Promise<T> {
+    return this.send(method, args, this.language) as Promise<T>;
+  }
+
+  analyse(blocks: string[]): Promise<PageAnalysis> {
+    return this.rpc("analyse", [blocks]);
+  }
+  setCalibration(threshold: number): Promise<void> {
+    return this.rpc("setCalibration", [threshold]);
+  }
+  calibration(): Promise<number> {
+    return this.rpc("calibration");
+  }
+  setStatus(lemma: string, status: LemmaStatus | null): Promise<void> {
+    return this.rpc("setStatus", [lemma, status]);
+  }
+  gloss(lemma: string): Promise<string | undefined> {
+    return this.rpc("gloss", [lemma]);
+  }
+  phraseGloss(text: string): Promise<PhraseGloss> {
+    return this.rpc("phraseGloss", [text]);
+  }
+  wordGrammar(written: string, lemma: string): Promise<WordGrammar> {
+    return this.rpc("wordGrammar", [written, lemma]);
+  }
+  addCard(card: NewCard): Promise<void> {
+    return this.rpc("addCard", [card]);
+  }
+  retireCard(lemma: string, now: number): Promise<void> {
+    return this.rpc("retireCard", [lemma, now]);
+  }
+  notice(): Promise<string> {
+    return this.rpc("notice");
+  }
+  licences(): Promise<string[]> {
+    return this.rpc("licences");
+  }
+  setStatusAt(lemma: string, status: LemmaStatus | null, atMs: number): Promise<void> {
+    return this.rpc("setStatusAt", [lemma, status, atMs]);
+  }
   setDeclaredLevel(level: CefrLevel | null): Promise<void> {
     return this.rpc("setDeclaredLevel", [level]);
   }
@@ -126,12 +164,6 @@ export class MessagingLinguaPort implements LinguaPort {
   }
   declaredLevel(): Promise<CefrLevel | null> {
     return this.rpc("declaredLevel");
-  }
-  exportDeclaredLevels(): Promise<DeclaredLevelOp[]> {
-    return this.rpc("exportDeclaredLevels");
-  }
-  applyDeclaredLevelChanges(changes: DeclaredLevelOp[]): Promise<number> {
-    return this.rpc("applyDeclaredLevelChanges", [changes]);
   }
   hasLevels(): Promise<boolean> {
     return this.rpc("hasLevels");

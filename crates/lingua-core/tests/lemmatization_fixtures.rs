@@ -17,6 +17,7 @@
 //! behavioural change of the analyser and demands an `ANALYZER_VERSION`
 //! bump.
 
+use lingua_core::analysis::language::StudiedLanguage;
 use lingua_core::analysis::lemmatize::lemmatize;
 use lingua_core::analysis::lexicon::{FstLexicon, build_lexicon_blobs};
 
@@ -226,7 +227,7 @@ fn lemmatization_non_regression_fixtures() {
 
     let mut failures = Vec::new();
     for (form, expected) in CASES {
-        let got = lemmatize(form, &lexicon);
+        let got = lemmatize(form, StudiedLanguage::English, &lexicon);
         if got != *expected {
             failures.push(format!("{form:?} → {got:?} (expected {expected:?})"));
         }

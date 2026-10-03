@@ -1,0 +1,72 @@
+# English invariance baseline: the pages (docs/lingua/spanish-programme.md, spike S0).
+#
+# Original text written for this baseline, Apache-2.0 like the rest of the repository. Each
+# "=== name" line opens a page; every other non-empty line is one block (a paragraph), passed
+# to the engine in order. Lines before the first page are comments.
+#
+# What the pages exercise: news prose with figures, dialogue and contractions, phrasal verbs
+# and idioms, technical text with code, URLs and versions, academic register, a recipe,
+# informal speech, homographs, a mixed-language page (French and Spanish blocks, a heading, a
+# number, a two-letter block), an archaic register, and tense and clitic grammar. The words
+# English shares with Spanish forms ("has", "are", "more", "ate") are the lemmatiser's first
+# risk once a second language exists.
+
+=== news
+City councillors voted 7–2 on Tuesday to build 14 miles of protected bike lanes, ending a debate that had dragged on since March. The plan, which the mayor's office estimates will cost $3.2 million, also lowers the speed limit near schools to 20 mph.
+"We've waited long enough," said Dr. Ana Ruiz, who chairs the transport committee. "Every month we delay, another family decides it isn't safe to let the kids ride to school."
+Opponents argued that the lanes would take away parking from shops on Main Street. Construction is expected to begin in the spring and should be finished by late 2027.
+
+=== fiction
+She hadn't slept in two days, and it showed. When the train finally pulled into the station, Margaret grabbed her brother's coat and ran toward the exit before anyone could stop her.
+"You can't just leave!" Tom shouted after her. "What am I supposed to tell Mum?"
+"Tell her the truth," she called back, without turning around. "Tell her I went to find what we lost."
+He stood there for a long moment, the crowd flowing around him like water around a stone, and then — slowly, almost against his will — he followed.
+
+=== phrasal
+I finally gave up trying to fix the old printer and threw it out. We had run out of paper anyway, and nobody wanted to put up with its noise any longer.
+As a matter of fact, by and large the team gets along well, in spite of the long hours. On the other hand, we really need to take care of the backlog before it gets out of hand.
+Breaking the ice at a new job is never easy, but once you get over the first week, it turns out to be a piece of cake. Make up your mind and go for it.
+
+=== technical
+To install the command-line tool, run npm install --global lingua-cli and restart your terminal. The configuration lives in ~/.config/lingua/settings.json.
+If the request fails with HTTP 503, the client retries up to three times with exponential back-off. Version 2.4.1 fixed a bug where the cache wasn't invalidated after a schema change.
+See https://example.com/docs/getting-started for details, or email support@example.com. State-of-the-art models still struggle with long, poorly structured documents.
+
+=== academic
+Recent studies suggest that adults acquire vocabulary more efficiently when new words are encountered repeatedly in meaningful contexts, rather than memorised from isolated lists (e.g., flashcards without sentences).
+However, the evidence is far from conclusive. Smith et al. found that the benefits of extensive reading were greatest among intermediate learners, whereas beginners showed little measurable improvement.
+These findings were subsequently replicated, although the effect sizes reported in later work were considerably smaller than those in the original experiments.
+
+=== recipe
+Preheat the oven to 180°C. In a large bowl, whisk two eggs with half a cup of sugar until the mixture is pale and fluffy.
+Fold in the flour gently, then pour the batter into a greased tin. Bake for 25 to 30 minutes, or until a knife inserted in the centre comes out clean.
+Let the cake cool completely before slicing. It keeps well for three days in an airtight container.
+
+=== informal
+Honestly? I'm gonna be late again, the bus just broke down lol. Can you tell Sam I'll be there in like twenty minutes?
+Wow, that's awesome! Y'all should've seen his face when he opened the box — he couldn't stop grinning.
+Hmm, I dunno. It ain't my problem, but somebody oughta call the landlord before the whole ceiling caves in.
+
+=== homographs
+The wind was too strong for us to wind the sail back in. She will lead the expedition, even though her pack is as heavy as lead.
+I read the letter yesterday, and I read the news every morning. They refuse to collect the refuse until the strike ends.
+He has more patience than anyone I know. We ate dinner early because the guests are arriving at eight.
+Please close the door; the station is close to here. A tear rolled down her cheek as she began to tear up the old photograph.
+
+=== mixed
+CHAPTER ONE
+The Lighthouse at the End of the World
+Le phare se dressait au bout de la jetée, battu par les vagues depuis plus d'un siècle.
+El faro se alzaba al final del muelle, golpeado por las olas desde hacía más de un siglo.
+OK
+1847
+Nobody remembered who had built the lighthouse, but everyone in the village agreed that its light had never once failed.
+
+=== register
+Whilst the storm raged without, the old sailor sat by the fire and spoke of distant shores, of ships long since lost, and of a sea that kept its secrets betwixt the waves.
+Thou art a stranger here, he said, and strangers ought to tread lightly upon this ground.
+
+=== grammar
+By the time we arrive, they will have finished the whole project, won't they? He's gone home, and she's been working since dawn.
+If I had known how difficult it would be, I'd have started much earlier. You mustn't forget that the children's books haven't been returned yet.
+Why didn't anybody tell me the meeting had been moved? It's not the first time this has happened, is it?

@@ -21,3 +21,6 @@ object_store = { version = "0.11", features = ["aws"] }
 
 [dev-dependencies]
 tokio = { workspace = true }
+
+[lints]
+workspace = true

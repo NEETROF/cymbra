@@ -100,6 +100,12 @@ pub const PLANS_WITHDRAW: &str = "plans_withdraw";
 /// accepts a catalog item or records a season best; the handler re-checks the flags
 /// and the subject at publication time and posts at most once (dedup ledger).
 pub const DISCORD_NOTIFY: &str = "discord_notify";
+/// Stable name of the Discord reports run (change: add-discord-notifications, D7).
+/// No payload. Scheduled daily: each product's report whose closed period is due
+/// that day (per its cadence flag) is posted once in its stats channel; the
+/// ledger keys every report by period, so a retry or a re-delivery never posts
+/// one twice.
+pub const DISCORD_DIGEST: &str = "discord_digest";
 
 /// Static description of one job type.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -277,6 +283,15 @@ pub fn builtin() -> Vec<JobSpec> {
             // Only a rate limit, a 5xx or a refused connection is retried; an hour
             // of backoff rides out a Discord incident without piling up.
             RetryPolicy::new(5, Duration::from_secs(60), Duration::from_secs(3600)),
+        ),
+        JobSpec::new(
+            DISCORD_DIGEST,
+            // One run a day; ordered so two deliveries never race on the same
+            // periods (the ledger would still stop the second).
+            Channel::ordered("discord", "digest"),
+            // A retry re-decides every report; those already posted stop at
+            // their claim. Stays well inside the day it is due.
+            RetryPolicy::new(5, Duration::from_secs(120), Duration::from_secs(3600)),
         ),
     ]
 }

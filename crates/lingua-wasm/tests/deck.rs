@@ -30,7 +30,7 @@ fn engine() -> LinguaEngine {
 #[test]
 fn add_card_marks_learning_and_grows_the_deck() {
     let mut e = engine();
-    e.set_calibration(3_000);
+    e.set_calibration(3_000, None).unwrap();
     e.add_card(
         "seldom",
         "seldom",
@@ -38,7 +38,9 @@ fn add_card_marks_learning_and_grows_the_deck() {
         "https://example.com",
         Some("rarement".into()),
         100.0,
-    );
+        None,
+    )
+    .unwrap();
     assert_eq!(e.deck_count(), 1);
     assert_eq!(e.tracked_count(), 1);
     // A fresh card is due now.
@@ -48,8 +50,10 @@ fn add_card_marks_learning_and_grows_the_deck() {
 #[test]
 fn review_session_walks_due_cards() {
     let mut e = engine();
-    e.add_card("seldom", "seldom", "s1", "https://x", None, 0.0);
-    e.add_card("conundrum", "conundrum", "s2", "https://x", None, 0.0);
+    e.add_card("seldom", "seldom", "s1", "https://x", None, 0.0, None)
+        .unwrap();
+    e.add_card("conundrum", "conundrum", "s2", "https://x", None, 0.0, None)
+        .unwrap();
     assert_eq!(e.start_review(10.0), 2);
     assert!(e.review_current().is_some());
     assert_eq!(e.review_remaining(), 2);
@@ -71,7 +75,9 @@ fn review_card_shows_where_the_word_was_met() {
         "The Hound of the Baskervilles · I: Mr. Sherlock Holmes",
         None,
         0.0,
-    );
+        None,
+    )
+    .unwrap();
     e.start_review(10.0);
     let view: serde_json::Value = match e.review_current().map(|j| serde_json::from_str(&j)) {
         Some(Ok(v)) => v,
@@ -87,7 +93,8 @@ fn review_card_shows_where_the_word_was_met() {
 #[test]
 fn mark_known_retires_the_card() {
     let mut e = engine();
-    e.add_card("seldom", "seldom", "s", "https://x", None, 0.0);
+    e.add_card("seldom", "seldom", "s", "https://x", None, 0.0, None)
+        .unwrap();
     e.start_review(10.0);
     e.review_mark_known(10.0);
     // The card is kept but never comes due again.
@@ -98,8 +105,8 @@ fn mark_known_retires_the_card() {
 #[test]
 fn backup_restores_losslessly_into_a_fresh_engine() {
     let mut e = engine();
-    e.set_calibration(2_500);
-    e.set_status("ship", "known");
+    e.set_calibration(2_500, None).unwrap();
+    e.set_status("ship", "known", None).unwrap();
     e.add_card(
         "seldom",
         "seldom",
@@ -107,7 +114,9 @@ fn backup_restores_losslessly_into_a_fresh_engine() {
         "https://example.com",
         Some("rarement".into()),
         100.0,
-    );
+        None,
+    )
+    .unwrap();
     let backup = e.backup();
 
     let mut restored = engine();
@@ -115,7 +124,7 @@ fn backup_restores_losslessly_into_a_fresh_engine() {
         Ok(()) => {}
         Err(_) => panic!("restore accepts our own backup"),
     }
-    assert_eq!(restored.calibration(), 2_500);
+    assert_eq!(restored.calibration(None).unwrap(), 2_500);
     assert_eq!(restored.deck_count(), 1);
     // The backup is itself a fixpoint.
     assert_eq!(restored.backup(), backup);
@@ -128,20 +137,22 @@ fn backup_restores_losslessly_into_a_fresh_engine() {
 #[test]
 fn reset_clears_the_whole_state() {
     let mut e = engine();
-    e.set_calibration(2_000);
-    e.add_card("seldom", "seldom", "s", "https://x", None, 0.0);
+    e.set_calibration(2_000, None).unwrap();
+    e.add_card("seldom", "seldom", "s", "https://x", None, 0.0, None)
+        .unwrap();
     e.reset();
     assert_eq!(e.deck_count(), 0);
     assert_eq!(e.tracked_count(), 0);
-    assert_eq!(e.calibration(), 0);
+    assert_eq!(e.calibration(None).unwrap(), 0);
 }
 
 #[test]
 fn notice_and_licences_come_from_the_pack() {
     let e = engine();
     // The testdata pack ships a NOTICE and three source licences.
-    assert!(!e.notice().is_empty());
-    let licences: Vec<String> = serde_json::from_str(&e.licences()).expect("licences json");
+    assert!(!e.notice(None).unwrap().is_empty());
+    let licences: Vec<String> =
+        serde_json::from_str(&e.licences(None).unwrap()).expect("licences json");
     assert!(!licences.is_empty());
 }
 
@@ -156,7 +167,9 @@ fn a_card_syncs_without_its_page_address_and_keeps_it_locally() {
         "https://example.com/article",
         Some("rarement".into()),
         100.0,
-    );
+        None,
+    )
+    .unwrap();
     let ops: serde_json::Value = serde_json::from_str(&e.export_card_ops()).unwrap();
     assert_eq!(ops[0]["source"], "");
     assert_eq!(ops[0]["source_sentence"], "They seldom ship.");
@@ -182,7 +195,16 @@ fn adding_to_the_deck_stamps_the_learning_decision() {
     // A word put in the deck is a dated decision: unstamped, it would lose last-write-wins
     // to any decision made on another device, even an older one.
     let mut e = engine();
-    e.add_card("seldom", "seldom", "They seldom ship.", "", None, 1_700.0);
+    e.add_card(
+        "seldom",
+        "seldom",
+        "They seldom ship.",
+        "",
+        None,
+        1_700.0,
+        None,
+    )
+    .unwrap();
 
     let ops: serde_json::Value = serde_json::from_str(&e.export_status_ops()).unwrap();
     let op = ops
@@ -197,7 +219,16 @@ fn adding_to_the_deck_stamps_the_learning_decision() {
 fn a_word_marked_known_elsewhere_retires_its_card_here() {
     // The device that marked it known had no card to retire; this one does.
     let mut e = engine();
-    e.add_card("seldom", "seldom", "They seldom ship.", "", None, 1_700.0);
+    e.add_card(
+        "seldom",
+        "seldom",
+        "They seldom ship.",
+        "",
+        None,
+        1_700.0,
+        None,
+    )
+    .unwrap();
     assert_eq!(e.due_count(2_000.0), 1);
 
     let pulled = r#"[{"language":"en","lemma":"seldom","status":"known","updated_at":1800000}]"#;
@@ -217,7 +248,16 @@ fn retiring_on_a_pulled_known_never_dates_the_card_backwards() {
     // The card was edited here (a review) AFTER the status was last stamped, so a known
     // pulled in between wins the status while being older than the card.
     let mut e = engine();
-    e.add_card("seldom", "seldom", "They seldom ship.", "", None, 1_000.0);
+    e.add_card(
+        "seldom",
+        "seldom",
+        "They seldom ship.",
+        "",
+        None,
+        1_000.0,
+        None,
+    )
+    .unwrap();
     e.start_review(9_000.0);
     e.review_reveal();
     e.review_grade("good", 9_000.0);
@@ -246,7 +286,9 @@ fn reading_counts_nothing_without_a_declared_level() {
         read.clone(),
         "reading:en.wikipedia.org",
         1_700_000_000_000.0,
-    );
+        None,
+    )
+    .unwrap();
 
     assert!(
         e.backup().len() < 2_000,

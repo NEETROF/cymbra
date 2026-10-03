@@ -498,3 +498,68 @@ analysis withholds, and a word outside the page analysis.
 - **WHEN** the reader opens the card of a known word
 - **THEN** its gloss and its grammar arrive in one answer, and the card completes once with both
 
+### Requirement: Every language-bound call names its studied language
+The extension SHALL name the studied language on every request to the engine whose answer depends on it — page analysis, glosses, phrase glosses, word grammar, calibration, statuses, declared level, levels and ladder, vocabulary estimate, exposures and promotion, deck capture, attributions — on every variant and through every transport (the engine in the page, or the engine in the background reached by messaging). Requests about the whole reader (backup, restore, resets, counts, the review session, sync exports and applies) SHALL name none. Until the reader can choose a studied language, the extension SHALL ask in English, and what it shows SHALL be unchanged.
+
+#### Scenario: A page analysis names its language
+- **WHEN** a reading session analyses a page
+- **THEN** the request names English, and the analysis shown is the one shown before this change
+
+#### Scenario: The language crosses the messaging transport
+- **WHEN** a surface on Firefox or Safari, or on a Chromium page whose policy blocks the in-page engine, asks for a gloss
+- **THEN** the request that reaches the background engine carries the language, and the background engine answers in it
+
+#### Scenario: Whole-reader requests name no language
+- **WHEN** the extension takes a backup or starts a review session
+- **THEN** the request carries no language, and covers every language the reader's state holds
+
+#### Scenario: Naming English changes nothing
+- **WHEN** the engine is asked every probe of the English invariance baseline with the language named `en`
+- **THEN** each answer is byte-for-byte the one given when no language is named
+
+### Requirement: A language's pack is loaded the first time it is needed
+The extension's engine SHALL start with the default pair's pack only, and SHALL load another listed pair's pack the first time a request in that pair's studied language is made, or the first time synced records in that language are applied, once per engine. A request in a language no listed pair studies SHALL be refused with an explicit error before it reaches the engine. Requests about the whole reader SHALL load no pack.
+
+#### Scenario: The default pack only, at start
+- **WHEN** the engine starts with the shipped list holding en-fr
+- **THEN** it loads the en-fr pack and fetches no other
+
+#### Scenario: A second listed language, loaded once on first use
+- **WHEN** the list holds en-fr and es-fr, and two pages are analysed in Spanish one after the other
+- **THEN** the es-fr pack is fetched and loaded once, before the first analysis, and both analyses are answered in Spanish
+
+#### Scenario: Synced records bring their pack
+- **WHEN** status changes in Spanish are applied to an engine that has not loaded the es-fr pack, with es-fr listed
+- **THEN** the es-fr pack is loaded first and the changes are recorded under Spanish
+
+#### Scenario: A language nothing ships
+- **WHEN** a request names Spanish and the shipped list holds only en-fr
+- **THEN** it fails with an error naming the language and the shipped pairs, and the engine receives nothing
+
+#### Scenario: A failed load is not remembered
+- **WHEN** fetching the es-fr pack fails on a first request in Spanish, with es-fr listed
+- **THEN** that request fails, and the next request in Spanish fetches the pack again
+
+#### Scenario: Whole-reader requests load nothing
+- **WHEN** the extension takes a backup or counts the cards due
+- **THEN** no pack beyond those already loaded is fetched
+
+### Requirement: Each surface reads in the reader's language
+Every surface of the extension SHALL ask the engine in its reading language: the first of the reader's studied languages that a shipped pair studies, or the default pair's language when none is. A surface SHALL read its reading language when it starts, and again after another context changes the stored backup. A store migrated from the reading-only format SHALL be migrated in English.
+
+#### Scenario: Every reader today
+- **WHEN** a reader who studies English alone opens a page, the side panel, the statistics or the settings
+- **THEN** every request names English, as before
+
+#### Scenario: A language the package does not ship
+- **WHEN** the studied languages are Spanish then English and the package ships en-fr only
+- **THEN** every surface reads in English, and the backup keeps the studied languages as they were
+
+#### Scenario: The studied languages changed in another context
+- **WHEN** the package ships en-fr and es-fr, a page is open in English, and another context stores a backup whose studied languages start with Spanish
+- **THEN** the page's next requests name Spanish
+
+#### Scenario: A reading-only store
+- **WHEN** a store in the reading-only format is migrated
+- **THEN** its statuses and cards are recorded under English
+

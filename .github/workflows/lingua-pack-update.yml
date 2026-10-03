@@ -1,15 +1,16 @@
 name: lingua-pack-update
 
-# Proposes new tables for Cymbra Lingua's en→fr data pack (pin-lingua-pack-sources D6, D7).
+# Proposes new tables for one of Cymbra Lingua's data packs — the `pair` input, en→fr by default and
+# for the monthly run (pin-lingua-pack-sources D6, D7; the pair since generalise-lingua-pack-reducer).
 #
 # Releases never read upstream: they build the pack from the tables committed under
-# scripts/lingua-data/tables/en-fr/ and check it against pin.json. This workflow is the only place
+# scripts/lingua-data/tables/<pair>/ and check it against pin.json. This workflow is the only place
 # the upstream sources are read, and nothing it produces reaches a release without a person:
 #
 # - dispatch, mode `update`: today's sources (kaikki live; AGID, CEFR-J, Octanove at their pinned
 #   commits), kept as a new snapshot — kaikki's bytes published as the release
-#   lingua-pack-sources-en-fr-<snapshot>, never replaced — reduced, and pushed to the branch
-#   lingua-pack/<snapshot>.
+#   lingua-pack-sources-<pair>-<snapshot>, never replaced — reduced, and pushed to the branch
+#   lingua-pack/<pair>/<snapshot>.
 # - dispatch, mode `reduce`: the PINNED sources reduced again, after the reduction rules changed —
 #   the branch's diff is the rules' effect alone.
 # - monthly: `update` in dry mode. Nothing is committed or published; the run reports how far
@@ -27,6 +28,11 @@ on:
         type: choice
         options: [update, reduce]
         default: update
+      pair:
+        description: "The language pair whose tables to propose (a folder of scripts/lingua-data/tables)."
+        type: choice
+        options: [en-fr]
+        default: en-fr
   schedule:
     - cron: "17 5 3 * *" # the 3rd of every month, 05:17 UTC — dry run
 
@@ -34,7 +40,7 @@ permissions:
   contents: write # push the branch lingua-pack/<snapshot>, publish the kaikki snapshot release
 
 concurrency:
-  group: lingua-pack-update
+  group: lingua-pack-update-${{ inputs.pair || 'en-fr' }}
   cancel-in-progress: false
 
 jobs:
@@ -42,6 +48,7 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       MODE: ${{ github.event_name == 'schedule' && 'dry' || inputs.mode }}
+      PAIR: ${{ inputs.pair || 'en-fr' }}
       # A monthly run fails when a table loses more than this share of its rows (D7). A starting
       # value, to set from the first runs.
       MAX_LOSS: "0.2"
@@ -67,14 +74,14 @@ jobs:
           set -euo pipefail
           snapshot=$(date -u +%Y.%m.%d)
           echo "SNAPSHOT=$snapshot" >> "$GITHUB_ENV"
-          cp -r scripts/lingua-data/tables/en-fr "$RUNNER_TEMP/committed"
-          LINGUA_SNAPSHOT=$snapshot scripts/lingua-data/build.sh --"$MODE" en-fr "$RUNNER_TEMP/pack.lingua"
+          cp -r "scripts/lingua-data/tables/$PAIR" "$RUNNER_TEMP/committed"
+          LINGUA_SNAPSHOT=$snapshot scripts/lingua-data/build.sh --"$MODE" "$PAIR" "$RUNNER_TEMP/pack.lingua"
 
       - name: Report against the committed tables
         run: |
           set -euo pipefail
-          new=scripts/lingua-data/tables/en-fr
-          [ "$MODE" = dry ] && new=scripts/lingua-data/work/dry/en-fr
+          new="scripts/lingua-data/tables/$PAIR"
+          [ "$MODE" = dry ] && new="scripts/lingua-data/work/dry/$PAIR"
           status=0
           python scripts/lingua-data/pack_report.py "$RUNNER_TEMP/committed" "$new" \
             --pack "$RUNNER_TEMP/pack.lingua" --max-loss "$MAX_LOSS" > "$RUNNER_TEMP/report.md" || status=$?
@@ -87,7 +94,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          pin=scripts/lingua-data/tables/en-fr/pin.json
+          pin="scripts/lingua-data/tables/$PAIR/pin.json"
           tag=$(python scripts/lingua-data/pack_sources.py get --pin "$pin" sources.kaikki.release)
           asset=$(python scripts/lingua-data/pack_sources.py get --pin "$pin" sources.kaikki.asset)
           sha=$(python scripts/lingua-data/pack_sources.py get --pin "$pin" sources.kaikki.sha256)
@@ -96,22 +103,22 @@ jobs:
             exit 1
           fi
           cat > "$RUNNER_TEMP/notes.md" <<EOF
-          The kaikki.org extract of the French Wiktionary's English entries, as it was on $SNAPSHOT —
-          one of the raw sources of Cymbra Lingua's en→fr data pack, kept because upstream regenerates it
-          every day. zstd-compressed; decompressed, its sha256 is \`$sha\`
-          (\`scripts/lingua-data/tables/en-fr/pin.json\`).
+          The kaikki.org extract of the French Wiktionary read for Cymbra Lingua's $PAIR data pack, as it
+          was on $SNAPSHOT — one of the pack's raw sources, kept because upstream regenerates it every
+          day. zstd-compressed; decompressed, its sha256 is \`$sha\`
+          (\`scripts/lingua-data/tables/$PAIR/pin.json\`).
 
           Licence: Wiktionary content, CC BY-SA 4.0 and GFDL — https://kaikki.org, https://fr.wiktionary.org.
           EOF
-          gh release create "$tag" "scripts/lingua-data/work/en-fr/$asset" --target "$GITHUB_SHA" \
-            --title "Lingua pack sources en-fr $SNAPSHOT" --notes-file "$RUNNER_TEMP/notes.md" --latest=false
+          gh release create "$tag" "scripts/lingua-data/work/$PAIR/$asset" --target "$GITHUB_SHA" \
+            --title "Lingua pack sources $PAIR $SNAPSHOT" --notes-file "$RUNNER_TEMP/notes.md" --latest=false
 
       - name: Push the tables to a branch
         if: env.MODE != 'dry'
         run: |
           set -euo pipefail
-          branch="lingua-pack/$SNAPSHOT"
-          [ "$MODE" = reduce ] && branch="lingua-pack/$SNAPSHOT-reduce"
+          branch="lingua-pack/$PAIR/$SNAPSHOT"
+          [ "$MODE" = reduce ] && branch="lingua-pack/$PAIR/$SNAPSHOT-reduce"
           if git diff --quiet -- scripts/lingua-data/tables; then
             echo "The tables did not change: nothing to propose." >> "$GITHUB_STEP_SUMMARY"
             exit 0
@@ -119,9 +126,12 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git switch -c "$branch"
-          git add scripts/lingua-data/tables
-          message="chore(lingua): dictionary tables $SNAPSHOT"
-          [ "$MODE" = reduce ] && message="chore(lingua): reduce the dictionary tables again ($SNAPSHOT)"
+          # The English invariance baseline follows the dictionary (docs/lingua/spanish-programme.md):
+          # re-blessed here, so the pull request shows what the update changes in English output.
+          LINGUA_BLESS=1 cargo test -q -p lingua-wasm --test english_baseline
+          git add scripts/lingua-data/tables crates/lingua-wasm/tests/baseline
+          message="chore(lingua): $PAIR dictionary tables $SNAPSHOT"
+          [ "$MODE" = reduce ] && message="chore(lingua): reduce the $PAIR dictionary tables again ($SNAPSHOT)"
           git commit -q -m "$message"
           git push -q origin "$branch"
           {

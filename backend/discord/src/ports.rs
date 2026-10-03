@@ -20,6 +20,7 @@
 use async_trait::async_trait;
 
 use crate::render::{CatalogItem, Message, ScoreCard};
+use crate::reports::{IdFigures, LinguaFigures, MusicFigures, Period, PieceStat};
 
 #[cfg(any(test, feature = "mock"))]
 use mockall::automock;
@@ -107,11 +108,36 @@ pub trait AnnouncementSource: Send + Sync {
     async fn recently_accepted(&self, within_hours: i64) -> anyhow::Result<Vec<CatalogItem>>;
 }
 
+/// The Cymbra Music and Cymbra ID figures of a report period. Every method
+/// returns counts only — no account identifier ever crosses this port.
+#[cfg_attr(any(test, feature = "mock"), automock)]
+#[async_trait]
+pub trait ReportSource: Send + Sync {
+    /// The Music activity of `period`, with its top pieces (at most
+    /// [`crate::reports::DAILY_TOP`]).
+    async fn music(&self, period: &Period) -> anyhow::Result<MusicFigures>;
+    /// The most played accepted catalog pieces of `period`, at most `limit`.
+    async fn top_pieces(&self, period: &Period, limit: usize) -> anyhow::Result<Vec<PieceStat>>;
+    /// How the accounts created in `period` signed up, and their locales.
+    async fn id(&self, period: &Period) -> anyhow::Result<IdFigures>;
+}
+
+/// The Cymbra Lingua figures of a report period, from the ops aggregate.
+#[cfg_attr(any(test, feature = "mock"), automock)]
+#[async_trait]
+pub trait LinguaSource: Send + Sync {
+    async fn lingua(&self, period: &Period) -> anyhow::Result<LinguaFigures>;
+}
+
 /// The back-office flags, read at publication time (design D8).
 #[cfg_attr(any(test, feature = "mock"), automock)]
 pub trait FlagView: Send + Sync {
     /// The boolean value of `key`; an unknown or unreadable key is **off**.
     fn enabled(&self, key: &str) -> bool;
+    /// The integer value of `key`, or `default` when unknown or unreadable.
+    fn int(&self, key: &str, default: i64) -> i64;
+    /// The string value of `key`, or `default` when unknown or unreadable.
+    fn string(&self, key: &str, default: &str) -> String;
 }
 
 #[cfg(test)]

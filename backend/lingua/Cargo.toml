@@ -36,3 +36,6 @@ tonic-build.workspace = true
 tokio = { workspace = true }
 cymbra-user-port = { path = "../user-port", features = ["mock"] }
 mockall = { workspace = true }
+
+[lints]
+workspace = true

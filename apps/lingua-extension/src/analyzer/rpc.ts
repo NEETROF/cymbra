@@ -11,13 +11,17 @@ export interface RpcRequest {
   type: typeof RPC_TYPE;
   method: string;
   args: unknown[];
+  /** The studied language of a language-bound call; absent on a whole-reader call
+   *  (generalise-lingua-extension-port). */
+  language?: string;
 }
 
 export type RpcResponse = { ok: true; result: unknown } | { ok: false; error: string };
 
 /** Send one RPC to the event-page engine and await its result (caller side). */
-export async function sendRpc(method: string, args: unknown[]): Promise<unknown> {
-  const request: RpcRequest = { type: RPC_TYPE, method, args };
+export async function sendRpc(method: string, args: unknown[], language?: string): Promise<unknown> {
+  const request: RpcRequest =
+    language === undefined ? { type: RPC_TYPE, method, args } : { type: RPC_TYPE, method, args, language };
   const response = (await chrome.runtime.sendMessage(request)) as RpcResponse | undefined;
   if (!response || !response.ok) throw new Error(response && !response.ok ? response.error : "lingua RPC failed");
   return response.result;

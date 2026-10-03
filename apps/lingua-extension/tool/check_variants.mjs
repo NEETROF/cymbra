@@ -6,6 +6,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { engineProblems } from "./engine_pin.mjs";
+import { packFile, shippedPairs } from "./packs.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const failures = [];
@@ -71,7 +72,7 @@ for (const [target, m] of Object.entries(manifests)) {
 // Folded branches: markers that exist in exactly one family of variants.
 const markers = [
   // The in-content WASM probe of resolveContentPort — Chromium only.
-  { file: "content.js", text: "inContent.calibration", chromium: true },
+  { file: "content.js", text: "inContent.languages", chromium: true },
   // The in-page drawer as the review surface — event-page family only.
   { file: "content.js", text: "drawer.openOn(view)", chromium: false },
   // Dynamic reader registration — Chromium only.
@@ -250,6 +251,34 @@ for (const target of ["chromium", "firefox", "safari"]) {
     extra.length === 0,
     `${target}: the reader added no permission, but the manifest asks for ${extra.join(", ")}`,
   );
+}
+
+// The packs a package ships (generalise-lingua-pack-build): exactly the pairs packs.json lists,
+// each exposed to the contexts that fetch it — and English only until enable-lingua-spanish
+// widens SHIPPED_PAIRS. The list and this constant agree on purpose: shipping another language
+// takes two edits in one pull request, one of them in this gate.
+const SHIPPED_PAIRS = ["en-fr"];
+const pairs = shippedPairs();
+expect(
+  JSON.stringify(pairs) === JSON.stringify(SHIPPED_PAIRS),
+  `packs.json lists ${JSON.stringify(pairs)}; until enable-lingua-spanish a package ships ${JSON.stringify(SHIPPED_PAIRS)} only`,
+);
+for (const target of ["chromium", "firefox", "safari"]) {
+  const packed = filesOf(target)
+    .filter((f) => f.startsWith(join("assets", "packs")))
+    .map((f) => f.split("\\").join("/"))
+    .sort();
+  const listed = pairs.map(packFile).sort();
+  expect(
+    JSON.stringify(packed) === JSON.stringify(listed),
+    `${target}: packs ${JSON.stringify(packed)} differ from the list ${JSON.stringify(listed)}`,
+  );
+  expect(
+    !existsSync(join(root, `dist-${target}`, "assets", "pack.lingua")),
+    `${target}: packages the old assets/pack.lingua`,
+  );
+  const exposed = JSON.parse(read(target, "manifest.json")).web_accessible_resources.flatMap((w) => w.resources);
+  for (const file of listed) expect(exposed.includes(file), `${target}: ${file} is not exposed in the manifest`);
 }
 
 if (failures.length > 0) {

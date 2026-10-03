@@ -446,3 +446,12 @@ describe("a selection that begins", () => {
     s.detach();
   });
 });
+
+describe("the reading session and the studied language", () => {
+  it("asks every language-bound question in English", async () => {
+    const { s, calls } = session();
+    await s.start(null);
+    expect(calls.languages.length).toBeGreaterThan(0);
+    expect(new Set(calls.languages)).toEqual(new Set(["en"]));
+  });
+});

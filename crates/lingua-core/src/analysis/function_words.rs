@@ -182,9 +182,16 @@ const ENGLISH: &[&[&str]] = &[
 /// an article or other determiner, a pronoun, a preposition or particle, a
 /// conjunction, an auxiliary or modal, or a negation. `lemma` is what the
 /// lemmatisation cascade produced (lowercase), never a surface form.
+///
+/// Spanish has no tables yet (they come with its lemma conventions,
+/// add-lingua-spanish-analysis): until then no Spanish word is left out of a
+/// word-by-word gloss, and none is judged by an English table.
 pub fn is_function_word(lemma: &str, studied: StudiedLanguage) -> bool {
-    let StudiedLanguage::English = studied;
-    ENGLISH
+    let tables: &[&[&str]] = match studied {
+        StudiedLanguage::English => ENGLISH,
+        StudiedLanguage::Spanish => &[],
+    };
+    tables
         .iter()
         .any(|table| table.binary_search(&lemma).is_ok())
 }
@@ -199,6 +206,17 @@ mod tests {
         for lemma in lemmas {
             assert!(is_function_word(lemma, EN), "{lemma:?} is a function word");
         }
+    }
+
+    #[test]
+    fn spanish_has_no_function_words_until_its_tables_land() {
+        for lemma in ["de", "la", "el", "y", "que", "the", "of"] {
+            assert!(
+                !is_function_word(lemma, StudiedLanguage::Spanish),
+                "{lemma:?}"
+            );
+        }
+        all_function_words(&["the", "of"]);
     }
 
     #[test]

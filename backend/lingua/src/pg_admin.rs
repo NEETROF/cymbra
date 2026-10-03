@@ -41,7 +41,10 @@ impl LinguaAdminRepo for PgLinguaAdminRepo {
                     COALESCE(SUM(words_learned), 0)::bigint AS words, \
                     COALESCE(SUM(reviews_done), 0)::bigint AS reviews, \
                     COALESCE(SUM(exposures), 0)::bigint AS read, \
-                    COALESCE(SUM(unknown_seen), 0)::bigint AS new_seen \
+                    COALESCE(SUM(unknown_seen), 0)::bigint AS new_seen, \
+                    COUNT(DISTINCT user_id) FILTER (WHERE exposures > 0) AS readers, \
+                    COUNT(DISTINCT user_id) FILTER (WHERE words_learned > 0) AS learners, \
+                    COUNT(DISTINCT user_id) FILTER (WHERE reviews_done > 0) AS reviewers \
              FROM lingua.daily_stats WHERE day >= $1 AND day <= $2",
         )
         .bind(from_day)
@@ -73,6 +76,9 @@ impl LinguaAdminRepo for PgLinguaAdminRepo {
             reviews: tiles.get::<i64, _>("reviews"),
             words_read: tiles.get::<i64, _>("read"),
             new_words_seen: tiles.get::<i64, _>("new_seen"),
+            readers: tiles.get::<i64, _>("readers"),
+            learners: tiles.get::<i64, _>("learners"),
+            reviewers: tiles.get::<i64, _>("reviewers"),
             by_language: rows
                 .iter()
                 .map(|r| LanguageUsage {

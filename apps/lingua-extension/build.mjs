@@ -11,6 +11,7 @@ import { existsSync, cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } fr
 import { dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { engineFiles, engineProblems } from "./tool/engine_pin.mjs";
+import { coreAnalyzerVersion, packFile, packMeta, shippedPairs, studiedOf } from "./tool/packs.mjs";
 
 const root = dirname(fileURLToPath(import.meta.url));
 const requested = process.argv.slice(2).filter((a) => !a.startsWith("-"));
@@ -20,43 +21,48 @@ for (const t of targets) {
   if (!TARGETS.includes(t)) throw new Error(`Unknown build target "${t}" — expected one of: ${TARGETS.join(", ")}.`);
 }
 
-// Guard: the bundled pack and the engine must share an analyzer version. The engine
-// refuses a mismatched pack at RUNTIME ("pack built for analyzer X but this core is
-// Y"), which reads as "the extension is broken" during dogfooding. A bump of
-// lingua-core's ANALYZER_VERSION leaves the gitignored real pack (gen:pack:real) stale,
-// so fail the build early with an actionable message instead. Read the core's constant
-// as the source of truth; scan the pack container for its meta version (ASCII in the
-// binary). CI runs gen:pack (testdata, current version) before build, so it always matches.
-function coreAnalyzerVersion() {
-  const src = readFileSync(join(root, "../../crates/lingua-core/src/analysis/mod.rs"), "utf8");
-  return src.match(/ANALYZER_VERSION:\s*&str\s*=\s*"([^"]+)"/)?.[1] ?? null;
-}
-function packAnalyzerVersion(packPath) {
-  // latin1 keeps the binary intact while the ASCII meta JSON stays matchable.
-  return (
-    readFileSync(packPath)
-      .toString("latin1")
-      .match(/"analyzer_version"\s*:\s*"([^"]+)"/)?.[1] ?? null
-  );
-}
-function assertPackMatchesEngine() {
-  const packPath = join(root, "assets/pack.lingua");
-  if (!existsSync(packPath)) {
-    throw new Error(
-      "assets/pack.lingua is missing — run `yarn gen:pack` (testdata) or `yarn gen:pack:real` (full en-fr) before building.",
-    );
+// The pairs every package ships (packs.json, generalise-lingua-pack-build); the first gives the
+// default studied language, the engine's first pack.
+const PAIRS = shippedPairs();
+
+// Guard: every listed pack and the engine must share its language's analyzer version. The engine
+// refuses a mismatched pack at RUNTIME ("pack built for analyzer X but this core is Y"), which
+// reads as "the extension is broken" during dogfooding. A bump of a language's analyser version in
+// lingua-core leaves the gitignored real pack (gen:pack:real) stale, so fail the build early with
+// an actionable message instead. lingua-core's constants are the source of truth; each pack's
+// container is scanned for its studied language and analyser version (ASCII in the binary). CI runs
+// gen:pack (testdata, current versions) before build, so it always matches.
+function assertPacksMatchEngine() {
+  const modRs = readFileSync(join(root, "../../crates/lingua-core/src/analysis/mod.rs"), "utf8");
+  for (const pair of PAIRS) {
+    const file = packFile(pair);
+    const path = join(root, file);
+    if (!existsSync(path)) {
+      throw new Error(
+        `${file} is missing — run \`yarn gen:pack\` (testdata) or \`yarn gen:pack:real\` (the committed tables) before building.`,
+      );
+    }
+    const language = studiedOf(pair);
+    const { studied, analyzerVersion } = packMeta(readFileSync(path));
+    if (studied && studied !== language) {
+      throw new Error(`${file} studies "${studied}", not "${language}": rebuild it with \`yarn gen:pack:real\`.`);
+    }
+    const core = coreAnalyzerVersion(language, modRs);
+    if (!core) {
+      throw new Error(
+        `lingua-core has no analyser version for "${language}" (${pair}): tool/packs.mjs names one per language.`,
+      );
+    }
+    if (analyzerVersion && analyzerVersion !== core) {
+      throw new Error(
+        `Analyzer version mismatch: ${file} is ${analyzerVersion} but lingua-core's ${language} analyser is ${core}. ` +
+          "The engine refuses a mismatched pack at runtime. Rebuild it: " +
+          "`yarn gen:pack:real` (the committed tables) or `yarn gen:pack` (testdata).",
+      );
+    }
   }
-  const core = coreAnalyzerVersion();
-  const pack = packAnalyzerVersion(packPath);
-  if (core && pack && core !== pack) {
-    throw new Error(
-      `Analyzer version mismatch: assets/pack.lingua is ${pack} but lingua-core is ${core}. ` +
-        "The engine refuses a mismatched pack at runtime. Rebuild the pack: " +
-        "`yarn gen:pack:real` (your full en-fr pack) or `yarn gen:pack` (testdata).",
-    );
-  }
 }
-assertPackMatchesEngine();
+assertPacksMatchEngine();
 
 // Guard: src/wasm/pkg is gitignored and only refreshed by `yarn gen:wasm`, so a build can
 // bundle an engine older than the code calling it — the stats view then stops on its first
@@ -299,14 +305,14 @@ const staticCopies = [
   ["src/styles/settings.css", "settings.css"],
   ["src/wasm/pkg/lingua_wasm.js", "wasm/lingua_wasm.js"],
   ["src/wasm/pkg/lingua_wasm_bg.wasm", "wasm/lingua_wasm_bg.wasm"],
-  ["assets/pack.lingua", "assets/pack.lingua"],
+  ...PAIRS.map((pair) => [packFile(pair), packFile(pair)]),
 ];
 
 for (const target of targets) {
   const dist = join(root, `dist-${target}`);
   rmSync(dist, { recursive: true, force: true });
   mkdirSync(join(dist, "wasm"), { recursive: true });
-  mkdirSync(join(dist, "assets"), { recursive: true });
+  mkdirSync(join(dist, "assets", "packs"), { recursive: true });
 
   const common = {
     absWorkingDir: root,
@@ -326,6 +332,9 @@ for (const target of targets) {
       __GRPC_WEB_URL__: JSON.stringify(GRPC_WEB_URL),
       __GOOGLE_CLIENT_ID__: JSON.stringify(GOOGLE_CLIENT_ID),
       __APPLE_CLIENT_ID__: JSON.stringify(APPLE_CLIENT_ID),
+      // A string, not an array: esbuild would put an array in a `<define:…>` module whose marker
+      // comment keeps the name in the bundle, which check_variants rightly refuses.
+      __LINGUA_PACKS__: JSON.stringify(PAIRS.join(",")),
     },
   };
 
@@ -386,6 +395,10 @@ for (const target of targets) {
 
   const manifest = manifestFor[target](baseManifest);
   manifest.version = VERSION;
+  // Each listed pack is fetched by the engine from whatever context hosts it: expose them all.
+  manifest.web_accessible_resources = manifest.web_accessible_resources.map((entry, i) =>
+    i === 0 ? { ...entry, resources: [...entry.resources, ...PAIRS.map(packFile)] } : entry,
+  );
   // Chromium's service worker cannot construct a Worker, so an offscreen document owns the
   // engine's — and that needs the permission. The variant that carries the engine asks for it.
   if (host === "offscreen") manifest.permissions = [...manifest.permissions, "offscreen"];

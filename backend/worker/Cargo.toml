@@ -38,6 +38,12 @@ cymbra-notifications = { path = "../notifications" }
 # Discord announcements: the `discord_notify` publisher, its webhook sender and
 # Postgres adapters (change: add-discord-notifications).
 cymbra-discord = { path = "../discord" }
+# The Lingua ops aggregate the Discord report reads (change: add-discord-notifications,
+# task 3.8), over an optional `lingua_svc` pool — the worker never runs the lingua
+# migrator (the server owns that schema). The purge IT also migrates the schema through
+# it to prove the erasure sweep clears `lingua.*`, which production does by raw SQL on
+# the admin pool.
+cymbra-lingua = { path = "../lingua" }
 # Plans: erasure cancels an active web-MoR subscription first, and the worker
 # runs the withdrawal sweep + provider reconciliation (change: add-premium-subscription).
 cymbra-plans = { path = "../plans" }
@@ -59,7 +65,6 @@ humantime.workspace = true
 tokio = { workspace = true }
 # The plans mocks (mockall) for the erasure seams in the purge IT.
 cymbra-plans = { path = "../plans", features = ["mock"] }
-# The purge IT migrates the optional `lingua` schema (via its MIGRATOR) to prove the
-# account-erasure sweep clears it. Dev-only: production erases `lingua.*` by raw SQL
-# on the admin pool, so the worker keeps no runtime dependency on the lingua crate.
-cymbra-lingua = { path = "../lingua" }
+
+[lints]
+workspace = true

@@ -21,7 +21,7 @@
 //! queue without deleting it — the core substrate the side panel / drawer
 //! surfaces will drive (`add-lingua-extension-review`).
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
@@ -43,6 +43,11 @@ impl Deck {
     /// An empty deck.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Every language the deck holds a card for.
+    pub fn languages(&self) -> BTreeSet<StudiedLanguage> {
+        self.cards.keys().copied().collect()
     }
 
     /// Inserts or replaces the card for a lemma.

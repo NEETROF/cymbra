@@ -4,7 +4,7 @@ import type { LinguaPort } from "@/analyzer/port.ts";
 import { ANDROID_VOICES_KEY, type AsyncStorageArea, REMOTE_VOICES_KEY, VOICE_KEY } from "@/state/storage.ts";
 import { createSpeaker, type SpeechSettings, type VoiceInfo } from "@/reading/speech.ts";
 import type { SyncReply } from "@/sync/messages.ts";
-import { makeFakePort, makeFakeSpeech, voiceFixture } from "./helpers.ts";
+import { makeFakePort, makeFakeSpeech, voiceFixture, type FakePort } from "./helpers.ts";
 
 function fakeArea(): AsyncStorageArea & { store: Record<string, unknown> } {
   const store: Record<string, unknown> = {};
@@ -189,7 +189,7 @@ describe("Réglages — Réinitialisation", () => {
   const localOnly = { available: async () => false };
 
   /** A port whose destructive calls are observable. */
-  function spyPort(over: Partial<LinguaPort> = {}) {
+  function spyPort(over: Partial<FakePort> = {}) {
     const base = makeFakePort().port;
     return {
       ...base,
@@ -611,5 +611,14 @@ describe("Réglages — Lecture à voix haute", () => {
     s.select.value = "Moira";
     s.preview.click();
     expect(s.fake.spoken[1].voice.name).toBe("Moira");
+  });
+});
+
+describe("Réglages and the studied language", () => {
+  it("asks every language-bound question in English", async () => {
+    const { port, calls } = makeFakePort();
+    mount({}, port);
+    await vi.waitFor(() => expect(calls.languages.length).toBeGreaterThan(0));
+    expect(new Set(calls.languages)).toEqual(new Set(["en"]));
   });
 });

@@ -5,6 +5,7 @@ import type {
   PageAnalysis,
   PhraseGloss,
   SeedOrder,
+  StudiedLanguage,
   VocabularyEstimate,
   WordGrammar,
 } from "./types.ts";
@@ -105,19 +106,72 @@ export interface CardOp {
   device_id: string;
 }
 
-// The full engine surface the review change drives (add-lingua-extension-review): the
-// reading AnalyzerPort plus deck building, an FSRS review session, lossless
-// backup/restore and pack attributions. The engine holds the whole lingua-core
-// LinguaState; persistence is backup → the durable store → restore in every context.
-export interface LinguaPort extends AnalyzerPort {
+// The engine surface, split by what depends on the studied language
+// (generalise-lingua-extension-port). `LanguagePort` holds every call whose answer depends on
+// it, bound to one language; `LinguaPort` holds what concerns the whole reader and hands out
+// those views. A surface cannot reach a language-bound call without naming a language: the
+// type checker refuses it.
+
+/**
+ * The calls whose answer depends on the studied language, bound to one: the reading
+ * AnalyzerPort plus calibration, statuses, the declared level, levels, exposures, deck capture
+ * and attributions. Obtained from `LinguaPort.for(language)`.
+ */
+export interface LanguagePort extends AnalyzerPort {
+  /** The studied language every call of this view is answered in. */
+  readonly language: StudiedLanguage;
   /** The current calibration threshold. */
   calibration(): Promise<number>;
-  /** How many forms are explicitly marked (any status). */
-  trackedCount(): Promise<number>;
   /** Add (or replace) a deck card and mark its form learning. */
   addCard(card: NewCard): Promise<void>;
   /** Retire the card for a lemma if present (keep it, stop it coming due); `now` in epoch seconds. */
   retireCard(lemma: string, now: number): Promise<void>;
+  /** The pack's bundled attribution NOTICE. */
+  notice(): Promise<string>;
+  /** The pack's source licences. */
+  licences(): Promise<string[]>;
+  /** Set a status stamped with a sync timestamp (epoch millis) for last-write-wins. */
+  setStatusAt(lemma: string, status: LemmaStatus | null, atMs: number): Promise<void>;
+
+  // CEFR levels (add-lingua-cefr-levels): the reader declares a level, reads
+  // fill the ladder, and a level can seed the deck.
+
+  /** Declare the reader's CEFR level, or `null` to clear it (back to frequency calibration). */
+  setDeclaredLevel(level: CefrLevel | null): Promise<void>;
+  /** Like `setDeclaredLevel`, but stamps the decision (epoch millis) for cross-device last-write-wins. */
+  setDeclaredLevelAt(level: CefrLevel | null, atMs: number): Promise<void>;
+  /** The declared CEFR level, or `null` if none is set. */
+  declaredLevel(): Promise<CefrLevel | null>;
+  /** Whether the loaded pack carries CEFR data (else the ladder/feeding fall back to frequency). */
+  hasLevels(): Promise<boolean>;
+  /** The CEFR ladder A1→C2: confirmed / presumed / to-learn per level. Empty without CEFR data. */
+  levelLadder(): Promise<LevelRow[]>;
+  /** The estimated vocabulary size: each frequency band's known share, extrapolated over the pack's dictionary words. */
+  vocabularyEstimate(): Promise<VocabularyEstimate>;
+  /** Record one reading exposure per lemma (feeds distinct-day counters; never changes a status). */
+  recordExposures(lemmas: string[], source: string, atMs: number): Promise<void>;
+  /** Confirm presumed-known lemmas read on ≥ N distinct days; returns how many were promoted. */
+  promoteByExposure(thresholdDays: number, atMs: number): Promise<number>;
+  /** Seed up to `count` cards from a level (commonest- or rarest-first); returns how many added. */
+  seedLevel(level: CefrLevel, count: number, order: SeedOrder, at: number): Promise<number>;
+}
+
+// The whole-reader surface the review change drives (add-lingua-extension-review): deck
+// counts, an FSRS review session, lossless backup/restore and sync, over every language the
+// state holds. The engine holds the whole lingua-core LinguaState; persistence is backup → the
+// durable store → restore in every context.
+export interface LinguaPort {
+  /** The view of this port bound to `language`. */
+  for(language: StudiedLanguage): LanguagePort;
+  /** The studied languages the engine holds a pack for, the default first. */
+  languages(): Promise<StudiedLanguage[]>;
+  /** The reader's studied languages, from their profile, the primary first
+   *  (add-lingua-studied-language-profile). Not the packs held: see `languages`. */
+  studiedLanguages(): Promise<StudiedLanguage[]>;
+  /** Set the reader's studied languages, the primary first; throws on an empty list or a duplicate. */
+  setStudiedLanguages(languages: StudiedLanguage[]): Promise<void>;
+  /** How many forms are explicitly marked (any status). */
+  trackedCount(): Promise<number>;
   /** Total cards in the deck. */
   deckCount(): Promise<number>;
   /** Cards due at `now` (epoch seconds). */
@@ -140,16 +194,10 @@ export interface LinguaPort extends AnalyzerPort {
   reset(): Promise<void>;
   /** Partial reset: clear statuses, calibration and the declared level, but KEEP the deck and exposure. */
   resetStatuses(): Promise<void>;
-  /** The pack's bundled attribution NOTICE. */
-  notice(): Promise<string>;
-  /** The pack's source licences. */
-  licences(): Promise<string[]>;
 
   // Sync (add-lingua-connected-clients §2): the engine timestamps mutations and
-  // exports/applies ops for the KnownWordsService / DeckService.
+  // exports/applies ops for the KnownWordsService / DeckService. Each op names its language.
 
-  /** Set a status stamped with a sync timestamp (epoch millis) for last-write-wins. */
-  setStatusAt(lemma: string, status: LemmaStatus | null, atMs: number): Promise<void>;
   /** Every explicit status as an op, for a push (outbox / first-sign-in upload). */
   exportStatusOps(): Promise<StatusOp[]>;
   /** Apply pulled status changes under last-write-wins; returns how many changed. */
@@ -158,30 +206,8 @@ export interface LinguaPort extends AnalyzerPort {
   exportCardOps(): Promise<CardOp[]>;
   /** Apply pulled card ops under last-write-wins; returns how many changed. */
   applyCardOps(ops: CardOp[]): Promise<number>;
-
-  // CEFR levels (add-lingua-cefr-levels): the reader declares a level, reads
-  // fill the ladder, and a level can seed the deck.
-
-  /** Declare the reader's CEFR level, or `null` to clear it (back to frequency calibration). */
-  setDeclaredLevel(level: CefrLevel | null): Promise<void>;
-  /** Like `setDeclaredLevel`, but stamps the decision (epoch millis) for cross-device last-write-wins. */
-  setDeclaredLevelAt(level: CefrLevel | null, atMs: number): Promise<void>;
-  /** The declared CEFR level, or `null` if none is set. */
-  declaredLevel(): Promise<CefrLevel | null>;
   /** Every declared-level decision as an op, for a push (rides KnownWordsService with the statuses). */
   exportDeclaredLevels(): Promise<DeclaredLevelOp[]>;
   /** Apply pulled declared-level changes under last-write-wins; returns how many changed. */
   applyDeclaredLevelChanges(changes: DeclaredLevelOp[]): Promise<number>;
-  /** Whether the loaded pack carries CEFR data (else the ladder/feeding fall back to frequency). */
-  hasLevels(): Promise<boolean>;
-  /** The CEFR ladder A1→C2: confirmed / presumed / to-learn per level. Empty without CEFR data. */
-  levelLadder(): Promise<LevelRow[]>;
-  /** The estimated vocabulary size: each frequency band's known share, extrapolated over the pack's dictionary words. */
-  vocabularyEstimate(): Promise<VocabularyEstimate>;
-  /** Record one reading exposure per lemma (feeds distinct-day counters; never changes a status). */
-  recordExposures(lemmas: string[], source: string, atMs: number): Promise<void>;
-  /** Confirm presumed-known lemmas read on ≥ N distinct days; returns how many were promoted. */
-  promoteByExposure(thresholdDays: number, atMs: number): Promise<number>;
-  /** Seed up to `count` cards from a level (commonest- or rarest-first); returns how many added. */
-  seedLevel(level: CefrLevel, count: number, order: SeedOrder, at: number): Promise<number>;
 }

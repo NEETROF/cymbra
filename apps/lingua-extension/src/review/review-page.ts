@@ -1,3 +1,4 @@
+import { readingLanguage } from "../analyzer/pairs.ts";
 import type { LinguaPort } from "../analyzer/port.ts";
 import { dailyRecorder } from "../state/dailystats.ts";
 import { type AsyncStorageArea, saveBackup } from "../state/storage.ts";
@@ -130,10 +131,12 @@ export function mountReview(
   });
 
   void loadAttributions();
+  /** The sources of the reader's language's pack (add-lingua-studied-language-profile). */
   async function loadAttributions(): Promise<void> {
-    const names = await port.licences();
+    const lang = port.for(await readingLanguage(port));
+    const names = await lang.licences();
     licences.textContent = names.length ? `Sources : ${names.join(" · ")}` : "";
-    notice.textContent = await port.notice();
+    notice.textContent = await lang.notice();
   }
 
   // Keep in sync with changes made elsewhere (a reading gesture, a reset in Réglages, or
@@ -145,6 +148,7 @@ export function mountReview(
     void port.restore(backup).then(() => {
       controller = new ReviewController(port, opts.now, dailyRecorder(area));
       void refreshSummary();
+      void loadAttributions();
       renderReview(review, controller.view(), actions);
     });
   });

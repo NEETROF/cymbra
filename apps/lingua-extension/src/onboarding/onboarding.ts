@@ -1,5 +1,6 @@
 import type { AccountReply } from "../account/messages.ts";
 import { createLinguaPort } from "../analyzer/create-port.ts";
+import { readingLanguage } from "../analyzer/pairs.ts";
 import type { CefrLevel } from "../analyzer/types.ts";
 import { type AsyncStorageArea, hydrateEngine, saveBackup } from "../state/storage.ts";
 import { messagedArea } from "../state/store.ts";
@@ -50,11 +51,13 @@ async function main(): Promise<void> {
   void showAccountOffer();
   const port = createLinguaPort();
   await hydrateEngine(port, store);
+  // The reader's language (add-lingua-studied-language-profile); the level is chosen for it.
+  const lang = port.for(await readingLanguage(port));
 
-  if (!(await port.hasLevels())) return; // no CEFR data → welcome text only
+  if (!(await lang.hasLevels())) return; // no CEFR data → welcome text only
 
   $("level-section").hidden = false;
-  const current = await port.declaredLevel();
+  const current = await lang.declaredLevel();
   const chips = Array.from(document.querySelectorAll<HTMLButtonElement>("#level-chips .lvl"));
   const mark = (level: CefrLevel | null): void => {
     for (const c of chips) c.classList.toggle("active", (c.dataset.lvl ?? "") === (level ?? ""));
@@ -64,9 +67,9 @@ async function main(): Promise<void> {
   for (const chip of chips) {
     chip.addEventListener("click", async () => {
       const level = (chip.dataset.lvl as CefrLevel) || null;
-      await port.setDeclaredLevelAt(level, Date.now()); // stamp for cross-device LWW
+      await lang.setDeclaredLevelAt(level, Date.now()); // stamp for cross-device LWW
       // With a declared level, presumption comes only from it (option B).
-      await port.setCalibration(0);
+      await lang.setCalibration(0);
       await saveBackup(store, await port.backup());
       mark(level);
       const confirm = $("level-confirm");

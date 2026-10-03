@@ -81,3 +81,6 @@ tar = "0.4"
 # default). The trait is `cymbra-music`'s, so it is mocked with `mock!` here
 # rather than annotated at its definition.
 mockall.workspace = true
+
+[lints]
+workspace = true

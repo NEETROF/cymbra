@@ -61,12 +61,20 @@ const IRREGULAR_CONTRACTIONS: &[(&str, &str)] = &[
 /// Tokens containing a digit are dropped (identifiers, quantities, "3D"):
 /// they are not vocabulary. Apostrophe variants (`’`) are normalised to `'`
 /// before the pre-pass so typographic text behaves like plain text.
+///
+/// Each language has its own pre-pass. English expands `n't`; Spanish, until
+/// its own pre-pass lands (add-lingua-spanish-analysis), gets the rules that
+/// are not English — segmentation, hyphenated compounds, the digit drop, the
+/// edge-apostrophe trim and the single-letter rule — and no contraction split.
 pub fn tokenize(
     text: &str,
     language: StudiedLanguage,
     lexicon: &(impl Lexicon + ?Sized),
 ) -> Vec<Token> {
-    let StudiedLanguage::English = language;
+    let contractions = match language {
+        StudiedLanguage::English => true,
+        StudiedLanguage::Spanish => false,
+    };
     let words: Vec<(usize, &str)> = text.unicode_word_indices().collect();
     let mut tokens = Vec::new();
     let mut i = 0;
@@ -93,24 +101,26 @@ pub fn tokenize(
                 &words[i..j],
                 start,
                 end,
+                contractions,
                 lexicon,
             );
         } else {
-            push_word(&mut tokens, first, start, end, lexicon);
+            push_word(&mut tokens, first, start, end, contractions, lexicon);
         }
         i = j;
     }
     tokens
 }
 
-/// Emits an ordinary single-word token, applying the English pre-pass:
-/// apostrophe normalisation/trimming, `n't` expansion, the digit drop and the
-/// single-letter-needs-the-lexicon rule.
+/// Emits an ordinary single-word token, applying the pre-pass: apostrophe
+/// normalisation/trimming, `n't` expansion when `contractions` (English), the
+/// digit drop and the single-letter-needs-the-lexicon rule.
 fn push_word(
     tokens: &mut Vec<Token>,
     word: &str,
     start: usize,
     end: usize,
+    contractions: bool,
     lexicon: &(impl Lexicon + ?Sized),
 ) {
     let normalized = word.replace('\u{2019}', "'");
@@ -119,7 +129,7 @@ fn push_word(
         return;
     }
     let lower = trimmed.to_lowercase();
-    if let Some((base, second)) = split_contraction(&lower) {
+    if let Some((base, second)) = split_contraction(&lower).filter(|_| contractions) {
         // Preserve the original casing on the base's first letter so the
         // proper-noun heuristic still sees "Don't" as sentence-cased.
         let base_cased = match trimmed.chars().next() {
@@ -171,11 +181,19 @@ fn push_compound(
     pieces: &[(usize, &str)],
     start: usize,
     end: usize,
+    contractions: bool,
     lexicon: &(impl Lexicon + ?Sized),
 ) {
     if whole.chars().any(|c| c.is_ascii_digit()) {
         for (p_start, word) in pieces {
-            push_word(tokens, word, *p_start, p_start + word.len(), lexicon);
+            push_word(
+                tokens,
+                word,
+                *p_start,
+                p_start + word.len(),
+                contractions,
+                lexicon,
+            );
         }
         return;
     }
@@ -224,6 +242,30 @@ mod tests {
 
     fn texts(tokens: &[Token]) -> Vec<&str> {
         tokens.iter().map(|t| t.text.as_str()).collect()
+    }
+
+    #[test]
+    fn spec_scenario_english_contractions_are_englishs() {
+        let lex = lexicon();
+        assert_eq!(
+            texts(&tokenize("Don't", StudiedLanguage::English, &lex)),
+            ["Do", "not"]
+        );
+        assert_eq!(
+            texts(&tokenize("Don't", StudiedLanguage::Spanish, &lex)),
+            ["Don't"]
+        );
+    }
+
+    #[test]
+    fn the_rules_that_belong_to_no_language_apply_to_spanish_too() {
+        // Compounds, the digit drop, edge apostrophes and the single-letter rule.
+        let lex = lexicon();
+        let text = "x-ray abc123 'team' a b well-being-2 code";
+        assert_eq!(
+            texts(&tokenize(text, StudiedLanguage::Spanish, &lex)),
+            texts(&tokenize(text, StudiedLanguage::English, &lex))
+        );
     }
 
     #[test]

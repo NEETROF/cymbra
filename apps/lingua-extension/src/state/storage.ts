@@ -1,5 +1,5 @@
 import type { LinguaPort } from "../analyzer/port.ts";
-import type { LemmaStatus } from "../analyzer/types.ts";
+import type { LemmaStatus, StudiedLanguage } from "../analyzer/types.ts";
 import type { SpeechSettings, VoicePreference } from "../reading/speech.ts";
 
 // Versioned local state (designs D4 + the review change). The authoritative state is
@@ -408,17 +408,22 @@ export async function hydrateEngine(port: LinguaPort, area: AsyncStorageArea): P
   }
 }
 
+/** The language of a reading-only (v1) store, which predates languages. */
+const V1_LANGUAGE: StudiedLanguage = "en";
+
 /**
  * Forward-migrate a v1 state into the engine (calibration, statuses, learning cards)
  * and return the resulting backup string. Learning forms become deck cards carrying
  * their captured sentence; known/ignored forms become plain statuses.
  */
 export async function hydrateFromV1(port: LinguaPort, v1: V1State): Promise<string> {
-  await port.setCalibration(v1.calibration || DEFAULT_CALIBRATION);
+  // A reading-only store predates languages: everything in it is English.
+  const english = port.for(V1_LANGUAGE);
+  await english.setCalibration(v1.calibration || DEFAULT_CALIBRATION);
   for (const [lemma, status] of Object.entries(v1.statuses)) {
     if (status === "learning") {
       const card = v1.cards[lemma];
-      await port.addCard({
+      await english.addCard({
         lemma,
         surface: card?.surface ?? lemma,
         sentence: card?.sentence ?? "",
@@ -427,7 +432,7 @@ export async function hydrateFromV1(port: LinguaPort, v1: V1State): Promise<stri
         capturedAt: card?.createdAt ?? 0,
       });
     } else {
-      await port.setStatus(lemma, status);
+      await english.setStatus(lemma, status);
     }
   }
   return port.backup();

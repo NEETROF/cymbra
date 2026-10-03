@@ -114,3 +114,67 @@ leave the page analysis's output unchanged.
 - **WHEN** the fixture words are answered by the native build and by the WASM build
 - **THEN** the two answers are byte-for-byte identical
 
+### Requirement: Analysis by studied language
+The core SHALL run, for each studied language, that language's own tokenisation pre-pass, lemmatisation cascade and function-word tables, and SHALL never run a rule written for one language on text analysed as another. A studied language whose rules are not written yet SHALL get the baseline analysis: segmentation, the pre-pass rules that belong to no language (edge apostrophes, hyphenated compounds, words with digits dropped, single letters counted only when the pack lists them), and the pack's form→lemma lookup. The baseline has no exception table, no morphological rule, no contraction split and no function words. Adding a studied language SHALL leave the output of every existing language byte-for-byte unchanged.
+
+#### Scenario: A Spanish word that looks English keeps its own lemma
+- **WHEN** the token `has` is lemmatised as Spanish with a pack that does not list it
+- **THEN** the lemma is `has`, not the English `have`
+
+#### Scenario: English contractions are English's
+- **WHEN** the text "don't" is tokenised as Spanish
+- **THEN** it is a single token; tokenised as English, it is still `do` + `not`
+
+#### Scenario: A language without function-word tables leaves no word out
+- **WHEN** a selection is glossed word by word as Spanish
+- **THEN** no token is flagged as a function word
+
+#### Scenario: English output does not move
+- **WHEN** the English invariance baseline (the engine's output over its fixed corpus, with the real en-fr pack) runs after the core gains a second language
+- **THEN** every probe is byte-for-byte the output recorded before, at English analyser version `1.1.0`
+
+### Requirement: An analyser version per studied language
+The core SHALL keep one analyser version per studied language, SHALL bump only the version of the language whose output a change can alter, and SHALL report in every page analysis the analyser version of the language the page was analysed as. English's analyser version SHALL remain `1.1.0` through this change, and a language served by the baseline analysis SHALL carry a `0.x` version.
+
+#### Scenario: Each analysis names its own language's version
+- **WHEN** one page is analysed as English and another as Spanish
+- **THEN** the first reports `analyzer_version` `1.1.0` and the second reports Spanish's own version
+
+#### Scenario: A Spanish rule change leaves English alone
+- **WHEN** Spanish's analyser version is bumped
+- **THEN** English's analyser version is unchanged and the en-fr pack still loads
+
+### Requirement: One WASM engine serves every studied language
+The WASM engine SHALL hold at most one pack per studied language in a single instance, and SHALL take the studied language on every call whose answer depends on it; a call that names no language SHALL use the language of the first pack loaded. The engine SHALL refuse, with an explicit error, a call naming a language it holds no pack for, and a second pack for a language it already holds. Calls that concern the whole reader (backup, restore, resets, counts, the review session, sync exports and applies) SHALL cover every language the state holds.
+
+#### Scenario: An engine built from the en-fr pack answers as before
+- **WHEN** the engine is built from the en-fr pack and called without a language
+- **THEN** every answer is byte-for-byte the one recorded by the English invariance baseline
+
+#### Scenario: A second language is served by its own pack
+- **WHEN** a Spanish pack is added to an engine built from the en-fr pack, and a page is analysed as Spanish
+- **THEN** the analysis uses the Spanish pack and reports Spanish's analyser version, and an analysis that names no language is still English
+
+#### Scenario: A language without a pack is refused
+- **WHEN** a call names Spanish on an engine holding only the en-fr pack
+- **THEN** it fails with an explicit error and the state is unchanged
+
+#### Scenario: One pack per language
+- **WHEN** a second English pack is added to an engine
+- **THEN** it is refused and the engine keeps the first
+
+### Requirement: Sync records carry their own language
+The WASM engine SHALL export each status, declared level and card with the studied language it belongs to, and SHALL apply incoming records only for the languages it holds a pack for, leaving the others out of its state. A record without a language SHALL be read as English.
+
+#### Scenario: English records export as English
+- **WHEN** an engine holding the en-fr pack exports its statuses, declared levels and cards
+- **THEN** every record names `en`, as before
+
+#### Scenario: A Spanish record exports as Spanish
+- **WHEN** a Spanish status is set on an engine holding the en-fr pack and a Spanish pack
+- **THEN** its exported record names `es`
+
+#### Scenario: Records of a language the engine does not study are skipped
+- **WHEN** a Spanish status change is applied to an engine holding only the en-fr pack
+- **THEN** nothing changes, as before; applied to an engine holding the Spanish pack, the status is recorded under Spanish
+

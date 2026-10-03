@@ -101,3 +101,6 @@ cymbra-feature-flags = { path = "../feature-flags", features = ["mock"] }
 cymbra-plans = { path = "../plans", features = ["mock"] }
 # `ServiceExt::oneshot` drives the Axum routers in the HTTP handler tests (no socket).
 tower.workspace = true
+
+[lints]
+workspace = true

@@ -303,3 +303,67 @@ A form that has a meaning of its own keeps it.
 - **WHEN** the dictionary glosses the adjective `hearted` only as a form of `heart`, which is only a noun
 - **THEN** `hearted` has no gloss
 
+### Requirement: A pair's reduction rules include the rules it shares
+The reduction rules of a pair SHALL be its own reducer together with every module of rules shared between pairs, and the record committed with a pair's tables SHALL name those files and carry one digest over all of them. A change to any of them SHALL fail the checks of every pair whose tables were reduced by the previous rules, until those tables are reduced again from their pinned sources; the version of a pack reduced again SHALL name that digest.
+
+#### Scenario: A shared rule changes
+- **WHEN** a pull request edits a rule module shared by the en-fr and es-fr reducers without reducing their tables again
+- **THEN** the checks of both pairs fail, naming the rule files that changed
+
+#### Scenario: Another pair's reducer changes
+- **WHEN** a pull request edits only the es-fr reducer
+- **THEN** the en-fr tables still pass their check
+
+#### Scenario: Moving rules into a shared module
+- **WHEN** rules are moved out of a pair's reducer into a shared module without changing what they do
+- **THEN** the pair's tables reduced again from the same pinned sources are byte-identical, except for the pack version that names the new rule digest
+
+### Requirement: A source is credited as its licence requires
+The attribution notice of a pack SHALL credit each source in the form its licence makes a condition of use, including the author's name where the licence names how the author is to be credited.
+
+#### Scenario: wordfreq
+- **WHEN** a pack's frequencies come from wordfreq
+- **THEN** its notice credits wordfreq to Robyn Speer, with the CC BY-SA 4.0 licence of its data
+
+### Requirement: A pack names the language it studies
+The core SHALL read the language a pack studies from the pack's metadata (`studied`, an ISO 639-1 code), SHALL refuse to load a pack whose studied language it has no analyser for, and SHALL check the pack's `analyzer_version` against the analyser version of that language, never of another. Adding a studied language to the core SHALL leave every existing pack loadable and byte-identical.
+
+#### Scenario: Loading the EN→FR pack names English
+- **WHEN** the en-fr pack is loaded
+- **THEN** the core reports its studied language as English and accepts its `analyzer_version` `1.1.0`
+
+#### Scenario: A pack for a language the core cannot analyse
+- **WHEN** a pack whose metadata names `pt` is loaded by a core with no Portuguese analyser
+- **THEN** loading fails with an explicit error naming the language, and no partial analysis is produced
+
+#### Scenario: Versions are compared within a language
+- **WHEN** one Spanish pack declares Spanish's analyser version, and another Spanish pack declares English's `1.1.0`
+- **THEN** the first loads and the second is refused as built for another analyser generation
+
+#### Scenario: The en-fr pack does not change
+- **WHEN** the en-fr pack is built from its committed tables after the core gains a second language
+- **THEN** its sha256 is the one recorded in `pin.json` before the change
+
+### Requirement: The shipped pairs are one list
+The extension's build SHALL read the language pairs it ships from one list, whose first pair gives the default studied language, and SHALL build each listed pair's pack from that pair's committed tables, checked against that pair's own recorded sha256. It SHALL refuse a pack whose analyser version is not the version of the pack's own studied language. Every package of a release SHALL carry exactly the listed packs, each byte-identical across Chromium, Firefox and Safari. Until Spanish is enabled for readers, a package whose list is anything other than en-fr SHALL be refused.
+
+#### Scenario: Building the listed packs
+- **WHEN** a release builds its packs with the list holding en-fr
+- **THEN** it builds the en-fr pack from the en-fr tables, its sha256 is the one en-fr's pin records, and the package carries that pack and no other
+
+#### Scenario: A pack built for another analyser generation of its language
+- **WHEN** a listed pack's analyser version differs from the core's version for that pack's studied language
+- **THEN** the build fails with a message naming the pack, both versions, and the command that rebuilds it
+
+#### Scenario: A pair the build cannot make
+- **WHEN** the list names a pair with no committed tables, or no testdata for a test build
+- **THEN** the build fails with a message naming the pair and what to add
+
+#### Scenario: A list widened too early
+- **WHEN** a package is built with a list holding a pair other than en-fr, before Spanish is enabled for readers
+- **THEN** the variant check refuses it
+
+#### Scenario: English unchanged
+- **WHEN** the en-fr pack is built from its tables after this change
+- **THEN** it is byte-for-byte the pack built before, and only its path inside the package differs
+

@@ -35,7 +35,7 @@ pub mod vocabulary;
 
 pub use exposure::{Exposure, ExposureCounters};
 pub use level::{CefrLevel, CefrLevels};
-pub use profile::{LanguagePair, NativeLanguage, Profile};
+pub use profile::{LanguagePair, NativeLanguage, Profile, ProfileError};
 pub use state::{BandStats, FrequencyRanks, KnowledgeState, MapFrequencyRanks};
 pub use status::{KnownSource, Status};
 pub use vocabulary::VocabularyEstimate;

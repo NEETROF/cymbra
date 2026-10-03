@@ -39,3 +39,6 @@ mock = ["dep:mockall"]
 tokio = { workspace = true }
 mockall = { workspace = true }
 serde_json.workspace = true
+
+[lints]
+workspace = true
