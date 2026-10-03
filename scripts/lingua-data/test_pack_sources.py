@@ -10,6 +10,7 @@ Run: python3 -m unittest discover -s scripts/lingua-data -p "test_*.py"
 """
 
 import datetime
+import gzip
 import json
 import re
 import shutil
@@ -138,6 +139,121 @@ class Pinned(unittest.TestCase):
         self.assertNotIn("agid", sources)
         self.assertEqual(sources["esdb"]["tag"], "rel-2026.02.25")
         self.assertEqual(sources["esdb"]["sha256"], ps.sha256(self.root / "again" / "scowl.txt"))
+
+
+class Dumps(unittest.TestCase):
+    """es-fr reads kaikki's dumps of whole Wiktionary editions, kept as the files it derives."""
+
+    FR = [
+        {"word": "casa", "lang_code": "es", "pos": "noun", "senses": [{"glosses": ["Maison."]}]},
+        {
+            "word": "maison",
+            "lang_code": "fr",
+            "pos": "noun",
+            "translations": [
+                {"lang_code": "es", "word": "casa", "sense": "Bâtiment"},
+                {"lang_code": "it", "word": "casa"},
+            ],
+        },
+        {"word": "chat", "lang_code": "fr", "pos": "noun", "translations": [{"lang_code": "en", "word": "cat"}]},
+        {"word": "Haus", "lang_code": "de", "pos": "noun"},
+    ]
+    ES = [
+        {
+            "word": "sector",
+            "lang_code": "es",
+            "pos": "noun",
+            "translations": [{"lang_code": "fr", "word": "secteur"}, {"lang_code": "en", "word": "sector"}],
+        },
+        {"word": "casa", "lang_code": "es", "pos": "noun"},
+    ]
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        self.pin = self.root / "tables" / "es-fr" / "pin.json"
+        self.work = self.root / "work"
+        self.served = {spec["url"]: f"{name} bytes\n".encode() for name, spec in ps.PINNED["es-fr"].items()}
+        self.served[ps.KAIKKI["es-fr"]["url"]] = b'{"word": "casa"}\n'
+        dumps = ps.DUMPS["es-fr"]
+        self.served[dumps["kaikki-fr"]["url"]] = self.dump(self.FR)
+        self.served[dumps["kaikki-es"]["url"]] = self.dump(self.ES)
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    @staticmethod
+    def dump(entries):
+        return gzip.compress("".join(json.dumps(e, ensure_ascii=False) + "\n" for e in entries).encode())
+
+    def fetch(self, url, dest, compressed=False):
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        if url in self.served:
+            dest.write_bytes(self.served[url])
+            return {"last-modified": "Fri, 02 Oct 2026 00:10:16 GMT"}
+        shutil.copy(self.root / "released" / Path(url).name, dest)
+        return {}
+
+    def update(self):
+        import unittest.mock as mock
+
+        with mock.patch.object(ps, "wordfreq_version", return_value=ps.WORDFREQ):
+            return ps.fetch_live(self.pin, self.work, "2026.10.04", fetch=self.fetch, today=datetime.date(2026, 10, 4))
+
+    def test_derive_keeps_a_language_s_entries_and_cuts_tables_down_to_translations(self):
+        self.work.mkdir()
+        dump = self.work / "fr.jsonl.gz"
+        dump.write_bytes(self.dump(self.FR))
+        ps.derive(dump, ps.DUMPS["es-fr"]["kaikki-fr"]["files"], self.work)
+        entries = (self.work / "kaikki-fr-Espagnol.jsonl").read_text(encoding="utf-8")
+        self.assertEqual(entries, json.dumps(self.FR[0], ensure_ascii=False) + "\n", "the line as the dump writes it")
+        tables = [json.loads(line) for line in (self.work / "kaikki-fr-traductions.jsonl").read_text().splitlines()]
+        # `chat` lists no Spanish word; the Italian translation of `maison` is not read.
+        self.assertEqual(tables, [{"pos": "noun", "translations": [{"sense": "Bâtiment", "word": "casa"}], "word": "maison"}])
+
+    @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
+    def test_update_keeps_each_derived_file_as_an_asset_of_the_snapshot(self):
+        record = self.update()
+        sources = record["sources"]
+        self.assertEqual(set(sources), {"gsd-train", "gsd-dev", "kaikki", "kaikki-fr", "kaikki-es", "wordfreq"})
+        fr = sources["kaikki-fr"]
+        self.assertEqual(fr["release"], "lingua-pack-sources-es-fr-2026.10.04")
+        self.assertEqual(fr["last_modified"], "Fri, 02 Oct 2026 00:10:16 GMT")
+        self.assertEqual(set(fr["files"]), {"kaikki-fr-Espagnol.jsonl", "kaikki-fr-traductions.jsonl"})
+        for name, file in {**fr["files"], **sources["kaikki-es"]["files"]}.items():
+            self.assertEqual(file["asset"], name + ".zst")
+            self.assertEqual(file["sha256"], ps.sha256(self.work / name))
+            self.assertTrue((self.work / file["asset"]).is_file(), "the asset to publish is left beside it")
+        self.assertFalse(list(self.work.glob("*.dump.jsonl.gz")), "a dump is never kept whole")
+        self.assertEqual(
+            ps.assets(record),
+            [
+                "kaikki-Spanish.jsonl.zst",
+                "kaikki-fr-Espagnol.jsonl.zst",
+                "kaikki-fr-traductions.jsonl.zst",
+                "kaikki-es-traductions.jsonl.zst",
+            ],
+        )
+
+    @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
+    def test_reduce_fetches_each_derived_file_and_refuses_other_bytes(self):
+        import unittest.mock as mock
+
+        record = self.update()
+        released = self.root / "released"
+        released.mkdir()
+        for asset in ps.assets(record):
+            shutil.copy(self.work / asset, released / asset)
+        again = self.root / "again"
+        with mock.patch.object(ps, "wordfreq_version", return_value=ps.WORDFREQ):
+            ps.fetch_pinned(self.pin, again, fetch=self.fetch)
+            self.assertEqual(
+                (again / "kaikki-es-traductions.jsonl").read_bytes(), (self.work / "kaikki-es-traductions.jsonl").read_bytes()
+            )
+            self.assertIn("kaikki-fr", ps.load(self.pin)["sources"], "a derived source is no retired one")
+            subprocess.run(["zstd", "-q", "-f", "-o", str(released / "kaikki-fr-traductions.jsonl.zst"), "-"], input=b"{}\n", check=True)
+            with self.assertRaisesRegex(ps.PinError, "kaikki-fr: kaikki-fr-traductions.jsonl"):
+                ps.fetch_pinned(self.pin, again, fetch=self.fetch)
 
 
 class Record(unittest.TestCase):

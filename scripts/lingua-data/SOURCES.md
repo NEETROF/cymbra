@@ -137,7 +137,9 @@ Reduced by `reduce-es-fr.py` (add-lingua-spanish-forms-tables), for the Spanish 
 | `forms.tsv` (`form → lemma`) | **kaikki.org** extract of the English Wiktionary (`enwiktionary`), Spanish section — our snapshot of its 2026-09-28 dump; **UD Spanish-GSD** (train and dev, at a commit) for homographs | kaikki: CC BY-SA 4.0 + GFDL; GSD: CC BY-SA 4.0, read for counts only | the inflections a lemma's entry lists and the form-of links of a form's own entry: lowercased, NFC, single Spanish words. Never a verb with its clitics — a `combined-form`, or a sense naming the pronoun (`object-…` tags); the analyser's enclitic rule reads those — but a string that is also a plain form keeps it (`principales` → *principal*). **One lemma per form**: a reviewed override (`OVERRIDES` in the reducer, each with its reason; none yet, since an override takes the other lemma out of the pack), then GSD's counts of the form under each lemma, then the form's own entry, then the lemma's frequency, then the alphabet. Only the forms of kept lemmas that wordfreq attests, and every lemma's own form |
 | `freq.tsv` (`lemma → rank`) | **wordfreq** Spanish list | CC BY-SA 4.0 | the top 60k canonical lemmas, dense rank; inflected forms, and combined forms that are no word of their own, skipped |
 | `grammar.tsv` (`form → readings`) | **kaikki.org**, the same extract: the tags of each form | CC BY-SA 4.0 + GFDL | the readings of the forms `forms.tsv` holds, under kept lemmas, as Universal Dependencies tags (add-lingua-spanish-grammar-tables). A verb form takes its mood, tense, person and number — the conditional as a mood, the *usted* imperative as a third person, the negative imperative left to the subjunctive it repeats — or its form (`Inf`, `Ger`, an agreed `Part`). A noun takes its gender (`es-noun`'s argument, else its senses' tags) on its own form and its plural; an adjective, determiner or pronoun its agreement. A pronominal form (`azotarse`) reads from its own entry. Each reading of another lemma than the form's is marked `other`: kaikki's tables are structured, so the card may name it |
-| `gloss.tsv` | — | — | empty: the French glosses are `add-lingua-spanish-gloss-tables` |
+| `gloss.tsv` (`lemma → gloss`) | **kaikki.org**: the French Wiktionary's Spanish entries; else the French translations the Spanish Wiktionary's Spanish entries list; else the French Wiktionary's French entries whose translation tables list the word. The last two are derived from kaikki's dumps of the whole editions (`pack_sources.py DUMPS`) | CC BY-SA 4.0 + GFDL | the shared rules on the Spanish entries: up to eight senses grouped by part of speech (add-lingua-spanish-gloss-tables). A fallback gloss is up to three French words per part of speech, the commonest first from a table read backwards. A proper noun's translation glosses nothing; a gloss is never English and never a machine translation. Coverage below |
+| `senses.tsv` (`lemma → runs`) | the same | CC BY-SA 4.0 + GFDL | the parts of speech of each gloss's runs of senses; a fallback gloss has one sense per part of speech |
+| `mwe.tsv` (`expression → gloss`) | the same | CC BY-SA 4.0 + GFDL | the Spanish multi-word entries, then the multi-word headwords the translations give; `LOCUTIONS` in the reducer, written by a person, wins (empty so far). The builder keys them through the lexicon |
 | `NOTICE` | all of the above | — | the attribution stack, embedded in the pack |
 
 **Measured on UD Spanish-PUD** (CC BY-SA 3.0), never committed and never read by the reduction.
@@ -148,7 +150,18 @@ proper nouns are left out. The 2026-10-03 tables pass the programme's gates:
 - 95.92 % of 9,439 content words take PUD's lemma (gate 93.5 %);
 - 97.95 % of 634 auxiliaries take PUD's lemma (gate 97 %).
 
-The pack is 1,507,108 B, the grammar included.
+**French glosses**, the share of the commonest lemmas glossed on the 2026-10-03 tables:
+
+| Lemmas | French Wiktionary | with the translations |
+|---|---|---|
+| top 5,000 | 82.9 % | 87.7 % |
+| top 10,000 | 69.6 % | 77.3 % |
+| top 20,000 | 54.4 % | 63.8 % |
+| all 60,000 | 29.0 % | 38.0 % |
+
+22,826 lemmas are glossed, 17,420 from the French Wiktionary. There are 15,133 expressions: 2,952
+from the French Wiktionary's Spanish entries and 12,181 from the translations. The pack is
+2,126,574 B, the grammar and the glosses included.
 
 ## Allowed vs denied licences
 

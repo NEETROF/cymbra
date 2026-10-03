@@ -14,9 +14,13 @@ Inputs, in `--work`:
   often each form stands for each lemma — to choose one lemma for a form of several (design D2).
 - wordfreq `es` (the installed, pinned package): the 60,000 commonest lemmas and which forms are
   attested at all (design D3).
+- `kaikki-fr-Espagnol.jsonl`: the French Wiktionary's Spanish entries, the French glosses of words
+  and expressions (add-lingua-spanish-gloss-tables).
+- `kaikki-es-traductions.jsonl`, `kaikki-fr-traductions.jsonl`: the French translations the Spanish
+  Wiktionary lists, and the French Wiktionary's translation tables, the glosses' fallbacks.
 
 Outputs, in `--work`: `forms.tsv`, `freq.tsv`, `grammar.tsv` (add-lingua-spanish-grammar-tables),
-an empty `gloss.tsv` (the French glosses are add-lingua-spanish-gloss-tables), `NOTICE` and
+`gloss.tsv`, `senses.tsv` and `mwe.tsv` (add-lingua-spanish-gloss-tables), `NOTICE` and
 `manifest.json`.
 
 Every rule here is Spanish: the shared rules of `reduce_common.py` are used as they are, and that
@@ -427,6 +431,122 @@ def grammar_rows(readings, forms, ranks):
     return sorted(rows)
 
 
+# — The French glosses (add-lingua-spanish-gloss-tables) —
+#
+# The French Wiktionary's Spanish entries gloss a word or an expression first, through the rules
+# every <studied>->FR pair shares (`reduce_common`). Where they say nothing, the glosses fall back
+# on translations people wrote: the French words the Spanish Wiktionary lists for a Spanish entry,
+# then the French entries whose translation tables list it. A gloss is never English, and never a
+# machine translation (the programme's decision D4).
+
+# A word's gloss is paged on its card, as en-fr's (add-lingua-word-grammar): eight whole senses.
+WORD_GLOSS = {"maxlen": 800, "per_sense": 300, "max_senses": 8}
+EXPRESSION_GLOSS_LEN = 80
+# French words a fallback gloss keeps per part of speech.
+FALLBACK_WORDS = 3
+
+# Verbal locutions no source glosses (« hay que »), each with its French gloss, written and
+# reviewed by a person: expression → gloss. It wins over every source. A gloss here is never
+# generated: the programme leaves pack data written by a model undecided, and recommends none at
+# launch. Editing it is a rule change, as for OVERRIDES.
+LOCUTIONS = {}
+
+
+def read_translated(path, *, inverted):
+    """What a translation file (`pack_sources.derive`) says of Spanish words: word → {UPOS: [French
+    word, …]}, in the file's order.
+
+    Direct (the Spanish Wiktionary): a Spanish entry's French translations. Inverted (the French
+    Wiktionary): a French entry is a French word for each Spanish word its table lists. A proper
+    noun's entry glosses nothing: a place or a first name translated is itself (`alcalá de la
+    vega`, `celina` « Céline »).
+    """
+    out = collections.defaultdict(lambda: collections.defaultdict(list))
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if entry.get("pos") == "name":
+                continue
+            pairs = (
+                [(_spanish(t.get("word")), _french(entry.get("word"))) for t in entry.get("translations") or ()]
+                if inverted
+                else [(_spanish(entry.get("word")), _french(t.get("word"))) for t in entry.get("translations") or ()]
+            )
+            for spanish, french in pairs:
+                if not spanish or not french:
+                    continue
+                upos = common.kaikki_upos(entry.get("pos") or "", spanish, studied=ES)
+                if french not in out[spanish][upos]:
+                    out[spanish][upos].append(french)
+    return out
+
+
+def _spanish(text):
+    """A Spanish headword as the pack keys it — lowercase, NFC, single spaces — or None when it is
+    not Spanish words."""
+    word = re.sub(r"\s+", " ", nfc_lower(text))
+    return word if word and all(_TOKEN.fullmatch(part) for part in word.split(" ")) else None
+
+
+def _french(text):
+    """A French translation, tidied: its separators stay out of the gloss's own (`;`)."""
+    return re.sub(r"\s+", " ", (text or "").replace(";", ",")).strip(" ,")
+
+
+def translation_gloss(by_pos, order):
+    """A gloss from translations: per part of speech, up to `FALLBACK_WORDS` French words in
+    `order`, as one sense — `(gloss, runs)`, the runs `[(UPOS, 1), …]`."""
+    senses, runs = [], []
+    for upos, words in by_pos.items():
+        kept = order(words)[:FALLBACK_WORDS]
+        if kept:
+            text = ", ".join(kept)
+            senses.append(text[:1].upper() + text[1:])
+            runs.append((upos, 1))
+    return "; ".join(senses), runs
+
+
+def fallback_glosses(lemmas, glossed, sources):
+    """Glosses for the lemmas the French Wiktionary leaves out, from each `(source, order)` in
+    turn: `lemma → (gloss, runs)`."""
+    out = {}
+    for lemma in sorted(set(lemmas) - set(glossed)):
+        for source, order in sources:
+            by_pos = source.get(lemma)
+            if by_pos:
+                gloss, runs = translation_gloss(by_pos, order)
+                if gloss:
+                    out[lemma] = (gloss, runs)
+                    break
+    return out
+
+
+def fallback_expressions(expressions, sources):
+    """Glosses for the multi-word headwords no Spanish entry of the French Wiktionary glosses, from
+    each `(source, order)` in turn: `expression → gloss`. An expression's gloss has no runs, so its
+    parts of speech are one."""
+    out = {}
+    for source, order in sources:
+        for headword, by_pos in source.items():
+            if " " not in headword or headword in expressions or headword in out:
+                continue
+            words = []
+            for found in by_pos.values():
+                words.extend(w for w in found if w not in words)
+            gloss, _ = translation_gloss({"X": words}, order)
+            if gloss:
+                out[headword] = gloss
+    return out
+
+
+def by_french_frequency(frequency):
+    """The order of an inverted table's French words: the commonest first, then alphabetical."""
+    return lambda words: sorted(words, key=lambda w: (-frequency(w), w))
+
+
 NOTICE = """Cymbra Lingua data pack — ES->FR attributions.
 
 kaikki.org extract of the English Wiktionary (enwiktionary), Spanish section: CC BY-SA 4.0 + GFDL —
@@ -438,6 +558,13 @@ CC BY-SA 4.0 — the commonest lemmas and which forms are attested.
 UD Spanish-GSD, the Universal Dependencies Spanish-GSD treebank
 (https://github.com/UniversalDependencies/UD_Spanish-GSD): CC BY-SA 4.0 — how often a form stands
 for each of its lemmas, to choose one.
+
+kaikki.org extract of the French Wiktionary (frwiktionary): CC BY-SA 4.0 + GFDL — the French
+glosses of Spanish words and expressions, from its Spanish entries, and from its French entries'
+translation tables where those say nothing.
+
+kaikki.org extract of the Spanish Wiktionary (eswiktionary): CC BY-SA 4.0 + GFDL — the French
+translations its Spanish entries list, where the French Wiktionary has no gloss.
 """
 
 
@@ -453,10 +580,10 @@ def main():
 
     zipf = {}
 
-    def frequency(word):
-        if word not in zipf:
-            zipf[word] = zipf_frequency(word, "es")
-        return zipf[word]
+    def frequency(word, lang="es"):
+        if (word, lang) not in zipf:
+            zipf[(word, lang)] = zipf_frequency(word, lang)
+        return zipf[(word, lang)]
 
     readings = Readings()
     candidates, lemmas, combined = read_kaikki(os.path.join(a.work, "kaikki-Spanish.jsonl"), readings)
@@ -485,7 +612,28 @@ def main():
     )
     grammar = grammar_rows(readings, forms, ranks)
     common.write(a.work, "grammar.tsv", "".join(grammar))
-    common.write(a.work, "gloss.tsv", "")
+
+    spanish_entries = os.path.join(a.work, "kaikki-fr-Espagnol.jsonl")
+    runs = {}
+    glosses = common.reduce_gloss(spanish_entries, set(ranks), **WORD_GLOSS, runs=runs, studied=ES)
+    expressions = common.reduce_expressions(spanish_entries, EXPRESSION_GLOSS_LEN, studied=ES)
+    direct = read_translated(os.path.join(a.work, "kaikki-es-traductions.jsonl"), inverted=False)
+    inverted = read_translated(os.path.join(a.work, "kaikki-fr-traductions.jsonl"), inverted=True)
+    sources = [(direct, list), (inverted, by_french_frequency(lambda w: frequency(w, "fr")))]
+    primary = len(glosses)
+    for lemma, (gloss, gloss_runs) in fallback_glosses(ranks, glosses, sources).items():
+        glosses[lemma], runs[lemma] = gloss, gloss_runs
+    expressions.update(fallback_expressions(expressions, sources))
+    expressions.update(LOCUTIONS)
+    common.write(a.work, "gloss.tsv", "".join(f"{l}\t{g}\n" for l, g in sorted(glosses.items())))
+    common.write(
+        a.work,
+        "senses.tsv",
+        "".join(
+            f"{w}\t" + "\t".join(f"{pos}:{n}" for pos, n in r) + "\n" for w, r in sorted(runs.items()) if w in glosses
+        ),
+    )
+    common.write(a.work, "mwe.tsv", "".join(f"{w}\t{g}\n" for w, g in sorted(expressions.items())))
     common.write(a.work, "NOTICE", NOTICE)
     manifest = {
         "meta": {
@@ -494,7 +642,7 @@ def main():
             "pack_version": a.pack_version,
             "analyzer_version": analyser_version(),
             "licences": [
-                "kaikki / enwiktionary (CC BY-SA 4.0 + GFDL)",
+                "kaikki / enwiktionary, frwiktionary, eswiktionary (CC BY-SA 4.0 + GFDL)",
                 "wordfreq (CC BY-SA 4.0)",
                 "UD Spanish-GSD (CC BY-SA 4.0)",
             ],
@@ -506,7 +654,11 @@ def main():
         ],
     }
     common.write(a.work, "manifest.json", json.dumps(manifest, indent=2, ensure_ascii=False) + "\n")
-    print(f"reduced es-fr: forms={len(forms)} lemmas={len(ranks)} readings={len(grammar)}", file=sys.stderr)
+    print(
+        f"reduced es-fr: forms={len(forms)} lemmas={len(ranks)} readings={len(grammar)} "
+        f"glosses={len(glosses)} (French Wiktionary {primary}) expressions={len(expressions)}",
+        file=sys.stderr,
+    )
 
 
 if __name__ == "__main__":
