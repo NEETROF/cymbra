@@ -2686,6 +2686,7 @@ name = "lingua-wasm"
 version = "0.1.0"
 dependencies = [
  "lingua-core",
+ "lingua-pack",
  "serde_json",
  "wasm-bindgen",
  "wasm-bindgen-test",

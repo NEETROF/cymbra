@@ -157,13 +157,13 @@ promotion rule — a video watched once in a day is one day of exposure, as a pa
 
 | Engine | Caption line translation | Word popup |
 |---|---|---|
-| none (setting off, model not ready, or Safari) | YouTube's automatic translation of the line (`tlang=<gloss language>`), fetched once per video when the track is translatable, labelled "Traduction automatique YouTube", shown whole-line | pack gloss, as today |
+| none (setting off, or model not ready) | YouTube's automatic translation of the line (`tlang=<gloss language>`), fetched once per video when the track is translatable, labelled "Traduction automatique YouTube", shown whole-line | pack gloss, as today |
 | on the device | engine translation of the sentence, computed ahead in reading order | engine sentence + mark, as on a page |
 | remote (if #535 ships) | same as device, remote host | same as device |
 
 "Engine chosen" is what `add-lingua-translation-delivery` makes `createTranslatorPort()` answer:
 a port when the device's `translationHost` is `"local"` and its model is ready, `null` otherwise —
-always `null` on Safari, which carries no engine. This change reads that seam and adds no setting of
+on Safari too, which carries the engine since `add-lingua-translation-safari`. This change reads that seam and adds no setting of
 its own for the engine. A model still downloading counts as no engine: the line falls back to
 YouTube's translation until the model is ready.
 
