@@ -122,6 +122,33 @@ describe("the automatic choice, on the captured lists", () => {
   });
 });
 
+describe("a Spanish voice from Spain by default (add-lingua-spanish-read-aloud)", () => {
+  const monica = voice({ name: "Mónica", lang: "es-ES" });
+  const paulina = voice({ name: "Paulina", lang: "es-MX" });
+
+  it("puts a voice of Spain before a Mexican one of the same quality", () => {
+    expect(rankVoices([paulina, monica], "es")).toEqual([monica, paulina]);
+    expect(pickVoice([paulina, monica], "es", null)).toBe(monica);
+  });
+
+  it("keeps a voice the reader downloaded for its quality first", () => {
+    const enhanced = voice({ name: "Paulina (Enhanced)", lang: "es-MX" });
+    expect(pickVoice([monica, enhanced], "es", null)).toBe(enhanced);
+  });
+
+  it("reads Firefox for Android's three-letter regions", () => {
+    const android = (name: string, lang: string): VoiceInfo =>
+      voice({ name, lang, localService: false, voiceURI: `moz-tts:android:${lang.replace(/-/g, "_")}` });
+    const mexico = android("espagnol (MEX,DEFAULT)", "spa-MEX-default");
+    const spain = android("espagnol (ESP,DEFAULT)", "spa-ESP-default");
+    expect(pickVoice([mexico, spain], "es", null, true)).toBe(spain);
+  });
+
+  it("leaves English's choice as it was", () => {
+    expect(rankVoices([daniel, samantha], "en")).toEqual([samantha, daniel]);
+  });
+});
+
 describe("the reader's choice", () => {
   it("speaks with the chosen voice while it is listed and eligible", () => {
     const voices = voiceFixture("chrome-macos");
