@@ -143,7 +143,7 @@ min–max.
 | R5 model host, then translation per platform | 26 | `add-lingua-spanish-translation-pivot`: es-en 2.0 pinned, mirror release, `translateViaPivoting`. After merge, deploy the host and run `check_model_host` from outside for es-en **and** en-fr 2.0, before any store package | 3–5.5 | Not started |
 | R5 | 27 | `release-lingua-spanish-translation` (D2, D3): marking corpus committed in Spanish **and** English, confirmation pass per platform | 3.5–6.5 | Not started |
 | R6 agent and parity | 31 | `add-lingua-agent-languages` (D6) | 5–8 | Not started |
-| R6 | 32 | Amend `add-lingua-youtube-captions` (D7) | 0.5–1 | Not started |
+| R6 | 32 | Amend `add-lingua-youtube-captions` (D7) | 0.5–1 | Done: the open change reads English captions only, whatever languages the reader studies; a scenario for a reader of Spanish on a Spanish video |
 | R6 | 33 | `refine-lingua-language-wording`: the only change allowed to modify the 12 requirements open changes held, after those archive | 1.5–3 | Not started |
 
 The numbers are the study's: change 26 merges after 28–30, but keeps the number it was given.
