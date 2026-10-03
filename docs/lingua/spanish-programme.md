@@ -114,7 +114,7 @@ min–max.
 | G0 | — | Spikes S0–S8 (below) | ≈15 | S0 done ([#622](https://github.com/NEETROF/cymbra/pull/622): `crates/lingua-wasm/tests/english_baseline.rs`); S5 covered by [#619](https://github.com/NEETROF/cymbra/pull/619)'s reference run |
 | G0 | — | Licence requests: UCLouvain (ELELex), Instituto Cervantes (PCIC), TUFS (CEFR-J Spanish) | — | Owner |
 | R1 server first | 2 | `add-lingua-card-language` | 4.5–8 | Merged ([#609](https://github.com/NEETROF/cymbra/pull/609)); backend 0.35.0 deployed 2026-09-30. Tasks 5.1/5.2 (external checks) open |
-| R1 | 3 | `add-admin-lingua-language-labels` | 1.5–2.5 | Not started |
+| R1 | 3 | `add-admin-lingua-language-labels` | 1.5–2.5 | Done (proposal [#672](https://github.com/NEETROF/cymbra/pull/672)); the Lingua screen names the studied languages in the console's language (« Anglais », « Espagnol »), a code it has no name for shows as itself, the filter's values stay codes; back-office deployment is the owner's |
 | R2 silent English release A (shipped list `[en]`, asserted by `check_variants`) | 4 | `generalise-lingua-pack-reducer` | 5.5–9.5 | Merged ([#619](https://github.com/NEETROF/cymbra/pull/619)), archived 2026-10-03 |
 | R2 | 5 | `generalise-lingua-analysis-by-language`: `Spanish` variant, dispatch, English arm moved verbatim, version per language, `Pack::studied()` | 6–10 | Done (proposal [#623](https://github.com/NEETROF/cymbra/pull/623)); English baseline unmoved, en-fr pack unchanged |
 | R2 | 6 | `generalise-lingua-wasm-engine`: a pack per language in one engine, the language on every call, sync records in their own language | 4–7 | Done (proposal [#625](https://github.com/NEETROF/cymbra/pull/625)); English baseline unmoved, extension source unchanged |
