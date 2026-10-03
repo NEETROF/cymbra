@@ -41,7 +41,7 @@ const settle = () => new Promise((r) => setTimeout(r, 0));
 
 describe("mountBookDisplay", () => {
   it("shows the stored size and page", async () => {
-    const v = await mount({ [READER_DISPLAY_KEY]: { textScale: 120, theme: "dark" } });
+    const v = await mount({ [READER_DISPLAY_KEY]: { textScale: 120, theme: "dark", turn: "instant" } });
     expect(v.size()).toBe("120 %");
     expect(v.page("Sombre").getAttribute("aria-pressed")).toBe("true");
     expect(v.page("Papier").getAttribute("aria-pressed")).toBe("false");
@@ -54,33 +54,43 @@ describe("mountBookDisplay", () => {
     v.larger.click();
     await settle();
     expect(v.size()).toBe("120 %");
-    expect(v.storage.store[READER_DISPLAY_KEY]).toEqual({ textScale: 120, theme: "paper" });
+    expect(v.storage.store[READER_DISPLAY_KEY]).toEqual({ textScale: 120, theme: "paper", turn: "instant" });
     v.smaller.click();
     await settle();
-    expect(v.storage.store[READER_DISPLAY_KEY]).toEqual({ textScale: 110, theme: "paper" });
+    expect(v.storage.store[READER_DISPLAY_KEY]).toEqual({ textScale: 110, theme: "paper", turn: "instant" });
   });
 
   it("stops at either end", async () => {
-    const small = await mount({ [READER_DISPLAY_KEY]: { textScale: 80, theme: "paper" } });
+    const small = await mount({ [READER_DISPLAY_KEY]: { textScale: 80, theme: "paper", turn: "instant" } });
     expect(small.smaller.disabled).toBe(true);
     expect(small.larger.disabled).toBe(false);
-    const large = await mount({ [READER_DISPLAY_KEY]: { textScale: 200, theme: "paper" } });
+    const large = await mount({ [READER_DISPLAY_KEY]: { textScale: 200, theme: "paper", turn: "instant" } });
     expect(large.larger.disabled).toBe(true);
   });
 
   it("switches the page, keeping the size", async () => {
-    const v = await mount({ [READER_DISPLAY_KEY]: { textScale: 140, theme: "paper" } });
+    const v = await mount({ [READER_DISPLAY_KEY]: { textScale: 140, theme: "paper", turn: "instant" } });
     v.page("Sombre").click();
     await settle();
-    expect(v.storage.store[READER_DISPLAY_KEY]).toEqual({ textScale: 140, theme: "dark" });
+    expect(v.storage.store[READER_DISPLAY_KEY]).toEqual({ textScale: 140, theme: "dark", turn: "instant" });
     expect(v.page("Sombre").getAttribute("aria-pressed")).toBe("true");
   });
 
   it("follows a change made in the other place once refreshed", async () => {
     const v = await mount();
-    v.storage.store[READER_DISPLAY_KEY] = { textScale: 90, theme: "dark" };
+    v.storage.store[READER_DISPLAY_KEY] = { textScale: 90, theme: "dark", turn: "instant" };
     await v.view.refresh();
     expect(v.size()).toBe("90 %");
     expect(v.page("Sombre").getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("turns pages instantly unless a slide is chosen, keeping the rest", async () => {
+    const v = await mount({ [READER_DISPLAY_KEY]: { textScale: 120, theme: "dark", turn: "instant" } });
+    expect(v.page("Directe").getAttribute("aria-pressed")).toBe("true");
+    v.page("Glissée").click();
+    await settle();
+    expect(v.storage.store[READER_DISPLAY_KEY]).toEqual({ textScale: 120, theme: "dark", turn: "slide" });
+    expect(v.page("Glissée").getAttribute("aria-pressed")).toBe("true");
+    expect(v.page("Directe").getAttribute("aria-pressed")).toBe("false");
   });
 });

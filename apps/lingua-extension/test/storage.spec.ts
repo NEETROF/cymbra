@@ -272,22 +272,35 @@ describe("the read-aloud voice preference", () => {
 // it knows — whatever the store holds.
 describe("the reader's display", () => {
   it("defaults to the book's own size on paper", async () => {
-    expect(await loadReaderDisplay(fakeArea())).toEqual({ textScale: 100, theme: "paper" });
+    expect(await loadReaderDisplay(fakeArea())).toEqual({ textScale: 100, theme: "paper", turn: "instant" });
   });
 
   it("keeps a size on the offered steps, within bounds, and a known page", () => {
-    expect(readerDisplayOf({ textScale: 134, theme: "dark" })).toEqual({ textScale: 130, theme: "dark" });
-    expect(readerDisplayOf({ textScale: 20, theme: "sepia" })).toEqual({ textScale: 80, theme: "paper" });
-    expect(readerDisplayOf({ textScale: 900 })).toEqual({ textScale: 200, theme: "paper" });
-    expect(readerDisplayOf({ textScale: Number.NaN })).toEqual({ textScale: 100, theme: "paper" });
-    expect(readerDisplayOf("garbage")).toEqual({ textScale: 100, theme: "paper" });
+    expect(readerDisplayOf({ textScale: 134, theme: "dark", turn: "instant" })).toEqual({
+      textScale: 130,
+      theme: "dark",
+      turn: "instant",
+    });
+    expect(readerDisplayOf({ textScale: 20, theme: "sepia" })).toEqual({
+      textScale: 80,
+      theme: "paper",
+      turn: "instant",
+    });
+    expect(readerDisplayOf({ textScale: 900 })).toEqual({ textScale: 200, theme: "paper", turn: "instant" });
+    expect(readerDisplayOf({ textScale: Number.NaN })).toEqual({ textScale: 100, theme: "paper", turn: "instant" });
+    expect(readerDisplayOf("garbage")).toEqual({ textScale: 100, theme: "paper", turn: "instant" });
+  });
+
+  it("keeps a sliding turn, and reads anything else as the instant one", () => {
+    expect(readerDisplayOf({ turn: "slide" }).turn).toBe("slide");
+    expect(readerDisplayOf({ turn: "curl" }).turn).toBe("instant");
   });
 
   it("stores what it is given, made safe", async () => {
     const area = fakeArea();
-    await saveReaderDisplay(area, { textScale: 215, theme: "dark" });
-    expect(area.store[READER_DISPLAY_KEY]).toEqual({ textScale: 200, theme: "dark" });
-    expect(await loadReaderDisplay(area)).toEqual({ textScale: 200, theme: "dark" });
+    await saveReaderDisplay(area, { textScale: 215, theme: "dark", turn: "instant" });
+    expect(area.store[READER_DISPLAY_KEY]).toEqual({ textScale: 200, theme: "dark", turn: "instant" });
+    expect(await loadReaderDisplay(area)).toEqual({ textScale: 200, theme: "dark", turn: "instant" });
   });
 });
 
