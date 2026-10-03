@@ -35,15 +35,19 @@ fn engine() -> LinguaEngine {
 /// A calibrated reader, as the extension sets one up by default.
 fn calibrated() -> LinguaEngine {
     let mut e = engine();
-    e.set_calibration(3_000);
+    e.set_calibration(3_000, None).unwrap();
     e
 }
 
 /// The highlight class the page would paint for `lemma` in a sentence that uses it.
 fn class_of(e: &LinguaEngine, lemma: &str) -> String {
-    let analysis: serde_json::Value = serde_json::from_str(&e.analyse(vec![
-        "The runner runs through many cities every morning before work.".to_owned(),
-    ]))
+    let analysis: serde_json::Value = serde_json::from_str(
+        &e.analyse(
+            vec!["The runner runs through many cities every morning before work.".to_owned()],
+            None,
+        )
+        .unwrap(),
+    )
     .expect("analysis json");
     analysis["tokens"]
         .as_array()
@@ -58,10 +62,10 @@ fn class_of(e: &LinguaEngine, lemma: &str) -> String {
 #[test]
 fn putting_back_a_known_word_the_calibration_presumes_resurfaces_it() {
     let mut e = calibrated();
-    e.set_status_at("city", "known", 10.0);
+    e.set_status_at("city", "known", 10.0, None).unwrap();
     assert_eq!(class_of(&e, "city"), "Known");
 
-    e.set_status_at("city", CLEAR, 20.0);
+    e.set_status_at("city", CLEAR, 20.0, None).unwrap();
     assert_eq!(
         class_of(&e, "city"),
         "Unknown",
@@ -72,8 +76,8 @@ fn putting_back_a_known_word_the_calibration_presumes_resurfaces_it() {
 #[test]
 fn putting_a_word_back_syncs_to_other_devices() {
     let mut phone = calibrated();
-    phone.set_status_at("city", "known", 10.0);
-    phone.set_status_at("city", CLEAR, 20.0);
+    phone.set_status_at("city", "known", 10.0, None).unwrap();
+    phone.set_status_at("city", CLEAR, 20.0, None).unwrap();
 
     // The undo is pushed, stamped with the time it was made.
     let ops: serde_json::Value =
@@ -89,7 +93,7 @@ fn putting_a_word_back_syncs_to_other_devices() {
 
     // A laptop that only saw the earlier "known" converges on the undo.
     let mut laptop = calibrated();
-    laptop.set_status_at("city", "known", 10.0);
+    laptop.set_status_at("city", "known", 10.0, None).unwrap();
     let pulled = r#"[{"language":"en","lemma":"city","status":"cleared","provenance":"manual","updated_at":20}]"#;
     assert!(matches!(laptop.apply_status_changes(pulled), Ok(1)));
     assert_eq!(class_of(&laptop, "city"), "Unknown");

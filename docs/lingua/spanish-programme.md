@@ -8,7 +8,7 @@ instead of re-arguing a decision.
 - Study: 2026-09-29/30, read-only, figures checked online (data, licences, translation models).
   Coverage figures come from throwaway prototypes: they are orders of magnitude, not targets.
 - Decisions: Guillaume Fortin (product owner), 2026-09-30.
-- Status: as of 2026-10-03 (change 5). Update the programme table in the pull request that moves a line.
+- Status: as of 2026-10-03 (change 6). Update the programme table in the pull request that moves a line.
 
 ## Scope
 
@@ -117,8 +117,8 @@ min–max.
 | R1 | 3 | `add-admin-lingua-language-labels` | 1.5–2.5 | Not started |
 | R2 silent English release A (shipped list `[en]`, asserted by `check_variants`) | 4 | `generalise-lingua-pack-reducer` | 5.5–9.5 | Merged ([#619](https://github.com/NEETROF/cymbra/pull/619)), archived 2026-10-03 |
 | R2 | 5 | `generalise-lingua-analysis-by-language`: `Spanish` variant, dispatch, English arm moved verbatim, version per language, `Pack::studied()` | 6–10 | Done (proposal [#623](https://github.com/NEETROF/cymbra/pull/623)); English baseline unmoved, en-fr pack unchanged |
-| R2 | 6 | `generalise-lingua-wasm-engine` | 4–7 | Next |
-| R2 | 7 | `generalise-lingua-extension-port` (first dogfood build) | 4–7 | Not started |
+| R2 | 6 | `generalise-lingua-wasm-engine`: a pack per language in one engine, the language on every call, sync records in their own language | 4–7 | Done (proposal [#625](https://github.com/NEETROF/cymbra/pull/625)); English baseline unmoved, extension source unchanged |
+| R2 | 7 | `generalise-lingua-extension-port` (first dogfood build) | 4–7 | Next |
 | R2 | 8 | `generalise-lingua-pack-build` | 4–7 | Not started |
 | R2 | 9 | `package-lingua-packs-per-pair` | 2.5–4.5 | Not started |
 | R2 | 10 | `add-lingua-studied-language-profile` | 3.5–6.5 | Not started |

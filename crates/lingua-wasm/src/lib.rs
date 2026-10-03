@@ -16,10 +16,15 @@
 //! plus the deck/review/backup surface the browser extension drives).
 //!
 //! A thin wasm-bindgen surface over `lingua-core`. The engine holds the whole
-//! product [`LinguaState`] (knowledge + exposure + deck + FSRS) plus the loaded
-//! pack and an optional in-flight review session — so a surface (the extension,
+//! product [`LinguaState`] (knowledge + exposure + deck + FSRS), one pack per
+//! studied language, and an optional in-flight review session — so a surface (the extension,
 //! later the Apple app) can read, build a deck, run an FSRS review and take a
-//! lossless backup without reaching into the core directly. No logic lives here:
+//! lossless backup without reaching into the core directly. A binding whose answer
+//! depends on the studied language takes it as its last, optional parameter (ISO
+//! 639-1); without one it answers in the language of the first pack loaded, and a
+//! language the engine holds no pack for is refused (generalise-lingua-wasm-engine).
+//! The bindings about the whole reader — backup, restore, resets, counts, the review
+//! session, sync exports and applies — cover every language. No logic lives here:
 //! the analysis output stays byte-for-byte identical to the native build at an
 //! equal `analyzer_version` and pack (the parity contract). Build with
 //! `wasm-pack build --target web`.
@@ -34,12 +39,8 @@ use lingua_core::knowledge::level::CefrLevel;
 use lingua_core::knowledge::state::{FrequencyRanks, KnowledgeState};
 use lingua_core::knowledge::status::{KnownSource, Status};
 use lingua_core::knowledge::vocabulary::level_vocabulary;
-use lingua_core::packs::Pack;
+use lingua_core::packs::{Pack, PackSet};
 use wasm_bindgen::prelude::*;
-
-/// The MVP studies English only; every method hard-codes it (the pair-keyed
-/// multi-language model arrives with a later change).
-const EN: StudiedLanguage = StudiedLanguage::English;
 
 /// How long a lemma's exposure counter survives without being read again. Promotion wants
 /// reading spread over days; a word not met for a season is not on its way there.
@@ -48,63 +49,131 @@ const EXPOSURE_KEEP_DAYS: i64 = 90;
 /// which every surface loads and the browser caps — far above a reader's working vocabulary.
 const EXPOSURE_MAX_LEMMAS: usize = 5_000;
 
-/// A loaded analysis + review engine: one pack, the whole local state, and an
-/// optional in-flight review session.
+/// A loaded analysis + review engine: a pack per studied language, the whole local
+/// state, and an optional in-flight review session.
 #[wasm_bindgen]
 pub struct LinguaEngine {
-    pack: Pack,
+    packs: PackSet,
     state: LinguaState,
     session: Option<ReviewSession>,
-    /// Per level A1..C2, the vocabulary typical of a reader at it — a property of the
-    /// pack alone, so computed once, on the first ladder.
-    level_vocabularies: std::cell::OnceCell<[usize; 6]>,
+    /// Per language, and per level A1..C2, the vocabulary typical of a reader at it — a
+    /// property of the pack alone, so computed once, on that language's first ladder.
+    level_vocabularies:
+        std::collections::BTreeMap<StudiedLanguage, std::cell::OnceCell<[usize; 6]>>,
+}
+
+/// The language a call names (`None`: the default, the first pack loaded) and its
+/// pack, or the error that refuses the call before any state is touched.
+fn resolve<'a>(
+    packs: &'a PackSet,
+    language: Option<&str>,
+) -> Result<(StudiedLanguage, &'a Pack), JsError> {
+    packs
+        .resolve(language)
+        .map_err(|e| JsError::new(&e.to_string()))
+}
+
+/// Drop the counters that can no longer confirm anything in `language`, then bound what
+/// is left. Runs on every recording and on restore, so a store saturated by an older
+/// build heals.
+fn prune_exposures(state: &mut LinguaState, language: StudiedLanguage, pack: &Pack, now_secs: i64) {
+    let cutoff_day = now_secs.div_euclid(86_400) - EXPOSURE_KEEP_DAYS;
+    let knowledge = &state.knowledge;
+    state.exposure.retain(language, |lemma, exposure| {
+        exposure.last_day >= cutoff_day && knowledge.promotable_by_exposure(language, lemma, pack)
+    });
+    state.exposure.cap_by_recency(language, EXPOSURE_MAX_LEMMAS);
 }
 
 #[wasm_bindgen]
 impl LinguaEngine {
-    /// Loads the engine from pack bytes (the embedded `pack.lingua`). Errors if
-    /// the pack is malformed or built for an incompatible analyser.
+    /// Loads the engine from pack bytes (the embedded `pack.lingua`); that pack's
+    /// language becomes the default. Errors if the pack is malformed or built for an
+    /// incompatible analyser.
     #[wasm_bindgen(constructor)]
     pub fn new(pack_bytes: &[u8]) -> Result<LinguaEngine, JsError> {
         let pack = Pack::load(pack_bytes).map_err(|e| JsError::new(&e.to_string()))?;
+        let default = pack.studied();
         Ok(LinguaEngine {
-            pack,
+            packs: PackSet::new(pack),
             state: LinguaState::default(),
             session: None,
-            level_vocabularies: std::cell::OnceCell::new(),
+            level_vocabularies: std::iter::once((default, std::cell::OnceCell::new())).collect(),
         })
+    }
+
+    /// Loads another studied language's pack, returning its ISO 639-1 tag. Errors if
+    /// the pack is malformed, built for an incompatible analyser, or for a language the
+    /// engine already holds a pack for.
+    #[wasm_bindgen(js_name = addPack)]
+    pub fn add_pack(&mut self, pack_bytes: &[u8]) -> Result<String, JsError> {
+        let pack = Pack::load(pack_bytes).map_err(|e| JsError::new(&e.to_string()))?;
+        let language = self
+            .packs
+            .add(pack)
+            .map_err(|e| JsError::new(&e.to_string()))?;
+        self.level_vocabularies
+            .insert(language, std::cell::OnceCell::new());
+        Ok(language.tag().to_owned())
+    }
+
+    /// The languages the engine holds a pack for, as a JSON array of ISO 639-1 tags,
+    /// the default first.
+    pub fn languages(&self) -> String {
+        let tags: Vec<&str> = self
+            .packs
+            .languages()
+            .into_iter()
+            .map(StudiedLanguage::tag)
+            .collect();
+        serde_json::to_string(&tags).unwrap_or_else(|_| "[]".to_owned())
     }
 
     // --- Knowledge + analysis (the reading surface; signatures unchanged) ---
 
-    /// Sets the English calibration threshold ("I know the N most common words").
+    /// Sets the calibration threshold ("I know the N most common words").
     #[wasm_bindgen(js_name = setCalibration)]
-    pub fn set_calibration(&mut self, threshold: u32) {
-        self.state.knowledge.set_calibration(EN, threshold);
+    pub fn set_calibration(
+        &mut self,
+        threshold: u32,
+        language: Option<String>,
+    ) -> Result<(), JsError> {
+        let (language, _) = resolve(&self.packs, language.as_deref())?;
+        self.state.knowledge.set_calibration(language, threshold);
+        Ok(())
     }
 
     /// The current calibration threshold.
-    pub fn calibration(&self) -> u32 {
-        self.state.knowledge.calibration(EN)
+    pub fn calibration(&self, language: Option<String>) -> Result<u32, JsError> {
+        let (language, _) = resolve(&self.packs, language.as_deref())?;
+        Ok(self.state.knowledge.calibration(language))
     }
 
     /// Declares the reader's CEFR level (`"A1"`..`"C2"`); any other value —
     /// including `""` — clears it, returning to frequency calibration.
     #[wasm_bindgen(js_name = setDeclaredLevel)]
-    pub fn set_declared_level(&mut self, level: &str) {
+    pub fn set_declared_level(
+        &mut self,
+        level: &str,
+        language: Option<String>,
+    ) -> Result<(), JsError> {
+        let (language, _) = resolve(&self.packs, language.as_deref())?;
         match CefrLevel::from_label(level) {
-            Some(l) => self.state.knowledge.set_declared_level(EN, l),
-            None => self.state.knowledge.clear_declared_level(EN),
+            Some(l) => self.state.knowledge.set_declared_level(language, l),
+            None => self.state.knowledge.clear_declared_level(language),
         }
+        Ok(())
     }
 
     /// The declared CEFR level label (`"A1"`..`"C2"`), or `None` if none is set.
     #[wasm_bindgen(js_name = declaredLevel)]
-    pub fn declared_level(&self) -> Option<String> {
-        self.state
+    pub fn declared_level(&self, language: Option<String>) -> Result<Option<String>, JsError> {
+        let (language, _) = resolve(&self.packs, language.as_deref())?;
+        Ok(self
+            .state
             .knowledge
-            .declared_level(EN)
-            .map(|l| l.label().to_owned())
+            .declared_level(language)
+            .map(|l| l.label().to_owned()))
     }
 
     /// Like `setDeclaredLevel`, but stamps the decision with a sync timestamp
@@ -112,10 +181,19 @@ impl LinguaEngine {
     /// order it. A `""` / invalid label is the explicit "débutant" decision (no
     /// level), which syncs just like a level.
     #[wasm_bindgen(js_name = setDeclaredLevelAt)]
-    pub fn set_declared_level_at(&mut self, level: &str, at_ms: f64) {
-        self.state
-            .knowledge
-            .set_declared_level_at(EN, CefrLevel::from_label(level), at_ms as i64);
+    pub fn set_declared_level_at(
+        &mut self,
+        level: &str,
+        at_ms: f64,
+        language: Option<String>,
+    ) -> Result<(), JsError> {
+        let (language, _) = resolve(&self.packs, language.as_deref())?;
+        self.state.knowledge.set_declared_level_at(
+            language,
+            CefrLevel::from_label(level),
+            at_ms as i64,
+        );
+        Ok(())
     }
 
     /// The declared-level decisions as sync JSON (array of
@@ -130,7 +208,7 @@ impl LinguaEngine {
             .into_iter()
             .map(|r| {
                 serde_json::json!({
-                    "language": "en",
+                    "language": r.language.tag(),
                     "level": r.level.map(|l| l.label()).unwrap_or(""),
                     "updated_at": r.updated_at,
                 })
@@ -149,9 +227,10 @@ impl LinguaEngine {
             serde_json::from_str(json).map_err(|e| JsError::new(&e.to_string()))?;
         let mut changed = 0usize;
         for c in &changes {
-            if c.get("language").and_then(|v| v.as_str()).unwrap_or("en") != "en" {
-                continue; // the MVP studies English only
-            }
+            let tag = c.get("language").and_then(|v| v.as_str()).unwrap_or("en");
+            let Ok(language) = self.packs.resolve(Some(tag)).map(|(l, _)| l) else {
+                continue; // a language this engine holds no pack for
+            };
             let level =
                 CefrLevel::from_label(c.get("level").and_then(|v| v.as_str()).unwrap_or(""));
             let updated_at = c
@@ -161,7 +240,7 @@ impl LinguaEngine {
             if self
                 .state
                 .knowledge
-                .apply_declared_level_lww(EN, level, updated_at)
+                .apply_declared_level_lww(language, level, updated_at)
             {
                 changed += 1;
             }
@@ -172,8 +251,9 @@ impl LinguaEngine {
     /// Whether the loaded pack carries a CEFR level table (else the ladder and
     /// level-targeted feeding fall back to frequency bands).
     #[wasm_bindgen(js_name = hasLevels)]
-    pub fn has_levels(&self) -> bool {
-        self.pack.has_levels()
+    pub fn has_levels(&self, language: Option<String>) -> Result<bool, JsError> {
+        let (_, pack) = resolve(&self.packs, language.as_deref())?;
+        Ok(pack.has_levels())
     }
 
     /// The CEFR progression ladder as JSON — an array of
@@ -182,23 +262,28 @@ impl LinguaEngine {
     /// the vocabulary size of a reader at the level (see `level_vocabulary`;
     /// 0 at A1, which presumes nothing). `[]` when the pack carries no CEFR data.
     #[wasm_bindgen(js_name = levelLadder)]
-    pub fn level_ladder(&self) -> String {
-        if !self.pack.has_levels() {
-            return "[]".to_owned();
+    pub fn level_ladder(&self, language: Option<String>) -> Result<String, JsError> {
+        let (language, pack) = resolve(&self.packs, language.as_deref())?;
+        if !pack.has_levels() {
+            return Ok("[]".to_owned());
         }
-        let typical = self.level_vocabularies.get_or_init(|| {
-            let words = self.pack.dictionary_words();
-            CefrLevel::ALL.map(|level| level_vocabulary(level, words.iter().copied(), &self.pack))
-        });
+        let compute = || {
+            let words = pack.dictionary_words();
+            CefrLevel::ALL.map(|level| level_vocabulary(level, words.iter().copied(), pack))
+        };
+        let typical: [usize; 6] = match self.level_vocabularies.get(&language) {
+            Some(cell) => *cell.get_or_init(compute),
+            None => compute(),
+        };
         let rows: Vec<serde_json::Value> = CefrLevel::ALL
             .iter()
-            .zip(typical)
+            .zip(typical.iter())
             .map(|(&level, &typical)| {
-                let lemmas = self.pack.lemmas_at_level(level);
+                let lemmas = pack.lemmas_at_level(level);
                 let stats =
                     self.state
                         .knowledge
-                        .band_stats(EN, lemmas.iter().map(|(l, _)| *l), &self.pack);
+                        .band_stats(language, lemmas.iter().map(|(l, _)| *l), pack);
                 serde_json::json!({
                     "level": level.label(),
                     "confirmed": stats.confirmed,
@@ -209,19 +294,20 @@ impl LinguaEngine {
                 })
             })
             .collect();
-        serde_json::to_string(&rows).unwrap_or_else(|_| "[]".to_owned())
+        Ok(serde_json::to_string(&rows).unwrap_or_else(|_| "[]".to_owned()))
     }
 
     /// The reader's estimated vocabulary size as JSON `{estimated, confirmed, universe}`:
     /// each frequency band's known share, extrapolated over the pack's dictionary words
     /// (see `KnowledgeState::vocabulary_estimate`). Works with or without CEFR data.
     #[wasm_bindgen(js_name = vocabularyEstimate)]
-    pub fn vocabulary_estimate(&self) -> String {
+    pub fn vocabulary_estimate(&self, language: Option<String>) -> Result<String, JsError> {
+        let (language, pack) = resolve(&self.packs, language.as_deref())?;
         let estimate =
             self.state
                 .knowledge
-                .vocabulary_estimate(EN, self.pack.dictionary_words(), &self.pack);
-        serde_json::to_string(&estimate).unwrap_or_else(|_| "{}".to_owned())
+                .vocabulary_estimate(language, pack.dictionary_words(), pack);
+        Ok(serde_json::to_string(&estimate).unwrap_or_else(|_| "{}".to_owned()))
     }
 
     /// Records one reading exposure per lemma (`source` tag, `at_ms` in millis),
@@ -229,7 +315,14 @@ impl LinguaEngine {
     /// Recording never changes a status (design D5) — promotion is the separate,
     /// explicit `promoteByExposure`.
     #[wasm_bindgen(js_name = recordExposures)]
-    pub fn record_exposures(&mut self, lemmas: Vec<String>, source: &str, at_ms: f64) {
+    pub fn record_exposures(
+        &mut self,
+        lemmas: Vec<String>,
+        source: &str,
+        at_ms: f64,
+        language: Option<String>,
+    ) -> Result<(), JsError> {
+        let (language, pack) = resolve(&self.packs, language.as_deref())?;
         let secs = (at_ms as i64).div_euclid(1000); // exposure timestamps are epoch seconds
         for lemma in &lemmas {
             // Only a lemma reading could still confirm is worth a counter. Counting every
@@ -238,25 +331,14 @@ impl LinguaEngine {
             if !self
                 .state
                 .knowledge
-                .promotable_by_exposure(EN, lemma, &self.pack)
+                .promotable_by_exposure(language, lemma, pack)
             {
                 continue;
             }
-            self.state.exposure.record(EN, lemma, 1, source, secs);
+            self.state.exposure.record(language, lemma, 1, source, secs);
         }
-        self.prune_exposures(secs);
-    }
-
-    /// Drop the counters that can no longer confirm anything, then bound what is left. Runs
-    /// on every recording and on restore, so a store saturated by an older build heals.
-    fn prune_exposures(&mut self, now_secs: i64) {
-        let cutoff_day = now_secs.div_euclid(86_400) - EXPOSURE_KEEP_DAYS;
-        let knowledge = &self.state.knowledge;
-        let pack = &self.pack;
-        self.state.exposure.retain(EN, |lemma, exposure| {
-            exposure.last_day >= cutoff_day && knowledge.promotable_by_exposure(EN, lemma, pack)
-        });
-        self.state.exposure.cap_by_recency(EN, EXPOSURE_MAX_LEMMAS);
+        prune_exposures(&mut self.state, language, pack, secs);
+        Ok(())
     }
 
     /// Confirms presumed-known lemmas that reading has vouched for: below the
@@ -264,37 +346,58 @@ impl LinguaEngine {
     /// distinct days. Returns the number promoted to `Known(Exposure)`; a no-op
     /// (0) without a declared level. `at_ms` (millis) stamps the sync timestamp.
     #[wasm_bindgen(js_name = promoteByExposure)]
-    pub fn promote_by_exposure(&mut self, threshold_days: u32, at_ms: f64) -> usize {
-        self.state
+    pub fn promote_by_exposure(
+        &mut self,
+        threshold_days: u32,
+        at_ms: f64,
+        language: Option<String>,
+    ) -> Result<usize, JsError> {
+        let (language, pack) = resolve(&self.packs, language.as_deref())?;
+        Ok(self
+            .state
             .knowledge
             .promote_by_exposure(
-                EN,
+                language,
                 &self.state.exposure,
-                &self.pack,
+                pack,
                 threshold_days,
                 at_ms as i64,
             )
-            .len()
+            .len())
     }
 
     /// Sets an explicit status for a form. `status` is one of `learning`,
     /// `known`, `ignored`; anything else clears it.
     #[wasm_bindgen(js_name = setStatus)]
-    pub fn set_status(&mut self, lemma: &str, status: &str) {
+    pub fn set_status(
+        &mut self,
+        lemma: &str,
+        status: &str,
+        language: Option<String>,
+    ) -> Result<(), JsError> {
+        let (language, _) = resolve(&self.packs, language.as_deref())?;
         match status {
-            "learning" => self.state.knowledge.set_status(EN, lemma, Status::Learning),
+            "learning" => self
+                .state
+                .knowledge
+                .set_status(language, lemma, Status::Learning),
             "known" => {
                 self.state
                     .knowledge
-                    .set_status(EN, lemma, Status::Known(KnownSource::Manual))
+                    .set_status(language, lemma, Status::Known(KnownSource::Manual))
             }
-            "ignored" => self.state.knowledge.set_status(EN, lemma, Status::Ignored),
-            _ => self.state.knowledge.clear_status(EN, lemma),
+            "ignored" => self
+                .state
+                .knowledge
+                .set_status(language, lemma, Status::Ignored),
+            _ => self.state.knowledge.clear_status(language, lemma),
         }
+        Ok(())
     }
 
     // --- Status sync (add-lingua-connected-clients §2): the extension's outbox
-    // and cursor-pull talk to KnownWordsService in these shapes. English only. ---
+    // and cursor-pull talk to KnownWordsService in these shapes. Each record names
+    // its own language. ---
 
     /// Like `setStatus`, but stamps the change with a sync timestamp (epoch
     /// millis, the caller's clock) so the outbox and cross-device LWW can order
@@ -303,17 +406,25 @@ impl LinguaEngine {
     /// even where calibration or the declared level would presume it known,
     /// exposure no longer re-confirms it, and the undo syncs as `cleared`.
     #[wasm_bindgen(js_name = setStatusAt)]
-    pub fn set_status_at(&mut self, lemma: &str, status: &str, at_ms: f64) {
+    pub fn set_status_at(
+        &mut self,
+        lemma: &str,
+        status: &str,
+        at_ms: f64,
+        language: Option<String>,
+    ) -> Result<(), JsError> {
+        let (language, _) = resolve(&self.packs, language.as_deref())?;
         match Status::from_wire(status, "manual") {
             Some(s) => self
                 .state
                 .knowledge
-                .set_status_at(EN, lemma, s, at_ms as i64),
+                .set_status_at(language, lemma, s, at_ms as i64),
             None => self
                 .state
                 .knowledge
-                .clear_status_at(EN, lemma, at_ms as i64),
+                .clear_status_at(language, lemma, at_ms as i64),
         }
+        Ok(())
     }
 
     /// The full set of explicit statuses as `StatusOp`-shaped JSON
@@ -329,7 +440,7 @@ impl LinguaEngine {
             .into_iter()
             .map(|r| {
                 serde_json::json!({
-                    "language": "en",
+                    "language": r.language.tag(),
                     "lemma": r.lemma,
                     "status": r.status.map_or("cleared", Status::wire_kind),
                     "provenance": r.status.map_or("manual", Status::wire_provenance),
@@ -351,9 +462,10 @@ impl LinguaEngine {
             serde_json::from_str(json).map_err(|e| JsError::new(&e.to_string()))?;
         let mut changed = 0usize;
         for c in &changes {
-            if c.get("language").and_then(|v| v.as_str()).unwrap_or("en") != "en" {
-                continue; // the MVP studies English only
-            }
+            let tag = c.get("language").and_then(|v| v.as_str()).unwrap_or("en");
+            let Ok(language) = self.packs.resolve(Some(tag)).map(|(l, _)| l) else {
+                continue; // a language this engine holds no pack for
+            };
             let Some(lemma) = c.get("lemma").and_then(|v| v.as_str()) else {
                 continue;
             };
@@ -371,14 +483,14 @@ impl LinguaEngine {
             if self
                 .state
                 .knowledge
-                .apply_status_lww(EN, lemma, incoming, updated_at)
+                .apply_status_lww(language, lemma, incoming, updated_at)
             {
                 changed += 1;
                 // A word reclassified known/ignored elsewhere stops coming due here too —
                 // the same retirement the gesture performs on the device that made it,
                 // which that device could not do for a card it did not have yet.
                 if matches!(incoming, Some(Status::Known(_)) | Some(Status::Ignored)) {
-                    self.state.deck.retire(EN, lemma, updated_at / 1000);
+                    self.state.deck.retire(language, lemma, updated_at / 1000);
                 }
             }
         }
@@ -398,10 +510,10 @@ impl LinguaEngine {
             .deck
             .export_cards()
             .into_iter()
-            .map(|(_lang, card)| {
+            .map(|(language, card)| {
                 serde_json::json!({
                     "client_id": card.lemma,
-                    "language": "en",
+                    "language": language.tag(),
                     "lemma": card.lemma,
                     "surface_form": card.encountered_form,
                     "source_sentence": card.provenance.sentence,
@@ -430,9 +542,10 @@ impl LinguaEngine {
             serde_json::from_str(json).map_err(|e| JsError::new(&e.to_string()))?;
         let mut changed = 0usize;
         for op in &ops {
-            if op.get("language").and_then(|v| v.as_str()).unwrap_or("en") != "en" {
-                continue;
-            }
+            let tag = op.get("language").and_then(|v| v.as_str()).unwrap_or("en");
+            let Ok(language) = self.packs.resolve(Some(tag)).map(|(l, _)| l) else {
+                continue; // a language this engine holds no pack for
+            };
             if op
                 .get("deleted")
                 .and_then(serde_json::Value::as_bool)
@@ -475,7 +588,7 @@ impl LinguaEngine {
             );
             card.review = review;
             card.updated_at = updated_at;
-            if self.state.deck.apply_card_lww(EN, card) {
+            if self.state.deck.apply_card_lww(language, card) {
                 changed += 1;
             }
         }
@@ -484,14 +597,25 @@ impl LinguaEngine {
 
     /// Analyses a batch of blocks, returning the canonical JSON of the page
     /// analysis (classified tokens, statuses, percentage, glosses).
-    pub fn analyse(&self, blocks: Vec<String>) -> String {
+    pub fn analyse(
+        &self,
+        blocks: Vec<String>,
+        language: Option<String>,
+    ) -> Result<String, JsError> {
+        let (language, pack) = resolve(&self.packs, language.as_deref())?;
         let refs: Vec<&str> = blocks.iter().map(String::as_str).collect();
-        analyse_page_json(&refs, EN, &self.pack, &self.state.knowledge)
+        Ok(analyse_page_json(
+            &refs,
+            language,
+            pack,
+            &self.state.knowledge,
+        ))
     }
 
     /// The native-language gloss for a form, if the pack carries one.
-    pub fn gloss(&self, lemma: &str) -> Option<String> {
-        self.pack.gloss(lemma).map(str::to_owned)
+    pub fn gloss(&self, lemma: &str, language: Option<String>) -> Result<Option<String>, JsError> {
+        let (_, pack) = resolve(&self.packs, language.as_deref())?;
+        Ok(pack.gloss(lemma).map(str::to_owned))
     }
 
     /// Glosses a reader's selection, returning the canonical JSON of the phrase
@@ -502,8 +626,14 @@ impl LinguaEngine {
     /// on a pack carrying no expression table).
     /// No page gate applies — a selection is read as one block.
     #[wasm_bindgen(js_name = phraseGloss)]
-    pub fn phrase_gloss(&self, text: &str) -> String {
-        gloss_phrase_json(text, EN, &self.pack, &self.state.knowledge)
+    pub fn phrase_gloss(&self, text: &str, language: Option<String>) -> Result<String, JsError> {
+        let (language, pack) = resolve(&self.packs, language.as_deref())?;
+        Ok(gloss_phrase_json(
+            text,
+            language,
+            pack,
+            &self.state.knowledge,
+        ))
     }
 
     /// A word card's grammar, as canonical JSON: the dictionary form's gloss,
@@ -515,8 +645,14 @@ impl LinguaEngine {
     /// form the card is keyed by. Pure pack data: the reader's state plays no
     /// part.
     #[wasm_bindgen(js_name = wordGrammar)]
-    pub fn word_grammar(&self, written: &str, lemma: &str) -> String {
-        word_grammar_json(written, lemma, EN, &self.pack)
+    pub fn word_grammar(
+        &self,
+        written: &str,
+        lemma: &str,
+        language: Option<String>,
+    ) -> Result<String, JsError> {
+        let (language, pack) = resolve(&self.packs, language.as_deref())?;
+        Ok(word_grammar_json(written, lemma, language, pack))
     }
 
     /// Number of forms the reader has explicitly marked (any status).
@@ -530,6 +666,9 @@ impl LinguaEngine {
     /// Adds (or replaces) a deck card and marks its form `learning`. `gloss` and
     /// `url` may be empty; `captured_at` is Unix-epoch seconds (caller's clock).
     #[wasm_bindgen(js_name = addCard)]
+    // The JS binding's own parameters, plus the language every language-bound binding
+    // takes last: grouping them would change the extension's call.
+    #[allow(clippy::too_many_arguments)]
     pub fn add_card(
         &mut self,
         lemma: &str,
@@ -538,12 +677,14 @@ impl LinguaEngine {
         url: &str,
         gloss: Option<String>,
         captured_at: f64,
-    ) {
+        language: Option<String>,
+    ) -> Result<(), JsError> {
+        let (language, _) = resolve(&self.packs, language.as_deref())?;
         // Stamped, like every other decision: adding a word to the deck is one, and an
         // unstamped "learning" would lose last-write-wins to any dated decision made on
         // another device — even an older one (add-lingua-connected-clients §2).
         self.state.knowledge.set_status_at(
-            EN,
+            language,
             lemma,
             Status::Learning,
             (captured_at as i64) * 1000,
@@ -560,7 +701,8 @@ impl LinguaEngine {
             },
             gloss,
         );
-        self.state.deck.upsert(EN, card);
+        self.state.deck.upsert(language, card);
+        Ok(())
     }
 
     /// Retire the deck card for `lemma` if present (keep it, stop it coming due) — used
@@ -568,8 +710,15 @@ impl LinguaEngine {
     /// surfacing. `now` is Unix-epoch seconds (the card's time unit). No-op when there is
     /// no card for the lemma.
     #[wasm_bindgen(js_name = retireCard)]
-    pub fn retire_card(&mut self, lemma: &str, now: f64) {
-        self.state.deck.retire(EN, lemma, now as i64);
+    pub fn retire_card(
+        &mut self,
+        lemma: &str,
+        now: f64,
+        language: Option<String>,
+    ) -> Result<(), JsError> {
+        let (language, _) = resolve(&self.packs, language.as_deref())?;
+        self.state.deck.retire(language, lemma, now as i64);
+        Ok(())
     }
 
     /// Seeds up to `count` deck cards from a CEFR level's lemmas. `order` is
@@ -578,30 +727,36 @@ impl LinguaEngine {
     /// `at` is Unix-epoch seconds. Returns the number actually added; a no-op (0)
     /// for an unknown level or a pack with no CEFR data.
     #[wasm_bindgen(js_name = seedLevel)]
-    pub fn seed_level(&mut self, level: &str, count: usize, order: &str, at: f64) -> usize {
+    pub fn seed_level(
+        &mut self,
+        level: &str,
+        count: usize,
+        order: &str,
+        at: f64,
+        language: Option<String>,
+    ) -> Result<usize, JsError> {
+        let (language, pack) = resolve(&self.packs, language.as_deref())?;
         let Some(lvl) = CefrLevel::from_label(level) else {
-            return 0;
+            return Ok(0);
         };
-        let mut items = self.pack.lemmas_at_level(lvl);
+        let mut items = pack.lemmas_at_level(lvl);
         if order == "rare" {
             items.sort_by_key(|(l, _)| {
                 (
-                    self.pack.rank(l).is_none(),
-                    std::cmp::Reverse(self.pack.rank(l).unwrap_or(0)),
+                    pack.rank(l).is_none(),
+                    std::cmp::Reverse(pack.rank(l).unwrap_or(0)),
                 )
             });
         } else {
-            items.sort_by_key(|(l, _)| {
-                (self.pack.rank(l).is_none(), self.pack.rank(l).unwrap_or(0))
-            });
+            items.sort_by_key(|(l, _)| (pack.rank(l).is_none(), pack.rank(l).unwrap_or(0)));
         }
-        self.state.deck.seed_lemmas(
-            EN,
+        Ok(self.state.deck.seed_lemmas(
+            language,
             items.iter().map(|(l, g)| (*l, *g)),
             &self.state.knowledge,
             count,
             at as i64,
-        )
+        ))
     }
 
     /// Total number of cards in the deck.
@@ -704,15 +859,19 @@ impl LinguaEngine {
         // A backup written by a build that counted every word can be megabytes: bound it
         // here, so the first load after an update shrinks the store instead of failing to
         // write it.
-        // No clock here: the store's own latest observation dates the window.
-        let latest = self
-            .state
-            .exposure
-            .lemmas(EN)
-            .map(|(_, e)| e.last_seen)
-            .max()
-            .unwrap_or(0);
-        self.prune_exposures(latest);
+        // No clock here: each language's own latest observation dates its window. A
+        // language the engine holds no pack for keeps its counters: they cannot be
+        // judged, and the backup is lossless.
+        for (language, pack) in self.packs.iter() {
+            let latest = self
+                .state
+                .exposure
+                .lemmas(language)
+                .map(|(_, e)| e.last_seen)
+                .max()
+                .unwrap_or(0);
+            prune_exposures(&mut self.state, language, pack, latest);
+        }
         Ok(())
     }
 
@@ -736,12 +895,14 @@ impl LinguaEngine {
     // --- Attributions ---
 
     /// The pack's bundled attribution NOTICE.
-    pub fn notice(&self) -> String {
-        self.pack.notice().to_owned()
+    pub fn notice(&self, language: Option<String>) -> Result<String, JsError> {
+        let (_, pack) = resolve(&self.packs, language.as_deref())?;
+        Ok(pack.notice().to_owned())
     }
 
     /// The pack's source licences, as a JSON array of strings.
-    pub fn licences(&self) -> String {
-        serde_json::to_string(&self.pack.meta().licences).unwrap_or_else(|_| "[]".to_owned())
+    pub fn licences(&self, language: Option<String>) -> Result<String, JsError> {
+        let (_, pack) = resolve(&self.packs, language.as_deref())?;
+        Ok(serde_json::to_string(&pack.meta().licences).unwrap_or_else(|_| "[]".to_owned()))
     }
 }
