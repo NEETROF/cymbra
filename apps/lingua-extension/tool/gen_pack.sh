@@ -1,27 +1,44 @@
 #!/usr/bin/env bash
-# Build an EN→FR data pack for the extension at the given output path.
+# Build the data pack of every pair the extension ships (packs.json, generalise-lingua-pack-build)
+# into <dir>/<pair>.lingua:
+#   yarn gen:pack       → assets/packs/  from the tiny committed testdata
+#                                          (scripts/lingua-data/testdata/<pair>; dogfooding, CI)
+#   yarn gen:pack:real  → assets/packs/  from the committed tables, offline, each checked against
+#                                          its own scripts/lingua-data/tables/<pair>/pin.json
+# Both outputs are gitignored. `yarn gen:fixtures` writes the committed vitest fixture
+# (test/fixtures/en-fr.testdata.lingua) with build.sh directly.
 #
-#   yarn gen:pack       → assets/pack.lingua        (shipped/dogfooding pack, gitignored)
-#   yarn gen:fixtures   → test/fixtures/en-fr.testdata.lingua  (committed vitest fixture)
-#
-# Both use the tiny committed testdata sources (scripts/lingua-data/testdata/en-fr), so
-# CI and vitest stay hermetic and small. The FULL EN->FR lexicon is built by
-# `yarn gen:pack:real` (→ scripts/lingua-data/build.sh en-fr), which downloads the real
-# sources into work/ (git-ignored) — use it for dogfooding / release, not in CI.
+# Usage: tool/gen_pack.sh [--real] <dir>
 set -euo pipefail
-
-OUT="${1:?usage: gen_pack.sh <output-path>}"
-
+MODE=testdata
+if [[ "${1:-}" == "--real" ]]; then
+  MODE=real
+  shift
+fi
+OUT="${1:?usage: gen_pack.sh [--real] <dir>}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 REPO_ROOT="$(cd "$APP_DIR/../.." && pwd)"
-
-# Resolve OUT relative to the app dir when it is not absolute.
+DATA="$REPO_ROOT/scripts/lingua-data"
 case "$OUT" in
   /*) OUT_ABS="$OUT" ;;
   *) OUT_ABS="$APP_DIR/$OUT" ;;
 esac
+mkdir -p "$OUT_ABS"
 
-mkdir -p "$(dirname "$OUT_ABS")"
-bash "$REPO_ROOT/scripts/lingua-data/build.sh" --testdata en-fr "$OUT_ABS"
-echo "Built pack → $OUT"
+for pair in $(node "$SCRIPT_DIR/packs.mjs" pairs); do
+  if [[ "$MODE" == real ]]; then
+    if [[ ! -f "$DATA/tables/$pair/pin.json" ]]; then
+      echo "error: packs.json ships $pair, but scripts/lingua-data/tables/$pair/ holds no committed tables." >&2
+      exit 2
+    fi
+    bash "$DATA/build.sh" "$pair" "$OUT_ABS/$pair.lingua"
+  else
+    if [[ ! -d "$DATA/testdata/$pair" ]]; then
+      echo "error: packs.json ships $pair, but scripts/lingua-data/testdata/$pair/ does not exist: add its test sources." >&2
+      exit 2
+    fi
+    bash "$DATA/build.sh" --testdata "$pair" "$OUT_ABS/$pair.lingua"
+  fi
+  echo "Built $MODE pack $pair → $OUT/$pair.lingua"
+done

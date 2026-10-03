@@ -153,6 +153,8 @@ jobs:
           # The real pack, as the reviewer builds it: from the archive's committed tables, with no
           # network, checked against pin.json — and so the very bytes the release ships.
           yarn gen:pack:real
-          cmp assets/pack.lingua "$RUNNER_TEMP/pack-en-fr.lingua"
+          for pair in $(node tool/packs.mjs pairs); do
+            cmp "assets/packs/$pair.lingua" "$RUNNER_TEMP/pack-$pair.lingua"
+          done
           LINGUA_GRPC_WEB_URL=https://api.cymbra.app yarn build:firefox
           test -f dist-firefox/manifest.json

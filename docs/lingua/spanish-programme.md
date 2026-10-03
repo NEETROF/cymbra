@@ -8,7 +8,7 @@ instead of re-arguing a decision.
 - Study: 2026-09-29/30, read-only, figures checked online (data, licences, translation models).
   Coverage figures come from throwaway prototypes: they are orders of magnitude, not targets.
 - Decisions: Guillaume Fortin (product owner), 2026-09-30.
-- Status: as of 2026-10-03 (change 7). Update the programme table in the pull request that moves a line.
+- Status: as of 2026-10-03 (change 8). Update the programme table in the pull request that moves a line.
 
 ## Scope
 
@@ -119,8 +119,8 @@ min–max.
 | R2 | 5 | `generalise-lingua-analysis-by-language`: `Spanish` variant, dispatch, English arm moved verbatim, version per language, `Pack::studied()` | 6–10 | Done (proposal [#623](https://github.com/NEETROF/cymbra/pull/623)); English baseline unmoved, en-fr pack unchanged |
 | R2 | 6 | `generalise-lingua-wasm-engine`: a pack per language in one engine, the language on every call, sync records in their own language | 4–7 | Done (proposal [#625](https://github.com/NEETROF/cymbra/pull/625)); English baseline unmoved, extension source unchanged |
 | R2 | 7 | `generalise-lingua-extension-port` (first dogfood build): a root port and a language view, the language on every language-bound call and over the RPC | 4–7 | Done (proposal [#627](https://github.com/NEETROF/cymbra/pull/627)); asks in `en`, nothing a reader sees changed; R2 dogfood pass due before the release |
-| R2 | 8 | `generalise-lingua-pack-build` | 4–7 | Next |
-| R2 | 9 | `package-lingua-packs-per-pair` | 2.5–4.5 | Not started |
+| R2 | 8 | `generalise-lingua-pack-build`: one list of shipped pairs (`packs.json`), a pack per pair at `assets/packs/<pair>.lingua`, each checked against its own pin and language | 4–7 | Done (proposal [#629](https://github.com/NEETROF/cymbra/pull/629)); same en-fr bytes, new path; `check_variants` refuses any list but en-fr |
+| R2 | 9 | `package-lingua-packs-per-pair` | 2.5–4.5 | Next |
 | R2 | 10 | `add-lingua-studied-language-profile` | 3.5–6.5 | Not started |
 | R3 silent English release B | 11 | `add-lingua-language-sync-client` | 4.5–8 | Not started |
 | R3 | 12 | `add-lingua-language-routing` | 5.5–9.5 | Not started |

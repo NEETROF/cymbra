@@ -19,6 +19,10 @@ declare const __NATIVE_PROVIDERS__: boolean;
 // (src/reader/section-server.ts) — a blob: document may land in another process there.
 declare const __SECTIONS_FROM_WORKER__: boolean;
 
+// The language pairs the package ships (packs.json, generalise-lingua-pack-build), comma-separated,
+// the default studied language's first: each one's pack is at assets/packs/<pair>.lingua.
+declare const __LINGUA_PACKS__: string;
+
 // Where the translation engine is hosted (add-lingua-translation-engine). "none" in every
 // shipped build: the engine is built in only by a development build that side-loads a model
 // (build.mjs, LINGUA_TRANSLATION_ENGINE). "offscreen" on Chromium, whose service worker cannot

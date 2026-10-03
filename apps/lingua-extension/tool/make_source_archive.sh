@@ -81,15 +81,16 @@ $(node -e "const p=require('$REPO_ROOT/apps/lingua-extension/engine-pin.json'); 
 \`\`\`
 EOF
 
-pin="$REPO_ROOT/scripts/lingua-data/tables/en-fr/pin.json"
-cat >>"$OUT/README.md" <<EOF
-
-Its data pack is built from the tables in \`scripts/lingua-data/tables/en-fr/\` (snapshot
-$(node -p "require('$pin').snapshot")) by \`yarn gen:pack:real\`, offline, and checked against:
-
-\`\`\`
-$(node -p "require('$pin').pack.sha256")  apps/lingua-extension/assets/pack.lingua
-\`\`\`
-EOF
-
+# One line per shipped pair (packs.json, generalise-lingua-pack-build): each pack is built from its
+# own tables and checked against its own pin.
+{
+  echo "Its data packs are built from the tables in \`scripts/lingua-data/tables/<pair>/\` by"
+  echo "\`yarn gen:pack:real\`, offline, and checked against:"
+  echo '```'
+  for pair in $(node "$REPO_ROOT/apps/lingua-extension/tool/packs.mjs" pairs); do
+    pin="$REPO_ROOT/scripts/lingua-data/tables/$pair/pin.json"
+    echo "$(node -p "require('$pin').pack.sha256")  apps/lingua-extension/assets/packs/$pair.lingua  (snapshot $(node -p "require('$pin').snapshot"))"
+  done
+  echo '```'
+} >>"$OUT/README.md"
 echo "Source archive assembled in $OUT"

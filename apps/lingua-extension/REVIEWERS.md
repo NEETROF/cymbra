@@ -45,7 +45,7 @@ yarn install --immutable
 yarn gen:wasm     # compiles crates/lingua-wasm → src/wasm/pkg
 yarn gen:proto    # generates the gRPC-web client stubs from the .proto files
 pip install wordfreq
-yarn gen:pack:real  # builds assets/pack.lingua from public corpora — see the next section
+yarn gen:pack:real  # builds assets/packs/en-fr.lingua from public corpora — see the next section
 tool/build_engine.sh  # builds engine/ from mozilla/translations — Linux only, see below
 LINGUA_GRPC_WEB_URL=https://api.cymbra.app yarn build:firefox
 ```
@@ -56,10 +56,11 @@ same add-on with its sign-in buttons hidden.
 
 ## The language pack
 
-`assets/pack.lingua` — the English→French language pack, about 1.5 MB of frequency and
-translation data. It is **generated, not authored**: the built file is not in the archive, but
-everything it is built from is. `yarn gen:pack:real` runs `scripts/lingua-data/build.sh en-fr
-assets/pack.lingua`, which builds it from the reduced tables in
+`assets/packs/en-fr.lingua` — the English→French language pack, about 1.5 MB of frequency and
+translation data, the one pair `packs.json` lists. It is **generated, not authored**: the built
+file is not in the archive, but everything it is built from is. `yarn gen:pack:real` runs
+`scripts/lingua-data/build.sh en-fr assets/packs/en-fr.lingua` for it, which builds it from the
+reduced tables in
 `scripts/lingua-data/tables/en-fr/` — **offline, with no download and no Python** — and checks
 the result against the sha256 recorded in `tables/en-fr/pin.json` (also printed at the end of
 this README): the build fails unless it produces the very bytes the package carries.
