@@ -1,7 +1,8 @@
-import { readingLanguage } from "../analyzer/pairs.ts";
+import { languageName } from "../analyzer/language-labels.ts";
+import { acceptedLanguages } from "../analyzer/pairs.ts";
 import type { LinguaPort } from "../analyzer/port.ts";
-import { type CefrLevel, CEFR_LEVELS, type SeedOrder } from "../analyzer/types.ts";
-import { loadDailyStats, utcDay } from "../state/dailystats.ts";
+import { type CefrLevel, CEFR_LEVELS, type SeedOrder, type StudiedLanguage } from "../analyzer/types.ts";
+import { countsOf, loadDailyStats, utcDay } from "../state/dailystats.ts";
 import { type AsyncStorageArea, saveBackup } from "../state/storage.ts";
 import { barChartElement } from "./chart.ts";
 import { ladderView, vocabularyView } from "./ladder.ts";
@@ -45,17 +46,21 @@ interface ConsolidatedRow {
   reviews: number;
 }
 
-async function fetchCounts(area: AsyncStorageArea, range: Range): Promise<{ byDay: CountsByDay; scope: string }> {
+async function fetchCounts(
+  area: AsyncStorageArea,
+  range: Range,
+  language: StudiedLanguage,
+): Promise<{ byDay: CountsByDay; scope: string }> {
   const account = (await sendRuntime({ type: "account:state" })) as { state?: { signedIn?: boolean } } | null;
   if (account?.state?.signedIn) {
     const { fromDay, toDay } = dayWindow(utcDay(Date.now()), range);
-    const res = (await sendRuntime({ type: "stats:get", fromDay, toDay })) as {
+    const res = (await sendRuntime({ type: "stats:get", fromDay, toDay, language })) as {
       ok?: boolean;
       rows?: ConsolidatedRow[];
     } | null;
     if (res?.ok && res.rows) return { byDay: consolidatedToMap(res.rows), scope: "Tous tes appareils" };
   }
-  return { byDay: await loadDailyStats(area), scope: "Cet appareil" };
+  return { byDay: countsOf(await loadDailyStats(area), language), scope: "Cet appareil" };
 }
 
 /** Max cards a single "Renforcer un niveau" action may seed (matches the engine cap). */
@@ -147,13 +152,48 @@ function buildSeedControl(): HTMLElement {
   return wrap;
 }
 
+/** The choice of language, one segment per accepted language (add-lingua-language-stats-review D4). */
+function languagePicker(
+  languages: StudiedLanguage[],
+  current: StudiedLanguage,
+  choose: (language: StudiedLanguage) => void,
+): HTMLElement {
+  const picker = document.createElement("div");
+  picker.className = "ranges stats-languages";
+  picker.setAttribute("role", "group");
+  picker.setAttribute("aria-label", "Langue");
+  for (const language of languages) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.dataset.language = language;
+    btn.textContent = languageName(language);
+    if (language === current) btn.className = "active";
+    btn.addEventListener("click", () => {
+      if (language !== current) choose(language);
+    });
+    picker.append(btn);
+  }
+  return picker;
+}
+
 /** Render the whole stats view (ladder + seed control + daily cards) into `root`. */
-export async function mountStats(root: HTMLElement, port: LinguaPort, area: AsyncStorageArea): Promise<void> {
+export async function mountStats(
+  root: HTMLElement,
+  port: LinguaPort,
+  area: AsyncStorageArea,
+  chosen?: StudiedLanguage,
+): Promise<void> {
   let range: Range = 30;
   root.classList.add("stats");
-  // In the reader's language (add-lingua-studied-language-profile); every show mounts afresh.
-  const language = await readingLanguage(port);
+  // One of the reader's languages, the first by default; with several, a selector picks another
+  // and mounts the page afresh (add-lingua-language-stats-review D4).
+  const languages = await acceptedLanguages(port);
+  const language = chosen && languages.includes(chosen) ? chosen : languages[0];
   const lang = port.for(language);
+  const picker =
+    languages.length > 1
+      ? languagePicker(languages, language, (next) => void mountStats(root, port, area, next))
+      : null;
 
   const vocabSlot = document.createElement("div");
   vocabSlot.className = "vocab-slot";
@@ -187,7 +227,16 @@ export async function mountStats(root: HTMLElement, port: LinguaPort, area: Asyn
   trailingNote.className = "note";
   trailingNote.textContent = "Les sessions d'agent IA (plugin Claude Code) ne sont pas comptées ici.";
 
-  root.replaceChildren(vocabSlot, ladderSlot, seedSlot, markedSlot, topline, cards, trailingNote);
+  root.replaceChildren(
+    ...(picker ? [picker] : []),
+    vocabSlot,
+    ladderSlot,
+    seedSlot,
+    markedSlot,
+    topline,
+    cards,
+    trailingNote,
+  );
 
   const pick = <T extends HTMLElement>(sel: string): T => {
     const el = root.querySelector<T>(sel);
@@ -341,7 +390,7 @@ export async function mountStats(root: HTMLElement, port: LinguaPort, area: Asyn
   await renderMarked();
 
   const renderCards = async (): Promise<void> => {
-    const { byDay, scope } = await fetchCounts(area, range);
+    const { byDay, scope } = await fetchCounts(area, range, language);
     const { fromDay, toDay } = dayWindow(utcDay(Date.now()), range);
     const series = buildSeries(byDay, fromDay, toDay);
     pick(".scope").textContent = scope;
@@ -371,10 +420,11 @@ export async function mountStats(root: HTMLElement, port: LinguaPort, area: Asyn
     }
   };
 
-  for (const btn of root.querySelectorAll<HTMLButtonElement>(".ranges button")) {
+  // The range's own buttons: the language selector looks the same but is not a range.
+  for (const btn of ranges.querySelectorAll<HTMLButtonElement>("button")) {
     btn.addEventListener("click", () => {
       range = Number(btn.dataset.range) as Range;
-      for (const b of root.querySelectorAll(".ranges button")) b.classList.toggle("active", b === btn);
+      for (const b of ranges.querySelectorAll("button")) b.classList.toggle("active", b === btn);
       void renderCards();
     });
   }

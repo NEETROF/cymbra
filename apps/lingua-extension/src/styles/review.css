@@ -61,8 +61,48 @@
   color: var(--cymbra-lingua-accent-ink);
 }
 
+/* The card's language, for a reader of several languages. */
+.review-language {
+  color: var(--cymbra-lingua-accent);
+  font-weight: 600;
+}
+
 /* The Révision PAGE chrome (mountReview) — shared by the side panel and the in-page drawer:
    summary + review container + backup/restore tools + Sources & confidentialité. */
+/* The language filter, for a reader of several languages: « Toutes », then one per language. */
+.review-languages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.review-languages[hidden] {
+  display: none;
+}
+
+.review-languages button {
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--cymbra-lingua-border-2);
+  background: var(--cymbra-lingua-panel);
+  color: var(--cymbra-lingua-muted);
+  font-family: inherit;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
+}
+
+.review-languages button:hover {
+  background: var(--cymbra-lingua-panel-3);
+  color: var(--cymbra-lingua-text);
+}
+
+.review-languages button.active {
+  background: var(--cymbra-lingua-accent-strong);
+  border-color: var(--cymbra-lingua-accent-strong);
+  color: var(--cymbra-lingua-accent-ink);
+}
+
 .summary {
   color: var(--cymbra-lingua-muted);
   margin-bottom: 14px;

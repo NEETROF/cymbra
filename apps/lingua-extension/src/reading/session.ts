@@ -644,8 +644,12 @@ export class ReadingSession {
     // With several accepted languages, read the document in the one the engine finds in it
     // (add-lingua-language-routing D3): its analysis and every question about it follow.
     if (this.languages.length > 1) {
-      this.language = await this.port.detectLanguage(texts, this.languages, languageHint(host.doc));
+      const language = await this.port.detectLanguage(texts, this.languages, languageHint(host.doc));
       if (this.host !== host) return;
+      // What was read so far was read in the document's former language: count it there
+      // (add-lingua-language-stats-review D3).
+      if (language !== this.language && this.hasPendingExposure()) void this.flushExposure();
+      this.language = language;
     }
     const analysis = await this.lang.analyse(texts);
     // Another document replaced this one while the engine answered: its figures are stale.
@@ -805,7 +809,7 @@ export class ReadingSession {
     } else {
       // Stamp the change so it orders correctly in cross-device sync (LWW).
       await this.lang.setStatusAt(key, g.status, Date.now());
-      if (g.status === "known") void recordWordLearned(store, utcDay(Date.now()));
+      if (g.status === "known") void recordWordLearned(store, utcDay(Date.now()), this.language);
       // Promoting a word that was in the deck (learning) to known/ignored must retire its
       // card so it stops coming due — a word you now treat as known/ignored shouldn't keep
       // being reviewed. No-op when there is no card. (Clearing → "à apprendre" keeps it.)
@@ -849,8 +853,9 @@ export class ReadingSession {
     const lemmas = [...this.pendingExposure];
     this.pendingExposure.clear();
     const now = Date.now();
-    await this.lang.recordExposures(lemmas, this.host?.exposureSource() ?? "reading:", now);
-    const promoted = await this.lang.promoteByExposure(EXPOSURE_PROMOTE_DAYS, now);
+    const lang = this.lang; // the language they were read in, whatever the document turns to meanwhile
+    await lang.recordExposures(lemmas, this.host?.exposureSource() ?? "reading:", now);
+    const promoted = await lang.promoteByExposure(EXPOSURE_PROMOTE_DAYS, now);
     await this.persist();
     if (promoted > 0) await this.repaint(); // words became known → refresh highlights
   }
@@ -862,7 +867,7 @@ export class ReadingSession {
   /** Add the words read / new words seen since the last flush to today's stats. */
   private flushReading(): void {
     if (this.pendingRead === 0) return;
-    void recordReading(store, utcDay(Date.now()), this.pendingRead, this.pendingUnknown);
+    void recordReading(store, utcDay(Date.now()), this.pendingRead, this.pendingUnknown, this.language);
     this.pendingRead = 0;
     this.pendingUnknown = 0;
   }

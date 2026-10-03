@@ -123,6 +123,20 @@ describe("WasmAnalyzerPort language views", () => {
         received.push(["detectLanguage", args]);
         return "es";
       }
+      dueCount(...args: unknown[]): number {
+        received.push(["dueCount", args]);
+        return 2;
+      }
+      startReview(...args: unknown[]): number {
+        received.push(["startReview", args]);
+        return 2;
+      }
+      reviewCurrent(): string {
+        return '{"headword":"faro","surface":"faro","sentence":"El faro.","gloss":"phare","revealed":false,"remaining":2}';
+      }
+      reviewCurrentLanguage(): string {
+        return "es";
+      }
     }
     const mod = { default: async () => {}, LinguaEngine } as unknown as WasmModule;
     return { load: async () => mod, received };
@@ -164,6 +178,37 @@ describe("WasmAnalyzerPort language views", () => {
     const port = new WasmAnalyzerPort(glue.load, ["en-fr", "es-fr"]);
     expect(await port.detectLanguage(["El faro"], ["en", "es"], "es")).toBe("es");
     expect(glue.received).toEqual([["detectLanguage", [["El faro"], ["en", "es"], "es"]]]);
+  });
+
+  it("reviews in some languages or in all, as whole-reader calls loading no pack", async () => {
+    const glue = recordingGlue();
+    const port = new WasmAnalyzerPort(glue.load, ["en-fr", "es-fr"]);
+
+    expect(await port.dueCount(100, ["es"])).toBe(2);
+    await port.dueCount(100);
+    await port.startReview(100, ["es"]);
+    await port.startReview(100);
+
+    expect(glue.received).toEqual([
+      ["dueCount", [100, ["es"]]],
+      ["dueCount", [100, null]],
+      ["startReview", [100, ["es"]]],
+      ["startReview", [100, null]],
+    ]);
+  });
+
+  it("gives the card being reviewed its language, beside the view the baseline pins", async () => {
+    const port = new WasmAnalyzerPort(recordingGlue().load, ["en-fr", "es-fr"]);
+
+    expect(await port.reviewCurrent()).toEqual({
+      headword: "faro",
+      surface: "faro",
+      sentence: "El faro.",
+      gloss: "phare",
+      revealed: false,
+      remaining: 2,
+      language: "es",
+    });
   });
 
   it("binds the view to the language it was asked", () => {

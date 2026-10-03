@@ -37,6 +37,23 @@ describe("MessagingLinguaPort", () => {
     expect(send).toHaveBeenCalledWith("reviewGrade", ["good", 42]);
   });
 
+  it("forwards the review's languages only when some are chosen", async () => {
+    const send = vi.fn(async () => 0);
+    const port = new MessagingLinguaPort(send);
+
+    await port.dueCount(42, ["es"]);
+    await port.dueCount(42);
+    await port.startReview(42, ["es"]);
+    await port.startReview(42);
+
+    expect(send.mock.calls).toEqual([
+      ["dueCount", [42, ["es"]]],
+      ["dueCount", [42]],
+      ["startReview", [42, ["es"]]],
+      ["startReview", [42]],
+    ]);
+  });
+
   it("forwards a selection to the engine's phrase gloss", async () => {
     const answer = {
       tokens: [{ surface: "gave", lemma: "give", class: "Known", gloss: "donner", function_word: false }],

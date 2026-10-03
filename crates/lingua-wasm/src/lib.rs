@@ -73,6 +73,15 @@ fn resolve<'a>(
         .map_err(|e| JsError::new(&e.to_string()))
 }
 
+/// The languages a list of ISO 639-1 tags names, unknown tags dropped; absent is none, which the
+/// review bindings read as every language.
+fn known_languages(tags: Option<Vec<String>>) -> Vec<StudiedLanguage> {
+    tags.unwrap_or_default()
+        .iter()
+        .filter_map(|tag| StudiedLanguage::from_tag(tag))
+        .collect()
+}
+
 /// Drop the counters that can no longer confirm anything in `language`, then bound what
 /// is left. Runs on every recording and on restore, so a store saturated by an older
 /// build heals.
@@ -824,19 +833,25 @@ impl LinguaEngine {
         self.state.deck.len()
     }
 
-    /// Number of cards due at `now` (Unix-epoch seconds).
+    /// Number of cards due at `now` (Unix-epoch seconds), in `languages` (ISO 639-1 tags) or in
+    /// every language when absent or naming none the core knows
+    /// (add-lingua-language-stats-review D1).
     #[wasm_bindgen(js_name = dueCount)]
-    pub fn due_count(&self, now: f64) -> usize {
-        self.state.deck.due_count(now as i64)
+    pub fn due_count(&self, now: f64, languages: Option<Vec<String>>) -> usize {
+        self.state
+            .deck
+            .due_count_for(now as i64, &known_languages(languages))
     }
 
     // --- Review session ---
 
-    /// Starts a review session over everything due at `now`; returns how many
-    /// cards it will walk.
+    /// Starts a review session over everything due at `now`, in `languages` (ISO 639-1 tags)
+    /// or in every language when absent; returns how many cards it will walk. A queue that
+    /// mixes languages is ordered by due date (add-lingua-language-stats-review D1).
     #[wasm_bindgen(js_name = startReview)]
-    pub fn start_review(&mut self, now: f64) -> usize {
-        let session = ReviewSession::start(&self.state.deck, now as i64);
+    pub fn start_review(&mut self, now: f64, languages: Option<Vec<String>>) -> usize {
+        let session =
+            ReviewSession::start_for(&self.state.deck, now as i64, &known_languages(languages));
         let remaining = session.remaining();
         self.session = Some(session);
         remaining
@@ -864,6 +879,18 @@ impl LinguaEngine {
             "remaining": session.remaining(),
         });
         Some(view.to_string())
+    }
+
+    /// The studied language (ISO 639-1) of the card `reviewCurrent` shows, or `null` when it
+    /// shows none (add-lingua-language-stats-review D1). A call of its own, so the card's view
+    /// stays as the English baseline pins it.
+    #[wasm_bindgen(js_name = reviewCurrentLanguage)]
+    pub fn review_current_language(&self) -> Option<String> {
+        let session = self.session.as_ref()?;
+        session.current(&self.state.deck)?;
+        session
+            .current_key()
+            .map(|(language, _)| language.tag().to_owned())
     }
 
     /// Reveals the current card's answer.

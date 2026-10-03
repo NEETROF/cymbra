@@ -17,6 +17,8 @@ export interface FakeCard {
   surface: string;
   sentence: string;
   gloss: string | null;
+  /** The card's language, said by the review when set (add-lingua-language-stats-review). */
+  language?: StudiedLanguage;
 }
 
 /**
@@ -38,6 +40,8 @@ export interface FakeCalls {
   reveals: number;
   markKnown: number;
   restored: string[];
+  /** The languages each due count and each review start were asked for (none: every language). */
+  reviewLanguages: (StudiedLanguage[] | undefined)[];
 }
 
 /** A fake LinguaPort: records calls and simulates a review queue over `deck`. */
@@ -52,12 +56,16 @@ export function makeFakePort(deck: FakeCard[] = []): { port: FakePort; calls: Fa
     reveals: 0,
     markKnown: 0,
     restored: [],
+    reviewLanguages: [],
   };
   let queue: FakeCard[] = [];
   let pos = 0;
   let revealed = false;
   let backup = "{}";
   let studied: StudiedLanguage[] = ["en"];
+  // A card without a language is English, as every card was before the reader studied several.
+  const within = (languages: StudiedLanguage[] | undefined) => (card: FakeCard) =>
+    !languages?.length || languages.includes(card.language ?? "en");
 
   const port: FakePort = {
     language: "en",
@@ -93,9 +101,13 @@ export function makeFakePort(deck: FakeCard[] = []): { port: FakePort; calls: Fa
     addCard: async (c) => void calls.addCard.push(c),
     retireCard: async () => {},
     deckCount: async () => calls.addCard.length,
-    dueCount: async () => queue.length - pos,
-    startReview: async () => {
-      queue = [...deck];
+    dueCount: async (_now, languages) => {
+      calls.reviewLanguages.push(languages);
+      return queue.slice(pos).filter(within(languages)).length;
+    },
+    startReview: async (_now, languages) => {
+      calls.reviewLanguages.push(languages);
+      queue = deck.filter(within(languages));
       pos = 0;
       revealed = false;
       return queue.length;

@@ -1,5 +1,7 @@
-import { readingLanguage } from "../analyzer/pairs.ts";
+import { acceptedLanguages, readingLanguage } from "../analyzer/pairs.ts";
+import { languageName } from "../analyzer/language-labels.ts";
 import type { LinguaPort } from "../analyzer/port.ts";
+import type { StudiedLanguage } from "../analyzer/types.ts";
 import { dailyRecorder } from "../state/dailystats.ts";
 import { type AsyncStorageArea, saveBackup } from "../state/storage.ts";
 import { watchBackup } from "../state/store.ts";
@@ -43,6 +45,16 @@ export function mountReview(
 
   const summary = el("div", "summary");
   const review = el("div", "review");
+  // The language filter, when the reader studies several (add-lingua-language-stats-review D2).
+  const filterRow = el("div", "review-languages");
+  filterRow.setAttribute("role", "group");
+  filterRow.setAttribute("aria-label", "Langue");
+  filterRow.hidden = true;
+  let languages: StudiedLanguage[] = [];
+  let filter: StudiedLanguage | null = null;
+  const only = (): StudiedLanguage[] | undefined => (filter ? [filter] : undefined);
+  const render = (view: ReturnType<ReviewController["view"]>): void =>
+    renderReview(review, view, actions, { showLanguage: languages.length > 1 });
 
   const tools = el("div", "tools");
   const backupBtn = el("button");
@@ -67,7 +79,33 @@ export function mountReview(
   const notice = el("pre", "notice");
   details.append(detailsSummary, privacy, licences, notice);
 
-  container.append(summary, review, tools, msg, details);
+  container.append(filterRow, summary, review, tools, msg, details);
+
+  /** The filter's segments: « Toutes », then one per accepted language. */
+  async function readLanguages(): Promise<void> {
+    languages = await acceptedLanguages(port);
+    if (filter && !languages.includes(filter)) filter = null;
+    filterRow.hidden = languages.length < 2;
+    const choices: (StudiedLanguage | null)[] = [null, ...languages];
+    filterRow.replaceChildren(
+      ...choices.map((choice) => {
+        const b = el("button");
+        b.type = "button";
+        b.textContent = choice ? languageName(choice) : "Toutes";
+        b.dataset.language = choice ?? "";
+        if (choice === filter) b.className = "active";
+        b.addEventListener("click", () => void choose(choice));
+        return b;
+      }),
+    );
+  }
+
+  async function choose(choice: StudiedLanguage | null): Promise<void> {
+    if (controller.view().phase === "reviewing") return; // a session under way keeps its queue
+    filter = choice;
+    await readLanguages();
+    await refreshSummary();
+  }
 
   async function persist(): Promise<void> {
     const backup = await port.backup();
@@ -76,7 +114,7 @@ export function mountReview(
   }
 
   async function refreshSummary(): Promise<void> {
-    const [deck, due] = [await port.deckCount(), await port.dueCount(opts.now())];
+    const [deck, due] = [await port.deckCount(), await port.dueCount(opts.now(), only())];
     summary.replaceChildren(
       bold(String(deck)),
       document.createTextNode(" carte(s) · "),
@@ -91,11 +129,11 @@ export function mountReview(
       await persist();
       await refreshSummary();
     }
-    renderReview(review, view, actions);
+    render(view);
   }
 
   const actions: ReviewActions = {
-    start: () => void run(() => controller.start(), false),
+    start: () => void run(() => controller.start(only()), false),
     reveal: () => void run(() => controller.reveal(), false),
     grade: (rating) => void run(() => controller.grade(rating), true),
     markKnown: () => void run(() => controller.markKnown(), true),
@@ -116,7 +154,7 @@ export function mountReview(
       await persist();
       controller = new ReviewController(port, opts.now, dailyRecorder(area));
       await refreshSummary();
-      renderReview(review, controller.view(), actions);
+      render(controller.view());
       msg.textContent = "Sauvegarde restaurée.";
     } catch {
       msg.textContent = "Fichier de sauvegarde non reconnu.";
@@ -147,16 +185,18 @@ export function mountReview(
     if (controller.view().phase === "reviewing") return;
     void port.restore(backup).then(() => {
       controller = new ReviewController(port, opts.now, dailyRecorder(area));
-      void refreshSummary();
+      // The profile came with the state: a language may have joined or left the filter.
+      void readLanguages().then(refreshSummary);
       void loadAttributions();
-      renderReview(review, controller.view(), actions);
+      render(controller.view());
     });
   });
 
   return {
     refresh: async () => {
+      await readLanguages();
       await refreshSummary();
-      renderReview(review, controller.view(), actions);
+      render(controller.view());
     },
     reviewing: () => controller.view().phase === "reviewing",
   };
