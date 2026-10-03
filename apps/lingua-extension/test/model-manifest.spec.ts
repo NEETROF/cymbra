@@ -5,9 +5,10 @@ import { describe, expect, it, vi } from "vitest";
 import {
   fileUrl,
   loadBundledCatalogue,
-  loadTranslationModel,
   MANIFEST_PATH,
   type ModelCatalogue,
+  modelsById,
+  modelsFor,
   parseCatalogue,
   routeOf,
   totalSize,
@@ -137,21 +138,30 @@ describe("loading the package's catalogue", () => {
     const fetchFn = vi.fn(async () => new Response("", { status: 404 }));
     await expect(loadBundledCatalogue(fetchFn as unknown as typeof fetch)).rejects.toThrow(/404/);
   });
+});
 
-  it("gives the model of a language's route, a single model", async () => {
-    const fetchFn = vi.fn(async () => new Response(JSON.stringify(committed)));
-    const model = await loadTranslationModel("en", fetchFn as unknown as typeof fetch);
-    expect(model.version).toBe(EN_FR);
-  });
-
-  it("refuses a language without a route, or a route of several models, until the runtime takes them", async () => {
-    const pivot = {
+describe("the models a device needs (generalise-lingua-translation-model-state D2)", () => {
+  /** The committed catalogue with es-en and a Spanish route through English. */
+  const pivot = () =>
+    parseCatalogue({
       ...committed,
       models: { ...committed.models, "es-en/base-memory/2.0": { ...committed.models[EN_FR], from: "es", to: "en" } },
       routes: { ...committed.routes, es: ["es-en/base-memory/2.0", EN_FR] },
-    };
-    const fetchFn = vi.fn(async () => new Response(JSON.stringify(pivot)));
-    await expect(loadTranslationModel("es", fetchFn as unknown as typeof fetch)).rejects.toThrow(/single model/);
-    await expect(loadTranslationModel("de", fetchFn as unknown as typeof fetch)).rejects.toThrow(/single model/);
+    });
+
+  it("is the union of the languages' routes, each model once, in order", () => {
+    expect(modelsFor(pivot(), ["en", "es"]).map((m) => m.version)).toEqual([EN_FR, "es-en/base-memory/2.0"]);
+    expect(modelsFor(pivot(), ["es", "en"]).map((m) => m.version)).toEqual(["es-en/base-memory/2.0", EN_FR]);
+  });
+
+  it("needs nothing for a language without a route", () => {
+    expect(modelsFor(parseCatalogue(committed), ["es"])).toEqual([]);
+    expect(modelsFor(parseCatalogue(committed), ["en", "es"]).map((m) => m.version)).toEqual([EN_FR]);
+  });
+
+  it("finds models by id, leaving out an id the catalogue does not list", () => {
+    expect(modelsById(pivot(), ["es-en/base-memory/2.0", "de-en/tiny/1.0"]).map((m) => [m.version, m.from])).toEqual([
+      ["es-en/base-memory/2.0", "es"],
+    ]);
   });
 });

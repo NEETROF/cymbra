@@ -49,7 +49,9 @@ export const COPY = {
   ready: "Prête : tes sélections sont traduites sur cet appareil.",
   interrupted: "Téléchargement interrompu.",
   removed: "Le navigateur a supprimé le modèle de cet appareil. Il faut le télécharger à nouveau.",
+  missing: "Il manque un modèle pour une de tes langues.",
   cancel: "Annuler",
+  download: "Télécharger",
   retry: "Réessayer",
   resume: "Reprendre",
   again: "Télécharger à nouveau",
@@ -101,6 +103,8 @@ export function stateText(state: ModelState, cost?: ModelCost): string {
       return `${COPY.interrupted}${progressText(state.received, state.total)}`;
     case "removed":
       return COPY.removed;
+    case "missing":
+      return state.total > 0 ? `${COPY.missing} ${megabytes(state.total)} à télécharger.` : COPY.missing;
     default:
       return "";
   }
@@ -165,6 +169,8 @@ export function mountTranslationSetting(block: HTMLElement, controls: Translatio
     failed: { label: COPY.retry, op: "resume" },
     interrupted: { label: COPY.resume, op: "resume" },
     removed: { label: COPY.again, op: "resume" },
+    // A language the reader added needs a model: asked for, never fetched unasked (model-state D3).
+    missing: { label: COPY.download, op: "resume" },
   };
 
   function render(): void {

@@ -12,10 +12,11 @@ describe("model messages", () => {
   });
 
   it("reads a reply defensively: anything unreadable offers nothing", () => {
+    // A `ready` written before the models were named stood for English (model-state D3).
     expect(asModelStatus({ offered: true, host: "local", state: { phase: "ready" } })).toEqual({
       offered: true,
       host: "local",
-      state: { phase: "ready" },
+      state: { phase: "ready", models: [], languages: ["en"] },
     });
     expect(asModelStatus({ offered: true, host: "remote", state: { phase: "nope" } })).toEqual({
       offered: true,

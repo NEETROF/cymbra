@@ -76,7 +76,7 @@ function setup(onIdle?: () => void) {
 describe("EngineChannel", () => {
   it("starts the worker and loads the model before the first translation", async () => {
     const { channel, workers } = setup();
-    const answer = channel.translate("<b>gave up</b>");
+    const answer = channel.translate("<b>gave up</b>", "en");
     await flush();
     expect(workers).toHaveLength(1);
     expect(workers[0]!.sent.map((r) => r.op)).toEqual(["load"]);
@@ -91,8 +91,8 @@ describe("EngineChannel", () => {
 
   it("loads once for every request made while it starts", async () => {
     const { channel, workers } = setup();
-    const a = channel.translate("one");
-    const b = channel.translate("two");
+    const a = channel.translate("one", "en");
+    const b = channel.translate("two", "en");
     await flush();
     expect(workers).toHaveLength(1);
     workers[0]!.reply(0, { ok: true });
@@ -110,7 +110,7 @@ describe("EngineChannel", () => {
     // The glue's failure mode: its init throws and the promise it would resolve stays pending
     // forever. Without this bound a broken engine reads as a slow one, indefinitely.
     const { channel, workers, elapse } = setup();
-    const answer = channel.translate("x");
+    const answer = channel.translate("x", "en");
     await flush();
     elapse(START_TIMEOUT_MS);
     await expect(answer).resolves.toEqual({ ok: false, reason: "the engine did not start" });
@@ -119,12 +119,12 @@ describe("EngineChannel", () => {
 
   it("starts afresh after a failed start, rather than staying broken for the session", async () => {
     const { channel, workers, elapse } = setup();
-    const first = channel.translate("x");
+    const first = channel.translate("x", "en");
     await flush();
     elapse(START_TIMEOUT_MS);
     await first;
 
-    void channel.translate("y");
+    void channel.translate("y", "en");
     await flush();
     expect(workers).toHaveLength(2);
     expect(workers[1]!.sent[0]!.op).toBe("load");
@@ -133,7 +133,7 @@ describe("EngineChannel", () => {
   it("reports a model the worker could not load", async () => {
     // The ordinary development case: the build carries the engine but no model was supplied.
     const { channel, workers } = setup();
-    const answer = channel.translate("x");
+    const answer = channel.translate("x", "en");
     await flush();
     workers[0]!.reply(0, { ok: false, error: "engine/model.bin: 404" });
     await expect(answer).resolves.toEqual({ ok: false, reason: "the engine did not start" });
@@ -143,13 +143,13 @@ describe("EngineChannel", () => {
     const channel = new EngineChannel(() => {
       throw new Error("Worker is not defined");
     });
-    await expect(channel.translate("x")).resolves.toEqual({ ok: false, reason: "the engine did not start" });
+    await expect(channel.translate("x", "en")).resolves.toEqual({ ok: false, reason: "the engine did not start" });
   });
 
   it("puts down a worker stuck past its bound, and the next request gets a fresh one", async () => {
     // A synchronous wasm call cannot be interrupted: everything sent after it would queue.
     const { channel, workers, elapse } = setup();
-    const answer = channel.translate("x");
+    const answer = channel.translate("x", "en");
     await flush();
     workers[0]!.reply(0, { ok: true });
     await flush();
@@ -157,14 +157,14 @@ describe("EngineChannel", () => {
     await expect(answer).resolves.toEqual({ ok: false, reason: "the translation timed out" });
     expect(workers[0]!.terminated).toBe(true);
 
-    void channel.translate("y");
+    void channel.translate("y", "en");
     await flush();
     expect(workers).toHaveLength(2);
   });
 
   it("fails everything in flight when the worker dies", async () => {
     const { channel, workers, pending } = setup();
-    const answer = channel.translate("x");
+    const answer = channel.translate("x", "en");
     await flush();
     workers[0]!.reply(0, { ok: true });
     await flush();
@@ -177,7 +177,7 @@ describe("EngineChannel", () => {
 
   it("passes on what the engine said when it could not translate", async () => {
     const { channel, workers } = setup();
-    const answer = channel.translate("x");
+    const answer = channel.translate("x", "en");
     await flush();
     workers[0]!.reply(0, { ok: true });
     await flush();
@@ -187,7 +187,7 @@ describe("EngineChannel", () => {
 
   it("treats an answer with no markup as no answer", async () => {
     const { channel, workers } = setup();
-    const answer = channel.translate("x");
+    const answer = channel.translate("x", "en");
     await flush();
     workers[0]!.reply(0, { ok: true });
     await flush();
@@ -197,15 +197,72 @@ describe("EngineChannel", () => {
 
   it("reports a worker that dies while loading as an engine that did not start", async () => {
     const { channel, workers } = setup();
-    const answer = channel.translate("x");
+    const answer = channel.translate("x", "en");
     await flush();
     workers[0]!.crash();
     await expect(answer).resolves.toEqual({ ok: false, reason: "the engine did not start" });
   });
 
+  it("loads and translates in the language asked (generalise-lingua-translation-model-state D5)", async () => {
+    const { channel, workers } = setup();
+    const answer = channel.translate("<b>faro</b>", "es");
+    await flush();
+    expect(workers[0]!.sent[0]).toMatchObject({ op: "load", language: "es" });
+    workers[0]!.reply(0, { ok: true });
+    await flush();
+    expect(workers[0]!.sent[1]).toMatchObject({ op: "translate", markup: "<b>faro</b>", language: "es" });
+    workers[0]!.reply(1, { ok: true, html: "<b>phare</b>" });
+    await expect(answer).resolves.toEqual({ ok: true, html: "<b>phare</b>" });
+  });
+
+  it("loads each language's route once, in the same worker", async () => {
+    const { channel, workers } = setup();
+    const english = channel.translate("one", "en");
+    await flush();
+    workers[0]!.reply(0, { ok: true });
+    await flush();
+    workers[0]!.reply(1, { ok: true, html: "un" });
+    await english;
+
+    const spanish = channel.translate("dos", "es");
+    await flush();
+    expect(workers).toHaveLength(1);
+    expect(workers[0]!.sent[2]).toMatchObject({ op: "load", language: "es" });
+    workers[0]!.reply(2, { ok: true });
+    await flush();
+    workers[0]!.reply(3, { ok: true, html: "deux" });
+    await expect(spanish).resolves.toEqual({ ok: true, html: "deux" });
+
+    void channel.translate("three", "en");
+    await flush();
+    expect(workers[0]!.sent.filter((r) => r.op === "load")).toHaveLength(2); // English is still loaded
+  });
+
+  it("keeps the routes it loaded when another language's cannot load", async () => {
+    const { channel, workers } = setup();
+    const english = channel.translate("one", "en");
+    await flush();
+    workers[0]!.reply(0, { ok: true });
+    await flush();
+    workers[0]!.reply(1, { ok: true, html: "un" });
+    await english;
+
+    const spanish = channel.translate("dos", "es");
+    await flush();
+    workers[0]!.reply(2, { ok: false, error: "a route through another language is not supported yet" });
+    await expect(spanish).resolves.toEqual({ ok: false, reason: "the engine did not start" });
+    expect(workers[0]!.terminated).toBe(false);
+
+    const again = channel.translate("two", "en");
+    await flush();
+    expect(workers[0]!.sent.at(-1)).toMatchObject({ op: "translate", language: "en" });
+    workers[0]!.reply(workers[0]!.sent.length - 1, { ok: true, html: "deux" });
+    await expect(again).resolves.toEqual({ ok: true, html: "deux" });
+  });
+
   it("ignores a reply that arrives after its request timed out", async () => {
     const { channel, workers, elapse } = setup();
-    const answer = channel.translate("x");
+    const answer = channel.translate("x", "en");
     await flush();
     const late = workers[0]!;
     elapse(START_TIMEOUT_MS);
@@ -217,7 +274,7 @@ describe("EngineChannel", () => {
 describe("EngineChannel — the engine is released when reading stops (D6)", () => {
   /** One translation, answered: the engine is loaded and idle from here on. */
   async function translated(h: ReturnType<typeof setup>) {
-    const answer = h.channel.translate("x");
+    const answer = h.channel.translate("x", "en");
     await flush();
     const w = h.workers.at(-1)!;
     if (w.sent.length === 1) w.reply(0, { ok: true }); // the load
@@ -242,7 +299,7 @@ describe("EngineChannel — the engine is released when reading stops (D6)", () 
   describe("warm (add-lingua-translation-android D2, D3)", () => {
     it("loads the engine and translates nothing", async () => {
       const h = setup();
-      const warmed = h.channel.warm();
+      const warmed = h.channel.warm("en");
       await flush();
       expect(h.workers).toHaveLength(1);
       expect(h.workers[0]!.sent.map((r) => r.op)).toEqual(["load"]);
@@ -253,9 +310,9 @@ describe("EngineChannel — the engine is released when reading stops (D6)", () 
 
     it("the translation that follows uses the warmed engine: no second load", async () => {
       const h = setup();
-      const warmed = h.channel.warm();
+      const warmed = h.channel.warm("en");
       await flush();
-      const answer = h.channel.translate("<b>gave up</b>"); // asked while the model loads
+      const answer = h.channel.translate("<b>gave up</b>", "en"); // asked while the model loads
       await flush();
       h.workers[0]!.reply(0, { ok: true });
       await warmed;
@@ -269,7 +326,7 @@ describe("EngineChannel — the engine is released when reading stops (D6)", () 
     it("counts as asking: an engine warmed for nothing is released after the idle period", async () => {
       const onIdle = vi.fn();
       const h = setup(onIdle);
-      const warmed = h.channel.warm();
+      const warmed = h.channel.warm("en");
       await flush();
       h.workers[0]!.reply(0, { ok: true });
       await warmed;
@@ -282,7 +339,7 @@ describe("EngineChannel — the engine is released when reading stops (D6)", () 
     it("on a warm engine it loads nothing again and restarts the countdown", async () => {
       const h = setup();
       await translated(h);
-      await expect(h.channel.warm()).resolves.toBe(true);
+      await expect(h.channel.warm("en")).resolves.toBe(true);
       expect(h.workers).toHaveLength(1);
       expect(h.workers[0]!.sent.map((r) => r.op)).toEqual(["load", "translate"]);
       expect(h.pending()).toBe(1); // one countdown, not two
@@ -290,14 +347,14 @@ describe("EngineChannel — the engine is released when reading stops (D6)", () 
 
     it("a start that fails leaves nothing behind, and the next warm tries afresh", async () => {
       const h = setup();
-      const warmed = h.channel.warm();
+      const warmed = h.channel.warm("en");
       await flush();
       h.workers[0]!.reply(0, { ok: false, error: "the model is not on this device" });
       await expect(warmed).resolves.toBe(false);
       expect(h.workers[0]!.terminated).toBe(true);
       expect(h.channel.running()).toBe(false);
       expect(h.pending()).toBe(0);
-      void h.channel.warm();
+      void h.channel.warm("en");
       await flush();
       expect(h.workers).toHaveLength(2);
     });
@@ -306,7 +363,7 @@ describe("EngineChannel — the engine is released when reading stops (D6)", () 
   it("counts from the LAST translation: each one restarts the countdown", async () => {
     const h = setup();
     await translated(h);
-    const answer = h.channel.translate("again");
+    const answer = h.channel.translate("again", "en");
     await flush();
     h.workers[0]!.reply(2, { ok: true, html: "encore" });
     await answer;
@@ -317,7 +374,7 @@ describe("EngineChannel — the engine is released when reading stops (D6)", () 
     const h = setup();
     await translated(h);
     h.elapse(ENGINE_IDLE_MS);
-    const answer = h.channel.translate("x");
+    const answer = h.channel.translate("x", "en");
     await flush();
     expect(h.workers).toHaveLength(2);
     expect(h.workers[1]!.sent.map((r) => r.op)).toEqual(["load"]);
@@ -331,7 +388,7 @@ describe("EngineChannel — the engine is released when reading stops (D6)", () 
     const onIdle = vi.fn();
     const h = setup(onIdle);
     await translated(h);
-    const slow = h.channel.translate("slow"); // asked, not answered yet
+    const slow = h.channel.translate("slow", "en"); // asked, not answered yet
     await flush();
     h.elapse(ENGINE_IDLE_MS); // the countdown armed by the first one
     expect(h.workers[0]!.terminated).toBe(false);
@@ -342,7 +399,7 @@ describe("EngineChannel — the engine is released when reading stops (D6)", () 
 
   it("arms nothing when the engine never started — there is nothing to release", async () => {
     const h = setup();
-    const answer = h.channel.translate("x");
+    const answer = h.channel.translate("x", "en");
     await flush();
     h.elapse(START_TIMEOUT_MS);
     await answer;

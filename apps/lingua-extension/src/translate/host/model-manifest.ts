@@ -110,10 +110,7 @@ export function parseCatalogue(raw: unknown): ModelCatalogue {
 
 /** The models that translate `language` into French, in order; none when the catalogue has no route. */
 export function routeOf(catalogue: ModelCatalogue, language: string): ModelManifest[] {
-  return (catalogue.routes[language] ?? []).map((id) => {
-    const { from, to, files } = catalogue.models[id]!;
-    return { version: id, base: catalogue.base, from, to, files };
-  });
+  return modelsById(catalogue, catalogue.routes[language] ?? []);
 }
 
 export function fileUrl(manifest: ModelManifest, file: ModelFile): string {
@@ -138,11 +135,21 @@ export async function loadBundledCatalogue(fetchFn: typeof fetch = fetch): Promi
 }
 
 /**
- * The model the setting downloads and the engine loads: the route of `language`, which holds a
- * single model until generalise-lingua-translation-model-state (catalogue D3).
+ * The models a device needs for `languages`: the union of their routes, in their order, each once
+ * (generalise-lingua-translation-model-state D2). A language without a route needs nothing.
  */
-export async function loadTranslationModel(language: string, fetchFn: typeof fetch = fetch): Promise<ModelManifest> {
-  const route = routeOf(await loadBundledCatalogue(fetchFn), language);
-  if (route.length !== 1) throw new Error(`${MANIFEST_PATH}: the ${language} route must be a single model`);
-  return route[0]!;
+export function modelsFor(catalogue: ModelCatalogue, languages: readonly string[]): ModelManifest[] {
+  const needed = new Map<string, ModelManifest>();
+  for (const language of languages) {
+    for (const model of routeOf(catalogue, language)) if (!needed.has(model.version)) needed.set(model.version, model);
+  }
+  return [...needed.values()];
+}
+
+/** The catalogue's models named by `ids`, in that order; an id it does not list is left out. */
+export function modelsById(catalogue: ModelCatalogue, ids: readonly string[]): ModelManifest[] {
+  return ids.flatMap((id) => {
+    const model = catalogue.models[id];
+    return model ? [{ version: id, base: catalogue.base, from: model.from, to: model.to, files: model.files }] : [];
+  });
 }

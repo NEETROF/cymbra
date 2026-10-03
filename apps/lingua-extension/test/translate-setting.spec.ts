@@ -4,8 +4,8 @@ import type { TranslatorPort } from "@/translate/port.ts";
 import {
   loadTranslationSetting,
   MODEL_STATE_KEY,
+  languageReady,
   type ModelState,
-  modelReady,
   parseHost,
   parseModelState,
   saveTranslationSetting,
@@ -14,7 +14,11 @@ import {
 } from "@/translate/setting.ts";
 
 // « Traduction étendue » as stored on the device (add-lingua-translation-delivery D2), and the
-// translator a surface gets from it: none unless the reader chose the device AND its model is there.
+// translator a surface gets from it: none unless the reader chose the device AND the models of the
+// sentence's language are there (generalise-lingua-translation-model-state D3, D5).
+
+const EN_FR = "en-fr/base-memory/2.0";
+const READY: ModelState = { phase: "ready", models: [EN_FR], languages: ["en"] };
 
 function memoryArea(seed: Record<string, unknown> = {}): SettingArea & { store: Record<string, unknown> } {
   const store: Record<string, unknown> = { ...seed };
@@ -36,9 +40,9 @@ describe("the stored setting", () => {
 
   it("stores a host, not a boolean, so a third place needs no migration", async () => {
     const area = memoryArea();
-    await saveTranslationSetting(area, { host: "local", state: { phase: "ready" } });
-    expect(area.store).toEqual({ [TRANSLATION_HOST_KEY]: "local", [MODEL_STATE_KEY]: { phase: "ready" } });
-    expect(await loadTranslationSetting(area)).toEqual({ host: "local", state: { phase: "ready" } });
+    await saveTranslationSetting(area, { host: "local", state: READY });
+    expect(area.store).toEqual({ [TRANSLATION_HOST_KEY]: "local", [MODEL_STATE_KEY]: READY });
+    expect(await loadTranslationSetting(area)).toEqual({ host: "local", state: READY });
   });
 
   it("writes only what it is given", async () => {
@@ -65,7 +69,21 @@ describe("the stored setting", () => {
       received: 0,
       total: 0,
     });
-    expect(parseModelState({ phase: "ready" })).toEqual({ phase: "ready" });
+    expect(parseModelState(READY)).toEqual(READY);
+    expect(parseModelState({ phase: "missing", models: [EN_FR], languages: ["en"], total: 26 })).toEqual({
+      phase: "missing",
+      models: [EN_FR],
+      languages: ["en"],
+      total: 26,
+    });
+    expect(parseModelState({ phase: "missing", models: "x", languages: [3], total: -1 })).toEqual({
+      phase: "missing",
+      models: [],
+      languages: [],
+      total: 0,
+    });
+    // The release before the models were named recorded `ready` only once the English one was there.
+    expect(parseModelState({ phase: "ready" })).toEqual({ phase: "ready", models: [], languages: ["en"] });
     expect(parseModelState({ phase: "removed" })).toEqual({ phase: "removed" });
     expect(parseModelState({ phase: "failed", reason: "network" })).toEqual({ phase: "failed", reason: "network" });
     expect(parseModelState({ phase: "failed", reason: "EACCES" })).toEqual({ phase: "failed", reason: "unknown" });
@@ -73,9 +91,14 @@ describe("the stored setting", () => {
     expect(parseModelState(null)).toEqual({ phase: "absent" });
   });
 
-  it("is ready only when on and the model is there", () => {
-    expect(modelReady("local", { phase: "ready" })).toBe(true);
-    expect(modelReady("none", { phase: "ready" })).toBe(false);
+  it("is ready for a language only when on and its models are there", () => {
+    expect(languageReady("local", READY, "en")).toBe(true);
+    expect(languageReady("local", READY, "es")).toBe(false);
+    expect(languageReady("none", READY, "en")).toBe(false);
+    // A language added since: its model is missing, English is still translated.
+    const missing: ModelState = { phase: "missing", models: [EN_FR], languages: ["en"], total: 26 };
+    expect(languageReady("local", missing, "en")).toBe(true);
+    expect(languageReady("local", missing, "es")).toBe(false);
     for (const state of [
       { phase: "absent" },
       { phase: "downloading", received: 1, total: 2 },
@@ -83,7 +106,7 @@ describe("the stored setting", () => {
       { phase: "interrupted", received: 1, total: 2 },
       { phase: "removed" },
     ] as ModelState[]) {
-      expect(modelReady("local", state)).toBe(false);
+      expect(languageReady("local", state, "en")).toBe(false);
     }
   });
 });
@@ -112,15 +135,25 @@ describe("translatorSource — which translator a surface gets", () => {
 
   it("gives none before the setting has been read — the safe answer", () => {
     const { source } = setup({ [TRANSLATION_HOST_KEY]: "local", [MODEL_STATE_KEY]: { phase: "ready" } });
-    expect(source()).toBeNull();
+    expect(source("en")).toBeNull();
   });
 
   it("gives the messaging port once the setting is on and the model ready", async () => {
     const { source, port, make } = setup({ [TRANSLATION_HOST_KEY]: "local", [MODEL_STATE_KEY]: { phase: "ready" } });
     await flush();
-    expect(source()).toBe(port);
-    expect(source()).toBe(port);
+    expect(source("en")).toBe(port);
+    expect(source("en")).toBe(port);
     expect(make).toHaveBeenCalledOnce(); // one port per page: its keep-warm starts once
+  });
+
+  it("gives a translator per language: English while Spanish's model is missing (model-state D5)", async () => {
+    const { source, port } = setup({
+      [TRANSLATION_HOST_KEY]: "local",
+      [MODEL_STATE_KEY]: { phase: "missing", models: [EN_FR], languages: ["en"], total: 26 },
+    });
+    await flush();
+    expect(source("en")).toBe(port);
+    expect(source("es")).toBeNull();
   });
 
   for (const state of [
@@ -133,14 +166,14 @@ describe("translatorSource — which translator a surface gets", () => {
     it(`gives none while the model is ${state.phase}`, async () => {
       const { source } = setup({ [TRANSLATION_HOST_KEY]: "local", [MODEL_STATE_KEY]: state });
       await flush();
-      expect(source()).toBeNull();
+      expect(source("en")).toBeNull();
     });
   }
 
   it("gives none when the setting is off, whatever was recorded", async () => {
     const { source } = setup({ [MODEL_STATE_KEY]: { phase: "ready" } });
     await flush();
-    expect(source()).toBeNull();
+    expect(source("en")).toBeNull();
   });
 
   it("follows the setting: a model that arrives, then a setting turned off", async () => {
@@ -150,17 +183,17 @@ describe("translatorSource — which translator a surface gets", () => {
     });
     expect(watched).toEqual([[TRANSLATION_HOST_KEY, MODEL_STATE_KEY]]);
     await flush();
-    expect(source()).toBeNull();
+    expect(source("en")).toBeNull();
 
     area.store[MODEL_STATE_KEY] = { phase: "ready" };
     change();
     await flush();
-    expect(source()).not.toBeNull();
+    expect(source("en")).not.toBeNull();
 
     area.store[TRANSLATION_HOST_KEY] = "none";
     change();
     await flush();
-    expect(source()).toBeNull();
+    expect(source("en")).toBeNull();
   });
 
   it("gives none when the storage cannot be read (an orphaned page)", async () => {
@@ -170,11 +203,11 @@ describe("translatorSource — which translator a surface gets", () => {
       port: () => ({ translate: vi.fn() }),
     });
     await flush();
-    expect(source()).toBeNull();
+    expect(source("en")).toBeNull();
   });
 
   it("is never anything in a variant without the engine", () => {
     // The test build defines __TRANSLATION_HOST__ as "none", as Safari's does.
-    expect(createTranslatorPort()()).toBeNull();
+    expect(createTranslatorPort()("en")).toBeNull();
   });
 });

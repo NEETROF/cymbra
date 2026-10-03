@@ -109,7 +109,7 @@ describe("keepEngineWarm", () => {
 });
 
 describe("keepWarm", () => {
-  const request = { sentence: "They seldom ship.", selection: { start: 5, end: 11 } };
+  const request = { sentence: "They seldom ship.", selection: { start: 5, end: 11 }, language: "en" };
   const answer: TranslationResult = { kind: "unavailable" };
 
   function inner(): TranslatorPort & { calls: number } {
@@ -145,8 +145,8 @@ describe("keepWarm", () => {
 
   it("passes a warm through to the port (android D2)", () => {
     const port = { ...inner(), warm: vi.fn() };
-    keepWarm(port, vi.fn()).warm?.();
-    expect(port.warm).toHaveBeenCalledOnce();
+    keepWarm(port, vi.fn()).warm?.("es");
+    expect(port.warm).toHaveBeenCalledWith("es");
   });
 
   describe("back to the page (add-lingua-translation-android D3)", () => {
@@ -171,6 +171,16 @@ describe("keepWarm", () => {
       p.later(60_000); // a minute in another app
       p.show();
       expect(port.warm).toHaveBeenCalledOnce();
+    });
+
+    it("asks for the route of the language it last translated", async () => {
+      const p = page();
+      const port = { ...inner(), warm: vi.fn() };
+      const translator = keepWarm(port, vi.fn(), p.restore);
+      await translator.translate({ ...request, language: "es" });
+      p.later(60_000);
+      p.show();
+      expect(port.warm).toHaveBeenCalledWith("es");
     });
 
     it("counts from the LAST translation, and not past the idle period", async () => {

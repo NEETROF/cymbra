@@ -338,6 +338,23 @@ mod tests {
     }
 
     #[test]
+    fn the_studied_languages_are_written_where_the_extension_reads_them_without_an_engine() {
+        // apps/lingua-extension/src/state/profile.ts reads `profile.studied_languages`, under the
+        // enum's names, straight from the stored backup (generalise-lingua-translation-model-state
+        // D2): renaming either breaks the extension's translation models without a type error.
+        let mut state = LinguaState::default();
+        state
+            .profile
+            .set_studied_languages(vec![ES, EN])
+            .expect("two languages");
+        let json: serde_json::Value = serde_json::from_str(&state.to_backup()).expect("json");
+        assert_eq!(
+            json["profile"]["studied_languages"],
+            serde_json::json!(["Spanish", "English"])
+        );
+    }
+
+    #[test]
     fn another_studied_language_is_written_as_version_2_and_restored() {
         // Ungraded, so no computed f64 is normalised on the first write.
         let mut state = LinguaState::default();

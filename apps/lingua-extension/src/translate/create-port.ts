@@ -1,8 +1,10 @@
-// Which TranslatorPort a surface gets, asked at the moment it needs one. None, unless the reader
-// turned « Traduction étendue » on for this device AND its model is on the device
-// (add-lingua-translation-delivery): off, downloading, failed, interrupted or removed, every
-// surface answers exactly as it did before the engine existed — no line saying a translation is on
-// its way. A build without the engine (`__TRANSLATION_HOST__` "none") never has one.
+// Which TranslatorPort a surface gets, asked at the moment it needs one, for the language of the
+// sentence. None, unless the reader turned « Traduction étendue » on for this device AND every model
+// of that language's route is on the device (add-lingua-translation-delivery,
+// generalise-lingua-translation-model-state D5): off, downloading, failed, interrupted, removed, or
+// a language whose models are missing, every surface answers exactly as it did before the engine
+// existed — no line saying a translation is on its way. A build without the engine
+// (`__TRANSLATION_HOST__` "none") never has one.
 //
 // When there is one, it is the messaging port — and only ever that one, wherever the caller runs —
 // wrapped so that using it keeps the engine's host loaded between selections (keepalive.ts), and
@@ -13,15 +15,20 @@ import { keepWarm } from "./keepalive.ts";
 import { MessagingTranslatorPort } from "./messaging-port.ts";
 import type { TranslatorPort } from "./port.ts";
 import {
+  ABSENT,
+  languageReady,
   loadTranslationSetting,
   MODEL_STATE_KEY,
-  modelReady,
   type SettingArea,
   TRANSLATION_HOST_KEY,
+  type TranslationSetting,
 } from "./setting.ts";
 
-/** The translator right now, or null: asked per selection, since the reader can change it any time. */
-export type TranslatorSource = () => TranslatorPort | null;
+/**
+ * The translator right now for a sentence in `language`, or null: asked per selection, since the
+ * reader can change it any time.
+ */
+export type TranslatorSource = (language: string) => TranslatorPort | null;
 
 export interface TranslatorSourceDeps {
   area: SettingArea;
@@ -44,20 +51,19 @@ const REAL: () => TranslatorSourceDeps = () => ({
  * translator, which is the safe answer: a surface without one behaves as it always did.
  */
 export function translatorSource(deps: TranslatorSourceDeps): TranslatorSource {
-  let ready = false;
+  let setting: TranslationSetting = { host: "none", state: ABSENT };
   let port: TranslatorPort | null = null;
   const read = async (): Promise<void> => {
     try {
-      const { host, state } = await loadTranslationSetting(deps.area);
-      ready = modelReady(host, state);
+      setting = await loadTranslationSetting(deps.area);
     } catch {
-      ready = false; // an orphaned page: its extension context is gone
+      setting = { host: "none", state: ABSENT }; // an orphaned page: its extension context is gone
     }
   };
   void read();
   deps.watch([TRANSLATION_HOST_KEY, MODEL_STATE_KEY], () => void read());
-  return () => {
-    if (!ready) return null;
+  return (language) => {
+    if (!languageReady(setting.host, setting.state, language)) return null;
     port ??= deps.port();
     return port;
   };

@@ -107,6 +107,46 @@ describe("modelDb", () => {
     expect(await modelDb(factory).complete(manifest)).toBe(false);
   });
 
+  it("records each model apart (generalise-lingua-translation-model-state D1)", async () => {
+    const factory = new IDBFactory();
+    const db = await filled(factory);
+    const other: ModelManifest = { ...manifest, version: "es-en/base-memory/2.0", from: "es", to: "en" };
+    expect(await db.complete(other)).toBe(false); // its files are here, its record is not
+    await db.markComplete(other);
+    expect(await db.complete(other)).toBe(true);
+    expect(await db.complete(manifest)).toBe(true);
+  });
+
+  it("prunes the models no route needs, keeping the files a kept model names", async () => {
+    const factory = new IDBFactory();
+    const db = await filled(factory);
+    // es-en shares en-fr's vocab, and has a model and a shortlist of its own.
+    await db.put(sha("d"), new Uint8Array([7]));
+    await db.put(sha("e"), new Uint8Array([8]));
+    const other: ModelManifest = {
+      ...manifest,
+      version: "es-en/base-memory/2.0",
+      files: {
+        model: { ...manifest.files.model, sha256: sha("d") },
+        lex: { ...manifest.files.lex, sha256: sha("e") },
+        vocab: manifest.files.vocab,
+      },
+    };
+    await db.markComplete(other);
+
+    await db.prune([manifest]);
+
+    expect(await db.complete(manifest)).toBe(true);
+    expect(await db.complete(other)).toBe(false);
+    expect(await db.has(sha("d"))).toBe(false);
+    expect(await db.has(sha("e"))).toBe(false);
+    expect(await db.has(sha("c"))).toBe(true); // the shared vocab stays
+
+    await db.prune([]);
+    expect(await db.complete(manifest)).toBe(false);
+    expect(await db.has(sha("a"))).toBe(false);
+  });
+
   it("deletes the whole database — turning the setting off leaves nothing behind", async () => {
     const factory = new IDBFactory();
     const db = await filled(factory);
