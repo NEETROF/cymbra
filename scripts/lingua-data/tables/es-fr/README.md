@@ -13,6 +13,7 @@ pack yet: that is `enable-lingua-spanish`.
 | `gloss.tsv` | lemma → French gloss | the French Wiktionary's Spanish entries; else the Spanish Wiktionary's French translations; else the French Wiktionary's translation tables, read backwards (all CC BY-SA 4.0 + GFDL, through kaikki) |
 | `senses.tsv` | lemma → part of speech of each run of its gloss's senses | the same |
 | `mwe.tsv` | expression → French gloss | the same sources, for multi-word headwords |
+| `level.tsv` | lemma → estimated CEFR level | derived from `freq.tsv` and `gloss.tsv` (no source of its own) |
 | `NOTICE` | the attribution stack, embedded in the pack | — |
 | `manifest.json` | the pack's metadata: Spanish, the Spanish analyser's version, and `pack_version` (the snapshot, and the rules that reduced it) | — |
 | `pin.json` | the raw sources these tables came from, and the pack they build | — |
@@ -56,6 +57,16 @@ pack yet: that is `enable-lingua-spanish`.
   Expressions: 2,952 from the French Wiktionary's Spanish entries, 12,181 from the translations.
   The builder keeps those whose words the lexicon holds. `LOCUTIONS` in `reduce-es-fr.py`, for the
   verbal locutions no source glosses (`hay que`), is empty: its glosses are written by a person.
+- **Estimated levels** for 8,302 lemmas (add-lingua-spanish-levels). No Spanish CEFR list can be
+  shipped, so the levels are derived from frequency, and the manifest says `levels_estimated`;
+  the extension labels them « estimé ». The commonest lemmas, in rank order, take the sizes of
+  English's CEFR levels: 1,020 A1, 1,158 A2, 2,015 B1, 2,347 B2, 886 C1, 876 C2. A lemma with no
+  French gloss, or only a proper noun's, is skipped (`the`, `twitter`, `madrid`). A1 runs to
+  rank 1,086 and C2 to 12,069.
+
+  Measured on English's own CEFR lemmas, this rule agrees with the lists for 39.8 % of them, and
+  within one level for 82.6 %. The scale is monotone: each estimated level's mean true level
+  rises from 1.67 at A1 to 5.03 at C2.
 
 ## Measured
 
@@ -69,7 +80,7 @@ and proper nouns are left out. On the 2026-10-03 tables:
 | content words taking PUD's lemma | 95.92 % of 9,439 | 93.5 % |
 | auxiliaries taking PUD's lemma | 97.95 % of 634 | 97 % |
 
-The pack is 2,126,574 B, the grammar and the glosses included.
+The pack is 2,186,617 B, with the grammar, the glosses and the levels.
 
 ## Licences
 
@@ -77,6 +88,7 @@ The repository is Apache-2.0; **these files are not**. They are derived from the
 carry their licences:
 - `forms.tsv`: CC BY-SA 4.0 and the GFDL (kaikki), and CC BY-SA 4.0 (GSD's counts);
 - `grammar.tsv`, `gloss.tsv`, `senses.tsv`, `mwe.tsv`: CC BY-SA 4.0 and the GFDL (kaikki);
+- `level.tsv`: derived from `freq.tsv` (CC BY-SA 4.0) and `gloss.tsv`;
 - `freq.tsv`: CC BY-SA 4.0.
 
 `NOTICE` gives the full attribution. See `../../SOURCES.md`.

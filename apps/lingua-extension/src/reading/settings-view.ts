@@ -1,4 +1,5 @@
 import {
+  estimatedLevelsNote,
   languageName,
   levelTitle,
   noVoiceInstalled,
@@ -180,6 +181,7 @@ export function mountSettings(
   function levelBlockFor(language: StudiedLanguage): LevelBlock {
     const view = port.for(language);
     const block = settingBlock(levelTitle(language));
+    const title = block.querySelector<HTMLElement>(".set-label");
     const chips = el("div", "level-chips");
     const chipButtons = new Map<string, HTMLButtonElement>();
     const addChip = (value: string, label: string): void => {
@@ -193,6 +195,9 @@ export function mountSettings(
     for (const lvl of CEFR_LEVELS) addChip(lvl, lvl);
     addChip("", "Débutant");
     const hint = el("div", "set-note");
+    // Levels estimated from frequency say so (add-lingua-spanish-levels).
+    const estimate = el("div", "set-note set-estimate", estimatedLevelsNote(language));
+    estimate.hidden = true;
     const calibBlock = el("div", "calib");
     calibBlock.hidden = true;
     const calibValue = el("b", undefined, "3000");
@@ -205,7 +210,7 @@ export function mountSettings(
     calib.step = "100";
     calib.value = "3000";
     calibBlock.append(calibLabel, calib);
-    block.append(chips, hint, calibBlock);
+    block.append(chips, hint, estimate, calibBlock);
     calib.addEventListener("input", () => {
       calibValue.textContent = calib.value;
     });
@@ -227,6 +232,9 @@ export function mountSettings(
         await view.declaredLevel(),
         await needsLevelChoice(port, language),
       ];
+      const estimated = hasLevels && (await view.levelsEstimated());
+      if (title) title.textContent = levelTitle(language, estimated);
+      estimate.hidden = !estimated;
       // Nothing is highlighted as chosen until a decision exists (« Débutant » is one).
       const current = needsChoice ? null : (declared ?? "");
       for (const [value, b] of chipButtons) b.classList.toggle("active", value === current);

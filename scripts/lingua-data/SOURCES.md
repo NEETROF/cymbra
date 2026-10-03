@@ -140,6 +140,7 @@ Reduced by `reduce-es-fr.py` (add-lingua-spanish-forms-tables), for the Spanish 
 | `gloss.tsv` (`lemma → gloss`) | **kaikki.org**: the French Wiktionary's Spanish entries; else the French translations the Spanish Wiktionary's Spanish entries list; else the French Wiktionary's French entries whose translation tables list the word. The last two are derived from kaikki's dumps of the whole editions (`pack_sources.py DUMPS`) | CC BY-SA 4.0 + GFDL | the shared rules on the Spanish entries: up to eight senses grouped by part of speech (add-lingua-spanish-gloss-tables). A fallback gloss is up to three French words per part of speech, the commonest first from a table read backwards. A proper noun's translation glosses nothing; a gloss is never English and never a machine translation. Coverage below |
 | `senses.tsv` (`lemma → runs`) | the same | CC BY-SA 4.0 + GFDL | the parts of speech of each gloss's runs of senses; a fallback gloss has one sense per part of speech |
 | `mwe.tsv` (`expression → gloss`) | the same | CC BY-SA 4.0 + GFDL | the Spanish multi-word entries, then the multi-word headwords the translations give; `LOCUTIONS` in the reducer, written by a person, wins (empty so far). The builder keys them through the lexicon |
+| `level.tsv` (`lemma → CEFR`) | none: derived from `freq.tsv` and `gloss.tsv` | that of `freq.tsv` | **estimated**, since no Spanish CEFR list can be shipped (ELELex is NC, the PCIC all rights reserved). The commonest lemmas whose French gloss is not only a proper noun's take, in rank order, English's band sizes (1,020 A1 … 876 C2): 8,302 lemmas. The manifest says `levels_estimated`, and the extension labels the levels « estimé » (add-lingua-spanish-levels) |
 | `NOTICE` | all of the above | — | the attribution stack, embedded in the pack |
 
 **Measured on UD Spanish-PUD** (CC BY-SA 3.0), never committed and never read by the reduction.
@@ -160,8 +161,12 @@ proper nouns are left out. The 2026-10-03 tables pass the programme's gates:
 | all 60,000 | 29.0 % | 38.0 % |
 
 22,826 lemmas are glossed, 17,420 from the French Wiktionary. There are 15,133 expressions: 2,952
-from the French Wiktionary's Spanish entries and 12,181 from the translations. The pack is
-2,126,574 B, the grammar and the glosses included.
+from the French Wiktionary's Spanish entries and 12,181 from the translations.
+
+**Estimated levels**, the rule measured on English's 8,302 CEFR lemmas, ranked the same way: 39.8 %
+take their list's level, and 82.6 % are within one level of it. The scale is monotone (the mean true
+level rises from 1.67 at A1 to 5.03 at C2), so the three-band fallback of the programme's decision
+D1 is not needed. The pack is 2,186,617 B, with the grammar, the glosses and the levels.
 
 ## Allowed vs denied licences
 

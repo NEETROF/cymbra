@@ -641,10 +641,17 @@ describe("Réglages — Affichage", () => {
 });
 
 describe("Réglages — the reader's languages (add-lingua-language-choice)", () => {
-  async function mountWith(studied: ("en" | "es")[], pairs: string[]) {
+  async function mountWith(
+    studied: ("en" | "es")[],
+    pairs: string[],
+    estimated: (language: string) => boolean = () => false,
+  ) {
     const { port, calls } = makeFakePort();
     await port.setStudiedLanguages(studied);
     port.hasLevels = async () => true;
+    port.levelsEstimated = async function (this: { language: string }) {
+      return estimated(this.language);
+    };
     const container = document.createElement("div");
     document.body.replaceChildren(container);
     mountSettings(container, port, fakeArea(), {
@@ -683,6 +690,18 @@ describe("Réglages — the reader's languages (add-lingua-language-choice)", ()
     spanish.querySelector<HTMLButtonElement>('button[data-lvl="A2"]')!.click();
     await settle();
     expect(declared).toEqual([["es", "A2"]]);
+  });
+
+  it("titles estimated levels as such and says why, for that language only (add-lingua-spanish-levels)", async () => {
+    const s = await mountWith(["en", "es"], ["en-fr", "es-fr"], (language) => language === "es");
+    const spanish = s.block("Niveau d'espagnol estimé")!;
+    const note = spanish.querySelector<HTMLElement>(".set-estimate")!;
+    expect(note.hidden).toBe(false);
+    expect(note.textContent).toBe(
+      "Niveaux estimés d'après la fréquence des mots, faute de liste CEFR libre de droits pour l'espagnol.",
+    );
+    const english = s.block("Niveau d'anglais")!;
+    expect(english.querySelector<HTMLElement>(".set-estimate")!.hidden).toBe(true);
   });
 
   it("shows one block, « Niveau d'anglais », and no choice, with en-fr alone", async () => {

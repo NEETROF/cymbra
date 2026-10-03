@@ -31,11 +31,49 @@ pub struct PackMeta {
     /// One entry per bundled source's licence/attribution (the human-readable
     /// stack also lives verbatim in the NOTICE section).
     pub licences: Vec<String>,
+    /// Whether the level table is estimated from word frequency rather than
+    /// taken from a CEFR list (add-lingua-spanish-levels), so the extension
+    /// labels those levels as estimated. A pack that says nothing reads as
+    /// false, and false is never written, so such a pack keeps its bytes.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub levels_estimated: bool,
+}
+
+fn is_false(value: &bool) -> bool {
+    !*value
 }
 
 impl PackMeta {
     /// The pair key, e.g. `"en->fr"`.
     pub fn pair_key(&self) -> String {
         format!("{}->{}", self.studied, self.native)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const WITHOUT: &str = r#"{"studied":"en","native":"fr","pack_version":"1","analyzer_version":"1.1.0","licences":["x"]}"#;
+
+    #[test]
+    fn a_pack_that_says_nothing_of_its_levels_reads_not_estimated_and_keeps_its_bytes() {
+        let meta: PackMeta = serde_json::from_str(WITHOUT).expect("parse");
+        assert!(!meta.levels_estimated);
+        assert_eq!(serde_json::to_string(&meta).expect("serialise"), WITHOUT);
+    }
+
+    #[test]
+    fn estimated_levels_are_said_and_read_back() {
+        let meta = PackMeta {
+            levels_estimated: true,
+            ..serde_json::from_str(WITHOUT).expect("parse")
+        };
+        let json = serde_json::to_string(&meta).expect("serialise");
+        assert!(json.ends_with(r#""levels_estimated":true}"#), "{json}");
+        assert_eq!(
+            serde_json::from_str::<PackMeta>(&json).expect("parse"),
+            meta
+        );
     }
 }

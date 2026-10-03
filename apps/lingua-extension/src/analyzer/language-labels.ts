@@ -9,6 +9,8 @@ interface LanguageWords {
   readonly name: string;
   /** After « niveau »: « d'anglais ». */
   readonly of: string;
+  /** With its article: « l'anglais ». */
+  readonly the: string;
   /** After a masculine noun: « texte anglais ». */
   readonly masculine: string;
   /** After a feminine noun: « voix anglaise ». */
@@ -23,6 +25,7 @@ const WORDS: Record<StudiedLanguage, LanguageWords> = {
   en: {
     name: "Anglais",
     of: "d'anglais",
+    the: "l'anglais",
     masculine: "anglais",
     feminine: "anglaise",
     windowsVoice: "Anglais (États-Unis)",
@@ -31,6 +34,7 @@ const WORDS: Record<StudiedLanguage, LanguageWords> = {
   es: {
     name: "Espagnol",
     of: "d'espagnol",
+    the: "l'espagnol",
     masculine: "espagnol",
     feminine: "espagnole",
     windowsVoice: "Espagnol (Espagne)",
@@ -43,14 +47,27 @@ export function languageName(language: StudiedLanguage): string {
   return WORDS[language].name;
 }
 
-/** « Niveau d'anglais ». */
-export function levelTitle(language: StudiedLanguage): string {
-  return `Niveau ${WORDS[language].of}`;
+/**
+ * « Niveau d'anglais » — « Niveau d'espagnol estimé » when the pack's levels are estimated from word
+ * frequency (add-lingua-spanish-levels).
+ */
+export function levelTitle(language: StudiedLanguage, estimated = false): string {
+  return `Niveau ${WORDS[language].of}${estimated ? " estimé" : ""}`;
 }
 
-/** « Mon niveau d'anglais ». */
-export function myLevelTitle(language: StudiedLanguage): string {
-  return `Mon niveau ${WORDS[language].of}`;
+/** « Mon niveau d'anglais » — « Mon niveau d'espagnol estimé » when the levels are estimated. */
+export function myLevelTitle(language: StudiedLanguage, estimated = false): string {
+  return `Mon niveau ${WORDS[language].of}${estimated ? " estimé" : ""}`;
+}
+
+/** Why a language's levels read « estimé »: no CEFR list can be shipped for it. */
+export function estimatedLevelsNote(language: StudiedLanguage): string {
+  return `Niveaux estimés d'après la fréquence des mots, faute de liste CEFR libre de droits pour ${WORDS[language].the}.`;
+}
+
+/** A level as a surface names it: « B1 », or « B1 (estimé) » when the levels are estimated. */
+export function levelName(level: string, estimated: boolean): string {
+  return estimated ? `${level} (estimé)` : level;
 }
 
 /** « Choisis ton niveau d'anglais ». */

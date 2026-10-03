@@ -324,6 +324,15 @@ impl LinguaEngine {
         Ok(pack.has_levels())
     }
 
+    /// Whether that level table is estimated from word frequency rather than
+    /// taken from a CEFR list (add-lingua-spanish-levels): the extension then
+    /// labels every level it shows as estimated.
+    #[wasm_bindgen(js_name = levelsEstimated)]
+    pub fn levels_estimated(&self, language: Option<String>) -> Result<bool, JsError> {
+        let (_, pack) = resolve(&self.packs, language.as_deref())?;
+        Ok(pack.levels_estimated())
+    }
+
     /// The CEFR progression ladder as JSON — an array of
     /// `{level, confirmed, presumed, toLearn, total, typicalVocabulary}`, one row per
     /// level A1..C2, folded over the pack's lemmas at each level; `typicalVocabulary` is

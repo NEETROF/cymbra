@@ -147,6 +147,8 @@ export interface SessionStats {
   calibration: number;
   declaredLevel: CefrLevel | null;
   hasLevels: boolean;
+  /** Levels estimated from word frequency, labelled as such (add-lingua-spanish-levels). */
+  levelsEstimated: boolean;
   needsLevel: boolean;
   trackedCount: number;
   deckCount: number;
@@ -905,6 +907,7 @@ export class ReadingSession {
       calibration: this.calibration,
       declaredLevel: await this.lang.declaredLevel(),
       hasLevels: await this.lang.hasLevels(),
+      levelsEstimated: await this.lang.levelsEstimated(),
       needsLevel: await needsLevelChoice(this.port, this.language),
       language: this.language,
       languages: [...this.languages],

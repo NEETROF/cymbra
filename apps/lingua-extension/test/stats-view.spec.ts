@@ -164,6 +164,22 @@ describe("Statistiques — the view", () => {
     expect(root.querySelectorAll(".card")).toHaveLength(3); // the counters stand on their own
   });
 
+  it("says the levels are estimated, on the ladder and by the seeding control, when the pack does", async () => {
+    await mountStats(root, levelledPort({ levelsEstimated: async () => true }), fakeArea());
+
+    expect(pick(".ladder-estimate").textContent).toContain("Niveaux estimés d'après la fréquence des mots");
+    expect(pick(".ladder-cols .ladder-cum").textContent).toBe("courants");
+    expect(pick(".seed-estimate").textContent).toContain("Niveaux estimés d'après la fréquence des mots");
+  });
+
+  it("says nothing of an estimate when the levels come from a CEFR list", async () => {
+    await mountStats(root, levelledPort(), fakeArea());
+
+    expect(has(".ladder-estimate")).toBe(false);
+    expect(has(".seed-estimate")).toBe(false);
+    expect(pick(".ladder-cols .ladder-cum").textContent).toBe("enseignés");
+  });
+
   it("starts the seeding control on the level the reader declared", async () => {
     await mountStats(root, levelledPort({ declaredLevel: async () => "C1" }), fakeArea());
 

@@ -157,6 +157,7 @@ export function makeFakePort(deck: FakeCard[] = []): { port: FakePort; calls: Fa
     exportDeclaredLevels: async () => [],
     applyDeclaredLevelChanges: async () => 0,
     hasLevels: async () => false,
+    levelsEstimated: async () => false,
     levelLadder: async () => [],
     vocabularyEstimate: async () => ({ estimated: 0, confirmed: 0, universe: 0, basis: "marked" }),
     recordExposures: async () => {},

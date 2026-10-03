@@ -1,4 +1,4 @@
-import { languageName } from "../analyzer/language-labels.ts";
+import { estimatedLevelsNote, languageName } from "../analyzer/language-labels.ts";
 import { acceptedLanguages } from "../analyzer/pairs.ts";
 import type { LinguaPort } from "../analyzer/port.ts";
 import { type CefrLevel, CEFR_LEVELS, type SeedOrder, type StudiedLanguage } from "../analyzer/types.ts";
@@ -83,7 +83,8 @@ const MARKED_SECTIONS: { origin: MarkedOrigin; label: string; note: string | nul
   },
 ];
 
-function buildSeedControl(): HTMLElement {
+/** The control, and — for levels estimated from frequency — the note saying so. */
+function buildSeedControl(estimatedNote: string | null): HTMLElement {
   const wrap = document.createElement("div");
   wrap.className = "seed";
 
@@ -96,6 +97,12 @@ function buildSeedControl(): HTMLElement {
   note.className = "seed-note";
   note.textContent = "Ajoute des mots d'un niveau à ton deck de révision, sans attendre de les croiser en lisant.";
   wrap.append(note);
+  if (estimatedNote) {
+    const why = document.createElement("div");
+    why.className = "seed-note seed-estimate";
+    why.textContent = estimatedNote;
+    wrap.append(why);
+  }
 
   const controls = document.createElement("div");
   controls.className = "seed-controls";
@@ -250,8 +257,12 @@ export async function mountStats(
     const vocab = vocabularyView(await lang.vocabularyEstimate(), hasLevels);
     pick(".vocab-slot").replaceChildren(...(vocab ? [vocab] : []));
     if (hasLevels) {
-      const [rows, declared] = [await lang.levelLadder(), await lang.declaredLevel()];
-      pick(".ladder-slot").replaceChildren(ladderView(rows, declared, language));
+      const [rows, declared, estimated] = [
+        await lang.levelLadder(),
+        await lang.declaredLevel(),
+        await lang.levelsEstimated(),
+      ];
+      pick(".ladder-slot").replaceChildren(ladderView(rows, declared, language, estimated));
     } else {
       const note = document.createElement("div");
       note.className = "note";
@@ -264,7 +275,8 @@ export async function mountStats(
   // "Renforcer un niveau" — only meaningful with CEFR data. Rendered once (stable
   // listener); a seed persists, reports, and refreshes the ladder.
   if (await lang.hasLevels()) {
-    pick(".seed-slot").replaceChildren(buildSeedControl());
+    const estimated = await lang.levelsEstimated();
+    pick(".seed-slot").replaceChildren(buildSeedControl(estimated ? estimatedLevelsNote(language) : null));
     const declared = await lang.declaredLevel();
     if (declared) pick<HTMLSelectElement>("#seed-level").value = declared;
     pick<HTMLButtonElement>("#seed-go").addEventListener("click", async () => {

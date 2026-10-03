@@ -20,8 +20,8 @@ Inputs, in `--work`:
   Wiktionary lists, and the French Wiktionary's translation tables, the glosses' fallbacks.
 
 Outputs, in `--work`: `forms.tsv`, `freq.tsv`, `grammar.tsv` (add-lingua-spanish-grammar-tables),
-`gloss.tsv`, `senses.tsv` and `mwe.tsv` (add-lingua-spanish-gloss-tables), `NOTICE` and
-`manifest.json`.
+`gloss.tsv`, `senses.tsv` and `mwe.tsv` (add-lingua-spanish-gloss-tables), `level.tsv`
+(add-lingua-spanish-levels), `NOTICE` and `manifest.json`.
 
 Every rule here is Spanish: the shared rules of `reduce_common.py` are used as they are, and that
 module is not edited, so the en-fr tables' rule set does not move.
@@ -547,6 +547,35 @@ def by_french_frequency(frequency):
     return lambda words: sorted(words, key=lambda w: (-frequency(w), w))
 
 
+# — The estimated levels (add-lingua-spanish-levels) —
+#
+# No Spanish CEFR list can be shipped, so the levels are estimated from frequency (the programme's
+# decision D1) and the pack says so. The commonest lemmas, in rank order, take the sizes of
+# English's CEFR levels: measured on English, giving its 8,302 CEFR lemmas their levels this way by
+# their own ranks agrees with the lists for 39.8 % of them, and within one level for 82.6 %. The
+# sizes are en-fr's on its 2026-09-26 tables, kept here: an English update must not move the
+# Spanish levels unannounced.
+ENGLISH_BANDS = (("A1", 1020), ("A2", 1158), ("B1", 2015), ("B2", 2347), ("C1", 886), ("C2", 876))
+
+
+def estimated_levels(ranks, glosses, runs, bands=ENGLISH_BANDS):
+    """`lemma → level`: in rank order, each band's size to the lemmas a CEFR list would hold — those
+    with a French gloss that is not only a proper noun's (`the`, `twitter`, `madrid` take none)."""
+    eligible = (
+        lemma
+        for lemma in sorted(ranks, key=lambda lemma: (ranks[lemma], lemma))
+        if lemma in glosses and {pos for pos, _ in runs.get(lemma, ())} != {"PROPN"}
+    )
+    out = {}
+    for level, size in bands:
+        for _ in range(size):
+            lemma = next(eligible, None)
+            if lemma is None:
+                return out
+            out[lemma] = level
+    return out
+
+
 NOTICE = """Cymbra Lingua data pack — ES->FR attributions.
 
 kaikki.org extract of the English Wiktionary (enwiktionary), Spanish section: CC BY-SA 4.0 + GFDL —
@@ -634,6 +663,8 @@ def main():
         ),
     )
     common.write(a.work, "mwe.tsv", "".join(f"{w}\t{g}\n" for w, g in sorted(expressions.items())))
+    levels = estimated_levels(ranks, glosses, runs)
+    common.write(a.work, "level.tsv", "".join(f"{l}\t{lvl}\n" for l, lvl in sorted(levels.items())))
     common.write(a.work, "NOTICE", NOTICE)
     manifest = {
         "meta": {
@@ -641,6 +672,8 @@ def main():
             "native": "fr",
             "pack_version": a.pack_version,
             "analyzer_version": analyser_version(),
+            # Derived from frequency, not taken from a CEFR list: the extension says so.
+            "levels_estimated": True,
             "licences": [
                 "kaikki / enwiktionary, frwiktionary, eswiktionary (CC BY-SA 4.0 + GFDL)",
                 "wordfreq (CC BY-SA 4.0)",
@@ -656,7 +689,7 @@ def main():
     common.write(a.work, "manifest.json", json.dumps(manifest, indent=2, ensure_ascii=False) + "\n")
     print(
         f"reduced es-fr: forms={len(forms)} lemmas={len(ranks)} readings={len(grammar)} "
-        f"glosses={len(glosses)} (French Wiktionary {primary}) expressions={len(expressions)}",
+        f"glosses={len(glosses)} (French Wiktionary {primary}) expressions={len(expressions)} levels={len(levels)}",
         file=sys.stderr,
     )
 

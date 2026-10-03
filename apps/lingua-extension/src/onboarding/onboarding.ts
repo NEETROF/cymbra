@@ -1,10 +1,8 @@
 import type { AccountReply } from "../account/messages.ts";
 import { createLinguaPort } from "../analyzer/create-port.ts";
-import { levelQuestion } from "../analyzer/language-labels.ts";
 import { acceptedLanguages } from "../analyzer/pairs.ts";
-import type { LanguagePort } from "../analyzer/port.ts";
-import { CEFR_LEVELS, type CefrLevel, type StudiedLanguage } from "../analyzer/types.ts";
 import { mountStudiedLanguages } from "../reading/studied-languages-view.ts";
+import { levelRow } from "./level-row.ts";
 import { type AsyncStorageArea, hydrateEngine, saveBackup } from "../state/storage.ts";
 import { messagedArea } from "../state/store.ts";
 import { followSurfaceLook } from "../reading/surface-look.ts";
@@ -76,59 +74,10 @@ async function main(): Promise<void> {
     for (const language of await acceptedLanguages(port)) {
       const view = port.for(language);
       if (!(await view.hasLevels())) continue; // no CEFR data for this language
-      rows.append(levelRow(language, view, await view.declaredLevel(), persist));
+      rows.append(levelRow(language, view, await view.declaredLevel(), await view.levelsEstimated(), persist));
     }
     $("level-section").hidden = rows.childElementCount === 0;
   }
-}
-
-/** One language's level question and chips; a chip is saved at once. */
-function levelRow(
-  language: StudiedLanguage,
-  view: LanguagePort,
-  current: CefrLevel | null,
-  persist: () => Promise<void>,
-): HTMLElement {
-  const row = document.createElement("div");
-  const title = document.createElement("h2");
-  title.textContent = levelQuestion(language);
-  const chips = document.createElement("div");
-  chips.className = "chips";
-  const confirm = document.createElement("p");
-  confirm.className = "confirm";
-  confirm.hidden = true;
-  const choices: [string, string][] = [
-    ...CEFR_LEVELS.map((l): [string, string] => [l, l]),
-    ["", "Débutant — je pars de zéro"],
-  ];
-  const buttons = choices.map(([value, label]) => {
-    const b = document.createElement("button");
-    b.className = value === "" ? "lvl beginner" : "lvl";
-    b.dataset.lvl = value;
-    b.textContent = label;
-    chips.append(b);
-    return b;
-  });
-  const mark = (level: CefrLevel | null): void => {
-    for (const b of buttons) b.classList.toggle("active", (b.dataset.lvl ?? "") === (level ?? ""));
-  };
-  mark(current);
-  for (const b of buttons) {
-    b.addEventListener("click", async () => {
-      const level = (b.dataset.lvl as CefrLevel) || null;
-      await view.setDeclaredLevelAt(level, Date.now()); // stamp for cross-device LWW
-      // With a declared level, presumption comes only from it (option B).
-      await view.setCalibration(0);
-      await persist();
-      mark(level);
-      confirm.hidden = false;
-      confirm.textContent = level
-        ? `Niveau enregistré : ${level}. Tu peux fermer cet onglet et commencer à lire.`
-        : "C'est noté — on part de zéro. Tu peux fermer cet onglet et commencer à lire.";
-    });
-  }
-  row.append(title, chips, confirm);
-  return row;
 }
 
 void main();

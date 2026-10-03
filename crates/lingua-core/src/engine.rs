@@ -597,6 +597,7 @@ mod tests {
             native: "fr".into(),
             pack_version: "t".into(),
             analyzer_version: studied.analyzer_version().into(),
+            levels_estimated: false,
             licences: vec![],
         })
         .unwrap();
@@ -1296,6 +1297,7 @@ mod tests {
             native: "fr".into(),
             pack_version: "t".into(),
             analyzer_version: ANALYZER_VERSION.into(),
+            levels_estimated: false,
             licences: vec![],
         })
         .unwrap();

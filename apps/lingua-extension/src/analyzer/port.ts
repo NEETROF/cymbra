@@ -146,6 +146,11 @@ export interface LanguagePort extends AnalyzerPort {
   declaredLevel(): Promise<CefrLevel | null>;
   /** Whether the loaded pack carries CEFR data (else the ladder/feeding fall back to frequency). */
   hasLevels(): Promise<boolean>;
+  /**
+   * Whether those levels are estimated from word frequency rather than taken from a CEFR list
+   * (add-lingua-spanish-levels): every surface then labels the levels it shows as estimated.
+   */
+  levelsEstimated(): Promise<boolean>;
   /** The CEFR ladder A1→C2: confirmed / presumed / to-learn per level. Empty without CEFR data. */
   levelLadder(): Promise<LevelRow[]>;
   /** The estimated vocabulary size: each frequency band's known share, extrapolated over the pack's dictionary words. */

@@ -151,6 +151,7 @@ mod tests {
                 native: "fr".into(),
                 pack_version: "test".into(),
                 analyzer_version: lingua_core::analysis::SPANISH_ANALYZER_VERSION.into(),
+                levels_estimated: false,
                 licences: vec!["test".into()],
             },
             sources: vec![],

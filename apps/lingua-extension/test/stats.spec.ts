@@ -40,6 +40,23 @@ describe("cumulativeTotals", () => {
 });
 
 describe("ladderView", () => {
+  it("names estimated levels as such and calls no word taught (add-lingua-spanish-levels)", () => {
+    const view = ladderView(bands([1, 1, 1, 1, 1, 1]), null, "es", true);
+    expect(view.querySelector(".ladder-head .mlabel")?.textContent).toBe("Mon niveau d'espagnol estimé");
+    expect(view.querySelector(".ladder-estimate")?.textContent).toBe(
+      "Niveaux estimés d'après la fréquence des mots, faute de liste CEFR libre de droits pour l'espagnol.",
+    );
+    expect(view.querySelector(".ladder-cols .ladder-cum")?.textContent).toBe("courants");
+    expect(view.querySelector(".ladder-scope")?.textContent).toContain("«\u202Fcourants\u202F»");
+    expect(view.querySelector(".ladder-scope")?.textContent).not.toContain("enseignés");
+
+    // A CEFR list's levels read as before.
+    const english = ladderView(bands([1, 1, 1, 1, 1, 1]), null);
+    expect(english.querySelector(".ladder-head .mlabel")?.textContent).toBe("Mon niveau d'anglais");
+    expect(english.querySelector(".ladder-estimate")).toBeNull();
+    expect(english.querySelector(".ladder-cols .ladder-cum")?.textContent).toBe("enseignés");
+  });
+
   it("shows each level's own words next to the words taught up to that level", () => {
     const view = ladderView(bands([986, 1122, 1945, 2148, 726, 566], 10), "A2");
     expect(view.textContent).toContain(`${fr(10)} / ${fr(1122)}`); // A2's own band
