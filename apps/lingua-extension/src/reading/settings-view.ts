@@ -339,9 +339,10 @@ export function mountSettings(
   );
 
   // — Affichage — the text size and the theme: the book's text, and every surface of the extension
-  // (add-lingua-colour-settings D9). The same controls as the reader's own "Aa" panel.
+  // (add-lingua-colour-settings D9). The same controls as the reader's own "Aa" panel, whose page
+  // turn joins Livres, after the continuous flow: both say how a book's pages go by.
   const displayBlock = settingBlock("Affichage");
-  const bookDisplay = mountBookDisplay(displayBlock, area);
+  const bookDisplay = mountBookDisplay(displayBlock, area, { turnContainer: booksBlock });
   displayBlock.append(
     el(
       "div",
