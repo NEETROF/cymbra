@@ -5,6 +5,8 @@ src/wasm/pkg/
 src/gen/
 # Third-party code kept byte-for-byte at a pinned commit (vendor/VENDOR.md).
 vendor/foliate-js/
+assets/packs/
+# The single pack of builds before generalise-lingua-pack-build, still in older checkouts.
 assets/pack.lingua
 test/fixtures/
 *.lingua

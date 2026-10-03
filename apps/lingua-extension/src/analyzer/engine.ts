@@ -98,7 +98,9 @@ export type GlueLoader = () => Promise<WasmModule>;
 /** Paths of the vendored wasm output + pack within the built extension. */
 const GLUE_PATH = "wasm/lingua_wasm.js";
 const WASM_PATH = "wasm/lingua_wasm_bg.wasm";
-const PACK_PATH = "assets/pack.lingua";
+// The default pair's pack (packs.json, generalise-lingua-pack-build); the other listed pairs
+// are package-lingua-packs-per-pair's to load.
+const PACK_PATH = `assets/packs/${__LINGUA_PACKS__.split(",")[0]}.lingua`;
 
 /** The status string that clears an explicit status in the WASM engine. */
 const CLEAR = "clear";
