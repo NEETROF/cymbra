@@ -44,12 +44,21 @@ build_pack() {
   cargo run --quiet --release -p lingua-pack --bin lingua-pack-build -- "$input" "$out"
 }
 
+# How many lemmas a pair keeps by default: Spanish keeps 60,000, for which the forms of the
+# commonest lemmas pass the programme's gates (add-lingua-spanish-forms-tables D3).
+max_lemmas() {
+  case "$1" in
+    es-fr) echo 60000 ;;
+    *) echo 40000 ;;
+  esac
+}
+
 # reduce <pair> <work> <snapshot> [<pack version>]: the reducer over the raw sources in <work>,
 # tables left in <work>. The pack version defaults to the snapshot (an update from live sources).
 reduce() {
   local pair="$1" work="$2" snapshot="$3" version="${4:-$3}"
   "$PYTHON" "$here/reduce-$pair.py" --work "$work" \
-    --max-lemmas "${LINGUA_MAX_LEMMAS:-40000}" \
+    --max-lemmas "${LINGUA_MAX_LEMMAS:-$(max_lemmas "$pair")}" \
     --built-at "${snapshot//./-}" --pack-version "$version"
 }
 

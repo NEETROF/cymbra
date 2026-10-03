@@ -20,3 +20,19 @@ scripts/lingua-data/measure/measure.sh origin/main en-fr
 
 A token counts as *resolved* when its lemma is in the pack's lexicon, and *glossed* when the engine
 shows a gloss for it. Proper nouns outside both lexicons are left out.
+
+## Spanish forms on a treebank
+
+`es-pud.sh` measures the es-fr pack, built from the committed tables, against UD Spanish-PUD with
+lingua-core's real analyser (`lingua-pack-measure`, add-lingua-spanish-forms-tables D5). It fails
+under the programme's gates:
+- 98.5 % of words resolved;
+- 93.5 % of content words taking the treebank's lemma;
+- 97 % of auxiliaries taking it.
+
+PUD is fetched at a pinned commit and checked by sha256. It is never committed, and the reduction
+never reads it.
+
+```bash
+scripts/lingua-data/measure/es-pud.sh
+```

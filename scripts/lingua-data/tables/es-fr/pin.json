@@ -1,0 +1,36 @@
+{
+  "snapshot": "2026.10.03",
+  "pack": {
+    "sha256": "8b83b8b757fc3b6fc8a42df71886e73c8208d73831024e8193bc9787bebf95b3",
+    "size": 1307315
+  },
+  "reducer": {
+    "sha256": "a0648590479060e40a8388f3ca9441245393e2272cb642e5a552da416ab893f6",
+    "files": [
+      "reduce-es-fr.py",
+      "reduce_common.py"
+    ]
+  },
+  "sources": {
+    "gsd-train": {
+      "url": "https://raw.githubusercontent.com/UniversalDependencies/UD_Spanish-GSD/267f3530d4f122ee85d1891800211a06dfb79347/es_gsd-ud-train.conllu",
+      "sha256": "9e527de0e45dca4a8ef00105a3ebd102da941964b35f01916a6baa6288130f7b"
+    },
+    "gsd-dev": {
+      "url": "https://raw.githubusercontent.com/UniversalDependencies/UD_Spanish-GSD/267f3530d4f122ee85d1891800211a06dfb79347/es_gsd-ud-dev.conllu",
+      "sha256": "704fb19afc0a34cff476e1a70351b7026c4364f862e8e8388b02873852567c22"
+    },
+    "kaikki": {
+      "release": "lingua-pack-sources-es-fr-2026.10.03",
+      "asset": "kaikki-Spanish.jsonl.zst",
+      "sha256": "a2cc93aee2b0ac24d869ec59e07ddef69d1379d54518f77b87c07a765139a2e6",
+      "size": 1054565864,
+      "fetched": "2026-10-03",
+      "last_modified": "Mon, 28 Sep 2026 18:05:39 GMT",
+      "url": "https://kaikki.org/dictionary/Spanish/kaikki.org-dictionary-Spanish.jsonl"
+    },
+    "wordfreq": {
+      "version": "3.1.1"
+    }
+  }
+}

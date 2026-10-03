@@ -1,0 +1,27 @@
+{
+  "meta": {
+    "studied": "es",
+    "native": "fr",
+    "pack_version": "2026.10.03+a064859",
+    "analyzer_version": "1.1.0",
+    "licences": [
+      "kaikki / enwiktionary (CC BY-SA 4.0 + GFDL)",
+      "wordfreq (CC BY-SA 4.0)",
+      "UD Spanish-GSD (CC BY-SA 4.0)"
+    ]
+  },
+  "sources": [
+    {
+      "name": "kaikki",
+      "licence": "CcBySa"
+    },
+    {
+      "name": "wordfreq",
+      "licence": "CcBySa"
+    },
+    {
+      "name": "UD Spanish-GSD",
+      "licence": "CcBySa"
+    }
+  ]
+}
