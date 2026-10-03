@@ -6,7 +6,8 @@ import type { LinguaDataService } from "../gen/lingua_data_pb.ts";
 import type { StatsService } from "../gen/stats_pb.ts";
 import { clearDailyStats, loadDailyStats } from "../state/dailystats.ts";
 import { type AsyncStorageArea, DEFAULT_CALIBRATION, loadStored, saveBackup } from "../state/storage.ts";
-import { readingLanguage } from "../analyzer/pairs.ts";
+import { acceptedLanguages, readingLanguage } from "../analyzer/pairs.ts";
+import type { StudiedLanguage } from "../analyzer/types.ts";
 
 // The extension sync engine (add-lingua-connected-clients §2). When signed in it pushes
 // the local word-statuses and deck to the cymbra.lingua.v1 services and pulls the merged
@@ -30,6 +31,11 @@ const STATUS_CURSOR_KEY = "cymbra-lingua-status-cursor";
 const CARD_CURSOR_KEY = "cymbra-lingua-card-cursor";
 /** The account erasure mark this device last acted on (server epoch millis). */
 const ERASED_AT_KEY = "cymbra-lingua-erased-at";
+/**
+ * The languages of this device's last successful sync (add-lingua-language-sync-client D4). Absent:
+ * English alone, what every device accepted before cards carried a language.
+ */
+const SYNC_LANGUAGES_KEY = "cymbra-lingua-sync-languages";
 /** Max ops per request (bounded batches; the server resumes by outbox offset). */
 const BATCH = 500;
 
@@ -49,6 +55,8 @@ export interface SyncDeps {
   clients: () => SyncClients;
   /** Stable per-install device id (LWW tie-break). */
   deviceId: string;
+  /** The languages this device accepts (design D1); default: the reader's, as the package ships them. */
+  acceptedLanguages?: () => Promise<StudiedLanguage[]>;
 }
 
 export interface SyncResult {
@@ -60,6 +68,8 @@ export interface SyncResult {
 export class SyncEngine {
   /** The account's erasure mark as of the current sync (0 = never erased). */
   private erasedAt = 0;
+  /** Whether the server keys cards by language, as of the current sync's data state (design D3). */
+  private cardLanguage = false;
 
   constructor(private readonly deps: SyncDeps) {}
 
@@ -74,6 +84,9 @@ export class SyncEngine {
     const stored = await loadStored(this.deps.storage);
     if (stored.kind !== "v2") return null; // nothing local to sync yet
     await this.deps.port.restore(stored.backup);
+    // The reader's languages came with the backup: what this device accepts, and whether that grew.
+    const languages = await (this.deps.acceptedLanguages?.() ?? acceptedLanguages(this.deps.port));
+    await this.widen(languages);
 
     const pushedStatuses = await this.pushStatuses();
     await this.pushDeclaredLevels();
@@ -81,8 +94,8 @@ export class SyncEngine {
     await this.pushStats();
 
     // Fetch pulls WITHOUT applying, so apply + persist happen together at the end.
-    const statuses = await this.fetchStatuses();
-    const cards = await this.fetchCards();
+    const statuses = await this.fetchStatuses(languages);
+    const cards = await this.fetchCards(languages);
 
     let pulled = 0;
     if (statuses.changes.length > 0 || statuses.declaredLevels.length > 0 || cards.ops.length > 0) {
@@ -104,7 +117,18 @@ export class SyncEngine {
     // (and re-applied idempotently) next time — never dropped.
     await this.saveCursor(STATUS_CURSOR_KEY, statuses.cursor);
     await this.saveCursor(CARD_CURSOR_KEY, cards.cursor);
+    await this.deps.storage.set({ [SYNC_LANGUAGES_KEY]: languages });
     return { pushedStatuses, pushedCards, pulled };
+  }
+
+  /**
+   * A device that accepts a language it did not pulls everything again (design D4): the server
+   * kept no memory of the cards it withheld, and this device skipped that language's statuses.
+   */
+  private async widen(languages: StudiedLanguage[]): Promise<void> {
+    const stored = (await this.deps.storage.get(SYNC_LANGUAGES_KEY))[SYNC_LANGUAGES_KEY];
+    const before = Array.isArray(stored) ? stored.filter((l): l is string => typeof l === "string") : ["en"];
+    if (languages.some((language) => !before.includes(language))) await clearSyncCursors(this.deps.storage);
   }
 
   /**
@@ -127,6 +151,7 @@ export class SyncEngine {
    */
   private async checkErasure(): Promise<void> {
     const res = await this.deps.clients().data.getDataState({});
+    this.cardLanguage = res.cardLanguage === true;
     const mark = Number(res.erasedAt);
     const recorded = (await this.deps.storage.get(ERASED_AT_KEY))[ERASED_AT_KEY];
     const known = typeof recorded === "number" ? recorded : (await this.hasSynced()) ? 0 : mark;
@@ -198,11 +223,16 @@ export class SyncEngine {
   }
 
   private async pushCards(): Promise<number> {
-    const ops = await this.deps.port.exportCardOps();
+    // A card in another language waits for a server that keys cards by language (design D3):
+    // an older one would store it as English, under the key of the English card.
+    const ops = (await this.deps.port.exportCardOps()).filter(
+      (c) => this.cardLanguage || (c.language || "en") === "en",
+    );
     for (const batch of chunk(ops, BATCH)) {
       await this.deps.clients().deck.pushCards({
         cards: batch.map((c) => ({
           clientId: c.client_id,
+          language: c.language,
           lemma: c.lemma,
           surfaceForm: c.surface_form,
           sourceSentence: c.source_sentence,
@@ -239,38 +269,46 @@ export class SyncEngine {
    * cursor write). Levels share the status cursor server-side, so one pull returns
    * both and one cursor covers them.
    */
-  private async fetchStatuses(): Promise<{
+  private async fetchStatuses(languages: StudiedLanguage[]): Promise<{
     changes: StatusChangeIn[];
     declaredLevels: DeclaredLevelOp[];
     cursor: number;
   }> {
     const cursor = await this.loadCursor(STATUS_CURSOR_KEY);
     const res = await this.deps.clients().knownWords.pullChanges({ cursor: BigInt(cursor) });
+    // The server returns every language's; this device applies the ones it accepts (design D2).
+    // A dropped record comes back with a full re-pull when its language is accepted (D4).
+    const accepted = (language: string): boolean => languages.includes((language || "en") as StudiedLanguage);
     return {
-      changes: res.changes.map((c) => ({
-        language: c.language,
-        lemma: c.lemma,
-        status: c.status,
-        provenance: c.provenance,
-        updated_at: Number(c.updatedAt),
-      })),
-      declaredLevels: res.declaredLevels.map((l) => ({
-        language: l.language,
-        level: l.level,
-        updated_at: Number(l.updatedAt),
-      })),
+      changes: res.changes
+        .filter((c) => accepted(c.language))
+        .map((c) => ({
+          language: c.language,
+          lemma: c.lemma,
+          status: c.status,
+          provenance: c.provenance,
+          updated_at: Number(c.updatedAt),
+        })),
+      declaredLevels: res.declaredLevels
+        .filter((l) => accepted(l.language))
+        .map((l) => ({
+          language: l.language,
+          level: l.level,
+          updated_at: Number(l.updatedAt),
+        })),
       cursor: Number(res.cursor),
     };
   }
 
   /** Fetch card ops after the stored cursor (no apply, no cursor write). */
-  private async fetchCards(): Promise<{ ops: CardOp[]; cursor: number }> {
+  private async fetchCards(languages: StudiedLanguage[]): Promise<{ ops: CardOp[]; cursor: number }> {
     const cursor = await this.loadCursor(CARD_CURSOR_KEY);
-    const res = await this.deps.clients().deck.pullCards({ cursor: BigInt(cursor) });
+    // The server returns the cards of these languages only (add-lingua-card-language).
+    const res = await this.deps.clients().deck.pullCards({ cursor: BigInt(cursor), languages });
     return {
       ops: res.cards.map((c) => ({
         client_id: c.clientId,
-        language: "en",
+        language: c.language || "en",
         lemma: c.lemma,
         surface_form: c.surfaceForm,
         source_sentence: c.sourceSentence,
