@@ -95,7 +95,62 @@ pub fn block_is_studied(text: &str, studied: StudiedLanguage) -> bool {
     if trimmed.len() < MIN_BLOCK_BYTES {
         return false;
     }
-    whichlang::detect_language(trimmed) == studied.whichlang_target()
+    detect(trimmed) == studied.whichlang_target()
+}
+
+/// whichlang's language for a trimmed block, with Spanish's guard: whichlang has no Catalan or
+/// Galician class and reads many of their blocks as Spanish, so a block it reads as Spanish whose
+/// Catalan or Galician function words outnumber its Spanish ones is not Spanish
+/// (add-lingua-spanish-detection-guard).
+fn detect(trimmed: &str) -> whichlang::Lang {
+    let detected = whichlang::detect_language(trimmed);
+    if detected == whichlang::Lang::Spa && iberian_neighbour(trimmed) {
+        // Neither studied language: the block is excluded, as any other language's is.
+        return whichlang::Lang::Por;
+    }
+    detected
+}
+
+/// Function words Catalan uses and Spanish does not (sorted for binary search).
+const CATALAN_MARKERS: &[&str] = &[
+    "amb", "aquest", "aquesta", "aquestes", "aquests", "dels", "després", "els", "encara", "eren",
+    "fins", "fou", "havia", "llavors", "mateix", "molt", "més", "on", "pels", "per", "perquè",
+    "però", "segons", "sempre", "seu", "seus", "seva", "seves", "són", "també", "tot", "és",
+];
+
+/// Function words Galician uses and Spanish does not (sorted for binary search).
+const GALICIAN_MARKERS: &[&str] = &[
+    "ao", "aos", "aínda", "cando", "coa", "coas", "da", "das", "do", "elas", "eles", "foi", "hai",
+    "iso", "isto", "lle", "lles", "moi", "máis", "non", "nun", "nunha", "onde", "pola", "polas",
+    "polo", "polos", "súa", "tamén", "unha", "unhas", "xa",
+];
+
+/// Function words Spanish uses and neither Catalan nor Galician does (sorted).
+const SPANISH_MARKERS: &[&str] = &[
+    "ahora", "aunque", "después", "entonces", "fue", "había", "hay", "las", "lo", "los", "muy",
+    "más", "por", "su", "sus", "también", "y",
+];
+
+/// Whether a block whichlang reads as Spanish is more likely Catalan or Galician: either's
+/// function words outnumber Spanish's. A tie, or no marker at all, stays Spanish.
+fn iberian_neighbour(text: &str) -> bool {
+    let (mut catalan, mut galician, mut spanish) = (0usize, 0usize, 0usize);
+    for word in text.split(|c: char| !c.is_alphabetic() && c != '\'') {
+        let lower = word.to_lowercase();
+        // Catalan's elisions (`l'home`, `d'aquesta`) are markers of their own.
+        if ["l'", "d'", "s'", "n'"]
+            .iter()
+            .any(|elision| lower.starts_with(elision) && lower.len() > 2)
+        {
+            catalan += 1;
+            continue;
+        }
+        let lower = lower.trim_matches('\'');
+        catalan += usize::from(CATALAN_MARKERS.binary_search(&lower).is_ok());
+        galician += usize::from(GALICIAN_MARKERS.binary_search(&lower).is_ok());
+        spanish += usize::from(SPANISH_MARKERS.binary_search(&lower).is_ok());
+    }
+    catalan > spanish || galician > spanish
 }
 
 /// The language of a document, chosen among `candidates` (add-lingua-language-routing D1).
@@ -121,7 +176,7 @@ pub fn detect_document_language(
         if trimmed.len() < MIN_BLOCK_BYTES {
             continue;
         }
-        let detected = whichlang::detect_language(trimmed);
+        let detected = detect(trimmed);
         if let Some(i) = candidates
             .iter()
             .position(|c| c.whichlang_target() == detected)
@@ -264,10 +319,12 @@ mod tests {
 
     #[test]
     fn english_keeps_its_analyser_version_and_spanish_has_its_own() {
+        // Each language reads its own constant; the numbers may meet (both are `1.1.0` since
+        // add-lingua-spanish-detection-guard) without a pack of one passing for the other's.
         assert_eq!(StudiedLanguage::English.analyzer_version(), "1.1.0");
-        assert_ne!(
+        assert_eq!(
             StudiedLanguage::Spanish.analyzer_version(),
-            StudiedLanguage::English.analyzer_version()
+            crate::analysis::SPANISH_ANALYZER_VERSION
         );
     }
 
@@ -278,6 +335,79 @@ mod tests {
             serde_json::to_string(&StudiedLanguage::English).unwrap(),
             "\"English\""
         );
+    }
+
+    const CATALAN: &str =
+        "El govern ha aprovat el pressupost amb el suport dels grups, però també amb crítiques.";
+    const GALICIAN: &str = "Non hai unha solución sinxela, pero o concello xa traballa nela.";
+    const SPANISH_PROSE: &str =
+        "El gobierno aprobó el presupuesto con el apoyo de los grupos, pero también hubo críticas.";
+
+    #[test]
+    fn spec_scenario_a_catalan_paragraph_is_not_spanish() {
+        assert!(!block_is_studied(CATALAN, ES));
+        // `l'` and `d'` count as Catalan.
+        assert!(iberian_neighbour(
+            "L'home d'aquesta ciutat va arribar ahir."
+        ));
+    }
+
+    #[test]
+    fn spec_scenario_a_galician_paragraph_is_not_spanish() {
+        assert!(!block_is_studied(GALICIAN, ES));
+    }
+
+    #[test]
+    fn spec_scenario_spanish_prose_is_kept() {
+        assert!(block_is_studied(SPANISH_PROSE, ES));
+        assert!(!iberian_neighbour(SPANISH_PROSE));
+    }
+
+    #[test]
+    fn spec_scenario_a_catalan_page_gives_spanish_no_vote() {
+        // Nothing votes, so the reader's first candidate wins: never Spanish by Catalan's weight.
+        assert_eq!(
+            detect_document_language(&[CATALAN, CATALAN], &[EN, ES], None),
+            Some(EN)
+        );
+        assert_eq!(
+            detect_document_language(&[SPANISH_PROSE], &[EN, ES], None),
+            Some(ES)
+        );
+    }
+
+    #[test]
+    fn spec_scenario_the_leak_the_guard_leaves() {
+        // No marker of either kind: the guard cannot judge it, and does not refuse it.
+        assert!(!iberian_neighbour("el convent del Carme"));
+    }
+
+    #[test]
+    fn a_tie_or_no_marker_stays_spanish() {
+        assert!(!iberian_neighbour("amb los"));
+        assert!(!iberian_neighbour("la casa"));
+        assert!(iberian_neighbour("amb els"));
+    }
+
+    #[test]
+    fn the_guard_leaves_english_detection_alone() {
+        let english = "Teams don't ship code on Friday, and they never will without review.";
+        assert_eq!(detect(english), whichlang::detect_language(english));
+        assert!(block_is_studied(english, EN));
+    }
+
+    #[test]
+    fn the_marker_tables_are_sorted_for_binary_search() {
+        for table in [CATALAN_MARKERS, GALICIAN_MARKERS, SPANISH_MARKERS] {
+            for pair in table.windows(2) {
+                assert!(
+                    pair[0] < pair[1],
+                    "{:?} must sort before {:?}",
+                    pair[0],
+                    pair[1]
+                );
+            }
+        }
     }
 
     #[test]

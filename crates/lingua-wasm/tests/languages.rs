@@ -98,7 +98,7 @@ fn spec_scenario_a_second_language_is_served_by_its_own_pack() {
 
     let spanish = engine.analyse(vec![SPANISH.to_owned()], es()).unwrap();
     assert!(
-        spanish.contains(r#""analyzer_version":"1.0.0""#),
+        spanish.contains(r#""analyzer_version":"1.1.0""#),
         "{spanish}"
     );
     assert!(

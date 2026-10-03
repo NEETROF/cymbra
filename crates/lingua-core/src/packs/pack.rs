@@ -643,14 +643,17 @@ pub(crate) mod tests {
         let spanish = Pack::load(&sample_pack_bytes_for("es", SPANISH_ANALYZER_VERSION))
             .expect("a Spanish pack at Spanish's version loads");
         assert_eq!(spanish.studied(), StudiedLanguage::Spanish);
-        match Pack::load(&sample_pack_bytes_for("es", ANALYZER_VERSION)) {
+        // A Spanish pack built at the baseline Spanish replaced is refused against Spanish's own
+        // version, whatever English's is.
+        match Pack::load(&sample_pack_bytes_for("es", "0.1.0")) {
             Err(PackError::IncompatibleAnalyzer { pack, core }) => {
-                assert_eq!(pack, ANALYZER_VERSION);
+                assert_eq!(pack, "0.1.0");
                 assert_eq!(core, SPANISH_ANALYZER_VERSION);
             }
             Err(other) => panic!("expected IncompatibleAnalyzer, got {other}"),
-            Ok(_) => panic!("a Spanish pack stamped with English's version loaded"),
+            Ok(_) => panic!("a Spanish pack at the baseline's version loaded"),
         }
+        assert!(Pack::load(&sample_pack_bytes_for("en", ANALYZER_VERSION)).is_ok());
     }
 
     #[test]

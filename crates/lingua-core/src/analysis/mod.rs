@@ -47,7 +47,8 @@ pub mod tokenize;
 /// language's rules never moves another's (generalise-lingua-analysis-by-language).
 pub const ANALYZER_VERSION: &str = "1.1.0";
 
-/// Spanish's analyser version: `1.0.0` since add-lingua-spanish-analysis wrote
+/// Spanish's analyser version: `1.0.0` when add-lingua-spanish-analysis wrote
 /// its pre-pass (NFC, `al`/`del`) and its cascade (old spellings, enclitics, the
-/// plural fallback). The baseline it replaced was `0.1.0`.
-pub const SPANISH_ANALYZER_VERSION: &str = "1.0.0";
+/// plural fallback), replacing the `0.1.0` baseline; `1.1.0` since
+/// add-lingua-spanish-detection-guard keeps Catalan and Galician blocks out.
+pub const SPANISH_ANALYZER_VERSION: &str = "1.1.0";
