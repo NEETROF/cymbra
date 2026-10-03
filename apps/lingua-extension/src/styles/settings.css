@@ -11,7 +11,7 @@
 
 .set-note {
   color: var(--cymbra-lingua-muted);
-  font-size: 12px;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
   margin-top: 8px;
   line-height: 1.5;
 }
@@ -30,7 +30,7 @@
   background: var(--cymbra-lingua-panel-2);
   color: var(--cymbra-lingua-text);
   font-family: inherit;
-  font-size: 13px;
+  font-size: calc(13px * var(--cymbra-lingua-ui-scale, 1));
 }
 
 .lvl:hover {
@@ -80,13 +80,13 @@
   margin: 0;
   padding-left: 18px;
   color: var(--cymbra-lingua-muted);
-  font-size: 12px;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
   line-height: 1.9;
 }
 
 kbd {
   font-family: var(--cymbra-lingua-mono, monospace);
-  font-size: 11px;
+  font-size: calc(11px * var(--cymbra-lingua-ui-scale, 1));
   padding: 1px 5px;
   border-radius: 5px;
   border: 1px solid var(--cymbra-lingua-border-2);
@@ -102,7 +102,7 @@ kbd {
   padding: 0;
   color: var(--cymbra-lingua-accent);
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
   text-decoration: underline;
 }
 
@@ -115,7 +115,7 @@ kbd {
   padding: 8px 10px;
   border-radius: 10px;
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
 }
 
 .set-reset {
@@ -129,15 +129,15 @@ kbd {
 }
 
 .set-danger {
-  border: 1px solid var(--cymbra-lingua-coral);
+  border: 1px solid var(--cymbra-lingua-danger);
   background: transparent;
-  color: var(--cymbra-lingua-coral);
+  color: var(--cymbra-lingua-danger);
 }
 
 .set-warn {
   margin-top: 8px;
-  color: var(--cymbra-lingua-coral);
-  font-size: 12px;
+  color: var(--cymbra-lingua-danger);
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
   line-height: 1.5;
 }
 
@@ -157,7 +157,7 @@ kbd {
   background: var(--cymbra-lingua-panel-2);
   color: var(--cymbra-lingua-text);
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
 }
 
 .set-voice .set-reset {
@@ -186,7 +186,7 @@ kbd {
   justify-content: space-between;
   gap: 12px;
   color: var(--cymbra-lingua-text);
-  font-size: 13px;
+  font-size: calc(13px * var(--cymbra-lingua-ui-scale, 1));
 }
 
 .set-stepper,
@@ -208,7 +208,7 @@ kbd {
   background: none;
   color: var(--cymbra-lingua-text);
   font-family: inherit;
-  font-size: 14px;
+  font-size: calc(14px * var(--cymbra-lingua-ui-scale, 1));
   cursor: pointer;
 }
 
@@ -221,7 +221,7 @@ kbd {
   min-width: 56px;
   text-align: center;
   color: var(--cymbra-lingua-muted);
-  font-size: 13px;
+  font-size: calc(13px * var(--cymbra-lingua-ui-scale, 1));
   font-variant-numeric: tabular-nums;
 }
 
@@ -266,7 +266,7 @@ kbd {
   background: var(--cymbra-lingua-paper);
   color: var(--cymbra-lingua-ink);
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 16px;
+  font-size: calc(16px * var(--cymbra-lingua-ui-scale, 1));
   line-height: 1.6;
 }
 
@@ -277,7 +277,7 @@ kbd {
 .set-colour-details summary {
   cursor: pointer;
   color: var(--cymbra-lingua-accent);
-  font-size: 13px;
+  font-size: calc(13px * var(--cymbra-lingua-ui-scale, 1));
 }
 
 .set-colour-group {
@@ -290,7 +290,7 @@ kbd {
 .set-colour-group legend {
   padding: 0 4px;
   color: var(--cymbra-lingua-muted);
-  font-size: 12px;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
 }
 
 .set-colour-row {
@@ -301,7 +301,7 @@ kbd {
   gap: 6px 10px;
   margin: 6px 0;
   color: var(--cymbra-lingua-text);
-  font-size: 13px;
+  font-size: calc(13px * var(--cymbra-lingua-ui-scale, 1));
 }
 
 .set-colour-controls {
@@ -333,5 +333,5 @@ kbd {
   background: var(--cymbra-lingua-panel-2);
   color: var(--cymbra-lingua-text);
   font-family: inherit;
-  font-size: 13px;
+  font-size: calc(13px * var(--cymbra-lingua-ui-scale, 1));
 }

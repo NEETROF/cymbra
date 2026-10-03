@@ -2,25 +2,25 @@
    tokens.css. No colour literals here. */
 .review-note {
   color: var(--cymbra-lingua-muted);
-  font-size: 12px;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
   margin-bottom: 6px;
 }
 
 .review-headword {
-  font-size: 22px;
+  font-size: calc(22px * var(--cymbra-lingua-ui-scale, 1));
   font-weight: 600;
   color: var(--cymbra-lingua-text);
   margin: 6px 0 10px;
 }
 
 .review-gloss {
-  font-size: 16px;
+  font-size: calc(16px * var(--cymbra-lingua-ui-scale, 1));
   color: var(--cymbra-lingua-accent);
   margin-bottom: 6px;
 }
 
 .review-sentence {
-  font-size: 13px;
+  font-size: calc(13px * var(--cymbra-lingua-ui-scale, 1));
   color: var(--cymbra-lingua-muted);
   margin-bottom: 12px;
 }
@@ -28,7 +28,7 @@
 /* Where the word was met: a site, or a book and its chapter. */
 .review-source {
   margin: -6px 0 12px;
-  font-size: 12px;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
   color: var(--cymbra-lingua-faint);
 }
 
@@ -48,7 +48,7 @@
   background: var(--cymbra-lingua-panel-2);
   color: var(--cymbra-lingua-text);
   font-family: inherit;
-  font-size: 13px;
+  font-size: calc(13px * var(--cymbra-lingua-ui-scale, 1));
 }
 
 .review-btn:hover {
@@ -69,7 +69,7 @@
 }
 
 .summary b {
-  color: var(--cymbra-lingua-amber);
+  color: var(--cymbra-lingua-warn);
 }
 
 .review {
@@ -95,7 +95,7 @@
   background: var(--cymbra-lingua-panel-2);
   color: var(--cymbra-lingua-text);
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
 }
 
 .tools button:hover {
@@ -105,7 +105,7 @@
 .msg {
   min-height: 16px;
   color: var(--cymbra-lingua-muted);
-  font-size: 12px;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
 }
 
 details {
@@ -113,7 +113,7 @@ details {
   border-top: 1px solid var(--cymbra-lingua-border);
   padding-top: 12px;
   color: var(--cymbra-lingua-muted);
-  font-size: 12px;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
 }
 
 summary {
@@ -124,11 +124,11 @@ summary {
 .notice {
   white-space: pre-wrap;
   font-family: var(--cymbra-lingua-mono, monospace);
-  font-size: 11px;
+  font-size: calc(11px * var(--cymbra-lingua-ui-scale, 1));
   margin-top: 8px;
 }
 
 .privacy {
   margin-top: 10px;
-  color: var(--cymbra-lingua-green);
+  color: var(--cymbra-lingua-ok);
 }

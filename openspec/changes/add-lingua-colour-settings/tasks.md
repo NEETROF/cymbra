@@ -34,6 +34,15 @@
 - [ ] 5.3 Safari iPad: the colour pickers from the drawer; the preview
 - [ ] 5.4 Firefox desktop: the block in the sidebar, a web page repainted
 
+## 7. The surfaces on a large e-ink screen (dogfood, Boox Go 10.3 Lumi, 2026-10-03)
+
+- [x] 7.1 `styles/tokens.css`: the surfaces' light and e-ink themes on `:host([data-cymbra-lingua-ui])` and `:root[data-cymbra-lingua-ui]`, and `--cymbra-lingua-warn`, `-ok`, `-danger` for what the surfaces say in colour (design D8)
+- [x] 7.2 `reading/surface-look.ts`: the palette from the preset and the page theme, the scale from the text size, followed by the word card, the drawer, the pill and the six extension pages (design D8, D9)
+- [x] 7.3 Every surface stylesheet: font sizes and the main widths multiply `--cymbra-lingua-ui-scale`, clamped to the viewport; notices, successes and dangers through the themed tokens (design D9)
+- [x] 7.4 Réglages: the text size and the theme move to an *Affichage* block before *Couleurs*; the page row is labelled *Thème* (design D9)
+- [x] 7.5 Tests: the palette per preset and theme, a root painted then following every change, the three hosts, no fixed font size and no preset colour for messages in any stylesheet, every surface token re-pointed by both themes, the *Affichage* block
+- [ ] 7.6 Boox Go 10.3 Lumi: at the reader's size, the word card, the drawer, the toolbar, the library and the pill read comfortably; with an e-ink preset they are black on white
+
 ## 6. Release
 
 - [ ] 6.1 Shipped with the next extension release, after `add-lingua-reader` (its task 7.4) — not before Guillaume's go-ahead

@@ -8,6 +8,10 @@ import { type AsyncStorageArea, hydrateEngine, saveBackup, storedVoicePreference
 import { messagedArea, watchBackup } from "../state/store.ts";
 import { mountStats } from "../stats/view.ts";
 import { requestSync } from "../sync/messages.ts";
+import { followSurfaceLook } from "../reading/surface-look.ts";
+
+// This page is a surface: it follows the reader's colours and text size (add-lingua-colour-settings D8, D9).
+followSurfaceLook(document.documentElement);
 
 /** Transient key the popup / HUD set to open the panel straight on a view. */
 const PANEL_VIEW_KEY = "cymbra-lingua-panel-view";

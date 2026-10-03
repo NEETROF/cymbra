@@ -23,6 +23,14 @@ Only four properties apply in a `::highlight()`: `color`, `background-color`, `t
 (with its longhands) and `text-shadow`. Weight, size and borders are not available, so every
 preset and setting is built from those four.
 
+The dogfood on a Boox Go 10.3 Lumi (2026-10-03, 1860×2480, 300 ppi, monochrome) found the
+extension's own surfaces fighting the same screen:
+- Every surface stylesheet sizes its text in px: 121 font sizes across 11 sheets, none relative.
+- `book-style.ts` applies the reader's text size inside a book's section only, so the word card,
+  the drawer and the toolbar never follow it.
+- The surfaces read the dark identity's tokens and declare `color-scheme: dark`, whatever the
+  reader chose. The colour sheet (D3) reaches the read document, never the surfaces' roots.
+
 ## Goals / Non-Goals
 
 **Goals:**
@@ -30,6 +38,7 @@ preset and setting is built from those four.
 - A free setting for each part a highlight can paint, per status.
 - The paper and dark page colours of the reader.
 - One preference, applied at once to every open page and book.
+- The extension's surfaces themed with the reader's choice, and sized with their text (D8, D9).
 - The default path unchanged — no extra sheet, no extra paint, for a reader who never opens
   the block.
 
@@ -38,7 +47,10 @@ preset and setting is built from those four.
   the laptop. It stays on the device, like the reader's display.
 - Restyling web pages: their background and text are the site's. Only the highlights change
   there.
-- Recolouring the extension's own chrome (popup, drawer, panels): the identity stays.
+- A second size for the interface. One size serves the book and the surfaces (the product
+  owner's choice, 2026-10-03).
+- Scaling every dimension. Fonts and the main widths scale; paddings and icons grow with the
+  text they hold, or stay as designed.
 - Marking known words.
 - A contrast checker. A warning covers the one failure the spec names: two statuses
   indistinguishable without colour.
@@ -171,7 +183,58 @@ Kaleido panels render saturated dark colours best and wash out yellows and paste
 on the word rather than a tint behind it. The values are tuned on the Go Color 7 Gen 2 (task
 5.2) before release, and the tuned values are recorded here.
 
+### D8. The surfaces' theme: the e-ink presets, else the page
+
+`surface-look.ts` decides one of three palettes from the two preferences:
+- `eink` for either e-ink preset, whatever the page;
+- otherwise the page theme: `light` on paper, `dark` on dark.
+
+A surface carries it as `data-cymbra-lingua-ui` on its root. That root is the shadow host for the
+word card, the drawer and the pill, and the `<html>` element for the popup, the side panel, the
+reader page, the statistics, onboarding and account pages. `tokens.css` re-points the surface
+tokens under `:host([data-cymbra-lingua-ui="…"])` and `:root[data-cymbra-lingua-ui="…"]`:
+- **light**: the reader's paper and ink, the identity's violet darkened for text on white;
+- **eink**: white panels, black text and borders, a black accent, no grey text, no shadow.
+
+The page being read never carries the attribute, so the token sheet adopted there changes nothing
+on it.
+
+The colours a surface says something in (a notice, a success, a danger) get their own tokens,
+`--cymbra-lingua-warn`, `-ok` and `-danger`. The themes re-point those, never the palette's
+amber, coral and green: the presets are made of these, and `resolvePreset` reads them where
+Réglages is drawn, so a themed drawer must still resolve the identity's colours.
+
+Each root follows both preferences through `chrome.storage.local`'s change event, which reaches
+every context. It is painted with the defaults first, then with the stored values once read.
+
+Alternative: extend the generated colour sheet (D3) to the surfaces. Rejected because the surfaces
+are shadow roots and pages the session does not own, the theme depends on a second preference,
+and an attribute plus fixed token blocks keeps every colour in the token sheet.
+
+### D9. One text size: the book and every surface
+
+The reader's text size (80–200 %, `READER_DISPLAY_KEY`) also sets `--cymbra-lingua-ui-scale`
+(its value divided by 100) on every surface root.
+- Every font size in the surface stylesheets is `calc(<px> * var(--cymbra-lingua-ui-scale, 1))`:
+  1 is the sizes as designed, so the default display changes no size.
+- The main widths scale too, clamped to the viewport so 200 % fits a phone: the drawer, the word
+  card, the popup, and the reader's table of contents and display panel.
+- A lint spec refuses a fixed font size in any surface stylesheet.
+
+The size and the theme leave Réglages' *Livres* block for a block of their own, *Affichage*,
+before *Couleurs*. The reader's *Aa* panel keeps the same builder, and the page row is labelled
+*Thème*, since it themes the surfaces too.
+
+Alternative: CSS `zoom` on each root. Rejected because it also scales the coordinates the word
+card is placed at, and the viewport units the drawer is bounded by.
+
 ## Risks / Trade-offs
+
+- [The default surfaces turn light for every reader, the paper page being the default display] →
+  the product owner's choice (2026-10-03); *Sombre* restores the dark identity everywhere.
+- [A surface at 200 % on a phone] → the main widths are clamped to the viewport; the rest wraps.
+- [A dimension left in px looks small next to scaled text] → the lint covers font sizes; buttons
+  and chips grow with their text through their padding.
 
 - [A reader picks colours that hide the text (white on white)] → the preview shows it before
   the book does, and *Rétablir* is one tap away. There is no contrast checker (Non-Goals).
@@ -186,7 +249,8 @@ on the word rather than a tint behind it. The values are tuned on the Go Color 7
 
 ## Migration Plan
 
-None. With no stored preference the extension behaves as today (the Cymbra preset, no sheet).
+With no stored preference the highlights look as today (the Cymbra preset, no sheet), and the
+surfaces take the light theme of the default paper page (D8).
 It ships with the next extension release, after `add-lingua-reader` (its task 7.4). This change
 archives after it.
 

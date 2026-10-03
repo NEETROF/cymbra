@@ -4,6 +4,10 @@ import { readingLanguage } from "../analyzer/pairs.ts";
 import type { CefrLevel } from "../analyzer/types.ts";
 import { type AsyncStorageArea, hydrateEngine, saveBackup } from "../state/storage.ts";
 import { messagedArea } from "../state/store.ts";
+import { followSurfaceLook } from "../reading/surface-look.ts";
+
+// This page is a surface: it follows the reader's colours and text size (add-lingua-colour-settings D8, D9).
+followSurfaceLook(document.documentElement);
 
 // First-run welcome tab, opened on install (Chromium/Firefox; a best-effort bonus —
 // the popup's level call-to-action is the portable equivalent). It hydrates its own

@@ -246,8 +246,18 @@ export function mountSettings(
     el("div", "set-note", "Tes livres EPUB sans DRM, lus hors ligne avec le surlignage. Ils restent sur cet appareil."),
     flowRow,
   );
-  // The text size and the page: the same controls as the reader's own "Aa" panel.
-  const bookDisplay = mountBookDisplay(booksBlock, area);
+
+  // — Affichage — the text size and the theme: the book's text, and every surface of the extension
+  // (add-lingua-colour-settings D9). The same controls as the reader's own "Aa" panel.
+  const displayBlock = settingBlock("Affichage");
+  const bookDisplay = mountBookDisplay(displayBlock, area);
+  displayBlock.append(
+    el(
+      "div",
+      "set-note",
+      "Le texte des livres et toute l'interface : cartes, tiroir, menus. Le thème vaut aussi pour l'interface ; un préréglage e-ink la garde en noir sur blanc.",
+    ),
+  );
 
   // — Couleurs — how unknown and learning words are marked, everywhere (add-lingua-colour-settings).
   const coloursBlock = settingBlock("Couleurs");
@@ -368,6 +378,7 @@ export function mountSettings(
   container.append(
     levelBlock,
     barBlock,
+    displayBlock,
     coloursBlock,
     voiceBlock,
     translationBlock,

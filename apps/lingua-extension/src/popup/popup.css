@@ -12,13 +12,13 @@
 }
 
 body {
-  width: 280px;
+  width: calc(280px * var(--cymbra-lingua-ui-scale, 1));
   margin: 0;
   padding: 14px;
   background: var(--cymbra-lingua-bg);
   color: var(--cymbra-lingua-text);
   font-family: var(--cymbra-lingua-font);
-  font-size: 13px;
+  font-size: calc(13px * var(--cymbra-lingua-ui-scale, 1));
 }
 
 /* On a desktop the popup scrolls itself, within the 600 px Chrome and Firefox allow a popup.
@@ -48,13 +48,13 @@ body {
   body {
     box-sizing: border-box;
     width: auto;
-    min-width: 360px;
+    min-width: min(calc(360px * var(--cymbra-lingua-ui-scale, 1)), 100vw);
   }
 }
 
 h1 {
   margin: 0;
-  font-size: 14px;
+  font-size: calc(14px * var(--cymbra-lingua-ui-scale, 1));
   font-weight: 600;
   letter-spacing: 0.02em;
 }
@@ -94,7 +94,7 @@ h1 {
 }
 
 .settings-title {
-  font-size: 14px;
+  font-size: calc(14px * var(--cymbra-lingua-ui-scale, 1));
   font-weight: 600;
 }
 
@@ -108,7 +108,7 @@ h1 {
 
 #enabled-label {
   color: var(--cymbra-lingua-muted);
-  font-size: 12px;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
 }
 
 .switch {
@@ -164,7 +164,7 @@ h1 {
 }
 
 .pct {
-  font-size: 34px;
+  font-size: calc(34px * var(--cymbra-lingua-ui-scale, 1));
   font-weight: 700;
   color: var(--cymbra-lingua-accent);
   line-height: 1;
@@ -172,7 +172,7 @@ h1 {
 
 .pct-label {
   color: var(--cymbra-lingua-muted);
-  font-size: 12px;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
   margin-bottom: 8px;
 }
 
@@ -199,7 +199,7 @@ h1 {
 
 .row.sub {
   padding-left: 12px;
-  font-size: 12px;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
 }
 
 .row b {
@@ -214,7 +214,7 @@ h1 {
   background: var(--cymbra-lingua-panel);
   border: 1px solid var(--cymbra-lingua-border);
   color: var(--cymbra-lingua-muted);
-  font-size: 12px;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
 }
 
 /* Compact level reminder shown on the main panel (the picker lives in Réglages). */
@@ -225,7 +225,7 @@ h1 {
   gap: 8px;
   margin: 12px 0;
   color: var(--cymbra-lingua-muted);
-  font-size: 12px;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
 }
 
 .level-indicator b {
@@ -238,7 +238,7 @@ h1 {
   background: none;
   cursor: pointer;
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
   color: var(--cymbra-lingua-accent);
   text-decoration: underline;
 }
@@ -260,7 +260,7 @@ h1 {
 }
 
 .deck b {
-  color: var(--cymbra-lingua-amber);
+  color: var(--cymbra-lingua-warn);
 }
 
 button.reset,
@@ -273,7 +273,7 @@ button.primary {
   background: var(--cymbra-lingua-panel-2);
   color: var(--cymbra-lingua-muted);
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
 }
 
 button.reset:hover {
@@ -324,7 +324,7 @@ button.primary:hover {
 .acct-local summary {
   cursor: pointer;
   color: var(--cymbra-lingua-muted);
-  font-size: 12px;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
   margin-bottom: 6px;
 }
 
@@ -338,7 +338,7 @@ button.primary:hover {
   background: var(--cymbra-lingua-panel);
   color: var(--cymbra-lingua-text);
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
 }
 
 /* A session the server refused: said before anything else, in both surfaces. */
@@ -348,13 +348,13 @@ button.primary:hover {
   border: 1px solid var(--cymbra-lingua-border-2);
   border-radius: 8px;
   background: rgba(255, 180, 84, 0.12);
-  color: var(--cymbra-lingua-amber);
-  font-size: 12px;
+  color: var(--cymbra-lingua-warn);
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
   line-height: 1.4;
 }
 
 .acct-error {
   margin-top: 6px;
-  color: var(--cymbra-lingua-coral);
-  font-size: 12px;
+  color: var(--cymbra-lingua-danger);
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
 }

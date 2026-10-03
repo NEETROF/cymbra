@@ -21,6 +21,10 @@ import { messagedArea, watchStore } from "../state/store.ts";
 import { requestSync } from "../sync/messages.ts";
 import { isReaderUrl, READER_PAGE } from "../reader/locate.ts";
 import type { OpenPageMessage } from "../state/open-page.ts";
+import { followSurfaceLook } from "../reading/surface-look.ts";
+
+// This page is a surface: it follows the reader's colours and text size (add-lingua-colour-settings D8, D9).
+followSurfaceLook(document.documentElement);
 
 // Icon-popup controller (a surface the extension owns). It asks the active tab's content
 // script for the page's stats, and writes the global enabled flag directly (a plain setting;

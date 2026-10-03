@@ -9,6 +9,16 @@ colour at half the panel's resolution, so the fill disappears and a 1 px line is
 colours are fixed in the token sheet. The reader cannot fix this for their screen, and one
 default cannot suit a laptop, a phone at night and a Kaleido panel all at once.
 
+Dogfooding the presets on a Boox Go 10.3 Lumi (10.3", 1860×2480, 300 ppi, monochrome) on
+2026-10-03 found the rest of the reading surface fighting the same screen:
+- **Every surface is sized for a desktop.** 121 font sizes in px, none relative: the word card,
+  the drawer, the pill, the reader's toolbar and library read tiny on a large, dense panel.
+- **The text size reaches the book only.** At 180 % the book is comfortable, while the word card,
+  the drawer and the toolbar stay at a third of its size.
+- **The surfaces keep the dark identity whatever the reader chose.** With an e-ink preset on a
+  paper page, the card and the drawer are small light text on navy, which an e-ink panel shows
+  worst.
+
 ## What Changes
 
 - A **Couleurs** block in Réglages, rendered by the one settings builder, so it appears in the
@@ -35,6 +45,18 @@ default cannot suit a laptop, a phone at night and a Kaleido panel all at once.
   *Personnalisé* the reader may choose otherwise; the settings warn when the two styles become
   identical.
 
+- **The surfaces follow the reader's colours and page** (product owner's choice, 2026-10-03):
+  with an e-ink preset, every surface of the extension is black on white, without grey text,
+  tinted fills or shadows. With the Cymbra or custom colours, the surfaces follow the page theme:
+  a light theme of the identity on paper, today's Midnight Navy on dark. That covers the word
+  card, the drawer and its views, the pill, the reader's toolbar, panels and library, the popup,
+  the side panel and the extension's pages.
+- **One text size for the book and every surface** (product owner's choice, 2026-10-03): the
+  reader's text size (80–200 %) scales the extension's surfaces as well as the book, on web pages
+  as in the book reader. The size and the theme move from the *Livres* block to a block of their
+  own, *Affichage*, next to *Couleurs*; the reader's *Aa* panel keeps them. At the largest size,
+  a surface stays within the screen's width.
+
 ## Capabilities
 
 ### New Capabilities
@@ -45,8 +67,11 @@ _None._
 
 - `lingua-browser-extension`:
   - *Cymbra visual identity* (as rewritten by `add-lingua-reader`) — the palette's amber and
-    coral become the **default** highlight tints rather than the only ones.
-  - A requirement is added: the reader chooses the highlight colours.
+    coral become the **default** highlight tints rather than the only ones, and the surfaces get a
+    light and an e-ink theme besides the dark one.
+  - A requirement is added: the reader chooses the highlight colours, which an e-ink preset carries
+    to every surface.
+  - A requirement is added: one text size for the book and every surface.
 - `lingua-reader`: a requirement is added — the reader chooses the colours of the paper and dark
   pages.
 
@@ -62,9 +87,14 @@ Both deltas depend on `add-lingua-reader`, still open. This change archives afte
   setting.
 - **Code**:
   - `src/state/` — a colour preference and its validation;
-  - `src/styles/tokens.css` — the presets' colours, as tokens;
+  - `src/styles/tokens.css` — the presets' colours, as tokens, and the surfaces' light and e-ink
+    themes;
   - `src/reading/` — a colour sheet generated from the preference, adopted next to the token
-    sheet, and a Couleurs block in the settings builder;
-  - `src/reader/` — the page colours through the same tokens.
+    sheet, a Couleurs block and an Affichage block in the settings builder, and `surface-look.ts`,
+    which themes and scales every surface root;
+  - `src/reader/` — the page colours through the same tokens;
+  - every stylesheet — font sizes and the main widths multiply the text size.
+- **Visible to every reader**: the default display is the paper page, so with the default colours
+  the surfaces turn light. The dark identity stays one tap away (*Sombre*).
 - **Storage**: one new `chrome.storage.local` key. No IndexedDB schema change, no sync, no
   `.proto`, no backend, no new permission.

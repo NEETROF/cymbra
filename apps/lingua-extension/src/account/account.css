@@ -9,7 +9,7 @@
   background: var(--cymbra-lingua-bg);
   color: var(--cymbra-lingua-text);
   font-family: var(--cymbra-lingua-font);
-  font-size: 15px;
+  font-size: calc(15px * var(--cymbra-lingua-ui-scale, 1));
   line-height: 1.6;
 }
 
@@ -21,7 +21,7 @@
 
 .account-page h1 {
   margin: 0 0 20px;
-  font-size: 22px;
+  font-size: calc(22px * var(--cymbra-lingua-ui-scale, 1));
   font-weight: 600;
   letter-spacing: 0.01em;
 }
@@ -35,14 +35,14 @@
 
 .account-title {
   margin: 0 0 12px;
-  font-size: 18px;
+  font-size: calc(18px * var(--cymbra-lingua-ui-scale, 1));
   font-weight: 600;
 }
 
 .account-lead {
   margin: 0 0 16px;
   color: var(--cymbra-lingua-muted);
-  font-size: 14px;
+  font-size: calc(14px * var(--cymbra-lingua-ui-scale, 1));
 }
 
 .account-notice,
@@ -50,17 +50,17 @@
   margin: 0 0 14px;
   padding: 10px 12px;
   border-radius: var(--cymbra-lingua-radius);
-  font-size: 14px;
+  font-size: calc(14px * var(--cymbra-lingua-ui-scale, 1));
 }
 
 .account-notice {
   border: 1px solid var(--cymbra-lingua-border-2);
-  color: var(--cymbra-lingua-green);
+  color: var(--cymbra-lingua-ok);
 }
 
 .account-error {
-  border: 1px solid var(--cymbra-lingua-coral);
-  color: var(--cymbra-lingua-coral);
+  border: 1px solid var(--cymbra-lingua-danger);
+  color: var(--cymbra-lingua-danger);
 }
 
 .account-form {
@@ -76,7 +76,7 @@
 }
 
 .account-label {
-  font-size: 13px;
+  font-size: calc(13px * var(--cymbra-lingua-ui-scale, 1));
   color: var(--cymbra-lingua-muted);
 }
 
@@ -87,7 +87,7 @@
   background: var(--cymbra-lingua-panel-2);
   color: var(--cymbra-lingua-text);
   font-family: inherit;
-  font-size: 15px;
+  font-size: calc(15px * var(--cymbra-lingua-ui-scale, 1));
 }
 
 .account-primary,
@@ -98,7 +98,7 @@
   padding: 10px 12px;
   border-radius: 10px;
   font-family: inherit;
-  font-size: 15px;
+  font-size: calc(15px * var(--cymbra-lingua-ui-scale, 1));
 }
 
 .account-primary {
@@ -132,7 +132,7 @@
   margin: 8px 0 14px;
   text-align: center;
   color: var(--cymbra-lingua-faint);
-  font-size: 13px;
+  font-size: calc(13px * var(--cymbra-lingua-ui-scale, 1));
 }
 
 .account-links {
@@ -150,33 +150,33 @@
   padding: 0;
   color: var(--cymbra-lingua-accent);
   font-family: inherit;
-  font-size: 13px;
+  font-size: calc(13px * var(--cymbra-lingua-ui-scale, 1));
   text-decoration: underline;
 }
 
 .account-footnote {
   margin: 16px 0 0;
   color: var(--cymbra-lingua-faint);
-  font-size: 12px;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
 }
 
 .account-help {
-  font-size: 12px;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
   color: var(--cymbra-lingua-muted);
 }
 
 .account-help-available {
-  color: var(--cymbra-lingua-green);
+  color: var(--cymbra-lingua-ok);
 }
 
 .account-help-invalid,
 .account-help-taken {
-  color: var(--cymbra-lingua-coral);
+  color: var(--cymbra-lingua-danger);
 }
 
 .account-handle {
   margin: 0 0 8px;
-  font-size: 18px;
+  font-size: calc(18px * var(--cymbra-lingua-ui-scale, 1));
   font-weight: 600;
   color: var(--cymbra-lingua-accent);
 }
@@ -189,17 +189,17 @@
 
 .account-subtitle {
   margin: 0 0 8px;
-  font-size: 15px;
+  font-size: calc(15px * var(--cymbra-lingua-ui-scale, 1));
   font-weight: 600;
 }
 
 .account-warning {
   margin: 0 0 12px;
   padding: 10px 12px;
-  border: 1px solid var(--cymbra-lingua-coral);
+  border: 1px solid var(--cymbra-lingua-danger);
   border-radius: var(--cymbra-lingua-radius);
-  color: var(--cymbra-lingua-coral);
-  font-size: 14px;
+  color: var(--cymbra-lingua-danger);
+  font-size: calc(14px * var(--cymbra-lingua-ui-scale, 1));
 }
 
 .account-danger {
@@ -207,12 +207,12 @@
   width: 100%;
   margin-bottom: 8px;
   padding: 10px 12px;
-  border: 1px solid var(--cymbra-lingua-coral);
+  border: 1px solid var(--cymbra-lingua-danger);
   border-radius: 10px;
   background: none;
-  color: var(--cymbra-lingua-coral);
+  color: var(--cymbra-lingua-danger);
   font-family: inherit;
-  font-size: 15px;
+  font-size: calc(15px * var(--cymbra-lingua-ui-scale, 1));
   font-weight: 600;
 }
 

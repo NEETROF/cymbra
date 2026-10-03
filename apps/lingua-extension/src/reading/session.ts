@@ -267,6 +267,7 @@ export class ReadingSession {
       css: opts.css.popup,
       onGesture: (g) => void this.onGesture(g),
       speaker: this.speaker,
+      followLook: true,
     });
     this.cards = new SelectionCards(
       // Asked at each call, so a card follows the session's language.
@@ -288,6 +289,7 @@ export class ReadingSession {
       now: nowSeconds,
       onChange: () => this.persist(),
       speaker: this.speaker,
+      followLook: true,
     });
     const actions: HudActions = {
       onReview: () => this.openReviewSurface("review"),
@@ -300,6 +302,7 @@ export class ReadingSession {
         css: opts.css.hud,
         actions,
         onMoved: (position) => void saveHudPosition(storageArea, position),
+        followLook: true,
       });
     this.observers = new ReadingObservers({ onRescan: (containers) => void this.refresh(containers) });
     this.exposure = new ExposureTracker<BlockReading>(

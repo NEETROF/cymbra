@@ -21,6 +21,10 @@ import { Library } from "./library.ts";
 import { isReaderWhere, type ReaderWhereReply } from "./locate.ts";
 import { requestPersistence } from "./persist.ts";
 import { clearSections } from "./section-server.ts";
+import { followSurfaceLook } from "../reading/surface-look.ts";
+
+// This page is a surface: it follows the reader's colours and text size (add-lingua-colour-settings D8, D9).
+followSurfaceLook(document.documentElement);
 
 // The reader page's entry (add-lingua-reader): an extension page, so it loads from the
 // installed bundle and never from the network; the engine is the one every extension page

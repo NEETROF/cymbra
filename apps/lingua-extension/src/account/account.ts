@@ -2,6 +2,10 @@ import { SIGNIN_ERROR_KEY } from "../state/session.ts";
 import { AccountFlow, type AccountView, viewFromHash } from "./flow.ts";
 import { type AccountMessage, type AccountReply, PENDING_EMAIL_KEY } from "./messages.ts";
 import { type AccountActions, renderAccount } from "./view.ts";
+import { followSurfaceLook } from "../reading/surface-look.ts";
+
+// This page is a surface: it follows the reader's colours and text size (add-lingua-colour-settings D8, D9).
+followSurfaceLook(document.documentElement);
 
 // Account page bootstrap (add-lingua-account-parity, design D1): a tab — unlike the popup
 // it survives the reader switching to their mailbox for the code. Wires the controller to

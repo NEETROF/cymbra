@@ -622,3 +622,20 @@ describe("Réglages and the studied language", () => {
     expect(new Set(calls.languages)).toEqual(new Set(["en"]));
   });
 });
+
+describe("Réglages — Affichage", () => {
+  it("holds the text size and the theme, for the books and the whole interface", async () => {
+    const { container } = mount();
+    await settle();
+    const blocks = [...container.querySelectorAll<HTMLElement>(".set-block")];
+    const titled = (title: string): HTMLElement | undefined => blocks.find((b) => b.textContent?.startsWith(title));
+    const display = titled("Affichage");
+    expect(display?.textContent).toContain("Taille du texte");
+    expect(display?.textContent).toContain("Thème");
+    expect(display?.textContent).toContain("toute l'interface");
+    // Shown once: the Livres block keeps the library and the flow only.
+    expect(titled("Livres")?.textContent).not.toContain("Taille du texte");
+    // Right before the colours, which it works with.
+    expect(blocks.indexOf(display!)).toBe(blocks.indexOf(titled("Couleurs")!) - 1);
+  });
+});

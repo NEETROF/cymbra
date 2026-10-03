@@ -10,10 +10,12 @@ import {
   TEXT_SCALE_STEP,
 } from "../state/storage.ts";
 
-// How a book is shown in the reader — its text size and its page (add-lingua-reader D10). One
-// builder, rendered in the two places the reader looks for it: the reader's own "Aa" panel, and
-// the Livres block of Réglages. Buttons, not a slider: a tap is one step, which an e-ink screen
-// redraws once. The choice is saved; the reader page follows the stored value.
+// How the reader shows text — its size and its theme (add-lingua-reader D10). The size scales the
+// book's text and every surface of the extension; the theme is the book's page and, with the
+// Cymbra or custom colours, the surfaces' (add-lingua-colour-settings D8, D9). One builder,
+// rendered in the two places the reader looks for it: the reader's own "Aa" panel, and the
+// Affichage block of Réglages. Buttons, not a slider: a tap is one step, which an e-ink screen
+// redraws once. The choice is saved; every surface follows the stored value.
 
 export interface BookDisplayView {
   /** Show the stored choice (it may have changed in the other place). */
@@ -61,7 +63,7 @@ export function mountBookDisplay(container: HTMLElement, area: AsyncStorageArea)
 
   const pages = el(doc, "div", "set-segmented");
   pages.setAttribute("role", "group");
-  pages.setAttribute("aria-label", "Page");
+  pages.setAttribute("aria-label", "Thème");
   const themeButtons = THEMES.map(({ theme, text }) => {
     const b = el(doc, "button", "set-segment", text);
     b.type = "button";
@@ -70,7 +72,7 @@ export function mountBookDisplay(container: HTMLElement, area: AsyncStorageArea)
   });
   pages.append(...themeButtons.map(({ b }) => b));
   const pageRow = el(doc, "div", "set-display-row");
-  pageRow.append(el(doc, "span", undefined, "Page"), pages);
+  pageRow.append(el(doc, "span", undefined, "Thème"), pages);
 
   const box = el(doc, "div", "set-display");
   box.append(sizeRow, pageRow);
