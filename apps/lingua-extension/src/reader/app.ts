@@ -1,7 +1,7 @@
 import { type BookDisplayView, mountBookDisplay } from "../reading/book-display-view.ts";
 import { applyColourSheet } from "../reading/highlight.ts";
 import type { HudActions, HudState } from "../reading/hud.ts";
-import type { Box, ReadingHost, ReadingIndicator } from "../reading/session.ts";
+import { type Box, languageHint, type ReadingHost, type ReadingIndicator } from "../reading/session.ts";
 import {
   type AsyncStorageArea,
   DEFAULT_READER_DISPLAY,
@@ -102,6 +102,16 @@ function button(className: string, text: string, onClick: () => void, label?: st
 /** A card's source for a word met in a book: the book, and the chapter when there is one. */
 export function bookSource(title: string, section: string | null): string {
   return section ? `${title} · ${section}` : title;
+}
+
+/**
+ * A section that declares no language takes the book's (add-lingua-reader-language D2): a package's
+ * `dc:language` is the language of its content, for the reading session's hint as for the browser's
+ * hyphenation and screen readers. A section's own declaration is kept.
+ */
+export function declareBookLanguage(doc: Document, language: string | null): void {
+  const declared = language?.trim();
+  if (declared && !languageHint(doc)) doc.documentElement.setAttribute("lang", declared);
 }
 
 /** A box of a section's viewport, moved into the reader page's: the section's frame is where it sits. */
@@ -405,6 +415,7 @@ export class ReaderApp {
     if (!book || !this.session) return;
     this.hideUntilPainted();
     doc.addEventListener("keydown", (e) => this.onKey(e));
+    declareBookLanguage(doc, book.language);
     await this.session.attach({
       doc,
       win: (doc.defaultView ?? window) as Window & typeof globalThis,

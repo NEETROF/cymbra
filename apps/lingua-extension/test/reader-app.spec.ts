@@ -4,6 +4,7 @@ import {
   BOOK_EXPOSURE_SOURCE,
   bookInAddress,
   bookSource,
+  declareBookLanguage,
   frameOffset,
   importLine,
   ReaderApp,
@@ -231,6 +232,12 @@ describe("a book open", () => {
     expect(host.source()).toBe("The Hound of the Baskervilles");
     renderers[0].relocate({ cfi: "epubcfi(/6/2!/4/2)", fraction: 0.25, section: "I. The Curse" });
     expect(host.source()).toBe("The Hound of the Baskervilles · I. The Curse");
+  });
+
+  it("declares the book's language on a section that declares none", async () => {
+    const { session } = await withBook(); // the package declares en-GB
+    await openFirst();
+    expect(session.hosts[0].doc.documentElement.getAttribute("lang")).toBe("en-GB");
   });
 
   it("keeps the position after every move, and shows where the reader is", async () => {
@@ -538,5 +545,34 @@ describe("the reader page's helpers", () => {
     const box = { left: 1, top: 2, bottom: 3 };
     expect(frameOffset(frame.contentDocument!)(box)).toEqual({ left: 31, top: 72, bottom: 73 });
     expect(frameOffset(document.implementation.createHTMLDocument())(box)).toEqual(box);
+  });
+});
+
+describe("declareBookLanguage", () => {
+  const html = () => document.implementation.createHTMLDocument("section");
+
+  it("declares the book's language on a section that declares none", () => {
+    const doc = html();
+    declareBookLanguage(doc, " es-ES ");
+    expect(doc.documentElement.getAttribute("lang")).toBe("es-ES");
+  });
+
+  it("keeps what a section declares, with lang or xml:lang, on its root or its body", () => {
+    const root = html();
+    root.documentElement.setAttribute("xml:lang", "en");
+    const body = html();
+    body.body.setAttribute("lang", "en");
+    for (const doc of [root, body]) {
+      declareBookLanguage(doc, "es");
+      expect(doc.documentElement.getAttribute("lang")).toBeNull();
+    }
+  });
+
+  it("leaves a section alone when the book declares nothing", () => {
+    for (const language of [null, "", "  "]) {
+      const doc = html();
+      declareBookLanguage(doc, language);
+      expect(doc.documentElement.hasAttribute("lang")).toBe(false);
+    }
   });
 });

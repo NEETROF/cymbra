@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudiedLanguage } from "@/analyzer/types.ts";
 import { mountSettings } from "@/reading/settings-view.ts";
+import { declareBookLanguage } from "@/reader/app.ts";
 import type { BlockReading } from "@/reading/scan.ts";
-import { languageHint, type ReadingHost, ReadingSession } from "@/reading/session.ts";
+import { languageHint, primaryLanguage, type ReadingHost, ReadingSession } from "@/reading/session.ts";
 import type { Gesture } from "@/reading/wordpopup.ts";
 import { mountReview } from "@/review/review-page.ts";
 import { type AsyncStorageArea, ROOT_KEY, STORAGE_VERSION } from "@/state/storage.ts";
@@ -187,13 +188,13 @@ describe("with en-fr and es-fr shipped", () => {
 describe("each document in its own language (add-lingua-language-routing)", () => {
   class FakeHighlight extends Set<Range> {}
 
-  /** A book section: a document of its own, which declares `lang`. */
-  function section(html: string, lang: string): ReadingHost {
+  /** A book section: a document of its own, which declares `lang`, or nothing. */
+  function section(html: string, lang: string | null): ReadingHost {
     const frame = document.createElement("iframe");
     document.body.append(frame);
     const doc = frame.contentDocument!;
     const win = frame.contentWindow! as Window & typeof globalThis;
-    doc.documentElement.setAttribute("lang", lang);
+    if (lang !== null) doc.documentElement.setAttribute("lang", lang);
     doc.body.innerHTML = html;
     Object.assign(win, { CSS: { highlights: new Map() }, Highlight: FakeHighlight });
     return {
@@ -317,5 +318,63 @@ describe("each document in its own language (add-lingua-language-routing)", () =
     expect(languageHint(doc)).toBe("es");
     doc.documentElement.setAttribute("lang", "en_GB");
     expect(languageHint(doc)).toBe("en");
+  });
+
+  it("reduces a tag to its primary subtag, the three-letter codes of the shipped languages included", () => {
+    expect(primaryLanguage("es-419")).toBe("es");
+    expect(primaryLanguage(" ES_mx ")).toBe("es");
+    expect(primaryLanguage("spa")).toBe("es");
+    expect(primaryLanguage("eng")).toBe("en");
+    expect(primaryLanguage("fra")).toBe("fra"); // the engine ignores a hint that is not a candidate
+    expect(primaryLanguage("")).toBeNull();
+    expect(primaryLanguage(null)).toBeNull();
+  });
+
+  it("reads what an XHTML section declares: xml:lang, on the root or the body", () => {
+    const xhtml = (attributes: string, body = "") =>
+      new DOMParser().parseFromString(
+        `<html xmlns="http://www.w3.org/1999/xhtml" ${attributes}><head><title>s</title></head><body ${body}><p>Hola</p></body></html>`,
+        "application/xhtml+xml",
+      );
+    expect(languageHint(xhtml('xml:lang="es"'))).toBe("es");
+    expect(languageHint(xhtml('lang="en" xml:lang="es"'))).toBe("en"); // lang first, as HTML reads it
+    expect(languageHint(xhtml("", 'xml:lang="es-ES"'))).toBe("es");
+    expect(languageHint(xhtml(""))).toBeNull();
+  });
+
+  it("reads a declaration on the body of an HTML document", () => {
+    const doc = document.implementation.createHTMLDocument("");
+    doc.body.setAttribute("lang", "es");
+    expect(languageHint(doc)).toBe("es");
+  });
+
+  it("hints a section that declares nothing with its book's language (add-lingua-reader-language)", async () => {
+    packs.shipped = ["en-fr", "es-fr"];
+    const { port, calls } = makeFakePort();
+    await port.setStudiedLanguages(["en", "es"]);
+    const session = new ReadingSession(port, { css, surface: "book" });
+    await session.start(null);
+    const silent = section("<p>Capítulo uno</p>", null);
+
+    declareBookLanguage(silent.doc, "es-ES");
+    await session.attach(silent);
+
+    expect(calls.detections.at(-1)).toEqual({ candidates: ["en", "es"], hint: "es" });
+    session.detach();
+  });
+
+  it("keeps a section's own language over its book's", async () => {
+    packs.shipped = ["en-fr", "es-fr"];
+    const { port, calls } = makeFakePort();
+    await port.setStudiedLanguages(["en", "es"]);
+    const session = new ReadingSession(port, { css, surface: "book" });
+    await session.start(null);
+    const preface = section("<p>A preface in English.</p>", "en");
+
+    declareBookLanguage(preface.doc, "es");
+    await session.attach(preface);
+
+    expect(calls.detections.at(-1)).toEqual({ candidates: ["en", "es"], hint: "en" });
+    session.detach();
   });
 });
