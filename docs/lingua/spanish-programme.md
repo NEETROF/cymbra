@@ -120,8 +120,8 @@ min–max.
 | R2 | 6 | `generalise-lingua-wasm-engine`: a pack per language in one engine, the language on every call, sync records in their own language | 4–7 | Done (proposal [#625](https://github.com/NEETROF/cymbra/pull/625)); English baseline unmoved, extension source unchanged |
 | R2 | 7 | `generalise-lingua-extension-port` (first dogfood build): a root port and a language view, the language on every language-bound call and over the RPC | 4–7 | Done (proposal [#627](https://github.com/NEETROF/cymbra/pull/627)); asks in `en`, nothing a reader sees changed; R2 dogfood pass due before the release |
 | R2 | 8 | `generalise-lingua-pack-build`: one list of shipped pairs (`packs.json`), a pack per pair at `assets/packs/<pair>.lingua`, each checked against its own pin and language | 4–7 | Done (proposal [#629](https://github.com/NEETROF/cymbra/pull/629)); same en-fr bytes, new path; `check_variants` refuses any list but en-fr |
-| R2 | 9 | `package-lingua-packs-per-pair` | 2.5–4.5 | Next |
-| R2 | 10 | `add-lingua-studied-language-profile` | 3.5–6.5 | Not started |
+| R2 | 9 | `package-lingua-packs-per-pair`: an engine starts with the default pair's pack and adds another listed pair's the first time its language is needed, synced records included | 2.5–4.5 | Done (proposal [#631](https://github.com/NEETROF/cymbra/pull/631)); en-fr alone still loads, at the same moment; a language nothing ships is refused before the engine |
+| R2 | 10 | `add-lingua-studied-language-profile` | 3.5–6.5 | Next |
 | R3 silent English release B | 11 | `add-lingua-language-sync-client` | 4.5–8 | Not started |
 | R3 | 12 | `add-lingua-language-routing` | 5.5–9.5 | Not started |
 | R3 | 13 | `add-lingua-language-choice`: « Langues étudiées » in the single settings builder, onboarding, level and voice per language, language labels module and lint | 6–10 | Not started |

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { WasmAnalyzerPort, type WasmModule } from "@/analyzer/engine.ts";
 import { MessagingLinguaPort } from "@/analyzer/messaging-port.ts";
 import { handleRpc, isRpcRequest } from "@/analyzer/rpc-host.ts";
 import type { LinguaPort } from "@/analyzer/port.ts";
@@ -158,6 +159,19 @@ describe("rpc host", () => {
     const { port } = makeFakePort();
     const res = await handleRpc(port, async () => {}, req("nope", []));
     expect(res).toEqual({ ok: false, error: "unknown method: nope" });
+  });
+
+  it("answers a call in a language nothing ships with the engine port's refusal", async () => {
+    const glue = vi.fn(async (): Promise<WasmModule> => {
+      throw new Error("an engine was built");
+    });
+    const port = new WasmAnalyzerPort(glue, ["en-fr"]);
+
+    expect(await handleRpc(port, async () => {}, req("analyse", [["El faro"]], "es"))).toEqual({
+      ok: false,
+      error: 'no shipped pack studies "es" (shipped pairs: en-fr)',
+    });
+    expect(glue).not.toHaveBeenCalled();
   });
 
   it("captures a thrown error as a failed result", async () => {

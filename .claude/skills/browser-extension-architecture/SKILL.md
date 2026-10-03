@@ -62,6 +62,10 @@ writing UI code, and prefer confirming a UX fork with the user over guessing.
 - On Firefox the analyzer engine runs in the **background event page** (its content-script CSP
   blocks WASM); the content script reaches it over the `AnalyzerPort` messaging seam. On
   Chromium the engine runs in the content script. Don't assume the engine is local to a surface.
+- Every engine starts with the default pair's pack (the first of `packs.json`). Another listed
+  pair's pack is added the first time a call names its language, or a synced record does
+  (`analyzer/engine.ts`, `analyzer/pairs.ts`). A language no listed pair studies is refused before
+  the engine. Never fetch a pack anywhere else.
 
 ## Which context am I in? (the family of bugs that compiles and does nothing)
 

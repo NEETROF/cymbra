@@ -9,6 +9,7 @@ import type {
   StatusChangeIn,
   StatusOp,
 } from "./port.ts";
+import { packPath, pairFor, SHIPPED_PAIRS } from "./pairs.ts";
 import type {
   CefrLevel,
   LemmaStatus,
@@ -30,7 +31,7 @@ import type {
 // MV3 loading notes: a classic content script cannot statically import the wasm-pack
 // ES module, and init()'s bare auto-fetch is unreliable under chrome-extension://, so
 // we dynamic-import the glue by its extension URL and hand init() the explicit .wasm
-// Response. All three files (glue, _bg.wasm, pack) are web_accessible_resources.
+// Response. The glue, the _bg.wasm and every listed pack are web_accessible_resources.
 
 /** The engine's own surface (lingua-wasm). A language-bound binding takes the studied
  * language last; without one it answers in the language of the first pack loaded. */
@@ -95,12 +96,9 @@ export interface WasmModule {
 /** How the wasm-pack glue module is obtained. */
 export type GlueLoader = () => Promise<WasmModule>;
 
-/** Paths of the vendored wasm output + pack within the built extension. */
+/** Paths of the vendored wasm output within the built extension (the packs': pairs.ts). */
 const GLUE_PATH = "wasm/lingua_wasm.js";
 const WASM_PATH = "wasm/lingua_wasm_bg.wasm";
-// The default pair's pack (packs.json, generalise-lingua-pack-build); the other listed pairs
-// are package-lingua-packs-per-pair's to load.
-const PACK_PATH = `assets/packs/${__LINGUA_PACKS__.split(",")[0]}.lingua`;
 
 /** The status string that clears an explicit status in the WASM engine. */
 const CLEAR = "clear";
@@ -137,12 +135,23 @@ function initialise(mod: WasmModule): Promise<unknown> {
   return ready;
 }
 
+/** A pair's pack, read from the package. */
+async function fetchPack(pair: string): Promise<Uint8Array> {
+  return new Uint8Array(await (await fetch(chrome.runtime.getURL(packPath(pair)))).arrayBuffer());
+}
+
 export class WasmAnalyzerPort implements LinguaPort {
   private enginePromise: Promise<WasmEngine> | null = null;
+  /** The packs added after the default's, one load per language (package-lingua-packs-per-pair). */
+  private readonly added = new Map<string, Promise<void>>();
 
-  constructor(private readonly loadGlue: GlueLoader = dynamicGlue) {}
+  /** `pairs`: the pairs whose packs this engine may load, the default language's first. */
+  constructor(
+    private readonly loadGlue: GlueLoader = dynamicGlue,
+    private readonly pairs: readonly string[] = SHIPPED_PAIRS,
+  ) {}
 
-  /** Instantiated once per tab, on the first call. */
+  /** Instantiated once per tab, on the first call, with the default pair's pack. */
   private engine(): Promise<WasmEngine> {
     return (this.enginePromise ??= this.build());
   }
@@ -150,14 +159,60 @@ export class WasmAnalyzerPort implements LinguaPort {
   private async build(): Promise<WasmEngine> {
     const mod = await this.loadGlue();
     await initialise(mod);
-    const packBytes = new Uint8Array(await (await fetch(chrome.runtime.getURL(PACK_PATH))).arrayBuffer());
+    const packBytes = await fetchPack(this.pairs[0]);
     // Throws if the pack is malformed or built for an incompatible analyzer_version.
     return new mod.LinguaEngine(packBytes);
   }
 
-  /** The view of this engine bound to `language`: each call names it to the engine. */
+  /**
+   * The engine once it holds `language`'s pack. The default pair's built it; another listed
+   * pair's is added the first time its language is asked for. A language no listed pair
+   * studies is refused here, before the engine sees anything.
+   */
+  private async engineFor(language: string): Promise<WasmEngine> {
+    const pair = pairFor(language, this.pairs);
+    if (pair === null) {
+      throw new Error(`no shipped pack studies "${language}" (shipped pairs: ${this.pairs.join(", ")})`);
+    }
+    const engine = await this.engine();
+    if (pair !== this.pairs[0]) await this.addPack(engine, language, pair);
+    return engine;
+  }
+
+  /** Adds `pair`'s pack to the engine once: a pending load is shared, a failed one forgotten. */
+  private addPack(engine: WasmEngine, language: string, pair: string): Promise<void> {
+    let load = this.added.get(language);
+    if (!load) {
+      const attempt = fetchPack(pair).then((bytes) => {
+        engine.addPack(bytes);
+      });
+      // A failed load is retried by the next call rather than remembered.
+      attempt.catch(() => {
+        if (this.added.get(language) === attempt) this.added.delete(language);
+      });
+      this.added.set(language, attempt);
+      load = attempt;
+    }
+    return load;
+  }
+
+  /**
+   * The engine once it holds the pack of every listed language `records` name. The engine skips
+   * a record whose language it holds no pack for, and a sync then moves its cursor past it: a
+   * record of a language the package ships must never be skipped for want of a load. A language
+   * no listed pair studies loads nothing, and its records stay skipped.
+   */
+  private async engineHolding(records: ReadonlyArray<{ language: string }>): Promise<WasmEngine> {
+    const languages = new Set(records.map((record) => record.language));
+    const listed = [...languages].filter((language) => pairFor(language, this.pairs) !== null);
+    await Promise.all(listed.map((language) => this.engineFor(language)));
+    return this.engine();
+  }
+
+  /** The view of this engine bound to `language`: each call names it to the engine, once the
+   *  engine holds its pack. */
   for(language: StudiedLanguage): LanguagePort {
-    return new WasmLanguagePort(() => this.engine(), language);
+    return new WasmLanguagePort(() => this.engineFor(language), language);
   }
 
   async languages(): Promise<StudiedLanguage[]> {
@@ -218,7 +273,7 @@ export class WasmAnalyzerPort implements LinguaPort {
   }
 
   async applyStatusChanges(changes: StatusChangeIn[]): Promise<number> {
-    return (await this.engine()).applyStatusChanges(JSON.stringify(changes));
+    return (await this.engineHolding(changes)).applyStatusChanges(JSON.stringify(changes));
   }
 
   async exportCardOps(): Promise<CardOp[]> {
@@ -226,7 +281,7 @@ export class WasmAnalyzerPort implements LinguaPort {
   }
 
   async applyCardOps(ops: CardOp[]): Promise<number> {
-    return (await this.engine()).applyCardOps(JSON.stringify(ops));
+    return (await this.engineHolding(ops)).applyCardOps(JSON.stringify(ops));
   }
 
   // --- CEFR levels (add-lingua-cefr-levels) ---
@@ -236,7 +291,7 @@ export class WasmAnalyzerPort implements LinguaPort {
   }
 
   async applyDeclaredLevelChanges(changes: DeclaredLevelOp[]): Promise<number> {
-    return (await this.engine()).applyDeclaredLevelChanges(JSON.stringify(changes));
+    return (await this.engineHolding(changes)).applyDeclaredLevelChanges(JSON.stringify(changes));
   }
 }
 
