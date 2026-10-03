@@ -52,7 +52,7 @@ Delivered in tranches (design, "Delivery in tranches"): **1** announcements — 
 - [x] 5.2 Read the flags at publication time in both handlers (`discord_notify` now, `discord_digest` with 3.6); kill-switch off suppresses every category, a category flag off suppresses only its own
 - [x] 5.3 Add the flag descriptions/copy so they are self-explanatory in the back-office flags console (no new screen): the English `doc` in `backend/feature-flags/src/registry.rs`, the French one in `apps/back-office/src/i18n/flag-descriptions.ts`
 
-- [x] 5.4 Register the report flags: one per product (`discord.music.report`, `discord.id.report`, `discord.lingua.report`) plus each product's report cadence (daily/weekly) — defaults Music daily, ID weekly, Lingua weekly (`scripts/discord/reports.md`) — and `discord.reports.min_contributors` (int, default **1**), with their English and French descriptions
+- [x] 5.4 Register the report flags: one per product (`discord.music.report`, `discord.id.report`, `discord.lingua.report`) plus each product's report cadence (daily/weekly) — defaults Music daily, ID weekly, Lingua weekly (`scripts/discord/reports.md`) — and `discord.reports.min_contributors` (int, default **3**, maintainer decision 2026-09-30, design D7), with their English and French descriptions
 
 ## 6. Bot: interactions endpoint + roles (D3, D10)
 
