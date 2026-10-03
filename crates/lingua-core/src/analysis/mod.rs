@@ -40,4 +40,13 @@ pub mod tokenize;
 /// counts and the future community TextProfiles are only comparable at an
 /// equal version — a silent behavioural drift here corrupts every count built
 /// on top (design D5).
+///
+/// This is ENGLISH's version: each studied language has its own
+/// ([`language::StudiedLanguage::analyzer_version`]), so a change to one
+/// language's rules never moves another's (generalise-lingua-analysis-by-language).
 pub const ANALYZER_VERSION: &str = "1.1.0";
+
+/// Spanish's analyser version. `0.x` while its analyser is the baseline — no
+/// pre-pass, the pack's forms and nothing else; add-lingua-spanish-analysis
+/// brings its rules and its `1.0.0`.
+pub const SPANISH_ANALYZER_VERSION: &str = "0.1.0";

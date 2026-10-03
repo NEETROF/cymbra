@@ -8,7 +8,7 @@ instead of re-arguing a decision.
 - Study: 2026-09-29/30, read-only, figures checked online (data, licences, translation models).
   Coverage figures come from throwaway prototypes: they are orders of magnitude, not targets.
 - Decisions: Guillaume Fortin (product owner), 2026-09-30.
-- Status: as of 2026-10-03. Update the programme table in the pull request that moves a line.
+- Status: as of 2026-10-03 (change 5). Update the programme table in the pull request that moves a line.
 
 ## Scope
 
@@ -111,13 +111,13 @@ min–max.
 |---|---|---|---|---|
 | G0 | — | Archive sweep, in order: `add-lingua-backend` → `add-lingua-connected-clients`; `add-lingua-phrase-gloss` → `add-lingua-expression-table`; `add-lingua-translation-delivery` → `-android` → `-safari`; `add-lingua-reader`; `add-lingua-read-aloud`; `add-lingua-apple` | — | Open: each waits on manual release or verification tasks |
 | G0 | — | Rewrite `add-lingua-connected-clients` in place | 1.5–3 | Done ([#607](https://github.com/NEETROF/cymbra/pull/607)) |
-| G0 | — | Spikes S0–S8 (below) | ≈15 | S5 covered by [#619](https://github.com/NEETROF/cymbra/pull/619)'s reference run; S0 next |
+| G0 | — | Spikes S0–S8 (below) | ≈15 | S0 done ([#622](https://github.com/NEETROF/cymbra/pull/622): `crates/lingua-wasm/tests/english_baseline.rs`); S5 covered by [#619](https://github.com/NEETROF/cymbra/pull/619)'s reference run |
 | G0 | — | Licence requests: UCLouvain (ELELex), Instituto Cervantes (PCIC), TUFS (CEFR-J Spanish) | — | Owner |
 | R1 server first | 2 | `add-lingua-card-language` | 4.5–8 | Merged ([#609](https://github.com/NEETROF/cymbra/pull/609)); backend 0.35.0 deployed 2026-09-30. Tasks 5.1/5.2 (external checks) open |
 | R1 | 3 | `add-admin-lingua-language-labels` | 1.5–2.5 | Not started |
 | R2 silent English release A (shipped list `[en]`, asserted by `check_variants`) | 4 | `generalise-lingua-pack-reducer` | 5.5–9.5 | Merged ([#619](https://github.com/NEETROF/cymbra/pull/619)), archived 2026-10-03 |
-| R2 | 5 | `generalise-lingua-analysis-by-language`: `Spanish` variant, dispatch, English arm moved verbatim, version per language, `Pack::studied()` | 6–10 | Next |
-| R2 | 6 | `generalise-lingua-wasm-engine` | 4–7 | Not started |
+| R2 | 5 | `generalise-lingua-analysis-by-language`: `Spanish` variant, dispatch, English arm moved verbatim, version per language, `Pack::studied()` | 6–10 | Done (proposal [#623](https://github.com/NEETROF/cymbra/pull/623)); English baseline unmoved, en-fr pack unchanged |
+| R2 | 6 | `generalise-lingua-wasm-engine` | 4–7 | Next |
 | R2 | 7 | `generalise-lingua-extension-port` (first dogfood build) | 4–7 | Not started |
 | R2 | 8 | `generalise-lingua-pack-build` | 4–7 | Not started |
 | R2 | 9 | `package-lingua-packs-per-pair` | 2.5–4.5 | Not started |

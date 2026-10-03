@@ -72,7 +72,7 @@ pub fn analyse_document(
             continue;
         }
         for token in tokenize(block, studied, lexicon) {
-            let (lemma, parts) = resolve_lemmas(&token, lexicon);
+            let (lemma, parts) = resolve_lemmas(&token, studied, lexicon);
             out.push(AnalysedToken {
                 block: block_idx,
                 surface: token.text,
@@ -103,10 +103,11 @@ pub fn analyse_document(
 /// selection's tokens exactly as a page's, without the gates above.
 pub(crate) fn resolve_lemmas(
     token: &Token,
+    studied: StudiedLanguage,
     lexicon: &(impl Lexicon + ?Sized),
 ) -> (String, Vec<String>) {
     if token.parts.is_empty() {
-        return (lemmatize(&token.text, lexicon), Vec::new());
+        return (lemmatize(&token.text, studied, lexicon), Vec::new());
     }
     let whole = token.text.replace('\u{2019}', "'").to_lowercase();
     if let Some(lemma) = lexicon.lemma_of(&whole) {
@@ -115,7 +116,7 @@ pub(crate) fn resolve_lemmas(
     let parts = token
         .parts
         .iter()
-        .map(|piece| lemmatize(piece, lexicon))
+        .map(|piece| lemmatize(piece, studied, lexicon))
         .collect();
     (whole, parts)
 }

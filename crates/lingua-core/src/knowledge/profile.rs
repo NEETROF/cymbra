@@ -56,9 +56,7 @@ impl NativeLanguage {
 
 /// ISO-639-1 tag of a studied language, for pair keys and pack file names.
 pub fn studied_tag(studied: StudiedLanguage) -> &'static str {
-    match studied {
-        StudiedLanguage::English => "en",
-    }
+    studied.tag()
 }
 
 /// A studied→native pair: the key under which a pack, a gloss set and the

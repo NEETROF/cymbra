@@ -29,7 +29,9 @@ for (const t of targets) {
 // binary). CI runs gen:pack (testdata, current version) before build, so it always matches.
 function coreAnalyzerVersion() {
   const src = readFileSync(join(root, "../../crates/lingua-core/src/analysis/mod.rs"), "utf8");
-  return src.match(/ANALYZER_VERSION:\s*&str\s*=\s*"([^"]+)"/)?.[1] ?? null;
+  // English's version: each studied language has its own since
+  // generalise-lingua-analysis-by-language, and `\b` keeps SPANISH_ANALYZER_VERSION out.
+  return src.match(/\bANALYZER_VERSION:\s*&str\s*=\s*"([^"]+)"/)?.[1] ?? null;
 }
 function packAnalyzerVersion(packPath) {
   // latin1 keeps the binary intact while the ASCII meta JSON stays matchable.
