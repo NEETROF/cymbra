@@ -325,3 +325,22 @@ The attribution notice of a pack SHALL credit each source in the form its licenc
 - **WHEN** a pack's frequencies come from wordfreq
 - **THEN** its notice credits wordfreq to Robyn Speer, with the CC BY-SA 4.0 licence of its data
 
+### Requirement: A pack names the language it studies
+The core SHALL read the language a pack studies from the pack's metadata (`studied`, an ISO 639-1 code), SHALL refuse to load a pack whose studied language it has no analyser for, and SHALL check the pack's `analyzer_version` against the analyser version of that language, never of another. Adding a studied language to the core SHALL leave every existing pack loadable and byte-identical.
+
+#### Scenario: Loading the EN→FR pack names English
+- **WHEN** the en-fr pack is loaded
+- **THEN** the core reports its studied language as English and accepts its `analyzer_version` `1.1.0`
+
+#### Scenario: A pack for a language the core cannot analyse
+- **WHEN** a pack whose metadata names `pt` is loaded by a core with no Portuguese analyser
+- **THEN** loading fails with an explicit error naming the language, and no partial analysis is produced
+
+#### Scenario: Versions are compared within a language
+- **WHEN** one Spanish pack declares Spanish's analyser version, and another Spanish pack declares English's `1.1.0`
+- **THEN** the first loads and the second is refused as built for another analyser generation
+
+#### Scenario: The en-fr pack does not change
+- **WHEN** the en-fr pack is built from its committed tables after the core gains a second language
+- **THEN** its sha256 is the one recorded in `pin.json` before the change
+
