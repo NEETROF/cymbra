@@ -27,6 +27,7 @@ pub mod licence;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
+use lingua_core::analysis::language::StudiedLanguage;
 use lingua_core::analysis::lemmatize::lemmatize;
 use lingua_core::analysis::lexicon::{FstLexicon, Lexicon, build_lexicon_blobs};
 use lingua_core::knowledge::level::CefrLevel;
@@ -114,6 +115,9 @@ pub enum BuildError {
     Fst(String),
     /// A grammar table is outside the vocabulary or disagrees with the glosses.
     Grammar(String),
+    /// The pack studies a language the core has no analyser for: no core
+    /// could load it (`Pack::load` refuses it too).
+    UnknownLanguage(String),
     /// The assembled pack exceeds [`MAX_PACK_BYTES`].
     OverBudget {
         size: usize,
@@ -142,6 +146,10 @@ impl std::fmt::Display for BuildError {
             }
             BuildError::Fst(e) => write!(f, "could not build the forms FST: {e}"),
             BuildError::Grammar(e) => write!(f, "grammar tables: {e}"),
+            BuildError::UnknownLanguage(tag) => write!(
+                f,
+                "the pack studies {tag:?}, a language the core cannot analyse"
+            ),
             BuildError::OverBudget {
                 size,
                 budget,
@@ -303,6 +311,10 @@ pub fn build_pack(inputs: &PackInputs) -> Result<Vec<u8>, BuildError> {
             return Err(BuildError::NoticeIncomplete(source.name.clone()));
         }
     }
+    // The studied language picks the analyser the build reads forms with: the
+    // one every analysis of this pack will run (generalise-lingua-analysis-by-language).
+    let studied = StudiedLanguage::from_tag(&inputs.meta.studied)
+        .ok_or_else(|| BuildError::UnknownLanguage(inputs.meta.studied.clone()))?;
 
     // FST + lemma pool. Lemmas absent from the form→lemma pairs (e.g. glossed
     // or ranked lemmas with no listed inflection) are added to the pool so
@@ -371,7 +383,8 @@ pub fn build_pack(inputs: &PackInputs) -> Result<Vec<u8>, BuildError> {
         .expressions
         .iter()
         .filter_map(|(headword, gloss)| {
-            expression_key(headword, &lex).map(|key| (key, headword.as_str(), gloss.as_str()))
+            expression_key(headword, studied, &lex)
+                .map(|key| (key, headword.as_str(), gloss.as_str()))
         })
         .collect();
     // Sorted by key for the FST, and within a key by "is the key itself" first:
@@ -407,7 +420,7 @@ pub fn build_pack(inputs: &PackInputs) -> Result<Vec<u8>, BuildError> {
         )
     };
 
-    let grammar = grammar_sections(inputs, &lex)?;
+    let grammar = grammar_sections(inputs, studied, &lex)?;
 
     let meta_json = serde_json::to_vec(&inputs.meta).expect("PackMeta serialises");
     let mut sections: Vec<(&str, &[u8])> = vec![
@@ -470,6 +483,7 @@ struct GrammarSections {
 /// hold are dropped. Each run must cover exactly its word's gloss.
 fn grammar_sections(
     inputs: &PackInputs,
+    studied: StudiedLanguage,
     lex: &FstLexicon<&[u8]>,
 ) -> Result<GrammarSections, BuildError> {
     if inputs.readings.is_empty() && inputs.senses.is_empty() {
@@ -534,7 +548,7 @@ fn grammar_sections(
             .push(reading);
     }
     for (form, readings) in &by_form {
-        let resolved = lemmatize(form, lex);
+        let resolved = lemmatize(form, studied, lex);
         let Some(under) = lemma_id(&resolved) else {
             continue;
         };
@@ -618,10 +632,10 @@ fn grammar_sections(
 /// fails — its last resort is the lowercased word itself — so this is not a
 /// failure to catch but the membership test the requirement asks for: a key no
 /// reading can produce would sit in the pack unreachable for ever.
-fn expression_key(headword: &str, lex: &impl Lexicon) -> Option<String> {
+fn expression_key(headword: &str, studied: StudiedLanguage, lex: &impl Lexicon) -> Option<String> {
     let mut words: Vec<String> = Vec::new();
     for word in headword.split_whitespace() {
-        let lemma = lemmatize(word, lex);
+        let lemma = lemmatize(word, studied, lex);
         if !lex.contains_lemma(&lemma) {
             return None;
         }
@@ -1108,9 +1122,25 @@ mod tests {
     }
 
     #[test]
+    fn a_pack_whose_language_the_core_cannot_analyse_is_refused_at_build() {
+        let mut inp = inputs();
+        inp.meta.studied = "pt".into();
+        assert_eq!(
+            build_pack(&inp),
+            Err(BuildError::UnknownLanguage("pt".into()))
+        );
+        assert!(
+            BuildError::UnknownLanguage("pt".into())
+                .to_string()
+                .contains("\"pt\"")
+        );
+    }
+
+    #[test]
     fn spec_scenario_a_romance_pack_fits_the_vocabulary() {
         let mut inp = inputs();
         inp.meta.studied = "es".into();
+        inp.meta.analyzer_version = StudiedLanguage::Spanish.analyzer_version().into();
         inp.form_lemma = vec![("dijéramos".into(), "decir".into())];
         inp.ranks = vec![
             ("decir".into(), 50),

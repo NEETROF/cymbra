@@ -25,6 +25,7 @@
 //! the knowledge model resolves multi-candidate knowledge in the learner's
 //! favour on its side.
 
+use super::language::StudiedLanguage;
 use super::lexicon::Lexicon;
 
 /// English irregulars whose lemma no suffix rule can reach. The slice MUST
@@ -143,8 +144,35 @@ const IRREGULARS: &[(&str, &str)] = &[
     ("wrote", "write"),
 ];
 
-/// Lemmatises one token; the result is always lowercase.
-pub fn lemmatize(form: &str, lexicon: &(impl Lexicon + ?Sized)) -> String {
+/// Lemmatises one token of the studied language; the result is always
+/// lowercase.
+///
+/// English runs its cascade: irregulars, the pack's forms, morphy-style
+/// rules, the regular-plural fallback. Spanish, until its own cascade lands
+/// (add-lingua-spanish-analysis), is the pack's forms and nothing else — never
+/// an English table or rule, which would read `has` (of *haber*) as `have`.
+pub fn lemmatize(
+    form: &str,
+    studied: StudiedLanguage,
+    lexicon: &(impl Lexicon + ?Sized),
+) -> String {
+    match studied {
+        StudiedLanguage::English => lemmatize_english(form, lexicon),
+        StudiedLanguage::Spanish => lemmatize_baseline(form, lexicon),
+    }
+}
+
+/// The pack's forms, else the lowercased form itself.
+fn lemmatize_baseline(form: &str, lexicon: &(impl Lexicon + ?Sized)) -> String {
+    let lower = form.replace('\u{2019}', "'").to_lowercase();
+    match lexicon.lemma_of(&lower) {
+        Some(lemma) => lemma.to_owned(),
+        None => lower,
+    }
+}
+
+/// English's cascade, unchanged since analyser 1.1.0.
+fn lemmatize_english(form: &str, lexicon: &(impl Lexicon + ?Sized)) -> String {
     let lower = form.replace('\u{2019}', "'").to_lowercase();
 
     if let Ok(idx) = IRREGULARS.binary_search_by_key(&lower.as_str(), |(f, _)| f) {
@@ -288,16 +316,44 @@ mod tests {
         let (bytes, pool) =
             build_lexicon_blobs(&[("went", "wend")], &["go", "stop"]).expect("build");
         let lex = FstLexicon::from_slices(bytes, &pool).expect("load");
-        assert_eq!(lemmatize("went", &lex), "go");
+        assert_eq!(lemmatize("went", StudiedLanguage::English, &lex), "go");
         // FST wins over rules: nothing maps "stopped" in the FST, the rules
         // reach "stop" through consonant undoubling.
-        assert_eq!(lemmatize("stopped", &lex), "stop");
+        assert_eq!(lemmatize("stopped", StudiedLanguage::English, &lex), "stop");
     }
 
     #[test]
     fn identity_is_the_last_resort() {
         let (bytes, pool) = build_lexicon_blobs(&[], &[]).expect("build");
         let lex = FstLexicon::from_slices(bytes, &pool).expect("load");
-        assert_eq!(lemmatize("Seldom", &lex), "seldom");
+        assert_eq!(
+            lemmatize("Seldom", StudiedLanguage::English, &lex),
+            "seldom"
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_spanish_word_that_looks_english_keeps_its_own_lemma() {
+        // English's cascade would read `has` as `have` and `ate` as `eat` (its
+        // irregulars), and `mes` as `me` (its plural rule). Spanish's baseline
+        // takes the pack's forms and nothing else.
+        let (bytes, pool) =
+            build_lexicon_blobs(&[], &["have", "be", "eat", "much", "me"]).expect("build");
+        let lex = FstLexicon::from_slices(bytes, &pool).expect("load");
+        for form in ["has", "are", "ate", "more", "mes"] {
+            assert_eq!(lemmatize(form, StudiedLanguage::Spanish, &lex), form);
+        }
+        assert_eq!(lemmatize("has", StudiedLanguage::English, &lex), "have");
+    }
+
+    #[test]
+    fn spanish_takes_the_lemma_its_pack_lists_and_no_plural_rule() {
+        let (bytes, pool) =
+            build_lexicon_blobs(&[("has", "haber"), ("comió", "comer")], &["haber", "comer"])
+                .expect("build");
+        let lex = FstLexicon::from_slices(bytes, &pool).expect("load");
+        assert_eq!(lemmatize("Has", StudiedLanguage::Spanish, &lex), "haber");
+        assert_eq!(lemmatize("comió", StudiedLanguage::Spanish, &lex), "comer");
+        assert_eq!(lemmatize("Casas", StudiedLanguage::Spanish, &lex), "casas");
     }
 }

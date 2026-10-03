@@ -29,7 +29,6 @@
 
 use serde::Serialize;
 
-use crate::analysis::ANALYZER_VERSION;
 use crate::analysis::function_words::is_function_word;
 use crate::analysis::language::StudiedLanguage;
 use crate::analysis::percent::{
@@ -90,7 +89,7 @@ pub fn analyse_page(
     let tokens = match analyse_document(blocks, studied, pack.lexicon()) {
         DocumentAnalysis::NotAnalysable => {
             return PageAnalysis {
-                analyzer_version: ANALYZER_VERSION.to_owned(),
+                analyzer_version: studied.analyzer_version().to_owned(),
                 analysable: false,
                 tokens: Vec::new(),
                 counted: 0,
@@ -132,7 +131,7 @@ pub fn analyse_page(
     }
 
     PageAnalysis {
-        analyzer_version: ANALYZER_VERSION.to_owned(),
+        analyzer_version: studied.analyzer_version().to_owned(),
         analysable: true,
         tokens: out,
         counted: coverage.counted,
@@ -315,7 +314,7 @@ pub fn gloss_phrase(
     let tokens: Vec<PhraseToken> = tokenize(text, studied, lexicon)
         .into_iter()
         .map(|token| {
-            let (lemma, parts) = resolve_lemmas(&token, lexicon);
+            let (lemma, parts) = resolve_lemmas(&token, studied, lexicon);
             let class = classify_token(&token.text, &lemma, &parts, studied, pack, knowledge);
             let parts = parts
                 .into_iter()
@@ -417,7 +416,7 @@ pub fn word_grammar(
     let tokens = tokenize(written, studied, lexicon);
     let piece = tokens
         .iter()
-        .find(|token| resolve_lemmas(token, lexicon).0 == lemma)
+        .find(|token| resolve_lemmas(token, studied, lexicon).0 == lemma)
         .or_else(|| tokens.first())
         .map(|token| token.text.replace('\u{2019}', "'").to_lowercase())
         .unwrap_or_else(|| written.trim().to_lowercase());
@@ -491,12 +490,14 @@ pub fn word_grammar_json(
 mod tests {
     use super::*;
     use crate::analysis::lexicon::{FstLexicon, build_lexicon_blobs};
+    use crate::analysis::{ANALYZER_VERSION, SPANISH_ANALYZER_VERSION};
     use crate::knowledge::status::{KnownSource, Status};
     use crate::packs::format::write_container;
     use crate::packs::meta::PackMeta;
     use crate::packs::pack::section;
 
     const EN: StudiedLanguage = StudiedLanguage::English;
+    const ES: StudiedLanguage = StudiedLanguage::Spanish;
 
     fn build_gloss_zst(entries: &[(u32, &str)]) -> Vec<u8> {
         let mut payload = Vec::new();
@@ -556,6 +557,19 @@ mod tests {
         glosses: &[(&str, &str)],
         expressions: &[(&str, &str)],
     ) -> Pack {
+        build_pack_for(EN, forms, lemmas, ranks, glosses, expressions)
+    }
+
+    /// [`build_pack_with_expressions`] for any studied language, stamped with
+    /// that language's analyser version.
+    fn build_pack_for(
+        studied: StudiedLanguage,
+        forms: &[(&str, &str)],
+        lemmas: &[&str],
+        ranks: &[(&str, u32)],
+        glosses: &[(&str, &str)],
+        expressions: &[(&str, &str)],
+    ) -> Pack {
         let (forms, pool) = build_lexicon_blobs(forms, lemmas).expect("lexicon");
         let lex = FstLexicon::from_slices(forms.clone(), &pool).unwrap();
         let mut freq = vec![0u32; lex.lemma_count()];
@@ -579,10 +593,10 @@ mod tests {
             .collect();
         let gloss = build_gloss_zst(&entries);
         let meta = serde_json::to_vec(&PackMeta {
-            studied: "en".into(),
+            studied: studied.tag().into(),
             native: "fr".into(),
             pack_version: "t".into(),
-            analyzer_version: ANALYZER_VERSION.into(),
+            analyzer_version: studied.analyzer_version().into(),
             licences: vec![],
         })
         .unwrap();
@@ -602,6 +616,51 @@ mod tests {
             sections.push((section::EXPR_ZST, &expr_glosses));
         }
         Pack::load(&write_container(&meta, &sections)).expect("load")
+    }
+
+    #[test]
+    fn spec_scenario_each_analysis_names_its_own_languages_version() {
+        let blocks = [
+            "Los equipos nunca entregan el viernes, y tú has trabajado toda la semana por la noche.",
+        ];
+        let pack = build_pack_for(
+            ES,
+            &[("has", "haber"), ("equipos", "equipo")],
+            &[
+                "haber", "equipo", "nunca", "el", "viernes", "y", "tú", "toda", "la", "semana",
+                "por", "noche",
+            ],
+            &[],
+            &[],
+            &[],
+        );
+        let knowledge = KnowledgeState::new();
+        let page = analyse_page(&blocks, ES, &pack, &knowledge);
+        assert!(page.analysable);
+        assert_eq!(page.analyzer_version, SPANISH_ANALYZER_VERSION);
+        assert!(
+            page.tokens
+                .iter()
+                .any(|t| t.surface == "has" && t.lemma == "haber")
+        );
+        assert!(page.tokens.iter().all(|t| t.lemma != "have"));
+        let english = analyse_page(
+            &["Teams don't ship code on Friday."],
+            EN,
+            &sample_pack(),
+            &knowledge,
+        );
+        assert_eq!(english.analyzer_version, ANALYZER_VERSION);
+    }
+
+    #[test]
+    fn spec_scenario_a_language_without_function_word_tables_leaves_no_word_out() {
+        let pack = build_pack_for(ES, &[], &["de", "la", "casa"], &[], &[], &[]);
+        let spanish = gloss_phrase("de la casa", ES, &pack, &KnowledgeState::new());
+        assert!(!spanish.tokens.is_empty());
+        assert!(spanish.tokens.iter().all(|t| !t.function_word));
+        let english = gloss_phrase("on the code", EN, &sample_pack(), &KnowledgeState::new());
+        assert!(english.tokens.iter().any(|t| t.function_word));
     }
 
     fn sample_pack() -> Pack {

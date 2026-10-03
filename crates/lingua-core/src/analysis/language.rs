@@ -22,8 +22,12 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Languages the pipeline can study. Extended change by change (Romance
-/// languages next); each variant carries its own tokenisation pre-pass.
+/// Languages the pipeline can study. Extended change by change; each variant
+/// carries its own tokenisation pre-pass, lemmatisation cascade and analyser
+/// version (generalise-lingua-analysis-by-language).
+///
+/// New variants go AFTER the existing ones: the derived order keys serialised
+/// maps, so appending keeps every stored state byte-identical.
 ///
 /// `Ord`/`Hash` so it can key the knowledge model's per-`(language, lemma)`
 /// maps (`add-lingua-knowledge-model`); ordering keeps serialised state
@@ -32,12 +36,45 @@ use serde::{Deserialize, Serialize};
 pub enum StudiedLanguage {
     /// English.
     English,
+    /// Spanish. Its analyser is a baseline until its own pre-pass and cascade
+    /// land (add-lingua-spanish-analysis): no English rule ever runs on it.
+    Spanish,
 }
 
 impl StudiedLanguage {
+    /// Every language the core can analyse, in declaration order.
+    pub const ALL: [StudiedLanguage; 2] = [StudiedLanguage::English, StudiedLanguage::Spanish];
+
+    /// ISO 639-1 tag: `en`, `es`. The form packs (`meta.studied`), the wire
+    /// and the extension use.
+    pub fn tag(self) -> &'static str {
+        match self {
+            StudiedLanguage::English => "en",
+            StudiedLanguage::Spanish => "es",
+        }
+    }
+
+    /// The language a tag names, or `None` for a language the core has no
+    /// analyser for. Exact: tags are normalised where they enter the system.
+    pub fn from_tag(tag: &str) -> Option<StudiedLanguage> {
+        StudiedLanguage::ALL.into_iter().find(|l| l.tag() == tag)
+    }
+
+    /// Version of this language's analysis pipeline. Each language has its
+    /// own, so a change to one language's rules never invalidates another's
+    /// pack or counts. Bump on ANY change that can alter this language's
+    /// output (see [`crate::analysis::ANALYZER_VERSION`] for English's).
+    pub fn analyzer_version(self) -> &'static str {
+        match self {
+            StudiedLanguage::English => crate::analysis::ANALYZER_VERSION,
+            StudiedLanguage::Spanish => crate::analysis::SPANISH_ANALYZER_VERSION,
+        }
+    }
+
     fn whichlang_target(self) -> whichlang::Lang {
         match self {
             StudiedLanguage::English => whichlang::Lang::Eng,
+            StudiedLanguage::Spanish => whichlang::Lang::Spa,
         }
     }
 }
@@ -79,6 +116,52 @@ mod tests {
             "Les équipes ne livrent jamais le vendredi soir, c'est une règle ancienne.",
             StudiedLanguage::English,
         ));
+    }
+
+    #[test]
+    fn a_spanish_block_is_studied_by_a_spanish_learner_only() {
+        let block = "Los equipos nunca entregan el viernes por la noche, es una regla antigua.";
+        assert!(block_is_studied(block, StudiedLanguage::Spanish));
+        assert!(!block_is_studied(block, StudiedLanguage::English));
+    }
+
+    #[test]
+    fn an_english_block_is_excluded_for_a_spanish_learner() {
+        assert!(!block_is_studied(
+            "The quick brown fox jumps over the lazy dog every single morning.",
+            StudiedLanguage::Spanish,
+        ));
+    }
+
+    #[test]
+    fn tags_round_trip_and_unknown_tags_have_no_analyser() {
+        for lang in StudiedLanguage::ALL {
+            assert_eq!(StudiedLanguage::from_tag(lang.tag()), Some(lang));
+        }
+        assert_eq!(StudiedLanguage::from_tag("pt"), None);
+        assert_eq!(
+            StudiedLanguage::from_tag("EN"),
+            None,
+            "tags are normalised upstream"
+        );
+    }
+
+    #[test]
+    fn english_keeps_its_analyser_version_and_spanish_has_its_own() {
+        assert_eq!(StudiedLanguage::English.analyzer_version(), "1.1.0");
+        assert_ne!(
+            StudiedLanguage::Spanish.analyzer_version(),
+            StudiedLanguage::English.analyzer_version()
+        );
+    }
+
+    #[test]
+    fn appending_spanish_keeps_english_first_and_its_serialised_name() {
+        assert!(StudiedLanguage::English < StudiedLanguage::Spanish);
+        assert_eq!(
+            serde_json::to_string(&StudiedLanguage::English).unwrap(),
+            "\"English\""
+        );
     }
 
     #[test]

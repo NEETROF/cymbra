@@ -17,7 +17,7 @@
 use std::collections::BTreeMap;
 use std::io::Read;
 
-use crate::analysis::ANALYZER_VERSION;
+use crate::analysis::language::StudiedLanguage;
 use crate::analysis::lexicon::{FstLexicon, Lexicon, LexiconError};
 use crate::knowledge::level::{CefrLevel, CefrLevels};
 use crate::knowledge::state::FrequencyRanks;
@@ -73,8 +73,10 @@ pub enum PackError {
     Format(FormatError),
     /// The metadata JSON is invalid.
     BadMeta(serde_json::Error),
-    /// The pack was built for another analyser generation.
+    /// The pack was built for another analyser generation of its language.
     IncompatibleAnalyzer { pack: String, core: String },
+    /// The pack studies a language this core has no analyser for.
+    UnknownLanguage(String),
     /// A required section is missing.
     MissingSection(&'static str),
     /// The FST / lemma pool could not be loaded.
@@ -94,6 +96,10 @@ impl std::fmt::Display for PackError {
                 f,
                 "pack built for analyzer {pack} but this core is {core}; refusing to load"
             ),
+            PackError::UnknownLanguage(tag) => write!(
+                f,
+                "pack studies {tag:?}, a language this core cannot analyse; refusing to load"
+            ),
             PackError::MissingSection(s) => write!(f, "pack is missing the {s:?} section"),
             PackError::Lexicon(e) => write!(f, "pack lexicon: {e}"),
             PackError::Malformed(s) => write!(f, "pack section {s:?} is malformed"),
@@ -107,6 +113,9 @@ impl std::error::Error for PackError {}
 /// A loaded language-pair data pack.
 pub struct Pack {
     meta: PackMeta,
+    /// The language the pack is for, from `meta.studied`: its analyser is the
+    /// one every analysis of this pack runs.
+    studied: StudiedLanguage,
     lexicon: FstLexicon<Vec<u8>>,
     /// Rank per lemma id (0 = unranked).
     freq: Vec<u32>,
@@ -138,15 +147,18 @@ struct Grammar {
 
 impl Pack {
     /// Loads a pack from container bytes (an `include_bytes!`-compatible
-    /// slice), refusing one built for an incompatible analyser generation so
-    /// no partial analysis is ever produced.
+    /// slice), refusing one whose studied language this core cannot analyse,
+    /// or one built for another analyser generation of that language, so no
+    /// partial analysis is ever produced.
     pub fn load(bytes: &[u8]) -> Result<Self, PackError> {
         let (meta_json, sections) = read_container(bytes).map_err(PackError::Format)?;
         let meta: PackMeta = serde_json::from_slice(&meta_json).map_err(PackError::BadMeta)?;
-        if !analyzer_compatible(&meta.analyzer_version) {
+        let studied = StudiedLanguage::from_tag(&meta.studied)
+            .ok_or_else(|| PackError::UnknownLanguage(meta.studied.clone()))?;
+        if !analyzer_compatible(studied, &meta.analyzer_version) {
             return Err(PackError::IncompatibleAnalyzer {
                 pack: meta.analyzer_version.clone(),
-                core: ANALYZER_VERSION.to_owned(),
+                core: studied.analyzer_version().to_owned(),
             });
         }
 
@@ -196,6 +208,7 @@ impl Pack {
 
         Ok(Self {
             meta,
+            studied,
             lexicon,
             freq,
             levels,
@@ -210,6 +223,11 @@ impl Pack {
     /// The pack's metadata.
     pub fn meta(&self) -> &PackMeta {
         &self.meta
+    }
+
+    /// The language the pack is for (`meta.studied`, checked at load).
+    pub fn studied(&self) -> StudiedLanguage {
+        self.studied
     }
 
     /// The form→lemma lexicon (feeds the lemmatisation cascade).
@@ -395,11 +413,12 @@ impl CefrLevels for Pack {
     }
 }
 
-/// A pack is compatible when its analyser version matches the running core.
-/// (Exact match for now — the version is bumped on any behavioural change, so
-/// mixing generations could shift counts; a looser policy can come later.)
-fn analyzer_compatible(pack_version: &str) -> bool {
-    pack_version == ANALYZER_VERSION
+/// A pack is compatible when its analyser version matches the running core's
+/// analyser for the pack's language. (Exact match for now — the version is
+/// bumped on any behavioural change, so mixing generations could shift counts;
+/// a looser policy can come later.)
+fn analyzer_compatible(studied: StudiedLanguage, pack_version: &str) -> bool {
+    pack_version == studied.analyzer_version()
 }
 
 fn parse_freq(bytes: &[u8], lemma_count: usize) -> Result<Vec<u32>, PackError> {
@@ -497,6 +516,7 @@ fn zstd_decode(zst: &[u8]) -> Result<Vec<u8>, PackError> {
 mod tests {
     use super::*;
     use crate::analysis::lexicon::build_lexicon_blobs;
+    use crate::analysis::{ANALYZER_VERSION, SPANISH_ANALYZER_VERSION};
     use crate::packs::format::{read_container, write_container};
 
     // Builds a gloss.zst section from (lemma_id, gloss) pairs, using the
@@ -540,8 +560,12 @@ mod tests {
     }
 
     fn meta_json(analyzer: &str) -> Vec<u8> {
+        meta_json_for("en", analyzer)
+    }
+
+    fn meta_json_for(studied: &str, analyzer: &str) -> Vec<u8> {
         serde_json::to_vec(&PackMeta {
-            studied: "en".into(),
+            studied: studied.into(),
             native: "fr".into(),
             pack_version: "2026.09.1".into(),
             analyzer_version: analyzer.into(),
@@ -556,6 +580,11 @@ mod tests {
 
     // Assembles a small but complete en->fr pack for the current analyzer.
     fn sample_pack_bytes(analyzer: &str) -> Vec<u8> {
+        sample_pack_bytes_for("en", analyzer)
+    }
+
+    // The same pack, for another studied language.
+    fn sample_pack_bytes_for(studied: &str, analyzer: &str) -> Vec<u8> {
         let (forms, pool) = build_lexicon_blobs(
             &[("running", "run"), ("ran", "run"), ("cities", "city")],
             &["run", "city", "seldom"],
@@ -576,7 +605,7 @@ mod tests {
             (lex.id_of("city").unwrap() as u32, "ville"),
         ]);
         write_container(
-            &meta_json(analyzer),
+            &meta_json_for(studied, analyzer),
             &[
                 (section::FORMS, &forms),
                 (section::LEMMAS, pool.as_bytes()),
@@ -588,6 +617,40 @@ mod tests {
                 ),
             ],
         )
+    }
+
+    #[test]
+    fn spec_scenario_loading_the_en_fr_pack_names_english() {
+        let pack = Pack::load(&sample_pack_bytes(ANALYZER_VERSION)).expect("load");
+        assert_eq!(pack.studied(), StudiedLanguage::English);
+        assert_eq!(pack.meta().analyzer_version, "1.1.0");
+    }
+
+    #[test]
+    fn spec_scenario_a_pack_for_a_language_the_core_cannot_analyse() {
+        match Pack::load(&sample_pack_bytes_for("pt", ANALYZER_VERSION)) {
+            Err(err @ PackError::UnknownLanguage(_)) => {
+                assert!(matches!(&err, PackError::UnknownLanguage(tag) if tag == "pt"));
+                assert!(err.to_string().contains("\"pt\""), "{err}");
+            }
+            Err(other) => panic!("expected UnknownLanguage, got {other}"),
+            Ok(_) => panic!("a pack the core cannot analyse loaded"),
+        }
+    }
+
+    #[test]
+    fn spec_scenario_versions_are_compared_within_a_language() {
+        let spanish = Pack::load(&sample_pack_bytes_for("es", SPANISH_ANALYZER_VERSION))
+            .expect("a Spanish pack at Spanish's version loads");
+        assert_eq!(spanish.studied(), StudiedLanguage::Spanish);
+        match Pack::load(&sample_pack_bytes_for("es", ANALYZER_VERSION)) {
+            Err(PackError::IncompatibleAnalyzer { pack, core }) => {
+                assert_eq!(pack, ANALYZER_VERSION);
+                assert_eq!(core, SPANISH_ANALYZER_VERSION);
+            }
+            Err(other) => panic!("expected IncompatibleAnalyzer, got {other}"),
+            Ok(_) => panic!("a Spanish pack stamped with English's version loaded"),
+        }
     }
 
     #[test]
