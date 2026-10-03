@@ -25,8 +25,8 @@ import { makeFakePort } from "./helpers.ts";
 // How the extension's own surfaces look (add-lingua-colour-settings D8, D9): the palette from
 // the reader's colours and page theme, the scale from their text size.
 
-const paper: ReaderDisplay = { textScale: 100, theme: "paper" };
-const dark: ReaderDisplay = { textScale: 100, theme: "dark" };
+const paper: ReaderDisplay = { textScale: 100, theme: "paper", turn: "instant" };
+const dark: ReaderDisplay = { textScale: 100, theme: "dark", turn: "instant" };
 const cymbra: ColourPreference = { preset: "cymbra" };
 
 type Listener = (changes: Record<string, { newValue?: unknown }>, areaName: string) => void;
@@ -90,7 +90,7 @@ describe("the surfaces' palette", () => {
 describe("a surface's root", () => {
   it("carries the palette and the text size as its scale", () => {
     const root = document.createElement("div");
-    applySurfaceLook(root, { preset: "eink-mono" }, { textScale: 180, theme: "paper" });
+    applySurfaceLook(root, { preset: "eink-mono" }, { textScale: 180, theme: "paper", turn: "instant" });
     expect(root.getAttribute(SURFACE_THEME_ATTR)).toBe("eink");
     expect(root.style.getPropertyValue(UI_SCALE_VAR)).toBe("1.8");
   });
@@ -99,7 +99,7 @@ describe("a surface's root", () => {
     const root = document.createElement("div");
     followSurfaceLook(
       root,
-      areaWith({ [COLOURS_KEY]: cymbra, [READER_DISPLAY_KEY]: { textScale: 150, theme: "dark" } }),
+      areaWith({ [COLOURS_KEY]: cymbra, [READER_DISPLAY_KEY]: { textScale: 150, theme: "dark", turn: "instant" } }),
     );
     expect(root.getAttribute(SURFACE_THEME_ATTR)).toBe("light"); // the defaults, before the read
     await settle();
@@ -108,12 +108,12 @@ describe("a surface's root", () => {
 
     change(COLOURS_KEY, { preset: "eink-colour" });
     expect(root.getAttribute(SURFACE_THEME_ATTR)).toBe("eink");
-    change(READER_DISPLAY_KEY, { textScale: 200, theme: "paper" });
+    change(READER_DISPLAY_KEY, { textScale: 200, theme: "paper", turn: "instant" });
     expect(root.style.getPropertyValue(UI_SCALE_VAR)).toBe("2");
     change(COLOURS_KEY, cymbra);
     expect(root.getAttribute(SURFACE_THEME_ATTR)).toBe("light");
 
-    change(READER_DISPLAY_KEY, { textScale: 80, theme: "dark" }, "sync"); // not the reader's area
+    change(READER_DISPLAY_KEY, { textScale: 80, theme: "dark", turn: "instant" }, "sync"); // not the reader's area
     change("cymbra-lingua-enabled", false);
     expect(root.style.getPropertyValue(UI_SCALE_VAR)).toBe("2");
     expect(root.getAttribute(SURFACE_THEME_ATTR)).toBe("light");
@@ -157,7 +157,7 @@ describe("the surfaces a page carries", () => {
     change(COLOURS_KEY, { preset: "eink-colour" });
     expect(popup.host.getAttribute(SURFACE_THEME_ATTR)).toBe("eink");
     expect(hudHost?.getAttribute(SURFACE_THEME_ATTR)).toBe("eink");
-    change(READER_DISPLAY_KEY, { textScale: 170, theme: "dark" });
+    change(READER_DISPLAY_KEY, { textScale: 170, theme: "dark", turn: "instant" });
     change(COLOURS_KEY, cymbra);
     expect(drawerHost?.getAttribute(SURFACE_THEME_ATTR)).toBe("dark");
     expect(drawerHost?.style.getPropertyValue(UI_SCALE_VAR)).toBe("1.7");

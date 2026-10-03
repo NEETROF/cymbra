@@ -41,20 +41,23 @@ describe("scaleFontSizes", () => {
 
 describe("bookStyles", () => {
   it("sets the size before the book's rules, as the root's size and the factor", () => {
-    const [before] = bookStyles({ textScale: 130, theme: "paper" }, NIGHT);
+    const [before] = bookStyles({ textScale: 130, theme: "paper", turn: "instant" }, NIGHT);
     expect(before).toContain(`${TEXT_SCALE_VAR}: 1.3`);
     expect(before).toContain("font-size: 130%");
   });
 
   it("keeps the book's colours on paper", () => {
-    const [, after] = bookStyles({ textScale: 100, theme: "paper" }, NIGHT);
+    const [, after] = bookStyles({ textScale: 100, theme: "paper", turn: "instant" }, NIGHT);
     expect(after).toContain("color-scheme: light");
     expect(after).not.toContain(NIGHT.ink);
     expect(after).toContain("hyphens: auto");
   });
 
   it("replaces the book's text colour on paper when the reader chose one, keeping its backgrounds", () => {
-    const [, after] = bookStyles({ textScale: 100, theme: "paper" }, { ...NIGHT, paperInk: "#000000" });
+    const [, after] = bookStyles(
+      { textScale: 100, theme: "paper", turn: "instant" },
+      { ...NIGHT, paperInk: "#000000" },
+    );
     expect(after).toContain("color-scheme: light");
     expect(after).toContain("color: #000000 !important");
     expect(after).toContain("color: inherit !important");
@@ -62,7 +65,7 @@ describe("bookStyles", () => {
   });
 
   it("replaces them on the dark page, with the token sheet's colours", () => {
-    const [, after] = bookStyles({ textScale: 100, theme: "dark" }, NIGHT);
+    const [, after] = bookStyles({ textScale: 100, theme: "dark", turn: "instant" }, NIGHT);
     expect(after).toContain("color-scheme: dark");
     expect(after).toContain(`color: ${NIGHT.ink} !important`);
     expect(after).toContain(`color: ${NIGHT.link} !important`);

@@ -284,13 +284,13 @@ describe("a book open", () => {
   });
 
   it("opens a book at the stored text size and page, and follows a change made anywhere", async () => {
-    displayArea.store[READER_DISPLAY_KEY] = { textScale: 130, theme: "dark" };
+    displayArea.store[READER_DISPLAY_KEY] = { textScale: 130, theme: "dark", turn: "instant" };
     await withBook();
     await openFirst();
-    expect(renderers[0].display).toEqual({ textScale: 130, theme: "dark" });
+    expect(renderers[0].display).toEqual({ textScale: 130, theme: "dark", turn: "instant" });
     expect($(".reading-book").dataset.theme).toBe("dark");
-    displayListeners.forEach((l) => l({ textScale: 90, theme: "paper" }));
-    expect(renderers[0].display).toEqual({ textScale: 90, theme: "paper" });
+    displayListeners.forEach((l) => l({ textScale: 90, theme: "paper", turn: "instant" }));
+    expect(renderers[0].display).toEqual({ textScale: 90, theme: "paper", turn: "instant" });
     expect($(".reading-book").dataset.theme).toBe("paper");
   });
 
@@ -303,7 +303,9 @@ describe("a book open", () => {
     aa.click();
     expect($(".reading-display").hidden).toBe(false);
     $<HTMLButtonElement>(".reading-display [aria-label='Agrandir le texte']").click();
-    await vi.waitFor(() => expect(displayArea.store[READER_DISPLAY_KEY]).toEqual({ textScale: 110, theme: "paper" }));
+    await vi.waitFor(() =>
+      expect(displayArea.store[READER_DISPLAY_KEY]).toEqual({ textScale: 110, theme: "paper", turn: "instant" }),
+    );
     toc.click();
     expect($(".reading-display").hidden).toBe(true);
     expect($(".reading-toc").hidden).toBe(false);

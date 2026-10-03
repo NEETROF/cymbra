@@ -107,11 +107,15 @@ export class FoliateRenderer implements BookRenderer {
   }
 
   private applyDisplay(): void {
-    this.element.renderer?.setStyles(bookStyles(this.display, pageColoursOf(this.element.ownerDocument)));
+    const renderer = this.element.renderer;
+    renderer?.setStyles(bookStyles(this.display, pageColoursOf(this.element.ownerDocument)));
+    // foliate's `animated` slides a turn over 300 ms. Off unless chosen — a jump is what an e-ink
+    // screen shows once — and off when the system asks for less motion, whatever was chosen.
+    const reduced = this.element.ownerDocument.defaultView?.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    renderer?.toggleAttribute("animated", this.display.turn === "slide" && !reduced);
   }
 
   setFlow(flow: ReaderFlow): void {
-    // No `animated` attribute: a page turn is one jump, which an e-ink screen shows once.
     this.element.renderer?.setAttribute("flow", flow);
   }
 
