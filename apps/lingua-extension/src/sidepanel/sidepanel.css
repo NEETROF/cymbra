@@ -6,12 +6,12 @@ body {
   background: var(--cymbra-lingua-bg);
   color: var(--cymbra-lingua-text);
   font-family: var(--cymbra-lingua-font);
-  font-size: 13px;
+  font-size: calc(13px * var(--cymbra-lingua-ui-scale, 1));
 }
 
 h1 {
   margin: 0 0 4px;
-  font-size: 14px;
+  font-size: calc(14px * var(--cymbra-lingua-ui-scale, 1));
   font-weight: 600;
 }
 
@@ -34,7 +34,7 @@ h1 {
   background: var(--cymbra-lingua-panel-2);
   color: var(--cymbra-lingua-muted);
   font-family: inherit;
-  font-size: 13px;
+  font-size: calc(13px * var(--cymbra-lingua-ui-scale, 1));
 }
 
 .views button.active {

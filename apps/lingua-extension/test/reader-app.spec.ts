@@ -483,6 +483,33 @@ describe("fullscreen (add-lingua-reader-fullscreen)", () => {
   });
 });
 
+describe("the reader's colours (add-lingua-colour-settings)", () => {
+  afterEach(() => document.getElementById("cymbra-lingua-colours")?.remove());
+
+  it("paints the page with the stored colours, and restyles the open book when they change", async () => {
+    let onColours: ((css: string) => void) | undefined;
+    const a = app({
+      loadColours: async () => ":root { --cymbra-lingua-page-paper: #ffffff; }",
+      watchColours: (fn) => void (onColours = fn),
+    });
+    await a.start(fakeSession());
+    expect(document.getElementById("cymbra-lingua-colours")?.textContent).toContain("#ffffff");
+    await pick(await pickedFile(epub3Entries(), "hound.epub"));
+    await openFirst();
+    const restyled = vi.spyOn(renderers.at(-1)!, "setDisplay");
+    onColours!(":root { --cymbra-lingua-page-paper: #eeeeee; }");
+    expect(document.getElementById("cymbra-lingua-colours")?.textContent).toContain("#eeeeee");
+    // The book's sheet reads the page colours when it is styled: it is styled again.
+    expect(restyled).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the token sheet's colours when no colour store is wired", async () => {
+    const a = app();
+    await a.start(fakeSession());
+    expect(document.getElementById("cymbra-lingua-colours")).toBeNull();
+  });
+});
+
 describe("the reader page's helpers", () => {
   it("names a card's source by the book and its chapter", () => {
     expect(bookSource("Emma", "Chapter 3")).toBe("Emma · Chapter 3");

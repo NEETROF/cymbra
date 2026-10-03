@@ -4,6 +4,7 @@ import { grammarLines, senseHeading } from "./grammar-labels.ts";
 import { glossPages, pageText, type GlossPage } from "./gloss-pages.ts";
 import { isTouchPrimary } from "../state/platform.ts";
 import { sameSpokenText, type Speaker, type Speaking } from "./speech.ts";
+import { followSurfaceLook } from "./surface-look.ts";
 
 // The on-page word popup: a closed shadow root (isolated from page CSS and JS), showing
 // the dictionary form, the form as seen, the pack gloss, a plain-language rarity note,
@@ -513,6 +514,8 @@ export interface WordPopupOptions {
   onGesture: (gesture: Gesture) => void;
   /** Reads the selection and its sentence aloud; without one the card has no listen row. */
   speaker?: Speaker;
+  /** Follow the reader's colours and text size (surface-look); off: the card as designed. */
+  followLook?: boolean;
 }
 
 export class WordPopup {
@@ -529,6 +532,7 @@ export class WordPopup {
     const style = document.createElement("style");
     style.textContent = opts.css;
     root.append(style, this.view.el);
+    if (opts.followLook) followSurfaceLook(this.host);
   }
 
   private attach(): void {

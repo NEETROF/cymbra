@@ -8,18 +8,18 @@
   background: var(--cymbra-lingua-bg);
   color: var(--cymbra-lingua-text);
   font-family: var(--cymbra-lingua-font);
-  font-size: 14px;
+  font-size: calc(14px * var(--cymbra-lingua-ui-scale, 1));
 }
 
 .stats-page main {
-  max-width: 520px;
+  max-width: calc(520px * var(--cymbra-lingua-ui-scale, 1));
   margin: 0 auto;
   padding: 28px 20px 40px;
 }
 
 .stats-page h1 {
   margin: 0 0 18px;
-  font-size: 20px;
+  font-size: calc(20px * var(--cymbra-lingua-ui-scale, 1));
   font-weight: 600;
   letter-spacing: 0.01em;
 }
@@ -37,7 +37,7 @@
 }
 
 .vocab-n {
-  font-size: 17px;
+  font-size: calc(17px * var(--cymbra-lingua-ui-scale, 1));
   font-weight: 600;
   color: var(--cymbra-lingua-text);
   font-variant-numeric: tabular-nums;
@@ -59,12 +59,12 @@
 }
 
 .ladder-pos {
-  font-size: 12px;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
   color: var(--cymbra-lingua-accent);
 }
 
 .ladder-pos b {
-  font-size: 17px;
+  font-size: calc(17px * var(--cymbra-lingua-ui-scale, 1));
   font-weight: 600;
   color: var(--cymbra-lingua-text);
   margin-left: 4px;
@@ -78,13 +78,13 @@
 
 .ladder-lvl {
   width: 26px;
-  font-size: 12px;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
   font-weight: 600;
   color: var(--cymbra-lingua-muted);
 }
 
 .ladder-row--here .ladder-lvl {
-  color: var(--cymbra-lingua-amber);
+  color: var(--cymbra-lingua-warn);
 }
 
 .ladder-track {
@@ -111,7 +111,7 @@
 .ladder-cum,
 .ladder-est {
   text-align: right;
-  font-size: 11px;
+  font-size: calc(11px * var(--cymbra-lingua-ui-scale, 1));
   color: var(--cymbra-lingua-muted);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -133,7 +133,7 @@
 .ladder-cols .ladder-frac,
 .ladder-cols .ladder-cum,
 .ladder-cols .ladder-est {
-  font-size: 10px;
+  font-size: calc(10px * var(--cymbra-lingua-ui-scale, 1));
 }
 
 .ladder-spacer {
@@ -155,7 +155,7 @@
 
 .stats .scope {
   color: var(--cymbra-lingua-muted);
-  font-size: 13px;
+  font-size: calc(13px * var(--cymbra-lingua-ui-scale, 1));
 }
 
 .stats .ranges {
@@ -171,7 +171,7 @@
   background: var(--cymbra-lingua-panel);
   color: var(--cymbra-lingua-muted);
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
 }
 
 .stats .ranges button:hover {
@@ -207,11 +207,11 @@
 
 .stats .mlabel {
   color: var(--cymbra-lingua-muted);
-  font-size: 13px;
+  font-size: calc(13px * var(--cymbra-lingua-ui-scale, 1));
 }
 
 .stats .mtotal {
-  font-size: 26px;
+  font-size: calc(26px * var(--cymbra-lingua-ui-scale, 1));
   font-weight: 700;
   color: var(--cymbra-lingua-text);
 }
@@ -224,7 +224,7 @@
 .stats .note {
   margin-top: 14px;
   color: var(--cymbra-lingua-faint);
-  font-size: 12px;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
 }
 
 /* --- "Renforcer un niveau" (add-lingua-cefr-levels, slice 5c) --- */
@@ -237,7 +237,7 @@
 
 .stats .seed-note {
   color: var(--cymbra-lingua-muted);
-  font-size: 12px;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
   line-height: 1.4;
 }
 
@@ -254,7 +254,7 @@
   background: var(--cymbra-lingua-panel-2);
   color: var(--cymbra-lingua-text);
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
 }
 
 .stats .seed-sel {
@@ -272,7 +272,7 @@
   background: var(--cymbra-lingua-accent-strong);
   color: var(--cymbra-lingua-accent-ink);
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
   cursor: pointer;
 }
 
@@ -282,7 +282,7 @@
 
 .stats .seed-result {
   margin-top: 2px;
-  color: var(--cymbra-lingua-green);
+  color: var(--cymbra-lingua-ok);
 }
 
 .stats .marked {
@@ -319,7 +319,7 @@
 }
 
 .stats .marked-badge {
-  font-size: 11px;
+  font-size: calc(11px * var(--cymbra-lingua-ui-scale, 1));
   padding: 1px 6px;
   border-radius: 999px;
   border: 1px solid var(--cymbra-lingua-border-2);
@@ -327,8 +327,8 @@
 }
 
 .stats .marked-badge--ignored {
-  color: var(--cymbra-lingua-amber);
-  border-color: var(--cymbra-lingua-amber);
+  color: var(--cymbra-lingua-warn);
+  border-color: var(--cymbra-lingua-warn);
 }
 
 .stats .marked-undo {
@@ -339,7 +339,7 @@
   background: var(--cymbra-lingua-panel-2);
   color: var(--cymbra-lingua-text);
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
   cursor: pointer;
 }
 
@@ -366,7 +366,7 @@
   padding: 4px 0;
   list-style: none;
   cursor: pointer;
-  font-size: 13px;
+  font-size: calc(13px * var(--cymbra-lingua-ui-scale, 1));
 }
 
 .stats .marked-summary::-webkit-details-marker {
@@ -388,7 +388,7 @@
 }
 
 .stats .marked-count {
-  font-size: 11px;
+  font-size: calc(11px * var(--cymbra-lingua-ui-scale, 1));
   padding: 1px 6px;
   border-radius: 999px;
   background: var(--cymbra-lingua-panel-2);
@@ -398,6 +398,6 @@
 .stats .marked-group-note {
   margin-bottom: 6px;
   color: var(--cymbra-lingua-muted);
-  font-size: 12px;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
   line-height: 1.4;
 }

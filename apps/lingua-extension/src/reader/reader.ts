@@ -2,8 +2,12 @@ import { installGroupBy } from "./polyfill.ts";
 import { createLinguaPort } from "../analyzer/create-port.ts";
 import { ReadingSession } from "../reading/session.ts";
 import { SURFACE_CSS } from "../reading/surface-css.ts";
+import { colourCss } from "../reading/colours.ts";
 import {
   type AsyncStorageArea,
+  COLOURS_KEY,
+  colourPreferenceOf,
+  loadColourPreference,
   loadReaderFlow,
   READER_DISPLAY_KEY,
   READER_FLOW_KEY,
@@ -17,6 +21,10 @@ import { Library } from "./library.ts";
 import { isReaderWhere, type ReaderWhereReply } from "./locate.ts";
 import { requestPersistence } from "./persist.ts";
 import { clearSections } from "./section-server.ts";
+import { followSurfaceLook } from "../reading/surface-look.ts";
+
+// This page is a surface: it follows the reader's colours and text size (add-lingua-colour-settings D8, D9).
+followSurfaceLook(document.documentElement);
 
 // The reader page's entry (add-lingua-reader): an extension page, so it loads from the
 // installed bundle and never from the network; the engine is the one every extension page
@@ -58,6 +66,12 @@ async function main(): Promise<void> {
       chrome.storage.onChanged.addListener((changes, area) => {
         const changed = changes[READER_DISPLAY_KEY];
         if (area === "local" && changed) onDisplay(readerDisplayOf(changed.newValue));
+      }),
+    loadColours: async () => colourCss(await loadColourPreference(settings)),
+    watchColours: (onColours) =>
+      chrome.storage.onChanged.addListener((changes, area) => {
+        const changed = changes[COLOURS_KEY];
+        if (area === "local" && changed) onColours(colourCss(colourPreferenceOf(changed.newValue)));
       }),
     fullscreen: documentFullscreen(document),
     reviewOutsidePage: !__REVIEW_IN_PAGE__,

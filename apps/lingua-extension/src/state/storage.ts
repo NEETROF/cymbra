@@ -104,6 +104,110 @@ export const TEXT_SCALE_STEP = 10;
 
 export const DEFAULT_READER_DISPLAY: ReaderDisplay = { textScale: 100, theme: "paper" };
 
+/** How unknown and learning words are marked, and the reader's page colours (add-lingua-colour-settings). */
+export const COLOURS_KEY = "cymbra-lingua-colours";
+
+/** The presets: Cymbra (the identity, the default) and two for e-ink screens. */
+export const COLOUR_PRESETS = ["cymbra", "eink-mono", "eink-colour"] as const;
+export type ColourPresetId = (typeof COLOUR_PRESETS)[number];
+
+export const FILL_INTENSITIES = ["none", "light", "strong"] as const;
+export type FillIntensity = (typeof FILL_INTENSITIES)[number];
+
+export const UNDERLINE_STYLES = ["solid", "dotted", "dashed", "wavy", "double", "none"] as const;
+export type UnderlineStyle = (typeof UNDERLINE_STYLES)[number];
+
+export const UNDERLINE_THICKNESSES = ["thin", "thick"] as const;
+export type UnderlineThickness = (typeof UNDERLINE_THICKNESSES)[number];
+
+/** How one status is painted: a fill behind the word, an underline, and maybe its text's colour. */
+export interface StatusColours {
+  fill: { colour: string; intensity: FillIntensity };
+  underline: { colour: string; style: UnderlineStyle; thickness: UnderlineThickness };
+  /** The word's text colour; null keeps the page's own. */
+  text: string | null;
+}
+
+/** A full set of colours, as the reader set them by hand. Every colour is `#rrggbb`. */
+export interface Colours {
+  unknown: StatusColours;
+  learning: StatusColours;
+  /** The paper page; a null text keeps the book's own colours. */
+  paper: { background: string; text: string | null };
+  /** The dark page; its text always replaces the book's (a book typeset for paper sets dark text). */
+  dark: { background: string; text: string };
+}
+
+/** A preset, or the reader's own set — stored whole, so a later retune of a preset never moves it. */
+export type ColourPreference = { preset: ColourPresetId } | { preset: "custom"; colours: Colours };
+
+export const DEFAULT_COLOUR_PREFERENCE: ColourPreference = { preset: "cymbra" };
+
+const HEX = /^#[0-9a-f]{6}$/i;
+
+const oneOf = <T extends string>(values: readonly T[], v: unknown): v is T =>
+  typeof v === "string" && (values as readonly string[]).includes(v);
+
+const hexOf = (v: unknown): string | undefined => (typeof v === "string" && HEX.test(v) ? v.toLowerCase() : undefined);
+
+function statusColoursOf(value: unknown): StatusColours | undefined {
+  const v = (value ?? {}) as Record<string, Record<string, unknown> | unknown>;
+  const fill = (v.fill ?? {}) as Record<string, unknown>;
+  const underline = (v.underline ?? {}) as Record<string, unknown>;
+  const fillColour = hexOf(fill.colour);
+  const lineColour = hexOf(underline.colour);
+  const text = v.text === null ? null : hexOf(v.text);
+  if (!fillColour || !lineColour || text === undefined) return undefined;
+  if (!oneOf(FILL_INTENSITIES, fill.intensity) || !oneOf(UNDERLINE_STYLES, underline.style)) return undefined;
+  if (!oneOf(UNDERLINE_THICKNESSES, underline.thickness)) return undefined;
+  return {
+    fill: { colour: fillColour, intensity: fill.intensity },
+    underline: { colour: lineColour, style: underline.style, thickness: underline.thickness },
+    text,
+  };
+}
+
+/** A stored set of colours, made safe; undefined when anything in it is malformed. */
+export function coloursOf(value: unknown): Colours | undefined {
+  const v = (value ?? {}) as Record<string, unknown>;
+  const unknown = statusColoursOf(v.unknown);
+  const learning = statusColoursOf(v.learning);
+  const paper = (v.paper ?? {}) as Record<string, unknown>;
+  const dark = (v.dark ?? {}) as Record<string, unknown>;
+  const paperBackground = hexOf(paper.background);
+  const paperText = paper.text === null ? null : hexOf(paper.text);
+  const darkBackground = hexOf(dark.background);
+  const darkText = hexOf(dark.text);
+  if (!unknown || !learning || !paperBackground || paperText === undefined || !darkBackground || !darkText) {
+    return undefined;
+  }
+  return {
+    unknown,
+    learning,
+    paper: { background: paperBackground, text: paperText },
+    dark: { background: darkBackground, text: darkText },
+  };
+}
+
+/** A stored colour preference, made safe: an unknown preset or a malformed set is the default. */
+export function colourPreferenceOf(value: unknown): ColourPreference {
+  const v = (value ?? {}) as Record<string, unknown>;
+  if (oneOf(COLOUR_PRESETS, v.preset)) return { preset: v.preset };
+  if (v.preset === "custom") {
+    const colours = coloursOf(v.colours);
+    if (colours) return { preset: "custom", colours };
+  }
+  return DEFAULT_COLOUR_PREFERENCE;
+}
+
+export async function loadColourPreference(area: AsyncStorageArea): Promise<ColourPreference> {
+  return colourPreferenceOf((await area.get(COLOURS_KEY))[COLOURS_KEY]);
+}
+
+export async function saveColourPreference(area: AsyncStorageArea, preference: ColourPreference): Promise<void> {
+  await area.set({ [COLOURS_KEY]: colourPreferenceOf(preference) });
+}
+
 /** The minimal async storage surface we need; chrome.storage.local satisfies it. */
 export interface AsyncStorageArea {
   get(keys: string | string[] | null): Promise<Record<string, unknown>>;

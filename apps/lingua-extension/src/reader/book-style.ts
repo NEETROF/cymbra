@@ -15,11 +15,14 @@ import type { ReaderDisplay } from "../state/storage.ts";
 /** The factor a rewritten absolute font size is multiplied by, set on the section's root. */
 export const TEXT_SCALE_VAR = "--cymbra-lingua-text-scale";
 
-/** The dark page's colours, read off the token sheet by the page that draws the book. */
-export interface NightColours {
+/** The page's colours, read off the token sheet (and the reader's colour sheet) by the page that draws the book. */
+export interface PageColours {
+  /** The dark page's text. */
   ink: string;
   link: string;
   rule: string;
+  /** The paper page's text when the reader chose one (add-lingua-colour-settings); empty keeps the book's. */
+  paperInk: string;
 }
 
 /**
@@ -39,17 +42,27 @@ const BASE_CSS = `
   img, svg, video, table { max-width: 100%; }
 `;
 
-/** Paper: the book's own colours, on a light page like the one it was typeset for. */
-const PAPER_CSS = `
+/**
+ * Paper: the book's own colours, on a light page like the one it was typeset for — unless the
+ * reader chose the paper's text colour, which then replaces the book's text colours (its
+ * backgrounds and pictures stay).
+ */
+function paperCss(page: PageColours): string {
+  const light = `
   html { color-scheme: light; }
 `;
+  if (!page.paperInk) return light;
+  return `${light}  html, body { color: ${page.paperInk} !important; }
+  body *:not(img):not(svg):not(video):not(picture) { color: inherit !important; }
+`;
+}
 
 /**
  * Dark: light text on the night page, whatever the book set — a book typeset for paper sets
  * dark text, which would vanish there. Its backgrounds go (a code block's, a table header's);
  * pictures keep their colours.
  */
-function darkCss(night: NightColours): string {
+function darkCss(night: PageColours): string {
   return `
   html { color-scheme: dark; }
   html, body { color: ${night.ink} !important; background: none !important; }
@@ -64,9 +77,9 @@ function darkCss(night: NightColours): string {
 }
 
 /** The two sheets for a section: before the book's own, and after it. */
-export function bookStyles(display: ReaderDisplay, night: NightColours): [string, string] {
+export function bookStyles(display: ReaderDisplay, colours: PageColours): [string, string] {
   const before = `html { ${TEXT_SCALE_VAR}: ${display.textScale / 100}; font-size: ${display.textScale}%; }`;
-  const page = display.theme === "dark" ? darkCss(night) : PAPER_CSS;
+  const page = display.theme === "dark" ? darkCss(colours) : paperCss(colours);
   return [before, `${BASE_CSS}${page}`];
 }
 
@@ -99,9 +112,17 @@ export function scaleFontSizes(css: string): string {
   });
 }
 
-/** The dark page's colours as the token sheet defines them for `doc`. */
-export function nightColoursOf(doc: Document): NightColours {
+/**
+ * The page's colours as `doc` resolves them: the token sheet's, as the reader's colour sheet
+ * overrides them (the `--cymbra-lingua-page-*` tokens, add-lingua-colour-settings D3).
+ */
+export function pageColoursOf(doc: Document): PageColours {
   const style = (doc.defaultView ?? window).getComputedStyle(doc.documentElement);
-  const token = (name: string): string => style.getPropertyValue(`--cymbra-lingua-night-${name}`).trim();
-  return { ink: token("ink"), link: token("link"), rule: token("rule") };
+  const token = (name: string): string => style.getPropertyValue(`--cymbra-lingua-${name}`).trim();
+  return {
+    ink: token("page-night-ink"),
+    link: token("night-link"),
+    rule: token("night-rule"),
+    paperInk: token("page-paper-ink"),
+  };
 }

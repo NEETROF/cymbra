@@ -5,6 +5,7 @@ import { mountStats } from "../stats/view.ts";
 import { requestSync } from "../sync/messages.ts";
 import { mountSettings, type SettingsView } from "./settings-view.ts";
 import type { Speaker } from "./speech.ts";
+import { followSurfaceLook } from "./surface-look.ts";
 
 // The injected in-page panel: a closed-shadow overlay with Révision / Statistiques /
 // Réglages, so the reader never has to LEAVE the page it is reading (design D1, extended).
@@ -29,6 +30,8 @@ export interface DrawerOptions {
   onChange: () => Promise<void>;
   /** The page's speaker, whose voices Réglages lists. */
   speaker?: Speaker;
+  /** Follow the reader's colours and text size (surface-look); off: the drawer as designed. */
+  followLook?: boolean;
 }
 
 export class Drawer {
@@ -49,6 +52,7 @@ export class Drawer {
     this.host.id = "cymbra-lingua-drawer-host";
     this.host.setAttribute("data-cymbra-lingua-skip", "");
     const root = this.host.attachShadow({ mode: "closed" });
+    if (opts.followLook) followSurfaceLook(this.host, opts.area);
     const style = document.createElement("style");
     style.textContent = opts.css;
 

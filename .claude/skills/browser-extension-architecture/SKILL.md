@@ -173,6 +173,13 @@ own; a new surface that shows Réglages goes in its `HOSTS` list.
   toggled-`hidden` flex row needs an explicit `.x[hidden]{display:none}` or it never hides.
 - **Colours only from `tokens.css`** — no colour literal anywhere else (lint-enforced); both
   `:root` and `:host` get the tokens.
+- **Every surface follows the reader's look** (`reading/surface-look.ts`): call
+  `followSurfaceLook(root)` on a new surface's shadow host or page `<html>`. It sets the theme
+  attribute (dark, light or e-ink, from the colour preset and the page theme) and
+  `--cymbra-lingua-ui-scale` (the reader's text size). Every font size in a surface stylesheet is
+  `calc(<px> * var(--cymbra-lingua-ui-scale, 1))` (lint-enforced). A notice, a success or a danger
+  is coloured with `--cymbra-lingua-warn` / `-ok` / `-danger`, never with amber, green or coral,
+  which the colour presets are made of.
 - **Guard double-init**: a content script can be injected twice (static + activeTab); keep the
   `window.__cymbraLinguaReading` guard, and mount injected hosts idempotently (clear an orphan
   host by id; mount only after a successful first paint).

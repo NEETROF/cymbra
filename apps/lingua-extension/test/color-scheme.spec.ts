@@ -45,6 +45,20 @@ describe("dark native widgets without restyling the host page", () => {
     expect(host).toHaveLength(1);
   });
 
+  it("gives the light and e-ink themes a light color-scheme on themed roots only", () => {
+    // A surface opts in by its root's attribute (surface-look): its shadow host, or an extension
+    // page's <html> — never the page being read, whose root never carries it.
+    for (const theme of ["light", "eink"]) {
+      const themed = rules(TOKENS).filter((r) => r.selectors.includes(`:host([data-cymbra-lingua-ui="${theme}"])`));
+      expect(themed).toHaveLength(1);
+      expect(themed[0].selectors).toEqual([
+        `:host([data-cymbra-lingua-ui="${theme}"])`,
+        `:root[data-cymbra-lingua-ui="${theme}"]`,
+      ]);
+      expect(themed[0].body).toMatch(/color-scheme\s*:\s*light/);
+    }
+  });
+
   const pages = files(SRC, ".html").filter((f) => readFileSync(f, "utf8").includes('href="tokens.css"'));
 
   it("finds the extension's own pages", () => {

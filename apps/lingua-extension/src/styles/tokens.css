@@ -8,7 +8,8 @@
  * root, so every custom property is prefixed --cymbra-lingua-* to never collide with
  * a host page's own variables. Both :root (documents: the page, the popup) and :host
  * (the injected word-popup shadow root) get the tokens so one sheet serves all three
- * contexts. Dark-only, like the source palette.
+ * contexts. The identity is dark; the surfaces also have a light and an e-ink theme, which
+ * re-point the surface tokens below (add-lingua-colour-settings D8).
  *
  * No colour literal may live anywhere but this file (enforced by a lint test).
  */
@@ -37,6 +38,13 @@
   --cymbra-lingua-amber: #ffb454; /* CymbraColors.handLeft — "learning" */
   --cymbra-lingua-coral: #ffb4ab; /* CymbraColors.error — "unknown" */
 
+  /* What the surfaces SAY in colour — a notice, a success, a danger — apart from the palette's
+     amber, green and coral, which the colour presets are made of: each theme re-points these,
+     never those (a preset resolved where Réglages is drawn must read the identity's colours). */
+  --cymbra-lingua-warn: #ffb454;
+  --cymbra-lingua-ok: #4edea3;
+  --cymbra-lingua-danger: #ffb4ab;
+
   /* Highlight tints, derived from amber (learning) and coral (unknown). Translucent
      fills tint the text background; the underline keeps them distinguishable on both
      light and dark pages while leaving the page text in its own colour — and its STYLE
@@ -60,6 +68,25 @@
   --cymbra-lingua-night-link: #d2bbff;
   --cymbra-lingua-night-rule: #2d3449;
 
+  /* The reader's page as the reader chose it (add-lingua-colour-settings D3): the identity's
+     paper and night by default, overridden by the colour sheet. The reader page and the book's
+     sections read these, never the identity tokens above, which the presets are made of.
+     `--cymbra-lingua-page-paper-ink`, the paper page's text, is deliberately left unset here:
+     the book keeps its own colours on paper unless the reader chose one. */
+  --cymbra-lingua-page-paper: var(--cymbra-lingua-paper);
+  --cymbra-lingua-page-night: var(--cymbra-lingua-night);
+  --cymbra-lingua-page-night-ink: var(--cymbra-lingua-night-ink);
+
+  /* The e-ink presets (add-lingua-colour-settings D7). A monochrome panel shows only greys, so
+     its preset marks with weight: a mid-grey fill, a thick black line. A colour e-ink panel
+     (Kaleido) washes pastels and yellows out and draws colour at half the resolution of black:
+     its preset puts a dark, saturated ink on the word itself. Tuned on the Boox Go Color 7 Gen 2. */
+  --cymbra-lingua-eink-black: #000000;
+  --cymbra-lingua-eink-white: #ffffff;
+  --cymbra-lingua-eink-grey: #8c8c8c;
+  --cymbra-lingua-eink-red: #b0001e;
+  --cymbra-lingua-eink-blue: #0a3a8c;
+
   /* Radii (identity) */
   --cymbra-lingua-radius: 12px;
   --cymbra-lingua-radius-lg: 18px;
@@ -70,8 +97,62 @@
   --cymbra-lingua-font: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
+/* The surfaces' light theme (add-lingua-colour-settings D8): the Cymbra and custom colours on
+   the reader's paper page. The reader's paper and ink, the identity's violet darkened for text
+   on white. A surface opts in by the attribute on its root (src/reading/surface-look.ts): its
+   shadow host, or an extension page's <html> — never the page being read, which this sheet
+   also reaches but whose root never carries it. */
+:host([data-cymbra-lingua-ui="light"]),
+:root[data-cymbra-lingua-ui="light"] {
+  --cymbra-lingua-bg: #fbf9f4;
+  --cymbra-lingua-bg-deep: #f3f0e8;
+  --cymbra-lingua-panel: #ffffff;
+  --cymbra-lingua-panel-2: #f5f2ea;
+  --cymbra-lingua-panel-3: #ebe6db;
+  --cymbra-lingua-border: #e3ddd0;
+  --cymbra-lingua-border-2: #c9c1b1;
+  --cymbra-lingua-text: #1a1a1a;
+  --cymbra-lingua-muted: #4f5361;
+  --cymbra-lingua-faint: #7d8291;
+  --cymbra-lingua-accent: #6d28d9;
+  --cymbra-lingua-accent-strong: #7c3aed;
+  --cymbra-lingua-accent-ink: #ffffff;
+  --cymbra-lingua-teal: #0f766e;
+  --cymbra-lingua-warn: #8a5300;
+  --cymbra-lingua-ok: #046c4e;
+  --cymbra-lingua-danger: #b3261e;
+  --cymbra-lingua-shadow: 0 8px 28px rgba(26, 26, 26, 0.18);
+  color-scheme: light;
+}
+
+/* The surfaces' e-ink theme: an e-ink preset keeps every surface black on white, as the panel
+   shows best — no grey text, no tinted fill, no shadow (a shadow smears into dithered grey),
+   and the accent is black. */
+:host([data-cymbra-lingua-ui="eink"]),
+:root[data-cymbra-lingua-ui="eink"] {
+  --cymbra-lingua-bg: #ffffff;
+  --cymbra-lingua-bg-deep: #ffffff;
+  --cymbra-lingua-panel: #ffffff;
+  --cymbra-lingua-panel-2: #ffffff;
+  --cymbra-lingua-panel-3: #ffffff;
+  --cymbra-lingua-border: #000000;
+  --cymbra-lingua-border-2: #000000;
+  --cymbra-lingua-text: #000000;
+  --cymbra-lingua-muted: #000000;
+  --cymbra-lingua-faint: #333333;
+  --cymbra-lingua-accent: #000000;
+  --cymbra-lingua-accent-strong: #000000;
+  --cymbra-lingua-accent-ink: #ffffff;
+  --cymbra-lingua-teal: #000000;
+  --cymbra-lingua-warn: #000000;
+  --cymbra-lingua-ok: #000000;
+  --cymbra-lingua-danger: #000000;
+  --cymbra-lingua-shadow: none;
+  color-scheme: light;
+}
+
 /* Native widgets (scrollbars, selects, number inputs) follow the dark palette inside the
-   surfaces the extension injects. :host ONLY — this sheet is also adopted by the page being
+   surfaces the extension injects (the themes above set their own). :host ONLY — this sheet is also adopted by the page being
    read, where :root is the host page's own root: forcing color-scheme there would restyle
    that site's scrollbars and form controls. The extension's own documents (popup, side
    panel, stats tab, onboarding) declare it with <meta name="color-scheme" content="dark">. */

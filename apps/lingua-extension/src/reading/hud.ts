@@ -10,6 +10,7 @@
 // returned `el`), wrapped by `LinguaHud` into a closed shadow root injected on the page.
 
 import { DEFAULT_HUD_POSITION, type HudPosition } from "../state/storage.ts";
+import { followSurfaceLook } from "./surface-look.ts";
 
 export interface HudActions {
   /** Open the review deck (the in-page drawer). */
@@ -248,6 +249,8 @@ export interface HudOptions {
   actions: HudActions;
   /** Where the reader left the pill after a drag. */
   onMoved?: HudMoved;
+  /** Follow the reader's colours and text size (surface-look); off: the pill as designed. */
+  followLook?: boolean;
 }
 
 /** The HUD mounted into a closed shadow root on the page (mirrors Drawer / WordPopup). */
@@ -266,6 +269,7 @@ export class LinguaHud {
     style.textContent = opts.css;
     this.view = createHud(opts.actions, opts.onMoved);
     root.append(style, this.view.el);
+    if (opts.followLook) followSurfaceLook(this.host);
   }
 
   /** Attach the host to the page (idempotent; clears any orphan host from a failed retry). */

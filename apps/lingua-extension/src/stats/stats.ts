@@ -2,6 +2,10 @@ import { createLinguaPort } from "../analyzer/create-port.ts";
 import { type AsyncStorageArea, hydrateEngine } from "../state/storage.ts";
 import { messagedArea } from "../state/store.ts";
 import { mountStats } from "./view.ts";
+import { followSurfaceLook } from "../reading/surface-look.ts";
+
+// This page is a surface: it follows the reader's colours and text size (add-lingua-colour-settings D8, D9).
+followSurfaceLook(document.documentElement);
 
 // Standalone stats tab. The primary surface is now the side panel (same view via
 // mountStats); this tab remains reachable and hydrates its own engine from the shared
