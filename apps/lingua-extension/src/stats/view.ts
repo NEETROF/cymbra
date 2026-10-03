@@ -1,5 +1,6 @@
+import { readingLanguage } from "../analyzer/pairs.ts";
 import type { LinguaPort } from "../analyzer/port.ts";
-import { type CefrLevel, CEFR_LEVELS, type SeedOrder, STUDIED_LANGUAGE } from "../analyzer/types.ts";
+import { type CefrLevel, CEFR_LEVELS, type SeedOrder } from "../analyzer/types.ts";
 import { loadDailyStats, utcDay } from "../state/dailystats.ts";
 import { type AsyncStorageArea, saveBackup } from "../state/storage.ts";
 import { barChartElement } from "./chart.ts";
@@ -150,6 +151,8 @@ function buildSeedControl(): HTMLElement {
 export async function mountStats(root: HTMLElement, port: LinguaPort, area: AsyncStorageArea): Promise<void> {
   let range: Range = 30;
   root.classList.add("stats");
+  // In the reader's language (add-lingua-studied-language-profile); every show mounts afresh.
+  const lang = port.for(await readingLanguage(port));
 
   const vocabSlot = document.createElement("div");
   vocabSlot.className = "vocab-slot";
@@ -193,14 +196,11 @@ export async function mountStats(root: HTMLElement, port: LinguaPort, area: Asyn
 
   // The ladder and the estimate do not depend on the range; re-rendered after a seed.
   const renderLadder = async (): Promise<void> => {
-    const hasLevels = await port.for(STUDIED_LANGUAGE).hasLevels();
-    const vocab = vocabularyView(await port.for(STUDIED_LANGUAGE).vocabularyEstimate(), hasLevels);
+    const hasLevels = await lang.hasLevels();
+    const vocab = vocabularyView(await lang.vocabularyEstimate(), hasLevels);
     pick(".vocab-slot").replaceChildren(...(vocab ? [vocab] : []));
     if (hasLevels) {
-      const [rows, declared] = [
-        await port.for(STUDIED_LANGUAGE).levelLadder(),
-        await port.for(STUDIED_LANGUAGE).declaredLevel(),
-      ];
+      const [rows, declared] = [await lang.levelLadder(), await lang.declaredLevel()];
       pick(".ladder-slot").replaceChildren(ladderView(rows, declared));
     } else {
       const note = document.createElement("div");
@@ -213,16 +213,16 @@ export async function mountStats(root: HTMLElement, port: LinguaPort, area: Asyn
 
   // "Renforcer un niveau" — only meaningful with CEFR data. Rendered once (stable
   // listener); a seed persists, reports, and refreshes the ladder.
-  if (await port.for(STUDIED_LANGUAGE).hasLevels()) {
+  if (await lang.hasLevels()) {
     pick(".seed-slot").replaceChildren(buildSeedControl());
-    const declared = await port.for(STUDIED_LANGUAGE).declaredLevel();
+    const declared = await lang.declaredLevel();
     if (declared) pick<HTMLSelectElement>("#seed-level").value = declared;
     pick<HTMLButtonElement>("#seed-go").addEventListener("click", async () => {
       const level = pick<HTMLSelectElement>("#seed-level").value as CefrLevel;
       const raw = Number(pick<HTMLInputElement>("#seed-count").value);
       const count = Math.max(1, Math.min(SEED_CAP, Number.isFinite(raw) ? Math.floor(raw) : 20));
       const order = pick<HTMLSelectElement>("#seed-order").value as SeedOrder;
-      const added = await port.for(STUDIED_LANGUAGE).seedLevel(level, count, order, Math.floor(Date.now() / 1000));
+      const added = await lang.seedLevel(level, count, order, Math.floor(Date.now() / 1000));
       await saveBackup(area, await port.backup());
       const result = pick("#seed-result");
       result.hidden = false;
@@ -263,7 +263,7 @@ export async function mountStats(root: HTMLElement, port: LinguaPort, area: Asyn
     undo.textContent = "Remettre à apprendre";
     undo.addEventListener("click", async () => {
       undo.disabled = true;
-      await port.for(STUDIED_LANGUAGE).setStatusAt(w.lemma, null, Date.now());
+      await lang.setStatusAt(w.lemma, null, Date.now());
       await saveBackup(area, await port.backup());
       await renderMarked();
       await renderLadder();

@@ -85,6 +85,8 @@ interface WasmEngine {
   seedLevel(level: string, count: number, order: string, at: number, language?: string | null): number;
   addPack(packBytes: Uint8Array): string;
   languages(): string;
+  studiedLanguages(): string;
+  setStudiedLanguages(tags: string[]): void;
   free(): void;
 }
 
@@ -217,6 +219,14 @@ export class WasmAnalyzerPort implements LinguaPort {
 
   async languages(): Promise<StudiedLanguage[]> {
     return JSON.parse((await this.engine()).languages()) as StudiedLanguage[];
+  }
+
+  async studiedLanguages(): Promise<StudiedLanguage[]> {
+    return JSON.parse((await this.engine()).studiedLanguages()) as StudiedLanguage[];
+  }
+
+  async setStudiedLanguages(languages: StudiedLanguage[]): Promise<void> {
+    (await this.engine()).setStudiedLanguages(languages);
   }
 
   async trackedCount(): Promise<number> {

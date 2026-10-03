@@ -1,7 +1,8 @@
 import { errorCopy } from "../account/copy.ts";
 import { type AccountReply, type AccountState, PENDING_EMAIL_KEY } from "../account/messages.ts";
 import { createLinguaPort } from "../analyzer/create-port.ts";
-import { type CefrLevel, STUDIED_LANGUAGE } from "../analyzer/types.ts";
+import { readingLanguage } from "../analyzer/pairs.ts";
+import type { CefrLevel } from "../analyzer/types.ts";
 import { mountSettings, type SettingsView } from "../reading/settings-view.ts";
 import { browserSpeechEngine, createSpeaker } from "../reading/speech.ts";
 import type { Provider } from "../state/oidc.ts";
@@ -237,7 +238,7 @@ async function showSettings(): Promise<void> {
     settings = mountSettings($("settings-body"), port, storageArea, {
       persist: async () => saveBackup(store, await port.backup()),
       store,
-      speaker: createSpeaker(browserSpeechEngine(), STUDIED_LANGUAGE, storedVoicePreference(storageArea)),
+      speaker: createSpeaker(browserSpeechEngine(), await readingLanguage(port), storedVoicePreference(storageArea)),
     });
   }
   await settings.refresh();

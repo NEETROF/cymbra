@@ -1,10 +1,10 @@
+import { readingLanguage } from "../analyzer/pairs.ts";
 import type { LinguaPort } from "../analyzer/port.ts";
 import { dailyRecorder } from "../state/dailystats.ts";
 import { type AsyncStorageArea, saveBackup } from "../state/storage.ts";
 import { watchBackup } from "../state/store.ts";
 import { ReviewController } from "./session.ts";
 import { type ReviewActions, renderReview } from "./view.ts";
-import { STUDIED_LANGUAGE } from "../analyzer/types.ts";
 
 // The full Révision page — summary + the FSRS review widget + lossless backup/restore +
 // the pack's Sources & confidentialité — built as plain DOM into a container so ONE
@@ -131,10 +131,12 @@ export function mountReview(
   });
 
   void loadAttributions();
+  /** The sources of the reader's language's pack (add-lingua-studied-language-profile). */
   async function loadAttributions(): Promise<void> {
-    const names = await port.for(STUDIED_LANGUAGE).licences();
+    const lang = port.for(await readingLanguage(port));
+    const names = await lang.licences();
     licences.textContent = names.length ? `Sources : ${names.join(" · ")}` : "";
-    notice.textContent = await port.for(STUDIED_LANGUAGE).notice();
+    notice.textContent = await lang.notice();
   }
 
   // Keep in sync with changes made elsewhere (a reading gesture, a reset in Réglages, or
@@ -146,6 +148,7 @@ export function mountReview(
     void port.restore(backup).then(() => {
       controller = new ReviewController(port, opts.now, dailyRecorder(area));
       void refreshSummary();
+      void loadAttributions();
       renderReview(review, controller.view(), actions);
     });
   });

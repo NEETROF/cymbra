@@ -54,6 +54,7 @@ export function makeFakePort(deck: FakeCard[] = []): { port: FakePort; calls: Fa
   let pos = 0;
   let revealed = false;
   let backup = "{}";
+  let studied: StudiedLanguage[] = ["en"];
 
   const port: FakePort = {
     language: "en",
@@ -62,6 +63,10 @@ export function makeFakePort(deck: FakeCard[] = []): { port: FakePort; calls: Fa
       return Object.assign(Object.create(this) as FakePort, { language });
     },
     languages: async () => ["en"],
+    studiedLanguages: async () => [...studied],
+    setStudiedLanguages: async (languages) => {
+      studied = [...languages];
+    },
     analyse: async (): Promise<PageAnalysis> => ({
       analyzer_version: "1.0.0",
       analysable: false,
@@ -113,6 +118,7 @@ export function makeFakePort(deck: FakeCard[] = []): { port: FakePort; calls: Fa
     reset: async () => {
       queue = [];
       pos = 0;
+      studied = ["en"];
     },
     resetStatuses: async () => {
       queue = [];
