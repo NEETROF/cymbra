@@ -43,12 +43,35 @@ body {
 /* On a touch-primary device the popup is either a sheet or page of imposed width (Safari on
    iPhone, Firefox for Android) or a popover sized from its content (Safari on iPad). `auto`
    fills the imposed width instead of a narrow desktop column; the minimum keeps the iPad
-   popover from shrinking to its narrowest content, and still fits a 375 px phone. */
+   popover from shrinking to its narrowest content. On a phone it is held to the sheet's
+   width, which `vw` is there, so a larger text size still fits a 375 px phone. */
 @media (pointer: coarse) {
   body {
     box-sizing: border-box;
     width: auto;
     min-width: min(calc(360px * var(--cymbra-lingua-ui-scale, 1)), 100vw);
+  }
+}
+
+/* A tablet. Inside the iPad popover `vw` is the popover's own width — itself sized from the
+   content — so the phone's clamp above cancels the minimum and the popover shrinks to its
+   narrowest word: the screen, not the viewport, says there is room. */
+@media (pointer: coarse) and (min-device-width: 700px) {
+  body {
+    min-width: calc(360px * var(--cymbra-lingua-ui-scale, 1));
+  }
+
+  /* Safari's iPad popover stops growing at about 520 pt and cuts what is below, as macOS did
+     (see the desktop rule above): capped under it, the popup scrolls itself instead. Safari
+     only (popup.ts sets the attribute) — Firefox for Android shows the popup as a page. */
+  html[data-popover] {
+    overflow: hidden;
+  }
+
+  html[data-popover] body {
+    max-height: 500px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 }
 
