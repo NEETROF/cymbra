@@ -1,8 +1,9 @@
 import { errorCopy } from "../account/copy.ts";
 import { type AccountReply, type AccountState, PENDING_EMAIL_KEY } from "../account/messages.ts";
 import { createLinguaPort } from "../analyzer/create-port.ts";
-import { readingLanguage } from "../analyzer/pairs.ts";
-import type { CefrLevel } from "../analyzer/types.ts";
+import { chooseLevelPrompt, levelTitle, noTextDetected } from "../analyzer/language-labels.ts";
+import { DEFAULT_LANGUAGE, readingLanguage } from "../analyzer/pairs.ts";
+import type { CefrLevel, StudiedLanguage } from "../analyzer/types.ts";
 import { mountSettings, type SettingsView } from "../reading/settings-view.ts";
 import { browserSpeechEngine, createSpeaker } from "../reading/speech.ts";
 import type { Provider } from "../state/oidc.ts";
@@ -60,6 +61,9 @@ interface PageStats {
   trackedCount: number;
   deckCount: number;
   dueCount: number;
+  /** The page's language and the reader's accepted ones; absent from a content script of an older build. */
+  language?: StudiedLanguage;
+  languages?: StudiedLanguage[];
 }
 
 function $(id: string): HTMLElement {
@@ -202,9 +206,11 @@ function render(stats: PageStats | null, onReader: boolean): void {
   $("pct-label").textContent = book ? "de mots connus dans ce chapitre" : "de mots connus sur cette page";
   $("analysed").hidden = !stats.analysable;
   $("note").hidden = stats.analysable;
+  // Named from the language the page is read in (add-lingua-language-choice D1).
+  const language = stats.language ?? DEFAULT_LANGUAGE;
   $("note").textContent = book
     ? "Ouvre un livre de ta bibliothèque pour voir ses chiffres."
-    : "Pas de texte anglais détecté sur cette page.";
+    : noTextDetected(stats.languages ?? [language]);
   if (stats.analysable) {
     const pct = stats.percent ?? 0;
     $("pct").textContent = stats.percent == null ? "—" : `${pct}%`;
@@ -224,6 +230,8 @@ function render(stats: PageStats | null, onReader: boolean): void {
   $("level-cta").hidden = !stats.hasLevels || !stats.needsLevel;
   $("level-indicator").hidden = !stats.hasLevels || stats.needsLevel;
   $("level-current").textContent = stats.declaredLevel ?? "Débutant";
+  $("level-cta").textContent = chooseLevelPrompt(language);
+  $("level-label").textContent = levelTitle(language);
 }
 
 let settings: SettingsView | null = null;

@@ -1,5 +1,12 @@
-import { DEFAULT_LANGUAGE, readingLanguage } from "../analyzer/pairs.ts";
-import type { LanguagePort, LinguaPort } from "../analyzer/port.ts";
+import {
+  languageName,
+  levelTitle,
+  noVoiceInstalled,
+  previewSentence,
+  windowsVoiceLanguage,
+} from "../analyzer/language-labels.ts";
+import { acceptedLanguages, SHIPPED_PAIRS } from "../analyzer/pairs.ts";
+import type { LinguaPort } from "../analyzer/port.ts";
 import { CEFR_LEVELS, type CefrLevel, type StudiedLanguage } from "../analyzer/types.ts";
 import { needsLevelChoice } from "../state/level-choice.ts";
 import { type OpenPage, openPageViaBackground } from "../state/open-page.ts";
@@ -25,6 +32,7 @@ import { lastSyncLabel, syncErrorCopy } from "../sync/status.ts";
 import { clearSyncCursors } from "../sync/sync.ts";
 import { mountBookDisplay } from "./book-display-view.ts";
 import { mountColourSettings } from "./colour-settings-view.ts";
+import { mountStudiedLanguages } from "./studied-languages-view.ts";
 import { type Speaker, type VoiceInfo, voiceGroups, voiceLabel } from "./speech.ts";
 import {
   mountTranslationSetting,
@@ -58,19 +66,22 @@ export interface SettingsOptions {
    * engine. Null: no such setting (Safari).
    */
   translation?: TranslationControls | null;
+  /** The pairs the package ships: the bundle's, unless a spec offers others. */
+  pairs?: readonly string[];
 }
 
 /** The key the settings preview speaks under — not a card's, so no card silences it. */
 const PREVIEW_KEY = "preview";
 /** What the preview reads, in the studied language. */
-const PREVIEW_TEXT = "This is how your pages will sound when Lingua reads them aloud.";
 /**
  * How to install a voice on the device — a system voice, not a change of language. On Windows,
  * through « Langue et région »: « Voix › Ajouter des voix » did nothing on a French Windows 11
  * (2026-09-29), and that install can fail outright (0x800F0950), hence the pointer to the fallback.
  */
-const INSTALL_VOICE_HELP =
-  "Pour une voix sur l'appareil, sans changer la langue du système ni du navigateur : sous Windows, Paramètres › Heure et langue › Langue et région › Ajouter une langue › Anglais (États-Unis), sans la définir comme langue d'affichage, avec la synthèse vocale ; sous macOS, Réglages Système › Accessibilité › Contenu énoncé › Voix du système › Gérer les voix › Anglais. Relance ensuite le navigateur.";
+/** How to install a voice of `language` on the device (add-lingua-language-choice: named from language-labels). */
+function installVoiceHelp(language: StudiedLanguage): string {
+  return `Pour une voix sur l'appareil, sans changer la langue du système ni du navigateur : sous Windows, Paramètres › Heure et langue › Langue et région › Ajouter une langue › ${windowsVoiceLanguage(language)}, sans la définir comme langue d'affichage, avec la synthèse vocale ; sous macOS, Réglages Système › Accessibilité › Contenu énoncé › Voix du système › Gérer les voix › ${languageName(language)}. Relance ensuite le navigateur.`;
+}
 /** Added where the remote voices can stand in. */
 const INSTALL_VOICE_FALLBACK = " Si l'installation échoue, active les voix en ligne ci-dessous.";
 
@@ -116,6 +127,13 @@ function el<K extends keyof HTMLElementTagNameMap>(
   return node;
 }
 
+/** One level block of Réglages, for one accepted language (add-lingua-language-choice D3). */
+interface LevelBlock {
+  readonly language: StudiedLanguage;
+  readonly el: HTMLElement;
+  refresh(): Promise<void>;
+}
+
 function settingBlock(label: string): HTMLDivElement {
   const block = el("div", "set-block");
   block.append(el("div", "set-label", label));
@@ -140,39 +158,103 @@ export function mountSettings(
   opts: SettingsOptions,
 ): SettingsView {
   container.replaceChildren();
-  // The reader's language (add-lingua-studied-language-profile), read again on every refresh
-  // and after a reset, which returns the profile to its default.
-  let language: StudiedLanguage = DEFAULT_LANGUAGE;
-  const lang = (): LanguagePort => port.for(language);
+  const pairs = opts.pairs ?? SHIPPED_PAIRS;
 
-  // — Niveau d'anglais —
-  const levelBlock = settingBlock("Niveau d'anglais");
-  const chips = el("div", "level-chips");
-  const chipButtons = new Map<string, HTMLButtonElement>();
-  const addChip = (value: string, label: string): void => {
-    const b = el("button", value === "" ? "lvl lvl-beginner" : "lvl", label);
-    b.type = "button";
-    b.dataset.lvl = value;
-    b.addEventListener("click", () => void setLevel((value as CefrLevel) || null));
-    chips.append(b);
-    chipButtons.set(value, b);
-  };
-  for (const lvl of CEFR_LEVELS) addChip(lvl, lvl);
-  addChip("", "Débutant");
-  const hint = el("div", "set-note");
-  const calibBlock = el("div", "calib");
-  calibBlock.hidden = true;
-  const calibValue = el("b", undefined, "3000");
-  const calibLabel = el("label");
-  calibLabel.append("Je connais les ", calibValue, " mots les plus courants");
-  const calib = el("input");
-  calib.type = "range";
-  calib.min = "500";
-  calib.max = "10000";
-  calib.step = "100";
-  calib.value = "3000";
-  calibBlock.append(calibLabel, calib);
-  levelBlock.append(chips, hint, calibBlock);
+  // — Langues étudiées — hidden when the package ships one language (add-lingua-language-choice D2).
+  const languagesBlock = settingBlock("Langues étudiées");
+  const studied = mountStudiedLanguages(
+    languagesBlock,
+    port,
+    async () => {
+      await opts.persist();
+      await refresh();
+    },
+    pairs,
+  );
+
+  // — Niveau, one block per accepted language (add-lingua-language-choice D3) —
+  const levelBlocks = el("div", "set-levels");
+  let levels: LevelBlock[] = [];
+
+  /** The level block of one language: its chips, hint and calibration. */
+  function levelBlockFor(language: StudiedLanguage): LevelBlock {
+    const view = port.for(language);
+    const block = settingBlock(levelTitle(language));
+    const chips = el("div", "level-chips");
+    const chipButtons = new Map<string, HTMLButtonElement>();
+    const addChip = (value: string, label: string): void => {
+      const b = el("button", value === "" ? "lvl lvl-beginner" : "lvl", label);
+      b.type = "button";
+      b.dataset.lvl = value;
+      b.addEventListener("click", () => void setLevel((value as CefrLevel) || null));
+      chips.append(b);
+      chipButtons.set(value, b);
+    };
+    for (const lvl of CEFR_LEVELS) addChip(lvl, lvl);
+    addChip("", "Débutant");
+    const hint = el("div", "set-note");
+    const calibBlock = el("div", "calib");
+    calibBlock.hidden = true;
+    const calibValue = el("b", undefined, "3000");
+    const calibLabel = el("label");
+    calibLabel.append("Je connais les ", calibValue, " mots les plus courants");
+    const calib = el("input");
+    calib.type = "range";
+    calib.min = "500";
+    calib.max = "10000";
+    calib.step = "100";
+    calib.value = "3000";
+    calibBlock.append(calibLabel, calib);
+    block.append(chips, hint, calibBlock);
+    calib.addEventListener("input", () => {
+      calibValue.textContent = calib.value;
+    });
+    calib.addEventListener("change", async () => {
+      await view.setCalibration(Number(calib.value));
+      await opts.persist();
+    });
+
+    async function setLevel(level: CefrLevel | null): Promise<void> {
+      await view.setDeclaredLevelAt(level, Date.now());
+      await view.setCalibration(0);
+      await opts.persist();
+      await refresh();
+    }
+
+    async function refreshBlock(): Promise<void> {
+      const [hasLevels, declared, needsChoice] = [
+        await view.hasLevels(),
+        await view.declaredLevel(),
+        await needsLevelChoice(port, language),
+      ];
+      // Nothing is highlighted as chosen until a decision exists (« Débutant » is one).
+      const current = needsChoice ? null : (declared ?? "");
+      for (const [value, b] of chipButtons) b.classList.toggle("active", value === current);
+      hint.textContent = declared
+        ? `Les mots sous ${declared} ne sont plus surlignés.`
+        : needsChoice
+          ? "Choisis ton niveau — rien n'est présumé connu pour l'instant."
+          : "Débutant — rien n'est présumé connu.";
+      calibBlock.hidden = hasLevels;
+      if (!hasLevels) {
+        const cal = await view.calibration();
+        calib.value = String(cal);
+        calibValue.textContent = String(cal);
+      }
+    }
+
+    return { language, el: block, refresh: refreshBlock };
+  }
+
+  /** The accepted languages' blocks: rebuilt when the list changed, refreshed otherwise. */
+  async function refreshLevels(): Promise<void> {
+    const accepted = await acceptedLanguages(port, pairs);
+    if (accepted.join() !== levels.map((l) => l.language).join()) {
+      levels = accepted.map(levelBlockFor);
+      levelBlocks.replaceChildren(...levels.map((l) => l.el));
+    }
+    await Promise.all(levels.map((l) => l.refresh()));
+  }
 
   // — Barre sur la page —
   const barBlock = settingBlock("Barre sur la page");
@@ -214,11 +296,12 @@ export function mountSettings(
   // A French Windows lists only French voices of its own: Chrome's English ones are Google's,
   // remote. Said here, with how to install one (the reader need not change any language for it),
   // rather than a block that silently never shows.
-  const noVoiceNote = el("div", "set-note", "Aucune voix anglaise n'est installée sur cet appareil. ");
+  const noVoiceText = el("span");
+  const noVoiceNote = el("div", "set-note");
   const installInfo = el("span", "set-info", "ⓘ");
   installInfo.tabIndex = 0;
   installInfo.setAttribute("role", "img");
-  noVoiceNote.append(installInfo);
+  noVoiceNote.append(noVoiceText, installInfo);
   // Where the only voices of the studied language are remote, they may stand in — never by
   // default, and saying where the text then goes.
   const remoteRow = el("label", "set-toggle");
@@ -376,7 +459,8 @@ export function mountSettings(
   });
 
   container.append(
-    levelBlock,
+    languagesBlock,
+    levelBlocks,
     barBlock,
     displayBlock,
     coloursBlock,
@@ -389,17 +473,13 @@ export function mountSettings(
   );
 
   // — Live wiring —
-  calib.addEventListener("input", () => {
-    calibValue.textContent = calib.value;
-  });
-  calib.addEventListener("change", async () => {
-    await lang().setCalibration(Number(calib.value));
-    await opts.persist();
-  });
   toggle.addEventListener("change", async () => {
     await saveHudHidden(area, !toggle.checked);
   });
-  voiceSelect.addEventListener("change", () => void saveVoice(area, voiceSelect.value || null));
+  // Kept for the language the host's speaker reads (add-lingua-language-choice D4).
+  voiceSelect.addEventListener("change", () => {
+    if (speaker) void saveVoice(area, speaker.lang, voiceSelect.value || null);
+  });
   androidToggle.addEventListener("change", () => void saveAndroidVoices(area, androidToggle.checked));
   remoteToggle.addEventListener("change", () => void saveRemoteVoices(area, remoteToggle.checked));
   previewBtn.addEventListener("click", () => {
@@ -410,7 +490,7 @@ export function mountSettings(
     }
     // The select, not the stored preference: the change it just saved may not be back yet.
     const voice = speaker.eligible().find((v) => v.voiceURI === voiceSelect.value) ?? speaker.automatic();
-    if (voice) speaker.speak(PREVIEW_KEY, PREVIEW_TEXT, voice);
+    if (voice) speaker.speak(PREVIEW_KEY, previewSentence(speaker.lang as StudiedLanguage), voice);
   });
   speaker?.subscribe(() => renderVoices());
   flowToggle.addEventListener("change", async () => {
@@ -434,7 +514,10 @@ export function mountSettings(
     if (!speaker || voiceBlock.hidden) return;
     const remote = offersRemote && speaker.remoteVoices();
     noVoiceNote.hidden = (eligible.length > 0 && !remote) || offersAndroid;
-    const help = INSTALL_VOICE_HELP + (offersRemote ? INSTALL_VOICE_FALLBACK : "");
+    // The language the host's speaker reads: a page's in the drawer, the reader's first elsewhere.
+    const voiceLanguage = speaker.lang as StudiedLanguage;
+    noVoiceText.textContent = noVoiceInstalled(voiceLanguage);
+    const help = installVoiceHelp(voiceLanguage) + (offersRemote ? INSTALL_VOICE_FALLBACK : "");
     installInfo.title = help;
     installInfo.setAttribute("aria-label", help);
     remoteRow.hidden = !offersRemote;
@@ -499,13 +582,6 @@ export function mountSettings(
     await refreshSync();
   }
 
-  async function setLevel(level: CefrLevel | null): Promise<void> {
-    await lang().setDeclaredLevelAt(level, Date.now());
-    await lang().setCalibration(0);
-    await opts.persist();
-    await refresh();
-  }
-
   async function doReset(scope: "full" | "partial"): Promise<void> {
     if (scope === "partial") {
       await port.resetStatuses();
@@ -513,8 +589,11 @@ export function mountSettings(
       await port.reset();
       await clearSyncCursors(opts.store);
     }
-    language = await readingLanguage(port);
-    await lang().setCalibration((await lang().hasLevels()) ? 0 : 3000);
+    // Every accepted language starts over (a full reset returns the profile to English).
+    for (const language of await acceptedLanguages(port, pairs)) {
+      const view = port.for(language);
+      await view.setCalibration((await view.hasLevels()) ? 0 : 3000);
+    }
     await opts.persist();
     await opts.onReset?.();
     await refresh();
@@ -523,26 +602,7 @@ export function mountSettings(
   }
 
   async function refresh(): Promise<void> {
-    language = await readingLanguage(port);
-    const [hasLevels, declared, needsChoice] = [
-      await lang().hasLevels(),
-      await lang().declaredLevel(),
-      await needsLevelChoice(port, language),
-    ];
-    // Nothing is highlighted as chosen until a decision exists (« Débutant » is one).
-    const current = needsChoice ? null : (declared ?? "");
-    for (const [value, b] of chipButtons) b.classList.toggle("active", value === current);
-    hint.textContent = declared
-      ? `Les mots sous ${declared} ne sont plus surlignés.`
-      : needsChoice
-        ? "Choisis ton niveau — rien n'est présumé connu pour l'instant."
-        : "Débutant — rien n'est présumé connu.";
-    calibBlock.hidden = hasLevels;
-    if (!hasLevels) {
-      const cal = await lang().calibration();
-      calib.value = String(cal);
-      calibValue.textContent = String(cal);
-    }
+    await Promise.all([studied.refresh(), refreshLevels()]);
     toggle.checked = !(await loadHudHidden(area));
     renderVoices();
     flowToggle.checked = (await loadReaderFlow(area)) === "scrolled";

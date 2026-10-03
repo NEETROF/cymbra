@@ -283,16 +283,35 @@ export async function saveHudHidden(area: AsyncStorageArea, hidden: boolean): Pr
   await area.set({ [HUD_HIDDEN_KEY]: hidden });
 }
 
-/** The chosen voice's `voiceURI`, or null for the automatic choice. */
-export async function loadVoice(area: AsyncStorageArea): Promise<string | null> {
-  const got = await area.get(VOICE_KEY);
-  const uri = got[VOICE_KEY];
-  return typeof uri === "string" && uri !== "" ? uri : null;
+/**
+ * The voice chosen for each studied language, by `voiceURI` (add-lingua-language-choice D4). A
+ * language without one gets the automatic choice. A single `voiceURI` kept before voices were per
+ * language is the English one.
+ */
+export type VoiceChoices = Readonly<Record<string, string>>;
+
+/** A stored value read as voice choices: the old single string is English's. */
+export function voiceChoicesOf(value: unknown): VoiceChoices {
+  if (typeof value === "string") return value === "" ? {} : { en: value };
+  if (value === null || typeof value !== "object") return {};
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string" && entry[1] !== "",
+    ),
+  );
 }
 
-/** Keep a voice, or null to go back to the automatic choice. */
-export async function saveVoice(area: AsyncStorageArea, voiceURI: string | null): Promise<void> {
-  await area.set({ [VOICE_KEY]: voiceURI });
+/** The chosen voices, per studied language. */
+export async function loadVoices(area: AsyncStorageArea): Promise<VoiceChoices> {
+  return voiceChoicesOf((await area.get(VOICE_KEY))[VOICE_KEY]);
+}
+
+/** Keep a voice for `language`, or null to go back to the automatic choice there. */
+export async function saveVoice(area: AsyncStorageArea, language: string, voiceURI: string | null): Promise<void> {
+  const next: Record<string, string> = { ...(await loadVoices(area)) };
+  if (voiceURI) next[language] = voiceURI;
+  else delete next[language];
+  await area.set({ [VOICE_KEY]: next });
 }
 
 /** Whether Android's own voices may speak; absent means not allowed. */
@@ -320,7 +339,7 @@ export async function saveRemoteVoices(area: AsyncStorageArea, allowed: boolean)
 /** The read-aloud settings in `area`, followed in every context through `storage.onChanged`. */
 export function storedVoicePreference(area: AsyncStorageArea): VoicePreference {
   const load = async (): Promise<SpeechSettings> => ({
-    voice: await loadVoice(area),
+    voices: await loadVoices(area),
     androidVoices: await loadAndroidVoices(area),
     remoteVoices: await loadRemoteVoices(area),
   });
