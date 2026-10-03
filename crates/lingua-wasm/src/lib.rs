@@ -29,7 +29,7 @@
 //! equal `analyzer_version` and pack (the parity contract). Build with
 //! `wasm-pack build --target web`.
 
-use lingua_core::analysis::language::StudiedLanguage;
+use lingua_core::analysis::language::{StudiedLanguage, detect_document_language};
 use lingua_core::decks::backup::LinguaState;
 use lingua_core::decks::card::{Card, EncounterSource, Provenance};
 use lingua_core::decks::fsrs::{Rating, ReviewState};
@@ -161,6 +161,31 @@ impl LinguaEngine {
             .profile
             .set_studied_languages(languages)
             .map_err(|e| JsError::new(&e.to_string()))
+    }
+
+    /// The language of a document among `candidates` (ISO 639-1 tags, the reader's order), with
+    /// the document's declared language as `hint` (add-lingua-language-routing D2). Loads and
+    /// needs no pack. Errors on an empty list or an unknown candidate; an unknown hint is
+    /// ignored, since a page may declare any language.
+    #[wasm_bindgen(js_name = detectLanguage)]
+    pub fn detect_language(
+        &self,
+        blocks: Vec<String>,
+        candidates: Vec<String>,
+        hint: Option<String>,
+    ) -> Result<String, JsError> {
+        let candidates = candidates
+            .iter()
+            .map(|tag| {
+                StudiedLanguage::from_tag(tag)
+                    .ok_or_else(|| JsError::new(&format!("unknown studied language \"{tag}\"")))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let hint = hint.as_deref().and_then(StudiedLanguage::from_tag);
+        let blocks: Vec<&str> = blocks.iter().map(String::as_str).collect();
+        detect_document_language(&blocks, &candidates, hint)
+            .map(|language| language.tag().to_owned())
+            .ok_or_else(|| JsError::new("no candidate language"))
     }
 
     // --- Knowledge + analysis (the reading surface; signatures unchanged) ---

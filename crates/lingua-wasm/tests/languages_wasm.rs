@@ -69,6 +69,21 @@ fn spec_scenario_an_invalid_choice_of_studied_languages_is_refused() {
 }
 
 #[wasm_bindgen_test]
+fn spec_scenario_a_detection_needs_known_candidates() {
+    let engine = LinguaEngine::new(PACK).unwrap();
+    assert!(
+        engine
+            .detect_language(vec!["Hola".to_owned()], vec![], None)
+            .is_err()
+    );
+    assert!(
+        engine
+            .detect_language(vec!["Olá".to_owned()], vec!["pt".to_owned()], None)
+            .is_err()
+    );
+}
+
+#[wasm_bindgen_test]
 fn spec_scenario_one_pack_per_language() {
     let mut engine = LinguaEngine::new(PACK).unwrap();
     assert!(engine.add_pack(PACK).is_err());
