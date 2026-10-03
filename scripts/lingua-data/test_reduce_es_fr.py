@@ -385,7 +385,7 @@ class GlossFallbacks(unittest.TestCase):
             self.assertTrue(gloss and gloss[0].isupper(), expression)
 
 
-class GenderedRuns(unittest.TestCase):
+class NounClassRuns(unittest.TestCase):
     def test_a_noun_run_takes_the_gender_of_the_noun_s_own_readings(self):
         casa = entry("casa", forms=[("casas", ["plural"])])
         casa["head_templates"] = [{"name": "es-noun", "args": {"1": "f"}}]
@@ -396,7 +396,7 @@ class GenderedRuns(unittest.TestCase):
             "estudiante": [("NOUN", 1)],
             "hablar": [("VERB", 1)],
         }
-        got = red.gendered_runs(runs, readings(casa, estudiante))
+        got = red.noun_class_runs(runs, readings(casa, estudiante))
         self.assertEqual(got["casa"], [("NOUN|Gender=Fem", 1), ("VERB", 2)])
         # Of both genders: no gender in the run.
         self.assertEqual(got["estudiante"], [("NOUN", 1)])
