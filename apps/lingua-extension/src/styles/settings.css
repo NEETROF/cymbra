@@ -335,3 +335,16 @@ kbd {
   font-family: inherit;
   font-size: calc(13px * var(--cymbra-lingua-ui-scale, 1));
 }
+
+/* The level blocks of every accepted language (add-lingua-language-choice D3): their wrapper lays
+   them out as if they were direct children of the settings. */
+.set-levels {
+  display: contents;
+}
+
+/* The choice of studied languages (add-lingua-language-choice D2). */
+.set-languages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(6px * var(--cymbra-lingua-ui-scale, 1)) calc(14px * var(--cymbra-lingua-ui-scale, 1));
+}

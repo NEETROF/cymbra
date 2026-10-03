@@ -1,4 +1,6 @@
-import type { CefrLevel, LevelRow, VocabularyEstimate } from "../analyzer/types.ts";
+import { myLevelTitle } from "../analyzer/language-labels.ts";
+import { DEFAULT_LANGUAGE } from "../analyzer/pairs.ts";
+import type { CefrLevel, LevelRow, StudiedLanguage, VocabularyEstimate } from "../analyzer/types.ts";
 import { cumulativeTotals, estimatedPosition, roughCount } from "./model.ts";
 
 // The CEFR progression ladder's markup, shared by every stats host through mountStats.
@@ -70,7 +72,11 @@ export function vocabularyView(est: VocabularyEstimate, hasLevels: boolean): HTM
  * and the vocabulary a reader at that level typically has — the figure comparable
  * with the usual "about 16,000 words at C2" estimates, which the teaching lists are not.
  */
-export function ladderView(rows: LevelRow[], declared: CefrLevel | null): HTMLElement {
+export function ladderView(
+  rows: LevelRow[],
+  declared: CefrLevel | null,
+  language: StudiedLanguage = DEFAULT_LANGUAGE,
+): HTMLElement {
   const pos = estimatedPosition(rows);
   const cumulative = cumulativeTotals(rows);
 
@@ -81,7 +87,7 @@ export function ladderView(rows: LevelRow[], declared: CefrLevel | null): HTMLEl
   head.className = "ladder-head";
   const headLabel = document.createElement("span");
   headLabel.className = "mlabel";
-  headLabel.textContent = "Mon niveau d'anglais";
+  headLabel.textContent = myLevelTitle(language);
   head.append(headLabel);
   if (pos) {
     const posSpan = document.createElement("span");

@@ -152,7 +152,8 @@ export async function mountStats(root: HTMLElement, port: LinguaPort, area: Asyn
   let range: Range = 30;
   root.classList.add("stats");
   // In the reader's language (add-lingua-studied-language-profile); every show mounts afresh.
-  const lang = port.for(await readingLanguage(port));
+  const language = await readingLanguage(port);
+  const lang = port.for(language);
 
   const vocabSlot = document.createElement("div");
   vocabSlot.className = "vocab-slot";
@@ -201,7 +202,7 @@ export async function mountStats(root: HTMLElement, port: LinguaPort, area: Asyn
     pick(".vocab-slot").replaceChildren(...(vocab ? [vocab] : []));
     if (hasLevels) {
       const [rows, declared] = [await lang.levelLadder(), await lang.declaredLevel()];
-      pick(".ladder-slot").replaceChildren(ladderView(rows, declared));
+      pick(".ladder-slot").replaceChildren(ladderView(rows, declared, language));
     } else {
       const note = document.createElement("div");
       note.className = "note";
