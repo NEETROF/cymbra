@@ -126,7 +126,10 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git switch -c "$branch"
-          git add scripts/lingua-data/tables
+          # The English invariance baseline follows the dictionary (docs/lingua/spanish-programme.md):
+          # re-blessed here, so the pull request shows what the update changes in English output.
+          LINGUA_BLESS=1 cargo test -q -p lingua-wasm --test english_baseline
+          git add scripts/lingua-data/tables crates/lingua-wasm/tests/baseline
           message="chore(lingua): $PAIR dictionary tables $SNAPSHOT"
           [ "$MODE" = reduce ] && message="chore(lingua): reduce the $PAIR dictionary tables again ($SNAPSHOT)"
           git commit -q -m "$message"
