@@ -67,13 +67,21 @@ clitic stripped from the end, then two. At each step longer clitics come first (
   removed accent must sit on the vowel the base itself stresses. That is the stress shift the
   clitics caused, and nothing else.
 
+Only a written accent is checked. An accent the shift calls for but the text leaves out
+(`damelo`, common in informal writing) is not required.
+
 To find the stress, take the last vowel group if the base ends in a consonant other than `n` or
 `s`, else the one before it. Within a group, the stressed vowel is its strong vowel (a, e, o), else
 its last vowel.
 
 **Restorations.** After `nos`, a base ending in `mo` is also tried with `s`: `vámonos` → `vamos`,
-`sentémonos` → `sentemos`. After `os`, a base ending in a vowel is also tried with `d`: `sentaos` →
-`sentad`. `idos` is `id` + `os`, read as written.
+`sentémonos` → `sentemos`. `os` follows only:
+- a vosotros imperative that lost its `d`: a base ending in a vowel is tried with it, `sentaos` →
+  `sentad`;
+- `id`, as written: `idos`;
+- an infinitive or a gerund: `deciros`, `diciéndoos`.
+
+It never follows a tú imperative: `dios` is no `di` + `os`.
 
 **The base's shape** must be one that takes enclitics:
 - **an infinitive**: it ends in `ar`, `er`, `ir` or `ír`;
