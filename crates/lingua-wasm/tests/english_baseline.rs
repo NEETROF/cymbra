@@ -221,7 +221,8 @@ fn shown(value: Option<String>) -> String {
     value.unwrap_or_else(|| "(none)".to_owned())
 }
 
-fn render() -> String {
+fn render(language: Option<&str>) -> String {
+    let lang = || language.map(str::to_owned);
     let pack = real_pack();
     let pages = pages();
     let manifest: serde_json::Value = serde_json::from_str(
@@ -249,58 +250,58 @@ fn render() -> String {
     for (name, blocks) in &pages {
         g.probe(
             &format!("analyse new-reader {name}"),
-            fresh.analyse(blocks.clone(), None).unwrap(),
+            fresh.analyse(blocks.clone(), lang()).unwrap(),
         );
     }
     for lemma in LEMMAS {
         g.probe(
             &format!("gloss {lemma}"),
-            shown(fresh.gloss(lemma, None).unwrap()),
+            shown(fresh.gloss(lemma, lang()).unwrap()),
         );
     }
     for phrase in PHRASES {
         g.probe(
             &format!("phrase-gloss {phrase}"),
-            fresh.phrase_gloss(phrase, None).unwrap(),
+            fresh.phrase_gloss(phrase, lang()).unwrap(),
         );
     }
     for (written, lemma) in GRAMMAR {
         g.probe(
             &format!("word-grammar {written} {lemma}"),
-            fresh.word_grammar(written, lemma, None).unwrap(),
+            fresh.word_grammar(written, lemma, lang()).unwrap(),
         );
     }
-    g.probe("has-levels", fresh.has_levels(None).unwrap());
-    g.probe("level-ladder", fresh.level_ladder(None).unwrap());
+    g.probe("has-levels", fresh.has_levels(lang()).unwrap());
+    g.probe("level-ladder", fresh.level_ladder(lang()).unwrap());
     g.probe(
         "vocabulary-estimate new-reader",
-        fresh.vocabulary_estimate(None).unwrap(),
+        fresh.vocabulary_estimate(lang()).unwrap(),
     );
-    g.probe("notice", fresh.notice(None).unwrap());
-    g.probe("licences", fresh.licences(None).unwrap());
+    g.probe("notice", fresh.notice(lang()).unwrap());
+    g.probe("licences", fresh.licences(lang()).unwrap());
 
     // A reader with a history: calibration, a declared level, every kind of status (one of
     // them withdrawn), exposures on three days, cards added, seeded and retired, a review.
     let mut reader = engine(&pack);
-    reader.set_calibration(3_000, None).unwrap();
-    reader.set_declared_level_at("B1", T_MS, None).unwrap();
+    reader.set_calibration(3_000, lang()).unwrap();
+    reader.set_declared_level_at("B1", T_MS, lang()).unwrap();
     reader
-        .set_status_at("lighthouse", "known", T_MS + 1.0, None)
+        .set_status_at("lighthouse", "known", T_MS + 1.0, lang())
         .unwrap();
     reader
-        .set_status_at("landlord", "learning", T_MS + 2.0, None)
+        .set_status_at("landlord", "learning", T_MS + 2.0, lang())
         .unwrap();
     reader
-        .set_status_at("betwixt", "ignored", T_MS + 3.0, None)
+        .set_status_at("betwixt", "ignored", T_MS + 3.0, lang())
         .unwrap();
     reader
-        .set_status_at("ceiling", "known", T_MS + 4.0, None)
+        .set_status_at("ceiling", "known", T_MS + 4.0, lang())
         .unwrap();
     reader
-        .set_status_at("councillor", "known", T_MS + 5.0, None)
+        .set_status_at("councillor", "known", T_MS + 5.0, lang())
         .unwrap();
     reader
-        .set_status_at("councillor", "", T_MS + 6.0, None)
+        .set_status_at("councillor", "", T_MS + 6.0, lang())
         .unwrap();
     for day in 0..3 {
         reader
@@ -310,14 +311,14 @@ fn render() -> String {
                     .to_vec(),
                 "page",
                 T_MS + f64::from(day) * DAY_MS,
-                None,
+                lang(),
             )
             .unwrap();
     }
     g.probe(
         "promote-by-exposure 2 days",
         reader
-            .promote_by_exposure(2, T_MS + 3.0 * DAY_MS, None)
+            .promote_by_exposure(2, T_MS + 3.0 * DAY_MS, lang())
             .unwrap(),
     );
     reader
@@ -328,7 +329,7 @@ fn render() -> String {
             "https://example.com/homographs",
             Some("expédition".to_owned()),
             T_SECS,
-            None,
+            lang(),
         )
         .unwrap();
     reader
@@ -339,7 +340,7 @@ fn render() -> String {
             "https://example.com/phrasal",
             None,
             T_SECS + 60.0,
-            None,
+            lang(),
         )
         .unwrap();
     reader
@@ -350,22 +351,24 @@ fn render() -> String {
             "",
             None,
             T_SECS + 120.0,
-            None,
+            lang(),
         )
         .unwrap();
     g.probe(
         "seed-level A2 5 common",
         reader
-            .seed_level("A2", 5, "common", T_SECS + 180.0, None)
+            .seed_level("A2", 5, "common", T_SECS + 180.0, lang())
             .unwrap(),
     );
     g.probe(
         "seed-level C1 3 rare",
         reader
-            .seed_level("C1", 3, "rare", T_SECS + 240.0, None)
+            .seed_level("C1", 3, "rare", T_SECS + 240.0, lang())
             .unwrap(),
     );
-    reader.retire_card("backlog", T_SECS + 300.0, None).unwrap();
+    reader
+        .retire_card("backlog", T_SECS + 300.0, lang())
+        .unwrap();
     let now = T_SECS + DAY_SECS;
     g.probe("start-review", reader.start_review(now));
     g.probe("review-current first", shown(reader.review_current()));
@@ -374,10 +377,10 @@ fn render() -> String {
     g.probe("review-current second", shown(reader.review_current()));
     reader.review_mark_known(now);
     g.probe("review-remaining", reader.review_remaining());
-    g.probe("calibration", reader.calibration(None).unwrap());
+    g.probe("calibration", reader.calibration(lang()).unwrap());
     g.probe(
         "declared-level",
-        shown(reader.declared_level(None).unwrap()),
+        shown(reader.declared_level(lang()).unwrap()),
     );
     g.probe("tracked-count", reader.tracked_count());
     g.probe("deck-count", reader.deck_count());
@@ -391,18 +394,18 @@ fn render() -> String {
     {
         g.probe(
             &format!("analyse reader {name}"),
-            reader.analyse(blocks.clone(), None).unwrap(),
+            reader.analyse(blocks.clone(), lang()).unwrap(),
         );
     }
     g.probe(
         "phrase-gloss reader She will lead the expedition",
         reader
-            .phrase_gloss("She will lead the expedition", None)
+            .phrase_gloss("She will lead the expedition", lang())
             .unwrap(),
     );
     g.probe(
         "vocabulary-estimate reader",
-        reader.vocabulary_estimate(None).unwrap(),
+        reader.vocabulary_estimate(lang()).unwrap(),
     );
     g.probe("export-status-ops", reader.export_status_ops());
     g.probe("export-card-ops", reader.export_card_ops());
@@ -436,7 +439,7 @@ fn first_difference(expected: &str, actual: &str) -> String {
 
 #[test]
 fn english_output_has_not_moved() {
-    let actual = render();
+    let actual = render(None);
     let path = golden_path();
     if std::env::var_os("LINGUA_BLESS").is_some() {
         std::fs::write(&path, &actual).unwrap_or_else(|e| panic!("write {}: {e}", path.display()));
@@ -457,6 +460,14 @@ fn english_output_has_not_moved() {
          LINGUA_BLESS=1 cargo test -p lingua-wasm --test english_baseline\n\
          and say why in the pull request. Otherwise the change is wrong.",
         first_difference(&expected, &actual)
+    );
+    // The extension names the language on every language-bound call
+    // (generalise-lingua-extension-port): naming English must answer exactly as naming none.
+    let named = render(Some("en"));
+    assert!(
+        named == expected,
+        "Naming the language `en` moved English output. First difference — {}",
+        first_difference(&expected, &named)
     );
 }
 

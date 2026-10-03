@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { LinguaPort, NewCard, Rating, ReviewCard } from "@/analyzer/port.ts";
-import type { PageAnalysis } from "@/analyzer/types.ts";
+import type { LanguagePort, LinguaPort, NewCard, Rating, ReviewCard } from "@/analyzer/port.ts";
+import type { PageAnalysis, StudiedLanguage } from "@/analyzer/types.ts";
 import {
   DEFAULT_SPEECH_SETTINGS,
   type SpeechEngine,
@@ -19,7 +19,16 @@ export interface FakeCard {
   gloss: string | null;
 }
 
+/**
+ * The fake implements the whole-reader port and the language view in one object: `for` returns
+ * a view delegating to the object it was called on, so every call lands in the same `calls`,
+ * and a spec that spreads overrides over the fake sees them through its views too.
+ */
+export type FakePort = LinguaPort & LanguagePort;
+
 export interface FakeCalls {
+  /** The studied languages `for` was asked, in order (generalise-lingua-extension-port). */
+  languages: StudiedLanguage[];
   setCalibration: number[];
   setStatus: [string, string | null][];
   addCard: NewCard[];
@@ -30,8 +39,9 @@ export interface FakeCalls {
 }
 
 /** A fake LinguaPort: records calls and simulates a review queue over `deck`. */
-export function makeFakePort(deck: FakeCard[] = []): { port: LinguaPort; calls: FakeCalls } {
+export function makeFakePort(deck: FakeCard[] = []): { port: FakePort; calls: FakeCalls } {
   const calls: FakeCalls = {
+    languages: [],
     setCalibration: [],
     setStatus: [],
     addCard: [],
@@ -45,7 +55,13 @@ export function makeFakePort(deck: FakeCard[] = []): { port: LinguaPort; calls: 
   let revealed = false;
   let backup = "{}";
 
-  const port: LinguaPort = {
+  const port: FakePort = {
+    language: "en",
+    for(this: FakePort, language: StudiedLanguage): LanguagePort {
+      calls.languages.push(language);
+      return Object.assign(Object.create(this) as FakePort, { language });
+    },
+    languages: async () => ["en"],
     analyse: async (): Promise<PageAnalysis> => ({
       analyzer_version: "1.0.0",
       analysable: false,

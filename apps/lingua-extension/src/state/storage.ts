@@ -1,5 +1,5 @@
 import type { LinguaPort } from "../analyzer/port.ts";
-import type { LemmaStatus } from "../analyzer/types.ts";
+import { type LemmaStatus, STUDIED_LANGUAGE } from "../analyzer/types.ts";
 import type { SpeechSettings, VoicePreference } from "../reading/speech.ts";
 
 // Versioned local state (designs D4 + the review change). The authoritative state is
@@ -310,11 +310,11 @@ export async function hydrateEngine(port: LinguaPort, area: AsyncStorageArea): P
  * their captured sentence; known/ignored forms become plain statuses.
  */
 export async function hydrateFromV1(port: LinguaPort, v1: V1State): Promise<string> {
-  await port.setCalibration(v1.calibration || DEFAULT_CALIBRATION);
+  await port.for(STUDIED_LANGUAGE).setCalibration(v1.calibration || DEFAULT_CALIBRATION);
   for (const [lemma, status] of Object.entries(v1.statuses)) {
     if (status === "learning") {
       const card = v1.cards[lemma];
-      await port.addCard({
+      await port.for(STUDIED_LANGUAGE).addCard({
         lemma,
         surface: card?.surface ?? lemma,
         sentence: card?.sentence ?? "",
@@ -323,7 +323,7 @@ export async function hydrateFromV1(port: LinguaPort, v1: V1State): Promise<stri
         capturedAt: card?.createdAt ?? 0,
       });
     } else {
-      await port.setStatus(lemma, status);
+      await port.for(STUDIED_LANGUAGE).setStatus(lemma, status);
     }
   }
   return port.backup();

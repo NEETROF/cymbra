@@ -137,8 +137,15 @@ export function isPaintedClass(cls: TokenClass): cls is "Learning" | "Unknown" {
   return cls === "Learning" || cls === "Unknown";
 }
 
-/** The studied language of the one pack pair shipped today (en → fr), as a BCP 47 primary subtag. */
-export const STUDIED_LANGUAGE = "en";
+/** A language the engine can study, as its ISO 639-1 tag (generalise-lingua-extension-port). */
+export type StudiedLanguage = "en" | "es";
+
+/**
+ * The studied language every surface asks the engine in, until the reader can choose one
+ * (add-lingua-studied-language-profile replaces this one constant): the one pack pair shipped
+ * today, en → fr.
+ */
+export const STUDIED_LANGUAGE: StudiedLanguage = "en";
 
 /** A CEFR level, ordered A1 < … < C2 (add-lingua-cefr-levels). */
 export type CefrLevel = "A1" | "A2" | "B1" | "B2" | "C1" | "C2";

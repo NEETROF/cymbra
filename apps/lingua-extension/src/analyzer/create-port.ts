@@ -25,14 +25,14 @@ export function createLinguaPort(): LinguaPort {
  * but a page whose CSP forbids WASM codegen (GitHub, X, many SPAs) makes instantiation
  * throw; there we fall back to the engine hosted in the service worker — reached over
  * the same RPC as Firefox — which runs under the extension CSP, immune to the page's.
- * The probe (`calibration()`) forces instantiation once; on success the same engine is
+ * The probe (`languages()`, a whole-reader call) forces instantiation once; on success the same engine is
  * reused (its build is cached), so a passing page pays no extra cost.
  */
 export async function resolveContentPort(): Promise<LinguaPort> {
   if (__ENGINE_IN_EVENT_PAGE__) return new MessagingLinguaPort();
   const inContent = new WasmAnalyzerPort();
   try {
-    await inContent.calibration();
+    await inContent.languages();
     return inContent;
   } catch {
     return new MessagingLinguaPort();

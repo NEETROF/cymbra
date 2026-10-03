@@ -1,5 +1,5 @@
 import type { LinguaPort } from "../analyzer/port.ts";
-import { CEFR_LEVELS, type CefrLevel } from "../analyzer/types.ts";
+import { CEFR_LEVELS, type CefrLevel, STUDIED_LANGUAGE } from "../analyzer/types.ts";
 import { needsLevelChoice } from "../state/level-choice.ts";
 import { type OpenPage, openPageViaBackground } from "../state/open-page.ts";
 import { hasShortcutEditor } from "../state/platform.ts";
@@ -362,7 +362,7 @@ export function mountSettings(
     calibValue.textContent = calib.value;
   });
   calib.addEventListener("change", async () => {
-    await port.setCalibration(Number(calib.value));
+    await port.for(STUDIED_LANGUAGE).setCalibration(Number(calib.value));
     await opts.persist();
   });
   toggle.addEventListener("change", async () => {
@@ -469,8 +469,8 @@ export function mountSettings(
   }
 
   async function setLevel(level: CefrLevel | null): Promise<void> {
-    await port.setDeclaredLevelAt(level, Date.now());
-    await port.setCalibration(0);
+    await port.for(STUDIED_LANGUAGE).setDeclaredLevelAt(level, Date.now());
+    await port.for(STUDIED_LANGUAGE).setCalibration(0);
     await opts.persist();
     await refresh();
   }
@@ -482,7 +482,7 @@ export function mountSettings(
       await port.reset();
       await clearSyncCursors(opts.store);
     }
-    await port.setCalibration((await port.hasLevels()) ? 0 : 3000);
+    await port.for(STUDIED_LANGUAGE).setCalibration((await port.for(STUDIED_LANGUAGE).hasLevels()) ? 0 : 3000);
     await opts.persist();
     await opts.onReset?.();
     await refresh();
@@ -492,9 +492,9 @@ export function mountSettings(
 
   async function refresh(): Promise<void> {
     const [hasLevels, declared, needsChoice] = [
-      await port.hasLevels(),
-      await port.declaredLevel(),
-      await needsLevelChoice(port),
+      await port.for(STUDIED_LANGUAGE).hasLevels(),
+      await port.for(STUDIED_LANGUAGE).declaredLevel(),
+      await needsLevelChoice(port, STUDIED_LANGUAGE),
     ];
     // Nothing is highlighted as chosen until a decision exists (« Débutant » is one).
     const current = needsChoice ? null : (declared ?? "");
@@ -506,7 +506,7 @@ export function mountSettings(
         : "Débutant — rien n'est présumé connu.";
     calibBlock.hidden = hasLevels;
     if (!hasLevels) {
-      const cal = await port.calibration();
+      const cal = await port.for(STUDIED_LANGUAGE).calibration();
       calib.value = String(cal);
       calibValue.textContent = String(cal);
     }

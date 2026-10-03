@@ -1,6 +1,7 @@
 import type {
   CardOp,
   DeclaredLevelOp,
+  LanguagePort,
   LinguaPort,
   NewCard,
   Rating,
@@ -15,6 +16,7 @@ import type {
   PageAnalysis,
   PhraseGloss,
   SeedOrder,
+  StudiedLanguage,
   VocabularyEstimate,
   WordGrammar,
 } from "./types.ts";
@@ -30,14 +32,16 @@ import type {
 // we dynamic-import the glue by its extension URL and hand init() the explicit .wasm
 // Response. All three files (glue, _bg.wasm, pack) are web_accessible_resources.
 
+/** The engine's own surface (lingua-wasm). A language-bound binding takes the studied
+ * language last; without one it answers in the language of the first pack loaded. */
 interface WasmEngine {
-  setCalibration(threshold: number): void;
-  calibration(): number;
-  setStatus(lemma: string, status: string): void;
-  analyse(blocks: string[]): string;
-  gloss(lemma: string): string | undefined;
-  phraseGloss(text: string): string;
-  wordGrammar(written: string, lemma: string): string;
+  setCalibration(threshold: number, language?: string | null): void;
+  calibration(language?: string | null): number;
+  setStatus(lemma: string, status: string, language?: string | null): void;
+  analyse(blocks: string[], language?: string | null): string;
+  gloss(lemma: string, language?: string | null): string | undefined;
+  phraseGloss(text: string, language?: string | null): string;
+  wordGrammar(written: string, lemma: string, language?: string | null): string;
   trackedCount(): number;
   addCard(
     lemma: string,
@@ -46,8 +50,9 @@ interface WasmEngine {
     url: string,
     gloss: string | null | undefined,
     capturedAt: number,
+    language?: string | null,
   ): void;
-  retireCard(lemma: string, now: number): void;
+  retireCard(lemma: string, now: number, language?: string | null): void;
   deckCount(): number;
   dueCount(now: number): number;
   startReview(now: number): number;
@@ -59,24 +64,26 @@ interface WasmEngine {
   restore(json: string): void;
   reset(): void;
   resetStatuses(): void;
-  notice(): string;
-  licences(): string;
-  setStatusAt(lemma: string, status: string, atMs: number): void;
+  notice(language?: string | null): string;
+  licences(language?: string | null): string;
+  setStatusAt(lemma: string, status: string, atMs: number, language?: string | null): void;
   exportStatusOps(): string;
   applyStatusChanges(json: string): number;
   exportCardOps(): string;
   applyCardOps(json: string): number;
-  setDeclaredLevel(level: string): void;
-  setDeclaredLevelAt(level: string, atMs: number): void;
-  declaredLevel(): string | undefined;
+  setDeclaredLevel(level: string, language?: string | null): void;
+  setDeclaredLevelAt(level: string, atMs: number, language?: string | null): void;
+  declaredLevel(language?: string | null): string | undefined;
   exportDeclaredLevels(): string;
   applyDeclaredLevelChanges(json: string): number;
-  hasLevels(): boolean;
-  levelLadder(): string;
-  vocabularyEstimate(): string;
-  recordExposures(lemmas: string[], source: string, atMs: number): void;
-  promoteByExposure(thresholdDays: number, atMs: number): number;
-  seedLevel(level: string, count: number, order: string, at: number): number;
+  hasLevels(language?: string | null): boolean;
+  levelLadder(language?: string | null): string;
+  vocabularyEstimate(language?: string | null): string;
+  recordExposures(lemmas: string[], source: string, atMs: number, language?: string | null): void;
+  promoteByExposure(thresholdDays: number, atMs: number, language?: string | null): number;
+  seedLevel(level: string, count: number, order: string, at: number, language?: string | null): number;
+  addPack(packBytes: Uint8Array): string;
+  languages(): string;
   free(): void;
 }
 
@@ -146,44 +153,17 @@ export class WasmAnalyzerPort implements LinguaPort {
     return new mod.LinguaEngine(packBytes);
   }
 
-  async analyse(blocks: string[]): Promise<PageAnalysis> {
-    return JSON.parse((await this.engine()).analyse(blocks)) as PageAnalysis;
+  /** The view of this engine bound to `language`: each call names it to the engine. */
+  for(language: StudiedLanguage): LanguagePort {
+    return new WasmLanguagePort(() => this.engine(), language);
   }
 
-  async setCalibration(threshold: number): Promise<void> {
-    (await this.engine()).setCalibration(threshold);
-  }
-
-  async calibration(): Promise<number> {
-    return (await this.engine()).calibration();
-  }
-
-  async setStatus(lemma: string, status: LemmaStatus | null): Promise<void> {
-    (await this.engine()).setStatus(lemma, status ?? CLEAR);
-  }
-
-  async gloss(lemma: string): Promise<string | undefined> {
-    return (await this.engine()).gloss(lemma);
-  }
-
-  async phraseGloss(text: string): Promise<PhraseGloss> {
-    return JSON.parse((await this.engine()).phraseGloss(text)) as PhraseGloss;
-  }
-
-  async wordGrammar(written: string, lemma: string): Promise<WordGrammar> {
-    return JSON.parse((await this.engine()).wordGrammar(written, lemma)) as WordGrammar;
+  async languages(): Promise<StudiedLanguage[]> {
+    return JSON.parse((await this.engine()).languages()) as StudiedLanguage[];
   }
 
   async trackedCount(): Promise<number> {
     return (await this.engine()).trackedCount();
-  }
-
-  async addCard(card: NewCard): Promise<void> {
-    (await this.engine()).addCard(card.lemma, card.surface, card.sentence, card.url, card.gloss, card.capturedAt);
-  }
-
-  async retireCard(lemma: string, now: number): Promise<void> {
-    (await this.engine()).retireCard(lemma, now);
   }
 
   async deckCount(): Promise<number> {
@@ -231,18 +211,6 @@ export class WasmAnalyzerPort implements LinguaPort {
     (await this.engine()).resetStatuses();
   }
 
-  async notice(): Promise<string> {
-    return (await this.engine()).notice();
-  }
-
-  async licences(): Promise<string[]> {
-    return JSON.parse((await this.engine()).licences()) as string[];
-  }
-
-  async setStatusAt(lemma: string, status: LemmaStatus | null, atMs: number): Promise<void> {
-    (await this.engine()).setStatusAt(lemma, status ?? CLEAR, atMs);
-  }
-
   async exportStatusOps(): Promise<StatusOp[]> {
     return JSON.parse((await this.engine()).exportStatusOps()) as StatusOp[];
   }
@@ -261,18 +229,6 @@ export class WasmAnalyzerPort implements LinguaPort {
 
   // --- CEFR levels (add-lingua-cefr-levels) ---
 
-  async setDeclaredLevel(level: CefrLevel | null): Promise<void> {
-    (await this.engine()).setDeclaredLevel(level ?? "");
-  }
-
-  async setDeclaredLevelAt(level: CefrLevel | null, atMs: number): Promise<void> {
-    (await this.engine()).setDeclaredLevelAt(level ?? "", atMs);
-  }
-
-  async declaredLevel(): Promise<CefrLevel | null> {
-    return ((await this.engine()).declaredLevel() as CefrLevel | undefined) ?? null;
-  }
-
   async exportDeclaredLevels(): Promise<DeclaredLevelOp[]> {
     return JSON.parse((await this.engine()).exportDeclaredLevels()) as DeclaredLevelOp[];
   }
@@ -280,28 +236,105 @@ export class WasmAnalyzerPort implements LinguaPort {
   async applyDeclaredLevelChanges(changes: DeclaredLevelOp[]): Promise<number> {
     return (await this.engine()).applyDeclaredLevelChanges(JSON.stringify(changes));
   }
+}
+
+/** The calls of `WasmAnalyzerPort` that depend on the studied language, bound to one. Holds
+ *  nothing but its parent's engine accessor and the language, so it costs nothing to make. */
+class WasmLanguagePort implements LanguagePort {
+  constructor(
+    private readonly engine: () => Promise<WasmEngine>,
+    readonly language: StudiedLanguage,
+  ) {}
+
+  async analyse(blocks: string[]): Promise<PageAnalysis> {
+    return JSON.parse((await this.engine()).analyse(blocks, this.language)) as PageAnalysis;
+  }
+
+  async setCalibration(threshold: number): Promise<void> {
+    (await this.engine()).setCalibration(threshold, this.language);
+  }
+
+  async calibration(): Promise<number> {
+    return (await this.engine()).calibration(this.language);
+  }
+
+  async setStatus(lemma: string, status: LemmaStatus | null): Promise<void> {
+    (await this.engine()).setStatus(lemma, status ?? CLEAR, this.language);
+  }
+
+  async gloss(lemma: string): Promise<string | undefined> {
+    return (await this.engine()).gloss(lemma, this.language);
+  }
+
+  async phraseGloss(text: string): Promise<PhraseGloss> {
+    return JSON.parse((await this.engine()).phraseGloss(text, this.language)) as PhraseGloss;
+  }
+
+  async wordGrammar(written: string, lemma: string): Promise<WordGrammar> {
+    return JSON.parse((await this.engine()).wordGrammar(written, lemma, this.language)) as WordGrammar;
+  }
+
+  async addCard(card: NewCard): Promise<void> {
+    (await this.engine()).addCard(
+      card.lemma,
+      card.surface,
+      card.sentence,
+      card.url,
+      card.gloss,
+      card.capturedAt,
+      this.language,
+    );
+  }
+
+  async retireCard(lemma: string, now: number): Promise<void> {
+    (await this.engine()).retireCard(lemma, now, this.language);
+  }
+
+  async notice(): Promise<string> {
+    return (await this.engine()).notice(this.language);
+  }
+
+  async licences(): Promise<string[]> {
+    return JSON.parse((await this.engine()).licences(this.language)) as string[];
+  }
+
+  async setStatusAt(lemma: string, status: LemmaStatus | null, atMs: number): Promise<void> {
+    (await this.engine()).setStatusAt(lemma, status ?? CLEAR, atMs, this.language);
+  }
+
+  async setDeclaredLevel(level: CefrLevel | null): Promise<void> {
+    (await this.engine()).setDeclaredLevel(level ?? "", this.language);
+  }
+
+  async setDeclaredLevelAt(level: CefrLevel | null, atMs: number): Promise<void> {
+    (await this.engine()).setDeclaredLevelAt(level ?? "", atMs, this.language);
+  }
+
+  async declaredLevel(): Promise<CefrLevel | null> {
+    return ((await this.engine()).declaredLevel(this.language) as CefrLevel | undefined) ?? null;
+  }
 
   async hasLevels(): Promise<boolean> {
-    return (await this.engine()).hasLevels();
+    return (await this.engine()).hasLevels(this.language);
   }
 
   async levelLadder(): Promise<LevelRow[]> {
-    return JSON.parse((await this.engine()).levelLadder()) as LevelRow[];
+    return JSON.parse((await this.engine()).levelLadder(this.language)) as LevelRow[];
   }
 
   async vocabularyEstimate(): Promise<VocabularyEstimate> {
-    return JSON.parse((await this.engine()).vocabularyEstimate()) as VocabularyEstimate;
+    return JSON.parse((await this.engine()).vocabularyEstimate(this.language)) as VocabularyEstimate;
   }
 
   async recordExposures(lemmas: string[], source: string, atMs: number): Promise<void> {
-    (await this.engine()).recordExposures(lemmas, source, atMs);
+    (await this.engine()).recordExposures(lemmas, source, atMs, this.language);
   }
 
   async promoteByExposure(thresholdDays: number, atMs: number): Promise<number> {
-    return (await this.engine()).promoteByExposure(thresholdDays, atMs);
+    return (await this.engine()).promoteByExposure(thresholdDays, atMs, this.language);
   }
 
   async seedLevel(level: CefrLevel, count: number, order: SeedOrder, at: number): Promise<number> {
-    return (await this.engine()).seedLevel(level, count, order, at);
+    return (await this.engine()).seedLevel(level, count, order, at, this.language);
   }
 }

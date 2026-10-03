@@ -32,7 +32,7 @@ function syncPort(over: {
   onApplyCards?: (c: CardOp[]) => number;
   onApplyLevels?: (c: DeclaredLevelOp[]) => number;
 }) {
-  const { port } = makeFakePort();
+  const { port, calls: fake } = makeFakePort();
   let wiped = false;
   const calls = {
     resets: 0,
@@ -63,7 +63,7 @@ function syncPort(over: {
     calls.appliedLevels.push(c);
     return over.onApplyLevels?.(c) ?? 0;
   };
-  return { port, calls };
+  return { port, calls, asked: fake.languages };
 }
 
 interface WireChange {
@@ -381,7 +381,7 @@ describe("SyncEngine privacy controls (add-lingua-privacy-controls)", () => {
   it("empties a device whose store predates the erasure before pushing anything", async () => {
     const f = fakeClients();
     f.getDataState.mockResolvedValue({ erasedAt: BigInt(MARK) });
-    const { port, calls } = syncPort(localOps);
+    const { port, calls, asked } = syncPort(localOps);
     const storage = fakeArea({
       ...v2("OLD"),
       "cymbra-lingua-status-cursor": 42,
@@ -391,6 +391,7 @@ describe("SyncEngine privacy controls (add-lingua-privacy-controls)", () => {
     const engine = new SyncEngine({ port, storage, clients: () => f.clients, deviceId: "d" });
     await engine.sync();
     expect(calls.resets).toBe(1);
+    expect(new Set(asked)).toEqual(new Set(["en"])); // the wipe recalibrates English
     expect(f.pushOps).not.toHaveBeenCalled(); // nothing old goes back up
     expect(f.upsertDailyStats).not.toHaveBeenCalled();
     expect(storage.store["cymbra-lingua-daily-v2"]).toEqual({});
