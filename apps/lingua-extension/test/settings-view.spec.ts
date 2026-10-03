@@ -717,6 +717,10 @@ describe("Réglages — sub-tabs", () => {
       ["Barre sur la page", "Livres", "Raccourcis & gestes"],
       ["Synchronisation", "Réinitialisation"],
     ]);
+    // The book's display (size, theme, page turn) comes with Affichage, under Apparence.
+    for (const control of ["Taille du texte", "Thème", "Tourne des pages", "Directe", "Glissée"]) {
+      expect(panels[1].textContent).toContain(control);
+    }
     // Every block lives in a tab: none is left loose above the tabs.
     expect(container.querySelectorAll(":scope > .set-block")).toHaveLength(0);
     for (const [i, tab] of tabs(container).entries()) {
