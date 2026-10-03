@@ -50,8 +50,8 @@ honest source is the request the player makes for the video the reader is watchi
 - Audio. Nothing is transcribed and nothing heard is counted.
 - Other video sites (Netflix, Vimeo, embedded players on third-party pages).
 - Tracks in a studied language other than English. The Spanish programme keeps Spanish out of this
-  change (`docs/lingua/spanish-programme.md`, decision D7: 0 of these tasks was built for English
-  yet). The mode reads English tracks, whatever languages the reader studies.
+  change (`docs/lingua/spanish-programme.md`, decision D7), none of whose tasks is built yet. The
+  mode reads English tracks, whatever languages the reader studies.
 
 ## Decisions
 
