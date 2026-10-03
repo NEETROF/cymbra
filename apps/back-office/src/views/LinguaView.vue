@@ -10,6 +10,7 @@ import {
   useLinguaStore,
 } from "@/stores/lingua";
 import { currentLocale } from "@/i18n";
+import { languageLabel } from "@/i18n/language-label";
 import UsageLineChart from "@/components/UsageLineChart.vue";
 
 // The back-office "Lingua" screen (change: add-lingua-back-office, task 5.3). OPS only:
@@ -19,7 +20,9 @@ import UsageLineChart from "@/components/UsageLineChart.vue";
 // router (meta.adminScope = "lingua"); every RPC is re-gated server-side.
 
 const store = useLinguaStore();
-const { t } = useI18n();
+const { t, te } = useI18n();
+/** A studied language's name, or its code when the console has none (design D1). */
+const languageName = (code: string): string => languageLabel(code, t, te);
 
 onMounted(() => {
   void store.load();
@@ -118,7 +121,7 @@ function apply() {
         <span>{{ t("lingua.language") }}</span>
         <select v-model="store.filters.language" data-testid="language">
           <option value="">{{ t("lingua.anyLanguage") }}</option>
-          <option v-for="l in languageOptions" :key="l" :value="l">{{ l }}</option>
+          <option v-for="l in languageOptions" :key="l" :value="l">{{ languageName(l) }}</option>
         </select>
       </label>
       <button type="submit" data-testid="apply">{{ t("lingua.apply") }}</button>
@@ -209,7 +212,7 @@ function apply() {
           </thead>
           <tbody>
             <tr v-for="l in vm.data.byLanguage" :key="l.language" data-testid="language-row">
-              <td>{{ l.language }}</td>
+              <td>{{ languageName(l.language) }}</td>
               <td class="n">{{ num(l.activeAccounts) }}</td>
               <td class="n">{{ num(l.wordsLearned) }}</td>
               <td class="n">{{ num(l.reviews) }}</td>
