@@ -54,7 +54,7 @@
 
 ## 9. Activation, variants, permissions
 
-- [ ] 9.1 Offer the mode (control near the player + popup); start on click; per-device "start automatically on YouTube" preference, off by default; the every-site grant alone never starts it; inject the main-world script only when the mode starts; popup states "no captions in the studied language" when applicable
+- [ ] 9.1 Offer the mode (control near the player + popup); start on click; per-device "start automatically on YouTube" preference, off by default; the every-site grant alone never starts it; inject the main-world script only when the mode starts; popup states "no English captions" when applicable, and that it reads English captions only for a reader of Spanish (D7)
 - [ ] 9.2 Registration per variant in `build.mjs` (Chromium dynamic, Firefox desktop, Safari)
 - [ ] 9.3 Manual pass per variant: written track, automatic track, seek, rate ×1.5, theatre, full-screen, advertisement, next video, phrase capture, card source opens at the moment, mode off restores captions
 
