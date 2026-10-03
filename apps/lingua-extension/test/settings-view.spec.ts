@@ -530,18 +530,18 @@ describe("Réglages — Lecture à voix haute", () => {
     s.select.value = "Moira";
     s.select.dispatchEvent(new Event("change"));
     await settle();
-    expect(s.area.store[VOICE_KEY]).toBe("Moira");
+    expect(s.area.store[VOICE_KEY]).toEqual({ en: "Moira" }); // for the language the speaker reads
     s.select.value = "";
     s.select.dispatchEvent(new Event("change"));
     await settle();
-    expect(s.area.store[VOICE_KEY]).toBeNull();
+    expect(s.area.store[VOICE_KEY]).toEqual({});
   });
 
   it("shows the stored choice, and the automatic one when that voice is gone", async () => {
-    const kept = mountVoices(voiceFixture("chrome-macos"), { voice: "Moira" });
+    const kept = mountVoices(voiceFixture("chrome-macos"), { voices: { en: "Moira" } });
     await settle();
     expect(kept.select.value).toBe("Moira");
-    const gone = mountVoices(voiceFixture("chrome-macos"), { voice: "Ava (Premium)" });
+    const gone = mountVoices(voiceFixture("chrome-macos"), { voices: { en: "Ava (Premium)" } });
     await settle();
     expect(gone.select.value).toBe("");
   });
@@ -637,5 +637,57 @@ describe("Réglages — Affichage", () => {
     expect(titled("Livres")?.textContent).not.toContain("Taille du texte");
     // Right before the colours, which it works with.
     expect(blocks.indexOf(display!)).toBe(blocks.indexOf(titled("Couleurs")!) - 1);
+  });
+});
+
+describe("Réglages — the reader's languages (add-lingua-language-choice)", () => {
+  async function mountWith(studied: ("en" | "es")[], pairs: string[]) {
+    const { port, calls } = makeFakePort();
+    await port.setStudiedLanguages(studied);
+    port.hasLevels = async () => true;
+    const container = document.createElement("div");
+    document.body.replaceChildren(container);
+    mountSettings(container, port, fakeArea(), {
+      persist: async () => {},
+      store: fakeArea(),
+      pairs,
+      sync: {
+        available: async () => false,
+        syncNow: async () => ({ ok: true }),
+        lastSync: async () => null,
+        now: () => NOW,
+        watch: () => {},
+      },
+    });
+    await vi.waitFor(() => expect(container.querySelectorAll(".set-levels .set-block").length).toBeGreaterThan(0));
+    await settle();
+    const titles = [...container.querySelectorAll<HTMLElement>(".set-block > .set-label")].map((l) => l.textContent);
+    const block = (title: string) =>
+      [...container.querySelectorAll<HTMLElement>(".set-block")].find(
+        (b) => b.querySelector(".set-label")?.textContent === title,
+      );
+    return { container, titles, block, port, calls };
+  }
+
+  it("offers the languages and a level block for each, with two shipped", async () => {
+    const s = await mountWith(["en", "es"], ["en-fr", "es-fr"]);
+    expect(s.block("Langues étudiées")?.hidden).toBe(false);
+    expect(s.titles).toContain("Niveau d'anglais");
+    expect(s.titles).toContain("Niveau d'espagnol");
+    // A level chosen in the Spanish block is Spanish.
+    const spanish = s.block("Niveau d'espagnol")!;
+    const declared: [string, string | null][] = [];
+    s.port.setDeclaredLevelAt = async function (this: { language: string }, level) {
+      declared.push([this.language, level]);
+    };
+    spanish.querySelector<HTMLButtonElement>('button[data-lvl="A2"]')!.click();
+    await settle();
+    expect(declared).toEqual([["es", "A2"]]);
+  });
+
+  it("shows one block, « Niveau d'anglais », and no choice, with en-fr alone", async () => {
+    const s = await mountWith(["en"], ["en-fr"]);
+    expect(s.block("Langues étudiées")?.hidden).toBe(true);
+    expect(s.titles.filter((t) => t?.startsWith("Niveau"))).toEqual(["Niveau d'anglais"]);
   });
 });

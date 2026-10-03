@@ -19,7 +19,7 @@ import {
   loadStored,
   loadAndroidVoices,
   loadRemoteVoices,
-  loadVoice,
+  loadVoices,
   loadHudPosition,
   parseHudPosition,
   ROOT_KEY,
@@ -201,14 +201,24 @@ describe("the read-aloud voice preference", () => {
 
   it("is the automatic choice until a voice is kept, and again once it is cleared", async () => {
     const area = fakeArea();
-    expect(await loadVoice(area)).toBeNull();
-    await saveVoice(area, "Moira");
-    expect(area.store[VOICE_KEY]).toBe("Moira");
-    expect(await loadVoice(area)).toBe("Moira");
-    await saveVoice(area, null);
-    expect(await loadVoice(area)).toBeNull();
-    expect(await loadVoice(fakeArea({ [VOICE_KEY]: "" }))).toBeNull();
-    expect(await loadVoice(fakeArea({ [VOICE_KEY]: 42 }))).toBeNull();
+    expect(await loadVoices(area)).toEqual({});
+    await saveVoice(area, "en", "Moira");
+    expect(area.store[VOICE_KEY]).toEqual({ en: "Moira" });
+    expect(await loadVoices(area)).toEqual({ en: "Moira" });
+    await saveVoice(area, "en", null);
+    expect(await loadVoices(area)).toEqual({});
+    expect(await loadVoices(fakeArea({ [VOICE_KEY]: "" }))).toEqual({});
+    expect(await loadVoices(fakeArea({ [VOICE_KEY]: 42 }))).toEqual({});
+  });
+
+  it("keeps a voice per language, the single voice of an older build as the English one", async () => {
+    const area = fakeArea({ [VOICE_KEY]: "Daniel" });
+    expect(await loadVoices(area)).toEqual({ en: "Daniel" });
+    await saveVoice(area, "es", "Mónica");
+    expect(area.store[VOICE_KEY]).toEqual({ en: "Daniel", es: "Mónica" });
+    await saveVoice(area, "en", null);
+    expect(await loadVoices(area)).toEqual({ es: "Mónica" });
+    expect(await loadVoices(fakeArea({ [VOICE_KEY]: { en: "", es: 3, fr: "Thomas" } }))).toEqual({ fr: "Thomas" });
   });
 
   it("keeps Android's voices refused until they are allowed", async () => {
@@ -235,7 +245,7 @@ describe("the read-aloud voice preference", () => {
     const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
     const area = fakeArea({ [VOICE_KEY]: "Daniel" });
     const pref = storedVoicePreference(area);
-    expect(await pref.load()).toEqual({ voice: "Daniel", androidVoices: false, remoteVoices: false });
+    expect(await pref.load()).toEqual({ voices: { en: "Daniel" }, androidVoices: false, remoteVoices: false });
     const seen: unknown[] = [];
     pref.watch((settings) => seen.push(settings));
     area.store[VOICE_KEY] = "Moira";
@@ -251,9 +261,9 @@ describe("the read-aloud voice preference", () => {
     listener!({ [HUD_HIDDEN_KEY]: { newValue: true } }, "local");
     await settle();
     expect(seen).toEqual([
-      { voice: "Moira", androidVoices: false, remoteVoices: false },
-      { voice: "Moira", androidVoices: true, remoteVoices: false },
-      { voice: "Moira", androidVoices: true, remoteVoices: true },
+      { voices: { en: "Moira" }, androidVoices: false, remoteVoices: false },
+      { voices: { en: "Moira" }, androidVoices: true, remoteVoices: false },
+      { voices: { en: "Moira" }, androidVoices: true, remoteVoices: true },
     ]);
   });
 });

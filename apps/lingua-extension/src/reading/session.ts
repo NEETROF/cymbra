@@ -151,6 +151,9 @@ export interface SessionStats {
   trackedCount: number;
   deckCount: number;
   dueCount: number;
+  /** The language this document is read in, and the reader's accepted ones (add-lingua-language-choice). */
+  language: StudiedLanguage;
+  languages: StudiedLanguage[];
 }
 
 /** The reader's data (backup, statistics), owned by the background (design D1/D2). */
@@ -877,6 +880,8 @@ export class ReadingSession {
       declaredLevel: await this.lang.declaredLevel(),
       hasLevels: await this.lang.hasLevels(),
       needsLevel: await needsLevelChoice(this.port, this.language),
+      language: this.language,
+      languages: [...this.languages],
       trackedCount: await this.port.trackedCount(),
       deckCount: await this.port.deckCount(),
       dueCount: await this.port.dueCount(now),

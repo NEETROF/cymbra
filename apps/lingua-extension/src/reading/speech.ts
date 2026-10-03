@@ -42,15 +42,15 @@ export interface SpeechEngine<V extends VoiceInfo = VoiceInfo> {
 
 /** The reader's read-aloud settings, kept on the device. */
 export interface SpeechSettings {
-  /** The chosen voice's `voiceURI`, or null for the automatic choice. */
-  readonly voice: string | null;
+  /** The voice chosen for each studied language, by `voiceURI`; absent: the automatic choice. */
+  readonly voices: Readonly<Record<string, string>>;
   /** Whether Android's own voices may speak, though the browser cannot say they stay on the device. */
   readonly androidVoices: boolean;
   /** Whether remote voices may stand in where no voice of the studied language is on the device. */
   readonly remoteVoices: boolean;
 }
 
-export const DEFAULT_SPEECH_SETTINGS: SpeechSettings = { voice: null, androidVoices: false, remoteVoices: false };
+export const DEFAULT_SPEECH_SETTINGS: SpeechSettings = { voices: {}, androidVoices: false, remoteVoices: false };
 
 /** Where those settings are kept, and how a change made in another context reaches this one. */
 export interface VoicePreference {
@@ -380,7 +380,7 @@ export function createSpeaker<V extends VoiceInfo>(
 
   const usable = (): V[] => usableVoices(voices, langOf(), settings.androidVoices, settings.remoteVoices);
   const chosen = (): V | null =>
-    pickVoice(voices, langOf(), settings.voice, settings.androidVoices, settings.remoteVoices);
+    pickVoice(voices, langOf(), settings.voices[langOf()] ?? null, settings.androidVoices, settings.remoteVoices);
 
   return {
     get lang() {
@@ -390,7 +390,7 @@ export function createSpeaker<V extends VoiceInfo>(
     eligible: usable,
     listsVoices: () => voices.length > 0,
     automatic: () => pickVoice(voices, langOf(), null, settings.androidVoices, settings.remoteVoices),
-    preferred: () => settings.voice,
+    preferred: () => settings.voices[langOf()] ?? null,
     androidVoices: () => settings.androidVoices,
     offersAndroidVoices: () => voices.some((v) => isAndroidVoice(v) && isEligible(v, langOf(), true)),
     remoteVoices: () => settings.remoteVoices,

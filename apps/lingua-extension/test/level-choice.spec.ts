@@ -47,3 +47,11 @@ describe("needsLevelChoice", () => {
     expect(await needsLevelChoice(port({ hasLevels: true, declared: null, decisions }), "en")).toBe(true);
   });
 });
+
+describe("needsLevelChoice, per language (add-lingua-language-choice D3)", () => {
+  it("does not take a Spanish decision for an English one", async () => {
+    const decisions = [{ language: "es", level: "A2", updated_at: 1_726_300_000_000 }];
+    expect(await needsLevelChoice(port({ hasLevels: true, declared: null, decisions }), "en")).toBe(true);
+    expect(await needsLevelChoice(port({ hasLevels: true, declared: null, decisions }), "es")).toBe(false);
+  });
+});

@@ -82,9 +82,9 @@ afterEach(() => {
 });
 
 describe.each([
-  { shipped: ["en-fr"], reads: "en" },
-  { shipped: ["en-fr", "es-fr"], reads: "es" },
-])("a reader of Spanish then English, with $shipped shipped", ({ shipped, reads }) => {
+  { shipped: ["en-fr"], reads: "en", accepts: ["en"] },
+  { shipped: ["en-fr", "es-fr"], reads: "es", accepts: ["es", "en"] },
+])("a reader of Spanish then English, with $shipped shipped", ({ shipped, reads, accepts }) => {
   beforeEach(() => {
     packs.shipped = shipped;
   });
@@ -114,7 +114,8 @@ describe.each([
       },
     });
     await vi.waitFor(() => expect(calls.languages.length).toBeGreaterThan(0));
-    expect(new Set(calls.languages)).toEqual(new Set([reads]));
+    // A level block per accepted language (add-lingua-language-choice D3).
+    await vi.waitFor(() => expect(new Set(calls.languages)).toEqual(new Set(accepts)));
   });
 
   it("counts its statistics", async () => {
