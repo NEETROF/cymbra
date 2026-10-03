@@ -2,15 +2,15 @@
 
 - [ ] 1.1 `scripts/lingua-data/reduce-es-fr.py`, on `reduce_common.py` (design D1–D3):
   - forms from the tagged tables and the form-of senses, without combined forms;
-  - one lemma per form (overrides, GSD counts, own entry, frequency, order);
+  - one lemma per form (overrides, GSD counts, own entry, frequency, order), a combined form keeping the plain lemma it also has;
   - the 60k lemmas;
   - the attested forms;
   - `NOTICE` and `manifest.json` with the Spanish analyser version.
-- [ ] 1.2 `test_reduce_es_fr.py`: each rule on fixture entries — a combined form left out, a homograph by counts, by an override, by its own entry, by frequency, and a multi-word target refused.
+- [ ] 1.2 `test_reduce_es_fr.py`: each rule on fixture entries — a combined form left out, a combined form that is also a plural, a homograph by counts, by an override, by its own entry, by frequency, and a multi-word target refused.
 
 ## 2. The tables
 
-- [ ] 2.1 Reduce the 2026-09-28 kaikki dump, GSD at its commit and wordfreq 3.1.1 into `tables/es-fr/`, with `overrides.tsv` (reasons included), a `README.md`, and `pin.json` recording the sources, the reducer and the pack (design D4, D6). `SOURCES.md` gets an ES → FR section.
+- [ ] 2.1 Reduce the 2026-09-28 kaikki dump, GSD at its commit and wordfreq 3.1.1 into `tables/es-fr/`, with a `README.md` and `pin.json` recording the sources, the reducer and the pack (design D4, D6). The override list and its reasons live in the reducer. `SOURCES.md` gets an ES → FR section.
 - [ ] 2.2 `build.sh es-fr` builds the pack and matches `pin.json`. `lingua-pack-update` offers `es-fr` (design D7).
 
 ## 3. The measurement

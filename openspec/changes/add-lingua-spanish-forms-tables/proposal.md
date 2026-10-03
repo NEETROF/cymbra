@@ -16,9 +16,11 @@ The programme fixed the sources and the gates (`docs/lingua/spanish-programme.md
 - **Gates on PUD**: 98.5 % of tokens resolved, 93.5 % of content lemmas, 97 % of auxiliaries.
 
 A prototype run on 2026-10-03 (S1) settles the size question the programme left open. With the
-combined clitic forms left out, which the enclitic rule resolves, the forms of the 60,000 commonest
-lemmas attested in wordfreq are 107,647 rows, about 2 MB. That is far under the ≈10 MB that would
-have called for a snapshot outside git, so the tables are committed like en-fr's.
+combined clitic forms left out, which the enclitic rule resolves, the 60,000 commonest lemmas and
+their forms attested in wordfreq make a forms table of 144,804 rows, 2.5 MB. That is far under the
+≈10 MB that would have called for a snapshot outside git, so the tables are committed like
+en-fr's. With the real analyser, the pack passes the gates on PUD: 99.38 % of tokens resolved,
+95.91 % of content lemmas and 97.95 % of auxiliaries.
 
 This is change 20, in G1, the internal Spanish build. No package ships the es-fr pack yet; that is
 `enable-lingua-spanish`.
@@ -28,14 +30,16 @@ This is change 20, in G1, the internal Spanish build. No package ships the es-fr
 - **A reducer for es-fr** (`scripts/lingua-data/reduce-es-fr.py`), on the shared rules of
   `reduce_common.py`:
   - **forms** from kaikki's tagged inflection tables and form-of senses, without the combined clitic
-    forms and without multi-word or non-Spanish strings;
+    forms and without multi-word or non-Spanish strings. A string that is both a combined form and
+    a plain form keeps the plain one (`principales`: *principal*);
   - **one lemma per form**: a reviewed override first, then GSD's counts of that form under each
     lemma, then the form's own entry, then the lemma's frequency;
-  - **the 60,000 commonest lemmas** by wordfreq (inflected forms skipped), and their forms attested
-    in wordfreq.
+  - **the 60,000 commonest lemmas** by wordfreq (inflected and combined forms skipped), and their
+    forms attested in wordfreq.
 - **Committed tables** under `scripts/lingua-data/tables/es-fr/`: `forms.tsv`, `freq.tsv`, an empty
-  `gloss.tsv` (the French glosses are `add-lingua-spanish-gloss-tables`), `NOTICE`, `manifest.json`,
-  `pin.json`, and the override list with its reasons.
+  `gloss.tsv` (the French glosses are `add-lingua-spanish-gloss-tables`), `NOTICE`, `manifest.json`
+  and `pin.json`. The override list and its reasons are part of the reducer, so editing them is a
+  rule change.
 - **A measurement harness** (`scripts/lingua-data/measure/es-pud.sh` and a `lingua-pack` binary). It
   runs the real analyser with the built es-fr pack over UD Spanish-PUD, fetched at a pinned commit
   and never committed, and fails under the gates.

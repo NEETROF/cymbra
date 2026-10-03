@@ -15,8 +15,9 @@ tables. The builder refuses a pack whose `analyzer_version` is not its language'
 
 kaikki's extract of the English Wiktionary, Spanish section (`kaikki.org/dictionary/Spanish`) holds
 811,049 entries. A lemma's entry lists its inflections with tags (`doy` = first person, present,
-singular). Combined clitic forms carry the `combined-form` tag (`dámelo`, `darlo`). A form's own
-entry points at its lemma through `form_of` (`luces` → *luz*, and → *lucir*).
+singular). Combined clitic forms carry the `combined-form` tag (`dámelo`, `darlo`), and their own
+entries' senses name the pronoun (`object-third-person`, `object-plural`). A form's own entry points
+at its lemma through `form_of` (`luces` → *luz*, and → *lucir*).
 
 ## Goals / Non-Goals
 
@@ -43,18 +44,26 @@ lemmas come from two places:
 - **the forms a lemma's entry lists**, except those tagged `combined-form` and the table's own
   bookkeeping (`table-tags`, `inflection-template`, `class`, `romanization`);
 - **the `form_of` targets** of a form's own entry, when the target is itself a single Spanish word
-  (`llamar al pan, pan, y al vino, vino` is not).
+  (`llamar al pan, pan, y al vino, vino` is not), except from a sense naming the pronoun
+  (`object-…` tags), which is a combined form's.
 
 An entry with any sense that is not a form-of is a lemma, and maps to itself.
 
 Combined forms are left out: the enclitic rule (`add-lingua-spanish-analysis` D3) resolves them,
-and they are 519,030 of kaikki's forms. A combined form that is also a word of its own (an entry
-with a meaning) stays.
+and they are 519,030 of kaikki's forms. A combination gives a string no lemma; it does not take
+away the lemmas the string has otherwise. 16,375 strings are both a combined form and a plain form:
+- `principales` is *principar* + `les`, and the plural of *principal*;
+- `estarse` is *estar* + `se`, which kaikki also lists plainly, as *estar*'s reflexive infinitive.
+
+They keep their plain lemma. A combined form that is also a word of its own (an entry with a
+meaning, `vete`) stays as that word. One that is neither never becomes a lemma (D3).
 
 ### D2 — One lemma per form
 
 When a form has several candidates, the first rule that decides wins:
-1. **The override list** (`tables/es-fr/overrides.tsv`: form, lemma, reason), reviewed by a person.
+1. **The override list** (`OVERRIDES` in `reduce-es-fr.py`: form, lemma, reason), reviewed by a
+   person. It is part of the rules: editing it moves the rules' sha256, so the tables are reduced
+   again, as for any rule.
 2. **GSD's counts** of the form under each candidate lemma, from the training and development
    sections of UD Spanish-GSD.
 3. **The form's own entry**, when it is a lemma: *casa* over *casar* with no evidence either way.
@@ -64,8 +73,9 @@ When a form has several candidates, the first rule that decides wins:
 S1 on common homographs: `fue` → *ser* (GSD 1,458 against 0), `casa` → *casa*, `como` → *como*,
 `luces` → *luz*, `río` → *río*, `cuenta` → *contar*, `vino` → *vino*. `vino` is the noun by GSD
 (20 against 4 for *venir*). Narrative text meets *venir* more often, and the override list is where
-that judgement goes, with its reason. The card shows the other reading either way, from the
-grammar tables.
+that judgement goes, with its reason: the list starts with that one row, `vino` → *venir*. It costs
+one agreement on PUD (two nouns against one preterite), a news treebank like GSD. The card shows
+the other reading either way, from the grammar tables.
 
 *Rejected — keep every reading.* One form, one lemma is the pack's contract, which the analyser,
 the knowledge model and the sync all read. The programme keeps the multi-lemma format as a costed
@@ -74,7 +84,11 @@ branch for an agreement under 91 %.
 ### D3 — Lemmas and cuts
 
 - **Lemmas**: the 60,000 commonest by wordfreq `es` 3.1.1, skipping words that are only inflected
-  forms (en-fr's `canonical_ranks`). Dense ranks go to `freq.tsv`.
+  forms (en-fr's `canonical_ranks`). The combined forms that are no word of their own are skipped
+  too. Ranked, `hacerlo` would be a lemma that stands in the table for itself, ahead of the
+  enclitic rule. Dense ranks go to `freq.tsv`.
+- **Words kaikki does not know** (names, loans, abbreviations) are ranked as en-fr's are. A
+  lowercase word outside the lexicon reads as unknown, so leaving them out would mark `etc` new.
 - **Forms**: those whose chosen lemma is kept, and attested in wordfreq (a Zipf frequency above
   zero), plus each lemma's identity form. An unattested form of a kept lemma is a form nobody
   writes. The analyser's rules (old spellings, enclitics, plurals) cover the long tail.
@@ -89,13 +103,14 @@ S1, with the dictionary lookup alone:
 | **60k lemmas, attested** | **107,647** | **2.0 MB** | **98.39 %** | **93.90 %** | **97.95 %** |
 
 The harness (D5) measures with the analyser's rules too, which resolve the combined forms the table
-leaves out. That is the figure the gates hold to.
+leaves out. That is the figure the gates hold to. The reducer as built (D1 and D3, 144,804 rows,
+2.5 MB) measures 99.38 % resolved, 95.91 % of content lemmas and 97.95 % of auxiliaries.
 
 ### D4 — The tables, in git
 
 `tables/es-fr/` holds `forms.tsv`, `freq.tsv`, `gloss.tsv` (empty), `NOTICE`, `manifest.json`,
-`overrides.tsv` and `pin.json`, as en-fr's do. `manifest.json` names Spanish and the Spanish
-analyser version read from `analysis/mod.rs`, so `Pack::load` accepts it. About 3 MB of text is
+`pin.json` and a `README.md`, as en-fr's do. `manifest.json` names Spanish and the Spanish
+analyser version read from `analysis/mod.rs`, so `Pack::load` accepts it. About 3.3 MB of text is
 committed, far under the ≈10 MB the programme set as the threshold for a snapshot outside git.
 
 ### D5 — The measurement harness
