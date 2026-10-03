@@ -1,5 +1,5 @@
 import { createTranslatorPort, type TranslatorSource } from "../translate/create-port.ts";
-import { DEFAULT_LANGUAGE, readingLanguage } from "../analyzer/pairs.ts";
+import { acceptedLanguages, DEFAULT_LANGUAGE } from "../analyzer/pairs.ts";
 import type { LanguagePort, LinguaPort } from "../analyzer/port.ts";
 import type { CefrLevel, StudiedLanguage } from "../analyzer/types.ts";
 import { type Block, isElement, mergeBlocks } from "./blocks.ts";
@@ -164,6 +164,12 @@ const storageArea: AsyncStorageArea = {
 
 const nowSeconds = (): number => Math.floor(Date.now() / 1000);
 
+/** A document's declared language, as its primary subtag (`es-ES` → `es`), or null. */
+export function languageHint(doc: Document): string | null {
+  const declared = doc.documentElement.getAttribute("lang")?.trim().toLowerCase() ?? "";
+  return declared.split(/[-_]/)[0] || null;
+}
+
 /** Coerce an untrusted message payload to a drawer view (defaults to review). */
 function drawerView(v: unknown): DrawerView {
   return v === "stats" || v === "settings" ? v : "review";
@@ -220,6 +226,11 @@ export class ReadingSession {
    * context's.
    */
   private language: StudiedLanguage = DEFAULT_LANGUAGE;
+  /**
+   * The reader's accepted languages (add-lingua-language-routing): with several, each document is
+   * read in the one the engine finds in it; `language` is then that document's.
+   */
+  private languages: StudiedLanguage[] = [DEFAULT_LANGUAGE];
   /** Reads a card's selection and sentence aloud, with a voice on this device only. */
   private readonly speaker: Speaker = createSpeaker(
     browserSpeechEngine(),
@@ -322,7 +333,7 @@ export class ReadingSession {
   /** Restore the engine, wire the surfaces, then read `host` (none: the reader's library). */
   async start(host: ReadingHost | null): Promise<void> {
     await hydrateEngine(this.port, store);
-    this.language = await readingLanguage(this.port);
+    await this.readLanguages();
     this.calibration = await this.lang.calibration();
     this.hudHidden = await loadHudHidden(storageArea);
     this.indicator.setPosition?.(await loadHudPosition(storageArea));
@@ -582,6 +593,12 @@ export class ReadingSession {
     void requestSync("surface");
   }
 
+  /** The reader's accepted languages, and the first as the language until a document says otherwise. */
+  private async readLanguages(): Promise<void> {
+    this.languages = await acceptedLanguages(this.port);
+    this.language = this.languages[0];
+  }
+
   /** Whether the reader still has to choose a level (« Débutant » counts as a choice). */
   private async refreshNeedsLevel(): Promise<void> {
     this.needsLevel = await needsLevelChoice(this.port, this.language);
@@ -620,7 +637,14 @@ export class ReadingSession {
       this.opts.onPainted?.();
       return;
     }
-    const analysis = await this.lang.analyse(blocks.map((b) => b.text));
+    const texts = blocks.map((b) => b.text);
+    // With several accepted languages, read the document in the one the engine finds in it
+    // (add-lingua-language-routing D3): its analysis and every question about it follow.
+    if (this.languages.length > 1) {
+      this.language = await this.port.detectLanguage(texts, this.languages, languageHint(host.doc));
+      if (this.host !== host) return;
+    }
+    const analysis = await this.lang.analyse(texts);
     // Another document replaced this one while the engine answered: its figures are stale.
     if (this.host !== host) return;
     this.resolved = resolveTokens(blocks, analysis);
@@ -793,7 +817,7 @@ export class ReadingSession {
   private async onExternalChange(backup: string): Promise<void> {
     if (backup === this.lastBackup) return; // our own write echoed back — nothing to do
     await this.port.restore(backup);
-    this.language = await readingLanguage(this.port); // the profile came with the backup
+    await this.readLanguages(); // the profile came with the backup
     this.calibration = await this.lang.calibration();
     await this.refreshNeedsLevel(); // a level picked in another tab or the popup
     await this.repaint();

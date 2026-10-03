@@ -194,6 +194,13 @@ describe("rpc host", () => {
       ok: true,
       result: ["es", "en"],
     });
+    expect(await handleRpc(engine, async () => {}, req("detectLanguage", [["Hola"], ["es", "en"], null]))).toEqual({
+      ok: true,
+      result: "es",
+    });
+    const detect = vi.fn(async () => "es");
+    await new MessagingLinguaPort(detect).detectLanguage(["Hola"], ["es", "en"], "es");
+    expect(detect).toHaveBeenCalledWith("detectLanguage", [["Hola"], ["es", "en"], "es"]);
   });
 
   it("captures a thrown error as a failed result", async () => {

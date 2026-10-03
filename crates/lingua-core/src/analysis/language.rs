@@ -98,9 +98,125 @@ pub fn block_is_studied(text: &str, studied: StudiedLanguage) -> bool {
     whichlang::detect_language(trimmed) == studied.whichlang_target()
 }
 
+/// The language of a document, chosen among `candidates` (add-lingua-language-routing D1).
+///
+/// Each block long enough to be detected votes, weighted by its trimmed length, for the
+/// language whichlang finds in it, when that language is a candidate: a page's short chrome
+/// cannot outvote its text. The most weight wins. A tie goes to `hint` (the document's declared
+/// language) when it is among the tied, else to the earlier candidate. With no vote, `hint`
+/// wins if it is a candidate, else the first candidate. A single candidate is returned without
+/// detecting anything. `None` only when there is no candidate.
+pub fn detect_document_language(
+    blocks: &[&str],
+    candidates: &[StudiedLanguage],
+    hint: Option<StudiedLanguage>,
+) -> Option<StudiedLanguage> {
+    let first = *candidates.first()?;
+    if candidates.len() == 1 {
+        return Some(first);
+    }
+    let mut weight = vec![0usize; candidates.len()];
+    for block in blocks {
+        let trimmed = block.trim();
+        if trimmed.len() < MIN_BLOCK_BYTES {
+            continue;
+        }
+        let detected = whichlang::detect_language(trimmed);
+        if let Some(i) = candidates
+            .iter()
+            .position(|c| c.whichlang_target() == detected)
+        {
+            weight[i] += trimmed.len();
+        }
+    }
+    Some(choose_language(candidates, &weight, hint))
+}
+
+/// The winner of a vote: `weight[i]` is what `candidates[i]` collected. The most weight wins;
+/// a tie goes to `hint` when it is among the tied, else to the earlier candidate; with no
+/// weight at all, `hint` if it is a candidate, else the first candidate. `candidates` is not
+/// empty.
+fn choose_language(
+    candidates: &[StudiedLanguage],
+    weight: &[usize],
+    hint: Option<StudiedLanguage>,
+) -> StudiedLanguage {
+    let hinted = hint.filter(|h| candidates.contains(h));
+    let best = weight.iter().copied().max().unwrap_or(0);
+    if best == 0 {
+        return hinted.unwrap_or(candidates[0]);
+    }
+    let tied: Vec<StudiedLanguage> = candidates
+        .iter()
+        .zip(weight)
+        .filter(|(_, w)| **w == best)
+        .map(|(c, _)| *c)
+        .collect();
+    match hinted {
+        Some(h) if tied.contains(&h) => h,
+        _ => tied[0],
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const EN: StudiedLanguage = StudiedLanguage::English;
+    const ES: StudiedLanguage = StudiedLanguage::Spanish;
+    const SPANISH: &str =
+        "Los equipos nunca entregan el viernes por la noche, es una regla antigua.";
+    const ENGLISH: &str =
+        "The quick brown fox jumps over the lazy dog every single morning of the week.";
+
+    #[test]
+    fn a_spanish_page_is_spanish_among_english_and_spanish() {
+        let page = [
+            SPANISH,
+            "El faro se alza sobre las rocas desde hace más de un siglo.",
+        ];
+        assert_eq!(detect_document_language(&page, &[EN, ES], None), Some(ES));
+        assert_eq!(detect_document_language(&page, &[ES, EN], None), Some(ES));
+    }
+
+    #[test]
+    fn long_english_paragraphs_outweigh_a_short_spanish_quotation() {
+        let long = ENGLISH.repeat(3);
+        let page = [long.as_str(), long.as_str(), "«Hasta la vista, amigo mío»"];
+        assert_eq!(detect_document_language(&page, &[ES, EN], None), Some(EN));
+    }
+
+    #[test]
+    fn a_page_with_nothing_to_detect_goes_to_its_hint_else_the_first_candidate() {
+        let page = ["Menu", "Accueil", "OK"];
+        assert_eq!(
+            detect_document_language(&page, &[EN, ES], Some(ES)),
+            Some(ES)
+        );
+        assert_eq!(detect_document_language(&page, &[EN, ES], None), Some(EN));
+        // A hint that is not a candidate decides nothing.
+        assert_eq!(
+            detect_document_language(&page, &[ES], Some(EN)),
+            Some(ES),
+            "one candidate wins whatever the hint"
+        );
+    }
+
+    #[test]
+    fn a_tie_goes_to_the_hint_then_to_the_reader_order() {
+        assert_eq!(choose_language(&[ES, EN], &[40, 40], None), ES);
+        assert_eq!(choose_language(&[ES, EN], &[40, 40], Some(EN)), EN);
+        // A hint outside the tie decides nothing; the most weight still wins.
+        assert_eq!(choose_language(&[ES, EN], &[10, 40], Some(ES)), EN);
+        assert_eq!(choose_language(&[ES, EN], &[0, 0], Some(EN)), EN);
+        assert_eq!(choose_language(&[ES, EN], &[0, 0], None), ES);
+    }
+
+    #[test]
+    fn a_single_candidate_or_none() {
+        assert_eq!(detect_document_language(&[SPANISH], &[EN], None), Some(EN));
+        assert_eq!(detect_document_language(&[SPANISH], &[], Some(ES)), None);
+    }
 
     #[test]
     fn english_block_is_studied() {

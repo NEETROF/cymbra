@@ -170,6 +170,9 @@ export interface LinguaPort {
   studiedLanguages(): Promise<StudiedLanguage[]>;
   /** Set the reader's studied languages, the primary first; throws on an empty list or a duplicate. */
   setStudiedLanguages(languages: StudiedLanguage[]): Promise<void>;
+  /** A document's language among `candidates` (the reader's order), `hint` its declared language
+   *  (add-lingua-language-routing). Loads no pack. */
+  detectLanguage(blocks: string[], candidates: StudiedLanguage[], hint: string | null): Promise<StudiedLanguage>;
   /** How many forms are explicitly marked (any status). */
   trackedCount(): Promise<number>;
   /** Total cards in the deck. */

@@ -119,6 +119,10 @@ describe("WasmAnalyzerPort language views", () => {
       setStudiedLanguages(...args: unknown[]): void {
         received.push(["setStudiedLanguages", args]);
       }
+      detectLanguage(...args: unknown[]): string {
+        received.push(["detectLanguage", args]);
+        return "es";
+      }
     }
     const mod = { default: async () => {}, LinguaEngine } as unknown as WasmModule;
     return { load: async () => mod, received };
@@ -153,6 +157,13 @@ describe("WasmAnalyzerPort language views", () => {
       ["studiedLanguages", []],
       ["setStudiedLanguages", [["es", "en"]]],
     ]);
+  });
+
+  it("asks a document's language as a whole-reader call, loading no pack", async () => {
+    const glue = recordingGlue();
+    const port = new WasmAnalyzerPort(glue.load, ["en-fr", "es-fr"]);
+    expect(await port.detectLanguage(["El faro"], ["en", "es"], "es")).toBe("es");
+    expect(glue.received).toEqual([["detectLanguage", [["El faro"], ["en", "es"], "es"]]]);
   });
 
   it("binds the view to the language it was asked", () => {

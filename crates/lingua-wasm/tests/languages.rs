@@ -251,6 +251,49 @@ fn pack_bound_answers_follow_the_language() {
 }
 
 #[test]
+fn spec_scenario_a_document_is_read_in_its_own_language() {
+    let engine = english_engine(); // a choice needs no pack: English alone is held
+    let spanish = vec![
+        "Los equipos nunca entregan el viernes por la noche, es una regla antigua.".to_owned(),
+        "El faro se alza sobre las rocas desde hace más de un siglo.".to_owned(),
+    ];
+    let both = vec!["en".to_owned(), "es".to_owned()];
+    assert_eq!(
+        engine
+            .detect_language(spanish.clone(), both.clone(), None)
+            .unwrap(),
+        "es"
+    );
+    // Nothing to detect: the declared language, then the first candidate.
+    let menu = vec!["Menu".to_owned(), "OK".to_owned()];
+    assert_eq!(
+        engine
+            .detect_language(menu.clone(), both.clone(), Some("es-ES".to_owned()))
+            .unwrap(),
+        "en"
+    );
+    assert_eq!(
+        engine
+            .detect_language(menu.clone(), both.clone(), Some("es".to_owned()))
+            .unwrap(),
+        "es"
+    );
+    assert_eq!(
+        engine
+            .detect_language(menu, both, Some("fr".to_owned()))
+            .unwrap(),
+        "en"
+    );
+    // One candidate is chosen without detection.
+    assert_eq!(
+        engine
+            .detect_language(spanish, vec!["en".to_owned()], None)
+            .unwrap(),
+        "en"
+    );
+}
+
+#[test]
 fn spec_scenario_the_studied_languages_live_in_the_backup() {
     let mut engine = english_engine();
     assert_eq!(engine.studied_languages(), r#"["en"]"#);

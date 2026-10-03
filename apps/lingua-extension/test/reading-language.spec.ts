@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { StudiedLanguage } from "@/analyzer/types.ts";
 import { mountSettings } from "@/reading/settings-view.ts";
-import { ReadingSession } from "@/reading/session.ts";
+import { languageHint, type ReadingHost, ReadingSession } from "@/reading/session.ts";
 import { mountReview } from "@/review/review-page.ts";
 import { type AsyncStorageArea, ROOT_KEY, STORAGE_VERSION } from "@/state/storage.ts";
 import { STORE_CHANGED_KEY } from "@/state/store.ts";
@@ -18,6 +19,8 @@ vi.mock("@/analyzer/pairs.ts", async (importOriginal) => {
     ...actual,
     readingLanguage: (port: Parameters<typeof actual.readingLanguage>[0]) =>
       actual.readingLanguage(port, packs.shipped),
+    acceptedLanguages: (port: Parameters<typeof actual.acceptedLanguages>[0]) =>
+      actual.acceptedLanguages(port, packs.shipped),
   };
 });
 
@@ -175,5 +178,77 @@ describe("with en-fr and es-fr shipped", () => {
 
     expect(await port.studiedLanguages()).toEqual(["en"]);
     expect(new Set(calls.languages)).toEqual(new Set(["en"]));
+  });
+});
+
+describe("each document in its own language (add-lingua-language-routing)", () => {
+  class FakeHighlight extends Set<Range> {}
+
+  /** A book section: a document of its own, which declares `lang`. */
+  function section(html: string, lang: string): ReadingHost {
+    const frame = document.createElement("iframe");
+    document.body.append(frame);
+    const doc = frame.contentDocument!;
+    const win = frame.contentWindow! as Window & typeof globalThis;
+    doc.documentElement.setAttribute("lang", lang);
+    doc.body.innerHTML = html;
+    Object.assign(win, { CSS: { highlights: new Map() }, Highlight: FakeHighlight });
+    return {
+      doc,
+      win,
+      paintWhole: true,
+      toSurface: (box) => ({ left: box.left, top: box.top, bottom: box.bottom }),
+      source: () => "A book",
+      exposureSource: () => "reading:book",
+    };
+  }
+
+  const css = { tokens: "", popup: "", drawer: "", hud: "" };
+  const PAGE = "<p>El faro se alza sobre las rocas desde hace más de un siglo, frente al mar.</p>";
+
+  beforeEach(() => {
+    vi.stubGlobal("CSS", { highlights: new Map() });
+    vi.stubGlobal("Highlight", FakeHighlight);
+  });
+
+  it("reads a document in the language the engine finds in it, its declared language as hint", async () => {
+    packs.shipped = ["en-fr", "es-fr"];
+    const { port, calls } = await spanishThenEnglish();
+    const analysed: StudiedLanguage[] = [];
+    port.analyse = async function (this: { language: StudiedLanguage }) {
+      analysed.push(this.language);
+      return { analyzer_version: "1", analysable: false, tokens: [], counted: 0, known: 0, percent: null };
+    };
+    port.detectLanguage = async (_blocks, candidates, hint) => {
+      calls.detections.push({ candidates: [...candidates], hint });
+      return "en";
+    };
+    const session = new ReadingSession(port, { css, surface: "book" });
+    await session.start(null);
+    await session.attach(section(PAGE, "es-ES"));
+
+    expect(calls.detections.at(-1)).toEqual({ candidates: ["es", "en"], hint: "es" });
+    expect(analysed.at(-1)).toBe("en");
+    session.detach();
+  });
+
+  it("asks for no detection with one accepted language", async () => {
+    packs.shipped = ["en-fr"];
+    const { port, calls } = await spanishThenEnglish();
+    const session = new ReadingSession(port, { css, surface: "book" });
+    await session.start(null);
+    await session.attach(section(PAGE, "es"));
+    expect(calls.detections).toEqual([]);
+    expect(new Set(calls.languages)).toEqual(new Set(["en"]));
+    session.detach();
+  });
+
+  it("reads the declared language as its primary subtag", () => {
+    const doc = document.implementation.createHTMLDocument("");
+    expect(languageHint(doc)).toBeNull();
+    doc.documentElement.setAttribute("lang", " ES-mx ");
+    expect(languageHint(doc)).toBe("es");
+    doc.documentElement.setAttribute("lang", "en_GB");
+    expect(languageHint(doc)).toBe("en");
   });
 });

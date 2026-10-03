@@ -87,6 +87,7 @@ interface WasmEngine {
   languages(): string;
   studiedLanguages(): string;
   setStudiedLanguages(tags: string[]): void;
+  detectLanguage(blocks: string[], candidates: string[], hint?: string | null): string;
   free(): void;
 }
 
@@ -227,6 +228,10 @@ export class WasmAnalyzerPort implements LinguaPort {
 
   async setStudiedLanguages(languages: StudiedLanguage[]): Promise<void> {
     (await this.engine()).setStudiedLanguages(languages);
+  }
+
+  async detectLanguage(blocks: string[], candidates: StudiedLanguage[], hint: string | null): Promise<StudiedLanguage> {
+    return (await this.engine()).detectLanguage(blocks, candidates, hint) as StudiedLanguage;
   }
 
   async trackedCount(): Promise<number> {
