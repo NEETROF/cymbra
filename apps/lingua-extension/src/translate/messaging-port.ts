@@ -30,10 +30,10 @@ export class MessagingTranslatorPort implements TranslatorPort {
     }
   }
 
-  /** Ask the background to load the engine; it does only when a model is ready. Nothing to wait for. */
-  warm(): void {
+  /** Ask the background to load `language`'s route; it does only when its models are ready. Nothing to wait for. */
+  warm(language: string): void {
     try {
-      void this.send({ type: WARM_TYPE }).catch(() => {});
+      void this.send({ type: WARM_TYPE, language }).catch(() => {});
     } catch {
       // No extension context left: nothing to warm.
     }

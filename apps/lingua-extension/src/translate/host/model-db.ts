@@ -1,8 +1,10 @@
-// Where the downloaded model lives (add-lingua-translation-delivery D5): an IndexedDB database of
+// Where the downloaded models live (add-lingua-translation-delivery D5): an IndexedDB database of
 // its own, `lingua-model`, apart from the reader's store — and never chrome.storage.local, whose
 // quota is what filled up in the exposure-counter incident. Each file's DECOMPRESSED bytes are
 // kept under their sha256, so a cold start reads them (~24 ms, measured) instead of decompressing
-// 37 MB again; a `complete` record says which model version has every file.
+// 37 MB again; a record per model says that model has every file
+// (generalise-lingua-translation-model-state D1). The single `complete` record the releases before
+// it wrote is read as its model's record.
 //
 // Only verified bytes are ever written, so a file that is present IS verified: resuming a download
 // fetches exactly the files that are missing. Every operation opens and closes its own connection —
@@ -14,7 +16,10 @@ export const MODEL_DB = "lingua-model";
 const VERSION = 1;
 const FILES = "files";
 const META = "meta";
+/** The record the releases before generalise-lingua-translation-model-state kept, for one model. */
 const COMPLETE = "complete";
+/** A model's record: `complete/<id>`. */
+const COMPLETE_PREFIX = "complete/";
 
 interface CompleteRecord {
   version: string;
@@ -31,6 +36,11 @@ export interface ModelDb {
   markComplete(manifest: ModelManifest): Promise<void>;
   /** Whether `manifest`'s model is on the device, every file of it. */
   complete(manifest: ModelManifest): Promise<boolean>;
+  /**
+   * Keep only `keep`: delete the record of every other model and every file no kept model names,
+   * so a file or a model two routes share stays while one of them needs it.
+   */
+  prune(keep: ModelManifest[]): Promise<void>;
   /** Delete the whole database. */
   erase(): Promise<void>;
 }
@@ -103,17 +113,39 @@ export function modelDb(factory: IDBFactory = indexedDB): ModelDb {
           version: manifest.version,
           files: MODEL_ROLES.map((role) => manifest.files[role].sha256),
         };
-        await request(tx.objectStore(META).put(record, COMPLETE));
+        await request(tx.objectStore(META).put(record, `${COMPLETE_PREFIX}${manifest.version}`));
       }),
 
     complete: (manifest) =>
       within([FILES, META], "readonly", async (tx) => {
-        const record = (await request(tx.objectStore(META).get(COMPLETE))) as CompleteRecord | undefined;
+        const meta = tx.objectStore(META);
+        const own = (await request(meta.get(`${COMPLETE_PREFIX}${manifest.version}`))) as CompleteRecord | undefined;
+        const record = own ?? ((await request(meta.get(COMPLETE))) as CompleteRecord | undefined);
         if (record?.version !== manifest.version) return false;
         for (const role of MODEL_ROLES) {
           if ((await count(tx, manifest.files[role].sha256)) === 0) return false;
         }
         return true;
+      }),
+
+    prune: (keep) =>
+      within([FILES, META], "readwrite", async (tx) => {
+        const kept = new Set(keep.map((m) => m.version));
+        const files = new Set(keep.flatMap((m) => MODEL_ROLES.map((role) => m.files[role].sha256)));
+        const meta = tx.objectStore(META);
+        for (const key of await request(meta.getAllKeys())) {
+          const id =
+            key === COMPLETE
+              ? ((await request(meta.get(COMPLETE))) as CompleteRecord | undefined)?.version
+              : String(key).startsWith(COMPLETE_PREFIX)
+                ? String(key).slice(COMPLETE_PREFIX.length)
+                : undefined;
+          if (id !== undefined && !kept.has(id)) await request(meta.delete(key));
+        }
+        const store = tx.objectStore(FILES);
+        for (const key of await request(store.getAllKeys())) {
+          if (!files.has(String(key))) await request(store.delete(key));
+        }
       }),
 
     erase: () =>

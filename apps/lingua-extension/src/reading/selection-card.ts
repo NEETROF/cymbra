@@ -289,10 +289,16 @@ export class SelectionCards {
       calibration: () => number;
       clock?: Clock;
       /**
-       * The translation engine as it is right now — asked per card, since the reader can turn it
-       * on or off, and its model can arrive or go, while the page is open. Null: no engine.
+       * The translation engine as it is right now for the document's language — asked per card,
+       * since the reader can turn it on or off, and its models can arrive or go, while the page is
+       * open. Null: no engine.
        */
       translator?: () => TranslatorPort | null;
+      /**
+       * The studied language the document is read in: what a translation is asked in
+       * (generalise-lingua-translation-model-state D5). English when not given.
+       */
+      language?: () => string;
     },
   ) {
     this.clock = opts.clock ?? DEFAULT_CLOCK;
@@ -327,7 +333,11 @@ export class SelectionCards {
       ...(written !== token.surface ? { written } : {}),
     };
     const inSentence = (card: WordPopupContent, cls: TokenClass) =>
-      this.wordEngine(card, cls, { sentence: hit.sentence, selection: hit.selection ?? null });
+      this.wordEngine(card, cls, {
+        sentence: hit.sentence,
+        selection: hit.selection ?? null,
+        language: this.language(),
+      });
     if (needsPhraseGloss(token)) {
       this.request(
         { ...base, pending: true },
@@ -435,7 +445,11 @@ export class SelectionCards {
     // pack knows. The pack's answer is shown as soon as it lands, saying a translation is on its
     // way, and the translation replaces it when it arrives.
     const later = translator
-      ? this.translateBounded(translator, { sentence: sel.sentence, selection: sel.selection ?? null })
+      ? this.translateBounded(translator, {
+          sentence: sel.sentence,
+          selection: sel.selection ?? null,
+          language: this.language(),
+        })
       : null;
     this.request(
       { ...base, pending: true, translating: !!later },
@@ -459,6 +473,11 @@ export class SelectionCards {
 
   private translator(): TranslatorPort | null {
     return this.opts.translator?.() ?? null;
+  }
+
+  /** The language a translation is asked in: the document's. */
+  private language(): string {
+    return this.opts.language?.() ?? "en";
   }
 
   /** The engine's answer for this request, or null — never later than TRANSLATION_WAIT_MS. */
@@ -521,7 +540,7 @@ export class SelectionCards {
             ...grammarOf(reply.grammar),
           },
           t.class,
-          { sentence: sel.sentence, selection: sel.selection ?? null },
+          { sentence: sel.sentence, selection: sel.selection ?? null, language: this.language() },
         );
       },
     );

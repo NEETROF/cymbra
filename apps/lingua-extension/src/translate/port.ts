@@ -15,6 +15,11 @@ export interface TranslationRequest {
   sentence: string;
   /** The selection's [start, end) in `sentence`, or null to translate the sentence unmarked. */
   selection: Span | null;
+  /**
+   * The studied language the sentence was read in: the route it goes through
+   * (generalise-lingua-translation-model-state D5).
+   */
+  language: string;
 }
 
 /**
@@ -27,11 +32,11 @@ export type TranslationResult = { kind: "translated"; translation: MarkedTransla
 export interface TranslatorPort {
   translate(request: TranslationRequest): Promise<TranslationResult>;
   /**
-   * A translation is coming — a selection has begun (add-lingua-translation-android D2): have the
-   * engine load now, answer nothing. A hint, never a condition: a port without it translates the
-   * same, only colder.
+   * A translation in `language` is coming — a selection has begun (add-lingua-translation-android
+   * D2): have the engine load that language's route now, answer nothing. A hint, never a condition:
+   * a port without it translates the same, only colder.
    */
-  warm?(): void;
+  warm?(language: string): void;
 }
 
 export const UNAVAILABLE: TranslationResult = { kind: "unavailable" };

@@ -25,8 +25,8 @@ export async function relayTranslation(
   try {
     const fragment = selectedText(request.sentence, request.selection);
     const [reply, alone] = await Promise.all([
-      engine.translate(markSelection(request.sentence, request.selection)),
-      fragment ? engine.translate(escapeText(fragment)).catch((): EngineReply | null => null) : null,
+      engine.translate(markSelection(request.sentence, request.selection), request.language),
+      fragment ? engine.translate(escapeText(fragment), request.language).catch((): EngineReply | null => null) : null,
     ]);
     if (!reply.ok) {
       log("no translation:", reply.reason);
@@ -42,24 +42,25 @@ export async function relayTranslation(
 }
 
 /**
- * A warm (add-lingua-translation-android D2, D3), answered only where a translation could be: with
- * no model ready nothing is loaded, not even to find the model missing. A model said to be ready
- * that the engine cannot load calls `onFailed`, so the background can see whether it is still
- * there — as it does after a translation that got no answer.
+ * A warm (add-lingua-translation-android D2, D3) for `language`, answered only where a translation
+ * could be: with that language's models not ready nothing is loaded, not even to find a model
+ * missing. A route said to be ready that the engine cannot load calls `onFailed`, so the background
+ * can see whether it is still there — as it does after a translation that got no answer.
  */
 export async function relayWarm(
-  ready: () => Promise<boolean>,
+  ready: (language: string) => Promise<boolean>,
   engine: Pick<EngineAccess, "warm">,
+  language: string,
   onFailed: () => void = () => {},
   log: RelayLog = LOG,
 ): Promise<boolean> {
   try {
-    if (!(await ready())) return false;
+    if (!(await ready(language))) return false;
   } catch {
     return false;
   }
   try {
-    if (await engine.warm()) return true;
+    if (await engine.warm(language)) return true;
   } catch (e: unknown) {
     log("the engine could not be warmed:", e);
   }

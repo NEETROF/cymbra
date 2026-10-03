@@ -109,12 +109,14 @@ function classify(e: unknown, deps: DownloadDeps): Failure {
 }
 
 /**
- * Fetch every file of `manifest` that the database lacks, verify it, store it, then record the
- * model complete. Nothing unverified is ever stored, so a failure leaves only whole, checked files.
+ * Fetch every file of `models` that the database lacks, verify it, store it, and record each model
+ * complete as soon as its files are in (generalise-lingua-translation-model-state D4). Progress is
+ * one figure over every model. Nothing unverified is ever stored, so a failure leaves only whole,
+ * checked files — and the models already recorded complete.
  */
-export async function downloadModel(manifest: ModelManifest, deps: DownloadDeps): Promise<DownloadOutcome> {
+export async function downloadModels(models: ModelManifest[], deps: DownloadDeps): Promise<DownloadOutcome> {
   const now = deps.now ?? Date.now;
-  const total = totalSize(manifest);
+  const total = models.reduce((sum, model) => sum + totalSize(model), 0);
   let received = 0;
   let reportedAt = -Infinity;
   const report = (force: boolean): void => {
@@ -125,59 +127,66 @@ export async function downloadModel(manifest: ModelManifest, deps: DownloadDeps)
 
   try {
     report(true);
-    for (const role of MODEL_ROLES) {
-      const file = manifest.files[role];
-      if (await deps.db.has(file.sha256)) {
-        received += file.size;
+    for (const manifest of models) {
+      for (const role of MODEL_ROLES) {
+        const file = manifest.files[role];
+        if (await deps.db.has(file.sha256)) {
+          received += file.size;
+          report(true);
+          continue;
+        }
+        const startedAt = received;
+        let response: Response;
+        try {
+          response = await deps.fetch(fileUrl(manifest, file), {
+            credentials: "omit",
+            referrerPolicy: "no-referrer",
+            cache: "no-store",
+            signal: deps.signal,
+          });
+        } catch (e) {
+          throw classify(e, deps);
+        }
+        if (!response.ok || !response.body) {
+          throw new Failure("unavailable", `${role}: HTTP ${response.status}`);
+        }
+        let body: Uint8Array;
+        try {
+          body = await readAll(response.body, (n) => {
+            // A host that decompresses on the way sends more bytes than the manifest says; the
+            // bar must still end at this file's share.
+            received = Math.min(received + n, startedAt + file.size);
+            report(false);
+          });
+        } catch (e) {
+          throw classify(e, deps);
+        }
+        const bytes = await decompressed(body, deps);
+        if ((await deps.digest(bytes)) !== file.sha256) {
+          throw new Failure("not-the-model", `${role}: sha256 differs from the pinned model`);
+        }
+        try {
+          await deps.db.put(file.sha256, bytes);
+        } catch (e) {
+          throw new Failure("storage", `${role}: ${String(e)}`);
+        }
+        received = startedAt + file.size;
         report(true);
-        continue;
-      }
-      const startedAt = received;
-      let response: Response;
-      try {
-        response = await deps.fetch(fileUrl(manifest, file), {
-          credentials: "omit",
-          referrerPolicy: "no-referrer",
-          cache: "no-store",
-          signal: deps.signal,
-        });
-      } catch (e) {
-        throw classify(e, deps);
-      }
-      if (!response.ok || !response.body) {
-        throw new Failure("unavailable", `${role}: HTTP ${response.status}`);
-      }
-      let body: Uint8Array;
-      try {
-        body = await readAll(response.body, (n) => {
-          // A host that decompresses on the way sends more bytes than the manifest says; the
-          // bar must still end at this file's share.
-          received = Math.min(received + n, startedAt + file.size);
-          report(false);
-        });
-      } catch (e) {
-        throw classify(e, deps);
-      }
-      const bytes = await decompressed(body, deps);
-      if ((await deps.digest(bytes)) !== file.sha256) {
-        throw new Failure("not-the-model", `${role}: sha256 differs from the pinned model`);
       }
       try {
-        await deps.db.put(file.sha256, bytes);
+        await deps.db.markComplete(manifest);
       } catch (e) {
-        throw new Failure("storage", `${role}: ${String(e)}`);
+        throw new Failure("storage", `complete: ${String(e)}`);
       }
-      received = startedAt + file.size;
-      report(true);
-    }
-    try {
-      await deps.db.markComplete(manifest);
-    } catch (e) {
-      throw new Failure("storage", `complete: ${String(e)}`);
     }
     return { ok: true };
   } catch (e) {
     const failure = e instanceof Failure ? e : new Failure("unknown", String(e));
     return { ok: false, reason: failure.reason, detail: failure.message };
   }
+}
+
+/** One model's download: `downloadModels` with that model alone. */
+export function downloadModel(manifest: ModelManifest, deps: DownloadDeps): Promise<DownloadOutcome> {
+  return downloadModels([manifest], deps);
 }

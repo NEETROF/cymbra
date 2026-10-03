@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { gzipSync } from "node:zlib";
 import { describe, expect, it, vi } from "vitest";
 import type { ModelDb } from "@/translate/host/model-db.ts";
-import { downloadModel, PROGRESS_EVERY_MS, sha256Hex } from "@/translate/host/model-download.ts";
+import { downloadModel, downloadModels, PROGRESS_EVERY_MS, sha256Hex } from "@/translate/host/model-download.ts";
 import type { ModelManifest } from "@/translate/host/model-manifest.ts";
 
 // The model download (add-lingua-translation-delivery D3, D4), against fixtures: real gzip, real
@@ -62,6 +62,7 @@ function memoryDb(
     put: async (sha, b) => void files.set(sha, b),
     markComplete: async (m) => void completed.push(m.version),
     complete: async () => completed.length > 0,
+    prune: async () => {},
     erase: async () => files.clear(),
   };
 }
@@ -127,6 +128,43 @@ describe("downloadModel", () => {
     );
     expect(new TextDecoder().decode(db.files.get(manifest.files.vocab.sha256))).toBe("vocab");
     expect(db.completed).toEqual(["en-fr/base-memory/2.0"]);
+  });
+
+  it("downloads several models under one progress, each recorded complete once its files are in", async () => {
+    // generalise-lingua-translation-model-state D4: a second model whose vocab is the first one's —
+    // a shared file is fetched once.
+    const second: ModelManifest = {
+      ...manifest,
+      version: "es-en/base-memory/2.0",
+      from: "es",
+      to: "en",
+      files: {
+        model: {
+          ...manifest.files.model,
+          path: `x/${manifest.files.lex.sha256}/model.bin.gz`,
+          sha256: manifest.files.lex.sha256,
+        },
+        lex: {
+          ...manifest.files.lex,
+          path: `x/${manifest.files.model.sha256}/lex.bin.gz`,
+          sha256: manifest.files.model.sha256,
+        },
+        vocab: manifest.files.vocab,
+      },
+    };
+    const { fetch, calls } = host({
+      ...serving(),
+      [second.files.model.path]: GZ.lex,
+      [second.files.lex.path]: GZ.model,
+    });
+    const { deps: d, db, progress } = deps(fetch);
+    await expect(downloadModels([manifest, second], d)).resolves.toEqual({ ok: true });
+    expect(db.completed).toEqual(["en-fr/base-memory/2.0", "es-en/base-memory/2.0"]);
+    const total = 2 * TOTAL;
+    expect(progress.every(([, t]) => t === total)).toBe(true);
+    expect(progress.at(-1)).toEqual([total, total]);
+    // The second model's files are already stored: none of them is fetched again.
+    expect(calls).toHaveLength(3);
   });
 
   it("carries nothing of the reader's: no cookie, no referrer, no cache copy", async () => {

@@ -1314,7 +1314,7 @@ describe("SelectionCards with the translation engine", () => {
     translation: { sentence: "Elle a abandonné après la troisième tentative.", marks: [{ start: 5, end: 16 }] },
   };
 
-  function setup() {
+  function setup(language?: string) {
     const { ports, phraseGloss, gloss } = fakePorts();
     const view = fakeSurface();
     const { clock, elapseOnly, armed } = fakeClock();
@@ -1323,6 +1323,7 @@ describe("SelectionCards with the translation engine", () => {
       calibration: () => CALIBRATION,
       clock,
       translator: () => translator,
+      ...(language ? { language: () => language } : {}),
     });
     return { cards, phraseGloss, gloss, view, asked, elapseOnly, armed };
   }
@@ -1335,7 +1336,14 @@ describe("SelectionCards with the translation engine", () => {
     const { cards, asked } = setup();
     cards.openForSelection(sel, null);
     await flush();
-    expect(asked.map((a) => a.request)).toEqual([{ sentence, selection: { start: 4, end: 11 } }]);
+    expect(asked.map((a) => a.request)).toEqual([{ sentence, selection: { start: 4, end: 11 }, language: "en" }]);
+  });
+
+  it("asks in the document's language (generalise-lingua-translation-model-state D5)", async () => {
+    const { cards, asked } = setup("es");
+    cards.openForSelection(sel, null);
+    await flush();
+    expect(asked.map((a) => a.request.language)).toEqual(["es"]);
   });
 
   it("shows the translation instead of word-by-word rows", async () => {
@@ -1515,7 +1523,7 @@ describe("SelectionCards with the translation engine", () => {
       phraseGloss[0]!.resolve(unglossed);
       await flush();
       // Never the word alone: its sentence, with its place in it.
-      expect(asked.map((a) => a.request)).toEqual([{ sentence: wiki, selection: span }]);
+      expect(asked.map((a) => a.request)).toEqual([{ sentence: wiki, selection: span, language: "en" }]);
       expect(view.last()).toMatchObject({ headword: "disambiguation", gloss: null, translating: true });
 
       asked[0]!.resolve(answer);
@@ -1543,7 +1551,7 @@ describe("SelectionCards with the translation engine", () => {
       const token = pageToken({ surface: "disambiguation", lemma: "disambiguation", class: "Unknown", gloss: null });
       cards.openForToken({ token, rect: RECT, sentence: wiki, selection: span });
       await flush();
-      expect(asked.map((a) => a.request)).toEqual([{ sentence: wiki, selection: span }]);
+      expect(asked.map((a) => a.request)).toEqual([{ sentence: wiki, selection: span, language: "en" }]);
       expect(view.last()).toMatchObject({ gloss: null, translating: true });
     });
 
@@ -1571,7 +1579,9 @@ describe("SelectionCards with the translation engine", () => {
       cards.openForToken({ token, rect: RECT, sentence: "A wiki page.", selection: { start: 2, end: 6 } });
       expect(asked).toEqual([]); // the pack first: its answer, with no gloss, has not landed yet
       await flush();
-      expect(asked.map((a) => a.request)).toEqual([{ sentence: "A wiki page.", selection: { start: 2, end: 6 } }]);
+      expect(asked.map((a) => a.request)).toEqual([
+        { sentence: "A wiki page.", selection: { start: 2, end: 6 }, language: "en" },
+      ]);
       expect(view.last()).toMatchObject({ status: "known", translating: true });
     });
 
