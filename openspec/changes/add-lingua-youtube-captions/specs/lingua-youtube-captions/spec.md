@@ -10,17 +10,24 @@ would repaint text already gone and count every rewrite as a new exposure.
 - **WHEN** the page reader runs on a watch page whose native captions are showing and the caption mode is off
 - **THEN** no word of the native caption line is highlighted and no exposure is recorded from it, while the comments are highlighted as usual
 
-### Requirement: The caption mode is offered where it can read captions in the studied language
-The extension SHALL offer the caption mode only on a desktop YouTube watch page (`/watch`) whose video has a caption track in the studied language, and SHALL NOT offer it anywhere else.
+### Requirement: The caption mode is offered where it can read English captions
+The extension SHALL offer the caption mode only on a desktop YouTube watch page (`/watch`) whose video has an English caption track, whatever other languages the reader studies, and SHALL NOT offer it anywhere else.
+Spanish captions are out of this change's scope (the Spanish programme's decision D7,
+`docs/lingua/spanish-programme.md`): a reader who studies Spanish is offered the mode on English
+captions only.
 Shorts, live streams and premieres in progress, and players embedded in other sites SHALL NOT be
 offered it. A video with no such track SHALL leave the player untouched, and the popup SHALL say
-that the video has no captions in the studied language. Moving to another video inside YouTube
+that the video has no English captions. Moving to another video inside YouTube
 SHALL end the mode for the previous video and start it afresh for the next, with nothing carried
 over.
 
-#### Scenario: A video without captions in the studied language
+#### Scenario: A video without English captions
 - **WHEN** the caption mode is asked for on a video with no English caption track while English is studied
 - **THEN** the player is left as it was, nothing is fetched, and the popup says there are no English captions
+
+#### Scenario: A Spanish video for a reader of Spanish
+- **WHEN** a reader who studies English and Spanish opens a video whose only captions are Spanish
+- **THEN** the caption mode is not offered on it, and the popup says it reads English captions only
 
 #### Scenario: A live stream
 - **WHEN** the reader opens a live stream in progress
@@ -58,7 +65,7 @@ player's captions on. A token SHALL be held in memory only and discarded when it
 
 ### Requirement: Human captions are preferred to automatic ones
 When a video has both, the extension SHALL read the track written by a person rather than the automatic one.
-It SHALL read the automatic track only when no written one exists in the studied language, and the
+It SHALL read the automatic track only when no written English one exists, and the
 popup SHALL say which of the two the mode is reading.
 
 #### Scenario: Both tracks exist
