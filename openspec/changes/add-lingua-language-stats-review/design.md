@@ -34,7 +34,10 @@ empty list keeps every key, so `start` is `start_for` with none. The engine's `s
 languages?)` and `dueCount(now, languages?)` take an optional array of tags; absent, or with no
 known tag, means every language. `reviewCurrent()` adds `language`, the tag of the current key.
 
-The queue keeps `due_keys`' order, which is by due date across languages, as D8 asks.
+`due_keys` returns the deck's order, (language, lemma), which is not by due date: the English
+review has always run alphabetically. A queue that mixes languages is sorted by due date, as D8 asks,
+new cards first, then by language and lemma. A single language keeps the deck's order, so the
+English review, which the S0 baseline replays, does not move.
 
 ### D2 — The review page's filter
 

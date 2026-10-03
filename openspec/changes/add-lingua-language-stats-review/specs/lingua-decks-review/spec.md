@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: One review queue across languages, with a language filter
-A review session SHALL take the due cards of every studied language in one queue, ordered by due date. When the reader studies several languages, the review page SHALL offer to review all of them or a single one, and its count of due cards SHALL follow the choice.
+A review session SHALL take the due cards of every studied language in one queue; a queue that mixes languages SHALL be ordered by due date, and a single language SHALL keep its usual order. When the reader studies several languages, the review page SHALL offer to review all of them or a single one, and its count of due cards SHALL follow the choice.
 
 #### Scenario: A mixed queue
 - **WHEN** a reader of English and Spanish starts a review with cards due in both
