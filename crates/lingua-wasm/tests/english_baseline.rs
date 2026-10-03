@@ -285,24 +285,19 @@ fn render(language: Option<&str>) -> String {
     let mut reader = engine(&pack);
     reader.set_calibration(3_000, lang()).unwrap();
     reader.set_declared_level_at("B1", T_MS, lang()).unwrap();
-    reader
-        .set_status_at("lighthouse", "known", T_MS + 1.0, lang())
-        .unwrap();
-    reader
-        .set_status_at("landlord", "learning", T_MS + 2.0, lang())
-        .unwrap();
-    reader
-        .set_status_at("betwixt", "ignored", T_MS + 3.0, lang())
-        .unwrap();
-    reader
-        .set_status_at("ceiling", "known", T_MS + 4.0, lang())
-        .unwrap();
-    reader
-        .set_status_at("councillor", "known", T_MS + 5.0, lang())
-        .unwrap();
-    reader
-        .set_status_at("councillor", "", T_MS + 6.0, lang())
-        .unwrap();
+    for (lemma, status, offset_ms) in [
+        ("lighthouse", "known", 1.0),
+        ("landlord", "learning", 2.0),
+        ("betwixt", "ignored", 3.0),
+        ("ceiling", "known", 4.0),
+        ("councillor", "known", 5.0),
+        // Withdrawn: « Remettre à apprendre ».
+        ("councillor", "", 6.0),
+    ] {
+        reader
+            .set_status_at(lemma, status, T_MS + offset_ms, lang())
+            .unwrap();
+    }
     for day in 0..3 {
         reader
             .record_exposures(
