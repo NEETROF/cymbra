@@ -91,10 +91,17 @@ export const READER_DISPLAY_KEY = "cymbra-lingua-reader-display";
 /** Paper (the book's own colours, on a light page) or dark (light text on the night page). */
 export type ReaderTheme = "paper" | "dark";
 
+/**
+ * How a page turns: `instant` (the default — one jump, which an e-ink screen shows once) or
+ * `slide` (the page slides aside, and follows the finger on a swipe).
+ */
+export type ReaderTurn = "instant" | "slide";
+
 export interface ReaderDisplay {
   /** The text size, in percent of the book's own. */
   textScale: number;
   theme: ReaderTheme;
+  turn: ReaderTurn;
 }
 
 /** The text sizes offered, in percent: small steps, none so large a line holds three words. */
@@ -102,7 +109,7 @@ export const TEXT_SCALE_MIN = 80;
 export const TEXT_SCALE_MAX = 200;
 export const TEXT_SCALE_STEP = 10;
 
-export const DEFAULT_READER_DISPLAY: ReaderDisplay = { textScale: 100, theme: "paper" };
+export const DEFAULT_READER_DISPLAY: ReaderDisplay = { textScale: 100, theme: "paper", turn: "instant" };
 
 /** How unknown and learning words are marked, and the reader's page colours (add-lingua-colour-settings). */
 export const COLOURS_KEY = "cymbra-lingua-colours";
@@ -369,7 +376,7 @@ export async function saveReaderFlow(area: AsyncStorageArea, flow: ReaderFlow): 
   await area.set({ [READER_FLOW_KEY]: flow });
 }
 
-/** A stored display, made safe: a size on the offered steps, a theme the reader knows. */
+/** A stored display, made safe: a size on the offered steps, a theme and a turn the reader knows. */
 export function readerDisplayOf(value: unknown): ReaderDisplay {
   const v = (value ?? {}) as Partial<ReaderDisplay>;
   const raw = typeof v.textScale === "number" && Number.isFinite(v.textScale) ? v.textScale : 100;
@@ -377,6 +384,7 @@ export function readerDisplayOf(value: unknown): ReaderDisplay {
   return {
     textScale: Math.min(TEXT_SCALE_MAX, Math.max(TEXT_SCALE_MIN, stepped)),
     theme: v.theme === "dark" ? "dark" : "paper",
+    turn: v.turn === "slide" ? "slide" : "instant",
   };
 }
 
