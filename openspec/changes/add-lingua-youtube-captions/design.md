@@ -49,8 +49,9 @@ honest source is the request the player makes for the video the reader is watchi
   `c=MWEB`, a different page) is a later change with its own spike.
 - Audio. Nothing is transcribed and nothing heard is counted.
 - Other video sites (Netflix, Vimeo, embedded players on third-party pages).
-- Tracks in other studied languages than English — the mode follows the studied language, and
-  today that is English.
+- Tracks in a studied language other than English. The Spanish programme keeps Spanish out of this
+  change (`docs/lingua/spanish-programme.md`, decision D7: 0 of these tasks was built for English
+  yet). The mode reads English tracks, whatever languages the reader studies.
 
 ## Decisions
 
