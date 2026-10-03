@@ -100,8 +100,8 @@ const WORDS: &[(&str, &str)] = &[
 /// goldens are produced under.
 fn fixture_engine() -> LinguaEngine {
     let mut engine = LinguaEngine::new(PACK).expect("fixture pack loads");
-    engine.set_calibration(3_000);
-    engine.set_status("seldom", "learning");
+    engine.set_calibration(3_000, None).unwrap();
+    engine.set_status("seldom", "learning", None).unwrap();
     engine
 }
 
@@ -112,11 +112,16 @@ fn fixture_engine() -> LinguaEngine {
 /// hyphenated compounds — `city-run` (both parts known → one Known token) and
 /// `run-seldom` (a part above the threshold → weakest-link Unknown).
 fn analyse_fixture() -> String {
-    fixture_engine().analyse(vec![
-        "The runner runs through many cities every morning before work.".to_owned(),
-        "She ran again today, yet she seldom meets such a strange conundrum.".to_owned(),
-        "The city-run service runs well, yet the run-seldom rule holds here.".to_owned(),
-    ])
+    fixture_engine()
+        .analyse(
+            vec![
+                "The runner runs through many cities every morning before work.".to_owned(),
+                "She ran again today, yet she seldom meets such a strange conundrum.".to_owned(),
+                "The city-run service runs well, yet the run-seldom rule holds here.".to_owned(),
+            ],
+            None,
+        )
+        .unwrap()
 }
 
 /// Glosses every selection of [`PHRASES`] under the same reader as the page
@@ -128,7 +133,10 @@ fn gloss_fixture_phrases() -> String {
         .iter()
         .map(|text| {
             let key = serde_json::to_string(text).expect("a JSON string");
-            format!("{{\"text\":{key},\"gloss\":{}}}", engine.phrase_gloss(text))
+            format!(
+                "{{\"text\":{key},\"gloss\":{}}}",
+                engine.phrase_gloss(text, None).unwrap()
+            )
         })
         .collect();
     format!("[\n{}\n]", lines.join(",\n"))
@@ -142,7 +150,7 @@ fn word_grammar_fixture() -> String {
         .iter()
         .map(|(written, lemma)| {
             let key = serde_json::to_string(written).expect("a JSON string");
-            let grammar = engine.word_grammar(written, lemma);
+            let grammar = engine.word_grammar(written, lemma, None).unwrap();
             format!("{{\"written\":{key},\"grammar\":{grammar}}}")
         })
         .collect();

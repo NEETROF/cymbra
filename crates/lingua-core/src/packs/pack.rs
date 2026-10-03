@@ -513,7 +513,7 @@ fn zstd_decode(zst: &[u8]) -> Result<Vec<u8>, PackError> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::analysis::lexicon::build_lexicon_blobs;
     use crate::analysis::{ANALYZER_VERSION, SPANISH_ANALYZER_VERSION};
@@ -584,7 +584,7 @@ mod tests {
     }
 
     // The same pack, for another studied language.
-    fn sample_pack_bytes_for(studied: &str, analyzer: &str) -> Vec<u8> {
+    pub(crate) fn sample_pack_bytes_for(studied: &str, analyzer: &str) -> Vec<u8> {
         let (forms, pool) = build_lexicon_blobs(
             &[("running", "run"), ("ran", "run"), ("cities", "city")],
             &["run", "city", "seldom"],

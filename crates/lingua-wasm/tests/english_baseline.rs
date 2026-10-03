@@ -249,90 +249,123 @@ fn render() -> String {
     for (name, blocks) in &pages {
         g.probe(
             &format!("analyse new-reader {name}"),
-            fresh.analyse(blocks.clone()),
+            fresh.analyse(blocks.clone(), None).unwrap(),
         );
     }
     for lemma in LEMMAS {
-        g.probe(&format!("gloss {lemma}"), shown(fresh.gloss(lemma)));
+        g.probe(
+            &format!("gloss {lemma}"),
+            shown(fresh.gloss(lemma, None).unwrap()),
+        );
     }
     for phrase in PHRASES {
         g.probe(
             &format!("phrase-gloss {phrase}"),
-            fresh.phrase_gloss(phrase),
+            fresh.phrase_gloss(phrase, None).unwrap(),
         );
     }
     for (written, lemma) in GRAMMAR {
         g.probe(
             &format!("word-grammar {written} {lemma}"),
-            fresh.word_grammar(written, lemma),
+            fresh.word_grammar(written, lemma, None).unwrap(),
         );
     }
-    g.probe("has-levels", fresh.has_levels());
-    g.probe("level-ladder", fresh.level_ladder());
+    g.probe("has-levels", fresh.has_levels(None).unwrap());
+    g.probe("level-ladder", fresh.level_ladder(None).unwrap());
     g.probe(
         "vocabulary-estimate new-reader",
-        fresh.vocabulary_estimate(),
+        fresh.vocabulary_estimate(None).unwrap(),
     );
-    g.probe("notice", fresh.notice());
-    g.probe("licences", fresh.licences());
+    g.probe("notice", fresh.notice(None).unwrap());
+    g.probe("licences", fresh.licences(None).unwrap());
 
     // A reader with a history: calibration, a declared level, every kind of status (one of
     // them withdrawn), exposures on three days, cards added, seeded and retired, a review.
     let mut reader = engine(&pack);
-    reader.set_calibration(3_000);
-    reader.set_declared_level_at("B1", T_MS);
-    reader.set_status_at("lighthouse", "known", T_MS + 1.0);
-    reader.set_status_at("landlord", "learning", T_MS + 2.0);
-    reader.set_status_at("betwixt", "ignored", T_MS + 3.0);
-    reader.set_status_at("ceiling", "known", T_MS + 4.0);
-    reader.set_status_at("councillor", "known", T_MS + 5.0);
-    reader.set_status_at("councillor", "", T_MS + 6.0);
+    reader.set_calibration(3_000, None).unwrap();
+    reader.set_declared_level_at("B1", T_MS, None).unwrap();
+    reader
+        .set_status_at("lighthouse", "known", T_MS + 1.0, None)
+        .unwrap();
+    reader
+        .set_status_at("landlord", "learning", T_MS + 2.0, None)
+        .unwrap();
+    reader
+        .set_status_at("betwixt", "ignored", T_MS + 3.0, None)
+        .unwrap();
+    reader
+        .set_status_at("ceiling", "known", T_MS + 4.0, None)
+        .unwrap();
+    reader
+        .set_status_at("councillor", "known", T_MS + 5.0, None)
+        .unwrap();
+    reader
+        .set_status_at("councillor", "", T_MS + 6.0, None)
+        .unwrap();
     for day in 0..3 {
-        reader.record_exposures(
-            ["sailor", "shore", "storm", "expedition", "patience"]
-                .map(str::to_owned)
-                .to_vec(),
-            "page",
-            T_MS + f64::from(day) * DAY_MS,
-        );
+        reader
+            .record_exposures(
+                ["sailor", "shore", "storm", "expedition", "patience"]
+                    .map(str::to_owned)
+                    .to_vec(),
+                "page",
+                T_MS + f64::from(day) * DAY_MS,
+                None,
+            )
+            .unwrap();
     }
     g.probe(
         "promote-by-exposure 2 days",
-        reader.promote_by_exposure(2, T_MS + 3.0 * DAY_MS),
+        reader
+            .promote_by_exposure(2, T_MS + 3.0 * DAY_MS, None)
+            .unwrap(),
     );
-    reader.add_card(
-        "expedition",
-        "expedition",
-        "She will lead the expedition.",
-        "https://example.com/homographs",
-        Some("expédition".to_owned()),
-        T_SECS,
-    );
-    reader.add_card(
-        "backlog",
-        "backlog",
-        "We really need to take care of the backlog.",
-        "https://example.com/phrasal",
-        None,
-        T_SECS + 60.0,
-    );
-    reader.add_card(
-        "grin",
-        "grinning",
-        "He couldn't stop grinning.",
-        "",
-        None,
-        T_SECS + 120.0,
-    );
+    reader
+        .add_card(
+            "expedition",
+            "expedition",
+            "She will lead the expedition.",
+            "https://example.com/homographs",
+            Some("expédition".to_owned()),
+            T_SECS,
+            None,
+        )
+        .unwrap();
+    reader
+        .add_card(
+            "backlog",
+            "backlog",
+            "We really need to take care of the backlog.",
+            "https://example.com/phrasal",
+            None,
+            T_SECS + 60.0,
+            None,
+        )
+        .unwrap();
+    reader
+        .add_card(
+            "grin",
+            "grinning",
+            "He couldn't stop grinning.",
+            "",
+            None,
+            T_SECS + 120.0,
+            None,
+        )
+        .unwrap();
     g.probe(
         "seed-level A2 5 common",
-        reader.seed_level("A2", 5, "common", T_SECS + 180.0),
+        reader
+            .seed_level("A2", 5, "common", T_SECS + 180.0, None)
+            .unwrap(),
     );
     g.probe(
         "seed-level C1 3 rare",
-        reader.seed_level("C1", 3, "rare", T_SECS + 240.0),
+        reader
+            .seed_level("C1", 3, "rare", T_SECS + 240.0, None)
+            .unwrap(),
     );
-    reader.retire_card("backlog", T_SECS + 300.0);
+    reader.retire_card("backlog", T_SECS + 300.0, None).unwrap();
     let now = T_SECS + DAY_SECS;
     g.probe("start-review", reader.start_review(now));
     g.probe("review-current first", shown(reader.review_current()));
@@ -341,8 +374,11 @@ fn render() -> String {
     g.probe("review-current second", shown(reader.review_current()));
     reader.review_mark_known(now);
     g.probe("review-remaining", reader.review_remaining());
-    g.probe("calibration", reader.calibration());
-    g.probe("declared-level", shown(reader.declared_level()));
+    g.probe("calibration", reader.calibration(None).unwrap());
+    g.probe(
+        "declared-level",
+        shown(reader.declared_level(None).unwrap()),
+    );
     g.probe("tracked-count", reader.tracked_count());
     g.probe("deck-count", reader.deck_count());
     g.probe(
@@ -355,14 +391,19 @@ fn render() -> String {
     {
         g.probe(
             &format!("analyse reader {name}"),
-            reader.analyse(blocks.clone()),
+            reader.analyse(blocks.clone(), None).unwrap(),
         );
     }
     g.probe(
         "phrase-gloss reader She will lead the expedition",
-        reader.phrase_gloss("She will lead the expedition"),
+        reader
+            .phrase_gloss("She will lead the expedition", None)
+            .unwrap(),
     );
-    g.probe("vocabulary-estimate reader", reader.vocabulary_estimate());
+    g.probe(
+        "vocabulary-estimate reader",
+        reader.vocabulary_estimate(None).unwrap(),
+    );
     g.probe("export-status-ops", reader.export_status_ops());
     g.probe("export-card-ops", reader.export_card_ops());
     g.probe("export-declared-levels", reader.export_declared_levels());
