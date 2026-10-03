@@ -16,13 +16,15 @@ pack yet: that is `enable-lingua-spanish`.
 
 ## What is in them
 
-- **60,000 lemmas**, the commonest by wordfreq, and **144,804 forms**: each lemma's own form, and
-  84,804 inflected forms attested in wordfreq. A form nobody writes is left to the analyser's rules.
+- **60,000 lemmas**, the commonest by wordfreq, and **144,805 forms**: each lemma's own form, and
+  84,805 inflected forms attested in wordfreq. A form nobody writes is left to the analyser's rules.
 - **No verb with its clitics** (`dámelo`, `hacerlo`): the analyser's enclitic rule reads them. A
   string that is also a plain form keeps it: `principales`, which is also *principar* + `les`, maps
   to *principal*.
 - **One lemma per form.** Where a form has several, the reducer decides in this order:
-  1. `OVERRIDES` in `reduce-es-fr.py`, each row with its reason (`vino` → *venir*);
+  1. `OVERRIDES` in `reduce-es-fr.py`, each row with its reason. It is empty: a lemma's own form
+     reads as itself, so an override takes the other lemma out of the pack (`vino` stays the noun,
+     and the card names *venir*);
   2. GSD's counts (`fue` → *ser*);
   3. the form's own entry (`casa` → *casa*);
   4. the commoner lemma (`luces` → *luz*).
@@ -36,10 +38,10 @@ and proper nouns are left out. On the 2026-10-03 tables:
 | | Measured | Gate |
 |---|---|---|
 | words resolved in the lexicon | 99.38 % of 19,276 | 98.5 % |
-| content words taking PUD's lemma | 95.91 % of 9,439 | 93.5 % |
+| content words taking PUD's lemma | 95.92 % of 9,439 | 93.5 % |
 | auxiliaries taking PUD's lemma | 97.95 % of 634 | 97 % |
 
-The pack is 1,307,315 B.
+The pack is 1,307,728 B.
 
 ## Licences
 

@@ -59,13 +59,12 @@ ES = common.Studied(
 # Homographs a person decided (design D2), checked before any count: form → (lemma, reason). The
 # reason is part of the rule: a row without one is not a decision. Editing this table changes the
 # rules' sha256, so the tables must be reduced again, as for any rule.
-OVERRIDES = {
-    "vino": (
-        "venir",
-        "GSD (news) counts the noun 20 to 4, but narrative text, which readers bring, meets the "
-        "preterite of venir far more often; the card shows the noun as the other reading",
-    ),
-}
+#
+# A row costs the other lemma its place in the pack: a lemma's own form always reads as itself, so
+# sending `vino` to *venir* would take the noun *vino* out altogether, where the counts keep it and
+# the card names *venir* as the other reading (add-lingua-spanish-grammar-tables). No homograph is
+# worth that yet.
+OVERRIDES = {}
 
 
 def nfc_lower(text):
