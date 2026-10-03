@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.36.0](https://github.com/NEETROF/cymbra/compare/backend-v0.35.0...backend-v0.36.0) (2026-10-03)
+
+
+### Features
+
+* **discord:** post periodic activity reports without head counts ([#603](https://github.com/NEETROF/cymbra/issues/603)) ([601a72d](https://github.com/NEETROF/cymbra/commit/601a72d0a69da9ed095ee37b17b5fe1eb62abe83))
+
 ## [0.35.0](https://github.com/NEETROF/cymbra/compare/backend-v0.34.0...backend-v0.35.0) (2026-09-30)
 
 
