@@ -16,14 +16,15 @@ what it is.
 
 ## What Changes
 
-- **The reader's studied languages, in their state.** `LinguaState` holds an ordered list of
-  studied languages, the primary first, English by default. It lives in the backup and nowhere
-  else: it is never synced. A full reset returns it to English, and resetting statuses leaves it
-  as it is.
-- **Backup schema version 2, only when needed.** A backup that holds only English is written
-  exactly as today: schema version 1, with no new field. That covers the list and every
-  per-language record. A backup that holds any other language is written as version 2, list
-  included.
+- **The reader's profile, in their state.** `LinguaState` holds the reader's language profile.
+  It reuses the existing `Profile` type, the *L1/L2 profile* of `lingua-knowledge-model`, which
+  nothing stored until now. The profile holds the studied languages, ordered with the primary
+  first, and the native language. The default is English studied, French native. The profile
+  lives in the backup and nowhere else: it is never synced. A full reset returns it to the
+  default, and resetting statuses leaves it as it is.
+- **Backup schema version 2, only when needed.** A backup whose profile is the default and whose
+  every per-language record is English is written exactly as today: schema version 1, with no
+  new field. Any other backup is written as version 2, profile included.
 - **The version is read first.** A restore reads the schema version before the rest of the
   file and reads versions 1 and 2. Any other version is refused as unsupported, never reported
   as malformed.
@@ -33,7 +34,7 @@ what it is.
 - **The engine and the port expose the list.** `studiedLanguages()` and
   `setStudiedLanguages(languages)` are added on the engine and on the port's root, and the RPC
   forwards them. A list must be non-empty, without duplicates, and name only languages the
-  engine knows.
+  engine knows. The native language stays French: every pair the programme ships is `*-fr`.
 - **Each surface reads in the reader's language.** `STUDIED_LANGUAGE` goes. A surface reads in
   the first language of the list that the package ships, or the default pair's language when
   none is. It reads that language when it starts, and again after another context changes the
@@ -49,9 +50,11 @@ None.
 
 ### Modified Capabilities
 
-- `lingua-decks-review`: ADDED — *The backup records the reader's studied languages* and *A
+- `lingua-decks-review`: ADDED — *The backup records the reader's language profile* and *A
   restore reads the backup's schema version first*. *Lossless backup and restore* is not
-  rewritten: the round trip stays identical, since an omitted list is restored as English.
+  rewritten: the round trip stays identical, since an omitted profile is restored as the default.
+- `lingua-knowledge-model`: no delta. Its *L1/L2 profile* requirement already describes the
+  profile; this change gives it a home in the state.
 - `lingua-browser-extension`: ADDED — *Each surface reads in the reader's language*.
 
 The open changes on these capabilities hold requirements under other names, and nothing they
@@ -60,8 +63,8 @@ hold is rewritten.
 ## Impact
 
 - **Products.** Cymbra Lingua only:
-  - `crates/lingua-core`: the state, its backup version, and the languages each per-language
-    record exposes;
+  - `crates/lingua-core`: the state (now holding the profile), its backup version, and the
+    languages each per-language record exposes;
   - `crates/lingua-wasm`: two bindings;
   - `apps/lingua-extension`: the port, the engine mirror, the messaging port and every surface
     that named `STUDIED_LANGUAGE`.
@@ -71,5 +74,5 @@ hold is rewritten.
 - **Release.** The last change of R2. After it come the R2 dogfood pass and the silent English
   release. A version 2 backup is readable only by builds that carry this change, so R2 has to
   reach installed builds before any Spanish data can exist.
-- **Coverage.** The list, its validation and the version rule live in `lingua-core`, which is
+- **Coverage.** The profile, its validation and the version rule live in `lingua-core`, which is
   host-tested.

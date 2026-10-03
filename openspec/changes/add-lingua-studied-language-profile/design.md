@@ -7,6 +7,7 @@ See proposal.md (Why). Today:
 | Where | What it does |
 |---|---|
 | `crates/lingua-core/src/decks/backup.rs` | `LinguaState` carries a `schema_version` field, and `BACKUP_SCHEMA_VERSION` is 1. `to_backup` writes pretty JSON. `from_backup` deserialises the whole file, then refuses a version other than 1. A language a build does not know therefore fails the restore as malformed. |
+| `crates/lingua-core/src/knowledge/profile.rs` | `Profile` holds `native_language` and `studied_languages`, with `english_for_french()` as the MVP's. It implements `lingua-knowledge-model`'s *L1/L2 profile*. It is defined and tested, but nothing holds it. |
 | `KnowledgeState`, `ExposureCounters`, `Deck` | Every per-language record is a map keyed by `StudiedLanguage`: statuses, calibration, declared level and its time, last-change times, exposure counters, cards. |
 | `crates/lingua-wasm` | `backup`, `restore`, `reset` (the whole state back to defaults) and `resetStatuses`. |
 | `apps/lingua-extension` | `STUDIED_LANGUAGE = "en"`, read on 33 lines in 9 files (#628): the reading session, settings, statistics, review, onboarding, popup, side panel, the sync's post-erasure calibration, and the v1 store migration. The speaker takes it when it is created: as a class field in the session, at module scope in the side panel. |
@@ -17,7 +18,7 @@ See proposal.md (Why). Today:
 ## Goals / Non-Goals
 
 **Goals:**
-- The reader's studied languages, in the state, in the backup, and nowhere else.
+- The reader's profile, in the state, in the backup, and nowhere else.
 - A backup format that only moves when a non-English language is present, and whose version a
   build reads before anything else.
 - One rule, applied by every surface, for the language it reads in.
@@ -35,20 +36,23 @@ See proposal.md (Why). Today:
 
 ## Decisions
 
-### D1 — The list lives in `LinguaState`
+### D1 — The existing `Profile` lives in `LinguaState`
 
-`LinguaState` gains `studied: Vec<StudiedLanguage>`, English alone by default. It is
-`#[serde(default)]`, so a backup without it restores as English alone. It is also skipped when
-serialised as English alone, so an English backup does not gain a field.
-- `set_studied` refuses an empty list or a duplicate, and leaves the previous list in place.
-  Order matters: the first language is the primary one.
-- `reset()` rebuilds the default state, so the list returns to English. `resetStatuses()` leaves
-  it alone: it is not a status.
-- An erasure resets the list too, whether made on this device or propagated from another
+`LinguaState` gains `profile: Profile`, reusing the type `lingua-knowledge-model` already
+specifies rather than adding a second notion of the reader's languages. Its default is
+`english_for_french()`. It is `#[serde(default)]`, so a backup without it restores as the
+default. It is also skipped when serialised as the default, so an English backup does not gain a
+field.
+- `set_studied_languages` refuses an empty list or a duplicate, and leaves the previous list in
+  place. Order matters: the first language is the primary one.
+- Nothing sets the native language: every pair the programme ships is `*-fr`.
+- `reset()` rebuilds the default state, so the profile returns to the default. `resetStatuses()`
+  leaves it alone: it is not a status.
+- An erasure resets the profile too, whether made on this device or propagated from another
   (`wipeLocal` in the sync). The reader erased their Lingua data, the choice included, and
   onboarding will offer it again (`add-lingua-language-choice`).
-- The round trip stays identical, since an omitted list is restored as the default it stood for.
-  *Lossless backup and restore* needs no rewrite.
+- The round trip stays identical, since an omitted profile is restored as the default it stood
+  for. *Lossless backup and restore* needs no rewrite.
 
 Why the state: D9 puts the choice in the state and the backup. The backup is also the one durable
 record that the background owns and every surface restores, and that « Effacer mes données »
@@ -59,19 +63,20 @@ its own exclusion from sync and its own erase path, and D9 rules it out.
 
 ### D2 — The version belongs to the written file
 
-`schema_version` stops being a stored field. `to_backup` writes 1 when every language present is
-English, and 2 otherwise. "Present" means the list plus the keys of every per-language map; each
-of `KnowledgeState`, `ExposureCounters` and `Deck` exposes the languages it holds.
+`schema_version` stops being a stored field. `to_backup` writes 1 when the profile is the default
+and every per-language map holds English alone, and 2 otherwise. "Holds" means its keys; each of
+`KnowledgeState`, `ExposureCounters` and `Deck` exposes the languages it holds.
 
-A version 1 file keeps today's field order and has no list, so it is today's file byte for byte.
+A version 1 file keeps today's field order and has no profile, so it is today's file byte for
+byte.
 S0 checks this without being re-blessed.
 
 Alternatives:
 - **Write version 2 from this build on.** After a rollback past this change, a build released
   before it would refuse every backup, English ones included. The programme keeps "v2 only when
   needed" in its never-cut list.
-- **Version 2 only when the list changes.** Spanish records with an English list would be just as
-  unreadable to an older build.
+- **Version 2 only when the profile changes.** Spanish records under a default profile would be
+  just as unreadable to an older build.
 
 ### D3 — The version is read first
 
@@ -86,8 +91,8 @@ Alternatives:
 Such a build deserialises before it checks:
 - A version 2 backup with another language's records fails as malformed, because the build does
   not know the language.
-- One with a non-English list and only English records fails as an unsupported version: serde
-  ignores the unknown list field, then the version check refuses 2.
+- One with a non-default profile and only English records fails as an unsupported version: serde
+  ignores the unknown profile field, then the version check refuses 2.
 
 Either way `hydrateEngine` throws, the surface stops, and nothing writes the store (Context).
 
@@ -116,14 +121,14 @@ In R2 nothing in the extension calls the setter. The specs use it, and
 returns the first language of the list that a shipped pair studies. When none is, it returns the
 default pair's language.
 
-A build that does not ship a language in the list keeps reading in what it ships, and the list
-stays untouched in the backup. An R2 build restoring a later Spanish reader's backup is the case.
+A build that does not ship a language in the list keeps reading in what it ships, and the
+profile stays untouched in the backup. An R2 build restoring a later Spanish reader's backup is the case.
 
 Each surface resolves the language after it hydrates, and again after an external restore:
 - **Reading session:** the `lang` view reads a field set in `start()` and `onExternalChange()`.
 - **Settings, statistics and review:** on each `refresh()`.
 - **Onboarding, popup and side panel:** after hydrating.
-- **Sync's calibration after an erasure:** after the reset, so for the default list, English.
+- **Sync's calibration after an erasure:** after the reset, so for the default profile, English.
 - **Speaker:** it takes its language as a getter, so the session and the side panel can still
   create it before hydrating. Voice per language belongs to `add-lingua-language-choice`.
 - **`hydrateFromV1`:** English, named so, since a reading-only store predates languages.

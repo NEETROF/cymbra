@@ -1,12 +1,12 @@
 ## 1. The list and the backup version (lingua-core)
 
-- [ ] 1.1 `LinguaState` gains `studied` with `set_studied` and the defaults of D1. `KnowledgeState`, `ExposureCounters` and `Deck` expose the languages they hold.
+- [ ] 1.1 `LinguaState` gains `profile: Profile`, with `set_studied_languages` and the defaults of D1. `KnowledgeState`, `ExposureCounters` and `Deck` expose the languages they hold.
 - [ ] 1.2 `to_backup` computes the version (D2) and `from_backup` reads it first (D3), with `UnsupportedVersion` naming what it found. Host tests cover:
-  - an English state written as version 1 with no list, equal to the output of the previous build;
-  - version 2 for a non-English list, and for Spanish records under an English list;
+  - an English state written as version 1 with no profile, equal to the output of the previous build;
+  - version 2 for a non-default profile, and for Spanish records under the default profile;
   - round trips of both versions;
   - an empty or duplicated list refused, the previous one kept;
-  - `reset` restoring English and `resetStatuses` keeping the list;
+  - `reset` restoring the default profile and `resetStatuses` keeping it;
   - version 3 refused as unsupported, and a file without a version as malformed.
 
 ## 2. The engine (lingua-wasm)
