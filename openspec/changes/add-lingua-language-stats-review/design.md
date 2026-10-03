@@ -32,7 +32,10 @@ See proposal.md (Why). Today:
 `ReviewSession::start_for(deck, now, languages)` keeps the due keys whose language is listed. An
 empty list keeps every key, so `start` is `start_for` with none. The engine's `startReview(now,
 languages?)` and `dueCount(now, languages?)` take an optional array of tags; absent, or with no
-known tag, means every language. `reviewCurrent()` adds `language`, the tag of the current key.
+known tag, means every language. The current card's language comes from a call of its own,
+`reviewCurrentLanguage()`. `reviewCurrent()`'s view stays as the English baseline (S0) pins it, and
+the port joins the two into one `ReviewCard`, so a background engine answers both in one round
+trip.
 
 `due_keys` returns the deck's order, (language, lemma), which is not by due date: the English
 review has always run alphabetically. A queue that mixes languages is sorted by due date, as D8 asks,

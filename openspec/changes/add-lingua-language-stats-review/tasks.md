@@ -6,7 +6,7 @@
   - an empty list taking every language.
 - [ ] 1.2 `lingua-wasm`:
   - `startReview(now, languages?)` and `dueCount(now, languages?)`;
-  - `reviewCurrent` adds `language`.
+  - `reviewCurrentLanguage()`, with `reviewCurrent`'s view unchanged (S0).
 
   Native tests: a filtered count and session, and the card's language.
 

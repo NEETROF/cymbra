@@ -20,7 +20,8 @@ are those of English, as today.
 - **The engine reviews across languages, or within some.**
   - `startReview(now, languages?)` and `dueCount(now, languages?)` take an optional list: absent
     or empty means every language, ordered by due date as today.
-  - The review card names its language (`language`).
+  - The review card names its language (`reviewCurrentLanguage`, apart from the card's view,
+    which the English baseline pins).
 - **The review page filters by language** when the reader accepts several: « Toutes », then one
   choice per language.
   - The summary and the session follow the filter.
