@@ -736,10 +736,15 @@ describe("Réglages — sub-tabs", () => {
       ["Barre sur la page", "Livres", "Raccourcis & gestes"],
       ["Synchronisation", "Réinitialisation"],
     ]);
-    // The book's display (size, theme, page turn) comes with Affichage, under Apparence.
-    for (const control of ["Taille du texte", "Thème", "Tourne des pages", "Directe", "Glissée"]) {
-      expect(panels[1].textContent).toContain(control);
-    }
+    // The book's size and theme come with Affichage, under Apparence; its page turn joins the
+    // continuous flow in Livres, under Pages & livres.
+    expect(panels[1].textContent).toContain("Taille du texte");
+    expect(panels[1].textContent).toContain("Thème");
+    expect(panels[1].textContent).not.toContain("Tourne des pages");
+    const books = [...panels[2].querySelectorAll<HTMLElement>(".set-block")].find(
+      (b) => b.querySelector(".set-label")?.textContent === "Livres",
+    )!;
+    expect(books.textContent).toMatch(/Défilement continu.*Tourne des pages.*Directe.*Glissée/);
     // Every block lives in a tab: none is left loose above the tabs.
     expect(container.querySelectorAll(":scope > .set-block")).toHaveLength(0);
     for (const [i, tab] of tabs(container).entries()) {

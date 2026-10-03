@@ -3,7 +3,8 @@ import { mountBookDisplay } from "@/reading/book-display-view.ts";
 import { type AsyncStorageArea, READER_DISPLAY_KEY } from "@/state/storage.ts";
 
 // The text size and the page of a book (add-lingua-reader D10): one builder, in the reader's
-// "Aa" panel and in Réglages → Livres. Each tap is one step, saved.
+// "Aa" panel and in Réglages (Apparence › Affichage, the turn under Livres). Each tap is one
+// step, saved.
 
 function area(seed: Record<string, unknown> = {}): AsyncStorageArea & { store: Record<string, unknown> } {
   const store: Record<string, unknown> = { ...seed };
@@ -92,5 +93,29 @@ describe("mountBookDisplay", () => {
     expect(v.storage.store[READER_DISPLAY_KEY]).toEqual({ textScale: 120, theme: "dark", turn: "slide" });
     expect(v.page("Glissée").getAttribute("aria-pressed")).toBe("true");
     expect(v.page("Directe").getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("puts the page turn in its own container when given one, still saved together", async () => {
+    const storage = area();
+    const container = document.createElement("div");
+    const turnContainer = document.createElement("div");
+    const view = mountBookDisplay(container, storage, { turnContainer });
+    await view.refresh();
+    expect(container.textContent).toContain("Taille du texte");
+    expect(container.textContent).not.toContain("Tourne des pages");
+    expect(turnContainer.querySelector(".set-display")?.textContent).toContain("Tourne des pages");
+    [...turnContainer.querySelectorAll<HTMLButtonElement>(".set-segment")]
+      .find((b) => b.textContent === "Glissée")!
+      .click();
+    await settle();
+    expect(storage.store[READER_DISPLAY_KEY]).toEqual({ textScale: 100, theme: "paper", turn: "slide" });
+  });
+
+  it("keeps the three together when no container is given (the reader's panel)", async () => {
+    const container = document.createElement("div");
+    mountBookDisplay(container, area());
+    const box = container.querySelectorAll(".set-display");
+    expect(box).toHaveLength(1);
+    expect(box[0].textContent).toMatch(/Taille du texte.*Thème.*Tourne des pages/);
   });
 });
