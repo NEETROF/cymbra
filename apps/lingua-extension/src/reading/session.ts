@@ -167,10 +167,26 @@ const storageArea: AsyncStorageArea = {
 
 const nowSeconds = (): number => Math.floor(Date.now() / 1000);
 
-/** A document's declared language, as its primary subtag (`es-ES` → `es`), or null. */
+/** The three-letter codes (ISO 639-2) some packages declare for the shipped languages. */
+const THREE_LETTER: Record<string, string> = { eng: "en", spa: "es" };
+
+/** A language tag as its primary subtag (`es-ES` → `es`, `spa` → `es`), or null when empty. */
+export function primaryLanguage(tag: string | null | undefined): string | null {
+  const primary = (tag ?? "").trim().toLowerCase().split(/[-_]/)[0];
+  return primary ? (THREE_LETTER[primary] ?? primary) : null;
+}
+
+/**
+ * A document's declared language, or null: `lang`, then `xml:lang` (what XHTML, a book section,
+ * declares), on the root element and then on the body (add-lingua-reader-language D1).
+ */
 export function languageHint(doc: Document): string | null {
-  const declared = doc.documentElement.getAttribute("lang")?.trim().toLowerCase() ?? "";
-  return declared.split(/[-_]/)[0] || null;
+  for (const element of [doc.documentElement, doc.body]) {
+    const declared = element?.getAttribute("lang") || element?.getAttribute("xml:lang");
+    const primary = primaryLanguage(declared);
+    if (primary) return primary;
+  }
+  return null;
 }
 
 /** Coerce an untrusted message payload to a drawer view (defaults to review). */
