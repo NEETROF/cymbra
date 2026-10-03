@@ -15,8 +15,9 @@ Inputs, in `--work`:
 - wordfreq `es` (the installed, pinned package): the 60,000 commonest lemmas and which forms are
   attested at all (design D3).
 
-Outputs, in `--work`: `forms.tsv`, `freq.tsv`, an empty `gloss.tsv` (the French glosses are
-add-lingua-spanish-gloss-tables), `NOTICE` and `manifest.json`.
+Outputs, in `--work`: `forms.tsv`, `freq.tsv`, `grammar.tsv` (add-lingua-spanish-grammar-tables),
+an empty `gloss.tsv` (the French glosses are add-lingua-spanish-gloss-tables), `NOTICE` and
+`manifest.json`.
 
 Every rule here is Spanish: the shared rules of `reduce_common.py` are used as they are, and that
 module is not edited, so the en-fr tables' rule set does not move.
@@ -71,7 +72,7 @@ def nfc_lower(text):
     return unicodedata.normalize("NFC", (text or "").strip().lower())
 
 
-def read_kaikki(path):
+def read_kaikki(path, readings=None):
     """Candidate lemmas per form, the words that are lemmas of their own, and the combined forms.
 
     A form's candidates: the lemma entries listing it among their inflections (bookkeeping left
@@ -80,6 +81,8 @@ def read_kaikki(path):
     lemma listing it as a combined form, or a sense of its own naming the pronouns, gives it no
     lemma. A string that is also a plain form of another word keeps that one — `principales` is
     *principar* + `les`, and the plural of *principal*.
+
+    With `readings` (a `Readings`), the same pass collects each entry's grammar (`read_readings`).
     """
     candidates = collections.defaultdict(set)
     lemmas = set()
@@ -91,6 +94,8 @@ def read_kaikki(path):
             except json.JSONDecodeError:
                 continue
             read_entry(entry, candidates, lemmas, combined)
+            if readings is not None:
+                read_readings(entry, readings)
     return candidates, lemmas, combined
 
 
@@ -206,10 +211,226 @@ def analyser_version(path=_ANALYSIS_RS):
     return m.group(1)
 
 
+# — The grammar readings (add-lingua-spanish-grammar-tables) —
+#
+# Every form kaikki lists carries its grammar as tags (`doy`: first-person, indicative, present,
+# singular). They become Universal Dependencies tags, the vocabulary the pack's grammar sections
+# read (add-lingua-word-grammar D1): `VERB|Mood=Ind|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin`.
+
+# kaikki's parts of speech whose forms carry readings, as UPOS.
+_UPOS = {"verb": "VERB", "noun": "NOUN", "adj": "ADJ", "det": "DET", "pron": "PRON", "num": "NUM"}
+_PERSON = {"first-person": "1", "second-person": "2", "third-person": "3"}
+_TENSE = (("present", "Pres"), ("imperfect", "Imp"), ("preterite", "Past"), ("future", "Fut"))
+_GENDER = {"masculine": "Masc", "feminine": "Fem", "neuter": "Neut"}
+# `es-noun`'s gender argument: the genders a noun takes, and whether its headword is a plural.
+_NOUN_GENDER = {
+    "m": (("Masc",), False),
+    "f": (("Fem",), False),
+    "mf": (("Masc", "Fem"), False),
+    "mfbysense": (("Masc", "Fem"), False),
+    "mfequiv": (("Masc", "Fem"), False),
+    "m-p": (("Masc",), True),
+    "f-p": (("Fem",), True),
+    "mf-p": (("Masc", "Fem"), True),
+}
+# Rows of an entry's table that are no reading: the bookkeeping, the combined forms, the headword
+# repeated, and what kaikki could not parse or marks as a misspelling.
+_NOT_A_READING = _BOOKKEEPING | {
+    _COMBINED,
+    "canonical",
+    "error-unrecognized-form",
+    "misspelling",
+    "pronunciation-spelling",
+}
+
+
+def ud_tag(upos, features):
+    """A Universal Dependencies tag: the part of speech, then the features sorted by name."""
+    return "|".join([upos, *(f"{name}={value}" for name, value in sorted(features.items()))])
+
+
+def verb_features(tags):
+    """A verb form's features from kaikki's tags, or None when they name no reading of their own.
+
+    - A negative imperative (`no hables`) is the present subjunctive, which kaikki lists as such.
+    - The polite imperative (`hable`, *usted*) is grammatically a third person.
+    - A participle reads with its agreement; kaikki's bare `participle past` row repeats the
+      masculine singular.
+    - The conditional is a mood of its own, as UD Spanish writes it, though kaikki also tags it
+      indicative.
+    """
+    if "negative" in tags:
+        return None
+    if "infinitive" in tags:
+        return {"VerbForm": "Inf"}
+    if "gerund" in tags:
+        return {"VerbForm": "Ger"}
+    if "participle" in tags:
+        agreement = _agreement(tags)
+        return {"VerbForm": "Part", "Tense": "Past", **agreement} if agreement else None
+    if "conditional" in tags:
+        mood = "Cnd"
+    elif "imperative" in tags:
+        mood = "Imp"
+    elif "subjunctive" in tags:
+        mood = "Sub"
+    elif "indicative" in tags:
+        mood = "Ind"
+    else:
+        return None
+    features = {"VerbForm": "Fin", "Mood": mood}
+    if mood in ("Ind", "Sub"):
+        tense = next((ud for kaikki, ud in _TENSE if kaikki in tags), None)
+        if tense is None:
+            return None
+        features["Tense"] = tense
+    persons = [_PERSON[tag] for tag in tags if tag in _PERSON]
+    if len(persons) != 1 or not ({"singular", "plural"} & tags):
+        return None
+    features["Person"] = persons[0]
+    features["Number"] = "Plur" if "plural" in tags else "Sing"
+    return features
+
+
+def _agreement(tags):
+    """Gender and number, as a participle's tags state them."""
+    out = {}
+    genders = [_GENDER[tag] for tag in tags if tag in _GENDER]
+    if len(genders) == 1:
+        out["Gender"] = genders[0]
+    if "plural" in tags:
+        out["Number"] = "Plur"
+    elif "singular" in tags:
+        out["Number"] = "Sing"
+    return out
+
+
+def nominal_features(tags, genders=()):
+    """The features of a noun's, adjective's, determiner's or pronoun's form, one set per gender.
+
+    Its number (singular unless kaikki says plural), its degree, and its gender: the form's own, or
+    none when it names both (`grandes`), or — for a form kaikki gives no gender, a noun's plural —
+    each of the lemma's.
+    """
+    base = {"Number": "Plur" if "plural" in tags else "Sing"}
+    if "superlative" in tags:
+        base["Degree"] = "Sup"
+    own = [_GENDER[tag] for tag in tags if tag in _GENDER]
+    if len(own) == 1:
+        return [{**base, "Gender": own[0]}]
+    if own or not genders:
+        return [base]
+    return [{**base, "Gender": gender} for gender in genders]
+
+
+def noun_genders(entry):
+    """A noun's genders, and whether its headword is a plural: `es-noun`'s argument, else the
+    genders its senses are tagged with."""
+    for head in entry.get("head_templates") or ():
+        if head.get("name") == "es-noun":
+            known = _NOUN_GENDER.get((head.get("args") or {}).get("1"))
+            if known:
+                return known
+    tags = set()
+    for sense in entry.get("senses") or ():
+        tags.update(sense.get("tags") or ())
+    return tuple(_GENDER[tag] for tag in ("masculine", "feminine") if tag in tags), False
+
+
+def adjective_agrees(entry):
+    """Whether an adjective has a feminine of its own (`rápida`), unlike `grande`."""
+    for inflection in entry.get("forms") or ():
+        tags = set(inflection.get("tags") or ())
+        if "feminine" in tags and "masculine" not in tags:
+            return True
+    return False
+
+
+class Readings:
+    """The readings kaikki states, by (form, lemma): its lemmas' tables, and its form entries'
+    senses for the pairs no table lists — a form entry gives no gender, so a table's reading of
+    the same pair wins (`casas`: feminine plural, not just plural)."""
+
+    def __init__(self):
+        self.table = collections.defaultdict(set)
+        self.senses = collections.defaultdict(set)
+
+    def pairs(self):
+        out = {pair: set(tags) for pair, tags in self.senses.items()}
+        out.update((pair, set(tags)) for pair, tags in self.table.items())
+        return out
+
+
+def read_readings(entry, readings):
+    """One entry's readings into `readings`, word and form lowercased and in NFC.
+
+    A lemma's entry gives its table's forms, and a noun's or an adjective's own form, which carries
+    its gender (`casa`: feminine singular). A form's entry gives each form-of sense, toward its
+    target — the pronominal forms (`azotarse`, the infinitive of *azotar* with `se`) only a form's
+    own entry tags. A combined form's sense, naming the pronoun, gives none.
+    """
+    upos = _UPOS.get(entry.get("pos"))
+    word = nfc_lower(entry.get("word"))
+    if upos is None or not _TOKEN.fullmatch(word):
+        return
+    senses = entry.get("senses") or []
+    if senses and all(_is_form_of(sense) for sense in senses):
+        for sense in senses:
+            if _names_clitics(sense):
+                continue
+            tags = set(sense.get("tags") or ())
+            for ref in sense.get("form_of") or ():
+                target = nfc_lower(ref.get("word") if isinstance(ref, dict) else "")
+                if _TOKEN.fullmatch(target):
+                    readings.senses[(word, target)].update(_tags(upos, tags))
+        return
+    genders, plural = noun_genders(entry) if upos == "NOUN" else ((), False)
+    if upos == "NOUN":
+        own = {"Number": "Plur" if plural else "Sing"}
+        for features in [{**own, "Gender": gender} for gender in genders] or [own]:
+            readings.table[(word, word)].add(ud_tag(upos, features))
+    elif upos == "ADJ":
+        own = {"Number": "Sing", **({"Gender": "Masc"} if adjective_agrees(entry) else {})}
+        readings.table[(word, word)].add(ud_tag(upos, own))
+    for inflection in entry.get("forms") or ():
+        tags = set(inflection.get("tags") or ())
+        form = nfc_lower(inflection.get("form"))
+        if tags & _NOT_A_READING or not _TOKEN.fullmatch(form):
+            continue
+        readings.table[(form, word)].update(_tags(upos, tags, genders))
+
+
+def _tags(upos, tags, genders=()):
+    """The UD tags kaikki's tags name for a form of `upos`; none when they name no reading."""
+    if upos == "VERB":
+        features = verb_features(tags)
+        return [ud_tag(upos, features)] if features else []
+    out = []
+    for features in nominal_features(tags, genders):
+        if "Degree" in features and upos != "ADJ":
+            continue
+        out.append(ud_tag(upos, features))
+    return out
+
+
+def grammar_rows(readings, forms, ranks):
+    """`grammar.tsv`'s rows, sorted: the readings of the forms the table holds, under the lemmas the
+    pack keeps. A reading of another lemma than the one its form maps to is marked `other`: every
+    relation kaikki's tables state is believable, so the card may name it (add-lingua-word-grammar
+    D2) — `fue` read as *ser* is also a form of *ir*."""
+    rows = []
+    for (form, lemma), tags in readings.pairs().items():
+        if form not in forms or lemma not in ranks:
+            continue
+        mark = "-" if forms[form] == lemma else "other"
+        rows.extend(f"{form}\t{lemma}\t{tag}\t{mark}\n" for tag in tags)
+    return sorted(rows)
+
+
 NOTICE = """Cymbra Lingua data pack — ES->FR attributions.
 
 kaikki.org extract of the English Wiktionary (enwiktionary), Spanish section: CC BY-SA 4.0 + GFDL —
-the forms and their lemmas.
+the forms, their lemmas and their grammar.
 
 wordfreq (Spanish frequency list), by Robyn Speer (https://github.com/rspeer/wordfreq): data under
 CC BY-SA 4.0 — the commonest lemmas and which forms are attested.
@@ -237,7 +458,8 @@ def main():
             zipf[word] = zipf_frequency(word, "es")
         return zipf[word]
 
-    candidates, lemmas, combined = read_kaikki(os.path.join(a.work, "kaikki-Spanish.jsonl"))
+    readings = Readings()
+    candidates, lemmas, combined = read_kaikki(os.path.join(a.work, "kaikki-Spanish.jsonl"), readings)
     counts = read_gsd_counts(
         [os.path.join(a.work, "es_gsd-ud-train.conllu"), os.path.join(a.work, "es_gsd-ud-dev.conllu")]
     )
@@ -261,6 +483,8 @@ def main():
         "freq.tsv",
         "".join(f"{l}\t{r}\n" for l, r in sorted(ranks.items(), key=lambda kv: (kv[1], kv[0]))),
     )
+    grammar = grammar_rows(readings, forms, ranks)
+    common.write(a.work, "grammar.tsv", "".join(grammar))
     common.write(a.work, "gloss.tsv", "")
     common.write(a.work, "NOTICE", NOTICE)
     manifest = {
@@ -282,7 +506,7 @@ def main():
         ],
     }
     common.write(a.work, "manifest.json", json.dumps(manifest, indent=2, ensure_ascii=False) + "\n")
-    print(f"reduced es-fr: forms={len(forms)} lemmas={len(ranks)}", file=sys.stderr)
+    print(f"reduced es-fr: forms={len(forms)} lemmas={len(ranks)} readings={len(grammar)}", file=sys.stderr)
 
 
 if __name__ == "__main__":
