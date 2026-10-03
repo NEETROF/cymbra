@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { LinguaPort, StatusOp } from "@/analyzer/port.ts";
+import type { StatusOp } from "@/analyzer/port.ts";
 import type { CefrLevel, LevelRow, SeedOrder } from "@/analyzer/types.ts";
 import { utcDay } from "@/state/dailystats.ts";
 import { type AsyncStorageArea, ROOT_KEY, STORAGE_VERSION } from "@/state/storage.ts";
 import { mountStats } from "@/stats/view.ts";
-import { makeFakePort } from "./helpers.ts";
+import { makeFakePort, type FakePort } from "./helpers.ts";
 
 // The Statistiques view as a WHOLE — the mounting the side panel and the drawer share.
 // The ladder's markup, the chart and the model are pinned in stats.spec.ts; what is
@@ -58,7 +58,7 @@ const op = (lemma: string, status: string, provenance: string, updated_at = 100)
 });
 
 /** A port with CEFR data, over which each test states only what it cares about. */
-function levelledPort(over: Partial<LinguaPort> = {}): LinguaPort {
+function levelledPort(over: Partial<FakePort> = {}): FakePort {
   const { port } = makeFakePort();
   return {
     ...port,
@@ -389,5 +389,14 @@ describe("Statistiques — the view", () => {
 
     expect(pick(".scope").textContent).toBe("Cet appareil");
     expect(total("Mots lus")).toBe("7");
+  });
+});
+
+describe("stats and the studied language", () => {
+  it("asks every language-bound question in English", async () => {
+    const { port, calls } = makeFakePort();
+    await mountStats(document.createElement("div"), port, fakeArea());
+    expect(calls.languages.length).toBeGreaterThan(0);
+    expect(new Set(calls.languages)).toEqual(new Set(["en"]));
   });
 });

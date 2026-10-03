@@ -115,6 +115,8 @@ describe("hydrateFromV1", () => {
     };
     const backup = await hydrateFromV1(port, v1);
 
+    // The v1 store only ever held English: every migrated decision is asked in English.
+    expect(new Set(calls.languages)).toEqual(new Set(["en"]));
     expect(calls.setCalibration).toEqual([1500]);
     // known/ignored → plain statuses; learning → a deck card.
     expect(calls.setStatus).toEqual(

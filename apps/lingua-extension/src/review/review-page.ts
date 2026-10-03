@@ -4,6 +4,7 @@ import { type AsyncStorageArea, saveBackup } from "../state/storage.ts";
 import { watchBackup } from "../state/store.ts";
 import { ReviewController } from "./session.ts";
 import { type ReviewActions, renderReview } from "./view.ts";
+import { STUDIED_LANGUAGE } from "../analyzer/types.ts";
 
 // The full Révision page — summary + the FSRS review widget + lossless backup/restore +
 // the pack's Sources & confidentialité — built as plain DOM into a container so ONE
@@ -131,9 +132,9 @@ export function mountReview(
 
   void loadAttributions();
   async function loadAttributions(): Promise<void> {
-    const names = await port.licences();
+    const names = await port.for(STUDIED_LANGUAGE).licences();
     licences.textContent = names.length ? `Sources : ${names.join(" · ")}` : "";
-    notice.textContent = await port.notice();
+    notice.textContent = await port.for(STUDIED_LANGUAGE).notice();
   }
 
   // Keep in sync with changes made elsewhere (a reading gesture, a reset in Réglages, or

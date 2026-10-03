@@ -71,7 +71,7 @@ for (const [target, m] of Object.entries(manifests)) {
 // Folded branches: markers that exist in exactly one family of variants.
 const markers = [
   // The in-content WASM probe of resolveContentPort — Chromium only.
-  { file: "content.js", text: "inContent.calibration", chromium: true },
+  { file: "content.js", text: "inContent.languages", chromium: true },
   // The in-page drawer as the review surface — event-page family only.
   { file: "content.js", text: "drawer.openOn(view)", chromium: false },
   // Dynamic reader registration — Chromium only.

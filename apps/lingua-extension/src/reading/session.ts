@@ -1,5 +1,5 @@
 import { createTranslatorPort, type TranslatorSource } from "../translate/create-port.ts";
-import type { LinguaPort } from "../analyzer/port.ts";
+import type { LanguagePort, LinguaPort } from "../analyzer/port.ts";
 import { type CefrLevel, STUDIED_LANGUAGE } from "../analyzer/types.ts";
 import { type Block, isElement, mergeBlocks } from "./blocks.ts";
 import { Drawer, type DrawerView } from "./drawer.ts";
@@ -255,7 +255,7 @@ export class ReadingSession {
       speaker: this.speaker,
     });
     this.cards = new SelectionCards(
-      this.port,
+      this.lang,
       { show: (content) => this.popup.show(content), generation: () => this.popup.generation() },
       // None unless the reader turned « Traduction étendue » on and its model is on the device;
       // then the messaging port, which sends the request off this thread.
@@ -291,10 +291,16 @@ export class ReadingSession {
     this.selection = this.watchSelection(this.surfaceWin);
   }
 
+  /** The engine's view in the studied language: every language-bound call goes through it
+   *  (generalise-lingua-extension-port). A view holds nothing, so asking for it is free. */
+  private get lang(): LanguagePort {
+    return this.port.for(STUDIED_LANGUAGE);
+  }
+
   /** Restore the engine, wire the surfaces, then read `host` (none: the reader's library). */
   async start(host: ReadingHost | null): Promise<void> {
     await hydrateEngine(this.port, store);
-    this.calibration = await this.port.calibration();
+    this.calibration = await this.lang.calibration();
     this.hudHidden = await loadHudHidden(storageArea);
     this.indicator.setPosition?.(await loadHudPosition(storageArea));
     this.enabled = await loadEnabled(storageArea);
@@ -539,7 +545,7 @@ export class ReadingSession {
 
   /** Whether the reader still has to choose a level (« Débutant » counts as a choice). */
   private async refreshNeedsLevel(): Promise<void> {
-    this.needsLevel = await needsLevelChoice(this.port);
+    this.needsLevel = await needsLevelChoice(this.port, STUDIED_LANGUAGE);
   }
 
   /**
@@ -575,7 +581,7 @@ export class ReadingSession {
       this.opts.onPainted?.();
       return;
     }
-    const analysis = await this.port.analyse(blocks.map((b) => b.text));
+    const analysis = await this.lang.analyse(blocks.map((b) => b.text));
     // Another document replaced this one while the engine answered: its figures are stale.
     if (this.host !== host) return;
     this.resolved = resolveTokens(blocks, analysis);
@@ -722,7 +728,7 @@ export class ReadingSession {
     const key = g.lemma.toLowerCase();
     if (g.status === "learning") {
       const gloss = await this.cards.cardGloss(g);
-      await this.port.addCard({
+      await this.lang.addCard({
         lemma: key,
         surface: g.surface,
         sentence: g.sentence,
@@ -732,12 +738,12 @@ export class ReadingSession {
       });
     } else {
       // Stamp the change so it orders correctly in cross-device sync (LWW).
-      await this.port.setStatusAt(key, g.status, Date.now());
+      await this.lang.setStatusAt(key, g.status, Date.now());
       if (g.status === "known") void recordWordLearned(store, utcDay(Date.now()));
       // Promoting a word that was in the deck (learning) to known/ignored must retire its
       // card so it stops coming due — a word you now treat as known/ignored shouldn't keep
       // being reviewed. No-op when there is no card. (Clearing → "à apprendre" keeps it.)
-      if (g.status === "known" || g.status === "ignored") await this.port.retireCard(key, nowSeconds());
+      if (g.status === "known" || g.status === "ignored") await this.lang.retireCard(key, nowSeconds());
     }
     await this.persist();
     await this.repaint();
@@ -748,7 +754,7 @@ export class ReadingSession {
   private async onExternalChange(backup: string): Promise<void> {
     if (backup === this.lastBackup) return; // our own write echoed back — nothing to do
     await this.port.restore(backup);
-    this.calibration = await this.port.calibration();
+    this.calibration = await this.lang.calibration();
     await this.refreshNeedsLevel(); // a level picked in another tab or the popup
     await this.repaint();
     await this.drawer.refresh(); // e.g. cards a sync just pulled
@@ -776,8 +782,8 @@ export class ReadingSession {
     const lemmas = [...this.pendingExposure];
     this.pendingExposure.clear();
     const now = Date.now();
-    await this.port.recordExposures(lemmas, this.host?.exposureSource() ?? "reading:", now);
-    const promoted = await this.port.promoteByExposure(EXPOSURE_PROMOTE_DAYS, now);
+    await this.lang.recordExposures(lemmas, this.host?.exposureSource() ?? "reading:", now);
+    const promoted = await this.lang.promoteByExposure(EXPOSURE_PROMOTE_DAYS, now);
     await this.persist();
     if (promoted > 0) await this.repaint(); // words became known → refresh highlights
   }
@@ -804,9 +810,9 @@ export class ReadingSession {
       unknownOccurrences: this.stats.unknownOccurrences,
       distinctUnknown: this.stats.distinctUnknown,
       calibration: this.calibration,
-      declaredLevel: await this.port.declaredLevel(),
-      hasLevels: await this.port.hasLevels(),
-      needsLevel: await needsLevelChoice(this.port),
+      declaredLevel: await this.lang.declaredLevel(),
+      hasLevels: await this.lang.hasLevels(),
+      needsLevel: await needsLevelChoice(this.port, STUDIED_LANGUAGE),
       trackedCount: await this.port.trackedCount(),
       deckCount: await this.port.deckCount(),
       dueCount: await this.port.dueCount(now),

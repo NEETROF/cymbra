@@ -1,4 +1,5 @@
 import type { LinguaPort } from "./port.ts";
+import type { StudiedLanguage } from "./types.ts";
 import { type RpcRequest, RPC_TYPE, type RpcResponse } from "./rpc.ts";
 
 // The event-page side of the AnalyzerPort RPC (Firefox). Dispatches one request
@@ -12,7 +13,8 @@ export function isRpcRequest(msg: unknown): msg is RpcRequest {
     typeof msg === "object" &&
     (msg as RpcRequest).type === RPC_TYPE &&
     typeof (msg as RpcRequest).method === "string" &&
-    Array.isArray((msg as RpcRequest).args)
+    Array.isArray((msg as RpcRequest).args) &&
+    ((msg as RpcRequest).language === undefined || typeof (msg as RpcRequest).language === "string")
   );
 }
 
@@ -26,9 +28,13 @@ export async function handleRpc(
 ): Promise<RpcResponse> {
   try {
     await ensure();
-    const fn = (port as unknown as PortMethods)[request.method];
+    // A language-bound call is answered on the port's view of its language; a whole-reader
+    // call on the port itself. Each side only has its own methods, so a call sent to the
+    // wrong one is an unknown method, never a silent default.
+    const target: object = request.language === undefined ? port : port.for(request.language as StudiedLanguage);
+    const fn = (target as PortMethods)[request.method];
     if (typeof fn !== "function") return { ok: false, error: `unknown method: ${request.method}` };
-    const result = await fn.apply(port, request.args);
+    const result = await fn.apply(target, request.args);
     return { ok: true, result };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
