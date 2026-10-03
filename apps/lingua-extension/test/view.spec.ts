@@ -27,6 +27,18 @@ const card = (over: Partial<NonNullable<ReviewView["card"]>> = {}) => ({
   ...over,
 });
 
+describe("renderReview — the card's language", () => {
+  it("says the card's language for a reader of several languages", () => {
+    renderReview(root, { phase: "reviewing", card: card({ language: "es" }) }, actions, { showLanguage: true });
+    expect(root.querySelector(".review-language")?.textContent).toBe("Espagnol");
+  });
+
+  it("says nothing of it for a reader of one language", () => {
+    renderReview(root, { phase: "reviewing", card: card({ language: "en" }) }, actions);
+    expect(root.querySelector(".review-language")).toBeNull();
+  });
+});
+
 describe("renderReview", () => {
   it("idle shows a start button wired to start()", () => {
     renderReview(root, { phase: "idle", card: null }, actions);

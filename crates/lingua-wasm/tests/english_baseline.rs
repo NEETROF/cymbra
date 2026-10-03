@@ -365,7 +365,7 @@ fn render(language: Option<&str>) -> String {
         .retire_card("backlog", T_SECS + 300.0, lang())
         .unwrap();
     let now = T_SECS + DAY_SECS;
-    g.probe("start-review", reader.start_review(now));
+    g.probe("start-review", reader.start_review(now, None));
     g.probe("review-current first", shown(reader.review_current()));
     reader.review_reveal();
     reader.review_grade("good", now);
@@ -381,7 +381,7 @@ fn render(language: Option<&str>) -> String {
     g.probe("deck-count", reader.deck_count());
     g.probe(
         "due-count in 7 days",
-        reader.due_count(now + 7.0 * DAY_SECS),
+        reader.due_count(now + 7.0 * DAY_SECS, None),
     );
     for (name, blocks) in pages
         .iter()

@@ -248,19 +248,21 @@ export class SyncEngine {
     return ops.length;
   }
 
-  /** Idempotent upsert of the local daily aggregates (replace-by-key server-side). */
+  /** Idempotent upsert of the local daily aggregates (replace-by-key server-side), one per day and language. */
   private async pushStats(): Promise<void> {
     const daily = await loadDailyStats(this.deps.storage);
-    const stats = Object.entries(daily).map(([day, s]) => ({
-      day: Number(day),
-      language: "en",
-      deviceId: this.deps.deviceId,
-      exposures: s.exposures,
-      // Always set (0 included): its presence is what the server stores a stat on.
-      unknownSeen: s.unknownSeen ?? 0,
-      wordsLearned: s.wordsLearned,
-      reviewsDone: s.reviews,
-    }));
+    const stats = Object.entries(daily).flatMap(([day, byLanguage]) =>
+      Object.entries(byLanguage).map(([language, s]) => ({
+        day: Number(day),
+        language,
+        deviceId: this.deps.deviceId,
+        exposures: s.exposures,
+        // Always set (0 included): its presence is what the server stores a stat on.
+        unknownSeen: s.unknownSeen ?? 0,
+        wordsLearned: s.wordsLearned,
+        reviewsDone: s.reviews,
+      })),
+    );
     if (stats.length > 0) await this.deps.clients().stats.upsertDailyStats({ stats });
   }
 

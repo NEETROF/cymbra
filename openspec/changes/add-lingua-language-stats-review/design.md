@@ -57,7 +57,8 @@ grade and each mark-known with the card's language.
   `en`. The first write after an update therefore carries the old days into v3, and v2 is never
   read again. `clearDailyStats` clears both.
 - **Recording.** The recorders take a language: reading and learning record in the session's
-  document language, reviews and learning in the review card's language.
+  document language, reviews and learning in the review card's language. When a document's detected
+  language changes, what was read before is counted, and its exposures recorded, in the former one.
 - **Syncing.** `pushStats` sends one `DailyStat` per day and language, with that language.
 
 *Rejected — keep v2's shape with a nested map for the other languages.* Two shapes in one value

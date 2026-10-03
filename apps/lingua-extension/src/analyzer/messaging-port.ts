@@ -61,11 +61,11 @@ export class MessagingLinguaPort implements LinguaPort {
   deckCount(): Promise<number> {
     return this.rpc("deckCount");
   }
-  dueCount(now: number): Promise<number> {
-    return this.rpc("dueCount", [now]);
+  dueCount(now: number, languages?: StudiedLanguage[]): Promise<number> {
+    return this.rpc("dueCount", languages ? [now, languages] : [now]);
   }
-  startReview(now: number): Promise<number> {
-    return this.rpc("startReview", [now]);
+  startReview(now: number, languages?: StudiedLanguage[]): Promise<number> {
+    return this.rpc("startReview", languages ? [now, languages] : [now]);
   }
   reviewCurrent(): Promise<ReviewCard | null> {
     return this.rpc("reviewCurrent");

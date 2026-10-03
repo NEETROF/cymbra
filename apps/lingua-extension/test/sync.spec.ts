@@ -213,6 +213,44 @@ describe("SyncEngine", () => {
     expect(storage.store[ROOT_KEY]).toEqual({ v: 2, backup: "ORIGINAL" }); // untouched
   });
 
+  it("sends one statistic per day and studied language, each with its language", async () => {
+    const { port } = syncPort({});
+    const f = fakeClients();
+    const storage = fakeArea({
+      ...v2("BACKUP"),
+      "cymbra-lingua-daily-v3": {
+        20000: {
+          en: { exposures: 12, unknownSeen: 4, wordsLearned: 3, reviews: 5 },
+          es: { exposures: 30, unknownSeen: 9, wordsLearned: 1, reviews: 0 },
+        },
+      },
+    });
+    const engine = new SyncEngine({ port, storage, clients: () => f.clients, deviceId: "dev-2" });
+    await engine.sync();
+    expect(f.upsertDailyStats).toHaveBeenCalledWith({
+      stats: [
+        {
+          day: 20000,
+          language: "en",
+          deviceId: "dev-2",
+          exposures: 12,
+          unknownSeen: 4,
+          wordsLearned: 3,
+          reviewsDone: 5,
+        },
+        {
+          day: 20000,
+          language: "es",
+          deviceId: "dev-2",
+          exposures: 30,
+          unknownSeen: 9,
+          wordsLearned: 1,
+          reviewsDone: 0,
+        },
+      ],
+    });
+  });
+
   it("upserts the local daily stats (mapping reviews→reviewsDone + device id)", async () => {
     const { port } = syncPort({});
     const f = fakeClients();
@@ -456,6 +494,7 @@ describe("SyncEngine privacy controls (add-lingua-privacy-controls)", () => {
     expect(calls.resets).toBe(1);
     expect(storage.store[ROOT_KEY]).toEqual({ v: 2, backup: "MERGED-BACKUP" }); // the emptied engine, saved
     expect(storage.store["cymbra-lingua-daily-v2"]).toEqual({});
+    expect(storage.store["cymbra-lingua-daily-v3"]).toEqual({});
     expect(storage.store["cymbra-lingua-status-cursor"]).toBe(0);
     expect(storage.store["cymbra-lingua-erased-at"]).toBe(MARK);
   });

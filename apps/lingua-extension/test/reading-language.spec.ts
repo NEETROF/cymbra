@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudiedLanguage } from "@/analyzer/types.ts";
 import { mountSettings } from "@/reading/settings-view.ts";
+import type { BlockReading } from "@/reading/scan.ts";
 import { languageHint, type ReadingHost, ReadingSession } from "@/reading/session.ts";
+import type { Gesture } from "@/reading/wordpopup.ts";
 import { mountReview } from "@/review/review-page.ts";
 import { type AsyncStorageArea, ROOT_KEY, STORAGE_VERSION } from "@/state/storage.ts";
 import { STORE_CHANGED_KEY } from "@/state/store.ts";
@@ -241,6 +243,70 @@ describe("each document in its own language (add-lingua-language-routing)", () =
     await session.attach(section(PAGE, "es"));
     expect(calls.detections).toEqual([]);
     expect(new Set(calls.languages)).toEqual(new Set(["en"]));
+    session.detach();
+  });
+
+  /** The daily counts the session wrote through the store, the latest last. */
+  function dailyWrites(): Record<string, Record<string, unknown>>[] {
+    const send = chrome.runtime.sendMessage as unknown as {
+      mock: { calls: [{ type?: string; items?: Record<string, unknown> }][] };
+    };
+    return send.mock.calls
+      .map(([message]) => message)
+      .filter((message) => message.type === "store:set" && message.items?.["cymbra-lingua-daily-v3"])
+      .map((message) => message.items!["cymbra-lingua-daily-v3"] as Record<string, Record<string, unknown>>);
+  }
+
+  /** The private seams the browser drives: a gesture from the word card, a block read on screen. */
+  type Driven = { onGesture(g: Gesture): Promise<void>; onExposed(r: BlockReading): void; repaint(): Promise<void> };
+
+  it("counts a word learned on a Spanish page in Spanish", async () => {
+    packs.shipped = ["en-fr", "es-fr"];
+    const { port } = await spanishThenEnglish(); // the fake finds the first candidate: Spanish
+    const session = new ReadingSession(port, { css, surface: "book" });
+    await session.start(null);
+    await session.attach(section(PAGE, "es"));
+
+    const gesture: Gesture = {
+      lemma: "faro",
+      surface: "faro",
+      sentence: "El faro se alza.",
+      status: "known",
+      expression: false,
+      gloss: "phare",
+    };
+    await (session as unknown as Driven).onGesture(gesture);
+
+    await vi.waitFor(() => expect(dailyWrites()).toHaveLength(1));
+    expect(Object.values(dailyWrites()[0])).toEqual([
+      { es: { exposures: 0, unknownSeen: 0, wordsLearned: 1, reviews: 0 } },
+    ]);
+    session.detach();
+  });
+
+  it("counts what was read in the language it was read in, when the document changes language", async () => {
+    packs.shipped = ["en-fr", "es-fr"];
+    const { port } = await spanishThenEnglish();
+    let found: StudiedLanguage = "en";
+    port.detectLanguage = async () => found;
+    const exposed: StudiedLanguage[] = [];
+    port.recordExposures = async function (this: { language: StudiedLanguage }) {
+      exposed.push(this.language);
+    };
+    const session = new ReadingSession(port, { css, surface: "book" });
+    await session.start(null);
+    await session.attach(section(PAGE, "es"));
+    const driven = session as unknown as Driven;
+
+    driven.onExposed({ lemmas: ["lighthouse"], read: 5, unknown: 1 }); // read while it was English
+    found = "es"; // the page turned Spanish before the throttled flush
+    await driven.repaint();
+
+    await vi.waitFor(() => expect(dailyWrites()).toHaveLength(1));
+    expect(Object.values(dailyWrites()[0])).toEqual([
+      { en: { exposures: 5, unknownSeen: 1, wordsLearned: 0, reviews: 0 } },
+    ]);
+    await vi.waitFor(() => expect(exposed).toEqual(["en"]));
     session.detach();
   });
 
