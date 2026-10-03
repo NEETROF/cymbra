@@ -9,7 +9,13 @@
 ## 2. The state and the controller
 
 - [ ] 2.1 `model-manifest.ts`: `modelsFor(catalogue, languages)` (design D2). Specs: a union without duplicates, in order; a language without a route needs nothing.
-- [ ] 2.2 `setting.ts`: `ready { models }` and `missing { models, total }`, parsed defensively, a legacy `ready` read with no model (design D3). Specs.
+- [ ] 2.2 `setting.ts` (design D3):
+  - `ready { models, languages }` and `missing { models, languages, total }`, parsed defensively;
+  - a legacy `ready` read as ready for English;
+  - `languageReady(host, state, language)`.
+
+  Specs.
+- [ ] 2.2b `state/profile.ts`: the studied languages read from a stored backup's profile, English without one (design D2). A `lingua-core` test pins `profile.studied_languages` and the enum's names. Specs.
 - [ ] 2.3 `model-controller.ts`: the needed models from `languages()`; the download of what is missing; reconciling into `ready`, `missing` or `removed`; pruning; `ready(language)`. Specs, with a catalogue of two routes sharing en-fr:
   - every needed model downloaded;
   - a language added makes `missing`, and `resume` downloads it;
