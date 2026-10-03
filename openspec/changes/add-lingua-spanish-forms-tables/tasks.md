@@ -11,7 +11,7 @@
 ## 2. The tables
 
 - [ ] 2.1 Reduce the 2026-09-28 kaikki dump, GSD at its commit and wordfreq 3.1.1 into `tables/es-fr/`, with a `README.md` and `pin.json` recording the sources, the reducer and the pack (design D4, D6). The override list and its reasons live in the reducer. `SOURCES.md` gets an ES → FR section.
-- [ ] 2.2 `build.sh es-fr` builds the pack and matches `pin.json`. `lingua-pack-update` offers `es-fr` (design D7).
+- [ ] 2.2 `build.sh es-fr` builds the pack and matches `pin.json`. `lingua-pack-update` offers `es-fr`, and its monthly dry run checks both pairs (design D7).
 
 ## 3. The measurement
 

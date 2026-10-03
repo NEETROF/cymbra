@@ -137,14 +137,17 @@ committed, and the reduction never reads it.
 - **the reducer's sha256**: `reduce-es-fr.py` and `reduce_common.py`.
 
 A release and a pull request build from the tables and read none of it. This change publishes no
-release, so the snapshot asset is published by the owner, by dispatching `lingua-pack-update`
-(update mode, which also re-proposes the tables) or by uploading the pinned bytes. Until then,
-`build.sh --reduce es-fr` cannot fetch the pinned kaikki bytes. `--update` and every build work.
+release, so the owner publishes the snapshot asset by uploading the pinned bytes as that release.
+Dispatching `lingua-pack-update` in update mode instead keeps a new snapshot and proposes tables
+reduced from it. Until one of them is done, `build.sh --reduce es-fr` cannot fetch the pinned
+kaikki bytes. `--update` and every build work.
 
 ### D7 — The pipeline knows es-fr
 
 - `build.sh` already dispatches on `reduce-<pair>.py`.
-- `lingua-pack-update` gains `es-fr` among its pairs.
+- `lingua-pack-update` gains `es-fr` among its pairs, and its monthly dry run checks every pair
+  instead of en-fr alone. Its release notes name the kaikki extract a pair reads, which for es-fr is
+  the English Wiktionary.
 - The extension check already loops over every pair with tables.
 - `packs.json`, the list the extension ships, is unchanged: en-fr alone.
 
