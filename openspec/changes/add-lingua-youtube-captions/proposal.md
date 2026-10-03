@@ -73,9 +73,9 @@ overlay in the extension's existing shadow-DOM UI host. Per-browser registration
 
 **Translation, as it would actually ship.** The engine reaches readers through
 `add-lingua-translation-delivery` (#541) — the per-device "Traduction étendue" setting, on Chromium
-and Firefox desktop only. YouTube's own translation is therefore the fallback for every reader who
-has not turned it on, and the only sentence translation this mode offers on Safari macOS, which
-carries no engine. Should this change ship before the delivery, YouTube would be the first place
+and Firefox desktop, since extended to Firefox for Android (`add-lingua-translation-android`) and
+Safari (`add-lingua-translation-safari`). YouTube's own translation is therefore the fallback for
+every reader who has not turned it on. Should this change ship before the delivery, YouTube would be the first place
 Lingua shows a sentence translation at all — a product fact accepted knowingly (decided
 2026-09-23), not a side effect.
 
