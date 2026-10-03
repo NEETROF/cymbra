@@ -194,8 +194,10 @@ yarn lint && yarn format:check && yarn typecheck && yarn test
 
 Packs themselves are **never committed**; what they are built from is. The pairs a package
 ships are one list, `packs.json` (`["en-fr"]`; the first gives the default studied language),
-and each pair's pack lives at `assets/packs/<pair>.lingua`. `tool/check_variants.mjs` refuses a
-package whose packs differ from the list, and any list but en-fr until Spanish is enabled.
+and each pair's pack lives at `assets/packs/<pair>.lingua`. At run time an engine starts with the
+default pair's pack, and adds another listed pair's the first time its language is needed
+(`src/analyzer/pairs.ts`). `tool/check_variants.mjs` refuses a package whose packs differ from the
+list, and any list but en-fr until Spanish is enabled.
 `yarn gen:pack:real` builds each listed pair's pack from the reduced tables committed under
 `scripts/lingua-data/tables/<pair>/` — offline, in seconds — and checks it against the sha256
 in that pair's `pin.json`, the record of which raw sources those tables came from
