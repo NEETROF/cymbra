@@ -42,7 +42,7 @@ from pathlib import Path
 
 REPOSITORY = "NEETROF/cymbra"
 
-# The sources of the en-fr pair, at the commits read on 2026-09-25/26. The URLs name a commit,
+# The sources each pair reads at a commit — en-fr's read on 2026-09-25/26. The URLs name a commit,
 # never a branch: the AGID URL the pipeline once used named `master`, a branch en-wl/wordlist no
 # longer has, and worked through a leftover redirect. At a commit, a URL means the same bytes for
 # as long as the repository exists.
@@ -58,7 +58,21 @@ PINNED = {
             "url": "https://raw.githubusercontent.com/openlanguageprofiles/olp-en-cefrj/"
             "d4e45b75b38f27b30dfc5c44d8c571aec7e7092f/octanove-vocabulary-profile-c1c2-1.0.csv",
         },
-    }
+    },
+    # UD Spanish-GSD, read for its counts of each form under each lemma (add-lingua-spanish-forms-
+    # tables D2), at the commit read on 2026-10-03.
+    "es-fr": {
+        "gsd-train": {
+            "file": "es_gsd-ud-train.conllu",
+            "url": "https://raw.githubusercontent.com/UniversalDependencies/UD_Spanish-GSD/"
+            "267f3530d4f122ee85d1891800211a06dfb79347/es_gsd-ud-train.conllu",
+        },
+        "gsd-dev": {
+            "file": "es_gsd-ud-dev.conllu",
+            "url": "https://raw.githubusercontent.com/UniversalDependencies/UD_Spanish-GSD/"
+            "267f3530d4f122ee85d1891800211a06dfb79347/es_gsd-ud-dev.conllu",
+        },
+    },
 }
 # ESDB, the English Speller Database (switch-lingua-inflections-to-esdb): not a file but a database
 # its repository builds; `scowl.txt` is its export. Built at the commit of `rel-2026.02.25`, with
@@ -75,7 +89,13 @@ KAIKKI = {
     "en-fr": {
         "file": "kaikki-Anglais.jsonl",
         "url": "https://kaikki.org/frwiktionary/Anglais/kaikki.org-dictionary-Anglais.jsonl",
-    }
+    },
+    # The English Wiktionary's Spanish section: its inflections are tagged, the French one's are not
+    # (add-lingua-spanish-forms-tables).
+    "es-fr": {
+        "file": "kaikki-Spanish.jsonl",
+        "url": "https://kaikki.org/dictionary/Spanish/kaikki.org-dictionary-Spanish.jsonl",
+    },
 }
 WORDFREQ = "3.1.1"
 PYTHON = (3, 12)
