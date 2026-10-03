@@ -10,6 +10,7 @@ Run: python3 -m unittest discover -s scripts/lingua-data -p "test_*.py"
 """
 
 import collections
+import json
 import importlib.util
 import os
 import tempfile
@@ -310,6 +311,78 @@ class GrammarRows(unittest.TestCase):
         rows = red.grammar_rows(readings(ser, ir, bajar), forms, {"ser": 1, "ir": 2, "bajo": 3})
         # `fuéramos` is not in the table; `bajar` is not kept.
         self.assertEqual(rows, [f"fue\tir\t{PAST}\tother\n", f"fue\tser\t{PAST}\t-\n"])
+
+
+def translation_file(*entries):
+    """A translation file as `pack_sources.derive` writes one, in a temporary folder."""
+    d = tempfile.mkdtemp()
+    path = os.path.join(d, "t.jsonl")
+    with open(path, "w", encoding="utf-8") as f:
+        for word, pos, words in entries:
+            f.write(json.dumps({"word": word, "pos": pos, "translations": [{"word": w} for w in words]}) + "\n")
+    return path
+
+
+class GlossFallbacks(unittest.TestCase):
+    def test_the_spanish_wiktionary_lists_french_words_for_a_spanish_entry(self):
+        direct = red.read_translated(
+            translation_file(
+                ("Sector", "noun", ["secteur"]),
+                ("material", "noun", ["matériau", "matériel", "matériau"]),
+                ("material", "adj", ["matériel"]),
+                ("Alcalá de la Vega", "name", ["Alcalá de la Vega"]),
+                ("hello", "intj", []),
+            ),
+            inverted=False,
+        )
+        self.assertEqual(direct["sector"], {"NOUN": ["secteur"]})
+        self.assertEqual(direct["material"], {"NOUN": ["matériau", "matériel"], "ADJ": ["matériel"]})
+        self.assertNotIn("alcalá de la vega", direct)  # a proper noun glosses nothing
+
+    def test_the_french_wiktionary_s_tables_read_backwards(self):
+        inverted = red.read_translated(
+            translation_file(
+                ("arrêté", "noun", ["decreto"]),
+                ("décret", "noun", ["decreto"]),
+                ("prendre en compte", "verb", ["tener en cuenta", "ça compte"]),
+                ("Céline", "name", ["Celina"]),
+            ),
+            inverted=True,
+        )
+        self.assertEqual(inverted["decreto"], {"NOUN": ["arrêté", "décret"]})
+        self.assertEqual(inverted["tener en cuenta"], {"VERB": ["prendre en compte"]})
+        self.assertNotIn("ça compte", inverted)  # not Spanish words
+        self.assertNotIn("celina", inverted)
+
+    def test_a_translation_gloss_is_one_sense_per_part_of_speech(self):
+        gloss, runs = red.translation_gloss({"NOUN": ["matériau", "matériel"], "ADJ": ["matériel"]}, list)
+        self.assertEqual(gloss, "Matériau, matériel; Matériel")
+        self.assertEqual(runs, [("NOUN", 1), ("ADJ", 1)])
+        many, _ = red.translation_gloss({"ADV": ["a", "b", "c", "d"]}, list)
+        self.assertEqual(many, "A, b, c")  # FALLBACK_WORDS
+
+    def test_the_commonest_french_word_comes_first_from_a_table_read_backwards(self):
+        order = red.by_french_frequency(lambda w: {"juste": 5.5, "précisément": 4.4}.get(w, 0))
+        self.assertEqual(order(["précisément", "juste", "zzz"])[:2], ["juste", "précisément"])
+        order = red.by_french_frequency(lambda w: 0)
+        self.assertEqual(order(["b", "a"]), ["a", "b"])
+
+    def test_fallbacks_gloss_what_the_french_wiktionary_leaves_out_source_by_source(self):
+        direct = {"sector": {"NOUN": ["secteur"]}}
+        inverted = {"sector": {"NOUN": ["domaine"]}, "decreto": {"NOUN": ["arrêté"]}, "casa": {"NOUN": ["foyer"]}}
+        got = red.fallback_glosses(["sector", "decreto", "casa", "zzz"], {"casa"}, [(direct, list), (inverted, list)])
+        self.assertEqual(got, {"sector": ("Secteur", [("NOUN", 1)]), "decreto": ("Arrêté", [("NOUN", 1)])})
+
+    def test_fallback_expressions_add_only_the_multi_word_headwords_none_glosses(self):
+        direct = {"tener en cuenta": {"VERB": ["prendre en compte", "tenir compte de"]}, "sector": {"NOUN": ["secteur"]}}
+        inverted = {"dar cuenta": {"VERB": ["rendre compte"]}, "sin embargo": {"ADV": ["cependant"]}}
+        got = red.fallback_expressions({"sin embargo": "Cependant"}, [(direct, list), (inverted, list)])
+        self.assertEqual(got, {"tener en cuenta": "Prendre en compte, tenir compte de", "dar cuenta": "Rendre compte"})
+
+    def test_the_curated_locutions_are_written_by_a_person_each_with_its_gloss(self):
+        for expression, gloss in red.LOCUTIONS.items():
+            self.assertIn(" ", expression)
+            self.assertTrue(gloss and gloss[0].isupper(), expression)
 
 
 class Manifest(unittest.TestCase):
