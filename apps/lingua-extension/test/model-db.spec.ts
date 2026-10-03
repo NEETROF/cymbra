@@ -1,7 +1,10 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { IDBFactory } from "fake-indexeddb";
 import { describe, expect, it } from "vitest";
 import { MODEL_DB, modelDb } from "@/translate/host/model-db.ts";
-import type { ModelManifest } from "@/translate/host/model-manifest.ts";
+import { type ModelManifest, parseCatalogue, routeOf } from "@/translate/host/model-manifest.ts";
 
 // The `lingua-model` database (add-lingua-translation-delivery D5): decompressed bytes keyed by
 // their sha256, a `complete` record per model version, and a whole-database deletion.
@@ -10,10 +13,12 @@ const sha = (c: string) => c.repeat(64);
 const manifest: ModelManifest = {
   version: "en-fr/base-memory/2.0",
   base: "https://models.example/",
+  from: "en",
+  to: "fr",
   files: {
-    model: { path: "m.gz", size: 3, sha256: sha("a") },
-    lex: { path: "l.gz", size: 2, sha256: sha("b") },
-    vocab: { path: "v.gz", size: 1, sha256: sha("c") },
+    model: { path: "m.gz", size: 3, unpacked: 3, sha256: sha("a") },
+    lex: { path: "l.gz", size: 2, unpacked: 2, sha256: sha("b") },
+    vocab: { path: "v.gz", size: 1, unpacked: 1, sha256: sha("c") },
   },
 };
 
@@ -45,6 +50,37 @@ describe("modelDb", () => {
     expect(await db.complete(manifest)).toBe(false); // every file, but no record
     await db.markComplete(manifest);
     expect(await db.complete(manifest)).toBe(true);
+  });
+
+  it("keeps a model stored before the catalogue complete, as the release before it recorded it", async () => {
+    // generalise-lingua-translation-catalogue: the record a device holds names the model's version,
+    // which is the catalogue's id for it — nothing is downloaded again after the update.
+    const factory = new IDBFactory();
+    const committed = JSON.parse(
+      readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "model-manifest.json"), "utf8"),
+    );
+    const [model] = routeOf(parseCatalogue(committed), "en");
+    const shas = [model.files.model.sha256, model.files.lex.sha256, model.files.vocab.sha256];
+    await new Promise<void>((resolve, reject) => {
+      const req = factory.open(MODEL_DB, 1);
+      req.onupgradeneeded = () => {
+        req.result.createObjectStore("files");
+        req.result.createObjectStore("meta");
+      };
+      req.onsuccess = () => {
+        const tx = req.result.transaction(["files", "meta"], "readwrite");
+        for (const sha256 of shas) tx.objectStore("files").put(new Uint8Array([1]), sha256);
+        tx.objectStore("meta").put({ version: "en-fr/base-memory/2.0", files: shas }, "complete");
+        tx.oncomplete = () => {
+          req.result.close();
+          resolve();
+        };
+        tx.onerror = () => reject(tx.error);
+      };
+      req.onerror = () => reject(req.error);
+    });
+
+    expect(await modelDb(factory).complete(model)).toBe(true);
   });
 
   it("is not complete for another model version", async () => {

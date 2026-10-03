@@ -16,7 +16,7 @@
 // Commands and reports run one at a time, in the order they came: "off" right after "on" must not
 // be overtaken by the download's first report.
 
-import type { ModelCommand, ModelStatus } from "../model-messages.ts";
+import type { ModelCommand, ModelCost, ModelStatus } from "../model-messages.ts";
 import {
   ABSENT,
   loadTranslationSetting,
@@ -27,7 +27,7 @@ import {
 } from "../setting.ts";
 import type { DownloadEvent } from "./downloads.ts";
 import type { ModelDb } from "./model-db.ts";
-import { type ModelManifest, totalSize } from "./model-manifest.ts";
+import { type ModelManifest, totalSize, unpackedSize } from "./model-manifest.ts";
 
 /** The engine's host, as the controller drives it: the offscreen document, or the event page. */
 export interface ModelHostAccess {
@@ -148,11 +148,11 @@ export class ModelController {
     const { host, state } = await loadTranslationSetting(this.deps.area);
     if (host === "none") {
       if (state.phase !== "absent") await saveTranslationSetting(this.deps.area, { state: ABSENT });
-      return { offered: true, host, state: ABSENT };
+      return this.answer({ host, state: ABSENT });
     }
     const next = await this.observed(state);
     if (next !== state) await saveTranslationSetting(this.deps.area, { state: next });
-    return { offered: true, host, state: next };
+    return this.answer({ host, state: next });
   }
 
   /** What the recorded state really is: a download nobody runs, a model nobody stores. */
@@ -183,8 +183,23 @@ export class ModelController {
   }
 
   private async current(): Promise<ModelStatus> {
-    const setting: TranslationSetting = await loadTranslationSetting(this.deps.area);
-    return { offered: true, ...setting };
+    return this.answer(await loadTranslationSetting(this.deps.area));
+  }
+
+  /** The whole status: the setting, and what it costs from the catalogue (catalogue D4). */
+  private async answer(setting: TranslationSetting): Promise<ModelStatus> {
+    const cost = await this.cost();
+    return { offered: true, ...setting, ...(cost ? { cost } : {}) };
+  }
+
+  /** The model's sizes, as served and decompressed; none when the catalogue cannot be read. */
+  private async cost(): Promise<ModelCost | undefined> {
+    try {
+      const manifest = await this.deps.manifest();
+      return { download: totalSize(manifest), stored: unpackedSize(manifest) };
+    } catch {
+      return undefined;
+    }
   }
 
   private async quietly(what: string, action: () => Promise<void>): Promise<void> {

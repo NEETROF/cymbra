@@ -38,10 +38,19 @@ taken again.
 
 ## 2. The model
 
-`model-manifest.json` is the whole contract: for each of the three files, its content-addressed
-path under `base`, its size as served (Mozilla's gzip), the sha256 of its **decompressed** bytes,
-and where Mozilla publishes it. It is bundled, so the reviewed package decides what is accepted;
-the host only serves bytes.
+`model-manifest.json` is the whole contract, a catalogue (`generalise-lingua-translation-catalogue`):
+
+- `models`: each model the package may download, under its id (`en-fr/base-memory/2.0`), with the
+  languages it translates between, its licence, its mirror release and its three files. For each
+  file: its content-addressed path under `base`, its size as served (Mozilla's gzip), its size once
+  decompressed (`unpacked`), the sha256 of its **decompressed** bytes, and where Mozilla publishes it;
+- `routes`: for each studied language, the models that translate it into French, in order. English
+  is `en-fr` alone; a language without a direct model goes through English.
+
+It is bundled, so the reviewed package decides what is accepted; the host only serves bytes. The
+setting's cost (« Télécharge 25,8 Mo une fois ») is computed from it, and so is what the build, the
+variant check, the host's assembly, its mirror releases (`tool/mirror_models.mjs`) and its check
+cover: every model of the catalogue.
 
 When the reader ticks the setting, the background asks the engine's host (the offscreen document on
 Chromium, the event page on Firefox) to download: a worker of its own fetches each missing file with

@@ -24,10 +24,27 @@ const GZ = { model: gzipSync(FILES.model), lex: gzipSync(FILES.lex), vocab: gzip
 const manifest: ModelManifest = {
   version: "en-fr/base-memory/2.0",
   base: "https://models.example/",
+  from: "en",
+  to: "fr",
   files: {
-    model: { path: `m/${hex(FILES.model)}/model.bin.gz`, size: GZ.model.byteLength, sha256: hex(FILES.model) },
-    lex: { path: `m/${hex(FILES.lex)}/lex.bin.gz`, size: GZ.lex.byteLength, sha256: hex(FILES.lex) },
-    vocab: { path: `m/${hex(FILES.vocab)}/vocab.spm.gz`, size: GZ.vocab.byteLength, sha256: hex(FILES.vocab) },
+    model: {
+      path: `m/${hex(FILES.model)}/model.bin.gz`,
+      size: GZ.model.byteLength,
+      unpacked: FILES.model.byteLength,
+      sha256: hex(FILES.model),
+    },
+    lex: {
+      path: `m/${hex(FILES.lex)}/lex.bin.gz`,
+      size: GZ.lex.byteLength,
+      unpacked: FILES.lex.byteLength,
+      sha256: hex(FILES.lex),
+    },
+    vocab: {
+      path: `m/${hex(FILES.vocab)}/vocab.spm.gz`,
+      size: GZ.vocab.byteLength,
+      unpacked: FILES.vocab.byteLength,
+      sha256: hex(FILES.vocab),
+    },
   },
 };
 const TOTAL = GZ.model.byteLength + GZ.lex.byteLength + GZ.vocab.byteLength;
