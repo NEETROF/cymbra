@@ -31,6 +31,7 @@ pub mod lemmatize;
 pub mod lexicon;
 pub mod percent;
 pub mod pipeline;
+mod spanish;
 pub mod tokenize;
 
 /// Version of the analysis pipeline.
@@ -46,7 +47,7 @@ pub mod tokenize;
 /// language's rules never moves another's (generalise-lingua-analysis-by-language).
 pub const ANALYZER_VERSION: &str = "1.1.0";
 
-/// Spanish's analyser version. `0.x` while its analyser is the baseline — no
-/// pre-pass, the pack's forms and nothing else; add-lingua-spanish-analysis
-/// brings its rules and its `1.0.0`.
-pub const SPANISH_ANALYZER_VERSION: &str = "0.1.0";
+/// Spanish's analyser version: `1.0.0` since add-lingua-spanish-analysis wrote
+/// its pre-pass (NFC, `al`/`del`) and its cascade (old spellings, enclitics, the
+/// plural fallback). The baseline it replaced was `0.1.0`.
+pub const SPANISH_ANALYZER_VERSION: &str = "1.0.0";

@@ -654,11 +654,19 @@ mod tests {
     }
 
     #[test]
-    fn spec_scenario_a_language_without_function_word_tables_leaves_no_word_out() {
-        let pack = build_pack_for(ES, &[], &["de", "la", "casa"], &[], &[], &[]);
-        let spanish = gloss_phrase("de la casa", ES, &pack, &KnowledgeState::new());
-        assert!(!spanish.tokens.is_empty());
-        assert!(spanish.tokens.iter().all(|t| !t.function_word));
+    fn spec_scenario_each_languages_closed_classes_are_its_own() {
+        // add-lingua-spanish-analysis: Spanish's tables flag `de` and `la`, never `the`.
+        let pack = build_pack_for(ES, &[], &["de", "la", "casa", "the"], &[], &[], &[]);
+        let spanish = gloss_phrase("de la casa the", ES, &pack, &KnowledgeState::new());
+        let flagged: Vec<(&str, bool)> = spanish
+            .tokens
+            .iter()
+            .map(|t| (t.surface.as_str(), t.function_word))
+            .collect();
+        assert_eq!(
+            flagged,
+            [("de", true), ("la", true), ("casa", false), ("the", false)]
+        );
         let english = gloss_phrase("on the code", EN, &sample_pack(), &KnowledgeState::new());
         assert!(english.tokens.iter().any(|t| t.function_word));
     }
