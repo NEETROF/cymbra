@@ -26,6 +26,6 @@ Implementation starts once PR #660 (Réglages sub-tabs + the Compte block) is me
 ## 4. Checks
 
 - [x] 4.1 Gates: `yarn typecheck`, `yarn lint`, `yarn format:check`, `yarn test` (coverage ≥ 80 % overall, new modules covered), `yarn build` + `yarn check:variants`
-- [ ] 4.2 [manual] Chrome on macOS, production backend: on a Google-only account, set a password (code from the mailbox), see the method listed; link and remove Google on an account that has a password; try to link a Google account that owns another Cymbra account and read the message
+- [x] 4.2 [manual] Chrome on macOS, production backend: on a Google-only account, set a password (code from the mailbox), see the method listed; link and remove Google on an account that has a password; try to link a Google account that owns another Cymbra account and read the message — checked by the owner on 2026-10-04 in Chrome for Testing on macOS, against production
 - [ ] 4.3 [manual] Boox Go 10.3 (Firefox for Android), production: sign in with the address and password set in 4.2 and land on the same account (same handle, same deck); the connected accounts list both methods and offer no « Lier Google »
 - [ ] 4.4 [manual] Safari on macOS: the list shows, « Définir un mot de passe » and « Retirer » work, no « Lier » is offered
