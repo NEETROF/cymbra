@@ -22,7 +22,8 @@ use std::path::PathBuf;
 use std::sync::OnceLock;
 
 use lingua_core::analysis::language::StudiedLanguage;
-use lingua_core::engine::{gloss_phrase, word_grammar};
+use lingua_core::analysis::percent::TokenClass;
+use lingua_core::engine::{analyse_page, gloss_phrase, word_grammar};
 use lingua_core::knowledge::state::KnowledgeState;
 use lingua_core::packs::Pack;
 use lingua_pack::{build_pack, inputs_from_dir};
@@ -158,6 +159,75 @@ fn a_spanish_card_reads_its_french_gloss() {
             .collect::<Vec<_>>(),
         ["Prendre en compte, tenir compte de"]
     );
+}
+
+/// Each token of the page analysis with its class, in document order.
+fn classes(pack: &Pack, blocks: &[&str]) -> Vec<(String, TokenClass)> {
+    analyse_page(
+        blocks,
+        StudiedLanguage::Spanish,
+        pack,
+        &KnowledgeState::default(),
+    )
+    .tokens
+    .into_iter()
+    .map(|token| (token.surface, token.class))
+    .collect()
+}
+
+fn class_of(classes: &[(String, TokenClass)], surface: &str) -> Vec<TokenClass> {
+    classes
+        .iter()
+        .filter(|(seen, _)| seen == surface)
+        .map(|(_, class)| *class)
+        .collect()
+}
+
+#[test]
+fn a_spanish_document_sets_its_names_aside() {
+    let pack = es_fr_pack();
+    // add-lingua-spanish-names: Augusto, Eugenia and la Nela are words of the lexicon with no gloss,
+    // written as names throughout. A capital in mid-sentence is the evidence; a block-initial
+    // `Augusto` follows it.
+    let page = classes(
+        &pack,
+        &[
+            "Augusto miró a Eugenia y pensó en la Nela.",
+            "Entonces Augusto salió de la casa.",
+        ],
+    );
+    assert_eq!(
+        class_of(&page, "Augusto"),
+        [TokenClass::ProperNounOutOfLexicon; 2]
+    );
+    assert_eq!(
+        class_of(&page, "Eugenia"),
+        [TokenClass::ProperNounOutOfLexicon]
+    );
+    assert_eq!(
+        class_of(&page, "Nela"),
+        [TokenClass::ProperNounOutOfLexicon]
+    );
+    assert_eq!(class_of(&page, "casa"), [TokenClass::Unknown]);
+
+    // A page long enough to be analysed as Spanish, around the sentence under test.
+    const AROUND: &str = "Todos los nobles de la corte miraban la escena con mucha atención.";
+    // The same form in lowercase in the document: a word, not a name.
+    let page = classes(
+        &pack,
+        &[
+            "El augusto monarca recibió a Augusto en el palacio.",
+            AROUND,
+        ],
+    );
+    assert_eq!(class_of(&page, "Augusto"), [TokenClass::Unknown]);
+    // A capital at the head of every sentence says nothing.
+    let page = classes(&pack, &["Augusto calla. Augusto mira el jardín.", AROUND]);
+    assert_eq!(class_of(&page, "Augusto"), [TokenClass::Unknown; 2]);
+    // A name the pack glosses stays a word to learn.
+    assert!(pack.gloss("dios").is_some());
+    let page = classes(&pack, &["Gracias a Dios, dijo, y rezó a Dios.", AROUND]);
+    assert_eq!(class_of(&page, "Dios"), [TokenClass::Unknown; 2]);
 }
 
 #[test]
