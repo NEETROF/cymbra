@@ -1,5 +1,6 @@
 import { installGroupBy } from "./polyfill.ts";
 import { createLinguaPort } from "../analyzer/create-port.ts";
+import { acceptedLanguages } from "../analyzer/pairs.ts";
 import { ReadingSession } from "../reading/session.ts";
 import { SURFACE_CSS } from "../reading/surface-css.ts";
 import { colourCss } from "../reading/colours.ts";
@@ -48,8 +49,10 @@ async function main(): Promise<void> {
   if (!root) return;
   if (__SECTIONS_FROM_WORKER__) await clearSections(caches);
   const library = await Library.open();
+  const port = createLinguaPort();
   const app = new ReaderApp(root, {
     library,
+    languages: () => acceptedLanguages(port),
     createRenderer: () => new FoliateRenderer(),
     persistence: () =>
       requestPersistence({
@@ -86,7 +89,7 @@ async function main(): Promise<void> {
     return false;
   });
 
-  const session = new ReadingSession(createLinguaPort(), {
+  const session = new ReadingSession(port, {
     css: SURFACE_CSS,
     surface: "book",
     indicator: (actions) => app.indicator(actions),

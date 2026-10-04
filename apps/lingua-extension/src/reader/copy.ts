@@ -8,6 +8,7 @@ export const COPY = {
   importButton: "Importer un livre (EPUB)",
   empty: "Ta bibliothèque est vide. Importe un livre EPUB sans DRM : il reste sur cet appareil et s'ouvre hors ligne.",
   importing: "Import en cours…",
+  otherLanguages: "Autres langues",
   imported: (title: string) => `« ${title} » est dans ta bibliothèque.`,
   alreadyThere: (title: string) => `« ${title} » était déjà dans ta bibliothèque.`,
   importFailed: {
