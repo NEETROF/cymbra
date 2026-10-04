@@ -290,6 +290,52 @@ class NominalReadings(unittest.TestCase):
         self.assertEqual(got[("grandes", "grande")], {"ADJ|Number=Plur"})
 
 
+class Apocopes(unittest.TestCase):
+    """fix-lingua-spanish-apocopes: `buen` is *bueno* before a noun, never the reverse."""
+
+    @staticmethod
+    def apocope(word, pos, full, extra_tags=()):
+        """kaikki's entry for an apocope: one sense, alt-of its full word, which it lists as `standard`."""
+        return entry(
+            word,
+            pos=pos,
+            forms=[(full.split()[0], ["standard"])],
+            senses=[{"tags": ["abbreviation", "alt-of", "apocopic", *extra_tags], "alt_of": [{"word": full}]}],
+        )
+
+    def test_an_adjective_s_apocope_is_a_form_of_its_full_word(self):
+        bueno = entry("bueno", pos="adj", forms=[("buena", ["feminine"]), ("buenos", ["masculine", "plural"])])
+        candidates, lemmas, _ = read(self.apocope("buen", "adj", "bueno", ("masculine",)), bueno)
+        # The standard row is no inflection of `buen`, and `buen` is no lemma of its own.
+        self.assertEqual(candidates["bueno"], {"bueno"})
+        self.assertEqual(candidates["buen"], {"bueno"})
+        self.assertNotIn("buen", lemmas)
+        got = readings(self.apocope("buen", "adj", "bueno", ("masculine",)), bueno).pairs()
+        self.assertEqual(got[("buen", "bueno")], {"ADJ|Gender=Masc|Number=Sing"})
+        self.assertNotIn(("bueno", "buen"), got)
+
+    def test_a_determiner_s_apocope_too_from_the_first_word_of_its_first_target(self):
+        candidates, _, _ = read(
+            self.apocope("algún", "det", "alguno"),
+            # kaikki splits « apocopic form of cualquiera any, whatever » into several targets.
+            entry(
+                "cualesquier",
+                pos="det",
+                senses=[{"tags": ["apocopic", "alt-of"], "alt_of": [{"word": "cualquiera any"}, {"word": "whatever"}]}],
+            ),
+        )
+        self.assertEqual(candidates["algún"], {"alguno"})
+        self.assertEqual(candidates["cualesquier"], {"cualquiera"})
+
+    def test_an_adverb_or_a_numeral_kaikki_calls_apocopic_stays_a_word_of_its_own(self):
+        candidates, lemmas, _ = read(self.apocope("muy", "adv", "mucho"), self.apocope("un", "num", "uno"))
+        self.assertEqual(candidates["muy"], {"muy"})
+        self.assertEqual(candidates["un"], {"un"})
+        self.assertIn("muy", lemmas)
+        # Its standard row is no inflection either: `mucho` is no form of `muy`.
+        self.assertNotIn("muy", candidates["mucho"])
+
+
 class LetterNames(unittest.TestCase):
     def test_a_letter_s_name_gives_no_reading_of_its_inflections(self):
         def letter(word, plural, sense):

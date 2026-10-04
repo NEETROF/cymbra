@@ -50,6 +50,8 @@ _TOKEN = re.compile(r"[a-záéíóúüñ]+(?:-[a-záéíóúüñ]+)*")
 # form's own entry says the same through its sense's tags, which name the pronoun
 # (`object-third-person`, `object-plural`).
 _BOOKKEEPING = frozenset({"table-tags", "inflection-template", "class", "romanization"})
+# A row naming the standard word an entry is a variant of (`buen` lists `bueno`): no inflection of it.
+_STANDARD = "standard"
 _COMBINED = "combined-form"
 _CLITIC_TAG = "object-"
 
@@ -109,7 +111,8 @@ def read_entry(entry, candidates, lemmas, combined):
     if not _TOKEN.fullmatch(word):
         return
     senses = entry.get("senses") or []
-    only_forms = bool(senses) and all(_is_form_of(sense) for sense in senses)
+    pos = entry.get("pos")
+    only_forms = bool(senses) and all(_is_form_of(sense, pos) for sense in senses)
     if not only_forms:
         lemmas.add(word)
         candidates[word].add(word)
@@ -119,12 +122,12 @@ def read_entry(entry, candidates, lemmas, combined):
         if _COMBINED in tags:
             combined.add(form)
             continue
-        if tags & _BOOKKEEPING or not _TOKEN.fullmatch(form):
+        if tags & _BOOKKEEPING or _STANDARD in tags or not _TOKEN.fullmatch(form):
             continue
         candidates[form].add(word)
     for sense in senses:
         clitics = _names_clitics(sense)
-        for ref in sense.get("form_of") or ():
+        for ref in _form_targets(sense, pos):
             target = nfc_lower(ref.get("word") if isinstance(ref, dict) else "")
             if not _TOKEN.fullmatch(target):
                 continue
@@ -134,8 +137,28 @@ def read_entry(entry, candidates, lemmas, combined):
                 candidates[word].add(target)
 
 
-def _is_form_of(sense):
-    return "form-of" in (sense.get("tags") or ()) or bool(sense.get("form_of"))
+def _is_form_of(sense, pos=None):
+    return "form-of" in (sense.get("tags") or ()) or bool(_form_targets(sense, pos))
+
+
+# The parts of speech whose apocope is the same word before a noun (`buen`, *bueno*; `algún`,
+# *alguno*). An adverb or a numeral kaikki calls apocopic is a word of its own for a reader: `muy`
+# is « très », not *mucho*, and `un` the article, not *uno*.
+_APOCOPE_POS = frozenset({"adj", "det"})
+
+
+def _form_targets(sense, pos=None):
+    """The words a sense makes its entry a form of: its `form_of`, and the word an adjective's or a
+    determiner's apocope shortens (fix-lingua-spanish-apocopes), which kaikki gives as `alt_of`.
+    Only the first `alt_of` names it, and only its first word: kaikki sometimes splits the gloss into
+    more (`malo bad`, then `whatever`)."""
+    refs = list(sense.get("form_of") or ())
+    if pos in _APOCOPE_POS and "apocopic" in (sense.get("tags") or ()):
+        first = next(iter(sense.get("alt_of") or ()), None)
+        words = (first.get("word") if isinstance(first, dict) else "") or ""
+        if words.split():
+            refs.append({"word": words.split()[0]})
+    return refs
 
 
 def _names_clitics(sense):
@@ -254,9 +277,11 @@ _NOUN_GENDER = {
     "mf-p": (("Masc", "Fem"), True),
 }
 # Rows of an entry's table that are no reading: the bookkeeping, the combined forms, the headword
-# repeated, and what kaikki could not parse or marks as a misspelling.
+# repeated, the standard word a variant names, and what kaikki could not parse or marks as a
+# misspelling.
 _NOT_A_READING = _BOOKKEEPING | {
     _COMBINED,
+    _STANDARD,
     "canonical",
     "error-unrecognized-form",
     "misspelling",
@@ -404,12 +429,13 @@ def read_readings(entry, readings):
     if upos is None or not _TOKEN.fullmatch(word):
         return
     senses = entry.get("senses") or []
-    if senses and all(_is_form_of(sense) for sense in senses):
+    pos = entry.get("pos")
+    if senses and all(_is_form_of(sense, pos) for sense in senses):
         for sense in senses:
             if _names_clitics(sense):
                 continue
             tags = set(sense.get("tags") or ())
-            for ref in sense.get("form_of") or ():
+            for ref in _form_targets(sense, pos):
                 target = nfc_lower(ref.get("word") if isinstance(ref, dict) else "")
                 if _TOKEN.fullmatch(target):
                     readings.senses[(word, target)].update(_tags(upos, tags))

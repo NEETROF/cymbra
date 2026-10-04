@@ -20,8 +20,8 @@ pack yet: that is `enable-lingua-spanish`.
 
 ## What is in them
 
-- **60,000 lemmas**, the commonest by wordfreq, and **144,805 forms**: each lemma's own form, and
-  84,805 inflected forms attested in wordfreq. A form nobody writes is left to the analyser's rules.
+- **60,000 lemmas**, the commonest by wordfreq, and **144,820 forms**: each lemma's own form, and
+  84,820 inflected forms attested in wordfreq. A form nobody writes is left to the analyser's rules.
 - **No verb with its clitics** (`dámelo`, `hacerlo`): the analyser's enclitic rule reads them. A
   string that is also a plain form keeps it: `principales`, which is also *principar* + `les`, maps
   to *principal*.
@@ -32,7 +32,12 @@ pack yet: that is `enable-lingua-spanish`.
   2. GSD's counts (`fue` → *ser*);
   3. the form's own entry (`casa` → *casa*);
   4. the commoner lemma (`luces` → *luz*).
-- **Grammar**: 149,240 readings of 111,922 forms, in 88 Universal Dependencies tags, read from
+- **An adjective's or a determiner's apocope reads as its full word** (fix-lingua-spanish-apocopes):
+  `buen` → *bueno*, `gran` → *grande*, `primer` → *primero*, `algún` → *alguno*. kaikki's row naming
+  the standard word (`buen` lists `bueno`) is no inflection: it made `bueno` a form of `buen`, which
+  has no gloss. An adverb or a numeral kaikki calls apocopic stays a word of its own: `muy` is
+  « Très », not *mucho*, and `un` the article, not *uno*.
+- **Grammar**: 149,249 readings of 111,933 forms, in 89 Universal Dependencies tags, read from
   kaikki's tags (add-lingua-spanish-grammar-tables). Every verb form says its mood, tense, person
   and number (`hablábamos`: indicative imperfect, first person plural). A participle, an adjective,
   a determiner or a pronoun says its agreement (`escrita`, `rápidas`). A noun says its gender on
@@ -40,7 +45,7 @@ pack yet: that is `enable-lingua-spanish`.
   of another kept lemma is marked `other`, so the card names it: `vino` is also *venir*'s
   preterite, `fue` *ir*'s. A letter's name keeps its own form but gives none of its plurals
   (add-lingua-spanish-word-card): `es` is *ser*'s alone, not also the plural of the letter E.
-- **French glosses** for 22,826 lemmas, and 15,133 expressions (add-lingua-spanish-gloss-tables).
+- **French glosses** for 22,823 lemmas, and 15,133 expressions (add-lingua-spanish-gloss-tables).
   The French Wiktionary's Spanish entries come first, through the rules every pair shares: up to
   eight senses, grouped by part of speech. Where they say nothing, people's translations fill
   the gap. First, the French words the Spanish Wiktionary lists (`sector` « Secteur »). Then the
@@ -50,7 +55,7 @@ pack yet: that is `enable-lingua-spanish`.
 
   | Lemmas | French Wiktionary | with the translations |
   |---|---|---|
-  | top 5,000 | 82.9 % | 87.7 % |
+  | top 5,000 | 83.0 % | 87.7 % |
   | top 10,000 | 69.6 % | 77.3 % |
   | top 20,000 | 54.4 % | 63.8 % |
   | all 60,000 | 29.0 % | 38.0 % |
@@ -77,15 +82,19 @@ pack yet: that is `enable-lingua-spanish`.
 
 `scripts/lingua-data/measure/es-pud.sh` builds the pack from these tables and runs the real analyser
 over UD Spanish-PUD, which the reduction never reads. Punctuation, numbers, symbols, foreign words
-and proper nouns are left out. On the 2026-10-03 tables:
+and proper nouns are left out. On the 2026-10-04 tables:
 
 | | Measured | Gate |
 |---|---|---|
 | words resolved in the lexicon | 99.38 % of 19,276 | 98.5 % |
-| content words taking PUD's lemma | 95.92 % of 9,439 | 93.5 % |
+| content words taking PUD's lemma | 95.79 % of 9,439 | 93.5 % |
 | auxiliaries taking PUD's lemma | 97.95 % of 634 | 97 % |
 
-The pack is 2,188,994 B, with the grammar, the glosses and the levels.
+PUD itself is not consistent on apocopes: it keeps `gran` as its own lemma but takes `primer` to
+*primero*, which is why reading apocopes as their full words moved the content words from 95.92 %
+to 95.79 %.
+
+The pack is 2,189,161 B, with the grammar, the glosses and the levels.
 
 ## Licences
 
