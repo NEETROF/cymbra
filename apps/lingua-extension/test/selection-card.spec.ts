@@ -1724,7 +1724,6 @@ describe("a word card names the forms of its document's language (add-lingua-spa
     const view = fakeSurface();
     const clock = fakeClock();
     const cards = new SelectionCards(ports.ports, view.surface, {
-      calibration: () => CALIBRATION,
       clock: clock.clock,
       language: () => "es",
     });
