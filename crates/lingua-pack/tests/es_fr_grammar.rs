@@ -161,6 +161,38 @@ fn a_spanish_card_reads_its_french_gloss() {
 }
 
 #[test]
+fn a_spanish_apocope_reads_as_its_full_word() {
+    let pack = es_fr_pack();
+    let token = |text: &str| {
+        let phrase = gloss_phrase(
+            text,
+            StudiedLanguage::Spanish,
+            &pack,
+            &KnowledgeState::default(),
+        );
+        let first = &phrase.tokens[0];
+        (first.lemma.clone(), first.gloss.clone().unwrap_or_default())
+    };
+
+    // fix-lingua-spanish-apocopes: `buen` is *bueno* before a noun, and `bueno` no form of `buen`,
+    // so the commonest adjective has its gloss.
+    for written in ["buen", "bueno", "buenos"] {
+        let (lemma, gloss) = token(written);
+        assert_eq!(lemma, "bueno", "{written}");
+        assert!(gloss.starts_with("Bon"), "{written}: {gloss}");
+    }
+    let (lemma, gloss) = token("malo");
+    assert_eq!(lemma, "malo");
+    assert!(gloss.starts_with("Mauvais"), "{gloss}");
+    assert_eq!(token("gran").0, "grande");
+    assert_eq!(token("algún").0, "alguno");
+    // An adverb kaikki calls apocopic stays a word of its own.
+    let (lemma, gloss) = token("muy");
+    assert_eq!(lemma, "muy");
+    assert!(gloss.starts_with("Très"), "{gloss}");
+}
+
+#[test]
 fn spanish_levels_are_estimated_and_follow_frequency() {
     use lingua_core::knowledge::level::{CefrLevel, CefrLevels};
 

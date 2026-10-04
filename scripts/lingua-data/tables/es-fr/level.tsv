@@ -322,7 +322,6 @@ algoritmo	B2
 alguacil	C1
 alguien	A1
 alguno	A1
-algún	A1
 aliado	B1
 alianza	A2
 alias	B1
@@ -1073,6 +1072,7 @@ budismo	C1
 budista	B2
 buena	A1
 buenas	A1
+bueno	A1
 buey	C1
 bufanda	C2
 buitre	C2
@@ -2149,7 +2149,6 @@ cuadrilla	C2
 cuadro	A2
 cual	A1
 cualidad	B2
-cualquier	A1
 cualquiera	A1
 cuando	A1
 cuanto	A1
@@ -3743,7 +3742,7 @@ gaza	B2
 ge	B2
 gel	C1
 gelatina	C1
-gemelo	C2
+gemelo	C1
 gen	B1
 generacional	C2
 generación	A1
@@ -3751,7 +3750,7 @@ generador	B2
 general	A1
 generalidad	B2
 generalitat	C1
-generalización	C2
+generalización	C1
 generalmente	A2
 generar	A2
 generosidad	B2
@@ -3796,7 +3795,7 @@ glorioso	B2
 glucosa	C1
 gluten	C2
 go	A2
-gobernabilidad	C2
+gobernabilidad	C1
 gobernador	A1
 gobernar	B1
 gobierno	A1
@@ -3829,7 +3828,6 @@ grado	A1
 graduación	B2
 gradual	B2
 gramática	B2
-gran	A1
 granada	A2
 grande	A1
 grandeza	B1
@@ -3884,7 +3882,7 @@ guiar	B2
 guion	C1
 guionista	B2
 guiso	C1
-guita	C2
+guita	C1
 guitarra	B1
 guitarrista	B2
 guiño	C1
@@ -4905,6 +4903,7 @@ maleta	B2
 malicia	C2
 maligno	C1
 malla	C1
+malo	A1
 malta	B2
 maltrato	B1
 malvado	B2
@@ -5348,7 +5347,7 @@ mérito	B1
 método	A2
 mí	A1
 mínimo	A1
-mío	A2
+mío	A1
 místico	C1
 mítico	B2
 módulo	B2
@@ -5398,6 +5397,7 @@ natural	A1
 naturaleza	A1
 naturalmente	B1
 naufragio	C1
+nava	C2
 navaja	B2
 naval	B1
 navarro	B1
@@ -5499,7 +5499,7 @@ notoriedad	C1
 nova	B2
 novato	C1
 novedad	B1
-novela	A2
+novela	A1
 novelista	B2
 noveno	B2
 noventa	B1
@@ -5598,7 +5598,7 @@ oficio	B1
 ofrecer	A2
 ofrecimiento	C2
 ofrenda	B2
-oh	A2
+oh	A1
 ojalá	A1
 ojete	C2
 ojo	A1
@@ -5641,6 +5641,7 @@ opresión	B2
 optar	B2
 optimismo	B2
 optimista	B2
+optimizar	C2
 opuesto	B1
 opus	B2
 ora	B2
@@ -5656,6 +5657,7 @@ ordenanza	B2
 ordenar	B1
 ordinario	B2
 oreja	B1
+orfanato	C2
 organismo	A2
 organización	A1
 organizar	A2
@@ -5663,6 +5665,7 @@ orgasmo	B2
 orgullo	A2
 orgulloso	A2
 orgánico	B2
+orgía	C2
 orientación	A2
 oriental	A2
 orientar	B2
@@ -5692,7 +5695,7 @@ oveja	B2
 oxígeno	B1
 oído	A2
 oír	A2
-pa	A2
+pa	A1
 pabellón	B1
 paciencia	A2
 paciente	A2
@@ -5832,7 +5835,7 @@ pastor	B1
 pastora	C2
 pata	B1
 patada	B1
-patata	C1
+patata	B2
 patear	C1
 patente	B1
 paternidad	B2
@@ -5967,7 +5970,7 @@ perro	A1
 persa	B2
 persecución	B1
 perseguir	B1
-perseverancia	C1
+perseverancia	B2
 persistencia	C2
 persistente	B2
 persona	A1
@@ -5981,7 +5984,7 @@ pertenecer	B1
 pertenencia	B2
 pertinente	B2
 peruano	B1
-perverso	C1
+perverso	B2
 perímetro	B2
 período	A1
 pesadilla	B1
@@ -6095,7 +6098,7 @@ plebiscito	B2
 plegaria	C2
 pleito	C1
 plenamente	B1
-plenitud	C1
+plenitud	B2
 pleno	A2
 pliego	C2
 plomo	B1
@@ -6285,7 +6288,6 @@ prima	A2
 primarias	B1
 primario	B2
 primavera	A2
-primer	A1
 primeramente	C1
 primero	A1
 primitivo	B2
@@ -7072,7 +7074,6 @@ salve	B2
 salvo	A1
 salón	A2
 same	C1
-san	A1
 sanar	C1
 sanatorio	C2
 sancionar	B2
@@ -7092,7 +7093,7 @@ santuario	B1
 sapo	B2
 saque	B1
 saqueo	B2
-sarcasmo	B2
+sarcasmo	B1
 sargento	B1
 sarmiento	B1
 sartén	C1
@@ -7176,7 +7177,7 @@ sensacional	C2
 sensación	A2
 sensato	B2
 sensibilidad	B1
-sensible	B1
+sensible	A2
 sensor	C1
 sensual	B2
 sensualidad	C2
@@ -7277,7 +7278,7 @@ simular	C2
 simultáneamente	B1
 sin	A1
 sinceramente	B1
-sinceridad	B2
+sinceridad	B1
 sincero	B1
 sindical	B1
 sindicalista	C2
@@ -7320,7 +7321,7 @@ sobrepeso	C2
 sobresaliente	B2
 sobretodo	B1
 sobreviviente	B2
-sobrevivir	B1
+sobrevivir	A2
 sobrino	B1
 sobrio	C2
 social	A1
@@ -7438,7 +7439,7 @@ suegro	B2
 sueldo	A2
 suelo	A1
 suelta	B1
-suelto	B2
+suelto	B1
 suero	B2
 suerte	A1
 sueño	A1
@@ -7452,7 +7453,7 @@ sugerir	B2
 suicida	B1
 suicidio	B1
 suite	B2
-suiza	B1
+suiza	A2
 suizo	B2
 sujeto	A2
 sultán	C1
@@ -7490,7 +7491,7 @@ supuesto	A1
 sur	A1
 sureste	B1
 surf	B2
-surgir	B2
+surgir	B1
 suroeste	B2
 surrealista	C1
 suscripción	B2
@@ -7629,7 +7630,6 @@ tequila	B2
 terapeuta	C1
 terapia	B1
 terapéutico	C1
-tercer	A1
 tercero	A2
 terciario	C2
 tercio	B1
@@ -7834,7 +7834,7 @@ triple	B1
 tripulación	B1
 triste	A1
 tristemente	B2
-tristeza	B1
+tristeza	A2
 triunfar	B2
 triunfo	A2
 trivial	C1
