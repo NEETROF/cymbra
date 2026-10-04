@@ -290,6 +290,52 @@ class NominalReadings(unittest.TestCase):
         self.assertEqual(got[("grandes", "grande")], {"ADJ|Number=Plur"})
 
 
+class LetterNames(unittest.TestCase):
+    def test_a_letter_s_name_gives_no_reading_of_its_inflections(self):
+        def letter(word, plural, sense):
+            noun = entry(word, forms=[(plural, ["plural"])], senses=[sense])
+            noun["head_templates"] = [{"name": "es-noun", "args": {"1": "f"}}]
+            return noun
+
+        named = {"tags": ["feminine"], "glosses": ["The name of the Latin script letter E/e."]}
+        categorised = {"glosses": ["letter D"], "categories": [{"name": "Greek letter names", "kind": "other"}]}
+        tagged = {"tags": ["alt-of", "letter", "name"], "glosses": ["Name of the letter A."]}
+        got = readings(
+            letter("e", "es", named),
+            letter("de", "des", categorised),
+            letter("a", "aes", tagged),
+            entry("ser", pos="verb", forms=[("es", ["indicative", "present", "singular", "third-person"])]),
+            # The plural's own entry, which says nothing of a letter.
+            form_of("es", "e", pos="noun", tags=("feminine", "form-of", "plural")),
+            # An abbreviation, `E` for east, is no noun `e` of its own.
+            entry("E", senses=[{"tags": ["abbreviation", "alt-of", "masculine"], "glosses": ["abbreviation of este; east"]}]),
+        ).pairs()
+        self.assertEqual(got[("es", "ser")], {"VERB|Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin"})
+        self.assertEqual({form for form, _ in got}, {"es", "e", "de", "a"})
+        # The letter's own form stays, for its gender: the card names no dictionary form (D4).
+        self.assertEqual(got[("de", "de")], {"NOUN|Gender=Fem|Number=Sing"})
+
+    def test_a_noun_that_is_also_something_else_keeps_its_readings(self):
+        jota = entry(
+            "jota",
+            forms=[("jotas", ["plural"])],
+            senses=[
+                {"glosses": ["The name of the Latin script letter J/j."]},
+                {"glosses": ["jota (Iberian folk dance)"]},
+            ],
+        )
+        jota["head_templates"] = [{"name": "es-noun", "args": {"1": "f"}}]
+        # `be`, the letter B, and another entry, a sheep's bleat: the bleat keeps its plural.
+        be_letter = entry("be", senses=[{"tags": ["feminine"], "glosses": ["The name of the Latin script letter B/b."]}])
+        be_bleat = entry("be", forms=[("bes", ["plural"])], senses=[{"tags": ["masculine"], "glosses": ["baa"]}])
+        got = readings(
+            jota, be_letter, be_bleat, form_of("bes", "be", pos="noun", tags=("form-of", "plural"))
+        ).pairs()
+        self.assertEqual(got[("jotas", "jota")], {"NOUN|Gender=Fem|Number=Plur"})
+        self.assertEqual(got[("be", "be")], {"NOUN|Gender=Fem|Number=Sing", "NOUN|Gender=Masc|Number=Sing"})
+        self.assertEqual(got[("bes", "be")], {"NOUN|Gender=Masc|Number=Plur"})
+
+
 class GrammarRows(unittest.TestCase):
     def test_a_pronominal_form_reads_from_its_own_entry_and_a_combined_form_not_at_all(self):
         dar = entry("dar", pos="verb", forms=[("dámelo", ["combined-form", "imperative"]), ("es-conj", ["inflection-template"])])
@@ -383,6 +429,24 @@ class GlossFallbacks(unittest.TestCase):
         for expression, gloss in red.LOCUTIONS.items():
             self.assertIn(" ", expression)
             self.assertTrue(gloss and gloss[0].isupper(), expression)
+
+
+class NounClassRuns(unittest.TestCase):
+    def test_a_noun_run_takes_the_gender_of_the_noun_s_own_readings(self):
+        casa = entry("casa", forms=[("casas", ["plural"])])
+        casa["head_templates"] = [{"name": "es-noun", "args": {"1": "f"}}]
+        estudiante = entry("estudiante")
+        estudiante["head_templates"] = [{"name": "es-noun", "args": {"1": "mfbysense"}}]
+        runs = {
+            "casa": [("NOUN", 1), ("VERB", 2)],
+            "estudiante": [("NOUN", 1)],
+            "hablar": [("VERB", 1)],
+        }
+        got = red.noun_class_runs(runs, readings(casa, estudiante))
+        self.assertEqual(got["casa"], [("NOUN|Gender=Fem", 1), ("VERB", 2)])
+        # Of both genders: no gender in the run.
+        self.assertEqual(got["estudiante"], [("NOUN", 1)])
+        self.assertEqual(got["hablar"], [("VERB", 1)])
 
 
 class EstimatedLevels(unittest.TestCase):
