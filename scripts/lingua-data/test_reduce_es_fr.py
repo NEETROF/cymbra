@@ -290,6 +290,150 @@ class NominalReadings(unittest.TestCase):
         self.assertEqual(got[("grandes", "grande")], {"ADJ|Number=Plur"})
 
 
+class Apocopes(unittest.TestCase):
+    """fix-lingua-spanish-apocopes: `buen` is *bueno* before a noun, never the reverse."""
+
+    @staticmethod
+    def apocope(word, pos, full, extra_tags=()):
+        """kaikki's entry for an apocope: one sense, alt-of its full word, which it lists as `standard`."""
+        return entry(
+            word,
+            pos=pos,
+            forms=[(full.split()[0], ["standard"])],
+            senses=[{"tags": ["abbreviation", "alt-of", "apocopic", *extra_tags], "alt_of": [{"word": full}]}],
+        )
+
+    def test_an_adjective_s_apocope_is_a_form_of_its_full_word(self):
+        bueno = entry("bueno", pos="adj", forms=[("buena", ["feminine"]), ("buenos", ["masculine", "plural"])])
+        candidates, lemmas, _ = read(self.apocope("buen", "adj", "bueno", ("masculine",)), bueno)
+        # The standard row is no inflection of `buen`, and `buen` is no lemma of its own.
+        self.assertEqual(candidates["bueno"], {"bueno"})
+        self.assertEqual(candidates["buen"], {"bueno"})
+        self.assertNotIn("buen", lemmas)
+        got = readings(self.apocope("buen", "adj", "bueno", ("masculine",)), bueno).pairs()
+        self.assertEqual(got[("buen", "bueno")], {"ADJ|Gender=Masc|Number=Sing"})
+        self.assertNotIn(("bueno", "buen"), got)
+
+    def test_a_determiner_s_apocope_too_from_the_first_word_of_its_first_target(self):
+        candidates, _, _ = read(
+            self.apocope("algún", "det", "alguno"),
+            # kaikki splits « apocopic form of cualquiera any, whatever » into several targets.
+            entry(
+                "cualesquier",
+                pos="det",
+                senses=[{"tags": ["apocopic", "alt-of"], "alt_of": [{"word": "cualquiera any"}, {"word": "whatever"}]}],
+            ),
+        )
+        self.assertEqual(candidates["algún"], {"alguno"})
+        self.assertEqual(candidates["cualesquier"], {"cualquiera"})
+
+    def test_an_adverb_or_a_numeral_kaikki_calls_apocopic_stays_a_word_of_its_own(self):
+        candidates, lemmas, _ = read(self.apocope("muy", "adv", "mucho"), self.apocope("un", "num", "uno"))
+        self.assertEqual(candidates["muy"], {"muy"})
+        self.assertEqual(candidates["un"], {"un"})
+        self.assertIn("muy", lemmas)
+        # Its standard row is no inflection either: `mucho` is no form of `muy`.
+        self.assertNotIn("muy", candidates["mucho"])
+
+
+class CardNoise(unittest.TestCase):
+    """fix-lingua-spanish-card-noise."""
+
+    def test_between_a_proper_name_and_a_word_the_commoner_reading_wins(self):
+        candidates, lemmas, combined = collections.defaultdict(set), set(), set()
+        kinds = collections.defaultdict(set)
+        for e in (
+            form_of("miró", "mirar", tags=("form-of", "indicative", "preterite", "singular", "third-person")),
+            entry("Miró", pos="name", senses=[{"glosses": ["a surname from Catalan"]}]),
+            entry("Argentina", pos="name", senses=[{"glosses": ["Argentina"]}]),
+            entry("argentino", pos="adj", forms=[("argentina", ["feminine"])]),
+            entry("Rosa", pos="name", senses=[{"glosses": ["a female given name"]}]),
+            entry("rosa", senses=[{"glosses": ["rose"]}]),
+        ):
+            red.read_entry(e, candidates, lemmas, combined, kinds)
+        names = {word for word, found in kinds.items() if found == {True}}
+        # A name that is also a common word is no name only.
+        self.assertEqual(names, {"miró", "argentina"})
+        zipf = {"miró": 3.98, "mirar": 4.74, "argentina": 5.38, "argentino": 4.83, "rosa": 4.7}
+        red.name_or_word(candidates, names, lambda w: zipf.get(w, 0))
+        self.assertEqual(candidates["miró"], {"mirar"})
+        self.assertEqual(candidates["argentina"], {"argentina"})
+        self.assertEqual(candidates["rosa"], {"rosa"})
+
+    def test_a_letter_is_no_french_gloss(self):
+        entries = [
+            {"word": "a", "pos": "character", "senses": [{"glosses": ["Première lettre et première voyelle de l’alphabet espagnol."]}]},
+            {"word": "a", "pos": "prep", "senses": [{"glosses": ["À, au."]}]},
+            {"word": "de", "pos": "noun", "senses": [{"glosses": ["Nom de la lettre d."]}]},
+            {"word": "be", "pos": "noun", "senses": [{"glosses": ["Bé, nom de la lettre b."]}, {"glosses": ["Bêlement."]}]},
+            {"word": "ese", "pos": "noun", "senses": [{"glosses": ["Lettre s."]}]},
+            {"word": "carta", "pos": "noun", "senses": [{"glosses": ["Lettre, missive."]}]},
+            {"word": "carta de amor", "pos": "noun", "senses": [{"glosses": ["Lettre d’amour."]}]},
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            src, dst = os.path.join(tmp, "src.jsonl"), os.path.join(tmp, "dst.jsonl")
+            with open(src, "w", encoding="utf-8") as f:
+                f.writelines(json.dumps(e, ensure_ascii=False) + "\n" for e in entries)
+            red.without_letters(src, dst)
+            with open(dst, encoding="utf-8") as f:
+                kept = [json.loads(line) for line in f]
+        self.assertEqual(
+            [(e["word"], e["pos"], [s["glosses"][0] for s in e["senses"]]) for e in kept],
+            [
+                ("a", "prep", ["À, au."]),
+                ("be", "noun", ["Bêlement."]),
+                ("carta", "noun", ["Lettre, missive."]),
+                ("carta de amor", "noun", ["Lettre d’amour."]),
+            ],
+        )
+
+
+class LetterNames(unittest.TestCase):
+    def test_a_letter_s_name_gives_no_reading_of_its_inflections(self):
+        def letter(word, plural, sense):
+            noun = entry(word, forms=[(plural, ["plural"])], senses=[sense])
+            noun["head_templates"] = [{"name": "es-noun", "args": {"1": "f"}}]
+            return noun
+
+        named = {"tags": ["feminine"], "glosses": ["The name of the Latin script letter E/e."]}
+        categorised = {"glosses": ["letter D"], "categories": [{"name": "Greek letter names", "kind": "other"}]}
+        tagged = {"tags": ["alt-of", "letter", "name"], "glosses": ["Name of the letter A."]}
+        got = readings(
+            letter("e", "es", named),
+            letter("de", "des", categorised),
+            letter("a", "aes", tagged),
+            entry("ser", pos="verb", forms=[("es", ["indicative", "present", "singular", "third-person"])]),
+            # The plural's own entry, which says nothing of a letter.
+            form_of("es", "e", pos="noun", tags=("feminine", "form-of", "plural")),
+            # An abbreviation, `E` for east, is no noun `e` of its own.
+            entry("E", senses=[{"tags": ["abbreviation", "alt-of", "masculine"], "glosses": ["abbreviation of este; east"]}]),
+        ).pairs()
+        self.assertEqual(got[("es", "ser")], {"VERB|Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin"})
+        self.assertEqual({form for form, _ in got}, {"es", "e", "de", "a"})
+        # The letter's own form stays, for its gender: the card names no dictionary form (D4).
+        self.assertEqual(got[("de", "de")], {"NOUN|Gender=Fem|Number=Sing"})
+
+    def test_a_noun_that_is_also_something_else_keeps_its_readings(self):
+        jota = entry(
+            "jota",
+            forms=[("jotas", ["plural"])],
+            senses=[
+                {"glosses": ["The name of the Latin script letter J/j."]},
+                {"glosses": ["jota (Iberian folk dance)"]},
+            ],
+        )
+        jota["head_templates"] = [{"name": "es-noun", "args": {"1": "f"}}]
+        # `be`, the letter B, and another entry, a sheep's bleat: the bleat keeps its plural.
+        be_letter = entry("be", senses=[{"tags": ["feminine"], "glosses": ["The name of the Latin script letter B/b."]}])
+        be_bleat = entry("be", forms=[("bes", ["plural"])], senses=[{"tags": ["masculine"], "glosses": ["baa"]}])
+        got = readings(
+            jota, be_letter, be_bleat, form_of("bes", "be", pos="noun", tags=("form-of", "plural"))
+        ).pairs()
+        self.assertEqual(got[("jotas", "jota")], {"NOUN|Gender=Fem|Number=Plur"})
+        self.assertEqual(got[("be", "be")], {"NOUN|Gender=Fem|Number=Sing", "NOUN|Gender=Masc|Number=Sing"})
+        self.assertEqual(got[("bes", "be")], {"NOUN|Gender=Masc|Number=Plur"})
+
+
 class GrammarRows(unittest.TestCase):
     def test_a_pronominal_form_reads_from_its_own_entry_and_a_combined_form_not_at_all(self):
         dar = entry("dar", pos="verb", forms=[("dámelo", ["combined-form", "imperative"]), ("es-conj", ["inflection-template"])])
@@ -383,6 +527,24 @@ class GlossFallbacks(unittest.TestCase):
         for expression, gloss in red.LOCUTIONS.items():
             self.assertIn(" ", expression)
             self.assertTrue(gloss and gloss[0].isupper(), expression)
+
+
+class NounClassRuns(unittest.TestCase):
+    def test_a_noun_run_takes_the_gender_of_the_noun_s_own_readings(self):
+        casa = entry("casa", forms=[("casas", ["plural"])])
+        casa["head_templates"] = [{"name": "es-noun", "args": {"1": "f"}}]
+        estudiante = entry("estudiante")
+        estudiante["head_templates"] = [{"name": "es-noun", "args": {"1": "mfbysense"}}]
+        runs = {
+            "casa": [("NOUN", 1), ("VERB", 2)],
+            "estudiante": [("NOUN", 1)],
+            "hablar": [("VERB", 1)],
+        }
+        got = red.noun_class_runs(runs, readings(casa, estudiante))
+        self.assertEqual(got["casa"], [("NOUN|Gender=Fem", 1), ("VERB", 2)])
+        # Of both genders: no gender in the run.
+        self.assertEqual(got["estudiante"], [("NOUN", 1)])
+        self.assertEqual(got["hablar"], [("VERB", 1)])
 
 
 class EstimatedLevels(unittest.TestCase):

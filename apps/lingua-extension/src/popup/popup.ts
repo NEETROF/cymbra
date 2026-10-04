@@ -1,12 +1,10 @@
-import { errorCopy } from "../account/copy.ts";
-import { type AccountReply, type AccountState, PENDING_EMAIL_KEY } from "../account/messages.ts";
+import type { AccountReply, AccountState } from "../account/messages.ts";
 import { createLinguaPort } from "../analyzer/create-port.ts";
 import { chooseLevelPrompt, levelTitle, noTextDetected } from "../analyzer/language-labels.ts";
 import { DEFAULT_LANGUAGE, readingLanguage } from "../analyzer/pairs.ts";
 import type { CefrLevel, StudiedLanguage } from "../analyzer/types.ts";
-import { mountSettings, type SettingsView } from "../reading/settings-view.ts";
+import { mountSettings, type SettingsTab, type SettingsView } from "../reading/settings-view.ts";
 import { browserSpeechEngine, createSpeaker } from "../reading/speech.ts";
-import type { Provider } from "../state/oidc.ts";
 import { isPersistedSignInError, SIGNIN_ERROR_KEY } from "../state/session.ts";
 import {
   type AsyncStorageArea,
@@ -107,17 +105,27 @@ async function sendRuntime(message: unknown): Promise<unknown> {
   }
 }
 
-/** Whether a Cymbra ID session is active — a lost-session mark or a sign-in error then no longer applies. */
+async function readAccount(): Promise<AccountState | null> {
+  return ((await sendRuntime({ type: "account:state" })) as AccountReply | null)?.state ?? null;
+}
+
+/** Whether a Cymbra ID session is active — a lost-session mark then no longer applies. */
 let accountSignedIn = false;
 
-function renderAccount(state: AccountState | null): void {
+/**
+ * The account, in one line: signing in, and all it leads to, lives in Réglages › Données
+ * (`mountSettings`), the same in every surface. Signed in, the handle — or that one is still to
+ * choose: an account without one is deleted by the backend's orphan reaper.
+ */
+async function renderAccount(state: AccountState | null): Promise<void> {
   const signedIn = state?.signedIn ?? false;
   accountSignedIn = signedIn;
-  $("acct-in").hidden = !signedIn;
-  $("acct-out").hidden = signedIn;
-  $("acct-error").hidden = true;
-  if (signedIn) void renderHandle();
-  else $("acct-handle-cta").hidden = true;
+  $("account-signin").hidden = signedIn;
+  $("account-in").hidden = !signedIn;
+  if (!signedIn) return;
+  const res = (await sendRuntime({ type: "account:profile" })) as AccountReply | null;
+  $("account-who").textContent =
+    res?.ok && res.handle ? `@${res.handle}` : res?.ok ? "Pseudo à choisir" : "Synchronisation activée";
 }
 
 /** Say, above everything else, that a session this device held was refused by the server. */
@@ -129,74 +137,15 @@ async function refreshSessionLost(): Promise<void> {
 }
 
 /**
- * Show the account's handle, or ask for one: a Cymbra account without a handle is deleted by
- * the backend's orphan reaper, so the popup keeps offering the account page's handle step.
+ * A provider sign-in that failed after Google's window tore this popup down, persisted by the
+ * background: Réglages › Données says it (and clears it), so open them there.
  */
-async function renderHandle(): Promise<void> {
-  const res = (await sendRuntime({ type: "account:profile" })) as AccountReply | null;
-  const needsHandle = res?.ok === true && res.handle == null;
-  $("acct-handle").textContent =
-    res?.ok && res.handle ? `@${res.handle}` : needsHandle ? "Pseudo à choisir" : "Synchronisation activée";
-  $("acct-handle-cta").hidden = !needsHandle;
-}
-
-function showAccountError(message: string): void {
-  const el = $("acct-error");
-  el.textContent = message;
-  el.hidden = false;
-}
-
-/** Drop the persisted sign-in error (storage.session); tolerates it being unavailable. */
-async function clearSignInError(): Promise<void> {
+async function hasSignInError(): Promise<boolean> {
   try {
-    await chrome.storage.session.set({ [SIGNIN_ERROR_KEY]: null });
+    return isPersistedSignInError((await chrome.storage.session.get(SIGNIN_ERROR_KEY))[SIGNIN_ERROR_KEY]);
   } catch {
-    // storage.session may be unavailable; nothing to clear.
+    return false; // storage.session may be unavailable; nothing to surface.
   }
-}
-
-/**
- * Surface (once) a sign-in failure the background persisted while this popup was torn
- * down by Google's auth window. Read from storage.session directly — the worker may have
- * napped since — then clear it so it never shows stale. No-op when already signed in.
- */
-async function surfaceSignInError(): Promise<void> {
-  try {
-    const got = await chrome.storage.session.get(SIGNIN_ERROR_KEY);
-    const err = got[SIGNIN_ERROR_KEY];
-    if (isPersistedSignInError(err)) {
-      if (!accountSignedIn) showAccountError(errorCopy(providerContext(err.provider), err.kind));
-      await clearSignInError();
-    }
-  } catch {
-    // storage.session may be unavailable in some contexts; nothing to surface.
-  }
-}
-
-function providerContext(provider: Provider): "signInGoogle" | "signInApple" {
-  return provider === "apple" ? "signInApple" : "signInGoogle";
-}
-
-/** Open the account page — a tab, which survives the reader leaving for their mailbox. */
-async function openAccountPage(view: "signup" | "forgot" | "verify" | "handle" | "data"): Promise<void> {
-  try {
-    await chrome.tabs.create({ url: chrome.runtime.getURL(`account.html#${view}`) });
-  } catch {
-    // Tab creation refused; nothing actionable in the popup.
-  }
-  window.close();
-}
-
-/** Show only the providers this build and browser support (add-lingua-account-parity D5). */
-async function renderProviders(): Promise<void> {
-  const res = (await sendRuntime({ type: "account:providers" })) as AccountReply | null;
-  const google = Boolean(res?.providers?.google);
-  const apple = Boolean(res?.providers?.apple);
-  $("signin-google").hidden = !google;
-  $("signin-apple").hidden = !apple;
-  // No provider (Safari, Firefox for Android, or none configured): email is the only way
-  // in, so show its form already unfolded.
-  if (!google && !apple) document.querySelector<HTMLDetailsElement>(".acct-local")?.setAttribute("open", "");
 }
 
 function render(stats: PageStats | null, onReader: boolean): void {
@@ -245,7 +194,7 @@ let settings: SettingsView | null = null;
  * are this page's own, as the side panel's are: a level, a calibration or a reset chosen here
  * is persisted to the store, which every page restores — the popup never reaches into a tab.
  */
-async function showSettings(): Promise<void> {
+async function showSettings(tab?: SettingsTab): Promise<void> {
   $("main-view").hidden = true;
   $("settings-view").hidden = false;
   if (!settings) {
@@ -255,8 +204,11 @@ async function showSettings(): Promise<void> {
       persist: async () => saveBackup(store, await port.backup()),
       store,
       speaker: createSpeaker(browserSpeechEngine(), await readingLanguage(port), storedVoicePreference(storageArea)),
+      // Safari: the host app now shows the provider's sheet; the next open collects the token.
+      onHandedOff: () => window.close(),
     });
   }
+  if (tab) settings.show(tab);
   await settings.refresh();
 }
 
@@ -316,14 +268,17 @@ async function main(): Promise<void> {
   // Settings view (gear icon), also reached from the main panel's level call-to-action and
   // « Modifier ». Leaving it re-reads the page's stats: a level or a calibration chosen there
   // moves the percentage.
-  const openSettings = (): void => void showSettings();
-  $("settings-open").addEventListener("click", openSettings);
-  $("level-cta").addEventListener("click", openSettings);
-  $("level-edit").addEventListener("click", openSettings);
+  $("settings-open").addEventListener("click", () => void showSettings());
+  // The level is what these two lead to: its tab, whichever one the reader left open.
+  const openLevel = (): void => void showSettings("language");
+  $("level-cta").addEventListener("click", openLevel);
+  $("level-edit").addEventListener("click", openLevel);
   $("settings-back").addEventListener("click", () => {
     $("settings-view").hidden = true;
     $("main-view").hidden = false;
     void refresh();
+    // Signed in or out in Réglages › Données: the account line follows.
+    void readAccount().then(renderAccount).then(refreshSessionLost);
   });
 
   $("review").addEventListener("click", () => void openReviewSurface("review"));
@@ -339,54 +294,9 @@ async function main(): Promise<void> {
     await applyEnabled(enabled);
   });
 
-  // Opening a provider's auth window steals focus and tears this popup down, so the awaited
-  // result usually never arrives here (res === null). That is fine: the background finishes
-  // the sign-in, and on reopen the popup shows the signed-in state — or the persisted
-  // failure via surfaceSignInError(). A null result is NOT a failure to report here; only
-  // act when the popup actually survived. A closed provider window is a cancel: no message.
-  const providerSignIn = async (provider: Provider): Promise<void> => {
-    const type = provider === "apple" ? "account:signInApple" : "account:signInGoogle";
-    const res = (await sendRuntime({ type })) as AccountReply | null;
-    if (res?.ok) renderAccount(res.state ?? { signedIn: true });
-    // Safari: the host app now shows the provider's sheet; the next popup open collects the token.
-    else if (res?.handedOff) window.close();
-    else if (res && !res.cancelled) {
-      // Shown live — drop the background's persisted copy so it does not re-show next open.
-      showAccountError(errorCopy(providerContext(provider), res.error ?? "unknown"));
-      await clearSignInError();
-    }
-  };
-  $("signin-google").addEventListener("click", () => void providerSignIn("google"));
-  $("signin-apple").addEventListener("click", () => void providerSignIn("apple"));
-
-  $("signin-local").addEventListener("click", async () => {
-    const email = ($("acct-email") as HTMLInputElement).value.trim();
-    const password = ($("acct-password") as HTMLInputElement).value;
-    if (!email || !password) return;
-    // Local sign-in never opens an auth window, so this popup stays alive: a null result
-    // is a real transport/worker hiccup (not a torn-down popup) — reported as unreachable.
-    const res = (await sendRuntime({ type: "account:signInLocal", email, password })) as AccountReply | null;
-    if (res?.ok) renderAccount(res.state ?? { signedIn: true });
-    else if (res?.error === "failedPrecondition") {
-      // Unverified email: continue on the account page's code step. Only the email goes
-      // across (storage.session); the password never leaves this popup (design D6).
-      try {
-        await chrome.storage.session.set({ [PENDING_EMAIL_KEY]: email });
-      } catch {
-        // storage.session unavailable: the page opens on sign-in instead.
-      }
-      await openAccountPage("verify");
-    } else showAccountError(errorCopy("signInEmail", res?.error ?? "unavailable"));
-  });
-  $("acct-signup").addEventListener("click", () => void openAccountPage("signup"));
-  $("acct-forgot").addEventListener("click", () => void openAccountPage("forgot"));
-  $("acct-handle-open").addEventListener("click", () => void openAccountPage("handle"));
-  $("acct-data").addEventListener("click", () => void openAccountPage("data"));
-
-  $("signout").addEventListener("click", async () => {
-    const res = (await sendRuntime({ type: "account:signOut" })) as AccountReply | null;
-    renderAccount(res?.state ?? { signedIn: false });
-  });
+  const openAccount = (): void => void showSettings("data");
+  $("account-signin").addEventListener("click", openAccount);
+  $("account-manage").addEventListener("click", openAccount);
 
   $("open-stats").addEventListener("click", () => void openReviewSurface("stats"));
   // The same destination as the settings' row: the background opens the reader, or brings
@@ -400,9 +310,10 @@ async function main(): Promise<void> {
   // Safari: exchange an id_token the host app handed back before reading the account state;
   // a failure is persisted by the background and shown by surfaceSignInError() below.
   if (__NATIVE_PROVIDERS__) await sendRuntime({ type: "account:collectHandedToken" });
-  renderAccount(((await sendRuntime({ type: "account:state" })) as AccountReply | null)?.state ?? null);
-  await renderProviders();
-  await surfaceSignInError(); // show a sign-in failure that happened after the popup closed
+  const state = await readAccount();
+  await renderAccount(state);
+  // A sign-in failure that happened after the popup closed: Réglages › Données say it.
+  if (!state?.signedIn && (await hasSignInError())) await showSettings("data");
 
   // Opening the popup asks for a sync. What it pulls changes the backup, which the page
   // restores: re-read the counts once the page has caught up.

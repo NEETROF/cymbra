@@ -42,7 +42,10 @@ type Method =
   | "verifyEmail"
   | "resendVerification"
   | "requestPasswordReset"
-  | "resetPassword";
+  | "resetPassword"
+  | "linkIdentity"
+  | "unlinkIdentity"
+  | "setLocalCredential";
 
 /** A fake AuthService that records calls, returns scripted token pairs, and can fail. */
 function fakeAuth(
@@ -61,6 +64,9 @@ function fakeAuth(
         "resendVerification",
         "requestPasswordReset",
         "resetPassword",
+        "linkIdentity",
+        "unlinkIdentity",
+        "setLocalCredential",
       ] as Method[]
     ).map((m) => [m, vi.fn<(req: unknown) => void>()]),
   ) as Record<Method, Mock<(req: unknown) => void>>;
@@ -88,6 +94,9 @@ function fakeAuth(
     resendVerification: (req: unknown) => call("resendVerification", req, {}),
     requestPasswordReset: (req: unknown) => call("requestPasswordReset", req, {}),
     resetPassword: (req: unknown) => call("resetPassword", req, {}),
+    linkIdentity: (req: unknown) => call("linkIdentity", req, {}),
+    unlinkIdentity: (req: unknown) => call("unlinkIdentity", req, {}),
+    setLocalCredential: (req: unknown) => call("setLocalCredential", req, {}),
   };
   return { client: client as unknown as Client<typeof AuthService>, calls };
 }
@@ -410,5 +419,77 @@ describe("isPersistedSignInError", () => {
     expect(isPersistedSignInError("Google did not return an id_token.")).toBe(false);
     expect(isPersistedSignInError({ provider: "github", kind: "unknown" })).toBe(false);
     expect(isPersistedSignInError(null)).toBe(false);
+  });
+});
+
+describe("Session — connected accounts (add-lingua-connected-accounts)", () => {
+  const signedIn = async (client: Client<typeof AuthService>, opts: Parameters<typeof makeSession>[1] = {}) => {
+    const made = makeSession(client, opts);
+    await made.session.signInLocal("me@example.com", "pw");
+    return made;
+  };
+
+  it("links a provider with its id_token and keeps the session it has", async () => {
+    const { client, calls } = fakeAuth({ local: { accessToken: "a-keep", refreshToken: "r-keep" } });
+    const getGoogleIdToken = vi.fn(async () => "google-id-token");
+    const { session, localArea } = await signedIn(client, { getGoogleIdToken });
+    expect(await session.linkProvider("google")).toBe("linked");
+    expect(calls.linkIdentity).toHaveBeenCalledWith({ idToken: "google-id-token" });
+    expect(calls.signInOidc).not.toHaveBeenCalled();
+    expect(session.token()).toBe("a-keep");
+    expect(localArea.store[REFRESH_KEY]).toBe("r-keep");
+  });
+
+  it("links Apple through Apple's flow", async () => {
+    const { client, calls } = fakeAuth({});
+    const { session } = await signedIn(client, { getAppleIdToken: async () => "apple-id-token" });
+    expect(await session.linkProvider("apple")).toBe("linked");
+    expect(calls.linkIdentity).toHaveBeenCalledWith({ idToken: "apple-id-token" });
+  });
+
+  it("makes no call when the provider's window is closed", async () => {
+    const { client, calls } = fakeAuth({});
+    const { session } = await signedIn(client, { getGoogleIdToken: async () => null });
+    expect(await session.linkProvider("google")).toBe("cancelled");
+    expect(calls.linkIdentity).not.toHaveBeenCalled();
+  });
+
+  it("categorizes a link failure without persisting it for the popup", async () => {
+    const { client } = fakeAuth({}, { linkIdentity: Code.AlreadyExists });
+    const { session, sessionArea } = await signedIn(client);
+    await expect(session.linkProvider("google")).rejects.toMatchObject({ kind: "alreadyExists" });
+    expect(sessionArea.store["cymbra-lingua-signin-error"] ?? null).toBeNull();
+    const flowFails = await signedIn(fakeAuth({}).client, {
+      getGoogleIdToken: async () => {
+        throw new Error("The user did not approve access.");
+      },
+    });
+    await expect(flowFails.session.linkProvider("google")).rejects.toMatchObject({ kind: "unknown" });
+  });
+
+  it("removes a method and sets a password, the password reaching no storage", async () => {
+    const { client, calls } = fakeAuth({}, {});
+    const { session, localArea, sessionArea } = await signedIn(client);
+    await session.unlink("google", "g-1");
+    expect(calls.unlinkIdentity).toHaveBeenCalledWith({ provider: "google", subject: "g-1" });
+    await session.setPassword("me@example.com", "a secret passphrase", "fr");
+    expect(calls.setLocalCredential).toHaveBeenCalledWith({
+      email: "me@example.com",
+      password: "a secret passphrase",
+      locale: "fr",
+    });
+    expect(JSON.stringify([localArea.store, sessionArea.store])).not.toContain("a secret passphrase");
+  });
+
+  it("says the last method and a weak password as categories", async () => {
+    const { client } = fakeAuth(
+      {},
+      { unlinkIdentity: Code.FailedPrecondition, setLocalCredential: Code.InvalidArgument },
+    );
+    const { session } = await signedIn(client);
+    await expect(session.unlink("local", "me@example.com")).rejects.toMatchObject({ kind: "failedPrecondition" });
+    await expect(session.setPassword("me@example.com", "short", "fr")).rejects.toMatchObject({
+      kind: "invalidArgument",
+    });
   });
 });

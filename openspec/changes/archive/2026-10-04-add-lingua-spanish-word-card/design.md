@@ -126,6 +126,30 @@ runs' parts of speech come from the French Wiktionary, as before. `reduce_common
 change, so en-fr's rule set does not move. The tables are reduced again from the pinned sources,
 and only `senses.tsv` changes.
 
+### D7 — A letter's name gives no reading of its plural
+
+Dogfooding the card of `Es` showed « peut aussi être le féminin pluriel d'e ». kaikki has a noun
+entry for each letter's name: `e`, feminine, plural `es`. Its plural is a form of another kept lemma,
+the conjunction `e`, so the reducer marked it `other` and the card named it beside *ser*. The same
+went for `des` (*dar*, and the letter D) and about forty others.
+
+A noun entry whose every sense names a letter (kaikki's category « … letter names », its tags
+`letter` and `name`, or a gloss « name of the … letter ») keeps its own form. That reading gives
+no line on the card (D4) and gives the letter's gender to its sense run (D6). None of its
+inflections is a reading. A form entry's noun reading toward such a noun (`es`, « plural of e »)
+is dropped too, unless the noun is also another word: `bes` stays a plural of `be`, a sheep's
+bleat.
+
+A capitalised headword is another word: `E`, the abbreviation of *este*, does not make `e` a noun
+of its own.
+
+The tables are reduced again from the pinned sources. Only `grammar.tsv` and the pin change: 40
+plural readings go, and `enes`, whose noun is also another word, keeps a plural without the
+letter's gender.
+
+*Rejected — dropping the letter's entry whole.* Its gender would go from its sense run, and a noun
+that is also another word (`kappa`, `delta`) would take that word's gender in its heading.
+
 ## Risks / Trade-offs
 
 - **Long lines for syncretic forms** → D2 merges persons. The card wraps, and the actions sit below

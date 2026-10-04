@@ -2,8 +2,8 @@
   "meta": {
     "studied": "es",
     "native": "fr",
-    "pack_version": "2026.10.03+6f9f1cb",
-    "analyzer_version": "1.1.0",
+    "pack_version": "2026.10.03+be9a267",
+    "analyzer_version": "1.2.0",
     "levels_estimated": true,
     "licences": [
       "kaikki / enwiktionary, frwiktionary, eswiktionary (CC BY-SA 4.0 + GFDL)",

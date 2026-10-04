@@ -6,8 +6,9 @@ abandonar	A2
 abandono	B1
 abanico	B2
 abarcar	C1
+abastecer	C2
 abastecimiento	B2
-abasto	C1
+abasto	B2
 abc	B1
 abdomen	B2
 abdominal	B2
@@ -51,6 +52,7 @@ acabado	B1
 acabar	A2
 academia	A2
 académico	A2
+acampar	C2
 acantilado	C2
 acaso	A2
 acatar	C2
@@ -98,7 +100,7 @@ acosta	B2
 acostado	B2
 acre	C2
 acreditación	B2
-acreditar	C1
+acreditar	B2
 acreedor	C2
 acta	B1
 actitud	A1
@@ -123,7 +125,7 @@ acuario	B2
 acudir	B1
 acueducto	C1
 acuerdo	A1
-acumulación	B2
+acumulación	B1
 acumular	B2
 acusación	B1
 acusar	B2
@@ -140,7 +142,7 @@ adecuado	A2
 adelantar	B2
 adelante	A1
 adelanto	B2
-adelgazar	C1
+adelgazar	B2
 además	A1
 adentro	A2
 adhesión	B2
@@ -188,7 +190,7 @@ adversario	B2
 adversidad	C2
 advertencia	B1
 advertir	B2
-adónde	C1
+adónde	B2
 aerolínea	B2
 aeronave	C1
 aeronáutica	C2
@@ -232,7 +234,7 @@ agradecer	B1
 agradecido	B1
 agradecimiento	B1
 agrado	B2
-agrario	C1
+agrario	B2
 agredir	C2
 agregado	B1
 agregar	B1
@@ -259,7 +261,7 @@ ahogar	C2
 ahora	A1
 ahorita	B1
 ahorrar	B1
-ahorro	B1
+ahorro	A2
 ahí	A1
 aire	A1
 aislado	B1
@@ -296,13 +298,14 @@ alcanzar	A2
 alcohol	A2
 alcoholismo	C1
 alcohólico	C2
-alcázar	C1
+alcázar	B2
 aldea	A2
 aleatorio	C2
 alegar	C1
 alegre	B1
 alegremente	C2
 alegría	A2
+aleja	B2
 alejado	B1
 alejamiento	C2
 alejar	B2
@@ -322,7 +325,6 @@ algoritmo	B2
 alguacil	C1
 alguien	A1
 alguno	A1
-algún	A1
 aliado	B1
 alianza	A2
 alias	B1
@@ -349,7 +351,7 @@ alojado	C2
 alojamiento	B1
 alojar	C2
 alquilar	B2
-alquiler	B1
+alquiler	A2
 alrededor	A1
 altamente	B1
 altar	B1
@@ -357,6 +359,7 @@ altavoz	C2
 alteración	B2
 alterado	B2
 alterar	B2
+alternancia	C2
 alternativa	A2
 alternativamente	C2
 alternativo	B1
@@ -365,19 +368,18 @@ altiplano	C2
 altitud	B2
 alto	A1
 altura	A1
-altísimo	C1
 alucinante	C1
 alumbrado	B2
 aluminio	B1
 alumno	B1
-alusión	B2
+alusión	B1
 alv	C1
 alza	B1
 alzamiento	C2
 alzar	C1
 ama	A2
 amabilidad	B2
-amable	B1
+amable	A2
 amablemente	B2
 amado	B1
 amanecer	B1
@@ -385,7 +387,6 @@ amante	A2
 amar	B1
 amargo	B2
 amargura	B2
-amarilla	B1
 amarillo	A2
 amateur	B2
 ambicioso	B2
@@ -404,7 +405,7 @@ amigo	A1
 amistad	A2
 amistoso	B2
 amnesia	C2
-amnistía	B2
+amnistía	B1
 amo	A1
 amor	A1
 amoroso	B2
@@ -429,9 +430,8 @@ ancho	A2
 anchura	B2
 anciano	B1
 ancla	C2
-andaluz	B2
+andaluz	B1
 andar	A2
-andes	B1
 andino	B2
 anemia	C2
 anestesia	B2
@@ -506,7 +506,7 @@ aparentar	C1
 aparente	B1
 aparentemente	A2
 aparición	A2
-apariencia	B1
+apariencia	A2
 apartamento	B1
 apartar	C2
 aparte	A2
@@ -580,8 +580,10 @@ archipiélago	B2
 archivo	A2
 arcilla	B2
 arco	A2
+arcángel	C2
 arder	C1
 ardiente	B2
+ardilla	C2
 arduo	C2
 arena	A2
 ares	C2
@@ -656,7 +658,7 @@ artístico	B1
 arzobispo	B1
 as	A2
 asa	C1
-asado	B2
+asado	B1
 asaltar	C2
 asalto	B1
 asamblea	A1
@@ -672,6 +674,7 @@ asegurar	A2
 asentado	C2
 asentamiento	B2
 aseo	B2
+asequible	C2
 asesinar	B1
 asesinato	A1
 asesino	A2
@@ -740,7 +743,7 @@ atraco	C2
 atractivo	B1
 atraer	B1
 atrapada	B2
-atrapado	B2
+atrapado	B1
 atrapar	B2
 atrasado	C1
 atraso	C1
@@ -759,7 +762,7 @@ audaz	B2
 audición	B2
 audiencia	A2
 audiovisual	B2
-auditorio	B2
+auditorio	B1
 auditoría	B2
 auge	B1
 aula	B1
@@ -814,7 +817,8 @@ avenida	A2
 aventura	A2
 aventurero	C2
 averiguar	B1
-aviación	B2
+aversión	C2
+aviación	B1
 avilés	C2
 avisar	B1
 aviso	A2
@@ -867,7 +871,7 @@ balsa	C2
 balón	B1
 bambú	C1
 banana	B2
-banca	B1
+banca	A2
 bancada	C1
 bancario	B2
 bancarrota	B2
@@ -1073,6 +1077,7 @@ budismo	C1
 budista	B2
 buena	A1
 buenas	A1
+bueno	A1
 buey	C1
 bufanda	C2
 buitre	C2
@@ -1100,7 +1105,6 @@ bíblico	C2
 bóveda	B2
 búlgaro	C1
 búsqueda	A1
-c	A1
 cabal	C2
 caballero	A2
 caballería	B1
@@ -1213,7 +1217,6 @@ canal	A1
 canalizar	C2
 canalla	C2
 canario	B2
-canas	C2
 canasta	B2
 cancela	C1
 cancelación	B2
@@ -1242,7 +1245,6 @@ cantidad	A1
 cantina	C2
 canto	A2
 cantor	C2
-cantos	B2
 cantón	B2
 cao	C2
 caos	B1
@@ -1336,7 +1338,6 @@ caso	A1
 casta	B2
 castaño	B2
 castellano	A2
-castellanos	B2
 castigado	B2
 castigar	B2
 castigo	A2
@@ -1447,7 +1448,6 @@ cesar	B1
 cese	B1
 cesión	B2
 cesta	B2
-ch	B2
 chaleco	B2
 chantaje	B2
 chao	B2
@@ -1498,6 +1498,7 @@ chivo	B2
 cho	B2
 chocar	B2
 chocolate	A2
+chocó	B2
 chofer	B1
 choque	B1
 chorizo	C1
@@ -1559,6 +1560,7 @@ citación	C1
 citar	B1
 ciudad	A1
 ciudadano	A2
+ciudadanos	A1
 ciudadanía	A2
 ciudadela	C1
 civil	A1
@@ -2029,7 +2031,6 @@ corporación	B1
 corporal	B1
 corpus	B2
 corral	B2
-corrales	C2
 correa	B1
 corrección	B1
 correctamente	B1
@@ -2045,7 +2046,6 @@ corresponder	C2
 correspondiente	A2
 corrida	B2
 corriente	A2
-corrientes	A2
 corro	B2
 corrupción	A1
 corrupto	B1
@@ -2054,7 +2054,6 @@ cortar	A2
 corte	A1
 cortejo	C1
 corten	C2
-cortes	A2
 cortesía	B1
 corteza	B2
 cortina	B2
@@ -2125,7 +2124,6 @@ cronista	B2
 cronología	B2
 cruce	B1
 crucero	B1
-cruces	B2
 crucificado	C2
 crudo	B1
 cruel	B1
@@ -2141,7 +2139,6 @@ crítica	A1
 crítico	A2
 crónica	B1
 crónico	C2
-cu	B2
 cuaderno	B2
 cuadra	B1
 cuadrado	B1
@@ -2149,7 +2146,6 @@ cuadrilla	C2
 cuadro	A2
 cual	A1
 cualidad	B2
-cualquier	A1
 cualquiera	A1
 cuando	A1
 cuanto	A1
@@ -2182,7 +2178,6 @@ cuestionar	B2
 cuestionario	B2
 cuestión	A1
 cueva	B1
-cuevas	B1
 cuidado	A1
 cuidadosamente	B1
 cuidadoso	C1
@@ -2829,7 +2824,6 @@ educación	A1
 educar	B1
 educativo	A2
 eeuu	A2
-efe	B2
 efectivamente	A2
 efectivo	A2
 efecto	A1
@@ -2916,7 +2910,6 @@ empate	B1
 empatía	B2
 empeorar	B2
 emperador	A2
-emperatriz	C1
 empezar	A1
 empeño	B2
 empiezo	B1
@@ -2946,6 +2939,7 @@ encarar	B2
 encarcelamiento	C2
 encargar	C2
 encargo	B1
+encarna	C2
 encender	B2
 encendido	B2
 encerrar	C2
@@ -3125,7 +3119,6 @@ esfuerzo	A1
 eslogan	C1
 esmalte	C1
 esmeralda	B2
-esmeraldas	C2
 espacial	B1
 espacio	A1
 espada	A2
@@ -3406,7 +3399,6 @@ falcón	B2
 falda	B1
 falla	A2
 fallar	B2
-fallas	B1
 fallecimiento	B1
 fallo	A2
 falsedad	B2
@@ -3455,7 +3447,6 @@ federación	A2
 federal	A1
 felicidad	A2
 felicidades	B1
-felicita	C2
 felicitación	C2
 felicitar	C1
 feliz	A1
@@ -3740,10 +3731,9 @@ gaucho	C2
 gaviota	C1
 gay	A2
 gaza	B2
-ge	B2
 gel	C1
 gelatina	C1
-gemelo	C2
+gemelo	C1
 gen	B1
 generacional	C2
 generación	A1
@@ -3751,7 +3741,7 @@ generador	B2
 general	A1
 generalidad	B2
 generalitat	C1
-generalización	C2
+generalización	C1
 generalmente	A2
 generar	A2
 generosidad	B2
@@ -3796,7 +3786,7 @@ glorioso	B2
 glucosa	C1
 gluten	C2
 go	A2
-gobernabilidad	C2
+gobernabilidad	C1
 gobernador	A1
 gobernar	B1
 gobierno	A1
@@ -3829,8 +3819,8 @@ grado	A1
 graduación	B2
 gradual	B2
 gramática	B2
-gran	A1
 granada	A2
+granados	C1
 grande	A1
 grandeza	B1
 grandioso	B2
@@ -3884,7 +3874,7 @@ guiar	B2
 guion	C1
 guionista	B2
 guiso	C1
-guita	C2
+guita	C1
 guitarra	B1
 guitarrista	B2
 guiño	C1
@@ -3896,7 +3886,7 @@ gusto	A1
 guía	A2
 género	A1
 génesis	B2
-gótico	C2
+gótico	C1
 h	A1
 habana	A2
 haber	A1
@@ -3916,7 +3906,7 @@ hacienda	A2
 hackear	C2
 hacker	B2
 hada	C1
-hala	C2
+hala	C1
 halcón	C1
 hallar	B1
 hallazgo	B2
@@ -3952,6 +3942,7 @@ herir	B2
 hermana	A1
 hermandad	B1
 hermano	A1
+hermosa	A2
 hermoso	A2
 hermosura	C1
 heroico	C1
@@ -3976,7 +3967,7 @@ hincapié	B2
 hincha	B2
 hinchada	C1
 hindú	B2
-hipertensión	C2
+hipertensión	C1
 hipocresía	B1
 hipoteca	B2
 hipócrita	B2
@@ -4016,7 +4007,7 @@ honesto	B1
 hongo	C1
 honor	A1
 honorable	B2
-honorario	C2
+honorario	C1
 honradez	C2
 honrado	B2
 honrar	B2
@@ -4220,7 +4211,7 @@ increíble	A1
 incumplimiento	B2
 incursión	B2
 incómodo	B1
-indagar	C2
+indagar	C1
 indefinido	B2
 indemnización	B1
 independencia	A1
@@ -4229,7 +4220,6 @@ independiente	A1
 independientemente	B1
 india	A2
 indiana	B2
-indias	B1
 indicación	B2
 indicador	B1
 indicar	B1
@@ -4241,7 +4231,7 @@ indignación	B1
 indignante	C1
 indio	A2
 indirectamente	B2
-indirecto	C2
+indirecto	C1
 indiscutible	B2
 indispensable	B1
 individual	A2
@@ -4392,7 +4382,7 @@ integración	A2
 integral	B1
 integrar	B1
 integridad	B1
-intelecto	C2
+intelecto	C1
 intelectual	A2
 inteligencia	A1
 inteligente	A2
@@ -4494,7 +4484,7 @@ irracional	B2
 irreal	C1
 irregular	B1
 irregularidad	C2
-irresistible	C2
+irresistible	C1
 irresponsabilidad	C1
 irresponsable	B2
 irreversible	C1
@@ -4525,7 +4515,7 @@ japonés	A2
 jaque	C1
 jara	B2
 jarabe	C1
-jardinero	C2
+jardinero	C1
 jardín	A2
 jarra	C2
 jaula	B2
@@ -4581,7 +4571,7 @@ juramento	B1
 jurar	C1
 jurisdicción	B1
 jurisprudencia	B2
-jurista	C2
+jurista	C1
 juro	A2
 jurídico	B1
 justamente	B1
@@ -4595,7 +4585,6 @@ juzgado	B1
 juzgar	B1
 júbilo	C2
 k	A1
-ka	B2
 karaoke	C2
 karate	C2
 kilo	B1
@@ -4651,7 +4640,6 @@ lavadora	C2
 lavar	B1
 lazo	B2
 le	A1
-lea	B1
 leal	B1
 lealtad	B1
 lección	B1
@@ -4774,7 +4762,6 @@ litoral	B2
 litro	B2
 liviano	C2
 living	B2
-ll	B2
 llamamiento	B2
 llamar	A1
 llamativo	C1
@@ -4790,7 +4777,6 @@ lleno	A1
 llevar	A1
 llorar	A2
 lloro	B2
-lloró	C1
 llover	B2
 lluvia	A2
 lo	A1
@@ -4826,7 +4812,6 @@ lucero	C1
 lucha	A1
 luchador	B2
 luchar	A2
-lucho	C1
 lucio	B2
 lucir	B2
 lucro	B1
@@ -4905,6 +4890,7 @@ maleta	B2
 malicia	C2
 maligno	C1
 malla	C1
+malo	A1
 malta	B2
 maltrato	B1
 malvado	B2
@@ -4937,7 +4923,7 @@ manguera	C2
 manifestación	A2
 manifestar	B2
 manifiesto	B1
-manija	C2
+manija	C1
 maniobra	B1
 manipulación	B1
 manipular	B1
@@ -5042,7 +5028,7 @@ maíz	B1
 mañana	A1
 mear	C1
 mecanismo	A2
-mecha	C2
+mecha	C1
 mecánico	B1
 medalla	A2
 mediación	B2
@@ -5075,7 +5061,7 @@ mejorar	A1
 mejoría	C1
 melancolía	C1
 melodía	B2
-melón	C2
+melón	C1
 membrana	B2
 meme	B1
 memo	C1
@@ -5134,6 +5120,7 @@ metida	B2
 metido	B1
 metodología	B1
 metro	A2
+metropolitana	B1
 metropolitano	B2
 metáfora	B2
 metálico	B2
@@ -5164,10 +5151,11 @@ militancia	B2
 militante	B1
 militar	A1
 milla	B2
-millar	C2
+millar	C1
 millonario	B1
 millón	A2
 mina	A2
+minas	A2
 mineral	B1
 minero	B1
 minería	B1
@@ -5181,7 +5169,6 @@ mirada	A1
 mirador	B2
 miranda	B1
 mirar	A1
-miró	B1
 misa	B1
 miserable	B1
 miseria	B1
@@ -5207,12 +5194,11 @@ modalidad	B1
 modelo	A1
 moderación	B2
 moderado	B1
-moderador	C2
+moderador	C1
 modernidad	B2
 modernismo	C2
 modernizar	C2
 moderno	A2
-modesta	B2
 modesto	B2
 modificación	B1
 modificar	B1
@@ -5245,7 +5231,6 @@ montar	B1
 montaña	A2
 monte	A2
 montero	B1
-montes	B1
 monto	B1
 montón	A2
 monumental	B1
@@ -5258,8 +5243,8 @@ moral	A2
 moraleja	C2
 moralidad	B2
 moralmente	B2
-morbo	C2
-mordaza	C2
+morbo	C1
+mordaza	C1
 morder	C1
 mordida	C1
 morena	B1
@@ -5270,7 +5255,7 @@ moro	B2
 morro	B2
 mortal	B1
 mortalidad	B1
-mortero	C2
+mortero	C1
 mosaico	C1
 mosca	B2
 mosquito	C1
@@ -5348,7 +5333,7 @@ mérito	B1
 método	A2
 mí	A1
 mínimo	A1
-mío	A2
+mío	A1
 místico	C1
 mítico	B2
 módulo	B2
@@ -5398,6 +5383,7 @@ natural	A1
 naturaleza	A1
 naturalmente	B1
 naufragio	C1
+nava	C2
 navaja	B2
 naval	B1
 navarro	B1
@@ -5406,7 +5392,6 @@ nave	A2
 navegación	B1
 navegar	B1
 navidad	A2
-navidades	C1
 navío	C1
 nazismo	C1
 necesariamente	A2
@@ -5449,7 +5434,6 @@ niebla	B1
 nieta	B2
 nieto	A2
 nieve	A2
-nieves	B2
 ninguno	A1
 nino	C2
 nitrógeno	B2
@@ -5499,7 +5483,7 @@ notoriedad	C1
 nova	B2
 novato	C1
 novedad	B1
-novela	A2
+novela	A1
 novelista	B2
 noveno	B2
 noventa	B1
@@ -5598,7 +5582,7 @@ oficio	B1
 ofrecer	A2
 ofrecimiento	C2
 ofrenda	B2
-oh	A2
+oh	A1
 ojalá	A1
 ojete	C2
 ojo	A1
@@ -5608,7 +5592,7 @@ oler	B2
 olfato	C1
 oligarquía	B2
 oliva	B1
-olivo	C2
+olivo	C1
 olivos	B2
 olla	B2
 olmedo	C1
@@ -5641,6 +5625,7 @@ opresión	B2
 optar	B2
 optimismo	B2
 optimista	B2
+optimizar	C2
 opuesto	B1
 opus	B2
 ora	B2
@@ -5656,6 +5641,7 @@ ordenanza	B2
 ordenar	B1
 ordinario	B2
 oreja	B1
+orfanato	C2
 organismo	A2
 organización	A1
 organizar	A2
@@ -5663,6 +5649,7 @@ orgasmo	B2
 orgullo	A2
 orgulloso	A2
 orgánico	B2
+orgía	C2
 orientación	A2
 oriental	A2
 orientar	B2
@@ -5677,7 +5664,7 @@ orinar	C2
 oro	A1
 orquesta	B1
 ortega	B1
-ortodoxo	C2
+ortodoxo	C1
 ortografía	B1
 os	A1
 oscuridad	A2
@@ -5688,11 +5675,12 @@ otorgamiento	C2
 otorgar	B2
 otoño	B1
 otro	A1
+ou	C2
 oveja	B2
 oxígeno	B1
 oído	A2
 oír	A2
-pa	A2
+pa	A1
 pabellón	B1
 paciencia	A2
 paciente	A2
@@ -5719,6 +5707,7 @@ paladar	C1
 palanca	B2
 palestino	B2
 paleta	B2
+paliar	C2
 paliza	B2
 palma	A2
 palo	A2
@@ -5784,7 +5773,6 @@ parlamentario	B1
 parlamento	A2
 paro	A2
 parodia	B2
-paros	C2
 parque	A1
 parra	B2
 parrilla	B2
@@ -5832,7 +5820,7 @@ pastor	B1
 pastora	C2
 pata	B1
 patada	B1
-patata	C1
+patata	B2
 patear	C1
 patente	B1
 paternidad	B2
@@ -5867,9 +5855,9 @@ paño	C1
 pañuelo	B2
 pbi	C1
 pd	B2
-pe	B1
 peaje	B2
 pecado	B1
+peces	B1
 pecho	A2
 peculiar	B1
 pedagogía	B2
@@ -5894,7 +5882,7 @@ pelo	A1
 pelota	A2
 pelotudo	B1
 pelotón	C1
-peluca	C2
+peluca	C1
 peluche	B2
 peludo	C2
 peluquería	B2
@@ -5925,9 +5913,11 @@ percibir	B2
 percusión	C2
 perdedor	B2
 perder	A1
+perdición	C2
 perdonar	B2
 perdón	A1
 peregrinación	C1
+peregrino	C2
 pereza	B2
 perfeccionar	C2
 perfección	B1
@@ -5953,7 +5943,7 @@ permanecer	B1
 permanencia	B1
 permanente	A2
 permanentemente	B2
-permiso	A2
+permiso	A1
 permitir	A2
 pero	A1
 peronismo	B2
@@ -5967,8 +5957,8 @@ perro	A1
 persa	B2
 persecución	B1
 perseguir	B1
-perseverancia	C1
-persistencia	C2
+perseverancia	B2
+persistencia	C1
 persistente	B2
 persona	A1
 personaje	A1
@@ -5981,7 +5971,7 @@ pertenecer	B1
 pertenencia	B2
 pertinente	B2
 peruano	B1
-perverso	C1
+perverso	B2
 perímetro	B2
 período	A1
 pesadilla	B1
@@ -6038,6 +6028,7 @@ pinta	A2
 pintar	B1
 pinto	B1
 pintor	B1
+pintoresco	C2
 pintura	A2
 pinza	C2
 piola	B2
@@ -6069,6 +6060,7 @@ planeado	B1
 planear	B2
 planeo	C2
 planeta	A1
+planetario	C2
 planificar	B2
 planilla	C2
 plano	A2
@@ -6082,7 +6074,7 @@ plantilla	B1
 plasma	B2
 plata	A1
 plataforma	A2
-plateado	C2
+plateado	C1
 platicar	C2
 platillo	C1
 platino	B2
@@ -6095,7 +6087,7 @@ plebiscito	B2
 plegaria	C2
 pleito	C1
 plenamente	B1
-plenitud	C1
+plenitud	B2
 pleno	A2
 pliego	C2
 plomo	B1
@@ -6196,6 +6188,7 @@ potro	C1
 pozo	B1
 poético	B2
 pq	B1
+practicante	C2
 practicar	B1
 pradera	C2
 prado	B1
@@ -6206,7 +6199,7 @@ precedente	B1
 preciado	C1
 precio	A1
 precioso	B1
-precipitación	C1
+precipitación	B2
 precisamente	A2
 precisión	B1
 preciso	B1
@@ -6215,12 +6208,12 @@ precursor	C2
 predecesor	C1
 predecible	C2
 predecir	B2
-predicador	C1
+predicador	B2
 predicar	C1
 predicción	B2
 predominio	C2
 preescolar	C2
-prefecto	C1
+prefecto	B2
 prefectura	B2
 preferencia	B1
 preferente	C1
@@ -6246,12 +6239,13 @@ prescindir	C1
 prescripción	B2
 presencia	A1
 presencial	C1
-presentación	A2
+presentación	A1
 presentar	A2
 presente	A1
 presentimiento	C2
 preservación	B2
 preservar	B1
+presi	C2
 presidencia	A2
 presidencial	A2
 presidenta	A2
@@ -6285,7 +6279,6 @@ prima	A2
 primarias	B1
 primario	B2
 primavera	A2
-primer	A1
 primeramente	C1
 primero	A1
 primitivo	B2
@@ -6328,7 +6321,7 @@ proceso	A1
 proclamación	C1
 procurador	B1
 procuraduría	B2
-procurar	C2
+procurar	C1
 producción	A1
 producir	A2
 productividad	B1
@@ -6470,7 +6463,7 @@ pulpo	C1
 pulsera	C1
 pulso	B1
 pum	B2
-puma	C1
+puma	B2
 punk	B2
 puno	C1
 punta	A2
@@ -6495,7 +6488,7 @@ página	A1
 pájaro	B1
 pálido	B2
 pánico	B1
-páramo	C2
+páramo	C1
 párrafo	B1
 párroco	B2
 pérdida	A1
@@ -6538,6 +6531,7 @@ quincena	B2
 quinientos	B2
 quintana	B1
 quinto	A2
+quirúrgico	C2
 quitar	A2
 quite	B2
 quizá	A1
@@ -6587,7 +6581,7 @@ rastreo	C1
 rastro	B1
 rata	B1
 ratificación	C1
-ratio	C2
+ratio	C1
 rato	A1
 ratón	B1
 raya	B1
@@ -6631,6 +6625,7 @@ recibimiento	C1
 recibir	A1
 recibo	B1
 reciclaje	B2
+reciclar	C2
 reciente	A2
 recientemente	A2
 recinto	B1
@@ -6690,9 +6685,9 @@ reelección	B1
 reembolso	C2
 reemplazar	B1
 reemplazo	B1
-reencuentro	C2
+reencuentro	C1
 referencia	A1
-referendo	C2
+referendo	C1
 referente	B1
 referéndum	B1
 refinado	C2
@@ -6709,7 +6704,7 @@ reforzar	B1
 refresco	B2
 refrigeración	C2
 refrigerador	C2
-refrán	C2
+refrán	C1
 refuerzo	B2
 refugiado	C1
 refugio	B1
@@ -6717,6 +6712,7 @@ reg	C2
 regalado	B2
 regalar	B1
 regalo	A2
+regencia	C2
 regente	B2
 reggae	C1
 regimiento	B1
@@ -6797,7 +6793,7 @@ reparto	B1
 repasar	C1
 repaso	B2
 repentinamente	B2
-repentino	C1
+repentino	B2
 repercusión	B1
 repertorio	B2
 repetición	B2
@@ -6908,6 +6904,7 @@ revancha	B2
 revelación	B1
 revelar	B1
 reventar	B2
+reverencia	C2
 reverendo	B2
 reverso	C1
 revertir	B2
@@ -6926,7 +6923,7 @@ revés	B1
 revólver	C2
 rey	A1
 rezar	B2
-rezo	C1
+rezo	B2
 reír	B1
 ribera	B1
 rica	A1
@@ -6966,7 +6963,7 @@ rodar	B2
 rodeo	B2
 rodilla	B1
 rogar	C2
-rojas	A2
+rojizo	C2
 rojo	A1
 rol	A2
 rollo	B1
@@ -6987,13 +6984,12 @@ rosada	C1
 rosado	B2
 rosales	B2
 rosario	A2
-rosas	B1
 rosca	C2
 rostro	A2
 rotación	B2
 rotonda	C1
 rotundo	C1
-rotura	C1
+rotura	B2
 rss	C2
 rubio	B1
 rubro	B2
@@ -7011,6 +7007,7 @@ rural	A2
 ruso	A2
 ruta	A2
 rutina	B1
+ráfaga	C2
 rápidamente	A2
 rápido	A1
 régimen	A1
@@ -7018,7 +7015,6 @@ réplica	B2
 ría	B2
 rígido	C1
 río	A1
-s	A1
 sabana	B2
 saber	A1
 sabiduría	B1
@@ -7035,6 +7031,7 @@ saco	A2
 sacramento	B2
 sacrificar	B2
 sacrificio	B1
+sacro	C2
 safari	C2
 saga	B1
 sagrado	B1
@@ -7051,12 +7048,12 @@ salinas	B1
 salir	A1
 saliva	B2
 salmo	C2
-salmón	C1
+salmón	B2
 salsa	A2
 salta	A2
 saltado	C2
 saltar	B1
-saltillo	C1
+saltillo	B2
 salto	A2
 salud	A1
 saludable	B1
@@ -7072,7 +7069,6 @@ salve	B2
 salvo	A1
 salón	A2
 same	C1
-san	A1
 sanar	C1
 sanatorio	C2
 sancionar	B2
@@ -7087,12 +7083,11 @@ sanitario	B1
 sano	B1
 santidad	B2
 santo	A1
-santos	A2
 santuario	B1
 sapo	B2
 saque	B1
 saqueo	B2
-sarcasmo	B2
+sarcasmo	B1
 sargento	B1
 sarmiento	B1
 sartén	C1
@@ -7141,7 +7136,6 @@ segundo	A1
 seguramente	A2
 seguridad	A1
 seguro	A1
-seguí	B1
 según	A1
 seis	A1
 seleccionar	B2
@@ -7176,7 +7170,7 @@ sensacional	C2
 sensación	A2
 sensato	B2
 sensibilidad	B1
-sensible	B1
+sensible	A2
 sensor	C1
 sensual	B2
 sensualidad	C2
@@ -7277,8 +7271,9 @@ simular	C2
 simultáneamente	B1
 sin	A1
 sinceramente	B1
-sinceridad	B2
+sinceridad	B1
 sincero	B1
+sincronización	C2
 sindical	B1
 sindicalista	C2
 sindicato	A2
@@ -7291,7 +7286,7 @@ siniestro	B2
 sino	A1
 sinopsis	B2
 sintaxis	C2
-sintonía	C1
+sintonía	B2
 sintético	C2
 sinvergüenza	C2
 sinónimo	B1
@@ -7310,6 +7305,7 @@ sl	C1
 sms	B2
 soberano	B1
 soberanía	A2
+soberbio	C2
 soborno	C1
 sobra	B1
 sobre	A1
@@ -7320,7 +7316,7 @@ sobrepeso	C2
 sobresaliente	B2
 sobretodo	B1
 sobreviviente	B2
-sobrevivir	B1
+sobrevivir	A2
 sobrino	B1
 sobrio	C2
 social	A1
@@ -7372,7 +7368,7 @@ sondeo	C1
 sonido	A2
 sonoro	C1
 sonreír	B2
-sonriente	C1
+sonriente	B2
 sonrisa	A2
 sopa	B1
 soportar	B1
@@ -7395,8 +7391,9 @@ sostenibilidad	B2
 sostenible	B1
 sostén	C1
 soto	B1
-soul	C1
+soul	B2
 soviético	B2
+soya	C2
 soñado	B2
 soñar	B1
 spot	B2
@@ -7415,6 +7412,7 @@ sublime	B2
 submarino	B2
 subrayar	C2
 subsidio	B1
+subsistir	C2
 subsuelo	C1
 subte	C2
 subterráneo	B2
@@ -7425,11 +7423,12 @@ sucesivamente	B2
 sucesión	B1
 suceso	B1
 sucesor	B1
-suciedad	C1
+suciedad	B2
 sucio	B1
 sucursal	B2
 sud	B2
 sudamericano	B2
+sudar	C2
 sudeste	B1
 sudor	B2
 sueco	B2
@@ -7438,7 +7437,7 @@ suegro	B2
 sueldo	A2
 suelo	A1
 suelta	B1
-suelto	B2
+suelto	B1
 suero	B2
 suerte	A1
 sueño	A1
@@ -7452,10 +7451,10 @@ sugerir	B2
 suicida	B1
 suicidio	B1
 suite	B2
-suiza	B1
+suiza	A2
 suizo	B2
 sujeto	A2
-sultán	C1
+sultán	B2
 suma	A2
 sumamente	B1
 sumar	B1
@@ -7468,7 +7467,7 @@ superar	A2
 superficial	B1
 superficie	A2
 superhéroe	C2
-superintendencia	C1
+superintendencia	B2
 superintendente	C1
 superior	A1
 superioridad	B2
@@ -7490,7 +7489,7 @@ supuesto	A1
 sur	A1
 sureste	B1
 surf	B2
-surgir	B2
+surgir	B1
 suroeste	B2
 surrealista	C1
 suscripción	B2
@@ -7547,7 +7546,7 @@ tampoco	A1
 tan	A1
 tanda	C1
 tangible	C2
-tango	B2
+tango	B1
 tanque	B1
 tanto	A1
 tapa	B1
@@ -7556,7 +7555,7 @@ tapar	B2
 tapia	B2
 taquilla	B2
 tara	C1
-tarado	C1
+tarado	B2
 tardar	B2
 tarde	A1
 tardo	C1
@@ -7578,7 +7577,6 @@ tecla	C1
 teclado	B1
 tecnología	A1
 tecnológico	B1
-tejada	C2
 tejado	B2
 tejas	C1
 tejido	B1
@@ -7629,7 +7627,6 @@ tequila	B2
 terapeuta	C1
 terapia	B1
 terapéutico	C1
-tercer	A1
 tercero	A2
 terciario	C2
 tercio	B1
@@ -7666,7 +7663,8 @@ teta	C1
 textil	B2
 texto	A1
 textura	B2
-teórico	B2
+teórico	B1
+tibio	C2
 tiburón	B2
 ticket	C1
 tiempo	A1
@@ -7708,7 +7706,6 @@ tolerante	C1
 tolerar	B2
 tomar	A1
 tomate	B1
-tomé	B1
 tonelada	C1
 tono	A2
 tontería	B1
@@ -7727,12 +7724,13 @@ toro	B1
 torpe	B2
 torre	A2
 torrente	B2
-torreón	C1
+torreón	B2
 torso	C2
 torta	B1
 tortilla	B2
 tortuga	B2
 tortura	B1
+torturar	C2
 tos	B2
 tostado	C2
 total	A1
@@ -7756,7 +7754,7 @@ traer	A2
 traga	C1
 tragar	B2
 tragedia	B1
-trago	B2
+trago	B1
 traicionar	C2
 traición	B1
 traidor	B1
@@ -7834,7 +7832,7 @@ triple	B1
 tripulación	B1
 triste	A1
 tristemente	B2
-tristeza	B1
+tristeza	A2
 triunfar	B2
 triunfo	A2
 trivial	C1
@@ -7888,6 +7886,7 @@ tío	A2
 típicamente	B2
 típico	A2
 título	A1
+tónica	C2
 tópico	C1
 tóxico	B2
 tú	A1
@@ -7907,6 +7906,7 @@ un	A1
 unanimidad	B2
 uni	B2
 unicef	C1
+unicornio	C2
 unidad	A1
 unido	A1
 unificación	B2
@@ -7946,16 +7946,17 @@ utopía	B2
 uva	B2
 uy	B2
 uña	B2
-v	A1
 vaca	B1
 vacante	B2
+vaciar	C2
 vacuna	B1
 vacunación	B2
 vacuno	C2
 vacío	A2
+vagabundo	C2
 vagina	B2
 vago	B1
-vagón	C1
+vagón	B2
 vaina	B1
 vainilla	B2
 val	B2
@@ -7997,7 +7998,7 @@ vecindario	B1
 vecino	A2
 vector	C1
 vega	B1
-vegetación	B2
+vegetación	B1
 vegetal	B1
 vegetariano	C2
 vehicular	B2
@@ -8023,7 +8024,7 @@ vencimiento	B2
 venda	B2
 vendedor	B1
 vender	A2
-vendo	B2
+vendo	B1
 veneno	B1
 venezolano	A2
 venganza	B1
@@ -8056,7 +8057,7 @@ verga	A2
 vergas	C2
 vergonzoso	B1
 vergüenza	A2
-verificación	B2
+verificación	B1
 verificar	B1
 verme	B1
 versión	A1
@@ -8064,7 +8065,6 @@ verso	B1
 vertebral	C1
 vertical	B1
 vertiente	B2
-vertientes	C2
 verónica	B2
 vestido	A2
 vestimenta	B2
@@ -8074,7 +8074,7 @@ vestíbulo	B2
 veterano	B2
 veterinaria	B2
 veterinario	B2
-veto	C1
+veto	B2
 vez	A1
 viable	B2
 viajar	A2
@@ -8086,6 +8086,7 @@ vibra	C2
 vibración	C2
 vibrante	C1
 vicario	B2
+vicepresidencia	C2
 vicepresidente	A2
 viceversa	B2
 vicio	B1
@@ -8142,7 +8143,7 @@ virtud	B1
 virus	A2
 visa	B1
 visado	C2
-visibilidad	B2
+visibilidad	B1
 visible	B1
 visita	A1
 visitante	B1
@@ -8229,6 +8230,7 @@ yeso	B2
 yo	A1
 yoga	B2
 yogur	C2
+youtuber	C2
 yuan	C1
 yuca	C1
 yugo	C2
@@ -8253,12 +8255,10 @@ zócalo	B2
 ácido	B1
 ágil	C1
 águila	B1
-águilas	B2
 álbum	A2
 álgebra	C2
 ámbito	A2
 ángel	A2
-ángeles	A2
 ángulo	B1
 ánimo	A2
 ápice	C1

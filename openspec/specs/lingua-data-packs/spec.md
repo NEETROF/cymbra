@@ -456,3 +456,66 @@ A pack's metadata SHALL say when its level table is estimated rather than taken 
 - **WHEN** the en-fr pack is built from its committed tables
 - **THEN** its bytes match its pin, and the engine reports its levels as not estimated
 
+### Requirement: The Spanish pack's sense runs carry a noun's gender
+The es-fr pack's sense runs SHALL carry, for a noun's senses, the gender the noun's readings give it, so that the card's heading names it. A noun of both genders SHALL keep a run without a gender.
+
+#### Scenario: A feminine noun
+- **WHEN** the tables are reduced
+- **THEN** the noun run of `casa` reads `NOUN|Gender=Fem`, and the card headed `casa` shows its gloss under « nom féminin »
+
+#### Scenario: A noun of both genders
+- **WHEN** the tables are reduced and `estudiante` is masculine or feminine by the person
+- **THEN** its noun run carries no gender
+
+### Requirement: A letter's name gives no reading of its plural
+The es-fr pack SHALL read no form as an inflection of a letter's name. A noun that only names a letter SHALL keep the reading of its own form, and a noun that is also another word SHALL keep that word's inflections.
+
+#### Scenario: The card of a form that is also a letter's plural
+- **WHEN** the reader opens the card of `Es`, the present of *ser*
+- **THEN** it names no other dictionary form: `es` is not read as the plural of the letter E
+
+#### Scenario: A noun that is also another word
+- **WHEN** the tables are reduced and `be` names the letter B and a sheep's bleat
+- **THEN** `bes` stays the bleat's plural
+
+### Requirement: A Spanish apocope reads as its full word
+The es-fr pack SHALL read an adjective's or a determiner's apocope as a form of its full word, and SHALL NOT read the full word as a form of its apocope: `buen` and `bueno` are forms of *bueno*, `gran` of *grande*, `algún` of *alguno*. An adverb or a numeral that the dictionary calls apocopic SHALL stay a word of its own.
+
+#### Scenario: The commonest adjective
+- **WHEN** the reader opens the card of `bueno`, or of `buen` in `buen hombre`
+- **THEN** the card is keyed by *bueno* and shows its French gloss « Bon »
+
+#### Scenario: A full word the dictionary lists under its apocope
+- **WHEN** the reader opens the card of `malo`
+- **THEN** the card is keyed by *malo* and shows « Mauvais, méchant », not the noun *mal*
+
+#### Scenario: An adverb of its own
+- **WHEN** the reader opens the card of `muy`
+- **THEN** the card is keyed by *muy* and shows « Très », not *mucho*
+
+### Requirement: A Spanish form reads as the common word before a proper name
+When a form of the es-fr pack is both a proper name and a form of another word, the pack SHALL read it as the commoner of the two by frequency, the form's own frequency standing for the name: the treebank's counts SHALL NOT give the form to a name on their own.
+
+#### Scenario: A verb form spelled like a surname
+- **WHEN** the reader opens the card of `miró`, which the treebank only meets as the surname Miró
+- **THEN** the card is keyed by *mirar*, as its preterite
+
+#### Scenario: A plural spelled like a given name
+- **WHEN** the reader opens the card of `dolores`
+- **THEN** the card is keyed by *dolor*
+
+#### Scenario: A country commoner than its adjective
+- **WHEN** the reader opens the card of `Argentina`
+- **THEN** the card is keyed by *argentina*, the country, not by the adjective *argentino*
+
+### Requirement: A letter is no French gloss of a Spanish word
+The es-fr pack's French glosses SHALL leave out the senses that name a letter of the alphabet, and the entries that describe a letter.
+
+#### Scenario: The commonest preposition
+- **WHEN** the reader opens the card of `a`
+- **THEN** its gloss opens on « À », with no sense naming the letter A
+
+#### Scenario: A gloss that only mentions the word « lettre »
+- **WHEN** the reader opens the card of `carta de amor`
+- **THEN** it is glossed « Lettre d'amour »
+

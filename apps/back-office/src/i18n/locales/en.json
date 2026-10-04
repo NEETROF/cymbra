@@ -117,6 +117,10 @@
     "to": "To",
     "language": "Studied language",
     "anyLanguage": "All languages",
+    "languages": {
+      "en": "English",
+      "es": "Spanish"
+    },
     "apply": "Apply",
     "loading": "Loading Lingua usage…",
     "activeAccounts": "Active accounts",
