@@ -15,9 +15,15 @@ import {
 // page turns (add-lingua-page-slide). The size scales the book's text and every surface of the
 // extension; the theme is the book's page and, with the Cymbra or custom colours, the surfaces'
 // (add-lingua-colour-settings D8, D9); the turn is the reader page's alone. One builder,
-// rendered in the two places the reader looks for it: the reader's own "Aa" panel, and the
-// Affichage block of Réglages. Buttons, not a slider: a tap is one step, which an e-ink screen
+// rendered in the two places the reader looks for it: the reader's own "Aa" panel, and Réglages,
+// which shows the size and theme under Apparence › Affichage and the turn under Pages & livres ›
+// Livres, beside the continuous flow (`turnContainer`). Buttons, not a slider: a tap is one step, which an e-ink screen
 // redraws once. The choice is saved; every surface follows the stored value.
+
+export interface BookDisplayOptions {
+  /** Where the page-turn choice goes, when not with the size and theme (Réglages › Livres). */
+  turnContainer?: HTMLElement;
+}
 
 export interface BookDisplayView {
   /** Show the stored choice (it may have changed in the other place). */
@@ -77,7 +83,11 @@ function segmented<T>(
 }
 
 /** Render the text size, page and page-turn choice into `container`. */
-export function mountBookDisplay(container: HTMLElement, area: AsyncStorageArea): BookDisplayView {
+export function mountBookDisplay(
+  container: HTMLElement,
+  area: AsyncStorageArea,
+  opts: BookDisplayOptions = {},
+): BookDisplayView {
   let display: ReaderDisplay | null = null;
   // The document the view is mounted in: the reader page's, a panel's or a drawer's shadow.
   const doc = container.ownerDocument;
@@ -105,7 +115,14 @@ export function mountBookDisplay(container: HTMLElement, area: AsyncStorageArea)
   );
 
   const box = el(doc, "div", "set-display");
-  box.append(sizeRow, pages.row, turns.row);
+  box.append(sizeRow, pages.row);
+  if (opts.turnContainer) {
+    const turnBox = el(doc, "div", "set-display");
+    turnBox.append(turns.row);
+    opts.turnContainer.append(turnBox);
+  } else {
+    box.append(turns.row);
+  }
   container.append(box);
 
   function render(): void {

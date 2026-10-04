@@ -84,7 +84,7 @@ export class Drawer {
 
     this.lost = document.createElement("div");
     this.lost.className = "drawer-lost";
-    this.lost.textContent = "Session expirée — reconnecte-toi depuis le menu de l'extension pour synchroniser.";
+    this.lost.textContent = "Session expirée — reconnecte-toi dans Réglages › Données pour synchroniser.";
     this.lost.hidden = true;
 
     this.reviewBody = document.createElement("div");

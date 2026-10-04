@@ -24,7 +24,7 @@ export function syncErrorCopy(kind: AuthErrorKind | undefined): string {
     case "unavailable":
       return "Serveur injoignable — réessaie plus tard.";
     case "unauthenticated":
-      return "Session expirée — reconnecte-toi depuis le menu de l'extension.";
+      return "Session expirée — reconnecte-toi ci-dessus, dans Compte.";
     case "conflict":
       return "Une opération est déjà en cours — réessaie dans un instant.";
     default:

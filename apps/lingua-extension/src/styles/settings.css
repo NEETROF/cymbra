@@ -348,3 +348,119 @@ kbd {
   flex-wrap: wrap;
   gap: calc(6px * var(--cymbra-lingua-ui-scale, 1)) calc(14px * var(--cymbra-lingua-ui-scale, 1));
 }
+
+/* Réglages' sub-tabs (mountTabs): underlined, a level below the drawer's and side panel's own
+   segmented tabs. One row where the four labels fit (the side panel, the drawer), two by two
+   where they do not (the popup, an enlarged interface): below the threshold the basis turns
+   huge and the max-width keeps two per row; above it the basis is 0 and each tab grows from its
+   label. The threshold grows with the text. */
+.set-tabs {
+  --set-tabs-threshold: calc(330px * var(--cymbra-lingua-ui-scale, 1));
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 4px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--cymbra-lingua-border-2);
+}
+
+.set-tab {
+  flex: 1 1 calc((var(--set-tabs-threshold) - 100%) * 999);
+  max-width: calc(50% - 2px);
+  cursor: pointer;
+  margin-bottom: -1px;
+  padding: 8px 6px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--cymbra-lingua-muted);
+  font-family: inherit;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
+  white-space: nowrap;
+}
+
+.set-tab:hover {
+  color: var(--cymbra-lingua-text);
+}
+
+.set-tab.active {
+  border-bottom-color: var(--cymbra-lingua-accent-strong);
+  color: var(--cymbra-lingua-text);
+  font-weight: 600;
+}
+
+.set-tab:focus-visible {
+  outline: 2px solid var(--cymbra-lingua-accent);
+  outline-offset: -2px;
+}
+
+/* Compte (account-setting.ts): the providers, the email form folded under its summary, and
+   signed in, the handle above sign-out. */
+.set-account {
+  display: grid;
+  gap: 8px;
+}
+
+.set-account[hidden] {
+  display: none;
+}
+
+.set-account > .set-note,
+.set-account > .set-reset,
+.set-account > .linklike {
+  margin-top: 0;
+}
+
+.set-primary {
+  display: block;
+  width: 100%;
+  cursor: pointer;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--cymbra-lingua-accent-strong);
+  background: var(--cymbra-lingua-accent-strong);
+  color: var(--cymbra-lingua-accent-ink);
+  font-family: inherit;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
+}
+
+.set-primary[hidden] {
+  display: none;
+}
+
+/* review.css rules a bare `details` (its « Sources » fold) with a top border: not this one. */
+.set-account-local {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.set-account-local summary {
+  cursor: pointer;
+  color: var(--cymbra-lingua-muted);
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
+}
+
+.set-account-local input {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 6px;
+  padding: 7px 9px;
+  border-radius: 8px;
+  border: 1px solid var(--cymbra-lingua-border-2);
+  background: var(--cymbra-lingua-panel);
+  color: var(--cymbra-lingua-text);
+  font-family: inherit;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
+}
+
+.set-account-local .linklike {
+  display: block;
+}
+
+.set-account > .linklike {
+  justify-self: start;
+}
+
+.set-account-row {
+  color: var(--cymbra-lingua-text);
+}

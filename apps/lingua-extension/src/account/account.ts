@@ -1,6 +1,6 @@
 import { SIGNIN_ERROR_KEY } from "../state/session.ts";
-import { AccountFlow, type AccountView, viewFromHash } from "./flow.ts";
-import { type AccountMessage, type AccountReply, PENDING_EMAIL_KEY } from "./messages.ts";
+import { AccountFlow, type AccountView, type PendingEmailStore, viewFromHash, wantsConnected } from "./flow.ts";
+import { type AccountMessage, type AccountReply, PENDING_EMAIL_KEY, PENDING_PASSWORD_EMAIL_KEY } from "./messages.ts";
 import { type AccountActions, renderAccount } from "./view.ts";
 import { followSurfaceLook } from "../reading/surface-look.ts";
 
@@ -21,23 +21,30 @@ async function send(message: AccountMessage): Promise<AccountReply | null> {
   }
 }
 
-const pending = {
-  async get(): Promise<string | null> {
-    try {
-      const value = (await chrome.storage.session.get(PENDING_EMAIL_KEY))[PENDING_EMAIL_KEY];
-      return typeof value === "string" && value.length > 0 ? value : null;
-    } catch {
-      return null;
-    }
-  },
-  async set(email: string | null): Promise<void> {
-    try {
-      await chrome.storage.session.set({ [PENDING_EMAIL_KEY]: email });
-    } catch {
-      // storage.session unavailable: a reload just starts at sign-in.
-    }
-  },
-};
+/** An email waiting for its code, in chrome.storage.session under `key` (never a password). */
+function pendingEmail(key: string): PendingEmailStore {
+  return {
+    async get(): Promise<string | null> {
+      try {
+        const value = (await chrome.storage.session.get(key))[key];
+        return typeof value === "string" && value.length > 0 ? value : null;
+      } catch {
+        return null;
+      }
+    },
+    async set(email: string | null): Promise<void> {
+      try {
+        await chrome.storage.session.set({ [key]: email });
+      } catch {
+        // storage.session unavailable: a reload just starts over.
+      }
+    },
+  };
+}
+
+const pending = pendingEmail(PENDING_EMAIL_KEY);
+/** « Définir un mot de passe »'s own code step (add-lingua-connected-accounts D4). */
+const pendingPassword = pendingEmail(PENDING_PASSWORD_EMAIL_KEY);
 
 async function clearPersistedError(): Promise<void> {
   try {
@@ -80,12 +87,30 @@ function main(): void {
     signInWith: (provider) => void flow.signInWith(provider),
     signOut: () => void flow.signOut(),
     go: (view) => void flow.go(view),
+    openConnected: () => void flow.openConnected(),
+    leaveConnected: () => void flow.leaveConnected(),
+    retryIdentities: () => void flow.loadIdentities(),
+    link: (provider) => void flow.link(provider),
+    askRemove: (identity) => void flow.askRemove(identity),
+    cancelRemove: () => void flow.cancelRemove(),
+    remove: () => void flow.remove(),
+    showPasswordForm: () => void flow.showPasswordForm(),
+    cancelPassword: () => void flow.cancelPassword(),
+    restartPassword: () => void flow.restartPassword(),
+    setPassword: (email, password) => void flow.setPassword(email, password),
+    confirmPassword: (code) => void flow.confirmPassword(code),
   };
-  const flow = new AccountFlow({ send, pending, locale: navigator.language || "fr", clearPersistedError }, (state) => {
-    renderAccount(root, state, actions);
-    syncHash(state.view);
-  });
-  window.addEventListener("hashchange", () => void flow.go(viewFromHash(location.hash)));
+  const flow = new AccountFlow(
+    { send, pending, pendingPassword, locale: navigator.language || "fr", clearPersistedError },
+    (state) => {
+      renderAccount(root, state, actions);
+      syncHash(state.view);
+    },
+  );
+  window.addEventListener(
+    "hashchange",
+    () => void (wantsConnected(location.hash) ? flow.openConnected() : flow.go(viewFromHash(location.hash))),
+  );
   // Safari: an Apple/Google sign-in finishes in the host app, which hands the id_token back.
   // Collect it once the page is ready, and each time the reader comes back to it.
   document.addEventListener("visibilitychange", () => {
