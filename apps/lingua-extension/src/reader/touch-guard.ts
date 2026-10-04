@@ -13,6 +13,11 @@
 //
 // Only the moves are kept from it. foliate still sees the touch start and end, so a pan it did
 // begin before the selection existed is settled back onto its page.
+//
+// In the instant turn no page follows a finger either (add-lingua-page-slide: a jump is what an
+// e-ink screen shows once). foliate's `animated` only eases the turn's end; its pan followed the
+// finger in both. So there every one-finger move is kept from foliate, and a swipe turns the page
+// in one jump when the finger lifts.
 
 /** How far from the selected text a touch still grabs it: a handle's knob sits just outside. */
 export const SELECTION_REACH_PX = 44;
@@ -22,6 +27,16 @@ export const HOLD_MS = 400;
 
 /** How far a still finger may drift. Past it before HOLD_MS, the touch is a swipe: foliate's. */
 export const STILL_PX = 10;
+
+/** How far a swipe must travel, more sideways than up or down, to turn the page in the instant turn. */
+export const SWIPE_PX = 40;
+
+export interface TouchGuardOptions {
+  /** Whether the page turns in one jump: then no page follows a finger, and a swipe turns it. */
+  instant?: () => boolean;
+  /** Turn the page forward, or back. */
+  turn?: (forward: boolean) => void;
+}
 
 export interface TouchPoint {
   x: number;
@@ -51,10 +66,10 @@ function pointOf(e: Event): TouchPoint | null {
 }
 
 /**
- * Keep foliate-js's page pan off the touches that work `doc`'s selection. Listens in the capture
- * phase, ahead of foliate's own listeners on the document, and stops only the moves.
+ * Keep foliate-js's page pan off the touches that work `doc`'s selection, and off every touch in
+ * the instant turn. Listens in the capture phase, ahead of foliate's own listeners on the document.
  */
-export function guardSelectionTouches(doc: Document): void {
+export function guardSelectionTouches(doc: Document, options: TouchGuardOptions = {}): void {
   let start: TouchPoint | null = null;
   let startedAt = 0;
   let single = false;
@@ -96,14 +111,29 @@ export function guardSelectionTouches(doc: Document): void {
     (e) => {
       const drift = drifts(e);
       if (!owned) owned = grabs();
-      if (owned || drift) e.stopPropagation();
+      if (owned || drift || (single && options.instant?.())) e.stopPropagation();
     },
     opts,
   );
-  const end = (): void => {
+  const forget = (): void => {
     start = null;
     owned = false;
   };
-  doc.addEventListener("touchend", end, opts);
-  doc.addEventListener("touchcancel", end, opts);
+  doc.addEventListener(
+    "touchend",
+    (e) => {
+      const p = pointOf(e);
+      if (p && start && single && !owned && options.instant?.()) {
+        const dx = p.x - start.x;
+        if (Math.abs(dx) >= SWIPE_PX && Math.abs(dx) > Math.abs(p.y - start.y)) {
+          // foliate panned nothing, so it has nothing to settle: the jump is the whole turn.
+          e.stopPropagation();
+          options.turn?.(dx < 0);
+        }
+      }
+      forget();
+    },
+    opts,
+  );
+  doc.addEventListener("touchcancel", forget, opts);
 }
