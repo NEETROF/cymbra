@@ -550,12 +550,74 @@ describe("read-aloud on the card", () => {
     expect(labels(card)).toEqual(["▶ Mot", "▶ Phrase"]);
   });
 
-  it("speaks a word as seen on the page, not its dictionary form", () => {
+  it("speaks a word as seen on the page, and its dictionary form beside it", () => {
     const { fake, card } = speaking();
     card.show(content({ headword: "run", surface: "ran", sentence: "She ran home." }), () => {});
-    button(card.el, "▶ Mot").click();
+    expect(labels(card)).toEqual(["▶ ran", "▶ run", "▶ Phrase"]);
+    button(card.el, "▶ ran").click();
     expect(fake.spoken.map((u) => u.text)).toEqual(["ran"]);
     expect(button(card.el, "■ Arrêter").getAttribute("aria-label")).toBe("Arrêter la lecture");
+  });
+
+  describe("the dictionary form (add-lingua-dictionary-form-voice)", () => {
+    const es = () => content({ headword: "ser", surface: "Es", sentence: "Es una casa." });
+
+    it("offers the form seen, then the dictionary form, each labelled with what it reads", () => {
+      const { fake, card } = speaking();
+      card.show(es(), () => {});
+      expect(labels(card)).toEqual(["▶ Es", "▶ ser", "▶ Phrase"]);
+      expect(button(card.el, "▶ Es").getAttribute("aria-label")).toBe("Écouter la forme vue « Es »");
+      expect(button(card.el, "▶ ser").getAttribute("aria-label")).toBe("Écouter la forme du dictionnaire « ser »");
+      button(card.el, "▶ ser").click();
+      expect(fake.spoken.map((u) => u.text)).toEqual(["ser"]);
+      expect(labels(card)).toEqual(["▶ Es", "■ Arrêter", "▶ Phrase"]);
+    });
+
+    it("keeps one word button for a word that is its own dictionary form, whatever its case", () => {
+      const { card } = speaking();
+      card.show(content({ headword: "casa", surface: "Casa", sentence: "Casa grande." }), () => {});
+      expect(labels(card)).toEqual(["▶ Mot", "▶ Phrase"]);
+      expect(card.el.querySelector<HTMLElement>(".seen")?.hidden).toBe(true);
+      card.show(content({ headword: "casa", surface: "casa", sentence: "Una casa." }), () => {});
+      expect(labels(card)).toEqual(["▶ Mot", "▶ Phrase"]);
+    });
+
+    it("switches from the form seen to the dictionary form, and stops it", () => {
+      const { fake, speaker, card } = speaking();
+      card.show(es(), () => {});
+      button(card.el, "▶ Es").click();
+      button(card.el, "▶ ser").click();
+      expect(fake.spoken.map((u) => u.text)).toEqual(["Es", "ser"]);
+      expect(speaker.speaking()).toEqual({ key: "headword", text: "ser" });
+      button(card.el, "■ Arrêter").click();
+      expect(speaker.speaking()).toBeNull();
+      expect(labels(card)).toEqual(["▶ Es", "▶ ser", "▶ Phrase"]);
+    });
+
+    it("falls silent when the card closes or another word opens", () => {
+      const { speaker, card } = speaking();
+      card.show(es(), () => {});
+      button(card.el, "▶ ser").click();
+      button(card.el, "✕").click();
+      expect(speaker.speaking()).toBeNull();
+      card.show(es(), () => {});
+      button(card.el, "▶ ser").click();
+      card.show(content({ headword: "ship", surface: "ship", sentence: "Ships sail." }), () => {});
+      expect(speaker.speaking()).toBeNull();
+    });
+
+    it("keeps reading the form seen when a pending card completes with its dictionary form", () => {
+      const { speaker, card } = speaking();
+      card.show(
+        content({ headword: "Es", surface: "Es", sentence: "Es una casa.", pending: true, gloss: null }),
+        () => {},
+      );
+      expect(labels(card)).toEqual(["▶ Mot", "▶ Phrase"]);
+      button(card.el, "▶ Mot").click();
+      card.show(es(), () => {});
+      expect(speaker.speaking()).toEqual({ key: "selection", text: "Es" });
+      expect(labels(card)).toEqual(["■ Arrêter", "▶ ser", "▶ Phrase"]);
+    });
   });
 
   it("speaks the selected words of an expression card as one utterance", () => {
