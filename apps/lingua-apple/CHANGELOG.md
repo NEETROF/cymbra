@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/NEETROF/cymbra/compare/lingua-apple-v1.3.0...lingua-apple-v1.4.0) (2026-10-04)
+
+
+### Features
+
+* **lingua:** ship the 1.6.0 extension in the Apple app ([#684](https://github.com/NEETROF/cymbra/issues/684)) ([5a40dcb](https://github.com/NEETROF/cymbra/commit/5a40dcbd686fa1d56c92fcbf693e02b05fbc4dd9))
+
 ## [1.3.0](https://github.com/NEETROF/cymbra/compare/lingua-apple-v1.2.0...lingua-apple-v1.3.0) (2026-09-27)
 
 
