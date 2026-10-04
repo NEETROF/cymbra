@@ -27,6 +27,8 @@
 //! that exist to score pages (`add-lingua-phrase-gloss`), and answers a word
 //! card's grammar ([`word_grammar`], `add-lingua-word-grammar`).
 
+use std::collections::{HashMap, HashSet};
+
 use serde::Serialize;
 
 use crate::analysis::function_words::is_function_word;
@@ -34,7 +36,9 @@ use crate::analysis::language::StudiedLanguage;
 use crate::analysis::percent::{
     Coverage, TokenClass, compound_is_out_of_lexicon_proper_noun, is_out_of_lexicon_proper_noun,
 };
-use crate::analysis::pipeline::{DocumentAnalysis, analyse_document, resolve_lemmas};
+use crate::analysis::pipeline::{
+    AnalysedToken, DocumentAnalysis, analyse_document, resolve_lemmas,
+};
 use crate::analysis::tokenize::tokenize;
 use crate::knowledge::state::KnowledgeState;
 use crate::packs::Pack;
@@ -100,17 +104,31 @@ pub fn analyse_page(
         DocumentAnalysis::Analysed(tokens) => tokens,
     };
 
+    // A Spanish document's names are set aside like a proper noun outside the lexicon
+    // (add-lingua-spanish-names); English's analysis does not change.
+    let names = match studied {
+        StudiedLanguage::Spanish => document_names(&tokens, blocks, pack),
+        StudiedLanguage::English => HashSet::new(),
+    };
     let mut coverage = Coverage::default();
     let mut out = Vec::with_capacity(tokens.len());
     for token in tokens {
-        let class = classify_token(
+        let class = match classify_token(
             &token.surface,
             &token.lemma,
             &token.parts,
             studied,
             pack,
             knowledge,
-        );
+        ) {
+            // Only a word the reader has said nothing of: a name they mark stays theirs.
+            TokenClass::Unknown
+                if token.parts.is_empty() && names.contains(&token.surface.to_lowercase()) =>
+            {
+                TokenClass::ProperNounOutOfLexicon
+            }
+            class => class,
+        };
         coverage.add(class);
         // A gloss is only useful for words the reader does not yet know.
         let gloss = match class {
@@ -152,8 +170,45 @@ pub fn analyse_page_json(
         .expect("PageAnalysis serialises")
 }
 
+/// The forms a Spanish document writes as names (add-lingua-spanish-names D1):
+/// never in lowercase in the document, capitalised at least once in
+/// mid-sentence, and with a dictionary form the pack does not gloss. `Nela`,
+/// `Augusto` and `Eugenia` are words of the lexicon, which the out-of-lexicon
+/// rule leaves alone; a name the pack glosses (`Dios`) stays a word to learn.
+fn document_names(tokens: &[AnalysedToken], blocks: &[&str], pack: &Pack) -> HashSet<String> {
+    let mut lowercase = HashSet::new();
+    let mut capitalised: HashMap<String, &str> = HashMap::new();
+    for token in tokens.iter().filter(|token| token.parts.is_empty()) {
+        let Some(first) = token.surface.chars().next() else {
+            continue;
+        };
+        let form = token.surface.to_lowercase();
+        if !first.is_uppercase() {
+            lowercase.insert(form);
+        } else if mid_sentence(blocks.get(token.block).copied().unwrap_or(""), token.start) {
+            capitalised.entry(form).or_insert(&token.lemma);
+        }
+    }
+    capitalised
+        .into_iter()
+        .filter(|(form, lemma)| !lowercase.contains(form) && pack.gloss(lemma).is_none())
+        .map(|(form, _)| form)
+        .collect()
+}
+
+/// Whether the word at byte `start` of `text` stands in mid-sentence: right
+/// after a letter, a digit, a comma or a semicolon. At the head of a block, a
+/// sentence, a quotation or a line of dialogue (`—Augusto`), any word takes a
+/// capital, so it says nothing of a name.
+fn mid_sentence(text: &str, start: usize) -> bool {
+    text.get(..start)
+        .and_then(|before| before.trim_end().chars().next_back())
+        .is_some_and(|c| c.is_alphanumeric() || matches!(c, ',' | ';'))
+}
+
 /// The one classification of a token, shared by the page analysis and the
-/// phrase gloss so the two can never disagree: a plain token is a proper noun
+/// phrase gloss so the two can never disagree — except for a Spanish
+/// document's names, which only the whole page can tell: a plain token is a proper noun
 /// outside the lexicon or whatever the knowledge model says of its lemma; a
 /// listed compound has no parts and goes the same way; an unlisted compound is
 /// a hyphenated name (`Jean-Pierre`, excluded like any proper noun) or is
@@ -495,6 +550,22 @@ mod tests {
     use crate::packs::format::write_container;
     use crate::packs::meta::PackMeta;
     use crate::packs::pack::section;
+
+    #[test]
+    fn a_capital_counts_as_a_name_only_in_mid_sentence() {
+        // add-lingua-spanish-names D1: after a word, a comma or a semicolon.
+        assert!(mid_sentence("dijo Augusto", 5));
+        assert!(mid_sentence("y, Augusto", 3));
+        assert!(mid_sentence("calló;\u{a0}Augusto", 9));
+        // At the head of a block, a sentence, a quotation or a line of dialogue.
+        assert!(!mid_sentence("Augusto", 0));
+        assert!(!mid_sentence("Llegó. Augusto", 7));
+        assert!(!mid_sentence("¿Augusto", 2));
+        assert!(!mid_sentence("—Augusto", 3));
+        assert!(!mid_sentence("«Augusto", 2));
+        // An offset inside a character is no position at all.
+        assert!(!mid_sentence("—Augusto", 1));
+    }
 
     const EN: StudiedLanguage = StudiedLanguage::English;
     const ES: StudiedLanguage = StudiedLanguage::Spanish;
