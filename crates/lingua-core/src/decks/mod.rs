@@ -17,9 +17,9 @@
 //!
 //! A [`card::Card`] carries provenance and an FSRS review state; a
 //! [`review::Deck`] holds one card per `(studied language, lemma)`, and a
-//! [`review::ReviewSession`] walks the due cards, grading them
-//! ([`fsrs`]) or marking them known (writing `Known(Srs)` into the knowledge
-//! model). [`backup::LinguaState`] is the versioned root the surfaces persist
+//! [`review::ReviewSession`] walks the due cards, the most fragile first,
+//! grading them ([`fsrs`]), marking them known (writing `Known(Srs)` into the
+//! knowledge model) or hiding them (`Ignored`). [`backup::LinguaState`] is the versioned root the surfaces persist
 //! and back up losslessly. Pure, clock-injected, WASM-identical.
 
 pub mod backup;
@@ -30,4 +30,6 @@ pub mod review;
 pub use backup::{BACKUP_SCHEMA_VERSION, LinguaState, RestoreError};
 pub use card::{Card, EncounterSource, Media, MediaSource, Provenance, SyncPolicy};
 pub use fsrs::{FsrsParams, Memory, Rating, ReviewState};
-pub use review::{Deck, ReviewSession};
+pub use review::{
+    Deck, NewCardAllowance, ReviewSession, SESSION_CARDS, SessionOptions, SessionSummary,
+};

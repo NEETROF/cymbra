@@ -35,8 +35,8 @@ short, honest about what the reader recalled, and look like the page it came fro
 - **A session ends by saying what it did**: cards reviewed, missed words recovered, cards
   now held for more than a month; it offers to continue only when cards remain due.
 - **Backup, restore and the pack's sources move to Réglages › Données**, rendered by the
-  one settings builder in every host. The review page keeps the language filter, the due
-  count and the card.
+  one settings builder in every host; the toolbar popup offers the backup and points to the
+  panel for a restore. The review page keeps the language filter, the due count and the card.
 - Unchanged: the FSRS formulas and parameters, the card schema, the backup format, the
   sync protocol, and the absence of any network call.
 

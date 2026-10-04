@@ -361,9 +361,12 @@ fn spec_scenario_a_review_across_languages_or_within_one() {
     assert_eq!(engine.deck_count(Some(vec!["en".to_owned()])), 1);
     assert_eq!(engine.deck_count(Some(vec!["pt".to_owned()])), 2);
 
-    assert_eq!(engine.start_review(10.0, Some(vec!["es".to_owned()])), 1);
+    assert_eq!(
+        engine.start_review(10.0, Some(vec!["es".to_owned()]), None, None, None),
+        1
+    );
     assert_eq!(engine.review_current_language().as_deref(), Some("es"));
-    assert_eq!(engine.start_review(10.0, None), 2);
+    assert_eq!(engine.start_review(10.0, None, None, None, None), 2);
     assert!(engine.review_current_language().is_some());
     engine.review_mark_known(10.0);
     engine.review_mark_known(10.0);

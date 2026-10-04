@@ -206,6 +206,8 @@ async function showSettings(tab?: SettingsTab): Promise<void> {
       speaker: createSpeaker(browserSpeechEngine(), await readingLanguage(port), storedVoicePreference(storageArea)),
       // Safari: the host app now shows the provider's sheet; the next open collects the token.
       onHandedOff: () => window.close(),
+      // Firefox closes this popup when a file picker opens: a restore goes through the panel.
+      canPickFiles: false,
     });
   }
   if (tab) settings.show(tab);

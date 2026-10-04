@@ -24,7 +24,11 @@ import {
   loadRemoteVoices,
   loadVoices,
   loadHudPosition,
+  loadNewWordsPerDay,
+  NEW_WORDS_PER_DAY_KEY,
+  newWordsPerDayOf,
   parseHudPosition,
+  saveNewWordsPerDay,
   ROOT_KEY,
   saveBackup,
   saveEnabled,
@@ -348,6 +352,28 @@ describe("the HUD position", () => {
   it("stays out of the state backup", async () => {
     const area = fakeArea({ [ROOT_KEY]: { v: STORAGE_VERSION, backup: "BACKUP" } });
     await saveHudPosition(area, { side: "left", y: 0.5 });
+    expect(area.store[ROOT_KEY]).toEqual({ v: STORAGE_VERSION, backup: "BACKUP" });
+  });
+});
+
+describe("the daily allowance of new words (refine-lingua-review-session)", () => {
+  it("reads 10 until the reader picks a step, then each step it offers", async () => {
+    const area = fakeArea();
+    expect(await loadNewWordsPerDay(area)).toBe(10);
+    for (const step of [5, 10, 20] as const) {
+      await saveNewWordsPerDay(area, step);
+      expect(area.store[NEW_WORDS_PER_DAY_KEY]).toBe(step);
+      expect(await loadNewWordsPerDay(area)).toBe(step);
+    }
+  });
+
+  it("reads anything off the steps as 10", () => {
+    for (const value of [undefined, null, 0, 7, 21, "20", -5]) expect(newWordsPerDayOf(value)).toBe(10);
+  });
+
+  it("stays out of the state backup, so changing it never rewrites the deck", async () => {
+    const area = fakeArea({ [ROOT_KEY]: { v: STORAGE_VERSION, backup: "BACKUP" } });
+    await saveNewWordsPerDay(area, 20);
     expect(area.store[ROOT_KEY]).toEqual({ v: STORAGE_VERSION, backup: "BACKUP" });
   });
 });

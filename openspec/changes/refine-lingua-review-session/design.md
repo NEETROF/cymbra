@@ -140,7 +140,9 @@ review stylesheet has no transition.
 The same widget lives in a 380 px side panel, in a drawer up to 92 % of the viewport, and
 across a phone's width; a drawer on a tablet can be narrow on a wide screen. The review root
 is therefore a CSS container, and the layout keys on its size: below ~600 px wide, the
-answers form a bar at the bottom, padded by `env(safe-area-inset-bottom)`; when the
+answers form a bar at the bottom, padded by `env(safe-area-inset-bottom)` — the card
+fills the height below the page's header (an estimate, `100dvh - 180px`), so a short card still
+puts them under the thumb and a long one keeps them in view (`position: sticky`); when the
 viewport is landscape with little height, they become bands along both edges, the card
 between them; from ~600 px, the card is a centred column of reading width with the answers
 under it. Container queries are supported by every target (Chromium 105, Firefox 110,
@@ -165,6 +167,11 @@ builder, they reach the popup, the side panel, the drawer and the Safari app tog
 `test/lint-settings-hosts.spec.ts` keeps any other page from holding a copy. A restore made
 in the page that is showing a review ends that session, since the engine drops its session
 on restore.
+
+The toolbar popup is the exception for the restore: Firefox closes a popup the moment a file
+picker opens, so the change event never arrives. `mountSettings` takes `canPickFiles`; the popup
+passes `false` and offers the download only, with a pointer to the panel. Found while
+implementing; the spec says so.
 
 ### D10 — The engine contract grows, additively
 

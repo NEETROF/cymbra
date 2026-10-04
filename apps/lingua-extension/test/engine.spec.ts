@@ -149,6 +149,16 @@ describe("WasmAnalyzerPort language views", () => {
       reviewCurrentLanguage(): string {
         return "es";
       }
+      reviewGrade(...args: unknown[]): boolean {
+        received.push(["reviewGrade", args]);
+        return true;
+      }
+      reviewIgnore(...args: unknown[]): void {
+        received.push(["reviewIgnore", args]);
+      }
+      reviewSummary(): string {
+        return '{"reviewed":3,"recovered":1,"holding":1,"known":0,"hidden":1}';
+      }
     }
     const mod = { default: async () => {}, LinguaEngine } as unknown as WasmModule;
     return { load: async () => mod, received };
@@ -217,16 +227,32 @@ describe("WasmAnalyzerPort language views", () => {
     await port.dueCount(100);
     await port.startReview(100, ["es"]);
     await port.startReview(100);
+    await port.startReview(100, undefined, { limit: 10, newPerDay: 5, dayStart: 86_400 });
     expect(await port.deckCount(["es"])).toBe(3);
     await port.deckCount();
 
     expect(glue.received).toEqual([
       ["dueCount", [100, ["es"]]],
       ["dueCount", [100, null]],
-      ["startReview", [100, ["es"]]],
-      ["startReview", [100, null]],
+      ["startReview", [100, ["es"], null, null, null]],
+      ["startReview", [100, null, null, null, null]],
+      ["startReview", [100, null, 10, 5, 86_400]],
       ["deckCount", [["es"]]],
       ["deckCount", [null]],
+    ]);
+  });
+
+  it("answers, hides and sums up a session (refine-lingua-review-session)", async () => {
+    const glue = recordingGlue();
+    const port = new WasmAnalyzerPort(glue.load, ["en-fr", "es-fr"]);
+
+    expect(await port.reviewGrade("again", 100)).toBe(true);
+    await port.reviewIgnore(100);
+    expect(await port.reviewSummary()).toEqual({ reviewed: 3, recovered: 1, holding: 1, known: 0, hidden: 1 });
+
+    expect(glue.received).toEqual([
+      ["reviewGrade", ["again", 100]],
+      ["reviewIgnore", [100]],
     ]);
   });
 
