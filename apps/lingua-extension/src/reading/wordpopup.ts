@@ -504,6 +504,8 @@ export function createCard(speaker?: Speaker): CardView {
       seenEl.hidden = !differs;
 
       rarityEl.textContent = content.rarity;
+      // No rank yet, no line (add-lingua-card-frequency D4).
+      rarityEl.hidden = !content.rarity;
 
       renderListen();
       renderGrammar(content);

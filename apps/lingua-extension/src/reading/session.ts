@@ -312,7 +312,6 @@ export class ReadingSession {
       // None unless the reader turned « Traduction étendue » on and its model is on the device;
       // then the messaging port, which sends the request off this thread.
       {
-        calibration: () => this.calibration,
         // In the document's language: its route, and nothing while its models are missing.
         translator: () => this.translator(this.language),
         language: () => this.language,

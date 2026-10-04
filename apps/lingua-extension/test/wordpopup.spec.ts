@@ -47,6 +47,16 @@ describe("word popup card", () => {
     expect((card.el.querySelector(".seen") as HTMLElement).hidden).toBe(true);
   });
 
+  it("hides the frequency line while the card has none (add-lingua-card-frequency)", () => {
+    const card = createCard();
+    const rarity = () => card.el.querySelector(".rarity") as HTMLElement;
+    card.show(content({ rarity: "" }), () => {});
+    expect(rarity().hidden).toBe(true);
+    card.show(content({ rarity: "Très courant — parmi les 100 mots les plus fréquents." }), () => {});
+    expect(rarity().hidden).toBe(false);
+    expect(rarity().textContent).toBe("Très courant — parmi les 100 mots les plus fréquents.");
+  });
+
   it("emits a learning gesture with the source sentence on '+ Deck'", () => {
     const card = createCard();
     const spy = vi.fn<(g: Gesture) => void>();
