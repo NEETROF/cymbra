@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { guardSelectionTouches, nearRects, SELECTION_REACH_PX } from "@/reader/touch-guard.ts";
+import { guardSelectionTouches, HOLD_MS, nearRects, SELECTION_REACH_PX, STILL_PX } from "@/reader/touch-guard.ts";
 
 // On Safari a selection's handle drag reaches the page as touch events, and foliate-js pans
 // the page on every move it sees: the guard keeps the moves of a touch working the selection
@@ -16,9 +16,10 @@ let win: Window & typeof globalThis;
 /** What foliate-js's own listener on the document receives, after the guard's. */
 let seen: string[];
 
-/** A touch event as the section sees it, with `fingers` down at (x, y). */
-function touch(type: string, x: number, y: number, fingers = 1): Event {
+/** A touch event as the section sees it, with `fingers` down at (x, y), at `t` ms. */
+function touch(type: string, x: number, y: number, fingers = 1, t = 0): Event {
   const e = new win.Event(type, { bubbles: true, cancelable: true });
+  Object.defineProperty(e, "timeStamp", { value: t });
   const point = { clientX: x, clientY: y };
   Object.defineProperty(e, "touches", { value: type === "touchend" ? [] : Array(fingers).fill(point) });
   Object.defineProperty(e, "changedTouches", { value: [point] });
@@ -90,6 +91,23 @@ describe("guardSelectionTouches", () => {
     p().dispatchEvent(touch("touchstart", 400, 500));
     p().dispatchEvent(touch("touchmove", 300, 500));
     expect(seen).toEqual(["touchstart", "touchmove", "touchend", "touchstart", "touchmove"]);
+  });
+
+  it("takes over a press-and-hold with no selection to show for it (Firefox for Android)", () => {
+    p().dispatchEvent(touch("touchstart", 130, 210, 1, 0));
+    p().dispatchEvent(touch("touchmove", 131, 210, 1, HOLD_MS + 50));
+    p().dispatchEvent(touch("touchmove", 260, 210, 1, HOLD_MS + 100));
+    p().dispatchEvent(touch("touchend", 260, 210, 1, HOLD_MS + 150));
+    expect(seen).toEqual(["touchstart", "touchend"]);
+  });
+
+  it("keeps a still finger's drift from the pan, then lets a swipe's moves through", () => {
+    p().dispatchEvent(touch("touchstart", 400, 500, 1, 0));
+    p().dispatchEvent(touch("touchmove", 400 - STILL_PX + 2, 500, 1, 40));
+    p().dispatchEvent(touch("touchmove", 380, 500, 1, 80));
+    p().dispatchEvent(touch("touchmove", 300, 500, 1, HOLD_MS + 100));
+    p().dispatchEvent(touch("touchend", 300, 500, 1, HOLD_MS + 120));
+    expect(seen).toEqual(["touchstart", "touchmove", "touchmove", "touchend"]);
   });
 
   it("leaves a two-finger gesture alone, and forgets a touch once it is cancelled", () => {
