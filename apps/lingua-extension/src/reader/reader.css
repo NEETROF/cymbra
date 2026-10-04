@@ -82,6 +82,20 @@ button {
   color: var(--cymbra-lingua-muted);
 }
 
+/* One section per language the reader studies (group-lingua-library-by-language), drawn only
+   when the books fall in more than one. */
+.lib-group + .lib-group {
+  margin-top: 28px;
+}
+
+.lib-group-title {
+  margin: 0 0 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--cymbra-lingua-border-2);
+  font-size: calc(16px * var(--cymbra-lingua-ui-scale, 1));
+  font-weight: 600;
+}
+
 .lib-books {
   list-style: none;
   margin: 0;
