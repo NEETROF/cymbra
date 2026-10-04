@@ -336,6 +336,58 @@ class Apocopes(unittest.TestCase):
         self.assertNotIn("muy", candidates["mucho"])
 
 
+class CardNoise(unittest.TestCase):
+    """fix-lingua-spanish-card-noise."""
+
+    def test_between_a_proper_name_and_a_word_the_commoner_reading_wins(self):
+        candidates, lemmas, combined = collections.defaultdict(set), set(), set()
+        kinds = collections.defaultdict(set)
+        for e in (
+            form_of("miró", "mirar", tags=("form-of", "indicative", "preterite", "singular", "third-person")),
+            entry("Miró", pos="name", senses=[{"glosses": ["a surname from Catalan"]}]),
+            entry("Argentina", pos="name", senses=[{"glosses": ["Argentina"]}]),
+            entry("argentino", pos="adj", forms=[("argentina", ["feminine"])]),
+            entry("Rosa", pos="name", senses=[{"glosses": ["a female given name"]}]),
+            entry("rosa", senses=[{"glosses": ["rose"]}]),
+        ):
+            red.read_entry(e, candidates, lemmas, combined, kinds)
+        names = {word for word, found in kinds.items() if found == {True}}
+        # A name that is also a common word is no name only.
+        self.assertEqual(names, {"miró", "argentina"})
+        zipf = {"miró": 3.98, "mirar": 4.74, "argentina": 5.38, "argentino": 4.83, "rosa": 4.7}
+        red.name_or_word(candidates, names, lambda w: zipf.get(w, 0))
+        self.assertEqual(candidates["miró"], {"mirar"})
+        self.assertEqual(candidates["argentina"], {"argentina"})
+        self.assertEqual(candidates["rosa"], {"rosa"})
+
+    def test_a_letter_is_no_french_gloss(self):
+        entries = [
+            {"word": "a", "pos": "character", "senses": [{"glosses": ["Première lettre et première voyelle de l’alphabet espagnol."]}]},
+            {"word": "a", "pos": "prep", "senses": [{"glosses": ["À, au."]}]},
+            {"word": "de", "pos": "noun", "senses": [{"glosses": ["Nom de la lettre d."]}]},
+            {"word": "be", "pos": "noun", "senses": [{"glosses": ["Bé, nom de la lettre b."]}, {"glosses": ["Bêlement."]}]},
+            {"word": "ese", "pos": "noun", "senses": [{"glosses": ["Lettre s."]}]},
+            {"word": "carta", "pos": "noun", "senses": [{"glosses": ["Lettre, missive."]}]},
+            {"word": "carta de amor", "pos": "noun", "senses": [{"glosses": ["Lettre d’amour."]}]},
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            src, dst = os.path.join(tmp, "src.jsonl"), os.path.join(tmp, "dst.jsonl")
+            with open(src, "w", encoding="utf-8") as f:
+                f.writelines(json.dumps(e, ensure_ascii=False) + "\n" for e in entries)
+            red.without_letters(src, dst)
+            with open(dst, encoding="utf-8") as f:
+                kept = [json.loads(line) for line in f]
+        self.assertEqual(
+            [(e["word"], e["pos"], [s["glosses"][0] for s in e["senses"]]) for e in kept],
+            [
+                ("a", "prep", ["À, au."]),
+                ("be", "noun", ["Bêlement."]),
+                ("carta", "noun", ["Lettre, missive."]),
+                ("carta de amor", "noun", ["Lettre d’amour."]),
+            ],
+        )
+
+
 class LetterNames(unittest.TestCase):
     def test_a_letter_s_name_gives_no_reading_of_its_inflections(self):
         def letter(word, plural, sense):

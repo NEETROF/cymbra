@@ -79,7 +79,8 @@ def nfc_lower(text):
 
 
 def read_kaikki(path, readings=None):
-    """Candidate lemmas per form, the words that are lemmas of their own, and the combined forms.
+    """Candidate lemmas per form, the words that are lemmas of their own, the combined forms, and the
+    words whose only lemma entries are proper names.
 
     A form's candidates: the lemma entries listing it among their inflections (bookkeeping left
     out), and the `form_of` targets of its own entry. An entry with a sense that is not a form-of is
@@ -93,20 +94,39 @@ def read_kaikki(path, readings=None):
     candidates = collections.defaultdict(set)
     lemmas = set()
     combined = set()
+    kinds = collections.defaultdict(set)
     with open(path, encoding="utf-8") as f:
         for line in f:
             try:
                 entry = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            read_entry(entry, candidates, lemmas, combined)
+            read_entry(entry, candidates, lemmas, combined, kinds)
             if readings is not None:
                 read_readings(entry, readings)
-    return candidates, lemmas, combined
+    return candidates, lemmas, combined, {word for word, found in kinds.items() if found == {True}}
 
 
-def read_entry(entry, candidates, lemmas, combined):
-    """One kaikki entry into the three collections (see `read_kaikki`)."""
+def name_or_word(candidates, names, frequency):
+    """The candidates, a form that is a proper name and also another word's keeping only the commoner
+    reading (fix-lingua-spanish-card-noise D1). The name's frequency is the form's, met as the name or
+    as a word, against the commonest of the words' lemmas: `miró` goes to *mirar*
+    (3.98 against 4.74) and `dolores` to *dolor*, while `argentina` stays the country (5.38 against
+    *argentino*'s 4.83) and `parís` the city. GSD meets `Miró` as the surname only, and its counts,
+    which come next, would always give the name the form. `names` are the words whose only lemma
+    entries are proper names."""
+    for form, opts in candidates.items():
+        # Only the form's own name: a name's table also lists words of its own (`boliviano` under
+        # Bolivia), which are no reading of them as the name.
+        words = opts - names
+        if form in opts & names and words:
+            opts.intersection_update({form} if frequency(form) > max(frequency(w) for w in words) else words)
+    return candidates
+
+
+def read_entry(entry, candidates, lemmas, combined, kinds=None):
+    """One kaikki entry into the three collections (see `read_kaikki`); with `kinds`, whether each
+    word's lemma entries are proper names (`True`) or not."""
     word = nfc_lower(entry.get("word"))
     if not _TOKEN.fullmatch(word):
         return
@@ -116,6 +136,8 @@ def read_entry(entry, candidates, lemmas, combined):
     if not only_forms:
         lemmas.add(word)
         candidates[word].add(word)
+        if kinds is not None:
+            kinds[word].add(pos == "name")
     for inflection in entry.get("forms") or []:
         tags = set(inflection.get("tags") or ())
         form = nfc_lower(inflection.get("form"))
@@ -536,6 +558,33 @@ FALLBACK_WORDS = 3
 LOCUTIONS = {}
 
 
+# A French Wiktionary sense naming a letter of the alphabet: « Nom de la lettre d. », « Bé, nom de la
+# lettre b. », « Lettre s. », « … lettre de l'alphabet espagnol ».
+_FRENCH_LETTER = re.compile(r"\bnom de la lettre\b|^lettre [a-zñ]\.?$|\blettre de l[’']alphabet\b", re.IGNORECASE)
+
+
+def without_letters(src, dst):
+    """The French Wiktionary's Spanish entries without their letters, written to `dst` for the shared
+    gloss reduction (fix-lingua-spanish-card-noise D2): an entry of the `character` part of speech,
+    and a sense naming a letter. The card of `a` opened on « Première lettre et première voyelle de
+    l'alphabet espagnol » before « À ». An entry left with no sense goes."""
+    with open(src, encoding="utf-8") as f, open(dst, "w", encoding="utf-8") as out:
+        for line in f:
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if entry.get("pos") == "character":
+                continue
+            senses = entry.get("senses") or []
+            kept = [s for s in senses if not any(_FRENCH_LETTER.search(g) for g in s.get("glosses") or ())]
+            if len(kept) == len(senses):
+                out.write(line if line.endswith("\n") else line + "\n")
+            elif kept:
+                out.write(json.dumps({**entry, "senses": kept}, ensure_ascii=False) + "\n")
+    return dst
+
+
 def read_translated(path, *, inverted):
     """What a translation file (`pack_sources.derive`) says of Spanish words: word → {UPOS: [French
     word, …]}, in the file's order.
@@ -699,12 +748,12 @@ def main():
         return zipf[(word, lang)]
 
     readings = Readings()
-    candidates, lemmas, combined = read_kaikki(os.path.join(a.work, "kaikki-Spanish.jsonl"), readings)
+    candidates, lemmas, combined, names = read_kaikki(os.path.join(a.work, "kaikki-Spanish.jsonl"), readings)
     counts = read_gsd_counts(
         [os.path.join(a.work, "es_gsd-ud-train.conllu"), os.path.join(a.work, "es_gsd-ud-dev.conllu")]
     )
     forms, ranks = reduce_forms(
-        candidates,
+        name_or_word(candidates, names, frequency),
         lemmas,
         combined,
         counts,
@@ -726,7 +775,9 @@ def main():
     grammar = grammar_rows(readings, forms, ranks)
     common.write(a.work, "grammar.tsv", "".join(grammar))
 
-    spanish_entries = os.path.join(a.work, "kaikki-fr-Espagnol.jsonl")
+    spanish_entries = without_letters(
+        os.path.join(a.work, "kaikki-fr-Espagnol.jsonl"), os.path.join(a.work, "kaikki-fr-Espagnol-mots.jsonl")
+    )
     runs = {}
     glosses = common.reduce_gloss(spanish_entries, set(ranks), **WORD_GLOSS, runs=runs, studied=ES)
     expressions = common.reduce_expressions(spanish_entries, EXPRESSION_GLOSS_LEN, studied=ES)
