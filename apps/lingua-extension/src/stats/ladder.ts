@@ -1,4 +1,4 @@
-import { estimatedLevelsNote, myLevelTitle } from "../analyzer/language-labels.ts";
+import { borrowedTypicalNote, estimatedLevelsNote, myLevelTitle } from "../analyzer/language-labels.ts";
 import { DEFAULT_LANGUAGE } from "../analyzer/pairs.ts";
 import type { CefrLevel, LevelRow, StudiedLanguage, VocabularyEstimate } from "../analyzer/types.ts";
 import { cumulativeTotals, estimatedPosition, roughCount } from "./model.ts";
@@ -186,7 +186,10 @@ export function ladderView(
       ? "«\u202Fcourants\u202F»\u00A0: les mots les plus fréquents jusqu'à ce niveau. "
       : "«\u202Fenseignés\u202F»\u00A0: les mots de base introduits jusqu'à ce niveau par les listes d'enseignement. ") +
     "«\u202Festimés\u202F»\u00A0: le vocabulaire qu'a en général un lecteur de ce niveau, " +
-    "extrapolé des mots des niveaux inférieurs sur tout le dictionnaire.";
+    // A pack whose levels are estimated has no lists to extrapolate: it shows English's figures.
+    (rows[0]?.typicalFrom
+      ? borrowedTypicalNote(language, rows[0].typicalFrom)
+      : "extrapolé des mots des niveaux inférieurs sur tout le dictionnaire.");
   ladder.append(scope);
 
   return ladder;

@@ -168,6 +168,11 @@ export interface LevelRow {
    * declared it. A property of the pack, not the reader; 0 at A1, which presumes nothing.
    */
   typicalVocabulary: number;
+  /**
+   * The language whose pack gave `typicalVocabulary`, when not this one's: a pack whose levels are
+   * estimated from frequency borrows English's (fix-lingua-spanish-ladder-estimates).
+   */
+  typicalFrom?: StudiedLanguage;
 }
 
 /** The reader's estimated vocabulary size, from `vocabularyEstimate()`. */
