@@ -263,6 +263,32 @@ fn a_spanish_apocope_reads_as_its_full_word() {
 }
 
 #[test]
+fn a_spanish_card_shows_no_letter_and_no_surname_for_a_word() {
+    let pack = es_fr_pack();
+    let lemma = |text: &str| {
+        gloss_phrase(
+            text,
+            StudiedLanguage::Spanish,
+            &pack,
+            &KnowledgeState::default(),
+        )
+        .tokens[0]
+            .lemma
+            .clone()
+    };
+
+    // fix-lingua-spanish-card-noise D2: a letter's sense is no gloss.
+    assert!(pack.gloss("a").is_some_and(|gloss| gloss.starts_with("À")));
+    assert_eq!(pack.gloss("de"), Some("De"));
+    // D1: between a proper name and a word, the commoner reading wins. `miró` is mirar's preterite,
+    // not the surname, and `dolores` dolor's plural; `argentina` stays the country.
+    assert_eq!(lemma("miró"), "mirar");
+    assert_eq!(card(&pack, "miró", "mirar").0, [PRETERITE_3SG]);
+    assert_eq!(lemma("dolores"), "dolor");
+    assert_eq!(lemma("argentina"), "argentina");
+}
+
+#[test]
 fn spanish_levels_are_estimated_and_follow_frequency() {
     use lingua_core::knowledge::level::{CefrLevel, CefrLevels};
 

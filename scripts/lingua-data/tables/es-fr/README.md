@@ -20,8 +20,8 @@ pack yet: that is `enable-lingua-spanish`.
 
 ## What is in them
 
-- **60,000 lemmas**, the commonest by wordfreq, and **144,820 forms**: each lemma's own form, and
-  84,820 inflected forms attested in wordfreq. A form nobody writes is left to the analyser's rules.
+- **60,000 lemmas**, the commonest by wordfreq, and **144,952 forms**: each lemma's own form, and
+  84,952 inflected forms attested in wordfreq. A form nobody writes is left to the analyser's rules.
 - **No verb with its clitics** (`dámelo`, `hacerlo`): the analyser's enclitic rule reads them. A
   string that is also a plain form keeps it: `principales`, which is also *principar* + `les`, maps
   to *principal*.
@@ -37,7 +37,13 @@ pack yet: that is `enable-lingua-spanish`.
   the standard word (`buen` lists `bueno`) is no inflection: it made `bueno` a form of `buen`, which
   has no gloss. An adverb or a numeral kaikki calls apocopic stays a word of its own: `muy` is
   « Très », not *mucho*, and `un` the article, not *uno*.
-- **Grammar**: 149,249 readings of 111,933 forms, in 89 Universal Dependencies tags, read from
+- **A form that is a proper name and another word's keeps the commoner reading**
+  (fix-lingua-spanish-card-noise), before any rule above: the form's frequency, met as the name or
+  as the word, against the word's lemma. `miró` goes to *mirar* (3.98 against 4.74) and `dolores` to
+  *dolor*, while `argentina` and `parís` stay the country and the city. GSD's counts, which meet
+  `Miró` only as the surname, gave every such form to the name: 387 forms, 118 of which now read as
+  the word.
+- **Grammar**: 149,309 readings of 111,983 forms, in 89 Universal Dependencies tags, read from
   kaikki's tags (add-lingua-spanish-grammar-tables). Every verb form says its mood, tense, person
   and number (`hablábamos`: indicative imperfect, first person plural). A participle, an adjective,
   a determiner or a pronoun says its agreement (`escrita`, `rápidas`). A noun says its gender on
@@ -45,22 +51,24 @@ pack yet: that is `enable-lingua-spanish`.
   of another kept lemma is marked `other`, so the card names it: `vino` is also *venir*'s
   preterite, `fue` *ir*'s. A letter's name keeps its own form but gives none of its plurals
   (add-lingua-spanish-word-card): `es` is *ser*'s alone, not also the plural of the letter E.
-- **French glosses** for 22,823 lemmas, and 15,133 expressions (add-lingua-spanish-gloss-tables).
+- **French glosses** for 22,755 lemmas, and 15,133 expressions (add-lingua-spanish-gloss-tables).
   The French Wiktionary's Spanish entries come first, through the rules every pair shares: up to
   eight senses, grouped by part of speech. Where they say nothing, people's translations fill
   the gap. First, the French words the Spanish Wiktionary lists (`sector` « Secteur »). Then the
   French entries whose translation tables list the word, the commonest first (`decreto`
   « Arrêté »). A gloss is never English and never a machine translation, and a proper noun's
-  translation glosses nothing. The share of the commonest lemmas glossed:
+  translation glosses nothing. A letter's sense is no gloss (fix-lingua-spanish-card-noise): the
+  card of `a` opens on « À », not on « Première lettre … de l'alphabet espagnol ». The share of the
+  commonest lemmas glossed:
 
   | Lemmas | French Wiktionary | with the translations |
   |---|---|---|
-  | top 5,000 | 83.0 % | 87.7 % |
-  | top 10,000 | 69.6 % | 77.3 % |
-  | top 20,000 | 54.4 % | 63.8 % |
-  | all 60,000 | 29.0 % | 38.0 % |
+  | top 5,000 | 82.7 % | 87.6 % |
+  | top 10,000 | 69.4 % | 77.2 % |
+  | top 20,000 | 54.2 % | 63.7 % |
+  | all 60,000 | 28.9 % | 37.9 % |
 
-  Expressions: 2,952 from the French Wiktionary's Spanish entries, 12,181 from the translations.
+  Expressions: 2,950 from the French Wiktionary's Spanish entries, 12,183 from the translations.
   The builder keeps those whose words the lexicon holds. `LOCUTIONS` in `reduce-es-fr.py`, for the
   verbal locutions no source glosses (`hay que`), is empty: its glosses are written by a person.
 - **A noun's gender in its sense runs** (add-lingua-spanish-word-card): `casa	NOUN|Gender=Fem:1`,
@@ -94,7 +102,7 @@ PUD itself is not consistent on apocopes: it keeps `gran` as its own lemma but t
 *primero*, which is why reading apocopes as their full words moved the content words from 95.92 %
 to 95.79 %.
 
-The pack is 2,189,161 B, with the grammar, the glosses and the levels.
+The pack is 2,190,188 B, with the grammar, the glosses and the levels.
 
 ## Licences
 
