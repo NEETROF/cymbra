@@ -138,7 +138,7 @@ Reduced by `reduce-es-fr.py` (add-lingua-spanish-forms-tables), for the Spanish 
 | `freq.tsv` (`lemma → rank`) | **wordfreq** Spanish list | CC BY-SA 4.0 | the top 60k canonical lemmas, dense rank; inflected forms, and combined forms that are no word of their own, skipped |
 | `grammar.tsv` (`form → readings`) | **kaikki.org**, the same extract: the tags of each form | CC BY-SA 4.0 + GFDL | the readings of the forms `forms.tsv` holds, under kept lemmas, as Universal Dependencies tags (add-lingua-spanish-grammar-tables). A verb form takes its mood, tense, person and number — the conditional as a mood, the *usted* imperative as a third person, the negative imperative left to the subjunctive it repeats — or its form (`Inf`, `Ger`, an agreed `Part`). A noun takes its gender (`es-noun`'s argument, else its senses' tags) on its own form and its plural; an adjective, determiner or pronoun its agreement. A pronominal form (`azotarse`) reads from its own entry. Each reading of another lemma than the form's is marked `other`: kaikki's tables are structured, so the card may name it |
 | `gloss.tsv` (`lemma → gloss`) | **kaikki.org**: the French Wiktionary's Spanish entries; else the French translations the Spanish Wiktionary's Spanish entries list; else the French Wiktionary's French entries whose translation tables list the word. The last two are derived from kaikki's dumps of the whole editions (`pack_sources.py DUMPS`) | CC BY-SA 4.0 + GFDL | the shared rules on the Spanish entries: up to eight senses grouped by part of speech (add-lingua-spanish-gloss-tables). A fallback gloss is up to three French words per part of speech, the commonest first from a table read backwards. A proper noun's translation glosses nothing; a gloss is never English and never a machine translation. Coverage below |
-| `senses.tsv` (`lemma → runs`) | the same | CC BY-SA 4.0 + GFDL | the parts of speech of each gloss's runs of senses; a fallback gloss has one sense per part of speech |
+| `senses.tsv` (`lemma → runs`) | the same | CC BY-SA 4.0 + GFDL | the parts of speech of each gloss's runs of senses; a fallback gloss has one sense per part of speech. A noun's runs carry its gender, from the `es-noun` heads its readings read (`NOUN\|Gender=Fem`), unless it has both (add-lingua-spanish-word-card) |
 | `mwe.tsv` (`expression → gloss`) | the same | CC BY-SA 4.0 + GFDL | the Spanish multi-word entries, then the multi-word headwords the translations give; `LOCUTIONS` in the reducer, written by a person, wins (empty so far). The builder keys them through the lexicon |
 | `level.tsv` (`lemma → CEFR`) | none: derived from `freq.tsv` and `gloss.tsv` | that of `freq.tsv` | **estimated**, since no Spanish CEFR list can be shipped (ELELex is NC, the PCIC all rights reserved). The commonest lemmas whose French gloss is not only a proper noun's take, in rank order, English's band sizes (1,020 A1 … 876 C2): 8,302 lemmas. The manifest says `levels_estimated`, and the extension labels the levels « estimé » (add-lingua-spanish-levels) |
 | `NOTICE` | all of the above | — | the attribution stack, embedded in the pack |
@@ -146,27 +146,28 @@ Reduced by `reduce-es-fr.py` (add-lingua-spanish-forms-tables), for the Spanish 
 **Measured on UD Spanish-PUD** (CC BY-SA 3.0), never committed and never read by the reduction.
 `measure/es-pud.sh` fetches it at a commit, builds the pack from the committed tables, and runs the
 real analyser over it (`lingua-pack-measure`). Punctuation, numbers, symbols, foreign words and
-proper nouns are left out. The 2026-10-03 tables pass the programme's gates:
+proper nouns are left out. The 2026-10-04 tables pass the programme's gates:
 - 99.38 % of 19,276 words resolve in the lexicon (gate 98.5 %);
-- 95.92 % of 9,439 content words take PUD's lemma (gate 93.5 %);
+- 95.79 % of 9,439 content words take PUD's lemma (gate 93.5 %). PUD keeps `gran` as its own lemma
+  but takes `primer` to *primero*: reading apocopes as their full words moved it from 95.92 %;
 - 97.95 % of 634 auxiliaries take PUD's lemma (gate 97 %).
 
-**French glosses**, the share of the commonest lemmas glossed on the 2026-10-03 tables:
+**French glosses**, the share of the commonest lemmas glossed on the 2026-10-04 tables:
 
 | Lemmas | French Wiktionary | with the translations |
 |---|---|---|
-| top 5,000 | 82.9 % | 87.7 % |
+| top 5,000 | 83.0 % | 87.7 % |
 | top 10,000 | 69.6 % | 77.3 % |
 | top 20,000 | 54.4 % | 63.8 % |
 | all 60,000 | 29.0 % | 38.0 % |
 
-22,826 lemmas are glossed, 17,420 from the French Wiktionary. There are 15,133 expressions: 2,952
+22,823 lemmas are glossed, 17,421 from the French Wiktionary. There are 15,133 expressions: 2,952
 from the French Wiktionary's Spanish entries and 12,181 from the translations.
 
 **Estimated levels**, the rule measured on English's 8,302 CEFR lemmas, ranked the same way: 39.8 %
 take their list's level, and 82.6 % are within one level of it. The scale is monotone (the mean true
 level rises from 1.67 at A1 to 5.03 at C2), so the three-band fallback of the programme's decision
-D1 is not needed. The pack is 2,186,617 B, with the grammar, the glosses and the levels.
+D1 is not needed. The pack is 2,189,161 B, with the grammar, the glosses and the levels.
 
 ## Allowed vs denied licences
 

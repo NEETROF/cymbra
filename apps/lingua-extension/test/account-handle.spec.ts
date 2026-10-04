@@ -66,6 +66,7 @@ function hostSetup(current: AccountProfile | Error = profile(), signedInAtStart 
     checkHandle: vi.fn(async (handle: string) => handle !== "taken"),
     setHandle: vi.fn(async (handle: string, from: AccountProfile) => ({ ...from, handle, version: from.version + 1 })),
     deleteAccount: vi.fn(async () => {}),
+    identities: vi.fn(async () => []),
   };
   const deps: AccountHostDeps = {
     session: session as unknown as AccountHostDeps["session"],
@@ -152,7 +153,9 @@ describe("handleAccountMessage — handle", () => {
 });
 
 /** A fake UserService client recording its requests. */
-function fakeUser(fail: Partial<Record<"getAccount" | "updateAccount" | "checkHandleAvailability", Code>> = {}) {
+function fakeUser(
+  fail: Partial<Record<"getAccount" | "updateAccount" | "checkHandleAvailability" | "listIdentities", Code>> = {},
+) {
   const calls = {
     getAccount: vi.fn(),
     updateAccount: vi.fn(),
@@ -191,9 +194,33 @@ function fakeUser(fail: Partial<Record<"getAccount" | "updateAccount" | "checkHa
       calls.deleteAccount(req);
       return {};
     },
+    async listIdentities() {
+      maybeFail("listIdentities");
+      return {
+        identities: [
+          { provider: "google", subject: "g-1", linkedAt: BigInt(1_790_000_000) },
+          { provider: "local", subject: "ada@example.com", linkedAt: BigInt(1_791_000_000) },
+        ],
+      };
+    },
   };
   return { client: client as unknown as Client<typeof UserService>, calls };
 }
+
+describe("userServicePort — identities (add-lingua-connected-accounts)", () => {
+  it("lists the linked methods, the date in seconds as a number", async () => {
+    const { client } = fakeUser();
+    expect(await userServicePort(() => client).identities()).toEqual([
+      { provider: "google", subject: "g-1", linkedAt: 1_790_000_000 },
+      { provider: "local", subject: "ada@example.com", linkedAt: 1_791_000_000 },
+    ]);
+  });
+
+  it("categorizes a failure", async () => {
+    const { client } = fakeUser({ listIdentities: Code.Unavailable });
+    await expect(userServicePort(() => client).identities()).rejects.toMatchObject({ kind: "unavailable" });
+  });
+});
 
 describe("userServicePort", () => {
   it("reads the profile: no handle is null, the version a number", async () => {

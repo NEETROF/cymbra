@@ -2,7 +2,7 @@ import type { AuthErrorKind } from "../state/auth-errors.ts";
 import type { Provider, Providers } from "../state/oidc.ts";
 import { errorCopy, type FlowContext } from "./copy.ts";
 import { type HandleStatus, isValidHandle, localHandleStatus } from "./handle.ts";
-import type { AccountMessage, AccountReply } from "./messages.ts";
+import type { AccountMessage, AccountReply, LinkedIdentity } from "./messages.ts";
 
 // The account page's controller (add-lingua-account-parity): sign-in, sign-up →
 // verification code → automatic sign-in, password reset, and the handle step every
@@ -11,7 +11,10 @@ import type { AccountMessage, AccountReply } from "./messages.ts";
 // persisted is the pending email (chrome.storage.session), so a reloaded page resumes on
 // the code step. All calls go to the background; the DOM is rendered by view.ts.
 
-export type AccountView = "signin" | "signup" | "verify" | "forgot" | "reset" | "handle" | "signedin";
+export type AccountView = "signin" | "signup" | "verify" | "forgot" | "reset" | "handle" | "signedin" | "connected";
+
+/** « Définir un mot de passe » on the connected accounts: closed, its form, or its code step. */
+export type PasswordStep = "closed" | "form" | "code";
 
 export interface AccountViewState {
   view: AccountView;
@@ -32,6 +35,15 @@ export interface AccountViewState {
   confirmingErase: boolean;
   /** Where the whole Cymbra account is deleted (the site), in the reader's language. */
   deleteAccountUrl: string;
+  /** Comptes connectés: the linked methods, null until read (or when they could not be). */
+  identities: LinkedIdentity[] | null;
+  /** The providers this browser can link (D3). */
+  linkable: Providers;
+  /** The method whose removal waits for the reader's confirmation. */
+  removing: LinkedIdentity | null;
+  passwordStep: PasswordStep;
+  /** The address « Définir un mot de passe » sent its code to. */
+  passwordEmail: string;
 }
 
 export interface PendingEmailStore {
@@ -42,6 +54,8 @@ export interface PendingEmailStore {
 export interface AccountFlowDeps {
   send: (message: AccountMessage) => Promise<AccountReply | null>;
   pending: PendingEmailStore;
+  /** The address of a set-password waiting for its code (D4) — its own key, never the password. */
+  pendingPassword: PendingEmailStore;
   /** The browser UI language, so verification/reset emails match the reader. */
   locale: string;
   /** Drop the background's persisted provider failure once it was shown live. */
@@ -63,10 +77,23 @@ export function deleteAccountUrl(locale: string): string {
 const ERASED_NOTICE =
   "Tes données Lingua sont effacées. Tes autres appareils les effaceront à leur prochaine synchronisation.";
 
+/** Whether a `#hash` asks for the connected accounts (signed in only). */
+export function wantsConnected(hash: string): boolean {
+  return hash.replace(/^#/, "").split("?")[0] === "connected";
+}
+
 /** The view a `#hash` asks for (`#signup`, `#forgot`, `#verify`, …); sign-in otherwise. */
 export function viewFromHash(hash: string): AccountView {
   const name = hash.replace(/^#/, "").split("?")[0] as AccountView;
   return NAVIGABLE.includes(name) ? name : "signin";
+}
+
+/** How the page names a sign-in method. */
+export function providerName(provider: string): string {
+  if (provider === "google") return "Google";
+  if (provider === "apple") return "Apple";
+  if (provider === "local") return "Email et mot de passe";
+  return provider;
 }
 
 export class AccountFlow {
@@ -87,6 +114,11 @@ export class AccountFlow {
     handleStatus: "empty",
     confirmingErase: false,
     deleteAccountUrl: "",
+    identities: null,
+    linkable: { google: false, apple: false },
+    removing: null,
+    passwordStep: "closed",
+    passwordEmail: "",
   };
 
   constructor(
@@ -97,7 +129,12 @@ export class AccountFlow {
   }
 
   view(): AccountViewState {
-    return { ...this.s, providers: { ...this.s.providers } };
+    return {
+      ...this.s,
+      providers: { ...this.s.providers },
+      linkable: { ...this.s.linkable },
+      identities: this.s.identities?.map((i) => ({ ...i })) ?? null,
+    };
   }
 
   async init(hash: string): Promise<AccountViewState> {
@@ -107,7 +144,10 @@ export class AccountFlow {
       this.deps.pending.get(),
     ]);
     this.s.providers = providers?.providers ?? { google: false, apple: false };
-    if (state?.state?.signedIn) return this.resolveProfile(null);
+    if (state?.state?.signedIn) {
+      const landed = await this.resolveProfile(null);
+      return landed.view === "signedin" && wantsConnected(hash) ? this.openConnected() : landed;
+    }
     if (pending) this.s.email = pending;
     const wanted = viewFromHash(hash);
     // The code step needs an email to verify; without a pending one, start at sign-in.
@@ -236,6 +276,118 @@ export class AccountFlow {
     return this.view();
   }
 
+  /**
+   * Comptes connectés (add-lingua-connected-accounts): the linked methods, read fresh. A
+   * set-password waiting for its code (a reload, the mailbox) reopens on the code step.
+   */
+  async openConnected(): Promise<AccountViewState> {
+    if (this.s.view !== "signedin" && this.s.view !== "connected") return this.view();
+    const waiting = await this.deps.pendingPassword.get();
+    this.set({
+      view: "connected",
+      removing: null,
+      notice: null,
+      error: null,
+      errorKind: null,
+      ...(waiting ? { passwordStep: "code" as const, passwordEmail: waiting } : {}),
+    });
+    return this.loadIdentities();
+  }
+
+  /** Back to the signed-in view; a set-password waiting for its code stays remembered. */
+  leaveConnected(): AccountViewState {
+    if (this.s.view !== "connected") return this.view();
+    return this.set({ view: "signedin", removing: null, notice: null, error: null, errorKind: null });
+  }
+
+  async loadIdentities(): Promise<AccountViewState> {
+    const reply = await this.run("connected", { type: "account:identities" });
+    if (!reply?.ok) return this.set({ identities: null });
+    return this.set({
+      identities: reply.identities ?? [],
+      linkable: reply.linkable ?? { google: false, apple: false },
+    });
+  }
+
+  async link(provider: Provider): Promise<AccountViewState> {
+    const reply = await this.run(provider === "apple" ? "linkApple" : "linkGoogle", {
+      type: "account:linkProvider",
+      provider,
+    });
+    if (!reply?.ok) return this.view(); // a cancel says nothing; a failure is already shown
+    await this.loadIdentities();
+    return this.set({ notice: `${providerName(provider)} est lié à ton compte.` });
+  }
+
+  askRemove(identity: LinkedIdentity): AccountViewState {
+    return this.set({ removing: { ...identity }, notice: null, error: null, errorKind: null });
+  }
+
+  cancelRemove(): AccountViewState {
+    return this.set({ removing: null });
+  }
+
+  async remove(): Promise<AccountViewState> {
+    const target = this.s.removing;
+    if (!target) return this.view();
+    const reply = await this.run("unlink", {
+      type: "account:unlink",
+      provider: target.provider,
+      subject: target.subject,
+    });
+    this.s.removing = null;
+    if (!reply?.ok) return this.set({});
+    await this.loadIdentities();
+    return this.set({ notice: `Méthode retirée : ${providerName(target.provider)}.` });
+  }
+
+  showPasswordForm(): AccountViewState {
+    return this.set({ passwordStep: "form", notice: null, error: null, errorKind: null });
+  }
+
+  /** Close the form or the code step; a code already sent simply expires. */
+  async cancelPassword(): Promise<AccountViewState> {
+    await this.deps.pendingPassword.set(null);
+    return this.set({ passwordStep: "closed", error: null, errorKind: null });
+  }
+
+  /** « Recommencer »: a parked set-password cannot be resent (D4), so it is submitted again. */
+  async restartPassword(): Promise<AccountViewState> {
+    await this.deps.pendingPassword.set(null);
+    return this.set({ passwordStep: "form", notice: null, error: null, errorKind: null });
+  }
+
+  /** Submit the address and the password: the server emails a code and binds nothing yet. */
+  async setPassword(email: string, password: string): Promise<AccountViewState> {
+    email = email.trim();
+    if (!email || !password) return this.view();
+    this.s.passwordEmail = email;
+    const reply = await this.run("setPassword", {
+      type: "account:setPassword",
+      email,
+      password,
+      locale: this.deps.locale,
+    });
+    if (!reply?.ok) return this.view();
+    await this.deps.pendingPassword.set(email);
+    return this.set({ passwordStep: "code", notice: `Un code de vérification a été envoyé à ${email}.` });
+  }
+
+  /** The emailed code binds the password; the reader stays signed in. */
+  async confirmPassword(code: string): Promise<AccountViewState> {
+    code = code.trim();
+    if (!code) return this.view();
+    const reply = await this.run("verifyPassword", { type: "account:verifyEmail", code });
+    if (!reply?.ok) return this.view();
+    await this.deps.pendingPassword.set(null);
+    const email = this.s.passwordEmail;
+    this.set({ passwordStep: "closed" });
+    await this.loadIdentities();
+    return this.set({
+      notice: `Mot de passe défini : tu peux aussi te connecter avec ${email}, sur tous tes navigateurs.`,
+    });
+  }
+
   /** « Effacer mes données Lingua » asks for an explicit confirmation first. */
   askErase(): AccountViewState {
     return this.set({ confirmingErase: true, error: null, errorKind: null, notice: null });
@@ -305,6 +457,7 @@ export class AccountFlow {
 
   async signOut(): Promise<AccountViewState> {
     await this.run("signInEmail", { type: "account:signOut" });
+    await this.deps.pendingPassword.set(null);
     return this.set({
       view: "signin",
       handle: null,
@@ -312,6 +465,10 @@ export class AccountFlow {
       errorKind: null,
       notice: null,
       confirmingErase: false,
+      identities: null,
+      removing: null,
+      passwordStep: "closed",
+      passwordEmail: "",
     });
   }
 

@@ -77,6 +77,28 @@ Créez un compte Cymbra si — et seulement si — vous voulez retrouver vos mot
 L'interface est en français : Cymbra Lingua enseigne l'anglais à des francophones.
 ```
 
+## What's New — 1.4.0 (830 / 4000)
+
+The extension inside the app goes from 1.3.0 to 1.6.0. Only what a Safari reader can see: the
+Spanish work of 1.5.0–1.6.0 is not listed, as the app still ships the English → French pair
+alone (`apps/lingua-extension/packs.json`), and Safari offers no « Lier Google / Apple ».
+
+```
+Réglages réorganisés en quatre onglets : Langue, Apparence, Pages & livres, Données.
+
+Compte : connexion et déconnexion directement dans Réglages › Données. Nouveau « Comptes connectés » : ajoutez un mot de passe à un compte créé avec Apple ou Google, pour vous connecter aussi par e-mail, ou retirez une méthode de connexion.
+
+Couleurs : choisissez celles du surlignage et de la page, avec des préréglages pour liseuse à encre électronique. La taille du texte agrandit aussi toute l'interface.
+
+Livres : les pages peuvent glisser en tournant, et le lecteur passe en plein écran sur Mac.
+
+Carte de mot : la forme du mot (temps, pluriel…) et une traduction rangée par nature.
+
+Statistiques : les mots enseignés et estimés à chaque niveau, de A1 à C2.
+
+Corrections, dont le menu de l'extension sur iPad, désormais large et défilant.
+```
+
 ## What's New — 1.1.0 (373 / 4000)
 
 ```
@@ -99,7 +121,7 @@ Paste only what is inside the block: text around it has been pasted into App Sto
 before.
 
 ```
-No account is needed to review this app: every feature works signed out. The Cymbra account is what saves the learner's progress in learning the language - known words, deck, level and statistics - so that it survives deleting and reinstalling the app, or replacing or resetting the device, and is the same on all their devices (iPhone, iPad, Mac). Without an account, that progress lives only on this device and is lost if the app is deleted. To test it, create an account from the extension (panel > Compte) with Sign in with Apple or Google - no invitation is needed.
+No account is needed to review this app: every feature works signed out. The Cymbra account is what saves the learner's progress in learning the language - known words, deck, level and statistics - so that it survives deleting and reinstalling the app, or replacing or resetting the device, and is the same on all their devices (iPhone, iPad, Mac). Without an account, that progress lives only on this device and is lost if the app is deleted. To test it, create an account from the extension (panel > Réglages > Données > Compte) with Sign in with Apple or Google - no invitation is needed.
 
 IMPORTANT - this app is a Safari extension host. Installing it shows only a short explanatory screen: the extension must be enabled in Safari before anything happens.
 
@@ -107,9 +129,9 @@ IMPORTANT - this app is a Safari extension host. Installing it shows only a shor
 2. In SAFARI (not in the app), open the extension from the address-bar menu and pick an English level - B1 is a good default. With no level chosen the engine assumes zero known words, so every word is highlighted and the pill reads 0%, which looks broken rather than unconfigured.
 3. Open any English-language page. A tab opened BEFORE the extension was enabled, or before the level was picked, must be reloaded.
 4. Words above your level are highlighted and the pill shows the share of the page you already know. Tap a highlighted word: a card gives its translation, dictionary form and frequency, with "Je connais" (I know this), "+ Deck" (add to deck), "Ignorer" (ignore).
-5. Tap the pill to open the panel: Revision, Stats (estimated vocabulary, A1 to C2), Settings, Compte (account).
+5. Tap the pill to open the panel: Révision (review), Stats (estimated vocabulary, A1 to C2), Réglages (settings, in four tabs; the account is under Données).
 
-Account deletion: panel > Compte, signed in. "Effacer mes données Lingua" erases the reader's Lingua data on the server and every device, keeping the account. "Supprimer mon compte Cymbra" opens https://cymbra.app/suppression-compte/, where the account (shared by Cymbra's apps) is deleted after signing in.
+Account deletion: panel > Réglages > Données, signed in > "Gérer mes données" opens the account page. "Effacer mes données Lingua" erases the reader's Lingua data on the server and every device, keeping the account. "Supprimer mon compte Cymbra" opens https://cymbra.app/suppression-compte/, where the account (shared by Cymbra's apps) is deleted after signing in.
 
 OPTIONAL - "Traduction étendue", off by default (Settings). The translation engine (Mozilla's Firefox Translations, WebAssembly) ships inside the app; nothing executable is downloaded. Turning it on downloads one data file - the translation model, 25.8 MB, from https://models.cymbra.app, checked against a pinned sha256 - and the selected sentence is then translated on the device. No page text, account or device identifier is sent. Turning it off deletes the model.
 

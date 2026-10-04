@@ -50,6 +50,8 @@ _TOKEN = re.compile(r"[a-záéíóúüñ]+(?:-[a-záéíóúüñ]+)*")
 # form's own entry says the same through its sense's tags, which name the pronoun
 # (`object-third-person`, `object-plural`).
 _BOOKKEEPING = frozenset({"table-tags", "inflection-template", "class", "romanization"})
+# A row naming the standard word an entry is a variant of (`buen` lists `bueno`): no inflection of it.
+_STANDARD = "standard"
 _COMBINED = "combined-form"
 _CLITIC_TAG = "object-"
 
@@ -109,7 +111,8 @@ def read_entry(entry, candidates, lemmas, combined):
     if not _TOKEN.fullmatch(word):
         return
     senses = entry.get("senses") or []
-    only_forms = bool(senses) and all(_is_form_of(sense) for sense in senses)
+    pos = entry.get("pos")
+    only_forms = bool(senses) and all(_is_form_of(sense, pos) for sense in senses)
     if not only_forms:
         lemmas.add(word)
         candidates[word].add(word)
@@ -119,12 +122,12 @@ def read_entry(entry, candidates, lemmas, combined):
         if _COMBINED in tags:
             combined.add(form)
             continue
-        if tags & _BOOKKEEPING or not _TOKEN.fullmatch(form):
+        if tags & _BOOKKEEPING or _STANDARD in tags or not _TOKEN.fullmatch(form):
             continue
         candidates[form].add(word)
     for sense in senses:
         clitics = _names_clitics(sense)
-        for ref in sense.get("form_of") or ():
+        for ref in _form_targets(sense, pos):
             target = nfc_lower(ref.get("word") if isinstance(ref, dict) else "")
             if not _TOKEN.fullmatch(target):
                 continue
@@ -134,12 +137,48 @@ def read_entry(entry, candidates, lemmas, combined):
                 candidates[word].add(target)
 
 
-def _is_form_of(sense):
-    return "form-of" in (sense.get("tags") or ()) or bool(sense.get("form_of"))
+def _is_form_of(sense, pos=None):
+    return "form-of" in (sense.get("tags") or ()) or bool(_form_targets(sense, pos))
+
+
+# The parts of speech whose apocope is the same word before a noun (`buen`, *bueno*; `algún`,
+# *alguno*). An adverb or a numeral kaikki calls apocopic is a word of its own for a reader: `muy`
+# is « très », not *mucho*, and `un` the article, not *uno*.
+_APOCOPE_POS = frozenset({"adj", "det"})
+
+
+def _form_targets(sense, pos=None):
+    """The words a sense makes its entry a form of: its `form_of`, and the word an adjective's or a
+    determiner's apocope shortens (fix-lingua-spanish-apocopes), which kaikki gives as `alt_of`.
+    Only the first `alt_of` names it, and only its first word: kaikki sometimes splits the gloss into
+    more (`malo bad`, then `whatever`)."""
+    refs = list(sense.get("form_of") or ())
+    if pos in _APOCOPE_POS and "apocopic" in (sense.get("tags") or ()):
+        first = next(iter(sense.get("alt_of") or ()), None)
+        words = (first.get("word") if isinstance(first, dict) else "") or ""
+        if words.split():
+            refs.append({"word": words.split()[0]})
+    return refs
 
 
 def _names_clitics(sense):
     return any(tag.startswith(_CLITIC_TAG) for tag in sense.get("tags") or ())
+
+
+_LETTER_NAME = re.compile(r"(?:the )?name of the (?:[\w-]+ )?(?:script )?(?:letter|digraph)\b", re.IGNORECASE)
+
+
+def _names_a_letter(sense):
+    """Whether `sense` is a letter's name: `e`, the letter E, whose plural `es` a card would name
+    beside *ser*'s `es`. kaikki says so by its category (« Latin letter names », « Greek letter
+    names »), by its tags, or in its gloss."""
+    if {"letter", "name"} <= set(sense.get("tags") or ()):
+        return True
+    for category in sense.get("categories") or ():
+        name = category.get("name") if isinstance(category, dict) else category
+        if str(name).lower().endswith("letter names"):
+            return True
+    return any(_LETTER_NAME.match(gloss) for gloss in sense.get("glosses") or ())
 
 
 def read_gsd_counts(paths):
@@ -238,9 +277,11 @@ _NOUN_GENDER = {
     "mf-p": (("Masc", "Fem"), True),
 }
 # Rows of an entry's table that are no reading: the bookkeeping, the combined forms, the headword
-# repeated, and what kaikki could not parse or marks as a misspelling.
+# repeated, the standard word a variant names, and what kaikki could not parse or marks as a
+# misspelling.
 _NOT_A_READING = _BOOKKEEPING | {
     _COMBINED,
+    _STANDARD,
     "canonical",
     "error-unrecognized-form",
     "misspelling",
@@ -358,9 +399,19 @@ class Readings:
     def __init__(self):
         self.table = collections.defaultdict(set)
         self.senses = collections.defaultdict(set)
+        # The nouns that name a letter, and those with a lowercase entry that does not.
+        self.letters = set()
+        self.nouns = set()
 
     def pairs(self):
-        out = {pair: set(tags) for pair, tags in self.senses.items()}
+        # A form entry's plural of a letter's name (`es`, plural of e) is no reading either, unless
+        # the noun is also another word (`bes`, sheep's bleats).
+        letters = self.letters - self.nouns
+        out = {}
+        for (form, lemma), tags in self.senses.items():
+            kept = {tag for tag in tags if lemma not in letters or not tag.startswith("NOUN")}
+            if kept:
+                out[(form, lemma)] = kept
         out.update((pair, set(tags)) for pair, tags in self.table.items())
         return out
 
@@ -378,21 +429,34 @@ def read_readings(entry, readings):
     if upos is None or not _TOKEN.fullmatch(word):
         return
     senses = entry.get("senses") or []
-    if senses and all(_is_form_of(sense) for sense in senses):
+    pos = entry.get("pos")
+    if senses and all(_is_form_of(sense, pos) for sense in senses):
         for sense in senses:
             if _names_clitics(sense):
                 continue
             tags = set(sense.get("tags") or ())
-            for ref in sense.get("form_of") or ():
+            for ref in _form_targets(sense, pos):
                 target = nfc_lower(ref.get("word") if isinstance(ref, dict) else "")
                 if _TOKEN.fullmatch(target):
                     readings.senses[(word, target)].update(_tags(upos, tags))
         return
     genders, plural = noun_genders(entry) if upos == "NOUN" else ((), False)
     if upos == "NOUN":
+        letter = bool(senses) and all(_names_a_letter(sense) for sense in senses)
+        raw = entry.get("word") or ""
+        if letter:
+            readings.letters.add(word)
+        elif raw == raw.lower():
+            # A capitalised headword is another word (`E`, east), not the letter's.
+            readings.nouns.add(word)
         own = {"Number": "Plur" if plural else "Sing"}
         for features in [{**own, "Gender": gender} for gender in genders] or [own]:
             readings.table[(word, word)].add(ud_tag(upos, features))
+        # A letter's name keeps its own form, which the card leaves unnamed (D4) and whose gender
+        # its sense run takes, but none of its inflections (add-lingua-spanish-word-card D7): `es`
+        # is ser's, not the plural of the letter E.
+        if letter:
+            return
     elif upos == "ADJ":
         own = {"Number": "Sing", **({"Gender": "Masc"} if adjective_agrees(entry) else {})}
         readings.table[(word, word)].add(ud_tag(upos, own))
@@ -414,6 +478,26 @@ def _tags(upos, tags, genders=()):
         if "Degree" in features and upos != "ADJ":
             continue
         out.append(ud_tag(upos, features))
+    return out
+
+
+def noun_class_runs(runs, readings):
+    """`runs` with a noun's class — its grammatical gender, `Gender=Fem` — in its noun runs
+    (add-lingua-spanish-word-card D6), so the card's heading reads « nom féminin ». The class is the
+    one the noun's own readings carry, when it has only one: `estudiante`, of both by the person,
+    keeps `NOUN`. The runs' parts of speech stay the French Wiktionary's."""
+    classes = {}
+    for (form, lemma), tags in readings.table.items():
+        if form != lemma:
+            continue
+        for tag in tags:
+            found = re.search(r"\|Gender=(\w+)", tag) if tag.startswith("NOUN|") else None
+            if found:
+                classes.setdefault(lemma, set()).add(found.group(1))
+    out = {}
+    for lemma, lemma_runs in runs.items():
+        only = next(iter(classes[lemma])) if len(classes.get(lemma, ())) == 1 else None
+        out[lemma] = [(f"NOUN|Gender={only}" if pos == "NOUN" and only else pos, n) for pos, n in lemma_runs]
     return out
 
 
@@ -654,6 +738,7 @@ def main():
         glosses[lemma], runs[lemma] = gloss, gloss_runs
     expressions.update(fallback_expressions(expressions, sources))
     expressions.update(LOCUTIONS)
+    runs = noun_class_runs(runs, readings)
     common.write(a.work, "gloss.tsv", "".join(f"{l}\t{g}\n" for l, g in sorted(glosses.items())))
     common.write(
         a.work,

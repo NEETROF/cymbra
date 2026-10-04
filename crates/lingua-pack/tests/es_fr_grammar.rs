@@ -22,7 +22,8 @@ use std::path::PathBuf;
 use std::sync::OnceLock;
 
 use lingua_core::analysis::language::StudiedLanguage;
-use lingua_core::engine::{gloss_phrase, word_grammar};
+use lingua_core::analysis::percent::TokenClass;
+use lingua_core::engine::{analyse_page, gloss_phrase, word_grammar};
 use lingua_core::knowledge::state::KnowledgeState;
 use lingua_core::packs::Pack;
 use lingua_pack::{build_pack, inputs_from_dir};
@@ -109,6 +110,20 @@ fn a_spanish_card_says_what_the_form_is_and_what_else_it_may_be() {
             vec![("venir".to_owned(), vec![PRETERITE_3SG.to_owned()])]
         )
     );
+
+    // A letter's name gives no reading of its plural (add-lingua-spanish-word-card D7): `Es` is
+    // ser's alone, not also the plural of the letter E, nor `des` the plural of the letter D.
+    assert_eq!(
+        card(&pack, "Es", "ser"),
+        (
+            vec!["VERB|Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin".to_owned()],
+            vec![]
+        )
+    );
+    assert_eq!(
+        card(&pack, "des", "dar").0,
+        ["VERB|Mood=Sub|Number=Sing|Person=2|Tense=Pres|VerbForm=Fin"]
+    );
 }
 
 #[test]
@@ -117,27 +132,17 @@ fn a_spanish_card_reads_its_french_gloss() {
     let gloss = |word: &str| word_grammar(word, word, StudiedLanguage::Spanish, &pack);
 
     // The French Wiktionary's Spanish entry.
+    let heading = |word: &str| gloss(word).senses[0].tag.as_ref().map(|tag| tag.to_ud());
     let casa = gloss("casa");
     assert_eq!(casa.gloss.as_deref(), Some("Maison"));
-    assert_eq!(
-        casa.senses[0]
-            .tag
-            .as_ref()
-            .map(|tag| tag.to_ud())
-            .as_deref(),
-        Some("NOUN")
-    );
+    // The run carries the noun's gender (add-lingua-spanish-word-card), for « nom féminin ».
+    assert_eq!(heading("casa").as_deref(), Some("NOUN|Gender=Fem"));
     // No Spanish entry there: the Spanish Wiktionary's French translation.
     let sector = gloss("sector");
     assert_eq!(sector.gloss.as_deref(), Some("Secteur"));
-    assert_eq!(
-        sector.senses[0]
-            .tag
-            .as_ref()
-            .map(|tag| tag.to_ud())
-            .as_deref(),
-        Some("NOUN")
-    );
+    assert_eq!(heading("sector").as_deref(), Some("NOUN|Gender=Masc"));
+    // A noun of both genders keeps a run without one.
+    assert_eq!(heading("estudiante").as_deref(), Some("NOUN"));
 
     // An expression a translation glosses.
     let phrase = gloss_phrase(
@@ -154,6 +159,107 @@ fn a_spanish_card_reads_its_french_gloss() {
             .collect::<Vec<_>>(),
         ["Prendre en compte, tenir compte de"]
     );
+}
+
+/// Each token of the page analysis with its class, in document order.
+fn classes(pack: &Pack, blocks: &[&str]) -> Vec<(String, TokenClass)> {
+    analyse_page(
+        blocks,
+        StudiedLanguage::Spanish,
+        pack,
+        &KnowledgeState::default(),
+    )
+    .tokens
+    .into_iter()
+    .map(|token| (token.surface, token.class))
+    .collect()
+}
+
+fn class_of(classes: &[(String, TokenClass)], surface: &str) -> Vec<TokenClass> {
+    classes
+        .iter()
+        .filter(|(seen, _)| seen == surface)
+        .map(|(_, class)| *class)
+        .collect()
+}
+
+#[test]
+fn a_spanish_document_sets_its_names_aside() {
+    let pack = es_fr_pack();
+    // add-lingua-spanish-names: Augusto, Eugenia and la Nela are words of the lexicon with no gloss,
+    // written as names throughout. A capital in mid-sentence is the evidence; a block-initial
+    // `Augusto` follows it.
+    let page = classes(
+        &pack,
+        &[
+            "Augusto miró a Eugenia y pensó en la Nela.",
+            "Entonces Augusto salió de la casa.",
+        ],
+    );
+    assert_eq!(
+        class_of(&page, "Augusto"),
+        [TokenClass::ProperNounOutOfLexicon; 2]
+    );
+    assert_eq!(
+        class_of(&page, "Eugenia"),
+        [TokenClass::ProperNounOutOfLexicon]
+    );
+    assert_eq!(
+        class_of(&page, "Nela"),
+        [TokenClass::ProperNounOutOfLexicon]
+    );
+    assert_eq!(class_of(&page, "casa"), [TokenClass::Unknown]);
+
+    // A page long enough to be analysed as Spanish, around the sentence under test.
+    const AROUND: &str = "Todos los nobles de la corte miraban la escena con mucha atención.";
+    // The same form in lowercase in the document: a word, not a name.
+    let page = classes(
+        &pack,
+        &[
+            "El augusto monarca recibió a Augusto en el palacio.",
+            AROUND,
+        ],
+    );
+    assert_eq!(class_of(&page, "Augusto"), [TokenClass::Unknown]);
+    // A capital at the head of every sentence says nothing.
+    let page = classes(&pack, &["Augusto calla. Augusto mira el jardín.", AROUND]);
+    assert_eq!(class_of(&page, "Augusto"), [TokenClass::Unknown; 2]);
+    // A name the pack glosses stays a word to learn.
+    assert!(pack.gloss("dios").is_some());
+    let page = classes(&pack, &["Gracias a Dios, dijo, y rezó a Dios.", AROUND]);
+    assert_eq!(class_of(&page, "Dios"), [TokenClass::Unknown; 2]);
+}
+
+#[test]
+fn a_spanish_apocope_reads_as_its_full_word() {
+    let pack = es_fr_pack();
+    let token = |text: &str| {
+        let phrase = gloss_phrase(
+            text,
+            StudiedLanguage::Spanish,
+            &pack,
+            &KnowledgeState::default(),
+        );
+        let first = &phrase.tokens[0];
+        (first.lemma.clone(), first.gloss.clone().unwrap_or_default())
+    };
+
+    // fix-lingua-spanish-apocopes: `buen` is *bueno* before a noun, and `bueno` no form of `buen`,
+    // so the commonest adjective has its gloss.
+    for written in ["buen", "bueno", "buenos"] {
+        let (lemma, gloss) = token(written);
+        assert_eq!(lemma, "bueno", "{written}");
+        assert!(gloss.starts_with("Bon"), "{written}: {gloss}");
+    }
+    let (lemma, gloss) = token("malo");
+    assert_eq!(lemma, "malo");
+    assert!(gloss.starts_with("Mauvais"), "{gloss}");
+    assert_eq!(token("gran").0, "grande");
+    assert_eq!(token("algún").0, "alguno");
+    // An adverb kaikki calls apocopic stays a word of its own.
+    let (lemma, gloss) = token("muy");
+    assert_eq!(lemma, "muy");
+    assert!(gloss.starts_with("Très"), "{gloss}");
 }
 
 #[test]

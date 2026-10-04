@@ -31,6 +31,7 @@ import {
 } from "../sync/messages.ts";
 import { lastSyncLabel, syncErrorCopy } from "../sync/status.ts";
 import { clearSyncCursors } from "../sync/sync.ts";
+import { type AccountControls, mountAccountSetting, runtimeAccountControls } from "./account-setting.ts";
 import { mountBookDisplay } from "./book-display-view.ts";
 import { mountColourSettings } from "./colour-settings-view.ts";
 import { mountStudiedLanguages } from "./studied-languages-view.ts";
@@ -67,6 +68,10 @@ export interface SettingsOptions {
    * engine. Null: no such setting (Safari).
    */
   translation?: TranslationControls | null;
+  /** The Compte controls' seam; the background messages by default. */
+  account?: AccountControls;
+  /** Safari: a sign-in went on in the host app (the popup closes; its next open collects it). */
+  onHandedOff?: () => void;
   /** The pairs the package ships: the bundle's, unless a spec offers others. */
   pairs?: readonly string[];
 }
@@ -112,10 +117,18 @@ function runtimeSyncControls(area: AsyncStorageArea): SyncControls {
   };
 }
 
+/** Réglages' sub-tabs, one per specialisation: the view had grown too long to scroll through. */
+export type SettingsTab = "language" | "look" | "pages" | "data";
+
 export interface SettingsView {
   /** Re-sync the controls with the engine (call each time the view is shown). */
   refresh: () => Promise<void>;
+  /** Bring a sub-tab forward (an entry point that leads to one setting, the level). */
+  show: (tab: SettingsTab) => void;
 }
+
+/** Tells apart the tab ids of two views mounted in one document. */
+let mountCount = 0;
 
 function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -339,9 +352,10 @@ export function mountSettings(
   );
 
   // — Affichage — the text size and the theme: the book's text, and every surface of the extension
-  // (add-lingua-colour-settings D9). The same controls as the reader's own "Aa" panel.
+  // (add-lingua-colour-settings D9). The same controls as the reader's own "Aa" panel, whose page
+  // turn joins Livres, after the continuous flow: both say how a book's pages go by.
   const displayBlock = settingBlock("Affichage");
-  const bookDisplay = mountBookDisplay(displayBlock, area);
+  const bookDisplay = mountBookDisplay(displayBlock, area, { turnContainer: booksBlock });
   displayBlock.append(
     el(
       "div",
@@ -383,6 +397,14 @@ export function mountSettings(
   });
   scBlock.append(scList);
   if (hasShortcutEditor()) scBlock.append(scConfig);
+
+  // — Compte — sign in or out, wherever Réglages are shown (the popup's main view links here).
+  const accountBlock = settingBlock("Compte");
+  const account = mountAccountSetting(accountBlock, opts.account ?? runtimeAccountControls(), {
+    openPage: (url) => openPage(url),
+    onChange: () => refresh(),
+    onHandedOff: opts.onHandedOff,
+  });
 
   // — Synchronisation (signed in only): when this device last synced, and a manual run —
   const sync = opts.sync ?? runtimeSyncControls(area);
@@ -466,19 +488,15 @@ export function mountSettings(
     void doReset("full");
   });
 
-  container.append(
-    languagesBlock,
-    levelBlocks,
-    barBlock,
-    displayBlock,
-    coloursBlock,
-    voiceBlock,
-    translationBlock,
-    booksBlock,
-    scBlock,
-    syncBlock,
-    resetBlock,
-  );
+  // — The sub-tabs: the studied language, how things look, Lingua on the pages and books read,
+  // the reader's data. The blocks keep their titles; a hidden block (no voice, signed out) leaves
+  // its tab with the others, never empty: each tab has one block that always shows.
+  const tabs = mountTabs(container, [
+    { id: "language", label: "Langue", blocks: [languagesBlock, levelBlocks, translationBlock, voiceBlock] },
+    { id: "look", label: "Apparence", blocks: [displayBlock, coloursBlock] },
+    { id: "pages", label: "Pages & livres", blocks: [barBlock, booksBlock, scBlock] },
+    { id: "data", label: "Données", blocks: [accountBlock, syncBlock, resetBlock] },
+  ]);
 
   // — Live wiring —
   toggle.addEventListener("change", async () => {
@@ -506,7 +524,8 @@ export function mountSettings(
   });
   syncBtn.addEventListener("click", () => void runSync());
   restartBtn.addEventListener("click", () => void restartFromServer());
-  sync.watch(() => void refreshSync());
+  // A sync completes after every sign-in, here or in another surface: the account follows too.
+  sync.watch(() => void Promise.all([refreshSync(), account.refresh()]));
 
   /**
    * The automatic choice first, naming the voice it lands on; then the ordinary voices; then
@@ -615,9 +634,80 @@ export function mountSettings(
     renderVoices();
     flowToggle.checked = (await loadReaderFlow(area)) === "scrolled";
     await Promise.all([bookDisplay.refresh(), colours.refresh()]);
-    await Promise.all([refreshSync(), translation?.refresh()]);
+    await Promise.all([refreshSync(), account.refresh(), translation?.refresh()]);
   }
 
   void refresh();
-  return { refresh };
+  return { refresh, show: tabs.show };
+}
+
+interface TabSpec {
+  id: SettingsTab;
+  label: string;
+  blocks: HTMLElement[];
+}
+
+/**
+ * A tab row over one panel per tab (the WAI-ARIA tabs pattern: arrows, Home and End move between
+ * tabs, and moving selects). The first tab shows until the reader picks another; the view keeps
+ * that choice for as long as it is mounted.
+ */
+function mountTabs(container: HTMLElement, specs: TabSpec[]): { show: (tab: SettingsTab) => void } {
+  const prefix = `cymbra-lingua-set-${++mountCount}`;
+  const row = el("div", "set-tabs");
+  row.setAttribute("role", "tablist");
+  row.setAttribute("aria-label", "Réglages");
+  const buttons: HTMLButtonElement[] = [];
+  const panels: HTMLElement[] = [];
+  for (const spec of specs) {
+    const tab = el("button", "set-tab", spec.label);
+    tab.type = "button";
+    tab.id = `${prefix}-tab-${spec.id}`;
+    tab.dataset.tab = spec.id;
+    tab.setAttribute("role", "tab");
+    tab.setAttribute("aria-controls", `${prefix}-${spec.id}`);
+    tab.addEventListener("click", () => select(buttons.indexOf(tab)));
+    const panel = el("div", "set-panel");
+    panel.id = `${prefix}-${spec.id}`;
+    panel.dataset.tab = spec.id;
+    panel.setAttribute("role", "tabpanel");
+    panel.setAttribute("aria-labelledby", tab.id);
+    panel.append(...spec.blocks);
+    buttons.push(tab);
+    panels.push(panel);
+  }
+  row.append(...buttons);
+  row.addEventListener("keydown", (e) => {
+    const at = buttons.indexOf(e.target as HTMLButtonElement);
+    if (at < 0) return;
+    const last = buttons.length - 1;
+    const to =
+      e.key === "ArrowRight"
+        ? (at + 1) % buttons.length
+        : e.key === "ArrowLeft"
+          ? (at + last) % buttons.length
+          : e.key === "Home"
+            ? 0
+            : e.key === "End"
+              ? last
+              : -1;
+    if (to < 0) return;
+    e.preventDefault();
+    select(to);
+    buttons[to].focus();
+  });
+  container.append(row, ...panels);
+
+  function select(index: number): void {
+    buttons.forEach((b, i) => {
+      const on = i === index;
+      b.classList.toggle("active", on);
+      b.setAttribute("aria-selected", String(on));
+      b.tabIndex = on ? 0 : -1;
+      panels[i].hidden = !on;
+    });
+  }
+
+  select(0);
+  return { show: (tab) => select(specs.findIndex((s) => s.id === tab)) };
 }

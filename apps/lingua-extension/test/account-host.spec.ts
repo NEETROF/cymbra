@@ -25,6 +25,9 @@ function setup(overrides: Partial<AccountHostDeps["session"]> = {}) {
     resendVerification: vi.fn(async () => {}),
     requestPasswordReset: vi.fn(async () => {}),
     resetPassword: vi.fn(async () => {}),
+    linkProvider: vi.fn(async () => "linked" as const),
+    unlink: vi.fn(async () => {}),
+    setPassword: vi.fn(async () => {}),
     ...overrides,
   };
   const deps = {
@@ -34,6 +37,7 @@ function setup(overrides: Partial<AccountHostDeps["session"]> = {}) {
       checkHandle: vi.fn(async () => true),
       setHandle: vi.fn(async () => ({ handle: "alice", version: 2, displayName: null, preferences: "{}" })),
       deleteAccount: vi.fn(async () => {}),
+      identities: vi.fn(async () => [{ provider: "google", subject: "g-1", linkedAt: 1_790_000_000 }]),
     },
     providers: vi.fn(() => ({ google: true, apple: false })),
     eraseLinguaData: vi.fn(async () => {}),
@@ -209,5 +213,89 @@ describe("isAccountMessage", () => {
     expect(isAccountMessage({ type: "account:state" })).toBe(true);
     expect(isAccountMessage({ type: "stats:get" })).toBe(false);
     expect(isAccountMessage(null)).toBe(false);
+  });
+});
+
+describe("handleAccountMessage — connected accounts (add-lingua-connected-accounts)", () => {
+  const signIn = async (deps: AccountHostDeps): Promise<void> => {
+    await handleAccountMessage({ type: "account:signInLocal", email: "a@b.c", password: "pw" }, deps);
+  };
+
+  it("refuses every linking message while signed out, without a call", async () => {
+    const { session, deps } = setup();
+    for (const message of [
+      { type: "account:identities" },
+      { type: "account:linkProvider", provider: "google" },
+      { type: "account:unlink", provider: "google", subject: "g-1" },
+      { type: "account:setPassword", email: "a@b.c", password: "pw", locale: "fr" },
+    ] as const) {
+      expect(await handleAccountMessage(message, deps)).toEqual({ ok: false, error: "unauthenticated" });
+    }
+    expect(deps.account.identities).not.toHaveBeenCalled();
+    expect(session.linkProvider).not.toHaveBeenCalled();
+    expect(session.unlink).not.toHaveBeenCalled();
+    expect(session.setPassword).not.toHaveBeenCalled();
+  });
+
+  it("lists the methods and the providers this browser can link", async () => {
+    const { deps } = setup();
+    await signIn(deps);
+    expect(await handleAccountMessage({ type: "account:identities" }, deps)).toEqual({
+      ok: true,
+      state: { signedIn: true },
+      identities: [{ provider: "google", subject: "g-1", linkedAt: 1_790_000_000 }],
+      linkable: { google: true, apple: false },
+    });
+  });
+
+  it("links nothing where the providers come back through the host app (Safari)", async () => {
+    const { session, deps } = setup();
+    const safari: AccountHostDeps = {
+      ...deps,
+      providers: vi.fn(() => ({ google: true, apple: true })),
+      handOff: { open: vi.fn(async () => {}), take: vi.fn(async () => null) },
+    };
+    await signIn(safari);
+    const reply = await handleAccountMessage({ type: "account:identities" }, safari);
+    expect(reply.linkable).toEqual({ google: false, apple: false });
+    expect(await handleAccountMessage({ type: "account:linkProvider", provider: "apple" }, safari)).toEqual({
+      ok: false,
+      error: "failedPrecondition",
+    });
+    expect(session.linkProvider).not.toHaveBeenCalled();
+  });
+
+  it("links a provider, and says a closed window is a cancel", async () => {
+    const { session, deps } = setup();
+    await signIn(deps);
+    expect(await handleAccountMessage({ type: "account:linkProvider", provider: "google" }, deps)).toEqual({
+      ok: true,
+      state: { signedIn: true },
+    });
+    expect(session.linkProvider).toHaveBeenCalledWith("google");
+    vi.mocked(session.linkProvider).mockResolvedValueOnce("cancelled");
+    expect(await handleAccountMessage({ type: "account:linkProvider", provider: "apple" }, deps)).toEqual({
+      ok: false,
+      cancelled: true,
+    });
+  });
+
+  it("removes a method and sets a password, failures as categories", async () => {
+    const { session, deps } = setup();
+    await signIn(deps);
+    expect((await handleAccountMessage({ type: "account:unlink", provider: "google", subject: "g-1" }, deps)).ok).toBe(
+      true,
+    );
+    expect(session.unlink).toHaveBeenCalledWith("google", "g-1");
+    expect(
+      (await handleAccountMessage({ type: "account:setPassword", email: "a@b.c", password: "pw", locale: "fr" }, deps))
+        .ok,
+    ).toBe(true);
+    expect(session.setPassword).toHaveBeenCalledWith("a@b.c", "pw", "fr");
+    vi.mocked(session.unlink).mockRejectedValueOnce(new AccountError("failedPrecondition"));
+    expect(await handleAccountMessage({ type: "account:unlink", provider: "local", subject: "a@b.c" }, deps)).toEqual({
+      ok: false,
+      error: "failedPrecondition",
+    });
   });
 });

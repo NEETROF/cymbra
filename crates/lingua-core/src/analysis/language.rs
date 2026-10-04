@@ -319,7 +319,7 @@ mod tests {
 
     #[test]
     fn english_keeps_its_analyser_version_and_spanish_has_its_own() {
-        // Each language reads its own constant; the numbers may meet (both are `1.1.0` since
+        // Each language reads its own constant; the numbers may meet (both were `1.1.0` after
         // add-lingua-spanish-detection-guard) without a pack of one passing for the other's.
         assert_eq!(StudiedLanguage::English.analyzer_version(), "1.1.0");
         assert_eq!(

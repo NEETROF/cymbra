@@ -1,15 +1,24 @@
 import { describe, expect, it, vi } from "vitest";
-import { AccountFlow, type AccountViewState, deleteAccountUrl, viewFromHash } from "@/account/flow.ts";
+import {
+  AccountFlow,
+  type AccountViewState,
+  deleteAccountUrl,
+  providerName,
+  viewFromHash,
+  wantsConnected,
+} from "@/account/flow.ts";
 import type { AccountMessage, AccountReply } from "@/account/messages.ts";
 
 type Replies = Partial<Record<AccountMessage["type"], AccountReply | null>>;
 
 const PASSWORD = "correct horse battery";
 
-function setup(replies: Replies = {}, pendingSeed: string | null = null) {
+function setup(replies: Replies = {}, pendingSeed: string | null = null, pendingPasswordSeed: string | null = null) {
   const sent: AccountMessage[] = [];
   let pending = pendingSeed;
   const pendingWrites: (string | null)[] = [];
+  let pendingPassword = pendingPasswordSeed;
+  const pendingPasswordWrites: (string | null)[] = [];
   const defaults: Replies = {
     "account:state": { ok: true, state: { signedIn: false } },
     "account:providers": { ok: true, providers: { google: true, apple: true } },
@@ -28,12 +37,19 @@ function setup(replies: Replies = {}, pendingSeed: string | null = null) {
         pending = email;
       },
     },
+    pendingPassword: {
+      get: async () => pendingPassword,
+      set: async (email: string | null) => {
+        pendingPasswordWrites.push(email);
+        pendingPassword = email;
+      },
+    },
     locale: "fr-FR",
     clearPersistedError: vi.fn(async () => {}),
   };
   const changes: AccountViewState[] = [];
   const flow = new AccountFlow(deps, (s) => changes.push(s));
-  return { flow, sent, pendingWrites, deps, changes };
+  return { flow, sent, pendingWrites, pendingPasswordWrites, deps, changes };
 }
 
 const types = (sent: AccountMessage[]) => sent.map((m) => m.type);
@@ -504,5 +520,203 @@ describe("AccountFlow « Tes données » (add-lingua-privacy-controls)", () => {
     await flow.init("");
     flow.askErase();
     expect((await flow.eraseLinguaData()).error).toContain("Tes données sont intactes");
+  });
+});
+
+describe("AccountFlow — Comptes connectés (add-lingua-connected-accounts)", () => {
+  const GOOGLE = { provider: "google", subject: "g-1", linkedAt: 1_790_000_000 };
+  const LOCAL = { provider: "local", subject: "ada@example.com", linkedAt: 1_791_000_000 };
+  const signedIn: Replies = {
+    "account:state": { ok: true, state: { signedIn: true } },
+    "account:identities": { ok: true, identities: [GOOGLE], linkable: { google: true, apple: true } },
+  };
+
+  it("reads #connected, and names the methods", () => {
+    expect(wantsConnected("#connected")).toBe(true);
+    expect(wantsConnected("#connected?x")).toBe(true);
+    expect(wantsConnected("#data")).toBe(false);
+    expect(viewFromHash("#connected")).toBe("signin"); // never a signed-out view
+    expect(providerName("google")).toBe("Google");
+    expect(providerName("apple")).toBe("Apple");
+    expect(providerName("local")).toBe("Email et mot de passe");
+    expect(providerName("github")).toBe("github");
+  });
+
+  it("opens on the connected accounts from #connected when signed in", async () => {
+    const { flow } = setup(signedIn);
+    const s = await flow.init("#connected");
+    expect(s.view).toBe("connected");
+    expect(s.identities).toEqual([GOOGLE]);
+    expect(s.linkable).toEqual({ google: true, apple: true });
+    expect(s.passwordStep).toBe("closed");
+  });
+
+  it("stays on sign-in from #connected when signed out, and on the handle step without a handle", async () => {
+    const out = setup();
+    expect((await out.flow.init("#connected")).view).toBe("signin");
+    expect(out.sent.map((m) => m.type)).not.toContain("account:identities");
+    const noHandle = setup({ ...signedIn, "account:profile": { ok: true, handle: null } });
+    expect((await noHandle.flow.init("#connected")).view).toBe("handle");
+    expect((await noHandle.flow.openConnected()).view).toBe("handle");
+  });
+
+  it("goes there and back from the signed-in view", async () => {
+    const { flow } = setup(signedIn);
+    await flow.init("");
+    expect((await flow.openConnected()).view).toBe("connected");
+    expect(flow.leaveConnected().view).toBe("signedin");
+    expect(flow.leaveConnected().view).toBe("signedin");
+  });
+
+  it("says when the list cannot be read, and reads it again", async () => {
+    const { flow, deps } = setup({ ...signedIn, "account:identities": null });
+    await flow.init("");
+    const s = await flow.openConnected();
+    expect(s.identities).toBeNull();
+    expect(s.error).toBe("Impossible de joindre Cymbra. Vérifie ta connexion et réessaie.");
+    deps.send.mockImplementation(async (m: AccountMessage) =>
+      m.type === "account:identities"
+        ? { ok: true, identities: [LOCAL], linkable: { google: false, apple: false } }
+        : { ok: true },
+    );
+    expect((await flow.loadIdentities()).identities).toEqual([LOCAL]);
+  });
+
+  it("links a provider and reloads, and says nothing on a cancel", async () => {
+    const { flow, deps, sent } = setup(signedIn);
+    await flow.init("#connected");
+    deps.send.mockImplementation(async (m: AccountMessage) => {
+      sent.push(m);
+      if (m.type === "account:linkProvider") return { ok: true };
+      if (m.type === "account:identities")
+        return {
+          ok: true,
+          identities: [GOOGLE, { ...GOOGLE, provider: "apple", subject: "a-1" }],
+          linkable: { google: true, apple: true },
+        };
+      return { ok: true };
+    });
+    const s = await flow.link("apple");
+    expect(sent).toContainEqual({ type: "account:linkProvider", provider: "apple" });
+    expect(s.identities?.map((i) => i.provider)).toEqual(["google", "apple"]);
+    expect(s.notice).toBe("Apple est lié à ton compte.");
+
+    deps.send.mockImplementation(async () => ({ ok: false, cancelled: true }));
+    const cancelled = await flow.link("google");
+    expect(cancelled.error).toBeNull();
+  });
+
+  it("says a provider already linked to another account", async () => {
+    const { flow } = setup({ ...signedIn, "account:linkProvider": { ok: false, error: "alreadyExists" } });
+    await flow.init("#connected");
+    const s = await flow.link("google");
+    expect(s.error).toBe("Ce compte Google est déjà lié à un autre compte Cymbra.");
+    expect(s.identities).toEqual([GOOGLE]);
+  });
+
+  it("removes a method only once confirmed", async () => {
+    const { flow, sent, deps } = setup({
+      ...signedIn,
+      "account:identities": { ok: true, identities: [GOOGLE, LOCAL], linkable: { google: true, apple: false } },
+    });
+    await flow.init("#connected");
+    expect(await flow.remove()).toMatchObject({ removing: null }); // nothing asked: nothing sent
+    expect(sent.map((m) => m.type)).not.toContain("account:unlink");
+    flow.askRemove(GOOGLE);
+    expect(flow.cancelRemove().removing).toBeNull();
+    expect(flow.askRemove(GOOGLE).removing).toEqual(GOOGLE);
+    deps.send.mockImplementation(async (m: AccountMessage) => {
+      sent.push(m);
+      if (m.type === "account:identities")
+        return { ok: true, identities: [LOCAL], linkable: { google: true, apple: false } };
+      return { ok: true };
+    });
+    const s = await flow.remove();
+    expect(sent).toContainEqual({ type: "account:unlink", provider: "google", subject: "g-1" });
+    expect(s.identities).toEqual([LOCAL]);
+    expect(s.removing).toBeNull();
+    expect(s.notice).toBe("Méthode retirée : Google.");
+  });
+
+  it("words a refused removal as the last method", async () => {
+    const { flow } = setup({ ...signedIn, "account:unlink": { ok: false, error: "failedPrecondition" } });
+    await flow.init("#connected");
+    flow.askRemove(GOOGLE);
+    const s = await flow.remove();
+    expect(s.error).toBe("Tu ne peux pas retirer ta seule méthode de connexion.");
+    expect(s.removing).toBeNull();
+  });
+
+  it("sets a password: the code step, then the method, the reader still signed in", async () => {
+    const { flow, sent, pendingPasswordWrites, deps } = setup(signedIn);
+    await flow.init("#connected");
+    expect(flow.showPasswordForm().passwordStep).toBe("form");
+    expect((await flow.setPassword("  ", PASSWORD)).passwordStep).toBe("form"); // nothing typed
+    const s = await flow.setPassword(" ada@example.com ", PASSWORD);
+    expect(sent).toContainEqual({
+      type: "account:setPassword",
+      email: "ada@example.com",
+      password: PASSWORD,
+      locale: "fr-FR",
+    });
+    expect(s.passwordStep).toBe("code");
+    expect(s.passwordEmail).toBe("ada@example.com");
+    expect(pendingPasswordWrites).toEqual(["ada@example.com"]);
+
+    deps.send.mockImplementation(async (m: AccountMessage) => {
+      sent.push(m);
+      if (m.type === "account:identities")
+        return { ok: true, identities: [GOOGLE, LOCAL], linkable: { google: true, apple: true } };
+      return { ok: true };
+    });
+    expect((await flow.confirmPassword(" ")).passwordStep).toBe("code"); // no code
+    const done = await flow.confirmPassword(" 123456 ");
+    expect(sent).toContainEqual({ type: "account:verifyEmail", code: "123456" });
+    expect(sent.map((m) => m.type)).not.toContain("account:signInLocal");
+    expect(done.view).toBe("connected");
+    expect(done.passwordStep).toBe("closed");
+    expect(done.identities).toEqual([GOOGLE, LOCAL]);
+    expect(done.notice).toContain("ada@example.com");
+    expect(pendingPasswordWrites).toEqual(["ada@example.com", null]);
+    // The password went to the background once, and nowhere else.
+    expect(JSON.stringify(pendingPasswordWrites)).not.toContain(PASSWORD);
+  });
+
+  it("says a refused submission and a wrong code in their own words", async () => {
+    const { flow } = setup({ ...signedIn, "account:setPassword": { ok: false, error: "alreadyExists" } });
+    await flow.init("#connected");
+    flow.showPasswordForm();
+    const refused = await flow.setPassword("ada@example.com", PASSWORD);
+    expect(refused.passwordStep).toBe("form");
+    expect(refused.error).toContain("déjà utilisée");
+    const code = setup(
+      { ...signedIn, "account:verifyEmail": { ok: false, error: "invalidArgument" } },
+      null,
+      "ada@example.com",
+    );
+    await code.flow.init("#connected");
+    const wrong = await code.flow.confirmPassword("000000");
+    expect(wrong.passwordStep).toBe("code");
+    expect(wrong.error).toContain("expiré");
+  });
+
+  it("resumes on the code step after a reload, and starts over or closes", async () => {
+    const { flow, pendingPasswordWrites } = setup(signedIn, null, "ada@example.com");
+    const s = await flow.init("#connected");
+    expect(s.passwordStep).toBe("code");
+    expect(s.passwordEmail).toBe("ada@example.com");
+    const again = await flow.restartPassword();
+    expect(again.passwordStep).toBe("form");
+    expect(again.passwordEmail).toBe("ada@example.com");
+    expect((await flow.cancelPassword()).passwordStep).toBe("closed");
+    expect(pendingPasswordWrites).toEqual([null, null]);
+  });
+
+  it("forgets everything about the connected accounts on sign-out", async () => {
+    const { flow, pendingPasswordWrites } = setup(signedIn, null, "ada@example.com");
+    await flow.init("#connected");
+    const s = await flow.signOut();
+    expect(s).toMatchObject({ view: "signin", identities: null, passwordStep: "closed", passwordEmail: "" });
+    expect(pendingPasswordWrites).toContain(null);
   });
 });
