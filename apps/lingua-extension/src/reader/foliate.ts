@@ -45,8 +45,12 @@ export class FoliateRenderer implements BookRenderer {
     // Listened to before the book opens: the first section loads during `init`.
     this.element.addEventListener("load", (e) => {
       const { doc, index } = (e as CustomEvent<SectionReady>).detail;
-      // Only Safari hands a selection's handle drag to the page as touch events (touch-guard.ts).
-      if (__TARGET__ === "safari") guardSelectionTouches(doc);
+      // A selection's drag is the platform's, and in the instant turn no page follows a finger: a
+      // swipe turns it in one jump (touch-guard.ts).
+      guardSelectionTouches(doc, {
+        instant: () => !this.slides() && !this.element.renderer?.scrolled,
+        turn: (forward) => void (forward ? this.next() : this.prev()),
+      });
       continueAtEdges(doc, this.edges);
       for (const l of this.ready) l({ doc, index });
     });
@@ -109,10 +113,17 @@ export class FoliateRenderer implements BookRenderer {
   private applyDisplay(): void {
     const renderer = this.element.renderer;
     renderer?.setStyles(bookStyles(this.display, pageColoursOf(this.element.ownerDocument)));
-    // foliate's `animated` slides a turn over 300 ms. Off unless chosen — a jump is what an e-ink
-    // screen shows once — and off when the system asks for less motion, whatever was chosen.
+    renderer?.toggleAttribute("animated", this.slides());
+  }
+
+  /**
+   * Whether a turn slides: foliate's `animated` eases it over 300 ms. Off unless chosen — a jump is
+   * what an e-ink screen shows once — and off when the system asks for less motion, whatever was
+   * chosen.
+   */
+  private slides(): boolean {
     const reduced = this.element.ownerDocument.defaultView?.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    renderer?.toggleAttribute("animated", this.display.turn === "slide" && !reduced);
+    return this.display.turn === "slide" && !reduced;
   }
 
   setFlow(flow: ReaderFlow): void {
