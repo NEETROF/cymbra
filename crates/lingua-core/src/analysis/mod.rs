@@ -50,5 +50,6 @@ pub const ANALYZER_VERSION: &str = "1.1.0";
 /// Spanish's analyser version: `1.0.0` when add-lingua-spanish-analysis wrote
 /// its pre-pass (NFC, `al`/`del`) and its cascade (old spellings, enclitics, the
 /// plural fallback), replacing the `0.1.0` baseline; `1.1.0` since
-/// add-lingua-spanish-detection-guard keeps Catalan and Galician blocks out.
-pub const SPANISH_ANALYZER_VERSION: &str = "1.1.0";
+/// add-lingua-spanish-detection-guard keeps Catalan and Galician blocks out;
+/// `1.2.0` since add-lingua-spanish-names sets a document's names aside.
+pub const SPANISH_ANALYZER_VERSION: &str = "1.2.0";
