@@ -2,7 +2,9 @@
 // with it and cancels the event. On Safari a selection's handle drag — and the drag that goes on
 // from a press-and-hold — reaches the page as those same touch events, so the page slid under
 // the finger and the selection never grew: no phrase could be selected in a book on iOS or
-// iPadOS. A touch that works a selection is the platform's, and foliate does not see its moves.
+// iPadOS. Firefox for Android does the same with the drag from a press-and-hold (measured on a
+// Boox Go 10.3, Firefox 157, 2026-10-04: the page followed the finger, whatever the page-turn
+// mode). A touch that works a selection is the platform's, and foliate does not see its moves.
 //
 // Only the moves are kept from it. foliate still sees the touch start and end, so a pan it did
 // begin before the selection existed is settled back onto its page.

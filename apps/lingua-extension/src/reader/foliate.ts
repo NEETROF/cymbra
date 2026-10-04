@@ -45,8 +45,9 @@ export class FoliateRenderer implements BookRenderer {
     // Listened to before the book opens: the first section loads during `init`.
     this.element.addEventListener("load", (e) => {
       const { doc, index } = (e as CustomEvent<SectionReady>).detail;
-      // Only Safari hands a selection's handle drag to the page as touch events (touch-guard.ts).
-      if (__TARGET__ === "safari") guardSelectionTouches(doc);
+      // Safari hands a selection's handle drag to the page as touch events, and Firefox for Android
+      // the drag that goes on from a press-and-hold (touch-guard.ts). Chromium has no touch target.
+      if (__TARGET__ !== "chromium") guardSelectionTouches(doc);
       continueAtEdges(doc, this.edges);
       for (const l of this.ready) l({ doc, index });
     });
