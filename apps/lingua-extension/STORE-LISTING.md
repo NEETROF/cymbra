@@ -133,6 +133,25 @@ the stats. Any capture can then be conformed to 1280×800 without alpha.
 | Support URL    | `https://cymbra.app/support/`                                                                                                                                                                      |
 | Mature content | no                                                                                                                                                                                                 |
 
+## Release notes (addons.mozilla.org)
+
+AMO shows a note per version; the Chrome Web Store has no such field — its listing has only the
+description. Each note covers what a reader can see since the last **submitted** version (1.5.0
+was never submitted, so 1.6.0 covers both), and only the shipped pair: `packs.json` holds en-fr
+alone, so the Spanish work is not announced. Paste into the version's « Release notes », French.
+
+### 1.6.0 (since 1.4.0)
+
+```
+Réglages réorganisés en quatre onglets : Langue, Apparence, Pages & livres, Données.
+
+Compte : connexion et déconnexion dans Réglages › Données, partout où les réglages s'ouvrent (menu de l'extension, panneau latéral, panneau sur la page). Nouveau « Comptes connectés » : liez Google ou Apple à votre compte Cymbra, ajoutez un mot de passe pour vous connecter par e-mail là où Google n'est pas proposé (Firefox pour Android), ou retirez une méthode de connexion.
+
+Couleurs : choisissez celles du surlignage et de la page, avec des préréglages pour liseuse à encre électronique. La taille du texte agrandit aussi toute l'interface.
+
+Livres : le lecteur passe en plein écran, et les pages peuvent glisser en tournant.
+```
+
 ## Test instructions (for the reviewer)
 
 Paste this into the store's test-instructions field. **Step 1 is not optional**: on a fresh
