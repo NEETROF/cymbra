@@ -31,6 +31,7 @@ import {
 } from "../sync/messages.ts";
 import { lastSyncLabel, syncErrorCopy } from "../sync/status.ts";
 import { clearSyncCursors } from "../sync/sync.ts";
+import { type AccountControls, mountAccountSetting, runtimeAccountControls } from "./account-setting.ts";
 import { mountBookDisplay } from "./book-display-view.ts";
 import { mountColourSettings } from "./colour-settings-view.ts";
 import { mountStudiedLanguages } from "./studied-languages-view.ts";
@@ -67,6 +68,10 @@ export interface SettingsOptions {
    * engine. Null: no such setting (Safari).
    */
   translation?: TranslationControls | null;
+  /** The Compte controls' seam; the background messages by default. */
+  account?: AccountControls;
+  /** Safari: a sign-in went on in the host app (the popup closes; its next open collects it). */
+  onHandedOff?: () => void;
   /** The pairs the package ships: the bundle's, unless a spec offers others. */
   pairs?: readonly string[];
 }
@@ -393,6 +398,14 @@ export function mountSettings(
   scBlock.append(scList);
   if (hasShortcutEditor()) scBlock.append(scConfig);
 
+  // — Compte — sign in or out, wherever Réglages are shown (the popup's main view links here).
+  const accountBlock = settingBlock("Compte");
+  const account = mountAccountSetting(accountBlock, opts.account ?? runtimeAccountControls(), {
+    openPage: (url) => openPage(url),
+    onChange: () => refresh(),
+    onHandedOff: opts.onHandedOff,
+  });
+
   // — Synchronisation (signed in only): when this device last synced, and a manual run —
   const sync = opts.sync ?? runtimeSyncControls(area);
   const openPage = opts.openPage ?? openPageViaBackground;
@@ -482,7 +495,7 @@ export function mountSettings(
     { id: "language", label: "Langue", blocks: [languagesBlock, levelBlocks, translationBlock, voiceBlock] },
     { id: "look", label: "Apparence", blocks: [displayBlock, coloursBlock] },
     { id: "pages", label: "Pages & livres", blocks: [barBlock, booksBlock, scBlock] },
-    { id: "data", label: "Données", blocks: [syncBlock, resetBlock] },
+    { id: "data", label: "Données", blocks: [accountBlock, syncBlock, resetBlock] },
   ]);
 
   // — Live wiring —
@@ -511,7 +524,8 @@ export function mountSettings(
   });
   syncBtn.addEventListener("click", () => void runSync());
   restartBtn.addEventListener("click", () => void restartFromServer());
-  sync.watch(() => void refreshSync());
+  // A sync completes after every sign-in, here or in another surface: the account follows too.
+  sync.watch(() => void Promise.all([refreshSync(), account.refresh()]));
 
   /**
    * The automatic choice first, naming the voice it lands on; then the ordinary voices; then
@@ -620,7 +634,7 @@ export function mountSettings(
     renderVoices();
     flowToggle.checked = (await loadReaderFlow(area)) === "scrolled";
     await Promise.all([bookDisplay.refresh(), colours.refresh()]);
-    await Promise.all([refreshSync(), translation?.refresh()]);
+    await Promise.all([refreshSync(), account.refresh(), translation?.refresh()]);
   }
 
   void refresh();

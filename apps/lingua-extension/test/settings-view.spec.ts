@@ -734,7 +734,7 @@ describe("Réglages — sub-tabs", () => {
       ["Langues étudiées", "Niveau d'anglais", "Traduction", "Lecture à voix haute"],
       ["Affichage", "Couleurs"],
       ["Barre sur la page", "Livres", "Raccourcis & gestes"],
-      ["Synchronisation", "Réinitialisation"],
+      ["Compte", "Synchronisation", "Réinitialisation"],
     ]);
     // The book's size and theme come with Affichage, under Apparence; its page turn joins the
     // continuous flow in Livres, under Pages & livres.
@@ -762,7 +762,7 @@ describe("Réglages — sub-tabs", () => {
     expect(tabs(container).map((t) => t.getAttribute("aria-selected"))).toEqual(["true", "false", "false", "false"]);
 
     tabs(container)[3].click();
-    expect(shown(container).map(titles)).toEqual([["Synchronisation", "Réinitialisation"]]);
+    expect(shown(container).map(titles)).toEqual([["Compte", "Synchronisation", "Réinitialisation"]]);
     expect(tabs(container)[3].classList.contains("active")).toBe(true);
     expect(tabs(container)[0].classList.contains("active")).toBe(false);
     // One tab stop: the selected tab; the arrows reach the others.
