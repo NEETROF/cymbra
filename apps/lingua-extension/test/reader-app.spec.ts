@@ -10,13 +10,16 @@ import {
   ReaderApp,
   type ReaderDeps,
   type ReaderSession,
+  type ShelfSection,
+  shelfSections,
 } from "@/reader/app.ts";
 import { COPY } from "@/reader/copy.ts";
-import { Library } from "@/reader/library.ts";
+import { type BookRecord, Library } from "@/reader/library.ts";
 import type { TocEntry } from "@/reader/renderer.ts";
+import type { StudiedLanguage } from "@/analyzer/types.ts";
 import type { ReadingHost } from "@/reading/session.ts";
 import { type AsyncStorageArea, READER_DISPLAY_KEY, type ReaderDisplay, type ReaderFlow } from "@/state/storage.ts";
-import { epub3Entries, pickedFile, useNodeBlob } from "./epub-fixtures.ts";
+import { epub3Entries, OPF3, pickedFile, useNodeBlob } from "./epub-fixtures.ts";
 import { FakeRenderer } from "./fake-renderer.ts";
 
 // The reader page (add-lingua-reader §4): the library, a book open with the reading module on
@@ -182,6 +185,76 @@ describe("the library view", () => {
     $<HTMLButtonElement>(".lib-remove-yes").click();
     await vi.waitFor(() => expect($$(".lib-book")).toHaveLength(0));
     expect(await library.list()).toEqual([]);
+  });
+});
+
+describe("the library's sections (group-lingua-library-by-language)", () => {
+  /** The hound's EPUB titled `title`, declaring `language` (none: no `dc:language`). */
+  const bookIn = (language: string | null, title: string): Promise<File> =>
+    pickedFile(
+      epub3Entries({
+        "OEBPS/content.opf": OPF3.replace(
+          "<dc:language>en-GB</dc:language>",
+          language ? `<dc:language>${language}</dc:language>` : "",
+        ).replace("  The   Hound of the Baskervilles ", title),
+      }),
+      `${title}.epub`,
+    );
+  const headings = () => $$(".lib-group-title").map((h) => h.textContent);
+  const sections = () =>
+    $$(".lib-group").map((group) => [...group.querySelectorAll(".lib-title")].map((t) => t.textContent));
+
+  it("heads a section per language, the reader's first language first", async () => {
+    const a = app({ languages: async () => ["es", "en"] });
+    await a.start(fakeSession());
+    await pick(await bookIn("en-GB", "Hound"), await bookIn("es", "Lazarillo"));
+    expect(headings()).toEqual(["Espagnol", "Anglais"]);
+    expect(sections()).toEqual([["Lazarillo"], ["Hound"]]);
+    expect($$(".lib-group > ul.lib-books")).toHaveLength(2);
+  });
+
+  it("shows no heading when every book is in one language", async () => {
+    const a = app({ languages: async () => ["es", "en"] });
+    await a.start(fakeSession());
+    await pick(await bookIn("en-GB", "Hound"), await bookIn("en", "Emma"));
+    expect($$(".lib-group")).toHaveLength(0);
+    expect($$(".lib-books")).toHaveLength(1);
+    expect($$(".lib-book")).toHaveLength(2);
+  });
+
+  it("drops the headings when a deletion leaves one language", async () => {
+    const a = app({ languages: async () => ["es", "en"] });
+    await a.start(fakeSession());
+    await pick(await bookIn("en-GB", "Hound"), await bookIn("es", "Lazarillo"));
+    $<HTMLButtonElement>(".lib-group .lib-remove").click();
+    $<HTMLButtonElement>(".lib-group .lib-remove-yes").click();
+    await vi.waitFor(() => expect($$(".lib-book")).toHaveLength(1));
+    expect(headings()).toEqual([]);
+    expect(text(".lib-title")).toBe("Hound");
+  });
+
+  it("reads the languages again each time it draws the shelf", async () => {
+    let languages: StudiedLanguage[] = ["en"];
+    const a = app({ languages: async () => languages });
+    await a.start(fakeSession());
+    const lazarillo = await bookIn("es", "Lazarillo");
+    await pick(await bookIn("en-GB", "Hound"), lazarillo);
+    expect(headings()).toEqual(["Anglais", COPY.otherLanguages]);
+    languages = ["es", "en"];
+    await pick(lazarillo);
+    await vi.waitFor(() => expect(headings()).toEqual(["Espagnol", "Anglais"]));
+  });
+
+  it("still shows every book when the languages cannot be read", async () => {
+    const a = app({
+      languages: async () => {
+        throw new Error("no engine");
+      },
+    });
+    await a.start(fakeSession());
+    await pick(await bookIn("en-GB", "Hound"), await bookIn(null, "Lazarillo"));
+    expect($$(".lib-group")).toHaveLength(0);
+    expect($$(".lib-book")).toHaveLength(2);
   });
 });
 
@@ -545,6 +618,56 @@ describe("the reader page's helpers", () => {
     const box = { left: 1, top: 2, bottom: 3 };
     expect(frameOffset(frame.contentDocument!)(box)).toEqual({ left: 31, top: 72, bottom: 73 });
     expect(frameOffset(document.implementation.createHTMLDocument())(box)).toEqual(box);
+  });
+});
+
+describe("shelfSections (group-lingua-library-by-language)", () => {
+  const book = (title: string, language: string | null): BookRecord => ({
+    hash: title,
+    title,
+    authors: [],
+    language,
+    identifier: null,
+    cover: null,
+    size: 1,
+    addedAt: 0,
+    location: null,
+    locationAt: 0,
+  });
+  const titles = (found: ShelfSection[]) => found.map((s) => [s.language, s.books.map((b) => b.title)]);
+
+  it("puts each book under its language, in the reader's order, the others last", () => {
+    const books = [book("Hound", "en-GB"), book("Lazarillo", "es"), book("Candide", "fr"), book("Quijote", "es")];
+    expect(titles(shelfSections(books, ["es", "en"]))).toEqual([
+      ["es", ["Lazarillo", "Quijote"]],
+      ["en", ["Hound"]],
+      [null, ["Candide"]],
+    ]);
+  });
+
+  it("reads a regional or a three-letter code as its language", () => {
+    const books = [book("a", "es-MX"), book("b", " SPA "), book("c", "spa"), book("d", "eng")];
+    expect(titles(shelfSections(books, ["es", "en"]))).toEqual([
+      ["es", ["a", "b", "c"]],
+      ["en", ["d"]],
+    ]);
+  });
+
+  it("puts a book declaring nothing, or und, with the others", () => {
+    const books = [book("a", null), book("b", "und"), book("c", ""), book("d", "en")];
+    expect(titles(shelfSections(books, ["en"]))).toEqual([
+      ["en", ["d"]],
+      [null, ["a", "b", "c"]],
+    ]);
+  });
+
+  it("leaves out a language with no book", () => {
+    expect(titles(shelfSections([book("a", "en")], ["es", "en"]))).toEqual([["en", ["a"]]]);
+  });
+
+  it("holds every book in one section when no language is known", () => {
+    expect(titles(shelfSections([book("a", "es"), book("b", "en")], []))).toEqual([[null, ["a", "b"]]]);
+    expect(shelfSections([], ["es", "en"])).toEqual([]);
   });
 });
 

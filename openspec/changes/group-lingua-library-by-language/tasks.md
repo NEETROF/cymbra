@@ -1,12 +1,12 @@
 ## 1. Sections
 
-- [ ] 1.1 `reader/app.ts`: `shelfSections(books, languages)`, pure, groups the books (design D2, D4). It returns one section per accepted language holding books, in the given order, then « Autres langues ». Each section keeps the library's order. Specs:
+- [x] 1.1 `reader/app.ts`: `shelfSections(books, languages)`, pure, groups the books (design D2, D4). It returns one section per accepted language holding books, in the given order, then « Autres langues ». Each section keeps the library's order. Specs:
   - books in `es`, `en-GB` and `fr`, for `[es, en]`;
   - `es-MX`, ` SPA ` and `spa` under `es`;
   - a book declaring nothing, or `und`, under « Autres langues »;
   - an accepted language with no book: no section;
   - the library's order kept inside a section.
-- [ ] 1.2 `ReaderApp.renderShelf` draws the sections (D3, D6):
+- [x] 1.2 `ReaderApp.renderShelf` draws the sections (D3, D6):
   - one section: the single `ul.lib-books`, no heading;
   - several: a `section.lib-group` each, with its `h2.lib-group-title` and its `ul.lib-books`.
 
@@ -18,7 +18,7 @@
 
 ## 2. Gates
 
-- [ ] 2.1 In `apps/lingua-extension`:
+- [x] 2.1 In `apps/lingua-extension`:
   - `yarn typecheck`, `yarn lint`, `yarn test`, `yarn format:check`;
   - `yarn build`, `yarn check:variants`.
-- [ ] 2.2 `openspec validate group-lingua-library-by-language --strict` passes.
+- [x] 2.2 `openspec validate group-lingua-library-by-language --strict` passes.
