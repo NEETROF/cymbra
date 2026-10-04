@@ -337,18 +337,34 @@ impl LinguaEngine {
     /// `{level, confirmed, presumed, toLearn, total, typicalVocabulary}`, one row per
     /// level A1..C2, folded over the pack's lemmas at each level; `typicalVocabulary` is
     /// the vocabulary size of a reader at the level (see `level_vocabulary`;
-    /// 0 at A1, which presumes nothing). `[]` when the pack carries no CEFR data.
+    /// 0 at A1, which presumes nothing). A pack whose levels are estimated borrows
+    /// English's, and its rows then say `typicalFrom: "en"`. `[]` when the pack carries
+    /// no CEFR data.
     #[wasm_bindgen(js_name = levelLadder)]
     pub fn level_ladder(&self, language: Option<String>) -> Result<String, JsError> {
         let (language, pack) = resolve(&self.packs, language.as_deref())?;
         if !pack.has_levels() {
             return Ok("[]".to_owned());
         }
+        // A pack whose levels are estimated from frequency (add-lingua-spanish-levels) cannot say
+        // what a reader of a level knows: its levels are frequency bands, so the figure would only
+        // restate the band below. It borrows English's, whose CEFR lists gave its levels their sizes
+        // (fix-lingua-spanish-ladder-estimates), and says so.
+        let borrowed = pack
+            .levels_estimated()
+            .then(|| {
+                self.packs
+                    .resolve(Some(StudiedLanguage::English.tag()))
+                    .ok()
+            })
+            .flatten()
+            .filter(|(_, english)| english.has_levels() && !english.levels_estimated());
+        let (source, source_pack) = borrowed.unwrap_or((language, pack));
         let compute = || {
-            let words = pack.dictionary_words();
-            CefrLevel::ALL.map(|level| level_vocabulary(level, words.iter().copied(), pack))
+            let words = source_pack.dictionary_words();
+            CefrLevel::ALL.map(|level| level_vocabulary(level, words.iter().copied(), source_pack))
         };
-        let typical: [usize; 6] = match self.level_vocabularies.get(&language) {
+        let typical: [usize; 6] = match self.level_vocabularies.get(&source) {
             Some(cell) => *cell.get_or_init(compute),
             None => compute(),
         };
@@ -361,14 +377,19 @@ impl LinguaEngine {
                     self.state
                         .knowledge
                         .band_stats(language, lemmas.iter().map(|(l, _)| *l), pack);
-                serde_json::json!({
+                let mut row = serde_json::json!({
                     "level": level.label(),
                     "confirmed": stats.confirmed,
                     "presumed": stats.presumed,
                     "toLearn": stats.to_learn,
                     "total": stats.total(),
                     "typicalVocabulary": typical,
-                })
+                });
+                // Only when borrowed, so a pack with CEFR lists answers exactly as before.
+                if borrowed.is_some() {
+                    row["typicalFrom"] = serde_json::Value::from(source.tag());
+                }
+                row
             })
             .collect();
         Ok(serde_json::to_string(&rows).unwrap_or_else(|_| "[]".to_owned()))

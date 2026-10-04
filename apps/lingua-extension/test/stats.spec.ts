@@ -57,6 +57,22 @@ describe("ladderView", () => {
     expect(english.querySelector(".ladder-cols .ladder-cum")?.textContent).toBe("enseignés");
   });
 
+  it("says its « estimés » are English's when the engine borrowed them (fix-lingua-spanish-ladder-estimates)", () => {
+    const rows = bands([1, 1, 1, 1, 1, 1], 0, [0, 1300, 3400, 8000, 16000, 21000]).map((row) => ({
+      ...row,
+      typicalFrom: "en" as const,
+    }));
+    const view = ladderView(rows, null, "es", true);
+    const scope = view.querySelector(".ladder-scope")?.textContent ?? "";
+    expect(scope).toContain("repris de l'anglais, dont l'espagnol reprend les tailles de niveaux.");
+    expect(scope).not.toContain("extrapolé");
+    expect([...view.querySelectorAll(".ladder-est")].map((e) => e.textContent).at(-1)).toBe(`≈\u00A0${fr(21000)}`);
+    // English's own ladder keeps its sentence.
+    expect(ladderView(bands([1, 1, 1, 1, 1, 1]), null).querySelector(".ladder-scope")?.textContent).toContain(
+      "extrapolé des mots des niveaux inférieurs",
+    );
+  });
+
   it("shows each level's own words next to the words taught up to that level", () => {
     const view = ladderView(bands([986, 1122, 1945, 2148, 726, 566], 10), "A2");
     expect(view.textContent).toContain(`${fr(10)} / ${fr(1122)}`); // A2's own band

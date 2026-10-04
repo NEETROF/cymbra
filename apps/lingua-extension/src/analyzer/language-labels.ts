@@ -65,6 +65,14 @@ export function estimatedLevelsNote(language: StudiedLanguage): string {
   return `Niveaux estimés d'après la fréquence des mots, faute de liste CEFR libre de droits pour ${WORDS[language].the}.`;
 }
 
+/**
+ * Where a ladder's « estimés » come from when another language's pack gave them: « repris de
+ * l'anglais, dont l'espagnol reprend les tailles de niveaux. » (fix-lingua-spanish-ladder-estimates).
+ */
+export function borrowedTypicalNote(language: StudiedLanguage, from: StudiedLanguage): string {
+  return `repris de ${WORDS[from].the}, dont ${WORDS[language].the} reprend les tailles de niveaux.`;
+}
+
 /** A level as a surface names it: « B1 », or « B1 (estimé) » when the levels are estimated. */
 export function levelName(level: string, estimated: boolean): string {
   return estimated ? `${level} (estimé)` : level;
