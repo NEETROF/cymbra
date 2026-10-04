@@ -166,7 +166,7 @@ from the French Wiktionary's Spanish entries and 12,181 from the translations.
 **Estimated levels**, the rule measured on English's 8,302 CEFR lemmas, ranked the same way: 39.8 %
 take their list's level, and 82.6 % are within one level of it. The scale is monotone (the mean true
 level rises from 1.67 at A1 to 5.03 at C2), so the three-band fallback of the programme's decision
-D1 is not needed. The pack is 2,190,036 B, with the grammar, the glosses and the levels.
+D1 is not needed. The pack is 2,188,994 B, with the grammar, the glosses and the levels.
 
 ## Allowed vs denied licences
 

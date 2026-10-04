@@ -109,6 +109,20 @@ fn a_spanish_card_says_what_the_form_is_and_what_else_it_may_be() {
             vec![("venir".to_owned(), vec![PRETERITE_3SG.to_owned()])]
         )
     );
+
+    // A letter's name gives no reading of its plural (add-lingua-spanish-word-card D7): `Es` is
+    // ser's alone, not also the plural of the letter E, nor `des` the plural of the letter D.
+    assert_eq!(
+        card(&pack, "Es", "ser"),
+        (
+            vec!["VERB|Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin".to_owned()],
+            vec![]
+        )
+    );
+    assert_eq!(
+        card(&pack, "des", "dar").0,
+        ["VERB|Mood=Sub|Number=Sing|Person=2|Tense=Pres|VerbForm=Fin"]
+    );
 }
 
 #[test]

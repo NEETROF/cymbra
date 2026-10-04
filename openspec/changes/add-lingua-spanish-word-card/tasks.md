@@ -18,6 +18,13 @@
 ## 3. The runs
 
 - [x] 3.1 `reduce-es-fr.py` gives a noun run its gender (design D6), with tests. Reduce the pinned sources again: only `senses.tsv` and the pin change.
+- [x] 3.2 `reduce-es-fr.py`: a letter's name keeps its own form but gives no reading of its plural (design D7). Tests:
+  - the letters named by category, tags or gloss;
+  - a form entry's plural;
+  - a capitalised abbreviation;
+  - a noun that is also another word.
+
+  Reduce the pinned sources again: only `grammar.tsv` and the pin change. `es_fr_grammar.rs`: the card of `Es` names no other form.
 
 ## 4. Gates
 
