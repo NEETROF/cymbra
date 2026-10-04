@@ -156,18 +156,18 @@ proper nouns are left out. The 2026-10-04 tables pass the programme's gates:
 
 | Lemmas | French Wiktionary | with the translations |
 |---|---|---|
-| top 5,000 | 83.0 % | 87.7 % |
-| top 10,000 | 69.6 % | 77.3 % |
-| top 20,000 | 54.4 % | 63.8 % |
-| all 60,000 | 29.0 % | 38.0 % |
+| top 5,000 | 82.7 % | 87.6 % |
+| top 10,000 | 69.4 % | 77.2 % |
+| top 20,000 | 54.2 % | 63.7 % |
+| all 60,000 | 28.9 % | 37.9 % |
 
-22,823 lemmas are glossed, 17,421 from the French Wiktionary. There are 15,133 expressions: 2,952
-from the French Wiktionary's Spanish entries and 12,181 from the translations.
+22,755 lemmas are glossed, 17,341 from the French Wiktionary. There are 15,133 expressions: 2,950
+from the French Wiktionary's Spanish entries and 12,183 from the translations.
 
 **Estimated levels**, the rule measured on English's 8,302 CEFR lemmas, ranked the same way: 39.8 %
 take their list's level, and 82.6 % are within one level of it. The scale is monotone (the mean true
 level rises from 1.67 at A1 to 5.03 at C2), so the three-band fallback of the programme's decision
-D1 is not needed. The pack is 2,189,161 B, with the grammar, the glosses and the levels.
+D1 is not needed. The pack is 2,190,188 B, with the grammar, the glosses and the levels.
 
 ## Allowed vs denied licences
 

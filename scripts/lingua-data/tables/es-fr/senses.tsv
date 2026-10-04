@@ -1,4 +1,4 @@
-a	SYM:1	ADP:7
+a	ADP:7
 aal	NOUN:1
 aarhus	PROPN:1
 aba	NOUN:1
@@ -611,7 +611,6 @@ agotador	ADJ:1
 agotamiento	NOUN|Gender=Masc:3
 agotar	VERB:2
 agote	VERB:2
-agra	ADJ:1
 agradable	ADJ:1
 agradablemente	ADV:1
 agradar	VERB:1
@@ -658,7 +657,6 @@ agu	PROPN:1
 agua	NOUN|Gender=Fem:1
 aguacate	NOUN|Gender=Masc:5
 aguacero	NOUN|Gender=Masc:2
-aguadas	NOUN:4
 aguado	VERB:1
 aguadulce	PROPN:1
 aguafiestas	NOUN:1
@@ -808,7 +806,6 @@ alberto	PROPN:1
 albi	PROPN:2
 albiazul	ADJ:1
 albiceleste	ADJ:2
-albina	ADJ:1
 albinismo	NOUN|Gender=Masc:1
 albino	ADJ:1	PROPN:2
 albiol	PROPN:1
@@ -885,9 +882,9 @@ alegre	ADJ:1
 alegremente	ADV:1
 alegría	NOUN|Gender=Fem:7
 alegórico	ADJ:1
+aleja	VERB:1
 alejado	VERB:1
 alejamiento	NOUN|Gender=Masc:1
-alejandrina	NOUN:1
 alejandrino	NOUN|Gender=Masc:1	ADJ:1
 alejandro	PROPN:1
 alejar	VERB:1
@@ -1078,7 +1075,6 @@ alto	ADJ:1
 altruismo	NOUN|Gender=Masc:1
 altruista	ADJ:1
 altura	NOUN|Gender=Fem:5
-altísimo	ADJ:1
 alubia	NOUN|Gender=Fem:3
 alucina	VERB:2
 alucinación	NOUN|Gender=Fem:1
@@ -1137,7 +1133,6 @@ amargar	VERB:1
 amargo	ADJ:1	NOUN|Gender=Masc:1
 amargor	NOUN|Gender=Masc:1
 amargura	NOUN|Gender=Fem:1
-amarilla	ADJ:1
 amarillento	ADJ:1
 amarillismo	NOUN|Gender=Masc:1
 amarillista	ADJ:1
@@ -1315,7 +1310,6 @@ andamiaje	NOUN|Gender=Masc:1
 andamio	NOUN|Gender=Masc:1
 andante	NOUN:1
 andar	VERB:1	NOUN|Gender=Masc:1
-andes	NOUN:1
 andesita	NOUN|Gender=Fem:1
 andino	ADJ:1
 andorra	PROPN:2
@@ -2685,7 +2679,6 @@ bar	NOUN|Gender=Masc:1
 baracaldo	PROPN:1
 baraja	NOUN|Gender=Fem:1
 barajar	VERB:1
-barajas	NOUN:1
 baranda	NOUN|Gender=Fem:2
 barandilla	NOUN|Gender=Fem:1
 barata	ADJ:1
@@ -2706,7 +2699,6 @@ barbecho	NOUN|Gender=Masc:1
 barbera	NOUN|Gender=Fem:1
 barberá	PROPN:1
 barbilla	NOUN|Gender=Fem:1
-barbuda	PROPN:1
 barbudo	ADJ:1	NOUN:2
 barbón	NOUN:1
 barca	NOUN|Gender=Fem:1	PROPN:1
@@ -2937,7 +2929,6 @@ berro	NOUN|Gender=Masc:1
 berrocal	PROPN:2	NOUN|Gender=Masc:1
 berta	NOUN:1
 berza	NOUN|Gender=Fem:2
-besada	VERB:1
 besalú	PROPN:1
 besamanos	NOUN|Gender=Masc:1
 besar	VERB:1
@@ -3075,7 +3066,6 @@ blanquear	VERB:1
 blanquecino	ADJ:1
 blanqueo	VERB:1
 blanquiazul	ADJ:1
-blas	PROPN:2
 blasco	PROPN:2
 blasfemar	VERB:1
 blasfemia	NOUN|Gender=Fem:1
@@ -3511,7 +3501,6 @@ búho	NOUN|Gender=Masc:1
 búlgaro	ADJ:1	NOUN|Gender=Masc:2
 búnker	NOUN|Gender=Masc:2
 búsqueda	NOUN|Gender=Fem:1
-c	SYM:1
 cabal	ADJ:1	ADV:1	INTJ:1
 cabalgada	NOUN|Gender=Fem:1
 cabalgar	VERB:1
@@ -3612,7 +3601,6 @@ caducidad	NOUN|Gender=Fem:2
 caduco	ADJ:1
 cadáver	NOUN|Gender=Masc:1
 cadí	NOUN|Gender=Masc:1
-caen	PROPN:1
 caer	VERB:3
 cafetal	NOUN|Gender=Masc:1
 cafetera	NOUN|Gender=Fem:1
@@ -3713,7 +3701,6 @@ callao	NOUN|Gender=Masc:2	ADJ:1
 callar	VERB:2
 calle	NOUN|Gender=Fem:1
 calleja	NOUN|Gender=Fem:1
-callejas	NOUN:1
 callejo	NOUN|Gender=Masc:1
 callejuela	NOUN|Gender=Fem:1
 callejón	NOUN|Gender=Masc:1
@@ -3834,7 +3821,6 @@ canals	PROPN:1
 canapé	NOUN|Gender=Masc:2
 canarias	PROPN:1
 canario	ADJ:1	NOUN|Gender=Masc:3
-canas	ADJ:1
 canasta	NOUN|Gender=Fem:2
 canberra	PROPN:1
 cancel	NOUN|Gender=Masc:3
@@ -3894,7 +3880,6 @@ cansino	ADJ:2
 cantabria	PROPN:1
 cantante	NOUN:1
 cantar	VERB:1
-cantares	VERB:1
 cantata	NOUN|Gender=Fem:1
 cantautor	NOUN|Gender=Masc:1
 cante	VERB:1
@@ -3910,7 +3895,6 @@ canto	NOUN|Gender=Masc:3
 cantonés	ADJ:1	NOUN|Gender=Masc:1
 cantor	ADJ:1	NOUN|Gender=Masc:1
 cantora	NOUN|Gender=Fem:1
-cantos	NOUN:3
 cantábrico	ADJ:1
 cantón	PROPN:1	NOUN|Gender=Masc:2
 canuto	NOUN|Gender=Masc:7	PROPN:1
@@ -4048,7 +4032,6 @@ caricia	NOUN|Gender=Fem:1
 caridad	NOUN|Gender=Fem:1
 caries	NOUN|Gender=Fem:1
 carilla	NOUN|Gender=Fem:5
-carillo	ADJ:1
 carina	NOUN:1
 carioca	ADJ:1
 carisma	NOUN|Gender=Masc:1
@@ -4162,7 +4145,6 @@ cascarón	NOUN|Gender=Masc:2
 casco	NOUN|Gender=Masc:7
 casero	ADJ:3	NOUN|Gender=Masc:2
 caserío	NOUN|Gender=Masc:1
-cases	VERB:3
 caseta	NOUN|Gender=Fem:1
 casete	NOUN|Gender=Masc:1
 caseína	NOUN|Gender=Fem:1
@@ -4186,7 +4168,6 @@ caste	NOUN:1
 castejón	PROPN:2
 castellanización	NOUN|Gender=Fem:1
 castellano	ADJ:1	NOUN|Gender=Masc:3
-castellanos	ADJ:1
 castellar	PROPN:1	NOUN:2
 castelldefels	PROPN:1
 castellonense	ADJ:1	NOUN:1
@@ -4503,7 +4484,6 @@ ceñido	ADJ:1
 ceño	NOUN|Gender=Masc:4
 cfc	NOUN|Gender=Masc:1
 cg	NOUN:1
-ch	SYM:1
 chabacano	NOUN|Gender=Masc:2	ADJ:1
 chabola	NOUN|Gender=Fem:1
 chaca	NOUN:1
@@ -4605,7 +4585,7 @@ chavista	ADJ:1
 chavo	ADJ:1	NOUN|Gender=Masc:2
 chayote	NOUN|Gender=Masc:1
 chañar	NOUN|Gender=Masc:1
-che	INTJ:3	NOUN:1
+che	INTJ:3
 checa	NOUN:1
 checar	VERB:1
 chechenia	PROPN:1
@@ -4646,7 +4626,6 @@ chigüire	NOUN|Gender=Masc:1
 chihuahua	INTJ:1	NOUN|Gender=Fem:1
 chiita	ADJ:1
 chikungunya	NOUN:1
-chilanga	ADJ:1
 chilango	NOUN|Gender=Masc:2	ADJ:1
 chilca	NOUN|Gender=Fem:1
 chile	PROPN:1	NOUN|Gender=Masc:2
@@ -4722,6 +4701,7 @@ choco	VERB:1
 chocolate	NOUN|Gender=Masc:3
 chocolatero	ADJ:1	NOUN|Gender=Masc:1
 chocolatina	NOUN|Gender=Fem:1
+chocó	VERB:1
 chofer	NOUN:1
 chol	NOUN:1
 chola	NOUN|Gender=Fem:4
@@ -4906,6 +4886,7 @@ citocromo	NOUN|Gender=Masc:1
 citoplasma	NOUN|Gender=Masc:1
 ciudad	NOUN|Gender=Fem:2
 ciudadano	ADJ:1
+ciudadanos	ADJ:1
 ciudadanía	NOUN|Gender=Fem:1
 ciudadela	NOUN|Gender=Fem:1
 civil	ADJ:1
@@ -5187,7 +5168,6 @@ colón	NOUN|Gender=Masc:1	PROPN:2
 coma	NOUN:6
 comadre	NOUN|Gender=Fem:2
 comadreja	NOUN|Gender=Fem:1
-comadres	NOUN:2
 comal	NOUN|Gender=Masc:1
 comanche	ADJ:1
 comandante	NOUN:2
@@ -5375,7 +5355,6 @@ concesión	NOUN|Gender=Fem:2
 concha	NOUN|Gender=Fem:5
 conchetumare	INTJ:1	NOUN:1
 conchi	PROPN:1
-conchita	PROPN:1
 conciencia	NOUN|Gender=Fem:1
 concienciar	VERB:1
 concientizar	VERB:1
@@ -5855,7 +5834,6 @@ cordón	NOUN|Gender=Masc:1
 corea	PROPN:1	NOUN|Gender=Fem:1
 coreano	ADJ:1
 corear	VERB:2
-coreas	NOUN:1
 corella	PROPN:1
 coreo	NOUN|Gender=Masc:1
 coreografía	NOUN|Gender=Fem:1
@@ -5890,7 +5868,6 @@ corpulento	ADJ:1
 corpus	NOUN|Gender=Masc:1
 corpóreo	ADJ:1	NOUN:1
 corral	NOUN|Gender=Masc:1
-corrales	NOUN:1
 corralito	NOUN|Gender=Masc:2
 correa	NOUN|Gender=Fem:1
 correcaminos	NOUN|Gender=Masc:3
@@ -5922,7 +5899,6 @@ corretaje	NOUN|Gender=Masc:1
 corretear	VERB:1
 corrida	NOUN|Gender=Fem:5
 corriente	ADJ:1	NOUN|Gender=Fem:2
-corrientes	ADJ:1
 corrimiento	NOUN|Gender=Masc:2
 corro	NOUN|Gender=Masc:2
 corroboración	NOUN|Gender=Fem:1
@@ -5949,7 +5925,6 @@ corte	NOUN:6
 cortejar	VERB:1
 cortejo	NOUN|Gender=Masc:3
 corten	VERB:2
-cortes	NOUN:1	PROPN:1
 cortesana	NOUN|Gender=Fem:1
 cortesano	ADJ:1
 cortesía	NOUN|Gender=Fem:1
@@ -6148,7 +6123,6 @@ croquis	NOUN|Gender=Masc:1
 croto	ADJ:1
 cruce	NOUN|Gender=Masc:1
 crucero	NOUN|Gender=Masc:5
-cruces	NOUN:2
 cruceta	NOUN|Gender=Fem:3
 crucificado	VERB:2
 crucificar	VERB:2
@@ -6185,7 +6159,6 @@ cs	PROPN:1
 csic	PROPN:1
 csv	NOUN:1
 cta	X:1
-cu	NOUN|Gender=Fem:1
 cuaderno	NOUN|Gender=Masc:1
 cuadra	NOUN|Gender=Fem:5
 cuadrado	ADJ:1
@@ -6271,7 +6244,6 @@ cuestionar	VERB:1
 cuestionario	NOUN|Gender=Masc:1
 cuestión	NOUN|Gender=Fem:1
 cueva	NOUN|Gender=Fem:2
-cuevas	NOUN:2
 cuica	NOUN|Gender=Fem:1
 cuidado	NOUN|Gender=Masc:1	INTJ:1
 cuidador	NOUN|Gender=Masc:1
@@ -6499,7 +6471,7 @@ dañino	ADJ:1
 daño	NOUN|Gender=Masc:1
 dci	NOUN:1
 ddt	NOUN|Gender=Masc:1
-de	ADP:1	NOUN|Gender=Fem:1
+de	ADP:1
 deambular	VERB:1
 debacle	NOUN|Gender=Fem:1
 debajo	ADV:1
@@ -7629,7 +7601,6 @@ dolina	NOUN|Gender=Fem:1
 dolmen	NOUN|Gender=Masc:1
 dolomita	NOUN|Gender=Fem:1
 dolor	NOUN|Gender=Masc:1
-dolores	PROPN:2
 dolorosamente	ADV:1
 doloroso	ADJ:1
 doloso	ADJ:1
@@ -7867,7 +7838,6 @@ edén	NOUN|Gender=Masc:1
 eeuu	X:1
 ef	NOUN:1
 efa	NOUN:1
-efe	NOUN|Gender=Fem:1
 efectivamente	ADV:1
 efectivo	ADJ:1	NOUN|Gender=Masc:1
 efecto	NOUN|Gender=Masc:1
@@ -7921,7 +7891,6 @@ elaboración	NOUN|Gender=Fem:1
 elaborar	VERB:1
 elasticidad	NOUN|Gender=Fem:1
 elche	PROPN:1
-ele	NOUN:1
 eleazar	PROPN:1
 elección	NOUN|Gender=Fem:1
 electivo	ADJ:1
@@ -7975,7 +7944,7 @@ elitismo	NOUN|Gender=Masc:1
 elitista	ADJ:1
 elixir	NOUN|Gender=Masc:1
 elizondo	PROPN:1
-elle	NOUN|Gender=Fem:1	PRON:1
+elle	PRON:1
 elles	PRON:1
 elocuencia	NOUN|Gender=Fem:1
 elocuente	ADJ:1
@@ -8034,7 +8003,6 @@ embrujo	VERB:1
 embudo	NOUN|Gender=Masc:1
 embustero	NOUN|Gender=Masc:1
 embutido	NOUN|Gender=Masc:1
-eme	NOUN|Gender=Fem:1
 emergencia	NOUN|Gender=Fem:3
 emergente	ADJ:1
 emerger	VERB:1
@@ -8091,7 +8059,6 @@ empeine	NOUN|Gender=Masc:1
 empeoramiento	NOUN|Gender=Masc:1
 empeorar	VERB:1
 emperador	NOUN|Gender=Masc:2
-emperatriz	NOUN:1
 empezar	VERB:1
 empeñado	ADJ:1
 empeñar	VERB:3
@@ -8162,6 +8129,7 @@ encarecer	VERB:2
 encarecimiento	NOUN|Gender=Masc:1
 encargar	VERB:1
 encargo	NOUN|Gender=Masc:1
+encarna	VERB:1
 encarnación	PROPN:1
 encarnado	VERB:1
 encarnar	VERB:1
@@ -8186,7 +8154,6 @@ encima	ADV:4
 encimera	NOUN|Gender=Fem:1
 encina	NOUN|Gender=Fem:1
 encinar	NOUN|Gender=Masc:1
-encinas	PROPN:2
 encino	NOUN|Gender=Masc:1
 enclave	NOUN|Gender=Masc:1
 enclenque	ADJ:1
@@ -8519,7 +8486,7 @@ erradicar	VERB:1
 errado	VERB:2
 errar	VERB:2
 errata	NOUN|Gender=Fem:1
-erre	NOUN|Gender=Fem:2
+erre	NOUN|Gender=Fem:1
 error	NOUN|Gender=Masc:1
 errático	ADJ:1
 erróneo	ADJ:1
@@ -8681,7 +8648,7 @@ escénico	ADJ:1
 escéptico	ADJ:1
 esdras	NOUN:1
 esdrújula	ADJ:1
-ese	NOUN|Gender=Fem:1	ADJ:1	PRON:1
+ese	ADJ:1	PRON:1
 esencia	NOUN|Gender=Fem:1
 esencial	ADJ:1
 esencialmente	ADV:1
@@ -8700,6 +8667,7 @@ esgueva	PROPN:1
 esguince	NOUN|Gender=Masc:1
 esla	PROPN:1
 eslabón	NOUN|Gender=Masc:2
+eslava	PROPN:1
 eslavo	NOUN|Gender=Masc:1	ADJ:1
 eslogan	NOUN|Gender=Masc:1
 eslora	NOUN|Gender=Fem:1
@@ -8711,7 +8679,6 @@ esmaltado	ADJ:1
 esmalte	NOUN|Gender=Masc:2
 esmerado	VERB:3
 esmeralda	ADJ:1	PROPN:1
-esmeraldas	NOUN:1
 esmero	NOUN|Gender=Masc:1
 esmoquin	NOUN|Gender=Masc:1
 esnifar	VERB:1
@@ -9414,7 +9381,6 @@ falencia	NOUN|Gender=Fem:1
 falible	ADJ:1
 falla	VERB:1
 fallar	VERB:1
-fallas	VERB:1
 fallecer	VERB:1
 fallecimiento	NOUN|Gender=Masc:1
 fallo	NOUN|Gender=Masc:3
@@ -9541,7 +9507,6 @@ felación	NOUN|Gender=Fem:1
 feldespato	NOUN|Gender=Masc:1
 felicidad	NOUN|Gender=Fem:1
 felicidades	NOUN:1
-felicita	VERB:1
 felicitación	NOUN|Gender=Fem:1
 felicitar	VERB:1
 felino	NOUN|Gender=Masc:1
@@ -9578,6 +9543,7 @@ fernández	PROPN:1
 ferocidad	NOUN|Gender=Fem:2
 feroz	ADJ:1
 ferozmente	ADV:1
+ferrando	PROPN:1
 ferretero	ADJ:1
 ferretería	NOUN|Gender=Fem:1
 ferro	NOUN:1
@@ -9757,7 +9723,6 @@ flash	NOUN|Gender=Masc:1
 flashmob	NOUN|Gender=Masc:1
 flauta	NOUN|Gender=Fem:1
 flautista	NOUN:1
-flavia	PROPN:1
 flecha	NOUN|Gender=Fem:2
 fleco	NOUN|Gender=Masc:1
 flema	NOUN|Gender=Fem:1
@@ -10214,7 +10179,6 @@ galeón	NOUN|Gender=Masc:1
 galga	NOUN|Gender=Fem:4
 galgo	ADJ:1	NOUN|Gender=Masc:1
 galicia	PROPN:2
-galilea	NOUN:1	PROPN:2
 galileo	ADJ:1
 galimatías	NOUN|Gender=Masc:2
 galindo	PROPN:2
@@ -10333,7 +10297,6 @@ gayo	ADJ:1
 gaza	NOUN|Gender=Fem:1
 gazpacho	NOUN|Gender=Masc:1
 gaélico	ADJ:1
-ge	NOUN|Gender=Fem:1
 geisha	NOUN|Gender=Fem:1
 gel	NOUN|Gender=Masc:1
 gelatina	NOUN|Gender=Fem:1
@@ -10615,6 +10578,7 @@ granada	PROPN:2	NOUN|Gender=Fem:2
 granadilla	NOUN|Gender=Fem:1	PROPN:1
 granadino	ADJ:4	NOUN|Gender=Masc:3
 granado	ADJ:2	NOUN|Gender=Masc:1
+granados	ADJ:2
 granate	NOUN|Gender=Masc:2
 grande	ADJ:1
 grandemente	ADV:1
@@ -10623,7 +10587,6 @@ grandilocuencia	NOUN|Gender=Fem:1
 grandilocuente	ADJ:1
 grandioso	ADJ:1
 granero	NOUN|Gender=Masc:1
-graneros	NOUN:1
 granito	NOUN|Gender=Masc:1
 granizada	VERB:1
 granizado	NOUN|Gender=Masc:1
@@ -10938,7 +10901,6 @@ hdp	NOUN:1
 hebilla	NOUN|Gender=Fem:1
 hebra	NOUN|Gender=Fem:4
 hebreo	ADJ:1
-hebreos	ADJ:1
 hecatombe	NOUN|Gender=Fem:1
 hechicero	ADJ:1	NOUN|Gender=Masc:1
 hechizo	VERB:1
@@ -11005,6 +10967,7 @@ hermandad	NOUN|Gender=Fem:3
 hermano	NOUN|Gender=Masc:2
 hermenéutica	NOUN|Gender=Fem:1
 hermetismo	NOUN|Gender=Masc:1
+hermosa	ADJ:1
 hermosamente	ADV:1
 hermoso	ADJ:1
 hermosura	NOUN|Gender=Fem:1
@@ -11783,7 +11746,6 @@ indexar	VERB:1
 india	PROPN:1	NOUN:1
 indiana	NOUN|Gender=Fem:1
 indiano	ADJ:2
-indias	ADJ:2
 indicación	NOUN|Gender=Fem:1
 indicador	NOUN|Gender=Masc:1
 indicar	VERB:1
@@ -12415,7 +12377,6 @@ irritación	NOUN|Gender=Fem:1
 irritar	VERB:1
 irrumpir	VERB:1
 irrupción	NOUN|Gender=Fem:1
-irán	PROPN:1
 irónico	ADJ:1
 irún	PROPN:1
 isaac	PROPN:1
@@ -12542,7 +12503,6 @@ jersey	NOUN|Gender=Masc:1	PROPN:1
 jerusalén	PROPN:1
 jerárquicamente	ADV:1
 jerárquico	ADJ:1
-jerónima	NOUN:1
 jerónimo	PROPN:1
 jesucristo	PROPN:1
 jesuita	NOUN:1
@@ -12686,7 +12646,6 @@ júbilo	NOUN|Gender=Masc:1
 júcar	PROPN:1
 júpiter	PROPN:2
 k	SYM:1
-ka	NOUN|Gender=Fem:1
 kabuki	NOUN|Gender=Masc:1
 kabul	PROPN:1
 kafkiano	ADJ:1
@@ -12930,7 +12889,6 @@ lazcano	PROPN:1
 lazo	NOUN|Gender=Masc:5
 laúd	NOUN|Gender=Masc:2
 le	PRON:1
-lea	VERB:1
 leal	ADJ:1
 lealmente	ADV:1
 lealtad	NOUN|Gender=Fem:1
@@ -13233,7 +13191,6 @@ living	NOUN|Gender=Masc:1
 livre	NOUN:1
 liza	NOUN|Gender=Fem:1
 liébana	PROPN:1
-ll	SYM:3
 llaga	NOUN|Gender=Fem:2
 llamador	NOUN|Gender=Masc:2
 llamamiento	NOUN|Gender=Masc:1
@@ -13261,7 +13218,6 @@ llorente	PROPN:2
 lloriquear	VERB:1
 lloriqueo	VERB:1
 lloro	NOUN|Gender=Masc:1
-lloró	VERB:1
 llorón	ADJ:1	NOUN|Gender=Masc:1
 llosa	PROPN:2
 llover	VERB:1
@@ -13359,7 +13315,6 @@ lucha	NOUN|Gender=Fem:1
 luchador	NOUN|Gender=Masc:1
 luchar	VERB:2
 luche	VERB:2
-lucho	VERB:2
 lucidez	NOUN|Gender=Fem:1
 lucio	NOUN|Gender=Masc:1	PROPN:1
 lucir	VERB:2
@@ -13507,7 +13462,6 @@ madrina	NOUN|Gender=Fem:1
 madriza	NOUN|Gender=Fem:1
 madrona	NOUN|Gender=Fem:1
 madroño	NOUN|Gender=Masc:4
-madruga	VERB:1
 madrugada	NOUN|Gender=Fem:2
 madrugador	ADJ:1
 madrugar	VERB:1
@@ -13846,7 +13800,6 @@ marcial	ADJ:1
 marciano	ADJ:1	NOUN|Gender=Masc:1
 marcilla	PROPN:1
 marco	NOUN|Gender=Masc:1
-marcos	PROPN:1
 marea	NOUN|Gender=Fem:2
 marear	VERB:2
 marejada	NOUN|Gender=Fem:1
@@ -13863,7 +13816,6 @@ marginal	ADJ:1
 marginalidad	NOUN|Gender=Fem:1
 marginalización	NOUN|Gender=Fem:1
 mariachi	NOUN|Gender=Masc:1
-mariana	PROPN:2
 marica	NOUN:3
 marichalar	PROPN:1
 marico	NOUN|Gender=Masc:1
@@ -13958,7 +13910,6 @@ matadero	NOUN|Gender=Masc:1
 matador	NOUN|Gender=Masc:2
 matamoros	ADJ:1
 matanza	NOUN|Gender=Fem:1
-matanzas	PROPN:1
 matar	VERB:1
 matarife	NOUN:1
 mate	ADJ:1	NOUN:3
@@ -14294,6 +14245,7 @@ metraje	NOUN|Gender=Masc:1
 metralleta	NOUN|Gender=Fem:1
 metro	NOUN|Gender=Masc:2
 metrología	NOUN|Gender=Fem:1
+metropolitana	ADJ:2
 metropolitano	ADJ:2	NOUN|Gender=Masc:2
 metrosexual	ADJ:1
 metrónomo	NOUN|Gender=Masc:1
@@ -14413,6 +14365,7 @@ mimoso	ADJ:2
 mina	NOUN|Gender=Fem:4
 minar	VERB:1
 minarete	NOUN|Gender=Masc:1
+minas	NOUN:4
 mindanao	PROPN:1
 mineral	ADJ:1
 mineralogía	NOUN|Gender=Fem:1
@@ -14458,7 +14411,6 @@ mirlo	NOUN|Gender=Masc:1
 mirra	NOUN|Gender=Fem:1
 mirto	NOUN|Gender=Masc:1
 miríada	NOUN|Gender=Fem:1
-miró	VERB:2
 mirón	ADJ:1	PROPN:1	NOUN|Gender=Masc:1
 misa	NOUN|Gender=Fem:1
 misal	NOUN|Gender=Masc:2
@@ -14523,7 +14475,6 @@ modernidad	NOUN|Gender=Fem:1
 modernismo	NOUN|Gender=Masc:1
 modernizar	VERB:1
 moderno	ADJ:1
-modesta	ADJ:1
 modestia	NOUN|Gender=Fem:1
 modesto	ADJ:1
 modificación	NOUN|Gender=Fem:1
@@ -14552,6 +14503,7 @@ mojón	NOUN|Gender=Masc:5
 mol	NOUN|Gender=Masc:1
 molar	ADJ:1	NOUN|Gender=Masc:1	VERB:1
 molcajete	NOUN|Gender=Masc:1
+moldava	NOUN:1
 moldavia	PROPN:1
 moldavo	NOUN|Gender=Masc:1
 molde	NOUN|Gender=Masc:1
@@ -14651,7 +14603,6 @@ montera	NOUN|Gender=Fem:1
 montero	ADJ:1	NOUN|Gender=Masc:1
 monterrey	PROPN:3
 montería	NOUN|Gender=Fem:1
-montes	NOUN:1
 montevideo	PROPN:1
 monto	VERB:1
 montoya	PROPN:1
@@ -14679,7 +14630,6 @@ morado	ADJ:1	NOUN|Gender=Masc:1
 moral	ADJ:2	NOUN:4
 moraleda	NOUN:1
 moraleja	NOUN|Gender=Fem:1
-morales	PROPN:1
 moralidad	NOUN|Gender=Fem:1
 moralina	PROPN:1	NOUN|Gender=Fem:1
 moralismo	NOUN|Gender=Masc:1
@@ -15075,7 +15025,6 @@ navegante	ADJ:1	NOUN:2
 navegar	VERB:1
 navia	PROPN:2
 navidad	NOUN|Gender=Fem:1
-navidades	NOUN:1
 navideño	ADJ:1
 naviero	ADJ:1	NOUN|Gender=Masc:1
 navío	NOUN|Gender=Masc:1
@@ -15085,7 +15034,6 @@ nazareno	ADJ:1
 nazaret	PROPN:1
 nazario	PROPN:1
 nazarí	ADJ:1
-nazca	PROPN:1
 nazismo	NOUN|Gender=Masc:1
 neandertal	ADJ:1
 neblina	NOUN|Gender=Fem:1
@@ -15204,7 +15152,6 @@ niel	NOUN:1
 nieta	NOUN|Gender=Fem:1
 nieto	NOUN|Gender=Masc:1
 nieve	NOUN|Gender=Fem:4
-nieves	NOUN:4
 nigeria	PROPN:1
 nigeriano	ADJ:1	NOUN|Gender=Masc:1
 nigromante	NOUN:1
@@ -15395,7 +15342,7 @@ nórdico	ADJ:1	NOUN|Gender=Masc:1
 núcleo	NOUN|Gender=Masc:1
 número	NOUN|Gender=Masc:4
 núñez	PROPN:1
-o	SYM:1	NOUN:1	CCONJ:1	ADV:1
+o	CCONJ:1	ADV:1
 oaci	PROPN:1
 oasis	NOUN|Gender=Masc:1
 oaxaca	PROPN:2
@@ -15962,6 +15909,7 @@ paleontología	NOUN|Gender=Fem:1
 paleontólogo	NOUN|Gender=Masc:1
 paleozoico	ADJ:1
 palermo	PROPN:1
+palestina	PROPN:1
 palestino	ADJ:1
 palestra	NOUN|Gender=Fem:1
 paleta	NOUN|Gender=Fem:2
@@ -15988,8 +15936,8 @@ palmolive	NOUN:1
 palo	NOUN|Gender=Masc:7	PROPN:1
 paloma	NOUN|Gender=Fem:1
 palomar	NOUN|Gender=Masc:3	PROPN:2
-palomares	NOUN:3
 palomeque	PROPN:1
+palomera	PROPN:1
 palomero	PROPN:1
 palomino	NOUN|Gender=Masc:2	PROPN:1
 palomita	NOUN|Gender=Fem:1
@@ -16136,7 +16084,6 @@ parasitología	NOUN|Gender=Fem:1
 parasol	NOUN|Gender=Masc:1
 paraíso	NOUN|Gender=Masc:1
 parca	ADJ:1
-parcas	ADJ:1
 parcela	NOUN|Gender=Fem:1
 parche	NOUN|Gender=Masc:7
 parchís	NOUN|Gender=Masc:1
@@ -16179,7 +16126,6 @@ parmesano	ADJ:1
 parnaso	NOUN|Gender=Masc:1
 paro	NOUN|Gender=Masc:3
 parodia	NOUN|Gender=Fem:1
-paros	NOUN:3
 paroxismo	NOUN|Gender=Masc:1
 parpadear	VERB:1
 parpadeo	VERB:1
@@ -16358,11 +16304,9 @@ país	NOUN|Gender=Masc:1
 pañal	NOUN|Gender=Masc:1
 paño	NOUN|Gender=Masc:1
 pañoleta	NOUN|Gender=Fem:1
-paños	NOUN:1
 pañuelo	NOUN|Gender=Masc:1
 pbi	X:1
 pd	NOUN|Gender=Fem:1
-pe	NOUN|Gender=Fem:1
 peaje	NOUN|Gender=Masc:1
 pear	VERB:1
 peatón	NOUN|Gender=Masc:1
@@ -16371,6 +16315,7 @@ pecado	NOUN|Gender=Masc:1
 pecador	NOUN|Gender=Masc:1
 pecaminoso	ADJ:1
 pecar	VERB:1
+peces	NOUN:5
 pecho	NOUN|Gender=Masc:1
 pechuga	NOUN|Gender=Fem:2
 pecio	NOUN|Gender=Masc:1
@@ -16446,7 +16391,6 @@ pelea	NOUN|Gender=Fem:2
 peleada	VERB:1
 pelear	VERB:1
 pelele	NOUN|Gender=Masc:3
-peleo	VERB:1
 peletería	NOUN|Gender=Fem:1
 peli	NOUN|Gender=Fem:1
 peliagudo	ADJ:1
@@ -17227,7 +17171,6 @@ portátil	ADJ:1
 portón	NOUN|Gender=Masc:1
 porvenir	NOUN|Gender=Masc:1
 posada	NOUN|Gender=Fem:4
-posadas	PROPN:1
 posadero	NOUN|Gender=Masc:1
 posar	VERB:1
 posdata	NOUN|Gender=Fem:1
@@ -17684,7 +17627,6 @@ prosodia	NOUN|Gender=Fem:1
 prospección	NOUN|Gender=Fem:1
 prosperar	VERB:2
 prosperidad	NOUN|Gender=Fem:1
-prospero	VERB:2
 prostitución	NOUN|Gender=Fem:1
 prostituir	VERB:2
 prostituto	NOUN|Gender=Masc:1
@@ -17722,7 +17664,6 @@ provenir	VERB:1
 provenza	PROPN:1
 provenzal	ADJ:1	NOUN|Gender=Masc:2
 proverbio	NOUN|Gender=Masc:1
-proverbios	NOUN:1
 providencia	NOUN|Gender=Fem:1
 providencial	ADJ:1
 provincia	NOUN|Gender=Fem:2
@@ -17975,7 +17916,7 @@ público	ADJ:1
 púlpito	NOUN|Gender=Masc:1
 púrpura	NOUN|Gender=Fem:1
 pútrido	ADJ:1
-q	SYM:1	SCONJ:1
+q	SCONJ:1
 qepd	INTJ:1
 quad	NOUN|Gender=Masc:1
 quark	NOUN|Gender=Masc:1
@@ -19080,7 +19021,6 @@ roedor	NOUN|Gender=Masc:1
 roer	VERB:1
 rogar	VERB:1
 rohingya	NOUN:1
-rojas	ADJ:2
 rojiblanco	ADJ:1
 rojizo	ADJ:1
 rojo	ADJ:2	NOUN|Gender=Masc:1
@@ -19131,7 +19071,6 @@ rosaleda	NOUN|Gender=Fem:1
 rosales	NOUN:1
 rosalía	PROPN:1
 rosario	NOUN|Gender=Masc:1
-rosas	NOUN:2
 rosca	NOUN|Gender=Fem:4
 rosco	NOUN|Gender=Masc:4
 roseta	NOUN|Gender=Fem:1
@@ -19234,7 +19173,6 @@ rúa	NOUN|Gender=Fem:1
 rúbrica	NOUN|Gender=Fem:1
 rúcula	NOUN|Gender=Fem:1
 rústico	NOUN|Gender=Masc:1
-s	SYM:1
 sabadell	PROPN:1
 sabana	NOUN|Gender=Fem:1
 sabandija	NOUN|Gender=Fem:3
@@ -19436,11 +19374,9 @@ santidad	NOUN|Gender=Fem:1
 santificado	VERB:1
 santificar	VERB:1
 santo	ADJ:1	NOUN|Gender=Masc:1
-santos	ADJ:1
 santuario	NOUN|Gender=Masc:1
 santurce	PROPN:1
 santín	PROPN:1
-saná	PROPN:1
 sao	PROPN:1
 sapiencia	NOUN|Gender=Fem:1
 sapo	NOUN|Gender=Masc:1
@@ -19584,7 +19520,6 @@ segundo	ADJ:1	NOUN|Gender=Masc:1
 seguramente	ADV:2
 seguridad	NOUN|Gender=Fem:1
 seguro	ADJ:5
-seguí	VERB:3
 según	ADP:2
 seijas	PROPN:1
 seis	ADJ:1	NOUN:1
@@ -19595,7 +19530,6 @@ selección	NOUN|Gender=Fem:1
 selectividad	NOUN|Gender=Fem:2
 selectivo	ADJ:1
 selenio	NOUN|Gender=Masc:1
-sella	VERB:1
 sellado	VERB:1
 sellar	VERB:1
 sello	NOUN|Gender=Masc:4
@@ -20144,6 +20078,7 @@ sondear	VERB:1
 sondeo	NOUN|Gender=Masc:1
 soneto	NOUN|Gender=Masc:1
 sonido	NOUN|Gender=Masc:1
+sonora	PROPN:1
 sonoridad	NOUN|Gender=Fem:1
 sonoro	ADJ:1
 sonreír	VERB:1
@@ -20560,6 +20495,7 @@ t	SYM:1
 ta	NOUN:1
 taba	NOUN:1
 tabaco	NOUN|Gender=Masc:2
+tabaquera	NOUN|Gender=Fem:1
 tabarnia	PROPN:1
 tabasco	PROPN:1
 taberna	NOUN|Gender=Fem:1
@@ -20616,7 +20552,6 @@ taladro	NOUN|Gender=Masc:1
 talanquera	NOUN|Gender=Fem:1
 talante	NOUN|Gender=Masc:1
 talar	VERB:1
-talara	VERB:1
 talavera	PROPN:1
 talca	PROPN:1
 talco	NOUN|Gender=Masc:1
@@ -20686,7 +20621,6 @@ tapioca	NOUN|Gender=Fem:1
 tapir	NOUN|Gender=Masc:1
 tapiz	NOUN|Gender=Masc:2
 tapizado	ADJ:1	NOUN|Gender=Masc:1
-tapo	VERB:2
 taponamiento	NOUN|Gender=Masc:2
 taponar	VERB:1
 tapón	NOUN|Gender=Masc:1
@@ -20793,7 +20727,6 @@ tedioso	ADJ:1
 teherán	PROPN:1
 tehuelche	NOUN:1
 teja	NOUN|Gender=Fem:1
-tejada	VERB:1
 tejado	NOUN|Gender=Masc:1
 tejano	NOUN|Gender=Masc:1
 tejar	NOUN|Gender=Masc:1	VERB:1
@@ -20909,6 +20842,7 @@ teorema	NOUN|Gender=Masc:1
 teoría	NOUN|Gender=Fem:1
 teosofía	NOUN|Gender=Fem:1
 tep	X:1
+tept	NOUN|Gender=Masc:1
 tequila	NOUN:2
 tera	PROPN:1
 terapeuta	NOUN:1
@@ -21060,6 +20994,7 @@ tinaja	NOUN|Gender=Fem:1
 tinajero	NOUN|Gender=Masc:3
 tinca	VERB:3
 tinción	NOUN|Gender=Fem:1
+tinduf	PROPN:1
 tinerfeño	ADJ:1
 tinglado	NOUN|Gender=Masc:2
 tiniebla	NOUN|Gender=Fem:1
@@ -21085,7 +21020,6 @@ tirada	VERB:2
 tirado	VERB:2
 tirador	NOUN|Gender=Masc:1
 tiramisú	NOUN|Gender=Masc:1
-tirana	PROPN:1
 tirano	NOUN|Gender=Masc:1	ADJ:1
 tiranosaurio	NOUN|Gender=Masc:1
 tirante	NOUN|Gender=Masc:1	ADJ:1
@@ -21172,8 +21106,6 @@ tomate	NOUN|Gender=Masc:3
 tombo	NOUN|Gender=Masc:1
 tomillo	NOUN|Gender=Masc:1
 tomografía	NOUN|Gender=Fem:1
-tomás	PROPN:1
-tomé	VERB:7
 tonada	NOUN|Gender=Fem:1
 tondo	NOUN:1
 tonel	NOUN|Gender=Masc:1
@@ -21226,6 +21158,7 @@ toro	NOUN|Gender=Masc:3	PROPN:1
 toronja	NOUN|Gender=Fem:1
 toronto	PROPN:1
 torpe	ADJ:3
+torpedear	VERB:1
 torpedero	ADJ:1	NOUN|Gender=Masc:1
 torpedo	NOUN|Gender=Masc:3
 torpemente	ADV:1
@@ -21412,6 +21345,7 @@ traslación	NOUN|Gender=Fem:2
 trasladar	VERB:1
 traslado	NOUN|Gender=Masc:1
 traslucir	VERB:1
+traslúcido	ADJ:1
 trasnacional	ADJ:1
 trasnochada	VERB:1
 trasnochado	VERB:1
@@ -21631,7 +21565,6 @@ tullido	ADJ:1
 tumba	NOUN|Gender=Fem:5
 tumbado	VERB:1
 tumbar	VERB:1
-tumbes	VERB:1
 tumbo	VERB:1
 tumor	NOUN|Gender=Masc:1
 tumoral	ADJ:1
@@ -21722,7 +21655,7 @@ túmulo	NOUN|Gender=Masc:1
 túnel	NOUN|Gender=Masc:1
 túnez	PROPN:2
 túnica	NOUN|Gender=Fem:1
-u	SYM:1
+u	CCONJ:1
 ua	NOUN:1
 uagadugú	PROPN:1
 ubaldo	PROPN:1
@@ -21866,12 +21799,10 @@ utopía	NOUN|Gender=Fem:2
 utrecht	PROPN:2
 utópico	ADJ:1
 uva	NOUN|Gender=Fem:1
-uve	NOUN|Gender=Fem:1
 uy	INTJ:1
 uzbekistán	PROPN:1
 uzbeko	NOUN|Gender=Masc:1
 uña	NOUN|Gender=Fem:1
-v	SYM:1
 vaca	NOUN|Gender=Fem:1
 vacación	NOUN|Gender=Fem:1
 vacante	ADJ:1
@@ -22154,19 +22085,20 @@ verosímil	ADJ:1
 verraco	NOUN|Gender=Masc:2
 verruga	NOUN|Gender=Fem:2
 versalles	PROPN:1
+versificación	NOUN|Gender=Fem:1
 versión	NOUN|Gender=Fem:1
 verso	NOUN|Gender=Masc:1
 versátil	ADJ:1
 vertebración	NOUN|Gender=Fem:1
 vertebrado	ADJ:1
 vertebral	ADJ:1
+vertebrar	VERB:1
 verter	VERB:4
 vertical	ADJ:1	NOUN|Gender=Fem:1
 verticalidad	NOUN|Gender=Fem:1
 verticalmente	ADV:1
 vertido	VERB:4
 vertiente	NOUN|Gender=Fem:2
-vertientes	NOUN:2
 vertiginoso	ADJ:1
 verónica	NOUN|Gender=Fem:2	PROPN:1
 vespertino	ADJ:1	NOUN|Gender=Masc:2
@@ -22488,6 +22420,7 @@ wacho	ADJ:1	NOUN|Gender=Masc:6
 waifu	NOUN|Gender=Fem:1
 walkman	NOUN|Gender=Masc:1
 wari	NOUN:1
+warrant	NOUN:1
 wasabi	NOUN|Gender=Masc:1
 water	NOUN|Gender=Masc:1
 waterpolo	NOUN|Gender=Masc:1
@@ -22511,7 +22444,7 @@ wok	NOUN|Gender=Masc:1
 wolframio	NOUN|Gender=Masc:1
 won	NOUN|Gender=Masc:1
 wuhan	PROPN:1
-x	SYM:1	ADP:1
+x	ADP:1
 xe	NOUN:1
 xenofobia	NOUN|Gender=Fem:1
 xenófobo	ADJ:1
@@ -22521,7 +22454,7 @@ ximénez	PROPN:1
 xml	NOUN:1
 xp	NOUN:1
 xq	SCONJ:1	ADV:1
-y	SYM:1	CCONJ:1
+y	CCONJ:1
 ya	ADV:3
 yacaré	NOUN|Gender=Masc:1
 yacente	NOUN:1
@@ -22530,11 +22463,13 @@ yacimiento	NOUN|Gender=Masc:1
 yago	PROPN:1
 yaguareté	NOUN|Gender=Masc:1
 yak	NOUN|Gender=Masc:1
+yakutsk	PROPN:1
 yakuza	NOUN:1
 yalta	PROPN:1
 yana	NOUN:1
 yanet	PROPN:1
 yanguas	PROPN:1
+yanomami	NOUN:1
 yanqui	NOUN:1
 yaque	NOUN:1
 yara	PROPN:1
@@ -22552,6 +22487,7 @@ yemení	NOUN:1
 yepes	PROPN:1
 yerba	NOUN|Gender=Fem:1
 yerbabuena	NOUN|Gender=Fem:1
+yerbal	NOUN|Gender=Masc:2
 yermo	ADJ:1	NOUN|Gender=Masc:1
 yerno	NOUN|Gender=Masc:1
 yerro	NOUN|Gender=Masc:1
@@ -22560,6 +22496,7 @@ yesca	NOUN|Gender=Fem:1
 yeso	NOUN|Gender=Masc:2
 yeti	NOUN|Gender=Masc:1
 yibuti	PROPN:2
+yidis	NOUN:1
 yihad	NOUN|Gender=Fem:1
 yihadismo	NOUN|Gender=Masc:1
 yihadista	ADJ:1
@@ -22710,9 +22647,7 @@ zúñiga	PROPN:2
 ágora	NOUN|Gender=Fem:1
 águeda	PROPN:4
 águila	NOUN|Gender=Fem:1
-águilas	NOUN:1
 álamo	NOUN|Gender=Masc:1
-álamos	NOUN:1
 álava	PROPN:1
 álbum	NOUN|Gender=Masc:1
 álgebra	NOUN|Gender=Fem:1
@@ -22727,7 +22662,6 @@ zúñiga	PROPN:2
 ánfora	NOUN|Gender=Fem:1
 ángel	NOUN|Gender=Masc:1	PROPN:1
 ángela	PROPN:1
-ángeles	NOUN:1
 ángelus	NOUN|Gender=Masc:1
 ángulo	NOUN|Gender=Masc:1
 ánima	NOUN|Gender=Fem:1
@@ -22742,7 +22676,6 @@ zúñiga	PROPN:2
 árido	ADJ:1
 ártico	ADJ:1
 áspero	ADJ:1
-ática	PROPN:1
 ático	ADJ:1	NOUN|Gender=Masc:1
 átomo	NOUN|Gender=Masc:1
 áureo	NOUN|Gender=Masc:1
@@ -22784,7 +22717,6 @@ zúñiga	PROPN:2
 ínterin	NOUN|Gender=Masc:1
 íntimo	ADJ:1
 ítalo	NOUN|Gender=Masc:1
-ñ	SYM:2
 ñame	NOUN|Gender=Masc:1
 ñandú	NOUN|Gender=Masc:1
 ñata	NOUN|Gender=Fem:1
