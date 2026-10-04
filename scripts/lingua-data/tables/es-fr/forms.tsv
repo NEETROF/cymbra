@@ -6242,7 +6242,7 @@ algunas	alguno
 alguno	alguno
 algunos	alguno
 algérie	algérie
-algún	algún
+algún	alguno
 algúna	algúna
 alhama	alhama
 alhambra	alhambra
@@ -20314,7 +20314,7 @@ bue	buey
 bueeeno	bueeeno
 bueh	bueh
 buelna	buelna
-buen	buen
+buen	bueno
 buena	buena
 buenafuente	buenafuente
 buenamente	buenamente
@@ -20332,9 +20332,11 @@ buenisimo	buenisimo
 buenisimos	buenisimos
 buenismo	buenismo
 buenito	buenito
-bueno	buen
+bueno	bueno
+buenos	bueno
 buenosaires	buenosaires
 buenota	buena
+buenísimo	bueno
 buero	buero
 buesa	buesa
 bueso	bueso
@@ -36489,7 +36491,7 @@ cuajos	cuajo
 cuajó	cuajar
 cual	cual
 cuales	cual
-cualesquier	cualesquier
+cualesquier	cualquiera
 cualesquiera	cualquiera
 cualidad	cualidad
 cualidades	cualidad
@@ -36506,7 +36508,7 @@ cualitativo	cualitativo
 cualitativos	cualitativo
 cualqueir	cualqueir
 cualquer	cualquer
-cualquier	cualquier
+cualquier	cualquiera
 cualquiera	cualquiera
 cualquieras	cualquiera
 cuan	cuan
@@ -38690,7 +38692,7 @@ decimosexta	decimosexto
 decimosexto	decimosexto
 decimoséptima	decimoséptimo
 decimoséptimo	decimoséptimo
-decimotercer	decimotercer
+decimotercer	decimotercero
 decimotercera	decimotercero
 decimotercero	decimotercero
 decio	decio
@@ -67096,7 +67098,7 @@ gramínea	gramínea
 gramíneas	gramínea
 gramófono	gramófono
 gramófonos	gramófono
-gran	gran
+gran	grande
 grana	grana
 granada	granada
 granadas	granada
@@ -68295,6 +68297,7 @@ gótico	gótico
 góticos	gótico
 güell	güell
 güemes	güemes
+güen	güeno
 güena	güeno
 güenas	güeno
 güeno	güeno
@@ -86285,7 +86288,7 @@ malnacida	malnacido
 malnacido	malnacido
 malnacidos	malnacido
 malnutrición	malnutrición
-malo	mal
+malo	malo
 malogra	malograr
 malograda	malogrado
 malogradas	malogrado
@@ -86306,6 +86309,7 @@ malolientes	maloliente
 malone	malone
 malones	malón
 maloney	maloney
+malos	malo
 malote	malote
 malotes	malote
 malparida	malparido
@@ -86360,6 +86364,7 @@ maltrecho	maltrecho
 maltrechos	maltrecho
 maltés	maltés
 malu	malu
+maluco	malo
 maluenda	maluenda
 maluma	maluma
 malva	malva
@@ -86394,6 +86399,7 @@ malévolo	malévolo
 malévolos	malévolo
 malí	malí
 malíes	malí
+malísimo	malo
 malón	malón
 malú	malú
 mam	mam
@@ -106667,6 +106673,7 @@ postraumático	postraumático
 postraumáticos	postraumático
 postre	postre
 postrecito	postre
+postrer	postrero
 postrera	postrero
 postreras	postrero
 postrero	postrero
@@ -108373,7 +108380,7 @@ primaveras	primavera
 prime	prime
 primeira	primeira
 primen	primar
-primer	primer
+primer	primero
 primera	primero
 primeramente	primeramente
 primeras	primero
@@ -123360,7 +123367,7 @@ samurái	samurái
 samuráis	samurái
 samy	samy
 samán	samán
-san	san
+san	santo
 sana	sano
 sanaa	sanaa
 sanaba	sanar
@@ -123497,7 +123504,7 @@ sanearse	sanear
 sanedrín	sanedrín
 sanee	sanear
 sanen	sanar
-sanes	san
+sanes	sanar
 saneó	sanear
 sanfermines	sanfermines
 sanford	sanford
@@ -127126,6 +127133,7 @@ slr	slr
 sls	sls
 slu	slu
 slug	slug
+slumdog	slumdog
 slut	slut
 sly	sly
 slytherin	slytherin
@@ -127655,6 +127663,8 @@ sofa	sofa
 sofi	sofi
 sofia	sofia
 sofie	sofie
+sofisma	sofisma
+sofismas	sofisma
 sofista	sofista
 sofistas	sofista
 sofisticaciones	sofisticación
@@ -127683,6 +127693,7 @@ sofoco	sofoco
 sofocos	sofoco
 sofocándose	sofocar
 sofocó	sofocar
+sofofa	sofofa
 sofoque	sofocar
 sofoquen	sofocar
 sofovich	sofovich
@@ -128429,6 +128440,7 @@ sordos	sordo
 sore	sore
 sorel	sorel
 soren	soren
+sorensen	sorensen
 sores	sor
 sorete	sorete
 soretes	sorete
@@ -128762,6 +128774,7 @@ spaniel	spaniel
 spaniels	spaniel
 spanish	spanish
 spano	spano
+spar	spar
 spark	spark
 sparkle	sparkle
 sparks	sparks
@@ -128834,6 +128847,7 @@ spinosa	spinosa
 spinoza	spinoza
 spins	spin
 spirit	spirit
+spirito	spirito
 spiritu	spiritu
 spiritual	spiritual
 spiritus	spiritus
@@ -129054,6 +129068,7 @@ stearns	stearns
 steel	steel
 steele	steele
 steelers	steelers
+stef	stef
 stefan	stefan
 stefani	stefani
 stefania	stefania
@@ -133347,7 +133362,7 @@ teras	teras
 terca	terco
 tercamente	tercamente
 tercas	terco
-tercer	tercer
+tercer	tercero
 tercera	tercero
 terceras	tercero
 tercerización	tercerización

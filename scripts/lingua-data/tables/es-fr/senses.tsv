@@ -948,7 +948,6 @@ algoritmo	NOUN|Gender=Masc:1
 alguacil	NOUN|Gender=Masc:1
 alguien	PRON:1
 alguno	ADJ:1	PRON:1
-algún	PRON:1	ADJ:1
 alhama	PROPN:3
 alhambra	PROPN:2
 alhóndiga	NOUN|Gender=Fem:1
@@ -3408,6 +3407,7 @@ budista	NOUN:1
 buena	ADJ:1
 buenas	INTJ:1
 buenavista	PROPN:1
+bueno	ADJ:1	INTJ:1
 buey	NOUN|Gender=Masc:1
 bufanda	NOUN|Gender=Fem:1
 bufete	NOUN|Gender=Masc:3
@@ -6206,7 +6206,6 @@ cual	PRON:2
 cualidad	NOUN|Gender=Fem:1
 cualificado	VERB:1
 cualitativo	ADJ:1
-cualquier	ADJ:1	PRON:1	ADV:1
 cualquiera	PRON:2	ADJ:1	NOUN:1
 cuando	SCONJ:2	ADP:1
 cuantificar	VERB:1
@@ -10611,7 +10610,6 @@ gramática	NOUN|Gender=Fem:1
 gramático	ADJ:1	NOUN:1
 gramínea	NOUN|Gender=Fem:1
 gramófono	NOUN|Gender=Masc:1
-gran	ADJ:1
 grana	VERB:1
 granada	PROPN:2	NOUN|Gender=Fem:2
 granadilla	NOUN|Gender=Fem:1	PROPN:1
@@ -13629,6 +13627,7 @@ mallorca	PROPN:1
 mallorquín	ADJ:1	NOUN|Gender=Masc:1
 malnacido	ADJ:1
 malnutrición	NOUN|Gender=Fem:1
+malo	ADJ:1	NOUN|Gender=Masc:1
 malograr	VERB:1
 maloliente	ADJ:1
 malpartida	PROPN:1
@@ -17497,7 +17496,6 @@ primario	ADJ:1
 primate	ADJ:1	NOUN|Gender=Masc:1
 primavera	NOUN:1
 primaveral	ADJ:1
-primer	ADJ:1
 primeramente	ADV:1
 primeriza	NOUN|Gender=Fem:1
 primero	ADJ:1
@@ -19394,7 +19392,6 @@ samsara	NOUN|Gender=Masc:1
 samu	NOUN:1
 samuel	PROPN:1
 samurái	NOUN|Gender=Masc:1
-san	NOUN:1
 sanabria	PROPN:1
 sanar	VERB:1
 sanatorio	NOUN|Gender=Masc:1
@@ -20056,6 +20053,7 @@ sodio	NOUN|Gender=Masc:1
 sodomita	NOUN:1
 sodomía	NOUN|Gender=Fem:1
 soez	ADJ:1	NOUN:1
+sofisma	NOUN|Gender=Masc:1
 sofista	NOUN:1
 sofisticación	NOUN|Gender=Fem:1
 sofocación	NOUN|Gender=Fem:1
@@ -20918,7 +20916,6 @@ terapia	NOUN|Gender=Fem:1
 terapista	NOUN:1
 terapéutico	ADJ:1
 tercamente	ADV:1
-tercer	ADJ:1
 tercermundista	ADJ:1
 tercero	ADJ:1	NOUN|Gender=Masc:1
 tercia	NOUN|Gender=Fem:2

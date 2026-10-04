@@ -7167,14 +7167,13 @@ alguacil	alguacil	NOUN|Gender=Masc|Number=Sing	-
 alguaciles	alguacil	NOUN|Gender=Masc|Number=Plur	-
 alguito	algo	NOUN|Gender=Masc|Number=Sing	-
 algun	algun	ADJ|Number=Sing	-
-algun	algún	DET|Number=Sing	other
 alguna	alguno	DET|Gender=Fem|Number=Sing	-
 alguna	alguno	PRON|Gender=Fem|Number=Sing	-
 algunas	alguno	DET|Gender=Fem|Number=Plur	-
 algunas	alguno	PRON|Gender=Fem|Number=Plur	-
-alguno	algún	DET|Number=Sing	other
 algunos	alguno	DET|Gender=Masc|Number=Plur	-
 algunos	alguno	PRON|Gender=Masc|Number=Plur	-
+algún	alguno	DET|Gender=Masc|Number=Sing	-
 alharaca	alharaca	NOUN|Gender=Fem|Number=Sing	-
 alharacas	alharaca	NOUN|Gender=Fem|Number=Plur	-
 alhóndiga	alhóndiga	NOUN|Gender=Fem|Number=Sing	-
@@ -20315,6 +20314,7 @@ bombos	bombo	NOUN|Gender=Masc|Number=Plur	-
 bombín	bombín	NOUN|Gender=Masc|Number=Sing	-
 bombón	bombón	NOUN|Gender=Masc|Number=Sing	-
 bon	bon	ADJ|Gender=Masc|Number=Sing	-
+bon	bueno	ADJ|Number=Sing	other
 bona	bon	ADJ|Gender=Fem|Number=Sing	other
 bona	bono	ADJ|Gender=Fem|Number=Sing	-
 bonachona	bonachón	ADJ|Gender=Fem|Number=Sing	-
@@ -20358,6 +20358,7 @@ bonitos	bonito	ADJ|Gender=Masc|Number=Plur	-
 bonitos	bonito	NOUN|Gender=Masc|Number=Plur	-
 bono	bono	ADJ|Gender=Masc|Number=Sing	-
 bono	bono	NOUN|Gender=Masc|Number=Sing	-
+bono	bueno	ADJ|Number=Sing	other
 bonobo	bonobo	NOUN|Gender=Masc|Number=Sing	-
 bonobos	bonobo	NOUN|Gender=Masc|Number=Plur	-
 bonos	bono	ADJ|Gender=Masc|Number=Plur	-
@@ -21285,15 +21286,19 @@ budín	budín	NOUN|Gender=Masc|Number=Sing	-
 budín	pudin	NOUN|Gender=Masc|Number=Sing	other
 budín	pudín	NOUN|Gender=Masc|Number=Sing	other
 bue	buey	NOUN|Gender=Masc|Number=Sing	-
-buen	buen	ADJ|Number=Sing	-
+buen	bueno	ADJ|Gender=Masc|Number=Sing	-
 buena	buena	NOUN|Gender=Fem|Number=Sing	-
+buena	bueno	ADJ|Gender=Fem|Number=Sing	other
 buenas	buena	NOUN|Gender=Fem|Number=Plur	other
+buenas	bueno	ADJ|Gender=Fem|Number=Plur	other
 buenaventura	buenaventura	NOUN|Gender=Fem|Number=Sing	-
 buenaza	buenazo	ADJ|Gender=Fem|Number=Sing	-
 buenazo	buenazo	ADJ|Gender=Masc|Number=Sing	-
 buenazos	buenazo	ADJ|Gender=Masc|Number=Plur	-
 buenismo	buenismo	NOUN|Gender=Masc|Number=Sing	-
-bueno	buen	ADJ|Number=Sing	-
+bueno	bueno	ADJ|Gender=Masc|Number=Sing	-
+buenos	bueno	ADJ|Gender=Masc|Number=Plur	-
+buenísimo	bueno	ADJ|Degree=Sup|Number=Sing	-
 buey	buey	NOUN|Gender=Masc|Number=Sing	-
 bueyes	buey	NOUN|Gender=Masc|Number=Plur	-
 bufa	bufa	NOUN|Gender=Fem|Number=Sing	-
@@ -39009,7 +39014,7 @@ cuajo	cuajo	NOUN|Gender=Masc|Number=Sing	-
 cuajos	cuajo	NOUN|Gender=Masc|Number=Plur	-
 cuajó	cuajar	VERB|Mood=Ind|Number=Sing|Person=3|Tense=Past|VerbForm=Fin	-
 cuales	cual	PRON|Number=Plur	-
-cualesquier	cualquier	DET|Number=Plur	other
+cualesquier	cualquiera	DET|Number=Plur	-
 cualesquiera	cualquiera	DET|Number=Plur	-
 cualesquiera	cualquiera	PRON|Number=Plur	-
 cualidad	cualidad	NOUN|Gender=Fem|Number=Sing	-
@@ -39024,8 +39029,7 @@ cualitativa	cualitativo	ADJ|Gender=Fem|Number=Sing	-
 cualitativas	cualitativo	ADJ|Gender=Fem|Number=Plur	-
 cualitativo	cualitativo	ADJ|Gender=Masc|Number=Sing	-
 cualitativos	cualitativo	ADJ|Gender=Masc|Number=Plur	-
-cualquiera	cualesquier	DET|Number=Sing	other
-cualquiera	cualquier	DET|Number=Sing	other
+cualquier	cualquiera	DET|Number=Sing	-
 cualquiera	cualquiera	NOUN|Gender=Fem|Number=Sing	-
 cualquiera	cualquiera	NOUN|Gender=Masc|Number=Sing	-
 cualquieras	cualquiera	NOUN|Gender=Fem|Number=Plur	-
@@ -41202,9 +41206,8 @@ decimosexta	decimosexto	ADJ|Gender=Fem|Number=Sing	-
 decimosexto	decimosexto	ADJ|Gender=Masc|Number=Sing	-
 decimoséptima	decimoséptimo	ADJ|Gender=Fem|Number=Sing	-
 decimoséptimo	decimoséptimo	ADJ|Gender=Masc|Number=Sing	-
-decimotercer	decimotercer	ADJ|Number=Sing	-
+decimotercer	decimotercero	ADJ|Gender=Masc|Number=Sing	-
 decimotercera	decimotercero	ADJ|Gender=Fem|Number=Sing	-
-decimotercero	decimotercer	ADJ|Number=Sing	other
 decimotercero	decimotercero	ADJ|Gender=Masc|Number=Sing	-
 decir	decir	NOUN|Gender=Masc|Number=Sing	-
 decir	decir	VERB|VerbForm=Inf	-
@@ -72634,10 +72637,9 @@ gramínea	gramínea	NOUN|Gender=Fem|Number=Sing	-
 gramíneas	gramínea	NOUN|Gender=Fem|Number=Plur	-
 gramófono	gramófono	NOUN|Gender=Masc|Number=Sing	-
 gramófonos	gramófono	NOUN|Gender=Masc|Number=Plur	-
-gran	gran	ADJ|Number=Sing	-
-gran	grande	ADJ|Number=Sing	other
-gran	grande	NOUN|Gender=Fem|Number=Sing	other
-gran	grande	NOUN|Gender=Masc|Number=Sing	other
+gran	grande	ADJ|Number=Sing	-
+gran	grande	NOUN|Gender=Fem|Number=Sing	-
+gran	grande	NOUN|Gender=Masc|Number=Sing	-
 grana	grana	NOUN|Gender=Fem|Number=Sing	-
 granada	granada	NOUN|Gender=Fem|Number=Sing	-
 granada	granado	ADJ|Gender=Fem|Number=Sing	other
@@ -72666,7 +72668,6 @@ granates	granate	ADJ|Number=Plur	-
 granates	granate	NOUN|Gender=Masc|Number=Plur	-
 granaíno	granadino	ADJ|Number=Sing	-
 granaíno	granadino	NOUN|Gender=Masc|Number=Sing	-
-grande	gran	ADJ|Number=Sing	other
 grande	grande	ADJ|Number=Sing	-
 grande	grande	NOUN|Gender=Fem|Number=Sing	-
 grande	grande	NOUN|Gender=Masc|Number=Sing	-
@@ -73699,6 +73700,7 @@ góticas	gótico	ADJ|Gender=Fem|Number=Plur	-
 gótico	gótico	ADJ|Gender=Masc|Number=Sing	-
 gótico	gótico	NOUN|Gender=Masc|Number=Sing	-
 góticos	gótico	ADJ|Gender=Masc|Number=Plur	-
+güen	güeno	ADJ|Gender=Masc|Number=Sing	-
 güena	güeno	ADJ|Gender=Fem|Number=Sing	-
 güenas	güeno	ADJ|Gender=Fem|Number=Plur	-
 güeno	güeno	ADJ|Gender=Masc|Number=Sing	-
@@ -90042,6 +90044,8 @@ majísimo	majo	ADJ|Degree=Sup|Number=Sing	-
 mal	mal	ADJ|Number=Sing	-
 mal	mal	NOUN|Gender=Masc|Number=Sing	-
 mala	mala	NOUN|Gender=Fem|Number=Sing	-
+mala	malo	ADJ|Gender=Fem|Number=Sing	other
+mala	malo	NOUN|Gender=Fem|Number=Sing	other
 malabar	malabar	ADJ|Number=Sing	-
 malabar	malabar	NOUN|Gender=Masc|Number=Sing	-
 malabares	malabar	ADJ|Number=Plur	-
@@ -90074,6 +90078,8 @@ malanga	malanga	NOUN|Gender=Fem|Number=Sing	-
 malaquita	malaquita	NOUN|Gender=Fem|Number=Sing	-
 malaria	malaria	NOUN|Gender=Fem|Number=Sing	-
 malas	mala	NOUN|Gender=Fem|Number=Plur	-
+malas	malo	ADJ|Gender=Fem|Number=Plur	other
+malas	malo	NOUN|Gender=Fem|Number=Plur	other
 malasia	malasio	ADJ|Gender=Fem|Number=Sing	other
 malasia	malasio	NOUN|Gender=Fem|Number=Sing	other
 malasias	malasia	NOUN|Gender=Fem|Number=Plur	-
@@ -90297,7 +90303,8 @@ malnacido	malnacido	NOUN|Gender=Masc|Number=Sing	-
 malnacidos	malnacido	ADJ|Gender=Masc|Number=Plur	-
 malnacidos	malnacido	NOUN|Gender=Masc|Number=Plur	-
 malnutrición	malnutrición	NOUN|Gender=Fem|Number=Sing	-
-malo	mal	ADJ|Number=Sing	-
+malo	malo	ADJ|Gender=Masc|Number=Sing	-
+malo	malo	NOUN|Gender=Masc|Number=Sing	-
 malogra	malograr	VERB|Mood=Imp|Number=Sing|Person=2|VerbForm=Fin	-
 malogra	malograr	VERB|Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin	-
 malograda	malogrado	ADJ|Gender=Fem|Number=Sing	-
@@ -90325,6 +90332,8 @@ maloliente	maloliente	ADJ|Number=Sing	-
 malolientes	maloliente	ADJ|Number=Plur	-
 malones	malón	ADJ|Gender=Masc|Number=Plur	-
 malones	malón	NOUN|Gender=Masc|Number=Plur	-
+malos	malo	ADJ|Gender=Masc|Number=Plur	-
+malos	malo	NOUN|Gender=Masc|Number=Plur	-
 malote	malote	ADJ|Number=Sing	-
 malote	malote	NOUN|Gender=Fem|Number=Sing	-
 malote	malote	NOUN|Gender=Masc|Number=Sing	-
@@ -90393,6 +90402,7 @@ maltrecho	maltrecho	ADJ|Gender=Masc|Number=Sing	-
 maltrechos	maltrecho	ADJ|Gender=Masc|Number=Plur	-
 maltés	maltés	ADJ|Gender=Masc|Number=Sing	-
 maltés	maltés	NOUN|Gender=Masc|Number=Sing	-
+maluco	malo	ADJ|Number=Sing	-
 malva	malva	ADJ|Number=Sing	-
 malva	malva	NOUN|Gender=Fem|Number=Sing	-
 malvada	malvado	ADJ|Gender=Fem|Number=Sing	-
@@ -90429,6 +90439,7 @@ malí	malí	NOUN|Gender=Masc|Number=Sing	-
 malíes	malí	ADJ|Number=Plur	-
 malíes	malí	NOUN|Gender=Fem|Number=Plur	-
 malíes	malí	NOUN|Gender=Masc|Number=Plur	-
+malísimo	malo	ADJ|Degree=Sup|Number=Sing	-
 malón	malón	ADJ|Gender=Masc|Number=Sing	-
 malón	malón	NOUN|Gender=Masc|Number=Sing	-
 mam	mam	ADJ|Number=Sing	-
@@ -92910,6 +92921,7 @@ mejillas	mejilla	NOUN|Gender=Fem|Number=Plur	-
 mejillones	mejillón	NOUN|Gender=Masc|Number=Plur	-
 mejillón	mejillón	NOUN|Gender=Masc|Number=Sing	-
 mejo	mejo	NOUN|Gender=Masc|Number=Sing	-
+mejor	bueno	ADJ|Number=Sing	other
 mejor	mejor	ADJ|Number=Sing	-
 mejora	mejora	NOUN|Gender=Fem|Number=Sing	-
 mejora	mejorar	VERB|Mood=Imp|Number=Sing|Person=2|VerbForm=Fin	other
@@ -94078,6 +94090,7 @@ meñiques	meñique	NOUN|Gender=Masc|Number=Plur	-
 meó	mear	VERB|Mood=Ind|Number=Sing|Person=3|Tense=Past|VerbForm=Fin	-
 mi	mi	NOUN|Gender=Fem|Number=Sing	-
 mi	mi	NOUN|Gender=Masc|Number=Sing	-
+mi	mío	DET|Number=Sing	other
 miaja	miaja	NOUN|Gender=Fem|Number=Sing	-
 miao	miao	ADJ|Number=Sing	-
 miao	miao	NOUN|Gender=Fem|Number=Plur	-
@@ -94780,7 +94793,6 @@ miríadas	miríada	NOUN|Gender=Fem|Number=Plur	-
 miró	mirar	VERB|Mood=Ind|Number=Sing|Person=3|Tense=Past|VerbForm=Fin	other
 mirón	mirón	ADJ|Gender=Masc|Number=Sing	-
 mirón	mirón	NOUN|Gender=Masc|Number=Sing	-
-mis	mi	DET|Number=Plur	-
 mis	mi	NOUN|Gender=Masc|Number=Plur	-
 misa	misa	NOUN|Gender=Fem|Number=Sing	-
 misal	misal	NOUN|Gender=Masc|Number=Sing	-
@@ -106094,6 +106106,7 @@ peo	peo	NOUN|Gender=Masc|Number=Sing	-
 peones	peón	NOUN|Gender=Masc|Number=Plur	-
 peonza	peonza	NOUN|Gender=Fem|Number=Sing	-
 peonzas	peonza	NOUN|Gender=Fem|Number=Plur	-
+peor	malo	ADJ|Number=Sing	other
 peos	peo	NOUN|Gender=Masc|Number=Plur	-
 pepa	pepa	NOUN|Gender=Fem|Number=Sing	-
 pepas	pepa	NOUN|Gender=Fem|Number=Plur	-
@@ -110567,6 +110580,7 @@ postraumático	postraumático	ADJ|Gender=Masc|Number=Sing	-
 postraumáticos	postraumático	ADJ|Gender=Masc|Number=Plur	-
 postre	postre	NOUN|Gender=Masc|Number=Sing	-
 postrecito	postre	NOUN|Gender=Masc|Number=Sing	-
+postrer	postrero	ADJ|Gender=Masc|Number=Sing	-
 postrera	postrero	ADJ|Gender=Fem|Number=Sing	-
 postreras	postrero	ADJ|Gender=Fem|Number=Plur	-
 postrero	postrero	ADJ|Gender=Masc|Number=Sing	-
@@ -112533,7 +112547,7 @@ prime	primar	VERB|Mood=Sub|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin	other
 prime	prime	NOUN|Gender=Masc|Number=Sing	-
 primen	primar	VERB|Mood=Imp|Number=Plur|Person=3|VerbForm=Fin	-
 primen	primar	VERB|Mood=Sub|Number=Plur|Person=3|Tense=Pres|VerbForm=Fin	-
-primer	primer	ADJ|Number=Sing	-
+primer	primero	ADJ|Gender=Masc|Number=Sing	-
 primera	primero	ADJ|Gender=Fem|Number=Sing	-
 primeras	primero	ADJ|Gender=Fem|Number=Plur	-
 primerito	primero	ADJ|Number=Sing	-
@@ -112543,7 +112557,6 @@ primerizas	primeriza	NOUN|Gender=Fem|Number=Plur	other
 primerizas	primerizo	NOUN|Gender=Fem|Number=Plur	-
 primerizo	primerizo	NOUN|Gender=Masc|Number=Sing	-
 primerizos	primerizo	NOUN|Gender=Masc|Number=Plur	-
-primero	primer	ADJ|Number=Sing	other
 primero	primero	ADJ|Gender=Masc|Number=Sing	-
 primero	primero	NOUN|Gender=Masc|Number=Sing	-
 primeros	primero	ADJ|Gender=Masc|Number=Plur	-
@@ -115952,7 +115965,6 @@ qual	cual	PRON|Number=Sing	other
 qual	cuál	DET|Number=Sing	other
 qual	cuál	PRON|Number=Sing	other
 quales	qual	PRON|Number=Plur	-
-qualquier	cualquier	DET|Number=Sing	other
 qualquier	qualquier	ADJ|Number=Sing	-
 qualquiera	cualquiera	DET|Number=Sing	-
 qualquiera	cualquiera	NOUN|Gender=Fem|Number=Sing	-
@@ -129304,9 +129316,7 @@ samurai	samurai	NOUN|Number=Sing	-
 samurái	samurái	NOUN|Gender=Masc|Number=Sing	-
 samuráis	samurái	NOUN|Gender=Masc|Number=Plur	-
 samán	samán	NOUN|Gender=Masc|Number=Sing	-
-san	san	ADJ|Number=Sing	-
-san	san	NOUN|Gender=Fem|Number=Sing	-
-san	san	NOUN|Gender=Masc|Number=Sing	-
+san	santo	ADJ|Gender=Masc|Number=Sing	-
 sana	sanar	VERB|Mood=Imp|Number=Sing|Person=2|VerbForm=Fin	other
 sana	sanar	VERB|Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin	other
 sana	sano	ADJ|Gender=Fem|Number=Sing	-
@@ -129433,8 +129443,7 @@ sanee	sanear	VERB|Mood=Sub|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin	-
 sanee	sanear	VERB|Mood=Sub|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin	-
 sanen	sanar	VERB|Mood=Imp|Number=Plur|Person=3|VerbForm=Fin	-
 sanen	sanar	VERB|Mood=Sub|Number=Plur|Person=3|Tense=Pres|VerbForm=Fin	-
-sanes	san	NOUN|Gender=Masc|Number=Plur	-
-sanes	sanar	VERB|Mood=Sub|Number=Sing|Person=2|Tense=Pres|VerbForm=Fin	other
+sanes	sanar	VERB|Mood=Sub|Number=Sing|Person=2|Tense=Pres|VerbForm=Fin	-
 saneó	sanear	VERB|Mood=Ind|Number=Sing|Person=3|Tense=Past|VerbForm=Fin	-
 sanfermines	sanfermines	NOUN|Gender=Masc|Number=Plur	-
 sangra	sangrar	VERB|Mood=Imp|Number=Sing|Person=2|VerbForm=Fin	-
@@ -129604,7 +129613,6 @@ santistas	santista	NOUN|Gender=Fem|Number=Plur	-
 santistas	santista	NOUN|Gender=Masc|Number=Plur	-
 santito	santo	ADJ|Number=Sing	-
 santito	santo	NOUN|Gender=Masc|Number=Sing	-
-santo	san	ADJ|Number=Sing	other
 santo	santo	ADJ|Gender=Masc|Number=Sing	-
 santo	santo	NOUN|Gender=Masc|Number=Sing	-
 santoral	santoral	NOUN|Gender=Masc|Number=Sing	-
@@ -133163,6 +133171,8 @@ sodomitas	sodomita	NOUN|Gender=Masc|Number=Plur	-
 sodomía	sodomía	NOUN|Gender=Fem|Number=Sing	-
 soeces	soez	ADJ|Number=Plur	-
 soez	soez	ADJ|Number=Sing	-
+sofisma	sofisma	NOUN|Gender=Masc|Number=Sing	-
+sofismas	sofisma	NOUN|Gender=Masc|Number=Plur	-
 sofista	sofista	NOUN|Gender=Fem|Number=Sing	-
 sofista	sofista	NOUN|Gender=Masc|Number=Sing	-
 sofistas	sofista	NOUN|Gender=Fem|Number=Plur	-
@@ -138822,13 +138832,12 @@ terapéutico	terapéutico	ADJ|Gender=Masc|Number=Sing	-
 terapéuticos	terapéutico	ADJ|Gender=Masc|Number=Plur	-
 terca	terco	ADJ|Gender=Fem|Number=Sing	-
 tercas	terco	ADJ|Gender=Fem|Number=Plur	-
-tercer	tercer	ADJ|Number=Sing	-
+tercer	tercero	ADJ|Gender=Masc|Number=Sing	-
 tercera	tercero	ADJ|Gender=Fem|Number=Sing	-
 terceras	tercero	ADJ|Gender=Fem|Number=Plur	-
 tercerización	tercerización	NOUN|Gender=Fem|Number=Sing	-
 tercermundista	tercermundista	ADJ|Number=Sing	-
 tercermundistas	tercermundista	ADJ|Number=Plur	-
-tercero	tercer	ADJ|Number=Sing	other
 tercero	tercero	ADJ|Gender=Masc|Number=Sing	-
 tercero	tercero	NOUN|Gender=Masc|Number=Sing	-
 terceros	tercero	ADJ|Gender=Masc|Number=Plur	-
@@ -143070,6 +143079,7 @@ tsunami	tsunami	NOUN|Gender=Masc|Number=Sing	-
 tsunamis	tsunami	NOUN|Gender=Masc|Number=Plur	-
 tu	tu	NOUN|Gender=Masc|Number=Plur	-
 tu	tu	NOUN|Gender=Masc|Number=Sing	-
+tu	tuyo	DET|Number=Sing	other
 tuareg	tuareg	NOUN|Gender=Fem|Number=Sing	-
 tuareg	tuareg	NOUN|Gender=Masc|Number=Sing	-
 tuaregs	tuareg	NOUN|Gender=Fem|Number=Plur	-
@@ -144020,7 +144030,6 @@ uniéndote	unir	VERB|VerbForm=Ger	-
 uniéramos	unir	VERB|Mood=Sub|Number=Plur|Person=1|Tense=Imp|VerbForm=Fin	-
 unió	unir	VERB|Mood=Ind|Number=Sing|Person=3|Tense=Past|VerbForm=Fin	-
 unión	unión	NOUN|Gender=Fem|Number=Sing	-
-uno	un	NUM|Number=Sing	other
 uno	unir	VERB|Mood=Ind|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin	other
 unos	uno	DET|Number=Plur	-
 unos	uno	PRON|Number=Plur	-

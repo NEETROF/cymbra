@@ -146,27 +146,28 @@ Reduced by `reduce-es-fr.py` (add-lingua-spanish-forms-tables), for the Spanish 
 **Measured on UD Spanish-PUD** (CC BY-SA 3.0), never committed and never read by the reduction.
 `measure/es-pud.sh` fetches it at a commit, builds the pack from the committed tables, and runs the
 real analyser over it (`lingua-pack-measure`). Punctuation, numbers, symbols, foreign words and
-proper nouns are left out. The 2026-10-03 tables pass the programme's gates:
+proper nouns are left out. The 2026-10-04 tables pass the programme's gates:
 - 99.38 % of 19,276 words resolve in the lexicon (gate 98.5 %);
-- 95.92 % of 9,439 content words take PUD's lemma (gate 93.5 %);
+- 95.79 % of 9,439 content words take PUD's lemma (gate 93.5 %). PUD keeps `gran` as its own lemma
+  but takes `primer` to *primero*: reading apocopes as their full words moved it from 95.92 %;
 - 97.95 % of 634 auxiliaries take PUD's lemma (gate 97 %).
 
-**French glosses**, the share of the commonest lemmas glossed on the 2026-10-03 tables:
+**French glosses**, the share of the commonest lemmas glossed on the 2026-10-04 tables:
 
 | Lemmas | French Wiktionary | with the translations |
 |---|---|---|
-| top 5,000 | 82.9 % | 87.7 % |
+| top 5,000 | 83.0 % | 87.7 % |
 | top 10,000 | 69.6 % | 77.3 % |
 | top 20,000 | 54.4 % | 63.8 % |
 | all 60,000 | 29.0 % | 38.0 % |
 
-22,826 lemmas are glossed, 17,420 from the French Wiktionary. There are 15,133 expressions: 2,952
+22,823 lemmas are glossed, 17,421 from the French Wiktionary. There are 15,133 expressions: 2,952
 from the French Wiktionary's Spanish entries and 12,181 from the translations.
 
 **Estimated levels**, the rule measured on English's 8,302 CEFR lemmas, ranked the same way: 39.8 %
 take their list's level, and 82.6 % are within one level of it. The scale is monotone (the mean true
 level rises from 1.67 at A1 to 5.03 at C2), so the three-band fallback of the programme's decision
-D1 is not needed. The pack is 2,188,994 B, with the grammar, the glosses and the levels.
+D1 is not needed. The pack is 2,189,161 B, with the grammar, the glosses and the levels.
 
 ## Allowed vs denied licences
 
