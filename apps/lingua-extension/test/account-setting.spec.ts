@@ -209,6 +209,24 @@ describe("Réglages › Compte", () => {
     expect(s.error().textContent).toBe("Impossible de joindre Cymbra. Vérifie ta connexion et réessaie.");
   });
 
+  it("links signed in to the connected accounts, on the account page", async () => {
+    const s = setup({ signedIn: true });
+    await s.view.refresh();
+    s.button(ACCOUNT_COPY.connected).click();
+    expect(s.opened).toEqual(["account.html#connected"]);
+  });
+
+  it("says how to reach a Google or Apple account where one of them is missing", async () => {
+    const hint = (s: ReturnType<typeof setup>) =>
+      [...s.block.querySelectorAll<HTMLElement>(".set-note")].find((n) => n.textContent === ACCOUNT_COPY.providerHint)!;
+    const boox = setup({ providers: { google: false, apple: false } });
+    await boox.view.refresh();
+    expect(boox.visible(hint(boox))).toBe(true);
+    const chrome = setup({ providers: { google: true, apple: true } });
+    await chrome.view.refresh();
+    expect(chrome.visible(hint(chrome))).toBe(false);
+  });
+
   it("opens the account page for creating an account and a forgotten password", async () => {
     const s = setup();
     await s.view.refresh();

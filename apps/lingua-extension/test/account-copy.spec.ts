@@ -11,6 +11,12 @@ const CONTEXTS: FlowContext[] = [
   "resend",
   "forgot",
   "reset",
+  "connected",
+  "linkGoogle",
+  "linkApple",
+  "unlink",
+  "setPassword",
+  "verifyPassword",
 ];
 const KINDS: AuthErrorKind[] = [
   "unauthenticated",
@@ -30,7 +36,8 @@ describe("errorCopy", () => {
       for (const kind of KINDS) {
         const text = errorCopy(context, kind);
         expect(text.length, `${context}/${kind}`).toBeGreaterThan(10);
-        expect(text).not.toMatch(/grpc|connect|status|code \d|lemm/i);
+        // Word-bounded: « Reconnecte-toi » is French, a raw Connect error is not.
+        expect(text).not.toMatch(/grpc|\bconnect\b|connecterror|status|code \d|lemm/i);
       }
     }
   });
@@ -50,6 +57,29 @@ describe("errorCopy", () => {
     expect(errorCopy("signUp", "invalidArgument")).toContain("trop faible");
     expect(errorCopy("verify", "invalidArgument")).toContain("expiré");
     expect(errorCopy("reset", "notFound")).toContain("expiré");
+  });
+
+  it("words each linking failure for what it is (add-lingua-connected-accounts D6)", () => {
+    expect(errorCopy("linkGoogle", "alreadyExists")).toBe("Ce compte Google est déjà lié à un autre compte Cymbra.");
+    expect(errorCopy("linkApple", "alreadyExists")).toBe("Ce compte Apple est déjà lié à un autre compte Cymbra.");
+    expect(errorCopy("linkGoogle", "unauthenticated")).toContain("Google");
+    expect(errorCopy("linkApple", "unknown")).toBe("Impossible de lier Apple. Réessaie.");
+    expect(errorCopy("unlink", "failedPrecondition")).toBe("Tu ne peux pas retirer ta seule méthode de connexion.");
+    expect(errorCopy("unlink", "unknown")).toContain("retirer");
+    expect(errorCopy("setPassword", "invalidArgument")).toContain("trop faible");
+    expect(errorCopy("setPassword", "alreadyExists")).toContain("déjà utilisée");
+    expect(errorCopy("verifyPassword", "alreadyExists")).toContain("vient d'être prise");
+    expect(errorCopy("verifyPassword", "invalidArgument")).toContain("expiré");
+    expect(errorCopy("verifyPassword", "unknown")).toBe(errorCopy("verify", "unknown"));
+    expect(errorCopy("connected", "unknown")).toContain("méthodes de connexion");
+    for (const context of ["connected", "unlink", "setPassword"] as FlowContext[]) {
+      expect(errorCopy(context, "unauthenticated")).toBe("Ta session a expiré. Reconnecte-toi.");
+    }
+    for (const kind of KINDS) {
+      for (const context of ["linkGoogle", "linkApple", "unlink", "setPassword"] as FlowContext[]) {
+        expect(errorCopy(context, kind)).not.toBe(PASSWORD_COPY);
+      }
+    }
   });
 
   it("shares the unreachable and too-many-attempts copy across contexts", () => {

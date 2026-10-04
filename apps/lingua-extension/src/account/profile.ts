@@ -1,6 +1,7 @@
 import type { Client } from "@connectrpc/connect";
 import type { UserService } from "@/gen/user_pb";
 import { AccountError, authErrorOf } from "../state/auth-errors.ts";
+import type { LinkedIdentity } from "./messages.ts";
 
 // The Cymbra ID account behind the session (add-lingua-account-parity, design D9): its
 // handle — every account needs one, or the backend's orphan reaper deletes it — read and set
@@ -21,6 +22,8 @@ export interface AccountPort {
   /** Set the handle on `current`, sending its other fields back unchanged. */
   setHandle(handle: string, current: AccountProfile): Promise<AccountProfile>;
   deleteAccount(): Promise<void>;
+  /** The sign-in methods linked to the account (add-lingua-connected-accounts). */
+  identities(): Promise<LinkedIdentity[]>;
 }
 
 interface ProtoAccount {
@@ -67,5 +70,13 @@ export function userServicePort(client: () => Client<typeof UserService>): Accou
       categorized(async () => {
         await client().deleteAccount({});
       }),
+    identities: () =>
+      categorized(async () =>
+        (await client().listIdentities({})).identities.map((i) => ({
+          provider: i.provider,
+          subject: i.subject,
+          linkedAt: Number(i.linkedAt),
+        })),
+      ),
   };
 }

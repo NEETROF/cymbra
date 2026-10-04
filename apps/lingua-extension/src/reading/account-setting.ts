@@ -107,6 +107,10 @@ export const ACCOUNT_COPY = {
   handleMissing: "Pseudo à choisir",
   handleCta: "Choisis ton pseudo pour garder ce compte.",
   handleOpen: "Choisir mon pseudo",
+  connected: "Comptes connectés",
+  // add-lingua-connected-accounts D7: shown where Google or Apple is not offered.
+  providerHint:
+    "Compte créé avec Google ou Apple ? Ici, connecte-toi par email une fois un mot de passe défini dans « Comptes connectés », depuis un navigateur qui propose Google ou Apple, ou dans Cymbra Music. Créer un compte avec la même adresse en ferait un second.",
   signOut: "Se déconnecter",
 } as const;
 
@@ -159,7 +163,9 @@ export function mountAccountSetting(
   const signUp = button("linklike", ACCOUNT_COPY.signUp);
   const error = el(doc, "div", "set-warn");
   error.hidden = true;
-  out.append(el(doc, "div", "set-note", ACCOUNT_COPY.invite), google, apple, local, signUp, error);
+  const providerHint = el(doc, "div", "set-note", ACCOUNT_COPY.providerHint);
+  providerHint.hidden = true;
+  out.append(el(doc, "div", "set-note", ACCOUNT_COPY.invite), google, apple, local, providerHint, signUp, error);
 
   // — Signed in —
   const inside = el(doc, "div", "set-account");
@@ -172,7 +178,9 @@ export function mountAccountSetting(
   const handleOpen = button("set-primary", ACCOUNT_COPY.handleOpen);
   handleCta.append(el(doc, "div", "set-note", ACCOUNT_COPY.handleCta), handleOpen);
   const signOut = button("set-reset", ACCOUNT_COPY.signOut);
-  inside.append(row, handleCta, signOut);
+  // The methods linked to the account: on the account page, which survives the mailbox (D1).
+  const connected = button("linklike", ACCOUNT_COPY.connected);
+  inside.append(row, handleCta, connected, signOut);
 
   block.append(out, inside);
 
@@ -216,6 +224,7 @@ export function mountAccountSetting(
   forgot.addEventListener("click", () => opts.openPage("account.html#forgot"));
   signUp.addEventListener("click", () => opts.openPage("account.html#signup"));
   handleOpen.addEventListener("click", () => opts.openPage("account.html#handle"));
+  connected.addEventListener("click", () => opts.openPage("account.html#connected"));
   signOut.addEventListener("click", async () => {
     await controls.signOut();
     await signedInOrOut();
@@ -237,6 +246,7 @@ export function mountAccountSetting(
     apple.hidden = !providers.apple;
     // No provider (Safari, Firefox for Android, or none configured): email is the only way in.
     local.open = !providers.google && !providers.apple;
+    providerHint.hidden = providers.google && providers.apple;
     const failed = await controls.takeSignInError();
     if (failed) showError(errorCopy(context(failed.provider), failed.kind));
   }

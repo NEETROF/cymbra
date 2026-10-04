@@ -23,6 +23,9 @@ export interface AccountHostDeps {
     | "resendVerification"
     | "requestPasswordReset"
     | "resetPassword"
+    | "linkProvider"
+    | "unlink"
+    | "setPassword"
   >;
   /** The signed-in account's profile (handle) over UserService. */
   account: AccountPort;
@@ -118,6 +121,29 @@ export async function handleAccountMessage(msg: AccountMessage, deps: AccountHos
         await deps.eraseLinguaData();
         return { ok: true, state: session.state() };
       }
+      // Comptes connectés (add-lingua-connected-accounts): signed in only, as the server is.
+      case "account:identities": {
+        if (!session.state().signedIn) return { ok: false, error: "unauthenticated" };
+        const identities = await account.identities();
+        // Linking runs a provider's browser flow (D3): where the providers come back through
+        // the host app (Safari), none can be linked from here.
+        const linkable = deps.handOff ? { google: false, apple: false } : await deps.providers();
+        return { ok: true, state: session.state(), identities, linkable };
+      }
+      case "account:linkProvider": {
+        if (!session.state().signedIn) return { ok: false, error: "unauthenticated" };
+        if (deps.handOff) return { ok: false, error: "failedPrecondition" };
+        const outcome = await session.linkProvider(msg.provider);
+        return outcome === "cancelled" ? { ok: false, cancelled: true } : { ok: true, state: session.state() };
+      }
+      case "account:unlink":
+        if (!session.state().signedIn) return { ok: false, error: "unauthenticated" };
+        await session.unlink(msg.provider, msg.subject);
+        return { ok: true, state: session.state() };
+      case "account:setPassword":
+        if (!session.state().signedIn) return { ok: false, error: "unauthenticated" };
+        await session.setPassword(msg.email, msg.password, msg.locale);
+        return { ok: true, state: session.state() };
       case "account:abandon": {
         // Music's rule (handle-onboarding): leaving the handle step deletes a handle-less
         // account — the reaper would delete it anyway — and only signs out one that has a
