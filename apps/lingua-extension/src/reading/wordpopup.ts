@@ -87,6 +87,11 @@ export interface WordPopupContent {
   grammar?: WordGrammar | null;
   /** The word as it stands on the page (`don't` for its `do`); defaults to `surface`. */
   written?: string;
+  /**
+   * The studied language of the document the word was met in, whose forms the grammar lines name
+   * (add-lingua-spanish-word-card); a card without one names English forms, as every card did.
+   */
+  language?: string;
 }
 
 /** A card view: a detached element tree plus show/hide, independent of any shadow root. */
@@ -270,7 +275,13 @@ export function createCard(speaker?: Speaker): CardView {
     grammarEl.replaceChildren();
     const lines =
       content.grammar && !content.pending && !content.expression
-        ? grammarLines(content.grammar, content.headword, content.surface, content.written ?? content.surface)
+        ? grammarLines(
+            content.grammar,
+            content.headword,
+            content.surface,
+            content.written ?? content.surface,
+            content.language === "es" ? "es" : "en",
+          )
         : [];
     grammarEl.hidden = lines.length === 0;
     for (const line of lines) {

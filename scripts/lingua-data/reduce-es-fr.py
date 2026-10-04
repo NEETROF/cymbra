@@ -142,6 +142,22 @@ def _names_clitics(sense):
     return any(tag.startswith(_CLITIC_TAG) for tag in sense.get("tags") or ())
 
 
+_LETTER_NAME = re.compile(r"(?:the )?name of the (?:[\w-]+ )?(?:script )?(?:letter|digraph)\b", re.IGNORECASE)
+
+
+def _names_a_letter(sense):
+    """Whether `sense` is a letter's name: `e`, the letter E, whose plural `es` a card would name
+    beside *ser*'s `es`. kaikki says so by its category (« Latin letter names », « Greek letter
+    names »), by its tags, or in its gloss."""
+    if {"letter", "name"} <= set(sense.get("tags") or ()):
+        return True
+    for category in sense.get("categories") or ():
+        name = category.get("name") if isinstance(category, dict) else category
+        if str(name).lower().endswith("letter names"):
+            return True
+    return any(_LETTER_NAME.match(gloss) for gloss in sense.get("glosses") or ())
+
+
 def read_gsd_counts(paths):
     """How often each (form, lemma) pair stands in the treebank, lowercased, in NFC."""
     counts = collections.Counter()
@@ -358,9 +374,19 @@ class Readings:
     def __init__(self):
         self.table = collections.defaultdict(set)
         self.senses = collections.defaultdict(set)
+        # The nouns that name a letter, and those with a lowercase entry that does not.
+        self.letters = set()
+        self.nouns = set()
 
     def pairs(self):
-        out = {pair: set(tags) for pair, tags in self.senses.items()}
+        # A form entry's plural of a letter's name (`es`, plural of e) is no reading either, unless
+        # the noun is also another word (`bes`, sheep's bleats).
+        letters = self.letters - self.nouns
+        out = {}
+        for (form, lemma), tags in self.senses.items():
+            kept = {tag for tag in tags if lemma not in letters or not tag.startswith("NOUN")}
+            if kept:
+                out[(form, lemma)] = kept
         out.update((pair, set(tags)) for pair, tags in self.table.items())
         return out
 
@@ -390,9 +416,21 @@ def read_readings(entry, readings):
         return
     genders, plural = noun_genders(entry) if upos == "NOUN" else ((), False)
     if upos == "NOUN":
+        letter = bool(senses) and all(_names_a_letter(sense) for sense in senses)
+        raw = entry.get("word") or ""
+        if letter:
+            readings.letters.add(word)
+        elif raw == raw.lower():
+            # A capitalised headword is another word (`E`, east), not the letter's.
+            readings.nouns.add(word)
         own = {"Number": "Plur" if plural else "Sing"}
         for features in [{**own, "Gender": gender} for gender in genders] or [own]:
             readings.table[(word, word)].add(ud_tag(upos, features))
+        # A letter's name keeps its own form, which the card leaves unnamed (D4) and whose gender
+        # its sense run takes, but none of its inflections (add-lingua-spanish-word-card D7): `es`
+        # is ser's, not the plural of the letter E.
+        if letter:
+            return
     elif upos == "ADJ":
         own = {"Number": "Sing", **({"Gender": "Masc"} if adjective_agrees(entry) else {})}
         readings.table[(word, word)].add(ud_tag(upos, own))
@@ -414,6 +452,26 @@ def _tags(upos, tags, genders=()):
         if "Degree" in features and upos != "ADJ":
             continue
         out.append(ud_tag(upos, features))
+    return out
+
+
+def noun_class_runs(runs, readings):
+    """`runs` with a noun's class — its grammatical gender, `Gender=Fem` — in its noun runs
+    (add-lingua-spanish-word-card D6), so the card's heading reads « nom féminin ». The class is the
+    one the noun's own readings carry, when it has only one: `estudiante`, of both by the person,
+    keeps `NOUN`. The runs' parts of speech stay the French Wiktionary's."""
+    classes = {}
+    for (form, lemma), tags in readings.table.items():
+        if form != lemma:
+            continue
+        for tag in tags:
+            found = re.search(r"\|Gender=(\w+)", tag) if tag.startswith("NOUN|") else None
+            if found:
+                classes.setdefault(lemma, set()).add(found.group(1))
+    out = {}
+    for lemma, lemma_runs in runs.items():
+        only = next(iter(classes[lemma])) if len(classes.get(lemma, ())) == 1 else None
+        out[lemma] = [(f"NOUN|Gender={only}" if pos == "NOUN" and only else pos, n) for pos, n in lemma_runs]
     return out
 
 
@@ -654,6 +712,7 @@ def main():
         glosses[lemma], runs[lemma] = gloss, gloss_runs
     expressions.update(fallback_expressions(expressions, sources))
     expressions.update(LOCUTIONS)
+    runs = noun_class_runs(runs, readings)
     common.write(a.work, "gloss.tsv", "".join(f"{l}\t{g}\n" for l, g in sorted(glosses.items())))
     common.write(
         a.work,

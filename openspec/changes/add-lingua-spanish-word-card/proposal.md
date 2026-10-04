@@ -37,6 +37,9 @@ This is change 24, in G1, the internal Spanish build. No package ships the es-fr
 - **A noun's gender in the sense headings**: the es-fr reducer writes the gender kaikki gives a
   noun into its sense runs (`NOUN|Gender=Fem`), so the heading reads « nom féminin ». A noun of
   both genders keeps « nom ».
+- **No letter's name in the readings of its plural** (found dogfooding, 2026-10-04): the card of
+  `Es` (*ser*) said « peut aussi être le féminin pluriel d'e », the plural of the letter E. A
+  letter's name keeps its own form, but none of its plurals is a reading.
 
 ## Capabilities
 
@@ -47,15 +50,16 @@ None.
 ### Modified Capabilities
 
 - `lingua-browser-extension`: ADDED — *A Spanish card names its forms as French schools do*.
-- `lingua-data-packs`: ADDED — *The Spanish pack's sense runs carry a noun's gender*.
+- `lingua-data-packs`: ADDED — *The Spanish pack's sense runs carry a noun's gender*, and *A
+  letter's name gives no reading of its plural*.
 
 ## Impact
 
 - **Products.** Cymbra Lingua:
   - `apps/lingua-extension`: `reading/grammar-labels.ts`, the word card's content and its
     rendering;
-  - `scripts/lingua-data/reduce-es-fr.py` and the es-fr `senses.tsv`, re-reduced from the pinned
-    sources.
+  - `scripts/lingua-data/reduce-es-fr.py` and the es-fr `senses.tsv` and `grammar.tsv`, re-reduced
+    from the pinned sources.
 
   English's lines read as before; the English baseline and the en-fr pack do not move. No package
   carries the es-fr pack until `enable-lingua-spanish`.
