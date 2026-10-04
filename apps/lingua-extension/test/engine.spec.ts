@@ -100,6 +100,14 @@ describe("WasmAnalyzerPort language views", () => {
         received.push(["gloss", args]);
         return "ville";
       }
+      wordGrammar(...args: unknown[]): string {
+        received.push(["wordGrammar", args]);
+        return '{"gloss":"être","senses":[],"readings":[],"others":[],"pieces":[]}';
+      }
+      frequencyRank(...args: unknown[]): number | undefined {
+        received.push(["frequencyRank", args]);
+        return args[0] === "ser" ? 22 : undefined;
+      }
       exportStatusOps(...args: unknown[]): string {
         received.push(["exportStatusOps", args]);
         return "[]";
@@ -158,6 +166,23 @@ describe("WasmAnalyzerPort language views", () => {
       ["exportStatusOps", []],
       ["languages", []],
     ]);
+  });
+
+  it("answers a word's grammar with its frequency rank, null when unranked (add-lingua-card-frequency)", async () => {
+    const glue = recordingGlue();
+    const port = new WasmAnalyzerPort(glue.load, ["en-fr", "es-fr"]);
+
+    expect(await port.for("es").wordGrammar("Es", "ser")).toEqual({
+      gloss: "être",
+      senses: [],
+      readings: [],
+      others: [],
+      pieces: [],
+      rank: 22,
+    });
+    expect((await port.for("es").wordGrammar("Madrid", "madrid")).rank).toBeNull();
+    expect(glue.received).toContainEqual(["wordGrammar", ["Es", "ser", "es"]]);
+    expect(glue.received).toContainEqual(["frequencyRank", ["ser", "es"]]);
   });
 
   it("forwards the reader's studied languages as whole-reader calls, loading no pack", async () => {

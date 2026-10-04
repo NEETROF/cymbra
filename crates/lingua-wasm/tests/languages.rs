@@ -89,6 +89,18 @@ fn es() -> Option<String> {
     Some("es".to_owned())
 }
 
+/// A dictionary form's frequency rank comes from its language's own pack
+/// (`add-lingua-card-frequency`); a lemma the pack does not rank has none.
+#[test]
+fn a_rank_comes_from_the_language_s_own_pack() {
+    let engine = two_language_engine();
+    assert_eq!(engine.frequency_rank("haber", es()).unwrap(), Some(20));
+    assert_eq!(engine.frequency_rank("equipo", es()).unwrap(), Some(900));
+    assert_eq!(engine.frequency_rank("run", None).unwrap(), Some(500));
+    assert_eq!(engine.frequency_rank("haber", None).unwrap(), None);
+    assert_eq!(engine.frequency_rank("run", es()).unwrap(), None);
+}
+
 #[test]
 fn spec_scenario_a_second_language_is_served_by_its_own_pack() {
     let mut engine = english_engine();

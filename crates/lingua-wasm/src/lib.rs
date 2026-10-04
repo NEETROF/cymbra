@@ -732,6 +732,20 @@ impl LinguaEngine {
         Ok(word_grammar_json(written, lemma, language, pack))
     }
 
+    /// A dictionary form's frequency rank in the pack of `language`, 1 for the
+    /// commonest, or none when the pack does not rank it
+    /// (`add-lingua-card-frequency`): what the word card says of how common the
+    /// word is. Pure pack data, asked with the word's grammar.
+    #[wasm_bindgen(js_name = frequencyRank)]
+    pub fn frequency_rank(
+        &self,
+        lemma: &str,
+        language: Option<String>,
+    ) -> Result<Option<u32>, JsError> {
+        let (_, pack) = resolve(&self.packs, language.as_deref())?;
+        Ok(pack.rank(lemma))
+    }
+
     /// Number of forms the reader has explicitly marked (any status).
     #[wasm_bindgen(js_name = trackedCount)]
     pub fn tracked_count(&self) -> usize {

@@ -38,6 +38,11 @@ fn spec_scenario_a_language_without_a_pack_is_refused() {
     );
     assert!(
         engine
+            .frequency_rank("haber", Some("es".to_owned()))
+            .is_err()
+    );
+    assert!(
+        engine
             .analyse(vec!["Olá".to_owned()], Some("pt".to_owned()))
             .is_err()
     );
