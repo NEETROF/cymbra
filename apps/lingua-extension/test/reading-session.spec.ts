@@ -455,3 +455,41 @@ describe("the reading session and the studied language", () => {
     expect(new Set(calls.languages)).toEqual(new Set(["en"]));
   });
 });
+
+describe("the review beside the document (refine-lingua-review-language)", () => {
+  /** A reader of English and Spanish, reading a book the engine finds Spanish; every count asked is kept. */
+  async function spanishBook() {
+    const counted: { deck: (string[] | undefined)[]; due: (string[] | undefined)[] } = { deck: [], due: [] };
+    const fake = session();
+    await fake.port.setStudiedLanguages(["en", "es"]);
+    fake.port.detectLanguage = async () => "es";
+    fake.port.deckCount = async (languages) => {
+      counted.deck.push(languages);
+      return 7;
+    };
+    fake.port.dueCount = async (_now, languages) => {
+      counted.due.push(languages);
+      return 2;
+    };
+    await fake.s.start(null);
+    await fake.s.attach(section("<p>It was a dark night.</p>").host);
+    return { ...fake, counted };
+  }
+
+  it("answers the popup with the cards and the due cards of the document's language (D4)", async () => {
+    const { counted } = await spanishBook();
+    let answer: unknown = "none";
+    runtimeListeners[0]({ type: "getStats" }, {}, (r) => (answer = r));
+    await vi.waitFor(() => expect(answer).not.toBe("none"));
+
+    expect(answer).toMatchObject({ language: "es", deckCount: 7, dueCount: 2 });
+    expect(counted).toEqual({ deck: [["es"]], due: [["es"]] });
+  });
+
+  it("opens the drawer's review in the document's language (D2)", async () => {
+    const { counted } = await spanishBook();
+    runtimeListeners[0]({ type: "openDrawer", view: "review" }, {}, () => {});
+    await vi.waitFor(() => expect(counted.deck).toEqual([["es"]]));
+    expect(counted.due).toEqual([["es"]]);
+  });
+});

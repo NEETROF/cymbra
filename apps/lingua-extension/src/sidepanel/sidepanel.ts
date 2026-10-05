@@ -38,6 +38,21 @@ let language: StudiedLanguage = DEFAULT_LANGUAGE;
 /** This page's own synthesiser, for the Réglages voice preview. */
 const speaker = createSpeaker(browserSpeechEngine(), () => language, storedVoicePreference(area));
 
+/**
+ * The language of the page in the active tab, from its reading session — the message the popup
+ * sends (refine-lingua-review-language D2). Null without an answer: no session there.
+ */
+async function pageLanguage(): Promise<string | null> {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id == null) return null;
+    const stats = (await chrome.tabs.sendMessage(tab.id, { type: "getStats" })) as { language?: unknown } | undefined;
+    return typeof stats?.language === "string" ? stats.language : null;
+  } catch {
+    return null;
+  }
+}
+
 function $(id: string): HTMLElement {
   const el = document.getElementById(id);
   if (!el) throw new Error(`missing #${id}`);
@@ -68,7 +83,7 @@ async function showView(view: PanelView): Promise<void> {
     b.classList.toggle("active", b.dataset.view === view);
   }
   if (view === "review") {
-    review ??= mountReview($("view-review"), port, store, { now });
+    review ??= mountReview($("view-review"), port, store, { now, prefs: area, pageLanguage });
     await review.refresh();
   } else if (view === "stats") {
     await mountStats($("view-stats"), port, store);

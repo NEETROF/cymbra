@@ -55,7 +55,7 @@ interface WasmEngine {
     language?: string | null,
   ): void;
   retireCard(lemma: string, now: number, language?: string | null): void;
-  deckCount(): number;
+  deckCount(languages?: string[] | null): number;
   dueCount(now: number, languages?: string[] | null): number;
   startReview(now: number, languages?: string[] | null): number;
   reviewCurrent(): string | undefined;
@@ -241,8 +241,8 @@ export class WasmAnalyzerPort implements LinguaPort {
     return (await this.engine()).trackedCount();
   }
 
-  async deckCount(): Promise<number> {
-    return (await this.engine()).deckCount();
+  async deckCount(languages?: StudiedLanguage[]): Promise<number> {
+    return (await this.engine()).deckCount(languages ?? null);
   }
 
   async dueCount(now: number, languages?: StudiedLanguage[]): Promise<number> {

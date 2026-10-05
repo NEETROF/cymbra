@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LinguaPort } from "@/analyzer/port.ts";
 import { mountReview } from "@/review/review-page.ts";
 import { loadDailyStats, utcDay } from "@/state/dailystats.ts";
-import { type AsyncStorageArea, ROOT_KEY, STORAGE_VERSION } from "@/state/storage.ts";
+import { type AsyncStorageArea, REVIEW_LANGUAGE_KEY, ROOT_KEY, STORAGE_VERSION } from "@/state/storage.ts";
 import { STORE_CHANGED_KEY } from "@/state/store.ts";
 import { type FakeCard, makeFakePort, type FakePort } from "./helpers.ts";
 
@@ -110,11 +110,23 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function mount(port: LinguaPort, area: Area = fakeArea()) {
+interface Host {
+  /** What the host says the page beside the review is read in (refine-lingua-review-language D2). */
+  pageLanguage?: () => Promise<string | null>;
+  /** The preferences area, where the last language chosen in the review is kept (D3). */
+  prefs?: Area;
+}
+
+function mount(port: LinguaPort, area: Area = fakeArea(), host: Host = {}) {
   const container = document.createElement("div");
   document.body.replaceChildren(container);
-  const page = mountReview(container, port, area, { now: () => NOW_SECONDS });
-  return { page, container, area };
+  const prefs = host.prefs ?? fakeArea();
+  const page = mountReview(container, port, area, {
+    now: () => NOW_SECONDS,
+    prefs,
+    pageLanguage: host.pageLanguage,
+  });
+  return { page, container, area, prefs };
 }
 
 /**
@@ -439,7 +451,7 @@ describe("Révision — a reader of several languages", () => {
 
   it("shows no filter, and no language on the card, to a reader of one language", async () => {
     const { port, calls } = makeFakePort([{ ...DECK[0], language: "en" }]);
-    const m = mount(port);
+    const m = mount(port, fakeArea(), { pageLanguage: async () => "en" });
     await m.page.refresh();
 
     expect(filter(m.container)?.hidden).toBe(true);
@@ -447,43 +459,107 @@ describe("Révision — a reader of several languages", () => {
     await settle();
 
     expect(m.container.querySelector(".review-language")).toBeNull();
-    expect(calls.reviewLanguages).toEqual([undefined, undefined]); // the count and the session: every card
+    expect(calls.reviewLanguages).toEqual([["en"], ["en"]]); // the count and the session: English
+    // English alone: its cards are every card, so the counts are those of every language, as before.
+    expect(text(m.container, ".summary")).toBe(`${await port.deckCount()} carte(s) · 0 à revoir`);
   });
 
-  it("offers every language at once, then each one, starting with all of them", async () => {
+  it("offers each language, never all of them at once, and opens on the first away from a page", async () => {
     const { port, calls } = await bilingual();
     const m = mount(port);
     await m.page.refresh();
 
     expect(filter(m.container)?.hidden).toBe(false);
-    expect(choices(m.container)).toEqual(["Toutes", "Anglais", "Espagnol"]);
-    expect(chosen(m.container)).toBe("Toutes");
-    expect(calls.reviewLanguages).toEqual([undefined]);
+    expect(choices(m.container)).toEqual(["Anglais", "Espagnol"]);
+    expect(chosen(m.container)).toBe("Anglais");
+    expect(calls.reviewLanguages).toEqual([["en"]]);
+    expect(text(m.container, ".summary")).toBe("1 carte(s) · 0 à revoir"); // English's card, not both
   });
 
-  it("counts and reviews only the Spanish cards once Spanish is chosen", async () => {
+  it("opens beside a Spanish page on the Spanish cards and counts", async () => {
     const { port, calls } = await bilingual();
-    const m = mount(port);
+    const m = mount(port, fakeArea(), { pageLanguage: async () => "es" });
     await m.page.refresh();
 
-    button(m.container, "Espagnol").click();
-    await settle();
     expect(chosen(m.container)).toBe("Espagnol");
+    expect(text(m.container, ".summary")).toBe("1 carte(s) · 0 à revoir");
     button(m.container, "Réviser").click();
     await settle();
 
-    expect(calls.reviewLanguages).toEqual([undefined, ["es"], ["es"]]); // first count, then the count and session
+    expect(calls.reviewLanguages).toEqual([["es"], ["es"]]);
     expect(text(m.container, ".review-headword")).toBe("faro");
     expect(text(m.container, ".remaining")).toBe("1 carte(s) à revoir");
+    expect(m.prefs.raw[REVIEW_LANGUAGE_KEY]).toBeUndefined(); // the page chose, not the reader
+  });
 
-    button(m.container, "Toutes").click(); // a session under way keeps its queue
-    await settle();
+  it("opens away from a page on the language chosen last, else on the first", async () => {
+    const lastSpanish = fakeArea();
+    lastSpanish.raw[REVIEW_LANGUAGE_KEY] = "es";
+    let m = mount((await bilingual()).port, fakeArea(), { prefs: lastSpanish, pageLanguage: async () => null });
+    await m.page.refresh();
     expect(chosen(m.container)).toBe("Espagnol");
+
+    // A page in a language the reader does not study is no page to open on.
+    m = mount((await bilingual()).port, fakeArea(), { prefs: lastSpanish, pageLanguage: async () => "de" });
+    await m.page.refresh();
+    expect(chosen(m.container)).toBe("Espagnol");
+
+    // Nor is a language kept that the reader no longer studies.
+    const lastGerman = fakeArea();
+    lastGerman.raw[REVIEW_LANGUAGE_KEY] = "de";
+    m = mount((await bilingual()).port, fakeArea(), { prefs: lastGerman });
+    await m.page.refresh();
+    expect(chosen(m.container)).toBe("Anglais");
+  });
+
+  it("switches to the language chosen and remembers it, beside the same page and after", async () => {
+    const { port, calls } = await bilingual();
+    let page: string | null = "es";
+    const m = mount(port, fakeArea(), { pageLanguage: async () => page });
+    await m.page.refresh();
+
+    button(m.container, "Anglais").click();
+    await settle();
+    expect(chosen(m.container)).toBe("Anglais");
+    expect(calls.reviewLanguages.at(-1)).toEqual(["en"]);
+    expect(m.prefs.raw[REVIEW_LANGUAGE_KEY]).toBe("en");
+
+    await m.page.refresh(); // the host shows Révision again, beside the same page: the choice stands
+    expect(chosen(m.container)).toBe("Anglais");
+
+    page = "en";
+    await m.page.refresh();
+    page = "es"; // a page in another language than the one followed brings its own back
+    await m.page.refresh();
+    expect(chosen(m.container)).toBe("Espagnol");
+
+    page = null; // away from a page, the language chosen last
+    await m.page.refresh();
+    expect(chosen(m.container)).toBe("Anglais");
+  });
+
+  it("keeps a session under way in its language, whatever the reader or the page asks", async () => {
+    const { port, calls } = await bilingual();
+    let page: string | null = "es";
+    const m = mount(port, fakeArea(), { pageLanguage: async () => page });
+    await m.page.refresh();
+    button(m.container, "Réviser").click();
+    await settle();
+
+    button(m.container, "Anglais").click();
+    await settle();
+    page = "en";
+    await m.page.refresh();
+
+    expect(chosen(m.container)).toBe("Espagnol");
+    expect(text(m.container, ".review-headword")).toBe("faro");
+    expect(calls.reviewLanguages).toEqual([["es"], ["es"], ["es"]]); // first count, the session, the count again
+    expect(m.prefs.raw[REVIEW_LANGUAGE_KEY]).toBeUndefined();
   });
 
   it("says each card's language, and counts its grade and its word learned in it", async () => {
-    const { port } = await bilingual([MIXED[1], MIXED[0]]);
-    const m = mount(port);
+    const { port } = await bilingual();
+    const m = mount(port, fakeArea(), { pageLanguage: async () => "es" });
     await m.page.refresh();
     button(m.container, "Réviser").click();
     await settle();
@@ -492,6 +568,12 @@ describe("Révision — a reader of several languages", () => {
     button(m.container, "Afficher la réponse").click();
     await settle();
     button(m.container, "Correct").click();
+    await settle();
+
+    expect(m.container.textContent).toContain("Rien à réviser pour l'instant."); // the Spanish session is over
+    button(m.container, "Anglais").click(); // another language offers a start of its own
+    await settle();
+    button(m.container, "Réviser").click();
     await settle();
     expect(text(m.container, ".review-language")).toBe("Anglais");
     button(m.container, "Afficher la réponse").click();
@@ -505,7 +587,7 @@ describe("Révision — a reader of several languages", () => {
     });
   });
 
-  it("goes back to every language when the chosen one leaves the reader's languages", async () => {
+  it("goes back to a language the reader studies when the chosen one leaves their languages", async () => {
     const { port, calls } = await bilingual();
     // The state another context stores keeps English alone.
     port.restore = async (backup) => {
@@ -522,6 +604,21 @@ describe("Révision — a reader of several languages", () => {
     await settle();
 
     expect(filter(m.container)?.hidden).toBe(true);
-    expect(calls.reviewLanguages.at(-1)).toBeUndefined(); // the count is of every card again
+    expect(calls.reviewLanguages.at(-1)).toEqual(["en"]); // the count is of English's cards again
+  });
+
+  it("keeps the language chosen when another surface writes the state", async () => {
+    // A sync pull or a gesture elsewhere must not send the review back to the page's language.
+    const { port } = await bilingual();
+    const m = mount(port, fakeArea(), { pageLanguage: async () => "es" });
+    await m.page.refresh();
+    button(m.container, "Anglais").click();
+    await settle();
+
+    await m.area.set({ [ROOT_KEY]: { v: STORAGE_VERSION, backup: '{"from":"elsewhere"}' } });
+    announce([ROOT_KEY]);
+    await settle();
+
+    expect(chosen(m.container)).toBe("Anglais");
   });
 });

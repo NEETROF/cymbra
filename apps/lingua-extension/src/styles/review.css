@@ -69,7 +69,7 @@
 
 /* The Révision PAGE chrome (mountReview) — shared by the side panel and the in-page drawer:
    summary + review container + backup/restore tools + Sources & confidentialité. */
-/* The language filter, for a reader of several languages: « Toutes », then one per language. */
+/* The language filter, for a reader of several languages: one segment per language. */
 .review-languages {
   display: flex;
   flex-wrap: wrap;
