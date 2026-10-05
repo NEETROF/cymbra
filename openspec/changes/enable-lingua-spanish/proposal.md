@@ -26,8 +26,8 @@ This is change 28, R4 in `docs/lingua/spanish-programme.md`: Spanish reading, pu
   its gate requires.
 - **A testdata fixture for es-fr**, which `yarn gen:pack` builds for dogfooding and the checks, as
   en-fr's.
-- **The manifest summary names both languages**, within 112 characters. The proposed wording, for
-  the owner to settle: « Lisez l'anglais et l'espagnol sur le web : mots inconnus surlignés,
+- **The manifest summary names both languages**, within 112 characters. The wording, settled by
+  the owner on 2026-10-05: « Lisez l'anglais et l'espagnol sur le web : mots inconnus surlignés,
   pourcentage honnête. Hors ligne et privé. »
 - **What readers see** (built in R3, shown once two pairs ship): « Langues étudiées » in Réglages
   and in onboarding. Once a reader accepts Spanish, they also get a level per language, the
@@ -59,8 +59,8 @@ None.
   (`package-lingua-packs-per-pair`).
 - **The owner**:
   - the go-ahead before merge;
-  - the manifest summary's wording;
+  - the manifest summary's wording (settled 2026-10-05);
   - the dogfood pass on devices;
   - the beta ring and every store submission;
-  - the kaikki snapshot release named in `tables/es-fr/pin.json`.
+  - the kaikki snapshot release named in `tables/es-fr/pin.json` (published 2026-10-05).
 - **Release.** R4: the first Spanish-capable packages. Nothing is submitted by this pull request.

@@ -57,11 +57,11 @@ the dogfood builds working.
 
 It is the store's short text and the browser's extension description, held to 112 characters.
 
-**Proposed** (109 characters): « Lisez l'anglais et l'espagnol sur le web : mots inconnus surlignés,
-pourcentage honnête. Hors ligne et privé. »
+**Settled** by the owner on 2026-10-05 (109 characters): « Lisez l'anglais et l'espagnol sur le web :
+mots inconnus surlignés, pourcentage honnête. Hors ligne et privé. »
 
-It keeps the current summary's voice, adding Spanish. The final wording is the owner's, as for the
-listings (decision D10).
+It keeps the current summary's voice, adding Spanish. The wording is the owner's, as the listings' is
+(decision D10).
 
 ### D4 — The dogfood pass, before merge
 
@@ -96,5 +96,5 @@ owner decides each submission, and this pull request submits nothing.
   loads the Spanish pack.
 - **A Spanish reader without translation** → the card's gloss and grammar work. Translation follows
   per platform (changes 26 and 27), as decision D3 of the programme plans.
-- **The kaikki snapshot release is still unpublished** → nothing in a package depends on it, but a
-  re-reduction from the pinned sources does. The owner publishes it.
+- **A re-reduction needs the kaikki snapshot** → nothing in a package depends on it. The release
+  named in `tables/es-fr/pin.json` is published (`lingua-pack-sources-es-fr-2026.10.03`, 2026-10-05).
